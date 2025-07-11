@@ -1,6 +1,6 @@
 // client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
-// ✅ Version CORRIGÉE avec BattleInterface fonctionnel
-// ✅ TOUTES LES CORRECTIONS INTÉGRÉES
+// ✅ Version CORRIGÉE avec nouveau système Inventory unifié intégré
+// ✅ TOUTES LES CORRECTIONS INTÉGRÉES + nouveau InventoryModule
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -42,18 +42,18 @@ const UI_CONFIG = {
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
   exploration: {
-    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],    // ✅ 'team' au lieu de 'teamIcon'
-    enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],     // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
-    hiddenModules: [],                                                          // ✅ Plus besoin de cacher 'teamUI' séparément
+    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    hiddenModules: [],
     disabledModules: [],
     responsive: {
       mobile: { 
         hiddenModules: ['questTracker'], 
-        visibleModules: ['inventory', 'team', 'quest']                         // ✅ 'team' au lieu de 'teamIcon'
+        visibleModules: ['inventory', 'team', 'quest']
       },
       tablet: { 
         hiddenModules: ['chat'],
-        visibleModules: ['inventory', 'team', 'quest', 'questTracker']         // ✅ 'team' au lieu de 'teamIcon'
+        visibleModules: ['inventory', 'team', 'quest', 'questTracker']
       }
     }
   },
@@ -61,76 +61,86 @@ const POKEMON_GAME_STATES = {
   battle: {
     visibleModules: ['battleInterface'],
     enabledModules: ['battleInterface'],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],     // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],   // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
+    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
     responsive: {
       mobile: { 
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']  // ✅ 'team' au lieu de listes séparées
+        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
       },
       tablet: {
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']  // ✅ 'team' au lieu de listes séparées
+        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
       }
     }
   },
   
   pokemonCenter: {
-    visibleModules: ['team', 'inventory', 'pc'],                               // ✅ 'team' englobe icône + interface
-    enabledModules: ['team', 'inventory', 'pc'],                               // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
+    visibleModules: ['team', 'inventory', 'pc'],
+    enabledModules: ['team', 'inventory', 'pc'],
     hiddenModules: ['questTracker', 'chat'],
     disabledModules: ['quest'],
     responsive: {
       mobile: {
-        visibleModules: ['team', 'pc'],                                         // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
+        visibleModules: ['team', 'pc'],
         hiddenModules: ['inventory', 'questTracker', 'chat', 'quest']
       }
     }
   },
   
   dialogue: {
-    visibleModules: ['inventory', 'team', 'quest'],                            // ✅ 'team' au lieu de 'teamIcon'
-    enabledModules: [],                                                         // Tous désactivés pendant dialogue
-    hiddenModules: ['questTracker', 'chat'],                                   // ✅ Plus besoin de 'teamUI' séparément
-    disabledModules: ['inventory', 'team', 'quest']                            // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
+    visibleModules: ['inventory', 'team', 'quest'],
+    enabledModules: [],
+    hiddenModules: ['questTracker', 'chat'],
+    disabledModules: ['inventory', 'team', 'quest']
   },
   
   menu: {
-    visibleModules: ['inventory', 'team', 'quest'],                            // ✅ 'team' au lieu de 'teamIcon'
-    enabledModules: ['inventory', 'team', 'quest'],                            // ✅ 'team' au lieu de 'teamIcon', 'teamUI'
-    hiddenModules: ['questTracker', 'chat'],                                   // ✅ Plus besoin de cacher 'teamUI' par défaut
+    visibleModules: ['inventory', 'team', 'quest'],
+    enabledModules: ['inventory', 'team', 'quest'],
+    hiddenModules: ['questTracker', 'chat'],
     disabledModules: []
   },
   
   starterSelection: {
     visibleModules: [],
     enabledModules: [],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],     // ✅ 'team' au lieu de liste séparée
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']    // ✅ 'team' au lieu de liste séparée
+    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
   }
 };
 
 // === GROUPES LOGIQUES POKÉMON ===
 const POKEMON_UI_GROUPS = {
   'ui-icons': {
-    modules: ['inventory', 'team', 'quest'],                                   // ✅ 'team' au lieu de 'teamIcon'
+    modules: ['inventory', 'team', 'quest'],
     layout: {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'quest', 'team']                                    // ✅ 'team' en dernier (position droite)
+      order: ['inventory', 'quest', 'team']
     },
     priority: 100
   },
   
-  'pokemon-management': {                                                       // ✅ Simplifié pour le module unifié
-    modules: ['team'],                                                          // ✅ Un seul module maintenant
+  'pokemon-management': {
+    modules: ['team'],
     layout: {
-      type: 'unified',                                                          // ✅ Layout unifié
+      type: 'unified',
       anchor: 'bottom-right',
       spacing: 0
     },
     priority: 110
+  },
+  
+  'inventory-management': {
+    modules: ['inventory'],
+    layout: {
+      type: 'unified',
+      anchor: 'bottom-right',
+      spacing: 0
+    },
+    priority: 105
   },
   
   'panels': {
@@ -144,7 +154,7 @@ const POKEMON_UI_GROUPS = {
   },
   
   'overlays': {
-    modules: ['chat'],                                                          // ✅ Plus besoin de 'teamUI' séparément
+    modules: ['chat'],
     layout: {
       type: 'overlay',
       anchor: 'center',
@@ -434,11 +444,12 @@ export class PokemonUISystem {
     console.log('📝 [PokemonUI] Enregistrement des modules...');
     
     const moduleConfigs = [
+      // === MODULE INVENTORY UNIFIÉ (NOUVEAU) ===
       {
         id: 'inventory',
         critical: true,
-        factory: this.createInventoryModule.bind(this),
-        groups: ['ui-icons'],
+        factory: this.createInventoryModuleUnified.bind(this),
+        groups: ['ui-icons', 'inventory-management'],
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
@@ -446,11 +457,35 @@ export class PokemonUISystem {
           spacing: 10
         },
         responsive: {
-          mobile: { scale: 0.8 },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
+          mobile: { 
+            scale: 0.8,
+            position: { right: '15px', bottom: '15px' }
+          },
+          tablet: { 
+            scale: 0.9 
+          },
+          desktop: { 
+            scale: 1.0 
+          }
         },
-        priority: 100
+        defaultState: {
+          visible: true,
+          enabled: true,
+          initialized: false
+        },
+        priority: 100,
+        animations: {
+          show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
+          hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
+          enable: { type: 'pulse', duration: 150 },
+          disable: { type: 'grayscale', duration: 200 }
+        },
+        metadata: {
+          name: 'Inventory Manager',
+          description: 'Complete inventory management system',
+          version: '1.0.0',
+          category: 'Inventory Management'
+        }
       },     
       {
         id: 'quest',
@@ -470,49 +505,49 @@ export class PokemonUISystem {
         },
         priority: 90
       },
-          {
-      id: 'team',
-      critical: true,
-      factory: this.createTeamModuleUnified.bind(this),
-      dependencies: [],
-      defaultState: {
-        visible: true,      // Icône visible par défaut
-        enabled: true,      // Module activé
-        initialized: false
-      },
-      priority: 100,
-      layout: {
-        type: 'icon',
-        anchor: 'bottom-right',
-        order: 2,           // Après inventory (0) et quest (1)
-        spacing: 10
-      },
-      responsive: {
-        mobile: { 
-          scale: 0.8,
-          position: { right: '15px', bottom: '15px' }
+      {
+        id: 'team',
+        critical: true,
+        factory: this.createTeamModuleUnified.bind(this),
+        dependencies: [],
+        defaultState: {
+          visible: true,
+          enabled: true,
+          initialized: false
         },
-        tablet: { 
-          scale: 0.9 
+        priority: 100,
+        layout: {
+          type: 'icon',
+          anchor: 'bottom-right',
+          order: 2,
+          spacing: 10
         },
-        desktop: { 
-          scale: 1.0 
+        responsive: {
+          mobile: { 
+            scale: 0.8,
+            position: { right: '15px', bottom: '15px' }
+          },
+          tablet: { 
+            scale: 0.9 
+          },
+          desktop: { 
+            scale: 1.0 
+          }
+        },
+        groups: ['ui-icons', 'pokemon-management'],
+        animations: {
+          show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
+          hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
+          enable: { type: 'pulse', duration: 150 },
+          disable: { type: 'grayscale', duration: 200 }
+        },
+        metadata: {
+          name: 'Team Manager',
+          description: 'Complete Pokemon team management system',
+          version: '1.0.0',
+          category: 'Pokemon Management'
         }
       },
-      groups: ['ui-icons', 'pokemon-management'],
-      animations: {
-        show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
-        hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
-        enable: { type: 'pulse', duration: 150 },
-        disable: { type: 'grayscale', duration: 200 }
-      },
-      metadata: {
-        name: 'Team Manager',
-        description: 'Complete Pokemon team management system',
-        version: '1.0.0',
-        category: 'Pokemon Management'
-      }
-    },
       {
         id: 'questTracker',
         critical: false,
@@ -624,8 +659,42 @@ export class PokemonUISystem {
 
   // === FACTORIES DES MODULES ===
 
-  async createInventoryModule() {
-    console.log('🎒 [PokemonUI] Création module inventaire...');
+  // === NOUVELLE FACTORY INVENTORY UNIFIÉ ===
+  async createInventoryModuleUnified() {
+    console.log('🎒 [PokemonUI] Création module Inventory unifié...');
+    
+    try {
+      // Import dynamique du système Inventory unifié
+      const { createInventoryModule } = await import('./Inventory/index.js');
+      
+      // Créer le module avec les paramètres du jeu
+      const inventoryModule = await createInventoryModule(
+        window.currentGameRoom,
+        window.game?.scene?.getScenes(true)[0]
+      );
+      
+      // Exposer globalement pour compatibilité
+      window.inventorySystem = inventoryModule.system;
+      window.inventorySystemGlobal = inventoryModule;
+      window.toggleInventory = () => inventoryModule.toggle();
+      window.openInventory = () => inventoryModule.openInventory();
+      window.closeInventory = () => inventoryModule.closeInventory();
+      
+      console.log('✅ [PokemonUI] Module Inventory unifié créé et exposé globalement');
+      
+      return inventoryModule;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur création Inventory unifié:', error);
+      
+      // Fallback vers ancien système si nouveau non disponible
+      return this.createInventoryModuleFallback();
+    }
+  }
+
+  // === FALLBACK VERS ANCIEN SYSTÈME INVENTORY ===
+  async createInventoryModuleFallback() {
+    console.log('🔄 [PokemonUI] Fallback vers ancien système inventory...');
     
     if (window.inventorySystemGlobal) {
       console.log('🔄 [PokemonUI] Réutilisation inventaire existant');
@@ -642,35 +711,35 @@ export class PokemonUISystem {
   }
 
   async createTeamModuleUnified() {
-  console.log('⚔️ [PokemonUI] Création module Team unifié...');
-  
-  try {
-    // Import dynamique du système Team unifié
-    const { createTeamModule } = await import('./Team/index.js');
+    console.log('⚔️ [PokemonUI] Création module Team unifié...');
     
-    // Créer le module avec les paramètres du jeu
-    const teamModule = await createTeamModule(
-      window.currentGameRoom,
-      window.game?.scene?.getScenes(true)[0]
-    );
-    
-    // Exposer globalement pour compatibilité
-    window.teamSystem = teamModule;
-    window.toggleTeam = () => teamModule.toggleTeamUI();
-    window.openTeam = () => teamModule.openTeam();
-    window.closeTeam = () => teamModule.closeTeam();
-    
-    console.log('✅ [PokemonUI] Module Team unifié créé et exposé globalement');
-    
-    return teamModule;
-    
-  } catch (error) {
-    console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
-    
-    // Fallback vers module vide en cas d'erreur
-    return this.createEmptyWrapper('team');
+    try {
+      // Import dynamique du système Team unifié
+      const { createTeamModule } = await import('./Team/index.js');
+      
+      // Créer le module avec les paramètres du jeu
+      const teamModule = await createTeamModule(
+        window.currentGameRoom,
+        window.game?.scene?.getScenes(true)[0]
+      );
+      
+      // Exposer globalement pour compatibilité
+      window.teamSystem = teamModule;
+      window.toggleTeam = () => teamModule.toggleTeamUI();
+      window.openTeam = () => teamModule.openTeam();
+      window.closeTeam = () => teamModule.closeTeam();
+      
+      console.log('✅ [PokemonUI] Module Team unifié créé et exposé globalement');
+      
+      return teamModule;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
+      
+      // Fallback vers module vide en cas d'erreur
+      return this.createEmptyWrapper('team');
+    }
   }
-}
 
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
@@ -1187,15 +1256,13 @@ export class PokemonUISystem {
   setupGlobalCallbacks() {
     console.log('🔗 [PokemonUI] Configuration callbacks globaux...');
 
-      // === AJOUTER CETTE LIGNE ===
-      this.setupTeamManagerBridge();
+    // === AJOUTER CETTE LIGNE ===
+    this.setupTeamManagerBridge();
     
     if (!this.uiManager || !this.uiManager.on) {
       console.log('ℹ️ [PokemonUI] Callbacks non supportés en mode minimal');
       return;
     }
-
-
     
     this.uiManager.on('moduleInitialized', (event) => {
       const { moduleId, instance } = event.detail;
@@ -1228,6 +1295,39 @@ export class PokemonUISystem {
         });
       }
     });
+  }
+
+  // === NOUVELLE MÉTHODE: Bridge Team Manager ===
+  setupTeamManagerBridge() {
+    console.log('🔗 [PokemonUI] Configuration bridge Team Manager...');
+    
+    // Écouter les événements du système Team pour synchronisation
+    window.addEventListener('teamUIStateChanged', (event) => {
+      const { isOpen, pokemonData } = event.detail;
+      console.log(`🔄 [PokemonUI] Team UI state changed: open=${isOpen}`);
+      
+      // Synchroniser avec UIManager si nécessaire
+      if (this.uiManager) {
+        if (isOpen) {
+          this.uiManager.showModule?.('team');
+        } else {
+          // Ne pas forcer la fermeture car l'icône doit rester visible
+        }
+      }
+    });
+    
+    // Écouter les événements Pokémon pour mettre à jour l'interface
+    window.addEventListener('pokemonDataUpdated', (event) => {
+      const { pokemonData } = event.detail;
+      console.log(`🔄 [PokemonUI] Pokemon data updated`);
+      
+      const teamModule = this.getModule('team');
+      if (teamModule && teamModule.updatePokemonData) {
+        teamModule.updatePokemonData(pokemonData);
+      }
+    });
+    
+    console.log('✅ [PokemonUI] Bridge Team Manager configuré');
   }
 
   // === API PUBLIQUE ===
@@ -1934,18 +2034,89 @@ export async function createMinimalPokemonUI() {
 function setupCompatibilityFunctions() {
   console.log('🔗 [PokemonUI] Configuration fonctions de compatibilité...');
   
-  // Fonctions toggle pour compatibilité
+  // === NOUVELLES FONCTIONS INVENTORY UNIFIÉ ===
   window.toggleInventory = () => {
-    const module = pokemonUISystem.getOriginalModule?.('inventory');
+    const module = pokemonUISystem.getModule?.('inventory');
     if (module && module.toggle) {
       module.toggle();
     } else if (module && module.toggleInventory) {
       module.toggleInventory();
     } else {
-      console.warn('⚠️ Module inventaire non disponible pour toggle');
+      console.warn('⚠️ Module inventaire unifié non disponible pour toggle');
     }
   };
 
+  window.openInventory = () => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.openInventory) {
+      module.openInventory();
+    } else if (module && module.show) {
+      module.show();
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour ouverture');
+    }
+  };
+  
+  window.closeInventory = () => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.closeInventory) {
+      module.closeInventory();
+    } else if (module && module.hide) {
+      module.hide();
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour fermeture');
+    }
+  };
+
+  window.openInventoryToPocket = (pocketName) => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.openToPocket) {
+      module.openToPocket(pocketName);
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour ouverture de poche');
+    }
+  };
+
+  window.useItem = (itemId, context = "field") => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.useItem) {
+      module.useItem(itemId, context);
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour utilisation d\'objet');
+    }
+  };
+
+  window.hasItem = (itemId) => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.hasItem) {
+      return module.hasItem(itemId);
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour vérification d\'objet');
+      return false;
+    }
+  };
+
+  window.getItemCount = (itemId) => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.getItemCount) {
+      return module.getItemCount(itemId);
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour comptage d\'objet');
+      return 0;
+    }
+  };
+
+  window.isInventoryOpen = () => {
+    const module = pokemonUISystem.getModule?.('inventory');
+    if (module && module.isInventoryOpen) {
+      return module.isInventoryOpen();
+    } else {
+      console.warn('⚠️ Module inventaire unifié non disponible pour état ouverture');
+      return false;
+    }
+  };
+
+  // === FONCTIONS TEAM UNIFIÉES ===
   window.toggleTeam = () => {
     const module = pokemonUISystem.getModule?.('team');
     if (module && module.toggleTeamUI) {
@@ -1975,18 +2146,7 @@ function setupCompatibilityFunctions() {
     }
   };
   
-  // Fonctions inventaire et quest restent inchangées
-  window.toggleInventory = () => {
-    const module = pokemonUISystem.getOriginalModule?.('inventory');
-    if (module && module.toggle) {
-      module.toggle();
-    } else if (module && module.toggleInventory) {
-      module.toggleInventory();
-    } else {
-      console.warn('⚠️ Module inventaire non disponible pour toggle');
-    }
-  };
-  
+  // === FONCTIONS QUEST (INCHANGÉES) ===
   window.toggleQuest = () => {
     const module = pokemonUISystem.getOriginalModule?.('quest');
     if (module && module.toggleQuestJournal) {
@@ -1998,12 +2158,12 @@ function setupCompatibilityFunctions() {
     }
   };
   
-  // Fonctions d'état de jeu
+  // === FONCTIONS D'ÉTAT DE JEU ===
   window.setUIGameState = (stateName, options = {}) => {
     return pokemonUISystem.setGameState?.(stateName, options) || false;
   };
   
-  // Fonctions de debug
+  // === FONCTIONS DE DEBUG ===
   window.debugPokemonUI = () => {
     return pokemonUISystem.debugInfo?.() || { error: 'Debug non disponible' };
   };
@@ -2167,6 +2327,139 @@ function setupCompatibilityFunctions() {
       return result.success;
     }
   };
+
+  // === NOUVELLES FONCTIONS INVENTORY SPÉCIFIQUES ===
+  window.fixInventorySystem = async () => {
+    console.log('🔧 [PokemonUI] Réparation système inventaire...');
+    
+    if (!window.pokemonUISystem) {
+      const result = await autoInitializePokemonUI();
+      if (!result.success) {
+        console.error('❌ [PokemonUI] Échec création PokemonUISystem pour inventaire');
+        return false;
+      }
+    }
+    
+    const inventoryModule = window.pokemonUISystem.getModule('inventory');
+    
+    if (inventoryModule) {
+      console.log('✅ [PokemonUI] Système inventaire OK');
+      
+      if (window.showGameNotification) {
+        window.showGameNotification('Système inventaire vérifié !', 'success', {
+          duration: 2000,
+          position: 'top-center'
+        });
+      }
+      
+      return true;
+    } else {
+      console.error('❌ [PokemonUI] Module inventaire non disponible');
+      return false;
+    }
+  };
+
+  window.testInventorySystem = async () => {
+    console.log('🧪 [PokemonUI] Test système inventaire...');
+    
+    const inventoryModule = window.pokemonUISystem?.getModule('inventory');
+    
+    if (!inventoryModule) {
+      console.error('❌ Module inventaire non disponible');
+      return false;
+    }
+    
+    try {
+      // Test ouverture/fermeture
+      console.log('🧪 Test toggle inventaire...');
+      inventoryModule.toggle?.();
+      
+      setTimeout(() => {
+        inventoryModule.toggle?.();
+      }, 1000);
+      
+      // Test ouverture de poche spécifique
+      setTimeout(() => {
+        console.log('🧪 Test ouverture poche Poké Balls...');
+        inventoryModule.openToPocket?.('balls');
+      }, 2000);
+      
+      // Test fermeture
+      setTimeout(() => {
+        console.log('🧪 Test fermeture inventaire...');
+        inventoryModule.closeInventory?.();
+      }, 3000);
+      
+      if (window.showGameNotification) {
+        window.showGameNotification('Test inventaire lancé !', 'info', {
+          duration: 3000,
+          position: 'top-center'
+        });
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur test inventaire:', error);
+      return false;
+    }
+  };
+
+  window.debugInventorySystem = () => {
+    console.log('🔍 === DEBUG INVENTORY SYSTEM ===');
+    
+    const inventoryModule = window.pokemonUISystem?.getModule('inventory');
+    
+    const debugInfo = {
+      moduleExists: !!inventoryModule,
+      moduleType: inventoryModule?.moduleType,
+      hasSystem: !!inventoryModule?.system,
+      hasIcon: !!inventoryModule?.icon,
+      hasUI: !!inventoryModule?.ui,
+      iconVisible: inventoryModule?.icon ? !inventoryModule.icon.iconElement?.classList.contains('ui-hidden') : false,
+      interfaceVisible: inventoryModule?.ui ? inventoryModule.ui.isVisible : false,
+      
+      methods: {
+        toggle: typeof inventoryModule?.toggle === 'function',
+        openInventory: typeof inventoryModule?.openInventory === 'function',
+        closeInventory: typeof inventoryModule?.closeInventory === 'function',
+        openToPocket: typeof inventoryModule?.openToPocket === 'function',
+        useItem: typeof inventoryModule?.useItem === 'function',
+        hasItem: typeof inventoryModule?.hasItem === 'function'
+      },
+      
+      globalFunctions: {
+        toggleInventory: typeof window.toggleInventory === 'function',
+        openInventory: typeof window.openInventory === 'function',
+        closeInventory: typeof window.closeInventory === 'function',
+        openInventoryToPocket: typeof window.openInventoryToPocket === 'function',
+        useItem: typeof window.useItem === 'function',
+        hasItem: typeof window.hasItem === 'function'
+      },
+      
+      solutions: inventoryModule ? [
+        '✅ Module OK - utilisez window.testInventorySystem()',
+        '🎒 Testez window.toggleInventory()',
+        '📦 Testez window.openInventoryToPocket("balls")'
+      ] : [
+        '🔧 Utilisez window.fixInventorySystem()',
+        '🚀 Utilisez window.autoInitializePokemonUI()',
+        '🔄 Rechargez la page pour réinitialiser'
+      ]
+    };
+    
+    console.log('📊 Debug Inventory System:', debugInfo);
+    
+    if (!debugInfo.moduleExists) {
+      console.log('💡 Solution: Le module Inventory n\'est pas disponible');
+    } else if (!debugInfo.methods.toggle) {
+      console.log('💡 Solution: Le module manque de méthodes essentielles');
+    } else {
+      console.log('✅ Module Inventory OK - utilisez window.testInventorySystem()');
+    }
+    
+    return debugInfo;
+  };
   
   console.log('✅ [PokemonUI] Fonctions de compatibilité configurées');
   console.log('🧪 Utilisez window.testBattleInterface() pour tester');
@@ -2175,6 +2468,9 @@ function setupCompatibilityFunctions() {
   console.log('🔍 Utilisez window.debugBattleInterface() pour debug');
   console.log('🔧 Utilisez window.fixBattleInterface() pour réparation');
   console.log('🔄 Utilisez window.forceRegisterBattleInterface() pour forcer');
+  console.log('🎒 Utilisez window.testInventorySystem() pour tester l\'inventaire');
+  console.log('🔍 Utilisez window.debugInventorySystem() pour debug inventaire');
+  console.log('🔧 Utilisez window.fixInventorySystem() pour réparation inventaire');
 }
 
 // === ÉVÉNEMENTS GLOBAUX ===
@@ -2219,6 +2515,34 @@ document.addEventListener('DOMContentLoaded', () => {
   
   window.addEventListener('starterSelectionEnded', () => {
     pokemonUISystem?.setGameState?.('exploration', { animated: true });
+  });
+
+  // === NOUVEAUX ÉVÉNEMENTS INVENTORY ===
+  window.addEventListener('inventoryItemAdded', (event) => {
+    const { itemId, quantity } = event.detail;
+    console.log(`🎒 [PokemonUI] Objet ajouté: ${itemId} x${quantity}`);
+    
+    // Notifier le module inventaire
+    const inventoryModule = pokemonUISystem?.getModule('inventory');
+    if (inventoryModule && inventoryModule.system) {
+      inventoryModule.system.onItemPickup(itemId, quantity);
+    }
+  });
+
+  window.addEventListener('inventoryItemUsed', (event) => {
+    const { itemId, result } = event.detail;
+    console.log(`🎒 [PokemonUI] Objet utilisé: ${itemId}, résultat:`, result);
+  });
+
+  window.addEventListener('inventoryFull', (event) => {
+    const { pocketName } = event.detail;
+    console.log(`🎒 [PokemonUI] Inventaire plein: ${pocketName}`);
+    
+    // Notifier le module inventaire
+    const inventoryModule = pokemonUISystem?.getModule('inventory');
+    if (inventoryModule && inventoryModule.system) {
+      inventoryModule.system.onInventoryFull(pocketName);
+    }
   });
   
 });
@@ -2292,11 +2616,19 @@ if (typeof document !== 'undefined') {
           window.testBattleInterface();
         }, 3000);
       }
+
+      // Test automatique inventory si demandé
+      if (window.location.search.includes('test-inventory')) {
+        console.log('🧪 [PokemonUI] Test automatique Inventory...');
+        setTimeout(() => {
+          window.testInventorySystem();
+        }, 3000);
+      }
     }, 1000);
   });
 }
 
-console.log('✅ [PokemonUI] Système UI Pokémon CORRIGÉ chargé !');
+console.log('✅ [PokemonUI] Système UI Pokémon CORRIGÉ avec nouveau système Inventory chargé !');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer (complet)');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('⚔️ Utilisez ensurePokemonUIForBattle() pour combat');
@@ -2307,25 +2639,43 @@ console.log('🎬 Utilisez window.testBattleTransition() pour tester les transit
 console.log('🚀 Utilisez window.testCompleteBattle() pour test complet battle');
 console.log('🔧 Utilisez window.fixBattleInterface() pour réparation');
 console.log('🔄 Utilisez window.forceRegisterBattleInterface() pour forcer enregistrement');
+console.log('🎒 Utilisez window.testInventorySystem() pour tester le nouveau système inventory');
+console.log('🔍 Utilisez window.debugInventorySystem() pour debug du nouveau système inventory');
+console.log('🔧 Utilisez window.fixInventorySystem() pour réparation du système inventory');
 
 // === INSTRUCTIONS DE DÉMARRAGE RAPIDE ===
 console.log(`
-🚀 === DÉMARRAGE RAPIDE ===
+🚀 === DÉMARRAGE RAPIDE AVEC NOUVEAU SYSTÈME INVENTORY ===
 
 1. 🔧 RÉPARATION AUTOMATIQUE:
    await window.fixBattleInterface()
+   await window.fixInventorySystem()
 
 2. 🧪 TEST BATTLEINTERFACE:
    window.testBattleInterface()
 
-3. 🎬 TEST TRANSITIONS:
+3. 🧪 TEST NOUVEAU INVENTORY:
+   window.testInventorySystem()
+
+4. 🎬 TEST TRANSITIONS:
    window.testBattleTransition()
 
-4. 🚀 TEST COMPLET:
+5. 🚀 TEST COMPLET:
    window.testCompleteBattle()
 
-5. 🔍 DEBUG:
+6. 🔍 DEBUG:
    window.debugBattleInterface()
+   window.debugInventorySystem()
 
-✅ TOUTES LES CORRECTIONS INTÉGRÉES !
+🎒 === FONCTIONS INVENTORY UNIFIÉES ===
+- window.toggleInventory() → Toggle inventaire
+- window.openInventory() → Ouvre inventaire  
+- window.closeInventory() → Ferme inventaire
+- window.openInventoryToPocket('balls') → Ouvre poche spécifique
+- window.useItem('potion') → Utilise un objet
+- window.hasItem('master_ball') → Vérifie possession
+- window.getItemCount('potion') → Compte objets
+- window.isInventoryOpen() → État ouverture
+
+✅ NOUVEAU SYSTÈME INVENTORY UNIFIÉ INTÉGRÉ !
 `);
