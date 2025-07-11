@@ -80,12 +80,15 @@ export class TeamUI {
         pointer-events: none;
       }
       
-      /* ===== CONTAINER PRINCIPAL OPTIMISÉ ===== */
+      /* ===== CONTAINER PRINCIPAL - TAILLE EXACTE ===== */
       .team-container {
-        width: 90%;
-        max-width: 1200px; /* Augmenté de 1000px à 1200px */
-        height: 85%;
-        max-height: 800px; /* Augmenté de 750px à 800px */
+        /* TAILLE EXACTE DEMANDÉE */
+        width: 887.33px;
+        height: 705.33px;
+        min-width: 887.33px;
+        max-width: 887.33px;
+        min-height: 705.33px;
+        max-height: 705.33px;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42);
         border: 3px solid #4a90e2;
         border-radius: 20px;
@@ -94,15 +97,15 @@ export class TeamUI {
         color: white;
         font-family: 'Segoe UI', Arial, sans-serif;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-        transform: scale(0.9);
+        transform: scale(1); /* Pas de scale pour garder la taille exacte */
         transition: transform 0.3s ease;
         overflow: hidden;
-        /* ASSURER QUE LE CONTAINER UTILISE TOUT L'ESPACE */
-        min-width: 800px;
+        /* ASSURER LE REMPLISSAGE COMPLET */
+        box-sizing: border-box;
       }
       
       .team-overlay:not(.hidden) .team-container {
-        transform: scale(1);
+        transform: scale(1); /* Pas de scale pour garder la taille exacte */
       }
       
       /* ===== HEADER FULL WIDTH ===== */
@@ -265,20 +268,26 @@ export class TeamUI {
         width: 100%;
       }
       
-      /* ===== LAYOUT OVERVIEW ===== */
+      /* ===== LAYOUT OVERVIEW - REMPLISSAGE COMPLET ===== */
       .team-overview-content {
         display: flex;
         width: 100%;
         height: 100%;
+        /* AUCUN ESPACE PERDU */
+        box-sizing: border-box;
       }
       
-      /* Section principale des slots */
+      /* Section principale des slots - CALCULÉE POUR REMPLIR */
       .team-slots-section {
-        flex: 1;
+        /* LARGEUR CALCULÉE: 887.33px - 250px sidebar = 637.33px */
+        width: 637.33px;
+        min-width: 637.33px;
+        max-width: 637.33px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        min-width: 0;
+        box-sizing: border-box;
+        flex-shrink: 0;
       }
       
       .slots-header {
@@ -333,43 +342,45 @@ export class TeamUI {
         border-color: rgba(40, 167, 69, 0.8);
       }
       
-      /* Grille des slots Pokémon - LARGEUR UNIFORME FORCÉE */
+      /* Grille des slots Pokémon - AJUSTÉE POUR LA NOUVELLE LARGEUR */
       .team-slots-grid {
         flex: 1;
-        padding: 25px;
+        padding: 20px; /* Réduit de 25px à 20px */
         overflow-y: auto;
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
+        /* AJUSTÉ POUR 637.33px - 40px padding = ~597px disponible */
+        /* 597px ÷ 3 = 199px par colonne */
+        grid-template-columns: repeat(3, 199px);
+        gap: 15px; /* Réduit de 20px à 15px */
         align-content: start;
+        justify-content: center;
         width: 100%;
-        /* FORCER LA LARGEUR MINIMALE DES COLONNES */
-        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        box-sizing: border-box;
       }
       
-      /* Slot Pokémon - TAILLE FIXE COMPLÈTE (LARGEUR + HAUTEUR) */
+      /* Slot Pokémon - AJUSTÉ POUR LA NOUVELLE GRILLE */
       .team-slot {
         background: rgba(255, 255, 255, 0.08);
         border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 15px;
-        padding: 20px 15px;
+        padding: 15px 12px; /* Légèrement réduit */
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        /* TAILLE FIXE COMPLÈTE - LARGEUR ET HAUTEUR */
-        width: 180px;
-        height: 180px;
-        min-width: 180px;
-        max-width: 180px;
-        min-height: 180px;
-        max-height: 180px;
+        /* AJUSTÉ POUR LA GRILLE 199px */
+        width: 170px;
+        height: 170px;
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 170px;
+        max-height: 170px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         position: relative;
         backdrop-filter: blur(5px);
-        /* ÉVITER LE SHRINKING */
         flex-shrink: 0;
+        margin: 0 auto; /* Centrer dans la cellule de grille */
       }
       
       .team-slot:hover {
@@ -393,13 +404,14 @@ export class TeamUI {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 180px;
-        height: 180px;
-        min-width: 180px;
-        max-width: 180px;
-        min-height: 180px;
-        max-height: 180px;
+        width: 170px;
+        height: 170px;
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 170px;
+        max-height: 170px;
         flex-shrink: 0;
+        margin: 0 auto;
       }
       
       /* Numéro du slot */
@@ -444,13 +456,13 @@ export class TeamUI {
         font-weight: 500;
       }
       
-      /* ===== POKEMON CARD - HAUTEUR CONTRÔLÉE ===== */
+      /* ===== POKEMON CARD - AJUSTÉE POUR SLOT 170px ===== */
       .pokemon-card {
-        /* HAUTEUR EXACTE POUR CORRESPONDRE AU SLOT */
-        height: 140px; /* 180px slot - 40px padding = 140px */
+        /* HAUTEUR EXACTE POUR CORRESPONDRE AU SLOT AJUSTÉ */
+        height: 140px; /* 170px slot - 30px padding = 140px */
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px; /* Réduit légèrement */
         justify-content: space-between;
       }
       
@@ -638,14 +650,19 @@ export class TeamUI {
       .type-badge.type-ghost { background: linear-gradient(135deg, #9370db, #483d8b); }
       .type-badge.type-steel { background: linear-gradient(135deg, #b0c4de, #778899); color: #333; }
       
-      /* ===== SIDEBAR ===== */
+      /* ===== SIDEBAR - LARGEUR EXACTE POUR REMPLIR ===== */
       .team-sidebar {
-        width: 280px;
+        /* LARGEUR EXACTE: 887.33px - 637.33px = 250px */
+        width: 250px;
+        min-width: 250px;
+        max-width: 250px;
         background: rgba(0, 0, 0, 0.3);
         border-left: 2px solid #357abd;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        box-sizing: border-box;
+        flex-shrink: 0;
       }
       
       /* Section stats */
