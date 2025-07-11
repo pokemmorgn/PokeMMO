@@ -724,6 +724,52 @@ if (this.uiManager && this.uiManager.registerIconPosition) {
   }
 }
 
+  setupManualIconPositioning() {
+  console.log('📍 [PokemonUI] Configuration positionnement manuel des icônes...');
+  
+  setTimeout(() => {
+    const icons = [
+      { 
+        id: '#inventory-icon', 
+        name: 'inventory',
+        position: { right: '110px', bottom: '20px' }, 
+        order: 0 
+      },
+      { 
+        id: '#quest-icon', 
+        name: 'quest',
+        position: { right: '200px', bottom: '20px' },
+        order: 1 
+      },
+      { 
+        id: '#team-icon', 
+        name: 'team',
+        position: { right: '20px', bottom: '20px' },
+        order: 2 
+      }
+    ];
+    
+    icons.forEach(iconConfig => {
+      const iconElement = document.querySelector(iconConfig.id);
+      
+      if (iconElement) {
+        console.log(`📍 [PokemonUI] Positionnement manuel ${iconConfig.name}...`);
+        
+        iconElement.style.position = 'fixed';
+        iconElement.style.right = iconConfig.position.right;
+        iconElement.style.bottom = iconConfig.position.bottom;
+        iconElement.style.left = 'auto';
+        iconElement.style.top = 'auto';
+        iconElement.style.zIndex = '500';
+        
+        iconElement.setAttribute('data-positioned-by', 'manual-fallback');
+        
+        console.log(`✅ [PokemonUI] ${iconConfig.name} positionné à ${iconConfig.position.right}`);
+      }
+    });
+  }, 500);
+}
+  
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
     
@@ -1304,6 +1350,10 @@ if (this.uiManager && this.uiManager.registerIconPosition) {
       }
       
       return result;
+      if (!this.uiManager.registerIconPosition) {
+  console.log('⚠️ [PokemonUI] UIManager sans registerIconPosition - positionnement manuel');
+  this.setupManualIconPositioning();
+      }
     } else {
       console.log('✅ [PokemonUI] Modules en mode minimal prêts');
       return { 
