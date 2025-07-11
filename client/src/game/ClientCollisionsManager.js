@@ -602,7 +602,7 @@ export class OverworldPokemonManager {
   handlePokemonMoveRequest(data) {
     const { id, fromX, fromY, toX, toY, direction } = data;
     
-    // ✅ NOUVEAU: Test de collision simple pour case par case
+    // ✅ UTILISER LA NOUVELLE MÉTHODE canMoveToGrid au lieu de canMoveTo
     const canMove = this.canMoveToGrid(toX, toY);
     
     // ✅ CORRECTION: Utiliser networkManager.room.send
