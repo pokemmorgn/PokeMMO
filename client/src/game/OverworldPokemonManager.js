@@ -24,68 +24,224 @@ export class OverworldPokemonManager {
   /**
    * ✅ Détecte automatiquement la structure du spritesheet
    */
-  detectSpriteStructure(width, height) {
-    console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
+  /**
+ * 🎨 SYSTÈME DE DÉTECTION AUTOMATIQUE DES SPRITES POKÉMON
+ * ✅ Toutes les combinaisons possibles calculées automatiquement
+ * 🔧 Support Walk (8 lignes, 2-10 colonnes) + Swing (1 ligne, 6-9 colonnes)
+ */
+
+/**
+ * ✅ REMPLACEZ la méthode detectSpriteStructure() dans OverworldPokemonManager.js
+ */
+detectSpriteStructure(width, height) {
+  console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
+  
+  // ✅ GÉNÉRATION AUTOMATIQUE DE TOUTES LES COMBINAISONS POSSIBLES
+  const possibilities = [];
+  
+  // 🎯 WALK ANIMATIONS (8 lignes, 2-10 colonnes)
+  for (let cols = 2; cols <= 10; cols++) {
+    let priority = 4; // Priorité par défaut
+    let usage = 'variant';
     
-    const possibilities = [
-      { cols: 6, rows: 8, priority: 1, name: "6x8 (standard)" },
-      { cols: 4, rows: 8, priority: 2, name: "4x8 (compact)" },
-      { cols: 8, rows: 8, priority: 3, name: "8x8 (large)" },
-      { cols: 9, rows: 8, priority: 1, name: "9x8 (swing)" },
-      { cols: 3, rows: 8, priority: 6, name: "3x8 (minimal)" }
-    ];
-
-    const validOptions = [];
-
-    possibilities.forEach(p => {
-      const frameW = width / p.cols;
-      const frameH = height / p.rows;
-      
-      if (frameW % 1 === 0 && frameH % 1 === 0) {
-        const aspectRatio = frameW / frameH;
-        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
-        const isReasonableSize = frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128;
-        
-        let qualityScore = 0;
-        if (isSquareish) qualityScore += 20;
-        if (isReasonableSize) qualityScore += 15;
-        if (p.rows === 8) qualityScore += 25;
-        
-        validOptions.push({
-          cols: p.cols,
-          rows: p.rows,
-          frameWidth: frameW,
-          frameHeight: frameH,
-          totalFrames: p.cols * p.rows,
-          priority: p.priority,
-          qualityScore: qualityScore,
-          name: p.name
-        });
-      }
+    // Priorités spéciales pour formats courants
+    if (cols === 6) { priority = 1; usage = 'standard'; }
+    else if (cols === 4) { priority = 2; usage = 'compact'; }
+    else if (cols === 8) { priority = 3; usage = 'large'; }
+    else if (cols === 9) { priority = 1; usage = 'extended'; } // Priorité haute pour 9 cols
+    
+    possibilities.push({
+      cols: cols,
+      rows: 8,
+      priority: priority,
+      name: `${cols}x8 (walk-${usage})`,
+      type: 'walk'
     });
-
-    if (validOptions.length === 0) {
-      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure valide pour ${width}×${height}`);
-      return {
-        cols: Math.round(width / 32),
-        rows: 8,
-        frameWidth: Math.round(width / Math.round(width / 32)),
-        frameHeight: Math.round(height / 8),
-        name: "fallback"
-      };
-    }
-
-    validOptions.sort((a, b) => {
-      if (b.qualityScore !== a.qualityScore) {
-        return b.qualityScore - a.qualityScore;
-      }
-      return a.priority - b.priority;
-    });
-
-    const best = validOptions[0];
-    console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
-    return best;
   }
+  
+  // 🎯 SWING ANIMATIONS (1 ligne, 6-9 colonnes)
+  for (let cols = 6; cols <= 9; cols++) {
+    let priority = 1; // Haute priorité pour swing
+    let usage = 'swing';
+    
+    if (cols === 8) usage = 'swing-standard';
+    else if (cols === 9) usage = 'swing-extended';
+    else if (cols === 6) { priority = 3; usage = 'swing-simple'; }
+    
+    possibilities.push({
+      cols: cols,
+      rows: 1,
+      priority: priority,
+      name: `${cols}x1 (${usage})`,
+      type: 'swing'
+    });
+  }
+  
+  // 🎯 FORMATS SPÉCIAUX POKÉMON
+  const specialFormats = [
+    { cols: 3, rows: 4, priority: 6, name: "3x4 (minimal)", type: 'minimal' },
+    { cols: 6, rows: 4, priority: 5, name: "6x4 (compact)", type: 'compact' },
+    { cols: 12, rows: 8, priority: 7, name: "12x8 (mega)", type: 'mega' },
+    { cols: 16, rows: 8, priority: 8, name: "16x8 (ultra)", type: 'ultra' },
+    { cols: 2, rows: 4, priority: 9, name: "2x4 (tiny)", type: 'tiny' },
+    { cols: 10, rows: 4, priority: 8, name: "10x4 (wide)", type: 'wide' }
+  ];
+  
+  possibilities.push(...specialFormats);
+  
+  console.log(`📊 [OverworldPokemonManager] ${possibilities.length} combinaisons à tester`);
+  
+  // ✅ VALIDATION ET SCORING DE CHAQUE COMBINAISON
+  const validOptions = [];
+  
+  possibilities.forEach(p => {
+    const frameW = width / p.cols;
+    const frameH = height / p.rows;
+    
+    // Vérifier que les divisions sont exactes
+    if (frameW % 1 === 0 && frameH % 1 === 0) {
+      // ✅ CALCUL DE SCORE DE QUALITÉ AVANCÉ
+      let qualityScore = 0;
+      
+      // 1. Ratio d'aspect (favoriser les carrés/rectangles raisonnables)
+      const aspectRatio = frameW / frameH;
+      if (aspectRatio >= 0.5 && aspectRatio <= 2.0) qualityScore += 20;
+      if (aspectRatio >= 0.8 && aspectRatio <= 1.2) qualityScore += 10; // Bonus carré
+      
+      // 2. Taille de frame raisonnable (16-128px typique pour Pokémon)
+      if (frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128) qualityScore += 15;
+      if (frameW >= 24 && frameW <= 64 && frameH >= 24 && frameH <= 64) qualityScore += 10; // Bonus taille optimale
+      
+      // 3. Bonus selon le type détecté
+      if (p.type === 'walk' && p.rows === 8) qualityScore += 25; // Walk standard
+      if (p.type === 'swing' && p.rows === 1) qualityScore += 25; // Swing standard
+      
+      // 4. Bonus formats courants Pokémon
+      if (p.cols === 6 && p.rows === 8) qualityScore += 20; // Format très courant
+      if (p.cols === 9 && p.rows === 8) qualityScore += 15; // Format Swing-Walk
+      if (p.cols === 4 && p.rows === 8) qualityScore += 15; // Format compact
+      
+      // 5. Pénalité formats trop étranges
+      if (frameW < 8 || frameH < 8) qualityScore -= 10; // Trop petit
+      if (frameW > 256 || frameH > 256) qualityScore -= 10; // Trop grand
+      if (p.cols > 16 || p.rows > 12) qualityScore -= 5; // Trop de frames
+      
+      // 6. Bonus cohérence animation
+      const totalFrames = p.cols * p.rows;
+      if (totalFrames >= 8 && totalFrames <= 72) qualityScore += 5; // Nombre raisonnable
+      
+      validOptions.push({
+        cols: p.cols,
+        rows: p.rows,
+        frameWidth: frameW,
+        frameHeight: frameH,
+        totalFrames: totalFrames,
+        priority: p.priority,
+        qualityScore: qualityScore,
+        name: p.name,
+        type: p.type,
+        aspectRatio: aspectRatio.toFixed(2)
+      });
+    }
+  });
+  
+  // ✅ FALLBACK SI AUCUNE OPTION VALIDE
+  if (validOptions.length === 0) {
+    console.warn(`⚠️ [OverworldPokemonManager] Aucune structure valide pour ${width}×${height}`);
+    
+    // Fallback intelligent basé sur la taille
+    const fallbackCols = Math.max(2, Math.min(10, Math.round(width / 32)));
+    const fallbackRows = height > width ? 8 : Math.max(1, Math.round(height / 32));
+    
+    return {
+      cols: fallbackCols,
+      rows: fallbackRows,
+      frameWidth: Math.round(width / fallbackCols),
+      frameHeight: Math.round(height / fallbackRows),
+      name: "fallback-auto",
+      type: "fallback",
+      qualityScore: 0
+    };
+  }
+  
+  // ✅ TRI INTELLIGENT: Score qualité d'abord, puis priorité
+  validOptions.sort((a, b) => {
+    // 1. Score de qualité (plus important)
+    if (b.qualityScore !== a.qualityScore) {
+      return b.qualityScore - a.qualityScore;
+    }
+    // 2. Priorité (en cas d'égalité)
+    return a.priority - b.priority;
+  });
+  
+  const best = validOptions[0];
+  
+  console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
+  console.log(`📐 Frames: ${best.frameWidth}x${best.frameHeight} (ratio: ${best.aspectRatio})`);
+  console.log(`🎯 Score: ${best.qualityScore}, Type: ${best.type}, Total frames: ${best.totalFrames}`);
+  
+  // Debug des alternatives
+  if (validOptions.length > 1) {
+    console.log(`🔍 Alternatives trouvées:`);
+    validOptions.slice(1, 4).forEach((alt, i) => {
+      console.log(`  ${i+2}. ${alt.name} - Score: ${alt.qualityScore}`);
+    });
+  }
+  
+  return best;
+}
+
+/**
+ * 🎯 MÉTHODE BONUS: Test manuel d'une structure
+ */
+testSpriteStructure(pokemonId, width, height) {
+  console.log(`🧪 [OverworldPokemonManager] Test structure pour Pokémon ${pokemonId}: ${width}x${height}`);
+  
+  const result = this.detectSpriteStructure(width, height);
+  
+  console.log(`📊 Résultat test:`, {
+    recommended: result.name,
+    frames: `${result.frameWidth}x${result.frameHeight}`,
+    grid: `${result.cols}x${result.rows}`,
+    totalFrames: result.totalFrames,
+    type: result.type,
+    score: result.qualityScore
+  });
+  
+  return result;
+}
+
+/**
+ * 🔧 MÉTHODE BONUS: Debug complet des sprites
+ */
+debugAllSpriteStructures() {
+  console.log(`🔍 === DEBUG TOUTES LES STRUCTURES SPRITES ===`);
+  
+  // Tailles courantes de sprites Pokémon
+  const commonSizes = [
+    { w: 192, h: 256, name: "Roucool 6x8" },
+    { w: 288, h: 256, name: "Pikachu 9x8" },
+    { w: 128, h: 256, name: "Compact 4x8" },
+    { w: 256, h: 256, name: "Square 8x8" },
+    { w: 288, h: 32, name: "Swing 9x1" },
+    { w: 256, h: 32, name: "Swing 8x1" },
+    { w: 96, h: 128, name: "Small 3x4" },
+    { w: 384, h: 256, name: "Large 12x8" }
+  ];
+  
+  commonSizes.forEach(size => {
+    console.log(`\n🎨 Test: ${size.name} (${size.w}x${size.h})`);
+    const result = this.detectSpriteStructure(size.w, size.h);
+    console.log(`   → ${result.name} | Frames: ${result.frameWidth}x${result.frameHeight}`);
+  });
+  
+  console.log(`\n✅ Debug terminé`);
+}
+
+// ✅ USAGE:
+// 1. Remplacez detectSpriteStructure() par le code ci-dessus
+// 2. Testez avec: overworldPokemonManager.debugAllSpriteStructures()
+// 3. Test spécifique: overworldPokemonManager.testSpriteStructure(16, 288, 256)
 
   /**
    * ✅ Charge un sprite Pokémon avec animation spécifique
