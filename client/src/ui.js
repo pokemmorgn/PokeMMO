@@ -680,64 +680,38 @@ export class PokemonUISystem {
     }
   }
 
- async createTeamModuleUnified() {
-  console.log('⚔️ [PokemonUI] Création module Team unifié (singleton-aware)...');
+async createTeamModuleUnified() {
+  console.log('⚔️ [PokemonUI] Factory Team appelée par UIManager - import différé');
   
   try {
-    // ✅ VÉRIFIER SINGLETON AVANT D'IMPORTER
-    const { TeamModule, createTeamModule } = await import('./Team/index.js');
+    // 🆕 IMPORT DIFFÉRÉ - SEULEMENT quand UIManager appelle cette factory
+    console.log('📦 [PokemonUI] Import Team différé...');
+    const { createTeamModule } = await import('./Team/index.js');
     
-    let teamModule = TeamModule.getInstance();
+    console.log('🆕 [PokemonUI] Création nouveau module Team par UIManager...');
     
-    if (teamModule && teamModule.uiManagerState.initialized) {
-      console.log('♻️ [PokemonUI] Singleton Team trouvé, préparation UIManager...');
-      
-      // ✅ FERMER L'UI QUI POURRAIT ÊTRE OUVERTE
-      teamModule.forceCloseUI();
-      
-      // ✅ ASSURER QUE L'ICÔNE EST DISPONIBLE POUR UIMANAGER
-      const iconReady = teamModule.ensureIconForUIManager();
-      
-      if (!iconReady) {
-        console.warn('⚠️ [PokemonUI] Icône non disponible, recréation...');
-        TeamModule.reset(); // Reset singleton
-        teamModule = null; // Force recréation
-      } else {
-        // ✅ CONNECTER À UIMANAGER
-        if (this.uiManager && this.uiManager.registerIconPosition) {
-          console.log('📍 [PokemonUI] Connexion Team singleton à UIManager...');
-          teamModule.connectUIManager(this.uiManager);
-        }
-        
-        // Exposer globalement
-        window.teamSystem = teamModule;
-        window.teamSystemGlobal = teamModule;
-        window.toggleTeam = () => teamModule.toggleTeamUI();
-        window.openTeam = () => teamModule.openTeam();
-        window.closeTeam = () => teamModule.closeTeam();
-        window.forceCloseTeam = () => teamModule.forceCloseUI();
-        
-        console.log('✅ [PokemonUI] Team singleton connecté à UIManager');
-        return teamModule;
-      }
+    // Créer le module avec les paramètres du jeu
+    const teamModule = await createTeamModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0]
+    );
+    
+    if (!teamModule) {
+      throw new Error('Échec création TeamModule');
     }
     
-    // ✅ CRÉER NOUVEAU MODULE SI SINGLETON INEXISTANT OU CASSÉ
-    if (!teamModule) {
-      console.log('🆕 [PokemonUI] Création nouveau module Team...');
+    // ✅ CONNECTER À UIMANAGER IMMÉDIATEMENT
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      console.log('📍 [PokemonUI] Connexion Team à UIManager...');
       
-      // Créer le module avec les paramètres du jeu
-      teamModule = await createTeamModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      // ✅ CONNECTER À UIMANAGER IMMÉDIATEMENT
-      if (this.uiManager && this.uiManager.registerIconPosition) {
-        console.log('📍 [PokemonUI] Connexion nouveau Team à UIManager...');
+      // Vérifier que l'icône existe
+      if (teamModule.icon && teamModule.icon.iconElement) {
         teamModule.connectUIManager(this.uiManager);
+        console.log('✅ [PokemonUI] Team connecté à UIManager');
       } else {
-        console.warn('⚠️ [PokemonUI] Fallback position manuelle');
+        console.warn('⚠️ [PokemonUI] Icône Team non disponible');
+        
+        // Fallback position manuelle
         setTimeout(() => {
           const teamIcon = document.querySelector('#team-icon');
           if (teamIcon) {
@@ -745,31 +719,42 @@ export class PokemonUISystem {
             teamIcon.style.right = '20px';
             teamIcon.style.bottom = '20px';
             teamIcon.style.zIndex = '500';
+            console.log('🔧 [PokemonUI] Position Team fallback appliquée');
           }
         }, 100);
       }
-      
-      // Exposer globalement pour compatibilité
-      window.teamSystem = teamModule;
-      window.teamSystemGlobal = teamModule;
-      window.toggleTeam = () => teamModule.toggleTeamUI();
-      window.openTeam = () => teamModule.openTeam();
-      window.closeTeam = () => teamModule.closeTeam();
-      window.forceCloseTeam = () => teamModule.forceCloseUI();
-      
-      console.log('✅ [PokemonUI] Nouveau module Team créé et connecté');
+    } else {
+      console.warn('⚠️ [PokemonUI] UIManager sans registerIconPosition');
     }
+    
+    // ✅ FORCER FERMETURE UI (éviter ouverture automatique)
+    if (teamModule.forceCloseUI) {
+      teamModule.forceCloseUI();
+      console.log('🔒 [PokemonUI] UI Team fermée par défaut');
+    }
+    
+    // Exposer globalement pour compatibilité
+    window.teamSystem = teamModule;
+    window.teamSystemGlobal = teamModule;
+    window.toggleTeam = () => teamModule.toggleTeamUI();
+    window.openTeam = () => teamModule.openTeam();
+    window.closeTeam = () => teamModule.closeTeam();
+    window.forceCloseTeam = () => teamModule.forceCloseUI ? teamModule.forceCloseUI() : teamModule.closeTeam();
+    
+    console.log('✅ [PokemonUI] Module Team créé et exposé globalement');
+    console.log('🎯 [PokemonUI] Icône Team prête pour positionnement UIManager');
     
     return teamModule;
     
   } catch (error) {
     console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
+    console.error('📋 [PokemonUI] Détail erreur:', error.stack);
     
     // Fallback vers module vide en cas d'erreur
+    console.log('🔧 [PokemonUI] Création wrapper vide pour Team...');
     return this.createEmptyWrapper('team');
   }
 }
-  
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
     
