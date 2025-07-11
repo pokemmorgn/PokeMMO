@@ -632,7 +632,7 @@ export class PokemonUISystem {
 
   // === FACTORIES DES MODULES ===
 
-  async createInventoryModule() {
+async createInventoryModule() {
   console.log('🎒 [PokemonUI] Création NOUVEAU module inventaire compatible UIManager...');
   
   try {
@@ -649,23 +649,31 @@ export class PokemonUISystem {
       throw new Error('Échec création InventoryModule');
     }
     
-    // ✅ Le nouveau module est déjà compatible UIManager
-    console.log('✅ [PokemonUI] Nouveau InventoryModule créé avec API UIManager');
+    // 🆕 FORCER L'ENREGISTREMENT UIMANAGER
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      console.log('📍 [PokemonUI] Connexion Inventory à UIManager...');
+      
+      // L'InventoryModule a déjà la méthode, on la force juste
+      setTimeout(() => {
+        inventoryModule.registerWithUIManager();
+      }, 100);
+    } else {
+      console.warn('⚠️ [PokemonUI] UIManager sans registerIconPosition pour Inventory');
+    }
     
     // Exposer globalement pour compatibilité
-    window.inventorySystem = inventoryModule.system;          // Business logic
-    window.inventorySystemGlobal = inventoryModule;           // Module complet
+    window.inventorySystem = inventoryModule.system;          
+    window.inventorySystemGlobal = inventoryModule;           
     window.toggleInventory = () => inventoryModule.toggle();
     window.openInventory = () => inventoryModule.openInventory();
     window.closeInventory = () => inventoryModule.closeInventory();
     
-    console.log('🔗 [PokemonUI] Nouveau inventaire exposé globalement');
+    console.log('✅ [PokemonUI] Inventaire créé et connecté à UIManager');
     
     return inventoryModule;
     
   } catch (error) {
-    console.error('❌ [PokemonUI] Erreur création nouveau inventaire:', error);
-    console.log('🔧 [PokemonUI] Fallback vers wrapper vide...');
+    console.error('❌ [PokemonUI] Erreur création inventaire:', error);
     return this.createEmptyWrapper('inventory');
   }
 }
