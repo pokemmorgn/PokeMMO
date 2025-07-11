@@ -562,7 +562,16 @@ window.startWildBattle = function(pokemonData = null) {
 document.addEventListener('keydown', (event) => {
   if (window.shouldBlockInput()) return;
 
-  switch (event.key.toLowerCase()) {
+  // Only handle UI keys, not movement keys (wasd/zqsd)
+  const movementKeys = ['w', 'a', 's', 'd', 'z', 'q', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+  const keyLower = event.key.toLowerCase();
+  
+  // Don't prevent movement keys
+  if (movementKeys.includes(keyLower)) {
+    return;
+  }
+
+  switch (keyLower) {
     case 'i':
       event.preventDefault();
       window.toggleInventory();
@@ -571,7 +580,7 @@ document.addEventListener('keydown', (event) => {
       event.preventDefault();
       window.toggleTeam();
       break;
-    case 'q':
+    case 'j': // Changed from 'q' to 'j' for quest journal (J for Journal)
       event.preventDefault();
       window.toggleQuests();
       break;
@@ -601,11 +610,11 @@ console.log(`
 Contrôles:
 • I - Inventaire
 • T - Équipe
-• Q - Quêtes
+• J - Quêtes (Journal)
 • B - Test combat
 • F - Debug encounters
 • G - Force encounter
-• WASD - Déplacement
+• WASD/ZQSD - Déplacement
 ========================
 `);
 
