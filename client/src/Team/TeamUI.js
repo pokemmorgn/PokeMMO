@@ -317,60 +317,64 @@ export class TeamUI {
       /* ===== OVERVIEW - LAYOUT ÉQUILIBRÉ ===== */
       .team-overview {
         display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 30px;
+        grid-template-columns: 2.5fr 1fr;
+        gap: 25px;
         height: 100%;
       }
       
       .team-main-section {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 15px;
         min-height: 0;
       }
       
       .team-slots-container {
         flex: 1;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 15px;
-        padding: 20px;
-        border: 1px solid rgba(74, 144, 226, 0.3);
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 18px;
+        padding: 25px;
+        border: 2px solid rgba(74, 144, 226, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
       }
       
       .team-slots-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
       }
       
       .team-slots-title {
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
         color: #87ceeb;
         margin: 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
       
       .team-slots-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(2, 1fr);
-        gap: 15px;
+        gap: 18px;
         height: 100%;
-        min-height: 300px;
+        min-height: 400px;
       }
       
       .team-slot {
-        background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-        border: 2px solid rgba(74, 144, 226, 0.3);
-        border-radius: 15px;
-        padding: 15px 10px;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+        border: 2px solid rgba(74, 144, 226, 0.4);
+        border-radius: 18px;
+        padding: 20px 15px;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         position: relative;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        min-height: 160px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       }
       
       .team-slot::before {
@@ -392,9 +396,10 @@ export class TeamUI {
       }
       
       .team-slot:hover {
-        transform: translateY(-2px);
+        transform: translateY(-4px);
         border-color: #87ceeb;
-        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
+        box-shadow: 0 12px 30px rgba(74, 144, 226, 0.4);
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(135, 206, 235, 0.08));
       }
       
       .team-slot.selected {
@@ -415,19 +420,20 @@ export class TeamUI {
       
       .slot-number {
         position: absolute;
-        top: 8px;
-        left: 10px;
-        background: rgba(74, 144, 226, 0.8);
+        top: 12px;
+        left: 15px;
+        background: linear-gradient(135deg, #4a90e2, #357abd);
         color: white;
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: bold;
         z-index: 2;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       }
       
       .empty-slot {
@@ -495,7 +501,7 @@ export class TeamUI {
       
       .pokemon-sprite {
         text-align: center;
-        margin: 5px 0;
+        margin: 8px 0;
         flex: 1;
         display: flex;
         align-items: center;
@@ -503,15 +509,15 @@ export class TeamUI {
       }
       
       .pokemon-portrait {
-        width: 64px;
-        height: 64px;
+        width: 80px;
+        height: 80px;
         background-size: cover;
         background-position: center;
-        border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
         image-rendering: pixelated;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.4);
       }
       
       .pokemon-portrait:hover {
@@ -618,14 +624,15 @@ export class TeamUI {
       
       /* ===== TEAM SUMMARY MODERNE ===== */
       .team-summary-section {
-        background: linear-gradient(145deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
-        border-radius: 15px;
-        padding: 20px;
-        border: 1px solid rgba(74, 144, 226, 0.3);
+        background: linear-gradient(145deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+        border-radius: 18px;
+        padding: 25px;
+        border: 2px solid rgba(74, 144, 226, 0.4);
         height: 100%;
         display: flex;
         flex-direction: column;
         gap: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
       }
       
       .summary-header {
@@ -638,8 +645,9 @@ export class TeamUI {
       .summary-header h3 {
         margin: 0;
         color: #87ceeb;
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
       
       .summary-icon {
@@ -653,14 +661,15 @@ export class TeamUI {
       }
       
       .stat-item {
-        background: rgba(255, 255, 255, 0.08);
-        padding: 12px 15px;
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.12);
+        padding: 15px 18px;
+        border-radius: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border: 1px solid rgba(74, 144, 226, 0.2);
+        border: 1px solid rgba(74, 144, 226, 0.3);
         transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
       
       .stat-item:hover {
