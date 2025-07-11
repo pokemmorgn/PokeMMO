@@ -1464,15 +1464,18 @@ getPortraitStyle(pokemonId) {
     `;
   }
   
-  const style = getPokemonPortraitStyle(pokemonId, {
-    width: '128px',
-    height: '128px',
-    preservePixelArt: true
-  });
+  // ✅ VERSION CORRIGÉE : Afficher seulement la première frame
+  const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
   
-  console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
-  
-  return style;
+  return `
+    background-image: url('${url}');
+    background-size: 900% 900%;
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+  `;
 }
   
   getHealthClass(healthPercent) {
