@@ -42,7 +42,7 @@ const UI_CONFIG = {
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
   exploration: {
-    visibleModules: ['inventory', 'quest', 'questTracker', 'chat'],
+    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
     enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
     hiddenModules: [],
     disabledModules: [],
@@ -511,9 +511,10 @@ export class PokemonUISystem {
         factory: this.createTeamModuleUnified.bind(this),
         dependencies: [],
         defaultState: {
-          visible: true,
-          enabled: true,
-          initialized: false
+          visible: true,      // ✅ Icône visible par défaut
+          enabled: true,      // ✅ Module activé
+          initialized: false,
+          interfaceOpen: false // ✅ NOUVEAU: Interface fermée par défaut
         },
         priority: 100,
         layout: {
@@ -722,6 +723,17 @@ export class PokemonUISystem {
         window.currentGameRoom,
         window.game?.scene?.getScenes(true)[0]
       );
+      
+      // ✅ NOUVEAU: S'assurer que l'interface est fermée au démarrage
+      if (teamModule && teamModule.closeTeam) {
+        // Attendre un tick pour que l'initialisation soit complète
+        setTimeout(() => {
+          if (teamModule.isTeamUIOpen && teamModule.isTeamUIOpen()) {
+            console.log('🔧 [PokemonUI] Fermeture interface Team ouverte à la création');
+            teamModule.closeTeam();
+          }
+        }, 100);
+      }
       
       // Exposer globalement pour compatibilité
       window.teamSystem = teamModule;
@@ -1306,13 +1318,11 @@ export class PokemonUISystem {
       const { isOpen, pokemonData } = event.detail;
       console.log(`🔄 [PokemonUI] Team UI state changed: open=${isOpen}`);
       
-      // Synchroniser avec UIManager si nécessaire
-      if (this.uiManager) {
-        if (isOpen) {
-          this.uiManager.showModule?.('team');
-        } else {
-          // Ne pas forcer la fermeture car l'icône doit rester visible
-        }
+      // ✅ CORRECTION: Ne pas appeler showModule car ça ouvre l'interface
+      // On se contente de synchroniser l'état sans forcer l'ouverture
+      if (this.uiManager && isOpen) {
+        // L'icône reste visible, on ne fait que logguer le changement d'état
+        console.log(`🔄 [PokemonUI] Team interface ${isOpen ? 'opened' : 'closed'}`);
       }
     });
     
@@ -1324,6 +1334,23 @@ export class PokemonUISystem {
       const teamModule = this.getModule('team');
       if (teamModule && teamModule.updatePokemonData) {
         teamModule.updatePokemonData(pokemonData);
+      }
+    });
+    
+    // ✅ NOUVEAU: S'assurer que seule l'icône est visible au démarrage
+    window.addEventListener('pokemonUIModuleReady', (event) => {
+      const { moduleId, instance } = event.detail;
+      
+      if (moduleId === 'team') {
+        console.log('🔄 [PokemonUI] Module Team prêt - vérification état initial...');
+        
+        // S'assurer que l'interface Team est fermée au démarrage
+        if (instance && instance.closeTeam && typeof instance.isTeamUIOpen === 'function') {
+          if (instance.isTeamUIOpen()) {
+            console.log('🔧 [PokemonUI] Fermeture interface Team ouverte au démarrage');
+            instance.closeTeam();
+          }
+        }
       }
     });
     
@@ -2328,7 +2355,136 @@ function setupCompatibilityFunctions() {
     }
   };
 
-  // === NOUVELLES FONCTIONS INVENTORY SPÉCIFIQUES ===
+  // === NOUVELLES FONCTIONS TEAM SPÉCIFIQUES ===
+  window.fixTeamSystem = async () => {
+    console.log('🔧 [PokemonUI] Réparation système team...');
+    
+    const teamModule = window.pokemonUISystem?.getModule('team');
+    
+    if (teamModule) {
+      // Forcer la fermeture de l'interface si elle est ouverte
+      if (teamModule.closeTeam) {
+        teamModule.closeTeam();
+        console.log('✅ [PokemonUI] Interface Team fermée');
+      }
+      
+      // Vérifier que l'icône est visible
+      if (teamModule.icon && teamModule.icon.show) {
+        teamModule.icon.show();
+        console.log('✅ [PokemonUI] Icône Team affichée');
+      }
+      
+      if (window.showGameNotification) {
+        window.showGameNotification('Système Team réparé !', 'success', {
+          duration: 2000,
+          position: 'top-center'
+        });
+      }
+      
+      return true;
+    } else {
+      console.error('❌ [PokemonUI] Module Team non disponible');
+      return false;
+    }
+  };
+
+  window.debugTeamSystem = () => {
+    console.log('🔍 === DEBUG TEAM SYSTEM ===');
+    
+    const teamModule = window.pokemonUISystem?.getModule('team');
+    
+    const debugInfo = {
+      moduleExists: !!teamModule,
+      moduleType: teamModule?.moduleType,
+      hasIcon: !!teamModule?.icon,
+      hasUI: !!teamModule?.ui,
+      iconVisible: teamModule?.icon ? !teamModule.icon.iconElement?.classList.contains('ui-hidden') : false,
+      interfaceVisible: teamModule?.ui ? teamModule.ui.isVisible : false,
+      isTeamUIOpen: teamModule?.isTeamUIOpen ? teamModule.isTeamUIOpen() : 'unknown',
+      
+      methods: {
+        toggleTeamUI: typeof teamModule?.toggleTeamUI === 'function',
+        openTeam: typeof teamModule?.openTeam === 'function',
+        closeTeam: typeof teamModule?.closeTeam === 'function',
+        isTeamUIOpen: typeof teamModule?.isTeamUIOpen === 'function'
+      },
+      
+      globalFunctions: {
+        toggleTeam: typeof window.toggleTeam === 'function',
+        openTeam: typeof window.openTeam === 'function',
+        closeTeam: typeof window.closeTeam === 'function'
+      },
+      
+      solutions: teamModule ? [
+        '✅ Module OK - utilisez window.fixTeamSystem() si interface ouverte',
+        '⚔️ Testez window.toggleTeam()',
+        '🔧 Utilisez window.closeTeam() pour forcer fermeture'
+      ] : [
+        '🔧 Module Team non trouvé',
+        '🚀 Relancez window.autoInitializePokemonUI()',
+        '🔄 Rechargez la page'
+      ]
+    };
+    
+    console.log('📊 Debug Team System:', debugInfo);
+    
+    if (debugInfo.interfaceVisible || debugInfo.isTeamUIOpen === true) {
+      console.log('💡 PROBLÈME DÉTECTÉ: Interface Team ouverte au démarrage !');
+      console.log('🔧 SOLUTION: Utilisez window.fixTeamSystem() pour corriger');
+    } else if (!debugInfo.moduleExists) {
+      console.log('💡 PROBLÈME: Module Team non disponible');
+    } else if (!debugInfo.iconVisible) {
+      console.log('💡 PROBLÈME: Icône Team non visible');
+    } else {
+      console.log('✅ Système Team OK');
+    }
+    
+    return debugInfo;
+  };
+
+  window.testTeamSystem = async () => {
+    console.log('🧪 [PokemonUI] Test système team...');
+    
+    const teamModule = window.pokemonUISystem?.getModule('team');
+    
+    if (!teamModule) {
+      console.error('❌ Module team non disponible');
+      return false;
+    }
+    
+    try {
+      // S'assurer que l'interface est fermée au début
+      if (teamModule.closeTeam) {
+        teamModule.closeTeam();
+        console.log('🧪 Interface fermée au début du test');
+      }
+      
+      // Test toggle
+      setTimeout(() => {
+        console.log('🧪 Test toggle team...');
+        teamModule.toggleTeamUI?.();
+      }, 1000);
+      
+      // Test fermeture
+      setTimeout(() => {
+        console.log('🧪 Test fermeture team...');
+        teamModule.closeTeam?.();
+      }, 3000);
+      
+      if (window.showGameNotification) {
+        window.showGameNotification('Test Team lancé !', 'info', {
+          duration: 3000,
+          position: 'top-center'
+        });
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur test team:', error);
+      return false;
+    }
+  };
   window.fixInventorySystem = async () => {
     console.log('🔧 [PokemonUI] Réparation système inventaire...');
     
@@ -2650,6 +2806,7 @@ console.log(`
 1. 🔧 RÉPARATION AUTOMATIQUE:
    await window.fixBattleInterface()
    await window.fixInventorySystem()
+   await window.fixTeamSystem()
 
 2. 🧪 TEST BATTLEINTERFACE:
    window.testBattleInterface()
@@ -2657,15 +2814,19 @@ console.log(`
 3. 🧪 TEST NOUVEAU INVENTORY:
    window.testInventorySystem()
 
-4. 🎬 TEST TRANSITIONS:
+4. 🧪 TEST TEAM SYSTEM:
+   window.testTeamSystem()
+
+5. 🎬 TEST TRANSITIONS:
    window.testBattleTransition()
 
-5. 🚀 TEST COMPLET:
+6. 🚀 TEST COMPLET:
    window.testCompleteBattle()
 
-6. 🔍 DEBUG:
+7. 🔍 DEBUG:
    window.debugBattleInterface()
    window.debugInventorySystem()
+   window.debugTeamSystem()
 
 🎒 === FONCTIONS INVENTORY UNIFIÉES ===
 - window.toggleInventory() → Toggle inventaire
@@ -2677,5 +2838,17 @@ console.log(`
 - window.getItemCount('potion') → Compte objets
 - window.isInventoryOpen() → État ouverture
 
-✅ NOUVEAU SYSTÈME INVENTORY UNIFIÉ INTÉGRÉ !
+⚔️ === FONCTIONS TEAM CORRIGÉES ===
+- window.toggleTeam() → Toggle interface team
+- window.openTeam() → Ouvre interface team
+- window.closeTeam() → Ferme interface team (garde icône)
+- window.fixTeamSystem() → Répare interface ouverte au démarrage
+- window.debugTeamSystem() → Debug détaillé
+- window.testTeamSystem() → Test complet
+
+🔧 === RÉPARATION PROBLÈME TEAM ===
+Si l'interface Team s'ouvre au démarrage:
+window.fixTeamSystem()
+
+✅ SYSTÈME COMPLET AVEC CORRECTIONS TEAM !
 `);
