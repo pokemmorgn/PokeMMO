@@ -1,457 +1,755 @@
 {
   "spriteSizes": {
     "001": {
-      "Walk-Anim.png": "240x320"
+      "Walk-Anim.png": "240x320",
+      "front.png": "1862x38",
+      "back.png": "1862x38"
     },
     "002": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "3190x58",
+      "back.png": "3192x57"
     },
     "003": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "7138x86",
+      "back.png": "7476x89"
     },
     "004": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "2226x42",
+      "back.png": "2332x44"
     },
     "005": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "3105x69",
+      "back.png": "3015x67"
     },
     "006": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "6552x91",
+      "back.png": "6958x98"
     },
     "007": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "1118x43",
+      "back.png": "1170x45"
     },
     "008": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2684x61",
+      "back.png": "2666x62"
     },
     "009": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "8418x69",
+      "back.png": "8052x66"
     },
     "010": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "1517x37",
+      "back.png": "1520x38"
     },
     "011": {
-      "Walk-Anim.png": "320x384"
+      "Walk-Anim.png": "320x384",
+      "front.png": "2090x38",
+      "back.png": "2408x43"
     },
     "012": {
-      "Walk-Anim.png": "384x448"
+      "Walk-Anim.png": "384x448",
+      "front.png": "2728x62",
+      "back.png": "896x64"
     },
     "013": {
-      "Walk-Anim.png": "96x320"
+      "Walk-Anim.png": "96x320",
+      "front.png": "2806x46",
+      "back.png": "2806x46"
     },
     "014": {
-      "Walk-Anim.png": "120x320"
+      "Walk-Anim.png": "120x320",
+      "front.png": "1560x40",
+      "back.png": "1560x40"
     },
     "015": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "2220x74",
+      "back.png": "760x76"
     },
     "016": {
-      "Walk-Anim.png": "160x256"
+      "Walk-Anim.png": "160x256",
+      "front.png": "960x48",
+      "back.png": "987x47"
     },
     "017": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "1972x116",
+      "back.png": "1632x96"
     },
     "018": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2380x68",
+      "back.png": "2312x68"
     },
     "019": {
-      "Walk-Anim.png": "336x320"
+      "Walk-Anim.png": "336x320",
+      "front.png": "2193x43",
+      "back.png": "2842x58"
     },
     "020": {
-      "Walk-Anim.png": "240x384"
+      "Walk-Anim.png": "240x384",
+      "front.png": "3900x65",
+      "back.png": "3894x66"
     },
     "021": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "1209x39",
+      "back.png": "1200x40"
     },
     "022": {
-      "Walk-Anim.png": "240x512"
+      "Walk-Anim.png": "240x512",
+      "front.png": "1155x105",
+      "back.png": "1120x112"
     },
     "023": {
-      "Walk-Anim.png": "240x384"
+      "Walk-Anim.png": "240x384",
+      "front.png": "2124x59",
+      "back.png": "2052x57"
     },
     "024": {
-      "Walk-Anim.png": "240x448"
+      "Walk-Anim.png": "240x448",
+      "front.png": "2997x81",
+      "back.png": "3096x86"
     },
     "025": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2800x50",
+      "back.png": "2679x47"
     },
     "026": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "6142x74",
+      "back.png": "6308x76"
     },
     "027": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "2418x39",
+      "back.png": "2542x41"
     },
     "028": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3304x59",
+      "back.png": "3192x57"
     },
     "029": {
       "Walk-Anim.png": "280x384"
     },
     "030": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "1248x52",
+      "back.png": "1248x52"
     },
     "031": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "4636x76",
+      "back.png": "5185x85"
     },
     "032": {
       "Walk-Anim.png": "240x384"
     },
     "033": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "2744x56",
+      "back.png": "2750x55"
     },
     "034": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "4128x86",
+      "back.png": "4717x89"
     },
     "035": {
-      "Walk-Anim.png": "192x320"
+      "Walk-Anim.png": "192x320",
+      "front.png": "3149x47",
+      "back.png": "3564x54"
     },
     "036": {
-      "Walk-Anim.png": "256x384"
+      "Walk-Anim.png": "256x384",
+      "front.png": "2805x55",
+      "back.png": "2805x55"
     },
     "037": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "2124x59",
+      "back.png": "2196x61"
     },
     "038": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "1976x76",
+      "back.png": "4028x76"
     },
     "039": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "2744x49",
+      "back.png": "2592x48"
     },
     "040": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "4428x82",
+      "back.png": "4565x83"
     },
     "041": {
-      "Walk-Anim.png": "256x448"
+      "Walk-Anim.png": "256x448",
+      "front.png": "1431x53",
+      "back.png": "1593x59"
     },
     "042": {
-      "Walk-Anim.png": "320x512"
+      "Walk-Anim.png": "320x512",
+      "front.png": "888x111",
+      "back.png": "760x95"
     },
     "043": {
-      "Walk-Anim.png": "192x320"
+      "Walk-Anim.png": "192x320",
+      "front.png": "2700x50",
+      "back.png": "2805x51"
     },
     "044": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "2448x51",
+      "back.png": "2352x49"
     },
     "045": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "1960x56",
+      "back.png": "1960x56"
     },
     "046": {
-      "Walk-Anim.png": "128x192"
+      "Walk-Anim.png": "128x192",
+      "front.png": "1728x48",
+      "back.png": "1776x48"
     },
     "047": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "2268x63",
+      "back.png": "2240x70"
     },
     "048": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "2544x53",
+      "back.png": "2444x52"
     },
     "049": {
-      "Walk-Anim.png": "480x384"
+      "Walk-Anim.png": "480x384",
+      "front.png": "825x75",
+      "back.png": "913x83"
     },
     "050": {
-      "Walk-Anim.png": "120x320"
+      "Walk-Anim.png": "120x320",
+      "front.png": "2052x38",
+      "back.png": "2052x38"
     },
     "051": {
-      "Walk-Anim.png": "168x384"
+      "Walk-Anim.png": "168x384",
+      "front.png": "2132x52",
+      "back.png": "2132x52"
     },
     "052": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "4550x65",
+      "back.png": "4416x64"
     },
     "053": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3942x73",
+      "back.png": "4134x78"
     },
     "054": {
-      "Walk-Anim.png": "96x320"
+      "Walk-Anim.png": "96x320",
+      "front.png": "1012x46",
+      "back.png": "1012x44"
     },
     "055": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2280x60",
+      "back.png": "2337x57"
     },
     "056": {
-      "Walk-Anim.png": "256x448"
+      "Walk-Anim.png": "256x448",
+      "front.png": "3960x66",
+      "back.png": "3720x62"
     },
     "057": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "1848x66",
+      "back.png": "1800x72"
     },
     "058": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3905x55",
+      "back.png": "3876x57"
     },
     "059": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "2772x77",
+      "back.png": "3010x86"
     },
     "060": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "2106x54",
+      "back.png": "2200x55"
     },
     "061": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3922x74",
+      "back.png": "4240x80"
     },
     "062": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "3645x81",
+      "back.png": "3256x74"
     },
     "063": {
-      "Walk-Anim.png": "256x384"
+      "Walk-Anim.png": "256x384",
+      "front.png": "3591x63",
+      "back.png": "3976x71"
     },
     "064": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "4740x79",
+      "back.png": "4800x80"
     },
     "065": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "4929x93",
+      "back.png": "4264x82"
     },
     "066": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "3825x51",
+      "back.png": "3975x53"
     },
     "067": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "3479x71",
+      "back.png": "3408x71"
     },
     "068": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "2204x76",
+      "back.png": "2204x76"
     },
     "069": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "2068x44",
+      "back.png": "2448x51"
     },
     "070": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "3381x69",
+      "back.png": "3456x72"
     },
     "071": {
-      "Walk-Anim.png": "128x448"
+      "Walk-Anim.png": "128x448",
+      "front.png": "2556x71",
+      "back.png": "5040x70"
     },
     "072": {
-      "Walk-Anim.png": "96x320"
+      "Walk-Anim.png": "96x320",
+      "front.png": "3408x71",
+      "back.png": "3572x76"
     },
     "073": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3360x84",
+      "back.png": "3400x85"
     },
     "074": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "3172x61",
+      "back.png": "3074x58"
     },
     "075": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "1704x71",
+      "back.png": "1560x65"
     },
     "076": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3240x72",
+      "back.png": "3174x69"
     },
     "077": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2622x57",
+      "back.png": "2714x59"
     },
     "078": {
-      "Walk-Anim.png": "160x448"
+      "Walk-Anim.png": "160x448",
+      "front.png": "1702x74",
+      "back.png": "1824x76"
     },
     "079": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "2816x64",
+      "back.png": "2992x68"
     },
     "080": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3591x63",
+      "back.png": "4256x76"
     },
     "081": {
-      "Walk-Anim.png": "144x256"
+      "Walk-Anim.png": "144x256",
+      "front.png": "1976x38",
+      "back.png": "1872x36"
     },
     "082": {
-      "Walk-Anim.png": "256x384"
+      "Walk-Anim.png": "256x384",
+      "front.png": "4828x68",
+      "back.png": "5256x73"
     },
     "083": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "1536x48",
+      "back.png": "1600x50"
     },
     "084": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "5640x60",
+      "back.png": "5795x61"
     },
     "085": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "5852x76",
+      "back.png": "5852x76"
     },
     "086": {
-      "Walk-Anim.png": "224x320"
+      "Walk-Anim.png": "224x320",
+      "front.png": "1488x62",
+      "back.png": "1440x60"
     },
     "087": {
-      "Walk-Anim.png": "280x384"
+      "Walk-Anim.png": "280x384",
+      "front.png": "4575x75",
+      "back.png": "5280x88"
     },
     "088": {
-      "Walk-Anim.png": "192x256"
+      "Walk-Anim.png": "192x256",
+      "front.png": "4234x73",
+      "back.png": "3920x70"
     },
     "089": {
-      "Walk-Anim.png": "240x320"
+      "Walk-Anim.png": "240x320",
+      "front.png": "4794x94",
+      "back.png": "5100x100"
     },
     "090": {
-      "Walk-Anim.png": "144x256"
+      "Walk-Anim.png": "144x256",
+      "front.png": "1806x42",
+      "back.png": "2064x48"
     },
     "091": {
-      "Walk-Anim.png": "192x384"
+      "Walk-Anim.png": "192x384",
+      "front.png": "3700x74",
+      "back.png": "3519x69"
     },
     "092": {
-      "Walk-Anim.png": "576x512"
+      "Walk-Anim.png": "576x512",
+      "front.png": "4125x75",
+      "back.png": "4290x78"
     },
     "093": {
-      "Walk-Anim.png": "320x448"
+      "Walk-Anim.png": "320x448",
+      "front.png": "1105x85",
+      "back.png": "1080x90"
     },
     "094": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3476x79",
+      "back.png": "3212x73"
     },
     "095": {
-      "Walk-Anim.png": "352x896"
+      "Walk-Anim.png": "352x896",
+      "front.png": "3626x74",
+      "back.png": "6958x98"
     },
     "096": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "4408x58",
+      "back.png": "4256x56"
     },
     "097": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "4092x66",
+      "back.png": "4030x65"
     },
     "098": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "2035x55",
+      "back.png": "2035x55"
     },
     "099": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "3936x82",
+      "back.png": "4067x83"
     },
     "100": {
-      "Walk-Anim.png": "256x320"
+      "Walk-Anim.png": "256x320",
+      "front.png": "1610x46",
+      "back.png": "1645x47"
     },
     "101": {
-      "Walk-Anim.png": "224x320"
+      "Walk-Anim.png": "224x320",
+      "front.png": "1248x52",
+      "back.png": "1144x52"
     },
     "102": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "1485x55",
+      "back.png": "1404x54"
     },
     "103": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "3555x79",
+      "back.png": "3040x76"
     },
     "104": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "3871x49",
+      "back.png": "4056x52"
     },
     "105": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "4624x68",
+      "back.png": "4355x65"
     },
     "106": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "4368x78",
+      "back.png": "4050x75"
     },
     "107": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2419x59",
+      "back.png": "2240x56"
     },
     "108": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2415x69",
+      "back.png": "2772x77"
     },
     "109": {
-      "Walk-Anim.png": "320x448"
+      "Walk-Anim.png": "320x448",
+      "front.png": "4004x91",
+      "back.png": "3476x79"
     },
     "110": {
-      "Walk-Anim.png": "192x448"
+      "Walk-Anim.png": "192x448",
+      "front.png": "4214x86",
+      "back.png": "4350x87"
     },
     "111": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "5304x68",
+      "back.png": "6132x73"
     },
     "112": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "7488x78",
+      "back.png": "8245x85"
     },
     "113": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "3538x61",
+      "back.png": "3886x67"
     },
     "114": {
-      "Walk-Anim.png": "192x384"
+      "Walk-Anim.png": "192x384",
+      "front.png": "1568x49",
+      "back.png": "1568x49"
     },
     "115": {
-      "Walk-Anim.png": "160x448"
+      "Walk-Anim.png": "160x448",
+      "front.png": "10033x79",
+      "back.png": "9271x73"
     },
     "116": {
-      "Walk-Anim.png": "96x384"
+      "Walk-Anim.png": "96x384",
+      "front.png": "1720x43",
+      "back.png": "1600x40"
     },
     "117": {
-      "Walk-Anim.png": "200x448"
+      "Walk-Anim.png": "200x448",
+      "front.png": "1856x58",
+      "back.png": "2048x64"
     },
     "118": {
-      "Walk-Anim.png": "256x320"
+      "Walk-Anim.png": "256x320",
+      "front.png": "4275x75",
+      "back.png": "4275x75"
     },
     "119": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "3552x74",
+      "back.png": "4608x96"
     },
     "120": {
-      "Walk-Anim.png": "96x256"
+      "Walk-Anim.png": "96x256",
+      "front.png": "2280x57",
+      "back.png": "2200x55"
     },
     "121": {
-      "Walk-Anim.png": "96x320"
+      "Walk-Anim.png": "96x320",
+      "front.png": "5200x65",
+      "back.png": "4424x56"
     },
     "122": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "3648x57",
+      "back.png": "3520x55"
     },
     "123": {
-      "Walk-Anim.png": "160x384"
+      "Walk-Anim.png": "160x384",
+      "front.png": "4209x61",
+      "back.png": "4761x69"
     },
     "124": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3402x63",
+      "back.png": "3286x62"
     },
     "125": {
-      "Walk-Anim.png": "160x448"
+      "Walk-Anim.png": "160x448",
+      "front.png": "3408x71",
+      "back.png": "3408x71"
     },
     "126": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "2409x73",
+      "back.png": "2240x70"
     },
     "127": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "5112x72",
+      "back.png": "4970x70"
     },
     "128": {
-      "Walk-Anim.png": "280x448"
+      "Walk-Anim.png": "280x448",
+      "front.png": "2964x76",
+      "back.png": "2880x72"
     },
     "129": {
-      "Walk-Anim.png": "224x320"
+      "Walk-Anim.png": "224x320",
+      "front.png": "3780x63",
+      "back.png": "3828x66"
     },
     "130": {
-      "Walk-Anim.png": "352x1024"
+      "Walk-Anim.png": "352x1024",
+      "front.png": "4386x102",
+      "back.png": "4644x108"
     },
     "131": {
-      "Walk-Anim.png": "192x448"
+      "Walk-Anim.png": "192x448",
+      "front.png": "2343x71",
+      "back.png": "2432x76"
     },
     "132": {
-      "Walk-Anim.png": "160x256"
+      "Walk-Anim.png": "160x256",
+      "front.png": "1880x47",
+      "back.png": "1880x47"
     },
     "133": {
-      "Walk-Anim.png": "280x384"
+      "Walk-Anim.png": "280x384",
+      "front.png": "3087x49",
+      "back.png": "3300x50"
     },
     "134": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "3009x59",
+      "back.png": "2968x56"
     },
     "135": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "2450x49",
+      "back.png": "2450x49"
     },
     "136": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "3894x66",
+      "back.png": "4130x70"
     },
     "137": {
-      "Walk-Anim.png": "128x320"
+      "Walk-Anim.png": "128x320",
+      "front.png": "1680x56",
+      "back.png": "1612x62"
     },
     "138": {
-      "Walk-Anim.png": "128x256"
+      "Walk-Anim.png": "128x256",
+      "front.png": "1530x45",
+      "back.png": "1632x48"
     },
     "139": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "4914x63",
+      "back.png": "5070x65"
     },
     "140": {
-      "Walk-Anim.png": "96x192"
+      "Walk-Anim.png": "96x192",
+      "front.png": "1394x41",
+      "back.png": "1386x42"
     },
     "141": {
-      "Walk-Anim.png": "320x384"
+      "Walk-Anim.png": "320x384",
+      "front.png": "1560x65",
+      "back.png": "1608x67"
     },
     "142": {
-      "Walk-Anim.png": "160x512"
+      "Walk-Anim.png": "160x512",
+      "front.png": "837x93",
+      "back.png": "819x91"
     },
     "143": {
-      "Walk-Anim.png": "128x384"
+      "Walk-Anim.png": "128x384",
+      "front.png": "6525x75",
+      "back.png": "6525x75"
     },
     "144": {
-      "Walk-Anim.png": "352x704"
+      "Walk-Anim.png": "352x704",
+      "front.png": "2106x81",
+      "back.png": "2262x87"
     },
     "145": {
-      "Walk-Anim.png": "224x768"
+      "Walk-Anim.png": "224x768",
+      "front.png": "873x97",
+      "back.png": "765x85"
     },
     "146": {
-      "Walk-Anim.png": "320x768"
+      "Walk-Anim.png": "320x768",
+      "front.png": "3483x129",
+      "back.png": "3159x117"
     },
     "147": {
-      "Walk-Anim.png": "160x320"
+      "Walk-Anim.png": "160x320",
+      "front.png": "1275x51",
+      "back.png": "1425x57"
     },
     "148": {
-      "Walk-Anim.png": "336x448"
+      "Walk-Anim.png": "336x448",
+      "front.png": "4662x74",
+      "back.png": "4662x74"
     },
     "149": {
-      "Walk-Anim.png": "160x448"
+      "Walk-Anim.png": "160x448",
+      "front.png": "4182x82",
+      "back.png": "4386x86"
     },
     "150": {
-      "Walk-Anim.png": "288x448"
+      "Walk-Anim.png": "288x448",
+      "front.png": "5580x90",
+      "back.png": "5985x95"
     },
     "151": {
-      "Walk-Anim.png": "240x512"
+      "Walk-Anim.png": "240x512",
+      "front.png": "4602x78",
+      "back.png": "3540x60"
     },
     "251": {
       "Walk-Anim.png": "192x384"
