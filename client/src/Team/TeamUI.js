@@ -520,9 +520,9 @@ export class TeamUI {
         margin: 8px 0;
       }
       
-      .pokemon-portrait {
-        width: 64px;
-        height: 64px;
+       .pokemon-portrait {
+        width: 80px;
+        height: 80px;
         background-size: cover;
         background-position: center;
         border-radius: 12px;
@@ -1450,31 +1450,31 @@ export class TeamUI {
     `;
   }
   
-getPortraitStyle(pokemonId) {
-  console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
-  
-  if (!pokemonId) {
+  getPortraitStyle(pokemonId) {
+    console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
+    
+    if (!pokemonId) {
+      return `
+        background: linear-gradient(45deg, #ccc, #999); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+      `;
+    }
+    
+    const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+    
     return `
-      background: linear-gradient(45deg, #ccc, #999); 
-      display: flex; 
-      align-items: center; 
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 20px;
+      background-image: url('${url}');
+      background-size: 900% 900%;
+      background-position: 0px 0px;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
     `;
   }
-  
-  const style = getPokemonPortraitStyle(pokemonId, {
-    width: '64px',
-    height: '64px',
-    preservePixelArt: true
-  });
-  
-  console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
-  
-  return style;
-}
   
   getHealthClass(healthPercent) {
     if (healthPercent > 75) return 'high';
