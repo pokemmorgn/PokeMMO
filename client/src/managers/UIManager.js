@@ -700,28 +700,3 @@ export class UIManager {
 }
 
 export default UIManager;
-
-console.log(`
-🎛️ === UIMANAGER AVEC CRÉATION D'ICÔNES ===
-
-✅ NOUVELLES FONCTIONNALITÉS:
-• createModuleIcon() → UIManager crée les icônes des modules
-• showModule()/hideModule() → Contrôle complet des icônes
-• enableModule()/disableModule() → Active/désactive les icônes
-• initializeModule() → Crée module + icône automatiquement
-
-🔄 WORKFLOW COMPLET:
-1. registerModule() → Enregistre module avec config layout
-2. initializeModule() → Crée instance + appelle createIcon()
-3. createModuleIcon() → Demande au module de créer son icône
-4. registerIconPosition() → Enregistre et positionne l'icône
-5. show/hide/enable/disable → UIManager contrôle l'icône
-
-📍 POSITIONNEMENT:
-• UIManager crée ET positionne les icônes
-• Modules ne gèrent plus leur positionnement
-• Système order: 0=droite, 1=centre, 2=gauche
-• Responsive et resize automatiques
-
-🎯 100% CONTRÔLE UIMANAGER - LES MODULES OBÉISSENT !
-`);
