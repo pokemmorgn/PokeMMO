@@ -1,5 +1,6 @@
 // Team/index.js - Module Team Unifié pour Pokémon MMO
 // 🎯 1 SEUL module qui gère TOUT : business logic + icône + interface
+// 📍 INTÉGRÉ avec UIManager pour positionnement automatique
 
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
@@ -47,7 +48,12 @@ export class TeamModule {
       // 4. Connecter les composants
       this.connectComponents();
       
-      // 5. Appliquer l'état initial
+      // 🆕 5. Connecter à UIManager si disponible
+      if (window.uiManager && window.uiManager.registerIconPosition) {
+        this.connectUIManager(window.uiManager);
+      }
+      
+      // 6. Appliquer l'état initial
       this.applyUIManagerState();
       
       this.uiManagerState.initialized = true;
@@ -58,6 +64,37 @@ export class TeamModule {
       console.error('❌ [TeamModule] Erreur initialisation:', error);
       throw error;
     }
+  }
+  
+  // === 📍 CONNEXION UIMANAGER (NOUVEAU) ===
+  
+  connectUIManager(uiManager) {
+    console.log('📍 [TeamModule] Connexion UIManager pour positionnement automatique...');
+    
+    if (!uiManager || !uiManager.registerIconPosition) {
+      console.warn('⚠️ [TeamModule] UIManager sans positionnement automatique');
+      return false;
+    }
+    
+    if (!this.icon || !this.icon.iconElement) {
+      console.warn('⚠️ [TeamModule] Pas d\'icône à enregistrer');
+      return false;
+    }
+    
+    // Configuration pour UIManager
+    const iconConfig = {
+      anchor: 'bottom-right',
+      order: 2,           // Après inventory (0) et quest (1)
+      group: 'ui-icons',
+      spacing: 10,
+      size: { width: 70, height: 80 }
+    };
+    
+    // Enregistrer l'icône pour positionnement automatique
+    uiManager.registerIconPosition('team', this.icon.iconElement, iconConfig);
+    
+    console.log('✅ [TeamModule] Icône enregistrée dans UIManager - Position: bottom-right, Order: 2');
+    return true;
   }
   
   // === 🔗 CONNEXION DES COMPOSANTS ===
@@ -478,3 +515,38 @@ export async function setupTeamSystem(uiManager) {
 // === 📋 EXPORT PAR DÉFAUT ===
 
 export default TeamModule;
+
+console.log(`
+⚔️ === TEAM MODULE AVEC UIMANAGER ===
+
+📍 NOUVEAU: Positionnement automatique
+• connectUIManager() - Enregistre l'icône
+• registerIconPosition() - UIManager calcule position
+• bottom-right, order: 2, spacing: 10px
+
+✅ RESPONSABILITÉS:
+- Gestion données équipe
+- Communication serveur
+- Icône positionnée automatiquement
+- Interface complète
+
+🎯 INTÉGRATION UIMANAGER:
+• show() / hide() / setEnabled() - API standard
+• Configuration layout dans TEAM_MODULE_CONFIG
+• Position calculée: [Inventory] [Quest] [Team]
+
+🔗 CALLBACKS:
+- onStatsUpdate(stats) → TeamIcon
+- onTeamDataUpdate(data) → TeamUI
+- onPokemonUpdate(data) → mises à jour
+
+📍 POSITION FINALE:
+┌─────────────────────────────────┐
+│                                 │
+│                      [📦][📋][⚔️] │
+└─────────────────────────────────┘
+                      ↑   ↑   ↑
+                      0   1   2
+
+🎯 PRÊT POUR UIMANAGER !
+`);
