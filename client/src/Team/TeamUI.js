@@ -265,23 +265,20 @@ export class TeamUI {
         width: 100%;
       }
       
-      /* ===== LAYOUT OVERVIEW - RÉPARTITION OPTIMISÉE ===== */
+      /* ===== LAYOUT OVERVIEW ===== */
       .team-overview-content {
         display: flex;
         width: 100%;
         height: 100%;
-        gap: 0; /* Supprimer l'espace entre les sections */
       }
       
-      /* Section principale des slots - FLEX POUR REMPLIR L'ESPACE */
+      /* Section principale des slots */
       .team-slots-section {
-        flex: 1; /* Prend tout l'espace restant */
+        flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         min-width: 0;
-        /* FORCER L'UTILISATION DE L'ESPACE DISPONIBLE */
-        width: 0; /* Trick CSS pour forcer flex: 1 à fonctionner */
       }
       
       .slots-header {
@@ -336,22 +333,21 @@ export class TeamUI {
         border-color: rgba(40, 167, 69, 0.8);
       }
       
-      /* Grille des slots Pokémon - UTILISER TOUT L'ESPACE DISPONIBLE */
+      /* Grille des slots Pokémon - LARGEUR UNIFORME FORCÉE */
       .team-slots-grid {
         flex: 1;
         padding: 25px;
         overflow-y: auto;
         display: grid;
-        grid-template-columns: repeat(3, 1fr); /* Colonnes égales qui s'adaptent */
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
         align-content: start;
         width: 100%;
-        /* ASSURER QUE LA GRILLE UTILISE TOUT L'ESPACE */
-        justify-content: stretch;
-        align-items: start;
+        /* FORCER LA LARGEUR MINIMALE DES COLONNES */
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
       }
       
-      /* Slot Pokémon - TAILLE ADAPTATIVE AVEC MINIMUM */
+      /* Slot Pokémon - TAILLE FIXE COMPLÈTE (LARGEUR + HAUTEUR) */
       .team-slot {
         background: rgba(255, 255, 255, 0.08);
         border: 2px solid rgba(255, 255, 255, 0.2);
@@ -360,10 +356,11 @@ export class TeamUI {
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        /* TAILLE ADAPTATIVE AVEC MINIMUM GARANTI */
-        width: 100%; /* S'adapte à la grille */
+        /* TAILLE FIXE COMPLÈTE - LARGEUR ET HAUTEUR */
+        width: 180px;
         height: 180px;
-        min-width: 160px; /* Minimum pour éviter les slots trop petits */
+        min-width: 180px;
+        max-width: 180px;
         min-height: 180px;
         max-height: 180px;
         display: flex;
@@ -371,6 +368,7 @@ export class TeamUI {
         justify-content: center;
         position: relative;
         backdrop-filter: blur(5px);
+        /* ÉVITER LE SHRINKING */
         flex-shrink: 0;
       }
       
@@ -391,13 +389,14 @@ export class TeamUI {
       .team-slot.empty {
         border-style: dashed;
         background: rgba(255, 255, 255, 0.04);
-        /* MÊME COMPORTEMENT QUE LES SLOTS PLEINS */
+        /* MÊME TAILLE EXACTE QUE LES SLOTS PLEINS */
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 100%;
+        width: 180px;
         height: 180px;
-        min-width: 160px;
+        min-width: 180px;
+        max-width: 180px;
         min-height: 180px;
         max-height: 180px;
         flex-shrink: 0;
@@ -639,17 +638,14 @@ export class TeamUI {
       .type-badge.type-ghost { background: linear-gradient(135deg, #9370db, #483d8b); }
       .type-badge.type-steel { background: linear-gradient(135deg, #b0c4de, #778899); color: #333; }
       
-      /* ===== SIDEBAR - LARGEUR AJUSTÉE ===== */
+      /* ===== SIDEBAR ===== */
       .team-sidebar {
-        width: 320px; /* Augmenté de 280px à 320px */
-        min-width: 320px; /* Forcer la largeur minimale */
-        max-width: 320px; /* Empêcher l'extension excessive */
+        width: 280px;
         background: rgba(0, 0, 0, 0.3);
         border-left: 2px solid #357abd;
         display: flex;
         flex-direction: column;
         overflow-y: auto;
-        flex-shrink: 0; /* Empêcher le rétrécissement */
       }
       
       /* Section stats */
