@@ -596,13 +596,17 @@ export class OverworldPokemonManager {
    * ✅ Vérification si on peut spawn à une position
    */
   canSpawnAt(x, y) {
+    console.log(`🔍 [OverworldPokemonManager] Test spawn à (${x}, ${y})`);
+    
     // Vérifier collision avec les murs
     if (!this.canMoveTo(x, y)) {
+      console.log(`🛡️ [OverworldPokemonManager] Position bloquée par mur`);
       return false;
     }
     
     // Vérifier collision avec autres Pokémon
     if (this.isPokemonAt(x, y)) {
+      console.log(`🐾 [OverworldPokemonManager] Position occupée par autre Pokémon`);
       return false;
     }
     
@@ -611,10 +615,12 @@ export class OverworldPokemonManager {
     if (player) {
       const distance = Math.abs(player.x - x) + Math.abs(player.y - y);
       if (distance < this.gridSize) {
+        console.log(`👤 [OverworldPokemonManager] Position trop proche du joueur`);
         return false;
       }
     }
     
+    console.log(`✅ [OverworldPokemonManager] Position libre`);
     return true;
   }
 
@@ -623,11 +629,14 @@ export class OverworldPokemonManager {
    */
   canMoveTo(x, y) {
     if (!this.scene.collisionManager) {
+      console.warn(`⚠️ [OverworldPokemonManager] Pas de collision manager - mouvement autorisé`);
       return true; // Pas de collision manager = pas de vérification
     }
     
-    // Utiliser le même système de collision que le joueur
-    return this.scene.collisionManager.canMoveTo(x, y);
+    // ✅ UTILISER LE MÊME SYSTÈME QUE LE JOUEUR
+    const canMove = this.scene.collisionManager.canMoveTo(x, y);
+    console.log(`🔍 [OverworldPokemonManager] canMoveTo(${x}, ${y}) = ${canMove}`);
+    return canMove;
   }
 
   /**
