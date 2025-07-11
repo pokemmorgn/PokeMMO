@@ -1235,8 +1235,6 @@ if (this.uiManager && this.uiManager.registerIconPosition) {
   setupGlobalCallbacks() {
     console.log('🔗 [PokemonUI] Configuration callbacks globaux...');
 
-      // === AJOUTER CETTE LIGNE ===
-      this.setupTeamManagerBridge();
     
     if (!this.uiManager || !this.uiManager.on) {
       console.log('ℹ️ [PokemonUI] Callbacks non supportés en mode minimal');
