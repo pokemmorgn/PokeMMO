@@ -82,10 +82,10 @@ export class TeamUI {
         transform: scale(0.95);
       }
       
-      /* ===== CONTAINER PRINCIPAL ===== */
+      /* ===== CONTAINER PRINCIPAL ÉLARGI ===== */
       .team-container {
-        width: 90vw;
-        max-width: 1200px;
+        width: 95vw;
+        max-width: 1400px;
         height: 85vh;
         max-height: 700px;
         background: linear-gradient(145deg, #1e3a5f 0%, #2a4a7a 50%, #1a2f4f 100%);
@@ -226,13 +226,14 @@ export class TeamUI {
         font-size: 16px;
       }
       
-      /* ===== CONTENU PRINCIPAL ===== */
+      /* ===== CONTENU PRINCIPAL ÉLARGI ===== */
       .team-content {
         flex: 1;
-        padding: 20px;
+        padding: 25px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        width: 100%;
       }
       
       .team-view {
@@ -245,19 +246,21 @@ export class TeamUI {
         display: block;
       }
       
-      /* ===== OVERVIEW LAYOUT OPTIMISÉ ===== */
+      /* ===== OVERVIEW LAYOUT ÉLARGI ===== */
       .team-overview-content {
         display: flex;
-        gap: 15px;
+        gap: 25px;
         height: 100%;
+        width: 100%;
       }
       
-      /* Section principale des slots */
+      /* Section principale des slots - ÉLARGIE */
       .team-slots-section {
-        flex: 3;
+        flex: 2.5;
         display: flex;
         flex-direction: column;
         min-width: 0;
+        width: 100%;
       }
       
       .slots-header {
@@ -274,28 +277,30 @@ export class TeamUI {
         gap: 8px;
       }
       
-      /* Grille des slots Pokemon - Plus grande */
+      /* Grille des slots Pokemon - PLUS ESPACÉE */
       .team-slots-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(2, 1fr);
-        gap: 20px;
+        gap: 25px;
         flex: 1;
         min-height: 0;
+        width: 100%;
       }
       
-      /* Slot Pokemon individuel - Plus grand */
+      /* Slot Pokemon individuel - PLUS GRAND */
       .team-slot {
         background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
         border: 2px solid rgba(74, 144, 226, 0.4);
         border-radius: 15px;
-        padding: 18px;
+        padding: 20px;
         cursor: pointer;
         transition: all 0.3s ease;
         position: relative;
         display: flex;
         flex-direction: column;
-        min-height: 140px;
+        min-height: 160px;
+        width: 100%;
       }
       
       .team-slot:hover {
@@ -403,13 +408,14 @@ export class TeamUI {
       }
       
       .pokemon-portrait {
-        width: 64px;
-        height: 64px;
+        width: 72px;
+        height: 72px;
         background-size: cover;
         background-position: center;
-        border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
         image-rendering: pixelated;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       }
       
       .pokemon-health {
@@ -469,14 +475,15 @@ export class TeamUI {
       .type-badge.type-fairy { background: #ffb6c1; color: #333; }
       .type-badge.type-normal { background: #d3d3d3; color: #333; }
       
-      /* ===== SIDEBAR STATISTIQUES OPTIMISÉE ===== */
+      /* ===== SIDEBAR STATISTIQUES ÉLARGIE ===== */
       .team-sidebar {
-        flex: 2;
-        min-width: 300px;
-        max-width: 400px;
+        flex: 1.5;
+        min-width: 350px;
+        max-width: 450px;
         display: flex;
         flex-direction: column;
         gap: 15px;
+        width: 100%;
       }
       
       /* Section stats */
