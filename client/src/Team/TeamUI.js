@@ -334,7 +334,7 @@ export class TeamUI {
         width: 100%;
       }
       
-      /* Slot Pokémon */
+      /* Slot Pokémon - TAILLE FIXE POUR SLOTS VIDES ET PLEINS */
       .team-slot {
         background: rgba(255, 255, 255, 0.08);
         border: 2px solid rgba(255, 255, 255, 0.2);
@@ -343,7 +343,10 @@ export class TeamUI {
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        min-height: 160px;
+        /* TAILLE FIXE - MÊME HAUTEUR POUR TOUS */
+        height: 180px;
+        min-height: 180px;
+        max-height: 180px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -368,9 +371,14 @@ export class TeamUI {
       .team-slot.empty {
         border-style: dashed;
         background: rgba(255, 255, 255, 0.04);
+        /* MÊME COMPORTEMENT FLEX QUE LES SLOTS PLEINS */
         display: flex;
         align-items: center;
         justify-content: center;
+        /* MÊME HAUTEUR EXACTE */
+        height: 180px;
+        min-height: 180px;
+        max-height: 180px;
       }
       
       /* Numéro du slot */
@@ -415,12 +423,14 @@ export class TeamUI {
         font-weight: 500;
       }
       
-      /* ===== POKEMON CARD ===== */
+      /* ===== POKEMON CARD - HAUTEUR CONTRÔLÉE ===== */
       .pokemon-card {
-        height: 100%;
+        /* HAUTEUR EXACTE POUR CORRESPONDRE AU SLOT */
+        height: 140px; /* 180px slot - 40px padding = 140px */
         display: flex;
         flex-direction: column;
         gap: 8px;
+        justify-content: space-between;
       }
       
       .pokemon-header {
@@ -854,7 +864,10 @@ export class TeamUI {
         }
         
         .team-slot {
-          min-height: 120px;
+          /* TAILLE FIXE MOBILE */
+          height: 140px;
+          min-height: 140px;
+          max-height: 140px;
           padding: 15px 10px;
         }
         
@@ -863,9 +876,9 @@ export class TeamUI {
           height: 48px;
         }
         
-        .pokemon-details-portrait {
-          width: 100px;
-          height: 100px;
+        .pokemon-card {
+          /* HAUTEUR AJUSTÉE MOBILE */
+          height: 110px; /* 140px slot - 30px padding = 110px */
         }
       }
       
