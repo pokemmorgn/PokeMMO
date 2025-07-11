@@ -536,11 +536,11 @@ this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
   }
 });
     
-   // ✅ AJOUTE CE HANDLER ICI
-this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
-  console.log(`📍 [WorldRoom] Réponse spawn reçue de ${client.sessionId}:`, message);
+// 🔥 AJOUTER CE HANDLER MANQUANT JUSTE APRÈS :
+this.onMessage("overworldPokemonMoveResponse", (client, message) => {
+  console.log(`📍 [WorldRoom] Réponse mouvement reçue de ${client.sessionId}:`, message);
   if (this.overworldPokemonManager) {
-    this.overworldPokemonManager.handleClientSpawnResponse(client, message);
+    this.overworldPokemonManager.handleClientMoveResponse(client, message);
   }
 });
     // Handler pour nettoyer une zone overworld
