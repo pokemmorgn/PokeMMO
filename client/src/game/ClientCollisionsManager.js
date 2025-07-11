@@ -679,7 +679,7 @@ export class OverworldPokemonManager {
     console.log(`🔍 [OverworldPokemonManager] Test spawn à (${x}, ${y})`);
     
     // Vérifier collision avec les murs
-    if (!this.canMoveTo(x, y)) {
+if (!this.canMoveToGrid(x, y)) {
       console.log(`🛡️ [OverworldPokemonManager] Position bloquée par mur`);
       return false;
     }
