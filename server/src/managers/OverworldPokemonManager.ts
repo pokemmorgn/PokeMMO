@@ -56,6 +56,14 @@ export class OverworldPokemonManager {
   constructor(room: any) {
     this.room = room;
     this.loadConfig();
+
+      // ✅ AJOUTER CETTE LIGNE POUR DEBUG
+  console.log(`🔍 [DEBUG] Config après chargement:`, {
+    hasAreas: !!this.config.areas,
+    areaCount: Object.keys(this.config.areas || {}).length,
+    hasVillage: !!this.config.areas?.village,
+    villageConfig: this.config.areas?.village
+  });
     console.log("🌍 [OverworldPokemonManager] Initialisé - Système case par case");
   }
 
