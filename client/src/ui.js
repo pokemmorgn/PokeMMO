@@ -674,8 +674,29 @@ async createInventoryModule() {
   }
 }
 
-  async createTeamModuleUnified() {
+// ui.js - Correction de la double initialisation Team
+
+async createTeamModuleUnified() {
   console.log('⚔️ [PokemonUI] Création module Team unifié...');
+  
+  // ✅ VÉRIFICATION SI DÉJÀ EXISTANT
+  if (window.teamSystemGlobal) {
+    console.log('ℹ️ [PokemonUI] Team déjà initialisé, réutilisation...');
+    
+    // Fermer l'UI si elle est ouverte
+    if (window.teamSystemGlobal.ui && window.teamSystemGlobal.ui.isVisible) {
+      console.log('🔒 [PokemonUI] Fermeture UI Team existante...');
+      window.teamSystemGlobal.ui.hide();
+    }
+    
+    // Connecter à UIManager
+    if (this.uiManager && this.uiManager.registerIconPosition && window.teamSystemGlobal.connectUIManager) {
+      console.log('📍 [PokemonUI] Connexion Team existant à UIManager...');
+      window.teamSystemGlobal.connectUIManager(this.uiManager);
+    }
+    
+    return window.teamSystemGlobal;
+  }
   
   try {
     // Import dynamique du système Team unifié
@@ -686,22 +707,24 @@ async createInventoryModule() {
       window.currentGameRoom,
       window.game?.scene?.getScenes(true)[0]
     );
-    // 🆕 CONNECTER À UIMANAGER
-if (this.uiManager && this.uiManager.registerIconPosition) {
-  console.log('📍 [PokemonUI] Connexion Team à UIManager...');
-  teamModule.connectUIManager(this.uiManager);
-} else {
-  console.warn('⚠️ [PokemonUI] Fallback position manuelle');
-  setTimeout(() => {
-    const teamIcon = document.querySelector('#team-icon');
-    if (teamIcon) {
-      teamIcon.style.position = 'fixed';
-      teamIcon.style.right = '20px';
-      teamIcon.style.bottom = '20px';
-      teamIcon.style.zIndex = '500';
+    
+    // Connecter à UIManager
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      console.log('📍 [PokemonUI] Connexion Team à UIManager...');
+      teamModule.connectUIManager(this.uiManager);
+    } else {
+      console.warn('⚠️ [PokemonUI] Fallback position manuelle');
+      setTimeout(() => {
+        const teamIcon = document.querySelector('#team-icon');
+        if (teamIcon) {
+          teamIcon.style.position = 'fixed';
+          teamIcon.style.right = '20px';
+          teamIcon.style.bottom = '20px';
+          teamIcon.style.zIndex = '500';
+        }
+      }, 100);
     }
-  }, 100);
-}
+    
     // Exposer globalement pour compatibilité
     window.teamSystem = teamModule;
     window.toggleTeam = () => teamModule.toggleTeamUI();
@@ -719,6 +742,66 @@ if (this.uiManager && this.uiManager.registerIconPosition) {
     return this.createEmptyWrapper('team');
   }
 }
+
+// ✅ AJOUTER AUSSI UNE FONCTION DE NETTOYAGE GLOBALE
+function cleanupTeamBeforeInit() {
+  console.log('🧹 [PokemonUI] Nettoyage Team avant réinitialisation...');
+  
+  // Fermer l'UI Team si ouverte
+  if (window.teamSystemGlobal && window.teamSystemGlobal.ui) {
+    if (window.teamSystemGlobal.ui.isVisible) {
+      window.teamSystemGlobal.ui.hide();
+      console.log('✅ UI Team fermée');
+    }
+  }
+  
+  // Cacher l'overlay directement au cas où
+  const teamOverlay = document.querySelector('#team-overlay');
+  if (teamOverlay) {
+    teamOverlay.style.display = 'none';
+    console.log('✅ Team overlay caché');
+  }
+  
+  // Réinitialiser les variables globales
+  const existingTeamIcon = window.teamSystemGlobal;
+  if (existingTeamIcon && existingTeamIcon.destroy) {
+    try {
+      existingTeamIcon.destroy();
+      console.log('✅ Ancien Team détruit');
+    } catch (error) {
+      console.warn('⚠️ Erreur destruction Team:', error);
+    }
+  }
+}
+
+// ✅ FONCTION UTILITAIRE POUR FORCER LA FERMETURE
+function forceCloseTeamUI() {
+  console.log('🔒 [PokemonUI] Force fermeture Team UI...');
+  
+  // Méthode 1: Via le système
+  if (window.teamSystemGlobal && window.teamSystemGlobal.ui) {
+    window.teamSystemGlobal.ui.hide();
+  }
+  
+  // Méthode 2: Via l'overlay
+  const teamOverlay = document.querySelector('#team-overlay');
+  if (teamOverlay) {
+    teamOverlay.style.display = 'none';
+  }
+  
+  // Méthode 3: Via les classes
+  const teamElements = document.querySelectorAll('.team-overlay, .team-ui, #team-overlay');
+  teamElements.forEach(el => {
+    el.style.display = 'none';
+    el.classList.add('hidden');
+  });
+  
+  console.log('✅ Team UI forcée fermée');
+}
+
+// ✅ EXPOSER GLOBALEMENT POUR DEBUG
+window.cleanupTeamBeforeInit = cleanupTeamBeforeInit;
+window.forceCloseTeamUI = forceCloseTeamUI;
 
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
