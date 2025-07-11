@@ -824,15 +824,7 @@ document.addEventListener('keydown', (event) => {
   // ❌ SUPPRIMÉ: Raccourci clavier 'I' pour l'ancien système inventory
   // Le nouveau système inventory est géré par le UIManager via ui.js
   
-  // Les autres raccourcis existants restent inchangés
-  if (event.key.toLowerCase() === 'q' && !window.shouldBlockInput()) {
-    event.preventDefault();
-    if (window.questSystemGlobal) {
-      window.questSystemGlobal.openQuestJournal();
-    } else {
-      window.showGameNotification?.("Système de quêtes non initialisé", "warning", { duration: 2000, position: 'top-center' });
-    }
-  }
+  // ❌ SUPPRIMÉ: Raccourci Q pour quêtes (Q = déplacement !)
   
   if (event.key.toLowerCase() === 'f' && !window.shouldBlockInput()) {
     event.preventDefault();
@@ -1627,7 +1619,6 @@ setTimeout(() => {
     };
     
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
-    console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 L'inventaire est maintenant géré par le nouveau UIManager via ui.js");
     // ❌ SUPPRIMÉ: console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
     console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
@@ -1805,7 +1796,6 @@ window.showGameHelp = function() {
 🎮 === AIDE DU JEU ===
 
 === Contrôles de base ===
-• Q - Ouvrir/Fermer le journal des quêtes
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
 • B - Tester le système de combat
@@ -1813,7 +1803,7 @@ window.showGameHelp = function() {
 • E - Interagir avec NPCs/objets
 • S - Afficher sélection starter (test)
 • ESC - Fermer sélection starter
-• WASD ou Flèches - Déplacement
+• WASD ou Flèches - Déplacement (Q = gauche, pas quêtes !)
 
 === Nouveau système Inventory ===
 • L'inventaire est maintenant géré par le UIManager unifié
