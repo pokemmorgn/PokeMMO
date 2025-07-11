@@ -603,7 +603,7 @@ export class OverworldPokemonManager {
     const { id, fromX, fromY, toX, toY, direction } = data;
     
     // ✅ UTILISER LA NOUVELLE MÉTHODE canMoveToGrid au lieu de canMoveTo
-    const canMove = this.canMoveToGrid(toX, toY);
+const canMove = this.canMoveToGrid(toX, toY) && !this.isPokemonAt(toX, toY);
     
     // ✅ CORRECTION: Utiliser networkManager.room.send
     if (this.scene.networkManager?.room) {
@@ -675,34 +675,34 @@ export class OverworldPokemonManager {
   /**
    * ✅ Vérification si on peut spawn à une position
    */
-  canSpawnAt(x, y) {
-    console.log(`🔍 [OverworldPokemonManager] Test spawn à (${x}, ${y})`);
-    
-    // Vérifier collision avec les murs
-if (!this.canMoveToGrid(x, y)) {
-      console.log(`🛡️ [OverworldPokemonManager] Position bloquée par mur`);
-      return false;
-    }
-    
-    // Vérifier collision avec autres Pokémon
-    if (this.isPokemonAt(x, y)) {
-      console.log(`🐾 [OverworldPokemonManager] Position occupée par autre Pokémon`);
-      return false;
-    }
-    
-    // Vérifier collision avec le joueur
-    const player = this.scene.playerManager?.getMyPlayer();
-    if (player) {
-      const distance = Math.abs(player.x - x) + Math.abs(player.y - y);
-      if (distance < this.gridSize) {
-        console.log(`👤 [OverworldPokemonManager] Position trop proche du joueur`);
-        return false;
-      }
-    }
-    
-    console.log(`✅ [OverworldPokemonManager] Position libre`);
-    return true;
+ canSpawnAt(x, y) {
+  console.log(`🔍 [OverworldPokemonManager] Test spawn à (${x}, ${y})`);
+  
+  // ✅ FIX: Utiliser canMoveToGrid au lieu de canMoveTo défaillant
+  if (!this.canMoveToGrid(x, y)) {
+    console.log(`🛡️ [OverworldPokemonManager] Position bloquée par mur`);
+    return false;
   }
+  
+  // Vérifier collision avec autres Pokémon
+  if (this.isPokemonAt(x, y)) {
+    console.log(`🐾 [OverworldPokemonManager] Position occupée par autre Pokémon`);
+    return false;
+  }
+  
+  // Vérifier collision avec le joueur
+  const player = this.scene.playerManager?.getMyPlayer();
+  if (player) {
+    const distance = Math.abs(player.x - x) + Math.abs(player.y - y);
+    if (distance < this.gridSize) {
+      console.log(`👤 [OverworldPokemonManager] Position trop proche du joueur`);
+      return false;
+    }
+  }
+  
+  console.log(`✅ [OverworldPokemonManager] Position libre`);
+  return true;
+}
 
   /**
    * ✅ Vérification si on peut se déplacer vers une position
