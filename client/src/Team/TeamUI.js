@@ -468,16 +468,16 @@ export class TeamUI {
         font-weight: 500;
       }
       
-        .pokemon-card {
-          height: 153px;
-          width: 100%; 
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          justify-content: space-between;
-          padding: 8px;
-          box-sizing: border-box;
-        }
+      .pokemon-card {
+        height: 153px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        justify-content: space-between;
+        padding: 8px;
+        box-sizing: border-box;
+      }
           
       .pokemon-header {
         display: flex;
