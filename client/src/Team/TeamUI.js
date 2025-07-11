@@ -54,8 +54,8 @@ export class TeamUI {
     const style = document.createElement('style');
     style.id = 'modern-team-ui-styles';
     style.textContent = `
-      /* ===== RESET ET BASE ===== */
-      * {
+      /* ===== RESET ET BASE - SCOPED UNIQUEMENT POUR TEAM UI ===== */
+      .team-overlay * {
         box-sizing: border-box;
       }
       
@@ -66,496 +66,334 @@ export class TeamUI {
         left: 0;
         right: 0;
         bottom: 0;
-        background: transparent;
+        background: rgba(0, 0, 0, 0.8);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
-        opacity: 1;
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        pointer-events: none;
+        backdrop-filter: blur(5px);
+        transition: opacity 0.3s ease;
       }
       
       .team-overlay.hidden {
         opacity: 0;
         pointer-events: none;
-        transform: scale(0.9);
       }
       
-      .team-overlay .team-container {
-        pointer-events: auto;
-      }
-      
-      /* ===== CONTAINER SIMPLIFIÉ ===== */
+      /* ===== CONTAINER STYLE INVENTAIRE ===== */
       .team-container {
-        width: 90vw;
-        max-width: 1200px;
-        height: 75vh;
-        max-height: 600px;
-        background: 
-          linear-gradient(145deg, #1a1a2e, #16213e),
-          radial-gradient(circle at 30% 40%, rgba(74, 144, 226, 0.1), transparent);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
+        width: 90%;
+        max-width: 900px;
+        height: 85%;
+        max-height: 700px;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
         color: white;
-        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-        display: grid;
-        grid-template-rows: auto auto 1fr;
-        gap: 0;
-        box-shadow: 
-          0 32px 64px rgba(0, 0, 0, 0.4),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1),
-          0 0 0 1px rgba(255, 255, 255, 0.05);
-        overflow: hidden;
-        position: relative;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
       }
       
-      .team-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1" fill="white" opacity="0.02"/><circle cx="80" cy="60" r="1" fill="white" opacity="0.02"/><circle cx="40" cy="80" r="1" fill="white" opacity="0.02"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-        pointer-events: none;
-        z-index: 1;
+      .team-overlay:not(.hidden) .team-container {
+        transform: scale(1);
       }
       
-      /* ===== HEADER GLASSMORPHISM ===== */
+      /* ===== HEADER STYLE INVENTAIRE ===== */
       .team-header {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(20px);
-        padding: 24px 32px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 15px 20px;
+        border-radius: 17px 17px 0 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        position: relative;
-        z-index: 2;
+        border-bottom: 2px solid #357abd;
       }
       
       .team-title {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
       
       .team-icon {
         font-size: 28px;
-        background: linear-gradient(135deg, #ff6b6b, #feca57);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.3));
       }
       
       .team-title-text h2 {
         margin: 0;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: -0.5px;
+        color: #ffffff;
+        font-size: 20px;
+        font-weight: bold;
       }
       
       .team-subtitle {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 14px;
-        margin: 4px 0 0 0;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 13px;
+        margin: 2px 0 0 0;
         font-weight: 400;
       }
       
       .team-controls {
         display: flex;
         align-items: center;
-        gap: 24px;
+        gap: 15px;
       }
       
       .team-stats {
         text-align: right;
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(10px);
-        padding: 12px 20px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.1);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 14px;
       }
       
       .team-count {
-        font-size: 20px;
-        font-weight: 800;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 18px;
+        font-weight: bold;
+        color: #87ceeb;
       }
       
       .team-status {
         font-size: 12px;
-        margin-top: 4px;
+        margin-top: 2px;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
       
       .team-close-btn {
-        background: rgba(255, 71, 87, 0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 71, 87, 0.3);
-        color: #ff4757;
-        width: 44px;
-        height: 44px;
+        background: rgba(220, 53, 69, 0.8);
+        border: none;
+        color: white;
+        width: 35px;
+        height: 35px;
         border-radius: 50%;
-        cursor: pointer;
         font-size: 18px;
-        font-weight: bold;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .team-close-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: radial-gradient(circle, rgba(255, 71, 87, 0.1), transparent 70%);
-        transform: scale(0);
-        transition: transform 0.3s ease;
-      }
-      
-      .team-close-btn:hover::before {
-        transform: scale(1);
+        cursor: pointer;
+        transition: background 0.3s ease;
       }
       
       .team-close-btn:hover {
-        background: rgba(255, 71, 87, 0.3);
-        border-color: #ff4757;
-        transform: scale(1.05);
-        box-shadow: 0 8px 25px rgba(255, 71, 87, 0.3);
+        background: rgba(220, 53, 69, 1);
       }
       
-      /* ===== TABS FLOTTANTS ===== */
+      /* ===== TABS STYLE INVENTAIRE ===== */
       .team-tabs {
         display: flex;
-        gap: 4px;
-        padding: 16px 32px 0;
-        background: transparent;
-        position: relative;
-        z-index: 2;
+        gap: 5px;
+        padding: 10px 0;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 2px solid #357abd;
       }
       
       .team-tab {
-        flex: none;
-        padding: 12px 24px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        color: rgba(255, 255, 255, 0.6);
+        flex: 1;
+        padding: 12px 15px;
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
         font-size: 14px;
         font-weight: 600;
-        position: relative;
-        overflow: hidden;
-        min-width: 120px;
-      }
-      
-      .team-tab::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(116, 185, 255, 0.1), rgba(9, 132, 227, 0.1));
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        border-left: 4px solid transparent;
+        margin: 0 5px;
+        border-radius: 0 8px 8px 0;
       }
       
       .team-tab:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.8);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-      }
-      
-      .team-tab:hover::before {
-        opacity: 1;
+        background: rgba(74, 144, 226, 0.2);
+        border-left-color: #4a90e2;
+        color: #87ceeb;
       }
       
       .team-tab.active {
-        background: linear-gradient(135deg, rgba(116, 185, 255, 0.2), rgba(9, 132, 227, 0.2));
-        color: #74b9ff;
-        border-color: rgba(116, 185, 255, 0.3);
-        box-shadow: 
-          0 8px 25px rgba(116, 185, 255, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        transform: translateY(-1px);
-      }
-      
-      .team-tab.active::before {
-        opacity: 1;
+        background: rgba(74, 144, 226, 0.4);
+        border-left-color: #4a90e2;
+        color: #87ceeb;
       }
       
       .tab-icon {
         font-size: 16px;
-        transition: transform 0.3s ease;
+        width: 20px;
+        text-align: center;
       }
       
-      .team-tab.active .tab-icon {
-        transform: scale(1.1);
-      }
-      
-      /* ===== CONTENU PRINCIPAL MODERNE ===== */
+      /* ===== CONTENU STYLE INVENTAIRE ===== */
       .team-content {
         flex: 1;
-        padding: 32px;
-        overflow: hidden;
         display: flex;
-        flex-direction: column;
-        position: relative;
-        z-index: 2;
+        overflow: hidden;
       }
       
       .team-view {
         display: none;
-        height: 100%;
-        overflow: hidden;
-        animation: fadeOut 0.3s ease-out;
+        width: 100%;
       }
       
       .team-view.active {
         display: flex;
-        animation: fadeIn 0.4s ease-out;
-      }
-      
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      
-      @keyframes fadeOut {
-        from { opacity: 1; transform: translateY(0); }
-        to { opacity: 0; transform: translateY(-10px); }
-      }
-      
-      /* ===== LAYOUT OVERVIEW MODERNE ===== */
-      .team-overview-content {
-        display: grid;
-        grid-template-columns: 1fr 350px;
-        gap: 32px;
-        height: 100%;
         width: 100%;
       }
       
-      /* Section principale - Grille moderne */
+      /* ===== LAYOUT COMME INVENTAIRE ===== */
+      .team-overview-content {
+        display: flex;
+        width: 100%;
+        height: 100%;
+      }
+      
+      /* Section principale des slots - Style inventaire */
       .team-slots-section {
+        flex: 1;
         display: flex;
         flex-direction: column;
-        min-width: 0;
+        overflow: hidden;
       }
       
       .slots-header {
-        margin-bottom: 20px;
+        padding: 15px 20px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid #357abd;
       }
       
       .slots-title {
-        font-size: 20px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 16px;
+        font-weight: 600;
+        color: #87ceeb;
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 12px;
-        letter-spacing: -0.5px;
+        gap: 8px;
       }
       
-      /* Grille des slots - Design Cards */
+      /* Grille des slots Pokemon - Style inventaire */
       .team-slots-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: repeat(2, 1fr);
-        gap: 20px;
         flex: 1;
-        min-height: 0;
+        padding: 20px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        align-content: start;
       }
       
-      /* Slot Pokemon - Card Design */
+      /* Slot Pokemon - Style inventaire */
       .team-slot {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 15px 10px;
+        text-align: center;
         cursor: pointer;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
+        transition: all 0.3s ease;
+        min-height: 120px;
         display: flex;
         flex-direction: column;
-        min-height: 180px;
-        overflow: hidden;
-        box-shadow: 
-          0 8px 32px rgba(0, 0, 0, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-      
-      .team-slot::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: radial-gradient(circle at 50% 50%, rgba(116, 185, 255, 0.05), transparent 70%);
-        opacity: 0;
-        transition: opacity 0.4s ease;
+        justify-content: center;
+        position: relative;
       }
       
       .team-slot:hover {
-        transform: translateY(-6px) scale(1.02);
-        border-color: rgba(116, 185, 255, 0.3);
-        box-shadow: 
-          0 20px 60px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(116, 185, 255, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      }
-      
-      .team-slot:hover::before {
-        opacity: 1;
+        background: rgba(74, 144, 226, 0.2);
+        border-color: #4a90e2;
+        transform: translateY(-2px);
       }
       
       .team-slot.selected {
-        border-color: #74b9ff;
-        background: rgba(116, 185, 255, 0.1);
-        box-shadow: 
-          0 20px 60px rgba(116, 185, 255, 0.2),
-          0 0 0 2px rgba(116, 185, 255, 0.4),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        transform: translateY(-4px) scale(1.02);
-      }
-      
-      .team-slot.selected::before {
-        opacity: 1;
-        background: radial-gradient(circle at 50% 50%, rgba(116, 185, 255, 0.1), transparent 70%);
+        background: rgba(74, 144, 226, 0.4);
+        border-color: #87ceeb;
+        box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
       }
       
       .team-slot.empty {
         border-style: dashed;
-        border-color: rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.02);
+        background: rgba(255, 255, 255, 0.05);
         display: flex;
         align-items: center;
         justify-content: center;
       }
       
-      .team-slot.empty:hover {
-        border-color: rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.04);
-      }
-      
-      /* Numéro du slot - Badge moderne */
+      /* Numéro du slot */
       .slot-number {
         position: absolute;
-        top: 12px;
-        left: 12px;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
+        top: 8px;
+        left: 8px;
+        background: rgba(74, 144, 226, 0.8);
         color: white;
-        width: 24px;
-        height: 24px;
-        border-radius: 8px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
-        font-weight: 700;
-        z-index: 2;
-        box-shadow: 0 4px 12px rgba(116, 185, 255, 0.3);
+        font-size: 10px;
+        font-weight: bold;
       }
       
-      /* Slot vide - Design moderne */
+      /* Slot vide */
       .empty-slot {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 12px;
+        gap: 8px;
         opacity: 0.6;
         height: 100%;
-        position: relative;
-        z-index: 1;
       }
       
       .empty-icon {
-        font-size: 32px;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        filter: drop-shadow(0 0 8px rgba(116, 185, 255, 0.3));
+        font-size: 24px;
+        color: #4a90e2;
       }
       
       .empty-text {
-        font-size: 13px;
+        font-size: 11px;
         color: rgba(255, 255, 255, 0.6);
         text-align: center;
-        font-weight: 500;
       }
       
-      /* ===== POKEMON CARD REDESIGN ===== */
+      /* ===== POKEMON CARD STYLE INVENTAIRE ===== */
       .pokemon-card {
         height: 100%;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        position: relative;
-        z-index: 1;
+        gap: 6px;
       }
       
       .pokemon-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-top: 8px;
+        margin-top: 10px;
       }
       
       .pokemon-name {
-        font-weight: 700;
+        font-weight: 600;
         color: #ffffff;
-        font-size: 14px;
+        font-size: 12px;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        max-width: 100px;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        max-width: 80px;
       }
       
       .pokemon-level {
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
+        background: rgba(74, 144, 226, 0.8);
         color: white;
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-size: 10px;
-        font-weight: 700;
-        box-shadow: 0 2px 8px rgba(116, 185, 255, 0.3);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: bold;
       }
       
       .pokemon-sprite {
@@ -564,30 +402,18 @@ export class TeamUI {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 8px 0;
+        margin: 4px 0;
       }
       
       .pokemon-portrait {
-        width: 80px;
-        height: 80px;
+        width: 48px;
+        height: 48px;
         background-size: cover;
         background-position: center;
-        border-radius: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
         image-rendering: pixelated;
-        box-shadow: 
-          0 8px 32px rgba(0, 0, 0, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        transition: all 0.3s ease;
-      }
-      
-      .team-slot:hover .pokemon-portrait {
-        transform: scale(1.05);
-        border-color: rgba(116, 185, 255, 0.4);
-        box-shadow: 
-          0 12px 48px rgba(0, 0, 0, 0.3),
-          0 0 0 2px rgba(116, 185, 255, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       }
       
       .pokemon-health {
@@ -596,596 +422,243 @@ export class TeamUI {
       
       .health-bar {
         width: 100%;
-        height: 8px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 2px;
         overflow: hidden;
-        margin-bottom: 6px;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        margin-bottom: 3px;
       }
       
       .health-fill {
         height: 100%;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 8px;
-        position: relative;
+        transition: width 0.3s ease;
+        border-radius: 2px;
       }
       
-      .health-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 50%;
-        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent);
-        border-radius: 8px 8px 0 0;
-      }
-      
-      .health-fill.high { 
-        background: linear-gradient(135deg, #00b894, #00a085); 
-        box-shadow: 0 0 12px rgba(0, 184, 148, 0.4);
-      }
-      .health-fill.medium { 
-        background: linear-gradient(135deg, #fdcb6e, #e17055); 
-        box-shadow: 0 0 12px rgba(253, 203, 110, 0.4);
-      }
-      .health-fill.low { 
-        background: linear-gradient(135deg, #fd79a8, #e84393); 
-        box-shadow: 0 0 12px rgba(253, 121, 168, 0.4);
-      }
-      .health-fill.critical { 
-        background: linear-gradient(135deg, #a29bfe, #6c5ce7); 
-        box-shadow: 0 0 12px rgba(162, 155, 254, 0.4);
-        animation: criticalPulse 2s infinite;
-      }
-      
-      @keyframes criticalPulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-      }
+      .health-fill.high { background: #28a745; }
+      .health-fill.medium { background: #ffc107; }
+      .health-fill.low { background: #dc3545; }
+      .health-fill.critical { background: #6f42c1; }
       
       .health-text {
-        font-size: 11px;
+        font-size: 9px;
         text-align: center;
         color: rgba(255, 255, 255, 0.8);
-        font-weight: 600;
       }
       
       .pokemon-types {
         display: flex;
-        gap: 4px;
+        gap: 2px;
         justify-content: center;
-        margin-top: 6px;
-        flex-wrap: wrap;
+        margin-top: 3px;
       }
       
       .type-badge {
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-size: 9px;
-        font-weight: 700;
+        padding: 1px 3px;
+        border-radius: 3px;
+        font-size: 8px;
+        font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
       
-      /* Types redesignés */
-      .type-badge.type-fire { 
-        background: linear-gradient(135deg, #ff7675, #e17055); 
-        color: white;
-      }
-      .type-badge.type-water { 
-        background: linear-gradient(135deg, #74b9ff, #0984e3); 
-        color: white;
-      }
-      .type-badge.type-grass { 
-        background: linear-gradient(135deg, #55a3ff, #00b894); 
-        color: white;
-      }
-      .type-badge.type-electric { 
-        background: linear-gradient(135deg, #fdcb6e, #f39c12); 
-        color: #2d3436;
-      }
-      .type-badge.type-psychic { 
-        background: linear-gradient(135deg, #fd79a8, #e84393); 
-        color: white;
-      }
-      .type-badge.type-ice { 
-        background: linear-gradient(135deg, #81ecec, #00cec9); 
-        color: #2d3436;
-      }
-      .type-badge.type-dragon { 
-        background: linear-gradient(135deg, #a29bfe, #6c5ce7); 
-        color: white;
-      }
-      .type-badge.type-dark { 
-        background: linear-gradient(135deg, #636e72, #2d3436); 
-        color: white;
-      }
-      .type-badge.type-fairy { 
-        background: linear-gradient(135deg, #fd79a8, #fdcb6e); 
-        color: #2d3436;
-      }
-      .type-badge.type-normal { 
-        background: linear-gradient(135deg, #ddd, #b2bec3); 
-        color: #2d3436;
-      }
+      /* Types */
+      .type-badge.type-fire { background: #ff6347; }
+      .type-badge.type-water { background: #1e90ff; }
+      .type-badge.type-grass { background: #32cd32; }
+      .type-badge.type-electric { background: #ffd700; color: #333; }
+      .type-badge.type-psychic { background: #ff69b4; }
+      .type-badge.type-ice { background: #87ceeb; }
+      .type-badge.type-dragon { background: #9370db; }
+      .type-badge.type-dark { background: #2f4f4f; }
+      .type-badge.type-fairy { background: #ffb6c1; color: #333; }
+      .type-badge.type-normal { background: #d3d3d3; color: #333; }
       
-      /* ===== SIDEBAR MODERNE ===== */
+      /* ===== SIDEBAR STYLE INVENTAIRE ===== */
       .team-sidebar {
+        width: 250px;
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 2px solid #357abd;
         display: flex;
         flex-direction: column;
-        gap: 20px;
-        width: 350px;
       }
       
-      /* Section stats redesignée */
+      /* Section stats */
       .stats-section {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 
-          0 8px 32px rgba(0, 0, 0, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .stats-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: radial-gradient(circle at 80% 20%, rgba(116, 185, 255, 0.05), transparent 50%);
-        pointer-events: none;
+        background: rgba(0, 0, 0, 0.2);
+        margin: 10px;
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid rgba(74, 144, 226, 0.3);
       }
       
       .section-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
-        position: relative;
-        z-index: 1;
+        gap: 8px;
+        margin-bottom: 12px;
       }
       
       .section-title {
-        font-size: 18px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 14px;
+        font-weight: 600;
+        color: #87ceeb;
         margin: 0;
-        letter-spacing: -0.5px;
       }
       
       .section-icon {
-        font-size: 18px;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 16px;
+        color: #4a90e2;
       }
       
-      /* Stats individuelles redesignées */
+      /* Stats individuelles */
       .stat-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        position: relative;
-        z-index: 1;
+        gap: 8px;
       }
       
       .stat-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(5px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .stat-item::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(116, 185, 255, 0.05), transparent);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-      
-      .stat-item:hover {
+        padding: 6px 10px;
         background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(116, 185, 255, 0.2);
-        transform: translateX(4px);
-      }
-      
-      .stat-item:hover::before {
-        opacity: 1;
+        border-radius: 4px;
+        border: 1px solid rgba(74, 144, 226, 0.2);
       }
       
       .stat-label {
-        font-size: 14px;
+        font-size: 12px;
         color: rgba(255, 255, 255, 0.8);
-        font-weight: 500;
       }
       
       .stat-value {
-        font-size: 14px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 12px;
+        font-weight: bold;
+        color: #ffffff;
       }
       
-      /* Couverture des types redesignée */
+      /* Couverture des types */
       .type-coverage {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 12px;
-        position: relative;
-        z-index: 1;
+        gap: 4px;
+        margin-top: 8px;
       }
       
       .coverage-type {
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-size: 10px;
-        font-weight: 700;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 8px;
+        font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        transition: all 0.3s ease;
       }
       
-      .coverage-type:hover {
-        transform: translateY(-2px) scale(1.05);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-      }
-      
-      /* ===== VUES DÉTAILS ET MOVES REDESIGNÉES ===== */
-      .team-details-content,
-      .team-moves-content {
-        height: 100%;
+      /* ===== VUE DÉTAILS STYLE INVENTAIRE ===== */
+      .team-details-content {
+        border-top: 2px solid #357abd;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        min-height: 150px;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 60px 40px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        flex-direction: column;
       }
       
       .no-selection {
-        color: rgba(255, 255, 255, 0.6);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        justify-content: center;
+        height: 100%;
+        color: #888;
+        text-align: center;
       }
       
       .no-selection-icon {
-        font-size: 64px;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-size: 36px;
+        margin-bottom: 10px;
         opacity: 0.5;
-        filter: drop-shadow(0 0 20px rgba(116, 185, 255, 0.2));
       }
       
       .no-selection h3 {
-        font-size: 24px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff, #74b9ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin: 0;
-        letter-spacing: -0.5px;
+        font-size: 16px;
+        margin: 5px 0;
+        color: #ccc;
       }
       
       .no-selection p {
-        font-size: 16px;
-        color: rgba(255, 255, 255, 0.5);
-        margin: 0;
-        font-weight: 500;
-      }
-      
-      /* ===== FOOTER REDESIGNÉ ===== */
-      .team-footer {
-        padding: 24px 32px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        position: relative;
-        z-index: 2;
-      }
-      
-      .team-actions {
-        display: flex;
-        gap: 12px;
-      }
-      
-      .team-btn {
-        padding: 12px 20px;
-        border: none;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #74b9ff, #0984e3);
-        color: white;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        gap: 8px;
         font-size: 14px;
-        font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 
-          0 4px 15px rgba(116, 185, 255, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        position: relative;
-        overflow: hidden;
+        margin: 0;
       }
       
-      .team-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
+      /* ===== SCROLLBAR CUSTOM ===== */
+      .team-slots-grid::-webkit-scrollbar {
+        width: 8px;
       }
       
-      .team-btn:hover::before {
-        left: 100%;
+      .team-slots-grid::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
       }
       
-      .team-btn:hover {
-        background: linear-gradient(135deg, #0984e3, #74b9ff);
-        transform: translateY(-2px);
-        box-shadow: 
-          0 8px 25px rgba(116, 185, 255, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      .team-slots-grid::-webkit-scrollbar-thumb {
+        background: rgba(74, 144, 226, 0.6);
+        border-radius: 4px;
       }
       
-      .team-btn.secondary {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.9);
-        border-color: rgba(255, 255, 255, 0.15);
-        box-shadow: 
-          0 4px 15px rgba(0, 0, 0, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      .team-slots-grid::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 144, 226, 0.8);
       }
       
-      .team-btn.secondary:hover {
-        background: rgba(255, 255, 255, 0.12);
-        color: white;
-        border-color: rgba(255, 255, 255, 0.25);
-        box-shadow: 
-          0 8px 25px rgba(0, 0, 0, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      }
-      
-      .btn-icon {
-        font-size: 16px;
-        transition: transform 0.3s ease;
-      }
-      
-      .team-btn:hover .btn-icon {
-        transform: scale(1.1);
-      }
-      
-      .team-info {
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 13px;
-        font-weight: 500;
-        font-style: italic;
-      }
-      
-      /* ===== ANIMATIONS MODERNES ===== */
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-      }
-      
-      @keyframes glow {
-        0%, 100% { 
-          box-shadow: 0 0 20px rgba(116, 185, 255, 0.2); 
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .team-container {
+          width: 95%;
+          height: 90%;
         }
-        50% { 
-          box-shadow: 0 0 40px rgba(116, 185, 255, 0.4); 
-        }
-      }
-      
-      .team-icon:hover {
-        animation: float 2s ease-in-out infinite;
-      }
-      
-      .team-slot.selected {
-        animation: glow 2s ease-in-out infinite;
-      }
-      
-      /* ===== RESPONSIVE MODERNE ===== */
-      @media (max-width: 1200px) {
+        
         .team-overview-content {
-          grid-template-columns: 1fr;
-          grid-template-rows: 1fr auto;
-          gap: 24px;
+          flex-direction: column;
         }
         
         .team-sidebar {
           width: 100%;
-          grid-row: 2;
+          order: 2;
+          border-left: none;
+          border-top: 2px solid #357abd;
         }
         
         .team-slots-grid {
-          grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: repeat(3, 1fr);
-          gap: 16px;
-        }
-      }
-      
-      @media (max-width: 768px) {
-        .team-container {
-          width: 95vw;
-          height: 90vh;
-          border-radius: 16px;
-        }
-        
-        .team-header {
-          padding: 20px 24px;
-          flex-direction: column;
-          gap: 16px;
-          text-align: center;
-        }
-        
-        .team-controls {
-          flex-direction: column;
-          gap: 12px;
-        }
-        
-        .team-tabs {
-          padding: 12px 24px 0;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-        
-        .team-tab {
-          min-width: auto;
-          padding: 10px 16px;
-          font-size: 12px;
-        }
-        
-        .team-content {
-          padding: 20px;
-        }
-        
-        .team-slots-grid {
-          grid-template-columns: 1fr;
-          grid-template-rows: repeat(6, auto);
-          gap: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 10px;
+          padding: 15px;
         }
         
         .team-slot {
-          min-height: 140px;
-          padding: 16px;
+          min-height: 100px;
+          padding: 10px 8px;
         }
         
         .pokemon-portrait {
-          width: 60px;
-          height: 60px;
-        }
-        
-        .team-footer {
-          padding: 16px 24px;
-          flex-direction: column;
-          gap: 16px;
-        }
-        
-        .team-actions {
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-        
-        .team-btn {
-          padding: 10px 16px;
-          font-size: 13px;
+          width: 40px;
+          height: 40px;
         }
       }
       
-      @media (max-width: 480px) {
-        .team-container {
-          width: 100vw;
-          height: 100vh;
-          border-radius: 0;
-          max-height: none;
+      /* ===== ANIMATIONS ===== */
+      @keyframes itemAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(20px);
         }
-        
-        .team-overlay {
-          padding: 0;
-        }
-        
-        .team-header {
-          padding: 16px 20px;
-        }
-        
-        .team-content {
-          padding: 16px;
-        }
-        
-        .team-footer {
-          padding: 16px 20px;
-        }
-        
-        .stats-section {
-          padding: 16px;
-        }
-        
-        .slot-number {
-          width: 20px;
-          height: 20px;
-          font-size: 10px;
-        }
-        
-        .pokemon-name {
-          font-size: 12px;
-          max-width: 60px;
-        }
-        
-        .pokemon-level {
-          font-size: 9px;
-          padding: 2px 6px;
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
         }
       }
       
-      /* ===== PERFORMANCE ET ACCESSIBILITÉ ===== */
-      @media (prefers-reduced-motion: reduce) {
-        * {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-        }
-        
-        .team-slot:hover {
-          transform: none;
-        }
-        
-        .team-btn:hover {
-          transform: none;
-        }
-      }
-      
-      .team-tab:focus,
-      .team-btn:focus,
-      .team-slot:focus,
-      .team-close-btn:focus {
-        outline: 2px solid #74b9ff;
-        outline-offset: 2px;
+      .team-slot.new {
+        animation: itemAppear 0.4s ease;
       }
     `;
     
