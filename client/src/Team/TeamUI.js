@@ -469,14 +469,17 @@ export class TeamUI {
       }
       
       /* ===== POKEMON CARD - AJUSTÉE POUR SLOT 170px ===== */
-      .pokemon-card {
-        /* HAUTEUR EXACTE POUR CORRESPONDRE AU SLOT AJUSTÉ */
-        height: 140px; /* 170px slot - 30px padding = 140px */
-        display: flex;
-        flex-direction: column;
-        gap: 6px; /* Réduit légèrement */
-        justify-content: space-between;
-      }
+    .pokemon-card {
+      /* ✅ NOUVELLE TAILLE : 90% du slot (170px) = ~153px */
+      height: 153px; /* Au lieu de 140px */
+      width: 100%; /* Prendre toute la largeur disponible */
+      display: flex;
+      flex-direction: column;
+      gap: 4px; /* Réduit légèrement pour plus d'espace */
+      justify-content: space-between;
+      padding: 8px; /* Ajout padding pour ne pas toucher les bords */
+      box-sizing: border-box;
+    }
       
       .pokemon-header {
         display: flex;
@@ -1451,9 +1454,9 @@ export class TeamUI {
   
 getPortraitStyle(pokemonId) {
   console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
-  
+
   if (!pokemonId) {
-    return `
+    return 
       background: linear-gradient(45deg, #ccc, #999); 
       display: flex; 
       align-items: center; 
@@ -1461,21 +1464,18 @@ getPortraitStyle(pokemonId) {
       color: white;
       font-weight: bold;
       font-size: 20px;
-    `;
+    ;
   }
-  
-  // ✅ VERSION CORRIGÉE : Afficher seulement la première frame
-  const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
-  
-  return `
-    background-image: url('${url}');
-    background-size: 900% 900%;
-    background-position: 0px 0px;
-    background-repeat: no-repeat;
-    width: 64px;
-    height: 64px;
-    image-rendering: pixelated;
-  `;
+
+  const style = getPokemonPortraitStyle(pokemonId, {
+    width: '128px',
+    height: '128px',
+    preservePixelArt: true
+  });
+
+  console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
+
+  return style;
 }
   
   getHealthClass(healthPercent) {
