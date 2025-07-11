@@ -1,5 +1,5 @@
-// Team/index.js - Module Team Unifié pour Pokémon MMO
-// 🎯 1 SEUL module qui gère TOUT : business logic + icône + interface
+// Team/index.js - Module Team Unifié CORRIGÉ avec Singleton
+// 🎯 ÉVITE LA DOUBLE INITIALISATION avec pattern Singleton
 // 📍 INTÉGRÉ avec UIManager pour positionnement automatique
 
 import { TeamManager } from './TeamManager.js';
@@ -7,12 +7,18 @@ import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
 
 /**
- * Module Team Unifié
+ * Module Team Unifié avec Singleton Pattern
  * Compatible avec UIManager simplifié
  * API simple: show(), hide(), setEnabled()
  */
 export class TeamModule {
   constructor(gameRoom, scene) {
+    // 🆕 SINGLETON PATTERN - ÉVITER DOUBLE INITIALISATION
+    if (TeamModule.instance) {
+      console.log('♻️ [TeamModule] Instance existante détectée, réutilisation');
+      return TeamModule.instance;
+    }
+    
     this.gameRoom = gameRoom;
     this.scene = scene;
     
@@ -27,12 +33,41 @@ export class TeamModule {
       enabled: true,        // Module activé
       initialized: false    // Non encore initialisé
     };
+    
+    // 🆕 SINGLETON - STOCKER L'INSTANCE
+    TeamModule.instance = this;
+    
+    console.log('⚔️ [TeamModule] Nouvelle instance créée (singleton)');
   }
   
-  // === 🚀 INITIALISATION ===
+  // 🆕 MÉTHODES STATIQUES SINGLETON
+  static getInstance() {
+    return TeamModule.instance || null;
+  }
+  
+  static reset() {
+    if (TeamModule.instance) {
+      TeamModule.instance.destroy();
+      TeamModule.instance = null;
+    }
+  }
+  
+  static hasInstance() {
+    return TeamModule.instance !== null;
+  }
+  
+  // === 🚀 INITIALISATION PROTÉGÉE ===
   
   async init() {
     try {
+      // 🆕 ÉVITER DOUBLE INITIALISATION
+      if (this.uiManagerState.initialized) {
+        console.log('ℹ️ [TeamModule] Déjà initialisé, retour instance existante');
+        return this;
+      }
+      
+      console.log('🚀 [TeamModule] Initialisation (singleton protection)...');
+      
       // 1. Créer le manager (business logic)
       this.manager = new TeamManager(this.gameRoom);
       await this.manager.init();
@@ -48,16 +83,13 @@ export class TeamModule {
       // 4. Connecter les composants
       this.connectComponents();
       
-      // 🆕 5. Connecter à UIManager si disponible
-      if (window.uiManager && window.uiManager.registerIconPosition) {
-        this.connectUIManager(window.uiManager);
-      }
-      
-      // 6. Appliquer l'état initial
-      this.applyUIManagerState();
-      
+      // 🆕 5. MARQUER COMME INITIALISÉ (PROTECTION)
       this.uiManagerState.initialized = true;
       
+      // 🆕 6. FERMER L'UI PAR DÉFAUT (éviter ouverture automatique)
+      this.forceCloseUI();
+      
+      console.log('✅ [TeamModule] Initialisé avec protection singleton');
       return this;
       
     } catch (error) {
@@ -66,19 +98,25 @@ export class TeamModule {
     }
   }
   
-  // === 📍 CONNEXION UIMANAGER (NOUVEAU) ===
+  // === 📍 CONNEXION UIMANAGER SÉCURISÉE ===
   
   connectUIManager(uiManager) {
-    console.log('📍 [TeamModule] Connexion UIManager pour positionnement automatique...');
+    console.log('📍 [TeamModule] Connexion UIManager SÉCURISÉE...');
     
     if (!uiManager || !uiManager.registerIconPosition) {
-      console.warn('⚠️ [TeamModule] UIManager sans positionnement automatique');
+      console.warn('⚠️ [TeamModule] UIManager incompatible');
       return false;
     }
     
     if (!this.icon || !this.icon.iconElement) {
-      console.warn('⚠️ [TeamModule] Pas d\'icône à enregistrer');
+      console.warn('⚠️ [TeamModule] Icône non disponible pour UIManager');
       return false;
+    }
+    
+    // 🆕 VÉRIFIER SI DÉJÀ CONNECTÉ (éviter double connexion)
+    if (this.icon.iconElement.hasAttribute('data-positioned-by-uimanager')) {
+      console.log('ℹ️ [TeamModule] Déjà connecté à UIManager, skip');
+      return true;
     }
     
     // Configuration pour UIManager
@@ -90,11 +128,67 @@ export class TeamModule {
       size: { width: 70, height: 80 }
     };
     
-    // Enregistrer l'icône pour positionnement automatique
-    uiManager.registerIconPosition('team', this.icon.iconElement, iconConfig);
+    try {
+      // Enregistrer l'icône pour positionnement automatique
+      uiManager.registerIconPosition('team', this.icon.iconElement, iconConfig);
+      
+      // 🆕 MARQUER COMME CONNECTÉ
+      this.icon.iconElement.setAttribute('data-positioned-by-uimanager', 'true');
+      
+      console.log('✅ [TeamModule] Connecté à UIManager avec succès');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [TeamModule] Erreur connexion UIManager:', error);
+      return false;
+    }
+  }
+  
+  // 🆕 MÉTHODE POUR FORCER FERMETURE UI
+  forceCloseUI() {
+    console.log('🔒 [TeamModule] Force fermeture UI...');
     
-    console.log('✅ [TeamModule] Icône enregistrée dans UIManager - Position: bottom-right, Order: 2');
-    return true;
+    try {
+      // Méthode 1: Via le module UI
+      if (this.ui && this.ui.hide) {
+        this.ui.hide();
+        console.log('  ✅ UI fermée via module');
+      }
+      
+      // Méthode 2: Fermeture brutale overlay
+      const teamOverlay = document.querySelector('#team-overlay');
+      if (teamOverlay) {
+        teamOverlay.classList.add('hidden');
+        teamOverlay.style.display = 'none';
+        teamOverlay.style.opacity = '0';
+        teamOverlay.style.pointerEvents = 'none';
+        console.log('  ✅ Overlay fermé brutalement');
+      }
+      
+      // Méthode 3: Tous les éléments team potentiels
+      const teamElements = document.querySelectorAll(
+        '.team-overlay, .team-modal, .team-interface, [id*="team-"]'
+      );
+      teamElements.forEach(el => {
+        if (el.style) {
+          el.style.display = 'none';
+        }
+      });
+      
+      if (teamElements.length > 0) {
+        console.log(`  ✅ ${teamElements.length} éléments Team fermés`);
+      }
+      
+      // 🆕 Marquer UI comme fermée
+      if (this.ui) {
+        this.ui.isVisible = false;
+      }
+      
+      console.log('✅ [TeamModule] UI fermée avec succès (force)');
+      
+    } catch (error) {
+      console.error('❌ [TeamModule] Erreur force fermeture:', error);
+    }
   }
   
   // === 🔗 CONNEXION DES COMPOSANTS ===
@@ -202,7 +296,9 @@ export class TeamModule {
       iconVisible: this.icon ? this.icon.isVisible : false,
       interfaceVisible: this.ui ? this.ui.isVisible : false,
       teamCount: this.manager ? this.manager.getTeamCount() : 0,
-      canBattle: this.manager ? this.manager.canBattle() : false
+      canBattle: this.manager ? this.manager.canBattle() : false,
+      singleton: true,
+      instanceId: this.constructor.name + '_' + (this.gameRoom?.id || 'unknown')
     };
   }
   
@@ -307,10 +403,12 @@ export class TeamModule {
     }
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE SINGLETON ===
   
   destroy() {
     try {
+      console.log('🧹 [TeamModule] Destruction avec nettoyage singleton...');
+      
       // Détruire les composants dans l'ordre inverse
       if (this.ui) {
         this.ui.destroy();
@@ -330,30 +428,72 @@ export class TeamModule {
       // Reset état
       this.uiManagerState.initialized = false;
       
+      // 🆕 RESET SINGLETON
+      if (TeamModule.instance === this) {
+        TeamModule.instance = null;
+        console.log('🧹 [TeamModule] Singleton reseté');
+      }
+      
+      console.log('✅ [TeamModule] Destruction terminée');
+      
     } catch (error) {
       console.error('❌ [TeamModule] Erreur destruction:', error);
     }
   }
 }
 
-// === 🏭 FACTORY POUR UIMANAGER ===
+// 🆕 VARIABLE STATIQUE POUR SINGLETON
+TeamModule.instance = null;
+
+// === 🏭 FACTORY CORRIGÉE AVEC SINGLETON ===
 
 /**
  * Factory function pour créer le module Team
- * Compatible avec UIManager
+ * Compatible avec UIManager et Singleton
  */
 export async function createTeamModule(gameRoom, scene) {
   try {
+    console.log('🏭 [TeamFactory] Création/récupération module Team...');
+    
+    // 🆕 VÉRIFIER SI INSTANCE SINGLETON EXISTE
+    let existingInstance = TeamModule.getInstance();
+    
+    if (existingInstance && existingInstance.uiManagerState.initialized) {
+      console.log('♻️ [TeamFactory] Instance singleton trouvée, réutilisation');
+      
+      // 🆕 FERMER L'UI SI ELLE EST OUVERTE (éviter conflit)
+      existingInstance.forceCloseUI();
+      
+      // Vérifier la compatibilité gameRoom
+      if (existingInstance.gameRoom !== gameRoom) {
+        console.log('🔄 [TeamFactory] GameRoom différent, mise à jour...');
+        existingInstance.gameRoom = gameRoom;
+        existingInstance.scene = scene;
+        
+        // Reconnecter le manager si nécessaire
+        if (existingInstance.manager) {
+          existingInstance.manager.gameRoom = gameRoom;
+        }
+      }
+      
+      return existingInstance;
+    }
+    
+    // 🆕 CRÉER NOUVELLE INSTANCE
+    console.log('🆕 [TeamFactory] Création nouvelle instance singleton...');
     const teamModule = new TeamModule(gameRoom, scene);
     await teamModule.init();
+    
+    console.log('✅ [TeamFactory] Module Team créé avec succès (singleton)');
     return teamModule;
+    
   } catch (error) {
     console.error('❌ [TeamFactory] Erreur création module Team:', error);
     throw error;
   }
 }
 
-// === 📋 CONFIGURATION POUR UIMANAGER ===
+// === 📋 CONFIGURATION POUR UIMANAGER MISE À JOUR ===
 
 export const TEAM_MODULE_CONFIG = {
   id: 'team',
@@ -399,20 +539,31 @@ export const TEAM_MODULE_CONFIG = {
   
   metadata: {
     name: 'Team Manager',
-    description: 'Complete Pokemon team management system',
-    version: '1.1.0',
-    category: 'Pokemon Management'
+    description: 'Complete Pokemon team management system (Singleton)',
+    version: '1.1.1',
+    category: 'Pokemon Management',
+    singleton: true
   }
 };
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER ===
+// === 🔗 INTÉGRATION AVEC UIMANAGER AMÉLIORÉE ===
 
 /**
- * Enregistrer le module Team dans UIManager
+ * Enregistrer le module Team dans UIManager avec protection singleton
  */
 export async function registerTeamModule(uiManager) {
   try {
+    console.log('📝 [TeamIntegration] Enregistrement avec protection singleton...');
+    
+    // 🆕 VÉRIFIER SI DÉJÀ ENREGISTRÉ
+    if (uiManager.modules && uiManager.modules.has('team')) {
+      console.log('ℹ️ [TeamIntegration] Module déjà enregistré');
+      return true;
+    }
+    
     await uiManager.registerModule('team', TEAM_MODULE_CONFIG);
+    console.log('✅ [TeamIntegration] Module enregistré');
+    
     return true;
   } catch (error) {
     console.error('❌ [TeamIntegration] Erreur enregistrement:', error);
@@ -421,15 +572,29 @@ export async function registerTeamModule(uiManager) {
 }
 
 /**
- * Initialiser et connecter le module Team
+ * Initialiser et connecter le module Team avec protection
  */
 export async function initializeTeamModule(uiManager) {
   try {
+    console.log('🚀 [TeamIntegration] Initialisation avec protection...');
+    
     // Enregistrer le module
     await registerTeamModule(uiManager);
     
-    // Initialiser le module
-    const teamInstance = await uiManager.initializeModule('team');
+    // 🆕 VÉRIFIER SI DÉJÀ INITIALISÉ
+    let teamInstance = TeamModule.getInstance();
+    
+    if (!teamInstance || !teamInstance.uiManagerState.initialized) {
+      // Initialiser le module
+      teamInstance = await uiManager.initializeModule('team');
+    } else {
+      console.log('ℹ️ [TeamIntegration] Instance déjà initialisée');
+      
+      // Connecter à UIManager si pas encore fait
+      if (teamInstance.connectUIManager) {
+        teamInstance.connectUIManager(uiManager);
+      }
+    }
     
     // Setup des raccourcis clavier
     setupTeamKeyboardShortcuts(teamInstance);
@@ -437,6 +602,7 @@ export async function initializeTeamModule(uiManager) {
     // Setup des événements globaux
     setupTeamGlobalEvents(teamInstance);
     
+    console.log('✅ [TeamIntegration] Initialisation terminée');
     return teamInstance;
     
   } catch (error) {
@@ -448,6 +614,12 @@ export async function initializeTeamModule(uiManager) {
 // === ⌨️ RACCOURCIS CLAVIER ===
 
 function setupTeamKeyboardShortcuts(teamInstance) {
+  // Éviter double setup
+  if (window._teamKeyboardSetup) {
+    console.log('ℹ️ [TeamKeyboard] Raccourcis déjà configurés');
+    return;
+  }
+  
   document.addEventListener('keydown', (e) => {
     // Touche T pour ouvrir/fermer Team
     if (e.key.toLowerCase() === 't' && 
@@ -461,11 +633,20 @@ function setupTeamKeyboardShortcuts(teamInstance) {
       }
     }
   });
+  
+  window._teamKeyboardSetup = true;
+  console.log('⌨️ [TeamKeyboard] Raccourcis configurés');
 }
 
 // === 🌐 ÉVÉNEMENTS GLOBAUX ===
 
 function setupTeamGlobalEvents(teamInstance) {
+  // Éviter double setup
+  if (window._teamEventsSetup) {
+    console.log('ℹ️ [TeamEvents] Événements déjà configurés');
+    return;
+  }
+  
   // Événement: Pokémon capturé
   window.addEventListener('pokemonCaught', (event) => {
     if (teamInstance.manager) {
@@ -486,24 +667,38 @@ function setupTeamGlobalEvents(teamInstance) {
       teamInstance.manager.requestTeamData(); // Refresh data
     }
   });
+  
+  window._teamEventsSetup = true;
+  console.log('🌐 [TeamEvents] Événements configurés');
 }
 
-// === 💡 UTILISATION SIMPLE ===
+// === 💡 UTILISATION SIMPLE MISE À JOUR ===
 
 /**
  * Fonction d'utilisation simple pour intégrer Team dans un projet
  */
 export async function setupTeamSystem(uiManager) {
   try {
+    console.log('🔧 [TeamSetup] Configuration système Team...');
+    
     // Initialiser le module
     const teamInstance = await initializeTeamModule(uiManager);
     
-    // Exposer globalement pour compatibilité
-    window.teamSystem = teamInstance;
-    window.toggleTeam = () => teamInstance.toggleTeamUI();
-    window.openTeam = () => teamInstance.openTeam();
-    window.closeTeam = () => teamInstance.closeTeam();
+    // Exposer globalement pour compatibilité (éviter double)
+    if (!window.teamSystem) {
+      window.teamSystem = teamInstance;
+      window.teamSystemGlobal = teamInstance;
+      window.toggleTeam = () => teamInstance.toggleTeamUI();
+      window.openTeam = () => teamInstance.openTeam();
+      window.closeTeam = () => teamInstance.closeTeam();
+      
+      // 🆕 FONCTION DE FORCE FERMETURE
+      window.forceCloseTeam = () => teamInstance.forceCloseUI();
+      
+      console.log('🌐 [TeamSetup] Fonctions globales exposées');
+    }
     
+    console.log('✅ [TeamSetup] Système Team configuré (singleton)');
     return teamInstance;
     
   } catch (error) {
@@ -516,37 +711,102 @@ export async function setupTeamSystem(uiManager) {
 
 export default TeamModule;
 
+// === 🔍 UTILITÉS DE DEBUG SINGLETON ===
+
+export function debugTeamSingleton() {
+  const instance = TeamModule.getInstance();
+  
+  const info = {
+    hasSingleton: !!instance,
+    isInitialized: instance ? instance.uiManagerState.initialized : false,
+    hasIcon: instance ? !!instance.icon : false,
+    hasUI: instance ? !!instance.ui : false,
+    uiVisible: instance ? instance.ui?.isVisible : false,
+    iconVisible: instance ? instance.icon?.isVisible : false,
+    gameRoom: instance ? !!instance.gameRoom : false,
+    
+    state: instance ? instance.getUIManagerState() : null,
+    
+    solutions: instance ? [
+      '✅ Singleton OK - utilisez forceCloseUI()',
+      '🔒 window.forceCloseTeam() pour fermer UI',
+      '🔄 window.teamSystemGlobal pour accès direct'
+    ] : [
+      '🚀 Créez avec createTeamModule()',
+      '🔧 Initialisez avec setupTeamSystem()'
+    ]
+  };
+  
+  console.log('🔍 === DEBUG TEAM SINGLETON ===');
+  console.table(info);
+  
+  if (instance && instance.ui?.isVisible) {
+    console.log('💡 SOLUTION: UI ouverte - utilisez forceCloseUI()');
+    console.log('🔒 Commande: window.teamSystemGlobal.forceCloseUI()');
+  }
+  
+  return info;
+}
+
+// === 🔧 FONCTION DE RÉPARATION ===
+
+export function fixTeamModule() {
+  console.log('🔧 [TeamFix] Réparation module Team...');
+  
+  try {
+    const instance = TeamModule.getInstance();
+    
+    if (instance) {
+      // Force fermeture UI
+      instance.forceCloseUI();
+      
+      // Réinitialiser état si nécessaire
+      if (instance.ui) {
+        instance.ui.isVisible = false;
+      }
+      
+      console.log('✅ [TeamFix] Module réparé');
+      return true;
+    } else {
+      console.log('ℹ️ [TeamFix] Aucune instance à réparer');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [TeamFix] Erreur réparation:', error);
+    return false;
+  }
+}
+
 console.log(`
-⚔️ === TEAM MODULE AVEC UIMANAGER ===
+⚔️ === TEAM MODULE SINGLETON CORRIGÉ ===
 
-📍 NOUVEAU: Positionnement automatique
-• connectUIManager() - Enregistre l'icône
-• registerIconPosition() - UIManager calcule position
-• bottom-right, order: 2, spacing: 10px
+🆕 NOUVELLES FONCTIONNALITÉS:
+• Singleton Pattern - évite double initialisation
+• forceCloseUI() - fermeture forcée de l'interface
+• Protection UIManager - connexion sécurisée
+• État persistant - réutilise instance existante
 
-✅ RESPONSABILITÉS:
-- Gestion données équipe
-- Communication serveur
-- Icône positionnée automatiquement
-- Interface complète
+📍 INTÉGRATION UIMANAGER:
+• connectUIManager() sécurisé
+• Position: bottom-right, order: 2
+• Protection double connexion
 
-🎯 INTÉGRATION UIMANAGER:
-• show() / hide() / setEnabled() - API standard
-• Configuration layout dans TEAM_MODULE_CONFIG
-• Position calculée: [Inventory] [Quest] [Team]
+🔧 FONCTIONS DE DEBUG:
+• debugTeamSingleton() - diagnostique complet
+• fixTeamModule() - réparation automatique
+• TeamModule.getInstance() - accès singleton
 
-🔗 CALLBACKS:
-- onStatsUpdate(stats) → TeamIcon
-- onTeamDataUpdate(data) → TeamUI
-- onPokemonUpdate(data) → mises à jour
+🔒 RÉSOLUTION PROBLÈME:
+• Plus de double initialisation
+• UI fermée par défaut
+• Force fermeture disponible
 
-📍 POSITION FINALE:
-┌─────────────────────────────────┐
-│                                 │
-│                      [📦][📋][⚔️] │
-└─────────────────────────────────┘
-                      ↑   ↑   ↑
-                      0   1   2
+🎯 COMMANDES UTILES:
+• window.forceCloseTeam() - fermer UI
+• window.teamSystemGlobal.forceCloseUI() - force
+• debugTeamSingleton() - debug
+• fixTeamModule() - réparer
 
-🎯 PRÊT POUR UIMANAGER !
+✅ PROBLÈME DOUBLE INITIALISATION RÉSOLU !
 `);
