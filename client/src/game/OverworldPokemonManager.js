@@ -565,62 +565,40 @@ export class OverworldPokemonManager {
    * ✅ Mise à jour principale avec interpolation case par case ET vérification collision
    */
   update(delta = 16) {
-    const now = Date.now();
-    
-    this.overworldPokemon.forEach((pokemon, id) => {
-      if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-        // ✅ Interpolation fluide case par case
-        const elapsed = now - pokemon.moveStartTime;
-        const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
-        
-        if (progress >= 1.0) {
-          // ✅ AVANT D'ARRIVER, VÉRIFIER SI LA DESTINATION EST VALIDE
-          const canReachTarget = this.canMoveToGrid(pokemon.targetX, pokemon.targetY);
-          
-          if (canReachTarget) {
-            // Mouvement terminé normalement
-            pokemon.x = pokemon.targetX;
-            pokemon.y = pokemon.targetY;
-            pokemon.setPosition(pokemon.targetX, pokemon.targetY);
-            console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.targetX}, ${pokemon.targetY})`);
-          } else {
-            // ✅ DESTINATION DEVENUE INVALIDE - ARRÊTER AVANT
-            console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué avant destination (${pokemon.targetX}, ${pokemon.targetY})`);
-            // Rester à la position actuelle
-            pokemon.targetX = pokemon.x;
-            pokemon.targetY = pokemon.y;
-          }
-          
-          pokemon.isMoving = false;
-        } else {
-          // ✅ Interpolation en cours - VÉRIFIER LA TRAJECTOIRE
-          const easeProgress = this.easeInOutQuad(progress);
-          
-          const startX = pokemon.serverX;
-          const startY = pokemon.serverY;
-          
-          const newX = startX + (pokemon.targetX - startX) * easeProgress;
-          const newY = startY + (pokemon.targetY - startY) * easeProgress;
-          
-          // ✅ VÉRIFIER SI LA POSITION INTERMÉDIAIRE EST VALIDE
-          if (this.canMoveToGrid(newX, newY)) {
-            pokemon.setPosition(newX, newY);
-          } else {
-            // ✅ COLLISION - ARRÊT TOTAL SANS BOUGER
-            console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision - arrêt total`);
-            pokemon.isMoving = false;
-            pokemon.targetX = pokemon.x; // ← GARDER POSITION ACTUELLE
-            pokemon.targetY = pokemon.y; // ← GARDER POSITION ACTUELLE
-            // NE PAS CHANGER LA POSITION DU TOUT
-          }
-        }
-      }
+  const now = Date.now();
+  
+  this.overworldPokemon.forEach((pokemon, id) => {
+    if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+      // ✅ Interpolation fluide case par case
+      const elapsed = now - pokemon.moveStartTime;
+      const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
       
-      // ✅ Mise à jour de la profondeur
-      pokemon.setDepth(3 + (pokemon.y / 1000));
-    });
-  }
-
+      if (progress >= 1.0) {
+        // ✅ Mouvement terminé - aller directement à la destination
+        pokemon.x = pokemon.targetX;
+        pokemon.y = pokemon.targetY;
+        pokemon.setPosition(pokemon.targetX, pokemon.targetY);
+        pokemon.isMoving = false;
+        console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.targetX}, ${pokemon.targetY})`);
+      } else {
+        // ✅ Interpolation en cours - MOUVEMENT FLUIDE SANS VÉRIFICATION
+        const easeProgress = this.easeInOutQuad(progress);
+        
+        const startX = pokemon.serverX;
+        const startY = pokemon.serverY;
+        
+        const newX = startX + (pokemon.targetX - startX) * easeProgress;
+        const newY = startY + (pokemon.targetY - startY) * easeProgress;
+        
+        // ✅ MOUVEMENT DIRECT - La collision est vérifiée côté serveur
+        pokemon.setPosition(newX, newY);
+      }
+    }
+    
+    // ✅ Mise à jour de la profondeur
+    pokemon.setDepth(3 + (pokemon.y / 1000));
+  });
+}
   /**
    * ✅ Fonction d'easing simple pour mouvement fluide
    */
