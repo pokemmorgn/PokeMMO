@@ -15,8 +15,8 @@
           "name": "Roucool",
           "count": 4,
           "animations": {
-            "idle": "Swing-Anim.png",
-            "walk": "Swing-Anim.png"
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
           },
           "currentAnimation": "walk",
           "spawnPositions": [
