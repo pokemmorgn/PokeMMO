@@ -13,7 +13,6 @@ import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 import { BATTLE_TIMINGS } from './modules/BroadcastManager';
-import { pokédexIntegrationService } from '../services/PokédexIntegrationService';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole, Pokemon } from './types/BattleTypes';
 
 /**
@@ -96,138 +95,41 @@ export class BattleEngine {
   /**
    * Démarre un nouveau combat - Style Pokémon Rouge/Bleu AUTHENTIQUE
    */
-startBattle(config: BattleConfig): BattleResult {
-  try {
-    this.clearAllTimers();
-    this.validateConfig(config);
-    this.gameState = this.initializeGameState(config);
-    this.initializeAllModules();
-    this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
-    this.isInitialized = true;
-    
-    // ✅ NOUVEAU: Intégration Pokédx en arrière-plan
-   this.handlePokédxIntegration(config);
-    
-    this.emit('battleStart', {
-      gameState: this.gameState,
-      phase: InternalBattlePhase.INTRO,
-      introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
-    });
-    
-    this.scheduleIntroTransition();
-    
-    return {
-      success: true,
-      gameState: this.gameState,
-      events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
-    };
-    
-  } catch (error) {
-    this.clearAllTimers();
-    
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-      gameState: this.gameState,
-      events: []
-    };
-  }
-}
-
-  // Gestion Pokédex 
-/**
- * ✅ NOUVEAU: Gère l'intégration Pokédx en arrière-plan
- */
-private handlePokédxIntegration(config: BattleConfig): void {
-  // Ne traiter que les combats sauvages
-  if (config.type !== 'wild' || !config.opponent.pokemon) {
-    return;
-  }
-  
-  // Intégration asynchrone en arrière-plan
- pokédexIntegrationService.handlePokemonEncounter({
-    playerId: config.player1.sessionId,
-    pokemonId: config.opponent.pokemon.id,
-    level: config.opponent.pokemon.level,
-    location: this.getBattleLocation(), // À implémenter
-    method: 'wild',
-    // Contexte optionnel
-    weather: this.getCurrentWeather(),
-    timeOfDay: this.getCurrentTimeOfDay(),
-    sessionId: config.player1.sessionId
-  }).then((result: any) => {
-    if (result.success && result.isNewDiscovery) {
-      console.log(`🔍 [BattleEngine] Nouvelle découverte Pokédx: ${config.opponent.pokemon!.name}`);
+  startBattle(config: BattleConfig): BattleResult {
+    try {
+      this.clearAllTimers();
+      this.validateConfig(config);
+      this.gameState = this.initializeGameState(config);
+      this.initializeAllModules();
+      this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
+      this.isInitialized = true;
       
-      // Émettre événement pour notifications UI
-      this.emit('pokédxDiscovery', {
-        pokemonId: config.opponent.pokemon!.id,
-        pokemonName: config.opponent.pokemon!.name,
-        isNewDiscovery: true,
-        notifications: result.notifications
+      this.emit('battleStart', {
+        gameState: this.gameState,
+        phase: InternalBattlePhase.INTRO,
+        introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
+      
+      this.scheduleIntroTransition();
+      
+      return {
+        success: true,
+        gameState: this.gameState,
+        events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
+      };
+      
+    } catch (error) {
+      this.clearAllTimers();
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        gameState: this.gameState,
+        events: []
+      };
     }
- }).catch((error: any) => {
-    // Ne pas faire planter le combat pour une erreur Pokédx
-    console.error(`❌ [BattleEngine] Erreur intégration Pokédx:`, error);
-  });
-}
-  private finalizePokédxProgression(): void {
-  // Ne traiter que les combats sauvages
-  if (this.gameState.type !== 'wild') {
-    return;
   }
   
-  const player1 = this.gameState.player1;
-  const player2Pokemon = this.gameState.player2.pokemon;
-  
-  if (!player1 || !player2Pokemon) {
-    return;
-  }
-  
-  // Traitement asynchrone en arrière-plan
-  pokédexIntegrationService.finalizeBattleProgression({
-    playerId: player1.sessionId,
-    pokemonId: player2Pokemon.id,
-    battleResult: this.gameState.winner === 'player1' ? 'victory' : 'defeat',
-    battleType: 'wild'
-  }).then((result: any) => {
-    if (result.achievements?.length > 0) {
-      this.emit('pokédxAchievements', {
-        playerId: player1.sessionId,
-        achievements: result.achievements
-      });
-    }
-  }).catch((error: any) => {
-    console.error(`❌ [BattleEngine] Erreur finalisation Pokédx:`, error);
-  });
-}
-  /**
- * ✅ NOUVEAU: Récupère l'emplacement du combat
- */
-  
-private getBattleLocation(): string {
-  // TODO: À récupérer depuis le contexte WorldRoom/zone
-  // Pour l'instant, valeur par défaut
-  return 'Zone sauvage';
-}
-
-/**
- * ✅ NOUVEAU: Récupère la météo actuelle
- */
-private getCurrentWeather(): string | undefined {
-  // TODO: Intégration avec TimeWeatherService si disponible
-  return undefined;
-}
-
-/**
- * ✅ NOUVEAU: Récupère le moment de la journée
- */
-private getCurrentTimeOfDay(): string | undefined {
-  // TODO: Intégration avec TimeWeatherService si disponible  
-  return undefined;
-}
-  // END POKEDEX
   // === GESTION DES PHASES POKÉMON ROUGE/BLEU AUTHENTIQUE ===
   
   /**
@@ -691,7 +593,6 @@ private async executeFullAttackerAction(): Promise<void> {
     this.clearAllTimers();
     this.savePokemonAfterBattle();
     this.cleanupSpectators();
-  this.finalizePokédxProgression();
   }
   
   // === INITIALISATION MODULES (MISE À JOUR) ===
