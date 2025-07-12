@@ -17,7 +17,7 @@
           "isStatic": false,
           "canWander": true,
           "movementRadius": 4,
-          "moveChance": 0.6,
+          "moveChance": 1,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
@@ -33,9 +33,9 @@
           "name": "Pikachu",
           "count": 2,
           "isStatic": false,
-          "canWander": false,
-          "movementRadius": 0,
-          "moveChance": 0.0,
+          "canWander": true,
+          "movementRadius": 3,
+          "moveChance": 1,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
@@ -53,7 +53,7 @@
           "isStatic": false,
           "canWander": true,
           "movementRadius": 2,
-          "moveChance": 0.8,
+          "moveChance": 1,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
