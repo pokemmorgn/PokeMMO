@@ -24,47 +24,9 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 141, "y": 179},
-            {"x": 150, "y": 190}
-          ]
-        },
-        {
-          "pokemonId": 25,
-          "name": "Pikachu",
-          "count": 2,
-          "isStatic": false,
-          "canWander": true,
-          "movementRadius": 3,
-          "moveChance": 1,
-          "animations": {
-            "idle": "Walk-Anim.png",
-            "walk": "Walk-Anim.png"
-          },
-          "currentAnimation": "idle",
-          "spawnPositions": [
-            {"x": 105, "y": 123},
-            {"x": 110, "y": 130}
-          ]
-        },
-        {
-          "pokemonId": 1,
-          "name": "Bulbizarre",
-          "count": 2,
-          "isStatic": false,
-          "canWander": true,
-          "movementRadius": 2,
-          "moveChance": 1,
-          "animations": {
-            "idle": "Walk-Anim.png",
-            "walk": "Walk-Anim.png"
-          },
-          "currentAnimation": "walk",
-          "spawnPositions": [
-            {"x": 120, "y": 130},
-            {"x": 130, "y": 140}
+            {"x": 141, "y": 179}
           ]
         }
-      ]
-    }
   }
+}
 }
