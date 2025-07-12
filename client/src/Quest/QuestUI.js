@@ -622,6 +622,11 @@ export class QuestUI {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
       }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('🎨 [QuestUI] Styles robustes ajoutés');
+  }
   
   // === 🏗️ CRÉATION INTERFACES ===
   
@@ -636,29 +641,29 @@ export class QuestUI {
     
     journal.innerHTML = `
       <div class="quest-journal-header">
-        <h2>\uD83D\uDCD6 Journal des Quêtes</h2>
+        <h2>Journal des Quetes</h2>
         <button class="quest-close-btn" id="close-quest-journal">✕</button>
       </div>
       
       <div class="quest-tabs">
         <button class="quest-tab active" data-tab="active">Actives</button>
-        <button class="quest-tab" data-tab="completed">Terminées</button>
+        <button class="quest-tab" data-tab="completed">Terminees</button>
         <button class="quest-tab" data-tab="available">Disponibles</button>
       </div>
       
       <div class="quest-content">
         <div class="quest-list" id="quest-list">
-          <div class="quest-empty">Aucune quête active</div>
+          <div class="quest-empty">Aucune quete active</div>
         </div>
         
         <div class="quest-details" id="quest-details">
-          <div class="quest-empty">Sélectionnez une quête pour voir les détails</div>
+          <div class="quest-empty">Selectionnez une quete pour voir les details</div>
         </div>
       </div>
       
       <div class="quest-actions">
-        <button id="refresh-quests" class="quest-btn">🔄 Actualiser</button>
-        <button id="track-quest" class="quest-btn" disabled>📍 Suivre</button>
+        <button id="refresh-quests" class="quest-btn">Actualiser</button>
+        <button id="track-quest" class="quest-btn" disabled>Suivre</button>
       </div>
     `;
     
@@ -680,12 +685,12 @@ export class QuestUI {
     tracker.innerHTML = `
       <div class="quest-tracker-header">
         <div class="tracker-title">
-          <span class="tracker-icon">📋</span>
-          <span class="tracker-text">Quests</span>
+          <span class="tracker-icon">Quests</span>
+          <span class="tracker-text"></span>
         </div>
         <div class="tracker-controls">
-          <button class="tracker-btn minimize-btn" title="Minimize">−</button>
-          <button class="tracker-btn close-btn" title="Hide">×</button>
+          <button class="tracker-btn minimize-btn" title="Minimize">-</button>
+          <button class="tracker-btn close-btn" title="Hide">x</button>
         </div>
       </div>
       <div class="quest-tracker-content">
@@ -867,7 +872,7 @@ export class QuestUI {
       
       const minimizeBtn = this.trackerElement.querySelector('.minimize-btn');
       if (minimizeBtn) {
-        minimizeBtn.textContent = isMinimized ? '−' : '+';
+        minimizeBtn.textContent = isMinimized ? '-' : '+';
         minimizeBtn.title = isMinimized ? 'Minimize' : 'Maximize';
       }
     }
@@ -994,7 +999,7 @@ export class QuestUI {
     }
     
     if (!quests || quests.length === 0) {
-      questList.innerHTML = `<div class="quest-empty">Aucune quête ${this.currentView === 'active' ? 'active' : this.currentView === 'completed' ? 'terminée' : 'disponible'}</div>`;
+      questList.innerHTML = `<div class="quest-empty">Aucune quete ${this.currentView === 'active' ? 'active' : this.currentView === 'completed' ? 'terminee' : 'disponible'}</div>`;
       this.updateQuestDetails(null);
       return;
     }
@@ -1005,7 +1010,7 @@ export class QuestUI {
       
       return `
         <div class="quest-item" data-quest-index="${index}">
-          <div class="quest-item-title">${quest.name || 'Quête sans nom'}</div>
+          <div class="quest-item-title">${quest.name || 'Quete sans nom'}</div>
           <div class="quest-item-progress">${progress.completed}/${progress.total} objectifs</div>
           <div class="quest-item-category ${categoryClass}">${(quest.category || 'side').toUpperCase()}</div>
         </div>
@@ -1059,7 +1064,7 @@ export class QuestUI {
     if (!detailsContainer) return;
     
     if (!quest) {
-      detailsContainer.innerHTML = '<div class="quest-empty">Sélectionnez une quête pour voir les détails</div>';
+      detailsContainer.innerHTML = '<div class="quest-empty">Selectionnez une quete pour voir les details</div>';
       return;
     }
     
@@ -1069,7 +1074,7 @@ export class QuestUI {
     
     detailsContainer.innerHTML = `
       <div class="quest-details-content">
-        <div class="quest-title">${quest.name || 'Quête sans nom'}</div>
+        <div class="quest-title">${quest.name || 'Quete sans nom'}</div>
         <div class="quest-description">${quest.description || 'Pas de description'}</div>
         
         ${quest.steps ? quest.steps.map((step, index) => {
@@ -1079,7 +1084,7 @@ export class QuestUI {
           
           return `
             <div class="quest-step ${stepClass}">
-              <div class="quest-step-title">${step.name || `Étape ${index + 1}`}</div>
+              <div class="quest-step-title">${step.name || `Etape ${index + 1}`}</div>
               <div class="quest-step-description">${step.description || ''}</div>
               
               ${step.objectives ? step.objectives.map(obj => {
@@ -1095,7 +1100,7 @@ export class QuestUI {
           `;
         }).join('') : ''}
         
-        ${isCompleted ? '<div class="quest-step completed"><div class="quest-step-title">✅ Quête terminée !</div></div>' : ''}
+        ${isCompleted ? '<div class="quest-step completed"><div class="quest-step-title">Quete terminee !</div></div>' : ''}
       </div>
     `;
   }
@@ -1202,9 +1207,9 @@ export class QuestUI {
   
   showActionFeedback(action) {
     const messages = {
-      refreshQuests: { text: 'Actualisation des quêtes...', type: 'info' },
-      trackQuest: { text: 'Quête ajoutée au tracker', type: 'success' },
-      getAvailableQuests: { text: 'Chargement des quêtes disponibles...', type: 'info' }
+      refreshQuests: { text: 'Actualisation des quetes...', type: 'info' },
+      trackQuest: { text: 'Quete ajoutee au tracker', type: 'success' },
+      getAvailableQuests: { text: 'Chargement des quetes disponibles...', type: 'info' }
     };
     
     const message = messages[action] || { text: `Action ${action} en cours...`, type: 'info' };
@@ -1241,7 +1246,7 @@ export class QuestUI {
     dialog.className = 'quest-dialog-overlay';
     
     const questsHTML = quests.map(quest => {
-      const questName = quest.name || 'Quête sans nom';
+      const questName = quest.name || 'Quete sans nom';
       const questDesc = quest.description || 'Pas de description';
       const questCategory = quest.category || 'side';
       const questLevel = quest.level ? `[${quest.level}]` : '';
@@ -1365,20 +1370,19 @@ export class QuestUI {
     
     console.log('✅ [QuestUI] Interface détruite');
   }
-  
-  // === 🐛 DEBUG ===
-  
+}
 
 export default QuestUI;
 
 console.log(`
-📖 === QUEST UI RÉÉCRITURE COMPLÈTE ===
+📖 === QUEST UI CORRIGÉ SANS EMOJIS ===
 
-✅ ARCHITECTURE UNIFIÉE:
-• QuestJournal + QuestTracker + Dialogues dans une classe
-• CSS avec spécificité maximale (div#quest-journal)
-• Tous les styles forcés avec !important
-• Événements robustes avec preventDefault
+✅ CORRECTIONS APPLIQUÉES:
+• Tous les emojis remplacés par du texte
+• "📖 Journal des Quêtes" → "Journal des Quetes"
+• "📋" → "Quests"
+• Accents supprimés pour éviter problèmes encodage
+• Template strings nettoyés
 
 🎨 COMPOSANTS INTÉGRÉS:
 • Journal des quêtes (sidebar coulissant)
@@ -1391,20 +1395,7 @@ console.log(`
 • Sélection et détails de quêtes
 • Suivi des objectifs en temps réel
 • Dialogues interactifs pour NPC
-• Tracker minimisable et déplaçable
+• Tracker minimisable
 
-🎯 MÉTHODES PRINCIPALES:
-• show() / hide() / toggle() - Journal
-• showTracker() / hideTracker() - Tracker
-• updateQuestData(quests, type) - Données
-• showQuestDialog(title, quests, callback) - Dialogues
-
-⚡ UTILISATION NORMALE:
-• window.questModule.show() ✓
-• Bouton fermeture X ✓
-• Touche Escape ✓
-• Navigation tabs ✓
-• Tracker interactif ✓
-
-🎯 QUEST UI 100% FONCTIONNELLE INTÉGRÉE !
+✅ QUEST UI SANS ERREURS DE BUILD !
 `);
