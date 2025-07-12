@@ -1,61 +1,86 @@
-// server/src/models/PokédexEntry.ts
-import mongoose, { Schema, Document } from "mongoose";
+// server/src/models/PokedexEntry.ts
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-// ===== INTERFACE SIMPLIFIÉE =====
+// ===== INTERFACES =====
 
-export interface IPokédexEntry extends Document {
+export interface IPokedexEntry extends Document {
   // === IDENTIFICATION ===
   playerId: string;          // ID du joueur
   pokemonId: number;         // ID du Pokémon (1-151, etc.)
   
-  // === STATUT SIMPLE ===
-  isSeen: boolean;           // Pokémon vu
+  // === STATUT DE DÉCOUVERTE ===
+  isSeen: boolean;           // Pokémon vu (rencontré)
   isCaught: boolean;         // Pokémon capturé
   
-  // === DATES IMPORTANTES ===
-  firstSeenAt?: Date;        // Première fois vu
-  firstCaughtAt?: Date;      // Première fois capturé
+  // === DATES DE DÉCOUVERTE ===
+  firstSeenAt?: Date;        // Date de première vue
+  firstCaughtAt?: Date;      // Date de première capture
   lastSeenAt?: Date;         // Dernière fois vu
+  lastCaughtAt?: Date;       // Dernière fois capturé
   
-  // === COMPTEURS ===
-  timesEncountered: number;  // Nombre de rencontres
-  timesCaught: number;       // Nombre de captures
+  // === STATISTIQUES DÉTAILLÉES ===
+  timesEncountered: number;  // Nombre de fois rencontré
+  timesCaught: number;       // Nombre de fois capturé
   
-  // === MEILLEUR SPÉCIMEN ===
-  bestLevel: number;         // Meilleur niveau capturé
-  hasShiny: boolean;         // A déjà eu un shiny
-  bestSpecimenId?: string;   // ID du meilleur spécimen possédé
+  // === MEILLEURS SPÉCIMENS ===
+  bestSpecimen?: {
+    level: number;           // Meilleur niveau capturé
+    isShiny: boolean;        // A déjà capturé un shiny
+    caughtAt: Date;          // Date de cette capture
+    ownedPokemonId?: string; // Référence au OwnedPokemon (si encore possédé)
+    location: string;        // Lieu de capture du meilleur
+    captureTime?: number;    // Temps pris pour capturer (en secondes)
+  };
   
-  // === PREMIÈRE RENCONTRE ===
-  firstLocation?: string;    // Lieu de première rencontre
-  firstLevel?: number;       // Niveau à la première vue
-  firstMethod?: string;      // Méthode de première rencontre
-  firstWeather?: string;     // Météo lors de première rencontre
+  // === DONNÉES DE PREMIÈRE RENCONTRE ===
+  firstEncounter?: {
+    location: string;        // Lieu de première rencontre
+    level: number;          // Niveau lors de première vue
+    method: string;         // Méthode (wild, trainer, gift, etc.)
+    weather?: string;       // Météo lors de la rencontre
+    timeOfDay?: string;     // Moment de la journée
+    sessionId?: string;     // ID de session pour tracking
+  };
+  
+  // === DONNÉES ADDITIONNELLES ===
+  notes?: string;            // Notes personnelles du joueur
+  favorited: boolean;        // Marqué comme favori
+  tags: string[];           // Tags personnalisés
   
   // === MÉTADONNÉES ===
+  version: number;          // Version pour migrations
   updatedAt: Date;
   createdAt: Date;
   
-  // === MÉTHODES SIMPLES ===
-  markSeen(data?: any): Promise<boolean>;
-  markCaught(data: any): Promise<boolean>;
-  isNewBestLevel(level: number): boolean;
+  // === MÉTHODES D'INSTANCE ===
+  markAsSeen(encounterData?: any): Promise<boolean>;
+  markAsCaught(pokemonData: any): Promise<boolean>;
+  updateBestSpecimen(pokemonData: any): Promise<boolean>;
+  getCompletionStatus(): any;
+  addNote(note: string): Promise<void>;
+  toggleFavorite(): Promise<boolean>;
+  addTag(tag: string): Promise<void>;
+  removeTag(tag: string): Promise<void>;
 }
 
-// ===== SCHÉMA MONGOOSE SIMPLIFIÉ =====
+// ===== SCHÉMA MONGOOSE =====
 
-const PokédexEntrySchema = new Schema<IPokédexEntry>({
+const PokedexEntrySchema = new Schema<IPokedexEntry>({
   // === IDENTIFICATION ===
   playerId: { 
     type: String, 
     required: true,
-    index: true 
+    index: true,
+    validate: {
+      validator: (v: string) => v && v.length > 0,
+      message: 'Player ID is required'
+    }
   },
   pokemonId: { 
     type: Number, 
     required: true,
-    min: 1,
-    max: 1000,
+    min: [1, 'Pokemon ID must be positive'],
+    max: [2000, 'Pokemon ID too high'], // Future-proof
     index: true
   },
   
@@ -72,280 +97,597 @@ const PokédexEntrySchema = new Schema<IPokédexEntry>({
   },
   
   // === DATES ===
-  firstSeenAt: { type: Date },
-  firstCaughtAt: { type: Date },
+  firstSeenAt: { 
+    type: Date,
+    index: true 
+  },
+  firstCaughtAt: { 
+    type: Date,
+    index: true 
+  },
   lastSeenAt: { type: Date },
+  lastCaughtAt: { type: Date },
   
-  // === COMPTEURS ===
+  // === STATISTIQUES ===
   timesEncountered: { 
     type: Number, 
-    default: 0 
+    default: 0,
+    min: [0, 'Times encountered cannot be negative']
   },
   timesCaught: { 
     type: Number, 
-    default: 0 
+    default: 0,
+    min: [0, 'Times caught cannot be negative']
   },
   
   // === MEILLEUR SPÉCIMEN ===
-  bestLevel: { 
-    type: Number, 
-    default: 1,
-    min: 1, 
-    max: 100 
+  bestSpecimen: {
+    level: { 
+      type: Number, 
+      min: [1, 'Level must be at least 1'], 
+      max: [100, 'Level cannot exceed 100'] 
+    },
+    isShiny: { type: Boolean, default: false },
+    caughtAt: { type: Date },
+    ownedPokemonId: { 
+      type: String,
+      validate: {
+        validator: function(v: string) {
+          return !v || mongoose.Types.ObjectId.isValid(v);
+        },
+        message: 'Invalid owned Pokemon ID format'
+      }
+    },
+    location: { 
+      type: String, 
+      maxlength: [100, 'Location name too long'],
+      trim: true
+    },
+    captureTime: { 
+      type: Number, 
+      min: [0, 'Capture time cannot be negative'],
+      max: [3600, 'Capture time too long'] // Max 1 hour
+    }
   },
-  hasShiny: { 
+  
+  // === PREMIÈRE RENCONTRE ===
+  firstEncounter: {
+    location: { 
+      type: String, 
+      required: true,
+      maxlength: [100, 'Location name too long'],
+      trim: true
+    },
+    level: { 
+      type: Number, 
+      min: [1, 'Level must be at least 1'], 
+      max: [100, 'Level cannot exceed 100'] 
+    },
+    method: { 
+      type: String, 
+      enum: {
+        values: ['wild', 'trainer', 'gift', 'trade', 'evolution', 'egg', 'special', 'raid', 'legendary'],
+        message: 'Invalid encounter method'
+      },
+      default: 'wild'
+    },
+    weather: { 
+      type: String,
+      enum: {
+        values: ['clear', 'rain', 'storm', 'snow', 'fog', 'sandstorm', 'sunny', 'cloudy'],
+        message: 'Invalid weather type'
+      }
+    },
+    timeOfDay: {
+      type: String,
+      enum: {
+        values: ['day', 'night', 'dawn', 'dusk'],
+        message: 'Invalid time of day'
+      }
+    },
+    sessionId: { 
+      type: String,
+      maxlength: [50, 'Session ID too long']
+    }
+  },
+  
+  // === DONNÉES ADDITIONNELLES ===
+  notes: { 
+    type: String, 
+    maxlength: [500, 'Notes too long'],
+    trim: true
+  },
+  favorited: { 
     type: Boolean, 
     default: false,
     index: true 
   },
-  bestSpecimenId: { type: String },
-  
-  // === PREMIÈRE RENCONTRE ===
-  firstLocation: { type: String },
-  firstLevel: { 
-    type: Number, 
-    min: 1, 
-    max: 100 
-  },
-  firstMethod: { 
+  tags: [{ 
     type: String, 
-    enum: ['wild', 'trainer', 'gift', 'trade', 'evolution', 'egg', 'special'],
-    default: 'wild'
-  },
-  firstWeather: { 
-    type: String,
-    enum: ['clear', 'rain', 'storm', 'snow', 'fog', 'sandstorm']
+    maxlength: [30, 'Tag too long'],
+    trim: true 
+  }],
+  
+  // === MÉTADONNÉES ===
+  version: { 
+    type: Number, 
+    default: 1,
+    min: [1, 'Version must be positive']
   }
 }, {
-  timestamps: true,
-  collection: 'pokedex_entries'
+  timestamps: true, // Ajoute automatiquement createdAt/updatedAt
+  collection: 'pokedex_entries',
+  // Optimizations
+  minimize: false, // Keep empty objects
+  versionKey: false // Remove __v field
 });
 
-// ===== INDEX COMPOSITES =====
-PokédexEntrySchema.index({ playerId: 1, pokemonId: 1 }, { unique: true });
-PokédexEntrySchema.index({ playerId: 1, isSeen: 1 });
-PokédexEntrySchema.index({ playerId: 1, isCaught: 1 });
-PokédexEntrySchema.index({ playerId: 1, hasShiny: 1 });
+// ===== INDEX COMPOSITES OPTIMISÉS =====
 
-// ===== MIDDLEWARE =====
+// Index principal unique
+PokedexEntrySchema.index({ playerId: 1, pokemonId: 1 }, { unique: true });
 
-// Auto-correction : capturé = forcément vu
-PokédxEntrySchema.pre('save', function(next) {
+// Index pour les requêtes fréquentes
+PokedexEntrySchema.index({ playerId: 1, isSeen: 1 });
+PokedexEntrySchema.index({ playerId: 1, isCaught: 1 });
+PokedexEntrySchema.index({ playerId: 1, favorited: 1 });
+PokedexEntrySchema.index({ playerId: 1, 'bestSpecimen.isShiny': 1 });
+
+// Index pour le tri par dates
+PokedexEntrySchema.index({ playerId: 1, firstSeenAt: -1 });
+PokedexEntrySchema.index({ playerId: 1, firstCaughtAt: -1 });
+PokedexEntrySchema.index({ playerId: 1, updatedAt: -1 });
+
+// Index pour les requêtes par tags
+PokedexEntrySchema.index({ playerId: 1, tags: 1 });
+
+// Index TTL pour cleanup automatique des sessions anciennes (optionnel)
+PokedexEntrySchema.index({ 'firstEncounter.sessionId': 1 }, { 
+  expireAfterSeconds: 24 * 60 * 60, // 24 heures
+  sparse: true // Seulement si sessionId existe
+});
+
+// ===== VALIDATIONS PRE-SAVE =====
+
+// Validation de cohérence
+PokedexEntrySchema.pre('save', function(next) {
+  // Un Pokémon capturé doit être vu
   if (this.isCaught && !this.isSeen) {
     this.isSeen = true;
   }
   
-  // Si capturé mais pas de date de vue, utiliser date de capture
+  // Si capturé mais pas de date de première vue, utiliser date de capture
   if (this.isCaught && !this.firstSeenAt && this.firstCaughtAt) {
     this.firstSeenAt = this.firstCaughtAt;
+  }
+  
+  // Validation des dates
+  if (this.firstCaughtAt && this.firstSeenAt && 
+      this.firstCaughtAt < this.firstSeenAt) {
+    return next(new Error('First caught date cannot be before first seen date'));
+  }
+  
+  // Nettoyage des tags
+  if (this.tags && this.tags.length > 0) {
+    this.tags = [...new Set(this.tags.filter(tag => tag && tag.trim().length > 0))];
+    if (this.tags.length > 20) { // Limite le nombre de tags
+      this.tags = this.tags.slice(0, 20);
+    }
+  }
+  
+  // Validation du best specimen
+  if (this.bestSpecimen && !this.isCaught) {
+    return next(new Error('Cannot have best specimen without being caught'));
   }
   
   next();
 });
 
-// ===== MÉTHODES D'INSTANCE SIMPLIFIÉES =====
+// ===== MÉTHODES D'INSTANCE =====
 
 /**
- * 👁️ Marque comme vu - INTERFACE SIMPLE
- * Usage: entry.markSeen({ location: "Route 1", level: 5, weather: "clear" })
+ * Marque un Pokémon comme vu de manière sécurisée
  */
-PokédxEntrySchema.methods.markSeen = async function(
-  this: IPokédexEntry,
-  data?: {
+PokedexEntrySchema.methods.markAsSeen = async function(
+  this: IPokedexEntry, 
+  encounterData?: {
     location?: string;
     level?: number;
     method?: string;
     weather?: string;
+    timeOfDay?: string;
+    sessionId?: string;
   }
 ): Promise<boolean> {
-  const now = new Date();
-  let isNewDiscovery = false;
-  
-  // Première fois qu'on voit ce Pokémon
-  if (!this.isSeen) {
-    this.isSeen = true;
-    this.firstSeenAt = now;
-    isNewDiscovery = true;
+  try {
+    const now = new Date();
+    let isNewDiscovery = false;
     
-    // Sauvegarder les données de première rencontre
-    if (data) {
-      this.firstLocation = data.location || 'Zone Inconnue';
-      this.firstLevel = data.level || 1;
-      this.firstMethod = data.method || 'wild';
-      this.firstWeather = data.weather;
-    }
-  }
-  
-  // Mise à jour à chaque rencontre
-  this.lastSeenAt = now;
-  this.timesEncountered += 1;
-  
-  await this.save();
-  return isNewDiscovery;
-};
-
-/**
- * 🎯 Marque comme capturé - INTERFACE SIMPLE
- * Usage: entry.markCaught({ level: 15, isShiny: true, ownedPokemonId: "abc123", location: "Route 1" })
- */
-PokédxEntrySchema.methods.markCaught = async function(
-  this: IPokédexEntry,
-  data: {
-    level: number;
-    isShiny?: boolean;
-    ownedPokemonId: string;
-    location?: string;
-    method?: string;
-  }
-): Promise<boolean> {
-  const now = new Date();
-  let isNewCapture = false;
-  
-  // Première capture
-  if (!this.isCaught) {
-    this.isCaught = true;
-    this.firstCaughtAt = now;
-    isNewCapture = true;
-    
-    // S'assurer qu'il est marqué comme vu
+    // Première fois qu'on voit ce Pokémon
     if (!this.isSeen) {
       this.isSeen = true;
       this.firstSeenAt = now;
-      this.firstLocation = data.location || 'Zone Inconnue';
-      this.firstLevel = data.level;
-      this.firstMethod = data.method || 'wild';
+      isNewDiscovery = true;
+      
+      // Sauvegarder données de première rencontre
+      if (encounterData) {
+        this.firstEncounter = {
+          location: encounterData.location || 'Unknown',
+          level: Math.max(1, Math.min(100, encounterData.level || 1)),
+          method: encounterData.method || 'wild',
+          weather: encounterData.weather,
+          timeOfDay: encounterData.timeOfDay,
+          sessionId: encounterData.sessionId
+        };
+      }
     }
-  }
-  
-  // Mise à jour compteurs
-  this.timesCaught += 1;
-  
-  // Vérifier si c'est un meilleur spécimen
-  if (this.isNewBestLevel(data.level) || (data.isShiny && !this.hasShiny)) {
-    this.bestLevel = data.level;
-    this.bestSpecimenId = data.ownedPokemonId;
     
-    if (data.isShiny) {
-      this.hasShiny = true;
-    }
+    // Mise à jour statistiques
+    this.lastSeenAt = now;
+    this.timesEncountered = Math.min(this.timesEncountered + 1, 999999); // Limite pour éviter overflow
+    
+    await this.save();
+    return isNewDiscovery;
+    
+  } catch (error) {
+    console.error(`❌ [PokedexEntry] Error marking ${this.pokemonId} as seen:`, error);
+    throw error;
   }
+};
+
+/**
+ * Marque un Pokémon comme capturé de manière sécurisée
+ */
+PokedexEntrySchema.methods.markAsCaught = async function(
+  this: IPokedexEntry,
+  pokemonData: {
+    level: number;
+    isShiny: boolean;
+    ownedPokemonId: string;
+    location?: string;
+    method?: string;
+    captureTime?: number;
+  }
+): Promise<boolean> {
+  try {
+    const now = new Date();
+    let isNewCapture = false;
+    
+    // Validation des données
+    if (!pokemonData.ownedPokemonId) {
+      throw new Error('Owned Pokemon ID is required');
+    }
+    
+    // Première capture
+    if (!this.isCaught) {
+      this.isCaught = true;
+      this.firstCaughtAt = now;
+      isNewCapture = true;
+      
+      // S'assurer qu'il est aussi marqué comme vu
+      if (!this.isSeen) {
+        this.isSeen = true;
+        this.firstSeenAt = now;
+      }
+    }
+    
+    // Mise à jour statistiques
+    this.lastCaughtAt = now;
+    this.timesCaught = Math.min(this.timesCaught + 1, 999999);
+    
+    // Mettre à jour le meilleur spécimen
+    await this.updateBestSpecimen({
+      ...pokemonData,
+      location: pokemonData.location || 'Unknown'
+    });
+    
+    await this.save();
+    return isNewCapture;
+    
+  } catch (error) {
+    console.error(`❌ [PokedexEntry] Error marking ${this.pokemonId} as caught:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Met à jour le meilleur spécimen si nécessaire
+ */
+PokedexEntrySchema.methods.updateBestSpecimen = async function(
+  this: IPokedexEntry,
+  pokemonData: {
+    level: number;
+    isShiny: boolean;
+    ownedPokemonId: string;
+    location: string;
+    captureTime?: number;
+  }
+): Promise<boolean> {
+  try {
+    let isNewBest = false;
+    
+    // Validation
+    const level = Math.max(1, Math.min(100, pokemonData.level));
+    const captureTime = pokemonData.captureTime ? 
+      Math.max(0, Math.min(3600, pokemonData.captureTime)) : undefined;
+    
+    // Premier spécimen ou critères d'amélioration
+    const shouldUpdate = !this.bestSpecimen || 
+                        pokemonData.isShiny && !this.bestSpecimen.isShiny || // Shiny prioritaire
+                        level > this.bestSpecimen.level || // Meilleur niveau
+                        (captureTime && (!this.bestSpecimen.captureTime || captureTime < this.bestSpecimen.captureTime)); // Capture plus rapide
+    
+    if (shouldUpdate) {
+      this.bestSpecimen = {
+        level,
+        isShiny: pokemonData.isShiny,
+        caughtAt: new Date(),
+        ownedPokemonId: pokemonData.ownedPokemonId,
+        location: pokemonData.location,
+        captureTime
+      };
+      isNewBest = true;
+    }
+    
+    return isNewBest;
+    
+  } catch (error) {
+    console.error(`❌ [PokedexEntry] Error updating best specimen:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère le statut de complétion avec calculs optimisés
+ */
+PokedexEntrySchema.methods.getCompletionStatus = function(this: IPokedexEntry) {
+  const now = new Date();
   
+  return {
+    seen: this.isSeen,
+    caught: this.isCaught,
+    favorited: this.favorited,
+    shiny: this.bestSpecimen?.isShiny || false,
+    firstSeenDaysAgo: this.firstSeenAt ? 
+      Math.floor((now.getTime() - this.firstSeenAt.getTime()) / (1000 * 60 * 60 * 24)) : -1,
+    firstCaughtDaysAgo: this.firstCaughtAt ? 
+      Math.floor((now.getTime() - this.firstCaughtAt.getTime()) / (1000 * 60 * 60 * 24)) : undefined,
+    timesEncountered: this.timesEncountered,
+    timesCaught: this.timesCaught,
+    bestLevel: this.bestSpecimen?.level,
+    lastActivity: this.lastCaughtAt || this.lastSeenAt || this.updatedAt
+  };
+};
+
+/**
+ * Ajoute une note personnelle
+ */
+PokedexEntrySchema.methods.addNote = async function(
+  this: IPokedexEntry,
+  note: string
+): Promise<void> {
+  if (!note || note.trim().length === 0) return;
+  
+  const cleanNote = note.trim().substring(0, 500); // Limite de sécurité
+  this.notes = cleanNote;
   await this.save();
-  return isNewCapture;
 };
 
 /**
- * 📊 Vérifie si c'est un nouveau record de niveau
+ * Toggle le statut favori
  */
-PokédxEntrySchema.methods.isNewBestLevel = function(
-  this: IPokédexEntry,
-  level: number
-): boolean {
-  return level > this.bestLevel;
+PokedexEntrySchema.methods.toggleFavorite = async function(this: IPokedexEntry): Promise<boolean> {
+  this.favorited = !this.favorited;
+  await this.save();
+  return this.favorited;
 };
 
-// ===== MÉTHODES STATIQUES UTILES =====
+/**
+ * Ajoute un tag
+ */
+PokedexEntrySchema.methods.addTag = async function(
+  this: IPokedexEntry,
+  tag: string
+): Promise<void> {
+  if (!tag || tag.trim().length === 0) return;
+  
+  const cleanTag = tag.trim().toLowerCase().substring(0, 30);
+  if (!this.tags.includes(cleanTag)) {
+    this.tags.push(cleanTag);
+    await this.save();
+  }
+};
 
 /**
- * 🔍 Trouve ou crée une entrée - MÉTHODE SIMPLE
- * Usage: const entry = await PokédxEntry.findOrCreateEntry(playerId, pokemonId);
+ * Supprime un tag
  */
-PokédxEntrySchema.statics.findOrCreateEntry = async function(
+PokedexEntrySchema.methods.removeTag = async function(
+  this: IPokedexEntry,
+  tag: string
+): Promise<void> {
+  const cleanTag = tag.trim().toLowerCase();
+  this.tags = this.tags.filter(t => t !== cleanTag);
+  await this.save();
+};
+
+// ===== MÉTHODES STATIQUES OPTIMISÉES =====
+
+/**
+ * Trouve ou crée une entrée Pokédex de manière atomique
+ */
+PokedexEntrySchema.statics.findOrCreate = async function(
   playerId: string, 
   pokemonId: number
-): Promise<IPokédexEntry> {
-  let entry = await this.findOne({ playerId, pokemonId });
-  
-  if (!entry) {
-    entry = new this({
-      playerId,
-      pokemonId,
-      isSeen: false,
-      isCaught: false,
-      timesEncountered: 0,
-      timesCaught: 0,
-      bestLevel: 1,
-      hasShiny: false
-    });
+): Promise<IPokedexEntry> {
+  // Validation des paramètres
+  if (!playerId || playerId.trim().length === 0) {
+    throw new Error('Player ID is required');
   }
+  if (!pokemonId || pokemonId < 1 || pokemonId > 2000) {
+    throw new Error('Invalid Pokemon ID');
+  }
+  
+  // Tentative de création avec upsert pour éviter les race conditions
+  const entry = await this.findOneAndUpdate(
+    { playerId: playerId.trim(), pokemonId },
+    {
+      $setOnInsert: {
+        playerId: playerId.trim(),
+        pokemonId,
+        isSeen: false,
+        isCaught: false,
+        timesEncountered: 0,
+        timesCaught: 0,
+        favorited: false,
+        tags: [],
+        version: 1
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      runValidators: true
+    }
+  );
   
   return entry;
 };
 
 /**
- * 📈 Récupère les stats rapides d'un joueur
- * Usage: const stats = await PokédxEntry.getQuickStats(playerId);
+ * Récupère toutes les entrées d'un joueur avec optimisations
  */
-PokédxEntrySchema.statics.getQuickStats = async function(playerId: string) {
-  const [seenCount, caughtCount, shinyCount] = await Promise.all([
-    this.countDocuments({ playerId, isSeen: true }),
-    this.countDocuments({ playerId, isCaught: true }),
-    this.countDocuments({ playerId, hasShiny: true })
-  ]);
+PokedexEntrySchema.statics.getPlayerEntries = async function(
+  playerId: string,
+  options?: {
+    seenOnly?: boolean;
+    caughtOnly?: boolean;
+    shinyOnly?: boolean;
+    favoritedOnly?: boolean;
+    tags?: string[];
+    limit?: number;
+    skip?: number;
+    sort?: any;
+  }
+) {
+  if (!playerId || playerId.trim().length === 0) {
+    throw new Error('Player ID is required');
+  }
   
-  return {
-    totalSeen: seenCount,
-    totalCaught: caughtCount,
-    totalShinies: shinyCount,
-    seenPercentage: Math.round((seenCount / 151) * 100), // Kanto
-    caughtPercentage: Math.round((caughtCount / 151) * 100)
-  };
+  const query: any = { playerId: playerId.trim() };
+  
+  // Filtres
+  if (options?.seenOnly) query.isSeen = true;
+  if (options?.caughtOnly) query.isCaught = true;
+  if (options?.shinyOnly) query['bestSpecimen.isShiny'] = true;
+  if (options?.favoritedOnly) query.favorited = true;
+  if (options?.tags?.length) query.tags = { $in: options.tags };
+  
+  // Construction de la requête avec optimisations
+  let queryBuilder = this.find(query);
+  
+  // Tri
+  if (options?.sort) {
+    queryBuilder = queryBuilder.sort(options.sort);
+  } else {
+    queryBuilder = queryBuilder.sort({ pokemonId: 1 }); // Tri par défaut
+  }
+  
+  // Pagination
+  if (options?.skip) queryBuilder = queryBuilder.skip(options.skip);
+  if (options?.limit) queryBuilder = queryBuilder.limit(Math.min(options.limit, 1000)); // Limite de sécurité
+  
+  // Projection pour optimiser (exclure les champs volumineux si pas nécessaire)
+  queryBuilder = queryBuilder.lean(); // Pour de meilleures performances
+  
+  return await queryBuilder.exec();
 };
 
 /**
- * 🕒 Récupère l'activité récente
- * Usage: const recent = await PokédxEntry.getRecentActivity(playerId, 10);
+ * Compte les entrées avec cache
  */
-PokédxEntrySchema.statics.getRecentActivity = async function(
-  playerId: string, 
-  limit: number = 10
-) {
-  return await this.find({
-    playerId,
-    $or: [
-      { lastSeenAt: { $exists: true } },
-      { firstCaughtAt: { $exists: true } }
-    ]
-  })
-  .sort({ updatedAt: -1 })
-  .limit(limit)
-  .select('pokemonId isSeen isCaught hasShiny lastSeenAt firstCaughtAt bestLevel')
-  .lean();
+PokedexEntrySchema.statics.getPlayerStats = async function(playerId: string) {
+  if (!playerId || playerId.trim().length === 0) {
+    throw new Error('Player ID is required');
+  }
+  
+  const pipeline = [
+    { $match: { playerId: playerId.trim() } },
+    {
+      $group: {
+        _id: null,
+        totalSeen: { $sum: { $cond: ['$isSeen', 1, 0] } },
+        totalCaught: { $sum: { $cond: ['$isCaught', 1, 0] } },
+        totalShiny: { $sum: { $cond: ['$bestSpecimen.isShiny', 1, 0] } },
+        totalFavorited: { $sum: { $cond: ['$favorited', 1, 0] } },
+        averageLevel: { $avg: '$bestSpecimen.level' },
+        totalEncounters: { $sum: '$timesEncountered' },
+        totalCaptures: { $sum: '$timesCaught' }
+      }
+    }
+  ];
+  
+  const result = await this.aggregate(pipeline);
+  return result[0] || {
+    totalSeen: 0,
+    totalCaught: 0,
+    totalShiny: 0,
+    totalFavorited: 0,
+    averageLevel: 0,
+    totalEncounters: 0,
+    totalCaptures: 0
+  };
 };
 
+// ===== MIDDLEWARE POST =====
+
+// Log des modifications importantes
+PokedexEntrySchema.post('save', function(doc) {
+  if (this.isNew) {
+    console.log(`📝 [PokedexEntry] New entry created: Player ${doc.playerId}, Pokemon #${doc.pokemonId}`);
+  }
+});
+
+// Nettoyage lors de la suppression
+PokedexEntrySchema.pre('deleteOne', { document: true, query: false }, function() {
+  console.log(`🗑️ [PokedexEntry] Deleting entry: Player ${this.playerId}, Pokemon #${this.pokemonId}`);
+});
+
 // ===== EXPORT =====
-export const PokédxEntry = mongoose.model<IPokédxEntry>('PokédxEntry', PokédxEntrySchema);
+export const PokedexEntry = mongoose.model<IPokedexEntry>('PokedexEntry', PokedexEntrySchema);
 
 // ===== TYPES D'EXPORT =====
-export type PokédxEntryDocument = IPokédxEntry;
+export type PokedexEntryDocument = IPokedexEntry;
+export type CreatePokedexEntryData = Partial<Pick<IPokedexEntry, 
+  'playerId' | 'pokemonId' | 'isSeen' | 'isCaught' | 'notes' | 'favorited' | 'tags'
+>>;
 
-// ===== GUIDE D'UTILISATION SIMPLE =====
-//
-// 🎯 POUR MARQUER UN POKÉMON VU (depuis n'importe où) :
-//
-// const entry = await PokédxEntry.findOrCreateEntry(playerId, pokemonId);
-// const isNew = await entry.markSeen({
-//   location: "Route 1",
-//   level: 5,
-//   weather: "clear"
-// });
-// 
-// if (isNew) {
-//   console.log("Nouveau Pokémon découvert !");
-// }
-//
-// 🎯 POUR MARQUER UN POKÉMON CAPTURÉ :
-//
-// const entry = await PokédxEntry.findOrCreateEntry(playerId, pokemonId);
-// const isNewCapture = await entry.markCaught({
-//   level: 15,
-//   isShiny: false,
-//   ownedPokemonId: "abc123",
-//   location: "Route 1"
-// });
-//
-// 🎯 POUR RÉCUPÉRER LES STATS RAPIDES :
-//
-// const stats = await PokédxEntry.getQuickStats(playerId);
-// console.log(`${stats.totalCaught}/151 capturés (${stats.caughtPercentage}%)`);
-//
+// ===== UTILITAIRES D'EXPORT =====
+export const PokedexEntryUtils = {
+  /**
+   * Valide un ID de Pokémon
+   */
+  isValidPokemonId: (id: number): boolean => {
+    return Number.isInteger(id) && id >= 1 && id <= 2000;
+  },
+  
+  /**
+   * Valide un ID de joueur
+   */
+  isValidPlayerId: (id: string): boolean => {
+    return typeof id === 'string' && id.trim().length > 0 && id.length <= 100;
+  },
+  
+  /**
+   * Nettoie un tag
+   */
+  cleanTag: (tag: string): string => {
+    return tag.trim().toLowerCase().substring(0, 30);
+  },
+  
+  /**
+   * Valide un niveau
+   */
+  isValidLevel: (level: number): boolean => {
+    return Number.isInteger(level) && level >= 1 && level <= 100;
+  }
+};
