@@ -17,22 +17,18 @@ export interface IPokédexStats extends Document {
   caughtPercentage: number;  // % de Pokémon capturés (calculé auto)
   
   // === STATISTIQUES PAR TYPE ===
-  typeStats: {
-    [typeName: string]: {
-      seen: number;
-      caught: number;
-      total: number;       // Nombre total de ce type dans le jeu
-    };
-  };
+  typeStats: Map<string, {
+    seen: number;
+    caught: number;
+    total: number;       // Nombre total de ce type dans le jeu
+  }>;
   
   // === STATISTIQUES PAR RÉGION ===
-  regionStats: {
-    [regionName: string]: {
-      seen: number;
-      caught: number;
-      total: number;       // Nombre total dans cette région
-    };
-  };
+  regionStats: Map<string, {
+    seen: number;
+    caught: number;
+    total: number;       // Nombre total dans cette région
+  }>;
   
   // === RECORDS & ACCOMPLISSEMENTS ===
   records: {
@@ -79,14 +75,12 @@ export interface IPokédexStats extends Document {
   };
   
   // === ACCOMPLISSEMENTS SPÉCIAUX ===
-  achievements: {
-    [achievementId: string]: {
-      unlocked: boolean;
-      unlockedAt?: Date;
-      progress: number;           // 0-100 pour achievements progressifs
-      data?: any;                 // Données spécifiques à l'achievement
-    };
-  };
+  achievements: Map<string, {
+    unlocked: boolean;
+    unlockedAt?: Date;
+    progress: number;           // 0-100 pour achievements progressifs
+    data?: any;                 // Données spécifiques à l'achievement
+  }>;
   
   // === MÉTADONNÉES ===
   lastCalculated: Date;         // Dernière mise à jour des stats
@@ -148,24 +142,14 @@ const PokédexStatsSchema = new Schema<IPokédexStats>({
   
   // === STATS PAR TYPE ===
   typeStats: {
-    type: Map,
-    of: {
-      seen: { type: Number, default: 0, min: 0 },
-      caught: { type: Number, default: 0, min: 0 },
-      total: { type: Number, default: 0, min: 0 }
-    },
-    default: () => new Map()
+    type: Schema.Types.Mixed,
+    default: {}
   },
   
   // === STATS PAR RÉGION ===
   regionStats: {
-    type: Map,
-    of: {
-      seen: { type: Number, default: 0, min: 0 },
-      caught: { type: Number, default: 0, min: 0 },
-      total: { type: Number, default: 0, min: 0 }
-    },
-    default: () => new Map()
+    type: Schema.Types.Mixed,
+    default: {}
   },
   
   // === RECORDS ===
@@ -213,14 +197,8 @@ const PokédexStatsSchema = new Schema<IPokédexStats>({
   
   // === ACHIEVEMENTS ===
   achievements: {
-    type: Map,
-    of: {
-      unlocked: { type: Boolean, default: false },
-      unlockedAt: { type: Date },
-      progress: { type: Number, default: 0, min: 0, max: 100 },
-      data: { type: Schema.Types.Mixed }
-    },
-    default: () => new Map()
+    type: Schema.Types.Mixed,
+    default: {}
   },
   
   // === MÉTADONNÉES ===
@@ -268,8 +246,8 @@ PokédexStatsSchema.methods.recalculateStats = async function(this: IPokédexSta
   // Reset stats
   this.totalSeen = 0;
   this.totalCaught = 0;
-  this.typeStats.clear();
-  this.regionStats.clear();
+  this.typeStats = new Map();
+  this.regionStats = new Map();
   
   let highestLevelSeen = 1;
   let highestLevelCaught = 1;
@@ -411,6 +389,16 @@ PokédexStatsSchema.methods.getCompletionSummary = function(this: IPokédexStats
 };
 
 /**
+ * Utilitaire pour calculer le numéro de semaine
+ */
+function getWeekNumber(date: Date): number {
+  const firstJan = new Date(date.getFullYear(), 0, 1);
+  const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfYear = Math.floor((today.getTime() - firstJan.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil(dayOfYear / 7);
+}
+
+/**
  * Ajoute les progrès de la semaine
  */
 PokédexStatsSchema.methods.addWeeklyProgress = function(
@@ -420,7 +408,7 @@ PokédexStatsSchema.methods.addWeeklyProgress = function(
 ) {
   const now = new Date();
   const year = now.getFullYear();
-  const week = this.getWeekNumber(now);
+  const week = getWeekNumber(now);
   const weekKey = `${year}-W${week.toString().padStart(2, '0')}`;
   
   // Chercher la semaine courante
@@ -447,10 +435,7 @@ PokédexStatsSchema.methods.addWeeklyProgress = function(
  * Utilitaire pour calculer le numéro de semaine
  */
 PokédexStatsSchema.methods.getWeekNumber = function(date: Date): number {
-  const firstJan = new Date(date.getFullYear(), 0, 1);
-  const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayOfYear = Math.floor((today.getTime() - firstJan.getTime()) / (24 * 60 * 60 * 1000));
-  return Math.ceil(dayOfYear / 7);
+  return getWeekNumber(date);
 };
 
 // ===== MÉTHODES STATIQUES =====
