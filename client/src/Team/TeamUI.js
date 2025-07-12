@@ -20,6 +20,9 @@ export class TeamUI {
     this.selectedSlot = null;
     this.currentView = 'overview';
     
+    // === LOCALIZATION ===
+    this.pokemonLocalization = null;
+    
     // === CALLBACKS ===
     this.onAction = null;
     
@@ -28,6 +31,39 @@ export class TeamUI {
     this.currentTooltip = null;
     
     console.log('🎯 [TeamUI] Instance créée - Version réécrite fonctionnelle');
+    
+    // Charger la localization
+    this.loadPokemonLocalization();
+  }
+  
+  // === 🌐 CHARGEMENT LOCALIZATION ===
+  
+  async loadPokemonLocalization() {
+    try {
+      const response = await fetch('/localization/pokemon/gen1/en.json');
+      if (response.ok) {
+        this.pokemonLocalization = await response.json();
+        console.log('🌐 [TeamUI] Localization Pokémon chargée');
+      } else {
+        console.warn('⚠️ [TeamUI] Impossible de charger la localization Pokémon');
+      }
+    } catch (error) {
+      console.error('❌ [TeamUI] Erreur chargement localization:', error);
+    }
+  }
+  
+  // === 🔤 MÉTHODES LOCALIZATION ===
+  
+  getPokemonName(pokemonId, fallbackName = null) {
+    if (this.pokemonLocalization && this.pokemonLocalization[pokemonId]) {
+      return this.pokemonLocalization[pokemonId].name;
+    }
+    
+    if (fallbackName && fallbackName.trim()) {
+      return fallbackName;
+    }
+    
+    return `Pokemon #${pokemonId || '?'}`;
   }
   
   // === 🚀 INITIALISATION ===
@@ -1382,17 +1418,14 @@ export class TeamUI {
     const healthPercent = (currentHp / maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
     
-    // ✅ FIX: Logique de nom améliorée
+    // Utilisation de la localization pour le nom
     let displayName;
     if (pokemon.nickname && pokemon.nickname.trim()) {
       // Priorité 1: Nickname personnalisé
       displayName = pokemon.nickname;
-    } else if (pokemon.name && pokemon.name.trim()) {
-      // Priorité 2: Nom officiel du Pokémon
-      displayName = pokemon.name;
     } else {
-      // Fallback: ID seulement si vraiment aucun nom
-      displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
+      // Priorité 2: Nom depuis localization ou fallback
+      displayName = this.getPokemonName(pokemon.pokemonId, pokemon.name);
     }
     
     const level = pokemon.level || 1;
@@ -1533,7 +1566,7 @@ export class TeamUI {
   // === 🎯 SÉLECTION POKÉMON ===
   
   selectPokemon(pokemon, slotElement, slotIndex) {
-    console.log('🎯 [TeamUI] Sélection Pokémon:', pokemon.nickname || pokemon.name);
+    console.log('🎯 [TeamUI] Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId, pokemon.name));
     
     // Désélectionner tous
     this.overlayElement.querySelectorAll('.team-slot').forEach(slot => {
@@ -1585,14 +1618,12 @@ export class TeamUI {
     const pokemon = this.selectedPokemon;
     const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
     
-    // ✅ FIX: Même logique de nom améliorée pour les détails
+    // Utilisation de la localization pour le nom dans les détails
     let displayName;
     if (pokemon.nickname && pokemon.nickname.trim()) {
       displayName = pokemon.nickname;
-    } else if (pokemon.name && pokemon.name.trim()) {
-      displayName = pokemon.name;
     } else {
-      displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
+      displayName = this.getPokemonName(pokemon.pokemonId, pokemon.name);
     }
     
     const typesText = pokemon.types ? pokemon.types.join(' / ') : 'Type Inconnu';
@@ -2020,7 +2051,7 @@ export class TeamUI {
   findPokemonByName(name) {
     return this.teamData.find(p => 
       (p.nickname && p.nickname.toLowerCase().includes(name.toLowerCase())) ||
-      (p.name && p.name.toLowerCase().includes(name.toLowerCase()))
+      (this.getPokemonName(p.pokemonId, p.name).toLowerCase().includes(name.toLowerCase()))
     );
   }
   
@@ -2073,6 +2104,7 @@ export class TeamUI {
     this.selectedSlot = null;
     this.onAction = null;
     this.escapeListenerAdded = false;
+    this.pokemonLocalization = null;
     
     console.log('✅ [TeamUI] Interface détruite proprement');
   }
@@ -2087,16 +2119,17 @@ export class TeamUI {
       elementInDOM: this.overlayElement ? document.contains(this.overlayElement) : false,
       currentView: this.currentView,
       teamCount: this.teamData.length,
-      selectedPokemon: this.selectedPokemon ? this.selectedPokemon.nickname || this.selectedPokemon.name : null,
+      selectedPokemon: this.selectedPokemon ? this.selectedPokemon.nickname || this.getPokemonName(this.selectedPokemon.pokemonId, this.selectedPokemon.name) : null,
       selectedSlot: this.selectedSlot,
       hasOnAction: !!this.onAction,
-      version: 'rewritten-robust-2024',
+      hasLocalization: !!this.pokemonLocalization,
+      version: 'rewritten-robust-localized-2024',
       cssMethod: 'high-specificity-with-important',
       escapeListenerAdded: this.escapeListenerAdded,
       overlayClasses: this.overlayElement ? this.overlayElement.className : null,
       activeView: this.overlayElement ? this.overlayElement.querySelector('.team-view.active')?.id : null,
       teamData: this.teamData.map(p => ({
-        name: p?.nickname || p?.name || 'Unknown',
+        name: p?.nickname || this.getPokemonName(p?.pokemonId, p?.name) || 'Unknown',
         level: p?.level || '?',
         hp: `${p?.currentHp || 0}/${p?.maxHp || 0}`,
         types: p?.types || []
@@ -2128,7 +2161,7 @@ if (typeof window !== 'undefined') {
 }
 
 console.log(`
-🎯 === TEAM UI RÉÉCRITURE COMPLÈTE ===
+🎯 === TEAM UI RÉÉCRITURE COMPLÈTE AVEC LOCALIZATION ===
 
 ✅ CORRECTIONS APPLIQUÉES:
 • CSS avec spécificité maximale (div#team-overlay)
@@ -2136,6 +2169,13 @@ console.log(`
 • Événements robustes avec preventDefault
 • Navigation vues avec forçage classes
 • Gestion erreurs complète
+
+🌐 LOCALIZATION AJOUTÉE:
+• Chargement automatique du fichier localization
+• getPokemonName() utilise la localization en priorité
+• Fallback sur nom original si localization indisponible
+• Fallback sur Pokemon #ID si aucun nom disponible
+• Utilisé dans les cards ET dans les détails
 
 🎨 FONCTIONNALITÉS CONSERVÉES:
 • Affichage complet Pokémon avec portraits
@@ -2161,5 +2201,5 @@ console.log(`
 • Navigation tabs ✓
 • Interactions slots ✓
 
-🎯 INTERFACE TEAM 100% FONCTIONNELLE !
+🎯 INTERFACE TEAM 100% FONCTIONNELLE AVEC NOMS LOCALISÉS !
 `);
