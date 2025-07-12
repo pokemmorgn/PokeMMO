@@ -55,33 +55,20 @@ export class QuestTrackerUI {
 
   // === RESTE DU CODE EXISTANT (inchangé) ===
   
-  createTracker() {
-    const tracker = document.createElement('div');
-    tracker.id = 'quest-tracker';
-    tracker.className = 'quest-tracker';
-    tracker.innerHTML = `
-      <div class="quest-tracker-header">
-        <div class="tracker-title">
-          <span class="tracker-icon">📋</span>
-          <span class="tracker-text">Quests</span>
-        </div>
-        <div class="tracker-controls">
-          <button class="tracker-btn minimize-btn" title="Minimize">−</button>
-          <button class="tracker-btn close-btn" title="Hide">×</button>
-        </div>
-      </div>
-      <div class="quest-tracker-content">
-        <div class="tracked-quests" id="tracked-quests">
-          <div class="no-quests">No active quests</div>
-        </div>
-      </div>
-    `;
+createTracker() {
+  const tracker = document.createElement('div');
+  tracker.id = 'quest-tracker-disabled';  // ✅ Changer l'ID pour éviter conflits
+  tracker.className = 'quest-tracker legacy-disabled';
+  tracker.innerHTML = `<!-- Ancien QuestTracker désactivé -->`;
 
-    document.body.appendChild(tracker);
-    this.trackerElement = tracker;
-
-    this.addStyles();
-  }
+  // ✅ NE PAS L'AJOUTER AU DOM
+  // document.body.appendChild(tracker);  // ← Commenter cette ligne
+  
+  this.trackerElement = tracker;  // Garder la référence pour compatibilité
+  this.addStyles();
+  
+  console.log('🚫 [QuestTracker] Ancien tracker désactivé (non ajouté au DOM)');
+}
 
   addStyles() {
     if (document.querySelector('#quest-tracker-styles')) return;
