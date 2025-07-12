@@ -120,8 +120,6 @@ export class QuestIcon {
     this.iconElement.style.position = 'fixed';
     this.iconElement.style.right = '20px';
     this.iconElement.style.bottom = '20px';
-    this.iconElement.style.width = '70px';
-    this.iconElement.style.height = '80px';
     
     // Marquer comme position de secours
     this.iconElement.setAttribute('data-fallback-position', 'true');
