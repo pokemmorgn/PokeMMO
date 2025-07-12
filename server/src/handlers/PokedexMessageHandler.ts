@@ -305,18 +305,18 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     // Conversion des dates si nécessaire
-    let filters = message.filters || {};
-    if (filters.dateRange) {
-      filters = {
-        ...filters,
+    let serviceFilters = message.filters || {};
+    if (message.filters?.dateRange) {
+      serviceFilters = {
+        ...message.filters,
         dateRange: {
-          start: new Date(filters.dateRange.start),
-          end: new Date(filters.dateRange.end)
+          start: new Date(message.filters.dateRange.start),
+          end: new Date(message.filters.dateRange.end)
         }
       };
     }
     
-    const result = await pokedexService.getPlayerPokedex(playerId, filters);
+    const result = await pokedexService.getPlayerPokedex(playerId, serviceFilters);
     
     // Mise en cache pour les requêtes GET
     const cacheKey = this.generateCacheKey(playerId, 'getPokedex', message);
@@ -664,15 +664,15 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     // Conversion des dates si nécessaire
-    let filters = message.filters || {};
-    if (filters.sinceDate) {
-      filters = {
-        ...filters,
-        sinceDate: new Date(filters.sinceDate)
+    let serviceFilters = message.filters || {};
+    if (message.filters?.sinceDate) {
+      serviceFilters = {
+        ...message.filters,
+        sinceDate: new Date(message.filters.sinceDate)
       };
     }
     
-    const notifications = pokedexNotificationService.getPlayerNotifications(playerId, filters);
+    const notifications = pokedexNotificationService.getPlayerNotifications(playerId, serviceFilters);
     const stats = pokedexNotificationService.getNotificationStats(playerId);
     
     this.sendSuccess(client, 'pokedex:notifications', {
