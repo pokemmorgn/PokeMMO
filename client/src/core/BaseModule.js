@@ -86,6 +86,28 @@ export class BaseModule {
     throw new Error(`${this.moduleId}Module: méthode connectComponents() doit être implémentée`);
   }
   
+  /**
+   * Création de l'icône pour UIManager
+   * Peut être surchargée dans les classes filles
+   */
+  async createIcon() {
+    console.log(`🎨 [${this.moduleId}Module] Création icône générique...`);
+    
+    // Si les composants ne sont pas encore créés, les créer
+    if (!this.icon) {
+      this.createComponents();
+    }
+    
+    // Retourner l'élément icône si disponible
+    if (this.icon && this.icon.iconElement) {
+      console.log(`✅ [${this.moduleId}Module] Icône disponible pour UIManager`);
+      return this.icon.iconElement;
+    }
+    
+    console.warn(`❌ [${this.moduleId}Module] Impossible de créer l'icône`);
+    return null;
+  }
+  
   // === 🚀 INITIALISATION PROTÉGÉE GÉNÉRIQUE ===
   
   async initializeModule() {
