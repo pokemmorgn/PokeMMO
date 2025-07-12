@@ -63,6 +63,13 @@ export interface IPokedexEntry extends Document {
   removeTag(tag: string): Promise<void>;
 }
 
+// Interface pour les méthodes statiques
+export interface IPokedexEntryModel extends Model<IPokedexEntry> {
+  findOrCreate(playerId: string, pokemonId: number): Promise<IPokedexEntry>;
+  getPlayerEntries(playerId: string, options?: any): Promise<IPokedexEntry[]>;
+  getPlayerStats(playerId: string): Promise<any>;
+}
+
 // ===== SCHÉMA MONGOOSE =====
 
 const PokedexEntrySchema = new Schema<IPokedexEntry>({
@@ -661,7 +668,7 @@ PokedexEntrySchema.pre('deleteOne', { document: true, query: false }, function()
 });
 
 // ===== EXPORT =====
-export const PokedexEntry = mongoose.model<IPokedexEntry>('PokedexEntry', PokedexEntrySchema);
+export const PokedexEntry = mongoose.model<IPokedexEntry, IPokedexEntryModel>('PokedexEntry', PokedexEntrySchema);
 
 // ===== TYPES D'EXPORT =====
 export type PokedexEntryDocument = IPokedexEntry;
