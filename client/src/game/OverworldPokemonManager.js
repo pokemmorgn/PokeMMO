@@ -1,4 +1,18 @@
-// ================================================================================================
+canMoveToTile(pokemon, tileX, tileY) {
+    // Convertir en pixels (centre de la tile)
+    const pixelX = tileX * this.tileSize + (this.tileSize / 2);
+    const pixelY = tileY * this.tileSize + (this.tileSize / 2);
+    
+    console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
+    console.log(`📏 TileSize utilisé: ${this.tileSize}px`);
+    
+    if (pokemon && pokemon.isStatic) {
+      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} est STATIQUE - mouvement interdit`);
+      return false;
+    }
+    
+    if (pokemon && pokemon.spawnTileX !== undefined && pokemon.spawnTileY !== undefined) {
+      const distanceFromSpawn = Math.abs// ================================================================================================
 // CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION TILE PAR TILE AVEC FLAPAROUND
 // ================================================================================================
 import { SpriteUtils } from '../utils/SpriteUtils.js';
