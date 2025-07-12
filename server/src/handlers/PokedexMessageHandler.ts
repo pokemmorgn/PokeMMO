@@ -169,7 +169,7 @@ export class PokedexMessageHandler {
   
   private initializeHandler(): void {
     // Nettoyage périodique
-    setInterval(() => this.cleanup(), 60000); // 1 minute
+    setInterval(() => this.cleanupCaches(), 60000); // 1 minute
     
     // Reset rate limiting
     setInterval(() => this.resetRateLimits(), 60000); // 1 minute
@@ -307,10 +307,13 @@ export class PokedexMessageHandler {
     // Conversion des dates si nécessaire
     let filters = message.filters || {};
     if (filters.dateRange) {
-      filters.dateRange = {
-        start: new Date(filters.dateRange.start),
-        end: new Date(filters.dateRange.end)
-      } as any;
+      filters = {
+        ...filters,
+        dateRange: {
+          start: new Date(filters.dateRange.start),
+          end: new Date(filters.dateRange.end)
+        }
+      };
     }
     
     const result = await pokedexService.getPlayerPokedex(playerId, filters);
@@ -592,8 +595,15 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     // TODO: Implémenter système d'accomplissements global
-    // Pour l'instant, retourner une structure vide
-    const achievements = {
+    // Pour l'instant, retourner une structure vide typée
+    const achievements: {
+      unlocked: any[];
+      inProgress: any[];
+      locked: any[];
+      totalPoints: number;
+      categories: any;
+      recentUnlocks: any[];
+    } = {
       unlocked: [],
       inProgress: [],
       locked: [],
@@ -656,7 +666,10 @@ export class PokedexMessageHandler {
     // Conversion des dates si nécessaire
     let filters = message.filters || {};
     if (filters.sinceDate) {
-      filters.sinceDate = new Date(filters.sinceDate) as any;
+      filters = {
+        ...filters,
+        sinceDate: new Date(filters.sinceDate)
+      };
     }
     
     const notifications = pokedexNotificationService.getPlayerNotifications(playerId, filters);
@@ -1153,7 +1166,7 @@ export class PokedexMessageHandler {
   
   // ===== NETTOYAGE =====
   
-  private cleanup(): void {
+  private cleanupCaches(): void {
     // Nettoyage du cache
     const now = Date.now();
     for (const [key, cached] of this.responseCache.entries()) {
