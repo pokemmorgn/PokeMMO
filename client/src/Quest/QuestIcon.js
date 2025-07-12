@@ -147,8 +147,6 @@ export class QuestIcon {
         opacity: 1 !important;
         
         /* Taille fixe */
-        width: 70px;
-        height: 80px;
         cursor: pointer;
         z-index: 1000;
         transition: all 0.3s ease;
