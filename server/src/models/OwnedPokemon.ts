@@ -1,9 +1,8 @@
-// server/src/models/OwnedPokemon.ts - VERSION INTÉGRÉE POKÉDEX
+// server/src/models/OwnedPokemon.ts - Version avec types corrigés + PP
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { getPokemonById } from "../data/PokemonData";
 import naturesData from "../data/natures.json";
 import { PokemonMoveService } from '../services/PokemonMoveService';
-import { pokédexIntegrationService } from '../services/PokédexIntegrationService';
 
 // Interface pour les attaques
 interface IPokemonMove {
@@ -20,18 +19,6 @@ interface IPokemonStats {
   spAttack: number;
   spDefense: number;
   speed: number;
-}
-
-// Interface pour le contexte de capture (NOUVEAU pour Pokédex)
-interface ICaptureContext {
-  location?: string;
-  method?: 'wild' | 'trainer' | 'gift' | 'trade' | 'evolution' | 'egg' | 'special';
-  weather?: string;
-  timeOfDay?: string;
-  captureTime?: number;
-  ballType?: string;
-  isFirstAttempt?: boolean;
-  encounterLevel?: number;
 }
 
 // Interface principale
@@ -72,11 +59,6 @@ export interface IOwnedPokemon extends Document {
   originalTrainer: string;
   heldItem?: string;
   
-  // === NOUVELLES DONNÉES POKÉDEX ===
-  captureContext?: ICaptureContext;
-  isFirstCapture?: boolean;
-  pokédexIntegrated: boolean;
-  
   // === MÉTHODES D'INSTANCE ===
   recalculateStats(): Promise<void>;
   calculateStatsWithFormula(baseStats: any): any;
@@ -88,17 +70,12 @@ export interface IOwnedPokemon extends Document {
   getEffectiveSpeed(): number;
   applyStatus(status: string, turns?: number): boolean;
   
-  // === MÉTHODES PP ===
+  // === NOUVELLES MÉTHODES PP ===
   consumePP(moveId: string): any;
   canUseMove(moveId: string): boolean;
   hasUsableMoves(): boolean;
   restorePP(moveId?: string): void;
   getMovesWithData(): Promise<any[]>;
-  
-  // === NOUVELLES MÉTHODES POKÉDEX ===
-  integrateToPokédex(context?: ICaptureContext): Promise<void>;
-  updatePokédexEntry(): Promise<void>;
-  markAsEvolved(fromPokemonId: number): Promise<void>;
 }
 
 const OwnedPokemonSchema = new Schema<IOwnedPokemon>({
@@ -170,43 +147,10 @@ const OwnedPokemonSchema = new Schema<IOwnedPokemon>({
   friendship: { type: Number, default: 70, min: 0, max: 255 },
   pokeball: { type: String, default: "poke_ball" },
   originalTrainer: { type: String, required: true },
-  heldItem: { type: String },
-  
-  // === NOUVELLES DONNÉES POKÉDEX ===
-  captureContext: {
-    location: { type: String, default: 'Inconnu' },
-    method: { 
-      type: String, 
-      enum: ['wild', 'trainer', 'gift', 'trade', 'evolution', 'egg', 'special'],
-      default: 'wild'
-    },
-    weather: { 
-      type: String,
-      enum: ['clear', 'rain', 'storm', 'snow', 'fog', 'sandstorm']
-    },
-    timeOfDay: {
-      type: String,
-      enum: ['day', 'night', 'dawn', 'dusk']
-    },
-    captureTime: { type: Number }, // Temps en secondes pour capturer
-    ballType: { type: String, default: 'poke_ball' },
-    isFirstAttempt: { type: Boolean, default: false },
-    encounterLevel: { type: Number } // Niveau lors de la première rencontre
-  },
-  
-  isFirstCapture: { type: Boolean, default: false },
-  pokédexIntegrated: { type: Boolean, default: false }
+  heldItem: { type: String }
 }, {
   timestamps: true
 });
-
-// === INDEX ===
-OwnedPokemonSchema.index({ owner: 1, pokemonId: 1 });
-OwnedPokemonSchema.index({ owner: 1, isInTeam: 1 });
-OwnedPokemonSchema.index({ owner: 1, box: 1, boxSlot: 1 });
-OwnedPokemonSchema.index({ pokemonId: 1, shiny: 1 });
-OwnedPokemonSchema.index({ owner: 1, shiny: 1 });
-OwnedPokemonSchema.index({ pokédexIntegrated: 1 }); // NOUVEAU pour intégration
 
 // === VALIDATIONS ===
 OwnedPokemonSchema.path('moves').validate(function(moves: IPokemonMove[]) {
@@ -221,7 +165,7 @@ OwnedPokemonSchema.pre('save', function(next) {
   next();
 });
 
-// === MIDDLEWARE RECALCUL STATS ===
+// === MIDDLEWARE POUR RECALCUL AUTO DES STATS ===
 OwnedPokemonSchema.pre('save', async function(next) {
   if (this.isNew || this.isModified('level') || this.isModified('ivs') || this.isModified('evs') || this.isModified('nature')) {
     await this.recalculateStats();
@@ -231,51 +175,19 @@ OwnedPokemonSchema.pre('save', async function(next) {
 
 // === MIDDLEWARE PP ===
 OwnedPokemonSchema.pre('save', async function(next) {
+  // Initialisation PP pour nouveaux Pokémon ou moves modifiés
   if (this.isNew || this.isModified('moves')) {
     try {
       await PokemonMoveService.initializePP(this);
     } catch (error) {
       console.error(`❌ [OwnedPokemon] Erreur initialisation PP:`, error);
+      // Ne pas bloquer la sauvegarde
     }
   }
   next();
 });
 
-// === NOUVEAU MIDDLEWARE POKÉDEX ===
-OwnedPokemonSchema.pre('save', async function(next) {
-  // Déterminer si c'est une première capture
-  if (this.isNew) {
-    try {
-      // Vérifier si c'est la première capture de cette espèce pour ce joueur
-      const existingCapture = await (this.constructor as any).findOne({
-        owner: this.owner,
-        pokemonId: this.pokemonId
-      });
-      
-      this.isFirstCapture = !existingCapture;
-      
-      console.log(`🆕 [OwnedPokemon] Nouveau Pokémon: ${this.pokemonId} - Première capture: ${this.isFirstCapture}`);
-    } catch (error) {
-      console.error(`❌ [OwnedPokemon] Erreur vérification première capture:`, error);
-    }
-  }
-  next();
-});
-
-// === MIDDLEWARE POST-SAVE POKÉDEX INTÉGRATION ===
-OwnedPokemonSchema.post('save', async function(doc) {
-  // Intégration automatique au Pokédx après sauvegarde
-  if (doc.isNew && !doc.pokédexIntegrated) {
-    try {
-      console.log(`🔗 [OwnedPokemon] Intégration Pokédx automatique pour ${doc.pokemonId}`);
-      await doc.integrateToPokédex();
-    } catch (error) {
-      console.error(`❌ [OwnedPokemon] Erreur intégration Pokédx:`, error);
-    }
-  }
-});
-
-// === MÉTHODES D'INSTANCE STATS ===
+// === MÉTHODES D'INSTANCE ===
 OwnedPokemonSchema.methods.recalculateStats = async function(this: IOwnedPokemon) {
   const basePokemon = await getPokemonById(this.pokemonId);
   if (!basePokemon) {
@@ -388,300 +300,41 @@ OwnedPokemonSchema.methods.applyStatus = function(this: IOwnedPokemon, newStatus
 };
 
 // === MÉTHODES DE CONVENANCE PP ===
+
+/**
+ * Méthode de convenance pour consommer PP
+ */
 OwnedPokemonSchema.methods.consumePP = function(this: IOwnedPokemon, moveId: string) {
   return PokemonMoveService.consumePP(this, moveId);
 };
 
+/**
+ * Méthode de convenance pour vérifier attaque utilisable
+ */
 OwnedPokemonSchema.methods.canUseMove = function(this: IOwnedPokemon, moveId: string): boolean {
   return PokemonMoveService.canUseMove(this, moveId);
 };
 
+/**
+ * Méthode de convenance pour vérifier attaques utilisables
+ */
 OwnedPokemonSchema.methods.hasUsableMoves = function(this: IOwnedPokemon): boolean {
   return PokemonMoveService.hasUsableMoves(this);
 };
 
+/**
+ * Méthode de convenance pour restaurer PP
+ */
 OwnedPokemonSchema.methods.restorePP = function(this: IOwnedPokemon, moveId?: string): void {
   return PokemonMoveService.restorePP(this, moveId);
 };
 
+/**
+ * Méthode de convenance pour obtenir attaques avec données
+ */
 OwnedPokemonSchema.methods.getMovesWithData = async function(this: IOwnedPokemon) {
   return await PokemonMoveService.getMovesWithData(this);
 };
 
-// === NOUVELLES MÉTHODES POKÉDEX ===
-
-/**
- * Intègre ce Pokémon au Pokédx
- */
-OwnedPokemonSchema.methods.integrateToPokédex = async function(
-  this: IOwnedPokemon, 
-  context?: ICaptureContext
-): Promise<void> {
-  try {
-    if (this.pokédexIntegrated) {
-      console.log(`⏭️ [OwnedPokemon] ${this.pokemonId} déjà intégré au Pokédx`);
-      return;
-    }
-    
-    console.log(`🔗 [OwnedPokemon] Intégration Pokédx: ${this.pokemonId} pour ${this.owner}`);
-    
-    // Fusionner le contexte existant avec le nouveau
-    const finalContext = {
-      ...this.captureContext,
-      ...context
-    };
-    
-    // Appeler le service d'intégration
-    const result = await pokédexIntegrationService.onOwnedPokemonCreated(this, finalContext);
-    
-    // Marquer comme intégré
-    this.pokédexIntegrated = true;
-    
-    // Sauvegarder sans déclencher les hooks (pour éviter la récursion)
-    await this.updateOne({ pokédexIntegrated: true }, { timestamps: false });
-    
-    console.log(`✅ [OwnedPokemon] Intégration Pokédx réussie pour ${this.pokemonId}`);
-    
-  } catch (error) {
-    console.error(`❌ [OwnedPokemon] Erreur intégration Pokédx:`, error);
-    throw error;
-  }
-};
-
-/**
- * Met à jour l'entrée Pokédx pour ce Pokémon
- */
-OwnedPokemonSchema.methods.updatePokédexEntry = async function(this: IOwnedPokemon): Promise<void> {
-  try {
-    if (!this.pokédexIntegrated) {
-      await this.integrateToPokédex();
-      return;
-    }
-    
-    console.log(`🔄 [OwnedPokemon] Mise à jour entrée Pokédx: ${this.pokemonId}`);
-    
-    // Forcer une nouvelle intégration pour mettre à jour les données
-    this.pokédexIntegrated = false;
-    await this.integrateToPokédex();
-    
-  } catch (error) {
-    console.error(`❌ [OwnedPokemon] Erreur mise à jour Pokédx:`, error);
-    throw error;
-  }
-};
-
-/**
- * Marque ce Pokémon comme résultat d'une évolution
- */
-OwnedPokemonSchema.methods.markAsEvolved = async function(
-  this: IOwnedPokemon, 
-  fromPokemonId: number
-): Promise<void> {
-  try {
-    console.log(`🌟 [OwnedPokemon] Évolution: #${fromPokemonId} → #${this.pokemonId}`);
-    
-    // Mettre à jour le contexte de capture
-    this.captureContext = {
-      ...this.captureContext,
-      method: 'evolution',
-      location: this.captureContext?.location || 'Évolution'
-    };
-    
-    // Intégrer l'évolution au Pokédx
-    await pokédexIntegrationService.handlePokemonEvolution(
-      this.owner,
-      fromPokemonId,
-      this.pokemonId,
-      this._id.toString(),
-      this.captureContext.location || 'Évolution'
-    );
-    
-    // Marquer comme intégré
-    this.pokédexIntegrated = true;
-    await this.save();
-    
-    console.log(`✅ [OwnedPokemon] Évolution intégrée au Pokédx`);
-    
-  } catch (error) {
-    console.error(`❌ [OwnedPokemon] Erreur intégration évolution:`, error);
-    throw error;
-  }
-};
-
-// === MÉTHODES STATIQUES ===
-
-/**
- * Crée un nouveau Pokémon avec intégration Pokédx automatique
- */
-OwnedPokemonSchema.statics.createWithPokédxIntegration = async function(
-  pokemonData: Partial<IOwnedPokemon>,
-  captureContext?: ICaptureContext
-): Promise<IOwnedPokemon> {
-  try {
-    console.log(`🆕 [OwnedPokemon] Création avec intégration: ${pokemonData.pokemonId} pour ${pokemonData.owner}`);
-    
-    // Créer le Pokémon avec le contexte de capture
-    const pokemon = new this({
-      ...pokemonData,
-      captureContext: {
-        location: 'Inconnu',
-        method: 'wild',
-        ballType: 'poke_ball',
-        isFirstAttempt: false,
-        ...captureContext
-      },
-      pokédexIntegrated: false // Sera mis à true après intégration
-    });
-    
-    // Sauvegarder (déclenche l'intégration automatique)
-    await pokemon.save();
-    
-    return pokemon;
-    
-  } catch (error) {
-    console.error(`❌ [OwnedPokemon] Erreur création avec intégration:`, error);
-    throw error;
-  }
-};
-
-/**
- * Trouve tous les Pokémon non intégrés au Pokédx
- */
-OwnedPokemonSchema.statics.findNonIntegrated = async function(): Promise<IOwnedPokemon[]> {
-  return await this.find({ pokédexIntegrated: { $ne: true } });
-};
-
-/**
- * Intègre en masse les Pokémon existants au Pokédx
- */
-OwnedPokemonSchema.statics.bulkIntegrateToPokédx = async function(
-  ownerId?: string
-): Promise<{ processed: number; succeeded: number; failed: number }> {
-  try {
-    console.log(`🔄 [OwnedPokemon] Intégration en masse au Pokédx${ownerId ? ` pour ${ownerId}` : ''}`);
-    
-    const query: any = { pokédexIntegrated: { $ne: true } };
-    if (ownerId) query.owner = ownerId;
-    
-    const nonIntegratedPokemon = await this.find(query);
-    
-    let succeeded = 0;
-    let failed = 0;
-    
-    for (const pokemon of nonIntegratedPokemon) {
-      try {
-        await pokemon.integrateToPokédex();
-        succeeded++;
-      } catch (error) {
-        console.error(`❌ Erreur intégration ${pokemon.pokemonId}:`, error);
-        failed++;
-      }
-    }
-    
-    console.log(`✅ [OwnedPokemon] Intégration en masse terminée: ${succeeded} réussies, ${failed} échouées`);
-    
-    return {
-      processed: nonIntegratedPokemon.length,
-      succeeded,
-      failed
-    };
-    
-  } catch (error) {
-    console.error(`❌ [OwnedPokemon] Erreur intégration en masse:`, error);
-    throw error;
-  }
-};
-
-// === MÉTHODES STATIQUES POKÉDX ===
-
-/**
- * Récupère les statistiques Pokédx pour un propriétaire
- */
-OwnedPokemonSchema.statics.getPokédxStats = async function(owner: string) {
-  const pipeline = [
-    { $match: { owner } },
-    {
-      $group: {
-        _id: null as any,
-        totalPokemon: { $sum: 1 },
-        uniqueSpecies: { $addToSet: '$pokemonId' },
-        shinies: {
-          $sum: { $cond: ['$shiny', 1, 0] }
-        },
-        integrated: {
-          $sum: { $cond: ['$pokédexIntegrated', 1, 0] }
-        },
-        byMethod: {
-          $push: '$captureContext.method'
-        }
-      }
-    },
-    {
-      $project: {
-        totalPokemon: 1,
-        uniqueSpecies: { $size: '$uniqueSpecies' },
-        shinies: 1,
-        integrated: 1,
-        integrationRate: {
-          $multiply: [
-            { $divide: ['$integrated', '$totalPokemon'] },
-            100
-          ]
-        }
-      }
-    }
-  ];
-  
-  const result = await this.aggregate(pipeline);
-  return result[0] || {
-    totalPokemon: 0,
-    uniqueSpecies: 0,
-    shinies: 0,
-    integrated: 0,
-    integrationRate: 0
-  };
-};
-
-// Export du modèle
+// Export du modèle simplifié
 export const OwnedPokemon = mongoose.model<IOwnedPokemon>("OwnedPokemon", OwnedPokemonSchema);
-
-// === TYPES D'EXPORT ===
-export type OwnedPokemonDocument = IOwnedPokemon;
-export type CaptureContext = ICaptureContext;
-
-// === GUIDE D'UTILISATION ===
-//
-// 🎯 NOUVELLES FONCTIONNALITÉS POKÉDX :
-//
-// 1. Création automatique avec intégration :
-//    const pokemon = await OwnedPokemon.createWithPokédxIntegration({
-//      owner: playerId,
-//      pokemonId: 25,
-//      level: 5,
-//      // ... autres données
-//    }, {
-//      location: 'Route 1',
-//      method: 'wild',
-//      weather: 'clear',
-//      timeOfDay: 'day',
-//      captureTime: 15.5,
-//      ballType: 'poke_ball',
-//      isFirstAttempt: true
-//    });
-//
-// 2. Intégration manuelle :
-//    await pokemon.integrateToPokédex({
-//      location: 'Forêt de Jade',
-//      method: 'wild'
-//    });
-//
-// 3. Gestion des évolutions :
-//    await evolvedPokemon.markAsEvolved(originalPokemonId);
-//
-// 4. Intégration en masse :
-//    const result = await OwnedPokemon.bulkIntegrateToPokédx(playerId);
-//    console.log(`${result.succeeded} Pokémon intégrés au Pokédx`);
-//
-// 5. Statistiques Pokédx :
-//    const stats = await OwnedPokemon.getPokédxStats(playerId);
-//    console.log(`${stats.uniqueSpecies} espèces uniques capturées`);
