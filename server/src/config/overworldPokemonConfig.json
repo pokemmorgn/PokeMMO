@@ -32,7 +32,7 @@
           "pokemonId": 25,
           "name": "Pikachu",
           "count": 2,
-          "isStatic": true,
+          "isStatic": false,
           "canWander": false,
           "movementRadius": 0,
           "moveChance": 0.0,
@@ -60,8 +60,8 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 350, "y": 400},
-            {"x": 600, "y": 400}
+            {"x": 120, "y": 130},
+            {"x": 130, "y": 140}
           ]
         }
       ]
