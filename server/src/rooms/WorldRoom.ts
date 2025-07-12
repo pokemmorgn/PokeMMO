@@ -61,7 +61,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private followerHandlers!: FollowerHandlers;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
- private pokédxHandler!: PokédexMessageHandler;
+  private pokédexHandler!: PokédexMessageHandler;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -124,7 +124,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
 
-    this.pokédexHandler = new PokédexMessageHandler(this);
+   this.pokédexHandler = new PokédexMessageHandler(this);
     console.log(`✅ PokédexMessageHandler initialisé`);
     
     // Initialiser les EncounterHandlers
@@ -424,7 +424,6 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
-    this.pokédxHandler = new PokédxMessageHandler(this);
     console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
     this.onMessage("battleFinished", (client, data) => {
@@ -1792,9 +1791,9 @@ async onLeave(client: Client, consented: boolean) {
       this.battleHandlers.cleanup();
       console.log(`🧹 BattleHandlers nettoyés`);
     }
-    if (this.pokédxHandler) {
-    this.pokédxHandler.cleanup();
-    console.log(`🧹 PokédxHandler nettoyé`);
+    if (this.pokédexHandler) {
+      this.pokédexHandler.cleanup();
+      console.log(`🧹 PokédexHandler nettoyé`);
     }
     console.log(`✅ WorldRoom fermée`);
   }
