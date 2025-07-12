@@ -1,5 +1,5 @@
-// client/src/ui.js - MODIFIÉ pour inclure le Pokédex
-// ✅ Version avec Pokédx intégré
+// client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
+// ✅ Version NETTOYÉE avec BaseModule
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -38,20 +38,20 @@ const UI_CONFIG = {
   }
 };
 
-// === ÉTATS DE JEU POKÉMON (MODIFIÉ POUR INCLURE POKÉDX) ===
+// === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
   exploration: {
-    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'], // ✅ POKÉDX AJOUTÉ
-    enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'],
+    visibleModules: ['inventory', 'team', 'quest', 'questTracker'],
+    enabledModules: ['inventory', 'team', 'quest', 'questTracker'],
     hiddenModules: [],
     disabledModules: [],
     responsive: {
       mobile: { 
         hiddenModules: ['questTracker'], 
-        visibleModules: ['inventory', 'team', 'quest', 'pokedex'] // ✅ POKÉDX MOBILE
+        visibleModules: ['inventory', 'team', 'quest']
       },
       tablet: { 
-        visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex']
+        visibleModules: ['inventory', 'team', 'quest', 'questTracker']
       }
     }
   },
@@ -59,41 +59,41 @@ const POKEMON_GAME_STATES = {
   battle: {
     visibleModules: [],
     enabledModules: [],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'], // ✅ POKÉDX CACHÉ EN COMBAT
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex']
+    hiddenModules: ['inventory', 'team', 'quest', 'questTracker'],
+    disabledModules: ['inventory', 'team', 'quest', 'questTracker']
   },
   
   pokemonCenter: {
-    visibleModules: ['team', 'inventory', 'pokedex'], // ✅ POKÉDX VISIBLE AU CENTRE POKÉMON
-    enabledModules: ['team', 'inventory', 'pokedex'],
+    visibleModules: ['team', 'inventory'],
+    enabledModules: ['team', 'inventory'],
     hiddenModules: ['questTracker'],
     disabledModules: ['quest']
   },
   
   dialogue: {
-    visibleModules: ['inventory', 'team', 'quest', 'pokedex'], // ✅ POKÉDX VISIBLE PENDANT DIALOGUES
+    visibleModules: ['inventory', 'team', 'quest'],
     enabledModules: [],
     hiddenModules: ['questTracker'],
-    disabledModules: ['inventory', 'team', 'quest', 'pokedex'] // ✅ MAIS DÉSACTIVÉ
+    disabledModules: ['inventory', 'team', 'quest']
   },
   
   menu: {
-    visibleModules: ['inventory', 'team', 'quest', 'pokedex'], // ✅ POKÉDX DANS MENU
-    enabledModules: ['inventory', 'team', 'quest', 'pokedex'],
+    visibleModules: ['inventory', 'team', 'quest'],
+    enabledModules: ['inventory', 'team', 'quest'],
     hiddenModules: ['questTracker'],
     disabledModules: []
   }
 };
 
-// === GROUPES LOGIQUES POKÉMON (MODIFIÉ POUR INCLURE POKÉDX) ===
+// === GROUPES LOGIQUES POKÉMON ===
 const POKEMON_UI_GROUPS = {
   'ui-icons': {
-    modules: ['inventory', 'pokedex', 'quest', 'team'], // ✅ POKÉDX AJOUTÉ EN 2ÈME POSITION
+    modules: ['inventory', 'team', 'quest'],
     layout: {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'pokedex', 'quest', 'team'] // ✅ ORDRE SPÉCIFIÉ
+      order: ['inventory', 'quest', 'team']
     },
     priority: 100
   },
@@ -166,7 +166,7 @@ export class PokemonUISystem {
         this.currentGameState = stateName;
         
         const iconsSelectors = [
-          '#inventory-icon', '#team-icon', '#quest-icon', '#pokedex-icon', // ✅ POKÉDX AJOUTÉ
+          '#inventory-icon', '#team-icon', '#quest-icon', 
           '.ui-icon', '#questTracker'
         ];
         
@@ -221,7 +221,7 @@ export class PokemonUISystem {
     }
   }
 
-  // === ENREGISTREMENT MODULES (MODIFIÉ POUR INCLURE POKÉDX) ===
+  // === ENREGISTREMENT MODULES ===
   async registerAllModules() {
     const moduleConfigs = [
       {
@@ -232,35 +232,11 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 0, // Premier = le plus à droite
-          spacing: 10,
-          size: { width: 70, height: 80 }
+          order: 0,
+          spacing: 10
         },
         priority: 100
-      },
-      
-      // ✅ NOUVEAU: MODULE POKÉDX
-      {
-        id: 'pokedex',
-        critical: false,
-        factory: this.createPokedexModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 1, // Deuxième = entre inventory et quest
-          spacing: 10,
-          size: { width: 80, height: 90 }
-        },
-        priority: 95,
-        metadata: {
-          name: 'Pokédx National',
-          description: 'Complete Pokédx discovery system',
-          version: '1.0.0',
-          category: 'Data Management'
-        }
-      },
-      
+      },     
       {
         id: 'quest',
         critical: false,
@@ -269,13 +245,11 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 2, // Troisième
-          spacing: 10,
-          size: { width: 65, height: 75 }
+          order: 1,
+          spacing: 10
         },
         priority: 90
       },
-      
       {
         id: 'team',
         critical: true,
@@ -289,9 +263,8 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 3, // Quatrième = le plus à gauche
-          spacing: 10,
-          size: { width: 70, height: 80 }
+          order: 2,
+          spacing: 10
         },
         groups: ['ui-icons'],
         metadata: {
@@ -301,7 +274,6 @@ export class PokemonUISystem {
           category: 'Pokemon Management'
         }
       },
-      
       {
         id: 'questTracker',
         critical: false,
@@ -383,77 +355,6 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ NOUVELLE FACTORY: Pokédx Module
-  async createPokedexModule() {
-    try {
-      console.log('🚀 [PokemonUI] Création module Pokédx...');
-      
-      const { createPokedexModule } = await import('./Pokedex/index.js');
-      
-      const pokedexModule = await createPokedexModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      if (pokedexModule) {
-        console.log('✅ [PokemonUI] PokedexModule créé avec succès');
-        
-        // S'assurer que le module a les méthodes nécessaires pour UIManager
-        if (!pokedexModule.connectUIManager && pokedexModule.icon?.iconElement) {
-          pokedexModule.connectUIManager = (uiManager) => {
-            if (uiManager.registerIconPosition) {
-              uiManager.registerIconPosition('pokedex', pokedexModule.icon.iconElement, {
-                anchor: 'bottom-right',
-                order: 1,
-                spacing: 10,
-                size: { width: 80, height: 90 }
-              });
-              return true;
-            }
-            return false;
-          };
-        }
-        
-        // Connecter à UIManager si disponible
-        if (this.uiManager && pokedexModule.connectUIManager) {
-          pokedexModule.connectUIManager(this.uiManager);
-        }
-        
-        // ✅ EXPOSER GLOBALEMENT LES FONCTIONS POKÉDX
-        window.pokedexSystem = pokedexModule.system;
-        window.pokedexSystemGlobal = pokedexModule;
-        window.togglePokedex = () => pokedexModule.toggleUI?.() || pokedexModule.toggle?.();
-        window.openPokedex = () => pokedexModule.open?.();
-        window.closePokedex = () => pokedexModule.close?.();
-        window.isPokedexOpen = () => pokedexModule.ui?.isVisible || false;
-        
-        // ✅ FONCTIONS SPÉCIFIQUES POKÉDX
-        window.markPokemonSeen = (pokemonId, level, location, options) => 
-          pokedexModule.markPokemonSeen?.(pokemonId, level, location, options);
-        window.markPokemonCaught = (pokemonId, level, location, ownedPokemonId, options) => 
-          pokedexModule.markPokemonCaught?.(pokemonId, level, location, ownedPokemonId, options);
-        window.isPokemonSeen = (pokemonId) => 
-          pokedexModule.isPokemonSeen?.(pokemonId) || false;
-        window.isPokemonCaught = (pokemonId) => 
-          pokedexModule.isPokemonCaught?.(pokemonId) || false;
-        window.getPokedexCompletionRate = () => 
-          pokedexModule.getCompletionRate?.() || 0;
-        window.openPokedexToView = (viewName) => 
-          pokedexModule.openToView?.(viewName);
-        
-        console.log('🌐 [PokemonUI] Fonctions Pokédx exposées globalement');
-        
-        return pokedexModule;
-      }
-      
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création Pokédx:', error);
-    }
-    
-    // Fallback: wrapper vide
-    return this.createEmptyWrapper('pokedex');
-  }
-
   async createTeamModule() {
     try {
       const { createTeamModule } = await import('./Team/index.js');
@@ -513,7 +414,7 @@ async createQuestModule() {
           if (uiManager.registerIconPosition) {
             uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
               anchor: 'bottom-right',
-              order: 2, // ✅ MODIFIÉ: Quest maintenant en 3ème position
+              order: 1,
               spacing: 10,
               size: { width: 65, height: 75 }
             });
@@ -822,7 +723,7 @@ export async function createMinimalPokemonUI() {
       uiManager: {
         setGameState: (stateName, options = {}) => {
           const iconsSelectors = [
-            '#inventory-icon', '#team-icon', '#quest-icon', '#pokedex-icon', // ✅ POKÉDX AJOUTÉ
+            '#inventory-icon', '#team-icon', '#quest-icon', 
             '.ui-icon', '.game-icon', '#questTracker'
           ];
           
@@ -880,7 +781,7 @@ export async function createMinimalPokemonUI() {
           initialized: true,
           mode: 'minimal-pokemon-ui',
           currentGameState: this.currentGameState,
-          compatibility: 'Basic UI state management with Pokédx support',
+          compatibility: 'Basic UI state management',
           uiManager: this.uiManager.debugInfo()
         };
       }
@@ -911,7 +812,7 @@ export async function createMinimalPokemonUI() {
   }
 }
 
-// === FONCTIONS DE COMPATIBILITÉ (MODIFIÉES POUR INCLURE POKÉDX) ===
+// === FONCTIONS DE COMPATIBILITÉ ===
 function setupCompatibilityFunctions() {
   // Fonctions Team
   window.toggleTeam = () => {
@@ -965,35 +866,6 @@ function setupCompatibilityFunctions() {
     }
   };
   
-  // ✅ NOUVELLES FONCTIONS POKÉDX
-  window.togglePokedex = () => {
-    const module = pokemonUISystem.getOriginalModule?.('pokedex');
-    if (module && module.togglePokedexUI) {
-      module.togglePokedexUI();
-    } else if (module && module.toggle) {
-      module.toggle();
-    }
-  };
-  
-  window.openPokedex = () => {
-    const module = pokemonUISystem.getOriginalModule?.('pokedex');
-    if (module && module.openPokedex) {
-      module.openPokedex();
-    }
-  };
-  
-  window.closePokedex = () => {
-    const module = pokemonUISystem.getOriginalModule?.('pokedex');
-    if (module && module.closePokedex) {
-      module.closePokedex();
-    }
-  };
-  
-  window.isPokedexOpen = () => {
-    const module = pokemonUISystem.getOriginalModule?.('pokedex');
-    return module?.isPokedexOpen?.() || false;
-  };
-  
   // Fonctions quest
   window.toggleQuest = () => {
     const module = pokemonUISystem.getOriginalModule?.('quest');
@@ -1015,7 +887,7 @@ function setupCompatibilityFunctions() {
   };
 }
 
-// === ÉVÉNEMENTS GLOBAUX (MODIFIÉS POUR INCLURE POKÉDX) ===
+// === ÉVÉNEMENTS GLOBAUX ===
 
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
@@ -1045,26 +917,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('dialogueEnded', () => {
     pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
-  
-  // ✅ NOUVEAUX ÉVÉNEMENTS POKÉDX
-  window.addEventListener('pokemonEncountered', (event) => {
-    console.log('👁️ [PokemonUI] Pokémon rencontré:', event.detail);
-    // Le module Pokédx gère automatiquement cet événement
-  });
-  
-  window.addEventListener('pokemonCaptured', (event) => {
-    console.log('🎯 [PokemonUI] Pokémon capturé:', event.detail);
-    // Le module Pokédx gère automatiquement cet événement
-  });
-  
-  window.addEventListener('pokemonEvolved', (event) => {
-    console.log('🔄 [PokemonUI] Pokémon évolué:', event.detail);
-    // Le module Pokédx gère automatiquement cet événement
-  });
 });
 
-console.log('✅ [PokemonUI] Système UI Pokémon avec Pokédx chargé');
+console.log('✅ [PokemonUI] Système UI Pokémon avec BaseModule chargé');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('🔍 Utilisez window.debugPokemonUI() pour diagnostiquer');
-console.log('📱 Pokédx: window.togglePokedex(), window.markPokemonSeen(), etc.');
