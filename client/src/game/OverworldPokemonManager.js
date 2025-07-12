@@ -257,7 +257,7 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Vérifie si une position tile est libre (avec physics) - VERSION CORRIGÉE
+   * ✅ Vérifie si une position tile est libre ET dans la zone de mouvement autorisée
    */
   canMoveToTile(pokemon, tileX, tileY) {
     // Convertir en pixels (centre de la tile)
@@ -265,6 +265,15 @@ export class OverworldPokemonManager {
     const pixelY = tileY * this.tileSize + (this.tileSize / 2);
     
     console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
+    
+    // ✅ NOUVEAU: Vérifier si c'est dans la zone de mouvement autorisée
+    if (pokemon && pokemon.spawnTileX !== undefined && pokemon.spawnTileY !== undefined) {
+      const distanceFromSpawn = Math.abs(tileX - pokemon.spawnTileX) + Math.abs(tileY - pokemon.spawnTileY);
+      if (distanceFromSpawn > pokemon.movementRadius) {
+        console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) HORS ZONE - distance ${distanceFromSpawn} > ${pokemon.movementRadius}`);
+        return false;
+      }
+    }
     
     // Vérifier les collisions avec les layers
     if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
@@ -344,6 +353,11 @@ export class OverworldPokemonManager {
       pokemon.isMoving = isMoving || false;
       pokemon.animations = animations;
       pokemon.currentAnimation = currentAnimation;
+      
+      // ✅ NOUVEAU: Zone de mouvement autorisée (rayon autour du spawn)
+      pokemon.spawnTileX = Math.round(snappedPos.x / this.tileSize);
+      pokemon.spawnTileY = Math.round(snappedPos.y / this.tileSize);
+      pokemon.movementRadius = 3; // Rayon en tiles (3 = zone 7x7 autour du spawn)
       
       // ✅ Propriétés pour mouvement tile par tile
       pokemon.targetX = targetX ? this.snapToGrid(targetX, 0).x : snappedPos.x;
@@ -750,27 +764,32 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Debug système tile par tile
+   * ✅ Debug système tile par tile avec zones
    */
   debugOverworldPokemon() {
-    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE ===`);
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE AVEC ZONES ===`);
     console.log(`📊 Pokémon actifs: ${this.overworldPokemon.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`🛡️ Collision layers: ${this.scene.collisionLayers?.length || 0}`);
     console.log(`📏 Taille tile: ${this.tileSize}px`);
     console.log(`⚡ Vitesse mouvement: ${this.moveSpeed}px/s`);
-    console.log(`🎮 Système: TILE PAR TILE (16x16)`);
+    console.log(`🎮 Système: TILE PAR TILE avec ZONES DE MOUVEMENT`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
       const isMoving = pokemon.isMovingToTarget;
       const currentTile = `(${pokemon.currentTileX}, ${pokemon.currentTileY})`;
       const targetTile = `(${Math.round(pokemon.targetX / this.tileSize)}, ${Math.round(pokemon.targetY / this.tileSize)})`;
+      const spawnTile = `(${pokemon.spawnTileX}, ${pokemon.spawnTileY})`;
       const moveProgress = isMoving ? `${(pokemon.moveProgress * 100).toFixed(1)}%` : 'N/A';
+      const distanceFromSpawn = Math.abs(pokemon.currentTileX - pokemon.spawnTileX) + Math.abs(pokemon.currentTileY - pokemon.spawnTileY);
       
       console.log(`🌍 ${id}:`, {
         name: pokemon.name,
         currentTile: currentTile,
+        spawnTile: spawnTile,
         targetTile: targetTile,
+        movementRadius: pokemon.movementRadius,
+        distanceFromSpawn: distanceFromSpawn,
         position: `(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`,
         direction: pokemon.lastDirection,
         isMoving: isMoving,
@@ -779,6 +798,9 @@ export class OverworldPokemonManager {
         currentAnimation: pokemon.currentAnimation
       });
     });
+    
+    console.log(`🎲 Utilisez debugShowMovementZone('pokemonId') pour voir la zone d'un Pokémon`);
+    console.log(`🎯 Utilisez moveRandomlyInZone(pokemon) pour test de mouvement aléatoire`);
   }
 
   /**
@@ -825,17 +847,88 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Affiche la grille de collision (debug)
+   * ✅ Obtient une tile libre dans la zone de mouvement autorisée
    */
-  debugShowGrid(startTileX = 0, startTileY = 0, width = 10, height = 10) {
-    console.log(`🧪 [DEBUG] Grille de collision ${width}x${height} depuis (${startTileX}, ${startTileY})`);
-    console.log(`Légende: ⬜ = LIBRE, 🟥 = BLOQUÉ`);
+  getRandomTileInMovementZone(pokemon) {
+    if (!pokemon.spawnTileX || !pokemon.spawnTileY) {
+      return null;
+    }
     
-    for (let y = startTileY; y < startTileY + height; y++) {
+    const attempts = 20; // Éviter les boucles infinies
+    const radius = pokemon.movementRadius;
+    
+    for (let i = 0; i < attempts; i++) {
+      // Générer une position aléatoire dans le rayon
+      const deltaX = Math.floor(Math.random() * (radius * 2 + 1)) - radius;
+      const deltaY = Math.floor(Math.random() * (radius * 2 + 1)) - radius;
+      
+      const targetTileX = pokemon.spawnTileX + deltaX;
+      const targetTileY = pokemon.spawnTileY + deltaY;
+      
+      // Vérifier si cette tile est libre
+      if (this.canMoveToTile(pokemon, targetTileX, targetTileY) && 
+          !this.isTileOccupiedByPokemon(targetTileX, targetTileY)) {
+        return {
+          tileX: targetTileX,
+          tileY: targetTileY,
+          pixelX: targetTileX * this.tileSize,
+          pixelY: targetTileY * this.tileSize
+        };
+      }
+    }
+    
+    console.log(`⚠️ [OverworldPokemonManager] Aucune tile libre trouvée pour ${pokemon.name} dans sa zone`);
+    return null;
+  }
+  
+  /**
+   * ✅ Fait bouger un Pokémon aléatoirement dans sa zone
+   */
+  moveRandomlyInZone(pokemon) {
+    const randomTile = this.getRandomTileInMovementZone(pokemon);
+    
+    if (randomTile) {
+      console.log(`🎲 [OverworldPokemonManager] ${pokemon.name} mouvement aléatoire vers (${randomTile.tileX}, ${randomTile.tileY})`);
+      return this.startTileMovement(pokemon, randomTile.pixelX, randomTile.pixelY);
+    }
+    
+    return false;
+  }
+  
+  /**
+   * ✅ Affiche la zone de mouvement d'un Pokémon (debug)
+   */
+  debugShowMovementZone(pokemonId) {
+    const pokemon = this.overworldPokemon.get(pokemonId);
+    if (!pokemon) {
+      console.error(`❌ [DEBUG] Pokémon ${pokemonId} introuvable`);
+      return;
+    }
+    
+    const radius = pokemon.movementRadius;
+    const centerX = pokemon.spawnTileX;
+    const centerY = pokemon.spawnTileY;
+    
+    console.log(`🧪 [DEBUG] Zone de mouvement de ${pokemon.name}:`);
+    console.log(`📍 Spawn: (${centerX}, ${centerY})`);
+    console.log(`📏 Rayon: ${radius} tiles`);
+    console.log(`🗺️ Zone: ${radius * 2 + 1}x${radius * 2 + 1} tiles`);
+    
+    // Afficher la grille de la zone
+    console.log(`Légende: 🟢 = spawn, ⬜ = libre, 🟥 = bloqué, 🟡 = occupé`);
+    
+    for (let y = centerY - radius; y <= centerY + radius; y++) {
       let row = `${y.toString().padStart(2, '0')}: `;
-      for (let x = startTileX; x < startTileX + width; x++) {
-        const canMove = this.canMoveToTile(null, x, y);
-        row += canMove ? '⬜' : '🟥';
+      for (let x = centerX - radius; x <= centerX + radius; x++) {
+        if (x === centerX && y === centerY) {
+          row += '🟢'; // Point de spawn
+        } else if (this.isTileOccupiedByPokemon(x, y)) {
+          row += '🟡'; // Occupé par un Pokémon
+        } else if (this.canMoveToTile(pokemon, x, y)) {
+          row += '⬜'; // Libre
+        } else {
+          row += '🟥'; // Bloqué
+        }
       }
       console.log(row);
     }
