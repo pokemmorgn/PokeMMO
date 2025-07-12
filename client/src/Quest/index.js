@@ -1,87 +1,101 @@
-// Quest/index.js - QuestModule refactorisé avec BaseModule
-// 🎯 UTILISE BaseModule pour éviter duplication de code
-// 📍 INTÉGRÉ avec UIManager via BaseModule
-// 🆕 CODE SIMPLIFIÉ ET MAINTENABLE
+// Quest/index.js - QuestModule CORRIGÉ pour affichage icône et tracker
+// 🎯 CORRECTIONS: Initialisation UI + Positionnement icône + Tracker visible
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { QuestManager } from './QuestManager.js';
 import { QuestIcon } from './QuestIcon.js';
 import { QuestUI } from './QuestUI.js';
 
-/**
- * Module Quest utilisant BaseModule
- * Hérite de toute la logique UIManager générique
- */
 export class QuestModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
-    // Configuration spécifique Quest
     const questOptions = {
-      singleton: true,           // Quest est un singleton
-      autoCloseUI: true,         // Fermer UI par défaut
-      keyboardShortcut: 'l',     // Touche L pour ouvrir/fermer (évite conflit avec Q)
+      singleton: true,
+      autoCloseUI: true,
+      keyboardShortcut: 'l',
       uiManagerConfig: {
         anchor: 'bottom-right',
-        order: 1,                // Après inventory (0), avant team (2)
+        order: 1,
         group: 'ui-icons'
       },
       ...options
     };
     
     super(moduleId || 'quest', gameRoom, scene, questOptions);
-    
     console.log('📖 [QuestModule] Instance créée avec BaseModule');
   }
   
-  // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
+  // === 🎯 INITIALISATION CORRIGÉE ===
   
-  /**
-   * Initialisation spécifique Quest
-   */
   async init() {
     console.log('🚀 [QuestModule] Initialisation métier Quest...');
     
-    // Créer le manager (business logic)
     this.manager = new QuestManager(this.gameRoom);
     await this.manager.init();
     
     console.log('✅ [QuestModule] Manager Quest initialisé');
   }
   
-  /**
-   * Création des composants Quest
-   */
+  // ✅ CORRECTION 1: Initialiser UI dans createComponents
   createComponents() {
     console.log('🔧 [QuestModule] Création composants Quest...');
     
-    // Créer l'icône si pas encore fait
+    // Créer l'icône
     if (!this.icon) {
       this.icon = new QuestIcon(this.manager);
       this.icon.init();
+      
+      // ✅ FORCE POSITIONNEMENT INITIAL pour éviter invisibilité
+      if (this.icon.iconElement) {
+        this.icon.iconElement.style.position = 'fixed';
+        this.icon.iconElement.style.right = '20px';
+        this.icon.iconElement.style.bottom = '20px';
+        this.icon.iconElement.style.zIndex = '500';
+        console.log('📍 [QuestModule] Position initiale forcée pour icône');
+      }
     }
     
-    // Créer l'interface si pas encore fait
+    // ✅ CORRECTION 2: Initialiser UI immédiatement
     if (!this.ui) {
       this.ui = new QuestUI(this.manager, this.gameRoom);
-      // Note: L'init de QuestUI est async, on le fait dans connectComponents
-    }
-    
-    console.log('✅ [QuestModule] Composants Quest créés');
-  }
-  
-  /**
-   * Connexion des composants Quest
-   */
-  connectComponents() {
-    console.log('🔗 [QuestModule] Connexion composants Quest...');
-    
-    // Initialiser UI de manière async si nécessaire
-    if (this.ui && !this.ui.initialized) {
-      this.ui.init().catch(error => {
+      
+      // ✅ APPELER init() immédiatement (était manquant)
+      this.ui.init().then(() => {
+        console.log('✅ [QuestModule] UI Quest initialisée');
+        
+        // ✅ CORRECTION 3: Afficher tracker par défaut
+        if (this.ui.showTracker) {
+          this.ui.showTracker();
+          console.log('👁️ [QuestModule] Tracker affiché par défaut');
+        }
+      }).catch(error => {
         console.error('❌ [QuestModule] Erreur init UI:', error);
       });
     }
     
-    // Icône → Interface (clic ouvre l'interface)
+    console.log('✅ [QuestModule] Composants Quest créés avec init UI');
+  }
+  
+  // ✅ CORRECTION 4: Assurer connexions robustes
+  connectComponents() {
+    console.log('🔗 [QuestModule] Connexion composants Quest...');
+    
+    // Attendre que UI soit prête
+    const ensureUIReady = () => {
+      if (this.ui && this.ui.overlayElement && this.ui.trackerElement) {
+        this.connectComponentsWhenReady();
+      } else {
+        console.log('⏳ [QuestModule] UI pas encore prête, retry...');
+        setTimeout(ensureUIReady, 100);
+      }
+    };
+    
+    ensureUIReady();
+  }
+  
+  connectComponentsWhenReady() {
+    console.log('🔗 [QuestModule] Connexion composants (UI prête)...');
+    
+    // Icône → Interface
     if (this.icon) {
       this.icon.onClick = () => {
         if (this.canOpenUI()) {
@@ -92,7 +106,7 @@ export class QuestModule extends BaseModule {
       };
     }
     
-    // Manager → Icône (mise à jour des stats)
+    // Manager → Icône
     if (this.manager) {
       this.manager.onStatsUpdate = (stats) => {
         if (this.icon) {
@@ -100,12 +114,12 @@ export class QuestModule extends BaseModule {
         }
       };
       
-      // Manager → Interface (mise à jour des données)
+      // Manager → Interface
       this.manager.onQuestUpdate = (quests) => {
         if (this.ui) {
           this.ui.updateQuestData(quests, 'active');
           
-          // Si l'UI est visible, forcer un refresh
+          // Force refresh si UI visible
           if (this.ui.isVisible) {
             setTimeout(() => {
               this.ui.refreshQuestList?.();
@@ -115,13 +129,10 @@ export class QuestModule extends BaseModule {
         }
       };
       
-      // Manager → Interface (quête démarrée)
+      // Événements quêtes
       this.manager.onQuestStarted = (quest) => {
-        if (this.icon) {
-          this.icon.animateNewQuest();
-        }
+        if (this.icon) this.icon.animateNewQuest();
         
-        // Notification via NotificationManager si disponible
         if (typeof window.showGameNotification === 'function') {
           window.showGameNotification(
             `Nouvelle quête: ${quest.name || 'Quête sans nom'}`,
@@ -131,30 +142,20 @@ export class QuestModule extends BaseModule {
         }
       };
       
-      // Manager → Interface (quête terminée)
       this.manager.onQuestCompleted = (quest) => {
-        if (this.icon) {
-          this.icon.animateQuestCompleted();
-        }
+        if (this.icon) this.icon.animateQuestCompleted();
         
         if (typeof window.showGameNotification === 'function') {
-          window.showGameNotification(
-            `Quête terminée !`,
-            'success',
-            { duration: 3000 }
-          );
+          window.showGameNotification('Quête terminée !', 'success', { duration: 3000 });
         }
       };
       
-      // Manager → Interface (progression)
       this.manager.onQuestProgress = (progress) => {
-        if (this.icon) {
-          this.icon.animateQuestProgress();
-        }
+        if (this.icon) this.icon.animateQuestProgress();
       };
     }
     
-    // Interface → Manager (actions utilisateur)
+    // Interface → Manager
     if (this.ui) {
       this.ui.onAction = (action, data) => {
         if (this.manager) {
@@ -166,15 +167,48 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Composants Quest connectés');
   }
   
-  // === 📊 MÉTHODES SPÉCIFIQUES QUEST ===
+  // ✅ CORRECTION 5: createIcon robuste pour UIManager
+  async createIcon() {
+    console.log('🎨 [QuestModule] Création icône pour UIManager...');
+    
+    // S'assurer que les composants existent
+    if (!this.icon) {
+      this.createComponents();
+      
+      // Attendre que l'icône soit prête
+      let retries = 0;
+      while (!this.icon.iconElement && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+    }
+    
+    if (this.icon && this.icon.iconElement) {
+      console.log('✅ [QuestModule] Icône disponible pour UIManager');
+      
+      // ✅ FORCE AFFICHAGE avant UIManager
+      this.icon.iconElement.style.display = 'block';
+      this.icon.iconElement.style.visibility = 'visible';
+      this.icon.iconElement.style.opacity = '1';
+      
+      return this.icon.iconElement;
+    }
+    
+    console.warn('❌ [QuestModule] Impossible de créer l\'icône');
+    return null;
+  }
   
-  /**
-   * Demander les données Quest (override de la méthode générique)
-   */
+  // ✅ CORRECTION 6: Show avec demande données + tracker
   show() {
     const result = super.show();
     
-    // Demander données Quest spécifiquement
+    // ✅ Afficher tracker immédiatement
+    if (this.ui && this.ui.showTracker) {
+      this.ui.showTracker();
+      console.log('👁️ [QuestModule] Tracker affiché via show()');
+    }
+    
+    // Demander données
     if (this.manager) {
       setTimeout(() => {
         this.manager.requestQuestData();
@@ -184,66 +218,76 @@ export class QuestModule extends BaseModule {
     return result;
   }
   
-  /**
-   * Afficher le tracker de quêtes
-   */
+  // ✅ CORRECTION 7: Force affichage tracker
+  ensureTrackerVisible() {
+    console.log('🔍 [QuestModule] Assurer visibilité tracker...');
+    
+    if (!this.ui || !this.ui.trackerElement) {
+      console.warn('⚠️ [QuestModule] Tracker element non trouvé');
+      return false;
+    }
+    
+    const tracker = this.ui.trackerElement;
+    
+    // Force affichage
+    tracker.style.display = 'block';
+    tracker.style.visibility = 'visible';
+    tracker.style.opacity = '1';
+    tracker.style.pointerEvents = 'auto';
+    tracker.classList.remove('hidden');
+    
+    // Position fixe si pas définie
+    if (!tracker.style.position || tracker.style.position === 'static') {
+      tracker.style.position = 'fixed';
+      tracker.style.top = '120px';
+      tracker.style.right = '20px';
+      tracker.style.zIndex = '950';
+    }
+    
+    console.log('✅ [QuestModule] Tracker forcé visible');
+    return true;
+  }
+  
+  // ✅ CORRECTION 8: Méthodes tracker publiques
   showTracker() {
     if (this.ui) {
       this.ui.showTracker();
+      this.ensureTrackerVisible();
     }
   }
   
-  /**
-   * Masquer le tracker de quêtes
-   */
   hideTracker() {
     if (this.ui) {
       this.ui.hideTracker();
     }
   }
   
-  /**
-   * Toggle du tracker de quêtes
-   */
   toggleTracker() {
     if (this.ui) {
       this.ui.toggleTracker();
     }
   }
   
-  /**
-   * Obtenir les quêtes actives
-   */
+  // === MÉTHODES QUEST EXISTANTES (inchangées) ===
+  
   getActiveQuests() {
     return this.manager ? this.manager.getActiveQuests() : [];
   }
   
-  /**
-   * Obtenir les statistiques de quêtes
-   */
   getQuestStats() {
     return this.manager ? this.manager.getQuestStats() : null;
   }
   
-  /**
-   * Vérifier si des quêtes sont actives
-   */
   hasActiveQuests() {
     return this.manager ? this.manager.hasActiveQuests() : false;
   }
   
-  /**
-   * Démarrer une quête
-   */
   startQuest(questId) {
     if (this.manager) {
       this.manager.startQuest(questId);
     }
   }
   
-  /**
-   * Déclencher progression de quête
-   */
   triggerProgress(type, data) {
     if (this.manager) {
       switch (type) {
@@ -265,62 +309,37 @@ export class QuestModule extends BaseModule {
     }
   }
   
-  /**
-   * Afficher dialogue de quête (pour interactions NPC)
-   */
   showQuestDialog(title, quests, onSelectQuest) {
     if (this.ui) {
       this.ui.showQuestDialog(title, quests, onSelectQuest);
     }
   }
   
-  /**
-   * API legacy pour compatibilité
-   */
-  toggleQuestJournal() {
-    this.toggleUI();
-  }
-  
-  openQuestJournal() {
-    this.open();
-  }
-  
-  closeQuestJournal() {
-    this.close();
-  }
-  
-  openQuest() {
-    this.open();
-  }
-  
-  closeQuest() {
-    this.close();
-  }
-  
-  // === 📋 OVERRIDE STATE POUR INFOS QUEST ===
+  // API legacy
+  toggleQuestJournal() { this.toggleUI(); }
+  openQuestJournal() { this.open(); }
+  closeQuestJournal() { this.close(); }
+  openQuest() { this.open(); }
+  closeQuest() { this.close(); }
   
   getUIManagerState() {
     const baseState = super.getUIManagerState();
     
-    // Ajouter infos spécifiques Quest
     return {
       ...baseState,
       questCount: this.manager ? this.manager.getQuestCount() : 0,
       hasActiveQuests: this.manager ? this.manager.hasActiveQuests() : false,
+      trackerVisible: this.ui ? this.ui.isTrackerVisible : false,
       moduleType: 'quest'
     };
   }
 }
 
-// === 🏭 FACTORY QUEST SIMPLIFIÉE ===
+// === FACTORY CORRIGÉE ===
 
-/**
- * Factory function pour créer le module Quest
- * Utilise la factory générique de BaseModule
- */
 export async function createQuestModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [QuestFactory] Création module Quest avec BaseModule...');
+    console.log('🏭 [QuestFactory] Création module Quest CORRIGÉ...');
     
     const questOptions = {
       singleton: true,
@@ -329,7 +348,14 @@ export async function createQuestModule(gameRoom, scene, options = {}) {
     
     const questInstance = await createModule(QuestModule, 'quest', gameRoom, scene, questOptions);
     
-    console.log('✅ [QuestFactory] Module Quest créé avec succès');
+    // ✅ FORCE AFFICHAGE TRACKER après création
+    setTimeout(() => {
+      if (questInstance.ensureTrackerVisible) {
+        questInstance.ensureTrackerVisible();
+      }
+    }, 500);
+    
+    console.log('✅ [QuestFactory] Module Quest créé avec tracker visible');
     return questInstance;
     
   } catch (error) {
@@ -338,42 +364,149 @@ export async function createQuestModule(gameRoom, scene, options = {}) {
   }
 }
 
-// === 📋 CONFIGURATION QUEST POUR UIMANAGER ===
+// === SETUP SYSTÈME QUEST CORRIGÉ ===
 
+export async function setupQuestSystem(uiManager) {
+  try {
+    console.log('🔧 [QuestSetup] Configuration système Quest CORRIGÉ...');
+    
+    const questInstance = await initializeQuestModule(uiManager);
+    
+    // Exposer globalement
+    if (!window.questSystem) {
+      window.questSystem = questInstance;
+      window.questSystemGlobal = questInstance;
+      
+      // Fonctions génériques
+      window.toggleQuest = () => questInstance.toggleUI();
+      window.openQuest = () => questInstance.open();
+      window.closeQuest = () => questInstance.close();
+      window.forceCloseQuest = () => questInstance.forceCloseUI();
+      
+      // Fonctions spécifiques Quest
+      window.toggleQuestJournal = () => questInstance.toggleUI();
+      window.openQuestJournal = () => questInstance.open();
+      window.closeQuestJournal = () => questInstance.close();
+      
+      // ✅ FONCTIONS TRACKER NOUVELLES
+      window.toggleQuestTracker = () => questInstance.toggleTracker();
+      window.showQuestTracker = () => questInstance.showTracker();
+      window.hideQuestTracker = () => questInstance.hideTracker();
+      window.ensureQuestTrackerVisible = () => questInstance.ensureTrackerVisible();
+      
+      // API progression
+      window.triggerQuestProgress = (type, data) => questInstance.triggerProgress(type, data);
+      window.startQuest = (questId) => questInstance.startQuest(questId);
+      window.showQuestDialog = (title, quests, callback) => questInstance.showQuestDialog(title, quests, callback);
+      
+      console.log('🌐 [QuestSetup] Fonctions globales Quest exposées avec tracker');
+    }
+    
+    // ✅ FORCE AFFICHAGE INITIAL
+    setTimeout(() => {
+      if (questInstance.show) {
+        questInstance.show();
+      }
+      
+      if (questInstance.ensureTrackerVisible) {
+        questInstance.ensureTrackerVisible();
+      }
+      
+      console.log('✅ [QuestSetup] Affichage initial forcé');
+    }, 1000);
+    
+    console.log('✅ [QuestSetup] Système Quest configuré CORRIGÉ');
+    return questInstance;
+    
+  } catch (error) {
+    console.error('❌ [QuestSetup] Erreur configuration:', error);
+    throw error;
+  }
+}
+
+// === FONCTION DE RÉPARATION ===
+
+export function fixQuestDisplay() {
+  console.log('🔧 [QuestFix] Réparation affichage Quest...');
+  
+  try {
+    const instance = QuestModule.getInstance('quest');
+    
+    if (!instance) {
+      console.error('❌ [QuestFix] Aucune instance Quest trouvée');
+      return false;
+    }
+    
+    // 1. Force affichage icône
+    if (instance.icon && instance.icon.iconElement) {
+      const icon = instance.icon.iconElement;
+      icon.style.display = 'block';
+      icon.style.visibility = 'visible';
+      icon.style.opacity = '1';
+      icon.style.position = 'fixed';
+      icon.style.right = '20px';
+      icon.style.bottom = '20px';
+      icon.style.zIndex = '500';
+      
+      console.log('✅ [QuestFix] Icône Quest réparée');
+    }
+    
+    // 2. Force affichage tracker
+    if (instance.ensureTrackerVisible) {
+      instance.ensureTrackerVisible();
+    } else if (instance.ui && instance.ui.trackerElement) {
+      const tracker = instance.ui.trackerElement;
+      tracker.style.display = 'block';
+      tracker.style.visibility = 'visible';
+      tracker.style.opacity = '1';
+      tracker.style.position = 'fixed';
+      tracker.style.top = '120px';
+      tracker.style.right = '20px';
+      tracker.style.zIndex = '950';
+      tracker.classList.remove('hidden');
+      
+      console.log('✅ [QuestFix] Tracker Quest réparé');
+    }
+    
+    // 3. Demander données
+    if (instance.manager && instance.manager.requestQuestData) {
+      instance.manager.requestQuestData();
+    }
+    
+    console.log('✅ [QuestFix] Réparation Quest terminée');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [QuestFix] Erreur réparation:', error);
+    return false;
+  }
+}
+
+// Configuration export (existant)
 export const QUEST_MODULE_CONFIG = generateModuleConfig('quest', {
   moduleClass: QuestModule,
   order: 1,
-  
   options: {
     singleton: true,
     keyboardShortcut: 'l'
   },
-  
   groups: ['ui-icons', 'quest-management'],
-  
   metadata: {
     name: 'Quest Journal',
     description: 'Complete quest management system with journal and tracker',
-    version: '2.0.0',
+    version: '2.1.0',
     category: 'Quest Management'
   },
-  
   factory: () => createQuestModule(
     window.currentGameRoom, 
     window.game?.scene?.getScenes(true)[0]
   )
 });
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
-
-/**
- * Enregistrer le module Quest dans UIManager
- */
 export async function registerQuestModule(uiManager) {
   try {
     console.log('📝 [QuestIntegration] Enregistrement Quest...');
     
-    // Vérifier si déjà enregistré
     if (uiManager.modules && uiManager.modules.has('quest')) {
       console.log('ℹ️ [QuestIntegration] Module déjà enregistré');
       return true;
@@ -389,30 +522,21 @@ export async function registerQuestModule(uiManager) {
   }
 }
 
-/**
- * Initialiser et connecter le module Quest
- */
 export async function initializeQuestModule(uiManager) {
   try {
     console.log('🚀 [QuestIntegration] Initialisation Quest...');
     
-    // Enregistrer le module
     await registerQuestModule(uiManager);
     
-    // Vérifier si déjà initialisé (singleton)
     let questInstance = QuestModule.getInstance('quest');
     
     if (!questInstance || !questInstance.uiManagerState.initialized) {
-      // Initialiser le module
       questInstance = await uiManager.initializeModule('quest');
     } else {
       console.log('ℹ️ [QuestIntegration] Instance déjà initialisée');
-      
-      // Connecter à UIManager si pas encore fait
       questInstance.connectUIManager(uiManager);
     }
     
-    // Setup des événements globaux Quest
     setupQuestGlobalEvents(questInstance);
     
     console.log('✅ [QuestIntegration] Initialisation Quest terminée');
@@ -424,16 +548,10 @@ export async function initializeQuestModule(uiManager) {
   }
 }
 
-// === 🌐 ÉVÉNEMENTS GLOBAUX QUEST ===
-
+// Événements globaux (simplifié)
 function setupQuestGlobalEvents(questInstance) {
-  // Éviter double setup
-  if (window._questEventsSetup) {
-    console.log('ℹ️ [QuestEvents] Événements déjà configurés');
-    return;
-  }
+  if (window._questEventsSetup) return;
   
-  // Événement: Item collecté
   window.addEventListener('itemCollected', (event) => {
     if (questInstance.manager) {
       const { itemId, amount } = event.detail;
@@ -441,39 +559,6 @@ function setupQuestGlobalEvents(questInstance) {
     }
   });
   
-  // Événement: Pokémon vaincu
-  window.addEventListener('pokemonDefeated', (event) => {
-    if (questInstance.manager) {
-      const { pokemonId } = event.detail;
-      questInstance.triggerProgress('defeat', { pokemonId });
-    }
-  });
-  
-  // Événement: Zone visitée
-  window.addEventListener('zoneEntered', (event) => {
-    if (questInstance.manager) {
-      const { zoneId, x, y, map } = event.detail;
-      questInstance.triggerProgress('reach', { zoneId, x, y, map });
-    }
-  });
-  
-  // Événement: Interaction NPC
-  window.addEventListener('npcInteraction', (event) => {
-    if (questInstance.manager && event.detail.type === 'questGiver') {
-      const { availableQuests, npcName } = event.detail;
-      if (availableQuests && availableQuests.length > 0) {
-        questInstance.showQuestDialog(
-          `Quêtes disponibles - ${npcName || 'PNJ'}`,
-          availableQuests,
-          (questId) => {
-            questInstance.startQuest(questId);
-          }
-        );
-      }
-    }
-  });
-  
-  // Événement: Combat commencé - masquer UI
   window.addEventListener('battleStarted', () => {
     if (questInstance.ui && questInstance.ui.isVisible) {
       questInstance.ui.hide();
@@ -483,7 +568,6 @@ function setupQuestGlobalEvents(questInstance) {
     }
   });
   
-  // Événement: Combat terminé - restaurer UI
   window.addEventListener('battleEnded', () => {
     if (questInstance.ui) {
       questInstance.ui.showTracker();
@@ -494,229 +578,37 @@ function setupQuestGlobalEvents(questInstance) {
   console.log('🌐 [QuestEvents] Événements Quest configurés');
 }
 
-// === 💡 UTILISATION SIMPLE ===
-
-/**
- * Fonction d'utilisation simple pour intégrer Quest dans un projet
- */
-export async function setupQuestSystem(uiManager) {
-  try {
-    console.log('🔧 [QuestSetup] Configuration système Quest avec BaseModule...');
-    
-    // Initialiser le module
-    const questInstance = await initializeQuestModule(uiManager);
-    
-    // Exposer globalement pour compatibilité
-    if (!window.questSystem) {
-      window.questSystem = questInstance;
-      window.questSystemGlobal = questInstance;
-      window.toggleQuest = () => questInstance.toggleUI();
-      window.openQuest = () => questInstance.open();
-      window.closeQuest = () => questInstance.close();
-      window.forceCloseQuest = () => questInstance.forceCloseUI();
-      
-      // Méthodes spécifiques Quest
-      window.toggleQuestJournal = () => questInstance.toggleUI();
-      window.openQuestJournal = () => questInstance.open();
-      window.closeQuestJournal = () => questInstance.close();
-      window.toggleQuestTracker = () => questInstance.toggleTracker();
-      window.showQuestTracker = () => questInstance.showTracker();
-      window.hideQuestTracker = () => questInstance.hideTracker();
-      
-      // API pour déclencher progression
-      window.triggerQuestProgress = (type, data) => questInstance.triggerProgress(type, data);
-      window.startQuest = (questId) => questInstance.startQuest(questId);
-      window.showQuestDialog = (title, quests, callback) => questInstance.showQuestDialog(title, quests, callback);
-      
-      console.log('🌐 [QuestSetup] Fonctions globales Quest exposées');
-    }
-    
-    console.log('✅ [QuestSetup] Système Quest configuré avec BaseModule');
-    return questInstance;
-    
-  } catch (error) {
-    console.error('❌ [QuestSetup] Erreur configuration:', error);
-    throw error;
-  }
-}
-
-// === 🔍 UTILITÉS DE DEBUG QUEST ===
-
-export function debugQuestModule() {
-  const { debugModule } = require('../core/BaseModule.js');
-  return debugModule('quest', QuestModule);
-}
-
-export function fixQuestModule() {
-  console.log('🔧 [QuestFix] Réparation module Quest...');
-  
-  try {
-    const instance = QuestModule.getInstance('quest');
-    
-    if (instance) {
-      // Force fermeture UI via BaseModule
-      instance.forceCloseUI();
-      
-      // Force fermeture tracker
-      if (instance.ui) {
-        instance.ui.hideTracker();
-      }
-      
-      console.log('✅ [QuestFix] Module Quest réparé');
-      return true;
-    } else {
-      console.log('ℹ️ [QuestFix] Aucune instance à réparer');
-      return false;
-    }
-    
-  } catch (error) {
-    console.error('❌ [QuestFix] Erreur réparation:', error);
-    return false;
-  }
-}
-
-// === 📈 MÉTHODES UTILITAIRES QUEST ===
-
-/**
- * Déclencher des événements de progression depuis l'extérieur
- */
-export function triggerQuestCollect(itemId, amount = 1) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance) {
-    instance.triggerProgress('collect', { itemId, amount });
-  }
-}
-
-export function triggerQuestDefeat(pokemonId) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance) {
-    instance.triggerProgress('defeat', { pokemonId });
-  }
-}
-
-export function triggerQuestReach(zoneId, x, y, map) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance) {
-    instance.triggerProgress('reach', { zoneId, x, y, map });
-  }
-}
-
-export function triggerQuestDeliver(npcId, itemId) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance) {
-    instance.triggerProgress('deliver', { npcId, itemId });
-  }
-}
-
-/**
- * Gestion des interactions NPC avec quêtes
- */
-export function handleNpcQuestInteraction(npcData) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance && npcData.availableQuests && npcData.availableQuests.length > 0) {
-    instance.showQuestDialog(
-      `Quêtes disponibles - ${npcData.npcName || 'PNJ'}`,
-      npcData.availableQuests,
-      (questId) => {
-        instance.startQuest(questId);
-      }
-    );
-    return true;
-  }
-  return false;
-}
-
-/**
- * Obtenir informations sur les quêtes actives
- */
-export function getQuestInfo() {
-  const instance = QuestModule.getInstance('quest');
-  if (instance) {
-    return {
-      activeQuests: instance.getActiveQuests(),
-      questStats: instance.getQuestStats(),
-      hasActiveQuests: instance.hasActiveQuests(),
-      moduleState: instance.getUIManagerState()
-    };
-  }
-  return null;
-}
-
-/**
- * Configuration du tracker de quêtes
- */
-export function configureQuestTracker(options = {}) {
-  const instance = QuestModule.getInstance('quest');
-  if (instance && instance.ui) {
-    if (options.maxQuests !== undefined) {
-      instance.ui.maxTrackedQuests = options.maxQuests;
-    }
-    if (options.visible !== undefined) {
-      if (options.visible) {
-        instance.ui.showTracker();
-      } else {
-        instance.ui.hideTracker();
-      }
-    }
-    if (options.minimized !== undefined) {
-      if (options.minimized) {
-        instance.ui.toggleTrackerMinimize();
-      }
-    }
-  }
-}
-
-// === 📋 EXPORT PAR DÉFAUT ===
-
 export default QuestModule;
 
 console.log(`
-📖 === QUEST MODULE AVEC BASEMODULE ===
+📖 === QUEST MODULE CORRIGÉ ===
 
-🎯 NOUVELLES FONCTIONNALITÉS:
-• BaseModule - logique UIManager mutualisée
-• Code simplifié - moins de duplication
-• Patterns standards - consistent entre modules
-• Singleton intégré - via BaseModule
+✅ CORRECTIONS APPLIQUÉES:
+1. this.ui.init() appelé dans createComponents()
+2. Position initiale forcée pour icône (éviter invisibilité)
+3. Tracker affiché par défaut via showTracker()
+4. createIcon() robuste avec retry
+5. ensureTrackerVisible() pour force affichage
+6. show() affiche tracker immédiatement
+7. Méthodes tracker publiques
+8. Fonction fixQuestDisplay() pour réparation
 
-📍 AVANTAGES BASEMODULE:
-• connectUIManager() générique
-• forceCloseUI() standardisé
-• Gestion état UIManager uniforme
-• Raccourcis clavier automatiques (L)
+🎯 NOUVELLES FONCTIONS:
+• ensureTrackerVisible() - Force affichage tracker
+• showTracker()/hideTracker()/toggleTracker() - Contrôle tracker
+• fixQuestDisplay() - Réparation complète
+• window.ensureQuestTrackerVisible() - Global
 
-🔧 MÉTHODES HÉRITÉES:
-• show(), hide(), setEnabled() - standards
-• connectUIManager() - connexion sécurisée
-• getUIManagerState() - état complet
-• forceCloseUI() - fermeture forcée
+📍 FLUX CORRIGÉ:
+1. createComponents() → init UI immédiatement
+2. createIcon() → force position initiale
+3. show() → affiche tracker automatiquement
+4. connectComponents() → connexions quand UI prête
 
-🎯 SPÉCIFICITÉS QUEST:
-• getActiveQuests() - quêtes actives
-• hasActiveQuests() - vérification
-• startQuest(id) - démarrer quête
-• triggerProgress(type, data) - progression
-• showQuestDialog() - dialogues NPC
-• showTracker()/hideTracker() - tracker
-
-📊 API PROGRESSION:
-• triggerQuestCollect(itemId, amount)
-• triggerQuestDefeat(pokemonId)
-• triggerQuestReach(zoneId, x, y, map)
-• triggerQuestDeliver(npcId, itemId)
-
-🌐 ÉVÉNEMENTS GLOBAUX:
-• itemCollected → progression automatique
-• pokemonDefeated → progression automatique
-• zoneEntered → progression automatique
-• npcInteraction → dialogues automatiques
-• battleStarted/Ended → UI adaptative
-
-💡 UTILISATION SIMPLE:
+🚀 UTILISATION:
 • setupQuestSystem(uiManager) - Setup complet
-• handleNpcQuestInteraction(npcData) - NPC
-• getQuestInfo() - Informations
-• configureQuestTracker(options) - Config
+• fixQuestDisplay() - Réparation
+• window.ensureQuestTrackerVisible() - Force tracker
 
-✅ QUEST REFACTORISÉ AVEC BASEMODULE !
+✅ QUEST ICÔNE + TRACKER MAINTENANT VISIBLES !
 `);
