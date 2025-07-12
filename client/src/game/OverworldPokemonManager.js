@@ -266,7 +266,13 @@ export class OverworldPokemonManager {
     
     console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
     
-    // ✅ NOUVEAU: Vérifier si c'est dans la zone de mouvement autorisée
+    // ✅ NOUVEAU: Vérifier si le Pokémon peut bouger (statique ou non)
+    if (pokemon && pokemon.isStatic) {
+      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} est STATIQUE - mouvement interdit`);
+      return false;
+    }
+    
+    // ✅ Vérifier si c'est dans la zone de mouvement autorisée
     if (pokemon && pokemon.spawnTileX !== undefined && pokemon.spawnTileY !== undefined) {
       const distanceFromSpawn = Math.abs(tileX - pokemon.spawnTileX) + Math.abs(tileY - pokemon.spawnTileY);
       if (distanceFromSpawn > pokemon.movementRadius) {
@@ -354,10 +360,13 @@ export class OverworldPokemonManager {
       pokemon.animations = animations;
       pokemon.currentAnimation = currentAnimation;
       
-      // ✅ NOUVEAU: Zone de mouvement autorisée (rayon autour du spawn)
+      // ✅ NOUVEAU: Configuration de mouvement depuis les données serveur
       pokemon.spawnTileX = Math.round(snappedPos.x / this.tileSize);
       pokemon.spawnTileY = Math.round(snappedPos.y / this.tileSize);
-      pokemon.movementRadius = 3; // Rayon en tiles (3 = zone 7x7 autour du spawn)
+      pokemon.movementRadius = pokemonData.movementRadius || 3; // Rayon en tiles (défaut: 3)
+      pokemon.isStatic = pokemonData.isStatic || false; // Si true, ne bouge jamais
+      pokemon.canWander = pokemonData.canWander !== false; // Si false, ne bouge que sur commande serveur
+      pokemon.moveChance = pokemonData.moveChance || 0.7; // Probabilité de mouvement (0.0 à 1.0)
       
       // ✅ Propriétés pour mouvement tile par tile
       pokemon.targetX = targetX ? this.snapToGrid(targetX, 0).x : snappedPos.x;
@@ -508,7 +517,7 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Met à jour un Pokémon existant avec système tile par tile - AVEC BLOCAGE COLLISION
+   * ✅ Met à jour un Pokémon existant avec système tile par tile - AVEC DEBUG VISUEL
    */
   updateOverworldPokemon(pokemonData) {
     const { 
@@ -519,32 +528,17 @@ export class OverworldPokemonManager {
     const pokemon = this.overworldPokemon.get(id);
     if (!pokemon) return;
     
-    console.log(`🔄 [OverworldPokemonManager] Update ${pokemon.name}: ${isMoving ? 'BOUGE' : 'IDLE'} ${direction}`);
+    console.log(`🔄 [OverworldPokemonManager] Update ${pokemon.name}: isMoving=${isMoving}, direction=${direction}`);
+    console.log(`📍 Position serveur: (${x}, ${y}) → Target: (${targetX}, ${targetY})`);
+    console.log(`🎯 Position client actuelle: (${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`);
     
-    // ✅ Nouveau mouvement détecté
-    if (isMoving && targetX !== undefined && targetY !== undefined) {
-      const snappedTarget = this.snapToGrid(targetX, targetY);
-      if (snappedTarget.x !== pokemon.targetX || snappedTarget.y !== pokemon.targetY) {
-        console.log(`🚀 [OverworldPokemonManager] Nouveau mouvement tile: ${pokemon.name} → (${targetX},${targetY})`);
-        
-        // ✅ TENTATIVE DE MOUVEMENT - SI BLOQUÉ, LE POKÉMON RESTE SUR PLACE
-        const moveSuccess = this.startTileMovement(pokemon, targetX, targetY);
-        
-        if (!moveSuccess) {
-          console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} mouvement bloqué par collision - reste en place`);
-          // Le Pokémon garde sa position actuelle et passe en idle
-          this.stopTileMovement(pokemon);
-        }
-      }
-    }
-    
-    // ✅ Arrêt forcé par le serveur
-    else if (isMoving === false && pokemon.isMovingToTarget) {
-      console.log(`⏹️ [OverworldPokemonManager] Arrêt forcé tile: ${pokemon.name}`);
-      this.stopTileMovement(pokemon);
+    // ✅ SYNCHRONISER POSITION SI TROP ÉLOIGNÉE
+    if (x !== undefined && y !== undefined) {
+      const distanceX = Math.abs(pokemon.x - x);
+      const distanceY = Math.abs(pokemon.y - y);
       
-      // Synchroniser position avec le serveur si nécessaire
-      if (x !== undefined && y !== undefined) {
+      if (distanceX > 5 || distanceY > 5) {
+        console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} SYNC position: client(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)}) → serveur(${x}, ${y})`);
         const snappedPos = this.snapToGrid(x, y);
         pokemon.setPosition(snappedPos.x, snappedPos.y);
         pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
@@ -552,9 +546,94 @@ export class OverworldPokemonManager {
       }
     }
     
-    // ✅ Mise à jour direction
-    if (direction !== undefined) {
+    // ✅ NOUVEAU MOUVEMENT DÉTECTÉ - FORCER LE DÉMARRAGE
+    if (isMoving && targetX !== undefined && targetY !== undefined) {
+      const snappedTarget = this.snapToGrid(targetX, targetY);
+      const targetTileX = Math.round(snappedTarget.x / this.tileSize);
+      const targetTileY = Math.round(snappedTarget.y / this.tileSize);
+      
+      console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} COMMANDE MOUVEMENT: (${pokemon.currentTileX}, ${pokemon.currentTileY}) → (${targetTileX}, ${targetTileY})`);
+      
+      // ✅ ARRÊTER LE MOUVEMENT ACTUEL S'IL Y EN A UN
+      if (pokemon.isMovingToTarget) {
+        console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement précédent`);
+        this.stopTileMovement(pokemon);
+      }
+      
+      // ✅ FORCER LE NOUVEAU MOUVEMENT - IGNORER LES VÉRIFICATIONS DE COLLISION
+      console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} FORCE mouvement vers (${targetTileX}, ${targetTileY})`);
+      
+      // Configuration du mouvement FORCÉ
+      pokemon.targetX = snappedTarget.x;
+      pokemon.targetY = snappedTarget.y;
+      pokemon.isMovingToTarget = true;
+      pokemon.moveProgress = 0;
+      pokemon.moveStartTime = Date.now();
+      pokemon.moveDuration = (this.tileSize / this.moveSpeed) * 1000;
+      
+      // Déterminer la direction pour l'animation
+      const deltaX = targetTileX - pokemon.currentTileX;
+      const deltaY = targetTileY - pokemon.currentTileY;
+      
+      let newDirection = 'down';
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        newDirection = deltaX > 0 ? 'right' : 'left';
+      } else {
+        newDirection = deltaY > 0 ? 'down' : 'up';
+      }
+      
+      pokemon.lastDirection = direction || newDirection;
+      
+      // ✅ FORCER L'ANIMATION DE MARCHE
+      const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+      const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${pokemon.lastDirection}`;
+      
+      if (pokemon.anims && this.scene.anims.exists(animKey)) {
+        try {
+          pokemon.anims.play(animKey, true);
+          console.log(`🎬 [OverworldPokemonManager] FORCE animation marche: ${animKey}`);
+        } catch (error) {
+          console.warn(`⚠️ Erreur animation marche:`, error);
+        }
+      }
+      
+      console.log(`✅ [OverworldPokemonManager] ${pokemon.name} mouvement visuel FORCÉ démarré`);
+    }
+    
+    // ✅ ARRÊT FORCÉ PAR LE SERVEUR
+    else if (isMoving === false && pokemon.isMovingToTarget) {
+      console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} ARRÊT forcé par serveur`);
+      this.stopTileMovement(pokemon);
+      
+      // Synchroniser position finale avec le serveur
+      if (x !== undefined && y !== undefined) {
+        const snappedPos = this.snapToGrid(x, y);
+        pokemon.setPosition(snappedPos.x, snappedPos.y);
+        pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
+        pokemon.currentTileY = Math.round(snappedPos.y / this.tileSize);
+        console.log(`📍 [OverworldPokemonManager] ${pokemon.name} position finale sync: (${pokemon.currentTileX}, ${pokemon.currentTileY})`);
+      }
+    }
+    
+    // ✅ MISE À JOUR DIRECTION MÊME SI PAS DE MOUVEMENT
+    if (direction !== undefined && direction !== pokemon.lastDirection) {
+      console.log(`🧭 [OverworldPokemonManager] ${pokemon.name} changement direction: ${pokemon.lastDirection} → ${direction}`);
       pokemon.lastDirection = direction;
+      
+      // Si le Pokémon ne bouge pas, changer l'animation idle
+      if (!pokemon.isMovingToTarget) {
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${direction}`;
+        
+        if (pokemon.anims && this.scene.anims.exists(idleAnimKey)) {
+          try {
+            pokemon.anims.play(idleAnimKey, true);
+            console.log(`🎬 [OverworldPokemonManager] Animation direction: ${idleAnimKey}`);
+          } catch (error) {
+            console.warn(`⚠️ Erreur animation direction:`, error);
+          }
+        }
+      }
     }
   }
 
@@ -764,16 +843,16 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Debug système tile par tile avec zones
+   * ✅ Debug système tile par tile avec zones et configuration
    */
   debugOverworldPokemon() {
-    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE AVEC ZONES ===`);
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE AVEC CONFIG ===`);
     console.log(`📊 Pokémon actifs: ${this.overworldPokemon.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`🛡️ Collision layers: ${this.scene.collisionLayers?.length || 0}`);
     console.log(`📏 Taille tile: ${this.tileSize}px`);
     console.log(`⚡ Vitesse mouvement: ${this.moveSpeed}px/s`);
-    console.log(`🎮 Système: TILE PAR TILE avec ZONES DE MOUVEMENT`);
+    console.log(`🎮 Système: TILE PAR TILE avec CONFIG MOUVEMENT`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
       const isMoving = pokemon.isMovingToTarget;
@@ -783,17 +862,25 @@ export class OverworldPokemonManager {
       const moveProgress = isMoving ? `${(pokemon.moveProgress * 100).toFixed(1)}%` : 'N/A';
       const distanceFromSpawn = Math.abs(pokemon.currentTileX - pokemon.spawnTileX) + Math.abs(pokemon.currentTileY - pokemon.spawnTileY);
       
+      // ✅ NOUVEAU: Info sur la configuration de mouvement
+      const movementConfig = {
+        isStatic: pokemon.isStatic,
+        canWander: pokemon.canWander,
+        moveChance: pokemon.moveChance,
+        movementRadius: pokemon.movementRadius
+      };
+      
       console.log(`🌍 ${id}:`, {
         name: pokemon.name,
         currentTile: currentTile,
         spawnTile: spawnTile,
         targetTile: targetTile,
-        movementRadius: pokemon.movementRadius,
         distanceFromSpawn: distanceFromSpawn,
         position: `(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`,
         direction: pokemon.lastDirection,
         isMoving: isMoving,
         moveProgress: moveProgress,
+        movementConfig: movementConfig,
         colliders: pokemon.colliders?.length || 0,
         currentAnimation: pokemon.currentAnimation
       });
@@ -801,6 +888,8 @@ export class OverworldPokemonManager {
     
     console.log(`🎲 Utilisez debugShowMovementZone('pokemonId') pour voir la zone d'un Pokémon`);
     console.log(`🎯 Utilisez moveRandomlyInZone(pokemon) pour test de mouvement aléatoire`);
+    console.log(`🔒 Les Pokémon STATIQUES ne bougent jamais`);
+    console.log(`🚶 Les Pokémon avec canWander=false ne bougent que sur commande serveur`);
   }
 
   /**
