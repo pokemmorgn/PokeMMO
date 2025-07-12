@@ -1,5 +1,5 @@
 /**
- * SpriteUtils.js - Gestion des sprites avec support FlapAround-Anim
+ * SpriteUtils.js - Gestion des sprites
  */
 
 export class SpriteUtils {
@@ -88,22 +88,6 @@ export class SpriteUtils {
           }
         }
       }
-    } else if (animationFile.includes('FlapAround-Anim')) {
-      if (width === 328 && height === 28) structure = { cols: 15, rows: 1 };
-      else if (width === 432 && height === 320) structure = { cols: 18, rows: 1 };
-      else if (width === 512 && height === 32) structure = { cols: 16, rows: 1 };
-      else if (width === 256 && height === 32) structure = { cols: 8, rows: 1 };
-      else if (width === 320 && height === 32) structure = { cols: 10, rows: 1 };
-      else if (width === 480 && height === 32) structure = { cols: 15, rows: 1 };
-      else {
-        const possibleCols = [8, 10, 12, 14, 15, 16, 18, 19, 20, 22, 24];
-        for (const cols of possibleCols) {
-          if (width % cols === 0) {
-            structure = { cols, rows: 1 };
-            break;
-          }
-        }
-      }
     }
     
     if (!structure) {
@@ -163,20 +147,6 @@ export class SpriteUtils {
         if (cols === 6) score += 15;
       }
       
-      if (rows === 1 && animationFile.includes('FlapAround')) {
-        score += 1000;
-        if (cols === 15) score += 100;
-        if (cols === 18) score += 90;
-        if (cols === 16) score += 85;
-        if (cols === 8) score += 50;
-        if (cols === 10) score += 40;
-        if (cols % 2 === 0) score += 20;
-        
-        if (frameWidth >= 16 && frameWidth <= 48 && frameHeight >= 16 && frameHeight <= 400) {
-          score += 50;
-        }
-      }
-      
       if (frameWidth >= 16 && frameWidth <= 64 && frameHeight >= 16 && frameHeight <= 64) {
         score += 30;
         if (frameWidth % 8 === 0) score += 10;
@@ -194,7 +164,7 @@ export class SpriteUtils {
       const totalFrames = cols * rows;
       if (totalFrames >= 8 && totalFrames <= 80) {
         score += 15;
-        if ([40, 48, 64, 32, 16, 15, 8, 9, 10, 18].includes(totalFrames)) score += 10;
+        if ([40, 48, 64, 32, 16, 8, 9, 10].includes(totalFrames)) score += 10;
       }
       
       if (cols > 24 || rows > 12) score -= 20;
@@ -228,12 +198,6 @@ export class SpriteUtils {
       else type = 'walk';
     } else if (rows === 1 && animationFile.includes('Swing')) {
       type = 'swing';
-    } else if (rows === 1 && animationFile.includes('FlapAround')) {
-      if (cols === 15) type = 'flaparound-15f';
-      if (cols === 18) type = 'flaparound-18f';
-      else if (cols === 16) type = 'flaparound-full';
-      else if (cols === 8) type = 'flaparound-simple';
-      else type = 'flaparound';
     } else if (rows === 8) {
       type = 'walk-variant';
     }
@@ -330,7 +294,7 @@ export class SpriteUtils {
       { id: 25, name: 'Pikachu' }
     ];
     
-    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} POKÉMON avec FlapAround ===`);
+    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} POKÉMON ===`);
     
     const results = [];
     
@@ -340,14 +304,12 @@ export class SpriteUtils {
       try {
         const walkResult = await this.testPokemonSprite(testCase.id, 'Walk-Anim.png');
         const swingResult = await this.testPokemonSprite(testCase.id, 'Swing-Anim.png');
-        const flapResult = await this.testPokemonSprite(testCase.id, 'FlapAround-Anim.png');
         
         results.push({
           pokemon: testCase,
           walk: walkResult,
           swing: swingResult,
-          flap: flapResult,
-          success: !!(walkResult && swingResult && flapResult)
+          success: !!(walkResult && swingResult)
         });
         
       } catch (error) {
