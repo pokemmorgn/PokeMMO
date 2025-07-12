@@ -1,10 +1,13 @@
 // server/src/services/PokédexIntegrationService.ts
 import { EventEmitter } from 'events';
 import { pokédexService } from './PokédexService';
-import { pokédexProgressService } from './PokédexProgressService';
+import { PokédexProgressService } from './PokédexProgressService';
 import { pokédexNotificationService } from './PokédexNotificationService';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
 import { getPokemonById } from '../data/PokemonData';
+
+// Créer l'instance du service de progression
+const pokédexProgressService = PokédexProgressService.getInstance();
 
 // ===== TYPES & INTERFACES =====
 
@@ -632,31 +635,3 @@ export class PokédexIntegrationService extends EventEmitter {
 // ===== EXPORT SINGLETON =====
 export const pokédexIntegrationService = PokédexIntegrationService.getInstance();
 export default pokédexIntegrationService;
-
-// ===== GUIDE D'UTILISATION =====
-//
-// 🎯 INTÉGRATION DANS VOTRE CODE EXISTANT :
-//
-// 1. Dans les combats sauvages (avant le combat) :
-//    await pokédexIntegrationService.onWildPokemonEncountered(
-//      playerId, pokemonId, level, location, { weather, timeOfDay }
-//    );
-//
-// 2. Lors de la création d'un OwnedPokemon :
-//    await pokédexIntegrationService.onOwnedPokemonCreated(ownedPokemon, {
-//      location, method: 'wild', weather, timeOfDay, captureTime
-//    });
-//
-// 3. Lors d'évolutions :
-//    await pokédexIntegrationService.handlePokemonEvolution(
-//      playerId, fromId, toId, ownedPokemonId, location
-//    );
-//
-// 4. Configuration :
-//    pokédexIntegrationService.updateConfig({ debugMode: true });
-//    pokédexIntegrationService.setEnabled(false); // Désactiver temporairement
-//
-// 5. Écouter les événements :
-//    pokédexIntegrationService.on('encounterIntegrated', (data) => {
-//      console.log('Nouvelle intégration:', data);
-//    });
