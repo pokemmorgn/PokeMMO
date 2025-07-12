@@ -159,7 +159,7 @@ export class PokédexMessageHandler {
       }
       
       // Fixed method name
-      const result = await pokédexService.getPokédxEntry(playerId, message.pokemonId);
+      const result = await pokédexService.getPokédexEntry(playerId, message.pokemonId);
       
       client.send("pokedex:entry:response", {
         success: true,
