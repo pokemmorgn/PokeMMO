@@ -1785,10 +1785,6 @@ async onLeave(client: Client, consented: boolean) {
       this.battleHandlers.cleanup();
       console.log(`🧹 BattleHandlers nettoyés`);
     }
-    if (this.pokédexHandler) {
-      this.pokédexHandler.cleanup();
-      console.log(`🧹 PokédexHandler nettoyé`);
-    }
     console.log(`✅ WorldRoom fermée`);
   }
 
