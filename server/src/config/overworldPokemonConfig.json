@@ -14,6 +14,10 @@
           "pokemonId": 16,
           "name": "Roucool",
           "count": 2,
+          "isStatic": false,
+          "canWander": true,
+          "movementRadius": 4,
+          "moveChance": 0.6,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
@@ -28,11 +32,15 @@
           "pokemonId": 25,
           "name": "Pikachu",
           "count": 2,
+          "isStatic": true,
+          "canWander": false,
+          "movementRadius": 0,
+          "moveChance": 0.0,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
           },
-          "currentAnimation": "walk",
+          "currentAnimation": "idle",
           "spawnPositions": [
             {"x": 105, "y": 123},
             {"x": 110, "y": 130}
@@ -42,6 +50,10 @@
           "pokemonId": 1,
           "name": "Bulbizarre",
           "count": 2,
+          "isStatic": false,
+          "canWander": true,
+          "movementRadius": 2,
+          "moveChance": 0.8,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
@@ -50,34 +62,6 @@
           "spawnPositions": [
             {"x": 350, "y": 400},
             {"x": 600, "y": 400}
-          ]
-        },
-        {
-          "pokemonId": 4,
-          "name": "Salamèche",
-          "count": 2,
-          "animations": {
-            "idle": "Walk-Anim.png",
-            "walk": "Walk-Anim.png"
-          },
-          "currentAnimation": "walk",
-          "spawnPositions": [
-            {"x": 196, "y": 108},
-            {"x": 205, "y": 110}
-          ]
-        },
-        {
-          "pokemonId": 7,
-          "name": "Carapuce",
-          "count": 2,
-          "animations": {
-            "idle": "Walk-Anim.png",
-            "walk": "Walk-Anim.png"
-          },
-          "currentAnimation": "walk",
-          "spawnPositions": [
-            {"x": 229, "y": 232},
-            {"x": 231, "y": 240}
           ]
         }
       ]
