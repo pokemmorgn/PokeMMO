@@ -1,7 +1,7 @@
 // client/src/game/InventorySystem.js - Adaptations pour NotificationManager
 
-import { InventoryUI } from '../components/InventoryUI.js';
-import { InventoryIcon } from '../components/InventoryIcon.js';
+import { InventoryUI } from './InventoryUI.js';
+import { InventoryIcon } from './InventoryIcon.js';
 
 export class InventorySystem {
   constructor(scene, gameRoom) {
