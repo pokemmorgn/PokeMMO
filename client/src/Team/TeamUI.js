@@ -1259,47 +1259,33 @@ export class TeamUI {
   
   // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
   
-  show() {
-    console.log('👁️ [TeamUI] Affichage interface complète (FIXED)');
+show() {
+  console.log('👁️ [TeamUI] Affichage interface complète');
+  
+  this.isVisible = true;
+  
+  if (this.overlayElement) {
+    this.overlayElement.classList.remove('hidden');
     
-    this.isVisible = true;
+    // ✅ AFFICHER VUE OVERVIEW PAR DÉFAUT
+    const overview = this.overlayElement.querySelector('#team-overview');
+    const details = this.overlayElement.querySelector('#team-details');
     
-    if (this.overlayElement) {
-      this.overlayElement.classList.remove('hidden');
-      
-      // ✅ FIX 1: FORCER L'AFFICHAGE DE LA VUE OVERVIEW
-      setTimeout(() => {
-        const overviewElement = this.overlayElement.querySelector('#team-overview');
-        const detailsElement = this.overlayElement.querySelector('#team-details');
-        
-        if (overviewElement) {
-          // Forcer l'affichage de la vue overview
-          overviewElement.style.display = 'flex';
-          overviewElement.classList.add('active');
-          console.log('✅ [TeamUI] Vue overview affichée (FIXED)');
-        }
-        
-        if (detailsElement) {
-          // S'assurer que la vue détails est cachée
-          detailsElement.classList.remove('active');
-        }
-        
-        // Forcer la mise à jour de la vue active
-        this.currentView = 'overview';
-        
-        // Mise à jour des tabs
-        this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.view === 'overview');
-        });
-        
-      }, 50); // Petit délai pour que le DOM soit bien rendu
+    if (overview) {
+      overview.style.display = 'flex';
+      overview.classList.add('active');
     }
     
-    // Demander les données fraîches
-    this.requestTeamData();
-    
-    return true;
+    if (details) {
+      details.classList.remove('active');
+    }
   }
+  
+  // Demander les données fraîches
+  this.requestTeamData();
+  
+  return true;
+}
   
   hide() {
     console.log('👻 [TeamUI] Masquage interface');
