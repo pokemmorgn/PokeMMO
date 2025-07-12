@@ -1,5 +1,5 @@
 // server/src/services/PokédexService.ts
-import { PokédexEntry, IPokédexEntry } from '../models/PokédxEntry';
+import { PokédexEntry, IPokédexEntry } from '../models/PokédexEntry';
 import { PokédexStats, IPokédexStats } from '../models/PokédexStats';
 import { getPokemonById } from '../data/PokemonData';
 import { EventEmitter } from 'events';
@@ -16,12 +16,12 @@ export interface PokédexDiscoveryData {
   isShiny?: boolean;
 }
 
-export interface PokédxCaptureData extends PokédxDiscoveryData {
+export interface PokédexCaptureData extends PokédexDiscoveryData {
   ownedPokemonId: string;
   captureTime?: number; // Temps en secondes pour capturer
 }
 
-export interface PokédxSearchFilters {
+export interface PokédexSearchFilters {
   seen?: boolean;
   caught?: boolean;
   shiny?: boolean;
@@ -35,7 +35,7 @@ export interface PokédxSearchFilters {
   offset?: number;
 }
 
-export interface PokédxProgressSummary {
+export interface PokédexProgressSummary {
   seen: { count: number; percentage: number; recent: number };
   caught: { count: number; percentage: number; recent: number };
   shinies: { count: number; recent: number };
@@ -47,12 +47,12 @@ export interface PokédxProgressSummary {
 
 // ===== SERVICE PRINCIPAL =====
 
-export class PokédxService extends EventEmitter {
-  private static instance: PokédxService;
+export class PokédexService extends EventEmitter {
+  private static instance: PokédexService;
   
   // Cache pour optimiser les performances
   private pokemonDataCache = new Map<number, any>();
-  private playerStatsCache = new Map<string, IPokédxStats>();
+  private playerStatsCache = new Map<string, IPokédexStats>();
   
   constructor() {
     super();
@@ -60,11 +60,11 @@ export class PokédxService extends EventEmitter {
   }
   
   // Singleton pattern
-  static getInstance(): PokédxService {
-    if (!PokédxService.instance) {
-      PokédxService.instance = new PokédxService();
+  static getInstance(): PokédexService {
+    if (!PokédexService.instance) {
+      PokédexService.instance = new PokédexService();
     }
-    return PokédxService.instance;
+    return PokédexService.instance;
   }
   
   // ===== DÉCOUVERTE DE POKÉMON =====
@@ -74,18 +74,18 @@ export class PokédxService extends EventEmitter {
    */
   async markPokemonAsSeen(
     playerId: string, 
-    discoveryData: PokédxDiscoveryData
+    discoveryData: PokédexDiscoveryData
   ): Promise<{
     success: boolean;
     isNewDiscovery: boolean;
-    entry: IPokédxEntry;
+    entry: IPokédexEntry;
     notifications: string[];
   }> {
     try {
       console.log(`👁️ [PokédxService] ${playerId} voit Pokémon #${discoveryData.pokemonId}`);
       
       // Récupérer ou créer l'entrée
-      const entry = await PokédxEntry.findOrCreate(playerId, discoveryData.pokemonId);
+      const entry = await PokédexEntry.findOrCreate(playerId, discoveryData.pokemonId);
       const wasAlreadySeen = entry.isSeen;
       
       // Marquer comme vu avec les données de rencontre
@@ -145,19 +145,19 @@ export class PokédxService extends EventEmitter {
    */
   async markPokemonAsCaught(
     playerId: string,
-    captureData: PokédxCaptureData
+    captureData: PokédexCaptureData
   ): Promise<{
     success: boolean;
     isNewCapture: boolean;
     isNewBestSpecimen: boolean;
-    entry: IPokédxEntry;
+    entry: IPokédexEntry;
     notifications: string[];
   }> {
     try {
       console.log(`🎯 [PokédxService] ${playerId} capture Pokémon #${captureData.pokemonId}`);
       
       // Récupérer ou créer l'entrée
-      const entry = await PokédxEntry.findOrCreate(playerId, captureData.pokemonId);
+      const entry = await PokédexEntry.findOrCreate(playerId, captureData.pokemonId);
       const wasAlreadyCaught = entry.isCaught;
       
       // Marquer comme capturé
@@ -245,9 +245,9 @@ export class PokédxService extends EventEmitter {
    */
   async getPlayerPokedex(
     playerId: string,
-    filters: PokédxSearchFilters = {}
+    filters: PokédexSearchFilters = {}
   ): Promise<{
-    entries: Array<IPokédxEntry & { pokemonData?: any }>;
+    entries: Array<IPokédexEntry & { pokemonData?: any }>;
     pagination: { total: number; page: number; limit: number; hasNext: boolean };
     summary: any;
   }> {
@@ -313,12 +313,12 @@ export class PokédxService extends EventEmitter {
       
       // Exécution des requêtes
       const [entries, total] = await Promise.all([
-        PokédxEntry.find(query)
+        PokédexEntry.find(query)
           .sort(sort)
           .skip(offset)
           .limit(limit)
           .lean(),
-        PokédxEntry.countDocuments(query)
+        PokédexEntry.countDocuments(query)
       ]);
       
       // Enrichissement avec les données Pokémon
@@ -359,19 +359,19 @@ export class PokédxService extends EventEmitter {
     playerId: string,
     pokemonId: number
   ): Promise<{
-    entry: IPokédxEntry | null;
+    entry: IPokédexEntry | null;
     pokemonData: any;
     evolutionChain?: any[];
-    relatedEntries?: IPokédxEntry[];
+    relatedEntries?: IPokédexEntry[];
   }> {
     try {
       const [entry, pokemonData] = await Promise.all([
-        PokédxEntry.findOne({ playerId, pokemonId }),
+        PokédexEntry.findOne({ playerId, pokemonId }),
         this.getPokemonData(pokemonId)
       ]);
       
       let evolutionChain: any[] = [];
-      let relatedEntries: IPokédxEntry[] = [];
+      let relatedEntries: IPokédexEntry[] = [];
       
       if (pokemonData?.evolution) {
         // Récupérer la chaîne d'évolution complète
@@ -379,7 +379,7 @@ export class PokédxService extends EventEmitter {
         
         // Récupérer les entrées pour les évolutions
         const evolutionIds = evolutionChain.map(evo => evo.id);
-        relatedEntries = await PokédxEntry.find({
+        relatedEntries = await PokédexEntry.find({
           playerId,
           pokemonId: { $in: evolutionIds }
         });
@@ -403,7 +403,7 @@ export class PokédxService extends EventEmitter {
   /**
    * Récupère les statistiques complètes d'un joueur
    */
-  async getPlayerProgress(playerId: string): Promise<PokédxProgressSummary> {
+  async getPlayerProgress(playerId: string): Promise<PokédexProgressSummary> {
     try {
       const stats = await this.getPlayerStats(playerId);
       
@@ -443,11 +443,11 @@ export class PokédxService extends EventEmitter {
   /**
    * Force un recalcul complet des statistiques d'un joueur
    */
-  async recalculatePlayerStats(playerId: string): Promise<IPokédxStats> {
+  async recalculatePlayerStats(playerId: string): Promise<IPokédexStats> {
     try {
-      console.log(`🔄 [PokédxService] Recalcul stats pour ${playerId}`);
+      console.log(`🔄 [PokédexService] Recalcul stats pour ${playerId}`);
       
-      const stats = await PokédxStats.findOrCreate(playerId);
+      const stats = await PokédexStats.findOrCreate(playerId);
       await stats.recalculateStats();
       
       // Mettre à jour le cache
@@ -483,12 +483,12 @@ export class PokédxService extends EventEmitter {
   /**
    * Récupère les stats d'un joueur avec cache
    */
-  private async getPlayerStats(playerId: string): Promise<IPokédxStats> {
+  private async getPlayerStats(playerId: string): Promise<IPokédexStats> {
     if (this.playerStatsCache.has(playerId)) {
       return this.playerStatsCache.get(playerId)!;
     }
     
-    const stats = await PokédxStats.findOrCreate(playerId);
+    const stats = await PokédexStats.findOrCreate(playerId);
     this.playerStatsCache.set(playerId, stats);
     
     return stats;
@@ -588,7 +588,7 @@ export class PokédxService extends EventEmitter {
    */
   private async checkDiscoveryAchievements(
     playerId: string, 
-    discoveryData: PokédxDiscoveryData, 
+    discoveryData: PokédexDiscoveryData, 
     pokemonData: any
   ): Promise<string[]> {
     const achievements: string[] = [];
@@ -622,7 +622,7 @@ export class PokédxService extends EventEmitter {
     const since = new Date();
     since.setDate(since.getDate() - days);
     
-    return await PokédxEntry.countDocuments({
+    return await PokédexEntry.countDocuments({
       playerId,
       firstSeenAt: { $gte: since }
     });
@@ -632,7 +632,7 @@ export class PokédxService extends EventEmitter {
     const since = new Date();
     since.setDate(since.getDate() - days);
     
-    return await PokédxEntry.countDocuments({
+    return await PokédexEntry.countDocuments({
       playerId,
       firstCaughtAt: { $gte: since }
     });
@@ -642,7 +642,7 @@ export class PokédxService extends EventEmitter {
     const since = new Date();
     since.setDate(since.getDate() - days);
     
-    return await PokédxEntry.countDocuments({
+    return await PokédexEntry.countDocuments({
       playerId,
       'bestSpecimen.isShiny': true,
       'bestSpecimen.caughtAt': { $gte: since }
@@ -650,7 +650,7 @@ export class PokédxService extends EventEmitter {
   }
   
   private async getRecentActivity(playerId: string, limit: number): Promise<any[]> {
-    const recentEntries = await PokédxEntry.find({
+    const recentEntries = await PokédexEntry.find({
       playerId,
       $or: [
         { lastSeenAt: { $exists: true } },
@@ -734,5 +734,5 @@ export class PokédxService extends EventEmitter {
 }
 
 // ===== EXPORT SINGLETON =====
-export const pokédxService = PokédxService.getInstance();
-export default pokédxService;
+export const pokédexService = PokédexService.getInstance();
+export default pokédexService;
