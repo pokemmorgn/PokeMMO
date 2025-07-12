@@ -1,440 +1,337 @@
 // server/src/services/PokédexIntegrationService.ts
 import { EventEmitter } from 'events';
 import { pokédexService } from './PokédexService';
-import { PokédexProgressService } from './PokédexProgressService';
-import { pokédexNotificationService } from './PokédexNotificationService';
 import { IOwnedPokemon } from '../models/OwnedPokemon';
-import { getPokemonById } from '../data/PokemonData';
 
-// Créer l'instance du service de progression
-const pokédexProgressService = PokédexProgressService.getInstance();
+// ===== TYPES SIMPLES ET SÉCURISÉS =====
 
-// ===== TYPES & INTERFACES =====
+export interface QuickPokemonEvent {
+  playerId: string;
+  pokemonId: number;
+  level?: number;
+  location?: string;
+  weather?: string;
+  timeOfDay?: string;
+  isShiny?: boolean;
+  ownedPokemonId?: string;
+  method?: 'wild' | 'trainer' | 'gift' | 'trade' | 'evolution' | 'egg' | 'special';
+}
 
-export interface PokédexIntegrationConfig {
+export interface IntegrationConfig {
   enabled: boolean;
-  autoUpdateOnCapture: boolean;
-  autoUpdateOnEncounter: boolean;
-  enableNotifications: boolean;
-  enableAchievements: boolean;
-  enableStreaks: boolean;
+  autoNotifications: boolean;
+  rateLimitEnabled: boolean;
   debugMode: boolean;
 }
 
-export interface EncounterContext {
-  playerId: string;
-  pokemonId: number;
-  level: number;
-  location: string;
-  method: 'wild' | 'trainer' | 'gift' | 'trade' | 'evolution' | 'egg' | 'special';
-  weather?: string;
-  timeOfDay?: string;
-  sessionId?: string;
+export interface IntegrationResult {
+  success: boolean;
+  isNew: boolean;
+  notifications: string[];
+  achievements: string[];
+  error?: string;
 }
 
-export interface CaptureContext extends EncounterContext {
-  ownedPokemonId: string;
-  isShiny: boolean;
-  captureTime?: number;
-  ballType?: string;
-  isFirstAttempt?: boolean;
-}
-
-// ===== SERVICE D'INTÉGRATION POKÉDEX =====
+// ===== SERVICE D'INTÉGRATION OPTIMISÉ =====
 
 export class PokédexIntegrationService extends EventEmitter {
   private static instance: PokédexIntegrationService;
   
-  // Configuration
-  private config: PokédexIntegrationConfig = {
+  // Configuration simple
+  private config: IntegrationConfig = {
     enabled: true,
-    autoUpdateOnCapture: true,
-    autoUpdateOnEncounter: true,
-    enableNotifications: true,
-    enableAchievements: true,
-    enableStreaks: true,
+    autoNotifications: true,
+    rateLimitEnabled: true,
     debugMode: false
   };
   
-  // Cache des rencontres récentes pour éviter les doublons
-  private recentEncounters = new Map<string, Set<number>>();
+  // Cache anti-spam avec TTL
+  private recentActions = new Map<string, Set<string>>();
+  private readonly SPAM_WINDOW = 30 * 1000; // 30 secondes
   
-  // Cache des notifications envoyées récemment
-  private recentNotifications = new Map<string, Set<string>>();
+  // Compteurs pour monitoring
+  private stats = {
+    totalProcessed: 0,
+    totalErrors: 0,
+    lastReset: Date.now()
+  };
   
   constructor() {
     super();
-    this.initializeEventListeners();
-    console.log('🔗 [PokédexIntegrationService] Service d\'intégration Pokédx initialisé');
+    this.setupCleanup();
+    console.log('🔗 [PokédexIntegrationService] Service d\'intégration initialisé');
   }
   
-  // Singleton pattern
+  // Singleton sécurisé
   static getInstance(): PokédexIntegrationService {
     if (!PokédexIntegrationService.instance) {
       PokédexIntegrationService.instance = new PokédexIntegrationService();
     }
-    return PokédexIntegrationService.instance;
+    return PokédxIntegrationService.instance;
   }
   
-  // ===== INITIALISATION =====
+  // ===== API ULTRA-SIMPLE =====
   
   /**
-   * Initialise les listeners d'événements
+   * 👁️ POKÉMON VU - Intégration automatique
+   * Appel unique depuis n'importe où dans votre jeu
    */
-  private initializeEventListeners(): void {
-    // Écouter les événements du service Pokédx
-    pokédexService.on('pokemonDiscovered', this.handlePokemonDiscovered.bind(this));
-    pokédexService.on('pokemonCaptured', this.handlePokemonCaptured.bind(this));
-    
-    // Écouter les événements de progression
-    pokédexProgressService.on('streakUpdated', this.handleStreakUpdated.bind(this));
-    
-    console.log('✅ [PokédexIntegrationService] Listeners d\'événements configurés');
-  }
-  
-  // ===== MÉTHODES PRINCIPALES D'INTÉGRATION =====
-  
-  /**
-   * Intègre une rencontre Pokémon dans le Pokédx
-   * À appeler lors des rencontres sauvages, combats, etc.
-   */
-  async handlePokemonEncounter(context: EncounterContext): Promise<{
-    success: boolean;
-    isNewDiscovery: boolean;
-    notifications: string[];
-    error?: string;
-  }> {
+  async quickSeen(data: QuickPokemonEvent): Promise<IntegrationResult> {
     try {
-      if (!this.config.enabled || !this.config.autoUpdateOnEncounter) {
-        return { success: false, isNewDiscovery: false, notifications: [], error: 'Intégration désactivée' };
+      if (!this.config.enabled) {
+        return { success: false, isNew: false, notifications: [], achievements: [], error: 'Service désactivé' };
       }
       
-      this.debugLog(`🔍 Rencontre Pokémon: ${context.playerId} vs #${context.pokemonId} (${context.method})`);
-      
-      // Vérifier les doublons récents
-      if (this.isRecentEncounter(context.playerId, context.pokemonId)) {
-        this.debugLog(`⏭️ Rencontre récente ignorée: ${context.pokemonId}`);
-        return { success: true, isNewDiscovery: false, notifications: [] };
+      // Validation rapide
+      const validation = this.validateEvent(data);
+      if (!validation.valid) {
+        return { success: false, isNew: false, notifications: [], achievements: [], error: validation.error };
       }
       
-      // Récupérer les données du Pokémon
-      const pokemonData = await getPokemonById(context.pokemonId);
-      if (!pokemonData) {
-        throw new Error(`Données Pokémon introuvables pour ID ${context.pokemonId}`);
+      // Protection anti-spam
+      if (this.config.rateLimitEnabled && this.isSpam(data.playerId, `seen:${data.pokemonId}`)) {
+        this.debugLog(`⏭️ Action ignorée (spam): ${data.playerId} - ${data.pokemonId}`);
+        return { success: true, isNew: false, notifications: [], achievements: [] };
       }
       
-      // Marquer comme vu dans le Pokédx
-      const discoveryResult = await pokédexService.markPokemonAsSeen(context.playerId, {
-        pokemonId: context.pokemonId,
-        level: context.level,
-        location: context.location,
-        method: context.method,
-        weather: context.weather,
-        timeOfDay: context.timeOfDay
+      this.debugLog(`👁️ Intégration vue: ${data.playerId} -> #${data.pokemonId}`);
+      
+      // Déléguer au service principal
+      const result = await pokédxService.pokemonSeen({
+        playerId: data.playerId,
+        pokemonId: data.pokemonId,
+        level: data.level,
+        location: data.location,
+        weather: data.weather,
+        method: data.method,
+        timeOfDay: data.timeOfDay
       });
       
-      // Vérifier les accomplissements si nouvelle découverte
-      let achievementNotifications: string[] = [];
-      if (discoveryResult.isNewDiscovery && this.config.enableAchievements) {
-        achievementNotifications = await pokédexProgressService.checkPokédexAchievements(
-          context.playerId,
-          {
-            action: 'seen',
-            pokemonId: context.pokemonId,
-            pokemonData,
-            isNewDiscovery: true
-          }
-        );
+      this.stats.totalProcessed++;
+      
+      // Marquer comme traité
+      this.markAsProcessed(data.playerId, `seen:${data.pokemonId}`);
+      
+      // Émettre événement pour autres systèmes
+      if (result.isNew) {
+        this.emit('pokemonDiscovered', {
+          playerId: data.playerId,
+          pokemonId: data.pokemonId,
+          location: data.location,
+          timestamp: new Date()
+        });
       }
-      
-      // Mettre à jour les streaks si activé
-      let streakNotifications: string[] = [];
-      if (discoveryResult.isNewDiscovery && this.config.enableStreaks) {
-        const streakResult = await pokédexProgressService.updatePokédexStreaks(
-          context.playerId,
-          'seen'
-        );
-        streakNotifications = streakResult.notifications;
-      }
-      
-      // Générer notifications visuelles
-      let visualNotifications: string[] = [];
-      if (this.config.enableNotifications) {
-        await this.createEncounterNotifications(context, pokemonData, discoveryResult.isNewDiscovery);
-      }
-      
-      // Marquer comme rencontre récente
-      this.markAsRecentEncounter(context.playerId, context.pokemonId);
-      
-      // Émettre événement d'intégration
-      this.emit('encounterIntegrated', {
-        context,
-        isNewDiscovery: discoveryResult.isNewDiscovery,
-        pokemonData
-      });
-      
-      const allNotifications = [
-        ...discoveryResult.notifications,
-        ...achievementNotifications,
-        ...streakNotifications,
-        ...visualNotifications
-      ];
-      
-      this.debugLog(`✅ Rencontre intégrée: ${discoveryResult.isNewDiscovery ? 'NOUVELLE' : 'déjà vue'} - ${allNotifications.length} notifications`);
       
       return {
-        success: true,
-        isNewDiscovery: discoveryResult.isNewDiscovery,
-        notifications: allNotifications
+        success: result.success,
+        isNew: result.isNew,
+        notifications: result.notifications,
+        achievements: [], // TODO: Système d'achievements
+        error: result.error
       };
       
     } catch (error) {
-      console.error(`❌ [PokédexIntegrationService] Erreur handleEncounter:`, error);
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédxIntegrationService] Erreur quickSeen:`, error);
       return {
         success: false,
-        isNewDiscovery: false,
+        isNew: false,
         notifications: [],
+        achievements: [],
         error: error instanceof Error ? error.message : 'Erreur inconnue'
       };
     }
   }
   
   /**
-   * Intègre une capture Pokémon dans le Pokédx
-   * À appeler lors des captures réussies
+   * 🎯 POKÉMON CAPTURÉ - Intégration automatique
+   * Appel unique lors des captures
    */
-  async handlePokemonCapture(context: CaptureContext): Promise<{
-    success: boolean;
-    isNewCapture: boolean;
-    isNewBestSpecimen: boolean;
-    notifications: string[];
-    error?: string;
-  }> {
+  async quickCaught(data: QuickPokemonEvent): Promise<IntegrationResult & { isNewBest?: boolean }> {
     try {
-      if (!this.config.enabled || !this.config.autoUpdateOnCapture) {
-        return { 
-          success: false, 
-          isNewCapture: false, 
-          isNewBestSpecimen: false, 
-          notifications: [], 
-          error: 'Intégration désactivée' 
-        };
+      if (!this.config.enabled) {
+        return { success: false, isNew: false, notifications: [], achievements: [], error: 'Service désactivé' };
       }
       
-      this.debugLog(`🎯 Capture Pokémon: ${context.playerId} capture #${context.pokemonId} ${context.isShiny ? '✨' : ''}`);
-      
-      // Récupérer les données du Pokémon
-      const pokemonData = await getPokemonById(context.pokemonId);
-      if (!pokemonData) {
-        throw new Error(`Données Pokémon introuvables pour ID ${context.pokemonId}`);
+      // Validation avec ownedPokemonId requis
+      const validation = this.validateEvent(data, true);
+      if (!validation.valid) {
+        return { success: false, isNew: false, notifications: [], achievements: [], error: validation.error };
       }
       
-      // Marquer comme capturé dans le Pokédx
-      const captureResult = await pokédexService.markPokemonAsCaught(context.playerId, {
-        pokemonId: context.pokemonId,
-        level: context.level,
-        location: context.location,
-        method: context.method,
-        weather: context.weather,
-        timeOfDay: context.timeOfDay,
-        isShiny: context.isShiny,
-        ownedPokemonId: context.ownedPokemonId,
-        captureTime: context.captureTime
+      // Protection anti-spam
+      if (this.config.rateLimitEnabled && this.isSpam(data.playerId, `caught:${data.pokemonId}`)) {
+        this.debugLog(`⏭️ Capture ignorée (spam): ${data.playerId} - ${data.pokemonId}`);
+        return { success: true, isNew: false, notifications: [], achievements: [] };
+      }
+      
+      this.debugLog(`🎯 Intégration capture: ${data.playerId} -> #${data.pokemonId}${data.isShiny ? ' ✨' : ''}`);
+      
+      // Déléguer au service principal
+      const result = await pokédxService.pokemonCaught({
+        playerId: data.playerId,
+        pokemonId: data.pokemonId,
+        level: data.level || 5,
+        location: data.location || 'Zone Inconnue',
+        weather: data.weather,
+        method: data.method || 'wild',
+        timeOfDay: data.timeOfDay,
+        ownedPokemonId: data.ownedPokemonId!,
+        isShiny: data.isShiny || false
       });
       
-      // Vérifier les accomplissements
-      let achievementNotifications: string[] = [];
-      if (this.config.enableAchievements) {
-        // Accomplissement de capture
-        if (captureResult.isNewCapture) {
-          const captureAchievements = await pokédexProgressService.checkPokédexAchievements(
-            context.playerId,
-            {
-              action: 'caught',
-              pokemonId: context.pokemonId,
-              pokemonData,
-              isNewCapture: true
-            }
-          );
-          achievementNotifications.push(...captureAchievements);
-        }
-        
-        // Accomplissement shiny
-        if (context.isShiny) {
-          const shinyAchievements = await pokédexProgressService.checkPokédexAchievements(
-            context.playerId,
-            {
-              action: 'shiny',
-              pokemonId: context.pokemonId,
-              pokemonData
-            }
-          );
-          achievementNotifications.push(...shinyAchievements);
-        }
+      this.stats.totalProcessed++;
+      
+      // Marquer comme traité
+      this.markAsProcessed(data.playerId, `caught:${data.pokemonId}`);
+      
+      // Émettre événements pour autres systèmes
+      if (result.isNew) {
+        this.emit('pokemonCaptured', {
+          playerId: data.playerId,
+          pokemonId: data.pokemonId,
+          isShiny: data.isShiny,
+          location: data.location,
+          timestamp: new Date()
+        });
       }
       
-      // Mettre à jour les streaks
-      let streakNotifications: string[] = [];
-      if (captureResult.isNewCapture && this.config.enableStreaks) {
-        const streakResult = await pokédexProgressService.updatePokédexStreaks(
-          context.playerId,
-          'caught'
-        );
-        streakNotifications = streakResult.notifications;
+      if (data.isShiny) {
+        this.emit('shinyFound', {
+          playerId: data.playerId,
+          pokemonId: data.pokemonId,
+          location: data.location,
+          timestamp: new Date()
+        });
       }
-      
-      // Générer notifications visuelles
-      if (this.config.enableNotifications) {
-        await this.createCaptureNotifications(context, pokemonData, captureResult);
-      }
-      
-      // Émettre événement d'intégration
-      this.emit('captureIntegrated', {
-        context,
-        isNewCapture: captureResult.isNewCapture,
-        isNewBestSpecimen: captureResult.isNewBestSpecimen,
-        pokemonData
-      });
-      
-      const allNotifications = [
-        ...captureResult.notifications,
-        ...achievementNotifications,
-        ...streakNotifications
-      ];
-      
-      this.debugLog(`✅ Capture intégrée: ${captureResult.isNewCapture ? 'NOUVELLE' : 'déjà capturé'} - ${captureResult.isNewBestSpecimen ? 'MEILLEUR SPÉCIMEN' : ''} - ${allNotifications.length} notifications`);
       
       return {
-        success: true,
-        isNewCapture: captureResult.isNewCapture,
-        isNewBestSpecimen: captureResult.isNewBestSpecimen,
-        notifications: allNotifications
+        success: result.success,
+        isNew: result.isNew,
+        isNewBest: result.isNewBest,
+        notifications: result.notifications,
+        achievements: [], // TODO: Système d'achievements
+        error: result.error
       };
       
     } catch (error) {
-      console.error(`❌ [PokédexIntegrationService] Erreur handleCapture:`, error);
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédxIntegrationService] Erreur quickCaught:`, error);
       return {
         success: false,
-        isNewCapture: false,
-        isNewBestSpecimen: false,
+        isNew: false,
         notifications: [],
+        achievements: [],
         error: error instanceof Error ? error.message : 'Erreur inconnue'
       };
     }
   }
   
   /**
-   * Intègre une évolution Pokémon
+   * 🌟 ÉVOLUTION POKÉMON - Gestion automatique
+   * Appel depuis votre système d'évolution
    */
-  async handlePokemonEvolution(
+  async handleEvolution(
     playerId: string,
     fromPokemonId: number,
     toPokemonId: number,
     ownedPokemonId: string,
     location: string = 'Évolution'
-  ): Promise<{
-    success: boolean;
-    notifications: string[];
-  }> {
+  ): Promise<IntegrationResult> {
     try {
-      this.debugLog(`🌟 Évolution Pokémon: ${playerId} - #${fromPokemonId} → #${toPokemonId}`);
+      this.debugLog(`🌟 Évolution: ${playerId} - #${fromPokemonId} → #${toPokemonId}`);
       
-      // Marquer l'évolution comme vue ET capturée si c'est une nouvelle forme
-      const [encounterResult, captureResult] = await Promise.all([
-        this.handlePokemonEncounter({
+      // Marquer la nouvelle forme comme vue ET capturée
+      const [seenResult, caughtResult] = await Promise.all([
+        this.quickSeen({
           playerId,
           pokemonId: toPokemonId,
-          level: 1, // Niveau d'évolution générique
+          level: 1, // Niveau générique pour évolution
           location,
           method: 'evolution'
         }),
-        this.handlePokemonCapture({
+        this.quickCaught({
           playerId,
           pokemonId: toPokemonId,
           level: 1,
           location,
           method: 'evolution',
           ownedPokemonId,
-          isShiny: false // TODO: Récupérer le statut shiny du Pokémon original
+          isShiny: false // TODO: Récupérer statut shiny du Pokémon original
         })
       ]);
       
+      // Combiner les notifications
       const allNotifications = [
-        ...encounterResult.notifications,
-        ...captureResult.notifications
+        ...seenResult.notifications,
+        ...caughtResult.notifications
       ];
       
-      // Notification spéciale d'évolution si nouvelle forme
-      if (encounterResult.isNewDiscovery && this.config.enableNotifications) {
-        const evolutionData = await getPokemonById(toPokemonId);
-        if (evolutionData) {
-          await pokédexNotificationService.createDiscoveryNotification(playerId, {
-            pokemonId: toPokemonId,
-            pokemonName: evolutionData.name,
-            isFirstDiscovery: true,
-            level: 1,
-            location
-          });
-          
-          allNotifications.push(`🌟 Nouvelle forme découverte par évolution : ${evolutionData.name} !`);
-        }
+      // Notification spéciale d'évolution
+      if (seenResult.isNew) {
+        allNotifications.push(`🌟 Nouvelle forme découverte par évolution !`);
       }
       
-      this.emit('evolutionIntegrated', {
+      // Émettre événement d'évolution
+      this.emit('pokemonEvolved', {
         playerId,
         fromPokemonId,
         toPokemonId,
-        isNewForm: encounterResult.isNewDiscovery
+        isNewForm: seenResult.isNew,
+        timestamp: new Date()
       });
       
       return {
-        success: true,
-        notifications: allNotifications
+        success: seenResult.success && caughtResult.success,
+        isNew: seenResult.isNew,
+        notifications: allNotifications,
+        achievements: []
       };
       
     } catch (error) {
-      console.error(`❌ [PokédexIntegrationService] Erreur handleEvolution:`, error);
+      console.error(`❌ [PokédxIntegrationService] Erreur handleEvolution:`, error);
       return {
         success: false,
-        notifications: []
+        isNew: false,
+        notifications: [],
+        achievements: [],
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
       };
     }
   }
   
-  // ===== HOOKS POUR OWNEDPOKEMON =====
+  // ===== HOOKS POUR AUTRES SYSTÈMES =====
   
   /**
-   * Hook à appeler depuis OwnedPokemon lors de la création
+   * Hook OwnedPokemon - Intégration automatique à la création
    */
-  async onOwnedPokemonCreated(ownedPokemon: IOwnedPokemon, context?: {
+  async onPokemonCreated(ownedPokemon: IOwnedPokemon, context?: {
     location?: string;
     method?: string;
     weather?: string;
     timeOfDay?: string;
-    captureTime?: number;
   }): Promise<void> {
     try {
-      await this.handlePokemonCapture({
+      await this.quickCaught({
         playerId: ownedPokemon.owner,
         pokemonId: ownedPokemon.pokemonId,
         level: ownedPokemon.level,
-        location: context?.location || 'Inconnu',
-        method: (context?.method as any) || 'wild',
+        location: context?.location,
         weather: context?.weather,
+        method: context?.method as any,
         timeOfDay: context?.timeOfDay,
         ownedPokemonId: ownedPokemon._id.toString(),
-        isShiny: ownedPokemon.shiny,
-        captureTime: context?.captureTime
+        isShiny: ownedPokemon.shiny
       });
     } catch (error) {
-      console.error(`❌ [PokédexIntegrationService] Erreur onOwnedPokemonCreated:`, error);
+      console.error(`❌ [PokédxIntegrationService] Erreur onPokemonCreated:`, error);
     }
   }
   
   /**
-   * Hook à appeler lors des rencontres de combat sauvage
+   * Hook Combat - Rencontre sauvage
    */
-  async onWildPokemonEncountered(
+  async onWildEncounter(
     playerId: string,
     pokemonId: number,
     level: number,
@@ -442,128 +339,118 @@ export class PokédexIntegrationService extends EventEmitter {
     context?: {
       weather?: string;
       timeOfDay?: string;
-      sessionId?: string;
     }
   ): Promise<void> {
     try {
-      await this.handlePokemonEncounter({
+      await this.quickSeen({
         playerId,
         pokemonId,
         level,
         location,
         method: 'wild',
         weather: context?.weather,
-        timeOfDay: context?.timeOfDay,
-        sessionId: context?.sessionId
+        timeOfDay: context?.timeOfDay
       });
     } catch (error) {
-      console.error(`❌ [PokédexIntegrationService] Erreur onWildPokemonEncountered:`, error);
+      console.error(`❌ [PokédxIntegrationService] Erreur onWildEncounter:`, error);
     }
   }
   
-  // ===== NOTIFICATIONS =====
-  
   /**
-   * Crée les notifications pour une rencontre
+   * Hook Combat - Dresseur
    */
-  private async createEncounterNotifications(
-    context: EncounterContext,
-    pokemonData: any,
-    isNewDiscovery: boolean
+  async onTrainerEncounter(
+    playerId: string,
+    pokemonId: number,
+    level: number,
+    location: string,
+    trainerName?: string
   ): Promise<void> {
-    if (isNewDiscovery) {
-      await pokédexNotificationService.createDiscoveryNotification(context.playerId, {
-        pokemonId: context.pokemonId,
-        pokemonName: pokemonData.name,
-        isFirstDiscovery: true,
-        level: context.level,
-        location: context.location
+    try {
+      await this.quickSeen({
+        playerId,
+        pokemonId,
+        level,
+        location: location + (trainerName ? ` (vs ${trainerName})` : ''),
+        method: 'trainer'
       });
-    }
-  }
-
-  
-  /**
-   * Crée les notifications pour une capture
-   */
-  private async createCaptureNotifications(
-    context: CaptureContext,
-    pokemonData: any,
-    captureResult: any
-  ): Promise<void> {
-    // Notification de capture
-    await pokédexNotificationService.createCaptureNotification(context.playerId, {
-      pokemonId: context.pokemonId,
-      pokemonName: pokemonData.name,
-      isFirstCapture: captureResult.isNewCapture,
-      isShiny: context.isShiny,
-      isPerfectCapture: context.isFirstAttempt,
-      level: context.level,
-      location: context.location,
-      captureTime: context.captureTime
-    });
-    
-    // Notification shiny spéciale
-    if (context.isShiny) {
-      await pokédexNotificationService.createShinyNotification(context.playerId, {
-        pokemonId: context.pokemonId,
-        pokemonName: pokemonData.name,
-        action: 'captured',
-        location: context.location
-      });
+    } catch (error) {
+      console.error(`❌ [PokédxIntegrationService] Erreur onTrainerEncounter:`, error);
     }
   }
   
-  // ===== GESTIONNAIRES D'ÉVÉNEMENTS =====
+  // ===== MÉTHODES PRIVÉES OPTIMISÉES =====
   
   /**
-   * Gestionnaire d'événement pour les découvertes
+   * Validation rapide et sécurisée
    */
-  private handlePokemonDiscovered(data: any): void {
-    this.debugLog(`📢 Événement découverte reçu: ${data.pokemonName} par ${data.playerId}`);
-    // Logique additionnelle si nécessaire
-  }
-  
-  /**
-   * Gestionnaire d'événement pour les captures
-   */
-  private handlePokemonCaptured(data: any): void {
-    this.debugLog(`📢 Événement capture reçu: ${data.pokemonName} par ${data.playerId}`);
-    // Logique additionnelle si nécessaire
-  }
-  
-  /**
-   * Gestionnaire d'événement pour les streaks
-   */
-  private handleStreakUpdated(data: any): void {
-    this.debugLog(`📢 Événement streak reçu: ${data.type} pour ${data.playerId}`);
-    // Logique additionnelle si nécessaire
-  }
-  
-  // ===== GESTION DES DOUBLONS =====
-  
-  /**
-   * Vérifie si c'est une rencontre récente
-   */
-  private isRecentEncounter(playerId: string, pokemonId: number): boolean {
-    const playerEncounters = this.recentEncounters.get(playerId);
-    return playerEncounters?.has(pokemonId) || false;
-  }
-  
-  /**
-   * Marque comme rencontre récente
-   */
-  private markAsRecentEncounter(playerId: string, pokemonId: number): void {
-    if (!this.recentEncounters.has(playerId)) {
-      this.recentEncounters.set(playerId, new Set());
+  private validateEvent(data: QuickPokemonEvent, requireOwnedId: boolean = false): { valid: boolean; error?: string } {
+    if (!data.playerId || typeof data.playerId !== 'string' || data.playerId.length > 50) {
+      return { valid: false, error: 'PlayerId invalide' };
     }
     
-    this.recentEncounters.get(playerId)!.add(pokemonId);
+    if (!Number.isInteger(data.pokemonId) || data.pokemonId < 1 || data.pokemonId > 2000) {
+      return { valid: false, error: 'PokemonId invalide' };
+    }
     
-    // Auto-nettoyage après 5 minutes
+    if (data.level !== undefined && (data.level < 1 || data.level > 100)) {
+      return { valid: false, error: 'Niveau invalide' };
+    }
+    
+    if (data.location && data.location.length > 100) {
+      return { valid: false, error: 'Nom de lieu trop long' };
+    }
+    
+    if (requireOwnedId && (!data.ownedPokemonId || typeof data.ownedPokemonId !== 'string')) {
+      return { valid: false, error: 'OwnedPokemonId requis pour capture' };
+    }
+    
+    return { valid: true };
+  }
+  
+  /**
+   * Détection de spam optimisée
+   */
+  private isSpam(playerId: string, actionKey: string): boolean {
+    const playerActions = this.recentActions.get(playerId);
+    if (!playerActions) {
+      return false;
+    }
+    
+    return playerActions.has(actionKey);
+  }
+  
+  /**
+   * Marquer une action comme traitée
+   */
+  private markAsProcessed(playerId: string, actionKey: string): void {
+    let playerActions = this.recentActions.get(playerId);
+    if (!playerActions) {
+      playerActions = new Set();
+      this.recentActions.set(playerId, playerActions);
+    }
+    
+    playerActions.add(actionKey);
+    
+    // Auto-nettoyage après la fenêtre anti-spam
     setTimeout(() => {
-      this.recentEncounters.get(playerId)?.delete(pokemonId);
-    }, 5 * 60 * 1000);
+      const actions = this.recentActions.get(playerId);
+      if (actions) {
+        actions.delete(actionKey);
+        if (actions.size === 0) {
+          this.recentActions.delete(playerId);
+        }
+      }
+    }, this.SPAM_WINDOW);
+  }
+  
+  /**
+   * Log de debug conditionnel
+   */
+  private debugLog(message: string): void {
+    if (this.config.debugMode) {
+      console.log(`🔧 [PokédxIntegration] ${message}`);
+    }
   }
   
   // ===== CONFIGURATION =====
@@ -571,68 +458,189 @@ export class PokédexIntegrationService extends EventEmitter {
   /**
    * Met à jour la configuration
    */
-  updateConfig(newConfig: Partial<PokédexIntegrationConfig>): void {
+  updateConfig(newConfig: Partial<IntegrationConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    console.log(`⚙️ [PokédexIntegrationService] Configuration mise à jour:`, this.config);
+    console.log(`⚙️ [PokédxIntegrationService] Configuration mise à jour`);
   }
   
   /**
-   * Récupère la configuration actuelle
+   * Récupère la configuration
    */
-  getConfig(): PokédexIntegrationConfig {
+  getConfig(): IntegrationConfig {
     return { ...this.config };
   }
   
   /**
-   * Active/désactive l'intégration
+   * Active/désactive le service
    */
   setEnabled(enabled: boolean): void {
     this.config.enabled = enabled;
-    console.log(`${enabled ? '✅' : '❌'} [PokédexIntegrationService] Intégration ${enabled ? 'activée' : 'désactivée'}`);
-  }
-  
-  // ===== UTILITAIRES =====
-  
-  /**
-   * Log de debug si activé
-   */
-  private debugLog(message: string): void {
-    if (this.config.debugMode) {
-      console.log(`🔧 [PokédexIntegration] ${message}`);
-    }
+    console.log(`${enabled ? '✅' : '❌'} [PokédxIntegrationService] Service ${enabled ? 'activé' : 'désactivé'}`);
   }
   
   /**
-   * Nettoie les caches
+   * Active/désactive le mode debug
    */
-  clearCaches(): void {
-    this.recentEncounters.clear();
-    this.recentNotifications.clear();
-    console.log('🧹 [PokédexIntegrationService] Caches nettoyés');
+  setDebugMode(debug: boolean): void {
+    this.config.debugMode = debug;
+    console.log(`🔧 [PokédxIntegrationService] Debug ${debug ? 'activé' : 'désactivé'}`);
   }
   
+  // ===== MONITORING & STATISTIQUES =====
+  
   /**
-   * Récupère les statistiques d'intégration
+   * Récupère les statistiques du service
    */
-  getIntegrationStats(): {
+  getStats(): {
+    totalProcessed: number;
+    totalErrors: number;
+    errorRate: number;
+    uptime: number;
+    cacheSize: number;
     isEnabled: boolean;
-    config: PokédexIntegrationConfig;
-    cacheStats: {
-      recentEncounters: number;
-      recentNotifications: number;
-    };
   } {
+    const uptime = Date.now() - this.stats.lastReset;
+    const errorRate = this.stats.totalProcessed > 0 ? 
+      (this.stats.totalErrors / this.stats.totalProcessed) * 100 : 0;
+    
     return {
-      isEnabled: this.config.enabled,
-      config: this.config,
-      cacheStats: {
-        recentEncounters: Array.from(this.recentEncounters.values()).reduce((sum, set) => sum + set.size, 0),
-        recentNotifications: Array.from(this.recentNotifications.values()).reduce((sum, set) => sum + set.size, 0)
-      }
+      totalProcessed: this.stats.totalProcessed,
+      totalErrors: this.stats.totalErrors,
+      errorRate: Math.round(errorRate * 100) / 100,
+      uptime,
+      cacheSize: this.recentActions.size,
+      isEnabled: this.config.enabled
     };
+  }
+  
+  /**
+   * Remet à zéro les statistiques
+   */
+  resetStats(): void {
+    this.stats = {
+      totalProcessed: 0,
+      totalErrors: 0,
+      lastReset: Date.now()
+    };
+    console.log('📊 [PokédxIntegrationService] Statistiques remises à zéro');
+  }
+  
+  // ===== NETTOYAGE ET MAINTENANCE =====
+  
+  /**
+   * Configuration du nettoyage automatique
+   */
+  private setupCleanup(): void {
+    // Nettoyage du cache anti-spam toutes les 5 minutes
+    setInterval(() => {
+      this.cleanupCache();
+    }, 5 * 60 * 1000);
+    
+    // Reset automatique des stats toutes les 24h
+    setInterval(() => {
+      this.resetStats();
+    }, 24 * 60 * 60 * 1000);
+  }
+  
+  /**
+   * Nettoyage du cache
+   */
+  private cleanupCache(): void {
+    // Nettoyage des caches vides
+    for (const [playerId, actions] of this.recentActions.entries()) {
+      if (actions.size === 0) {
+        this.recentActions.delete(playerId);
+      }
+    }
+    
+    this.debugLog(`🧹 Cache nettoyé - ${this.recentActions.size} joueurs actifs`);
+  }
+  
+  /**
+   * Nettoyage manuel complet
+   */
+  clearCache(): void {
+    this.recentActions.clear();
+    console.log('🧹 [PokédxIntegrationService] Cache vidé manuellement');
+  }
+  
+  /**
+   * Health check du service
+   */
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    details: any;
+  }> {
+    try {
+      const stats = this.getStats();
+      
+      let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+      
+      if (!this.config.enabled) {
+        status = 'unhealthy';
+      } else if (stats.errorRate > 10) {
+        status = 'degraded';
+      }
+      
+      return {
+        status,
+        details: {
+          enabled: this.config.enabled,
+          errorRate: stats.errorRate,
+          processed: stats.totalProcessed,
+          cacheSize: stats.cacheSize,
+          uptime: stats.uptime
+        }
+      };
+      
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        details: { error: error instanceof Error ? error.message : 'Unknown error' }
+      };
+    }
   }
 }
 
 // ===== EXPORT SINGLETON =====
-export const pokédexIntegrationService = PokédexIntegrationService.getInstance();
-export default pokédexIntegrationService;
+export const pokédxIntegrationService = PokédxIntegrationService.getInstance();
+export default pokédxIntegrationService;
+
+// ===== GUIDE D'UTILISATION RAPIDE =====
+/*
+
+// 1. RENCONTRE SAUVAGE (dans votre BattleService)
+await pokédxIntegrationService.quickSeen({
+  playerId: "player123",
+  pokemonId: 25,
+  level: 15,
+  location: "Route 1",
+  weather: "clear",
+  method: "wild"
+});
+
+// 2. CAPTURE RÉUSSIE (dans votre CaptureService)
+await pokédxIntegrationService.quickCaught({
+  playerId: "player123",
+  pokemonId: 25,
+  level: 15,
+  location: "Route 1",
+  ownedPokemonId: "owned_poke_id",
+  isShiny: false,
+  method: "wild"
+});
+
+// 3. ÉVOLUTION (dans votre EvolutionService)
+await pokédxIntegrationService.handleEvolution(
+  "player123", 
+  16, // Roucool
+  17, // Roucoups
+  "owned_poke_id",
+  "Centre Pokémon"
+);
+
+// 4. HOOKS AUTOMATIQUES
+// Dans OwnedPokemon.save():
+await pokédxIntegrationService.onPokemonCreated(this, { location: "Route 1" });
+
+*/
