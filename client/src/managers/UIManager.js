@@ -269,10 +269,18 @@ export class UIManager {
       // ✅ AFFICHER L'ICÔNE VIA UIManager
       const iconConfig = this.registeredIcons.get(moduleId);
       if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.display = '';
+        iconConfig.element.style.display = 'block';
+        iconConfig.element.style.visibility = 'visible';
         iconConfig.element.style.opacity = '1';
-        iconConfig.element.classList.remove('ui-hidden');
+        iconConfig.element.style.pointerEvents = 'auto';
+        iconConfig.element.classList.remove('ui-hidden', 'hidden');
         this.positionIcon(moduleId);
+        
+        // ✅ FORCE POUR QUEST spécifiquement
+        if (moduleId === 'quest') {
+          iconConfig.element.style.zIndex = '1000';
+          console.log('📍 [UIManager] Quest icon forcé visible');
+        }
       }
       
       if (this.debug) {
