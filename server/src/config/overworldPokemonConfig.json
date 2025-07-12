@@ -19,8 +19,8 @@
           "movementRadius": 4,
           "moveChance": 1,
           "animations": {
-            "idle": "FlapAround-Anim.png",
-            "walk": "FlapAround-Anim.png"
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
           },
           "currentAnimation": "walk",
           "spawnPositions": [
