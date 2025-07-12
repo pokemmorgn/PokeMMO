@@ -30,6 +30,7 @@ import { BattleHandlers } from "../handlers/BattleHandlers";
 
 import { StarterHandlers } from "../handlers/StarterHandlers";
 
+import { PokédexMessageHandler } from '../handlers/PokédexMessageHandler';
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -60,7 +61,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private followerHandlers!: FollowerHandlers;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
-
+  private pokédxHandler!: PokédxMessageHandler;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -74,9 +75,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Initialiser le state
     this.setState(new PokeWorldState());
     console.log(`✅ State initialisé`);
-// ✅ NOUVEAU: Initialiser l'OverworldPokemonManager
-this.overworldPokemonManager = new OverworldPokemonManager(this);
-console.log(`✅ OverworldPokemonManager initialisé`);
+    // ✅ NOUVEAU: Initialiser l'OverworldPokemonManager
+    this.overworldPokemonManager = new OverworldPokemonManager(this);
+    console.log(`✅ OverworldPokemonManager initialisé`);
     
     // ✅ NOUVEAU: Configurer le MovementBlockManager
     movementBlockManager.setRoomReference(this);
@@ -122,7 +123,10 @@ console.log(`✅ OverworldPokemonManager initialisé`);
     // Initialiser les BattleHandlers
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
-        
+
+    this.pokédxHandler = new PokédxMessageHandler(this);
+    console.log(`✅ PokédxMessageHandler initialisé`);
+    
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
     console.log(`✅ EncounterHandlers initialisé`);
@@ -420,7 +424,7 @@ console.log(`✅ OverworldPokemonManager initialisé`);
 
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
-
+    this.pokédxHandler.setupHandlers();
         // Nouveau handler dans setupMessageHandlers()
     this.onMessage("battleFinished", (client, data) => {
       // Reset l'état combat du joueur
@@ -1786,6 +1790,10 @@ async onLeave(client: Client, consented: boolean) {
     if (this.battleHandlers) {
       this.battleHandlers.cleanup();
       console.log(`🧹 BattleHandlers nettoyés`);
+    }
+    if (this.pokédxHandler) {
+    this.pokédxHandler.cleanup();
+    console.log(`🧹 PokédxHandler nettoyé`);
     }
     console.log(`✅ WorldRoom fermée`);
   }
