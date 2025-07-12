@@ -109,7 +109,8 @@ export class OverworldPokemonManager {
   }
 
   createFlapAroundAnimations(pokemonId, spriteKey, structure, animationFile) {
-    const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+    // ✅ CORRECTION: Enlever le .png aussi
+    const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
     
     const directions = [
       { name: 'down', startIndex: 0 },
@@ -168,7 +169,8 @@ export class OverworldPokemonManager {
       { name: 'down-left', row: 7 }
     ];
 
-    const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+    // ✅ CORRECTION: Même logique pour la cohérence
+    const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
 
     directions.forEach(dir => {
       if (dir.row < structure.rows) {
