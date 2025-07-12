@@ -1,410 +1,149 @@
-// Team/index.js - Module Team Unifié CORRIGÉ avec Singleton
-// 🎯 ÉVITE LA DOUBLE INITIALISATION avec pattern Singleton
-// 📍 INTÉGRÉ avec UIManager pour positionnement automatique
+// Team/index.js - TeamModule refactorisé avec BaseModule
+// 🎯 UTILISE BaseModule pour éviter duplication de code
+// 📍 INTÉGRÉ avec UIManager via BaseModule
+// 🆕 CODE SIMPLIFIÉ ET MAINTENABLE
 
+import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
-const stackTrace = new Error().stack;
-console.group('🔍 TEAM MODULE CHARGÉ');
-console.log('Stack complet:', stackTrace);
-console.log('Lignes du stack:');
-stackTrace.split('\n').forEach((line, i) => {
-  if (line.includes('.js:')) {
-    console.log(`${i}: ${line.trim()}`);
-  }
-});
-console.groupEnd();
+
 /**
- * Module Team Unifié avec Singleton Pattern
- * Compatible avec UIManager simplifié
- * API simple: show(), hide(), setEnabled()
+ * Module Team utilisant BaseModule
+ * Hérite de toute la logique UIManager générique
  */
-export class TeamModule {
-  constructor(gameRoom, scene) {
-    // 🆕 SINGLETON PATTERN - ÉVITER DOUBLE INITIALISATION
-    if (TeamModule.instance) {
-      console.log('♻️ [TeamModule] Instance existante détectée, réutilisation');
-      return TeamModule.instance;
-    }
-    
-    this.gameRoom = gameRoom;
-    this.scene = scene;
-    
-    // === INSTANCES DES COMPOSANTS ===
-    this.manager = null;
-    this.icon = null;
-    this.ui = null;
-    
-    // === ÉTAT UIManager ===
-    this.uiManagerState = {
-      visible: true,        // Icône visible par défaut
-      enabled: true,        // Module activé
-      initialized: false    // Non encore initialisé
+export class TeamModule extends BaseModule {
+  constructor(moduleId, gameRoom, scene, options = {}) {
+    // Configuration spécifique Team
+    const teamOptions = {
+      singleton: true,           // Team est un singleton
+      autoCloseUI: true,         // Fermer UI par défaut
+      keyboardShortcut: 't',     // Touche T pour ouvrir/fermer
+      uiManagerConfig: {
+        anchor: 'bottom-right',
+        order: 2,                // Après inventory (0) et quest (1)
+        group: 'ui-icons'
+      },
+      ...options
     };
     
-    // 🆕 SINGLETON - STOCKER L'INSTANCE
-    TeamModule.instance = this;
+    super(moduleId || 'team', gameRoom, scene, teamOptions);
     
-    console.log('⚔️ [TeamModule] Nouvelle instance créée (singleton)');
+    console.log('⚔️ [TeamModule] Instance créée avec BaseModule');
   }
   
-  // 🆕 MÉTHODES STATIQUES SINGLETON
-  static getInstance() {
-    return TeamModule.instance || null;
-  }
-  
-  static reset() {
-    if (TeamModule.instance) {
-      TeamModule.instance.destroy();
-      TeamModule.instance = null;
-    }
-  }
-  
-  static hasInstance() {
-    return TeamModule.instance !== null;
-  }
-  
-  // === 🚀 INITIALISATION PROTÉGÉE ===
-  
-  async init() {
-    try {
-      // 🆕 ÉVITER DOUBLE INITIALISATION
-      if (this.uiManagerState.initialized) {
-        console.log('ℹ️ [TeamModule] Déjà initialisé, retour instance existante');
-        return this;
-      }
-      
-      console.log('🚀 [TeamModule] Initialisation (singleton protection)...');
-      
-      // 1. Créer le manager (business logic)
-      this.manager = new TeamManager(this.gameRoom);
-      await this.manager.init();
-      
-      // 2. Créer l'icône
-      this.icon = new TeamIcon(this.manager);
-      this.icon.init();
-      
-      // 3. Créer l'interface
-      this.ui = new TeamUI(this.manager, this.gameRoom);
-      await this.ui.init();
-      
-      // 4. Connecter les composants
-      this.connectComponents();
-      
-      // 🆕 5. MARQUER COMME INITIALISÉ (PROTECTION)
-      this.uiManagerState.initialized = true;
-      
-      // 🆕 6. FERMER L'UI PAR DÉFAUT (éviter ouverture automatique)
-      this.forceCloseUI();
-      
-      console.log('✅ [TeamModule] Initialisé avec protection singleton');
-      return this;
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur initialisation:', error);
-      throw error;
-    }
-  }
-  
-  // === 📍 CONNEXION UIMANAGER SÉCURISÉE ===
-  
-  connectUIManager(uiManager) {
-    console.log('📍 [TeamModule] Connexion UIManager SÉCURISÉE...');
-    
-    if (!uiManager || !uiManager.registerIconPosition) {
-      console.warn('⚠️ [TeamModule] UIManager incompatible');
-      return false;
-    }
-    
-    if (!this.icon || !this.icon.iconElement) {
-      console.warn('⚠️ [TeamModule] Icône non disponible pour UIManager');
-      return false;
-    }
-    
-    // 🆕 VÉRIFIER SI DÉJÀ CONNECTÉ (éviter double connexion)
-    if (this.icon.iconElement.hasAttribute('data-positioned-by-uimanager')) {
-      console.log('ℹ️ [TeamModule] Déjà connecté à UIManager, skip');
-      return true;
-    }
-    
-    // Configuration pour UIManager
-    const iconConfig = {
-      anchor: 'bottom-right',
-      order: 2,           // Après inventory (0) et quest (1)
-      group: 'ui-icons',
-      spacing: 10,
-      size: { width: 70, height: 80 }
-    };
-    
-    try {
-      // Enregistrer l'icône pour positionnement automatique
-      uiManager.registerIconPosition('team', this.icon.iconElement, iconConfig);
-      
-      // 🆕 MARQUER COMME CONNECTÉ
-      this.icon.iconElement.setAttribute('data-positioned-by-uimanager', 'true');
-      
-      console.log('✅ [TeamModule] Connecté à UIManager avec succès');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur connexion UIManager:', error);
-      return false;
-    }
-  }
-  
-  // 🆕 MÉTHODE POUR ASSURER LA CRÉATION D'ICÔNE
-  ensureIconForUIManager() {
-    console.log('🔧 [TeamModule] Vérification icône pour UIManager...');
-    
-    if (!this.icon) {
-      console.log('🆕 [TeamModule] Création icône manquante...');
-      this.icon = new TeamIcon(this.manager);
-      this.icon.init();
-      
-      // Reconnecter les événements
-      this.connectComponents();
-    }
-    
-    if (!this.icon.iconElement) {
-      console.warn('❌ [TeamModule] Impossible de créer iconElement');
-      return false;
-    }
-    
-    // Reset l'état de positionnement
-    this.icon.iconElement.removeAttribute('data-positioned-by-uimanager');
-    
-    console.log('✅ [TeamModule] Icône prête pour UIManager');
-    return true;
-  }
-  
-  // 🆕 MÉTHODE POUR FORCER FERMETURE UI
-  forceCloseUI() {
-    console.log('🔒 [TeamModule] Force fermeture UI...');
-    
-    try {
-      // Méthode 1: Via le module UI
-      if (this.ui && this.ui.hide) {
-        this.ui.hide();
-        console.log('  ✅ UI fermée via module');
-      }
-      
-      // Méthode 2: Fermeture brutale overlay
-      const teamOverlay = document.querySelector('#team-overlay');
-      if (teamOverlay) {
-        teamOverlay.classList.add('hidden');
-        teamOverlay.style.display = 'none';
-        teamOverlay.style.opacity = '0';
-        teamOverlay.style.pointerEvents = 'none';
-        console.log('  ✅ Overlay fermé brutalement');
-      }
-      
-      // Méthode 3: Tous les éléments team potentiels
-      const teamElements = document.querySelectorAll(
-        '.team-overlay, .team-modal, .team-interface, [id*="team-"]'
-      );
-      teamElements.forEach(el => {
-        if (el.style) {
-          el.style.display = 'none';
-        }
-      });
-      
-      if (teamElements.length > 0) {
-        console.log(`  ✅ ${teamElements.length} éléments Team fermés`);
-      }
-      
-      // 🆕 Marquer UI comme fermée
-      if (this.ui) {
-        this.ui.isVisible = false;
-      }
-      
-      console.log('✅ [TeamModule] UI fermée avec succès (force)');
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur force fermeture:', error);
-    }
-  }
-  
-  // === 🔗 CONNEXION DES COMPOSANTS ===
-  
-  connectComponents() {
-    // Icône → Interface (clic ouvre l'interface)
-    this.icon.onClick = () => {
-      if (this.canOpenTeamUI()) {
-        this.ui.toggle();
-      } else {
-        this.showCannotOpenMessage();
-      }
-    };
-    
-    // Manager → Icône (mise à jour des stats)
-    this.manager.onStatsUpdate = (stats) => {
-      this.icon.updateStats(stats);
-    };
-    
-    // Manager → Interface (mise à jour des données)
-    this.manager.onTeamDataUpdate = (data) => {
-      this.ui.updateTeamData(data);
-      
-      // Si l'UI est visible, forcer un refresh
-      if (this.ui.isVisible) {
-        setTimeout(() => {
-          this.ui.refreshCompleteDisplay();
-          this.ui.updateCompleteStats();
-        }, 100);
-      }
-    };
-    
-    // Interface → Manager (actions utilisateur)
-    this.ui.onAction = (action, data) => {
-      this.manager.handleAction(action, data);
-    };
-  }
-  
-  // === 🎛️ MÉTHODES UIMANAGER (INTERFACE PRINCIPALE) ===
+  // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
   
   /**
-   * UIManager appelle cette méthode pour afficher le module
+   * Initialisation spécifique Team
    */
-  show() {
-    this.uiManagerState.visible = true;
+  async init() {
+    console.log('🚀 [TeamModule] Initialisation métier Team...');
     
-    // Afficher l'icône
-    if (this.icon) {
-      this.icon.show();
+    // Créer le manager (business logic)
+    this.manager = new TeamManager(this.gameRoom);
+    await this.manager.init();
+    
+    console.log('✅ [TeamModule] Manager Team initialisé');
+  }
+  
+  /**
+   * Création des composants Team
+   */
+  createComponents() {
+    console.log('🔧 [TeamModule] Création composants Team...');
+    
+    // Créer l'icône si pas encore fait
+    if (!this.icon) {
+      this.icon = new TeamIcon(this.manager);
+      this.icon.init();
     }
     
-    // Demander une mise à jour des données
+    // Créer l'interface si pas encore fait
+    if (!this.ui) {
+      this.ui = new TeamUI(this.manager, this.gameRoom);
+      // Note: L'init de TeamUI est async, on le fait dans connectComponents si nécessaire
+    }
+    
+    console.log('✅ [TeamModule] Composants Team créés');
+  }
+  
+  /**
+   * Connexion des composants Team
+   */
+  connectComponents() {
+    console.log('🔗 [TeamModule] Connexion composants Team...');
+    
+    // Initialiser UI de manière async si nécessaire
+    if (this.ui && !this.ui.initialized) {
+      this.ui.init().catch(error => {
+        console.error('❌ [TeamModule] Erreur init UI:', error);
+      });
+    }
+    
+    // Icône → Interface (clic ouvre l'interface)
+    if (this.icon) {
+      this.icon.onClick = () => {
+        if (this.canOpenUI()) {
+          this.ui.toggle();
+        } else {
+          this.showCannotOpenMessage();
+        }
+      };
+    }
+    
+    // Manager → Icône (mise à jour des stats)
+    if (this.manager) {
+      this.manager.onStatsUpdate = (stats) => {
+        if (this.icon) {
+          this.icon.updateStats(stats);
+        }
+      };
+      
+      // Manager → Interface (mise à jour des données)
+      this.manager.onTeamDataUpdate = (data) => {
+        if (this.ui) {
+          this.ui.updateTeamData(data);
+          
+          // Si l'UI est visible, forcer un refresh
+          if (this.ui.isVisible) {
+            setTimeout(() => {
+              this.ui.refreshCompleteDisplay?.();
+              this.ui.updateCompleteStats?.();
+            }, 100);
+          }
+        }
+      };
+    }
+    
+    // Interface → Manager (actions utilisateur)
+    if (this.ui) {
+      this.ui.onAction = (action, data) => {
+        if (this.manager) {
+          this.manager.handleAction(action, data);
+        }
+      };
+    }
+    
+    console.log('✅ [TeamModule] Composants Team connectés');
+  }
+  
+  // === 📊 MÉTHODES SPÉCIFIQUES TEAM ===
+  
+  /**
+   * Demander les données Team (override de la méthode générique)
+   */
+  show() {
+    const result = super.show();
+    
+    // Demander données Team spécifiquement
     if (this.manager) {
       setTimeout(() => {
         this.manager.requestTeamData();
       }, 200);
     }
     
-    return true;
-  }
-  
-  /**
-   * UIManager appelle cette méthode pour cacher le module
-   */
-  hide() {
-    this.uiManagerState.visible = false;
-    
-    // Cacher l'icône
-    if (this.icon) {
-      this.icon.hide();
-    }
-    
-    // Cacher l'interface si ouverte
-    if (this.ui && this.ui.isVisible) {
-      this.ui.hide();
-    }
-    
-    return true;
-  }
-  
-  /**
-   * UIManager appelle cette méthode pour activer/désactiver
-   */
-  setEnabled(enabled) {
-    this.uiManagerState.enabled = enabled;
-    
-    // Appliquer aux composants
-    if (this.icon) {
-      this.icon.setEnabled(enabled);
-    }
-    
-    if (this.ui) {
-      this.ui.setEnabled(enabled);
-    }
-    
-    return true;
-  }
-  
-  /**
-   * UIManager peut appeler cette méthode pour obtenir l'état
-   */
-  getUIManagerState() {
-    return {
-      ...this.uiManagerState,
-      iconVisible: this.icon ? this.icon.isVisible : false,
-      interfaceVisible: this.ui ? this.ui.isVisible : false,
-      teamCount: this.manager ? this.manager.getTeamCount() : 0,
-      canBattle: this.manager ? this.manager.canBattle() : false,
-      singleton: true,
-      instanceId: this.constructor.name + '_' + (this.gameRoom?.id || 'unknown')
-    };
-  }
-  
-  // === 🔧 GESTION ÉTAT INTERNE ===
-  
-  applyUIManagerState() {
-    if (!this.uiManagerState.initialized) return;
-    
-    // Appliquer visibilité
-    if (this.uiManagerState.visible) {
-      this.icon?.show();
-    } else {
-      this.icon?.hide();
-      this.ui?.hide();
-    }
-    
-    // Appliquer état enabled
-    this.icon?.setEnabled(this.uiManagerState.enabled);
-    this.ui?.setEnabled(this.uiManagerState.enabled);
-  }
-  
-  canOpenTeamUI() {
-    // Vérifier si on peut ouvrir l'interface
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#shop-overlay:not(.hidden)')
-    ];
-    
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
-    
-    return !hasBlocker && !chatFocused && !inventoryOpen && this.uiManagerState.enabled;
-  }
-  
-  showCannotOpenMessage() {
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Cannot open team right now', 'warning', {
-        duration: 2000,
-        position: 'bottom-center'
-      });
-    }
-  }
-  
-  // === 📊 API PUBLIQUE POUR COMPATIBILITÉ ===
-  
-  /**
-   * Ouvrir/fermer l'interface Team
-   */
-  toggleTeamUI() {
-    if (this.ui) {
-      this.ui.toggle();
-    }
-  }
-  
-  /**
-   * Ouvrir l'interface Team
-   */
-  openTeam() {
-    if (this.ui && this.canOpenTeamUI()) {
-      this.ui.show();
-    }
-  }
-  
-  /**
-   * Fermer l'interface Team
-   */
-  closeTeam() {
-    if (this.ui) {
-      this.ui.hide();
-    }
+    return result;
   }
   
   /**
@@ -437,101 +176,55 @@ export class TeamModule {
     }
   }
   
-  // === 🧹 NETTOYAGE SINGLETON ===
+  /**
+   * API legacy pour compatibilité
+   */
+  toggleTeamUI() {
+    this.toggleUI();
+  }
   
-  destroy() {
-    try {
-      console.log('🧹 [TeamModule] Destruction avec nettoyage singleton...');
-      
-      // Détruire les composants dans l'ordre inverse
-      if (this.ui) {
-        this.ui.destroy();
-        this.ui = null;
-      }
-      
-      if (this.icon) {
-        this.icon.destroy();
-        this.icon = null;
-      }
-      
-      if (this.manager) {
-        this.manager.destroy();
-        this.manager = null;
-      }
-      
-      // Reset état
-      this.uiManagerState.initialized = false;
-      
-      // 🆕 RESET SINGLETON
-      if (TeamModule.instance === this) {
-        TeamModule.instance = null;
-        console.log('🧹 [TeamModule] Singleton reseté');
-      }
-      
-      console.log('✅ [TeamModule] Destruction terminée');
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur destruction:', error);
-    }
+  openTeam() {
+    this.open();
+  }
+  
+  closeTeam() {
+    this.close();
+  }
+  
+  // === 📋 OVERRIDE STATE POUR INFOS TEAM ===
+  
+  getUIManagerState() {
+    const baseState = super.getUIManagerState();
+    
+    // Ajouter infos spécifiques Team
+    return {
+      ...baseState,
+      teamCount: this.manager ? this.manager.getTeamCount() : 0,
+      canBattle: this.manager ? this.manager.canBattle() : false,
+      moduleType: 'team'
+    };
   }
 }
 
-// 🆕 VARIABLE STATIQUE POUR SINGLETON
-TeamModule.instance = null;
-
-// === 🏭 FACTORY CORRIGÉE AVEC GESTION UIMANAGER ===
+// === 🏭 FACTORY TEAM SIMPLIFIÉE ===
 
 /**
  * Factory function pour créer le module Team
- * Compatible avec UIManager et Singleton
+ * Utilise la factory générique de BaseModule
  */
-export async function createTeamModule(gameRoom, scene) {
+export async function createTeamModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [TeamFactory] Création/récupération module Team...');
+    console.log('🏭 [TeamFactory] Création module Team avec BaseModule...');
     
-    // 🆕 VÉRIFIER SI INSTANCE SINGLETON EXISTE
-    let existingInstance = TeamModule.getInstance();
+    const teamOptions = {
+      singleton: true,
+      ...options
+    };
     
-    if (existingInstance && existingInstance.uiManagerState.initialized) {
-      console.log('♻️ [TeamFactory] Instance singleton trouvée, préparation pour UIManager...');
-      
-      // 🆕 FERMER L'UI SI ELLE EST OUVERTE (éviter conflit)
-      existingInstance.forceCloseUI();
-      
-      // 🆕 ASSURER QUE L'ICÔNE EST DISPONIBLE POUR UIMANAGER
-      if (existingInstance.icon && existingInstance.icon.iconElement) {
-        console.log('✅ [TeamFactory] Icône disponible pour UIManager');
-        
-        // Réinitialiser l'état de positionnement pour UIManager
-        existingInstance.icon.iconElement.removeAttribute('data-positioned-by-uimanager');
-        
-        // Vérifier la compatibilité gameRoom
-        if (existingInstance.gameRoom !== gameRoom) {
-          console.log('🔄 [TeamFactory] GameRoom différent, mise à jour...');
-          existingInstance.gameRoom = gameRoom;
-          existingInstance.scene = scene;
-          
-          // Reconnecter le manager si nécessaire
-          if (existingInstance.manager) {
-            existingInstance.manager.gameRoom = gameRoom;
-          }
-        }
-        
-        return existingInstance;
-      } else {
-        console.warn('⚠️ [TeamFactory] Instance sans icône, recréation...');
-        // Reset singleton si icône manquante
-        TeamModule.reset();
-      }
-    }
+    const teamInstance = await createModule(TeamModule, 'team', gameRoom, scene, teamOptions);
     
-    // 🆕 CRÉER NOUVELLE INSTANCE
-    console.log('🆕 [TeamFactory] Création nouvelle instance singleton...');
-    const teamModule = new TeamModule(gameRoom, scene);
-    await teamModule.init();
-    
-    console.log('✅ [TeamFactory] Module Team créé avec succès (singleton)');
-    return teamModule;
+    console.log('✅ [TeamFactory] Module Team créé avec succès');
+    return teamInstance;
     
   } catch (error) {
     console.error('❌ [TeamFactory] Erreur création module Team:', error);
@@ -539,76 +232,49 @@ export async function createTeamModule(gameRoom, scene) {
   }
 }
 
-// === 📋 CONFIGURATION POUR UIMANAGER MISE À JOUR ===
+// === 📋 CONFIGURATION TEAM POUR UIMANAGER ===
 
-export const TEAM_MODULE_CONFIG = {
-  id: 'team',
-  factory: () => createTeamModule(window.currentGameRoom, window.game?.scene?.getScenes(true)[0]),
+export const TEAM_MODULE_CONFIG = generateModuleConfig('team', {
+  moduleClass: TeamModule,
+  order: 2,
   
-  defaultState: {
-    visible: true,     // Icône visible par défaut
-    enabled: true,     // Module activé
-    initialized: false
-  },
-  
-  priority: 100,
-  critical: false,
-  
-  layout: {
-    type: 'icon',
-    anchor: 'bottom-right',
-    order: 2,           // Après inventory (0) et quest (1)
-    spacing: 10
-  },
-  
-  responsive: {
-    mobile: { 
-      scale: 0.8,
-      position: { right: '15px', bottom: '15px' }
-    },
-    tablet: { 
-      scale: 0.9 
-    },
-    desktop: { 
-      scale: 1.0 
-    }
+  options: {
+    singleton: true,
+    keyboardShortcut: 't'
   },
   
   groups: ['ui-icons', 'pokemon-management'],
   
-  animations: {
-    show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
-    hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
-    enable: { type: 'pulse', duration: 150 },
-    disable: { type: 'grayscale', duration: 200 }
-  },
-  
   metadata: {
     name: 'Team Manager',
-    description: 'Complete Pokemon team management system (Singleton)',
-    version: '1.1.1',
-    category: 'Pokemon Management',
-    singleton: true
-  }
-};
+    description: 'Complete Pokemon team management system',
+    version: '2.0.0',
+    category: 'Pokemon Management'
+  },
+  
+  factory: () => createTeamModule(
+    window.currentGameRoom, 
+    window.game?.scene?.getScenes(true)[0]
+  )
+});
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER AMÉLIORÉE ===
+// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
 
 /**
- * Enregistrer le module Team dans UIManager avec protection singleton
+ * Enregistrer le module Team dans UIManager
  */
 export async function registerTeamModule(uiManager) {
   try {
-    console.log('📝 [TeamIntegration] Enregistrement avec protection singleton...');
+    console.log('📝 [TeamIntegration] Enregistrement Team...');
     
-    // 🆕 VÉRIFIER SI DÉJÀ ENREGISTRÉ
+    // Vérifier si déjà enregistré
     if (uiManager.modules && uiManager.modules.has('team')) {
       console.log('ℹ️ [TeamIntegration] Module déjà enregistré');
       return true;
     }
     
     await uiManager.registerModule('team', TEAM_MODULE_CONFIG);
-    console.log('✅ [TeamIntegration] Module enregistré');
+    console.log('✅ [TeamIntegration] Module Team enregistré');
     
     return true;
   } catch (error) {
@@ -618,17 +284,17 @@ export async function registerTeamModule(uiManager) {
 }
 
 /**
- * Initialiser et connecter le module Team avec protection
+ * Initialiser et connecter le module Team
  */
 export async function initializeTeamModule(uiManager) {
   try {
-    console.log('🚀 [TeamIntegration] Initialisation avec protection...');
+    console.log('🚀 [TeamIntegration] Initialisation Team...');
     
     // Enregistrer le module
     await registerTeamModule(uiManager);
     
-    // 🆕 VÉRIFIER SI DÉJÀ INITIALISÉ
-    let teamInstance = TeamModule.getInstance();
+    // Vérifier si déjà initialisé (singleton)
+    let teamInstance = TeamModule.getInstance('team');
     
     if (!teamInstance || !teamInstance.uiManagerState.initialized) {
       // Initialiser le module
@@ -637,18 +303,13 @@ export async function initializeTeamModule(uiManager) {
       console.log('ℹ️ [TeamIntegration] Instance déjà initialisée');
       
       // Connecter à UIManager si pas encore fait
-      if (teamInstance.connectUIManager) {
-        teamInstance.connectUIManager(uiManager);
-      }
+      teamInstance.connectUIManager(uiManager);
     }
     
-    // Setup des raccourcis clavier
-    setupTeamKeyboardShortcuts(teamInstance);
-    
-    // Setup des événements globaux
+    // Setup des événements globaux Team
     setupTeamGlobalEvents(teamInstance);
     
-    console.log('✅ [TeamIntegration] Initialisation terminée');
+    console.log('✅ [TeamIntegration] Initialisation Team terminée');
     return teamInstance;
     
   } catch (error) {
@@ -657,34 +318,7 @@ export async function initializeTeamModule(uiManager) {
   }
 }
 
-// === ⌨️ RACCOURCIS CLAVIER ===
-
-function setupTeamKeyboardShortcuts(teamInstance) {
-  // Éviter double setup
-  if (window._teamKeyboardSetup) {
-    console.log('ℹ️ [TeamKeyboard] Raccourcis déjà configurés');
-    return;
-  }
-  
-  document.addEventListener('keydown', (e) => {
-    // Touche T pour ouvrir/fermer Team
-    if (e.key.toLowerCase() === 't' && 
-        !e.target.matches('input, textarea, [contenteditable]') &&
-        !e.ctrlKey && !e.altKey && !e.metaKey) {
-      
-      e.preventDefault();
-      
-      if (teamInstance.canOpenTeamUI()) {
-        teamInstance.toggleTeamUI();
-      }
-    }
-  });
-  
-  window._teamKeyboardSetup = true;
-  console.log('⌨️ [TeamKeyboard] Raccourcis configurés');
-}
-
-// === 🌐 ÉVÉNEMENTS GLOBAUX ===
+// === 🌐 ÉVÉNEMENTS GLOBAUX TEAM ===
 
 function setupTeamGlobalEvents(teamInstance) {
   // Éviter double setup
@@ -715,36 +349,34 @@ function setupTeamGlobalEvents(teamInstance) {
   });
   
   window._teamEventsSetup = true;
-  console.log('🌐 [TeamEvents] Événements configurés');
+  console.log('🌐 [TeamEvents] Événements Team configurés');
 }
 
-// === 💡 UTILISATION SIMPLE MISE À JOUR ===
+// === 💡 UTILISATION SIMPLE ===
 
 /**
  * Fonction d'utilisation simple pour intégrer Team dans un projet
  */
 export async function setupTeamSystem(uiManager) {
   try {
-    console.log('🔧 [TeamSetup] Configuration système Team...');
+    console.log('🔧 [TeamSetup] Configuration système Team avec BaseModule...');
     
     // Initialiser le module
     const teamInstance = await initializeTeamModule(uiManager);
     
-    // Exposer globalement pour compatibilité (éviter double)
+    // Exposer globalement pour compatibilité
     if (!window.teamSystem) {
       window.teamSystem = teamInstance;
       window.teamSystemGlobal = teamInstance;
-      window.toggleTeam = () => teamInstance.toggleTeamUI();
-      window.openTeam = () => teamInstance.openTeam();
-      window.closeTeam = () => teamInstance.closeTeam();
-      
-      // 🆕 FONCTION DE FORCE FERMETURE
+      window.toggleTeam = () => teamInstance.toggleUI();
+      window.openTeam = () => teamInstance.open();
+      window.closeTeam = () => teamInstance.close();
       window.forceCloseTeam = () => teamInstance.forceCloseUI();
       
-      console.log('🌐 [TeamSetup] Fonctions globales exposées');
+      console.log('🌐 [TeamSetup] Fonctions globales Team exposées');
     }
     
-    console.log('✅ [TeamSetup] Système Team configuré (singleton)');
+    console.log('✅ [TeamSetup] Système Team configuré avec BaseModule');
     return teamInstance;
     
   } catch (error) {
@@ -753,65 +385,24 @@ export async function setupTeamSystem(uiManager) {
   }
 }
 
-// === 📋 EXPORT PAR DÉFAUT ===
+// === 🔍 UTILITÉS DE DEBUG TEAM ===
 
-export default TeamModule;
-
-// === 🔍 UTILITÉS DE DEBUG SINGLETON ===
-
-export function debugTeamSingleton() {
-  const instance = TeamModule.getInstance();
-  
-  const info = {
-    hasSingleton: !!instance,
-    isInitialized: instance ? instance.uiManagerState.initialized : false,
-    hasIcon: instance ? !!instance.icon : false,
-    hasUI: instance ? !!instance.ui : false,
-    uiVisible: instance ? instance.ui?.isVisible : false,
-    iconVisible: instance ? instance.icon?.isVisible : false,
-    gameRoom: instance ? !!instance.gameRoom : false,
-    
-    state: instance ? instance.getUIManagerState() : null,
-    
-    solutions: instance ? [
-      '✅ Singleton OK - utilisez forceCloseUI()',
-      '🔒 window.forceCloseTeam() pour fermer UI',
-      '🔄 window.teamSystemGlobal pour accès direct'
-    ] : [
-      '🚀 Créez avec createTeamModule()',
-      '🔧 Initialisez avec setupTeamSystem()'
-    ]
-  };
-  
-  console.log('🔍 === DEBUG TEAM SINGLETON ===');
-  console.table(info);
-  
-  if (instance && instance.ui?.isVisible) {
-    console.log('💡 SOLUTION: UI ouverte - utilisez forceCloseUI()');
-    console.log('🔒 Commande: window.teamSystemGlobal.forceCloseUI()');
-  }
-  
-  return info;
+export function debugTeamModule() {
+  const { debugModule } = require('../core/BaseModule.js');
+  return debugModule('team', TeamModule);
 }
-
-// === 🔧 FONCTION DE RÉPARATION ===
 
 export function fixTeamModule() {
   console.log('🔧 [TeamFix] Réparation module Team...');
   
   try {
-    const instance = TeamModule.getInstance();
+    const instance = TeamModule.getInstance('team');
     
     if (instance) {
-      // Force fermeture UI
+      // Force fermeture UI via BaseModule
       instance.forceCloseUI();
       
-      // Réinitialiser état si nécessaire
-      if (instance.ui) {
-        instance.ui.isVisible = false;
-      }
-      
-      console.log('✅ [TeamFix] Module réparé');
+      console.log('✅ [TeamFix] Module Team réparé');
       return true;
     } else {
       console.log('ℹ️ [TeamFix] Aucune instance à réparer');
@@ -824,35 +415,36 @@ export function fixTeamModule() {
   }
 }
 
+// === 📋 EXPORT PAR DÉFAUT ===
+
+export default TeamModule;
+
 console.log(`
-⚔️ === TEAM MODULE SINGLETON CORRIGÉ ===
+⚔️ === TEAM MODULE AVEC BASEMODULE ===
 
-🆕 NOUVELLES FONCTIONNALITÉS:
-• Singleton Pattern - évite double initialisation
-• forceCloseUI() - fermeture forcée de l'interface
-• Protection UIManager - connexion sécurisée
-• État persistant - réutilise instance existante
+🎯 NOUVELLES FONCTIONNALITÉS:
+• BaseModule - logique UIManager mutualisée
+• Code simplifié - moins de duplication
+• Patterns standards - consistent entre modules
+• Singleton intégré - via BaseModule
 
-📍 INTÉGRATION UIMANAGER:
-• connectUIManager() sécurisé
-• Position: bottom-right, order: 2
-• Protection double connexion
+📍 AVANTAGES BASEMODULE:
+• connectUIManager() générique
+• forceCloseUI() standardisé
+• Gestion état UIManager uniforme
+• Raccourcis clavier automatiques
 
-🔧 FONCTIONS DE DEBUG:
-• debugTeamSingleton() - diagnostique complet
-• fixTeamModule() - réparation automatique
-• TeamModule.getInstance() - accès singleton
+🔧 MÉTHODES HÉRITÉES:
+• show(), hide(), setEnabled() - standards
+• connectUIManager() - connexion sécurisée
+• getUIManagerState() - état complet
+• forceCloseUI() - fermeture forcée
 
-🔒 RÉSOLUTION PROBLÈME:
-• Plus de double initialisation
-• UI fermée par défaut
-• Force fermeture disponible
+🎯 SPÉCIFICITÉS TEAM:
+• getTeamData() - données équipe
+• canBattle() - vérification combat
+• healTeam() - soin équipe
+• API legacy maintenue
 
-🎯 COMMANDES UTILES:
-• window.forceCloseTeam() - fermer UI
-• window.teamSystemGlobal.forceCloseUI() - force
-• debugTeamSingleton() - debug
-• fixTeamModule() - réparer
-
-✅ PROBLÈME DOUBLE INITIALISATION RÉSOLU !
+✅ TEAM REFACTORISÉ AVEC BASEMODULE !
 `);
