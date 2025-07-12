@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { NetworkManager } from "./network/NetworkManager.js";
 import { LoadingScreen, QuickLoading } from './components/LoadingScreen.js';
-// ❌ SUPPRIMÉ: import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
@@ -10,7 +9,6 @@ import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
 import { BattleUITransition } from './Battle/BattleUITransition.js';
-// ❌ SUPPRIMÉ: import { createTeamUIIntegration } from './components/TeamUIIntegration.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -51,11 +49,9 @@ import { WraithmoorScene } from './scenes/zones/WraithmoorScene.js';
 import { WraithmoorCimeteryScene } from './scenes/zones/WraithmoorCimeteryScene.js';
 import { WraithmoorManor1Scene } from './scenes/zones/WraithmoorManor1Scene.js';
 
-
 import { Client } from 'colyseus.js';
 import { initPokeChat } from './network/PokeChatSystem.js';
 import { StarterSelectionHUD } from './components/StarterSelectionHUD.js';
-import { QuestSystem } from './game/QuestSystem.js';
 import { InventorySystem } from './game/InventorySystem.js';
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
 import { PsyduckIntroManager } from './scenes/intros/PsyduckIntroManager.js';
@@ -535,9 +531,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     }, 5000);
 
     window.starterHUD = null;
-    window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
-    // ❌ SUPPRIMÉ: window.teamManagerGlobal = null;
     window.encounterManagerGlobal = null;
 
     window.initEncounterSystem = function(scene, mapData = null) {
@@ -586,9 +580,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    // ❌ SUPPRIMÉ TOUTE LA SECTION: window.forceInitTeamSystem
-    // ❌ SUPPRIMÉ: window.forceInitTeamSystem(window.currentGameRoom);
-
     window.forceInitEncounterSystem = function(scene, mapData = null) {
       console.log('🔧 [MAIN] Force initialisation système d\'encounters...');
       
@@ -605,331 +596,258 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return window.initEncounterSystem(scene, mapData);
     };
 
-window.initBattleSystem = function(gameRoom) {
-  console.log('⚔️ [MAIN] Initialisation du système de combat avec UI...');
-  
-  if (window.battleSystem && window.battleSystem.isInitialized) {
-    console.log('ℹ️ [MAIN] Système de combat déjà initialisé - réutilisation');
-    return window.battleSystem;
-  }
-  
-  try {
-    if (!window.battleSystem) {
-      // ✅ NOUVEAU: Utiliser la BattleIntegration mise à jour
-      window.battleSystem = new BattleIntegration(window);
-    }
-    
-    if (window.game) {
-      window.battleSystem.initialize(
-        gameRoom || window.currentGameRoom,
-        window.game
-      ).then(success => {
-        if (success) {
-          console.log('✅ [MAIN] Système de combat avec UI initialisé avec succès');
-          
-          // ✅ NOUVEAU: Test de la transition UI
-          window.testBattleUITransition = function() {
-            console.log('🧪 [MAIN] Test transition UI battle...');
-            
-            if (window.battleSystem?.battleUITransition) {
-              return window.battleSystem.battleUITransition.startBattleTransition({
-                pokemon: { name: 'Pikachu Test', level: 5 },
-                location: 'test_zone'
-              }).then(success => {
-                if (success) {
-                  console.log('✅ Transition UI vers combat OK');
-                  
-                  // Retour après 3 secondes
-                  setTimeout(() => {
-                    window.battleSystem.battleUITransition.endBattleTransition({
-                      result: 'victory',
-                      experience: 50
-                    }).then(returned => {
-                      if (returned) {
-                        console.log('✅ Retour exploration OK');
-                      }
-                    });
-                  }, 3000);
-                }
-                return success;
-              });
-            } else {
-              console.error('❌ BattleUITransition non disponible');
-              return false;
-            }
-          };
-          
-          if (typeof window.onSystemInitialized === 'function') {
-            window.onSystemInitialized('battle');
-          }
-        } else {
-          console.error('❌ [MAIN] Échec initialisation système de combat');
-        }
-      });
-    }
-    
-    return window.battleSystem;
-    
-  } catch (error) {
-    console.error('❌ [MAIN] Erreur initialisation système de combat:', error);
-    return null;
-  }
-};
-window.testBattleUIOnly = function() {
-  console.log('🎨 [MAIN] Test transition UI battle uniquement...');
-  
-  if (!window.pokemonUISystem) {
-    console.error('❌ PokemonUISystem requis pour le test');
-    return false;
-  }
-  
-  const transition = new BattleUITransition(
-    window.pokemonUISystem.uiManager,
-    window.globalNetworkManager
-  );
-  
-  // Test transition
-  return transition.startBattleTransition({
-    pokemon: { name: 'Pikachu UI Test', level: 8 },
-    location: 'ui_test'
-  }).then(success => {
-    if (success) {
-      console.log('✅ Transition UI OK - icônes masquées');
+    window.initBattleSystem = function(gameRoom) {
+      console.log('⚔️ [MAIN] Initialisation du système de combat avec UI...');
       
-      // Retour après 2 secondes
-      setTimeout(() => {
-        transition.endBattleTransition({
-          result: 'victory'
-        }).then(() => {
-          console.log('✅ Retour UI OK - icônes restaurées');
-        });
-      }, 2000);
-    }
-    return success;
-  });
-};
+      if (window.battleSystem && window.battleSystem.isInitialized) {
+        console.log('ℹ️ [MAIN] Système de combat déjà initialisé - réutilisation');
+        return window.battleSystem;
+      }
+      
+      try {
+        if (!window.battleSystem) {
+          window.battleSystem = new BattleIntegration(window);
+        }
+        
+        if (window.game) {
+          window.battleSystem.initialize(
+            gameRoom || window.currentGameRoom,
+            window.game
+          ).then(success => {
+            if (success) {
+              console.log('✅ [MAIN] Système de combat avec UI initialisé avec succès');
+              
+              window.testBattleUITransition = function() {
+                console.log('🧪 [MAIN] Test transition UI battle...');
+                
+                if (window.battleSystem?.battleUITransition) {
+                  return window.battleSystem.battleUITransition.startBattleTransition({
+                    pokemon: { name: 'Pikachu Test', level: 5 },
+                    location: 'test_zone'
+                  }).then(success => {
+                    if (success) {
+                      console.log('✅ Transition UI vers combat OK');
+                      
+                      setTimeout(() => {
+                        window.battleSystem.battleUITransition.endBattleTransition({
+                          result: 'victory',
+                          experience: 50
+                        }).then(returned => {
+                          if (returned) {
+                            console.log('✅ Retour exploration OK');
+                          }
+                        });
+                      }, 3000);
+                    }
+                    return success;
+                  });
+                } else {
+                  console.error('❌ BattleUITransition non disponible');
+                  return false;
+                }
+              };
+              
+              if (typeof window.onSystemInitialized === 'function') {
+                window.onSystemInitialized('battle');
+              }
+            } else {
+              console.error('❌ [MAIN] Échec initialisation système de combat');
+            }
+          });
+        }
+        
+        return window.battleSystem;
+        
+      } catch (error) {
+        console.error('❌ [MAIN] Erreur initialisation système de combat:', error);
+        return null;
+      }
+    };
 
-// ✅ NOUVELLE: Test complet battle avec UI
-window.testCompleteBattleWithUI = function() {
-  console.log('🚀 [MAIN] Test combat complet avec transition UI...');
-  
-  if (!window.battleSystem?.isInitialized) {
-    console.error('❌ Système de combat non initialisé');
-    return false;
-  }
-  
-  // Test avec le système complet
-  const testPokemon = {
-    pokemonId: 25,
-    level: 10,
-    name: 'Pikachu Complet',
-    shiny: false,
-    gender: 'male',
-    currentHp: 30,
-    maxHp: 30,
-    moves: ['thunder_shock', 'growl', 'tail_whip', 'thunder_wave']
-  };
-  
-  return window.battleSystem.startWildBattle({
-    pokemon: testPokemon,
-    location: 'test_complete',
-    method: 'ui_test'
-  });
-};
+    window.testBattleUIOnly = function() {
+      console.log('🎨 [MAIN] Test transition UI battle uniquement...');
+      
+      if (!window.pokemonUISystem) {
+        console.error('❌ PokemonUISystem requis pour le test');
+        return false;
+      }
+      
+      const transition = new BattleUITransition(
+        window.pokemonUISystem.uiManager,
+        window.globalNetworkManager
+      );
+      
+      return transition.startBattleTransition({
+        pokemon: { name: 'Pikachu UI Test', level: 8 },
+        location: 'ui_test'
+      }).then(success => {
+        if (success) {
+          console.log('✅ Transition UI OK - icônes masquées');
+          
+          setTimeout(() => {
+            transition.endBattleTransition({
+              result: 'victory'
+            }).then(() => {
+              console.log('✅ Retour UI OK - icônes restaurées');
+            });
+          }, 2000);
+        }
+        return success;
+      });
+    };
 
-// === MISE À JOUR DES FONCTIONS DEBUG (ligne ~580) ===
+    window.testCompleteBattleWithUI = function() {
+      console.log('🚀 [MAIN] Test combat complet avec transition UI...');
+      
+      if (!window.battleSystem?.isInitialized) {
+        console.error('❌ Système de combat non initialisé');
+        return false;
+      }
+      
+      const testPokemon = {
+        pokemonId: 25,
+        level: 10,
+        name: 'Pikachu Complet',
+        shiny: false,
+        gender: 'male',
+        currentHp: 30,
+        maxHp: 30,
+        moves: ['thunder_shock', 'growl', 'tail_whip', 'thunder_wave']
+      };
+      
+      return window.battleSystem.startWildBattle({
+        pokemon: testPokemon,
+        location: 'test_complete',
+        method: 'ui_test'
+      });
+    };
 
-// ✅ MISE À JOUR: Debug système de combat avec UI
-window.debugBattleSystem = function() {
-  console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET AVEC UI ===');
-  
-  const battleStatus = {
-    battleSystemGlobal: {
-      exists: !!window.battleSystem,
-      initialized: window.battleSystem?.isInitialized || false,
-      type: typeof window.battleSystem
-    },
-    
-    battleScene: {
-      existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
-      isActive: window.game?.scene?.isActive('BattleScene') || false,
-      isVisible: window.game?.scene?.isVisible('BattleScene') || false
-    },
-    
-    battleState: {
-      inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
-      currentState: window.battleSystem?.getCurrentBattleState() || null
-    },
-    
-    // ✅ NOUVEAU: Debug UI Transition
-    uiTransition: {
-      available: !!(window.battleSystem?.battleUITransition),
-      active: window.battleSystem?.battleUITransition?.isBattleActive() || false,
-      transitioning: window.battleSystem?.battleUITransition?.isCurrentlyTransitioning() || false,
-      state: window.battleSystem?.battleUITransition?.getCurrentUIState() || null
-    },
-    
-    // ✅ NOUVEAU: Debug UI Manager
-    uiManager: {
-      pokemonUISystem: !!window.pokemonUISystem,
-      uiManagerGlobal: !!window.uiManager,
-      currentGameState: window.pokemonUISystem?.currentGameState || 'unknown'
-    },
-    
-    functions: {
-      initBattleSystem: typeof window.initBattleSystem,
-      testBattle: typeof window.testBattle,
-      testBattleUIOnly: typeof window.testBattleUIOnly,
-      testCompleteBattleWithUI: typeof window.testCompleteBattleWithUI,
-      startWildBattle: typeof window.startWildBattle,
-      exitBattle: typeof window.exitBattle
-    }
-  };
-  
-  console.log('📊 Status système de combat avec UI:', battleStatus);
-  
-  // ✅ NOUVEAU: Debug détaillé si système initialisé
-  if (window.battleSystem?.debug) {
-    console.log('🔧 Debug détaillé BattleIntegration:');
-    const detailedDebug = window.battleSystem.debug();
-    console.log(detailedDebug);
-  }
-  
-  return battleStatus;
-};
+    window.debugBattleSystem = function() {
+      console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET AVEC UI ===');
+      
+      const battleStatus = {
+        battleSystemGlobal: {
+          exists: !!window.battleSystem,
+          initialized: window.battleSystem?.isInitialized || false,
+          type: typeof window.battleSystem
+        },
+        
+        battleScene: {
+          existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
+          isActive: window.game?.scene?.isActive('BattleScene') || false,
+          isVisible: window.game?.scene?.isVisible('BattleScene') || false
+        },
+        
+        battleState: {
+          inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
+          currentState: window.battleSystem?.getCurrentBattleState() || null
+        },
+        
+        uiTransition: {
+          available: !!(window.battleSystem?.battleUITransition),
+          active: window.battleSystem?.battleUITransition?.isBattleActive() || false,
+          transitioning: window.battleSystem?.battleUITransition?.isCurrentlyTransitioning() || false,
+          state: window.battleSystem?.battleUITransition?.getCurrentUIState() || null
+        },
+        
+        uiManager: {
+          pokemonUISystem: !!window.pokemonUISystem,
+          uiManagerGlobal: !!window.uiManager,
+          currentGameState: window.pokemonUISystem?.currentGameState || 'unknown'
+        },
+        
+        functions: {
+          initBattleSystem: typeof window.initBattleSystem,
+          testBattle: typeof window.testBattle,
+          testBattleUIOnly: typeof window.testBattleUIOnly,
+          testCompleteBattleWithUI: typeof window.testCompleteBattleWithUI,
+          startWildBattle: typeof window.startWildBattle,
+          exitBattle: typeof window.exitBattle
+        }
+      };
+      
+      console.log('📊 Status système de combat avec UI:', battleStatus);
+      
+      if (window.battleSystem?.debug) {
+        console.log('🔧 Debug détaillé BattleIntegration:');
+        const detailedDebug = window.battleSystem.debug();
+        console.log(detailedDebug);
+      }
+      
+      return battleStatus;
+    };
 
-// === MISE À JOUR AIDE (ligne ~650) ===
-
-// ✅ AJOUT dans window.showGameHelp: nouvelles fonctions
-/*
-Ajouter ces lignes dans la section "=== Fonctions combat ===" :
-
-• window.testBattleUIOnly() - Test transition UI uniquement
-• window.testCompleteBattleWithUI() - Test combat complet avec UI
-• window.testBattleUITransition() - Test transition UI du système
-
-=== UI Transition Battle ===
-• Les icônes UI disparaissent automatiquement en combat
-• Transition fluide avec overlay d'information
-• Retour automatique après combat
-• Compatible avec système UI Pokémon professionnel
-*/
-
-// === NOUVEAUX RACCOURCIS CLAVIER (ligne ~750) ===
-
-// ✅ AJOUT: Raccourci pour test UI battle
-document.addEventListener('keydown', (event) => {
-  // ... code existant ...
-  
-  // ✅ NOUVEAU: U = Test UI Transition uniquement
-  if (event.key.toLowerCase() === 'u' && !window.shouldBlockInput()) {
-    event.preventDefault();
-    console.log('🎨 [MAIN] Raccourci U - Test transition UI battle');
-    window.testBattleUIOnly?.();
-  }
-  
-  // ✅ MISE À JOUR: B = Test combat complet avec UI
-  if (event.key.toLowerCase() === 'b' && !window.shouldBlockInput()) {
-    event.preventDefault();
-    console.log('⚔️ [MAIN] Raccourci B - Test combat complet avec UI');
-    if (window.testCompleteBattleWithUI) {
-      window.testCompleteBattleWithUI();
-    } else {
-      // Fallback vers ancien test
-      window.testBattle?.();
-    }
-  }
-});
-
-// === NOUVELLE SECTION: INTÉGRATION ÉVÉNEMENTS UI BATTLE ===
-
-// ✅ NOUVEAU: Écouter les événements de transition UI
-document.addEventListener('DOMContentLoaded', () => {
-  
-  // Écouter les événements de transition UI battle
-  window.addEventListener('battleUITransitionComplete', (event) => {
-    console.log('🎬 [MAIN] Transition UI battle terminée:', event.detail);
-    
-    // Notifier autres systèmes si nécessaire
-    if (window.onBattleUIReady) {
-      window.onBattleUIReady(event.detail);
-    }
-  });
-  
-  // Synchroniser états UI entre systèmes
-  window.addEventListener('pokemonUIStateChanged', (event) => {
-    const { newState } = event.detail;
-    console.log(`🎮 [MAIN] État UI changé: ${newState}`);
-    
-    // Synchroniser avec système de combat si nécessaire
-    if (window.battleSystem?.battleUITransition) {
-      // La transition UI se synchronise automatiquement
-      console.log('🔄 [MAIN] Synchronisation UI battle automatique');
-    }
-  });
-  
-  console.log('✅ [MAIN] Événements UI battle configurés');
-});
-
-// === VALIDATION SYSTÈME AU DÉMARRAGE ===
-
-// ✅ NOUVEAU: Validation que tous les composants UI battle sont prêts
-window.validateBattleUISystem = function() {
-  console.log('🔍 [MAIN] Validation système UI battle...');
-  
-  const requirements = {
-    pokemonUISystem: !!window.pokemonUISystem,
-    uiManager: !!(window.pokemonUISystem?.uiManager || window.uiManager),
-    battleSystem: !!window.battleSystem,
-    battleUITransition: !!(window.battleSystem?.battleUITransition),
-    gameManager: !!window.globalNetworkManager,
-    phaserGame: !!window.game
-  };
-  
-  console.log('📋 Pré-requis UI battle:', requirements);
-  
-  const allReady = Object.values(requirements).every(req => req === true);
-  
-  if (allReady) {
-    console.log('✅ [MAIN] Système UI battle complet et prêt !');
-    console.log('🧪 Utilisez window.testBattleUIOnly() pour tester la transition UI');
-    console.log('⚔️ Utilisez window.testCompleteBattleWithUI() pour test complet');
-  } else {
-    console.warn('⚠️ [MAIN] Système UI battle incomplet:');
-    Object.entries(requirements).forEach(([key, value]) => {
-      if (!value) {
-        console.warn(`  ❌ ${key}: manquant`);
+    document.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() === 'u' && !window.shouldBlockInput()) {
+        event.preventDefault();
+        console.log('🎨 [MAIN] Raccourci U - Test transition UI battle');
+        window.testBattleUIOnly?.();
+      }
+      
+      if (event.key.toLowerCase() === 'b' && !window.shouldBlockInput()) {
+        event.preventDefault();
+        console.log('⚔️ [MAIN] Raccourci B - Test combat complet avec UI');
+        if (window.testCompleteBattleWithUI) {
+          window.testCompleteBattleWithUI();
+        } else {
+          window.testBattle?.();
+        }
       }
     });
-  }
-  
-  return allReady;
-};
 
-// === NOUVELLES INSTRUCTIONS FINALES ===
+    document.addEventListener('DOMContentLoaded', () => {
+      
+      window.addEventListener('battleUITransitionComplete', (event) => {
+        console.log('🎬 [MAIN] Transition UI battle terminée:', event.detail);
+        
+        if (window.onBattleUIReady) {
+          window.onBattleUIReady(event.detail);
+        }
+      });
+      
+      window.addEventListener('pokemonUIStateChanged', (event) => {
+        const { newState } = event.detail;
+        console.log(`🎮 [MAIN] État UI changé: ${newState}`);
+        
+        if (window.battleSystem?.battleUITransition) {
+          console.log('🔄 [MAIN] Synchronisation UI battle automatique');
+        }
+      });
+      
+      console.log('✅ [MAIN] Événements UI battle configurés');
+    });
 
-console.log(`
-🎉 === POKÉMON MMO AVEC UI BATTLE TRANSITION PRÊT ===
-Nouvelles fonctionnalités UI Battle:
-🎨 Utilisez 'U' pour tester la transition UI uniquement
-⚔️ Utilisez 'B' pour test combat complet avec UI
-🔍 Utilisez window.debugBattleSystem() pour debug complet
-🧪 Utilisez window.validateBattleUISystem() pour validation
-📱 Transition UI fluide: icônes disparaissent en combat
-🎬 Overlay informatif pendant la transition
-🔄 Retour automatique après combat
-==============================
-`);
-
-// Auto-validation au chargement (après délai pour init)
-setTimeout(() => {
-  if (typeof window.validateBattleUISystem === 'function') {
-    window.validateBattleUISystem();
-  }
-}, 10000); // 10 secondes après le chargement
-    
-    // Debug functions (SANS LES FONCTIONS TEAM)
-    // ❌ SUPPRIMÉ: window.debugTeamSystem = function() {...}
+    window.validateBattleUISystem = function() {
+      console.log('🔍 [MAIN] Validation système UI battle...');
+      
+      const requirements = {
+        pokemonUISystem: !!window.pokemonUISystem,
+        uiManager: !!(window.pokemonUISystem?.uiManager || window.uiManager),
+        battleSystem: !!window.battleSystem,
+        battleUITransition: !!(window.battleSystem?.battleUITransition),
+        gameManager: !!window.globalNetworkManager,
+        phaserGame: !!window.game
+      };
+      
+      console.log('📋 Pré-requis UI battle:', requirements);
+      
+      const allReady = Object.values(requirements).every(req => req === true);
+      
+      if (allReady) {
+        console.log('✅ [MAIN] Système UI battle complet et prêt !');
+        console.log('🧪 Utilisez window.testBattleUIOnly() pour tester la transition UI');
+        console.log('⚔️ Utilisez window.testCompleteBattleWithUI() pour test complet');
+      } else {
+        console.warn('⚠️ [MAIN] Système UI battle incomplet:');
+        Object.entries(requirements).forEach(([key, value]) => {
+          if (!value) {
+            console.warn(`  ❌ ${key}: manquant`);
+          }
+        });
+      }
+      
+      return allReady;
+    };
 
     window.debugEncounterSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
@@ -1010,8 +928,6 @@ setTimeout(() => {
       return encounterStatus;
     };
 
-    // ❌ SUPPRIMÉ: window.fixTeamSystem = function() {...}
-
     window.fixEncounterSystem = function() {
       console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ENCOUNTERS ===');
       
@@ -1065,9 +981,6 @@ setTimeout(() => {
         return false;
       }
     };
-
-    // Quick debug functions (SANS LES FONCTIONS TEAM)
-    // ❌ SUPPRIMÉ: window.quickTeamDebug = function() {...}
 
     window.quickEncounterDebug = function() {
       console.log('⚡ === DEBUG RAPIDE ENCOUNTERS ===');
@@ -1160,14 +1073,13 @@ setTimeout(() => {
       }
     };
 
-    // UI Debug functions
     window.debugUIIcons = function() {
       console.log('🔍 === DEBUG UI ICONS ===');
       
       const icons = {
         inventory: document.querySelector('#inventory-icon'),
-        quest: document.querySelector('#quest-icon'),
-        // ❌ SUPPRIMÉ: team: document.querySelector('#team-icon')
+        team: document.querySelector('#team-icon'),
+        quest: document.querySelector('#quest-icon')
       };
       
       Object.entries(icons).forEach(([name, element]) => {
@@ -1195,7 +1107,7 @@ setTimeout(() => {
       
       const inventory = document.querySelector('#inventory-icon');
       const quest = document.querySelector('#quest-icon');
-      // ❌ SUPPRIMÉ: const team = document.querySelector('#team-icon');
+      const team = document.querySelector('#team-icon');
       
       if (inventory) {
         inventory.style.right = '20px';
@@ -1207,15 +1119,15 @@ setTimeout(() => {
         quest.style.bottom = '20px';
       }
       
-      // ❌ SUPPRIMÉ: Code pour team icon
+      if (team) {
+        team.style.right = '200px';
+        team.style.bottom = '20px';
+      }
       
       console.log('✅ Positions corrigées manuellement');
       setTimeout(() => window.debugUIIcons(), 100);
     };
 
-    // ❌ SUPPRIMÉ: window.testTeamIcon = function() {...}
-
-    // UI functions
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -1245,7 +1157,6 @@ setTimeout(() => {
       }
     };
 
-    // Starter functions
     window.testStarterSelection = function() {
       console.log("🧪 Test du système de sélection de starter...");
       return StarterUtils.test();
@@ -1290,9 +1201,6 @@ setTimeout(() => {
       }
     };
 
-    // ❌ SUPPRIMÉ TOUTES LES FONCTIONS TEAM: window.openTeam, window.toggleTeam, window.testTeam
-
-    // Encounter test functions
     window.testEncounter = function() {
       const activeScene = window.game?.scene?.getScenes(true)[0];
       if (!activeScene) {
@@ -1391,7 +1299,6 @@ setTimeout(() => {
       }
     };
 
-    // Battle test functions
     window.testBattle = function() {
       if (!window.battleSystem) {
         window.showGameAlert?.("Système de combat non initialisé");
@@ -1407,7 +1314,6 @@ setTimeout(() => {
 
       console.log("🧪 Test du système de combat...");
       
-      // ✅ NOUVEAU: Utiliser la méthode moderne
       const result = window.battleSystem.test ? window.battleSystem.test() : window.battleSystem.testBattle?.();
       
       if (result) {
@@ -1419,7 +1325,6 @@ setTimeout(() => {
       }
     };
 
-    // ✅ NOUVEAU: Fonction moderne directe
     window.testBattleModern = function() {
       if (!window.battleSystem?.isInitialized) {
         console.error('❌ Système de combat non initialisé');
@@ -1429,7 +1334,6 @@ setTimeout(() => {
       return window.battleSystem.test();
     };
 
-    // ✅ NOUVEAU: Compatibilité avec votre startWildBattle existant
     window.startWildBattle = function(pokemonData = null) {
       if (!window.battleSystem) {
         window.showGameAlert?.("Système de combat non initialisé");
@@ -1451,7 +1355,6 @@ setTimeout(() => {
 
       console.log("⚔️ Démarrage combat sauvage:", testPokemon);
       
-      // ✅ NOUVEAU: Utiliser la méthode moderne
       const result = window.battleSystem.startWildBattle({
         pokemon: testPokemon,
         location: 'test_zone',
@@ -1515,7 +1418,6 @@ setTimeout(() => {
       return window.battleSystem.battleConnection.getConnectionStatus();
     };
     
-    // Transition functions
     window.testTransition = function(targetZone = 'village') {
       console.log(`🧪 [MAIN] Test transition vers: ${targetZone}`);
       
@@ -1544,7 +1446,6 @@ setTimeout(() => {
       }
     };
 
-    // UI initialization
     console.log("🎮 Création du système de chargement UI...");
     window.globalLoadingScreen = LoadingScreen.createGlobal({
       enabled: true,
@@ -1586,23 +1487,10 @@ setTimeout(() => {
       }
     };
 
-    // === PATCH DEV anti-crash module quest ===
-    if (!window.questSystemGlobal && typeof window.initQuestSystem !== "function") {
-      window.questSystemGlobal = {
-        openQuestJournal: () => { alert("Journal de quêtes non dispo !"); },
-        isQuestJournalOpen: () => false,
-        canPlayerInteract: () => true
-      };
-      console.warn("[PATCH] Système de quêtes factice injecté (fallback dev)");
-    }
-    
     window.initializeUIWithLoading = window.initializePokemonUI;
 
     showNotificationInstructions();
 
-    // ❌ SUPPRIMÉ TOUTE LA SECTION TEAM UI INTEGRATION
-    
-    // Pokemon UI Manager functions
     window.setUIGameState = function(stateName, options = {}) {
       if (window.pokemonUISystem) {
         console.log(`🎮 [UI] Changement état UI: ${stateName}`);
@@ -1659,9 +1547,9 @@ setTimeout(() => {
     };
     
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
-    console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
-    // ❌ SUPPRIMÉ: console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
+    console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
+    console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
     console.log("🎲 Utilisez 'G' pour forcer un encounter en jeu");
     console.log("⚔️ Utilisez 'B' pour tester le système de combat en jeu");
@@ -1690,7 +1578,8 @@ setTimeout(() => {
 
 export default {};
 
-// Utility functions
+// === FONCTIONS UTILITAIRES NETTOYÉES ===
+
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
@@ -1699,17 +1588,59 @@ window.isStarterHUDOpen = function() {
   return window.starterHUD ? window.starterHUD.isVisible : false;
 };
 
+// ✅ NOUVELLES FONCTIONS QUEST VIA BASEMODULE UNIQUEMENT
 window.isQuestJournalOpen = function() {
-  return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
+  if (window.pokemonUISystem) {
+    const questModule = window.pokemonUISystem.getOriginalModule?.('quest');
+    if (questModule) {
+      if (typeof questModule.isQuestJournalOpen === 'function') {
+        return questModule.isQuestJournalOpen();
+      }
+      
+      if (questModule.ui && typeof questModule.ui.isJournalOpen === 'function') {
+        return questModule.ui.isJournalOpen();
+      }
+    }
+  }
+  
+  // Fallback DOM uniquement
+  const questOverlay = document.querySelector('#quest-journal-overlay, .quest-journal-overlay');
+  return questOverlay ? questOverlay.style.display !== 'none' : false;
 };
 
 window.isInventoryOpen = function() {
-  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.isInventoryOpen();
-  if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
+  if (window.pokemonUISystem) {
+    const inventoryModule = window.pokemonUISystem.getOriginalModule?.('inventory');
+    if (inventoryModule && typeof inventoryModule.isInventoryOpen === 'function') {
+      return inventoryModule.isInventoryOpen();
+    }
+  }
+  
+  if (window.inventorySystemGlobal && typeof window.inventorySystemGlobal.isInventoryOpen === 'function') {
+    return window.inventorySystemGlobal.isInventoryOpen();
+  }
+  
   return false;
 };
 
-// ❌ SUPPRIMÉ: window.isTeamOpen = function() {...}
+window.isTeamOpen = function() {
+  if (window.pokemonUISystem) {
+    const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+    if (teamModule) {
+      if (typeof teamModule.isTeamOpen === 'function') {
+        return teamModule.isTeamOpen();
+      }
+      
+      if (teamModule.ui && typeof teamModule.ui.isVisible === 'function') {
+        return teamModule.ui.isVisible();
+      }
+    }
+  }
+  
+  // Fallback DOM
+  const teamOverlay = document.querySelector('#team-overlay, .team-overlay');
+  return teamOverlay ? teamOverlay.style.display !== 'none' : false;
+};
 
 window.isEncounterActive = function() {
   const activeScene = window.game?.scene?.getScenes(true)[0];
@@ -1730,61 +1661,324 @@ window.shouldBlockInput = function() {
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
     window.isInventoryOpen() ||
-    // ❌ SUPPRIMÉ: window.isTeamOpen() ||
+    window.isTeamOpen() ||
     window.isEncounterActive() ||
     window.isBattleActive() ||
     window.isStarterSelectionActive();
 };
 
 window.canPlayerInteract = function() {
-  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
-  if (window.questSystemGlobal) return window.questSystemGlobal.canPlayerInteract();
+  if (window.inventorySystemGlobal && typeof window.inventorySystemGlobal.canPlayerInteract === 'function') {
+    return window.inventorySystemGlobal.canPlayerInteract();
+  }
+  
   return !window.shouldBlockInput();
+};
+
+// ✅ NOUVELLES FONCTIONS DE CONTRÔLE QUEST VIA BASEMODULE
+window.toggleQuest = function() {
+  if (window.pokemonUISystem) {
+    const questModule = window.pokemonUISystem.getOriginalModule?.('quest');
+    if (questModule) {
+      if (typeof questModule.toggleQuestJournal === 'function') {
+        questModule.toggleQuestJournal();
+        return;
+      }
+      
+      if (typeof questModule.toggle === 'function') {
+        questModule.toggle();
+        return;
+      }
+      
+      if (questModule.ui && typeof questModule.ui.toggleJournal === 'function') {
+        questModule.ui.toggleJournal();
+        return;
+      }
+    }
+  }
+  
+  console.warn('⚠️ Nouveau système Quest non disponible');
+  window.showGameNotification?.("Système de quêtes en cours de chargement...", "info", { 
+    duration: 2000, 
+    position: 'top-center' 
+  });
+};
+
+window.openQuest = function() {
+  if (window.pokemonUISystem) {
+    const questModule = window.pokemonUISystem.getOriginalModule?.('quest');
+    if (questModule) {
+      if (typeof questModule.openQuestJournal === 'function') {
+        questModule.openQuestJournal();
+        return;
+      }
+      
+      if (typeof questModule.open === 'function') {
+        questModule.open();
+        return;
+      }
+    }
+  }
+  
+  window.showGameNotification?.("Journal des quêtes ouvert", "info", { duration: 1500, position: 'bottom-right' });
+};
+
+window.closeQuest = function() {
+  if (window.pokemonUISystem) {
+    const questModule = window.pokemonUISystem.getOriginalModule?.('quest');
+    if (questModule) {
+      if (typeof questModule.closeQuestJournal === 'function') {
+        questModule.closeQuestJournal();
+        return;
+      }
+      
+      if (typeof questModule.close === 'function') {
+        questModule.close();
+        return;
+      }
+      
+      if (typeof questModule.forceCloseUI === 'function') {
+        questModule.forceCloseUI();
+        return;
+      }
+    }
+  }
+  
+  // Fallback DOM brutal si nécessaire
+  const questElements = document.querySelectorAll('#quest-journal-overlay, .quest-journal-overlay');
+  questElements.forEach(el => {
+    if (el.style) {
+      el.style.display = 'none';
+    }
+  });
+};
+
+// ✅ NOUVELLES FONCTIONS DE CONTRÔLE TEAM VIA BASEMODULE
+window.toggleTeam = function() {
+  if (window.pokemonUISystem) {
+    const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+    if (teamModule) {
+      if (typeof teamModule.toggleTeamUI === 'function') {
+        teamModule.toggleTeamUI();
+        return;
+      }
+      
+      if (typeof teamModule.toggle === 'function') {
+        teamModule.toggle();
+        return;
+      }
+    }
+  }
+  
+  console.warn('⚠️ Nouveau système Team non disponible');
+};
+
+window.openTeam = function() {
+  if (window.pokemonUISystem) {
+    const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+    if (teamModule && typeof teamModule.openTeam === 'function') {
+      teamModule.openTeam();
+      return;
+    }
+  }
+  
+  window.showGameNotification?.("Équipe ouverte", "info", { duration: 1500, position: 'bottom-right' });
+};
+
+window.closeTeam = function() {
+  if (window.pokemonUISystem) {
+    const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+    if (teamModule) {
+      if (typeof teamModule.closeTeam === 'function') {
+        teamModule.closeTeam();
+        return;
+      }
+      
+      if (typeof teamModule.forceCloseUI === 'function') {
+        teamModule.forceCloseUI();
+        return;
+      }
+    }
+  }
+  
+  // Fallback DOM
+  const teamElements = document.querySelectorAll('#team-overlay, .team-overlay');
+  teamElements.forEach(el => {
+    if (el.style) {
+      el.style.display = 'none';
+    }
+  });
+};
+
+window.forceCloseTeam = function() {
+  if (window.pokemonUISystem) {
+    const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+    if (teamModule && teamModule.forceCloseUI) {
+      teamModule.forceCloseUI();
+      return;
+    }
+  }
+  
+  const teamOverlay = document.querySelector('#team-overlay');
+  if (teamOverlay) {
+    teamOverlay.style.display = 'none';
+  }
+  
+  const teamModals = document.querySelectorAll('.team-overlay, .team-modal, [id*="team-"]');
+  teamModals.forEach(modal => {
+    if (modal.style) {
+      modal.style.display = 'none';
+    }
+  });
+};
+
+// ✅ FONCTION TEST QUEST BASEMODULE
+window.testQuest = function() {
+  console.log('📖 === TEST NOUVEAU SYSTÈME QUEST BASEMODULE ===');
+  
+  if (!window.pokemonUISystem) {
+    window.showGameAlert?.("PokemonUISystem non initialisé");
+    console.log("❌ pokemonUISystem manquant");
+    return;
+  }
+  
+  const questModule = window.pokemonUISystem.getOriginalModule?.('quest');
+  if (!questModule) {
+    window.showGameAlert?.("Module Quest non trouvé dans pokemonUISystem");
+    console.log("❌ Module Quest non trouvé");
+    return;
+  }
+  
+  console.log('✅ Module Quest trouvé:', typeof questModule);
+  
+  // Test des méthodes disponibles
+  const methods = [
+    'toggleQuestJournal', 'openQuestJournal', 'closeQuestJournal',
+    'isQuestJournalOpen', 'toggle', 'open', 'close', 'forceCloseUI'
+  ];
+  
+  console.log('🔍 Méthodes disponibles:');
+  methods.forEach(method => {
+    const available = typeof questModule[method] === 'function';
+    console.log(`  ${available ? '✅' : '❌'} ${method}: ${typeof questModule[method]}`);
+  });
+  
+  // Test d'ouverture
+  try {
+    window.toggleQuest();
+    window.showGameNotification?.("Test nouveau Quest réussi !", "success", { duration: 2000, position: 'top-center' });
+    console.log('✅ Test nouveau Quest terminé avec succès');
+  } catch (error) {
+    console.error('❌ Erreur test Quest:', error);
+    window.showGameAlert?.("Erreur test Quest: " + error.message);
+  }
+};
+
+// ✅ FONCTION TEST TEAM BASEMODULE
+window.testTeam = function() {
+  console.log('⚔️ === TEST NOUVEAU SYSTÈME TEAM BASEMODULE ===');
+  
+  if (!window.pokemonUISystem) {
+    window.showGameAlert?.("PokemonUISystem non initialisé");
+    console.log("❌ pokemonUISystem manquant");
+    return;
+  }
+  
+  const teamModule = window.pokemonUISystem.getOriginalModule?.('team');
+  if (!teamModule) {
+    window.showGameAlert?.("Module Team non trouvé dans pokemonUISystem");
+    console.log("❌ Module Team non trouvé");
+    return;
+  }
+  
+  console.log('✅ Module Team trouvé:', typeof teamModule);
+  
+  // Test d'ouverture
+  try {
+    window.toggleTeam();
+    window.showGameNotification?.("Test nouveau Team réussi !", "success", { duration: 2000, position: 'top-center' });
+    console.log('✅ Test nouveau Team terminé avec succès');
+  } catch (error) {
+    console.error('❌ Erreur test Team:', error);
+    window.showGameAlert?.("Erreur test Team: " + error.message);
+  }
 };
 
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
     inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
-    quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
+    
+    // ✅ NOUVEAU: Quest via pokemonUISystem uniquement
+    quests: { 
+      initialized: !!(window.pokemonUISystem?.getOriginalModule?.('quest')),
+      journalOpen: window.isQuestJournalOpen(),
+      newSystem: true,
+      oldSystemRemoved: true
+    },
+    
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
-    // ❌ SUPPRIMÉ: team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
+    
+    // ✅ NOUVEAU: Team via pokemonUISystem uniquement
+    team: { 
+      initialized: !!(window.pokemonUISystem?.getOriginalModule?.('team')), 
+      open: window.isTeamOpen(),
+      newSystem: true,
+      oldSystemRemoved: true
+    },
+    
     encounters: { 
       initialized: !!window.encounterManagerGlobal, 
       active: window.isEncounterActive(),
       globalManager: !!window.encounterManagerGlobal,
       sceneManager: !!window.game?.scene?.getScenes(true)[0]?.encounterManager
     },
+    
     battle: {
       initialized: !!window.battleSystem,
       systemReady: window.battleSystem?.isInitialized || false,
       inBattle: window.isBattleActive(),
       sceneExists: !!window.game?.scene?.getScene('BattleScene')
     },
+    
     networkManager: {
       initialized: !!window.globalNetworkManager,
       connected: window.globalNetworkManager?.isConnected || false,
       sessionId: window.globalNetworkManager?.getSessionId() || null,
       currentZone: window.globalNetworkManager?.getCurrentZone() || null
     },
+    
     notifications: {
       initialized: !!window.gameNotificationSystem,
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
     },
+    
     starterSelection: { 
       initialized: !!window.starterSelector, 
       active: window.isStarterSelectionActive?.() || false,
       utils: typeof StarterUtils === 'object'
     },
+    
     sceneRegistry: {
       initialized: !!window.sceneRegistry,
       availableZones: window.sceneRegistry?.getAvailableZones() || [],
       zoneCount: window.sceneRegistry?.getAvailableZones().length || 0
     },
+    
+    // ✅ NOUVEAU: État pokemonUISystem
+    pokemonUISystem: {
+      initialized: !!window.pokemonUISystem,
+      currentGameState: window.pokemonUISystem?.currentGameState || 'unknown',
+      questModule: !!(window.pokemonUISystem?.getOriginalModule?.('quest')),
+      teamModule: !!(window.pokemonUISystem?.getOriginalModule?.('team')),
+      inventoryModule: !!(window.pokemonUISystem?.getOriginalModule?.('inventory'))
+    },
+    
     canInteract: window.canPlayerInteract(),
     inputBlocked: window.shouldBlockInput()
   };
+  
   return status;
 };
 
@@ -1832,14 +2026,16 @@ window.quickTestNotifications = function() {
 window.showGameHelp = function() {
   window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
-🎮 === AIDE DU JEU ===
+🎮 === AIDE DU JEU (SYSTÈMES BASEMODULE) ===
 
 === Contrôles de base ===
 • I - Ouvrir/Fermer l'inventaire
-• Q - Ouvrir/Fermer le journal des quêtes
+• Q - Ouvrir/Fermer le journal des quêtes (NOUVEAU SYSTÈME)
+• T - Ouvrir/Fermer l'équipe (NOUVEAU SYSTÈME)
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
 • B - Tester le système de combat
+• U - Tester transition UI battle uniquement
 • E - Interagir avec NPCs/objets
 • S - Afficher sélection starter (test)
 • ESC - Fermer sélection starter
@@ -1847,74 +2043,59 @@ window.showGameHelp = function() {
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
+• window.testQuest() - Tester le NOUVEAU système de quêtes
+• window.testTeam() - Tester le NOUVEAU système d'équipe
 • window.testEncounter() - Tester les encounters
 • window.testBattle() - Tester le système de combat
-• window.testNotifications() - Tester les notifications
-• window.quickTestNotifications() - Test rapide
-• window.debugGameSystems() - Debug des systèmes
+• window.testBattleUIOnly() - Test transition UI uniquement
+• window.testCompleteBattleWithUI() - Test combat complet avec UI
 
-=== Fonctions encounters ===
-• window.debugEncounters() - Debug encounters
-• window.forceEncounter() - Forcer un encounter
-• window.resetEncounterCooldowns() - Reset cooldowns
-• window.simulateEncounterSteps(5) - Simuler des pas
-• window.getCurrentEncounterInfo() - Info position actuelle
-• window.quickEncounterDebug() - Debug rapide encounters
-
-=== Fonctions combat ===
-• window.testBattle() - Test complet du système
-• window.startWildBattle() - Démarrer combat sauvage
-• window.exitBattle() - Quitter combat en cours
-• window.getBattleStatus() - État du combat actuel
-• window.debugBattleSystem() - Debug système complet
-• window.debugBattleConnection() - Debug connexions
-• window.quickBattleDebug() - Debug rapide combat
-
-=== Fonctions de transition ===
-• window.testTransition('village') - Test transition vers village
-• window.forceTransition('beach') - Forcer transition
-• window.listAvailableZones() - Lister zones disponibles
-• window.switchToZone('road1') - Changer de zone manuellement
-• window.debugSceneRegistry() - Debug du système de scènes
-
-=== Starter fonctions ===
-• window.testStarterSelection() - Tester la sélection de starter
-• window.debugStarterSelection() - Debug du système starter
-
-=== Systèmes disponibles ===
-• Inventaire: ${!!window.inventorySystemGlobal}
-• Quêtes: ${!!window.questSystemGlobal}
+=== Systèmes disponibles (BaseModule) ===
+• Inventaire: ${!!(window.pokemonUISystem?.getOriginalModule?.('inventory'))}
+• Quêtes: ${!!(window.pokemonUISystem?.getOriginalModule?.('quest'))} (NOUVEAU)
+• Équipe: ${!!(window.pokemonUISystem?.getOriginalModule?.('team'))} (NOUVEAU)
 • Encounters: ${!!window.encounterManagerGlobal}
 • Combat: ${!!window.battleSystem} (prêt: ${window.battleSystem?.isInitialized || false})
-• Notifications: ${!!window.gameNotificationSystem}
-• Starter HUD: ${!!window.starterHUD}
-• NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
-• SceneRegistry: ${!!window.sceneRegistry} (zones: ${window.sceneRegistry?.getAvailableZones().length || 0})
+• PokemonUISystem: ${!!window.pokemonUISystem}
 
-=== Pour les développeurs ===
-• window.showNotificationInstructions() - Instructions complètes
-• window.debugNotificationSystem() - Debug notifications
-• window.debugEncounterSystem() - Debug encounters complet
-• window.debugBattleSystem() - Debug combat complet
+=== CHANGEMENTS IMPORTANTS ===
+❌ ANCIEN système de quêtes SUPPRIMÉ
+✅ NOUVEAU système via BaseModule + UIManager
+❌ Plus de window.questSystemGlobal
+✅ Utiliser window.pokemonUISystem.getOriginalModule('quest')
+✅ Système Team également via BaseModule
+✅ Interface UI Manager moderne
+
+=== Fonctions de debug ===
+• window.debugGameSystems() - Debug complet des systèmes
+• window.debugPokemonUI() - Debug interface Pokémon
+• window.debugBattleSystem() - Debug système de combat
+• window.validateBattleUISystem() - Validation UI battle
 • window.getGameSystemsStatus() - Statut des systèmes
-• window.restartCurrentZone() - Redémarrer la zone actuelle
-• window.fixEncounterSystem() - Réparer system encounters
-• window.fixBattleSystem() - Réparer système combat
+
+=== Utilitaires ===
+• window.listAvailableZones() - Lister zones disponibles
+• window.testTransition('village') - Test transition
+• window.quickTestNotifications() - Test notifications rapide
+
 ========================
   `);
 };
 
 console.log(`
-🎉 === POKÉMON MMO PRÊT (NOUVELLE GÉNÉRATION) ===
+🎉 === POKÉMON MMO NETTOYÉ (BASEMODULE UNIQUEMENT) ===
 Utilisez window.showGameHelp() pour l'aide complète
-Tous les systèmes sont initialisés et prêts !
-🔄 Support des transitions robustes intégré !
-🎲 Système d'encounters Pokémon intégré !
-⚔️ Système de combat MMO Pokémon intégré !
-🎛️ ✨ NOUVEAU: Système UI Manager professionnel actif ! ✨
-📱 Interface responsive (mobile/tablet/desktop)
-🛡️ Gestion d'erreurs et récupération automatique
-🚀 Performance optimisée pour MMO
+🧹 ANCIEN système Quest SUPPRIMÉ
+✅ NOUVEAU système Quest via BaseModule
+✅ NOUVEAU système Team via BaseModule  
+✅ Interface UI Manager moderne
+⚔️ Système de combat avec transition UI
 🎮 États de jeu: exploration, battle, pokemonCenter, dialogue
 ==============================
 `);
+
+setTimeout(() => {
+  if (typeof window.validateBattleUISystem === 'function') {
+    window.validateBattleUISystem();
+  }
+}, 10000);
