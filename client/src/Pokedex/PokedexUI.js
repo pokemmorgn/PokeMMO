@@ -623,7 +623,7 @@ export class PokedexUI {
     }
   }
 
-  // === 📊 GESTION DES DONNÉES ===
+  // === 📊 GESTION DES DONNÉES AVEC DATAMANAGER ===
 
   handlePokedexData(response) {
     if (!response.success) {
@@ -632,20 +632,72 @@ export class PokedexUI {
       return;
     }
 
-    console.log('📊 [PokedexUI] Données Pokédx reçues:', response.data);
+    console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
     
-    this.pokedexData = response.data.entries || [];
-    this.playerStats = response.data.summary || {};
+    // Intégrer les données serveur avec le DataManager si nécessaire
+    if (response.data && response.data.playerEntries) {
+      this.dataManager.importPlayerData(response.data.playerEntries);
+    }
+    
+    // Mettre à jour les stats
+    this.playerStats = this.dataManager.getPlayerStats();
     
     // Mettre à jour l'affichage
     this.updateProgressSummary();
     this.refreshCurrentView();
-    this.updatePagination(response.data.pagination);
-    
-    // Mettre à jour le timestamp de sync
     this.updateLastSyncTime();
     
-    console.log('✅ [PokedexUI] Données traitées');
+    console.log('✅ [PokedexUI] Données traitées avec DataManager');
+  }
+
+  requestPokedexData(filters = {}) {
+    if (this.gameRoom) {
+      console.log('📡 [PokedexUI] Demande données Pokédx...', filters);
+      this.gameRoom.send("pokedex:get", {
+        filters: {
+          limit: this.itemsPerPage,
+          offset: this.currentPage * this.itemsPerPage,
+          sortBy: 'id',
+          sortOrder: 'asc',
+          ...filters
+        }
+      });
+    }
+    
+    // En attendant la réponse serveur, utiliser les données locales
+    this.loadLocalPokedexData(filters);
+  }
+  
+  /**
+   * Charge les données locales depuis le DataManager
+   */
+  loadLocalPokedexData(filters = {}) {
+    console.log('💾 [PokedexUI] Chargement données locales...');
+    
+    // Attendre que le DataManager soit prêt
+    if (!this.dataManager.isDataLoaded()) {
+      setTimeout(() => this.loadLocalPokedexData(filters), 100);
+      return;
+    }
+    
+    // Pagination locale
+    const allEntries = this.dataManager.getAllPokemonEntries(filters);
+    const startIndex = this.currentPage * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    
+    this.pokedexData = allEntries.slice(startIndex, endIndex);
+    this.playerStats = this.dataManager.getPlayerStats();
+    
+    // Mettre à jour l'affichage
+    this.updateProgressSummary();
+    this.refreshCurrentView();
+    this.updatePagination({
+      total: allEntries.length,
+      limit: this.itemsPerPage,
+      offset: startIndex
+    });
+    
+    console.log(`✅ [PokedexUI] ${this.pokedexData.length} entrées chargées (page ${this.currentPage + 1})`);
   }
 
   handlePokemonDetails(response) {
@@ -741,14 +793,23 @@ export class PokedexUI {
 
     grid.innerHTML = '';
 
-    if (!this.pokedexData || this.pokedexData.length === 0) {
+    // S'assurer que les données sont chargées
+    if (!this.dataManager.isDataLoaded()) {
       grid.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📱</div>
-          <p>Aucun Pokémon dans votre Pokédx</p>
-          <p class="empty-subtitle">Explorez le monde pour découvrir de nouveaux Pokémon !</p>
+        <div class="loading-state">
+          <div class="loading-icon">⏳</div>
+          <p>Chargement du Pokédx National...</p>
         </div>
       `;
+      
+      // Réessayer dans 500ms
+      setTimeout(() => this.renderNationalView(), 500);
+      return;
+    }
+
+    // Utiliser les données du DataManager
+    if (!this.pokedexData || this.pokedexData.length === 0) {
+      this.loadLocalPokedexData();
       return;
     }
 
@@ -760,38 +821,35 @@ export class PokedexUI {
 
   createPokemonEntry(entry, index) {
     const entryDiv = document.createElement('div');
-    entryDiv.className = `pokemon-entry ${entry.seen ? 'seen' : 'unknown'} ${entry.caught ? 'caught' : ''}`;
+    entryDiv.className = `pokemon-entry ${entry.displayStatus}`;
     entryDiv.dataset.pokemonId = entry.pokemonId;
 
-    // Déterminer ce qu'on affiche selon le statut
-    let displayName = '???';
-    let displaySprite = '❓';
-    let displayNumber = '???';
-
-    if (entry.seen || entry.caught) {
-      displayName = entry.pokemonData?.name || `Pokémon #${entry.pokemonId}`;
-      displayNumber = `#${entry.pokemonId.toString().padStart(3, '0')}`;
-      displaySprite = this.getPokemonSprite(entry.pokemonId, entry.caught);
+    // Classes CSS selon le statut
+    if (entry.caught) {
+      entryDiv.classList.add('caught');
+    } else if (entry.seen) {
+      entryDiv.classList.add('seen');
+    } else {
+      entryDiv.classList.add('unknown');
     }
 
     entryDiv.innerHTML = `
       <div class="entry-header">
-        <span class="entry-number">${displayNumber}</span>
+        <span class="entry-number">${entry.displayNumber}</span>
         ${entry.favorited ? '<span class="favorite-star">⭐</span>' : ''}
         ${entry.shiny ? '<span class="shiny-indicator">✨</span>' : ''}
       </div>
       
       <div class="entry-sprite">
-        ${displaySprite}
+        ${entry.sprite}
       </div>
       
       <div class="entry-info">
-        <div class="entry-name">${displayName}</div>
+        <div class="entry-name">${entry.displayName}</div>
         <div class="entry-status">
-          ${entry.caught ? '<span class="status-badge caught">Capturé</span>' : 
-            entry.seen ? '<span class="status-badge seen">Vu</span>' : 
-            '<span class="status-badge unknown">Inconnu</span>'}
+          ${this.getStatusBadge(entry)}
         </div>
+        ${this.getTypeBadges(entry)}
       </div>
     `;
 
@@ -807,32 +865,36 @@ export class PokedexUI {
     // Animation d'apparition
     setTimeout(() => {
       entryDiv.classList.add('entry-appear');
-    }, index * 50);
+    }, index * 30); // Animation plus rapide pour 151 Pokémon
 
     return entryDiv;
   }
 
-  getPokemonSprite(pokemonId, isCaught = false) {
-    // Cache des sprites pour performance
-    const cacheKey = `${pokemonId}_${isCaught}`;
-    if (this.spriteCache.has(cacheKey)) {
-      return this.spriteCache.get(cacheKey);
+  getStatusBadge(entry) {
+    switch (entry.displayStatus) {
+      case 'caught':
+        return '<span class="status-badge caught">Capturé</span>';
+      case 'seen':
+        return '<span class="status-badge seen">Vu</span>';
+      default:
+        return '<span class="status-badge unknown">???</span>';
     }
-
-    // Pour l'instant, utiliser des emojis ou caractères
-    // Dans un vrai jeu, vous chargeriez les vraies sprites
-    let sprite;
-    if (isCaught) {
-      sprite = `<img src="/sprites/pokemon/${pokemonId}.png" alt="Pokemon ${pokemonId}" onerror="this.outerHTML='🎮'">`;
-    } else {
-      sprite = `<img src="/sprites/pokemon/${pokemonId}_silhouette.png" alt="Pokemon ${pokemonId} silhouette" onerror="this.outerHTML='👤'">`;
-    }
-
-    this.spriteCache.set(cacheKey, sprite);
-    return sprite;
   }
 
-  // === 🔍 RECHERCHE ET FILTRES ===
+  getTypeBadges(entry) {
+    // Afficher les types seulement si le Pokémon a été vu
+    if (!entry.seen && !entry.caught) return '';
+    
+    if (!entry.pokemonData || !entry.pokemonData.types) return '';
+    
+    const typeBadges = entry.pokemonData.types.map(type => 
+      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
+    
+    return `<div class="entry-types">${typeBadges}</div>`;
+  }
+
+  // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
 
   handleSearch() {
     const searchInput = this.overlay.querySelector('#search-input');
@@ -841,19 +903,16 @@ export class PokedexUI {
     const query = searchInput.value.trim();
     console.log('🔍 [PokedexUI] Recherche:', query);
 
-    if (query.length === 0) {
-      this.clearSearch();
-      return;
-    }
-
-    // Rechercher par numéro ou nom
-    this.requestPokedexData({
+    // Utiliser le DataManager pour la recherche
+    const filters = {
       nameQuery: query,
+      ...this.searchFilters,
       limit: this.itemsPerPage,
       offset: 0
-    });
+    };
 
     this.currentPage = 0;
+    this.loadLocalPokedexData(filters);
   }
 
   applySearchFilters() {
@@ -861,8 +920,8 @@ export class PokedexUI {
     console.log('⚙️ [PokedexUI] Application filtres:', filters);
 
     this.searchFilters = filters;
-    this.requestPokedexData(filters);
     this.currentPage = 0;
+    this.loadLocalPokedexData(filters);
   }
 
   collectSearchFilters() {
@@ -884,7 +943,7 @@ export class PokedexUI {
     if (caughtCheckbox?.checked) filters.caught = true;
     if (shinyCheckbox?.checked) filters.shiny = true;
 
-    // Région
+    // Région (pour l'instant juste Kanto)
     const regionSelect = this.overlay.querySelector('#region-select');
     if (regionSelect?.value) {
       filters.regions = [regionSelect.value];
@@ -914,11 +973,52 @@ export class PokedexUI {
     // Reset données
     this.searchFilters = {};
     this.currentPage = 0;
-    this.requestPokedexData();
+    this.loadLocalPokedexData();
   }
 
-  clearSearch() {
-    this.requestPokedexData();
+  // === ⭐ GESTION DES FAVORIS AVEC DATAMANAGER ===
+
+  togglePokemonFavorite(pokemonId) {
+    console.log(`⭐ [PokedexUI] Toggle favori #${pokemonId}`);
+    
+    // Utiliser le DataManager pour toggle localement
+    const newStatus = this.dataManager.toggleFavorite(pokemonId);
+    
+    // Envoyer au serveur si connecté
+    if (this.gameRoom) {
+      this.gameRoom.send("pokedex:toggle_favorite", { pokemonId });
+    }
+    
+    // Mettre à jour l'affichage local immédiatement
+    this.updatePokemonFavoriteStatus(pokemonId, newStatus);
+    
+    return newStatus;
+  }
+
+  updatePokemonFavoriteStatus(pokemonId, favorited) {
+    // Mettre à jour dans la liste
+    const entryElements = this.overlay.querySelectorAll(`[data-pokemon-id="${pokemonId}"]`);
+    entryElements.forEach(el => {
+      const star = el.querySelector('.favorite-star');
+      if (favorited && !star) {
+        const header = el.querySelector('.entry-header');
+        if (header) {
+          header.insertAdjacentHTML('beforeend', '<span class="favorite-star">⭐</span>');
+        }
+      } else if (!favorited && star) {
+        star.remove();
+      }
+    });
+
+    // Mettre à jour dans le panneau de détails
+    const favoriteBtn = this.overlay.querySelector('#toggle-favorite');
+    if (favoriteBtn) {
+      favoriteBtn.textContent = favorited ? '⭐' : '☆';
+      favoriteBtn.classList.toggle('favorited', favorited);
+      favoriteBtn.title = favorited ? 'Retirer des favoris' : 'Ajouter aux favoris';
+    }
+
+    console.log(`⭐ [PokedexUI] Favori #${pokemonId} mis à jour: ${favorited}`);
   }
 
   // === 📋 DÉTAILS POKÉMON ===
@@ -1089,53 +1189,51 @@ export class PokedexUI {
     // TODO: Ajouter graphiques et stats détaillées
   }
 
-  // === 🎮 NAVIGATION ET PAGINATION ===
-
-  switchToView(viewName) {
-    console.log(`🎮 [PokedexUI] Changement vers vue: ${viewName}`);
-
-    // Mettre à jour les tabs
-    this.overlay.querySelectorAll('.tab-button').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.view === viewName);
-    });
-
-    // Mettre à jour les vues
-    this.overlay.querySelectorAll('.pokedex-view').forEach(view => {
-      view.classList.toggle('active', view.classList.contains(`${viewName}-view`));
-    });
-
-    this.currentView = viewName;
-    this.currentPage = 0;
-
-    // Fermer le panneau de détails si ouvert
-    this.closeDetailsPanel();
-
-    // Rafraîchir le contenu de la nouvelle vue
-    this.refreshCurrentView();
+  refreshCurrentView() {
+    switch (this.currentView) {
+      case 'national':
+        this.renderNationalView();
+        break;
+      case 'search':
+        this.renderSearchResults();
+        break;
+      case 'favorites':
+        this.renderFavoritesView();
+        break;
+      case 'stats':
+        this.renderStatsView();
+        break;
+    }
   }
 
-  changePage(direction) {
-    const newPage = this.currentPage + direction;
-    
-    if (newPage < 0) return;
-    
-    this.currentPage = newPage;
-    this.requestPokedexData(this.searchFilters);
-  }
+  renderSearchResults() {
+    const searchResults = this.overlay.querySelector('#search-results');
+    if (!searchResults) return;
 
-  updatePagination(paginationData) {
-    if (!paginationData) return;
+    // Utiliser la même logique que la vue nationale mais dans la zone de résultats
+    searchResults.innerHTML = '';
 
-    const currentPageEl = this.overlay.querySelector('#current-page');
-    const totalPagesEl = this.overlay.querySelector('#total-pages');
-    const prevBtn = this.overlay.querySelector('#prev-page');
-    const nextBtn = this.overlay.querySelector('#next-page');
+    if (!this.pokedexData || this.pokedexData.length === 0) {
+      searchResults.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Aucun résultat trouvé</p>
+          <p class="empty-subtitle">Essayez d'autres filtres ou termes de recherche</p>
+        </div>
+      `;
+      return;
+    }
 
-    if (currentPageEl) currentPageEl.textContent = this.currentPage + 1;
-    if (totalPagesEl) totalPagesEl.textContent = Math.ceil(paginationData.total / this.itemsPerPage);
-    
-    if (prevBtn) prevBtn.disabled = this.currentPage === 0;
-    if (nextBtn) nextBtn.disabled = (this.currentPage + 1) * this.itemsPerPage >= paginationData.total;
+    // Créer une grille comme pour la vue nationale
+    const grid = document.createElement('div');
+    grid.className = 'pokemon-grid';
+
+    this.pokedexData.forEach((entry, index) => {
+      const entryElement = this.createPokemonEntry(entry, index);
+      grid.appendChild(entryElement);
+    });
+
+    searchResults.appendChild(grid);
   }
 
   // === 🔄 ACTIONS SYSTÈME ===
