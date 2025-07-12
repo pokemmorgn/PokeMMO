@@ -205,6 +205,7 @@ private handlePokédxIntegration(config: BattleConfig): void {
   /**
  * ✅ NOUVEAU: Récupère l'emplacement du combat
  */
+  
 private getBattleLocation(): string {
   // TODO: À récupérer depuis le contexte WorldRoom/zone
   // Pour l'instant, valeur par défaut
