@@ -1381,7 +1381,20 @@ export class TeamUI {
     const maxHp = pokemon.maxHp || 1;
     const healthPercent = (currentHp / maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
-    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId || '?'}`;
+    
+    // ✅ FIX: Logique de nom améliorée
+    let displayName;
+    if (pokemon.nickname && pokemon.nickname.trim()) {
+      // Priorité 1: Nickname personnalisé
+      displayName = pokemon.nickname;
+    } else if (pokemon.name && pokemon.name.trim()) {
+      // Priorité 2: Nom officiel du Pokémon
+      displayName = pokemon.name;
+    } else {
+      // Fallback: ID seulement si vraiment aucun nom
+      displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
+    }
+    
     const level = pokemon.level || 1;
     const isFainted = currentHp === 0;
     const hasStatus = pokemon.status && pokemon.status !== 'normal' && pokemon.status !== 'none';
@@ -1571,7 +1584,17 @@ export class TeamUI {
     
     const pokemon = this.selectedPokemon;
     const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
-    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId}`;
+    
+    // ✅ FIX: Même logique de nom améliorée pour les détails
+    let displayName;
+    if (pokemon.nickname && pokemon.nickname.trim()) {
+      displayName = pokemon.nickname;
+    } else if (pokemon.name && pokemon.name.trim()) {
+      displayName = pokemon.name;
+    } else {
+      displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
+    }
+    
     const typesText = pokemon.types ? pokemon.types.join(' / ') : 'Type Inconnu';
     
     detailsContent.innerHTML = `
