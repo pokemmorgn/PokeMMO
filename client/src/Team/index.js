@@ -1,858 +1,2313 @@
-// Team/index.js - Module Team Unifié CORRIGÉ avec Singleton
-// 🎯 ÉVITE LA DOUBLE INITIALISATION avec pattern Singleton
-// 📍 INTÉGRÉ avec UIManager pour positionnement automatique
+// Team/TeamUI.js - Interface Team COMPLÈTE avec FIXES d'affichage
+// 🎯 Layout moderne avec affichage correct des données Pokémon
+// ✅ FIX 1: Vue overview affichée par défaut
+// ✅ FIX 2: Fermeture par Escape améliorée
 
-import { TeamManager } from './TeamManager.js';
-import { TeamIcon } from './TeamIcon.js';
-import { TeamUI } from './TeamUI.js';
-const stackTrace = new Error().stack;
-console.group('🔍 TEAM MODULE CHARGÉ');
-console.log('Stack complet:', stackTrace);
-console.log('Lignes du stack:');
-stackTrace.split('\n').forEach((line, i) => {
-  if (line.includes('.js:')) {
-    console.log(`${i}: ${line.trim()}`);
-  }
-});
-console.groupEnd();
-/**
- * Module Team Unifié avec Singleton Pattern
- * Compatible avec UIManager simplifié
- * API simple: show(), hide(), setEnabled()
- */
-export class TeamModule {
-  constructor(gameRoom, scene) {
-    // 🆕 SINGLETON PATTERN - ÉVITER DOUBLE INITIALISATION
-    if (TeamModule.instance) {
-      console.log('♻️ [TeamModule] Instance existante détectée, réutilisation');
-      return TeamModule.instance;
-    }
-    
+import { SpriteUtils, getPokemonPortraitStyle } from '../utils/SpriteUtils.js';
+
+export class TeamUI {
+  constructor(teamManager, gameRoom) {
+    this.teamManager = teamManager;
     this.gameRoom = gameRoom;
-    this.scene = scene;
     
-    // === INSTANCES DES COMPOSANTS ===
-    this.manager = null;
-    this.icon = null;
-    this.ui = null;
+    // === ÉTAT ===
+    this.isVisible = false;
+    this.isEnabled = true;
+    this.overlayElement = null;
     
-    // === ÉTAT UIManager ===
-    this.uiManagerState = {
-      visible: true,        // Icône visible par défaut
-      enabled: true,        // Module activé
-      initialized: false    // Non encore initialisé
-    };
+    // === DONNÉES AFFICHÉES ===
+    this.teamData = [];
+    this.selectedPokemon = null;
+    this.selectedSlot = null;
+    this.currentView = 'overview';
     
-    // 🆕 SINGLETON - STOCKER L'INSTANCE
-    TeamModule.instance = this;
+    // === CALLBACKS ===
+    this.onAction = null;
     
-    console.log('⚔️ [TeamModule] Nouvelle instance créée (singleton)');
+    // ✅ FIX: Variable pour éviter double listener Escape
+    this.escapeListenerAdded = false;
+    
+    console.log('🎯 [TeamUI] Instance créée - Interface Pokémon avec SpriteUtils (FIXED)');
   }
   
-  // 🆕 MÉTHODES STATIQUES SINGLETON
-  static getInstance() {
-    return TeamModule.instance || null;
-  }
-  
-  static reset() {
-    if (TeamModule.instance) {
-      TeamModule.instance.destroy();
-      TeamModule.instance = null;
-    }
-  }
-  
-  static hasInstance() {
-    return TeamModule.instance !== null;
-  }
-  
-  // === 🚀 INITIALISATION PROTÉGÉE ===
+  // === 🚀 INITIALISATION ===
   
   async init() {
     try {
-      // 🆕 ÉVITER DOUBLE INITIALISATION
-      if (this.uiManagerState.initialized) {
-        console.log('ℹ️ [TeamModule] Déjà initialisé, retour instance existante');
-        return this;
-      }
+      console.log('🚀 [TeamUI] Initialisation interface Pokémon...');
       
-      console.log('🚀 [TeamModule] Initialisation (singleton protection)...');
+      await this.loadModernCSS();
+      this.createCompleteInterface();
+      this.setupEventListeners();
       
-      // 1. Créer le manager (business logic)
-      this.manager = new TeamManager(this.gameRoom);
-      await this.manager.init();
-      
-      // 2. Créer l'icône
-      this.icon = new TeamIcon(this.manager);
-      this.icon.init();
-      
-      // 3. Créer l'interface
-      this.ui = new TeamUI(this.manager, this.gameRoom);
-      await this.ui.init();
-      
-      // 4. Connecter les composants
-      this.connectComponents();
-      
-      // 🆕 5. MARQUER COMME INITIALISÉ (PROTECTION)
-      this.uiManagerState.initialized = true;
-      
-      // 🆕 6. FERMER L'UI PAR DÉFAUT (éviter ouverture automatique)
-      this.forceCloseUI();
-      
-      console.log('✅ [TeamModule] Initialisé avec protection singleton');
+      console.log('✅ [TeamUI] Interface Pokémon initialisée');
       return this;
       
     } catch (error) {
-      console.error('❌ [TeamModule] Erreur initialisation:', error);
+      console.error('❌ [TeamUI] Erreur initialisation:', error);
       throw error;
     }
   }
   
-  // === 📍 CONNEXION UIMANAGER SÉCURISÉE ===
+  // === 🎨 CSS MODERNE COMPLET ===
   
-  connectUIManager(uiManager) {
-    console.log('📍 [TeamModule] Connexion UIManager SÉCURISÉE...');
-    
-    if (!uiManager || !uiManager.registerIconPosition) {
-      console.warn('⚠️ [TeamModule] UIManager incompatible');
-      return false;
+  async loadModernCSS() {
+    // Supprimer l'ancien style s'il existe
+    const existingStyle = document.querySelector('#complete-team-ui-styles');
+    if (existingStyle) {
+      existingStyle.remove();
     }
     
-    if (!this.icon || !this.icon.iconElement) {
-      console.warn('⚠️ [TeamModule] Icône non disponible pour UIManager');
-      return false;
-    }
-    
-    // 🆕 VÉRIFIER SI DÉJÀ CONNECTÉ (éviter double connexion)
-    if (this.icon.iconElement.hasAttribute('data-positioned-by-uimanager')) {
-      console.log('ℹ️ [TeamModule] Déjà connecté à UIManager, skip');
-      return true;
-    }
-    
-    // Configuration pour UIManager
-    const iconConfig = {
-      anchor: 'bottom-right',
-      order: 2,           // Après inventory (0) et quest (1)
-      group: 'ui-icons',
-      spacing: 10,
-      size: { width: 70, height: 80 }
-    };
-    
-    try {
-      // Enregistrer l'icône pour positionnement automatique
-      uiManager.registerIconPosition('team', this.icon.iconElement, iconConfig);
-      
-      // 🆕 MARQUER COMME CONNECTÉ
-      this.icon.iconElement.setAttribute('data-positioned-by-uimanager', 'true');
-      
-      console.log('✅ [TeamModule] Connecté à UIManager avec succès');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur connexion UIManager:', error);
-      return false;
-    }
-  }
-  
-  // 🆕 MÉTHODE POUR ASSURER LA CRÉATION D'ICÔNE
-  ensureIconForUIManager() {
-    console.log('🔧 [TeamModule] Vérification icône pour UIManager...');
-    
-    if (!this.icon) {
-      console.log('🆕 [TeamModule] Création icône manquante...');
-      this.icon = new TeamIcon(this.manager);
-      this.icon.init();
-      
-      // Reconnecter les événements
-      this.connectComponents();
-    }
-    
-    if (!this.icon.iconElement) {
-      console.warn('❌ [TeamModule] Impossible de créer iconElement');
-      return false;
-    }
-    
-    // Reset l'état de positionnement
-    this.icon.iconElement.removeAttribute('data-positioned-by-uimanager');
-    
-    console.log('✅ [TeamModule] Icône prête pour UIManager');
-    return true;
-  }
-  
-  // 🆕 MÉTHODE POUR FORCER FERMETURE UI
-  forceCloseUI() {
-    console.log('🔒 [TeamModule] Force fermeture UI...');
-    
-    try {
-      // Méthode 1: Via le module UI
-      if (this.ui && this.ui.hide) {
-        this.ui.hide();
-        console.log('  ✅ UI fermée via module');
+    const style = document.createElement('style');
+    style.id = 'complete-team-ui-styles';
+    style.textContent = `
+      /* ===== RESET ET BASE ===== */
+      .team-overlay * {
+        box-sizing: border-box;
       }
       
-      // Méthode 2: Fermeture brutale overlay
-      const teamOverlay = document.querySelector('#team-overlay');
-      if (teamOverlay) {
-        teamOverlay.classList.add('hidden');
-        teamOverlay.style.display = 'none';
-        teamOverlay.style.opacity = '0';
-        teamOverlay.style.pointerEvents = 'none';
-        console.log('  ✅ Overlay fermé brutalement');
+      /* ===== OVERLAY TRANSPARENT ===== */
+      .team-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(8px);
+        transition: opacity 0.3s ease;
       }
       
-      // Méthode 3: Tous les éléments team potentiels
-      const teamElements = document.querySelectorAll(
-        '.team-overlay, .team-modal, .team-interface, [id*="team-"]'
-      );
-      teamElements.forEach(el => {
-        if (el.style) {
-          el.style.display = 'none';
+      .team-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      /* ===== CONTAINER PRINCIPAL - TAILLE EXACTE ===== */
+      .team-container {
+        /* TAILLE EXACTE DEMANDÉE */
+        width: 887.33px;
+        height: 705.33px;
+        min-width: 887.33px;
+        max-width: 887.33px;
+        min-height: 705.33px;
+        max-height: 705.33px;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        color: white;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        transform: scale(1); /* Pas de scale pour garder la taille exacte */
+        transition: transform 0.3s ease;
+        overflow: hidden;
+        /* ASSURER LE REMPLISSAGE COMPLET */
+        box-sizing: border-box;
+      }
+      
+      .team-overlay:not(.hidden) .team-container {
+        transform: scale(1); /* Pas de scale pour garder la taille exacte */
+      }
+      
+      /* ===== HEADER FULL WIDTH ===== */
+      .team-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 15px 25px; /* Plus de padding horizontal */
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #357abd;
+        flex-shrink: 0;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .team-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 20px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        /* PERMETTRE L'EXPANSION */
+        flex: 1;
+        min-width: 0; /* Permet le shrinking si nécessaire */
+      }
+      
+      .team-icon {
+        font-size: 32px;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+      }
+      
+      .team-title-text h2 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 22px;
+        font-weight: bold;
+      }
+      
+      .team-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 13px;
+        margin: 2px 0 0 0;
+        font-weight: 400;
+      }
+      
+      .team-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        /* EMPÊCHER LE SHRINKING */
+        flex-shrink: 0;
+      }
+      
+      .team-stats-header {
+        text-align: right;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-size: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      
+      .team-count {
+        font-size: 20px;
+        font-weight: bold;
+        color: #87ceeb;
+        display: block;
+      }
+      
+      .team-status {
+        font-size: 12px;
+        margin-top: 3px;
+        font-weight: 600;
+      }
+      
+      .team-close-btn {
+        background: rgba(220, 53, 69, 0.9);
+        border: 2px solid rgba(220, 53, 69, 0.5);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .team-close-btn:hover {
+        background: rgba(220, 53, 69, 1);
+        border-color: rgba(220, 53, 69, 0.8);
+        transform: scale(1.1);
+      }
+      
+      /* ===== TABS ===== */
+      .team-tabs {
+        display: flex;
+        gap: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 2px solid #357abd;
+        flex-shrink: 0;
+      }
+      
+      .team-tab {
+        flex: 1;
+        padding: 15px 20px;
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        border-bottom: 4px solid transparent;
+        position: relative;
+      }
+      
+      .team-tab:hover {
+        background: rgba(74, 144, 226, 0.15);
+        color: #87ceeb;
+      }
+      
+      .team-tab.active {
+        background: rgba(74, 144, 226, 0.25);
+        color: #87ceeb;
+        border-bottom-color: #4a90e2;
+      }
+      
+      .tab-icon {
+        font-size: 18px;
+        width: 22px;
+        text-align: center;
+      }
+      
+      /* ===== CONTENU - FORCER LARGEUR POUR TOUTES LES VUES ===== */
+      .team-content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+      }
+      
+      /* ✅ FIX 1: CSS VUES CORRIGÉ */
+      .team-view {
+        display: none;
+        /* STRUCTURE FLEX IDENTIQUE POUR TOUTES LES VUES */
+        flex-direction: column;
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .team-view.active {
+        /* ✅ CORRECTION MAJEURE: display: flex au lieu de display: flex seulement */
+        display: flex !important;
+        flex-direction: column;
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+      }
+      
+      /* ===== LAYOUT OVERVIEW - REMPLISSAGE COMPLET ===== */
+      .team-overview-content {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        /* AUCUN ESPACE PERDU */
+        box-sizing: border-box;
+      }
+      
+      /* Section principale des slots - CALCULÉE POUR REMPLIR */
+      .team-slots-section {
+        /* LARGEUR CALCULÉE: 887.33px - 250px sidebar = 637.33px */
+        width: 637.33px;
+        min-width: 637.33px;
+        max-width: 637.33px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      
+      .slots-header {
+        padding: 20px 25px 15px 25px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid #357abd;
+        flex-shrink: 0;
+      }
+      
+      .slots-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #87ceeb;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      /* Actions rapides */
+      .team-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      
+      .action-btn {
+        padding: 8px 16px;
+        background: rgba(74, 144, 226, 0.8);
+        border: 1px solid rgba(74, 144, 226, 0.5);
+        border-radius: 8px;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .action-btn:hover {
+        background: rgba(74, 144, 226, 1);
+        border-color: rgba(74, 144, 226, 0.8);
+        transform: translateY(-2px);
+      }
+      
+      .action-btn.heal {
+        background: rgba(40, 167, 69, 0.8);
+        border-color: rgba(40, 167, 69, 0.5);
+      }
+      
+      .action-btn.heal:hover {
+        background: rgba(40, 167, 69, 1);
+        border-color: rgba(40, 167, 69, 0.8);
+      }
+      
+      /* Grille des slots Pokémon - AJUSTÉE POUR LA NOUVELLE LARGEUR */
+      .team-slots-grid {
+        flex: 1;
+        padding: 20px; /* Réduit de 25px à 20px */
+        overflow-y: auto;
+        display: grid;
+        /* AJUSTÉ POUR 637.33px - 40px padding = ~597px disponible */
+        /* 597px ÷ 3 = 199px par colonne */
+        grid-template-columns: repeat(3, 199px);
+        gap: 15px; /* Réduit de 20px à 15px */
+        align-content: start;
+        justify-content: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      
+      /* Slot Pokémon - AJUSTÉ POUR LA NOUVELLE GRILLE */
+      .team-slot {
+        background: rgba(0, 0, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 15px 12px; /* Légèrement réduit */
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        /* AJUSTÉ POUR LA GRILLE 199px */
+        width: 170px;
+        height: 170px;
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 170px;
+        max-height: 170px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        backdrop-filter: blur(5px);
+        flex-shrink: 0;
+        margin: 0 auto; /* Centrer dans la cellule de grille */
+      }
+      
+      .team-slot:hover {
+        background: rgba(74, 144, 226, 0.2);
+        border-color: #4a90e2;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
+      }
+      
+      .team-slot.selected {
+        background: rgba(74, 144, 226, 0.35);
+        border-color: #87ceeb;
+        box-shadow: 0 0 25px rgba(74, 144, 226, 0.7);
+        transform: translateY(-3px);
+      }
+      
+      .team-slot.empty {
+        border-style: dashed;
+        background: rgba(255, 255, 255, 0.04);
+        /* MÊME TAILLE EXACTE QUE LES SLOTS PLEINS */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 170px;
+        height: 170px;
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 170px;
+        max-height: 170px;
+        flex-shrink: 0;
+        margin: 0 auto;
+      }
+      
+      /* Numéro du slot */
+      .slot-number {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(74, 144, 226, 0.9);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+      
+      /* Slot vide */
+      .empty-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        opacity: 0.6;
+        height: 100%;
+      }
+      
+      .empty-icon {
+        font-size: 28px;
+        color: #4a90e2;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+      }
+      
+      .empty-text {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        text-align: center;
+        font-weight: 500;
+      }
+      
+      .pokemon-card {
+        height: 153px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        justify-content: space-between;
+        padding: 8px;
+        box-sizing: border-box;
+        background: transparent;
+      }
+          
+      .pokemon-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-top: 15px;
+        gap: 5px;
+      }
+      
+      .pokemon-name {
+        font-weight: 700;
+        color: #ffffff;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        max-width: 100px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+        flex: 1;
+      }
+      
+      .pokemon-level {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: bold;
+        box-shadow: 0 3px 10px rgba(74, 144, 226, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
+      }
+      
+      .pokemon-sprite {
+        text-align: center;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 8px 0;
+      }
+      
+      .pokemon-portrait {
+        width: 80px;
+        height: 80px;
+        border-radius: 12px;
+        border: none;
+        image-rendering: pixelated;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+        transition: all 0.3s ease;
+        position: relative;
+      }
+      
+      .team-slot:hover .pokemon-portrait {
+        transform: scale(1.08);
+        border-color: rgba(74, 144, 226, 0.7);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.5);
+      }
+      
+      /* Status Pokémon */
+      .pokemon-status {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid white;
+        background: #28a745;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      
+      .pokemon-status.fainted {
+        background: #dc3545;
+      }
+      
+      .pokemon-status.status {
+        background: #ffc107;
+      }
+      
+      .pokemon-health {
+        margin-top: auto;
+      }
+      
+      .health-bar {
+        width: 100%;
+        height: 6px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      
+      .health-fill {
+        height: 100%;
+        transition: width 0.5s ease;
+        border-radius: 3px;
+        position: relative;
+      }
+      
+      .health-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: healthShine 2s infinite;
+      }
+      
+      @keyframes healthShine {
+        0%, 100% { transform: translateX(-100%); }
+        50% { transform: translateX(100%); }
+      }
+      
+      .health-fill.high { 
+        background: linear-gradient(90deg, #28a745, #20c997);
+      }
+      .health-fill.medium { 
+        background: linear-gradient(90deg, #ffc107, #fd7e14);
+      }
+      .health-fill.low { 
+        background: linear-gradient(90deg, #fd7e14, #dc3545);
+      }
+      .health-fill.critical { 
+        background: linear-gradient(90deg, #dc3545, #6f42c1);
+        animation: healthCritical 0.5s infinite alternate;
+      }
+      
+      @keyframes healthCritical {
+        from { opacity: 0.7; }
+        to { opacity: 1; }
+      }
+      
+      .health-text {
+        font-size: 10px;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 600;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+      
+      .pokemon-types {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        margin-top: 6px;
+        flex-wrap: wrap;
+      }
+      
+      .type-badge {
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: bold;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+      
+      /* Types Pokémon avec gradients */
+      .type-badge.type-fire { background: linear-gradient(135deg, #ff6347, #ff4500); }
+      .type-badge.type-water { background: linear-gradient(135deg, #1e90ff, #0066cc); }
+      .type-badge.type-grass { background: linear-gradient(135deg, #32cd32, #228b22); }
+      .type-badge.type-electric { background: linear-gradient(135deg, #ffd700, #ffb347); color: #333; }
+      .type-badge.type-psychic { background: linear-gradient(135deg, #ff69b4, #da70d6); }
+      .type-badge.type-ice { background: linear-gradient(135deg, #87ceeb, #4682b4); }
+      .type-badge.type-dragon { background: linear-gradient(135deg, #9370db, #663399); }
+      .type-badge.type-dark { background: linear-gradient(135deg, #2f4f4f, #1c1c1c); }
+      .type-badge.type-fairy { background: linear-gradient(135deg, #ffb6c1, #ff69b4); color: #333; }
+      .type-badge.type-normal { background: linear-gradient(135deg, #d3d3d3, #a9a9a9); color: #333; }
+      .type-badge.type-fighting { background: linear-gradient(135deg, #cd853f, #8b4513); }
+      .type-badge.type-poison { background: linear-gradient(135deg, #9932cc, #663399); }
+      .type-badge.type-ground { background: linear-gradient(135deg, #daa520, #b8860b); color: #333; }
+      .type-badge.type-flying { background: linear-gradient(135deg, #87ceeb, #6495ed); }
+      .type-badge.type-bug { background: linear-gradient(135deg, #9acd32, #6b8e23); }
+      .type-badge.type-rock { background: linear-gradient(135deg, #a0522d, #8b4513); }
+      .type-badge.type-ghost { background: linear-gradient(135deg, #9370db, #483d8b); }
+      .type-badge.type-steel { background: linear-gradient(135deg, #b0c4de, #778899); color: #333; }
+      
+      /* ===== SIDEBAR - LARGEUR EXACTE POUR REMPLIR ===== */
+      .team-sidebar {
+        /* LARGEUR EXACTE: 887.33px - 637.33px = 250px */
+        width: 250px;
+        min-width: 250px;
+        max-width: 250px;
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 2px solid #357abd;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      
+      /* Section stats */
+      .stats-section {
+        background: rgba(0, 0, 0, 0.2);
+        margin: 15px;
+        border-radius: 10px;
+        padding: 18px;
+        border: 1px solid rgba(74, 144, 226, 0.3);
+      }
+      
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      
+      .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #87ceeb;
+        margin: 0;
+      }
+      
+      .section-icon {
+        font-size: 18px;
+        color: #4a90e2;
+      }
+      
+      /* Stats individuelles */
+      .stat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        border: 1px solid rgba(74, 144, 226, 0.2);
+        transition: all 0.3s ease;
+      }
+      
+      .stat-item:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(74, 144, 226, 0.4);
+      }
+      
+      .stat-label {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+      }
+      
+      .stat-value {
+        font-size: 13px;
+        font-weight: bold;
+        color: #ffffff;
+      }
+      
+      /* Couverture des types */
+      .type-coverage {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      
+      .coverage-type {
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      
+      /* ===== VUE DÉTAILS - LARGEUR COMPLÈTE ===== */
+      .team-details-content {
+        border-top: 2px solid #357abd;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 25px;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+        flex: 1; /* Prendre tout l'espace disponible en hauteur */
+      }
+      
+      .no-selection {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #888;
+        text-align: center;
+        /* UTILISER TOUTE LA LARGEUR DISPONIBLE */
+        width: 100%;
+        min-height: 400px; /* Hauteur minimale pour bien centrer */
+      }
+      
+      .no-selection-icon {
+        font-size: 64px; /* Augmenté pour la plus grande surface */
+        margin-bottom: 20px;
+        opacity: 0.5;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+      }
+      
+      .no-selection h3 {
+        font-size: 24px; /* Augmenté */
+        margin: 12px 0;
+        color: #ccc;
+      }
+      
+      .no-selection p {
+        font-size: 16px; /* Augmenté */
+        margin: 0;
+        opacity: 0.8;
+        max-width: 400px; /* Largeur maximale pour la lisibilité */
+      }
+      
+      /* ===== DÉTAILS POKÉMON - OPTIMISÉS POUR LARGEUR COMPLÈTE ===== */
+      .pokemon-details {
+        width: 100%;
+        max-width: 800px; /* Augmenté pour utiliser plus d'espace */
+        margin: 0 auto;
+      }
+      
+      .pokemon-details-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 25px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        border: 1px solid rgba(74, 144, 226, 0.3);
+      }
+      
+      .pokemon-details-portrait {
+        width: 140px;
+        height: 140px;
+        margin: 0 auto 25px;
+        border: 4px solid #4a90e2;
+        border-radius: 15px;
+        background-size: cover;
+        background-position: center;
+        image-rendering: pixelated;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      }
+      
+      .pokemon-details-name {
+        margin: 0 0 10px 0;
+        color: #87ceeb;
+        font-size: 28px;
+        font-weight: bold;
+      }
+      
+      .pokemon-details-info {
+        color: rgba(255,255,255,0.9);
+        font-size: 16px;
+        margin: 0;
+        font-weight: 500;
+      }
+      
+      .pokemon-details-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 25px;
+      }
+      
+      .pokemon-stat-group {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(74, 144, 226, 0.2);
+      }
+      
+      .pokemon-stat-group h4 {
+        margin: 0 0 15px 0;
+        color: #87ceeb;
+        font-size: 16px;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 2px solid rgba(74, 144, 226, 0.3);
+        padding-bottom: 8px;
+      }
+      
+      /* ===== SCROLLBAR CUSTOM ===== */
+      .team-slots-grid::-webkit-scrollbar,
+      .team-sidebar::-webkit-scrollbar,
+      .team-details-content::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      .team-slots-grid::-webkit-scrollbar-track,
+      .team-sidebar::-webkit-scrollbar-track,
+      .team-details-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+      
+      .team-slots-grid::-webkit-scrollbar-thumb,
+      .team-sidebar::-webkit-scrollbar-thumb,
+      .team-details-content::-webkit-scrollbar-thumb {
+        background: rgba(74, 144, 226, 0.6);
+        border-radius: 4px;
+      }
+      
+      .team-slots-grid::-webkit-scrollbar-thumb:hover,
+      .team-sidebar::-webkit-scrollbar-thumb:hover,
+      .team-details-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 144, 226, 0.8);
+      }
+      
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .team-container {
+          width: 95%;
+          height: 90%;
+        }
+        
+        .team-overview-content {
+          flex-direction: column;
+        }
+        
+        .team-sidebar {
+          width: 100%;
+          order: 2;
+          border-left: none;
+          border-top: 2px solid #357abd;
+          max-height: 200px;
+        }
+        
+        .team-slots-grid {
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 15px;
+          padding: 20px;
+        }
+        
+        .team-slot {
+          /* TAILLE FIXE MOBILE - LARGEUR ET HAUTEUR */
+          width: 140px;
+          height: 140px;
+          min-width: 140px;
+          max-width: 140px;
+          min-height: 140px;
+          max-height: 140px;
+          padding: 15px 10px;
+          flex-shrink: 0;
+        }
+        
+        .pokemon-portrait {
+          width: 48px;
+          height: 48px;
+        }
+        
+        .pokemon-card {
+          /* HAUTEUR AJUSTÉE MOBILE */
+          height: 110px; /* 140px slot - 30px padding = 110px */
+        }
+      }
+      
+      /* ===== ANIMATIONS ===== */
+      @keyframes itemAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      
+      .team-slot.new {
+        animation: itemAppear 0.5s ease;
+      }
+      
+      @keyframes teamFullGlow {
+        0%, 100% { 
+          box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4); 
+        }
+        50% { 
+          box-shadow: 0 10px 40px rgba(74, 144, 226, 0.8); 
+        }
+      }
+      
+      .team-container.team-full {
+        animation: teamFullGlow 1.5s ease;
+      }
+      
+      @keyframes pokemonUpdate {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      .pokemon-card.updated {
+        animation: pokemonUpdate 0.6s ease;
+      }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('🎨 [TeamUI] CSS complet chargé (FIXED)');
+  }
+  
+  // === 🏗️ INTERFACE COMPLÈTE ===
+  
+  createCompleteInterface() {
+    // Supprimer l'ancienne interface
+    const existing = document.querySelector('#team-overlay');
+    if (existing) {
+      existing.remove();
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'team-overlay';
+    overlay.className = 'team-overlay hidden';
+    
+    overlay.innerHTML = `
+      <div class="team-container">
+        <!-- Header -->
+        <div class="team-header">
+          <div class="team-title">
+            <div class="team-icon">⚔️</div>
+            <div class="team-title-text">
+              <h2>Mon Équipe Pokémon</h2>
+              <p class="team-subtitle">Gestion complète de votre équipe de combat</p>
+            </div>
+          </div>
+          <div class="team-controls">
+            <div class="team-stats-header">
+              <div class="team-count">0/6</div>
+              <div class="team-status">En attente</div>
+            </div>
+            <button class="team-close-btn">✕</button>
+          </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="team-tabs">
+          <button class="team-tab active" data-view="overview">
+            <span class="tab-icon">👥</span>
+            <span class="tab-text">Vue d'ensemble</span>
+          </button>
+          <button class="team-tab" data-view="details">
+            <span class="tab-icon">📊</span>
+            <span class="tab-text">Détails</span>
+          </button>
+        </div>
+        
+        <!-- Contenu -->
+        <div class="team-content">
+          <!-- Vue d'ensemble -->
+          <div class="team-view active" id="team-overview">
+            <div class="team-overview-content">
+              <!-- Section des slots Pokemon -->
+              <div class="team-slots-section">
+                <div class="slots-header">
+                  <h3 class="slots-title">
+                    <span>⚔️</span>
+                    <span>Équipe de Combat</span>
+                  </h3>
+                  <div class="team-actions">
+                    <button class="action-btn heal" id="heal-team-btn">
+                      💊 Soigner l'équipe
+                    </button>
+                    <button class="action-btn" id="organize-team-btn">
+                      🔄 Organiser
+                    </button>
+                  </div>
+                </div>
+                <div class="team-slots-grid">
+                  ${this.generateCompleteSlots()}
+                </div>
+              </div>
+              
+              <!-- Sidebar avec statistiques -->
+              <div class="team-sidebar">
+                <div class="stats-section">
+                  <div class="section-header">
+                    <span class="section-icon">📊</span>
+                    <h4 class="section-title">Statistiques</h4>
+                  </div>
+                  <div class="stat-list">
+                    <div class="stat-item">
+                      <span class="stat-label">Niveau Moyen</span>
+                      <span class="stat-value" id="avg-level">0</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">HP Total</span>
+                      <span class="stat-value" id="total-hp">0/0</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Prêt au Combat</span>
+                      <span class="stat-value" id="battle-ready">Non</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Pokémon Vivants</span>
+                      <span class="stat-value" id="alive-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Équipe Complète</span>
+                      <span class="stat-value" id="team-complete">Non</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="stats-section">
+                  <div class="section-header">
+                    <span class="section-icon">🎯</span>
+                    <h4 class="section-title">Couverture Types</h4>
+                  </div>
+                  <div class="type-coverage" id="type-coverage">
+                    <!-- Types générés dynamiquement -->
+                  </div>
+                </div>
+                
+                <div class="stats-section">
+                  <div class="section-header">
+                    <span class="section-icon">⚡</span>
+                    <h4 class="section-title">Actions Rapides</h4>
+                  </div>
+                  <div class="stat-list">
+                    <button class="stat-item" style="cursor: pointer; border: none; background: inherit;" id="refresh-team-btn">
+                      <span class="stat-label">🔄 Actualiser</span>
+                      <span class="stat-value">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Vue Détails -->
+          <div class="team-view" id="team-details">
+            <div class="team-details-content">
+              <div class="no-selection">
+                <div class="no-selection-icon">📊</div>
+                <h3>Détails Pokémon</h3>
+                <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    this.overlayElement = overlay;
+    
+    console.log('🎨 [TeamUI] Interface complète créée (FIXED)');
+  }
+  
+  generateCompleteSlots() {
+    let slotsHTML = '';
+    for (let i = 0; i < 6; i++) {
+      slotsHTML += `
+        <div class="team-slot empty" data-slot="${i}">
+          <div class="slot-number">${i + 1}</div>
+          <div class="empty-slot">
+            <div class="empty-icon">➕</div>
+            <div class="empty-text">Slot libre</div>
+          </div>
+        </div>
+      `;
+    }
+    return slotsHTML;
+  }
+  
+  // === 🎛️ SETUP ÉVÉNEMENTS CORRIGÉ ===
+  
+  setupEventListeners() {
+    if (!this.overlayElement) return;
+    
+    // Fermeture
+    this.overlayElement.querySelector('.team-close-btn').addEventListener('click', () => {
+      this.hide();
+    });
+    
+    // ✅ FIX 2: FERMETURE PAR ESCAPE AMÉLIORÉE
+    if (!this.escapeListenerAdded) {
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const teamOverlay = document.querySelector('#team-overlay');
+          if (teamOverlay && !teamOverlay.classList.contains('hidden')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔑 [TeamUI] Fermeture par Escape (FIXED)');
+            this.hide();
+          }
         }
       });
-      
-      if (teamElements.length > 0) {
-        console.log(`  ✅ ${teamElements.length} éléments Team fermés`);
-      }
-      
-      // 🆕 Marquer UI comme fermée
-      if (this.ui) {
-        this.ui.isVisible = false;
-      }
-      
-      console.log('✅ [TeamModule] UI fermée avec succès (force)');
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur force fermeture:', error);
+      this.escapeListenerAdded = true;
+      console.log('⌨️ [TeamUI] Listener Escape configuré (FIXED)');
     }
+    
+    // Navigation tabs
+    this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const view = tab.dataset.view;
+        this.switchToView(view);
+      });
+    });
+    
+    // Actions équipe
+    const healTeamBtn = this.overlayElement.querySelector('#heal-team-btn');
+    if (healTeamBtn) {
+      healTeamBtn.addEventListener('click', () => {
+        this.handleAction('healTeam');
+      });
+    }
+    
+    const organizeTeamBtn = this.overlayElement.querySelector('#organize-team-btn');
+    if (organizeTeamBtn) {
+      organizeTeamBtn.addEventListener('click', () => {
+        this.handleAction('organizeTeam');
+      });
+    }
+    
+    const refreshTeamBtn = this.overlayElement.querySelector('#refresh-team-btn');
+    if (refreshTeamBtn) {
+      refreshTeamBtn.addEventListener('click', () => {
+        this.handleAction('requestData');
+      });
+    }
+    
+    // Sélection des slots
+    this.setupSlotSelection();
+    
+    console.log('🎛️ [TeamUI] Événements configurés (FIXED)');
   }
   
-  // === 🔗 CONNEXION DES COMPOSANTS ===
-  
-  connectComponents() {
-    // Icône → Interface (clic ouvre l'interface)
-    this.icon.onClick = () => {
-      if (this.canOpenTeamUI()) {
-        this.ui.toggle();
+  setupSlotSelection() {
+    const slotsContainer = this.overlayElement.querySelector('.team-slots-grid');
+    
+    slotsContainer.addEventListener('click', (e) => {
+      const slot = e.target.closest('.team-slot');
+      if (!slot) return;
+      
+      const slotIndex = parseInt(slot.dataset.slot);
+      const pokemon = this.teamData[slotIndex];
+      
+      if (pokemon) {
+        this.selectPokemon(pokemon, slot, slotIndex);
       } else {
-        this.showCannotOpenMessage();
+        this.deselectPokemon();
       }
-    };
+    });
     
-    // Manager → Icône (mise à jour des stats)
-    this.manager.onStatsUpdate = (stats) => {
-      this.icon.updateStats(stats);
-    };
-    
-    // Manager → Interface (mise à jour des données)
-    this.manager.onTeamDataUpdate = (data) => {
-      this.ui.updateTeamData(data);
+    // Double-clic pour voir les détails
+    slotsContainer.addEventListener('dblclick', (e) => {
+      const slot = e.target.closest('.team-slot');
+      if (!slot) return;
       
-      // Si l'UI est visible, forcer un refresh
-      if (this.ui.isVisible) {
-        setTimeout(() => {
-          this.ui.refreshCompleteDisplay();
-          this.ui.updateCompleteStats();
-        }, 100);
+      const slotIndex = parseInt(slot.dataset.slot);
+      const pokemon = this.teamData[slotIndex];
+      
+      if (pokemon) {
+        this.switchToView('details');
+        this.selectPokemon(pokemon, slot, slotIndex);
       }
-    };
-    
-    // Interface → Manager (actions utilisateur)
-    this.ui.onAction = (action, data) => {
-      this.manager.handleAction(action, data);
-    };
+    });
   }
   
-  // === 🎛️ MÉTHODES UIMANAGER (INTERFACE PRINCIPALE) ===
+  // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
   
-  /**
-   * UIManager appelle cette méthode pour afficher le module
-   */
   show() {
-    this.uiManagerState.visible = true;
+    console.log('👁️ [TeamUI] Affichage interface complète (FIXED)');
     
-    // Afficher l'icône
-    if (this.icon) {
-      this.icon.show();
-    }
+    this.isVisible = true;
     
-    // Demander une mise à jour des données
-    if (this.manager) {
+    if (this.overlayElement) {
+      this.overlayElement.classList.remove('hidden');
+      
+      // ✅ FIX 1: FORCER L'AFFICHAGE DE LA VUE OVERVIEW
       setTimeout(() => {
-        this.manager.requestTeamData();
-      }, 200);
+        const overviewElement = this.overlayElement.querySelector('#team-overview');
+        const detailsElement = this.overlayElement.querySelector('#team-details');
+        
+        if (overviewElement) {
+          // Forcer l'affichage de la vue overview
+          overviewElement.style.display = 'flex';
+          overviewElement.classList.add('active');
+          console.log('✅ [TeamUI] Vue overview affichée (FIXED)');
+        }
+        
+        if (detailsElement) {
+          // S'assurer que la vue détails est cachée
+          detailsElement.classList.remove('active');
+        }
+        
+        // Forcer la mise à jour de la vue active
+        this.currentView = 'overview';
+        
+        // Mise à jour des tabs
+        this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.view === 'overview');
+        });
+        
+      }, 50); // Petit délai pour que le DOM soit bien rendu
     }
+    
+    // Demander les données fraîches
+    this.requestTeamData();
     
     return true;
   }
   
-  /**
-   * UIManager appelle cette méthode pour cacher le module
-   */
   hide() {
-    this.uiManagerState.visible = false;
+    console.log('👻 [TeamUI] Masquage interface');
     
-    // Cacher l'icône
-    if (this.icon) {
-      this.icon.hide();
+    this.isVisible = false;
+    
+    if (this.overlayElement) {
+      this.overlayElement.classList.add('hidden');
     }
     
-    // Cacher l'interface si ouverte
-    if (this.ui && this.ui.isVisible) {
-      this.ui.hide();
-    }
+    // Désélectionner
+    this.deselectPokemon();
     
     return true;
   }
   
-  /**
-   * UIManager appelle cette méthode pour activer/désactiver
-   */
-  setEnabled(enabled) {
-    this.uiManagerState.enabled = enabled;
-    
-    // Appliquer aux composants
-    if (this.icon) {
-      this.icon.setEnabled(enabled);
-    }
-    
-    if (this.ui) {
-      this.ui.setEnabled(enabled);
-    }
-    
-    return true;
-  }
-  
-  /**
-   * UIManager peut appeler cette méthode pour obtenir l'état
-   */
-  getUIManagerState() {
-    return {
-      ...this.uiManagerState,
-      iconVisible: this.icon ? this.icon.isVisible : false,
-      interfaceVisible: this.ui ? this.ui.isVisible : false,
-      teamCount: this.manager ? this.manager.getTeamCount() : 0,
-      canBattle: this.manager ? this.manager.canBattle() : false,
-      singleton: true,
-      instanceId: this.constructor.name + '_' + (this.gameRoom?.id || 'unknown')
-    };
-  }
-  
-  // === 🔧 GESTION ÉTAT INTERNE ===
-  
-  applyUIManagerState() {
-    if (!this.uiManagerState.initialized) return;
-    
-    // Appliquer visibilité
-    if (this.uiManagerState.visible) {
-      this.icon?.show();
+  toggle() {
+    if (this.isVisible) {
+      this.hide();
     } else {
-      this.icon?.hide();
-      this.ui?.hide();
+      this.show();
+    }
+  }
+  
+  setEnabled(enabled) {
+    console.log(`🔧 [TeamUI] setEnabled(${enabled})`);
+    
+    this.isEnabled = enabled;
+    
+    if (this.overlayElement) {
+      if (enabled) {
+        this.overlayElement.style.pointerEvents = 'auto';
+        this.overlayElement.style.opacity = '1';
+      } else {
+        this.overlayElement.style.pointerEvents = 'none';
+        this.overlayElement.style.opacity = '0.5';
+      }
     }
     
-    // Appliquer état enabled
-    this.icon?.setEnabled(this.uiManagerState.enabled);
-    this.ui?.setEnabled(this.uiManagerState.enabled);
+    return true;
   }
   
-  canOpenTeamUI() {
-    // Vérifier si on peut ouvrir l'interface
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#shop-overlay:not(.hidden)')
-    ];
+  // === 📊 GESTION DONNÉES POKÉMON ===
+  
+  updateTeamData(data) {
+    console.log('📊 [TeamUI] === MISE À JOUR DONNÉES ÉQUIPE (FIXED) ===');
+    console.log('📊 Data reçue:', data);
     
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
+    // Extraire les données d'équipe selon le format
+    if (data && Array.isArray(data.team)) {
+      this.teamData = data.team;
+    } else if (data && Array.isArray(data)) {
+      this.teamData = data;
+    } else if (data && data.pokemon && Array.isArray(data.pokemon)) {
+      this.teamData = data.pokemon;
+    } else {
+      console.warn('⚠️ [TeamUI] Format de données non reconnu:', data);
+      this.teamData = [];
+    }
     
-    return !hasBlocker && !chatFocused && !inventoryOpen && this.uiManagerState.enabled;
+    console.log('📊 [TeamUI] Équipe parsée:', {
+      count: this.teamData.length,
+      pokemon: this.teamData.map(p => ({
+        name: p?.nickname || p?.name || 'Unknown',
+        level: p?.level || '?',
+        hp: `${p?.currentHp || 0}/${p?.maxHp || 0}`,
+        types: p?.types || []
+      }))
+    });
+    
+    this.refreshCompleteDisplay();
+    this.updateCompleteStats();
+    
+    // Mettre à jour le Pokémon sélectionné si nécessaire
+    if (this.selectedPokemon) {
+      const updatedPokemon = this.teamData.find(p => p._id === this.selectedPokemon._id);
+      if (updatedPokemon) {
+        this.selectedPokemon = updatedPokemon;
+        this.updateDetailView();
+      }
+    }
   }
   
-  showCannotOpenMessage() {
+  refreshCompleteDisplay() {
+    const slotsContainer = this.overlayElement.querySelector('.team-slots-grid');
+    if (!slotsContainer) return;
+    
+    console.log('🔄 [TeamUI] Rafraîchissement affichage complet...');
+    
+    // Vider la grille
+    slotsContainer.innerHTML = '';
+    
+    // Créer les 6 slots avec les données
+    for (let i = 0; i < 6; i++) {
+      const pokemon = this.teamData[i];
+      const slot = this.createCompleteSlotElement(pokemon, i);
+      slotsContainer.appendChild(slot);
+      
+      // Animation d'apparition
+      setTimeout(() => {
+        slot.classList.add('new');
+        setTimeout(() => {
+          slot.classList.remove('new');
+        }, 500);
+      }, i * 100);
+    }
+    
+    // Marquer équipe complète si applicable
+    if (this.teamData.length === 6) {
+      this.overlayElement.querySelector('.team-container').classList.add('team-full');
+      setTimeout(() => {
+        this.overlayElement.querySelector('.team-container').classList.remove('team-full');
+      }, 1500);
+    }
+    
+    console.log('✅ [TeamUI] Affichage rafraîchi');
+  }
+  
+  createCompleteSlotElement(pokemon, index) {
+    const slot = document.createElement('div');
+    slot.className = 'team-slot';
+    slot.dataset.slot = index;
+    
+    if (pokemon) {
+      slot.classList.remove('empty');
+      slot.innerHTML = `
+        <div class="slot-number">${index + 1}</div>
+        ${this.createCompletePokemonCardHTML(pokemon)}
+      `;
+    } else {
+      slot.classList.add('empty');
+      slot.innerHTML = `
+        <div class="slot-number">${index + 1}</div>
+        <div class="empty-slot">
+          <div class="empty-icon">➕</div>
+          <div class="empty-text">Slot libre</div>
+        </div>
+      `;
+    }
+    
+    return slot;
+  }
+  
+  createCompletePokemonCardHTML(pokemon) {
+    console.log('🎨 [TeamUI] Création carte Pokémon:', pokemon);
+    
+    // Calculs de santé
+    const currentHp = pokemon.currentHp || 0;
+    const maxHp = pokemon.maxHp || 1;
+    const healthPercent = (currentHp / maxHp) * 100;
+    const healthClass = this.getHealthClass(healthPercent);
+    
+    // Types
+    const typesHTML = this.getTypesHTML(pokemon.types);
+    
+    // Nom d'affichage
+    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId || '?'}`;
+    
+    // Level
+    const level = pokemon.level || 1;
+    
+    // Status
+    const isFainted = currentHp === 0;
+    const hasStatus = pokemon.status && pokemon.status !== 'normal' && pokemon.status !== 'none';
+    
+    return `
+      <div class="pokemon-card">
+        <div class="pokemon-header">
+          <div class="pokemon-name" title="${displayName}">
+            ${displayName}
+          </div>
+          <div class="pokemon-level">Niv. ${level}</div>
+        </div>
+        
+        <div class="pokemon-sprite">
+          <div class="pokemon-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}">
+            <div class="pokemon-status ${isFainted ? 'fainted' : hasStatus ? 'status' : ''}"></div>
+          </div>
+        </div>
+        
+        <div class="pokemon-health">
+          <div class="health-bar">
+            <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+          </div>
+          <div class="health-text">${currentHp}/${maxHp} HP</div>
+        </div>
+        
+        <div class="pokemon-types">
+          ${typesHTML}
+        </div>
+      </div>
+    `;
+  }
+  
+getPortraitStyle(pokemonId) {
+  console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
+  
+  if (!pokemonId) {
+    return `
+      background: linear-gradient(45deg, #ccc, #999); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 20px;
+    `;
+  }
+  
+  const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+  
+  const style = `
+    background-image: url('${url}');
+    background-size: 900% 900%;
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+  `;
+  
+  console.log('🎨 [TeamUI] Style généré:', style);
+  
+  return style;
+}
+  
+  getHealthClass(healthPercent) {
+    if (healthPercent > 75) return 'high';
+    if (healthPercent > 50) return 'medium';
+    if (healthPercent > 25) return 'low';
+    return 'critical';
+  }
+  
+  getTypesHTML(types) {
+    if (!types || !Array.isArray(types)) return '';
+    
+    return types.map(type => 
+      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
+  }
+  
+  // === 📊 STATISTIQUES COMPLÈTES ===
+  
+  updateCompleteStats() {
+    if (!this.overlayElement) return;
+    
+    console.log('📊 [TeamUI] Mise à jour statistiques complètes...');
+    
+    const teamCount = this.teamData.length;
+    const aliveCount = this.teamData.filter(p => p && p.currentHp > 0).length;
+    const avgLevel = teamCount > 0 ? 
+      Math.round(this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0) / teamCount) : 0;
+    const totalCurrentHp = this.teamData.reduce((sum, p) => sum + (p?.currentHp || 0), 0);
+    const totalMaxHp = this.teamData.reduce((sum, p) => sum + (p?.maxHp || 0), 0);
+    const canBattle = aliveCount > 0;
+    const isComplete = teamCount === 6;
+    
+    // Header stats
+    const teamCountElement = this.overlayElement.querySelector('.team-count');
+    if (teamCountElement) {
+      teamCountElement.textContent = `${teamCount}/6`;
+    }
+    
+    const statusElement = this.overlayElement.querySelector('.team-status');
+    if (statusElement) {
+      statusElement.textContent = canBattle ? 'Prêt au Combat' : 'Non Prêt';
+      statusElement.style.color = canBattle ? '#28a745' : '#dc3545';
+    }
+    
+    // Stats détaillées
+    const elements = {
+      'avg-level': avgLevel,
+      'total-hp': `${totalCurrentHp}/${totalMaxHp}`,
+      'alive-count': aliveCount,
+      'team-complete': isComplete ? 'Oui' : 'Non'
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+      const element = this.overlayElement.querySelector(`#${id}`);
+      if (element) {
+        element.textContent = value;
+        
+        // Couleurs conditionnelles
+        if (id === 'battle-ready') {
+          element.style.color = canBattle ? '#28a745' : '#dc3545';
+        } else if (id === 'team-complete') {
+          element.style.color = isComplete ? '#28a745' : '#ffc107';
+        }
+      }
+    });
+    
+    const battleReadyElement = this.overlayElement.querySelector('#battle-ready');
+    if (battleReadyElement) {
+      battleReadyElement.textContent = canBattle ? 'Oui' : 'Non';
+      battleReadyElement.style.color = canBattle ? '#28a745' : '#dc3545';
+    }
+    
+    // Type coverage
+    this.updateCompleteTypeCoverage();
+    
+    console.log('✅ [TeamUI] Statistiques mises à jour');
+  }
+  
+  updateCompleteTypeCoverage() {
+    const coverageContainer = this.overlayElement.querySelector('#type-coverage');
+    if (!coverageContainer) return;
+    
+    const types = new Set();
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
+        pokemon.types.forEach(type => types.add(type));
+      }
+    });
+    
+    if (types.size === 0) {
+      coverageContainer.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-style: italic; text-align: center;">Aucun type</div>';
+      return;
+    }
+    
+    const typesHTML = Array.from(types).map(type => 
+      `<span class="coverage-type type-badge type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
+    
+    coverageContainer.innerHTML = typesHTML;
+  }
+  
+  // === 🎯 SÉLECTION POKÉMON ===
+  
+  selectPokemon(pokemon, slotElement, slotIndex) {
+    console.log('🎯 [TeamUI] Sélection Pokémon:', pokemon.nickname || pokemon.name);
+    
+    // Désélectionner l'ancien
+    this.overlayElement.querySelectorAll('.team-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    
+    // Sélectionner le nouveau
+    slotElement.classList.add('selected');
+    
+    this.selectedPokemon = pokemon;
+    this.selectedSlot = slotIndex;
+    
+    // Animation de sélection
+    slotElement.querySelector('.pokemon-card')?.classList.add('updated');
+    setTimeout(() => {
+      slotElement.querySelector('.pokemon-card')?.classList.remove('updated');
+    }, 600);
+    
+    // Mettre à jour la vue détaillée
+    this.updateDetailView();
+  }
+  
+  deselectPokemon() {
+    this.overlayElement.querySelectorAll('.team-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    
+    this.selectedPokemon = null;
+    this.selectedSlot = null;
+    
+    this.updateDetailView();
+  }
+  
+  updateDetailView() {
+    const detailsContent = this.overlayElement.querySelector('.team-details-content');
+    if (!detailsContent) return;
+    
+    if (!this.selectedPokemon) {
+      detailsContent.innerHTML = `
+        <div class="no-selection">
+          <div class="no-selection-icon">📊</div>
+          <h3>Détails Pokémon</h3>
+          <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const pokemon = this.selectedPokemon;
+    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId}`;
+    const typesText = pokemon.types ? pokemon.types.join(' / ') : 'Type Inconnu';
+    
+    detailsContent.innerHTML = `
+      <div class="pokemon-details">
+        <div class="pokemon-details-header">
+          <div class="pokemon-details-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}"></div>
+          <h2 class="pokemon-details-name">${displayName}</h2>
+          <p class="pokemon-details-info">Niveau ${pokemon.level} • ${typesText}</p>
+        </div>
+        
+        <div class="pokemon-details-stats">
+          <div class="pokemon-stat-group">
+            <h4>Informations Générales</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Points de Vie</span>
+                <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp} (${Math.round(healthPercent)}%)</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Niveau</span>
+                <span class="stat-value">${pokemon.level}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Expérience</span>
+                <span class="stat-value">${pokemon.experience || 0} XP</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Nature</span>
+                <span class="stat-value">${pokemon.nature || 'Inconnue'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pokemon-stat-group">
+            <h4>État et Statut</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Statut</span>
+                <span class="stat-value">${pokemon.status || 'Normal'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Peut Combattre</span>
+                <span class="stat-value" style="color: ${pokemon.currentHp > 0 ? '#28a745' : '#dc3545'}">${pokemon.currentHp > 0 ? 'Oui' : 'Non'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Position</span>
+                <span class="stat-value">Slot ${(this.selectedSlot || 0) + 1}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
+            Double-cliquez sur un Pokémon dans la vue d'ensemble pour voir ses détails
+          </p>
+        </div>
+      </div>
+    `;
+  }
+  
+  // === 🎮 NAVIGATION VUES ===
+  
+  switchToView(viewName) {
+    console.log(`🎮 [TeamUI] Changement vue: ${viewName}`);
+    
+    // Mettre à jour les tabs
+    this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.view === viewName);
+    });
+    
+    // Mettre à jour les vues
+    this.overlayElement.querySelectorAll('.team-view').forEach(view => {
+      view.classList.toggle('active', view.id === `team-${viewName}`);
+    });
+    
+    this.currentView = viewName;
+    
+    // ✅ FIX: FORCER L'AFFICHAGE DE LA VUE ACTIVE
+    setTimeout(() => {
+      const activeView = this.overlayElement.querySelector('.team-view.active');
+      if (activeView) {
+        activeView.style.display = 'flex';
+        console.log(`✅ [TeamUI] Vue ${viewName} forcée à display: flex`);
+      }
+    }, 10);
+    
+    // Actions spécifiques selon la vue
+    if (viewName === 'details' && this.selectedPokemon) {
+      this.updateDetailView();
+    }
+  }
+  
+  // === 🎬 GESTION ACTIONS ===
+  
+  handleAction(action, data = null) {
+    console.log(`🎬 [TeamUI] Action: ${action}`, data);
+    
+    if (this.onAction) {
+      this.onAction(action, data);
+    }
+    
+    // Feedback visuel
+    this.showActionFeedback(action);
+  }
+  
+  showActionFeedback(action) {
+    let message = '';
+    let type = 'info';
+    
+    switch (action) {
+      case 'healTeam':
+        message = 'Équipe en cours de soin...';
+        type = 'success';
+        break;
+      case 'organizeTeam':
+        message = 'Organisation de l\'équipe...';
+        type = 'info';
+        break;
+      case 'requestData':
+        message = 'Actualisation des données...';
+        type = 'info';
+        break;
+      default:
+        message = `Action ${action} en cours...`;
+    }
+    
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Cannot open team right now', 'warning', {
+      window.showGameNotification(message, type, {
         duration: 2000,
         position: 'bottom-center'
       });
     }
   }
   
-  // === 📊 API PUBLIQUE POUR COMPATIBILITÉ ===
-  
-  /**
-   * Ouvrir/fermer l'interface Team
-   */
-  toggleTeamUI() {
-    if (this.ui) {
-      this.ui.toggle();
-    }
+  requestTeamData() {
+    this.handleAction('requestData');
   }
   
-  /**
-   * Ouvrir l'interface Team
-   */
-  openTeam() {
-    if (this.ui && this.canOpenTeamUI()) {
-      this.ui.show();
-    }
-  }
-  
-  /**
-   * Fermer l'interface Team
-   */
-  closeTeam() {
-    if (this.ui) {
-      this.ui.hide();
-    }
-  }
-  
-  /**
-   * Obtenir les données d'équipe
-   */
-  getTeamData() {
-    return this.manager ? this.manager.getTeamData() : [];
-  }
-  
-  /**
-   * Obtenir les statistiques d'équipe
-   */
-  getTeamStats() {
-    return this.manager ? this.manager.getTeamStats() : null;
-  }
-  
-  /**
-   * Vérifier si l'équipe peut combattre
-   */
-  canBattle() {
-    return this.manager ? this.manager.canBattle() : false;
-  }
-  
-  /**
-   * Soigner toute l'équipe
-   */
-  healTeam() {
-    if (this.manager) {
-      this.manager.healTeam();
-    }
-  }
-  
-  // === 🧹 NETTOYAGE SINGLETON ===
+  // === 🧹 NETTOYAGE ===
   
   destroy() {
-    try {
-      console.log('🧹 [TeamModule] Destruction avec nettoyage singleton...');
-      
-      // Détruire les composants dans l'ordre inverse
-      if (this.ui) {
-        this.ui.destroy();
-        this.ui = null;
-      }
-      
-      if (this.icon) {
-        this.icon.destroy();
-        this.icon = null;
-      }
-      
-      if (this.manager) {
-        this.manager.destroy();
-        this.manager = null;
-      }
-      
-      // Reset état
-      this.uiManagerState.initialized = false;
-      
-      // 🆕 RESET SINGLETON
-      if (TeamModule.instance === this) {
-        TeamModule.instance = null;
-        console.log('🧹 [TeamModule] Singleton reseté');
-      }
-      
-      console.log('✅ [TeamModule] Destruction terminée');
-      
-    } catch (error) {
-      console.error('❌ [TeamModule] Erreur destruction:', error);
-    }
-  }
-}
-
-// 🆕 VARIABLE STATIQUE POUR SINGLETON
-TeamModule.instance = null;
-
-// === 🏭 FACTORY CORRIGÉE AVEC GESTION UIMANAGER ===
-
-/**
- * Factory function pour créer le module Team
- * Compatible avec UIManager et Singleton
- */
-export async function createTeamModule(gameRoom, scene) {
-  try {
-    console.log('🏭 [TeamFactory] Création/récupération module Team...');
+    console.log('🧹 [TeamUI] Destruction interface complète...');
     
-    // 🆕 VÉRIFIER SI INSTANCE SINGLETON EXISTE
-    let existingInstance = TeamModule.getInstance();
+    // ✅ FIX: Nettoyer le listener Escape global
+    this.escapeListenerAdded = false;
     
-    if (existingInstance && existingInstance.uiManagerState.initialized) {
-      console.log('♻️ [TeamFactory] Instance singleton trouvée, préparation pour UIManager...');
-      
-      // 🆕 FERMER L'UI SI ELLE EST OUVERTE (éviter conflit)
-      existingInstance.forceCloseUI();
-      
-      // 🆕 ASSURER QUE L'ICÔNE EST DISPONIBLE POUR UIMANAGER
-      if (existingInstance.icon && existingInstance.icon.iconElement) {
-        console.log('✅ [TeamFactory] Icône disponible pour UIManager');
-        
-        // Réinitialiser l'état de positionnement pour UIManager
-        existingInstance.icon.iconElement.removeAttribute('data-positioned-by-uimanager');
-        
-        // Vérifier la compatibilité gameRoom
-        if (existingInstance.gameRoom !== gameRoom) {
-          console.log('🔄 [TeamFactory] GameRoom différent, mise à jour...');
-          existingInstance.gameRoom = gameRoom;
-          existingInstance.scene = scene;
-          
-          // Reconnecter le manager si nécessaire
-          if (existingInstance.manager) {
-            existingInstance.manager.gameRoom = gameRoom;
-          }
-        }
-        
-        return existingInstance;
-      } else {
-        console.warn('⚠️ [TeamFactory] Instance sans icône, recréation...');
-        // Reset singleton si icône manquante
-        TeamModule.reset();
-      }
+    // Supprimer l'élément DOM
+    if (this.overlayElement && this.overlayElement.parentNode) {
+      this.overlayElement.parentNode.removeChild(this.overlayElement);
     }
     
-    // 🆕 CRÉER NOUVELLE INSTANCE
-    console.log('🆕 [TeamFactory] Création nouvelle instance singleton...');
-    const teamModule = new TeamModule(gameRoom, scene);
-    await teamModule.init();
+    // Reset état
+    this.overlayElement = null;
+    this.isVisible = false;
+    this.teamData = [];
+    this.selectedPokemon = null;
+    this.onAction = null;
     
-    console.log('✅ [TeamFactory] Module Team créé avec succès (singleton)');
-    return teamModule;
-    
-  } catch (error) {
-    console.error('❌ [TeamFactory] Erreur création module Team:', error);
-    throw error;
+    console.log('✅ [TeamUI] Interface complète détruite (FIXED)');
   }
-}
-
-// === 📋 CONFIGURATION POUR UIMANAGER MISE À JOUR ===
-
-export const TEAM_MODULE_CONFIG = {
-  id: 'team',
-  factory: () => createTeamModule(window.currentGameRoom, window.game?.scene?.getScenes(true)[0]),
   
-  defaultState: {
-    visible: true,     // Icône visible par défaut
-    enabled: true,     // Module activé
-    initialized: false
-  },
+  // === 🐛 DEBUG ===
   
-  priority: 100,
-  critical: false,
-  
-  layout: {
-    type: 'icon',
-    anchor: 'bottom-right',
-    order: 2,           // Après inventory (0) et quest (1)
-    spacing: 10
-  },
-  
-  responsive: {
-    mobile: { 
-      scale: 0.8,
-      position: { right: '15px', bottom: '15px' }
-    },
-    tablet: { 
-      scale: 0.9 
-    },
-    desktop: { 
-      scale: 1.0 
-    }
-  },
-  
-  groups: ['ui-icons', 'pokemon-management'],
-  
-  animations: {
-    show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
-    hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
-    enable: { type: 'pulse', duration: 150 },
-    disable: { type: 'grayscale', duration: 200 }
-  },
-  
-  metadata: {
-    name: 'Team Manager',
-    description: 'Complete Pokemon team management system (Singleton)',
-    version: '1.1.1',
-    category: 'Pokemon Management',
-    singleton: true
+  debugInfo() {
+    return {
+      isVisible: this.isVisible,
+      isEnabled: this.isEnabled,
+      hasElement: !!this.overlayElement,
+      elementInDOM: this.overlayElement ? document.contains(this.overlayElement) : false,
+      currentView: this.currentView,
+      teamCount: this.teamData.length,
+      selectedPokemon: this.selectedPokemon ? this.selectedPokemon.nickname || this.selectedPokemon.name : null,
+      selectedSlot: this.selectedSlot,
+      hasOnAction: !!this.onAction,
+      style: 'complete-modern-design-fixed',
+      escapeListenerAdded: this.escapeListenerAdded,
+      fixes: {
+        overviewDisplay: 'APPLIED - Force display: flex in show()',
+        escapeListener: 'APPLIED - Global escape listener with overlay check'
+      },
+      teamData: this.teamData.map(p => ({
+        name: p?.nickname || p?.name || 'Unknown',
+        level: p?.level || '?',
+        hp: `${p?.currentHp || 0}/${p?.maxHp || 0}`,
+        types: p?.types || []
+      }))
+    };
   }
-};
-
-// === 🔗 INTÉGRATION AVEC UIMANAGER AMÉLIORÉE ===
-
-/**
- * Enregistrer le module Team dans UIManager avec protection singleton
- */
-export async function registerTeamModule(uiManager) {
-  try {
-    console.log('📝 [TeamIntegration] Enregistrement avec protection singleton...');
+  
+  // === 🔧 MÉTHODES UTILITAIRES ===
+  
+  getPokemonCount() {
+    return this.teamData.length;
+  }
+  
+  getAliveCount() {
+    return this.teamData.filter(p => p && p.currentHp > 0).length;
+  }
+  
+  getFaintedCount() {
+    return this.teamData.filter(p => p && p.currentHp === 0).length;
+  }
+  
+  getAverageLevel() {
+    if (this.teamData.length === 0) return 0;
+    return Math.round(this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0) / this.teamData.length);
+  }
+  
+  getTotalHP() {
+    return this.teamData.reduce((sum, p) => sum + (p?.currentHp || 0), 0);
+  }
+  
+  getMaxHP() {
+    return this.teamData.reduce((sum, p) => sum + (p?.maxHp || 0), 0);
+  }
+  
+  getHealthPercentage() {
+    const total = this.getTotalHP();
+    const max = this.getMaxHP();
+    return max > 0 ? Math.round((total / max) * 100) : 0;
+  }
+  
+  canBattle() {
+    return this.getAliveCount() > 0;
+  }
+  
+  isTeamFull() {
+    return this.teamData.length >= 6;
+  }
+  
+  needsHealing() {
+    return this.teamData.some(p => p && p.currentHp < p.maxHp);
+  }
+  
+  hasStatusConditions() {
+    return this.teamData.some(p => p && p.status && p.status !== 'normal' && p.status !== 'none');
+  }
+  
+  getTypeCoverage() {
+    const types = new Set();
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
+        pokemon.types.forEach(type => types.add(type));
+      }
+    });
+    return Array.from(types);
+  }
+  
+  // === 🎮 MÉTHODES PUBLIQUES POUR L'INTERACTION ===
+  
+  selectSlot(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
     
-    // 🆕 VÉRIFIER SI DÉJÀ ENREGISTRÉ
-    if (uiManager.modules && uiManager.modules.has('team')) {
-      console.log('ℹ️ [TeamIntegration] Module déjà enregistré');
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    const pokemon = this.teamData[slotIndex];
+    
+    if (slot && pokemon) {
+      this.selectPokemon(pokemon, slot, slotIndex);
       return true;
     }
     
-    await uiManager.registerModule('team', TEAM_MODULE_CONFIG);
-    console.log('✅ [TeamIntegration] Module enregistré');
-    
-    return true;
-  } catch (error) {
-    console.error('❌ [TeamIntegration] Erreur enregistrement:', error);
-    throw error;
-  }
-}
-
-/**
- * Initialiser et connecter le module Team avec protection
- */
-export async function initializeTeamModule(uiManager) {
-  try {
-    console.log('🚀 [TeamIntegration] Initialisation avec protection...');
-    
-    // Enregistrer le module
-    await registerTeamModule(uiManager);
-    
-    // 🆕 VÉRIFIER SI DÉJÀ INITIALISÉ
-    let teamInstance = TeamModule.getInstance();
-    
-    if (!teamInstance || !teamInstance.uiManagerState.initialized) {
-      // Initialiser le module
-      teamInstance = await uiManager.initializeModule('team');
-    } else {
-      console.log('ℹ️ [TeamIntegration] Instance déjà initialisée');
-      
-      // Connecter à UIManager si pas encore fait
-      if (teamInstance.connectUIManager) {
-        teamInstance.connectUIManager(uiManager);
-      }
-    }
-    
-    // Setup des raccourcis clavier
-    setupTeamKeyboardShortcuts(teamInstance);
-    
-    // Setup des événements globaux
-    setupTeamGlobalEvents(teamInstance);
-    
-    console.log('✅ [TeamIntegration] Initialisation terminée');
-    return teamInstance;
-    
-  } catch (error) {
-    console.error('❌ [TeamIntegration] Erreur initialisation:', error);
-    throw error;
-  }
-}
-
-// === ⌨️ RACCOURCIS CLAVIER ===
-
-function setupTeamKeyboardShortcuts(teamInstance) {
-  // Éviter double setup
-  if (window._teamKeyboardSetup) {
-    console.log('ℹ️ [TeamKeyboard] Raccourcis déjà configurés');
-    return;
-  }
-  
-  document.addEventListener('keydown', (e) => {
-    // Touche T pour ouvrir/fermer Team
-    if (e.key.toLowerCase() === 't' && 
-        !e.target.matches('input, textarea, [contenteditable]') &&
-        !e.ctrlKey && !e.altKey && !e.metaKey) {
-      
-      e.preventDefault();
-      
-      if (teamInstance.canOpenTeamUI()) {
-        teamInstance.toggleTeamUI();
-      }
-    }
-  });
-  
-  window._teamKeyboardSetup = true;
-  console.log('⌨️ [TeamKeyboard] Raccourcis configurés');
-}
-
-// === 🌐 ÉVÉNEMENTS GLOBAUX ===
-
-function setupTeamGlobalEvents(teamInstance) {
-  // Éviter double setup
-  if (window._teamEventsSetup) {
-    console.log('ℹ️ [TeamEvents] Événements déjà configurés');
-    return;
-  }
-  
-  // Événement: Pokémon capturé
-  window.addEventListener('pokemonCaught', (event) => {
-    if (teamInstance.manager) {
-      teamInstance.manager.handlePokemonCaught(event.detail);
-    }
-  });
-  
-  // Événement: Combat commencé
-  window.addEventListener('battleStarted', () => {
-    if (teamInstance.ui && teamInstance.ui.isVisible) {
-      teamInstance.ui.hide();
-    }
-  });
-  
-  // Événement: Centre Pokémon
-  window.addEventListener('pokemonCenterEntered', () => {
-    if (teamInstance.manager) {
-      teamInstance.manager.requestTeamData(); // Refresh data
-    }
-  });
-  
-  window._teamEventsSetup = true;
-  console.log('🌐 [TeamEvents] Événements configurés');
-}
-
-// === 💡 UTILISATION SIMPLE MISE À JOUR ===
-
-/**
- * Fonction d'utilisation simple pour intégrer Team dans un projet
- */
-export async function setupTeamSystem(uiManager) {
-  try {
-    console.log('🔧 [TeamSetup] Configuration système Team...');
-    
-    // Initialiser le module
-    const teamInstance = await initializeTeamModule(uiManager);
-    
-    // Exposer globalement pour compatibilité (éviter double)
-    if (!window.teamSystem) {
-      window.teamSystem = teamInstance;
-      window.teamSystemGlobal = teamInstance;
-      window.toggleTeam = () => teamInstance.toggleTeamUI();
-      window.openTeam = () => teamInstance.openTeam();
-      window.closeTeam = () => teamInstance.closeTeam();
-      
-      // 🆕 FONCTION DE FORCE FERMETURE
-      window.forceCloseTeam = () => teamInstance.forceCloseUI();
-      
-      console.log('🌐 [TeamSetup] Fonctions globales exposées');
-    }
-    
-    console.log('✅ [TeamSetup] Système Team configuré (singleton)');
-    return teamInstance;
-    
-  } catch (error) {
-    console.error('❌ [TeamSetup] Erreur configuration:', error);
-    throw error;
-  }
-}
-
-// === 📋 EXPORT PAR DÉFAUT ===
-
-export default TeamModule;
-
-// === 🔍 UTILITÉS DE DEBUG SINGLETON ===
-
-export function debugTeamSingleton() {
-  const instance = TeamModule.getInstance();
-  
-  const info = {
-    hasSingleton: !!instance,
-    isInitialized: instance ? instance.uiManagerState.initialized : false,
-    hasIcon: instance ? !!instance.icon : false,
-    hasUI: instance ? !!instance.ui : false,
-    uiVisible: instance ? instance.ui?.isVisible : false,
-    iconVisible: instance ? instance.icon?.isVisible : false,
-    gameRoom: instance ? !!instance.gameRoom : false,
-    
-    state: instance ? instance.getUIManagerState() : null,
-    
-    solutions: instance ? [
-      '✅ Singleton OK - utilisez forceCloseUI()',
-      '🔒 window.forceCloseTeam() pour fermer UI',
-      '🔄 window.teamSystemGlobal pour accès direct'
-    ] : [
-      '🚀 Créez avec createTeamModule()',
-      '🔧 Initialisez avec setupTeamSystem()'
-    ]
-  };
-  
-  console.log('🔍 === DEBUG TEAM SINGLETON ===');
-  console.table(info);
-  
-  if (instance && instance.ui?.isVisible) {
-    console.log('💡 SOLUTION: UI ouverte - utilisez forceCloseUI()');
-    console.log('🔒 Commande: window.teamSystemGlobal.forceCloseUI()');
-  }
-  
-  return info;
-}
-
-// === 🔧 FONCTION DE RÉPARATION ===
-
-export function fixTeamModule() {
-  console.log('🔧 [TeamFix] Réparation module Team...');
-  
-  try {
-    const instance = TeamModule.getInstance();
-    
-    if (instance) {
-      // Force fermeture UI
-      instance.forceCloseUI();
-      
-      // Réinitialiser état si nécessaire
-      if (instance.ui) {
-        instance.ui.isVisible = false;
-      }
-      
-      console.log('✅ [TeamFix] Module réparé');
-      return true;
-    } else {
-      console.log('ℹ️ [TeamFix] Aucune instance à réparer');
-      return false;
-    }
-    
-  } catch (error) {
-    console.error('❌ [TeamFix] Erreur réparation:', error);
     return false;
   }
+  
+  healPokemon(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
+    
+    const pokemon = this.teamData[slotIndex];
+    if (!pokemon) return false;
+    
+    this.handleAction('healPokemon', { pokemonId: pokemon._id, slotIndex });
+    return true;
+  }
+  
+  swapPokemon(fromSlot, toSlot) {
+    if (fromSlot < 0 || fromSlot >= 6 || toSlot < 0 || toSlot >= 6) return false;
+    if (fromSlot === toSlot) return false;
+    
+    this.handleAction('swapPokemon', { fromSlot, toSlot });
+    return true;
+  }
+  
+  removePokemon(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
+    
+    const pokemon = this.teamData[slotIndex];
+    if (!pokemon) return false;
+    
+    this.handleAction('removePokemon', { pokemonId: pokemon._id, slotIndex });
+    return true;
+  }
+  
+  // === 📊 MÉTHODES D'ANALYSE ===
+  
+  getTeamAnalysis() {
+    return {
+      basic: {
+        count: this.getPokemonCount(),
+        aliveCount: this.getAliveCount(),
+        faintedCount: this.getFaintedCount(),
+        averageLevel: this.getAverageLevel(),
+        healthPercentage: this.getHealthPercentage()
+      },
+      battle: {
+        canBattle: this.canBattle(),
+        isComplete: this.isTeamFull(),
+        needsHealing: this.needsHealing(),
+        hasStatusConditions: this.hasStatusConditions()
+      },
+      types: {
+        coverage: this.getTypeCoverage(),
+        coverageCount: this.getTypeCoverage().length,
+        duplicateTypes: this.findDuplicateTypes()
+      },
+      recommendations: this.getRecommendations()
+    };
+  }
+  
+  findDuplicateTypes() {
+    const typeCount = {};
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
+        pokemon.types.forEach(type => {
+          typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+      }
+    });
+    
+    return Object.entries(typeCount)
+      .filter(([type, count]) => count > 1)
+      .map(([type, count]) => ({ type, count }));
+  }
+  
+  getRecommendations() {
+    const recommendations = [];
+    
+    if (this.getFaintedCount() > 0) {
+      recommendations.push({
+        type: 'healing',
+        priority: 'high',
+        message: `${this.getFaintedCount()} Pokémon K.O. - Utilisez un Centre Pokémon`
+      });
+    }
+    
+    if (this.needsHealing() && this.getFaintedCount() === 0) {
+      recommendations.push({
+        type: 'healing',
+        priority: 'medium',
+        message: 'Certains Pokémon sont blessés - Soignez votre équipe'
+      });
+    }
+    
+    if (!this.isTeamFull()) {
+      recommendations.push({
+        type: 'team',
+        priority: 'medium',
+        message: `Équipe incomplète (${this.getPokemonCount()}/6) - Capturez plus de Pokémon`
+      });
+    }
+    
+    const typeCoverage = this.getTypeCoverage();
+    if (typeCoverage.length < 4) {
+      recommendations.push({
+        type: 'strategy',
+        priority: 'low',
+        message: 'Couverture de types limitée - Diversifiez votre équipe'
+      });
+    }
+    
+    if (this.hasStatusConditions()) {
+      recommendations.push({
+        type: 'status',
+        priority: 'medium',
+        message: 'Certains Pokémon ont des altérations de statut'
+      });
+    }
+    
+    return recommendations;
+  }
+  
+  // === 🎨 MÉTHODES D'AFFICHAGE AVANCÉES ===
+  
+  highlightPokemon(slotIndex, duration = 2000) {
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (!slot) return;
+    
+    slot.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.8)';
+    slot.style.transform = 'scale(1.05)';
+    
+    setTimeout(() => {
+      slot.style.boxShadow = '';
+      slot.style.transform = '';
+    }, duration);
+  }
+  
+  showPokemonAnimation(slotIndex, animationType = 'update') {
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (!slot) return;
+    
+    const pokemonCard = slot.querySelector('.pokemon-card');
+    if (!pokemonCard) return;
+    
+    switch (animationType) {
+      case 'update':
+        pokemonCard.classList.add('updated');
+        setTimeout(() => pokemonCard.classList.remove('updated'), 600);
+        break;
+      case 'heal':
+        slot.style.background = 'rgba(40, 167, 69, 0.3)';
+        setTimeout(() => slot.style.background = '', 1000);
+        break;
+      case 'faint':
+        slot.style.background = 'rgba(220, 53, 69, 0.3)';
+        setTimeout(() => slot.style.background = '', 1000);
+        break;
+    }
+  }
+  
+  updateSlotRealtime(slotIndex, newData) {
+    if (slotIndex < 0 || slotIndex >= 6) return;
+    
+    // Mettre à jour les données locales
+    if (newData) {
+      this.teamData[slotIndex] = { ...this.teamData[slotIndex], ...newData };
+    } else {
+      this.teamData[slotIndex] = null;
+    }
+    
+    // Recréer le slot
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (slot) {
+      const newSlot = this.createCompleteSlotElement(this.teamData[slotIndex], slotIndex);
+      slot.parentNode.replaceChild(newSlot, slot);
+      
+      // Animation d'apparition
+      newSlot.classList.add('new');
+      setTimeout(() => newSlot.classList.remove('new'), 500);
+    }
+    
+    // Mettre à jour les stats
+    this.updateCompleteStats();
+  }
+  
+  // === 🔄 MÉTHODES DE SYNCHRONISATION ===
+  
+  syncWithTeamManager(teamManager) {
+    if (!teamManager) return;
+    
+    try {
+      const teamStats = teamManager.getTeamStats();
+      const teamData = teamManager.getTeamData();
+      
+      console.log('🔄 [TeamUI] Synchronisation avec TeamManager:', {
+        stats: teamStats,
+        dataCount: teamData.length
+      });
+      
+      this.updateTeamData({ team: teamData });
+      
+    } catch (error) {
+      console.error('❌ [TeamUI] Erreur synchronisation TeamManager:', error);
+    }
+  }
+  
+  forceRefresh() {
+    console.log('🔄 [TeamUI] Force refresh interface...');
+    
+    this.refreshCompleteDisplay();
+    this.updateCompleteStats();
+    this.updateDetailView();
+    
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification('Interface équipe actualisée', 'success', {
+        duration: 1500,
+        position: 'bottom-center'
+      });
+    }
+  }
+  
+  // === 📱 MÉTHODES RESPONSIVE ===
+  
+  updateForScreenSize() {
+    if (!this.overlayElement) return;
+    
+    const container = this.overlayElement.querySelector('.team-container');
+    const screenWidth = window.innerWidth;
+    
+    if (screenWidth <= 768) {
+      container.classList.add('mobile-layout');
+    } else {
+      container.classList.remove('mobile-layout');
+    }
+  }
+  
+  // === 🎯 MÉTHODES DE TESTS ===
+  
+  testInterface() {
+    console.log('🧪 [TeamUI] Test interface...');
+    
+    // Test data simulée
+    const testData = {
+      team: [
+        {
+          _id: 'test1',
+          pokemonId: 1,
+          name: 'Bulbasaur',
+          nickname: 'Bulbi',
+          level: 15,
+          currentHp: 45,
+          maxHp: 45,
+          types: ['Grass', 'Poison'],
+          status: 'normal'
+        },
+        {
+          _id: 'test2',
+          pokemonId: 4,
+          name: 'Charmander',
+          level: 12,
+          currentHp: 20,
+          maxHp: 39,
+          types: ['Fire'],
+          status: 'normal'
+        },
+        {
+          _id: 'test3',
+          pokemonId: 7,
+          name: 'Squirtle',
+          level: 14,
+          currentHp: 0,
+          maxHp: 44,
+          types: ['Water'],
+          status: 'fainted'
+        }
+      ]
+    };
+    
+    this.updateTeamData(testData);
+    
+    console.log('✅ [TeamUI] Test data appliquée');
+    
+    return {
+      testDataApplied: true,
+      pokemonCount: this.teamData.length,
+      interfaceReady: !!this.overlayElement,
+      fixesApplied: {
+        overviewDisplay: true,
+        escapeListener: true
+      }
+    };
+  }
+  
+  // === 🔍 MÉTHODES DE RECHERCHE ===
+  
+  findPokemonByName(name) {
+    return this.teamData.find(p => 
+      (p.nickname && p.nickname.toLowerCase().includes(name.toLowerCase())) ||
+      (p.name && p.name.toLowerCase().includes(name.toLowerCase()))
+    );
+  }
+  
+  findPokemonsByType(type) {
+    return this.teamData.filter(p => 
+      p.types && p.types.some(t => t.toLowerCase() === type.toLowerCase())
+    );
+  }
+  
+  findPokemonsByLevel(minLevel, maxLevel = Infinity) {
+    return this.teamData.filter(p => 
+      p.level >= minLevel && p.level <= maxLevel
+    );
+  }
+  
+  findFaintedPokemon() {
+    return this.teamData.filter(p => p && p.currentHp === 0);
+  }
+  
+  findHealthyPokemon() {
+    return this.teamData.filter(p => p && p.currentHp === p.maxHp);
+  }
+  
+  findInjuredPokemon() {
+    return this.teamData.filter(p => p && p.currentHp > 0 && p.currentHp < p.maxHp);
+  }
+}
+
+export default TeamUI;
+
+// Exposer globalement pour les boutons onclick
+if (typeof window !== 'undefined') {
+  window.TeamUI = TeamUI;
 }
 
 console.log(`
-⚔️ === TEAM MODULE SINGLETON CORRIGÉ ===
+🎯 === TEAM UI INTERFACE COMPLÈTE (FIXED) ===
 
-🆕 NOUVELLES FONCTIONNALITÉS:
-• Singleton Pattern - évite double initialisation
-• forceCloseUI() - fermeture forcée de l'interface
-• Protection UIManager - connexion sécurisée
-• État persistant - réutilise instance existante
+✅ FIXES APPLIQUÉS:
+1. Vue overview affichée par défaut
+   • Force display: flex dans show()
+   • CSS .team-view.active avec !important
+   • Timeout pour assurer rendu DOM
 
-📍 INTÉGRATION UIMANAGER:
-• connectUIManager() sécurisé
-• Position: bottom-right, order: 2
-• Protection double connexion
+2. Fermeture par Escape améliorée
+   • Listener global avec vérification overlay
+   • Évite double listener avec flag
+   • Check .hidden class plutôt que isVisible
 
-🔧 FONCTIONS DE DEBUG:
-• debugTeamSingleton() - diagnostique complet
-• fixTeamModule() - réparation automatique
-• TeamModule.getInstance() - accès singleton
+🎨 DESIGN MODERNE:
+• Affichage complet des Pokémon avec portraits
+• Barres de vie animées avec effets visuels
+• Types Pokémon avec gradients colorés
+• Statistiques détaillées en temps réel
+• Vue détails avec informations complètes
 
-🔒 RÉSOLUTION PROBLÈME:
-• Plus de double initialisation
-• UI fermée par défaut
-• Force fermeture disponible
+📊 FONCTIONNALITÉS AVANCÉES:
+• Analyse d'équipe complète
+• Recommandations intelligentes
+• Couverture de types automatique
+• Synchronisation temps réel
+• Debug et test intégrés
 
-🎯 COMMANDES UTILES:
-• window.forceCloseTeam() - fermer UI
-• window.teamSystemGlobal.forceCloseUI() - force
-• debugTeamSingleton() - debug
-• fixTeamModule() - réparer
+🔧 API COMPLÈTE:
+• show() - Affichage avec vue overview forcée
+• hide() - Masquage avec nettoyage
+• updateTeamData() - Mise à jour données
+• switchToView() - Navigation avec fix display
 
-✅ PROBLÈME DOUBLE INITIALISATION RÉSOLU !
+🎯 INTERFACE PRÊTE ET FONCTIONNELLE !
+✅ Plus de vue cachée
+✅ Plus de problème Escape
+✅ Affichage parfait dès l'ouverture
 `);
