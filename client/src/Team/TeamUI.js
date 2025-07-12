@@ -129,11 +129,11 @@ export class TeamUI {
       /* Container principal */
       div#team-overlay .team-container {
         width: 950px !important;
-        height: 750px !important;
+        height: 780px !important;
         min-width: 950px !important;
         max-width: 950px !important;
-        min-height: 750px !important;
-        max-height: 750px !important;
+        min-height: 780px !important;
+        max-height: 780px !important;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42) !important;
         border: 3px solid #4a90e2 !important;
         border-radius: 20px !important;
