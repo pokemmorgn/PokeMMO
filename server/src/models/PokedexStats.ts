@@ -134,6 +134,12 @@ export interface IPokedexStats extends Document {
   generateQuickStatsHash(): string;
 }
 
+// Interface pour les méthodes statiques
+export interface IPokedexStatsModel extends Model<IPokedexStats> {
+  findOrCreate(playerId: string): Promise<IPokedexStats>;
+  getGlobalLeaderboard(type: 'caught' | 'seen' | 'shiny' | 'streak', limit?: number): Promise<any[]>;
+}
+
 // ===== SCHÉMA MONGOOSE =====
 
 const PokedexStatsSchema = new Schema<IPokedexStats>({
@@ -1051,7 +1057,7 @@ PokedexStatsSchema.statics.getGlobalLeaderboard = async function(
 };
 
 // ===== EXPORT =====
-export const PokedexStats = mongoose.model<IPokedexStats>('PokedexStats', PokedexStatsSchema);
+export const PokedexStats = mongoose.model<IPokedexStats, IPokedexStatsModel>('PokedexStats', PokedexStatsSchema);
 
 // ===== TYPES D'EXPORT =====
 export type PokedexStatsDocument = IPokedexStats;
