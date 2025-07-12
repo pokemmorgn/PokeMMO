@@ -1,680 +1,393 @@
-// server/src/services/PokédexService.ts
-import { PokédexEntry, IPokédexEntry } from '../models/PokédexEntry';
-import { PokédexStats, IPokédexStats } from '../models/PokédexStats';
-import { getPokemonById } from '../data/PokemonData';
-import { EventEmitter } from 'events';
+// server/src/services/PokemonService.ts - Version complète corrigée
 
-// ===== TYPES SIMPLES ET SÉCURISÉS =====
+import { OwnedPokemon, IOwnedPokemon } from "../models/OwnedPokemon";
+import { PlayerData } from "../models/PlayerData";
+import { HydratedDocument } from "mongoose";
+import { 
+  getPokemonById, 
+  getStarterMoves, 
+  generateRandomGender 
+} from "../data/PokemonData";
+import movesIndex from "../data/moves-index.json";
+import abilitiesData from "../data/abilities.json";
+import naturesData from "../data/natures.json";
 
-export interface PokemonSeenData {
-  playerId: string;
-  pokemonId: number;
-  level?: number;
-  location?: string;
-  weather?: string;
-  method?: 'wild' | 'trainer' | 'gift' | 'trade' | 'evolution' | 'egg' | 'special';
-  timeOfDay?: 'day' | 'night' | 'dawn' | 'dusk';
+// === UTILITAIRES DE GÉNÉRATION ===
+
+export function randomIVs(): any {
+  return {
+    hp: Math.floor(Math.random() * 32),
+    attack: Math.floor(Math.random() * 32),
+    defense: Math.floor(Math.random() * 32),
+    spAttack: Math.floor(Math.random() * 32),
+    spDefense: Math.floor(Math.random() * 32),
+    speed: Math.floor(Math.random() * 32),
+  };
 }
 
-export interface PokemonCaughtData extends PokemonSeenData {
-  ownedPokemonId: string;
-  isShiny?: boolean;
-  captureTime?: number;
+export function randomNature(): string {
+  const natures = Object.keys(naturesData);
+  return natures[Math.floor(Math.random() * natures.length)];
 }
 
-export interface PokédexFilters {
-  seen?: boolean;
-  caught?: boolean;
-  shiny?: boolean;
-  types?: string[];
-  nameQuery?: string;
-  sortBy?: 'id' | 'name' | 'level' | 'recent';
-  limit?: number;
-  offset?: number;
+export function randomShiny(odds: number = 4096): boolean {
+  return Math.random() < (1 / odds);
 }
 
-export interface PokédexResult {
-  success: boolean;
-  isNew: boolean;
-  notifications: string[];
-  error?: string;
+async function getMovesWithPP(pokemonId: number, level: number = 1): Promise<Array<{
+  moveId: string;
+  currentPp: number;
+  maxPp: number;
+}>> {
+  const moves = await getStarterMoves(pokemonId);
+  return moves.slice(0, 4).map(moveId => ({
+    moveId,
+    currentPp: getMoveBasePP(moveId),
+    maxPp: getMoveBasePP(moveId)
+  }));
 }
 
-export interface PokédexSummary {
-  totalSeen: number;
-  totalCaught: number;
-  totalShinies: number;
-  seenPercentage: number;
-  caughtPercentage: number;
-  currentStreak: number;
-  recentActivity: number;
+function toModelGender(gender: string | undefined): "Male" | "Female" | "Genderless" {
+  if (!gender) return "Genderless";
+  switch (gender.toLowerCase()) {
+    case "male":
+    case "m":
+      return "Male";
+    case "female":
+    case "f":
+      return "Female";
+    case "genderless":
+    case "none":
+    case "n":
+      return "Genderless";
+    default:
+      return "Genderless";
+  }
 }
 
-// ===== SERVICE POKÉDEX OPTIMISÉ =====
+function getMoveBasePP(moveId: string): number {
+  const defaultPP: { [key: string]: number } = {
+    normal: 35, fighting: 25, flying: 35, poison: 35,
+    ground: 30, rock: 25, bug: 35, ghost: 15, steel: 25,
+    fire: 25, water: 25, grass: 25, electric: 30,
+    psychic: 20, ice: 25, dragon: 15, dark: 15, fairy: 25
+  };
+  const moveType = movesIndex[moveId as keyof typeof movesIndex] || "normal";
+  return defaultPP[moveType] || 30;
+}
 
-export class PokédexService extends EventEmitter {
-  private static instance: PokédexService;
-  
-  // Cache optimisé avec TTL
-  private pokemonCache = new Map<number, any>();
-  private statsCache = new Map<string, { data: IPokédexStats; expires: number }>();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  
-  // Rate limiting
-  private rateLimiter = new Map<string, { count: number; resetTime: number }>();
-  private readonly MAX_ACTIONS_PER_MINUTE = 30;
-  
-  constructor() {
-    super();
-    this.setupCleanup();
-    console.log('🔍 [PokédexService] Service initialisé avec cache et rate limiting');
+async function selectPokemonAbility(pokemonId: number): Promise<string> {
+  const pokemonData = await getPokemonById(pokemonId);
+  if (!pokemonData || !pokemonData.abilities.length) {
+    return "run_away";
   }
-  
-  // Singleton avec protection
-  static getInstance(): PokédexService {
-    if (!PokédexService.instance) {
-      PokédexService.instance = new PokédxService();
-    }
-    return PokédxService.instance;
+  const useHidden = Math.random() < 0.2 && pokemonData.hiddenAbility;
+  if (useHidden) {
+    return pokemonData.hiddenAbility!;
+  } else {
+    const randomIndex = Math.floor(Math.random() * pokemonData.abilities.length);
+    return pokemonData.abilities[randomIndex];
   }
-  
-  // ===== API SIMPLE ET SÉCURISÉE =====
-  
-  /**
-   * 👁️ POKÉMON VU - Interface ultra-simple
-   * À appeler depuis vos combats/rencontres
-   */
-  async pokemonSeen(data: PokemonSeenData): Promise<PokédxResult> {
-    try {
-      // Validation et sécurité
-      const validationError = this.validateSeenData(data);
-      if (validationError) {
-        return { success: false, isNew: false, notifications: [], error: validationError };
-      }
-      
-      // Rate limiting
-      if (!this.checkRateLimit(data.playerId, 'seen')) {
-        return { success: false, isNew: false, notifications: [], error: 'Trop de requêtes' };
-      }
-      
-      console.log(`👁️ [PokédxService] ${data.playerId} voit #${data.pokemonId}`);
-      
-      // Récupérer ou créer l'entrée
-      const entry = await PokédxEntry.findOrCreate(data.playerId, data.pokemonId, {
-        location: data.location || 'Zone Inconnue',
-        level: data.level || 5,
-        method: data.method || 'wild'
-      });
-      
-      // Marquer comme vu
-      const isNewDiscovery = await entry.markSeen({
-        location: data.location || 'Zone Inconnue',
-        level: data.level || 5,
-        method: data.method || 'wild',
-        weather: data.weather,
-        timeOfDay: data.timeOfDay
-      });
-      
-      const notifications: string[] = [];
-      
-      if (isNewDiscovery) {
-        // Récupérer données Pokémon
-        const pokemonData = await this.getPokemonData(data.pokemonId);
-        if (pokemonData) {
-          notifications.push(`Nouveau Pokémon découvert : ${pokemonData.name} !`);
-          
-          // Mettre à jour les statistiques
-          const stats = await this.getPlayerStats(data.playerId);
-          await stats.incrementSeen(pokemonData);
-          
-          // Invalider cache
-          this.invalidateStatsCache(data.playerId);
-          
-          // Vérifier accomplissements simples
-          const achievements = this.checkSimpleAchievements(stats, 'seen');
-          notifications.push(...achievements);
-        }
-        
-        // Émettre événement
-        this.emit('pokemonDiscovered', {
-          playerId: data.playerId,
-          pokemonId: data.pokemonId,
-          pokemonName: pokemonData?.name,
-          isNewDiscovery: true
-        });
-      }
-      
-      return {
-        success: true,
-        isNew: isNewDiscovery,
-        notifications
-      };
-      
-    } catch (error) {
-      console.error(`❌ [PokédxService] Erreur pokemonSeen:`, error);
-      return {
-        success: false,
-        isNew: false,
-        notifications: [],
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
-    }
+}
+
+// === FONCTIONS PRINCIPALES ===
+
+export async function createCompletePokemon(
+  username: string,
+  options: {
+    pokemonId: number;
+    level?: number;
+    nature?: string;
+    shiny?: boolean;
+    nickname?: string;
+    inTeam?: boolean;
+    ivs?: any;
+    ability?: string;
+    gender?: string; // <-- Ajouté pour compat, mais pas obligatoire
   }
-  
-  /**
-   * 🎯 POKÉMON CAPTURÉ - Interface ultra-simple
-   * À appeler lors des captures réussies
-   */
-  async pokemonCaught(data: PokemonCaughtData): Promise<PokédxResult & { isNewBest?: boolean }> {
-    try {
-      // Validation et sécurité
-      const validationError = this.validateCaughtData(data);
-      if (validationError) {
-        return { success: false, isNew: false, notifications: [], error: validationError };
-      }
-      
-      // Rate limiting
-      if (!this.checkRateLimit(data.playerId, 'caught')) {
-        return { success: false, isNew: false, notifications: [], error: 'Trop de requêtes' };
-      }
-      
-      console.log(`🎯 [PokédxService] ${data.playerId} capture #${data.pokemonId}${data.isShiny ? ' ✨' : ''}`);
-      
-      // Récupérer ou créer l'entrée
-      const entry = await PokédxEntry.findOrCreate(data.playerId, data.pokemonId, {
-        location: data.location || 'Zone Inconnue',
-        level: data.level || 5,
-        method: data.method || 'wild'
-      });
-      
-      // Marquer comme capturé
-      const result = await entry.markCaught({
-        level: data.level || 5,
-        location: data.location || 'Zone Inconnue',
-        method: data.method || 'wild',
-        isShiny: data.isShiny || false,
-        ownedPokemonId: data.ownedPokemonId,
-        captureTime: data.captureTime
-      });
-      
-      const notifications: string[] = [];
-      
-      // Récupérer données Pokémon
-      const pokemonData = await this.getPokemonData(data.pokemonId);
-      
-      if (result.isNewCapture && pokemonData) {
-        notifications.push(`${pokemonData.name} capturé et ajouté au Pokédx !`);
-        
-        if (data.isShiny) {
-          notifications.push(`✨ C'est un ${pokemonData.name} shiny ! Félicitations !`);
-        }
-        
-        // Mettre à jour les statistiques
-        const stats = await this.getPlayerStats(data.playerId);
-        await stats.incrementCaught(pokemonData, data.isShiny);
-        
-        // Invalider cache
-        this.invalidateStatsCache(data.playerId);
-        
-        // Vérifier accomplissements
-        const achievements = this.checkSimpleAchievements(stats, 'caught');
-        notifications.push(...achievements);
-        
-        // Émettre événement
-        this.emit('pokemonCaptured', {
-          playerId: data.playerId,
-          pokemonId: data.pokemonId,
-          pokemonName: pokemonData.name,
-          isNewCapture: true,
-          isShiny: data.isShiny
-        });
-      }
-      
-      if (result.isNewBest && pokemonData) {
-        if (data.isShiny) {
-          notifications.push(`🌟 Premier ${pokemonData.name} shiny capturé !`);
-        } else {
-          notifications.push(`📈 Nouveau record de niveau pour ${pokemonData.name} !`);
-        }
-      }
-      
-      return {
-        success: true,
-        isNew: result.isNewCapture,
-        isNewBest: result.isNewBest,
-        notifications
-      };
-      
-    } catch (error) {
-      console.error(`❌ [PokédxService] Erreur pokemonCaught:`, error);
-      return {
-        success: false,
-        isNew: false,
-        notifications: [],
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
-    }
+): Promise<HydratedDocument<IOwnedPokemon>> {
+  const playerData = await PlayerData.findOne({ username });
+  if (!playerData) throw new Error("Joueur introuvable");
+
+  const pokemonData = await getPokemonById(options.pokemonId);
+  if (!pokemonData) throw new Error(`Pokémon ID ${options.pokemonId} introuvable`);
+
+  // Génération des données
+  const level = options.level || 1;
+  const ivs = options.ivs || randomIVs();
+  const nature = options.nature || randomNature();
+  const isShiny = options.shiny !== undefined ? options.shiny : randomShiny();
+
+  // --- Gestion du genre
+  let genderRaw: string | undefined = undefined;
+  if (options.gender) {
+    genderRaw = options.gender; // Permet d'imposer un genre, si fourni (future compat)
+  } else {
+    genderRaw = await generateRandomGender(options.pokemonId);
   }
-  
-  // ===== CONSULTATION OPTIMISÉE =====
-  
-  /**
-   * Récupère le Pokédx d'un joueur avec pagination
-   */
-  async getPlayerPokedex(playerId: string, filters: PokédxFilters = {}): Promise<{
-    entries: Array<IPokédxEntry & { pokemonData?: any }>;
-    total: number;
-    summary: PokédxSummary;
-  }> {
-    try {
-      if (!this.validatePlayerId(playerId)) {
-        throw new Error('PlayerId invalide');
-      }
-      
-      // Construction requête sécurisée
-      const query: any = { playerId };
-      
-      if (filters.seen !== undefined) query.isSeen = filters.seen;
-      if (filters.caught !== undefined) query.isCaught = filters.caught;
-      if (filters.shiny) query.hasShiny = true;
-      
-      // Filtres par nom/types (sécurisés)
-      if (filters.nameQuery) {
-        const pokemonIds = await this.searchPokemonSafe(filters.nameQuery);
-        if (pokemonIds.length === 0) {
-          return { entries: [], total: 0, summary: await this.getPlayerSummary(playerId) };
-        }
-        query.pokemonId = { $in: pokemonIds };
-      }
-      
-      if (filters.types?.length) {
-        const typeIds = await this.filterByTypesSafe(filters.types);
-        if (typeIds.length === 0) {
-          return { entries: [], total: 0, summary: await this.getPlayerSummary(playerId) };
-        }
-        query.pokemonId = query.pokemonId ? 
-          { $in: typeIds.filter(id => query.pokemonId.$in.includes(id)) } :
-          { $in: typeIds };
-      }
-      
-      // Pagination sécurisée
-      const limit = Math.min(Math.max(filters.limit || 20, 1), 100);
-      const offset = Math.max(filters.offset || 0, 0);
-      
-      // Tri sécurisé
-      let sort: any = { pokemonId: 1 };
-      switch (filters.sortBy) {
-        case 'recent':
-          sort = { lastSeenAt: -1 };
-          break;
-        case 'level':
-          sort = { bestLevel: -1 };
-          break;
-      }
-      
-      // Exécution optimisée
-      const [entries, total] = await Promise.all([
-        PokédxEntry.find(query)
-          .sort(sort)
-          .skip(offset)
-          .limit(limit)
-          .lean(),
-        PokédxEntry.countDocuments(query)
-      ]);
-      
-      // Enrichissement avec données Pokémon
-      const enrichedEntries = await Promise.all(
-        entries.map(async (entry) => {
-          const pokemonData = await this.getPokemonData(entry.pokemonId);
-          return { ...entry, pokemonData };
-        })
-      );
-      
-      const summary = await this.getPlayerSummary(playerId);
-      
-      return {
-        entries: enrichedEntries,
-        total,
-        summary
-      };
-      
-    } catch (error) {
-      console.error(`❌ [PokédxService] Erreur getPlayerPokedex:`, error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Récupère une entrée spécifique
-   */
-  async getPokedexEntry(playerId: string, pokemonId: number): Promise<{
-    entry: IPokédxEntry | null;
-    pokemonData: any;
-  }> {
-    try {
-      if (!this.validatePlayerId(playerId) || !this.validatePokemonId(pokemonId)) {
-        throw new Error('Paramètres invalides');
-      }
-      
-      const [entry, pokemonData] = await Promise.all([
-        PokédxEntry.findOne({ playerId, pokemonId }),
-        this.getPokemonData(pokemonId)
-      ]);
-      
-      return { entry, pokemonData };
-      
-    } catch (error) {
-      console.error(`❌ [PokédxService] Erreur getPokedexEntry:`, error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Récupère le résumé d'un joueur
-   */
-  async getPlayerSummary(playerId: string): Promise<PokédxSummary> {
-    try {
-      const stats = await this.getPlayerStats(playerId);
-      const completion = stats.getCompletionRate();
-      
-      return {
-        totalSeen: stats.totalSeen,
-        totalCaught: stats.totalCaught,
-        totalShinies: stats.totalShinies,
-        seenPercentage: completion.seen,
-        caughtPercentage: completion.caught,
-        currentStreak: stats.currentStreak,
-        recentActivity: await this.getRecentActivityCount(playerId, 7)
-      };
-      
-    } catch (error) {
-      console.error(`❌ [PokédxService] Erreur getPlayerSummary:`, error);
-      throw error;
-    }
-  }
-  
-  // ===== MÉTHODES PRIVÉES OPTIMISÉES =====
-  
-  /**
-   * Récupère les données Pokémon avec cache
-   */
-  private async getPokemonData(pokemonId: number): Promise<any> {
-    if (this.pokemonCache.has(pokemonId)) {
-      return this.pokemonCache.get(pokemonId);
-    }
-    
-    try {
-      const data = await getPokemonById(pokemonId);
-      if (data) {
-        this.pokemonCache.set(pokemonId, data);
-        // Limiter la taille du cache
-        if (this.pokemonCache.size > 500) {
-          const firstKey = this.pokemonCache.keys().next().value;
-          this.pokemonCache.delete(firstKey);
-        }
-      }
-      return data;
-    } catch (error) {
-      console.error(`❌ Erreur getPokemonData(${pokemonId}):`, error);
-      return null;
-    }
-  }
-  
-  /**
-   * Récupère les stats avec cache
-   */
-  private async getPlayerStats(playerId: string): Promise<IPokédxStats> {
-    const cached = this.statsCache.get(playerId);
-    if (cached && Date.now() < cached.expires) {
-      return cached.data;
-    }
-    
-    const stats = await PokédxStats.findOrCreate(playerId);
-    this.statsCache.set(playerId, {
-      data: stats,
-      expires: Date.now() + this.CACHE_TTL
+  const gender = toModelGender(genderRaw);
+  console.log("[DEBUG createCompletePokemon GENDER]", { genderRaw, gender });
+
+  const ability = options.ability || await selectPokemonAbility(options.pokemonId);
+  const moves = await getMovesWithPP(options.pokemonId, level);
+
+  // Création du Pokémon
+  const pokemonDoc = new OwnedPokemon({
+    owner: username,
+    pokemonId: options.pokemonId,
+    level,
+    experience: getExperienceForLevel(level),
+    nature,
+    nickname: options.nickname,
+    shiny: isShiny,
+    gender: ["Male", "Female", "Genderless"].includes(gender) ? gender : "Genderless",
+    ability,
+    ivs,
+    evs: {
+      hp: 0, attack: 0, defense: 0,
+      spAttack: 0, spDefense: 0, speed: 0
+    },
+    moves,
+    currentHp: 1, // Sera recalculé dans pre('save')
+    maxHp: 1,     // Sera recalculé dans pre('save')
+    status: 'normal',
+    calculatedStats: {
+      attack: 1, defense: 1, spAttack: 1,
+      spDefense: 1, speed: 1
+    },
+    isInTeam: false,
+    box: 0,
+    friendship: 70,
+    pokeball: 'poke_ball',
+    originalTrainer: username
+  });
+
+  // Sauvegarde (déclenche le calcul automatique des stats)
+  await pokemonDoc.save();
+
+  // Gestion de l'équipe si demandé
+  if (options.inTeam) {
+    const teamCount = await OwnedPokemon.countDocuments({
+      owner: username,
+      isInTeam: true
     });
-    
-    return stats;
-  }
-  
-  /**
-   * Invalide le cache des stats
-   */
-  private invalidateStatsCache(playerId: string): void {
-    this.statsCache.delete(playerId);
-  }
-  
-  /**
-   * Vérifie les accomplissements simples
-   */
-  private checkSimpleAchievements(stats: IPokédxStats, action: 'seen' | 'caught'): string[] {
-    const notifications: string[] = [];
-    
-    if (action === 'seen') {
-      // Milestones de découverte
-      const seenMilestones = [1, 10, 25, 50, 100, 151];
-      if (seenMilestones.includes(stats.totalSeen)) {
-        notifications.push(`🏆 ${stats.totalSeen} Pokémon découvert${stats.totalSeen > 1 ? 's' : ''} !`);
+
+    if (teamCount < 6) {
+      pokemonDoc.isInTeam = true;
+      pokemonDoc.slot = teamCount;
+      pokemonDoc.box = undefined;
+      pokemonDoc.boxSlot = undefined;
+
+      // Met à jour PlayerData
+      if (!Array.isArray(playerData.team)) {
+        playerData.team = [];
       }
-      
-      // Streak de découverte
-      if (stats.currentStreak > 0 && stats.currentStreak % 7 === 0) {
-        notifications.push(`🔥 ${stats.currentStreak} jours de découvertes consécutives !`);
-      }
-    }
-    
-    if (action === 'caught') {
-      // Milestones de capture
-      const caughtMilestones = [1, 5, 10, 25, 50, 100, 151];
-      if (caughtMilestones.includes(stats.totalCaught)) {
-        notifications.push(`🎯 ${stats.totalCaught} Pokémon capturé${stats.totalCaught > 1 ? 's' : ''} !`);
-      }
-      
-      // Premier shiny
-      if (stats.totalShinies === 1) {
-        notifications.push(`✨ Premier Pokémon shiny capturé ! Félicitations !`);
-      }
-    }
-    
-    return notifications;
-  }
-  
-  /**
-   * Rate limiting sécurisé
-   */
-  private checkRateLimit(playerId: string, action: string): boolean {
-    const key = `${playerId}:${action}`;
-    const now = Date.now();
-    const minute = 60 * 1000;
-    
-    const current = this.rateLimiter.get(key);
-    if (!current || now > current.resetTime) {
-      this.rateLimiter.set(key, { count: 1, resetTime: now + minute });
-      return true;
-    }
-    
-    if (current.count >= this.MAX_ACTIONS_PER_MINUTE) {
-      return false;
-    }
-    
-    current.count++;
-    return true;
-  }
-  
-  // ===== VALIDATIONS SÉCURISÉES =====
-  
-  private validateSeenData(data: PokemonSeenData): string | null {
-    if (!data.playerId || typeof data.playerId !== 'string' || data.playerId.length > 50) {
-      return 'PlayerId invalide';
-    }
-    
-    if (!this.validatePokemonId(data.pokemonId)) {
-      return 'PokemonId invalide';
-    }
-    
-    if (data.level !== undefined && (data.level < 1 || data.level > 100)) {
-      return 'Niveau invalide (1-100)';
-    }
-    
-    if (data.location && data.location.length > 100) {
-      return 'Nom de lieu trop long';
-    }
-    
-    return null;
-  }
-  
-  private validateCaughtData(data: PokemonCaughtData): string | null {
-    const seenError = this.validateSeenData(data);
-    if (seenError) return seenError;
-    
-    if (!data.ownedPokemonId || typeof data.ownedPokemonId !== 'string') {
-      return 'OwnedPokemonId requis';
-    }
-    
-    if (data.captureTime !== undefined && (data.captureTime < 0 || data.captureTime > 3600)) {
-      return 'Temps de capture invalide';
-    }
-    
-    return null;
-  }
-  
-  private validatePlayerId(playerId: string): boolean {
-    return typeof playerId === 'string' && playerId.length > 0 && playerId.length <= 50;
-  }
-  
-  private validatePokemonId(pokemonId: number): boolean {
-    return Number.isInteger(pokemonId) && pokemonId >= 1 && pokemonId <= 2000;
-  }
-  
-  // ===== RECHERCHE SÉCURISÉE =====
-  
-  private async searchPokemonSafe(nameQuery: string): Promise<number[]> {
-    if (!nameQuery || nameQuery.length > 50) return [];
-    
-    const lowerQuery = nameQuery.toLowerCase().trim();
-    const results: number[] = [];
-    
-    // Recherche limitée pour éviter la surcharge
-    for (let i = 1; i <= 151 && results.length < 20; i++) {
-      const data = await this.getPokemonData(i);
-      if (data && data.name.toLowerCase().includes(lowerQuery)) {
-        results.push(i);
-      }
-    }
-    
-    return results;
-  }
-  
-  private async filterByTypesSafe(types: string[]): Promise<number[]> {
-    if (!types || types.length === 0 || types.length > 5) return [];
-    
-    const validTypes = types.filter(type => 
-      typeof type === 'string' && type.length > 0 && type.length <= 20
-    );
-    
-    if (validTypes.length === 0) return [];
-    
-    const results: number[] = [];
-    
-    for (let i = 1; i <= 151 && results.length < 100; i++) {
-      const data = await this.getPokemonData(i);
-      if (data && data.types) {
-        const hasMatchingType = validTypes.some(type =>
-          data.types.some((pokemonType: string) =>
-            pokemonType.toLowerCase() === type.toLowerCase()
-          )
-        );
-        if (hasMatchingType) {
-          results.push(i);
-        }
-      }
-    }
-    
-    return results;
-  }
-  
-  private async getRecentActivityCount(playerId: string, days: number): Promise<number> {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    
-    return await PokédxEntry.countDocuments({
-      playerId,
-      lastSeenAt: { $gte: since }
-    });
-  }
-  
-  // ===== NETTOYAGE ET MAINTENANCE =====
-  
-  private setupCleanup(): void {
-    // Nettoyage cache toutes les 10 minutes
-    setInterval(() => {
-      this.cleanupCaches();
-    }, 10 * 60 * 1000);
-    
-    // Nettoyage rate limiter toutes les 5 minutes
-    setInterval(() => {
-      this.cleanupRateLimiter();
-    }, 5 * 60 * 1000);
-  }
-  
-  private cleanupCaches(): void {
-    const now = Date.now();
-    
-    // Nettoyer le cache des stats expirées
-    for (const [playerId, cached] of this.statsCache.entries()) {
-      if (now > cached.expires) {
-        this.statsCache.delete(playerId);
-      }
-    }
-    
-    // Limiter la taille du cache Pokémon
-    if (this.pokemonCache.size > 300) {
-      const toDelete = this.pokemonCache.size - 300;
-      const iterator = this.pokemonCache.keys();
-      for (let i = 0; i < toDelete; i++) {
-        const key = iterator.next().value;
-        this.pokemonCache.delete(key);
-      }
+      playerData.team.push(pokemonDoc._id as any);
+      await playerData.save();
+      await pokemonDoc.save();
+    } else {
+      console.warn(`Équipe pleine pour ${username}, ${options.nickname || pokemonData.name} envoyé au PC`);
     }
   }
-  
-  private cleanupRateLimiter(): void {
-    const now = Date.now();
-    
-    for (const [key, data] of this.rateLimiter.entries()) {
-      if (now > data.resetTime) {
-        this.rateLimiter.delete(key);
-      }
-    }
-  }
-  
-  /**
-   * Méthode de maintenance publique
-   */
-  async recalculatePlayerStats(playerId: string): Promise<IPokédxStats> {
-    if (!this.validatePlayerId(playerId)) {
-      throw new Error('PlayerId invalide');
-    }
-    
-    const stats = await this.getPlayerStats(playerId);
-    await stats.recalculateFromEntries();
-    this.invalidateStatsCache(playerId);
-    
-    return stats;
-  }
-  
-  /**
-   * Nettoyage manuel des caches
-   */
-  clearCaches(): void {
-    this.pokemonCache.clear();
-    this.statsCache.clear();
-    this.rateLimiter.clear();
-    console.log('🧹 [PokédxService] Caches nettoyés manuellement');
-  }
+
+  return pokemonDoc;
 }
 
-// ===== EXPORT SINGLETON =====
-export const pokédxService = PokédxService.getInstance();
-export default pokédxService;
+function getExperienceForLevel(level: number): number {
+  if (level === 1) return 0;
+  return Math.floor((6 * Math.pow(level, 3)) / 5 - 15 * Math.pow(level, 2) + 100 * level - 140);
+}
+
+export async function giveStarterToPlayer(
+  username: string,
+  starterId: 1 | 4 | 7
+): Promise<HydratedDocument<IOwnedPokemon>> {
+  const starterIVs = {
+    hp: Math.floor(Math.random() * 16) + 15,
+    attack: Math.floor(Math.random() * 16) + 15,
+    defense: Math.floor(Math.random() * 16) + 15,
+    spAttack: Math.floor(Math.random() * 16) + 15,
+    spDefense: Math.floor(Math.random() * 16) + 15,
+    speed: Math.floor(Math.random() * 16) + 15,
+  };
+
+  return createCompletePokemon(username, {
+    pokemonId: starterId,
+    level: 5,
+    inTeam: true,
+    shiny: randomShiny(8192),
+    ivs: starterIVs
+  });
+}
+
+export async function generateWildPokemon(
+  pokemonId: number,
+  level: number,
+  options: {
+    minIVs?: number;
+    maxIVs?: number;
+    shinyOdds?: number;
+    nature?: string;
+  } = {}
+): Promise<any> {
+  const pokemonData = await getPokemonById(pokemonId);
+  if (!pokemonData) throw new Error(`Pokémon ID ${pokemonId} introuvable`);
+
+  const minIV = options.minIVs || 0;
+  const maxIV = options.maxIVs || 31;
+  
+  const ivs = {
+    hp: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+    attack: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+    defense: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+    spAttack: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+    spDefense: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+    speed: Math.floor(Math.random() * (maxIV - minIV + 1)) + minIV,
+  };
+
+  const nature = options.nature || randomNature();
+  const isShiny = randomShiny(options.shinyOdds || 4096);
+  const gender = await generateRandomGender(pokemonId);
+  const ability = await selectPokemonAbility(pokemonId);
+  const moves = await getMovesWithPP(pokemonId, level);
+
+  // Calcul des stats avec la formule officielle
+  const stats = calculateWildPokemonStats(pokemonData.baseStats, level, ivs, nature);
+
+  return {
+    pokemonId,
+    name: pokemonData.name,
+    level,
+    nature,
+    shiny: isShiny,
+    gender,
+    ability,
+    ivs,
+    moves,
+    currentHp: stats.hp,
+    maxHp: stats.hp,
+    status: 'normal',
+    calculatedStats: {
+      attack: stats.attack,
+      defense: stats.defense,
+      spAttack: stats.spAttack,
+      spDefense: stats.spDefense,
+      speed: stats.speed
+    },
+    types: pokemonData.types,
+    baseStats: pokemonData.baseStats
+  };
+}
+
+function calculateWildPokemonStats(baseStats: any, level: number, ivs: any, nature: string): any {
+  const natureData = naturesData[nature as keyof typeof naturesData];
+  
+  const calculateStat = (statName: string, baseStat: number, isHP: boolean = false): number => {
+    const iv = ivs[statName] || 0;
+    if (isHP) {
+      return Math.floor(((2 * baseStat + iv) * level) / 100) + level + 10;
+    } else {
+      let stat = Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
+      if (natureData?.increased === statName) {
+        stat = Math.floor(stat * 1.1);
+      } else if (natureData?.decreased === statName) {
+        stat = Math.floor(stat * 0.9);
+      }
+      return stat;
+    }
+  };
+
+  return {
+    hp: calculateStat('hp', baseStats.hp, true),
+    attack: calculateStat('attack', baseStats.attack),
+    defense: calculateStat('defense', baseStats.defense),
+    spAttack: calculateStat('spAttack', baseStats.specialAttack),
+    spDefense: calculateStat('spDefense', baseStats.specialDefense),
+    speed: calculateStat('speed', baseStats.speed)
+  };
+}
+
+export async function evolvePokemon(
+  pokemonId: string,
+  newPokemonId: number
+): Promise<IOwnedPokemon | null> {
+  const pokemon = await OwnedPokemon.findById(pokemonId);
+  if (!pokemon) return null;
+
+  const newPokemonData = await getPokemonById(newPokemonId);
+  if (!newPokemonData) return null;
+
+  pokemon.pokemonId = newPokemonId;
+  const newAbility = await selectPokemonAbility(newPokemonId);
+  pokemon.ability = newAbility;
+  await pokemon.save();
+
+  return pokemon;
+}
+
+export async function gainExperience(
+  pokemonId: string,
+  expAmount: number
+): Promise<{ leveledUp: boolean, newLevel?: number }> {
+  const pokemon = await OwnedPokemon.findById(pokemonId);
+  if (!pokemon) throw new Error("Pokémon introuvable");
+
+  const oldLevel = pokemon.level;
+  pokemon.experience += expAmount;
+
+  let newLevel = calculateLevelFromExp(pokemon.experience);
+  if (newLevel > 100) newLevel = 100;
+
+  const leveledUp = newLevel > oldLevel;
+  if (leveledUp) {
+    pokemon.level = newLevel;
+  }
+
+  await pokemon.save();
+
+  return { leveledUp, newLevel: leveledUp ? newLevel : undefined };
+}
+
+function calculateLevelFromExp(exp: number): number {
+  if (exp === 0) return 1;
+  for (let level = 1; level <= 100; level++) {
+    const expForLevel = getExperienceForLevel(level);
+    const expForNextLevel = getExperienceForLevel(level + 1);
+    if (exp >= expForLevel && exp < expForNextLevel) {
+      return level;
+    }
+  }
+  return 100;
+}
+
+export async function healPokemonAtCenter(username: string): Promise<number> {
+  const teamPokemon = await OwnedPokemon.find({
+    owner: username,
+    isInTeam: true
+  });
+
+  let healedCount = 0;
+  for (const pokemon of teamPokemon) {
+    if (pokemon.currentHp < pokemon.maxHp || pokemon.status !== 'normal') {
+      pokemon.heal();
+      await pokemon.save();
+      healedCount++;
+    }
+  }
+  return healedCount;
+}
+
+export async function givePokemonToPlayer(
+  username: string,
+  options: {
+    pokemonId: number;
+    level?: number;
+    nature?: string;
+    shiny?: boolean;
+    nickname?: string;
+    inTeam?: boolean;
+    gender?: string;
+  }
+): Promise<HydratedDocument<IOwnedPokemon>> {
+  return createCompletePokemon(username, options);
+}
