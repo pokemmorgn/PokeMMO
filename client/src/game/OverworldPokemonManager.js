@@ -1,18 +1,4 @@
-canMoveToTile(pokemon, tileX, tileY) {
-    // Convertir en pixels (centre de la tile)
-    const pixelX = tileX * this.tileSize + (this.tileSize / 2);
-    const pixelY = tileY * this.tileSize + (this.tileSize / 2);
-    
-    console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
-    console.log(`📏 TileSize utilisé: ${this.tileSize}px`);
-    
-    if (pokemon && pokemon.isStatic) {
-      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} est STATIQUE - mouvement interdit`);
-      return false;
-    }
-    
-    if (pokemon && pokemon.spawnTileX !== undefined && pokemon.spawnTileY !== undefined) {
-      const distanceFromSpawn = Math.abs// ================================================================================================
+// ================================================================================================
 // CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION TILE PAR TILE AVEC FLAPAROUND
 // ================================================================================================
 import { SpriteUtils } from '../utils/SpriteUtils.js';
@@ -24,10 +10,10 @@ export class OverworldPokemonManager {
     this.loadedSprites = new Set();
     this.loadingSprites = new Set();
     this.spriteStructures = new Map();
-    this.tileSize = 16;
+    this.tileSize = 32;
     this.moveSpeed = 32;
     
-    console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile avec FlapAround");
+    console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile avec FlapAround (32px tiles)");
   }
 
   isFirstRowOnlyAnimation(animationFile) {
@@ -123,8 +109,9 @@ export class OverworldPokemonManager {
   }
 
   createFlapAroundAnimations(pokemonId, spriteKey, structure, animationFile) {
-    // ✅ CORRECTION: Enlever le .png aussi
     const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
+    
+    const maxFrames = Math.min(16, structure.cols);
     
     const directions = [
       { name: 'down', startIndex: 0 },
@@ -137,8 +124,10 @@ export class OverworldPokemonManager {
       { name: 'down-left', startIndex: 14 }
     ];
 
+    console.log(`🎬 [OverworldPokemonManager] FlapAround structure: ${structure.cols}x${structure.rows} - Utilisation frames 0-${maxFrames-1} pour ${pokemonId}`);
+
     directions.forEach(dir => {
-      if (dir.startIndex + 1 < structure.cols * structure.rows) {
+      if (dir.startIndex + 1 < maxFrames) {
         const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
         const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
         
@@ -152,6 +141,7 @@ export class OverworldPokemonManager {
             frameRate: 8,
             repeat: -1
           });
+          console.log(`✅ Created walk anim: ${walkKey} (frames ${dir.startIndex}-${dir.startIndex + 1})`);
         }
         
         if (!this.scene.anims.exists(idleKey)) {
@@ -164,11 +154,14 @@ export class OverworldPokemonManager {
             frameRate: 1,
             repeat: 0
           });
+          console.log(`✅ Created idle anim: ${idleKey} (frame ${dir.startIndex})`);
         }
+      } else {
+        console.log(`⚠️ [OverworldPokemonManager] Direction ${dir.name} ignorée (index ${dir.startIndex} >= limite ${maxFrames})`);
       }
     });
     
-    console.log(`✅ [OverworldPokemonManager] Animations FlapAround créées pour ${pokemonId}`);
+    console.log(`✅ [OverworldPokemonManager] Animations FlapAround créées pour ${pokemonId} (frames 0-${maxFrames-1} utilisées sur ${structure.cols} disponibles)`);
   }
 
   createStandardAnimations(pokemonId, spriteKey, structure, animationFile) {
@@ -183,7 +176,6 @@ export class OverworldPokemonManager {
       { name: 'down-left', row: 7 }
     ];
 
-    // ✅ CORRECTION: Même logique pour la cohérence
     const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
 
     directions.forEach(dir => {
@@ -248,6 +240,7 @@ export class OverworldPokemonManager {
     const pixelY = tileY * this.tileSize + (this.tileSize / 2);
     
     console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
+    console.log(`📏 TileSize utilisé: ${this.tileSize}px`);
     
     if (pokemon && pokemon.isStatic) {
       console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} est STATIQUE - mouvement interdit`);
@@ -350,7 +343,7 @@ export class OverworldPokemonManager {
       }
       
       const animDirection = this.getDirectionForAnimation(direction || 'down');
-      const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+      const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
       
       let animKey;
       if (isMoving) {
@@ -420,7 +413,7 @@ export class OverworldPokemonManager {
     
     pokemon.lastDirection = direction;
     
-    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').replace('.png', '').toLowerCase();
     const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${direction}`;
     
     if (pokemon.anims && this.scene.anims.exists(animKey)) {
@@ -448,7 +441,7 @@ export class OverworldPokemonManager {
     pokemon.isMovingToTarget = false;
     pokemon.moveProgress = 0;
     
-    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').replace('.png', '').toLowerCase();
     const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${pokemon.lastDirection}`;
     
     if (pokemon.anims && this.scene.anims.exists(animKey)) {
@@ -471,15 +464,13 @@ export class OverworldPokemonManager {
     if (!pokemon) return;
     
     console.log(`🔄 [OverworldPokemonManager] Update ${pokemon.name}: isMoving=${isMoving}, direction=${direction}`);
-    console.log(`📍 Position serveur: (${x}, ${y}) → Target: (${targetX}, ${targetY})`);
-    console.log(`🎯 Position client actuelle: (${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`);
     
     if (x !== undefined && y !== undefined) {
       const distanceX = Math.abs(pokemon.x - x);
       const distanceY = Math.abs(pokemon.y - y);
       
       if (distanceX > 5 || distanceY > 5) {
-        console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} SYNC position: client(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)}) → serveur(${x}, ${y})`);
+        console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} SYNC position`);
         const snappedPos = this.snapToGrid(x, y);
         pokemon.setPosition(snappedPos.x, snappedPos.y);
         pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
@@ -488,19 +479,11 @@ export class OverworldPokemonManager {
     }
     
     if (isMoving && targetX !== undefined && targetY !== undefined) {
-      const snappedTarget = this.snapToGrid(targetX, targetY);
-      const targetTileX = Math.round(snappedTarget.x / this.tileSize);
-      const targetTileY = Math.round(snappedTarget.y / this.tileSize);
-      
-      console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} COMMANDE MOUVEMENT: (${pokemon.currentTileX}, ${pokemon.currentTileY}) → (${targetTileX}, ${targetTileY})`);
-      
       if (pokemon.isMovingToTarget) {
-        console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement précédent`);
         this.stopTileMovement(pokemon);
       }
       
-      console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} FORCE mouvement vers (${targetTileX}, ${targetTileY})`);
-      
+      const snappedTarget = this.snapToGrid(targetX, targetY);
       pokemon.targetX = snappedTarget.x;
       pokemon.targetY = snappedTarget.y;
       pokemon.isMovingToTarget = true;
@@ -508,6 +491,8 @@ export class OverworldPokemonManager {
       pokemon.moveStartTime = Date.now();
       pokemon.moveDuration = (this.tileSize / this.moveSpeed) * 1000;
       
+      const targetTileX = Math.round(snappedTarget.x / this.tileSize);
+      const targetTileY = Math.round(snappedTarget.y / this.tileSize);
       const deltaX = targetTileX - pokemon.currentTileX;
       const deltaY = targetTileY - pokemon.currentTileY;
       
@@ -520,21 +505,17 @@ export class OverworldPokemonManager {
       
       pokemon.lastDirection = direction || newDirection;
       
-      const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+      const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').replace('.png', '').toLowerCase();
       const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${pokemon.lastDirection}`;
       
       if (pokemon.anims && this.scene.anims.exists(animKey)) {
         try {
           pokemon.anims.play(animKey, true);
-          console.log(`🎬 [OverworldPokemonManager] FORCE animation marche: ${animKey}`);
         } catch (error) {
           console.warn(`⚠️ Erreur animation marche:`, error);
         }
       }
-      
-      console.log(`✅ [OverworldPokemonManager] ${pokemon.name} mouvement visuel FORCÉ démarré`);
     } else if (isMoving === false && pokemon.isMovingToTarget) {
-      console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} ARRÊT forcé par serveur`);
       this.stopTileMovement(pokemon);
       
       if (x !== undefined && y !== undefined) {
@@ -542,22 +523,19 @@ export class OverworldPokemonManager {
         pokemon.setPosition(snappedPos.x, snappedPos.y);
         pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
         pokemon.currentTileY = Math.round(snappedPos.y / this.tileSize);
-        console.log(`📍 [OverworldPokemonManager] ${pokemon.name} position finale sync: (${pokemon.currentTileX}, ${pokemon.currentTileY})`);
       }
     }
     
     if (direction !== undefined && direction !== pokemon.lastDirection) {
-      console.log(`🧭 [OverworldPokemonManager] ${pokemon.name} changement direction: ${pokemon.lastDirection} → ${direction}`);
       pokemon.lastDirection = direction;
       
       if (!pokemon.isMovingToTarget) {
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').replace('.png', '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${direction}`;
         
         if (pokemon.anims && this.scene.anims.exists(idleAnimKey)) {
           try {
             pokemon.anims.play(idleAnimKey, true);
-            console.log(`🎬 [OverworldPokemonManager] Animation direction: ${idleAnimKey}`);
           } catch (error) {
             console.warn(`⚠️ Erreur animation direction:`, error);
           }
@@ -585,8 +563,6 @@ export class OverworldPokemonManager {
       pokemon.currentTileX = Math.round(pokemon.targetX / this.tileSize);
       pokemon.currentTileY = Math.round(pokemon.targetY / this.tileSize);
       this.stopTileMovement(pokemon);
-      
-      console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à tile (${pokemon.currentTileX}, ${pokemon.currentTileY})`);
     } else {
       const startX = pokemon.currentTileX * this.tileSize;
       const startY = pokemon.currentTileY * this.tileSize;
@@ -739,7 +715,7 @@ export class OverworldPokemonManager {
     console.log(`📏 Taille tile: ${this.tileSize}px`);
     console.log(`⚡ Vitesse mouvement: ${this.moveSpeed}px/s`);
     console.log(`🎮 Système: TILE PAR TILE avec CONFIG MOUVEMENT`);
-    console.log(`🦅 Support FlapAround-Anim avec paires d'index par direction`);
+    console.log(`🦅 Support FlapAround-Anim avec frames 0-15`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
       const isMoving = pokemon.isMovingToTarget;
