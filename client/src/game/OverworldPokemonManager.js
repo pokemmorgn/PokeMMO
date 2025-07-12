@@ -1,5 +1,5 @@
 // ================================================================================================
-// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION PHYSICS VELOCITY
+// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION TILE PAR TILE
 // ================================================================================================
 import { SpriteUtils } from '../utils/SpriteUtils.js';
 
@@ -10,9 +10,10 @@ export class OverworldPokemonManager {
     this.loadedSprites = new Set(); // Cache des sprites chargés
     this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
     this.spriteStructures = new Map(); // Cache des structures détectées
-    this.gridSize = 32; // Taille d'une case (2 tiles de 16px)
+    this.tileSize = 16; // Taille d'une tile
+    this.moveSpeed = 80; // Pixels par seconde pour le lerp
     
-    console.log("🌍 [OverworldPokemonManager] Initialisé - Système physics velocity");
+    console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile");
   }
 
   /**
@@ -246,7 +247,38 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Crée ou met à jour un Pokémon overworld avec PHYSICS comme le joueur
+   * ✅ Snap une position sur la grille 16x16
+   */
+  snapToGrid(x, y) {
+    return {
+      x: Math.round(x / this.tileSize) * this.tileSize,
+      y: Math.round(y / this.tileSize) * this.tileSize
+    };
+  }
+
+  /**
+   * ✅ Vérifie si une position tile est libre (avec physics)
+   */
+  canMoveToTile(pokemon, tileX, tileY) {
+    // Convertir en pixels
+    const pixelX = tileX * this.tileSize;
+    const pixelY = tileY * this.tileSize;
+    
+    // Vérifier les collisions avec les layers
+    if (this.scene.collisionLayers) {
+      for (const layer of this.scene.collisionLayers) {
+        const tile = layer.getTileAtWorldXY(pixelX, pixelY);
+        if (tile && tile.collides) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * ✅ Crée ou met à jour un Pokémon overworld avec système tile par tile
    */
   async createOrUpdateOverworldPokemon(pokemonData) {
     try {
@@ -269,8 +301,9 @@ export class OverworldPokemonManager {
       // Charger le sprite avec la bonne animation
       const spriteKey = await this.loadPokemonSprite(pokemonId, animationFile);
       
-      // ✅ CRÉATION AVEC PHYSICS comme le joueur
-      const pokemon = this.scene.physics.add.sprite(x, y, spriteKey, 0);
+      // ✅ CRÉATION AVEC PHYSICS mais position snappée sur grille
+      const snappedPos = this.snapToGrid(x, y);
+      const pokemon = this.scene.physics.add.sprite(snappedPos.x, snappedPos.y, spriteKey, 0);
       
       // ✅ Configuration physics identique au joueur
       pokemon.setOrigin(0.5, 1);
@@ -302,15 +335,21 @@ export class OverworldPokemonManager {
       pokemon.animations = animations;
       pokemon.currentAnimation = currentAnimation;
       
-      // ✅ Propriétés pour mouvement physics
-      pokemon.targetX = targetX || x;
-      pokemon.targetY = targetY || y;
-      pokemon.moveSpeed = 100; // Vitesse de déplacement (comme le joueur)
+      // ✅ Propriétés pour mouvement tile par tile
+      pokemon.targetX = targetX ? this.snapToGrid(targetX, 0).x : snappedPos.x;
+      pokemon.targetY = targetY ? this.snapToGrid(0, targetY).y : snappedPos.y;
       pokemon.isMovingToTarget = false;
+      pokemon.moveProgress = 0; // 0 à 1 pour le lerp
+      pokemon.moveStartTime = 0;
+      pokemon.moveDuration = 0;
+      
+      // ✅ Position actuelle en tiles
+      pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
+      pokemon.currentTileY = Math.round(snappedPos.y / this.tileSize);
       
       // ✅ Démarrer le mouvement si nécessaire
       if (isMoving && targetX !== undefined && targetY !== undefined) {
-        this.startPhysicsMovement(pokemon, targetX, targetY);
+        this.startTileMovement(pokemon, targetX, targetY);
       }
       
       // ✅ Gestion animation initiale
@@ -345,7 +384,7 @@ export class OverworldPokemonManager {
       // Ajouter au cache
       this.overworldPokemon.set(id, pokemon);
       
-      console.log(`✅ [OverworldPokemonManager] ${name} créé avec physics movement`);
+      console.log(`✅ [OverworldPokemonManager] ${name} créé avec système tile par tile`);
       
       return pokemon;
       
@@ -356,61 +395,75 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Démarre le mouvement physics vers une cible
+   * ✅ Démarre le mouvement tile par tile vers une cible
    */
-  startPhysicsMovement(pokemon, targetX, targetY) {
-    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} démarre mouvement physics vers (${targetX}, ${targetY})`);
+  startTileMovement(pokemon, targetX, targetY) {
+    // Snapper la cible sur la grille
+    const snappedTarget = this.snapToGrid(targetX, targetY);
+    const targetTileX = Math.round(snappedTarget.x / this.tileSize);
+    const targetTileY = Math.round(snappedTarget.y / this.tileSize);
     
-    pokemon.targetX = targetX;
-    pokemon.targetY = targetY;
-    pokemon.isMovingToTarget = true;
+    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} tile movement: (${pokemon.currentTileX},${pokemon.currentTileY}) → (${targetTileX},${targetTileY})`);
     
-    // Calculer la direction et la vélocité
-    const deltaX = targetX - pokemon.x;
-    const deltaY = targetY - pokemon.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    
-    if (distance > 2) { // Si assez loin pour bouger
-      const velocityX = (deltaX / distance) * pokemon.moveSpeed;
-      const velocityY = (deltaY / distance) * pokemon.moveSpeed;
-      
-      pokemon.body.setVelocity(velocityX, velocityY);
-      
-      // Déterminer la direction pour l'animation
-      let direction = 'down';
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        direction = deltaX > 0 ? 'right' : 'left';
-      } else {
-        direction = deltaY > 0 ? 'down' : 'up';
-      }
-      
-      pokemon.lastDirection = direction;
-      
-      // Jouer l'animation de marche
-      const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-      const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${direction}`;
-      
-      if (pokemon.anims && this.scene.anims.exists(animKey)) {
-        try {
-          pokemon.anims.play(animKey, true);
-        } catch (error) {
-          console.warn(`⚠️ Erreur animation marche:`, error);
-        }
-      }
-    } else {
-      // Déjà à destination
-      this.stopPhysicsMovement(pokemon);
+    // Vérifier si la tile de destination est libre
+    if (!this.canMoveToTile(pokemon, targetTileX, targetTileY)) {
+      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} tile (${targetTileX},${targetTileY}) bloquée`);
+      return false;
     }
+    
+    // Configuration du mouvement
+    pokemon.targetX = snappedTarget.x;
+    pokemon.targetY = snappedTarget.y;
+    pokemon.isMovingToTarget = true;
+    pokemon.moveProgress = 0;
+    pokemon.moveStartTime = Date.now();
+    pokemon.moveDuration = (this.tileSize / this.moveSpeed) * 1000; // Durée en ms
+    
+    // Déterminer la direction pour l'animation
+    const deltaX = targetTileX - pokemon.currentTileX;
+    const deltaY = targetTileY - pokemon.currentTileY;
+    
+    let direction = 'down';
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      direction = deltaX > 0 ? 'right' : 'left';
+    } else {
+      direction = deltaY > 0 ? 'down' : 'up';
+    }
+    
+    pokemon.lastDirection = direction;
+    
+    // Jouer l'animation de marche
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const animKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${direction}`;
+    
+    if (pokemon.anims && this.scene.anims.exists(animKey)) {
+      try {
+        pokemon.anims.play(animKey, true);
+        console.log(`🎬 [OverworldPokemonManager] Animation marche: ${animKey}`);
+      } catch (error) {
+        console.warn(`⚠️ Erreur animation marche:`, error);
+      }
+    }
+    
+    return true;
   }
 
   /**
-   * ✅ Arrête le mouvement physics
+   * ✅ Arrête le mouvement tile par tile
    */
-  stopPhysicsMovement(pokemon) {
-    console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement physics`);
+  stopTileMovement(pokemon) {
+    console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement tile`);
     
-    pokemon.body.setVelocity(0, 0);
+    // Snapper à la position finale
+    const finalPos = this.snapToGrid(pokemon.x, pokemon.y);
+    pokemon.setPosition(finalPos.x, finalPos.y);
+    
+    // Mettre à jour la position tile
+    pokemon.currentTileX = Math.round(finalPos.x / this.tileSize);
+    pokemon.currentTileY = Math.round(finalPos.y / this.tileSize);
+    
     pokemon.isMovingToTarget = false;
+    pokemon.moveProgress = 0;
     
     // Jouer l'animation idle
     const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
@@ -419,6 +472,7 @@ export class OverworldPokemonManager {
     if (pokemon.anims && this.scene.anims.exists(animKey)) {
       try {
         pokemon.anims.play(animKey, true);
+        console.log(`🎬 [OverworldPokemonManager] Animation idle: ${animKey}`);
       } catch (error) {
         console.warn(`⚠️ Erreur animation idle:`, error);
       }
@@ -426,7 +480,7 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Met à jour un Pokémon existant avec physics
+   * ✅ Met à jour un Pokémon existant avec système tile par tile
    */
   updateOverworldPokemon(pokemonData) {
     const { 
@@ -441,20 +495,24 @@ export class OverworldPokemonManager {
     
     // ✅ Nouveau mouvement détecté
     if (isMoving && targetX !== undefined && targetY !== undefined) {
-      if (targetX !== pokemon.targetX || targetY !== pokemon.targetY) {
-        console.log(`🚀 [OverworldPokemonManager] Nouveau mouvement physics: ${pokemon.name} → (${targetX},${targetY})`);
-        this.startPhysicsMovement(pokemon, targetX, targetY);
+      const snappedTarget = this.snapToGrid(targetX, targetY);
+      if (snappedTarget.x !== pokemon.targetX || snappedTarget.y !== pokemon.targetY) {
+        console.log(`🚀 [OverworldPokemonManager] Nouveau mouvement tile: ${pokemon.name} → (${targetX},${targetY})`);
+        this.startTileMovement(pokemon, targetX, targetY);
       }
     }
     
     // ✅ Arrêt forcé par le serveur
     else if (isMoving === false && pokemon.isMovingToTarget) {
-      console.log(`⏹️ [OverworldPokemonManager] Arrêt forcé physics: ${pokemon.name}`);
-      this.stopPhysicsMovement(pokemon);
+      console.log(`⏹️ [OverworldPokemonManager] Arrêt forcé tile: ${pokemon.name}`);
+      this.stopTileMovement(pokemon);
       
       // Synchroniser position avec le serveur si nécessaire
       if (x !== undefined && y !== undefined) {
-        pokemon.setPosition(x, y);
+        const snappedPos = this.snapToGrid(x, y);
+        pokemon.setPosition(snappedPos.x, snappedPos.y);
+        pokemon.currentTileX = Math.round(snappedPos.x / this.tileSize);
+        pokemon.currentTileY = Math.round(snappedPos.y / this.tileSize);
       }
     }
     
@@ -465,21 +523,13 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Mise à jour principale avec physics (BEAUCOUP plus simple)
+   * ✅ Mise à jour principale avec lerp tile par tile
    */
   update(delta = 16) {
     this.overworldPokemon.forEach((pokemon, id) => {
-      // ✅ Vérifier si on est arrivé à destination
-      if (pokemon.isMovingToTarget && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-        const deltaX = pokemon.targetX - pokemon.x;
-        const deltaY = pokemon.targetY - pokemon.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
-        if (distance < 3) { // Seuil d'arrivée
-          console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à destination physics`);
-          pokemon.setPosition(pokemon.targetX, pokemon.targetY);
-          this.stopPhysicsMovement(pokemon);
-        }
+      // ✅ Mise à jour du mouvement tile par tile
+      if (pokemon.isMovingToTarget) {
+        this.updateTileMovement(pokemon, delta);
       }
       
       // ✅ Mise à jour de la profondeur
@@ -488,7 +538,36 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Supprime un Pokémon overworld avec cleanup physics
+   * ✅ Met à jour le mouvement tile par tile avec lerp
+   */
+  updateTileMovement(pokemon, delta) {
+    const now = Date.now();
+    const elapsed = now - pokemon.moveStartTime;
+    const progress = Math.min(elapsed / pokemon.moveDuration, 1);
+    
+    if (progress >= 1) {
+      // Mouvement terminé
+      pokemon.setPosition(pokemon.targetX, pokemon.targetY);
+      pokemon.currentTileX = Math.round(pokemon.targetX / this.tileSize);
+      pokemon.currentTileY = Math.round(pokemon.targetY / this.tileSize);
+      this.stopTileMovement(pokemon);
+      
+      console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à tile (${pokemon.currentTileX}, ${pokemon.currentTileY})`);
+    } else {
+      // Lerp vers la position cible
+      const startX = pokemon.currentTileX * this.tileSize;
+      const startY = pokemon.currentTileY * this.tileSize;
+      
+      const currentX = startX + (pokemon.targetX - startX) * progress;
+      const currentY = startY + (pokemon.targetY - startY) * progress;
+      
+      pokemon.setPosition(currentX, currentY);
+      pokemon.moveProgress = progress;
+    }
+  }
+
+  /**
+   * ✅ Supprime un Pokémon overworld avec cleanup
    */
   removeOverworldPokemon(id) {
     const pokemon = this.overworldPokemon.get(id);
@@ -504,10 +583,6 @@ export class OverworldPokemonManager {
         pokemon.colliders.forEach(collider => {
           try { collider.destroy(); } catch(e) {}
         });
-      }
-      
-      if (pokemon.body) {
-        pokemon.body.setVelocity(0, 0);
       }
       
       try { pokemon.destroy(); } catch(e) {}
@@ -552,56 +627,62 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Gestion demande de spawn (avec physics)
+   * ✅ Gestion demande de spawn - avec vérification tile
    */
   handlePokemonSpawnRequest(data) {
     const { id, x, y } = data;
     
     console.log(`🎯 [OverworldPokemonManager] Spawn request ${id} à (${x}, ${y})`);
     
-    // Avec le système physics, on laisse le serveur décider
-    // Le client répond toujours OK car les collisions sont gérées par physics
-    const canSpawn = true;
+    // ✅ Vérifier que la tile est libre
+    const snappedPos = this.snapToGrid(x, y);
+    const tileX = Math.round(snappedPos.x / this.tileSize);
+    const tileY = Math.round(snappedPos.y / this.tileSize);
+    
+    const canSpawn = this.canMoveToTile(null, tileX, tileY);
     
     if (this.scene.networkManager?.room) {
       this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
         ...data,
         success: canSpawn,
-        x: x,
-        y: y
+        x: snappedPos.x,
+        y: snappedPos.y
       });
     } else {
       console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au spawn`);
     }
     
-    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
+    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à tile (${tileX}, ${tileY})`);
   }
 
   /**
-   * ✅ Gestion demande de mouvement (avec physics)
+   * ✅ Gestion demande de mouvement - avec vérification tile
    */
   handlePokemonMoveRequest(data) {
     const { id, fromX, fromY, toX, toY, direction } = data;
     
     console.log(`🚀 [OverworldPokemonManager] Move request ${id}: (${fromX},${fromY}) → (${toX},${toY})`);
     
-    // Avec le système physics, on laisse le serveur décider
-    // Les collisions sont gérées automatiquement par le physics engine
-    const canMove = true;
+    // ✅ Vérifier que la tile de destination est libre
+    const snappedTarget = this.snapToGrid(toX, toY);
+    const targetTileX = Math.round(snappedTarget.x / this.tileSize);
+    const targetTileY = Math.round(snappedTarget.y / this.tileSize);
+    
+    const canMove = this.canMoveToTile(null, targetTileX, targetTileY);
     
     if (this.scene.networkManager?.room) {
       this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
         id,
         success: canMove,
-        toX,
-        toY,
+        toX: snappedTarget.x,
+        toY: snappedTarget.y,
         direction
       });
     } else {
       console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
     }
     
-    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'}`);
+    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} vers tile (${targetTileX}, ${targetTileY})`);
   }
 
   /**
@@ -647,28 +728,95 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Debug physics
+   * ✅ Debug système tile par tile
    */
   debugOverworldPokemon() {
-    console.log(`🔍 [OverworldPokemonManager] === DEBUG PHYSICS ===`);
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE ===`);
     console.log(`📊 Pokémon actifs: ${this.overworldPokemon.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`🛡️ Collision layers: ${this.scene.collisionLayers?.length || 0}`);
-    console.log(`📏 Taille grille: ${this.gridSize}px`);
+    console.log(`📏 Taille tile: ${this.tileSize}px`);
+    console.log(`⚡ Vitesse mouvement: ${this.moveSpeed}px/s`);
+    console.log(`🎮 Système: TILE PAR TILE (16x16)`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
-      const velocity = pokemon.body ? `(${pokemon.body.velocity.x.toFixed(1)}, ${pokemon.body.velocity.y.toFixed(1)})` : 'N/A';
+      const isMoving = pokemon.isMovingToTarget;
+      const currentTile = `(${pokemon.currentTileX}, ${pokemon.currentTileY})`;
+      const targetTile = `(${Math.round(pokemon.targetX / this.tileSize)}, ${Math.round(pokemon.targetY / this.tileSize)})`;
+      const moveProgress = isMoving ? `${(pokemon.moveProgress * 100).toFixed(1)}%` : 'N/A';
       
       console.log(`🌍 ${id}:`, {
         name: pokemon.name,
+        currentTile: currentTile,
+        targetTile: targetTile,
         position: `(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`,
-        target: `(${pokemon.targetX?.toFixed(1)}, ${pokemon.targetY?.toFixed(1)})`,
         direction: pokemon.lastDirection,
-        isMovingToTarget: pokemon.isMovingToTarget,
-        velocity: velocity,
+        isMoving: isMoving,
+        moveProgress: moveProgress,
+        colliders: pokemon.colliders?.length || 0,
         currentAnimation: pokemon.currentAnimation
       });
     });
+  }
+
+  /**
+   * ✅ Force un Pokémon à se déplacer à une tile spécifique (debug)
+   */
+  debugMovePokemonToTile(pokemonId, tileX, tileY) {
+    const pokemon = this.overworldPokemon.get(pokemonId);
+    if (!pokemon) {
+      console.error(`❌ [DEBUG] Pokémon ${pokemonId} introuvable`);
+      return false;
+    }
+    
+    const targetX = tileX * this.tileSize;
+    const targetY = tileY * this.tileSize;
+    
+    console.log(`🧪 [DEBUG] Force mouvement ${pokemon.name} vers tile (${tileX}, ${tileY})`);
+    
+    return this.startTileMovement(pokemon, targetX, targetY);
+  }
+
+  /**
+   * ✅ Test de collision pour une tile spécifique (debug)
+   */
+  debugCheckTile(tileX, tileY) {
+    const canMove = this.canMoveToTile(null, tileX, tileY);
+    const pixelX = tileX * this.tileSize;
+    const pixelY = tileY * this.tileSize;
+    
+    console.log(`🧪 [DEBUG] Tile (${tileX}, ${tileY}) à (${pixelX}, ${pixelY}): ${canMove ? 'LIBRE' : 'BLOQUÉE'}`);
+    
+    // Vérifier chaque layer
+    if (this.scene.collisionLayers) {
+      this.scene.collisionLayers.forEach((layer, index) => {
+        const tile = layer.getTileAtWorldXY(pixelX, pixelY);
+        if (tile) {
+          console.log(`  Layer ${index} (${layer.layer.name}): Tile ${tile.index}, Collides: ${tile.collides}`);
+        } else {
+          console.log(`  Layer ${index} (${layer.layer.name}): Pas de tile`);
+        }
+      });
+    }
+    
+    return canMove;
+  }
+
+  /**
+   * ✅ Affiche la grille de collision (debug)
+   */
+  debugShowGrid(startTileX = 0, startTileY = 0, width = 10, height = 10) {
+    console.log(`🧪 [DEBUG] Grille de collision ${width}x${height} depuis (${startTileX}, ${startTileY})`);
+    console.log(`Légende: ⬜ = LIBRE, 🟥 = BLOQUÉ`);
+    
+    for (let y = startTileY; y < startTileY + height; y++) {
+      let row = `${y.toString().padStart(2, '0')}: `;
+      for (let x = startTileX; x < startTileX + width; x++) {
+        const canMove = this.canMoveToTile(null, x, y);
+        row += canMove ? '⬜' : '🟥';
+      }
+      console.log(row);
+    }
   }
 
   // =======================================
@@ -697,5 +845,60 @@ export class OverworldPokemonManager {
 
   getIdlePokemon() {
     return Array.from(this.overworldPokemon.values()).filter(pokemon => !pokemon.isMovingToTarget);
+  }
+
+  /**
+   * ✅ Obtient la position tile d'un Pokémon
+   */
+  getPokemonTilePosition(id) {
+    const pokemon = this.overworldPokemon.get(id);
+    if (!pokemon) return null;
+    
+    return {
+      tileX: pokemon.currentTileX,
+      tileY: pokemon.currentTileY,
+      pixelX: pokemon.x,
+      pixelY: pokemon.y
+    };
+  }
+
+  /**
+   * ✅ Obtient tous les Pokémon sur une tile spécifique
+   */
+  getPokemonOnTile(tileX, tileY) {
+    return Array.from(this.overworldPokemon.values()).filter(pokemon => 
+      pokemon.currentTileX === tileX && pokemon.currentTileY === tileY
+    );
+  }
+
+  /**
+   * ✅ Vérifie si une tile est occupée par un Pokémon
+   */
+  isTileOccupiedByPokemon(tileX, tileY) {
+    return this.getPokemonOnTile(tileX, tileY).length > 0;
+  }
+
+  /**
+   * ✅ Obtient la tile la plus proche libre autour d'une position
+   */
+  getNearestFreeTile(centerTileX, centerTileY, maxRadius = 3) {
+    for (let radius = 1; radius <= maxRadius; radius++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = -radius; dy <= radius; dy++) {
+          // Ignorer le centre et ne vérifier que le périmètre du rayon actuel
+          if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
+            const checkX = centerTileX + dx;
+            const checkY = centerTileY + dy;
+            
+            if (this.canMoveToTile(null, checkX, checkY) && 
+                !this.isTileOccupiedByPokemon(checkX, checkY)) {
+              return { tileX: checkX, tileY: checkY };
+            }
+          }
+        }
+      }
+    }
+    
+    return null; // Aucune tile libre trouvée
   }
 }
