@@ -1,7 +1,4 @@
-// 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
-      if (rows === 1 &&      // 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
-      if (rows === 1 && animationFile.includes('FlapAround')) {
-        score += 100; // ✅ BOOST/**
+/**
  * 🔧 MISE À JOUR SPRITEUTILS.JS AVEC SYSTÈME JSON + DÉTECTION AVANCÉE + FLAPAROUND
  * ✅ Intégrer le JSON et la détection automatique qu'on a développé + support FlapAround
  */
@@ -121,20 +118,6 @@ export class SpriteUtils {
             break;
           }
         }
-      }8 directions x 2 frames = 16 frames minimum
-      if (width === 512 && height === 32) structure = { cols: 16, rows: 1 }; // 16 frames (8 directions x 2)
-      else if (width === 256 && height === 32) structure = { cols: 8, rows: 1 }; // 8 frames (directions simples)
-      else if (width === 320 && height === 32) structure = { cols: 10, rows: 1 }; // 10 frames
-      else if (width === 480 && height === 32) structure = { cols: 15, rows: 1 }; // 15 frames
-      else {
-        // Auto-calcul pour FlapAround (toujours 1 ligne)
-        const possibleCols = [8, 10, 12, 14, 16, 18, 20];
-        for (const cols of possibleCols) {
-          if (width % cols === 0 && height <= 64) { // FlapAround généralement petites frames
-            structure = { cols, rows: 1 };
-            break;
-          }
-        }
       }
     }
     
@@ -161,8 +144,8 @@ export class SpriteUtils {
     // Générer toutes les divisions exactes possibles
     const exactDivisions = [];
     
-    for (let cols = 1; cols <= 20; cols++) {
-      for (let rows = 1; rows <= 20; rows++) {
+    for (let cols = 1; cols <= 24; cols++) {
+      for (let rows = 1; rows <= 12; rows++) {
         const frameW = width / cols;
         const frameH = height / rows;
         
@@ -236,7 +219,7 @@ export class SpriteUtils {
       const totalFrames = cols * rows;
       if (totalFrames >= 8 && totalFrames <= 80) {
         score += 15;
-        if ([40, 48, 64, 32, 16, 8, 9, 10].includes(totalFrames)) score += 10;
+        if ([40, 48, 64, 32, 16, 8, 9, 10, 18].includes(totalFrames)) score += 10;
       }
       
       // 🎯 ÉVITER FORMATS BIZARRES
@@ -274,9 +257,8 @@ export class SpriteUtils {
     } else if (rows === 1 && animationFile.includes('Swing')) {
       type = 'swing';
     } else if (rows === 1 && animationFile.includes('FlapAround')) {
-      if (cols === 16) type = 'flaparound-full';
-      else if (cols === 18) type = 'flaparound-9dir';
-      else if (cols === 19) type = 'flaparound-19f';
+      if (cols === 18) type = 'flaparound-18f';
+      else if (cols === 16) type = 'flaparound-full';
       else if (cols === 8) type = 'flaparound-simple';
       else type = 'flaparound';
     } else if (rows === 8) {
