@@ -735,7 +735,7 @@ export class PokedexProgressService extends EventEmitter {
       let significance: 'normal' | 'rare' | 'milestone' | 'record' = 'normal';
       if (isShiny) significance = 'rare';
       if (pokemonData?.rarity === 'legendary') significance = 'milestone';
-      if (entry.level && entry.level >= 80) significance = 'record';
+      if (entry.bestSpecimen?.level && entry.bestSpecimen.level >= 80) significance = 'record';
       
       return {
         pokemonId: entry.pokemonId,
