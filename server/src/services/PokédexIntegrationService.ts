@@ -482,39 +482,6 @@ export class PokédexIntegrationService extends EventEmitter {
     }
   }
 
-  /**
- * ✅ NOUVEAU: Finalise la progression Pokédx en fin de combat
- */
-private finalizePokédxProgression(): void {
-  // Ne traiter que les combats sauvages
-  if (this.gameState.type !== 'wild') {
-    return;
-  }
-  
-  const player1 = this.gameState.player1;
-  const player2Pokemon = this.gameState.player2.pokemon;
-  
-  if (!player1 || !player2Pokemon) {
-    return;
-  }
-  
-  // Traitement asynchrone en arrière-plan
-  pokédexIntegrationService.finalizeBattleProgression({
-    playerId: player1.sessionId,
-    pokemonId: player2Pokemon.id,
-    battleResult: this.gameState.winner === 'player1' ? 'victory' : 'defeat',
-    battleType: 'wild'
-  }).then((result: any) => {
-    if (result.achievements?.length > 0) {
-      this.emit('pokédxAchievements', {
-        playerId: player1.sessionId,
-        achievements: result.achievements
-      });
-    }
-  }).catch((error: any) => {
-    console.error(`❌ [BattleEngine] Erreur finalisation Pokédx:`, error);
-  });
-}
   
   /**
    * Crée les notifications pour une capture
