@@ -460,130 +460,27 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       stepDelay: 800
     });
 
-async function startExtendedLoading() {
-  try {
-    console.log("🚀 Démarrage chargement étendu...");
-    
-    // ✅ DÉMARRER l'écran de chargement étendu
-    window.extendedLoadingScreen.show('extended');
-    
-    // ✅ ATTENDRE QUE L'ÉCRAN SOIT AFFICHÉ
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log("🎮 Création Phaser en arrière-plan...");
-    
-    // ✅ CRÉER PHASER AVEC LOADERSCENE INVISIBLE
-    const config = {
-      type: Phaser.AUTO,
-      width: 800,
-      height: 600,
-      backgroundColor: '#000000',
-      pixelArt: true,
-      roundPixels: true,
-      antialias: false,
-      pauseOnBlur: false,
-      // ✅ MODIFICATION: LoaderScene en première position mais invisible
-      scene: [
-        { scene: LoaderScene, active: true, visible: false }, // INVISIBLE !
-        VillageScene,
-        VillageLabScene,
-        VillageHouse1Scene,
-        VillageHouse2Scene,
-        VillageFloristScene,
-        VillageWindmillScene,
-        BeachScene,
-        Road1Scene,
-        Road1HouseScene,
-        Road1HiddenScene,
-        Road2Scene,
-        Road3Scene,
-        LavandiaScene,
-        LavandiaAnalysisScene,
-        LavandiaBossRoomScene,
-        LavandiaCelebiTempleScene,
-        LavandiaEquipmentScene,
-        LavandiaFurnitureScene,
-        LavandiaHealingCenterScene,
-        LavandiaHouse1Scene,
-        LavandiaHouse2Scene,
-        LavandiaHouse3Scene,
-        LavandiaHouse4Scene,
-        LavandiaHouse5Scene,
-        LavandiaHouse6Scene,
-        LavandiaHouse7Scene,
-        LavandiaHouse8Scene,
-        LavandiaHouse9Scene,
-        LavandiaResearchLabScene,
-        LavandiaShopScene,
-        NoctherbCave1Scene,
-        NoctherbCave2Scene,
-        NoctherbCave2BisScene,
-        WraithmoorScene,
-        WraithmoorManor1Scene,
-        WraithmoorCimeteryScene,
-        { scene: BattleScene, active: false, visible: false }
-      ],
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: { y: 0 },
-          debug: true
+    async function startExtendedLoading() {
+      try {
+        console.log("🚀 Démarrage chargement étendu...");
+        
+        window.extendedLoadingScreen.show('extended');
+        
+        setTimeout(() => {
+          console.log("🎮 Lancement Phaser en arrière-plan...");
+          window.game = new Phaser.Game(config);
+        }, 1000);
+        
+        console.log("✅ Chargement étendu lancé - l'écran va se gérer automatiquement");
+        
+      } catch (error) {
+        console.error("❌ Erreur chargement étendu:", error);
+        if (window.extendedLoadingScreen) {
+          window.extendedLoadingScreen.hide();
         }
-      },
-      plugins: {
-        scene: [
-          {
-            key: 'animatedTiles',
-            plugin: AnimatedTiles,
-            mapping: 'animatedTiles'
-          }
-        ]
-      },
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        window.game = new Phaser.Game(config);
       }
-    };
-    
-    // ✅ CRÉER LE JEU
-    window.game = new Phaser.Game(config);
-    
-    // ✅ ÉCOUTER LA FIN DU CHARGEMENT PHASER
-    window.game.events.once('ready', () => {
-      console.log("🎮 Phaser initialisé, attente fin chargement assets...");
-      
-      // ✅ HOOK SUR LA FIN DU CHARGEMENT DES ASSETS
-      const loaderScene = window.game.scene.getScene('LoaderScene');
-      if (loaderScene) {
-        // ✅ ÉCOUTER LA FIN DU PRELOAD
-        loaderScene.load.once('complete', () => {
-          console.log("✅ Assets Phaser chargés, fermeture écran étendu...");
-          
-          // ✅ PETIT DÉLAI POUR QUE L'UTILISATEUR VOIE LA DERNIÈRE ÉTAPE
-          setTimeout(() => {
-            // ✅ FERMER L'ÉCRAN ÉTENDU
-            window.extendedLoadingScreen.hide();
-            
-            // ✅ RENDRE LOADERSCENE VISIBLE MAINTENANT
-            loaderScene.scene.setVisible(true);
-            
-            console.log("🎯 Transition vers le jeu principal...");
-          }, 1000);
-        });
-      }
-    });
-    
-    console.log("✅ Chargement étendu lancé - l'écran va se gérer automatiquement");
-    
-  } catch (error) {
-    console.error("❌ Erreur chargement étendu:", error);
-    if (window.extendedLoadingScreen) {
-      window.extendedLoadingScreen.hide();
     }
-    // ✅ FALLBACK: Créer Phaser normalement
-    window.game = new Phaser.Game(config);
-  }
-}
 
     startExtendedLoading();
 
