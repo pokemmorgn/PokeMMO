@@ -636,7 +636,7 @@ export class QuestUI {
     
     journal.innerHTML = `
       <div class="quest-journal-header">
-        <h2>📖 Journal des Quêtes</h2>
+        <h2>\uD83D\uDCD6 Journal des Quêtes</h2>
         <button class="quest-close-btn" id="close-quest-journal">✕</button>
       </div>
       
