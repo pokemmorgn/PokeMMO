@@ -61,7 +61,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private followerHandlers!: FollowerHandlers;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
-  private pokédxHandler!: PokédxMessageHandler;
+ private pokédxHandler!: PokédexMessageHandler;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -124,7 +124,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
 
-    this.pokédxHandler = new PokédxMessageHandler(this);
+    this.pokédxHandler = new PokédexMessageHandler(this);
     console.log(`✅ PokédxMessageHandler initialisé`);
     
     // Initialiser les EncounterHandlers
