@@ -1,486 +1,644 @@
 // server/src/models/PokédexStats.ts
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
-// ===== INTERFACES =====
+// ===== INTERFACES OPTIMISÉES =====
 
 export interface IPokédexStats extends Document {
-  // === IDENTIFICATION ===
+  // === IDENTIFICATION UNIQUE ===
   playerId: string;          // ID du joueur (unique)
   
-  // === PROGRESSION GLOBALE ===
-  totalSeen: number;         // Nombre total de Pokémon vus
-  totalCaught: number;       // Nombre total de Pokémon capturés
-  totalPokemon: number;      // Nombre total de Pokémon dans le jeu (pour %)
+  // === PROGRESSION GLOBALE (DÉNORMALISÉE) ===
+  totalSeen: number;         // Pokémon vus
+  totalCaught: number;       // Pokémon capturés
+  totalShinies: number;      // Shinies trouvés
+  totalEncounters: number;   // Rencontres totales
+  totalCaptures: number;     // Captures totales
   
-  // === POURCENTAGES DE COMPLÉTION ===
-  seenPercentage: number;    // % de Pokémon vus (calculé auto)
-  caughtPercentage: number;  // % de Pokémon capturés (calculé auto)
+  // === RECORDS & ACHIEVEMENTS ===
+  highestLevel: number;      // Plus haut niveau vu/capturé
+  longestStreak: number;     // Plus longue série de jours
+  currentStreak: number;     // Série actuelle
+  lastActiveDate: Date;      // Dernière activité (pour streaks)
   
-  // === STATISTIQUES PAR TYPE ===
-  typeStats: Map<string, {
+  // === PROGRESSION PAR TYPE (COMPACT) ===
+  typeProgress: Map<string, {
     seen: number;
     caught: number;
-    total: number;       // Nombre total de ce type dans le jeu
   }>;
   
-  // === STATISTIQUES PAR RÉGION ===
-  regionStats: Map<string, {
-    seen: number;
-    caught: number;
-    total: number;       // Nombre total dans cette région
-  }>;
+  // === ACTIVITÉ RÉCENTE (SLIDING WINDOW) ===
+  weeklyStats: {
+    week: string;            // Format: "2024-W01"
+    newSeen: number;
+    newCaught: number;
+    newShinies: number;
+  }[];
   
-  // === RECORDS & ACCOMPLISSEMENTS ===
-  records: {
-    // Shiny
-    totalShinyFound: number;
-    totalShinyCaught: number;
-    firstShinyDate?: Date;
-    lastShinyDate?: Date;
-    
-    // Niveaux
-    highestLevelSeen: number;
-    highestLevelCaught: number;
-    
-    // Temps
-    fastestCapture: number;    // Temps en secondes pour capturer (record)
-    longestHunt: number;       // Plus longue chasse (rencontres avant capture)
-    
-    // Streaks
-    currentSeenStreak: number;      // Jours consécutifs avec nouvelle découverte
-    longestSeenStreak: number;      // Record de streak
-    currentCaughtStreak: number;    // Jours consécutifs avec capture
-    longestCaughtStreak: number;    // Record de streak
-  };
-  
-  // === STATISTIQUES TEMPORELLES ===
-  activity: {
-    lastDiscoveryDate?: Date;     // Dernière nouvelle découverte
-    lastCaptureDate?: Date;       // Dernière capture
-    mostActiveDay: string;        // Jour de la semaine le plus actif
-    mostActiveHour: number;       // Heure la plus active (0-23)
-    
-    // Évolution dans le temps
-    weeklyProgress: {
-      week: string;               // Format: "2024-W01"
-      newSeen: number;
-      newCaught: number;
-    }[];
-    
-    monthlyProgress: {
-      month: string;              // Format: "2024-01"
-      newSeen: number;
-      newCaught: number;
-    }[];
-  };
-  
-  // === ACCOMPLISSEMENTS SPÉCIAUX ===
-  achievements: Map<string, {
-    unlocked: boolean;
-    unlockedAt?: Date;
-    progress: number;           // 0-100 pour achievements progressifs
-    data?: any;                 // Données spécifiques à l'achievement
-  }>;
+  // === DATES IMPORTANTES ===
+  firstDiscovery?: Date;     // Première découverte
+  firstCapture?: Date;       // Première capture
+  firstShiny?: Date;         // Premier shiny
+  lastCalculated: Date;      // Dernière maj des stats
   
   // === MÉTADONNÉES ===
-  lastCalculated: Date;         // Dernière mise à jour des stats
-  calculationVersion: number;   // Version du calcul (pour migrations)
+  version: number;           // Version du calcul (migrations)
   updatedAt: Date;
   createdAt: Date;
   
-  // === MÉTHODES D'INSTANCE ===
-  recalculateStats(): Promise<void>;
-  updateFromEntry(entry: any): Promise<void>;
-  getCompletionSummary(): any;
-  getProgressSince(date: Date): any;
-  checkNewAchievements(): Promise<string[]>;
-  addWeeklyProgress(newSeen: number, newCaught: number): void;
-  getRecentActivity(days: number): any;
+  // === MÉTHODES ===
+  incrementSeen(pokemonData?: any): Promise<void>;
+  incrementCaught(pokemonData?: any, isShiny?: boolean): Promise<void>;
+  updateStreak(action: 'seen' | 'caught'): Promise<boolean>;
+  recalculateFromEntries(): Promise<void>;
+  getCompletionRate(): { seen: number; caught: number; shiny: number };
+  addWeeklyActivity(seen: number, caught: number, shinies: number): void;
 }
 
-// ===== SCHÉMA MONGOOSE =====
+// ===== SCHÉMA MONGOOSE ULTRA-OPTIMISÉ =====
 
 const PokédexStatsSchema = new Schema<IPokédexStats>({
-  // === IDENTIFICATION ===
+  // === IDENTIFICATION (INDEX UNIQUE) ===
   playerId: { 
     type: String, 
     required: true,
     unique: true,
-    index: true 
+    index: true,
+    validate: {
+      validator: (v: string) => v && v.length > 0 && v.length <= 50,
+      message: 'PlayerId invalide'
+    }
   },
   
-  // === PROGRESSION GLOBALE ===
+  // === COMPTEURS GLOBAUX (INDEXÉS POUR CLASSEMENTS) ===
   totalSeen: { 
     type: Number, 
     default: 0,
-    min: 0 
+    min: [0, 'totalSeen ne peut être négatif'],
+    index: -1, // Index descendant pour leaderboards
+    validate: {
+      validator: Number.isInteger,
+      message: 'totalSeen doit être un entier'
+    }
   },
+  
   totalCaught: { 
     type: Number, 
     default: 0,
-    min: 0 
-  },
-  totalPokemon: { 
-    type: Number, 
-    default: 151, // Kanto par défaut
-    min: 1 
+    min: [0, 'totalCaught ne peut être négatif'],
+    index: -1, // Pour classements
+    validate: {
+      validator: Number.isInteger,
+      message: 'totalCaught doit être un entier'
+    }
   },
   
-  // === POURCENTAGES ===
-  seenPercentage: { 
-    type: Number, 
-    default: 0,
-    min: 0,
-    max: 100 
-  },
-  caughtPercentage: { 
+  totalShinies: { 
     type: Number, 
     default: 0,
-    min: 0,
-    max: 100 
+    min: [0, 'totalShinies ne peut être négatif'],
+    index: -1, // Pour classements shinies
+    validate: {
+      validator: Number.isInteger,
+      message: 'totalShinies doit être un entier'
+    }
   },
   
-  // === STATS PAR TYPE ===
-  typeStats: {
-    type: Schema.Types.Mixed,
-    default: {}
+  totalEncounters: { 
+    type: Number, 
+    default: 0,
+    min: [0, 'totalEncounters ne peut être négatif'],
+    validate: {
+      validator: Number.isInteger,
+      message: 'totalEncounters doit être un entier'
+    }
   },
   
-  // === STATS PAR RÉGION ===
-  regionStats: {
-    type: Schema.Types.Mixed,
-    default: {}
+  totalCaptures: { 
+    type: Number, 
+    default: 0,
+    min: [0, 'totalCaptures ne peut être négatif'],
+    validate: {
+      validator: Number.isInteger,
+      message: 'totalCaptures doit être un entier'
+    }
   },
   
   // === RECORDS ===
-  records: {
-    totalShinyFound: { type: Number, default: 0, min: 0 },
-    totalShinyCaught: { type: Number, default: 0, min: 0 },
-    firstShinyDate: { type: Date },
-    lastShinyDate: { type: Date },
-    
-    highestLevelSeen: { type: Number, default: 1, min: 1, max: 100 },
-    highestLevelCaught: { type: Number, default: 1, min: 1, max: 100 },
-    
-    fastestCapture: { type: Number, default: Infinity },
-    longestHunt: { type: Number, default: 0, min: 0 },
-    
-    currentSeenStreak: { type: Number, default: 0, min: 0 },
-    longestSeenStreak: { type: Number, default: 0, min: 0 },
-    currentCaughtStreak: { type: Number, default: 0, min: 0 },
-    longestCaughtStreak: { type: Number, default: 0, min: 0 }
+  highestLevel: { 
+    type: Number, 
+    default: 1,
+    min: [1, 'highestLevel minimum: 1'],
+    max: [100, 'highestLevel maximum: 100']
   },
   
-  // === ACTIVITÉ ===
-  activity: {
-    lastDiscoveryDate: { type: Date },
-    lastCaptureDate: { type: Date },
-    mostActiveDay: { 
-      type: String,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-      default: 'saturday'
-    },
-    mostActiveHour: { type: Number, min: 0, max: 23, default: 14 },
-    
-    weeklyProgress: [{
-      week: { type: String, required: true }, // "2024-W01"
-      newSeen: { type: Number, default: 0, min: 0 },
-      newCaught: { type: Number, default: 0, min: 0 }
-    }],
-    
-    monthlyProgress: [{
-      month: { type: String, required: true }, // "2024-01"
-      newSeen: { type: Number, default: 0, min: 0 },
-      newCaught: { type: Number, default: 0, min: 0 }
-    }]
+  longestStreak: { 
+    type: Number, 
+    default: 0,
+    min: [0, 'longestStreak ne peut être négatif'],
+    index: -1 // Pour classements streaks
   },
   
-  // === ACHIEVEMENTS ===
-  achievements: {
+  currentStreak: { 
+    type: Number, 
+    default: 0,
+    min: [0, 'currentStreak ne peut être négatif']
+  },
+  
+  lastActiveDate: { 
+    type: Date,
+    default: Date.now,
+    index: -1 // Pour nettoyage des streaks inactives
+  },
+  
+  // === PROGRESSION PAR TYPE (OPTIMISÉE) ===
+  typeProgress: {
     type: Schema.Types.Mixed,
-    default: {}
+    default: () => new Map(),
+    validate: {
+      validator: function(v: any) {
+        if (!(v instanceof Map)) return true; // Peut être objet après désérialisation
+        for (const [type, stats] of v) {
+          if (typeof type !== 'string' || 
+              typeof stats?.seen !== 'number' || 
+              typeof stats?.caught !== 'number') {
+            return false;
+          }
+        }
+        return true;
+      },
+      message: 'typeProgress format invalide'
+    }
   },
   
-  // === MÉTADONNÉES ===
-  lastCalculated: { type: Date, default: Date.now },
-  calculationVersion: { type: Number, default: 1 },
+  // === ACTIVITÉ HEBDOMADAIRE (LIMITÉE) ===
+  weeklyStats: [{
+    week: { 
+      type: String, 
+      required: true,
+      match: [/^\d{4}-W\d{2}$/, 'Format semaine invalide (YYYY-WXX)']
+    },
+    newSeen: { 
+      type: Number, 
+      default: 0, 
+      min: [0, 'newSeen ne peut être négatif'] 
+    },
+    newCaught: { 
+      type: Number, 
+      default: 0, 
+      min: [0, 'newCaught ne peut être négatif'] 
+    },
+    newShinies: { 
+      type: Number, 
+      default: 0, 
+      min: [0, 'newShinies ne peut être négatif'] 
+    }
+  }],
+  
+  // === DATES IMPORTANTES ===
+  firstDiscovery: { 
+    type: Date,
+    index: -1 // Pour analytics globales
+  },
+  
+  firstCapture: { 
+    type: Date,
+    index: -1
+  },
+  
+  firstShiny: { 
+    type: Date,
+    index: -1
+  },
+  
+  lastCalculated: { 
+    type: Date, 
+    default: Date.now,
+    index: -1 // Pour maintenance
+  },
+  
+  // === VERSIONING ===
+  version: { 
+    type: Number, 
+    default: 1,
+    min: [1, 'Version minimum: 1']
+  }
 }, {
   timestamps: true,
-  collection: 'pokedex_stats'
+  collection: 'pokedex_stats',
+  // Optimisations MongoDB
+  autoIndex: process.env.NODE_ENV !== 'production',
+  bufferCommands: false,
+  bufferMaxEntries: 0,
+  // Optimisation mémoire
+  minimize: false // Garde les champs vides pour cohérence
 });
 
-// ===== INDEX =====
-PokédexStatsSchema.index({ playerId: 1 }, { unique: true });
-PokédexStatsSchema.index({ totalCaught: -1 }); // Pour classements
-PokédexStatsSchema.index({ totalSeen: -1 });
-PokédexStatsSchema.index({ 'records.totalShinyCaught': -1 });
+// ===== INDEX OPTIMISÉS =====
 
-// ===== MIDDLEWARE PRE-SAVE =====
+// Index principal unique
+PokédexStatsSchema.index(
+  { playerId: 1 }, 
+  { 
+    unique: true,
+    name: 'player_unique'
+  }
+);
 
-// Calcul automatique des pourcentages
+// Index pour leaderboards globaux
+PokédexStatsSchema.index(
+  { totalCaught: -1, totalSeen: -1 },
+  { name: 'global_leaderboard' }
+);
+
+// Index pour leaderboards shinies
+PokédexStatsSchema.index(
+  { totalShinies: -1, totalCaught: -1 },
+  { 
+    name: 'shiny_leaderboard',
+    partialFilterExpression: { totalShinies: { $gt: 0 } }
+  }
+);
+
+// Index pour streaks actives
+PokédexStatsSchema.index(
+  { currentStreak: -1, lastActiveDate: -1 },
+  { 
+    name: 'active_streaks',
+    partialFilterExpression: { currentStreak: { $gt: 0 } }
+  }
+);
+
+// Index pour maintenance
+PokédexStatsSchema.index(
+  { lastCalculated: 1 },
+  { name: 'maintenance_cleanup' }
+);
+
+// ===== VALIDATIONS AVANCÉES =====
+
+// Validation: Cohérence des compteurs
+PokédexStatsSchema.pre('validate', function(next) {
+  if (this.totalCaught > this.totalSeen) {
+    return next(new Error('totalCaught ne peut dépasser totalSeen'));
+  }
+  
+  if (this.totalCaptures < this.totalCaught) {
+    return next(new Error('totalCaptures doit être >= totalCaught'));
+  }
+  
+  if (this.totalEncounters < this.totalSeen) {
+    return next(new Error('totalEncounters doit être >= totalSeen'));
+  }
+  
+  next();
+});
+
+// Validation: Gestion des streaks
+PokédexStatsSchema.pre('validate', function(next) {
+  if (this.currentStreak > this.longestStreak) {
+    this.longestStreak = this.currentStreak;
+  }
+  next();
+});
+
+// Middleware: Nettoyage automatique weeklyStats
 PokédexStatsSchema.pre('save', function(next) {
-  if (this.totalPokemon > 0) {
-    this.seenPercentage = Math.round((this.totalSeen / this.totalPokemon) * 100 * 100) / 100;
-    this.caughtPercentage = Math.round((this.totalCaught / this.totalPokemon) * 100 * 100) / 100;
+  // Garder seulement les 12 dernières semaines
+  if (this.weeklyStats && this.weeklyStats.length > 12) {
+    this.weeklyStats = this.weeklyStats
+      .sort((a, b) => b.week.localeCompare(a.week))
+      .slice(0, 12);
   }
   
   this.lastCalculated = new Date();
   next();
 });
 
-// ===== MÉTHODES D'INSTANCE =====
+// ===== MÉTHODES D'INSTANCE OPTIMISÉES =====
 
 /**
- * Recalcule toutes les statistiques depuis zéro
+ * Incrémente les statistiques de découverte
  */
-PokédexStatsSchema.methods.recalculateStats = async function(this: IPokédexStats) {
-  console.log(`📊 [PokédexStats] Recalcul complet pour joueur ${this.playerId}`);
+PokédexStatsSchema.methods.incrementSeen = async function(
+  this: IPokédexStats,
+  pokemonData?: { types?: string[]; level?: number }
+): Promise<void> {
+  const now = new Date();
   
-  // Import dynamique pour éviter circular dependency
-  const { PokédexEntry } = await import('./PokédexEntry');
-  const { getPokemonById } = await import('../data/PokemonData');
+  // Première découverte
+  if (this.totalSeen === 0) {
+    this.firstDiscovery = now;
+  }
   
-  // Récupérer toutes les entrées du joueur
-  const entries = await PokédexEntry.find({ playerId: this.playerId });
+  // Incrémenter compteurs
+  this.totalSeen += 1;
+  this.totalEncounters += 1;
   
-  // Reset stats
-  this.totalSeen = 0;
-  this.totalCaught = 0;
-  this.typeStats = new Map();
-  this.regionStats = new Map();
+  // Mettre à jour niveau max
+  if (pokemonData?.level && pokemonData.level > this.highestLevel) {
+    this.highestLevel = pokemonData.level;
+  }
   
-  let highestLevelSeen = 1;
-  let highestLevelCaught = 1;
-  let totalShinyFound = 0;
-  let totalShinyCaught = 0;
-  let firstShinyDate: Date | undefined;
-  let lastShinyDate: Date | undefined;
+  // Progression par type
+  if (pokemonData?.types) {
+    for (const type of pokemonData.types) {
+      const typeKey = type.toLowerCase();
+      const current = this.typeProgress.get(typeKey) || { seen: 0, caught: 0 };
+      current.seen += 1;
+      this.typeProgress.set(typeKey, current);
+    }
+  }
   
-  // Parcourir chaque entrée
-  for (const entry of entries) {
-    if (entry.isSeen) {
-      this.totalSeen++;
-      
-      // Récupérer données du Pokémon
-      const pokemonData = await getPokemonById(entry.pokemonId);
-      if (pokemonData) {
-        // Stats par type
-        for (const type of pokemonData.types) {
-          const typeKey = type.toLowerCase();
-          if (!this.typeStats.has(typeKey)) {
-            this.typeStats.set(typeKey, { seen: 0, caught: 0, total: 0 });
-          }
-          this.typeStats.get(typeKey)!.seen++;
-        }
-        
-        // Stats par région (basé sur l'ID pour Kanto = 1-151)
-        const region = entry.pokemonId <= 151 ? 'kanto' : 'other';
-        if (!this.regionStats.has(region)) {
-          this.regionStats.set(region, { seen: 0, caught: 0, total: 0 });
-        }
-        this.regionStats.get(region)!.seen++;
-      }
-      
-      // Niveau le plus élevé vu
-      if (entry.firstEncounter?.level && entry.firstEncounter.level > highestLevelSeen) {
-        highestLevelSeen = entry.firstEncounter.level;
-      }
+  // Streak de découverte
+  await this.updateStreak('seen');
+  
+  // Activité hebdomadaire
+  this.addWeeklyActivity(1, 0, 0);
+  
+  await this.save();
+};
+
+/**
+ * Incrémente les statistiques de capture
+ */
+PokédexStatsSchema.methods.incrementCaught = async function(
+  this: IPokédexStats,
+  pokemonData?: { types?: string[]; level?: number },
+  isShiny: boolean = false
+): Promise<void> {
+  const now = new Date();
+  
+  // Première capture
+  if (this.totalCaught === 0) {
+    this.firstCapture = now;
+  }
+  
+  // Premier shiny
+  if (isShiny && this.totalShinies === 0) {
+    this.firstShiny = now;
+  }
+  
+  // Incrémenter compteurs
+  this.totalCaught += 1;
+  this.totalCaptures += 1;
+  
+  if (isShiny) {
+    this.totalShinies += 1;
+  }
+  
+  // Progression par type
+  if (pokemonData?.types) {
+    for (const type of pokemonData.types) {
+      const typeKey = type.toLowerCase();
+      const current = this.typeProgress.get(typeKey) || { seen: 0, caught: 0 };
+      current.caught += 1;
+      this.typeProgress.set(typeKey, current);
+    }
+  }
+  
+  // Streak de capture
+  await this.updateStreak('caught');
+  
+  // Activité hebdomadaire
+  this.addWeeklyActivity(0, 1, isShiny ? 1 : 0);
+  
+  await this.save();
+};
+
+/**
+ * Met à jour les streaks quotidiennes
+ */
+PokédexStatsSchema.methods.updateStreak = async function(
+  this: IPokédexStats,
+  action: 'seen' | 'caught'
+): Promise<boolean> {
+  const now = new Date();
+  const today = now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toDateString();
+  
+  const lastActiveStr = this.lastActiveDate?.toDateString();
+  let streakContinued = false;
+  
+  // Pas d'activité aujourd'hui encore
+  if (lastActiveStr !== today) {
+    if (lastActiveStr === yesterdayStr) {
+      // Continuation de streak
+      this.currentStreak += 1;
+      streakContinued = true;
+    } else {
+      // Streak cassée ou nouvelle
+      this.currentStreak = 1;
     }
     
-    if (entry.isCaught) {
-      this.totalCaught++;
-      
-      // Récupérer données du Pokémon pour les types
-      const pokemonData = await getPokemonById(entry.pokemonId);
-      if (pokemonData) {
-        // Stats par type (caught)
-        for (const type of pokemonData.types) {
-          const typeKey = type.toLowerCase();
-          if (this.typeStats.has(typeKey)) {
-            this.typeStats.get(typeKey)!.caught++;
-          }
-        }
-        
-        // Stats par région (caught)
-        const region = entry.pokemonId <= 151 ? 'kanto' : 'other';
-        if (this.regionStats.has(region)) {
-          this.regionStats.get(region)!.caught++;
-        }
-      }
-      
-      // Niveau le plus élevé capturé
-      if (entry.bestSpecimen?.level && entry.bestSpecimen.level > highestLevelCaught) {
-        highestLevelCaught = entry.bestSpecimen.level;
-      }
-      
-      // Stats shiny
-      if (entry.bestSpecimen?.isShiny) {
-        totalShinyCaught++;
-        if (!firstShinyDate || (entry.bestSpecimen.caughtAt && entry.bestSpecimen.caughtAt < firstShinyDate)) {
-          firstShinyDate = entry.bestSpecimen.caughtAt;
-        }
-        if (!lastShinyDate || (entry.bestSpecimen.caughtAt && entry.bestSpecimen.caughtAt > lastShinyDate)) {
-          lastShinyDate = entry.bestSpecimen.caughtAt;
-        }
-      }
+    this.lastActiveDate = now;
+    
+    // Nouveau record
+    if (this.currentStreak > this.longestStreak) {
+      this.longestStreak = this.currentStreak;
     }
   }
   
-  // Mettre à jour les records
-  this.records.highestLevelSeen = highestLevelSeen;
-  this.records.highestLevelCaught = highestLevelCaught;
-  this.records.totalShinyCaught = totalShinyCaught;
-  this.records.totalShinyFound = totalShinyFound; // Pour l'instant = caught
-  
-  if (firstShinyDate) this.records.firstShinyDate = firstShinyDate;
-  if (lastShinyDate) this.records.lastShinyDate = lastShinyDate;
-  
-  await this.save();
-  console.log(`✅ [PokédexStats] Recalcul terminé: ${this.totalSeen} vus, ${this.totalCaught} capturés`);
+  return streakContinued;
 };
 
 /**
- * Met à jour les stats suite à une nouvelle entrée
+ * Ajoute l'activité à la semaine courante
  */
-PokédexStatsSchema.methods.updateFromEntry = async function(
+PokédexStatsSchema.methods.addWeeklyActivity = function(
   this: IPokédexStats,
-  entry: any,
-  isNewSeen: boolean = false,
-  isNewCaught: boolean = false
-) {
-  if (isNewSeen) {
-    this.totalSeen++;
-    this.activity.lastDiscoveryDate = new Date();
-  }
+  seen: number,
+  caught: number,
+  shinies: number
+): void {
+  const now = new Date();
+  const year = now.getFullYear();
+  const week = this.getWeekNumber(now);
+  const weekKey = `${year}-W${week.toString().padStart(2, '0')}`;
   
-  if (isNewCaught) {
-    this.totalCaught++;
-    this.activity.lastCaptureDate = new Date();
-  }
+  // Chercher semaine courante
+  let currentWeek = this.weeklyStats.find(w => w.week === weekKey);
   
-  await this.save();
+  if (currentWeek) {
+    currentWeek.newSeen += seen;
+    currentWeek.newCaught += caught;
+    currentWeek.newShinies += shinies;
+  } else {
+    // Nouvelle semaine
+    this.weeklyStats.push({
+      week: weekKey,
+      newSeen: seen,
+      newCaught: caught,
+      newShinies: shinies
+    });
+    
+    // Limiter à 12 semaines (sera nettoyé au save)
+  }
 };
 
 /**
- * Récupère un résumé de complétion
+ * Calcule le taux de complétion
  */
-PokédexStatsSchema.methods.getCompletionSummary = function(this: IPokédexStats) {
+PokédexStatsSchema.methods.getCompletionRate = function(this: IPokédxStats): {
+  seen: number;
+  caught: number;
+  shiny: number;
+} {
+  const TOTAL_POKEMON = 151; // Kanto de base, configurable
+  
   return {
-    seen: {
-      count: this.totalSeen,
-      percentage: this.seenPercentage,
-      remaining: this.totalPokemon - this.totalSeen
-    },
-    caught: {
-      count: this.totalCaught,
-      percentage: this.caughtPercentage,
-      remaining: this.totalPokemon - this.totalCaught
-    },
-    records: {
-      shinies: this.records.totalShinyCaught,
-      highestLevel: this.records.highestLevelCaught,
-      longestStreak: this.records.longestCaughtStreak
-    },
-    lastActivity: {
-      discovery: this.activity.lastDiscoveryDate,
-      capture: this.activity.lastCaptureDate
-    }
+    seen: this.totalSeen > 0 ? Math.round((this.totalSeen / TOTAL_POKEMON) * 100 * 100) / 100 : 0,
+    caught: this.totalCaught > 0 ? Math.round((this.totalCaught / TOTAL_POKEMON) * 100 * 100) / 100 : 0,
+    shiny: this.totalShinies > 0 ? Math.round((this.totalShinies / this.totalCaught) * 100 * 100) / 100 : 0
   };
 };
 
 /**
- * Utilitaire pour calculer le numéro de semaine
+ * Recalcule depuis les entrées (maintenance)
  */
-function getWeekNumber(date: Date): number {
+PokédxStatsSchema.methods.recalculateFromEntries = async function(this: IPokédxStats): Promise<void> {
+  // Import dynamique pour éviter circular dependency
+  const { PokédxEntry } = await import('./PokédxEntry');
+  
+  console.log(`🔄 [PokédxStats] Recalcul complet pour ${this.playerId}`);
+  
+  // Récupérer statistiques via agrégation
+  const [stats] = await PokédxEntry.aggregate([
+    { $match: { playerId: this.playerId } },
+    {
+      $group: {
+        _id: null,
+        totalSeen: { $sum: { $cond: ['$isSeen', 1, 0] } },
+        totalCaught: { $sum: { $cond: ['$isCaught', 1, 0] } },
+        totalShinies: { $sum: { $cond: ['$hasShiny', 1, 0] } },
+        totalEncounters: { $sum: '$timesEncountered' },
+        totalCaptures: { $sum: '$timesCaught' },
+        highestLevel: { $max: '$bestLevel' },
+        firstSeen: { $min: '$firstSeenAt' },
+        firstCaught: { $min: '$firstCaughtAt' }
+      }
+    }
+  ]);
+  
+  if (stats) {
+    // Mise à jour des compteurs
+    this.totalSeen = stats.totalSeen || 0;
+    this.totalCaught = stats.totalCaught || 0;
+    this.totalShinies = stats.totalShinies || 0;
+    this.totalEncounters = stats.totalEncounters || 0;
+    this.totalCaptures = stats.totalCaptures || 0;
+    this.highestLevel = stats.highestLevel || 1;
+    
+    // Dates importantes
+    if (stats.firstSeen) this.firstDiscovery = stats.firstSeen;
+    if (stats.firstCaught) this.firstCapture = stats.firstCaught;
+    
+    this.version += 1;
+    await this.save();
+  }
+  
+  console.log(`✅ [PokédxStats] Recalcul terminé: ${this.totalSeen}/${this.totalCaught}`);
+};
+
+/**
+ * Utilitaire: Calcul numéro de semaine
+ */
+PokédxStatsSchema.methods.getWeekNumber = function(date: Date): number {
   const firstJan = new Date(date.getFullYear(), 0, 1);
   const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dayOfYear = Math.floor((today.getTime() - firstJan.getTime()) / (24 * 60 * 60 * 1000));
   return Math.ceil(dayOfYear / 7);
-}
-
-/**
- * Ajoute les progrès de la semaine
- */
-PokédexStatsSchema.methods.addWeeklyProgress = function(
-  this: IPokédexStats,
-  newSeen: number,
-  newCaught: number
-) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const week = getWeekNumber(now);
-  const weekKey = `${year}-W${week.toString().padStart(2, '0')}`;
-  
-  // Chercher la semaine courante
-  let currentWeek = this.activity.weeklyProgress.find(w => w.week === weekKey);
-  
-  if (currentWeek) {
-    currentWeek.newSeen += newSeen;
-    currentWeek.newCaught += newCaught;
-  } else {
-    this.activity.weeklyProgress.push({
-      week: weekKey,
-      newSeen,
-      newCaught
-    });
-    
-    // Garder seulement les 12 dernières semaines
-    if (this.activity.weeklyProgress.length > 12) {
-      this.activity.weeklyProgress = this.activity.weeklyProgress.slice(-12);
-    }
-  }
 };
 
-/**
- * Utilitaire pour calculer le numéro de semaine
- */
-PokédexStatsSchema.methods.getWeekNumber = function(date: Date): number {
-  return getWeekNumber(date);
-};
-
-// ===== MÉTHODES STATIQUES =====
+// ===== MÉTHODES STATIQUES OPTIMISÉES =====
 
 /**
  * Trouve ou crée les stats d'un joueur
  */
-PokédexStatsSchema.statics.findOrCreate = async function(playerId: string): Promise<IPokédexStats> {
-  let stats = await this.findOne({ playerId });
-  
-  if (!stats) {
-    stats = new this({
-      playerId,
-      totalSeen: 0,
-      totalCaught: 0,
-      totalPokemon: 151, // Kanto par défaut
-      typeStats: new Map(),
-      regionStats: new Map(),
-      records: {
-        totalShinyFound: 0,
-        totalShinyCaught: 0,
-        highestLevelSeen: 1,
-        highestLevelCaught: 1,
-        fastestCapture: Infinity,
-        longestHunt: 0,
-        currentSeenStreak: 0,
-        longestSeenStreak: 0,
-        currentCaughtStreak: 0,
-        longestCaughtStreak: 0
-      },
-      activity: {
-        mostActiveDay: 'saturday',
-        mostActiveHour: 14,
-        weeklyProgress: [],
-        monthlyProgress: []
-      },
-      achievements: new Map()
-    });
+PokédxStatsSchema.statics.findOrCreate = async function(playerId: string): Promise<IPokédxStats> {
+  if (!playerId) {
+    throw new Error('PlayerId requis pour findOrCreate');
   }
   
-  return stats;
+  const result = await this.findOneAndUpdate(
+    { playerId },
+    {
+      $setOnInsert: {
+        playerId,
+        totalSeen: 0,
+        totalCaught: 0,
+        totalShinies: 0,
+        totalEncounters: 0,
+        totalCaptures: 0,
+        highestLevel: 1,
+        longestStreak: 0,
+        currentStreak: 0,
+        lastActiveDate: new Date(),
+        typeProgress: new Map(),
+        weeklyStats: [],
+        version: 1
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      runValidators: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  
+  return result;
+};
+
+/**
+ * Leaderboard global optimisé
+ */
+PokédxStatsSchema.statics.getLeaderboard = async function(
+  type: 'caught' | 'seen' | 'shinies' | 'streaks' = 'caught',
+  limit: number = 10
+): Promise<any[]> {
+  const sortField = {
+    caught: 'totalCaught',
+    seen: 'totalSeen',
+    shinies: 'totalShinies',
+    streaks: 'longestStreak'
+  }[type];
+  
+  return this.find({
+    [sortField]: { $gt: 0 }
+  })
+  .sort({ [sortField]: -1, totalCaught: -1 }) // Tie-breaker
+  .limit(Math.min(limit, 100)) // Max 100
+  .select(`playerId ${sortField} totalCaught totalSeen`)
+  .lean()
+  .exec();
+};
+
+/**
+ * Nettoyage des streaks inactives (maintenance)
+ */
+PokédxStatsSchema.statics.cleanupInactiveStreaks = async function(daysInactive: number = 2): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - daysInactive);
+  
+  const result = await this.updateMany(
+    {
+      currentStreak: { $gt: 0 },
+      lastActiveDate: { $lt: cutoff }
+    },
+    {
+      $set: { currentStreak: 0 }
+    }
+  );
+  
+  console.log(`🧹 [PokédxStats] ${result.modifiedCount} streaks inactives nettoyées`);
+  return result.modifiedCount;
 };
 
 // ===== EXPORT =====
-export const PokédexStats = mongoose.model<IPokédexStats>('PokédexStats', PokédexStatsSchema);
+export const PokédxStats = mongoose.model<IPokédxStats>('PokédxStats', PokédxStatsSchema);
+export default PokédxStats;
 
-// ===== TYPES D'EXPORT =====
-export type PokédexStatsDocument = IPokédexStats;
+// Types pour export
+export type PokédxStatsDocument = IPokédxStats;
