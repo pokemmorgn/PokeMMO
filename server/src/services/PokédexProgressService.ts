@@ -113,7 +113,36 @@ export class PokédexProgressService extends EventEmitter {
       console.log(`🏆 [PokédxProgressService] Vérification accomplissements Pokédx pour ${playerId}`);
       
       const notifications: string[] = [];
-      const stats = await PokédexStats.findOrCreate(playerId);
+      let stats = await PokédexStats.findOne({ playerId });
+      if (!stats) {
+        stats = new PokédexStats({
+          playerId,
+          totalSeen: 0,
+          totalCaught: 0,
+          totalPokemon: 151,
+          typeStats: {},
+          regionStats: {},
+          records: {
+            totalShinyFound: 0,
+            totalShinyCaught: 0,
+            highestLevelSeen: 1,
+            highestLevelCaught: 1,
+            fastestCapture: Infinity,
+            longestHunt: 0,
+            currentSeenStreak: 0,
+            longestSeenStreak: 0,
+            currentCaughtStreak: 0,
+            longestCaughtStreak: 0
+          },
+          activity: {
+            mostActiveDay: 'saturday',
+            mostActiveHour: 14,
+            weeklyProgress: [],
+            monthlyProgress: []
+          },
+          achievements: {}
+        });
+      }
       
       // === ACCOMPLISSEMENTS SIMPLES ===
       
@@ -196,7 +225,36 @@ export class PokédexProgressService extends EventEmitter {
     timestamp: Date = new Date()
   ): Promise<{ notifications: string[]; updatedStreaks: PokédexStreak[] }> {
     try {
-      const stats = await PokédexStats.findOrCreate(playerId);
+      let stats = await PokédexStats.findOne({ playerId });
+      if (!stats) {
+        stats = new PokédexStats({
+          playerId,
+          totalSeen: 0,
+          totalCaught: 0,
+          totalPokemon: 151,
+          typeStats: {},
+          regionStats: {},
+          records: {
+            totalShinyFound: 0,
+            totalShinyCaught: 0,
+            highestLevelSeen: 1,
+            highestLevelCaught: 1,
+            fastestCapture: Infinity,
+            longestHunt: 0,
+            currentSeenStreak: 0,
+            longestSeenStreak: 0,
+            currentCaughtStreak: 0,
+            longestCaughtStreak: 0
+          },
+          activity: {
+            mostActiveDay: 'saturday',
+            mostActiveHour: 14,
+            weeklyProgress: [],
+            monthlyProgress: []
+          },
+          achievements: {}
+        });
+      }
       const notifications: string[] = [];
       const updatedStreaks: PokédexStreak[] = [];
       
@@ -302,7 +360,33 @@ export class PokédexProgressService extends EventEmitter {
       console.log(`📊 [PokédxProgressService] Génération analytics Pokédx pour ${playerId}`);
       
       const [stats, entries] = await Promise.all([
-        PokédexStats.findOrCreate(playerId),
+        PokédexStats.findOne({ playerId }).then(s => s || new PokédexStats({
+          playerId,
+          totalSeen: 0,
+          totalCaught: 0,
+          totalPokemon: 151,
+          typeStats: {},
+          regionStats: {},
+          records: {
+            totalShinyFound: 0,
+            totalShinyCaught: 0,
+            highestLevelSeen: 1,
+            highestLevelCaught: 1,
+            fastestCapture: Infinity,
+            longestHunt: 0,
+            currentSeenStreak: 0,
+            longestSeenStreak: 0,
+            currentCaughtStreak: 0,
+            longestCaughtStreak: 0
+          },
+          activity: {
+            mostActiveDay: 'saturday',
+            mostActiveHour: 14,
+            weeklyProgress: [],
+            monthlyProgress: []
+          },
+          achievements: {}
+        })),
         PokédexEntry.find({ playerId }).lean()
       ]);
       
@@ -508,7 +592,36 @@ export class PokédexProgressService extends EventEmitter {
    * Récupère les streaks actuelles d'un joueur
    */
   async getCurrentStreaks(playerId: string): Promise<PokédexStreak[]> {
-    const stats = await PokédexStats.findOrCreate(playerId);
+    let stats = await PokédexStats.findOne({ playerId });
+    if (!stats) {
+      stats = new PokédexStats({
+        playerId,
+        totalSeen: 0,
+        totalCaught: 0,
+        totalPokemon: 151,
+        typeStats: {},
+        regionStats: {},
+        records: {
+          totalShinyFound: 0,
+          totalShinyCaught: 0,
+          highestLevelSeen: 1,
+          highestLevelCaught: 1,
+          fastestCapture: Infinity,
+          longestHunt: 0,
+          currentSeenStreak: 0,
+          longestSeenStreak: 0,
+          currentCaughtStreak: 0,
+          longestCaughtStreak: 0
+        },
+        activity: {
+          mostActiveDay: 'saturday',
+          mostActiveHour: 14,
+          weeklyProgress: [],
+          monthlyProgress: []
+        },
+        achievements: {}
+      });
+    }
     
     return [
       {
