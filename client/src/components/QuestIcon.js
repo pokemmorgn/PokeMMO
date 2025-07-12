@@ -15,29 +15,21 @@ export class QuestIcon {
     console.log('📖 Quest icon created');
   }
 
-  createIcon() {
-    // Create the icon
-    const icon = document.createElement('div');
-    icon.id = 'quest-icon';
-    icon.className = 'ui-icon quest-icon';
-    icon.innerHTML = `
-      <div class="icon-background">
-        <div class="icon-content">
-          <span class="icon-emoji">📖</span>
-        </div>
-        <div class="icon-label">Quests</div>
-      </div>
-      <div class="icon-notification" id="quest-notification" style="display: none;">
-        <span class="notification-count">!</span>
-      </div>
-    `;
+createIcon() {
+  // Create the icon but don't add it to DOM
+  const icon = document.createElement('div');
+  icon.id = 'quest-icon-hidden';  // ✅ Changer l'ID pour éviter conflits
+  icon.className = 'ui-icon quest-icon hidden-legacy';
+  icon.innerHTML = `<!-- Ancienne icône désactivée -->`;
 
-    // Add to UI (position next to inventory icon)
-    document.body.appendChild(icon);
-    this.iconElement = icon;
-
-    this.addStyles();
-  }
+  // ✅ NE PAS L'AJOUTER AU DOM
+  // document.body.appendChild(icon);  // ← Commenter cette ligne
+  
+  this.iconElement = icon;  // Garder la référence pour compatibilité
+  this.addStyles();
+  
+  console.log('🚫 [QuestIcon] Ancienne icône désactivée (non ajoutée au DOM)');
+}
 
   addStyles() {
     if (document.querySelector('#quest-icon-styles')) return;
