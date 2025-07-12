@@ -1,4 +1,4 @@
-// server/src/services/PokédexNotificationService.ts
+const pokédexProgressService = PokédexProgressService.getInstance();// server/src/services/PokédexNotificationService.ts
 import { EventEmitter } from 'events';
 import { getPokemonById } from '../data/PokemonData';
 
