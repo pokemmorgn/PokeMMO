@@ -111,7 +111,19 @@ export class EvolutionService extends EventEmitter {
       return false;
     }
   }
-  
+
+    // Dans EvolutionService.ts
+  async getEvolutionHistory(playerId: string, limit: number = 10): Promise<Array<{
+    date: Date;
+    fromPokemon: { id: number; name: string };
+    toPokemon: { id: number; name: string };
+    method: string;
+    location: string;
+  }>> {
+    // TODO: Récupérer depuis base de données
+    // Pour l'instant, retourner un tableau vide
+    return [];
+  }
   // ===== MÉTHODE PRINCIPALE =====
   
   /**
