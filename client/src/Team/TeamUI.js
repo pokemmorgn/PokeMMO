@@ -1,4 +1,93 @@
-// Team/TeamUI.js - Interface Team COMPLÈTE - RÉÉCRITURE FONCTIONNELLE
+updateDetailView() {
+    const detailsContent = this.overlayElement?.querySelector('.team-details-content');
+    if (!detailsContent) return;
+    
+    if (!this.selectedPokemon) {
+      detailsContent.innerHTML = `
+        <div class="no-selection">
+          <div class="no-selection-icon">📊</div>
+          <h3>Détails Pokémon</h3>
+          <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const pokemon = this.selectedPokemon;
+    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+    
+    // ✅ FIX: Même logique de nom avec fichier de localisation
+    let displayName;
+    if (pokemon.nickname && pokemon.nickname.trim()) {
+      displayName = pokemon.nickname;
+    } else if (pokemon.name && pokemon.name.trim()) {
+      displayName = pokemon.name;
+    } else if (pokemon.pokemonId) {
+      displayName = this.getPokemonNameByIdSync(pokemon.pokemonId);
+    } else {
+      displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
+    }
+    
+    const typesText = pokemon.types ? pokemon.types.join(' / ') : 'Type Inconnu';
+    
+    detailsContent.innerHTML = `
+      <div class="pokemon-details">
+        <div class="pokemon-details-header">
+          <div class="pokemon-details-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}"></div>
+          <h2 class="pokemon-details-name">${displayName}</h2>
+          <p class="pokemon-details-info">Niveau ${pokemon.level} • ${typesText}</p>
+        </div>
+        
+        <div class="pokemon-details-stats">
+          <div class="pokemon-stat-group">
+            <h4>Informations Générales</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Points de Vie</span>
+                <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp} (${Math.round(healthPercent)}%)</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Niveau</span>
+                <span class="stat-value">${pokemon.level}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Expérience</span>
+                <span class="stat-value">${pokemon.experience || 0} XP</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Nature</span>
+                <span class="stat-value">${pokemon.nature || 'Inconnue'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pokemon-stat-group">
+            <h4>État et Statut</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Statut</span>
+                <span class="stat-value">${pokemon.status || 'Normal'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Peut Combattre</span>
+                <span class="stat-value" style="color: ${pokemon.currentHp > 0 ? '#28a745' : '#dc3545'}">${pokemon.currentHp > 0 ? 'Oui' : 'Non'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Position</span>
+                <span class="stat-value">Slot ${(this.selectedSlot || 0) + 1}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
+            Double-cliquez sur un Pokémon dans la vue d'ensemble pour voir ses détails
+          </p>
+        </div>
+      </div>
+    `;
+  }// Team/TeamUI.js - Interface Team COMPLÈTE - RÉÉCRITURE FONCTIONNELLE
 // 🎯 Toutes les fonctionnalités conservées, bugs CSS corrigés
 // ✅ Fonctionnement normal garanti sans commandes manuelles
 
@@ -35,6 +124,9 @@ export class TeamUI {
   async init() {
     try {
       console.log('🚀 [TeamUI] Initialisation interface...');
+      
+      // ✅ Précharger les noms Pokémon
+      await this.preloadPokemonNames();
       
       this.loadRobustCSS();
       this.createInterface();
@@ -1376,22 +1468,86 @@ export class TeamUI {
     return slot;
   }
   
+  // === 🎯 UTILITAIRE NOMS POKÉMON ===
+  
+  /**
+   * Obtient le nom d'un Pokémon à partir de son ID via le fichier de localisation
+   */
+  async getPokemonNameById(pokemonId) {
+    try {
+      // Utiliser le cache si disponible
+      if (!this.pokemonNamesCache) {
+        const response = await fetch('/localization/pokemon/gen1/en.json');
+        if (response.ok) {
+          this.pokemonNamesCache = await response.json();
+          console.log('📖 [TeamUI] Cache noms Pokémon chargé');
+        } else {
+          console.warn('⚠️ [TeamUI] Impossible de charger les noms Pokémon');
+          this.pokemonNamesCache = {};
+        }
+      }
+      
+      // Récupérer le nom depuis le cache
+      const pokemonData = this.pokemonNamesCache[pokemonId];
+      if (pokemonData && pokemonData.name) {
+        return pokemonData.name;
+      }
+      
+      // Fallback si nom introuvable
+      return `Pokémon #${pokemonId}`;
+      
+    } catch (error) {
+      console.error('❌ [TeamUI] Erreur chargement nom Pokémon:', error);
+      return `Pokémon #${pokemonId}`;
+    }
+  }
+  
+  /**
+   * Version synchrone qui utilise le cache déjà chargé
+   */
+  getPokemonNameByIdSync(pokemonId) {
+    if (this.pokemonNamesCache && this.pokemonNamesCache[pokemonId]) {
+      return this.pokemonNamesCache[pokemonId].name;
+    }
+    return `Pokémon #${pokemonId}`;
+  }
+  
+  /**
+   * Précharge les noms Pokémon au démarrage
+   */
+  async preloadPokemonNames() {
+    try {
+      const response = await fetch('/localization/pokemon/gen1/en.json');
+      if (response.ok) {
+        this.pokemonNamesCache = await response.json();
+        console.log('✅ [TeamUI] Noms Pokémon préchargés');
+        return true;
+      }
+    } catch (error) {
+      console.error('❌ [TeamUI] Erreur préchargement noms:', error);
+    }
+    return false;
+  }
+  
   createPokemonCardHTML(pokemon) {
     const currentHp = pokemon.currentHp || 0;
     const maxHp = pokemon.maxHp || 1;
     const healthPercent = (currentHp / maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
     
-    // ✅ FIX: Logique de nom améliorée
+    // ✅ FIX: Logique de nom avec fichier de localisation
     let displayName;
     if (pokemon.nickname && pokemon.nickname.trim()) {
       // Priorité 1: Nickname personnalisé
       displayName = pokemon.nickname;
     } else if (pokemon.name && pokemon.name.trim()) {
-      // Priorité 2: Nom officiel du Pokémon
+      // Priorité 2: Nom stocké dans les données
       displayName = pokemon.name;
+    } else if (pokemon.pokemonId) {
+      // Priorité 3: Nom depuis le fichier de localisation (synchrone)
+      displayName = this.getPokemonNameByIdSync(pokemon.pokemonId);
     } else {
-      // Fallback: ID seulement si vraiment aucun nom
+      // Fallback final
       displayName = `Pokémon #${pokemon.pokemonId || '?'}`;
     }
     
