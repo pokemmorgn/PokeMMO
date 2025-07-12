@@ -1884,35 +1884,81 @@ getPortraitStyle(pokemonId) {
   
   // === 🎮 NAVIGATION VUES ===
   
-  switchToView(viewName) {
-    console.log(`🎮 [TeamUI] Changement vue: ${viewName}`);
+// === 🎮 NAVIGATION VUES CORRIGÉE ===
+// Remplacez la méthode switchToView() dans votre TeamUI.js par cette version :
+
+switchToView(viewName) {
+  console.log(`🎮 [TeamUI] Changement vue: ${viewName}`);
+  
+  if (!this.overlayElement) {
+    console.error('❌ [TeamUI] Pas d\'overlay pour changer de vue');
+    return;
+  }
+  
+  // Mettre à jour les tabs
+  this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === viewName);
+  });
+  
+  // ✅ FIX: FORCER LE MASQUAGE/AFFICHAGE DES VUES
+  const overviewElement = this.overlayElement.querySelector('#team-overview');
+  const detailsElement = this.overlayElement.querySelector('#team-details');
+  
+  if (viewName === 'overview') {
+    // Afficher overview, masquer details
+    if (overviewElement) {
+      overviewElement.classList.add('active');
+      overviewElement.style.display = 'flex';
+      overviewElement.style.flexDirection = 'column';
+      overviewElement.style.width = '100%';
+      overviewElement.style.height = '100%';
+      console.log('✅ [TeamUI] Vue overview activée');
+    }
     
-    // Mettre à jour les tabs
-    this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.view === viewName);
-    });
+    if (detailsElement) {
+      detailsElement.classList.remove('active');
+      detailsElement.style.display = 'none';
+      console.log('✅ [TeamUI] Vue details masquée');
+    }
     
-    // Mettre à jour les vues
-    this.overlayElement.querySelectorAll('.team-view').forEach(view => {
-      view.classList.toggle('active', view.id === `team-${viewName}`);
-    });
+  } else if (viewName === 'details') {
+    // Afficher details, masquer overview
+    if (detailsElement) {
+      detailsElement.classList.add('active');
+      detailsElement.style.display = 'flex';
+      detailsElement.style.flexDirection = 'column';
+      detailsElement.style.width = '100%';
+      detailsElement.style.height = '100%';
+      console.log('✅ [TeamUI] Vue details activée');
+    }
     
-    this.currentView = viewName;
-    
-    // ✅ FIX: FORCER L'AFFICHAGE DE LA VUE ACTIVE
-    setTimeout(() => {
-      const activeView = this.overlayElement.querySelector('.team-view.active');
-      if (activeView) {
-        activeView.style.display = 'flex';
-        console.log(`✅ [TeamUI] Vue ${viewName} forcée à display: flex`);
-      }
-    }, 10);
-    
-    // Actions spécifiques selon la vue
-    if (viewName === 'details' && this.selectedPokemon) {
-      this.updateDetailView();
+    if (overviewElement) {
+      overviewElement.classList.remove('active');
+      overviewElement.style.display = 'none';
+      console.log('✅ [TeamUI] Vue overview masquée');
     }
   }
+  
+  // ✅ METTRE À JOUR L'ÉTAT INTERNE
+  this.currentView = viewName;
+  
+  // ✅ VALIDATION FINALE
+  setTimeout(() => {
+    const activeView = this.overlayElement.querySelector('.team-view.active');
+    if (activeView) {
+      console.log('✅ [TeamUI] Vue active confirmée:', {
+        id: activeView.id,
+        display: activeView.style.display,
+        classes: activeView.className
+      });
+    }
+  }, 10);
+  
+  // Actions spécifiques selon la vue
+  if (viewName === 'details' && this.selectedPokemon) {
+    this.updateDetailView();
+  }
+}
   
   // === 🎬 GESTION ACTIONS ===
   
