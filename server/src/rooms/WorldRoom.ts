@@ -30,8 +30,6 @@ import { BattleHandlers } from "../handlers/BattleHandlers";
 
 import { StarterHandlers } from "../handlers/StarterHandlers";
 
-import { PokédexMessageHandler } from '../handlers/PokédexMessageHandler';
-
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
   success: boolean;
@@ -61,7 +59,6 @@ export class WorldRoom extends Room<PokeWorldState> {
   private followerHandlers!: FollowerHandlers;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
-  private pokédexHandler!: PokédexMessageHandler;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -123,9 +120,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Initialiser les BattleHandlers
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
-
-   this.pokédexHandler = new PokédexMessageHandler(this);
-    console.log(`✅ PokédexMessageHandler initialisé`);
     
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
