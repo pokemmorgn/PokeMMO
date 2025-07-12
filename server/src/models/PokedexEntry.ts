@@ -605,16 +605,24 @@ PokedexEntrySchema.statics.getPlayerEntries = async function(
 /**
  * Compte les entrées avec cache
  */
-PokedexEntrySchema.statics.getPlayerStats = async function(playerId: string) {
+PokedexEntrySchema.statics.getPlayerStats = async function(playerId: string): Promise<{
+  totalSeen: number;
+  totalCaught: number;
+  totalShiny: number;
+  totalFavorited: number;
+  averageLevel: number;
+  totalEncounters: number;
+  totalCaptures: number;
+}> {
   if (!playerId || playerId.trim().length === 0) {
     throw new Error('Player ID is required');
   }
   
-  const pipeline = [
+  const pipeline: any[] = [
     { $match: { playerId: playerId.trim() } },
     {
       $group: {
-        _id: null,
+        _id: null as null,
         totalSeen: { $sum: { $cond: ['$isSeen', 1, 0] } },
         totalCaught: { $sum: { $cond: ['$isCaught', 1, 0] } },
         totalShiny: { $sum: { $cond: ['$bestSpecimen.isShiny', 1, 0] } },
