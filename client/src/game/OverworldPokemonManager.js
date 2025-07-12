@@ -11,7 +11,7 @@ export class OverworldPokemonManager {
     this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
     this.spriteStructures = new Map(); // Cache des structures détectées
     this.tileSize = 16; // Taille d'une tile
-    this.moveSpeed = 80; // Pixels par seconde pour le lerp
+    this.moveSpeed = 20; // Pixels par seconde pour le lerp
     
     console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile");
   }
