@@ -405,7 +405,7 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Démarre le mouvement tile par tile vers une cible
+   * ✅ Démarre le mouvement tile par tile vers une cible - AVEC VÉRIFICATION STRICTE
    */
   startTileMovement(pokemon, targetX, targetY) {
     // Snapper la cible sur la grille
@@ -415,9 +415,12 @@ export class OverworldPokemonManager {
     
     console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} tile movement: (${pokemon.currentTileX},${pokemon.currentTileY}) → (${targetTileX},${targetTileY})`);
     
-    // Vérifier si la tile de destination est libre
+    // ✅ VÉRIFICATION STRICTE - ARRÊTER SI BLOQUÉ
     if (!this.canMoveToTile(pokemon, targetTileX, targetTileY)) {
-      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} tile (${targetTileX},${targetTileY}) bloquée`);
+      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} MOUVEMENT BLOQUÉ - tile (${targetTileX},${targetTileY}) collision détectée`);
+      
+      // ✅ FORCER L'ARRÊT et jouer animation idle
+      this.stopTileMovement(pokemon);
       return false;
     }
     
@@ -455,6 +458,7 @@ export class OverworldPokemonManager {
       }
     }
     
+    console.log(`✅ [OverworldPokemonManager] ${pokemon.name} mouvement autorisé vers (${targetTileX}, ${targetTileY})`);
     return true;
   }
 
@@ -490,7 +494,7 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Met à jour un Pokémon existant avec système tile par tile
+   * ✅ Met à jour un Pokémon existant avec système tile par tile - AVEC BLOCAGE COLLISION
    */
   updateOverworldPokemon(pokemonData) {
     const { 
@@ -508,7 +512,15 @@ export class OverworldPokemonManager {
       const snappedTarget = this.snapToGrid(targetX, targetY);
       if (snappedTarget.x !== pokemon.targetX || snappedTarget.y !== pokemon.targetY) {
         console.log(`🚀 [OverworldPokemonManager] Nouveau mouvement tile: ${pokemon.name} → (${targetX},${targetY})`);
-        this.startTileMovement(pokemon, targetX, targetY);
+        
+        // ✅ TENTATIVE DE MOUVEMENT - SI BLOQUÉ, LE POKÉMON RESTE SUR PLACE
+        const moveSuccess = this.startTileMovement(pokemon, targetX, targetY);
+        
+        if (!moveSuccess) {
+          console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} mouvement bloqué par collision - reste en place`);
+          // Le Pokémon garde sa position actuelle et passe en idle
+          this.stopTileMovement(pokemon);
+        }
       }
     }
     
