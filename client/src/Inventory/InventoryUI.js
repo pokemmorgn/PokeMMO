@@ -1,4 +1,4 @@
-// Inventory/InventoryUI.js - Interface Inventory COMPLÈTE avec CSS modulaire
+// Inventory/InventoryUI.js - Interface Inventory PROPRE avec gestion d'affichage corrigée
 
 import { INVENTORY_UI_STYLES } from './InventoryUICSS.js';
 
@@ -10,10 +10,11 @@ export class InventoryUI {
     this.selectedItem = null;
     this.inventoryData = {};
     this.itemLocalizations = {};
-    this.currentLanguage = 'fr'; // Par défaut français
+    this.currentLanguage = 'fr';
+    this.overlay = null;
+    this._eventsAttached = false;
     
     this.init();
-   // this.loadLocalizations();
   }
 
   async loadLocalizations() {
@@ -45,12 +46,23 @@ export class InventoryUI {
 
   init() {
     this.createInventoryInterface();
-    this.setupEventListeners();
+    this.addStyles();
     this.setupServerListeners();
-    console.log('🎒 Interface d\'inventaire initialisée avec CSS modulaire');
+    // ✅ NE PAS attacher les événements ici - ils seront attachés à l'ouverture
+    
+    // ✅ FERMER PAR DÉFAUT (important pour UIManager)
+    this.forceClose();
+    
+    console.log('🎒 Interface d\'inventaire initialisée et fermée par défaut');
   }
 
   createInventoryInterface() {
+    // Supprimer l'existant si présent
+    const existing = document.querySelector('#inventory-overlay');
+    if (existing) {
+      existing.remove();
+    }
+
     // Créer le conteneur principal
     const overlay = document.createElement('div');
     overlay.id = 'inventory-overlay';
@@ -134,60 +146,206 @@ export class InventoryUI {
 
     document.body.appendChild(overlay);
     this.overlay = overlay;
-    this.addStyles();
   }
 
-  // ✅ MODIFIÉ: Utilise maintenant le CSS modulaire
   addStyles() {
     if (document.querySelector('#inventory-ui-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'inventory-ui-styles';
-    style.textContent = INVENTORY_UI_STYLES; // ✅ Import du CSS modulaire
+    style.textContent = INVENTORY_UI_STYLES;
     
     document.head.appendChild(style);
     console.log('🎨 [InventoryUI] Styles modulaires appliqués');
   }
 
-  setupEventListeners() {
-    // Fermeture
-    this.overlay.querySelector('.inventory-close-btn').addEventListener('click', () => {
+  // ✅ NOUVELLE MÉTHODE: Fermeture forcée propre
+  forceClose() {
+    console.log('🔒 [InventoryUI] Fermeture forcée...');
+    
+    this.isVisible = false;
+    
+    if (this.overlay) {
+      // Supprimer toutes les classes d'animation
+      this.overlay.classList.remove('ui-fade-in', 'ui-fade-out');
+      
+      // Forcer masquage complet
+      this.overlay.classList.add('hidden');
+      this.overlay.style.display = 'none';
+      this.overlay.style.opacity = '0';
+      this.overlay.style.visibility = 'hidden';
+      this.overlay.style.pointerEvents = 'none';
+    }
+    
+    // Reset état
+    this.selectedItem = null;
+    this._eventsAttached = false;
+    
+    console.log('✅ [InventoryUI] Fermé complètement');
+  }
+
+  // ✅ MÉTHODE SHOW CORRIGÉE
+  show() {
+    if (this.isVisible) {
+      console.log('ℹ️ [InventoryUI] Déjà ouvert');
+      return;
+    }
+    
+    console.log('🎒 [InventoryUI] Ouverture inventaire...');
+    
+    this.isVisible = true;
+    
+    if (this.overlay) {
+      // Supprimer les classes de masquage
+      this.overlay.classList.remove('hidden', 'ui-hidden', 'ui-fade-out');
+      
+      // Afficher avec styles corrects
+      this.overlay.style.display = 'flex';
+      this.overlay.style.opacity = '1';
+      this.overlay.style.visibility = 'visible';
+      this.overlay.style.pointerEvents = 'auto';
+      this.overlay.style.zIndex = '1000';
+      
+      // Animation d'entrée
+      this.overlay.classList.add('ui-fade-in');
+      setTimeout(() => {
+        this.overlay.classList.remove('ui-fade-in');
+      }, 300);
+    }
+    
+    // ✅ ATTACHER LES ÉVÉNEMENTS SEULEMENT À L'OUVERTURE
+    this.ensureEventListeners();
+    
+    // Demander les données
+    this.requestInventoryData();
+    
+    // Afficher les données existantes si disponibles
+    if (this.inventoryData && Object.keys(this.inventoryData).length > 0) {
+      setTimeout(() => {
+        this.refreshCurrentPocket();
+      }, 100);
+    }
+    
+    console.log('✅ [InventoryUI] Inventaire ouvert');
+  }
+
+  // ✅ MÉTHODE HIDE CORRIGÉE
+  hide() {
+    if (!this.isVisible) {
+      console.log('ℹ️ [InventoryUI] Déjà fermé');
+      return;
+    }
+    
+    console.log('❌ [InventoryUI] Fermeture inventaire...');
+    
+    this.isVisible = false;
+    
+    if (this.overlay) {
+      // Animation de sortie rapide
+      this.overlay.classList.add('ui-fade-out');
+      
+      setTimeout(() => {
+        this.overlay.classList.add('hidden');
+        this.overlay.classList.remove('ui-fade-out');
+        
+        // Forcer masquage complet
+        this.overlay.style.display = 'none';
+        this.overlay.style.opacity = '0';
+        this.overlay.style.visibility = 'hidden';
+        this.overlay.style.pointerEvents = 'none';
+      }, 150);
+    }
+    
+    // Reset sélection
+    this.selectedItem = null;
+    this.updateItemDetails();
+    
+    console.log('✅ [InventoryUI] Inventaire fermé');
+  }
+
+  // ✅ MÉTHODE TOGGLE SIMPLE
+  toggle() {
+    if (this.isVisible) {
       this.hide();
-    });
+    } else {
+      this.show();
+    }
+  }
 
-    // Fermeture avec ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isVisible) {
+  // ✅ NOUVELLE MÉTHODE: S'assurer que les événements sont attachés
+  ensureEventListeners() {
+    if (this._eventsAttached) {
+      console.log('ℹ️ [InventoryUI] Événements déjà attachés');
+      return;
+    }
+    
+    console.log('🔧 [InventoryUI] Attachement des événements...');
+    this.setupEventListeners();
+    this._eventsAttached = true;
+  }
+
+  setupEventListeners() {
+    if (!this.overlay) return;
+
+    // ✅ ÉVÉNEMENTS ESC - global
+    document.addEventListener('keydown', this.handleEscapeKey.bind(this));
+
+    // ✅ BOUTON FERMETURE
+    const closeBtn = this.overlay.querySelector('.inventory-close-btn');
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('❌ [InventoryUI] Clic bouton fermer');
         this.hide();
-      }
-    });
-    // Changement de poche
+      };
+    }
+
+    // ✅ ONGLETS POCHES
     this.overlay.querySelectorAll('.pocket-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
+      tab.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         const pocket = tab.dataset.pocket;
+        console.log(`🔄 [InventoryUI] Changement vers poche: ${pocket}`);
         this.switchToPocket(pocket);
-      });
+      };
     });
 
-    // Boutons d'action
-    this.overlay.querySelector('#use-item-btn').addEventListener('click', () => {
-      this.useSelectedItem();
-    });
+    // ✅ BOUTONS D'ACTION
+    const useBtn = this.overlay.querySelector('#use-item-btn');
+    const giveBtn = this.overlay.querySelector('#give-item-btn');
+    const sortBtn = this.overlay.querySelector('#sort-items-btn');
 
-    this.overlay.querySelector('#give-item-btn').addEventListener('click', () => {
-      this.giveSelectedItem();
-    });
+    if (useBtn) {
+      useBtn.onclick = () => this.useSelectedItem();
+    }
 
-    this.overlay.querySelector('#sort-items-btn').addEventListener('click', () => {
-      this.sortCurrentPocket();
-    });
+    if (giveBtn) {
+      giveBtn.onclick = () => this.giveSelectedItem();
+    }
 
-    // Fermeture en cliquant à l'extérieur
-    this.overlay.addEventListener('click', (e) => {
+    if (sortBtn) {
+      sortBtn.onclick = () => this.sortCurrentPocket();
+    }
+
+    // ✅ FERMETURE EN CLIQUANT À L'EXTÉRIEUR
+    this.overlay.onclick = (e) => {
       if (e.target === this.overlay) {
+        console.log('❌ [InventoryUI] Fermeture via clic extérieur');
         this.hide();
       }
-    });
+    };
+
+    console.log('✅ [InventoryUI] Événements attachés');
+  }
+
+  handleEscapeKey(e) {
+    if (e.key === 'Escape' && this.isVisible) {
+      e.preventDefault();
+      this.hide();
+    }
   }
 
   setupServerListeners() {
@@ -209,47 +367,25 @@ export class InventoryUI {
     });
   }
 
-  show() {
-    if (this.isVisible) return;
-    
-    this.isVisible = true;
-    this.overlay.classList.remove('hidden');
-    
-    // Requête des données d'inventaire
-    this.requestInventoryData();
-    
-    console.log('🎒 Inventaire ouvert');
-  }
-
-  hide() {
-    if (!this.isVisible) return;
-    
-    this.isVisible = false;
-    this.overlay.classList.add('hidden');
-    this.selectedItem = null;
-    this.updateItemDetails();
-    
-    console.log('🎒 Inventaire fermé');
-  }
-
-  toggle() {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
-  }
-
   requestInventoryData() {
     if (this.gameRoom) {
+      console.log('📡 [InventoryUI] Demande données inventaire...');
       this.gameRoom.send("getInventory");
     }
   }
 
   updateInventoryData(data) {
+    console.log('📦 [InventoryUI] Réception données inventaire:', data);
+    
     this.inventoryData = data;
-    this.refreshCurrentPocket();
-    console.log('🎒 Données d\'inventaire mises à jour');
+    
+    // Si l'interface est visible, rafraîchir immédiatement
+    if (this.isVisible) {
+      this.refreshCurrentPocket();
+      this.updatePocketInfo();
+    }
+    
+    console.log('✅ [InventoryUI] Données d\'inventaire mises à jour');
   }
 
   switchToPocket(pocketName) {
@@ -262,10 +398,14 @@ export class InventoryUI {
     this.selectedItem = null;
     this.refreshCurrentPocket();
     this.updateItemDetails();
+    
+    console.log(`✅ [InventoryUI] Poche changée vers: ${pocketName}`);
   }
 
   refreshCurrentPocket() {
     const itemsGrid = this.overlay.querySelector('#items-grid');
+    if (!itemsGrid) return;
+    
     const pocketData = this.inventoryData[this.currentPocket] || [];
     
     // Animation de transition
@@ -505,8 +645,8 @@ export class InventoryUI {
     const countElement = this.overlay.querySelector('#pocket-count');
     const limitElement = this.overlay.querySelector('#pocket-limit');
     
-    countElement.textContent = `${pocketData.length} objets`;
-    limitElement.textContent = '/ 30 max';
+    if (countElement) countElement.textContent = `${pocketData.length} objets`;
+    if (limitElement) limitElement.textContent = '/ 30 max';
   }
 
   useSelectedItem() {
@@ -551,7 +691,7 @@ export class InventoryUI {
     }
 
     // Rafraîchir l'affichage si on regarde la bonne poche
-    if (data.pocket === this.currentPocket) {
+    if (data.pocket === this.currentPocket && this.isVisible) {
       this.refreshCurrentPocket();
     }
 
@@ -576,7 +716,7 @@ export class InventoryUI {
       this.inventoryData[pocket].push({
         itemId: itemId,
         quantity: quantity,
-        data: {} // Les données seront mises à jour lors du prochain refresh
+        data: {}
       });
     }
   }
@@ -605,8 +745,6 @@ export class InventoryUI {
   handleItemUseResult(data) {
     if (data.success) {
       this.showNotification(data.message || "Objet utilisé avec succès", "success");
-      
-      // Rafraîchir l'inventaire après utilisation
       this.requestInventoryData();
     } else {
       this.showNotification(data.message || "Impossible d'utiliser cet objet", "error");
@@ -614,14 +752,12 @@ export class InventoryUI {
   }
 
   showNotification(message, type = 'info') {
-    // Créer la notification
     const notification = document.createElement('div');
     notification.className = `inventory-notification ${type}`;
     notification.textContent = message;
 
     document.body.appendChild(notification);
 
-    // Auto-suppression
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.4s ease';
@@ -635,7 +771,9 @@ export class InventoryUI {
   openToPocket(pocketName) {
     this.show();
     if (pocketName && pocketName !== this.currentPocket) {
-      this.switchToPocket(pocketName);
+      setTimeout(() => {
+        this.switchToPocket(pocketName);
+      }, 100);
     }
   }
 
@@ -643,7 +781,6 @@ export class InventoryUI {
     return this.isVisible;
   }
 
-  // ✅ NOUVELLES MÉTHODES UIMANAGER
   setEnabled(enabled) {
     if (this.overlay) {
       if (enabled) {
@@ -654,7 +791,6 @@ export class InventoryUI {
     }
   }
 
-  // Méthode pour vérifier si le joueur peut interagir avec le jeu
   canPlayerInteract() {
     const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
     const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
@@ -663,7 +799,6 @@ export class InventoryUI {
     return !this.isVisible && !questDialogOpen && !chatOpen && !starterHudOpen;
   }
 
-  // Méthode pour intégration avec les raccourcis clavier
   handleKeyPress(key) {
     if (!this.isVisible) return false;
 
@@ -724,7 +859,6 @@ export class InventoryUI {
     }
   }
 
-  // Méthode pour exporter les données pour la sauvegarde
   exportData() {
     return {
       currentPocket: this.currentPocket,
@@ -732,11 +866,31 @@ export class InventoryUI {
     };
   }
 
-  // Méthode pour importer les données lors du chargement
   importData(data) {
     if (data.currentPocket) {
       this.currentPocket = data.currentPocket;
     }
-    // Note: selectedItemId sera restauré lors du refresh des données
+  }
+
+  // ✅ MÉTHODE DE NETTOYAGE
+  destroy() {
+    console.log('🧹 [InventoryUI] Destruction...');
+    
+    // Supprimer les événements globaux
+    document.removeEventListener('keydown', this.handleEscapeKey.bind(this));
+    
+    // Supprimer l'overlay
+    if (this.overlay && this.overlay.parentNode) {
+      this.overlay.parentNode.removeChild(this.overlay);
+    }
+    
+    // Reset état
+    this.overlay = null;
+    this.isVisible = false;
+    this.selectedItem = null;
+    this.inventoryData = {};
+    this._eventsAttached = false;
+    
+    console.log('✅ [InventoryUI] Détruit');
   }
 }
