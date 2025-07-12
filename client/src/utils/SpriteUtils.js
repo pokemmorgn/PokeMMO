@@ -6,7 +6,6 @@
  * ✅ Intégrer le JSON et la détection automatique qu'on a développé + support FlapAround
  */
 
-// ✅ 1. MISE À JOUR DU CONSTRUCTOR DANS SpriteUtils
 export class SpriteUtils {
   
   // Cache pour les tailles de sprites
