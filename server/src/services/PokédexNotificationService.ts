@@ -2,293 +2,174 @@
 import { EventEmitter } from 'events';
 import { getPokemonById } from '../data/PokemonData';
 
-// ===== TYPES & INTERFACES =====
+// ===== TYPES SIMPLES ET SÉCURISÉS =====
 
 export interface PokédexNotification {
   id: string;
   playerId: string;
-  type: 'discovery' | 'capture' | 'shiny' | 'milestone' | 'streak' | 'achievement' | 'evolution';
+  type: 'discovery' | 'capture' | 'shiny' | 'milestone' | 'streak' | 'evolution';
   priority: 'low' | 'medium' | 'high' | 'critical';
   title: string;
   message: string;
   icon: string;
-  data?: any;
   timestamp: Date;
   read: boolean;
-  persistent: boolean; // Si true, reste jusqu'à lecture
-  autoHideDelay?: number; // Délai auto-masquage en ms
+  autoHide: boolean;
+  hideDelay: number; // ms
+  data?: any;
 }
 
-export interface PokédexNotificationData {
+export interface NotificationSettings {
+  enabled: boolean;
+  discoveries: boolean;
+  captures: boolean;
+  shinies: boolean;
+  milestones: boolean;
+  streaks: boolean;
+  sounds: boolean;
+  animations: boolean;
+}
+
+export interface QuickNotificationData {
   pokemonId?: number;
   pokemonName?: string;
-  isShiny?: boolean;
   level?: number;
   location?: string;
-  milestone?: {
-    type: string;
-    current: number;
-    target: number;
-  };
-  streak?: {
-    type: string;
-    count: number;
-  };
-  achievement?: {
-    name: string;
-    description: string;
-    reward: string;
-  };
+  isShiny?: boolean;
+  count?: number;
+  milestone?: string;
 }
 
-export interface PokédexNotificationTemplate {
-  type: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  titleTemplate: string;
-  messageTemplate: string;
-  icon: string;
-  persistent: boolean;
-  autoHideDelay?: number;
-  sound?: string;
-  animation?: string;
-}
+// ===== TEMPLATES OPTIMISÉS =====
 
-// ===== TEMPLATES DE NOTIFICATIONS =====
-
-const POKEDEX_NOTIFICATION_TEMPLATES: { [key: string]: PokédexNotificationTemplate } = {
-  // === DÉCOUVERTES ===
+const NOTIFICATION_TEMPLATES = {
+  // Découvertes
   first_discovery: {
-    type: 'discovery',
-    priority: 'high',
-    titleTemplate: 'Première Découverte !',
-    messageTemplate: 'Vous avez découvert {{pokemonName}} pour la première fois !',
+    priority: 'high' as const,
+    title: 'Première Découverte !',
+    message: 'Vous avez découvert {pokemonName} pour la première fois !',
     icon: '🔍',
-    persistent: true,
-    autoHideDelay: 5000,
-    sound: 'discovery_fanfare',
-    animation: 'bounce'
+    autoHide: true,
+    hideDelay: 5000
   },
   
   rare_discovery: {
-    type: 'discovery',
-    priority: 'high',
-    titleTemplate: 'Pokémon Rare !',
-    messageTemplate: '{{pokemonName}} est un Pokémon rare ! Essayez de le capturer !',
+    priority: 'high' as const,
+    title: 'Pokémon Rare !',
+    message: '{pokemonName} est un Pokémon rare ! Tentez de le capturer !',
     icon: '⭐',
-    persistent: true,
-    autoHideDelay: 6000,
-    sound: 'rare_discovery',
-    animation: 'glow'
+    autoHide: true,
+    hideDelay: 6000
   },
   
-  legendary_discovery: {
-    type: 'discovery',
-    priority: 'critical',
-    titleTemplate: 'Pokémon Légendaire !',
-    messageTemplate: 'Un {{pokemonName}} légendaire apparaît ! Une occasion unique !',
-    icon: '👑',
-    persistent: true,
-    autoHideDelay: 8000,
-    sound: 'legendary_fanfare',
-    animation: 'rainbow'
-  },
-  
-  // === CAPTURES ===
+  // Captures
   first_capture: {
-    type: 'capture',
-    priority: 'high',
-    titleTemplate: 'Première Capture !',
-    messageTemplate: '{{pokemonName}} a été capturé ! Bienvenue dans votre équipe !',
+    priority: 'high' as const,
+    title: 'Première Capture !',
+    message: '{pokemonName} capturé ! Bienvenue dans votre équipe !',
     icon: '🎯',
-    persistent: true,
-    autoHideDelay: 5000,
-    sound: 'capture_success',
-    animation: 'zoom'
+    autoHide: true,
+    hideDelay: 5000
   },
   
-  capture_success: {
-    type: 'capture',
-    priority: 'medium',
-    titleTemplate: 'Capture Réussie !',
-    messageTemplate: '{{pokemonName}} (Niv.{{level}}) capturé à {{location}} !',
+  normal_capture: {
+    priority: 'medium' as const,
+    title: 'Capture Réussie !',
+    message: '{pokemonName} (Niv.{level}) capturé !',
     icon: '⚡',
-    persistent: false,
-    autoHideDelay: 4000,
-    sound: 'capture_normal',
-    animation: 'slide'
+    autoHide: true,
+    hideDelay: 3000
   },
   
-  perfect_capture: {
-    type: 'capture',
-    priority: 'high',
-    titleTemplate: 'Capture Parfaite !',
-    messageTemplate: '{{pokemonName}} capturé du premier coup ! Excellent travail !',
-    icon: '🎯',
-    persistent: true,
-    autoHideDelay: 5000,
-    sound: 'perfect_capture',
-    animation: 'perfect'
-  },
-  
-  // === SHINY ===
-  shiny_discovery: {
-    type: 'shiny',
-    priority: 'critical',
-    titleTemplate: 'Pokémon Shiny !',
-    messageTemplate: '✨ Un {{pokemonName}} shiny apparaît ! Ne le laissez pas s\'échapper !',
+  // Shinies
+  shiny_found: {
+    priority: 'critical' as const,
+    title: 'Pokémon Shiny !',
+    message: '✨ Un {pokemonName} shiny apparaît ! Ne le laissez pas s\'échapper !',
     icon: '✨',
-    persistent: true,
-    autoHideDelay: 10000,
-    sound: 'shiny_sparkle',
-    animation: 'sparkle'
+    autoHide: false,
+    hideDelay: 10000
   },
   
-  shiny_captured: {
-    type: 'shiny',
-    priority: 'critical',
-    titleTemplate: 'Shiny Capturé !',
-    messageTemplate: '🌟 {{pokemonName}} shiny capturé ! Un trésor pour votre collection !',
+  shiny_caught: {
+    priority: 'critical' as const,
+    title: 'Shiny Capturé !',
+    message: '🌟 {pokemonName} shiny capturé ! Un trésor rare !',
     icon: '🌟',
-    persistent: true,
-    autoHideDelay: 8000,
-    sound: 'shiny_captured',
-    animation: 'golden'
+    autoHide: true,
+    hideDelay: 8000
   },
   
-  // === MILESTONES ===
-  milestone_discovery: {
-    type: 'milestone',
-    priority: 'high',
-    titleTemplate: 'Milestone Atteint !',
-    messageTemplate: '🏆 {{current}}/{{target}} Pokémon découverts ! Continuez l\'exploration !',
+  // Milestones
+  milestone_seen: {
+    priority: 'high' as const,
+    title: 'Étape Atteinte !',
+    message: '🏆 {count} Pokémon découverts ! Continuez l\'exploration !',
     icon: '🏆',
-    persistent: true,
-    autoHideDelay: 6000,
-    sound: 'milestone_achievement',
-    animation: 'trophy'
+    autoHide: true,
+    hideDelay: 5000
   },
   
-  milestone_capture: {
-    type: 'milestone',
-    priority: 'high',
-    titleTemplate: 'Milestone Capture !',
-    messageTemplate: '🎖️ {{current}}/{{target}} Pokémon capturés ! Impressionnant !',
+  milestone_caught: {
+    priority: 'high' as const,
+    title: 'Étape Capture !',
+    message: '🎖️ {count} Pokémon capturés ! Impressionnant !',
     icon: '🎖️',
-    persistent: true,
-    autoHideDelay: 6000,
-    sound: 'milestone_achievement',
-    animation: 'medal'
+    autoHide: true,
+    hideDelay: 5000
   },
   
-  pokedex_complete: {
-    type: 'milestone',
-    priority: 'critical',
-    titleTemplate: 'Pokédex Complet !',
-    messageTemplate: '👑 Félicitations ! Vous avez complété le Pokédx de {{region}} !',
-    icon: '👑',
-    persistent: true,
-    autoHideDelay: 15000,
-    sound: 'pokedex_complete',
-    animation: 'celebration'
-  },
-  
-  // === STREAKS ===
-  streak_discovery: {
-    type: 'streak',
-    priority: 'medium',
-    titleTemplate: 'Série de Découvertes !',
-    messageTemplate: '🔥 {{count}} jours consécutifs de découvertes ! Continuez !',
+  // Streaks
+  streak_active: {
+    priority: 'medium' as const,
+    title: 'Série Active !',
+    message: '🔥 {count} jours consécutifs ! Continuez !',
     icon: '🔥',
-    persistent: true,
-    autoHideDelay: 4000,
-    sound: 'streak_continue',
-    animation: 'fire'
+    autoHide: true,
+    hideDelay: 4000
   },
   
-  streak_capture: {
-    type: 'streak',
-    priority: 'medium',
-    titleTemplate: 'Série de Captures !',
-    messageTemplate: '⚡ {{count}} jours consécutifs de captures ! Excellent rythme !',
-    icon: '⚡',
-    persistent: true,
-    autoHideDelay: 4000,
-    sound: 'streak_continue',
-    animation: 'lightning'
-  },
-  
-  streak_broken: {
-    type: 'streak',
-    priority: 'low',
-    titleTemplate: 'Série Interrompue',
-    messageTemplate: '💔 Votre série de {{count}} jours s\'arrête. Recommencez demain !',
-    icon: '💔',
-    persistent: false,
-    autoHideDelay: 5000,
-    sound: 'streak_broken',
-    animation: 'fade'
-  },
-  
-  // === ACHIEVEMENTS ===
-  // TODO: ACHIEVEMENT SYSTEM GLOBAL - Templates pour accomplissements
-  achievement_unlock: {
-    type: 'achievement',
-    priority: 'high',
-    titleTemplate: 'Accomplissement Débloqué !',
-    messageTemplate: '🏅 {{name}} : {{description}}',
-    icon: '🏅',
-    persistent: true,
-    autoHideDelay: 8000,
-    sound: 'achievement_unlock',
-    animation: 'badge'
-  },
-  
-  // === ÉVOLUTIONS ===
-  evolution_available: {
-    type: 'evolution',
-    priority: 'medium',
-    titleTemplate: 'Évolution Possible !',
-    messageTemplate: '🌟 {{pokemonName}} peut évoluer ! Visitez votre équipe !',
+  // Évolutions
+  evolution_new: {
+    priority: 'high' as const,
+    title: 'Nouvelle Forme !',
+    message: '🌟 {pokemonName} découvert par évolution !',
     icon: '🌟',
-    persistent: true,
-    autoHideDelay: 6000,
-    sound: 'evolution_ready',
-    animation: 'evolve'
+    autoHide: true,
+    hideDelay: 5000
   }
 };
 
-// ===== SERVICE NOTIFICATIONS POKÉDEX =====
+// ===== SERVICE NOTIFICATIONS OPTIMISÉ =====
 
 export class PokédexNotificationService extends EventEmitter {
   private static instance: PokédexNotificationService;
   
-  // File des notifications par joueur
-  private playerNotifications = new Map<string, PokédexNotification[]>();
+  // File de notifications par joueur (limitée)
+  private notifications = new Map<string, PokédexNotification[]>();
+  private readonly MAX_NOTIFICATIONS = 50; // Par joueur
   
-  // Cache des notifications récentes pour éviter les doublons
-  private recentNotificationsCache = new Map<string, Set<string>>();
+  // Paramètres par joueur
+  private settings = new Map<string, NotificationSettings>();
   
-  // Paramètres de notification par joueur
-  private playerSettings = new Map<string, {
-    enabled: boolean;
-    discoveryNotifications: boolean;
-    captureNotifications: boolean;
-    shinyNotifications: boolean;
-    milestoneNotifications: boolean;
-    streakNotifications: boolean;
-    soundEnabled: boolean;
-    animationsEnabled: boolean;
-  }>();
+  // Cache anti-spam
+  private recentNotifs = new Map<string, Set<string>>();
+  private readonly SPAM_WINDOW = 10 * 1000; // 10 secondes
+  
+  // Statistiques
+  private stats = {
+    totalSent: 0,
+    totalSpam: 0,
+    totalErrors: 0
+  };
   
   constructor() {
     super();
-    console.log('🔔 [PokédexNotificationService] Service de notifications Pokédx initialisé');
-    
-    // Nettoyage périodique du cache
-    setInterval(() => this.cleanupCache(), 5 * 60 * 1000); // Toutes les 5 minutes
+    this.setupCleanup();
+    console.log('🔔 [PokédexNotificationService] Service de notifications initialisé');
   }
   
-  // Singleton pattern
+  // Singleton sécurisé
   static getInstance(): PokédexNotificationService {
     if (!PokédexNotificationService.instance) {
       PokédexNotificationService.instance = new PokédexNotificationService();
@@ -296,361 +177,148 @@ export class PokédexNotificationService extends EventEmitter {
     return PokédexNotificationService.instance;
   }
   
-  // ===== GÉNÉRATION DE NOTIFICATIONS =====
+  // ===== API SIMPLE =====
   
   /**
-   * Crée une notification de découverte
+   * 🔍 Notification de découverte
    */
-  async createDiscoveryNotification(
+  async notifyDiscovery(
     playerId: string,
-    data: {
-      pokemonId: number;
-      pokemonName: string;
-      isFirstDiscovery: boolean;
-      isRare?: boolean;
-      isLegendary?: boolean;
-      level: number;
-      location: string;
-    }
-  ): Promise<PokédexNotification | null> {
+    data: QuickNotificationData,
+    isFirst: boolean = false,
+    isRare: boolean = false
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'discovery')) return null;
-      
-      // Déterminer le type de notification
-      let templateKey = 'capture_success';
-      if (data.isFirstDiscovery) {
-        if (data.isLegendary) {
-          templateKey = 'legendary_discovery';
-        } else if (data.isRare) {
-          templateKey = 'rare_discovery';
-        } else {
-          templateKey = 'first_discovery';
-        }
+      if (!this.shouldNotify(playerId, 'discoveries')) {
+        return false;
       }
       
-      const notification = await this.buildNotification(playerId, templateKey, {
-        pokemonId: data.pokemonId,
-        pokemonName: data.pokemonName,
-        level: data.level,
-        location: data.location
-      });
+      const templateKey = isFirst ? 'first_discovery' : (isRare ? 'rare_discovery' : 'first_discovery');
       
-      if (notification) {
-        await this.queueNotification(notification);
-      }
-      
-      return notification;
+      return await this.createNotification(playerId, 'discovery', templateKey, data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createDiscoveryNotification:`, error);
-      return null;
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyDiscovery:`, error);
+      return false;
     }
   }
   
   /**
-   * Crée une notification de capture
+   * 🎯 Notification de capture
    */
-  async createCaptureNotification(
+  async notifyCapture(
     playerId: string,
-    data: {
-      pokemonId: number;
-      pokemonName: string;
-      isFirstCapture: boolean;
-      isShiny: boolean;
-      isPerfectCapture?: boolean;
-      level: number;
-      location: string;
-      captureTime?: number;
-    }
-  ): Promise<PokédexNotification | null> {
+    data: QuickNotificationData,
+    isFirst: boolean = false
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'capture')) return null;
-      
-      // Déterminer le type de notification
-      let templateKey = 'capture_success';
-      if (data.isShiny) {
-        templateKey = 'shiny_captured';
-      } else if (data.isFirstCapture) {
-        templateKey = 'first_capture';
-      } else if (data.isPerfectCapture) {
-        templateKey = 'perfect_capture';
+      if (!this.shouldNotify(playerId, 'captures')) {
+        return false;
       }
       
-      const notification = await this.buildNotification(playerId, templateKey, {
-        pokemonId: data.pokemonId,
-        pokemonName: data.pokemonName,
-        level: data.level,
-        location: data.location,
-        captureTime: data.captureTime
-      });
+      const templateKey = isFirst ? 'first_capture' : 'normal_capture';
       
-      if (notification) {
-        await this.queueNotification(notification);
-      }
-      
-      return notification;
+      return await this.createNotification(playerId, 'capture', templateKey, data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createCaptureNotification:`, error);
-      return null;
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyCapture:`, error);
+      return false;
     }
   }
   
   /**
-   * Crée une notification shiny
+   * ✨ Notification shiny
    */
-  async createShinyNotification(
+  async notifyShiny(
     playerId: string,
-    data: {
-      pokemonId: number;
-      pokemonName: string;
-      action: 'discovered' | 'captured';
-      location?: string;
-    }
-  ): Promise<PokédexNotification | null> {
+    data: QuickNotificationData,
+    action: 'found' | 'caught' = 'found'
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'shiny')) return null;
-      
-      const templateKey = data.action === 'captured' ? 'shiny_captured' : 'shiny_discovery';
-      
-      const notification = await this.buildNotification(playerId, templateKey, {
-        pokemonId: data.pokemonId,
-        pokemonName: data.pokemonName,
-        location: data.location
-      });
-      
-      if (notification) {
-        await this.queueNotification(notification);
+      if (!this.shouldNotify(playerId, 'shinies')) {
+        return false;
       }
       
-      return notification;
+      const templateKey = action === 'found' ? 'shiny_found' : 'shiny_caught';
+      
+      return await this.createNotification(playerId, 'shiny', templateKey, data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createShinyNotification:`, error);
-      return null;
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyShiny:`, error);
+      return false;
     }
   }
   
   /**
-   * Crée une notification de milestone
+   * 🏆 Notification de milestone
    */
-  async createMilestoneNotification(
+  async notifyMilestone(
     playerId: string,
-    data: {
-      type: 'discovery' | 'capture' | 'complete';
-      current: number;
-      target: number;
-      region?: string;
-    }
-  ): Promise<PokédexNotification | null> {
+    type: 'seen' | 'caught',
+    count: number
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'milestone')) return null;
-      
-      let templateKey = 'milestone_discovery';
-      if (data.type === 'capture') {
-        templateKey = 'milestone_capture';
-      } else if (data.type === 'complete') {
-        templateKey = 'pokedex_complete';
+      if (!this.shouldNotify(playerId, 'milestones')) {
+        return false;
       }
       
-      const notification = await this.buildNotification(playerId, templateKey, {
-        milestone: {
-          type: data.type,
-          current: data.current,
-          target: data.target
-        },
-        region: data.region || 'Kanto'
-      });
+      const templateKey = type === 'seen' ? 'milestone_seen' : 'milestone_caught';
+      const data = { count };
       
-      if (notification) {
-        await this.queueNotification(notification);
-      }
-      
-      return notification;
+      return await this.createNotification(playerId, 'milestone', templateKey, data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createMilestoneNotification:`, error);
-      return null;
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyMilestone:`, error);
+      return false;
     }
   }
   
   /**
-   * Crée une notification de streak
+   * 🔥 Notification de streak
    */
-  async createStreakNotification(
+  async notifyStreak(
     playerId: string,
-    data: {
-      type: 'discovery' | 'capture';
-      action: 'continue' | 'broken';
-      count: number;
-      isNewRecord?: boolean;
-    }
-  ): Promise<PokédexNotification | null> {
+    count: number,
+    type: string = 'général'
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'streak')) return null;
-      
-      let templateKey = 'streak_discovery';
-      if (data.action === 'broken') {
-        templateKey = 'streak_broken';
-      } else if (data.type === 'capture') {
-        templateKey = 'streak_capture';
+      if (!this.shouldNotify(playerId, 'streaks')) {
+        return false;
       }
       
-      const notification = await this.buildNotification(playerId, templateKey, {
-        streak: {
-          type: data.type,
-          count: data.count
-        },
-        count: data.count
-      });
+      const data = { count };
       
-      if (notification) {
-        await this.queueNotification(notification);
-      }
-      
-      return notification;
+      return await this.createNotification(playerId, 'streak', 'streak_active', data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createStreakNotification:`, error);
-      return null;
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyStreak:`, error);
+      return false;
     }
   }
   
   /**
-   * Crée une notification d'accomplissement
-   * TODO: ACHIEVEMENT SYSTEM GLOBAL - Remplacer par système unifié
+   * 🌟 Notification d'évolution
    */
-  async createAchievementNotification(
+  async notifyEvolution(
     playerId: string,
-    data: {
-      name: string;
-      description: string;
-      reward: string;
-      category: string;
-    }
-  ): Promise<PokédexNotification | null> {
+    data: QuickNotificationData
+  ): Promise<boolean> {
     try {
-      if (!this.shouldSendNotification(playerId, 'achievement')) return null;
-      
-      const notification = await this.buildNotification(playerId, 'achievement_unlock', {
-        achievement: {
-          name: data.name,
-          description: data.description,
-          reward: data.reward
-        },
-        name: data.name,
-        description: data.description
-      });
-      
-      if (notification) {
-        await this.queueNotification(notification);
+      if (!this.shouldNotify(playerId, 'discoveries')) {
+        return false;
       }
       
-      return notification;
+      return await this.createNotification(playerId, 'evolution', 'evolution_new', data);
       
     } catch (error) {
-      console.error(`❌ [PokédexNotificationService] Erreur createAchievementNotification:`, error);
-      return null;
-    }
-  }
-  
-  // ===== CONSTRUCTION & ENVOI =====
-  
-  /**
-   * Construit une notification depuis un template
-   */
-  private async buildNotification(
-    playerId: string,
-    templateKey: string,
-    data: any
-  ): Promise<PokédexNotification | null> {
-    const template = POKEDEX_NOTIFICATION_TEMPLATES[templateKey];
-    if (!template) {
-      console.error(`❌ Template notification "${templateKey}" introuvable`);
-      return null;
-    }
-    
-    // Interpolation des templates
-    const title = this.interpolateTemplate(template.titleTemplate, data);
-    const message = this.interpolateTemplate(template.messageTemplate, data);
-    
-    const notification: PokédexNotification = {
-      id: this.generateNotificationId(),
-      playerId,
-      type: template.type as any,
-      priority: template.priority,
-      title,
-      message,
-      icon: template.icon,
-      data: {
-        ...data,
-        sound: template.sound,
-        animation: template.animation
-      },
-      timestamp: new Date(),
-      read: false,
-      persistent: template.persistent,
-      autoHideDelay: template.autoHideDelay
-    };
-    
-    return notification;
-  }
-  
-  /**
-   * Interpole un template avec les données
-   */
-  private interpolateTemplate(template: string, data: any): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      const keys = key.split('.');
-      let value = data;
-      
-      for (const k of keys) {
-        value = value?.[k];
-      }
-      
-      return value?.toString() || match;
-    });
-  }
-  
-  /**
-   * Ajoute une notification à la file d'un joueur
-   */
-  private async queueNotification(notification: PokédexNotification): Promise<void> {
-    // Vérifier les doublons récents
-    const cacheKey = this.getNotificationCacheKey(notification);
-    const playerCache = this.recentNotificationsCache.get(notification.playerId) || new Set();
-    
-    if (playerCache.has(cacheKey)) {
-      console.log(`⏭️ Notification dupliquée ignorée pour ${notification.playerId}: ${cacheKey}`);
-      return;
-    }
-    
-    // Ajouter au cache
-    playerCache.add(cacheKey);
-    this.recentNotificationsCache.set(notification.playerId, playerCache);
-    
-    // Ajouter à la file du joueur
-    const playerQueue = this.playerNotifications.get(notification.playerId) || [];
-    playerQueue.push(notification);
-    
-    // Limiter le nombre de notifications en attente
-    if (playerQueue.length > 50) {
-      playerQueue.splice(0, playerQueue.length - 50);
-    }
-    
-    this.playerNotifications.set(notification.playerId, playerQueue);
-    
-    // Émettre l'événement
-    this.emit('notificationCreated', notification);
-    
-    // Log
-    console.log(`🔔 [PokédexNotificationService] Notification ${notification.type} pour ${notification.playerId}: ${notification.title}`);
-    
-    // Auto-suppression si configurée
-    if (!notification.persistent && notification.autoHideDelay) {
-      setTimeout(() => {
-        this.markAsRead(notification.playerId, notification.id);
-      }, notification.autoHideDelay);
+      this.stats.totalErrors++;
+      console.error(`❌ [PokédexNotificationService] Erreur notifyEvolution:`, error);
+      return false;
     }
   }
   
@@ -659,7 +327,7 @@ export class PokédexNotificationService extends EventEmitter {
   /**
    * Récupère les notifications d'un joueur
    */
-  getPlayerNotifications(
+  getNotifications(
     playerId: string,
     options: {
       unreadOnly?: boolean;
@@ -667,246 +335,479 @@ export class PokédexNotificationService extends EventEmitter {
       types?: string[];
     } = {}
   ): PokédexNotification[] {
-    const allNotifications = this.playerNotifications.get(playerId) || [];
-    
-    let filtered = allNotifications;
-    
-    // Filtrer par statut de lecture
-    if (options.unreadOnly) {
-      filtered = filtered.filter(n => !n.read);
-    }
-    
-    // Filtrer par types
-    if (options.types?.length) {
-      filtered = filtered.filter(n => options.types!.includes(n.type));
-    }
-    
-    // Trier par priorité puis date
-    filtered.sort((a, b) => {
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-      if (priorityDiff !== 0) return priorityDiff;
+    try {
+      if (!this.validatePlayerId(playerId)) {
+        return [];
+      }
       
-      return b.timestamp.getTime() - a.timestamp.getTime();
-    });
-    
-    // Limiter le nombre
-    if (options.limit) {
-      filtered = filtered.slice(0, options.limit);
+      const playerNotifs = this.notifications.get(playerId) || [];
+      
+      let filtered = playerNotifs;
+      
+      // Filtres
+      if (options.unreadOnly) {
+        filtered = filtered.filter(n => !n.read);
+      }
+      
+      if (options.types?.length) {
+        filtered = filtered.filter(n => options.types!.includes(n.type));
+      }
+      
+      // Tri par priorité puis date
+      filtered.sort((a, b) => {
+        const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+        const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
+      
+      // Limite sécurisée
+      const limit = Math.min(Math.max(options.limit || 20, 1), 100);
+      return filtered.slice(0, limit);
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur getNotifications:`, error);
+      return [];
     }
-    
-    return filtered;
   }
   
   /**
    * Marque une notification comme lue
    */
   markAsRead(playerId: string, notificationId: string): boolean {
-    const notifications = this.playerNotifications.get(playerId) || [];
-    const notification = notifications.find(n => n.id === notificationId);
-    
-    if (notification) {
-      notification.read = true;
-      this.emit('notificationRead', { playerId, notificationId });
-      return true;
+    try {
+      if (!this.validatePlayerId(playerId) || !notificationId) {
+        return false;
+      }
+      
+      const playerNotifs = this.notifications.get(playerId) || [];
+      const notif = playerNotifs.find(n => n.id === notificationId);
+      
+      if (notif && !notif.read) {
+        notif.read = true;
+        this.emit('notificationRead', { playerId, notificationId });
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur markAsRead:`, error);
+      return false;
     }
-    
-    return false;
   }
   
   /**
    * Marque toutes les notifications comme lues
    */
   markAllAsRead(playerId: string): number {
-    const notifications = this.playerNotifications.get(playerId) || [];
-    let count = 0;
-    
-    notifications.forEach(notification => {
-      if (!notification.read) {
-        notification.read = true;
-        count++;
+    try {
+      if (!this.validatePlayerId(playerId)) {
+        return 0;
       }
-    });
-    
-    if (count > 0) {
-      this.emit('allNotificationsRead', { playerId, count });
+      
+      const playerNotifs = this.notifications.get(playerId) || [];
+      let count = 0;
+      
+      playerNotifs.forEach(notif => {
+        if (!notif.read) {
+          notif.read = true;
+          count++;
+        }
+      });
+      
+      if (count > 0) {
+        this.emit('allNotificationsRead', { playerId, count });
+      }
+      
+      return count;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur markAllAsRead:`, error);
+      return 0;
     }
-    
-    return count;
   }
   
   /**
    * Supprime une notification
    */
   removeNotification(playerId: string, notificationId: string): boolean {
-    const notifications = this.playerNotifications.get(playerId) || [];
-    const index = notifications.findIndex(n => n.id === notificationId);
-    
-    if (index !== -1) {
-      notifications.splice(index, 1);
-      this.emit('notificationRemoved', { playerId, notificationId });
+    try {
+      if (!this.validatePlayerId(playerId) || !notificationId) {
+        return false;
+      }
+      
+      const playerNotifs = this.notifications.get(playerId) || [];
+      const index = playerNotifs.findIndex(n => n.id === notificationId);
+      
+      if (index !== -1) {
+        playerNotifs.splice(index, 1);
+        this.emit('notificationRemoved', { playerId, notificationId });
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur removeNotification:`, error);
+      return false;
+    }
+  }
+  
+  // ===== PARAMÈTRES =====
+  
+  /**
+   * Met à jour les paramètres d'un joueur
+   */
+  updateSettings(playerId: string, newSettings: Partial<NotificationSettings>): boolean {
+    try {
+      if (!this.validatePlayerId(playerId)) {
+        return false;
+      }
+      
+      const current = this.getSettings(playerId);
+      const updated = { ...current, ...newSettings };
+      
+      this.settings.set(playerId, updated);
+      
+      console.log(`⚙️ [PokédexNotificationService] Paramètres mis à jour pour ${playerId}`);
       return true;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur updateSettings:`, error);
+      return false;
     }
-    
-    return false;
-  }
-  
-  /**
-   * Nettoie les anciennes notifications
-   */
-  cleanupOldNotifications(playerId: string, maxAge: number = 24 * 60 * 60 * 1000): number {
-    const notifications = this.playerNotifications.get(playerId) || [];
-    const cutoff = new Date(Date.now() - maxAge);
-    
-    const before = notifications.length;
-    const filtered = notifications.filter(n => 
-      n.timestamp > cutoff || (n.persistent && !n.read)
-    );
-    
-    if (filtered.length !== before) {
-      this.playerNotifications.set(playerId, filtered);
-    }
-    
-    return before - filtered.length;
-  }
-  
-  // ===== PARAMÈTRES JOUEUR =====
-  
-  /**
-   * Met à jour les paramètres de notification d'un joueur
-   */
-  updatePlayerSettings(playerId: string, settings: Partial<{
-    enabled: boolean;
-    discoveryNotifications: boolean;
-    captureNotifications: boolean;
-    shinyNotifications: boolean;
-    milestoneNotifications: boolean;
-    streakNotifications: boolean;
-    soundEnabled: boolean;
-    animationsEnabled: boolean;
-  }>): void {
-    const currentSettings = this.playerSettings.get(playerId) || this.getDefaultSettings();
-    const newSettings = { ...currentSettings, ...settings };
-    
-    this.playerSettings.set(playerId, newSettings);
-    
-    console.log(`⚙️ [PokédexNotificationService] Paramètres mis à jour pour ${playerId}`);
   }
   
   /**
    * Récupère les paramètres d'un joueur
    */
-  getPlayerSettings(playerId: string) {
-    return this.playerSettings.get(playerId) || this.getDefaultSettings();
+  getSettings(playerId: string): NotificationSettings {
+    return this.settings.get(playerId) || this.getDefaultSettings();
   }
   
   /**
    * Paramètres par défaut
    */
-  private getDefaultSettings() {
+  private getDefaultSettings(): NotificationSettings {
     return {
       enabled: true,
-      discoveryNotifications: true,
-      captureNotifications: true,
-      shinyNotifications: true,
-      milestoneNotifications: true,
-      streakNotifications: true,
-      soundEnabled: true,
-      animationsEnabled: true
+      discoveries: true,
+      captures: true,
+      shinies: true,
+      milestones: true,
+      streaks: true,
+      sounds: true,
+      animations: true
     };
   }
   
-  // ===== UTILITAIRES PRIVÉES =====
+  // ===== MÉTHODES PRIVÉES OPTIMISÉES =====
+  
+  /**
+   * Crée une notification
+   */
+  private async createNotification(
+    playerId: string,
+    type: string,
+    templateKey: string,
+    data: QuickNotificationData
+  ): Promise<boolean> {
+    try {
+      // Validation
+      if (!this.validatePlayerId(playerId)) {
+        return false;
+      }
+      
+      // Protection anti-spam
+      const spamKey = `${type}:${data.pokemonId || 'general'}`;
+      if (this.isSpam(playerId, spamKey)) {
+        this.stats.totalSpam++;
+        return false;
+      }
+      
+      // Récupérer template
+      const template = NOTIFICATION_TEMPLATES[templateKey as keyof typeof NOTIFICATION_TEMPLATES];
+      if (!template) {
+        console.error(`❌ Template ${templateKey} introuvable`);
+        return false;
+      }
+      
+      // Enrichir les données si nécessaire
+      const enrichedData = await this.enrichNotificationData(data);
+      
+      // Créer la notification
+      const notification: PokédexNotification = {
+        id: this.generateId(),
+        playerId,
+        type: type as any,
+        priority: template.priority,
+        title: template.title,
+        message: this.interpolateMessage(template.message, enrichedData),
+        icon: template.icon,
+        timestamp: new Date(),
+        read: false,
+        autoHide: template.autoHide,
+        hideDelay: template.hideDelay,
+        data: enrichedData
+      };
+      
+      // Ajouter à la file
+      let playerNotifs = this.notifications.get(playerId) || [];
+      playerNotifs.unshift(notification); // Plus récent en premier
+      
+      // Limiter le nombre
+      if (playerNotifs.length > this.MAX_NOTIFICATIONS) {
+        playerNotifs = playerNotifs.slice(0, this.MAX_NOTIFICATIONS);
+      }
+      
+      this.notifications.set(playerId, playerNotifs);
+      
+      // Marquer comme envoyé (anti-spam)
+      this.markAsSent(playerId, spamKey);
+      
+      // Statistiques
+      this.stats.totalSent++;
+      
+      // Émettre événement
+      this.emit('notificationCreated', notification);
+      
+      console.log(`🔔 [PokédexNotificationService] ${type} envoyée à ${playerId}: ${notification.title}`);
+      
+      // Auto-masquage
+      if (template.autoHide && template.hideDelay > 0) {
+        setTimeout(() => {
+          this.markAsRead(playerId, notification.id);
+        }, template.hideDelay);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur createNotification:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Enrichit les données de notification
+   */
+  private async enrichNotificationData(data: QuickNotificationData): Promise<any> {
+    const enriched = { ...data };
+    
+    // Récupérer le nom du Pokémon si pas fourni
+    if (data.pokemonId && !data.pokemonName) {
+      try {
+        const pokemonData = await getPokemonById(data.pokemonId);
+        if (pokemonData) {
+          enriched.pokemonName = pokemonData.name;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Impossible de récupérer le nom du Pokémon ${data.pokemonId}`);
+      }
+    }
+    
+    return enriched;
+  }
+  
+  /**
+   * Interpole le message avec les données
+   */
+  private interpolateMessage(template: string, data: any): string {
+    return template.replace(/\{(\w+)\}/g, (match, key) => {
+      return data[key]?.toString() || match;
+    });
+  }
   
   /**
    * Vérifie si on doit envoyer une notification
    */
-  private shouldSendNotification(playerId: string, type: string): boolean {
-    const settings = this.getPlayerSettings(playerId);
-    
-    if (!settings.enabled) return false;
-    
-    switch (type) {
-      case 'discovery': return settings.discoveryNotifications;
-      case 'capture': return settings.captureNotifications;
-      case 'shiny': return settings.shinyNotifications;
-      case 'milestone': return settings.milestoneNotifications;
-      case 'streak': return settings.streakNotifications;
-      case 'achievement': return true; // TODO: ACHIEVEMENT SYSTEM GLOBAL
-      default: return true;
-    }
+  private shouldNotify(playerId: string, type: keyof NotificationSettings): boolean {
+    const settings = this.getSettings(playerId);
+    return settings.enabled && settings[type];
   }
   
   /**
-   * Génère un ID unique pour une notification
+   * Détection de spam
    */
-  private generateNotificationId(): string {
-    return `pokedex_notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  private isSpam(playerId: string, key: string): boolean {
+    const playerSpam = this.recentNotifs.get(playerId);
+    return playerSpam?.has(key) || false;
   }
   
   /**
-   * Génère une clé de cache pour éviter les doublons
+   * Marque comme envoyé (anti-spam)
    */
-  private getNotificationCacheKey(notification: PokédexNotification): string {
-    const data = notification.data;
-    return `${notification.type}_${data?.pokemonId || 'unknown'}_${Math.floor(notification.timestamp.getTime() / 60000)}`;
-  }
-  
-  /**
-   * Nettoie le cache périodiquement
-   */
-  private cleanupCache(): void {
-    const maxAge = 10 * 60 * 1000; // 10 minutes
-    const cutoff = Date.now() - maxAge;
-    
-    for (const [playerId, cache] of this.recentNotificationsCache.entries()) {
-      // Pour simplifier, on nettoie tout le cache après 10 minutes
-      this.recentNotificationsCache.set(playerId, new Set());
+  private markAsSent(playerId: string, key: string): void {
+    let playerSpam = this.recentNotifs.get(playerId);
+    if (!playerSpam) {
+      playerSpam = new Set();
+      this.recentNotifs.set(playerId, playerSpam);
     }
     
-    console.log('🧹 [PokédexNotificationService] Cache nettoyé');
+    playerSpam.add(key);
+    
+    // Auto-nettoyage
+    setTimeout(() => {
+      const spam = this.recentNotifs.get(playerId);
+      if (spam) {
+        spam.delete(key);
+        if (spam.size === 0) {
+          this.recentNotifs.delete(playerId);
+        }
+      }
+    }, this.SPAM_WINDOW);
+  }
+  
+  /**
+   * Validation playerId
+   */
+  private validatePlayerId(playerId: string): boolean {
+    return typeof playerId === 'string' && playerId.length > 0 && playerId.length <= 50;
+  }
+  
+  /**
+   * Génère un ID unique
+   */
+  private generateId(): string {
+    return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
   
   // ===== STATISTIQUES =====
   
   /**
-   * Récupère les statistiques de notifications
+   * Récupère les statistiques du service
    */
-  getNotificationStats(playerId: string): {
-    total: number;
-    unread: number;
-    byType: { [type: string]: number };
-    byPriority: { [priority: string]: number };
-    last24h: number;
-  } {
-    const notifications = this.playerNotifications.get(playerId) || [];
-    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
-    const stats = {
-      total: notifications.length,
-      unread: notifications.filter(n => !n.read).length,
-      byType: {} as { [type: string]: number },
-      byPriority: {} as { [priority: string]: number },
-      last24h: notifications.filter(n => n.timestamp > last24h).length
+  getStats(playerId?: string): any {
+    const global = {
+      totalSent: this.stats.totalSent,
+      totalSpam: this.stats.totalSpam,
+      totalErrors: this.stats.totalErrors,
+      spamRate: this.stats.totalSent > 0 ? (this.stats.totalSpam / this.stats.totalSent) * 100 : 0,
+      totalPlayers: this.notifications.size,
+      cacheSize: this.recentNotifs.size
     };
     
-    notifications.forEach(n => {
-      stats.byType[n.type] = (stats.byType[n.type] || 0) + 1;
-      stats.byPriority[n.priority] = (stats.byPriority[n.priority] || 0) + 1;
-    });
+    if (playerId && this.validatePlayerId(playerId)) {
+      const playerNotifs = this.notifications.get(playerId) || [];
+      return {
+        ...global,
+        player: {
+          total: playerNotifs.length,
+          unread: playerNotifs.filter(n => !n.read).length,
+          byType: this.getNotificationsByType(playerNotifs),
+          settings: this.getSettings(playerId)
+        }
+      };
+    }
     
-    return stats;
+    return global;
   }
   
   /**
-   * Nettoie toutes les données d'un joueur
+   * Statistiques par type
    */
-  clearPlayerData(playerId: string): void {
-    this.playerNotifications.delete(playerId);
-    this.playerSettings.delete(playerId);
-    this.recentNotificationsCache.delete(playerId);
+  private getNotificationsByType(notifications: PokédexNotification[]): Record<string, number> {
+    const byType: Record<string, number> = {};
     
-    console.log(`🗑️ [PokédexNotificationService] Données supprimées pour ${playerId}`);
+    notifications.forEach(notif => {
+      byType[notif.type] = (byType[notif.type] || 0) + 1;
+    });
+    
+    return byType;
+  }
+  
+  // ===== NETTOYAGE ET MAINTENANCE =====
+  
+  /**
+   * Configuration du nettoyage automatique
+   */
+  private setupCleanup(): void {
+    // Nettoyage toutes les 15 minutes
+    setInterval(() => {
+      this.cleanupOldNotifications();
+      this.cleanupSpamCache();
+    }, 15 * 60 * 1000);
+  }
+  
+  /**
+   * Nettoie les anciennes notifications
+   */
+  private cleanupOldNotifications(): void {
+    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 jours
+    const cutoff = new Date(Date.now() - maxAge);
+    
+    let totalCleaned = 0;
+    
+    for (const [playerId, notifications] of this.notifications.entries()) {
+      const before = notifications.length;
+      
+      // Garder les notifications récentes ou non lues importantes
+      const filtered = notifications.filter(notif => 
+        notif.timestamp > cutoff || 
+        (!notif.read && (notif.priority === 'high' || notif.priority === 'critical'))
+      );
+      
+      if (filtered.length !== before) {
+        this.notifications.set(playerId, filtered);
+        totalCleaned += before - filtered.length;
+      }
+      
+      // Supprimer les joueurs sans notifications
+      if (filtered.length === 0) {
+        this.notifications.delete(playerId);
+      }
+    }
+    
+    if (totalCleaned > 0) {
+      console.log(`🧹 [PokédexNotificationService] ${totalCleaned} notifications anciennes nettoyées`);
+    }
+  }
+  
+  /**
+   * Nettoie le cache anti-spam
+   */
+  private cleanupSpamCache(): void {
+    for (const [playerId, spam] of this.recentNotifs.entries()) {
+      if (spam.size === 0) {
+        this.recentNotifs.delete(playerId);
+      }
+    }
+  }
+  
+  /**
+   * Nettoyage manuel
+   */
+  clearPlayerData(playerId: string): boolean {
+    try {
+      if (!this.validatePlayerId(playerId)) {
+        return false;
+      }
+      
+      this.notifications.delete(playerId);
+      this.settings.delete(playerId);
+      this.recentNotifs.delete(playerId);
+      
+      console.log(`🗑️ [PokédexNotificationService] Données supprimées pour ${playerId}`);
+      return true;
+      
+    } catch (error) {
+      console.error(`❌ [PokédexNotificationService] Erreur clearPlayerData:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Reset des statistiques
+   */
+  resetStats(): void {
+    this.stats = {
+      totalSent: 0,
+      totalSpam: 0,
+      totalErrors: 0
+    };
+    console.log('📊 [PokédexNotificationService] Statistiques remises à zéro');
   }
 }
 
