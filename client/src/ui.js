@@ -416,7 +416,7 @@ async createQuestModule() {
               anchor: 'bottom-right',
               order: 1,
               spacing: 10,
-              size: { width: 70, height: 80 }
+              size: { width: 65, height: 75 }
             });
             return true;
           }
