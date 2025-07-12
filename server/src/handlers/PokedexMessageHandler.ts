@@ -305,14 +305,11 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     // Conversion des dates si nécessaire
-    let serviceFilters = message.filters || {};
+    const serviceFilters: any = message.filters || {};
     if (message.filters?.dateRange) {
-      serviceFilters = {
-        ...message.filters,
-        dateRange: {
-          start: new Date(message.filters.dateRange.start),
-          end: new Date(message.filters.dateRange.end)
-        }
+      serviceFilters.dateRange = {
+        start: new Date(message.filters.dateRange.start),
+        end: new Date(message.filters.dateRange.end)
       };
     }
     
@@ -664,12 +661,9 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     // Conversion des dates si nécessaire
-    let serviceFilters = message.filters || {};
+    const serviceFilters: any = message.filters || {};
     if (message.filters?.sinceDate) {
-      serviceFilters = {
-        ...message.filters,
-        sinceDate: new Date(message.filters.sinceDate)
-      };
+      serviceFilters.sinceDate = new Date(message.filters.sinceDate);
     }
     
     const notifications = pokedexNotificationService.getPlayerNotifications(playerId, serviceFilters);
