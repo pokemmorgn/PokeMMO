@@ -1,320 +1,249 @@
-// Inventory/index.js - VERSION PURE UIMANAGER
-// 🎯 UIManager contrôle TOUT - le module ne crée rien automatiquement
+// Inventory/index.js - InventoryModule refactorisé avec BaseModule
+// 🎯 UTILISE BaseModule pour éviter duplication de code
+// 📍 INTÉGRÉ avec UIManager via BaseModule
+// 🆕 BASÉ SUR LE MODÈLE TEAM QUI FONCTIONNE
 
+import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { InventorySystem } from './InventorySystem.js';
 import { InventoryIcon } from './InventoryIcon.js';
 import { InventoryUI } from './InventoryUI.js';
 
 /**
- * Module Inventory PURE UIManager
- * - Ne crée PAS d'icône automatiquement
- * - UIManager appelle createIcon() quand il veut
- * - UIManager gère position, show/hide, enable/disable
+ * Module Inventory utilisant BaseModule
+ * Hérite de toute la logique UIManager générique
  */
-export class InventoryModule {
-  constructor(gameRoom, scene) {
-    this.gameRoom = gameRoom;
-    this.scene = scene;
-    
-    // === COMPOSANTS (créés à la demande) ===
-    this.system = null;
-    this.icon = null;
-    this.ui = null;
-    this.iconElement = null; // Référence directe pour UIManager
-    
-    // === ÉTAT UIMANAGER ===
-    this.uiManagerState = {
-      visible: true,
-      enabled: true,
-      initialized: false,
-      iconCreated: false
+export class InventoryModule extends BaseModule {
+  constructor(moduleId, gameRoom, scene, options = {}) {
+    // Configuration spécifique Inventory
+    const inventoryOptions = {
+      singleton: true,           // Inventory est un singleton
+      autoCloseUI: true,         // Fermer UI par défaut
+      keyboardShortcut: 'i',     // Touche I pour ouvrir/fermer
+      uiManagerConfig: {
+        anchor: 'bottom-right',
+        order: 0,                // Premier dans la liste (plus à droite)
+        group: 'ui-icons'
+      },
+      ...options
     };
     
-    console.log('🎒 [InventoryModule] Instance créée (mode PURE UIManager)');
-  }
-  
-  // === 🚀 INITIALISATION MINIMALE ===
-  
-  async init() {
-    try {
-      console.log('🚀 [InventoryModule] Initialisation sans création d\'icône...');
-      
-      // 1. Créer SEULEMENT l'UI (pas d'icône)
-      this.ui = new InventoryUI(this.gameRoom);
-      
-      // 2. Créer le système principal
-      this.system = new InventorySystem(this.scene, this.gameRoom);
-      
-      // 3. Exposer globalement
-      this.exposeGlobally();
-      
-      this.uiManagerState.initialized = true;
-      
-      console.log('✅ [InventoryModule] Initialisé SANS icône (UIManager la créera)');
-      return this;
-      
-    } catch (error) {
-      console.error('❌ [InventoryModule] Erreur initialisation:', error);
-      throw error;
-    }
-  }
-  
-  // === 🎨 CRÉATION ICÔNE (APPELÉE PAR UIMANAGER) ===
-  
-  async createIcon() {
-    if (this.uiManagerState.iconCreated) {
-      console.log('ℹ️ [InventoryModule] Icône déjà créée');
-      return this.iconElement;
-    }
+    super(moduleId || 'inventory', gameRoom, scene, inventoryOptions);
     
-    console.log('🎨 [InventoryModule] Création icône à la demande UIManager...');
+    // === RÉFÉRENCE AU SYSTÈME PRINCIPAL ===
+    this.system = null;  // InventorySystem (logique complète)
     
-    try {
-      // Créer l'icône d'inventaire  
-      this.icon = new InventoryIcon(this.ui);
-      await this.icon.init();
-      
-      // ✅ IMPORTANT: L'icône ne doit PAS se positionner elle-même
-      if (this.icon.iconElement) {
-        this.iconElement = this.icon.iconElement;
-        
-        // Supprimer TOUT positionnement automatique
-        this.iconElement.style.position = '';
-        this.iconElement.style.right = '';
-        this.iconElement.style.bottom = '';
-        this.iconElement.style.left = '';
-        this.iconElement.style.top = '';
-        this.iconElement.style.zIndex = '';
-        
-        this.uiManagerState.iconCreated = true;
-        
-        console.log('✅ [InventoryModule] Icône créée SANS positionnement');
-        return this.iconElement;
-      } else {
-        throw new Error('IconElement non créé par InventoryIcon');
-      }
-      
-    } catch (error) {
-      console.error('❌ [InventoryModule] Erreur création icône:', error);
-      throw error;
-    }
+    console.log('🎒 [InventoryModule] Instance créée avec BaseModule');
   }
   
-  // === 🎛️ MÉTHODES UIMANAGER (INTERFACE OBLIGATOIRE) ===
+  // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
   
   /**
-   * UIManager appelle cette méthode pour afficher le module
+   * Initialisation spécifique Inventory
+   */
+  async init() {
+    console.log('🚀 [InventoryModule] Initialisation métier Inventory...');
+    
+    // Créer le système principal (qui inclut la logique métier)
+    this.system = new InventorySystem(this.scene, this.gameRoom);
+    
+    console.log('✅ [InventoryModule] Système Inventory initialisé');
+  }
+  
+  /**
+   * Création des composants Inventory
+   */
+  createComponents() {
+    console.log('🔧 [InventoryModule] Création composants Inventory...');
+    
+    // Le système a déjà créé l'UI et l'icône, on les récupère
+    if (this.system) {
+      this.ui = this.system.inventoryUI;
+      this.icon = this.system.inventoryIcon;
+      
+      // Assurer que l'icône est dans le bon mode UIManager
+      if (this.icon) {
+        this.icon.positioningMode = 'uimanager';
+        
+        // Supprimer tout positionnement automatique de l'icône
+        if (this.icon.iconElement) {
+          this.icon.iconElement.style.position = '';
+          this.icon.iconElement.style.right = '';
+          this.icon.iconElement.style.bottom = '';
+          this.icon.iconElement.style.left = '';
+          this.icon.iconElement.style.top = '';
+          this.icon.iconElement.style.zIndex = '';
+        }
+      }
+    }
+    
+    console.log('✅ [InventoryModule] Composants Inventory récupérés du système');
+  }
+  
+  /**
+   * Connexion des composants Inventory
+   */
+  connectComponents() {
+    console.log('🔗 [InventoryModule] Connexion composants Inventory...');
+    
+    // Les composants sont déjà connectés par InventorySystem
+    // On ajoute juste la logique spécifique UIManager
+    
+    // Icône → Interface (via BaseModule)
+    if (this.icon) {
+      this.icon.onClick = () => {
+        if (this.canOpenUI()) {
+          this.ui.toggle();
+        } else {
+          this.showCannotOpenMessage();
+        }
+      };
+    }
+    
+    console.log('✅ [InventoryModule] Composants Inventory connectés via BaseModule');
+  }
+  
+  // === 📊 MÉTHODES SPÉCIFIQUES INVENTORY ===
+  
+  /**
+   * Demander les données Inventory (override de la méthode générique)
    */
   show() {
-    console.log('👁️ [InventoryModule] Show appelé par UIManager');
+    const result = super.show();
     
-    this.uiManagerState.visible = true;
+    // Demander données Inventory spécifiquement
+    if (this.system) {
+      setTimeout(() => {
+        this.system.requestInventoryData();
+      }, 200);
+    }
     
-    // L'icône sera affichée par UIManager, pas par nous
-    // On ne fait rien ici - UIManager gère
-    
-    return true;
+    return result;
   }
   
   /**
-   * UIManager appelle cette méthode pour cacher le module
+   * Obtenir les objets de l'inventaire
    */
-  hide() {
-    console.log('👻 [InventoryModule] Hide appelé par UIManager');
-    
-    this.uiManagerState.visible = false;
-    
-    // Cacher l'interface si ouverte
-    if (this.ui && this.ui.isVisible) {
-      this.ui.hide();
-    }
-    
-    // L'icône sera cachée par UIManager, pas par nous
-    
-    return true;
+  getItems() {
+    return this.system ? this.system.getItemCount() : [];
   }
   
   /**
-   * UIManager appelle cette méthode pour activer/désactiver
+   * Utiliser un objet
    */
-  setEnabled(enabled) {
-    console.log(`🔧 [InventoryModule] setEnabled(${enabled}) appelé par UIManager`);
-    
-    this.uiManagerState.enabled = enabled;
-    
-    // Appliquer seulement aux composants internes
-    if (this.ui && this.ui.setEnabled) {
-      this.ui.setEnabled(enabled);
-    }
-    
-    // L'icône sera activée/désactivée par UIManager via CSS
-    
-    return true;
-  }
-  
-  /**
-   * UIManager peut appeler cette méthode pour obtenir l'état
-   */
-  getUIManagerState() {
-    return {
-      ...this.uiManagerState,
-      interfaceVisible: this.ui ? this.ui.isVisible : false,
-      hasItems: this.ui ? Object.keys(this.ui.inventoryData).length > 0 : false,
-      canOpen: this.canOpenInventory(),
-      iconExists: !!this.iconElement
-    };
-  }
-  
-  /**
-   * UIManager appelle pour obtenir l'élément icône
-   */
-  getIconElement() {
-    return this.iconElement;
-  }
-  
-  // === 🔧 MÉTHODES INTERNES ===
-  
-  exposeGlobally() {
-    // Exposer pour compatibilité
-    window.inventorySystem = this.system;
-    window.inventorySystemGlobal = this;
-    
-    console.log('🌐 [InventoryModule] Exposé globalement');
-  }
-  
-  canOpenInventory() {
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#team-overlay:not(.hidden)')
-    ];
-    
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    
-    return !hasBlocker && !chatFocused && this.uiManagerState.enabled;
-  }
-  
-  // === 📊 API PUBLIQUE POUR COMPATIBILITÉ ===
-  
-  toggle() {
-    if (this.ui) {
-      this.ui.toggle();
-    }
-  }
-  
-  openInventory() {
-    if (this.ui && this.canOpenInventory()) {
-      this.ui.show();
-    }
-  }
-  
-  closeInventory() {
-    if (this.ui) {
-      this.ui.hide();
-    }
-  }
-  
-  openToPocket(pocketName) {
-    if (this.ui) {
-      this.ui.openToPocket(pocketName);
-    }
-  }
-  
-  isInventoryOpen() {
-    return this.ui ? this.ui.isVisible : false;
-  }
-  
   useItem(itemId, context = "field") {
     if (this.system) {
       this.system.useItem(itemId, context);
     }
   }
   
+  /**
+   * Vérifier si l'inventaire a un objet
+   */
   hasItem(itemId) {
     return this.system ? this.system.hasItem(itemId) : false;
   }
   
+  /**
+   * Obtenir le nombre d'un objet
+   */
   getItemCount(itemId) {
     return this.system ? this.system.getItemCount(itemId) : 0;
   }
   
-  requestInventoryData() {
-    if (this.system) {
-      this.system.requestInventoryData();
+  /**
+   * Vérifier si l'inventaire est plein
+   */
+  isFull() {
+    return this.system ? this.system.isFull() : false;
+  }
+  
+  /**
+   * Ouvrir une poche spécifique
+   */
+  openToPocket(pocketName) {
+    if (this.ui) {
+      this.ui.openToPocket(pocketName);
     }
   }
   
-  // === 🧹 NETTOYAGE ===
-  
-  destroy() {
-    try {
-      console.log('🧹 [InventoryModule] Destruction...');
-      
-      if (this.system && this.system.destroy) {
-        this.system.destroy();
-        this.system = null;
-      }
-      
-      if (this.icon && this.icon.destroy) {
-        this.icon.destroy();
-        this.icon = null;
-      }
-      
-      if (this.ui && this.ui.destroy) {
-        this.ui.destroy();
-        this.ui = null;
-      }
-      
-      // UIManager supprimera l'iconElement lui-même
-      this.iconElement = null;
-      
-      this.uiManagerState.initialized = false;
-      this.uiManagerState.iconCreated = false;
-      
-      console.log('✅ [InventoryModule] Détruit');
-      
-    } catch (error) {
-      console.error('❌ [InventoryModule] Erreur destruction:', error);
-    }
+  /**
+   * API legacy pour compatibilité
+   */
+  toggleInventoryUI() {
+    this.toggleUI();
   }
   
-  // === 🐛 DEBUG ===
+  openInventory() {
+    this.open();
+  }
   
-  debugInfo() {
+  closeInventory() {
+    this.close();
+  }
+  
+  isInventoryOpen() {
+    return this.ui ? this.ui.isVisible : false;
+  }
+  
+  // === 📋 OVERRIDE STATE POUR INFOS INVENTORY ===
+  
+  getUIManagerState() {
+    const baseState = super.getUIManagerState();
+    
+    // Ajouter infos spécifiques Inventory
     return {
-      initialized: this.uiManagerState.initialized,
-      iconCreated: this.uiManagerState.iconCreated,
-      visible: this.uiManagerState.visible,
-      enabled: this.uiManagerState.enabled,
-      hasSystem: !!this.system,
-      hasIcon: !!this.icon,
-      hasUI: !!this.ui,
-      iconElement: !!this.iconElement,
-      iconInDOM: this.iconElement ? document.contains(this.iconElement) : false,
-      uiVisible: this.ui ? this.ui.isVisible : false,
-      canOpen: this.canOpenInventory(),
-      mode: 'pure-uimanager',
-      controlledBy: 'UIManager'
+      ...baseState,
+      hasItems: this.ui ? Object.keys(this.ui.inventoryData || {}).length > 0 : false,
+      canOpen: this.canOpenUI(),
+      moduleType: 'inventory'
     };
+  }
+  
+  // === 🔧 MÉTHODES DE COMPATIBILITÉ AVEC SYSTÈME EXISTANT ===
+  
+  /**
+   * Exposer le système globalement pour compatibilité
+   */
+  exposeGlobally() {
+    if (!window.inventorySystem) {
+      window.inventorySystem = this.system;
+      window.inventorySystemGlobal = this;
+      console.log('🌐 [InventoryModule] Système exposé globalement');
+    }
+  }
+  
+  /**
+   * Override de la méthode initializeModule pour exposer globalement
+   */
+  async initializeModule() {
+    const result = await super.initializeModule();
+    
+    // Exposer globalement après initialisation
+    this.exposeGlobally();
+    
+    return result;
   }
 }
 
-// === 🏭 FACTORY PURE UIMANAGER ===
+// === 🏭 FACTORY INVENTORY SIMPLIFIÉE ===
 
 /**
  * Factory function pour créer le module Inventory
- * Compatible PURE UIManager
+ * Utilise la factory générique de BaseModule
  */
-export async function createInventoryModule(gameRoom, scene) {
+export async function createInventoryModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [InventoryFactory] Création module PURE UIManager...');
+    console.log('🏭 [InventoryFactory] Création module Inventory avec BaseModule...');
     
-    const inventoryModule = new InventoryModule(gameRoom, scene);
-    await inventoryModule.init(); // Init sans icône
+    const inventoryOptions = {
+      singleton: true,
+      ...options
+    };
     
-    console.log('✅ [InventoryFactory] Module créé (UIManager créera l\'icône)');
-    return inventoryModule;
+    const inventoryInstance = await createModule(InventoryModule, 'inventory', gameRoom, scene, inventoryOptions);
+    
+    console.log('✅ [InventoryFactory] Module Inventory créé avec succès');
+    return inventoryInstance;
     
   } catch (error) {
     console.error('❌ [InventoryFactory] Erreur création module Inventory:', error);
@@ -322,89 +251,226 @@ export async function createInventoryModule(gameRoom, scene) {
   }
 }
 
-// === 📋 CONFIGURATION PURE UIMANAGER ===
+// === 📋 CONFIGURATION INVENTORY POUR UIMANAGER ===
 
-export const INVENTORY_MODULE_CONFIG = {
-  id: 'inventory',
-  factory: () => createInventoryModule(window.currentGameRoom, window.game?.scene?.getScenes(true)[0]),
+export const INVENTORY_MODULE_CONFIG = generateModuleConfig('inventory', {
+  moduleClass: InventoryModule,
+  order: 0,  // Premier = plus à droite
   
-  defaultState: {
-    visible: true,
-    enabled: true,
-    initialized: false
+  options: {
+    singleton: true,
+    keyboardShortcut: 'i'
   },
   
-  priority: 100,
-  critical: true,
-  
-  // ✅ LAYOUT pour UIManager
-  layout: {
-    type: 'icon',
-    anchor: 'bottom-right',
-    order: 0,           // Premier = plus à droite
-    spacing: 10,
-    size: { width: 70, height: 80 }
-  },
-  
-  responsive: {
-    mobile: { 
-      scale: 0.8,
-      position: { right: '15px', bottom: '15px' }
-    },
-    tablet: { 
-      scale: 0.9 
-    },
-    desktop: { 
-      scale: 1.0 
-    }
-  },
-  
-  groups: ['ui-icons'],
-  
-  animations: {
-    show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
-    hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
-    enable: { type: 'pulse', duration: 150 },
-    disable: { type: 'grayscale', duration: 200 }
-  },
+  groups: ['ui-icons', 'item-management'],
   
   metadata: {
     name: 'Inventory Manager',
-    description: 'Complete inventory management system',
-    version: '1.0.0',
-    category: 'Inventory Management'
+    description: 'Complete item inventory management system',
+    version: '2.0.0',
+    category: 'Item Management'
+  },
+  
+  factory: () => createInventoryModule(
+    window.currentGameRoom, 
+    window.game?.scene?.getScenes(true)[0]
+  )
+});
+
+// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
+
+/**
+ * Enregistrer le module Inventory dans UIManager
+ */
+export async function registerInventoryModule(uiManager) {
+  try {
+    console.log('📝 [InventoryIntegration] Enregistrement Inventory...');
+    
+    // Vérifier si déjà enregistré
+    if (uiManager.modules && uiManager.modules.has('inventory')) {
+      console.log('ℹ️ [InventoryIntegration] Module déjà enregistré');
+      return true;
+    }
+    
+    await uiManager.registerModule('inventory', INVENTORY_MODULE_CONFIG);
+    console.log('✅ [InventoryIntegration] Module Inventory enregistré');
+    
+    return true;
+  } catch (error) {
+    console.error('❌ [InventoryIntegration] Erreur enregistrement:', error);
+    throw error;
   }
-};
+}
+
+/**
+ * Initialiser et connecter le module Inventory
+ */
+export async function initializeInventoryModule(uiManager) {
+  try {
+    console.log('🚀 [InventoryIntegration] Initialisation Inventory...');
+    
+    // Enregistrer le module
+    await registerInventoryModule(uiManager);
+    
+    // Vérifier si déjà initialisé (singleton)
+    let inventoryInstance = InventoryModule.getInstance('inventory');
+    
+    if (!inventoryInstance || !inventoryInstance.uiManagerState.initialized) {
+      // Initialiser le module
+      inventoryInstance = await uiManager.initializeModule('inventory');
+    } else {
+      console.log('ℹ️ [InventoryIntegration] Instance déjà initialisée');
+      
+      // Connecter à UIManager si pas encore fait
+      inventoryInstance.connectUIManager(uiManager);
+    }
+    
+    // Setup des événements globaux Inventory
+    setupInventoryGlobalEvents(inventoryInstance);
+    
+    console.log('✅ [InventoryIntegration] Initialisation Inventory terminée');
+    return inventoryInstance;
+    
+  } catch (error) {
+    console.error('❌ [InventoryIntegration] Erreur initialisation:', error);
+    throw error;
+  }
+}
+
+// === 🌐 ÉVÉNEMENTS GLOBAUX INVENTORY ===
+
+function setupInventoryGlobalEvents(inventoryInstance) {
+  // Éviter double setup
+  if (window._inventoryEventsSetup) {
+    console.log('ℹ️ [InventoryEvents] Événements déjà configurés');
+    return;
+  }
+  
+  // Événement: Objet ramassé
+  window.addEventListener('itemPickup', (event) => {
+    if (inventoryInstance.system) {
+      inventoryInstance.system.onItemPickup(event.detail.itemId, event.detail.quantity);
+    }
+  });
+  
+  // Événement: Combat commencé (fermer l'inventaire)
+  window.addEventListener('battleStarted', () => {
+    if (inventoryInstance.ui && inventoryInstance.ui.isVisible) {
+      inventoryInstance.ui.hide();
+    }
+  });
+  
+  // Événement: Shop ouvert (fermer l'inventaire)
+  window.addEventListener('shopOpened', () => {
+    if (inventoryInstance.ui && inventoryInstance.ui.isVisible) {
+      inventoryInstance.ui.hide();
+    }
+  });
+  
+  window._inventoryEventsSetup = true;
+  console.log('🌐 [InventoryEvents] Événements Inventory configurés');
+}
+
+// === 💡 UTILISATION SIMPLE ===
+
+/**
+ * Fonction d'utilisation simple pour intégrer Inventory dans un projet
+ */
+export async function setupInventorySystem(uiManager) {
+  try {
+    console.log('🔧 [InventorySetup] Configuration système Inventory avec BaseModule...');
+    
+    // Initialiser le module
+    const inventoryInstance = await initializeInventoryModule(uiManager);
+    
+    // Exposer globalement pour compatibilité
+    if (!window.inventorySystem) {
+      window.inventorySystem = inventoryInstance.system;
+      window.inventorySystemGlobal = inventoryInstance;
+      window.toggleInventory = () => inventoryInstance.toggleUI();
+      window.openInventory = () => inventoryInstance.open();
+      window.closeInventory = () => inventoryInstance.close();
+      window.isInventoryOpen = () => inventoryInstance.ui?.isVisible || false;
+      
+      console.log('🌐 [InventorySetup] Fonctions globales Inventory exposées');
+    }
+    
+    console.log('✅ [InventorySetup] Système Inventory configuré avec BaseModule');
+    return inventoryInstance;
+    
+  } catch (error) {
+    console.error('❌ [InventorySetup] Erreur configuration:', error);
+    throw error;
+  }
+}
+
+// === 🔍 UTILITÉS DE DEBUG INVENTORY ===
+
+export function debugInventoryModule() {
+  const { debugModule } = require('../core/BaseModule.js');
+  return debugModule('inventory', InventoryModule);
+}
+
+export function fixInventoryModule() {
+  console.log('🔧 [InventoryFix] Réparation module Inventory...');
+  
+  try {
+    const instance = InventoryModule.getInstance('inventory');
+    
+    if (instance) {
+      // Force fermeture UI via BaseModule
+      instance.forceCloseUI();
+      
+      console.log('✅ [InventoryFix] Module Inventory réparé');
+      return true;
+    } else {
+      console.log('ℹ️ [InventoryFix] Aucune instance à réparer');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [InventoryFix] Erreur réparation:', error);
+    return false;
+  }
+}
+
+// === 📋 EXPORT PAR DÉFAUT ===
 
 export default InventoryModule;
 
 console.log(`
-🎒 === INVENTORY MODULE PURE UIMANAGER ===
+🎒 === INVENTORY MODULE AVEC BASEMODULE ===
 
-✅ PRINCIPES RESPECTÉS:
-• Module ne crée PAS d'icône automatiquement
-• UIManager appelle createIcon() quand il veut
-• UIManager gère position, show/hide, enable/disable
-• Module répond seulement aux commandes UIManager
+🎯 NOUVELLES FONCTIONNALITÉS:
+• BaseModule - logique UIManager mutualisée
+• Code simplifié - moins de duplication
+• Patterns standards - consistent avec Team
+• Singleton intégré - via BaseModule
 
-🎛️ INTERFACE UIMANAGER:
-• show() → Appelé par UIManager pour afficher
-• hide() → Appelé par UIManager pour cacher  
-• setEnabled() → Appelé par UIManager pour activer/désactiver
-• createIcon() → Appelé par UIManager pour créer l'icône
-• getIconElement() → Retourne l'élément pour UIManager
+📍 AVANTAGES BASEMODULE:
+• connectUIManager() générique
+• forceCloseUI() standardisé
+• Gestion état UIManager uniforme
+• Raccourcis clavier automatiques
 
-📍 POSITIONNEMENT:
-• Aucun positionnement manuel
-• UIManager a le contrôle total
-• Layout config dans INVENTORY_MODULE_CONFIG
+🔧 MÉTHODES HÉRITÉES:
+• show(), hide(), setEnabled() - standards
+• connectUIManager() - connexion sécurisée
+• getUIManagerState() - état complet
+• forceCloseUI() - fermeture forcée
 
-🔄 WORKFLOW:
-1. UIManager crée le module via factory
-2. UIManager appelle createIcon() 
-3. UIManager récupère l'iconElement
-4. UIManager positionne avec registerIconPosition()
-5. UIManager contrôle show/hide/enabled
+🎯 SPÉCIFICITÉS INVENTORY:
+• getItems() - objets disponibles
+• useItem() - utiliser objet
+• hasItem() - vérifier possession
+• openToPocket() - ouvrir poche spécifique
+• API legacy maintenue
 
-🎯 100% CONTRÔLÉ PAR UIMANAGER !
+🔗 INTÉGRATION SYSTÈME:
+• InventorySystem conservé intact
+• InventoryUI et InventoryIcon réutilisés
+• Compatibilité totale avec existant
+• Fonctions globales exposées
+
+✅ INVENTORY REFACTORISÉ AVEC BASEMODULE !
 `);
