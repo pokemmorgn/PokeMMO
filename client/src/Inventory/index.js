@@ -60,19 +60,27 @@ export class InventoryModule extends BaseModule {
       this.ui = this.system.inventoryUI;
       this.icon = this.system.inventoryIcon;
       
+      // 🆕 ASSURER QUE L'ICÔNE EST INITIALISÉE
+      if (this.icon && !this.icon.iconElement) {
+        console.log('🔧 [InventoryModule] Initialisation icône manquante...');
+        this.icon.init();
+      }
+      
       // Assurer que l'icône est dans le bon mode UIManager
-      if (this.icon) {
+      if (this.icon && this.icon.iconElement) {
         this.icon.positioningMode = 'uimanager';
         
         // Supprimer tout positionnement automatique de l'icône
-        if (this.icon.iconElement) {
-          this.icon.iconElement.style.position = '';
-          this.icon.iconElement.style.right = '';
-          this.icon.iconElement.style.bottom = '';
-          this.icon.iconElement.style.left = '';
-          this.icon.iconElement.style.top = '';
-          this.icon.iconElement.style.zIndex = '';
-        }
+        this.icon.iconElement.style.position = '';
+        this.icon.iconElement.style.right = '';
+        this.icon.iconElement.style.bottom = '';
+        this.icon.iconElement.style.left = '';
+        this.icon.iconElement.style.top = '';
+        this.icon.iconElement.style.zIndex = '';
+        
+        console.log('✅ [InventoryModule] Icône préparée pour UIManager');
+      } else {
+        console.warn('❌ [InventoryModule] Impossible de préparer l\'icône');
       }
     }
     
