@@ -1,5 +1,5 @@
 // ================================================================================================
-// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION TILE PAR TILE AVEC FLAPAROUND
+// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - VERSION TILE PAR TILE
 // ================================================================================================
 import { SpriteUtils } from '../utils/SpriteUtils.js';
 
@@ -13,11 +13,11 @@ export class OverworldPokemonManager {
     this.tileSize = 32;
     this.moveSpeed = 32;
     
-    console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile avec FlapAround (32px tiles)");
+    console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile");
   }
 
   isFirstRowOnlyAnimation(animationFile) {
-    return animationFile.toLowerCase().includes('flaparound-anim.png');
+    return animationFile.toLowerCase().includes('swing-anim.png');
   }
 
   async detectSpriteStructure(pokemonId, animationFile, width, height) {
@@ -99,49 +99,51 @@ export class OverworldPokemonManager {
   createPokemonAnimations(pokemonId, spriteKey, structure, animationFile) {
     const isFirstRowOnly = this.isFirstRowOnlyAnimation(animationFile);
     
-    console.log(`🎬 [OverworldPokemonManager] Création animations ${pokemonId} - Mode: ${isFirstRowOnly ? 'FlapAround' : 'Standard'}`);
+    console.log(`🎬 [OverworldPokemonManager] Création animations ${pokemonId} - Mode: ${isFirstRowOnly ? 'Swing' : 'Standard'}`);
 
     if (isFirstRowOnly) {
-      this.createFlapAroundAnimations(pokemonId, spriteKey, structure, animationFile);
+      this.createSwingAnimations(pokemonId, spriteKey, structure, animationFile);
     } else {
       this.createStandardAnimations(pokemonId, spriteKey, structure, animationFile);
     }
   }
 
-  createFlapAroundAnimations(pokemonId, spriteKey, structure, animationFile) {
+  createSwingAnimations(pokemonId, spriteKey, structure, animationFile) {
     const animType = animationFile.replace('-Anim.png', '').replace('.png', '').toLowerCase();
     
-    const maxFrames = Math.min(16, structure.cols);
-    
     const directions = [
-      { name: 'down', startIndex: 0 },
-      { name: 'down-right', startIndex: 2 },
-      { name: 'right', startIndex: 4 },
-      { name: 'up-right', startIndex: 6 },
-      { name: 'up', startIndex: 8 },
-      { name: 'up-left', startIndex: 10 },
-      { name: 'left', startIndex: 12 },
-      { name: 'down-left', startIndex: 14 }
+      { name: 'down', col: 0 },
+      { name: 'down-left', col: 1 },
+      { name: 'left', col: 2 },
+      { name: 'up-left', col: 3 },
+      { name: 'up', col: 4 },
+      { name: 'up-right', col: 5 },
+      { name: 'right', col: 6 },
+      { name: 'down-right', col: 7 }
     ];
 
-    console.log(`🎬 [OverworldPokemonManager] FlapAround structure: ${structure.cols}x${structure.rows} - Utilisation frames 0-${maxFrames-1} pour ${pokemonId}`);
-
     directions.forEach(dir => {
-      if (dir.startIndex + 1 < maxFrames) {
+      if (dir.col < structure.cols) {
         const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
         const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
         
+        const baseFrame = dir.col;
+        
         if (!this.scene.anims.exists(walkKey)) {
+          const frames = [baseFrame];
+          if (structure.cols >= 9) {
+            frames.push(8);
+          }
+          
           this.scene.anims.create({
             key: walkKey,
-            frames: [
-              { key: spriteKey, frame: dir.startIndex },
-              { key: spriteKey, frame: dir.startIndex + 1 }
-            ],
-            frameRate: 8,
+            frames: frames.map(frameIndex => ({
+              key: spriteKey,
+              frame: frameIndex
+            })),
+            frameRate: 6,
             repeat: -1
           });
-          console.log(`✅ Created walk anim: ${walkKey} (frames ${dir.startIndex}-${dir.startIndex + 1})`);
         }
         
         if (!this.scene.anims.exists(idleKey)) {
@@ -149,19 +151,16 @@ export class OverworldPokemonManager {
             key: idleKey,
             frames: [{
               key: spriteKey,
-              frame: dir.startIndex
+              frame: baseFrame
             }],
             frameRate: 1,
             repeat: 0
           });
-          console.log(`✅ Created idle anim: ${idleKey} (frame ${dir.startIndex})`);
         }
-      } else {
-        console.log(`⚠️ [OverworldPokemonManager] Direction ${dir.name} ignorée (index ${dir.startIndex} >= limite ${maxFrames})`);
       }
     });
     
-    console.log(`✅ [OverworldPokemonManager] Animations FlapAround créées pour ${pokemonId} (frames 0-${maxFrames-1} utilisées sur ${structure.cols} disponibles)`);
+    console.log(`✅ [OverworldPokemonManager] Animations Swing créées pour ${pokemonId}`);
   }
 
   createStandardAnimations(pokemonId, spriteKey, structure, animationFile) {
@@ -239,9 +238,6 @@ export class OverworldPokemonManager {
     const pixelX = tileX * this.tileSize + (this.tileSize / 2);
     const pixelY = tileY * this.tileSize + (this.tileSize / 2);
     
-    console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
-    console.log(`📏 TileSize utilisé: ${this.tileSize}px`);
-    
     if (pokemon && pokemon.isStatic) {
       console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} est STATIQUE - mouvement interdit`);
       return false;
@@ -259,8 +255,6 @@ export class OverworldPokemonManager {
       for (let i = 0; i < this.scene.collisionLayers.length; i++) {
         const layer = this.scene.collisionLayers[i];
         const tile = layer.getTileAtWorldXY(pixelX, pixelY);
-        
-        console.log(`  Layer ${i}: tile=${tile?.index || 'null'}, collides=${tile?.collides || false}`);
         
         if (tile && tile.collides) {
           console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) BLOQUÉE par layer ${i}`);
@@ -708,14 +702,14 @@ export class OverworldPokemonManager {
   }
 
   debugOverworldPokemon() {
-    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE AVEC CONFIG ===`);
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG TILE PAR TILE ===`);
     console.log(`📊 Pokémon actifs: ${this.overworldPokemon.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`🛡️ Collision layers: ${this.scene.collisionLayers?.length || 0}`);
     console.log(`📏 Taille tile: ${this.tileSize}px`);
     console.log(`⚡ Vitesse mouvement: ${this.moveSpeed}px/s`);
     console.log(`🎮 Système: TILE PAR TILE avec CONFIG MOUVEMENT`);
-    console.log(`🦅 Support FlapAround-Anim avec frames 0-15`);
+    console.log(`🎬 Support animations: Walk-Anim, Swing-Anim`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
       const isMoving = pokemon.isMovingToTarget;
