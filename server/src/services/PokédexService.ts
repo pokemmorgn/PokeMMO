@@ -85,7 +85,17 @@ export class PokédexService extends EventEmitter {
       console.log(`👁️ [PokédxService] ${playerId} voit Pokémon #${discoveryData.pokemonId}`);
       
       // Récupérer ou créer l'entrée
-      const entry = await PokédexEntry.findOrCreate(playerId, discoveryData.pokemonId);
+      let entry = await PokédexEntry.findOne({ playerId, pokemonId: discoveryData.pokemonId });
+      if (!entry) {
+        entry = new PokédexEntry({
+          playerId,
+          pokemonId: discoveryData.pokemonId,
+          isSeen: false,
+          isCaught: false,
+          timesEncountered: 0,
+          timesCaught: 0
+        });
+      }
       const wasAlreadySeen = entry.isSeen;
       
       // Marquer comme vu avec les données de rencontre
@@ -157,7 +167,17 @@ export class PokédexService extends EventEmitter {
       console.log(`🎯 [PokédxService] ${playerId} capture Pokémon #${captureData.pokemonId}`);
       
       // Récupérer ou créer l'entrée
-      const entry = await PokédexEntry.findOrCreate(playerId, captureData.pokemonId);
+      let entry = await PokédexEntry.findOne({ playerId, pokemonId: captureData.pokemonId });
+      if (!entry) {
+        entry = new PokédexEntry({
+          playerId,
+          pokemonId: captureData.pokemonId,
+          isSeen: false,
+          isCaught: false,
+          timesEncountered: 0,
+          timesCaught: 0
+        });
+      }
       const wasAlreadyCaught = entry.isCaught;
       
       // Marquer comme capturé
@@ -407,7 +427,7 @@ export class PokédexService extends EventEmitter {
     try {
       const stats = await this.getPlayerStats(playerId);
       
-      const summary: PokédxProgressSummary = {
+      const summary: PokédexProgressSummary = {
         seen: {
           count: stats.totalSeen,
           percentage: stats.seenPercentage,
@@ -447,7 +467,36 @@ export class PokédexService extends EventEmitter {
     try {
       console.log(`🔄 [PokédexService] Recalcul stats pour ${playerId}`);
       
-      const stats = await PokédexStats.findOrCreate(playerId);
+      let stats = await PokédexStats.findOne({ playerId });
+      if (!stats) {
+        stats = new PokédexStats({
+          playerId,
+          totalSeen: 0,
+          totalCaught: 0,
+          totalPokemon: 151,
+          typeStats: {},
+          regionStats: {},
+          records: {
+            totalShinyFound: 0,
+            totalShinyCaught: 0,
+            highestLevelSeen: 1,
+            highestLevelCaught: 1,
+            fastestCapture: Infinity,
+            longestHunt: 0,
+            currentSeenStreak: 0,
+            longestSeenStreak: 0,
+            currentCaughtStreak: 0,
+            longestCaughtStreak: 0
+          },
+          activity: {
+            mostActiveDay: 'saturday',
+            mostActiveHour: 14,
+            weeklyProgress: [],
+            monthlyProgress: []
+          },
+          achievements: {}
+        });
+      }
       await stats.recalculateStats();
       
       // Mettre à jour le cache
@@ -488,7 +537,36 @@ export class PokédexService extends EventEmitter {
       return this.playerStatsCache.get(playerId)!;
     }
     
-    const stats = await PokédexStats.findOrCreate(playerId);
+    let stats = await PokédexStats.findOne({ playerId });
+    if (!stats) {
+      stats = new PokédexStats({
+        playerId,
+        totalSeen: 0,
+        totalCaught: 0,
+        totalPokemon: 151,
+        typeStats: {},
+        regionStats: {},
+        records: {
+          totalShinyFound: 0,
+          totalShinyCaught: 0,
+          highestLevelSeen: 1,
+          highestLevelCaught: 1,
+          fastestCapture: Infinity,
+          longestHunt: 0,
+          currentSeenStreak: 0,
+          longestSeenStreak: 0,
+          currentCaughtStreak: 0,
+          longestCaughtStreak: 0
+        },
+        activity: {
+          mostActiveDay: 'saturday',
+          mostActiveHour: 14,
+          weeklyProgress: [],
+          monthlyProgress: []
+        },
+        achievements: {}
+      });
+    }
     this.playerStatsCache.set(playerId, stats);
     
     return stats;
@@ -504,18 +582,28 @@ export class PokédexService extends EventEmitter {
     const stats = await this.getPlayerStats(playerId);
     
     if (updates.newSeen || updates.newCaught) {
-      await stats.updateFromEntry(null, updates.newSeen, updates.newCaught);
-      
-      // Mettre à jour le cache
-      this.playerStatsCache.set(playerId, stats);
-      
-      // Ajouter aux progrès hebdomadaires
-      stats.addWeeklyProgress(
-        updates.newSeen ? 1 : 0, 
-        updates.newCaught ? 1 : 0
-      );
-      
-      await stats.save();
+      // Mettre à jour les statistiques
+      if (updates.newSeen || updates.newCaught) {
+        if (updates.newSeen) {
+          stats.totalSeen++;
+          stats.activity.lastDiscoveryDate = new Date();
+        }
+        if (updates.newCaught) {
+          stats.totalCaught++;
+          stats.activity.lastCaptureDate = new Date();
+        }
+        
+        // Mettre à jour le cache
+        this.playerStatsCache.set(playerId, stats);
+        
+        // Ajouter aux progrès hebdomadaires
+        stats.addWeeklyProgress(
+          updates.newSeen ? 1 : 0, 
+          updates.newCaught ? 1 : 0
+        );
+        
+        await stats.save();
+      }
     }
   }
   
@@ -607,7 +695,7 @@ export class PokédexService extends EventEmitter {
    */
   private async checkCaptureAchievements(
     playerId: string, 
-    captureData: PokédxCaptureData, 
+    captureData: PokédexCaptureData, 
     pokemonData: any
   ): Promise<string[]> {
     const achievements: string[] = [];
