@@ -99,6 +99,9 @@ export class InventoryModule extends BaseModule {
       };
     }
     
+    // Assurer compatibilité UIManager
+    this.ensureIconForUIManager();
+    
     console.log('✅ [InventoryModule] Composants Inventory connectés via BaseModule');
   }
   
@@ -199,7 +202,24 @@ export class InventoryModule extends BaseModule {
     };
   }
   
-  // === 🔧 MÉTHODES DE COMPATIBILITÉ AVEC SYSTÈME EXISTANT ===
+  /**
+   * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
+   */
+  canOpenUI() {
+    // Vérifications spécifiques à l'inventaire
+    const blockers = [
+      document.querySelector('.quest-dialog-overlay'),
+      document.querySelector('#dialogue-box:not([style*="display: none"])'),
+      document.querySelector('#team-overlay:not(.hidden)'),
+      document.querySelector('#shop-overlay:not(.hidden)')
+    ];
+    
+    const hasBlocker = blockers.some(el => el !== null);
+    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
+    
+    return !hasBlocker && !chatFocused && !starterHudOpen && this.uiManagerState.enabled;
+  }
   
   /**
    * Exposer le système globalement pour compatibilité
@@ -222,6 +242,32 @@ export class InventoryModule extends BaseModule {
     this.exposeGlobally();
     
     return result;
+  }
+  
+  /**
+   * Méthode pour assurer la compatibilité avec UIManager
+   */
+  ensureIconForUIManager() {
+    console.log('🔧 [InventoryModule] Vérification icône pour UIManager...');
+    
+    if (this.icon && this.icon.iconElement) {
+      // Reset du positionnement pour UIManager
+      this.icon.iconElement.removeAttribute('data-positioned-by-uimanager');
+      
+      // Supprimer tout positionnement automatique
+      this.icon.iconElement.style.position = '';
+      this.icon.iconElement.style.right = '';
+      this.icon.iconElement.style.bottom = '';
+      this.icon.iconElement.style.left = '';
+      this.icon.iconElement.style.top = '';
+      this.icon.iconElement.style.zIndex = '';
+      
+      console.log('✅ [InventoryModule] Icône prête pour UIManager');
+      return true;
+    }
+    
+    console.warn('❌ [InventoryModule] Icône non disponible');
+    return false;
   }
 }
 
