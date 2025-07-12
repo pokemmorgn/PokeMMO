@@ -172,22 +172,27 @@ init() {
   
   // === 🎛️ CONTRÔLE UI MANAGER ===
   
-  show() {
-    console.log('👁️ [InventoryIcon] Affichage (position gérée par UIManager)');
+show() {
+  console.log('👁️ [InventoryIcon] Affichage (position gérée par UIManager)');
+  
+  this.isVisible = true;
+  
+  if (this.iconElement) {
+    this.iconElement.classList.remove('ui-hidden', 'hidden');
+    this.iconElement.classList.add('ui-fade-in');
     
-    this.isVisible = true;
+    // 🆕 FORCER DISPLAY BLOCK
+    this.iconElement.style.display = 'block';
+    this.iconElement.style.visibility = 'visible';
+    this.iconElement.style.opacity = '1';
     
-    if (this.iconElement) {
-      this.iconElement.classList.remove('ui-hidden', 'hidden');
-      this.iconElement.classList.add('ui-fade-in');
-      
-      setTimeout(() => {
-        this.iconElement.classList.remove('ui-fade-in');
-      }, 300);
-    }
-    
-    return true;
+    setTimeout(() => {
+      this.iconElement.classList.remove('ui-fade-in');
+    }, 300);
   }
+  
+  return true;
+}
   
   hide() {
     console.log('👻 [InventoryIcon] Masquage');
