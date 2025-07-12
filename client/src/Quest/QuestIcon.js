@@ -517,18 +517,23 @@ export class QuestIcon {
   // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
   
 show() {
-  console.log('👁️ [QuestIcon] Affichage (position gérée par UIManager)');
+  console.log('👁️ [QuestIcon] Affichage (garanti)');
   
   this.isVisible = true;
   
   if (this.iconElement) {
-    this.iconElement.classList.remove('hidden');
-    this.iconElement.classList.add('appearing');
-    
-    // ✅ FORCER VISIBILITÉ EXPLICITE
+    // ✅ FORCE AFFICHAGE ROBUSTE
     this.iconElement.style.display = 'block';
     this.iconElement.style.visibility = 'visible';
     this.iconElement.style.opacity = '1';
+    this.iconElement.style.pointerEvents = 'auto';
+    
+    // Supprimer classes cachées
+    this.iconElement.classList.remove('hidden', 'ui-hidden');
+    this.iconElement.classList.add('appearing');
+    
+    // Force z-index élevé
+    this.iconElement.style.zIndex = '1000';
     
     // Marquer comme géré par UIManager
     this.iconElement.setAttribute('data-positioned-by', 'uimanager');
@@ -536,6 +541,8 @@ show() {
     setTimeout(() => {
       this.iconElement.classList.remove('appearing');
     }, 500);
+    
+    console.log('✅ [QuestIcon] Affiché avec garantie');
   }
   
   return true;
