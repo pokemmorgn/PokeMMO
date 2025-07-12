@@ -1,4 +1,7 @@
-/**
+// 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
+      if (rows === 1 &&      // 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
+      if (rows === 1 && animationFile.includes('FlapAround')) {
+        score += 100; // ✅ BOOST/**
  * 🔧 MISE À JOUR SPRITEUTILS.JS AVEC SYSTÈME JSON + DÉTECTION AVANCÉE + FLAPAROUND
  * ✅ Intégrer le JSON et la détection automatique qu'on a développé + support FlapAround
  */
@@ -103,8 +106,23 @@ export class SpriteUtils {
         }
       }
     } else if (animationFile.includes('FlapAround-Anim')) {
-      // ✅ NOUVEAU: FlapAround animations = 1 ligne, paires d'index
-      // 8 directions x 2 frames = 16 frames minimum
+      // ✅ NOUVEAU: FlapAround animations = FORCER 1 ligne même si le sprite en a plusieurs
+      // On utilise seulement la première ligne du sprite
+      if (width === 432 && height === 320) structure = { cols: 18, rows: 1 }; // ✅ FORCE 18x1 au lieu de 18x8
+      else if (width === 512 && height === 32) structure = { cols: 16, rows: 1 }; // 16 frames (8 directions x 2)
+      else if (width === 256 && height === 32) structure = { cols: 8, rows: 1 }; // 8 frames (directions simples)
+      else if (width === 320 && height === 32) structure = { cols: 10, rows: 1 }; // 10 frames
+      else if (width === 480 && height === 32) structure = { cols: 15, rows: 1 }; // 15 frames
+      else {
+        // Auto-calcul pour FlapAround (TOUJOURS forcer 1 ligne)
+        const possibleCols = [8, 10, 12, 14, 16, 18, 19, 20, 22, 24];
+        for (const cols of possibleCols) {
+          if (width % cols === 0) {
+            structure = { cols, rows: 1 }; // ✅ TOUJOURS 1 ligne pour FlapAround
+            break;
+          }
+        }
+      }8 directions x 2 frames = 16 frames minimum
       if (width === 512 && height === 32) structure = { cols: 16, rows: 1 }; // 16 frames (8 directions x 2)
       else if (width === 256 && height === 32) structure = { cols: 8, rows: 1 }; // 8 frames (directions simples)
       else if (width === 320 && height === 32) structure = { cols: 10, rows: 1 }; // 10 frames
@@ -186,15 +204,16 @@ export class SpriteUtils {
       
       // 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
       if (rows === 1 && animationFile.includes('FlapAround')) {
-        score += 45; // Priorité élevée
-        if (cols === 16) score += 35; // 8 directions x 2 frames = idéal
-        if (cols === 8) score += 20;  // 8 directions simples
-        if (cols === 10) score += 15; // Variant
-        if (cols % 2 === 0) score += 10; // Bonus pour paires
+        score += 1000; // ✅ SCORE ÉNORME pour forcer la détection 1 ligne
+        if (cols === 18) score += 100; // 18 colonnes = parfait
+        if (cols === 16) score += 90; // 8 directions x 2 frames = idéal
+        if (cols === 8) score += 50;  // 8 directions simples
+        if (cols === 10) score += 40; // Variant
+        if (cols % 2 === 0) score += 20; // Bonus pour paires
         
-        // Bonus pour frames carrées ou presque (FlapAround souvent petites frames)
-        if (frameWidth >= 16 && frameWidth <= 48 && frameHeight >= 16 && frameHeight <= 48) {
-          score += 25;
+        // Bonus pour frames rectangulaires (FlapAround peut avoir des frames hautes)
+        if (frameWidth >= 16 && frameWidth <= 48 && frameHeight >= 16 && frameHeight <= 400) {
+          score += 50;
         }
       }
       
@@ -222,7 +241,7 @@ export class SpriteUtils {
       }
       
       // 🎯 ÉVITER FORMATS BIZARRES
-      if (cols > 20 || rows > 12) score -= 20;
+      if (cols > 24 || rows > 12) score -= 20;
       if (frameWidth < 8 || frameHeight < 8) score -= 30;
       if (frameWidth > 128 || frameHeight > 128) score -= 20;
       
@@ -257,6 +276,8 @@ export class SpriteUtils {
       type = 'swing';
     } else if (rows === 1 && animationFile.includes('FlapAround')) {
       if (cols === 16) type = 'flaparound-full';
+      else if (cols === 18) type = 'flaparound-9dir';
+      else if (cols === 19) type = 'flaparound-19f';
       else if (cols === 8) type = 'flaparound-simple';
       else type = 'flaparound';
     } else if (rows === 8) {
