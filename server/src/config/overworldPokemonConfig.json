@@ -20,8 +20,8 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 400, "y": 300},
-            {"x": 500, "y": 350}
+            {"x": 141, "y": 179},
+            {"x": 150, "y": 190}
           ]
         },
         {
@@ -34,8 +34,8 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 450, "y": 250},
-            {"x": 550, "y": 300}
+            {"x": 105, "y": 123},
+            {"x": 110, "y": 130}
           ]
         },
         {
@@ -62,8 +62,8 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 300, "y": 350},
-            {"x": 650, "y": 350}
+            {"x": 196, "y": 108},
+            {"x": 205, "y": 110}
           ]
         },
         {
@@ -76,8 +76,8 @@
           },
           "currentAnimation": "walk",
           "spawnPositions": [
-            {"x": 400, "y": 450},
-            {"x": 500, "y": 200}
+            {"x": 229, "y": 232},
+            {"x": 231, "y": 240}
           ]
         }
       ]
