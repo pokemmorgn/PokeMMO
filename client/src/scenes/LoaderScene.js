@@ -1,5 +1,5 @@
 // ===============================================
-// LoaderScene.js - Version centralisée avec ZoneMapping
+// LoaderScene.js - VERSION CORRIGÉE SANS DOUBLE APPEL
 // ===============================================
 import { 
   generateMapLoadConfig, 
@@ -11,6 +11,10 @@ export class LoaderScene extends Phaser.Scene {
   constructor() {
     super({ key: 'LoaderScene' });
     window.PokemonSpriteConfig = null;
+    
+    // ✅ AJOUT: Guard contre double appel
+    this._gameStarted = false;
+    this._isStarting = false;
   }
   
   preload() {
@@ -45,9 +49,6 @@ export class LoaderScene extends Phaser.Scene {
     this.load.audio('village_theme', 'assets/audio/music/village_theme.mp3');
     this.load.audio('lavandia_theme', 'assets/audio/music/lavandia_theme.mp3');
     this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
-    
-    // BATTLE BACKGROUND (inchangé)
-    // this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     
     // Npcs (inchangé)
     this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
@@ -88,9 +89,18 @@ export class LoaderScene extends Phaser.Scene {
       this.updateProgressBar(progress);
     });
 
+    // ✅ CORRECTION: Event 'complete' avec guard
     this.load.on('complete', () => {
       console.log('✅ Tous les assets sont chargés !');
-      this.startGame();
+      
+      // ✅ GUARD: Ne pas démarrer si déjà en cours
+      if (!this._gameStarted && !this._isStarting) {
+        console.log('🚀 [LoaderScene] Démarrage du jeu depuis preload.complete');
+        this._isStarting = true;
+        this.startGame();
+      } else {
+        console.log('ℹ️ [LoaderScene] startGame déjà appelé, ignoré');
+      }
     });
 
     // ✅ Error handling (inchangé)
@@ -111,6 +121,16 @@ export class LoaderScene extends Phaser.Scene {
   }
 
   async startGame() {
+    // ✅ GUARD PRINCIPAL: Empêcher double exécution
+    if (this._gameStarted) {
+      console.log('⚠️ [LoaderScene] startGame déjà exécuté, abandon');
+      return;
+    }
+    
+    // ✅ MARQUER COMME DÉMARRÉ IMMÉDIATEMENT
+    this._gameStarted = true;
+    console.log('🎯 [LoaderScene] === DÉMARRAGE UNIQUE DU JEU ===');
+
     // Récupérer la dernière position et démarrer la bonne scène
     const getWalletFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
@@ -137,7 +157,13 @@ export class LoaderScene extends Phaser.Scene {
         
         console.log(`🎯 [LoaderScene] Redirection automatique: ${lastMap} → ${targetScene}`);
         
-        this.scene.start(targetScene);
+        // ✅ VÉRIFICATION: S'assurer que la scène n'est pas déjà active
+        if (this.scene.isActive(targetScene)) {
+          console.log('⚠️ [LoaderScene] Scène cible déjà active, restart au lieu de start');
+          this.scene.restart(targetScene);
+        } else {
+          this.scene.start(targetScene);
+        }
         
       } else {
         console.log('📍 [LoaderScene] Pas de données utilisateur, démarrage BeachScene');
@@ -171,7 +197,9 @@ export class LoaderScene extends Phaser.Scene {
   }
   
   async create() {
-    // Charge ton JSON custom (inchangé)
+    console.log('🔧 [LoaderScene] create() appelé');
+    
+    // ✅ CHARGEMENT JSON SEULEMENT (pas de startGame)
     try {
       const res = await fetch('assets/pokemon/PokemonSpriteConfig.json');
       window.PokemonSpriteConfig = await res.json();
@@ -183,7 +211,32 @@ export class LoaderScene extends Phaser.Scene {
       };
     }
 
-    // Ensuite, démarre le jeu
+    // ✅ CORRECTION CRITIQUE: NE PLUS APPELER startGame() ICI
+    // Le startGame() est maintenant géré uniquement par l'event 'complete' dans preload()
+    console.log('✅ [LoaderScene] create() terminé (pas de double startGame)');
+  }
+
+  // ✅ MÉTHODES DE DEBUG AJOUTÉES
+  getLoaderStatus() {
+    return {
+      gameStarted: this._gameStarted,
+      isStarting: this._isStarting,
+      loadComplete: this.load.isLoading() === false,
+      sceneActive: this.scene.isActive(),
+      totalLoaded: this.load.totalComplete,
+      totalToLoad: this.load.totalToLoad
+    };
+  }
+
+  resetLoaderState() {
+    console.log('🔄 [LoaderScene] Reset état loader');
+    this._gameStarted = false;
+    this._isStarting = false;
+  }
+
+  forceStartGame() {
+    console.log('🚀 [LoaderScene] Force start game (debug)');
+    this.resetLoaderState();
     this.startGame();
   }
 }
