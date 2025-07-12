@@ -1393,20 +1393,70 @@ show() {
   return true;
 }
   
-  hide() {
-    console.log('👻 [TeamUI] Masquage interface');
+hide() {
+  console.log('👻 [TeamUI] Masquage interface');
+  
+  this.isVisible = false;
+  
+  if (this.overlayElement) {
+    // ✅ FIX 3: MASQUAGE COMPLET AVEC TOUS LES STYLES
+    this.overlayElement.classList.add('hidden');
+    this.overlayElement.style.display = 'none';
+    this.overlayElement.style.opacity = '0';
+    this.overlayElement.style.visibility = 'hidden';
+    this.overlayElement.style.pointerEvents = 'none';
+    this.overlayElement.style.zIndex = '-1';
     
-    this.isVisible = false;
+    console.log('✅ [TeamUI] Overlay complètement masqué');
     
-    if (this.overlayElement) {
-      this.overlayElement.classList.add('hidden');
-    }
-    
-    // Désélectionner
-    this.deselectPokemon();
-    
-    return true;
+    // ✅ VALIDATION DU MASQUAGE
+    console.log('📊 [TeamUI] État final masquage:', {
+      display: this.overlayElement.style.display,
+      opacity: this.overlayElement.style.opacity,
+      visibility: this.overlayElement.style.visibility,
+      pointerEvents: this.overlayElement.style.pointerEvents,
+      classes: this.overlayElement.className
+    });
   }
+  
+  // Désélectionner
+  this.deselectPokemon();
+  
+  return true;
+}
+
+// ✅ AJOUTEZ AUSSI CETTE MÉTHODE DE FORCE HIDE
+
+/**
+ * Force le masquage de l'interface même si les styles CSS posent problème
+ */
+forceHide() {
+  console.log('🔧 [TeamUI] Force hide avec réparation CSS...');
+  
+  if (!this.overlayElement) {
+    console.error('❌ [TeamUI] Pas d\'overlay à masquer');
+    return false;
+  }
+  
+  // Marquer comme invisible
+  this.isVisible = false;
+  
+  // FORCER TOUS LES STYLES DE MASQUAGE
+  this.overlayElement.classList.add('hidden');
+  this.overlayElement.style.display = 'none !important';
+  this.overlayElement.style.opacity = '0 !important';
+  this.overlayElement.style.visibility = 'hidden !important';
+  this.overlayElement.style.pointerEvents = 'none !important';
+  this.overlayElement.style.zIndex = '-1000 !important';
+  this.overlayElement.style.transform = 'translateX(-9999px)'; // Force le déplacement hors écran
+  
+  console.log('✅ [TeamUI] Overlay forcé masqué avec styles inline');
+  
+  // Désélectionner
+  this.deselectPokemon();
+  
+  return true;
+}
   
   toggle() {
     if (this.isVisible) {
