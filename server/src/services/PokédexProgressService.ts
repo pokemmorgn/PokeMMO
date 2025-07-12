@@ -113,7 +113,7 @@ export class PokédexProgressService extends EventEmitter {
       console.log(`🏆 [PokédxProgressService] Vérification accomplissements Pokédx pour ${playerId}`);
       
       const notifications: string[] = [];
-      const stats = await PokédxStats.findOrCreate(playerId);
+      const stats = await PokédexStats.findOrCreate(playerId);
       
       // === ACCOMPLISSEMENTS SIMPLES ===
       
@@ -196,9 +196,9 @@ export class PokédexProgressService extends EventEmitter {
     timestamp: Date = new Date()
   ): Promise<{ notifications: string[]; updatedStreaks: PokédexStreak[] }> {
     try {
-      const stats = await PokédxStats.findOrCreate(playerId);
+      const stats = await PokédexStats.findOrCreate(playerId);
       const notifications: string[] = [];
-      const updatedStreaks: PokédxStreak[] = [];
+      const updatedStreaks: PokédexStreak[] = [];
       
       const today = timestamp.toDateString();
       const yesterday = new Date(timestamp);
@@ -302,8 +302,8 @@ export class PokédexProgressService extends EventEmitter {
       console.log(`📊 [PokédxProgressService] Génération analytics Pokédx pour ${playerId}`);
       
       const [stats, entries] = await Promise.all([
-        PokédxStats.findOrCreate(playerId),
-        PokédxEntry.find({ playerId }).lean()
+        PokédexStats.findOrCreate(playerId),
+        PokédexEntry.find({ playerId }).lean()
       ]);
       
       // Trend de complétion simplifié
@@ -435,7 +435,7 @@ export class PokédexProgressService extends EventEmitter {
    * Activité récente
    */
   private async getRecentPokédexActivity(playerId: string, limit: number): Promise<any[]> {
-    const recentEntries = await PokédxEntry.find({
+    const recentEntries = await PokédexEntry.find({
       playerId,
       $or: [
         { lastSeenAt: { $exists: true } },
@@ -462,7 +462,7 @@ export class PokédexProgressService extends EventEmitter {
   /**
    * Prédictions simples
    */
-  private generateSimplePredictions(stats: IPokédxStats, entries: any[]): any {
+  private generateSimplePredictions(stats: IPokédexStats, entries: any[]): any {
     const predictions: any = {};
     
     // Prochaine étape simple
@@ -507,8 +507,8 @@ export class PokédexProgressService extends EventEmitter {
   /**
    * Récupère les streaks actuelles d'un joueur
    */
-  async getCurrentStreaks(playerId: string): Promise<PokédxStreak[]> {
-    const stats = await PokédxStats.findOrCreate(playerId);
+  async getCurrentStreaks(playerId: string): Promise<PokédexStreak[]> {
+    const stats = await PokédexStats.findOrCreate(playerId);
     
     return [
       {
