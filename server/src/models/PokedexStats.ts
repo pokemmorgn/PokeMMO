@@ -129,6 +129,9 @@ export interface IPokedexStats extends Document {
   calculateTypePreferences(): void;
   invalidateCache(): void;
   needsUpdate(): boolean;
+  getWeekNumber(date: Date): number;
+  determineRegionFromId(pokemonId: number): string;
+  generateQuickStatsHash(): string;
 }
 
 // ===== SCHÉMA MONGOOSE =====
@@ -472,7 +475,7 @@ PokedexStatsSchema.pre('save', function(next) {
     next();
     
   } catch (error) {
-    next(error);
+    next(error instanceof Error ? error : new Error('Unknown validation error'));
   }
 });
 
