@@ -128,12 +128,12 @@ export class TeamUI {
       
       /* Container principal */
       div#team-overlay .team-container {
-        width: 887.33px !important;
-        height: 705.33px !important;
-        min-width: 887.33px !important;
-        max-width: 887.33px !important;
-        min-height: 705.33px !important;
-        max-height: 705.33px !important;
+        width: 950px !important;
+        height: 750px !important;
+        min-width: 950px !important;
+        max-width: 950px !important;
+        min-height: 750px !important;
+        max-height: 750px !important;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42) !important;
         border: 3px solid #4a90e2 !important;
         border-radius: 20px !important;
@@ -329,9 +329,9 @@ export class TeamUI {
       
       /* Section slots */
       div#team-overlay .team-slots-section {
-        width: 637.33px !important;
-        min-width: 637.33px !important;
-        max-width: 637.33px !important;
+        width: 680px !important;
+        min-width: 680px !important;
+        max-width: 680px !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
