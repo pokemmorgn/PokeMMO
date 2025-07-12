@@ -680,7 +680,7 @@ export class QuestUI {
     
     const tracker = document.createElement('div');
     tracker.id = 'quest-tracker';
-    tracker.className = 'quest-tracker';
+    tracker.className = 'quest-tracker hidden';
     
     tracker.innerHTML = `
       <div class="quest-tracker-header">
