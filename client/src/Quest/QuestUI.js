@@ -680,7 +680,7 @@ export class QuestUI {
     
     const tracker = document.createElement('div');
     tracker.id = 'quest-tracker';
-    tracker.className = 'quest-tracker hidden';
+    tracker.className = 'quest-tracker';
     
     tracker.innerHTML = `
       <div class="quest-tracker-header">
@@ -1127,50 +1127,45 @@ export class QuestUI {
   
   // === 📊 TRACKER ===
   
-updateTracker() {
-  const container = this.trackerElement?.querySelector('#tracked-quests');
-  if (!container) return;
-  
-  const questsToTrack = this.activeQuests.slice(0, this.maxTrackedQuests);
-  
-  // ✅ AFFICHAGE/MASQUAGE AUTOMATIQUE
-  if (questsToTrack.length === 0) {
-    this.hideTracker();
-    console.log('👻 [QuestUI] Tracker caché - aucune quête active');
-    return;
-  } else {
-    this.showTracker();
-    console.log('👁️ [QuestUI] Tracker affiché - quêtes détectées');
-  }
-  
-  // Continuer avec l'affichage normal
-  container.innerHTML = questsToTrack.map((quest, index) => {
-    const progress = this.calculateQuestProgress(quest);
-    const isCompleted = quest.currentStepIndex >= (quest.steps?.length || 0);
+  updateTracker() {
+    const container = this.trackerElement?.querySelector('#tracked-quests');
+    if (!container) return;
     
-    return `
-      <div class="tracked-quest ${isCompleted ? 'completed' : ''}" data-quest-id="${quest.id}">
-        <div class="quest-name">${quest.name}</div>
-        <div class="quest-objectives">
-          ${this.renderTrackerObjectives(quest)}
+    const questsToTrack = this.activeQuests.slice(0, this.maxTrackedQuests);
+    
+    if (questsToTrack.length === 0) {
+      container.innerHTML = '<div class="quest-empty">No active quests</div>';
+      return;
+    }
+    
+    container.innerHTML = questsToTrack.map((quest, index) => {
+      const progress = this.calculateQuestProgress(quest);
+      const isCompleted = quest.currentStepIndex >= (quest.steps?.length || 0);
+      
+      return `
+        <div class="tracked-quest ${isCompleted ? 'completed' : ''}" data-quest-id="${quest.id}">
+          <div class="quest-name">${quest.name}</div>
+          <div class="quest-objectives">
+            ${this.renderTrackerObjectives(quest)}
+          </div>
         </div>
-      </div>
-    `;
-  }).join('');
-  
-  // Event listeners pour cliquer sur tracker
-  container.querySelectorAll('.tracked-quest').forEach(questElement => {
-    questElement.addEventListener('click', () => {
-      this.showJournal();
-      const questId = questElement.dataset.questId;
-      const questIndex = this.activeQuests.findIndex(q => q.id === questId);
-      if (questIndex !== -1) {
-        this.switchToView('active');
-        setTimeout(() => this.selectQuest(questIndex), 100);
-      }
+      `;
+    }).join('');
+    
+    // Event listeners pour cliquer sur tracker
+    container.querySelectorAll('.tracked-quest').forEach(questElement => {
+      questElement.addEventListener('click', () => {
+        this.showJournal();
+        // Focus sur cette quête si possible
+        const questId = questElement.dataset.questId;
+        const questIndex = this.activeQuests.findIndex(q => q.id === questId);
+        if (questIndex !== -1) {
+          this.switchToView('active');
+          setTimeout(() => this.selectQuest(questIndex), 100);
+        }
+      });
     });
-  });
-}
+  }
   
   renderTrackerObjectives(quest) {
     const currentStep = quest.steps?.[quest.currentStepIndex];
