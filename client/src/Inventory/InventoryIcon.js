@@ -31,26 +31,25 @@ export class InventoryIcon {
   
   // === 🚀 INITIALISATION ===
   
-  init() {
-    try {
-      console.log('🚀 [InventoryIcon] Initialisation sans positionnement manuel...');
-      
-      this.createIcon();
-      this.addStyles();
-      this.setupEventListeners();
-      
-      // === PAS DE POSITIONNEMENT MANUEL ===
-      // this.positionIcon(); ← SUPPRIMÉ
-      // UIManager s'occupera du positionnement via registerIconPosition()
-      
-      console.log('✅ [InventoryIcon] Initialisé (position sera gérée par UIManager)');
-      return this;
-      
-    } catch (error) {
-      console.error('❌ [InventoryIcon] Erreur initialisation:', error);
-      throw error;
-    }
+init() {
+  try {
+    console.log('🚀 [InventoryIcon] Initialisation sans positionnement manuel...');
+    
+    this.createIcon();
+    this.addStyles();
+    this.setupEventListeners();
+    
+    // 🆕 AFFICHER L'ICÔNE PAR DÉFAUT
+    this.show();
+    
+    console.log('✅ [InventoryIcon] Initialisé ET affiché (position sera gérée par UIManager)');
+    return this;
+    
+  } catch (error) {
+    console.error('❌ [InventoryIcon] Erreur initialisation:', error);
+    throw error;
   }
+}
   
   // === 🎨 CRÉATION INTERFACE ===
   
