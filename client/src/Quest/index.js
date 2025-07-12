@@ -63,12 +63,6 @@ createComponents() {
     // ✅ APPELER init() immédiatement (était manquant)
     this.ui.init().then(() => {
       console.log('✅ [QuestModule] UI Quest initialisée');
-      
-      // ✅ AFFICHER TRACKER par défaut
-      if (this.ui.showTracker) {
-        this.ui.showTracker();
-        console.log('👁️ [QuestModule] Tracker affiché par défaut');
-      }
     }).catch(error => {
       console.error('❌ [QuestModule] Erreur init UI:', error);
     });
