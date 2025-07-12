@@ -424,7 +424,8 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
-    this.pokédxHandler.setupHandlers();
+    this.pokédxHandler = new PokédxMessageHandler(this);
+    console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
     this.onMessage("battleFinished", (client, data) => {
       // Reset l'état combat du joueur
