@@ -1,6 +1,6 @@
 /**
- * 🔧 MISE À JOUR SPRITEUTILS.JS AVEC SYSTÈME JSON + DÉTECTION AVANCÉE
- * ✅ Intégrer le JSON et la détection automatique qu'on a développé
+ * 🔧 MISE À JOUR SPRITEUTILS.JS AVEC SYSTÈME JSON + DÉTECTION AVANCÉE + FLAPAROUND
+ * ✅ Intégrer le JSON et la détection automatique qu'on a développé + support FlapAround
  */
 
 // ✅ 1. MISE À JOUR DU CONSTRUCTOR DANS SpriteUtils
@@ -102,6 +102,23 @@ export class SpriteUtils {
           }
         }
       }
+    } else if (animationFile.includes('FlapAround-Anim')) {
+      // ✅ NOUVEAU: FlapAround animations = 1 ligne, paires d'index
+      // 8 directions x 2 frames = 16 frames minimum
+      if (width === 512 && height === 32) structure = { cols: 16, rows: 1 }; // 16 frames (8 directions x 2)
+      else if (width === 256 && height === 32) structure = { cols: 8, rows: 1 }; // 8 frames (directions simples)
+      else if (width === 320 && height === 32) structure = { cols: 10, rows: 1 }; // 10 frames
+      else if (width === 480 && height === 32) structure = { cols: 15, rows: 1 }; // 15 frames
+      else {
+        // Auto-calcul pour FlapAround (toujours 1 ligne)
+        const possibleCols = [8, 10, 12, 14, 16, 18, 20];
+        for (const cols of possibleCols) {
+          if (width % cols === 0 && height <= 64) { // FlapAround généralement petites frames
+            structure = { cols, rows: 1 };
+            break;
+          }
+        }
+      }
     }
     
     // Fallback si aucune règle
@@ -167,6 +184,20 @@ export class SpriteUtils {
         if (cols === 6) score += 15;
       }
       
+      // 🦅 NOUVEAU: BONUS FLAPAROUND ANIMATION (1 ligne, paires)
+      if (rows === 1 && animationFile.includes('FlapAround')) {
+        score += 45; // Priorité élevée
+        if (cols === 16) score += 35; // 8 directions x 2 frames = idéal
+        if (cols === 8) score += 20;  // 8 directions simples
+        if (cols === 10) score += 15; // Variant
+        if (cols % 2 === 0) score += 10; // Bonus pour paires
+        
+        // Bonus pour frames carrées ou presque (FlapAround souvent petites frames)
+        if (frameWidth >= 16 && frameWidth <= 48 && frameHeight >= 16 && frameHeight <= 48) {
+          score += 25;
+        }
+      }
+      
       // 🎯 TAILLE DE FRAME OPTIMALE
       if (frameWidth >= 16 && frameWidth <= 64 && frameHeight >= 16 && frameHeight <= 64) {
         score += 30;
@@ -187,11 +218,11 @@ export class SpriteUtils {
       const totalFrames = cols * rows;
       if (totalFrames >= 8 && totalFrames <= 80) {
         score += 15;
-        if ([40, 48, 64, 32, 8, 9].includes(totalFrames)) score += 10;
+        if ([40, 48, 64, 32, 16, 8, 9, 10].includes(totalFrames)) score += 10;
       }
       
       // 🎯 ÉVITER FORMATS BIZARRES
-      if (cols > 15 || rows > 12) score -= 20;
+      if (cols > 20 || rows > 12) score -= 20;
       if (frameWidth < 8 || frameHeight < 8) score -= 30;
       if (frameWidth > 128 || frameHeight > 128) score -= 20;
       
@@ -208,6 +239,8 @@ export class SpriteUtils {
     const best = scoredOptions[0];
     
     console.log(`✅ [SpriteUtils] Détection avancée: ${best.name} (score: ${best.score})`);
+    console.log(`🔍 [SpriteUtils] Top 3 options:`, scoredOptions.slice(0, 3).map(o => `${o.name} (${o.score})`));
+    
     return best;
   }
 
@@ -222,11 +255,32 @@ export class SpriteUtils {
       else type = 'walk';
     } else if (rows === 1 && animationFile.includes('Swing')) {
       type = 'swing';
+    } else if (rows === 1 && animationFile.includes('FlapAround')) {
+      if (cols === 16) type = 'flaparound-full';
+      else if (cols === 8) type = 'flaparound-simple';
+      else type = 'flaparound';
     } else if (rows === 8) {
       type = 'walk-variant';
     }
     
     return `${cols}x${rows} (${type}) [${frameWidth}x${frameHeight}px]`;
+  }
+
+  // ✅ FALLBACK STRUCTURE
+  static createFallbackStructure(width, height) {
+    console.warn(`⚠️ [SpriteUtils] Aucune division exacte trouvée pour ${width}x${height}, utilisation fallback`);
+    
+    return {
+      cols: 1,
+      rows: 1,
+      frameWidth: width,
+      frameHeight: height,
+      totalFrames: 1,
+      name: `1x1 (fallback) [${width}x${height}px]`,
+      source: 'fallback',
+      qualityScore: 0,
+      aspectRatio: (width / height).toFixed(2)
+    };
   }
 
   // === 🔧 INTÉGRATION DANS OVERWORLDPOKEMONMANAGER ===
@@ -308,7 +362,7 @@ export class SpriteUtils {
   }
 
   /**
-   * 🧪 Test batch de plusieurs Pokémon
+   * 🧪 Test batch de plusieurs Pokémon avec FlapAround
    */
   static async testMultiplePokemon() {
     const testCases = [
@@ -319,7 +373,7 @@ export class SpriteUtils {
       { id: 25, name: 'Pikachu' }
     ];
     
-    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} POKÉMON ===`);
+    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} POKÉMON avec FlapAround ===`);
     
     const results = [];
     
@@ -329,12 +383,14 @@ export class SpriteUtils {
       try {
         const walkResult = await this.testPokemonSprite(testCase.id, 'Walk-Anim.png');
         const swingResult = await this.testPokemonSprite(testCase.id, 'Swing-Anim.png');
+        const flapResult = await this.testPokemonSprite(testCase.id, 'FlapAround-Anim.png');
         
         results.push({
           pokemon: testCase,
           walk: walkResult,
           swing: swingResult,
-          success: !!(walkResult && swingResult)
+          flap: flapResult,
+          success: !!(walkResult && swingResult && flapResult)
         });
         
       } catch (error) {
