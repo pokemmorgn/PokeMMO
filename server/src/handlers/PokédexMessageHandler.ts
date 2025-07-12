@@ -1,9 +1,12 @@
 // server/src/handlers/PokédexMessageHandler.ts
 import { Room, Client } from "colyseus";
 import { pokédexService } from '../services/PokédexService';
-import { pokédexProgressService } from '../services/PokédexProgressService';
+import { PokédexProgressService } from '../services/PokédexProgressService'; // Fixed import
 import { pokédexNotificationService } from '../services/PokédexNotificationService';
 import { pokédexIntegrationService } from '../services/PokédexIntegrationService';
+
+// Create the instance
+const pokédexProgressService = PokédexProgressService.getInstance();
 
 // ===== TYPES DES MESSAGES =====
 
@@ -151,11 +154,12 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:entry', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:entry', 'Joueur non identifié');
         return;
       }
       
-      const result = await pokédexService.getPokédexEntry(playerId, message.pokemonId);
+      // Fixed method name
+      const result = await pokédexService.getPokédxEntry(playerId, message.pokemonId);
       
       client.send("pokedex:entry:response", {
         success: true,
@@ -199,7 +203,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:progress', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:progress', 'Joueur non identifié');
         return;
       }
       
@@ -249,7 +253,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:mark_seen', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:mark_seen', 'Joueur non identifié');
         return;
       }
       
@@ -295,7 +299,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:mark_caught', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:mark_caught', 'Joueur non identifié');
         return;
       }
       
@@ -348,7 +352,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:recalculate', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:recalculate', 'Joueur non identifié');
         return;
       }
       
@@ -368,7 +372,7 @@ export class PokédexMessageHandler {
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur recalculate:', error);
-      this.sendError(client, 'pokedex:recalculate', 'Erreur recalcul');
+      this.sendError(client, 'pokedx:recalculate', 'Erreur recalcul');
     }
   }
   
@@ -381,12 +385,18 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:achievements', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:achievements', 'Joueur non identifié');
         return;
       }
       
       // TODO: ACHIEVEMENT SYSTEM GLOBAL - Remplacer par service unifié
-      const achievements = {
+      // Fixed: Added proper type annotations
+      const achievements: {
+        unlocked: any[];
+        inProgress: any[];
+        locked: any[];
+        totalPoints: number;
+      } = {
         unlocked: [],
         inProgress: [],
         locked: [],
@@ -400,7 +410,7 @@ export class PokédexMessageHandler {
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur getAchievements:', error);
-      this.sendError(client, 'pokedex:achievements', 'Erreur récupération accomplissements');
+      this.sendError(client, 'pokedx:achievements', 'Erreur récupération accomplissements');
     }
   }
   
@@ -411,11 +421,11 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:streaks', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:streaks', 'Joueur non identifié');
         return;
       }
       
-      const streaks = await pokédexProgressService.getCurrentStreaks(playerId);
+      const streaks = await pokédxProgressService.getCurrentStreaks(playerId);
       
       client.send("pokedex:streaks:response", {
         success: true,
@@ -424,7 +434,7 @@ export class PokédexMessageHandler {
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur getStreaks:', error);
-      this.sendError(client, 'pokedex:streaks', 'Erreur récupération streaks');
+      this.sendError(client, 'pokedx:streaks', 'Erreur récupération streaks');
     }
   }
   
@@ -437,7 +447,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:notifications', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:notifications', 'Joueur non identifié');
         return;
       }
       
@@ -448,7 +458,7 @@ export class PokédexMessageHandler {
       
       const stats = pokédexNotificationService.getNotificationStats(playerId);
       
-      client.send("pokedex:notifications:response", {
+      client.send("pokedx:notifications:response", {
         success: true,
         data: {
           notifications,
@@ -458,7 +468,7 @@ export class PokédexMessageHandler {
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur getNotifications:', error);
-      this.sendError(client, 'pokedex:notifications', 'Erreur récupération notifications');
+      this.sendError(client, 'pokedx:notifications', 'Erreur récupération notifications');
     }
   }
   
@@ -469,7 +479,7 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:notification_read', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:notification_read', 'Joueur non identifié');
         return;
       }
       
@@ -479,18 +489,18 @@ export class PokédexMessageHandler {
       } else if (message.notificationId) {
         result = pokédexNotificationService.markAsRead(playerId, message.notificationId);
       } else {
-        this.sendError(client, 'pokedex:notification_read', 'ID notification requis');
+        this.sendError(client, 'pokedx:notification_read', 'ID notification requis');
         return;
       }
       
-      client.send("pokedex:notification_read:response", {
+      client.send("pokedx:notification_read:response", {
         success: true,
         data: { marked: result }
       });
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur markNotificationRead:', error);
-      this.sendError(client, 'pokedex:notification_read', 'Erreur marquage notification');
+      this.sendError(client, 'pokedx:notification_read', 'Erreur marquage notification');
     }
   }
   
@@ -501,20 +511,20 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId || !message.notificationId) {
-        this.sendError(client, 'pokedex:notification_delete', 'Paramètres invalides');
+        this.sendError(client, 'pokedx:notification_delete', 'Paramètres invalides');
         return;
       }
       
       const result = pokédexNotificationService.removeNotification(playerId, message.notificationId);
       
-      client.send("pokedex:notification_delete:response", {
+      client.send("pokedx:notification_delete:response", {
         success: result,
         data: { deleted: result }
       });
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur deleteNotification:', error);
-      this.sendError(client, 'pokedex:notification_delete', 'Erreur suppression notification');
+      this.sendError(client, 'pokedx:notification_delete', 'Erreur suppression notification');
     }
   }
   
@@ -525,21 +535,21 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:settings', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:settings', 'Joueur non identifié');
         return;
       }
       
       pokédexNotificationService.updatePlayerSettings(playerId, message);
       const settings = pokédexNotificationService.getPlayerSettings(playerId);
       
-      client.send("pokedex:settings:response", {
+      client.send("pokedx:settings:response", {
         success: true,
         data: settings
       });
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur updateSettings:', error);
-      this.sendError(client, 'pokedex:settings', 'Erreur mise à jour paramètres');
+      this.sendError(client, 'pokedx:settings', 'Erreur mise à jour paramètres');
     }
   }
   
@@ -552,14 +562,14 @@ export class PokédexMessageHandler {
     try {
       const stats = pokédexIntegrationService.getIntegrationStats();
       
-      client.send("pokedex:integration_status:response", {
+      client.send("pokedx:integration_status:response", {
         success: true,
         data: stats
       });
       
     } catch (error) {
       console.error('❌ [PokédexHandler] Erreur getIntegrationStatus:', error);
-      this.sendError(client, 'pokedex:integration_status', 'Erreur statut intégration');
+      this.sendError(client, 'pokedx:integration_status', 'Erreur statut intégration');
     }
   }
   
@@ -570,20 +580,20 @@ export class PokédexMessageHandler {
     try {
       const playerId = this.getPlayerId(client);
       if (!playerId) {
-        this.sendError(client, 'pokedex:force_integration', 'Joueur non identifié');
+        this.sendError(client, 'pokedx:force_integration', 'Joueur non identifié');
         return;
       }
       
       // TODO: Implémenter force integration via OwnedPokemon.bulkIntegrateToPokédx
       
-      client.send("pokedex:force_integration:response", {
+      client.send("pokedx:force_integration:response", {
         success: true,
         data: { message: 'Intégration forcée démarrée' }
       });
       
     } catch (error) {
       console.error('❌ [PokédxHandler] Erreur forceIntegration:', error);
-      this.sendError(client, 'pokedex:force_integration', 'Erreur intégration forcée');
+      this.sendError(client, 'pokedx:force_integration', 'Erreur intégration forcée');
     }
   }
   
@@ -641,38 +651,38 @@ export default PokédexMessageHandler;
 //
 // Dans votre Room Colyseus (ex: GameRoom.ts) :
 //
-// import PokédexMessageHandler from './handlers/PokédexMessageHandler';
+// import PokédxMessageHandler from './handlers/PokédxMessageHandler';
 //
 // export class GameRoom extends Room {
-//   private pokédexHandler: PokédexMessageHandler;
+//   private pokédxHandler: PokédxMessageHandler;
 //
 //   onCreate(options: any) {
 //     // Initialiser le handler Pokédx
-//     this.pokédexHandler = new PokédexMessageHandler(this);
+//     this.pokédxHandler = new PokédxMessageHandler(this);
 //   }
 //
 //   onDispose() {
 //     // Nettoyer le handler
-//     this.pokédexHandler?.cleanup();
+//     this.pokédxHandler?.cleanup();
 //   }
 // }
 //
 // ===== UTILISATION CÔTÉ CLIENT (Phaser) =====
 //
 // // Récupérer le Pokédx
-// room.send("pokedex:get", { 
+// room.send("pokedx:get", { 
 //   filters: { caught: true, types: ["fire"] } 
 // });
 //
 // // Écouter la réponse
-// room.onMessage("pokedex:get:response", (message) => {
+// room.onMessage("pokedx:get:response", (message) => {
 //   if (message.success) {
 //     console.log("Pokédx reçu:", message.data);
 //   }
 // });
 //
 // // Marquer comme vu lors d'une rencontre
-// room.send("pokedex:mark_seen", {
+// room.send("pokedx:mark_seen", {
 //   pokemonId: 25,
 //   level: 5,
 //   location: "Route 1",
@@ -680,6 +690,6 @@ export default PokédexMessageHandler;
 // });
 //
 // // Écouter les notifications en temps réel
-// room.onMessage("pokedex:discovery", (data) => {
+// room.onMessage("pokedx:discovery", (data) => {
 //   showDiscoveryNotification(data.pokemonId, data.notifications);
 // });
