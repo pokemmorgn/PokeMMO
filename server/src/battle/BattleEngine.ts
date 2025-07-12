@@ -106,7 +106,7 @@ startBattle(config: BattleConfig): BattleResult {
     this.isInitialized = true;
     
     // ✅ NOUVEAU: Intégration Pokédx en arrière-plan
-    this.handlePokédexIntegration(config);
+   this.handlePokédxIntegration(config);
     
     this.emit('battleStart', {
       gameState: this.gameState,
@@ -145,7 +145,7 @@ private handlePokédxIntegration(config: BattleConfig): void {
   }
   
   // Intégration asynchrone en arrière-plan
-  pokédxIntegrationService.handlePokemonEncounter({
+ pokédexIntegrationService.handlePokemonEncounter({
     playerId: config.player1.sessionId,
     pokemonId: config.opponent.pokemon.id,
     level: config.opponent.pokemon.level,
@@ -155,7 +155,7 @@ private handlePokédxIntegration(config: BattleConfig): void {
     weather: this.getCurrentWeather(),
     timeOfDay: this.getCurrentTimeOfDay(),
     sessionId: config.player1.sessionId
-  }).then(result => {
+  }).then((result: any) => {
     if (result.success && result.isNewDiscovery) {
       console.log(`🔍 [BattleEngine] Nouvelle découverte Pokédx: ${config.opponent.pokemon!.name}`);
       
@@ -167,9 +167,39 @@ private handlePokédxIntegration(config: BattleConfig): void {
         notifications: result.notifications
       });
     }
-  }).catch(error => {
+ }).catch((error: any) => {
     // Ne pas faire planter le combat pour une erreur Pokédx
     console.error(`❌ [BattleEngine] Erreur intégration Pokédx:`, error);
+  });
+}
+  private finalizePokédxProgression(): void {
+  // Ne traiter que les combats sauvages
+  if (this.gameState.type !== 'wild') {
+    return;
+  }
+  
+  const player1 = this.gameState.player1;
+  const player2Pokemon = this.gameState.player2.pokemon;
+  
+  if (!player1 || !player2Pokemon) {
+    return;
+  }
+  
+  // Traitement asynchrone en arrière-plan
+  pokédexIntegrationService.finalizeBattleProgression({
+    playerId: player1.sessionId,
+    pokemonId: player2Pokemon.id,
+    battleResult: this.gameState.winner === 'player1' ? 'victory' : 'defeat',
+    battleType: 'wild'
+  }).then((result: any) => {
+    if (result.achievements?.length > 0) {
+      this.emit('pokédxAchievements', {
+        playerId: player1.sessionId,
+        achievements: result.achievements
+      });
+    }
+  }).catch((error: any) => {
+    console.error(`❌ [BattleEngine] Erreur finalisation Pokédx:`, error);
   });
 }
   /**
