@@ -124,8 +124,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
 
-    this.pokédxHandler = new PokédexMessageHandler(this);
-    console.log(`✅ PokédxMessageHandler initialisé`);
+    this.pokédexHandler = new PokédexMessageHandler(this);
+    console.log(`✅ PokédexMessageHandler initialisé`);
     
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
