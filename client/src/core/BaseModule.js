@@ -151,6 +151,12 @@ export class BaseModule {
     }
     
     try {
+      // 🆕 AFFICHER L'ICÔNE AVANT CONNEXION UIManager
+      if (this.uiManagerState.visible && this.icon.show) {
+        this.icon.show();
+        console.log(`👁️ [${this.moduleId}Module] Icône affichée avant connexion UIManager`);
+      }
+      
       // Enregistrer l'icône pour positionnement automatique
       uiManager.registerIconPosition(this.moduleId, this.icon.iconElement, this.uiManagerConfig);
       
