@@ -35,45 +35,47 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Manager Quest initialisé');
   }
   
-  // ✅ CORRECTION 1: Initialiser UI dans createComponents
-  createComponents() {
-    console.log('🔧 [QuestModule] Création composants Quest...');
+createComponents() {
+  console.log('🔧 [QuestModule] Création composants Quest...');
+  
+  // Créer l'icône
+  if (!this.icon) {
+    this.icon = new QuestIcon(this.manager);
+    this.icon.init();
     
-    // Créer l'icône
-    if (!this.icon) {
-      this.icon = new QuestIcon(this.manager);
-      this.icon.init();
-      
-      // ✅ FORCE POSITIONNEMENT INITIAL pour éviter invisibilité
-      if (this.icon.iconElement) {
-        this.icon.iconElement.style.position = 'fixed';
-        this.icon.iconElement.style.right = '20px';
-        this.icon.iconElement.style.bottom = '20px';
-        this.icon.iconElement.style.zIndex = '500';
-        console.log('📍 [QuestModule] Position initiale forcée pour icône');
-      }
+    // ✅ FORCE POSITIONNEMENT INITIAL pour éviter invisibilité
+    if (this.icon.iconElement) {
+      this.icon.iconElement.style.position = 'fixed';
+      this.icon.iconElement.style.right = '20px';
+      this.icon.iconElement.style.bottom = '20px';
+      this.icon.iconElement.style.zIndex = '500';
+      this.icon.iconElement.style.display = 'block';
+      this.icon.iconElement.style.visibility = 'visible';
+      this.icon.iconElement.style.opacity = '1';
+      console.log('📍 [QuestModule] Position initiale forcée pour icône');
     }
-    
-    // ✅ CORRECTION 2: Initialiser UI immédiatement
-    if (!this.ui) {
-      this.ui = new QuestUI(this.manager, this.gameRoom);
-      
-      // ✅ APPELER init() immédiatement (était manquant)
-      this.ui.init().then(() => {
-        console.log('✅ [QuestModule] UI Quest initialisée');
-        
-        // ✅ CORRECTION 3: Afficher tracker par défaut
-        if (this.ui.showTracker) {
-          this.ui.showTracker();
-          console.log('👁️ [QuestModule] Tracker affiché par défaut');
-        }
-      }).catch(error => {
-        console.error('❌ [QuestModule] Erreur init UI:', error);
-      });
-    }
-    
-    console.log('✅ [QuestModule] Composants Quest créés avec init UI');
   }
+  
+  // ✅ CORRECTION: Initialiser UI immédiatement ET attendre qu'elle soit prête
+  if (!this.ui) {
+    this.ui = new QuestUI(this.manager, this.gameRoom);
+    
+    // ✅ APPELER init() immédiatement (était manquant)
+    this.ui.init().then(() => {
+      console.log('✅ [QuestModule] UI Quest initialisée');
+      
+      // ✅ AFFICHER TRACKER par défaut
+      if (this.ui.showTracker) {
+        this.ui.showTracker();
+        console.log('👁️ [QuestModule] Tracker affiché par défaut');
+      }
+    }).catch(error => {
+      console.error('❌ [QuestModule] Erreur init UI:', error);
+    });
+  }
+  
+  console.log('✅ [QuestModule] Composants Quest créés avec init UI');
+}
   
   // ✅ CORRECTION 4: Assurer connexions robustes
   connectComponents() {
