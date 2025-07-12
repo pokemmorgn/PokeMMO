@@ -538,9 +538,70 @@ export class OverworldPokemonManager {
         this.syncAllOverworldPokemon(data.pokemon);
         break;
         
+      case 'OVERWORLD_POKEMON_SPAWN_REQUEST':
+        this.handlePokemonSpawnRequest(data);
+        break;
+        
+      case 'OVERWORLD_POKEMON_MOVE_REQUEST':
+        this.handlePokemonMoveRequest(data);
+        break;
+        
       default:
         console.warn(`⚠️ [OverworldPokemonManager] Message inconnu: ${type}`);
     }
+  }
+
+  /**
+   * ✅ Gestion demande de spawn (avec physics)
+   */
+  handlePokemonSpawnRequest(data) {
+    const { id, x, y } = data;
+    
+    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id} à (${x}, ${y})`);
+    
+    // Avec le système physics, on laisse le serveur décider
+    // Le client répond toujours OK car les collisions sont gérées par physics
+    const canSpawn = true;
+    
+    if (this.scene.networkManager?.room) {
+      this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
+        ...data,
+        success: canSpawn,
+        x: x,
+        y: y
+      });
+    } else {
+      console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au spawn`);
+    }
+    
+    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
+  }
+
+  /**
+   * ✅ Gestion demande de mouvement (avec physics)
+   */
+  handlePokemonMoveRequest(data) {
+    const { id, fromX, fromY, toX, toY, direction } = data;
+    
+    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: (${fromX},${fromY}) → (${toX},${toY})`);
+    
+    // Avec le système physics, on laisse le serveur décider
+    // Les collisions sont gérées automatiquement par le physics engine
+    const canMove = true;
+    
+    if (this.scene.networkManager?.room) {
+      this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
+        id,
+        success: canMove,
+        toX,
+        toY,
+        direction
+      });
+    } else {
+      console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
+    }
+    
+    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'}`);
   }
 
   /**
