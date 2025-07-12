@@ -393,19 +393,59 @@ export class PokemonUISystem {
     }
   }
 
-  async createQuestModule() {
-    if (window.questSystemGlobal) {
-      return this.wrapExistingModule(window.questSystemGlobal, 'quest');
+async createQuestModule() {
+  try {
+    console.log('🚀 [PokemonUI] Création module Quest...');
+    
+    // Méthode 1: Importer et créer le module Quest
+    const { createQuestModule } = await import('./Quest/index.js');
+    
+    const questModule = await createQuestModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0]
+    );
+    
+    if (questModule) {
+      console.log('✅ [PokemonUI] QuestModule créé avec succès');
+      
+      // S'assurer que le module a les méthodes nécessaires pour UIManager
+      if (!questModule.connectUIManager && questModule.icon?.iconElement) {
+        questModule.connectUIManager = (uiManager) => {
+          if (uiManager.registerIconPosition) {
+            uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
+              anchor: 'bottom-right',
+              order: 1,
+              spacing: 10,
+              size: { width: 70, height: 80 }
+            });
+            return true;
+          }
+          return false;
+        };
+      }
+      
+      // Connecter à UIManager si disponible
+      if (this.uiManager && questModule.connectUIManager) {
+        questModule.connectUIManager(this.uiManager);
+      }
+      
+      // Exposer globalement
+      window.questSystem = questModule;
+      window.questSystemGlobal = questModule;
+      window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
+      window.openQuest = () => questModule.open?.();
+      window.closeQuest = () => questModule.close?.();
+      
+      return questModule;
     }
     
-    if (typeof window.initQuestSystem === 'function') {
-      const activeScene = window.game?.scene?.getScenes(true)[0];
-      const questSystem = window.initQuestSystem(activeScene, window.currentGameRoom);
-      return this.wrapExistingModule(questSystem, 'quest');
-    }
-    
-    return this.createEmptyWrapper('quest');
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création Quest:', error);
   }
+  
+  // Fallback: wrapper vide
+  return this.createEmptyWrapper('quest');
+}
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
