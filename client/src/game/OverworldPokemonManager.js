@@ -11,7 +11,7 @@ export class OverworldPokemonManager {
     this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
     this.spriteStructures = new Map(); // Cache des structures détectées
     this.tileSize = 16; // Taille d'une tile
-    this.moveSpeed = 20; // Pixels par seconde pour le lerp
+    this.moveSpeed = 32; // Pixels par seconde pour le lerp (plus lent = plus naturel)
     
     console.log("🌍 [OverworldPokemonManager] Initialisé - Système tile par tile");
   }
@@ -257,23 +257,33 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Vérifie si une position tile est libre (avec physics)
+   * ✅ Vérifie si une position tile est libre (avec physics) - VERSION CORRIGÉE
    */
   canMoveToTile(pokemon, tileX, tileY) {
-    // Convertir en pixels
-    const pixelX = tileX * this.tileSize;
-    const pixelY = tileY * this.tileSize;
+    // Convertir en pixels (centre de la tile)
+    const pixelX = tileX * this.tileSize + (this.tileSize / 2);
+    const pixelY = tileY * this.tileSize + (this.tileSize / 2);
+    
+    console.log(`🔍 [OverworldPokemonManager] Vérification tile (${tileX}, ${tileY}) = pixels (${pixelX}, ${pixelY})`);
     
     // Vérifier les collisions avec les layers
-    if (this.scene.collisionLayers) {
-      for (const layer of this.scene.collisionLayers) {
+    if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
+      for (let i = 0; i < this.scene.collisionLayers.length; i++) {
+        const layer = this.scene.collisionLayers[i];
         const tile = layer.getTileAtWorldXY(pixelX, pixelY);
+        
+        console.log(`  Layer ${i}: tile=${tile?.index || 'null'}, collides=${tile?.collides || false}`);
+        
         if (tile && tile.collides) {
+          console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) BLOQUÉE par layer ${i}`);
           return false;
         }
       }
+    } else {
+      console.warn(`⚠️ [OverworldPokemonManager] Aucun collisionLayer trouvé !`);
     }
     
+    console.log(`✅ [OverworldPokemonManager] Tile (${tileX}, ${tileY}) LIBRE`);
     return true;
   }
 
