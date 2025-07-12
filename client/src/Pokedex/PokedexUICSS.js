@@ -1554,41 +1554,292 @@ export const POKEDEX_UI_STYLES = `
     color-scheme: dark;
   }
 
-  /* ===== OPTIMISATIONS FINALES ===== */
-  * {
-    box-sizing: border-box;
+  /* ===== SPRITES ET STATUTS POKÉMON ===== */
+  .pokemon-sprite {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    transition: all 0.3s ease;
   }
 
-  .pokemon-entry,
-  .stat-card,
-  .tab-button,
-  .control-btn,
-  .footer-btn {
-    transform-origin: center;
+  .pokemon-sprite.captured {
+    filter: none;
+    opacity: 1;
   }
 
-  /* ===== LOADING STATES ===== */
-  .loading {
+  .pokemon-sprite.silhouette {
+    filter: brightness(0) contrast(1);
+    opacity: 0.8;
+  }
+
+  .pokemon-sprite.unknown {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: #6b7280;
+    opacity: 0.6;
+  }
+
+  /* ===== TYPES POKÉMON ===== */
+  .entry-types {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ===== PROGRESSION PAR TYPE ===== */
+  .type-progress-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+
+  .type-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+  }
+
+  .type-stats {
+    font-size: 11px;
+    color: #94a3b8;
+    font-family: 'Courier New', monospace;
+  }
+
+  .type-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    transition: width 0.6s ease;
+    border-radius: 3px;
+  }
+
+  .type-percentage {
+    font-size: 11px;
+    color: #e2e8f0;
+    font-weight: 600;
+    min-width: 35px;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ===== ÉTAT DE CHARGEMENT ===== */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
     opacity: 0.7;
-    pointer-events: none;
   }
 
-  .loading::after {
+  .loading-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: spin 2s linear infinite;
+  }
+
+  .loading-state p {
+    color: #94a3b8;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  /* ===== POKÉMON ENTRÉES SELON STATUT ===== */
+  .pokemon-entry.unknown {
+    border-color: #6b7280;
+    background: linear-gradient(145deg, #1e293b, #374151);
+    opacity: 0.7;
+  }
+
+  .pokemon-entry.unknown:hover {
+    opacity: 0.8;
+    border-color: #9ca3af;
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  .pokemon-entry.unknown .entry-name {
+    color: #9ca3af;
+    font-style: italic;
+  }
+
+  .pokemon-entry.seen:not(.caught) {
+    border-color: #f59e0b;
+    background: linear-gradient(145deg, #1e293b, #92400e);
+  }
+
+  .pokemon-entry.seen:not(.caught):hover {
+    border-color: #fbbf24;
+    box-shadow: 
+      0 12px 30px rgba(0, 0, 0, 0.4),
+      0 0 20px rgba(251, 191, 36, 0.4);
+  }
+
+  .pokemon-entry.seen:not(.caught) .entry-name {
+    color: #fbbf24;
+  }
+
+  .pokemon-entry.caught {
+    border-color: #10b981;
+    background: linear-gradient(145deg, #1e293b, #065f46);
+  }
+
+  .pokemon-entry.caught:hover {
+    border-color: #34d399;
+    box-shadow: 
+      0 12px 30px rgba(0, 0, 0, 0.4),
+      0 0 20px rgba(52, 211, 153, 0.4);
+  }
+
+  .pokemon-entry.caught .entry-name {
+    color: #34d399;
+  }
+
+  /* ===== FILTRES DE TYPE ===== */
+  .type-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .type-filter {
+    padding: 4px 8px;
+    background: linear-gradient(145deg, #374151, #4b5563);
+    border: 1px solid #6b7280;
+    border-radius: 6px;
+    color: #e5e7eb;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+  }
+
+  .type-filter:hover {
+    border-color: #9ca3af;
+    transform: scale(1.05);
+  }
+
+  .type-filter.selected {
+    background: linear-gradient(145deg, #3b82f6, #2563eb);
+    border-color: #60a5fa;
+    color: white;
+  }
+
+  /* ===== STYLES RESPONSIVES AMÉLIORÉS ===== */
+  @media (max-width: 768px) {
+    .pokemon-grid {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .pokemon-entry {
+      min-height: 100px;
+      padding: 8px;
+    }
+
+    .entry-sprite {
+      width: 45px;
+      height: 45px;
+      font-size: 28px;
+    }
+
+    .entry-types {
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .type-badge {
+      font-size: 8px;
+      padding: 2px 4px;
+    }
+  }
+
+  /* ===== ANIMATIONS D'ENTRÉE POKÉMON ===== */
+  .pokemon-entry {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+
+  .pokemon-entry.entry-appear {
+    animation: pokemonEntryAppear 0.4s ease forwards;
+  }
+
+  @keyframes pokemonEntryAppear {
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* ===== EFFETS SPÉCIAUX POUR SHINY ===== */
+  .pokemon-entry.caught .shiny-indicator {
+    animation: shinySparkle 1.5s infinite;
+  }
+
+  .pokemon-entry.caught.has-shiny {
+    position: relative;
+    overflow: visible;
+  }
+
+  .pokemon-entry.caught.has-shiny::before {
     content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 32px;
-    height: 32px;
-    margin: -16px 0 0 -16px;
-    border: 3px solid rgba(96, 165, 250, 0.3);
-    border-top-color: #60a5fa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #ec4899, #f59e0b, #10b981, #3b82f6, #8b5cf6);
+    background-size: 400% 400%;
+    border-radius: 14px;
+    z-index: -1;
+    animation: shinyBorder 3s ease infinite;
+    opacity: 0.6;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  @keyframes shinyBorder {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* ===== AMÉLIORATION DE LA GRILLE ===== */
+  .pokemon-grid {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #1e293b;
+  }
+
+  .pokemon-grid::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .pokemon-grid::-webkit-scrollbar-track {
+    background: #1e293b;
+    border-radius: 4px;
+  }
+
+  .pokemon-grid::-webkit-scrollbar-thumb {
+    background: linear-gradient(145deg, #3b82f6, #2563eb);
+    border-radius: 4px;
+  }
+
+  .pokemon-grid::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(145deg, #60a5fa, #3b82f6);
   }
 `;
 
