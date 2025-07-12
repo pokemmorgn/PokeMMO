@@ -247,7 +247,7 @@ OwnedPokemonSchema.pre('save', async function(next) {
   if (this.isNew) {
     try {
       // Vérifier si c'est la première capture de cette espèce pour ce joueur
-      const existingCapture = await this.constructor.findOne({
+      const existingCapture = await (this.constructor as any).findOne({
         owner: this.owner,
         pokemonId: this.pokemonId
       });
@@ -413,7 +413,7 @@ OwnedPokemonSchema.methods.getMovesWithData = async function(this: IOwnedPokemon
 /**
  * Intègre ce Pokémon au Pokédx
  */
-OwnedPokemonSchema.methods.integrateToPokédx = async function(
+OwnedPokemonSchema.methods.integrateToPokédex = async function(
   this: IOwnedPokemon, 
   context?: ICaptureContext
 ): Promise<void> {
@@ -454,7 +454,7 @@ OwnedPokemonSchema.methods.integrateToPokédx = async function(
 OwnedPokemonSchema.methods.updatePokédexEntry = async function(this: IOwnedPokemon): Promise<void> {
   try {
     if (!this.pokédexIntegrated) {
-      await this.integrateToPokédx();
+      await this.integrateToPokédex();
       return;
     }
     
@@ -462,7 +462,7 @@ OwnedPokemonSchema.methods.updatePokédexEntry = async function(this: IOwnedPoke
     
     // Forcer une nouvelle intégration pour mettre à jour les données
     this.pokédexIntegrated = false;
-    await this.integrateToPokédx();
+    await this.integrateToPokédex();
     
   } catch (error) {
     console.error(`❌ [OwnedPokemon] Erreur mise à jour Pokédx:`, error);
@@ -570,7 +570,7 @@ OwnedPokemonSchema.statics.bulkIntegrateToPokédx = async function(
     
     for (const pokemon of nonIntegratedPokemon) {
       try {
-        await pokemon.integrateToPokédx();
+        await pokemon.integrateToPokédex();
         succeeded++;
       } catch (error) {
         console.error(`❌ Erreur intégration ${pokemon.pokemonId}:`, error);
@@ -602,7 +602,7 @@ OwnedPokemonSchema.statics.getPokédxStats = async function(owner: string) {
     { $match: { owner } },
     {
       $group: {
-        _id: null,
+        _id: null as any,
         totalPokemon: { $sum: 1 },
         uniqueSpecies: { $addToSet: '$pokemonId' },
         shinies: {
@@ -670,7 +670,7 @@ export type CaptureContext = ICaptureContext;
 //    });
 //
 // 2. Intégration manuelle :
-//    await pokemon.integrateToPokédx({
+//    await pokemon.integrateToPokédex({
 //      location: 'Forêt de Jade',
 //      method: 'wild'
 //    });
