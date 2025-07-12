@@ -1260,25 +1260,131 @@ export class TeamUI {
   // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
   
 show() {
-  console.log('👁️ [TeamUI] Affichage interface complète');
+  console.log('👁️ [TeamUI] Affichage interface complète (FIXED)');
   
   this.isVisible = true;
   
   if (this.overlayElement) {
+    // ✅ FIX 3: FORCER TOUS LES STYLES CSS NÉCESSAIRES
     this.overlayElement.classList.remove('hidden');
+    this.overlayElement.style.display = 'flex';
+    this.overlayElement.style.opacity = '1';
+    this.overlayElement.style.visibility = 'visible';
+    this.overlayElement.style.zIndex = '1000';
+    this.overlayElement.style.pointerEvents = 'auto';
+    this.overlayElement.style.position = 'fixed';
+    this.overlayElement.style.top = '0';
+    this.overlayElement.style.left = '0';
+    this.overlayElement.style.right = '0';
+    this.overlayElement.style.bottom = '0';
     
-    // ✅ AFFICHER VUE OVERVIEW PAR DÉFAUT
-    const overview = this.overlayElement.querySelector('#team-overview');
-    const details = this.overlayElement.querySelector('#team-details');
+    console.log('✅ [TeamUI] Overlay forcé visible avec tous les styles');
     
-    if (overview) {
-      overview.style.display = 'flex';
-      overview.classList.add('active');
-    }
+    // ✅ FIX 1: FORCER L'AFFICHAGE DE LA VUE OVERVIEW
+    setTimeout(() => {
+      const overviewElement = this.overlayElement.querySelector('#team-overview');
+      const detailsElement = this.overlayElement.querySelector('#team-details');
+      
+      if (overviewElement) {
+        // Forcer l'affichage de la vue overview
+        overviewElement.style.display = 'flex';
+        overviewElement.style.flexDirection = 'column';
+        overviewElement.style.width = '100%';
+        overviewElement.classList.add('active');
+        console.log('✅ [TeamUI] Vue overview affichée (FIXED)');
+      }
+      
+      if (detailsElement) {
+        // S'assurer que la vue détails est cachée
+        detailsElement.classList.remove('active');
+        detailsElement.style.display = 'none';
+      }
+      
+      // Forcer la mise à jour de la vue active
+      this.currentView = 'overview';
+      
+      // Mise à jour des tabs
+      this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.view === 'overview');
+      });
+      
+      // ✅ VALIDATION FINALE
+      console.log('📊 [TeamUI] État final overlay:', {
+        display: this.overlayElement.style.display,
+        opacity: this.overlayElement.style.opacity,
+        visibility: this.overlayElement.style.visibility,
+        classes: this.overlayElement.className,
+        overviewDisplay: overviewElement?.style.display
+      });
+      
+    }, 50); // Petit délai pour que le DOM soit bien rendu
+  }
+  
+  // Demander les données fraîches
+  this.requestTeamData();
+  
+  return true;
+}
+
+  show() {
+  console.log('👁️ [TeamUI] Affichage interface complète (FIXED)');
+  
+  this.isVisible = true;
+  
+  if (this.overlayElement) {
+    // ✅ FIX 3: FORCER TOUS LES STYLES CSS NÉCESSAIRES
+    this.overlayElement.classList.remove('hidden');
+    this.overlayElement.style.display = 'flex';
+    this.overlayElement.style.opacity = '1';
+    this.overlayElement.style.visibility = 'visible';
+    this.overlayElement.style.zIndex = '1000';
+    this.overlayElement.style.pointerEvents = 'auto';
+    this.overlayElement.style.position = 'fixed';
+    this.overlayElement.style.top = '0';
+    this.overlayElement.style.left = '0';
+    this.overlayElement.style.right = '0';
+    this.overlayElement.style.bottom = '0';
     
-    if (details) {
-      details.classList.remove('active');
-    }
+    console.log('✅ [TeamUI] Overlay forcé visible avec tous les styles');
+    
+    // ✅ FIX 1: FORCER L'AFFICHAGE DE LA VUE OVERVIEW
+    setTimeout(() => {
+      const overviewElement = this.overlayElement.querySelector('#team-overview');
+      const detailsElement = this.overlayElement.querySelector('#team-details');
+      
+      if (overviewElement) {
+        // Forcer l'affichage de la vue overview
+        overviewElement.style.display = 'flex';
+        overviewElement.style.flexDirection = 'column';
+        overviewElement.style.width = '100%';
+        overviewElement.classList.add('active');
+        console.log('✅ [TeamUI] Vue overview affichée (FIXED)');
+      }
+      
+      if (detailsElement) {
+        // S'assurer que la vue détails est cachée
+        detailsElement.classList.remove('active');
+        detailsElement.style.display = 'none';
+      }
+      
+      // Forcer la mise à jour de la vue active
+      this.currentView = 'overview';
+      
+      // Mise à jour des tabs
+      this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.view === 'overview');
+      });
+      
+      // ✅ VALIDATION FINALE
+      console.log('📊 [TeamUI] État final overlay:', {
+        display: this.overlayElement.style.display,
+        opacity: this.overlayElement.style.opacity,
+        visibility: this.overlayElement.style.visibility,
+        classes: this.overlayElement.className,
+        overviewDisplay: overviewElement?.style.display
+      });
+      
+    }, 50); // Petit délai pour que le DOM soit bien rendu
   }
   
   // Demander les données fraîches
