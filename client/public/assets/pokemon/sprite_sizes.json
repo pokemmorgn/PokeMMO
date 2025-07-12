@@ -58,7 +58,8 @@
     "012": {
       "Walk-Anim.png": "384x448",
       "front.png": "2728x62",
-      "back.png": "896x64"
+      "back.png": "896x64",
+      "FlapAround-Anim.png": "768x448"
     },
     "013": {
       "Walk-Anim.png": "96x320",
@@ -78,17 +79,20 @@
     "016": {
       "Walk-Anim.png": "160x256",
       "front.png": "960x48",
-      "back.png": "987x47"
+      "back.png": "987x47",
+      "FlapAround-Anim.png": "432x320"
     },
     "017": {
       "Walk-Anim.png": "128x320",
       "front.png": "1972x116",
-      "back.png": "1632x96"
+      "back.png": "1632x96",
+      "FlapAround-Anim.png": "576x384"
     },
     "018": {
       "Walk-Anim.png": "128x320",
       "front.png": "2380x68",
-      "back.png": "2312x68"
+      "back.png": "2312x68",
+      "FlapAround-Anim.png": "576x448"
     },
     "019": {
       "Walk-Anim.png": "336x320",
@@ -239,7 +243,8 @@
     "049": {
       "Walk-Anim.png": "480x384",
       "front.png": "825x75",
-      "back.png": "913x83"
+      "back.png": "913x83",
+      "FlapAround-Anim.png": "512x384"
     },
     "050": {
       "Walk-Anim.png": "120x320",
