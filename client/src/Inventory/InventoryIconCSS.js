@@ -1,18 +1,20 @@
-// Inventory/InventoryIconCSS.js - Styles pour l'icône d'inventaire
-// 🎨 Styles extraits et modulaires pour InventoryIcon
+// Inventory/InventoryIconCSS.js - CORRIGÉ SANS position fixe
+// 🎨 UIManager contrôle TOUT le positionnement
 
 export const INVENTORY_ICON_STYLES = `
-  /* ===== INVENTORY ICON STYLES ===== */
+  /* ===== INVENTORY ICON - AUCUNE POSITION FIXE ===== */
   .inventory-icon {
-    position: fixed;
-    bottom: 20px;
-    right: 20px; /* Position principale pour l'inventaire */
+    /* ✅ UIManager contrôle TOUT - aucune position CSS */
     width: 70px;
     height: 80px;
     cursor: pointer;
     z-index: 500;
     transition: all 0.3s ease;
     user-select: none;
+    display: block;
+    box-sizing: border-box;
+    
+    /* Position sera définie UNIQUEMENT par UIManager */
   }
 
   .inventory-icon:hover {
@@ -153,11 +155,9 @@ export const INVENTORY_ICON_STYLES = `
     50% { transform: scale(1.05); }
   }
 
-  /* ===== RESPONSIVE ===== */
+  /* ===== RESPONSIVE (TAILLES SEULEMENT) ===== */
   @media (max-width: 768px) {
     .inventory-icon {
-      bottom: 15px;
-      right: 15px;
       width: 60px;
       height: 70px;
     }
@@ -219,58 +219,22 @@ export const INVENTORY_ICON_STYLES = `
     }
   }
 
-  /* ===== GROUPEMENT AVEC AUTRES ICÔNES ===== */
-  .ui-icons-group {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    z-index: 500;
+  /* ===== INDICATEUR UIMANAGER ===== */
+  .inventory-icon[data-positioned-by="uimanager"] {
+    border: 1px solid rgba(74, 144, 226, 0.3);
   }
 
-  /* Ajustements quand dans un groupe */
-  .ui-icons-group .inventory-icon,
-  .ui-icons-group .quest-icon,
-  .ui-icons-group .team-icon {
-    position: relative;
-    bottom: auto;
-    right: auto;
-    margin: 0;
-  }
-
-  /* Animation de groupe lors de l'ajout/suppression d'icônes */
-  .ui-icons-group.adding-icon {
-    animation: groupExpand 0.3s ease;
-  }
-
-  .ui-icons-group.removing-icon {
-    animation: groupContract 0.3s ease;
-  }
-
-  @keyframes groupExpand {
-    0% { transform: scale(0.95); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-  }
-
-  @keyframes groupContract {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.98); }
-    100% { transform: scale(1); }
-  }
-
-  /* Responsive position avec ajustement pour autres icônes */
-  .inventory-icon.with-quest-icon {
-    right: 20px; /* Garde la position principale */
-  }
-
-  .inventory-icon.with-team-icon {
-    right: 20px; /* Garde la position principale */
+  .inventory-icon[data-positioned-by="uimanager"]::after {
+    content: "📍";
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    font-size: 8px;
+    opacity: 0.7;
+    pointer-events: none;
   }
 `;
 
 export default INVENTORY_ICON_STYLES;
 
-console.log('🎨 [InventoryIconCSS] Styles modulaires chargés');
+console.log('🎨 [InventoryIconCSS] Styles SANS position fixe chargés');
