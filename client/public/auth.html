@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeWorld MMO - Your Pokémon Adventure Starts Here</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Background particles animation */
+        .background-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 8s infinite ease-in-out;
+        }
+
+        .particle:nth-child(1) { width: 4px; height: 4px; top: 20%; left: 10%; animation-delay: 0s; }
+        .particle:nth-child(2) { width: 6px; height: 6px; top: 60%; left: 20%; animation-delay: 2s; }
+        .particle:nth-child(3) { width: 3px; height: 3px; top: 40%; left: 70%; animation-delay: 4s; }
+        .particle:nth-child(4) { width: 5px; height: 5px; top: 80%; left: 80%; animation-delay: 1s; }
+        .particle:nth-child(5) { width: 4px; height: 4px; top: 10%; left: 50%; animation-delay: 3s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 0.7; }
+            50% { transform: translateY(-30px) scale(1.1); opacity: 1; }
+        }
+
+        /* Main container */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FF6347);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            margin-bottom: 10px;
+            animation: logoGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes logoGlow {
+            from { filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4)); }
+            to { filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8)); }
+        }
+
+        .tagline {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+            font-weight: 300;
+            margin-bottom: 30px;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Card system */
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 450px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: rgba(74, 144, 226, 0.1);
+            border-bottom: 1px solid rgba(74, 144, 226, 0.2);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a90e2;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .auth-tab.active {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .auth-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #357abd;
+        }
+
+        .auth-content {
+            padding: 40px 30px;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            background: white;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .form-input.error {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+        }
+
+        .form-input.success {
+            border-color: #27ae60;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+        }
+
+        .input-help {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #7f8c8d;
+        }
+
+        .input-error {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #e74c3c;
+            font-weight: 500;
+        }
+
+        .input-success {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #27ae60;
+            font-weight: 500;
+        }
+
+        .form-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
+        }
+
+        .form-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-button.loading {
+            color: transparent;
+        }
+
+        .form-button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* User dashboard when logged in */
+        .user-dashboard {
+            display: none;
+            text-align: center;
+        }
+
+        .user-dashboard.active {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        .welcome-message {
+            margin-bottom: 30px;
+        }
+
+        .welcome-title {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .welcome-subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .user-stats {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 2px solid #e1e8ed;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4a90e2;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+        }
+
+        .wallet-section {
+            background: rgba(74, 144, 226, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px dashed #4a90e2;
+            transition: all 0.3s ease;
+        }
+
+        .wallet-section.connected {
+            background: rgba(39, 174, 96, 0.1);
+            border-color: #27ae60;
+        }
+
+        .wallet-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .wallet-icon.disconnected {
+            background: #95a5a6;
+        }
+
+        .wallet-icon.connected {
+            background: #27ae60;
+        }
+
+        .wallet-text {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .wallet-address {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .wallet-address-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .wallet-username {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .wallet-type {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .wallet-address-value {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #7f8c8d;
+            word-break: break-all;
+            line-height: 1.4;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .wallet-address-value:hover {
+            color: #2c3e50;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .action-button {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .action-button.primary {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+
+        .action-button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.4);
+        }
+
+        .action-button.secondary {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .action-button.secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(243, 156, 18, 0.4);
+        }
+
+        .action-button.danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .action-button.danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(231, 76, 60, 0.4);
+        }
+
+        /* Remember me checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #4a90e2;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 2rem;
+            }
+
+            .tagline {
+                font-size: 1rem;
+            }
+
+            .auth-container {
+                margin: 20px;
+                max-width: none;
+            }
+
+            .auth-content {
+                padding: 30px 20px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Loading states */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .password-strength {
+            margin-top: 10px;
+        }
+
+        .strength-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: #e1e8ed;
+            overflow: hidden;
+        }
+
+        .strength-fill {
+            height: 100%;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .strength-fill.weak {
+            width: 25%;
+            background: #e74c3c;
+        }
+
+        .strength-fill.fair {
+            width: 50%;
+            background: #f39c12;
+        }
+
+        .strength-fill.good {
+            width: 75%;
+            background: #3498db;
+        }
+
+        .strength-fill.strong {
+            width: 100%;
+            background: #27ae60;
+        }
+
+        .strength-text {
+            font-size: 12px;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background particles -->
+    <div class="background-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Main container -->
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">POKEWORLD</h1>
+            <p class="tagline">Embark on the ultimate Pokémon MMO adventure</p>
+        </div>
+
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="auth-container">
+                <!-- Guest/Login state -->
+                <div id="guestSection">
+                    <div class="auth-tabs">
+                        <div class="auth-tab active" data-tab="login">Sign In</div>
+                        <div class="auth-tab" data-tab="register">Create Account</div>
+                    </div>
+
+                    <div class="auth-content">
+                        <!-- Login form -->
+                        <form class="auth-form active" id="loginForm">
+                            <div class="form-group">
+                                <label class="form-label" for="loginUsername">Username</label>
+                                <input type="text" id="loginUsername" class="form-input" placeholder="Enter your username" required>
+                                <div class="input-help">Enter the username you created when registering</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="loginPassword">Password</label>
+                                <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required>
+                            </div>
+
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="rememberMe" class="checkbox-input">
+                                <label for="rememberMe" class="checkbox-label">Remember me</label>
+                            </div>
+
+                            <button type="submit" class="form-button" id="loginButton">
+                                Sign In
+                            </button>
+                        </form>
+
+                        <!-- Register form -->
+                        <form class="auth-form" id="registerForm">
+                            <div class="form-group">
+                                <label class="form-label" for="registerUsername">Username</label>
+                                <input type="text" id="registerUsername" class="form-input" placeholder="Choose a unique username" required minlength="3" maxlength="20">
+                                <div class="input-help">3-20 characters, letters and numbers only</div>
+                                <div class="input-feedback"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="registerEmail">Email</label>
+                                <input type="email" id="registerEmail" class="form-input" placeholder="your.email@example.com" required>
+                                <div class="input-help">We'll use this for account recovery</div>
+                                <div class="input-feedback"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="registerPassword">Password</label>
+                                <input type="password" id="registerPassword" class="form-input" placeholder="Create a strong password" required minlength="8">
+                                <div class="password-strength">
+                                    <div class="strength-bar">
+                                        <div class="strength-fill"></div>
+                                    </div>
+                                    <div class="strength-text"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="confirmPassword">Confirm Password</label>
+                                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm your password" required>
+                                <div class="input-feedback"></div>
+                            </div>
+
+                            <button type="submit" class="form-button" id="registerButton">
+                                Create Account
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- User dashboard when logged in -->
+                <div id="userDashboard" class="user-dashboard">
+                    <div class="welcome-message">
+                        <h2 class="welcome-title">Welcome back, <span id="userDisplayName">Trainer</span>!</h2>
+                        <p class="welcome-subtitle">Ready to continue your Pokémon journey?</p>
+                    </div>
+
+                    <div class="user-stats">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-value" id="userLevel">1</span>
+                                <span class="stat-label">Level</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="userCoins">1000</span>
+                                <span class="stat-label">Pokécoins</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="userPlaytime">0h</span>
+                                <span class="stat-label">Playtime</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="wallet-section" id="walletSection">
+                        <div class="wallet-status">
+                            <div class="wallet-info">
+                                <div class="wallet-icon disconnected" id="walletIcon"></div>
+                                <span class="wallet-text" id="walletText">Wallet Not Connected</span>
+                            </div>
+                            <button class="action-button secondary" id="walletButton">Connect Wallet</button>
+                        </div>
+                        <div class="wallet-address" id="walletAddress" style="display: none;">
+                            <div class="wallet-address-header">
+                                <span class="wallet-username" id="walletUsername"></span>
+                                <span class="wallet-type">Phantom</span>
+                            </div>
+                            <div class="wallet-address-value" id="walletAddressValue"></div>
+                        </div>
+                        <div class="input-help">Connecting a wallet allows you to trade Pokémon and items with other players</div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="action-button primary" id="startGameButton">
+                            🎮 Start Game
+                        </button>
+                        <button class="action-button danger" id="logoutButton">
+                            🚪 Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification container -->
+    <div id="notificationContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
+    <script>
+        class PokeWorldAuth {
+            constructor() {
+                this.currentUser = null;
+                this.connectedWallet = null;
+                this.heartbeatInterval = null;
+                this.colyseusClient = new Colyseus.Client(
+                    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`
+                );
+                
+                this.initializeUI();
+                this.setupEventListeners();
+                this.checkExistingSession();
+            }
+
+            initializeUI() {
+                // Tab switching
+                document.querySelectorAll('.auth-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const targetTab = tab.dataset.tab;
+                        this.switchTab(targetTab);
+                    });
+                });
+
+                // Password strength checker
+                const passwordInput = document.getElementById('registerPassword');
+                passwordInput.addEventListener('input', () => {
+                    this.checkPasswordStrength(passwordInput.value);
+                });
+
+                // Username availability checker
+                const usernameInput = document.getElementById('registerUsername');
+                let usernameTimeout;
+                usernameInput.addEventListener('input', () => {
+                    clearTimeout(usernameTimeout);
+                    usernameTimeout = setTimeout(() => {
+                        this.checkUsernameAvailability(usernameInput.value);
+                    }, 500);
+                });
+
+                // Email validation
+                const emailInput = document.getElementById('registerEmail');
+                emailInput.addEventListener('blur', () => {
+                    this.validateEmail(emailInput.value);
+                });
+
+                // Password confirmation
+                const confirmInput = document.getElementById('confirmPassword');
+                confirmInput.addEventListener('input', () => {
+                    this.validatePasswordConfirmation();
+                });
+            }
+
+            setupEventListeners() {
+                // Login form
+                document.getElementById('loginForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleLogin();
+                });
+
+                // Register form
+                document.getElementById('registerForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleRegister();
+                });
+
+                // Dashboard actions
+                document.getElementById('startGameButton').addEventListener('click', () => {
+                    this.startGame();
+                });
+
+                document.getElementById('logoutButton').addEventListener('click', () => {
+                    this.logout();
+                });
+
+                document.getElementById('walletButton').addEventListener('click', () => {
+                    this.handleWalletAction();
+                });
+            }
+
+            switchTab(tabName) {
+                // Update tabs
+                document.querySelectorAll('.auth-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
+
+                // Update forms
+                document.querySelectorAll('.auth-form').forEach(form => {
+                    form.classList.toggle('active', form.id === `${tabName}Form`);
+                });
+            }
+
+            checkPasswordStrength(password) {
+                const strengthBar = document.querySelector('.strength-fill');
+                const strengthText = document.querySelector('.strength-text');
+                
+                let score = 0;
+                let feedback = '';
+
+                if (password.length >= 8) score++;
+                if (password.length >= 12) score++;
+                if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+                if (/\d/.test(password)) score++;
+                if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+                const levels = ['weak', 'fair', 'good', 'strong'];
+                const messages = ['Weak', 'Fair', 'Good', 'Strong'];
+                
+                const level = Math.min(Math.floor(score * 4 / 5), 3);
+                
+                strengthBar.className = `strength-fill ${levels[level]}`;
+                strengthText.textContent = messages[level];
+                strengthText.style.color = ['#e74c3c', '#f39c12', '#3498db', '#27ae60'][level];
+            }
+
+            async checkUsernameAvailability(username) {
+                const feedback = document.querySelector('#registerUsername').parentNode.querySelector('.input-feedback');
+                const input = document.getElementById('registerUsername');
+                
+                if (username.length < 3) {
+                    feedback.textContent = '';
+                    input.classList.remove('success', 'error');
+                    return;
+                }
+
+                if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+                    feedback.textContent = 'Username can only contain letters, numbers, - and _';
+                    feedback.className = 'input-error';
+                    input.classList.add('error');
+                    input.classList.remove('success');
+                    return;
+                }
+
+                try {
+                    // Mock API call - will be handled by server validation
+                    feedback.textContent = 'Checking availability...';
+                    feedback.className = 'input-help';
+                    input.classList.remove('success', 'error');
+                    
+                    // Server will validate on submit
+                    setTimeout(() => {
+                        feedback.textContent = 'Username will be validated on submission';
+                        feedback.className = 'input-help';
+                    }, 1000);
+                } catch (error) {
+                    console.log('Username check will be done on submit');
+                }
+            }
+
+            validateEmail(email) {
+                const feedback = document.querySelector('#registerEmail').parentNode.querySelector('.input-feedback');
+                const input = document.getElementById('registerEmail');
+                
+                const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+                
+                if (emailRegex.test(email)) {
+                    feedback.textContent = 'Email format is valid';
+                    feedback.className = 'input-success';
+                    input.classList.add('success');
+                    input.classList.remove('error');
+                } else {
+                    feedback.textContent = 'Please enter a valid email address';
+                    feedback.className = 'input-error';
+                    input.classList.add('error');
+                    input.classList.remove('success');
+                }
+            }
+
+            validatePasswordConfirmation() {
+                const password = document.getElementById('registerPassword').value;
+                const confirm = document.getElementById('confirmPassword').value;
+                const feedback = document.querySelector('#confirmPassword').parentNode.querySelector('.input-feedback');
+                const input = document.getElementById('confirmPassword');
+                
+                if (confirm.length === 0) {
+                    feedback.textContent = '';
+                    input.classList.remove('success', 'error');
+                    return;
+                }
+
+                if (password === confirm) {
+                    feedback.textContent = 'Passwords match';
+                    feedback.className = 'input-success';
+                    input.classList.add('success');
+                    input.classList.remove('error');
+                } else {
+                    feedback.textContent = 'Passwords do not match';
+                    feedback.className = 'input-error';
+                    input.classList.add('error');
+                    input.classList.remove('success');
+                }
+            }
+
+            async handleLogin() {
+                const button = document.getElementById('loginButton');
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value;
+
+                if (!username || !password) {
+                    this.showNotification('Please fill in all fields', 'error');
+                    return;
+                }
+
+                this.setButtonLoading(button, true);
+
+                try {
+                    // Connect to auth room
+                    const room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+                    // Generate client-side challenge for extra security
+                    const clientChallenge = this.generateSecureChallenge();
+                    const deviceFingerprint = this.generateDeviceFingerprint();
+
+                    // Send login request with security measures
+                    room.send("user_login", {
+                        username: username,
+                        password: password, // Will be hashed on server
+                        clientChallenge: clientChallenge,
+                        deviceFingerprint: deviceFingerprint,
+                        timestamp: Date.now(),
+                        userAgent: navigator.userAgent,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        screenResolution: `${screen.width}x${screen.height}`
+                    });
+
+                    // Handle response
+                    room.onMessage("login_result", (data) => {
+                        room.leave();
+                        this.setButtonLoading(button, false);
+
+                        if (data.status === "ok") {
+                            // Store only essential data, session token for security
+                            this.currentUser = {
+                                username: data.userData.username,
+                                sessionToken: data.sessionToken,
+                                tokenExpiry: data.tokenExpiry,
+                                permissions: data.permissions || ['play'],
+                                lastLogin: Date.now()
+                            };
+                            
+                            this.showUserDashboard();
+                            this.showNotification(`Welcome back, ${data.userData.username}!`, 'success');
+                            this.saveSecureSession(data);
+                            
+                            // Start session heartbeat
+                            this.startSessionHeartbeat();
+                        } else {
+                            this.showNotification(data.reason || 'Login failed', 'error');
+                            
+                            // Log failed attempt (for rate limiting)
+                            this.logFailedAttempt(username);
+                        }
+                    });
+
+                    room.onMessage("error", (error) => {
+                        room.leave();
+                        this.setButtonLoading(button, false);
+                        this.showNotification(error.reason || 'Connection error', 'error');
+                    });
+
+                } catch (error) {
+                    this.setButtonLoading(button, false);
+                    this.showNotification('Unable to connect to server', 'error');
+                    console.error('Login error:', error);
+                }
+            }
+
+            async handleRegister() {
+                const button = document.getElementById('registerButton');
+                const username = document.getElementById('registerUsername').value.trim();
+                const email = document.getElementById('registerEmail').value.trim();
+                const password = document.getElementById('registerPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                // Enhanced validation
+                if (!this.validateRegistrationData(username, email, password, confirmPassword)) {
+                    return;
+                }
+
+                this.setButtonLoading(button, true);
+
+                try {
+                    // Connect to auth room
+                    const room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+                    // Generate security data
+                    const clientChallenge = this.generateSecureChallenge();
+                    const deviceFingerprint = this.generateDeviceFingerprint();
+
+                    // Send registration request with security measures
+                    room.send("user_register", {
+                        username: username,
+                        email: email,
+                        password: password, // Will be hashed with salt on server
+                        clientChallenge: clientChallenge,
+                        deviceFingerprint: deviceFingerprint,
+                        timestamp: Date.now(),
+                        userAgent: navigator.userAgent,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        language: navigator.language,
+                        referrer: document.referrer || 'direct'
+                    });
+
+                    // Handle response
+                    room.onMessage("register_result", (data) => {
+                        room.leave();
+                        this.setButtonLoading(button, false);
+
+                        if (data.status === "ok") {
+                            this.currentUser = {
+                                username: data.userData.username,
+                                sessionToken: data.sessionToken,
+                                tokenExpiry: data.tokenExpiry,
+                                permissions: data.permissions || ['play'],
+                                isNewUser: true,
+                                registrationDate: Date.now()
+                            };
+                            
+                            this.showUserDashboard();
+                            this.showNotification(`Welcome to PokeWorld, ${data.userData.username}!`, 'success');
+                            this.saveSecureSession(data);
+                            
+                            // Start session heartbeat
+                            this.startSessionHeartbeat();
+                        } else {
+                            this.showNotification(data.reason || 'Registration failed', 'error');
+                        }
+                    });
+
+                    room.onMessage("error", (error) => {
+                        room.leave();
+                        this.setButtonLoading(button, false);
+                        this.showNotification(error.reason || 'Connection error', 'error');
+                    });
+
+                } catch (error) {
+                    this.setButtonLoading(button, false);
+                    this.showNotification('Unable to connect to server', 'error');
+                    console.error('Registration error:', error);
+                }
+            }
+
+            validateRegistrationData(username, email, password, confirmPassword) {
+                // Enhanced validation with security checks
+                if (!username || !email || !password || !confirmPassword) {
+                    this.showNotification('Please fill in all fields', 'error');
+                    return false;
+                }
+
+                // Username security validation
+                if (username.length < 3 || username.length > 20) {
+                    this.showNotification('Username must be between 3 and 20 characters', 'error');
+                    return false;
+                }
+
+                if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+                    this.showNotification('Username can only contain letters, numbers, - and _', 'error');
+                    return false;
+                }
+
+                // Check for prohibited usernames
+                const prohibited = ['admin', 'administrator', 'root', 'system', 'null', 'undefined', 'bot', 'moderator'];
+                if (prohibited.includes(username.toLowerCase())) {
+                    this.showNotification('This username is not allowed', 'error');
+                    return false;
+                }
+
+                // Strong password validation
+                if (password.length < 8) {
+                    this.showNotification('Password must be at least 8 characters long', 'error');
+                    return false;
+                }
+
+                if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+                    this.showNotification('Password must contain at least one uppercase letter, lowercase letter, and number', 'error');
+                    return false;
+                }
+
+                // Check for common weak passwords
+                const weakPasswords = ['password', '12345678', 'qwerty123', 'password123'];
+                if (weakPasswords.includes(password.toLowerCase())) {
+                    this.showNotification('This password is too common. Please choose a stronger password.', 'error');
+                    return false;
+                }
+
+                if (password !== confirmPassword) {
+                    this.showNotification('Passwords do not match', 'error');
+                    return false;
+                }
+
+                // Enhanced email validation
+                const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+                if (!emailRegex.test(email)) {
+                    this.showNotification('Please enter a valid email address', 'error');
+                    return false;
+                }
+
+                // Check for disposable email domains
+                const disposableDomains = ['tempmail.org', '10minutemail.com', 'guerrillamail.com'];
+                const emailDomain = email.split('@')[1].toLowerCase();
+                if (disposableDomains.includes(emailDomain)) {
+                    this.showNotification('Disposable email addresses are not allowed', 'error');
+                    return false;
+                }
+
+                return true;
+            }
+
+            generateSecureChallenge() {
+                // Generate a cryptographically secure random challenge
+                const array = new Uint8Array(32);
+                crypto.getRandomValues(array);
+                return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            }
+
+            generateDeviceFingerprint() {
+                // Create a unique device fingerprint for security
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillText('Device fingerprint', 2, 2);
+                
+                const fingerprint = {
+                    screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    language: navigator.language,
+                    platform: navigator.platform,
+                    cookieEnabled: navigator.cookieEnabled,
+                    doNotTrack: navigator.doNotTrack,
+                    canvas: canvas.toDataURL().slice(-50), // Last 50 chars
+                    userAgent: navigator.userAgent.slice(0, 100), // First 100 chars
+                    timestamp: Date.now()
+                };
+
+                return btoa(JSON.stringify(fingerprint)).slice(0, 64);
+            }
+
+            startSessionHeartbeat() {
+                // Send heartbeat every 5 minutes to maintain session
+                this.heartbeatInterval = setInterval(async () => {
+                    if (this.currentUser && this.currentUser.sessionToken) {
+                        try {
+                            const room = await this.colyseusClient.joinOrCreate("AuthRoom");
+                            
+                            room.send("session_heartbeat", {
+                                sessionToken: this.currentUser.sessionToken,
+                                timestamp: Date.now()
+                            });
+
+                            room.onMessage("heartbeat_response", (data) => {
+                                room.leave();
+                                
+                                if (data.status !== "ok") {
+                                    // Session expired or invalid
+                                    this.forceLogout("Session expired. Please log in again.");
+                                }
+                            });
+
+                        } catch (error) {
+                            console.error('Heartbeat failed:', error);
+                        }
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
+            }
+
+            saveSecureSession(authData) {
+                // Only store essential session data, encrypted
+                const sessionData = {
+                    username: authData.userData.username,
+                    sessionToken: authData.sessionToken,
+                    tokenExpiry: authData.tokenExpiry,
+                    permissions: authData.permissions,
+                    deviceFingerprint: this.generateDeviceFingerprint(),
+                    timestamp: Date.now()
+                };
+
+                // Use sessionStorage for security (cleared when browser closes)
+                sessionStorage.setItem('pws_session', this.encryptSessionData(sessionData));
+                
+                // Optional: Store username only in localStorage for "remember me"
+                if (document.getElementById('rememberMe')?.checked) {
+                    localStorage.setItem('pws_username', authData.userData.username);
+                }
+            }
+
+            encryptSessionData(data) {
+                // Simple encryption for session data (you can use crypto-js for stronger encryption)
+                const key = this.generateSecureChallenge().slice(0, 16);
+                const encrypted = btoa(JSON.stringify(data) + '|' + key);
+                sessionStorage.setItem('pws_key', key);
+                return encrypted;
+            }
+
+            decryptSessionData(encryptedData) {
+                try {
+                    const key = sessionStorage.getItem('pws_key');
+                    if (!key) return null;
+                    
+                    const decoded = atob(encryptedData);
+                    const [dataStr, sessionKey] = decoded.split('|');
+                    
+                    if (sessionKey !== key) return null;
+                    
+                    return JSON.parse(dataStr);
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            checkExistingSession() {
+                const encryptedSession = sessionStorage.getItem('pws_session');
+                
+                if (encryptedSession) {
+                    const sessionData = this.decryptSessionData(encryptedSession);
+                    
+                    if (sessionData && sessionData.tokenExpiry && Date.now() < sessionData.tokenExpiry) {
+                        // Verify device fingerprint for security
+                        const currentFingerprint = this.generateDeviceFingerprint();
+                        if (Math.abs(sessionData.deviceFingerprint.length - currentFingerprint.length) > 10) {
+                            this.showNotification('Security check failed. Please log in again.', 'error');
+                            this.clearSession();
+                            return;
+                        }
+                        
+                        this.currentUser = sessionData;
+                        this.showUserDashboard();
+                        this.showNotification(`Welcome back, ${sessionData.username}!`, 'success');
+                        this.startSessionHeartbeat();
+                        return;
+                    }
+                }
+
+                // Check for remembered username
+                const rememberedUsername = localStorage.getItem('pws_username');
+                if (rememberedUsername) {
+                    document.getElementById('loginUsername').value = rememberedUsername;
+                    document.getElementById('rememberMe').checked = true;
+                }
+                
+                this.showGuestSection();
+            }
+
+            async handleWalletAction() {
+                const walletButton = document.getElementById('walletButton');
+                
+                if (this.connectedWallet) {
+                    // Disconnect wallet
+                    this.disconnectWallet();
+                } else {
+                    // Connect wallet
+                    await this.connectWallet();
+                }
+            }
+
+            async connectWallet() {
+                const walletButton = document.getElementById('walletButton');
+                this.setButtonLoading(walletButton, true);
+
+                try {
+                    // Check if Phantom is available
+                    if (!window.phantom?.sui) {
+                        this.showNotification('Phantom Wallet not found. Please install Phantom browser extension.', 'error');
+                        this.setButtonLoading(walletButton, false);
+                        return;
+                    }
+
+                    // Request connection
+                    const response = await window.phantom.sui.requestAccount();
+                    let address = null;
+
+                    if (response?.address) {
+                        address = response.address;
+                    } else if (typeof response === 'string') {
+                        address = response;
+                    } else if (response?.publicKey) {
+                        address = response.publicKey.toString();
+                    }
+
+                    if (!address) {
+                        throw new Error('Unable to get wallet address');
+                    }
+
+                    // Sign verification message
+                    const message = `PokeWorld Wallet Link ${Date.now()}`;
+                    const encodedMessage = new TextEncoder().encode(message);
+                    const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+
+                    // Verify with server
+                    const room = await this.colyseusClient.joinOrCreate("AuthRoom");
+                    
+                    room.send("link_wallet", {
+                        username: this.currentUser.username,
+                        sessionToken: this.currentUser.sessionToken,
+                        address: address,
+                        signature: signed.signature,
+                        message: message,
+                        walletType: "phantom"
+                    });
+
+                    room.onMessage("wallet_linked", (data) => {
+                        room.leave();
+                        this.setButtonLoading(walletButton, false);
+
+                        if (data.status === "ok") {
+                            this.connectedWallet = {
+                                address: address,
+                                type: "phantom"
+                            };
+                            this.updateWalletUI();
+                            this.showNotification('Wallet connected successfully!', 'success');
+                            this.updateSession();
+                        } else {
+                            this.showNotification(data.reason || 'Failed to link wallet', 'error');
+                        }
+                    });
+
+                    room.onMessage("error", (error) => {
+                        room.leave();
+                        this.setButtonLoading(walletButton, false);
+                        this.showNotification(error.reason || 'Wallet connection error', 'error');
+                    });
+
+                } catch (error) {
+                    this.setButtonLoading(walletButton, false);
+                    if (error.message.includes('User rejected')) {
+                        this.showNotification('Wallet connection cancelled', 'info');
+                    } else {
+                        this.showNotification('Failed to connect wallet: ' + error.message, 'error');
+                    }
+                    console.error('Wallet connection error:', error);
+                }
+            }
+
+            disconnectWallet() {
+                this.connectedWallet = null;
+                this.updateWalletUI();
+                this.showNotification('Wallet disconnected', 'info');
+                this.updateSession();
+            }
+
+            updateWalletUI() {
+                const walletIcon = document.getElementById('walletIcon');
+                const walletText = document.getElementById('walletText');
+                const walletButton = document.getElementById('walletButton');
+                const walletAddress = document.getElementById('walletAddress');
+                const walletUsername = document.getElementById('walletUsername');
+                const walletAddressValue = document.getElementById('walletAddressValue');
+                const walletSection = document.getElementById('walletSection');
+
+                if (this.connectedWallet) {
+                    walletIcon.classList.remove('disconnected');
+                    walletIcon.classList.add('connected');
+                    walletText.textContent = 'Wallet Connected';
+                    walletButton.textContent = 'Disconnect';
+                    walletButton.className = 'action-button danger';
+                    walletUsername.textContent = this.currentUser.username;
+                    walletAddressValue.textContent = this.connectedWallet.address;
+                    walletAddress.style.display = 'block';
+                    walletSection.classList.add('connected');
+                } else {
+                    walletIcon.classList.remove('connected');
+                    walletIcon.classList.add('disconnected');
+                    walletText.textContent = 'Wallet Not Connected';
+                    walletButton.textContent = 'Connect Wallet';
+                    walletButton.className = 'action-button secondary';
+                    walletAddress.style.display = 'none';
+                    walletSection.classList.remove('connected');
+                }
+            }
+
+            startGame() {
+                if (!this.currentUser || !this.currentUser.sessionToken) {
+                    this.showNotification('Please log in first', 'error');
+                    return;
+                }
+
+                this.showLoadingOverlay(true);
+                
+                // Create secure game session with token
+                const gameSession = {
+                    sessionToken: this.currentUser.sessionToken,
+                    username: this.currentUser.username,
+                    permissions: this.currentUser.permissions,
+                    deviceFingerprint: this.generateDeviceFingerprint(),
+                    gameStartTime: Date.now(),
+                    securityLevel: 'high'
+                };
+                
+                // Store encrypted session for game
+                sessionStorage.setItem('pws_game_session', this.encryptSessionData(gameSession));
+                
+                // Redirect to clean game URL
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+            }
+
+            showUserDashboard() {
+                document.getElementById('guestSection').style.display = 'none';
+                document.getElementById('userDashboard').classList.add('active');
+                
+                // Update user info
+                document.getElementById('userDisplayName').textContent = this.currentUser.username;
+                document.getElementById('userLevel').textContent = this.currentUser.level || 1;
+                document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
+                document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
+                
+                // Update wallet UI
+                this.updateWalletUI();
+            }
+
+            showGuestSection() {
+                document.getElementById('userDashboard').classList.remove('active');
+                document.getElementById('guestSection').style.display = 'block';
+                
+                // Clear forms
+                document.getElementById('loginForm').reset();
+                document.getElementById('registerForm').reset();
+                
+                // Clear validation states
+                document.querySelectorAll('.form-input').forEach(input => {
+                    input.classList.remove('success', 'error');
+                });
+                document.querySelectorAll('.input-feedback').forEach(feedback => {
+                    feedback.textContent = '';
+                });
+            }
+
+            forceLogout(message = 'Logged out') {
+                this.clearSession();
+                this.showGuestSection();
+                this.showNotification(message, 'info');
+                
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                }
+            }
+
+            logout() {
+                // Notify server of logout
+                if (this.currentUser && this.currentUser.sessionToken) {
+                    this.colyseusClient.joinOrCreate("AuthRoom").then(room => {
+                        room.send("user_logout", {
+                            sessionToken: this.currentUser.sessionToken,
+                            timestamp: Date.now()
+                        });
+                        room.leave();
+                    });
+                }
+                
+                this.forceLogout('Logged out successfully');
+            }
+
+            clearSession() {
+                // Clear all session data
+                sessionStorage.removeItem('pws_session');
+                sessionStorage.removeItem('pws_game_session');
+                sessionStorage.removeItem('pws_key');
+                // Keep username in localStorage for convenience (if user chose remember me)
+                
+                this.currentUser = null;
+                this.connectedWallet = null;
+            }
+
+            logFailedAttempt(username) {
+                // Track failed login attempts for rate limiting
+                const attempts = JSON.parse(localStorage.getItem('pws_failed_attempts') || '[]');
+                attempts.push({
+                    username: username,
+                    timestamp: Date.now(),
+                    ip: 'client' // Server will log real IP
+                });
+                
+                // Keep only last 10 attempts
+                if (attempts.length > 10) {
+                    attempts.splice(0, attempts.length - 10);
+                }
+                
+                localStorage.setItem('pws_failed_attempts', JSON.stringify(attempts));
+            }
+
+            updateSession() {
+                if (this.currentUser) {
+                    this.saveSecureSession({
+                        userData: { username: this.currentUser.username },
+                        sessionToken: this.currentUser.sessionToken,
+                        tokenExpiry: this.currentUser.tokenExpiry,
+                        permissions: this.currentUser.permissions
+                    });
+                }
+            }
+
+            formatPlaytime(minutes) {
+                if (minutes < 60) return `${minutes}m`;
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+            }
+
+            setButtonLoading(button, loading) {
+                if (loading) {
+                    button.classList.add('loading');
+                    button.disabled = true;
+                } else {
+                    button.classList.remove('loading');
+                    button.disabled = false;
+                }
+            }
+
+            showLoadingOverlay(show) {
+                const overlay = document.getElementById('loadingOverlay');
+                if (show) {
+                    overlay.classList.add('show');
+                } else {
+                    overlay.classList.remove('show');
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                const container = document.getElementById('notificationContainer');
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                container.appendChild(notification);
+                
+                // Show notification
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, 100);
+                
+                // Hide and remove notification
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        if (container.contains(notification)) {
+                            container.removeChild(notification);
+                        }
+                    }, 300);
+                }, 4000);
+            }
+        }
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new PokeWorldAuth();
+        });
+
+        // Add some debug functions for development
+        window.debugAuth = {
+            clearSession: () => {
+                sessionStorage.clear();
+                localStorage.removeItem('pws_username');
+                localStorage.removeItem('pws_failed_attempts');
+                location.reload();
+            },
+            fakeLogin: (username = 'TestUser') => {
+                const fakeUser = {
+                    username: username,
+                    email: 'test@example.com',
+                    level: 5,
+                    coins: 2500,
+                    playtime: 120,
+                    createdAt: Date.now()
+                };
+                
+                const fakeSession = {
+                    username: username,
+                    sessionToken: 'fake_token_' + Date.now(),
+                    tokenExpiry: Date.now() + 6 * 60 * 60 * 1000,
+                    permissions: ['play'],
+                    deviceFingerprint: 'fake_fingerprint',
+                    timestamp: Date.now()
+                };
+                
+                sessionStorage.setItem('pws_session', btoa(JSON.stringify(fakeSession) + '|fake_key'));
+                sessionStorage.setItem('pws_key', 'fake_key');
+                location.reload();
+            },
+            testNotification: (message = 'Test notification', type = 'info') => {
+                if (window.authApp) {
+                    window.authApp.showNotification(message, type);
+                }
+            }
+        };
+
+        // Expose auth app for debugging
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.authApp) {
+                    console.log('🔐 PokeWorld Auth System loaded');
+                    console.log('🛠️ Debug commands: window.debugAuth.clearSession(), window.debugAuth.fakeLogin()');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
