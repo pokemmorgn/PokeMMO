@@ -362,10 +362,11 @@ export class PokedexDataManager {
 getPokemonSprite(pokemonId, playerEntry) {
   const paddedId = pokemonId.toString().padStart(3, '0');
   
-  if (playerEntry.caught) {
-    // Pokémon capturé : sprite complet en couleur
-    return `<img src="/assets/pokemon/${paddedId}/front.png" alt="${this.pokemonData[pokemonId]?.name}" 
-            onerror="this.outerHTML='🎮'" class="pokemon-sprite captured">`;
+if (playerEntry.caught) {
+  // Pokémon capturé : sprite complet en couleur (shiny si applicable)
+  const spriteFile = playerEntry.shiny ? 'shinyfront.png' : 'front.png';
+  return `<img src="/assets/pokemon/${paddedId}/${spriteFile}" alt="${this.pokemonData[pokemonId]?.name}" 
+          onerror="this.outerHTML='🎮'" class="pokemon-sprite captured ${playerEntry.shiny ? 'shiny' : ''}">`;
   } else if (playerEntry.seen) {
     // Pokémon vu : même sprite en silhouette CSS
     return `<img src="/assets/pokemon/${paddedId}/front.png" alt="Pokémon vu" 
