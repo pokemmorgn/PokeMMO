@@ -54,7 +54,7 @@ export class BattleTransitionManager {
    */
   async loadConfig() {
     try {
-      const response = await fetch('/client/src/config/BattleTransitionConfig.json');
+      const response = await fetch('client/src/config/BattleTransitionConfig.json');
       this.config = await response.json();
       
       console.log(`📋 [BattleTransitionManager] Config chargée:`, {
