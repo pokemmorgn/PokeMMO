@@ -329,9 +329,9 @@ try {
 // ✅ NOUVEAU: Corriger l'index walletAddress
 try {
   await PlayerData.collection.dropIndex("walletAddress_1");
-  console.log("🗑️ Ancien index walletAddress supprimé");
+  console.log("🗑️ Index walletAddress supprimé");
 } catch (e) {
-  console.log("ℹ️ Index walletAddress n'existait pas ou déjà supprimé");
+  console.log("ℹ️ Pas d'index à supprimer");
 }
 
 await PlayerData.collection.createIndex(
