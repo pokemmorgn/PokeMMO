@@ -664,41 +664,38 @@ export class PokedexUI {
 
   // === 📊 GESTION DES DONNÉES AVEC DATAMANAGER ===
 
-      handlePokedexData(response) {
-        if (!response.success) {
-          console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
-          this.showError('Impossible de charger les données du Pokédx');
-          return;
-        }
-      
-        // 🆕 AJOUTE CES LIGNES DE DEBUG
-        console.log('📊 [DEBUG] Données serveur complètes:', response.data);
-        console.log('📊 [DEBUG] availablePokemon:', response.data?.availablePokemon);
-        console.log('📊 [DEBUG] summary:', response.data?.summary);
-      // 🆕 DEBUG: Voir ce que le serveur envoie
-      console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
-      
-      // 🆕 UTILISER LA NOUVELLE STRUCTURE SERVEUR
-      if (response.data) {
-        // Configurer le DataManager avec les données serveur
-        this.dataManager.setServerData(response.data);
-        
-        // Importer les entrées du joueur
-        if (response.data.entries) {
-          this.dataManager.importPlayerData(response.data.entries);
-        }
-        
-        // Recharger les données locales
-        this.loadDefaultPokemonData();
-      }
-      
-      // Mettre à jour l'affichage
-      this.updateProgressSummary();
-      this.refreshCurrentView();
-      this.updateLastSyncTime();
-      
-      console.log('✅ [PokedexUI] Données traitées avec DataManager');
-    }
+handlePokedexData(response) {
+  if (!response.success) {
+    console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
+    this.showError('Impossible de charger les données du Pokédx');
+    return;
+  }
+
+  // 🆕 DEBUG: Voir ce que le serveur envoie
+  console.log('📊 [PokedexUI] Données Pokédx reçues du serveur:', response.data);
+  console.log('📊 [DEBUG] availablePokemon:', response.data?.availablePokemon?.length);
+  console.log('📊 [DEBUG] entries:', Object.keys(response.data?.entries || {}).length);
+  console.log('📊 [DEBUG] summary:', response.data?.summary);
+  
+  // 🆕 UTILISER LA NOUVELLE STRUCTURE SERVEUR
+  if (response.data) {
+    // Configurer le DataManager avec les données serveur
+    this.dataManager.setServerData(response.data);
+    
+    // 🚫 SUPPRIMER CETTE LIGNE QUI CAUSAIT LE PROBLÈME
+    // this.dataManager.importPlayerData(response.data.entries);
+    
+    // Recharger les données locales
+    this.loadDefaultPokemonData();
+  }
+  
+  // Mettre à jour l'affichage
+  this.updateProgressSummary();
+  this.refreshCurrentView();
+  this.updateLastSyncTime();
+  
+  console.log('✅ [PokedexUI] Données traitées avec DataManager');
+}
   
   /**
    * Charge les données locales depuis le DataManager
