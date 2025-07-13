@@ -1555,32 +1555,32 @@ export const POKEDEX_UI_STYLES = `
   }
 
   /* ===== SPRITES ET STATUTS POKÉMON ===== */
-  .pokemon-sprite {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    image-rendering: pixelated;
-    transition: all 0.3s ease;
-  }
+.pokemon-sprite {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: all 0.3s ease;
+}
 
-  .pokemon-sprite.captured {
-    filter: none;
-    opacity: 1;
-  }
+.pokemon-sprite.captured {
+  filter: none;
+  opacity: 1;
+}
 
-  .pokemon-sprite.silhouette {
-    filter: brightness(0) contrast(1);
-    opacity: 0.8;
-  }
+.pokemon-sprite.silhouette {
+  filter: brightness(0) contrast(1);
+  opacity: 0.8;
+}
 
-  .pokemon-sprite.unknown {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-    color: #6b7280;
-    opacity: 0.6;
-  }
+.pokemon-sprite.unknown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  color: #6b7280;
+  opacity: 0.6;
+}
 
   /* ===== TYPES POKÉMON ===== */
   .entry-types {
