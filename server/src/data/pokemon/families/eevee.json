@@ -1,0 +1,316 @@
+{
+  "family": "eevee",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 133,
+      "name": "Eevee",
+      "types": ["Normal"],
+      "baseStats": {
+        "hp": 55,
+        "attack": 55,
+        "defense": 50,
+        "specialAttack": 45,
+        "specialDefense": 65,
+        "speed": 55
+      },
+      "abilities": ["run_away", "adaptability"],
+      "hiddenAbility": "anticipation",
+      "height": 0.3,
+      "weight": 6.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png",
+      "description": "Its genetic code is irregular. It may mutate if it is exposed to radiation from element stones.",
+      "category": "Evolution Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 8960,
+      "baseExperience": 65,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Celadon City",
+          "rarity": "Guaranteed",
+          "method": "Gift",
+          "level_range": "25",
+          "encounter_rate": "100%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 17",
+          "rarity": "Very Rare",
+          "method": "Wild Encounter",
+          "level_range": "20-25",
+          "encounter_rate": "5%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "sand_attack", "level": 8},
+        {"moveId": "growl", "level": 16},
+        {"moveId": "quick_attack", "level": 23},
+        {"moveId": "bite", "level": 30},
+        {"moveId": "focus_energy", "level": 36},
+        {"moveId": "take_down", "level": 42}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": [134, 135, 136],
+        "method": "stone",
+        "requirement": "water_stone_fire_stone_thunder_stone"
+      }
+    },
+    {
+      "id": 134,
+      "name": "Vaporeon",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 130,
+        "attack": 65,
+        "defense": 60,
+        "specialAttack": 110,
+        "specialDefense": 95,
+        "speed": 65
+      },
+      "abilities": ["water_absorb"],
+      "hiddenAbility": "hydration",
+      "height": 1.0,
+      "weight": 29.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/134.png",
+      "description": "Lives close to water. Its long tail is ridged with a fin which is often mistaken for a mermaid's.",
+      "category": "Bubble Jet Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 8960,
+      "baseExperience": 184,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "sand_attack", "level": 1},
+        {"moveId": "water_gun", "level": 1},
+        {"moveId": "quick_attack", "level": 16},
+        {"moveId": "water_pulse", "level": 23},
+        {"moveId": "aurora_beam", "level": 30},
+        {"moveId": "aqua_ring", "level": 36},
+        {"moveId": "acid_armor", "level": 42},
+        {"moveId": "haze", "level": 47},
+        {"moveId": "hydro_pump", "level": 52}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 133
+      }
+    },
+    {
+      "id": 135,
+      "name": "Jolteon",
+      "types": ["Electric"],
+      "baseStats": {
+        "hp": 65,
+        "attack": 65,
+        "defense": 60,
+        "specialAttack": 110,
+        "specialDefense": 95,
+        "speed": 130
+      },
+      "abilities": ["volt_absorb"],
+      "hiddenAbility": "quick_feet",
+      "height": 0.8,
+      "weight": 24.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/135.png",
+      "description": "It accumulates negative ions in the atmosphere to blast out 10,000-volt lightning bolts.",
+      "category": "Lightning Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 8960,
+      "baseExperience": 184,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "sand_attack", "level": 1},
+        {"moveId": "thunder_shock", "level": 1},
+        {"moveId": "quick_attack", "level": 16},
+        {"moveId": "double_kick", "level": 23},
+        {"moveId": "pin_missile", "level": 30},
+        {"moveId": "thunder_wave", "level": 36},
+        {"moveId": "agility", "level": 42},
+        {"moveId": "thunder", "level": 47},
+        {"moveId": "double_team", "level": 52}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 133
+      }
+    },
+    {
+      "id": 136,
+      "name": "Flareon",
+      "types": ["Fire"],
+      "baseStats": {
+        "hp": 65,
+        "attack": 130,
+        "defense": 60,
+        "specialAttack": 95,
+        "specialDefense": 110,
+        "speed": 65
+      },
+      "abilities": ["flash_fire"],
+      "hiddenAbility": "guts",
+      "height": 0.9,
+      "weight": 25.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/136.png",
+      "description": "When storing thermal energy in its body, its temperature could soar to over 1600 degrees.",
+      "category": "Flame Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 8960,
+      "baseExperience": 184,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "sand_attack", "level": 1},
+        {"moveId": "ember", "level": 1},
+        {"moveId": "quick_attack", "level": 16},
+        {"moveId": "bite", "level": 23},
+        {"moveId": "fire_fang", "level": 30},
+        {"moveId": "fire_spin", "level": 36},
+        {"moveId": "smog", "level": 42},
+        {"moveId": "lava_plume", "level": 47},
+        {"moveId": "flamethrower", "level": 52}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 133
+      }
+    }
+  ]
+}
