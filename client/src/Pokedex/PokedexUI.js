@@ -894,6 +894,24 @@ export class PokedexUI {
     return `<div class="entry-types">${typeBadges}</div>`;
   }
 
+    /**
+   * Génère le sprite pour les détails (utilise les bons chemins)
+   */
+  getPokemonSpriteForDetails(pokemonId, caught) {
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    
+    if (caught) {
+      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+              alt="Pokémon #${paddedId}" 
+              onerror="this.outerHTML='🎮'" 
+              class="pokemon-sprite captured">`;
+    } else {
+      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+              alt="Pokémon vu" 
+              onerror="this.outerHTML='👤'" 
+              class="pokemon-sprite silhouette">`;
+    }
+  }
   // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
 
   handleSearch() {
@@ -1042,7 +1060,7 @@ export class PokedexUI {
       <div class="pokemon-header">
         <div class="pokemon-main-info">
           <div class="pokemon-sprite-large">
-            ${this.getPokemonSprite(entry.pokemonId, entry.caught)}
+            ${this.getPokemonSpriteForDetails(entry.pokemonId, entry.caught)}
           </div>
           <div class="pokemon-identity">
             <h2 class="pokemon-name">${baseData?.name || 'Pokémon Inconnu'}</h2>
@@ -1092,7 +1110,7 @@ export class PokedexUI {
           <div class="evolution-list">
             ${evolutionChain.map(evo => `
               <div class="evolution-item">
-                <div class="evo-sprite">${this.getPokemonSprite(evo.pokemonId, true)}</div>
+                <div class="evo-sprite">${this.getPokemonSpriteForDetails(evo.pokemonId, true)}</div>
                 <div class="evo-name">${evo.name}</div>
                 ${evo.level ? `<div class="evo-condition">Niv. ${evo.level}</div>` : ''}
               </div>
