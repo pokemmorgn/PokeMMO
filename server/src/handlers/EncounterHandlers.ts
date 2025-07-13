@@ -1,7 +1,8 @@
-// server/src/handlers/EncounterHandlers.ts - VERSION CONNECTÉE AVEC BATTLEHANDLERS
+// server/src/handlers/EncounterHandlers.ts - VERSION SÉCURISÉE AVEC CONFIG
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { ServerEncounterManager } from "../managers/EncounterManager";
+import { getServerConfig } from '../config/serverConfig';
 
 export class EncounterHandlers {
   private room: WorldRoom;
@@ -11,12 +12,16 @@ export class EncounterHandlers {
     this.room = room;
     this.encounterManager = new ServerEncounterManager();
     
-    // ✅ NETTOYAGE PÉRIODIQUE DES COOLDOWNS (toutes les 5 minutes)
+    // ✅ NETTOYAGE PÉRIODIQUE DES COOLDOWNS (intervalle basé sur config)
+    const config = getServerConfig().encounterSystem;
     room.clock.setInterval(() => {
       this.encounterManager.cleanupCooldowns();
-    }, 300000);
+    }, config.playerCooldownMs * 100); // Nettoyer toutes les 100x le cooldown
     
-    console.log(`✅ [EncounterHandlers] Initialisé pour ${room.constructor.name}`);
+    console.log(`✅ [EncounterHandlers] Initialisé avec config:`);
+    console.log(`   🔒 Server-side only: ${config.serverSideOnly}`);
+    console.log(`   ⏱️ Cooldown: ${config.playerCooldownMs}ms`);
+    console.log(`   📊 Max encounters/min: ${config.maxEncountersPerMinute}`);
   }
 
   // ✅ CONFIGURATION DES HANDLERS
@@ -32,6 +37,7 @@ export class EncounterHandlers {
       encounterRate?: number;
       forced?: boolean;
       fromNotification?: boolean;
+      fromServerCheck?: boolean; // ✅ NOUVEAU: Flag de sécurité
       timestamp?: number;
     }) => {
       await this.handleTriggerEncounter(client, data);
@@ -80,7 +86,7 @@ export class EncounterHandlers {
     console.log(`✅ [EncounterHandlers] Tous les handlers configurés`);
   }
 
-  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER AVEC COMBAT AUTOMATIQUE
+  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER AVEC SÉCURITÉ
   public async handleTriggerEncounter(client: Client, data: {
     x: number;
     y: number;
@@ -89,23 +95,39 @@ export class EncounterHandlers {
     encounterRate?: number;
     forced?: boolean;
     fromNotification?: boolean;
+    fromServerCheck?: boolean; // ✅ NOUVEAU: Flag de sécurité
     timestamp?: number;
     zone?: string; 
   }): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
-    const zoneName = data.zone || player.currentZone || "unknown";
-    console.log(`[DEBUG] Zone encounter propagée :`, zoneName, data.zoneId);
     if (!player) {
       console.warn(`⚠️ [EncounterHandlers] Joueur ${client.sessionId} non trouvé`);
       return;
     }
 
     console.log(`🎲 [EncounterHandlers] === TRIGGER ENCOUNTER ===`);
+    
+    // ✅ SÉCURITÉ: Vérifier si le système est configuré pour être server-side only
+    const encounterConfig = getServerConfig().encounterSystem;
+    if (encounterConfig.serverSideOnly && !data.fromServerCheck) {
+      console.warn(`🚫 [EncounterHandlers] Tentative client non autorisée de ${client.sessionId}`);
+      
+      client.send("encounterError", {
+        success: false,
+        message: "Les rencontres sont gérées automatiquement par le serveur",
+        reason: "client_trigger_not_allowed",
+        serverSideOnly: true
+      });
+      return;
+    }
+
+    const zoneName = data.zone || player.currentZone || "unknown";
     console.log(`👤 Joueur: ${player.name}`);
     console.log(`📍 Position: (${data.x}, ${data.y})`);
     console.log(`🎯 Zone ID: ${data.zoneId}`);
     console.log(`🌿 Méthode: ${data.method}`);
     console.log(`🔧 Forcé: ${data.forced || false}`);
+    console.log(`🔒 Server check: ${data.fromServerCheck || false}`);
 
     try {
       // ✅ OBTENIR LES CONDITIONS ACTUELLES
@@ -132,7 +154,7 @@ export class EncounterHandlers {
         console.log(`🐾 Pokémon: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
         console.log(`✨ Spécial: Shiny=${wildPokemon.shiny}, Nature=${wildPokemon.nature}`);
         
-        // ✅ NOUVEAU: DÉMARRER LE COMBAT AUTOMATIQUEMENT (style Pokémon authentique)
+        // ✅ DÉMARRER LE COMBAT AUTOMATIQUEMENT
         await this.startWildBattleImmediate(client, wildPokemon, data);
 
       } else {
@@ -170,7 +192,7 @@ export class EncounterHandlers {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: DÉMARRAGE IMMÉDIAT DU COMBAT (STYLE POKÉMON AUTHENTIQUE)
+  // ✅ DÉMARRAGE IMMÉDIAT DU COMBAT (STYLE POKÉMON AUTHENTIQUE)
   private async startWildBattleImmediate(client: Client, wildPokemon: any, encounterData: any): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) return;
@@ -201,6 +223,7 @@ export class EncounterHandlers {
         },
         method: encounterData.method,
         forced: encounterData.forced || false,
+        serverGenerated: true, // ✅ NOUVEAU: Marquer comme généré par le serveur
         message: `Un ${this.getPokemonName(wildPokemon.pokemonId)} sauvage apparaît !`,
         timestamp: Date.now()
       });
@@ -232,8 +255,8 @@ export class EncounterHandlers {
         wildPokemon: wildPokemon,
         location: `${player.currentZone} (${encounterData.zoneId})`,
         method: encounterData.method,
-        currentZone: player.currentZone,  // <-- AJOUTE CETTE LIGNE !
-        zoneId: encounterData.zoneId      // (optionnel pour debug)
+        currentZone: player.currentZone,
+        zoneId: encounterData.zoneId
       });
 
       console.log(`✅ [EncounterHandlers] Combat démarré via BattleHandlers`);
@@ -273,11 +296,18 @@ export class EncounterHandlers {
     this.encounterManager.debugEncounterTable(zone);
 
     // ✅ STATISTIQUES DU MANAGER
+    const encounterConfig = getServerConfig().encounterSystem;
     const stats = {
       zone: zone,
       playerZone: player.currentZone,
       currentConditions: this.room.getCurrentTimeInfo(),
-      encounterManagerStats: 'Visible en console serveur',
+      encounterConfig: {
+        enabled: encounterConfig.enabled,
+        serverSideOnly: encounterConfig.serverSideOnly,
+        cooldownMs: encounterConfig.playerCooldownMs,
+        maxPerMinute: encounterConfig.maxEncountersPerMinute,
+        baseRates: encounterConfig.baseRates
+      },
       battleSystem: 'Connecté avec BattleHandlers'
     };
 
@@ -323,7 +353,8 @@ export class EncounterHandlers {
           x: player.x,
           y: player.y,
           method: data.method || 'grass',
-          forced: true
+          forced: true,
+          fromServerCheck: true // ✅ MARQUER COMME VÉRIFICATION SERVEUR
         });
 
       } else {
@@ -357,6 +388,7 @@ export class EncounterHandlers {
 
     // ✅ INFORMATIONS SUR LA POSITION ACTUELLE
     const conditions = this.room.getCurrentTimeInfo();
+    const encounterConfig = getServerConfig().encounterSystem;
     
     client.send("encounterZoneInfo", {
       success: true,
@@ -367,17 +399,44 @@ export class EncounterHandlers {
         weather: conditions.weather,
         hour: conditions.hour
       },
-      canEncounter: true,
+      canEncounter: encounterConfig.enabled,
+      serverSideOnly: encounterConfig.serverSideOnly,
       possibleMethods: ['grass', 'fishing'],
-      battleSystemActive: true, // ✅ NOUVEAU: Indiquer que le système de combat est actif
+      battleSystemActive: true,
+      encounterRates: encounterConfig.baseRates,
       message: "Informations de position récupérées"
     });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: DÉCLENCHEMENT SERVEUR SÉCURISÉ
+  public async triggerServerEncounter(sessionId: string, x: number, y: number, method: 'grass' | 'fishing' = 'grass'): Promise<boolean> {
+    const client = [...this.room.clients].find(c => c.sessionId === sessionId);
+    if (!client) return false;
+
+    const player = this.room.state.players.get(sessionId);
+    if (!player) return false;
+
+    console.log(`🔒 [EncounterHandlers] Déclenchement serveur pour ${player.name}`);
+
+    try {
+      await this.handleTriggerEncounter(client, {
+        x: x,
+        y: y,
+        zoneId: `${player.currentZone}_default`,
+        method: method,
+        zone: player.currentZone,
+        fromServerCheck: true // ✅ MARQUER COMME VÉRIFICATION SERVEUR AUTORISÉE
+      });
+      return true;
+    } catch (error) {
+      console.error(`❌ [EncounterHandlers] Erreur déclenchement serveur:`, error);
+      return false;
+    }
   }
 
   // ✅ MÉTHODES UTILITAIRES
 
   private getPokemonName(pokemonId: number): string {
-    // Mapping simple des ID vers les noms (à améliorer)
     const pokemonNames: { [key: number]: string } = {
       1: "Bulbasaur", 4: "Charmander", 7: "Squirtle",
       10: "Caterpie", 16: "Pidgey", 19: "Rattata", 
@@ -426,7 +485,7 @@ export class EncounterHandlers {
     return await this.encounterManager.validateAndGenerateEncounter(
       playerId,
       zone,
-      100, // Position test
+      100,
       100,
       conditions.isDayTime ? 'day' : 'night',
       conditions.weather === 'rain' ? 'rain' : 'clear',
@@ -442,13 +501,12 @@ export class EncounterHandlers {
 
     console.log(`🔥 [EncounterHandlers] Force combat: ${this.getPokemonName(pokemonId)} Niv.${level}`);
 
-    // Créer un Pokémon sauvage de test
     const testWildPokemon = {
       pokemonId: pokemonId,
       level: level,
       gender: Math.random() < 0.5 ? "Male" : "Female",
       nature: "Hardy",
-      shiny: Math.random() < 0.001, // 0.1% de chance shiny
+      shiny: Math.random() < 0.001,
       moves: ["tackle", "growl"],
       ivs: {
         hp: Math.floor(Math.random() * 32),
@@ -460,13 +518,13 @@ export class EncounterHandlers {
       }
     };
 
-    // Démarrer le combat immédiatement
     await this.startWildBattleImmediate(client, testWildPokemon, {
       zoneId: `${player.currentZone}_test`,
       x: player.x,
       y: player.y,
       method: 'grass',
-      forced: true
+      forced: true,
+      fromServerCheck: true // ✅ MARQUER COMME AUTORISÉ
     });
   }
 
