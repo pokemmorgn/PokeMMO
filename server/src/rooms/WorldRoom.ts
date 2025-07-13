@@ -58,6 +58,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private battleHandlers!: BattleHandlers;
   public starterHandlers!: StarterHandlers;
   private followerHandlers!: FollowerHandlers;
+  private pokedexHandler!: PokedexMessageHandler;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
 
@@ -97,6 +98,9 @@ export class WorldRoom extends Room<PokeWorldState> {
    // ✅ Enregistrer dans ServiceRegistry
     const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
     const registry = ServiceRegistry.getInstance();
+
+    this.pokedexHandler = new PokedexMessageHandler(this);
+    console.log(`✅ PokedexMessageHandler initialisé`);
     
     // Enregistrer WorldRoom
     registry.registerWorldRoom(this);
