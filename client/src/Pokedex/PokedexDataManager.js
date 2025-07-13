@@ -313,7 +313,16 @@ getAllPokemonEntries(filters = {}) {
   availablePokemon.forEach(pokemonId => {
     const pokemonData = this.pokemonData[pokemonId];
     const playerEntry = this.playerEntries.get(pokemonId);
-    
+
+        // 🆕 DEBUG: Voir pourquoi certains Pokémon ne s'affichent pas
+    if (!pokemonData) {
+      console.warn(`⚠️ [DEBUG] Pas de données pour Pokémon #${pokemonId}`);
+      return;
+    }
+    if (!playerEntry) {
+      console.warn(`⚠️ [DEBUG] Pas d'entrée joueur pour Pokémon #${pokemonId}`);
+      return;
+    }
     if (!pokemonData || !playerEntry) return;
     
     // Appliquer les filtres (reste identique)
