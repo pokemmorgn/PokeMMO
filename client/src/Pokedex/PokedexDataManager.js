@@ -234,34 +234,67 @@ export class PokedexDataManager {
   
   // === 🎯 INITIALISATION COMPLÈTE ===
   
-  initializeAllPokemon() {
-    console.log('🎯 [PokedexDataManager] Initialisation des 151 Pokémon...');
-    
-    // Initialiser tous les Pokémon comme "non vus" par défaut
-    for (let i = 1; i <= 151; i++) {
-      if (!this.playerEntries.has(i)) {
-        this.playerEntries.set(i, {
-          pokemonId: i,
-          seen: false,
-          caught: false,
-          shiny: false,
-          favorited: false,
-          firstSeen: null,
-          firstCaught: null,
-          timesEncountered: 0,
-          bestLevel: 0,
-          locations: [],
-          tags: [],
-          notes: ''
-        });
-      }
-    }
-    
-    console.log(`✅ [PokedexDataManager] ${this.playerEntries.size} Pokémon initialisés`);
+initializeAllPokemon() {
+  console.log('🎯 [PokedexDataManager] Initialisation des Pokémon disponibles...');
+  
+  // Utiliser les Pokémon disponibles du serveur au lieu de 1-151
+  const availablePokemon = this.availablePokemonIds || [];
+  
+  if (availablePokemon.length === 0) {
+    console.warn('⚠️ [PokedexDataManager] Aucun Pokémon disponible reçu du serveur');
+    return;
   }
   
-  // === 📊 MÉTHODES D'ACCÈS AUX DONNÉES ===
+  // Initialiser seulement les Pokémon disponibles sur le serveur
+  availablePokemon.forEach(pokemonId => {
+    if (!this.playerEntries.has(pokemonId)) {
+      this.playerEntries.set(pokemonId, {
+        pokemonId: pokemonId,
+        seen: false,
+        caught: false,
+        shiny: false,
+        favorited: false,
+        firstSeen: null,
+        firstCaught: null,
+        timesEncountered: 0,
+        bestLevel: 0,
+        locations: [],
+        tags: [],
+        notes: ''
+      });
+    }
+  });
   
+  console.log(`✅ [PokedexDataManager] ${availablePokemon.length} Pokémon disponibles initialisés`);
+}
+  
+  // === 📊 MÉTHODES D'ACCÈS AUX DONNÉES ===
+
+  setServerData(serverData) {
+  console.log('📡 [PokedexDataManager] Réception données serveur:', serverData);
+  
+  // Définir les Pokémon disponibles
+  this.availablePokemonIds = serverData.availablePokemon || [];
+  
+  // Mettre à jour les stats basées sur les disponibles
+  if (serverData.summary) {
+    this.playerStats = {
+      totalAvailable: serverData.summary.totalAvailable,
+      totalSeen: serverData.summary.totalSeen,
+      totalCaught: serverData.summary.totalCaught,
+      seenPercentage: serverData.summary.seenPercentage,
+      caughtPercentage: serverData.summary.caughtPercentage,
+      totalShiny: serverData.summary.shinies?.count || 0,
+      favoriteCount: 0, // À calculer localement
+      lastActivity: new Date()
+    };
+  }
+  
+  // Réinitialiser avec les nouveaux Pokémon disponibles
+  this.initializeAllPokemon();
+  
+  console.log(`✅ [PokedexDataManager] ${this.availablePokemonIds.length} Pokémon configurés sur le serveur`);
+}
   /**
    * Obtenir tous les Pokémon avec leur statut
    */
