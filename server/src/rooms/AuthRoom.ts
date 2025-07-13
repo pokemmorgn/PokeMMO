@@ -262,6 +262,8 @@ await user.save();
 user.lastLogin = new Date();
 user.loginCount = (user.loginCount || 0) + 1;
 if (clientIP) user.lastLoginIP = clientIP;
+        user.currentSessionStart = new Date(); // Démarrer session
+
 user.failedLoginAttempts = 0;
 user.lastFailedLogin = undefined;
 await user.save();
@@ -304,7 +306,7 @@ await user.save();
             level: user.level || 1,
             coins: user.gold || 1000,
             lastMap: user.lastMap || "beach",
-            playtime: this.calculatePlaytime(user.createdAt),
+playtime: user.totalPlaytime || 0,
             loginCount: user.loginCount,
             lastLogin: user.lastLogin
           }
@@ -324,75 +326,102 @@ await user.save();
 
     // ✅ HANDLER : Session heartbeat
     this.onMessage("session_heartbeat", async (client, payload) => {
-      try {
-        const { sessionToken } = payload;
-        
-        if (!sessionToken) {
-          client.send("heartbeat_response", { status: "error", reason: "Token required" });
-          return;
-        }
+  try {
+    const { sessionToken } = payload;
+    
+    if (!sessionToken) {
+      client.send("heartbeat_response", { status: "error", reason: "Token required" });
+      return;
+    }
 
-        // Vérifier que la session existe et est valide
-        if (this.activeSessions.has(sessionToken)) {
-          const session = this.activeSessions.get(sessionToken);
-          
-          // Vérifier que la session n'est pas expirée
-          const sessionAge = Date.now() - session.createdAt;
-          if (sessionAge > this.getSessionDuration()) {
-            this.activeSessions.delete(sessionToken);
-            client.send("heartbeat_response", { status: "expired" });
-            return;
-          }
-
-          // Mettre à jour l'activité
-          session.lastActivity = Date.now();
-          client.send("heartbeat_response", { status: "ok", serverTime: Date.now() });
-          
-        } else {
-          // Vérifier le JWT comme fallback
-          try {
-            const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
-            
-            // Recréer la session si le JWT est valide
-            this.activeSessions.set(sessionToken, {
-              username: decoded.username,
-              userId: decoded.userId,
-              lastActivity: Date.now(),
-              createdAt: Date.now(),
-              fromHeartbeat: true
-            });
-            
-            client.send("heartbeat_response", { status: "ok", restored: true });
-            
-          } catch (jwtError) {
-            client.send("heartbeat_response", { status: "expired" });
-          }
-        }
-
-      } catch (error) {
-        console.error('❌ Erreur heartbeat:', error);
-        client.send("heartbeat_response", { status: "error" });
+    if (this.activeSessions.has(sessionToken)) {
+      const session = this.activeSessions.get(sessionToken);
+      
+      const sessionAge = Date.now() - session.createdAt;
+      if (sessionAge > this.getSessionDuration()) {
+        this.activeSessions.delete(sessionToken);
+        client.send("heartbeat_response", { status: "expired" });
+        return;
       }
-    });
+
+      // ✅ NOUVEAU : Mettre à jour playtime
+      if (session.username) {
+        try {
+          const user = await PlayerData.findOne({ username: session.username });
+          if (user && user.currentSessionStart) {
+            const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
+            user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
+            user.currentSessionStart = new Date(); // Reset pour prochaine mesure
+            await user.save();
+          }
+        } catch (error) {
+          console.error('❌ Erreur update playtime:', error);
+        }
+      }
+
+      session.lastActivity = Date.now();
+      client.send("heartbeat_response", { status: "ok", serverTime: Date.now() });
+      
+    } else {
+      try {
+        const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
+        
+        this.activeSessions.set(sessionToken, {
+          username: decoded.username,
+          userId: decoded.userId,
+          lastActivity: Date.now(),
+          createdAt: Date.now(),
+          fromHeartbeat: true
+        });
+        
+        client.send("heartbeat_response", { status: "ok", restored: true });
+        
+      } catch (jwtError) {
+        client.send("heartbeat_response", { status: "expired" });
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur heartbeat:', error);
+    client.send("heartbeat_response", { status: "error" });
+  }
+});
 
     // ✅ HANDLER : Logout sécurisé
-    this.onMessage("user_logout", (client, payload) => {
-      try {
-        const { sessionToken } = payload;
-        
-        if (sessionToken && this.activeSessions.has(sessionToken)) {
-          const session = this.activeSessions.get(sessionToken);
-          this.activeSessions.delete(sessionToken);
-          console.log(`👋 Déconnexion volontaire: ${session.username}`);
+   this.onMessage("user_logout", async (client, payload) => {
+  try {
+    const { sessionToken } = payload;
+    
+    if (sessionToken && this.activeSessions.has(sessionToken)) {
+      const session = this.activeSessions.get(sessionToken);
+      
+      // ✅ NOUVEAU : Finaliser playtime
+      if (session.username) {
+        try {
+          const user = await PlayerData.findOne({ username: session.username });
+          if (user && user.currentSessionStart) {
+            const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
+            user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
+            user.currentSessionStart = null; // Fin de session
+            await user.save();
+            console.log(`⏰ Playtime mis à jour pour ${user.username}: +${sessionTime}min (total: ${user.totalPlaytime}min)`);
+          }
+        } catch (error) {
+          console.error('❌ Erreur finalize playtime:', error);
         }
-        
-        client.send("logout_result", { status: "ok" });
-        
-      } catch (error) {
-        console.error('❌ Erreur logout:', error);
-        client.send("logout_result", { status: "error" });
       }
-    });
+      
+      this.activeSessions.delete(sessionToken);
+      console.log(`👋 Déconnexion volontaire: ${session.username}`);
+    }
+    
+    client.send("logout_result", { status: "ok" });
+    
+  } catch (error) {
+    console.error('❌ Erreur logout:', error);
+    client.send("logout_result", { status: "error" });
+  }
+});
 
     // ✅ HANDLER : Liaison wallet sécurisée
     this.onMessage("link_wallet", async (client, payload) => {
