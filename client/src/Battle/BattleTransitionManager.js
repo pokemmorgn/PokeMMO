@@ -233,7 +233,7 @@ export class BattleTransitionManager {
       this.scene.tweens.add({
         targets: overlay,
         alpha: 1,
-        duration: 200,
+        duration: 400,
         ease: 'Power2.easeInOut',
         onComplete: () => {
           this.blackOverlay = overlay;
@@ -289,37 +289,29 @@ export class BattleTransitionManager {
     this.transitionState = 'ending';
     console.log('✨ [BattleTransitionManager] Finalisation transition...');
 
-    // Démarrer musique de combat (sécurisé)
-    try {
-      if (this.audioManager) {
-        this.audioManager.startBattleMusic();
-      }
-    } catch (error) {
-      console.warn('⚠️ [BattleTransitionManager] Erreur audio ignorée:', error);
+    // Démarrer musique de combat
+    if (this.audioManager) {
+      this.audioManager.startBattleMusic();
     }
 
-    // ✅ FORCER le passage à BattleScene même en cas d'erreur audio
-    console.log('🔄 [BattleTransitionManager] Activation BattleScene forcée...');
+    // Fade in BattleScene
     const battleScene = this.scene.scene.get('BattleScene');
-    if (battleScene) {
+    if (battleScene && this.blackOverlay) {
       battleScene.scene.setVisible(true);
-      battleScene.scene.wake();
       
       // Fade out l'overlay noir
-      if (this.blackOverlay) {
-        battleScene.tweens.add({
-          targets: this.blackOverlay,
-          alpha: 0,
-          duration: 300,
-          ease: 'Power2.easeOut',
-          onComplete: () => {
-            if (this.blackOverlay) {
-              this.blackOverlay.destroy();
-              this.blackOverlay = null;
-            }
+      battleScene.tweens.add({
+        targets: this.blackOverlay,
+        alpha: 0,
+        duration: 500,
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+          if (this.blackOverlay) {
+            this.blackOverlay.destroy();
+            this.blackOverlay = null;
           }
-        });
-      }
+        }
+      });
     }
 
     // Nettoyer la transition
@@ -370,53 +362,37 @@ export class BattleTransitionManager {
       currentMusic: null,
       
       async fadeOutCurrentMusic(duration) {
-        try {
-          if (this.currentMusic && this.scene?.tweens) {
-            return new Promise(resolve => {
-              this.scene.tweens.add({
-                targets: this.currentMusic,
-                volume: 0,
-                duration: duration,
-                onComplete: () => {
-                  if (this.currentMusic) {
-                    this.currentMusic.stop();
-                    this.currentMusic = null;
-                  }
-                  resolve();
-                }
-              });
+        if (this.currentMusic) {
+          return new Promise(resolve => {
+            this.scene.tweens.add({
+              targets: this.currentMusic,
+              volume: 0,
+              duration: duration,
+              onComplete: () => {
+                this.currentMusic.stop();
+                this.currentMusic = null;
+                resolve();
+              }
             });
-          }
-        } catch (error) {
-          console.warn('⚠️ [AudioManager] Erreur fadeOut:', error);
+          });
         }
       },
       
       playTransitionSound(soundKey, volume = 0.8) {
-        try {
-          if (this.scene?.sound && this.scene.cache?.audio?.exists(soundKey)) {
-            this.scene.sound.play(soundKey, { volume });
-          } else {
-            console.warn(`⚠️ Son de transition manquant: ${soundKey}`);
-          }
-        } catch (error) {
-          console.warn('⚠️ [AudioManager] Erreur son transition:', error);
+        if (this.scene.sound && this.scene.cache.audio.exists(soundKey)) {
+          this.scene.sound.play(soundKey, { volume });
+        } else {
+          console.warn(`⚠️ Son de transition manquant: ${soundKey}`);
         }
       },
       
       startBattleMusic() {
-        try {
-          const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
-          if (this.scene?.sound && this.scene.cache?.audio?.exists(battleMusicKey)) {
-            this.currentMusic = this.scene.sound.play(battleMusicKey, { 
-              loop: true, 
-              volume: 0.6 
-            });
-          } else {
-            console.log('🎵 [AudioManager] Musique de combat non disponible');
-          }
-        } catch (error) {
-          console.warn('⚠️ [AudioManager] Erreur musique:', error);
+        const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
+        if (this.scene.sound && this.scene.cache.audio.exists(battleMusicKey)) {
+          this.currentMusic = this.scene.sound.play(battleMusicKey, { 
+            loop: true, 
+            volume: 0.6 
+          });
         }
       }
     };
@@ -425,7 +401,7 @@ export class BattleTransitionManager {
   /**
    * Configuration par défaut
    */
-  getDefaultConfig() {
+getDefaultConfig() {
     return {
       version: "1.0.0",
       defaultTransition: "spiral",
