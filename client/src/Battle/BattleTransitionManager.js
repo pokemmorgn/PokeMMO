@@ -453,6 +453,48 @@ getDefaultConfig() {
   }
 
   /**
+   * Gère le retour depuis BattleScene vers l'overworld
+   */
+  async handleBattleExit() {
+    console.log('🔄 [BattleTransitionManager] === RETOUR VERS OVERWORLD ===');
+    
+    try {
+      // Réveiller et afficher la scène d'origine
+      if (this.scene.scene.isSleeping()) {
+        this.scene.scene.wake();
+      }
+      
+      this.scene.scene.setVisible(true);
+      this.scene.scene.bringToTop();
+      
+      // Fade in rapide
+      const overlay = this.scene.add.graphics();
+      overlay.fillStyle(0x000000, 1);
+      overlay.fillRect(0, 0, this.scene.scale.width, this.scene.scale.height);
+      overlay.setScrollFactor(0);
+      overlay.setDepth(10000);
+      
+      this.scene.tweens.add({
+        targets: overlay,
+        alpha: 0,
+        duration: 500,
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+          overlay.destroy();
+          console.log('✅ [BattleTransitionManager] Retour overworld terminé');
+        }
+      });
+      
+      // Débloquer le mouvement
+      if (window.movementBlockHandler) {
+        window.movementBlockHandler.requestForceUnblock();
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleTransitionManager] Erreur retour overworld:', error);
+    }
+  }
+  /**
    * API publique pour customisation
    */
   setTransitionConfig(type, config) {
@@ -473,4 +515,5 @@ getDefaultConfig() {
   getCurrentTransitionState() {
     return this.transitionState;
   }
+  
 }
