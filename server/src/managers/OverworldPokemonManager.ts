@@ -109,7 +109,6 @@ export class OverworldPokemonManager {
   }
 
   start(): void {
-    console.log("🚀 [OverworldPokemonManager] Démarrage - Mouvement case par case");
     Object.keys(this.config.areas).forEach(areaId => {
       this.spawnPokemonInArea(areaId);
     });
@@ -248,7 +247,6 @@ export class OverworldPokemonManager {
         pokemon.isMoving = false;
         pokemon.lastMoveTime = now;
         this.broadcastPokemonUpdate(pokemon);
-        console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.x}, ${pokemon.y})`);
       }
     } else {
       // Pokémon immobile, vérifier s'il doit bouger
@@ -301,10 +299,8 @@ export class OverworldPokemonManager {
     pokemon.lastMoveTime = Date.now();
     
     this.broadcastPokemonUpdate(pokemon);
-    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name}: (${pokemon.x}, ${pokemon.y}) → (${toX}, ${toY}) ${direction}`);
   } else {
     // ✅ MOUVEMENT BLOQUÉ - NE PAS BOUGER
-    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué par collision à (${toX}, ${toY})`);
     
     // Marquer comme immobile et attendre avant le prochain essai
     pokemon.isMoving = false;
