@@ -233,7 +233,7 @@ export class BattleTransitionManager {
       this.scene.tweens.add({
         targets: overlay,
         alpha: 1,
-        duration: 400,
+        duration: 200,
         ease: 'Power2.easeInOut',
         onComplete: () => {
           this.blackOverlay = overlay;
@@ -281,7 +281,7 @@ export class BattleTransitionManager {
   /**
    * Termine la transition avec fade in
    */
-async completeBattleTransition(config, delay = 0) {
+  async completeBattleTransition(config, delay = 0) {
     if (delay > 0) {
       await this.wait(delay);
     }
@@ -304,26 +304,22 @@ async completeBattleTransition(config, delay = 0) {
     if (battleScene) {
       battleScene.scene.setVisible(true);
       battleScene.scene.wake();
-    }
-
-    // Fade in BattleScene
-    const battleScene = this.scene.scene.get('BattleScene');
-    if (battleScene && this.blackOverlay) {
-      battleScene.scene.setVisible(true);
       
       // Fade out l'overlay noir
-      battleScene.tweens.add({
-        targets: this.blackOverlay,
-        alpha: 0,
-        duration: 500,
-        ease: 'Power2.easeOut',
-        onComplete: () => {
-          if (this.blackOverlay) {
-            this.blackOverlay.destroy();
-            this.blackOverlay = null;
+      if (this.blackOverlay) {
+        battleScene.tweens.add({
+          targets: this.blackOverlay,
+          alpha: 0,
+          duration: 300,
+          ease: 'Power2.easeOut',
+          onComplete: () => {
+            if (this.blackOverlay) {
+              this.blackOverlay.destroy();
+              this.blackOverlay = null;
+            }
           }
-        }
-      });
+        });
+      }
     }
 
     // Nettoyer la transition
@@ -374,52 +370,62 @@ async completeBattleTransition(config, delay = 0) {
       currentMusic: null,
       
       async fadeOutCurrentMusic(duration) {
-        if (this.currentMusic) {
-          return new Promise(resolve => {
-            this.scene.tweens.add({
-              targets: this.currentMusic,
-              volume: 0,
-              duration: duration,
-              onComplete: () => {
-                this.currentMusic.stop();
-                this.currentMusic = null;
-                resolve();
-              }
+        try {
+          if (this.currentMusic && this.scene?.tweens) {
+            return new Promise(resolve => {
+              this.scene.tweens.add({
+                targets: this.currentMusic,
+                volume: 0,
+                duration: duration,
+                onComplete: () => {
+                  if (this.currentMusic) {
+                    this.currentMusic.stop();
+                    this.currentMusic = null;
+                  }
+                  resolve();
+                }
+              });
             });
-          });
+          }
+        } catch (error) {
+          console.warn('⚠️ [AudioManager] Erreur fadeOut:', error);
         }
       },
       
       playTransitionSound(soundKey, volume = 0.8) {
-        if (this.scene.sound && this.scene.cache.audio.exists(soundKey)) {
-          this.scene.sound.play(soundKey, { volume });
-        } else {
-          console.warn(`⚠️ Son de transition manquant: ${soundKey}`);
+        try {
+          if (this.scene?.sound && this.scene.cache?.audio?.exists(soundKey)) {
+            this.scene.sound.play(soundKey, { volume });
+          } else {
+            console.warn(`⚠️ Son de transition manquant: ${soundKey}`);
+          }
+        } catch (error) {
+          console.warn('⚠️ [AudioManager] Erreur son transition:', error);
         }
       },
       
-    startBattleMusic() {
-            try {
-              const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
-              if (this.scene?.sound && this.scene.cache?.audio?.exists(battleMusicKey)) {
-                this.currentMusic = this.scene.sound.play(battleMusicKey, { 
-                  loop: true, 
-                  volume: 0.6 
-                });
-              } else {
-                console.log('🎵 [AudioManager] Musique de combat non disponible');
-              }
-            } catch (error) {
-              console.warn('⚠️ [AudioManager] Erreur musique:', error);
-            }
+      startBattleMusic() {
+        try {
+          const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
+          if (this.scene?.sound && this.scene.cache?.audio?.exists(battleMusicKey)) {
+            this.currentMusic = this.scene.sound.play(battleMusicKey, { 
+              loop: true, 
+              volume: 0.6 
+            });
+          } else {
+            console.log('🎵 [AudioManager] Musique de combat non disponible');
           }
+        } catch (error) {
+          console.warn('⚠️ [AudioManager] Erreur musique:', error);
+        }
+      }
     };
   }
 
   /**
    * Configuration par défaut
    */
-getDefaultConfig() {
+  getDefaultConfig() {
     return {
       version: "1.0.0",
       defaultTransition: "spiral",
