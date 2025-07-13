@@ -496,8 +496,8 @@ export class PokedexService extends EventEmitter {
           .lean(),
         PokedexEntry.countDocuments(query)
       ]);
-      console.log(`🔍 [DEBUG] Résultats trouvés: ${entries.length} entrées, total: ${total}`);
-      console.log(`🔍 [DEBUG] Première entrée:`, entries[0] ? JSON.stringify(entries[0]) :
+console.log(`🔍 [DEBUG] Résultats trouvés: ${entries.length} entrées, total: ${total}`);
+console.log(`🔍 [DEBUG] Première entrée:`, entries[0] ? JSON.stringify(entries[0]) : 'aucune');
       // Enrichissement avec les données Pokémon en batch
       const enrichedEntries = await this.enrichEntriesWithPokemonData(entries);
       
