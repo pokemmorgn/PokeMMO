@@ -463,6 +463,19 @@ const connectionSuccess = await window.globalNetworkManager.connect("beach", {
   permissions: userSession.permissions || ['play']
 });
 
+// ✅ NOUVEAU: Démarrer heartbeat pour tracker le playtime
+if (connectionSuccess && window.currentGameRoom) {
+  console.log("⏰ Démarrage heartbeat playtime...");
+  
+  setInterval(() => {
+    if (window.currentGameRoom && window.currentGameRoom.connection.isOpen) {
+      window.currentGameRoom.send("ping", { timestamp: Date.now() });
+    }
+  }, 30000); // Toutes les 30 secondes
+  
+  console.log("✅ Heartbeat playtime configuré (30s)");
+}
+
 if (!connectionSuccess) {
   console.error("❌ Échec de connexion à la WorldRoom");
   alert("Impossible de se connecter au monde du jeu. Veuillez réessayer.");
