@@ -480,11 +480,6 @@ export class PokedexService extends EventEmitter {
       console.log(`🔍 [DEBUG] Requête Pokédx - PlayerId: "${playerId}"`);
       console.log(`🔍 [DEBUG] Filtres appliqués:`, JSON.stringify(filters));
       console.log(`🔍 [DEBUG] Query construite:`, JSON.stringify(query));
-      // Construction de la requête optimisée
-      const query = await this.buildSearchQuery(playerId, filters);
-      
-      // 🆕 FILTRER POUR NE GARDER QUE LES POKÉMON DISPONIBLES
-      query.pokemonId = { $in: availablePokemonIds };
       
       // Pagination sécurisée
       const limit = Math.min(filters.limit || 50, this.config.maxSearchResults);
