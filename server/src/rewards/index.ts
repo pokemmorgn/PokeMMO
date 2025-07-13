@@ -114,7 +114,7 @@ export async function giveMoney(playerId: string, amount: number) {
   return await giveRewards(playerId, [
     { type: 'money', amount }
   ], {
-    sourceType: 'manual',
+    sourceType: 'daily',
     sourceId: `money_${Date.now()}`
   });
 }
@@ -135,7 +135,7 @@ export async function giveExperience(
       pokemonId 
     }
   ], {
-    sourceType: 'manual',
+    sourceType: 'daily',
     sourceId: `exp_${Date.now()}`
   });
 }
@@ -156,7 +156,7 @@ export async function giveItem(
       quantity 
     }
   ], {
-    sourceType: 'manual',
+    sourceType: 'daily',
     sourceId: `item_${Date.now()}`
   });
 }
