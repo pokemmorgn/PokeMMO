@@ -82,10 +82,13 @@ window.gameConfig = {
 
 console.log('✅ Configuration wallet optionnelle activée');
 // ✅ NOUVEAU SYSTÈME DE SESSION SÉCURISÉE
+// Remplacez la fonction getSecureUserSession dans main.js
+
 function getSecureUserSession() {
   const encryptedSession = sessionStorage.getItem('pws_game_session');
   
   if (!encryptedSession) {
+    console.warn('❌ Aucune session de jeu trouvée');
     alert('Veuillez vous connecter pour jouer');
     window.location.href = '/auth';
     return null;
@@ -93,28 +96,44 @@ function getSecureUserSession() {
 
   try {
     const key = sessionStorage.getItem('pws_key');
+    if (!key) {
+      console.warn('❌ Clé de session manquante');
+      throw new Error('Session key missing');
+    }
+    
     const decoded = atob(encryptedSession);
     const [dataStr, sessionKey] = decoded.split('|');
     
-    if (sessionKey !== key) throw new Error('Invalid session');
+    if (sessionKey !== key) {
+      console.warn('❌ Clé de session invalide');
+      throw new Error('Invalid session key');
+    }
     
     const sessionData = JSON.parse(dataStr);
     
-    if (!sessionData.username) throw new Error('No username');
-    
-    // Vérifier expiration (6h)
-    if (sessionData.gameStartTime && Date.now() - sessionData.gameStartTime > 6 * 60 * 60 * 1000) {
-      throw new Error('Session expired');
+    if (!sessionData.username) {
+      console.warn('❌ Username manquant dans la session');
+      throw new Error('No username in session');
     }
-
+    
+    // ✅ SUPPRIMÉ: Vérification expiration trop stricte
+    // Laisser le serveur gérer l'expiration du JWT
+    
+    console.log('✅ Session de jeu valide pour:', sessionData.username);
     return sessionData;
+    
   } catch (error) {
+    console.error('❌ Erreur lecture session:', error);
     alert('Session invalide. Reconnexion requise.');
+    
+    // ✅ Nettoyer les sessions corrompues
+    sessionStorage.removeItem('pws_game_session');
+    sessionStorage.removeItem('pws_key');
+    
     window.location.href = '/auth';
     return null;
   }
 }
-
 // Récupérer l'utilisateur sécurisé
 const userSession = getSecureUserSession();
 if (!userSession) {
