@@ -74,7 +74,6 @@ walletAddress: {
 // ✅ INDEX pour performance et sécurité
 PlayerDataSchema.index({ username: 1 });
 PlayerDataSchema.index({ email: 1 });
-PlayerDataSchema.index({ walletAddress: 1 });
 PlayerDataSchema.index({ deviceFingerprint: 1 });
 PlayerDataSchema.index({ isActive: 1 });
 PlayerDataSchema.index({ createdAt: 1 });
