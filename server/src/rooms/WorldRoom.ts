@@ -562,9 +562,29 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Handler PING pour garder la connexion active (heartbeat)
-    this.onMessage("ping", (client, data) => {
-      // Simple log, mais surtout ça évite l'erreur
-    });
+    this.onMessage("ping", async (client, data) => {
+  // ✅ NOUVEAU: Mettre à jour le playtime via ping
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    try {
+      const user = await PlayerData.findOne({ username: player.name });
+      if (user && user.currentSessionStart) {
+        const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
+        if (sessionTime > 0) {
+          user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
+          user.currentSessionStart = new Date();
+          await user.save();
+          console.log(`⏰ Playtime mis à jour: ${player.name} +${sessionTime}min (total: ${user.totalPlaytime}min)`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur update playtime via ping:', error);
+    }
+  }
+  
+  // Répondre au ping
+  client.send("pong", { serverTime: Date.now() });
+});
     
     // Transition entre zones (ancien système)
     this.onMessage("moveToZone", async (client, data) => {
