@@ -8,6 +8,7 @@ import { OwnedPokemon } from '../../models/OwnedPokemon';
 import { getPokemonById } from '../../data/PokemonData';
 import { MoveManager } from '../../managers/MoveManager';
 import { BallManager } from './BallManager';
+import { pokedexIntegrationService } from '../../services/PokedexIntegrationService';
 
 // === INTERFACES ===
 
@@ -238,6 +239,32 @@ export class CaptureManager {
     if (checkResult.captured) {
       // SUCCÈS
       const capturedPokemon = await this.createCapturedPokemon(pokemon, playerName, ballType);
+      // ✅ ENREGISTREMENT POKÉDX - Marquer comme capturé
+      console.log(`🎯 [CaptureManager] Enregistrement Pokémon capturé: #${pokemon.id} pour ${playerName}`);
+      
+      await pokedexIntegrationService.handlePokemonCapture({
+        playerId: playerName,           // Username du joueur
+        pokemonId: pokemon.id,          // ID du Pokémon capturé
+        level: pokemon.level,
+        location: 'Combat Sauvage',
+        method: 'wild',
+        ownedPokemonId: capturedPokemon._id.toString(), // ID du Pokémon en base
+        isShiny: pokemon.shiny || false,
+        captureTime: Date.now(),
+        ballType: ballType,
+        isFirstAttempt: true // TODO: tracker les vraies tentatives
+      }).then(result => {
+        if (result.success) {
+          console.log(`✅ [CaptureManager] Pokémon #${pokemon.id} enregistré comme capturé`);
+          if (result.isNewCapture) {
+            console.log(`🎉 [CaptureManager] PREMIÈRE CAPTURE: ${pokemon.name}!`);
+          }
+        } else {
+          console.warn(`⚠️ [CaptureManager] Échec enregistrement Pokédx: ${result.error || 'Erreur inconnue'}`);
+        }
+      }).catch(error => {
+        console.error('❌ [CaptureManager] Erreur enregistrement Pokédx capture:', error);
+      });
       const addResult = await this.addPokemonToTeamOrPC(capturedPokemon, teamManager);
       
       console.log(`✅ [CaptureManager] Capture normale réussie après ${totalAnimationTime}ms`);
