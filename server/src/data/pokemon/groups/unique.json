@@ -1,1 +1,126 @@
-
+{
+  "id": "unique",
+  "name": "Unique Pokémon",
+  "description": "Non-legendary Pokémon that have special characteristics, unique typings, or are one-of-a-kind in their generation",
+  "region": "kanto",
+  "category": "special",
+  "pokemon": [
+    {
+      "id": 83,
+      "name": "Farfetch'd",
+      "family": "farfetchd",
+      "rarity": "unique",
+      "uniqueness": "single_stage_normal_flying",
+      "special_trait": "Carries a leek as a weapon",
+      "typing_note": "Only Normal/Flying type that doesn't evolve"
+    },
+    {
+      "id": 106,
+      "name": "Hitmonlee",
+      "family": "hitmonlee", 
+      "rarity": "unique",
+      "uniqueness": "pure_fighting_kicking_specialist",
+      "special_trait": "Legs can stretch and contract",
+      "typing_note": "Fighting-type focused on kicks"
+    },
+    {
+      "id": 107,
+      "name": "Hitmonchan",
+      "family": "hitmonchan",
+      "rarity": "unique", 
+      "uniqueness": "pure_fighting_punching_specialist",
+      "special_trait": "Punches with boxing gloves",
+      "typing_note": "Fighting-type focused on punches"
+    },
+    {
+      "id": 108,
+      "name": "Lickitung",
+      "family": "lickitung",
+      "rarity": "unique",
+      "uniqueness": "tongue_based_normal_type",
+      "special_trait": "Extremely long tongue for attacks",
+      "typing_note": "Only Normal-type with tongue-based movepool"
+    },
+    {
+      "id": 113,
+      "name": "Chansey",
+      "family": "chansey",
+      "rarity": "unique",
+      "uniqueness": "extreme_hp_normal_type",
+      "special_trait": "Highest HP stat in generation 1",
+      "typing_note": "Support-focused Normal-type"
+    },
+    {
+      "id": 115,
+      "name": "Kangaskhan",
+      "family": "kangaskhan",
+      "rarity": "unique",
+      "uniqueness": "mother_with_baby_concept",
+      "special_trait": "Always has a baby in pouch",
+      "typing_note": "Single-stage Normal-type with unique design"
+    },
+    {
+      "id": 122,
+      "name": "Mr. Mime",
+      "family": "mr_mime",
+      "rarity": "unique",
+      "uniqueness": "humanoid_psychic_fairy",
+      "special_trait": "Mime artist that creates invisible walls",
+      "typing_note": "Psychic-type with human-like characteristics"
+    },
+    {
+      "id": 127,
+      "name": "Pinsir",
+      "family": "pinsir",
+      "rarity": "unique",
+      "uniqueness": "pure_bug_with_pincers",
+      "special_trait": "Large horned pincers for gripping",
+      "typing_note": "Single-stage Bug-type with high Attack"
+    },
+    {
+      "id": 128,
+      "name": "Tauros",
+      "family": "tauros",
+      "rarity": "unique",
+      "uniqueness": "aggressive_bull_normal_type",
+      "special_trait": "Wild bull with three tails",
+      "typing_note": "Physical attacker Normal-type"
+    },
+    {
+      "id": 131,
+      "name": "Lapras",
+      "family": "lapras",
+      "rarity": "unique",
+      "uniqueness": "gentle_water_ice_transport",
+      "special_trait": "Gentle giant that ferries people",
+      "typing_note": "Only Water/Ice type in generation 1"
+    },
+    {
+      "id": 132,
+      "name": "Ditto",
+      "family": "ditto",
+      "rarity": "unique",
+      "uniqueness": "transform_specialist",
+      "special_trait": "Can transform into any Pokémon",
+      "typing_note": "Only Pokémon with Transform ability"
+    },
+    {
+      "id": 142,
+      "name": "Aerodactyl",
+      "family": "aerodactyl",
+      "rarity": "unique",
+      "uniqueness": "fossil_pokemon_rock_flying",
+      "special_trait": "Revived from Old Amber fossil",
+      "typing_note": "Ancient Pokémon with Rock/Flying typing"
+    },
+    {
+      "id": 143,
+      "name": "Snorlax",
+      "family": "snorlax",
+      "rarity": "unique",
+      "uniqueness": "sleeping_giant_normal_type",
+      "special_trait": "Sleeps most of the time, blocks paths",
+      "typing_note": "Massive Normal-type with incredible bulk"
+    }
+  ]
+}
