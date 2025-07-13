@@ -71,31 +71,14 @@ export class BattleNetworkHandler {
 
     try {
       // ✅ RENCONTRES - correspond à BattleRoom.ts
-      this.networkManager.onMessage("wildEncounterStart", (data) => {
+      this.worldRoom.onMessage('wildEncounterStart', (data) => {
         console.log('🐾 wildEncounterStart reçu:', data);
-        
-        // 🎬 NOUVEAU: Déclencher la transition de combat si disponible
-        const currentScene = this.networkManager?.getCurrentScene?.() || window.game?.scene?.getScene('Road1Scene');
-        if (currentScene?.battleTransitionManager?.isTransitionInProgress && !currentScene.battleTransitionManager.isTransitionInProgress()) {
-          console.log('🎬 [BattleNetworkHandler] Déclenchement transition de combat...');
-          
-          const battleData = {
-            type: 'wild',
-            pokemon: data.wildPokemon || data.pokemon,
-            location: data.location,
-            method: data.method
-          };
-          
-          currentScene.battleTransitionManager.startBattleTransition(battleData, 'spiral');
-        } else {
-          // 🔄 Fallback vers l'événement normal
-          this.triggerEvent('wildEncounterStart', {
-            type: 'wild',
-            pokemon: data.wildPokemon || data.pokemon,
-            location: data.location,
-            method: data.method
-          });
-        }
+        this.triggerEvent('wildEncounterStart', {
+          type: 'wild',
+          pokemon: data.wildPokemon || data.pokemon,
+          location: data.location,
+          method: data.method
+        });
       });
 
       // ✅ CRÉATION BATTLEROOM - correspond aux callbacks BattleIntegration
