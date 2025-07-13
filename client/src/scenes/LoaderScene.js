@@ -14,7 +14,6 @@ export class LoaderScene extends Phaser.Scene {
   }
   
   preload() {
-    this.createLoadingBar();
 
     // ✅ CHARGEMENT AUTOMATIQUE DE TOUTES LES MAPS
     console.log('🗺️ [LoaderScene] Chargement automatique des maps...');
