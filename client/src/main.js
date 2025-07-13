@@ -71,19 +71,47 @@ const client = new Client(ENDPOINT);
 window.client = client;
 console.log("✅ Client Colyseus exposé globalement");
 
-function getWalletFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('wallet');
-}
+// ✅ NOUVEAU SYSTÈME DE SESSION SÉCURISÉE
+function getSecureUserSession() {
+  const encryptedSession = sessionStorage.getItem('pws_game_session');
+  
+  if (!encryptedSession) {
+    alert('Veuillez vous connecter pour jouer');
+    window.location.href = '/auth';
+    return null;
+  }
 
-let username = getWalletFromUrl();
-if (!username) {
-  username = prompt("Connecte-toi avec Phantom. (DEBUG: Entrez un pseudo manuellement)");
-  if (!username || username.trim() === "") {
-    alert("Un pseudo est obligatoire pour jouer !");
-    throw new Error("Aucun pseudo fourni.");
+  try {
+    const key = sessionStorage.getItem('pws_key');
+    const decoded = atob(encryptedSession);
+    const [dataStr, sessionKey] = decoded.split('|');
+    
+    if (sessionKey !== key) throw new Error('Invalid session');
+    
+    const sessionData = JSON.parse(dataStr);
+    
+    if (!sessionData.username) throw new Error('No username');
+    
+    // Vérifier expiration (6h)
+    if (sessionData.gameStartTime && Date.now() - sessionData.gameStartTime > 6 * 60 * 60 * 1000) {
+      throw new Error('Session expired');
+    }
+
+    return sessionData;
+  } catch (error) {
+    alert('Session invalide. Reconnexion requise.');
+    window.location.href = '/auth';
+    return null;
   }
 }
+
+// Récupérer l'utilisateur sécurisé
+const userSession = getSecureUserSession();
+if (!userSession) {
+  throw new Error("Session invalide");
+}
+
+const username = userSession.username;
 window.username = username;
 
 async function initializeSceneSystem() {
