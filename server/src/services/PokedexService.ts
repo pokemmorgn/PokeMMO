@@ -2,6 +2,7 @@
 import { PokedexEntry, IPokedexEntry, PokedexEntryUtils } from '../models/PokedexEntry';
 import { PokedexStats, IPokedexStats } from '../models/PokedexStats';
 import { getPokemonById } from '../data/PokemonData';
+import { availablePokemonService } from './AvailablePokemonService';
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
 
@@ -437,6 +438,7 @@ export class PokedexService extends EventEmitter {
     pagination: { total: number; page: number; limit: number; hasNext: boolean; hasPrev: boolean };
     summary: any;
     performance: { cached: boolean; executionTime: number };
+    availablePokemon: number[]; // 🆕 AJOUTER CETTE LIGNE
   }> {
     const startTime = Date.now();
     this.serviceStats.totalRequests++;
@@ -447,6 +449,10 @@ export class PokedexService extends EventEmitter {
         throw new Error('Invalid player ID');
       }
       
+      // 🆕 RÉCUPÉRER LES POKÉMON DISPONIBLES SUR LE SERVEUR
+      const availablePokemonIds = availablePokemonService.getAvailablePokemonIds();
+      const totalAvailableOnServer = availablePokemonService.getTotalAvailable();
+      
       // Générer clé de cache
       const cacheKey = this.generateSearchCacheKey(playerId, filters);
       const cachedResult = this.searchCache.get(cacheKey);
@@ -456,16 +462,20 @@ export class PokedexService extends EventEmitter {
         this.serviceStats.cacheHits++;
         return {
           ...cachedResult.data,
+          availablePokemon: availablePokemonIds, // 🆕 AJOUTER LES IDS DISPONIBLES
           performance: { cached: true, executionTime: Date.now() - startTime }
         };
       }
       
       this.serviceStats.cacheMisses++;
       
-      console.log(`📖 [PokedexService] Récupération Pokédex pour ${playerId}`);
+      console.log(`📖 [PokedexService] Récupération Pokédx pour ${playerId} (${totalAvailableOnServer} Pokémon disponibles)`);
       
       // Construction de la requête optimisée
       const query = await this.buildSearchQuery(playerId, filters);
+      
+      // 🆕 FILTRER POUR NE GARDER QUE LES POKÉMON DISPONIBLES
+      query.pokemonId = { $in: availablePokemonIds };
       
       // Pagination sécurisée
       const limit = Math.min(filters.limit || 50, this.config.maxSearchResults);
@@ -497,13 +507,14 @@ export class PokedexService extends EventEmitter {
         hasPrev: offset > 0
       };
       
-      // Résumé rapide avec cache
-      const summary = await this.getQuickSummary(playerId);
+      // 🆕 RÉSUMÉ AVEC LES VRAIES DONNÉES DU SERVEUR
+      const summary = await this.getQuickSummaryWithAvailablePokemon(playerId, totalAvailableOnServer);
       
       const result = {
         entries: enrichedEntries,
         pagination,
         summary,
+        availablePokemon: availablePokemonIds, // 🆕 LISTE DES POKÉMON DISPONIBLES
         performance: { cached: false, executionTime: Date.now() - startTime }
       };
       
@@ -673,36 +684,137 @@ export class PokedexService extends EventEmitter {
   /**
    * Force un recalcul complet avec optimisations
    */
-  async recalculatePlayerStats(playerId: string, force: boolean = false): Promise<IPokedexStats> {
-    try {
-      if (!PokedexEntryUtils.isValidPlayerId(playerId)) {
-        throw new Error('Invalid player ID');
+      async recalculatePlayerStats(playerId: string, force: boolean = false): Promise<IPokedexStats> {
+        try {
+          if (!PokedexEntryUtils.isValidPlayerId(playerId)) {
+            throw new Error('Invalid player ID');
+          }
+          
+          console.log(`🔄 [PokedexService] Recalcul stats pour ${playerId}`);
+          
+          const stats = await PokedexStats.findOrCreate(playerId);
+          await stats.recalculateStats(force);
+          
+          // Invalider le cache
+          this.playerStatsCache.delete(playerId);
+          this.searchCache.clear(); // Clear search cache as stats changed
+          
+          this.emit('statsRecalculated', { playerId, stats });
+          
+          return stats;
+        } catch (error) {
+          this.emit('error', error);
+          console.error(`❌ [PokedexService] Erreur recalculatePlayerStats:`, error);
+          throw error;
+        }
       }
       
-      console.log(`🔄 [PokedexService] Recalcul stats pour ${playerId}`);
+      // ===== MÉTHODES PRIVÉES UTILITAIRES =====
       
-      const stats = await PokedexStats.findOrCreate(playerId);
-      await stats.recalculateStats(force);
-      
-      // Invalider le cache
-      this.playerStatsCache.delete(playerId);
-      this.searchCache.clear(); // Clear search cache as stats changed
-      
-      this.emit('statsRecalculated', { playerId, stats });
-      
-      return stats;
-    } catch (error) {
-      this.emit('error', error);
-      console.error(`❌ [PokedexService] Erreur recalculatePlayerStats:`, error);
-      throw error;
+      /**
+       * Validation complète des données de découverte
+       */
+        private async getQuickSummaryWithAvailablePokemon(playerId: string, totalAvailableOnServer: number): Promise<any> {
+        try {
+          // Récupérer les stats du joueur
+          const stats = await PokedexStats.findOrCreate(playerId);
+          
+          // Récupérer les IDs disponibles sur le serveur
+          const availablePokemonIds = availablePokemonService.getAvailablePokemonIds();
+          
+          // Compter combien de Pokémon disponibles le joueur a vus/capturés
+          const [seenCount, caughtCount, shinyCount] = await Promise.all([
+            PokedexEntry.countDocuments({
+              playerId,
+              pokemonId: { $in: availablePokemonIds },
+              isSeen: true
+            }),
+            PokedexEntry.countDocuments({
+              playerId,
+              pokemonId: { $in: availablePokemonIds },
+              isCaught: true
+            }),
+            PokedexEntry.countDocuments({
+              playerId,
+              pokemonId: { $in: availablePokemonIds },
+              'bestSpecimen.isShiny': true
+            })
+          ]);
+          
+          // Calculer les pourcentages corrects
+          const seenPercentage = totalAvailableOnServer > 0 ? 
+            Math.round((seenCount / totalAvailableOnServer) * 10000) / 100 : 0;
+          const caughtPercentage = totalAvailableOnServer > 0 ? 
+            Math.round((caughtCount / totalAvailableOnServer) * 10000) / 100 : 0;
+          
+          return {
+            // Données basées sur les Pokémon réellement disponibles
+            totalAvailable: totalAvailableOnServer,
+            seen: {
+              count: seenCount,
+              percentage: seenPercentage,
+              remaining: Math.max(0, totalAvailableOnServer - seenCount)
+            },
+            caught: {
+              count: caughtCount,
+              percentage: caughtPercentage,
+              remaining: Math.max(0, totalAvailableOnServer - caughtCount)
+            },
+            shinies: {
+              count: shinyCount,
+              percentage: caughtCount > 0 ? Math.round((shinyCount / caughtCount) * 100) : 0
+            },
+            
+            // Stats générales du joueur (inchangées)
+            records: {
+              highestLevel: stats.records.highestLevelCaught,
+              longestStreak: stats.records.longestCaughtStreak,
+              perfectCatches: stats.records.perfectCatches
+            },
+            
+            // Progression et rang
+            completion: {
+              rank: this.calculateCompletionRank(caughtPercentage),
+              nextMilestone: this.getNextMilestoneForAvailable(caughtCount, totalAvailableOnServer)
+            },
+            
+            // Métadonnées
+            lastCalculated: new Date(),
+            basedOnAvailablePokemon: true // Flag pour indiquer le nouveau calcul
+          };
+          
+        } catch (error) {
+          console.error(`❌ [PokedexService] Erreur getQuickSummaryWithAvailablePokemon:`, error);
+          
+          // Fallback vers l'ancienne méthode en cas d'erreur
+          return await this.getQuickSummary(playerId);
+        }
+      }
+    private getNextMilestoneForAvailable(current: number, totalAvailable: number): any {
+    // Milestones dynamiques basés sur le total disponible
+    const milestones = [
+      Math.floor(totalAvailable * 0.1),  // 10%
+      Math.floor(totalAvailable * 0.25), // 25%
+      Math.floor(totalAvailable * 0.5),  // 50%
+      Math.floor(totalAvailable * 0.75), // 75%
+      Math.floor(totalAvailable * 0.9),  // 90%
+      totalAvailable                      // 100%
+    ].filter(m => m > 0); // Retirer les 0
+    
+    const next = milestones.find(m => m > current);
+    
+    if (next) {
+      return {
+        target: next,
+        remaining: next - current,
+        progress: (current / next) * 100,
+        percentage: Math.round((next / totalAvailable) * 100)
+      };
     }
+    
+    return null;
   }
   
-  // ===== MÉTHODES PRIVÉES UTILITAIRES =====
-  
-  /**
-   * Validation complète des données de découverte
-   */
   private async validateDiscoveryData(
     playerId: string, 
     data: PokedexDiscoveryData
