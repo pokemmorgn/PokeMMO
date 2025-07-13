@@ -11,6 +11,24 @@ export interface WeatherType {
   };
 }
 
+export interface EncounterSystemConfig {
+  enabled: boolean;
+  serverSideOnly: boolean;
+  playerCooldownMs: number;
+  maxEncountersPerMinute: number;
+  stepsPerEncounterCheck: number;
+  minStepDistance: number;
+  baseRates: {
+    grass: number;
+    fishing: number;
+    surfing: number;
+  };
+  antiFarming: {
+    enabled: boolean;
+    maxEncountersPerHour: number;
+    afkDetectionTimeoutMs: number;
+  };
+}
 export interface TimeSystemConfig {
   enabled: boolean;
   startHour: number;
@@ -57,6 +75,8 @@ export interface ServerConfig {
   // ✅ SYSTÈMES TEMPS ET MÉTÉO
   timeSystem: TimeSystemConfig;
   weatherSystem: WeatherSystemConfig;
+
+  encounterSystem: EncounterSystemConfig;
 }
 
 // La config lue en mémoire (unique, pour tout le serveur)
