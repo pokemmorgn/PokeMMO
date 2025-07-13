@@ -1654,7 +1654,7 @@ if (this.overworldPokemonManager) {
 
     // 🆕 NOUVEAU: Vérifier les encounters pendant le mouvement
     if (myPlayer && myPlayer.isMovingLocally) {
-      this.checkForEncounters(myPlayer.x, myPlayer.y);
+     // this.checkForEncounters(myPlayer.x, myPlayer.y);
     }
   }
 
