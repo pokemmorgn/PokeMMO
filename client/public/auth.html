@@ -1388,7 +1388,13 @@ async updatePlaytimeDisplay() {
 
                     // Verify with server
                     const room = await this.colyseusClient.joinOrCreate("AuthRoom");
-                    
+                    console.log('🔍 Vérification session avant wallet:', {
+  hasCurrentUser: !!this.currentUser,
+  hasSessionToken: !!this.currentUser?.sessionToken,
+  tokenLength: this.currentUser?.sessionToken?.length,
+  username: this.currentUser?.username
+});
+
                     room.send("link_wallet", {
                         username: this.currentUser.username,
                         sessionToken: this.currentUser.sessionToken,
