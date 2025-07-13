@@ -22,9 +22,11 @@ const PlayerDataSchema = new mongoose.Schema({
   lastMap: { type: String, default: "beach" },
 walletAddress: { 
   type: String, 
-  required: false,
-  default: null       
-},
+  required: false,    // ✅ Pas obligatoire
+  unique: true,       // Unique si présente
+  sparse: true,       // Permet plusieurs null
+  default: null       // Valeur par défaut
+},  
   // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée
   email: { 
     type: String, 
@@ -74,6 +76,7 @@ walletAddress: {
 // ✅ INDEX pour performance et sécurité
 PlayerDataSchema.index({ username: 1 });
 PlayerDataSchema.index({ email: 1 });
+PlayerDataSchema.index({ walletAddress: 1 });
 PlayerDataSchema.index({ deviceFingerprint: 1 });
 PlayerDataSchema.index({ isActive: 1 });
 PlayerDataSchema.index({ createdAt: 1 });
