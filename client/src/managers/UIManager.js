@@ -190,10 +190,6 @@ export class UIManager {
     
     if (memberIndex === -1) return;
 
-        // Dans UIManager.js, dans positionIcon()
-    if (iconConfig.element && typeof instance.onPositioned === 'function') {
-      instance.onPositioned({ left: finalX, top: finalY, anchor: iconConfig.anchor });
-    }
     // Position de base selon anchor
     let baseX, baseY;
     const padding = group.padding || 20;
