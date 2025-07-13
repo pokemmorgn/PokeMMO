@@ -1441,6 +1441,13 @@ this.networkManager.send = (messageType, data) => {
         });
       }
     });
+    // 🎬 NOUVEAU: Écouter les événements BattleNetworkHandler pour les transitions
+    if (this.networkManager?.battleNetworkHandler) {
+      this.networkManager.battleNetworkHandler.on('wildEncounterStart', (data) => {
+        console.log('🎬 [TRANSITION] Événement wildEncounterStart capturé:', data);
+        this.handleWildEncounterWithTransition(data);
+      });
+    }
   }
 
   // ================================================================================================
