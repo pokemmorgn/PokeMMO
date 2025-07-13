@@ -309,22 +309,36 @@ error: error instanceof Error ? error.message : String(error),
 
       // ✅ CONNEXION à la base de données
       await connectDB();
-      console.log("✅ Connecté à MongoDB: pokeworld");
+console.log("✅ Connecté à MongoDB: pokeworld");
 
-      // ✅ VÉRIFICATION de l'index unique sur username
-      try {
-        await PlayerData.collection.createIndex(
-          { username: 1 }, 
-          { unique: true, collation: { locale: 'en', strength: 2 } }
-        );
-        await PlayerData.collection.createIndex(
-          { email: 1 }, 
-          { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } }
-        );
-        console.log("✅ Index MongoDB créés/vérifiés");
-      } catch (indexError) {
-        console.log("ℹ️ Index MongoDB déjà existants");
-      }
+// ✅ VÉRIFICATION de l'index unique sur username
+try {
+  await PlayerData.collection.createIndex(
+    { username: 1 }, 
+    { unique: true, collation: { locale: 'en', strength: 2 } }
+  );
+  await PlayerData.collection.createIndex(
+    { email: 1 }, 
+    { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } }
+  );
+  console.log("✅ Index MongoDB créés/vérifiés");
+} catch (indexError) {
+  console.log("ℹ️ Index MongoDB déjà existants");
+}
+
+// ✅ NOUVEAU: Corriger l'index walletAddress
+try {
+  await PlayerData.collection.dropIndex("walletAddress_1");
+  console.log("🗑️ Ancien index walletAddress supprimé");
+} catch (e) {
+  console.log("ℹ️ Index walletAddress n'existait pas ou déjà supprimé");
+}
+
+await PlayerData.collection.createIndex(
+  { walletAddress: 1 }, 
+  { unique: true, sparse: true }
+);
+console.log("✅ Index walletAddress corrigé (sparse = plusieurs null OK)");
 
       // ✅ RESET QUESTS (si configuré)
       const config = getServerConfig();
