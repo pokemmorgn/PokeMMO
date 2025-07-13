@@ -369,15 +369,16 @@ export class UIManager {
 
   // === 🎨 POSITIONNEMENT (AMÉLIORÉ AVEC TAILLES CENTRALISÉES) ===
   
-  setupDefaultGroups() {
-    this.iconGroups.set('ui-icons', {
-      anchor: 'bottom-right',
-      spacing: this.iconConfig.spacing,
-      padding: this.iconConfig.padding,
-      members: []
-    });
-  }
-
+setupDefaultGroups() {
+  this.iconGroups.set('ui-icons', {
+    anchor: 'bottom-right',
+    spacing: this.iconConfig.spacing,
+    padding: this.iconConfig.padding,
+    members: [],
+    expectedOrder: ['inventory', 'quest', 'pokedex', 'team'] // Ordre attendu
+  });
+}
+  
   setupResizeListener() {
     let resizeTimeout;
     window.addEventListener('resize', () => {
@@ -433,16 +434,18 @@ export class UIManager {
     this.registeredIcons.set(moduleId, iconConfig);
 
     // Ajouter au groupe
-    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-    if (!group.members.includes(moduleId)) {
-      group.members.push(moduleId);
-      // Trier par ordre
-      group.members.sort((a, b) => {
-        const iconA = this.registeredIcons.get(a);
-        const iconB = this.registeredIcons.get(b);
-        return (iconA?.order || 0) - (iconB?.order || 0);
-      });
-    }
+const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+if (!group.members.includes(moduleId)) {
+  group.members.push(moduleId);
+  // Trier par ordre défini
+  group.members.sort((a, b) => {
+    const iconA = this.registeredIcons.get(a);
+    const iconB = this.registeredIcons.get(b);
+    const orderA = iconA?.order !== undefined ? iconA.order : 999;
+    const orderB = iconB?.order !== undefined ? iconB.order : 999;
+    return orderA - orderB;
+  });
+}
 
     // Positionner immédiatement
     this.positionIcon(moduleId);
