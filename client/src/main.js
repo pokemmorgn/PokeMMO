@@ -475,7 +475,13 @@ if (connectionSuccess && window.currentGameRoom) {
   
   console.log("✅ Heartbeat playtime configuré (30s)");
 }
-
+// ✅ NOUVEAU: Handler pong pour confirmer la réception
+if (window.currentGameRoom) {
+  window.currentGameRoom.onMessage("pong", (data) => {
+    console.log("📡 Pong reçu du serveur, temps:", data.serverTime);
+  });
+  console.log("✅ Handler pong configuré");
+}
 if (!connectionSuccess) {
   console.error("❌ Échec de connexion à la WorldRoom");
   alert("Impossible de se connecter au monde du jeu. Veuillez réessayer.");
