@@ -386,15 +386,21 @@ export class BattleTransitionManager {
         }
       },
       
-      startBattleMusic() {
-        const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
-        if (this.scene.sound && this.scene.cache.audio.exists(battleMusicKey)) {
-          this.currentMusic = this.scene.sound.play(battleMusicKey, { 
-            loop: true, 
-            volume: 0.6 
-          });
-        }
-      }
+    startBattleMusic() {
+            try {
+              const battleMusicKey = this.config?.audio?.battleMusicKey || 'battle_theme';
+              if (this.scene?.sound && this.scene.cache?.audio?.exists(battleMusicKey)) {
+                this.currentMusic = this.scene.sound.play(battleMusicKey, { 
+                  loop: true, 
+                  volume: 0.6 
+                });
+              } else {
+                console.log('🎵 [AudioManager] Musique de combat non disponible');
+              }
+            } catch (error) {
+              console.warn('⚠️ [AudioManager] Erreur musique:', error);
+            }
+          }
     };
   }
 
