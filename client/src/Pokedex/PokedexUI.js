@@ -900,41 +900,27 @@ handlePokedexData(response) {
   }
 
   getPokemonSpriteForEntry(entry) {
-  const paddedId = entry.pokemonId.toString().padStart(3, '0');
-  
-  if (entry.caught) {
-    // Pokémon capturé : icon complet en couleur (première frame du spritesheet)
-    const iconPath = `/assets/pokemon/${paddedId}/${paddedId}icons.png`;
-    return `<img src="${iconPath}" 
-            alt="${entry.displayName}" 
-            onerror="this.outerHTML='🎮'" 
-            class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
-            style="
-              width: 48px; 
-              height: 48px; 
-              object-fit: none; 
-              object-position: 0 0;
-              image-rendering: pixelated;
-            ">`;
-  } else if (entry.seen) {
-    // Pokémon vu : icon avec effet silhouette (première frame du spritesheet)
-    const iconPath = `/assets/pokemon/${paddedId}/${paddedId}icons.png`;
-    return `<img src="${iconPath}" 
-            alt="Pokémon vu" 
-            onerror="this.outerHTML='👤'" 
-            class="pokemon-sprite silhouette"
-            style="
-              width: 48px; 
-              height: 48px; 
-              object-fit: none; 
-              object-position: 0 0;
-              image-rendering: pixelated;
-            ">`;
-  } else {
-    // Pokémon inconnu : point d'interrogation
-    return `<div class="pokemon-sprite unknown">❓</div>`;
+    const paddedId = entry.pokemonId.toString().padStart(3, '0');
+    
+    if (entry.caught) {
+      // Pokémon capturé : sprite complet en couleur
+      const spriteFile = entry.shiny ? 'shinyfront.png' : 'front.png';
+      return `<img src="/assets/pokemon/${paddedId}/${spriteFile}" 
+              alt="${entry.displayName}" 
+              onerror="this.outerHTML='🎮'" 
+              class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}">`;
+    } else if (entry.seen) {
+      // Pokémon vu : silhouette noire
+      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+              alt="Pokémon vu" 
+              onerror="this.outerHTML='👤'" 
+              class="pokemon-sprite silhouette">`;
+    } else {
+      // Pokémon inconnu : point d'interrogation
+      return `<div class="pokemon-sprite unknown">❓</div>`;
+    }
   }
-}
+
   getStatusBadge(entry) {
     switch (entry.displayStatus) {
       case 'caught':
@@ -963,39 +949,21 @@ handlePokedexData(response) {
    * Génère le sprite pour les détails (utilise les bons chemins)
    */
   getPokemonSpriteForDetails(pokemonId, caught, isShiny = false) {
-  const paddedId = pokemonId.toString().padStart(3, '0');
-  
-  if (caught) {
-    // Pokémon capturé : icon pour les détails (plus grand)
-    const iconPath = `/assets/pokemon/${paddedId}/${paddedId}icons.png`;
-    return `<img src="${iconPath}" 
-            alt="Pokémon #${paddedId}" 
-            onerror="this.outerHTML='🎮'" 
-            class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
-            style="
-              width: 80px; 
-              height: 80px; 
-              object-fit: none; 
-              object-position: 0 0;
-              image-rendering: pixelated;
-            ">`;
-  } else {
-    // Pokémon vu : silhouette pour les détails
-    const iconPath = `/assets/pokemon/${paddedId}/${paddedId}icons.png`;
-    return `<img src="${iconPath}" 
-            alt="Pokémon vu" 
-            onerror="this.outerHTML='👤'" 
-            class="pokemon-sprite silhouette"
-            style="
-              width: 80px; 
-              height: 80px; 
-              object-fit: none; 
-              object-position: 0 0;
-              image-rendering: pixelated;
-            ">`;
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    
+    if (caught) {
+      const spriteFile = isShiny ? 'shinyfront.png' : 'front.png';
+      return `<img src="/assets/pokemon/${paddedId}/${spriteFile}" 
+              alt="Pokémon #${paddedId}" 
+              onerror="this.outerHTML='🎮'" 
+              class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}">`;
+    } else {
+      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+              alt="Pokémon vu" 
+              onerror="this.outerHTML='👤'" 
+              class="pokemon-sprite silhouette">`;
+    }
   }
-}
-
 
   // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
 
