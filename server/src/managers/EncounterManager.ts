@@ -1,7 +1,8 @@
-// server/src/managers/EncounterManager.ts - VERSION FINALE
+// server/src/managers/EncounterManager.ts - VERSION AVEC CONFIG
 import fs from 'fs/promises';
 import path from 'path';
 import { getPokemonById } from '../data/PokemonData';
+import { getServerConfig } from '../config/serverConfig';
 
 export interface WildPokemon {
   pokemonId: number;
@@ -73,14 +74,25 @@ export class ServerEncounterManager {
   
   // ✅ Anti-cheat: Cooldown par joueur
   private playerCooldowns: Map<string, number> = new Map();
-  private readonly ENCOUNTER_COOLDOWN = 800; // 800ms côté serveur
   
   // ✅ Rate limiting par joueur (anti-spam)
   private playerEncounterCount: Map<string, { count: number; timestamp: number }> = new Map();
-  private readonly MAX_ENCOUNTERS_PER_MINUTE = 1000;
 
   constructor() {
     this.initializePokemonMapping();
+  }
+
+  // ✅ GETTERS UTILISANT LA CONFIG
+  private getEncounterConfig() {
+    return getServerConfig().encounterSystem;
+  }
+
+  private get ENCOUNTER_COOLDOWN() {
+    return this.getEncounterConfig().playerCooldownMs;
+  }
+
+  private get MAX_ENCOUNTERS_PER_MINUTE() {
+    return this.getEncounterConfig().maxEncountersPerMinute;
   }
 
   // ✅ VALIDATION D'UNE RENCONTRE DEPUIS LE CLIENT
@@ -342,8 +354,6 @@ private isValidPosition(x: number, y: number): boolean {
     this.pokemonNameToId.set("Loupio", 170); // Chinchou
     this.pokemonNameToId.set("Poissirene", 116); // Horsea
   }
-
-// Dans ServerEncounterManager.ts - Ajoutez ce debug dans loadEncounterTable
 
 async loadEncounterTable(zone: string): Promise<void> {
   try {
