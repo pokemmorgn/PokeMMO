@@ -1432,6 +1432,28 @@ this.networkManager.send = (messageType, data) => {
     // Handlers existants (snap, disconnect)
     this.setupExistingHandlers();
 
+    // 🎬 NOUVEAU: Handler direct pour wildEncounterStart avec transitions  
+    this.networkManager.onMessage("wildEncounterStart", (data) => {
+      console.log('🎬 [TRANSITION] wildEncounterStart reçu:', data);
+      
+      // ✅ Vérifier si le système de transition est disponible
+      if (this.transitionSystemInitialized && this.battleTransitionManager) {
+        console.log('🎬 [TRANSITION] Déclenchement transition...');
+        
+        const battleData = {
+          type: 'wild',
+          pokemon: data.wildPokemon || data.pokemon,
+          location: data.location,
+          method: data.method
+        };
+        
+        this.battleTransitionManager.startBattleTransition(battleData, 'spiral');
+      } else {
+        console.log('🔄 [TRANSITION] Système non disponible, événement normal');
+        // Laisser le BattleNetworkHandler gérer normalement
+      }
+    });
+    
     // Forcer une première synchronisation
     this.time.delayedCall(500, () => {
       console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
