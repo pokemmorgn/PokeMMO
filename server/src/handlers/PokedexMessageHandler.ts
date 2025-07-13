@@ -960,19 +960,21 @@ export class PokedexMessageHandler {
   /**
    * Récupère l'ID du joueur depuis le client de manière sécurisée
    */
-  private getPlayerId(client: Client): string | null {
-    console.log('🔍 [DEBUG] client.auth:', (client as any).auth);
-    
-    const playerId = (client as any).auth?.address;
-    
-    if (!playerId || typeof playerId !== 'string' || playerId.trim().length === 0) {
-      console.log('❌ [DEBUG] Aucun playerId trouvé dans client.auth.address');
-      return null;
-    }
-    
-    console.log('✅ [DEBUG] PlayerId trouvé:', playerId);
-    return playerId.trim();
+private getPlayerId(client: Client): string | null {
+  console.log('🔍 [DEBUG] Recherche playerId pour client:', client.sessionId);
+  
+  // ✅ CORRECTION: Utiliser le state de la room comme TeamHandlers
+  const player = this.room.state.players.get(client.sessionId);
+  
+  if (!player || !player.name || typeof player.name !== 'string' || player.name.trim().length === 0) {
+    console.log('❌ [DEBUG] Aucun joueur trouvé dans room.state.players pour:', client.sessionId);
+    console.log('💡 [DEBUG] Players dans le state:', Array.from(this.room.state.players.keys()));
+    return null;
   }
+  
+  console.log('✅ [DEBUG] PlayerId trouvé depuis room state:', player.name);
+  return player.name.trim();
+}
   
   /**
    * Envoie une réponse de succès formatée
