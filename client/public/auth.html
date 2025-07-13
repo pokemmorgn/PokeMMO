@@ -1336,6 +1336,29 @@
                 }
             }
 
+            async updatePlaytimeDisplay() {
+    if (this.currentUser && this.currentUser.sessionToken) {
+        try {
+            const response = await fetch('/api/playerData?username=' + this.currentUser.username, {
+                headers: {
+                    'Authorization': 'Bearer ' + this.currentUser.sessionToken
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const playtimeElement = document.getElementById('userPlaytime');
+                if (playtimeElement && data.playtime !== undefined) {
+                    playtimeElement.textContent = this.formatPlaytime(data.playtime);
+                    console.log(`⏰ Playtime affiché: ${data.playtime}min`);
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Erreur récupération playtime:', error);
+        }
+    }
+}
+            
             async connectWallet() {
                 const walletButton = document.getElementById('walletButton');
                 this.setButtonLoading(walletButton, true);
@@ -1498,7 +1521,8 @@ document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.c
 
 // ✅ NOUVEAU: Mettre à jour le playtime en temps réel
 this.startPlaytimeUpdater();
-    
+     this.updatePlaytimeDisplay();
+   
     // ✅ Montrer la section wallet mais avec message optionnel
     const walletSection = document.getElementById('walletSection');
     if (walletSection) {
@@ -1646,6 +1670,8 @@ this.startPlaytimeUpdater();
                 }, 4000);
             }
         startPlaytimeUpdater() {
+                this.updatePlaytimeDisplay();
+
     // Mettre à jour le playtime toutes les minutes
     setInterval(async () => {
         if (this.currentUser && this.currentUser.sessionToken) {
