@@ -192,54 +192,13 @@ const PokedexStatsSchema = new Schema<IPokedexStats>({
 // === STATS PAR TYPE ===
 typeStats: {
   type: Schema.Types.Mixed,
-  default: () => new Map(),
-  validate: {
-    validator: function(v: any) {
-      // Permettre Map vide ou objet vide lors de l'initialisation
-      if (!v || v instanceof Map || (typeof v === 'object' && Object.keys(v).length === 0)) {
-        return true;
-      }
-      if (!(v instanceof Map)) return false;
-      
-      // Valider que chaque entrée a la bonne structure
-      for (const [key, value] of v) {
-        if (typeof key !== 'string' || !value || 
-            typeof value.seen !== 'number' || 
-            typeof value.caught !== 'number' ||
-            typeof value.total !== 'number') {
-          return false;
-        }
-      }
-      return true;
-    },
-    message: 'Invalid type stats structure'
-  }
+  default: () => new Map()
 },
 
 // === STATS PAR RÉGION ===
 regionStats: {
   type: Schema.Types.Mixed,
-  default: () => new Map(),
-  validate: {
-    validator: function(v: any) {
-      // Permettre Map vide ou objet vide lors de l'initialisation
-      if (!v || v instanceof Map || (typeof v === 'object' && Object.keys(v).length === 0)) {
-        return true;
-      }
-      if (!(v instanceof Map)) return false;
-      
-      for (const [key, value] of v) {
-        if (typeof key !== 'string' || !value || 
-            typeof value.seen !== 'number' || 
-            typeof value.caught !== 'number' ||
-            typeof value.total !== 'number') {
-          return false;
-        }
-      }
-      return true;
-    },
-    message: 'Invalid region stats structure'
-  }
+  default: () => new Map()
 },
   
   // === RECORDS ===
