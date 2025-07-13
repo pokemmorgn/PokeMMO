@@ -109,12 +109,13 @@ export class BattleEngine {
         phase: InternalBattlePhase.INTRO,
         introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
+      // 🆕 INTÉGRATION POKÉDX - Marquer le Pokémon adverse comme vu
       if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
         pokedexIntegrationService.onWildPokemonEncountered(
-          this.gameState.player1.sessionId,
+          this.gameState.player1.name, // ✅ Utilise le username (ID permanent du compte)
           this.gameState.player2.pokemon.id,
           this.gameState.player2.pokemon.level,
-          'Wild Area' // Vous pourrez personnaliser selon votre système de locations
+          'Wild Area'
         ).catch(error => {
           console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
         });
