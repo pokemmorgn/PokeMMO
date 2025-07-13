@@ -548,7 +548,7 @@ this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
     
 // 🔥 AJOUTER CE HANDLER MANQUANT JUSTE APRÈS :
 this.onMessage("overworldPokemonMoveResponse", (client, message) => {
-  console.log(`📍 [WorldRoom] Réponse mouvement reçue de ${client.sessionId}:`, message);
+//  console.log(`📍 [WorldRoom] Réponse mouvement reçue de ${client.sessionId}:`, message);
   if (this.overworldPokemonManager) {
     this.overworldPokemonManager.handleClientMoveResponse(client, message);
   }
