@@ -15,7 +15,7 @@ export { CaptureReward } from './CaptureReward';
 export * from './types/RewardTypes';
 
 // === EXEMPLES D'INTÉGRATION ===
-export * from '../examples/RewardIntegrationExample';
+// export * from '../examples/RewardIntegrationExample'; // TODO: Créer ce fichier
 
 // === INSTANCE GLOBALE POUR UTILISATION SIMPLE ===
 import { RewardManager } from './RewardManager';
@@ -28,7 +28,7 @@ export const globalRewardManager = new RewardManager();
 export async function giveRewards(
   playerId: string,
   rewards: any[],
-  source: { sourceType: string; sourceId: string; metadata?: any }
+  source: { sourceType: 'battle' | 'quest' | 'achievement' | 'capture' | 'trade' | 'daily' | 'event' | 'friendship' | 'breeding'; sourceId: string; metadata?: any }
 ) {
   return await globalRewardManager.giveRewards({
     rewards,
@@ -66,7 +66,19 @@ export async function giveCaptureRewards(
   },
   ownedPokemonId?: string
 ) {
-  return await globalRewardManager.giveCaptureRewards(playerId, pokemon, ownedPokemonId);
+  return await globalRewardManager.giveCaptureRewards(
+    playerId, 
+    {
+      pokemonId: pokemon.pokemonId,
+      level: pokemon.level,
+      shiny: pokemon.shiny,
+      ballUsed: pokemon.ballUsed,
+      attempts: pokemon.attempts,
+      wasCritical: pokemon.wasCritical,
+      wasWeakened: pokemon.wasWeakened
+    }, 
+    ownedPokemonId
+  );
 }
 
 /**
@@ -309,7 +321,15 @@ export async function handleCompleteCapture(
 }> {
   try {
     // 1. Récompenses de capture
-    const captureResult = await giveCaptureRewards(playerId, captureData, ownedPokemonId);
+    const captureResult = await giveCaptureRewards(playerId, {
+      pokemonId: captureData.pokemonId,
+      level: captureData.level,
+      shiny: captureData.isShiny,
+      ballUsed: captureData.ballUsed,
+      attempts: captureData.attempts,
+      wasCritical: captureData.wasCritical,
+      wasWeakened: captureData.wasWeakened
+    }, ownedPokemonId);
     
     // 2. Vérifier évolutions possibles par amitié
     const evolutionReady = await getEvolutionReadyPokemon(playerId);
