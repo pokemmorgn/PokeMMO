@@ -265,7 +265,7 @@ export class OverworldPokemonManager {
       console.warn(`⚠️ [OverworldPokemonManager] Aucun collisionLayer trouvé !`);
     }
     
-    console.log(`✅ [OverworldPokemonManager] Tile (${tileX}, ${tileY}) LIBRE`);
+ //   console.log(`✅ [OverworldPokemonManager] Tile (${tileX}, ${tileY}) LIBRE`);
     return true;
   }
 
@@ -664,7 +664,7 @@ export class OverworldPokemonManager {
       console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
     }
     
-    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} vers tile (${targetTileX}, ${targetTileY})`);
+//    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} vers tile (${targetTileX}, ${targetTileY})`);
   }
 
   async syncAllOverworldPokemon(pokemonList) {
@@ -763,7 +763,7 @@ export class OverworldPokemonManager {
     const pixelX = tileX * this.tileSize;
     const pixelY = tileY * this.tileSize;
     
-    console.log(`🧪 [DEBUG] Tile (${tileX}, ${tileY}) à (${pixelX}, ${pixelY}): ${canMove ? 'LIBRE' : 'BLOQUÉE'}`);
+//    console.log(`🧪 [DEBUG] Tile (${tileX}, ${tileY}) à (${pixelX}, ${pixelY}): ${canMove ? 'LIBRE' : 'BLOQUÉE'}`);
     
     if (this.scene.collisionLayers) {
       this.scene.collisionLayers.forEach((layer, index) => {
@@ -805,7 +805,7 @@ export class OverworldPokemonManager {
       }
     }
     
-    console.log(`⚠️ [OverworldPokemonManager] Aucune tile libre trouvée pour ${pokemon.name} dans sa zone`);
+//    console.log(`⚠️ [OverworldPokemonManager] Aucune tile libre trouvée pour ${pokemon.name} dans sa zone`);
     return null;
   }
   
@@ -831,11 +831,11 @@ export class OverworldPokemonManager {
     const centerX = pokemon.spawnTileX;
     const centerY = pokemon.spawnTileY;
     
-    console.log(`🧪 [DEBUG] Zone de mouvement de ${pokemon.name}:`);
-    console.log(`📍 Spawn: (${centerX}, ${centerY})`);
-    console.log(`📏 Rayon: ${radius} tiles`);
-    console.log(`🗺️ Zone: ${radius * 2 + 1}x${radius * 2 + 1} tiles`);
-    console.log(`Légende: 🟢 = spawn, ⬜ = libre, 🟥 = bloqué, 🟡 = occupé`);
+ //   console.log(`🧪 [DEBUG] Zone de mouvement de ${pokemon.name}:`);
+//    console.log(`📍 Spawn: (${centerX}, ${centerY})`);
+//    console.log(`📏 Rayon: ${radius} tiles`);
+//    console.log(`🗺️ Zone: ${radius * 2 + 1}x${radius * 2 + 1} tiles`);
+//    console.log(`Légende: 🟢 = spawn, ⬜ = libre, 🟥 = bloqué, 🟡 = occupé`);
     
     for (let y = centerY - radius; y <= centerY + radius; y++) {
       let row = `${y.toString().padStart(2, '0')}: `;
