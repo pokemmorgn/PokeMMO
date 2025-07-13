@@ -526,7 +526,7 @@ export class EventReward {
    */
   private async giveSpecialReward(
     playerId: string,
-    specialReward: EventDefinition['rewards']['special']![0],
+    specialReward: NonNullable<EventDefinition['rewards']['special']>[0],
     eventId: string
   ): Promise<void> {
     try {
