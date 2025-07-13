@@ -24,7 +24,7 @@ import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
 import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
-
+import { BattleTransitionManager } from '../../Battle/BattleTransitionManager.js';
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -86,6 +86,12 @@ export class BaseZoneScene extends Phaser.Scene {
     this.inputManager = null;
     this.inputManagerReady = false;
 
+    // 🎬 NOUVEAU: BattleTransitionManager
+    this.battleTransitionManager = null;
+    this.transitionSystemInitialized = false;
+    this.transitionInitAttempts = 0;
+    this.maxTransitionInitAttempts = 3;
+    
   // ✅ NOUVEAU: Tracking initialisation UI
     this.uiInitialized = false;
     this.uiInitializationAttempts = 0;
@@ -552,9 +558,12 @@ setRoom(room) {
     setTimeout(() => {
       this.initializeEncounterManager();
     }, 1800);
-      setTimeout(() => {
-    this.initializeOverworldPokemon();
-  }, 2100);
+    setTimeout(() => {
+      this.initializeBattleTransitionManager();
+    }, 2400);
+    setTimeout(() => {
+      this.initializeOverworldPokemon();
+    }, 2100);
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
 
   }
@@ -597,6 +606,139 @@ initializeOverworldPokemon() {
   }
 }
 
+  // 🎬 NOUVELLE MÉTHODE: Initialisation du BattleTransitionManager
+  initializeBattleTransitionManager() {
+    console.log(`🎬 [${this.scene.key}] === INITIALISATION BATTLE TRANSITION MANAGER ===`);
+
+    // ✅ PROTECTION CONTRE LES INITIALISATIONS MULTIPLES
+    if (this.transitionSystemInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] BattleTransitionManager déjà initialisé`);
+      return;
+    }
+
+    if (this.transitionInitAttempts >= this.maxTransitionInitAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation transition - abandon`);
+      return;
+    }
+
+    this.transitionInitAttempts++;
+    console.log(`🎬 [${this.scene.key}] Tentative ${this.transitionInitAttempts}/${this.maxTransitionInitAttempts}`);
+
+    try {
+      // ✅ Créer le BattleTransitionManager
+      this.battleTransitionManager = new BattleTransitionManager(this);
+      
+      // ✅ Initialiser de façon asynchrone
+      this.battleTransitionManager.initialize().then(success => {
+        if (success) {
+          this.transitionSystemInitialized = true;
+          console.log(`✅ [${this.scene.key}] BattleTransitionManager initialisé avec succès!`);
+          
+          // ✅ Exposer globalement pour debug
+          window.battleTransitionManager = this.battleTransitionManager;
+          
+        } else {
+          console.error(`❌ [${this.scene.key}] Échec initialisation BattleTransitionManager`);
+          this.handleTransitionInitFailure();
+        }
+      }).catch(error => {
+        console.error(`❌ [${this.scene.key}] Erreur initialisation BattleTransitionManager:`, error);
+        this.handleTransitionInitFailure();
+      });
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur critique initialisation transition:`, error);
+      this.handleTransitionInitFailure();
+    }
+  }
+
+  // 🎬 NOUVELLE MÉTHODE: Gestion des échecs d'initialisation transition
+  handleTransitionInitFailure() {
+    if (this.transitionInitAttempts < this.maxTransitionInitAttempts) {
+      console.log(`🔄 [${this.scene.key}] Retry initialisation transition dans 3s... (${this.transitionInitAttempts}/${this.maxTransitionInitAttempts})`);
+      setTimeout(() => {
+        this.initializeBattleTransitionManager();
+      }, 3000);
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système de transition`);
+      
+      // ✅ Créer un fallback simple
+      this.createTransitionFallback();
+      
+      // Signaler l'échec mais ne pas bloquer le jeu
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Transitions de combat indisponibles', 'warning', {
+          duration: 4000,
+          position: 'top-center'
+        });
+      }
+    }
+  }
+
+  // 🎬 NOUVELLE MÉTHODE: Fallback simple pour les transitions
+  createTransitionFallback() {
+    console.log(`🔄 [${this.scene.key}] Création fallback transition simple...`);
+    
+    // ✅ Créer un manager fallback minimal
+    this.battleTransitionManager = {
+      isTransitionInProgress: () => false,
+      
+      async startBattleTransition(battleData, transitionType = null) {
+        console.log(`🔄 [FALLBACK] Transition simple vers combat...`);
+        
+        try {
+          // ✅ Bloquer le mouvement
+          const playerManager = this.playerManager;
+          if (playerManager) {
+            const myPlayer = playerManager.getMyPlayer();
+            if (myPlayer && myPlayer.body) {
+              myPlayer.body.setVelocity(0, 0);
+              myPlayer.anims.play(`idle_${this.lastDirection || 'down'}`, true);
+            }
+          }
+          
+          // ✅ Fade simple
+          const overlay = this.add.graphics();
+          overlay.fillStyle(0x000000, 0);
+          overlay.fillRect(0, 0, this.scale.width, this.scale.height);
+          overlay.setScrollFactor(0);
+          overlay.setDepth(10000);
+          
+          // ✅ Animation fade
+          this.tweens.add({
+            targets: overlay,
+            alpha: 1,
+            duration: 500,
+            ease: 'Power2.easeInOut',
+            onComplete: () => {
+              // ✅ Switch direct vers BattleScene
+              const battleSceneData = {
+                battleData: battleData,
+                transitionFrom: this.scene.key,
+                networkManager: this.networkManager,
+                battleNetworkHandler: this.battleNetworkHandler
+              };
+              
+              this.scene.start('BattleScene', battleSceneData);
+            }
+          });
+          
+          return true;
+          
+        } catch (error) {
+          console.error(`❌ [FALLBACK] Erreur transition simple:`, error);
+          return false;
+        }
+      },
+      
+      cleanup: () => {
+        console.log(`🧹 [FALLBACK] Nettoyage fallback`);
+      }
+    };
+    
+    this.transitionSystemInitialized = true;
+    console.log(`✅ [${this.scene.key}] Fallback transition créé`);
+  }
   // 🆕 NOUVELLE MÉTHODE: Initialisation du ClientEncounterManager
   initializeEncounterManager() {
     console.log(`🎲 [${this.scene.key}] === INITIALISATION ENCOUNTER MANAGER ===`);
@@ -660,43 +802,124 @@ setupEncounterNetworkHandlers() {
 }
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
-handleWildEncounter(data) {
-  console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
-  console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+// 🆕 MÉTHODE MODIFIÉE: Gestion des encounters avec transitions authentiques
+  handleWildEncounter(data) {
+    console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
+    console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
 
-  // ✅ Arrêter le joueur
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (myPlayer && myPlayer.body) {
-    myPlayer.body.setVelocity(0, 0);
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    // ✅ Arrêter le joueur immédiatement
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      myPlayer.body.setVelocity(0, 0);
+      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+      console.log(`⏸️ [${this.scene.key}] Joueur arrêté pour encounter`);
+    }
+
+    // ✅ NOUVELLE LOGIQUE: Utiliser le système de transitions
+    if (this.transitionSystemInitialized && this.battleTransitionManager) {
+      console.log(`🎬 [${this.scene.key}] === DÉMARRAGE TRANSITION AUTHENTIQUE ===`);
+      
+      // ✅ Préparer les données de combat
+      const battleData = {
+        type: 'wild',
+        pokemon: data.pokemon,
+        location: data.location || this.zoneName,
+        method: data.method || 'grass',
+        zone: this.zoneName,
+        playerPosition: {
+          x: myPlayer?.x || 0,
+          y: myPlayer?.y || 0
+        }
+      };
+      
+      // ✅ Démarrer la transition (spiral par défaut)
+      this.battleTransitionManager.startBattleTransition(battleData, 'spiral').then(success => {
+        if (success) {
+          console.log(`✅ [${this.scene.key}] Transition vers combat réussie`);
+        } else {
+          console.error(`❌ [${this.scene.key}] Échec transition, fallback direct`);
+          this.fallbackToBattle(battleData);
+        }
+      }).catch(error => {
+        console.error(`💥 [${this.scene.key}] Erreur transition:`, error);
+        this.fallbackToBattle(battleData);
+      });
+      
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] Système de transition non disponible, combat direct`);
+      
+      // ✅ FALLBACK vers combat direct
+      const battleData = {
+        type: 'wild',
+        pokemon: data.pokemon,
+        location: data.location || this.zoneName,
+        method: data.method || 'grass'
+      };
+      
+      this.fallbackToBattle(battleData);
+    }
   }
-
-  // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
-  if (window.showGameNotification) {
-    window.showGameNotification(
-      `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
-      'encounter',
-      { 
-        duration: 3000, 
-        position: 'top-center',
-        bounce: true 
-      }
-    );
-  }
-
-  // ✅ Transition vers combat (TODO)
-  this.time.delayedCall(1000, () => {
-    console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
+  // 🎬 NOUVELLE MÉTHODE: Fallback vers combat direct sans transition
+  fallbackToBattle(battleData) {
+    console.log(`🔄 [${this.scene.key}] === FALLBACK COMBAT DIRECT ===`);
     
+    // ✅ Notification simple
     if (window.showGameNotification) {
       window.showGameNotification(
-        `Combat non implémenté - continuez à explorer !`,
-        'info',
-        { duration: 2000, position: 'bottom-center' }
+        `COMBAT AVEC ${battleData.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
+        'encounter',
+        { 
+          duration: 2000, 
+          position: 'top-center',
+          bounce: true 
+        }
       );
     }
-  });
-}
+    
+    // ✅ Délai court pour laisser le temps de voir la notification
+    this.time.delayedCall(1000, () => {
+      try {
+        // ✅ Préparer les données pour BattleScene
+        const battleSceneData = {
+          battleData: battleData,
+          transitionFrom: this.scene.key,
+          networkManager: this.networkManager,
+          battleNetworkHandler: this.battleNetworkHandler || this.networkManager?.battleNetworkHandler
+        };
+        
+        console.log(`🔄 [${this.scene.key}] Démarrage BattleScene direct...`);
+        
+        // ✅ Démarrer BattleScene directement
+        if (!this.scene.isActive('BattleScene')) {
+          this.scene.launch('BattleScene', battleSceneData);
+        } else {
+          this.scene.wake('BattleScene');
+          const battleScene = this.scene.get('BattleScene');
+          if (battleScene && typeof battleScene.startBattle === 'function') {
+            battleScene.startBattle(battleData);
+          }
+        }
+        
+        // ✅ Masquer la scène actuelle
+        this.scene.setVisible(false);
+        this.scene.sleep();
+        
+        console.log(`✅ [${this.scene.key}] Combat direct démarré`);
+        
+      } catch (error) {
+        console.error(`❌ [${this.scene.key}] Erreur fallback combat:`, error);
+        
+        // ✅ Dernière chance: notification d'erreur
+        if (window.showGameNotification) {
+          window.showGameNotification(
+            `Erreur combat - continuez à explorer !`,
+            'error',
+            { duration: 3000, position: 'bottom-center' }
+          );
+        }
+      }
+    });
+  }
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
   handleEncounterZoneInfo(data) {
