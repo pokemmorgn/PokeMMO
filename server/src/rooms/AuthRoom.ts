@@ -877,4 +877,42 @@ private generateJWT(payload: any): string {
       return result;
     }, {});
   }
-}
+  private async validateSession(sessionToken: string): Promise<{ valid: boolean, username?: string }> {
+    if (!sessionToken) {
+      return { valid: false };
+    }
+    // Vérifier dans activeSessions
+    if (this.activeSessions.has(sessionToken)) {
+      const session = this.activeSessions.get(sessionToken);
+      return { valid: true, username: session.username };
+    }
+    // Fallback: restaurer depuis JWT
+    try {
+      const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
+      
+      // Vérifier expiration
+      if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+        console.log(`⏰ [AuthRoom] JWT expiré pour ${decoded.username}`);
+        return { valid: false };
+      }
+      
+      // Restaurer la session
+      this.activeSessions.set(sessionToken, {
+        username: decoded.username,
+        userId: decoded.userId,
+        lastActivity: Date.now(),
+        createdAt: decoded.iat * 1000 || Date.now(),
+        restored: true
+      });
+      
+      console.log(`🔄 [AuthRoom] Session restaurée pour ${decoded.username}`);
+      return { valid: true, username: decoded.username };
+      
+    } catch (error) {
+      console.error(`❌ [AuthRoom] JWT invalide:`, error);
+      return { valid: false };
+    }
+  }
+
+  // ✅ Autres méthodes de la classe...
+}  // ← Cette accolade ferme TOUTE la classe AuthRoom
