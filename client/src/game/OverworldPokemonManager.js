@@ -246,7 +246,7 @@ export class OverworldPokemonManager {
     if (pokemon && pokemon.spawnTileX !== undefined && pokemon.spawnTileY !== undefined) {
       const distanceFromSpawn = Math.abs(tileX - pokemon.spawnTileX) + Math.abs(tileY - pokemon.spawnTileY);
       if (distanceFromSpawn > pokemon.movementRadius) {
-        console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) HORS ZONE - distance ${distanceFromSpawn} > ${pokemon.movementRadius}`);
+ //       console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) HORS ZONE - distance ${distanceFromSpawn} > ${pokemon.movementRadius}`);
         return false;
       }
     }
@@ -257,7 +257,7 @@ export class OverworldPokemonManager {
         const tile = layer.getTileAtWorldXY(pixelX, pixelY);
         
         if (tile && tile.collides) {
-          console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) BLOQUÉE par layer ${i}`);
+  //        console.log(`🚫 [OverworldPokemonManager] Tile (${tileX}, ${tileY}) BLOQUÉE par layer ${i}`);
           return false;
         }
       }
@@ -380,10 +380,10 @@ export class OverworldPokemonManager {
     const targetTileX = Math.round(snappedTarget.x / this.tileSize);
     const targetTileY = Math.round(snappedTarget.y / this.tileSize);
     
-    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} tile movement: (${pokemon.currentTileX},${pokemon.currentTileY}) → (${targetTileX},${targetTileY})`);
+//    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} tile movement: (${pokemon.currentTileX},${pokemon.currentTileY}) → (${targetTileX},${targetTileY})`);
     
     if (!this.canMoveToTile(pokemon, targetTileX, targetTileY)) {
-      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} MOUVEMENT BLOQUÉ - tile (${targetTileX},${targetTileY}) collision détectée`);
+//      console.log(`🚫 [OverworldPokemonManager] ${pokemon.name} MOUVEMENT BLOQUÉ - tile (${targetTileX},${targetTileY}) collision détectée`);
       this.stopTileMovement(pokemon);
       return false;
     }
@@ -413,13 +413,13 @@ export class OverworldPokemonManager {
     if (pokemon.anims && this.scene.anims.exists(animKey)) {
       try {
         pokemon.anims.play(animKey, true);
-        console.log(`🎬 [OverworldPokemonManager] Animation marche: ${animKey}`);
+//        console.log(`🎬 [OverworldPokemonManager] Animation marche: ${animKey}`);
       } catch (error) {
         console.warn(`⚠️ Erreur animation marche:`, error);
       }
     }
     
-    console.log(`✅ [OverworldPokemonManager] ${pokemon.name} mouvement autorisé vers (${targetTileX}, ${targetTileY})`);
+//    console.log(`✅ [OverworldPokemonManager] ${pokemon.name} mouvement autorisé vers (${targetTileX}, ${targetTileY})`);
     return true;
   }
 
