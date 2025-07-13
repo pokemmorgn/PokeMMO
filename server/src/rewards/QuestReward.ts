@@ -5,7 +5,6 @@ import { ExperienceReward } from './ExperienceReward';
 import { MoneyReward } from './MoneyReward';
 import { ItemReward } from './ItemReward';
 import { PokemonReward } from './PokemonReward';
-import { PrestigeReward } from './PrestigeReward';
 import { 
   ProcessedReward, 
   RewardNotification,
@@ -75,7 +74,6 @@ export class QuestReward {
   private moneyReward: MoneyReward;
   private itemReward: ItemReward;
   private pokemonReward: PokemonReward;
-  private prestigeReward: PrestigeReward;
 
   // Base de données des quêtes (en dur pour l'instant)
   private questDefinitions: Map<string, QuestDefinition> = new Map();
@@ -85,7 +83,6 @@ export class QuestReward {
     this.moneyReward = new MoneyReward();
     this.itemReward = new ItemReward();
     this.pokemonReward = new PokemonReward();
-    this.prestigeReward = new PrestigeReward();
     
     this.initializeQuestDefinitions();
   }
@@ -143,7 +140,7 @@ export class QuestReward {
         type: 'achievement',
         message: `🎊 Quête "${questDef.name}" terminée !`,
         priority: 'high',
-        animation: 'quest_complete',
+        animation: 'star',
         data: {
           questId,
           questName: questDef.name,
@@ -241,7 +238,7 @@ export class QuestReward {
               type: 'achievement',
               message: `🎊 Quête "${questDef.name}" prête à être réclamée !`,
               priority: 'high',
-              animation: 'quest_ready',
+              animation: 'star',
               data: {
                 questId: quest.questId,
                 questName: questDef.name
@@ -298,7 +295,7 @@ export class QuestReward {
             pokemonId: expReward.pokemonId,
             baseAmount: expReward.amount,
             multipliers: {
-              quest: this.getQuestExpMultiplier(questDef.difficulty)
+              event: this.getQuestExpMultiplier(questDef.difficulty)
             }
           });
           
@@ -315,7 +312,7 @@ export class QuestReward {
           type: 'money',
           amount: rewards.money,
           multipliers: {
-            quest: this.getQuestMoneyMultiplier(questDef.difficulty)
+            event: this.getQuestMoneyMultiplier(questDef.difficulty)
           }
         });
         
@@ -377,15 +374,8 @@ export class QuestReward {
 
       // === PRESTIGE ===
       if (rewards.prestige) {
-        const processed = await this.prestigeReward.updatePrestige(
-          playerId,
-          rewards.prestige,
-          `quest_${questDef.id}`
-        );
-        
-        if (processed.success) {
-          result.processedRewards.push(processed);
-        }
+        // TODO: Implémenter le système de prestige
+        console.log(`🏆 [QuestReward] ${playerId} gagne ${rewards.prestige} points de prestige`);
       }
 
       return result;
@@ -906,23 +896,3 @@ export class QuestReward {
       };
     }
   }
-
-  /**
-   * 🔄 Abandonne une quête
-   */
-  async abandonQuest(playerId: string, questId: string): Promise<boolean> {
-    try {
-      await PlayerQuest.findOneAndUpdate(
-        { username: playerId },
-        { $pull: { activeQuests: { questId } } }
-      );
-
-      console.log(`🔄 [QuestReward] Quête ${questId} abandonnée par ${playerId}`);
-      return true;
-
-    } catch (error) {
-      console.error('❌ [QuestReward] Erreur abandon quête:', error);
-      return false;
-    }
-  }
-}
