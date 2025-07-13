@@ -904,14 +904,14 @@ handlePokedexData(response) {
     
     if (entry.caught) {
       // Pokémon capturé : sprite complet en couleur
-      const spriteFile = entry.shiny ? 'shinyfront.png' : 'front.png';
-      return `<img src="/assets/pokemon/${paddedId}/${spriteFile}" 
+const spriteFile = isShiny ? 'shinyicons.png' : 'icons.png';
+return `<img src="/assets/pokemon/${paddedId}/${spriteFile}"
               alt="${entry.displayName}" 
               onerror="this.outerHTML='🎮'" 
               class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}">`;
     } else if (entry.seen) {
       // Pokémon vu : silhouette noire
-      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
               class="pokemon-sprite silhouette">`;
@@ -952,13 +952,13 @@ handlePokedexData(response) {
     const paddedId = pokemonId.toString().padStart(3, '0');
     
     if (caught) {
-      const spriteFile = isShiny ? 'shinyfront.png' : 'front.png';
-      return `<img src="/assets/pokemon/${paddedId}/${spriteFile}" 
+const spriteFile = entry.shiny ? 'shinyicons.png' : 'icons.png';
+return `<img src="/assets/pokemon/${paddedId}/${spriteFile}"
               alt="Pokémon #${paddedId}" 
               onerror="this.outerHTML='🎮'" 
               class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}">`;
     } else {
-      return `<img src="/assets/pokemon/${paddedId}/front.png" 
+return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
               class="pokemon-sprite silhouette">`;
