@@ -276,33 +276,34 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
       
       console.log(`✅ [POKÉDX DEBUG] Données Pokémon récupérées: ${pokemonData.name}`);
       
-      // ✅ CORRECTION: Appel avec paramètres séparés au lieu d'un objet
-      console.log(`💾 [POKÉDX DEBUG] Appel markPokemonAsSeen avec paramètres:`, {
-        playerId: context.playerId,
+      // ✅ CORRECTION: Utiliser la bonne signature (2 paramètres seulement)
+      const encounterData = {
         pokemonId: context.pokemonId,
         level: context.level,
         location: context.location,
-        method: context.method
+        method: context.method || 'wild',
+        weather: context.weather,
+        timeOfDay: context.timeOfDay,
+        sessionId: context.sessionId,
+        biome: context.biome,
+        difficulty: context.difficulty,
+        isEvent: context.isEvent
+      };
+      
+      console.log(`💾 [POKÉDX DEBUG] Appel markPokemonAsSeen avec:`, {
+        playerId: context.playerId,
+        encounterData
       });
       
       const discoveryResult = await pokedexService.markPokemonAsSeen(
-        context.playerId,          // ✅ Paramètre 1: playerId
-        context.pokemonId,         // ✅ Paramètre 2: pokemonId  
-        context.level,             // ✅ Paramètre 3: level
-        context.location,          // ✅ Paramètre 4: location
-        context.method || 'wild',  // ✅ Paramètre 5: method
-        context.weather,           // ✅ Paramètre 6: weather (optionnel)
-        context.timeOfDay,         // ✅ Paramètre 7: timeOfDay (optionnel)
-        context.sessionId,         // ✅ Paramètre 8: sessionId (optionnel)
-        context.biome,             // ✅ Paramètre 9: biome (optionnel)
-        context.difficulty,        // ✅ Paramètre 10: difficulty (optionnel)
-        context.isEvent            // ✅ Paramètre 11: isEvent (optionnel)
+        context.playerId,    // ✅ Paramètre 1: playerId
+        encounterData        // ✅ Paramètre 2: objet avec toutes les données
       );
       
       console.log(`💾 [POKÉDX DEBUG] Résultat markPokemonAsSeen:`, {
         success: discoveryResult.success,
         isNewDiscovery: discoveryResult.isNewDiscovery,
-        entryId: discoveryResult.entryId,
+        entry: discoveryResult.entry ? 'Entrée créée/mise à jour' : 'Pas d\'entrée',
         error: discoveryResult.error
       });
       
@@ -311,7 +312,7 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
         throw new Error(discoveryResult.error || 'Échec marquage vu');
       }
       
-      // ✅ VÉRIFICATION POST-SAUVEGARDE
+      // ✅ VÉRIFICATION POST-SAUVEGARDE avec bons noms de propriétés
       setTimeout(async () => {
         console.log(`🔍 [POKÉDX DEBUG] === VÉRIFICATION POST-SAUVEGARDE ===`);
         
@@ -321,9 +322,9 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
             totalEntries: pokedexCheck.entries?.length || 0,
             entries: pokedexCheck.entries?.map(e => ({ 
               pokemonId: e.pokemonId, 
-              seen: e.seen, 
-              caught: e.caught,
-              dateSeen: e.dateSeen
+              isSeen: e.isSeen,           // ✅ Bon nom de propriété
+              isCaught: e.isCaught,       // ✅ Bon nom de propriété
+              firstSeenDate: e.firstSeenDate  // ✅ Bon nom de propriété
             })) || []
           });
           
@@ -331,8 +332,8 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
           const specificEntry = await pokedexService.getPokedexEntry(context.playerId, context.pokemonId);
           console.log(`📄 [POKÉDX DEBUG] Entrée spécifique #${context.pokemonId}:`, {
             exists: !!specificEntry.entry,
-            seen: specificEntry.entry?.seen || false,
-            dateSeen: specificEntry.entry?.dateSeen || null,
+            isSeen: specificEntry.entry?.isSeen || false,              // ✅ Bon nom
+            firstSeenDate: specificEntry.entry?.firstSeenDate || null, // ✅ Bon nom
             timesEncountered: specificEntry.entry?.timesEncountered || 0
           });
           
