@@ -23,8 +23,6 @@ const PlayerDataSchema = new mongoose.Schema({
 walletAddress: { 
   type: String, 
   required: false,    // ✅ Pas obligatoire
-  unique: true,       // Unique si présente
-  sparse: true,       // Permet plusieurs null
   default: null       // Valeur par défaut
 },  
   // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée
