@@ -139,7 +139,17 @@ export class MovementHandlers {
     if (data.currentZone) {
       player.currentZone = data.currentZone;
     }
-
+    // ✅ NOUVEAU: Notifier le FollowerHandlers du mouvement
+    const followerHandlers = this.room.getFollowerHandlers();
+    if (followerHandlers) {
+      followerHandlers.onPlayerMove(
+        client.sessionId, 
+        data.x, 
+        data.y, 
+        data.direction, 
+        data.isMoving
+      );
+    }
     // Log occasionnel pour debug
     if (Math.random() < 0.05) { // 5% de chance
       console.log(`🚶 [MovementHandlers] ${player.name}: (${player.x}, ${player.y}) dans ${player.currentZone}`);
