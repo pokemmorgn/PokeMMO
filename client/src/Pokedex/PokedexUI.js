@@ -672,17 +672,18 @@ handlePokedexData(response) {
   }
 
   // 🆕 DEBUG: Voir ce que le serveur envoie
-  console.log('📊 [PokedexUI] Données Pokédx reçues du serveur:', response.data);
+  console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
   console.log('📊 [DEBUG] availablePokemon:', response.data?.availablePokemon?.length);
-  console.log('📊 [DEBUG] entries:', Object.keys(response.data?.entries || {}).length);
+  console.log('📊 [DEBUG] entries type:', Array.isArray(response.data?.entries) ? 'ARRAY' : 'OBJECT');
+  console.log('📊 [DEBUG] entries count:', Array.isArray(response.data?.entries) ? response.data.entries.length : Object.keys(response.data?.entries || {}).length);
   console.log('📊 [DEBUG] summary:', response.data?.summary);
   
-  // 🆕 UTILISER LA NOUVELLE STRUCTURE SERVEUR
+  // 🆕 UTILISER SEULEMENT setServerData (pas de double import)
   if (response.data) {
     // Configurer le DataManager avec les données serveur
     this.dataManager.setServerData(response.data);
     
-    // 🚫 SUPPRIMER CETTE LIGNE QUI CAUSAIT LE PROBLÈME
+    // 🚫 CETTE LIGNE SUPPRIMÉE - CAUSAIT LE PROBLÈME
     // this.dataManager.importPlayerData(response.data.entries);
     
     // Recharger les données locales
