@@ -40,21 +40,21 @@ const UI_CONFIG = {
 
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
-  exploration: {
-    visibleModules: ['inventory', 'team', 'quest', 'questTracker'],
-    enabledModules: ['inventory', 'team', 'quest', 'questTracker'],
-    hiddenModules: [],
-    disabledModules: [],
-    responsive: {
-      mobile: { 
-        hiddenModules: ['questTracker'], 
-        visibleModules: ['inventory', 'team', 'quest']
-      },
-      tablet: { 
-        visibleModules: ['inventory', 'team', 'quest', 'questTracker']
-      }
+exploration: {
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
+  hiddenModules: [],
+  disabledModules: [],
+  responsive: {
+    mobile: { 
+      hiddenModules: ['questTracker'], 
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team']
+    },
+    tablet: { 
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker']
     }
-  },
+  }
+},
   
   battle: {
     visibleModules: [],
@@ -63,12 +63,12 @@ const POKEMON_GAME_STATES = {
     disabledModules: ['inventory', 'team', 'quest', 'questTracker']
   },
   
-  pokemonCenter: {
-    visibleModules: ['team', 'inventory'],
-    enabledModules: ['team', 'inventory'],
-    hiddenModules: ['questTracker'],
-    disabledModules: ['quest']
-  },
+pokemonCenter: {
+  visibleModules: ['team', 'inventory', 'pokedex'],
+  enabledModules: ['team', 'inventory', 'pokedex'],
+  hiddenModules: ['questTracker'],
+  disabledModules: ['quest']
+},
   
   dialogue: {
     visibleModules: ['inventory', 'team', 'quest'],
@@ -77,23 +77,23 @@ const POKEMON_GAME_STATES = {
     disabledModules: ['inventory', 'team', 'quest']
   },
   
-  menu: {
-    visibleModules: ['inventory', 'team', 'quest'],
-    enabledModules: ['inventory', 'team', 'quest'],
-    hiddenModules: ['questTracker'],
-    disabledModules: []
-  }
+menu: {
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team'],
+  hiddenModules: ['questTracker'],
+  disabledModules: []
+}
 };
 
 // === GROUPES LOGIQUES POKÉMON ===
 const POKEMON_UI_GROUPS = {
   'ui-icons': {
-    modules: ['inventory', 'team', 'quest'],
+    modules: ['inventory', 'quest', 'pokedex', 'team'],
     layout: {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'quest', 'team']
+      order: ['inventory', 'quest', 'pokedex', 'team']
     },
     priority: 100
   },
@@ -251,6 +251,17 @@ export class PokemonUISystem {
         priority: 90
       },
       {
+        id: 'pokedex',
+        critical: false,
+        factory: this.createPokedexModule.bind(this),
+        groups: ['ui-icons'],
+        layout: {
+          type: 'icon',
+          anchor: 'bottom-right',
+          order: 2,
+          spacing: 10
+        },
+      {
         id: 'team',
         critical: true,
         factory: this.createTeamModule.bind(this),
@@ -393,30 +404,33 @@ export class PokemonUISystem {
     }
   }
 
-async createQuestModule() {
-  try {
-    console.log('🚀 [PokemonUI] Création module Quest...');
-    
-    // Méthode 1: Importer et créer le module Quest
-    const { createQuestModule } = await import('./Quest/index.js');
-    
-    const questModule = await createQuestModule(
-      window.currentGameRoom,
-      window.game?.scene?.getScenes(true)[0]
-    );
-    
-    if (questModule) {
-      console.log('✅ [PokemonUI] QuestModule créé avec succès');
+    async createPokedexModule() {
+    try {
+      console.log('🚀 [PokemonUI] Création module Pokédex...');
+      
+      // Importer et créer le module Pokédx
+      const { createPokedexModule } = await import('./Pokedex/index.js');
+      
+      const pokedexModule = await createPokedexModule(
+        window.currentGameRoom,
+        window.game?.scene?.getScenes(true)[0]
+      );
+      
+      if (!pokedexModule) {
+        throw new Error('Échec création PokedexModule');
+      }
+      
+      console.log('✅ [PokemonUI] PokedexModule créé avec succès');
       
       // S'assurer que le module a les méthodes nécessaires pour UIManager
-      if (!questModule.connectUIManager && questModule.icon?.iconElement) {
-        questModule.connectUIManager = (uiManager) => {
+      if (!pokedexModule.connectUIManager && pokedexModule.icon?.iconElement) {
+        pokedexModule.connectUIManager = (uiManager) => {
           if (uiManager.registerIconPosition) {
-            uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
+            uiManager.registerIconPosition('pokedex', pokedexModule.icon.iconElement, {
               anchor: 'bottom-right',
-              order: 1,
+              order: 2,
               spacing: 10,
-              size: { width: 65, height: 75 }
+              size: { width: 70, height: 80 }
             });
             return true;
           }
@@ -425,27 +439,78 @@ async createQuestModule() {
       }
       
       // Connecter à UIManager si disponible
-      if (this.uiManager && questModule.connectUIManager) {
-        questModule.connectUIManager(this.uiManager);
+      if (this.uiManager && pokedexModule.connectUIManager) {
+        pokedexModule.connectUIManager(this.uiManager);
       }
       
       // Exposer globalement
-      window.questSystem = questModule;
-      window.questSystemGlobal = questModule;
-      window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
-      window.openQuest = () => questModule.open?.();
-      window.closeQuest = () => questModule.close?.();
+      window.pokedexSystem = pokedexModule.system;
+      window.pokedexSystemGlobal = pokedexModule;
+      window.togglePokedex = () => pokedexModule.toggleUI?.() || pokedexModule.toggle?.();
+      window.openPokedex = () => pokedexModule.open?.();
+      window.closePokedex = () => pokedexModule.close?.();
       
-      return questModule;
+      return pokedexModule;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur création Pokédx:', error);
+      // Fallback: wrapper vide
+      return this.createEmptyWrapper('pokedex');
     }
-    
-  } catch (error) {
-    console.error('❌ [PokemonUI] Erreur création Quest:', error);
   }
-  
-  // Fallback: wrapper vide
-  return this.createEmptyWrapper('quest');
-}
+    async createQuestModule() {
+      try {
+        console.log('🚀 [PokemonUI] Création module Quest...');
+        
+        // Méthode 1: Importer et créer le module Quest
+        const { createQuestModule } = await import('./Quest/index.js');
+        
+        const questModule = await createQuestModule(
+          window.currentGameRoom,
+          window.game?.scene?.getScenes(true)[0]
+        );
+        
+        if (questModule) {
+          console.log('✅ [PokemonUI] QuestModule créé avec succès');
+          
+          // S'assurer que le module a les méthodes nécessaires pour UIManager
+          if (!questModule.connectUIManager && questModule.icon?.iconElement) {
+            questModule.connectUIManager = (uiManager) => {
+              if (uiManager.registerIconPosition) {
+                uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
+                  anchor: 'bottom-right',
+                  order: 1,
+                  spacing: 10,
+                  size: { width: 65, height: 75 }
+                });
+                return true;
+              }
+              return false;
+            };
+          }
+          
+          // Connecter à UIManager si disponible
+          if (this.uiManager && questModule.connectUIManager) {
+            questModule.connectUIManager(this.uiManager);
+          }
+          
+          // Exposer globalement
+          window.questSystem = questModule;
+          window.questSystemGlobal = questModule;
+          window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
+          window.openQuest = () => questModule.open?.();
+          window.closeQuest = () => questModule.close?.();
+          
+          return questModule;
+        }
+        
+      } catch (error) {
+        console.error('❌ [PokemonUI] Erreur création Quest:', error);
+      }
+      
+      // Fallback: wrapper vide
+      return this.createEmptyWrapper('quest');
+    }
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
@@ -874,6 +939,48 @@ function setupCompatibilityFunctions() {
     } else if (module && module.toggle) {
       module.toggle();
     }
+  };
+
+    // Fonctions Pokédx
+  window.togglePokedex = () => {
+    const module = pokemonUISystem.getModule?.('pokedex');
+    if (module && module.toggleUI) {
+      module.toggleUI();
+    } else if (module && module.toggle) {
+      module.toggle();
+    }
+  };
+  
+  window.openPokedex = () => {
+    const module = pokemonUISystem.getModule?.('pokedex');
+    if (module && module.open) {
+      module.open();
+    }
+  };
+  
+  window.closePokedex = () => {
+    const module = pokemonUISystem.getModule?.('pokedex');
+    if (module && module.close) {
+      module.close();
+    }
+  };
+  
+  window.forceClosePokedex = () => {
+    if (window.pokedexSystemGlobal && window.pokedexSystemGlobal.ui) {
+      window.pokedexSystemGlobal.ui.hide();
+    }
+    
+    const pokedexOverlay = document.querySelector('#pokedex-overlay');
+    if (pokedexOverlay) {
+      pokedexOverlay.style.display = 'none';
+    }
+    
+    const pokedexModals = document.querySelectorAll('.pokedex-overlay, .pokedex-modal, [id*="pokedex-"]');
+    pokedexModals.forEach(modal => {
+      if (modal.style) {
+        modal.style.display = 'none';
+      }
+    });
   };
   
   // Fonctions d'état de jeu
