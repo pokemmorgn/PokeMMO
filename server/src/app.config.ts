@@ -141,6 +141,7 @@ error: error instanceof Error ? error.message : String(error),
           createdAt: player.createdAt,
           lastLogin: player.lastLogin,
           loginCount: player.loginCount,
+          playtime: player.totalPlaytime || 0,
           isActive: player.isActive
         });
       } catch (err) {
