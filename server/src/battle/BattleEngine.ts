@@ -14,7 +14,7 @@ import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFac
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 import { BATTLE_TIMINGS } from './modules/BroadcastManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole, Pokemon } from './types/BattleTypes';
-
+import { pokedexIntegrationService } from '../services/PokedexIntegrationService';
 /**
  * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER
  * 
@@ -109,7 +109,16 @@ export class BattleEngine {
         phase: InternalBattlePhase.INTRO,
         introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
-      
+      if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
+        pokedexIntegrationService.onWildPokemonEncountered(
+          this.gameState.player1.sessionId,
+          this.gameState.player2.pokemon.id,
+          this.gameState.player2.pokemon.level,
+          'Wild Area' // Vous pourrez personnaliser selon votre système de locations
+        ).catch(error => {
+          console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
+        });
+      }
       this.scheduleIntroTransition();
       
       return {
