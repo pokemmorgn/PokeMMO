@@ -5,6 +5,7 @@ import { verifyPersonalMessage } from "@mysten/sui.js/verify";
 import { PlayerData } from "../models/PlayerData";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken'; // ✅ Ajout SignOptions
 
 // État de la room d'authentification
 export class AuthState extends Schema {
@@ -629,17 +630,19 @@ export class AuthRoom extends Room<AuthState> {
     return { valid: true };
   }
 
-  private generateJWT(payload: any): string {
-    return jwt.sign(
-      payload,
-      process.env.JWT_SECRET!,
-      { 
-        expiresIn: process.env.SESSION_DURATION || '6h',
-        issuer: 'pokeworld-auth',
-        audience: 'pokeworld-game'
-      }
-    );
-  }
+private generateJWT(payload: any): string {
+  const options: SignOptions = {
+    expiresIn: process.env.SESSION_DURATION || '6h',
+    issuer: 'pokeworld-auth',
+    audience: 'pokeworld-game'
+  };
+
+  return jwt.sign(
+    payload,
+    process.env.JWT_SECRET!,
+    options
+  );
+}
 
   private getSessionDuration(): number {
     const duration = process.env.SESSION_DURATION || '6h';
