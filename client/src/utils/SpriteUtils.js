@@ -1,5 +1,5 @@
 /**
- * SpriteUtils.js - Gestion des sprites
+ * SpriteUtils.js - Gestion des sprites et icons Pokemon
  */
 
 export class SpriteUtils {
@@ -28,6 +28,209 @@ export class SpriteUtils {
       this.spriteSizesLoaded = true;
     }
   }
+
+  // === 🎯 NOUVELLES MÉTHODES POUR LES ICONS ===
+
+  /**
+   * Génère le chemin vers l'icon d'un Pokémon
+   * @param {number} pokemonId - ID du Pokémon (1-151+)
+   * @returns {string} - Chemin vers l'icon
+   */
+  static getPokemonIconPath(pokemonId) {
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    return `/assets/pokemon/${paddedId}/${paddedId}icons.png`;
+  }
+
+  /**
+   * Récupère la structure de l'icon (toujours 128x64, 2 frames, on utilise l'index 0)
+   * @param {number} pokemonId - ID du Pokémon
+   * @returns {Object} - Structure de l'icon
+   */
+  static getPokemonIconStructure(pokemonId) {
+    return {
+      path: this.getPokemonIconPath(pokemonId),
+      totalWidth: 128,
+      totalHeight: 64,
+      frameWidth: 64,  // 128 / 2 = 64px par frame
+      frameHeight: 64, // Hauteur complète
+      cols: 2,
+      rows: 1,
+      totalFrames: 2,
+      useFrameIndex: 0, // On utilise toujours la première frame (index 0)
+      name: `Icon ${pokemonId.toString().padStart(3, '0')}`,
+      source: 'pokemon-icon',
+      qualityScore: 100
+    };
+  }
+
+  /**
+   * Charge un icon Pokemon et retourne sa structure
+   * @param {number} pokemonId - ID du Pokémon
+   * @returns {Promise<Object>} - Structure de l'icon avec image
+   */
+  static async loadPokemonIcon(pokemonId) {
+    const structure = this.getPokemonIconStructure(pokemonId);
+    
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        // Vérifier que l'image a bien la taille attendue
+        if (img.width === 128 && img.height === 64) {
+          console.log(`✅ [SpriteUtils] Icon ${pokemonId} chargé: ${img.width}x${img.height}`);
+          structure.image = img;
+          structure.loaded = true;
+          resolve(structure);
+        } else {
+          console.warn(`⚠️ [SpriteUtils] Icon ${pokemonId} taille inattendue: ${img.width}x${img.height} (attendu: 128x64)`);
+          structure.image = img;
+          structure.loaded = true;
+          structure.unexpected_size = true;
+          resolve(structure);
+        }
+      };
+      
+      img.onerror = () => {
+        console.error(`❌ [SpriteUtils] Impossible de charger l'icon ${pokemonId}`);
+        structure.loaded = false;
+        structure.error = true;
+        reject(new Error(`Icon ${pokemonId} non trouvé`));
+      };
+      
+      img.src = structure.path;
+    });
+  }
+
+  /**
+   * Crée un canvas avec seulement la première frame de l'icon
+   * @param {number} pokemonId - ID du Pokémon
+   * @returns {Promise<HTMLCanvasElement>} - Canvas avec l'icon frame 0
+   */
+  static async createPokemonIconCanvas(pokemonId) {
+    try {
+      const structure = await this.loadPokemonIcon(pokemonId);
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = structure.frameWidth;  // 64px
+      canvas.height = structure.frameHeight; // 64px
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Dessiner seulement la première frame (index 0)
+      ctx.drawImage(
+        structure.image,
+        0, 0,                           // Source X, Y (première frame)
+        structure.frameWidth,           // Source width
+        structure.frameHeight,          // Source height
+        0, 0,                          // Destination X, Y
+        structure.frameWidth,           // Destination width
+        structure.frameHeight           // Destination height
+      );
+      
+      console.log(`🎨 [SpriteUtils] Canvas icon ${pokemonId} créé: ${canvas.width}x${canvas.height}`);
+      return canvas;
+      
+    } catch (error) {
+      console.error(`❌ [SpriteUtils] Erreur création canvas icon ${pokemonId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convertit un icon en Data URL pour utilisation directe
+   * @param {number} pokemonId - ID du Pokémon
+   * @returns {Promise<string>} - Data URL de l'icon
+   */
+  static async getPokemonIconDataURL(pokemonId) {
+    try {
+      const canvas = await this.createPokemonIconCanvas(pokemonId);
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error(`❌ [SpriteUtils] Erreur conversion Data URL ${pokemonId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Teste le chargement d'un icon Pokemon
+   * @param {number} pokemonId - ID du Pokémon à tester
+   */
+  static async testPokemonIcon(pokemonId) {
+    console.log(`🧪 [SpriteUtils] === TEST ICON ${pokemonId} ===`);
+    
+    try {
+      const structure = await this.loadPokemonIcon(pokemonId);
+      
+      console.log(`📊 Résultat icon:`, {
+        pokemonId,
+        path: structure.path,
+        size: `${structure.totalWidth}x${structure.totalHeight}`,
+        frameSize: `${structure.frameWidth}x${structure.frameHeight}`,
+        frames: structure.totalFrames,
+        useFrame: structure.useFrameIndex,
+        loaded: structure.loaded,
+        unexpected: structure.unexpected_size || false
+      });
+      
+      // Tester aussi la création du canvas
+      const canvas = await this.createPokemonIconCanvas(pokemonId);
+      console.log(`🎨 Canvas créé: ${canvas.width}x${canvas.height}`);
+      
+      return { structure, canvas };
+      
+    } catch (error) {
+      console.error(`❌ Test icon échoué:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Teste plusieurs icons Pokemon
+   */
+  static async testMultipleIcons() {
+    const testCases = [
+      { id: 1, name: 'Bulbizarre' },
+      { id: 4, name: 'Salamèche' },
+      { id: 7, name: 'Carapuce' },
+      { id: 25, name: 'Pikachu' },
+      { id: 150, name: 'Mewtwo' }
+    ];
+    
+    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} ICONS ===`);
+    
+    const results = [];
+    
+    for (const testCase of testCases) {
+      console.log(`\n🎯 Test icon ${testCase.name} (${testCase.id}):`);
+      
+      try {
+        const result = await this.testPokemonIcon(testCase.id);
+        
+        results.push({
+          pokemon: testCase,
+          success: !!result,
+          result
+        });
+        
+      } catch (error) {
+        console.error(`❌ Erreur icon ${testCase.name}:`, error);
+        results.push({
+          pokemon: testCase,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`\n📊 === RÉSUMÉ ICONS ===`);
+    console.log(`✅ Succès: ${successCount}/${testCases.length}`);
+    console.log(`❌ Échecs: ${testCases.length - successCount}/${testCases.length}`);
+    
+    return results;
+  }
+
+  // === 🎯 MÉTHODES EXISTANTES POUR LES ANIMATIONS (conservées) ===
 
   static async getSpriteStructure(pokemonId, animationFile, width, height) {
     if (!this.spriteSizesLoaded) {
@@ -330,4 +533,32 @@ export class SpriteUtils {
     return results;
   }
 
+  // === 🎯 MÉTHODE UTILITAIRE POUR LE POKÉDEX ===
+
+  /**
+   * Génère le HTML pour afficher un icon Pokemon dans le Pokédx
+   * @param {number} pokemonId - ID du Pokémon
+   * @param {string} cssClass - Classes CSS additionnelles
+   * @returns {string} - HTML de l'icon
+   */
+  static getPokemonIconHTML(pokemonId, cssClass = '') {
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    const iconPath = this.getPokemonIconPath(pokemonId);
+    
+    return `<div class="pokemon-icon-container ${cssClass}" style="
+      width: 64px; 
+      height: 64px; 
+      background-image: url('${iconPath}'); 
+      background-position: 0 0; 
+      background-size: 128px 64px; 
+      background-repeat: no-repeat;
+    " data-pokemon-id="${pokemonId}"></div>`;
+  }
+
 }
+
+// === 🧪 MÉTHODES DE TEST RAPIDE ===
+
+// Pour tester rapidement dans la console :
+// SpriteUtils.testPokemonIcon(25); // Test Pikachu
+// SpriteUtils.testMultipleIcons(); // Test batch
