@@ -380,22 +380,20 @@ if (playerEntry.caught) {
   /**
    * Détermine le nom à afficher
    */
-  getDisplayName(pokemonId, playerEntry) {
-    if (playerEntry.seen || playerEntry.caught) {
-      return this.pokemonData[pokemonId]?.name || `Pokémon #${pokemonId}`;
-    }
-    return '???';
+getDisplayName(pokemonId, playerEntry) {
+  if (playerEntry.seen || playerEntry.caught) {
+    return this.pokemonData[pokemonId]?.name || `Pokémon #${pokemonId}`;
   }
+  return '???';  // ← Ça c'est correct, le nom reste masqué
+}
   
   /**
    * Détermine le numéro à afficher
    */
-  getDisplayNumber(pokemonId, playerEntry) {
-    if (playerEntry.seen || playerEntry.caught) {
-      return `#${pokemonId.toString().padStart(3, '0')}`;
-    }
-    return '???';
-  }
+getDisplayNumber(pokemonId, playerEntry) {
+  // Toujours afficher le numéro, même pour les Pokémon inconnus
+  return `#${pokemonId.toString().padStart(3, '0')}`;
+}
   
   // === 📊 MISE À JOUR DES STATUTS ===
   
