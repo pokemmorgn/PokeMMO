@@ -130,7 +130,7 @@ export class EventReward {
         type: 'achievement',
         message: `📅 Récompense quotidienne réclamée ! (Série: ${streak} jours)`,
         priority: 'medium',
-        animation: 'daily_reward',
+        animation: 'star',
         data: {
           streak,
           type: 'daily'
@@ -143,7 +143,7 @@ export class EventReward {
           type: 'achievement',
           message: `🔥 Série de ${streak} jours ! Bonus spécial !`,
           priority: 'high',
-          animation: 'streak_bonus',
+          animation: 'explosion',
           data: {
             streak,
             bonus: true
@@ -217,7 +217,7 @@ export class EventReward {
         type: 'achievement',
         message: `🗓️ Récompense hebdomadaire réclamée ! (${weeklyActivity.daysActive}/7 jours actifs)`,
         priority: 'high',
-        animation: 'weekly_reward',
+        animation: 'sparkle',
         data: {
           daysActive: weeklyActivity.daysActive,
           type: 'weekly'
@@ -304,7 +304,7 @@ export class EventReward {
         type: 'achievement',
         message: `🎊 Participation à l'événement "${eventDef.name}" !`,
         priority: 'high',
-        animation: 'seasonal_event',
+        animation: 'explosion',
         data: {
           eventId,
           eventName: eventDef.name,
@@ -319,7 +319,7 @@ export class EventReward {
           type: 'pokemon',
           message: `⭐ Pokémon exclusif d'événement obtenu !`,
           priority: 'high',
-          animation: 'exclusive_pokemon',
+          animation: 'star',
           data: {
             exclusive: true,
             eventId
@@ -406,7 +406,7 @@ export class EventReward {
             type: 'item',
             itemId: itemReward.itemId,
             quantity: itemReward.quantity,
-            source: 'event',
+            source: 'gift',
             rarity: itemReward.rarity as any
           });
           
@@ -473,7 +473,7 @@ export class EventReward {
    * 🎯 Génère les récompenses quotidiennes selon la série
    */
   private generateDailyRewards(streak: number): EventDefinition['rewards'] {
-    const baseRewards = {
+    const baseRewards: EventDefinition['rewards'] = {
       experience: [{ amount: 100 * Math.min(streak, 7) }],
       money: { amount: 500 * Math.min(streak, 7) },
       items: [{ itemId: 'poke_ball', quantity: 3 }]
@@ -481,18 +481,18 @@ export class EventReward {
 
     // Bonus de série
     if (streak >= 3) {
-      baseRewards.items.push({ itemId: 'potion', quantity: 2 });
+      baseRewards.items!.push({ itemId: 'potion', quantity: 2 });
     }
     if (streak >= 7) {
-      baseRewards.items.push({ itemId: 'great_ball', quantity: 5 });
+      baseRewards.items!.push({ itemId: 'great_ball', quantity: 5 });
       baseRewards.prestige = 25;
     }
     if (streak >= 14) {
-      baseRewards.items.push({ itemId: 'ultra_ball', quantity: 3 });
+      baseRewards.items!.push({ itemId: 'ultra_ball', quantity: 3 });
       baseRewards.prestige = 50;
     }
     if (streak >= 30) {
-      baseRewards.items.push({ itemId: 'master_ball', quantity: 1 });
+      baseRewards.items!.push({ itemId: 'master_ball', quantity: 1 });
       baseRewards.prestige = 100;
       baseRewards.special = [{
         type: 'title',
@@ -526,7 +526,7 @@ export class EventReward {
    */
   private async giveSpecialReward(
     playerId: string,
-    specialReward: EventDefinition['rewards']['special'][0],
+    specialReward: EventDefinition['rewards']['special']![0],
     eventId: string
   ): Promise<void> {
     try {
