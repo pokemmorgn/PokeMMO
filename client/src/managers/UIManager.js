@@ -1,9 +1,9 @@
-// managers/UIManager.js - CORRIGÉ pour créer et positionner les icônes
-// 🎯 UIManager prend le contrôle total - création + positionnement
+// managers/UIManager.js - CORRIGÉ avec tailles d'icônes centralisées
+// 🎯 UNE SEULE CONFIGURATION pour toutes les tailles d'icônes
 
 export class UIManager {
   constructor(options = {}) {
-    console.log('🎛️ UIManager avec création d\'icônes initialisé');
+    console.log('🎛️ UIManager avec tailles centralisées initialisé');
     
     this.debug = options.debug || false;
     this.gameStates = options.gameStates || {};
@@ -19,11 +19,48 @@ export class UIManager {
       currentGameState: 'exploration'
     };
     
+    // === 📏 CONFIGURATION CENTRALISÉE DES TAILLES ===
+    this.iconConfig = {
+      // Taille standard pour TOUTES les icônes
+      defaultSize: {
+        width: 70,
+        height: 80
+      },
+      
+      // Tailles par breakpoint responsive
+      responsiveSizes: {
+        mobile: {    // <= 768px
+          width: 60,
+          height: 70
+        },
+        tablet: {    // 769px - 1024px
+          width: 65,
+          height: 75
+        },
+        desktop: {   // > 1024px
+          width: 70,
+          height: 80
+        }
+      },
+      
+      // Espacement entre icônes
+      spacing: 10,
+      
+      // Padding depuis les bords
+      padding: 20,
+      
+      // Z-index pour toutes les icônes
+      zIndex: 500
+    };
+    
     // === SYSTÈME DE POSITIONNEMENT ===
     this.registeredIcons = new Map();
     this.iconGroups = new Map();
+    this.currentBreakpoint = this.getCurrentBreakpoint();
+    
     this.setupDefaultGroups();
     this.setupResizeListener();
+    this.injectGlobalIconCSS();
     
     this.interactionRules = {
       inventory_open: ['team'],
@@ -33,6 +70,190 @@ export class UIManager {
     };
     
     this.openModules = new Set();
+  }
+
+  // === 📏 GESTION CENTRALISÉE DES TAILLES ===
+  
+  getCurrentBreakpoint() {
+    const width = window.innerWidth;
+    if (width <= 768) return 'mobile';
+    if (width <= 1024) return 'tablet';
+    return 'desktop';
+  }
+  
+  getCurrentIconSize() {
+    const breakpoint = this.getCurrentBreakpoint();
+    return this.iconConfig.responsiveSizes[breakpoint] || this.iconConfig.defaultSize;
+  }
+  
+  updateIconConfig(newConfig) {
+    console.log('🔧 [UIManager] Mise à jour configuration icônes:', newConfig);
+    
+    // Merger la nouvelle config
+    this.iconConfig = {
+      ...this.iconConfig,
+      ...newConfig,
+      responsiveSizes: {
+        ...this.iconConfig.responsiveSizes,
+        ...(newConfig.responsiveSizes || {})
+      }
+    };
+    
+    // Réinjecter le CSS
+    this.injectGlobalIconCSS();
+    
+    // Repositionner toutes les icônes
+    setTimeout(() => {
+      this.repositionAllIcons();
+    }, 100);
+    
+    console.log('✅ [UIManager] Configuration icônes mise à jour');
+  }
+  
+  // === 🎨 CSS GLOBAL POUR TOUTES LES ICÔNES ===
+  
+  injectGlobalIconCSS() {
+    // Supprimer l'ancien style
+    const existingStyle = document.querySelector('#uimanager-global-icons');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+    
+    const { defaultSize, responsiveSizes, zIndex } = this.iconConfig;
+    
+    const style = document.createElement('style');
+    style.id = 'uimanager-global-icons';
+    style.textContent = `
+      /* ===== UIMANAGER - TAILLES GLOBALES ICÔNES ===== */
+      
+      /* Taille desktop par défaut */
+      .ui-icon {
+        width: ${defaultSize.width}px !important;
+        height: ${defaultSize.height}px !important;
+        z-index: ${zIndex} !important;
+        position: fixed !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        user-select: none !important;
+        display: block !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* Force pour tous les modules */
+      #inventory-icon.ui-icon,
+      #team-icon.ui-icon,
+      #quest-icon.ui-icon,
+      .inventory-icon.ui-icon,
+      .team-icon.ui-icon,
+      .quest-icon.ui-icon {
+        width: ${defaultSize.width}px !important;
+        height: ${defaultSize.height}px !important;
+        min-width: ${defaultSize.width}px !important;
+        max-width: ${defaultSize.width}px !important;
+        min-height: ${defaultSize.height}px !important;
+        max-height: ${defaultSize.height}px !important;
+      }
+      
+      /* Responsive tablet */
+      @media (min-width: 769px) and (max-width: 1024px) {
+        .ui-icon {
+          width: ${responsiveSizes.tablet.width}px !important;
+          height: ${responsiveSizes.tablet.height}px !important;
+        }
+        
+        #inventory-icon.ui-icon,
+        #team-icon.ui-icon,
+        #quest-icon.ui-icon,
+        .inventory-icon.ui-icon,
+        .team-icon.ui-icon,
+        .quest-icon.ui-icon {
+          width: ${responsiveSizes.tablet.width}px !important;
+          height: ${responsiveSizes.tablet.height}px !important;
+          min-width: ${responsiveSizes.tablet.width}px !important;
+          max-width: ${responsiveSizes.tablet.width}px !important;
+          min-height: ${responsiveSizes.tablet.height}px !important;
+          max-height: ${responsiveSizes.tablet.height}px !important;
+        }
+      }
+      
+      /* Responsive mobile */
+      @media (max-width: 768px) {
+        .ui-icon {
+          width: ${responsiveSizes.mobile.width}px !important;
+          height: ${responsiveSizes.mobile.height}px !important;
+        }
+        
+        #inventory-icon.ui-icon,
+        #team-icon.ui-icon,
+        #quest-icon.ui-icon,
+        .inventory-icon.ui-icon,
+        .team-icon.ui-icon,
+        .quest-icon.ui-icon {
+          width: ${responsiveSizes.mobile.width}px !important;
+          height: ${responsiveSizes.mobile.height}px !important;
+          min-width: ${responsiveSizes.mobile.width}px !important;
+          max-width: ${responsiveSizes.mobile.width}px !important;
+          min-height: ${responsiveSizes.mobile.height}px !important;
+          max-height: ${responsiveSizes.mobile.height}px !important;
+        }
+      }
+      
+      /* États UIManager */
+      .ui-icon.ui-hidden {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(20px) !important;
+      }
+      
+      .ui-icon.ui-disabled {
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
+        filter: grayscale(50%) !important;
+      }
+      
+      .ui-icon.ui-disabled:hover {
+        transform: none !important;
+      }
+      
+      /* Animations standardisées */
+      .ui-icon.ui-fade-in {
+        animation: uiIconFadeIn 0.3s ease !important;
+      }
+      
+      .ui-icon.ui-fade-out {
+        animation: uiIconFadeOut 0.2s ease !important;
+      }
+      
+      @keyframes uiIconFadeIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.8); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      
+      @keyframes uiIconFadeOut {
+        from { opacity: 1; transform: translateY(0) scale(1); }
+        to { opacity: 0; transform: translateY(20px) scale(0.8); }
+      }
+      
+      /* Hover standardisé */
+      .ui-icon:hover:not(.ui-disabled) {
+        transform: scale(1.1) !important;
+      }
+      
+      /* Indicateur UIManager */
+      .ui-icon[data-positioned-by="uimanager"]::before {
+        content: "📍";
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        font-size: 10px;
+        opacity: 0.6;
+        z-index: 1000;
+        pointer-events: none;
+      }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('🎨 [UIManager] CSS global icônes injecté');
   }
 
   // === 🎛️ INITIALISATION MODULE CORRIGÉE ===
@@ -68,14 +289,14 @@ export class UIManager {
       this.moduleInstances.set(moduleId, instance);
       state.initialized = true;
       
-      // ✅ 3. CRÉER L'ICÔNE SI LE MODULE EN A UNE
+      // ✅ 3. CRÉER L'ICÔNE AVEC TAILLE CENTRALISÉE
       await this.createModuleIcon(moduleId, instance, config);
       
       // 4. Appliquer l'état initial
       this.applyModuleState(moduleId);
       
       if (this.debug) {
-        console.log(`✅ [UIManager] Module ${moduleId} initialisé avec icône`);
+        console.log(`✅ [UIManager] Module ${moduleId} initialisé avec taille centralisée`);
       }
       
       return instance;
@@ -86,9 +307,9 @@ export class UIManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Création d'icône par UIManager
+  // ✅ NOUVELLE MÉTHODE: Création d'icône avec taille centralisée
   async createModuleIcon(moduleId, instance, config) {
-    console.log(`🎨 [UIManager] Création icône pour ${moduleId}...`);
+    console.log(`🎨 [UIManager] Création icône pour ${moduleId} avec taille centralisée...`);
     
     try {
       // Vérifier si le module a besoin d'une icône
@@ -112,10 +333,13 @@ export class UIManager {
         return null;
       }
       
+      // ✅ APPLIQUER LA TAILLE CENTRALISÉE IMMÉDIATEMENT
+      this.applyStandardizedSize(iconElement);
+      
       // ✅ ENREGISTRER ET POSITIONNER L'ICÔNE
       this.registerIconPosition(moduleId, iconElement, layoutConfig);
       
-      console.log(`✅ [UIManager] Icône créée et positionnée pour ${moduleId}`);
+      console.log(`✅ [UIManager] Icône créée avec taille centralisée pour ${moduleId}`);
       return iconElement;
       
     } catch (error) {
@@ -123,14 +347,33 @@ export class UIManager {
       return null;
     }
   }
+  
+  // ✅ NOUVELLE MÉTHODE: Appliquer taille standardisée
+  applyStandardizedSize(iconElement) {
+    const currentSize = this.getCurrentIconSize();
+    
+    // Forcer la taille via CSS
+    iconElement.style.width = `${currentSize.width}px`;
+    iconElement.style.height = `${currentSize.height}px`;
+    iconElement.style.minWidth = `${currentSize.width}px`;
+    iconElement.style.maxWidth = `${currentSize.width}px`;
+    iconElement.style.minHeight = `${currentSize.height}px`;
+    iconElement.style.maxHeight = `${currentSize.height}px`;
+    iconElement.style.zIndex = this.iconConfig.zIndex;
+    
+    // Ajouter la classe ui-icon pour le CSS global
+    iconElement.classList.add('ui-icon');
+    
+    console.log(`📏 [UIManager] Taille appliquée: ${currentSize.width}x${currentSize.height}`);
+  }
 
-  // === 🎨 POSITIONNEMENT (EXISTANT MAIS AMÉLIORÉ) ===
+  // === 🎨 POSITIONNEMENT (AMÉLIORÉ AVEC TAILLES CENTRALISÉES) ===
   
   setupDefaultGroups() {
     this.iconGroups.set('ui-icons', {
       anchor: 'bottom-right',
-      spacing: 10,
-      padding: 20,
+      spacing: this.iconConfig.spacing,
+      padding: this.iconConfig.padding,
       members: []
     });
   }
@@ -140,8 +383,31 @@ export class UIManager {
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
+        const newBreakpoint = this.getCurrentBreakpoint();
+        
+        if (newBreakpoint !== this.currentBreakpoint) {
+          console.log(`📱 [UIManager] Breakpoint changé: ${this.currentBreakpoint} → ${newBreakpoint}`);
+          this.currentBreakpoint = newBreakpoint;
+          
+          // Réappliquer les tailles à toutes les icônes
+          this.applyNewSizesToAllIcons();
+        }
+        
         this.repositionAllIcons();
       }, 200);
+    });
+  }
+  
+  applyNewSizesToAllIcons() {
+    const currentSize = this.getCurrentIconSize();
+    console.log(`📏 [UIManager] Application nouvelle taille à toutes les icônes: ${currentSize.width}x${currentSize.height}`);
+    
+    this.registeredIcons.forEach((iconConfig, moduleId) => {
+      if (iconConfig.element) {
+        this.applyStandardizedSize(iconConfig.element);
+        // Mettre à jour la config
+        iconConfig.size = currentSize;
+      }
     });
   }
 
@@ -151,14 +417,17 @@ export class UIManager {
       return;
     }
 
+    // Utiliser la taille centralisée
+    const currentSize = this.getCurrentIconSize();
+    
     const iconConfig = {
       element: iconElement,
       moduleId: moduleId,
       anchor: config.anchor || 'bottom-right',
       order: config.order || 0,
       group: config.group || 'ui-icons',
-      spacing: config.spacing || 10,
-      size: config.size || { width: 70, height: 80 }
+      spacing: this.iconConfig.spacing, // Utiliser spacing centralisé
+      size: currentSize // Utiliser taille centralisée
     };
 
     this.registeredIcons.set(moduleId, iconConfig);
@@ -178,7 +447,7 @@ export class UIManager {
     // Positionner immédiatement
     this.positionIcon(moduleId);
 
-    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée et positionnée (ordre: ${iconConfig.order})`);
+    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée avec taille centralisée (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
   positionIcon(moduleId) {
@@ -192,7 +461,7 @@ export class UIManager {
 
     // Position de base selon anchor
     let baseX, baseY;
-    const padding = group.padding || 20;
+    const padding = this.iconConfig.padding; // Utiliser padding centralisé
     
     switch (iconConfig.anchor) {
       case 'bottom-right':
@@ -217,8 +486,8 @@ export class UIManager {
     }
 
     // Calculer offset selon la position dans le groupe
-    const spacing = iconConfig.spacing;
-    const iconWidth = iconConfig.size.width;
+    const spacing = this.iconConfig.spacing; // Utiliser spacing centralisé
+    const iconWidth = iconConfig.size.width; // Taille centralisée
     
     let offsetX = 0;
     if (iconConfig.anchor.includes('right')) {
@@ -234,10 +503,10 @@ export class UIManager {
     element.style.position = 'fixed';
     element.style.left = `${baseX + offsetX}px`;
     element.style.top = `${baseY - iconConfig.size.height}px`;
-    element.style.zIndex = '500';
+    element.style.zIndex = this.iconConfig.zIndex;
 
     if (this.debug) {
-      console.log(`📍 [UIManager] ${moduleId} positionné à (${baseX + offsetX}, ${baseY - iconConfig.size.height})`);
+      console.log(`📍 [UIManager] ${moduleId} positionné à (${baseX + offsetX}, ${baseY - iconConfig.size.height}) avec taille ${iconConfig.size.width}x${iconConfig.size.height}`);
     }
   }
 
@@ -247,11 +516,11 @@ export class UIManager {
     });
     
     if (this.debug) {
-      console.log('🔄 [UIManager] Toutes les icônes repositionnées');
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec tailles centralisées');
     }
   }
 
-  // === 🎛️ CONTRÔLE DES MODULES AMÉLIORÉ ===
+  // === 🎛️ CONTRÔLE DES MODULES (INCHANGÉ) ===
 
   showModule(moduleId, options = {}) {
     if (!this.canShowModule(moduleId)) {
@@ -275,12 +544,6 @@ export class UIManager {
         iconConfig.element.style.pointerEvents = 'auto';
         iconConfig.element.classList.remove('ui-hidden', 'hidden');
         this.positionIcon(moduleId);
-        
-        // ✅ FORCE POUR QUEST spécifiquement
-        if (moduleId === 'quest') {
-          iconConfig.element.style.zIndex = '1000';
-          console.log('📍 [UIManager] Quest icon forcé visible');
-        }
       }
       
       if (this.debug) {
@@ -370,7 +633,7 @@ export class UIManager {
 
   async initializeAllModules(...args) {
     if (this.debug) {
-      console.log('🚀 [UIManager] Initialisation de tous les modules avec icônes...');
+      console.log('🚀 [UIManager] Initialisation de tous les modules avec tailles centralisées...');
     }
     
     const results = {};
@@ -396,19 +659,55 @@ export class UIManager {
     // ✅ REPOSITIONNER TOUTES LES ICÔNES CRÉÉES
     setTimeout(() => {
       this.repositionAllIcons();
-      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées`);
+      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées avec tailles centralisées`);
     }, 100);
     
     if (this.debug) {
       console.log(`✅ [UIManager] Initialisation terminée. Succès: ${Object.keys(results).length}, Erreurs: ${errors.length}`);
-      console.log(`📍 Icônes créées: ${this.registeredIcons.size}`);
+      console.log(`📏 Taille icônes: ${this.getCurrentIconSize().width}x${this.getCurrentIconSize().height}`);
     }
     
     return {
       success: errors.length === 0,
       results,
       errors,
-      iconsCreated: this.registeredIcons.size
+      iconsCreated: this.registeredIcons.size,
+      iconSize: this.getCurrentIconSize()
+    };
+  }
+
+  // === 📏 API PUBLIQUE POUR MODIFIER LES TAILLES ===
+  
+  setIconSize(width, height) {
+    console.log(`📏 [UIManager] Changement taille icônes: ${width}x${height}`);
+    
+    this.updateIconConfig({
+      defaultSize: { width, height },
+      responsiveSizes: {
+        mobile: { width: Math.round(width * 0.85), height: Math.round(height * 0.85) },
+        tablet: { width: Math.round(width * 0.92), height: Math.round(height * 0.92) },
+        desktop: { width, height }
+      }
+    });
+  }
+  
+  setIconSpacing(spacing) {
+    console.log(`📏 [UIManager] Changement espacement icônes: ${spacing}px`);
+    
+    this.updateIconConfig({ spacing });
+  }
+  
+  setIconPadding(padding) {
+    console.log(`📏 [UIManager] Changement padding icônes: ${padding}px`);
+    
+    this.updateIconConfig({ padding });
+  }
+  
+  getIconConfiguration() {
+    return {
+      ...this.iconConfig,
+      currentSize: this.getCurrentIconSize(),
+      currentBreakpoint: this.currentBreakpoint
     };
   }
 
@@ -589,6 +888,7 @@ export class UIManager {
       openModules: Array.from(this.openModules),
       totalModules: this.modules.size,
       totalIcons: this.registeredIcons.size,
+      iconConfiguration: this.getIconConfiguration(),
       initializedModules: Array.from(this.moduleStates.entries())
         .filter(([id, state]) => state.initialized)
         .map(([id]) => id)
@@ -628,11 +928,14 @@ export class UIManager {
   }
 
   debugInfo() {
+    const iconConfig = this.getIconConfiguration();
+    
     const info = {
-      mode: 'uimanager-with-icon-creation',
+      mode: 'uimanager-with-centralized-sizes',
       currentGameState: this.globalState.currentGameState,
       totalModules: this.modules.size,
       totalIcons: this.registeredIcons.size,
+      iconConfiguration: iconConfig,
       initializedModules: Array.from(this.moduleStates.entries())
         .filter(([id, state]) => state.initialized).length,
       openModules: Array.from(this.openModules),
@@ -649,6 +952,7 @@ export class UIManager {
             anchor: config.anchor,
             order: config.order,
             group: config.group,
+            size: config.size,
             hasElement: !!config.element,
             visible: config.element ? config.element.style.display !== 'none' : false,
             positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false
@@ -658,8 +962,9 @@ export class UIManager {
       interactionRules: this.interactionRules
     };
     
-    console.group('🎛️ UIManager Debug Info (avec création d\'icônes)');
+    console.group('🎛️ UIManager Debug Info (tailles centralisées)');
     console.table(info.moduleStates);
+    console.log('📏 Configuration icônes:', iconConfig);
     console.log('📍 Icônes créées et positionnées:', info.registeredIcons);
     console.log('📊 Global State:', {
       currentGameState: info.currentGameState,
@@ -684,6 +989,10 @@ export class UIManager {
     console.log('🧹 [UIManager] Destruction...');
     
     try {
+      // Supprimer le CSS global
+      const style = document.querySelector('#uimanager-global-icons');
+      if (style) style.remove();
+      
       this.modules.forEach((config, moduleId) => {
         if (config.instance && typeof config.instance.destroy === 'function') {
           config.instance.destroy();
