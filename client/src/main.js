@@ -454,14 +454,21 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("🌐 Création et connexion du NetworkManager global...");
     window.globalNetworkManager = new NetworkManager(client, window.username);
     
-    const connectionSuccess = await window.globalNetworkManager.connect("beach", {
-      spawnX: 52,
-      spawnY: 48
-    });
-    
-    if (!connectionSuccess) {
-      throw new Error("Échec de connexion à la WorldRoom via NetworkManager");
-    }
+// ✅ Passer les données de session au NetworkManager
+const connectionSuccess = await window.globalNetworkManager.connect("beach", {
+  spawnX: 360,
+  spawnY: 120,
+  username: username,
+  sessionToken: userSession.sessionToken,  // ✅ Passer le token
+  permissions: userSession.permissions || ['play']
+});
+
+if (!connectionSuccess) {
+  console.error("❌ Échec de connexion à la WorldRoom");
+  alert("Impossible de se connecter au monde du jeu. Veuillez réessayer.");
+  window.location.href = '/auth';
+  throw new Error("Échec de connexion à la WorldRoom via NetworkManager");
+}
     
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
