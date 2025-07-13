@@ -1,1 +1,97 @@
-
+{
+  "id": "fighting",
+  "name": "Fighting Type Pokémon",
+  "description": "Pokémon specialized in Fighting-type moves and physical combat techniques",
+  "region": "kanto",
+  "category": "fighting",
+  "pokemon": [
+    {
+      "id": 106,
+      "name": "Hitmonlee",
+      "family": "hitmonlee",
+      "type": ["Fighting"],
+      "specialization": "kicking_techniques",
+      "fighting_style": "Taekwondo/Kickboxing",
+      "signature_trait": "Stretching legs",
+      "base_stat_total": 455,
+      "location": "Saffron City Dojo",
+      "acquisition_method": "choice_gift",
+      "restrictions": {
+        "one_per_save": true,
+        "choice_exclusive_with": 107,
+        "gift_pokemon": true,
+        "dojo_reward": true
+      },
+      "combat_focus": {
+        "primary_stat": "attack",
+        "combat_range": "long_range_kicks",
+        "signature_moves": ["hi_jump_kick", "mega_kick", "rolling_kick"],
+        "fighting_philosophy": "Overwhelming offense through kicks"
+      }
+    },
+    {
+      "id": 107,
+      "name": "Hitmonchan",
+      "family": "hitmonchan",
+      "type": ["Fighting"],
+      "specialization": "punching_techniques",
+      "fighting_style": "Boxing",
+      "signature_trait": "Elemental punches",
+      "base_stat_total": 455,
+      "location": "Saffron City Dojo",
+      "acquisition_method": "choice_gift",
+      "restrictions": {
+        "one_per_save": true,
+        "choice_exclusive_with": 106,
+        "gift_pokemon": true,
+        "dojo_reward": true
+      },
+      "combat_focus": {
+        "primary_stat": "attack",
+        "combat_range": "close_range_punches",
+        "signature_moves": ["fire_punch", "ice_punch", "thunder_punch"],
+        "fighting_philosophy": "Elemental boxing mastery"
+      }
+    }
+  ],
+  "fighting_mechanics": {
+    "type_effectiveness": {
+      "super_effective_against": ["Normal", "Rock", "Steel", "Ice", "Dark"],
+      "not_very_effective_against": ["Flying", "Poison", "Psychic", "Bug", "Ghost", "Fairy"],
+      "no_effect_against": ["Ghost"]
+    },
+    "dojo_choice": {
+      "location": "Saffron City Fighting Dojo",
+      "requirement": "Defeat dojo master",
+      "choice": "Player must choose between Hitmonlee OR Hitmonchan",
+      "exclusivity": "Cannot obtain both in single playthrough",
+      "level_received": 30
+    },
+    "combat_styles": {
+      "hitmonlee_style": {
+        "focus": "High-damage kicking attacks",
+        "advantage": "Long reach and high critical hit ratio",
+        "signature": "Hi Jump Kick - high risk, high reward"
+      },
+      "hitmonchan_style": {
+        "focus": "Elemental punch coverage",
+        "advantage": "Type coverage with Fire/Ice/Thunder Punch",
+        "signature": "Elemental versatility in combat"
+      }
+    }
+  },
+  "lore": {
+    "fighting_dojo": {
+      "history": "Ancient martial arts training ground",
+      "purpose": "Train Fighting-type Pokémon masters",
+      "tradition": "Gift strongest student to worthy trainer",
+      "philosophy": "Discipline through combat mastery"
+    },
+    "rivalry": {
+      "hitmonlee_vs_hitmonchan": "Eternal rivalry between kicking and punching styles",
+      "balance": "Neither style is superior - depends on trainer preference",
+      "respect": "Both acknowledge each other's strength",
+      "choice_significance": "Reflects trainer's combat philosophy"
+    }
+  }
+}
