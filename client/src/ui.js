@@ -250,17 +250,30 @@ export class PokemonUISystem {
         },
         priority: 90
       },
-      {
-        id: 'pokedex',
-        critical: false,
-        factory: this.createPokedexModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 2,
-          spacing: 10
-        },
+{
+  id: 'pokedex',
+  critical: false,
+  factory: this.createPokedexModule.bind(this),
+  groups: ['ui-icons'],
+  layout: {
+    type: 'icon',
+    anchor: 'bottom-right',
+    order: 2,
+    spacing: 10
+  },
+  priority: 85,
+  defaultState: {
+    visible: true,
+    enabled: true,
+    initialized: false
+  },
+  metadata: {
+    name: 'Pokédx National',
+    description: 'Complete Pokédx system with discovery tracking',
+    version: '1.0.0',
+    category: 'Data Management'
+  }
+},
       {
         id: 'team',
         critical: true,
