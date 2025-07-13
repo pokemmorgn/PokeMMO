@@ -1423,75 +1423,94 @@
             }
 
             updateWalletUI() {
-                const walletIcon = document.getElementById('walletIcon');
-                const walletText = document.getElementById('walletText');
-                const walletButton = document.getElementById('walletButton');
-                const walletAddress = document.getElementById('walletAddress');
-                const walletUsername = document.getElementById('walletUsername');
-                const walletAddressValue = document.getElementById('walletAddressValue');
-                const walletSection = document.getElementById('walletSection');
+    const walletIcon = document.getElementById('walletIcon');
+    const walletText = document.getElementById('walletText');
+    const walletButton = document.getElementById('walletButton');
+    const walletAddress = document.getElementById('walletAddress');
+    const walletUsername = document.getElementById('walletUsername');
+    const walletAddressValue = document.getElementById('walletAddressValue');
+    const walletSection = document.getElementById('walletSection');
 
-                if (this.connectedWallet) {
-                    walletIcon.classList.remove('disconnected');
-                    walletIcon.classList.add('connected');
-                    walletText.textContent = 'Wallet Connected';
-                    walletButton.textContent = 'Disconnect';
-                    walletButton.className = 'action-button danger';
-                    walletUsername.textContent = this.currentUser.username;
-                    walletAddressValue.textContent = this.connectedWallet.address;
-                    walletAddress.style.display = 'block';
-                    walletSection.classList.add('connected');
-                } else {
-                    walletIcon.classList.remove('connected');
-                    walletIcon.classList.add('disconnected');
-                    walletText.textContent = 'Wallet Not Connected';
-                    walletButton.textContent = 'Connect Wallet';
-                    walletButton.className = 'action-button secondary';
-                    walletAddress.style.display = 'none';
-                    walletSection.classList.remove('connected');
-                }
-            }
+    if (this.connectedWallet) {
+        // Wallet connectée
+        walletIcon.classList.remove('disconnected');
+        walletIcon.classList.add('connected');
+        walletText.textContent = 'Wallet Connected';
+        walletButton.textContent = 'Disconnect';
+        walletButton.className = 'action-button secondary'; // ✅ Plus danger, juste secondary
+        walletUsername.textContent = this.currentUser.username;
+        walletAddressValue.textContent = this.connectedWallet.address;
+        walletAddress.style.display = 'block';
+        walletSection.classList.add('connected');
+    } else {
+        // Pas de wallet (mais c'est OK)
+        walletIcon.classList.remove('connected');
+        walletIcon.classList.add('disconnected');
+        walletText.textContent = 'Wallet Not Connected (Optional)'; // ✅ Indiquer que c'est optionnel
+        walletButton.textContent = 'Connect Wallet';
+        walletButton.className = 'action-button secondary';
+        walletAddress.style.display = 'none';
+        walletSection.classList.remove('connected');
+    }
+}
 
             startGame() {
-                if (!this.currentUser || !this.currentUser.sessionToken) {
-                    this.showNotification('Please log in first', 'error');
-                    return;
-                }
+    if (!this.currentUser || !this.currentUser.sessionToken) {
+        this.showNotification('Please log in first', 'error');
+        return;
+    }
 
-                this.showLoadingOverlay(true);
-                
-                // Create secure game session with token
-                const gameSession = {
-                    sessionToken: this.currentUser.sessionToken,
-                    username: this.currentUser.username,
-                    permissions: this.currentUser.permissions,
-                    deviceFingerprint: this.generateDeviceFingerprint(),
-                    gameStartTime: Date.now(),
-                    securityLevel: 'high'
-                };
-                
-                // Store encrypted session for game
-                sessionStorage.setItem('pws_game_session', this.encryptSessionData(gameSession));
-                
-                // Redirect to clean game URL
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1000);
-            }
+    // ✅ PAS de vérification wallet obligatoire
+    console.log('🎮 Starting game without wallet requirement...');
 
-            showUserDashboard() {
-                document.getElementById('guestSection').style.display = 'none';
-                document.getElementById('userDashboard').classList.add('active');
-                
-                // Update user info
-                document.getElementById('userDisplayName').textContent = this.currentUser.username;
-                document.getElementById('userLevel').textContent = this.currentUser.level || 1;
-                document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
-                document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
-                
-                // Update wallet UI
-                this.updateWalletUI();
-            }
+    this.showLoadingOverlay(true);
+    
+    // Create secure game session
+    const gameSession = {
+        sessionToken: this.currentUser.sessionToken,
+        username: this.currentUser.username,
+        permissions: this.currentUser.permissions,
+        deviceFingerprint: this.generateDeviceFingerprint(),
+        gameStartTime: Date.now(),
+        securityLevel: 'high',
+        walletOptional: true, // ✅ Wallet optionnelle
+        walletConnected: !!this.connectedWallet
+    };
+    
+    // Store encrypted session for game
+    sessionStorage.setItem('pws_game_session', this.encryptSessionData(gameSession));
+    
+    // ✅ Redirection directe sans attendre la wallet
+    setTimeout(() => {
+        window.location.href = '/';
+    }, 1000);
+}
+
+           showUserDashboard() {
+    document.getElementById('guestSection').style.display = 'none';
+    document.getElementById('userDashboard').classList.add('active');
+    
+    // Update user info
+    document.getElementById('userDisplayName').textContent = this.currentUser.username;
+    document.getElementById('userLevel').textContent = this.currentUser.level || 1;
+    document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
+    document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
+    
+    // ✅ Montrer la section wallet mais avec message optionnel
+    const walletSection = document.getElementById('walletSection');
+    if (walletSection) {
+        walletSection.style.display = 'block';
+        
+        // Modifier le texte d'aide pour indiquer que c'est optionnel
+        const helpText = walletSection.querySelector('.input-help');
+        if (helpText) {
+            helpText.textContent = 'Connecting a wallet is optional and allows you to trade Pokémon and items with other players';
+        }
+    }
+    
+    // Update wallet UI
+    this.updateWalletUI();
+}
 
             showGuestSection() {
                 document.getElementById('userDashboard').classList.remove('active');
