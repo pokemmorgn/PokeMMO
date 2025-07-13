@@ -424,7 +424,7 @@ export class OverworldPokemonManager {
   }
 
   stopTileMovement(pokemon) {
-    console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement tile`);
+//    console.log(`⏹️ [OverworldPokemonManager] ${pokemon.name} arrêt mouvement tile`);
     
     const finalPos = this.snapToGrid(pokemon.x, pokemon.y);
     pokemon.setPosition(finalPos.x, finalPos.y);
@@ -457,7 +457,7 @@ export class OverworldPokemonManager {
     const pokemon = this.overworldPokemon.get(id);
     if (!pokemon) return;
     
-    console.log(`🔄 [OverworldPokemonManager] Update ${pokemon.name}: isMoving=${isMoving}, direction=${direction}`);
+//    console.log(`🔄 [OverworldPokemonManager] Update ${pokemon.name}: isMoving=${isMoving}, direction=${direction}`);
     
     if (x !== undefined && y !== undefined) {
       const distanceX = Math.abs(pokemon.x - x);
