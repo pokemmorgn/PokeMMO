@@ -306,26 +306,28 @@ getAllPokemonEntries(filters = {}) {
   const availablePokemon = this.availablePokemonIds || [];
   
   if (availablePokemon.length === 0) {
-    console.warn('⚠️ [PokedexDataManager] Aucun Pokémon disponible');
+    console.warn('⚠️ [PokedexDataManager] En attente des données serveur...');
     return [];
   }
   
   availablePokemon.forEach(pokemonId => {
-    const pokemonData = this.pokemonData[pokemonId];
+    let pokemonData = this.pokemonData[pokemonId];
     const playerEntry = this.playerEntries.get(pokemonId);
-
-        // 🆕 DEBUG: Voir pourquoi certains Pokémon ne s'affichent pas
+    
+    // Créer des données par défaut si manquantes
     if (!pokemonData) {
-      console.warn(`⚠️ [DEBUG] Pas de données pour Pokémon #${pokemonId}`);
-      return;
+      pokemonData = {
+        name: `Pokémon #${pokemonId.toString().padStart(3, '0')}`,
+        description: 'Données non disponibles localement.'
+      };
     }
+    
     if (!playerEntry) {
       console.warn(`⚠️ [DEBUG] Pas d'entrée joueur pour Pokémon #${pokemonId}`);
       return;
     }
-    if (!pokemonData || !playerEntry) return;
     
-    // Appliquer les filtres (reste identique)
+    // Appliquer les filtres
     if (filters.seen !== undefined && playerEntry.seen !== filters.seen) return;
     if (filters.caught !== undefined && playerEntry.caught !== filters.caught) return;
     if (filters.shiny !== undefined && playerEntry.shiny !== filters.shiny) return;
@@ -347,7 +349,7 @@ getAllPokemonEntries(filters = {}) {
       if (!name.includes(query) && !number.includes(query)) return;
     }
     
-    // Créer l'entrée complète (reste identique)
+    // Créer l'entrée complète
     const entry = {
       ...playerEntry,
       pokemonData: {
@@ -366,9 +368,9 @@ getAllPokemonEntries(filters = {}) {
     entries.push(entry);
   });
   
+  console.log(`✅ [PokedexDataManager] ${entries.length} entrées créées sur ${availablePokemon.length} disponibles`);
   return this.sortEntries(entries, filters.sortBy, filters.sortOrder);
 }
-  
   /**
    * Obtenir une entrée Pokémon spécifique
    */
