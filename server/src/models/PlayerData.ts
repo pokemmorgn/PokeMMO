@@ -20,8 +20,13 @@ const PlayerDataSchema = new mongoose.Schema({
   lastX: { type: Number, default: 360 },
   lastY: { type: Number, default: 120 },
   lastMap: { type: String, default: "beach" },
-  walletAddress: { type: String, unique: true, sparse: true },
-  
+walletAddress: { 
+  type: String, 
+  required: false,    // ✅ Pas obligatoire
+  unique: true,       // Unique si présente
+  sparse: true,       // Permet plusieurs null
+  default: null       // Valeur par défaut
+},  
   // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée
   email: { 
     type: String, 
