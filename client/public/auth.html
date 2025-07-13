@@ -1491,10 +1491,13 @@ setTimeout(() => {
     document.getElementById('userDashboard').classList.add('active');
     
     // Update user info
-    document.getElementById('userDisplayName').textContent = this.currentUser.username;
-    document.getElementById('userLevel').textContent = this.currentUser.level || 1;
-    document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
-    document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
+document.getElementById('userDisplayName').textContent = this.currentUser.username;
+document.getElementById('userLevel').textContent = this.currentUser.level || 1;
+document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
+document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
+
+// ✅ NOUVEAU: Mettre à jour le playtime en temps réel
+this.startPlaytimeUpdater();
     
     // ✅ Montrer la section wallet mais avec message optionnel
     const walletSection = document.getElementById('walletSection');
@@ -1642,7 +1645,42 @@ setTimeout(() => {
                     }, 300);
                 }, 4000);
             }
+        startPlaytimeUpdater() {
+    // Mettre à jour le playtime toutes les minutes
+    setInterval(async () => {
+        if (this.currentUser && this.currentUser.sessionToken) {
+            try {
+                // Demander le playtime actualisé au serveur
+                const response = await fetch('/api/playerData?username=' + this.currentUser.username, {
+                    headers: {
+                        'Authorization': 'Bearer ' + this.currentUser.sessionToken
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Mettre à jour l'affichage
+                    const playtimeElement = document.getElementById('userPlaytime');
+                    if (playtimeElement && data.playtime !== undefined) {
+                        const oldPlaytime = playtimeElement.textContent;
+                        const newPlaytime = this.formatPlaytime(data.playtime);
+                        
+                        if (oldPlaytime !== newPlaytime) {
+                            playtimeElement.textContent = newPlaytime;
+                            console.log(`⏰ Playtime mis à jour: ${oldPlaytime} → ${newPlaytime}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('⚠️ Erreur mise à jour playtime:', error);
+            }
         }
+    }, 60000); // Toutes les minutes
+    
+    console.log('✅ Updater playtime démarré (1min)');
+}
+        
 
         // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
