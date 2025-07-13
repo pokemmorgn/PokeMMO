@@ -1,6 +1,8 @@
 // server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC MovementBlockManager
 import { Room, Client } from "@colyseus/core";
 import mongoose from "mongoose";
+import jwt from 'jsonwebtoken';
+
 
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
