@@ -309,14 +309,11 @@ export class FriendshipReward {
       if (newFriendship < 220) return false; // Seuil minimum pour évolution par amitié
 
       const pokemonData = await getPokemonById(pokemon.pokemonId);
-      if (!pokemonData?.evolutions) return false;
+      if (!pokemonData?.evolution) return false;
 
       // Vérifier si une évolution par amitié existe
-      const friendshipEvolutions = pokemonData.evolutions.filter((evo: any) => 
-        evo.method === 'friendship' || evo.trigger === 'friendship'
-      );
-
-      return friendshipEvolutions.length > 0;
+      const evolution = pokemonData.evolution;
+      return evolution.method === 'friendship' && evolution.canEvolve;
 
     } catch (error) {
       console.error('❌ [FriendshipReward] Erreur vérification évolution:', error);
