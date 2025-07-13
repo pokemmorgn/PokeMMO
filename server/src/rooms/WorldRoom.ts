@@ -1491,11 +1491,47 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
   }
 
   // === MÉTHODE POUR PREMIER JOUEUR ===
-  async onJoin(client: Client, options: any = {}) {
-    console.log(`👤 === PLAYER JOIN ===`);
-    console.log(`🔑 Session: ${client.sessionId}`);
-    console.log(`📊 Options:`, options);
+async onJoin(client: Client, options: any = {}) {
+  console.log(`👤 === PLAYER JOIN ===`);
+  console.log(`🔑 Session: ${client.sessionId}`);
+  console.log(`📊 Options:`, { 
+    ...options, 
+    sessionToken: options.sessionToken ? '***TOKEN***' : 'MISSING' 
+  });
 
+  // ✅ VÉRIFICATION JWT OBLIGATOIRE
+  if (options.sessionToken) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
+      console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
+      
+      // Vérifier cohérence username
+      if (decoded.username !== options.name) {
+        console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
+        client.leave(4000, "Token/username mismatch");
+        return;
+      }
+      
+      // Optionnel : vérifier permissions
+      if (!decoded.permissions || !decoded.permissions.includes('play')) {
+        console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decoded.permissions);
+        client.leave(4000, "Insufficient permissions");
+        return;
+      }
+      
+      console.log(`🎮 [WorldRoom] Permissions validées:`, decoded.permissions);
+      
+    } catch (error) {
+      console.error(`❌ [WorldRoom] Token JWT invalide:`, error);
+      client.leave(4000, "Invalid session token");
+      return;
+    }
+  } else {
+    console.error(`❌ [WorldRoom] Aucun token JWT fourni`);
+    client.leave(4000, "Session token required");
+    return;
+  }
     try {
       // Créer le joueur
       const player = new Player();
