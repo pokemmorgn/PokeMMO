@@ -896,3 +896,4 @@ export class QuestReward {
       };
     }
   }
+}
