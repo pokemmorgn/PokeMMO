@@ -407,15 +407,15 @@ export class BattleTransitionManager {
       defaultTransition: "spiral",
       transitions: {
         spiral: {
-          visual: { type: "spiral", duration: 400 },
+          visual: { type: "spiral", duration: 1200 },
           audio: { triggerSound: null, volume: 0.8 },
           timing: {
             fadeOutMusic: 0,
-            playSound: 200,
-            startVisual: 400,
-            fadeToBlack: 800,
-            switchScene: 1000,
-            fadeIn: 1200
+            playSound: 100,
+            startVisual: 150,
+            fadeToBlack: 400,
+            switchScene: 500,
+            fadeIn: 600
           }
         }
       },
