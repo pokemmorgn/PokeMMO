@@ -800,11 +800,14 @@ setupEncounterNetworkHandlers() {
   console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
 
   // ✅ SEUL HANDLER : Combat confirmé par le serveur
-  this.networkManager.onMessage("wildEncounter", (data) => {
+this.networkManager.onMessage("wildEncounter", (data) => {
+    console.log('🎲 [ENCOUNTER] Message wildEncounter reçu:', data);
     if (data.success) {
+      console.log('✅ [ENCOUNTER] Succès - appel handleWildEncounter');
       this.handleWildEncounter(data);
+    } else {
+      console.log('❌ [ENCOUNTER] Échec - pas de transition');
     }
-    // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
   });
 
   console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
