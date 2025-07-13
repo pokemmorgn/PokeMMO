@@ -664,30 +664,36 @@ export class PokedexUI {
 
   // === 📊 GESTION DES DONNÉES AVEC DATAMANAGER ===
 
-  handlePokedexData(response) {
-    if (!response.success) {
-      console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
-      this.showError('Impossible de charger les données du Pokédx');
-      return;
-    }
-
-    console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
+    handlePokedexData(response) {
+      if (!response.success) {
+        console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
+        this.showError('Impossible de charger les données du Pokédx');
+        return;
+      }
     
-    // Intégrer les données serveur avec le DataManager
-    if (response.data && response.data.playerEntries) {
-      this.dataManager.importPlayerData(response.data.playerEntries);
+      console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
       
-      // Recharger les données locales avec les nouvelles données serveur
-      this.loadDefaultPokemonData();
+      // 🆕 UTILISER LA NOUVELLE STRUCTURE SERVEUR
+      if (response.data) {
+        // Configurer le DataManager avec les données serveur
+        this.dataManager.setServerData(response.data);
+        
+        // Importer les entrées du joueur
+        if (response.data.entries) {
+          this.dataManager.importPlayerData(response.data.entries);
+        }
+        
+        // Recharger les données locales
+        this.loadDefaultPokemonData();
+      }
+      
+      // Mettre à jour l'affichage
+      this.updateProgressSummary();
+      this.refreshCurrentView();
+      this.updateLastSyncTime();
+      
+      console.log('✅ [PokedexUI] Données traitées avec DataManager');
     }
-    
-    // Mettre à jour l'affichage
-    this.updateProgressSummary();
-    this.refreshCurrentView();
-    this.updateLastSyncTime();
-    
-    console.log('✅ [PokedexUI] Données traitées avec DataManager');
-  }
   
   /**
    * Charge les données locales depuis le DataManager
