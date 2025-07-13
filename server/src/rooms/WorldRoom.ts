@@ -1773,10 +1773,15 @@ async onLeave(client: Client, consented: boolean) {
     }
 
       // ✅ NOUVEAU: Nettoyer les StarterHandlers
-  if (this.starterHandlers) {
-    this.starterHandlers.cleanup();
-    console.log(`🧹 StarterHandlers nettoyés`);
-  }
+    if (this.starterHandlers) {
+      this.starterHandlers.cleanup();
+      console.log(`🧹 StarterHandlers nettoyés`);
+    }
+      
+    if (this.pokedexHandler) {
+      this.pokedexHandler.cleanup(); 
+      console.log(`🧹 PokedexMessageHandler nettoyé`);
+    }
         if (this.followerHandlers) {
       this.followerHandlers.cleanup();
       console.log(`🧹 FollowerHandlers nettoyés`);
@@ -2298,6 +2303,9 @@ public getOverworldPokemonStats(): any {
   return this.overworldPokemonManager ? this.overworldPokemonManager.getStats() : {};
 }
 
+public getPokedexHandler(): PokedexMessageHandler {
+  return this.pokedexHandler;
+}
 
 
 public clearOverworldArea(areaId: string): void {
