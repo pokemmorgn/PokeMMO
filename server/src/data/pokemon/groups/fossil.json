@@ -1,1 +1,183 @@
-
+{
+  "id": "fossil",
+  "name": "Fossil Pokémon",
+  "description": "Ancient Pokémon that can only be obtained by reviving fossils found in specific locations",
+  "region": "kanto",
+  "category": "fossil",
+  "pokemon": [
+    {
+      "id": 138,
+      "name": "Omanyte",
+      "family": "omanyte",
+      "fossil_type": "helix_fossil",
+      "type": ["Rock", "Water"],
+      "era": "prehistoric_ocean",
+      "base_stat_total": 355,
+      "fossil_location": "Mt. Moon",
+      "revival_location": "Cinnabar Island Lab",
+      "revival_level": 30,
+      "ancient_trait": "Spiral shell for protection",
+      "extinction_cause": "Ocean environment changes",
+      "evolution": {
+        "evolves_to": 139,
+        "method": "level",
+        "requirement": 40
+      },
+      "lore": "Although long extinct, in rare cases, it can be genetically resurrected from fossils.",
+      "restrictions": {
+        "fossil_required": true,
+        "lab_revival_only": true,
+        "one_fossil_per_game": true,
+        "choice_exclusive_with": "kabuto"
+      }
+    },
+    {
+      "id": 139,
+      "name": "Omastar",
+      "family": "omanyte",
+      "fossil_type": "helix_fossil_evolution",
+      "type": ["Rock", "Water"],
+      "era": "prehistoric_ocean",
+      "base_stat_total": 495,
+      "fossil_location": "Evolution Only",
+      "revival_location": "Evolution Only",
+      "revival_level": "40+",
+      "ancient_trait": "Sharp tentacles and powerful jaw",
+      "extinction_cause": "Shell became too heavy to move",
+      "evolution": {
+        "evolves_from": 138,
+        "final_form": true
+      },
+      "lore": "A prehistoric Pokémon that died out when its heavy shell made it impossible to catch prey.",
+      "restrictions": {
+        "evolution_only": true,
+        "fossil_lineage": true
+      }
+    },
+    {
+      "id": 140,
+      "name": "Kabuto",
+      "family": "kabuto",
+      "fossil_type": "dome_fossil",
+      "type": ["Rock", "Water"],
+      "era": "prehistoric_ocean",
+      "base_stat_total": 355,
+      "fossil_location": "Mt. Moon",
+      "revival_location": "Cinnabar Island Lab",
+      "revival_level": 30,
+      "ancient_trait": "Hard shell and scythe-like claws",
+      "extinction_cause": "Environmental changes 300 million years ago",
+      "evolution": {
+        "evolves_to": 141,
+        "method": "level",
+        "requirement": 40
+      },
+      "lore": "A Pokémon that was resurrected from a fossil found in what was once the ocean floor eons ago.",
+      "restrictions": {
+        "fossil_required": true,
+        "lab_revival_only": true,
+        "one_fossil_per_game": true,
+        "choice_exclusive_with": "omanyte"
+      }
+    },
+    {
+      "id": 141,
+      "name": "Kabutops",
+      "family": "kabuto",
+      "fossil_type": "dome_fossil_evolution",
+      "type": ["Rock", "Water"],
+      "era": "prehistoric_ocean",
+      "base_stat_total": 495,
+      "fossil_location": "Evolution Only",
+      "revival_location": "Evolution Only",
+      "revival_level": "40+",
+      "ancient_trait": "Razor-sharp scythes for hunting",
+      "extinction_cause": "Moved to land but couldn't adapt",
+      "evolution": {
+        "evolves_from": 140,
+        "final_form": true
+      },
+      "lore": "Its sleek shape is perfect for swimming. It slashes prey with its claws and drains the body fluids.",
+      "restrictions": {
+        "evolution_only": true,
+        "fossil_lineage": true
+      }
+    },
+    {
+      "id": 142,
+      "name": "Aerodactyl",
+      "family": "aerodactyl",
+      "fossil_type": "old_amber",
+      "type": ["Rock", "Flying"],
+      "era": "prehistoric_sky",
+      "base_stat_total": 515,
+      "fossil_location": "Pewter City Museum",
+      "revival_location": "Cinnabar Island Lab",
+      "revival_level": 30,
+      "ancient_trait": "Ancient flying predator with sharp fangs",
+      "extinction_cause": "Unknown ancient catastrophe",
+      "evolution": {
+        "final_form": true,
+        "no_evolution": true
+      },
+      "lore": "A ferocious, prehistoric Pokémon that goes for the enemy's throat with its serrated saw-like fangs.",
+      "restrictions": {
+        "fossil_required": true,
+        "lab_revival_only": true,
+        "unique_fossil_source": true,
+        "museum_gift": true
+      }
+    }
+  ],
+  "fossil_mechanics": {
+    "revival_process": {
+      "step_1": "Find fossil in designated location",
+      "step_2": "Bring fossil to Cinnabar Island Lab",
+      "step_3": "Scientist revives Pokémon from fossil",
+      "step_4": "Receive revived Pokémon at level 30"
+    },
+    "fossil_sources": {
+      "helix_fossil": {
+        "location": "Mt. Moon",
+        "choice_with": "dome_fossil",
+        "revives_to": "omanyte"
+      },
+      "dome_fossil": {
+        "location": "Mt. Moon",
+        "choice_with": "helix_fossil", 
+        "revives_to": "kabuto"
+      },
+      "old_amber": {
+        "location": "Pewter City Museum",
+        "method": "Gift from scientist",
+        "revives_to": "aerodactyl"
+      }
+    },
+    "game_restrictions": {
+      "one_choice_mt_moon": "Player must choose between Helix or Dome Fossil",
+      "old_amber_guaranteed": "Old Amber is always obtainable",
+      "lab_required": "All fossils must be revived at Cinnabar Lab",
+      "level_30_revival": "All fossil Pokémon revive at level 30"
+    }
+  },
+  "prehistoric_lore": {
+    "ocean_dwellers": {
+      "pokemon": ["omanyte", "omastar", "kabuto", "kabutops"],
+      "era": "Ancient seas",
+      "timeline": "300+ million years ago",
+      "environment": "Prehistoric ocean floors"
+    },
+    "sky_ruler": {
+      "pokemon": ["aerodactyl"],
+      "era": "Prehistoric skies", 
+      "timeline": "Ancient times",
+      "environment": "Prehistoric aerial ecosystem"
+    },
+    "extinction_event": {
+      "cause": "Environmental catastrophe",
+      "survivors": "None in wild",
+      "preservation": "Fossilized remains only",
+      "revival": "Modern genetic reconstruction"
+    }
+  }
+}
