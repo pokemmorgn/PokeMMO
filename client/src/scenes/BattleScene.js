@@ -1957,6 +1957,18 @@ createDamageEffectForRole(targetRole, damage) {
     
     // Nettoyage final
     this.clearAllPokemonSprites();
+    // ✅ NOUVEAU: Réveiller la scène d'origine
+    const originScene = this.scene.settings.data?.transitionFrom;
+    if (originScene) {
+      console.log(`🔄 [BattleScene] Réveil scène d'origine: ${originScene}`);
+      if (this.scene.isSleeping(originScene)) {
+        this.scene.wake(originScene);
+      }
+      this.scene.setVisible(true, originScene);
+      this.scene.bringToTop(originScene);
+    }
+    
+    // Nettoyage final
     this.hideBattle();
     
     // Forcer exploration
