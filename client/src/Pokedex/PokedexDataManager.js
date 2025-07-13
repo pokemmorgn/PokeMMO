@@ -276,12 +276,46 @@ setServerData(serverData) {
   // Définir les Pokémon disponibles
   this.availablePokemonIds = serverData.availablePokemon || [];
   
-  // 🆕 IMPORTER LES ENTRÉES DU JOUEUR
-  if (serverData.entries && typeof serverData.entries === 'object') {
-    console.log('📥 [PokedexDataManager] Import entrées joueur:', Object.keys(serverData.entries).length, 'entrées');
+  // 🆕 GÉRER LES DEUX FORMATS : ARRAY ET OBJET
+  if (serverData.entries) {
+    console.log('📥 [PokedexDataManager] Import entrées joueur...');
+    console.log('📊 [DEBUG] Type de entries:', Array.isArray(serverData.entries) ? 'ARRAY' : 'OBJECT');
+    console.log('📊 [DEBUG] Contenu entries:', serverData.entries);
     
-    // Convertir les entrées serveur en Map locale
-    for (const [pokemonIdStr, serverEntry] of Object.entries(serverData.entries)) {
+    let entriesObject = {};
+    
+    // SI LE SERVEUR ENVOIE UN ARRAY (format serveur Colyseus)
+    if (Array.isArray(serverData.entries)) {
+      console.log('🔄 [PokedexDataManager] Conversion array → objet');
+      
+      serverData.entries.forEach(entry => {
+        if (entry.pokemonId) {
+          entriesObject[entry.pokemonId] = {
+            seen: entry.isSeen || false,
+            caught: entry.isCaught || false,
+            shiny: entry.isShiny || false,
+            favorited: entry.isFavorited || false,
+            firstSeen: entry.firstSeenAt || null,
+            firstCaught: entry.firstCaughtAt || null,
+            timesEncountered: entry.timesEncountered || 0,
+            bestLevel: entry.bestLevel || 0,
+            locations: entry.locations || []
+          };
+          
+          console.log(`✅ [PokedexDataManager] #${entry.pokemonId} converti: seen=${entry.isSeen}, caught=${entry.isCaught}`);
+        }
+      });
+      
+    } else {
+      // SI LE SERVEUR ENVOIE UN OBJET (format attendu)
+      console.log('📋 [PokedexDataManager] Format objet détecté');
+      entriesObject = serverData.entries;
+    }
+    
+    console.log('📥 [PokedexDataManager] Entrées à importer:', Object.keys(entriesObject).length);
+    
+    // IMPORTER LES ENTRÉES DANS LA MAP LOCALE
+    for (const [pokemonIdStr, serverEntry] of Object.entries(entriesObject)) {
       const pokemonId = parseInt(pokemonIdStr);
       
       if (pokemonId >= 1 && pokemonId <= 1025) {
@@ -314,7 +348,9 @@ setServerData(serverData) {
         
         this.playerEntries.set(pokemonId, localEntry);
         
-        console.log(`✅ [PokedexDataManager] #${pokemonId} importé: seen=${localEntry.seen}, caught=${localEntry.caught}`);
+        if (localEntry.seen || localEntry.caught) {
+          console.log(`✅ [PokedexDataManager] #${pokemonId} importé: seen=${localEntry.seen}, caught=${localEntry.caught}`);
+        }
       }
     }
   }
@@ -338,8 +374,16 @@ setServerData(serverData) {
   // Réinitialiser avec les nouveaux Pokémon disponibles
   this.initializeAllPokemon();
   
+  // 🆕 VÉRIFICATION FINALE
+  let actualSeenCount = 0;
+  this.playerEntries.forEach((entry, id) => {
+    if (entry.seen) actualSeenCount++;
+  });
+  
+  console.log(`🔍 [PokedexDataManager] Vérification: ${actualSeenCount} Pokémon réellement marqués comme vus`);
   console.log(`✅ [PokedexDataManager] ${this.availablePokemonIds.length} Pokémon configurés sur le serveur`);
 }
+  
     debugPlayerEntries() {
       console.log('🐛 [PokedexDataManager] Debug entrées joueur:');
       
