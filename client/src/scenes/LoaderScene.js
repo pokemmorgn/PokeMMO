@@ -110,65 +110,78 @@ export class LoaderScene extends Phaser.Scene {
     }
   }
 
-  async startGame() {
-    // Récupérer la dernière position et démarrer la bonne scène
-    const getWalletFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('wallet');
+  // Remplacez la méthode startGame() dans LoaderScene.js par :
+
+async startGame() {
+  console.log('🎮 [LoaderScene] Démarrage du jeu...');
+  
+  // ✅ NOUVEAU: Utiliser le NetworkManager au lieu de l'API
+  if (window.globalNetworkManager && window.globalNetworkManager.isConnected) {
+    console.log('🌐 [LoaderScene] NetworkManager détecté et connecté');
+    
+    // Récupérer la zone actuelle depuis le NetworkManager
+    const currentZone = window.globalNetworkManager.getCurrentZone();
+    console.log(`📍 [LoaderScene] Zone actuelle: ${currentZone}`);
+    
+    // ✅ Mapping zone → scène (utiliser la même logique que ZoneMapping)
+    const zoneToSceneMap = {
+      'beach': 'BeachScene',
+      'village': 'VillageScene', 
+      'villagelab': 'VillageLabScene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'road1': 'Road1Scene',
+      'lavandia': 'LavandiaScene'
     };
-
-    let identifier = getWalletFromUrl();
-    if (!identifier && window.app?.currentAccount?.address) {
-      identifier = window.app.currentAccount.address;
-    }
-    if (!identifier) {
-      alert("Aucun wallet connecté !");
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const lastMap = data.lastMap || 'beach'; // ✅ Utiliser nom de zone en minuscules
+    
+    const targetScene = zoneToSceneMap[currentZone] || 'BeachScene';
+    
+    console.log(`🎯 [LoaderScene] Démarrage scène: ${targetScene}`);
+    
+    // Démarrer la scène avec le NetworkManager
+    this.scene.start(targetScene, {
+      networkManager: window.globalNetworkManager,
+      username: window.username,
+      fromLoader: true,
+      skipTransition: true
+    });
+    
+    return;
+  }
+  
+  // ✅ FALLBACK: Si pas de NetworkManager, utiliser session storage
+  try {
+    console.log('💾 [LoaderScene] Tentative récupération depuis session...');
+    
+    const encryptedSession = sessionStorage.getItem('pws_game_session');
+    if (encryptedSession) {
+      const key = sessionStorage.getItem('pws_key');
+      if (key) {
+        const decoded = atob(encryptedSession);
+        const [dataStr, sessionKey] = decoded.split('|');
         
-        // ✅ CONVERSION AUTOMATIQUE ZONE → SCÈNE
-        const targetScene = zoneToScene(lastMap);
-        
-        console.log(`🎯 [LoaderScene] Redirection automatique: ${lastMap} → ${targetScene}`);
-        
-        this.scene.start(targetScene);
-        
-      } else {
-        console.log('📍 [LoaderScene] Pas de données utilisateur, démarrage BeachScene');
-        this.scene.start('BeachScene');
+        if (sessionKey === key) {
+          const sessionData = JSON.parse(dataStr);
+          console.log(`👤 [LoaderScene] Session trouvée pour: ${sessionData.username}`);
+          
+          // Démarrer BeachScene par défaut
+          this.scene.start('BeachScene', {
+            username: sessionData.username,
+            fromLoader: true
+          });
+          return;
+        }
       }
-    } catch (e) {
-      console.warn("⚠️ [LoaderScene] Erreur API, démarrage BeachScene", e);
-      this.scene.start('BeachScene');
     }
+  } catch (error) {
+    console.warn('⚠️ [LoaderScene] Erreur lecture session:', error);
   }
+  
+  // ✅ FALLBACK FINAL: Rediriger vers auth si rien ne marche
+  console.error('❌ [LoaderScene] Aucune session valide trouvée');
+  alert('Session expirée. Redirection vers la page de connexion...');
+  window.location.href = '/auth';
+}
 
-  createLoadingBar() {
-    this.add.rectangle(400, 290, 320, 40, 0x222222);
-    this.progressBar = this.add.graphics();
-    this.progressText = this.add.text(400, 290, '0%', {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.add.text(400, 200, 'PokeWorld MMO', {
-      fontSize: '32px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.add.text(400, 240, 'Loading world...', {
-      fontSize: '18px',
-      fontFamily: 'monospace',
-      color: '#cccccc'
-    }).setOrigin(0.5);
-  }
   
   async create() {
     // Charge ton JSON custom (inchangé)
