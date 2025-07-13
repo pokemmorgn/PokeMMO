@@ -910,14 +910,12 @@ return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="${entry.displayName}" 
               onerror="this.outerHTML='🎮'" 
               class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
-              style="object-position: 0 0; width: 32px; height: 32px; object-fit: none;">`;
 
 // Pour seen  
 return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
               class="pokemon-sprite silhouette"
-              style="object-position: 0 0; width: 32px; height: 32px; object-fit: none;">`;
     } else {
       // Pokémon inconnu : point d'interrogation
       return `<div class="pokemon-sprite unknown">❓</div>`;
@@ -961,14 +959,12 @@ return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon #${paddedId}" 
               onerror="this.outerHTML='🎮'" 
               class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
-              style="object-position: 0 0; width: 64px; height: 64px; object-fit: none;">`;
 
 // Pour seen  
 return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
               class="pokemon-sprite silhouette"
-              style="object-position: 0 0; width: 64px; height: 64px; object-fit: none;">`;
     }
   }
 
