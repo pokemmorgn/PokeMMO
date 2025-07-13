@@ -899,7 +899,7 @@ handlePokedexData(response) {
     return entryDiv;
   }
 
- getPokemonSpriteForEntry(entry) {
+getPokemonSpriteForEntry(entry) {
     const paddedId = entry.pokemonId.toString().padStart(3, '0');
     
     if (entry.caught) {
@@ -907,19 +907,21 @@ handlePokedexData(response) {
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="${entry.displayName}" 
                     onerror="this.outerHTML='🎮'" 
-                    class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}">`;
+                    class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
+                    style="width: 32px; height: 32px; object-fit: none; object-position: 0 0;">`;
     } else if (entry.seen) {
       // Pokémon vu : silhouette noire
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="Pokémon vu" 
                     onerror="this.outerHTML='👤'" 
-                    class="pokemon-sprite silhouette">`;
+                    class="pokemon-sprite silhouette"
+                    style="width: 32px; height: 32px; object-fit: none; object-position: 0 0;">`;
     } else {
       // Pokémon inconnu : point d'interrogation
       return `<div class="pokemon-sprite unknown">❓</div>`;
     }
   }
-
+  
   getStatusBadge(entry) {
     switch (entry.displayStatus) {
       case 'caught':
@@ -954,12 +956,14 @@ getPokemonSpriteForDetails(pokemonId, caught, isShiny = false) {
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="Pokémon #${paddedId}" 
                     onerror="this.outerHTML='🎮'" 
-                    class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}">`;
+                    class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
+                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
     } else {
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="Pokémon vu" 
                     onerror="this.outerHTML='👤'" 
-                    class="pokemon-sprite silhouette">`;
+                    class="pokemon-sprite silhouette"
+                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
     }
   }
   // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
