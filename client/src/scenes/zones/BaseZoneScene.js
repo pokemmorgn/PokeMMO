@@ -611,8 +611,17 @@ initializeOverworldPokemon() {
     console.log(`🎬 [${this.scene.key}] === INITIALISATION BATTLE TRANSITION MANAGER ===`);
 
     // ✅ PROTECTION CONTRE LES INITIALISATIONS MULTIPLES
-    if (this.transitionSystemInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] BattleTransitionManager déjà initialisé`);
+// ✅ PROTECTION RENFORCÉE CONTRE LES INITIALISATIONS MULTIPLES
+    if (this.transitionSystemInitialized || this.battleTransitionManager) {
+      console.log(`ℹ️ [${this.scene.key}] BattleTransitionManager déjà initialisé - SKIP`);
+      return;
+    }
+
+    // ✅ PROTECTION GLOBALE
+    if (window.battleTransitionManager && window.battleTransitionManager.scene === this) {
+      console.log(`ℹ️ [${this.scene.key}] Instance globale déjà active pour cette scène`);
+      this.battleTransitionManager = window.battleTransitionManager;
+      this.transitionSystemInitialized = true;
       return;
     }
 
