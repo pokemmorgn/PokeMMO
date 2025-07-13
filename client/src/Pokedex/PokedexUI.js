@@ -899,23 +899,21 @@ handlePokedexData(response) {
     return entryDiv;
   }
 
-  getPokemonSpriteForEntry(entry) {
+ getPokemonSpriteForEntry(entry) {
     const paddedId = entry.pokemonId.toString().padStart(3, '0');
     
     if (entry.caught) {
       // Pokémon capturé : sprite complet en couleur
-const spriteFile = isShiny ? 'shinyicons.png' : 'icons.png';
-// Pour caught
-return `<img src="/assets/pokemon/${paddedId}/icons.png"
-              alt="${entry.displayName}" 
-              onerror="this.outerHTML='🎮'" 
-              class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
-
-// Pour seen  
-return `<img src="/assets/pokemon/${paddedId}/icons.png"
-              alt="Pokémon vu" 
-              onerror="this.outerHTML='👤'" 
-              class="pokemon-sprite silhouette"
+      return `<img src="/assets/pokemon/${paddedId}/icons.png"
+                    alt="${entry.displayName}" 
+                    onerror="this.outerHTML='🎮'" 
+                    class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}">`;
+    } else if (entry.seen) {
+      // Pokémon vu : silhouette noire
+      return `<img src="/assets/pokemon/${paddedId}/icons.png"
+                    alt="Pokémon vu" 
+                    onerror="this.outerHTML='👤'" 
+                    class="pokemon-sprite silhouette">`;
     } else {
       // Pokémon inconnu : point d'interrogation
       return `<div class="pokemon-sprite unknown">❓</div>`;
@@ -949,25 +947,21 @@ return `<img src="/assets/pokemon/${paddedId}/icons.png"
   /**
    * Génère le sprite pour les détails (utilise les bons chemins)
    */
-  getPokemonSpriteForDetails(pokemonId, caught, isShiny = false) {
+getPokemonSpriteForDetails(pokemonId, caught, isShiny = false) {
     const paddedId = pokemonId.toString().padStart(3, '0');
     
     if (caught) {
-const spriteFile = entry.shiny ? 'shinyicons.png' : 'icons.png';
-// Pour caught
-return `<img src="/assets/pokemon/${paddedId}/icons.png"
-              alt="Pokémon #${paddedId}" 
-              onerror="this.outerHTML='🎮'" 
-              class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
-
-// Pour seen  
-return `<img src="/assets/pokemon/${paddedId}/icons.png"
-              alt="Pokémon vu" 
-              onerror="this.outerHTML='👤'" 
-              class="pokemon-sprite silhouette"
+      return `<img src="/assets/pokemon/${paddedId}/icons.png"
+                    alt="Pokémon #${paddedId}" 
+                    onerror="this.outerHTML='🎮'" 
+                    class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}">`;
+    } else {
+      return `<img src="/assets/pokemon/${paddedId}/icons.png"
+                    alt="Pokémon vu" 
+                    onerror="this.outerHTML='👤'" 
+                    class="pokemon-sprite silhouette">`;
     }
   }
-
   // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
 
   handleSearch() {
