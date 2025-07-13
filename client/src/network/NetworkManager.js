@@ -215,13 +215,14 @@ getUserSession() {
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-    // ✅ NOUVEAU: Handler pong pour health check
-    this.room.onMessage("pong", (data) => {
-      const latency = Date.now() - this.connectionHealth.lastPing;
-      this.connectionHealth.isHealthy = latency < 2000; // Healthy si < 2s
-      console.log(`📡 Pong reçu, latence: ${latency}ms, healthy: ${this.connectionHealth.isHealthy}`);
-    });
-
+  // ✅ NOUVEAU (CORRIGÉ) - PLAYTIME
+this.room.onMessage("pong", (data) => {
+  const now = Date.now();
+  const latency = this.connectionHealth.lastPing ? now - this.connectionHealth.lastPing : 0;
+  this.connectionHealth.isHealthy = latency < 2000;
+  this.connectionHealth.lastPong = now;
+  console.log(`📡 Pong reçu (NetworkManager), latence: ${latency}ms, serveur: ${data.serverTime}`);
+});
     // ✅ NOUVEAU: Handler pour confirmation de spawn
     this.room.onMessage("playerSpawned", (data) => {
       console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
