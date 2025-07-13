@@ -326,6 +326,13 @@ try {
   console.log("ℹ️ Index MongoDB déjà existants");
 }
 
+// ✅ NOUVEAU: Corriger l'index walletAddress
+try {
+  await PlayerData.collection.dropIndex("walletAddress_1");
+  console.log("🗑️ Ancien index walletAddress supprimé");
+} catch (e) {
+  console.log("ℹ️ Index walletAddress n'existait pas ou déjà supprimé");
+}
 
 await PlayerData.collection.createIndex(
   { walletAddress: 1 }, 
