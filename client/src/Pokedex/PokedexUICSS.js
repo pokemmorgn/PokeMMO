@@ -371,14 +371,14 @@ export const POKEDEX_UI_STYLES = `
     background: linear-gradient(145deg, #1e293b, #374151);
     border: 2px solid #4b5563;
     border-radius: 12px;
-    padding: 15px;
+    padding: 10px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    min-height: 140px;
+    min-height: 160px;
     position: relative;
     overflow: hidden;
   }
@@ -466,7 +466,7 @@ export const POKEDEX_UI_STYLES = `
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .entry-number {
@@ -507,7 +507,7 @@ export const POKEDEX_UI_STYLES = `
     align-items: center;
     justify-content: center;
     font-size: 40px;
-    margin: 8px 0;
+    margin: 4px 0;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
   }
 
@@ -523,7 +523,8 @@ export const POKEDEX_UI_STYLES = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
+      margin-top: -4px;
   }
 
   .entry-name {
@@ -1626,7 +1627,7 @@ export const POKEDEX_UI_STYLES = `
   .entry-types {
     display: flex;
     gap: 4px;
-    margin-top: 4px;
+    margin-top: 2px;
     flex-wrap: wrap;
     justify-content: center;
   }
