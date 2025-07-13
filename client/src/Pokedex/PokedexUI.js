@@ -908,14 +908,14 @@ getPokemonSpriteForEntry(entry) {
                     alt="${entry.displayName}" 
                     onerror="this.outerHTML='🎮'" 
                     class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
-                    style="width: 32px; height: 32px; object-fit: none; object-position: 0 0;">`;
+                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
     } else if (entry.seen) {
       // Pokémon vu : silhouette noire
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="Pokémon vu" 
                     onerror="this.outerHTML='👤'" 
                     class="pokemon-sprite silhouette"
-                    style="width: 32px; height: 32px; object-fit: none; object-position: 0 0;">`;
+                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
     } else {
       // Pokémon inconnu : point d'interrogation
       return `<div class="pokemon-sprite unknown">❓</div>`;
@@ -957,13 +957,13 @@ getPokemonSpriteForDetails(pokemonId, caught, isShiny = false) {
                     alt="Pokémon #${paddedId}" 
                     onerror="this.outerHTML='🎮'" 
                     class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
-                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
+                    style="width: 128px; height: 128px; object-fit: none; object-position: 0 0;">`;
     } else {
       return `<img src="/assets/pokemon/${paddedId}/icons.png"
                     alt="Pokémon vu" 
                     onerror="this.outerHTML='👤'" 
                     class="pokemon-sprite silhouette"
-                    style="width: 64px; height: 64px; object-fit: none; object-position: 0 0;">`;
+                    style="width: 128px; height: 128px; object-fit: none; object-position: 0 0;">`;
     }
   }
   // === 🔍 RECHERCHE ET FILTRES AVEC DATAMANAGER ===
