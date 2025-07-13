@@ -1352,6 +1352,18 @@ handlePokedexData(response) {
 
   // === 🔄 ACTIONS SYSTÈME ===
 
+  debugCurrentData() {
+  console.log('🐛 [PokedexUI] Debug données actuelles:');
+  console.log('- DataManager loaded:', this.dataManager?.isDataLoaded());
+  console.log('- Available Pokemon:', this.dataManager?.availablePokemonIds?.length);
+  console.log('- Player entries:', this.dataManager?.playerEntries?.size);
+  console.log('- Current view data:', this.pokedexData?.length);
+  
+  if (this.dataManager) {
+    this.dataManager.debugPlayerEntries();
+  }
+}
+  
   syncPokedex() {
     console.log('🔄 [PokedexUI] Synchronisation Pokédx...');
     
