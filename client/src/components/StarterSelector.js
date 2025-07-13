@@ -1,4 +1,4 @@
-// ✅ StarterSelector ULTRA-SIMPLIFIÉ - Juste l'UI, InteractionManager gère le reste
+// ✅ StarterSelector COMPLETE - With instant team update fix
 export class StarterSelector {
   constructor(scene) {
     this.scene = scene;
@@ -6,31 +6,31 @@ export class StarterSelector {
     this.selectedStarterId = null;
     this.networkManager = null;
     
-    // Elements HTML
+    // HTML Elements
     this.overlay = null;
     this.container = null;
     
-    // Configuration des starters
+    // Starter configuration
     this.starterConfig = [
       {
         id: 'bulbasaur',
-        name: 'Bulbizarre',
-        type: 'Plante',
-        description: 'Un Pokémon Graine docile et loyal.',
+        name: 'Bulbasaur',
+        type: 'Grass',
+        description: 'A docile and loyal Seed Pokémon.',
         color: '#4CAF50'
       },
       {
         id: 'charmander', 
-        name: 'Salamèche',
-        type: 'Feu',
-        description: 'Un Pokémon Lézard fougueux et brave.',
+        name: 'Charmander',
+        type: 'Fire',
+        description: 'A fierce and brave Lizard Pokémon.',
         color: '#FF5722'
       },
       {
         id: 'squirtle',
-        name: 'Carapuce', 
-        type: 'Eau',
-        description: 'Un Pokémon Minitortue calme et sage.',
+        name: 'Squirtle', 
+        type: 'Water',
+        description: 'A calm and wise Tiny Turtle Pokémon.',
         color: '#2196F3'
       }
     ];
@@ -38,186 +38,132 @@ export class StarterSelector {
     this.currentlySelectedIndex = -1;
     this.starterOptions = [];
     
-    console.log("🎯 [StarterSelector] Version ultra-simplifiée initialisée");
+    console.log("🎯 [StarterSelector] Version with instant team fix initialized");
   }
 
-  // ✅ SIMPLE: Juste stocker NetworkManager + FIX CSS
+  // ✅ SIMPLE: Store NetworkManager + CSS FIX
   initialize(networkManager) {
     this.networkManager = networkManager;
     
-    // ✅ FIX: Forcer le chargement du CSS immédiatement
+    // ✅ FIX: Force CSS loading immediately
     this.ensureCSS();
     
-    // ✅ FIX: S'assurer que starterConfig n'est jamais null
+    // ✅ FIX: Ensure starterConfig is never null
     if (!this.starterConfig) {
       this.starterConfig = this.getDefaultStarters();
     }
     
-    // ✅ NOUVEAU: Setup des listeners serveur
+    // ✅ NEW: Setup server listeners WITH TEAM FIX
     this.setupServerMessageListeners();
     
-    console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes + listeners)");
+    console.log("✅ [StarterSelector] Initialized with instant team fix");
     return this;
   }
 
+  // ✅ SERVER LISTENERS WITH INSTANT TEAM FIX
   setupServerMessageListeners() {
     if (!this.networkManager?.room) {
-      console.warn("⚠️ [StarterSelector] NetworkManager ou room manquant");
+      console.warn("⚠️ [StarterSelector] Missing NetworkManager or room");
       return;
     }
 
-    console.log("📡 [StarterSelector] Setup des listeners serveur...");
+    console.log("📡 [StarterSelector] Setting up server listeners with team fix...");
 
-    // ✅ LISTENER: Réponse du serveur après sélection
+    // ✅ LISTENER: Server response after selection
     this.networkManager.room.onMessage("starterReceived", (data) => {
       console.log("📥 [StarterSelector] starterReceived:", data);
       
       if (data.success) {
-        // ✅ TRIPLE FIX: Forcer la mise à jour de TOUS les systèmes
-        this.forceCompleteTeamUpdate();
-        
-        // Succès : fermer l'UI après un délai pour voir la confirmation
-        this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
+        this.showNotification(data.message || "Pokémon received successfully!", 'success');
         setTimeout(() => {
           this.hide();
         }, 2000);
       } else {
-        // Erreur : afficher le message et permettre une nouvelle sélection
-        this.showNotification(data.message || "Erreur lors de la sélection", 'error');
-        // Réactiver le bouton de confirmation
+        this.showNotification(data.message || "Error during selection", 'error');
         const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
         if (confirmBtn) {
           confirmBtn.classList.remove('disabled');
-          confirmBtn.textContent = '⚡ Confirmer';
+          confirmBtn.textContent = '⚡ Confirm';
         }
+      }
+    });
+
+    // ✅ MAIN FIX: Listen to teamData sent automatically by server
+    this.networkManager.room.onMessage("teamData", (data) => {
+      console.log("📥 [StarterSelector] teamData received automatically:", data);
+      
+      if (data.success && data.team && data.team.length > 0) {
+        console.log("🎉 [StarterSelector] Team update detected, notifying Team systems");
+        
+        // Forward directly to existing Team systems
+        this.notifyTeamSystems(data);
       }
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Forcer la mise à jour complète de tous les systèmes
-  forceCompleteTeamUpdate() {
-    console.log("🔄 [StarterSelector] === FORCE COMPLETE TEAM UPDATE ===");
+  // ✅ NEW METHOD: Notify existing Team systems
+  notifyTeamSystems(teamData) {
+    console.log("🔄 [StarterSelector] Notifying Team systems");
     
-    // 1. Demander les données d'équipe fraîches
-    if (this.networkManager?.room) {
-      console.log("📡 [StarterSelector] Demande getTeam");
-      this.networkManager.room.send("getTeam");
+    // 1. ✅ Update TeamIcon if exists
+    if (window.teamSystemGlobal && window.teamSystemGlobal.icon) {
+      console.log("⚔️ [StarterSelector] Updating TeamIcon via teamSystemGlobal");
+      window.teamSystemGlobal.icon.updateStats({
+        totalPokemon: teamData.team.length,
+        alivePokemon: teamData.stats?.alivePokemon || teamData.team.length,
+        canBattle: teamData.stats?.canBattle || true
+      });
     }
     
-    // 2. Mettre à jour TeamIcon IMMÉDIATEMENT
-    this.updateTeamIcon();
-    
-    // 3. Mettre à jour TeamUI si il existe
-    this.updateTeamUI();
-    
-    // 4. Forcer une deuxième vague après un délai
-    setTimeout(() => {
-      console.log("🔄 [StarterSelector] Deuxième vague de mise à jour");
-      if (this.networkManager?.room) {
-        this.networkManager.room.send("getTeam");
-      }
-      this.updateTeamIcon();
-      this.updateTeamUI();
-    }, 500);
-    
-    // 5. Troisième tentative plus tard pour être sûr
-    setTimeout(() => {
-      console.log("🔄 [StarterSelector] Troisième vague de mise à jour");
-      if (this.networkManager?.room) {
-        this.networkManager.room.send("getTeam");
-      }
-      this.updateTeamIcon();
-    }, 1500);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Mettre à jour TeamIcon
-  updateTeamIcon() {
-    console.log("⚔️ [StarterSelector] Mise à jour TeamIcon");
-    
-    // Chercher l'icône d'équipe
-    const teamIcon = document.querySelector('#team-icon') || window.teamIcon;
-    
-    if (teamIcon) {
-      console.log("⚔️ [StarterSelector] TeamIcon trouvé, mise à jour...");
-      
-      // Si c'est un élément DOM
-      if (teamIcon.querySelector) {
-        const countElement = teamIcon.querySelector('.team-count');
-        if (countElement) {
-          countElement.textContent = '1';
-          console.log("⚔️ [StarterSelector] Compteur TeamIcon mis à jour: 1");
-        }
-        
-        // Ajouter classe d'animation
-        teamIcon.classList.add('team-updated');
-        setTimeout(() => {
-          teamIcon.classList.remove('team-updated');
-        }, 600);
-      }
-      
-      // Si c'est l'objet TeamIcon
-      if (teamIcon.updateTeamStats) {
-        teamIcon.updateTeamStats({
-          totalPokemon: 1,
-          alivePokemon: 1,
-          canBattle: true
-        });
-        console.log("⚔️ [StarterSelector] TeamIcon.updateTeamStats appelé");
-      }
-      
-      // Si c'est via window.teamIcon
-      if (window.teamIcon && window.teamIcon.updateTeamStats) {
-        window.teamIcon.updateTeamStats({
-          totalPokemon: 1,
-          alivePokemon: 1,
-          canBattle: true
-        });
-        console.log("⚔️ [StarterSelector] window.teamIcon.updateTeamStats appelé");
-      }
-    } else {
-      console.warn("⚠️ [StarterSelector] TeamIcon non trouvé");
+    // 2. ✅ Update TeamUI if exists and visible
+    if (window.teamSystemGlobal && window.teamSystemGlobal.ui) {
+      console.log("📱 [StarterSelector] Updating TeamUI via teamSystemGlobal");
+      window.teamSystemGlobal.ui.updateTeamData(teamData);
     }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Mettre à jour TeamUI
-  updateTeamUI() {
-    console.log("📱 [StarterSelector] Mise à jour TeamUI");
     
-    // Chercher TeamUI de toutes les façons possibles
-    const teamUI = window.teamUI || window.TeamUI || this.scene?.teamUI;
-    
-    if (teamUI) {
-      console.log("📱 [StarterSelector] TeamUI trouvé, mise à jour...");
-      
-      // Forcer une demande de données
-      if (teamUI.requestTeamData) {
-        teamUI.requestTeamData();
-        console.log("📱 [StarterSelector] teamUI.requestTeamData() appelé");
+    // 3. ✅ Update TeamManager if exists
+    if (window.teamSystemGlobal && window.teamSystemGlobal.manager) {
+      console.log("🧠 [StarterSelector] Notifying TeamManager via teamSystemGlobal");
+      if (window.teamSystemGlobal.manager.onTeamDataUpdate) {
+        window.teamSystemGlobal.manager.onTeamDataUpdate(teamData);
       }
-      
-      // Forcer un refresh si l'UI est visible
-      if (teamUI.isVisible && teamUI.refreshTeamDisplay) {
-        teamUI.refreshTeamDisplay();
-        console.log("📱 [StarterSelector] teamUI.refreshTeamDisplay() appelé");
-      }
-      
-      // Mettre à jour les stats
-      if (teamUI.updateTeamStats) {
-        teamUI.updateTeamStats();
-        console.log("📱 [StarterSelector] teamUI.updateTeamStats() appelé");
-      }
-    } else {
-      console.warn("⚠️ [StarterSelector] TeamUI non trouvé");
     }
+    
+    // 4. ✅ Update via DOM element if TeamIcon exists
+    const teamIconElement = document.querySelector('#team-icon');
+    if (teamIconElement) {
+      console.log("🎯 [StarterSelector] Updating TeamIcon DOM element");
+      const countElement = teamIconElement.querySelector('.team-count');
+      if (countElement) {
+        countElement.textContent = teamData.team.length;
+      }
+      
+      // Add animation
+      teamIconElement.classList.add('team-updated');
+      setTimeout(() => {
+        teamIconElement.classList.remove('team-updated');
+      }, 600);
+    }
+    
+    // 5. ✅ Trigger custom event for other systems
+    window.dispatchEvent(new CustomEvent('teamUpdated', { 
+      detail: { 
+        teamData,
+        source: 'starter-selector',
+        timestamp: Date.now()
+      }
+    }));
+    
+    console.log("✅ [StarterSelector] All Team systems notified");
   }
   
-  // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
+  // ✅ NEW METHOD: Ensure CSS is loaded
   ensureCSS() {
     if (document.querySelector('#starter-selector-manual-styles, #starter-selector-fallback-styles, #starter-selector-styles')) {
-      return; // CSS déjà présent
+      return; // CSS already present
     }
 
-    console.log("🎨 [StarterSelector] Ajout CSS de secours...");
+    console.log("🎨 [StarterSelector] Adding fallback CSS...");
     
     const style = document.createElement('style');
     style.id = 'starter-selector-fallback-styles';
@@ -253,7 +199,7 @@ export class StarterSelector {
       .starter-pokeball { width: 64px !important; height: 64px !important; background-size: contain !important; background-repeat: no-repeat !important; }
       .starter-name { font-size: 16px !important; font-weight: bold !important; color: #ecf0f1 !important; }
       .starter-type { font-size: 12px !important; padding: 4px 8px !important; border-radius: 8px !important; font-weight: bold !important; color: white !important; }
-      .starter-type.plante { background: #78C850 !important; } .starter-type.feu { background: #F08030 !important; } .starter-type.eau { background: #6890F0 !important; }
+      .starter-type.grass { background: #78C850 !important; } .starter-type.fire { background: #F08030 !important; } .starter-type.water { background: #6890F0 !important; }
       .starter-info-section { width: 100% !important; background: rgba(255, 255, 255, 0.08) !important; border: 2px solid rgba(74, 144, 226, 0.3) !important; border-radius: 15px !important; padding: 20px !important; text-align: center !important; }
       .starter-footer { background: rgba(0, 0, 0, 0.3) !important; padding: 20px 25px !important; text-align: center !important; border-radius: 0 0 17px 17px !important; }
       .starter-confirm-btn { background: linear-gradient(145deg, #059669, #047857) !important; border: none !important; color: white !important; padding: 12px 30px !important; border-radius: 12px !important; cursor: pointer !important; font-size: 16px !important; font-weight: bold !important; opacity: 0 !important; transition: all 0.3s ease !important; }
@@ -263,64 +209,64 @@ export class StarterSelector {
     document.head.appendChild(style);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Configuration par défaut
+  // ✅ NEW METHOD: Default configuration
   getDefaultStarters() {
     return [
       {
         id: 'bulbasaur',
-        name: 'Bulbizarre',
-        type: 'Plante',
-        description: 'Un Pokémon Graine docile et loyal.',
+        name: 'Bulbasaur',
+        type: 'Grass',
+        description: 'A docile and loyal Seed Pokémon.',
         color: '#4CAF50'
       },
       {
         id: 'charmander', 
-        name: 'Salamèche',
-        type: 'Feu',
-        description: 'Un Pokémon Lézard fougueux et brave.',
+        name: 'Charmander',
+        type: 'Fire',
+        description: 'A fierce and brave Lizard Pokémon.',
         color: '#FF5722'
       },
       {
         id: 'squirtle',
-        name: 'Carapuce', 
-        type: 'Eau',
-        description: 'Un Pokémon Minitortue calme et sage.',
+        name: 'Squirtle', 
+        type: 'Water',
+        description: 'A calm and wise Tiny Turtle Pokémon.',
         color: '#2196F3'
       }
     ];
   }
 
-  // ✅ MÉTHODE PRINCIPALE: Afficher la sélection (FIXÉE)
+  // ✅ MAIN METHOD: Show selection (FIXED)
   show(availableStarters = null) {
     if (this.isVisible) {
-      console.warn("⚠️ [StarterSelector] Déjà visible");
+      console.warn("⚠️ [StarterSelector] Already visible");
       return;
     }
 
-    console.log("🎯 [StarterSelector] Affichage de la sélection...");
+    console.log("🎯 [StarterSelector] Showing selection...");
     
-    // ✅ FIX: S'assurer que starterConfig existe
+    // ✅ FIX: Ensure starterConfig exists
     if (!this.starterConfig) {
       this.starterConfig = this.getDefaultStarters();
     }
     
-    // ✅ FIX: Utiliser les starters fournis ou la config par défaut (garantie non-null)
+    // ✅ FIX: Use provided starters or guaranteed non-null default config
     this.starterOptions = availableStarters || this.starterConfig || this.getDefaultStarters();
     
-    // Créer l'interface
+    // Create interface
     this.createHTMLInterface();
     
-    // Marquer comme visible
+    // Mark as visible
     this.isVisible = true;
     
-    // Animation d'entrée
+    // Entry animation
     this.animateIn();
     
     // Notification
-    this.showNotification("Choisissez votre starter Pokémon !", 'info');
+    this.showNotification("Choose your starter Pokémon!", 'info');
   }
 
-  // ✅ MÉTHODE: Créer SVG de pokéball
+  // ✅ METHOD: Create pokeball SVG
   getPokeballSVG() {
     return encodeURIComponent(`
       <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -345,18 +291,18 @@ export class StarterSelector {
     `);
   }
 
-  // ✅ MÉTHODE: Créer l'interface HTML
+  // ✅ METHOD: Create HTML interface
   createHTMLInterface() {
-    // Supprimer l'ancienne interface si elle existe
+    // Remove old interface if exists
     if (this.overlay) {
       this.overlay.remove();
     }
 
-    // Créer l'overlay
+    // Create overlay
     this.overlay = document.createElement('div');
     this.overlay.className = 'starter-overlay hidden';
     
-    // Container principal
+    // Main container
     this.container = document.createElement('div');
     this.container.className = 'starter-container';
     
@@ -365,8 +311,8 @@ export class StarterSelector {
     header.className = 'starter-header';
     header.innerHTML = `
       <div class="starter-title">
-        <div class="starter-main-title">Choisissez votre Pokémon</div>
-        <div class="starter-subtitle">Votre compagnon pour la vie</div>
+        <div class="starter-main-title">Choose your Pokémon</div>
+        <div class="starter-subtitle">Your companion for life</div>
       </div>
     `;
     
@@ -387,7 +333,7 @@ export class StarterSelector {
         <div class="starter-type ${starter.type.toLowerCase()}">${starter.type}</div>
       `;
       
-      // Event listeners pour le slot
+      // Event listeners for slot
       slot.addEventListener('click', () => this.selectStarter(starter, index));
       slot.addEventListener('mouseenter', () => this.showStarterInfo(starter, index));
       slot.addEventListener('mouseleave', () => this.hideStarterInfo());
@@ -395,41 +341,41 @@ export class StarterSelector {
       pokeballs.appendChild(slot);
     });
     
-    // Section info
+    // Info section
     const infoSection = document.createElement('div');
     infoSection.className = 'starter-info-section';
     infoSection.innerHTML = `
-      <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
+      <div class="starter-info-empty">Hover over a Pokémon to see its details</div>
     `;
     
     content.appendChild(pokeballs);
     content.appendChild(infoSection);
     
-    // Footer avec bouton
+    // Footer with button
     const footer = document.createElement('div');
     footer.className = 'starter-footer';
     footer.innerHTML = `
       <button class="starter-confirm-btn">
-        <span>⚡</span> Confirmer
+        <span>⚡</span> Confirm
       </button>
     `;
     
-    // Assembler
+    // Assemble
     this.container.appendChild(header);
     this.container.appendChild(content);
     this.container.appendChild(footer);
     this.overlay.appendChild(this.container);
     
-    // Ajouter au DOM
+    // Add to DOM
     document.body.appendChild(this.overlay);
     
     // Event listeners
     this.setupHTMLEvents();
   }
 
-  // ✅ MÉTHODE: Setup des événements HTML
+  // ✅ METHOD: Setup HTML events
   setupHTMLEvents() {
-    // Bouton de confirmation
+    // Confirmation button
     const confirmBtn = this.overlay.querySelector('.starter-confirm-btn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', () => {
@@ -439,15 +385,15 @@ export class StarterSelector {
       });
     }
 
-    // Empêcher la fermeture par clic sur l'overlay
+    // Prevent closing by clicking on overlay
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) {
-        this.showNotification("Vous devez choisir un Pokémon !", 'warning');
+        this.showNotification("You must choose a Pokémon!", 'warning');
       }
     });
   }
 
-  // ✅ MÉTHODE: Afficher les infos d'un starter
+  // ✅ METHOD: Show starter info
   showStarterInfo(starter, index) {
     const infoSection = this.overlay.querySelector('.starter-info-section');
     if (infoSection) {
@@ -458,26 +404,26 @@ export class StarterSelector {
     }
   }
 
-  // ✅ MÉTHODE: Masquer les infos
+  // ✅ METHOD: Hide info
   hideStarterInfo() {
     if (this.currentlySelectedIndex === -1) {
       const infoSection = this.overlay.querySelector('.starter-info-section');
       if (infoSection) {
         infoSection.innerHTML = `
-          <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
+          <div class="starter-info-empty">Hover over a Pokémon to see its details</div>
         `;
       }
     }
   }
 
-  // ✅ MÉTHODE: Sélectionner un starter
+  // ✅ METHOD: Select starter
   selectStarter(starter, index) {
-    console.log("🎯 [StarterSelector] Starter sélectionné:", starter.name);
+    console.log("🎯 [StarterSelector] Starter selected:", starter.name);
     
     this.currentlySelectedIndex = index;
     this.selectedStarterId = starter.id;
 
-    // Mettre à jour l'affichage
+    // Update display
     const slots = this.overlay.querySelectorAll('.starter-pokeball-slot');
     slots.forEach((slot, i) => {
       slot.classList.remove('selected');
@@ -486,41 +432,41 @@ export class StarterSelector {
       }
     });
 
-    // Afficher les infos du starter sélectionné
+    // Show selected starter info
     this.showStarterInfo(starter, index);
 
-    // Afficher le bouton de confirmation
+    // Show confirmation button
     const confirmBtn = this.overlay.querySelector('.starter-confirm-btn');
     if (confirmBtn) {
       confirmBtn.classList.add('visible');
     }
   }
 
-  // ✅ MÉTHODE: Confirmer la sélection
+  // ✅ METHOD: Confirm selection
   confirmSelection() {
     if (!this.selectedStarterId) return;
     
-    console.log("📤 [StarterSelector] Envoi sélection au serveur:", this.selectedStarterId);
+    console.log("📤 [StarterSelector] Sending selection to server:", this.selectedStarterId);
     
     if (this.networkManager?.room) {
-      // Désactiver le bouton pendant l'envoi
+      // Disable button during sending
       const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
       if (confirmBtn) {
         confirmBtn.classList.add('disabled');
-        confirmBtn.textContent = '⏳ Envoi...';
+        confirmBtn.textContent = '⏳ Sending...';
       }
       
       this.networkManager.room.send("giveStarterChoice", {
         pokemonId: this.getStarterPokemonId(this.selectedStarterId)
       });
       
-      // Animation de confirmation
+      // Confirmation animation
       this.animateConfirmation();
       
-      // Notification d'envoi
-      this.showNotification("Sélection envoyée au serveur...", 'info');
+      // Sending notification
+      this.showNotification("Selection sent to server...", 'info');
     } else {
-      this.showNotification("Erreur de connexion serveur", 'error');
+      this.showNotification("Server connection error", 'error');
     }
   }
 
@@ -533,7 +479,7 @@ export class StarterSelector {
     return mapping[starterId] || 1;
   }
 
-  // ✅ MÉTHODE: Animation de confirmation
+  // ✅ METHOD: Confirmation animation
   animateConfirmation() {
     if (this.container) {
       this.container.classList.add('confirming');
@@ -545,40 +491,40 @@ export class StarterSelector {
     }
   }
 
-  // ✅ MÉTHODE: Animation d'entrée
+  // ✅ METHOD: Entry animation
   animateIn() {
     if (this.overlay) {
-      // Forcer un reflow
+      // Force reflow
       this.overlay.offsetHeight;
       
-      // Retirer la classe hidden pour déclencher l'animation CSS
+      // Remove hidden class to trigger CSS animation
       this.overlay.classList.remove('hidden');
     }
   }
 
-  // ✅ MÉTHODE: Masquer la sélection
+  // ✅ METHOD: Hide selection
   hide() {
     if (!this.isVisible) {
-      console.warn("⚠️ [StarterSelector] Déjà masqué");
+      console.warn("⚠️ [StarterSelector] Already hidden");
       return;
     }
 
-    console.log("🚫 [StarterSelector] Masquage de la sélection...");
+    console.log("🚫 [StarterSelector] Hiding selection...");
 
-    // Animation de sortie
+    // Exit animation
     if (this.overlay) {
       this.overlay.classList.add('hidden');
     }
     
     this.isVisible = false;
 
-    // Nettoyage après animation
+    // Cleanup after animation
     setTimeout(() => {
       this.cleanup();
     }, 300);
   }
 
-  // ✅ MÉTHODE: Afficher une notification
+  // ✅ METHOD: Show notification
   showNotification(message, type = 'info') {
     if (window.showGameNotification) {
       window.showGameNotification(message, type, { 
@@ -590,43 +536,43 @@ export class StarterSelector {
     }
   }
 
-  // ✅ MÉTHODE: Nettoyage
+  // ✅ METHOD: Cleanup
   cleanup() {
-    console.log("🧹 [StarterSelector] Nettoyage...");
+    console.log("🧹 [StarterSelector] Cleaning up...");
 
-    // Supprimer l'overlay du DOM
+    // Remove overlay from DOM
     if (this.overlay) {
       this.overlay.remove();
       this.overlay = null;
     }
 
-    // Réinitialiser les variables
+    // Reset variables
     this.container = null;
     this.selectedStarterId = null;
     this.currentlySelectedIndex = -1;
     this.starterOptions = [];
 
-    console.log("✅ [StarterSelector] Nettoyage terminé");
+    console.log("✅ [StarterSelector] Cleanup completed");
   }
 
-  // ✅ MÉTHODE: Détruire complètement
+  // ✅ METHOD: Destroy completely
   destroy() {
-    console.log("💀 [StarterSelector] Destruction...");
+    console.log("💀 [StarterSelector] Destroying...");
 
-    // Masquer si visible
+    // Hide if visible
     if (this.isVisible) {
       this.hide();
     } else {
       this.cleanup();
     }
 
-    // Null toutes les références
+    // Null all references
     this.scene = null;
     this.networkManager = null;
     this.starterConfig = null;
   }
 
-  // ✅ MÉTHODES UTILITAIRES
+  // ✅ UTILITY METHODS
   isSelectionVisible() {
     return this.isVisible;
   }
@@ -640,7 +586,7 @@ export class StarterSelector {
   }
 }
 
-// ✅ GESTIONNAIRE GLOBAL SIMPLIFIÉ
+// ✅ SIMPLIFIED GLOBAL MANAGER
 export class StarterSelectionManager {
   constructor() {
     this.activeSelector = null;
@@ -688,16 +634,16 @@ export class StarterSelectionManager {
   }
 }
 
-// ✅ INSTANCE GLOBALE
+// ✅ GLOBAL INSTANCE
 export const globalStarterManager = new StarterSelectionManager();
 
-// ✅ FONCTION D'INTÉGRATION ULTRA-SIMPLIFIÉE
+// ✅ ULTRA-SIMPLIFIED INTEGRATION FUNCTION
 export function integrateStarterSelectorToScene(scene, networkManager) {
-  console.log(`🎯 [StarterIntegration] Intégration ultra-simple à: ${scene.scene.key}`);
+  console.log(`🎯 [StarterIntegration] Ultra-simple integration to: ${scene.scene.key}`);
 
   const selector = globalStarterManager.initialize(scene, networkManager);
 
-  // ✅ SEULES MÉTHODES NÉCESSAIRES
+  // ✅ ONLY NECESSARY METHODS
   scene.showStarterSelection = (availableStarters = null) => {
     return globalStarterManager.show(scene, availableStarters);
   };
@@ -706,18 +652,18 @@ export function integrateStarterSelectorToScene(scene, networkManager) {
     globalStarterManager.hide();
   };
 
-  console.log(`✅ [StarterIntegration] Intégration ultra-simple terminée`);
+  console.log(`✅ [StarterIntegration] Ultra-simple integration completed`);
   return selector;
 }
 
-// ✅ UTILITAIRES GLOBAUX SIMPLIFIÉS
+// ✅ SIMPLIFIED GLOBAL UTILITIES
 export const StarterUtils = {
   showSelection: (availableStarters = null) => {
     const activeScene = window.game?.scene?.getScenes(true)[0];
     if (activeScene && activeScene.showStarterSelection) {
       return activeScene.showStarterSelection(availableStarters);
     }
-    console.warn("⚠️ [StarterUtils] Aucune scène active avec starter system");
+    console.warn("⚠️ [StarterUtils] No active scene with starter system");
     return null;
   },
 
@@ -730,4 +676,4 @@ export const StarterUtils = {
   }
 };
 
-console.log("🎯 [StarterSelector] Module ultra-simplifié chargé et prêt !");
+console.log("🎯 [StarterSelector] Complete module with instant team update loaded and ready!");
