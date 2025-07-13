@@ -75,7 +75,7 @@ export class SpiralTransition {
     
     return new Promise(resolve => {
       let currentSegment = 0;
-      const segmentDuration = duration / segments;
+      const segmentDuration = Math.max(20, duration / segments); // Minimum 20ms par segment
       
       // Animation par segments
       const animateSegment = () => {
