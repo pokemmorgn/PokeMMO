@@ -281,7 +281,7 @@ export class BattleTransitionManager {
   /**
    * Termine la transition avec fade in
    */
-  async completeBattleTransition(config, delay = 0) {
+async completeBattleTransition(config, delay = 0) {
     if (delay > 0) {
       await this.wait(delay);
     }
@@ -289,9 +289,21 @@ export class BattleTransitionManager {
     this.transitionState = 'ending';
     console.log('✨ [BattleTransitionManager] Finalisation transition...');
 
-    // Démarrer musique de combat
-    if (this.audioManager) {
-      this.audioManager.startBattleMusic();
+    // Démarrer musique de combat (sécurisé)
+    try {
+      if (this.audioManager) {
+        this.audioManager.startBattleMusic();
+      }
+    } catch (error) {
+      console.warn('⚠️ [BattleTransitionManager] Erreur audio ignorée:', error);
+    }
+
+    // ✅ FORCER le passage à BattleScene même en cas d'erreur audio
+    console.log('🔄 [BattleTransitionManager] Activation BattleScene forcée...');
+    const battleScene = this.scene.scene.get('BattleScene');
+    if (battleScene) {
+      battleScene.scene.setVisible(true);
+      battleScene.scene.wake();
     }
 
     // Fade in BattleScene
