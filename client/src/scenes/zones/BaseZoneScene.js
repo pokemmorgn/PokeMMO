@@ -1155,7 +1155,7 @@ initPlayerSpawnFromSceneData() {
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
     });
 this.networkManager.onMessage("overworldPokemon", (data) => {
-    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
+//    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
     
     if (this.overworldPokemonManager) {
       this.overworldPokemonManager.handleServerMessage(data);
