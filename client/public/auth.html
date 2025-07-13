@@ -1708,9 +1708,10 @@ this.startPlaytimeUpdater();
         
 
         // Initialize the application when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new PokeWorldAuth();
-        });
+document.addEventListener('DOMContentLoaded', () => {
+    window.authApp = new PokeWorldAuth();  // ✅ Exposer globalement
+    console.log('✅ PokeWorldAuth initialisé et exposé globalement');
+});
 
         // Add some debug functions for development
         window.debugAuth = {
