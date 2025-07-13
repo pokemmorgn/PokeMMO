@@ -470,7 +470,9 @@ export class PokedexService extends EventEmitter {
       this.serviceStats.cacheMisses++;
       
       console.log(`📖 [PokedexService] Récupération Pokédx pour ${playerId} (${totalAvailableOnServer} Pokémon disponibles)`);
-      
+      console.log(`🔍 [DEBUG] Requête Pokédx - PlayerId: "${playerId}"`);
+      console.log(`🔍 [DEBUG] Filtres appliqués:`, JSON.stringify(filters));
+      console.log(`🔍 [DEBUG] Query construite:`, JSON.stringify(query));
       // Construction de la requête optimisée
       const query = await this.buildSearchQuery(playerId, filters);
       
@@ -494,7 +496,8 @@ export class PokedexService extends EventEmitter {
           .lean(),
         PokedexEntry.countDocuments(query)
       ]);
-      
+      console.log(`🔍 [DEBUG] Résultats trouvés: ${entries.length} entrées, total: ${total}`);
+      console.log(`🔍 [DEBUG] Première entrée:`, entries[0] ? JSON.stringify(entries[0]) :
       // Enrichissement avec les données Pokémon en batch
       const enrichedEntries = await this.enrichEntriesWithPokemonData(entries);
       
