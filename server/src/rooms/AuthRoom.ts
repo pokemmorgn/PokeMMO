@@ -638,7 +638,7 @@ await user.save();
 
 private generateJWT(payload: any): string {
   const options: SignOptions = {
-    expiresIn: process.env.SESSION_DURATION || '6h',
+expiresIn: (process.env.SESSION_DURATION || '6h') as string,
     issuer: 'pokeworld-auth',
     audience: 'pokeworld-game'
   };
