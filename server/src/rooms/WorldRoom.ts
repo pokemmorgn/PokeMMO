@@ -30,6 +30,7 @@ import { BattleHandlers } from "../handlers/BattleHandlers";
 
 import { StarterHandlers } from "../handlers/StarterHandlers";
 import PokedexMessageHandler from '../handlers/PokedexMessageHandler';
+import { MovementHandlers } from "../handlers/MovementHandlers";
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -61,7 +62,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private pokedexHandler!: PokedexMessageHandler;
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
-
+  private movementHandlers!: MovementHandlers;
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -135,6 +136,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ TransitionService initialisé`);
 
     this.initializeTimeWeatherService();
+
+    this.movementHandlers = new MovementHandlers(this);
+    console.log(`✅ MovementHandlers initialisé`);
     
     // Messages handlers
     this.setupMessageHandlers();
@@ -423,6 +427,7 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
+    this.movementHandlers.setupHandlers();
     console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
     this.onMessage("battleFinished", (client, data) => {
@@ -552,10 +557,6 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
       if (this.overworldPokemonManager) {
         this.overworldPokemonManager.clearArea(data.areaId);
       }
-    });
-    // Mouvement du joueur
-    this.onMessage("playerMove", (client, data) => {
-      this.handlePlayerMove(client, data);
     });
 
     // Handler PING pour garder la connexion active (heartbeat)
@@ -2275,6 +2276,10 @@ async onLeave(client: Client, consented: boolean) {
   getBattleHandlers(): BattleHandlers {
     return this.battleHandlers;
   }
+  getMovementHandlers(): MovementHandlers {
+  return this.movementHandlers;
+}
+  
   public getEncounterManager() {
     return this.encounterHandlers.getEncounterManager();
   }
