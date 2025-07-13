@@ -19,6 +19,8 @@ export interface ExperienceReward {
     friendship?: number;    // 1.0-1.2x selon amitié (NEW)
     daycare?: number;       // Bonus pension
     criticalCapture?: number; // Bonus capture critique
+    switching?: number;     // Bonus si switch pendant combat (NEW)
+    expShare?: number;      // Réduction si partage XP (NEW)
   };
 }
 
@@ -67,7 +69,7 @@ export interface FriendshipReward {
   type: 'friendship';
   pokemonId: string;
   friendshipGain: number;
-  reason: 'battle_victory' | 'walk_steps' | 'level_up' | 'item_use' | 'grooming' | 'massage';
+  reason: 'battle_victory' | 'walk_steps' | 'level_up' | 'item_use' | 'grooming' | 'massage' | 'capture' | 'vitamin' | 'evolution_stone' | 'rare_candy';
   bonuses?: {
     expMultiplier?: number;     // 1.0-1.2x selon niveau d'amitié
     criticalHitChance?: number; // Augmente les coups critiques
@@ -126,9 +128,11 @@ export interface RewardResult {
   itemsGiven: Array<{ itemId: string; quantity: number; pocket: string; rarity?: string }>;
   notifications: RewardNotification[];
   specialEvents?: Array<{ // NEW - Événements spéciaux déclenchés
-    type: 'evolution_ready' | 'friendship_maxed' | 'shiny_charm_unlocked' | 'pokedex_milestone';
+    type: 'evolution_ready' | 'friendship_maxed' | 'shiny_charm_unlocked' | 'pokedex_milestone' | 'capture_streak' | 'achievement';
     message: string;
     data: any;
+    animation?: string;
+    rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   }>;
 }
 
@@ -225,13 +229,13 @@ export const TRAINER_CLASSES: Record<string, TrainerRewardConfig> = {
 
 // === NOUVEAU : NIVEAUX D'AMITIÉ ===
 export const FRIENDSHIP_LEVELS = {
-  0: { name: 'Hostile', multiplier: 0.8, benefits: [] },
-  1: { name: 'Méfiant', multiplier: 0.9, benefits: [] },
-  70: { name: 'Neutre', multiplier: 1.0, benefits: ['basic_obedience'] },
-  100: { name: 'Amical', multiplier: 1.05, benefits: ['basic_obedience', 'occasional_dodge'] },
-  150: { name: 'Affectueux', multiplier: 1.1, benefits: ['basic_obedience', 'occasional_dodge', 'status_resistance'] },
-  200: { name: 'Loyal', multiplier: 1.15, benefits: ['basic_obedience', 'occasional_dodge', 'status_resistance', 'critical_boost'] },
-  255: { name: 'Dévoué', multiplier: 1.2, benefits: ['basic_obedience', 'frequent_dodge', 'status_immunity', 'critical_boost', 'endure_ko'] }
+  0: { name: 'Hostile', multiplier: 0.8, benefits: [] as string[] },
+  1: { name: 'Méfiant', multiplier: 0.9, benefits: [] as string[] },
+  70: { name: 'Neutre', multiplier: 1.0, benefits: ['basic_obedience'] as string[] },
+  100: { name: 'Amical', multiplier: 1.05, benefits: ['basic_obedience', 'occasional_dodge'] as string[] },
+  150: { name: 'Affectueux', multiplier: 1.1, benefits: ['basic_obedience', 'occasional_dodge', 'status_resistance'] as string[] },
+  200: { name: 'Loyal', multiplier: 1.15, benefits: ['basic_obedience', 'occasional_dodge', 'status_resistance', 'critical_boost'] as string[] },
+  255: { name: 'Dévoué', multiplier: 1.2, benefits: ['basic_obedience', 'frequent_dodge', 'status_immunity', 'critical_boost', 'endure_ko'] as string[] }
 } as const;
 
 // === NOUVEAU : BONUS DE CAPTURE ===
@@ -348,7 +352,7 @@ export interface CaptureCalculation {
 
 // === NOUVEAU : ÉVÉNEMENTS SPÉCIAUX ===
 export interface SpecialEvent {
-  type: 'evolution_ready' | 'friendship_maxed' | 'pokedex_milestone' | 'capture_streak' | 'shiny_streak';
+  type: 'evolution_ready' | 'friendship_maxed' | 'pokedex_milestone' | 'capture_streak' | 'shiny_streak' | 'achievement';
   pokemonId?: string;
   milestone?: number;
   rewards?: Reward[];
