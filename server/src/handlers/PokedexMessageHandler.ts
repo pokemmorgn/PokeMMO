@@ -319,11 +319,37 @@ export class PokedexMessageHandler {
     const cacheKey = this.generateCacheKey(playerId, 'getPokedex', message);
     this.setCachedResponse(cacheKey, result, 300000); // 5 minutes
     
+    // 🆕 NOUVELLE STRUCTURE DE RÉPONSE AVEC POKÉMON DISPONIBLES
     this.sendSuccess(client, 'pokedex:get', {
+      // Données des entrées du joueur
       entries: result.entries,
       pagination: result.pagination,
-      summary: result.summary,
-      performance: result.performance
+      
+      // 🆕 LISTE DES POKÉMON DISPONIBLES SUR LE SERVEUR
+      availablePokemon: result.availablePokemon,
+      
+      // 🆕 RÉSUMÉ CORRIGÉ BASÉ SUR LES POKÉMON DISPONIBLES
+      summary: {
+        totalAvailable: result.summary.totalAvailable,           // Nombre total sur le serveur
+        totalSeen: result.summary.seen.count,                    // Nombre vu par le joueur
+        totalCaught: result.summary.caught.count,                // Nombre capturé par le joueur
+        seenPercentage: result.summary.seen.percentage,          // % basé sur disponibles
+        caughtPercentage: result.summary.caught.percentage,      // % basé sur disponibles
+        
+        // Détails supplémentaires
+        remaining: {
+          toSee: result.summary.seen.remaining,
+          toCatch: result.summary.caught.remaining
+        },
+        shinies: result.summary.shinies,
+        records: result.summary.records,
+        completion: result.summary.completion
+      },
+      
+      // Métadonnées
+      performance: result.performance,
+      timestamp: new Date(),
+      basedOnAvailablePokemon: result.summary.basedOnAvailablePokemon || true
     });
   }
   
