@@ -218,135 +218,216 @@ export class PokedexIntegrationService extends EventEmitter {
   /**
    * Intègre une rencontre Pokémon avec validation complète
    */
-  async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResult> {
-    const startTime = Date.now();
-    const operationId = this.generateOperationId('encounter', context);
+async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResult> {
+  const startTime = Date.now();
+  const operationId = this.generateOperationId('encounter', context);
+  
+  console.log(`🔍 [POKÉDX DEBUG] === ENCOUNTER START ===`);
+  console.log(`👤 PlayerId: "${context.playerId}"`);
+  console.log(`🐾 PokemonId: ${context.pokemonId}`);
+  console.log(`📍 Location: "${context.location}"`);
+  console.log(`⚔️ Method: "${context.method}"`);
+  console.log(`📊 Level: ${context.level}`);
+  
+  try {
+    this.performanceStats.totalOperations++;
+    
+    // Validation des paramètres
+    const validation = await this.validateEncounterContext(context);
+    if (!validation.isValid) {
+      console.log(`❌ [POKÉDX DEBUG] Validation échouée: ${validation.error}`);
+      return this.createFailureResult(validation.error || 'Validation failed');
+    }
+    
+    // Vérifier si le service est activé
+    if (!this.config.enabled || !this.config.autoUpdateOnEncounter) {
+      console.log(`❌ [POKÉDX DEBUG] Service désactivé`);
+      return this.createFailureResult('Service désactivé');
+    }
+    
+    // Vérifier les doublons récents
+    if (this.isRecentEncounter(context.playerId, context.pokemonId)) {
+      this.performanceStats.duplicatesBlocked++;
+      this.debugLog(`⏭️ Rencontre récente ignorée: ${context.pokemonId} pour ${context.playerId}`);
+      console.log(`⏭️ [POKÉDX DEBUG] Doublon récent ignoré`);
+      return this.createSuccessResult({ isNewDiscovery: false });
+    }
+    
+    // Vérifier les opérations en cours
+    if (this.hasOngoingOperation(context.playerId, operationId)) {
+      this.debugLog(`⏸️ Opération en cours ignorée: ${operationId}`);
+      console.log(`⏸️ [POKÉDX DEBUG] Opération en cours ignorée`);
+      return this.createFailureResult('Opération en cours');
+    }
+    
+    // Marquer l'opération comme en cours
+    this.markOperationAsOngoing(context.playerId, operationId);
     
     try {
-      this.performanceStats.totalOperations++;
+      this.debugLog(`🔍 Traitement rencontre: ${context.playerId} vs #${context.pokemonId} (${context.method})`);
+      console.log(`🔍 [POKÉDX DEBUG] Début traitement rencontre`);
       
-      // Validation des paramètres
-      const validation = await this.validateEncounterContext(context);
-      if (!validation.isValid) {
-        return this.createFailureResult(validation.error || 'Validation failed');
+      // Récupérer les données du Pokémon avec cache
+      const pokemonData = await this.getPokemonData(context.pokemonId);
+      if (!pokemonData) {
+        console.log(`❌ [POKÉDX DEBUG] Données Pokémon introuvables pour ID ${context.pokemonId}`);
+        throw new Error(`Données Pokémon introuvables pour ID ${context.pokemonId}`);
       }
       
-      // Vérifier si le service est activé
-      if (!this.config.enabled || !this.config.autoUpdateOnEncounter) {
-        return this.createFailureResult('Service désactivé');
+      console.log(`✅ [POKÉDX DEBUG] Données Pokémon récupérées: ${pokemonData.name}`);
+      
+      // ✅ CORRECTION: Appel avec paramètres séparés au lieu d'un objet
+      console.log(`💾 [POKÉDX DEBUG] Appel markPokemonAsSeen avec paramètres:`, {
+        playerId: context.playerId,
+        pokemonId: context.pokemonId,
+        level: context.level,
+        location: context.location,
+        method: context.method
+      });
+      
+      const discoveryResult = await pokedexService.markPokemonAsSeen(
+        context.playerId,          // ✅ Paramètre 1: playerId
+        context.pokemonId,         // ✅ Paramètre 2: pokemonId  
+        context.level,             // ✅ Paramètre 3: level
+        context.location,          // ✅ Paramètre 4: location
+        context.method || 'wild',  // ✅ Paramètre 5: method
+        context.weather,           // ✅ Paramètre 6: weather (optionnel)
+        context.timeOfDay,         // ✅ Paramètre 7: timeOfDay (optionnel)
+        context.sessionId,         // ✅ Paramètre 8: sessionId (optionnel)
+        context.biome,             // ✅ Paramètre 9: biome (optionnel)
+        context.difficulty,        // ✅ Paramètre 10: difficulty (optionnel)
+        context.isEvent            // ✅ Paramètre 11: isEvent (optionnel)
+      );
+      
+      console.log(`💾 [POKÉDX DEBUG] Résultat markPokemonAsSeen:`, {
+        success: discoveryResult.success,
+        isNewDiscovery: discoveryResult.isNewDiscovery,
+        entryId: discoveryResult.entryId,
+        error: discoveryResult.error
+      });
+      
+      if (!discoveryResult.success) {
+        console.log(`❌ [POKÉDX DEBUG] Échec marquage vu: ${discoveryResult.error}`);
+        throw new Error(discoveryResult.error || 'Échec marquage vu');
       }
       
-      // Vérifier les doublons récents
-      if (this.isRecentEncounter(context.playerId, context.pokemonId)) {
-        this.performanceStats.duplicatesBlocked++;
-        this.debugLog(`⏭️ Rencontre récente ignorée: ${context.pokemonId} pour ${context.playerId}`);
-        return this.createSuccessResult({ isNewDiscovery: false });
-      }
-      
-      // Vérifier les opérations en cours
-      if (this.hasOngoingOperation(context.playerId, operationId)) {
-        this.debugLog(`⏸️ Opération en cours ignorée: ${operationId}`);
-        return this.createFailureResult('Opération en cours');
-      }
-      
-      // Marquer l'opération comme en cours
-      this.markOperationAsOngoing(context.playerId, operationId);
-      
-      try {
-        this.debugLog(`🔍 Traitement rencontre: ${context.playerId} vs #${context.pokemonId} (${context.method})`);
+      // ✅ VÉRIFICATION POST-SAUVEGARDE
+      setTimeout(async () => {
+        console.log(`🔍 [POKÉDX DEBUG] === VÉRIFICATION POST-SAUVEGARDE ===`);
         
-        // Récupérer les données du Pokémon avec cache
-        const pokemonData = await this.getPokemonData(context.pokemonId);
-        if (!pokemonData) {
-          throw new Error(`Données Pokémon introuvables pour ID ${context.pokemonId}`);
+        try {
+          const pokedexCheck = await pokedexService.getPlayerPokedex(context.playerId, {});
+          console.log(`📊 [POKÉDX DEBUG] Pokédx après sauvegarde:`, {
+            totalEntries: pokedexCheck.entries?.length || 0,
+            entries: pokedexCheck.entries?.map(e => ({ 
+              pokemonId: e.pokemonId, 
+              seen: e.seen, 
+              caught: e.caught,
+              dateSeen: e.dateSeen
+            })) || []
+          });
+          
+          // Vérification spécifique de cette entrée
+          const specificEntry = await pokedexService.getPokedexEntry(context.playerId, context.pokemonId);
+          console.log(`📄 [POKÉDX DEBUG] Entrée spécifique #${context.pokemonId}:`, {
+            exists: !!specificEntry.entry,
+            seen: specificEntry.entry?.seen || false,
+            dateSeen: specificEntry.entry?.dateSeen || null,
+            timesEncountered: specificEntry.entry?.timesEncountered || 0
+          });
+          
+        } catch (verifyError) {
+          console.error(`❌ [POKÉDX DEBUG] Erreur vérification:`, verifyError);
+        }
+      }, 1000); // Vérification après 1 seconde
+      
+      // Collecter les notifications et accomplissements
+      const notifications: string[] = [...(discoveryResult.notifications || [])];
+      const achievements: string[] = [];
+      const milestones: string[] = [];
+      
+      // Traitement des nouvelles découvertes
+      if (discoveryResult.isNewDiscovery) {
+        console.log(`🎉 [POKÉDX DEBUG] NOUVELLE DÉCOUVERTE détectée !`);
+        
+        // Marquer comme rencontre récente
+        this.markAsRecentEncounter(context.playerId, context.pokemonId);
+        
+        // Créer notifications visuelles
+        if (this.config.enableNotifications) {
+          console.log(`🔔 [POKÉDX DEBUG] Création notifications visuelles...`);
+          await this.createEncounterNotifications(context, pokemonData, true);
         }
         
-        // Marquer comme vu dans le Pokédex
-        const discoveryResult = await pokedexService.markPokemonAsSeen(context.playerId, {
-          pokemonId: context.pokemonId,
-          level: context.level,
-          location: context.location,
-          method: context.method,
-          weather: context.weather,
-          timeOfDay: context.timeOfDay,
-          sessionId: context.sessionId
-        });
-        
-        if (!discoveryResult.success) {
-          throw new Error(discoveryResult.error || 'Échec marquage vu');
+        // Vérifier les accomplissements
+        if (this.config.enableAchievements) {
+          console.log(`🏆 [POKÉDX DEBUG] Vérification accomplissements...`);
+          const achievementResults = await this.checkDiscoveryAchievements(context, pokemonData);
+          achievements.push(...achievementResults);
         }
         
-        // Collecter les notifications et accomplissements
-        const notifications: string[] = [...discoveryResult.notifications];
-        const achievements: string[] = [];
-        const milestones: string[] = [];
+        // Vérifier les milestones
+        console.log(`🎯 [POKÉDX DEBUG] Vérification milestones...`);
+        const milestoneResults = await this.checkDiscoveryMilestones(context.playerId, pokemonData);
+        milestones.push(...milestoneResults);
         
-        // Traitement des nouvelles découvertes
-        if (discoveryResult.isNewDiscovery) {
-          // Marquer comme rencontre récente
-          this.markAsRecentEncounter(context.playerId, context.pokemonId);
-          
-          // Créer notifications visuelles
-          if (this.config.enableNotifications) {
-            await this.createEncounterNotifications(context, pokemonData, true);
-          }
-          
-          // Vérifier les accomplissements
-          if (this.config.enableAchievements) {
-            const achievementResults = await this.checkDiscoveryAchievements(context, pokemonData);
-            achievements.push(...achievementResults);
-          }
-          
-          // Vérifier les milestones
-          const milestoneResults = await this.checkDiscoveryMilestones(context.playerId, pokemonData);
-          milestones.push(...milestoneResults);
-          
-          // Analytics
-          if (this.config.enableAnalytics) {
-            this.recordAnalyticsEvent('pokemon_discovered', context, pokemonData);
-          }
+        // Analytics
+        if (this.config.enableAnalytics) {
+          console.log(`📊 [POKÉDX DEBUG] Enregistrement analytics...`);
+          this.recordAnalyticsEvent('pokemon_discovered', context, pokemonData);
         }
-        
-        // Émettre événement d'intégration
-        this.emit('encounterIntegrated', {
-          context,
-          isNewDiscovery: discoveryResult.isNewDiscovery,
-          pokemonData,
-          notifications,
-          achievements,
-          milestones
-        });
-        
-        const executionTime = Date.now() - startTime;
-        this.updatePerformanceStats(executionTime, true);
-        
-        this.debugLog(`✅ Rencontre intégrée: ${discoveryResult.isNewDiscovery ? 'NOUVELLE' : 'déjà vue'} - ${notifications.length} notifications`);
-        
-        return this.createSuccessResult({
-          isNewDiscovery: discoveryResult.isNewDiscovery,
-          notifications: [...notifications, ...achievements, ...milestones],
-          performance: {
-            executionTime,
-            cacheHit: this.pokemonDataCache.has(context.pokemonId),
-            operationsCount: 1
-          }
-        });
-        
-      } finally {
-        // Libérer l'opération
-        this.markOperationAsCompleted(context.playerId, operationId);
+      } else {
+        console.log(`👁️ [POKÉDX DEBUG] Pokémon déjà vu, pas de nouvelle découverte`);
       }
       
-    } catch (error) {
-      this.emit('error', error);
-      this.updatePerformanceStats(Date.now() - startTime, false);
+      // Émettre événement d'intégration
+      this.emit('encounterIntegrated', {
+        context,
+        isNewDiscovery: discoveryResult.isNewDiscovery,
+        pokemonData,
+        notifications,
+        achievements,
+        milestones
+      });
       
-      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      console.error(`❌ [PokedexIntegrationService] Erreur handleEncounter:`, error);
+      const executionTime = Date.now() - startTime;
+      this.updatePerformanceStats(executionTime, true);
       
-      return this.createFailureResult(errorMessage);
+      this.debugLog(`✅ Rencontre intégrée: ${discoveryResult.isNewDiscovery ? 'NOUVELLE' : 'déjà vue'} - ${notifications.length} notifications`);
+      console.log(`✅ [POKÉDX DEBUG] Rencontre intégrée avec succès`, {
+        isNewDiscovery: discoveryResult.isNewDiscovery,
+        notificationsCount: notifications.length,
+        achievementsCount: achievements.length,
+        milestonesCount: milestones.length,
+        executionTime
+      });
+      
+      return this.createSuccessResult({
+        isNewDiscovery: discoveryResult.isNewDiscovery,
+        notifications: [...notifications, ...achievements, ...milestones],
+        performance: {
+          executionTime,
+          cacheHit: this.pokemonDataCache.has(context.pokemonId),
+          operationsCount: 1
+        }
+      });
+      
+    } finally {
+      // Libérer l'opération
+      this.markOperationAsCompleted(context.playerId, operationId);
     }
+    
+  } catch (error) {
+    this.emit('error', error);
+    this.updatePerformanceStats(Date.now() - startTime, false);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    console.error(`❌ [PokedexIntegrationService] Erreur handleEncounter:`, error);
+    console.error(`❌ [POKÉDX DEBUG] Stack trace:`, error instanceof Error ? error.stack : 'Pas de stack');
+    
+    return this.createFailureResult(errorMessage);
   }
+}
   
   /**
    * Intègre une capture Pokémon avec validation complète
