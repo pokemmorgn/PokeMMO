@@ -359,22 +359,22 @@ export class PokedexDataManager {
   /**
    * Génère le sprite approprié selon le statut
    */
-  getPokemonSprite(pokemonId, playerEntry) {
-    const paddedId = pokemonId.toString().padStart(3, '0');
-    
-    if (playerEntry.caught) {
-      // Pokémon capturé : sprite complet en couleur
-      return `<img src="/sprites/pokemon/${paddedId}.png" alt="${this.pokemonData[pokemonId]?.name}" 
-              onerror="this.outerHTML='🎮'" class="pokemon-sprite captured">`;
-    } else if (playerEntry.seen) {
-      // Pokémon vu : silhouette noire
-      return `<img src="/sprites/pokemon/${paddedId}_silhouette.png" alt="Pokémon vu" 
-              onerror="this.outerHTML='👤'" class="pokemon-sprite silhouette">`;
-    } else {
-      // Pokémon inconnu : point d'interrogation
-      return `<div class="pokemon-sprite unknown">❓</div>`;
-    }
+getPokemonSprite(pokemonId, playerEntry) {
+  const paddedId = pokemonId.toString().padStart(3, '0');
+  
+  if (playerEntry.caught) {
+    // Pokémon capturé : sprite complet en couleur
+    return `<img src="/assets/pokemon/${paddedId}/front.png" alt="${this.pokemonData[pokemonId]?.name}" 
+            onerror="this.outerHTML='🎮'" class="pokemon-sprite captured">`;
+  } else if (playerEntry.seen) {
+    // Pokémon vu : même sprite en silhouette CSS
+    return `<img src="/assets/pokemon/${paddedId}/front.png" alt="Pokémon vu" 
+            onerror="this.outerHTML='👤'" class="pokemon-sprite silhouette">`;
+  } else {
+    // Pokémon inconnu : point d'interrogation
+    return `<div class="pokemon-sprite unknown">❓</div>`;
   }
+}
   
   /**
    * Détermine le nom à afficher
