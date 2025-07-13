@@ -664,12 +664,17 @@ export class PokedexUI {
 
   // === 📊 GESTION DES DONNÉES AVEC DATAMANAGER ===
 
-    handlePokedexData(response) {
-      if (!response.success) {
-        console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
-        this.showError('Impossible de charger les données du Pokédx');
-        return;
-      }
+      handlePokedexData(response) {
+        if (!response.success) {
+          console.error('❌ [PokedexUI] Erreur données Pokédx:', response.error);
+          this.showError('Impossible de charger les données du Pokédx');
+          return;
+        }
+      
+        // 🆕 AJOUTE CES LIGNES DE DEBUG
+        console.log('📊 [DEBUG] Données serveur complètes:', response.data);
+        console.log('📊 [DEBUG] availablePokemon:', response.data?.availablePokemon);
+        console.log('📊 [DEBUG] summary:', response.data?.summary);
       // 🆕 DEBUG: Voir ce que le serveur envoie
       console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
       
