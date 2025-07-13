@@ -1,8 +1,20 @@
 // server/src/handlers/MovementHandlers.ts
 import { Client } from "@colyseus/core";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
+import { getServerConfig } from '../config/serverConfig';
+import { EncounterMapManager } from '../managers/EncounterMapManager';
 
 export class MovementHandlers {
+  // 🔐 TRACKING POUR LES RENCONTRES
+  private encounterTracker: Map<string, {
+    stepCount: number;
+    lastPosition: { x: number; y: number };
+    lastEncounterCheck: number;
+  }> = new Map();
+
+  // 🗺️ MANAGERS DE MAP PAR ZONE
+  private encounterMapManagers: Map<string, EncounterMapManager> = new Map();
+
   constructor(private room: any) {}
 
   /**
@@ -132,6 +144,158 @@ export class MovementHandlers {
     if (Math.random() < 0.05) { // 5% de chance
       console.log(`🚶 [MovementHandlers] ${player.name}: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     }
+
+    // ✅ NOUVEAU: Tracking des rencontres automatique
+    this.trackEncounterMovement(client.sessionId, data.x, data.y, data.currentZone || player.currentZone, data.terrainType);
+  }
+
+  /**
+   * ✅ NOUVEAU: Tracking automatique pour les rencontres
+   */
+  private async trackEncounterMovement(
+    sessionId: string, 
+    x: number, 
+    y: number, 
+    zone: string,
+    terrainType?: string
+  ): Promise<void> {
+    const config = getServerConfig().encounterSystem;
+    if (!config.enabled) return;
+
+    // Obtenir ou créer le tracker
+    let tracker = this.encounterTracker.get(sessionId);
+    if (!tracker) {
+      tracker = {
+        stepCount: 0,
+        lastPosition: { x, y },
+        lastEncounterCheck: 0
+      };
+      this.encounterTracker.set(sessionId, tracker);
+      return;
+    }
+
+    // Calculer la distance parcourue
+    const distance = Math.sqrt(
+      Math.pow(x - tracker.lastPosition.x, 2) + 
+      Math.pow(y - tracker.lastPosition.y, 2)
+    );
+
+    // Compter un "pas" si distance suffisante
+    if (distance >= config.minStepDistance) {
+      tracker.stepCount++;
+      tracker.lastPosition = { x, y };
+
+      // Log occasionnel des pas
+      if (tracker.stepCount % 5 === 0) {
+        console.log(`👣 [MovementHandlers] ${sessionId}: ${tracker.stepCount} pas dans ${zone}`);
+      }
+
+      // Vérifier rencontre si assez de pas ET si dans un terrain approprié
+      if (tracker.stepCount >= config.stepsPerEncounterCheck) {
+        await this.checkForWildEncounter(sessionId, x, y, zone, terrainType);
+        tracker.stepCount = 0; // Reset compteur
+      }
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Vérification des rencontres sauvages
+   */
+  private async checkForWildEncounter(
+    sessionId: string, 
+    x: number, 
+    y: number, 
+    zone: string,
+    terrainType?: string
+  ): Promise<void> {
+    const config = getServerConfig().encounterSystem;
+    const tracker = this.encounterTracker.get(sessionId);
+    if (!tracker) return;
+
+    const now = Date.now();
+    
+    // Vérifier cooldown
+    if (now - tracker.lastEncounterCheck < config.playerCooldownMs) {
+      return;
+    }
+    
+    tracker.lastEncounterCheck = now;
+
+    // Déterminer si le joueur est dans un terrain avec des rencontres
+    const method = this.determineEncounterMethod(terrainType, x, y, zone);
+    if (!method) {
+      return; // Pas dans un terrain approprié
+    }
+
+    console.log(`🎲 [MovementHandlers] Vérification rencontre pour ${sessionId} en ${method} dans ${zone}`);
+
+    // Obtenir les handlers d'encounter de la room
+    const encounterHandlers = this.room.getEncounterHandlers();
+    if (!encounterHandlers) {
+      console.warn(`⚠️ [MovementHandlers] EncounterHandlers non disponible`);
+      return;
+    }
+
+    // Déclencher la vérification via les EncounterHandlers de manière sécurisée
+    try {
+      await encounterHandlers.triggerServerEncounter(sessionId, x, y, method);
+    } catch (error) {
+      console.error(`❌ [MovementHandlers] Erreur déclenchement rencontre:`, error);
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Détermine la méthode de rencontre selon le terrain (SÉCURISÉ)
+   */
+  private determineEncounterMethod(
+    terrainType: string | undefined, 
+    x: number, 
+    y: number, 
+    zone: string
+  ): 'grass' | 'fishing' | null {
+    
+    // Obtenir ou créer le manager de map pour cette zone
+    let encounterMapManager = this.encounterMapManagers.get(zone);
+    if (!encounterMapManager) {
+      try {
+        encounterMapManager = new EncounterMapManager(zone);
+        this.encounterMapManagers.set(zone, encounterMapManager);
+        console.log(`🗺️ [MovementHandlers] EncounterMapManager créé pour ${zone}`);
+      } catch (error) {
+        console.error(`❌ [MovementHandlers] Erreur création EncounterMapManager pour ${zone}:`, error);
+        return null;
+      }
+    }
+
+    // ✅ VALIDATION SÉCURISÉE : Serveur détermine le terrain
+    const validation = encounterMapManager.validateClientTerrain(x, y, terrainType);
+    
+    if (validation.mismatch) {
+      console.warn(`🚫 [MovementHandlers] Terrain suspect pour ${zone} à (${x}, ${y}) - utilisation données serveur`);
+    }
+
+    // ✅ UTILISER LES DONNÉES SERVEUR (sécurisé)
+    const serverTerrain = validation.serverTerrain;
+    
+    // Log détaillé pour debug
+    if (serverTerrain.canEncounter) {
+      console.log(`✅ [MovementHandlers] Encounter possible : ${serverTerrain.method} dans zone ${serverTerrain.encounterZone}`);
+    }
+    
+    return serverTerrain.method; // null, 'grass', ou 'fishing'
+  }
+
+  /**
+   * ✅ NOUVEAU: Debug terrain à une position
+   */
+  public debugTerrainAt(x: number, y: number, zone: string): void {
+    const encounterMapManager = this.encounterMapManagers.get(zone);
+    if (!encounterMapManager) {
+      console.log(`❌ [MovementHandlers] Pas de manager pour zone ${zone}`);
+      return;
+    }
+
+    encounterMapManager.debugPosition(x, y);
   }
 
   /**
@@ -318,12 +482,62 @@ export class MovementHandlers {
     return movementBlockManager;
   }
 
+  // ✅ NOUVEAU: Accès aux EncounterMapManagers
+  public getEncounterMapManager(zone: string): EncounterMapManager | undefined {
+    return this.encounterMapManagers.get(zone);
+  }
+
+  // ✅ NOUVEAU: Nettoyage des trackers d'encounter
+  private cleanupEncounterTrackers(): void {
+    const now = Date.now();
+    const INACTIVE_TIMEOUT = 300000; // 5 minutes
+
+    for (const [sessionId, tracker] of this.encounterTracker.entries()) {
+      if (now - tracker.lastEncounterCheck > INACTIVE_TIMEOUT) {
+        this.encounterTracker.delete(sessionId);
+      }
+    }
+  }
+
+  // ✅ NOUVEAU: Stats des encounters pour debug
+  public getEncounterStats(): {
+    totalTrackedPlayers: number;
+    avgStepsPerPlayer: number;
+    recentChecks: number;
+    loadedMaps: string[];
+  } {
+    const now = Date.now();
+    const recentThreshold = 60000; // 1 minute
+
+    const players = Array.from(this.encounterTracker.values());
+    const recentChecks = players.filter(
+      tracker => now - tracker.lastEncounterCheck < recentThreshold
+    ).length;
+
+    const avgSteps = players.length > 0 
+      ? players.reduce((sum, tracker) => sum + tracker.stepCount, 0) / players.length 
+      : 0;
+
+    return {
+      totalTrackedPlayers: this.encounterTracker.size,
+      avgStepsPerPlayer: Math.round(avgSteps),
+      recentChecks,
+      loadedMaps: Array.from(this.encounterMapManagers.keys())
+    };
+  }
+
   /**
    * Méthode de nettoyage
    */
   cleanup(): void {
     console.log(`🧹 [MovementHandlers] Nettoyage des handlers de mouvement...`);
+    
+    // ✅ NOUVEAU: Nettoyer les trackers d'encounter
+    this.cleanupEncounterTrackers();
+    
     // Nettoyer les références si nécessaire
+    this.encounterTracker.clear();
+    this.encounterMapManagers.clear();
   }
 
   /**
@@ -332,7 +546,13 @@ export class MovementHandlers {
   debugStatus(): void {
     console.log(`🔍 [MovementHandlers] === DEBUG STATUS ===`);
     console.log(`📊 Stats MovementBlockManager:`, movementBlockManager.getStats());
+    console.log(`🎲 Stats Encounters:`, this.getEncounterStats());
     console.log(`🎮 Room clients: ${this.room.clients.length}`);
     console.log(`👥 Players in state: ${this.room.state.players.size}`);
+    
+    // Debug des maps chargées
+    this.encounterMapManagers.forEach((manager, zone) => {
+      console.log(`🗺️ Map ${zone}:`, manager.getStats());
+    });
   }
 }
