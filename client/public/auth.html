@@ -730,19 +730,11 @@
 
                     <div class="user-stats">
                         <div class="stats-grid">
-                            <div class="stat-item">
-                                <span class="stat-value" id="userLevel">1</span>
-                                <span class="stat-label">Level</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-value" id="userCoins">1000</span>
-                                <span class="stat-label">Pokécoins</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-value" id="userPlaytime">0h</span>
-                                <span class="stat-label">Playtime</span>
-                            </div>
-                        </div>
+    <div class="stat-item" style="text-align: center;">
+        <span class="stat-value" id="userPlaytime">0h</span>
+        <span class="stat-label">Temps de jeu</span>
+    </div>
+</div>
                     </div>
 
                     <div class="wallet-section" id="walletSection">
@@ -1336,7 +1328,7 @@
                 }
             }
 
-            async updatePlaytimeDisplay() {
+async updatePlaytimeDisplay() {
     if (this.currentUser && this.currentUser.sessionToken) {
         try {
             const response = await fetch('/api/playerData?username=' + this.currentUser.username, {
@@ -1347,6 +1339,8 @@
             
             if (response.ok) {
                 const data = await response.json();
+                
+                // Playtime seulement
                 const playtimeElement = document.getElementById('userPlaytime');
                 if (playtimeElement && data.playtime !== undefined) {
                     playtimeElement.textContent = this.formatPlaytime(data.playtime);
@@ -1515,8 +1509,6 @@ setTimeout(() => {
     
     // Update user info
 document.getElementById('userDisplayName').textContent = this.currentUser.username;
-document.getElementById('userLevel').textContent = this.currentUser.level || 1;
-document.getElementById('userCoins').textContent = this.currentUser.coins || 1000;
 document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
 
 // ✅ NOUVEAU: Mettre à jour le playtime en temps réel
