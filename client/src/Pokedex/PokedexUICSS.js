@@ -1581,7 +1581,47 @@ export const POKEDEX_UI_STYLES = `
   color: #6b7280;
   opacity: 0.6;
 }
+/* ===== EFFETS SPÉCIAUX POUR SHINY ===== */
+.pokemon-sprite.shiny {
+  position: relative;
+  animation: shinyGlow 2s ease-in-out infinite;
+}
 
+.pokemon-sprite.shiny::after {
+  content: '✨';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 12px;
+  animation: sparkle 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shinyGlow {
+  0%, 100% { 
+    filter: brightness(1) saturate(1);
+  }
+  50% { 
+    filter: brightness(1.2) saturate(1.3) drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: scale(1.2) rotate(180deg);
+  }
+}
+
+/* Effet shiny pour les entrées Pokémon */
+.pokemon-entry.caught .pokemon-sprite.shiny {
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  border-radius: 8px;
+}
   /* ===== TYPES POKÉMON ===== */
   .entry-types {
     display: flex;
