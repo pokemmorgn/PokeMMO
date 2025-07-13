@@ -670,7 +670,10 @@ export class PokedexUI {
         this.showError('Impossible de charger les données du Pokédx');
         return;
       }
-    
+      // 🆕 DEBUG: Voir ce que le serveur envoie
+      console.log('📊 [PokedexUI] Données serveur complètes:', response.data);
+      console.log('📊 [PokedexUI] availablePokemon:', response.data?.availablePokemon);
+      console.log('📊 [PokedexUI] summary:', response.data?.summary);
       console.log('📊 [PokedexUI] Données Pokédx reçues du serveur');
       
       // 🆕 UTILISER LA NOUVELLE STRUCTURE SERVEUR
