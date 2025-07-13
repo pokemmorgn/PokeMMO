@@ -1,1 +1,141 @@
-
+{
+  "id": "legendaries",
+  "name": "Legendary Pokémon",
+  "description": "Legendary and mythical Pokémon from the Kanto region with exceptional power and rarity",
+  "region": "kanto",
+  "category": "legendary",
+  "pokemon": [
+    {
+      "id": 144,
+      "name": "Articuno",
+      "family": "articuno",
+      "tier": "legendary_bird",
+      "type": ["Ice", "Flying"],
+      "location": "Seafoam Islands",
+      "level": 50,
+      "base_stat_total": 580,
+      "legendary_trait": "Controls ice and blizzards",
+      "trio_member": "legendary_birds",
+      "catchable": true,
+      "respawns": false,
+      "restrictions": {
+        "one_per_save": true,
+        "story_required": false,
+        "special_battle": true,
+        "flee_chance": "high"
+      },
+      "lore": "A legendary bird Pokémon that is said to appear to doomed people who are lost in icy mountains."
+    },
+    {
+      "id": 145,
+      "name": "Zapdos",
+      "family": "zapdos",
+      "tier": "legendary_bird",
+      "type": ["Electric", "Flying"],
+      "location": "Power Plant",
+      "level": 50,
+      "base_stat_total": 580,
+      "legendary_trait": "Controls thunder and lightning",
+      "trio_member": "legendary_birds",
+      "catchable": true,
+      "respawns": false,
+      "restrictions": {
+        "one_per_save": true,
+        "story_required": false,
+        "special_battle": true,
+        "flee_chance": "high"
+      },
+      "lore": "A legendary bird Pokémon that is said to appear when the sky turns dark and lightning showers down."
+    },
+    {
+      "id": 146,
+      "name": "Moltres",
+      "family": "moltres",
+      "tier": "legendary_bird",
+      "type": ["Fire", "Flying"],
+      "location": "Victory Road",
+      "level": 50,
+      "base_stat_total": 580,
+      "legendary_trait": "Controls fire and flames",
+      "trio_member": "legendary_birds",
+      "catchable": true,
+      "respawns": false,
+      "restrictions": {
+        "one_per_save": true,
+        "story_required": false,
+        "special_battle": true,
+        "flee_chance": "high"
+      },
+      "lore": "Known as the legendary bird of fire. Every flap of its wings creates a dazzling flash of flames."
+    },
+    {
+      "id": 150,
+      "name": "Mewtwo",
+      "family": "mewtwo",
+      "tier": "super_legendary",
+      "type": ["Psychic"],
+      "location": "Cerulean Cave",
+      "level": 70,
+      "base_stat_total": 680,
+      "legendary_trait": "Ultimate psychic power",
+      "trio_member": "none",
+      "catchable": true,
+      "respawns": false,
+      "restrictions": {
+        "one_per_save": true,
+        "story_required": true,
+        "postgame_only": true,
+        "elite_four_beaten": true,
+        "champion_beaten": true,
+        "special_battle": true,
+        "flee_chance": "very_high"
+      },
+      "lore": "A Pokémon created by recombining Mew's genes. It's said to have the most savage heart among Pokémon."
+    },
+    {
+      "id": 151,
+      "name": "Mew",
+      "family": "mew",
+      "tier": "mythical",
+      "type": ["Psychic"],
+      "location": "Event Only",
+      "level": 30,
+      "base_stat_total": 600,
+      "legendary_trait": "Ancestor of all Pokémon",
+      "trio_member": "none",
+      "catchable": false,
+      "respawns": false,
+      "restrictions": {
+        "one_per_save": true,
+        "event_only": true,
+        "special_distribution": true,
+        "not_available_in_wild": true
+      },
+      "lore": "So rare that it is still said to be a mirage by many experts. Only a few people have seen it worldwide."
+    }
+  ],
+  "legendary_mechanics": {
+    "catch_rate_modifier": 0.1,
+    "status_sleep_bonus": 2.5,
+    "status_freeze_bonus": 2.5,
+    "status_paralysis_bonus": 1.5,
+    "critical_health_bonus": 3.0,
+    "master_ball_guarantee": true,
+    "flee_after_turns": 30,
+    "struggle_recoil_ko": true
+  },
+  "legendary_groups": {
+    "legendary_birds": {
+      "members": [144, 145, 146],
+      "theme": "Elemental birds controlling weather",
+      "stat_total": 580,
+      "signature_abilities": ["Pressure"]
+    },
+    "psychic_legends": {
+      "members": [150, 151],
+      "theme": "Ultimate psychic power",
+      "relationship": "Creator and creation",
+      "signature_abilities": ["Pressure", "Synchronize"]
+    }
+  }
+}
