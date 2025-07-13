@@ -70,7 +70,17 @@ const ENDPOINT =
 const client = new Client(ENDPOINT);
 window.client = client;
 console.log("✅ Client Colyseus exposé globalement");
+// Ajoutez ceci au début de main.js, après les imports mais avant la fonction getSecureUserSession
 
+// ✅ Configuration globale - wallet optionnelle
+window.gameConfig = {
+  requireWallet: false,           // Wallet pas obligatoire
+  skipWalletChecks: true,         // Ignorer les vérifications wallet
+  enableWalletFeatures: true,     // Garder les fonctionnalités wallet
+  walletOptional: true            // Mode optionnel
+};
+
+console.log('✅ Configuration wallet optionnelle activée');
 // ✅ NOUVEAU SYSTÈME DE SESSION SÉCURISÉE
 function getSecureUserSession() {
   const encryptedSession = sessionStorage.getItem('pws_game_session');
