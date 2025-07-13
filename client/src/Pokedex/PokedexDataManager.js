@@ -37,7 +37,7 @@ export class PokedexDataManager {
     try {
       await this.loadPokemonData();
       await this.loadPokemonTypes();
-      this.initializeAllPokemon();
+     // this.initializeAllPokemon();
       this.isLoaded = true;
       console.log('✅ [PokedexDataManager] Données Pokémon chargées (151 Pokémon)');
     } catch (error) {
