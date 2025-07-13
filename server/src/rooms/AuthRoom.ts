@@ -637,16 +637,14 @@ await user.save();
   }
 
 private generateJWT(payload: any): string {
-  const options: SignOptions = {
-expiresIn: (process.env.SESSION_DURATION || '6h') as string,
-    issuer: 'pokeworld-auth',
-    audience: 'pokeworld-game'
-  };
-
   return jwt.sign(
     payload,
     process.env.JWT_SECRET!,
-    options
+    { 
+      expiresIn: '6h',
+      issuer: 'pokeworld-auth',
+      audience: 'pokeworld-game'
+    }
   );
 }
 
