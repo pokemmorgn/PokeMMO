@@ -15,22 +15,67 @@
       "typing_note": "Only Normal/Flying type that doesn't evolve"
     },
     {
-      "id": 106,
-      "name": "Hitmonlee",
-      "family": "hitmonlee", 
+      "id": 95,
+      "name": "Onix",
+      "family": "onix",
       "rarity": "unique",
-      "uniqueness": "pure_fighting_kicking_specialist",
-      "special_trait": "Legs can stretch and contract",
-      "typing_note": "Fighting-type focused on kicks"
+      "uniqueness": "giant_rock_snake",
+      "special_trait": "Massive rock snake Pokémon",
+      "typing_note": "Rock/Ground type with enormous size"
     },
     {
-      "id": 107,
-      "name": "Hitmonchan",
-      "family": "hitmonchan",
-      "rarity": "unique", 
-      "uniqueness": "pure_fighting_punching_specialist",
-      "special_trait": "Punches with boxing gloves",
-      "typing_note": "Fighting-type focused on punches"
+      "id": 114,
+      "name": "Tangela",
+      "family": "tangela",
+      "rarity": "unique",
+      "uniqueness": "vine_covered_pokemon",
+      "special_trait": "Completely covered in blue vines",
+      "typing_note": "Pure Grass-type with hidden body"
+    },
+    {
+      "id": 123,
+      "name": "Scyther",
+      "family": "scyther",
+      "rarity": "unique",
+      "uniqueness": "mantis_with_scythes",
+      "special_trait": "Sharp scythe arms for slashing",
+      "typing_note": "Bug/Flying type with blade-like arms"
+    },
+    {
+      "id": 124,
+      "name": "Jynx",
+      "family": "jynx",
+      "rarity": "unique",
+      "uniqueness": "humanoid_ice_psychic",
+      "special_trait": "Human-like with psychic ice powers",
+      "typing_note": "Ice/Psychic type with human characteristics"
+    },
+    {
+      "id": 125,
+      "name": "Electabuzz",
+      "family": "electabuzz",
+      "rarity": "unique",
+      "uniqueness": "electric_humanoid",
+      "special_trait": "Electric field generator",
+      "typing_note": "Pure Electric-type humanoid"
+    },
+    {
+      "id": 126,
+      "name": "Magmar",
+      "family": "magmar",
+      "rarity": "unique",
+      "uniqueness": "fire_humanoid",
+      "special_trait": "Body burns at 1200°C",
+      "typing_note": "Pure Fire-type humanoid"
+    },
+    {
+      "id": 137,
+      "name": "Porygon",
+      "family": "porygon",
+      "rarity": "unique",
+      "uniqueness": "artificial_digital_pokemon",
+      "special_trait": "First artificial Pokémon made of code",
+      "typing_note": "Pure Normal-type digital being"
     },
     {
       "id": 108,
