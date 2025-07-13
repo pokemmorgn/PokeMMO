@@ -424,19 +424,31 @@ playtime: user.totalPlaytime || 0,
 });
 
     // ✅ HANDLER : Liaison wallet sécurisée
-    this.onMessage("link_wallet", async (client, payload) => {
-      try {
+this.onMessage("link_wallet", async (client, payload) => {
+  console.log("🔗 [AuthRoom] === WALLET LINK REQUEST ===");
+  console.log("👤 Client:", client.sessionId);
+  console.log("📊 Payload:", { 
+    username: payload.username, 
+    hasToken: !!payload.sessionToken,
+    tokenLength: payload.sessionToken?.length,
+    address: payload.address,
+    walletType: payload.walletType
+  });      try {
         const { username, sessionToken, address, signature, message, walletType } = payload;
         
-        // ✅ VÉRIFIER la session d'abord
-        if (!sessionToken || !this.activeSessions.has(sessionToken)) {
-          client.send("wallet_linked", { 
-            status: "error", 
-            reason: "Invalid or expired session" 
-          });
-          return;
-        }
-
+    // ✅ VÉRIFICATION SESSION AMÉLIORÉE avec debug
+    if (!sessionToken) {
+      console.log("❌ [AuthRoom] Pas de sessionToken");
+      client.send("wallet_linked", { 
+        status: "error", 
+        reason: "No session token provided" 
+      });
+      return;
+    }
+ // Debug état des sessions actives
+    console.log("🔍 [AuthRoom] Sessions actives:", this.activeSessions.size);
+    console.log("🔍 [AuthRoom] Token dans activeSessions:", this.activeSessions.has(sessionToken));
+    
         const session = this.activeSessions.get(sessionToken);
         if (session.username !== username) {
           client.send("wallet_linked", { 
