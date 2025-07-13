@@ -189,17 +189,17 @@ const PokedexStatsSchema = new Schema<IPokedexStats>({
     max: [100, 'Percentage cannot exceed 100']
   },
   
-// === STATS PAR TYPE ===
-typeStats: {
-  type: Schema.Types.Mixed,
-  default: () => new Map()
-},
-
-// === STATS PAR RÉGION ===
-regionStats: {
-  type: Schema.Types.Mixed,
-  default: () => new Map()
-},
+    // === STATS PAR TYPE ===
+    typeStats: {
+      type: Schema.Types.Mixed,
+      default: () => new Map()
+    },
+    
+    // === STATS PAR RÉGION ===
+    regionStats: {
+      type: Schema.Types.Mixed,
+      default: () => new Map()
+    },
   
   // === RECORDS ===
   records: {
