@@ -4,7 +4,6 @@
   "transitions": {
     "spiral": {
       "name": "Spirale Pokémon",
-      "description": "Transition spirale classique des jeux Pokémon Ruby/Sapphire",
       "visual": {
         "type": "spiral",
         "duration": 1200,
@@ -15,14 +14,12 @@
         "centerY": 0.5
       },
       "audio": {
-        "triggerSound": "battle_transition_whoosh",
+        "triggerSound": null,
         "volume": 0.8,
         "fadeOutDuration": 500
       },
       "sprites": {
-        "mask": null,
-        "particles": "lightning_particles",
-        "overlay": null
+        "particles": "lightning_particles"
       },
       "timing": {
         "fadeOutMusic": 0,
@@ -32,78 +29,9 @@
         "switchScene": 1000,
         "fadeIn": 1200
       }
-    },
-    "circles": {
-      "name": "Cercles Concentriques",
-      "description": "Transition avec cercles concentriques (versions récentes)",
-      "visual": {
-        "type": "circles",
-        "duration": 1000,
-        "circleCount": 6,
-        "colors": ["#1a1a1a", "#444444"],
-        "direction": "inward",
-        "centerX": 0.5,
-        "centerY": 0.5
-      },
-      "audio": {
-        "triggerSound": "battle_transition_electric",
-        "volume": 0.7,
-        "fadeOutDuration": 400
-      },
-      "sprites": {
-        "mask": null,
-        "particles": "electric_sparks",
-        "overlay": null
-      },
-      "timing": {
-        "fadeOutMusic": 0,
-        "playSound": 150,
-        "startVisual": 300,
-        "fadeToBlack": 600,
-        "switchScene": 800,
-        "fadeIn": 1000
-      }
-    },
-    "custom": {
-      "name": "Transition Personnalisée",
-      "description": "Template pour créer vos propres transitions",
-      "visual": {
-        "type": "custom",
-        "duration": 1500,
-        "customParams": {}
-      },
-      "audio": {
-        "triggerSound": "custom_sound",
-        "volume": 0.8,
-        "fadeOutDuration": 600
-      },
-      "sprites": {
-        "mask": "custom_mask",
-        "particles": "custom_particles",
-        "overlay": "custom_overlay"
-      },
-      "timing": {
-        "fadeOutMusic": 0,
-        "playSound": 300,
-        "startVisual": 500,
-        "fadeToBlack": 1000,
-        "switchScene": 1200,
-        "fadeIn": 1500
-      }
     }
   },
   "audio": {
-    "battleMusicKey": "battle_theme",
-    "overworldMusicKeys": {
-      "village": "village_theme",
-      "road1": "road1_theme",
-      "lavandia": "lavandia_theme"
-    }
-  },
-  "performance": {
-    "targetFPS": 60,
-    "enableParticles": true,
-    "enableShaders": false,
-    "lowEndMode": false
+    "battleMusicKey": "battle_theme"
   }
 }
