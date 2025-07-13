@@ -53,10 +53,29 @@
         "displayName": "Pluie",
         "probability": 30,
         "effects": {
-          "encounterRateModifier": 1.0,
+          "encounterRateModifier": 1.3,
           "xpModifier": 1.0
         }
       }
     ]
+  },
+
+  "encounterSystem": {
+    "enabled": true,
+    "serverSideOnly": true,
+    "playerCooldownMs": 3000,
+    "maxEncountersPerMinute": 10,
+    "stepsPerEncounterCheck": 8,
+    "minStepDistance": 40,
+    "baseRates": {
+      "grass": 0.08,
+      "fishing": 0.25,
+      "surfing": 0.15
+    },
+    "antiFarming": {
+      "enabled": true,
+      "maxEncountersPerHour": 25,
+      "afkDetectionTimeoutMs": 30000
+    }
   }
 }
