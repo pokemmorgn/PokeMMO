@@ -62,8 +62,6 @@ export interface PokedexMarkCaughtRequest {
   experienceGained?: number;
 }
 
-// Interface d'évolution retirée - sera dans EvolutionService
-
 export interface PokedexNotificationRequest {
   notificationId?: string;
   markAllRead?: boolean;
@@ -134,11 +132,11 @@ export class PokedexMessageHandler {
     maxRequestsPerMinute: 60,
     enableCache: true,
     enableMetrics: true,
-    enableDebug: false,
+    enableDebug: true, // ✅ Gardé à true pour les logs de debug
     bulkOperationLimit: 50
   };
   
-  // Rate limiting par client
+  // Rate limiting par playerId (plus sécurisé)
   private rateLimitMap = new Map<string, { count: number; resetTime: number }>();
   
   // Métriques de performance
@@ -162,7 +160,7 @@ export class PokedexMessageHandler {
     
     this.registerHandlers();
     this.initializeHandler();
-    console.log('🔗 [PokedexMessageHandler] Handler Pokédex optimisé initialisé');
+    console.log('🔗 [PokedexMessageHandler] Handler Pokédx optimisé et sécurisé initialisé');
   }
   
   // ===== INITIALISATION =====
@@ -183,17 +181,17 @@ export class PokedexMessageHandler {
   }
   
   /**
-   * Enregistre tous les handlers de messages Pokédx optimisés
+   * Enregistre tous les handlers de messages Pokédex optimisés
    */
   private registerHandlers(): void {
-    // === CONSULTATION POKÉDX ===
+    // === CONSULTATION POKÉDEX ===
     this.room.onMessage("pokedex:get", this.wrapHandler(this.handleGetPokedex.bind(this)));
     this.room.onMessage("pokedex:entry", this.wrapHandler(this.handleGetEntry.bind(this)));
     this.room.onMessage("pokedex:stats", this.wrapHandler(this.handleGetStats.bind(this)));
     this.room.onMessage("pokedex:progress", this.wrapHandler(this.handleGetProgress.bind(this)));
     this.room.onMessage("pokedex:analytics", this.wrapHandler(this.handleGetAnalytics.bind(this)));
     
-    // === MISE À JOUR POKÉDX ===
+    // === MISE À JOUR POKÉDEX ===
     this.room.onMessage("pokedex:mark_seen", this.wrapHandler(this.handleMarkSeen.bind(this)));
     this.room.onMessage("pokedex:mark_caught", this.wrapHandler(this.handleMarkCaught.bind(this)));
     this.room.onMessage("pokedex:recalculate", this.wrapHandler(this.handleRecalculate.bind(this)));
@@ -226,10 +224,71 @@ export class PokedexMessageHandler {
     this.room.onMessage("pokedex:remove_tag", this.wrapHandler(this.handleRemoveTag.bind(this)));
     this.room.onMessage("pokedex:add_note", this.wrapHandler(this.handleAddNote.bind(this)));
     
-    console.log('✅ [PokedexMessageHandler] 21 handlers enregistrés avec optimisations');
+    console.log('✅ [PokedexMessageHandler] 21 handlers enregistrés avec optimisations et sécurité');
   }
   
-  // ===== WRAPPER UNIVERSEL =====
+  // ===== SÉCURITÉ =====
+  
+  /**
+   * 🔒 Récupère l'ID du joueur de manière SÉCURISÉE depuis le state de la room
+   */
+  private getPlayerId(client: Client): string | null {
+    console.log('🔍 [POKÉDEX DEBUG] Recherche playerId pour session:', client.sessionId);
+    console.log('🔍 [POKÉDX DEBUG] Total players dans room:', this.room.state.players.size);
+    console.log('🔍 [POKÉDX DEBUG] Sessions dans room:', Array.from(this.room.state.players.keys()));
+    
+    // ✅ SÉCURISÉ: client.sessionId est géré par Colyseus, impossible à falsifier
+    const player = this.room.state.players.get(client.sessionId);
+    
+    if (!player) {
+      console.log('❌ [POKÉDX DEBUG] Aucun player trouvé pour session:', client.sessionId);
+      return null;
+    }
+    
+    if (!player.name || typeof player.name !== 'string' || player.name.trim().length === 0) {
+      console.log('❌ [POKÉDX DEBUG] Player trouvé mais nom invalide:', {
+        hasName: !!player.name,
+        nameType: typeof player.name,
+        nameLength: player.name?.length
+      });
+      return null;
+    }
+    
+    console.log('✅ [POKÉDX DEBUG] PlayerId trouvé depuis room state:', player.name);
+    return player.name.trim();
+  }
+  
+  /**
+   * 🔒 Validation de sécurité renforcée pour toutes les requêtes
+   */
+  private validateSecureAccess(client: Client, operation: string): { valid: boolean; playerId?: string; reason?: string } {
+    console.log('🔒 [POKÉDX SECURITY] Validation accès pour opération:', operation);
+    
+    // Vérifier que le client est dans la room
+    if (!this.room.clients.includes(client)) {
+      console.warn('🚨 [POKÉDX SECURITY] Client non autorisé tente:', operation);
+      return { valid: false, reason: 'Client non autorisé dans cette room' };
+    }
+    
+    // Récupérer l'ID du joueur de manière sécurisée
+    const playerId = this.getPlayerId(client);
+    if (!playerId) {
+      console.warn('🚨 [POKÉDX SECURITY] Tentative d\'accès sans identification:', operation);
+      return { valid: false, reason: 'Identification requise' };
+    }
+    
+    // Vérifier que la session est active
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      console.warn('🚨 [POKÉDX SECURITY] Session expirée ou invalide:', client.sessionId);
+      return { valid: false, reason: 'Session invalide' };
+    }
+    
+    console.log('✅ [POKÉDX SECURITY] Accès validé pour', playerId, 'opération:', operation);
+    return { valid: true, playerId };
+  }
+  
+  // ===== WRAPPER UNIVERSEL SÉCURISÉ =====
   
   /**
    * Wrapper universel pour tous les handlers avec sécurité et métriques
@@ -243,15 +302,22 @@ export class PokedexMessageHandler {
         this.metrics.totalRequests++;
         this.incrementHandlerCount(handlerName);
         
-        // Validation du client
-        const playerId = this.getPlayerId(client);
-        if (!playerId) {
-          this.sendError(client, handlerName, 'Client non authentifié', 401);
+        console.log(`🎯 [POKÉDX] Requête ${handlerName} de session:`, client.sessionId);
+        
+        // ✅ VALIDATION SÉCURISÉE RENFORCÉE
+        const securityCheck = this.validateSecureAccess(client, handlerName);
+        if (!securityCheck.valid) {
+          console.log(`❌ [POKÉDX] Sécurité échouée pour ${handlerName}:`, securityCheck.reason);
+          this.sendError(client, handlerName, securityCheck.reason || 'Accès refusé', 403);
+          this.metrics.failedRequests++;
           return;
         }
         
-        // Rate limiting
-        if (this.config.enableRateLimiting && this.isRateLimited(client.sessionId)) {
+        const playerId = securityCheck.playerId!;
+        console.log(`✅ [POKÉDX] Sécurité validée pour ${handlerName}, playerId:`, playerId);
+        
+        // Rate limiting par playerId (plus sécurisé que sessionId)
+        if (this.config.enableRateLimiting && this.isRateLimited(playerId)) {
           this.sendError(client, handlerName, 'Trop de requêtes', 429);
           this.metrics.rateLimitedRequests++;
           return;
@@ -263,24 +329,26 @@ export class PokedexMessageHandler {
           return;
         }
         
-        // Vérification du cache
+        // Vérification du cache avec playerId sécurisé
         const cacheKey = this.generateCacheKey(playerId, handlerName, message);
-        if (this.config.enableCache && handlerName.includes('get') || handlerName.includes('Get')) {
+        if (this.config.enableCache && (handlerName.includes('get') || handlerName.includes('Get'))) {
           const cached = this.getCachedResponse(cacheKey);
           if (cached) {
+            console.log(`💨 [POKÉDX] Cache hit pour ${handlerName}, playerId:`, playerId);
             this.sendSuccess(client, handlerName, cached);
             this.updateMetrics(startTime, true);
             return;
           }
         }
         
-        // Exécution du handler
-        this.debugLog(`🔄 Exécution ${handlerName} pour ${playerId}`);
+        // ✅ SÉCURISÉ: Exécution avec playerId validé
+        console.log(`🔄 [POKÉDX] Exécution sécurisée ${handlerName} pour ${playerId}`);
         
         await handler.call(this, client, message, ...args);
         
         this.metrics.successfulRequests++;
         this.updateMetrics(startTime, true);
+        console.log(`✅ [POKÉDX] ${handlerName} réussi pour ${playerId}`);
         
       } catch (error) {
         this.metrics.failedRequests++;
@@ -303,6 +371,8 @@ export class PokedexMessageHandler {
    */
   private async handleGetPokedex(client: Client, message: PokedexGetRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`📋 [POKÉDX] Récupération Pokédx pour:`, playerId);
     
     // Conversion des dates si nécessaire
     const serviceFilters: any = message.filters || {};
@@ -351,6 +421,8 @@ export class PokedexMessageHandler {
       timestamp: new Date(),
       basedOnAvailablePokemon: result.summary.basedOnAvailablePokemon || true
     });
+    
+    console.log(`✅ [POKÉDX] Pokédx envoyé à ${playerId}: ${result.entries.length} entrées`);
   }
   
   /**
@@ -358,6 +430,8 @@ export class PokedexMessageHandler {
    */
   private async handleGetEntry(client: Client, message: PokedexEntryRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`📄 [POKÉDX] Récupération entrée #${message.pokemonId} pour:`, playerId);
     
     const result = await pokedexService.getPokedexEntry(playerId, message.pokemonId);
     
@@ -368,6 +442,8 @@ export class PokedexMessageHandler {
       relatedEntries: result.relatedEntries,
       recommendations: message.includeRecommendations ? result.recommendations : undefined
     });
+    
+    console.log(`✅ [POKÉDX] Entrée #${message.pokemonId} envoyée à ${playerId}`);
   }
   
   /**
@@ -376,6 +452,8 @@ export class PokedexMessageHandler {
   private async handleGetStats(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`📊 [POKÉDX] Récupération stats pour:`, playerId);
+    
     const progress = await pokedexService.getPlayerProgress(playerId);
     
     this.sendSuccess(client, 'pokedex:stats', {
@@ -383,6 +461,8 @@ export class PokedexMessageHandler {
       records: progress.records,
       activity: progress.activity
     });
+    
+    console.log(`✅ [POKÉDX] Stats envoyées à ${playerId}`);
   }
   
   /**
@@ -391,9 +471,13 @@ export class PokedexMessageHandler {
   private async handleGetProgress(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`📈 [POKÉDX] Récupération progression pour:`, playerId);
+    
     const progress = await pokedexService.getPlayerProgress(playerId);
     
     this.sendSuccess(client, 'pokedex:progress', progress);
+    
+    console.log(`✅ [POKÉDX] Progression envoyée à ${playerId}`);
   }
   
   /**
@@ -402,9 +486,13 @@ export class PokedexMessageHandler {
   private async handleGetAnalytics(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`📊 [POKÉDX] Récupération analytics pour:`, playerId);
+    
     const analytics = await pokedexProgressService.generatePokedexAnalytics(playerId);
     
     this.sendSuccess(client, 'pokedex:analytics', analytics);
+    
+    console.log(`✅ [POKÉDX] Analytics envoyées à ${playerId}`);
   }
   
   // ===== HANDLERS DE MISE À JOUR =====
@@ -415,7 +503,7 @@ export class PokedexMessageHandler {
   private async handleMarkSeen(client: Client, message: PokedexMarkSeenRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
-    this.debugLog(`👁️ Marquer comme vu: ${playerId} -> #${message.pokemonId}`);
+    console.log(`👁️ [POKÉDX] Marquer comme vu: ${playerId} -> #${message.pokemonId}`);
     
     const result = await pokedexIntegrationService.handlePokemonEncounter({
       playerId,
@@ -447,10 +535,13 @@ export class PokedexMessageHandler {
         notifications: result.notifications,
         achievements: result.achievements
       });
+      console.log(`🎉 [POKÉDX] Nouvelle découverte #${message.pokemonId} pour ${playerId}!`);
     }
     
     // Invalider le cache des stats
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Marquer vu réussi pour ${playerId} -> #${message.pokemonId}`);
   }
   
   /**
@@ -459,7 +550,7 @@ export class PokedexMessageHandler {
   private async handleMarkCaught(client: Client, message: PokedexMarkCaughtRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
-    this.debugLog(`🎯 Marquer comme capturé: ${playerId} -> #${message.pokemonId} ${message.isShiny ? '✨' : ''}`);
+    console.log(`🎯 [POKÉDX] Marquer comme capturé: ${playerId} -> #${message.pokemonId} ${message.isShiny ? '✨' : ''}`);
     
     const result = await pokedexIntegrationService.handlePokemonCapture({
       playerId,
@@ -498,13 +589,13 @@ export class PokedexMessageHandler {
         notifications: result.notifications,
         achievements: result.achievements
       });
+      console.log(`🎉 [POKÉDX] Nouvelle capture #${message.pokemonId} pour ${playerId}!`);
     }
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Marquer capturé réussi pour ${playerId} -> #${message.pokemonId}`);
   }
-  
-  // Handler évolution retiré - logique déplacée vers EvolutionService
-  // L'intégration Pokédx se fait automatiquement via PokedexIntegrationService.handlePokemonEvolution()
   
   /**
    * Force un recalcul complet des statistiques
@@ -512,7 +603,7 @@ export class PokedexMessageHandler {
   private async handleRecalculate(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
-    this.debugLog(`🔄 Recalcul stats pour ${playerId}`);
+    console.log(`🔄 [POKÉDX] Recalcul stats pour ${playerId}`);
     
     const stats = await pokedexService.recalculatePlayerStats(playerId, true);
     
@@ -525,6 +616,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Recalcul terminé pour ${playerId}`);
   }
   
   // ===== BULK OPERATIONS =====
@@ -536,7 +629,7 @@ export class PokedexMessageHandler {
     const playerId = this.getPlayerId(client)!;
     
     if (!message.operations || message.operations.length === 0) {
-      this.sendError(client, 'pokedx:bulk', 'Aucune opération spécifiée');
+      this.sendError(client, 'pokedex:bulk', 'Aucune opération spécifiée');
       return;
     }
     
@@ -545,7 +638,7 @@ export class PokedexMessageHandler {
       return;
     }
     
-    this.debugLog(`📦 Opérations bulk: ${message.operations.length} pour ${playerId}`);
+    console.log(`📦 [POKÉDX] Opérations bulk: ${message.operations.length} pour ${playerId}`);
     
     const results = [];
     let successCount = 0;
@@ -607,6 +700,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Bulk terminé pour ${playerId}: ${successCount}/${message.operations.length} réussis`);
   }
   
   // ===== HANDLERS ACCOMPLISSEMENTS & STREAKS =====
@@ -616,6 +711,8 @@ export class PokedexMessageHandler {
    */
   private async handleGetAchievements(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`🏆 [POKÉDX] Récupération accomplissements pour:`, playerId);
     
     // TODO: Implémenter système d'accomplissements global
     // Pour l'instant, retourner une structure vide typée
@@ -636,6 +733,8 @@ export class PokedexMessageHandler {
     };
     
     this.sendSuccess(client, 'pokedex:achievements', achievements);
+    
+    console.log(`✅ [POKÉDX] Accomplissements envoyés à ${playerId}`);
   }
   
   /**
@@ -643,6 +742,8 @@ export class PokedexMessageHandler {
    */
   private async handleGetStreaks(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`🔥 [POKÉDX] Récupération streaks pour:`, playerId);
     
     const streaks = await pokedexProgressService.getCurrentStreaks(playerId);
     
@@ -654,6 +755,8 @@ export class PokedexMessageHandler {
         totalMultiplier: streaks.reduce((sum, s) => sum + s.multiplier, 0)
       }
     });
+    
+    console.log(`✅ [POKÉDX] Streaks envoyés à ${playerId}: ${streaks.length} streaks`);
   }
   
   /**
@@ -662,9 +765,11 @@ export class PokedexMessageHandler {
   private async handleUpdateStreaks(client: Client, message: { action: 'seen' | 'caught' }): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`🔥 [POKÉDX] Update streaks ${message.action} pour:`, playerId);
+    
     const result = await pokedexProgressService.updatePokedexStreaks(playerId, message.action);
     
-    this.sendSuccess(client, 'pokedx:update_streaks', {
+    this.sendSuccess(client, 'pokedex:update_streaks', {
       newRecord: result.newRecord,
       notifications: result.notifications,
       updatedStreaks: result.updatedStreaks
@@ -675,7 +780,10 @@ export class PokedexMessageHandler {
         action: message.action,
         notifications: result.notifications
       });
+      console.log(`🎉 [POKÉDX] Nouveau record streak ${message.action} pour ${playerId}!`);
     }
+    
+    console.log(`✅ [POKÉDX] Streaks mis à jour pour ${playerId}`);
   }
   
   // ===== HANDLERS NOTIFICATIONS =====
@@ -685,6 +793,8 @@ export class PokedexMessageHandler {
    */
   private async handleGetNotifications(client: Client, message: PokedexNotificationRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`🔔 [POKÉDX] Récupération notifications pour:`, playerId);
     
     // Conversion des dates si nécessaire
     const serviceFilters: any = message.filters || {};
@@ -705,6 +815,8 @@ export class PokedexMessageHandler {
         recent: stats.last24h
       }
     });
+    
+    console.log(`✅ [POKÉDX] Notifications envoyées à ${playerId}: ${notifications.length} notifications`);
   }
   
   /**
@@ -713,11 +825,15 @@ export class PokedexMessageHandler {
   private async handleMarkNotificationRead(client: Client, message: PokedexNotificationRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`📖 [POKÉDX] Marquer notification lue pour:`, playerId);
+    
     let result: boolean | number;
     if (message.markAllRead) {
       result = pokedexNotificationService.markAllAsRead(playerId);
+      console.log(`📖 [POKÉDX] Marquer toutes comme lues pour ${playerId}: ${result} notifications`);
     } else if (message.notificationId) {
       result = pokedexNotificationService.markAsRead(playerId, message.notificationId);
+      console.log(`📖 [POKÉDX] Marquer ${message.notificationId} comme lue pour ${playerId}: ${result}`);
     } else {
       this.sendError(client, 'pokedex:notification_read', 'ID notification ou markAllRead requis');
       return;
@@ -727,6 +843,8 @@ export class PokedexMessageHandler {
       success: result !== false,
       marked: typeof result === 'number' ? result : (result ? 1 : 0)
     });
+    
+    console.log(`✅ [POKÉDX] Notification(s) marquée(s) comme lue(s) pour ${playerId}`);
   }
   
   /**
@@ -740,12 +858,16 @@ export class PokedexMessageHandler {
       return;
     }
     
+    console.log(`🗑️ [POKÉDX] Supprimer notification ${message.notificationId} pour:`, playerId);
+    
     const result = pokedexNotificationService.removeNotification(playerId, message.notificationId);
     
     this.sendSuccess(client, 'pokedex:notification_delete', {
       success: result,
       deleted: result
     });
+    
+    console.log(`✅ [POKÉDX] Notification supprimée pour ${playerId}: ${result}`);
   }
   
   /**
@@ -754,6 +876,8 @@ export class PokedexMessageHandler {
   private async handleUpdateSettings(client: Client, message: PokedexSettingsRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`⚙️ [POKÉDX] Update settings pour:`, playerId, 'changements:', Object.keys(message));
+    
     pokedexNotificationService.updatePlayerSettings(playerId, message);
     const settings = pokedexNotificationService.getPlayerSettings(playerId);
     
@@ -761,6 +885,8 @@ export class PokedexMessageHandler {
       settings,
       updated: Object.keys(message).length
     });
+    
+    console.log(`✅ [POKÉDX] Settings mis à jour pour ${playerId}: ${Object.keys(message).length} changements`);
   }
   
   // ===== HANDLERS ACTIONS RAPIDES =====
@@ -770,6 +896,8 @@ export class PokedexMessageHandler {
    */
   private async handleQuickAction(client: Client, message: PokedexQuickActionRequest): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`⚡ [POKÉDX] Action rapide ${message.action} pour:`, playerId);
     
     let result: any;
     
@@ -808,6 +936,8 @@ export class PokedexMessageHandler {
       result,
       timestamp: new Date()
     });
+    
+    console.log(`✅ [POKÉDX] Action rapide ${message.action} terminée pour ${playerId}`);
   }
   
   // ===== HANDLERS GESTION FAVORIS & TAGS =====
@@ -818,11 +948,13 @@ export class PokedexMessageHandler {
   private async handleToggleFavorite(client: Client, message: { pokemonId: number }): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`⭐ [POKÉDX] Toggle favori #${message.pokemonId} pour:`, playerId);
+    
     // Récupérer l'entrée et toggle
     const entry = await pokedexService.getPokedexEntry(playerId, message.pokemonId);
     
     if (!entry.entry) {
-      this.sendError(client, 'pokedex:toggle_favorite', 'Pokémon non trouvé dans le Pokédex');
+      this.sendError(client, 'pokedex:toggle_favorite', 'Pokémon non trouvé dans le Pokédx');
       return;
     }
     
@@ -834,6 +966,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Favori #${message.pokemonId} ${newStatus ? 'ajouté' : 'retiré'} pour ${playerId}`);
   }
   
   /**
@@ -842,10 +976,12 @@ export class PokedexMessageHandler {
   private async handleAddTag(client: Client, message: { pokemonId: number; tag: string }): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`🏷️ [POKÉDX] Ajouter tag "${message.tag}" à #${message.pokemonId} pour:`, playerId);
+    
     const entry = await pokedexService.getPokedexEntry(playerId, message.pokemonId);
     
     if (!entry.entry) {
-      this.sendError(client, 'pokedex:add_tag', 'Pokémon non trouvé dans le Pokédex');
+      this.sendError(client, 'pokedex:add_tag', 'Pokémon non trouvé dans le Pokédx');
       return;
     }
     
@@ -858,6 +994,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Tag "${message.tag}" ajouté à #${message.pokemonId} pour ${playerId}`);
   }
   
   /**
@@ -866,10 +1004,12 @@ export class PokedexMessageHandler {
   private async handleRemoveTag(client: Client, message: { pokemonId: number; tag: string }): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`🏷️ [POKÉDX] Retirer tag "${message.tag}" de #${message.pokemonId} pour:`, playerId);
+    
     const entry = await pokedexService.getPokedexEntry(playerId, message.pokemonId);
     
     if (!entry.entry) {
-      this.sendError(client, 'pokedex:remove_tag', 'Pokémon non trouvé dans le Pokédex');
+      this.sendError(client, 'pokedex:remove_tag', 'Pokémon non trouvé dans le Pokédx');
       return;
     }
     
@@ -882,6 +1022,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Tag "${message.tag}" retiré de #${message.pokemonId} pour ${playerId}`);
   }
   
   /**
@@ -890,10 +1032,12 @@ export class PokedexMessageHandler {
   private async handleAddNote(client: Client, message: { pokemonId: number; note: string }): Promise<void> {
     const playerId = this.getPlayerId(client)!;
     
+    console.log(`📝 [POKÉDX] Ajouter note à #${message.pokemonId} pour:`, playerId);
+    
     const entry = await pokedexService.getPokedexEntry(playerId, message.pokemonId);
     
     if (!entry.entry) {
-      this.sendError(client, 'pokedex:add_note', 'Pokémon non trouvé dans le Pokédex');
+      this.sendError(client, 'pokedex:add_note', 'Pokémon non trouvé dans le Pokédx');
       return;
     }
     
@@ -905,6 +1049,8 @@ export class PokedexMessageHandler {
     });
     
     this.invalidatePlayerCache(playerId);
+    
+    console.log(`✅ [POKÉDX] Note ajoutée à #${message.pokemonId} pour ${playerId}`);
   }
   
   // ===== HANDLERS INTÉGRATION & DEBUG =====
@@ -913,12 +1059,16 @@ export class PokedexMessageHandler {
    * Récupère le statut d'intégration
    */
   private async handleGetIntegrationStatus(client: Client): Promise<void> {
+    console.log(`🔗 [POKÉDX] Récupération statut intégration`);
+    
     const stats = pokedexIntegrationService.getIntegrationStats();
     
     this.sendSuccess(client, 'pokedex:integration_status', {
       ...stats,
       timestamp: new Date()
     });
+    
+    console.log(`✅ [POKÉDX] Statut intégration envoyé`);
   }
   
   /**
@@ -926,6 +1076,8 @@ export class PokedexMessageHandler {
    */
   private async handleForceIntegration(client: Client): Promise<void> {
     const playerId = this.getPlayerId(client)!;
+    
+    console.log(`🔗 [POKÉDX] Force intégration pour:`, playerId);
     
     // TODO: Implémenter force integration via OwnedPokemon.bulkIntegrateToPokedex
     
@@ -935,12 +1087,16 @@ export class PokedexMessageHandler {
       playerId,
       timestamp: new Date()
     });
+    
+    console.log(`✅ [POKÉDX] Intégration forcée démarrée pour ${playerId}`);
   }
   
   /**
    * Récupère les statistiques de tous les services
    */
   private async handleGetServiceStats(client: Client): Promise<void> {
+    console.log(`📊 [POKÉDX] Récupération stats services`);
+    
     const stats = {
       handler: {
         ...this.metrics,
@@ -953,28 +1109,11 @@ export class PokedexMessageHandler {
     };
     
     this.sendSuccess(client, 'pokedex:service_stats', stats);
+    
+    console.log(`✅ [POKÉDX] Stats services envoyées`);
   }
   
   // ===== UTILITAIRES =====
-  
-  /**
-   * Récupère l'ID du joueur depuis le client de manière sécurisée
-   */
-private getPlayerId(client: Client): string | null {
-  console.log('🔍 [DEBUG] Recherche playerId pour client:', client.sessionId);
-  
-  // ✅ CORRECTION: Utiliser le state de la room comme TeamHandlers
-  const player = this.room.state.players.get(client.sessionId);
-  
-  if (!player || !player.name || typeof player.name !== 'string' || player.name.trim().length === 0) {
-    console.log('❌ [DEBUG] Aucun joueur trouvé dans room.state.players pour:', client.sessionId);
-    console.log('💡 [DEBUG] Players dans le state:', Array.from(this.room.state.players.keys()));
-    return null;
-  }
-  
-  console.log('✅ [DEBUG] PlayerId trouvé depuis room state:', player.name);
-  return player.name.trim();
-}
   
   /**
    * Envoie une réponse de succès formatée
@@ -1027,20 +1166,21 @@ private getPlayerId(client: Client): string | null {
     });
   }
   
-  // ===== RATE LIMITING =====
+  // ===== RATE LIMITING SÉCURISÉ =====
   
-  private isRateLimited(sessionId: string): boolean {
+  private isRateLimited(playerId: string): boolean {
     if (!this.config.enableRateLimiting) return false;
     
     const now = Date.now();
-    const limit = this.rateLimitMap.get(sessionId);
+    const limit = this.rateLimitMap.get(playerId);
     
     if (!limit || now > limit.resetTime) {
-      this.rateLimitMap.set(sessionId, { count: 1, resetTime: now + 60000 });
+      this.rateLimitMap.set(playerId, { count: 1, resetTime: now + 60000 });
       return false;
     }
     
     if (limit.count >= this.config.maxRequestsPerMinute) {
+      console.warn(`🚨 [POKÉDX SECURITY] Rate limit dépassé pour ${playerId}`);
       return true;
     }
     
@@ -1050,9 +1190,9 @@ private getPlayerId(client: Client): string | null {
   
   private resetRateLimits(): void {
     const now = Date.now();
-    for (const [sessionId, limit] of this.rateLimitMap.entries()) {
+    for (const [playerId, limit] of this.rateLimitMap.entries()) {
       if (now > limit.resetTime) {
-        this.rateLimitMap.delete(sessionId);
+        this.rateLimitMap.delete(playerId);
       }
     }
   }
@@ -1185,7 +1325,9 @@ private getPlayerId(client: Client): string | null {
   
   private debugLog(message: string): void {
     if (this.config.enableDebug) {
-      console.log(`🔧 [PokedexMessageHandler] ${message}`);
+      // Nettoyer le message des données sensibles potentielles
+      const cleanMessage = message.replace(/password|token|auth|secret/gi, '[REDACTED]');
+      console.log(`🔧 [PokedexMessageHandler] ${cleanMessage}`);
     }
   }
   
@@ -1238,93 +1380,3 @@ private getPlayerId(client: Client): string | null {
 
 // ===== EXPORT =====
 export default PokedexMessageHandler;
-
-// ===== GUIDE D'INTÉGRATION DANS UNE ROOM =====
-//
-// Dans votre Room Colyseus (ex: GameRoom.ts) :
-//
-// import PokedexMessageHandler from './handlers/PokedexMessageHandler';
-//
-// export class GameRoom extends Room {
-//   private pokedexHandler: PokedexMessageHandler;
-//
-//   onCreate(options: any) {
-//     // Initialiser le handler Pokédex avec configuration
-//     this.pokedexHandler = new PokedexMessageHandler(this, {
-//       enableDebug: true,
-//       maxRequestsPerMinute: 100,
-//       enableCache: true
-//     });
-//   }
-//
-//   onDispose() {
-//     // Nettoyer le handler
-//     this.pokedexHandler?.cleanup();
-//   }
-// }
-//
-// ===== UTILISATION CÔTÉ CLIENT (Phaser/React) =====
-//
-// // API Simple - Marquer comme vu
-// room.send("pokedex:mark_seen", { 
-//   pokemonId: 25, 
-//   level: 5, 
-//   location: "Route 1" 
-// });
-//
-// // API Simple - Marquer comme capturé
-// room.send("pokedex:mark_caught", {
-//   pokemonId: 25,
-//   level: 5,
-//   location: "Route 1",
-//   ownedPokemonId: "507f1f77bcf86cd799439011",
-//   isShiny: false
-// });
-//
-// // Récupérer le Pokédex avec filtres
-// room.send("pokedex:get", { 
-//   filters: { 
-//     caught: true, 
-//     types: ["electric"],
-//     sortBy: "level",
-//     sortOrder: "desc",
-//     limit: 20
-//   } 
-// });
-//
-// // Opérations bulk pour de meilleures performances
-// room.send("pokedex:bulk", {
-//   operations: [
-//     { type: "mark_seen", data: { pokemonId: 1, level: 5, location: "Route 1" } },
-//     { type: "mark_seen", data: { pokemonId: 2, level: 7, location: "Route 1" } }
-//   ]
-// });
-//
-// // Écouter les réponses
-// room.onMessage("pokedex:mark_seen:response", (message) => {
-//   if (message.success) {
-//     console.log("Pokémon marqué comme vu:", message.data);
-//     if (message.data.isNewDiscovery) {
-//       showDiscoveryAnimation(message.data.notifications);
-//     }
-//   }
-// });
-//
-// // Écouter les événements en temps réel
-// room.onMessage("pokedex:discovery", (data) => {
-//   showDiscoveryNotification(data.pokemonId, data.notifications);
-// });
-//
-// room.onMessage("pokedex:capture", (data) => {
-//   showCaptureNotification(data.pokemonId, data.isShiny);
-// });
-//
-// // Actions rapides
-// room.send("pokedex:quick_action", {
-//   action: "mark_all_read"
-// });
-//
-// // Gestion des favoris et tags
-// room.send("pokedex:toggle_favorite", { pokemonId: 25 });
-// room.send("pokedex:add_tag", { pokemonId: 25, tag: "starter" });
-// room.send("pokedex:add_note", { pokemonId: 25, note: "Mon premier Pokémon !" });
