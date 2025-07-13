@@ -1,12 +1,9 @@
-// ✅ CHARGER .env depuis src/ en premier
-import { config } from 'dotenv';
-import { join } from 'path';
+// ✅ FORCER le chargement depuis src/
+require('dotenv').config({ path: __dirname + '/.env' });
 
-// Charger le .env depuis le dossier src/
-config({ path: join(__dirname, '.env') });
-
-// ✅ VÉRIFICATION des variables d'environnement
+// ✅ VÉRIFICATION immédiate
 console.log('🔍 === VÉRIFICATION VARIABLES D\'ENVIRONNEMENT ===');
+console.log('- Fichier .env existe:', require('fs').existsSync(__dirname + '/.env'));
 console.log('- MongoDB:', process.env.MONGODB_URI ? 'Configuré ✅' : 'Manquant ❌');
 console.log('- JWT Secret:', process.env.JWT_SECRET ? 'Configuré ✅' : 'Manquant ❌');
 console.log('- Port:', process.env.PORT || 'Défaut (2567)');
