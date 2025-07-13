@@ -58,13 +58,13 @@ export class OverworldPokemonManager {
     this.loadConfig();
 
       // ✅ AJOUTER CETTE LIGNE POUR DEBUG
-  //  console.log(`🔍 [DEBUG] Config après chargement:`, {
+  console.log(`🔍 [DEBUG] Config après chargement:`, {
     hasAreas: !!this.config.areas,
     areaCount: Object.keys(this.config.areas || {}).length,
     hasVillage: !!this.config.areas?.village,
     villageConfig: this.config.areas?.village
   });
-    //  console.log("🌍 [OverworldPokemonManager] Initialisé - Système case par case");
+    console.log("🌍 [OverworldPokemonManager] Initialisé - Système case par case");
   }
 
   private loadConfig(): void {
@@ -77,11 +77,11 @@ export class OverworldPokemonManager {
       this.moveInterval = this.config.globalSettings?.moveInterval || 2500;
       this.gridSize = this.config.globalSettings?.gridSize || 32;
       
-      //  console.log(`📋 [OverworldPokemonManager] Config chargée: ${Object.keys(this.config.areas).length} zones`);
+      console.log(`📋 [OverworldPokemonManager] Config chargée: ${Object.keys(this.config.areas).length} zones`);
       Object.entries(this.config.areas).forEach(([areaId, area]: [string, any]) => {
-        //  console.log(`🏞️ Zone ${areaId}: ${area.pokemon.length} types de Pokémon`);
+        console.log(`🏞️ Zone ${areaId}: ${area.pokemon.length} types de Pokémon`);
         area.pokemon.forEach((pokemon: any) => {
-          //  console.log(`  🐾 ${pokemon.name} (ID: ${pokemon.pokemonId}) - Count: ${pokemon.count}`);
+          console.log(`  🐾 ${pokemon.name} (ID: ${pokemon.pokemonId}) - Count: ${pokemon.count}`);
         });
       });
     } catch (error) {
@@ -109,7 +109,7 @@ export class OverworldPokemonManager {
   }
 
   start(): void {
-    //  console.log("🚀 [OverworldPokemonManager] Démarrage - Mouvement case par case");
+    console.log("🚀 [OverworldPokemonManager] Démarrage - Mouvement case par case");
     Object.keys(this.config.areas).forEach(areaId => {
       this.spawnPokemonInArea(areaId);
     });
@@ -118,7 +118,7 @@ export class OverworldPokemonManager {
   }
 
   stop(): void {
-    //  console.log("⏹️ [OverworldPokemonManager] Arrêt du système");
+    console.log("⏹️ [OverworldPokemonManager] Arrêt du système");
     if (this.updateLoop) {
       clearInterval(this.updateLoop);
       this.updateLoop = null;
@@ -146,7 +146,7 @@ export class OverworldPokemonManager {
     const areaConfig = this.config.areas[areaId];
     if (!areaConfig) return;
     
-    //  console.log(`🌱 [OverworldPokemonManager] Spawn dans la zone: ${areaId}`);
+    console.log(`🌱 [OverworldPokemonManager] Spawn dans la zone: ${areaId}`);
     
     areaConfig.pokemon.forEach((pokemonConfig: PokemonConfig) => {
       const currentCount = this.countPokemonInArea(areaId, pokemonConfig.pokemonId);
@@ -220,7 +220,7 @@ export class OverworldPokemonManager {
     };
     
     this.overworldPokemon.set(id, pokemon);
-    //  console.log(`🐾 [OverworldPokemonManager] ${data.name} spawné à (${x}, ${y})`);
+    console.log(`🐾 [OverworldPokemonManager] ${data.name} spawné à (${x}, ${y})`);
     
     // Broadcaster le spawn
     this.broadcastPokemonSpawn(pokemon);
@@ -248,7 +248,7 @@ export class OverworldPokemonManager {
         pokemon.isMoving = false;
         pokemon.lastMoveTime = now;
         this.broadcastPokemonUpdate(pokemon);
-     //   //  console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.x}, ${pokemon.y})`);
+        console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.x}, ${pokemon.y})`);
       }
     } else {
       // Pokémon immobile, vérifier s'il doit bouger
@@ -301,10 +301,10 @@ export class OverworldPokemonManager {
     pokemon.lastMoveTime = Date.now();
     
     this.broadcastPokemonUpdate(pokemon);
-    //  console.log(`🚀 [OverworldPokemonManager] ${pokemon.name}: (${pokemon.x}, ${pokemon.y}) → (${toX}, ${toY}) ${direction}`);
+    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name}: (${pokemon.x}, ${pokemon.y}) → (${toX}, ${toY}) ${direction}`);
   } else {
     // ✅ MOUVEMENT BLOQUÉ - NE PAS BOUGER
-    //  console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué par collision à (${toX}, ${toY})`);
+    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué par collision à (${toX}, ${toY})`);
     
     // Marquer comme immobile et attendre avant le prochain essai
     pokemon.isMoving = false;
@@ -405,7 +405,7 @@ export class OverworldPokemonManager {
     clientsInZone.forEach(client => {
       client.send("overworldPokemon", message);
     });
-    //  console.log(`📤 [OverworldPokemonManager] Spawn ${pokemon.name} → ${clientsInZone.length} clients`);
+    console.log(`📤 [OverworldPokemonManager] Spawn ${pokemon.name} → ${clientsInZone.length} clients`);
   }
 
   private broadcastPokemonUpdate(pokemon: OverworldPokemonData): void {
@@ -443,7 +443,7 @@ export class OverworldPokemonManager {
     clientsInZone.forEach(client => {
       client.send("overworldPokemon", message);
     });
-    //  console.log(`🗑️ [OverworldPokemonManager] Remove ${pokemonId} → ${clientsInZone.length} clients`);
+    console.log(`🗑️ [OverworldPokemonManager] Remove ${pokemonId} → ${clientsInZone.length} clients`);
   }
 
   syncPokemonForClient(client: any): void {
@@ -451,7 +451,7 @@ export class OverworldPokemonManager {
     if (!player) return;
     
     const playerZone = player.currentZone;
-    //  console.log(`🔄 [OverworldPokemonManager] Sync pour ${client.sessionId} dans ${playerZone}`);
+    console.log(`🔄 [OverworldPokemonManager] Sync pour ${client.sessionId} dans ${playerZone}`);
     
     const pokemonList = Array.from(this.overworldPokemon.values())
       .filter(pokemon => pokemon.areaId === playerZone)
@@ -478,11 +478,11 @@ export class OverworldPokemonManager {
       data: { pokemon: pokemonList }
     });
     
-    //  console.log(`✅ [OverworldPokemonManager] ${pokemonList.length} Pokémon synchronisés`);
+    console.log(`✅ [OverworldPokemonManager] ${pokemonList.length} Pokémon synchronisés`);
   }
 
   public onPlayerZoneChanged(sessionId: string, oldZone: string, newZone: string): void {
-    //  console.log(`🔄 [OverworldPokemonManager] Joueur ${sessionId}: ${oldZone} → ${newZone}`);
+    console.log(`🔄 [OverworldPokemonManager] Joueur ${sessionId}: ${oldZone} → ${newZone}`);
     const client = this.room.clients.find((c: any) => c.sessionId === sessionId);
     if (!client) return;
     
@@ -494,14 +494,14 @@ export class OverworldPokemonManager {
   removePokemon(pokemonId: string): void {
     const pokemon = this.overworldPokemon.get(pokemonId);
     if (pokemon) {
-      //  console.log(`🗑️ [OverworldPokemonManager] Suppression: ${pokemonId}`);
+      console.log(`🗑️ [OverworldPokemonManager] Suppression: ${pokemonId}`);
       this.overworldPokemon.delete(pokemonId);
       this.broadcastPokemonRemove(pokemonId, pokemon.areaId);
     }
   }
 
   clearArea(areaId: string): void {
-    //  console.log(`🧹 [OverworldPokemonManager] Nettoyage zone: ${areaId}`);
+    console.log(`🧹 [OverworldPokemonManager] Nettoyage zone: ${areaId}`);
     const toRemove: string[] = [];
     this.overworldPokemon.forEach((pokemon, id) => {
       if (pokemon.areaId === areaId) {
@@ -512,7 +512,7 @@ export class OverworldPokemonManager {
   }
 
   cleanup(): void {
-    //  console.log(`🧹 [OverworldPokemonManager] Nettoyage de ${this.overworldPokemon.size} Pokémon`);
+    console.log(`🧹 [OverworldPokemonManager] Nettoyage de ${this.overworldPokemon.size} Pokémon`);
     this.overworldPokemon.forEach((pokemon) => {
       this.broadcastPokemonRemove(pokemon.id, pokemon.areaId);
     });
@@ -541,13 +541,13 @@ export class OverworldPokemonManager {
   }
 
   debug(): void {
-    //  console.log(`🔍 [OverworldPokemonManager] === DEBUG SIMPLE ===`);
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG SIMPLE ===`);
     const stats = this.getStats();
-    //  console.log(`📊 Stats:`, stats);
-    //  console.log(`⚙️ Settings: gridSize=${this.gridSize}px, moveInterval=${this.moveInterval}ms`);
+    console.log(`📊 Stats:`, stats);
+    console.log(`⚙️ Settings: gridSize=${this.gridSize}px, moveInterval=${this.moveInterval}ms`);
     
     this.overworldPokemon.forEach((pokemon, id) => {
-      //  console.log(`🐾 ${pokemon.name} (${id}): (${pokemon.x}, ${pokemon.y}) ${pokemon.direction} ${pokemon.isMoving ? 'BOUGE' : 'IDLE'}`);
+      console.log(`🐾 ${pokemon.name} (${id}): (${pokemon.x}, ${pokemon.y}) ${pokemon.direction} ${pokemon.isMoving ? 'BOUGE' : 'IDLE'}`);
     });
   }
 }
