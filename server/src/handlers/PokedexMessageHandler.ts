@@ -960,16 +960,16 @@ export class PokedexMessageHandler {
   /**
    * Récupère l'ID du joueur depuis le client de manière sécurisée
    */
-  private getPlayerId(client: Client): string | null {
-    // Adapter selon votre système d'authentification
-    const playerId = client.sessionId || client.auth?.playerId || client.userData?.playerId;
-    
-    if (!playerId || typeof playerId !== 'string' || playerId.trim().length === 0) {
-      return null;
+    private getPlayerId(client: Client): string | null {
+      // ✅ CORRECTION : Utiliser le username au lieu du sessionId
+      const playerId = client.userData?.username || client.auth?.username || client.username;
+      
+      if (!playerId || typeof playerId !== 'string' || playerId.trim().length === 0) {
+        return null;
+      }
+      
+      return playerId.trim();
     }
-    
-    return playerId.trim();
-  }
   
   /**
    * Envoie une réponse de succès formatée
