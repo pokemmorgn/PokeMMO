@@ -69,7 +69,9 @@ export class NetworkManager {
     };
   }
 
-  async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
+ // Dans NetworkManager.js, remplacez la méthode connect() par :
+
+async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
   try {
     console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
     console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
@@ -78,15 +80,24 @@ export class NetworkManager {
       await this.disconnect();
     }
 
+    // ✅ RÉCUPÉRER LE TOKEN DE SESSION
+    const userSession = this.getUserSession();
+    
     const roomOptions = {
       name: this.username,
       spawnZone: spawnZone,
       spawnX: spawnData.spawnX || 360,
       spawnY: spawnData.spawnY || 120,
+      // ✅ AJOUTER LE TOKEN JWT
+      sessionToken: userSession?.sessionToken,
+      permissions: userSession?.permissions || ['play'],
       ...spawnData
     };
 
-    console.log(`[NetworkManager] 📝 Options de connexion:`, roomOptions);
+    console.log(`[NetworkManager] 📝 Options de connexion:`, {
+      ...roomOptions,
+      sessionToken: roomOptions.sessionToken ? '***TOKEN***' : 'MISSING'
+    });
 
     this.room = await this.client.joinOrCreate("world", roomOptions);
 
@@ -116,6 +127,40 @@ export class NetworkManager {
     console.error("❌ Connection error:", error);
     this.connectionHealth.reconnectAttempts++;
     return false;
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
+getUserSession() {
+  try {
+    const encryptedSession = sessionStorage.getItem('pws_game_session');
+    if (!encryptedSession) {
+      console.warn('[NetworkManager] ❌ Aucune session de jeu trouvée');
+      return null;
+    }
+
+    const key = sessionStorage.getItem('pws_key');
+    if (!key) {
+      console.warn('[NetworkManager] ❌ Clé de session manquante');
+      return null;
+    }
+
+    const decoded = atob(encryptedSession);
+    const [dataStr, sessionKey] = decoded.split('|');
+    
+    if (sessionKey !== key) {
+      console.warn('[NetworkManager] ❌ Clé de session invalide');
+      return null;
+    }
+
+    const sessionData = JSON.parse(dataStr);
+    console.log('[NetworkManager] ✅ Session récupérée pour:', sessionData.username);
+    
+    return sessionData;
+    
+  } catch (error) {
+    console.error('[NetworkManager] ❌ Erreur lecture session:', error);
+    return null;
   }
 }
 
