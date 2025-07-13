@@ -303,22 +303,17 @@ export class InventoryIcon {
   
   // === 📍 MÉTHODES UIMANAGER ===
   
-  onPositioned(position) {
-    console.log('📍 [InventoryIcon] Position reçue de UIManager:', position);
-    
-    if (this.iconElement) {
-      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-      this.iconElement.setAttribute('data-position', JSON.stringify(position));
-      
-      // Animation de confirmation
-      this.iconElement.style.transform = 'scale(1.05)';
-      setTimeout(() => {
-        this.iconElement.style.transform = '';
-      }, 200);
-      
-      console.log('✅ [InventoryIcon] Position UIManager confirmée');
-    }
+
+onPositioned(position) {
+  console.log('📍 [InventoryIcon] Position reçue de UIManager:', position);
+  
+  if (this.iconElement) {
+    this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+    this.iconElement.setAttribute('data-position', JSON.stringify(position));
+    console.log('✅ [InventoryIcon] Position UIManager confirmée');
   }
+}
+
   
   isPositionedByUIManager() {
     return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
