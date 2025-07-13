@@ -1,0 +1,259 @@
+{
+  "family": "magikarp",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 129,
+      "name": "Magikarp",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 20,
+        "attack": 10,
+        "defense": 55,
+        "specialAttack": 15,
+        "specialDefense": 20,
+        "speed": 80
+      },
+      "abilities": ["swift_swim"],
+      "hiddenAbility": "rattled",
+      "height": 0.9,
+      "weight": 10.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/129.png",
+      "description": "In the distant past, it was somewhat stronger than the horribly weak descendants that exist today.",
+      "category": "Fish Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Water 2", "Dragon"],
+      "hatchTime": 1280,
+      "baseExperience": 40,
+      "growthRate": "Slow",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 4",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-15",
+          "encounter_rate": "85%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 6",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-15",
+          "encounter_rate": "85%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Viridian City",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-35",
+          "encounter_rate": "90%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean City",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-35",
+          "encounter_rate": "90%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Vermilion City",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-35",
+          "encounter_rate": "90%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Fuchsia City",
+          "rarity": "Very Common",
+          "method": "Fishing",
+          "level_range": "5-35",
+          "encounter_rate": "90%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "splash", "level": 1},
+        {"moveId": "tackle", "level": 15},
+        {"moveId": "flail", "level": 30}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 130,
+        "method": "level",
+        "requirement": 20
+      }
+    },
+    {
+      "id": 130,
+      "name": "Gyarados",
+      "types": ["Water", "Flying"],
+      "baseStats": {
+        "hp": 95,
+        "attack": 125,
+        "defense": 79,
+        "specialAttack": 60,
+        "specialDefense": 100,
+        "speed": 81
+      },
+      "abilities": ["intimidate"],
+      "hiddenAbility": "moxie",
+      "height": 6.5,
+      "weight": 235.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/130.png",
+      "description": "Once it appears, it goes on a rampage. It remains enraged until it demolishes everything around it.",
+      "category": "Atrocious Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Water 2", "Dragon"],
+      "hatchTime": 1280,
+      "baseExperience": 189,
+      "growthRate": "Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "20+",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "splash", "level": 1},
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "flail", "level": 1},
+        {"moveId": "bite", "level": 20},
+        {"moveId": "dragon_rage", "level": 25},
+        {"moveId": "leer", "level": 30},
+        {"moveId": "twister", "level": 35},
+        {"moveId": "hydro_pump", "level": 40},
+        {"moveId": "rain_dance", "level": 45},
+        {"moveId": "dragon_dance", "level": 50},
+        {"moveId": "hyper_beam", "level": 55}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 129
+      }
+    }
+  ]
+}
