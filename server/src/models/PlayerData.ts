@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+// ✅ INTERFACE pour les méthodes personnalisées
+interface IPlayerData extends Document {
+  // Propriétés virtuelles
+  isAccountLocked: boolean;
+  isBanActive: boolean;
+  
+  // Méthodes personnalisées
+  recordFailedLogin(): Promise<any>;
+  resetFailedLogins(): Promise<any>;
+  recordSuccessfulLogin(ip?: string): Promise<any>;
+}
+
 const PlayerDataSchema = new mongoose.Schema({
   // ✅ CHAMPS EXISTANTS (vos données de jeu)
   username: { type: String, required: true, unique: true },
