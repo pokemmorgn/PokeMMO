@@ -905,16 +905,19 @@ handlePokedexData(response) {
     if (entry.caught) {
       // Pokémon capturé : sprite complet en couleur
 const spriteFile = isShiny ? 'shinyicons.png' : 'icons.png';
-return `<img src="/assets/pokemon/${paddedId}/${spriteFile}"
+// Pour caught
+return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="${entry.displayName}" 
               onerror="this.outerHTML='🎮'" 
-              class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}">`;
-    } else if (entry.seen) {
-      // Pokémon vu : silhouette noire
+              class="pokemon-sprite captured ${entry.shiny ? 'shiny' : ''}"
+              style="object-position: 0 0; width: 32px; height: 32px; object-fit: none;">`;
+
+// Pour seen  
 return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
-              class="pokemon-sprite silhouette">`;
+              class="pokemon-sprite silhouette"
+              style="object-position: 0 0; width: 32px; height: 32px; object-fit: none;">`;
     } else {
       // Pokémon inconnu : point d'interrogation
       return `<div class="pokemon-sprite unknown">❓</div>`;
@@ -953,15 +956,19 @@ return `<img src="/assets/pokemon/${paddedId}/icons.png"
     
     if (caught) {
 const spriteFile = entry.shiny ? 'shinyicons.png' : 'icons.png';
-return `<img src="/assets/pokemon/${paddedId}/${spriteFile}"
+// Pour caught
+return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon #${paddedId}" 
               onerror="this.outerHTML='🎮'" 
-              class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}">`;
-    } else {
+              class="pokemon-sprite captured ${isShiny ? 'shiny' : ''}"
+              style="object-position: 0 0; width: 64px; height: 64px; object-fit: none;">`;
+
+// Pour seen  
 return `<img src="/assets/pokemon/${paddedId}/icons.png"
               alt="Pokémon vu" 
               onerror="this.outerHTML='👤'" 
-              class="pokemon-sprite silhouette">`;
+              class="pokemon-sprite silhouette"
+              style="object-position: 0 0; width: 64px; height: 64px; object-fit: none;">`;
     }
   }
 
