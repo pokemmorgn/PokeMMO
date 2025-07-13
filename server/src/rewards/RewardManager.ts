@@ -361,19 +361,19 @@ export class RewardManager {
     try {
       switch (reward.type) {
         case 'experience':
-          return await this.experienceReward.giveExperience(playerId, reward);
+          return await this.experienceReward.giveExperience(playerId, reward as any);
 
         case 'money':
-          return await this.moneyReward.giveMoney(playerId, reward);
+          return await this.moneyReward.giveMoney(playerId, reward as any);
 
         case 'item':
-          return await this.itemReward.giveItem(playerId, reward);
+          return await this.itemReward.giveItem(playerId, reward as any);
 
         case 'friendship':
-          return await this.friendshipReward.giveFriendship(playerId, reward);
+          return await this.friendshipReward.giveFriendship(playerId, reward as any);
 
         case 'capture':
-          return await this.captureReward.processCaptureRewards(playerId, reward);
+          return await this.captureReward.processCaptureRewards(playerId, reward as any);
 
         case 'pokemon':
           // TODO: Implémenter quand on aura le système de génération de Pokémon
@@ -385,7 +385,7 @@ export class RewardManager {
 
         default:
           return {
-            type: reward.type,
+            type: 'unknown',
             success: false,
             error: `Type de récompense inconnu: ${(reward as any).type}`
           };
@@ -474,7 +474,7 @@ export class RewardManager {
           message: `Série de captures : ${bundle.captureContext.currentCaptureStreak} !`,
           data: { streak: bundle.captureContext.currentCaptureStreak },
           animation: 'star',
-          rarity: 'uncommon'
+          rarity: 'rare'
         });
       }
 
