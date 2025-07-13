@@ -29,6 +29,7 @@ import { movementBlockManager, BlockReason } from "../managers/MovementBlockMana
 import { BattleHandlers } from "../handlers/BattleHandlers";
 
 import { StarterHandlers } from "../handlers/StarterHandlers";
+import PokedexMessageHandler from '../handlers/PokedexMessageHandler';
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
