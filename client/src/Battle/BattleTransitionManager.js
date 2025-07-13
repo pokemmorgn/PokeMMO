@@ -401,21 +401,21 @@ export class BattleTransitionManager {
   /**
    * Configuration par défaut
    */
-  getDefaultConfig() {
+getDefaultConfig() {
     return {
       version: "1.0.0",
       defaultTransition: "spiral",
       transitions: {
         spiral: {
-          visual: { type: "spiral", duration: 1200 },
+          visual: { type: "spiral", duration: 300 },
           audio: { triggerSound: null, volume: 0.8 },
           timing: {
             fadeOutMusic: 0,
-            playSound: 100,
-            startVisual: 150,
-            fadeToBlack: 400,
-            switchScene: 500,
-            fadeIn: 600
+            playSound: 50,
+            startVisual: 80,
+            fadeToBlack: 200,
+            switchScene: 250,
+            fadeIn: 300
           }
         }
       },
