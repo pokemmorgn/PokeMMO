@@ -1,13 +1,117 @@
 import mongoose from "mongoose";
 
 const PlayerDataSchema = new mongoose.Schema({
+  // ✅ CHAMPS EXISTANTS (vos données de jeu)
   username: { type: String, required: true, unique: true },
-  gold: { type: Number, default: 0 },
-  team: [{ type: mongoose.Schema.Types.ObjectId, ref: "OwnedPokemon" }], // <-- Ajouté ici !
-  lastX: { type: Number, default: 300 },
-  lastY: { type: Number, default: 300 },
-  lastMap: { type: String, default: "Beach" },
-  walletAddress: { type: String, unique: true, sparse: true }
+  gold: { type: Number, default: 1000 },
+  team: [{ type: mongoose.Schema.Types.ObjectId, ref: "OwnedPokemon" }],
+  lastX: { type: Number, default: 360 },
+  lastY: { type: Number, default: 120 },
+  lastMap: { type: String, default: "beach" },
+  walletAddress: { type: String, unique: true, sparse: true },
+  
+  // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée
+  email: { 
+    type: String, 
+    required: false, 
+    unique: true, 
+    sparse: true, // Permet les valeurs null sans conflit unique
+    lowercase: true,
+    trim: true
+  },
+  password: { 
+    type: String, 
+    required: false // Optionnel pour compatibilité avec système wallet existant
+  },
+  
+  // Sécurité et métadonnées
+  deviceFingerprint: { type: String },
+  registrationIP: { type: String },
+  lastLoginIP: { type: String },
+  
+  // Timestamps et statistiques
+  createdAt: { type: Date, default: Date.now },
+  lastLogin: { type: Date, default: Date.now },
+  loginCount: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+  isBanned: { type: Boolean, default: false },
+  banReason: { type: String },
+  banExpiresAt: { type: Date },
+  
+  // Données de jeu (gardez vos champs existants)
+  level: { type: Number, default: 1 },
+  experience: { type: Number, default: 0 },
+  
+  // Préférences utilisateur
+  emailVerified: { type: Boolean, default: false },
+  twoFactorEnabled: { type: Boolean, default: false },
+  preferredLanguage: { type: String, default: 'en' },
+  
+  // Statistiques de sécurité
+  failedLoginAttempts: { type: Number, default: 0 },
+  lastFailedLogin: { type: Date },
+  passwordChangedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true // Ajoute automatiquement createdAt et updatedAt
+});
+
+// ✅ INDEX pour performance et sécurité
+PlayerDataSchema.index({ username: 1 });
+PlayerDataSchema.index({ email: 1 });
+PlayerDataSchema.index({ walletAddress: 1 });
+PlayerDataSchema.index({ deviceFingerprint: 1 });
+PlayerDataSchema.index({ isActive: 1 });
+PlayerDataSchema.index({ createdAt: 1 });
+
+// ✅ MÉTHODES virtuelles pour sécurité
+PlayerDataSchema.virtual('isAccountLocked').get(function() {
+  return this.failedLoginAttempts >= 5 && 
+         this.lastFailedLogin && 
+         (Date.now() - this.lastFailedLogin.getTime()) < 15 * 60 * 1000; // 15 minutes
+});
+
+PlayerDataSchema.virtual('isBanActive').get(function() {
+  return this.isBanned && (!this.banExpiresAt || this.banExpiresAt > new Date());
+});
+
+// ✅ MÉTHODES pour gestion des tentatives de connexion
+PlayerDataSchema.methods.recordFailedLogin = function() {
+  this.failedLoginAttempts = (this.failedLoginAttempts || 0) + 1;
+  this.lastFailedLogin = new Date();
+  return this.save();
+};
+
+PlayerDataSchema.methods.resetFailedLogins = function() {
+  this.failedLoginAttempts = 0;
+  this.lastFailedLogin = undefined;
+  return this.save();
+};
+
+PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
+  this.lastLogin = new Date();
+  this.loginCount = (this.loginCount || 0) + 1;
+  if (ip) this.lastLoginIP = ip;
+  this.failedLoginAttempts = 0;
+  this.lastFailedLogin = undefined;
+  return this.save();
+};
+
+// ✅ MIDDLEWARE pre-save pour sécurité
+PlayerDataSchema.pre('save', function(next) {
+  // Nettoyer l'email
+  if (this.email) {
+    this.email = this.email.toLowerCase().trim();
+  }
+  
+  // Vérifier les valeurs par défaut
+  if (this.isNew) {
+    if (!this.lastMap) this.lastMap = 'beach';
+    if (this.gold === undefined) this.gold = 1000;
+    if (this.lastX === undefined) this.lastX = 360;
+    if (this.lastY === undefined) this.lastY = 120;
+  }
+  
+  next();
 });
 
 export const PlayerData = mongoose.model("PlayerData", PlayerDataSchema);
