@@ -1,12 +1,12 @@
-// ✅ FORCER le chargement depuis le répertoire source
+// ✅ FORCER le chargement depuis la racine du serveur
 import path from 'path';
-// Depuis build/, on remonte vers src/
-require('dotenv').config({ path: path.join(__dirname, '../src/.env') });
+// Depuis build/, on remonte vers la racine du serveur (server/)
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // ✅ VÉRIFICATION immédiate
 console.log('🔍 === VÉRIFICATION VARIABLES D\'ENVIRONNEMENT ===');
-console.log('- Fichier .env path:', path.join(__dirname, '../src/.env'));
-console.log('- Fichier .env existe:', require('fs').existsSync(path.join(__dirname, '../src/.env')));
+console.log('- Fichier .env path:', path.join(__dirname, '../.env'));
+console.log('- Fichier .env existe:', require('fs').existsSync(path.join(__dirname, '../.env')));
 console.log('- MongoDB:', process.env.MONGODB_URI ? 'Configuré ✅' : 'Manquant ❌');
 console.log('- JWT Secret:', process.env.JWT_SECRET ? 'Configuré ✅' : 'Manquant ❌');
 console.log('- Port:', process.env.PORT || 'Défaut (2567)');
