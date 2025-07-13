@@ -283,9 +283,9 @@ PokedexEntrySchema.pre('save', function(next) {
   }
   
   // Validation du best specimen
-  if (this.bestSpecimen && !this.isCaught) {
-    return next(new Error('Cannot have best specimen without being caught'));
-  }
+if (this.bestSpecimen && !this.isCaught && !this.isSeen) {
+  return next(new Error('Cannot have best specimen without being seen or caught'));
+}
   
   next();
 });
