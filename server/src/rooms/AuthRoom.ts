@@ -447,16 +447,29 @@ this.onMessage("link_wallet", async (client, payload) => {
     }
  // Debug état des sessions actives
     console.log("🔍 [AuthRoom] Sessions actives:", this.activeSessions.size);
-    console.log("🔍 [AuthRoom] Token dans activeSessions:", this.activeSessions.has(sessionToken));
-    
-        const session = this.activeSessions.get(sessionToken);
-        if (session.username !== username) {
-          client.send("wallet_linked", { 
-            status: "error", 
-            reason: "Session mismatch" 
-          });
-          return;
-        }
+console.log("🔍 [AuthRoom] Token dans activeSessions:", this.activeSessions.has(sessionToken));
+
+// ✅ VALIDATION SESSION UNIFIÉE
+const sessionCheck = await this.validateSession(sessionToken);
+if (!sessionCheck.valid) {
+  console.log("❌ [AuthRoom] Session invalide");
+  client.send("wallet_linked", { 
+    status: "error", 
+    reason: "Invalid or expired session" 
+  });
+  return;
+}
+
+if (sessionCheck.username !== username) {
+  console.log("❌ [AuthRoom] Username mismatch");
+  client.send("wallet_linked", { 
+    status: "error", 
+    reason: "Session username mismatch" 
+  });
+  return;
+}
+
+console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
 
         // ✅ VÉRIFIER la signature wallet
         const isValid = await this.verifySlushSignature(address, signature, message);
