@@ -925,8 +925,7 @@
             validateEmail(email) {
                 const feedback = document.querySelector('#registerEmail').parentNode.querySelector('.input-feedback');
                 const input = document.getElementById('registerEmail');
-                    // ✅ Vérification si les éléments existent
-    if (!feedback || !input) return;
+                
                 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
                 
                 if (emailRegex.test(email)) {
@@ -947,8 +946,7 @@
                 const confirm = document.getElementById('confirmPassword').value;
                 const feedback = document.querySelector('#confirmPassword').parentNode.querySelector('.input-feedback');
                 const input = document.getElementById('confirmPassword');
-                    // ✅ Vérification si les éléments existent
-    if (!feedback || !input) return;
+                
                 if (confirm.length === 0) {
                     feedback.textContent = '';
                     input.classList.remove('success', 'error');
