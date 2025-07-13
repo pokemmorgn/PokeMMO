@@ -441,7 +441,7 @@ export class OverworldPokemonManager {
     if (pokemon.anims && this.scene.anims.exists(animKey)) {
       try {
         pokemon.anims.play(animKey, true);
-        console.log(`🎬 [OverworldPokemonManager] Animation idle: ${animKey}`);
+//        console.log(`🎬 [OverworldPokemonManager] Animation idle: ${animKey}`);
       } catch (error) {
         console.warn(`⚠️ Erreur animation idle:`, error);
       }
@@ -644,7 +644,7 @@ export class OverworldPokemonManager {
   handlePokemonMoveRequest(data) {
     const { id, fromX, fromY, toX, toY, direction } = data;
     
-    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: (${fromX},${fromY}) → (${toX},${toY})`);
+  //  console.log(`🚀 [OverworldPokemonManager] Move request ${id}: (${fromX},${fromY}) → (${toX},${toY})`);
     
     const snappedTarget = this.snapToGrid(toX, toY);
     const targetTileX = Math.round(snappedTarget.x / this.tileSize);
