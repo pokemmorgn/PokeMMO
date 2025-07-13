@@ -324,7 +324,7 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
               pokemonId: e.pokemonId, 
               isSeen: e.isSeen,           // ✅ Bon nom de propriété
               isCaught: e.isCaught,       // ✅ Bon nom de propriété
-              firstSeenDate: e.firstSeenDate  // ✅ Bon nom de propriété
+              firstSeenAt: e.firstSeenAt  // ✅ Bon nom de propriété
             })) || []
           });
           
@@ -333,7 +333,7 @@ async handlePokemonEncounter(context: EncounterContext): Promise<IntegrationResu
           console.log(`📄 [POKÉDX DEBUG] Entrée spécifique #${context.pokemonId}:`, {
             exists: !!specificEntry.entry,
             isSeen: specificEntry.entry?.isSeen || false,              // ✅ Bon nom
-            firstSeenDate: specificEntry.entry?.firstSeenDate || null, // ✅ Bon nom
+            firstSeenAt: specificEntry.entry?.firstSeenAt || null,     // ✅ Bon nom
             timesEncountered: specificEntry.entry?.timesEncountered || 0
           });
           
