@@ -4,7 +4,6 @@ import { Schema, type } from "@colyseus/schema";
 import { verifyPersonalMessage } from "@mysten/sui.js/verify";
 import { PlayerData } from "../models/PlayerData";
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import jwt, { SignOptions } from 'jsonwebtoken'; // ✅ Ajout SignOptions
 
 // État de la room d'authentification
@@ -228,7 +227,7 @@ export class AuthRoom extends Room<AuthState> {
         }
 
         // ✅ VÉRIFICATIONS de sécurité du compte
-        if (user.isBanActive) {
+if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date())) {
           client.send("login_result", { 
             status: "error", 
             reason: `Account banned${user.banReason ? ': ' + user.banReason : ''}` 
@@ -236,7 +235,7 @@ export class AuthRoom extends Room<AuthState> {
           return;
         }
 
-        if (user.isAccountLocked) {
+if (user.failedLoginAttempts >= 5 && user.lastFailedLogin && (Date.now() - user.lastFailedLogin.getTime()) < 15 * 60 * 1000) {
           client.send("login_result", { 
             status: "error", 
             reason: "Account temporarily locked due to failed login attempts. Try again later." 
@@ -247,7 +246,9 @@ export class AuthRoom extends Room<AuthState> {
         // ✅ VÉRIFICATION mot de passe
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-          await user.recordFailedLogin();
+user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+user.lastFailedLogin = new Date();
+await user.save();
           this.recordFailedAttempt(clientIP, 'login');
           
           client.send("login_result", { 
@@ -258,7 +259,12 @@ export class AuthRoom extends Room<AuthState> {
         }
 
         // ✅ CONNEXION réussie - mise à jour utilisateur
-        await user.recordSuccessfulLogin(clientIP);
+user.lastLogin = new Date();
+user.loginCount = (user.loginCount || 0) + 1;
+if (clientIP) user.lastLoginIP = clientIP;
+user.failedLoginAttempts = 0;
+user.lastFailedLogin = undefined;
+await user.save();
         if (deviceFingerprint) {
           user.deviceFingerprint = deviceFingerprint;
           await user.save();
