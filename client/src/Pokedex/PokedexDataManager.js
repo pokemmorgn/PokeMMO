@@ -298,58 +298,67 @@ initializeAllPokemon() {
   /**
    * Obtenir tous les Pokémon avec leur statut
    */
-  getAllPokemonEntries(filters = {}) {
-    const entries = [];
+// Dans PokedexDataManager.js, ligne ~206
+getAllPokemonEntries(filters = {}) {
+  const entries = [];
+  
+  // 🆕 UTILISER LES POKÉMON DISPONIBLES AU LIEU DE 1-151
+  const availablePokemon = this.availablePokemonIds || [];
+  
+  if (availablePokemon.length === 0) {
+    console.warn('⚠️ [PokedexDataManager] Aucun Pokémon disponible');
+    return [];
+  }
+  
+  availablePokemon.forEach(pokemonId => {
+    const pokemonData = this.pokemonData[pokemonId];
+    const playerEntry = this.playerEntries.get(pokemonId);
     
-    for (let i = 1; i <= 151; i++) {
-      const pokemonData = this.pokemonData[i];
-      const playerEntry = this.playerEntries.get(i);
-      
-      if (!pokemonData || !playerEntry) continue;
-      
-      // Appliquer les filtres
-      if (filters.seen !== undefined && playerEntry.seen !== filters.seen) continue;
-      if (filters.caught !== undefined && playerEntry.caught !== filters.caught) continue;
-      if (filters.shiny !== undefined && playerEntry.shiny !== filters.shiny) continue;
-      if (filters.favorited !== undefined && playerEntry.favorited !== filters.favorited) continue;
-      
-      // Filtres par type
-      if (filters.types && filters.types.length > 0) {
-        const pokemonTypes = this.pokemonTypes[i] || [];
-        const hasMatchingType = filters.types.some(type => pokemonTypes.includes(type));
-        if (!hasMatchingType) continue;
-      }
-      
-      // Filtre par nom/numéro
-      if (filters.nameQuery) {
-        const query = filters.nameQuery.toLowerCase();
-        const name = pokemonData.name.toLowerCase();
-        const number = i.toString();
-        
-        if (!name.includes(query) && !number.includes(query)) continue;
-      }
-      
-      // Créer l'entrée complète
-      const entry = {
-        ...playerEntry,
-        pokemonData: {
-          name: pokemonData.name,
-          description: pokemonData.description,
-          types: this.pokemonTypes[i] || ['normal'],
-          generation: 1,
-          region: 'kanto'
-        },
-        displayStatus: this.getDisplayStatus(playerEntry),
-        sprite: this.getPokemonSprite(i, playerEntry),
-        displayName: this.getDisplayName(i, playerEntry),
-        displayNumber: this.getDisplayNumber(i, playerEntry)
-      };
-      
-      entries.push(entry);
+    if (!pokemonData || !playerEntry) return;
+    
+    // Appliquer les filtres (reste identique)
+    if (filters.seen !== undefined && playerEntry.seen !== filters.seen) return;
+    if (filters.caught !== undefined && playerEntry.caught !== filters.caught) return;
+    if (filters.shiny !== undefined && playerEntry.shiny !== filters.shiny) return;
+    if (filters.favorited !== undefined && playerEntry.favorited !== filters.favorited) return;
+    
+    // Filtres par type
+    if (filters.types && filters.types.length > 0) {
+      const pokemonTypes = this.pokemonTypes[pokemonId] || [];
+      const hasMatchingType = filters.types.some(type => pokemonTypes.includes(type));
+      if (!hasMatchingType) return;
     }
     
-    return this.sortEntries(entries, filters.sortBy, filters.sortOrder);
-  }
+    // Filtre par nom/numéro
+    if (filters.nameQuery) {
+      const query = filters.nameQuery.toLowerCase();
+      const name = pokemonData.name.toLowerCase();
+      const number = pokemonId.toString();
+      
+      if (!name.includes(query) && !number.includes(query)) return;
+    }
+    
+    // Créer l'entrée complète (reste identique)
+    const entry = {
+      ...playerEntry,
+      pokemonData: {
+        name: pokemonData.name,
+        description: pokemonData.description,
+        types: this.pokemonTypes[pokemonId] || ['normal'],
+        generation: 1,
+        region: 'kanto'
+      },
+      displayStatus: this.getDisplayStatus(playerEntry),
+      sprite: this.getPokemonSprite(pokemonId, playerEntry),
+      displayName: this.getDisplayName(pokemonId, playerEntry),
+      displayNumber: this.getDisplayNumber(pokemonId, playerEntry)
+    };
+    
+    entries.push(entry);
+  });
+  
+  return this.sortEntries(entries, filters.sortBy, filters.sortOrder);
+}
   
   /**
    * Obtenir une entrée Pokémon spécifique
