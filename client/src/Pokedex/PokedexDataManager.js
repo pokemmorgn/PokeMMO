@@ -270,11 +270,54 @@ initializeAllPokemon() {
   
   // === 📊 MÉTHODES D'ACCÈS AUX DONNÉES ===
 
-  setServerData(serverData) {
+setServerData(serverData) {
   console.log('📡 [PokedexDataManager] Réception données serveur:', serverData);
   
   // Définir les Pokémon disponibles
   this.availablePokemonIds = serverData.availablePokemon || [];
+  
+  // 🆕 IMPORTER LES ENTRÉES DU JOUEUR
+  if (serverData.entries && typeof serverData.entries === 'object') {
+    console.log('📥 [PokedexDataManager] Import entrées joueur:', Object.keys(serverData.entries).length, 'entrées');
+    
+    // Convertir les entrées serveur en Map locale
+    for (const [pokemonIdStr, serverEntry] of Object.entries(serverData.entries)) {
+      const pokemonId = parseInt(pokemonIdStr);
+      
+      if (pokemonId >= 1 && pokemonId <= 1025) {
+        // Créer/mettre à jour l'entrée locale
+        const localEntry = this.playerEntries.get(pokemonId) || {
+          pokemonId: pokemonId,
+          seen: false,
+          caught: false,
+          shiny: false,
+          favorited: false,
+          firstSeen: null,
+          firstCaught: null,
+          timesEncountered: 0,
+          bestLevel: 0,
+          locations: [],
+          tags: [],
+          notes: ''
+        };
+        
+        // Mettre à jour avec les données serveur
+        localEntry.seen = serverEntry.seen || false;
+        localEntry.caught = serverEntry.caught || false;
+        localEntry.shiny = serverEntry.shiny || false;
+        localEntry.favorited = serverEntry.favorited || false;
+        localEntry.firstSeen = serverEntry.firstSeen ? new Date(serverEntry.firstSeen) : null;
+        localEntry.firstCaught = serverEntry.firstCaught ? new Date(serverEntry.firstCaught) : null;
+        localEntry.timesEncountered = serverEntry.timesEncountered || 0;
+        localEntry.bestLevel = serverEntry.bestLevel || 0;
+        localEntry.locations = serverEntry.locations || [];
+        
+        this.playerEntries.set(pokemonId, localEntry);
+        
+        console.log(`✅ [PokedexDataManager] #${pokemonId} importé: seen=${localEntry.seen}, caught=${localEntry.caught}`);
+      }
+    }
+  }
   
   // Mettre à jour les stats basées sur les disponibles
   if (serverData.summary) {
@@ -288,6 +331,8 @@ initializeAllPokemon() {
       favoriteCount: 0, // À calculer localement
       lastActivity: new Date()
     };
+    
+    console.log(`📊 [PokedexDataManager] Stats mises à jour: ${this.playerStats.totalSeen}/${this.playerStats.totalAvailable} vus`);
   }
   
   // Réinitialiser avec les nouveaux Pokémon disponibles
