@@ -340,6 +340,23 @@ setServerData(serverData) {
   
   console.log(`✅ [PokedexDataManager] ${this.availablePokemonIds.length} Pokémon configurés sur le serveur`);
 }
+    debugPlayerEntries() {
+      console.log('🐛 [PokedexDataManager] Debug entrées joueur:');
+      
+      let seenCount = 0;
+      let caughtCount = 0;
+      
+      for (const [pokemonId, entry] of this.playerEntries.entries()) {
+        if (entry.seen || entry.caught) {
+          console.log(`#${pokemonId}: seen=${entry.seen}, caught=${entry.caught}`);
+          if (entry.seen) seenCount++;
+          if (entry.caught) caughtCount++;
+        }
+      }
+      
+      console.log(`📊 Total: ${seenCount} vus, ${caughtCount} capturés`);
+      console.log(`📊 Stats actuelles:`, this.playerStats);
+    }
   /**
    * Obtenir tous les Pokémon avec leur statut
    */
