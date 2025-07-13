@@ -95,50 +95,80 @@ export class BattleEngine {
   /**
    * Démarre un nouveau combat - Style Pokémon Rouge/Bleu AUTHENTIQUE
    */
-  startBattle(config: BattleConfig): BattleResult {
-    try {
-      this.clearAllTimers();
-      this.validateConfig(config);
-      this.gameState = this.initializeGameState(config);
-      this.initializeAllModules();
-      this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
-      this.isInitialized = true;
+startBattle(config: BattleConfig): BattleResult {
+  try {
+    this.clearAllTimers();
+    this.validateConfig(config);
+    this.gameState = this.initializeGameState(config);
+    this.initializeAllModules();
+    this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
+    this.isInitialized = true;
+    
+    this.emit('battleStart', {
+      gameState: this.gameState,
+      phase: InternalBattlePhase.INTRO,
+      introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
+    });
+
+    // ✅ CORRECTION POKÉDX - Marquer le Pokémon adverse comme vu
+    if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
+      console.log(`👁️ [BattleEngine] Enregistrement Pokémon vu: #${this.gameState.player2.pokemon.id} pour ${this.gameState.player1.name}`);
       
-      this.emit('battleStart', {
-        gameState: this.gameState,
-        phase: InternalBattlePhase.INTRO,
-        introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
+      // ✅ UTILISER LA BONNE MÉTHODE (handlePokemonEncounter au lieu de onWildPokemonEncountered)
+      pokedexIntegrationService.handlePokemonEncounter({
+        playerId: this.gameState.player1.name, // ✅ Username du joueur (ID permanent)
+        pokemonId: this.gameState.player2.pokemon.id,
+        level: this.gameState.player2.pokemon.level,
+        location: 'Combat Sauvage', // ✅ Nom plus explicite
+        method: 'wild',
+        weather: undefined,
+        timeOfDay: undefined,
+        sessionId: this.gameState.player1.sessionId,
+        biome: 'battle_area',
+        difficulty: undefined,
+        isEvent: false
+      }).then(result => {
+        if (result.success) {
+          console.log(`✅ [BattleEngine] Pokémon #${this.gameState.player2.pokemon!.id} enregistré comme vu`);
+          if (result.isNewDiscovery) {
+            console.log(`🎉 [BattleEngine] NOUVELLE DÉCOUVERTE: ${this.gameState.player2.pokemon!.name}!`);
+            
+            // Optionnel: Émettre un événement pour notifier la découverte
+            this.emit('pokemonDiscovered', {
+              pokemonId: this.gameState.player2.pokemon.id,
+              pokemonName: this.gameState.player2.pokemon.name,
+              playerId: this.gameState.player1.name,
+              isNewDiscovery: true,
+              notifications: result.notifications
+            });
+          }
+        } else {
+          console.warn(`⚠️ [BattleEngine] Échec enregistrement Pokédx: ${result.error || 'Erreur inconnue'}`);
+        }
+      }).catch(error => {
+        console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
       });
-      // 🆕 INTÉGRATION POKÉDX - Marquer le Pokémon adverse comme vu
-      if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
-        pokedexIntegrationService.onWildPokemonEncountered(
-          this.gameState.player1.name, // ✅ Utilise le username (ID permanent du compte)
-          this.gameState.player2.pokemon.id,
-          this.gameState.player2.pokemon.level,
-          'Wild Area'
-        ).catch(error => {
-          console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
-        });
-      }
-      this.scheduleIntroTransition();
-      
-      return {
-        success: true,
-        gameState: this.gameState,
-        events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
-      };
-      
-    } catch (error) {
-      this.clearAllTimers();
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
-        gameState: this.gameState,
-        events: []
-      };
     }
+    
+    this.scheduleIntroTransition();
+    
+    return {
+      success: true,
+      gameState: this.gameState,
+      events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
+    };
+    
+  } catch (error) {
+    this.clearAllTimers();
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      gameState: this.gameState,
+      events: []
+    };
   }
+}
   
   // === GESTION DES PHASES POKÉMON ROUGE/BLEU AUTHENTIQUE ===
   
