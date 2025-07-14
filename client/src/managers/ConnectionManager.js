@@ -2,9 +2,21 @@
 // 🔗 GESTIONNAIRE DE CONNEXION - Maintient la connexion pendant les intros longues
 
 export class ConnectionManager {
-  constructor(scene) {
-    this.scene = scene;
+  constructor(roomOrScene) {
+    // Support à la fois room directe ou scene avec room
+    if (roomOrScene && roomOrScene.room) {
+      this.scene = roomOrScene;
+      this.room = roomOrScene.room;
+    } else if (roomOrScene && roomOrScene.send) {
+      this.room = roomOrScene;
+      this.scene = null;
+    } else {
+      this.scene = roomOrScene;
+      this.room = roomOrScene?.room || null;
+    }
+    
     this.isActive = false;
+    this.isPermanent = false; // Mode permanent
     this.pingInterval = null;
     this.reconnectTimeout = null;
     this.lastPongReceived = null;
@@ -25,28 +37,26 @@ export class ConnectionManager {
 
   // === SETUP ===
   
-  setupEventListeners() {
-    // Écouter les événements de connexion Colyseus
-    if (this.scene.room) {
-      this.scene.room.onLeave((code) => {
-        console.warn('[ConnectionManager] 🔌 Connexion fermée, code:', code);
-        this.handleDisconnection(code);
-      });
+  setupRoomListeners() {
+    if (!this.room || this.listenersSetup) return;
+    
+    console.log('[ConnectionManager] 🎧 Configuration listeners room');
+    
+    this.room.onLeave((code) => {
+      console.warn('[ConnectionManager] 🔌 Connexion fermée, code:', code);
+      this.handleDisconnection(code);
+    });
 
-      this.scene.room.onError((code, message) => {
-        console.error('[ConnectionManager] ❌ Erreur connexion:', code, message);
-        this.handleConnectionError(code, message);
-      });
+    this.room.onError((code, message) => {
+      console.error('[ConnectionManager] ❌ Erreur connexion:', code, message);
+      this.handleConnectionError(code, message);
+    });
 
-      // Écouter les pongs du serveur
-      this.scene.room.onMessage("pong", (data) => {
-        this.handlePong(data);
-      });
-    }
-
-    // Écouter les événements d'intro
-    window.addEventListener('introStarted', this.handleIntroStarted.bind(this));
-    window.addEventListener('introEnded', this.handleIntroEnded.bind(this));
+    this.room.onMessage("pong", (data) => {
+      this.handlePong(data);
+    });
+    
+    this.listenersSetup = true;
   }
 
   // === GESTION DES ÉVÉNEMENTS D'INTRO ===
@@ -61,7 +71,58 @@ export class ConnectionManager {
     this.stopConnectionMaintenance();
   }
 
-  // === MAINTENANCE DE CONNEXION ===
+  // === MAINTENANCE PERMANENTE ===
+  
+  startPermanentMaintenance() {
+    console.log('[ConnectionManager] 🚀 Démarrage maintenance PERMANENTE');
+    this.isPermanent = true;
+    this.startConnectionMaintenance();
+    
+    // Surveillance des événements de déconnexion réseau
+    window.addEventListener('online', this.handleNetworkOnline.bind(this));
+    window.addEventListener('offline', this.handleNetworkOffline.bind(this));
+    
+    return true;
+  }
+  
+  stopPermanentMaintenance() {
+    console.log('[ConnectionManager] 🛑 Arrêt maintenance permanente');
+    this.isPermanent = false;
+    this.stopConnectionMaintenance();
+    
+    window.removeEventListener('online', this.handleNetworkOnline.bind(this));
+    window.removeEventListener('offline', this.handleNetworkOffline.bind(this));
+  }
+  
+  pauseMaintenance() {
+    if (this.isActive) {
+      this.stopPingLoop();
+      this.stopHeartbeat();
+      console.log('[ConnectionManager] ⏸️ Maintenance en pause (connexion préservée)');
+    }
+  }
+  
+  resumeMaintenance() {
+    if (this.isPermanent && !this.pingInterval && !this.heartbeatInterval) {
+      this.startPingLoop();
+      this.startHeartbeat();
+      console.log('[ConnectionManager] ▶️ Maintenance reprise');
+    }
+  }
+  
+  handleNetworkOnline() {
+    console.log('[ConnectionManager] 🌐 Réseau détecté - vérification connexion...');
+    setTimeout(() => {
+      if (this.isPermanent) {
+        this.checkConnectionHealth();
+      }
+    }, 2000);
+  }
+  
+  handleNetworkOffline() {
+    console.warn('[ConnectionManager] 📶 Réseau perdu - mode dégradé');
+    this.consecutiveFailures = Math.min(this.consecutiveFailures + 1, this.maxFailures - 1);
+  }
   
   startConnectionMaintenance() {
     if (this.isActive) {
@@ -69,18 +130,24 @@ export class ConnectionManager {
       return;
     }
 
-    if (!this.scene.room) {
+    if (!this.room) {
       console.warn('[ConnectionManager] ❌ Pas de room active');
       return;
     }
 
-    console.log('[ConnectionManager] 🚀 Démarrage maintenance connexion');
+    console.log('[ConnectionManager] 🚀 Démarrage maintenance connexion' + (this.isPermanent ? ' (PERMANENTE)' : ''));
     this.isActive = true;
     this.consecutiveFailures = 0;
     this.lastPongReceived = Date.now();
     
     this.startPingLoop();
     this.startHeartbeat();
+    
+    // En mode permanent, setup les listeners une seule fois
+    if (this.isPermanent && !this.listenersSetup) {
+      this.setupRoomListeners();
+    }
+  }
   }
 
   stopConnectionMaintenance() {
@@ -110,17 +177,17 @@ export class ConnectionManager {
   }
 
   sendPing() {
-    if (!this.scene.room || !this.isActive) return;
+    if (!this.room || !this.isActive) return;
 
     try {
       const pingData = {
         timestamp: Date.now(),
-        clientId: this.scene.room.sessionId,
-        type: 'connection_check'
+        clientId: this.room.sessionId,
+        type: this.isPermanent ? 'permanent_check' : 'connection_check'
       };
 
       console.log('[ConnectionManager] 📡 Ping envoyé:', pingData.timestamp);
-      this.scene.room.send("ping", pingData);
+      this.room.send("ping", pingData);
       
       // Programmer un timeout pour vérifier le pong
       setTimeout(() => {
@@ -183,17 +250,18 @@ export class ConnectionManager {
   }
 
   sendHeartbeat() {
-    if (!this.scene.room || !this.isActive) return;
+    if (!this.room || !this.isActive) return;
 
     try {
       const heartbeatData = {
         timestamp: Date.now(),
-        sessionId: this.scene.room.sessionId,
-        sceneKey: this.scene.scene.key,
-        playerData: this.getPlayerData()
+        sessionId: this.room.sessionId,
+        sceneKey: this.scene?.scene?.key || 'global',
+        playerData: this.getPlayerData(),
+        isPermanent: this.isPermanent
       };
 
-      this.scene.room.send("heartbeat", heartbeatData);
+      this.room.send("heartbeat", heartbeatData);
       console.log('[ConnectionManager] 💓 Heartbeat envoyé');
 
     } catch (error) {
@@ -409,18 +477,76 @@ export class ConnectionManager {
     this.stopConnectionMaintenance();
   }
 
-  // === NETTOYAGE ===
+  // === NOUVELLES MÉTHODES POUR MODE PERMANENT ===
+  
+  checkConnectionHealth() {
+    if (!this.room) return false;
+    
+    const isConnected = this.room.connection?.readyState === 1;
+    const timeSinceLastPong = Date.now() - (this.lastPongReceived || 0);
+    
+    console.log('[ConnectionManager] 🩺 Check santé connexion:', {
+      isConnected,
+      timeSinceLastPong,
+      consecutiveFailures: this.consecutiveFailures
+    });
+    
+    if (!isConnected || timeSinceLastPong > this.config.pongTimeout * 2) {
+      console.warn('[ConnectionManager] 🚨 Connexion dégradée détectée');
+      this.handlePingFailure();
+      return false;
+    }
+    
+    return true;
+  }
+  
+  forceReconnect() {
+    console.log('[ConnectionManager] 🔄 Reconnexion forcée...');
+    this.consecutiveFailures = this.maxFailures; // Force la reconnexion
+    this.attemptReconnection();
+    return true;
+  }
+  
+  gracefulShutdown() {
+    console.log('[ConnectionManager] 👋 Arrêt propre du ConnectionManager');
+    this.stopPermanentMaintenance();
+    
+    if (this.room) {
+      try {
+        this.room.send("disconnect", { reason: 'client_shutdown' });
+      } catch (error) {
+        console.warn('[ConnectionManager] Erreur envoi disconnect:', error);
+      }
+    }
+  }
+  
+  getDetailedStatus() {
+    return {
+      ...this.getStatus(),
+      isPermanent: this.isPermanent,
+      roomId: this.room?.id,
+      roomSessionId: this.room?.sessionId,
+      roomConnected: this.room?.connection?.readyState === 1,
+      listenersSetup: this.listenersSetup || false,
+      networkOnline: navigator.onLine,
+      lastPingTime: this.lastPingTime || null,
+      timeSinceLastPong: this.lastPongReceived ? Date.now() - this.lastPongReceived : null
+    };
+  }
   
   destroy() {
     console.log('[ConnectionManager] 💀 Destruction du ConnectionManager');
     
-    this.stopConnectionMaintenance();
+    this.stopPermanentMaintenance();
     
     // Nettoyer les événements
+    window.removeEventListener('online', this.handleNetworkOnline.bind(this));
+    window.removeEventListener('offline', this.handleNetworkOffline.bind(this));
     window.removeEventListener('introStarted', this.handleIntroStarted.bind(this));
     window.removeEventListener('introEnded', this.handleIntroEnded.bind(this));
     
     this.scene = null;
+    this.room = null;
   }
 }
 
