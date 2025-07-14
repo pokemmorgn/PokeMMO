@@ -1243,7 +1243,7 @@
   // ✅ NOUVEAU : Stocker directement le JWT dans localStorage
   console.log('💾 Sauvegarde session JWT:', authData.userData.username);
   
-  localStorage.setItem('sessionToken', authData.sessionToken);
+sessionStorage.setItem('sessionToken', authData.sessionToken);
   
   // Stocker aussi les infos utilisateur pour le dashboard
   const userInfo = {
