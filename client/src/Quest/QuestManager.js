@@ -1,5 +1,6 @@
 // client/src/Quest/QuestManager.js - RÉÉCRITURE COMPLÈTE
 // Aligné avec le QuestManager serveur + QuestHandlers + ServiceRegistry
+// ✅ CORRIGÉ: Quest-NPC Matching pour affichage automatique des quêtes
 
 export class QuestManager {
   constructor(gameRoom) {
@@ -686,35 +687,143 @@ export class QuestManager {
     this.requestAvailableQuests();
   }
   
+  // ✅ MÉTHODE CORRIGÉE: processPendingNpcInteraction
   processPendingNpcInteraction() {
-    if (!this.pendingNpcInteraction) return;
+    if (!this.pendingNpcInteraction) {
+      console.log('ℹ️ [QuestManager] Aucune interaction NPC en attente');
+      return;
+    }
     
     console.log('🔄 [QuestManager] Traitement interaction NPC en attente');
+    console.log('📊 [QuestManager] Quêtes disponibles totales:', this.availableQuests.length);
     
     const { npcData } = this.pendingNpcInteraction;
     this.pendingNpcInteraction = null;
     
-    // Filtrer quêtes pour ce NPC
-    const npcQuests = this.availableQuests.filter(quest => {
-      return this.questMatchesNpc(quest, npcData);
+    // ✅ Log détaillé pour debug
+    console.log('🎯 [QuestManager] NPC Data pour matching:', npcData);
+    
+    // Filtrer quêtes pour ce NPC avec debug détaillé
+    const npcQuests = this.availableQuests.filter((quest, index) => {
+      console.log(`🔍 [QuestManager] Test quest ${index + 1}/${this.availableQuests.length}: ${quest.name}`);
+      const matches = this.questMatchesNpc(quest, npcData);
+      console.log(`${matches ? '✅' : '❌'} [QuestManager] Quest "${quest.name}" ${matches ? 'compatible' : 'incompatible'}`);
+      return matches;
     });
     
+    console.log(`📊 [QuestManager] Quêtes compatibles trouvées: ${npcQuests.length}/${this.availableQuests.length}`);
+    
     if (npcQuests.length > 0) {
-      this.showQuestSelectionDialog(npcData.npcName, npcQuests);
+      console.log('✅ [QuestManager] Affichage dialogue sélection quêtes');
+      this.showQuestSelectionDialog(npcData.npcName || npcData.name || 'NPC', npcQuests);
     } else {
       console.log('ℹ️ [QuestManager] Aucune quête disponible pour ce NPC');
+      
+      // ✅ CORRECTION: Fallback - afficher toutes les quêtes disponibles si aucune correspondance
+      if (this.availableQuests.length > 0) {
+        console.log('🔄 [QuestManager] Fallback: affichage de toutes les quêtes disponibles');
+        this.showQuestSelectionDialog(
+          (npcData.npcName || npcData.name || 'NPC') + ' (Toutes les quêtes)',
+          this.availableQuests
+        );
+      }
     }
   }
   
+  // ✅ MÉTHODE CORRIGÉE: questMatchesNpc
   questMatchesNpc(quest, npcData) {
-    // Logique simple de correspondance NPC-Quête
-    const npcId = npcData.npcId || npcData.id;
+    console.log('🔍 [QuestManager] Vérification matching quest-NPC:', {
+      questName: quest.name,
+      questId: quest.id,
+      npcData: npcData
+    });
     
-    return (
-      quest.startNpcId === npcId ||
-      quest.endNpcId === npcId ||
-      (quest.npcId && quest.npcId === npcId)
+    // ✅ CORRECTION 1: Extraire les identifiants NPC correctement
+    const npcId = npcData.npcId || npcData.id || npcData.targetId;
+    const npcName = npcData.npcName || npcData.name;
+    
+    console.log('🎯 [QuestManager] Identifiants NPC:', {
+      npcId: npcId,
+      npcName: npcName,
+      npcIdType: typeof npcId
+    });
+    
+    console.log('🎯 [QuestManager] Identifiants Quest:', {
+      startNpcId: quest.startNpcId,
+      endNpcId: quest.endNpcId,
+      npcId: quest.npcId,
+      questId: quest.id
+    });
+    
+    // ✅ CORRECTION 2: Vérifications multiples et plus permissives
+    
+    // Vérification 1: NPCs de début/fin directs
+    if (quest.startNpcId && quest.startNpcId == npcId) {
+      console.log('✅ [QuestManager] Match trouvé: startNpcId');
+      return true;
+    }
+    
+    if (quest.endNpcId && quest.endNpcId == npcId) {
+      console.log('✅ [QuestManager] Match trouvé: endNpcId');
+      return true;
+    }
+    
+    if (quest.npcId && quest.npcId == npcId) {
+      console.log('✅ [QuestManager] Match trouvé: quest.npcId');
+      return true;
+    }
+    
+    // Vérification 2: Par nom (case insensitive)
+    if (npcName && quest.startNpcName && 
+        quest.startNpcName.toLowerCase() === npcName.toLowerCase()) {
+      console.log('✅ [QuestManager] Match trouvé: startNpcName');
+      return true;
+    }
+    
+    if (npcName && quest.endNpcName && 
+        quest.endNpcName.toLowerCase() === npcName.toLowerCase()) {
+      console.log('✅ [QuestManager] Match trouvé: endNpcName');
+      return true;
+    }
+    
+    // ✅ CORRECTION 3: Vérification dans les étapes
+    if (quest.steps && Array.isArray(quest.steps)) {
+      for (const step of quest.steps) {
+        if (step.objectives && Array.isArray(step.objectives)) {
+          for (const obj of step.objectives) {
+            // Vérifications objectives
+            if ((obj.targetNpcId && obj.targetNpcId == npcId) ||
+                (obj.npcId && obj.npcId == npcId) ||
+                (obj.target && obj.target == npcId) ||
+                (obj.target && obj.target == npcId.toString()) ||
+                (npcName && obj.targetNpc && obj.targetNpc.toLowerCase() === npcName.toLowerCase()) ||
+                (npcName && obj.npc && obj.npc.toLowerCase() === npcName.toLowerCase())) {
+              console.log('✅ [QuestManager] Match trouvé: dans objectif step');
+              return true;
+            }
+          }
+        }
+      }
+    }
+    
+    // ✅ CORRECTION 4: Fallback - si pas de restrictions NPC spécifiques, autoriser
+    const hasNpcRestrictions = !!(
+      quest.startNpcId || quest.endNpcId || quest.npcId ||
+      quest.startNpcName || quest.endNpcName ||
+      (quest.steps && quest.steps.some(step => 
+        step.objectives && step.objectives.some(obj => 
+          obj.targetNpcId || obj.npcId || obj.targetNpc || obj.npc
+        )
+      ))
     );
+    
+    if (!hasNpcRestrictions) {
+      console.log('✅ [QuestManager] Match trouvé: quête générique (pas de restrictions NPC)');
+      return true;
+    }
+    
+    console.log('❌ [QuestManager] Aucun match trouvé pour cette quête');
+    return false;
   }
   
   startQuest(questId) {
@@ -964,6 +1073,31 @@ export class QuestManager {
     if (this.activeQuests.length > 0 && questUI.updateQuestData) {
       questUI.updateQuestData(this.activeQuests, 'active');
     }
+  }
+  
+  // === 🐛 MÉTHODE DEBUG BONUS ===
+  
+  debugQuestNpcMatching(npcData) {
+    console.log('🐛 [QuestManager] === DEBUG QUEST-NPC MATCHING ===');
+    console.log('📊 NPC Data:', npcData);
+    console.log('📊 Quêtes disponibles:', this.availableQuests.length);
+    
+    this.availableQuests.forEach((quest, index) => {
+      console.log(`\n--- Quest ${index + 1}: ${quest.name} ---`);
+      console.log('Quest details:', {
+        id: quest.id,
+        startNpcId: quest.startNpcId,
+        endNpcId: quest.endNpcId,
+        npcId: quest.npcId,
+        startNpcName: quest.startNpcName,
+        endNpcName: quest.endNpcName
+      });
+      
+      const matches = this.questMatchesNpc(quest, npcData);
+      console.log(`Result: ${matches ? '✅ COMPATIBLE' : '❌ INCOMPATIBLE'}`);
+    });
+    
+    console.log('🐛 [QuestManager] === FIN DEBUG ===');
   }
   
   // === 📖 GETTERS (LECTURE SEULE) ===
