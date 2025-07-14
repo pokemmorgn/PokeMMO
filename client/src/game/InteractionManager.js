@@ -438,18 +438,16 @@ handleQuestInteraction(npc, data) {
   
   // ✅ CORRECTION : Le client ne fait QUE de l'affichage
   try {
-    // Le serveur a déjà envoyé la réponse via networkManager
-    // Le client affiche juste le résultat
+    // Test simple
+    console.log("QuestSystem type:", typeof this.questSystem);
+    console.log("handleNpcInteraction type:", typeof this.questSystem.handleNpcInteraction);
     
-    if (data) {
-      // Si on a des données du serveur, les traiter
-      this.questSystem.handleNpcInteraction(data);
+    if (typeof this.questSystem.handleNpcInteraction === 'function') {
+      this.questSystem.handleNpcInteraction(data || npc);
     } else {
-      // Sinon, déclencher l'interaction côté serveur
-      // (L'interaction a déjà été envoyée via networkManager.sendNpcInteract)
-      console.log("🎯 Interaction quête déclenchée côté serveur");
+      console.error("handleNpcInteraction n'est pas une fonction");
+      this.handleDialogueInteraction(npc, data);
     }
-    
   } catch (error) {
     this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
   }
