@@ -2,7 +2,7 @@
   "_comment": "Structure améliorée avec dialogues spécifiques",
   "quests": [
     {
-      "id": "quest_fishingrod",
+      "id": "the_reel_deal",
       "name": "A Hint of River",
       "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
       "category": "side",
