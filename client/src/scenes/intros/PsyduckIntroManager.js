@@ -165,60 +165,54 @@ export class PsyduckIntroManager {
   }
 
   // ✅ FIX: Attendre VRAIMENT que tout soit prêt
-  async startIntro(onComplete = null) {
-    if (this.isPlaying || !this.scene) return;
+async startIntro(onComplete = null) {
+  if (this.isPlaying || !this.scene) return;
 
-    if (!this.listenersSetup) {
-      this.ensureListenersSetup();
-    }
-    this.blockPlayerInputs();
-    this.isPlaying = true;
-    this.onCompleteCallback = onComplete;
-
-    console.log(`[PsyduckIntro] === DÉMARRAGE INTRO ${this.introType.toUpperCase()} - VÉRIFICATIONS ===`);
-
-    // ✅ ÉTAPE 1: Attendre que le LoadingScreen soit fermé
-    const loadingClosed = await this.waitForLoadingScreenClosed(10000);
-    if (!loadingClosed) {
-      console.warn('[PsyduckIntro] LoadingScreen pas fermé après 10s, continue quand même');
-    }
-
-    // ✅ ÉTAPE 2: Attendre que le flag global playerReady soit true
-    const playerReady = await this.waitForPlayerReady(8000);
-    if (!playerReady) {
-      console.warn('[PsyduckIntro] Flag playerReady pas prêt après 8s, annulation intro');
-      this.cleanup();
-      return;
-    }
-
-    // ✅ ÉTAPE 3: Vérifier que l'objet joueur existe et est valide
-    const playerObject = await this.waitForValidPlayerObject(3000);
-    if (!playerObject) {
-      console.warn('[PsyduckIntro] Objet joueur pas valide après 3s, annulation intro');
-      this.cleanup();
-      return;
-    }
-
-    // ✅ NOUVEAU: DÉLAI DE 2 SECONDES avant démarrage
-    console.log('[PsyduckIntro] ⏳ Attente 2 secondes supplémentaires...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log(`[PsyduckIntro] ✅ Toutes les vérifications passées, démarrage intro ${this.introType}`);
-    
-    // ✅ ÉTAPE 4: Bloquer les inputs et charger Psyduck
-    this.blockPlayerInputs();
-    this.loadPsyduckSpritesheet();
-
-    // ✅ ÉTAPE 5: Délai final avant spawn Psyduck selon le type d'intro
-    this.scene.time.delayedCall(800, () => {
-      if (this.introType === 'village') {
-        this.spawnPsyduckAtLab();
-      } else {
-        this.spawnPsyduck(); // Version beach originale
-      }
-    });
+  if (!this.listenersSetup) {
+    this.ensureListenersSetup();
   }
+  
+  this.isPlaying = true;
+  this.onCompleteCallback = onComplete;
 
+  console.log(`[PsyduckIntro] === DÉMARRAGE INTRO COMPLÈTE ${this.introType.toUpperCase()} ===`);
+
+  // 1. LANCER LE PROLOGUE EN PREMIER
+  const prologueManager = new PrologueManager(this.scene);
+  
+  try {
+    console.log('[PsyduckIntro] 🎬 Lancement du prologue...');
+    
+    const prologueSuccess = await prologueManager.start(() => {
+      console.log('[PsyduckIntro] ✅ Prologue terminé, démarrage intro Psyduck');
+      // 2. QUAND LE PROLOGUE EST FINI, LANCER L'INTRO PSYDUCK
+      this.startPsyduckSequence();
+    });
+    
+    if (!prologueSuccess) {
+      console.warn('[PsyduckIntro] Prologue échoué, démarrage direct intro Psyduck');
+      this.startPsyduckSequence();
+    }
+    
+  } catch (error) {
+    console.error('[PsyduckIntro] Erreur prologue:', error);
+    this.startPsyduckSequence();
+  }
+}
+
+  // === SÉQUENCE PSYDUCK (ancien contenu de startIntro) ===
+async startPsyduckSequence() {
+  console.log(`[PsyduckIntro] === DÉMARRAGE SÉQUENCE PSYDUCK ${this.introType.toUpperCase()} ===`);
+  // ✅ ÉTAPE 5: Délai final avant spawn Psyduck selon le type d'intro
+  this.scene.time.delayedCall(800, () => {
+    if (this.introType === 'village') {
+      this.spawnPsyduckAtLab();
+    } else {
+      this.spawnPsyduck(); // Version beach originale
+    }
+  });
+}
+  
   // ✅ NOUVELLE MÉTHODE: Attendre fermeture LoadingScreen
   waitForLoadingScreenClosed(maxWaitTime = 10000) {
     return new Promise((resolve) => {
