@@ -1287,7 +1287,7 @@ sessionStorage.setItem('sessionToken', authData.sessionToken);
             }
 
             checkExistingSession() {
-  const token = localStorage.getItem('sessionToken');
+const token = sessionStorage.getItem('sessionToken');
   const userInfo = localStorage.getItem('userInfo');
   
   if (token && userInfo) {
@@ -1584,7 +1584,7 @@ this.startPlaytimeUpdater();
 
 clearSession() {
   // ✅ NOUVEAU : Nettoyer le système JWT
-  localStorage.removeItem('sessionToken');
+sessionStorage.removeItem('sessionToken');
   localStorage.removeItem('userInfo');
   // Garder pws_username pour remember me
   
