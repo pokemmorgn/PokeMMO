@@ -491,6 +491,39 @@ if (!connectionSuccess) {
     
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
+
+    console.log("🔗 === INITIALISATION CONNECTION MANAGER PERMANENT ===");
+
+    // Créer le ConnectionManager automatique
+    try {
+      window.globalConnectionManager = new ConnectionManager(window.currentGameRoom);
+      
+      // Configuration optimisée pour votre jeu
+      window.globalConnectionManager.config = {
+        pingInterval: 10000,           // Ping toutes les 10 secondes
+        pongTimeout: 20000,            // Timeout si pas de pong en 20s  
+        reconnectDelay: 5000,          // Délai avant reconnexion
+        maxReconnectAttempts: 8,       // 8 tentatives max
+        heartbeatInterval: 15000,      // Heartbeat toutes les 15 secondes
+        smartDetection: true
+      };
+      
+      // Démarrage en mode permanent (tourne en arrière-plan)
+      const success = window.globalConnectionManager.startPermanentMaintenance();
+      
+      if (success) {
+        console.log("✅ ConnectionManager permanent démarré avec succès !");
+        console.log("📡 Ping automatique toutes les 10 secondes");
+        console.log("💓 Heartbeat toutes les 15 secondes");
+        console.log("🔄 Reconnexion automatique si problème");
+        console.log("🎬 Maintien connexion pendant intros longues");
+      } else {
+        console.warn("⚠️ Échec démarrage ConnectionManager permanent");
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur initialisation ConnectionManager:", error);
+    }
     
     console.log("🕐 Connexion du TimeService au serveur...");
     TimeService.getInstance().connectToRoom(window.currentGameRoom);
@@ -2182,3 +2215,85 @@ setTimeout(() => {
     window.validateBattleUISystem();
   }
 }, 10000);
+
+// === FONCTIONS DE CONTRÔLE CONNECTION MANAGER ===
+
+// Status de connexion
+window.getConnectionStatus = function() {
+  if (!window.globalConnectionManager) {
+    return { error: 'ConnectionManager non initialisé', connected: false };
+  }
+  return window.globalConnectionManager.getDetailedStatus();
+};
+
+// Debug connexion complet
+window.debugConnection = function() {
+  console.log('🔍 === DEBUG CONNEXION COMPLÈTE ===');
+  
+  if (window.globalConnectionManager) {
+    const status = window.globalConnectionManager.getDetailedStatus();
+    console.log('📊 ConnectionManager Status:', status);
+    
+    console.log('📡 NetworkManager:', {
+      exists: !!window.globalNetworkManager,
+      connected: window.globalNetworkManager?.isConnected,
+      sessionId: window.globalNetworkManager?.getSessionId(),
+      currentZone: window.globalNetworkManager?.getCurrentZone()
+    });
+    
+    console.log('🎮 GameRoom:', {
+      exists: !!window.currentGameRoom,
+      id: window.currentGameRoom?.id,
+      sessionId: window.currentGameRoom?.sessionId,
+      readyState: window.currentGameRoom?.connection?.readyState,
+      isOpen: window.currentGameRoom?.connection?.readyState === 1
+    });
+    
+    return status;
+  } else {
+    console.error('❌ ConnectionManager global non trouvé');
+    return { error: 'ConnectionManager manquant' };
+  }
+};
+
+// Reconnexion forcée
+window.forceReconnection = function() {
+  if (!window.globalConnectionManager) {
+    console.error('❌ ConnectionManager non disponible');
+    return false;
+  }
+  
+  console.log('🔄 === RECONNEXION FORCÉE DEMANDÉE ===');
+  const result = window.globalConnectionManager.forceReconnect();
+  
+  setTimeout(() => {
+    window.debugConnection();
+  }, 3000);
+  
+  return result;
+};
+
+// Test de santé connexion
+window.testConnectionHealth = function() {
+  if (!window.globalConnectionManager) {
+    console.error('❌ ConnectionManager non disponible');
+    return false;
+  }
+  
+  console.log('🩺 === TEST SANTÉ CONNEXION ===');
+  const isHealthy = window.globalConnectionManager.checkConnectionHealth();
+  
+  if (isHealthy) {
+    console.log('✅ Connexion en bonne santé');
+    window.showGameNotification?.('Connexion OK', 'success', { 
+      duration: 1500, position: 'bottom-right' 
+    });
+  } else {
+    console.warn('⚠️ Problème de connexion détecté');
+    window.showGameNotification?.('Problème connexion détecté', 'warning', { 
+      duration: 3000, position: 'top-center' 
+    });
+  }
+  
+  return isHealthy;
+};
