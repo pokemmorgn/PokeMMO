@@ -286,7 +286,8 @@ createPlayerNameLabel(player, sessionId) {
   
   // 🎯 PRIORITÉ: Utiliser le nom depuis le state serveur
   let playerName = "Unknown";
-  
+  let isDev = false;  // ✅ Cette ligne doit exister
+
   // 1. Essayer depuis le player object (envoyé par le serveur)
   if (player.name && player.name !== sessionId) {
     playerName = player.name;
