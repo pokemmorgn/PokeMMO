@@ -387,23 +387,33 @@ export class PrologueManager {
     this.dreamBox = this.scene.add.container(centerX, centerY);
     this.container.add(this.dreamBox);
     
-    // Fond semi-transparent avec bordure douce
-    const dreamBg = this.scene.add.rectangle(0, 0, boxWidth + 20, boxHeight + 20, 0x000000, 0.6);
-    dreamBg.setStrokeStyle(2, 0x4a90e2, 0.5);
+    // Fond semi-transparent SANS bordure visible
+    const dreamBg = this.scene.add.rectangle(0, 0, boxWidth + 20, boxHeight + 20, 0x000000, 0.3);
+    // Pas de bordure visible
     
-    // Effet de lueur autour de la box
-    const glow = this.scene.add.rectangle(0, 0, boxWidth + 40, boxHeight + 40, 0x4a90e2, 0.1);
+    // Effet de lueur très subtile autour de la box
+    const glow = this.scene.add.rectangle(0, 0, boxWidth + 60, boxHeight + 60, 0x4a90e2, 0.05);
     
     this.dreamBox.add([glow, dreamBg]);
     this.effects.push(this.dreamBox);
     
-    // Animation de pulsation douce de la box
+    // Animation de pulsation très douce et lente (transe)
     this.scene.tweens.add({
       targets: glow,
-      alpha: 0.2,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 3000,
+      alpha: 0.1,
+      scaleX: 1.02,
+      scaleY: 1.02,
+      duration: 4000,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
+    
+    // Pulsation du fond pour effet hypnotique
+    this.scene.tweens.add({
+      targets: dreamBg,
+      alpha: 0.4,
+      duration: 5000,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1
@@ -433,8 +443,8 @@ export class PrologueManager {
       this.scene.time.delayedCall(dreamTransitionDuration, showNextVision);
     };
     
-    // Démarrer le slideshow après un petit délai
-    this.scene.time.delayedCall(1500, showNextVision);
+    // Démarrer le slideshow après un délai plus long pour la transe
+    this.scene.time.delayedCall(4000, showNextVision); // 4 secondes au lieu de 1.5
   }
 
   showDreamVision(imageKey, duration) {
@@ -447,44 +457,76 @@ export class PrologueManager {
     // Ajuster à la taille de la box (format rectangulaire)
     const scaleX = boxWidth / visionImage.width;
     const scaleY = boxHeight / visionImage.height;
-    const scale = Math.min(scaleX, scaleY) * 0.9; // 90% pour laisser une petite marge
+    const scale = Math.min(scaleX, scaleY) * 0.85; // Un peu plus petit pour l'effet flottant
     visionImage.setScale(scale);
     
-    // Effet de flou/rêve - pas net
+    // Effet de transe INTENSE - très flou et désaturé
     visionImage.setAlpha(0);
-    visionImage.setTint(0xcccccc); // Légèrement désaturé
+    visionImage.setTint(0x888888); // Très désaturé pour effet onirique
     
-    // PAS DE MASQUE pour éviter le carré blanc
+    // Ajouter un effet de blur avec un filtre (si disponible)
+    // En alternative, on utilise plusieurs couches semi-transparentes
+    const blurLayer1 = this.scene.add.image(2, 2, imageKey);
+    blurLayer1.setScale(scale * 1.02);
+    blurLayer1.setAlpha(0);
+    blurLayer1.setTint(0x666666);
     
-    this.dreamBox.add(visionImage);
+    const blurLayer2 = this.scene.add.image(-2, -2, imageKey);
+    blurLayer2.setScale(scale * 0.98);
+    blurLayer2.setAlpha(0);
+    blurLayer2.setTint(0x999999);
     
-    // Animation d'apparition floue
+    this.dreamBox.add([blurLayer1, blurLayer2, visionImage]);
+    
+    // Animation d'apparition très floue et lente
     this.scene.tweens.add({
-      targets: visionImage,
-      alpha: 0.7, // Pas complètement opaque pour l'effet rêve
-      duration: 800,
-      ease: 'Power2'
+      targets: [visionImage, blurLayer1, blurLayer2],
+      alpha: [0.4, 0.15, 0.1], // Très transparent pour effet fantomatique
+      duration: 1500, // Plus lent
+      ease: 'Power3'
     });
     
-    // Mouvement lent et onirique
+    // Mouvement hypnotique et flottant
     this.scene.tweens.add({
       targets: visionImage,
-      scaleX: scale * 1.1,
-      scaleY: scale * 1.1,
-      rotation: (Math.random() - 0.5) * 0.1, // Rotation subtile aléatoire
+      scaleX: scale * 1.15,
+      scaleY: scale * 1.15,
+      rotation: (Math.random() - 0.5) * 0.2, // Rotation plus prononcée
+      y: (Math.random() - 0.5) * 20, // Mouvement vertical flottant
       duration: duration,
       ease: 'Sine.easeInOut'
     });
     
-    // Animation de disparition
+    // Mouvement des couches de flou
     this.scene.tweens.add({
-      targets: visionImage,
+      targets: blurLayer1,
+      scaleX: scale * 1.2,
+      scaleY: scale * 1.2,
+      rotation: (Math.random() - 0.5) * 0.15,
+      duration: duration * 1.2,
+      ease: 'Sine.easeInOut'
+    });
+    
+    this.scene.tweens.add({
+      targets: blurLayer2,
+      scaleX: scale * 1.1,
+      scaleY: scale * 1.1,
+      rotation: (Math.random() - 0.5) * 0.25,
+      duration: duration * 0.8,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Animation de disparition très douce
+    this.scene.tweens.add({
+      targets: [visionImage, blurLayer1, blurLayer2],
       alpha: 0,
-      duration: 1000,
-      delay: duration - 1000,
-      ease: 'Power2',
+      duration: 2000, // Disparition plus lente
+      delay: duration - 2000,
+      ease: 'Power3',
       onComplete: () => {
         visionImage.destroy();
+        blurLayer1.destroy();
+        blurLayer2.destroy();
       }
     });
   }
