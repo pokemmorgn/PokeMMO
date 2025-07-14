@@ -71,7 +71,7 @@ export class PrologueManager {
       this.startTextSequence();
       
       // Auto-completion après la durée totale + buffer
-      this.scene.time.delayedCall(this.config.duration + 4000, () => {
+      this.scene.time.delayedCall(this.config.duration + 5000, () => {
         if (this.isPlaying) {
           this.complete();
         }
