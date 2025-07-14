@@ -10,6 +10,7 @@ export class PrologueManager {
     this.effects = [];
     this.texts = [];
     this.dreamBox = null;
+    this.activeTimers = []; // Pour tracker les delayedCall
     this.onCompleteCallback = null;
     
     // Configuration du prologue
@@ -310,6 +311,9 @@ export class PrologueManager {
           repeat: Math.floor(Math.random() * 3)
         });
       });
+      
+      // Tracker ce timer aussi
+      this.activeTimers.push(timer);
     }
   }
 
@@ -613,9 +617,10 @@ export class PrologueManager {
   // === SÉQUENCE DE TEXTE ===
   startTextSequence() {
     this.config.textSequence.forEach((textData, index) => {
-      this.scene.time.delayedCall(textData.delay, () => {
+      const timer = this.scene.time.delayedCall(textData.delay, () => {
         this.showText(textData.text, textData.duration, index === this.config.textSequence.length - 1);
       });
+      this.activeTimers.push(timer); // Tracker le timer
     });
   }
 
@@ -644,6 +649,12 @@ export class PrologueManager {
   }
 
   showText(text, duration, isLast = false) {
+    // Vérifier que le container existe encore
+    if (!this.container || !this.scene) {
+      console.warn('[Prologue] Container déjà détruit, skip texte');
+      return;
+    }
+    
     const camera = this.scene.cameras.main;
     
     // Formater le texte avec passage à la ligne intelligent
@@ -682,18 +693,23 @@ export class PrologueManager {
 
     // Animation de disparition (sauf pour le dernier texte)
     if (!isLast) {
-      this.scene.tweens.add({
-        targets: textObject,
-        alpha: 0,
-        duration: 800,
-        delay: duration - 800,
-        ease: 'Power2'
+      const fadeTimer = this.scene.time.delayedCall(duration - 800, () => {
+        if (textObject && textObject.scene) {
+          this.scene.tweens.add({
+            targets: textObject,
+            alpha: 0,
+            duration: 800,
+            ease: 'Power2'
+          });
+        }
       });
+      this.activeTimers.push(fadeTimer);
     } else {
       // Pour le dernier texte, on lance la completion après un délai
-      this.scene.time.delayedCall(duration, () => {
+      const completeTimer = this.scene.time.delayedCall(duration, () => {
         this.complete();
       });
+      this.activeTimers.push(completeTimer);
     }
   }
 
@@ -724,6 +740,14 @@ export class PrologueManager {
   cleanup() {
     try {
       console.log('[Prologue] 🧹 Cleaning up prologue...');
+      
+      // ✅ NOUVEAU: Annuler tous les timers actifs
+      this.activeTimers.forEach(timer => {
+        if (timer && timer.remove) {
+          timer.remove();
+        }
+      });
+      this.activeTimers = [];
       
       // Arrêter tous les tweens
       if (this.scene && this.scene.tweens) {
