@@ -384,10 +384,10 @@ export class PrologueManager {
       imageKey
     ).setOrigin(0.5).setAlpha(0).setDepth(9500);
 
-    // Ajuster la taille pour qu'elle s'adapte à l'écran
+    // Ajuster la taille pour qu'elle s'adapte à l'écran (réduit de 20%)
     const scaleX = camera.width / visionImage.width;
     const scaleY = camera.height / visionImage.height;
-    const scale = Math.min(scaleX, scaleY) * 0.8; // 80% de l'écran max
+    const scale = Math.min(scaleX, scaleY) * 0.64; // 64% de l'écran max (80% - 20%)
     visionImage.setScale(scale);
 
     this.container.add(visionImage);
@@ -432,7 +432,9 @@ export class PrologueManager {
         fontSize: '18px',
         color: '#ffffff',
         align: 'center',
-        wordWrap: { width: camera.width - 100 },
+        wordWrap: { 
+          width: Math.min(camera.width - 80, 600) // Maximum 600px ou largeur écran -80px
+        },
         shadow: {
           offsetX: 2,
           offsetY: 2,
