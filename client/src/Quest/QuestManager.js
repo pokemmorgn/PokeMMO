@@ -96,9 +96,15 @@ export class QuestManager {
         this.handleActiveQuestsReceived(data);
       });
 
-      // Quêtes disponibles
+      // Quêtes disponibles - ✅ AJOUT du listener pour availableQuestsList
       this.gameRoom.onMessage("availableQuests", (data) => {
         console.log('📋 [QuestManager] ✅ MESSAGE availableQuests REÇU:', data);
+        this.handleAvailableQuestsReceived(data);
+      });
+      
+      // ✅ NOUVEAU: Listener pour availableQuestsList (variante serveur)
+      this.gameRoom.onMessage("availableQuestsList", (data) => {
+        console.log('📋 [QuestManager] ✅ MESSAGE availableQuestsList REÇU:', data);
         this.handleAvailableQuestsReceived(data);
       });
 
@@ -154,7 +160,7 @@ export class QuestManager {
       console.log('📋 [QuestManager] Listeners configurés:', handlerKeys);
       
       const requiredListeners = [
-        'activeQuestsList', 'availableQuests', 'questStartResult', 
+        'activeQuestsList', 'availableQuests', 'availableQuestsList', 'questStartResult', 
         'questGranted', 'questProgressUpdate', 'questRewards', 'npcInteractionResult'
       ];
       const missingListeners = requiredListeners.filter(listener => !handlerKeys.includes(listener));
@@ -472,24 +478,66 @@ export class QuestManager {
         lines: data.lines
       };
       
+      // ✅ DEBUG: Vérifier les conditions d'envoi
+      console.log('🔍 [QuestManager] Vérification envoi:', {
+        hasGameRoom: !!this.gameRoom,
+        canSendRequest: this.canSendRequest(),
+        gameRoomType: this.gameRoom?.constructor?.name,
+        gameRoomMethods: this.gameRoom ? Object.getOwnPropertyNames(Object.getPrototypeOf(this.gameRoom)) : []
+      });
+      
       // Demander les quêtes disponibles pour ce NPC au serveur
-      if (this.gameRoom && this.canSendRequest()) {
-        console.log('📤 [QuestManager] Demande des quêtes disponibles pour NPC');
-        this.gameRoom.send("getAvailableQuests", { 
-          npcId: data.npcId,
-          npcName: data.npcName || data.name
-        });
-        this.lastDataRequest = Date.now();
+      if (this.gameRoom) {
+        if (!this.canSendRequest()) {
+          console.warn('⚠️ [QuestManager] Cooldown en cours, attente...');
+          // Essayer après le cooldown
+          setTimeout(() => {
+            if (this.pendingQuestGiver) {
+              this.sendAvailableQuestsRequest();
+            }
+          }, 1500);
+          return true;
+        }
         
-        // Retourner true pour indiquer qu'on traite la demande
-        return true;
+        return this.sendAvailableQuestsRequest();
       } else {
-        console.warn('⚠️ [QuestManager] Impossible de demander les quêtes disponibles');
+        console.error('❌ [QuestManager] Aucun gameRoom disponible');
         return 'NO_QUEST';
       }
       
     } catch (error) {
       console.error('❌ [QuestManager] Erreur questGiver sans quêtes:', error);
+      return false;
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Envoi sécurisé de la demande
+  sendAvailableQuestsRequest() {
+    try {
+      console.log('📤 [QuestManager] Envoi demande quêtes disponibles...');
+      
+      if (typeof this.gameRoom.send === 'function') {
+        this.gameRoom.send("getAvailableQuests", { 
+          npcId: this.pendingQuestGiver.npcId,
+          npcName: this.pendingQuestGiver.npcName
+        });
+        console.log('✅ [QuestManager] Demande envoyée avec succès');
+      } else if (typeof this.gameRoom.room?.send === 'function') {
+        this.gameRoom.room.send("getAvailableQuests", { 
+          npcId: this.pendingQuestGiver.npcId,
+          npcName: this.pendingQuestGiver.npcName
+        });
+        console.log('✅ [QuestManager] Demande envoyée via room avec succès');
+      } else {
+        console.error('❌ [QuestManager] Aucune méthode send disponible');
+        return 'NO_QUEST';
+      }
+      
+      this.lastDataRequest = Date.now();
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur envoi demande:', error);
       return false;
     }
   }
