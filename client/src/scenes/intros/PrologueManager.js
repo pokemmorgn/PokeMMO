@@ -16,12 +16,12 @@ export class PrologueManager {
     this.config = {
       duration: 15000, // Durée totale augmentée pour les nouveaux textes
       textSequence: [
-        { text: "A blinding flash of light...", delay: 1000, duration: 2500 },
-        { text: "And then... silence.", delay: 3800, duration: 2200 },
-        { text: "You open your eyes to an unknown world.", delay: 6300, duration: 2800 },
-        { text: "Something feels... wrong here. Even the air whispers of ancient conflicts.", delay: 9400, duration: 3500 },
-        { text: "Time itself seems uncertain in this place.", delay: 13200, duration: 2800 },
-        { text: "But in this troubled world, you are not alone...", delay: 16300, duration: 2500 }
+        { text: "A blinding flash of light...", delay: 1000, duration: 4000 },
+        { text: "And then... silence.", delay: 6000, duration: 4000 },
+        { text: "You open your eyes to an unknown world.", delay: 11000, duration: 5000 },
+        { text: "Something feels... wrong here. Even the air whispers of ancient conflicts.", delay: 17000, duration: 6000 },
+        { text: "Time itself seems uncertain in this place.", delay: 24000, duration: 5000 },
+        { text: "But in this troubled world, you are not alone...", delay: 30000, duration: 5000 }
       ],
       visions: [
         { image: 'vision1' }, // L'Harmonie (début)
@@ -423,12 +423,12 @@ export class PrologueManager {
   startDreamSlideshow() {
     let currentVisionIndex = 0;
     const visions = this.config.visions;
-    const dreamTransitionDuration = 3000; // 3 secondes par image
+    const dreamTransitionDuration = 6000; // 6 secondes par image au lieu de 3
     
     const showNextVision = () => {
       if (currentVisionIndex >= visions.length) {
         // Fin du slideshow
-        this.scene.time.delayedCall(2000, () => {
+        this.scene.time.delayedCall(3000, () => {
           this.fadeDreamBox();
         });
         return;
@@ -553,21 +553,46 @@ export class PrologueManager {
     });
   }
 
+  // Fonction utilitaire pour formater le texte avec passage à la ligne intelligent
+  formatTextWithLineBreaks(text, maxCharsPerLine = 15) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      // Si ajouter ce mot dépasse la limite ET qu'on a déjà du contenu
+      if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
+        lines.push(currentLine.trim());
+        currentLine = word + ' ';
+      } else {
+        currentLine += word + ' ';
+      }
+    }
+    
+    // Ajouter la dernière ligne
+    if (currentLine.trim().length > 0) {
+      lines.push(currentLine.trim());
+    }
+    
+    return lines.join('\n');
+  }
+
   showText(text, duration, isLast = false) {
     const camera = this.scene.cameras.main;
     
-    // Texte principal
+    // Formater le texte avec passage à la ligne intelligent
+    const formattedText = this.formatTextWithLineBreaks(text, 15);
+    
+    // Texte principal - COMPLÈTEMENT EN BAS ET CENTRÉ
     const textObject = this.scene.add.text(
       camera.width / 2,
-      camera.height / 2 + 100, // Légèrement en bas pour laisser place aux effets
-      text,
+      camera.height - 60, // En bas de l'écran avec marge de 60px
+      formattedText,
       {
         fontSize: '18px',
         color: '#ffffff',
         align: 'center',
-        wordWrap: { 
-          width: Math.min(camera.width - 80, 600) // Maximum 600px ou largeur écran -80px
-        },
+        lineSpacing: 8, // Espacement entre les lignes
         shadow: {
           offsetX: 2,
           offsetY: 2,
@@ -576,7 +601,7 @@ export class PrologueManager {
           fill: true
         }
       }
-    ).setOrigin(0.5).setAlpha(0);
+    ).setOrigin(0.5, 1).setAlpha(0); // Origin 0.5, 1 pour centrer en bas
 
     this.container.add(textObject);
     this.texts.push(textObject);
