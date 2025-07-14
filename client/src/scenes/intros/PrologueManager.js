@@ -583,10 +583,10 @@ export class PrologueManager {
     // Formater le texte avec passage à la ligne intelligent
     const formattedText = this.formatTextWithLineBreaks(text, 15);
     
-    // Texte principal - COMPLÈTEMENT EN BAS ET CENTRÉ
+    // Texte principal - POSITION ORIGINALE
     const textObject = this.scene.add.text(
       camera.width / 2,
-      camera.height - 60, // En bas de l'écran avec marge de 60px
+      camera.height / 2 + 100, // Position originale : milieu + 100px
       formattedText,
       {
         fontSize: '18px',
@@ -601,7 +601,7 @@ export class PrologueManager {
           fill: true
         }
       }
-    ).setOrigin(0.5, 1).setAlpha(0); // Origin 0.5, 1 pour centrer en bas
+    ).setOrigin(0.5).setAlpha(0); // Origin 0.5 comme avant
 
     this.container.add(textObject);
     this.texts.push(textObject);
