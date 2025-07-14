@@ -30,46 +30,22 @@ export class InteractionManager {
     console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé`);
   }
 
-initialize(networkManager, playerManager, npcManager) {
-  this.networkManager = networkManager;
-  this.playerManager = playerManager;
-  this.npcManager = npcManager;
+  initialize(networkManager, playerManager, npcManager) {
+    this.networkManager = networkManager;
+    this.playerManager = playerManager;
+    this.npcManager = npcManager;
 
-  this.shopSystem = this.scene.shopIntegration?.getShopSystem() || window.shopSystem;
-  
-  // ✅ IMPROVED: Better questSystem initialization with retries
-  this.questSystem = window.questSystem;
-  
-  // ✅ NEW: If questSystem is not immediately available, set up a retry mechanism
-  if (!this.questSystem) {
-    console.warn("⚠️ [InteractionManager] QuestSystem not found during initialization, setting up retry");
-    
-    // Try to get it every 100ms for up to 5 seconds
-    let retryCount = 0;
-    const maxRetries = 50;
-    
-    const questSystemRetry = setInterval(() => {
-      this.questSystem = window.questSystem;
-      retryCount++;
-      
-      if (this.questSystem) {
-        console.log("✅ [InteractionManager] QuestSystem found on retry", retryCount);
-        clearInterval(questSystemRetry);
-      } else if (retryCount >= maxRetries) {
-        console.error("❌ [InteractionManager] QuestSystem not found after", maxRetries, "retries");
-        clearInterval(questSystemRetry);
-      }
-    }, 100);
+    this.shopSystem = this.scene.shopIntegration?.getShopSystem() || window.shopSystem;
+    this.questSystem = window.questSystem;
+
+    this.registerInteractionSystems();
+    this.setupInputHandlers();
+    this.setupNetworkHandlers();
+    this.exposeDialogueAPI();
+
+    console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé`);
+    return this;
   }
-
-  this.registerInteractionSystems();
-  this.setupInputHandlers();
-  this.setupNetworkHandlers();
-  this.exposeDialogueAPI();
-
-  console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé`);
-  return this;
-}
 
   // === EXPOSITION API DIALOGUE ===
 
@@ -453,57 +429,22 @@ initialize(networkManager, playerManager, npcManager) {
     }
   }
 
-handleQuestInteraction(npc, data) {
-  console.log("🎯 [InteractionManager] handleQuestInteraction called", { npc: npc?.name, dataType: data?.type });
-  
-  // ✅ FIX 1: More robust questSystem assignment and validation
-  this.questSystem = this.questSystem || window.questSystem;
-  
-  // ✅ FIX 2: Enhanced validation with detailed logging
-  if (!this.questSystem) {
-    console.warn("⚠️ [InteractionManager] No questSystem available");
-    this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
-    return;
-  }
-  
-  // ✅ FIX 3: Verify the method exists before calling it
-  if (typeof this.questSystem.handleNpcInteraction !== 'function') {
-    console.error("❌ [InteractionManager] questSystem.handleNpcInteraction is not a function", {
-      questSystemType: typeof this.questSystem,
-      questSystemMethods: Object.getOwnPropertyNames(this.questSystem),
-      questSystemPrototype: Object.getOwnPropertyNames(Object.getPrototypeOf(this.questSystem))
-    });
-    
-    // ✅ FIX 4: Fallback to dialogue interaction
-    this.handleDialogueInteraction(npc, { 
-      message: data?.message || "Erreur du système de quêtes" 
-    });
-    return;
-  }
-  
-  try {
-    // ✅ FIX 5: Call the method with proper error handling
-    if (data && data.type === 'questGiver') {
-      console.log("✅ [InteractionManager] Calling questSystem.handleNpcInteraction");
-      this.questSystem.handleNpcInteraction(data);
-    } else {
-      // For non-quest interactions, use dialogue
-      console.log("ℹ️ [InteractionManager] Non-quest interaction, using dialogue");
-      this.handleDialogueInteraction(npc, data);
+  handleQuestInteraction(npc, data) {
+    this.questSystem = this.questSystem || window.questSystem;
+    if (!this.questSystem) {
+      this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
+      return;
     }
-  } catch (error) {
-    console.error("❌ [InteractionManager] Error in quest interaction:", error);
     
-    // ✅ FIX 6: Enhanced error fallback
-    this.handleDialogueInteraction(npc, { 
-      message: `Erreur quête: ${error.message}`,
-      lines: [
-        "Une erreur s'est produite avec le système de quêtes.",
-        "Veuillez réessayer plus tard."
-      ]
-    });
+    try {
+      const result = this.questSystem.handleNpcInteraction(data || npc);
+      if (result === false || result === 'NO_QUEST') {
+        this.handleDialogueInteraction(npc, null);
+      }
+    } catch (error) {
+      this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
+    }
   }
-}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
