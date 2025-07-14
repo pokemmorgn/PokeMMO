@@ -378,7 +378,8 @@ export class PrologueManager {
   }
 
   createDreamBox(camera) {
-    const boxSize = 300; // Taille carrée fixe
+    const boxWidth = 300; // Largeur
+    const boxHeight = 210; // Hauteur réduite de 30% (300 - 90)
     const centerX = camera.width / 2;
     const centerY = camera.height / 2;
     
@@ -387,11 +388,11 @@ export class PrologueManager {
     this.container.add(this.dreamBox);
     
     // Fond semi-transparent avec bordure douce
-    const dreamBg = this.scene.add.rectangle(0, 0, boxSize + 20, boxSize + 20, 0x000000, 0.6);
+    const dreamBg = this.scene.add.rectangle(0, 0, boxWidth + 20, boxHeight + 20, 0x000000, 0.6);
     dreamBg.setStrokeStyle(2, 0x4a90e2, 0.5);
     
     // Effet de lueur autour de la box
-    const glow = this.scene.add.rectangle(0, 0, boxSize + 40, boxSize + 40, 0x4a90e2, 0.1);
+    const glow = this.scene.add.rectangle(0, 0, boxWidth + 40, boxHeight + 40, 0x4a90e2, 0.1);
     
     this.dreamBox.add([glow, dreamBg]);
     this.effects.push(this.dreamBox);
@@ -437,26 +438,25 @@ export class PrologueManager {
   }
 
   showDreamVision(imageKey, duration) {
-    const boxSize = 300;
+    const boxWidth = 300;
+    const boxHeight = 210;
     
     // Créer l'image de vision
     const visionImage = this.scene.add.image(0, 0, imageKey);
     
-    // Ajuster à la taille carrée de la box
-    const scale = boxSize / Math.max(visionImage.width, visionImage.height);
+    // Ajuster à la taille de la box (format rectangulaire)
+    const scaleX = boxWidth / visionImage.width;
+    const scaleY = boxHeight / visionImage.height;
+    const scale = Math.min(scaleX, scaleY) * 0.9; // 90% pour laisser une petite marge
     visionImage.setScale(scale);
     
     // Effet de flou/rêve - pas net
     visionImage.setAlpha(0);
     visionImage.setTint(0xcccccc); // Légèrement désaturé
     
-    // Ajouter un masque carré
-    const mask = this.scene.add.graphics();
-    mask.fillStyle(0xffffff);
-    mask.fillRect(-boxSize/2, -boxSize/2, boxSize, boxSize);
-    visionImage.setMask(mask.createGeometryMask());
+    // PAS DE MASQUE pour éviter le carré blanc
     
-    this.dreamBox.add([visionImage, mask]);
+    this.dreamBox.add(visionImage);
     
     // Animation d'apparition floue
     this.scene.tweens.add({
@@ -485,7 +485,6 @@ export class PrologueManager {
       ease: 'Power2',
       onComplete: () => {
         visionImage.destroy();
-        mask.destroy();
       }
     });
   }
