@@ -305,7 +305,22 @@ createPlayerNameLabel(player, sessionId) {
     playerName = sessionId.substring(0, 8);
     console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
   }
-  
+  // ✅ AJOUTER [DEV] si c'est mon joueur et que je suis dev
+if ((sessionId === this.mySessionId || sessionId === this._pendingSessionId)) {
+  try {
+    const token = sessionStorage.getItem('sessionToken');
+    if (token) {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      if (decoded.isDev) {
+        playerName = `[DEV] ${playerName}`;
+        isDev = true; // Pour la couleur rouge
+      }
+    }
+  } catch (e) {
+    console.warn('[PlayerManager] Erreur vérification dev token:', e);
+  }
+}
   // Créer le texte du nom
   const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
     fontSize: '12px',
@@ -318,12 +333,18 @@ createPlayerNameLabel(player, sessionId) {
   .setOrigin(0.5, 1)
   .setDepth(1002);
   
-  // Différencier mon joueur des autres
-  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-    nameLabel.setStyle({ fill: '#00FF00' }); // Vert pour moi
+// Différencier mon joueur des autres + couleur dev
+if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+  if (isDev) {
+    nameLabel.setStyle({ fill: '#FF0000' }); // Rouge si je suis dev
   } else {
-    nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
+    nameLabel.setStyle({ fill: '#00FF00' }); // Vert si pas dev
   }
+} else if (isDev) {
+  nameLabel.setStyle({ fill: '#FF0000' }); // Rouge pour les autres devs
+} else {
+  nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
+}
   
   player.nameLabel = nameLabel;
   nameLabel.setVisible(true);
