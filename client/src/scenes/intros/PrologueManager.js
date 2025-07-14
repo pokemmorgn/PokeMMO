@@ -74,7 +74,10 @@ export class PrologueManager {
       // Auto-completion après la durée totale + buffer
       this.scene.time.delayedCall(this.config.duration + 5000, () => {
         if (this.isPlaying) {
+          console.log('[Prologue] ⏰ Auto-completion par timeout après', this.config.duration + 5000, 'ms');
           this.complete();
+        } else {
+          console.log('[Prologue] ⏰ Timeout mais déjà terminé');
         }
       });
 
@@ -616,8 +619,13 @@ export class PrologueManager {
 
   // === SÉQUENCE DE TEXTE ===
   startTextSequence() {
+    console.log('[Prologue] 📝 Démarrage séquence de texte avec', this.config.textSequence.length, 'textes');
+    
     this.config.textSequence.forEach((textData, index) => {
+      console.log(`[Prologue] ⏰ Programmation texte ${index + 1}:`, textData.text.substring(0, 30) + '...', 'delay:', textData.delay, 'duration:', textData.duration);
+      
       const timer = this.scene.time.delayedCall(textData.delay, () => {
+        console.log(`[Prologue] 🎯 Exécution texte ${index + 1} à ${Date.now()}`);
         this.showText(textData.text, textData.duration, index === this.config.textSequence.length - 1);
       });
       this.activeTimers.push(timer); // Tracker le timer
@@ -649,9 +657,11 @@ export class PrologueManager {
   }
 
   showText(text, duration, isLast = false) {
+    console.log(`[Prologue] 📄 showText appelé: "${text.substring(0, 40)}..." isLast:`, isLast, 'container exists:', !!this.container);
+    
     // Vérifier que le container existe encore
     if (!this.container || !this.scene) {
-      console.warn('[Prologue] Container déjà détruit, skip texte');
+      console.warn('[Prologue] ❌ Container déjà détruit, skip texte:', text.substring(0, 30));
       return;
     }
     
@@ -659,6 +669,8 @@ export class PrologueManager {
     
     // Formater le texte avec passage à la ligne intelligent
     const formattedText = this.formatTextWithLineBreaks(text, 15);
+    
+    console.log(`[Prologue] ✅ Création texte: "${formattedText}"`);
     
     // Texte principal - POSITION ORIGINALE
     const textObject = this.scene.add.text(
@@ -683,6 +695,8 @@ export class PrologueManager {
     this.container.add(textObject);
     this.texts.push(textObject);
 
+    console.log(`[Prologue] ✅ Texte ajouté au container, total textes:`, this.texts.length);
+
     // Animation d'apparition
     this.scene.tweens.add({
       targets: textObject,
@@ -693,7 +707,9 @@ export class PrologueManager {
 
     // Animation de disparition (sauf pour le dernier texte)
     if (!isLast) {
+      console.log(`[Prologue] ⏰ Programmation fade out dans ${duration - 800}ms`);
       const fadeTimer = this.scene.time.delayedCall(duration - 800, () => {
+        console.log(`[Prologue] 🌅 Fade out texte: "${text.substring(0, 30)}..."`);
         if (textObject && textObject.scene) {
           this.scene.tweens.add({
             targets: textObject,
@@ -705,8 +721,10 @@ export class PrologueManager {
       });
       this.activeTimers.push(fadeTimer);
     } else {
+      console.log(`[Prologue] 🏁 DERNIER TEXTE! Programmation completion dans ${duration}ms`);
       // Pour le dernier texte, on lance la completion après un délai
       const completeTimer = this.scene.time.delayedCall(duration, () => {
+        console.log(`[Prologue] 🎬 Lancement completion finale`);
         this.complete();
       });
       this.activeTimers.push(completeTimer);
@@ -715,7 +733,10 @@ export class PrologueManager {
 
   // === FINALISATION ===
   complete() {
-    if (!this.isPlaying) return;
+    if (!this.isPlaying) {
+      console.log('[Prologue] ⚠️ Complete appelé mais pas en cours de lecture');
+      return;
+    }
 
     console.log('[Prologue] ✅ Prologue completed, transitioning to intro');
     
@@ -726,10 +747,12 @@ export class PrologueManager {
       duration: 1500,
       ease: 'Power2',
       onComplete: () => {
+        console.log('[Prologue] 🎭 Fade out terminé, début cleanup');
         this.cleanup();
         
         // Callback de completion
         if (this.onCompleteCallback) {
+          console.log('[Prologue] 📞 Appel du callback');
           this.onCompleteCallback();
         }
       }
@@ -739,11 +762,13 @@ export class PrologueManager {
   // === NETTOYAGE ===
   cleanup() {
     try {
-      console.log('[Prologue] 🧹 Cleaning up prologue...');
+      console.log('[Prologue] 🧹 Cleaning up prologue... isPlaying:', this.isPlaying, 'activeTimers:', this.activeTimers.length);
       
       // ✅ NOUVEAU: Annuler tous les timers actifs
-      this.activeTimers.forEach(timer => {
+      console.log('[Prologue] ⏰ Annulation de', this.activeTimers.length, 'timers');
+      this.activeTimers.forEach((timer, index) => {
         if (timer && timer.remove) {
+          console.log(`[Prologue] ❌ Suppression timer ${index}`);
           timer.remove();
         }
       });
@@ -751,6 +776,7 @@ export class PrologueManager {
       
       // Arrêter tous les tweens
       if (this.scene && this.scene.tweens) {
+        console.log('[Prologue] 🔄 Arrêt des tweens pour', this.effects.length, 'effets et', this.texts.length, 'textes');
         this.effects.forEach(effect => {
           if (effect) {
             this.scene.tweens.killTweensOf(effect);
@@ -766,6 +792,7 @@ export class PrologueManager {
 
       // Détruire le container et tout son contenu
       if (this.container && this.container.destroy) {
+        console.log('[Prologue] 💥 Destruction du container');
         this.container.destroy(true); // true = détruit les enfants aussi
       }
 
@@ -777,8 +804,10 @@ export class PrologueManager {
       this.isPlaying = false;
       this.onCompleteCallback = null;
       
+      console.log('[Prologue] ✅ Cleanup terminé');
+      
     } catch (error) {
-      console.error('[Prologue] Erreur lors du nettoyage:', error);
+      console.error('[Prologue] ❌ Erreur lors du nettoyage:', error);
       this.isPlaying = false;
     }
   }
