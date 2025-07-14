@@ -285,35 +285,26 @@ createPlayerNameLabel(player, sessionId) {
   }
   
   // 🎯 PRIORITÉ: Utiliser le nom depuis le state serveur
-// 🎯 PRIORITÉ: Utiliser le nom depuis le state serveur
-let playerName = "Unknown";
-let isDev = false;
-
-// 1. Essayer depuis le player object (envoyé par le serveur)
-if (player.name && player.name !== sessionId) {
-  playerName = player.name;
-  isDev = player.isDev || false;
-  console.log(`[PlayerManager] 📝 Nom depuis player.name: ${playerName}`);
-}
-// 2. Essayer depuis les données du state
-else if (this.scene.networkManager?.room?.state?.players?.get(sessionId)) {
-  const statePlayer = this.scene.networkManager.room.state.players.get(sessionId);
-  if (statePlayer.name && statePlayer.name !== sessionId) {
-    playerName = statePlayer.name;
-    isDev = statePlayer.isDev || false;
-    console.log(`[PlayerManager] 📝 Nom depuis state: ${playerName}`);
+  let playerName = "Unknown";
+  
+  // 1. Essayer depuis le player object (envoyé par le serveur)
+  if (player.name && player.name !== sessionId) {
+    playerName = player.name;
+    console.log(`[PlayerManager] 📝 Nom depuis player.name: ${playerName}`);
   }
-}
-// 3. Fallback vers sessionId court
-else {
-  playerName = sessionId.substring(0, 8);
-  console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
-}
-
-// ✅ AJOUTER [DEV] si développeur
-if (isDev) {
-  playerName = `[DEV] ${playerName}`;
-}
+  // 2. Essayer depuis les données du state
+  else if (this.scene.networkManager?.room?.state?.players?.get(sessionId)?.name) {
+    const statePlayer = this.scene.networkManager.room.state.players.get(sessionId);
+    if (statePlayer.name && statePlayer.name !== sessionId) {
+      playerName = statePlayer.name;
+      console.log(`[PlayerManager] 📝 Nom depuis state: ${playerName}`);
+    }
+  }
+  // 3. Fallback vers sessionId court
+  else {
+    playerName = sessionId.substring(0, 8);
+    console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
+  }
   
   // Créer le texte du nom
   const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
@@ -328,13 +319,11 @@ if (isDev) {
   .setDepth(1002);
   
   // Différencier mon joueur des autres
-if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-  nameLabel.setStyle({ fill: '#00FF00' }); // Vert pour moi
-} else if (isDev) {
-  nameLabel.setStyle({ fill: '#FF0000' }); // Rouge pour les devs
-} else {
-  nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
-}
+  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    nameLabel.setStyle({ fill: '#00FF00' }); // Vert pour moi
+  } else {
+    nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
+  }
   
   player.nameLabel = nameLabel;
   nameLabel.setVisible(true);
