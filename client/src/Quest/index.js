@@ -37,7 +37,8 @@ export class QuestModule extends BaseModule {
       
       await this.validateDependencies();
       await this.initializeManager();
-      await this.createComponentsSequential();
+      this.createComponents();
+      await this.waitForComponentsReady();
       await this.connectComponentsRobust();
       await this.validateSystemIntegrity();
       this.startSystemMonitoring();
@@ -89,8 +90,16 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Manager initialisé');
   }
   
+  createComponents() {
+    console.log('🔧 [QuestModule] Création composants (BaseModule)...');
+    
+    this.createComponentsSequential();
+    
+    console.log('✅ [QuestModule] Composants en cours de création');
+  }
+  
   async createComponentsSequential() {
-    console.log('🔧 [QuestModule] Création composants...');
+    console.log('🔧 [QuestModule] Création composants séquentielle...');
     
     await this.createIconComponent();
     await this.createUIComponent();
