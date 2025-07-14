@@ -86,17 +86,19 @@ export const POKEDEX_UI_STYLES = `
 .pokedex-top-section {
   padding: 15px 20px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* 🆕 Centrer le contenu principal */
   align-items: center;
   border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  width: 100%; /* 🆕 S'assurer que la section prend toute la largeur */
+  position: relative; /* 🆕 Pour positionner la croix en absolu */
+  width: 100%;
+  min-height: 60px; /* 🆕 Hauteur minimale pour la croix */
 }
 
 .pokedex-logo {
   display: flex;
   align-items: center;
   gap: 15px;
-  flex: 1; /* 🆕 Le logo prend l'espace disponible à gauche */
+  /* 🆕 Le logo est maintenant centré automatiquement */
 }
 
   .logo-light {
@@ -162,11 +164,12 @@ export const POKEDEX_UI_STYLES = `
   }
 
 .pokedex-controls {
+  position: absolute; /* 🆕 Position absolue pour sortir du flux */
+  top: 15px; /* 🆕 En haut du container */
+  right: 20px; /* 🆕 À droite */
   display: flex;
-  align-items: center;
-  justify-content: flex-end; /* 🆕 Forcer l'alignement à droite */
-  flex-shrink: 0; /* 🆕 Empêcher le rétrécissement */
-  margin-left: auto; /* 🆕 Pousser complètement à droite */
+  align-items: flex-start; /* 🆕 Alignement en haut */
+  justify-content: flex-end;
 }
 
 .pokedex-close-btn {
@@ -185,9 +188,7 @@ export const POKEDEX_UI_STYLES = `
   box-shadow: 
     0 4px 12px rgba(220, 38, 38, 0.4),
     inset 0 2px 0 rgba(255, 255, 255, 0.3);
-  /* 🆕 Supprime tout positionnement qui pourrait interférer */
-  position: relative;
-  margin-left: 20px; /* 🆕 Espace entre le logo et le bouton */
+  /* 🆕 Supprime margin-left car maintenant en position absolue */
 }
 
   .pokedex-close-btn:hover {
