@@ -1118,14 +1118,14 @@ export class PokedexMessageHandler {
   /**
    * Envoie une réponse de succès formatée
    */
-  private sendSuccess(client: Client, messageType: string, data: any): void {
-    client.send(`${messageType}:response`, {
-      success: true,
-      data,
-      timestamp: new Date(),
-      requestId: this.generateRequestId()
-    });
-  }
+private sendSuccess(client: Client, messageType: string, data: any): void {
+  client.send(messageType, {
+    success: true,
+    data,
+    timestamp: new Date(),
+    requestId: this.generateRequestId()
+  });
+}
   
   /**
    * Envoie une erreur formatée au client
