@@ -43,7 +43,7 @@ export class PokedexSystem {
 
   async initializeUI() {
     try {
-      const { PokedexUI } = await import('./PokedxUI.js');
+      const { PokedexUI } = await import('./PokedexUI.js');
       this.pokedxUI = new PokedexUI(this.gameRoom);
       console.log('✅ [PokedexSystem] PokedexUI initialisé');
     } catch (error) {
