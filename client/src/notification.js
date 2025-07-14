@@ -248,26 +248,35 @@ export class GameNotificationSystem {
   /**
    * Notification: System initialized
    */
-  onSystemInitialized(systemName) {
-    if (!this.notificationManager) return;
-    
-    const messages = {
-      'inventory': 'Inventory system initialized',
-      'quests': 'Quest system initialized',
-      'starter': 'Starter selection ready',
-      'all': 'All systems are ready!'
-    };
-    
-    const message = messages[systemName] || `System ${systemName} initialized`;
-    const position = systemName === 'all' ? 'top-center' : 'bottom-right';
-    const bounce = systemName === 'all';
-    
-    this.notificationManager.info(message, {
-      duration: systemName === 'all' ? 3000 : 2000,
-      position: position,
-      bounce: bounce
-    });
+onSystemInitialized(systemName) {
+  // ✅ PROTECTION ANTI-BOUCLE
+  if (this._lastSystemInit === systemName && Date.now() - (this._lastSystemInitTime || 0) < 2000) {
+    console.log('🚫 onSystemInitialized ignorée (anti-boucle):', systemName);
+    return;
   }
+  
+  this._lastSystemInit = systemName;
+  this._lastSystemInitTime = Date.now();
+  
+  if (!this.notificationManager) return;
+  
+  const messages = {
+    'inventory': 'Inventory system initialized',
+    'quests': 'Quest system initialized', 
+    'starter': 'Starter selection ready',
+    'all': 'All systems are ready!'
+  };
+  
+  const message = messages[systemName] || `System ${systemName} initialized`;
+  const position = systemName === 'all' ? 'top-center' : 'bottom-right';
+  const bounce = systemName === 'all';
+  
+  this.notificationManager.info(message, {
+    duration: systemName === 'all' ? 3000 : 2000,
+    position: position,
+    bounce: bounce
+  });
+}
 
   // === PUBLIC METHODS FOR DEVELOPERS ===
 
