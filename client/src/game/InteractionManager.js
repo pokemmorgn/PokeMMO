@@ -1,6 +1,6 @@
 // client/src/game/InteractionManager.js
 // Gestionnaire unifié des interactions joueur-NPC avec système de dialogue avancé
-// ✅ VERSION DEBUG POUR TRACER LE PROBLÈME DES 4 INTERACTIONS
+// ✅ VERSION PRODUCTION - Nettoyée et optimisée
 
 export class InteractionManager {
   constructor(scene) {
@@ -28,9 +28,6 @@ export class InteractionManager {
     this.shopHandlerActive = false;
     this.lastShopOpenTime = 0;
 
-    // ✅ AJOUT: Compteur de debug
-    this.debugCallCount = 0;
-
     console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé`);
   }
 
@@ -54,12 +51,10 @@ export class InteractionManager {
   // === EXPOSITION API DIALOGUE ===
 
   exposeDialogueAPI() {
-    // Créer un namespace pour éviter la pollution globale
     if (!window.DialogueAPI) {
       window.DialogueAPI = {};
     }
 
-    // Exposer les méthodes via le namespace
     window.DialogueAPI.createCustomDiscussion = (npcName, npcPortrait, text, options = {}) => {
       return this.createCustomDiscussion(npcName, npcPortrait, text, options);
     };
@@ -68,11 +63,10 @@ export class InteractionManager {
       return this.createSequentialDiscussion(npcName, npcPortrait, messages, options);
     };
 
-    // Compatibilité : exposer aussi directement pour l'instant
     window.createCustomDiscussion = window.DialogueAPI.createCustomDiscussion;
     window.createSequentialDiscussion = window.DialogueAPI.createSequentialDiscussion;
 
-    console.log(`✅ [${this.scene.scene.key}] API Dialogue exposée via window.DialogueAPI`);
+    console.log(`✅ [${this.scene.scene.key}] API Dialogue exposée`);
   }
 
   // === SYSTÈMES D'INTERACTION ===
@@ -133,131 +127,74 @@ export class InteractionManager {
   // === GESTION DES INPUTS ===
 
   setupInputHandlers() {
-    console.log(`🎛️ [${this.scene.scene.key}] Configuration input handlers...`);
-    
-    // ✅ NETTOYER D'ABORD pour éviter les listeners multiples
+    // ✅ NETTOYAGE PRÉVENTIF pour éviter les listeners multiples
     this.scene.input.keyboard.removeAllListeners(`keydown-${this.config.interactionKey}`);
     
     this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, () => {
-      console.log(`⌨️ [${this.scene.scene.key}] Touche ${this.config.interactionKey} pressée`);
       this.handleInteractionInput();
     });
-    
-    console.log(`✅ [${this.scene.scene.key}] Input handlers configurés`);
   }
 
-  // ✅ VERSION DEBUG COMPLÈTE
   handleInteractionInput() {
-    this.debugCallCount++;
-    console.log(`🎯 === DÉBUT handleInteractionInput #${this.debugCallCount} ===`);
-    
     // ✅ PROTECTION ANTI-SPAM
     const now = Date.now();
     if (this.state.lastInteractionTime && (now - this.state.lastInteractionTime) < 500) {
-      console.log('🚫 Interaction trop rapide, ignorée (debouncing)');
       return;
     }
     this.state.lastInteractionTime = now;
 
-    console.log('🔍 1. Vérification canPlayerInteract...');
     if (!this.canPlayerInteract()) {
-      console.log('❌ canPlayerInteract = false, SORTIE');
       return;
     }
-    console.log('✅ canPlayerInteract = true');
 
-    console.log('🔍 2. Recherche interaction target...');
     const targetNpc = this.findInteractionTarget();
     if (!targetNpc) {
-      console.log('❌ Aucun NPC trouvé, SORTIE');
       this.showMessage("Aucun NPC à proximité pour interagir", 'info');
       return;
     }
-    console.log('✅ NPC trouvé:', targetNpc.name, 'ID:', targetNpc.id);
 
-    console.log('🔍 3. Détermination type interaction...');
     const interactionType = this.determineInteractionType(targetNpc);
     if (!interactionType) {
-      console.log('❌ Aucun type interaction trouvé, SORTIE');
       console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
       return;
     }
-    console.log('✅ Type interaction déterminé:', interactionType);
 
-    console.log('🔍 4. Déclenchement interaction...');
     this.triggerInteraction(targetNpc, interactionType);
-    
-    console.log(`🎯 === FIN handleInteractionInput #${this.debugCallCount} ===`);
   }
 
   findInteractionTarget() {
-    console.log('🔍 [findInteractionTarget] Début recherche...');
-    
-    if (!this.playerManager || !this.npcManager) {
-      console.log('❌ [findInteractionTarget] PlayerManager ou NPCManager manquant');
-      return null;
-    }
+    if (!this.playerManager || !this.npcManager) return null;
     
     const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) {
-      console.log('❌ [findInteractionTarget] Aucun joueur trouvé');
-      return null;
-    }
+    if (!myPlayer) return null;
 
-    console.log(`🔍 [findInteractionTarget] Position joueur: (${myPlayer.x}, ${myPlayer.y})`);
-    
-    const closestNpc = this.npcManager.getClosestNpc(
+    return this.npcManager.getClosestNpc(
       myPlayer.x,
       myPlayer.y,
       this.config.maxInteractionDistance
     );
-    
-    console.log('🔍 [findInteractionTarget] NPC le plus proche:', closestNpc ? `${closestNpc.name} à ${Math.round(Phaser.Math.Distance.Between(myPlayer.x, myPlayer.y, closestNpc.x, closestNpc.y))}px` : 'aucun');
-    
-    return closestNpc;
   }
 
   determineInteractionType(npc) {
-    console.log('🔍 [determineInteractionType] Analyse NPC:', npc.name);
-    
     const sortedSystems = Array.from(this.interactionSystems.values())
       .sort((a, b) => a.priority - b.priority);
     
-    console.log('🔍 [determineInteractionType] Systèmes à tester:', sortedSystems.map(s => `${s.name}(${s.priority})`));
-    
     for (const system of sortedSystems) {
       try {
-        console.log(`🔍 [determineInteractionType] Test système: ${system.name}`);
-        
-        const canHandle = system.canHandle(npc);
-        console.log(`  - canHandle: ${canHandle}`);
-        
-        const stateValid = system.validateState();
-        console.log(`  - validateState: ${stateValid}`);
-        
-        if (canHandle && stateValid) {
-          console.log(`✅ [determineInteractionType] Système sélectionné: ${system.name}`);
+        if (system.canHandle(npc) && system.validateState()) {
           return system.name;
         }
       } catch (error) {
-        console.error(`❌ [determineInteractionType] Erreur système "${system.name}":`, error);
+        console.error(`❌ [InteractionManager] Erreur système "${system.name}":`, error);
       }
     }
-    
-    console.log('❌ [determineInteractionType] Aucun système trouvé');
     return null;
   }
 
   triggerInteraction(npc, interactionType) {
-    console.log(`🎬 [triggerInteraction] DÉBUT - NPC: ${npc.name}, Type: ${interactionType}`);
-    
     const system = this.interactionSystems.get(interactionType);
-    if (!system) {
-      console.error(`❌ [triggerInteraction] Système "${interactionType}" introuvable`);
-      return;
-    }
+    if (!system) return;
 
-    // ✅ PROTECTION ÉTAT
     this.state.lastInteractionTime = Date.now();
     this.state.lastInteractedNpc = npc;
     this.state.currentInteractionType = interactionType;
@@ -266,30 +203,17 @@ export class InteractionManager {
       this.npcManager.lastInteractedNpc = npc;
     }
 
-    console.log(`📤 [triggerInteraction] Envoi interaction réseau - NPC ID: ${npc.id}`);
-
     try {
-      // ✅ ENVOI RÉSEAU
       if (this.networkManager) {
-        console.log(`📡 [triggerInteraction] Appel networkManager.sendNpcInteract(${npc.id})`);
         this.networkManager.sendNpcInteract(npc.id);
-        console.log(`✅ [triggerInteraction] Interaction réseau envoyée`);
-      } else {
-        console.warn(`⚠️ [triggerInteraction] NetworkManager non disponible`);
       }
       
-      // ✅ GESTION SPÉCIALE SHOP
       if (interactionType === 'shop' && this.shopSystem) {
-        console.log(`🏪 [triggerInteraction] Gestion spéciale shop`);
         system.handle(npc, null);
       }
-      
     } catch (error) {
-      console.error(`❌ [triggerInteraction] Erreur:`, error);
       this.showMessage(`Erreur d'interaction: ${error.message}`, 'error');
     }
-    
-    console.log(`🎬 [triggerInteraction] FIN`);
   }
 
   // === GESTION RÉSEAU ===
@@ -306,25 +230,15 @@ export class InteractionManager {
     });
 
     this.networkManager.onMessage("starterEligibility", (data) => {
-      console.log("📥 Réponse éligibilité starter:", data);
-      
       if (data.eligible) {
-        console.log("✅ Joueur éligible - affichage starter");
-        
         if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
           this.scene.starterSelector.starterOptions = data.availableStarters || [];
         }
-        
         this.scene.showStarterSelection(data.availableStarters);
-      } else {
-        console.log("❌ Joueur non éligible:", data.reason);
-        console.log(`❌ ${data.message || "Starter non disponible"}`);
       }
     });
 
     this.networkManager.onMessage("starterReceived", (data) => {
-      console.log("📥 Starter reçu:", data);
-      
       if (data.success) {
         const pokemonName = data.pokemon?.name || 'Pokémon';
         this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
@@ -420,12 +334,7 @@ export class InteractionManager {
       shopHandlerActive: this.shopHandlerActive
     };
     
-    console.log('🔍 [canPlayerInteract] Vérifications:', checks);
-    
-    const canInteract = !Object.values(checks).some(Boolean);
-    console.log('🔍 [canPlayerInteract] Résultat:', canInteract);
-    
-    return canInteract;
+    return !Object.values(checks).some(Boolean);
   }
 
   isShopOpen() {
@@ -544,8 +453,6 @@ export class InteractionManager {
   }
 
   handleStarterInteraction(npc, data) {
-    console.log("🎯 [InteractionManager] Handling starter interaction", data);
-    
     if (this.scene.showStarterSelection) {
       this.scene.showStarterSelection();
     } else {
@@ -858,7 +765,6 @@ export class InteractionManager {
   }
 
   destroy() {
-    // Nettoyer l'API globale
     if (window.DialogueAPI) {
       delete window.DialogueAPI;
     }
@@ -880,34 +786,10 @@ export class InteractionManager {
   }
 
   triggerStarter() {
-    console.log("🎯 Déclenchement starter via InteractionManager");
-    
     if (this.networkManager?.room) {
       this.networkManager.room.send("checkStarterEligibility");
     } else {
       this.showMessage("Connexion serveur requise", 'error');
     }
-  }
-
-  // ✅ MÉTHODES DE DEBUG
-
-  getDebugInfo() {
-    return {
-      sceneKey: this.scene.scene.key,
-      debugCallCount: this.debugCallCount,
-      lastInteractionTime: this.state.lastInteractionTime,
-      lastInteractedNpc: this.state.lastInteractedNpc?.name || null,
-      currentInteractionType: this.state.currentInteractionType,
-      systemsRegistered: Array.from(this.interactionSystems.keys()),
-      canPlayerInteract: this.canPlayerInteract(),
-      networkManagerConnected: !!this.networkManager,
-      playerManagerConnected: !!this.playerManager,
-      npcManagerConnected: !!this.npcManager
-    };
-  }
-
-  resetDebugCounters() {
-    this.debugCallCount = 0;
-    console.log('🔄 Debug counters reset');
   }
 }
