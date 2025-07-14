@@ -8,7 +8,7 @@ import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
-import { QuestSystem } from "../../game/QuestSystem.js";
+import { setupQuestSystem } from "../../Quest/index.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
@@ -43,7 +43,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.globalWeatherManager = null;
     this.weatherSystemType = null; // 'global', 'fallback'
-
+    this.questModuleInitialized = false;
+    this.questModuleAttempts = 0;
+    this.maxQuestModuleAttempts = 3;
     this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
     this.room = this.networkManager?.room || window.currentGameRoom;
     
@@ -1482,16 +1484,65 @@ shouldShowPlayerFallback(sessionId, playerState) {
   setupInventoryEventHandlers() { }
   
   // ✅ MÉTHODE INCHANGÉE: Initialisation du système de quêtes
-  initializeQuestSystem() {
-    if (!window.questSystem && this.networkManager?.room) {
-      try {
-        window.questSystem = new QuestSystem(this, this.networkManager.room);
-        console.log("✅ [QuestSystem] Initialisé");
-      } catch (e) {
-        console.error("❌ Erreur init QuestSystem:", e);
-      }
+async initializeQuestSystem() {
+  console.log(`🎯 [${this.scene.key}] === INITIALISATION QUEST MODULE ===`);
+  
+  if (this.questModuleInitialized) {
+    console.log(`ℹ️ [${this.scene.key}] Quest Module déjà initialisé`);
+    return;
+  }
+  
+  if (this.questModuleAttempts >= this.maxQuestModuleAttempts) {
+    console.warn(`⚠️ [${this.scene.key}] Trop de tentatives Quest Module - abandon`);
+    return;
+  }
+  
+  this.questModuleAttempts++;
+  
+  try {
+    if (!window.uiManager) {
+      console.warn(`⚠️ [${this.scene.key}] UIManager pas prêt, retry dans 2s...`);
+      setTimeout(() => this.initializeQuestSystem(), 2000);
+      return;
+    }
+    
+    console.log(`🚀 [${this.scene.key}] Initialisation Quest Module...`);
+    
+    const questInstance = await setupQuestSystem(window.uiManager);
+    
+    if (questInstance) {
+      this.questModuleInitialized = true;
+      console.log(`✅ [${this.scene.key}] Quest Module initialisé avec succès`);
+      
+      // Marquer globalement
+      window.questSystemReady = true;
+      
+    } else {
+      console.error(`❌ [${this.scene.key}] setupQuestSystem a retourné null`);
+      this.handleQuestInitFailure();
+    }
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation Quest Module:`, error);
+    this.handleQuestInitFailure();
+  }
+}
+  // ✅ NOUVELLE MÉTHODE À AJOUTER
+handleQuestInitFailure() {
+  if (this.questModuleAttempts < this.maxQuestModuleAttempts) {
+    console.log(`🔄 [${this.scene.key}] Retry initialisation Quest Module dans 3s... (${this.questModuleAttempts}/${this.maxQuestModuleAttempts})`);
+    setTimeout(() => this.initializeQuestSystem(), 3000);
+  } else {
+    console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation Quest Module`);
+    
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification('Système de quêtes indisponible', 'warning', {
+        duration: 5000,
+        position: 'top-center'
+      });
     }
   }
+}
 
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
   setupPlayerReadyHandler() {
@@ -1747,7 +1798,16 @@ if (this.overworldPokemonManager) {
         movementBlockHandler.reset();
       }
     }
-
+    if (this.questModuleInitialized && !isTransition) {
+      console.log(`🧹 [${this.scene.key}] Nettoyage Quest Module (non-transition)`);
+      
+      // Le nouveau système se nettoie automatiquement
+      // Juste reset nos flags locaux
+      this.questModuleInitialized = false;
+      this.questModuleAttempts = 0;
+    } else if (isTransition) {
+      console.log(`🔄 [${this.scene.key}] Quest Module conservé pour transition`);
+    }
     // 🔒 NOUVEAU: Nettoyage InputManager
     if (this.inputManager) {
       console.log(`🧹 [${this.scene.key}] Nettoyage InputManager...`);
@@ -2547,7 +2607,16 @@ onPlayerPositioned(player, initData) {
       globalManagerInitialized: window.TeamManager?.isInitialized || false
     };
   }
-
+    getQuestModuleStatus() {
+      return {
+        initialized: this.questModuleInitialized,
+        attempts: this.questModuleAttempts,
+        maxAttempts: this.maxQuestModuleAttempts,
+        globalSystemExists: !!window.questSystem,
+        globalSystemReady: !!window.questSystemReady,
+        uiManagerExists: !!window.uiManager
+      };
+    }
   // 🆕 NOUVELLES MÉTHODES: Gestion du système d'encounter
   getEncounterSystemStatus() {
     return {
