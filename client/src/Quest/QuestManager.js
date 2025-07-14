@@ -27,6 +27,7 @@ export class QuestManager {
     this.initialized = false;
     this.lastDataRequest = 0;
     this.questUI = null;              // Référence vers QuestUI pour dialogues
+    this.pendingQuestGiver = null;    // ✅ NOUVEAU: NPC en attente de quêtes
     
     // === DÉDUPLICATION NOTIFICATIONS ===
     this.lastNotificationTime = new Map();
@@ -281,6 +282,23 @@ export class QuestManager {
       
       console.log('📊 [QuestManager] Quêtes disponibles parsées:', this.availableQuests.length);
       
+      // ✅ CORRECTION: Gérer le cas où on attendait des quêtes pour un NPC
+      if (this.pendingQuestGiver && this.availableQuests.length > 0) {
+        console.log('🎁 [QuestManager] Traitement quêtes reçues pour NPC en attente');
+        
+        const questGiverData = {
+          ...this.pendingQuestGiver,
+          type: 'questGiver',
+          availableQuests: this.availableQuests
+        };
+        
+        // Réinitialiser le pending
+        this.pendingQuestGiver = null;
+        
+        // Traiter maintenant qu'on a les quêtes
+        return this.handleQuestGiverInteraction(questGiverData);
+      }
+      
     } catch (error) {
       console.error('❌ [QuestManager] Erreur traitement quêtes disponibles:', error);
     }
@@ -390,8 +408,15 @@ export class QuestManager {
     console.log('📊 [QuestManager] Traitement données interaction:', data);
     
     // Vérifier le type d'interaction
-    if (data.type === 'questGiver' && data.availableQuests) {
-      return this.handleQuestGiverInteraction(data);
+    if (data.type === 'questGiver') {
+      // ✅ CORRECTION: Gérer questGiver même sans availableQuests
+      if (data.availableQuests && Array.isArray(data.availableQuests)) {
+        console.log('📋 [QuestManager] QuestGiver avec quêtes explicites');
+        return this.handleQuestGiverInteraction(data);
+      } else {
+        console.log('📋 [QuestManager] QuestGiver détecté - demande des quêtes au serveur');
+        return this.handleQuestGiverWithoutQuests(data);
+      }
     }
     
     if (data.type === 'questComplete' && data.questId) {
@@ -433,7 +458,41 @@ export class QuestManager {
     return 'NO_QUEST';
   }
   
-  // === 🎯 GESTION TYPES INTERACTIONS QUÊTES ===
+  // === 🎯 NOUVELLE MÉTHODE: Gestion QuestGiver sans quêtes explicites ===
+  
+  handleQuestGiverWithoutQuests(data) {
+    console.log('🎁 [QuestManager] QuestGiver sans quêtes - demande au serveur:', data);
+    
+    try {
+      // Stocker les infos du NPC pour plus tard
+      this.pendingQuestGiver = {
+        npcId: data.npcId,
+        npcName: data.npcName || data.name,
+        message: data.message,
+        lines: data.lines
+      };
+      
+      // Demander les quêtes disponibles pour ce NPC au serveur
+      if (this.gameRoom && this.canSendRequest()) {
+        console.log('📤 [QuestManager] Demande des quêtes disponibles pour NPC');
+        this.gameRoom.send("getAvailableQuests", { 
+          npcId: data.npcId,
+          npcName: data.npcName || data.name
+        });
+        this.lastDataRequest = Date.now();
+        
+        // Retourner true pour indiquer qu'on traite la demande
+        return true;
+      } else {
+        console.warn('⚠️ [QuestManager] Impossible de demander les quêtes disponibles');
+        return 'NO_QUEST';
+      }
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur questGiver sans quêtes:', error);
+      return false;
+    }
+  }
   
   handleQuestGiverInteraction(data) {
     console.log('🎁 [QuestManager] NPC donneur de quêtes:', data);
