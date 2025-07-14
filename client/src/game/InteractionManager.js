@@ -9,7 +9,7 @@ export class InteractionManager {
     this.npcManager = null;
     this.shopSystem = null;
     this.questSystem = null;
-
+  this.lastInteractionTime = 0;
     this.config = {
       maxInteractionDistance: 64,
       interactionKey: 'E',
@@ -135,25 +135,34 @@ export class InteractionManager {
     });
   }
 
-  handleInteractionInput() {
-    if (!this.canPlayerInteract()) {
-      return;
-    }
-
-    const targetNpc = this.findInteractionTarget();
-    if (!targetNpc) {
-      this.showMessage("Aucun NPC à proximité pour interagir", 'info');
-      return;
-    }
-
-    const interactionType = this.determineInteractionType(targetNpc);
-    if (!interactionType) {
-      console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
-      return;
-    }
-
-    this.triggerInteraction(targetNpc, interactionType);
+handleInteractionInput() {
+  // ✅ AJOUTEZ CETTE PROTECTION AU DÉBUT
+  const now = Date.now();
+  if (this.lastInteractionTime && (now - this.lastInteractionTime) < 500) {
+    console.log('🚫 Interaction trop rapide, ignorée');
+    return;
   }
+  this.lastInteractionTime = now;
+  
+  // ✅ VOTRE CODE EXISTANT RESTE IDENTIQUE
+  if (!this.canPlayerInteract()) {
+    return;
+  }
+  
+  const targetNpc = this.findInteractionTarget();
+  if (!targetNpc) {
+    this.showMessage("Aucun NPC à proximité pour interagir", 'info');
+    return;
+  }
+  
+  const interactionType = this.determineInteractionType(targetNpc);
+  if (!interactionType) {
+    console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
+    return;
+  }
+  
+  this.triggerInteraction(targetNpc, interactionType);
+}
 
   findInteractionTarget() {
     if (!this.playerManager || !this.npcManager) return null;
