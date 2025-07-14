@@ -85,55 +85,49 @@ console.log('✅ Configuration wallet optionnelle activée');
 // Remplacez la fonction getSecureUserSession dans main.js
 
 function getSecureUserSession() {
-  const encryptedSession = sessionStorage.getItem('pws_game_session');
+  const token = localStorage.getItem('sessionToken');
   
-  if (!encryptedSession) {
-    console.warn('❌ Aucune session de jeu trouvée');
+  if (!token) {
+    console.warn('❌ Aucun token JWT trouvé');
     alert('Veuillez vous connecter pour jouer');
     window.location.href = '/auth';
     return null;
   }
 
   try {
-    const key = sessionStorage.getItem('pws_key');
-    if (!key) {
-      console.warn('❌ Clé de session manquante');
-      throw new Error('Session key missing');
+    // Décoder le JWT
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload));
+    
+    // Vérifier expiration
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      console.warn('❌ Token expiré');
+      localStorage.removeItem('sessionToken');
+      alert('Session expirée. Reconnexion requise.');
+      window.location.href = '/auth';
+      return null;
     }
     
-    const decoded = atob(encryptedSession);
-    const [dataStr, sessionKey] = decoded.split('|');
+    console.log('✅ Session JWT valide pour:', decoded.username);
     
-    if (sessionKey !== key) {
-      console.warn('❌ Clé de session invalide');
-      throw new Error('Invalid session key');
-    }
-    
-    const sessionData = JSON.parse(dataStr);
-    
-    if (!sessionData.username) {
-      console.warn('❌ Username manquant dans la session');
-      throw new Error('No username in session');
-    }
-    
-    // ✅ SUPPRIMÉ: Vérification expiration trop stricte
-    // Laisser le serveur gérer l'expiration du JWT
-    
-    console.log('✅ Session de jeu valide pour:', sessionData.username);
-    return sessionData;
+    return {
+      username: decoded.username,
+      sessionToken: token,
+      userId: decoded.userId,
+      isDev: decoded.isDev || false,
+      permissions: decoded.permissions || ['play']
+    };
     
   } catch (error) {
-    console.error('❌ Erreur lecture session:', error);
-    alert('Session invalide. Reconnexion requise.');
-    
-    // ✅ Nettoyer les sessions corrompues
-    sessionStorage.removeItem('pws_game_session');
-    sessionStorage.removeItem('pws_key');
-    
+    console.error('❌ Erreur lecture token JWT:', error);
+    localStorage.removeItem('sessionToken');
+    alert('Token invalide. Reconnexion requise.');
     window.location.href = '/auth';
     return null;
   }
 }
+
+
 // Récupérer l'utilisateur sécurisé
 const userSession = getSecureUserSession();
 if (!userSession) {
