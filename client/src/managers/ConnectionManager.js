@@ -82,10 +82,6 @@ export class ConnectionManager {
     this.state.connectionLost = false;
     this.reconnectAttempts = 0;
 
-    
-    // Setup des handlers Colyseus
-    this.setupColyseusHandlers();
-
     // Setup du ping automatique
     this.setupPingSystem();
 
@@ -111,34 +107,26 @@ export class ConnectionManager {
     console.log(`🏓 [ConnectionManager] Ping automatique configuré (${this.config.pingInterval}ms)`);
   }
 
-  setupColyseusHandlers() {
-    if (!this.networkManager.room) {
-      console.warn('⚠️ [ConnectionManager] Pas de room pour setup handlers');
-      return;
+  // === MÉTHODES PUBLIQUES POUR HANDLERS ===
+  
+  // Le NetworkManager appellera ces méthodes quand il reçoit les messages
+  handlePongFromServer(data) {
+    console.log(`🏓 [ConnectionManager] Pong reçu via NetworkManager:`, data);
+    this.handlePong(data);
+  }
+
+  handleErrorFromServer(error) {
+    console.error('🚨 [ConnectionManager] Erreur via NetworkManager:', error);
+    this.handleConnectionError(error);
+  }
+
+  handleLeaveFromServer(code) {
+    console.warn(`📤 [ConnectionManager] Déconnexion via NetworkManager (code: ${code})`);
+    
+    // Ne pas traiter comme perte si c'est une transition intentionnelle
+    if (!this.networkManager.isTransitionActive) {
+      this.handleConnectionLost();
     }
-
-    // Handler pour les pongs
-    this.networkManager.room.onMessage("pong", (data) => {
-      this.handlePong(data);
-    });
-
-    // Handler pour les erreurs de connexion
-    this.networkManager.room.onError((error) => {
-      console.error('🚨 [ConnectionManager] Erreur room détectée:', error);
-      this.handleConnectionError(error);
-    });
-
-    // Handler pour les déconnexions
-    this.networkManager.room.onLeave((code) => {
-      console.warn(`📤 [ConnectionManager] Déconnexion détectée (code: ${code})`);
-      
-      // Ne pas traiter comme perte si c'est une transition intentionnelle
-      if (!this.networkManager.isTransitionActive) {
-        this.handleConnectionLost();
-      }
-    });
-
-    console.log('✅ [ConnectionManager] Handlers Colyseus configurés');
   }
 
   // === SYSTÈME DE PING/PONG ===
