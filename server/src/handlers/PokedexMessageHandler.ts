@@ -1118,29 +1118,30 @@ export class PokedexMessageHandler {
   /**
    * Envoie une réponse de succès formatée
    */
-  private sendSuccess(client: Client, messageType: string, data: any): void {
-    client.send(`${messageType}:response`, {
-      success: true,
-      data,
-      timestamp: new Date(),
-      requestId: this.generateRequestId()
-    });
-  }
+private sendSuccess(client: Client, messageType: string, data: any): void {
+  // Utiliser le messageType tel quel, pas d'ajout automatique de ":response"
+  client.send(messageType, {
+    success: true,
+    data,
+    timestamp: new Date(),
+    requestId: this.generateRequestId()
+  });
+}
   
   /**
    * Envoie une erreur formatée au client
    */
-  private sendError(client: Client, messageType: string, error: string, statusCode: number = 500): void {
-    client.send(`${messageType}:response`, {
-      success: false,
-      error: {
-        message: error,
-        code: statusCode,
-        timestamp: new Date()
-      },
-      requestId: this.generateRequestId()
-    });
-  }
+private sendError(client: Client, messageType: string, error: string, statusCode: number = 500): void {
+  client.send(messageType, {
+    success: false,
+    error: {
+      message: error,
+      code: statusCode,
+      timestamp: new Date()
+    },
+    requestId: this.generateRequestId()
+  });
+}
   
   /**
    * Broadcaster un message à tous les clients d'un joueur
