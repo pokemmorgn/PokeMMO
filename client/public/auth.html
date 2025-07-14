@@ -1240,25 +1240,28 @@
             }
 
             saveSecureSession(authData) {
-                // Only store essential session data, encrypted
-                const sessionData = {
-                    username: authData.userData.username,
-                    sessionToken: authData.sessionToken,
-                    tokenExpiry: authData.tokenExpiry,
-                    permissions: authData.permissions,
-                    deviceFingerprint: this.generateDeviceFingerprint(),
-                    timestamp: Date.now()
-                };
-
-                // Use sessionStorage for security (cleared when browser closes)
-                sessionStorage.setItem('pws_session', this.encryptSessionData(sessionData));
-                
-                // Optional: Store username only in localStorage for "remember me"
-                if (document.getElementById('rememberMe')?.checked) {
-                    localStorage.setItem('pws_username', authData.userData.username);
-                }
-            }
-
+  // ✅ NOUVEAU : Stocker directement le JWT dans localStorage
+  console.log('💾 Sauvegarde session JWT:', authData.userData.username);
+  
+  localStorage.setItem('sessionToken', authData.sessionToken);
+  
+  // Stocker aussi les infos utilisateur pour le dashboard
+  const userInfo = {
+    username: authData.userData.username,
+    tokenExpiry: authData.tokenExpiry,
+    permissions: authData.permissions || ['play'],
+    isDev: authData.userData.isDev || false
+  };
+  
+  localStorage.setItem('userInfo', JSON.stringify(userInfo));
+  
+  // Optional: Remember username si coché
+  if (document.getElementById('rememberMe')?.checked) {
+    localStorage.setItem('pws_username', authData.userData.username);
+  }
+  
+  console.log('✅ Session JWT sauvegardée');
+}
             encryptSessionData(data) {
                 // Simple encryption for session data (you can use crypto-js for stronger encryption)
                 const key = this.generateSecureChallenge().slice(0, 16);
@@ -1284,37 +1287,52 @@
             }
 
             checkExistingSession() {
-                const encryptedSession = sessionStorage.getItem('pws_session');
-                
-                if (encryptedSession) {
-                    const sessionData = this.decryptSessionData(encryptedSession);
-                    
-                    if (sessionData && sessionData.tokenExpiry && Date.now() < sessionData.tokenExpiry) {
-                        // Verify device fingerprint for security
-                        const currentFingerprint = this.generateDeviceFingerprint();
-                        if (Math.abs(sessionData.deviceFingerprint.length - currentFingerprint.length) > 10) {
-                            this.showNotification('Security check failed. Please log in again.', 'error');
-                            this.clearSession();
-                            return;
-                        }
-                        
-                        this.currentUser = sessionData;
-                        this.showUserDashboard();
-                        this.showNotification(`Welcome back, ${sessionData.username}!`, 'success');
-                        this.startSessionHeartbeat();
-                        return;
-                    }
-                }
+  const token = localStorage.getItem('sessionToken');
+  const userInfo = localStorage.getItem('userInfo');
+  
+  if (token && userInfo) {
+    try {
+      // Vérifier le token JWT
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      
+      // Vérifier expiration
+      if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+        console.log('⏰ Token expiré');
+        this.clearSession();
+        this.showGuestSection();
+        return;
+      }
+      
+      // Restaurer la session
+      this.currentUser = {
+        username: decoded.username,
+        sessionToken: token,
+        tokenExpiry: decoded.exp * 1000,
+        permissions: decoded.permissions || ['play'],
+        isDev: decoded.isDev || false
+      };
+      
+      this.showUserDashboard();
+      this.showNotification(`Welcome back, ${decoded.username}!`, 'success');
+      this.startSessionHeartbeat();
+      return;
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification token:', error);
+      this.clearSession();
+    }
+  }
 
-                // Check for remembered username
-                const rememberedUsername = localStorage.getItem('pws_username');
-                if (rememberedUsername) {
-                    document.getElementById('loginUsername').value = rememberedUsername;
-                    document.getElementById('rememberMe').checked = true;
-                }
-                
-                this.showGuestSection();
-            }
+  // Check remembered username
+  const rememberedUsername = localStorage.getItem('pws_username');
+  if (rememberedUsername) {
+    document.getElementById('loginUsername').value = rememberedUsername;
+    document.getElementById('rememberMe').checked = true;
+  }
+  
+  this.showGuestSection();
+}
 
             async handleWalletAction() {
                 const walletButton = document.getElementById('walletButton');
@@ -1477,36 +1495,21 @@ async updatePlaytimeDisplay() {
     }
 }
 
-            startGame() {
-    if (!this.currentUser || !this.currentUser.sessionToken) {
-        this.showNotification('Please log in first', 'error');
-        return;
-    }
+startGame() {
+  if (!this.currentUser || !this.currentUser.sessionToken) {
+    this.showNotification('Please log in first', 'error');
+    return;
+  }
 
-    // ✅ PAS de vérification wallet obligatoire
-    console.log('🎮 Starting game without wallet requirement...');
-
-    this.showLoadingOverlay(true);
-    
-    // Create secure game session
-    const gameSession = {
-        sessionToken: this.currentUser.sessionToken,
-        username: this.currentUser.username,
-        permissions: this.currentUser.permissions,
-        deviceFingerprint: this.generateDeviceFingerprint(),
-        gameStartTime: Date.now(),
-        securityLevel: 'high',
-        walletOptional: true, // ✅ Wallet optionnelle
-        walletConnected: !!this.connectedWallet
-    };
-    
-    // Store encrypted session for game
-    sessionStorage.setItem('pws_game_session', this.encryptSessionData(gameSession));
-    
-    // ✅ Redirection directe sans attendre la wallet
-setTimeout(() => {
+  console.log('🎮 Starting game with JWT system...');
+  this.showLoadingOverlay(true);
+  
+  // ✅ Le token JWT est déjà dans localStorage.sessionToken
+  // Plus besoin de session compliquée
+  
+  setTimeout(() => {
     window.location.href = '/index.html';
-}, 1000);
+  }, 1000);
 }
 
            showUserDashboard() {
@@ -1579,16 +1582,15 @@ this.startPlaytimeUpdater();
                 this.forceLogout('Logged out successfully');
             }
 
-            clearSession() {
-                // Clear all session data
-                sessionStorage.removeItem('pws_session');
-                sessionStorage.removeItem('pws_game_session');
-                sessionStorage.removeItem('pws_key');
-                // Keep username in localStorage for convenience (if user chose remember me)
-                
-                this.currentUser = null;
-                this.connectedWallet = null;
-            }
+clearSession() {
+  // ✅ NOUVEAU : Nettoyer le système JWT
+  localStorage.removeItem('sessionToken');
+  localStorage.removeItem('userInfo');
+  // Garder pws_username pour remember me
+  
+  this.currentUser = null;
+  this.connectedWallet = null;
+}
 
             logFailedAttempt(username) {
                 // Track failed login attempts for rate limiting
