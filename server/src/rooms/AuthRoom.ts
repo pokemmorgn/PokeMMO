@@ -134,14 +134,15 @@ export class AuthRoom extends Room<AuthState> {
         await newUser.save();
         
         // ✅ GÉNÉRER JWT sécurisé
-        const sessionToken = this.generateJWT({
-          username: newUser.username,
-          userId: newUser._id,
-          permissions: ['play'],
-          type: 'game_session',
-          deviceFingerprint,
-          registrationTime: Date.now()
-        });
+const sessionToken = this.generateJWT({
+  username: newUser.username,
+  userId: newUser._id,
+  permissions: ['play'],
+  type: 'game_session',
+  deviceFingerprint,
+  registrationTime: Date.now(),
+  isDev: newUser.isDev || false  // ✅ AJOUTER CETTE LIGNE
+});
 
         // ✅ STOCKER session active avec métadonnées
         this.activeSessions.set(sessionToken, {
@@ -156,20 +157,21 @@ export class AuthRoom extends Room<AuthState> {
         });
 
         // ✅ RÉPONSE sécurisée (pas d'infos sensibles)
-        client.send("register_result", {
-          status: "ok",
-          sessionToken,
-          tokenExpiry: Date.now() + this.getSessionDuration(),
-          permissions: ['play'],
-          userData: { 
-            username: newUser.username, 
-            email: newUser.email,
-            level: newUser.level,
-            coins: newUser.gold,
-            lastMap: newUser.lastMap,
-            isNewUser: true
-          }
-        });
+client.send("register_result", {
+  status: "ok",
+  sessionToken,
+  tokenExpiry: Date.now() + this.getSessionDuration(),
+  permissions: ['play'],
+  userData: { 
+    username: newUser.username, 
+    email: newUser.email,
+    level: newUser.level,
+    coins: newUser.gold,
+    lastMap: newUser.lastMap,
+    isNewUser: true,
+    isDev: newUser.isDev || false  // ✅ AJOUTER CETTE LIGNE
+  }
+});
 
         console.log(`✅ Nouvel utilisateur créé: ${newUser.username} (${newUser.email}) depuis ${clientIP}`);
 
@@ -273,14 +275,15 @@ await user.save();
         }
 
         // ✅ GÉNÉRER nouveau JWT
-        const sessionToken = this.generateJWT({
-          username: user.username,
-          userId: user._id,
-          permissions: ['play'],
-          type: 'game_session',
-          deviceFingerprint,
-          loginTime: Date.now()
-        });
+const sessionToken = this.generateJWT({
+  username: user.username,
+  userId: user._id,
+  permissions: ['play'],
+  type: 'game_session',
+  deviceFingerprint,
+  loginTime: Date.now(),
+  isDev: user.isDev || false  // ✅ AJOUTER CETTE LIGNE
+});
 
         // ✅ STOCKER session active
         this.activeSessions.set(sessionToken, {
@@ -295,22 +298,23 @@ await user.save();
         });
 
         // ✅ RÉPONSE avec données utilisateur
-        client.send("login_result", {
-          status: "ok",
-          sessionToken,
-          tokenExpiry: Date.now() + this.getSessionDuration(),
-          permissions: ['play'],
-          userData: { 
-            username: user.username, 
-            email: user.email,
-            level: user.level || 1,
-            coins: user.gold || 1000,
-            lastMap: user.lastMap || "beach",
-playtime: user.totalPlaytime || 0,
-            loginCount: user.loginCount,
-            lastLogin: user.lastLogin
-          }
-        });
+client.send("login_result", {
+  status: "ok",
+  sessionToken,
+  tokenExpiry: Date.now() + this.getSessionDuration(),
+  permissions: ['play'],
+  userData: { 
+    username: user.username, 
+    email: user.email,
+    level: user.level || 1,
+    coins: user.gold || 1000,
+    lastMap: user.lastMap || "beach",
+    playtime: user.totalPlaytime || 0,
+    loginCount: user.loginCount,
+    lastLogin: user.lastLogin,
+    isDev: user.isDev || false  // ✅ AJOUTER CETTE LIGNE
+  }
+});
 
         console.log(`✅ Connexion réussie: ${user.username} (connexion #${user.loginCount}) depuis ${clientIP}`);
 
@@ -692,7 +696,10 @@ console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
 
 private generateJWT(payload: any): string {
   return jwt.sign(
-    payload,
+    {
+      ...payload,
+      isDev: payload.isDev || false  // ✅ AJOUTER CETTE LIGNE
+    },
     process.env.JWT_SECRET!,
     { 
       expiresIn: '6h',
