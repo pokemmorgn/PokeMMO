@@ -1,6 +1,7 @@
 // client/src/scenes/intros/PsyduckIntroManager.js
 // Manages Psyduck intro sequence with sequential dialogue system
 // ✅ DEUX SEQUENCES: Beach (originale) + Village (nouvelle avec lab et téléport)
+import { PrologueManager } from './PrologueManager.js';
 
 export class PsyduckIntroManager {
   constructor(scene) {
