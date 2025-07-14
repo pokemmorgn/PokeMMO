@@ -135,33 +135,45 @@ export class InteractionManager {
     });
   }
 
-handleInteractionInput() {
-  // ✅ AJOUTEZ CETTE PROTECTION AU DÉBUT
-  const now = Date.now();
-  if (this.lastInteractionTime && (now - this.lastInteractionTime) < 500) {
-    console.log('🚫 Interaction trop rapide, ignorée');
-    return;
-  }
-  this.lastInteractionTime = now;
+// Tracer chaque étape DANS handleInteractionInput
+const activeScene = window.game.scene.getScenes(true)[0];
+if (activeScene?.interactionManager) {
+  const original = activeScene.interactionManager.handleInteractionInput;
   
-  // ✅ VOTRE CODE EXISTANT RESTE IDENTIQUE
-  if (!this.canPlayerInteract()) {
-    return;
-  }
+  activeScene.interactionManager.handleInteractionInput = function() {
+    console.log('🎯 === DÉBUT handleInteractionInput ===');
+    
+    console.log('🔍 1. Vérif canPlayerInteract...');
+    if (!this.canPlayerInteract()) {
+      console.log('❌ canPlayerInteract = false, SORTIE');
+      return;
+    }
+    console.log('✅ canPlayerInteract = true');
+    
+    console.log('🔍 2. Recherche NPC...');
+    const targetNpc = this.findInteractionTarget();
+    if (!targetNpc) {
+      console.log('❌ Aucun NPC trouvé, SORTIE');
+      this.showMessage("Aucun NPC à proximité pour interagir", 'info');
+      return;
+    }
+    console.log('✅ NPC trouvé:', targetNpc.name);
+    
+    console.log('🔍 3. Détermination type interaction...');
+    const interactionType = this.determineInteractionType(targetNpc);
+    if (!interactionType) {
+      console.log('❌ Aucun type interaction, SORTIE');
+      console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
+      return;
+    }
+    console.log('✅ Type interaction:', interactionType);
+    
+    console.log('🔍 4. Déclenchement interaction...');
+    this.triggerInteraction(targetNpc, interactionType);
+    console.log('🎯 === FIN handleInteractionInput ===');
+  };
   
-  const targetNpc = this.findInteractionTarget();
-  if (!targetNpc) {
-    this.showMessage("Aucun NPC à proximité pour interagir", 'info');
-    return;
-  }
-  
-  const interactionType = this.determineInteractionType(targetNpc);
-  if (!interactionType) {
-    console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
-    return;
-  }
-  
-  this.triggerInteraction(targetNpc, interactionType);
+  console.log('✅ Tracing détaillé activé');
 }
 
   findInteractionTarget() {
