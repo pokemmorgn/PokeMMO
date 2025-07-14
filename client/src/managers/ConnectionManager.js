@@ -82,11 +82,12 @@ export class ConnectionManager {
     this.state.connectionLost = false;
     this.reconnectAttempts = 0;
 
-    // Setup du ping automatique
-    this.setupPingSystem();
-
+    
     // Setup des handlers Colyseus
     this.setupColyseusHandlers();
+
+    // Setup du ping automatique
+    this.setupPingSystem();
 
     console.log('✅ [ConnectionManager] Monitoring actif');
   }
