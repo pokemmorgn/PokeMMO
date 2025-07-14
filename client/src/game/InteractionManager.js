@@ -436,20 +436,17 @@ handleQuestInteraction(npc, data) {
     return;
   }
   
-  // ✅ CORRECTION : Le client ne fait QUE de l'affichage
   try {
-    // ❌ LIGNE QUI PLANTE
-    const result = this.questSystem.handleNpcInteraction(data || npc);
-    
-    // ✅ REMPLACEMENT TEMPORAIRE
-    // Utiliser directement la méthode qui existe dans QuestSystem
+    // ✅ CORRECTION : Appeler directement la méthode qui existe
     if (data && data.type === 'questGiver') {
-      this.questSystem.showQuestGiverDialog(this.questSystem.parseNpcQuestData(data));
+      // Le QuestSystem a une méthode handleNpcInteraction qui fonctionne
+      this.questSystem.handleNpcInteraction(data);
     } else {
+      // Sinon dialogue normal
       this.handleDialogueInteraction(npc, data);
     }
-    
   } catch (error) {
+    console.error("Erreur quest interaction:", error);
     this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
   }
 }
