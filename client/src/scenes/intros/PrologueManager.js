@@ -72,7 +72,7 @@ export class PrologueManager {
       this.startTextSequence();
       
       // Auto-completion après la durée totale + buffer
-      this.scene.time.delayedCall(this.config.duration + 5000, () => {
+      const autoCompleteTimer = this.scene.time.delayedCall(this.config.duration + 5000, () => {
         if (this.isPlaying) {
           console.log('[Prologue] ⏰ Auto-completion par timeout après', this.config.duration + 5000, 'ms');
           this.complete();
@@ -80,6 +80,9 @@ export class PrologueManager {
           console.log('[Prologue] ⏰ Timeout mais déjà terminé');
         }
       });
+      
+      // Tracker ce timer aussi
+      this.activeTimers.push(autoCompleteTimer);
 
       return true;
 
