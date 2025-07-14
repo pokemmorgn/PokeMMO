@@ -1,6 +1,6 @@
-// Team/TeamIcon.js - Icône Team Optimisée pour UIManager
-// 🎯 Crée l'élément DOM, UIManager gère le positionnement automatique
-// 📍 Aucun positionnement manuel - 100% compatible UIManager
+// Team/TeamIcon.js - CORRIGÉ pour uniformité complète avec InventoryIcon et QuestIcon
+// 🎯 ALIGNÉ sur le même standard que les autres modules
+// 📍 Positionnement identique à InventoryIcon pour consistance
 
 export class TeamIcon {
   constructor(teamManager) {
@@ -12,7 +12,7 @@ export class TeamIcon {
     this.iconElement = null;
     
     // === CALLBACKS ===
-    this.onClick = null; // Appelé au clic (défini par TeamModule)
+    this.onClick = null;
     
     // === DONNÉES AFFICHÉES ===
     this.displayStats = {
@@ -21,26 +21,25 @@ export class TeamIcon {
       canBattle: false
     };
     
-    // === IMPORTANT: POSITIONNEMENT GÉRÉ PAR UIMANAGER ===
-    this.positioningMode = 'uimanager'; // Signale que UIManager gère la position
+    // === ✅ CORRECTION: MÊME CONFIGURATION QUE LES AUTRES ===
+    this.positioningMode = 'uimanager';
+    this.uiManagerControlled = true; // ✅ FLAG MANQUANT ajouté
     
-    console.log('🎯 [TeamIcon] Instance créée (positionnement géré par UIManager)');
+    console.log('⚔️ [TeamIcon] Instance créée - Configuration UIManager uniformisée');
   }
   
-  // === 🚀 INITIALISATION ===
+  // === 🚀 INITIALISATION IDENTIQUE ===
   
   init() {
     try {
-      console.log('🚀 [TeamIcon] Initialisation sans positionnement manuel...');
+      console.log('🚀 [TeamIcon] Initialisation SANS positionnement...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
       
-      // === PAS DE POSITIONNEMENT MANUEL ===
-      // UIManager s'occupera du positionnement via registerIconPosition()
-      
-      console.log('✅ [TeamIcon] Initialisé (position sera gérée par UIManager)');
+      // ✅ PAS de positionnement manuel - UIManager s'en charge
+      console.log('✅ [TeamIcon] Initialisé - UIManager gérera la position');
       return this;
       
     } catch (error) {
@@ -49,7 +48,7 @@ export class TeamIcon {
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE ===
+  // === 🎨 CRÉATION INTERFACE UNIFORMISÉE ===
   
   createIcon() {
     // Supprimer l'ancien s'il existe
@@ -60,7 +59,7 @@ export class TeamIcon {
     
     const icon = document.createElement('div');
     icon.id = 'team-icon';
-    icon.className = 'team-icon ui-icon';
+    icon.className = 'team-icon ui-icon'; // ✅ MÊME CLASSE que les autres
     
     icon.innerHTML = `
       <div class="icon-background">
@@ -84,52 +83,42 @@ export class TeamIcon {
       </div>
     `;
     
-    // === IMPORTANT: PAS DE POSITIONNEMENT INITIAL ===
-    // On ne définit PAS position, right, bottom, etc.
-    // UIManager s'en chargera via registerIconPosition()
-    
+    // ✅ AUCUNE POSITION CSS - UIManager contrôle tout
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [TeamIcon] Icône créée SANS positionnement (UIManager prendra le relais)');
+    console.log('🎨 [TeamIcon] Icône créée SANS positionnement manuel');
   }
+  
+  // === 🎨 STYLES CORRIGÉS SANS POSITION ===
   
   addStyles() {
     if (document.querySelector('#team-icon-styles')) {
-      return; // Styles déjà chargés
+      return;
     }
     
     const style = document.createElement('style');
     style.id = 'team-icon-styles';
     style.textContent = `
-      /* ===== TEAM ICON STYLES (OPTIMISÉS UIMANAGER) ===== */
+      /* ===== TEAM ICON - AUCUNE POSITION FIXE ===== */
       .team-icon {
-        /* === AUCUN POSITIONNEMENT FIXE ===
-         * UIManager gérera position, left, top automatiquement
-         * Via registerIconPosition() et positionIcon()
-         */
-        width: 70px;
-        height: 80px;
+        /* ✅ AUCUNE POSITION CSS - UIManager contrôle tout */
+        width: 70px !important;
+        height: 80px !important;
         cursor: pointer;
         z-index: 500;
         transition: all 0.3s ease;
         user-select: none;
-        
-        /* Style de base pour UIManager */
         display: block;
         box-sizing: border-box;
         
-        /* Flexibilité pour positionnement dynamique */
-        position: fixed; /* UIManager modifiera left/top */
-        
-        /* ✅ PRÊT POUR UIMANAGER */
+        /* ✅ Position sera définie par UIManager uniquement */
       }
-      
+
       .team-icon:hover {
         transform: scale(1.1);
       }
-      
-      /* Background principal - thème bleu harmonisé */
+
       .team-icon .icon-background {
         width: 100%;
         height: 70px;
@@ -143,16 +132,14 @@ export class TeamIcon {
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         position: relative;
         transition: all 0.3s ease;
-        overflow: hidden;
       }
-      
+
       .team-icon:hover .icon-background {
         background: linear-gradient(145deg, #3a4f6f, #2e3d52);
         border-color: #5aa0f2;
         box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
-      
-      /* Contenu de l'icône */
+
       .team-icon .icon-content {
         flex: 1;
         display: flex;
@@ -161,18 +148,17 @@ export class TeamIcon {
         justify-content: center;
         gap: 2px;
       }
-      
+
       .team-icon .icon-emoji {
         font-size: 20px;
         transition: transform 0.3s ease;
         filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
       }
-      
+
       .team-icon:hover .icon-emoji {
         transform: scale(1.2);
       }
-      
-      /* Compteur d'équipe */
+
       .team-counter {
         display: flex;
         align-items: center;
@@ -182,23 +168,22 @@ export class TeamIcon {
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         gap: 1px;
       }
-      
+
       .team-count {
         color: #87ceeb;
         font-size: 13px;
       }
-      
+
       .team-separator {
         color: rgba(255, 255, 255, 0.7);
         font-size: 10px;
       }
-      
+
       .team-max {
         color: rgba(255, 255, 255, 0.7);
         font-size: 11px;
       }
-      
-      /* Label */
+
       .team-icon .icon-label {
         font-size: 11px;
         color: #87ceeb;
@@ -210,8 +195,7 @@ export class TeamIcon {
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
-      
-      /* Statut de combat */
+
       .battle-status {
         position: absolute;
         top: -3px;
@@ -224,31 +208,30 @@ export class TeamIcon {
         align-items: center;
         justify-content: center;
       }
-      
+
       .status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
         transition: background-color 0.3s ease;
       }
-      
+
       .status-dot.ready {
         background: #4caf50;
         box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
       }
-      
+
       .status-dot.not-ready {
         background: #f44336;
         box-shadow: 0 0 6px rgba(244, 67, 54, 0.6);
       }
-      
+
       .status-dot.warning {
         background: #f39c12;
         box-shadow: 0 0 6px rgba(243, 156, 18, 0.6);
         animation: warningBlink 1.5s infinite;
       }
-      
-      /* Badge de notification */
+
       .notification-badge {
         position: absolute;
         top: -5px;
@@ -263,59 +246,58 @@ export class TeamIcon {
         border: 2px solid #fff;
         animation: pulse 2s infinite;
       }
-      
+
       .notification-text {
         color: white;
         font-size: 10px;
         font-weight: bold;
       }
-      
+
       /* ===== ANIMATIONS ===== */
       @keyframes pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
       }
-      
+
       @keyframes warningBlink {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
       }
-      
-      /* Team updated animation */
+
       .team-icon.team-updated .icon-emoji {
         animation: teamBounce 0.6s ease;
       }
-      
+
       @keyframes teamBounce {
         0%, 100% { transform: scale(1); }
         25% { transform: scale(1.3) rotate(-5deg); }
         50% { transform: scale(1.1) rotate(5deg); }
         75% { transform: scale(1.2) rotate(-2deg); }
       }
-      
-      /* États du module */
-      .team-icon.hidden {
+
+      /* États UIManager */
+      .team-icon.ui-hidden {
         opacity: 0;
         pointer-events: none;
         transform: translateY(20px);
       }
-      
-      .team-icon.disabled {
+
+      .team-icon.ui-disabled {
         opacity: 0.5;
         cursor: not-allowed;
         filter: grayscale(50%);
       }
-      
-      .team-icon.disabled:hover {
+
+      .team-icon.ui-disabled:hover {
         transform: none !important;
       }
-      
-      /* Apparition */
+
+      /* Animations */
       .team-icon.appearing {
         animation: iconAppear 0.5s ease;
       }
-      
+
       @keyframes iconAppear {
         from {
           opacity: 0;
@@ -326,33 +308,30 @@ export class TeamIcon {
           transform: translateY(0) scale(1);
         }
       }
-      
-      /* Équipe pleine */
+
       .team-icon.team-full .icon-background {
         animation: teamFullGlow 1s ease;
       }
-      
+
       @keyframes teamFullGlow {
         0%, 100% { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
         50% { box-shadow: 0 4px 25px rgba(74, 144, 226, 0.8); }
       }
-      
-      /* Pokémon KO */
+
       .team-icon.pokemon-fainted .icon-background {
         animation: faintedFlash 0.8s ease;
       }
-      
+
       @keyframes faintedFlash {
         0%, 100% { background: linear-gradient(145deg, #2a3f5f, #1e2d42); }
         50% { background: linear-gradient(145deg, #9c27b0, #7b1fa2); }
       }
-      
-      /* ===== RESPONSIVE (TAILLES SEULEMENT) ===== */
-      /* UIManager gérera les positions selon breakpoints */
+
+      /* Responsive TAILLE seulement */
       @media (max-width: 768px) {
         .team-icon {
-          width: 60px;
-          height: 70px;
+          width: 60px !important;
+          height: 70px !important;
         }
         
         .team-icon .icon-background {
@@ -362,71 +341,29 @@ export class TeamIcon {
         .team-icon .icon-emoji {
           font-size: 18px;
         }
-        
-        .team-counter {
-          font-size: 10px;
-        }
-        
-        .team-count {
-          font-size: 11px;
-        }
-        
-        .team-icon .icon-label {
-          font-size: 10px;
-        }
       }
       
-      @media (min-width: 769px) and (max-width: 1024px) {
-        .team-icon {
-          width: 65px;
-          height: 75px;
-        }
-        
-        .team-icon .icon-background {
-          height: 65px;
-        }
-        
-        .team-icon .icon-emoji {
-          font-size: 19px;
-        }
-        
-        .team-counter {
-          font-size: 11px;
-        }
-        
-        .team-count {
-          font-size: 12px;
-        }
-      }
-      
-      /* ===== INDICATEUR UIMANAGER ===== */
-      .team-icon[data-positioned-by="uimanager"] {
-        /* Indicateur visuel que l'icône est gérée par UIManager */
-        border: 1px solid rgba(74, 144, 226, 0.3);
-      }
-      
-      .team-icon[data-positioned-by="uimanager"]::before {
+      /* Indicateur UIManager */
+      .team-icon[data-positioned-by="uimanager"]::after {
         content: "📍";
         position: absolute;
-        top: -2px;
-        right: -2px;
+        top: -10px;
+        left: -10px;
         font-size: 8px;
-        opacity: 0.5;
-        z-index: 1000;
+        opacity: 0.7;
         pointer-events: none;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [TeamIcon] Styles ajoutés (optimisés pour UIManager)');
+    console.log('🎨 [TeamIcon] Styles sans position fixe appliqués');
   }
   
-  // === 🎛️ ÉVÉNEMENTS ===
+  // === 🎛️ ÉVÉNEMENTS IDENTIQUES ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
     
-    // Clic principal
     this.iconElement.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -436,21 +373,18 @@ export class TeamIcon {
         return;
       }
       
-      // Animation de clic
       this.iconElement.classList.add('team-updated');
       setTimeout(() => {
         this.iconElement.classList.remove('team-updated');
       }, 600);
       
-      // Appeler le callback
       if (this.onClick) {
         this.onClick();
       }
       
-      console.log('🎯 [TeamIcon] Clic détecté');
+      console.log('⚔️ [TeamIcon] Clic détecté');
     });
     
-    // Survol
     this.iconElement.addEventListener('mouseenter', () => {
       if (this.isEnabled) {
         this.showTooltip();
@@ -464,21 +398,19 @@ export class TeamIcon {
     console.log('🎛️ [TeamIcon] Événements configurés');
   }
   
-  // === 📊 MISE À JOUR DONNÉES ===
+  // === 📊 MISE À JOUR DONNÉES IDENTIQUE ===
   
   updateStats(stats) {
     if (!stats || !this.iconElement) return;
     
     console.log('📊 [TeamIcon] Mise à jour stats:', stats);
     
-    // Sauvegarder les nouvelles stats
     this.displayStats = {
       teamCount: stats.totalPokemon || 0,
       aliveCount: stats.alivePokemon || 0,
       canBattle: stats.canBattle || false
     };
     
-    // Mettre à jour l'affichage
     this.updateDisplay();
   }
   
@@ -487,13 +419,11 @@ export class TeamIcon {
     
     const { teamCount, aliveCount, canBattle } = this.displayStats;
     
-    // Mettre à jour le compteur
     const countElement = this.iconElement.querySelector('.team-count');
     if (countElement) {
       countElement.textContent = teamCount;
     }
     
-    // Mettre à jour le statut de combat
     const statusDot = this.iconElement.querySelector('.status-dot');
     if (statusDot) {
       statusDot.classList.remove('ready', 'not-ready', 'warning');
@@ -507,7 +437,6 @@ export class TeamIcon {
       }
     }
     
-    // Animations selon l'état
     if (teamCount === 6) {
       this.iconElement.classList.add('team-full');
       setTimeout(() => {
@@ -518,32 +447,31 @@ export class TeamIcon {
     console.log('📊 [TeamIcon] Affichage mis à jour');
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER ===
+  // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
   
-show() {
-  console.log('👁️ [TeamIcon] Affichage (position gérée par UIManager)');
-  
-  this.isVisible = true;
-  
-  if (this.iconElement) {
-    this.iconElement.classList.remove('hidden');
-    this.iconElement.classList.add('appearing');
+  show() {
+    console.log('👁️ [TeamIcon] Affichage via UIManager');
     
-    // ✅ FORCER VISIBILITÉ EXPLICITE
-    this.iconElement.style.display = 'block';
-    this.iconElement.style.visibility = 'visible';
-    this.iconElement.style.opacity = '1';
+    this.isVisible = true;
     
-    // Marquer comme géré par UIManager
-    this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+    if (this.iconElement) {
+      this.iconElement.classList.remove('ui-hidden', 'hidden');
+      this.iconElement.classList.add('ui-fade-in');
+      
+      // ✅ FORCER AFFICHAGE sans toucher à la position
+      this.iconElement.style.display = 'block';
+      this.iconElement.style.visibility = 'visible';
+      this.iconElement.style.opacity = '1';
+      
+      // ✅ NE PAS TOUCHER À LA POSITION - UIManager s'en charge
+      
+      setTimeout(() => {
+        this.iconElement.classList.remove('ui-fade-in');
+      }, 300);
+    }
     
-    setTimeout(() => {
-      this.iconElement.classList.remove('appearing');
-    }, 500);
+    return true;
   }
-  
-  return true;
-}
   
   hide() {
     console.log('👻 [TeamIcon] Masquage');
@@ -551,8 +479,12 @@ show() {
     this.isVisible = false;
     
     if (this.iconElement) {
-      this.iconElement.classList.add('hidden');
-      this.iconElement.removeAttribute('data-positioned-by');
+      this.iconElement.classList.add('ui-fade-out');
+      
+      setTimeout(() => {
+        this.iconElement.classList.add('ui-hidden');
+        this.iconElement.classList.remove('ui-fade-out');
+      }, 200);
     }
     
     return true;
@@ -565,16 +497,52 @@ show() {
     
     if (this.iconElement) {
       if (enabled) {
-        this.iconElement.classList.remove('disabled');
+        this.iconElement.classList.remove('ui-disabled', 'disabled');
       } else {
-        this.iconElement.classList.add('disabled');
+        this.iconElement.classList.add('ui-disabled');
       }
     }
     
     return true;
   }
   
-  // === 💬 FEEDBACK UTILISATEUR ===
+  // === 📍 MÉTHODES UIMANAGER IDENTIQUES ===
+  
+  onPositioned(position) {
+    console.log('📍 [TeamIcon] Position reçue de UIManager:', position);
+    
+    if (this.iconElement) {
+      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+      this.iconElement.setAttribute('data-position', JSON.stringify(position));
+      console.log('✅ [TeamIcon] Position UIManager confirmée');
+    }
+  }
+  
+  isPositionedByUIManager() {
+    return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
+  }
+  
+  getCurrentPosition() {
+    if (!this.iconElement) return null;
+    
+    const positionData = this.iconElement.getAttribute('data-position');
+    if (positionData) {
+      try {
+        return JSON.parse(positionData);
+      } catch (error) {
+        console.warn('⚠️ [TeamIcon] Position data invalide');
+      }
+    }
+    
+    const computed = window.getComputedStyle(this.iconElement);
+    return {
+      left: computed.left,
+      top: computed.top,
+      source: 'computed'
+    };
+  }
+  
+  // === 💬 TOOLTIP CORRIGÉ ===
   
   showTooltip() {
     const { teamCount, aliveCount, canBattle } = this.displayStats;
@@ -582,8 +550,7 @@ show() {
     const tooltip = document.createElement('div');
     tooltip.className = 'team-tooltip';
     
-    // === POSITION TOOLTIP RELATIVE À L'ICÔNE ===
-    // Utilise la position actuelle de l'icône (calculée par UIManager)
+    // ✅ Position relative à l'icône actuelle
     const iconRect = this.iconElement.getBoundingClientRect();
     
     tooltip.style.cssText = `
@@ -604,7 +571,7 @@ show() {
     
     let statusText = canBattle ? 'Ready for battle' : 'Cannot battle';
     if (aliveCount < teamCount && aliveCount > 0) {
-      statusText = 'Some Pokémon fainted';
+      statusText = 'Some Pokemon fainted';
     }
     
     tooltip.innerHTML = `
@@ -616,14 +583,12 @@ show() {
     
     document.body.appendChild(tooltip);
     
-    // Supprimer après 3 secondes
     setTimeout(() => {
       if (tooltip.parentNode) {
         tooltip.remove();
       }
     }, 3000);
     
-    // Stocker pour pouvoir la supprimer au mouseleave
     this.currentTooltip = tooltip;
   }
   
@@ -643,19 +608,7 @@ show() {
     }
   }
   
-  showNotification(show = true, text = '!') {
-    const badge = this.iconElement?.querySelector('.notification-badge');
-    if (!badge) return;
-    
-    if (show) {
-      badge.style.display = 'flex';
-      badge.querySelector('.notification-text').textContent = text;
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-  
-  // === 🎭 ANIMATIONS SPÉCIALES ===
+  // === 🎭 ANIMATIONS IDENTIQUES ===
   
   animatePokemonAdded() {
     if (!this.iconElement) return;
@@ -694,56 +647,16 @@ show() {
     }, 1500);
   }
   
-  // === 📍 MÉTHODES UIMANAGER (NOUVEAU) ===
-  
-  /**
-   * Méthode appelée par UIManager après positionnement
-   */
-  onPositioned(position) {
-    console.log('📍 [TeamIcon] Position reçue de UIManager:', position);
+  showNotification(show = true, text = '!') {
+    const badge = this.iconElement?.querySelector('.notification-badge');
+    if (!badge) return;
     
-    if (this.iconElement) {
-      // Marquer comme positionné par UIManager
-      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-      this.iconElement.setAttribute('data-position', JSON.stringify(position));
-      
-      // Animation de confirmation
-      this.iconElement.style.transform = 'scale(1.05)';
-      setTimeout(() => {
-        this.iconElement.style.transform = '';
-      }, 200);
+    if (show) {
+      badge.style.display = 'flex';
+      badge.querySelector('.notification-text').textContent = text;
+    } else {
+      badge.style.display = 'none';
     }
-  }
-  
-  /**
-   * Vérifier si l'icône est bien positionnée par UIManager
-   */
-  isPositionedByUIManager() {
-    return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
-  }
-  
-  /**
-   * Obtenir la position actuelle calculée par UIManager
-   */
-  getCurrentPosition() {
-    if (!this.iconElement) return null;
-    
-    const positionData = this.iconElement.getAttribute('data-position');
-    if (positionData) {
-      try {
-        return JSON.parse(positionData);
-      } catch (error) {
-        console.warn('⚠️ [TeamIcon] Position data invalide');
-      }
-    }
-    
-    // Fallback: calculer depuis les styles
-    const computed = window.getComputedStyle(this.iconElement);
-    return {
-      left: computed.left,
-      top: computed.top,
-      source: 'computed'
-    };
   }
   
   // === 🧹 NETTOYAGE ===
@@ -751,15 +664,12 @@ show() {
   destroy() {
     console.log('🧹 [TeamIcon] Destruction...');
     
-    // Supprimer tooltip si présent
     this.hideTooltip();
     
-    // Supprimer l'élément DOM
     if (this.iconElement && this.iconElement.parentNode) {
       this.iconElement.parentNode.removeChild(this.iconElement);
     }
     
-    // Reset état
     this.iconElement = null;
     this.onClick = null;
     this.isVisible = false;
@@ -768,7 +678,7 @@ show() {
     console.log('✅ [TeamIcon] Détruit');
   }
   
-  // === 🐛 DEBUG ===
+  // === 🐛 DEBUG AMÉLIORÉ ===
   
   debugInfo() {
     return {
@@ -778,16 +688,22 @@ show() {
       elementInDOM: this.iconElement ? document.contains(this.iconElement) : false,
       displayStats: this.displayStats,
       hasOnClick: !!this.onClick,
-      positioningMode: this.positioningMode, // 'uimanager'
+      positioningMode: this.positioningMode,
+      uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
-      elementPosition: this.iconElement ? {
-        computedLeft: window.getComputedStyle(this.iconElement).left,
-        computedTop: window.getComputedStyle(this.iconElement).top,
-        offsetLeft: this.iconElement.offsetLeft,
-        offsetTop: this.iconElement.offsetTop,
-        boundingRect: this.iconElement.getBoundingClientRect()
-      } : null
+      elementStyles: this.iconElement ? {
+        position: this.iconElement.style.position,
+        left: this.iconElement.style.left,
+        top: this.iconElement.style.top,
+        right: this.iconElement.style.right,
+        bottom: this.iconElement.style.bottom,
+        zIndex: this.iconElement.style.zIndex,
+        display: this.iconElement.style.display,
+        visibility: this.iconElement.style.visibility,
+        opacity: this.iconElement.style.opacity
+      } : null,
+      boundingRect: this.iconElement ? this.iconElement.getBoundingClientRect() : null
     };
   }
 }
@@ -795,33 +711,31 @@ show() {
 export default TeamIcon;
 
 console.log(`
-🎯 === TEAM ICON OPTIMISÉ UIMANAGER ===
+⚔️ === TEAM ICON UNIFORMISÉ AVEC LES AUTRES ===
 
-📍 POSITIONNEMENT:
-✅ Aucun positionnement manuel en CSS
-✅ position: fixed (UIManager modifie left/top)
-✅ positioningMode: 'uimanager'
-✅ iconElement exposé pour registerIconPosition()
+✅ CORRECTIONS APPLIQUÉES:
+• Ajout du flag uiManagerControlled manquant
+• Tailles exactes (70px × 80px) comme Inventory
+• Méthodes show/hide identiques
+• onPositioned() standardisé
+• Classes CSS uniformisées
+• Responsive breakpoints alignés
 
-🎨 STYLES OPTIMISÉS:
-✅ Tailles responsive (mobile/tablet/desktop)
-✅ Animations et transitions fluides
-✅ Indicateur visuel UIManager (data-positioned-by)
-✅ Tooltip position relative à l'icône
+🔧 CONFIGURATION IDENTIQUE:
+• positioningMode: 'uimanager'
+• uiManagerControlled: true
+• Même structure de styles
+• Mêmes animations UIManager
+• Mêmes méthodes de positionnement
 
-🔧 NOUVELLES MÉTHODES:
-• onPositioned(position) - Callback UIManager
-• isPositionedByUIManager() - Vérification
-• getCurrentPosition() - Position actuelle
-
-📊 DONNÉES:
-• updateStats(stats) - Mise à jour équipe
-• displayStats - État local
-• Animations contextuelles
+📍 ORDRE UIMANAGER:
+• Inventory: order 0 (plus à droite)
+• Quest: order 1 (milieu)
+• Team: order 2 (plus à gauche)
 
 🎯 RÉSULTAT:
-Position calculée par UIManager:
-[📦 Inventory] [📋 Quest] [⚔️ Team]
+Alignement parfait des 3 icônes:
+[📦] [📖] [⚔️]
 
-🔗 INTÉGRATION PARFAITE AVEC UIMANAGER !
+✅ TEAM ICON MAINTENANT 100% ALIGNÉ !
 `);
