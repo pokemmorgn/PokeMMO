@@ -670,40 +670,41 @@ export class PokedexUI {
 
   // === 📡 COMMUNICATION SERVEUR ===
 
-  setupServerListeners() {
-    if (!this.gameRoom) return;
+setupServerListeners() {
+  if (!this.gameRoom) return;
 
-    // Réception des données Pokédx
-    this.gameRoom.onMessage("pokedex:get:response", (data) => {
-      this.handlePokedexData(data);
-    });
+  // === RÉCEPTION DES DONNÉES POKÉDX ===
+  // ✅ RETIRER ":response" - le serveur ajoute automatiquement
+  this.gameRoom.onMessage("pokedex:get", (data) => {
+    this.handlePokedexData(data);
+  });
 
-    // Réception d'une entrée détaillée
-    this.gameRoom.onMessage("pokedex:entry:response", (data) => {
-      this.handlePokemonDetails(data);
-    });
+  // Réception d'une entrée détaillée
+  this.gameRoom.onMessage("pokedex:entry", (data) => {
+    this.handlePokemonDetails(data);
+  });
 
-    // Réception des statistiques
-    this.gameRoom.onMessage("pokedex:stats:response", (data) => {
-      this.handleStatsData(data);
-    });
+  // Réception des statistiques
+  this.gameRoom.onMessage("pokedex:stats", (data) => {
+    this.handleStatsData(data);
+  });
 
-    // Notifications de découverte/capture
-    this.gameRoom.onMessage("pokedex:discovery", (data) => {
-      this.handleDiscoveryNotification(data);
-    });
+  // Notifications de découverte/capture (broadcasts sans :response)
+  this.gameRoom.onMessage("pokedex:discovery", (data) => {
+    this.handleDiscoveryNotification(data);
+  });
 
-    this.gameRoom.onMessage("pokedex:capture", (data) => {
-      this.handleCaptureNotification(data);
-    });
+  this.gameRoom.onMessage("pokedex:capture", (data) => {
+    this.handleCaptureNotification(data);
+  });
 
-    // Mise à jour des favoris
-    this.gameRoom.onMessage("pokedex:toggle_favorite:response", (data) => {
-      this.handleFavoriteUpdate(data);
-    });
+  // Mise à jour des favoris
+  this.gameRoom.onMessage("pokedex:toggle_favorite", (data) => {
+    this.handleFavoriteUpdate(data);
+  });
 
-    console.log('📡 [PokedexUI] Listeners serveur configurés');
-  }
+  console.log('📡 [PokedexUI] Listeners serveur configurés et corrigés');
+}
 
   requestPokedexData(filters = {}) {
     // 🛠️ NE PAS charger les données locales ici pour éviter la récursion
