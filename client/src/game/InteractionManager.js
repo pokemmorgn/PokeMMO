@@ -1,5 +1,6 @@
 // client/src/game/InteractionManager.js
 // Gestionnaire unifié des interactions joueur-NPC avec système de dialogue avancé
+// ✅ VERSION DEBUG POUR TRACER LE PROBLÈME DES 4 INTERACTIONS
 
 export class InteractionManager {
   constructor(scene) {
@@ -9,7 +10,7 @@ export class InteractionManager {
     this.npcManager = null;
     this.shopSystem = null;
     this.questSystem = null;
-  this.lastInteractionTime = 0;
+
     this.config = {
       maxInteractionDistance: 64,
       interactionKey: 'E',
@@ -26,6 +27,9 @@ export class InteractionManager {
 
     this.shopHandlerActive = false;
     this.lastShopOpenTime = 0;
+
+    // ✅ AJOUT: Compteur de debug
+    this.debugCallCount = 0;
 
     console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé`);
   }
@@ -74,14 +78,13 @@ export class InteractionManager {
   // === SYSTÈMES D'INTERACTION ===
 
   registerInteractionSystems() {
-
-  this.registerSystem('starter', {
-  priority: 0,
-  canHandle: (npc) => npc?.properties?.startertable === true,
-  handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
-  validateState: () => true,
-  description: "Table starter Pokémon"
-});
+    this.registerSystem('starter', {
+      priority: 0,
+      canHandle: (npc) => npc?.properties?.startertable === true,
+      handle: (npc, data) => this.handleStarterInteraction(npc, data),
+      validateState: () => true,
+      description: "Table starter Pokémon"
+    });
     
     this.registerSystem('shop', {
       priority: 1,
@@ -130,85 +133,131 @@ export class InteractionManager {
   // === GESTION DES INPUTS ===
 
   setupInputHandlers() {
+    console.log(`🎛️ [${this.scene.scene.key}] Configuration input handlers...`);
+    
+    // ✅ NETTOYER D'ABORD pour éviter les listeners multiples
+    this.scene.input.keyboard.removeAllListeners(`keydown-${this.config.interactionKey}`);
+    
     this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, () => {
+      console.log(`⌨️ [${this.scene.scene.key}] Touche ${this.config.interactionKey} pressée`);
       this.handleInteractionInput();
     });
+    
+    console.log(`✅ [${this.scene.scene.key}] Input handlers configurés`);
   }
 
-// Tracer chaque étape DANS handleInteractionInput
-const activeScene = window.game.scene.getScenes(true)[0];
-if (activeScene?.interactionManager) {
-  const original = activeScene.interactionManager.handleInteractionInput;
-  
-  activeScene.interactionManager.handleInteractionInput = function() {
-    console.log('🎯 === DÉBUT handleInteractionInput ===');
+  // ✅ VERSION DEBUG COMPLÈTE
+  handleInteractionInput() {
+    this.debugCallCount++;
+    console.log(`🎯 === DÉBUT handleInteractionInput #${this.debugCallCount} ===`);
     
-    console.log('🔍 1. Vérif canPlayerInteract...');
+    // ✅ PROTECTION ANTI-SPAM
+    const now = Date.now();
+    if (this.state.lastInteractionTime && (now - this.state.lastInteractionTime) < 500) {
+      console.log('🚫 Interaction trop rapide, ignorée (debouncing)');
+      return;
+    }
+    this.state.lastInteractionTime = now;
+
+    console.log('🔍 1. Vérification canPlayerInteract...');
     if (!this.canPlayerInteract()) {
       console.log('❌ canPlayerInteract = false, SORTIE');
       return;
     }
     console.log('✅ canPlayerInteract = true');
-    
-    console.log('🔍 2. Recherche NPC...');
+
+    console.log('🔍 2. Recherche interaction target...');
     const targetNpc = this.findInteractionTarget();
     if (!targetNpc) {
       console.log('❌ Aucun NPC trouvé, SORTIE');
       this.showMessage("Aucun NPC à proximité pour interagir", 'info');
       return;
     }
-    console.log('✅ NPC trouvé:', targetNpc.name);
-    
+    console.log('✅ NPC trouvé:', targetNpc.name, 'ID:', targetNpc.id);
+
     console.log('🔍 3. Détermination type interaction...');
     const interactionType = this.determineInteractionType(targetNpc);
     if (!interactionType) {
-      console.log('❌ Aucun type interaction, SORTIE');
+      console.log('❌ Aucun type interaction trouvé, SORTIE');
       console.warn(`⚠️ [InteractionManager] Aucun système ne peut gérer le NPC ${targetNpc.name}`);
       return;
     }
-    console.log('✅ Type interaction:', interactionType);
-    
+    console.log('✅ Type interaction déterminé:', interactionType);
+
     console.log('🔍 4. Déclenchement interaction...');
     this.triggerInteraction(targetNpc, interactionType);
-    console.log('🎯 === FIN handleInteractionInput ===');
-  };
-  
-  console.log('✅ Tracing détaillé activé');
-}
+    
+    console.log(`🎯 === FIN handleInteractionInput #${this.debugCallCount} ===`);
+  }
 
   findInteractionTarget() {
-    if (!this.playerManager || !this.npcManager) return null;
+    console.log('🔍 [findInteractionTarget] Début recherche...');
+    
+    if (!this.playerManager || !this.npcManager) {
+      console.log('❌ [findInteractionTarget] PlayerManager ou NPCManager manquant');
+      return null;
+    }
     
     const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return null;
+    if (!myPlayer) {
+      console.log('❌ [findInteractionTarget] Aucun joueur trouvé');
+      return null;
+    }
 
-    return this.npcManager.getClosestNpc(
+    console.log(`🔍 [findInteractionTarget] Position joueur: (${myPlayer.x}, ${myPlayer.y})`);
+    
+    const closestNpc = this.npcManager.getClosestNpc(
       myPlayer.x,
       myPlayer.y,
       this.config.maxInteractionDistance
     );
+    
+    console.log('🔍 [findInteractionTarget] NPC le plus proche:', closestNpc ? `${closestNpc.name} à ${Math.round(Phaser.Math.Distance.Between(myPlayer.x, myPlayer.y, closestNpc.x, closestNpc.y))}px` : 'aucun');
+    
+    return closestNpc;
   }
 
   determineInteractionType(npc) {
+    console.log('🔍 [determineInteractionType] Analyse NPC:', npc.name);
+    
     const sortedSystems = Array.from(this.interactionSystems.values())
       .sort((a, b) => a.priority - b.priority);
     
+    console.log('🔍 [determineInteractionType] Systèmes à tester:', sortedSystems.map(s => `${s.name}(${s.priority})`));
+    
     for (const system of sortedSystems) {
       try {
-        if (system.canHandle(npc) && system.validateState()) {
+        console.log(`🔍 [determineInteractionType] Test système: ${system.name}`);
+        
+        const canHandle = system.canHandle(npc);
+        console.log(`  - canHandle: ${canHandle}`);
+        
+        const stateValid = system.validateState();
+        console.log(`  - validateState: ${stateValid}`);
+        
+        if (canHandle && stateValid) {
+          console.log(`✅ [determineInteractionType] Système sélectionné: ${system.name}`);
           return system.name;
         }
       } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur système "${system.name}":`, error);
+        console.error(`❌ [determineInteractionType] Erreur système "${system.name}":`, error);
       }
     }
+    
+    console.log('❌ [determineInteractionType] Aucun système trouvé');
     return null;
   }
 
   triggerInteraction(npc, interactionType) {
+    console.log(`🎬 [triggerInteraction] DÉBUT - NPC: ${npc.name}, Type: ${interactionType}`);
+    
     const system = this.interactionSystems.get(interactionType);
-    if (!system) return;
+    if (!system) {
+      console.error(`❌ [triggerInteraction] Système "${interactionType}" introuvable`);
+      return;
+    }
 
+    // ✅ PROTECTION ÉTAT
     this.state.lastInteractionTime = Date.now();
     this.state.lastInteractedNpc = npc;
     this.state.currentInteractionType = interactionType;
@@ -217,17 +266,30 @@ if (activeScene?.interactionManager) {
       this.npcManager.lastInteractedNpc = npc;
     }
 
+    console.log(`📤 [triggerInteraction] Envoi interaction réseau - NPC ID: ${npc.id}`);
+
     try {
+      // ✅ ENVOI RÉSEAU
       if (this.networkManager) {
+        console.log(`📡 [triggerInteraction] Appel networkManager.sendNpcInteract(${npc.id})`);
         this.networkManager.sendNpcInteract(npc.id);
+        console.log(`✅ [triggerInteraction] Interaction réseau envoyée`);
+      } else {
+        console.warn(`⚠️ [triggerInteraction] NetworkManager non disponible`);
       }
       
+      // ✅ GESTION SPÉCIALE SHOP
       if (interactionType === 'shop' && this.shopSystem) {
+        console.log(`🏪 [triggerInteraction] Gestion spéciale shop`);
         system.handle(npc, null);
       }
+      
     } catch (error) {
+      console.error(`❌ [triggerInteraction] Erreur:`, error);
       this.showMessage(`Erreur d'interaction: ${error.message}`, 'error');
     }
+    
+    console.log(`🎬 [triggerInteraction] FIN`);
   }
 
   // === GESTION RÉSEAU ===
@@ -243,35 +305,33 @@ if (activeScene?.interactionManager) {
       this.handleInteractionResult(data);
     });
 
-   this.networkManager.onMessage("starterEligibility", (data) => {
-  console.log("📥 Réponse éligibilité starter:", data);
-  
-  if (data.eligible) {
-    console.log("✅ Joueur éligible - affichage starter");
-    
-    // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
-    if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
-      this.scene.starterSelector.starterOptions = data.availableStarters || [];
-    }
-    
-    // Utiliser les starters du serveur
-    this.scene.showStarterSelection(data.availableStarters);
-  } else {
-    console.log("❌ Joueur non éligible:", data.reason);
-    // ✅ LOG SIMPLE AU LIEU DE showMessage
-    console.log(`❌ ${data.message || "Starter non disponible"}`);
-  }
-});
+    this.networkManager.onMessage("starterEligibility", (data) => {
+      console.log("📥 Réponse éligibilité starter:", data);
+      
+      if (data.eligible) {
+        console.log("✅ Joueur éligible - affichage starter");
+        
+        if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
+          this.scene.starterSelector.starterOptions = data.availableStarters || [];
+        }
+        
+        this.scene.showStarterSelection(data.availableStarters);
+      } else {
+        console.log("❌ Joueur non éligible:", data.reason);
+        console.log(`❌ ${data.message || "Starter non disponible"}`);
+      }
+    });
+
     this.networkManager.onMessage("starterReceived", (data) => {
-    console.log("📥 Starter reçu:", data);
-    
-    if (data.success) {
-      const pokemonName = data.pokemon?.name || 'Pokémon';
-      this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
-    } else {
-      this.showMessage(data.message || 'Erreur sélection', 'error');
-    }
-  });
+      console.log("📥 Starter reçu:", data);
+      
+      if (data.success) {
+        const pokemonName = data.pokemon?.name || 'Pokémon';
+        this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
+      } else {
+        this.showMessage(data.message || 'Erreur sélection', 'error');
+      }
+    });
   }
 
   isShopInteraction(data) {
@@ -360,7 +420,12 @@ if (activeScene?.interactionManager) {
       shopHandlerActive: this.shopHandlerActive
     };
     
-    return !Object.values(checks).some(Boolean);
+    console.log('🔍 [canPlayerInteract] Vérifications:', checks);
+    
+    const canInteract = !Object.values(checks).some(Boolean);
+    console.log('🔍 [canPlayerInteract] Résultat:', canInteract);
+    
+    return canInteract;
   }
 
   isShopOpen() {
@@ -479,16 +544,15 @@ if (activeScene?.interactionManager) {
   }
 
   handleStarterInteraction(npc, data) {
-  console.log("🎯 [InteractionManager] Handling starter interaction", data);
-  
-  // Déclencher le StarterSelector directement
-  if (this.scene.showStarterSelection) {
-    this.scene.showStarterSelection();
-  } else {
-    console.error("❌ showStarterSelection not available");
-    this.showMessage("Système starter non disponible", 'error');
+    console.log("🎯 [InteractionManager] Handling starter interaction", data);
+    
+    if (this.scene.showStarterSelection) {
+      this.scene.showStarterSelection();
+    } else {
+      console.error("❌ showStarterSelection not available");
+      this.showMessage("Système starter non disponible", 'error');
+    }
   }
-}
   
   handleDialogueInteraction(npc, data) {
     if (typeof window.showNpcDialogue !== 'function') {
@@ -594,122 +658,120 @@ if (activeScene?.interactionManager) {
     }
   }
 
-async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
-  if (typeof window.showNpcDialogue !== 'function') {
-    console.error('❌ [InteractionManager] showNpcDialogue non disponible');
-    return false;
-  }
-  
-  if (!Array.isArray(messages) || messages.length === 0) {
-    console.warn('⚠️ [InteractionManager] Messages invalides ou vides');
-    return false;
-  }
-  
-  // Prend en compte objets OU strings
-  const validMessages = messages.filter(msg => {
-    if (typeof msg === "object" && msg !== null) {
-      return !!msg.text;
-    }
-    return typeof msg === "string" && msg.trim();
-  });
-
-  if (validMessages.length === 0) {
-    console.warn('⚠️ [InteractionManager] Aucun message valide');
-    return false;
-  }
-  
-  try {
-    for (let i = 0; i < validMessages.length; i++) {
-      const message = validMessages[i];
-      const isLast = i === validMessages.length - 1;
-
-      // Valeurs par défaut
-      let currentNpcName = npcName;
-      let currentPortrait = npcPortrait;
-      let messageText = "";
-      let hideName = false;
-
-      if (typeof message === "object" && message !== null) {
-        currentNpcName = message.speaker || currentNpcName;
-        currentPortrait = message.portrait || currentPortrait;
-        messageText = message.text || "";
-        hideName = !!message.hideName;
-      } else {
-        messageText = message;
-      }
-
-      const success = await this.showSingleMessageAndWait(
-        currentNpcName, 
-        currentPortrait, 
-        messageText, 
-        i + 1, 
-        validMessages.length,
-        { ...options, hideName }
-      );
-
-      if (!success) {
-        console.error(`❌ [InteractionManager] Erreur affichage message ${i + 1}`);
-        break;
-      }
+  async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
+    if (typeof window.showNpcDialogue !== 'function') {
+      console.error('❌ [InteractionManager] showNpcDialogue non disponible');
+      return false;
     }
     
-    if (options.onComplete) {
-      try {
-        options.onComplete();
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur callback onComplete:`, error);
-      }
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.warn('⚠️ [InteractionManager] Messages invalides ou vides');
+      return false;
     }
     
-    return true;
-  } catch (error) {
-    console.error('❌ [InteractionManager] Erreur createSequentialDiscussion:', error);
-    return false;
-  }
-}
+    const validMessages = messages.filter(msg => {
+      if (typeof msg === "object" && msg !== null) {
+        return !!msg.text;
+      }
+      return typeof msg === "string" && msg.trim();
+    });
 
- showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
-  return new Promise((resolve) => {
-    const displayMessage = message;
+    if (validMessages.length === 0) {
+      console.warn('⚠️ [InteractionManager] Aucun message valide');
+      return false;
+    }
     
     try {
-      this.createCustomDiscussion(npcName, portrait, displayMessage, {
-        autoClose: false,
-        isNarrator: npcName === "Narrator",
-        hideName: options.hideName // <-- ICI : transmet la valeur brute
-      });
-      
-      setTimeout(() => {
-        this.addVisualContinueIndicator(currentIndex, totalCount);
-        if (npcName === "Narrator") {
-          const dialogueBox = document.getElementById('dialogue-box');
-          if (dialogueBox) {
-            dialogueBox.setAttribute('data-speaker', 'Narrator');
-          }
+      for (let i = 0; i < validMessages.length; i++) {
+        const message = validMessages[i];
+        const isLast = i === validMessages.length - 1;
+
+        let currentNpcName = npcName;
+        let currentPortrait = npcPortrait;
+        let messageText = "";
+        let hideName = false;
+
+        if (typeof message === "object" && message !== null) {
+          currentNpcName = message.speaker || currentNpcName;
+          currentPortrait = message.portrait || currentPortrait;
+          messageText = message.text || "";
+          hideName = !!message.hideName;
+        } else {
+          messageText = message;
         }
-      }, 100);
-      
-      const checkInterval = 100;
-      const checkDialogueClose = () => {
-        const dialogueBox = document.getElementById('dialogue-box');
-        if (!dialogueBox || dialogueBox.style.display === 'none' || !dialogueBox.offsetParent) {
-          this.removeVisualContinueIndicator();
-          const dialogueBox = document.getElementById('dialogue-box');
-          if (dialogueBox) {
-            dialogueBox.removeAttribute('data-speaker');
-          }
-          resolve(true);
-          return;
+
+        const success = await this.showSingleMessageAndWait(
+          currentNpcName, 
+          currentPortrait, 
+          messageText, 
+          i + 1, 
+          validMessages.length,
+          { ...options, hideName }
+        );
+
+        if (!success) {
+          console.error(`❌ [InteractionManager] Erreur affichage message ${i + 1}`);
+          break;
         }
-        setTimeout(checkDialogueClose, checkInterval);
-      };
-      setTimeout(checkDialogueClose, 200);
+      }
+      
+      if (options.onComplete) {
+        try {
+          options.onComplete();
+        } catch (error) {
+          console.error(`❌ [InteractionManager] Erreur callback onComplete:`, error);
+        }
+      }
+      
+      return true;
     } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur message ${currentIndex}:`, error);
-      resolve(false);
+      console.error('❌ [InteractionManager] Erreur createSequentialDiscussion:', error);
+      return false;
     }
-  });
-}
+  }
+
+  showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
+    return new Promise((resolve) => {
+      const displayMessage = message;
+      
+      try {
+        this.createCustomDiscussion(npcName, portrait, displayMessage, {
+          autoClose: false,
+          isNarrator: npcName === "Narrator",
+          hideName: options.hideName
+        });
+        
+        setTimeout(() => {
+          this.addVisualContinueIndicator(currentIndex, totalCount);
+          if (npcName === "Narrator") {
+            const dialogueBox = document.getElementById('dialogue-box');
+            if (dialogueBox) {
+              dialogueBox.setAttribute('data-speaker', 'Narrator');
+            }
+          }
+        }, 100);
+        
+        const checkInterval = 100;
+        const checkDialogueClose = () => {
+          const dialogueBox = document.getElementById('dialogue-box');
+          if (!dialogueBox || dialogueBox.style.display === 'none' || !dialogueBox.offsetParent) {
+            this.removeVisualContinueIndicator();
+            const dialogueBox = document.getElementById('dialogue-box');
+            if (dialogueBox) {
+              dialogueBox.removeAttribute('data-speaker');
+            }
+            resolve(true);
+            return;
+          }
+          setTimeout(checkDialogueClose, checkInterval);
+        };
+        setTimeout(checkDialogueClose, 200);
+      } catch (error) {
+        console.error(`❌ [InteractionManager] Erreur message ${currentIndex}:`, error);
+        resolve(false);
+      }
+    });
+  }
 
   // === INDICATEUR VISUEL ===
 
@@ -717,34 +779,27 @@ async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
     const dialogueBox = document.getElementById('dialogue-box');
     if (!dialogueBox) return;
     
-    // Supprimer l'ancien indicateur s'il existe
     this.removeVisualContinueIndicator();
     
-    // Créer le conteneur de l'indicateur
     const indicator = document.createElement('div');
     indicator.className = 'dialogue-continue-indicator';
     indicator.id = 'dialogue-continue-indicator';
     
-    // Marquer si c'est le dernier message
     const isLast = currentIndex === totalCount;
     if (isLast) {
       indicator.classList.add('last-message');
     }
     
-    // Créer la flèche
     const arrow = document.createElement('div');
     arrow.className = 'dialogue-arrow';
     
-    // Créer le compteur discret
     const counter = document.createElement('span');
     counter.className = 'dialogue-counter';
     counter.textContent = `${currentIndex}/${totalCount}`;
     
-    // Assembler
     indicator.appendChild(counter);
     indicator.appendChild(arrow);
     
-    // Ajouter au dialogue
     dialogueBox.appendChild(indicator);
   }
 
@@ -832,5 +887,27 @@ async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
     } else {
       this.showMessage("Connexion serveur requise", 'error');
     }
+  }
+
+  // ✅ MÉTHODES DE DEBUG
+
+  getDebugInfo() {
+    return {
+      sceneKey: this.scene.scene.key,
+      debugCallCount: this.debugCallCount,
+      lastInteractionTime: this.state.lastInteractionTime,
+      lastInteractedNpc: this.state.lastInteractedNpc?.name || null,
+      currentInteractionType: this.state.currentInteractionType,
+      systemsRegistered: Array.from(this.interactionSystems.keys()),
+      canPlayerInteract: this.canPlayerInteract(),
+      networkManagerConnected: !!this.networkManager,
+      playerManagerConnected: !!this.playerManager,
+      npcManagerConnected: !!this.npcManager
+    };
+  }
+
+  resetDebugCounters() {
+    this.debugCallCount = 0;
+    console.log('🔄 Debug counters reset');
   }
 }
