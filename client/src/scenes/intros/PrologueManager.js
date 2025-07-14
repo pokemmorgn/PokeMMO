@@ -280,7 +280,7 @@ export class PrologueManager {
   createFloatingParticles(x, y) {
     // Particules mystiques flottantes pour suggérer la corruption du monde
     for (let i = 0; i < 12; i++) {
-      this.scene.time.delayedCall(i * 150, () => {
+      const particleTimer = this.scene.time.delayedCall(i * 150, () => {
         const particle = this.scene.add.circle(
           x + (Math.random() - 0.5) * 400,
           y + (Math.random() - 0.5) * 300,
@@ -315,8 +315,8 @@ export class PrologueManager {
         });
       });
       
-      // Tracker ce timer aussi
-      this.activeTimers.push(timer);
+      // Tracker ce timer
+      this.activeTimers.push(particleTimer);
     }
   }
 
