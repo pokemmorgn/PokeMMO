@@ -1,17 +1,28 @@
-// server/src/managers/InteractionManager.ts - VERSION COMPLÈTE AVEC SHOP
+// server/src/managers/InteractionManager.ts - VERSION MODULAIRE
+// Utilise le nouveau système BaseInteractionManager + modules
 
 import { QuestManager } from "./QuestManager";
-import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
+import { ShopManager } from "./ShopManager";
 import { StarterHandlers } from "../handlers/StarterHandlers";
 import { InventoryManager } from "./InventoryManager";
 import { Player } from "../schema/PokeWorldState";
 import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 
+// ✅ IMPORTS DU NOUVEAU SYSTÈME
+import { BaseInteractionManager } from "../interactions/BaseInteractionManager";
+import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
+import { 
+  InteractionRequest,
+  InteractionResult,
+  InteractionContext
+} from "../interactions/types/BaseInteractionTypes";
+
+// ✅ INTERFACE CONSERVÉE POUR COMPATIBILITÉ
 export interface NpcInteractionResult {
   type: string;
   message?: string;
   shopId?: string;
-  shopData?: any; // ✅ NOUVEAU : Données du shop
+  shopData?: any;
   lines?: string[];
   availableQuests?: any[];
   questRewards?: any[];
@@ -21,10 +32,9 @@ export interface NpcInteractionResult {
   questId?: string;
   questName?: string;
   starterData?: any;
-  starterEligible?: boolean; // ✅ AJOUTÉ
-  starterReason?: string;    // ✅ AJOUTÉ
+  starterEligible?: boolean;
+  starterReason?: string;
 
-    // ✅ NOUVELLES PROPRIÉTÉS POUR SPECTATEURS
   battleSpectate?: {
     battleId: string;
     battleRoomId: string;
@@ -35,310 +45,161 @@ export interface NpcInteractionResult {
 }
 
 export class InteractionManager {
+  // ✅ DÉPENDANCES EXISTANTES CONSERVÉES
   private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
-  private shopManager: ShopManager; // ✅ NOUVEAU MANAGER
+  private shopManager: ShopManager;
   private starterHandlers: StarterHandlers;
   private spectatorManager: SpectatorManager;
+
+  // ✅ NOUVEAU SYSTÈME MODULAIRE
+  private baseInteractionManager: BaseInteractionManager;
+  private npcModule: NpcInteractionModule;
+  private isInitialized: boolean = false;
 
   constructor(
     getNpcManager: (zoneName: string) => any, 
     questManager: QuestManager,
-    shopManager: ShopManager, // ✅ NOUVEAU PARAMÈTRE
-    starterHandlers: StarterHandlers, // ✅ NOUVEAU PARAMÈTRE
+    shopManager: ShopManager,
+    starterHandlers: StarterHandlers,
     spectatorManager: SpectatorManager
-
   ) {
+    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire`);
+    
+    // ✅ CONSERVATION DES DÉPENDANCES EXISTANTES
     this.getNpcManager = getNpcManager;
     this.questManager = questManager;
-    this.shopManager = shopManager; // ✅ INITIALISATION
-    this.starterHandlers = starterHandlers; // ✅ INITIALISATION
-    this.spectatorManager = spectatorManager; 
+    this.shopManager = shopManager;
+    this.starterHandlers = starterHandlers;
+    this.spectatorManager = spectatorManager;
+
+    // ✅ INITIALISATION DU NOUVEAU SYSTÈME
+    this.initializeModularSystem();
   }
 
-  async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 === INTERACTION MANAGER ===`);
-    console.log(`👤 Player: ${player.name}`);
-    console.log(`🤖 NPC ID: ${npcId}`);
-    
-    // Récupérer le NPC
-    const npcManager = this.getNpcManager(player.currentZone);
-    if (!npcManager) {
-      return { type: "error", message: "NPCs non disponibles dans cette zone." };
-    }
-
-    const npc = npcManager.getNpcById(npcId);
-    if (!npc) {
-      return { type: "error", message: "NPC inconnu." };
-    }
-
-    console.log(`🔍 NPC trouvé: ${npc.name}, propriétés:`, npc.properties);
-
-    // Vérifier la proximité (64px)
-    const dx = Math.abs(player.x - npc.x);
-    const dy = Math.abs(player.y - npc.y);
-    if (dx > 64 || dy > 64) {
-      return { type: "error", message: "Trop loin du NPC." };
-    }
-
-    // ✅ === NOUVEAU : VÉRIFIER SI C'EST UN MARCHAND ===
-    if (npc.properties.npcType === 'merchant' || npc.properties.shopId) {
-      console.log(`🏪 NPC Marchand détecté`);
-      return await this.handleMerchantInteraction(player, npc, npcId);
-    }
-
-    // ✅ === NOUVEAU : VÉRIFIER SI C'EST UNE TABLE STARTER ===
-if (npc.properties.startertable === true || npc.properties.startertable === 'true') {
-  console.log(`🎯 Table starter détectée`);
-  return await this.handleStarterTableInteraction(player, npc, npcId);
-}
-    // ✅ === LOGIQUE EXISTANTE : VÉRIFIER D'ABORD LES OBJECTIFS TALK ===
-    
-    const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
-    if (talkValidationResult) {
-      console.log(`💬 Objectif talk validé pour NPC ${npcId} - ARRÊT DU FLOW`);
-      return talkValidationResult;
-    }
-
-    // ✅ === PROGRESSION NORMALE (sans validation talk) ===
-    
-    console.log(`💬 Déclenchement updateQuestProgress pour talk avec NPC ${npcId}`);
-    
-    let questProgress: any[] = [];
+  private async initializeModularSystem(): Promise<void> {
     try {
-      questProgress = await this.questManager.updateQuestProgress(player.name, {
-        type: 'talk',
-        npcId: npcId,
-        targetId: npcId.toString()
-      });
-      console.log(`📊 Résultats progression quêtes:`, questProgress);
-    } catch (error) {
-      console.error(`❌ Erreur lors de updateQuestProgress:`, error);
-    }
+      console.log(`🚀 [InteractionManager] Configuration système modulaire...`);
 
-    // ✅ === VÉRIFIER LES QUÊTES APRÈS PROGRESSION ===
-    
-    // 1. Vérifier les quêtes prêtes à compléter manuellement
-    const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
-    
-    if (readyToCompleteQuests.length > 0) {
-      console.log(`🎉 Quêtes prêtes à compléter: ${readyToCompleteQuests.length}`);
+      // 1. Créer BaseInteractionManager avec configuration
+      this.baseInteractionManager = new BaseInteractionManager({
+        maxDistance: 64,
+        cooldowns: {
+          npc: 500,
+          object: 200,
+          environment: 1000,
+          player: 2000,
+          puzzle: 0
+        },
+        debug: process.env.NODE_ENV === 'development',
+        logLevel: 'info'
+      });
+
+      // 2. Créer et enregistrer le module NPC
+      this.npcModule = new NpcInteractionModule(
+        this.getNpcManager,
+        this.questManager,
+        this.shopManager,
+        this.starterHandlers,
+        this.spectatorManager
+      );
+
+      this.baseInteractionManager.registerModule(this.npcModule);
+
+      // 3. Initialiser le système
+      await this.baseInteractionManager.initialize();
+
+      this.isInitialized = true;
+      console.log(`✅ [InteractionManager] Système modulaire initialisé avec succès`);
+      console.log(`📦 [InteractionManager] Modules enregistrés: ${this.baseInteractionManager.listModules().join(', ')}`);
+
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur initialisation modulaire:`, error);
+      this.isInitialized = false;
       
-      // Utiliser le dialogue de completion de la première quête
-      const firstQuest = readyToCompleteQuests[0];
-      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const completionDialogue = this.getQuestDialogue(questDefinition, 'questComplete');
+      // En cas d'erreur, on pourrait fallback sur l'ancien système
+      // Mais pour l'instant on log juste l'erreur
+    }
+  }
+
+  // ✅ MÉTHODE PRINCIPALE - INTERFACE PUBLIQUE IDENTIQUE
+  async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
+    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
+    console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
+
+    // Vérification que le système modulaire est prêt
+    if (!this.isInitialized) {
+      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
+      await this.initializeModularSystem();
       
-      // Compléter automatiquement toutes les quêtes prêtes
-      const completionResults = [];
-      for (const quest of readyToCompleteQuests) {
-        const result = await this.questManager.completeQuestManually(player.name, quest.id);
-        if (result) {
-          completionResults.push(result);
-        }
-      }
-      
-      if (completionResults.length > 0) {
-        const totalRewards = completionResults.reduce((acc, result) => {
-          return [...acc, ...(result.questRewards || [])];
-        }, []);
-        
-        const questNames = completionResults.map(r => r.questName).join(', ');
-        
-        return {
-          type: "questComplete",
-          questId: completionResults[0].questId,
-          questName: questNames,
-          questRewards: totalRewards,
-          questProgress: questProgress,
-          npcId: npcId,
-          npcName: npc.name,
-          lines: completionDialogue,
-          message: `Félicitations ! Vous avez terminé : ${questNames}`
+      if (!this.isInitialized) {
+        return { 
+          type: "error", 
+          message: "Système d'interaction temporairement indisponible." 
         };
       }
     }
 
-    // 2. Vérifier les quêtes disponibles
-    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
-    
-    if (availableQuests.length > 0) {
-      console.log(`📋 Quêtes disponibles: ${availableQuests.length}`);
+    try {
+      // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME
+      const request: InteractionRequest = {
+        type: 'npc',
+        targetId: npcId,
+        position: {
+          x: player.x,
+          y: player.y,
+          mapId: player.currentZone
+        },
+        data: {
+          npcId: npcId
+        },
+        timestamp: Date.now()
+      };
+
+      // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
+      const result = await this.baseInteractionManager.processInteraction(player, request);
+
+      // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT
+      const npcResult: NpcInteractionResult = {
+        type: result.type,
+        message: result.message,
+        
+        // Données spécifiques NPCs du nouveau système
+        shopId: result.data?.shopId,
+        shopData: result.data?.shopData,
+        lines: result.lines,
+        availableQuests: result.data?.availableQuests,
+        questRewards: result.data?.questRewards,
+        questProgress: result.data?.questProgress,
+        npcId: result.data?.npcId,
+        npcName: result.data?.npcName,
+        questId: result.data?.questId,
+        questName: result.data?.questName,
+        starterData: result.data?.starterData,
+        starterEligible: result.data?.starterEligible,
+        starterReason: result.data?.starterReason,
+        battleSpectate: result.data?.battleSpectate
+      };
+
+      console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
+      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
+
+      return npcResult;
+
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
       
-      const firstQuest = availableQuests[0];
-      const questOfferDialogue = this.getQuestDialogue(firstQuest, 'questOffer');
-      
-      const serializedQuests = availableQuests.map(quest => ({
-        id: quest.id,
-        name: quest.name,
-        description: quest.description,
-        category: quest.category,
-        steps: quest.steps.map((step: any) => ({
-          id: step.id,
-          name: step.name,
-          description: step.description,
-          objectives: step.objectives,
-          rewards: step.rewards
-        }))
-      }));
-
-      return {
-        type: "questGiver",
-        message: questOfferDialogue.join(' '),
-        lines: questOfferDialogue,
-        availableQuests: serializedQuests,
-        questProgress: questProgress,
-        npcId: npcId,
-        npcName: npc.name
-      };
-    }
-
-    // 3. Vérifier les quêtes en cours
-    const activeQuests = await this.questManager.getActiveQuests(player.name);
-    const questsForThisNpc = activeQuests.filter(q => 
-      q.startNpcId === npcId || q.endNpcId === npcId
-    );
-
-    if (questsForThisNpc.length > 0) {
-      console.log(`📈 Quêtes en cours pour ce NPC: ${questsForThisNpc.length}`);
-      
-      const firstQuest = questsForThisNpc[0];
-      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const progressDialogue = this.getQuestDialogue(questDefinition, 'questInProgress');
-      
-      return {
-        type: "dialogue",
-        lines: progressDialogue,
-        npcId: npcId,
-        npcName: npc.name,
-        questProgress: questProgress
-      };
-    }
-
-    // ✅ === COMPORTEMENT NPC NORMAL ===
-    
-    console.log(`💬 Aucune quête, dialogue normal`);
-
-    // Types d'interaction classiques selon les propriétés du NPC
-    if (npc.properties.shop) {
-      return { 
-        type: "shop", 
-        shopId: npc.properties.shop,
-        npcId: npcId,
-        npcName: npc.name,
-        questProgress: questProgress
-      };
-    } else if (npc.properties.healer) {
-      return { 
-        type: "heal", 
-        message: "Vos Pokémon sont soignés !",
-        npcId: npcId,
-        npcName: npc.name,
-        questProgress: questProgress
-      };
-    } else if (npc.properties.dialogue) {
-      const lines = Array.isArray(npc.properties.dialogue)
-        ? npc.properties.dialogue
-        : [npc.properties.dialogue];
-      return { 
-        type: "dialogue", 
-        lines,
-        npcId: npcId,
-        npcName: npc.name,
-        questProgress: questProgress
-      };
-    } else {
-      // Dialogue par défaut
-      const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
-      return { 
-        type: "dialogue", 
-        lines: defaultDialogue,
-        questProgress: questProgress,
-        npcId: npcId,
-        npcName: npc.name
-      };
-    }
-  }
-
-  // ✅ === NOUVELLE MÉTHODE : GESTION DES MARCHANDS ===
- private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🏪 === INTERACTION MARCHAND ===`);
-    
-    // Récupérer le shop ID depuis les propriétés du NPC
-    const shopId = npc.properties.shopId || npc.properties.shop;
-    
-    if (!shopId) {
-      console.error(`❌ NPC marchand ${npcId} sans shopId`);
+      // Retour d'erreur au format existant
       return {
         type: "error",
-        message: "Ce marchand n'a pas de boutique configurée."
+        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
       };
     }
-
-    // Récupérer les données du shop
-    const shopCatalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
-    
-    if (!shopCatalog) {
-      console.error(`❌ Shop ${shopId} introuvable`);
-      return {
-        type: "error",
-        message: "Boutique indisponible."
-      };
-    }
-
-    console.log(`✅ Shop ${shopId} chargé: ${shopCatalog.availableItems.length} objets disponibles`);
-
-    return {
-      type: "shop",
-      shopId: shopId,
-      shopData: {
-        shopInfo: shopCatalog.shopInfo,
-        availableItems: shopCatalog.availableItems, // ✅ CORRECTION: utiliser availableItems
-        playerGold: player.gold || 1000,
-        playerLevel: player.level || 1,
-        npcName: npc.name || "Marchand" // ✅ AJOUT DU NOM
-      },
-      npcId: npcId,
-      npcName: npc.name,
-      message: `Bienvenue dans ${shopCatalog.shopInfo.name} !`
-    };
   }
 
-    // ✅ === NOUVELLE MÉTHODE : GESTION TABLE STARTER ===
-  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
-  console.log(`🎯 === INTERACTION TABLE STARTER ===`);
-  console.log(`👤 Player: ${player.name}`);
-  
-  // ✅ UTILISER LES VRAIES VALIDATIONS STARTERHANDLERS
-  const validation = await this.starterHandlers.validateStarterRequest(player, 1); // Test avec Bulbasaur
-  
-  if (validation.valid) {
-    return {
-      type: "starterTable",
-      message: "Choisissez votre Pokémon starter !",
-      npcId: npcId,
-      npcName: npc.name || "Table des starters",
-      starterEligible: true,
-      lines: [
-        "Voici les trois Pokémon starter !",
-        "Choisissez celui qui vous accompagnera dans votre aventure !"
-      ]
-    };
-  } else {
-    return {
-      type: "dialogue",
-      message: validation.message,
-      npcId: npcId,
-      npcName: npc.name || "Table des starters",
-      starterEligible: false,
-      starterReason: validation.reason,
-      lines: [validation.message]
-    };
-  }
-}
-  
-  // ✅ === NOUVELLE MÉTHODE : TRANSACTIONS SHOP ===
- async handleShopTransaction(
+  // ✅ MÉTHODES EXISTANTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
+
+  async handleShopTransaction(
     player: Player, 
     shopId: string, 
     action: 'buy' | 'sell',
@@ -351,386 +212,81 @@ if (npc.properties.startertable === true || npc.properties.startertable === 'tru
     itemsChanged?: any[];
     shopStockChanged?: any[];
   }> {
-    console.log(`💰 === TRANSACTION SHOP ===`);
-    console.log(`👤 Player: ${player.name}, Shop: ${shopId}, Action: ${action}, Item: ${itemId}, Qty: ${quantity}`);
-
-    const playerGold = player.gold || 1000;
-    const playerLevel = player.level || 1;
-
-    if (action === 'buy') {
-      // ✅ UTILISER LE SHOPMANAGER CORRIGÉ AVEC USERNAME
-      const result = await this.shopManager.buyItem(
-        player.name, // ✅ USERNAME REQUIS
-        shopId, 
-        itemId, 
-        quantity, 
-        playerGold, 
-        playerLevel
-      );
-      
-      if (result.success) {
-        console.log(`✅ Achat réussi: ${quantity}x ${itemId} pour ${player.name}`);
-        console.log(`💰 Nouvel or: ${result.newGold}`);
-        
-        // ✅ L'objet a déjà été ajouté à l'inventaire par ShopManager.buyItem()
-        // ✅ L'or sera mis à jour par le WorldRoom
-      }
-      
-      return result;
-      
-    } else if (action === 'sell') {
-      // ✅ UTILISER LE SHOPMANAGER CORRIGÉ AVEC USERNAME
-      const result = await this.shopManager.sellItem(
-        player.name, // ✅ USERNAME REQUIS
-        shopId, 
-        itemId, 
-        quantity
-      );
-      
-      if (result.success) {
-        console.log(`✅ Vente réussie: ${quantity}x ${itemId} par ${player.name}`);
-        console.log(`💰 Or gagné: ${result.newGold}`);
-        
-        // ✅ L'objet a déjà été retiré de l'inventaire par ShopManager.sellItem()
-        // ✅ L'or sera mis à jour par le WorldRoom
-      }
-      
-      return result;
-    }
-
-    return {
-      success: false,
-      message: "Action non reconnue"
-    };
-  }
-
-  // ✅ === MÉTHODE EXISTANTE : Vérifier validation objectif talk ===
-  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
-    try {
-      const activeQuests = await this.questManager.getActiveQuests(username);
-      console.log(`🔍 [checkTalkObjective] Quêtes actives: ${activeQuests.length}`);
-      
-      for (const quest of activeQuests) {
-        const currentStep = quest.steps[quest.currentStepIndex];
-        if (!currentStep) continue;
-        
-        console.log(`🔍 [checkTalkObjective] Quête: ${quest.name}, étape: ${quest.currentStepIndex}`);
-        console.log(`🔍 [checkTalkObjective] Objectifs de l'étape:`, currentStep.objectives.map(obj => ({
-          id: obj.id,
-          type: obj.type,
-          target: obj.target,
-          completed: obj.completed
-        })));
-        
-        // Chercher des objectifs talk pour ce NPC dans l'étape COURANTE
-        for (const objective of currentStep.objectives) {
-          console.log(`🔍 [checkTalkObjective] Vérification objectif: ${objective.id}`);
-          console.log(`🔍 [checkTalkObjective] Type: ${objective.type}, Target: ${objective.target}, NpcId: ${npcId}, Completed: ${objective.completed}`);
-          
-          if (objective.type === 'talk' && 
-              objective.target === npcId.toString() && 
-              !objective.completed) {
-            
-            console.log(`🎯 [checkTalkObjective] MATCH ! Objectif talk trouvé: ${objective.description}`);
-            
-            // Déclencher la progression
-            const progressResults = await this.questManager.updateQuestProgress(username, {
-              type: 'talk',
-              npcId: npcId,
-              targetId: npcId.toString()
-            });
-            
-            console.log(`📊 [checkTalkObjective] Résultats progression:`, progressResults);
-            
-            if (progressResults.length > 0) {
-              const result = progressResults[0];
-              console.log(`📊 [checkTalkObjective] Résultat principal:`, result);
-              
-              // ✅ CORRECTION: Vérifier si l'objectif OU l'étape ont été complétés
-              if (result.objectiveCompleted || result.stepCompleted) {
-                const validationDialogue = (objective as any).validationDialogue || [
-                  "Parfait ! Merci de m'avoir parlé !",
-                  "C'était exactement ce qu'il fallait faire."
-                ];
-                
-                console.log(`✅ [checkTalkObjective] Objectif/Étape complété(e) ! Dialogue de validation:`, validationDialogue);
-                
-                return {
-                  type: "dialogue",
-                  lines: validationDialogue,
-                  npcId: npcId,
-                  npcName: await this.getNpcName(npcId),
-                  questProgress: progressResults,
-                  message: result.message
-                };
-              } else {
-                console.log(`⏳ [checkTalkObjective] Progression enregistrée mais objectif pas encore complété`);
-                return null;
-              }
-            } else {
-              console.log(`❌ [checkTalkObjective] Aucun résultat de progression`);
-              return null;
-            }
-          }
-        }
-      }
-      
-      console.log(`❌ [checkTalkObjective] Aucun objectif talk à valider dans l'étape courante`);
-      return null;
-      
-    } catch (error) {
-      console.error(`❌ Erreur checkTalkObjectiveValidation:`, error);
-      return null;
-    }
-  }
-
-  // ✅ === MÉTHODE EXISTANTE : Récupérer dialogue de quête ===
-  private getQuestDialogue(questDefinition: any, dialogueType: 'questOffer' | 'questInProgress' | 'questComplete'): string[] {
-    if (!questDefinition?.dialogues?.[dialogueType]) {
-      switch (dialogueType) {
-        case 'questOffer':
-          return ["J'ai quelque chose pour vous...", "Acceptez-vous cette mission ?"];
-        case 'questInProgress':
-          return ["Comment avance votre mission ?", "Revenez me voir quand c'est terminé !"];
-        case 'questComplete':
-          return ["Excellent travail !", "Voici votre récompense bien méritée !"];
-        default:
-          return ["Bonjour !"];
-      }
-    }
+    console.log(`💰 [InteractionManager] Transaction shop via module`);
     
-    return questDefinition.dialogues[dialogueType];
-  }
-// ✅ === NOUVELLE MÉTHODE : INTERACTION AVEC JOUEUR EN COMBAT ===
-
-async handlePlayerInteraction(
-  spectatorPlayer: Player, 
-  targetPlayerId: string,
-  targetPlayerPosition: { x: number; y: number; mapId: string }
-): Promise<NpcInteractionResult> {
-  
-  console.log(`👁️ === INTERACTION JOUEUR COMBAT ===`);
-  console.log(`👤 Spectateur: ${spectatorPlayer.name}`);
-  console.log(`🎯 Cible: ${targetPlayerId}`);
-  
-  // 1. Vérifier que le joueur cible est en combat
-  const battleStatus = this.spectatorManager.getPlayerBattleStatus(targetPlayerId);
-  
-  if (!battleStatus.inBattle) {
-    return {
-      type: "error",
-      message: "Ce joueur n'est pas en combat actuellement."
-    };
-  }
-  
-  // 2. Valider la demande de spectateur
-  const spectatorRequest = {
-    spectatorId: spectatorPlayer.name,
-    targetPlayerId: targetPlayerId,
-    spectatorPosition: {
-      x: spectatorPlayer.x,
-      y: spectatorPlayer.y,
-      mapId: spectatorPlayer.currentZone
-    },
-    targetPosition: targetPlayerPosition,
-    interactionDistance: 100
-  };
-  
-  const watchResult = this.spectatorManager.requestWatchBattle(spectatorRequest);
-  
-  if (!watchResult.canWatch) {
-    return {
-      type: "error",
-      message: watchResult.reason || "Impossible de regarder ce combat"
-    };
-  }
-  
-  // 3. Retourner les infos pour rejoindre la BattleRoom
-  return {
-    type: "battleSpectate",
-    message: `Vous regardez le combat de ${targetPlayerId}`,
-    battleSpectate: {
-      battleId: watchResult.battleId!,
-      battleRoomId: watchResult.battleRoomId!,
-      targetPlayerName: targetPlayerId,
-      canWatch: true
-    }
-  };
-}
-
-// ✅ === MÉTHODE HELPER : CONFIRMER SPECTATEUR ===
-
-async confirmSpectatorJoin(
-  spectatorId: string,
-  battleId: string,
-  battleRoomId: string,
-  spectatorPosition: { x: number; y: number; mapId: string }
-): Promise<boolean> {
-  
-  console.log(`✅ Confirmation spectateur ${spectatorId} → combat ${battleId}`);
-  
-  return this.spectatorManager.addSpectator(
-    spectatorId,
-    battleId,
-    battleRoomId,
-    spectatorPosition
-  );
-}
-
-// ✅ === MÉTHODE HELPER : RETIRER SPECTATEUR ===
-
-removeSpectator(spectatorId: string): {
-  removed: boolean;
-  shouldLeaveBattleRoom: boolean;
-  battleRoomId?: string;
-} {
-  console.log(`👋 Retrait spectateur ${spectatorId}`);
-  return this.spectatorManager.removeSpectator(spectatorId);
-}
-
-// ✅ === MÉTHODES D'INFORMATION ===
-
-isPlayerInBattle(playerId: string): boolean {
-  return this.spectatorManager.isPlayerInBattle(playerId);
-}
-
-getBattleSpectatorCount(battleId: string): number {
-  return this.spectatorManager.getBattleSpectatorCount(battleId);
-}
-  
-  // ✅ === MÉTHODE HELPER : Récupérer nom NPC ===
-  private async getNpcName(npcId: number): Promise<string> {
-    const npcNames: { [key: number]: string } = {
-      1: "Professeur Oak",
-      87: "Bob le pêcheur", 
-      5: "Le collecteur de baies",
-      10: "Le maître dresseur",
-      100: "Marchand du Village",
-      101: "Employé Poké Mart",
-      102: "Herboriste",
-      103: "Vendeur de CTs"
-    };
-    
-    return npcNames[npcId] || `NPC #${npcId}`;
-  }
-
-  // ✅ === MÉTHODES HELPER EXISTANTES ===
-
-  private async getAvailableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
-    try {
-      const questsForNpc = this.questManager.getQuestsForNpc(npcId);
-      const availableQuests = await this.questManager.getAvailableQuests(username);
-      
-      console.log(`🔍 Quêtes pour NPC ${npcId}:`, questsForNpc.length);
-      console.log(`🔍 Quêtes disponibles pour ${username}:`, availableQuests.length);
-      
-      const result = availableQuests.filter(quest => 
-        questsForNpc.some(npcQuest => 
-          npcQuest.id === quest.id && npcQuest.startNpcId === npcId
-        )
-      );
-      
-      console.log(`🔍 Quêtes filtrées pour NPC ${npcId}:`, result.length);
-      return result;
-    } catch (error) {
-      console.error(`❌ Erreur getAvailableQuestsForNpc:`, error);
-      return [];
-    }
-  }
-
-  private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
-    try {
-      const activeQuests = await this.questManager.getActiveQuests(username);
-      
-      const readyQuests = activeQuests.filter(quest => {
-        if (quest.endNpcId !== npcId) return false;
-        return quest.status === 'readyToComplete';
-      });
-
-      console.log(`🎉 Quêtes prêtes à compléter pour NPC ${npcId}:`, readyQuests.length);
-      return readyQuests;
-    } catch (error) {
-      console.error(`❌ Erreur getReadyToCompleteQuestsForNpc:`, error);
-      return [];
-    }
-  }
-
-  private async getDefaultDialogueForNpc(npc: any): Promise<string[]> {
-    if (npc.properties?.dialogueId) {
-      const dialogues = await this.getDialogueById(npc.properties.dialogueId);
-      if (dialogues.length > 0) {
-        return dialogues;
-      }
-    }
-    
-    if (npc.properties?.shop || npc.properties?.shopId || npc.properties?.npcType === 'merchant') {
-      return [
-        `Bienvenue dans ma boutique !`,
-        `Regardez mes marchandises !`
-      ];
-    }
-
-    
-    if (npc.properties?.healer) {
-      return [
-        `Voulez-vous que je soigne vos Pokémon ?`,
-        `Ils seront en pleine forme !`
-      ];
-    }
-    
-    return [
-      `Bonjour ! Je suis ${npc.name}.`,
-      `Belle journée pour une aventure !`
-    ];
-  }
-
-  private async getDialogueById(dialogueId: string): Promise<string[]> {
-    const dialogueMap: { [key: string]: string[] } = {
-      'greeting_bob': [
-        "Salut ! Je suis Bob, le pêcheur local.",
-        "J'espère que tu aimes la pêche comme moi !"
-      ],
-      'greeting_oak': [
-        "Bonjour jeune dresseur !",
-        "Prêt pour de nouvelles aventures ?"
-      ],
-      'shop_keeper': [
-        "Bienvenue dans ma boutique !",
-        "J'ai tout ce qu'il faut pour votre aventure !"
-      ]
-    };
-    
-    return dialogueMap[dialogueId] || [];
-  }
-
-  // ✅ === MÉTHODES POUR LES QUÊTES ===
-
-  async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-    try {
-      console.log(`🎯 Tentative de démarrage de quête ${questId} pour ${username}`);
-      
-      const quest = await this.questManager.startQuest(username, questId);
-      if (quest) {
-        console.log(`✅ Quête ${questId} démarrée avec succès pour ${username}`);
-        return {
-          success: true,
-          message: `Quête "${quest.name}" acceptée !`,
-          quest: quest
-        };
-      } else {
-        console.log(`❌ Impossible de démarrer la quête ${questId} pour ${username}`);
-        return {
-          success: false,
-          message: "Impossible de commencer cette quête."
-        };
-      }
-    } catch (error) {
-      console.error("❌ Erreur lors du démarrage de quête:", error);
+    if (!this.isInitialized || !this.npcModule) {
       return {
         success: false,
-        message: `Erreur lors du démarrage de la quête: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+        message: "Système de boutique temporairement indisponible"
       };
     }
+
+    return this.npcModule.handleShopTransaction(player, shopId, action, itemId, quantity);
+  }
+
+  async handlePlayerInteraction(
+    spectatorPlayer: Player, 
+    targetPlayerId: string,
+    targetPlayerPosition: { x: number; y: number; mapId: string }
+  ): Promise<NpcInteractionResult> {
+    console.log(`👁️ [InteractionManager] Interaction joueur via module`);
+    
+    if (!this.isInitialized || !this.npcModule) {
+      return {
+        type: "error",
+        message: "Système d'interaction temporairement indisponible"
+      };
+    }
+
+    return this.npcModule.handlePlayerInteraction(spectatorPlayer, targetPlayerId, targetPlayerPosition);
+  }
+
+  async confirmSpectatorJoin(
+    spectatorId: string,
+    battleId: string,
+    battleRoomId: string,
+    spectatorPosition: { x: number; y: number; mapId: string }
+  ): Promise<boolean> {
+    console.log(`✅ [InteractionManager] Confirmation spectateur ${spectatorId}`);
+    
+    return this.spectatorManager.addSpectator(
+      spectatorId,
+      battleId,
+      battleRoomId,
+      spectatorPosition
+    );
+  }
+
+  removeSpectator(spectatorId: string): {
+    removed: boolean;
+    shouldLeaveBattleRoom: boolean;
+    battleRoomId?: string;
+  } {
+    console.log(`👋 [InteractionManager] Retrait spectateur ${spectatorId}`);
+    return this.spectatorManager.removeSpectator(spectatorId);
+  }
+
+  isPlayerInBattle(playerId: string): boolean {
+    return this.spectatorManager.isPlayerInBattle(playerId);
+  }
+
+  getBattleSpectatorCount(battleId: string): number {
+    return this.spectatorManager.getBattleSpectatorCount(battleId);
+  }
+
+  // ✅ MÉTHODES QUÊTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
+
+  async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
+    console.log(`🎯 [InteractionManager] Démarrage quête via module`);
+    
+    if (!this.isInitialized || !this.npcModule) {
+      return {
+        success: false,
+        message: "Système de quêtes temporairement indisponible"
+      };
+    }
+
+    return this.npcModule.handleQuestStart(username, questId);
   }
 
   async updatePlayerProgress(username: string, eventType: string, data: any): Promise<any[]> {
@@ -768,7 +324,7 @@ getBattleSpectatorCount(battleId: string): number {
           return [];
       }
     } catch (error) {
-      console.error("❌ Erreur mise à jour progression:", error);
+      console.error("❌ [InteractionManager] Erreur mise à jour progression:", error);
       return [];
     }
   }
@@ -780,7 +336,6 @@ getBattleSpectatorCount(battleId: string): number {
       
       const questStatuses: any[] = [];
       
-      // Statuts pour les quêtes disponibles
       for (const quest of availableQuests) {
         if (quest.startNpcId) {
           questStatuses.push({
@@ -790,7 +345,6 @@ getBattleSpectatorCount(battleId: string): number {
         }
       }
       
-      // Statuts pour les quêtes actives
       for (const quest of activeQuests) {
         if (quest.status === 'readyToComplete' && quest.endNpcId) {
           questStatuses.push({
@@ -808,17 +362,20 @@ getBattleSpectatorCount(battleId: string): number {
       
       return questStatuses;
     } catch (error) {
-      console.error("❌ Erreur getQuestStatuses:", error);
+      console.error("❌ [InteractionManager] Erreur getQuestStatuses:", error);
       return [];
     }
   }
+
+  // ✅ MÉTHODES UTILITAIRES CONSERVÉES
+
   async giveItemToPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
     try {
       await InventoryManager.addItem(username, itemId, quantity);
       console.log(`✅ [InteractionManager] Donné ${quantity}x ${itemId} à ${username}`);
       return true;
     } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur lors du don d'objet:`, error);
+      console.error(`❌ [InteractionManager] Erreur don d'objet:`, error);
       return false;
     }
   }
@@ -831,7 +388,7 @@ getBattleSpectatorCount(battleId: string): number {
       }
       return success;
     } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur lors du retrait d'objet:`, error);
+      console.error(`❌ [InteractionManager] Erreur retrait d'objet:`, error);
       return false;
     }
   }
@@ -841,12 +398,10 @@ getBattleSpectatorCount(battleId: string): number {
       const count = await InventoryManager.getItemCount(username, itemId);
       return count >= quantity;
     } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur lors de la vérification d'objet:`, error);
+      console.error(`❌ [InteractionManager] Erreur vérification d'objet:`, error);
       return false;
     }
   }
-
-  // ✅ === MÉTHODES POUR LES RÉCOMPENSES DE QUÊTE ===
 
   async giveQuestReward(username: string, reward: {
     type: 'item' | 'gold' | 'experience';
@@ -862,12 +417,10 @@ getBattleSpectatorCount(battleId: string): number {
           return false;
 
         case 'gold':
-          // TODO: Ajouter l'or au joueur via PlayerDataManager
           console.log(`💰 [InteractionManager] Donner ${reward.amount} or à ${username} (non implémenté)`);
           return true;
 
         case 'experience':
-          // TODO: Ajouter l'expérience au joueur
           console.log(`⭐ [InteractionManager] Donner ${reward.amount} XP à ${username} (non implémenté)`);
           return true;
 
@@ -879,5 +432,72 @@ getBattleSpectatorCount(battleId: string): number {
       console.error(`❌ [InteractionManager] Erreur giveQuestReward:`, error);
       return false;
     }
+  }
+
+  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING
+
+  /**
+   * Obtenir les statistiques du système modulaire
+   */
+  getModularSystemStats(): any {
+    if (!this.isInitialized || !this.baseInteractionManager) {
+      return {
+        initialized: false,
+        error: "Système modulaire non initialisé"
+      };
+    }
+
+    const stats = this.baseInteractionManager.getStats();
+    const config = this.baseInteractionManager.getConfig();
+
+    return {
+      initialized: true,
+      stats: stats,
+      config: config,
+      modules: this.baseInteractionManager.listModules()
+    };
+  }
+
+  /**
+   * Reinitialiser le système modulaire (pour debugging)
+   */
+  async reinitializeModularSystem(): Promise<boolean> {
+    try {
+      console.log(`🔄 [InteractionManager] Réinitialisation système modulaire...`);
+      
+      if (this.baseInteractionManager) {
+        await this.baseInteractionManager.cleanup();
+      }
+      
+      this.isInitialized = false;
+      await this.initializeModularSystem();
+      
+      return this.isInitialized;
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur réinitialisation:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Activer/désactiver le mode debug
+   */
+  setDebugMode(enabled: boolean): void {
+    if (this.baseInteractionManager) {
+      this.baseInteractionManager.updateConfig({ debug: enabled });
+      console.log(`🔧 [InteractionManager] Mode debug: ${enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
+    }
+  }
+
+  // ✅ NETTOYAGE LORS DE LA DESTRUCTION
+  async cleanup(): Promise<void> {
+    console.log(`🧹 [InteractionManager] Nettoyage du système modulaire...`);
+    
+    if (this.baseInteractionManager) {
+      await this.baseInteractionManager.cleanup();
+    }
+    
+    this.isInitialized = false;
+    console.log(`✅ [InteractionManager] Nettoyage terminé`);
   }
 }
