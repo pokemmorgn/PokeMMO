@@ -1,855 +1,830 @@
-// client/src/game/InteractionManager.js
-// ✅ RÉÉCRITURE COMPLÈTE - Sécurisé et optimisé pour serveur moderne
-// 🎯 Architecture event-driven avec validation côté serveur
+// client/src/game/InteractionManager.js - RÉÉCRITURE COMPLÈTE
+// Aligné avec le système modulaire serveur BaseInteractionManager + NpcInteractionModule
 
 export class InteractionManager {
   constructor(scene) {
     this.scene = scene;
-    
-    // === DÉPENDANCES ===
     this.networkManager = null;
     this.playerManager = null;
     this.npcManager = null;
-    
-    // === CONFIGURATION SÉCURISÉE ===
+
+    // === CONFIGURATION ===
     this.config = {
-      maxInteractionDistance: 64, // Distance vérifiée côté serveur
+      maxInteractionDistance: 64,
       interactionKey: 'E',
       cooldowns: {
         npc: 500,
         object: 200,
-        environment: 1000
+        environment: 1000,
+        player: 2000
       },
-      validation: {
-        enableClientValidation: false, // ✅ Tout côté serveur
-        trustClient: false,
-        requireServerConfirmation: true
-      },
-      security: {
-        enableRateLimit: true,
-        maxRequestsPerSecond: 5,
-        enableInputSanitization: true,
-        logSuspiciousActivity: true
-      }
+      debugMode: true
     };
-    
-    // === ÉTAT SÉCURISÉ ===
+
+    // === ÉTAT LOCAL ===
     this.state = {
       lastInteractionTime: 0,
-      pendingInteractions: new Map(), // ✅ Track des interactions en attente
-      interactionHistory: [],
-      isBlocked: false,
-      rateLimitCounter: 0,
-      lastRateLimitReset: Date.now()
+      lastInteractedNpc: null,
+      isInteractionBlocked: false,
+      currentCooldowns: new Map()
     };
-    
-    // === CACHE MINIMAL ===
-    this.cache = {
-      nearbyNpcs: new Map(),
-      lastValidatedPosition: null,
-      serverTime: null,
-      lastSync: 0
-    };
-    
-    console.log(`🔒 [InteractionManager] Instance sécurisée créée pour ${scene.scene.key}`);
+
+    // === VALIDATION CACHE ===
+    this.validationCache = new Map();
+    this.cacheTimeout = 1000; // 1 seconde
+
+    console.log(`🎯 [InteractionManager] Instance créée - Version serveur modulaire`);
   }
-  
-  // === 🚀 INITIALISATION SÉCURISÉE ===
-  
+
+  // === 🚀 INITIALISATION ===
+
   initialize(networkManager, playerManager, npcManager) {
-    console.log(`🚀 [InteractionManager] Initialisation sécurisée...`);
+    console.log(`🚀 [InteractionManager] Initialisation...`);
     
     this.networkManager = networkManager;
     this.playerManager = playerManager;
     this.npcManager = npcManager;
-    
-    if (!this.validateDependencies()) {
-      throw new Error('Dépendances manquantes pour InteractionManager');
-    }
-    
-    this.setupSecureHandlers();
-    this.setupRateLimiting();
-    this.setupInputValidation();
-    this.exposeSecureAPI();
-    
-    console.log(`✅ [InteractionManager] Initialisé de manière sécurisée`);
+
+    this.setupInputHandlers();
+    this.setupNetworkHandlers();
+    this.exposeDialogueAPI();
+
+    console.log(`✅ [InteractionManager] Initialisé avec système modulaire`);
     return this;
   }
-  
-  validateDependencies() {
-    const required = ['networkManager', 'playerManager', 'npcManager'];
-    const missing = required.filter(dep => !this[dep]);
-    
-    if (missing.length > 0) {
-      console.error(`❌ [InteractionManager] Dépendances manquantes: ${missing.join(', ')}`);
-      return false;
-    }
-    
-    return true;
-  }
-  
-  // === 🔐 HANDLERS SÉCURISÉS ===
-  
-  setupSecureHandlers() {
-    console.log(`🔐 [InteractionManager] Configuration handlers sécurisés...`);
-    
-    // ✅ Input sécurisé - Validation minimale côté client
-    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, (event) => {
-      this.handleSecureInteractionInput(event);
+
+  // === 🎛️ GESTION INPUT ===
+
+  setupInputHandlers() {
+    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, () => {
+      this.handleInteractionInput();
     });
-    
-    // ✅ Listeners réseau sécurisés avec validation
-    if (this.networkManager) {
-      this.setupNetworkListeners();
-    }
-    
-    // ✅ Sync position périodique
-    this.setupPositionSync();
-    
-    console.log(`✅ [InteractionManager] Handlers sécurisés configurés`);
+    console.log(`⌨️ [InteractionManager] Input configuré (${this.config.interactionKey})`);
   }
-  
-  setupNetworkListeners() {
-    // ✅ Réponses serveur avec validation
-    this.networkManager.onMessage("interactionResult", (data) => {
-      this.handleServerInteractionResult(data);
-    });
+
+  handleInteractionInput() {
+    console.log(`🎮 [InteractionManager] === INTERACTION INPUT ===`);
     
-    this.networkManager.onMessage("interactionError", (data) => {
-      this.handleServerInteractionError(data);
-    });
-    
-    this.networkManager.onMessage("positionSync", (data) => {
-      this.handlePositionSync(data);
-    });
-    
-    // ✅ Messages spécialisés
-    this.networkManager.onMessage("npcInteractionResult", (data) => {
-      this.handleNpcInteractionResult(data);
-    });
-    
-    this.networkManager.onMessage("questUpdate", (data) => {
-      this.handleQuestUpdate(data);
-    });
-    
-    this.networkManager.onMessage("shopTransaction", (data) => {
-      this.handleShopTransaction(data);
-    });
-  }
-  
-  setupPositionSync() {
-    // ✅ Sync position toutes les 2 secondes pour validation serveur
-    setInterval(() => {
-      this.syncPlayerPosition();
-    }, 2000);
-  }
-  
-  // === 🛡️ SÉCURITÉ & VALIDATION ===
-  
-  setupRateLimiting() {
-    console.log(`🛡️ [InteractionManager] Configuration rate limiting...`);
-    
-    setInterval(() => {
-      this.resetRateLimit();
-    }, 1000);
-  }
-  
-  setupInputValidation() {
-    console.log(`🛡️ [InteractionManager] Configuration validation input...`);
-    
-    // ✅ Validation des inputs utilisateur
-    this.inputValidator = {
-      sanitizeString: (str) => {
-        if (typeof str !== 'string') return '';
-        return str.replace(/[<>'"&]/g, '').substring(0, 100);
-      },
-      
-      validateNumber: (num, min = 0, max = 999999) => {
-        const parsed = parseFloat(num);
-        if (isNaN(parsed)) return min;
-        return Math.max(min, Math.min(max, parsed));
-      },
-      
-      validatePosition: (pos) => {
-        if (!pos || typeof pos !== 'object') return null;
-        return {
-          x: this.inputValidator.validateNumber(pos.x, -10000, 10000),
-          y: this.inputValidator.validateNumber(pos.y, -10000, 10000),
-          mapId: this.inputValidator.sanitizeString(pos.mapId || '')
-        };
-      }
-    };
-  }
-  
-  isRateLimited() {
-    const now = Date.now();
-    
-    // Reset si nécessaire
-    if (now - this.state.lastRateLimitReset > 1000) {
-      this.resetRateLimit();
-    }
-    
-    if (this.state.rateLimitCounter >= this.config.security.maxRequestsPerSecond) {
-      console.warn(`🚫 [InteractionManager] Rate limit atteint: ${this.state.rateLimitCounter}`);
-      this.logSuspiciousActivity('rate_limit_exceeded');
-      return true;
-    }
-    
-    return false;
-  }
-  
-  resetRateLimit() {
-    this.state.rateLimitCounter = 0;
-    this.state.lastRateLimitReset = Date.now();
-  }
-  
-  logSuspiciousActivity(type, data = {}) {
-    if (!this.config.security.logSuspiciousActivity) return;
-    
-    const logEntry = {
-      type,
-      timestamp: Date.now(),
-      playerPosition: this.getPlayerPosition(),
-      data,
-      userAgent: navigator.userAgent
-    };
-    
-    console.warn(`🚨 [InteractionManager] Activité suspecte: ${type}`, logEntry);
-    
-    // ✅ Optionnel: Envoyer au serveur pour analyse
-    if (this.networkManager && this.config.security.reportToServer) {
-      this.networkManager.send("suspiciousActivity", {
-        type,
-        timestamp: logEntry.timestamp,
-        details: data
-      });
-    }
-  }
-  
-  // === 🎮 INTERACTION SÉCURISÉE ===
-  
-  handleSecureInteractionInput(event) {
-    console.log(`🎮 [InteractionManager] === INPUT INTERACTION SÉCURISÉE ===`);
-    
-    // ✅ Validation sécurité
-    if (!this.canInteract()) {
+    if (!this.canPlayerInteract()) {
       console.log(`🚫 [InteractionManager] Interaction bloquée`);
       return;
     }
-    
-    // ✅ Rate limiting
-    if (this.isRateLimited()) {
-      this.showSecurityMessage("Trop d'interactions rapides détectées");
+
+    const targetNpc = this.findInteractionTarget();
+    if (!targetNpc) {
+      this.showMessage("Aucun NPC à proximité pour interagir", 'info');
       return;
     }
-    
-    // ✅ Validation input
-    const interactionData = this.buildSecureInteractionData();
-    if (!interactionData) {
-      console.warn(`⚠️ [InteractionManager] Données d'interaction invalides`);
-      return;
-    }
-    
-    // ✅ Envoi sécurisé au serveur
-    this.sendSecureInteraction(interactionData);
+
+    console.log(`🎯 [InteractionManager] NPC trouvé: ${targetNpc.name} (${targetNpc.id})`);
+    this.triggerInteraction(targetNpc);
   }
-  
-  canInteract() {
-    // ✅ Vérifications côté client (minimales)
-    if (this.state.isBlocked) {
-      console.log(`🚫 [InteractionManager] Interactions bloquées`);
-      return false;
-    }
-    
-    // ✅ Cooldown local (le serveur validera aussi)
-    const now = Date.now();
-    const timeSinceLastInteraction = now - this.state.lastInteractionTime;
-    if (timeSinceLastInteraction < this.config.cooldowns.npc) {
-      console.log(`🚫 [InteractionManager] Cooldown actif (${timeSinceLastInteraction}ms)`);
-      return false;
-    }
-    
-    // ✅ Vérification état UI
-    if (this.isUIBlocking()) {
-      console.log(`🚫 [InteractionManager] UI bloque l'interaction`);
-      return false;
-    }
-    
-    return true;
-  }
-  
-  isUIBlocking() {
-    const blockingStates = [
-      window._questDialogActive,
-      window.inventorySystem?.isInventoryOpen?.(),
-      typeof window.isChatFocused === "function" && window.isChatFocused(),
-      document.querySelector('#battle-ui')?.style.display !== 'none'
-    ];
-    
-    return blockingStates.some(Boolean);
-  }
-  
-  buildSecureInteractionData() {
-    // ✅ Récupération données minimales et validées
-    const playerPos = this.getValidatedPlayerPosition();
-    if (!playerPos) {
-      console.warn(`⚠️ [InteractionManager] Position joueur invalide`);
-      return null;
-    }
-    
-    // ✅ Recherche cible (côté client pour UI uniquement)
-    const targetInfo = this.findInteractionTarget();
-    if (!targetInfo) {
-      console.log(`ℹ️ [InteractionManager] Aucune cible d'interaction trouvée`);
-      return null;
-    }
-    
-    // ✅ Construction données sécurisées
-    const interactionData = {
-      type: 'npc', // ✅ Type fixe pour simplifier
-      timestamp: Date.now(),
-      playerPosition: playerPos,
-      targetId: this.inputValidator.validateNumber(targetInfo.id),
-      targetType: this.inputValidator.sanitizeString(targetInfo.type),
-      interactionKey: this.config.interactionKey,
-      sessionId: this.getSessionId() // ✅ Pour validation serveur
-    };
-    
-    // ✅ Validation finale
-    if (!this.validateInteractionData(interactionData)) {
-      console.warn(`⚠️ [InteractionManager] Données d'interaction invalides après validation`);
-      return null;
-    }
-    
-    return interactionData;
-  }
-  
-  validateInteractionData(data) {
-    const required = ['type', 'timestamp', 'playerPosition', 'targetId'];
-    
-    for (const field of required) {
-      if (data[field] === undefined || data[field] === null) {
-        console.warn(`⚠️ [InteractionManager] Champ requis manquant: ${field}`);
-        return false;
-      }
-    }
-    
-    // ✅ Validation timestamp (pas trop ancien/futur)
-    const now = Date.now();
-    const timeDiff = Math.abs(now - data.timestamp);
-    if (timeDiff > 5000) { // 5 secondes max
-      console.warn(`⚠️ [InteractionManager] Timestamp suspect: ${timeDiff}ms`);
-      this.logSuspiciousActivity('invalid_timestamp', { timeDiff });
-      return false;
-    }
-    
-    return true;
-  }
-  
-  getValidatedPlayerPosition() {
-    const player = this.playerManager?.getMyPlayer();
-    if (!player) return null;
-    
-    const position = {
-      x: player.x,
-      y: player.y,
-      mapId: player.currentZone || this.scene.scene.key
-    };
-    
-    return this.inputValidator.validatePosition(position);
-  }
-  
+
   findInteractionTarget() {
-    const player = this.playerManager?.getMyPlayer();
-    if (!player) return null;
+    if (!this.playerManager || !this.npcManager) return null;
     
-    // ✅ Recherche NPC le plus proche (pour UI/feedback uniquement)
-    const closestNpc = this.npcManager?.getClosestNpc?.(
-      player.x,
-      player.y,
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return null;
+
+    return this.npcManager.getClosestNpc(
+      myPlayer.x,
+      myPlayer.y,
       this.config.maxInteractionDistance
     );
-    
-    if (closestNpc) {
-      return {
-        id: closestNpc.id,
-        type: 'npc',
-        name: closestNpc.name || 'NPC'
-      };
-    }
-    
-    return null;
   }
-  
-  sendSecureInteraction(interactionData) {
-    console.log(`📤 [InteractionManager] Envoi interaction sécurisée:`, interactionData);
+
+  triggerInteraction(npc) {
+    console.log(`🚀 [InteractionManager] === DÉCLENCHEMENT INTERACTION ===`);
+    console.log(`🎯 [InteractionManager] NPC: ${npc.name} (${npc.id})`);
     
-    // ✅ Increment rate limit
-    this.state.rateLimitCounter++;
+    // Validation proximité locale avant envoi serveur
+    if (!this.validateProximity(npc)) {
+      this.showMessage("Trop loin du NPC", 'warning');
+      return;
+    }
+
+    // Vérifier cooldown
+    if (!this.validateCooldown('npc')) {
+      return;
+    }
+
+    // Mettre à jour état local
     this.state.lastInteractionTime = Date.now();
+    this.state.lastInteractedNpc = npc;
+    this.updateCooldown('npc');
     
-    // ✅ Générer ID unique pour tracking
-    const interactionId = this.generateInteractionId();
-    interactionData.interactionId = interactionId;
+    if (this.npcManager) {
+      this.npcManager.lastInteractedNpc = npc;
+    }
+
+    // Créer requête standardisée pour serveur modulaire
+    const interactionRequest = this.createInteractionRequest(npc);
     
-    // ✅ Stocker pour suivi
-    this.state.pendingInteractions.set(interactionId, {
-      data: interactionData,
-      timestamp: Date.now(),
-      attempts: 1
-    });
-    
-    // ✅ Ajouter à l'historique
-    this.addToHistory(interactionData);
-    
-    // ✅ Envoi réseau sécurisé
     try {
-      this.networkManager.send("secureInteraction", interactionData);
-      console.log(`✅ [InteractionManager] Interaction envoyée: ${interactionId}`);
+      // Envoyer au serveur via le système modulaire
+      if (this.networkManager) {
+        console.log(`📡 [InteractionManager] Envoi requête modulaire:`, interactionRequest);
+        this.networkManager.sendNpcInteract(npc.id, interactionRequest);
+      }
     } catch (error) {
       console.error(`❌ [InteractionManager] Erreur envoi:`, error);
-      this.state.pendingInteractions.delete(interactionId);
-      this.showSecurityMessage("Erreur de communication avec le serveur");
+      this.showMessage(`Erreur d'interaction: ${error.message}`, 'error');
+    }
+  }
+
+  // === 📋 CRÉATION REQUÊTE MODULAIRE ===
+
+  createInteractionRequest(npc) {
+    const myPlayer = this.playerManager.getMyPlayer();
+    
+    return {
+      type: 'npc',
+      targetId: npc.id,
+      position: {
+        x: myPlayer.x,
+        y: myPlayer.y,
+        mapId: myPlayer.currentZone || this.scene.scene.key
+      },
+      data: {
+        npcId: npc.id,
+        playerPosition: { x: myPlayer.x, y: myPlayer.y },
+        npcPosition: { x: npc.x, y: npc.y },
+        interactionDistance: this.calculateDistance(myPlayer, npc),
+        timestamp: Date.now()
+      }
+    };
+  }
+
+  // === 📡 NETWORK HANDLERS ===
+
+  setupNetworkHandlers() {
+    if (!this.networkManager) return;
+
+    // Handler unifié pour résultats d'interaction modulaire
+    this.networkManager.onMessage("npcInteractionResult", (data) => {
+      console.log(`📥 [InteractionManager] === RÉSULTAT INTERACTION MODULAIRE ===`);
+      console.log(`📊 [InteractionManager] Data:`, data);
+      
+      this.handleInteractionResult(data);
+    });
+
+    // Handlers spécialisés (conservés pour compatibilité)
+    this.setupSpecializedHandlers();
+    
+    console.log(`📡 [InteractionManager] Network handlers configurés`);
+  }
+
+  setupSpecializedHandlers() {
+    // Quest handlers
+    this.networkManager.onMessage("questStartResult", (data) => {
+      this.handleQuestResult(data);
+    });
+
+    this.networkManager.onMessage("questGranted", (data) => {
+      this.handleQuestGranted(data);
+    });
+
+    this.networkManager.onMessage("questProgressUpdate", (data) => {
+      this.handleQuestProgress(data);
+    });
+
+    // Starter handlers
+    this.networkManager.onMessage("starterEligibility", (data) => {
+      this.handleStarterEligibility(data);
+    });
+
+    this.networkManager.onMessage("starterReceived", (data) => {
+      this.handleStarterReceived(data);
+    });
+
+    // Shop handlers (délégués au système shop)
+    this.networkManager.onMessage("shopTransaction", (data) => {
+      this.delegateToShopSystem(data);
+    });
+  }
+
+  // === 🔄 TRAITEMENT RÉSULTATS ===
+
+  handleInteractionResult(data) {
+    console.log(`🔄 [InteractionManager] === TRAITEMENT RÉSULTAT ===`);
+    console.log(`📊 [InteractionManager] Type: ${data.type}`);
+    
+    try {
+      // Router selon le type de résultat du serveur modulaire
+      switch (data.type) {
+        case 'shop':
+          this.handleShopResult(data);
+          break;
+          
+        case 'questGiver':
+          this.handleQuestGiverResult(data);
+          break;
+          
+        case 'questComplete':
+          this.handleQuestCompleteResult(data);
+          break;
+          
+        case 'starterTable':
+          this.handleStarterTableResult(data);
+          break;
+          
+        case 'dialogue':
+          this.handleDialogueResult(data);
+          break;
+          
+        case 'heal':
+          this.handleHealResult(data);
+          break;
+          
+        case 'battleSpectate':
+          this.handleBattleSpectateResult(data);
+          break;
+          
+        case 'error':
+          this.handleErrorResult(data);
+          break;
+          
+        default:
+          console.warn(`⚠️ [InteractionManager] Type non géré: ${data.type}`);
+          this.handleFallbackResult(data);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur traitement:`, error);
+      this.handleErrorResult({ message: `Erreur traitement: ${error.message}` });
+    }
+  }
+
+  // === 🛒 RÉSULTATS SPÉCIALISÉS ===
+
+  handleShopResult(data) {
+    console.log(`🛒 [InteractionManager] Résultat shop:`, data);
+    
+    // Déléguer au système shop s'il existe
+    if (this.scene.shopIntegration) {
+      const shopSystem = this.scene.shopIntegration.getShopSystem();
+      if (shopSystem && shopSystem.handleShopNpcInteraction) {
+        shopSystem.handleShopNpcInteraction(data);
+        return;
+      }
     }
     
-    // ✅ Timeout pour cleaning
-    setTimeout(() => {
-      if (this.state.pendingInteractions.has(interactionId)) {
-        console.warn(`⏰ [InteractionManager] Timeout interaction: ${interactionId}`);
-        this.state.pendingInteractions.delete(interactionId);
-      }
-    }, 10000); // 10 secondes timeout
+    // Fallback
+    this.showMessage("Boutique temporairement indisponible", 'warning');
   }
-  
-  // === 📥 GESTION RÉPONSES SERVEUR ===
-  
-  handleServerInteractionResult(data) {
-    console.log(`📥 [InteractionManager] === RÉPONSE SERVEUR ===`, data);
+
+  handleQuestGiverResult(data) {
+    console.log(`📖 [InteractionManager] Résultat quest giver:`, data);
     
-    // ✅ Validation réponse serveur
-    if (!this.validateServerResponse(data)) {
-      console.warn(`⚠️ [InteractionManager] Réponse serveur invalide`);
+    // Déléguer au système quest s'il existe
+    if (window.questSystem && window.questSystem.handleNpcInteraction) {
+      const result = window.questSystem.handleNpcInteraction(data);
+      if (result !== 'NO_QUEST') {
+        return;
+      }
+    }
+    
+    // Fallback vers dialogue normal
+    this.handleDialogueResult({
+      message: data.message || "Ce PNJ a des quêtes mais le système n'est pas disponible.",
+      lines: data.lines || ["Je peux vous aider mais le système n'est pas prêt."]
+    });
+  }
+
+  handleQuestCompleteResult(data) {
+    console.log(`🎉 [InteractionManager] Résultat quest complete:`, data);
+    
+    // Notification de succès
+    this.showMessage(data.message || "Quête terminée !", 'success');
+    
+    // Déléguer au système quest pour mise à jour
+    if (window.questSystem && window.questSystem.handleNpcInteraction) {
+      window.questSystem.handleNpcInteraction(data);
+    }
+    
+    // Afficher dialogue de récompense
+    if (data.lines && data.lines.length > 0) {
+      this.showDialogue(data);
+    }
+  }
+
+  handleStarterTableResult(data) {
+    console.log(`🎯 [InteractionManager] Résultat starter table:`, data);
+    
+    if (data.starterEligible) {
+      // Déclencher sélection starter
+      if (this.scene.showStarterSelection) {
+        this.scene.showStarterSelection();
+      } else {
+        this.showMessage("Système starter non disponible", 'error');
+      }
+    } else {
+      // Afficher raison d'inéligibilité
+      this.handleDialogueResult({
+        lines: data.lines || [data.message || "Starter non disponible"]
+      });
+    }
+  }
+
+  handleDialogueResult(data) {
+    console.log(`💬 [InteractionManager] Résultat dialogue:`, data);
+    
+    if (typeof window.showNpcDialogue === 'function') {
+      const dialogueData = this.formatDialogueData(data);
+      window.showNpcDialogue(dialogueData);
+    } else {
+      // Fallback avec notification
+      const message = data.message || (data.lines && data.lines[0]) || "Dialogue non disponible";
+      this.showMessage(message, 'info');
+    }
+  }
+
+  handleHealResult(data) {
+    console.log(`💚 [InteractionManager] Résultat heal:`, data);
+    
+    // Effet visuel de soin (si disponible)
+    if (this.scene.showHealEffect) {
+      this.scene.showHealEffect();
+    }
+    
+    // Dialogue de confirmation
+    this.handleDialogueResult({
+      lines: data.lines || [data.message || "Vos Pokémon sont soignés !"],
+      npcName: data.npcName || "Infirmière"
+    });
+  }
+
+  handleBattleSpectateResult(data) {
+    console.log(`👁️ [InteractionManager] Résultat battle spectate:`, data);
+    
+    if (data.battleSpectate && data.battleSpectate.canWatch) {
+      // Déléguer au système de spectateur
+      if (this.scene.spectatorManager) {
+        this.scene.spectatorManager.joinBattle(data.battleSpectate);
+      } else {
+        this.showMessage("Système spectateur non disponible", 'error');
+      }
+    } else {
+      this.showMessage(data.message || "Impossible de regarder ce combat", 'warning');
+    }
+  }
+
+  handleErrorResult(data) {
+    console.log(`❌ [InteractionManager] Résultat erreur:`, data);
+    
+    const errorMessage = data.message || "Erreur d'interaction inconnue";
+    this.showMessage(errorMessage, 'error');
+  }
+
+  handleFallbackResult(data) {
+    console.log(`🔄 [InteractionManager] Résultat fallback:`, data);
+    
+    // Essayer d'afficher en dialogue par défaut
+    if (data.message || data.lines) {
+      this.handleDialogueResult(data);
+    } else {
+      this.showMessage("Interaction non reconnue", 'warning');
+    }
+  }
+
+  // === 📖 HANDLERS QUEST SPÉCIALISÉS ===
+
+  handleQuestResult(data) {
+    console.log(`📖 [InteractionManager] Résultat quest:`, data);
+    
+    if (data.success) {
+      this.showMessage(`Quête "${data.quest?.name || 'Inconnue'}" acceptée !`, 'success');
+      
+      // Notifier le système quest
+      if (window.questSystem && window.questSystem.handleQuestStartResult) {
+        window.questSystem.handleQuestStartResult(data);
+      }
+    } else {
+      this.showMessage(data.message || "Impossible de démarrer cette quête", 'error');
+    }
+  }
+
+  handleQuestGranted(data) {
+    console.log(`🎁 [InteractionManager] Quest accordée:`, data);
+    
+    this.showMessage(`Nouvelle quête : ${data.questName || 'Inconnue'} !`, 'success');
+    
+    // Notifier le système quest
+    if (window.questSystem && window.questSystem.handleQuestGranted) {
+      window.questSystem.handleQuestGranted(data);
+    }
+  }
+
+  handleQuestProgress(data) {
+    console.log(`📈 [InteractionManager] Progression quest:`, data);
+    
+    // Notifier le système quest
+    if (window.questSystem && window.questSystem.handleQuestProgress) {
+      window.questSystem.handleQuestProgress(data);
+    }
+    
+    // Afficher progression si pertinente
+    if (Array.isArray(data) && data.length > 0) {
+      const firstResult = data[0];
+      if (firstResult.objectiveCompleted) {
+        this.showMessage(`Objectif complété : ${firstResult.objectiveName}`, 'success');
+      } else if (firstResult.stepCompleted) {
+        this.showMessage(`Étape terminée : ${firstResult.stepName}`, 'success');
+      } else if (firstResult.questCompleted) {
+        this.showMessage(`Quête terminée : ${firstResult.questName} !`, 'success');
+      }
+    }
+  }
+
+  // === 🎯 HANDLERS STARTER ===
+
+  handleStarterEligibility(data) {
+    console.log("📥 [InteractionManager] Éligibilité starter:", data);
+    
+    if (data.eligible) {
+      console.log("✅ Joueur éligible - affichage starter");
+      this.scene.showStarterSelection(data.availableStarters);
+    } else {
+      console.log("❌ Joueur non éligible:", data.reason);
+      this.showMessage(data.message || "Starter non disponible", 'warning');
+    }
+  }
+
+  handleStarterReceived(data) {
+    console.log("📥 [InteractionManager] Starter reçu:", data);
+    
+    if (data.success) {
+      const pokemonName = data.pokemon?.name || 'Pokémon';
+      this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
+    } else {
+      this.showMessage(data.message || 'Erreur sélection', 'error');
+    }
+  }
+
+  // === 🛒 DÉLÉGATION SHOP ===
+
+  delegateToShopSystem(data) {
+    console.log(`🛒 [InteractionManager] Délégation shop:`, data);
+    
+    if (this.scene.shopIntegration) {
+      const shopSystem = this.scene.shopIntegration.getShopSystem();
+      if (shopSystem && shopSystem.handleTransaction) {
+        shopSystem.handleTransaction(data);
+        return;
+      }
+    }
+    
+    if (window.shopSystem && window.shopSystem.handleTransaction) {
+      window.shopSystem.handleTransaction(data);
       return;
     }
     
-    // ✅ Récupérer interaction en attente
-    const interactionId = data.interactionId;
-    const pendingInteraction = this.state.pendingInteractions.get(interactionId);
-    
-    if (pendingInteraction) {
-      this.state.pendingInteractions.delete(interactionId);
-      console.log(`✅ [InteractionManager] Interaction confirmée: ${interactionId}`);
-    }
-    
-    // ✅ Traitement selon le type de résultat
-    this.processServerResult(data);
+    console.warn(`⚠️ [InteractionManager] Système shop non trouvé`);
   }
-  
-  handleServerInteractionError(data) {
-    console.warn(`📥 [InteractionManager] Erreur serveur:`, data);
+
+  // === 🎭 DIALOGUES ===
+
+  formatDialogueData(data) {
+    let npcName = "PNJ";
+    let portrait = "/assets/portrait/defaultPortrait.png";
     
-    const interactionId = data.interactionId;
-    if (interactionId) {
-      this.state.pendingInteractions.delete(interactionId);
+    if (data.npcName) {
+      npcName = data.npcName;
+    } else if (this.state.lastInteractedNpc?.name) {
+      npcName = this.state.lastInteractedNpc.name;
     }
     
-    // ✅ Gestion erreurs spécifiques
-    switch (data.errorCode) {
-      case 'TOO_FAR':
-        this.showSecurityMessage("Vous êtes trop loin pour interagir");
-        break;
-      case 'COOLDOWN_ACTIVE':
-        this.showSecurityMessage("Interaction trop rapide, attendez un peu");
-        break;
-      case 'INVALID_TARGET':
-        this.showSecurityMessage("Cible d'interaction invalide");
-        break;
-      case 'RATE_LIMITED':
-        this.showSecurityMessage("Trop d'interactions, ralentissez");
-        this.state.isBlocked = true;
-        setTimeout(() => { this.state.isBlocked = false; }, 5000);
-        break;
-      default:
-        this.showSecurityMessage(data.message || "Erreur d'interaction");
+    if (data.portrait) {
+      portrait = data.portrait;
+    } else if (this.state.lastInteractedNpc?.sprite) {
+      portrait = `/assets/portrait/${this.state.lastInteractedNpc.sprite}Portrait.png`;
     }
+
+    let lines = ["..."];
+    if (data.lines && Array.isArray(data.lines) && data.lines.length > 0) {
+      lines = data.lines;
+    } else if (data.message) {
+      lines = [data.message];
+    }
+    
+    return {
+      portrait,
+      name: npcName,
+      lines,
+      text: data.text || null
+    };
   }
-  
-  validateServerResponse(data) {
-    if (!data || typeof data !== 'object') {
-      this.logSuspiciousActivity('invalid_server_response', { data });
-      return false;
+
+  // === 🔐 VALIDATIONS ===
+
+  canPlayerInteract() {
+    const checks = {
+      questDialogOpen: window._questDialogActive || false,
+      chatOpen: typeof window.isChatFocused === "function" && window.isChatFocused(),
+      inventoryOpen: window.inventorySystem?.isInventoryOpen() || false,
+      shopOpen: this.isShopOpen(),
+      dialogueOpen: this.isDialogueOpen(),
+      interactionBlocked: this.state.isInteractionBlocked
+    };
+    
+    const blocked = Object.entries(checks).filter(([key, value]) => value);
+    if (blocked.length > 0) {
+      console.log(`🚫 [InteractionManager] Interaction bloquée par:`, blocked.map(([key]) => key));
     }
     
-    // ✅ Vérifications basiques
-    if (!data.success && !data.error) {
-      console.warn(`⚠️ [InteractionManager] Réponse serveur ambiguë`);
+    return !Object.values(checks).some(Boolean);
+  }
+
+  validateProximity(npc) {
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return false;
+
+    const distance = this.calculateDistance(myPlayer, npc);
+    const isValid = distance <= this.config.maxInteractionDistance;
+    
+    if (!isValid) {
+      console.log(`🚫 [InteractionManager] Trop loin: ${Math.round(distance)}px > ${this.config.maxInteractionDistance}px`);
+    }
+    
+    return isValid;
+  }
+
+  validateCooldown(interactionType) {
+    const cooldownDuration = this.config.cooldowns[interactionType] || 0;
+    if (cooldownDuration === 0) return true;
+
+    const lastTime = this.state.currentCooldowns.get(interactionType) || 0;
+    const timeSince = Date.now() - lastTime;
+    
+    if (timeSince < cooldownDuration) {
+      const remaining = Math.ceil((cooldownDuration - timeSince) / 1000);
+      console.log(`🚫 [InteractionManager] Cooldown actif: ${remaining}s restantes`);
       return false;
     }
     
     return true;
   }
-  
-  processServerResult(data) {
-    console.log(`🔄 [InteractionManager] Traitement résultat:`, data.type);
-    
-    // ✅ Délégation selon le type de résultat
-    switch (data.type) {
-      case 'npc':
-      case 'dialogue':
-        this.handleNpcInteractionResult(data);
-        break;
-        
-      case 'shop':
-        this.handleShopTransaction(data);
-        break;
-        
-      case 'quest':
-      case 'questGiver':
-      case 'questComplete':
-        this.handleQuestUpdate(data);
-        break;
-        
-      case 'heal':
-        this.handleHealResult(data);
-        break;
-        
-      case 'starter':
-      case 'starterTable':
-        this.handleStarterResult(data);
-        break;
-        
-      default:
-        console.log(`ℹ️ [InteractionManager] Type de résultat non géré: ${data.type}`);
-        this.handleGenericResult(data);
-    }
+
+  updateCooldown(interactionType) {
+    this.state.currentCooldowns.set(interactionType, Date.now());
   }
-  
-  // === 🎭 HANDLERS SPÉCIALISÉS ===
-  
-  handleNpcInteractionResult(data) {
-    console.log(`🗣️ [InteractionManager] Résultat interaction NPC:`, data);
-    
-    // ✅ Affichage dialogue sécurisé
-    if (data.lines || data.message) {
-      this.showSecureDialogue(data);
-    }
-    
-    // ✅ Traitement données quête si présentes
-    if (data.availableQuests && window.questSystem) {
-      try {
-        window.questSystem.handleNpcInteraction(data);
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur quest system:`, error);
-      }
-    }
+
+  calculateDistance(player, npc) {
+    const dx = Math.abs(player.x - npc.x);
+    const dy = Math.abs(player.y - npc.y);
+    return Math.sqrt(dx * dx + dy * dy);
   }
-  
-  handleShopTransaction(data) {
-    console.log(`🛒 [InteractionManager] Transaction boutique:`, data);
-    
-    if (window.shopSystem) {
-      try {
-        window.shopSystem.handleShopNpcInteraction(data);
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur shop system:`, error);
-      }
-    } else {
-      console.warn(`⚠️ [InteractionManager] Shop system non disponible`);
+
+  isShopOpen() {
+    if (this.scene.shopIntegration) {
+      const shopSystem = this.scene.shopIntegration.getShopSystem();
+      return shopSystem?.isShopOpen() || false;
     }
+    return window.shopSystem?.isShopOpen() || false;
   }
-  
-  handleQuestUpdate(data) {
-    console.log(`📖 [InteractionManager] Mise à jour quête:`, data);
-    
-    if (window.questSystem) {
-      try {
-        window.questSystem.handleNpcInteraction(data);
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur quest update:`, error);
-      }
+
+  isDialogueOpen() {
+    const dialogueBox = document.getElementById('dialogue-box');
+    return dialogueBox && dialogueBox.style.display !== 'none';
+  }
+
+  // === 🎬 API PUBLIQUE ===
+
+  exposeDialogueAPI() {
+    // Namespace pour éviter pollution globale
+    if (!window.DialogueAPI) {
+      window.DialogueAPI = {};
     }
+
+    window.DialogueAPI.createCustomDiscussion = (npcName, npcPortrait, text, options = {}) => {
+      return this.createCustomDiscussion(npcName, npcPortrait, text, options);
+    };
+
+    window.DialogueAPI.createSequentialDiscussion = (npcName, npcPortrait, messages, options = {}) => {
+      return this.createSequentialDiscussion(npcName, npcPortrait, messages, options);
+    };
+
+    // Compatibilité
+    window.createCustomDiscussion = window.DialogueAPI.createCustomDiscussion;
+    window.createSequentialDiscussion = window.DialogueAPI.createSequentialDiscussion;
+
+    console.log(`✅ [InteractionManager] API Dialogue exposée`);
   }
-  
-  handleHealResult(data) {
-    console.log(`💚 [InteractionManager] Résultat soin:`, data);
-    
-    this.showSecureDialogue({
-      ...data,
-      lines: data.lines || ["Vos Pokémon sont maintenant en pleine forme !"]
-    });
-    
-    // ✅ Notification
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification("Pokémon soignés !", 'success', { duration: 2000 });
-    }
-  }
-  
-  handleStarterResult(data) {
-    console.log(`🎯 [InteractionManager] Résultat starter:`, data);
-    
-    if (data.eligible && this.scene.showStarterSelection) {
-      this.scene.showStarterSelection(data.availableStarters);
-    } else {
-      this.showSecureDialogue({
-        ...data,
-        lines: data.lines || [data.message || "Table starter non disponible"]
-      });
-    }
-  }
-  
-  handleGenericResult(data) {
-    console.log(`📄 [InteractionManager] Résultat générique:`, data);
-    
-    if (data.message || data.lines) {
-      this.showSecureDialogue(data);
-    }
-  }
-  
-  // === 💬 DIALOGUE SÉCURISÉ ===
-  
-  showSecureDialogue(data) {
+
+  createCustomDiscussion(npcName, npcPortrait, text, options = {}) {
     if (typeof window.showNpcDialogue !== 'function') {
-      console.warn(`⚠️ [InteractionManager] showNpcDialogue non disponible`);
-      return;
+      console.error('❌ [InteractionManager] showNpcDialogue non disponible');
+      return false;
     }
     
-    // ✅ Sanitisation des données de dialogue
-    const sanitizedData = {
-      portrait: this.inputValidator.sanitizeString(data.portrait || "/assets/portrait/defaultPortrait.png"),
-      name: this.inputValidator.sanitizeString(data.npcName || data.name || "PNJ"),
-      lines: this.sanitizeDialogueLines(data.lines || [data.message || "..."]),
-      npcId: data.npcId || null
+    let lines;
+    if (Array.isArray(text)) {
+      lines = text.filter(line => line && line.trim());
+    } else if (typeof text === 'string' && text.trim()) {
+      lines = [text.trim()];
+    } else {
+      lines = ["..."];
+    }
+    
+    const dialogueData = {
+      portrait: npcPortrait || "/assets/portrait/defaultPortrait.png",
+      name: npcName || "PNJ",
+      lines: lines,
+      onClose: options.onClose || null,
+      autoClose: options.autoClose || false,
+      closeable: options.closeable !== false,
+      hideName: options.hideName || false
     };
     
     try {
-      window.showNpcDialogue(sanitizedData);
-      console.log(`✅ [InteractionManager] Dialogue affiché de manière sécurisée`);
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur affichage dialogue:`, error);
-    }
-  }
-  
-  sanitizeDialogueLines(lines) {
-    if (!Array.isArray(lines)) {
-      lines = [String(lines || "...")];
-    }
-    
-    return lines
-      .filter(line => line && typeof line === 'string')
-      .map(line => this.inputValidator.sanitizeString(line))
-      .slice(0, 10); // Max 10 lignes
-  }
-  
-  // === 🔄 SYNCHRONISATION ===
-  
-  syncPlayerPosition() {
-    const position = this.getValidatedPlayerPosition();
-    if (!position) return;
-    
-    // ✅ Sync seulement si position a changé significativement
-    const lastPos = this.cache.lastValidatedPosition;
-    if (lastPos) {
-      const distance = Math.sqrt(
-        Math.pow(position.x - lastPos.x, 2) + 
-        Math.pow(position.y - lastPos.y, 2)
-      );
+      window.showNpcDialogue(dialogueData);
       
-      if (distance < 10) return; // Pas de sync si déplacement < 10px
-    }
-    
-    this.cache.lastValidatedPosition = position;
-    
-    if (this.networkManager) {
-      this.networkManager.send("positionSync", {
-        position,
-        timestamp: Date.now()
-      });
-    }
-  }
-  
-  handlePositionSync(data) {
-    console.log(`📍 [InteractionManager] Sync position serveur:`, data);
-    
-    if (data.serverTime) {
-      this.cache.serverTime = data.serverTime;
-      this.cache.lastSync = Date.now();
-    }
-    
-    // ✅ Correction position si nécessaire
-    if (data.correctedPosition) {
-      console.warn(`⚠️ [InteractionManager] Position corrigée par le serveur`);
-      this.logSuspiciousActivity('position_corrected', {
-        client: this.cache.lastValidatedPosition,
-        server: data.correctedPosition
-      });
-    }
-  }
-  
-  // === 🔧 API SÉCURISÉE ===
-  
-  exposeSecureAPI() {
-    // ✅ API minimaliste et sécurisée
-    if (!window.InteractionAPI) {
-      window.InteractionAPI = {};
-    }
-    
-    // ✅ Méthodes publiques sécurisées
-    window.InteractionAPI.triggerInteraction = () => {
-      if (this.canInteract()) {
-        this.handleSecureInteractionInput({});
+      if (options.autoClose && typeof options.autoClose === 'number') {
+        setTimeout(() => {
+          const dialogueBox = document.getElementById('dialogue-box');
+          if (dialogueBox && dialogueBox.style.display !== 'none') {
+            dialogueBox.style.display = 'none';
+            if (dialogueData.onClose) {
+              dialogueData.onClose();
+            }
+          }
+        }, options.autoClose);
       }
-    };
-    
-    window.InteractionAPI.isBlocked = () => {
-      return this.state.isBlocked;
-    };
-    
-    window.InteractionAPI.getStats = () => {
-      return {
-        pendingInteractions: this.state.pendingInteractions.size,
-        rateLimitCounter: this.state.rateLimitCounter,
-        historyLength: this.state.interactionHistory.length,
-        isBlocked: this.state.isBlocked
-      };
-    };
-    
-    // ✅ Compatibility avec ancien système
-    window.triggerInteraction = window.InteractionAPI.triggerInteraction;
-    
-    console.log(`✅ [InteractionManager] API sécurisée exposée`);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [InteractionManager] Erreur createCustomDiscussion:', error);
+      return false;
+    }
   }
-  
-  // === 🔧 UTILITAIRES ===
-  
-  generateInteractionId() {
-    return `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-  
-  getSessionId() {
-    return this.networkManager?.sessionId || 'unknown';
-  }
-  
-  getPlayerPosition() {
-    const player = this.playerManager?.getMyPlayer();
-    return player ? { x: player.x, y: player.y } : null;
-  }
-  
-  addToHistory(interactionData) {
-    this.state.interactionHistory.push({
-      timestamp: Date.now(),
-      type: interactionData.type,
-      targetId: interactionData.targetId
+
+  async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
+    if (typeof window.showNpcDialogue !== 'function') {
+      console.error('❌ [InteractionManager] showNpcDialogue non disponible');
+      return false;
+    }
+    
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.warn('⚠️ [InteractionManager] Messages invalides ou vides');
+      return false;
+    }
+    
+    const validMessages = messages.filter(msg => {
+      if (typeof msg === "object" && msg !== null) {
+        return !!msg.text;
+      }
+      return typeof msg === "string" && msg.trim();
     });
+
+    if (validMessages.length === 0) {
+      console.warn('⚠️ [InteractionManager] Aucun message valide');
+      return false;
+    }
     
-    // ✅ Garder seulement les 100 dernières
-    if (this.state.interactionHistory.length > 100) {
-      this.state.interactionHistory = this.state.interactionHistory.slice(-100);
+    try {
+      for (let i = 0; i < validMessages.length; i++) {
+        const message = validMessages[i];
+        
+        let currentNpcName = npcName;
+        let currentPortrait = npcPortrait;
+        let messageText = "";
+        let hideName = false;
+
+        if (typeof message === "object" && message !== null) {
+          currentNpcName = message.speaker || currentNpcName;
+          currentPortrait = message.portrait || currentPortrait;
+          messageText = message.text || "";
+          hideName = !!message.hideName;
+        } else {
+          messageText = message;
+        }
+
+        const success = await this.showSingleMessageAndWait(
+          currentNpcName, 
+          currentPortrait, 
+          messageText, 
+          i + 1, 
+          validMessages.length,
+          { ...options, hideName }
+        );
+
+        if (!success) {
+          console.error(`❌ [InteractionManager] Erreur message ${i + 1}`);
+          break;
+        }
+      }
+      
+      if (options.onComplete) {
+        try {
+          options.onComplete();
+        } catch (error) {
+          console.error(`❌ [InteractionManager] Erreur callback onComplete:`, error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [InteractionManager] Erreur createSequentialDiscussion:', error);
+      return false;
     }
   }
-  
-  showSecurityMessage(message, type = 'warning') {
-    console.log(`🛡️ [InteractionManager] ${type.toUpperCase()}: ${message}`);
-    
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(message, type, {
-        duration: 3000,
-        position: 'top-center'
-      });
+
+  showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
+    return new Promise((resolve) => {
+      try {
+        this.createCustomDiscussion(npcName, portrait, message, {
+          autoClose: false,
+          hideName: options.hideName
+        });
+        
+        setTimeout(() => {
+          const checkInterval = 100;
+          const checkDialogueClose = () => {
+            const dialogueBox = document.getElementById('dialogue-box');
+            if (!dialogueBox || dialogueBox.style.display === 'none' || !dialogueBox.offsetParent) {
+              resolve(true);
+              return;
+            }
+            setTimeout(checkDialogueClose, checkInterval);
+          };
+          setTimeout(checkDialogueClose, 200);
+        }, 100);
+      } catch (error) {
+        console.error(`❌ [InteractionManager] Erreur message ${currentIndex}:`, error);
+        resolve(false);
+      }
+    });
+  }
+
+  // === 🔧 UTILITAIRES ===
+
+  showMessage(message, type = 'info') {
+    if (this.scene.showNotification) {
+      this.scene.showNotification(message, type);
+    } else if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(message, type, { duration: 3000 });
+    } else {
+      console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
     }
   }
-  
+
+  showDialogue(data) {
+    if (typeof window.showNpcDialogue === 'function') {
+      const dialogueData = this.formatDialogueData(data);
+      window.showNpcDialogue(dialogueData);
+    }
+  }
+
+  setConfig(config) {
+    this.config = { ...this.config, ...config };
+  }
+
+  blockInteractions(blocked = true, reason = "Interaction bloquée") {
+    this.state.isInteractionBlocked = blocked;
+    console.log(`🔒 [InteractionManager] Interactions ${blocked ? 'bloquées' : 'débloquées'}: ${reason}`);
+  }
+
   // === 🧹 NETTOYAGE ===
-  
+
   destroy() {
-    console.log(`🧹 [InteractionManager] Destruction sécurisée...`);
-    
-    // ✅ Nettoyage API globale
-    if (window.InteractionAPI) {
-      delete window.InteractionAPI;
+    // Nettoyer API globale
+    if (window.DialogueAPI) {
+      delete window.DialogueAPI;
     }
-    if (window.triggerInteraction) {
-      delete window.triggerInteraction;
+    if (window.createCustomDiscussion) {
+      delete window.createCustomDiscussion;
     }
-    
-    // ✅ Nettoyage event listeners
-    if (this.scene?.input?.keyboard) {
-      this.scene.input.keyboard.off(`keydown-${this.config.interactionKey}`);
+    if (window.createSequentialDiscussion) {
+      delete window.createSequentialDiscussion;
     }
+
+    // Nettoyer événements
+    this.scene.input.keyboard.off(`keydown-${this.config.interactionKey}`);
     
-    // ✅ Clear timeouts/intervals
-    // (Ils sont automatiquement clearés quand on perd les références)
+    // Nettoyer cache
+    this.validationCache.clear();
+    this.state.currentCooldowns.clear();
     
-    // ✅ Reset état
-    this.state.pendingInteractions.clear();
-    this.state.interactionHistory = [];
-    this.cache.nearbyNpcs.clear();
-    
-    // ✅ Null references
+    // Reset références
     this.networkManager = null;
     this.playerManager = null;
     this.npcManager = null;
     this.scene = null;
-    
-    console.log(`✅ [InteractionManager] Détruit de manière sécurisée`);
+
+    console.log(`🧹 [InteractionManager] Nettoyé`);
   }
-  
-  // === 🐛 DEBUG SÉCURISÉ ===
-  
-  getSecureDebugInfo() {
+
+  // === 🐛 DEBUG ===
+
+  getDebugInfo() {
     return {
-      // ✅ Infos non-sensibles uniquement
-      configSummary: {
-        maxDistance: this.config.maxInteractionDistance,
-        interactionKey: this.config.interactionKey,
-        rateLimitEnabled: this.config.security.enableRateLimit
-      },
-      stateSummary: {
-        isBlocked: this.state.isBlocked,
-        pendingCount: this.state.pendingInteractions.size,
-        rateLimitCounter: this.state.rateLimitCounter,
-        historyLength: this.state.interactionHistory.length
-      },
-      systemStatus: {
-        hasNetworkManager: !!this.networkManager,
-        hasPlayerManager: !!this.playerManager,
-        hasNpcManager: !!this.npcManager,
-        sceneKey: this.scene?.scene?.key || 'unknown'
-      }
+      config: this.config,
+      state: this.state,
+      hasNetworkManager: !!this.networkManager,
+      hasPlayerManager: !!this.playerManager,
+      hasNpcManager: !!this.npcManager,
+      currentCooldowns: Object.fromEntries(this.state.currentCooldowns),
+      cacheSize: this.validationCache.size
     };
   }
 }
-
-console.log(`
-🔒 === INTERACTION MANAGER SÉCURISÉ ===
-
-✅ ARCHITECTURE SÉCURISÉE:
-• Validation côté serveur uniquement
-• Rate limiting intelligent
-• Input sanitization systématique  
-• Tracking des interactions suspectes
-• Position sync avec correction serveur
-• API minimaliste exposée
-
-🛡️ SÉCURITÉ IMPLÉMENTÉE:
-• Pas de confiance client (trustless)
-• Validation inputs/outputs
-• Protection rate limiting
-• Logs activités suspectes
-• Timeouts et cleanup automatique
-• État minimal côté client
-
-⚡ OPTIMISATIONS:
-• Cache intelligent NPCs proches
-• Sync position delta seulement
-• Historique limité automatiquement
-• Cleanup mémoire complet
-• Event-driven architecture
-
-🎯 COMPATIBILITÉ:
-• API legacy maintenue
-• Window.InteractionAPI moderne
-• Integration questSystem/shopSystem
-• Messages dialogue sécurisés
-
-✅ PRÊT POUR PRODUCTION SÉCURISÉE !
-`);
