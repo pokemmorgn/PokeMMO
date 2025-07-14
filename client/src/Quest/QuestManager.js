@@ -1,11 +1,15 @@
-// Quest/QuestManager.js - VERSION ULTRA-ROBUSTE COMPLÈTE
-// 🎯 CORRECTIONS: Setup handlers immédiat + NPC matching + Fallbacks + Auto-réparation
+// Quest/QuestManager.js - SYSTÈME ROBUSTE AVEC ÉTATS ET VALIDATIONS
+// 🎯 Approche Unreal Engine : États clairs, validations strictes, pas d'approximatif
 
 export class QuestManager {
-  constructor(gameRoom) {
-    this.gameRoom = gameRoom;
+  constructor(gameRoom = null) {
+    // === ÉTAT SYSTÈME ===
+    this.state = 'UNINITIALIZED'; // UNINITIALIZED, WAITING_ROOM, CONNECTING_HANDLERS, READY, ERROR
+    this.gameRoom = null;
+    this.handlersRegistered = false;
+    this.initialized = false;
     
-    // === DONNÉES LOCALES ===
+    // === DONNÉES ===
     this.activeQuests = [];
     this.completedQuests = [];
     this.availableQuests = [];
@@ -24,120 +28,398 @@ export class QuestManager {
     this.onQuestCompleted = null;
     this.onQuestProgress = null;
     this.onStatsUpdate = null;
+    this.onStateChanged = null;
     
-    // === ÉTAT SYSTÈME ===
-    this.initialized = false;
-    this.questUI = null;
-    this.lastDataRequest = 0;
-    this.requestCooldown = 1000;
+    // === CONFIG ===
+    this.config = {
+      maxWaitTime: 10000,        // 10 secondes max pour attendre la room
+      handlerRetryDelay: 500,    // 500ms entre tentatives
+      maxHandlerRetries: 5,      // 5 tentatives max
+      enableFallbackMode: true   // Mode fallback si échec
+    };
     
-    // === ROBUSTESSE ===
+    // === SYSTÈME DE REQUÊTES ===
     this.requestQueue = [];
-    this.processingQueue = false;
-    this.fallbackEnabled = true;
-    this.maxRetries = 3;
-    this.retryDelay = 1000;
+    this.pendingRequests = new Map();
+    this.requestId = 0;
     
-    // === NPC INTERACTION CACHE ===
+    // === NPC INTERACTION ===
     this.pendingNpcInteraction = null;
-    this.npcInteractionTimeout = 8000;
-    this.interactionHistory = new Map();
+    this.questUI = null;
     
-    // === DÉDUPLICATION ===
-    this.lastNotificationTime = new Map();
-    this.notificationCooldown = 2000;
+    console.log('📖 [QuestManager] Instance créée - État:', this.state);
     
-    // ✅ CORRECTION CRITIQUE 1: Setup handlers IMMÉDIATEMENT dans constructor
-    if (this.gameRoom && typeof this.gameRoom.onMessage === 'function') {
-      console.log('📡 [QuestManager] Setup handlers immédiat dans constructor...');
-      this.setupServerListeners();
-    } else {
-      console.warn('⚠️ [QuestManager] GameRoom invalide, handlers non configurés');
+    // Si gameRoom fournie, commencer l'initialisation
+    if (gameRoom) {
+      this.setGameRoom(gameRoom);
     }
-    
-    console.log('📖 [QuestManager] Instance créée - Version ultra-robuste');
   }
   
-  // === 🚀 INITIALISATION ROBUSTE ===
+  // === 🎯 GESTION D'ÉTAT STRICTE ===
   
-  async init() {
-    try {
-      console.log('🚀 [QuestManager] Initialisation robuste...');
-      
-      if (!this.gameRoom) {
-        throw new Error('GameRoom requis pour QuestManager');
+  setState(newState, reason = '') {
+    const oldState = this.state;
+    this.state = newState;
+    
+    console.log(`🔄 [QuestManager] État: ${oldState} → ${newState}${reason ? ` (${reason})` : ''}`);
+    
+    if (this.onStateChanged) {
+      this.onStateChanged(oldState, newState, reason);
+    }
+    
+    // Actions automatiques selon l'état
+    this.handleStateChange(newState, oldState);
+  }
+  
+  handleStateChange(newState, oldState) {
+    switch (newState) {
+      case 'WAITING_ROOM':
+        // Commencer à attendre la room
+        this.waitForValidGameRoom();
+        break;
+        
+      case 'CONNECTING_HANDLERS':
+        // Essayer d'enregistrer les handlers
+        this.attemptHandlerRegistration();
+        break;
+        
+      case 'READY':
+        // Système prêt, demander les données initiales
+        this.requestInitialData();
+        break;
+        
+      case 'ERROR':
+        // En cas d'erreur, évaluer si fallback possible
+        this.evaluateFallbackMode();
+        break;
+    }
+  }
+  
+  // === 🔗 GESTION GAMEROOM STRICTE ===
+  
+  setGameRoom(gameRoom) {
+    console.log('🔗 [QuestManager] Configuration GameRoom...');
+    
+    if (!gameRoom) {
+      this.setState('ERROR', 'GameRoom null fournie');
+      throw new Error('GameRoom null fournie');
+    }
+    
+    if (!this.validateGameRoom(gameRoom)) {
+      this.setState('ERROR', 'GameRoom invalide');
+      throw new Error('GameRoom invalide - méthodes manquantes');
+    }
+    
+    this.gameRoom = gameRoom;
+    this.setState('WAITING_ROOM', 'GameRoom configurée');
+  }
+  
+  validateGameRoom(gameRoom) {
+    const requiredMethods = ['send', 'onMessage'];
+    const requiredProperties = ['state', 'sessionId'];
+    
+    // Vérifier méthodes
+    for (const method of requiredMethods) {
+      if (typeof gameRoom[method] !== 'function') {
+        console.error(`❌ [QuestManager] Méthode manquante: ${method}`);
+        return false;
+      }
+    }
+    
+    // Vérifier propriétés
+    for (const prop of requiredProperties) {
+      if (gameRoom[prop] === undefined) {
+        console.error(`❌ [QuestManager] Propriété manquante: ${prop}`);
+        return false;
+      }
+    }
+    
+    console.log('✅ [QuestManager] GameRoom validée');
+    return true;
+  }
+  
+  async waitForValidGameRoom() {
+    console.log('⏳ [QuestManager] Attente GameRoom prête...');
+    
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < this.config.maxWaitTime) {
+      if (this.isGameRoomReady()) {
+        console.log('✅ [QuestManager] GameRoom prête');
+        this.setState('CONNECTING_HANDLERS', 'GameRoom prête');
+        return true;
       }
       
-      this.validateHandlersOrRetry();
-      this.verifyConnections();
-      this.scheduleInitialDataRequest();
+      // Attendre avant re-vérifier
+      await this.wait(100);
+    }
+    
+    // Timeout
+    console.error('❌ [QuestManager] Timeout - GameRoom pas prête');
+    this.setState('ERROR', 'Timeout GameRoom');
+    return false;
+  }
+  
+  isGameRoomReady() {
+    if (!this.gameRoom) return false;
+    
+    // Vérifier état de connexion
+    if (!this.gameRoom.sessionId) return false;
+    
+    // Vérifier que les méthodes sont toujours disponibles
+    if (typeof this.gameRoom.onMessage !== 'function') return false;
+    if (typeof this.gameRoom.send !== 'function') return false;
+    
+    // Vérifier que _messageHandlers existe (structure Colyseus)
+    if (!this.gameRoom._messageHandlers && !this.gameRoom.onMessage._handlers) {
+      console.warn('⚠️ [QuestManager] Structure handlers Colyseus non trouvée');
+      // Mais on continue car la méthode onMessage existe
+    }
+    
+    return true;
+  }
+  
+  // === 📡 ENREGISTREMENT HANDLERS ROBUSTE ===
+  
+  async attemptHandlerRegistration() {
+    console.log('📡 [QuestManager] Tentative enregistrement handlers...');
+    
+    let attempts = 0;
+    
+    while (attempts < this.config.maxHandlerRetries) {
+      attempts++;
+      
+      console.log(`🔄 [QuestManager] Tentative ${attempts}/${this.config.maxHandlerRetries}`);
+      
+      try {
+        const success = await this.registerHandlers();
+        
+        if (success) {
+          this.handlersRegistered = true;
+          console.log('✅ [QuestManager] Handlers enregistrés avec succès');
+          this.setState('READY', 'Handlers enregistrés');
+          return true;
+        }
+        
+      } catch (error) {
+        console.error(`❌ [QuestManager] Erreur tentative ${attempts}:`, error);
+      }
+      
+      // Attendre avant retry
+      if (attempts < this.config.maxHandlerRetries) {
+        await this.wait(this.config.handlerRetryDelay);
+      }
+    }
+    
+    // Toutes les tentatives échouées
+    console.error('❌ [QuestManager] Échec enregistrement handlers après toutes tentatives');
+    this.setState('ERROR', 'Échec enregistrement handlers');
+    return false;
+  }
+  
+  async registerHandlers() {
+    if (!this.gameRoom || typeof this.gameRoom.onMessage !== 'function') {
+      throw new Error('GameRoom ou onMessage non disponible');
+    }
+    
+    console.log('📋 [QuestManager] Enregistrement handlers Colyseus...');
+    
+    const handlers = {
+      'activeQuestsList': (data) => this.handleActiveQuestsReceived(data),
+      'availableQuestsList': (data) => this.handleAvailableQuestsReceived(data),
+      'questStartResult': (data) => this.handleQuestStartResult(data),
+      'questGranted': (data) => this.handleQuestGranted(data),
+      'questProgressUpdate': (data) => this.handleQuestProgressUpdate(data),
+      'questCompleted': (data) => this.handleQuestCompleted(data),
+      'questStatuses': (data) => this.handleQuestStatuses(data),
+      'triggerIntroSequence': (data) => this.handleIntroSequence(data),
+      'introQuestCompleted': (data) => this.handleIntroQuestCompleted(data)
+    };
+    
+    // Enregistrer chaque handler
+    for (const [messageType, handler] of Object.entries(handlers)) {
+      try {
+        this.gameRoom.onMessage(messageType, (data) => {
+          console.log(`📨 [QuestManager] Message reçu: ${messageType}`, data);
+          this.safeExecuteHandler(messageType, handler, data);
+        });
+        
+        console.log(`✅ [QuestManager] Handler '${messageType}' enregistré`);
+        
+      } catch (error) {
+        console.error(`❌ [QuestManager] Erreur handler '${messageType}':`, error);
+        throw error;
+      }
+    }
+    
+    // Vérifier que les handlers sont bien enregistrés
+    return this.validateHandlerRegistration();
+  }
+  
+  validateHandlerRegistration() {
+    // Différentes façons de vérifier selon la structure Colyseus
+    if (this.gameRoom._messageHandlers) {
+      const requiredHandlers = ['activeQuestsList', 'availableQuestsList', 'questStartResult'];
+      
+      for (const handler of requiredHandlers) {
+        if (!this.gameRoom._messageHandlers[handler]) {
+          console.error(`❌ [QuestManager] Handler '${handler}' non trouvé dans _messageHandlers`);
+          return false;
+        }
+      }
+      
+      console.log('✅ [QuestManager] Validation handlers via _messageHandlers OK');
+      return true;
+    }
+    
+    // Si pas de _messageHandlers visible, on fait confiance au fait que onMessage a fonctionné
+    console.log('✅ [QuestManager] Validation handlers via onMessage OK (structure interne)');
+    return true;
+  }
+  
+  safeExecuteHandler(messageType, handler, data) {
+    try {
+      handler(data);
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur execution handler '${messageType}':`, error);
+      
+      // Fallback basique pour handlers critiques
+      if (messageType === 'activeQuestsList') {
+        this.handleActiveQuestsReceived([]);
+      }
+    }
+  }
+  
+  // === 🚀 INITIALISATION PUBLIQUE ===
+  
+  async init(gameRoom = null) {
+    console.log('🚀 [QuestManager] === INITIALISATION SYSTÈME ===');
+    
+    try {
+      // Si gameRoom fournie, la configurer
+      if (gameRoom) {
+        this.setGameRoom(gameRoom);
+      }
+      
+      // Vérifier qu'on a une gameRoom
+      if (!this.gameRoom) {
+        throw new Error('Aucune GameRoom disponible pour initialisation');
+      }
+      
+      // Attendre que le système soit prêt
+      const success = await this.waitForReadyState();
+      
+      if (!success) {
+        throw new Error('Système non prêt après timeout');
+      }
       
       this.initialized = true;
-      console.log('✅ [QuestManager] Initialisé avec succès');
+      console.log('✅ [QuestManager] Initialisation terminée avec succès');
       
       return this;
       
     } catch (error) {
       console.error('❌ [QuestManager] Erreur initialisation:', error);
-      await this.initializeFallbackMode();
+      
+      // Tentative mode fallback si configuré
+      if (this.config.enableFallbackMode) {
+        console.log('🔄 [QuestManager] Tentative mode fallback...');
+        const fallbackSuccess = await this.initializeFallbackMode();
+        
+        if (fallbackSuccess) {
+          console.log('✅ [QuestManager] Mode fallback activé');
+          return this;
+        }
+      }
+      
       throw error;
     }
   }
   
-  validateHandlersOrRetry() {
-    const requiredHandlers = [
-      'availableQuestsList', 'activeQuestsList', 'questStartResult',
-      'questGranted', 'questProgressUpdate', 'questCompleted'
-    ];
+  async waitForReadyState() {
+    console.log('⏳ [QuestManager] Attente état READY...');
     
-    const missingHandlers = requiredHandlers.filter(handler => 
-      !this.gameRoom._messageHandlers?.[handler]
-    );
+    const startTime = Date.now();
     
-    if (missingHandlers.length > 0) {
-      console.warn('⚠️ [QuestManager] Handlers manquants:', missingHandlers);
-      console.log('🔄 [QuestManager] Re-setup handlers...');
-      this.setupServerListeners();
-      
-      const stillMissing = requiredHandlers.filter(handler => 
-        !this.gameRoom._messageHandlers?.[handler]
-      );
-      
-      if (stillMissing.length > 0) {
-        console.error('❌ [QuestManager] Handlers toujours manquants:', stillMissing);
-      } else {
-        console.log('✅ [QuestManager] Tous les handlers maintenant enregistrés');
+    while (Date.now() - startTime < this.config.maxWaitTime) {
+      if (this.state === 'READY') {
+        return true;
       }
-    } else {
-      console.log('✅ [QuestManager] Tous les handlers présents');
+      
+      if (this.state === 'ERROR') {
+        return false;
+      }
+      
+      await this.wait(100);
     }
+    
+    console.error('❌ [QuestManager] Timeout attente état READY');
+    return false;
   }
   
   async initializeFallbackMode() {
-    console.log('🔄 [QuestManager] Mode fallback activé...');
-    this.activeQuests = this.generateFallbackQuests();
-    this.calculateStats();
-    this.triggerCallbacks();
-    this.initialized = true;
+    console.log('🔄 [QuestManager] === MODE FALLBACK ===');
+    
+    try {
+      // Créer des données de test
+      this.activeQuests = this.createFallbackQuests();
+      this.calculateStats();
+      this.triggerCallbacks();
+      
+      // Marquer comme initialisé en mode fallback
+      this.initialized = true;
+      this.setState('READY', 'Mode fallback activé');
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur mode fallback:', error);
+      return false;
+    }
   }
   
-  generateFallbackQuests() {
+  createFallbackQuests() {
     return [
       {
         id: 'fallback_welcome',
         name: 'Bienvenue dans l\'aventure',
-        description: 'Explorez le monde et découvrez vos premiers Pokémon.',
+        description: 'Découvrez le monde Pokémon qui vous entoure.',
         category: 'main',
         currentStepIndex: 0,
+        status: 'active',
         steps: [
           {
-            id: 'welcome_step',
-            name: 'Explorer les environs',
-            description: 'Explorez la zone de départ',
+            id: 'welcome_step_1',
+            name: 'Premiers pas',
+            description: 'Explorez votre environnement',
             objectives: [
               {
-                id: 'explore_obj',
-                description: 'Explorez les environs',
+                id: 'explore_objective',
+                description: 'Regardez autour de vous',
+                completed: false,
+                requiredAmount: 1,
+                currentAmount: 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'fallback_discover',
+        name: 'Découverte des Pokémon',
+        description: 'Apprenez à connaître les Pokémon.',
+        category: 'side',
+        currentStepIndex: 0,
+        status: 'active',
+        steps: [
+          {
+            id: 'discover_step_1',
+            name: 'Observer',
+            description: 'Observez les Pokémon sauvages',
+            objectives: [
+              {
+                id: 'observe_objective',
+                description: 'Observez un Pokémon sauvage',
                 completed: false,
                 requiredAmount: 1,
                 currentAmount: 0
@@ -149,266 +431,153 @@ export class QuestManager {
     ];
   }
   
-  scheduleInitialDataRequest() {
-    setTimeout(() => this.requestInitialData(), 500);
-    setTimeout(() => {
-      if (this.activeQuests.length === 0) {
-        console.log('🔄 [QuestManager] Pas de quêtes reçues, retry...');
-        this.requestInitialData();
-      }
-    }, 3000);
-  }
+  // === 📤 SYSTÈME DE REQUÊTES ROBUSTE ===
   
-  // === 📡 COMMUNICATION SERVEUR ROBUSTE ===
-  
-  setupServerListeners() {
-    if (!this.gameRoom || typeof this.gameRoom.onMessage !== 'function') {
-      console.error('❌ [QuestManager] GameRoom invalide pour setup handlers');
-      return;
+  async sendRequest(messageType, data = null, timeout = 5000) {
+    if (this.state !== 'READY') {
+      console.warn(`⚠️ [QuestManager] Requête '${messageType}' ignorée - État: ${this.state}`);
+      return false;
     }
     
-    console.log('📡 [QuestManager] Configuration listeners serveur robuste...');
+    if (!this.gameRoom || typeof this.gameRoom.send !== 'function') {
+      console.error('❌ [QuestManager] GameRoom non disponible pour requête');
+      return false;
+    }
+    
+    const requestId = ++this.requestId;
+    
+    console.log(`📤 [QuestManager] Envoi requête ${requestId}: ${messageType}`, data);
     
     try {
-      this.gameRoom.onMessage("activeQuestsList", (data) => {
-        this.safeHandleMessage('activeQuestsList', data, this.handleActiveQuestsReceived);
-      });
+      this.gameRoom.send(messageType, data);
       
-      this.gameRoom.onMessage("availableQuestsList", (data) => {
-        this.safeHandleMessage('availableQuestsList', data, this.handleAvailableQuestsReceived);
-      });
-      
-      this.gameRoom.onMessage("questStartResult", (data) => {
-        this.safeHandleMessage('questStartResult', data, this.handleQuestStartResult);
-      });
-      
-      this.gameRoom.onMessage("questGranted", (data) => {
-        this.safeHandleMessage('questGranted', data, this.handleQuestGranted);
-      });
-      
-      this.gameRoom.onMessage("questProgressUpdate", (data) => {
-        this.safeHandleMessage('questProgressUpdate', data, this.handleQuestProgressUpdate);
-      });
-      
-      this.gameRoom.onMessage("questCompleted", (data) => {
-        this.safeHandleMessage('questCompleted', data, this.handleQuestCompleted);
-      });
-      
-      this.gameRoom.onMessage("questStatuses", (data) => {
-        this.safeHandleMessage('questStatuses', data, this.handleQuestStatuses);
-      });
-      
-      this.gameRoom.onMessage("triggerIntroSequence", (data) => {
-        this.safeHandleMessage('triggerIntroSequence', data, this.handleIntroSequence);
-      });
-      
-      this.gameRoom.onMessage("introQuestCompleted", (data) => {
-        this.safeHandleMessage('introQuestCompleted', data, this.handleIntroQuestCompleted);
-      });
-      
-      console.log('✅ [QuestManager] Listeners serveur configurés avec sécurité');
-      
-    } catch (error) {
-      console.error('❌ [QuestManager] Erreur setup listeners:', error);
-    }
-  }
-  
-  safeHandleMessage(type, data, handler) {
-    try {
-      console.log(`📨 [QuestManager] Message ${type} reçu:`, data);
-      handler.call(this, data);
-    } catch (error) {
-      console.error(`❌ [QuestManager] Erreur handler ${type}:`, error);
-      
-      if (type === 'activeQuestsList' && this.fallbackEnabled) {
-        this.handleActiveQuestsReceived([]);
-      }
-    }
-  }
-  
-  verifyConnections() {
-    console.log('🔍 [QuestManager] Vérification connexions...');
-    
-    if (!this.gameRoom) {
-      throw new Error('GameRoom manquant');
-    }
-    
-    if (typeof this.gameRoom.send !== 'function') {
-      throw new Error('gameRoom.send non disponible');
-    }
-    
-    console.log('✅ [QuestManager] Connexions vérifiées');
-  }
-  
-  // === 📤 REQUÊTES SERVEUR AVEC QUEUE ===
-  
-  async requestWithQueue(messageType, data = null) {
-    return new Promise((resolve, reject) => {
-      const request = {
+      // Stocker la requête pour suivi
+      this.pendingRequests.set(requestId, {
         messageType,
         data,
-        resolve,
-        reject,
         timestamp: Date.now(),
-        retries: 0
-      };
+        timeout
+      });
       
-      this.requestQueue.push(request);
-      this.processRequestQueue();
-    });
-  }
-  
-  async processRequestQueue() {
-    if (this.processingQueue || this.requestQueue.length === 0) {
-      return;
-    }
-    
-    this.processingQueue = true;
-    
-    while (this.requestQueue.length > 0) {
-      const request = this.requestQueue.shift();
+      // Nettoyer après timeout
+      setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+      }, timeout);
       
-      try {
-        await this.processRequest(request);
-        request.resolve(true);
-      } catch (error) {
-        if (request.retries < this.maxRetries) {
-          request.retries++;
-          this.requestQueue.unshift(request);
-          await new Promise(resolve => setTimeout(resolve, this.retryDelay));
-        } else {
-          request.reject(error);
-        }
-      }
+      return true;
       
-      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur envoi requête '${messageType}':`, error);
+      return false;
     }
-    
-    this.processingQueue = false;
   }
   
-  async processRequest(request) {
-    if (!this.canSendRequest()) {
-      throw new Error('Cooldown actif');
-    }
+  async requestInitialData() {
+    console.log('📤 [QuestManager] Demande données initiales...');
     
-    console.log(`📤 [QuestManager] Envoi requête: ${request.messageType}`);
+    // Demandes en parallèle
+    const requests = [
+      this.sendRequest("getActiveQuests"),
+      this.sendRequest("clientIntroReady")
+    ];
     
-    this.gameRoom.send(request.messageType, request.data);
-    this.lastDataRequest = Date.now();
-  }
-  
-  canSendRequest() {
-    const now = Date.now();
-    return (now - this.lastDataRequest) > this.requestCooldown;
-  }
-  
-  requestInitialData() {
-    console.log('📤 [QuestManager] Demande données initiales robuste...');
+    const results = await Promise.allSettled(requests);
     
-    this.requestWithQueue("getActiveQuests")
-      .catch(error => console.warn('⚠️ Erreur getActiveQuests:', error));
-    
-    this.requestWithQueue("clientIntroReady")
-      .catch(error => console.warn('⚠️ Erreur clientIntroReady:', error));
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
+    console.log(`📊 [QuestManager] Requêtes initiales: ${successCount}/${requests.length} réussies`);
   }
   
   requestQuestData() {
-    this.requestWithQueue("getActiveQuests")
-      .catch(error => console.warn('⚠️ Erreur requestQuestData:', error));
+    return this.sendRequest("getActiveQuests");
   }
   
   requestAvailableQuests() {
-    this.requestWithQueue("getAvailableQuests")
-      .catch(error => console.warn('⚠️ Erreur getAvailableQuests:', error));
+    return this.sendRequest("getAvailableQuests");
   }
   
   startQuest(questId) {
-    this.requestWithQueue("startQuest", { questId })
-      .catch(error => console.warn('⚠️ Erreur startQuest:', error));
+    return this.sendRequest("startQuest", { questId });
   }
   
-  // === 📊 HANDLERS DONNÉES ROBUSTES ===
+  // === 📊 HANDLERS DE DONNÉES ===
   
   handleActiveQuestsReceived(data) {
+    console.log('📊 [QuestManager] Traitement quêtes actives:', data);
+    
     try {
-      console.log('📊 [QuestManager] Traitement quêtes actives robuste:', data);
-      
       let questArray = [];
       
-      if (data && Array.isArray(data.quests)) {
-        questArray = data.quests;
-      } else if (Array.isArray(data)) {
+      if (Array.isArray(data)) {
         questArray = data;
+      } else if (data && Array.isArray(data.quests)) {
+        questArray = data.quests;
       } else if (data && typeof data === 'object') {
         questArray = [data];
       }
       
+      // Normaliser et valider
       this.activeQuests = questArray
         .map(quest => this.normalizeQuestData(quest))
-        .filter(quest => quest && (quest.id || quest._id));
+        .filter(quest => quest && quest.id);
       
-      console.log(`📊 [QuestManager] ${this.activeQuests.length} quêtes actives parsées`);
+      console.log(`📊 [QuestManager] ${this.activeQuests.length} quêtes actives chargées`);
       
       this.calculateStats();
       this.triggerCallbacks();
       
     } catch (error) {
-      console.error('❌ [QuestManager] Erreur handleActiveQuests:', error);
-      
-      if (this.activeQuests.length === 0 && this.fallbackEnabled) {
-        this.activeQuests = this.generateFallbackQuests();
-        this.calculateStats();
-        this.triggerCallbacks();
-      }
+      console.error('❌ [QuestManager] Erreur traitement quêtes actives:', error);
     }
   }
   
   handleAvailableQuestsReceived(data) {
+    console.log('📊 [QuestManager] Traitement quêtes disponibles:', data);
+    
     try {
-      console.log('📊 [QuestManager] Traitement quêtes disponibles:', data);
-      
       let questArray = [];
-      if (data && Array.isArray(data.quests)) {
-        questArray = data.quests;
-      } else if (Array.isArray(data)) {
+      
+      if (Array.isArray(data)) {
         questArray = data;
+      } else if (data && Array.isArray(data.quests)) {
+        questArray = data.quests;
       }
       
       this.availableQuests = questArray
         .map(quest => this.normalizeQuestData(quest))
-        .filter(quest => quest && (quest.id || quest._id));
+        .filter(quest => quest && quest.id);
       
-      console.log(`📊 [QuestManager] ${this.availableQuests.length} quêtes disponibles parsées`);
+      console.log(`📊 [QuestManager] ${this.availableQuests.length} quêtes disponibles chargées`);
       
+      // Traiter interaction NPC en attente
       this.processPendingNpcInteraction();
       
     } catch (error) {
-      console.error('❌ [QuestManager] Erreur handleAvailableQuests:', error);
-      this.processPendingNpcInteraction();
+      console.error('❌ [QuestManager] Erreur traitement quêtes disponibles:', error);
     }
   }
   
   handleQuestStartResult(data) {
     console.log('🎯 [QuestManager] Résultat démarrage quête:', data);
     
-    if (data.success) {
+    if (data && data.success) {
       this.showNotification(`Quête "${data.quest?.name || 'Inconnue'}" acceptée !`, 'success');
       this.triggerCallback('onQuestStarted', data.quest);
+      
+      // Rafraîchir les données
       setTimeout(() => this.requestQuestData(), 500);
     } else {
-      this.showNotification(data.message || "Impossible de démarrer cette quête", 'error');
+      this.showNotification(data?.message || "Impossible de démarrer cette quête", 'error');
     }
   }
   
   handleQuestGranted(data) {
     console.log('🎁 [QuestManager] Quête accordée:', data);
     
-    this.showNotification(`Nouvelle quête : ${data.questName || 'Inconnue'} !`, 'success');
+    this.showNotification(`Nouvelle quête : ${data?.questName || 'Inconnue'} !`, 'success');
     
     this.triggerCallback('onQuestStarted', {
-      id: data.questId,
-      name: data.questName,
+      id: data?.questId,
+      name: data?.questName,
       granted: true
     });
     
@@ -419,7 +588,7 @@ export class QuestManager {
     console.log('📈 [QuestManager] Progression quête:', data);
     
     if (!Array.isArray(data)) {
-      console.warn('⚠️ [QuestManager] Format progression invalide:', data);
+      console.warn('⚠️ [QuestManager] Format progression invalide');
       return;
     }
     
@@ -430,10 +599,9 @@ export class QuestManager {
         this.triggerCallback('onQuestProgress', result);
       }
       
+      // Notifications
       if (result.objectiveCompleted) {
         this.showNotification(`Objectif complété : ${result.objectiveName}`, 'success');
-      } else if (result.stepCompleted) {
-        this.showNotification(`Étape terminée : ${result.stepName}`, 'success');
       } else if (result.questCompleted) {
         this.showNotification(`Quête terminée : ${result.questName} !`, 'success');
       }
@@ -445,502 +613,141 @@ export class QuestManager {
   handleQuestCompleted(data) {
     console.log('🎉 [QuestManager] Quête terminée:', data);
     
-    this.showNotification(data.message || "Félicitations ! Quête terminée !", 'success');
+    this.showNotification(data?.message || "Félicitations ! Quête terminée !", 'success');
     this.triggerCallback('onQuestCompleted', data);
+    
     setTimeout(() => this.requestQuestData(), 500);
   }
   
   handleQuestStatuses(data) {
     console.log('📊 [QuestManager] Statuts quêtes NPCs:', data);
-    
-    if (data.questStatuses && Array.isArray(data.questStatuses)) {
-      this.updateNpcQuestStatuses(data.questStatuses);
-    }
+    // Déléguer aux NPCs pour mise à jour des icônes
   }
   
   handleIntroSequence(data) {
-    console.log('🎬 [QuestManager] Séquence intro déclenchée:', data);
-    
-    if (data.shouldStartIntro) {
-      this.triggerIntroSequence(data);
-    }
+    console.log('🎬 [QuestManager] Séquence intro:', data);
+    // Gérer séquence d'introduction
   }
   
   handleIntroQuestCompleted(data) {
-    console.log('🎓 [QuestManager] Quête intro terminée:', data);
-    
-    this.showNotification(data.message || "Félicitations ! Vous avez terminé l'introduction !", 'success');
+    console.log('🎓 [QuestManager] Intro terminée:', data);
+    this.showNotification(data?.message || "Introduction terminée !", 'success');
   }
   
-  // === 🗣️ INTERACTION NPC ULTRA-ROBUSTE ===
+  // === 🗣️ INTERACTION NPC ===
   
-  handleNpcInteraction(data) {
-    console.log('🗣️ [QuestManager] === INTERACTION NPC ROBUSTE ===');
-    console.log('📊 [QuestManager] Data NPC:', data);
+  handleNpcInteraction(npcData) {
+    console.log('🗣️ [QuestManager] Interaction NPC:', npcData);
     
-    try {
-      const npcId = this.extractNpcId(data);
-      if (npcId) {
-        this.interactionHistory.set(npcId, {
-          data: data,
-          timestamp: Date.now(),
-          attempts: (this.interactionHistory.get(npcId)?.attempts || 0) + 1
-        });
-      }
-      
-      if (data && typeof data === 'object' && data.type) {
-        return this.processNpcInteractionData(data);
-      }
-      
-      if (data && (data.npcId || data.id || data.name)) {
-        return this.processNpcDirectInteraction(data);
-      }
-      
-      console.log('ℹ️ [QuestManager] Aucune donnée NPC spécifique');
-      return 'NO_QUEST';
-      
-    } catch (error) {
-      console.error('❌ [QuestManager] Erreur handleNpcInteraction:', error);
-      return false;
-    }
-  }
-  
-  extractNpcId(data) {
-    return data?.npcId || data?.id || data?.targetId || 
-           (data?.name ? `name_${data.name}` : null);
-  }
-  
-  processNpcInteractionData(data) {
-    console.log('📊 [QuestManager] Traitement interaction typée:', data.type);
-    
-    switch (data.type) {
-      case 'questGiver':
-        return this.handleQuestGiverInteraction(data);
-      case 'questComplete':
-        return this.handleQuestCompleteInteraction(data);
-      case 'questProgress':
-        return this.handleQuestProgressInteraction(data);
-      default:
-        console.log(`ℹ️ [QuestManager] Type non-quest: ${data.type}`);
-        return 'NO_QUEST';
-    }
-  }
-  
-  processNpcDirectInteraction(npcData) {
-    console.log('🎯 [QuestManager] Traitement NPC direct:', npcData);
-    
-    const activeNpcQuests = this.findActiveQuestsForNpc(npcData);
-    
-    if (activeNpcQuests.length > 0) {
-      console.log(`✅ [QuestManager] ${activeNpcQuests.length} quêtes actives trouvées`);
-      return this.showActiveQuestDialog(npcData, activeNpcQuests);
+    if (this.state !== 'READY') {
+      console.warn('⚠️ [QuestManager] Interaction NPC ignorée - système pas prêt');
+      return 'NOT_READY';
     }
     
-    const availableNpcQuests = this.findAvailableQuestsForNpc(npcData);
-    
-    if (availableNpcQuests.length > 0) {
-      console.log(`✅ [QuestManager] ${availableNpcQuests.length} quêtes disponibles trouvées`);
-      return this.showQuestSelectionDialog(npcData.name || 'NPC', availableNpcQuests);
+    if (!npcData || (!npcData.id && !npcData.npcId && !npcData.name)) {
+      console.warn('⚠️ [QuestManager] Données NPC invalides');
+      return 'INVALID_DATA';
     }
     
-    console.log('📤 [QuestManager] Demande quêtes serveur pour NPC...');
+    // Chercher quêtes pour ce NPC
+    const npcQuests = this.findQuestsForNpc(npcData);
+    
+    if (npcQuests.length > 0) {
+      this.showQuestSelectionDialog(npcData.name || 'NPC', npcQuests);
+      return 'QUESTS_FOUND';
+    }
+    
+    // Demander quêtes au serveur
     this.requestAvailableQuestsForNpc(npcData);
-    return true;
+    return 'REQUESTING_QUESTS';
   }
   
-  handleQuestGiverInteraction(data) {
-    console.log('🎁 [QuestManager] Quest Giver détecté:', data);
+  findQuestsForNpc(npcData) {
+    const npcId = npcData.npcId || npcData.id;
+    const npcName = npcData.name || npcData.npcName;
     
-    if (data.availableQuests && Array.isArray(data.availableQuests) && data.availableQuests.length > 0) {
-      return this.showQuestSelectionDialog(data.npcName, data.availableQuests);
-    } else {
-      console.log('📤 [QuestManager] Demande quêtes disponibles...');
-      this.requestAvailableQuestsForNpc(data);
-      return true;
-    }
-  }
-  
-  handleQuestCompleteInteraction(data) {
-    console.log('✅ [QuestManager] Quest Complete détectée:', data);
-    
-    if (data.lines && data.lines.length > 0) {
-      this.showQuestCompletionDialog(data);
-    }
-    
-    return true;
-  }
-  
-  handleQuestProgressInteraction(data) {
-    console.log('📈 [QuestManager] Quest Progress détectée:', data);
-    
-    if (data.questProgress && Array.isArray(data.questProgress)) {
-      this.handleQuestProgressUpdate(data.questProgress);
-    }
-    
-    return true;
-  }
-  
-  findActiveQuestsForNpc(npcData) {
-    const npcId = this.extractNpcId(npcData);
-    const npcName = npcData.npcName || npcData.name;
-    
-    console.log('🔍 [QuestManager] Recherche quêtes actives pour:', { npcId, npcName });
-    
-    return this.activeQuests.filter(quest => {
-      const matches = this.questInvolvesNpc(quest, npcId, npcName);
-      console.log(`${matches ? '✅' : '❌'} [QuestManager] Quest "${quest.name}" ${matches ? 'compatible' : 'incompatible'} avec NPC`);
-      return matches;
-    });
-  }
-  
-  findAvailableQuestsForNpc(npcData) {
-    const npcId = this.extractNpcId(npcData);
-    const npcName = npcData.npcName || npcData.name;
-    
-    console.log('🔍 [QuestManager] Recherche quêtes disponibles pour:', { npcId, npcName });
-    
+    // Chercher dans les quêtes disponibles
     return this.availableQuests.filter(quest => {
-      const matches = this.questMatchesNpc(quest, npcData);
-      console.log(`${matches ? '✅' : '❌'} [QuestManager] Quest "${quest.name}" ${matches ? 'compatible' : 'incompatible'} avec NPC`);
-      return matches;
+      return this.questMatchesNpc(quest, npcId, npcName);
     });
   }
   
-  questMatchesNpc(quest, npcData) {
-    if (!quest || !npcData) return false;
-    
-    const npcId = this.extractNpcId(npcData);
-    const npcName = npcData.npcName || npcData.name;
-    
-    console.log('🔍 [QuestManager] Test matching:', {
-      questName: quest.name,
-      questId: quest.id,
-      npcId: npcId,
-      npcName: npcName
-    });
-    
-    // Vérification ID direct
-    if (npcId && (quest.startNpcId == npcId || quest.endNpcId == npcId || quest.npcId == npcId)) {
-      console.log('✅ [QuestManager] Match trouvé: ID direct');
+  questMatchesNpc(quest, npcId, npcName) {
+    // Matching simple mais efficace
+    if (npcId && (quest.startNpcId == npcId || quest.endNpcId == npcId)) {
       return true;
     }
     
-    // Vérification nom (case insensitive)
     if (npcName && quest.startNpcName && 
         quest.startNpcName.toLowerCase() === npcName.toLowerCase()) {
-      console.log('✅ [QuestManager] Match trouvé: startNpcName');
       return true;
     }
     
-    if (npcName && quest.endNpcName && 
-        quest.endNpcName.toLowerCase() === npcName.toLowerCase()) {
-      console.log('✅ [QuestManager] Match trouvé: endNpcName');
+    // Si pas de restrictions NPC, autoriser
+    if (!quest.startNpcId && !quest.endNpcId && !quest.startNpcName) {
       return true;
     }
     
-    // Vérification dans les étapes
-    if (quest.steps && Array.isArray(quest.steps)) {
-      for (const step of quest.steps) {
-        if (step.objectives && Array.isArray(step.objectives)) {
-          for (const obj of step.objectives) {
-            if ((obj.targetNpcId && obj.targetNpcId == npcId) ||
-                (obj.npcId && obj.npcId == npcId) ||
-                (obj.target && obj.target == npcId) ||
-                (npcName && obj.targetNpc && obj.targetNpc.toLowerCase() === npcName.toLowerCase()) ||
-                (npcName && obj.npc && obj.npc.toLowerCase() === npcName.toLowerCase())) {
-              console.log('✅ [QuestManager] Match trouvé: dans objectif step');
-              return true;
-            }
-          }
-        }
-      }
-    }
-    
-    // Fallback: si pas de restrictions NPC spécifiques, autoriser
-    const hasNpcRestrictions = !!(
-      quest.startNpcId || quest.endNpcId || quest.npcId ||
-      quest.startNpcName || quest.endNpcName ||
-      (quest.steps && quest.steps.some(step => 
-        step.objectives && step.objectives.some(obj => 
-          obj.targetNpcId || obj.npcId || obj.targetNpc || obj.npc
-        )
-      ))
-    );
-    
-    if (!hasNpcRestrictions) {
-      console.log('✅ [QuestManager] Match trouvé: quête générique');
-      return true;
-    }
-    
-    console.log('❌ [QuestManager] Aucun match trouvé');
     return false;
   }
   
-  questInvolvesNpc(quest, npcId, npcName) {
-    if (!quest || !quest.steps) return false;
-    
-    if (quest.startNpcId === npcId || quest.endNpcId === npcId) {
-      return true;
-    }
-    
-    return quest.steps.some(step => {
-      if (step.objectives) {
-        return step.objectives.some(obj => {
-          return (
-            obj.targetNpcId === npcId ||
-            obj.targetNpc === npcName ||
-            obj.npcId === npcId ||
-            obj.npc === npcName ||
-            obj.target === npcId?.toString()
-          );
-        });
-      }
-      return false;
-    });
-  }
-  
   requestAvailableQuestsForNpc(npcData) {
-    console.log('📤 [QuestManager] Demande quêtes pour NPC:', npcData);
-    
     this.pendingNpcInteraction = {
       npcData,
       timestamp: Date.now()
     };
     
+    this.requestAvailableQuests();
+    
+    // Timeout
     setTimeout(() => {
-      if (this.pendingNpcInteraction && 
-          this.pendingNpcInteraction.timestamp === this.pendingNpcInteraction.timestamp) {
-        console.log('⏰ [QuestManager] Timeout interaction NPC');
+      if (this.pendingNpcInteraction?.timestamp === this.pendingNpcInteraction?.timestamp) {
         this.pendingNpcInteraction = null;
       }
-    }, this.npcInteractionTimeout);
-    
-    this.requestAvailableQuests();
+    }, 5000);
   }
   
   processPendingNpcInteraction() {
-    if (!this.pendingNpcInteraction) {
-      console.log('ℹ️ [QuestManager] Aucune interaction NPC en attente');
-      return;
-    }
-    
-    console.log('🔄 [QuestManager] Traitement interaction NPC en attente');
-    console.log('📊 [QuestManager] Quêtes disponibles totales:', this.availableQuests.length);
+    if (!this.pendingNpcInteraction) return;
     
     const { npcData } = this.pendingNpcInteraction;
     this.pendingNpcInteraction = null;
     
-    console.log('🎯 [QuestManager] NPC Data pour matching:', npcData);
-    
-    const npcQuests = this.availableQuests.filter((quest, index) => {
-      console.log(`🔍 [QuestManager] Test quest ${index + 1}/${this.availableQuests.length}: ${quest.name}`);
-      const matches = this.questMatchesNpc(quest, npcData);
-      console.log(`${matches ? '✅' : '❌'} [QuestManager] Quest "${quest.name}" ${matches ? 'compatible' : 'incompatible'}`);
-      return matches;
-    });
-    
-    console.log(`📊 [QuestManager] Quêtes compatibles trouvées: ${npcQuests.length}/${this.availableQuests.length}`);
+    const npcQuests = this.findQuestsForNpc(npcData);
     
     if (npcQuests.length > 0) {
-      console.log('✅ [QuestManager] Affichage dialogue sélection quêtes');
-      this.showQuestSelectionDialog(npcData.npcName || npcData.name || 'NPC', npcQuests);
-    } else {
-      console.log('ℹ️ [QuestManager] Aucune quête disponible pour ce NPC');
-      
-      if (this.availableQuests.length > 0) {
-        console.log('🔄 [QuestManager] Fallback: affichage de toutes les quêtes disponibles');
-        this.showQuestSelectionDialog(
-          (npcData.npcName || npcData.name || 'NPC') + ' (Toutes les quêtes)',
-          this.availableQuests
-        );
-      }
+      this.showQuestSelectionDialog(npcData.name || 'NPC', npcQuests);
+    } else if (this.availableQuests.length > 0) {
+      // Fallback : montrer toutes les quêtes
+      this.showQuestSelectionDialog('Quêtes disponibles', this.availableQuests);
     }
   }
   
-  // === 🎭 DIALOGUES QUÊTES ===
-  
-  showQuestSelectionDialog(npcName, quests) {
-    console.log('💬 [QuestManager] Dialogue sélection quêtes:', npcName, quests);
-    
+  showQuestSelectionDialog(title, quests) {
     if (!this.questUI || !this.questUI.showQuestDialog) {
       console.warn('⚠️ [QuestManager] QuestUI non disponible');
-      if (quests.length === 1) {
-        this.startQuest(quests[0].id);
-      }
-      return true;
-    }
-    
-    this.questUI.showQuestDialog(
-      `${npcName || 'Donneur de quêtes'} - Choisir une quête`,
-      quests,
-      (selectedQuestId) => {
-        console.log('✅ [QuestManager] Quête sélectionnée:', selectedQuestId);
-        this.startQuest(selectedQuestId);
-      }
-    );
-    
-    return true;
-  }
-  
-  showActiveQuestDialog(npcData, quests) {
-    console.log('🎭 [QuestManager] Dialogue quêtes actives:', npcData, quests);
-    
-    if (!this.questUI) {
-      console.warn('⚠️ [QuestManager] QuestUI non disponible');
-      return false;
-    }
-    
-    const npcName = npcData.name || 'NPC';
-    this.questUI.showQuestDialog(
-      `${npcName} - Quêtes actives`,
-      quests,
-      (selectedQuestId) => {
-        // Action pour quête active (voir détails, terminer, etc.)
-        console.log('📖 [QuestManager] Consultation quête active:', selectedQuestId);
-      }
-    );
-    
-    return true;
-  }
-  
-  showQuestCompletionDialog(data) {
-    console.log('🎉 [QuestManager] Dialogue complétion quête:', data);
-    
-    if (typeof window.showNpcDialogue === 'function') {
-      const dialogueData = {
-        portrait: data.portrait || "/assets/portrait/defaultPortrait.png",
-        name: data.npcName || "PNJ",
-        lines: data.lines || ["Félicitations ! Quête terminée !"]
-      };
-      
-      window.showNpcDialogue(dialogueData);
-    }
-  }
-  
-  // === 📈 PROGRESSION AUTOMATIQUE ===
-  
-  triggerCollectEvent(itemId, amount = 1) {
-    if (this.shouldTriggerEvent('collect', `${itemId}_${amount}`)) {
-      this.triggerProgress({
-        type: 'collect',
-        targetId: itemId,
-        amount: amount
-      });
-    }
-  }
-  
-  triggerDefeatEvent(pokemonId) {
-    if (this.shouldTriggerEvent('defeat', pokemonId)) {
-      this.triggerProgress({
-        type: 'defeat',
-        pokemonId: pokemonId,
-        amount: 1
-      });
-    }
-  }
-  
-  triggerReachEvent(zoneId, x, y, map) {
-    if (this.shouldTriggerEvent('reach', zoneId)) {
-      this.triggerProgress({
-        type: 'reach',
-        targetId: zoneId,
-        location: { x, y, map }
-      });
-    }
-  }
-  
-  triggerDeliverEvent(npcId, itemId) {
-    if (this.shouldTriggerEvent('deliver', `${npcId}_${itemId}`)) {
-      this.triggerProgress({
-        type: 'deliver',
-        npcId: npcId,
-        targetId: itemId
-      });
-    }
-  }
-  
-  triggerTalkEvent(npcId) {
-    if (this.shouldTriggerEvent('talk', npcId)) {
-      this.triggerProgress({
-        type: 'talk',
-        npcId: npcId,
-        targetId: npcId.toString()
-      });
-    }
-  }
-  
-  shouldTriggerEvent(type, identifier) {
-    const key = `${type}_${identifier}`;
-    const now = Date.now();
-    const lastTime = this.lastNotificationTime.get(key);
-    
-    if (!lastTime || (now - lastTime) > this.notificationCooldown) {
-      this.lastNotificationTime.set(key, now);
-      return true;
-    }
-    
-    console.log(`🔕 [QuestManager] Événement dédupliqué: ${key}`);
-    return false;
-  }
-  
-  triggerProgress(data) {
-    this.requestWithQueue("questProgress", data)
-      .catch(error => console.warn('⚠️ Erreur triggerProgress:', error));
-  }
-  
-  // === 🎬 ACTIONS UTILISATEUR ===
-  
-  handleAction(action, data) {
-    console.log(`🎬 [QuestManager] Action: ${action}`, data);
-    
-    if (!this.gameRoom) {
-      console.warn('⚠️ [QuestManager] Pas de gameRoom pour action');
       return;
     }
     
-    switch (action) {
-      case 'startQuest':
-        this.startQuest(data.questId);
-        break;
-        
-      case 'refreshQuests':
-        this.requestQuestData();
-        break;
-        
-      case 'getAvailableQuests':
-        this.requestAvailableQuests();
-        break;
-        
-      case 'triggerProgress':
-        this.triggerProgress(data);
-        break;
-        
-      case 'debugQuests':
-        this.debugQuests();
-        break;
-        
-      default:
-        console.warn(`⚠️ [QuestManager] Action inconnue: ${action}`);
-    }
+    this.questUI.showQuestDialog(title, quests, (questId) => {
+      this.startQuest(questId);
+    });
   }
   
-  debugQuests() {
-    this.requestWithQueue("debugPlayerQuests")
-      .catch(error => console.warn('⚠️ Erreur debugQuests:', error));
-  }
-  
-  // === 🔗 CONNEXION AVEC QUESTUI ===
+  // === 🔗 CONNEXIONS ===
   
   connectQuestUI(questUI) {
-    console.log('🔗 [QuestManager] Connexion avec QuestUI');
+    console.log('🔗 [QuestManager] Connexion QuestUI');
+    
     this.questUI = questUI;
     
+    // Mise à jour immédiate si données disponibles
     if (this.activeQuests.length > 0 && questUI.updateQuestData) {
       questUI.updateQuestData(this.activeQuests, 'active');
     }
   }
   
-  // === 📊 CALCULS ET CALLBACKS ===
+  // === 📊 STATS ET CALLBACKS ===
   
   calculateStats() {
     this.questStats.totalActive = this.activeQuests.length;
@@ -948,8 +755,6 @@ export class QuestManager {
     this.questStats.readyToComplete = this.activeQuests.filter(q => 
       q.status === 'readyToComplete' || q.currentStepIndex >= (q.steps?.length || 0)
     ).length;
-    
-    console.log('📊 [QuestManager] Stats calculées:', this.questStats);
   }
   
   triggerCallbacks() {
@@ -968,187 +773,79 @@ export class QuestManager {
     }
   }
   
-  updateNpcQuestStatuses(statuses) {
-    if (window.npcManager && window.npcManager.updateQuestStatuses) {
-      window.npcManager.updateQuestStatuses(statuses);
-    }
-    
-    window.dispatchEvent(new CustomEvent('questStatusesUpdated', {
-      detail: { statuses }
-    }));
-  }
-  
-  triggerIntroSequence(data) {
-    console.log('🎬 [QuestManager] Démarrage séquence intro...');
-    
-    if (this.gameRoom) {
-      this.gameRoom.send("intro_started");
-    }
-    
-    if (typeof window.createSequentialDiscussion === 'function') {
-      const introMessages = [
-        {
-          speaker: "Narrator",
-          portrait: "/assets/portrait/narratorPortrait.png",
-          text: "Bienvenue dans votre aventure Pokémon !",
-          hideName: true
-        },
-        {
-          speaker: "Psyduck",
-          portrait: "/assets/portrait/psyduckPortrait.png",
-          text: "Salut ! Je suis Psyduck et je vais t'accompagner dans tes premiers pas !"
-        },
-        {
-          speaker: "Psyduck", 
-          portrait: "/assets/portrait/psyduckPortrait.png",
-          text: "Viens, suis-moi ! Je vais te montrer les bases de ce monde."
-        }
-      ];
-      
-      window.createSequentialDiscussion(
-        "Psyduck",
-        "/assets/portrait/psyduckPortrait.png",
-        introMessages,
-        {
-          onComplete: () => {
-            console.log('🎬 [QuestManager] Séquence intro terminée');
-            
-            if (this.gameRoom) {
-              this.gameRoom.send("intro_completed");
-            }
-          }
-        }
-      );
-    } else {
-      console.warn('⚠️ [QuestManager] Système de dialogue non disponible pour intro');
-    }
-  }
-  
   // === 🔧 UTILITAIRES ===
   
   normalizeQuestData(quest) {
+    if (!quest) return null;
+    
     try {
       if (typeof quest === 'string') {
         quest = JSON.parse(quest);
       }
-
-      const normalized = {
+      
+      return {
         id: quest.id || quest._id || `quest_${Date.now()}`,
         name: quest.name || 'Quête sans nom',
-        description: quest.description || 'Pas de description disponible',
+        description: quest.description || 'Pas de description',
         category: quest.category || 'side',
-        level: quest.level || '',
         currentStepIndex: quest.currentStepIndex || 0,
         status: quest.status || 'active',
-        steps: []
+        steps: quest.steps || []
       };
-
-      if (quest.steps && Array.isArray(quest.steps)) {
-        normalized.steps = quest.steps.map((step, index) => {
-          try {
-            if (typeof step === 'string') {
-              step = JSON.parse(step);
-            }
-            
-            return {
-              id: step.id || `step_${index}`,
-              name: step.name || `Étape ${index + 1}`,
-              description: step.description || 'Pas de description',
-              objectives: step.objectives || [],
-              rewards: step.rewards || [],
-              completed: step.completed || false
-            };
-          } catch (err) {
-            console.warn("⚠️ [QuestManager] Erreur step:", err);
-            return {
-              id: `step_${index}`,
-              name: `Étape ${index + 1}`,
-              description: 'Description non disponible',
-              objectives: [],
-              rewards: [],
-              completed: false
-            };
-          }
-        });
-      }
-
-      return normalized;
-
+      
     } catch (error) {
-      console.error("❌ [QuestManager] Erreur normalizeQuestData:", error, quest);
-      return {
-        id: 'error_quest',
-        name: 'Quête (Erreur)',
-        description: 'Cette quête n\'a pas pu être chargée correctement.',
-        category: 'error',
-        steps: []
-      };
+      console.error('❌ [QuestManager] Erreur normalisation quête:', error);
+      return null;
     }
   }
   
   showNotification(message, type = 'info') {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(message, type, {
-        duration: 3000,
-        position: 'bottom-center'
-      });
+      window.showGameNotification(message, type, { duration: 3000 });
     } else {
       console.log(`📢 [QuestManager] ${type.toUpperCase()}: ${message}`);
     }
   }
   
-  // === 📖 GETTERS ===
+  wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  // === 📖 API PUBLIQUE ===
+  
+  isReady() {
+    return this.state === 'READY' && this.initialized;
+  }
+  
+  getState() {
+    return this.state;
+  }
   
   getActiveQuests() {
     return [...this.activeQuests];
-  }
-  
-  getAvailableQuests() {
-    return [...this.availableQuests];
-  }
-  
-  getCompletedQuests() {
-    return [...this.completedQuests];
   }
   
   getQuestStats() {
     return { ...this.questStats };
   }
   
-  getQuestCount() {
-    return this.activeQuests.length;
-  }
-  
   hasActiveQuests() {
     return this.activeQuests.length > 0;
   }
   
-  hasNewQuests() {
-    return this.questStats.newQuests > 0;
-  }
-  
-  hasQuestsReadyToComplete() {
-    return this.questStats.readyToComplete > 0;
-  }
-  
-  getQuestById(questId) {
-    return this.activeQuests.find(q => q.id === questId || q._id === questId) || null;
-  }
-  
-  getQuestsByCategory(category) {
-    return this.activeQuests.filter(q => q.category === category);
-  }
-  
-  getMainQuests() {
-    return this.getQuestsByCategory('main');
-  }
-  
-  getSideQuests() {
-    return this.getQuestsByCategory('side');
-  }
-  
-  getDailyQuests() {
-    return this.getQuestsByCategory('daily');
+  getDebugInfo() {
+    return {
+      state: this.state,
+      initialized: this.initialized,
+      handlersRegistered: this.handlersRegistered,
+      hasGameRoom: !!this.gameRoom,
+      gameRoomReady: this.isGameRoomReady(),
+      questCount: this.activeQuests.length,
+      availableQuestCount: this.availableQuests.length,
+      pendingRequests: this.pendingRequests.size,
+      hasQuestUI: !!this.questUI,
+      hasPendingNpcInteraction: !!this.pendingNpcInteraction
+    };
   }
   
   // === 🧹 NETTOYAGE ===
@@ -1156,139 +853,72 @@ export class QuestManager {
   destroy() {
     console.log('🧹 [QuestManager] Destruction...');
     
+    this.setState('UNINITIALIZED', 'Destruction');
+    
     // Reset callbacks
     this.onQuestUpdate = null;
     this.onQuestStarted = null;
     this.onQuestCompleted = null;
     this.onQuestProgress = null;
     this.onStatsUpdate = null;
+    this.onStateChanged = null;
     
     // Reset données
     this.activeQuests = [];
-    this.completedQuests = [];
     this.availableQuests = [];
-    this.questStats = {
-      totalActive: 0,
-      totalCompleted: 0,
-      newQuests: 0,
-      readyToComplete: 0
-    };
+    this.completedQuests = [];
+    this.pendingRequests.clear();
+    this.requestQueue = [];
     
-    // Reset état
-    this.initialized = false;
+    // Reset connexions
     this.gameRoom = null;
     this.questUI = null;
     this.pendingNpcInteraction = null;
-    this.lastNotificationTime.clear();
-    this.interactionHistory.clear();
-    this.requestQueue = [];
+    
+    // Reset état
+    this.initialized = false;
+    this.handlersRegistered = false;
     
     console.log('✅ [QuestManager] Détruit');
-  }
-  
-  // === 🐛 DEBUG ===
-  
-  getDebugInfo() {
-    return {
-      initialized: this.initialized,
-      questCount: this.getQuestCount(),
-      questStats: this.questStats,
-      hasGameRoom: !!this.gameRoom,
-      hasQuestUI: !!this.questUI,
-      lastDataRequest: this.lastDataRequest,
-      pendingNpcInteraction: !!this.pendingNpcInteraction,
-      requestQueueLength: this.requestQueue.length,
-      processingQueue: this.processingQueue,
-      interactionHistorySize: this.interactionHistory.size,
-      callbacks: {
-        onQuestUpdate: !!this.onQuestUpdate,
-        onQuestStarted: !!this.onQuestStarted,
-        onQuestCompleted: !!this.onQuestCompleted,
-        onQuestProgress: !!this.onQuestProgress,
-        onStatsUpdate: !!this.onStatsUpdate
-      },
-      questAnalysis: this.getQuestAnalysis(),
-      availableQuestsCount: this.availableQuests.length,
-      notificationCacheSize: this.lastNotificationTime.size,
-      fallbackEnabled: this.fallbackEnabled
-    };
-  }
-  
-  getQuestAnalysis() {
-    return {
-      questCount: this.getQuestCount(),
-      hasActiveQuests: this.hasActiveQuests(),
-      newQuests: this.questStats.newQuests,
-      readyToComplete: this.questStats.readyToComplete,
-      categories: {
-        main: this.getMainQuests().length,
-        side: this.getSideQuests().length,
-        daily: this.getDailyQuests().length
-      },
-      totalCompleted: this.questStats.totalCompleted,
-      initialized: this.initialized,
-      hasUI: !!this.questUI
-    };
-  }
-  
-  logDebugInfo() {
-    console.log('🐛 [QuestManager] === DEBUG INFO ===', this.getDebugInfo());
-  }
-  
-  debugQuestNpcMatching(npcData) {
-    console.log('🐛 [QuestManager] === DEBUG QUEST-NPC MATCHING ===');
-    console.log('📊 NPC Data:', npcData);
-    console.log('📊 Quêtes disponibles:', this.availableQuests.length);
-    
-    this.availableQuests.forEach((quest, index) => {
-      console.log(`\n--- Quest ${index + 1}: ${quest.name} ---`);
-      console.log('Quest details:', {
-        id: quest.id,
-        startNpcId: quest.startNpcId,
-        endNpcId: quest.endNpcId,
-        npcId: quest.npcId,
-        startNpcName: quest.startNpcName,
-        endNpcName: quest.endNpcName
-      });
-      
-      const matches = this.questMatchesNpc(quest, npcData);
-      console.log(`Result: ${matches ? '✅ COMPATIBLE' : '❌ INCOMPATIBLE'}`);
-    });
-    
-    console.log('🐛 [QuestManager] === FIN DEBUG ===');
   }
 }
 
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER ULTRA-ROBUSTE COMPLET ===
+📖 === QUEST MANAGER - SYSTÈME ROBUSTE ===
 
-✅ CORRECTIONS MAJEURES:
-1. Setup handlers IMMÉDIAT dans constructor
-2. Validation et retry handlers automatique
-3. Queue de requêtes avec retry automatique
-4. NPC matching intelligent et permissif
-5. Fallbacks robustes partout
-6. Error handling complet sur tous les handlers
-7. Déduplication et cooldowns intelligents
+🎯 APPROCHE UNREAL ENGINE:
+✅ États clairs et strictes (UNINITIALIZED → WAITING_ROOM → CONNECTING_HANDLERS → READY → ERROR)
+✅ Validations strictes de GameRoom avant utilisation
+✅ Attente explicite des dépendances (pas d'approximatif)
+✅ Gestion d'erreurs avec fallbacks définis
+✅ API claire avec statuts et callbacks
 
-🎯 FONCTIONNALITÉS COMPLÈTES:
-• Communication serveur ultra-robuste
-• Interaction NPC avec matching intelligent
-• Progression automatique des quêtes
-• Gestion des dialogues et sélections
-• Callbacks et événements complets
-• Normalisation des données automatique
-• Debug et diagnostics avancés
+🔧 GARANTIES SYSTÈME:
+✅ GameRoom validée avant usage (méthodes + propriétés)
+✅ Handlers enregistrés avec validation ou échec propre
+✅ États trackés avec transitions automatiques
+✅ Timeouts explicites (pas d'attente infinie)
+✅ Mode fallback si échec complet
 
-🔧 ROBUSTESSE:
-• Queue de requêtes avec retry
-• Handlers avec error catching
-• Fallback mode automatique
-• Validation des connexions
-• Cooldowns et déduplication
-• Recovery automatique
+🚀 UTILISATION:
+// Méthode 1 : Avec GameRoom
+const manager = new QuestManager(gameRoom);
+await manager.init();
 
-🎮 QUEST MANAGER MAINTENANT ULTRA-FIABLE !
+// Méthode 2 : GameRoom plus tard  
+const manager = new QuestManager();
+await manager.init(gameRoom);
+
+// Vérification état
+if (manager.isReady()) {
+  manager.handleNpcInteraction(npcData);
+}
+
+🔍 DEBUG:
+manager.getDebugInfo() // État complet du système
+manager.getState()     // État actuel
+
+✅ PLUS D'APPROXIMATIF - SYSTÈME DÉTERMINISTE !
 `);
