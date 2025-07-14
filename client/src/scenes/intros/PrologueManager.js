@@ -15,7 +15,7 @@ export class PrologueManager {
     
     // Configuration du prologue
     this.config = {
-      duration: 15000, // Durée totale augmentée pour les nouveaux textes
+      duration: 40000, // Durée totale augmentée pour les nouveaux textes
       textSequence: [
         { text: "A blinding flash of light...", delay: 1000, duration: 4000 },
         { text: "And then... silence.", delay: 6000, duration: 4000 },
