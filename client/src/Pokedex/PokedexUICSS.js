@@ -83,19 +83,21 @@ export const POKEDEX_UI_STYLES = `
     position: relative;
   }
 
-  .pokedex-top-section {
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  }
+.pokedex-top-section {
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  width: 100%; /* 🆕 S'assurer que la section prend toute la largeur */
+}
 
-  .pokedex-logo {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
+.pokedex-logo {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1; /* 🆕 Le logo prend l'espace disponible à gauche */
+}
 
   .logo-light {
     width: 16px;
@@ -159,28 +161,34 @@ export const POKEDEX_UI_STYLES = `
     gap: 8px;
   }
 
-  .pokedex-controls {
-    display: flex;
-    align-items: center;
-  }
+.pokedex-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* 🆕 Forcer l'alignement à droite */
+  flex-shrink: 0; /* 🆕 Empêcher le rétrécissement */
+  margin-left: auto; /* 🆕 Pousser complètement à droite */
+}
 
-  .pokedex-close-btn {
-    background: linear-gradient(145deg, #dc2626, #b91c1c);
-    border: 2px solid #ef4444;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 
-      0 4px 12px rgba(220, 38, 38, 0.4),
-      inset 0 2px 0 rgba(255, 255, 255, 0.3);
-  }
+.pokedex-close-btn {
+  background: linear-gradient(145deg, #dc2626, #b91c1c);
+  border: 2px solid #ef4444;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 4px 12px rgba(220, 38, 38, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  /* 🆕 Supprime tout positionnement qui pourrait interférer */
+  position: relative;
+  margin-left: 20px; /* 🆕 Espace entre le logo et le bouton */
+}
 
   .pokedex-close-btn:hover {
     background: linear-gradient(145deg, #ef4444, #dc2626);
