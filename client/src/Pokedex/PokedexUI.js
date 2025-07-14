@@ -461,18 +461,23 @@ export class PokedexUI {
   }
 
   // 🛠️ NOUVELLE MÉTHODE - Chargement sécurisé SANS appels serveur
-  safeLoadAndRefresh() {
-    console.log('🔒 [PokedexUI] Chargement et refresh sécurisés...');
-    
-    // Charger les données sans déclencher de refresh automatique
-    this.loadDefaultPokemonData();
-    
-    // Puis faire le refresh manuellement
-    this.safeRefresh();
-    
-    // 🚫 SUPPRIMÉ: this.requestPokedexData(); 
-    // ✅ Les données sont déjà dans le DataManager !
-  }
+safeLoadAndRefresh() {
+  console.log('🔒 [PokedexUI] Chargement et refresh sécurisés...');
+  
+  // Charger les données sans déclencher de refresh automatique
+  this.loadDefaultPokemonData();
+  
+  // 🆕 FORCER LE RENDU IMMÉDIAT
+  setTimeout(() => {
+    if (this.isVisible && this.pokedexData && this.pokedexData.length > 0) {
+      console.log('🎨 [PokedexUI] Rendu forcé avec', this.pokedexData.length, 'entrées');
+      this.renderNationalView();
+    }
+  }, 100);
+  
+  // Puis faire le refresh manuellement
+  this.safeRefresh();
+}
 
   // 🛠️ MÉTHODE CORRIGÉE - Protection contre la récursion
   safeRefresh() {
