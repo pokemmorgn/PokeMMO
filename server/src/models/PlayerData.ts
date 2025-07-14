@@ -40,7 +40,10 @@ walletAddress: {
     type: String, 
     required: false // Optionnel pour compatibilité avec système wallet existant
   },
-  
+    isDev: {
+    type: Boolean,
+    default: false
+  },
   // Sécurité et métadonnées
   deviceFingerprint: { type: String },
   registrationIP: { type: String },
