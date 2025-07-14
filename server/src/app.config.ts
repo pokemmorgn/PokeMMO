@@ -85,7 +85,7 @@ export default config({
       } catch (error) {
         res.status(500).json({
           status: "unhealthy",
-error: error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? error.message : String(error),
           timestamp: new Date().toISOString()
         });
       }
@@ -106,6 +106,30 @@ error: error instanceof Error ? error.message : String(error),
         next();
       } catch (error) {
         return res.status(403).json({ error: 'Token invalide ou expiré' });
+      }
+    };
+
+    // ✅ NOUVEAU: MIDDLEWARE pour développeurs uniquement
+    const requireDev = async (req: any, res: any, next: any) => {
+      const authHeader = req.headers.authorization;
+      const token = authHeader && authHeader.split(' ')[1];
+
+      if (!token) {
+        return res.status(401).json({ error: 'Token requis' });
+      }
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        
+        const player = await PlayerData.findOne({ username: decoded.username });
+        if (!player || !player.isDev) {
+          return res.status(403).json({ error: 'Accès développeur requis' });
+        }
+
+        req.user = decoded;
+        next();
+      } catch (error) {
+        return res.status(403).json({ error: 'Token invalide' });
       }
     };
 
@@ -196,6 +220,189 @@ error: error instanceof Error ? error.message : String(error),
       }
     });
 
+    // ✅ NOUVELLES ROUTES DEV
+
+    // Stats dev
+    app.get("/api/dev/stats", requireDev, async (req: any, res) => {
+      try {
+        const totalPlayers = await PlayerData.countDocuments();
+        const activePlayers = await PlayerData.countDocuments({ isActive: true });
+        const developers = await PlayerData.countDocuments({ isDev: true });
+        
+        res.json({
+          totalPlayers,
+          activePlayers,
+          developers,
+          uptime: Math.floor(process.uptime()),
+          memory: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+          requestedBy: req.user.username
+        });
+      } catch (error) {
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    // Promouvoir dev
+    app.post("/api/dev/promote", requireDev, async (req: any, res) => {
+      try {
+        const { username } = req.body;
+        if (!username) {
+          return res.status(400).json({ error: "Username requis" });
+        }
+
+        const player = await PlayerData.findOne({ username });
+        if (!player) {
+          return res.status(404).json({ error: "Joueur non trouvé" });
+        }
+
+        if (player.isDev) {
+          return res.status(400).json({ error: "Déjà développeur" });
+        }
+
+        player.isDev = true;
+        await player.save();
+
+        console.log(`🔧 ${req.user.username} a promu ${username} en développeur`);
+        
+        res.json({ message: `${username} est maintenant développeur` });
+      } catch (error) {
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    // Lister les devs
+    app.get("/api/dev/list", requireDev, async (req: any, res) => {
+      try {
+        const devs = await PlayerData.find({ isDev: true })
+          .select('username email isActive createdAt lastLogin');
+        
+        res.json({
+          developers: devs.map(dev => ({
+            username: dev.username,
+            email: dev.email,
+            isActive: dev.isActive,
+            createdAt: dev.createdAt,
+            lastLogin: dev.lastLogin
+          })),
+          total: devs.length
+        });
+      } catch (error) {
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    // Dashboard dev
+    app.get("/dev", requireDev, (req: any, res) => {
+      res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dev Dashboard - PokeWorld</title>
+    <style>
+        body { font-family: Arial; background: #0d1117; color: #c9d1d9; padding: 20px; }
+        .card { background: #161b22; padding: 20px; margin: 15px 0; border-radius: 8px; border: 1px solid #30363d; }
+        .stat { background: #21262d; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { background: #238636; color: white; border: none; padding: 10px 20px; 
+                 border-radius: 6px; cursor: pointer; margin: 5px; }
+        button:hover { background: #2ea043; }
+        input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; 
+                padding: 8px; border-radius: 4px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Dev Dashboard - PokeWorld</h1>
+    <p>Connecté en tant que: <strong>${req.user.username}</strong></p>
+    
+    <div class="card">
+        <h3>📊 Statistiques Serveur</h3>
+        <div id="stats">Chargement...</div>
+        <button onclick="loadStats()">🔄 Actualiser</button>
+    </div>
+    
+    <div class="card">
+        <h3>👥 Gestion Développeurs</h3>
+        <div id="devs">Chargement...</div>
+        <br>
+        <input type="text" id="promoteUser" placeholder="Username à promouvoir">
+        <button onclick="promoteUser()">⬆️ Promouvoir en Dev</button>
+        <button onclick="loadDevs()">🔄 Actualiser Liste</button>
+    </div>
+    
+    <div class="card">
+        <h3>🛠️ Outils</h3>
+        <button onclick="window.open('/monitor', '_blank')">📊 Monitor Colyseus</button>
+        <button onclick="window.open('/playground', '_blank')">🎮 Playground</button>
+        <button onclick="window.open('/health', '_blank')">💚 Health Check</button>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('sessionToken');
+        
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/dev/stats', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                document.getElementById('stats').innerHTML = 
+                    '<div class="stat"><strong>Joueurs total:</strong> ' + data.totalPlayers + '</div>' +
+                    '<div class="stat"><strong>Joueurs actifs:</strong> ' + data.activePlayers + '</div>' +
+                    '<div class="stat"><strong>Développeurs:</strong> ' + data.developers + '</div>' +
+                    '<div class="stat"><strong>Uptime:</strong> ' + Math.floor(data.uptime / 60) + ' minutes</div>' +
+                    '<div class="stat"><strong>Mémoire:</strong> ' + data.memory + '</div>';
+            } catch (e) {
+                alert('Erreur stats: ' + e.message);
+            }
+        }
+        
+        async function loadDevs() {
+            try {
+                const res = await fetch('/api/dev/list', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                let html = '<p><strong>Total:</strong> ' + data.total + ' développeur(s)</p>';
+                data.developers.forEach(dev => {
+                    html += '<div class="stat">' + dev.username + 
+                           (dev.isActive ? ' 🟢' : ' 🔴') + '</div>';
+                });
+                document.getElementById('devs').innerHTML = html;
+            } catch (e) {
+                alert('Erreur devs: ' + e.message);
+            }
+        }
+        
+        async function promoteUser() {
+            const username = document.getElementById('promoteUser').value;
+            if (!username) return alert('Username requis');
+            
+            try {
+                const res = await fetch('/api/dev/promote', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                alert(data.message || data.error);
+                document.getElementById('promoteUser').value = '';
+                loadDevs();
+            } catch (e) {
+                alert('Erreur: ' + e.message);
+            }
+        }
+        
+        // Charger au démarrage
+        loadStats();
+        loadDevs();
+    </script>
+</body>
+</html>
+      `);
+    });
+
     // ✅ API pour les statistiques (admin uniquement)
     app.get("/api/admin/stats", authenticateJWT, async (req: any, res) => {
       try {
@@ -270,8 +477,9 @@ error: error instanceof Error ? error.message : String(error),
       console.log("🛠️ Playground disponible sur /playground");
     }
     
-    app.use("/monitor", monitor());
-    console.log("📊 Monitor disponible sur /monitor");
+    // ✅ MONITOR SÉCURISÉ (devs uniquement)
+    app.use("/monitor", requireDev, monitor());
+    console.log("📊 Monitor sécurisé sur /monitor (devs uniquement)");
 
     // ✅ Gestion des erreurs 404
     app.use((req, res) => {
@@ -309,36 +517,36 @@ error: error instanceof Error ? error.message : String(error),
 
       // ✅ CONNEXION à la base de données
       await connectDB();
-console.log("✅ Connecté à MongoDB: pokeworld");
+      console.log("✅ Connecté à MongoDB: pokeworld");
 
-// ✅ VÉRIFICATION de l'index unique sur username
-try {
-  await PlayerData.collection.createIndex(
-    { username: 1 }, 
-    { unique: true, collation: { locale: 'en', strength: 2 } }
-  );
-  await PlayerData.collection.createIndex(
-    { email: 1 }, 
-    { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } }
-  );
-  console.log("✅ Index MongoDB créés/vérifiés");
-} catch (indexError) {
-  console.log("ℹ️ Index MongoDB déjà existants");
-}
+      // ✅ VÉRIFICATION de l'index unique sur username
+      try {
+        await PlayerData.collection.createIndex(
+          { username: 1 }, 
+          { unique: true, collation: { locale: 'en', strength: 2 } }
+        );
+        await PlayerData.collection.createIndex(
+          { email: 1 }, 
+          { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } }
+        );
+        console.log("✅ Index MongoDB créés/vérifiés");
+      } catch (indexError) {
+        console.log("ℹ️ Index MongoDB déjà existants");
+      }
 
-// ✅ NOUVEAU: Corriger l'index walletAddress
-try {
-  await PlayerData.collection.dropIndex("walletAddress_1");
-  console.log("🗑️ Ancien index walletAddress supprimé");
-} catch (e) {
-  console.log("ℹ️ Index walletAddress n'existait pas ou déjà supprimé");
-}
+      // ✅ NOUVEAU: Corriger l'index walletAddress
+      try {
+        await PlayerData.collection.dropIndex("walletAddress_1");
+        console.log("🗑️ Ancien index walletAddress supprimé");
+      } catch (e) {
+        console.log("ℹ️ Index walletAddress n'existait pas ou déjà supprimé");
+      }
 
-await PlayerData.collection.createIndex(
-  { walletAddress: 1 }, 
-  { unique: true, sparse: true }
-);
-console.log("✅ Index walletAddress corrigé (sparse = plusieurs null OK)");
+      await PlayerData.collection.createIndex(
+        { walletAddress: 1 }, 
+        { unique: true, sparse: true }
+      );
+      console.log("✅ Index walletAddress corrigé (sparse = plusieurs null OK)");
 
       // ✅ RESET QUESTS (si configuré)
       const config = getServerConfig();
@@ -370,6 +578,7 @@ console.log("✅ Index walletAddress corrigé (sparse = plusieurs null OK)");
       try {
         const totalPlayers = await PlayerData.countDocuments();
         const activePlayers = await PlayerData.countDocuments({ isActive: true });
+        const developers = await PlayerData.countDocuments({ isDev: true });
         const playersWithWallet = await PlayerData.countDocuments({ 
           walletAddress: { $exists: true, $ne: null } 
         });
@@ -377,13 +586,14 @@ console.log("✅ Index walletAddress corrigé (sparse = plusieurs null OK)");
         console.log("📊 === STATISTIQUES SERVEUR ===");
         console.log(`👥 Joueurs total: ${totalPlayers}`);
         console.log(`✅ Joueurs actifs: ${activePlayers}`);
+        console.log(`🔧 Développeurs: ${developers}`);
         console.log(`💰 Avec wallet: ${playersWithWallet}`);
         console.log("==================================");
       } catch (statsError) {
         console.log("⚠️ Impossible de récupérer les statistiques");
       }
 
-      console.log("🚀 Serveur PokeWorld prêt avec authentification sécurisée !");
+      console.log("🚀 Serveur PokeWorld prêt avec système dev sécurisé !");
 
     } catch (err) {
       console.error("❌ Erreur lors de l'initialisation:", err);
