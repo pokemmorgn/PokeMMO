@@ -21,8 +21,32 @@ export class PrologueManager {
         { text: "Something feels... wrong here. Even the air whispers of ancient conflicts.", delay: 9400, duration: 3500 },
         { text: "Time itself seems uncertain in this place.", delay: 13200, duration: 2800 },
         { text: "But in this troubled world, you are not alone...", delay: 16300, duration: 2500 }
+      ],
+      visions: [
+        { image: 'vision1', delay: 1500, duration: 3000, alpha: 0.3 }, // L'Harmonie (début)
+        { image: 'vision2', delay: 3000, duration: 2500, alpha: 0.4 }, // Le Pacte (se superpose à vision1)
+        { image: 'vision3', delay: 5500, duration: 2000, alpha: 0.5 }, // La Trahison (plus intense)
+        { image: 'vision4', delay: 7000, duration: 3000, alpha: 0.6 }, // La Corruption (climax)
+        { image: 'vision5', delay: 11000, duration: 4000, alpha: 0.3 }  // L'Observateur (fin, plus long)
       ]
     };
+  }
+
+  // === PRELOAD DES IMAGES DE VISION ===
+  preloadVisionImages() {
+    if (!this.scene.load) return Promise.resolve();
+    
+    return new Promise((resolve) => {
+      // Charger les 5 images de vision
+      this.scene.load.image('vision1', 'assets/preintro/vision1.png');
+      this.scene.load.image('vision2', 'assets/preintro/vision2.png'); 
+      this.scene.load.image('vision3', 'assets/preintro/vision3.png');
+      this.scene.load.image('vision4', 'assets/preintro/vision4.png');
+      this.scene.load.image('vision5', 'assets/preintro/vision5.png');
+      
+      this.scene.load.once('complete', resolve);
+      this.scene.load.start();
+    });
   }
 
   // === MÉTHODE PRINCIPALE ===
@@ -37,6 +61,9 @@ export class PrologueManager {
 
     try {
       console.log('[Prologue] 🎬 Starting mystical prologue');
+      
+      // Preload des images de vision
+      await this.preloadVisionImages();
       
       this.createContainer();
       this.createMysticalBackground();
@@ -110,6 +137,9 @@ export class PrologueManager {
     this.scene.time.delayedCall(13000, () => {
       this.createTimeDistortion(centerX, centerY);
     });
+
+    // 6. Séquence de visions des souvenirs anciens
+    this.createVisionSequence();
   }
 
   createLightFlash(x, y) {
@@ -333,6 +363,51 @@ export class PrologueManager {
           duration: 1500
         });
       }
+    });
+  }
+
+  createVisionSequence() {
+    const camera = this.scene.cameras.main;
+    
+    this.config.visions.forEach((vision, index) => {
+      this.scene.time.delayedCall(vision.delay, () => {
+        this.showVision(vision.image, vision.duration, vision.alpha, camera);
+      });
+    });
+  }
+
+  showVision(imageKey, duration, alpha, camera) {
+    // Créer l'image de vision
+    const visionImage = this.scene.add.image(
+      camera.width / 2,
+      camera.height / 2,
+      imageKey
+    ).setOrigin(0.5).setAlpha(0).setDepth(9500);
+
+    // Ajuster la taille pour qu'elle s'adapte à l'écran
+    const scaleX = camera.width / visionImage.width;
+    const scaleY = camera.height / visionImage.height;
+    const scale = Math.min(scaleX, scaleY) * 0.8; // 80% de l'écran max
+    visionImage.setScale(scale);
+
+    this.container.add(visionImage);
+    this.effects.push(visionImage);
+
+    // Animation fade in
+    this.scene.tweens.add({
+      targets: visionImage,
+      alpha: alpha,
+      duration: 800,
+      ease: 'Power2'
+    });
+
+    // Animation fade out
+    this.scene.tweens.add({
+      targets: visionImage,
+      alpha: 0,
+      duration: 1000,
+      delay: duration - 1000,
+      ease: 'Power2'
     });
   }
 
