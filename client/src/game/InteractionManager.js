@@ -429,22 +429,31 @@ export class InteractionManager {
     }
   }
 
-  handleQuestInteraction(npc, data) {
-    this.questSystem = this.questSystem || window.questSystem;
-    if (!this.questSystem) {
-      this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
-      return;
+handleQuestInteraction(npc, data) {
+  this.questSystem = this.questSystem || window.questSystem;
+  if (!this.questSystem) {
+    this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
+    return;
+  }
+  
+  // ✅ CORRECTION : Le client ne fait QUE de l'affichage
+  try {
+    // Le serveur a déjà envoyé la réponse via networkManager
+    // Le client affiche juste le résultat
+    
+    if (data) {
+      // Si on a des données du serveur, les traiter
+      this.questSystem.handleNpcInteraction(data);
+    } else {
+      // Sinon, déclencher l'interaction côté serveur
+      // (L'interaction a déjà été envoyée via networkManager.sendNpcInteract)
+      console.log("🎯 Interaction quête déclenchée côté serveur");
     }
     
-    try {
-      const result = this.questSystem.handleNpcInteraction(data || npc);
-      if (result === false || result === 'NO_QUEST') {
-        this.handleDialogueInteraction(npc, null);
-      }
-    } catch (error) {
-      this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
-    }
+  } catch (error) {
+    this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
   }
+}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
