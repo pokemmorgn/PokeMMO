@@ -275,8 +275,8 @@ export class NetworkManager {
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-    // ✅ SUPPRIMÉ: L'ancien handler pong - Géré par ConnectionManager
-    // Le ConnectionManager configure automatiquement ses propres listeners pong
+    // ✅ PAS DE HANDLER PONG ICI - C'est le ConnectionManager qui s'en charge
+    // Le ConnectionManager configurera automatiquement son propre handler pong
 
     // ✅ NOUVEAU: Handler pour confirmation de spawn
     this.room.onMessage("playerSpawned", (data) => {
