@@ -1,5 +1,4 @@
-// client/src/game/InteractionManager.js - RÉÉCRITURE COMPLÈTE
-// Aligné avec le système modulaire serveur BaseInteractionManager + NpcInteractionModule
+// client/src/game/InteractionManager.js - CORRIGÉ avec debounce et Quest System
 
 export class InteractionManager {
   constructor(scene) {
@@ -13,7 +12,7 @@ export class InteractionManager {
       maxInteractionDistance: 64,
       interactionKey: 'E',
       cooldowns: {
-        npc: 500,
+        npc: 1000, // ✅ AUGMENTÉ à 1 seconde
         object: 200,
         environment: 1000,
         player: 2000
@@ -26,14 +25,14 @@ export class InteractionManager {
       lastInteractionTime: 0,
       lastInteractedNpc: null,
       isInteractionBlocked: false,
-      currentCooldowns: new Map()
+      currentCooldowns: new Map(),
+      lastProcessedInteraction: null // ✅ NOUVEAU: éviter doublons
     };
 
-    // === VALIDATION CACHE ===
-    this.validationCache = new Map();
-    this.cacheTimeout = 1000; // 1 seconde
+    // === DEBOUNCE MAP ===
+    this.debouncedFunctions = new Map();
 
-    console.log(`🎯 [InteractionManager] Instance créée - Version serveur modulaire`);
+    console.log(`🎯 [InteractionManager] Instance créée - Version avec debounce et Quest`);
   }
 
   // === 🚀 INITIALISATION ===
@@ -49,21 +48,24 @@ export class InteractionManager {
     this.setupNetworkHandlers();
     this.exposeDialogueAPI();
 
-    console.log(`✅ [InteractionManager] Initialisé avec système modulaire`);
+    console.log(`✅ [InteractionManager] Initialisé avec debounce et Quest System`);
     return this;
   }
 
-  // === 🎛️ GESTION INPUT ===
+  // === 🎛️ GESTION INPUT AVEC DEBOUNCE ===
 
   setupInputHandlers() {
-    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, () => {
+    // ✅ DÉBOUNCER L'INPUT pour éviter exécutions multiples
+    const debouncedInteractionHandler = this.debounce(() => {
       this.handleInteractionInput();
-    });
-    console.log(`⌨️ [InteractionManager] Input configuré (${this.config.interactionKey})`);
+    }, 300); // 300ms de debounce
+
+    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, debouncedInteractionHandler);
+    console.log(`⌨️ [InteractionManager] Input avec debounce configuré (${this.config.interactionKey})`);
   }
 
   handleInteractionInput() {
-    console.log(`🎮 [InteractionManager] === INTERACTION INPUT ===`);
+    console.log(`🎮 [InteractionManager] === INTERACTION INPUT (DEBOUNCED) ===`);
     
     if (!this.canPlayerInteract()) {
       console.log(`🚫 [InteractionManager] Interaction bloquée`);
@@ -76,8 +78,59 @@ export class InteractionManager {
       return;
     }
 
+    // ✅ VÉRIFIER SI MÊME INTERACTION EN COURS
+    const interactionKey = `${targetNpc.id}_${Date.now()}`;
+    if (this.isDuplicateInteraction(targetNpc)) {
+      console.log(`🔄 [InteractionManager] Interaction dupliquée ignorée: ${targetNpc.name}`);
+      return;
+    }
+
     console.log(`🎯 [InteractionManager] NPC trouvé: ${targetNpc.name} (${targetNpc.id})`);
     this.triggerInteraction(targetNpc);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Débouçage générique
+  debounce(func, delay) {
+    const key = func.toString();
+    
+    if (this.debouncedFunctions.has(key)) {
+      clearTimeout(this.debouncedFunctions.get(key));
+    }
+    
+    const timeoutId = setTimeout(() => {
+      this.debouncedFunctions.delete(key);
+      func();
+    }, delay);
+    
+    this.debouncedFunctions.set(key, timeoutId);
+    
+    return () => {
+      if (this.debouncedFunctions.has(key)) {
+        clearTimeout(this.debouncedFunctions.get(key));
+        this.debouncedFunctions.delete(key);
+      }
+    };
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Détecter doublons
+  isDuplicateInteraction(npc) {
+    const now = Date.now();
+    const interactionSignature = `${npc.id}_${Math.floor(now / 1000)}`; // 1 seconde de grouping
+
+    if (this.state.lastProcessedInteraction === interactionSignature) {
+      return true;
+    }
+
+    this.state.lastProcessedInteraction = interactionSignature;
+    
+    // Nettoyer après 2 secondes
+    setTimeout(() => {
+      if (this.state.lastProcessedInteraction === interactionSignature) {
+        this.state.lastProcessedInteraction = null;
+      }
+    }, 2000);
+
+    return false;
   }
 
   findInteractionTarget() {
@@ -160,18 +213,23 @@ export class InteractionManager {
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
+    // ✅ DÉBOUNCER AUSSI LES NETWORK HANDLERS
+    const debouncedInteractionResult = this.debounce((data) => {
+      this.processInteractionResult(data);
+    }, 100); // 100ms de debounce sur les résultats réseau
+
     // Handler unifié pour résultats d'interaction modulaire
     this.networkManager.onMessage("npcInteractionResult", (data) => {
       console.log(`📥 [InteractionManager] === RÉSULTAT INTERACTION MODULAIRE ===`);
       console.log(`📊 [InteractionManager] Data:`, data);
       
-      this.handleInteractionResult(data);
+      debouncedInteractionResult(data);
     });
 
     // Handlers spécialisés (conservés pour compatibilité)
     this.setupSpecializedHandlers();
     
-    console.log(`📡 [InteractionManager] Network handlers configurés`);
+    console.log(`📡 [InteractionManager] Network handlers avec debounce configurés`);
   }
 
   setupSpecializedHandlers() {
@@ -205,8 +263,8 @@ export class InteractionManager {
 
   // === 🔄 TRAITEMENT RÉSULTATS ===
 
-  handleInteractionResult(data) {
-    console.log(`🔄 [InteractionManager] === TRAITEMENT RÉSULTAT ===`);
+  processInteractionResult(data) {
+    console.log(`🔄 [InteractionManager] === TRAITEMENT RÉSULTAT (DEBOUNCED) ===`);
     console.log(`📊 [InteractionManager] Type: ${data.type}`);
     
     try {
@@ -274,20 +332,34 @@ export class InteractionManager {
   }
 
   handleQuestGiverResult(data) {
-    console.log(`📖 [InteractionManager] Résultat quest giver:`, data);
+    console.log(`📖 [InteractionManager] === QUEST GIVER RESULT ===`);
+    console.log(`📊 [InteractionManager] Data:`, data);
     
-    // Déléguer au système quest s'il existe
-    if (window.questSystem && window.questSystem.handleNpcInteraction) {
-      const result = window.questSystem.handleNpcInteraction(data);
-      if (result !== 'NO_QUEST') {
-        return;
+    // ✅ CORRECTION MAJEURE: Vérifier window.questSystem d'abord
+    if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
+      console.log(`🎯 [InteractionManager] Délégation à window.questSystem`);
+      
+      try {
+        const result = window.questSystem.handleNpcInteraction(data);
+        console.log(`📖 [InteractionManager] Résultat Quest System:`, result);
+        
+        if (result !== 'NO_QUEST' && result !== false) {
+          console.log(`✅ [InteractionManager] Quest System a géré l'interaction`);
+          return; // Quest System a géré
+        }
+      } catch (error) {
+        console.error(`❌ [InteractionManager] Erreur Quest System:`, error);
       }
+    } else {
+      console.warn(`⚠️ [InteractionManager] window.questSystem non disponible`);
     }
     
-    // Fallback vers dialogue normal
+    // ✅ Fallback vers dialogue normal si Quest System ne peut pas gérer
+    console.log(`🔄 [InteractionManager] Fallback vers dialogue normal`);
     this.handleDialogueResult({
       message: data.message || "Ce PNJ a des quêtes mais le système n'est pas disponible.",
-      lines: data.lines || ["Je peux vous aider mais le système n'est pas prêt."]
+      lines: data.lines || ["Je peux vous aider mais le système n'est pas prêt."],
+      npcName: data.npcName
     });
   }
 
@@ -331,6 +403,7 @@ export class InteractionManager {
     
     if (typeof window.showNpcDialogue === 'function') {
       const dialogueData = this.formatDialogueData(data);
+      console.log(`💬 [InteractionManager] Affichage dialogue:`, dialogueData);
       window.showNpcDialogue(dialogueData);
     } else {
       // Fallback avec notification
@@ -798,11 +871,16 @@ export class InteractionManager {
       delete window.createSequentialDiscussion;
     }
 
+    // Nettoyer debounced functions
+    for (const timeoutId of this.debouncedFunctions.values()) {
+      clearTimeout(timeoutId);
+    }
+    this.debouncedFunctions.clear();
+
     // Nettoyer événements
     this.scene.input.keyboard.off(`keydown-${this.config.interactionKey}`);
     
     // Nettoyer cache
-    this.validationCache.clear();
     this.state.currentCooldowns.clear();
     
     // Reset références
@@ -824,7 +902,8 @@ export class InteractionManager {
       hasPlayerManager: !!this.playerManager,
       hasNpcManager: !!this.npcManager,
       currentCooldowns: Object.fromEntries(this.state.currentCooldowns),
-      cacheSize: this.validationCache.size
+      debouncedFunctionsCount: this.debouncedFunctions.size,
+      questSystemAvailable: !!(window.questSystem && window.questSystem.handleNpcInteraction)
     };
   }
 }
