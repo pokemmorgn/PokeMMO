@@ -28,6 +28,9 @@ export class QuestModule extends BaseModule {
     this.autoRepairEnabled = true;
     this.lastHealthCheck = 0;
     
+    // ✅ NOUVEAU: Référence NetworkManager
+    this.networkManager = null;
+    
     console.log('📖 [QuestModule] Instance créée');
   }
   
@@ -85,9 +88,32 @@ export class QuestModule extends BaseModule {
     console.log('🎯 [QuestModule] Initialisation manager...');
     
     this.manager = new QuestManager(this.gameRoom);
-    await this.manager.init();
+    
+    // ✅ NOUVEAU: Connecter NetworkManager si disponible
+    if (this.networkManager) {
+      await this.manager.init(this.gameRoom, this.networkManager);
+    } else if (window.globalNetworkManager) {
+      this.networkManager = window.globalNetworkManager;
+      await this.manager.init(this.gameRoom, this.networkManager);
+    } else {
+      await this.manager.init(this.gameRoom);
+    }
     
     console.log('✅ [QuestModule] Manager initialisé');
+  }
+  
+  // ✅ NOUVEAU: Setter NetworkManager
+  setNetworkManager(networkManager) {
+    console.log('🔗 [QuestModule] Configuration NetworkManager...');
+    
+    this.networkManager = networkManager;
+    
+    // Si le manager existe déjà, le connecter
+    if (this.manager) {
+      this.manager.connectNetworkManager(networkManager);
+    }
+    
+    console.log('✅ [QuestModule] NetworkManager configuré');
   }
   
   createComponents() {
@@ -351,7 +377,8 @@ export class QuestModule extends BaseModule {
         exists: !!this.manager,
         initialized: !!this.manager?.initialized,
         hasGameRoom: !!this.manager?.gameRoom,
-        isReady: this.manager?.isReady?.() || false
+        isReady: this.manager?.isReady?.() || false,
+        hasNetworkManager: !!this.manager?.networkManager // ✅ NOUVEAU
       },
       
       icon: {
@@ -373,7 +400,8 @@ export class QuestModule extends BaseModule {
         managerToIcon: !!(this.manager?.onStatsUpdate),
         iconToUI: !!(this.icon?.onClick),
         managerToUI: !!(this.manager?.questUI === this.ui),
-        uiToManager: !!(this.ui?.onAction)
+        uiToManager: !!(this.ui?.onAction),
+        networkManager: !!(this.networkManager) // ✅ NOUVEAU
       }
     };
     
@@ -455,6 +483,11 @@ export class QuestModule extends BaseModule {
       issues.push('manager-ui-disconnected');
     }
     
+    // ✅ NOUVEAU: Vérifier connexion NetworkManager
+    if (!this.manager?.networkManager && window.globalNetworkManager) {
+      issues.push('networkmanager-disconnected');
+    }
+    
     return issues;
   }
   
@@ -479,6 +512,10 @@ export class QuestModule extends BaseModule {
           case 'manager-ui-disconnected':
             this.connectManagerToUI();
             break;
+            
+          case 'networkmanager-disconnected':
+            await this.repairNetworkManager();
+            break;
         }
         
         console.log(`✅ [QuestModule] Réparation '${issue}' réussie`);
@@ -486,6 +523,16 @@ export class QuestModule extends BaseModule {
       } catch (error) {
         console.error(`❌ [QuestModule] Erreur réparation '${issue}':`, error);
       }
+    }
+  }
+  
+  // ✅ NOUVEAU: Réparation NetworkManager
+  async repairNetworkManager() {
+    console.log('🔧 [QuestModule] Réparation NetworkManager...');
+    
+    if (window.globalNetworkManager && this.manager) {
+      this.setNetworkManager(window.globalNetworkManager);
+      console.log('✅ [QuestModule] NetworkManager reconnecté');
     }
   }
   
@@ -524,7 +571,7 @@ export class QuestModule extends BaseModule {
       
       if (this.gameRoom) {
         this.manager = new QuestManager(this.gameRoom);
-        await this.manager.init();
+        await this.manager.init(this.gameRoom, this.networkManager);
         await this.createMinimalInterface();
       }
       
@@ -605,10 +652,12 @@ export class QuestModule extends BaseModule {
       connectionAttempts: this.connectionAttempts,
       lastHealthCheck: this.lastHealthCheck,
       autoRepairEnabled: this.autoRepairEnabled,
+      hasNetworkManager: !!this.networkManager, // ✅ NOUVEAU
       manager: {
         exists: !!this.manager,
         initialized: !!this.manager?.initialized,
-        isReady: this.manager?.isReady?.() || false
+        isReady: this.manager?.isReady?.() || false,
+        hasNetworkManager: !!this.manager?.networkManager
       },
       icon: {
         exists: !!this.icon,
@@ -638,6 +687,7 @@ export class QuestModule extends BaseModule {
       this.manager = null;
     }
     
+    this.networkManager = null; // ✅ NOUVEAU
     this.initialized = false;
     this.autoRepairEnabled = false;
     
@@ -734,6 +784,164 @@ export async function repairQuestSystem() {
   } catch (error) {
     console.error('❌ [QuestRepair] Erreur:', error);
     return false;
+  }
+}
+
+// === ✅ NOUVELLE FONCTION D'INITIALISATION GLOBALE ===
+
+export async function initializeQuestSystemGlobal(networkManager, gameRoom, scene = null, uiManager = null) {
+  console.log('🚀 [QuestSystemBoot] === INITIALISATION GLOBALE ===');
+  
+  try {
+    // === ÉTAPE 1: VALIDATION PRÉREQUIS ===
+    console.log('🔍 [QuestSystemBoot] Validation prérequis...');
+    
+    if (!networkManager) {
+      throw new Error('NetworkManager requis');
+    }
+    
+    if (!gameRoom) {
+      throw new Error('GameRoom requise');
+    }
+    
+    if (!networkManager.isConnected) {
+      console.warn('⚠️ [QuestSystemBoot] NetworkManager pas encore connecté, on continue...');
+    }
+    
+    console.log('✅ [QuestSystemBoot] Prérequis validés');
+    
+    // === ÉTAPE 2: NETTOYAGE INSTANCE EXISTANTE ===
+    console.log('🧹 [QuestSystemBoot] Nettoyage instance existante...');
+    
+    if (window.questSystem) {
+      try {
+        window.questSystem.destroy?.();
+      } catch (error) {
+        console.warn('⚠️ [QuestSystemBoot] Erreur destruction ancienne instance:', error);
+      }
+    }
+    
+    // === ÉTAPE 3: CRÉATION QUESTMODULE ===
+    console.log('🏗️ [QuestSystemBoot] Création QuestModule...');
+    
+    const questOptions = {
+      singleton: true,
+      autoRepair: true,
+      keyboardShortcut: 'l',
+      autoCloseUI: true
+    };
+    
+    const questModule = await createQuestModule(gameRoom, scene, questOptions);
+    
+    // === ÉTAPE 4: CONNEXION NETWORKMANAGER ===
+    console.log('🔗 [QuestSystemBoot] Connexion NetworkManager...');
+    
+    questModule.setNetworkManager(networkManager);
+    
+    // === ÉTAPE 5: CONNEXION UIMANAGER (SI DISPONIBLE) ===
+    if (uiManager) {
+      console.log('📍 [QuestSystemBoot] Connexion UIManager...');
+      
+      try {
+        await registerQuestModule(uiManager);
+        questModule.connectUIManager?.(uiManager);
+        console.log('✅ [QuestSystemBoot] UIManager connecté');
+      } catch (error) {
+        console.warn('⚠️ [QuestSystemBoot] Erreur connexion UIManager:', error);
+      }
+    }
+    
+    // === ÉTAPE 6: EXPOSITION GLOBALE ===
+    console.log('🌐 [QuestSystemBoot] Exposition globale...');
+    
+    window.questSystem = questModule;
+    window.questSystemGlobal = questModule;
+    
+    // Fonctions de convenance
+    window.toggleQuest = () => questModule.toggleUI();
+    window.openQuest = () => questModule.open();
+    window.closeQuest = () => questModule.close();
+    
+    // Fonctions de debug
+    window.repairQuestSystem = repairQuestSystem;
+    window.getQuestSystemHealth = () => questModule.getSystemHealth();
+    
+    // Fonctions de gameplay
+    window.triggerQuestProgress = (type, data) => questModule.triggerProgress(type, data);
+    window.startQuest = (questId) => questModule.startQuest(questId);
+    
+    // === ÉTAPE 7: VALIDATION FINALE ===
+    console.log('🔍 [QuestSystemBoot] Validation finale...');
+    
+    const health = questModule.getSystemHealth();
+    console.log('📊 [QuestSystemBoot] Santé système:', health);
+    
+    if (!health.initialized) {
+      throw new Error('QuestModule non initialisé correctement');
+    }
+    
+    console.log('✅ [QuestSystemBoot] === INITIALISATION RÉUSSIE ===');
+    console.log('🎮 [QuestSystemBoot] Quest System prêt à l\'usage !');
+    
+    return questModule;
+    
+  } catch (error) {
+    console.error('❌ [QuestSystemBoot] Erreur initialisation globale:', error);
+    
+    // Nettoyer en cas d'erreur
+    if (window.questSystem) {
+      try {
+        window.questSystem.destroy?.();
+        window.questSystem = null;
+        window.questSystemGlobal = null;
+      } catch (cleanupError) {
+        console.error('❌ [QuestSystemBoot] Erreur nettoyage:', cleanupError);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+// === ✅ FONCTION UTILITAIRE POUR BOOT RAPIDE ===
+
+export async function quickBootQuestSystem() {
+  console.log('⚡ [QuestSystemBoot] Boot rapide...');
+  
+  try {
+    // Chercher les dépendances globales
+    const networkManager = window.globalNetworkManager;
+    const gameRoom = window.currentGameRoom || networkManager?.room;
+    const scene = window.game?.scene?.getScenes?.(true)?.[0];
+    const uiManager = window.uiManager;
+    
+    if (!networkManager) {
+      throw new Error('window.globalNetworkManager non trouvé');
+    }
+    
+    if (!gameRoom) {
+      throw new Error('GameRoom non trouvée');
+    }
+    
+    console.log('🔍 [QuestSystemBoot] Dépendances trouvées:', {
+      networkManager: !!networkManager,
+      gameRoom: !!gameRoom,
+      scene: !!scene,
+      uiManager: !!uiManager
+    });
+    
+    return await initializeQuestSystemGlobal(networkManager, gameRoom, scene, uiManager);
+    
+  } catch (error) {
+    console.error('❌ [QuestSystemBoot] Erreur boot rapide:', error);
+    
+    console.log('💡 [QuestSystemBoot] Variables globales disponibles:');
+    console.log('   window.globalNetworkManager:', !!window.globalNetworkManager);
+    console.log('   window.currentGameRoom:', !!window.currentGameRoom);
+    console.log('   window.game:', !!window.game);
+    console.log('   window.uiManager:', !!window.uiManager);
+    
+    throw error;
   }
 }
 
@@ -834,3 +1042,37 @@ export async function initializeQuestModule(uiManager) {
 }
 
 export default QuestModule;
+
+// === 📋 DOCUMENTATION BOOT ===
+
+console.log(`
+📖 === QUEST SYSTEM BOOT INTEGRATION ===
+
+🚀 NOUVELLES FONCTIONS D'INITIALISATION:
+
+1. initializeQuestSystemGlobal(networkManager, gameRoom, scene, uiManager)
+   → Initialisation complète avec toutes les connexions
+
+2. quickBootQuestSystem()
+   → Boot automatique avec détection des dépendances globales
+
+✅ USAGE DANS VOTRE BOOT PRINCIPAL:
+
+// Après création NetworkManager et connexion GameRoom
+import { quickBootQuestSystem } from './Quest/index.js';
+
+try {
+  const questSystem = await quickBootQuestSystem();
+  console.log('Quest System prêt !');
+} catch (error) {
+  console.error('Erreur Quest System:', error);
+}
+
+🔗 CONNEXIONS AUTOMATIQUES:
+• NetworkManager → QuestManager (callbacks quest)
+• UIManager → QuestModule (positionnement)
+• Exposition window.questSystem
+• Fonctions globales (toggleQuest, startQuest, etc.)
+
+⚡ BOOT RAPIDE ACTIVÉ !
+`);
