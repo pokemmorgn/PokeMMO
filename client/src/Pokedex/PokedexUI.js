@@ -674,23 +674,23 @@ setupServerListeners() {
   if (!this.gameRoom) return;
 
   // === RÉCEPTION DES DONNÉES POKÉDX ===
-  // ✅ CORRIGÉ: Ajouter ":response" car le serveur envoie "pokedex:get:response"
-  this.gameRoom.onMessage("pokedex:get:response", (response) => {
+  // ✅ CORRIGÉ: Enlever ":response" car le serveur envoie juste "pokedex:get"
+  this.gameRoom.onMessage("pokedex:get", (response) => {
     this.handlePokedexData(response);
   });
 
   // Réception d'une entrée détaillée
-  this.gameRoom.onMessage("pokedex:entry:response", (response) => {
+  this.gameRoom.onMessage("pokedex:entry", (response) => {
     this.handlePokemonDetails(response);
   });
 
   // Réception des statistiques
-  this.gameRoom.onMessage("pokedex:stats:response", (response) => {
+  this.gameRoom.onMessage("pokedex:stats", (response) => {
     this.handleStatsData(response);
   });
 
   // Réception mark_seen
-  this.gameRoom.onMessage("pokedex:mark_seen:response", (response) => {
+  this.gameRoom.onMessage("pokedex:mark_seen", (response) => {
     console.log('✅ [PokedexUI] Mark seen confirmé:', response);
     if (response.success && this.isVisible) {
       this.safeReloadData();
@@ -698,7 +698,7 @@ setupServerListeners() {
   });
 
   // Réception mark_caught  
-  this.gameRoom.onMessage("pokedx:mark_caught:response", (response) => {
+  this.gameRoom.onMessage("pokedex:mark_caught", (response) => {
     console.log('✅ [PokedexUI] Mark caught confirmé:', response);
     if (response.success && this.isVisible) {
       this.safeReloadData();
@@ -706,20 +706,19 @@ setupServerListeners() {
   });
 
   // Réception toggle favorite
-  this.gameRoom.onMessage("pokedex:toggle_favorite:response", (response) => {
+  this.gameRoom.onMessage("pokedex:toggle_favorite", (response) => {
     this.handleFavoriteUpdate(response);
   });
 
   // Réception quick actions
-  this.gameRoom.onMessage("pokedex:quick_action:response", (response) => {
+  this.gameRoom.onMessage("pokedex:quick_action", (response) => {
     console.log('⚡ [PokedexUI] Action rapide confirmée:', response);
     if (response.success && response.data.action === 'force_sync' && this.isVisible) {
       this.safeReloadData();
     }
   });
 
-  // === NOTIFICATIONS/BROADCASTS (PAS de :response car ce sont des broadcasts) ===
-  // ✅ CORRECT: Les broadcasts n'ont pas ":response"
+  // === NOTIFICATIONS/BROADCASTS (restent identiques) ===
   this.gameRoom.onMessage("pokedex:discovery", (data) => {
     this.handleDiscoveryNotification(data);
   });
@@ -732,7 +731,7 @@ setupServerListeners() {
     console.log('🔥 [PokedexUI] Nouveau record streak:', data);
   });
 
-  console.log('📡 [PokedexUI] Listeners serveur configurés et CORRIGÉS');
+  console.log('📡 [PokedexUI] Listeners serveur FINAL corrigés');
 }
 
   requestPokedexData(filters = {}) {
