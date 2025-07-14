@@ -644,10 +644,7 @@ if (!connectionSuccess) {
         }
         
         console.log('✅ [MAIN] Système d\'encounters initialisé avec succès');
-        
-        if (typeof window.onSystemInitialized === 'function') {
-          window.onSystemInitialized('encounters');
-        }
+      
         
         return encounterManager;
         
@@ -723,10 +720,7 @@ if (!connectionSuccess) {
                   return false;
                 }
               };
-              
-              if (typeof window.onSystemInitialized === 'function') {
-                window.onSystemInitialized('battle');
-              }
+        
             } else {
               console.error('❌ [MAIN] Échec initialisation système de combat');
             }
