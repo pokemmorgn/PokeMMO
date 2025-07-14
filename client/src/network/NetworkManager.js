@@ -316,6 +316,25 @@ export class NetworkManager {
       // Le MovementBlockHandler gérera automatiquement via ses listeners
     });
 
+    // Dans setupRoomListeners(), après les autres handlers :
+
+// ✅ Handler pour pong - délègue au ConnectionManager
+this.room.onMessage("pong", (data) => {
+  console.log(`🏓 [NetworkManager] Pong reçu, délégation au ConnectionManager`);
+  this.connectionManager.handlePongFromServer(data);
+});
+
+// ✅ Handler pour erreurs - délègue au ConnectionManager  
+this.room.onError((error) => {
+  console.error(`🚨 [NetworkManager] Erreur room, délégation au ConnectionManager`);
+  this.connectionManager.handleErrorFromServer(error);
+});
+
+// ✅ Handler pour déconnexions - délègue au ConnectionManager
+this.room.onLeave((code) => {
+  console.warn(`📤 [NetworkManager] Déconnexion room, délégation au ConnectionManager`);
+  this.connectionManager.handleLeaveFromServer(code);
+});
     this.room.onMessage("movementUnblocked", (data) => {
       console.log('🔓 [NetworkManager] Mouvement débloqué:', data);
       // Le MovementBlockHandler gérera automatiquement via ses listeners
