@@ -457,15 +457,14 @@ export class PrologueManager {
     // Ajuster à la taille de la box (format rectangulaire)
     const scaleX = boxWidth / visionImage.width;
     const scaleY = boxHeight / visionImage.height;
-    const scale = Math.min(scaleX, scaleY) * 0.85; // Un peu plus petit pour l'effet flottant
+    const scale = Math.min(scaleX, scaleY) * 0.85;
     visionImage.setScale(scale);
     
     // Effet de transe INTENSE - très flou et désaturé
     visionImage.setAlpha(0);
-    visionImage.setTint(0x888888); // Très désaturé pour effet onirique
+    visionImage.setTint(0x888888);
     
-    // Ajouter un effet de blur avec un filtre (si disponible)
-    // En alternative, on utilise plusieurs couches semi-transparentes
+    // Ajouter les couches de flou
     const blurLayer1 = this.scene.add.image(2, 2, imageKey);
     blurLayer1.setScale(scale * 1.02);
     blurLayer1.setAlpha(0);
@@ -478,56 +477,95 @@ export class PrologueManager {
     
     this.dreamBox.add([blurLayer1, blurLayer2, visionImage]);
     
-    // Animation d'apparition très floue et lente
-    this.scene.tweens.add({
-      targets: [visionImage, blurLayer1, blurLayer2],
-      alpha: [0.4, 0.15, 0.1], // Très transparent pour effet fantomatique
-      duration: 1500, // Plus lent
-      ease: 'Power3'
-    });
-    
-    // Mouvement hypnotique et flottant
+    // Animation d'apparition PLUS VISIBLE
     this.scene.tweens.add({
       targets: visionImage,
-      scaleX: scale * 1.15,
-      scaleY: scale * 1.15,
-      rotation: (Math.random() - 0.5) * 0.2, // Rotation plus prononcée
-      y: (Math.random() - 0.5) * 20, // Mouvement vertical flottant
-      duration: duration,
-      ease: 'Sine.easeInOut'
+      alpha: 0.8, // Plus visible
+      duration: 1000, // Plus lent
+      ease: 'Power2'
     });
     
-    // Mouvement des couches de flou
     this.scene.tweens.add({
       targets: blurLayer1,
-      scaleX: scale * 1.2,
-      scaleY: scale * 1.2,
-      rotation: (Math.random() - 0.5) * 0.15,
-      duration: duration * 1.2,
-      ease: 'Sine.easeInOut'
+      alpha: 0.3, // Plus visible
+      duration: 1200,
+      ease: 'Power2'
     });
     
     this.scene.tweens.add({
       targets: blurLayer2,
+      alpha: 0.2, // Plus visible
+      duration: 1400,
+      ease: 'Power2'
+    });
+    
+    // Mouvement hypnotique pendant la durée visible
+    this.scene.tweens.add({
+      targets: visionImage,
       scaleX: scale * 1.1,
       scaleY: scale * 1.1,
-      rotation: (Math.random() - 0.5) * 0.25,
-      duration: duration * 0.8,
+      rotation: (Math.random() - 0.5) * 0.15,
+      y: (Math.random() - 0.5) * 15,
+      duration: duration - 2000, // Mouvement pendant presque toute la durée
       ease: 'Sine.easeInOut'
     });
     
-    // Animation de disparition très douce
-    this.scene.tweens.add({
-      targets: [visionImage, blurLayer1, blurLayer2],
-      alpha: 0,
-      duration: 2000, // Disparition plus lente
-      delay: duration - 2000,
-      ease: 'Power3',
-      onComplete: () => {
-        visionImage.destroy();
-        blurLayer1.destroy();
-        blurLayer2.destroy();
-      }
+    // EFFET D'ENVOL COMME SOUVENIR INSTABLE
+    const flyAwayDelay = duration - 2000; // Commencer l'envol 2 secondes avant la fin
+    
+    this.scene.time.delayedCall(flyAwayDelay, () => {
+      // Direction aléatoire pour l'envol
+      const flyDirection = Math.random() * Math.PI * 2; // Angle aléatoire
+      const flyDistance = 300 + Math.random() * 200; // Distance 300-500px
+      const flyX = Math.cos(flyDirection) * flyDistance;
+      const flyY = Math.sin(flyDirection) * flyDistance;
+      
+      // Envol de l'image principale
+      this.scene.tweens.add({
+        targets: visionImage,
+        x: flyX,
+        y: flyY,
+        alpha: 0,
+        scaleX: scale * 0.3, // Rétrécit en s'envolant
+        scaleY: scale * 0.3,
+        rotation: visionImage.rotation + (Math.random() - 0.5) * 2, // Rotation finale
+        duration: 2000,
+        ease: 'Power2',
+        onComplete: () => {
+          visionImage.destroy();
+        }
+      });
+      
+      // Envol des couches de flou (directions légèrement différentes)
+      this.scene.tweens.add({
+        targets: blurLayer1,
+        x: flyX + (Math.random() - 0.5) * 100,
+        y: flyY + (Math.random() - 0.5) * 100,
+        alpha: 0,
+        scaleX: scale * 0.2,
+        scaleY: scale * 0.2,
+        rotation: blurLayer1.rotation + (Math.random() - 0.5) * 1.5,
+        duration: 2200,
+        ease: 'Power2',
+        onComplete: () => {
+          blurLayer1.destroy();
+        }
+      });
+      
+      this.scene.tweens.add({
+        targets: blurLayer2,
+        x: flyX + (Math.random() - 0.5) * 120,
+        y: flyY + (Math.random() - 0.5) * 120,
+        alpha: 0,
+        scaleX: scale * 0.1,
+        scaleY: scale * 0.1,
+        rotation: blurLayer2.rotation + (Math.random() - 0.5) * 1.8,
+        duration: 2400,
+        ease: 'Power2',
+        onComplete: () => {
+          blurLayer2.destroy();
+        }
+      });
     });
   }
 
