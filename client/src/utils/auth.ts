@@ -1,14 +1,11 @@
 export function isDev(): boolean {
-  const token = localStorage.getItem('sessionToken');
+  const token = sessionStorage.getItem('sessionToken');
   if (!token) return false;
-
   try {
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
     return decoded.isDev || false;
-  } catch (error) {
-    return false;
-  }
+  } catch { return false; }
 }
 
 export function getCurrentUser() {
