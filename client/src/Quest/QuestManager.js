@@ -1,5 +1,5 @@
-// Quest/QuestManager.js - SYSTÈME D'ÉTATS SIMPLE COMME UNREAL ENGINE
-// 🎯 État dialogue = TOUT BLOQUÉ. Simple et efficace.
+// Quest/QuestManager.js - AVEC INTÉGRATION NETWORKMANAGER COMPLÈTE
+// 🎯 État dialogue = TOUT BLOQUÉ + Connexion NetworkManager + Handlers serveur
 
 export class QuestManager {
   constructor(gameRoom) {
@@ -32,6 +32,7 @@ export class QuestManager {
     
     // === CONNEXIONS ===
     this.questUI = null;
+    this.networkManager = null; // ✅ NOUVEAU: Référence NetworkManager
     
     // === CONFIG ===
     this.config = {
@@ -40,7 +41,7 @@ export class QuestManager {
       maxHandlerRetries: 5
     };
     
-    console.log('📖 [QuestManager] Instance créée - État simple');
+    console.log('📖 [QuestManager] Instance créée - Intégration NetworkManager');
     
     // Si gameRoom fournie, commencer l'initialisation
     if (gameRoom) {
@@ -170,9 +171,73 @@ export class QuestManager {
     }
   }
   
+  // === ✅ NOUVEAU: CONNEXION NETWORKMANAGER ===
+  
+  connectNetworkManager(networkManager) {
+    console.log('🔗 [QuestManager] Connexion NetworkManager...');
+    
+    if (!networkManager) {
+      console.warn('⚠️ [QuestManager] NetworkManager null');
+      return false;
+    }
+    
+    this.networkManager = networkManager;
+    
+    // ✅ S'abonner aux callbacks NetworkManager pour les quests
+    if (typeof networkManager.onNpcInteraction === 'function') {
+      console.log('📡 [QuestManager] Abonnement onNpcInteraction...');
+      
+      networkManager.onNpcInteraction((data) => {
+        console.log('📨 [QuestManager] Message NPC via NetworkManager:', data);
+        this.handleNetworkManagerResponse(data);
+      });
+      
+      console.log('✅ [QuestManager] NetworkManager connecté');
+      return true;
+    } else {
+      console.warn('⚠️ [QuestManager] NetworkManager.onNpcInteraction non disponible');
+      return false;
+    }
+  }
+  
+  // ✅ NOUVEAU: Handler pour réponses NetworkManager
+  handleNetworkManagerResponse(data) {
+    console.log('📨 [QuestManager] === RÉPONSE NETWORKMANAGER ===');
+    console.log('📊 Data:', data);
+    
+    // Vérifier si c'est une réponse quest
+    if (!this.isQuestRelatedResponse(data)) {
+      console.log('ℹ️ [QuestManager] Réponse non-quest, ignorée');
+      return;
+    }
+    
+    // Déléguer au handler serveur normal
+    this.handleServerResponse(data);
+  }
+  
+  // ✅ NOUVEAU: Détection réponse quest
+  isQuestRelatedResponse(data) {
+    if (!data) return false;
+    
+    const questIndicators = [
+      data.type === 'questGiver',
+      data.type === 'questComplete',
+      data.type === 'quest',
+      data.availableQuests && Array.isArray(data.availableQuests),
+      data.questData !== undefined,
+      data.questId !== undefined,
+      data.questStarted === true,
+      data.questCompleted === true,
+      data.questName !== undefined,
+      data.questProgress !== undefined
+    ];
+    
+    return questIndicators.some(indicator => indicator);
+  }
+  
   // === 🚀 INITIALISATION PUBLIQUE ===
   
-  async init(gameRoom = null) {
+  async init(gameRoom = null, networkManager = null) {
     console.log('🚀 [QuestManager] Initialisation...');
     
     try {
@@ -182,6 +247,19 @@ export class QuestManager {
       
       if (!this.gameRoom) {
         throw new Error('Aucune GameRoom');
+      }
+      
+      // ✅ NOUVEAU: Connecter NetworkManager si fourni
+      if (networkManager) {
+        this.connectNetworkManager(networkManager);
+      } else {
+        // Chercher NetworkManager global
+        if (window.globalNetworkManager) {
+          console.log('🔍 [QuestManager] NetworkManager global trouvé');
+          this.connectNetworkManager(window.globalNetworkManager);
+        } else {
+          console.warn('⚠️ [QuestManager] Aucun NetworkManager disponible');
+        }
       }
       
       // Attendre que le système soit prêt
@@ -231,12 +309,26 @@ export class QuestManager {
       return false;
     }
     
+    // ✅ PRIORISER NetworkManager si disponible
+    if (this.networkManager && typeof this.networkManager.sendMessage === 'function') {
+      console.log(`📤 [QuestManager] Envoi via NetworkManager: ${messageType}`, data);
+      
+      try {
+        this.networkManager.sendMessage(messageType, data);
+        return true;
+      } catch (error) {
+        console.error(`❌ [QuestManager] Erreur NetworkManager:`, error);
+        // Fallback vers gameRoom
+      }
+    }
+    
+    // Fallback GameRoom direct
     if (!this.gameRoom || typeof this.gameRoom.send !== 'function') {
       console.error('❌ [QuestManager] GameRoom non disponible');
       return false;
     }
     
-    console.log(`📤 [QuestManager] Envoi: ${messageType}`, data);
+    console.log(`📤 [QuestManager] Envoi direct GameRoom: ${messageType}`, data);
     
     try {
       this.gameRoom.send(messageType, data);
@@ -262,6 +354,7 @@ export class QuestManager {
   }
   
   startQuest(questId) {
+    console.log(`🎯 [QuestManager] Démarrage quête: ${questId}`);
     return this.sendRequest("startQuest", { questId });
   }
   
@@ -299,7 +392,11 @@ export class QuestManager {
     if (data.type === 'questComplete') {
       console.log('✅ [QuestManager] Quest Complete');
       this.setDialogueState('SHOWING_COMPLETION');
+      
       // Afficher dialogue de complétion
+      this.showNotification('Quête terminée ! Félicitations !', 'success');
+      
+      // Programmer fermeture dialogue
       setTimeout(() => this.setDialogueState('NONE'), 3000);
       return 'QUEST_COMPLETED';
     }
@@ -349,6 +446,12 @@ export class QuestManager {
       this.availableQuests = questArray.filter(quest => quest && quest.id);
       
       console.log(`📊 [QuestManager] ${this.availableQuests.length} quêtes disponibles`);
+      
+      // ✅ NOUVEAU: Si on était en attente de quêtes, les afficher maintenant
+      if (this.dialogueState === 'NONE' && this.availableQuests.length > 0) {
+        console.log('🎭 [QuestManager] Affichage quêtes disponibles reçues');
+        this.showQuestSelectionDialog('Quêtes disponibles', this.availableQuests);
+      }
       
     } catch (error) {
       console.error('❌ [QuestManager] Erreur traitement quêtes disponibles:', error);
@@ -410,6 +513,81 @@ export class QuestManager {
     setTimeout(() => this.requestQuestData(), 500);
   }
   
+  // === ✅ NOUVEAU: HANDLER UNIFIÉ POUR SERVEUR ===
+  
+  handleServerResponse(responseData) {
+    console.log('📨 [QuestManager] === RÉPONSE SERVEUR UNIFIÉE ===');
+    console.log('📊 Type:', responseData.type);
+    console.log('📊 Data:', responseData);
+    
+    // Arrêter processing si actif
+    this.stopProcessing();
+    
+    switch (responseData.type) {
+      case 'questGiver':
+        this.handleQuestGiverResponse(responseData);
+        break;
+        
+      case 'questComplete':
+        this.handleQuestCompleteResponse(responseData);
+        break;
+        
+      case 'quest':
+        this.handleGenericQuestResponse(responseData);
+        break;
+        
+      default:
+        console.warn('⚠️ [QuestManager] Type de réponse non géré:', responseData.type);
+        this.handleGenericQuestResponse(responseData);
+    }
+  }
+  
+  handleQuestGiverResponse(data) {
+    console.log('🎁 [QuestManager] Réponse Quest Giver');
+    
+    if (data.availableQuests && Array.isArray(data.availableQuests)) {
+      console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
+      this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
+    } else if (data.message) {
+      this.showNotification(data.message, 'info');
+    }
+  }
+  
+  handleQuestCompleteResponse(data) {
+    console.log('✅ [QuestManager] Réponse Quest Complete');
+    
+    this.setDialogueState('SHOWING_COMPLETION');
+    this.showNotification(data.message || 'Quête terminée !', 'success');
+    
+    if (data.rewards) {
+      console.log('🎁 [QuestManager] Récompenses:', data.rewards);
+    }
+    
+    setTimeout(() => this.setDialogueState('NONE'), 3000);
+  }
+  
+  handleGenericQuestResponse(data) {
+    console.log('📝 [QuestManager] Réponse quest générique');
+    
+    if (data.message) {
+      this.showNotification(data.message, 'info');
+    }
+    
+    if (data.questStarted) {
+      this.triggerCallback('onQuestStarted', data);
+    }
+    
+    if (data.questCompleted) {
+      this.triggerCallback('onQuestCompleted', data);
+    }
+  }
+  
+  stopProcessing() {
+    // Méthode pour compatibilité avec InteractionNpcManager
+    // QuestManager n'a pas de processing au sens strict
+    console.log('✅ [QuestManager] Stop processing (compat)');
+  }
+  
   // === 🎭 DIALOGUES ===
   
   showQuestSelectionDialog(title, quests) {
@@ -427,6 +605,9 @@ export class QuestManager {
       // Fallback: démarrer automatiquement la première quête
       if (quests.length === 1) {
         this.startQuest(quests[0].id);
+      } else if (quests.length > 1) {
+        // Afficher une sélection simple
+        this.showSimpleQuestSelection(title, quests);
       }
       return true;
     }
@@ -443,6 +624,24 @@ export class QuestManager {
     });
     
     return true;
+  }
+  
+  // ✅ NOUVEAU: Fallback pour sélection simple
+  showSimpleQuestSelection(title, quests) {
+    console.log('📋 [QuestManager] Sélection simple fallback');
+    
+    const questList = quests.map((quest, index) => 
+      `${index + 1}. ${quest.name || 'Quête sans nom'}`
+    ).join('\n');
+    
+    this.showNotification(`${title}:\n${questList}\n(Première quête sélectionnée automatiquement)`, 'info');
+    
+    // Auto-select première quête après un délai
+    setTimeout(() => {
+      if (quests.length > 0) {
+        this.startQuest(quests[0].id);
+      }
+    }, 2000);
   }
   
   // === 📊 STATS ET CALLBACKS ===
@@ -522,6 +721,21 @@ export class QuestManager {
     return this.activeQuests.length > 0;
   }
   
+  // === ✅ NOUVEAU: DEBUG NETWORKMANAGER ===
+  
+  debugNetworkManagerConnection() {
+    return {
+      hasNetworkManager: !!this.networkManager,
+      networkManagerMethods: this.networkManager ? {
+        hasOnNpcInteraction: !!(this.networkManager.onNpcInteraction),
+        hasSendMessage: !!(this.networkManager.sendMessage),
+        hasGetSessionId: !!(this.networkManager.getSessionId),
+        isConnected: this.networkManager.isConnected || false
+      } : null,
+      globalNetworkManager: !!window.globalNetworkManager
+    };
+  }
+  
   getDebugInfo() {
     return {
       systemState: this.systemState,
@@ -531,7 +745,8 @@ export class QuestManager {
       availableQuestCount: this.availableQuests.length,
       hasGameRoom: !!this.gameRoom,
       hasQuestUI: !!this.questUI,
-      canProcessInteraction: this.canProcessInteraction()
+      canProcessInteraction: this.canProcessInteraction(),
+      networkManagerConnection: this.debugNetworkManagerConnection()
     };
   }
   
@@ -558,6 +773,7 @@ export class QuestManager {
     // Reset connexions
     this.gameRoom = null;
     this.questUI = null;
+    this.networkManager = null; // ✅ NOUVEAU
     
     // Reset état
     this.initialized = false;
@@ -569,22 +785,23 @@ export class QuestManager {
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER - ÉTAT MACHINE SIMPLE ===
+📖 === QUEST MANAGER AVEC NETWORKMANAGER ===
 
-🎯 COMME UNREAL ENGINE:
-✅ État dialogue = TOUT BLOQUÉ
-✅ canProcessInteraction() vérifie TOUT
-✅ setDialogueState() contrôle les transitions
-✅ Pas de boucles - une interaction = un traitement
+✅ NOUVELLES INTÉGRATIONS:
+1. connectNetworkManager() - Connexion automatique
+2. handleNetworkManagerResponse() - Handler unifié
+3. sendRequest() via NetworkManager en priorité
+4. isQuestRelatedResponse() - Filtrage intelligent
+5. Fallback simple quest selection si pas d'UI
 
-🔧 ÉTATS SIMPLES:
-• systemState: UNINITIALIZED → WAITING_ROOM → READY → ERROR
-• dialogueState: NONE → SHOWING_QUEST_SELECTION → NONE
+🔗 FLUX NETWORKMANAGER:
+NetworkManager.onNpcInteraction → QuestManager.handleNetworkManagerResponse
+→ QuestManager.handleServerResponse → Actions spécialisées
 
-🚫 PROTECTION ANTI-BOUCLE:
+🚫 PROTECTION ANTI-BOUCLES:
 • canProcessInteraction() = false si dialogue actif
 • setDialogueState('NONE') après chaque action
-• Pas de callback qui re-trigger
+• Pas de callback qui re-trigger dans les handlers
 
-✅ SIMPLE ET EFFICACE !
+✅ QUEST MANAGER PRÊT POUR L'INTÉGRATION !
 `);
