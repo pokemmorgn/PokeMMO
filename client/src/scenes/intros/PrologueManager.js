@@ -32,6 +32,7 @@ export class PrologueManager {
         { image: 'vision5' }  // L'Observateur (fin, plus long)
       ]
     };
+    console.log('[Prologue] 🐛 DEBUG: duration configurée à', this.config.duration, 'ms');
   }
 
   // === PRELOAD DES IMAGES DE VISION ===
