@@ -448,6 +448,12 @@ export class PrologueManager {
   }
 
   showDreamVision(imageKey, duration) {
+    // Vérifier que la dreamBox existe encore
+    if (!this.dreamBox || !this.scene) {
+      console.warn('[Prologue] DreamBox déjà détruite, skip vision');
+      return;
+    }
+    
     const boxWidth = 300;
     const boxHeight = 210;
     
@@ -475,7 +481,16 @@ export class PrologueManager {
     blurLayer2.setAlpha(0);
     blurLayer2.setTint(0x999999);
     
-    this.dreamBox.add([blurLayer1, blurLayer2, visionImage]);
+    // Vérifier encore avant d'ajouter
+    if (this.dreamBox) {
+      this.dreamBox.add([blurLayer1, blurLayer2, visionImage]);
+    } else {
+      // Si dreamBox n'existe plus, détruire les images
+      visionImage.destroy();
+      blurLayer1.destroy();
+      blurLayer2.destroy();
+      return;
+    }
     
     // Animation d'apparition PLUS VISIBLE
     this.scene.tweens.add({
@@ -514,6 +529,9 @@ export class PrologueManager {
     const flyAwayDelay = duration - 2000; // Commencer l'envol 2 secondes avant la fin
     
     this.scene.time.delayedCall(flyAwayDelay, () => {
+      // Vérifier que les objets existent encore
+      if (!visionImage || !visionImage.scene) return;
+      
       // Direction aléatoire pour l'envol
       const flyDirection = Math.random() * Math.PI * 2; // Angle aléatoire
       const flyDistance = 300 + Math.random() * 200; // Distance 300-500px
@@ -532,40 +550,50 @@ export class PrologueManager {
         duration: 2000,
         ease: 'Power2',
         onComplete: () => {
-          visionImage.destroy();
+          if (visionImage && visionImage.destroy) {
+            visionImage.destroy();
+          }
         }
       });
       
       // Envol des couches de flou (directions légèrement différentes)
-      this.scene.tweens.add({
-        targets: blurLayer1,
-        x: flyX + (Math.random() - 0.5) * 100,
-        y: flyY + (Math.random() - 0.5) * 100,
-        alpha: 0,
-        scaleX: scale * 0.2,
-        scaleY: scale * 0.2,
-        rotation: blurLayer1.rotation + (Math.random() - 0.5) * 1.5,
-        duration: 2200,
-        ease: 'Power2',
-        onComplete: () => {
-          blurLayer1.destroy();
-        }
-      });
+      if (blurLayer1 && blurLayer1.scene) {
+        this.scene.tweens.add({
+          targets: blurLayer1,
+          x: flyX + (Math.random() - 0.5) * 100,
+          y: flyY + (Math.random() - 0.5) * 100,
+          alpha: 0,
+          scaleX: scale * 0.2,
+          scaleY: scale * 0.2,
+          rotation: blurLayer1.rotation + (Math.random() - 0.5) * 1.5,
+          duration: 2200,
+          ease: 'Power2',
+          onComplete: () => {
+            if (blurLayer1 && blurLayer1.destroy) {
+              blurLayer1.destroy();
+            }
+          }
+        });
+      }
       
-      this.scene.tweens.add({
-        targets: blurLayer2,
-        x: flyX + (Math.random() - 0.5) * 120,
-        y: flyY + (Math.random() - 0.5) * 120,
-        alpha: 0,
-        scaleX: scale * 0.1,
-        scaleY: scale * 0.1,
-        rotation: blurLayer2.rotation + (Math.random() - 0.5) * 1.8,
-        duration: 2400,
-        ease: 'Power2',
-        onComplete: () => {
-          blurLayer2.destroy();
-        }
-      });
+      if (blurLayer2 && blurLayer2.scene) {
+        this.scene.tweens.add({
+          targets: blurLayer2,
+          x: flyX + (Math.random() - 0.5) * 120,
+          y: flyY + (Math.random() - 0.5) * 120,
+          alpha: 0,
+          scaleX: scale * 0.1,
+          scaleY: scale * 0.1,
+          rotation: blurLayer2.rotation + (Math.random() - 0.5) * 1.8,
+          duration: 2400,
+          ease: 'Power2',
+          onComplete: () => {
+            if (blurLayer2 && blurLayer2.destroy) {
+              blurLayer2.destroy();
+            }
+          }
+        });
+      }
     });
   }
 
