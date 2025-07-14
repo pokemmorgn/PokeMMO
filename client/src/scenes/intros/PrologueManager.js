@@ -9,6 +9,7 @@ export class PrologueManager {
     this.container = null;
     this.effects = [];
     this.texts = [];
+    this.dreamBox = null;
     this.onCompleteCallback = null;
     
     // Configuration du prologue
@@ -23,11 +24,11 @@ export class PrologueManager {
         { text: "But in this troubled world, you are not alone...", delay: 16300, duration: 2500 }
       ],
       visions: [
-        { image: 'vision1', delay: 1500, duration: 3000, alpha: 0.3 }, // L'Harmonie (début)
-        { image: 'vision2', delay: 3000, duration: 2500, alpha: 0.4 }, // Le Pacte (se superpose à vision1)
-        { image: 'vision3', delay: 5500, duration: 2000, alpha: 0.5 }, // La Trahison (plus intense)
-        { image: 'vision4', delay: 7000, duration: 3000, alpha: 0.6 }, // La Corruption (climax)
-        { image: 'vision5', delay: 11000, duration: 4000, alpha: 0.3 }  // L'Observateur (fin, plus long)
+        { image: 'vision1' }, // L'Harmonie (début)
+        { image: 'vision2' }, // Le Pacte (se superpose à vision1)
+        { image: 'vision3' }, // La Trahison (plus intense)
+        { image: 'vision4' }, // La Corruption (climax)
+        { image: 'vision5' }  // L'Observateur (fin, plus long)
       ]
     };
   }
@@ -369,46 +370,137 @@ export class PrologueManager {
   createVisionSequence() {
     const camera = this.scene.cameras.main;
     
-    this.config.visions.forEach((vision, index) => {
-      this.scene.time.delayedCall(vision.delay, () => {
-        this.showVision(vision.image, vision.duration, vision.alpha, camera);
-      });
+    // Créer la box de rêve centrée
+    this.createDreamBox(camera);
+    
+    // Démarrer le slideshow de visions
+    this.startDreamSlideshow();
+  }
+
+  createDreamBox(camera) {
+    const boxSize = 300; // Taille carrée fixe
+    const centerX = camera.width / 2;
+    const centerY = camera.height / 2;
+    
+    // Container pour la box de rêve
+    this.dreamBox = this.scene.add.container(centerX, centerY);
+    this.container.add(this.dreamBox);
+    
+    // Fond semi-transparent avec bordure douce
+    const dreamBg = this.scene.add.rectangle(0, 0, boxSize + 20, boxSize + 20, 0x000000, 0.6);
+    dreamBg.setStrokeStyle(2, 0x4a90e2, 0.5);
+    
+    // Effet de lueur autour de la box
+    const glow = this.scene.add.rectangle(0, 0, boxSize + 40, boxSize + 40, 0x4a90e2, 0.1);
+    
+    this.dreamBox.add([glow, dreamBg]);
+    this.effects.push(this.dreamBox);
+    
+    // Animation de pulsation douce de la box
+    this.scene.tweens.add({
+      targets: glow,
+      alpha: 0.2,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 3000,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
     });
   }
 
-  showVision(imageKey, duration, alpha, camera) {
+  startDreamSlideshow() {
+    let currentVisionIndex = 0;
+    const visions = this.config.visions;
+    const dreamTransitionDuration = 3000; // 3 secondes par image
+    
+    const showNextVision = () => {
+      if (currentVisionIndex >= visions.length) {
+        // Fin du slideshow
+        this.scene.time.delayedCall(2000, () => {
+          this.fadeDreamBox();
+        });
+        return;
+      }
+      
+      const vision = visions[currentVisionIndex];
+      this.showDreamVision(vision.image, dreamTransitionDuration);
+      
+      currentVisionIndex++;
+      
+      // Programmer la prochaine vision
+      this.scene.time.delayedCall(dreamTransitionDuration, showNextVision);
+    };
+    
+    // Démarrer le slideshow après un petit délai
+    this.scene.time.delayedCall(1500, showNextVision);
+  }
+
+  showDreamVision(imageKey, duration) {
+    const boxSize = 300;
+    
     // Créer l'image de vision
-    const visionImage = this.scene.add.image(
-      camera.width / 2,
-      camera.height / 2,
-      imageKey
-    ).setOrigin(0.5).setAlpha(0).setDepth(9500);
-
-    // Ajuster la taille pour qu'elle s'adapte à l'écran (réduit de 20%)
-    const scaleX = camera.width / visionImage.width;
-    const scaleY = camera.height / visionImage.height;
-    const scale = Math.min(scaleX, scaleY) * 0.64; // 64% de l'écran max (80% - 20%)
+    const visionImage = this.scene.add.image(0, 0, imageKey);
+    
+    // Ajuster à la taille carrée de la box
+    const scale = boxSize / Math.max(visionImage.width, visionImage.height);
     visionImage.setScale(scale);
-
-    this.container.add(visionImage);
-    this.effects.push(visionImage);
-
-    // Animation fade in
+    
+    // Effet de flou/rêve - pas net
+    visionImage.setAlpha(0);
+    visionImage.setTint(0xcccccc); // Légèrement désaturé
+    
+    // Ajouter un masque carré
+    const mask = this.scene.add.graphics();
+    mask.fillStyle(0xffffff);
+    mask.fillRect(-boxSize/2, -boxSize/2, boxSize, boxSize);
+    visionImage.setMask(mask.createGeometryMask());
+    
+    this.dreamBox.add([visionImage, mask]);
+    
+    // Animation d'apparition floue
     this.scene.tweens.add({
       targets: visionImage,
-      alpha: alpha,
+      alpha: 0.7, // Pas complètement opaque pour l'effet rêve
       duration: 800,
       ease: 'Power2'
     });
-
-    // Animation fade out
+    
+    // Mouvement lent et onirique
+    this.scene.tweens.add({
+      targets: visionImage,
+      scaleX: scale * 1.1,
+      scaleY: scale * 1.1,
+      rotation: (Math.random() - 0.5) * 0.1, // Rotation subtile aléatoire
+      duration: duration,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Animation de disparition
     this.scene.tweens.add({
       targets: visionImage,
       alpha: 0,
       duration: 1000,
       delay: duration - 1000,
-      ease: 'Power2'
+      ease: 'Power2',
+      onComplete: () => {
+        visionImage.destroy();
+        mask.destroy();
+      }
     });
+  }
+
+  fadeDreamBox() {
+    if (this.dreamBox) {
+      this.scene.tweens.add({
+        targets: this.dreamBox,
+        alpha: 0,
+        scaleX: 0.8,
+        scaleY: 0.8,
+        duration: 2000,
+        ease: 'Power2'
+      });
+    }
   }
 
   // === SÉQUENCE DE TEXTE ===
@@ -525,6 +617,7 @@ export class PrologueManager {
       this.container = null;
       this.effects = [];
       this.texts = [];
+      this.dreamBox = null;
       this.isPlaying = false;
       this.onCompleteCallback = null;
       
