@@ -1,10 +1,10 @@
-// client/src/network/NetworkManager.js - VERSION MISE À JOUR COMPLÈTE
-// ✅ Support interactions modernes + compatibilité + debugging amélioré
+// client/src/network/NetworkManager.js - VERSION AVEC CONNECTIONMANAGER INTÉGRÉ
+// ✅ Support reconnexion automatique + monitoring robuste
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { BattleNetworkHandler } from "./BattleNetworkHandler.js";
 import { sceneToZone, zoneToScene } from "../config/ZoneMapping.js";
-
+import { ConnectionManager } from "../managers/ConnectionManager.js";
 
 export class NetworkManager {
   /**
@@ -24,7 +24,7 @@ export class NetworkManager {
     this.lastReceivedZoneData = null;
     this.onTransitionValidation = null;
 
-     // ✅ NOUVEAU: Handler de combat spécialisé
+    // ✅ NOUVEAU: Handler de combat spécialisé
     this.battleNetworkHandler = null;
     
     // ✅ NOUVEAU: Données de mon joueur
@@ -36,10 +36,16 @@ export class NetworkManager {
 
     // ✅ NOUVEAU: Support interactions modernes
     this.interactionHistory = [];
+    
+    // ✅ INTÉGRATION CONNECTIONMANAGER - Remplace l'ancien connectionHealth
+    this.connectionManager = new ConnectionManager(this);
+    
+    // ✅ ANCIEN connectionHealth maintenu pour compatibilité (délègue au ConnectionManager)
     this.connectionHealth = {
-      lastPing: 0,
-      isHealthy: true,
-      reconnectAttempts: 0
+      get lastPing() { return this.connectionManager?.state?.lastPingTime || 0; },
+      get isHealthy() { return this.connectionManager?.state?.connectionQuality !== 'bad'; },
+      get reconnectAttempts() { return this.connectionManager?.reconnectAttempts || 0; },
+      get lastPong() { return this.connectionManager?.state?.lastPongTime || 0; }
     };
 
     this.transitionState = {
@@ -67,146 +73,200 @@ export class NetworkManager {
       onMyPlayerConfirmed: null,
       onMyPlayerMissing: null,
     };
+
+    // ✅ CONFIGURATION CALLBACKS CONNECTIONMANAGER
+    this.setupConnectionManagerCallbacks();
+    
+    console.log('🔧 [NetworkManager] Initialisé avec ConnectionManager intégré');
   }
 
- // Dans NetworkManager.js, remplacez la méthode connect() par :
-
-async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
-  try {
-    console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
-    console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
-
-    if (this.room) {
-      await this.disconnect();
-    }
-
-    // ✅ RÉCUPÉRER LE TOKEN DE SESSION
-    const userSession = this.getUserSession();
-    
-    const roomOptions = {
-      name: this.username,
-      spawnZone: spawnZone,
-      spawnX: spawnData.spawnX || 360,
-      spawnY: spawnData.spawnY || 120,
-      // ✅ AJOUTER LE TOKEN JWT
-      sessionToken: userSession?.sessionToken,
-      permissions: userSession?.permissions || ['play'],
-      ...spawnData
-    };
-
-    console.log(`[NetworkManager] 📝 Options de connexion:`, {
-      ...roomOptions,
-      sessionToken: roomOptions.sessionToken ? '***TOKEN***' : 'MISSING'
+  // ✅ CONFIGURATION DES CALLBACKS CONNECTIONMANAGER
+  setupConnectionManagerCallbacks() {
+    this.connectionManager.onReconnecting((attempt, maxAttempts) => {
+      console.log(`🔄 [NetworkManager] Reconnexion ${attempt}/${maxAttempts}`);
+      // Notifier l'UI via le système de notifications global
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          `Reconnexion automatique... (${attempt}/${maxAttempts})`,
+          'warning',
+          { duration: 3000, position: 'top-center' }
+        );
+      }
     });
 
-    this.room = await this.client.joinOrCreate("world", roomOptions);
-
-    this.sessionId = this.room.sessionId;
-    this.isConnected = true;
-    this.currentZone = spawnZone;
-    this.myPlayerConfirmed = false;
-    this.myPlayerData = null;
-    this.connectionHealth.reconnectAttempts = 0;
-
-    this.resetTransitionState();
-
-    console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
-
-    // PATCH DE SYNCHRONISATION
-    if (sceneInstance && typeof sceneInstance.setRoom === 'function') {
-      console.log('[NetworkManager] 🟢 Patch: Appel de setRoom() sur la scène', sceneInstance.constructor.name);
-      sceneInstance.setRoom(this.room);
-    }
-
-    this.setupRoomListeners();
-    this.startHealthMonitoring();
-    await this.initializeBattleSystem();
-    return true;
-
-  } catch (error) {
-    console.error("❌ Connection error:", error);
-    this.connectionHealth.reconnectAttempts++;
-    return false;
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
-getUserSession() {
-  try {
-    const encryptedSession = sessionStorage.getItem('pws_game_session');
-    if (!encryptedSession) {
-      console.warn('[NetworkManager] ❌ Aucune session de jeu trouvée');
-      return null;
-    }
-
-    const key = sessionStorage.getItem('pws_key');
-    if (!key) {
-      console.warn('[NetworkManager] ❌ Clé de session manquante');
-      return null;
-    }
-
-    const decoded = atob(encryptedSession);
-    const [dataStr, sessionKey] = decoded.split('|');
-    
-    if (sessionKey !== key) {
-      console.warn('[NetworkManager] ❌ Clé de session invalide');
-      return null;
-    }
-
-    const sessionData = JSON.parse(dataStr);
-    console.log('[NetworkManager] ✅ Session récupérée pour:', sessionData.username);
-    
-    return sessionData;
-    
-  } catch (error) {
-    console.error('[NetworkManager] ❌ Erreur lecture session:', error);
-    return null;
-  }
-}
-
-  // ✅ NOUVEAU: Monitoring de santé de connexion
-  startHealthMonitoring() {
-    // Ping périodique
-    setInterval(() => {
-      if (this.isConnected && this.room) {
-        this.sendPing();
+    this.connectionManager.onReconnected((stats) => {
+      console.log('🎉 [NetworkManager] Reconnexion réussie:', stats);
+      
+      // Restaurer les callbacks personnalisés
+      this.restoreCustomCallbacks();
+      
+      // Re-setup des listeners spécifiques
+      this.setupRoomListeners();
+      
+      // Notifier l'UI
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          'Connexion rétablie !',
+          'success',
+          { duration: 2000, position: 'top-center' }
+        );
       }
-    }, 30000); // Ping toutes les 30 secondes
+    });
+
+    this.connectionManager.onConnectionLost((stats) => {
+      console.warn('🚨 [NetworkManager] Connexion perdue:', stats);
+      this.isConnected = false;
+      
+      // Appeler le callback de déconnexion si pas en transition
+      if (!this.transitionState.isActive && this.callbacks.onDisconnect) {
+        this.callbacks.onDisconnect();
+      }
+    });
+
+    this.connectionManager.onMaxReconnectReached((attempts) => {
+      console.error('💀 [NetworkManager] Reconnexion impossible après', attempts, 'tentatives');
+      
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          'Connexion perdue définitivement. Rechargez la page (F5).',
+          'error',
+          { duration: 10000, position: 'top-center' }
+        );
+      }
+      
+      // Proposer de recharger la page après un délai
+      setTimeout(() => {
+        if (confirm('Impossible de rétablir la connexion. Recharger la page ?')) {
+          window.location.reload();
+        }
+      }, 5000);
+    });
   }
+
+  async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
+    try {
+      console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
+      console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
+
+      if (this.room) {
+        await this.disconnect();
+      }
+
+      // ✅ RÉCUPÉRER LE TOKEN DE SESSION
+      const userSession = this.getUserSession();
+      
+      const roomOptions = {
+        name: this.username,
+        spawnZone: spawnZone,
+        spawnX: spawnData.spawnX || 360,
+        spawnY: spawnData.spawnY || 120,
+        // ✅ AJOUTER LE TOKEN JWT
+        sessionToken: userSession?.sessionToken,
+        permissions: userSession?.permissions || ['play'],
+        ...spawnData
+      };
+
+      console.log(`[NetworkManager] 📝 Options de connexion:`, {
+        ...roomOptions,
+        sessionToken: roomOptions.sessionToken ? '***TOKEN***' : 'MISSING'
+      });
+
+      this.room = await this.client.joinOrCreate("world", roomOptions);
+
+      this.sessionId = this.room.sessionId;
+      this.isConnected = true;
+      this.currentZone = spawnZone;
+      this.myPlayerConfirmed = false;
+      this.myPlayerData = null;
+
+      this.resetTransitionState();
+
+      console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
+
+      // PATCH DE SYNCHRONISATION
+      if (sceneInstance && typeof sceneInstance.setRoom === 'function') {
+        console.log('[NetworkManager] 🟢 Patch: Appel de setRoom() sur la scène', sceneInstance.constructor.name);
+        sceneInstance.setRoom(this.room);
+      }
+
+      this.setupRoomListeners();
+      
+      // ✅ DÉMARRER LE CONNECTIONMANAGER AU LIEU DE L'ANCIEN HEALTH MONITORING
+      this.connectionManager.startMonitoring();
+      
+      await this.initializeBattleSystem();
+      return true;
+
+    } catch (error) {
+      console.error("❌ Connection error:", error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
+  getUserSession() {
+    try {
+      const encryptedSession = sessionStorage.getItem('pws_game_session');
+      if (!encryptedSession) {
+        console.warn('[NetworkManager] ❌ Aucune session de jeu trouvée');
+        return null;
+      }
+
+      const key = sessionStorage.getItem('pws_key');
+      if (!key) {
+        console.warn('[NetworkManager] ❌ Clé de session manquante');
+        return null;
+      }
+
+      const decoded = atob(encryptedSession);
+      const [dataStr, sessionKey] = decoded.split('|');
+      
+      if (sessionKey !== key) {
+        console.warn('[NetworkManager] ❌ Clé de session invalide');
+        return null;
+      }
+
+      const sessionData = JSON.parse(dataStr);
+      console.log('[NetworkManager] ✅ Session récupérée pour:', sessionData.username);
+      
+      return sessionData;
+      
+    } catch (error) {
+      console.error('[NetworkManager] ❌ Erreur lecture session:', error);
+      return null;
+    }
+  }
+
+  // ✅ SUPPRIMÉ: L'ancien startHealthMonitoring() - Remplacé par ConnectionManager
+  
+  // ✅ SUPPRIMÉ: L'ancien sendPing() - Géré par ConnectionManager
 
   async initializeBattleSystem() {
-  console.log('⚔️ [NetworkManager] Initialisation système de combat...');
-  
-  if (!this.room || !this.client) {
-    console.error('❌ [NetworkManager] Room ou Client manquant pour combat');
-    return false;
-  }
-  
-  try {
-    // Créer le BattleNetworkHandler
-    this.battleNetworkHandler = new BattleNetworkHandler(this);
+    console.log('⚔️ [NetworkManager] Initialisation système de combat...');
     
-    // L'initialiser avec les connexions existantes
-    const success = this.battleNetworkHandler.initialize(this.room, this.client);
-    
-    if (success) {
-      console.log('✅ [NetworkManager] Système de combat initialisé');
-      return true;
-    } else {
-      console.error('❌ [NetworkManager] Échec initialisation système de combat');
+    if (!this.room || !this.client) {
+      console.error('❌ [NetworkManager] Room ou Client manquant pour combat');
       return false;
     }
     
-  } catch (error) {
-    console.error('❌ [NetworkManager] Erreur initialisation combat:', error);
-    return false;
-  }
-}
-  
-  sendPing() {
-    if (this.room) {
-      this.connectionHealth.lastPing = Date.now();
-      this.room.send("ping", { timestamp: this.connectionHealth.lastPing });
+    try {
+      // Créer le BattleNetworkHandler
+      this.battleNetworkHandler = new BattleNetworkHandler(this);
+      
+      // L'initialiser avec les connexions existantes
+      const success = this.battleNetworkHandler.initialize(this.room, this.client);
+      
+      if (success) {
+        console.log('✅ [NetworkManager] Système de combat initialisé');
+        return true;
+      } else {
+        console.error('❌ [NetworkManager] Échec initialisation système de combat');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ [NetworkManager] Erreur initialisation combat:', error);
+      return false;
     }
   }
 
@@ -215,14 +275,9 @@ getUserSession() {
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-  // ✅ NOUVEAU (CORRIGÉ) - PLAYTIME
-this.room.onMessage("pong", (data) => {
-  const now = Date.now();
-  const latency = this.connectionHealth.lastPing ? now - this.connectionHealth.lastPing : 0;
-  this.connectionHealth.isHealthy = latency < 2000;
-  this.connectionHealth.lastPong = now;
-  console.log(`📡 Pong reçu (NetworkManager), latence: ${latency}ms, serveur: ${data.serverTime}`);
-});
+    // ✅ SUPPRIMÉ: L'ancien handler pong - Géré par ConnectionManager
+    // Le ConnectionManager configure automatiquement ses propres listeners pong
+
     // ✅ NOUVEAU: Handler pour confirmation de spawn
     this.room.onMessage("playerSpawned", (data) => {
       console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
@@ -255,17 +310,17 @@ this.room.onMessage("pong", (data) => {
       }
     });
 
-      // ✅ NOUVEAU: Handler spécialisé pour les blocages
-  this.room.onMessage("movementBlocked", (data) => {
-    console.log('🚫 [NetworkManager] Mouvement bloqué:', data);
-    // Le MovementBlockHandler gérera automatiquement via ses listeners
-  });
+    // ✅ NOUVEAU: Handler spécialisé pour les blocages
+    this.room.onMessage("movementBlocked", (data) => {
+      console.log('🚫 [NetworkManager] Mouvement bloqué:', data);
+      // Le MovementBlockHandler gérera automatiquement via ses listeners
+    });
 
-  this.room.onMessage("movementUnblocked", (data) => {
-    console.log('🔓 [NetworkManager] Mouvement débloqué:', data);
-    // Le MovementBlockHandler gérera automatiquement via ses listeners
-  });
-    
+    this.room.onMessage("movementUnblocked", (data) => {
+      console.log('🔓 [NetworkManager] Mouvement débloqué:', data);
+      // Le MovementBlockHandler gérera automatiquement via ses listeners
+    });
+      
     // ✅ NOUVEAU: Handler pour state forcé
     this.room.onMessage("forcedStateSync", (data) => {
       console.log(`🔄 [NetworkManager] === STATE FORCÉ REÇU ===`, data);
@@ -339,23 +394,22 @@ this.room.onMessage("pong", (data) => {
     });
 
     this.room.onMessage("forcePlayerPosition", (data) => {
-  //console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
-  // Ici tu fais le rollback de la position sur le client :
-  if (window.playerManager && typeof window.playerManager.forcePosition === "function") {
-    window.playerManager.forcePosition(data.x, data.y, data.direction, data.currentZone);
-  } else {
-    // Fallback : applique la position si tu stockes localement les coordonnées
-    if (this.myPlayerData) {
-      this.myPlayerData.x = data.x;
-      this.myPlayerData.y = data.y;
-      this.myPlayerData.direction = data.direction;
-      this.myPlayerData.currentZone = data.currentZone;
-    }
-    // Tu peux aussi forcer le redraw ici selon ta structure
-  }
-});
+      //console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
+      // Ici tu fais le rollback de la position sur le client :
+      if (window.playerManager && typeof window.playerManager.forcePosition === "function") {
+        window.playerManager.forcePosition(data.x, data.y, data.direction, data.currentZone);
+      } else {
+        // Fallback : applique la position si tu stockes localement les coordonnées
+        if (this.myPlayerData) {
+          this.myPlayerData.x = data.x;
+          this.myPlayerData.y = data.y;
+          this.myPlayerData.direction = data.direction;
+          this.myPlayerData.currentZone = data.currentZone;
+        }
+        // Tu peux aussi forcer le redraw ici selon ta structure
+      }
+    });
 
-    
     // ✅ AMÉLIORATION: onStateChange.once pour état initial
     this.room.onStateChange.once((state) => {
       console.log(`🎯 [NetworkManager] === ÉTAT INITIAL REÇU ===`, {
@@ -564,16 +618,23 @@ this.room.onMessage("pong", (data) => {
       // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
+    // ✅ MODIFIÉ: onLeave délègue au ConnectionManager
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
         this.isConnected = false;
         this.myPlayerConfirmed = false;
         this.myPlayerData = null;
-        if (this.callbacks.onDisconnect) {
-          this.callbacks.onDisconnect();
-        }
+        
+        // Le ConnectionManager gère automatiquement la reconnexion
+        // Ne pas appeler onDisconnect ici - le ConnectionManager s'en charge
       }
+    });
+
+    // ✅ MODIFIÉ: onError délègue au ConnectionManager  
+    this.room.onError((error) => {
+      console.error(`❌ [NetworkManager] Erreur room:`, error);
+      // Le ConnectionManager détectera automatiquement l'erreur et gèrera la reconnexion
     });
 
     if (this.callbacks.onConnect) {
@@ -932,11 +993,15 @@ this.room.onMessage("pong", (data) => {
   async disconnect() {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     this.resetTransitionState();
-    if (this.battleNetworkHandler) {
-    await this.battleNetworkHandler.destroy();
-    this.battleNetworkHandler = null;
-  }
     
+    // ✅ ARRÊTER LE CONNECTIONMANAGER
+    this.connectionManager.stopMonitoring();
+    
+    if (this.battleNetworkHandler) {
+      await this.battleNetworkHandler.destroy();
+      this.battleNetworkHandler = null;
+    }
+      
     this.myPlayerConfirmed = false;
     this.myPlayerData = null;
     
@@ -979,8 +1044,8 @@ this.room.onMessage("pong", (data) => {
   }
 
   mapSceneToZone(sceneName) {
-  return sceneToZone(sceneName);
-}
+    return sceneToZone(sceneName);
+  }
 
   async forceZoneSynchronization(currentScene) {
     console.log(`[NetworkManager] 🔄 Forcer la resynchronisation zone...`);
@@ -997,31 +1062,53 @@ this.room.onMessage("pong", (data) => {
     }
   }
 
-  // Ajoute ça à la fin de NetworkManager
-restoreCustomCallbacks() {
-  if (!this.room) return;
-  if (this.callbacks.onTransitionSuccess)
-    this.onTransitionSuccess(this.callbacks.onTransitionSuccess);
-  if (this.callbacks.onTransitionError)
-    this.onTransitionError(this.callbacks.onTransitionError);
-  if (this.callbacks.onNpcList)
-    this.onNpcList(this.callbacks.onNpcList);
-  if (this.callbacks.onTransitionValidation)
-    this.onTransitionValidation(this.callbacks.onTransitionValidation);
-  if (this.callbacks.onZoneData)
-    this.onZoneData(this.callbacks.onZoneData);
-  if (this.callbacks.onSnap)
-    this.onSnap(this.callbacks.onSnap);
-  if (this.callbacks.onNpcInteraction)
-    this.onNpcInteraction(this.callbacks.onNpcInteraction);
-  if (this.callbacks.onCurrentZone)
-    this.onCurrentZone(this.callbacks.onCurrentZone);
-  // Ajoute ici tout autre callback important...
-}
+  // ✅ MODIFIÉ: Restaurer les callbacks après reconnexion
+  restoreCustomCallbacks() {
+    if (!this.room) return;
+    
+    console.log('🔄 [NetworkManager] Restauration des callbacks après reconnexion...');
+    
+    if (this.callbacks.onTransitionSuccess)
+      this.onTransitionSuccess(this.callbacks.onTransitionSuccess);
+    if (this.callbacks.onTransitionError)
+      this.onTransitionError(this.callbacks.onTransitionError);
+    if (this.callbacks.onNpcList)
+      this.onNpcList(this.callbacks.onNpcList);
+    if (this.callbacks.onTransitionValidation)
+      this.onTransitionValidation(this.callbacks.onTransitionValidation);
+    if (this.callbacks.onZoneData)
+      this.onZoneData(this.callbacks.onZoneData);
+    if (this.callbacks.onSnap)
+      this.onSnap(this.callbacks.onSnap);
+    if (this.callbacks.onNpcInteraction)
+      this.onNpcInteraction(this.callbacks.onNpcInteraction);
+    if (this.callbacks.onCurrentZone)
+      this.onCurrentZone(this.callbacks.onCurrentZone);
+      
+    console.log('✅ [NetworkManager] Callbacks restaurés');
+  }
 
   getBattleNetworkHandler() {
-  return this.battleNetworkHandler;
-}
+    return this.battleNetworkHandler;
+  }
+
+  // ✅ NOUVEAU: Méthodes de gestion du ConnectionManager
+  
+  // Forcer une reconnexion manuelle
+  forceReconnection() {
+    console.log('🔧 [NetworkManager] Reconnexion forcée demandée');
+    this.connectionManager.forceReconnection();
+  }
+  
+  // Obtenir les stats de connexion
+  getConnectionStats() {
+    return this.connectionManager.getConnectionStats();
+  }
+  
+  // Tester la connexion
+  testConnection() {
+    return this.connectionManager.testConnection();
+  }
   
   // ✅ DEBUG ET MONITORING AMÉLIORÉS
   
@@ -1042,11 +1129,10 @@ restoreCustomCallbacks() {
     console.log(`✅ Confirmé: ${this.myPlayerConfirmed}`);
     console.log(`📊 Data:`, this.myPlayerData);
     
-    // ✅ NOUVEAU: Debug santé connexion
-    console.log(`📡 === SANTÉ CONNEXION ===`);
-    console.log(`💓 Healthy: ${this.connectionHealth.isHealthy}`);
-    console.log(`📍 Last ping: ${this.connectionHealth.lastPing}`);
-    console.log(`🔄 Reconnect attempts: ${this.connectionHealth.reconnectAttempts}`);
+    // ✅ NOUVEAU: Debug ConnectionManager
+    console.log(`🔌 === CONNECTION MANAGER ===`);
+    const connectionStats = this.getConnectionStats();
+    console.log(`📡 Stats connexion:`, connectionStats);
     
     // ✅ NOUVEAU: Debug interactions
     console.log(`🎭 === HISTORIQUE INTERACTIONS ===`);
@@ -1069,71 +1155,11 @@ restoreCustomCallbacks() {
     console.log(`================================`);
   }
 
-  // ✅ NOUVEAU: Test de connexion complet
-  testConnection() {
-    console.log(`🧪 [NetworkManager] === TEST CONNEXION COMPLET ===`);
-    
-    const tests = [
-      {
-        name: 'Room exists',
-        test: () => !!this.room,
-        critical: true
-      },
-      {
-        name: 'Connection open',
-        test: () => this.room?.connection?.isOpen,
-        critical: true
-      },
-      {
-        name: 'Player confirmed',
-        test: () => this.myPlayerConfirmed,
-        critical: true
-      },
-      {
-        name: 'Connection healthy',
-        test: () => this.connectionHealth.isHealthy,
-        critical: false
-      },
-      {
-        name: 'Can send messages',
-        test: () => this.isConnected && !this.isTransitioning,
-        critical: true
-      }
-    ];
-
-    let passed = 0;
-    let critical_failed = 0;
-
-    tests.forEach(test => {
-      const result = test.test();
-      const icon = result ? '✅' : test.critical ? '❌' : '⚠️';
-      console.log(`${icon} ${test.name}: ${result ? 'OK' : 'FAIL'}`);
-      
-      if (result) {
-        passed++;
-      } else if (test.critical) {
-        critical_failed++;
-      }
-    });
-
-    console.log(`🎯 Tests: ${passed}/${tests.length} réussis`);
-    
-    if (critical_failed > 0) {
-      console.log(`❌ ${critical_failed} tests critiques échoués - connexion non fonctionnelle`);
-      return false;
-    } else {
-      console.log(`✅ Connexion opérationnelle`);
-      return true;
-    }
-  }
-
-  // ✅ NOUVEAU: Statistiques réseau
+  // ✅ NOUVEAU: Statistiques réseau (délègue au ConnectionManager)
   getNetworkStats() {
+    const connectionStats = this.getConnectionStats();
     return {
-      isConnected: this.isConnected,
-      isHealthy: this.connectionHealth.isHealthy,
-      lastPing: this.connectionHealth.lastPing,
-      reconnectAttempts: this.connectionHealth.reconnectAttempts,
+      ...connectionStats,
       interactionsCount: this.interactionHistory.length,
       roomId: this.room?.id,
       playersInRoom: this.room?.state?.players?.size || 0,
@@ -1144,7 +1170,7 @@ restoreCustomCallbacks() {
   }
 }
 
-// ✅ Fonctions de debug globales
+// ✅ Fonctions de debug globales mises à jour
 window.debugNetworkManager = function() {
   if (window.globalNetworkManager) {
     return window.globalNetworkManager.debugState();
@@ -1163,6 +1189,39 @@ window.testNetworkConnection = function() {
   }
 };
 
-console.log('✅ NetworkManager mis à jour chargé!');
+// ✅ NOUVELLES FONCTIONS DE DEBUG CONNECTIONMANAGER
+window.debugConnectionManager = function() {
+  if (window.globalNetworkManager?.connectionManager) {
+    const stats = window.globalNetworkManager.connectionManager.getConnectionStats();
+    console.log('🔍 [ConnectionManager] Stats:', stats);
+    return stats;
+  } else {
+    console.error('❌ ConnectionManager non disponible');
+    return null;
+  }
+};
+
+window.forceReconnection = function() {
+  if (window.globalNetworkManager?.connectionManager) {
+    window.globalNetworkManager.connectionManager.forceReconnection();
+    return true;
+  } else {
+    console.error('❌ ConnectionManager non disponible');
+    return false;
+  }
+};
+
+window.getConnectionStats = function() {
+  if (window.globalNetworkManager) {
+    return window.globalNetworkManager.getNetworkStats();
+  } else {
+    console.error('❌ NetworkManager global non disponible');
+    return null;
+  }
+};
+
+console.log('✅ NetworkManager avec ConnectionManager intégré chargé!');
 console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
 console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
+console.log('🔄 Utilisez window.forceReconnection() pour forcer une reconnexion');
+console.log('📊 Utilisez window.getConnectionStats() pour les stats complètes');
