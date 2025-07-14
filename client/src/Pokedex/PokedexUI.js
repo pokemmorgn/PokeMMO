@@ -1,5 +1,5 @@
 // Pokedex/PokedexUI.js - Interface Pokédx CORRIGÉE
-// 🎮 Correction de la boucle infinie dans loadDefaultPokemonData()
+// 🎮 Correction de la boucle infinie + suppression des appels serveur inutiles
 
 import { POKEDEX_UI_STYLES } from './PokedexUICSS.js';
 import { pokedexDataManager } from './PokedexDataManager.js';
@@ -451,7 +451,7 @@ export class PokedexUI {
     // ✅ ATTACHER LES ÉVÉNEMENTS SEULEMENT À L'OUVERTURE
     this.ensureEventListeners();
     
-    // 🛠️ CHARGER LES DONNÉES EN SÉCURITÉ
+    // 🛠️ CHARGER LES DONNÉES EN SÉCURITÉ - SANS APPELER LE SERVEUR
     this.safeLoadAndRefresh();
     
     // Son d'ouverture nostalgique
@@ -460,7 +460,7 @@ export class PokedexUI {
     console.log('✅ [PokedexUI] Pokédx ouvert');
   }
 
-  // 🛠️ NOUVELLE MÉTHODE - Chargement sécurisé
+  // 🛠️ NOUVELLE MÉTHODE - Chargement sécurisé SANS appels serveur
   safeLoadAndRefresh() {
     console.log('🔒 [PokedexUI] Chargement et refresh sécurisés...');
     
@@ -470,8 +470,8 @@ export class PokedexUI {
     // Puis faire le refresh manuellement
     this.safeRefresh();
     
-    // Demander les données du serveur en parallèle
-    this.requestPokedexData();
+    // 🚫 SUPPRIMÉ: this.requestPokedexData(); 
+    // ✅ Les données sont déjà dans le DataManager !
   }
 
   // 🛠️ MÉTHODE CORRIGÉE - Protection contre la récursion
@@ -690,7 +690,7 @@ setupServerListeners() {
   });
 
   // Réception mark_seen
-  this.gameRoom.onMessage("pokedex:mark_seen", (response) => {
+  this.gameRoom.onMessage("pokedx:mark_seen", (response) => {
     console.log('✅ [PokedexUI] Mark seen confirmé:', response);
     if (response.success && this.isVisible) {
       this.safeReloadData();
@@ -734,23 +734,8 @@ setupServerListeners() {
   console.log('📡 [PokedexUI] Listeners serveur FINAL corrigés');
 }
 
-  requestPokedexData(filters = {}) {
-    // 🛠️ NE PAS charger les données locales ici pour éviter la récursion
-    
-    // Demander au serveur seulement
-    if (this.gameRoom) {
-      console.log('📡 [PokedexUI] Demande données Pokédx...', filters);
-      this.gameRoom.send("pokedex:get", {
-        filters: {
-          limit: this.itemsPerPage,
-          offset: this.currentPage * this.itemsPerPage,
-          sortBy: 'id',
-          sortOrder: 'asc',
-          ...filters
-        }
-      });
-    }
-  }
+  // 🚫 MÉTHODE SUPPRIMÉE - Plus d'appels serveur inutiles
+  // requestPokedexData() est maintenant supprimée complètement
 
   requestPokemonDetails(pokemonId) {
     if (this.gameRoom) {
@@ -801,7 +786,7 @@ setupServerListeners() {
     console.log('✅ [PokedexUI] Données traitées avec DataManager');
   }
 
-  // 🛠️ NOUVELLE MÉTHODE - Rechargement sécurisé
+  // 🛠️ NOUVELLE MÉTHODE - Rechargement sécurisé SANS appels serveur
   safeReloadData() {
     if (this._isLoadingData) {
       console.warn('⚠️ [PokedexUI] Chargement déjà en cours');
@@ -887,16 +872,18 @@ setupServerListeners() {
     this.updateStatsView();
   }
 
+  // 🛠️ MÉTHODES NOTIFICATIONS CORRIGÉES - Sans appels serveur
   handleDiscoveryNotification(data) {
     console.log('✨ [PokedexUI] Nouvelle découverte:', data);
     
     // Animation et son
     this.playDiscoverySound();
     
-    // Rafraîchir les données si le Pokédx est ouvert
+    // 🚫 SUPPRIMÉ: this.requestPokedexData(); 
+    // ✅ Les données seront mises à jour automatiquement par le système
     if (this.isVisible) {
       setTimeout(() => {
-        this.requestPokedexData();
+        this.safeReloadData();
       }, 1000);
     }
   }
@@ -907,10 +894,11 @@ setupServerListeners() {
     // Animation et son
     this.playCaptureSound();
     
-    // Rafraîchir les données si le Pokédx est ouvert
+    // 🚫 SUPPRIMÉ: this.requestPokedexData(); 
+    // ✅ Les données seront mises à jour automatiquement par le système
     if (this.isVisible) {
       setTimeout(() => {
-        this.requestPokedexData();
+        this.safeReloadData();
       }, 1000);
     }
   }
@@ -1529,6 +1517,7 @@ setupServerListeners() {
     }
   }
   
+  // 🛠️ MÉTHODE SYNC CORRIGÉE - Sans appel serveur automatique
   syncPokedex() {
     console.log('🔄 [PokedexUI] Synchronisation Pokédx...');
     
@@ -1546,10 +1535,8 @@ setupServerListeners() {
       }, 2000);
     }
     
-    // Recharger les données
-    setTimeout(() => {
-      this.requestPokedexData();
-    }, 1000);
+    // 🚫 SUPPRIMÉ: this.requestPokedexData(); 
+    // ✅ Les données viendront automatiquement via le système
   }
 
   updateLastSyncTime() {
