@@ -204,39 +204,41 @@ export class NetworkManager {
   }
 
   // ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
-  getUserSession() {
-    try {
-      const encryptedSession = sessionStorage.getItem('pws_game_session');
-      if (!encryptedSession) {
-        console.warn('[NetworkManager] ❌ Aucune session de jeu trouvée');
-        return null;
-      }
-
-      const key = sessionStorage.getItem('pws_key');
-      if (!key) {
-        console.warn('[NetworkManager] ❌ Clé de session manquante');
-        return null;
-      }
-
-      const decoded = atob(encryptedSession);
-      const [dataStr, sessionKey] = decoded.split('|');
-      
-      if (sessionKey !== key) {
-        console.warn('[NetworkManager] ❌ Clé de session invalide');
-        return null;
-      }
-
-      const sessionData = JSON.parse(dataStr);
-      console.log('[NetworkManager] ✅ Session récupérée pour:', sessionData.username);
-      
-      return sessionData;
-      
-    } catch (error) {
-      console.error('[NetworkManager] ❌ Erreur lecture session:', error);
-      return null;
-    }
+ getUserSession() {
+  const token = localStorage.getItem('sessionToken');
+  
+  if (!token) {
+    console.warn('[NetworkManager] ❌ Aucun token JWT trouvé');
+    return null;
   }
 
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload));
+    
+    // Vérifier expiration
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      console.warn('[NetworkManager] ❌ Token JWT expiré');
+      localStorage.removeItem('sessionToken');
+      return null;
+    }
+
+    console.log('[NetworkManager] ✅ JWT valide pour:', decoded.username);
+    
+    return {
+      username: decoded.username,
+      sessionToken: token,
+      userId: decoded.userId,
+      isDev: decoded.isDev || false,
+      permissions: decoded.permissions || ['play']
+    };
+    
+  } catch (error) {
+    console.error('[NetworkManager] ❌ Erreur JWT:', error);
+    localStorage.removeItem('sessionToken');
+    return null;
+  }
+}
   // ✅ SUPPRIMÉ: L'ancien startHealthMonitoring() - Remplacé par ConnectionManager
   
   // ✅ SUPPRIMÉ: L'ancien sendPing() - Géré par ConnectionManager
