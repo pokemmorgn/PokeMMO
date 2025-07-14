@@ -39,7 +39,7 @@ export class QuestModule extends BaseModule {
       await this.initializeManager();
       this.createComponents();
       await this.waitForComponentsReady();
-      await this.connectComponentsRobust();
+      this.connectComponents();
       await this.validateSystemIntegrity();
       this.startSystemMonitoring();
       
@@ -181,8 +181,16 @@ export class QuestModule extends BaseModule {
     return false;
   }
   
+  connectComponents() {
+    console.log('🔗 [QuestModule] Connexion composants (BaseModule)...');
+    
+    this.connectComponentsRobust();
+    
+    console.log('✅ [QuestModule] Composants en cours de connexion');
+  }
+  
   async connectComponentsRobust() {
-    console.log('🔗 [QuestModule] Connexion composants...');
+    console.log('🔗 [QuestModule] Connexion composants robuste...');
     
     let attempts = 0;
     while (attempts < this.maxRetries) {
