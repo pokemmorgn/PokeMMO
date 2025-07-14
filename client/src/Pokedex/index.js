@@ -123,26 +123,18 @@ export class PokedexModule extends BaseModule {
   /**
    * Demander les données Pokédx (override de la méthode générique)
    */
-show() {
-  const result = super.show();
-  
-  // 🛠️ DEMANDER LES DONNÉES SEULEMENT SI NÉCESSAIRE
-  if (this.system && this.system.dataManager) {
-    const currentEntries = this.system.dataManager.getAllPokemonEntries();
+  show() {
+    const result = super.show();
     
-    // Si pas encore de données OU très peu de données
-    if (currentEntries.length === 0) {
-      console.log('📡 [PokedexModule] Pas de données, demande au serveur...');
+    // Demander données Pokédx spécifiquement
+    if (this.system) {
       setTimeout(() => {
         this.system.requestPokedexData();
       }, 200);
-    } else {
-      console.log(`📊 [PokedexModule] Ouverture avec ${currentEntries.length} entrées déjà chargées`);
     }
+    
+    return result;
   }
-  
-  return result;
-}
   
   /**
    * Marquer un Pokémon comme vu
