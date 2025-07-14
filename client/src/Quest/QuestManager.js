@@ -1,5 +1,5 @@
-// Quest/QuestManager.js - Business Logic Quest Simplifié
-// 🎯 Gère UNIQUEMENT la logique métier, pas l'UI
+// Quest/QuestManager.js - Business Logic Quest Complet avec NPC Interaction
+// 🎯 Gère UNIQUEMENT la logique métier, pas l'UI + Interaction NPCs
 
 export class QuestManager {
   constructor(gameRoom) {
@@ -26,6 +26,7 @@ export class QuestManager {
     // === ÉTAT ===
     this.initialized = false;
     this.lastDataRequest = 0;
+    this.questUI = null;              // Référence vers QuestUI pour dialogues
     
     // === DÉDUPLICATION NOTIFICATIONS ===
     this.lastNotificationTime = new Map();
@@ -359,15 +360,373 @@ export class QuestManager {
     }
   }
   
+  // === 🗣️ GESTION INTERACTION NPC (NOUVELLE MÉTHODE) ===
+  
   handleNpcInteraction(data) {
-    console.log('🗣️ [QuestManager] Interaction NPC:', data);
+    console.log('🗣️ [QuestManager] Gestion interaction NPC:', data);
     
-    // Le QuestManager ne gère que la logique, pas l'UI
-    // Les dialogues seront gérés par QuestUI
-    
-    if (data.type === 'questGiver' && data.availableQuests) {
-      this.availableQuests = this.parseAvailableQuests(data.availableQuests);
+    try {
+      // Cas 1: Données complètes d'interaction
+      if (data && typeof data === 'object') {
+        return this.processNpcInteractionData(data);
+      }
+      
+      // Cas 2: Données NPC directes
+      if (data && (data.id || data.name)) {
+        return this.processNpcData(data);
+      }
+      
+      // Cas 3: Pas de données - dialogue générique
+      console.log('⚠️ [QuestManager] Aucune donnée NPC, pas de quête à traiter');
+      return 'NO_QUEST';
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur handleNpcInteraction:', error);
+      return false;
     }
+  }
+  
+  processNpcInteractionData(data) {
+    console.log('📊 [QuestManager] Traitement données interaction:', data);
+    
+    // Vérifier le type d'interaction
+    if (data.type === 'questGiver' && data.availableQuests) {
+      return this.handleQuestGiverInteraction(data);
+    }
+    
+    if (data.type === 'questComplete' && data.questId) {
+      return this.handleQuestCompletionInteraction(data);
+    }
+    
+    if (data.type === 'questProgress' && data.questUpdates) {
+      return this.handleQuestProgressInteraction(data);
+    }
+    
+    // Vérifier les quêtes disponibles
+    if (data.availableQuests && Array.isArray(data.availableQuests)) {
+      return this.handleAvailableQuestsInteraction(data);
+    }
+    
+    // Quêtes en cours avec ce NPC
+    if (data.npcId || data.npcName) {
+      return this.handleActiveQuestNpcInteraction(data);
+    }
+    
+    // Pas de quête pour ce NPC
+    console.log('ℹ️ [QuestManager] Aucune quête trouvée pour cette interaction');
+    return 'NO_QUEST';
+  }
+  
+  processNpcData(npcData) {
+    console.log('🎯 [QuestManager] Traitement données NPC directes:', npcData);
+    
+    // Chercher des quêtes actives avec ce NPC
+    const npcQuests = this.findQuestsForNpc(npcData);
+    
+    if (npcQuests.length > 0) {
+      // Afficher les quêtes disponibles
+      return this.showQuestDialog(npcData, npcQuests);
+    }
+    
+    // Aucune quête trouvée
+    console.log('ℹ️ [QuestManager] Aucune quête pour ce NPC');
+    return 'NO_QUEST';
+  }
+  
+  // === 🎯 GESTION TYPES INTERACTIONS QUÊTES ===
+  
+  handleQuestGiverInteraction(data) {
+    console.log('🎁 [QuestManager] NPC donneur de quêtes:', data);
+    
+    try {
+      const availableQuests = this.parseAvailableQuests(data.availableQuests);
+      
+      if (availableQuests.length === 0) {
+        console.log('ℹ️ [QuestManager] Aucune quête disponible');
+        return 'NO_QUEST';
+      }
+      
+      // Afficher le dialogue de sélection de quêtes
+      if (this.questUI) {
+        this.questUI.showQuestDialog(
+          data.npcName || 'Donneur de quêtes',
+          availableQuests,
+          (selectedQuestId) => this.startQuestFromDialog(selectedQuestId)
+        );
+        return true;
+      }
+      
+      // Fallback: commencer automatiquement la première quête
+      if (availableQuests.length === 1) {
+        this.startQuest(availableQuests[0].id);
+        return true;
+      }
+      
+      console.warn('⚠️ [QuestManager] QuestUI non disponible pour dialogue');
+      return false;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur quest giver interaction:', error);
+      return false;
+    }
+  }
+  
+  handleQuestCompletionInteraction(data) {
+    console.log('✅ [QuestManager] Interaction complétion quête:', data);
+    
+    try {
+      // Marquer la quête comme terminée
+      const quest = this.getQuestById(data.questId);
+      if (quest) {
+        // Déclencher événement de complétion
+        if (this.onQuestCompleted) {
+          this.onQuestCompleted({
+            quest: quest,
+            rewards: data.rewards || [],
+            experience: data.experience || 0
+          });
+        }
+        
+        // Supprimer de actives, ajouter à completed
+        this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
+        this.completedQuests.push(quest);
+        
+        // Mettre à jour stats
+        this.calculateStats();
+        
+        // Notifier UI
+        if (this.onStatsUpdate) {
+          this.onStatsUpdate(this.questStats);
+        }
+        
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur quest completion:', error);
+      return false;
+    }
+  }
+  
+  handleQuestProgressInteraction(data) {
+    console.log('📈 [QuestManager] Interaction progression quête:', data);
+    
+    try {
+      if (data.questUpdates && Array.isArray(data.questUpdates)) {
+        data.questUpdates.forEach(update => {
+          if (this.onQuestProgress) {
+            this.onQuestProgress(update);
+          }
+        });
+        
+        // Demander mise à jour des données
+        setTimeout(() => {
+          this.requestQuestData();
+        }, 500);
+        
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur quest progress:', error);
+      return false;
+    }
+  }
+  
+  handleAvailableQuestsInteraction(data) {
+    console.log('📋 [QuestManager] Interaction quêtes disponibles:', data);
+    
+    try {
+      const quests = this.parseAvailableQuests(data.availableQuests);
+      
+      if (quests.length === 0) {
+        return 'NO_QUEST';
+      }
+      
+      // Sauvegarder les quêtes disponibles
+      this.availableQuests = quests;
+      
+      // Si une seule quête, proposer directement
+      if (quests.length === 1) {
+        return this.showSingleQuestDialog(data.npcName, quests[0]);
+      }
+      
+      // Plusieurs quêtes, montrer dialogue de choix
+      return this.showMultipleQuestDialog(data.npcName, quests);
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur available quests:', error);
+      return false;
+    }
+  }
+  
+  handleActiveQuestNpcInteraction(data) {
+    console.log('🔄 [QuestManager] Interaction quête active avec NPC:', data);
+    
+    try {
+      // Chercher des quêtes actives impliquant ce NPC
+      const relatedQuests = this.activeQuests.filter(quest => {
+        return this.questInvolvesNpc(quest, data.npcId, data.npcName);
+      });
+      
+      if (relatedQuests.length > 0) {
+        // Afficher info sur les quêtes en cours
+        return this.showActiveQuestInfo(data.npcName, relatedQuests);
+      }
+      
+      return 'NO_QUEST';
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur active quest NPC:', error);
+      return false;
+    }
+  }
+  
+  // === 🎭 DIALOGUES QUÊTES ===
+  
+  showSingleQuestDialog(npcName, quest) {
+    console.log('💬 [QuestManager] Dialogue quête unique:', quest);
+    
+    if (!this.questUI) {
+      console.warn('⚠️ [QuestManager] QuestUI non disponible');
+      return false;
+    }
+    
+    const questTitle = `${npcName || 'NPC'} - Nouvelle quête`;
+    
+    this.questUI.showQuestDialog(
+      questTitle,
+      [quest],
+      (selectedQuestId) => this.startQuestFromDialog(selectedQuestId)
+    );
+    
+    return true;
+  }
+  
+  showMultipleQuestDialog(npcName, quests) {
+    console.log('💬 [QuestManager] Dialogue quêtes multiples:', quests);
+    
+    if (!this.questUI) {
+      console.warn('⚠️ [QuestManager] QuestUI non disponible');
+      return false;
+    }
+    
+    const questTitle = `${npcName || 'NPC'} - Choisir une quête`;
+    
+    this.questUI.showQuestDialog(
+      questTitle,
+      quests,
+      (selectedQuestId) => this.startQuestFromDialog(selectedQuestId)
+    );
+    
+    return true;
+  }
+  
+  showActiveQuestInfo(npcName, relatedQuests) {
+    console.log('📖 [QuestManager] Info quêtes actives:', relatedQuests);
+    
+    // Créer un message informatif
+    const questNames = relatedQuests.map(q => q.name).join(', ');
+    const message = `Vous avez des quêtes en cours avec ${npcName}: ${questNames}`;
+    
+    // Afficher via le système de notifications
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(message, 'info', { duration: 3000 });
+    }
+    
+    return true;
+  }
+  
+  startQuestFromDialog(questId) {
+    console.log('🚀 [QuestManager] Démarrage quête depuis dialogue:', questId);
+    
+    try {
+      // Démarrer la quête
+      this.startQuest(questId);
+      
+      // Notification
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Nouvelle quête acceptée !', 'success', { duration: 2000 });
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur start quest from dialog:', error);
+      return false;
+    }
+  }
+  
+  // === 🔍 UTILITAIRES NPC ===
+  
+  findQuestsForNpc(npcData) {
+    const npcId = npcData.id;
+    const npcName = npcData.name;
+    
+    return this.activeQuests.filter(quest => {
+      return this.questInvolvesNpc(quest, npcId, npcName);
+    });
+  }
+  
+  questInvolvesNpc(quest, npcId, npcName) {
+    if (!quest || !quest.steps) return false;
+    
+    // Vérifier dans les étapes de la quête
+    return quest.steps.some(step => {
+      // Vérifier les objectifs
+      if (step.objectives) {
+        return step.objectives.some(obj => {
+          return (
+            obj.targetNpcId === npcId ||
+            obj.targetNpc === npcName ||
+            obj.npcId === npcId ||
+            obj.npc === npcName
+          );
+        });
+      }
+      
+      // Vérifier directement dans l'étape
+      return (
+        step.npcId === npcId ||
+        step.npc === npcName ||
+        step.targetNpcId === npcId ||
+        step.targetNpc === npcName
+      );
+    });
+  }
+  
+  showQuestDialog(npcData, quests) {
+    console.log('🎭 [QuestManager] Affichage dialogue quêtes:', npcData, quests);
+    
+    if (!this.questUI) {
+      console.warn('⚠️ [QuestManager] QuestUI non disponible pour dialogue');
+      return false;
+    }
+    
+    const npcName = npcData.name || 'NPC';
+    const dialogTitle = `${npcName} - Quêtes`;
+    
+    this.questUI.showQuestDialog(
+      dialogTitle,
+      quests,
+      (selectedQuestId) => {
+        console.log('✅ [QuestManager] Quête sélectionnée:', selectedQuestId);
+        this.startQuestFromDialog(selectedQuestId);
+      }
+    );
+    
+    return true;
+  }
+  
+  // === 🔗 CONNEXION AVEC QUESTUI ===
+  
+  connectQuestUI(questUI) {
+    console.log('🔗 [QuestManager] Connexion avec QuestUI');
+    this.questUI = questUI;
   }
   
   parseAvailableQuests(quests) {
@@ -668,6 +1027,7 @@ export class QuestManager {
     // Reset état
     this.initialized = false;
     this.gameRoom = null;
+    this.questUI = null;
     this.lastNotificationTime.clear();
     
     console.log('✅ [QuestManager] Détruit');
@@ -681,6 +1041,7 @@ export class QuestManager {
       questCount: this.getQuestCount(),
       questStats: this.questStats,
       hasGameRoom: !!this.gameRoom,
+      hasQuestUI: !!this.questUI,
       lastDataRequest: this.lastDataRequest,
       callbacks: {
         onQuestUpdate: !!this.onQuestUpdate,
@@ -697,37 +1058,41 @@ export class QuestManager {
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER SIMPLIFIÉ ===
+📖 === QUEST MANAGER COMPLET AVEC NPC INTERACTION ===
 
-✅ RESPONSABILITÉS:
-- Gestion données quêtes
-- Communication serveur
-- Calcul statistiques
-- Actions quêtes
+✅ NOUVELLES MÉTHODES:
+• handleNpcInteraction(data) - Point d'entrée pour interactions NPCs
+• processNpcInteractionData(data) - Traite données complètes
+• processNpcData(npcData) - Traite données NPC directes
+• handleQuestGiverInteraction(data) - NPCs donneurs de quêtes
+• handleQuestCompletionInteraction(data) - Complétion quêtes
+• handleQuestProgressInteraction(data) - Progression quêtes
+• handleAvailableQuestsInteraction(data) - Quêtes disponibles
+• handleActiveQuestNpcInteraction(data) - Quêtes actives avec NPC
 
-🚫 PAS D'UI:
-- Pas de DOM
-- Pas d'affichage
-- Callbacks pour notifier
+🎭 DIALOGUES QUÊTES:
+• showSingleQuestDialog(npcName, quest) - Une quête
+• showMultipleQuestDialog(npcName, quests) - Choix multiple
+• showActiveQuestInfo(npcName, quests) - Info quêtes actives
+• startQuestFromDialog(questId) - Démarrage depuis dialogue
 
-📡 ACTIONS SERVEUR:
-- getActiveQuests → requestQuestData()
-- getAvailableQuests → requestAvailableQuests()
-- startQuest → startQuest(id)
-- abandonQuest → abandonQuest(id)
-- questProgress → triggerProgress(data)
+🔍 UTILITAIRES NPC:
+• findQuestsForNpc(npcData) - Trouve quêtes pour NPC
+• questInvolvesNpc(quest, npcId, npcName) - Vérifie implication NPC
+• showQuestDialog(npcData, quests) - Affiche dialogue général
+• connectQuestUI(questUI) - Connecte l'interface
 
-📊 API LECTURE:
-- getActiveQuests() → données complètes
-- getQuestStats() → statistiques
-- hasActiveQuests() → a des quêtes
-- getQuestAnalysis() → analyse complète
+📡 FLUX INTERACTION:
+1. InteractionManager → handleNpcInteraction(data)
+2. Analyse type interaction (questGiver, questComplete, etc.)
+3. Traite selon le type
+4. Affiche dialogue approprié via QuestUI
+5. Retourne true/false/'NO_QUEST'
 
-🔗 CALLBACKS:
-- onQuestUpdate(quests) → pour QuestUI
-- onQuestStarted(quest) → nouvelle quête
-- onQuestCompleted(quest) → quête terminée
-- onStatsUpdate(stats) → pour QuestIcon
+🎯 RETOURS POSSIBLES:
+• true - Interaction gérée avec succès
+• false - Erreur dans le traitement
+• 'NO_QUEST' - Aucune quête pour ce NPC (dialogue normal)
 
-🎯 SIMPLE ET EFFICACE !
+✅ QUEST MANAGER MAINTENANT COMPATIBLE AVEC NPCS !
 `);
