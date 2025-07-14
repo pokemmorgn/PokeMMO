@@ -1,6 +1,3 @@
-// Quest/index.js - QuestModule ULTRA-ROBUSTE avec initialisation séquentielle
-// 🎯 CORRECTIONS: Timing + Handlers + Connexions + Auto-réparation + Fallbacks
-
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { QuestManager } from './QuestManager.js';
 import { QuestIcon } from './QuestIcon.js';
@@ -22,60 +19,40 @@ export class QuestModule extends BaseModule {
     
     super(moduleId || 'quest', gameRoom, scene, questOptions);
     
-    // === ÉTAT SYSTÈME ===
     this.initialized = false;
     this.componentsReady = false;
     this.connectionAttempts = 0;
     this.maxRetries = 10;
     this.retryDelay = 200;
-    
-    // === SURVEILLANCE SYSTÈME ===
     this.healthCheck = null;
     this.autoRepairEnabled = true;
     this.lastHealthCheck = 0;
     
-    console.log('📖 [QuestModule] Instance créée - Version ultra-robuste');
+    console.log('📖 [QuestModule] Instance créée');
   }
-  
-  // === 🚀 INITIALISATION SÉQUENTIELLE CORRIGÉE ===
   
   async init() {
     try {
-      console.log('🚀 [QuestModule] === INITIALISATION SÉQUENTIELLE ===');
+      console.log('🚀 [QuestModule] Initialisation séquentielle...');
       
-      // 1. Vérifier dépendances critiques
       await this.validateDependencies();
-      
-      // 2. Initialiser le manager métier AVEC handlers immédiats
       await this.initializeManager();
-      
-      // 3. Créer composants UI en parallèle mais attendre qu'ils soient prêts
       await this.createComponentsSequential();
-      
-      // 4. Connecter les composants de manière robuste
       await this.connectComponentsRobust();
-      
-      // 5. Valider le système complet
       await this.validateSystemIntegrity();
-      
-      // 6. Démarrer la surveillance
       this.startSystemMonitoring();
       
       this.initialized = true;
-      console.log('✅ [QuestModule] Initialisation séquentielle terminée');
+      console.log('✅ [QuestModule] Initialisation terminée');
       
       return this;
       
     } catch (error) {
-      console.error('❌ [QuestModule] Erreur initialisation séquentielle:', error);
-      
-      // Tentative de récupération
+      console.error('❌ [QuestModule] Erreur initialisation:', error);
       await this.attemptRecovery();
       throw error;
     }
   }
-  
-  // === 🔍 VALIDATION DÉPENDANCES ===
   
   async validateDependencies() {
     console.log('🔍 [QuestModule] Validation dépendances...');
@@ -96,89 +73,31 @@ export class QuestModule extends BaseModule {
       throw new Error(`Dépendances manquantes: ${missing.join(', ')}`);
     }
     
-    // Vérifier que les handlers Colyseus peuvent être enregistrés
     if (typeof this.gameRoom.onMessage !== 'function') {
-      throw new Error('gameRoom.onMessage non disponible pour enregistrer handlers');
+      throw new Error('gameRoom.onMessage non disponible');
     }
     
     console.log('✅ [QuestModule] Dépendances validées');
   }
   
-  // === 🎯 INITIALISATION MANAGER CORRIGÉE ===
-  
   async initializeManager() {
-    console.log('🎯 [QuestModule] Initialisation manager avec handlers immédiats...');
+    console.log('🎯 [QuestModule] Initialisation manager...');
     
-    // ✅ CORRECTION CRITIQUE 1: Créer manager AVEC gameRoom immédiatement
     this.manager = new QuestManager(this.gameRoom);
-    
-    // ✅ CORRECTION CRITIQUE 2: Setup handlers AVANT init()
-    if (this.gameRoom && typeof this.gameRoom.onMessage === 'function') {
-      console.log('📡 [QuestModule] Enregistrement handlers IMMÉDIAT...');
-      this.manager.setupServerListeners();
-    } else {
-      throw new Error('Impossible d\'enregistrer les handlers - gameRoom invalide');
-    }
-    
-    // ✅ CORRECTION CRITIQUE 3: Init manager après handlers
     await this.manager.init();
     
-    // Validation handlers
-    const handlersRegistered = this.validateHandlersRegistered();
-    if (!handlersRegistered) {
-      console.warn('⚠️ [QuestModule] Handlers non enregistrés, retry...');
-      await this.retryHandlerRegistration();
-    }
-    
-    console.log('✅ [QuestModule] Manager initialisé avec handlers');
+    console.log('✅ [QuestModule] Manager initialisé');
   }
-  
-  validateHandlersRegistered() {
-    const requiredHandlers = [
-      'availableQuestsList', 'activeQuestsList', 'questStartResult',
-      'questGranted', 'questProgressUpdate', 'questCompleted'
-    ];
-    
-    return requiredHandlers.every(handler => {
-      const isRegistered = !!(this.gameRoom._messageHandlers?.[handler]);
-      if (!isRegistered) {
-        console.warn(`⚠️ [QuestModule] Handler '${handler}' non enregistré`);
-      }
-      return isRegistered;
-    });
-  }
-  
-  async retryHandlerRegistration() {
-    let retries = 0;
-    while (retries < 3 && !this.validateHandlersRegistered()) {
-      console.log(`🔄 [QuestModule] Retry handlers registration ${retries + 1}/3...`);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      this.manager.setupServerListeners();
-      retries++;
-    }
-    
-    if (!this.validateHandlersRegistered()) {
-      throw new Error('Impossible d\'enregistrer les handlers après 3 tentatives');
-    }
-  }
-  
-  // === 🔧 CRÉATION COMPOSANTS SÉQUENTIELLE ===
   
   async createComponentsSequential() {
-    console.log('🔧 [QuestModule] Création composants séquentielle...');
+    console.log('🔧 [QuestModule] Création composants...');
     
-    // 1. Créer icône en premier (plus simple)
     await this.createIconComponent();
-    
-    // 2. Créer UI en parallèle mais attendre qu'elle soit prête
     await this.createUIComponent();
-    
-    // 3. Valider que tous les composants sont prêts
     await this.waitForComponentsReady();
     
     this.componentsReady = true;
-    console.log('✅ [QuestModule] Composants créés et prêts');
+    console.log('✅ [QuestModule] Composants créés');
   }
   
   async createIconComponent() {
@@ -187,8 +106,6 @@ export class QuestModule extends BaseModule {
     if (!this.icon) {
       this.icon = new QuestIcon(this.manager);
       await this.icon.init();
-      
-      // Force position et affichage immédiat
       this.forceIconDisplay();
     }
     
@@ -199,19 +116,15 @@ export class QuestModule extends BaseModule {
     if (this.icon?.iconElement) {
       const iconEl = this.icon.iconElement;
       
-      // Position de secours garantie
       iconEl.style.position = 'fixed';
       iconEl.style.right = '20px';
       iconEl.style.bottom = '20px';
       iconEl.style.zIndex = '500';
-      
-      // Affichage forcé
       iconEl.style.display = 'block';
       iconEl.style.visibility = 'visible';
       iconEl.style.opacity = '1';
       iconEl.style.pointerEvents = 'auto';
       
-      // Supprimer classes cachées
       iconEl.classList.remove('hidden', 'ui-hidden');
       
       console.log('🔧 [QuestModule] Affichage icône forcé');
@@ -223,11 +136,8 @@ export class QuestModule extends BaseModule {
     
     if (!this.ui) {
       this.ui = new QuestUI(this.manager, this.gameRoom);
-      
-      // ✅ CORRECTION CRITIQUE 4: Attendre que init() soit terminé
       await this.ui.init();
       
-      // Force affichage tracker par défaut
       if (this.ui.showTracker) {
         this.ui.showTracker();
       }
@@ -237,9 +147,9 @@ export class QuestModule extends BaseModule {
   }
   
   async waitForComponentsReady() {
-    console.log('⏳ [QuestModule] Attente composants prêts...');
+    console.log('⏳ [QuestModule] Attente composants...');
     
-    const maxWait = 5000; // 5 secondes max
+    const maxWait = 5000;
     const startTime = Date.now();
     
     while (Date.now() - startTime < maxWait) {
@@ -247,14 +157,13 @@ export class QuestModule extends BaseModule {
       const uiReady = !!(this.ui?.overlayElement && this.ui?.trackerElement);
       
       if (iconReady && uiReady) {
-        console.log('✅ [QuestModule] Tous les composants sont prêts');
+        console.log('✅ [QuestModule] Composants prêts');
         return true;
       }
       
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // Diagnostic si pas prêt
     console.warn('⚠️ [QuestModule] Timeout composants:', {
       iconReady: !!(this.icon?.iconElement),
       uiReady: !!(this.ui?.overlayElement && this.ui?.trackerElement)
@@ -263,54 +172,43 @@ export class QuestModule extends BaseModule {
     return false;
   }
   
-  // === 🔗 CONNEXION COMPOSANTS ROBUSTE ===
-  
   async connectComponentsRobust() {
-    console.log('🔗 [QuestModule] Connexion composants robuste...');
+    console.log('🔗 [QuestModule] Connexion composants...');
     
     let attempts = 0;
     while (attempts < this.maxRetries) {
       try {
         const success = await this.attemptComponentConnection();
         if (success) {
-          console.log('✅ [QuestModule] Composants connectés avec succès');
+          console.log('✅ [QuestModule] Composants connectés');
           return true;
         }
         
         attempts++;
-        console.log(`🔄 [QuestModule] Retry connexion ${attempts}/${this.maxRetries}...`);
+        console.log(`🔄 [QuestModule] Retry connexion ${attempts}/${this.maxRetries}`);
         await new Promise(resolve => setTimeout(resolve, this.retryDelay));
         
       } catch (error) {
-        console.error(`❌ [QuestModule] Erreur connexion tentative ${attempts + 1}:`, error);
+        console.error(`❌ [QuestModule] Erreur connexion ${attempts + 1}:`, error);
         attempts++;
         await new Promise(resolve => setTimeout(resolve, this.retryDelay));
       }
     }
     
-    throw new Error(`Impossible de connecter les composants après ${this.maxRetries} tentatives`);
+    throw new Error(`Impossible de connecter après ${this.maxRetries} tentatives`);
   }
   
   async attemptComponentConnection() {
-    // Vérifier que tous les composants sont prêts
     if (!this.icon?.iconElement || !this.ui?.overlayElement) {
-      console.log('⏳ [QuestModule] Composants pas encore prêts pour connexion');
+      console.log('⏳ [QuestModule] Composants pas prêts');
       return false;
     }
     
-    // 1. Manager → Icône
     this.connectManagerToIcon();
-    
-    // 2. Icône → UI
     this.connectIconToUI();
-    
-    // 3. Manager → UI
     this.connectManagerToUI();
-    
-    // 4. UI → Manager
     this.connectUIToManager();
     
-    // 5. Validation connexions
     return this.validateConnections();
   }
   
@@ -374,14 +272,12 @@ export class QuestModule extends BaseModule {
   
   connectManagerToUI() {
     if (this.manager && this.ui) {
-      // ✅ CORRECTION CRITIQUE 5: Connecter QuestUI au manager
       this.manager.connectQuestUI(this.ui);
       
       this.manager.onQuestUpdate = (quests) => {
         try {
           this.ui.updateQuestData(quests, 'active');
           
-          // Force refresh si UI visible
           if (this.ui.isVisible) {
             setTimeout(() => {
               this.ui.refreshQuestList?.();
@@ -426,21 +322,19 @@ export class QuestModule extends BaseModule {
       return false;
     }
     
-    console.log('✅ [QuestModule] Toutes les connexions validées');
+    console.log('✅ [QuestModule] Connexions validées');
     return true;
   }
   
-  // === ✅ VALIDATION SYSTÈME INTÉGRITÉ ===
-  
   async validateSystemIntegrity() {
-    console.log('🔍 [QuestModule] Validation intégrité système...');
+    console.log('🔍 [QuestModule] Validation système...');
     
     const systemChecks = {
       manager: {
         exists: !!this.manager,
         initialized: !!this.manager?.initialized,
         hasGameRoom: !!this.manager?.gameRoom,
-        handlersRegistered: this.validateHandlersRegistered()
+        isReady: this.manager?.isReady?.() || false
       },
       
       icon: {
@@ -466,37 +360,31 @@ export class QuestModule extends BaseModule {
       }
     };
     
-    // Analyser les problèmes
     const issues = this.analyzeSystemIssues(systemChecks);
     
     if (issues.length > 0) {
-      console.error('❌ [QuestModule] Problèmes système détectés:', issues);
-      throw new Error(`Échec validation système: ${issues.join(', ')}`);
+      console.error('❌ [QuestModule] Problèmes système:', issues);
+      throw new Error(`Échec validation: ${issues.join(', ')}`);
     }
     
-    console.log('✅ [QuestModule] Intégrité système validée');
+    console.log('✅ [QuestModule] Système validé');
     return true;
   }
   
   analyzeSystemIssues(checks) {
     const issues = [];
     
-    // Analyser manager
     if (!checks.manager.exists) issues.push('Manager manquant');
     if (!checks.manager.initialized) issues.push('Manager non initialisé');
-    if (!checks.manager.handlersRegistered) issues.push('Handlers non enregistrés');
     
-    // Analyser icon
     if (!checks.icon.exists) issues.push('Icône manquante');
     if (!checks.icon.hasElement) issues.push('Élément icône manquant');
     if (!checks.icon.inDOM) issues.push('Icône pas dans DOM');
     
-    // Analyser UI
     if (!checks.ui.exists) issues.push('UI manquante');
     if (!checks.ui.hasOverlay) issues.push('Overlay UI manquant');
     if (!checks.ui.hasTracker) issues.push('Tracker UI manquant');
     
-    // Analyser connexions
     if (!checks.connections.managerToIcon) issues.push('Connexion Manager→Icône manquante');
     if (!checks.connections.managerToUI) issues.push('Connexion Manager→UI manquante');
     if (!checks.connections.iconToUI) issues.push('Connexion Icône→UI manquante');
@@ -504,18 +392,15 @@ export class QuestModule extends BaseModule {
     return issues;
   }
   
-  // === 🔧 SURVEILLANCE ET AUTO-RÉPARATION ===
-  
   startSystemMonitoring() {
     if (!this.autoRepairEnabled) return;
     
-    console.log('👀 [QuestModule] Démarrage surveillance système...');
+    console.log('👀 [QuestModule] Surveillance démarrée');
     
     this.healthCheck = setInterval(() => {
       this.performHealthCheck();
-    }, 10000); // Check toutes les 10 secondes
+    }, 10000);
     
-    // Check immédiat
     setTimeout(() => this.performHealthCheck(), 2000);
   }
   
@@ -527,7 +412,7 @@ export class QuestModule extends BaseModule {
       const issues = await this.detectSystemIssues();
       
       if (issues.length > 0) {
-        console.warn('🔧 [QuestModule] Problèmes détectés, auto-réparation...', issues);
+        console.warn('🔧 [QuestModule] Auto-réparation...', issues);
         await this.attemptAutoRepair(issues);
       }
       
@@ -539,33 +424,25 @@ export class QuestModule extends BaseModule {
   async detectSystemIssues() {
     const issues = [];
     
-    // Vérifier icône
     if (!this.icon?.iconElement || !document.contains(this.icon.iconElement)) {
       issues.push('icon-missing');
     } else if (this.icon.iconElement.style.display === 'none') {
       issues.push('icon-hidden');
     }
     
-    // Vérifier tracker
     if (!this.ui?.trackerElement || !document.contains(this.ui.trackerElement)) {
       issues.push('tracker-missing');
     }
     
-    // Vérifier connexions
     if (!this.manager?.questUI) {
       issues.push('manager-ui-disconnected');
-    }
-    
-    // Vérifier handlers
-    if (!this.validateHandlersRegistered()) {
-      issues.push('handlers-missing');
     }
     
     return issues;
   }
   
   async attemptAutoRepair(issues) {
-    console.log('🔧 [QuestModule] Tentative auto-réparation...', issues);
+    console.log('🔧 [QuestModule] Réparation...', issues);
     
     for (const issue of issues) {
       try {
@@ -584,10 +461,6 @@ export class QuestModule extends BaseModule {
             
           case 'manager-ui-disconnected':
             this.connectManagerToUI();
-            break;
-            
-          case 'handlers-missing':
-            await this.retryHandlerRegistration();
             break;
         }
         
@@ -626,25 +499,19 @@ export class QuestModule extends BaseModule {
     }
   }
   
-  // === 🔄 RÉCUPÉRATION D'ERREUR ===
-  
   async attemptRecovery() {
-    console.log('🔄 [QuestModule] Tentative de récupération...');
+    console.log('🔄 [QuestModule] Récupération...');
     
     try {
-      // Reset complet
       this.resetComponents();
       
-      // Retry initialisation minimale
       if (this.gameRoom) {
         this.manager = new QuestManager(this.gameRoom);
         await this.manager.init();
-        
-        // Interface minimal fallback
         await this.createMinimalInterface();
       }
       
-      console.log('✅ [QuestModule] Récupération partielle réussie');
+      console.log('✅ [QuestModule] Récupération partielle');
       
     } catch (error) {
       console.error('❌ [QuestModule] Récupération échouée:', error);
@@ -667,21 +534,17 @@ export class QuestModule extends BaseModule {
   }
   
   async createMinimalInterface() {
-    // Créer juste l'icône avec fonctionnalités de base
     this.icon = new QuestIcon(this.manager);
     await this.icon.init();
     this.forceIconDisplay();
     
-    // Callback simple pour icône
     this.icon.onClick = () => {
-      this.showNotification('Quest system in recovery mode', 'warning');
+      this.showNotification('Quest system en mode récupération', 'warning');
     };
   }
   
-  // === 📊 API PUBLIQUE RENFORCÉE ===
-  
   async createIcon() {
-    console.log('🎨 [QuestModule] createIcon() pour UIManager...');
+    console.log('🎨 [QuestModule] createIcon() pour UIManager');
     
     if (!this.icon?.iconElement) {
       await this.createIconComponent();
@@ -692,14 +555,13 @@ export class QuestModule extends BaseModule {
       return this.icon.iconElement;
     }
     
-    console.error('❌ [QuestModule] Impossible de créer icône pour UIManager');
+    console.error('❌ [QuestModule] Impossible de créer icône');
     return null;
   }
   
   show() {
     const result = super.show();
     
-    // Afficher tracker + demander données
     if (this.ui?.showTracker) {
       this.ui.showTracker();
     }
@@ -710,8 +572,6 @@ export class QuestModule extends BaseModule {
     
     return result;
   }
-  
-  // === 🛠️ FONCTIONS UTILITAIRES ===
   
   showNotification(message, type = 'info') {
     if (typeof window.showGameNotification === 'function') {
@@ -731,7 +591,7 @@ export class QuestModule extends BaseModule {
       manager: {
         exists: !!this.manager,
         initialized: !!this.manager?.initialized,
-        handlersValid: this.validateHandlersRegistered()
+        isReady: this.manager?.isReady?.() || false
       },
       icon: {
         exists: !!this.icon,
@@ -746,34 +606,26 @@ export class QuestModule extends BaseModule {
     };
   }
   
-  // === 🧹 NETTOYAGE AMÉLIORÉ ===
-  
   destroy() {
-    console.log('🧹 [QuestModule] Destruction sécurisée...');
+    console.log('🧹 [QuestModule] Destruction...');
     
-    // Arrêter surveillance
     if (this.healthCheck) {
       clearInterval(this.healthCheck);
       this.healthCheck = null;
     }
     
-    // Détruire composants
     this.resetComponents();
     
-    // Détruire manager
     if (this.manager) {
       this.manager.destroy?.();
       this.manager = null;
     }
     
-    // Reset état
     this.initialized = false;
     this.autoRepairEnabled = false;
     
-    console.log('✅ [QuestModule] Destruction terminée');
+    console.log('✅ [QuestModule] Détruit');
   }
-  
-  // === API LEGACY (inchangée) ===
   
   getActiveQuests() {
     return this.manager ? this.manager.getActiveQuests() : [];
@@ -806,17 +658,14 @@ export class QuestModule extends BaseModule {
     }
   }
   
-  // API shortcuts
   toggleQuestJournal() { return this.toggleUI(); }
   openQuestJournal() { return this.open(); }
   closeQuestJournal() { return this.close(); }
 }
 
-// === 🏭 FACTORY CORRIGÉE ===
-
 export async function createQuestModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [QuestFactory] Création module Quest ultra-robuste...');
+    console.log('🏭 [QuestFactory] Création module Quest...');
     
     const questOptions = {
       singleton: true,
@@ -826,87 +675,75 @@ export async function createQuestModule(gameRoom, scene, options = {}) {
     
     const questInstance = await createModule(QuestModule, 'quest', gameRoom, scene, questOptions);
     
-    // Démarrer surveillance après création
     if (questInstance.startSystemMonitoring) {
       questInstance.startSystemMonitoring();
     }
     
-    console.log('✅ [QuestFactory] Module Quest créé avec surveillance');
+    console.log('✅ [QuestFactory] Module créé');
     return questInstance;
     
   } catch (error) {
-    console.error('❌ [QuestFactory] Erreur création module Quest:', error);
+    console.error('❌ [QuestFactory] Erreur création:', error);
     throw error;
   }
 }
 
-// === 🔧 FONCTION DE RÉPARATION GLOBALE ===
-
 export async function repairQuestSystem() {
-  console.log('🔧 [QuestRepair] === RÉPARATION COMPLÈTE SYSTÈME QUEST ===');
+  console.log('🔧 [QuestRepair] Réparation système...');
   
   try {
     const instance = QuestModule.getInstance('quest');
     
     if (!instance) {
-      console.error('❌ [QuestRepair] Aucune instance Quest trouvée');
+      console.error('❌ [QuestRepair] Aucune instance trouvée');
       return false;
     }
     
-    // Diagnostic complet
     const health = instance.getSystemHealth();
-    console.log('📊 [QuestRepair] État système:', health);
+    console.log('📊 [QuestRepair] État:', health);
     
-    // Détecter et réparer les problèmes
     const issues = await instance.detectSystemIssues();
     
     if (issues.length > 0) {
-      console.log('🔧 [QuestRepair] Problèmes détectés:', issues);
+      console.log('🔧 [QuestRepair] Problèmes:', issues);
       await instance.attemptAutoRepair(issues);
     }
     
-    // Validation finale
     await instance.validateSystemIntegrity();
     
-    console.log('✅ [QuestRepair] Réparation terminée avec succès');
+    console.log('✅ [QuestRepair] Réparation terminée');
     return true;
     
   } catch (error) {
-    console.error('❌ [QuestRepair] Erreur réparation:', error);
+    console.error('❌ [QuestRepair] Erreur:', error);
     return false;
   }
 }
 
-// === 🌐 EXPOSITION GLOBALE AMÉLIORÉE ===
-
 export async function setupQuestSystem(uiManager) {
   try {
-    console.log('🔧 [QuestSetup] Configuration système Quest robuste...');
+    console.log('🔧 [QuestSetup] Configuration système...');
     
     const questInstance = await initializeQuestModule(uiManager);
     
-    // Exposer avec fonctions de réparation
     if (!window.questSystem) {
       window.questSystem = questInstance;
       window.questSystemGlobal = questInstance;
       
-      // API standard
       window.toggleQuest = () => questInstance.toggleUI();
       window.openQuest = () => questInstance.open();
       window.closeQuest = () => questInstance.close();
       
-      // API réparation
       window.repairQuestSystem = repairQuestSystem;
       window.getQuestSystemHealth = () => questInstance.getSystemHealth();
       
-      // API progression
       window.triggerQuestProgress = (type, data) => questInstance.triggerProgress(type, data);
       window.startQuest = (questId) => questInstance.startQuest(questId);
       
-      console.log('🌐 [QuestSetup] Fonctions globales Quest exposées avec réparation');
+      console.log('🌐 [QuestSetup] Fonctions globales exposées');
     }
     
-    console.log('✅ [QuestSetup] Système Quest configuré ULTRA-ROBUSTE');
+    console.log('✅ [QuestSetup] Système configuré');
     return questInstance;
     
   } catch (error) {
@@ -914,8 +751,6 @@ export async function setupQuestSystem(uiManager) {
     throw error;
   }
 }
-
-// === CONFIGURATION EXPORT (existante) ===
 
 export const QUEST_MODULE_CONFIG = generateModuleConfig('quest', {
   moduleClass: QuestModule,
@@ -928,7 +763,7 @@ export const QUEST_MODULE_CONFIG = generateModuleConfig('quest', {
   groups: ['ui-icons', 'quest-management'],
   metadata: {
     name: 'Quest Journal',
-    description: 'Ultra-robust quest management system with auto-repair',
+    description: 'Système de quêtes robuste avec auto-réparation',
     version: '3.0.0',
     category: 'Quest Management'
   },
@@ -940,26 +775,26 @@ export const QUEST_MODULE_CONFIG = generateModuleConfig('quest', {
 
 export async function registerQuestModule(uiManager) {
   try {
-    console.log('📝 [QuestIntegration] Enregistrement Quest robuste...');
+    console.log('📝 [QuestIntegration] Enregistrement...');
     
     if (uiManager.modules?.has('quest')) {
-      console.log('ℹ️ [QuestIntegration] Module déjà enregistré');
+      console.log('ℹ️ [QuestIntegration] Déjà enregistré');
       return true;
     }
     
     await uiManager.registerModule('quest', QUEST_MODULE_CONFIG);
-    console.log('✅ [QuestIntegration] Module Quest enregistré');
+    console.log('✅ [QuestIntegration] Enregistré');
     
     return true;
   } catch (error) {
-    console.error('❌ [QuestIntegration] Erreur enregistrement:', error);
+    console.error('❌ [QuestIntegration] Erreur:', error);
     throw error;
   }
 }
 
 export async function initializeQuestModule(uiManager) {
   try {
-    console.log('🚀 [QuestIntegration] Initialisation Quest robuste...');
+    console.log('🚀 [QuestIntegration] Initialisation...');
     
     await registerQuestModule(uiManager);
     
@@ -968,52 +803,17 @@ export async function initializeQuestModule(uiManager) {
     if (!questInstance || !questInstance.initialized) {
       questInstance = await uiManager.initializeModule('quest');
     } else {
-      console.log('ℹ️ [QuestIntegration] Instance déjà initialisée');
+      console.log('ℹ️ [QuestIntegration] Déjà initialisé');
       questInstance.connectUIManager?.(uiManager);
     }
     
-    console.log('✅ [QuestIntegration] Initialisation Quest robuste terminée');
+    console.log('✅ [QuestIntegration] Terminé');
     return questInstance;
     
   } catch (error) {
-    console.error('❌ [QuestIntegration] Erreur initialisation:', error);
+    console.error('❌ [QuestIntegration] Erreur:', error);
     throw error;
   }
 }
 
 export default QuestModule;
-
-console.log(`
-📖 === QUEST MODULE ULTRA-ROBUSTE ===
-
-🎯 CORRECTIONS MAJEURES:
-1. ✅ Initialisation séquentielle avec validation
-2. ✅ Handlers enregistrés AVANT init() du manager
-3. ✅ Connexion QuestUI robuste avec retry
-4. ✅ Validation système complète
-5. ✅ Auto-réparation avec surveillance
-6. ✅ Fallbacks et récupération d'erreur
-7. ✅ Diagnostics et health checks
-
-🔧 NOUVELLES FONCTIONNALITÉS:
-• Surveillance système continue (health checks)
-• Auto-réparation automatique des problèmes
-• Validation intégrité complète
-• Récupération d'erreur progressive
-• Diagnostics détaillés
-• API de réparation manuelle
-
-🛠️ UTILISATION:
-• setupQuestSystem(uiManager) - Setup robuste
-• window.repairQuestSystem() - Réparation manuelle
-• window.getQuestSystemHealth() - État système
-
-⚡ GARANTIES:
-✅ Handlers toujours enregistrés
-✅ Icône toujours visible  
-✅ Tracker toujours affiché
-✅ Connexions UI robustes
-✅ Auto-réparation en cas de problème
-
-🎮 SYSTÈME QUEST MAINTENANT ULTRA-ROBUSTE !
-`);
