@@ -56,11 +56,21 @@ export class InteractionManager {
 
   setupInputHandlers() {
     // ✅ DÉBOUNCER L'INPUT pour éviter exécutions multiples
-    const debouncedInteractionHandler = this.debounce(() => {
-      this.handleInteractionInput();
-    }, 300); // 300ms de debounce
-
-    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, debouncedInteractionHandler);
+    let debounceTimer = null;
+    
+    this.scene.input.keyboard.on(`keydown-${this.config.interactionKey}`, () => {
+      // Nettoyer le timer précédent
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      
+      // Créer nouveau timer
+      debounceTimer = setTimeout(() => {
+        this.handleInteractionInput();
+        debounceTimer = null;
+      }, 150); // 150ms de debounce (réduit)
+    });
+    
     console.log(`⌨️ [InteractionManager] Input avec debounce configuré (${this.config.interactionKey})`);
   }
 
@@ -213,17 +223,24 @@ export class InteractionManager {
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
-    // ✅ DÉBOUNCER AUSSI LES NETWORK HANDLERS
-    const debouncedInteractionResult = this.debounce((data) => {
-      this.processInteractionResult(data);
-    }, 100); // 100ms de debounce sur les résultats réseau
+    // ✅ DÉBOUNCER SEULEMENT LES RÉSULTATS, PAS LA RÉCEPTION
+    let lastProcessedTime = 0;
+    const NETWORK_DEBOUNCE_DELAY = 200; // 200ms entre traitements
 
     // Handler unifié pour résultats d'interaction modulaire
     this.networkManager.onMessage("npcInteractionResult", (data) => {
       console.log(`📥 [InteractionManager] === RÉSULTAT INTERACTION MODULAIRE ===`);
       console.log(`📊 [InteractionManager] Data:`, data);
       
-      debouncedInteractionResult(data);
+      // Déboucer les traitements (pas la réception)
+      const now = Date.now();
+      if (now - lastProcessedTime < NETWORK_DEBOUNCE_DELAY) {
+        console.log(`🔄 [InteractionManager] Résultat ignoré (debounce réseau)`);
+        return;
+      }
+      lastProcessedTime = now;
+      
+      this.processInteractionResult(data);
     });
 
     // Handlers spécialisés (conservés pour compatibilité)
