@@ -85,7 +85,7 @@ console.log('✅ Configuration wallet optionnelle activée');
 // Remplacez la fonction getSecureUserSession dans main.js
 
 function getSecureUserSession() {
-  const token = localStorage.getItem('sessionToken');
+const token = sessionStorage.getItem('sessionToken');
   
   if (!token) {
     console.warn('❌ Aucun token JWT trouvé');
