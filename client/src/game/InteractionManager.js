@@ -353,23 +353,49 @@ export class InteractionManager {
     console.log(`📊 [InteractionManager] Data:`, data);
     
     // ✅ CORRECTION MAJEURE: Vérifier window.questSystem d'abord
-    if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
-      console.log(`🎯 [InteractionManager] Délégation à window.questSystem`);
-      
-      try {
-        const result = window.questSystem.handleNpcInteraction(data);
-        console.log(`📖 [InteractionManager] Résultat Quest System:`, result);
-        
-        if (result !== 'NO_QUEST' && result !== false) {
-          console.log(`✅ [InteractionManager] Quest System a géré l'interaction`);
-          return; // Quest System a géré
-        }
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur Quest System:`, error);
-      }
-    } else {
-      console.warn(`⚠️ [InteractionManager] window.questSystem non disponible`);
+// ✅ CORRECTION: Vérifier le bon path (manager.handleNpcInteraction)
+if (window.questSystem?.manager && typeof window.questSystem.manager.handleNpcInteraction === 'function') {
+  console.log(`🎯 [InteractionManager] Délégation à window.questSystem.manager`);
+  
+  try {
+    const result = window.questSystem.manager.handleNpcInteraction(data);
+    console.log(`📖 [InteractionManager] Résultat Quest System:`, result);
+    
+    if (result !== 'NO_QUEST' && result !== false) {
+      console.log(`✅ [InteractionManager] Quest System a géré l'interaction`);
+      return; // Quest System a géré
     }
+  } catch (error) {
+    console.error(`❌ [InteractionManager] Erreur Quest System:`, error);
+  }
+} 
+// ✅ ALTERNATIVE: Vérifier si handleNpcInteraction existe directement sur questSystem (legacy)
+else if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
+  console.log(`🎯 [InteractionManager] Délégation à window.questSystem (legacy)`);
+  
+  try {
+    const result = window.questSystem.handleNpcInteraction(data);
+    console.log(`📖 [InteractionManager] Résultat Quest System legacy:`, result);
+    
+    if (result !== 'NO_QUEST' && result !== false) {
+      console.log(`✅ [InteractionManager] Quest System legacy a géré l'interaction`);
+      return;
+    }
+  } catch (error) {
+    console.error(`❌ [InteractionManager] Erreur Quest System legacy:`, error);
+  }
+} else {
+  console.warn(`⚠️ [InteractionManager] window.questSystem.manager.handleNpcInteraction non disponible`);
+  
+  // 🐛 DEBUG: Afficher ce qui est disponible
+  console.log('🔍 [InteractionManager] Debug questSystem:', {
+    questSystemExists: !!window.questSystem,
+    hasManager: !!(window.questSystem?.manager),
+    managerType: typeof window.questSystem?.manager,
+    hasHandleNpcInteraction: !!(window.questSystem?.manager?.handleNpcInteraction),
+    handleNpcInteractionType: typeof window.questSystem?.manager?.handleNpcInteraction
+  });
+}
     
     // ✅ Fallback vers dialogue normal si Quest System ne peut pas gérer
     console.log(`🔄 [InteractionManager] Fallback vers dialogue normal`);
