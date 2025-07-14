@@ -331,7 +331,7 @@ if (isDev) {
 if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
   nameLabel.setStyle({ fill: '#00FF00' }); // Vert pour moi
 } else if (isDev) {
-  nameLabel.setStyle({ fill: '#FF6600' }); // Orange pour les devs
+  nameLabel.setStyle({ fill: '#FF0000' }); // Rouge pour les devs
 } else {
   nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
 }
