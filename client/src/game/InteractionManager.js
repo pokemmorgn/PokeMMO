@@ -432,7 +432,7 @@ export class InteractionManager {
     }
     
     try {
-      const result = this.questSystem.handleNpcInteraction(data || npc);
+      const result = this.questSystem.manager.handleNpcInteraction(data || npc);
       if (result === false || result === 'NO_QUEST') {
         this.handleDialogueInteraction(npc, null);
       }
