@@ -154,56 +154,59 @@ export class PokedexSystem {
 
   // === 📡 COMMUNICATION SERVEUR ===
   
-  setupServerListeners() {
-    if (!this.gameRoom) return;
+setupServerListeners() {
+  if (!this.gameRoom) return;
 
-    // === RÉCEPTION DONNÉES POKÉDX ===
-    this.gameRoom.onMessage("pokedex:get:response", (response) => {
-      this.handlePokedexDataResponse(response);
-    });
+  // === RÉCEPTION DONNÉES POKÉDX ===
+  // ✅ RETIRER ":response" de tous les listeners de réponse
+  this.gameRoom.onMessage("pokedex:get", (response) => {
+    this.handlePokedexDataResponse(response);
+  });
 
-    this.gameRoom.onMessage("pokedex:entry:response", (response) => {
-      this.handlePokemonEntryResponse(response);
-    });
+  this.gameRoom.onMessage("pokedex:entry", (response) => {
+    this.handlePokemonEntryResponse(response);
+  });
 
-    this.gameRoom.onMessage("pokedex:stats:response", (response) => {
-      this.handleStatsResponse(response);
-    });
+  this.gameRoom.onMessage("pokedex:stats", (response) => {
+    this.handleStatsResponse(response);
+  });
 
-    // === ÉVÉNEMENTS DE DÉCOUVERTE/CAPTURE ===
-    this.gameRoom.onMessage("pokedex:discovery", (data) => {
-      this.handleDiscoveryEvent(data);
-    });
+  // === ÉVÉNEMENTS DE DÉCOUVERTE/CAPTURE ===
+  // ✅ GARDER sans ":response" (ce sont des broadcasts)
+  this.gameRoom.onMessage("pokedex:discovery", (data) => {
+    this.handleDiscoveryEvent(data);
+  });
 
-    this.gameRoom.onMessage("pokedex:capture", (data) => {
-      this.handleCaptureEvent(data);
-    });
+  this.gameRoom.onMessage("pokedex:capture", (data) => {
+    this.handleCaptureEvent(data);
+  });
 
-    // === RÉPONSES D'ACTIONS ===
-    this.gameRoom.onMessage("pokedex:mark_seen:response", (response) => {
-      this.handleMarkSeenResponse(response);
-    });
+  // === RÉPONSES D'ACTIONS ===
+  // ✅ RETIRER ":response"
+  this.gameRoom.onMessage("pokedex:mark_seen", (response) => {
+    this.handleMarkSeenResponse(response);
+  });
 
-    this.gameRoom.onMessage("pokedex:mark_caught:response", (response) => {
-      this.handleMarkCaughtResponse(response);
-    });
+  this.gameRoom.onMessage("pokedex:mark_caught", (response) => {
+    this.handleMarkCaughtResponse(response);
+  });
 
-    this.gameRoom.onMessage("pokedex:toggle_favorite:response", (response) => {
-      this.handleFavoriteResponse(response);
-    });
+  this.gameRoom.onMessage("pokedex:toggle_favorite", (response) => {
+    this.handleFavoriteResponse(response);
+  });
 
-    // === NOTIFICATIONS ===
-    this.gameRoom.onMessage("pokedex:notifications:response", (response) => {
-      this.handleNotificationsResponse(response);
-    });
+  // === NOTIFICATIONS ===
+  this.gameRoom.onMessage("pokedex:notifications", (response) => {
+    this.handleNotificationsResponse(response);
+  });
 
-    // === SYNCHRONISATION ===
-    this.gameRoom.onMessage("pokedex:quick_action:response", (response) => {
-      this.handleQuickActionResponse(response);
-    });
+  // === SYNCHRONISATION ===
+  this.gameRoom.onMessage("pokedex:quick_action", (response) => {
+    this.handleQuickActionResponse(response);
+  });
 
-    console.log('📡 [PokedexSystem] Listeners serveur configurés');
-  }
+  console.log('📡 [PokedexSystem] Listeners serveur configurés et corrigés');
+}
 
   // === 📤 REQUÊTES SERVEUR ===
   
