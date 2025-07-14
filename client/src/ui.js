@@ -1,9 +1,5 @@
-// client/src/ui.js - UI System avec mode intro et spawn intelligent
-// ✅ NOUVEAUTÉS:
-// 1. Mode 'intro' qui masque TOUTE l'interface
-// 2. Mode 'hidden' par défaut à la connexion
-// 3. Mode 'exploration' activé automatiquement après spawn
-// 4. Intégration avec PsyduckIntroManager
+// client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
+// ✅ Version NETTOYÉE avec BaseModule
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -42,75 +38,51 @@ const UI_CONFIG = {
   }
 };
 
-// === ÉTATS DE JEU POKÉMON (AVEC NOUVEAUX MODES) ===
+// === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
-  // ✅ NOUVEAU: Mode caché par défaut à la connexion
-  hidden: {
-    visibleModules: [],
-    enabledModules: [],
-    hiddenModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    disabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    description: 'Interface complètement cachée (connexion/chargement)'
-  },
-
-  // ✅ NOUVEAU: Mode intro - TOUT masqué
-  intro: {
-    visibleModules: [],
-    enabledModules: [],
-    hiddenModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    disabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    description: 'Interface masquée pendant les intros/prologues'
-  },
-
-  // Mode exploration normal
-  exploration: {
-    visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-    hiddenModules: [],
-    disabledModules: [],
-    description: 'Interface complète active',
-    responsive: {
-      mobile: { 
-        hiddenModules: ['questTracker'], 
-        visibleModules: ['inventory', 'quest', 'pokedex', 'team']
-      },
-      tablet: { 
-        visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker']
-      }
+exploration: {
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
+  hiddenModules: [],
+  disabledModules: [],
+  responsive: {
+    mobile: { 
+      hiddenModules: ['questTracker'], 
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team']
+    },
+    tablet: { 
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker']
     }
-  },
+  }
+},
   
   battle: {
     visibleModules: [],
     enabledModules: [],
     hiddenModules: ['inventory', 'team', 'quest', 'questTracker'],
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker'],
-    description: 'Interface cachée pendant les combats'
+    disabledModules: ['inventory', 'team', 'quest', 'questTracker']
   },
   
-  pokemonCenter: {
-    visibleModules: ['team', 'inventory', 'pokedex'],
-    enabledModules: ['team', 'inventory', 'pokedex'],
-    hiddenModules: ['questTracker'],
-    disabledModules: ['quest'],
-    description: 'Interface Centre Pokémon'
-  },
+pokemonCenter: {
+  visibleModules: ['team', 'inventory', 'pokedex'],
+  enabledModules: ['team', 'inventory', 'pokedex'],
+  hiddenModules: ['questTracker'],
+  disabledModules: ['quest']
+},
   
   dialogue: {
     visibleModules: ['inventory', 'team', 'quest'],
     enabledModules: [],
     hiddenModules: ['questTracker'],
-    disabledModules: ['inventory', 'team', 'quest'],
-    description: 'Interface réduite pendant dialogues'
+    disabledModules: ['inventory', 'team', 'quest']
   },
   
-  menu: {
-    visibleModules: ['inventory', 'quest', 'pokedex', 'team'],
-    enabledModules: ['inventory', 'quest', 'pokedex', 'team'],
-    hiddenModules: ['questTracker'],
-    disabledModules: [],
-    description: 'Interface menu complète'
-  }
+menu: {
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team'],
+  hiddenModules: ['questTracker'],
+  disabledModules: []
+}
 };
 
 // === GROUPES LOGIQUES POKÉMON ===
@@ -137,137 +109,13 @@ const POKEMON_UI_GROUPS = {
   }
 };
 
-// === CLASSE UI SYSTEM POKÉMON AMÉLIORÉE ===
+// === CLASSE UI SYSTEM POKÉMON ===
 export class PokemonUISystem {
   constructor() {
     this.uiManager = null;
     this.initialized = false;
     this.moduleInstances = new Map();
-    
-    // ✅ NOUVEAU: État par défaut caché
-    this.currentGameState = 'hidden';
-    this.playerSpawned = false;
-    this.introActive = false;
-    
-    // ✅ NOUVEAU: Système de surveillance spawn
-    this.spawnWatcher = null;
-    this.setupSpawnWatcher();
-  }
-
-  // === ✅ NOUVEAU: SURVEILLANCE DU SPAWN JOUEUR ===
-  
-  setupSpawnWatcher() {
-    // Surveiller le flag global playerReady
-    this.spawnWatcher = setInterval(() => {
-      this.checkPlayerSpawnStatus();
-    }, 1000);
-    
-    // Écouter les événements de spawn
-    window.addEventListener('playerSpawned', () => {
-      console.log('🎮 [PokemonUI] Événement playerSpawned détecté');
-      this.handlePlayerSpawned();
-    });
-    
-    window.addEventListener('playerReady', () => {
-      console.log('🎮 [PokemonUI] Événement playerReady détecté');
-      this.handlePlayerSpawned();
-    });
-    
-    // Écouter les événements d'intro
-    window.addEventListener('introStarted', () => {
-      console.log('🎬 [PokemonUI] Intro démarrée - masquage interface');
-      this.handleIntroStarted();
-    });
-    
-    window.addEventListener('introEnded', () => {
-      console.log('🎬 [PokemonUI] Intro terminée - restauration interface');
-      this.handleIntroEnded();
-    });
-  }
-  
-  checkPlayerSpawnStatus() {
-    // Vérifier les flags globaux
-    if (typeof window !== 'undefined' && 
-        window.playerReady === true && 
-        window.playerSpawned === true && 
-        window.loadingScreenClosed === true) {
-      
-      if (!this.playerSpawned) {
-        console.log('🎮 [PokemonUI] Joueur spawné détecté via flags globaux');
-        this.handlePlayerSpawned();
-      }
-    }
-    
-    // Vérifier l'objet joueur
-    if (window.game?.scene?.getScenes?.(true)?.[0]?.playerManager?.getMyPlayer?.()) {
-      const player = window.game.scene.getScenes(true)[0].playerManager.getMyPlayer();
-      
-      if (player && player.x !== undefined && player.y !== undefined && !this.playerSpawned) {
-        console.log('🎮 [PokemonUI] Joueur spawné détecté via objet player');
-        this.handlePlayerSpawned();
-      }
-    }
-  }
-  
-  handlePlayerSpawned() {
-    if (this.playerSpawned) return; // Déjà traité
-    
-    this.playerSpawned = true;
-    
-    // Arrêter la surveillance
-    if (this.spawnWatcher) {
-      clearInterval(this.spawnWatcher);
-      this.spawnWatcher = null;
-    }
-    
-    console.log('✅ [PokemonUI] Joueur spawné - activation interface si pas d\'intro active');
-    
-    // ✅ Afficher l'interface UNIQUEMENT si pas d'intro en cours
-    if (!this.introActive) {
-      this.activateUIAfterSpawn();
-    } else {
-      console.log('🎬 [PokemonUI] Intro active, interface reste masquée');
-    }
-  }
-  
-  activateUIAfterSpawn() {
-    console.log('🎮 [PokemonUI] Activation interface après spawn');
-    
-    // Délai pour laisser le temps au jeu de se stabiliser
-    setTimeout(() => {
-      if (!this.introActive) {
-        this.setGameState('exploration', { 
-          animated: true,
-          reason: 'player-spawned'
-        });
-        console.log('✅ [PokemonUI] Interface activée en mode exploration');
-      }
-    }, 1500);
-  }
-  
-  // === ✅ NOUVEAU: GESTION DES INTROS ===
-  
-  handleIntroStarted() {
-    this.introActive = true;
-    this.setGameState('intro', { 
-      animated: false,
-      reason: 'intro-started'
-    });
-  }
-  
-  handleIntroEnded() {
-    this.introActive = false;
-    
-    // Si le joueur est déjà spawné, activer l'interface
-    if (this.playerSpawned) {
-      this.activateUIAfterSpawn();
-    } else {
-      // Sinon, rester en mode hidden en attendant le spawn
-      this.setGameState('hidden', {
-        animated: true,
-        reason: 'intro-ended-waiting-spawn'
-      });
-    }
+    this.currentGameState = 'exploration';
   }
 
   // === INITIALISATION ===
@@ -286,15 +134,7 @@ export class PokemonUISystem {
       await this.registerAllModules();
       this.setupGlobalCallbacks();
       
-      // ✅ NOUVEAU: Démarrer en mode hidden par défaut
-      this.setGameState('hidden', { 
-        animated: false,
-        reason: 'initialization'
-      });
-      
       this.initialized = true;
-      console.log('✅ [PokemonUI] Système initialisé en mode hidden');
-      
       return true;
       
     } catch (error) {
@@ -330,8 +170,7 @@ export class PokemonUISystem {
           '.ui-icon', '#questTracker'
         ];
         
-        // ✅ NOUVEAU: Gestion des nouveaux modes
-        if (stateName === 'battle' || stateName === 'intro' || stateName === 'hidden') {
+        if (stateName === 'battle') {
           iconsSelectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(el => {
               el.style.display = 'none';
@@ -411,30 +250,30 @@ export class PokemonUISystem {
         },
         priority: 90
       },
-      {
-        id: 'pokedex',
-        critical: false,
-        factory: this.createPokedexModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 2,
-          spacing: 10
-        },
-        priority: 85,
-        defaultState: {
-          visible: true,
-          enabled: true,
-          initialized: false
-        },
-        metadata: {
-          name: 'Pokédx National',
-          description: 'Complete Pokédx system with discovery tracking',
-          version: '1.0.0',
-          category: 'Data Management'
-        }
-      },
+{
+  id: 'pokedex',
+  critical: false,
+  factory: this.createPokedexModule.bind(this),
+  groups: ['ui-icons'],
+  layout: {
+    type: 'icon',
+    anchor: 'bottom-right',
+    order: 2,
+    spacing: 10
+  },
+  priority: 85,
+  defaultState: {
+    visible: true,
+    enabled: true,
+    initialized: false
+  },
+  metadata: {
+    name: 'Pokédx National',
+    description: 'Complete Pokédx system with discovery tracking',
+    version: '1.0.0',
+    category: 'Data Management'
+  }
+},
       {
         id: 'team',
         critical: true,
@@ -448,7 +287,7 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 3,
+          order: 2,
           spacing: 10
         },
         groups: ['ui-icons'],
@@ -578,10 +417,11 @@ export class PokemonUISystem {
     }
   }
 
-  async createPokedexModule() {
+    async createPokedexModule() {
     try {
       console.log('🚀 [PokemonUI] Création module Pokédex...');
       
+      // Importer et créer le module Pokédx
       const { createPokedexModule } = await import('./Pokedex/index.js');
       
       const pokedexModule = await createPokedexModule(
@@ -595,6 +435,7 @@ export class PokemonUISystem {
       
       console.log('✅ [PokemonUI] PokedexModule créé avec succès');
       
+      // S'assurer que le module a les méthodes nécessaires pour UIManager
       if (!pokedexModule.connectUIManager && pokedexModule.icon?.iconElement) {
         pokedexModule.connectUIManager = (uiManager) => {
           if (uiManager.registerIconPosition) {
@@ -610,10 +451,12 @@ export class PokemonUISystem {
         };
       }
       
+      // Connecter à UIManager si disponible
       if (this.uiManager && pokedexModule.connectUIManager) {
         pokedexModule.connectUIManager(this.uiManager);
       }
       
+      // Exposer globalement
       window.pokedexSystem = pokedexModule.system;
       window.pokedexSystemGlobal = pokedexModule;
       window.togglePokedex = () => pokedexModule.toggleUI?.() || pokedexModule.toggle?.();
@@ -624,58 +467,63 @@ export class PokemonUISystem {
       
     } catch (error) {
       console.error('❌ [PokemonUI] Erreur création Pokédx:', error);
+      // Fallback: wrapper vide
       return this.createEmptyWrapper('pokedex');
     }
   }
-
-  async createQuestModule() {
-    try {
-      console.log('🚀 [PokemonUI] Création module Quest...');
-      
-      const { createQuestModule } = await import('./Quest/index.js');
-      
-      const questModule = await createQuestModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      if (questModule) {
-        console.log('✅ [PokemonUI] QuestModule créé avec succès');
+    async createQuestModule() {
+      try {
+        console.log('🚀 [PokemonUI] Création module Quest...');
         
-        if (!questModule.connectUIManager && questModule.icon?.iconElement) {
-          questModule.connectUIManager = (uiManager) => {
-            if (uiManager.registerIconPosition) {
-              uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
-                anchor: 'bottom-right',
-                order: 1,
-                spacing: 10,
-                size: { width: 65, height: 75 }
-              });
-              return true;
-            }
-            return false;
-          };
+        // Méthode 1: Importer et créer le module Quest
+        const { createQuestModule } = await import('./Quest/index.js');
+        
+        const questModule = await createQuestModule(
+          window.currentGameRoom,
+          window.game?.scene?.getScenes(true)[0]
+        );
+        
+        if (questModule) {
+          console.log('✅ [PokemonUI] QuestModule créé avec succès');
+          
+          // S'assurer que le module a les méthodes nécessaires pour UIManager
+          if (!questModule.connectUIManager && questModule.icon?.iconElement) {
+            questModule.connectUIManager = (uiManager) => {
+              if (uiManager.registerIconPosition) {
+                uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
+                  anchor: 'bottom-right',
+                  order: 1,
+                  spacing: 10,
+                  size: { width: 65, height: 75 }
+                });
+                return true;
+              }
+              return false;
+            };
+          }
+          
+          // Connecter à UIManager si disponible
+          if (this.uiManager && questModule.connectUIManager) {
+            questModule.connectUIManager(this.uiManager);
+          }
+          
+          // Exposer globalement
+          window.questSystem = questModule;
+          window.questSystemGlobal = questModule;
+          window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
+          window.openQuest = () => questModule.open?.();
+          window.closeQuest = () => questModule.close?.();
+          
+          return questModule;
         }
         
-        if (this.uiManager && questModule.connectUIManager) {
-          questModule.connectUIManager(this.uiManager);
-        }
-        
-        window.questSystem = questModule;
-        window.questSystemGlobal = questModule;
-        window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
-        window.openQuest = () => questModule.open?.();
-        window.closeQuest = () => questModule.close?.();
-        
-        return questModule;
+      } catch (error) {
+        console.error('❌ [PokemonUI] Erreur création Quest:', error);
       }
       
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création Quest:', error);
+      // Fallback: wrapper vide
+      return this.createEmptyWrapper('quest');
     }
-    
-    return this.createEmptyWrapper('quest');
-  }
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
@@ -825,61 +673,17 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ AMÉLIORÉ: setGameState avec logging et raisons
   setGameState(stateName, options = {}) {
     if (!this.uiManager) {
       return false;
     }
     
-    const previousState = this.currentGameState;
-    const reason = options.reason || 'manual';
-    
-    console.log(`🎮 [PokemonUI] Changement état: ${previousState} → ${stateName} (${reason})`);
-    
     if (this.uiManager.setGameState) {
-      const success = this.uiManager.setGameState(stateName, options);
-      if (success) {
-        this.currentGameState = stateName;
-      }
-      return success;
+      return this.uiManager.setGameState(stateName, options);
     } else {
       this.currentGameState = stateName;
       return true;
     }
-  }
-
-  // ✅ NOUVELLES MÉTHODES PUBLIQUES
-  
-  isIntroActive() {
-    return this.introActive;
-  }
-  
-  isPlayerSpawned() {
-    return this.playerSpawned;
-  }
-  
-  getCurrentState() {
-    return this.currentGameState;
-  }
-  
-  // Force l'activation de l'interface (pour debug)
-  forceActivateUI() {
-    console.log('🔧 [PokemonUI] Activation forcée de l\'interface');
-    this.playerSpawned = true;
-    this.introActive = false;
-    this.setGameState('exploration', { 
-      animated: true, 
-      reason: 'force-activation' 
-    });
-  }
-  
-  // Force le masquage de l'interface
-  forceHideUI() {
-    console.log('🔧 [PokemonUI] Masquage forcé de l\'interface');
-    this.setGameState('hidden', { 
-      animated: true, 
-      reason: 'force-hide' 
-    });
   }
 
   getModule(moduleId) {
@@ -929,40 +733,10 @@ export class PokemonUISystem {
     
     return {
       currentGameState: this.currentGameState,
-      playerSpawned: this.playerSpawned,
-      introActive: this.introActive,
       modulesCount: this.moduleInstances.size,
       uiManagerStats: uiStats,
-      initialized: this.initialized,
-      
-      // ✅ NOUVEAU: Infos de debugging spécifiques
-      spawnWatcher: !!this.spawnWatcher,
-      globalFlags: {
-        playerReady: window?.playerReady,
-        playerSpawned: window?.playerSpawned,
-        loadingScreenClosed: window?.loadingScreenClosed
-      },
-      availableStates: Object.keys(POKEMON_GAME_STATES)
+      initialized: this.initialized
     };
-  }
-  
-  // ✅ Cleanup pour destruction
-  destroy() {
-    console.log('🧹 [PokemonUI] Destruction du système...');
-    
-    if (this.spawnWatcher) {
-      clearInterval(this.spawnWatcher);
-      this.spawnWatcher = null;
-    }
-    
-    if (this.uiManager && this.uiManager.destroy) {
-      this.uiManager.destroy();
-    }
-    
-    this.moduleInstances.clear();
-    this.initialized = false;
-    this.playerSpawned = false;
-    this.introActive = false;
   }
 }
 
@@ -985,7 +759,6 @@ export async function initializePokemonUI() {
     window.uiManager = pokemonUISystem.uiManager;
     
     setupCompatibilityFunctions();
-    setupIntroIntegration(); // ✅ NOUVEAU
     
     return {
       success: result.success,
@@ -1004,37 +777,6 @@ export async function initializePokemonUI() {
       uiManager: null
     };
   }
-}
-
-// ✅ NOUVELLE FONCTION: Intégration avec les systèmes d'intro
-function setupIntroIntegration() {
-  // Intégration avec PsyduckIntroManager
-  window.addEventListener('psyduckIntroStarted', () => {
-    console.log('🦆 [PokemonUI] Intro Psyduck démarrée');
-    window.dispatchEvent(new CustomEvent('introStarted'));
-  });
-  
-  window.addEventListener('psyduckIntroEnded', () => {
-    console.log('🦆 [PokemonUI] Intro Psyduck terminée');
-    window.dispatchEvent(new CustomEvent('introEnded'));
-  });
-  
-  // Exposer des fonctions globales pour les intros
-  window.startUIIntroMode = () => {
-    pokemonUISystem.handleIntroStarted();
-  };
-  
-  window.endUIIntroMode = () => {
-    pokemonUISystem.handleIntroEnded();
-  };
-  
-  window.forceActivateUI = () => {
-    pokemonUISystem.forceActivateUI();
-  };
-  
-  window.forceHideUI = () => {
-    pokemonUISystem.forceHideUI();
-  };
 }
 
 export async function autoInitializePokemonUI() {
@@ -1063,8 +805,7 @@ export async function createMinimalPokemonUI() {
             '.ui-icon', '.game-icon', '#questTracker'
           ];
           
-          // ✅ NOUVEAU: Gestion des nouveaux modes
-          if (stateName === 'battle' || stateName === 'intro' || stateName === 'hidden') {
+          if (stateName === 'battle') {
             iconsSelectors.forEach(selector => {
               document.querySelectorAll(selector).forEach(el => {
                 el.style.display = 'none';
@@ -1080,7 +821,7 @@ export async function createMinimalPokemonUI() {
           
           window.dispatchEvent(new CustomEvent('pokemonUIStateChanged', {
             detail: { 
-              previousState: this.currentGameState || 'hidden', 
+              previousState: this.currentGameState || 'exploration', 
               newState: stateName 
             }
           }));
@@ -1089,7 +830,7 @@ export async function createMinimalPokemonUI() {
           return true;
         },
         
-        currentGameState: 'hidden', // ✅ NOUVEAU: par défaut hidden
+        currentGameState: 'exploration',
         
         debugInfo: () => ({
           mode: 'minimal-ui',
@@ -1104,40 +845,10 @@ export async function createMinimalPokemonUI() {
       },
       
       initialized: true,
-      currentGameState: 'hidden', // ✅ NOUVEAU
-      playerSpawned: false,
-      introActive: false,
+      currentGameState: 'exploration',
       
       setGameState: function(stateName, options = {}) {
         return this.uiManager.setGameState(stateName, options);
-      },
-      
-      isIntroActive: function() { return this.introActive; },
-      isPlayerSpawned: function() { return this.playerSpawned; },
-      getCurrentState: function() { return this.currentGameState; },
-      
-      forceActivateUI: function() {
-        this.playerSpawned = true;
-        this.introActive = false;
-        this.setGameState('exploration', { reason: 'force-minimal' });
-      },
-      
-      forceHideUI: function() {
-        this.setGameState('hidden', { reason: 'force-hide-minimal' });
-      },
-      
-      handleIntroStarted: function() {
-        this.introActive = true;
-        this.setGameState('intro', { reason: 'intro-started-minimal' });
-      },
-      
-      handleIntroEnded: function() {
-        this.introActive = false;
-        if (this.playerSpawned) {
-          this.setGameState('exploration', { reason: 'intro-ended-minimal' });
-        } else {
-          this.setGameState('hidden', { reason: 'intro-ended-waiting-spawn-minimal' });
-        }
       },
       
       getModule: () => null,
@@ -1148,9 +859,7 @@ export async function createMinimalPokemonUI() {
           initialized: true,
           mode: 'minimal-pokemon-ui',
           currentGameState: this.currentGameState,
-          playerSpawned: this.playerSpawned,
-          introActive: this.introActive,
-          compatibility: 'Basic UI state management with intro support',
+          compatibility: 'Basic UI state management',
           uiManager: this.uiManager.debugInfo()
         };
       }
@@ -1160,7 +869,6 @@ export async function createMinimalPokemonUI() {
     window.uiManager = minimalUISystem.uiManager;
     
     setupCompatibilityFunctions();
-    setupIntroIntegration();
     
     return {
       success: true,
@@ -1182,7 +890,7 @@ export async function createMinimalPokemonUI() {
   }
 }
 
-// === FONCTIONS DE COMPATIBILITÉ (identiques mais avec nouvelles fonctions) ===
+// === FONCTIONS DE COMPATIBILITÉ ===
 function setupCompatibilityFunctions() {
   // Fonctions Team
   window.toggleTeam = () => {
@@ -1246,7 +954,7 @@ function setupCompatibilityFunctions() {
     }
   };
 
-  // Fonctions Pokédx
+    // Fonctions Pokédx
   window.togglePokedex = () => {
     const module = pokemonUISystem.getModule?.('pokedex');
     if (module && module.toggleUI) {
@@ -1314,25 +1022,24 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Écouter les événements de battle
   window.addEventListener('battleStarted', () => {
-    pokemonUISystem?.setGameState?.('battle', { animated: true, reason: 'battle-started' });
+    pokemonUISystem?.setGameState?.('battle', { animated: true });
   });
   
   window.addEventListener('battleEnded', () => {
-    pokemonUISystem?.setGameState?.('exploration', { animated: true, reason: 'battle-ended' });
+    pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
   
   // Écouter les événements de dialogue
   window.addEventListener('dialogueStarted', () => {
-    pokemonUISystem?.setGameState?.('dialogue', { animated: true, reason: 'dialogue-started' });
+    pokemonUISystem?.setGameState?.('dialogue', { animated: true });
   });
   
   window.addEventListener('dialogueEnded', () => {
-    pokemonUISystem?.setGameState?.('exploration', { animated: true, reason: 'dialogue-ended' });
+    pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
 });
 
-console.log('✅ [PokemonUI] Système UI Pokémon avec mode intro chargé');
-console.log('🎮 États disponibles: hidden, intro, exploration, battle, dialogue, pokemonCenter, menu');
-console.log('🎬 Fonctions intro: window.startUIIntroMode(), window.endUIIntroMode()');
-console.log('🔧 Debug: window.forceActivateUI(), window.forceHideUI()');
+console.log('✅ [PokemonUI] Système UI Pokémon avec BaseModule chargé');
+console.log('🎮 Utilisez initializePokemonUI() pour démarrer');
+console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('🔍 Utilisez window.debugPokemonUI() pour diagnostiquer');
