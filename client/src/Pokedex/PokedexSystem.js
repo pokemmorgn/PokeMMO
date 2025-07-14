@@ -25,7 +25,11 @@ export class PokedexSystem {
     // === ÉTAT ===
     this.isInitialized = false;
     this.isSyncing = false;
-    
+
+   // 🆕 PROTECTION CONTRE DEMANDES MULTIPLES
+    this._isRequestingData = false;
+    this._lastRequestTime = null;
+    this._requestCooldown = 2000; // 2 secondes entre les demandes
     this.init();
   }
 
@@ -210,20 +214,40 @@ setupServerListeners() {
 
   // === 📤 REQUÊTES SERVEUR ===
   
-  requestPokedexData(filters = {}) {
-    if (!this.gameRoom) return;
-    
-    console.log('📡 [PokedexSystem] Demande données Pokédx...', filters);
-    this.gameRoom.send("pokedex:get", {
-      filters: {
-        sortBy: 'id',
-        sortOrder: 'asc',
-        limit: 50,
-        offset: 0,
-        ...filters
-      }
-    });
+requestPokedexData(filters = {}) {
+  if (!this.gameRoom) return;
+  
+  // 🛠️ PROTECTION CONTRE LES DEMANDES MULTIPLES
+  const now = Date.now();
+  if (this._isRequestingData) {
+    console.warn('⚠️ [PokedexSystem] Demande déjà en cours, ignorer');
+    return;
   }
+  
+  if (this._lastRequestTime && (now - this._lastRequestTime) < this._requestCooldown) {
+    console.warn('⚠️ [PokedexSystem] Cooldown actif, ignorer demande');
+    return;
+  }
+  
+  this._isRequestingData = true;
+  this._lastRequestTime = now;
+  
+  console.log('📡 [PokedexSystem] Demande données Pokédx...', filters);
+  this.gameRoom.send("pokedex:get", {
+    filters: {
+      sortBy: 'id',
+      sortOrder: 'asc',
+      limit: 50,
+      offset: 0,
+      ...filters
+    }
+  });
+  
+  // Libérer le verrou après 3 secondes max
+  setTimeout(() => {
+    this._isRequestingData = false;
+  }, 3000);
+}
   
   requestPokemonEntry(pokemonId) {
     if (!this.gameRoom) return;
