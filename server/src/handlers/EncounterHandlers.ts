@@ -213,7 +213,7 @@ private async startWildBattleImmediate(client: Client, wildPokemon: any, encount
       
       // Récupérer via nom joueur (comme dans BattleHandlers)
       const jwtStats = this.jwtManager.getStats();
-      const correctMapping = jwtStats.mappings.find(m => m.username === player.name);
+const correctMapping = jwtStats.mappings.find((m: any) => m.username === player.name);
       
       if (correctMapping) {
         const originalJwtData = this.jwtManager.getUserJWTData(correctMapping.userId);
