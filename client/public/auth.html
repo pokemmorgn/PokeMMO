@@ -1504,14 +1504,24 @@ startGame() {
   console.log('🎮 Starting game with JWT system...');
   this.showLoadingOverlay(true);
   
-  // ✅ Le token JWT est déjà dans localStorage.sessionToken
-  // Plus besoin de session compliquée
+  // ✅ NOUVEAU: Créer une session sécurisée pour le jeu
+  const gameSession = {
+    sessionToken: this.currentUser.sessionToken,
+    username: this.currentUser.username,
+    permissions: this.currentUser.permissions,
+    deviceFingerprint: this.currentUser.deviceFingerprint,
+    gameStartTime: Date.now(),
+    walletConnected: !!this.connectedWallet
+  };
+  
+  // ✅ Crypter et stocker la session
+  const encryptedSession = this.encryptSessionData(gameSession);
+  sessionStorage.setItem('pws_game_session', encryptedSession);
   
   setTimeout(() => {
     window.location.href = '/index.html';
   }, 1000);
 }
-
            showUserDashboard() {
     document.getElementById('guestSection').style.display = 'none';
     document.getElementById('userDashboard').classList.add('active');
