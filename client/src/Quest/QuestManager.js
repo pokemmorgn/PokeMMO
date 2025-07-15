@@ -48,7 +48,8 @@ export class QuestManager {
     console.log('📖 [QuestManager] Instance créée - Version anti-boucle');
     
     if (gameRoom) {
-      this.setGameRoom(gameRoom);
+      this.gameRoom = gameRoom;
+      this.setState('WAITING_ROOM', 'GameRoom fournie');
     }
   }
   
