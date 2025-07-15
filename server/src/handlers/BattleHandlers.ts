@@ -134,8 +134,8 @@ public async handleStartWildBattle(client: Client, data: {
   currentZone?: string;
   zoneId?: string;
 }): Promise<void> {
-  console.log(`🔍 [DEBUG FUITE] === DIAGNOSTIC ÉTAT JOUEUR ===`);
-  console.log(`🔍 [DEBUG FUITE] SessionId: ${client.sessionId}`);
+  console.log(`🔍 [DEBUG] === TENTATIVE COMBAT #${Date.now()} ===`);
+  console.log(`🔍 [DEBUG] SessionId: ${client.sessionId}`);
   
   const player = this.room.state.players.get(client.sessionId);
   if (!player) {
@@ -143,34 +143,46 @@ public async handleStartWildBattle(client: Client, data: {
     return;
   }
   
-  // État combat
+  // ✅ DEBUG ÉTAT COMPLET
   const isInBattle = this.isPlayerInBattle(client.sessionId);
   const battleRoomId = this.getPlayerBattleRoomId(client.sessionId);
-  console.log(`🔍 [DEBUG FUITE] En combat: ${isInBattle}`);
-  console.log(`🔍 [DEBUG FUITE] BattleRoomId: ${battleRoomId}`);
-  
-  // État mouvement
   const isBlocked = this.room.isPlayerMovementBlocked(client.sessionId);
-  console.log(`🔍 [DEBUG FUITE] Mouvement bloqué: ${isBlocked}`);
   
-  // État activeBattles
-  console.log(`🔍 [DEBUG FUITE] ActiveBattles size: ${this.activeBattles.size}`);
-  console.log(`🔍 [DEBUG FUITE] ActiveBattles contenu:`, Array.from(this.activeBattles.entries()));
+  console.log(`🔍 [DEBUG] États:`);
+  console.log(`  - En combat: ${isInBattle}`);
+  console.log(`  - BattleRoom: ${battleRoomId}`);
+  console.log(`  - Bloqué: ${isBlocked}`);
+  console.log(`  - ActiveBattles: ${this.activeBattles.size}`);
   
-  // ✅ NETTOYAGE FORCÉ SI COINCÉ
-  if (isInBattle || battleRoomId || isBlocked) {
-    console.log(`🧹 [DEBUG FUITE] NETTOYAGE FORCÉ...`);
-    await this.cleanupBattle(client.sessionId, "stuck_cleanup");
-    this.room.unblockPlayerMovement(client.sessionId, 'battle');
-    console.log(`✅ [DEBUG FUITE] Nettoyage terminé`);
+  // ✅ DEBUG JWT
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+  const jwtStats = this.jwtManager.getStats();
+  
+  console.log(`🔍 [DEBUG] JWT:`);
+  console.log(`  - UserId: ${userId}`);
+  console.log(`  - JWT Data: ${jwtData ? 'EXISTS' : 'NULL'}`);
+  console.log(`  - Total sessions: ${jwtStats.activeSessions}`);
+  
+  // ✅ NETTOYAGE SYSTÉMATIQUE
+  console.log(`🧹 [DEBUG] Nettoyage préventif...`);
+  await this.cleanupBattle(client.sessionId, "preventive");
+  this.room.unblockPlayerMovement(client.sessionId, 'battle');
+  
+  // ✅ SI JWT MANQUANT, ESSAYER DE LE RÉCUPÉRER
+  if (!userId || !jwtData) {
+    console.error(`❌ [DEBUG] JWT manquant après ${this.activeBattles.size > 0 ? 'premier' : 'aucun'} combat`);
+    this.jwtManager.debugMappings();
+    client.send("battleError", { message: "Session invalide pour le combat" });
+    return;
   }
 
-  const userId = this.jwtManager.getUserId(client.sessionId);
-  console.log(`⚔️ [BattleHandlers] Combat: sessionId=${client.sessionId}, userId=${userId}`);
   console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
   console.log(`👤 Joueur: ${player.name}`);
   console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
   console.log(`📍 Lieu: ${data.location}`);
+
+  // ... reste de votre code existant
 
   // Récupérer l'équipe du joueur
   const teamHandlers = this.room.getTeamHandlers();
