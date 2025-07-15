@@ -425,27 +425,60 @@ export class InteractionManager {
   }
 
 handleQuestInteraction(npc, data) {
-  this.questSystem = this.questSystem || window.questSystem;
-  if (!this.questSystem) {
-    this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
+  // ✅ ACCÈS CORRIGÉ au QuestModule via UIManager
+  let questManager = null;
+  
+  // Essayer UIManager d'abord
+  if (window.uiManager?.modules?.has('quest')) {
+    const questModuleWrapper = window.uiManager.modules.get('quest');
+    questManager = questModuleWrapper?.instance?.manager;
+    console.log('🔍 [InteractionManager] QuestManager via UIManager:', questManager);
+  }
+  
+  // Fallback vers window
+  if (!questManager) {
+    const questSystem = window.questSystem || window.questSystemGlobal;
+    questManager = questSystem?.manager || questSystem;
+  }
+  
+  if (!questManager || typeof questManager.handleNpcInteraction !== 'function') {
+    console.warn('⚠️ [InteractionManager] QuestManager.handleNpcInteraction non disponible');
+    
+    // ✅ FALLBACK: Afficher le dialogue directement
+    let questMessage = "Ce PNJ a des quêtes disponibles.";
+    
+    if (data && data.message) {
+      questMessage = data.message;
+    } else if (data && data.lines && Array.isArray(data.lines)) {
+      questMessage = data.lines.join('\n');
+    }
+    
+    this.handleDialogueInteraction(npc, {
+      message: questMessage,
+      lines: data?.lines || [questMessage],
+      name: data?.name || npc?.name || "Bob",
+      portrait: data?.portrait || `/assets/portrait/${npc?.sprite}Portrait.png`
+    });
     return;
   }
   
   try {
-    const result = this.questSystem.manager.handleNpcInteraction(data || npc);
-    
+    const result = questManager.handleNpcInteraction(data || npc);
     console.log(`🎯 [InteractionManager] Quest result: ${result}`);
     
-    // ✅ CORRECTION: Gérer tous les codes de retour correctement
-    const resultType = this.questSystem.manager.getInteractionResult(result);
+    // ✅ Gérer les codes de retour du QuestManager
+    const resultType = questManager.getInteractionResult ? 
+      questManager.getInteractionResult(result) : 'unknown';
     
     switch (resultType) {
       case 'success':
         // Quête affichée ou complétée - ne rien faire d'autre
+        console.log('✅ [InteractionManager] Quest interaction réussie');
         break;
         
       case 'pending':
         // En attente de réponse serveur - ne rien faire d'autre
+        console.log('⏳ [InteractionManager] En attente réponse quest');
         break;
         
       case 'blocked':
@@ -462,19 +495,46 @@ handleQuestInteraction(npc, data) {
         
       case 'no_quest':
         // Pas de quête - dialogue normal
+        console.log('ℹ️ [InteractionManager] Pas de quête, dialogue normal');
         this.handleDialogueInteraction(npc, data);
         break;
         
       default:
-        // Code inconnu - dialogue de fallback
-        console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
-        this.handleDialogueInteraction(npc, data);
+        // Code inconnu ou fallback simple
+        switch (result) {
+          case 'QUESTS_SHOWN':
+          case 'QUEST_COMPLETED':
+            console.log('✅ [InteractionManager] Quest interaction réussie');
+            break;
+          case 'REQUESTING_QUESTS':
+          case 'ALREADY_REQUESTING':
+            console.log('⏳ [InteractionManager] En attente réponse quest');
+            break;
+          case 'NO_QUEST':
+            this.handleDialogueInteraction(npc, data);
+            break;
+          default:
+            console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
+            this.handleDialogueInteraction(npc, data);
+        }
     }
     
   } catch (error) {
     console.error('❌ [InteractionManager] Erreur quest interaction:', error);
-    this.handleDialogueInteraction(npc, { 
-      message: `Erreur quête: ${error.message}` 
+    
+    // Fallback dialogue avec le message d'origine
+    let questMessage = "Erreur du système de quêtes.";
+    
+    if (data && data.message) {
+      questMessage = data.message;
+    } else if (data && data.lines && Array.isArray(data.lines)) {
+      questMessage = data.lines.join('\n');
+    }
+    
+    this.handleDialogueInteraction(npc, {
+      message: questMessage,
+      lines: data?.lines || [questMessage],
+      name: data?.name || npc?.name || "Bob"
     });
   }
 }
