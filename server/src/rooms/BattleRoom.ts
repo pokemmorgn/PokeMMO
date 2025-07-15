@@ -9,6 +9,8 @@ import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
 import { PokemonMoveService } from "../services/PokemonMoveService";
 import { BattlePhase } from '../battle/types/BattleTypes';
+import { JWTManager } from "../managers/JWTManager";
+
 // === INTERFACES BATTLEROOM ===
 
 export interface BattleInitData {
@@ -38,7 +40,8 @@ export class BattleRoom extends Room<BattleState> {
   // === DONNÉES ROOM ===
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
-  
+  private jwtManager = JWTManager.getInstance();
+
   maxClients = 2;
   
   // === CRÉATION ROOM ===
@@ -212,14 +215,21 @@ private async handleRequestMoves(client: Client) {
   }
 }
   
-  private async handleBattleAction(client: Client, data: any) {
+ private async handleBattleAction(client: Client, data: any) {
     console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
     
     try {
+      // ✅ NOUVEAU: Utiliser userId au lieu de sessionId
+      const userId = this.jwtManager.getUserId(client.sessionId);
+      if (!userId) {
+        client.send("actionResult", { success: false, error: "Session invalide" });
+        return;
+      }
+      
       // Créer l'action pour BattleEngine
       const action: BattleAction = {
         actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        playerId: client.sessionId,
+        playerId: userId, // ✅ Utiliser userId stable
         type: data.actionType,
         data: {
           moveId: data.moveId,
@@ -718,7 +728,14 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       const effectiveSessionId = options?.worldSessionId || client.sessionId;
       const playerName = this.getPlayerName(effectiveSessionId);
       
-      this.state.player1Id = client.sessionId;
+      // ✅ NOUVEAU: Utiliser userId au lieu de sessionId
+      const userId = this.jwtManager.getUserId(client.sessionId);
+      if (!userId) {
+        client.leave(1000, "Session invalide");
+        return;
+      }
+      
+      this.state.player1Id = userId; // ✅ Utiliser userId stable
       this.state.player1Name = playerName || this.battleInitData.playerData.name;
       
       // Créer TeamManager
