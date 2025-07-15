@@ -5,6 +5,7 @@ import { BattleRoom, BattleInitData } from "../rooms/BattleRoom";
 import { WildPokemon } from "../managers/EncounterManager";
 import { TeamManager } from "../managers/TeamManager";
 import { getPokemonById } from '../data/PokemonData';
+import { JWTManager } from '../managers/JWTManager';
 
 /**
  * Gestionnaire centralisé pour tous les handlers de combat + CAPTURE
@@ -12,7 +13,8 @@ import { getPokemonById } from '../data/PokemonData';
  */
 export class BattleHandlers {
   private room: WorldRoom;
-  
+    private jwtManager = JWTManager.getInstance(); // ← AJOUTER ÇA
+
   // Tracking des combats actifs
   private activeBattles: Map<string, string> = new Map(); // sessionId -> battleRoomId
   private battleRequests: Map<string, any> = new Map(); // sessionId -> battle request data
@@ -126,6 +128,7 @@ export class BattleHandlers {
    * Démarre un combat sauvage
    */
 public async handleStartWildBattle(client: Client, data: {
+  
   wildPokemon: WildPokemon;
   location: string;
   method: string;
@@ -138,6 +141,8 @@ public async handleStartWildBattle(client: Client, data: {
     return;
   }
 
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    console.log(`⚔️ [BattleHandlers] Combat: sessionId=${client.sessionId}, userId=${userId}`);
   console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
   console.log(`👤 Joueur: ${player.name}`);
   console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
