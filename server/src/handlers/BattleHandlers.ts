@@ -127,8 +127,31 @@ export class BattleHandlers {
   /**
    * Démarre un combat sauvage
    */
-public async handleStartWildBattle(client: Client, data: {
+public async handleStartWildBattle(client: Client, data: any) {
+  console.log(`🔍 [DEBUG FUITE] === DIAGNOSTIC ÉTAT JOUEUR ===`);
+  console.log(`🔍 [DEBUG FUITE] SessionId: ${client.sessionId}`);
   
+  // État combat
+  const isInBattle = this.isPlayerInBattle(client.sessionId);
+  const battleRoomId = this.getPlayerBattleRoomId(client.sessionId);
+  console.log(`🔍 [DEBUG FUITE] En combat: ${isInBattle}`);
+  console.log(`🔍 [DEBUG FUITE] BattleRoomId: ${battleRoomId}`);
+  
+  // État mouvement
+  const isBlocked = this.room.isPlayerMovementBlocked(client.sessionId);
+  console.log(`🔍 [DEBUG FUITE] Mouvement bloqué: ${isBlocked}`);
+  
+  // État activeBattles
+  console.log(`🔍 [DEBUG FUITE] ActiveBattles size: ${this.activeBattles.size}`);
+  console.log(`🔍 [DEBUG FUITE] ActiveBattles contenu:`, Array.from(this.activeBattles.entries()));
+  
+  // ✅ NETTOYAGE FORCÉ SI COINCÉ
+  if (isInBattle || battleRoomId || isBlocked) {
+    console.log(`🧹 [DEBUG FUITE] NETTOYAGE FORCÉ...`);
+    await this.cleanupBattle(client.sessionId, "stuck_cleanup");
+    this.room.unblockPlayerMovement(client.sessionId, 'battle');
+    console.log(`✅ [DEBUG FUITE] Nettoyage terminé`);
+  }  
   wildPokemon: WildPokemon;
   location: string;
   method: string;
