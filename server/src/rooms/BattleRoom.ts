@@ -758,7 +758,7 @@ async onJoin(client: Client, options: any) {
     }
     
     this.state.player1Id = userId;
-      this.state.player1Name = playerName || this.battleInitData.playerData.name;
+this.state.player1Name = this.battleInitData.playerData.name;
       
       // Créer TeamManager
       const teamManager = new TeamManager(this.state.player1Name);
