@@ -561,16 +561,26 @@ export class QuestManager {
     }
   }
   
-  handleQuestGiverResponse(data) {
-    console.log('🎁 [QuestManager] Réponse Quest Giver');
-    
-    if (data.availableQuests && Array.isArray(data.availableQuests)) {
-      console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
-      this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
-    } else if (data.message) {
+handleQuestGiverResponse(data) {
+  console.log('🎁 [QuestManager] Réponse Quest Giver');
+  
+  if (data.availableQuests && Array.isArray(data.availableQuests)) {
+    console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
+    this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
+  } else if (data.message) {
+    // ✅ CORRECTION: Utiliser le système de dialogue au lieu de notification
+    if (typeof window.showNpcDialogue === 'function') {
+      window.showNpcDialogue({
+        message: data.message,
+        lines: data.lines || [data.message],
+        name: data.name || "PNJ",
+        portrait: data.portrait || "/assets/portrait/defaultPortrait.png"
+      });
+    } else {
       this.showNotification(data.message, 'info');
     }
   }
+}
   
   handleQuestCompleteResponse(data) {
     console.log('✅ [QuestManager] Réponse Quest Complete');
