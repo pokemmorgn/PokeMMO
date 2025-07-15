@@ -3,6 +3,7 @@ import { Room, Client } from "@colyseus/core";
 import mongoose from "mongoose";
 import jwt from 'jsonwebtoken';
 
+import { JWTManager } from '../managers/JWTManager';
 
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
@@ -65,6 +66,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
   private movementHandlers!: MovementHandlers;
+    private jwtManager = JWTManager.getInstance();
+
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -1527,7 +1530,8 @@ async onJoin(client: Client, options: any = {}) {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
       console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
-      
+       // ✅ NOUVEAU : Enregistrer dans JWTManager
+      this.jwtManager.registerUser(client.sessionId, decoded);
       // Vérifier cohérence username
       if (decoded.username !== options.name) {
         console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
@@ -1761,6 +1765,8 @@ async onLeave(client: Client, consented: boolean) {
   console.log(`👋 === PLAYER LEAVE ===`);
   console.log(`🔑 Session: ${client.sessionId}`);
   console.log(`✅ Consenti: ${consented}`);
+  // ✅ NOUVEAU : Nettoyer JWTManager
+  this.jwtManager.removeUser(client.sessionId);
 
   const player = this.state.players.get(client.sessionId);
   if (player) {
