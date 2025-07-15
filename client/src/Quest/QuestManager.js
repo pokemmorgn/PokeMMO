@@ -275,6 +275,15 @@ export class QuestManager {
       }
       
       this.initialized = true;
+      setTimeout(() => {
+  if (this.gameRoom && !this._handlersRegistered) {
+    console.log('🔧 [QuestManager] Enregistrement handlers de secours...');
+    this.gameRoom.onMessage("availableQuestsList", (data) => {
+      this.handleAvailableQuestsReceived(data);
+    });
+    this._handlersRegistered = true;
+  }
+}, 1000);
       console.log('✅ [QuestManager] Initialisé');
       
       return this;
