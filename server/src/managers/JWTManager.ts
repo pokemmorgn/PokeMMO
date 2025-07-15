@@ -1,14 +1,18 @@
 // server/src/managers/JWTManager.ts
+import { QuestManager } from "./QuestManager";
+
 export class JWTManager {
   private static instance: JWTManager;
   private sessionToUser: Map<string, string> = new Map(); // sessionId -> userId
   private userToSession: Map<string, string> = new Map(); // userId -> sessionId
   private userJWTData: Map<string, any> = new Map(); // userId -> JWT data
   private activeBattleStates: Map<string, any> = new Map(); // ✅ NOUVEAU: userId -> battle state
+  private questManager: QuestManager;
   
   static getInstance(): JWTManager {
     if (!JWTManager.instance) {
       JWTManager.instance = new JWTManager();
+      JWTManager.instance.questManager = new QuestManager();
     }
     return JWTManager.instance;
   }
@@ -16,7 +20,7 @@ export class JWTManager {
   /**
    * Enregistrer un utilisateur à la connexion
    */
-  registerUser(sessionId: string, jwt: any): void {
+  async registerUser(sessionId: string, jwt: any): Promise<void> {
     const userId = jwt.userId;
     
     console.log(`🔗 [JWTManager] Enregistrement: ${sessionId} -> ${userId} (${jwt.username})`);
@@ -26,6 +30,9 @@ export class JWTManager {
     if (oldSessionId && oldSessionId !== sessionId) {
       console.log(`🔄 [JWTManager] Reconnexion détectée: ${oldSessionId} -> ${sessionId}`);
       this.sessionToUser.delete(oldSessionId);
+      
+      // ✅ AUTO-RESET DES QUÊTES À LA RECONNEXION
+      await this.handleQuestAutoReset(jwt.username);
     }
     
     // Nouveau mapping
@@ -274,4 +281,19 @@ export class JWTManager {
       console.log(`    🐾 Pokémon: ${battleState.player1?.pokemon?.name} vs ${battleState.player2?.pokemon?.name}`);
     }
   }
+
+  /**
+ * ✅ NOUVEAU: Gestion auto-reset des quêtes à la reconnexion
+ */
+private async handleQuestAutoReset(username: string): Promise<void> {
+  try {
+    const resetResult = await this.questManager.handlePlayerReconnection(username);
+    
+    if (resetResult.resetOccurred) {
+      console.log(`🔄 [JWTManager] Auto-reset quêtes pour ${username}: ${resetResult.message}`);
+    }
+  } catch (error) {
+    console.error(`❌ [JWTManager] Erreur auto-reset quêtes pour ${username}:`, error);
+  }
+}
 }
