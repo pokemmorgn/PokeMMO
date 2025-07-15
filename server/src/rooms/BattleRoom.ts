@@ -20,6 +20,8 @@ export interface BattleInitData {
     name: string;
     worldRoomId: string;
     activePokemonId?: string;
+    userId: string;         // ✅ AJOUT
+    jwtData: any;          // ✅ AJOUT
   };
   wildPokemon?: any;
   player2Data?: {
@@ -130,8 +132,8 @@ private async handleRequestMoves(client: Client) {
     }
     
     // Vérifier que c'est bien le joueur actuel
-    if (client.sessionId !== this.state.player1Id) {
-      client.send("requestMovesResult", {
+const userId = this.jwtManager.getUserId(client.sessionId);
+if (userId !== this.state.player1Id) {      client.send("requestMovesResult", {
         success: false,
         error: "Ce n'est pas votre tour",
         moves: []
@@ -339,7 +341,11 @@ private async handleRequestMoves(client: Client) {
         case 'action_selection':
           console.log(`🎮 [BattleRoom] "Que doit faire votre Pokémon ?"`);
           
-          const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+// ✅ NOUVEAU: Trouver client par userId
+const client = this.clients.find(c => {
+  const clientUserId = this.jwtManager.getUserId(c.sessionId);
+  return clientUserId === this.state.player1Id;
+});
           if (client) {
             client.send('yourTurn', { 
               phase: 'action_selection',
@@ -383,7 +389,11 @@ private async handleRequestMoves(client: Client) {
       });
       
       // Notifier le joueur spécifiquement
-      const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+// ✅ NOUVEAU: Trouver client par userId
+const client = this.clients.find(c => {
+  const clientUserId = this.jwtManager.getUserId(c.sessionId);
+  return clientUserId === this.state.player1Id;
+});
       if (client) {
         client.send('yourTurn', { 
           turnNumber: data.turnNumber,
@@ -721,21 +731,33 @@ this.battleEngine.on('battleEvent', async (event: any) => {
   
   // === GESTION CLIENTS ===
   
-  async onJoin(client: Client, options: any) {
-    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom Pokémon authentique`);
+async onJoin(client: Client, options: any) {
+  console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom avec auto-registration JWT`);
+  
+  try {
+    // ✅ AUTO-REGISTRATION JWT DANS BATTLEROOM
+    const jwtData = this.battleInitData.playerData.jwtData;
+    const userId = this.battleInitData.playerData.userId;
     
-    try {
-      const effectiveSessionId = options?.worldSessionId || client.sessionId;
-      const playerName = this.getPlayerName(effectiveSessionId);
-      
-      // ✅ NOUVEAU: Utiliser userId au lieu de sessionId
-      const userId = this.jwtManager.getUserId(client.sessionId);
-      if (!userId) {
-        client.leave(1000, "Session invalide");
-        return;
-      }
-      
-      this.state.player1Id = userId; // ✅ Utiliser userId stable
+    if (!jwtData || !userId) {
+      console.error(`❌ [BattleRoom] Données JWT manquantes dans battleInitData`);
+      client.leave(1000, "Données session manquantes");
+      return;
+    }
+    
+    // ✅ ENREGISTRER JWT AVEC LE NOUVEAU SESSIONID BATTLEROOM
+    this.jwtManager.registerUser(client.sessionId, jwtData);
+    console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId}`);
+    
+    // ✅ VÉRIFICATION QUE ÇA MARCHE
+    const verifyUserId = this.jwtManager.getUserId(client.sessionId);
+    if (verifyUserId !== userId) {
+      console.error(`❌ [BattleRoom] Erreur re-registration: attendu ${userId}, reçu ${verifyUserId}`);
+      client.leave(1000, "Erreur session registration");
+      return;
+    }
+    
+    this.state.player1Id = userId;
       this.state.player1Name = playerName || this.battleInitData.playerData.name;
       
       // Créer TeamManager
