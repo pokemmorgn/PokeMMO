@@ -1239,13 +1239,12 @@
                 }, 5 * 60 * 1000); // 5 minutes
             }
 
-            saveSecureSession(authData) {
-  // ✅ NOUVEAU : Stocker directement le JWT dans localStorage
+saveSecureSession(authData) {
   console.log('💾 Sauvegarde session JWT:', authData.userData.username);
   
-sessionStorage.setItem('sessionToken', authData.sessionToken);
+  // ✅ TOUT dans sessionStorage
+  sessionStorage.setItem('sessionToken', authData.sessionToken);
   
-  // Stocker aussi les infos utilisateur pour le dashboard
   const userInfo = {
     username: authData.userData.username,
     tokenExpiry: authData.tokenExpiry,
@@ -1253,15 +1252,16 @@ sessionStorage.setItem('sessionToken', authData.sessionToken);
     isDev: authData.userData.isDev || false
   };
   
-  localStorage.setItem('userInfo', JSON.stringify(userInfo));
+  sessionStorage.setItem('userInfo', JSON.stringify(userInfo)); // ← Changé de localStorage
   
-  // Optional: Remember username si coché
+  // Optional: Remember username si coché (ça peut rester dans localStorage)
   if (document.getElementById('rememberMe')?.checked) {
     localStorage.setItem('pws_username', authData.userData.username);
   }
   
   console.log('✅ Session JWT sauvegardée');
 }
+            
             encryptSessionData(data) {
                 // Simple encryption for session data (you can use crypto-js for stronger encryption)
                 const key = this.generateSecureChallenge().slice(0, 16);
@@ -1286,11 +1286,10 @@ sessionStorage.setItem('sessionToken', authData.sessionToken);
                 }
             }
 
-            checkExistingSession() {
-const token = sessionStorage.getItem('sessionToken');
-  const userInfo = localStorage.getItem('userInfo');
+           checkExistingSession() {
+  const token = sessionStorage.getItem('sessionToken');
   
-  if (token && userInfo) {
+  if (token) { // ← Juste vérifier le token
     try {
       // Vérifier le token JWT
       const payload = token.split('.')[1];
@@ -1333,7 +1332,6 @@ const token = sessionStorage.getItem('sessionToken');
   
   this.showGuestSection();
 }
-
             async handleWalletAction() {
                 const walletButton = document.getElementById('walletButton');
                 
@@ -1593,10 +1591,12 @@ this.startPlaytimeUpdater();
             }
 
 clearSession() {
-  // ✅ NOUVEAU : Nettoyer le système JWT
-sessionStorage.removeItem('sessionToken');
-  localStorage.removeItem('userInfo');
-  // Garder pws_username pour remember me
+  // ✅ TOUT dans sessionStorage
+  sessionStorage.removeItem('sessionToken');
+  sessionStorage.removeItem('userInfo'); // ← Changé de localStorage
+  
+  // Garder seulement pws_username pour remember me
+  // localStorage.removeItem('pws_username'); // ← Laisser pour remember me
   
   this.currentUser = null;
   this.connectedWallet = null;
