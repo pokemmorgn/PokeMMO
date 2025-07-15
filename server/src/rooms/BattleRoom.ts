@@ -48,12 +48,18 @@ export class BattleRoom extends Room<BattleState> {
   
   // === CRÉATION ROOM ===
   
-  async onCreate(options: BattleInitData) {
-    console.log(`⚔️ [BattleRoom] Création Pokémon authentique`);
-    console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
+  async onCreate(options: BattleInitData & { restoreState?: any }) {
+  console.log(`⚔️ [BattleRoom] Création/Restauration Pokémon authentique`);
+  
+  this.battleInitData = options;
+  this.setState(new BattleState());
+  
+  if (options.restoreState) {
+    console.log(`🔄 [BattleRoom] Mode restauration activé`);
+    await this.restoreBattleState(options.restoreState);
+  } else {
+    console.log(`🆕 [BattleRoom] Nouveau combat`);
     
-    this.battleInitData = options;
-    this.setState(new BattleState());
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -731,7 +737,7 @@ this.battleEngine.on('battleEvent', async (event: any) => {
   
   // === GESTION CLIENTS ===
   
-async onJoin(client: Client, options: any) {
+async onJoin(client: Client, options: any = {}) {
   console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom avec auto-registration JWT`);
   
   try {
@@ -748,7 +754,10 @@ async onJoin(client: Client, options: any) {
     // ✅ ENREGISTRER JWT AVEC LE NOUVEAU SESSIONID BATTLEROOM
     this.jwtManager.registerUser(client.sessionId, jwtData);
     console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId}`);
-    
+    / ✅ NOUVEAU: Vérifier si combat en cours
+  const userId = decoded.userId;
+  if (this.jwtManager.hasActiveBattle(userId)) {
+    console.log(`🔄 [WorldRoom] Combat en cours détecté pour ${decoded.username}`);
     // ✅ VÉRIFICATION QUE ÇA MARCHE
     const verifyUserId = this.jwtManager.getUserId(client.sessionId);
     if (verifyUserId !== userId) {
@@ -756,7 +765,11 @@ async onJoin(client: Client, options: any) {
       client.leave(1000, "Erreur session registration");
       return;
     }
-    
+        // Délai pour laisser le client se stabiliser
+    this.clock.setTimeout(async () => {
+      await this.restoreActiveBattle(client, userId);
+    }, 2000);
+  }
     this.state.player1Id = userId;
 this.state.player1Name = this.battleInitData.playerData.name;
       
@@ -964,7 +977,97 @@ this.state.player1Name = this.battleInitData.playerData.name;
   private cleanupPlayer(sessionId: string) {
     this.teamManagers.delete(sessionId);
   }
+
   
+  private async restoreBattleState(savedState: any) {
+  try {
+    // ✅ RESTAURER L'ÉTAT DEPUIS LA SAUVEGARDE
+    this.state.battleId = savedState.battleId;
+    this.state.battleType = savedState.battleType;
+    this.state.phase = savedState.phase;
+    this.state.turnNumber = savedState.turnNumber;
+    this.state.currentTurn = savedState.currentTurn;
+    this.state.player1Id = savedState.player1.userId;
+    this.state.player1Name = savedState.player1.name;
+    
+    // Restaurer les Pokémon
+    if (savedState.player1.pokemon) {
+      this.state.player1Pokemon = this.convertToBattlePokemon(savedState.player1.pokemon);
+    }
+    if (savedState.player2.pokemon) {
+      this.state.player2Pokemon = this.convertToBattlePokemon(savedState.player2.pokemon);
+    }
+    
+    // ✅ RECONSTRUIRE LE BATTLEENGINE
+    this.battleEngine = new BattleEngine();
+    this.setupBattleEngineEvents();
+    
+    // ✅ RESTAURER LE GAMESTATE
+    this.battleGameState = {
+      battleId: savedState.battleId,
+      phase: savedState.phase,
+      turnNumber: savedState.turnNumber,
+      currentTurn: savedState.currentTurn,
+      player1: savedState.player1,
+      player2: savedState.player2,
+      battleLog: savedState.battleLog || []
+    };
+    
+    console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur restauration:`, error);
+    throw error;
+  }
+}
+
+    private async restoreActiveBattle(client: Client, userId: string): Promise<void> {
+  try {
+    const battleState = this.jwtManager.getBattleState(userId);
+    if (!battleState) return;
+    
+    console.log(`🔄 [WorldRoom] Restauration combat ${battleState.battleId}`);
+    
+    // ✅ RECRÉER LA BATTLEROOM AVEC L'ÉTAT SAUVEGARDÉ
+    const { matchMaker } = require("@colyseus/core");
+    
+    const battleRoom = await matchMaker.createRoom("battle", {
+      battleType: battleState.battleType,
+      restoreState: battleState, // ✅ État à restaurer
+      playerData: {
+        sessionId: client.sessionId,
+        name: battleState.player1.name,
+        worldRoomId: this.roomId,
+        userId: userId,
+        jwtData: this.jwtManager.getJWTDataBySession(client.sessionId)
+      }
+    });
+    
+    // ✅ NOTIFIER LE CLIENT
+    client.send("battleRestored", {
+      success: true,
+      battleRoomId: battleRoom.roomId,
+      battleState: battleState,
+      message: `Combat restauré : ${battleState.player1.pokemon.name} vs ${battleState.player2.pokemon.name}`,
+      turnNumber: battleState.turnNumber,
+      phase: battleState.phase
+    });
+    
+    console.log(`✅ [WorldRoom] Combat restauré avec succès`);
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur restauration combat:`, error);
+    
+    // En cas d'erreur, supprimer l'état
+    this.jwtManager.clearBattleState(userId);
+    
+    client.send("battleRestoreError", {
+      success: false,
+      message: "Impossible de restaurer le combat",
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    });
+  }
+    }
   // === NETTOYAGE ===
   
   async onDispose() {
