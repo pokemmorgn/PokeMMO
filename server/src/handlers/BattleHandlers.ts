@@ -212,15 +212,28 @@ public async handleStartWildBattle(client: Client, data: {
     console.log(`🐾 Pokémon sauvage complet: ${wildPokemonComplete.name} (${calculatedMaxHp} PV)`);
 
     // Préparer les données de combat
-    const battleInitData: BattleInitData = {
-      battleType: "wild",
-      playerData: {
-        sessionId: client.sessionId,
-        name: player.name,
-        worldRoomId: this.room.roomId
-      },
-      wildPokemon: data.wildPokemon
-    };
+// ✅ RÉCUPÉRER JWT POUR TRANSFER
+const userId = this.jwtManager.getUserId(client.sessionId);
+const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+
+if (!userId || !jwtData) {
+  client.send("battleError", { message: "Session invalide pour le combat" });
+  return;
+}
+
+console.log(`🔑 [BattleHandlers] Transfer JWT: ${jwtData.username} (${userId})`);
+
+const battleInitData: BattleInitData = {
+  battleType: "wild",
+  playerData: {
+    sessionId: client.sessionId,
+    name: player.name,
+    worldRoomId: this.room.roomId,
+    userId: userId,        // ✅ AJOUT
+    jwtData: jwtData      // ✅ AJOUT
+  },
+  wildPokemon: data.wildPokemon
+};
 
     // Créer la BattleRoom
     const battleRoom = await matchMaker.createRoom("battle", battleInitData);
