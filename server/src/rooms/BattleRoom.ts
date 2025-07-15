@@ -38,8 +38,7 @@ export class BattleRoom extends Room<BattleState> {
   // === SYSTÈME DE COMBAT ===
   private battleEngine: BattleEngine;
   private battleGameState: BattleGameState | null = null;
-    private battleStateBackup: any = null;
-
+  
   // === DONNÉES ROOM ===
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
@@ -49,17 +48,12 @@ export class BattleRoom extends Room<BattleState> {
   
   // === CRÉATION ROOM ===
   
-  async onCreate(options: BattleInitData & { restoreState?: any }) {
-  console.log(`⚔️ [BattleRoom] Création/Restauration Pokémon authentique`);
-  
-  this.battleInitData = options;
-  this.setState(new BattleState());
-  
-  if (options.restoreState) {
-    console.log(`🔄 [BattleRoom] Mode restauration activé`);
-    await this.restoreBattleState(options.restoreState);
-  } else {
-    console.log(`🆕 [BattleRoom] Nouveau combat`);
+  async onCreate(options: BattleInitData) {
+    console.log(`⚔️ [BattleRoom] Création Pokémon authentique`);
+    console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
+    
+    this.battleInitData = options;
+    this.setState(new BattleState());
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -848,12 +842,8 @@ this.state.player1Name = this.battleInitData.playerData.name;
         message: error instanceof Error ? error.message : 'Erreur inconnue' 
       });
     }
-        this.clock.setInterval(() => {
-      this.saveBattleState();
-    }, 2000); // Toutes les 2 secondes
   }
   
-
   // === CONVERSION DE DONNÉES ===
   
   private async convertToBattleEnginePokemon(pokemonData: any, isWild: boolean): Promise<Pokemon> {
@@ -974,76 +964,7 @@ this.state.player1Name = this.battleInitData.playerData.name;
   private cleanupPlayer(sessionId: string) {
     this.teamManagers.delete(sessionId);
   }
-
-     private saveBattleState() {
-    if (!this.battleGameState) return;
-    
-    const stateToSave = {
-      battleId: this.state.battleId,
-      battleType: this.state.battleType,
-      phase: this.battleGameState.phase,
-      turnNumber: this.battleGameState.turnNumber,
-      currentTurn: this.battleGameState.currentTurn,
-      player1: {
-        userId: this.state.player1Id,
-        name: this.state.player1Name,
-        pokemon: this.battleGameState.player1.pokemon
-      },
-      player2: {
-        pokemon: this.battleGameState.player2.pokemon
-      },
-      battleLog: this.battleGameState.battleLog || [],
-      timestamp: Date.now()
-    };
-    
-    // ✅ SAUVEGARDER DANS JWTMANAGER (utilise déjà userId)
-    const jwtManager = JWTManager.getInstance();
-    jwtManager.saveBattleState(this.state.player1Id, stateToSave);
-    
-    console.log(`💾 [BattleRoom] État sauvegardé pour ${this.state.player1Name}`);
-  }
-
-  private async restoreBattleState(savedState: any) {
-  try {
-    // ✅ RESTAURER L'ÉTAT DEPUIS LA SAUVEGARDE
-    this.state.battleId = savedState.battleId;
-    this.state.battleType = savedState.battleType;
-    this.state.phase = savedState.phase;
-    this.state.turnNumber = savedState.turnNumber;
-    this.state.currentTurn = savedState.currentTurn;
-    this.state.player1Id = savedState.player1.userId;
-    this.state.player1Name = savedState.player1.name;
-    
-    // Restaurer les Pokémon
-    if (savedState.player1.pokemon) {
-      this.state.player1Pokemon = this.convertToBattlePokemon(savedState.player1.pokemon);
-    }
-    if (savedState.player2.pokemon) {
-      this.state.player2Pokemon = this.convertToBattlePokemon(savedState.player2.pokemon);
-    }
-    
-    // ✅ RECONSTRUIRE LE BATTLEENGINE
-    this.battleEngine = new BattleEngine();
-    this.setupBattleEngineEvents();
-    
-    // ✅ RESTAURER LE GAMESTATE
-    this.battleGameState = {
-      battleId: savedState.battleId,
-      phase: savedState.phase,
-      turnNumber: savedState.turnNumber,
-      currentTurn: savedState.currentTurn,
-      player1: savedState.player1,
-      player2: savedState.player2,
-      battleLog: savedState.battleLog || []
-    };
-    
-    console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
-    
-  } catch (error) {
-    console.error(`❌ [BattleRoom] Erreur restauration:`, error);
-    throw error;
-  }
-}
+  
   // === NETTOYAGE ===
   
   async onDispose() {
