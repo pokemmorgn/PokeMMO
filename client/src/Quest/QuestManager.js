@@ -160,7 +160,10 @@ export class QuestManager {
       this.gameRoom.onMessage("questCompleted", (data) => {
         this.handleQuestCompleted(data);
       });
-      
+
+      this.gameRoom.onMessage("availableQuestsList", (data) => {
+        this.handleAvailableQuestsReceived(data);
+      });
       console.log('✅ [QuestManager] Handlers enregistrés');
       this.setState('READY', 'Handlers enregistrés');
       this.requestInitialData();
@@ -448,7 +451,7 @@ export class QuestManager {
       console.log(`📊 [QuestManager] ${this.availableQuests.length} quêtes disponibles`);
       
       // ✅ NOUVEAU: Si on était en attente de quêtes, les afficher maintenant
-      if (this.dialogueState === 'NONE' && this.availableQuests.length > 0) {
+      if (this.availableQuests.length > 0) {
         console.log('🎭 [QuestManager] Affichage quêtes disponibles reçues');
         this.showQuestSelectionDialog('Quêtes disponibles', this.availableQuests);
       }
