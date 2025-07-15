@@ -151,7 +151,7 @@ public async handleStartWildBattle(client: Client, data: any) {
     await this.cleanupBattle(client.sessionId, "stuck_cleanup");
     this.room.unblockPlayerMovement(client.sessionId, 'battle');
     console.log(`✅ [DEBUG FUITE] Nettoyage terminé`);
-  }  
+  
   wildPokemon: WildPokemon;
   location: string;
   method: string;
