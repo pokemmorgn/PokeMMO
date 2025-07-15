@@ -17,24 +17,20 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw; /* Force largeur viewport */
-            height: 100vh; /* Force hauteur viewport */
-            object-fit: cover;
-            z-index: -10; /* Plus bas pour être sûr */
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Vidéo complète sans déformation */
+            z-index: -10;
             opacity: 0.7;
             filter: brightness(0.8);
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background: transparent; /* Enlever le gradient pour laisser place à la vidéo */
+            background: transparent;
             min-height: 100vh;
-            margin: 0; /* Enlever les marges */
-            padding: 0; /* Enlever les paddings */
             position: relative;
             overflow-x: hidden;
-            width: 100vw; /* Force la largeur */
-            height: 100vh; /* Force la hauteur */
         }
 
         /* Background particles animation */
@@ -72,10 +68,10 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw; /* Force viewport width */
-            height: 100vh; /* Force viewport height */
+            width: 100%;
+            height: 100%;
             background: linear-gradient(135deg, rgba(30, 60, 114, 0.5) 0%, rgba(42, 82, 152, 0.5) 50%, rgba(30, 60, 114, 0.5) 100%);
-            z-index: -5; /* Entre la vidéo et le contenu */
+            z-index: -5;
             pointer-events: none;
         }
 
