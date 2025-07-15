@@ -205,7 +205,7 @@ export class NetworkManager {
 
   // ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
  getUserSession() {
-  const token = localStorage.getItem('sessionToken');
+const token = sessionStorage.getItem('sessionToken');
   
   if (!token) {
     console.warn('[NetworkManager] ❌ Aucun token JWT trouvé');
