@@ -127,9 +127,21 @@ export class BattleHandlers {
   /**
    * Démarre un combat sauvage
    */
-public async handleStartWildBattle(client: Client, data: any) {
+public async handleStartWildBattle(client: Client, data: {
+  wildPokemon: WildPokemon;
+  location: string;
+  method: string;
+  currentZone?: string;
+  zoneId?: string;
+}): Promise<void> {
   console.log(`🔍 [DEBUG FUITE] === DIAGNOSTIC ÉTAT JOUEUR ===`);
   console.log(`🔍 [DEBUG FUITE] SessionId: ${client.sessionId}`);
+  
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("battleError", { message: "Joueur non trouvé" });
+    return;
+  }
   
   // État combat
   const isInBattle = this.isPlayerInBattle(client.sessionId);
@@ -151,21 +163,10 @@ public async handleStartWildBattle(client: Client, data: any) {
     await this.cleanupBattle(client.sessionId, "stuck_cleanup");
     this.room.unblockPlayerMovement(client.sessionId, 'battle');
     console.log(`✅ [DEBUG FUITE] Nettoyage terminé`);
-  
-  wildPokemon: WildPokemon;
-  location: string;
-  method: string;
-  currentZone?: string;
-  zoneId?: string;
-}): Promise<void> {
-  const player = this.room.state.players.get(client.sessionId);
-  if (!player) {
-    client.send("battleError", { message: "Joueur non trouvé" });
-    return;
   }
 
-    const userId = this.jwtManager.getUserId(client.sessionId);
-    console.log(`⚔️ [BattleHandlers] Combat: sessionId=${client.sessionId}, userId=${userId}`);
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  console.log(`⚔️ [BattleHandlers] Combat: sessionId=${client.sessionId}, userId=${userId}`);
   console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
   console.log(`👤 Joueur: ${player.name}`);
   console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
