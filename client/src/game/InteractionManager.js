@@ -424,22 +424,60 @@ export class InteractionManager {
     }
   }
 
-  handleQuestInteraction(npc, data) {
-    this.questSystem = this.questSystem || window.questSystem;
-    if (!this.questSystem) {
-      this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
-      return;
+handleQuestInteraction(npc, data) {
+  this.questSystem = this.questSystem || window.questSystem;
+  if (!this.questSystem) {
+    this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
+    return;
+  }
+  
+  try {
+    const result = this.questSystem.manager.handleNpcInteraction(data || npc);
+    
+    console.log(`🎯 [InteractionManager] Quest result: ${result}`);
+    
+    // ✅ CORRECTION: Gérer tous les codes de retour correctement
+    const resultType = this.questSystem.manager.getInteractionResult(result);
+    
+    switch (resultType) {
+      case 'success':
+        // Quête affichée ou complétée - ne rien faire d'autre
+        break;
+        
+      case 'pending':
+        // En attente de réponse serveur - ne rien faire d'autre
+        break;
+        
+      case 'blocked':
+        // Système bloqué - afficher message
+        this.showMessage("Système de quêtes temporairement indisponible", 'warning');
+        break;
+        
+      case 'error':
+        // Erreur - afficher dialogue de fallback
+        this.handleDialogueInteraction(npc, { 
+          message: "Erreur lors de l'interaction avec les quêtes" 
+        });
+        break;
+        
+      case 'no_quest':
+        // Pas de quête - dialogue normal
+        this.handleDialogueInteraction(npc, data);
+        break;
+        
+      default:
+        // Code inconnu - dialogue de fallback
+        console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
+        this.handleDialogueInteraction(npc, data);
     }
     
-    try {
-      const result = this.questSystem.manager.handleNpcInteraction(data || npc);
-      if (result === false || result === 'NO_QUEST') {
-        this.handleDialogueInteraction(npc, null);
-      }
-    } catch (error) {
-      this.handleDialogueInteraction(npc, { message: `Erreur quête: ${error.message}` });
-    }
+  } catch (error) {
+    console.error('❌ [InteractionManager] Erreur quest interaction:', error);
+    this.handleDialogueInteraction(npc, { 
+      message: `Erreur quête: ${error.message}` 
+    });
   }
+}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
