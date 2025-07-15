@@ -1,10 +1,11 @@
 // server/src/services/TransitionService.ts
-// ✅ VERSION AVEC SYSTÈME SPAWN DYNAMIQUE VIA OBJETS TILED
+// ✅ VERSION AVEC SYSTÈME SPAWN DYNAMIQUE VIA OBJETS TILED + JWT
 
 import { Client } from "@colyseus/core";
 import { NpcManager } from "../managers/NPCManager";
 import { Player } from "../schema/PokeWorldState";
 import { TeleportConfig, TransitionRule, ValidationContext } from "../config/TeleportConfig";
+import { JWTManager } from "../managers/JWTManager";
 import fs from "fs";
 import path from "path";
 
@@ -23,6 +24,7 @@ export interface TransitionResult {
   currentZone?: string;
   rollback?: boolean;
   validatedTeleport?: TeleportData;
+  userId?: string; // ✅ AJOUT pour traçabilité
 }
 
 export interface TeleportData {
@@ -49,19 +51,36 @@ export class TransitionService {
   private teleportData: Map<string, TeleportData[]> = new Map();
   private spawnData: Map<string, SpawnData[]> = new Map(); // ✅ NOUVEAU: Cache des spawns
   private config: TeleportConfig;
+  private jwtManager: JWTManager; // ✅ AJOUT
 
   constructor(npcManagers: Map<string, NpcManager>) {
     this.npcManagers = npcManagers;
+    this.jwtManager = JWTManager.getInstance(); // ✅ AJOUT
     this.config = new TeleportConfig();
     this.loadAllMapsData();
     
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
 
-  // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE
+  // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
   async validateTransition(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
     console.log(`🔍 [TransitionService] === VALIDATION TRANSITION DYNAMIQUE ===`);
-    console.log(`👤 Joueur: ${player.name} (${client.sessionId})`);
+    
+    // ✅ RÉCUPÉRATION SÉCURISÉE DU USER ID
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+
+    if (!userId || !jwtData) {
+      console.error(`❌ [TransitionService] Session invalide: ${client.sessionId}`);
+      return {
+        success: false,
+        reason: "Session utilisateur invalide",
+        rollback: true
+      };
+    }
+
+    console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
+    console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
     console.log(`📍 ${request.fromZone} → ${request.targetZone}`);
     console.log(`📊 Position: (${request.playerX}, ${request.playerY})`);
 
@@ -96,8 +115,8 @@ export class TransitionService {
       console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
       console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
 
-      // 4. Vérifier les règles de configuration
-      const configValidation = await this.validateConfigRules(player, request);
+      // 4. Vérifier les règles de configuration avec JWT
+      const configValidation = await this.validateConfigRules(client, player, request);
       if (!configValidation.success) {
         return configValidation;
       }
@@ -121,7 +140,8 @@ export class TransitionService {
         success: true,
         position: spawnPosition,
         currentZone: request.targetZone,
-        validatedTeleport: validatedTeleport
+        validatedTeleport: validatedTeleport,
+        userId: userId // ✅ AJOUT pour traçabilité
       };
 
     } catch (error) {
@@ -328,11 +348,14 @@ export class TransitionService {
     console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports, ${spawns.length} spawns chargés`);
   }
 
-  // ✅ MÉTHODES CONSERVÉES SANS CHANGEMENT
-  private async validateConfigRules(player: Player, request: TransitionRequest): Promise<TransitionResult> {
+  // ✅ MÉTHODES AVEC JWT
+  private async validateConfigRules(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+
     const context: ValidationContext = {
-      playerName: player.name,
-      playerLevel: player.level || 1,
+      playerName: jwtData?.username || player.name,
+      playerLevel: jwtData?.level || player.level || 1,
       currentZone: request.fromZone,
       targetZone: request.targetZone,
       playerX: request.playerX,
@@ -355,6 +378,22 @@ export class TransitionService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Validation de session avec logs détaillés
+   */
+  private validateUserSession(client: Client): { userId: string; jwtData: any } | null {
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+    
+    if (!userId || !jwtData) {
+      console.error(`❌ [TransitionService] Session invalide pour ${client.sessionId}`);
+      this.jwtManager.debugMappings(); // Debug en cas d'erreur
+      return null;
+    }
+    
+    return { userId, jwtData };
   }
 
   private getProperty(object: any, propertyName: string): any {
