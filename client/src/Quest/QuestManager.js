@@ -568,13 +568,19 @@ handleQuestGiverResponse(data) {
     console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
     this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
   } else if (data.message) {
-    // ✅ CORRECTION: Utiliser le système de dialogue au lieu de notification
+    // ✅ CORRECTION: Ajouter callback pour proposer quêtes après dialogue
     if (typeof window.showNpcDialogue === 'function') {
       window.showNpcDialogue({
         message: data.message,
         lines: data.lines || [data.message],
-        name: data.name || "PNJ",
-        portrait: data.portrait || "/assets/portrait/defaultPortrait.png"
+        name: data.name || "Bob",
+        portrait: data.portrait || "/assets/portrait/defaultPortrait.png",
+        onClose: () => {
+          // ✅ NOUVEAU: Proposer les quêtes après fermeture du dialogue
+          console.log('🎭 [QuestManager] Dialogue fermé, demande des quêtes...');
+          this.pendingQuestRequest = true;
+          this.requestAvailableQuests();
+        }
       });
     } else {
       this.showNotification(data.message, 'info');
