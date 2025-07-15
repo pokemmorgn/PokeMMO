@@ -49,12 +49,17 @@ export class BattleRoom extends Room<BattleState> {
   
   // === CRÉATION ROOM ===
   
-  async onCreate(options: BattleInitData) {
-    console.log(`⚔️ [BattleRoom] Création Pokémon authentique`);
-    console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
-    
-    this.battleInitData = options;
-    this.setState(new BattleState());
+  async onCreate(options: BattleInitData & { restoreState?: any }) {
+  console.log(`⚔️ [BattleRoom] Création/Restauration Pokémon authentique`);
+  
+  this.battleInitData = options;
+  this.setState(new BattleState());
+  
+  if (options.restoreState) {
+    console.log(`🔄 [BattleRoom] Mode restauration activé`);
+    await this.restoreBattleState(options.restoreState);
+  } else {
+    console.log(`🆕 [BattleRoom] Nouveau combat`);
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -68,7 +73,48 @@ export class BattleRoom extends Room<BattleState> {
     
     console.log(`✅ [BattleRoom] ${this.roomId} créée avec flow Pokémon authentique`);
   }
-  
+
+    private async restoreBattleState(savedState: any) {
+  try {
+    // ✅ RESTAURER L'ÉTAT DEPUIS LA SAUVEGARDE
+    this.state.battleId = savedState.battleId;
+    this.state.battleType = savedState.battleType;
+    this.state.phase = savedState.phase;
+    this.state.turnNumber = savedState.turnNumber;
+    this.state.currentTurn = savedState.currentTurn;
+    this.state.player1Id = savedState.player1.userId;
+    this.state.player1Name = savedState.player1.name;
+    
+    // Restaurer les Pokémon
+    if (savedState.player1.pokemon) {
+      this.state.player1Pokemon = this.convertToBattlePokemon(savedState.player1.pokemon);
+    }
+    if (savedState.player2.pokemon) {
+      this.state.player2Pokemon = this.convertToBattlePokemon(savedState.player2.pokemon);
+    }
+    
+    // ✅ RECONSTRUIRE LE BATTLEENGINE
+    this.battleEngine = new BattleEngine();
+    this.setupBattleEngineEvents();
+    
+    // ✅ RESTAURER LE GAMESTATE
+    this.battleGameState = {
+      battleId: savedState.battleId,
+      phase: savedState.phase,
+      turnNumber: savedState.turnNumber,
+      currentTurn: savedState.currentTurn,
+      player1: savedState.player1,
+      player2: savedState.player2,
+      battleLog: savedState.battleLog || []
+    };
+    
+    console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur restauration:`, error);
+    throw error;
+  }
+}
   // === GESTION MESSAGES ===
   
   private setupMessageHandlers() {
