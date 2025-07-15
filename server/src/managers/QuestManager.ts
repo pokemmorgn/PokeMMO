@@ -63,6 +63,53 @@ export class QuestManager {
     }
   }
 
+  async handlePlayerReconnection(username: string): Promise<{ resetOccurred: boolean; message?: string }> {
+  try {
+    const { getServerConfig } = require("../config/serverConfig");
+    const serverConfig = getServerConfig();
+    
+    console.log(`🔄 [QuestManager] Gestion reconnexion pour ${username}`);
+    console.log(`⚙️ [QuestManager] autoresetQuest: ${serverConfig.autoresetQuest}`);
+    
+    if (!serverConfig.autoresetQuest) {
+      console.log(`ℹ️ [QuestManager] Auto-reset désactivé, aucune action`);
+      return { resetOccurred: false };
+    }
+
+    // Récupérer les quêtes du joueur
+    const playerQuests = await PlayerQuest.findOne({ username });
+    if (!playerQuests) {
+      console.log(`ℹ️ [QuestManager] Aucune quête trouvée pour ${username}`);
+      return { resetOccurred: false };
+    }
+
+    // Compter les quêtes actives avant reset
+    const activeQuestsCount = playerQuests.activeQuests?.length || 0;
+    
+    if (activeQuestsCount === 0) {
+      console.log(`ℹ️ [QuestManager] Aucune quête active à reset pour ${username}`);
+      return { resetOccurred: false };
+    }
+
+    // ✅ SUPPRIMER TOUTES LES QUÊTES ACTIVES
+    console.log(`🗑️ [QuestManager] Suppression de ${activeQuestsCount} quête(s) active(s) pour ${username}`);
+    
+    playerQuests.activeQuests = [];
+    await playerQuests.save();
+    
+    console.log(`✅ [QuestManager] Auto-reset effectué pour ${username}: ${activeQuestsCount} quête(s) supprimée(s)`);
+    
+    return { 
+      resetOccurred: true, 
+      message: `Auto-reset effectué: ${activeQuestsCount} quête(s) supprimée(s)` 
+    };
+
+  } catch (error) {
+    console.error(`❌ [QuestManager] Erreur lors de l'auto-reset pour ${username}:`, error);
+    return { resetOccurred: false, message: "Erreur lors de l'auto-reset" };
+  }
+}
+  
   async getAvailableQuests(username: string): Promise<QuestDefinition[]> {
     const playerQuests = await PlayerQuest.findOne({ username });
     const completedQuestIds = playerQuests?.completedQuests.map((q: any) => q.questId) || [];
