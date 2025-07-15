@@ -481,10 +481,11 @@ handleQuestInteraction(npc, data) {
         console.log('⏳ [InteractionManager] En attente réponse quest');
         break;
         
-      case 'blocked':
-        // Système bloqué - afficher message
-        this.showMessage("Système de quêtes temporairement indisponible", 'warning');
-        break;
+    case 'blocked':
+      // ✅ CORRECTION: Éviter la boucle showMessage
+      console.warn('🚫 [InteractionManager] Système de quêtes bloqué');
+      // Ne pas appeler showMessage pour éviter la boucle
+      break;
         
       case 'error':
         // Erreur - afficher dialogue de fallback
@@ -846,13 +847,19 @@ handleQuestInteraction(npc, data) {
     return this.npcManager.getNpcData(npcId);
   }
 
-  showMessage(message, type = 'info') {
-    if (this.scene.showNotification) {
-      this.scene.showNotification(message, type);
-    } else {
+showMessage(message, type = 'info') {
+  // ✅ CORRECTION: Éviter la boucle
+  if (typeof window.showGameNotification === 'function') {
+    try {
+      window.showGameNotification(message, type, { duration: 3000 });
+    } catch (error) {
+      // Fallback simple sans recursion
       console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
     }
+  } else {
+    console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
   }
+}
 
   setConfig(config) {
     this.config = { ...this.config, ...config };
