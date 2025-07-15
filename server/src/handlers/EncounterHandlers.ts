@@ -3,13 +3,16 @@ import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { ServerEncounterManager } from "../managers/EncounterManager";
 import { getServerConfig } from '../config/serverConfig';
+import { JWTManager } from "../managers/JWTManager";
 
 export class EncounterHandlers {
   private room: WorldRoom;
   private encounterManager: ServerEncounterManager;
+  private jwtManager = JWTManager.getInstance(); // ✅ AJOUT
 
   constructor(room: WorldRoom) {
     this.room = room;
+    this.jwtManager = JWTManager.getInstance(); // ✅ AJOUT
     this.encounterManager = new ServerEncounterManager();
     
     // ✅ NETTOYAGE PÉRIODIQUE DES COOLDOWNS (intervalle basé sur config)
@@ -193,95 +196,123 @@ export class EncounterHandlers {
   }
 
   // ✅ DÉMARRAGE IMMÉDIAT DU COMBAT (STYLE POKÉMON AUTHENTIQUE)
-  private async startWildBattleImmediate(client: Client, wildPokemon: any, encounterData: any): Promise<void> {
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
+private async startWildBattleImmediate(client: Client, wildPokemon: any, encounterData: any): Promise<void> {
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) return;
 
-    try {
-      console.log(`🎮 [EncounterHandlers] === DÉMARRAGE COMBAT IMMÉDIAT ===`);
-      console.log(`👤 Joueur: ${player.name}`);
-      console.log(`🐾 Contre: ${this.getPokemonName(wildPokemon.pokemonId)} Niv.${wildPokemon.level}`);
+  try {
+    console.log(`🎮 [EncounterHandlers] === DÉMARRAGE COMBAT IMMÉDIAT ===`);
+    console.log(`👤 Joueur: ${player.name}`);
+    console.log(`🐾 Contre: ${this.getPokemonName(wildPokemon.pokemonId)} Niv.${wildPokemon.level}`);
 
-      // ✅ ENVOYER LA NOTIFICATION DE RENCONTRE IMMÉDIATE
-      client.send("wildEncounterStart", {
-        success: true,
-        pokemon: {
-          pokemonId: wildPokemon.pokemonId,
-          name: this.getPokemonName(wildPokemon.pokemonId),
-          level: wildPokemon.level,
-          shiny: wildPokemon.shiny,
-          gender: wildPokemon.gender,
-          nature: wildPokemon.nature,
-          moves: wildPokemon.moves,
-          ivs: wildPokemon.ivs
-        },
-        location: {
-          zone: player.currentZone,
-          zoneId: encounterData.zoneId,
-          x: encounterData.x,
-          y: encounterData.y
-        },
-        method: encounterData.method,
-        forced: encounterData.forced || false,
-        serverGenerated: true, // ✅ NOUVEAU: Marquer comme généré par le serveur
-        message: `Un ${this.getPokemonName(wildPokemon.pokemonId)} sauvage apparaît !`,
-        timestamp: Date.now()
-      });
-
-      // ✅ BROADCASTER DISCRÈTEMENT AUX AUTRES JOUEURS
-      this.broadcastToZone(player.currentZone, "playerEncounter", {
-        playerName: player.name,
-        pokemonId: wildPokemon.pokemonId,
-        pokemonName: this.getPokemonName(wildPokemon.pokemonId),
-        level: wildPokemon.level,
-        shiny: wildPokemon.shiny,
-        method: encounterData.method,
-        startedBattle: true
-      }, client.sessionId);
-
-      // ✅ DÉLÉGUER AU BATTLEHANDLERS POUR CRÉER LA BATTLEROOM
-      const battleHandlers = this.room.getBattleHandlers();
-      if (!battleHandlers) {
-        console.error(`❌ [EncounterHandlers] BattleHandlers non disponible !`);
-        client.send("battleError", {
-          message: "Système de combat non disponible",
-          fallbackToOldSystem: true
-        });
+    // ✅ VÉRIFIER ET RÉCUPÉRER JWT
+    let userId = this.jwtManager.getUserId(client.sessionId);
+    
+    if (!userId) {
+      console.warn(`⚠️ [EncounterHandlers] JWT manquant, récupération par nom joueur: ${player.name}`);
+      
+      // Récupérer via nom joueur (comme dans BattleHandlers)
+      const jwtStats = this.jwtManager.getStats();
+      const correctMapping = jwtStats.mappings.find(m => m.username === player.name);
+      
+      if (correctMapping) {
+        const originalJwtData = this.jwtManager.getUserJWTData(correctMapping.userId);
+        if (originalJwtData) {
+          this.jwtManager.registerUser(client.sessionId, originalJwtData);
+          console.log(`🔄 [EncounterHandlers] JWT re-enregistré: ${client.sessionId} -> ${correctMapping.userId}`);
+          userId = correctMapping.userId;
+        }
+      }
+      
+      if (!userId) {
+        console.error(`❌ [EncounterHandlers] Impossible de récupérer JWT pour ${player.name}`);
+        client.send("battleError", { message: "Session invalide pour le combat" });
         return;
       }
-
-      // ✅ DÉMARRER LE COMBAT VIA BATTLEHANDLERS
-      await battleHandlers.handleStartWildBattle(client, {
-        wildPokemon: wildPokemon,
-        location: `${player.currentZone} (${encounterData.zoneId})`,
-        method: encounterData.method,
-        currentZone: player.currentZone,
-        zoneId: encounterData.zoneId
-      });
-
-      console.log(`✅ [EncounterHandlers] Combat démarré via BattleHandlers`);
-
-    } catch (error) {
-      console.error(`❌ [EncounterHandlers] Erreur démarrage combat:`, error);
-      
-      // ✅ FALLBACK: Envoyer l'ancienne notification en cas d'erreur
-      client.send("wildEncounterFallback", {
-        success: true,
-        pokemon: {
-          pokemonId: wildPokemon.pokemonId,
-          name: this.getPokemonName(wildPokemon.pokemonId),
-          level: wildPokemon.level,
-          shiny: wildPokemon.shiny,
-          gender: wildPokemon.gender,
-          nature: wildPokemon.nature,
-          moves: wildPokemon.moves,
-          ivs: wildPokemon.ivs
-        },
-        message: "Combat en cours de développement",
-        error: "Erreur système de combat"
-      });
     }
+    
+    console.log(`✅ [EncounterHandlers] JWT validé: ${userId} pour ${player.name}`);
+
+    // ✅ ENVOYER LA NOTIFICATION DE RENCONTRE IMMÉDIATE
+    client.send("wildEncounterStart", {
+      success: true,
+      pokemon: {
+        pokemonId: wildPokemon.pokemonId,
+        name: this.getPokemonName(wildPokemon.pokemonId),
+        level: wildPokemon.level,
+        shiny: wildPokemon.shiny,
+        gender: wildPokemon.gender,
+        nature: wildPokemon.nature,
+        moves: wildPokemon.moves,
+        ivs: wildPokemon.ivs
+      },
+      location: {
+        zone: player.currentZone,
+        zoneId: encounterData.zoneId,
+        x: encounterData.x,
+        y: encounterData.y
+      },
+      method: encounterData.method,
+      forced: encounterData.forced || false,
+      serverGenerated: true,
+      message: `Un ${this.getPokemonName(wildPokemon.pokemonId)} sauvage apparaît !`,
+      timestamp: Date.now()
+    });
+
+    // ✅ BROADCASTER DISCRÈTEMENT AUX AUTRES JOUEURS
+    this.broadcastToZone(player.currentZone, "playerEncounter", {
+      playerName: player.name,
+      pokemonId: wildPokemon.pokemonId,
+      pokemonName: this.getPokemonName(wildPokemon.pokemonId),
+      level: wildPokemon.level,
+      shiny: wildPokemon.shiny,
+      method: encounterData.method,
+      startedBattle: true
+    }, client.sessionId);
+
+    // ✅ DÉLÉGUER AU BATTLEHANDLERS POUR CRÉER LA BATTLEROOM
+    const battleHandlers = this.room.getBattleHandlers();
+    if (!battleHandlers) {
+      console.error(`❌ [EncounterHandlers] BattleHandlers non disponible !`);
+      client.send("battleError", {
+        message: "Système de combat non disponible",
+        fallbackToOldSystem: true
+      });
+      return;
+    }
+
+    // ✅ DÉMARRER LE COMBAT VIA BATTLEHANDLERS (maintenant JWT OK)
+    await battleHandlers.handleStartWildBattle(client, {
+      wildPokemon: wildPokemon,
+      location: `${player.currentZone} (${encounterData.zoneId})`,
+      method: encounterData.method,
+      currentZone: player.currentZone,
+      zoneId: encounterData.zoneId
+    });
+
+    console.log(`✅ [EncounterHandlers] Combat démarré via BattleHandlers`);
+
+  } catch (error) {
+    console.error(`❌ [EncounterHandlers] Erreur démarrage combat:`, error);
+    
+    // ✅ FALLBACK: Envoyer l'ancienne notification en cas d'erreur
+    client.send("wildEncounterFallback", {
+      success: true,
+      pokemon: {
+        pokemonId: wildPokemon.pokemonId,
+        name: this.getPokemonName(wildPokemon.pokemonId),
+        level: wildPokemon.level,
+        shiny: wildPokemon.shiny,
+        gender: wildPokemon.gender,
+        nature: wildPokemon.nature,
+        moves: wildPokemon.moves,
+        ivs: wildPokemon.ivs
+      },
+      message: "Combat en cours de développement",
+      error: "Erreur système de combat"
+    });
   }
+}
 
   // ✅ HANDLER DEBUG - MAINTENANT PUBLIC
   public handleDebugEncounters(client: Client, zone: string): void {
