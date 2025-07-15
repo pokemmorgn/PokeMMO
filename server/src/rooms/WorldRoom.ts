@@ -443,6 +443,21 @@ export class WorldRoom extends Room<PokeWorldState> {
       // Confirmer au client
       client.send("battleFinishedAck", { success: true });
 });
+
+    // Dans setupMessageHandlers() ou similaire
+this.onMessage("debugJWT", (client) => {
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+  
+  client.send("debugJWTResult", {
+    sessionId: client.sessionId,
+    userId: userId,
+    username: jwtData?.username,
+    hasMapping: !!userId
+  });
+  
+  console.log(`🔍 Debug JWT: ${client.sessionId} -> ${userId}`);
+});
     // === HANDLERS EXISTANTS ===
 
  // ✅ NOUVEAU: Configurer les handlers de starter
