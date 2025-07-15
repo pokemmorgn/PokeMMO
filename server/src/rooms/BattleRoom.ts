@@ -38,7 +38,8 @@ export class BattleRoom extends Room<BattleState> {
   // === SYSTÈME DE COMBAT ===
   private battleEngine: BattleEngine;
   private battleGameState: BattleGameState | null = null;
-  
+    private battleStateBackup: any = null;
+
   // === DONNÉES ROOM ===
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
@@ -842,8 +843,40 @@ this.state.player1Name = this.battleInitData.playerData.name;
         message: error instanceof Error ? error.message : 'Erreur inconnue' 
       });
     }
+        this.clock.setInterval(() => {
+      this.saveBattleState();
+    }, 2000); // Toutes les 2 secondes
   }
-  
+  }
+
+  private saveBattleState() {
+    if (!this.battleGameState) return;
+    
+    const stateToSave = {
+      battleId: this.state.battleId,
+      battleType: this.state.battleType,
+      phase: this.battleGameState.phase,
+      turnNumber: this.battleGameState.turnNumber,
+      currentTurn: this.battleGameState.currentTurn,
+      player1: {
+        userId: this.state.player1Id,
+        name: this.state.player1Name,
+        pokemon: this.battleGameState.player1.pokemon
+      },
+      player2: {
+        pokemon: this.battleGameState.player2.pokemon
+      },
+      battleLog: this.battleGameState.battleLog || [],
+      timestamp: Date.now()
+    };
+    
+    // ✅ SAUVEGARDER DANS JWTMANAGER (utilise déjà userId)
+    const jwtManager = JWTManager.getInstance();
+    jwtManager.saveBattleState(this.state.player1Id, stateToSave);
+    
+    console.log(`💾 [BattleRoom] État sauvegardé pour ${this.state.player1Name}`);
+  }
+}
   // === CONVERSION DE DONNÉES ===
   
   private async convertToBattleEnginePokemon(pokemonData: any, isWild: boolean): Promise<Pokemon> {
