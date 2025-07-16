@@ -101,14 +101,17 @@ export class BattleRoom extends Room<BattleState> {
       this.setupMessageHandlers();
       
       // ✅ RESTAURER LE GAMESTATE
-      this.battleGameState = {
-        battleId: savedState.battleId,
-        phase: savedState.phase,
-        turnNumber: savedState.turnNumber,
-        currentTurn: savedState.currentTurn,
-        player1: savedState.player1,
-        player2: savedState.player2,
-      };
+this.battleGameState = {
+  battleId: savedState.battleId,
+  type: savedState.battleType,
+  phase: savedState.phase,
+  turnNumber: savedState.turnNumber,
+  currentTurn: savedState.currentTurn,
+  player1: savedState.player1,
+  player2: savedState.player2,
+  isEnded: savedState.phase === 'ended',
+  winner: savedState.winner || null
+};
       
       console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
       
