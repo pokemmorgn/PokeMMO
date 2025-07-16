@@ -217,11 +217,11 @@ const token = sessionStorage.getItem('sessionToken');
     const decoded = JSON.parse(atob(payload));
     
     // Vérifier expiration
-    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-      console.warn('[NetworkManager] ❌ Token JWT expiré');
-      localStorage.removeItem('sessionToken');
-      return null;
-    }
+if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+  console.warn('[NetworkManager] ❌ Token JWT expiré');
+  sessionStorage.removeItem('sessionToken'); // ✅ COHÉRENT
+  return null;
+}
 
     console.log('[NetworkManager] ✅ JWT valide pour:', decoded.username);
     
@@ -235,7 +235,7 @@ const token = sessionStorage.getItem('sessionToken');
     
   } catch (error) {
     console.error('[NetworkManager] ❌ Erreur JWT:', error);
-    localStorage.removeItem('sessionToken');
+sessionStorage.removeItem('sessionToken');
     return null;
   }
 }
