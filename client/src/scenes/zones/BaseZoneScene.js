@@ -8,7 +8,7 @@ import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
-import { initializeQuestModule } from "../../Quest/index.js";
+import { setupQuestSystem } from "../../Quest/index.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
@@ -1526,7 +1526,7 @@ async initializeQuestSystem() {
     
     console.log(`🚀 [${this.scene.key}] Initialisation Quest Module...`);
     
-   const questInstance = await initializeQuestModule(window.uiManager);
+    const questInstance = await setupQuestSystem(window.uiManager);
     
     if (questInstance) {
       this.questModuleInitialized = true;
