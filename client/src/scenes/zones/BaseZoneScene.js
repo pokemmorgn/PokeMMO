@@ -380,6 +380,8 @@ async initializeUIQuietly() {
 
   // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
   if (this.networkManager && this.networkManager.room) {
+    this.networkManager._networkHandlersSetup = false;
+    this.networkManager._worldHandlersSetup = false;
     this.networkManager.setupRoomListeners();
     this.networkManager.restoreCustomCallbacks?.();
   }
@@ -1127,6 +1129,12 @@ initPlayerSpawnFromSceneData() {
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
+        // ✅ AJOUTER CES LIGNES AU DÉBUT :
+    if (this.networkManager._networkHandlersSetup) {
+      console.log(`⚠️ [${this.scene.key}] Network handlers déjà configurés, skip`);
+      return;
+    }
+    
     console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
     // ✅ Handler pour recevoir la zone officielle du serveur
@@ -1198,7 +1206,9 @@ this.networkManager.send = (messageType, data) => {
     
     // Handlers existants (snap, disconnect)
     this.setupExistingHandlers();
+    this.networkManager._networkHandlersSetup = true;
 
+    
     // Forcer une première synchronisation
     this.time.delayedCall(500, () => {
       console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
@@ -1343,6 +1353,12 @@ shouldShowPlayerFallback(sessionId, playerState) {
   setupWorldRoomHandlers() {
     console.log(`📡 [${this.scene.key}] === SETUP WORLD ROOM HANDLERS ===`);
 
+    // ✅ AJOUTER CES LIGNES AU DÉBUT :
+    if (this.networkManager._worldHandlersSetup) {
+      console.log(`⚠️ [${this.scene.key}] World handlers déjà configurés, skip`);
+      return;
+    }
+
     this.networkManager.onZoneData((data) => {
       console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
       this.handleZoneData(data);
@@ -1390,8 +1406,10 @@ shouldShowPlayerFallback(sessionId, playerState) {
       this.handleTransitionError(result);
     });
 
+    // ✅ AJOUTER CETTE LIGNE À LA FIN :
+    this.networkManager._worldHandlersSetup = true;
     console.log(`✅ [${this.scene.key}] Tous les handlers WorldRoom configurés`);
-  }
+}
 
   // ✅ MÉTHODE INCHANGÉE: Setup handler quest statuses
   setupQuestStatusHandler() {
