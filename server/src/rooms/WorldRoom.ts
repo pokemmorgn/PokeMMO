@@ -1180,7 +1180,10 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
   }
 
   // === HANDLERS POUR LES QUÊTES ===
-
+private getPlayerNameBySession(sessionId: string): string | null {
+  const player = this.state.players.get(sessionId);
+  return player?.name || null;
+}
   private async handleStartQuest(client: Client, data: { questId: string }) {
     try {
       console.log(`🎯 [WorldRoom] Démarrage de quête ${data.questId} pour ${client.sessionId}`);
