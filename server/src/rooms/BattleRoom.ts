@@ -735,18 +735,33 @@ async onJoin(client: Client, options: any) {
   console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom avec auto-registration JWT`);
   
   try {
-    // ✅ AUTO-REGISTRATION JWT DANS BATTLEROOM
-    const jwtData = this.battleInitData.playerData.jwtData;
-    const userId = this.battleInitData.playerData.userId;
+    // ✅ RÉCUPÉRER JWT DEPUIS WORLDSESSION (PLUS FIABLE)
+    const worldSessionId = options.worldSessionId;
+    if (!worldSessionId) {
+      console.error(`❌ [BattleRoom] worldSessionId manquant`);
+      client.leave(1000, "worldSessionId manquant");
+      return;
+    }
+
+    // ✅ RÉCUPÉRER JWT ACTUEL DU JWTMANAGER (au lieu de battleInitData)
+    let jwtData = this.jwtManager.getJWTDataBySession(worldSessionId);
+    let userId = this.jwtManager.getUserId(worldSessionId);
+    
+    // ✅ FALLBACK vers battleInitData si nécessaire
+    if (!jwtData || !userId) {
+      console.warn(`⚠️ [BattleRoom] JWT non trouvé dans JWTManager, fallback battleInitData`);
+      jwtData = this.battleInitData.playerData.jwtData;
+      userId = this.battleInitData.playerData.userId;
+    }
     
     if (!jwtData || !userId) {
-      console.error(`❌ [BattleRoom] Données JWT manquantes dans battleInitData`);
+      console.error(`❌ [BattleRoom] Aucune donnée JWT disponible`);
       client.leave(1000, "Données session manquantes");
       return;
     }
     
     // ✅ ENREGISTRER JWT AVEC LE NOUVEAU SESSIONID BATTLEROOM
-    this.jwtManager.registerUser(client.sessionId, jwtData);
+    await this.jwtManager.registerUser(client.sessionId, jwtData);
     console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId}`);
     
     // ✅ VÉRIFICATION QUE ÇA MARCHE
@@ -758,8 +773,8 @@ async onJoin(client: Client, options: any) {
     }
     
     this.state.player1Id = userId;
-this.state.player1Name = this.battleInitData.playerData.name;
-      
+    this.state.player1Name = this.battleInitData.playerData.name;
+    
       // Créer TeamManager
       const teamManager = new TeamManager(this.state.player1Name);
       await teamManager.load();
