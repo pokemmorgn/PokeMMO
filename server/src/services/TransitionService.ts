@@ -135,7 +135,8 @@ export class TransitionService {
       // 6. Validation réussie
       console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
       console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
-      
+      this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
+
       return {
         success: true,
         position: spawnPosition,
