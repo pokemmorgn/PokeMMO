@@ -101,17 +101,15 @@ export class BattleRoom extends Room<BattleState> {
       this.setupMessageHandlers();
       
       // ✅ RESTAURER LE GAMESTATE
-this.battleGameState = {
-  battleId: savedState.battleId,
-  type: savedState.battleType,
-  phase: savedState.phase,
-  turnNumber: savedState.turnNumber,
-  currentTurn: savedState.currentTurn,
-  player1: savedState.player1,
-  player2: savedState.player2,
-  isEnded: savedState.phase === 'ended',
-  winner: savedState.winner || null
-};
+      this.battleGameState = {
+        battleId: savedState.battleId,
+        phase: savedState.phase,
+        turnNumber: savedState.turnNumber,
+        currentTurn: savedState.currentTurn,
+        player1: savedState.player1,
+        player2: savedState.player2,
+        battleLog: savedState.battleLog || []
+      };
       
       console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
       
@@ -1050,24 +1048,23 @@ this.battleGameState = {
   private saveBattleState(): void {
     if (!this.battleGameState) return;
     
-const stateToSave = {
-  battleId: this.state.battleId,
-  battleType: this.state.battleType,
-  phase: this.battleGameState.phase,
-  turnNumber: this.battleGameState.turnNumber,
-  currentTurn: this.battleGameState.currentTurn,
-  player1: {
-    userId: this.state.player1Id,
-    name: this.state.player1Name,
-    pokemon: this.battleGameState.player1.pokemon
-  },
-  player2: {
-    pokemon: this.battleGameState.player2.pokemon
-  },
-  isEnded: this.battleGameState.isEnded,     // ✅ AJOUT
-  winner: this.battleGameState.winner,       // ✅ AJOUT
-  timestamp: Date.now()
-};
+    const stateToSave = {
+      battleId: this.state.battleId,
+      battleType: this.state.battleType,
+      phase: this.battleGameState.phase,
+      turnNumber: this.battleGameState.turnNumber,
+      currentTurn: this.battleGameState.currentTurn,
+      player1: {
+        userId: this.state.player1Id,
+        name: this.state.player1Name,
+        pokemon: this.battleGameState.player1.pokemon
+      },
+      player2: {
+        pokemon: this.battleGameState.player2.pokemon
+      },
+      battleLog: this.battleGameState.battleLog || [],
+      timestamp: Date.now()
+    };
     
     // Sauvegarder dans JWTManager
     this.jwtManager.saveBattleState(this.state.player1Id, stateToSave);
