@@ -741,11 +741,13 @@ this.battleEngine.on('battleEvent', async (event: any) => {
   
   // === GESTION CLIENTS ===
   
+// ✅ DANS BattleRoom.ts - Méthode onJoin()
+
 async onJoin(client: Client, options: any) {
   console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom avec auto-registration JWT`);
   
   try {
-    // ✅ RÉCUPÉRER JWT DEPUIS WORLDSESSION (PLUS FIABLE)
+    // ✅ VÉRIFICATION JWT DEPUIS OPTIONS
     const worldSessionId = options.worldSessionId;
     if (!worldSessionId) {
       console.error(`❌ [BattleRoom] worldSessionId manquant`);
@@ -753,13 +755,13 @@ async onJoin(client: Client, options: any) {
       return;
     }
 
-    // ✅ RÉCUPÉRER JWT ACTUEL DU JWTMANAGER (au lieu de battleInitData)
+    // ✅ RÉCUPÉRER JWT DEPUIS WORLDROOM SESSION
     let jwtData = this.jwtManager.getJWTDataBySession(worldSessionId);
     let userId = this.jwtManager.getUserId(worldSessionId);
     
-    // ✅ FALLBACK vers battleInitData si nécessaire
+    // ✅ FALLBACK: Utiliser les données depuis battleInitData
     if (!jwtData || !userId) {
-      console.warn(`⚠️ [BattleRoom] JWT non trouvé dans JWTManager, fallback battleInitData`);
+      console.warn(`⚠️ [BattleRoom] JWT non trouvé pour WorldSession ${worldSessionId}, utilisation battleInitData`);
       jwtData = this.battleInitData.playerData.jwtData;
       userId = this.battleInitData.playerData.userId;
     }
@@ -772,7 +774,7 @@ async onJoin(client: Client, options: any) {
     
     // ✅ ENREGISTRER JWT AVEC LE NOUVEAU SESSIONID BATTLEROOM
     await this.jwtManager.registerUser(client.sessionId, jwtData);
-    console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId}`);
+    console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId} (${jwtData.username})`);
     
     // ✅ VÉRIFICATION QUE ÇA MARCHE
     const verifyUserId = this.jwtManager.getUserId(client.sessionId);
@@ -782,28 +784,31 @@ async onJoin(client: Client, options: any) {
       return;
     }
     
+    console.log(`🎯 [BattleRoom] JWT validation OK: ${client.sessionId} → ${userId}`);
+    
+    // ✅ MAINTENANT LE RESTE DU CODE PEUT UTILISER getUserId() NORMALEMENT
     this.state.player1Id = userId;
     this.state.player1Name = this.battleInitData.playerData.name;
     
-      // Créer TeamManager
-      const teamManager = new TeamManager(this.state.player1Name);
-      await teamManager.load();
-      this.teamManagers.set(client.sessionId, teamManager);
-      
-      client.send("battleJoined", {
-        battleId: this.state.battleId,
-        battleType: this.state.battleType,
-        yourRole: "player1"
-      });
-      
-      // Démarrer le combat automatiquement
-      this.clock.setTimeout(() => this.startBattleAuthentic(), 1000);
-      
-    } catch (error) {
-      console.error(`❌ [JOIN] Erreur:`, error);
-      client.leave(1000, "Erreur lors de l'entrée en combat");
-    }
+    // Créer TeamManager
+    const teamManager = new TeamManager(this.state.player1Name);
+    await teamManager.load();
+    this.teamManagers.set(client.sessionId, teamManager);
+    
+    client.send("battleJoined", {
+      battleId: this.state.battleId,
+      battleType: this.state.battleType,
+      yourRole: "player1"
+    });
+    
+    // Démarrer le combat automatiquement
+    this.clock.setTimeout(() => this.startBattleAuthentic(), 1000);
+    
+  } catch (error) {
+    console.error(`❌ [JOIN] Erreur:`, error);
+    client.leave(1000, "Erreur lors de l'entrée en combat");
   }
+}
   
   async onLeave(client: Client) {
     console.log(`👋 ${client.sessionId} quitte BattleRoom Pokémon authentique`);
