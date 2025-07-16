@@ -217,30 +217,40 @@ if (userId !== this.state.player1Id) {      client.send("requestMovesResult", {
   }
 }
   
- private async handleBattleAction(client: Client, data: any) {
-    console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
+private async handleBattleAction(client: Client, data: any) {
+  console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
+  
+  try {
+    // ✅ SOLUTION ROBUSTE: Essayer mapping puis fallback JWT
+    let userId = this.jwtManager.getUserId(client.sessionId);
     
-    try {
-      // ✅ NOUVEAU: Utiliser userId au lieu de sessionId
-      const userId = this.jwtManager.getUserId(client.sessionId);
+    if (!userId) {
+      // Fallback: récupérer depuis JWT direct
+      const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+      userId = jwtData?.userId;
+      
       if (!userId) {
+        console.error(`❌ [BattleRoom] Session invalide: ${client.sessionId}`);
         client.send("actionResult", { success: false, error: "Session invalide" });
         return;
       }
       
-      // Créer l'action pour BattleEngine
-      const action: BattleAction = {
-        actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        playerId: userId, // ✅ Utiliser userId stable
-        type: data.actionType,
-        data: {
-          moveId: data.moveId,
-          itemId: data.itemId,
-          targetPokemonId: data.targetPokemonId,
-          ballType: data.ballType
-        },
-        timestamp: Date.now()
-      };
+      console.log(`🔄 [BattleRoom] Fallback JWT réussi: ${userId}`);
+    }
+    
+    // Créer l'action (code existant)
+    const action: BattleAction = {
+      actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      playerId: userId,
+      type: data.actionType,
+      data: {
+        moveId: data.moveId,
+        itemId: data.itemId,
+        targetPokemonId: data.targetPokemonId,
+        ballType: data.ballType
+      },
+      timestamp: Date.now()
+    };
       
       // Récupérer le TeamManager pour la capture
       let teamManager = null;
