@@ -72,7 +72,10 @@ export class BattleRoom extends Room<BattleState> {
   
   private setupMessageHandlers() {
     console.log('🎮 [BattleRoom] Configuration message handlers Pokémon authentique');
-    
+    this.onMessage("attemptFlee", async (client, data?: any) => {
+  console.log(`🏃 [BattleRoom] Fuite via attemptFlee`);
+  await this.handleBattleAction(client, { actionType: "run" });
+});
     // Handler pour les actions de combat
     this.onMessage("battleAction", async (client, data: {
       actionType: "attack" | "item" | "switch" | "run" | "capture";
