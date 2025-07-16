@@ -855,32 +855,13 @@ handleQuestGiverResponse(data) {
   }
   
   // === 🧹 NETTOYAGE ===
-  
   destroy() {
     console.log('🧹 [QuestManager] Destruction...');
-    
-    this.setState('UNINITIALIZED', 'Destruction');
-    this.setDialogueState('NONE');
-    
-    // Reset callbacks
-    this.onQuestUpdate = null;
-    this.onQuestStarted = null;
-    this.onQuestCompleted = null;
-    this.onQuestProgress = null;
-    this.onStatsUpdate = null;
-    
-    // Reset données
+    this.gameRoom = null;
+    this.isReady = false;
+    this.handlersRegistered = false;
     this.activeQuests = [];
     this.availableQuests = [];
-    this.completedQuests = [];
-    
-    // Reset connexions
-    this.gameRoom = null;
-    this.questUI = null;
-    this.networkManager = null;
-    
-    // Reset état
-    this.initialized = false;
     
     console.log('✅ [QuestManager] Détruit');
   }
@@ -889,21 +870,24 @@ handleQuestGiverResponse(data) {
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER VERSION CORRIGÉE ===
+📖 === QUEST MANAGER ULTRA-SIMPLE ===
 
-✅ CORRECTIONS APPLIQUÉES:
-1. setState() et setDialogueState() ajoutées
-2. Constructeur corrigé (pas d'appel setState)
-3. Handler availableQuestsList unique
-4. Protection anti-boucle avec pendingQuestRequest
-5. Cooldown interactions (1 seconde)
-6. API pour InteractionManager
+✅ PRINCIPES:
+1. UN SEUL FICHIER, UNE SEULE RESPONSABILITÉ
+2. GARDE TON UIMANAGER QUI MARCHE
+3. JUSTE RECEVOIR/ENVOYER DES MESSAGES
+4. DÉLÉGUER L'AFFICHAGE À L'UI EXISTANTE
 
-🚫 PROTECTION ANTI-BOUCLES:
-• pendingQuestRequest évite requêtes multiples
-• lastInteractionTime cooldown 1 seconde
-• canProcessInteraction() bloque si dialogue actif
-• Dialogue affiché seulement si réponse attendue
+🎯 USAGE:
+const qm = new QuestManager();
+qm.setup(gameRoom);
 
-✅ QUEST MANAGER PRÊT ET CORRIGÉ !
+📋 API:
+- qm.handleNpcInteraction(data)
+- qm.startQuest(questId)
+- qm.getActiveQuests()
+- qm.getAvailableQuests()
+
+🔍 DEBUG:
+window.debugQuestManager()
 `);
