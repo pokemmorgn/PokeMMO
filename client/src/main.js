@@ -1523,40 +1523,142 @@ if (!connectionSuccess) {
       fastMode: false,
       theme: 'uiInit'
     });
+
+    // === ✅ QUEST SYSTEM AUTO-REPAIR - Solution permanente ===
+
+// 🔧 Surveillance automatique du système Quest
+function setupQuestSystemAutoRepair() {
+  console.log('🔧 [QUEST AUTO-REPAIR] Configuration surveillance...');
+  
+  // Surveillance toutes les 30 secondes
+  setInterval(() => {
+    const questModule = window.uiManager?.modules?.get('quest');
+    if (!questModule?.instance?.manager) return;
     
-    window.initializePokemonUI = async function() {
-      console.log("🚀 [MAIN] === INITIALISATION POKÉMON UI CORRIGÉE ===");
+    const questManager = questModule.instance.manager;
+    
+    // Vérifier l'état des handlers
+    if (questManager._handlersRegistered === false || 
+        questManager._handlersRegistered === undefined) {
       
-      try {
-        await window.globalLoadingScreen.showUIInitLoading();
-        
-        const uiResult = await initializePokemonUI();
-        
-        if (uiResult.success) {
-          console.log("✅ Système UI Pokémon initialisé avec succès !");
-          window.showGameNotification?.("Interface utilisateur prête !", "success", { 
-            duration: 2000, 
-            position: 'bottom-center' 
-          });
-        } else {
-          console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
-          window.showGameNotification?.("Erreur interface utilisateur", "error", { 
-            duration: 3000, 
-            position: 'top-center' 
-          });
-        }
-        
-        return uiResult;
-        
-      } catch (error) {
-        console.error("❌ Erreur critique initialisation UI:", error);
-        window.showGameNotification?.("Erreur critique interface", "error", { 
-          duration: 5000, 
-          position: 'top-center' 
-        });
-        return { success: false, error: error.message };
+      console.warn('⚠️ [QUEST AUTO-REPAIR] Handlers non enregistrés détectés');
+      console.log('🔧 [QUEST AUTO-REPAIR] Réparation automatique...');
+      
+      if (questManager.registerHandlers) {
+        questManager.registerHandlers();
+        console.log('✅ [QUEST AUTO-REPAIR] Handlers réenregistrés');
       }
-    };
+    }
+    
+    // Vérifier la connexion GameRoom
+    if (!questManager.gameRoom || !questManager.gameRoom._messageHandlers) {
+      console.warn('⚠️ [QUEST AUTO-REPAIR] GameRoom déconnecté');
+      
+      // Reconnecter si possible
+      if (window.currentGameRoom) {
+        questManager.gameRoom = window.currentGameRoom;
+        if (questManager.registerHandlers) {
+          questManager.registerHandlers();
+        }
+        console.log('✅ [QUEST AUTO-REPAIR] GameRoom reconnecté');
+      }
+    }
+    
+  }, 30000); // Check toutes les 30 secondes
+  
+  console.log('✅ [QUEST AUTO-REPAIR] Surveillance active (30s interval)');
+}
+
+// 🔧 Fonction de réparation manuelle
+function forceQuestSystemRepair() {
+  console.log('🔧 [QUEST REPAIR] Réparation manuelle...');
+  
+  const questModule = window.uiManager?.modules?.get('quest');
+  if (!questModule?.instance?.manager) {
+    console.error('❌ [QUEST REPAIR] QuestManager introuvable');
+    return false;
+  }
+  
+  const questManager = questModule.instance.manager;
+  
+  // Force re-registration
+  if (questManager.registerHandlers) {
+    questManager._handlersRegistered = false;
+    questManager.registerHandlers();
+    console.log('✅ [QUEST REPAIR] Handlers réenregistrés');
+  }
+  
+  // Test du système
+  setTimeout(() => {
+    if (questManager.gameRoom && questManager.gameRoom.send) {
+      questManager.gameRoom.send('getActiveQuests');
+      console.log('✅ [QUEST REPAIR] Test requête envoyée');
+    }
+  }, 1000);
+  
+  return true;
+}
+
+// Exposer globalement
+window.forceQuestSystemRepair = forceQuestSystemRepair;
+window.setupQuestSystemAutoRepair = setupQuestSystemAutoRepair;
+
+console.log('✅ [QUEST FIX] Système de réparation Quest chargé');
+
+// === FIN QUEST SYSTEM AUTO-REPAIR ===
+    
+window.initializePokemonUI = async function() {
+  console.log("🚀 [MAIN] === INITIALISATION POKÉMON UI AVEC FIX QUEST ===");
+  
+  try {
+    await window.globalLoadingScreen.showUIInitLoading();
+    
+    const uiResult = await initializePokemonUI();
+    
+    if (uiResult.success) {
+      console.log("✅ Système UI Pokémon initialisé avec succès !");
+      
+      // ✅ CORRECTION CRITIQUE: Forcer l'enregistrement des handlers Quest
+      setTimeout(() => {
+        const questModule = window.uiManager?.modules?.get('quest');
+        if (questModule?.instance?.manager) {
+          const questManager = questModule.instance.manager;
+          
+          if (questManager.registerHandlers && !questManager._handlersRegistered) {
+            console.log('🔧 [QUEST FIX] Force enregistrement handlers...');
+            questManager.registerHandlers();
+          }
+        }
+      }, 2000);
+      
+      // ✅ Démarrer la surveillance auto-réparation
+      setTimeout(() => {
+        setupQuestSystemAutoRepair();
+      }, 5000);
+      
+      window.showGameNotification?.("Interface utilisateur prête !", "success", { 
+        duration: 2000, 
+        position: 'bottom-center' 
+      });
+    } else {
+      console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
+      window.showGameNotification?.("Erreur interface utilisateur", "error", { 
+        duration: 3000, 
+        position: 'top-center' 
+      });
+    }
+    
+    return uiResult;
+    
+  } catch (error) {
+    console.error("❌ Erreur critique initialisation UI:", error);
+    window.showGameNotification?.("Erreur critique interface", "error", { 
+      duration: 5000, 
+      position: 'top-center' 
+    });
+    return { success: false, error: error.message };
+  }
+};
 
     window.initializeUIWithLoading = window.initializePokemonUI;
 
