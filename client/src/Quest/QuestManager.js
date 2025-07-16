@@ -34,8 +34,20 @@ export class QuestManager {
     // ✅ Demander données
     this.requestInitialData();
     
+    // ✅ AUTO-ENREGISTREMENT GLOBAL
+    window.questManager = this;
+    
+    // ✅ ENREGISTREMENT DANS UIMANAGER SI EXISTE
+    if (window.uiManager && window.uiManager.modules) {
+      const questModule = window.uiManager.modules.get('quest');
+      if (questModule && questModule.instance) {
+        questModule.instance.manager = this;
+        console.log('✅ [QuestManager] Enregistré dans UIManager');
+      }
+    }
+    
     this.isReady = true;
-    console.log('✅ [QuestManager] Setup terminé');
+    console.log('✅ [QuestManager] Setup terminé et enregistré globalement');
   }
 
   // ✅ HANDLERS ULTRA-SIMPLES
