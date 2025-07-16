@@ -441,38 +441,28 @@ export class WorldRoom extends Room<PokeWorldState> {
 this.onMessage("battleFinished", (client, data) => {
   console.log(`🏁 [WorldRoom] battleFinished reçu de ${client.sessionId}`);
   
-  // ✅ SOLUTION ROBUSTE: Même logique que BattleRoom
+  // Essayer mapping direct
   let userId = this.jwtManager.getUserId(client.sessionId);
   
   if (!userId) {
-    // Fallback: récupérer depuis JWT direct
-    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
-    userId = jwtData?.userId;
-    
-    if (!userId) {
-      console.error(`❌ [WorldRoom] Session invalide pour battleFinished: ${client.sessionId}`);
-      
-      // Debug complet
-      console.log(`🔍 [DEBUG] Session: ${client.sessionId}`);
-      console.log(`🔍 [DEBUG] Mappings actifs:`);
-      this.jwtManager.debugMappings();
-      
-      client.send("battleFinishedError", { 
-        reason: "Session invalide - reconnexion requise" 
-      });
-      return;
+    // Fallback: chercher par nom de joueur
+    const playerName = this.getPlayerNameBySession(client.sessionId);
+    if (playerName) {
+      userId = this.jwtManager.getUserIdByPlayerName(playerName);
+      console.log(`🔄 [WorldRoom] UserId trouvé via playerName ${playerName}: ${userId}`);
     }
-    
-    console.log(`🔄 [WorldRoom] Fallback JWT réussi pour battleFinished: ${userId}`);
   }
   
-  console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
+  if (!userId) {
+    console.error(`❌ [WorldRoom] Session invalide: ${client.sessionId}`);
+    client.send("battleFinishedError", { reason: "Session invalide" });
+    return;
+  }
   
-  // Utiliser userId pour cohérence
+  console.log(`✅ [WorldRoom] battleFinished OK: ${userId}`);
+  
   this.battleHandlers.onBattleFinished(userId, data.battleResult);
   this.unblockPlayerMovement(client.sessionId, 'battle');
-  
-  // Nettoyer état combat
   this.jwtManager.clearBattleState(userId);
   
   client.send("battleFinishedAck", { success: true });
