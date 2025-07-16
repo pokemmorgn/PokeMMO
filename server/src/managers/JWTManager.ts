@@ -71,7 +71,15 @@ export class JWTManager {
     const userId = this.getUserId(sessionId);
     return userId ? this.getUserJWTData(userId) : null;
   }
-
+getUserIdByPlayerName(playerName: string): string | null {
+  for (const [sessionId, userId] of this.sessionToUser.entries()) {
+    const jwtData = this.userJWTData.get(userId);
+    if (jwtData?.username === playerName) {
+      return userId;
+    }
+  }
+  return null;
+}
   /**
  * ✅ NOUVELLE MÉTHODE: Maintenir cohérence JWT
  */
