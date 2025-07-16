@@ -435,13 +435,26 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.movementHandlers.setupHandlers();
     console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
-    this.onMessage("battleFinished", (client, data) => {
-      // Reset l'état combat du joueur
-      this.battleHandlers.onBattleFinished(client.sessionId, data.battleResult);
-      // Débloquer le mouvement
-      this.unblockPlayerMovement(client.sessionId, 'battle');
-      // Confirmer au client
-      client.send("battleFinishedAck", { success: true });
+    
+this.onMessage("battleFinished", (client, data) => {
+  // Vérifier session avant action critique
+  if (!this.jwtManager.validateCriticalAction(client.sessionId, 'battleFinished')) {
+    client.send("battleFinishedError", { 
+      reason: "Session invalide - reconnexion requise" 
+    });
+    return;
+  }
+  
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  
+  // Utiliser userId pour cohérence
+  this.battleHandlers.onBattleFinished(userId, data.battleResult);
+  this.unblockPlayerMovement(client.sessionId, 'battle');
+  
+  // Nettoyer état combat
+  this.jwtManager.clearBattleState(userId);
+  
+  client.send("battleFinishedAck", { success: true });
 });
 
     // Dans setupMessageHandlers() ou similaire
