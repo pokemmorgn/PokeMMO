@@ -436,16 +436,37 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
     
+// ✅ DANS WorldRoom.ts - Remplacez le handler battleFinished existant
+
 this.onMessage("battleFinished", (client, data) => {
-  // Vérifier session avant action critique
-  if (!this.jwtManager.validateCriticalAction(client.sessionId, 'battleFinished')) {
-    client.send("battleFinishedError", { 
-      reason: "Session invalide - reconnexion requise" 
-    });
-    return;
+  console.log(`🏁 [WorldRoom] battleFinished reçu de ${client.sessionId}`);
+  
+  // ✅ SOLUTION ROBUSTE: Même logique que BattleRoom
+  let userId = this.jwtManager.getUserId(client.sessionId);
+  
+  if (!userId) {
+    // Fallback: récupérer depuis JWT direct
+    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+    userId = jwtData?.userId;
+    
+    if (!userId) {
+      console.error(`❌ [WorldRoom] Session invalide pour battleFinished: ${client.sessionId}`);
+      
+      // Debug complet
+      console.log(`🔍 [DEBUG] Session: ${client.sessionId}`);
+      console.log(`🔍 [DEBUG] Mappings actifs:`);
+      this.jwtManager.debugMappings();
+      
+      client.send("battleFinishedError", { 
+        reason: "Session invalide - reconnexion requise" 
+      });
+      return;
+    }
+    
+    console.log(`🔄 [WorldRoom] Fallback JWT réussi pour battleFinished: ${userId}`);
   }
   
-  const userId = this.jwtManager.getUserId(client.sessionId);
+  console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
   
   // Utiliser userId pour cohérence
   this.battleHandlers.onBattleFinished(userId, data.battleResult);
@@ -457,19 +478,25 @@ this.onMessage("battleFinished", (client, data) => {
   client.send("battleFinishedAck", { success: true });
 });
 
-    // Dans setupMessageHandlers() ou similaire
-this.onMessage("debugJWT", (client) => {
+// ✅ BONUS: Ajouter debug handler pour diagnostiquer
+this.onMessage("debugJWTSession", (client) => {
   const userId = this.jwtManager.getUserId(client.sessionId);
   const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
   
+  console.log(`🔍 [DEBUG JWT] Session: ${client.sessionId}`);
+  console.log(`🔍 [DEBUG JWT] UserId from mapping: ${userId}`);
+  console.log(`🔍 [DEBUG JWT] JWT Data exists: ${!!jwtData}`);
+  console.log(`🔍 [DEBUG JWT] JWT UserId: ${jwtData?.userId}`);
+  
   client.send("debugJWTResult", {
     sessionId: client.sessionId,
-    userId: userId,
-    username: jwtData?.username,
-    hasMapping: !!userId
+    userIdFromMapping: userId,
+    hasJWTData: !!jwtData,
+    userIdFromJWT: jwtData?.userId,
+    username: jwtData?.username
   });
   
-  console.log(`🔍 Debug JWT: ${client.sessionId} -> ${userId}`);
+  this.jwtManager.debugMappings();
 });
     // === HANDLERS EXISTANTS ===
 
