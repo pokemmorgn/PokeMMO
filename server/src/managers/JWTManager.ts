@@ -71,7 +71,50 @@ export class JWTManager {
     const userId = this.getUserId(sessionId);
     return userId ? this.getUserJWTData(userId) : null;
   }
+
+  /**
+ * ✅ NOUVELLE MÉTHODE: Maintenir cohérence JWT
+ */
+ensureMapping(sessionId: string, userId: string, jwtData: any): void {
+  const existingUserId = this.getUserId(sessionId);
   
+  if (existingUserId && existingUserId !== userId) {
+    console.log(`🔄 [JWTManager] Changement session: ${existingUserId} -> ${userId}`);
+    
+    // Transférer état de combat si nécessaire
+    const battleState = this.getBattleState(existingUserId);
+    if (battleState) {
+      this.saveBattleState(userId, battleState);
+      this.clearBattleState(existingUserId);
+      console.log(`⚔️ [JWTManager] Combat transféré: ${existingUserId} -> ${userId}`);
+    }
+  }
+  
+  this.sessionToUser.set(sessionId, userId);
+  this.userToSession.set(userId, sessionId);
+  this.userJWTData.set(userId, jwtData);
+}
+
+/**
+ * ✅ NOUVELLE MÉTHODE: Validation actions critiques
+ */
+validateCriticalAction(sessionId: string, action: string): boolean {
+  const userId = this.getUserId(sessionId);
+  const jwtData = this.getJWTDataBySession(sessionId);
+  
+  if (!userId || !jwtData) {
+    console.error(`❌ [JWTManager] Action ${action} bloquée: session invalide ${sessionId}`);
+    return false;
+  }
+  
+  if (jwtData.exp && Date.now() >= jwtData.exp * 1000) {
+    console.error(`❌ [JWTManager] Action ${action} bloquée: JWT expiré`);
+    this.removeUser(sessionId);
+    return false;
+  }
+  
+  return true;
+}
   /**
    * Vérifier si un utilisateur est connecté
    */
