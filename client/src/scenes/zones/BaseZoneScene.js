@@ -8,7 +8,7 @@ import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
-import { setupQuestSystem } from "../../Quest/index.js";
+import { initializeQuestModule } from "../../Quest/index.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
@@ -1503,7 +1503,7 @@ shouldShowPlayerFallback(sessionId, playerState) {
   
   // ✅ MÉTHODE INCHANGÉE: Initialisation du système de quêtes
 async initializeQuestSystem() {
-  console.log(`🎯 [${this.scene.key}] === INITIALISATION QUEST MODULE ===`);
+  console.log(`🎯 [${this.scene.key}] === INITIALISATION QUEST MODULE SIMPLIFIÉ ===`);
   
   if (this.questModuleInitialized) {
     console.log(`ℹ️ [${this.scene.key}] Quest Module déjà initialisé`);
@@ -1518,25 +1518,35 @@ async initializeQuestSystem() {
   this.questModuleAttempts++;
   
   try {
+    // ✅ VÉRIFICATION SIMPLE: UIManager requis
     if (!window.uiManager) {
       console.warn(`⚠️ [${this.scene.key}] UIManager pas prêt, retry dans 2s...`);
       setTimeout(() => this.initializeQuestSystem(), 2000);
       return;
     }
     
-    console.log(`🚀 [${this.scene.key}] Initialisation Quest Module...`);
+    console.log(`🚀 [${this.scene.key}] Initialisation Quest Module simplifié...`);
     
-    const questInstance = await setupQuestSystem(window.uiManager);
+    // ✅ UTILISER LA NOUVELLE FONCTION SIMPLIFIÉE
+    const questInstance = await initializeQuestModule(window.uiManager);
     
     if (questInstance) {
       this.questModuleInitialized = true;
-      console.log(`✅ [${this.scene.key}] Quest Module initialisé avec succès`);
+      console.log(`✅ [${this.scene.key}] Quest Module simplifié initialisé avec succès`);
       
       // Marquer globalement
       window.questSystemReady = true;
       
+      // ✅ NOTIFICATION DISCRÈTE
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Quest system ready', 'success', { 
+          duration: 1500, 
+          position: 'bottom-right' 
+        });
+      }
+      
     } else {
-      console.error(`❌ [${this.scene.key}] setupQuestSystem a retourné null`);
+      console.error(`❌ [${this.scene.key}] initializeQuestModule a retourné null`);
       this.handleQuestInitFailure();
     }
     
@@ -1544,7 +1554,7 @@ async initializeQuestSystem() {
     console.error(`❌ [${this.scene.key}] Erreur initialisation Quest Module:`, error);
     this.handleQuestInitFailure();
   }
-}
+  
   // ✅ NOUVELLE MÉTHODE À AJOUTER
 handleQuestInitFailure() {
   if (this.questModuleAttempts < this.maxQuestModuleAttempts) {
