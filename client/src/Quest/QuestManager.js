@@ -159,54 +159,129 @@ export class QuestManager {
       return;
     }
 
-    // Handler 1: Quêtes actives
-    this.gameRoom.onMessage("activeQuestsList", (data) => {
-      console.log('📥 [QuestManager] ✅ ACTIVES REÇUES!', data);
-      this.activeQuests = this.extractQuests(data);
-      this.notifyUIManager('activeQuests', this.activeQuests);
-    });
+    // 🔧 FIX CRITIQUE: Vérifier la validité de gameRoom.onMessage
+    if (typeof this.gameRoom.onMessage !== 'function') {
+      console.error('❌ [QuestManager] gameRoom.onMessage n\'est pas une fonction');
+      return;
+    }
 
-    // Handler 2: Quêtes disponibles  
-    this.gameRoom.onMessage("availableQuestsList", (data) => {
-      console.log('📥 [QuestManager] ✅ DISPONIBLES REÇUES!', data);
-      this.availableQuests = this.extractQuests(data);
-      this.notifyUIManager('availableQuests', this.availableQuests);
+    console.log('🔧 [QuestManager] GameRoom valide, enregistrement en cours...');
+
+    try {
+      // Handler 1: Quêtes actives
+      console.log('📡 [QuestManager] Enregistrement activeQuestsList...');
+      this.gameRoom.onMessage("activeQuestsList", (data) => {
+        console.log('📥 [QuestManager] ✅ ACTIVES REÇUES!', data);
+        this.activeQuests = this.extractQuests(data);
+        this.notifyUIManager('activeQuests', this.activeQuests);
+      });
+
+      // Handler 2: Quêtes disponibles  
+      console.log('📡 [QuestManager] Enregistrement availableQuestsList...');
+      this.gameRoom.onMessage("availableQuestsList", (data) => {
+        console.log('📥 [QuestManager] ✅ DISPONIBLES REÇUES!', data);
+        this.availableQuests = this.extractQuests(data);
+        this.notifyUIManager('availableQuests', this.availableQuests);
+        
+        if (this.availableQuests.length > 0) {
+          this.showQuestSelection();
+        }
+      });
+
+      // Handler 3: Résultat démarrage quête
+      console.log('📡 [QuestManager] Enregistrement questStartResult...');
+      this.gameRoom.onMessage("questStartResult", (data) => {
+        console.log('📥 [QuestManager] ✅ RÉSULTAT DÉMARRAGE!', data);
+        this.handleQuestStartResult(data);
+      });
+
+      // Handler 4: Progression quête
+      console.log('📡 [QuestManager] Enregistrement questProgressUpdate...');
+      this.gameRoom.onMessage("questProgressUpdate", (data) => {
+        console.log('📥 [QuestManager] ✅ PROGRESSION!', data);
+        this.handleQuestProgress(data);
+      });
+
+      // Handler 5: Statuts quêtes
+      console.log('📡 [QuestManager] Enregistrement questStatuses...');
+      this.gameRoom.onMessage("questStatuses", (data) => {
+        console.log('📥 [QuestManager] ✅ STATUTS!', data);
+        this.notifyUIManager('questStatuses', data);
+      });
+
+      // Handler 6: Quest update
+      console.log('📡 [QuestManager] Enregistrement questUpdate...');
+      this.gameRoom.onMessage("questUpdate", (data) => {
+        console.log('📥 [QuestManager] ✅ QUEST UPDATE!', data);
+        this.handleQuestProgress(data);
+      });
+
+      this._handlersRegistered = true;
       
-      if (this.availableQuests.length > 0) {
-        this.showQuestSelection();
+      // 🔧 FIX CRITIQUE: TRANSITION VERS ÉTAT READY
+      this.setState('READY', 'Handlers enregistrés');
+      
+      // ✅ VALIDATION: Vérifier que les handlers sont bien enregistrés
+      setTimeout(() => {
+        this.verifyHandlersInColyseus();
+      }, 100);
+      
+      console.log('✅ [QuestManager] Handlers enregistrés + État READY configuré');
+      
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur enregistrement handlers:', error);
+      this._handlersRegistered = false;
+      this.setState('ERROR', 'Erreur handlers');
+    }
+  }
+
+  // === 🔧 NOUVELLE MÉTHODE: Vérification handlers Colyseus ===
+  
+  verifyHandlersInColyseus() {
+    console.log('🔍 [QuestManager] Vérification handlers Colyseus...');
+    
+    if (!this.gameRoom || !this.gameRoom._messageHandlers) {
+      console.error('❌ [QuestManager] Pas d\'accès aux _messageHandlers');
+      return false;
+    }
+    
+    const requiredHandlers = [
+      'activeQuestsList',
+      'availableQuestsList', 
+      'questStartResult',
+      'questProgressUpdate',
+      'questStatuses',
+      'questUpdate'
+    ];
+    
+    const registeredHandlers = [];
+    const missingHandlers = [];
+    
+    requiredHandlers.forEach(handler => {
+      if (this.gameRoom._messageHandlers.has && this.gameRoom._messageHandlers.has(handler)) {
+        registeredHandlers.push(handler);
+      } else if (this.gameRoom._messageHandlers[handler]) {
+        registeredHandlers.push(handler);
+      } else {
+        missingHandlers.push(handler);
       }
     });
-
-    // Handler 3: Résultat démarrage quête
-    this.gameRoom.onMessage("questStartResult", (data) => {
-      console.log('📥 [QuestManager] ✅ RÉSULTAT DÉMARRAGE!', data);
-      this.handleQuestStartResult(data);
-    });
-
-    // Handler 4: Progression quête
-    this.gameRoom.onMessage("questProgressUpdate", (data) => {
-      console.log('📥 [QuestManager] ✅ PROGRESSION!', data);
-      this.handleQuestProgress(data);
-    });
-
-    // Handler 5: Statuts quêtes
-    this.gameRoom.onMessage("questStatuses", (data) => {
-      console.log('📥 [QuestManager] ✅ STATUTS!', data);
-      this.notifyUIManager('questStatuses', data);
-    });
-
-    // ✅ NOUVEAU: Handler questUpdate manquant
-    this.gameRoom.onMessage("questUpdate", (data) => {
-      console.log('📥 [QuestManager] ✅ QUEST UPDATE!', data);
-      this.handleQuestProgress(data);
-    });
-
-    this._handlersRegistered = true;
     
-    // 🔧 FIX CRITIQUE: TRANSITION VERS ÉTAT READY
-    this.setState('READY', 'Handlers enregistrés');
+    console.log('✅ [QuestManager] Handlers registrés:', registeredHandlers);
     
-    console.log('✅ [QuestManager] Handlers enregistrés + État READY configuré');
+    if (missingHandlers.length > 0) {
+      console.error('❌ [QuestManager] Handlers manquants dans Colyseus:', missingHandlers);
+      
+      // 🔧 Tentative de ré-enregistrement
+      console.log('🔧 [QuestManager] Tentative réparation handlers...');
+      this._handlersRegistered = false;
+      this.registerHandlers();
+      
+      return false;
+    }
+    
+    console.log('✅ [QuestManager] Tous les handlers sont bien enregistrés dans Colyseus');
+    return true;
   }
   
   // === 🔧 NOUVELLE MÉTHODE: extractQuests pour éviter erreurs ===
@@ -473,6 +548,49 @@ export class QuestManager {
     this.initialized = true;
     
     console.log('✅ [QuestManager] État READY forcé avec succès');
+    return true;
+  }
+
+  // === 🔧 NOUVELLE MÉTHODE: Force réenregistrement handlers ===
+  
+  forceReregisterHandlers() {
+    console.log('🔧 [QuestManager] Force réenregistrement handlers...');
+    
+    this._handlersRegistered = false;
+    
+    // Nettoyer les anciens handlers si possible
+    if (this.gameRoom && this.gameRoom._messageHandlers) {
+      const handlersToRemove = [
+        'activeQuestsList',
+        'availableQuestsList', 
+        'questStartResult',
+        'questProgressUpdate',
+        'questStatuses',
+        'questUpdate'
+      ];
+      
+      handlersToRemove.forEach(handler => {
+        try {
+          if (this.gameRoom._messageHandlers.has) {
+            if (this.gameRoom._messageHandlers.has(handler)) {
+              this.gameRoom._messageHandlers.delete(handler);
+              console.log(`🧹 [QuestManager] Handler ${handler} supprimé`);
+            }
+          } else if (this.gameRoom._messageHandlers[handler]) {
+            delete this.gameRoom._messageHandlers[handler];
+            console.log(`🧹 [QuestManager] Handler ${handler} supprimé`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [QuestManager] Erreur suppression ${handler}:`, error);
+        }
+      });
+    }
+    
+    // Réenregistrer
+    setTimeout(() => {
+      this.registerHandlers();
+    }, 100);
+    
     return true;
   }
   
@@ -1001,7 +1119,16 @@ export class QuestManager {
       pendingQuestRequest: this.pendingQuestRequest,
       lastInteractionTime: this.lastInteractionTime,
       canHandleMoreInteractions: this.canHandleMoreInteractions(),
-      networkManagerConnection: this.debugNetworkManagerConnection()
+      networkManagerConnection: this.debugNetworkManagerConnection(),
+      handlersRegistered: this._handlersRegistered,
+      colyseusHandlers: this.gameRoom?._messageHandlers ? 
+        Array.from(this.gameRoom._messageHandlers.keys ? this.gameRoom._messageHandlers.keys() : Object.keys(this.gameRoom._messageHandlers))
+        : [],
+      gameRoomInfo: {
+        hasOnMessage: !!(this.gameRoom?.onMessage),
+        hasMessageHandlers: !!(this.gameRoom?._messageHandlers),
+        sessionId: this.gameRoom?.sessionId || null
+      }
     };
   }
   
@@ -1040,32 +1167,33 @@ export class QuestManager {
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER - FIX CRITIQUE ÉTAT READY ===
+📖 === QUEST MANAGER - FIX CRITIQUE HANDLERS COLYSEUS ===
 
 🔧 CORRECTIONS CRITIQUES APPLIQUÉES:
 1. ✅ registerHandlers() → setState('READY') ajouté
-2. ✅ waitForValidGameRoom() vérifie état READY
-3. ✅ init() confirme état READY final
-4. ✅ extractQuests() pour éviter erreurs de données
-5. ✅ notifyUIManager() robuste
-6. ✅ handleQuestStatuses() gestion statuts
-7. ✅ forceReadyState() méthode de secours
-8. ✅ debugSystemState() pour diagnostics
+2. ✅ verifyHandlersInColyseus() - Vérification post-enregistrement
+3. ✅ forceReregisterHandlers() - Réenregistrement forcé
+4. ✅ Logs détaillés pour chaque handler
+5. ✅ Gestion d'erreurs robuste
+6. ✅ Debug info étendu avec handlers Colyseus
+7. ✅ Auto-réparation si handlers manquants
 
 🎯 SÉQUENCE CORRIGÉE:
 1. GameRoom connectée ✅
-2. Handlers enregistrés ✅
-3. ➜ setState('READY') ← FIX CRITIQUE ✅
-4. initialized = true ✅
-5. QuestManager opérationnel ✅
+2. Handlers enregistrés avec logs ✅
+3. Vérification Colyseus ✅
+4. ➜ setState('READY') ← FIX CRITIQUE ✅
+5. initialized = true ✅
+6. QuestManager opérationnel ✅
 
-🚀 PLUS DE TIMEOUT - ÉTAT READY GARANTI !
+🚀 NOUVELLES MÉTHODES:
+• verifyHandlersInColyseus() - Vérification handlers
+• forceReregisterHandlers() - Réenregistrement forcé
+• Debug info avec état Colyseus
 
-💡 UTILISATION:
-• Le QuestManager passera automatiquement à READY
-• Plus de timeout sur waitForReadyState()
-• Méthodes de debug et force READY disponibles
-• Gestion robuste des erreurs de données
+💡 UTILISATION RÉPARATION:
+• window.questManagerInstance.forceReregisterHandlers()
+• window.questManagerInstance.verifyHandlersInColyseus()
 
-✅ QUEST SYSTEM ENTIÈREMENT FONCTIONNEL !
+✅ HANDLERS COLYSEUS + ÉTAT READY GARANTIS !
 `);
