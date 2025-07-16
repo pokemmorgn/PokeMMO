@@ -84,23 +84,83 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Dépendances validées');
   }
   
-  async initializeManager() {
-    console.log('🎯 [QuestModule] Initialisation manager...');
+async initializeManager() {
+  console.log('🎯 [QuestModule] Initialisation manager...');
+  
+  this.manager = new QuestManager(this.gameRoom);
+  
+  // ✅ NOUVEAU: Connecter NetworkManager si disponible
+  if (this.networkManager) {
+    await this.manager.init(this.gameRoom, this.networkManager);
+  } else if (window.globalNetworkManager) {
+    this.networkManager = window.globalNetworkManager;
+    await this.manager.init(this.gameRoom, this.networkManager);
+  } else {
+    await this.manager.init(this.gameRoom);
+  }
+  
+  // ✅ CORRECTION CRITIQUE: Forcer l'enregistrement des handlers
+  if (this.manager.registerHandlers && !this.manager._handlersRegistered) {
+    console.log('🔧 [QuestModule] Force enregistrement handlers...');
+    this.manager.registerHandlers();
+  }
+  
+  // ✅ VÉRIFICATION: S'assurer que les handlers sont bien enregistrés
+  setTimeout(() => {
+    this.verifyHandlersRegistered();
+  }, 1000);
+  
+  console.log('✅ [QuestModule] Manager initialisé avec handlers forcés');
+}
+
+// ✅ NOUVELLE MÉTHODE: Vérification et réparation auto
+verifyHandlersRegistered() {
+  console.log('🔍 [QuestModule] Vérification handlers...');
+  
+  if (!this.manager || !this.manager.gameRoom) {
+    console.warn('⚠️ [QuestModule] Manager ou GameRoom manquant');
+    return;
+  }
+  
+  // Vérifier si les handlers sont enregistrés
+  const requiredHandlers = [
+    'activeQuestsList',
+    'availableQuestsList', 
+    'questStartResult',
+    'questProgressUpdate',
+    'questStatuses'
+  ];
+  
+  const gameRoom = this.manager.gameRoom;
+  const missingHandlers = [];
+  
+  if (gameRoom._messageHandlers) {
+    requiredHandlers.forEach(handler => {
+      if (!gameRoom._messageHandlers.has(handler)) {
+        missingHandlers.push(handler);
+      }
+    });
+  } else {
+    missingHandlers.push(...requiredHandlers);
+  }
+  
+  if (missingHandlers.length > 0) {
+    console.warn(`⚠️ [QuestModule] Handlers manquants: ${missingHandlers.join(', ')}`);
+    console.log('🔧 [QuestModule] Auto-réparation...');
     
-    this.manager = new QuestManager(this.gameRoom);
-    
-    // ✅ NOUVEAU: Connecter NetworkManager si disponible
-    if (this.networkManager) {
-      await this.manager.init(this.gameRoom, this.networkManager);
-    } else if (window.globalNetworkManager) {
-      this.networkManager = window.globalNetworkManager;
-      await this.manager.init(this.gameRoom, this.networkManager);
-    } else {
-      await this.manager.init(this.gameRoom);
+    // Force re-registration
+    if (this.manager.registerHandlers) {
+      this.manager.registerHandlers();
     }
     
-    console.log('✅ [QuestModule] Manager initialisé');
+    // Vérifier à nouveau dans 2 secondes
+    setTimeout(() => {
+      this.verifyHandlersRegistered();
+    }, 2000);
+  } else {
+    console.log('✅ [QuestModule] Tous les handlers sont enregistrés');
   }
+}
   
   // ✅ NOUVEAU: Setter NetworkManager
   setNetworkManager(networkManager) {
