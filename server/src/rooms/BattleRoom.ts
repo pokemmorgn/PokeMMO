@@ -108,7 +108,6 @@ export class BattleRoom extends Room<BattleState> {
         currentTurn: savedState.currentTurn,
         player1: savedState.player1,
         player2: savedState.player2,
-        battleLog: savedState.battleLog || []
       };
       
       console.log(`✅ [BattleRoom] État restauré: Tour ${savedState.turnNumber}, Phase ${savedState.phase}`);
@@ -1062,7 +1061,6 @@ export class BattleRoom extends Room<BattleState> {
       player2: {
         pokemon: this.battleGameState.player2.pokemon
       },
-      battleLog: this.battleGameState.battleLog || [],
       timestamp: Date.now()
     };
     
