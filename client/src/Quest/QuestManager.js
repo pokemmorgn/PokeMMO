@@ -137,43 +137,64 @@ export class QuestManager {
   
   // === 📡 ENREGISTREMENT HANDLERS CORRIGÉ ===
   
-  registerHandlers() {
-    console.log('📡 [QuestManager] Enregistrement handlers...');
-    
-    try {
-      this.gameRoom.onMessage("activeQuestsList", (data) => {
-        this.handleActiveQuestsReceived(data);
-      });
-      
-      // ✅ CORRECTION: Un seul handler pour availableQuestsList
-      this.gameRoom.onMessage("availableQuestsList", (data) => {
-        this.handleAvailableQuestsReceived(data);
-      });
-      
-      this.gameRoom.onMessage("questStartResult", (data) => {
-        this.handleQuestStartResult(data);
-      });
-      
-      this.gameRoom.onMessage("questGranted", (data) => {
-        this.handleQuestGranted(data);
-      });
-      
-      this.gameRoom.onMessage("questProgressUpdate", (data) => {
-        this.handleQuestProgressUpdate(data);
-      });
-      
-      this.gameRoom.onMessage("questCompleted", (data) => {
-        this.handleQuestCompleted(data);
-      });
+registerHandlers() {
+  if (this._handlersRegistered) {
+    console.log('ℹ️ [QuestManager] Handlers déjà enregistrés');
+    return;
+  }
 
-      console.log('✅ [QuestManager] Handlers enregistrés (sans doublon)');
-      this.setState('READY', 'Handlers enregistrés');
-      this.requestInitialData();
-      
-    } catch (error) {
-      console.error('❌ [QuestManager] Erreur handlers:', error);
-      this.setState('ERROR', 'Erreur handlers');
+  console.log('📡 [QuestManager] Enregistrement handlers...');
+
+  if (!this.gameRoom || !this.gameRoom.onMessage) {
+    console.error('❌ [QuestManager] GameRoom.onMessage indisponible');
+    return;
+  }
+
+  // Handler 1: Quêtes actives
+  this.gameRoom.onMessage("activeQuestsList", (data) => {
+    console.log('📥 [QuestManager] ✅ ACTIVES REÇUES!', data);
+    this.activeQuests = this.extractQuests(data);
+    this.notifyUIManager('activeQuests', this.activeQuests);
+  });
+
+  // Handler 2: Quêtes disponibles  
+  this.gameRoom.onMessage("availableQuestsList", (data) => {
+    console.log('📥 [QuestManager] ✅ DISPONIBLES REÇUES!', data);
+    this.availableQuests = this.extractQuests(data);
+    this.notifyUIManager('availableQuests', this.availableQuests);
+    
+    if (this.availableQuests.length > 0) {
+      this.showQuestSelection();
     }
+  });
+
+  // Handler 3: Résultat démarrage quête
+  this.gameRoom.onMessage("questStartResult", (data) => {
+    console.log('📥 [QuestManager] ✅ RÉSULTAT DÉMARRAGE!', data);
+    this.handleQuestStartResult(data);
+  });
+
+  // Handler 4: Progression quête
+  this.gameRoom.onMessage("questProgressUpdate", (data) => {
+    console.log('📥 [QuestManager] ✅ PROGRESSION!', data);
+    this.handleQuestProgress(data);
+  });
+
+  // Handler 5: Statuts quêtes
+  this.gameRoom.onMessage("questStatuses", (data) => {
+    console.log('📥 [QuestManager] ✅ STATUTS!', data);
+    this.notifyUIManager('questStatuses', data);
+  });
+
+  // ✅ NOUVEAU: Handler questUpdate manquant
+  this.gameRoom.onMessage("questUpdate", (data) => {
+    console.log('📥 [QuestManager] ✅ QUEST UPDATE!', data);
+    this.handleQuestProgress(data);
+  });
+
+  this._handlersRegistered = true;
+  console.log('✅ [QuestManager] Handlers enregistrés avec questUpdate');
+}
   }
   
   // === ✅ NOUVEAU: CONNEXION NETWORKMANAGER ===
