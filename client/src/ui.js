@@ -1,5 +1,5 @@
 // client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
-// ✅ Version NETTOYÉE avec BaseModule et Quest init corrigée
+// ✅ Version NETTOYÉE avec BaseModule
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -471,28 +471,22 @@ export class PokemonUISystem {
       return this.createEmptyWrapper('pokedex');
     }
   }
-
-  // ✅ MÉTHODE QUEST CORRIGÉE
-  async createQuestModule() {
-    try {
-      console.log('🚀 [PokemonUI] Création module Quest...');
-      
-      // ✅ MÉTHODE 1: Utiliser quickBootQuestSystem pour initialisation complète
-      const { quickBootQuestSystem } = await import('./Quest/index.js');
-      
-      let questModule = await quickBootQuestSystem();
-      
-      if (questModule) {
-        console.log('✅ [PokemonUI] QuestModule créé avec enregistrement global');
+    async createQuestModule() {
+      try {
+        console.log('🚀 [PokemonUI] Création module Quest...');
         
-        // ✅ Vérifier que l'enregistrement global est bien fait
-        if (!window.questSystem || !window.questManager) {
-          console.log('🔧 [PokemonUI] Force enregistrement global...');
-          questModule.forceGlobalRegistration?.();
-        }
+        // Méthode 1: Importer et créer le module Quest
+        const { createQuestModule } = await import('./Quest/index.js');
         
-        // ✅ Connecter UIManager si disponible
-        if (this.uiManager && this.uiManager.registerIconPosition) {
+        const questModule = await createQuestModule(
+          window.currentGameRoom,
+          window.game?.scene?.getScenes(true)[0]
+        );
+        
+        if (questModule) {
+          console.log('✅ [PokemonUI] QuestModule créé avec succès');
+          
+          // S'assurer que le module a les méthodes nécessaires pour UIManager
           if (!questModule.connectUIManager && questModule.icon?.iconElement) {
             questModule.connectUIManager = (uiManager) => {
               if (uiManager.registerIconPosition) {
@@ -508,108 +502,28 @@ export class PokemonUISystem {
             };
           }
           
-          if (questModule.connectUIManager) {
+          // Connecter à UIManager si disponible
+          if (this.uiManager && questModule.connectUIManager) {
             questModule.connectUIManager(this.uiManager);
           }
-        }
-        
-        // ✅ Enregistrement global complet (déjà fait par quickBootQuestSystem)
-        // Mais on s'assure que les aliases sont présents
-        if (!window.toggleQuest) {
+          
+          // Exposer globalement
+          window.questSystem = questModule;
+          window.questSystemGlobal = questModule;
           window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
-        }
-        if (!window.openQuest) {
           window.openQuest = () => questModule.open?.();
-        }
-        if (!window.closeQuest) {
           window.closeQuest = () => questModule.close?.();
-        }
-        
-        console.log('✅ [PokemonUI] Quest System accessible via:');
-        console.log('   - window.questSystem');
-        console.log('   - window.questManager');
-        console.log('   - window.questUI');
-        console.log('   - window.toggleQuest()');
-        
-        return questModule;
-      }
-      
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création Quest avec quickBoot:', error);
-      
-      // ✅ MÉTHODE 2: Fallback avec createQuestModule normal
-      try {
-        console.log('🔄 [PokemonUI] Tentative fallback createQuestModule...');
-        
-        const { createQuestModule } = await import('./Quest/index.js');
-        
-        const questModule = await createQuestModule(
-          window.currentGameRoom,
-          window.game?.scene?.getScenes(true)[0]
-        );
-        
-        if (questModule) {
-          console.log('✅ [PokemonUI] QuestModule fallback créé');
-          
-          // ✅ Force enregistrement global
-          if (questModule.forceGlobalRegistration) {
-            questModule.forceGlobalRegistration();
-          } else {
-            // Enregistrement manuel
-            window.questSystem = questModule;
-            window.questSystemGlobal = questModule;
-            window.questManager = questModule.manager;
-            window.questUI = questModule.ui;
-            window.questIcon = questModule.icon;
-            
-            window.toggleQuest = () => questModule.toggleUI?.() || questModule.toggle?.();
-            window.openQuest = () => questModule.open?.();
-            window.closeQuest = () => questModule.close?.();
-          }
-          
-          // Connecter UIManager
-          if (this.uiManager && this.uiManager.registerIconPosition && questModule.icon?.iconElement) {
-            this.uiManager.registerIconPosition('quest', questModule.icon.iconElement, {
-              anchor: 'bottom-right',
-              order: 1,
-              spacing: 10,
-              size: { width: 65, height: 75 }
-            });
-          }
           
           return questModule;
         }
         
-      } catch (fallbackError) {
-        console.error('❌ [PokemonUI] Erreur fallback Quest:', fallbackError);
+      } catch (error) {
+        console.error('❌ [PokemonUI] Erreur création Quest:', error);
       }
-    }
-    
-    // ✅ MÉTHODE 3: Fallback minimal avec wrapper vide
-    console.warn('⚠️ [PokemonUI] Création wrapper vide pour Quest');
-    
-    // Créer un wrapper minimal qui ne casse pas
-    const emptyWrapper = this.createEmptyWrapper('quest');
-    
-    // Enregistrer au minimum les variables globales vides
-    if (!window.questSystem) {
-      window.questSystem = emptyWrapper;
-      window.questSystemGlobal = emptyWrapper;
-      window.questManager = {
-        handleNpcInteraction: () => 'NO_QUEST',
-        getActiveQuests: () => [],
-        startQuest: () => false
-      };
-      window.questUI = null;
-      window.questIcon = null;
       
-      window.toggleQuest = () => console.log('Quest system non disponible');
-      window.openQuest = () => console.log('Quest system non disponible');
-      window.closeQuest = () => console.log('Quest system non disponible');
+      // Fallback: wrapper vide
+      return this.createEmptyWrapper('quest');
     }
-    
-    return emptyWrapper;
-  }
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
@@ -684,47 +598,18 @@ export class PokemonUISystem {
     return wrapper;
   }
 
-  // ✅ WRAPPER VIDE AMÉLIORÉ
   createEmptyWrapper(moduleType) {
-    const wrapper = {
+    return {
       iconElement: null,
       originalModule: null,
       moduleType: moduleType,
       isEmpty: true,
       
-      // ✅ Méthodes BaseModule compatibles
       show: () => {},
       hide: () => {},
       setEnabled: () => {},
-      destroy: () => {},
-      toggle: () => {},
-      toggleUI: () => {},
-      open: () => {},
-      close: () => {},
-      
-      // ✅ Propriétés spécifiques Quest
-      manager: moduleType === 'quest' ? {
-        handleNpcInteraction: () => 'NO_QUEST',
-        getActiveQuests: () => [],
-        startQuest: () => false,
-        isReady: () => false
-      } : null,
-      
-      ui: null,
-      icon: null,
-      
-      // ✅ Méthodes spécifiques Quest
-      handleNpcInteraction: moduleType === 'quest' ? () => 'NO_QUEST' : undefined,
-      getActiveQuests: moduleType === 'quest' ? () => [] : undefined,
-      startQuest: moduleType === 'quest' ? () => false : undefined,
-      
-      // ✅ Enregistrement global factice
-      forceGlobalRegistration: moduleType === 'quest' ? () => {
-        console.log('Quest system en mode wrapper vide');
-      } : undefined
+      destroy: () => {}
     };
-    
-    return wrapper;
   }
 
   findIconElement(module, moduleType) {
@@ -874,31 +759,6 @@ export async function initializePokemonUI() {
     window.uiManager = pokemonUISystem.uiManager;
     
     setupCompatibilityFunctions();
-    
-    // ✅ VÉRIFICATION POST-INITIALISATION QUEST
-    setTimeout(() => {
-      if (!window.questSystem || !window.questManager) {
-        console.warn('⚠️ [PokemonUI] Quest system non enregistré globalement, correction...');
-        
-        // Essayer de récupérer depuis UIManager
-        const questModule = pokemonUISystem.getModule('quest');
-        if (questModule && !questModule.isEmpty) {
-          if (questModule.forceGlobalRegistration) {
-            questModule.forceGlobalRegistration();
-          } else if (questModule.originalModule) {
-            window.questSystem = questModule.originalModule;
-            window.questManager = questModule.originalModule.manager;
-          }
-        }
-      }
-      
-      // Vérifier que InteractionManager peut accéder
-      if (window.questManager && typeof window.questManager.handleNpcInteraction === 'function') {
-        console.log('✅ [PokemonUI] Quest system accessible pour InteractionManager');
-      } else {
-        console.warn('⚠️ [PokemonUI] Quest system non accessible pour InteractionManager');
-      }
-    }, 1000);
     
     return {
       success: result.success,
@@ -1084,60 +944,14 @@ function setupCompatibilityFunctions() {
     }
   };
   
-  // ✅ Fonctions Quest améliorées
+  // Fonctions quest
   window.toggleQuest = () => {
-    if (window.questSystem && typeof window.questSystem.toggleUI === 'function') {
-      window.questSystem.toggleUI();
-    } else if (window.questSystem && typeof window.questSystem.toggle === 'function') {
-      window.questSystem.toggle();
-    } else {
-      console.log('Quest system non disponible');
+    const module = pokemonUISystem.getOriginalModule?.('quest');
+    if (module && module.toggleQuestJournal) {
+      module.toggleQuestJournal();
+    } else if (module && module.toggle) {
+      module.toggle();
     }
-  };
-  
-  window.openQuest = () => {
-    if (window.questSystem && typeof window.questSystem.open === 'function') {
-      window.questSystem.open();
-    } else {
-      console.log('Quest system non disponible');
-    }
-  };
-  
-  window.closeQuest = () => {
-    if (window.questSystem && typeof window.questSystem.close === 'function') {
-      window.questSystem.close();
-    } else {
-      console.log('Quest system non disponible');
-    }
-  };
-  
-  window.startQuest = (questId) => {
-    if (window.questSystem && typeof window.questSystem.startQuest === 'function') {
-      window.questSystem.startQuest(questId);
-    } else if (window.questManager && typeof window.questManager.startQuest === 'function') {
-      window.questManager.startQuest(questId);
-    } else {
-      console.log('Quest system non disponible');
-    }
-  };
-  
-  window.getActiveQuests = () => {
-    if (window.questSystem && typeof window.questSystem.getActiveQuests === 'function') {
-      return window.questSystem.getActiveQuests();
-    } else if (window.questManager && typeof window.questManager.getActiveQuests === 'function') {
-      return window.questManager.getActiveQuests();
-    } else {
-      return [];
-    }
-  };
-  
-  // ✅ Fonction pour InteractionManager
-  window.getQuestManager = () => {
-    return window.questManager || {
-      handleNpcInteraction: () => 'NO_QUEST',
-      getActiveQuests: () => [],
-      startQuest: () => false
-    };
   };
 
     // Fonctions Pokédx
