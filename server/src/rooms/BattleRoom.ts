@@ -94,7 +94,28 @@ export class BattleRoom extends Room<BattleState> {
         ballType: data.ballType
       });
     });
-    
+
+this.onMessage("attemptFlee", (client, data) => {
+  console.log(`🏃 [BattleRoom] ${client.sessionId} tente de fuir`);
+  
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  if (!userId) {
+    console.error(`❌ [BattleRoom] UserId non trouvé pour fuite: ${client.sessionId}`);
+    return;
+  }
+  
+  // Traiter la fuite
+  const fleeResult = this.battleEngine?.handleFlee?.(userId) || { success: true };
+  
+  // Envoyer le résultat
+  client.send("fleeResult", fleeResult);
+  
+  // Si succès, terminer le combat
+  if (fleeResult.success) {
+    console.log(`✅ [BattleRoom] Fuite réussie pour ${userId}`);
+    this.onLeave(client, true);
+  }
+});
     // Handler pour obtenir l'état du combat
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", this.getClientBattleState());
