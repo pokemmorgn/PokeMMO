@@ -162,6 +162,54 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
 
+  /**
+ * Restaurer un combat en cours
+ */
+private async restoreActiveBattle(client: Client, userId: string): Promise<void> {
+  try {
+    const battleState = this.jwtManager.getBattleState(userId);
+    if (!battleState) return;
+    
+    console.log(`🔄 [WorldRoom] Restauration combat ${battleState.battleId}`);
+    
+    // Recréer la BattleRoom avec l'état sauvegardé
+    const { matchMaker } = require("@colyseus/core");
+    
+    const battleRoom = await matchMaker.createRoom("battle", {
+      battleType: battleState.battleType,
+      restoreState: battleState,
+      playerData: {
+        sessionId: client.sessionId,
+        name: battleState.player1.name,
+        worldRoomId: this.roomId,
+        userId: userId,
+        jwtData: this.jwtManager.getJWTDataBySession(client.sessionId)
+      }
+    });
+    
+    // Notifier le client
+    client.send("battleRestored", {
+      success: true,
+      battleRoomId: battleRoom.roomId,
+      battleState: battleState,
+      message: `Combat restauré : ${battleState.player1.pokemon.name} vs ${battleState.player2.pokemon.name}`,
+      turnNumber: battleState.turnNumber,
+      phase: battleState.phase
+    });
+    
+    console.log(`✅ [WorldRoom] Combat restauré avec succès`);
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur restauration:`, error);
+    this.jwtManager.clearBattleState(userId);
+    
+    client.send("battleRestoreError", {
+      success: false,
+      message: "Impossible de restaurer le combat"
+    });
+  }
+}
+  
   private async autoSaveAllPositions() {
     const positions = Array.from(this.state.players.values())
       .map(player => this.positionSaver.extractPosition(player));
@@ -1553,7 +1601,16 @@ async onJoin(client: Client, options: any = {}) {
         client.leave(4000, "Token/username mismatch");
         return;
       }
-      
+
+      const userId = decoded.userId;
+if (this.jwtManager.hasActiveBattle(userId)) {
+  console.log(`🔄 [WorldRoom] Combat en cours détecté pour ${decoded.username}`);
+  
+  // Délai pour laisser le client se stabiliser
+  this.clock.setTimeout(async () => {
+    await this.restoreActiveBattle(client, userId);
+  }, 2000);
+}
       // Optionnel : vérifier permissions
       if (!decoded.permissions || !decoded.permissions.includes('play')) {
         console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decoded.permissions);
