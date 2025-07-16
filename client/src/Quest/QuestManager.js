@@ -137,64 +137,63 @@ export class QuestManager {
   
   // === 📡 ENREGISTREMENT HANDLERS CORRIGÉ ===
   
-registerHandlers() {
-  if (this._handlersRegistered) {
-    console.log('ℹ️ [QuestManager] Handlers déjà enregistrés');
-    return;
-  }
-
-  console.log('📡 [QuestManager] Enregistrement handlers...');
-
-  if (!this.gameRoom || !this.gameRoom.onMessage) {
-    console.error('❌ [QuestManager] GameRoom.onMessage indisponible');
-    return;
-  }
-
-  // Handler 1: Quêtes actives
-  this.gameRoom.onMessage("activeQuestsList", (data) => {
-    console.log('📥 [QuestManager] ✅ ACTIVES REÇUES!', data);
-    this.activeQuests = this.extractQuests(data);
-    this.notifyUIManager('activeQuests', this.activeQuests);
-  });
-
-  // Handler 2: Quêtes disponibles  
-  this.gameRoom.onMessage("availableQuestsList", (data) => {
-    console.log('📥 [QuestManager] ✅ DISPONIBLES REÇUES!', data);
-    this.availableQuests = this.extractQuests(data);
-    this.notifyUIManager('availableQuests', this.availableQuests);
-    
-    if (this.availableQuests.length > 0) {
-      this.showQuestSelection();
+  registerHandlers() {
+    if (this._handlersRegistered) {
+      console.log('ℹ️ [QuestManager] Handlers déjà enregistrés');
+      return;
     }
-  });
 
-  // Handler 3: Résultat démarrage quête
-  this.gameRoom.onMessage("questStartResult", (data) => {
-    console.log('📥 [QuestManager] ✅ RÉSULTAT DÉMARRAGE!', data);
-    this.handleQuestStartResult(data);
-  });
+    console.log('📡 [QuestManager] Enregistrement handlers...');
 
-  // Handler 4: Progression quête
-  this.gameRoom.onMessage("questProgressUpdate", (data) => {
-    console.log('📥 [QuestManager] ✅ PROGRESSION!', data);
-    this.handleQuestProgress(data);
-  });
+    if (!this.gameRoom || !this.gameRoom.onMessage) {
+      console.error('❌ [QuestManager] GameRoom.onMessage indisponible');
+      return;
+    }
 
-  // Handler 5: Statuts quêtes
-  this.gameRoom.onMessage("questStatuses", (data) => {
-    console.log('📥 [QuestManager] ✅ STATUTS!', data);
-    this.notifyUIManager('questStatuses', data);
-  });
+    // Handler 1: Quêtes actives
+    this.gameRoom.onMessage("activeQuestsList", (data) => {
+      console.log('📥 [QuestManager] ✅ ACTIVES REÇUES!', data);
+      this.activeQuests = this.extractQuests(data);
+      this.notifyUIManager('activeQuests', this.activeQuests);
+    });
 
-  // ✅ NOUVEAU: Handler questUpdate manquant
-  this.gameRoom.onMessage("questUpdate", (data) => {
-    console.log('📥 [QuestManager] ✅ QUEST UPDATE!', data);
-    this.handleQuestProgress(data);
-  });
+    // Handler 2: Quêtes disponibles  
+    this.gameRoom.onMessage("availableQuestsList", (data) => {
+      console.log('📥 [QuestManager] ✅ DISPONIBLES REÇUES!', data);
+      this.availableQuests = this.extractQuests(data);
+      this.notifyUIManager('availableQuests', this.availableQuests);
+      
+      if (this.availableQuests.length > 0) {
+        this.showQuestSelection();
+      }
+    });
 
-  this._handlersRegistered = true;
-  console.log('✅ [QuestManager] Handlers enregistrés avec questUpdate');
-}
+    // Handler 3: Résultat démarrage quête
+    this.gameRoom.onMessage("questStartResult", (data) => {
+      console.log('📥 [QuestManager] ✅ RÉSULTAT DÉMARRAGE!', data);
+      this.handleQuestStartResult(data);
+    });
+
+    // Handler 4: Progression quête
+    this.gameRoom.onMessage("questProgressUpdate", (data) => {
+      console.log('📥 [QuestManager] ✅ PROGRESSION!', data);
+      this.handleQuestProgress(data);
+    });
+
+    // Handler 5: Statuts quêtes
+    this.gameRoom.onMessage("questStatuses", (data) => {
+      console.log('📥 [QuestManager] ✅ STATUTS!', data);
+      this.notifyUIManager('questStatuses', data);
+    });
+
+    // ✅ NOUVEAU: Handler questUpdate manquant
+    this.gameRoom.onMessage("questUpdate", (data) => {
+      console.log('📥 [QuestManager] ✅ QUEST UPDATE!', data);
+      this.handleQuestProgress(data);
+    });
+
+    this._handlersRegistered = true;
+    console.log('✅ [QuestManager] Handlers enregistrés avec questUpdate');
   }
   
   // === ✅ NOUVEAU: CONNEXION NETWORKMANAGER ===
@@ -296,15 +295,17 @@ registerHandlers() {
       }
       
       this.initialized = true;
+      
       setTimeout(() => {
-  if (this.gameRoom && !this._handlersRegistered) {
-    console.log('🔧 [QuestManager] Enregistrement handlers de secours...');
-    this.gameRoom.onMessage("availableQuestsList", (data) => {
-      this.handleAvailableQuestsReceived(data);
-    });
-    this._handlersRegistered = true;
-  }
-}, 1000);
+        if (this.gameRoom && !this._handlersRegistered) {
+          console.log('🔧 [QuestManager] Enregistrement handlers de secours...');
+          this.gameRoom.onMessage("availableQuestsList", (data) => {
+            this.handleAvailableQuestsReceived(data);
+          });
+          this._handlersRegistered = true;
+        }
+      }, 1000);
+      
       console.log('✅ [QuestManager] Initialisé');
       
       return this;
@@ -591,32 +592,32 @@ registerHandlers() {
     }
   }
   
-handleQuestGiverResponse(data) {
-  console.log('🎁 [QuestManager] Réponse Quest Giver');
-  
-  if (data.availableQuests && Array.isArray(data.availableQuests)) {
-    console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
-    this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
-  } else if (data.message) {
-    // ✅ CORRECTION: Ajouter callback pour proposer quêtes après dialogue
-    if (typeof window.showNpcDialogue === 'function') {
-      window.showNpcDialogue({
-        message: data.message,
-        lines: data.lines || [data.message],
-        name: data.name || "Bob",
-        portrait: data.portrait || "/assets/portrait/defaultPortrait.png",
-        onClose: () => {
-          // ✅ NOUVEAU: Proposer les quêtes après fermeture du dialogue
-          console.log('🎭 [QuestManager] Dialogue fermé, demande des quêtes...');
-          this.pendingQuestRequest = true;
-          this.requestAvailableQuests();
-        }
-      });
-    } else {
-      this.showNotification(data.message, 'info');
+  handleQuestGiverResponse(data) {
+    console.log('🎁 [QuestManager] Réponse Quest Giver');
+    
+    if (data.availableQuests && Array.isArray(data.availableQuests)) {
+      console.log(`✅ [QuestManager] ${data.availableQuests.length} quêtes reçues`);
+      this.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
+    } else if (data.message) {
+      // ✅ CORRECTION: Ajouter callback pour proposer quêtes après dialogue
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          message: data.message,
+          lines: data.lines || [data.message],
+          name: data.name || "Bob",
+          portrait: data.portrait || "/assets/portrait/defaultPortrait.png",
+          onClose: () => {
+            // ✅ NOUVEAU: Proposer les quêtes après fermeture du dialogue
+            console.log('🎭 [QuestManager] Dialogue fermé, demande des quêtes...');
+            this.pendingQuestRequest = true;
+            this.requestAvailableQuests();
+          }
+        });
+      } else {
+        this.showNotification(data.message, 'info');
+      }
     }
   }
-}
   
   handleQuestCompleteResponse(data) {
     console.log('✅ [QuestManager] Réponse Quest Complete');
@@ -855,13 +856,32 @@ handleQuestGiverResponse(data) {
   }
   
   // === 🧹 NETTOYAGE ===
+  
   destroy() {
     console.log('🧹 [QuestManager] Destruction...');
-    this.gameRoom = null;
-    this.isReady = false;
-    this.handlersRegistered = false;
+    
+    this.setState('UNINITIALIZED', 'Destruction');
+    this.setDialogueState('NONE');
+    
+    // Reset callbacks
+    this.onQuestUpdate = null;
+    this.onQuestStarted = null;
+    this.onQuestCompleted = null;
+    this.onQuestProgress = null;
+    this.onStatsUpdate = null;
+    
+    // Reset données
     this.activeQuests = [];
     this.availableQuests = [];
+    this.completedQuests = [];
+    
+    // Reset connexions
+    this.gameRoom = null;
+    this.questUI = null;
+    this.networkManager = null;
+    
+    // Reset état
+    this.initialized = false;
     
     console.log('✅ [QuestManager] Détruit');
   }
@@ -870,24 +890,22 @@ handleQuestGiverResponse(data) {
 export default QuestManager;
 
 console.log(`
-📖 === QUEST MANAGER ULTRA-SIMPLE ===
+📖 === QUEST MANAGER VERSION CORRIGÉE ===
 
-✅ PRINCIPES:
-1. UN SEUL FICHIER, UNE SEULE RESPONSABILITÉ
-2. GARDE TON UIMANAGER QUI MARCHE
-3. JUSTE RECEVOIR/ENVOYER DES MESSAGES
-4. DÉLÉGUER L'AFFICHAGE À L'UI EXISTANTE
+✅ CORRECTIONS APPLIQUÉES:
+1. setState() et setDialogueState() ajoutées
+2. Constructeur corrigé (pas d'appel setState)
+3. Handler availableQuestsList unique
+4. Protection anti-boucle avec pendingQuestRequest
+5. Cooldown interactions (1 seconde)
+6. API pour InteractionManager
+7. ✅ SYNTAXE CORRIGÉE: Accolade fermante en trop supprimée
 
-🎯 USAGE:
-const qm = new QuestManager();
-qm.setup(gameRoom);
+🚫 PROTECTION ANTI-BOUCLES:
+• pendingQuestRequest évite requêtes multiples
+• lastInteractionTime cooldown 1 seconde
+• canProcessInteraction() bloque si dialogue actif
+• Dialogue affiché seulement si réponse attendue
 
-📋 API:
-- qm.handleNpcInteraction(data)
-- qm.startQuest(questId)
-- qm.getActiveQuests()
-- qm.getAvailableQuests()
-
-🔍 DEBUG:
-window.debugQuestManager()
+✅ QUEST MANAGER PRÊT ET CORRIGÉ !
 `);
