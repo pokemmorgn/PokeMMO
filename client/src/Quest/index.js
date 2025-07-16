@@ -89,13 +89,13 @@ export class QuestModule extends BaseModule {
   createComponents() {
     console.log('🔧 [QuestModule] Création composants...');
     
-    this.createIcon();
-    this.createUI();
+    this.createIconComponent();
+    this.createUIComponent();
     
     console.log('✅ [QuestModule] Composants créés');
   }
   
-  createIcon() {
+  createIconComponent() {
     console.log('🎨 [QuestModule] Création icône...');
     
     this.icon = new QuestIcon(this.manager);
@@ -118,7 +118,7 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Icône créée et affichée');
   }
   
-  createUI() {
+  createUIComponent() {
     console.log('📱 [QuestModule] Création interface...');
     
     this.ui = new QuestUI(this.manager, this.gameRoom);
@@ -231,11 +231,11 @@ export class QuestModule extends BaseModule {
   
   // === 🎛️ API BASEMODULE ===
   
-  async createIcon() {
-    console.log('🎨 [QuestModule] createIcon() pour UIManager');
+  async createIconForUIManager() {
+    console.log('🎨 [QuestModule] createIconForUIManager() pour UIManager');
     
     if (!this.icon?.iconElement) {
-      this.createIcon();
+      this.createIconComponent();
     }
     
     return this.icon?.iconElement || null;
