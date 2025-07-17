@@ -377,13 +377,15 @@ async initializeUIQuietly() {
   this.requestServerZone();
   this.verifyNetworkState();
 
-  // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
-  if (this.networkManager && this.networkManager.room) {
-    this.networkManager._networkHandlersSetup = false;
-    this.networkManager._worldHandlersSetup = false;
-    this.networkManager.setupRoomListeners();
+// ✅ OPTIMISÉ: Setup intelligent des handlers
+    this.networkManager.setupRoomListeners(); // Maintenant intelligent
+    
+    // ✅ Re-setup battle system si nécessaire
+    if (this.networkManager.battleNetworkHandler) {
+      this.networkManager.battleNetworkHandler.setupWorldRoomEvents();
+    }
+    
     this.networkManager.restoreCustomCallbacks?.();
-  }
 
   // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
   this.initializeMovementBlockHandler();
