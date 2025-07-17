@@ -1578,6 +1578,7 @@ async onJoin(client: Client, options: any = {}) {
     ...options, 
     sessionToken: options.sessionToken ? '***TOKEN***' : 'MISSING' 
   });
+let decodedToken: any = null;
 
   // ✅ VÉRIFICATION JWT OBLIGATOIRE
   if (options.sessionToken) {
@@ -1620,7 +1621,7 @@ async onJoin(client: Client, options: any = {}) {
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-    player.isDev = decodedToken?.isDev || false;
+  player.isDev = decodedToken?.isDev || false; // ✅ Maintenant ça marche !
 
       // Debug d'abord
       await this.positionSaver.debugPlayerPosition(player.name);
