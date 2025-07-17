@@ -154,69 +154,36 @@ public async handleStartWildBattle(client: Client, data: {
   console.log(`  - Bloqué: ${isBlocked}`);
   console.log(`  - ActiveBattles: ${this.activeBattles.size}`);
   
-  // ✅ DEBUG JWT
-  const userId = this.jwtManager.getUserId(client.sessionId);
-  const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
-  const jwtStats = this.jwtManager.getStats();
-  
-  console.log(`🔍 [DEBUG] JWT:`);
-  console.log(`  - UserId: ${userId}`);
-  console.log(`  - JWT Data: ${jwtData ? 'EXISTS' : 'NULL'}`);
-  console.log(`  - Total sessions: ${jwtStats.activeSessions}`);
-  
   // ✅ NETTOYAGE SYSTÉMATIQUE
   console.log(`🧹 [DEBUG] Nettoyage préventif...`);
   await this.cleanupBattle(client.sessionId, "preventive");
   this.room.unblockPlayerMovement(client.sessionId, 'battle');
+
+  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+  const sessionValidation = await this.jwtManager.validateSessionRobust(
+    client.sessionId, 
+    player.name, 
+    'startWildBattle'
+  );
   
-// ✅ SI JWT MANQUANT, ESSAYER DE LE RÉCUPÉRER/RESTAURER
-if (!userId || !jwtData) {
-  console.log(`⚠️ [DEBUG] JWT manquant, tentative restauration pour ${player.name}`);
-  
-  // ✅ TENTATIVE 1: Restauration automatique via nom joueur
-  try {
-    const restored = await this.jwtManager.restoreUserSession(client.sessionId, player.name);
-    
-    if (restored) {
-      const newUserId = this.jwtManager.getUserId(client.sessionId);
-      const newJwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
-      
-      console.log(`✅ [DEBUG] JWT restauré: ${newUserId} pour ${player.name}`);
-      console.log(`✅ [DEBUG] JWT Data: ${newJwtData ? 'EXISTS' : 'STILL NULL'}`);
-      
-      // ✅ VÉRIFICATION FINALE AVEC LES NOUVELLES VARIABLES
-      if (!newUserId || !newJwtData) {
-        console.error(`❌ [DEBUG] JWT définitivement manquant après restauration`);
-        this.jwtManager.debugMappings();
-        client.send("battleError", { message: "Session invalide - impossible de restaurer JWT" });
-        return;
-      }
-      
-      console.log(`✅ [DEBUG] JWT validé: ${newUserId} pour ${player.name}`);
-      
-    } else {
-      console.error(`❌ [DEBUG] Restauration échouée pour ${player.name}`);
-      this.jwtManager.debugMappings();
-      client.send("battleError", { message: "Session invalide - impossible de restaurer JWT" });
-      return;
-    }
-  } catch (error) {
-    console.error(`❌ [DEBUG] Erreur restauration:`, error);
-    this.jwtManager.debugMappings();
-    client.send("battleError", { message: "Session invalide - erreur de restauration" });
+  if (!sessionValidation.valid) {
+    console.error(`❌ [BattleHandlers] ${sessionValidation.reason}`);
+    client.send("battleError", { 
+      message: "Session invalide pour le combat",
+      code: "INVALID_SESSION",
+      details: sessionValidation.reason
+    });
     return;
   }
-} else {
-  console.log(`✅ [DEBUG] JWT validé: ${userId} pour ${player.name}`);
-}
+  
+  const { userId, jwtData } = sessionValidation;
+  console.log(`✅ [BattleHandlers] Session validée pour combat: ${userId} (${jwtData.username})`);
 
   console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
   console.log(`👤 Joueur: ${player.name}`);
   console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
   console.log(`📍 Lieu: ${data.location}`);
-
-  // ... reste de votre code existant
-
+  
   // Récupérer l'équipe du joueur
   const teamHandlers = this.room.getTeamHandlers();
   if (!teamHandlers) {
