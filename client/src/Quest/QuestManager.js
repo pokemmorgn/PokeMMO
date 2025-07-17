@@ -15,7 +15,8 @@ export class QuestManager {
     this.activeQuests = [];
     this.completedQuests = [];
     this.availableQuests = [];
-    
+      this.lastQuestsHash = null;
+    this.lastQuestsTime = 0;
     // Stats
     this.questStats = {
       totalActive: 0,
