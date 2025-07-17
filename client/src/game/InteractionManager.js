@@ -1,6 +1,5 @@
 // client/src/game/InteractionManager.js
-// Gestionnaire unifié des interactions joueur-NPC avec système de dialogue avancé
-// ✅ VERSION PRODUCTION - Nettoyée et optimisée
+// ✅ VERSION AVEC FIXES ANTI-DUPLICATION APPLIQUÉS
 
 export class InteractionManager {
   constructor(scene) {
@@ -28,7 +27,12 @@ export class InteractionManager {
     this.shopHandlerActive = false;
     this.lastShopOpenTime = 0;
 
-    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé`);
+    // ✅ FIX 1: Protection anti-spam pour handleInteractionResult
+    this._lastInteractionResultTime = 0;
+    this._interactionResultCooldown = 500; // 500ms cooldown
+    this._resultCallCount = 0;
+
+    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé avec protection anti-spam`);
   }
 
   initialize(networkManager, playerManager, npcManager) {
@@ -44,7 +48,7 @@ export class InteractionManager {
     this.setupNetworkHandlers();
     this.exposeDialogueAPI();
 
-    console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé`);
+    console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé avec fixes anti-duplication`);
     return this;
   }
 
@@ -136,9 +140,10 @@ export class InteractionManager {
   }
 
   handleInteractionInput() {
-    // ✅ PROTECTION ANTI-SPAM
+    // ✅ PROTECTION ANTI-SPAM renforcée
     const now = Date.now();
     if (this.state.lastInteractionTime && (now - this.state.lastInteractionTime) < 500) {
+      console.log(`🚫 [InteractionManager] Input bloqué (anti-spam ${now - this.state.lastInteractionTime}ms)`);
       return;
     }
     this.state.lastInteractionTime = now;
@@ -216,7 +221,7 @@ export class InteractionManager {
     }
   }
 
-  // === GESTION RÉSEAU ===
+  // === GESTION RÉSEAU AVEC PROTECTION ANTI-SPAM ===
 
   setupNetworkHandlers() {
     if (!this.networkManager) return;
@@ -285,31 +290,48 @@ export class InteractionManager {
     }
   }
 
-    handleInteractionResult(data) {
-      if (this.isShopInteraction(data)) return;
-      if (window._questDialogActive) return;
-      
-      // ✅ NOUVEAU: Protection anti-spam
-      if (this._lastInteractionResultTime && (Date.now() - this._lastInteractionResultTime) < 100) {
-        console.log('🚫 [InteractionManager] Interaction result ignorée (anti-spam)');
-        return;
-      }
-      this._lastInteractionResultTime = Date.now();
+  // ✅ FIX 2: handleInteractionResult avec PROTECTION ANTI-SPAM RENFORCÉE
+  handleInteractionResult(data) {
+    if (this.isShopInteraction(data)) return;
+    if (window._questDialogActive) return;
     
-      const systemName = this.mapResponseToSystem(data);
-      const system = this.interactionSystems.get(systemName);
-      const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
-      
-      if (system) {
-        try {
-          system.handle(npc, data);
-        } catch (error) {
-          this.handleFallbackInteraction(data);
-        }
-      } else {
+    // ✅ PROTECTION ANTI-SPAM CRITIQUE
+    const now = Date.now();
+    this._resultCallCount++;
+    
+    console.log(`🔔 [InteractionManager] handleInteractionResult APPEL #${this._resultCallCount} (${now})`);
+    
+    // Vérifier le cooldown
+    if (this._lastInteractionResultTime && (now - this._lastInteractionResultTime) < this._interactionResultCooldown) {
+      console.log(`🚫 [InteractionManager] Interaction result BLOQUÉE #${this._resultCallCount} (anti-spam ${now - this._lastInteractionResultTime}ms < ${this._interactionResultCooldown}ms)`);
+      return;
+    }
+    
+    // ✅ TRAITEMENT SEULEMENT DU PREMIER APPEL VALIDE
+    this._lastInteractionResultTime = now;
+    console.log(`✅ [InteractionManager] Interaction result VALIDE #${this._resultCallCount} - traitement...`);
+    
+    const systemName = this.mapResponseToSystem(data);
+    const system = this.interactionSystems.get(systemName);
+    const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+    
+    if (system) {
+      try {
+        system.handle(npc, data);
+      } catch (error) {
+        console.error(`❌ [InteractionManager] Erreur système ${systemName}:`, error);
         this.handleFallbackInteraction(data);
       }
+    } else {
+      this.handleFallbackInteraction(data);
     }
+    
+    // ✅ RESET automatique après traitement réussi
+    setTimeout(() => {
+      this._resultCallCount = 0;
+      console.log(`🔄 [InteractionManager] Reset call count après traitement`);
+    }, 1000);
+  }
 
   mapResponseToSystem(data) {
     const typeMapping = {
@@ -431,121 +453,94 @@ export class InteractionManager {
     }
   }
 
-handleQuestInteraction(npc, data) {
-  // ✅ ACCÈS CORRIGÉ au QuestModule via UIManager
-  let questManager = null;
-  
-  // Essayer UIManager d'abord
-  if (window.uiManager?.modules?.has('quest')) {
-    const questModuleWrapper = window.uiManager.modules.get('quest');
-    questManager = questModuleWrapper?.instance?.manager;
-    console.log('🔍 [InteractionManager] QuestManager via UIManager:', questManager);
-  }
-  
-  // Fallback vers window
-  if (!questManager) {
-    const questSystem = window.questSystem || window.questSystemGlobal;
-    questManager = questSystem?.manager || questSystem;
-  }
-  
-  if (!questManager || typeof questManager.handleNpcInteraction !== 'function') {
-    console.warn('⚠️ [InteractionManager] QuestManager.handleNpcInteraction non disponible');
+  // ✅ FIX 3: handleQuestInteraction avec source tracking amélioré
+  handleQuestInteraction(npc, data) {
+    // ✅ ACCÈS CORRIGÉ au QuestModule via UIManager
+    let questManager = null;
     
-    // ✅ FALLBACK: Afficher le dialogue directement
-    let questMessage = "Ce PNJ a des quêtes disponibles.";
-    
-    if (data && data.message) {
-      questMessage = data.message;
-    } else if (data && data.lines && Array.isArray(data.lines)) {
-      questMessage = data.lines.join('\n');
+    // Essayer UIManager d'abord
+    if (window.uiManager?.modules?.has('quest')) {
+      const questModuleWrapper = window.uiManager.modules.get('quest');
+      questManager = questModuleWrapper?.instance?.manager;
+      console.log('🔍 [InteractionManager] QuestManager via UIManager:', questManager);
     }
     
-    this.handleDialogueInteraction(npc, {
-      message: questMessage,
-      lines: data?.lines || [questMessage],
-      name: data?.name || npc?.name || "Bob",
-      portrait: data?.portrait || `/assets/portrait/${npc?.sprite}Portrait.png`
-    });
-    return;
-  }
-  
-  try {
-    const result = questManager.handleNpcInteraction(data || npc);
-    console.log(`🎯 [InteractionManager] Quest result: ${result}`);
-    
-    // ✅ Gérer les codes de retour du QuestManager
-    const resultType = questManager.getInteractionResult ? 
-      questManager.getInteractionResult(result) : 'unknown';
-    
-    switch (resultType) {
-      case 'success':
-        // Quête affichée ou complétée - ne rien faire d'autre
-        console.log('✅ [InteractionManager] Quest interaction réussie');
-        break;
-        
-      case 'pending':
-        // En attente de réponse serveur - ne rien faire d'autre
-        console.log('⏳ [InteractionManager] En attente réponse quest');
-        break;
-        
-    case 'blocked':
-      // ✅ CORRECTION: Éviter la boucle showMessage
-      console.warn('🚫 [InteractionManager] Système de quêtes bloqué');
-      // Ne pas appeler showMessage pour éviter la boucle
-      break;
-        
-      case 'error':
-        // Erreur - afficher dialogue de fallback
-        this.handleDialogueInteraction(npc, { 
-          message: "Erreur lors de l'interaction avec les quêtes" 
-        });
-        break;
-        
-      case 'no_quest':
-        // Pas de quête - dialogue normal
-        console.log('ℹ️ [InteractionManager] Pas de quête, dialogue normal');
-        this.handleDialogueInteraction(npc, data);
-        break;
-        
-      default:
-        // Code inconnu ou fallback simple
-        switch (result) {
-          case 'QUESTS_SHOWN':
-          case 'QUEST_COMPLETED':
-            console.log('✅ [InteractionManager] Quest interaction réussie');
-            break;
-          case 'REQUESTING_QUESTS':
-          case 'ALREADY_REQUESTING':
-            console.log('⏳ [InteractionManager] En attente réponse quest');
-            break;
-          case 'NO_QUEST':
-            this.handleDialogueInteraction(npc, data);
-            break;
-          default:
-            console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
-            this.handleDialogueInteraction(npc, data);
-        }
+    // Fallback vers window
+    if (!questManager) {
+      const questSystem = window.questSystem || window.questSystemGlobal;
+      questManager = questSystem?.manager || questSystem;
     }
     
-  } catch (error) {
-    console.error('❌ [InteractionManager] Erreur quest interaction:', error);
-    
-    // Fallback dialogue avec le message d'origine
-    let questMessage = "Erreur du système de quêtes.";
-    
-    if (data && data.message) {
-      questMessage = data.message;
-    } else if (data && data.lines && Array.isArray(data.lines)) {
-      questMessage = data.lines.join('\n');
+    if (!questManager || typeof questManager.handleNpcInteraction !== 'function') {
+      console.warn('⚠️ [InteractionManager] QuestManager.handleNpcInteraction non disponible');
+      
+      // ✅ FALLBACK: Afficher le dialogue directement
+      let questMessage = "Ce PNJ a des quêtes disponibles.";
+      
+      if (data && data.message) {
+        questMessage = data.message;
+      } else if (data && data.lines && Array.isArray(data.lines)) {
+        questMessage = data.lines.join('\n');
+      }
+      
+      this.handleDialogueInteraction(npc, {
+        message: questMessage,
+        lines: data?.lines || [questMessage],
+        name: data?.name || npc?.name || "Bob",
+        portrait: data?.portrait || `/assets/portrait/${npc?.sprite}Portrait.png`
+      });
+      return;
     }
     
-    this.handleDialogueInteraction(npc, {
-      message: questMessage,
-      lines: data?.lines || [questMessage],
-      name: data?.name || npc?.name || "Bob"
-    });
+    try {
+      // ✅ APPEL avec source tracking
+      const result = questManager.handleNpcInteraction(data || npc, 'InteractionManager');
+      console.log(`🎯 [InteractionManager] Quest result: ${result}`);
+      
+      // ✅ Gérer les codes de retour du QuestManager
+      switch (result) {
+        case 'QUESTS_SHOWN':
+        case 'QUEST_COMPLETED':
+          console.log('✅ [InteractionManager] Quest interaction réussie');
+          break;
+        case 'REQUESTING_QUESTS':
+        case 'ALREADY_REQUESTING':
+          console.log('⏳ [InteractionManager] En attente réponse quest');
+          break;
+        case 'NO_QUEST':
+          this.handleDialogueInteraction(npc, data);
+          break;
+        case 'BLOCKED':
+        case 'BLOCKED_COOLDOWN':
+        case 'BLOCKED_DUPLICATE':
+          // ✅ CORRECTION: Éviter la boucle showMessage
+          console.warn(`🚫 [InteractionManager] Système de quêtes bloqué: ${result}`);
+          // Ne pas appeler showMessage pour éviter la boucle
+          break;
+        default:
+          console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
+          this.handleDialogueInteraction(npc, data);
+      }
+      
+    } catch (error) {
+      console.error('❌ [InteractionManager] Erreur quest interaction:', error);
+      
+      // Fallback dialogue avec le message d'origine
+      let questMessage = "Erreur du système de quêtes.";
+      
+      if (data && data.message) {
+        questMessage = data.message;
+      } else if (data && data.lines && Array.isArray(data.lines)) {
+        questMessage = data.lines.join('\n');
+      }
+      
+      this.handleDialogueInteraction(npc, {
+        message: questMessage,
+        lines: data?.lines || [questMessage],
+        name: data?.name || npc?.name || "Bob"
+      });
+    }
   }
-}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
@@ -854,19 +849,20 @@ handleQuestInteraction(npc, data) {
     return this.npcManager.getNpcData(npcId);
   }
 
-showMessage(message, type = 'info') {
-  // ✅ CORRECTION: Éviter la boucle
-  if (typeof window.showGameNotification === 'function') {
-    try {
-      window.showGameNotification(message, type, { duration: 3000 });
-    } catch (error) {
-      // Fallback simple sans recursion
+  // ✅ FIX 4: showMessage sans récursion
+  showMessage(message, type = 'info') {
+    // ✅ CORRECTION: Éviter la boucle avec try-catch simple
+    if (typeof window.showGameNotification === 'function') {
+      try {
+        window.showGameNotification(message, type, { duration: 3000 });
+      } catch (error) {
+        // Fallback simple sans recursion
+        console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
+      }
+    } else {
       console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
     }
-  } else {
-    console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
   }
-}
 
   setConfig(config) {
     this.config = { ...this.config, ...config };
@@ -874,6 +870,32 @@ showMessage(message, type = 'info') {
 
   blockInteractions(blocked = true, reason = "Interaction bloquée") {
     this.state.isInteractionBlocked = blocked;
+  }
+
+  // ✅ FIX 5: Debug info enrichi
+  getDebugInfo() {
+    return {
+      scene: this.scene.scene.key,
+      state: this.state,
+      shopHandlerActive: this.shopHandlerActive,
+      lastShopOpenTime: this.lastShopOpenTime,
+      
+      // ✅ Info anti-spam
+      lastInteractionResultTime: this._lastInteractionResultTime,
+      interactionResultCooldown: this._interactionResultCooldown,
+      resultCallCount: this._resultCallCount,
+      
+      systems: Array.from(this.interactionSystems.keys()),
+      canPlayerInteract: this.canPlayerInteract()
+    };
+  }
+
+  // ✅ FIX 6: Reset debug
+  resetDebugCounters() {
+    this._lastInteractionResultTime = 0;
+    this._resultCallCount = 0;
+    this.state.lastInteractionTime = 0;
+    console.log('🔄 [InteractionManager] Debug counters reset');
   }
 
   destroy() {
@@ -895,6 +917,8 @@ showMessage(message, type = 'info') {
     this.shopSystem = null;
     this.questSystem = null;
     this.scene = null;
+
+    console.log(`🧹 [InteractionManager] Détruit avec cleanup anti-spam`);
   }
 
   triggerStarter() {
