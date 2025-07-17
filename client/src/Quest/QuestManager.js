@@ -511,26 +511,121 @@ export class QuestManager {
       if (result.questCompleted) {
         this.triggerCallback('onQuestCompleted', result);
         this.showNotification(`Quête terminée : ${result.questName} !`, 'success');
+        this.triggerQuestCompletionSequence(result);
+      } else if (result.objectiveCompleted) {
+        // ✅ NOUVELLE SÉQUENCE: Progression d'objectif satisfaisante
+        this.triggerObjectiveCompletionSequence(result);
       } else {
         this.triggerCallback('onQuestProgress', result);
-        if (result.objectiveCompleted) {
-          this.showNotification(`Objectif complété : ${result.objectiveName}`, 'success');
-        }
       }
     });
     
-    // ✅ FIX: TOUJOURS rafraîchir après progression
-    console.log('🔄 [QuestManager] Rafraîchissement forcé après progression...');
+    // Rafraîchissement différé pour laisser les animations se jouer
+    setTimeout(() => {
+      this.refreshQuestDataAfterProgress();
+    }, 3000); // Après toute la séquence
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Séquence de completion d'objectif
+  triggerObjectiveCompletionSequence(result) {
+    console.log('🎬 [QuestManager] Démarrage séquence completion objectif:', result.objectiveName);
+    
+    // ÉTAPE 1 (Immédiate) : Objectif passe en VERT
+    this.markObjectiveAsCompleting(result);
+    
+    // ÉTAPE 2 (+500ms) : Notification "Objectif terminé"
+    setTimeout(() => {
+      this.showNotification(`✅ Objectif terminé : ${result.objectiveName}`, 'success');
+      this.markObjectiveAsCompleted(result);
+    }, 500);
+    
+    // ÉTAPE 3 (+2500ms) : Transition vers objectif suivant
+    setTimeout(() => {
+      this.transitionToNextObjective(result);
+    }, 2500);
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Marquer objectif en cours de completion (VERT)
+  markObjectiveAsCompleting(result) {
+    console.log('🟢 [QuestManager] Objectif → VERT (completing)');
+    
+    // Déclencher callback spécial pour UI
+    this.triggerCallback('onObjectiveCompleting', {
+      questId: result.questId,
+      objectiveName: result.objectiveName,
+      phase: 'completing'
+    });
+    
+    // Si QuestUI a une méthode pour animer
+    if (this.questUI && this.questUI.animateObjectiveCompletion) {
+      this.questUI.animateObjectiveCompletion(result, 'completing');
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Marquer objectif comme terminé
+  markObjectiveAsCompleted(result) {
+    console.log('✅ [QuestManager] Objectif → COMPLETED');
+    
+    this.triggerCallback('onObjectiveCompleted', {
+      questId: result.questId,
+      objectiveName: result.objectiveName,
+      phase: 'completed'
+    });
+    
+    if (this.questUI && this.questUI.animateObjectiveCompletion) {
+      this.questUI.animateObjectiveCompletion(result, 'completed');
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Transition vers objectif suivant
+  transitionToNextObjective(result) {
+    console.log('➡️ [QuestManager] Transition → Objectif suivant');
+    
+    this.triggerCallback('onObjectiveTransition', {
+      questId: result.questId,
+      fromObjective: result.objectiveName,
+      phase: 'transitioning'
+    });
+    
+    // Animation de transition si disponible
+    if (this.questUI && this.questUI.animateObjectiveTransition) {
+      this.questUI.animateObjectiveTransition(result);
+    }
+    
+    // Rafraîchir les données pour afficher next objective
+    this.refreshQuestDataAfterProgress();
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Séquence de completion de quête
+  triggerQuestCompletionSequence(result) {
+    console.log('🏆 [QuestManager] Séquence completion quête:', result.questName);
+    
+    // Animation spéciale pour quête terminée
+    if (this.questUI && this.questUI.animateQuestCompletion) {
+      this.questUI.animateQuestCompletion(result);
+    }
+    
+    // Rafraîchir après animation
+    setTimeout(() => {
+      this.refreshQuestDataAfterProgress();
+    }, 2000);
+  }
+  
+  // ✅ MÉTHODE REFACTORISÉE: Rafraîchissement après progression
+  refreshQuestDataAfterProgress() {
+    console.log('🔄 [QuestManager] Rafraîchissement données après progression...');
+    
     if (!this.isRequestingActiveQuests) {
       this.isRequestingActiveQuests = true;
+      
       setTimeout(() => {
         this.requestActiveQuests();
         this.isRequestingActiveQuests = false;
         
-        // ✅ FIX: Forcer mise à jour tracker après données reçues
+        // Force mise à jour tracker après nouvelles données
         setTimeout(() => {
           if (this.questUI && this.questUI.updateTracker) {
-            console.log('🎯 [QuestManager] Force mise à jour tracker...');
+            console.log('🎯 [QuestManager] Force mise à jour tracker final');
             this.questUI.updateTracker();
           }
         }, 500);
