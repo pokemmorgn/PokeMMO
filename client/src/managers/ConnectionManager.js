@@ -1,15 +1,15 @@
 // client/src/managers/ConnectionManager.js
-// ✅ Gestionnaire de reconnexion automatique invisible pour Colyseus
-// Support monitoring robuste + reconnexion seamless
+// ✅ Complete connection manager with server restart detection and auto-logout
+// Enhanced with popup error handling and redirect to login
 
 export class ConnectionManager {
   /**
-   * @param {NetworkManager} networkManager - Référence au NetworkManager parent
+   * @param {NetworkManager} networkManager - Reference to parent NetworkManager
    */
   constructor(networkManager) {
     this.networkManager = networkManager;
     
-    // État de connexion
+    // Connection state
     this.state = {
       isMonitoring: false,
       connectionQuality: 'good', // 'good', 'poor', 'bad'
@@ -23,11 +23,11 @@ export class ConnectionManager {
 
     // Configuration
     this.config = {
-      pingInterval: 5000,           // Ping toutes les 5s
-      pongTimeout: 10000,           // Timeout pong après 10s
-      reconnectDelay: 1000,         // Délai initial reconnexion
-      maxReconnectDelay: 30000,     // Délai max reconnexion
-      maxReconnectAttempts: 10,     // Max tentatives
+      pingInterval: 5000,           // Ping every 5s
+      pongTimeout: 10000,           // Pong timeout after 10s
+      reconnectDelay: 1000,         // Initial reconnect delay
+      maxReconnectDelay: 30000,     // Max reconnect delay
+      maxReconnectAttempts: 10,     // Max attempts
       connectionQualityThreshold: {
         good: 200,                  // < 200ms = good
         poor: 500,                  // < 500ms = poor
@@ -35,12 +35,30 @@ export class ConnectionManager {
       }
     };
 
-    // Timers et intervalles
+    // ✅ NEW: Server restart detection configuration
+    this.serverRestartConfig = {
+      maxConsecutiveErrors: 3,        // Max consecutive errors before considering restart
+      reconnectFailureThreshold: 5,   // Max reconnection failures before popup
+      serverRestartCodes: [1006, 1001, 1011, 1012], // WebSocket codes indicating restart
+      authErrorCodes: [4001, 4002, 4003], // Authentication error codes
+      detectServerRestartTimeout: 30000, // 30s to detect restart
+    };
+
+    // ✅ NEW: Server restart detection state
+    this.serverRestartState = {
+      isServerRestarting: false,
+      consecutiveErrors: 0,
+      lastAuthError: null,
+      serverRestartDetected: false,
+      authFailures: 0
+    };
+
+    // Timers and intervals
     this.pingInterval = null;
     this.pongTimeout = null;
     this.reconnectTimeout = null;
 
-    // Stats de reconnexion
+    // Reconnection stats
     this.reconnectAttempts = 0;
     this.currentReconnectDelay = this.config.reconnectDelay;
     this.lastDisconnectTime = 0;
@@ -52,91 +70,107 @@ export class ConnectionManager {
       onReconnected: null,
       onConnectionLost: null,
       onMaxReconnectReached: null,
-      onQualityChanged: null
+      onQualityChanged: null,
+      // ✅ NEW: Server restart callbacks
+      onServerRestartDetected: null,
+      onAuthFailure: null,
+      onForceLogout: null
     };
 
-    // Buffer des pings pour calculer la moyenne
+    // Ping history buffer to calculate average
     this.pingHistory = [];
     this.maxPingHistory = 10;
 
-    // Données de restauration
+    // Restore data
     this.restoreData = {
       lastZone: null,
       lastPosition: { x: 0, y: 0 },
       lastPlayerData: null
     };
 
-    console.log('🔧 [ConnectionManager] Initialisé');
+    console.log('🔧 [ConnectionManager] Initialized with server restart detection');
   }
 
-  // === GESTION DU MONITORING ===
+  // === MONITORING MANAGEMENT ===
 
   startMonitoring() {
     if (this.state.isMonitoring) {
-      console.warn('⚠️ [ConnectionManager] Monitoring déjà actif');
+      console.warn('⚠️ [ConnectionManager] Monitoring already active');
       return;
     }
 
-    console.log('🎯 [ConnectionManager] Démarrage monitoring connexion');
+    console.log('🎯 [ConnectionManager] Starting connection monitoring');
     this.state.isMonitoring = true;
     this.state.connectionLost = false;
     this.reconnectAttempts = 0;
 
-    // Setup du ping automatique
+    // Reset server restart state
+    this.resetServerRestartState();
+
+    // Setup automatic ping
     this.setupPingSystem();
 
-    console.log('✅ [ConnectionManager] Monitoring actif');
+    console.log('✅ [ConnectionManager] Monitoring active');
   }
 
   stopMonitoring() {
-    console.log('🛑 [ConnectionManager] Arrêt monitoring');
+    console.log('🛑 [ConnectionManager] Stopping monitoring');
     this.state.isMonitoring = false;
 
-    // Nettoyer tous les timers
+    // Clear all timers
     this.clearAllTimers();
 
-    console.log('✅ [ConnectionManager] Monitoring arrêté');
+    console.log('✅ [ConnectionManager] Monitoring stopped');
   }
 
   setupPingSystem() {
-    // Envoyer un ping périodique
+    // Send periodic ping
     this.pingInterval = setInterval(() => {
       this.sendPing();
     }, this.config.pingInterval);
 
-    console.log(`🏓 [ConnectionManager] Ping automatique configuré (${this.config.pingInterval}ms)`);
+    console.log(`🏓 [ConnectionManager] Automatic ping configured (${this.config.pingInterval}ms)`);
   }
 
-  // === MÉTHODES PUBLIQUES POUR HANDLERS ===
+  // === PUBLIC METHODS FOR HANDLERS ===
   
-  // Le NetworkManager appellera ces méthodes quand il reçoit les messages
+  // NetworkManager will call these methods when receiving messages
   handlePongFromServer(data) {
-    console.log(`🏓 [ConnectionManager] Pong reçu via NetworkManager:`, data);
+    console.log(`🏓 [ConnectionManager] Pong received via NetworkManager:`, data);
     this.handlePong(data);
   }
 
   handleErrorFromServer(error) {
-    console.error('🚨 [ConnectionManager] Erreur via NetworkManager:', error);
-    this.handleConnectionError(error);
+    console.error('🚨 [ConnectionManager] Error via NetworkManager:', error);
+    
+    // ✅ NEW: Check for server restart
+    const isServerRestart = this.detectServerRestart(error.code || error.reason, error.message || error.reason);
+    
+    if (!isServerRestart) {
+      this.handleConnectionError(error);
+    }
   }
 
   handleLeaveFromServer(code) {
-    console.warn(`📤 [ConnectionManager] Déconnexion via NetworkManager (code: ${code})`);
+    console.warn(`📤 [ConnectionManager] Disconnection via NetworkManager (code: ${code})`);
     
-    // Ne pas traiter comme perte si c'est une transition intentionnelle
-    if (!this.networkManager.isTransitionActive) {
+    // ✅ NEW: Check for server restart codes
+    const isServerRestart = this.detectServerRestart(code, 'Connection closed');
+    
+    // Don't treat as loss if it's an intentional transition
+    if (!this.networkManager.isTransitionActive && !isServerRestart) {
       this.handleConnectionLost();
     }
   }
 
-  // === SYSTÈME DE PING/PONG ===
+  // === PING/PONG SYSTEM ===
 
   sendPing() {
     if (!this.networkManager.room || !this.networkManager.isConnected) {
       return;
     }
 
-    // Sauvegarder les données avant ping
+    // Save data before ping
     this.captureRestoreData();
 
     const pingTime = Date.now();
@@ -145,14 +179,14 @@ export class ConnectionManager {
     try {
       this.networkManager.room.send("ping", { timestamp: pingTime });
 
-      // Démarrer le timeout pour le pong
+      // Start pong timeout
       this.pongTimeout = setTimeout(() => {
-        console.warn('⏰ [ConnectionManager] Timeout pong - connexion problématique');
+        console.warn('⏰ [ConnectionManager] Pong timeout - problematic connection');
         this.handlePongTimeout();
       }, this.config.pongTimeout);
 
     } catch (error) {
-      console.error('❌ [ConnectionManager] Erreur envoi ping:', error);
+      console.error('❌ [ConnectionManager] Error sending ping:', error);
       this.handleConnectionError(error);
     }
   }
@@ -161,43 +195,49 @@ export class ConnectionManager {
     const pongTime = Date.now();
     this.state.lastPongTime = pongTime;
 
-    // Calculer la latence
+    // Calculate latency
     if (data.timestamp) {
       const pingDuration = pongTime - data.timestamp;
       this.state.lastPingDuration = pingDuration;
 
-      // Ajouter à l'historique
+      // Add to history
       this.pingHistory.push(pingDuration);
       if (this.pingHistory.length > this.maxPingHistory) {
         this.pingHistory.shift();
       }
 
-      // Calculer la moyenne
+      // Calculate average
       this.state.averagePing = this.pingHistory.reduce((a, b) => a + b, 0) / this.pingHistory.length;
 
-      // Évaluer la qualité de connexion
+      // Evaluate connection quality
       this.evaluateConnectionQuality(pingDuration);
     }
 
-    // Arrêter le timeout pong
+    // Clear pong timeout
     if (this.pongTimeout) {
       clearTimeout(this.pongTimeout);
       this.pongTimeout = null;
     }
 
-    console.log(`🏓 [ConnectionManager] Pong reçu: ${this.state.lastPingDuration}ms (moy: ${Math.round(this.state.averagePing)}ms)`);
+    // ✅ NEW: Reset consecutive errors on successful pong
+    this.serverRestartState.consecutiveErrors = 0;
+
+    console.log(`🏓 [ConnectionManager] Pong received: ${this.state.lastPingDuration}ms (avg: ${Math.round(this.state.averagePing)}ms)`);
   }
 
   handlePongTimeout() {
-    console.warn('⚠️ [ConnectionManager] Timeout pong - connexion dégradée');
+    console.warn('⚠️ [ConnectionManager] Pong timeout - degraded connection');
     
     this.state.connectionQuality = 'bad';
+    
+    // ✅ NEW: Count as consecutive error
+    this.serverRestartState.consecutiveErrors++;
     
     if (this.callbacks.onQualityChanged) {
       this.callbacks.onQualityChanged('bad', this.state.averagePing);
     }
 
-    // Déclencher une vérification de connexion
+    // Trigger connection check
     this.testConnection();
   }
 
@@ -214,7 +254,7 @@ export class ConnectionManager {
       const oldQuality = this.state.connectionQuality;
       this.state.connectionQuality = newQuality;
       
-      console.log(`📊 [ConnectionManager] Qualité connexion: ${oldQuality} → ${newQuality} (${pingDuration}ms)`);
+      console.log(`📊 [ConnectionManager] Connection quality: ${oldQuality} → ${newQuality} (${pingDuration}ms)`);
       
       if (this.callbacks.onQualityChanged) {
         this.callbacks.onQualityChanged(newQuality, pingDuration);
@@ -222,10 +262,369 @@ export class ConnectionManager {
     }
   }
 
-  // === GESTION DES ERREURS ET RECONNEXION ===
+  // === ✅ NEW: SERVER RESTART DETECTION ===
+
+  /**
+   * Detects if server has restarted based on error codes
+   */
+  detectServerRestart(errorCode, message) {
+    console.log(`🔍 [ConnectionManager] Analyzing error for restart: ${errorCode} - ${message}`);
+
+    // Check codes specific to server restart
+    if (this.serverRestartConfig.serverRestartCodes.includes(errorCode)) {
+      console.warn('🔄 [ConnectionManager] Server restart code detected');
+      this.handleServerRestartDetected('WebSocket Error Code');
+      return true;
+    }
+
+    // Check authentication error codes (expired JWT after restart)
+    if (this.serverRestartConfig.authErrorCodes.includes(errorCode)) {
+      console.warn('🔐 [ConnectionManager] Authentication error detected');
+      this.handleAuthFailure(errorCode, message);
+      return true;
+    }
+
+    // Count consecutive errors
+    this.serverRestartState.consecutiveErrors++;
+    console.log(`📊 [ConnectionManager] Consecutive errors: ${this.serverRestartState.consecutiveErrors}`);
+
+    // Detect restart by accumulation of errors
+    if (this.serverRestartState.consecutiveErrors >= this.serverRestartConfig.maxConsecutiveErrors) {
+      console.warn('⚠️ [ConnectionManager] Too many consecutive errors - probable server restart');
+      this.handleServerRestartDetected('Multiple Consecutive Errors');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Handles server restart detection
+   */
+  handleServerRestartDetected(reason) {
+    if (this.serverRestartState.isServerRestarting) {
+      console.log('🔄 [ConnectionManager] Server restart already being processed');
+      return;
+    }
+
+    console.error(`🚨 [ConnectionManager] === SERVER RESTART DETECTED ===`);
+    console.error(`📋 [ConnectionManager] Reason: ${reason}`);
+
+    this.serverRestartState.isServerRestarting = true;
+    this.serverRestartState.serverRestartDetected = true;
+
+    // Stop normal monitoring
+    this.stopMonitoring();
+
+    // Wait a bit to see if it's really a restart
+    setTimeout(() => {
+      this.confirmServerRestart();
+    }, 2000);
+  }
+
+  /**
+   * Confirms server restart and decides action
+   */
+  async confirmServerRestart() {
+    console.log('🔍 [ConnectionManager] Confirming server restart...');
+
+    // Try quick reconnection to confirm
+    try {
+      const quickReconnect = await this.testQuickReconnection();
+      
+      if (quickReconnect) {
+        console.log('✅ [ConnectionManager] False alarm - server available');
+        this.resetServerRestartState();
+        this.startMonitoring();
+        return;
+      }
+    } catch (error) {
+      console.error('❌ [ConnectionManager] Confirmation reconnection failed:', error);
+    }
+
+    // Restart confirmed
+    console.error('💀 [ConnectionManager] Server restart confirmed');
+    this.handleConfirmedServerRestart();
+  }
+
+  /**
+   * Quick reconnection test
+   */
+  async testQuickReconnection() {
+    console.log('⚡ [ConnectionManager] Quick reconnection test...');
+    
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        resolve(false);
+      }, 5000);
+
+      // Try to reconnect quickly
+      this.attemptReconnection()
+        .then((success) => {
+          clearTimeout(timeout);
+          resolve(success);
+        })
+        .catch(() => {
+          clearTimeout(timeout);
+          resolve(false);
+        });
+    });
+  }
+
+  /**
+   * Handles confirmed server restart
+   */
+  handleConfirmedServerRestart() {
+    console.error('🚨 [ConnectionManager] Processing confirmed server restart');
+
+    // Restart data
+    const restartData = {
+      reason: 'Server Restart Confirmed',
+      timestamp: Date.now(),
+      consecutiveErrors: this.serverRestartState.consecutiveErrors,
+      lastPosition: this.restoreData.lastPosition,
+      lastZone: this.restoreData.lastZone,
+      totalReconnections: this.totalReconnections
+    };
+
+    // Notify server restart
+    if (this.callbacks.onServerRestartDetected) {
+      this.callbacks.onServerRestartDetected(restartData);
+    }
+
+    // Decide action based on failure count
+    if (this.reconnectAttempts >= this.serverRestartConfig.reconnectFailureThreshold) {
+      console.error('💀 [ConnectionManager] Too many failures - redirecting to login');
+      this.handleForceLogout('Server restarted. Please log in again.');
+    } else {
+      console.log('🔄 [ConnectionManager] Attempting post-restart reconnection');
+      this.handlePostRestartReconnection();
+    }
+  }
+
+  /**
+   * Handles authentication failures (expired JWT)
+   */
+  handleAuthFailure(errorCode, message) {
+    console.error(`🔐 [ConnectionManager] Authentication error: ${errorCode} - ${message}`);
+
+    this.serverRestartState.authFailures++;
+    this.serverRestartState.lastAuthError = { code: errorCode, message, timestamp: Date.now() };
+
+    // Notify authentication error
+    if (this.callbacks.onAuthFailure) {
+      this.callbacks.onAuthFailure(errorCode, message);
+    }
+
+    // If too many auth errors, force logout
+    if (this.serverRestartState.authFailures >= 3) {
+      console.error('💀 [ConnectionManager] Too many authentication errors');
+      this.handleForceLogout('Authentication expired. Please log in again.');
+    }
+  }
+
+  /**
+   * Forces logout and return to login page
+   */
+  handleForceLogout(reason) {
+    console.error(`🚪 [ConnectionManager] Forced logout: ${reason}`);
+
+    // Stop all processes
+    this.stopMonitoring();
+    this.clearAllTimers();
+
+    // Clear game session
+    this.clearGameSession();
+
+    // Logout data
+    const logoutData = {
+      reason,
+      timestamp: Date.now(),
+      wasServerRestart: this.serverRestartState.serverRestartDetected,
+      authFailures: this.serverRestartState.authFailures,
+      reconnectAttempts: this.reconnectAttempts
+    };
+
+    // Notify forced logout
+    if (this.callbacks.onForceLogout) {
+      this.callbacks.onForceLogout(logoutData);
+    }
+
+    // Show error popup and redirect
+    this.showServerRestartPopup(reason);
+  }
+
+  /**
+   * Handles post-restart reconnection attempts
+   */
+  async handlePostRestartReconnection() {
+    console.log('🔄 [ConnectionManager] Attempting post-restart reconnection...');
+    
+    // Reset some counters for fresh start
+    this.reconnectAttempts = 0;
+    this.currentReconnectDelay = this.config.reconnectDelay;
+    
+    // Wait a bit for server to stabilize
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Try reconnection
+    this.scheduleReconnection();
+  }
+
+  /**
+   * Shows server restart popup and redirects to login
+   */
+  showServerRestartPopup(reason) {
+    console.log('🚨 [ConnectionManager] Showing server restart popup');
+
+    // Create popup overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      font-family: 'Inter', sans-serif;
+    `;
+
+    // Create popup
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 450px;
+      text-align: center;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-50px) scale(0.9); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Popup content
+    popup.innerHTML = `
+      <div style="margin-bottom: 30px;">
+        <div style="font-size: 60px; margin-bottom: 20px;">🔄</div>
+        <h2 style="color: #e74c3c; margin-bottom: 15px; font-size: 24px;">Server Restarted</h2>
+        <p style="color: #7f8c8d; font-size: 16px; line-height: 1.5;">
+          ${reason || 'The game server has been restarted. Please log in again to continue playing.'}
+        </p>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+          <p style="color: #e74c3c; font-size: 14px; margin: 0;">
+            <strong>Don't worry!</strong> Your progress has been saved automatically.
+          </p>
+        </div>
+      </div>
+
+      <button id="returnToLoginBtn" style="
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      ">
+        Return to Login
+      </button>
+    `;
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    // Button click handler
+    document.getElementById('returnToLoginBtn').addEventListener('click', () => {
+      console.log('🚪 [ConnectionManager] Redirecting to login page');
+      this.redirectToLogin();
+    });
+
+    // Auto-redirect after 10 seconds
+    setTimeout(() => {
+      if (document.body.contains(overlay)) {
+        console.log('⏰ [ConnectionManager] Auto-redirecting to login after timeout');
+        this.redirectToLogin();
+      }
+    }, 10000);
+  }
+
+  /**
+   * Redirects to login page
+   */
+  redirectToLogin() {
+    console.log('🔄 [ConnectionManager] Redirecting to auth.html...');
+    
+    // Clear all session data
+    this.clearGameSession();
+    
+    // Redirect to login page
+    window.location.href = '/auth.html';
+  }
+
+  /**
+   * Clears game session data
+   */
+  clearGameSession() {
+    console.log('🧹 [ConnectionManager] Clearing game session data');
+
+    // Clear session storage
+    sessionStorage.removeItem('sessionToken');
+    sessionStorage.removeItem('userInfo');
+    sessionStorage.removeItem('pws_game_session');
+
+    // Clear any game-specific data
+    if (window.gameState) {
+      window.gameState = null;
+    }
+
+    // Disconnect from room
+    if (this.networkManager && this.networkManager.room) {
+      try {
+        this.networkManager.room.leave(true);
+      } catch (error) {
+        console.warn('⚠️ [ConnectionManager] Error leaving room:', error);
+      }
+    }
+  }
+
+  /**
+   * Resets server restart state
+   */
+  resetServerRestartState() {
+    this.serverRestartState = {
+      isServerRestarting: false,
+      consecutiveErrors: 0,
+      lastAuthError: null,
+      serverRestartDetected: false,
+      authFailures: 0
+    };
+  }
+
+  // === ERROR HANDLING AND RECONNECTION ===
 
   handleConnectionError(error) {
-    console.error('🚨 [ConnectionManager] Erreur connexion:', error);
+    console.error('🚨 [ConnectionManager] Connection error:', error);
     
     if (!this.state.connectionLost) {
       this.handleConnectionLost();
@@ -233,12 +632,12 @@ export class ConnectionManager {
   }
 
   handleConnectionLost() {
-    console.warn('📉 [ConnectionManager] === CONNEXION PERDUE ===');
+    console.warn('📉 [ConnectionManager] === CONNECTION LOST ===');
     
     this.state.connectionLost = true;
     this.lastDisconnectTime = Date.now();
     
-    // Notifier la perte de connexion
+    // Notify connection loss
     if (this.callbacks.onConnectionLost) {
       this.callbacks.onConnectionLost({
         timestamp: this.lastDisconnectTime,
@@ -247,7 +646,7 @@ export class ConnectionManager {
       });
     }
 
-    // Démarrer la reconnexion automatique
+    // Start automatic reconnection
     if (this.reconnectAttempts < this.config.maxReconnectAttempts) {
       this.scheduleReconnection();
     } else {
@@ -257,14 +656,14 @@ export class ConnectionManager {
 
   scheduleReconnection() {
     if (this.state.reconnecting) {
-      console.log('🔄 [ConnectionManager] Reconnexion déjà en cours');
+      console.log('🔄 [ConnectionManager] Reconnection already in progress');
       return;
     }
 
     this.reconnectAttempts++;
-    console.log(`⏳ [ConnectionManager] Reconnexion ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} dans ${this.currentReconnectDelay}ms`);
+    console.log(`⏳ [ConnectionManager] Reconnection ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} in ${this.currentReconnectDelay}ms`);
 
-    // Notifier le début de reconnexion
+    // Notify reconnection start
     if (this.callbacks.onReconnecting) {
       this.callbacks.onReconnecting(this.reconnectAttempts, this.config.maxReconnectAttempts);
     }
@@ -273,7 +672,7 @@ export class ConnectionManager {
       this.attemptReconnection();
     }, this.currentReconnectDelay);
 
-    // Augmenter le délai pour la prochaine tentative (backoff exponentiel)
+    // Increase delay for next attempt (exponential backoff)
     this.currentReconnectDelay = Math.min(
       this.currentReconnectDelay * 2,
       this.config.maxReconnectDelay
@@ -281,27 +680,27 @@ export class ConnectionManager {
   }
 
   async attemptReconnection() {
-    console.log(`🔄 [ConnectionManager] === TENTATIVE RECONNEXION ${this.reconnectAttempts} ===`);
+    console.log(`🔄 [ConnectionManager] === RECONNECTION ATTEMPT ${this.reconnectAttempts} ===`);
     
     this.state.reconnecting = true;
 
     try {
-      // Nettoyer l'ancienne connexion
+      // Clean old connection
       await this.cleanupOldConnection();
 
-      // Tentative de reconnexion
+      // Attempt reconnection
       const success = await this.performReconnection();
 
       if (success) {
-        console.log('🎉 [ConnectionManager] === RECONNEXION RÉUSSIE ===');
+        console.log('🎉 [ConnectionManager] === RECONNECTION SUCCESSFUL ===');
         await this.handleReconnectionSuccess();
       } else {
-        console.warn(`❌ [ConnectionManager] Échec reconnexion ${this.reconnectAttempts}`);
+        console.warn(`❌ [ConnectionManager] Reconnection failed ${this.reconnectAttempts}`);
         this.handleReconnectionFailure();
       }
 
     } catch (error) {
-      console.error('❌ [ConnectionManager] Erreur lors de la reconnexion:', error);
+      console.error('❌ [ConnectionManager] Error during reconnection:', error);
       this.handleReconnectionFailure();
     }
 
@@ -309,27 +708,27 @@ export class ConnectionManager {
   }
 
   async cleanupOldConnection() {
-    console.log('🧹 [ConnectionManager] Nettoyage ancienne connexion...');
+    console.log('🧹 [ConnectionManager] Cleaning old connection...');
     
-    // Arrêter les timers
+    // Stop timers
     this.clearAllTimers();
 
-    // Nettoyer la room existante si nécessaire
+    // Clean existing room if necessary
     if (this.networkManager.room) {
       try {
-        // Ne pas await pour éviter de bloquer
+        // Don't await to avoid blocking
         this.networkManager.room.leave(false);
       } catch (error) {
-        console.warn('⚠️ [ConnectionManager] Erreur nettoyage room:', error);
+        console.warn('⚠️ [ConnectionManager] Error cleaning room:', error);
       }
     }
   }
 
   async performReconnection() {
-    console.log('🔌 [ConnectionManager] Tentative connexion...');
+    console.log('🔌 [ConnectionManager] Attempting connection...');
 
     try {
-      // Utiliser les données de restore pour reconnecter
+      // Use restore data to reconnect
       const spawnZone = this.restoreData.lastZone || this.networkManager.currentZone || "beach";
       const spawnData = {
         spawnX: this.restoreData.lastPosition.x || 360,
@@ -338,29 +737,32 @@ export class ConnectionManager {
         previousSessionId: this.networkManager.sessionId
       };
 
-      console.log(`🎯 [ConnectionManager] Reconnexion vers zone: ${spawnZone}`, spawnData);
+      console.log(`🎯 [ConnectionManager] Reconnecting to zone: ${spawnZone}`, spawnData);
 
-      // Utiliser la méthode connect du NetworkManager
+      // Use NetworkManager connect method
       const success = await this.networkManager.connect(spawnZone, spawnData);
 
       return success;
 
     } catch (error) {
-      console.error('❌ [ConnectionManager] Erreur reconnexion:', error);
+      console.error('❌ [ConnectionManager] Reconnection error:', error);
       return false;
     }
   }
 
   async handleReconnectionSuccess() {
-    console.log('✅ [ConnectionManager] Reconnexion réussie - restauration état...');
+    console.log('✅ [ConnectionManager] Reconnection successful - restoring state...');
     
-    // Reset des compteurs
+    // Reset counters
     this.reconnectAttempts = 0;
     this.currentReconnectDelay = this.config.reconnectDelay;
     this.state.connectionLost = false;
     this.totalReconnections++;
 
-    // Stats de reconnexion
+    // Reset server restart state
+    this.resetServerRestartState();
+
+    // Reconnection stats
     const reconnectionStats = {
       attempts: this.reconnectAttempts,
       totalReconnections: this.totalReconnections,
@@ -369,28 +771,28 @@ export class ConnectionManager {
       restoredPosition: this.restoreData.lastPosition
     };
 
-    // Redémarrer le monitoring
+    // Restart monitoring
     this.startMonitoring();
 
-    // Attendre un peu que la connexion se stabilise
+    // Wait for connection to stabilize
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Restaurer l'état du jeu
+    // Restore game state
     await this.restoreGameState();
 
-    // Notifier le succès
+    // Notify success
     if (this.callbacks.onReconnected) {
       this.callbacks.onReconnected(reconnectionStats);
     }
 
-    console.log('🎊 [ConnectionManager] État restauré avec succès');
+    console.log('🎊 [ConnectionManager] State restored successfully');
   }
 
   handleReconnectionFailure() {
-    console.warn(`❌ [ConnectionManager] Échec reconnexion ${this.reconnectAttempts}/${this.config.maxReconnectAttempts}`);
+    console.warn(`❌ [ConnectionManager] Reconnection failed ${this.reconnectAttempts}/${this.config.maxReconnectAttempts}`);
 
     if (this.reconnectAttempts < this.config.maxReconnectAttempts) {
-      // Programmer la prochaine tentative
+      // Schedule next attempt
       this.scheduleReconnection();
     } else {
       this.handleMaxReconnectReached();
@@ -398,7 +800,7 @@ export class ConnectionManager {
   }
 
   handleMaxReconnectReached() {
-    console.error(`💀 [ConnectionManager] Nombre maximum de reconnexions atteint (${this.config.maxReconnectAttempts})`);
+    console.error(`💀 [ConnectionManager] Maximum reconnections reached (${this.config.maxReconnectAttempts})`);
     
     this.state.connectionLost = true;
     this.state.reconnecting = false;
@@ -406,14 +808,17 @@ export class ConnectionManager {
     if (this.callbacks.onMaxReconnectReached) {
       this.callbacks.onMaxReconnectReached(this.reconnectAttempts);
     }
+
+    // After max reconnects, consider it a server restart
+    this.handleForceLogout('Unable to reconnect to server. Please log in again.');
   }
 
-  // === RESTAURATION DE L'ÉTAT ===
+  // === STATE RESTORATION ===
 
   captureRestoreData() {
     if (!this.networkManager) return;
 
-    // Capturer les données importantes pour la restauration
+    // Capture important data for restoration
     this.restoreData = {
       lastZone: this.networkManager.currentZone,
       lastPosition: {
@@ -426,50 +831,50 @@ export class ConnectionManager {
   }
 
   async restoreGameState() {
-    console.log('🔄 [ConnectionManager] Restauration état du jeu...');
+    console.log('🔄 [ConnectionManager] Restoring game state...');
 
     try {
-      // Attendre que la connexion soit stable
+      // Wait for stable connection
       await this.waitForStableConnection();
 
-      // Demander l'état actuel de la zone
+      // Request current zone state
       if (this.restoreData.lastZone) {
         this.networkManager.requestCurrentZone(this.restoreData.lastZone);
       }
 
-      // Demander la liste des NPCs
+      // Request NPC list
       if (this.networkManager.room) {
         this.networkManager.room.send("requestNpcs", { 
           zone: this.restoreData.lastZone 
         });
       }
 
-      // Vérifier que le joueur existe toujours
+      // Verify player still exists
       this.networkManager.ensureMyPlayerExists();
 
-      console.log('✅ [ConnectionManager] État du jeu restauré');
+      console.log('✅ [ConnectionManager] Game state restored');
 
     } catch (error) {
-      console.error('❌ [ConnectionManager] Erreur restauration état:', error);
+      console.error('❌ [ConnectionManager] Error restoring state:', error);
     }
   }
 
   async waitForStableConnection(timeout = 5000) {
-    console.log('⏳ [ConnectionManager] Attente connexion stable...');
+    console.log('⏳ [ConnectionManager] Waiting for stable connection...');
     
     const startTime = Date.now();
     
     return new Promise((resolve, reject) => {
       const checkStability = () => {
         if (Date.now() - startTime > timeout) {
-          reject(new Error('Timeout attente connexion stable'));
+          reject(new Error('Timeout waiting for stable connection'));
           return;
         }
 
         if (this.networkManager.isConnected && 
             this.networkManager.room && 
             this.networkManager.room.connection.isOpen) {
-          console.log('✅ [ConnectionManager] Connexion stable détectée');
+          console.log('✅ [ConnectionManager] Stable connection detected');
           resolve();
         } else {
           setTimeout(checkStability, 100);
@@ -480,33 +885,33 @@ export class ConnectionManager {
     });
   }
 
-  // === MÉTHODES PUBLIQUES ===
+  // === PUBLIC METHODS ===
 
   forceReconnection() {
-    console.log('🔧 [ConnectionManager] Reconnexion forcée demandée');
+    console.log('🔧 [ConnectionManager] Forced reconnection requested');
     
-    // Reset des tentatives pour permettre une nouvelle série
+    // Reset attempts to allow new series
     this.reconnectAttempts = 0;
     this.currentReconnectDelay = this.config.reconnectDelay;
     
-    // Simuler une perte de connexion
+    // Simulate connection loss
     this.handleConnectionLost();
   }
 
   testConnection() {
-    console.log('🧪 [ConnectionManager] Test de connexion...');
+    console.log('🧪 [ConnectionManager] Connection test...');
     
     if (!this.networkManager.room || !this.networkManager.isConnected) {
-      console.warn('❌ [ConnectionManager] Pas de connexion à tester');
+      console.warn('❌ [ConnectionManager] No connection to test');
       return false;
     }
 
     try {
-      // Envoyer un ping de test
+      // Send test ping
       this.sendPing();
       return true;
     } catch (error) {
-      console.error('❌ [ConnectionManager] Erreur test connexion:', error);
+      console.error('❌ [ConnectionManager] Connection test error:', error);
       return false;
     }
   }
@@ -526,7 +931,10 @@ export class ConnectionManager {
       maxReconnectAttempts: this.config.maxReconnectAttempts,
       currentReconnectDelay: this.currentReconnectDelay,
       lastDisconnectTime: this.lastDisconnectTime,
-      restoreData: this.restoreData
+      restoreData: this.restoreData,
+      // ✅ NEW: Server restart stats
+      serverRestartState: this.serverRestartState,
+      serverRestartConfig: this.serverRestartConfig
     };
   }
 
@@ -552,7 +960,20 @@ export class ConnectionManager {
     this.callbacks.onQualityChanged = callback;
   }
 
-  // === UTILITAIRES ===
+  // ✅ NEW: Server restart callbacks
+  onServerRestartDetected(callback) {
+    this.callbacks.onServerRestartDetected = callback;
+  }
+
+  onAuthFailure(callback) {
+    this.callbacks.onAuthFailure = callback;
+  }
+
+  onForceLogout(callback) {
+    this.callbacks.onForceLogout = callback;
+  }
+
+  // === UTILITIES ===
 
   clearAllTimers() {
     if (this.pingInterval) {
@@ -572,19 +993,67 @@ export class ConnectionManager {
   }
 
   destroy() {
-    console.log('🗑️ [ConnectionManager] Destruction...');
+    console.log('🗑️ [ConnectionManager] Destroying...');
     
     this.stopMonitoring();
     this.clearAllTimers();
     
-    // Reset des callbacks
+    // Reset callbacks
     this.callbacks = {};
     
-    console.log('✅ [ConnectionManager] Détruit');
+    // Clear any remaining popups
+    const existingOverlays = document.querySelectorAll('[style*="z-index: 10000"]');
+    existingOverlays.forEach(overlay => {
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    });
+    
+    console.log('✅ [ConnectionManager] Destroyed');
   }
 }
 
-// Export pour utilisation
+// ✅ USAGE EXAMPLE - Add this to your NetworkManager initialization:
+/*
+// In your NetworkManager or main game file:
+
+// Initialize connection manager
+this.connectionManager = new ConnectionManager(this);
+
+// Setup server restart detection callbacks
+this.connectionManager.onServerRestartDetected((data) => {
+  console.log('🚨 Server restart detected:', data);
+  // Optional: Show custom notification
+});
+
+this.connectionManager.onAuthFailure((code, message) => {
+  console.error('🔐 Authentication failed:', code, message);
+  // Optional: Show auth error notification
+});
+
+this.connectionManager.onForceLogout((data) => {
+  console.log('🚪 Forced logout:', data);
+  // This will automatically show popup and redirect
+});
+
+// Setup room event handlers to forward to connection manager
+room.onError = (code, message) => {
+  this.connectionManager.handleErrorFromServer({ code, message });
+};
+
+room.onLeave = (code) => {
+  this.connectionManager.handleLeaveFromServer(code);
+};
+
+room.onMessage("pong", (data) => {
+  this.connectionManager.handlePongFromServer(data);
+});
+
+// Start monitoring
+this.connectionManager.startMonitoring();
+*/
+
+// Export for use
 export default ConnectionManager;
 
-console.log('✅ ConnectionManager chargé - Support reconnexion automatique invisible');
+console.log('✅ Complete ConnectionManager loaded - Server restart detection with auto-logout');
