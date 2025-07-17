@@ -278,6 +278,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
   }
 
   // ✅ MÉTHODE CORRIGÉE: Création du label nom d'utilisateur
+// ✅ CORRECTION: Méthode createPlayerNameLabel modifiée
 createPlayerNameLabel(player, sessionId) {
   // Nettoyer l'ancien label si il existe
   if (player.nameLabel) {
@@ -286,7 +287,7 @@ createPlayerNameLabel(player, sessionId) {
   
   // 🎯 PRIORITÉ: Utiliser le nom depuis le state serveur
   let playerName = "Unknown";
-  let isDev = false;  // ✅ Cette ligne doit exister
+  let isDev = false;
 
   // 1. Essayer depuis le player object (envoyé par le serveur)
   if (player.name && player.name !== sessionId) {
@@ -306,22 +307,31 @@ createPlayerNameLabel(player, sessionId) {
     playerName = sessionId.substring(0, 8);
     console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
   }
-  // ✅ AJOUTER [DEV] si c'est mon joueur et que je suis dev
-if ((sessionId === this.mySessionId || sessionId === this._pendingSessionId)) {
-  try {
-    const token = sessionStorage.getItem('sessionToken');
-    if (token) {
-      const payload = token.split('.')[1];
-      const decoded = JSON.parse(atob(payload));
-      if (decoded.isDev) {
-        playerName = `[DEV] ${playerName}`;
-        isDev = true; // Pour la couleur rouge
-      }
-    }
-  } catch (e) {
-    console.warn('[PlayerManager] Erreur vérification dev token:', e);
+
+  // ✅ NOUVEAU: Vérifier isDev depuis le STATE serveur pour TOUS les joueurs
+  if (this.scene.networkManager?.room?.state?.players?.get(sessionId)?.isDev) {
+    isDev = true;
+    playerName = `[DEV] ${playerName}`;
+    console.log(`[PlayerManager] 🔧 Joueur DEV détecté depuis le serveur: ${sessionId}`);
   }
-}
+  // ✅ FALLBACK: Vérifier mon propre token local seulement pour mon joueur
+  else if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    try {
+      const token = sessionStorage.getItem('sessionToken');
+      if (token) {
+        const payload = token.split('.')[1];
+        const decoded = JSON.parse(atob(payload));
+        if (decoded.isDev) {
+          playerName = `[DEV] ${playerName}`;
+          isDev = true;
+          console.log(`[PlayerManager] 🔧 Mon statut DEV depuis token local`);
+        }
+      }
+    } catch (e) {
+      console.warn('[PlayerManager] Erreur vérification dev token:', e);
+    }
+  }
+  
   // Créer le texte du nom
   const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
     fontSize: '12px',
@@ -334,18 +344,18 @@ if ((sessionId === this.mySessionId || sessionId === this._pendingSessionId)) {
   .setOrigin(0.5, 1)
   .setDepth(1002);
   
-// Différencier mon joueur des autres + couleur dev
-if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-  if (isDev) {
-    nameLabel.setStyle({ fill: '#FF0000' }); // Rouge si je suis dev
+  // Différencier mon joueur des autres + couleur dev
+  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    if (isDev) {
+      nameLabel.setStyle({ fill: '#FF0000' }); // Rouge si je suis dev
+    } else {
+      nameLabel.setStyle({ fill: '#00FF00' }); // Vert si pas dev
+    }
+  } else if (isDev) {
+    nameLabel.setStyle({ fill: '#FF0000' }); // Rouge pour les autres devs
   } else {
-    nameLabel.setStyle({ fill: '#00FF00' }); // Vert si pas dev
+    nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
   }
-} else if (isDev) {
-  nameLabel.setStyle({ fill: '#FF0000' }); // Rouge pour les autres devs
-} else {
-  nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
-}
   
   player.nameLabel = nameLabel;
   nameLabel.setVisible(true);
