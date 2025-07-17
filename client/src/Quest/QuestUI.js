@@ -1372,6 +1372,51 @@ animateObjectiveTransition(result) {
     this.updateTracker();
   }
 }
+  // Animation: Slide out (disparition)
+animateSlideOut(element, callback) {
+  console.log('⬅️ [QuestUI] Animation slide out');
+  
+  element.style.transition = 'all 0.4s ease';
+  element.style.transform = 'translateX(-100%) scale(0.8)';
+  element.style.opacity = '0';
+  
+  // Callback après animation
+  setTimeout(() => {
+    if (callback) callback();
+  }, 400);
+}
+
+// Animation: Nouvel objectif slide in
+animateNewObjectiveIn() {
+  console.log('➡️ [QuestUI] Animation nouvel objectif slide in');
+  
+  try {
+    // Chercher le nouvel objectif (premier dans la liste)
+    const trackerElement = this.trackerElement || document.querySelector('#quest-tracker');
+    const firstObjective = trackerElement?.querySelector('.objective-item, .quest-step, .objective-container');
+    
+    if (firstObjective) {
+      // Préparer l'animation
+      firstObjective.style.transform = 'translateX(100%) scale(0.8)';
+      firstObjective.style.opacity = '0';
+      
+      // Animer l'entrée
+      setTimeout(() => {
+        firstObjective.style.transition = 'all 0.4s ease';
+        firstObjective.style.transform = 'translateX(0) scale(1)';
+        firstObjective.style.opacity = '1';
+        firstObjective.style.backgroundColor = '#3b82f6'; // Bleu pour nouveauté
+        
+        // Retour normal après 1 seconde
+        setTimeout(() => {
+          firstObjective.style.backgroundColor = '';
+        }, 1000);
+      }, 100);
+    }
+  } catch (error) {
+    console.error('❌ [QuestUI] Erreur slide in:', error);
+  }
+}
 }
 
 export default QuestUI;
