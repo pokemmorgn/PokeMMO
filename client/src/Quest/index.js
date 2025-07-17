@@ -23,7 +23,9 @@ export class QuestModule extends BaseModule {
     this.componentsReady = false;
     this.networkManager = null;
     
-    // ✅ NOUVEAU: Contrôle vérification simplifiée
+    // ✅ NOUVEAU: Contrôle boucle vérification
+    this.verificationAttempts = 0;
+    this.maxVerificationAttempts = 3;
     this.verificationInProgress = false;
     
     console.log('📖 [QuestModule] Instance créée');
@@ -94,14 +96,19 @@ export class QuestModule extends BaseModule {
     console.log('✅ [QuestModule] Manager initialisé');
   }
   
-  // ✅ NOUVELLE MÉTHODE: Vérification simplifiée qui fait confiance au QuestManager
+  // ✅ NOUVELLE MÉTHODE: Vérification avec limite et timeout
   scheduleHandlerVerification() {
-    console.log('🔍 [QuestModule] Vérification handlers via QuestManager...');
+    console.log('🔍 [QuestModule] Programmation vérification handlers...');
     
     // Vérification immédiate
     setTimeout(() => {
       this.verifyHandlersRegistered();
     }, 1000);
+    
+    // Vérification de backup
+    setTimeout(() => {
+      this.verifyHandlersRegistered();
+    }, 3000);
   }
   
   verifyHandlersRegistered() {
@@ -111,9 +118,15 @@ export class QuestModule extends BaseModule {
       return;
     }
     
-    this.verificationInProgress = true;
+    if (this.verificationAttempts >= this.maxVerificationAttempts) {
+      console.log('⚠️ [QuestModule] Limite de vérifications atteinte, arrêt');
+      return;
+    }
     
-    console.log('🔍 [QuestModule] Vérification handlers...');
+    this.verificationInProgress = true;
+    this.verificationAttempts++;
+    
+    console.log(`🔍 [QuestModule] Vérification handlers (${this.verificationAttempts}/${this.maxVerificationAttempts})...`);
     
     if (!this.manager || !this.manager.gameRoom) {
       console.warn('⚠️ [QuestModule] Manager ou GameRoom manquant');
@@ -121,21 +134,51 @@ export class QuestModule extends BaseModule {
       return;
     }
     
-    // ✅ CORRECTION: Faire confiance au QuestManager
-    if (this.manager.ready && this.manager.initialized) {
-      console.log('✅ [QuestModule] QuestManager confirme que les handlers sont prêts');
+    // Vérifier si les handlers sont enregistrés
+    const requiredHandlers = [
+      'activeQuestsList',
+      'availableQuestsList', 
+      'questStartResult',
+      'questProgressUpdate',
+      'questStatuses'
+    ];
+    
+    const gameRoom = this.manager.gameRoom;
+    const missingHandlers = [];
+    
+    if (gameRoom._messageHandlers) {
+      requiredHandlers.forEach(handler => {
+        if (!gameRoom._messageHandlers.has(handler)) {
+          missingHandlers.push(handler);
+        }
+      });
+    } else {
+      missingHandlers.push(...requiredHandlers);
+    }
+    
+    if (missingHandlers.length > 0) {
+      console.warn(`⚠️ [QuestModule] Handlers manquants: ${missingHandlers.join(', ')}`);
+      console.log('🔧 [QuestModule] Auto-réparation...');
+      
+      // Force re-registration
+      if (this.manager.registerHandlers) {
+        this.manager.registerHandlers();
+      }
+      
+      // ✅ CORRECTION: Vérifier à nouveau seulement si pas à la limite
+      if (this.verificationAttempts < this.maxVerificationAttempts) {
+        setTimeout(() => {
+          this.verificationInProgress = false;
+          this.verifyHandlersRegistered();
+        }, 2000);
+      } else {
+        console.warn('⚠️ [QuestModule] Limite atteinte, handlers peuvent être manquants');
+        this.verificationInProgress = false;
+      }
+    } else {
+      console.log('✅ [QuestModule] Tous les handlers sont enregistrés');
       this.verificationInProgress = false;
-      return;
     }
-    
-    // Fallback : vérifier si le manager peut enregistrer les handlers
-    if (this.manager.registerHandlers) {
-      console.log('🔧 [QuestModule] Re-enregistrement handlers par sécurité...');
-      this.manager.registerHandlers();
-    }
-    
-    console.log('✅ [QuestModule] Vérification terminée - système fonctionnel');
-    this.verificationInProgress = false;
   }
   
   // Setter NetworkManager
@@ -374,7 +417,8 @@ export class QuestModule extends BaseModule {
     
     this.componentsReady = false;
     
-    // ✅ CORRECTION: Reset du flag de vérification
+    // ✅ CORRECTION: Reset des compteurs de vérification
+    this.verificationAttempts = 0;
     this.verificationInProgress = false;
   }
   
@@ -430,6 +474,7 @@ export class QuestModule extends BaseModule {
     return {
       initialized: this.initialized,
       componentsReady: this.componentsReady,
+      verificationAttempts: this.verificationAttempts,
       verificationInProgress: this.verificationInProgress,
       hasNetworkManager: !!this.networkManager,
       manager: {
@@ -542,7 +587,8 @@ export async function repairQuestSystem() {
     const health = instance.getSystemHealth();
     console.log('📊 [QuestRepair] État:', health);
     
-    // Reset du flag de vérification
+    // Reset des compteurs de vérification
+    instance.verificationAttempts = 0;
     instance.verificationInProgress = false;
     
     // Nouvelle vérification
