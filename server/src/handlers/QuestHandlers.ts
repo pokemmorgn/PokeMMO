@@ -214,7 +214,7 @@ export class QuestHandlers {
         }
 
         // ✅ METTRE À JOUR LES STATUTS DE QUÊTE
-        await this.updateQuestStatuses(player.name);
+        await this.updateQuestStatuses(player.name, client);
       }
       
     } catch (error) {
