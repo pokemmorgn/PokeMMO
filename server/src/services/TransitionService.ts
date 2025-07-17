@@ -63,21 +63,27 @@ export class TransitionService {
   }
 
   // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
-  async validateTransition(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
-    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION DYNAMIQUE ===`);
-    
-    // ✅ RÉCUPÉRATION SÉCURISÉE DU USER ID
-    const userId = this.jwtManager.getUserId(client.sessionId);
-    const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
-
-    if (!userId || !jwtData) {
-      console.error(`❌ [TransitionService] Session invalide: ${client.sessionId}`);
-      return {
-        success: false,
-        reason: "Session utilisateur invalide",
-        rollback: true
-      };
-    }
+  async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
+  console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
+  
+  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+  const sessionValidation = await this.jwtManager.validateSessionRobust(
+    client.sessionId, 
+    player.name, 
+    'transition'
+  );
+  
+  if (!sessionValidation.valid) {
+    console.error(`❌ [TransitionService] ${sessionValidation.reason}`);
+    return {
+      success: false,
+      reason: "Session invalide pour transition",
+      rollback: true
+    };
+  }
+  
+  const { userId } = sessionValidation;
+  console.log(`✅ [TransitionService] Session validée pour transition: ${userId}`);
 
     console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
     console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
