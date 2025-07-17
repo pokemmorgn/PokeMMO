@@ -21,6 +21,8 @@ export class Player extends Schema {
   @type("boolean") isMoving: boolean = false;
     @type("string") characterId: string = "brendan"; // ID du personnage choisi
   @type("string") currentZone: string = ""; // Zone courante du joueur
+    @type("boolean") isDev: boolean = false; // ✅ AJOUTER CETTE LIGNE ICI
+
   @type([ TeamPokemon ]) team: ArraySchema<TeamPokemon> = new ArraySchema<TeamPokemon>();
   @type(PokemonFollower) follower?: PokemonFollower;
 
