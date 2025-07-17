@@ -8,7 +8,6 @@ import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
-import { setupQuestSystem } from "../../Quest/index.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
@@ -1501,67 +1500,6 @@ shouldShowPlayerFallback(sessionId, playerState) {
   
   setupInventoryEventHandlers() { }
   
-  // ✅ MÉTHODE INCHANGÉE: Initialisation du système de quêtes
-async initializeQuestSystem() {
-  console.log(`🎯 [${this.scene.key}] === INITIALISATION QUEST MODULE ===`);
-  
-  if (this.questModuleInitialized) {
-    console.log(`ℹ️ [${this.scene.key}] Quest Module déjà initialisé`);
-    return;
-  }
-  
-  if (this.questModuleAttempts >= this.maxQuestModuleAttempts) {
-    console.warn(`⚠️ [${this.scene.key}] Trop de tentatives Quest Module - abandon`);
-    return;
-  }
-  
-  this.questModuleAttempts++;
-  
-  try {
-    if (!window.uiManager) {
-      console.warn(`⚠️ [${this.scene.key}] UIManager pas prêt, retry dans 2s...`);
-      setTimeout(() => this.initializeQuestSystem(), 2000);
-      return;
-    }
-    
-    console.log(`🚀 [${this.scene.key}] Initialisation Quest Module...`);
-    
-    const questInstance = await setupQuestSystem(window.uiManager);
-    
-    if (questInstance) {
-      this.questModuleInitialized = true;
-      console.log(`✅ [${this.scene.key}] Quest Module initialisé avec succès`);
-      
-      // Marquer globalement
-      window.questSystemReady = true;
-      
-    } else {
-      console.error(`❌ [${this.scene.key}] setupQuestSystem a retourné null`);
-      this.handleQuestInitFailure();
-    }
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation Quest Module:`, error);
-    this.handleQuestInitFailure();
-  }
-}
-  // ✅ NOUVELLE MÉTHODE À AJOUTER
-handleQuestInitFailure() {
-  if (this.questModuleAttempts < this.maxQuestModuleAttempts) {
-    console.log(`🔄 [${this.scene.key}] Retry initialisation Quest Module dans 3s... (${this.questModuleAttempts}/${this.maxQuestModuleAttempts})`);
-    setTimeout(() => this.initializeQuestSystem(), 3000);
-  } else {
-    console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation Quest Module`);
-    
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Système de quêtes indisponible', 'warning', {
-        duration: 5000,
-        position: 'top-center'
-      });
-    }
-  }
-}
-
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
   setupPlayerReadyHandler() {
     if (!this.playerManager) return;
