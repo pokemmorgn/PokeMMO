@@ -1272,29 +1272,78 @@ export class QuestUI {
   }
   // === 🎨 ANIMATIONS DE PROGRESSION ===
 
-animateObjectiveCompletion(result, phase) {
-  console.log(`🎨 [QuestUI] Animation objectif: ${phase} pour "${result.objectiveName}"`);
-  
+    animateObjectiveCompletion(result, phase) {
+      console.log(`🎨 [QuestUI] Animation objectif: ${phase} pour "${result.objectiveName}"`);
+      
+      try {
+        // Trouver l'élément de l'objectif dans le tracker
+        const objectiveElement = this.findObjectiveElement(result.objectiveName);
+        
+        if (!objectiveElement) {
+          console.warn(`⚠️ [QuestUI] Élément objectif non trouvé: ${result.objectiveName}`);
+          return;
+        }
+        
+        if (phase === 'completing') {
+          // Phase 1: Objectif devient VERT
+          this.animateObjectiveGreen(objectiveElement);
+        } else if (phase === 'completed') {
+          // Phase 2: Animation de validation
+          this.animateObjectiveValidation(objectiveElement);
+        }
+        
+      } catch (error) {
+        console.error(`❌ [QuestUI] Erreur animation ${phase}:`, error);
+      }
+    }
+  // Méthode pour trouver l'élément objectif dans le DOM
+findObjectiveElement(objectiveName) {
   try {
-    // Trouver l'élément de l'objectif dans le tracker
-    const objectiveElement = this.findObjectiveElement(result.objectiveName);
+    // Chercher dans le tracker
+    const trackerElement = this.trackerElement || document.querySelector('#quest-tracker');
+    if (!trackerElement) return null;
     
-    if (!objectiveElement) {
-      console.warn(`⚠️ [QuestUI] Élément objectif non trouvé: ${result.objectiveName}`);
-      return;
+    // Chercher l'objectif par son texte
+    const objectiveElements = trackerElement.querySelectorAll('.objective-text, .quest-objective, [data-objective]');
+    
+    for (const element of objectiveElements) {
+      if (element.textContent.includes(objectiveName)) {
+        return element.closest('.objective-item, .quest-step, .objective-container') || element;
+      }
     }
     
-    if (phase === 'completing') {
-      // Phase 1: Objectif devient VERT
-      this.animateObjectiveGreen(objectiveElement);
-    } else if (phase === 'completed') {
-      // Phase 2: Animation de validation
-      this.animateObjectiveValidation(objectiveElement);
-    }
-    
+    return null;
   } catch (error) {
-    console.error(`❌ [QuestUI] Erreur animation ${phase}:`, error);
+    console.error('❌ [QuestUI] Erreur findObjectiveElement:', error);
+    return null;
   }
+}
+
+// Animation: Objectif devient VERT
+animateObjectiveGreen(element) {
+  console.log('🟢 [QuestUI] Animation → VERT');
+  
+  element.style.transition = 'all 0.3s ease';
+  element.style.backgroundColor = '#4ade80'; // Vert
+  element.style.color = '#ffffff';
+  element.style.transform = 'scale(1.05)';
+  element.style.boxShadow = '0 0 10px rgba(74, 222, 128, 0.5)';
+}
+
+// Animation: Validation avec checkmark
+animateObjectiveValidation(element) {
+  console.log('✅ [QuestUI] Animation → VALIDATION');
+  
+  // Ajouter le checkmark
+  const checkmark = document.createElement('span');
+  checkmark.innerHTML = ' ✅';
+  checkmark.style.fontWeight = 'bold';
+  checkmark.style.animation = 'bounce 0.5s ease';
+  
+  element.appendChild(checkmark);
+  
+  // Animation de pulse
+  element.style.animation = 'pulse 0.5s ease';
 }
 }
 
