@@ -1,9 +1,9 @@
-// managers/UIManager.js - CORRIGÉ avec tailles d'icônes centralisées
-// 🎯 UNE SEULE CONFIGURATION pour toutes les tailles d'icônes
+// managers/UIManager.js - FIXÉ avec protection anti-duplication STRICTE
+// 🚨 PRÉVENTION COMPLÈTE de la double initialisation des modules
 
 export class UIManager {
   constructor(options = {}) {
-    console.log('🎛️ UIManager avec tailles centralisées initialisé');
+    console.log('🎛️ UIManager avec protection anti-duplication initialisé');
     
     this.debug = options.debug || false;
     this.gameStates = options.gameStates || {};
@@ -12,6 +12,14 @@ export class UIManager {
     this.moduleStates = new Map();
     this.moduleInstances = new Map();
     
+    // ✅ FIX 1: Tracking strict des initialisations
+    this.initializationTracker = {
+      inProgress: new Set(),
+      completed: new Set(),
+      iconCreated: new Set(),
+      attempts: new Map()
+    };
+    
     this.globalState = {
       visible: true,
       enabled: true,
@@ -19,41 +27,19 @@ export class UIManager {
       currentGameState: 'exploration'
     };
     
-    // === 📏 CONFIGURATION CENTRALISÉE DES TAILLES ===
+    // Configuration icônes (identique)
     this.iconConfig = {
-      // Taille standard pour TOUTES les icônes
-      defaultSize: {
-        width: 70,
-        height: 80
-      },
-      
-      // Tailles par breakpoint responsive
+      defaultSize: { width: 70, height: 80 },
       responsiveSizes: {
-        mobile: {    // <= 768px
-          width: 60,
-          height: 70
-        },
-        tablet: {    // 769px - 1024px
-          width: 65,
-          height: 75
-        },
-        desktop: {   // > 1024px
-          width: 70,
-          height: 80
-        }
+        mobile: { width: 60, height: 70 },
+        tablet: { width: 65, height: 75 },
+        desktop: { width: 70, height: 80 }
       },
-      
-      // Espacement entre icônes
       spacing: 10,
-      
-      // Padding depuis les bords
       padding: 20,
-      
-      // Z-index pour toutes les icônes
       zIndex: 500
     };
     
-    // === SYSTÈME DE POSITIONNEMENT ===
     this.registeredIcons = new Map();
     this.iconGroups = new Map();
     this.currentBreakpoint = this.getCurrentBreakpoint();
@@ -72,7 +58,286 @@ export class UIManager {
     this.openModules = new Set();
   }
 
-  // === 📏 GESTION CENTRALISÉE DES TAILLES ===
+  // === 🛡️ INITIALISATION MODULE AVEC PROTECTION ANTI-DUPLICATION ===
+  
+  async initializeModule(moduleId, ...args) {
+    // ✅ FIX 2: Vérification stricte avant toute action
+    if (this.initializationTracker.inProgress.has(moduleId)) {
+      console.log(`⏳ [UIManager] Module ${moduleId} déjà en cours d'initialisation - BLOQUÉ`);
+      return await this.waitForInitialization(moduleId);
+    }
+    
+    if (this.initializationTracker.completed.has(moduleId)) {
+      const config = this.modules.get(moduleId);
+      if (config?.instance) {
+        console.log(`✅ [UIManager] Module ${moduleId} déjà initialisé - RÉUTILISATION`);
+        return config.instance;
+      }
+    }
+    
+    // ✅ FIX 3: Marquer comme en cours IMMÉDIATEMENT
+    this.initializationTracker.inProgress.add(moduleId);
+    this.trackInitializationAttempt(moduleId);
+    
+    if (this.debug) {
+      console.log(`🚀 [UIManager] Initialisation PROTÉGÉE module: ${moduleId}`);
+    }
+    
+    const config = this.modules.get(moduleId);
+    if (!config) {
+      this.initializationTracker.inProgress.delete(moduleId);
+      throw new Error(`Module ${moduleId} non enregistré`);
+    }
+    
+    const state = this.moduleStates.get(moduleId);
+    
+    try {
+      // ✅ FIX 4: Double vérification avec état interne
+      if (state.initialized && config.instance) {
+        console.log(`ℹ️ [UIManager] Module ${moduleId} déjà initialisé (état + instance)`);
+        this.initializationTracker.inProgress.delete(moduleId);
+        this.initializationTracker.completed.add(moduleId);
+        return config.instance;
+      }
+      
+      // 1. Créer l'instance du module
+      console.log(`🔧 [UIManager] Création instance ${moduleId}...`);
+      const instance = await config.factory(...args);
+      
+      if (!instance) {
+        throw new Error(`Factory du module ${moduleId} a retourné null`);
+      }
+      
+      // 2. Stocker l'instance IMMÉDIATEMENT
+      config.instance = instance;
+      this.moduleInstances.set(moduleId, instance);
+      state.initialized = true;
+      
+      // ✅ FIX 5: Marquer comme terminé AVANT création icône
+      this.initializationTracker.completed.add(moduleId);
+      this.initializationTracker.inProgress.delete(moduleId);
+      
+      // 3. Créer l'icône avec protection
+      await this.createModuleIconProtected(moduleId, instance, config);
+      
+      // 4. Appliquer l'état initial
+      this.applyModuleState(moduleId);
+      
+      if (this.debug) {
+        console.log(`✅ [UIManager] Module ${moduleId} initialisé avec protection anti-duplication`);
+      }
+      
+      return instance;
+      
+    } catch (error) {
+      // ✅ FIX 6: Nettoyage en cas d'erreur
+      this.initializationTracker.inProgress.delete(moduleId);
+      this.initializationTracker.completed.delete(moduleId);
+      
+      console.error(`❌ [UIManager] Erreur initialisation PROTÉGÉE ${moduleId}:`, error);
+      throw error;
+    }
+  }
+  
+  // ✅ FIX 7: Tracking des tentatives d'initialisation
+  trackInitializationAttempt(moduleId) {
+    const attempts = this.initializationTracker.attempts.get(moduleId) || 0;
+    this.initializationTracker.attempts.set(moduleId, attempts + 1);
+    
+    if (attempts > 0) {
+      console.warn(`⚠️ [UIManager] Module ${moduleId} - tentative d'initialisation #${attempts + 1}`);
+    }
+  }
+  
+  // ✅ FIX 8: Attente pour initialisation en cours
+  async waitForInitialization(moduleId, maxWait = 5000) {
+    const startTime = Date.now();
+    
+    while (this.initializationTracker.inProgress.has(moduleId)) {
+      if (Date.now() - startTime > maxWait) {
+        console.error(`❌ [UIManager] Timeout attente initialisation ${moduleId}`);
+        this.initializationTracker.inProgress.delete(moduleId);
+        return null;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Retourner l'instance si elle existe
+    const config = this.modules.get(moduleId);
+    return config?.instance || null;
+  }
+
+  // ✅ FIX 9: Création d'icône avec protection stricte
+  async createModuleIconProtected(moduleId, instance, config) {
+    // Vérifier si icône déjà créée
+    if (this.initializationTracker.iconCreated.has(moduleId)) {
+      console.log(`🎨 [UIManager] Icône ${moduleId} déjà créée - SKIP`);
+      return this.registeredIcons.get(moduleId)?.element || null;
+    }
+    
+    console.log(`🎨 [UIManager] Création icône PROTÉGÉE pour ${moduleId}...`);
+    
+    try {
+      // Vérifier si le module a besoin d'une icône
+      const layoutConfig = config.layout;
+      if (!layoutConfig || layoutConfig.type !== 'icon') {
+        console.log(`ℹ️ [UIManager] Module ${moduleId} n'a pas d'icône`);
+        return null;
+      }
+      
+      // Vérifier si le module peut créer une icône
+      if (typeof instance.createIcon !== 'function') {
+        console.warn(`⚠️ [UIManager] Module ${moduleId} ne peut pas créer d'icône`);
+        return null;
+      }
+      
+      // ✅ MARQUER COMME EN COURS DE CRÉATION
+      this.initializationTracker.iconCreated.add(moduleId);
+      
+      // Demander au module de créer son icône
+      const iconElement = await instance.createIcon();
+      
+      if (!iconElement) {
+        console.warn(`⚠️ [UIManager] Module ${moduleId} n'a pas créé d'icône`);
+        this.initializationTracker.iconCreated.delete(moduleId);
+        return null;
+      }
+      
+      // Appliquer la taille centralisée
+      this.applyStandardizedSize(iconElement);
+      
+      // Enregistrer et positionner l'icône
+      this.registerIconPosition(moduleId, iconElement, layoutConfig);
+      
+      console.log(`✅ [UIManager] Icône créée PROTÉGÉE pour ${moduleId}`);
+      return iconElement;
+      
+    } catch (error) {
+      console.error(`❌ [UIManager] Erreur création icône PROTÉGÉE ${moduleId}:`, error);
+      this.initializationTracker.iconCreated.delete(moduleId);
+      return null;
+    }
+  }
+
+  // ✅ FIX 10: Workflow d'initialisation complète avec protection
+  async initializeAllModules(...args) {
+    if (this.debug) {
+      console.log('🚀 [UIManager] Initialisation PROTÉGÉE de tous les modules...');
+    }
+    
+    // ✅ Vérifier si déjà en cours
+    if (this.globalState.initialized) {
+      console.log('ℹ️ [UIManager] Tous les modules déjà initialisés - SKIP');
+      return {
+        success: true,
+        results: Object.fromEntries(this.moduleInstances),
+        errors: [],
+        iconsCreated: this.registeredIcons.size,
+        iconSize: this.getCurrentIconSize()
+      };
+    }
+    
+    const results = {};
+    const errors = [];
+    
+    const sortedModules = Array.from(this.modules.entries())
+      .sort((a, b) => (b[1].priority || 100) - (a[1].priority || 100));
+    
+    // ✅ FIX 11: Initialisation séquentielle pour éviter les conflits
+    for (const [moduleId, config] of sortedModules) {
+      try {
+        console.log(`🔄 [UIManager] Initialisation séquentielle: ${moduleId}`);
+        const instance = await this.initializeModule(moduleId, ...args);
+        results[moduleId] = instance;
+        
+        // Petit délai pour éviter les conflits
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+      } catch (error) {
+        errors.push(`${moduleId}: ${error.message}`);
+        if (config.critical) {
+          console.error(`💥 [UIManager] Module critique ${moduleId} a échoué !`);
+        }
+      }
+    }
+    
+    // ✅ Marquer comme initialisé seulement à la fin
+    this.globalState.initialized = true;
+    
+    // Repositionner toutes les icônes créées
+    setTimeout(() => {
+      this.repositionAllIcons();
+      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées PROTÉGÉES`);
+    }, 100);
+    
+    if (this.debug) {
+      console.log(`✅ [UIManager] Initialisation PROTÉGÉE terminée. Succès: ${Object.keys(results).length}, Erreurs: ${errors.length}`);
+      console.log(`🛡️ Protection: ${this.initializationTracker.completed.size} modules protégés`);
+    }
+    
+    return {
+      success: errors.length === 0,
+      results,
+      errors,
+      iconsCreated: this.registeredIcons.size,
+      iconSize: this.getCurrentIconSize(),
+      protectedModules: this.initializationTracker.completed.size
+    };
+  }
+  
+  // ✅ FIX 12: Méthode pour forcer reset si nécessaire
+  resetInitializationTracker() {
+    console.log('🔄 [UIManager] Reset tracker initialisation...');
+    
+    this.initializationTracker.inProgress.clear();
+    this.initializationTracker.completed.clear();
+    this.initializationTracker.iconCreated.clear();
+    this.initializationTracker.attempts.clear();
+    
+    console.log('✅ [UIManager] Tracker reset');
+  }
+  
+  // ✅ FIX 13: Méthode pour diagnostiquer les doublons
+  diagnoseInitializationIssues() {
+    const issues = [];
+    
+    // Vérifier les modules avec tentatives multiples
+    this.initializationTracker.attempts.forEach((attempts, moduleId) => {
+      if (attempts > 1) {
+        issues.push(`Module ${moduleId}: ${attempts} tentatives d'initialisation`);
+      }
+    });
+    
+    // Vérifier les modules en cours depuis trop longtemps
+    this.initializationTracker.inProgress.forEach(moduleId => {
+      issues.push(`Module ${moduleId}: initialisation bloquée en cours`);
+    });
+    
+    // Vérifier les icônes multiples pour même module
+    const iconCounts = new Map();
+    this.registeredIcons.forEach((config, moduleId) => {
+      iconCounts.set(moduleId, (iconCounts.get(moduleId) || 0) + 1);
+    });
+    
+    iconCounts.forEach((count, moduleId) => {
+      if (count > 1) {
+        issues.push(`Module ${moduleId}: ${count} icônes enregistrées`);
+      }
+    });
+    
+    return {
+      issues,
+      tracker: {
+        inProgress: Array.from(this.initializationTracker.inProgress),
+        completed: Array.from(this.initializationTracker.completed),
+        iconCreated: Array.from(this.initializationTracker.iconCreated),
+        attempts: Object.fromEntries(this.initializationTracker.attempts)
+      }
+    };
+  }
+
+  // === MÉTHODES IDENTIQUES (pas de changement) ===
   
   getCurrentBreakpoint() {
     const width = window.innerWidth;
@@ -89,7 +354,6 @@ export class UIManager {
   updateIconConfig(newConfig) {
     console.log('🔧 [UIManager] Mise à jour configuration icônes:', newConfig);
     
-    // Merger la nouvelle config
     this.iconConfig = {
       ...this.iconConfig,
       ...newConfig,
@@ -99,21 +363,13 @@ export class UIManager {
       }
     };
     
-    // Réinjecter le CSS
     this.injectGlobalIconCSS();
-    
-    // Repositionner toutes les icônes
-    setTimeout(() => {
-      this.repositionAllIcons();
-    }, 100);
+    setTimeout(() => this.repositionAllIcons(), 100);
     
     console.log('✅ [UIManager] Configuration icônes mise à jour');
   }
   
-  // === 🎨 CSS GLOBAL POUR TOUTES LES ICÔNES ===
-  
   injectGlobalIconCSS() {
-    // Supprimer l'ancien style
     const existingStyle = document.querySelector('#uimanager-global-icons');
     if (existingStyle) {
       existingStyle.remove();
@@ -124,9 +380,6 @@ export class UIManager {
     const style = document.createElement('style');
     style.id = 'uimanager-global-icons';
     style.textContent = `
-      /* ===== UIMANAGER - TAILLES GLOBALES ICÔNES ===== */
-      
-      /* Taille desktop par défaut */
       .ui-icon {
         width: ${defaultSize.width}px !important;
         height: ${defaultSize.height}px !important;
@@ -139,7 +392,6 @@ export class UIManager {
         box-sizing: border-box !important;
       }
       
-      /* Force pour tous les modules */
       #inventory-icon.ui-icon,
       #team-icon.ui-icon,
       #quest-icon.ui-icon,
@@ -154,7 +406,6 @@ export class UIManager {
         max-height: ${defaultSize.height}px !important;
       }
       
-      /* Responsive tablet */
       @media (min-width: 769px) and (max-width: 1024px) {
         .ui-icon {
           width: ${responsiveSizes.tablet.width}px !important;
@@ -176,7 +427,6 @@ export class UIManager {
         }
       }
       
-      /* Responsive mobile */
       @media (max-width: 768px) {
         .ui-icon {
           width: ${responsiveSizes.mobile.width}px !important;
@@ -198,7 +448,6 @@ export class UIManager {
         }
       }
       
-      /* États UIManager */
       .ui-icon.ui-hidden {
         opacity: 0 !important;
         pointer-events: none !important;
@@ -211,37 +460,12 @@ export class UIManager {
         filter: grayscale(50%) !important;
       }
       
-      .ui-icon.ui-disabled:hover {
-        transform: none !important;
-      }
-      
-      /* Animations standardisées */
-      .ui-icon.ui-fade-in {
-        animation: uiIconFadeIn 0.3s ease !important;
-      }
-      
-      .ui-icon.ui-fade-out {
-        animation: uiIconFadeOut 0.2s ease !important;
-      }
-      
-      @keyframes uiIconFadeIn {
-        from { opacity: 0; transform: translateY(20px) scale(0.8); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      
-      @keyframes uiIconFadeOut {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to { opacity: 0; transform: translateY(20px) scale(0.8); }
-      }
-      
-      /* Hover standardisé */
       .ui-icon:hover:not(.ui-disabled) {
         transform: scale(1.1) !important;
       }
       
-      /* Indicateur UIManager */
       .ui-icon[data-positioned-by="uimanager"]::before {
-        content: "📍";
+        content: "🛡️";
         position: absolute;
         top: -8px;
         right: -8px;
@@ -253,106 +477,12 @@ export class UIManager {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [UIManager] CSS global icônes injecté');
+    console.log('🎨 [UIManager] CSS global icônes injecté avec protection');
   }
 
-  // === 🎛️ INITIALISATION MODULE CORRIGÉE ===
-  
-  async initializeModule(moduleId, ...args) {
-    if (this.debug) {
-      console.log(`🚀 [UIManager] Initialisation module: ${moduleId}`);
-    }
-    
-    const config = this.modules.get(moduleId);
-    if (!config) {
-      throw new Error(`Module ${moduleId} non enregistré`);
-    }
-    
-    const state = this.moduleStates.get(moduleId);
-    if (state.initialized) {
-      if (this.debug) {
-        console.log(`ℹ️ [UIManager] Module ${moduleId} déjà initialisé`);
-      }
-      return config.instance;
-    }
-    
-    try {
-      // 1. Créer l'instance du module
-      const instance = await config.factory(...args);
-      
-      if (!instance) {
-        throw new Error(`Factory du module ${moduleId} a retourné null`);
-      }
-      
-      // 2. Stocker l'instance
-      config.instance = instance;
-      this.moduleInstances.set(moduleId, instance);
-      state.initialized = true;
-      
-      // ✅ 3. CRÉER L'ICÔNE AVEC TAILLE CENTRALISÉE
-      await this.createModuleIcon(moduleId, instance, config);
-      
-      // 4. Appliquer l'état initial
-      this.applyModuleState(moduleId);
-      
-      if (this.debug) {
-        console.log(`✅ [UIManager] Module ${moduleId} initialisé avec taille centralisée`);
-      }
-      
-      return instance;
-      
-    } catch (error) {
-      console.error(`❌ [UIManager] Erreur initialisation ${moduleId}:`, error);
-      throw error;
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Création d'icône avec taille centralisée
-  async createModuleIcon(moduleId, instance, config) {
-    console.log(`🎨 [UIManager] Création icône pour ${moduleId} avec taille centralisée...`);
-    
-    try {
-      // Vérifier si le module a besoin d'une icône
-      const layoutConfig = config.layout;
-      if (!layoutConfig || layoutConfig.type !== 'icon') {
-        console.log(`ℹ️ [UIManager] Module ${moduleId} n'a pas d'icône`);
-        return null;
-      }
-      
-      // Vérifier si le module peut créer une icône
-      if (typeof instance.createIcon !== 'function') {
-        console.warn(`⚠️ [UIManager] Module ${moduleId} ne peut pas créer d'icône`);
-        return null;
-      }
-      
-      // Demander au module de créer son icône
-      const iconElement = await instance.createIcon();
-      
-      if (!iconElement) {
-        console.warn(`⚠️ [UIManager] Module ${moduleId} n'a pas créé d'icône`);
-        return null;
-      }
-      
-      // ✅ APPLIQUER LA TAILLE CENTRALISÉE IMMÉDIATEMENT
-      this.applyStandardizedSize(iconElement);
-      
-      // ✅ ENREGISTRER ET POSITIONNER L'ICÔNE
-      this.registerIconPosition(moduleId, iconElement, layoutConfig);
-      
-      console.log(`✅ [UIManager] Icône créée avec taille centralisée pour ${moduleId}`);
-      return iconElement;
-      
-    } catch (error) {
-      console.error(`❌ [UIManager] Erreur création icône ${moduleId}:`, error);
-      return null;
-    }
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Appliquer taille standardisée
   applyStandardizedSize(iconElement) {
     const currentSize = this.getCurrentIconSize();
     
-    // Forcer la taille via CSS
     iconElement.style.width = `${currentSize.width}px`;
     iconElement.style.height = `${currentSize.height}px`;
     iconElement.style.minWidth = `${currentSize.width}px`;
@@ -361,23 +491,21 @@ export class UIManager {
     iconElement.style.maxHeight = `${currentSize.height}px`;
     iconElement.style.zIndex = this.iconConfig.zIndex;
     
-    // Ajouter la classe ui-icon pour le CSS global
     iconElement.classList.add('ui-icon');
+    iconElement.setAttribute('data-positioned-by', 'uimanager');
     
-    console.log(`📏 [UIManager] Taille appliquée: ${currentSize.width}x${currentSize.height}`);
+    console.log(`📏 [UIManager] Taille appliquée PROTÉGÉE: ${currentSize.width}x${currentSize.height}`);
   }
 
-  // === 🎨 POSITIONNEMENT (AMÉLIORÉ AVEC TAILLES CENTRALISÉES) ===
-  
-setupDefaultGroups() {
-  this.iconGroups.set('ui-icons', {
-    anchor: 'bottom-right',
-    spacing: this.iconConfig.spacing,
-    padding: this.iconConfig.padding,
-    members: [],
-    expectedOrder: ['inventory', 'quest', 'pokedex', 'team'] // Ordre attendu
-  });
-}
+  setupDefaultGroups() {
+    this.iconGroups.set('ui-icons', {
+      anchor: 'bottom-right',
+      spacing: this.iconConfig.spacing,
+      padding: this.iconConfig.padding,
+      members: [],
+      expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
+    });
+  }
   
   setupResizeListener() {
     let resizeTimeout;
@@ -389,8 +517,6 @@ setupDefaultGroups() {
         if (newBreakpoint !== this.currentBreakpoint) {
           console.log(`📱 [UIManager] Breakpoint changé: ${this.currentBreakpoint} → ${newBreakpoint}`);
           this.currentBreakpoint = newBreakpoint;
-          
-          // Réappliquer les tailles à toutes les icônes
           this.applyNewSizesToAllIcons();
         }
         
@@ -401,12 +527,11 @@ setupDefaultGroups() {
   
   applyNewSizesToAllIcons() {
     const currentSize = this.getCurrentIconSize();
-    console.log(`📏 [UIManager] Application nouvelle taille à toutes les icônes: ${currentSize.width}x${currentSize.height}`);
+    console.log(`📏 [UIManager] Application nouvelle taille PROTÉGÉE: ${currentSize.width}x${currentSize.height}`);
     
     this.registeredIcons.forEach((iconConfig, moduleId) => {
       if (iconConfig.element) {
         this.applyStandardizedSize(iconConfig.element);
-        // Mettre à jour la config
         iconConfig.size = currentSize;
       }
     });
@@ -418,7 +543,6 @@ setupDefaultGroups() {
       return;
     }
 
-    // Utiliser la taille centralisée
     const currentSize = this.getCurrentIconSize();
     
     const iconConfig = {
@@ -427,30 +551,27 @@ setupDefaultGroups() {
       anchor: config.anchor || 'bottom-right',
       order: config.order || 0,
       group: config.group || 'ui-icons',
-      spacing: this.iconConfig.spacing, // Utiliser spacing centralisé
-      size: currentSize // Utiliser taille centralisée
+      spacing: this.iconConfig.spacing,
+      size: currentSize
     };
 
     this.registeredIcons.set(moduleId, iconConfig);
 
-    // Ajouter au groupe
-const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-if (!group.members.includes(moduleId)) {
-  group.members.push(moduleId);
-  // Trier par ordre défini
-  group.members.sort((a, b) => {
-    const iconA = this.registeredIcons.get(a);
-    const iconB = this.registeredIcons.get(b);
-    const orderA = iconA?.order !== undefined ? iconA.order : 999;
-    const orderB = iconB?.order !== undefined ? iconB.order : 999;
-    return orderA - orderB;
-  });
-}
+    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+    if (!group.members.includes(moduleId)) {
+      group.members.push(moduleId);
+      group.members.sort((a, b) => {
+        const iconA = this.registeredIcons.get(a);
+        const iconB = this.registeredIcons.get(b);
+        const orderA = iconA?.order !== undefined ? iconA.order : 999;
+        const orderB = iconB?.order !== undefined ? iconB.order : 999;
+        return orderA - orderB;
+      });
+    }
 
-    // Positionner immédiatement
     this.positionIcon(moduleId);
 
-    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée avec taille centralisée (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
+    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
   positionIcon(moduleId) {
@@ -462,9 +583,8 @@ if (!group.members.includes(moduleId)) {
     
     if (memberIndex === -1) return;
 
-    // Position de base selon anchor
     let baseX, baseY;
-    const padding = this.iconConfig.padding; // Utiliser padding centralisé
+    const padding = this.iconConfig.padding;
     
     switch (iconConfig.anchor) {
       case 'bottom-right':
@@ -488,20 +608,16 @@ if (!group.members.includes(moduleId)) {
         baseY = window.innerHeight - padding;
     }
 
-    // Calculer offset selon la position dans le groupe
-    const spacing = this.iconConfig.spacing; // Utiliser spacing centralisé
-    const iconWidth = iconConfig.size.width; // Taille centralisée
+    const spacing = this.iconConfig.spacing;
+    const iconWidth = iconConfig.size.width;
     
     let offsetX = 0;
     if (iconConfig.anchor.includes('right')) {
-      // Pour bottom-right, on va vers la gauche
       offsetX = -memberIndex * (iconWidth + spacing) - iconWidth;
     } else {
-      // Pour les autres, on va vers la droite
       offsetX = memberIndex * (iconWidth + spacing);
     }
 
-    // Appliquer la position
     const element = iconConfig.element;
     element.style.position = 'fixed';
     element.style.left = `${baseX + offsetX}px`;
@@ -509,7 +625,7 @@ if (!group.members.includes(moduleId)) {
     element.style.zIndex = this.iconConfig.zIndex;
 
     if (this.debug) {
-      console.log(`📍 [UIManager] ${moduleId} positionné à (${baseX + offsetX}, ${baseY - iconConfig.size.height}) avec taille ${iconConfig.size.width}x${iconConfig.size.height}`);
+      console.log(`📍 [UIManager] ${moduleId} positionné PROTÉGÉ à (${baseX + offsetX}, ${baseY - iconConfig.size.height})`);
     }
   }
 
@@ -519,206 +635,15 @@ if (!group.members.includes(moduleId)) {
     });
     
     if (this.debug) {
-      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec tailles centralisées');
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées PROTÉGÉES');
     }
   }
 
-  // === 🎛️ CONTRÔLE DES MODULES (INCHANGÉ) ===
+  // === MÉTHODES PUBLIQUES (identiques mais avec protection) ===
 
-  showModule(moduleId, options = {}) {
-    if (!this.canShowModule(moduleId)) {
-      if (this.debug) {
-        console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
-      }
-      return false;
-    }
-    
-    const success = this.setModuleState(moduleId, { visible: true });
-    
-    if (success) {
-      this.openModules.add(moduleId);
-      
-      // ✅ AFFICHER L'ICÔNE VIA UIManager
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.display = 'block';
-        iconConfig.element.style.visibility = 'visible';
-        iconConfig.element.style.opacity = '1';
-        iconConfig.element.style.pointerEvents = 'auto';
-        iconConfig.element.classList.remove('ui-hidden', 'hidden');
-        this.positionIcon(moduleId);
-      }
-      
-      if (this.debug) {
-        console.log(`👁️ [UIManager] Module ${moduleId} affiché avec icône`);
-      }
-    }
-    
-    return success;
-  }
-  
-  hideModule(moduleId, options = {}) {
-    const success = this.setModuleState(moduleId, { visible: false });
-    
-    if (success) {
-      this.openModules.delete(moduleId);
-      
-      // ✅ CACHER L'ICÔNE VIA UIManager
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        if (options.animated !== false) {
-          iconConfig.element.style.transition = 'opacity 0.3s ease';
-          iconConfig.element.style.opacity = '0';
-          setTimeout(() => {
-            iconConfig.element.style.display = 'none';
-          }, 300);
-        } else {
-          iconConfig.element.style.display = 'none';
-        }
-        
-        // Repositionner les autres après un délai
-        setTimeout(() => {
-          this.repositionAllIcons();
-        }, options.animated !== false ? 350 : 50);
-      }
-      
-      if (this.debug) {
-        console.log(`👻 [UIManager] Module ${moduleId} caché avec icône`);
-      }
-    }
-    
-    return success;
-  }
-  
-  enableModule(moduleId) {
-    const success = this.setModuleState(moduleId, { enabled: true });
-    
-    if (success) {
-      // ✅ ACTIVER L'ICÔNE VIA UIManager
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.opacity = '1';
-        iconConfig.element.style.pointerEvents = 'auto';
-        iconConfig.element.style.filter = '';
-        iconConfig.element.classList.remove('ui-disabled');
-      }
-      
-      if (this.debug) {
-        console.log(`🔧 [UIManager] Module ${moduleId} activé avec icône`);
-      }
-    }
-    
-    return success;
-  }
-  
-  disableModule(moduleId) {
-    const success = this.setModuleState(moduleId, { enabled: false });
-    
-    if (success) {
-      // ✅ DÉSACTIVER L'ICÔNE VIA UIManager
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.opacity = '0.5';
-        iconConfig.element.style.pointerEvents = 'none';
-        iconConfig.element.style.filter = 'grayscale(50%)';
-        iconConfig.element.classList.add('ui-disabled');
-      }
-      
-      if (this.debug) {
-        console.log(`🔧 [UIManager] Module ${moduleId} désactivé avec icône`);
-      }
-    }
-    
-    return success;
-  }
-
-  // === 🔄 WORKFLOW COMPLET ===
-
-  async initializeAllModules(...args) {
-    if (this.debug) {
-      console.log('🚀 [UIManager] Initialisation de tous les modules avec tailles centralisées...');
-    }
-    
-    const results = {};
-    const errors = [];
-    
-    const sortedModules = Array.from(this.modules.entries())
-      .sort((a, b) => (b[1].priority || 100) - (a[1].priority || 100));
-    
-    for (const [moduleId, config] of sortedModules) {
-      try {
-        const instance = await this.initializeModule(moduleId, ...args);
-        results[moduleId] = instance;
-      } catch (error) {
-        errors.push(`${moduleId}: ${error.message}`);
-        if (config.critical) {
-          console.error(`💥 [UIManager] Module critique ${moduleId} a échoué !`);
-        }
-      }
-    }
-    
-    this.globalState.initialized = true;
-    
-    // ✅ REPOSITIONNER TOUTES LES ICÔNES CRÉÉES
-    setTimeout(() => {
-      this.repositionAllIcons();
-      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées avec tailles centralisées`);
-    }, 100);
-    
-    if (this.debug) {
-      console.log(`✅ [UIManager] Initialisation terminée. Succès: ${Object.keys(results).length}, Erreurs: ${errors.length}`);
-      console.log(`📏 Taille icônes: ${this.getCurrentIconSize().width}x${this.getCurrentIconSize().height}`);
-    }
-    
-    return {
-      success: errors.length === 0,
-      results,
-      errors,
-      iconsCreated: this.registeredIcons.size,
-      iconSize: this.getCurrentIconSize()
-    };
-  }
-
-  // === 📏 API PUBLIQUE POUR MODIFIER LES TAILLES ===
-  
-  setIconSize(width, height) {
-    console.log(`📏 [UIManager] Changement taille icônes: ${width}x${height}`);
-    
-    this.updateIconConfig({
-      defaultSize: { width, height },
-      responsiveSizes: {
-        mobile: { width: Math.round(width * 0.85), height: Math.round(height * 0.85) },
-        tablet: { width: Math.round(width * 0.92), height: Math.round(height * 0.92) },
-        desktop: { width, height }
-      }
-    });
-  }
-  
-  setIconSpacing(spacing) {
-    console.log(`📏 [UIManager] Changement espacement icônes: ${spacing}px`);
-    
-    this.updateIconConfig({ spacing });
-  }
-  
-  setIconPadding(padding) {
-    console.log(`📏 [UIManager] Changement padding icônes: ${padding}px`);
-    
-    this.updateIconConfig({ padding });
-  }
-  
-  getIconConfiguration() {
-    return {
-      ...this.iconConfig,
-      currentSize: this.getCurrentIconSize(),
-      currentBreakpoint: this.currentBreakpoint
-    };
-  }
-
-  // === RESTE IDENTIQUE (méthodes existantes) ===
-  
   async registerModule(moduleId, moduleConfig) {
     if (this.debug) {
-      console.log(`📝 [UIManager] Enregistrement module: ${moduleId}`);
+      console.log(`📝 [UIManager] Enregistrement module PROTÉGÉ: ${moduleId}`);
     }
     
     const config = {
@@ -740,11 +665,176 @@ if (!group.members.includes(moduleId)) {
     this.moduleStates.set(moduleId, { ...config.defaultState });
     
     if (this.debug) {
-      console.log(`✅ [UIManager] Module ${moduleId} enregistré`);
+      console.log(`✅ [UIManager] Module ${moduleId} enregistré PROTÉGÉ`);
     }
     
     return this;
   }
+
+  showModule(moduleId, options = {}) {
+    if (!this.canShowModule(moduleId)) {
+      if (this.debug) {
+        console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
+      }
+      return false;
+    }
+    
+    const success = this.setModuleState(moduleId, { visible: true });
+    
+    if (success) {
+      this.openModules.add(moduleId);
+      
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        iconConfig.element.style.display = 'block';
+        iconConfig.element.style.visibility = 'visible';
+        iconConfig.element.style.opacity = '1';
+        iconConfig.element.style.pointerEvents = 'auto';
+        iconConfig.element.classList.remove('ui-hidden', 'hidden');
+        this.positionIcon(moduleId);
+      }
+      
+      if (this.debug) {
+        console.log(`👁️ [UIManager] Module ${moduleId} affiché PROTÉGÉ`);
+      }
+    }
+    
+    return success;
+  }
+  
+  hideModule(moduleId, options = {}) {
+    const success = this.setModuleState(moduleId, { visible: false });
+    
+    if (success) {
+      this.openModules.delete(moduleId);
+      
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        if (options.animated !== false) {
+          iconConfig.element.style.transition = 'opacity 0.3s ease';
+          iconConfig.element.style.opacity = '0';
+          setTimeout(() => {
+            iconConfig.element.style.display = 'none';
+          }, 300);
+        } else {
+          iconConfig.element.style.display = 'none';
+        }
+        
+        setTimeout(() => {
+          this.repositionAllIcons();
+        }, options.animated !== false ? 350 : 50);
+      }
+      
+      if (this.debug) {
+        console.log(`👻 [UIManager] Module ${moduleId} caché PROTÉGÉ`);
+      }
+    }
+    
+    return success;
+  }
+  
+  enableModule(moduleId) {
+    const success = this.setModuleState(moduleId, { enabled: true });
+    
+    if (success) {
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        iconConfig.element.style.opacity = '1';
+        iconConfig.element.style.pointerEvents = 'auto';
+        iconConfig.element.style.filter = '';
+        iconConfig.element.classList.remove('ui-disabled');
+      }
+      
+      if (this.debug) {
+        console.log(`🔧 [UIManager] Module ${moduleId} activé PROTÉGÉ`);
+      }
+    }
+    
+    return success;
+  }
+  
+  disableModule(moduleId) {
+    const success = this.setModuleState(moduleId, { enabled: false });
+    
+    if (success) {
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        iconConfig.element.style.opacity = '0.5';
+        iconConfig.element.style.pointerEvents = 'none';
+        iconConfig.element.style.filter = 'grayscale(50%)';
+        iconConfig.element.classList.add('ui-disabled');
+      }
+      
+      if (this.debug) {
+        console.log(`🔧 [UIManager] Module ${moduleId} désactivé PROTÉGÉ`);
+      }
+    }
+    
+    return success;
+  }
+
+  // === DEBUG AMÉLIORÉ ===
+
+  debugInfo() {
+    const iconConfig = this.getIconConfiguration();
+    const diagnosis = this.diagnoseInitializationIssues();
+    
+    const info = {
+      mode: 'uimanager-with-anti-duplication-protection',
+      currentGameState: this.globalState.currentGameState,
+      totalModules: this.modules.size,
+      totalIcons: this.registeredIcons.size,
+      iconConfiguration: iconConfig,
+      initializedModules: Array.from(this.moduleStates.entries())
+        .filter(([id, state]) => state.initialized).length,
+      openModules: Array.from(this.openModules),
+      
+      // ✅ Info protection anti-duplication
+      protection: {
+        inProgress: Array.from(this.initializationTracker.inProgress),
+        completed: Array.from(this.initializationTracker.completed),
+        iconCreated: Array.from(this.initializationTracker.iconCreated),
+        attempts: Object.fromEntries(this.initializationTracker.attempts),
+        issues: diagnosis.issues
+      },
+      
+      moduleStates: Object.fromEntries(
+        Array.from(this.moduleStates.entries()).map(([id, state]) => [
+          id, 
+          { visible: state.visible, enabled: state.enabled, initialized: state.initialized }
+        ])
+      ),
+      
+      registeredIcons: Object.fromEntries(
+        Array.from(this.registeredIcons.entries()).map(([id, config]) => [
+          id,
+          { 
+            anchor: config.anchor,
+            order: config.order,
+            group: config.group,
+            size: config.size,
+            hasElement: !!config.element,
+            visible: config.element ? config.element.style.display !== 'none' : false,
+            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false
+          }
+        ])
+      ),
+      
+      interactionRules: this.interactionRules
+    };
+    
+    console.group('🎛️ UIManager Debug Info (avec protection anti-duplication)');
+    console.table(info.moduleStates);
+    console.log('🛡️ Protection anti-duplication:', info.protection);
+    console.log('📏 Configuration icônes:', iconConfig);
+    console.log('📍 Icônes créées:', info.registeredIcons);
+    console.log('⚠️ Issues détectées:', diagnosis.issues);
+    console.groupEnd();
+    
+    return info;
+  }
+
+  // === MÉTHODES RESTANTES (identiques) ===
 
   setGameState(stateName, options = {}) {
     const previousState = this.globalState.currentGameState;
@@ -894,7 +984,12 @@ if (!group.members.includes(moduleId)) {
       iconConfiguration: this.getIconConfiguration(),
       initializedModules: Array.from(this.moduleStates.entries())
         .filter(([id, state]) => state.initialized)
-        .map(([id]) => id)
+        .map(([id]) => id),
+      protection: {
+        inProgress: Array.from(this.initializationTracker.inProgress),
+        completed: Array.from(this.initializationTracker.completed),
+        iconCreated: Array.from(this.initializationTracker.iconCreated)
+      }
     };
   }
 
@@ -930,53 +1025,35 @@ if (!group.members.includes(moduleId)) {
     });
   }
 
-  debugInfo() {
-    const iconConfig = this.getIconConfiguration();
+  setIconSize(width, height) {
+    console.log(`📏 [UIManager] Changement taille icônes: ${width}x${height}`);
     
-    const info = {
-      mode: 'uimanager-with-centralized-sizes',
-      currentGameState: this.globalState.currentGameState,
-      totalModules: this.modules.size,
-      totalIcons: this.registeredIcons.size,
-      iconConfiguration: iconConfig,
-      initializedModules: Array.from(this.moduleStates.entries())
-        .filter(([id, state]) => state.initialized).length,
-      openModules: Array.from(this.openModules),
-      moduleStates: Object.fromEntries(
-        Array.from(this.moduleStates.entries()).map(([id, state]) => [
-          id, 
-          { visible: state.visible, enabled: state.enabled, initialized: state.initialized }
-        ])
-      ),
-      registeredIcons: Object.fromEntries(
-        Array.from(this.registeredIcons.entries()).map(([id, config]) => [
-          id,
-          { 
-            anchor: config.anchor,
-            order: config.order,
-            group: config.group,
-            size: config.size,
-            hasElement: !!config.element,
-            visible: config.element ? config.element.style.display !== 'none' : false,
-            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false
-          }
-        ])
-      ),
-      interactionRules: this.interactionRules
-    };
-    
-    console.group('🎛️ UIManager Debug Info (tailles centralisées)');
-    console.table(info.moduleStates);
-    console.log('📏 Configuration icônes:', iconConfig);
-    console.log('📍 Icônes créées et positionnées:', info.registeredIcons);
-    console.log('📊 Global State:', {
-      currentGameState: info.currentGameState,
-      openModules: info.openModules,
-      rules: Object.keys(this.interactionRules).filter(rule => this.isRuleActive(rule))
+    this.updateIconConfig({
+      defaultSize: { width, height },
+      responsiveSizes: {
+        mobile: { width: Math.round(width * 0.85), height: Math.round(height * 0.85) },
+        tablet: { width: Math.round(width * 0.92), height: Math.round(height * 0.92) },
+        desktop: { width, height }
+      }
     });
-    console.groupEnd();
-    
-    return info;
+  }
+  
+  setIconSpacing(spacing) {
+    console.log(`📏 [UIManager] Changement espacement icônes: ${spacing}px`);
+    this.updateIconConfig({ spacing });
+  }
+  
+  setIconPadding(padding) {
+    console.log(`📏 [UIManager] Changement padding icônes: ${padding}px`);
+    this.updateIconConfig({ padding });
+  }
+  
+  getIconConfiguration() {
+    return {
+      ...this.iconConfig,
+      currentSize: this.getCurrentIconSize(),
+      currentBreakpoint: this.currentBreakpoint
+    };
   }
 
   createGroup() { return this; }
@@ -989,10 +1066,9 @@ if (!group.members.includes(moduleId)) {
   }
 
   destroy() {
-    console.log('🧹 [UIManager] Destruction...');
+    console.log('🧹 [UIManager] Destruction PROTÉGÉE...');
     
     try {
-      // Supprimer le CSS global
       const style = document.querySelector('#uimanager-global-icons');
       if (style) style.remove();
       
@@ -1009,9 +1085,12 @@ if (!group.members.includes(moduleId)) {
       this.registeredIcons.clear();
       this.iconGroups.clear();
       
+      // Reset tracker
+      this.resetInitializationTracker();
+      
       this.globalState.initialized = false;
       
-      console.log('✅ [UIManager] Destruction terminée');
+      console.log('✅ [UIManager] Destruction PROTÉGÉE terminée');
       
     } catch (error) {
       console.error('❌ [UIManager] Erreur destruction:', error);
