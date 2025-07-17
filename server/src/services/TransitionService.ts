@@ -6,7 +6,9 @@ import { NpcManager } from "../managers/NPCManager";
 import { Player } from "../schema/PokeWorldState";
 import { TeleportConfig, TransitionRule, ValidationContext } from "../config/TeleportConfig";
 import { JWTManager } from "../managers/JWTManager";
+import { FollowerHandlers } from "../handlers/FollowerHandlers"; // ✅ AJOUT
 import fs from "fs";
+
 import path from "path";
 
 export interface TransitionRequest {
@@ -52,6 +54,8 @@ export class TransitionService {
   private spawnData: Map<string, SpawnData[]> = new Map(); // ✅ NOUVEAU: Cache des spawns
   private config: TeleportConfig;
   private jwtManager: JWTManager; // ✅ AJOUT
+  private followerHandlers: FollowerHandlers | null = null; // ✅ AJOUT
+
 
   constructor(npcManagers: Map<string, NpcManager>) {
     this.npcManagers = npcManagers;
@@ -275,6 +279,11 @@ async validateTransition(client: Client, player: any, data: TransitionRequest): 
 
     console.log(`✅ [TransitionService] Spawn trouvé: ${matchingSpawn.id} à (${matchingSpawn.x}, ${matchingSpawn.y})`);
     return { x: matchingSpawn.x, y: matchingSpawn.y };
+    // 6. ✅ NOUVEAU: Gérer la transition du follower
+if (this.followerHandlers) {
+  console.log(`🐾 [TransitionService] Gestion transition follower pour ${client.sessionId}`);
+  this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
+}
   }
 
   // ✅ CHARGEMENT DES TÉLÉPORTS ET SPAWNS
