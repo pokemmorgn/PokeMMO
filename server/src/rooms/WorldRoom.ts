@@ -1608,7 +1608,9 @@ async onJoin(client: Client, options: any = {}) {
         client.leave(4000, "Token/username mismatch");
         return;
       }
-
+// Dans WorldRoom.ts, après la vérification JWT
+console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
+console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
       // Permissions obligatoires
       if (!decodedToken.permissions || !decodedToken.permissions.includes('play')) {
         console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decodedToken.permissions);
@@ -1636,6 +1638,7 @@ async onJoin(client: Client, options: any = {}) {
     player.id = client.sessionId;
     player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
     player.isDev = decodedToken?.isDev || false;
+console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
 
     // Debug d'abord
     await this.positionSaver.debugPlayerPosition(player.name);
