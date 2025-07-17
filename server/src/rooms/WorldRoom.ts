@@ -1578,60 +1578,45 @@ async onJoin(client: Client, options: any = {}) {
     ...options, 
     sessionToken: options.sessionToken ? '***TOKEN***' : 'MISSING' 
   });
-let decodedToken: any = null;
 
-// ✅ VÉRIFICATION JWT OBLIGATOIRE
-if (options.sessionToken) {
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
-    console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
+  let decodedToken: any = null;
 
-    // ✅ NOUVEAU : Enregistrer dans JWTManager AVEC gestion d'erreur TS
+  // ✅ VÉRIFICATION JWT OBLIGATOIRE
+  if (options.sessionToken) {
     try {
-      await this.jwtManager.registerUser(client.sessionId, decoded);
-    } catch (err) {
-      // Protection TS sur .message
-      const errorMessage =
-        (err && typeof err === "object" && "message" in err)
-          ? (err as any).message
-          : "Erreur inconnue";
-      console.error(`⛔ [WorldRoom] Refus connexion multiple pour ${decoded.username}: ${errorMessage}`);
-      client.send("login_error", { message: errorMessage });
-      client.leave(4001, "Vous êtes déjà connecté sur un autre onglet ou appareil.");
-      return;
-    }
+      const jwtLib = require('jsonwebtoken');
+      decodedToken = jwtLib.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
+      console.log(`✅ [WorldRoom] Token JWT valide pour ${decodedToken.username}`);
 
-    // Vérifier cohérence username
-    if (decoded.username !== options.name) {
-      console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
-      client.leave(4000, "Token/username mismatch");
-      return;
-    }
+      // Tentative d'enregistrement JWTManager, gestion double connexion
+      try {
+        await this.jwtManager.registerUser(client.sessionId, decodedToken);
+      } catch (err) {
+        const errorMessage =
+          (err && typeof err === "object" && "message" in err)
+            ? (err as any).message
+            : "Erreur inconnue";
+        console.error(`⛔ [WorldRoom] Refus connexion multiple pour ${decodedToken.username}: ${errorMessage}`);
+        client.send("login_error", { message: errorMessage });
+        client.leave(4001, "Vous êtes déjà connecté sur un autre onglet ou appareil.");
+        return;
+      }
 
-    // ... (suite de ton code pour la création du joueur, etc.)
+      // Vérifier cohérence username
+      if (decodedToken.username !== options.name) {
+        console.error(`❌ [WorldRoom] Username incohérent: token=${decodedToken.username}, options=${options.name}`);
+        client.leave(4000, "Token/username mismatch");
+        return;
+      }
 
-  } catch (error) {
-    console.error(`❌ [WorldRoom] Token JWT invalide:`, error);
-    client.leave(4000, "Invalid session token");
-    return;
-  }
-} else {
-  console.error(`❌ [WorldRoom] Aucun token JWT fourni`);
-  client.leave(4000, "Session token required");
-  return;
-}
-
-      
-      // Optionnel : vérifier permissions
-      if (!decoded.permissions || !decoded.permissions.includes('play')) {
-        console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decoded.permissions);
+      // Permissions obligatoires
+      if (!decodedToken.permissions || !decodedToken.permissions.includes('play')) {
+        console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decodedToken.permissions);
         client.leave(4000, "Insufficient permissions");
         return;
       }
-      
-      console.log(`🎮 [WorldRoom] Permissions validées:`, decoded.permissions);
-      
+      console.log(`🎮 [WorldRoom] Permissions validées:`, decodedToken.permissions);
+
     } catch (error) {
       console.error(`❌ [WorldRoom] Token JWT invalide:`, error);
       client.leave(4000, "Invalid session token");
@@ -1642,210 +1627,186 @@ if (options.sessionToken) {
     client.leave(4000, "Session token required");
     return;
   }
-    try {
-      // Créer le joueur
-      const player = new Player();
-      
-      // Données de base
-      player.id = client.sessionId;
-      player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-  player.isDev = decodedToken?.isDev || false; // ✅ Maintenant ça marche !
 
-      // Debug d'abord
-      await this.positionSaver.debugPlayerPosition(player.name);
+  try {
+    // Créer le joueur
+    const player = new Player();
 
-      console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
-      console.log(`👤 Joueur: ${player.name}`);
-      console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
+    // Données de base
+    player.id = client.sessionId;
+    player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
+    player.isDev = decodedToken?.isDev || false;
 
-      // Étape 1: Toujours chercher en DB d'abord
-      const savedData = await PlayerData.findOne({ username: player.name });
-      console.log(`💾 Données DB trouvées:`, savedData ? {
-        lastX: savedData.lastX,
-        lastY: savedData.lastY,
-        lastMap: savedData.lastMap,
-        types: {
-          lastX: typeof savedData.lastX,
-          lastY: typeof savedData.lastY,
-          lastMap: typeof savedData.lastMap
-        }
-      } : 'Aucune donnée');
+    // Debug d'abord
+    await this.positionSaver.debugPlayerPosition(player.name);
 
-      // Étape 2: Priorité absolue à la DB si données complètes
-      if (savedData && 
-          typeof savedData.lastX === 'number' && 
-          typeof savedData.lastY === 'number' && 
-          savedData.lastMap) {
-        
-        // Écrase tout avec les données DB
-        player.x = Math.round(savedData.lastX);
-        player.y = Math.round(savedData.lastY);
-        player.currentZone = savedData.lastMap;
+    console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
+    console.log(`👤 Joueur: ${player.name}`);
+    console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
 
-        // ✅ NOUVEAU: Récupérer aussi le nom d'utilisateur
-  if (savedData.username) {
-    player.name = savedData.username;
-    console.log(`📝 [WorldRoom] Nom utilisateur récupéré depuis DB: ${player.name}`);
-  }
-        
-        console.log(`💾 [PRIORITÉ DB] Position restaurée: ${player.name}`);
-        console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-        console.log(`🔥 TOUTES les autres positions ignorées (options, défaut, teleport, etc.)`);
-        
-      } else {
-        // Étape 3: Fallback seulement si DB incomplète/manquante
-        console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
-        
-        // Utiliser les options ou défaut
-        player.x = options.spawnX || 360;
-        player.y = options.spawnY || 120;
-        player.currentZone = options.spawnZone || "beach";
-        
-        console.log(`🆕 Position fallback: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
-        
-        // Debug des données manquantes
-        if (savedData) {
-          console.log(`🔍 Détail des données incomplètes:`, {
-            hasLastX: savedData.lastX !== undefined && savedData.lastX !== null,
-            hasLastY: savedData.lastY !== undefined && savedData.lastY !== null,
-            hasLastMap: !!savedData.lastMap,
-            actualValues: {
-              lastX: savedData.lastX,
-              lastY: savedData.lastY,
-              lastMap: savedData.lastMap
-            }
-          });
-        }
+    // Étape 1: Toujours chercher en DB d'abord
+    const savedData = await PlayerData.findOne({ username: player.name });
+    console.log(`💾 Données DB trouvées:`, savedData ? {
+      lastX: savedData.lastX,
+      lastY: savedData.lastY,
+      lastMap: savedData.lastMap,
+      types: {
+        lastX: typeof savedData.lastX,
+        lastY: typeof savedData.lastY,
+        lastMap: typeof savedData.lastMap
+      }
+    } : 'Aucune donnée');
 
-        if (savedData) {
-          console.log(`📊 Données trouvées mais incomplètes:`, {
+    // Étape 2: Priorité absolue à la DB si données complètes
+    if (
+      savedData &&
+      typeof savedData.lastX === 'number' &&
+      typeof savedData.lastY === 'number' &&
+      savedData.lastMap
+    ) {
+      // Écrase tout avec les données DB
+      player.x = Math.round(savedData.lastX);
+      player.y = Math.round(savedData.lastY);
+      player.currentZone = savedData.lastMap;
+
+      // NOUVEAU: Récupérer aussi le nom d'utilisateur
+      if (savedData.username) {
+        player.name = savedData.username;
+        console.log(`📝 [WorldRoom] Nom utilisateur récupéré depuis DB: ${player.name}`);
+      }
+
+      console.log(`💾 [PRIORITÉ DB] Position restaurée: ${player.name}`);
+      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`🔥 TOUTES les autres positions ignorées (options, défaut, teleport, etc.)`);
+
+    } else {
+      // Étape 3: Fallback seulement si DB incomplète/manquante
+      console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
+      player.x = options.spawnX || 360;
+      player.y = options.spawnY || 120;
+      player.currentZone = options.spawnZone || "beach";
+      console.log(`🆕 Position fallback: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      if (savedData) {
+        console.log(`🔍 Détail des données incomplètes:`, {
+          hasLastX: savedData.lastX !== undefined && savedData.lastX !== null,
+          hasLastY: savedData.lastY !== undefined && savedData.lastY !== null,
+          hasLastMap: !!savedData.lastMap,
+          actualValues: {
             lastX: savedData.lastX,
             lastY: savedData.lastY,
             lastMap: savedData.lastMap
-          });
-        }
+          }
+        });
       }
-        
-      player.characterId = options.characterId || "brendan";
-      console.log(`🎭 Personnage: ${player.characterId}`);
-
-      console.log(`🌍 Zone de spawn: ${player.currentZone}`);
-      // Ajouter le client au TimeWeatherService
-      if (this.timeWeatherService) {
-        this.timeWeatherService.addClient(client, player.currentZone);
-        console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
-      }
-
-      // Nouvelles propriétés shop
-      player.level = options.level || 1;
-      player.gold = options.gold || 1000;
-      player.experience = options.experience || 0;
-      player.title = options.title || "Dresseur Débutant";
-      
-      // Étape 1: Ajouter au state immédiatement
-      this.state.players.set(client.sessionId, player);
-      console.log("🧪 onJoin - client.sessionId =", client.sessionId);
-      console.log(`✅ Joueur ${player.name} ajouté au state`);
-      console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
-      
-      // Étape 2: Confirmer immédiatement au client avec ses données
-      client.send("playerSpawned", {
-        id: client.sessionId,
-        name: player.name,
-        x: player.x,
-        y: player.y,
-        currentZone: player.currentZone,
-        characterId: player.characterId,
-        level: player.level,
-        gold: player.gold,
-        isDev: player.isDev, // ✅ NOUVEAU: Envoyer aussi isDev au client
-        isMyPlayer: true,
-        totalPlayersInRoom: this.state.players.size
-      });
-
-      console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-      console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
-      console.log(`✅ Joueur ${player.name} créé et confirmé`);
-      // ✅ NOUVEAU: Démarrer le système de Pokémon overworld si premier joueur
-      if (this.state.players.size === 1) {
-        console.log(`🚀 [WorldRoom] Premier joueur - démarrage système Pokémon overworld`);
-        this.overworldPokemonManager.start();
-      }
-      
-      // ✅ NOUVEAU: Synchroniser les Pokémon overworld existants pour le nouveau client
-      this.clock.setTimeout(() => {
-        console.log(`🔄 [WorldRoom] Synchronisation Pokémon overworld pour ${client.sessionId}`);
-        this.overworldPokemonManager.syncPokemonForClient(client);
-      }, 2000); // Après les autres systèmes
-      
-      // Étape 3: Forcer une synchronisation du state après un très court délai
-      this.clock.setTimeout(() => {
-        console.log(`🔄 [WorldRoom] Force sync state pour ${client.sessionId}`);
-        
-        // Vérifier que le joueur est toujours dans le state
-        const playerInState = this.state.players.get(client.sessionId);
-        if (playerInState) {
-          // Envoyer un state complet et filtré
-          const filteredState = this.getFilteredStateForClient(client);
-          client.send("forcedStateSync", {
-            players: filteredState.players,
-            mySessionId: client.sessionId,
-            timestamp: Date.now()
-          });
-          
-          console.log(`✅ [WorldRoom] État forcé envoyé à ${client.sessionId}`);
-        } else {
-          console.error(`❌ [WorldRoom] Joueur ${client.sessionId} disparu du state !`);
-        }
-      }, 200); // 200ms de délai
-
-      // === CONFIGURATION INVENTAIRE DE DÉPART ===
-      try {
-        console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
-        
-        // Donne les objets de départ
-        await InventoryManager.addItem(player.name, "poke_ball", 5);
-        await InventoryManager.addItem(player.name, "potion", 3);
-        
-        // Ne donne la town_map que si le joueur ne l'a pas déjà
-        const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
-        if (hasMap === 0) {
-          await InventoryManager.addItem(player.name, "town_map", 1);
-        }
-
-        // Afficher l'inventaire groupé par poche
-        const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
-        console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
-        
-        console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
-      } catch (err) {
-        console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
-      }
-
-      
-      // Étape 4: Faire entrer le joueur dans sa zone initiale
-      await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
-      this.scheduleFilteredStateUpdate();
-
-      // Étape 5: Setup des quêtes avec délai
-      this.clock.setTimeout(async () => {
-        await this.updateQuestStatusesFixed(player.name, client);
-      }, 2000);
-      
-// Étape 6: Initialiser le follower si le joueur a une équipe
-this.clock.setTimeout(async () => {
-  console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
-  await this.followerHandlers.onTeamChanged(client.sessionId);
-}, 4000); // Après les quêtes (2000ms) + délai sécurisé
-
-console.log(`🎉 ${player.name} a rejoint le monde !`);
-    } catch (error) {
-      console.error(`❌ Erreur lors du join:`, error);
-      
-      // En cas d'erreur, faire quitter le client
-      client.leave(1000, "Erreur lors de la connexion");
     }
+
+    player.characterId = options.characterId || "brendan";
+    console.log(`🎭 Personnage: ${player.characterId}`);
+
+    console.log(`🌍 Zone de spawn: ${player.currentZone}`);
+    // Ajouter le client au TimeWeatherService
+    if (this.timeWeatherService) {
+      this.timeWeatherService.addClient(client, player.currentZone);
+      console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
+    }
+
+    // Nouvelles propriétés shop
+    player.level = options.level || 1;
+    player.gold = options.gold || 1000;
+    player.experience = options.experience || 0;
+    player.title = options.title || "Dresseur Débutant";
+
+    // Étape 1: Ajouter au state immédiatement
+    this.state.players.set(client.sessionId, player);
+    console.log("🧪 onJoin - client.sessionId =", client.sessionId);
+    console.log(`✅ Joueur ${player.name} ajouté au state`);
+    console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
+
+    // Étape 2: Confirmer immédiatement au client avec ses données
+    client.send("playerSpawned", {
+      id: client.sessionId,
+      name: player.name,
+      x: player.x,
+      y: player.y,
+      currentZone: player.currentZone,
+      characterId: player.characterId,
+      level: player.level,
+      gold: player.gold,
+      isDev: player.isDev,
+      isMyPlayer: true,
+      totalPlayersInRoom: this.state.players.size
+    });
+
+    console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
+    console.log(`✅ Joueur ${player.name} créé et confirmé`);
+
+    // Démarrer le système de Pokémon overworld si premier joueur
+    if (this.state.players.size === 1) {
+      console.log(`🚀 [WorldRoom] Premier joueur - démarrage système Pokémon overworld`);
+      this.overworldPokemonManager.start();
+    }
+
+    // Synchroniser les Pokémon overworld existants pour le nouveau client
+    this.clock.setTimeout(() => {
+      console.log(`🔄 [WorldRoom] Synchronisation Pokémon overworld pour ${client.sessionId}`);
+      this.overworldPokemonManager.syncPokemonForClient(client);
+    }, 2000);
+
+    // Forcer une synchronisation du state après un très court délai
+    this.clock.setTimeout(() => {
+      console.log(`🔄 [WorldRoom] Force sync state pour ${client.sessionId}`);
+      const playerInState = this.state.players.get(client.sessionId);
+      if (playerInState) {
+        const filteredState = this.getFilteredStateForClient(client);
+        client.send("forcedStateSync", {
+          players: filteredState.players,
+          mySessionId: client.sessionId,
+          timestamp: Date.now()
+        });
+        console.log(`✅ [WorldRoom] État forcé envoyé à ${client.sessionId}`);
+      } else {
+        console.error(`❌ [WorldRoom] Joueur ${client.sessionId} disparu du state !`);
+      }
+    }, 200);
+
+    // === CONFIGURATION INVENTAIRE DE DÉPART ===
+    try {
+      console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
+      await InventoryManager.addItem(player.name, "poke_ball", 5);
+      await InventoryManager.addItem(player.name, "potion", 3);
+      const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
+      if (hasMap === 0) {
+        await InventoryManager.addItem(player.name, "town_map", 1);
+      }
+      const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+      console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
+      console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
+    } catch (err) {
+      console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
+    }
+
+    // Faire entrer le joueur dans sa zone initiale
+    await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+    this.scheduleFilteredStateUpdate();
+
+    // Setup des quêtes avec délai
+    this.clock.setTimeout(async () => {
+      await this.updateQuestStatusesFixed(player.name, client);
+    }, 2000);
+
+    // Initialiser le follower si le joueur a une équipe
+    this.clock.setTimeout(async () => {
+      console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
+      await this.followerHandlers.onTeamChanged(client.sessionId);
+    }, 4000);
+
+    console.log(`🎉 ${player.name} a rejoint le monde !`);
+  } catch (error) {
+    console.error(`❌ Erreur lors du join:`, error);
+    client.leave(1000, "Erreur lors de la connexion");
   }
+}
 
 async onLeave(client: Client, consented: boolean) {
   console.log(`👋 === PLAYER LEAVE ===`);
