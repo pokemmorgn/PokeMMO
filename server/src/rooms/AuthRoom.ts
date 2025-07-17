@@ -735,7 +735,7 @@ private generateJWT(payload: any): string {
     const key = `${ip}_${action}`;
     const now = Date.now();
     const windowMs = 15 * 60 * 1000; // 15 minutes
-    const maxAttempts = action === 'register' ? 3 : 5;
+    const maxAttempts = action === 'register' ? 5 : 10;
 
     if (!this.rateLimitByIP.has(key)) {
       this.rateLimitByIP.set(key, { count: 1, lastAttempt: now });
