@@ -65,7 +65,13 @@ export class TransitionService {
     
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
-
+/**
+ * ✅ NOUVEAU: Enregistrer le handler de followers
+ */
+setFollowerHandlers(followerHandlers: FollowerHandlers): void {
+  this.followerHandlers = followerHandlers;
+  console.log(`🐾 [TransitionService] FollowerHandlers enregistré pour les transitions`);
+}
   // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
 // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
 async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
@@ -145,6 +151,13 @@ async validateTransition(client: Client, player: any, data: TransitionRequest): 
     }
 
     // 6. Validation réussie
+    // 6. ✅ NOUVEAU: Gérer la transition du follower
+    if (this.followerHandlers) {
+      console.log(`🐾 [TransitionService] Gestion transition follower pour ${client.sessionId}`);
+      this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
+    }
+
+    // 7. Validation réussie
     console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
     console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
     this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
@@ -279,11 +292,6 @@ async validateTransition(client: Client, player: any, data: TransitionRequest): 
 
     console.log(`✅ [TransitionService] Spawn trouvé: ${matchingSpawn.id} à (${matchingSpawn.x}, ${matchingSpawn.y})`);
     return { x: matchingSpawn.x, y: matchingSpawn.y };
-    // 6. ✅ NOUVEAU: Gérer la transition du follower
-if (this.followerHandlers) {
-  console.log(`🐾 [TransitionService] Gestion transition follower pour ${client.sessionId}`);
-  this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
-}
   }
 
   // ✅ CHARGEMENT DES TÉLÉPORTS ET SPAWNS
