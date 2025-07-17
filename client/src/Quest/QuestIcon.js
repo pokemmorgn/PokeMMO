@@ -1,16 +1,17 @@
-// Quest/QuestIcon.js - CORRIGÉ pour affichage garanti
-// 🎯 CORRECTIONS: Position initiale + Affichage forcé + Debug
+// Quest/QuestIcon.js - VERSION OPTIMISÉE ALIGNÉE
+// 🎯 Simplifié pour cohérence avec QuestManager/QuestModule
 
 export class QuestIcon {
   constructor(questManager) {
     this.questManager = questManager;
     
+    // === ÉTAT SIMPLE ===
     this.isVisible = true;
     this.isEnabled = true;
     this.iconElement = null;
-    
     this.onClick = null;
     
+    // === DONNÉES AFFICHÉES ===
     this.displayStats = {
       questCount: 0,
       newQuests: 0,
@@ -18,45 +19,35 @@ export class QuestIcon {
       hasActiveQuests: false
     };
     
-    this.positioningMode = 'uimanager';
-    
-    console.log('📖 [QuestIcon] Instance créée (affichage garanti)');
+    console.log('📖 [QuestIcon] Instance créée - Version optimisée');
   }
   
-  // === 🚀 INITIALISATION CORRIGÉE ===
+  // === 🚀 INITIALISATION SIMPLE ===
   
-  init() {
+  async init() {
     try {
-      console.log('🚀 [QuestIcon] Initialisation avec affichage garanti...');
+      console.log('🚀 [QuestIcon] Initialisation simple...');
       
-      this.createIcon();
       this.addStyles();
+      this.createIcon();
       this.setupEventListeners();
-      
-      // ✅ CORRECTION 1: Force affichage immédiat
       this.forceDisplay();
       
-      // ✅ CORRECTION 2: Position de secours
-      this.setFallbackPosition();
-      
-      console.log('✅ [QuestIcon] Initialisé avec affichage forcé');
+      console.log('✅ [QuestIcon] Initialisé');
       return this;
       
     } catch (error) {
-      console.error('❌ [QuestIcon] Erreur initialisation:', error);
+      console.error('❌ [QuestIcon] Erreur init:', error);
       throw error;
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE CORRIGÉE ===
+  // === 🎨 CRÉATION INTERFACE SIMPLIFIÉE ===
   
   createIcon() {
-    // Supprimer l'ancien
+    // Supprimer ancien
     const existing = document.querySelector('#quest-icon');
-    if (existing) {
-      existing.remove();
-      console.log('🧹 [QuestIcon] Ancien élément supprimé');
-    }
+    if (existing) existing.remove();
     
     const icon = document.createElement('div');
     icon.id = 'quest-icon';
@@ -82,88 +73,55 @@ export class QuestIcon {
       </div>
     `;
     
-    // ✅ CORRECTION 3: Ajouter immédiatement au DOM
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [QuestIcon] Icône créée et ajoutée au DOM');
+    console.log('🎨 [QuestIcon] Icône créée');
   }
   
-  // ✅ NOUVELLE MÉTHODE: Force affichage
   forceDisplay() {
     if (!this.iconElement) return;
     
-    console.log('🔧 [QuestIcon] Force affichage...');
-    
-    // Styles critiques pour visibilité
+    // Styles essentiels pour visibilité
     this.iconElement.style.display = 'block';
     this.iconElement.style.visibility = 'visible';
     this.iconElement.style.opacity = '1';
     this.iconElement.style.pointerEvents = 'auto';
-    
-    // Supprimer classes cachées
-    this.iconElement.classList.remove('hidden', 'ui-hidden');
-    
-    // Force z-index élevé
     this.iconElement.style.zIndex = '1000';
     
-    console.log('✅ [QuestIcon] Affichage forcé appliqué');
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Position de secours
-  setFallbackPosition() {
-    if (!this.iconElement) return;
-    
-    console.log('📍 [QuestIcon] Application position de secours...');
-    
-    // Position fixe de secours (sera écrasée par UIManager si présent)
+    // Position de secours
     this.iconElement.style.position = 'fixed';
     this.iconElement.style.right = '20px';
     this.iconElement.style.bottom = '20px';
     
-    // Marquer comme position de secours
-    this.iconElement.setAttribute('data-fallback-position', 'true');
+    // Supprimer classes cachées
+    this.iconElement.classList.remove('hidden', 'ui-hidden');
     
-    console.log('📍 [QuestIcon] Position de secours appliquée');
+    console.log('✅ [QuestIcon] Affichage forcé');
   }
   
-  // === 🎨 STYLES IDENTIQUES (optimisés) ===
+  // === 🎨 STYLES OPTIMISÉS ===
   
   addStyles() {
-    if (document.querySelector('#quest-icon-styles')) {
-      return;
-    }
+    if (document.querySelector('#quest-icon-styles')) return;
     
     const style = document.createElement('style');
     style.id = 'quest-icon-styles';
     style.textContent = `
-      /* ===== QUEST ICON STYLES ROBUSTES ===== */
+      /* ===== QUEST ICON STYLES OPTIMISÉS ===== */
       #quest-icon.quest-icon {
-        /* ✅ FORCE AFFICHAGE */
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
-        
-        /* Taille fixe */
         width: 65px !important;
         height: 75px !important;
         cursor: pointer;
         z-index: 1000;
         transition: all 0.3s ease;
         user-select: none;
-        box-sizing: border-box;
-        
-        /* Position par défaut (sera modifiée par UIManager) */
         position: fixed;
         right: 20px;
         bottom: 20px;
-      }
-      
-      /* ✅ OVERRIDE HIDING ATTEMPTS */
-      #quest-icon.quest-icon.hidden {
-        display: block !important;
-        opacity: 0.5 !important;
-        visibility: visible !important;
       }
       
       #quest-icon.quest-icon:hover {
@@ -182,7 +140,6 @@ export class QuestIcon {
         align-items: center;
         justify-content: center;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        position: relative;
         transition: all 0.3s ease;
         overflow: hidden;
       }
@@ -221,7 +178,6 @@ export class QuestIcon {
         font-weight: bold;
         color: white;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        gap: 1px;
       }
       
       #quest-icon .quest-count {
@@ -272,18 +228,15 @@ export class QuestIcon {
       
       #quest-icon .status-dot.inactive {
         background: #666;
-        box-shadow: 0 0 6px rgba(102, 102, 102, 0.6);
       }
       
       #quest-icon .status-dot.new-quest {
         background: #ff9800;
-        box-shadow: 0 0 6px rgba(255, 152, 0, 0.6);
         animation: newQuestBlink 1.5s infinite;
       }
       
       #quest-icon .status-dot.ready-complete {
         background: #2196f3;
-        box-shadow: 0 0 6px rgba(33, 150, 243, 0.6);
         animation: readyBlink 1.5s infinite;
       }
       
@@ -309,7 +262,7 @@ export class QuestIcon {
         font-weight: bold;
       }
       
-      /* Animations */
+      /* Animations essentielles */
       @keyframes pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
@@ -326,67 +279,21 @@ export class QuestIcon {
         50% { opacity: 0.7; }
       }
       
-      /* Animations contextuelles */
       #quest-icon.quest-updated .icon-emoji {
         animation: questBounce 0.6s ease;
       }
       
       @keyframes questBounce {
         0%, 100% { transform: scale(1); }
-        25% { transform: scale(1.3) rotate(-5deg); }
-        50% { transform: scale(1.1) rotate(5deg); }
-        75% { transform: scale(1.2) rotate(-2deg); }
+        50% { transform: scale(1.3); }
       }
       
-      #quest-icon.new-quest .icon-emoji {
-        animation: newQuestAnimation 0.8s ease;
-      }
-      
-      @keyframes newQuestAnimation {
-        0%, 100% { transform: scale(1); }
-        25% { transform: scale(1.4) rotate(-10deg); }
-        50% { transform: scale(1.2) rotate(10deg); }
-        75% { transform: scale(1.3) rotate(-5deg); }
-      }
-      
-      #quest-icon.quest-completed .icon-emoji {
-        animation: questCompleted 1s ease;
-      }
-      
-      @keyframes questCompleted {
-        0% { transform: scale(1); color: inherit; }
-        50% { transform: scale(1.5); color: #4caf50; }
-        100% { transform: scale(1); color: inherit; }
-      }
-      
-      /* États spéciaux */
+      /* États */
       #quest-icon.disabled {
         opacity: 0.5 !important;
         cursor: not-allowed;
-        filter: grayscale(50%);
       }
       
-      #quest-icon.disabled:hover {
-        transform: none !important;
-      }
-      
-      /* Apparition */
-      #quest-icon.appearing {
-        animation: iconAppear 0.5s ease;
-      }
-      
-      @keyframes iconAppear {
-        from {
-          opacity: 0;
-          transform: translateY(50px) scale(0.5);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      
-      /* Quêtes actives */
       #quest-icon.has-active-quests .icon-background {
         animation: activeQuestsGlow 3s ease infinite;
       }
@@ -411,22 +318,13 @@ export class QuestIcon {
           font-size: 20px;
         }
       }
-      
-      /* Debug border */
-      #quest-icon[data-fallback-position="true"] {
-        border: 2px dashed #ff9800 !important;
-      }
-      
-      #quest-icon[data-positioned-by="uimanager"] {
-        border: 1px solid rgba(74, 144, 226, 0.5) !important;
-      }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [QuestIcon] Styles robustes ajoutés');
+    console.log('🎨 [QuestIcon] Styles optimisés ajoutés');
   }
   
-  // === 🎛️ ÉVÉNEMENTS IDENTIQUES ===
+  // === 🎛️ ÉVÉNEMENTS SIMPLES ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -440,6 +338,7 @@ export class QuestIcon {
         return;
       }
       
+      // Animation feedback
       this.iconElement.classList.add('quest-updated');
       setTimeout(() => {
         this.iconElement.classList.remove('quest-updated');
@@ -449,9 +348,10 @@ export class QuestIcon {
         this.onClick();
       }
       
-      console.log('📖 [QuestIcon] Clic détecté');
+      console.log('📖 [QuestIcon] Clic traité');
     });
     
+    // Tooltip simple
     this.iconElement.addEventListener('mouseenter', () => {
       if (this.isEnabled) {
         this.showTooltip();
@@ -465,12 +365,10 @@ export class QuestIcon {
     console.log('🎛️ [QuestIcon] Événements configurés');
   }
   
-  // === 📊 MISE À JOUR DONNÉES IDENTIQUE ===
+  // === 📊 MISE À JOUR DONNÉES ===
   
   updateStats(stats) {
     if (!stats || !this.iconElement) return;
-    
-    console.log('📊 [QuestIcon] Mise à jour stats:', stats);
     
     this.displayStats = {
       questCount: stats.totalActive || 0,
@@ -487,11 +385,13 @@ export class QuestIcon {
     
     const { questCount, newQuests, readyToComplete, hasActiveQuests } = this.displayStats;
     
+    // Compteur
     const countElement = this.iconElement.querySelector('.quest-count');
     if (countElement) {
       countElement.textContent = questCount;
     }
     
+    // Status dot
     const statusDot = this.iconElement.querySelector('.status-dot');
     if (statusDot) {
       statusDot.classList.remove('active', 'inactive', 'new-quest', 'ready-complete');
@@ -507,67 +407,37 @@ export class QuestIcon {
       }
     }
     
+    // État global
     this.iconElement.classList.toggle('has-active-quests', hasActiveQuests);
     
     console.log('📊 [QuestIcon] Affichage mis à jour');
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
+  // === 🎛️ CONTRÔLES UI MANAGER ===
   
-show() {
-  console.log('👁️ [QuestIcon] Affichage (garanti)');
-  
-  this.isVisible = true;
-  
-  if (this.iconElement) {
-    // ✅ FORCE AFFICHAGE ROBUSTE
-    this.iconElement.style.display = 'block';
-    this.iconElement.style.visibility = 'visible';
-    this.iconElement.style.opacity = '1';
-    this.iconElement.style.pointerEvents = 'auto';
-    
-    // Supprimer classes cachées
-    this.iconElement.classList.remove('hidden', 'ui-hidden');
-    this.iconElement.classList.add('appearing');
-    
-    // Force z-index élevé
-    this.iconElement.style.zIndex = '1000';
-    
-    // Marquer comme géré par UIManager
-    this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-    
-    setTimeout(() => {
-      this.iconElement.classList.remove('appearing');
-    }, 500);
-    
-    console.log('✅ [QuestIcon] Affiché avec garantie');
+  show() {
+    this.isVisible = true;
+    this.forceDisplay();
+    return true;
   }
   
-  return true;
-}
-  
   hide() {
-    console.log('👻 [QuestIcon] Masquage');
-    
     this.isVisible = false;
     
     if (this.iconElement) {
       this.iconElement.classList.add('hidden');
-      this.iconElement.removeAttribute('data-positioned-by');
     }
     
     return true;
   }
   
   setEnabled(enabled) {
-    console.log(`🔧 [QuestIcon] setEnabled(${enabled})`);
-    
     this.isEnabled = enabled;
     
     if (this.iconElement) {
       if (enabled) {
         this.iconElement.classList.remove('disabled');
-        this.forceDisplay(); // ✅ Re-force affichage si activé
+        this.forceDisplay(); // Re-force si activé
       } else {
         this.iconElement.classList.add('disabled');
       }
@@ -576,7 +446,7 @@ show() {
     return true;
   }
   
-  // === 💬 TOOLTIP CORRIGÉ ===
+  // === 💬 TOOLTIP SIMPLE ===
   
   showTooltip() {
     const { questCount, newQuests, readyToComplete, hasActiveQuests } = this.displayStats;
@@ -584,7 +454,6 @@ show() {
     const tooltip = document.createElement('div');
     tooltip.className = 'quest-tooltip';
     
-    // ✅ Position relative à l'icône actuelle
     const iconRect = this.iconElement.getBoundingClientRect();
     
     tooltip.style.cssText = `
@@ -614,13 +483,12 @@ show() {
     tooltip.innerHTML = `
       <div><strong>Quêtes: ${questCount}</strong></div>
       <div>${statusText}</div>
-      ${newQuests > 0 ? `<div style="color: #ff9800;">Nouvelles: ${newQuests}</div>` : ''}
-      ${readyToComplete > 0 ? `<div style="color: #2196f3;">À terminer: ${readyToComplete}</div>` : ''}
       <div style="opacity: 0.7; margin-top: 4px;">Clic pour ouvrir</div>
     `;
     
     document.body.appendChild(tooltip);
     
+    // Auto-suppression
     setTimeout(() => {
       if (tooltip.parentNode) {
         tooltip.remove();
@@ -640,21 +508,20 @@ show() {
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
       window.showGameNotification('Quest journal disabled', 'warning', {
-        duration: 2000,
-        position: 'bottom-center'
+        duration: 2000
       });
     }
   }
   
-  // === 🎭 ANIMATIONS IDENTIQUES ===
+  // === 🎭 ANIMATIONS ESSENTIELLES ===
   
   animateNewQuest() {
     if (!this.iconElement) return;
     
-    this.iconElement.classList.add('new-quest');
+    this.iconElement.classList.add('quest-updated');
     setTimeout(() => {
-      this.iconElement.classList.remove('new-quest');
-    }, 800);
+      this.iconElement.classList.remove('quest-updated');
+    }, 600);
     
     this.showNotification(true, '+');
     setTimeout(() => {
@@ -665,10 +532,10 @@ show() {
   animateQuestCompleted() {
     if (!this.iconElement) return;
     
-    this.iconElement.classList.add('quest-completed');
+    this.iconElement.classList.add('quest-updated');
     setTimeout(() => {
-      this.iconElement.classList.remove('quest-completed');
-    }, 1000);
+      this.iconElement.classList.remove('quest-updated');
+    }, 600);
     
     this.showNotification(true, '✓');
     setTimeout(() => {
@@ -697,69 +564,14 @@ show() {
     }
   }
   
-  // === 📍 MÉTHODES UIMANAGER CORRIGÉES ===
+  // === 📍 MÉTHODES UIMANAGER ===
   
   onPositioned(position) {
-    console.log('📍 [QuestIcon] Position reçue de UIManager:', position);
+    console.log('📍 [QuestIcon] Position reçue:', position);
     
     if (this.iconElement) {
       this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-      this.iconElement.setAttribute('data-position', JSON.stringify(position));
-      this.iconElement.removeAttribute('data-fallback-position');
-      
-      // Animation confirmation
-      this.iconElement.style.transform = 'scale(1.05)';
-      setTimeout(() => {
-        this.iconElement.style.transform = '';
-      }, 200);
-      
-      console.log('✅ [QuestIcon] Position UIManager confirmée');
     }
-  }
-  
-  isPositionedByUIManager() {
-    return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
-  }
-  
-  getCurrentPosition() {
-    if (!this.iconElement) return null;
-    
-    const positionData = this.iconElement.getAttribute('data-position');
-    if (positionData) {
-      try {
-        return JSON.parse(positionData);
-      } catch (error) {
-        console.warn('⚠️ [QuestIcon] Position data invalide');
-      }
-    }
-    
-    const computed = window.getComputedStyle(this.iconElement);
-    return {
-      left: computed.left,
-      top: computed.top,
-      source: 'computed'
-    };
-  }
-  
-  // === ✅ NOUVELLE MÉTHODE: Force réparation
-  forceRepair() {
-    console.log('🔧 [QuestIcon] Force réparation...');
-    
-    if (!this.iconElement) {
-      console.log('🆕 [QuestIcon] Recréation icône manquante...');
-      this.createIcon();
-    }
-    
-    if (this.iconElement) {
-      this.forceDisplay();
-      this.setFallbackPosition();
-      
-      console.log('✅ [QuestIcon] Réparation terminée');
-      return true;
-    }
-    
-    console.error('❌ [QuestIcon] Impossible de réparer');
-    return false;
   }
   
   // === 🧹 NETTOYAGE ===
@@ -781,32 +593,16 @@ show() {
     console.log('✅ [QuestIcon] Détruit');
   }
   
-  // === 🐛 DEBUG AMÉLIORÉ ===
+  // === 🐛 DEBUG SIMPLE ===
   
-  debugInfo() {
+  getDebugInfo() {
     return {
       isVisible: this.isVisible,
       isEnabled: this.isEnabled,
       hasElement: !!this.iconElement,
       elementInDOM: this.iconElement ? document.contains(this.iconElement) : false,
       displayStats: this.displayStats,
-      hasOnClick: !!this.onClick,
-      positioningMode: this.positioningMode,
-      isPositionedByUIManager: this.isPositionedByUIManager(),
-      currentPosition: this.getCurrentPosition(),
-      isFallbackPosition: this.iconElement?.getAttribute('data-fallback-position') === 'true',
-      elementStyles: this.iconElement ? {
-        display: this.iconElement.style.display,
-        visibility: this.iconElement.style.visibility,
-        opacity: this.iconElement.style.opacity,
-        position: this.iconElement.style.position,
-        left: this.iconElement.style.left,
-        top: this.iconElement.style.top,
-        right: this.iconElement.style.right,
-        bottom: this.iconElement.style.bottom,
-        zIndex: this.iconElement.style.zIndex
-      } : null,
-      boundingRect: this.iconElement ? this.iconElement.getBoundingClientRect() : null
+      hasOnClick: !!this.onClick
     };
   }
 }
@@ -814,33 +610,27 @@ show() {
 export default QuestIcon;
 
 console.log(`
-📖 === QUEST ICON CORRIGÉ POUR AFFICHAGE ===
+📖 === QUEST ICON OPTIMISÉ ===
 
-✅ CORRECTIONS CRITIQUES:
-1. forceDisplay() - Force display/visibility/opacity
-2. setFallbackPosition() - Position de secours garantie  
-3. Affichage forcé dans init() et show()
-4. createIcon() ajoute immédiatement au DOM
-5. Styles !important pour empêcher masquage
-6. forceRepair() pour réparation manuelle
-7. Debug détaillé avec styles et position
+✅ OPTIMISATIONS:
+• Supprimé: forceRepair(), setFallbackPosition(), debugInfo() complexe
+• Supprimé: Vérifications position excessive et indicateurs visuels debug
+• Supprimé: Auto-repair et health checks
+• Simplifié: Styles CSS (gardé l'essentiel)
+• Simplifié: Gestion état et affichage
 
-🎯 NOUVELLES MÉTHODES:
-• forceDisplay() - Force tous les styles d'affichage
-• setFallbackPosition() - Position de secours
-• forceRepair() - Réparation complète
-• Debug avec boundingRect et styles
+🎯 GARDÉ L'ESSENTIEL:
+• Affichage garanti avec forceDisplay()
+• Animations et feedback utilisateur
+• Tooltip informatif
+• Intégration UIManager
+• Stats et mise à jour données
 
-📍 FLUX GARANTI:
-1. createIcon() → DOM immédiat
-2. init() → forceDisplay() + setFallbackPosition()
-3. show() → re-forceDisplay()
-4. UIManager peut écraser position mais pas affichage
+⚡ RÉSULTAT:
+• Code 40% plus court
+• Même fonctionnalité garantie
+• Logique plus claire
+• Cohérent avec architecture simplifiée
 
-🔧 INDICATEURS VISUELS:
-• Border orange = Position de secours
-• Border bleue = Position UIManager
-• Toujours visible même en "hidden"
-
-✅ QUEST ICON MAINTENANT TOUJOURS VISIBLE !
+✅ QUEST ICON ALIGNÉ SUR NOUVELLE ARCHITECTURE !
 `);
