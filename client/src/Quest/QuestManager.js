@@ -402,6 +402,40 @@ export class QuestManager {
     this.debugCallCount = 0;
   }
   
+  // === 🎮 GESTION DES ACTIONS UI ===
+  
+  handleAction(action, data) {
+    console.log(`🎮 [QuestManager] Action reçue: ${action}`, data);
+    
+    try {
+      switch (action) {
+        case 'refreshQuests':
+        case 'refresh':
+          this.requestActiveQuests();
+          break;
+          
+        case 'startQuest':
+          if (data?.questId) {
+            this.startQuest(data.questId);
+          }
+          break;
+          
+        case 'getAvailableQuests':
+          this.requestAvailableQuests();
+          break;
+          
+        case 'getActiveQuests':
+          this.requestActiveQuests();
+          break;
+          
+        default:
+          console.warn(`⚠️ [QuestManager] Action inconnue: ${action}`);
+      }
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur action ${action}:`, error);
+    }
+  }
+  
   // === 📊 GESTION DONNÉES SIMPLE ===
   
   extractQuests(data) {
