@@ -308,29 +308,30 @@ createPlayerNameLabel(player, sessionId) {
     console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
   }
 
-  // ✅ NOUVEAU: Vérifier isDev depuis le STATE serveur pour TOUS les joueurs
-  if (this.scene.networkManager?.room?.state?.players?.get(sessionId)?.isDev) {
-    isDev = true;
-    playerName = `[DEV] ${playerName}`;
-    console.log(`[PlayerManager] 🔧 Joueur DEV détecté depuis le serveur: ${sessionId}`);
-  }
-  // ✅ FALLBACK: Vérifier mon propre token local seulement pour mon joueur
-  else if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-    try {
-      const token = sessionStorage.getItem('sessionToken');
-      if (token) {
-        const payload = token.split('.')[1];
-        const decoded = JSON.parse(atob(payload));
-        if (decoded.isDev) {
-          playerName = `[DEV] ${playerName}`;
-          isDev = true;
-          console.log(`[PlayerManager] 🔧 Mon statut DEV depuis token local`);
-        }
+// ✅ NOUVEAU: Vérifier isDev depuis le STATE serveur pour TOUS les joueurs
+if (this.scene.networkManager?.room?.state?.players?.get(sessionId)?.isDev) {
+  isDev = true;
+  playerName = `[DEV] ${playerName}`;
+  console.log(`[PlayerManager] 🔧 Joueur DEV détecté depuis le serveur: ${sessionId}`);
+}
+
+// ✅ FALLBACK: Vérifier mon propre token local seulement pour mon joueur (séparé)
+if (!isDev && (sessionId === this.mySessionId || sessionId === this._pendingSessionId)) {
+  try {
+    const token = sessionStorage.getItem('sessionToken');
+    if (token) {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      if (decoded.isDev) {
+        playerName = `[DEV] ${playerName}`;
+        isDev = true;
+        console.log(`[PlayerManager] 🔧 Mon statut DEV depuis token local`);
       }
-    } catch (e) {
-      console.warn('[PlayerManager] Erreur vérification dev token:', e);
     }
+  } catch (e) {
+    console.warn('[PlayerManager] Erreur vérification dev token:', e);
   }
+}
   
   // Créer le texte du nom
   const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
