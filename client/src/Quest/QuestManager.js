@@ -128,23 +128,34 @@ export class QuestManager {
           this.triggerCallbacks();
         },
 
-"availableQuestsList": (data) => {
-  console.log('🔍 [DEBUG] availableQuestsList handler appelé');
-  console.log('🔍 [DEBUG] Data reçue:', data);
-  console.log('🔍 [DEBUG] Type de data:', typeof data);
-  console.log('🔍 [DEBUG] Est-ce un array?', Array.isArray(data));
-  console.log('🔍 [DEBUG] data.quests:', data.quests);
-  console.log('🔍 [DEBUG] Nombre de quêtes:', data.quests?.length);
-  
-  console.log('📥 [QuestManager] Quêtes disponibles:', data);
-  this.availableQuests = this.extractQuests(data);
-  
-  if (this.pendingQuestRequest && this.availableQuests.length > 0) {
-    this.showQuestSelection();
-  }
-  this.pendingQuestRequest = false;
-},
-
+    "availableQuestsList": (data) => {
+      // ✅ DÉDUPLICATION: Ignorer si on a déjà reçu cette réponse récemment
+      const questsHash = JSON.stringify(data);
+      const now = Date.now();
+      
+      if (this.lastQuestsHash === questsHash && this.lastQuestsTime && (now - this.lastQuestsTime) < 1000) {
+        console.log('🔍 [DEBUG] availableQuestsList handler appelé (DUPLIQUÉ - IGNORÉ)');
+        return;
+      }
+      
+      this.lastQuestsHash = questsHash;
+      this.lastQuestsTime = now;
+      
+      console.log('🔍 [DEBUG] availableQuestsList handler appelé');
+      console.log('🔍 [DEBUG] Data reçue:', data);
+      console.log('🔍 [DEBUG] Type de data:', typeof data);
+      console.log('🔍 [DEBUG] Est-ce un array?', Array.isArray(data));
+      console.log('🔍 [DEBUG] data.quests:', data.quests);
+      console.log('🔍 [DEBUG] Nombre de quêtes:', data.quests?.length);
+      
+      console.log('📥 [QuestManager] Quêtes disponibles:', data);
+      this.availableQuests = this.extractQuests(data);
+      
+      if (this.pendingQuestRequest && this.availableQuests.length > 0) {
+        this.showQuestSelection();
+      }
+      this.pendingQuestRequest = false;
+    },
         "questStartResult": (data) => {
           console.log('📥 [QuestManager] Résultat démarrage:', data);
           this.handleQuestStartResult(data);
@@ -191,9 +202,10 @@ unregisterHandlers() {
     eventNames.forEach(eventName => {
       const handlers = this.gameRoom._messageHandlers.get(eventName);
       if (handlers && Array.isArray(handlers)) {
+        const initialCount = handlers.length;
         // Vider complètement le tableau
         handlers.length = 0;
-        console.log(`🧹 [QuestManager] Tous les handlers ${eventName} supprimés`);
+        console.log(`🧹 [QuestManager] ${initialCount} handlers ${eventName} supprimés`);
       }
     });
   }
