@@ -1620,6 +1620,7 @@ async onJoin(client: Client, options: any = {}) {
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
+    player.isDev = decodedToken?.isDev || false;
 
       // Debug d'abord
       await this.positionSaver.debugPlayerPosition(player.name);
@@ -1728,6 +1729,7 @@ async onJoin(client: Client, options: any = {}) {
         characterId: player.characterId,
         level: player.level,
         gold: player.gold,
+        isDev: player.isDev, // ✅ NOUVEAU: Envoyer aussi isDev au client
         isMyPlayer: true,
         totalPlayersInRoom: this.state.players.size
       });
