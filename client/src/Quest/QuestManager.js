@@ -1,18 +1,18 @@
-// Quest/QuestManager.js - VERSION SIMPLIFIÉE MODERNE
-// 🎯 Suppression des états complexes + logique directe
+// Quest/QuestManager.js - FIX HANDLERS DUPLIQUÉS
 
 export class QuestManager {
   constructor(gameRoom) {
-    // === ÉTAT SIMPLE ===
+    // État simple
     this.ready = false;
     this.initialized = false;
+    this.handlersRegistered = false; // ✅ NOUVEAU: Flag pour éviter duplication
     
-    // === DONNÉES ===
+    // Données
     this.activeQuests = [];
     this.completedQuests = [];
     this.availableQuests = [];
     
-    // === STATS ===
+    // Stats
     this.questStats = {
       totalActive: 0,
       totalCompleted: 0,
@@ -20,26 +20,28 @@ export class QuestManager {
       readyToComplete: 0
     };
     
-    // === CALLBACKS ===
+    // Callbacks
     this.onQuestUpdate = null;
     this.onQuestStarted = null;
     this.onQuestCompleted = null;
     this.onQuestProgress = null;
     this.onStatsUpdate = null;
     
-    // === CONNEXIONS ===
+    // Connexions
     this.questUI = null;
     this.networkManager = null;
     this.gameRoom = null;
     
-    // === ÉTAT INTERACTION ===
+    // État interaction
     this.pendingQuestRequest = false;
     this.lastInteractionTime = 0;
     this.interactionCooldown = 1000;
     
+    // ✅ NOUVEAU: Références des handlers pour nettoyage
+    this.handlerRefs = new Map();
+    
     console.log('📖 [QuestManager] Instance créée - Version simplifiée');
     
-    // 🚀 INITIALISATION IMMÉDIATE si GameRoom fournie
     if (gameRoom) {
       this.setGameRoom(gameRoom);
     }
@@ -65,8 +67,13 @@ export class QuestManager {
         this.connectNetworkManager(networkManager);
       }
       
-      // 3. Enregistrement handlers - IMMÉDIAT
-      this.registerHandlers();
+      // 3. Enregistrement handlers - SEULEMENT si pas déjà fait
+      if (!this.handlersRegistered) {
+        this.registerHandlers();
+        this.handlersRegistered = true;
+      } else {
+        console.log('ℹ️ [QuestManager] Handlers déjà enregistrés, skip');
+      }
       
       // 4. PRÊT IMMÉDIATEMENT
       this.ready = true;
@@ -94,7 +101,7 @@ export class QuestManager {
     console.log('✅ [QuestManager] GameRoom configurée');
   }
   
-  // === 📡 ENREGISTREMENT HANDLERS DIRECT ===
+  // === 📡 ENREGISTREMENT HANDLERS AVEC NETTOYAGE ===
   
   registerHandlers() {
     if (!this.gameRoom) {
@@ -104,38 +111,49 @@ export class QuestManager {
     
     console.log('📡 [QuestManager] Enregistrement handlers direct...');
     
+    // ✅ NOUVEAU: Nettoyer les anciens handlers d'abord
+    this.unregisterHandlers();
+    
     try {
-      // Handlers essentiels
-      this.gameRoom.onMessage("activeQuestsList", (data) => {
-        console.log('📥 [QuestManager] Quêtes actives:', data);
-        this.activeQuests = this.extractQuests(data);
-        this.updateStats();
-        this.triggerCallbacks();
-      });
+      // Créer et stocker les handlers
+      const handlers = {
+        "activeQuestsList": (data) => {
+          console.log('📥 [QuestManager] Quêtes actives:', data);
+          this.activeQuests = this.extractQuests(data);
+          this.updateStats();
+          this.triggerCallbacks();
+        },
 
-      this.gameRoom.onMessage("availableQuestsList", (data) => {
-        console.log('📥 [QuestManager] Quêtes disponibles:', data);
-        this.availableQuests = this.extractQuests(data);
-        
-        if (this.pendingQuestRequest && this.availableQuests.length > 0) {
-          this.showQuestSelection();
+        "availableQuestsList": (data) => {
+          console.log('📥 [QuestManager] Quêtes disponibles:', data);
+          this.availableQuests = this.extractQuests(data);
+          
+          if (this.pendingQuestRequest && this.availableQuests.length > 0) {
+            this.showQuestSelection();
+          }
+          this.pendingQuestRequest = false;
+        },
+
+        "questStartResult": (data) => {
+          console.log('📥 [QuestManager] Résultat démarrage:', data);
+          this.handleQuestStartResult(data);
+        },
+
+        "questProgressUpdate": (data) => {
+          console.log('📥 [QuestManager] Progression:', data);
+          this.handleQuestProgress(data);
+        },
+
+        "questStatuses": (data) => {
+          console.log('📥 [QuestManager] Statuts:', data);
+          this.handleQuestStatuses(data);
         }
-        this.pendingQuestRequest = false;
-      });
-
-      this.gameRoom.onMessage("questStartResult", (data) => {
-        console.log('📥 [QuestManager] Résultat démarrage:', data);
-        this.handleQuestStartResult(data);
-      });
-
-      this.gameRoom.onMessage("questProgressUpdate", (data) => {
-        console.log('📥 [QuestManager] Progression:', data);
-        this.handleQuestProgress(data);
-      });
-
-      this.gameRoom.onMessage("questStatuses", (data) => {
-        console.log('📥 [QuestManager] Statuts:', data);
-        this.handleQuestStatuses(data);
+      };
+      
+      // Enregistrer les handlers ET les stocker pour nettoyage
+      Object.entries(handlers).forEach(([eventName, handler]) => {
+        this.gameRoom.onMessage(eventName, handler);
+        this.handlerRefs.set(eventName, handler);
       });
       
       console.log('✅ [QuestManager] Handlers enregistrés');
@@ -145,6 +163,37 @@ export class QuestManager {
       console.error('❌ [QuestManager] Erreur handlers:', error);
       return false;
     }
+  }
+  
+  // ✅ NOUVEAU: Méthode pour nettoyer les handlers
+  unregisterHandlers() {
+    if (!this.gameRoom || !this.handlerRefs.size) {
+      return;
+    }
+    
+    console.log('🧹 [QuestManager] Nettoyage anciens handlers...');
+    
+    // Si GameRoom a une méthode offMessage, l'utiliser
+    if (typeof this.gameRoom.offMessage === 'function') {
+      this.handlerRefs.forEach((handler, eventName) => {
+        this.gameRoom.offMessage(eventName, handler);
+      });
+    }
+    // Sinon, essayer de nettoyer manuellement
+    else if (this.gameRoom._messageHandlers) {
+      this.handlerRefs.forEach((handler, eventName) => {
+        const handlers = this.gameRoom._messageHandlers.get(eventName);
+        if (handlers && Array.isArray(handlers)) {
+          const index = handlers.indexOf(handler);
+          if (index !== -1) {
+            handlers.splice(index, 1);
+          }
+        }
+      });
+    }
+    
+    this.handlerRefs.clear();
+    console.log('✅ [QuestManager] Handlers nettoyés');
   }
   
   // === ✅ VÉRIFICATIONS SIMPLES ===
@@ -402,13 +451,17 @@ export class QuestManager {
     return this.activeQuests.length > 0;
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE AMÉLIORÉ ===
   
   destroy() {
     console.log('🧹 [QuestManager] Destruction...');
     
+    // ✅ NOUVEAU: Nettoyer les handlers
+    this.unregisterHandlers();
+    
     this.ready = false;
     this.initialized = false;
+    this.handlersRegistered = false;
     
     // Reset callbacks
     this.onQuestUpdate = null;
@@ -436,6 +489,7 @@ export class QuestManager {
     return {
       ready: this.ready,
       initialized: this.initialized,
+      handlersRegistered: this.handlersRegistered,
       questCount: this.activeQuests.length,
       availableQuestCount: this.availableQuests.length,
       hasGameRoom: !!this.gameRoom,
@@ -443,36 +497,8 @@ export class QuestManager {
       hasNetworkManager: !!this.networkManager,
       pendingQuestRequest: this.pendingQuestRequest,
       lastInteractionTime: this.lastInteractionTime,
-      canProcessInteraction: this.canProcessInteraction()
+      canProcessInteraction: this.canProcessInteraction(),
+      handlerRefsCount: this.handlerRefs.size
     };
   }
 }
-
-export default QuestManager;
-
-console.log(`
-📖 === QUEST MANAGER SIMPLIFIÉ ===
-
-✅ CHANGEMENTS MAJEURS:
-• Supprimé: États complexes (UNINITIALIZED, WAITING_ROOM, READY, ERROR)
-• Supprimé: Logique d'attente (waitForValidGameRoom, waitForReadyState)
-• Supprimé: Vérifications complexes (validateDependencies, validateSystemIntegrity)
-• Supprimé: Timeouts et retry logic
-• Supprimé: Health checks et auto-repair
-
-🚀 NOUVELLE ARCHITECTURE:
-• État binaire simple: ready = true/false
-• Initialisation immédiate sans attente
-• Handlers enregistrés directement
-• Pas de transitions d'état complexes
-• Configuration directe GameRoom + NetworkManager
-
-⚡ AVANTAGES:
-• Code 70% plus court
-• Zéro timeout possible
-• Débogage trivial
-• Pas de race conditions
-• Initialisation garantie < 100ms
-
-🎯 PRINCIPE: "Fonctionne immédiatement ou échoue rapidement"
-`);
