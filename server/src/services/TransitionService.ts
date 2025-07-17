@@ -63,7 +63,8 @@ export class TransitionService {
   }
 
   // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
-  async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
+// ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
+async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
   console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
   
   // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
@@ -82,84 +83,85 @@ export class TransitionService {
     };
   }
   
-  const { userId } = sessionValidation;
+  const { userId, jwtData } = sessionValidation; // ✅ CORRECTION: Récupérer jwtData
   console.log(`✅ [TransitionService] Session validée pour transition: ${userId}`);
+  
+  // ✅ CORRECTION: Utiliser 'data' au lieu de 'request'
+  console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
+  console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
+  console.log(`📍 ${data.fromZone} → ${data.targetZone}`);
+  console.log(`📊 Position: (${data.playerX}, ${data.playerY})`);
 
-    console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
-    console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
-    console.log(`📍 ${request.fromZone} → ${request.targetZone}`);
-    console.log(`📊 Position: (${request.playerX}, ${request.playerY})`);
-
-    try {
-      // 1. Vérifier que les zones existent
-      if (!this.teleportData.has(request.fromZone)) {
-        console.error(`❌ [TransitionService] Zone source inconnue: ${request.fromZone}`);
-        return {
-          success: false,
-          reason: `Zone source inconnue: ${request.fromZone}`,
-          rollback: true
-        };
-      }
-
-      if (!this.spawnData.has(request.targetZone)) {
-        console.error(`❌ [TransitionService] Zone cible sans spawns: ${request.targetZone}`);
-        return {
-          success: false,
-          reason: `Zone cible sans spawns: ${request.targetZone}`,
-          rollback: true
-        };
-      }
-
-      // 2. Validation physique du téléport (collision + destination)
-      const teleportValidation = this.validateTeleportCollision(request);
-      if (!teleportValidation.success) {
-        return teleportValidation;
-      }
-
-      // 3. Récupérer le téléport validé
-      const validatedTeleport = teleportValidation.validatedTeleport!;
-      console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
-      console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
-
-      // 4. Vérifier les règles de configuration avec JWT
-      const configValidation = await this.validateConfigRules(client, player, request);
-      if (!configValidation.success) {
-        return configValidation;
-      }
-
-      // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
-      const spawnPosition = this.findTargetSpawn(request.targetZone, validatedTeleport.targetSpawn);
-      if (!spawnPosition) {
-        console.error(`❌ [TransitionService] Spawn introuvable: ${request.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
-        return {
-          success: false,
-          reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
-          rollback: true
-        };
-      }
-
-      // 6. Validation réussie
-      console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
-      console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
-      this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
-
-      return {
-        success: true,
-        position: spawnPosition,
-        currentZone: request.targetZone,
-        validatedTeleport: validatedTeleport,
-        userId: userId // ✅ AJOUT pour traçabilité
-      };
-
-    } catch (error) {
-      console.error(`❌ [TransitionService] Erreur validation:`, error);
+  try {
+    // 1. Vérifier que les zones existent
+    if (!this.teleportData.has(data.fromZone)) {
+      console.error(`❌ [TransitionService] Zone source inconnue: ${data.fromZone}`);
       return {
         success: false,
-        reason: "Erreur serveur lors de la validation",
+        reason: `Zone source inconnue: ${data.fromZone}`,
         rollback: true
       };
     }
+
+    if (!this.spawnData.has(data.targetZone)) {
+      console.error(`❌ [TransitionService] Zone cible sans spawns: ${data.targetZone}`);
+      return {
+        success: false,
+        reason: `Zone cible sans spawns: ${data.targetZone}`,
+        rollback: true
+      };
+    }
+
+    // 2. Validation physique du téléport (collision + destination)
+    const teleportValidation = this.validateTeleportCollision(data);
+    if (!teleportValidation.success) {
+      return teleportValidation;
+    }
+
+    // 3. Récupérer le téléport validé
+    const validatedTeleport = teleportValidation.validatedTeleport!;
+    console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
+    console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
+
+    // 4. Vérifier les règles de configuration avec JWT
+    const configValidation = await this.validateConfigRules(client, player, data);
+    if (!configValidation.success) {
+      return configValidation;
+    }
+
+    // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
+    const spawnPosition = this.findTargetSpawn(data.targetZone, validatedTeleport.targetSpawn);
+    if (!spawnPosition) {
+      console.error(`❌ [TransitionService] Spawn introuvable: ${data.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
+      return {
+        success: false,
+        reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
+        rollback: true
+      };
+    }
+
+    // 6. Validation réussie
+    console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
+    console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
+    this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
+
+    return {
+      success: true,
+      position: spawnPosition,
+      currentZone: data.targetZone,
+      validatedTeleport: validatedTeleport,
+      userId: userId // ✅ AJOUT pour traçabilité
+    };
+
+  } catch (error) {
+    console.error(`❌ [TransitionService] Erreur validation:`, error);
+    return {
+      success: false,
+      reason: "Erreur serveur lors de la validation",
+      rollback: true
+    };
   }
+}
 
   // ✅ VALIDATION TÉLÉPORT AVEC targetSpawn
   private validateTeleportCollision(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
