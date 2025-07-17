@@ -177,35 +177,30 @@ export class QuestManager {
   }
   
   // Méthode pour nettoyer les handlers
-  unregisterHandlers() {
-    if (!this.gameRoom || !this.handlerRefs.size) {
-      return;
-    }
-    
-    console.log('🧹 [QuestManager] Nettoyage anciens handlers...');
-    
-    // Si GameRoom a une méthode offMessage, l'utiliser
-    if (typeof this.gameRoom.offMessage === 'function') {
-      this.handlerRefs.forEach((handler, eventName) => {
-        this.gameRoom.offMessage(eventName, handler);
-      });
-    }
-    // Sinon, essayer de nettoyer manuellement
-    else if (this.gameRoom._messageHandlers) {
-      this.handlerRefs.forEach((handler, eventName) => {
-        const handlers = this.gameRoom._messageHandlers.get(eventName);
-        if (handlers && Array.isArray(handlers)) {
-          const index = handlers.indexOf(handler);
-          if (index !== -1) {
-            handlers.splice(index, 1);
-          }
-        }
-      });
-    }
-    
-    this.handlerRefs.clear();
-    console.log('✅ [QuestManager] Handlers nettoyés');
+unregisterHandlers() {
+  if (!this.gameRoom) {
+    return;
   }
+  
+  console.log('🧹 [QuestManager] Nettoyage anciens handlers...');
+  
+  // ✅ NETTOYAGE AGRESSIF: Supprimer TOUS les handlers pour ces événements
+  const eventNames = ['activeQuestsList', 'availableQuestsList', 'questStartResult', 'questProgressUpdate', 'questStatuses'];
+  
+  if (this.gameRoom._messageHandlers) {
+    eventNames.forEach(eventName => {
+      const handlers = this.gameRoom._messageHandlers.get(eventName);
+      if (handlers && Array.isArray(handlers)) {
+        // Vider complètement le tableau
+        handlers.length = 0;
+        console.log(`🧹 [QuestManager] Tous les handlers ${eventName} supprimés`);
+      }
+    });
+  }
+  
+  this.handlerRefs.clear();
+  console.log('✅ [QuestManager] Handlers nettoyés');
+}
   
   // === ✅ VÉRIFICATIONS SIMPLES ===
   
