@@ -383,10 +383,11 @@ async initializeUIQuietly() {
     this.networkManager._worldHandlersSetup = false;
     this.networkManager.setupRoomListeners();
     this.networkManager.restoreCustomCallbacks?.();
-     // ✅ AJOUTER JUSTE ÇA :
-      if (this.networkManager.battleNetworkHandler) {
-        this.networkManager.battleNetworkHandler.setupWorldRoomEvents();
-  }
+    if (window.battleManager && this.networkManager.battleNetworkHandler) {
+  console.log('🔗 [BaseZoneScene] Re-connexion BattleManager...');
+  window.battleManager.networkHandler = this.networkManager.battleNetworkHandler;
+  window.battleManager.setupNetworkEvents();
+}
   }
 
   // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
