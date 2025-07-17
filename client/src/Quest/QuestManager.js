@@ -261,28 +261,34 @@ export class QuestManager {
   // === 🗣️ INTERACTION NPC AVEC DEBUG ===
   
   handleNpcInteraction(data) {
-    // ✅ NOUVEAU: Debug des appels
+    // ✅ NOUVEAU: Debug des appels avec stack trace complète
     this.debugCallCount++;
+    const fullStack = new Error().stack.split('\n');
     const callInfo = {
       callNumber: this.debugCallCount,
       timestamp: Date.now(),
       data: data,
-      stack: new Error().stack.split('\n')[2]?.trim() || 'unknown'
+      stack: fullStack.slice(1, 6).map(line => line.trim()).join(' -> ')
     };
     
     this.debugCallLog.push(callInfo);
     
-    // ✅ LOGS DE DEBUG
+    // ✅ LOGS DE DEBUG DÉTAILLÉS
     console.log(`🔔 [QuestManager] === APPEL #${this.debugCallCount} ===`);
     console.log('📊 Données:', data);
     console.log('🕒 Timestamp:', new Date().toLocaleTimeString());
+    console.log('📍 Stack trace:');
+    fullStack.slice(1, 6).forEach((line, index) => {
+      console.log(`  ${index + 1}. ${line.trim()}`);
+    });
     
-    // Afficher les derniers appels si on dépasse 3
-    if (this.debugCallCount > 3) {
+    // Afficher l'historique complet si on dépasse 1 appel
+    if (this.debugCallCount > 1) {
       console.log('📈 [QuestManager] APPELS MULTIPLES DÉTECTÉS !');
-      console.log('📋 Historique des 5 derniers appels:');
-      this.debugCallLog.slice(-5).forEach((call, index) => {
-        console.log(`  ${call.callNumber}. ${new Date(call.timestamp).toLocaleTimeString()} - ${call.stack}`);
+      console.log('📋 Historique complet:');
+      this.debugCallLog.forEach((call, index) => {
+        console.log(`--- APPEL ${call.callNumber} à ${new Date(call.timestamp).toLocaleTimeString()} ---`);
+        console.log(`Stack: ${call.stack}`);
       });
     }
     
