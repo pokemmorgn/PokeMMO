@@ -1270,6 +1270,32 @@ export class QuestUI {
     
     console.log('✅ [QuestUI] Détruit');
   }
+  // === 🎨 ANIMATIONS DE PROGRESSION ===
+
+animateObjectiveCompletion(result, phase) {
+  console.log(`🎨 [QuestUI] Animation objectif: ${phase} pour "${result.objectiveName}"`);
+  
+  try {
+    // Trouver l'élément de l'objectif dans le tracker
+    const objectiveElement = this.findObjectiveElement(result.objectiveName);
+    
+    if (!objectiveElement) {
+      console.warn(`⚠️ [QuestUI] Élément objectif non trouvé: ${result.objectiveName}`);
+      return;
+    }
+    
+    if (phase === 'completing') {
+      // Phase 1: Objectif devient VERT
+      this.animateObjectiveGreen(objectiveElement);
+    } else if (phase === 'completed') {
+      // Phase 2: Animation de validation
+      this.animateObjectiveValidation(objectiveElement);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [QuestUI] Erreur animation ${phase}:`, error);
+  }
+}
 }
 
 export default QuestUI;
