@@ -20,28 +20,26 @@ export class JWTManager {
   /**
    * Enregistrer un utilisateur à la connexion
    */
-  async registerUser(sessionId: string, jwt: any): Promise<void> {
-    const userId = jwt.userId;
-    
-    console.log(`🔗 [JWTManager] Enregistrement: ${sessionId} -> ${userId} (${jwt.username})`);
-    
-    // Nettoyer l'ancien mapping si reconnexion
-    const oldSessionId = this.userToSession.get(userId);
-    if (oldSessionId && oldSessionId !== sessionId) {
-      console.log(`🔄 [JWTManager] Reconnexion détectée: ${oldSessionId} -> ${sessionId}`);
-      this.sessionToUser.delete(oldSessionId);
-      
-      // ✅ AUTO-RESET DES QUÊTES À LA RECONNEXION
-      await this.handleQuestAutoReset(jwt.username);
-    }
-    
-    // Nouveau mapping
-    this.sessionToUser.set(sessionId, userId);
-    this.userToSession.set(userId, sessionId);
-    this.userJWTData.set(userId, jwt);
-    
-    console.log(`✅ [JWTManager] Utilisateur enregistré: ${jwt.username} (${userId})`);
+async registerUser(sessionId: string, jwt: any): Promise<void> {
+  const userId = jwt.userId;
+
+  console.log(`🔗 [JWTManager] Enregistrement: ${sessionId} -> ${userId} (${jwt.username})`);
+
+  // Refuser si le compte est déjà connecté sur une autre session
+  const oldSessionId = this.userToSession.get(userId);
+  if (oldSessionId && oldSessionId !== sessionId) {
+    console.log(`⛔ [JWTManager] Connexion refusée : ${userId} déjà connecté (session ${oldSessionId})`);
+    throw new Error("Vous êtes déjà connecté sur un autre onglet ou appareil.");
   }
+
+  // Nouveau mapping (connexion normale)
+  this.sessionToUser.set(sessionId, userId);
+  this.userToSession.set(userId, sessionId);
+  this.userJWTData.set(userId, jwt);
+      await this.handleQuestAutoReset(jwt.username);
+
+  console.log(`✅ [JWTManager] Utilisateur enregistré: ${jwt.username} (${userId})`);
+}
   
   /**
    * Traduire sessionId -> userId
