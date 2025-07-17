@@ -1297,22 +1297,32 @@ export class QuestUI {
       }
     }
   // Méthode pour trouver l'élément objectif dans le DOM
+// Méthode pour trouver l'élément objectif dans le DOM
 findObjectiveElement(objectiveName) {
   try {
-    // Chercher dans le tracker
-    const trackerElement = this.trackerElement || document.querySelector('#quest-tracker');
-    if (!trackerElement) return null;
+    // ✅ FIX: Utiliser directement this.trackerElement
+    const trackerElement = this.trackerElement;
+    if (!trackerElement) {
+      console.warn('⚠️ [QuestUI] trackerElement non trouvé');
+      return null;
+    }
     
-    // Chercher l'objectif par son texte
-    const objectiveElements = trackerElement.querySelectorAll('.objective-text, .quest-objective, [data-objective]');
+    console.log(`🔍 [QuestUI] Recherche "${objectiveName}" dans tracker`);
     
-    for (const element of objectiveElements) {
-      if (element.textContent.includes(objectiveName)) {
-        return element.closest('.objective-item, .quest-step, .objective-container') || element;
+    // Chercher tous les éléments dans le tracker
+    const allElements = trackerElement.querySelectorAll('*');
+    
+    for (const element of allElements) {
+      if (element.textContent && element.textContent.trim().includes(objectiveName)) {
+        console.log(`✅ [QuestUI] Objectif trouvé dans:`, element.tagName, element.className);
+        // Retourner l'élément ou son parent selon la structure
+        return element.closest('.quest-item, .quest-step') || element;
       }
     }
     
+    console.warn(`⚠️ [QuestUI] Objectif "${objectiveName}" non trouvé dans tracker`);
     return null;
+    
   } catch (error) {
     console.error('❌ [QuestUI] Erreur findObjectiveElement:', error);
     return null;
