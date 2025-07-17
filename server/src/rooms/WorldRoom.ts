@@ -1580,28 +1580,48 @@ async onJoin(client: Client, options: any = {}) {
   });
 let decodedToken: any = null;
 
-  // ✅ VÉRIFICATION JWT OBLIGATOIRE
-  if (options.sessionToken) {
+// ✅ VÉRIFICATION JWT OBLIGATOIRE
+if (options.sessionToken) {
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
+    console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
+
+    // ✅ NOUVEAU : Enregistrer dans JWTManager AVEC gestion d'erreur TS
     try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
-      console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
-       // ✅ NOUVEAU : Enregistrer dans JWTManager
-// Juste après le decode du JWT
-try {
-  await this.jwtManager.registerUser(client.sessionId, decoded);
-} catch (err) {
-  console.error(`⛔ [WorldRoom] Refus connexion multiple pour ${decoded.username}: ${err.message}`);
-  client.send("login_error", { message: err.message });
-  client.leave(4001, "Vous êtes déjà connecté sur un autre onglet ou appareil.");
+      await this.jwtManager.registerUser(client.sessionId, decoded);
+    } catch (err) {
+      // Protection TS sur .message
+      const errorMessage =
+        (err && typeof err === "object" && "message" in err)
+          ? (err as any).message
+          : "Erreur inconnue";
+      console.error(`⛔ [WorldRoom] Refus connexion multiple pour ${decoded.username}: ${errorMessage}`);
+      client.send("login_error", { message: errorMessage });
+      client.leave(4001, "Vous êtes déjà connecté sur un autre onglet ou appareil.");
+      return;
+    }
+
+    // Vérifier cohérence username
+    if (decoded.username !== options.name) {
+      console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
+      client.leave(4000, "Token/username mismatch");
+      return;
+    }
+
+    // ... (suite de ton code pour la création du joueur, etc.)
+
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Token JWT invalide:`, error);
+    client.leave(4000, "Invalid session token");
+    return;
+  }
+} else {
+  console.error(`❌ [WorldRoom] Aucun token JWT fourni`);
+  client.leave(4000, "Session token required");
   return;
 }
-      // Vérifier cohérence username
-      if (decoded.username !== options.name) {
-        console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
-        client.leave(4000, "Token/username mismatch");
-        return;
-      }
+
       
       // Optionnel : vérifier permissions
       if (!decoded.permissions || !decoded.permissions.includes('play')) {
