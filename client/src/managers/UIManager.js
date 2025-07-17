@@ -113,6 +113,21 @@ export class UIManager {
       this.moduleInstances.set(moduleId, instance);
       state.initialized = true;
       
+      // ✅ FIX: Synchroniser les états UIManager → Module
+      if (instance) {
+        instance.initialized = true;
+        instance.isEnabled = state.enabled !== false; // Utiliser l'état UIManager
+        
+        if (this.debug) {
+          console.log(`🔄 [UIManager] États synchronisés pour ${moduleId}:`, {
+            'UIManager.initialized': state.initialized,
+            'Module.initialized': instance.initialized,
+            'UIManager.enabled': state.enabled,
+            'Module.isEnabled': instance.isEnabled
+          });
+        }
+      }
+      
       // ✅ FIX 5: Marquer comme terminé AVANT création icône
       this.initializationTracker.completed.add(moduleId);
       this.initializationTracker.inProgress.delete(moduleId);
@@ -684,6 +699,13 @@ export class UIManager {
     if (success) {
       this.openModules.add(moduleId);
       
+      // ✅ FIX: Synchroniser l'état avec l'instance
+      const instance = this.getModuleInstance(moduleId);
+      if (instance) {
+        instance.isEnabled = true;
+        instance.initialized = true;
+      }
+      
       const iconConfig = this.registeredIcons.get(moduleId);
       if (iconConfig && iconConfig.element) {
         iconConfig.element.style.display = 'block';
@@ -695,7 +717,7 @@ export class UIManager {
       }
       
       if (this.debug) {
-        console.log(`👁️ [UIManager] Module ${moduleId} affiché PROTÉGÉ`);
+        console.log(`👁️ [UIManager] Module ${moduleId} affiché PROTÉGÉ avec états synchronisés`);
       }
     }
     
@@ -737,6 +759,13 @@ export class UIManager {
     const success = this.setModuleState(moduleId, { enabled: true });
     
     if (success) {
+      // ✅ FIX: Synchroniser l'état avec l'instance
+      const instance = this.getModuleInstance(moduleId);
+      if (instance) {
+        instance.isEnabled = true;
+        instance.initialized = true;
+      }
+      
       const iconConfig = this.registeredIcons.get(moduleId);
       if (iconConfig && iconConfig.element) {
         iconConfig.element.style.opacity = '1';
@@ -746,7 +775,7 @@ export class UIManager {
       }
       
       if (this.debug) {
-        console.log(`🔧 [UIManager] Module ${moduleId} activé PROTÉGÉ`);
+        console.log(`🔧 [UIManager] Module ${moduleId} activé PROTÉGÉ avec états synchronisés`);
       }
     }
     
@@ -757,6 +786,13 @@ export class UIManager {
     const success = this.setModuleState(moduleId, { enabled: false });
     
     if (success) {
+      // ✅ FIX: Synchroniser l'état avec l'instance
+      const instance = this.getModuleInstance(moduleId);
+      if (instance) {
+        instance.isEnabled = false;
+        // Garder initialized = true même si désactivé
+      }
+      
       const iconConfig = this.registeredIcons.get(moduleId);
       if (iconConfig && iconConfig.element) {
         iconConfig.element.style.opacity = '0.5';
@@ -766,7 +802,7 @@ export class UIManager {
       }
       
       if (this.debug) {
-        console.log(`🔧 [UIManager] Module ${moduleId} désactivé PROTÉGÉ`);
+        console.log(`🔧 [UIManager] Module ${moduleId} désactivé PROTÉGÉ avec états synchronisés`);
       }
     }
     
