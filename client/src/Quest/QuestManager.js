@@ -98,6 +98,14 @@ export class QuestManager {
       this.ready = true;
       this.initialized = true;
       
+      // ✅ FIX: Charger les quêtes actives au démarrage
+      console.log('🔄 [QuestManager] Chargement initial des quêtes...');
+      setTimeout(() => {
+        if (this.isReady()) {
+          this.requestActiveQuests();
+        }
+      }, 1500); // Délai pour s'assurer que tout est connecté
+      
       console.log('✅ [QuestManager] Prêt avec protection anti-duplication !');
       return this;
       
