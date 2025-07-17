@@ -39,7 +39,7 @@ export class ConnectionManager {
     this.serverRestartConfig = {
       maxConsecutiveErrors: 3,        // Max consecutive errors before considering restart
       reconnectFailureThreshold: 5,   // Max reconnection failures before popup
-      serverRestartCodes: [1006, 1001, 1011, 1012], // WebSocket codes indicating restart
+      serverRestartCodes: [1006, 1001, 1011, 1012, 4000], // WebSocket codes indicating restart
       authErrorCodes: [4001, 4002, 4003], // Authentication error codes
       detectServerRestartTimeout: 30000, // 30s to detect restart
     };
