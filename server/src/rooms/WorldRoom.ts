@@ -1813,33 +1813,48 @@ async onLeave(client: Client, consented: boolean) {
   console.log(`👋 === PLAYER LEAVE ===`);
   console.log(`🔑 Session: ${client.sessionId}`);
   console.log(`✅ Consenti: ${consented}`);
-  // ✅ NOUVEAU : Nettoyer JWTManager
-  this.jwtManager.removeUser(client.sessionId);
-
+  
   const player = this.state.players.get(client.sessionId);
   if (player) {
     console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
+    
+    // ✅ NOUVEAU: Vérifier combat actif AVANT nettoyage JWT
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    const hasActiveBattle = userId ? this.jwtManager.hasActiveBattle(userId) : false;
+    
+    if (hasActiveBattle) {
+      console.log(`⚔️ [WorldRoom] Combat actif détecté, préservation JWT pour ${player.name}`);
+    } else {
+      console.log(`✅ [WorldRoom] Pas de combat actif, nettoyage JWT normal pour ${player.name}`);
+    }
+    
+    // Sauvegarder position
     const position = this.positionSaver.extractPosition(player);
     await this.positionSaver.savePosition(position, "disconnect");
+    
+    // Nettoyer follower
     this.followerHandlers.getFollowerManager().removePlayerFollower(client.sessionId);
-
+    
     // Supprimer du state
     this.state.players.delete(client.sessionId);
     console.log(`🗑️ Joueur ${player.name} supprimé du state`);
   }
-
+  
+  // ✅ DÉPLACER ICI: Nettoyage JWT intelligent APRÈS récupération player
+  this.jwtManager.removeUser(client.sessionId);
+  
   if (this.timeWeatherService) {
     this.timeWeatherService.removeClient(client);
     console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
   }
-
+  
   // ✅ NOUVEAU: Arrêter le système si plus de joueurs
   if (this.state.players.size === 0) {
     console.log(`🛑 [WorldRoom] Plus de joueurs - arrêt système Pokémon overworld`);
     this.overworldPokemonManager.stop();
   }
-
+  
   // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
   movementBlockManager.forceUnblockAll(client.sessionId);
   await this.battleHandlers.onPlayerLeave(client.sessionId);
