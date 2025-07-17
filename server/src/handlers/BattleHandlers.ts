@@ -169,7 +169,6 @@ public async handleStartWildBattle(client: Client, data: {
   await this.cleanupBattle(client.sessionId, "preventive");
   this.room.unblockPlayerMovement(client.sessionId, 'battle');
   
-  // ✅ SI JWT MANQUANT, ESSAYER DE LE RÉCUPÉRER
 // ✅ SI JWT MANQUANT, ESSAYER DE LE RÉCUPÉRER/RESTAURER
 if (!userId || !jwtData) {
   console.log(`⚠️ [DEBUG] JWT manquant, tentative restauration pour ${player.name}`);
@@ -185,27 +184,31 @@ if (!userId || !jwtData) {
       console.log(`✅ [DEBUG] JWT restauré: ${newUserId} pour ${player.name}`);
       console.log(`✅ [DEBUG] JWT Data: ${newJwtData ? 'EXISTS' : 'STILL NULL'}`);
       
-      // Mettre à jour les variables locales
-      userId = newUserId;
-      jwtData = newJwtData;
+      // ✅ VÉRIFICATION FINALE AVEC LES NOUVELLES VARIABLES
+      if (!newUserId || !newJwtData) {
+        console.error(`❌ [DEBUG] JWT définitivement manquant après restauration`);
+        this.jwtManager.debugMappings();
+        client.send("battleError", { message: "Session invalide - impossible de restaurer JWT" });
+        return;
+      }
+      
+      console.log(`✅ [DEBUG] JWT validé: ${newUserId} pour ${player.name}`);
       
     } else {
       console.error(`❌ [DEBUG] Restauration échouée pour ${player.name}`);
+      this.jwtManager.debugMappings();
+      client.send("battleError", { message: "Session invalide - impossible de restaurer JWT" });
+      return;
     }
   } catch (error) {
     console.error(`❌ [DEBUG] Erreur restauration:`, error);
-  }
-  
-  // ✅ VÉRIFICATION FINALE
-  if (!userId || !jwtData) {
-    console.error(`❌ [DEBUG] JWT définitivement manquant après restauration`);
     this.jwtManager.debugMappings();
-    client.send("battleError", { message: "Session invalide - impossible de restaurer JWT" });
+    client.send("battleError", { message: "Session invalide - erreur de restauration" });
     return;
   }
+} else {
+  console.log(`✅ [DEBUG] JWT validé: ${userId} pour ${player.name}`);
 }
-
-console.log(`✅ [DEBUG] JWT validé: ${userId} pour ${player.name}`);
 
   console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
   console.log(`👤 Joueur: ${player.name}`);
