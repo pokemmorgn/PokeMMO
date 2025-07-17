@@ -549,16 +549,30 @@ export class QuestManager {
   markObjectiveAsCompleting(result) {
     console.log('🟢 [QuestManager] Objectif → VERT (completing)');
     
-    // Déclencher callback spécial pour UI
+    // ✅ UTILISER LE SYSTÈME EXISTANT: Forcer mise à jour immédiate
+    if (this.questUI && this.questUI.updateTracker) {
+      // Modifier temporairement les données pour affichage vert
+      this.markObjectiveAsCompletedInData(result);
+      this.questUI.updateTracker();
+    }
+    
+    // Déclencher callback pour extensions futures
     this.triggerCallback('onObjectiveCompleting', {
       questId: result.questId,
       objectiveName: result.objectiveName,
       phase: 'completing'
     });
-    
-    // Si QuestUI a une méthode pour animer
-    if (this.questUI && this.questUI.animateObjectiveCompletion) {
-      this.questUI.animateObjectiveCompletion(result, 'completing');
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Marquer objectif comme terminé dans les données
+  markObjectiveAsCompletedInData(result) {
+    // Trouver la quête dans activeQuests et marquer l'objectif comme terminé
+    const quest = this.activeQuests.find(q => q.id === result.questId);
+    if (quest && quest.currentStep) {
+      // Marquer l'étape actuelle comme terminée temporairement
+      quest.currentStep.completed = true;
+      quest.currentStep.isCompleting = true; // Flag spécial pour CSS vert
+      console.log('✅ [QuestManager] Données modifiées pour affichage vert');
     }
   }
   
@@ -571,10 +585,6 @@ export class QuestManager {
       objectiveName: result.objectiveName,
       phase: 'completed'
     });
-    
-    if (this.questUI && this.questUI.animateObjectiveCompletion) {
-      this.questUI.animateObjectiveCompletion(result, 'completed');
-    }
   }
   
   // ✅ NOUVELLE MÉTHODE: Transition vers objectif suivant
@@ -587,12 +597,7 @@ export class QuestManager {
       phase: 'transitioning'
     });
     
-    // Animation de transition si disponible
-    if (this.questUI && this.questUI.animateObjectiveTransition) {
-      this.questUI.animateObjectiveTransition(result);
-    }
-    
-    // Rafraîchir les données pour afficher next objective
+    // ✅ FORCER REFRESH POUR NEXT OBJECTIVE
     this.refreshQuestDataAfterProgress();
   }
   
