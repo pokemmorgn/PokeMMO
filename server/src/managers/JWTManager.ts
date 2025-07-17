@@ -133,24 +133,55 @@ validateCriticalAction(sessionId: string, action: string): boolean {
   /**
    * Nettoyer un utilisateur à la déconnexion
    */
-  removeUser(sessionId: string): void {
-    const userId = this.sessionToUser.get(sessionId);
-    if (userId) {
-      console.log(`🧹 [JWTManager] Déconnexion: ${sessionId} -> ${userId}`);
+removeUser(sessionId: string): void {
+  const userId = this.sessionToUser.get(sessionId);
+  if (userId) {
+    console.log(`🧹 [JWTManager] Déconnexion: ${sessionId} -> ${userId}`);
+    
+    // ✅ NOUVEAU: Vérifier si l'utilisateur a un combat actif
+    const hasActiveBattle = this.hasActiveBattle(userId);
+    
+    if (hasActiveBattle) {
+      console.log(`⚔️ [JWTManager] Préservation JWT pour combat actif: ${userId}`);
       
+      // NE PAS supprimer le JWT, juste la session courante
       this.sessionToUser.delete(sessionId);
-      this.userToSession.delete(userId);
-      this.userJWTData.delete(userId);
+      // Garder userToSession et userJWTData pour reconnexion
       
-      // ✅ NOUVEAU: NE PAS supprimer l'état de combat à la déconnexion
-      // L'utilisateur pourrait se reconnecter pour reprendre son combat
-      if (this.activeBattleStates.has(userId)) {
-        console.log(`💾 [JWTManager] État de combat préservé pour reconnexion: ${userId}`);
-      }
+      console.log(`💾 [JWTManager] JWT préservé pour reconnexion: ${userId}`);
+      return;
+    }
+    
+    // ✅ Nettoyage normal si pas de combat
+    this.sessionToUser.delete(sessionId);
+    this.userToSession.delete(userId);
+    this.userJWTData.delete(userId);
+    
+    console.log(`✅ [JWTManager] Utilisateur supprimé: ${userId}`);
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Re-association automatique
+async restoreUserSession(sessionId: string, username: string): Promise<boolean> {
+  console.log(`🔄 [JWTManager] Tentative restauration session pour ${username}`);
+  
+  // Chercher l'userId par nom d'utilisateur
+  for (const [userId, jwtData] of this.userJWTData.entries()) {
+    if (jwtData.username === username) {
+      console.log(`✅ [JWTManager] JWT trouvé pour ${username}: ${userId}`);
       
-      console.log(`✅ [JWTManager] Utilisateur supprimé: ${userId}`);
+      // Re-créer les mappings
+      this.sessionToUser.set(sessionId, userId);
+      this.userToSession.set(userId, sessionId);
+      
+      console.log(`🔗 [JWTManager] Session restaurée: ${sessionId} -> ${userId}`);
+      return true;
     }
   }
+  
+  console.log(`❌ [JWTManager] Aucun JWT trouvé pour ${username}`);
+  return false;
+}
   
   /**
    * ✅ NOUVEAU: Sauvegarder l'état de combat d'un utilisateur
