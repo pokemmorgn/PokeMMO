@@ -1345,6 +1345,33 @@ animateObjectiveValidation(element) {
   // Animation de pulse
   element.style.animation = 'pulse 0.5s ease';
 }
+  // Animation: Transition vers objectif suivant  
+animateObjectiveTransition(result) {
+  console.log(`➡️ [QuestUI] Animation transition depuis "${result.objectiveName}"`);
+  
+  try {
+    const currentObjective = this.findObjectiveElement(result.objectiveName);
+    
+    if (currentObjective) {
+      // Animation slide out de l'ancien objectif
+      this.animateSlideOut(currentObjective, () => {
+        // Après slide out, rafraîchir le tracker pour afficher le nouveau
+        setTimeout(() => {
+          this.updateTracker();
+          this.animateNewObjectiveIn();
+        }, 200);
+      });
+    } else {
+      // Si pas trouvé, juste rafraîchir
+      this.updateTracker();
+    }
+    
+  } catch (error) {
+    console.error('❌ [QuestUI] Erreur transition:', error);
+    // Fallback: juste rafraîchir
+    this.updateTracker();
+  }
+}
 }
 
 export default QuestUI;
