@@ -285,24 +285,31 @@ export class InteractionManager {
     }
   }
 
-  handleInteractionResult(data) {
-    if (this.isShopInteraction(data)) return;
-    if (window._questDialogActive) return;
-
-    const systemName = this.mapResponseToSystem(data);
-    const system = this.interactionSystems.get(systemName);
-    const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+    handleInteractionResult(data) {
+      if (this.isShopInteraction(data)) return;
+      if (window._questDialogActive) return;
+      
+      // ✅ NOUVEAU: Protection anti-spam
+      if (this._lastInteractionResultTime && (Date.now() - this._lastInteractionResultTime) < 100) {
+        console.log('🚫 [InteractionManager] Interaction result ignorée (anti-spam)');
+        return;
+      }
+      this._lastInteractionResultTime = Date.now();
     
-    if (system) {
-      try {
-        system.handle(npc, data);
-      } catch (error) {
+      const systemName = this.mapResponseToSystem(data);
+      const system = this.interactionSystems.get(systemName);
+      const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+      
+      if (system) {
+        try {
+          system.handle(npc, data);
+        } catch (error) {
+          this.handleFallbackInteraction(data);
+        }
+      } else {
         this.handleFallbackInteraction(data);
       }
-    } else {
-      this.handleFallbackInteraction(data);
     }
-  }
 
   mapResponseToSystem(data) {
     const typeMapping = {
