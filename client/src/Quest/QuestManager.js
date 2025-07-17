@@ -1,4 +1,4 @@
-// Quest/QuestManager.js - AVEC DEBUG INTÉGRÉ
+// Quest/QuestManager.js - FIXES ANTI-DUPLICATION APPLIQUÉS
 
 export class QuestManager {
   constructor(gameRoom) {
@@ -7,16 +7,22 @@ export class QuestManager {
     this.initialized = false;
     this.handlersRegistered = false;
     
-    // ✅ NOUVEAU: Compteur debug
+    // ✅ FIX 1: Compteur debug + protection anti-spam
     this.debugCallCount = 0;
     this.debugCallLog = [];
+    this.lastInteractionTime = 0;
+    this.interactionCooldown = 500; // 500ms cooldown
     
     // Données
     this.activeQuests = [];
     this.completedQuests = [];
     this.availableQuests = [];
-      this.lastQuestsHash = null;
+    
+    // ✅ FIX 2: Déduplication hash pour availableQuestsList
+    this.lastQuestsHash = null;
     this.lastQuestsTime = 0;
+    this.questsHashCooldown = 1000; // 1 seconde
+    
     // Stats
     this.questStats = {
       totalActive: 0,
@@ -40,12 +46,13 @@ export class QuestManager {
     // État interaction
     this.pendingQuestRequest = false;
     this.lastInteractionTime = 0;
-    this.interactionCooldown = 1000;
     
-    // Références des handlers pour nettoyage
+    // ✅ FIX 3: Références des handlers pour nettoyage agressif
     this.handlerRefs = new Map();
+    this.handlerCleanupAttempts = 0;
+    this.maxCleanupAttempts = 3;
     
-    console.log('📖 [QuestManager] Instance créée - Version avec debug');
+    console.log('📖 [QuestManager] Instance créée - Version ANTI-DUPLICATION');
     
     if (gameRoom) {
       this.setGameRoom(gameRoom);
@@ -56,7 +63,7 @@ export class QuestManager {
   
   async init(gameRoom = null, networkManager = null) {
     try {
-      console.log('🚀 [QuestManager] Initialisation simplifiée...');
+      console.log('🚀 [QuestManager] Initialisation avec fixes anti-duplication...');
       
       // 1. Configuration GameRoom
       if (gameRoom) {
@@ -72,19 +79,21 @@ export class QuestManager {
         this.connectNetworkManager(networkManager);
       }
       
-      // 3. Enregistrement handlers - SEULEMENT si pas déjà fait
-      if (!this.handlersRegistered) {
-        this.registerHandlers();
-        this.handlersRegistered = true;
-      } else {
-        console.log('ℹ️ [QuestManager] Handlers déjà enregistrés, skip');
+      // ✅ FIX 4: Nettoyage AGRESSIF avant enregistrement
+      if (this.handlersRegistered) {
+        console.log('🧹 [QuestManager] Handlers déjà enregistrés, nettoyage agressif...');
+        this.unregisterHandlers();
       }
+      
+      // 3. Enregistrement handlers avec protection
+      this.registerHandlers();
+      this.handlersRegistered = true;
       
       // 4. PRÊT IMMÉDIATEMENT
       this.ready = true;
       this.initialized = true;
       
-      console.log('✅ [QuestManager] Prêt immédiatement !');
+      console.log('✅ [QuestManager] Prêt avec protection anti-duplication !');
       return this;
       
     } catch (error) {
@@ -106,7 +115,7 @@ export class QuestManager {
     console.log('✅ [QuestManager] GameRoom configurée');
   }
   
-  // === 📡 ENREGISTREMENT HANDLERS AVEC NETTOYAGE ===
+  // === 📡 ENREGISTREMENT HANDLERS AVEC NETTOYAGE AGRESSIF ===
   
   registerHandlers() {
     if (!this.gameRoom) {
@@ -114,9 +123,9 @@ export class QuestManager {
       return false;
     }
     
-    console.log('📡 [QuestManager] Enregistrement handlers direct...');
+    console.log('📡 [QuestManager] Enregistrement handlers avec protection...');
     
-    // Nettoyer les anciens handlers d'abord
+    // ✅ FIX 5: Nettoyer AVANT d'enregistrer
     this.unregisterHandlers();
     
     try {
@@ -129,34 +138,37 @@ export class QuestManager {
           this.triggerCallbacks();
         },
 
-    "availableQuestsList": (data) => {
-      // ✅ DÉDUPLICATION: Ignorer si on a déjà reçu cette réponse récemment
-      const questsHash = JSON.stringify(data);
-      const now = Date.now();
-      
-      if (this.lastQuestsHash === questsHash && this.lastQuestsTime && (now - this.lastQuestsTime) < 1000) {
-        console.log('🔍 [DEBUG] availableQuestsList handler appelé (DUPLIQUÉ - IGNORÉ)');
-        return;
-      }
-      
-      this.lastQuestsHash = questsHash;
-      this.lastQuestsTime = now;
-      
-      console.log('🔍 [DEBUG] availableQuestsList handler appelé');
-      console.log('🔍 [DEBUG] Data reçue:', data);
-      console.log('🔍 [DEBUG] Type de data:', typeof data);
-      console.log('🔍 [DEBUG] Est-ce un array?', Array.isArray(data));
-      console.log('🔍 [DEBUG] data.quests:', data.quests);
-      console.log('🔍 [DEBUG] Nombre de quêtes:', data.quests?.length);
-      
-      console.log('📥 [QuestManager] Quêtes disponibles:', data);
-      this.availableQuests = this.extractQuests(data);
-      
-      if (this.pendingQuestRequest && this.availableQuests.length > 0) {
-        this.showQuestSelection();
-      }
-      this.pendingQuestRequest = false;
-    },
+        "availableQuestsList": (data) => {
+          // ✅ FIX 6: DÉDUPLICATION RENFORCÉE avec hash + timestamp
+          const questsHash = JSON.stringify(data);
+          const now = Date.now();
+          
+          // Vérifier hash ET timestamp
+          if (this.lastQuestsHash === questsHash && 
+              this.lastQuestsTime && 
+              (now - this.lastQuestsTime) < this.questsHashCooldown) {
+            console.log('🚫 [QuestManager] availableQuestsList DUPLIQUÉ ignoré (hash+time)');
+            return;
+          }
+          
+          // Mettre à jour hash et timestamp
+          this.lastQuestsHash = questsHash;
+          this.lastQuestsTime = now;
+          
+          console.log('🔍 [DEBUG] availableQuestsList handler UNIQUE appelé');
+          console.log('🔍 [DEBUG] Data reçue:', data);
+          console.log('🔍 [DEBUG] Hash:', questsHash.substring(0, 50) + '...');
+          console.log('🔍 [DEBUG] Timestamp:', now);
+          
+          console.log('📥 [QuestManager] Quêtes disponibles (UNIQUE):', data);
+          this.availableQuests = this.extractQuests(data);
+          
+          if (this.pendingQuestRequest && this.availableQuests.length > 0) {
+            this.showQuestSelection();
+          }
+          this.pendingQuestRequest = false;
+        },
+
         "questStartResult": (data) => {
           console.log('📥 [QuestManager] Résultat démarrage:', data);
           this.handleQuestStartResult(data);
@@ -173,13 +185,25 @@ export class QuestManager {
         }
       };
       
-      // Enregistrer les handlers ET les stocker pour nettoyage
+      // ✅ FIX 7: Enregistrer avec vérification
       Object.entries(handlers).forEach(([eventName, handler]) => {
+        // Vérifier si handler existe déjà
+        if (this.gameRoom._messageHandlers?.has(eventName)) {
+          const existingHandlers = this.gameRoom._messageHandlers.get(eventName);
+          console.log(`🔍 [QuestManager] ${eventName}: ${existingHandlers.length} handlers existants`);
+        }
+        
         this.gameRoom.onMessage(eventName, handler);
         this.handlerRefs.set(eventName, handler);
+        
+        // Vérification post-enregistrement
+        if (this.gameRoom._messageHandlers?.has(eventName)) {
+          const newHandlerCount = this.gameRoom._messageHandlers.get(eventName).length;
+          console.log(`✅ [QuestManager] ${eventName}: ${newHandlerCount} handlers après enregistrement`);
+        }
       });
       
-      console.log('✅ [QuestManager] Handlers enregistrés');
+      console.log('✅ [QuestManager] Handlers enregistrés avec protection');
       return true;
       
     } catch (error) {
@@ -188,32 +212,44 @@ export class QuestManager {
     }
   }
   
-  // Méthode pour nettoyer les handlers
-unregisterHandlers() {
-  if (!this.gameRoom) {
-    return;
+  // ✅ FIX 8: Nettoyage AGRESSIF amélioré
+  unregisterHandlers() {
+    if (!this.gameRoom) {
+      return;
+    }
+    
+    this.handlerCleanupAttempts++;
+    console.log(`🧹 [QuestManager] Nettoyage AGRESSIF handlers (tentative ${this.handlerCleanupAttempts})...`);
+    
+    const eventNames = ['activeQuestsList', 'availableQuestsList', 'questStartResult', 'questProgressUpdate', 'questStatuses'];
+    
+    if (this.gameRoom._messageHandlers) {
+      eventNames.forEach(eventName => {
+        const handlers = this.gameRoom._messageHandlers.get(eventName);
+        if (handlers && Array.isArray(handlers)) {
+          const initialCount = handlers.length;
+          
+          // ✅ NETTOYAGE SUPER AGRESSIF: Vider complètement + supprimer entrée
+          handlers.length = 0;
+          
+          // Pour être sûr, supprimer l'entrée complètement
+          if (initialCount > 0) {
+            this.gameRoom._messageHandlers.delete(eventName);
+            console.log(`🧹 [QuestManager] ${eventName}: ${initialCount} handlers supprimés + entrée effacée`);
+          }
+        }
+      });
+    }
+    
+    // Nettoyer nos références
+    this.handlerRefs.clear();
+    
+    // Reset des timestamps pour éviter les conflits
+    this.lastQuestsHash = null;
+    this.lastQuestsTime = 0;
+    
+    console.log('✅ [QuestManager] Nettoyage AGRESSIF terminé');
   }
-  
-  console.log('🧹 [QuestManager] Nettoyage anciens handlers...');
-  
-  // ✅ NETTOYAGE AGRESSIF: Supprimer TOUS les handlers pour ces événements
-  const eventNames = ['activeQuestsList', 'availableQuestsList', 'questStartResult', 'questProgressUpdate', 'questStatuses'];
-  
-  if (this.gameRoom._messageHandlers) {
-    eventNames.forEach(eventName => {
-      const handlers = this.gameRoom._messageHandlers.get(eventName);
-      if (handlers && Array.isArray(handlers)) {
-        const initialCount = handlers.length;
-        // Vider complètement le tableau
-        handlers.length = 0;
-        console.log(`🧹 [QuestManager] ${initialCount} handlers ${eventName} supprimés`);
-      }
-    });
-  }
-  
-  this.handlerRefs.clear();
-  console.log('✅ [QuestManager] Handlers nettoyés');
-}
   
   // === ✅ VÉRIFICATIONS SIMPLES ===
   
@@ -227,9 +263,10 @@ unregisterHandlers() {
       return false;
     }
     
+    // ✅ FIX 9: Protection anti-spam renforcée
     const now = Date.now();
     if (this.lastInteractionTime && (now - this.lastInteractionTime) < this.interactionCooldown) {
-      console.log('🚫 [QuestManager] Cooldown actif');
+      console.log(`🚫 [QuestManager] Cooldown actif (${now - this.lastInteractionTime}ms < ${this.interactionCooldown}ms)`);
       return false;
     }
     
@@ -264,6 +301,12 @@ unregisterHandlers() {
   }
   
   requestAvailableQuests() {
+    // ✅ FIX 10: Protection contre double requête
+    if (this.pendingQuestRequest) {
+      console.log('🚫 [QuestManager] Requête déjà en cours, ignorer');
+      return false;
+    }
+    
     this.pendingQuestRequest = true;
     return this.sendRequest("getAvailableQuests");
   }
@@ -273,47 +316,65 @@ unregisterHandlers() {
     return this.sendRequest("startQuest", { questId });
   }
   
-  // === 🗣️ INTERACTION NPC AVEC DEBUG ===
+  // === 🗣️ INTERACTION NPC AVEC PROTECTION ANTI-SPAM RENFORCÉE ===
   
-handleNpcInteraction(data, debugSource = 'unknown') {
-  // Incrémenter le compteur
-  this.debugCallCount++;
-  
-  // Log simple avec source
-  console.log(`🔔 [QuestManager] APPEL #${this.debugCallCount} depuis: ${debugSource}`);
-  
-  // Si c'est le premier appel, continuer normalement
-  if (this.debugCallCount === 1) {
-    // Logique originale...
-    console.log('🗣️ [QuestManager] Interaction NPC:', data);
-    
-    if (!this.canProcessInteraction()) {
-      return 'BLOCKED';
+  handleNpcInteraction(data, debugSource = 'unknown') {
+    // ✅ FIX 11: Protection anti-spam AVANT incrémentation
+    const now = Date.now();
+    if (this.lastInteractionTime && (now - this.lastInteractionTime) < this.interactionCooldown) {
+      console.log(`🚫 [QuestManager] Interaction bloquée (cooldown ${now - this.lastInteractionTime}ms)`);
+      return 'BLOCKED_COOLDOWN';
     }
     
-    this.lastInteractionTime = Date.now();
+    // Incrémenter le compteur seulement si on passe le cooldown
+    this.debugCallCount++;
     
-    if (!data || data.type !== 'questGiver') {
-      return 'NO_QUEST';
+    // Log avec source et timestamp
+    console.log(`🔔 [QuestManager] APPEL #${this.debugCallCount} depuis: ${debugSource} (${now})`);
+    
+    // ✅ FIX 12: Logique simplifiée - traiter seulement le premier appel valide
+    if (this.debugCallCount === 1 || (now - this.lastInteractionTime) >= this.interactionCooldown) {
+      console.log('🗣️ [QuestManager] Interaction NPC VALIDE:', data);
+      
+      if (!this.canProcessInteraction()) {
+        this.resetDebugCallCount(); // Reset pour la prochaine fois
+        return 'BLOCKED';
+      }
+      
+      // Mettre à jour le timestamp ICI pour éviter les doublons
+      this.lastInteractionTime = now;
+      
+      if (!data || data.type !== 'questGiver') {
+        this.resetDebugCallCount();
+        return 'NO_QUEST';
+      }
+      
+      if (data.availableQuests?.length > 0) {
+        this.showQuestDialog('Choisir une quête', data.availableQuests);
+        this.resetDebugCallCount();
+        return 'QUESTS_SHOWN';
+      }
+      
+      if (!this.pendingQuestRequest) {
+        this.requestAvailableQuests();
+        this.resetDebugCallCount();
+        return 'REQUESTING_QUESTS';
+      }
+      
+      this.resetDebugCallCount();
+      return 'ALREADY_REQUESTING';
+    } else {
+      // Appels supplémentaires - juste logger et bloquer
+      console.log(`🚫 [QuestManager] Appel supplémentaire #${this.debugCallCount} ignoré (anti-spam)`);
+      return 'BLOCKED_DUPLICATE';
     }
-    
-    if (data.availableQuests?.length > 0) {
-      this.showQuestDialog('Choisir une quête', data.availableQuests);
-      return 'QUESTS_SHOWN';
-    }
-    
-    if (!this.pendingQuestRequest) {
-      this.requestAvailableQuests();
-      return 'REQUESTING_QUESTS';
-    }
-    
-    return 'ALREADY_REQUESTING';
-  } else {
-    // Appels supplémentaires - juste logger et bloquer
-    console.log('🚫 [QuestManager] Appel supplémentaire ignoré');
-    return 'BLOCKED';
   }
-}
+  
+  // ✅ FIX 13: Méthode pour reset debug
+  resetDebugCallCount() {
+    console.log(`🔄 [QuestManager] Reset debug count (était ${this.debugCallCount})`);
+    this.debugCallCount = 0;
+  }
   
   // === 📊 GESTION DONNÉES SIMPLE ===
   
@@ -439,7 +500,7 @@ handleNpcInteraction(data, debugSource = 'unknown') {
   
   handleNetworkManagerResponse(data) {
     if (this.isQuestRelatedResponse(data)) {
-      this.handleNpcInteraction(data);
+      this.handleNpcInteraction(data, 'NetworkManager');
     }
   }
   
@@ -499,32 +560,39 @@ handleNpcInteraction(data, debugSource = 'unknown') {
       canProcessInteraction: this.canProcessInteraction(),
       handlerRefsCount: this.handlerRefs.size,
       
-      // ✅ NOUVEAU: Info debug
+      // ✅ Info debug anti-duplication
       debugCallCount: this.debugCallCount,
-      debugCallLog: this.debugCallLog.slice(-5) // 5 derniers appels
+      debugCallLog: this.debugCallLog.slice(-5),
+      lastQuestsHash: this.lastQuestsHash ? this.lastQuestsHash.substring(0, 50) + '...' : null,
+      lastQuestsTime: this.lastQuestsTime,
+      handlerCleanupAttempts: this.handlerCleanupAttempts,
+      interactionCooldown: this.interactionCooldown
     };
   }
   
-  // ✅ NOUVEAU: Méthode pour reset debug
+  // ✅ NOUVEAU: Méthode pour reset debug complet
   resetDebug() {
     this.debugCallCount = 0;
     this.debugCallLog = [];
-    console.log('🔄 [QuestManager] Debug reset');
+    this.lastQuestsHash = null;
+    this.lastQuestsTime = 0;
+    this.lastInteractionTime = 0;
+    console.log('🔄 [QuestManager] Debug complet reset');
   }
   
   // === 🧹 NETTOYAGE AMÉLIORÉ ===
   
   destroy() {
-    console.log('🧹 [QuestManager] Destruction...');
+    console.log('🧹 [QuestManager] Destruction avec nettoyage anti-duplication...');
     
-    // Nettoyer les handlers
+    // Nettoyer les handlers agressivement
     this.unregisterHandlers();
     
     this.ready = false;
     this.initialized = false;
     this.handlersRegistered = false;
     
-    // Reset debug
+    // Reset debug complet
     this.resetDebug();
     
     // Reset callbacks
@@ -544,6 +612,6 @@ handleNpcInteraction(data, debugSource = 'unknown') {
     this.questUI = null;
     this.networkManager = null;
     
-    console.log('✅ [QuestManager] Détruit');
+    console.log('✅ [QuestManager] Détruit avec protection anti-duplication');
   }
 }
