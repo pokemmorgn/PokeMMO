@@ -24,6 +24,9 @@ export class FollowerHandlers {
     // Demande de suppression du follower
     this.room.onMessage("removeFollower", this.handleRemoveFollower.bind(this));
     
+    // ✅ NOUVEAU: Handler pour les transitions de carte
+    this.room.onMessage("playerMapTransition", this.handlePlayerMapTransition.bind(this));
+    
     // Debug des followers (admin)
     this.room.onMessage("debugFollowers", this.handleDebugFollowers.bind(this));
     
@@ -98,6 +101,37 @@ export class FollowerHandlers {
   }
 
   /**
+   * ✅ NOUVEAU: Gère les transitions de carte
+   */
+  private handlePlayerMapTransition(client: Client, message: { newX: number, newY: number, mapName?: string }): void {
+    try {
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        console.warn(`⚠️ [FollowerHandlers] Joueur non trouvé pour transition: ${client.sessionId}`);
+        return;
+      }
+
+      console.log(`🗺️ [FollowerHandlers] Transition de carte pour ${player.name} vers (${message.newX}, ${message.newY})`);
+      
+      // Informer le FollowerManager de la transition
+      this.followerManager.onPlayerMapTransition(client.sessionId, message.newX, message.newY);
+      
+      // Optionnel: Confirmer la transition au client
+      client.send("followerTransitionResult", {
+        success: true,
+        message: "Follower téléporté après transition"
+      });
+
+    } catch (error) {
+      console.error("❌ [FollowerHandlers] Erreur playerMapTransition:", error);
+      client.send("followerTransitionResult", {
+        success: false,
+        message: "Erreur lors de la transition du follower"
+      });
+    }
+  }
+
+  /**
    * Debug des followers (admin seulement)
    */
   private handleDebugFollowers(client: Client): void {
@@ -163,6 +197,18 @@ export class FollowerHandlers {
       this.followerManager.updateFollowerPosition(playerId, x, y, direction, isMoving);
     } catch (error) {
       console.error("❌ [FollowerHandlers] Erreur onPlayerMove:", error);
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Méthode appelée lors d'une transition de carte
+   */
+  onPlayerMapTransition(playerId: string, newX: number, newY: number): void {
+    try {
+      console.log(`🗺️ [FollowerHandlers] Transition externe pour ${playerId} vers (${newX}, ${newY})`);
+      this.followerManager.onPlayerMapTransition(playerId, newX, newY);
+    } catch (error) {
+      console.error("❌ [FollowerHandlers] Erreur onPlayerMapTransition:", error);
     }
   }
 
