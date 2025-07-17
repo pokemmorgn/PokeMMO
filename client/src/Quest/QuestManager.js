@@ -446,7 +446,15 @@ export class QuestManager {
     if (data?.success) {
       this.showNotification(`Quête "${data.quest?.name || 'Inconnue'}" acceptée !`, 'success');
       this.triggerCallback('onQuestStarted', data.quest);
-      setTimeout(() => this.requestActiveQuests(), 500);
+      
+      // ✅ FIX: Protection contre boucle infinie
+      if (!this.isRequestingActiveQuests) {
+        this.isRequestingActiveQuests = true;
+        setTimeout(() => {
+          this.requestActiveQuests();
+          this.isRequestingActiveQuests = false;
+        }, 500);
+      }
     } else {
       this.showNotification(data?.message || "Impossible de démarrer cette quête", 'error');
     }
@@ -467,7 +475,14 @@ export class QuestManager {
       }
     });
     
-    setTimeout(() => this.requestActiveQuests(), 500);
+    // ✅ FIX: Protection contre boucle infinie
+    if (!this.isRequestingActiveQuests) {
+      this.isRequestingActiveQuests = true;
+      setTimeout(() => {
+        this.requestActiveQuests();
+        this.isRequestingActiveQuests = false;
+      }, 500);
+    }
   }
   
   handleQuestStatuses(data) {
@@ -609,13 +624,14 @@ export class QuestManager {
     this.debugCallCount = 0;
     this.debugCallLog = [];
     this.lastInteractionTime = 0;
+    this.isRequestingActiveQuests = false;
     
     // Reset tous les hashes
     Object.keys(this.handlerHashes).forEach(handler => {
       this.handlerHashes[handler] = { hash: null, time: 0 };
     });
     
-    console.log('🔄 [QuestManager] Debug complet reset avec hashes');
+    console.log('🔄 [QuestManager] Debug complet reset avec protection boucles');
   }
   
   // === 🧹 NETTOYAGE AMÉLIORÉ ===
