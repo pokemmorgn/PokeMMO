@@ -1,6 +1,5 @@
 // ============================================================================
-// InteractionNpcManager.js - AVEC BRIDGE VERS QUESTMANAGER
-// 🔗 Délègue les quest givers au QuestManager pour éviter duplication
+// InteractionNpcManager.js - FIX DOUBLE DÉLÉGATION
 // ============================================================================
 
 export class InteractionNpcManager {
@@ -8,7 +7,7 @@ export class InteractionNpcManager {
     this.networkManager = networkManager;
     this.isProcessing = false;
     this.lastInteractionTime = 0;
-    this.cooldownMs = 1000; // 1 seconde entre interactions
+    this.cooldownMs = 1000;
     
     console.log('🤖 [InteractionNpcManager] Initialisé avec bridge QuestManager');
   }
@@ -26,9 +25,9 @@ export class InteractionNpcManager {
     
     this.startProcessing();
     
-    // ✅ NOUVEAU: Bridge vers QuestManager pour quest givers
+    // ✅ FIX: DÉLÉGUER SEULEMENT aux Quest Givers, PAS aux autres
     if (this.isQuestGiver(npcData)) {
-      console.log('🎯 [InteractionNpcManager] Quest Giver détecté - délégation QuestManager');
+      console.log('🎯 [InteractionNpcManager] Quest Giver détecté - délégation QuestManager UNIQUEMENT');
       
       const questResult = this.delegateToQuestManager(npcData);
       
@@ -39,15 +38,16 @@ export class InteractionNpcManager {
       }
       
       if (questResult === 'QUESTS_SHOWN' || questResult === 'REQUESTING_QUESTS') {
-        console.log('✅ [InteractionNpcManager] QuestManager gère - délégation réussie');
-        // QuestManager prend le relais, mais on continue le processing normal
-        // car le QuestManager va potentiellement envoyer sa propre requête
+        console.log('✅ [InteractionNpcManager] QuestManager gère - PAS d\'envoi serveur supplémentaire');
+        this.stopProcessing(); // ✅ FIX: Arrêter ici, pas de double envoi
+        return true;
       }
       
-      // Si questResult === 'NO_QUEST', on continue le traitement normal ci-dessous
+      // Si questResult === 'NO_QUEST', continuer le traitement normal
+      console.log('ℹ️ [InteractionNpcManager] Pas de quête, traitement normal');
     }
     
-    // Envoyer au serveur via NetworkManager
+    // ✅ FIX: Envoyer au serveur SEULEMENT si pas déjà géré par QuestManager
     const success = this.networkManager.sendNpcInteraction(npcData.id || npcData.npcId, {
       npcName: npcData.name,
       npcType: npcData.type,
@@ -60,7 +60,7 @@ export class InteractionNpcManager {
       // Programmer la fin du processing
       setTimeout(() => {
         this.stopProcessing();
-      }, 3000); // 3 secondes max
+      }, 3000);
       
       return true;
     } else {
@@ -70,23 +70,20 @@ export class InteractionNpcManager {
     }
   }
   
-  // === ✅ NOUVEAU: DÉTECTION QUEST GIVER ===
+  // === ✅ DÉTECTION QUEST GIVER (inchangée) ===
   
   isQuestGiver(npcData) {
     if (!npcData) return false;
     
-    // Vérifier différents indicateurs de quest giver
     const questIndicators = [
       npcData.type === 'questGiver',
       npcData.npcType === 'questGiver',
       npcData.isQuestGiver === true,
       npcData.hasQuests === true,
       npcData.questGiver === true,
-      // Noms/patterns communs pour quest givers
       npcData.name && npcData.name.toLowerCase().includes('guide'),
       npcData.name && npcData.name.toLowerCase().includes('master'),
       npcData.name && npcData.name.toLowerCase().includes('elder'),
-      // Sprite patterns
       npcData.sprite && npcData.sprite.includes('questgiver'),
       npcData.sprite && npcData.sprite.includes('quest')
     ];
@@ -94,12 +91,11 @@ export class InteractionNpcManager {
     return questIndicators.some(indicator => indicator);
   }
   
-  // === ✅ NOUVEAU: DÉLÉGATION QUESTMANAGER ===
+  // === ✅ DÉLÉGATION QUESTMANAGER (inchangée) ===
   
   delegateToQuestManager(npcData) {
     console.log('🔗 [InteractionNpcManager] Délégation au QuestManager...');
     
-    // Vérifier si le QuestManager est disponible
     if (!window.questSystem?.manager) {
       console.warn('⚠️ [InteractionNpcManager] QuestManager non disponible - fallback normal');
       return 'NO_QUEST';
@@ -111,17 +107,15 @@ export class InteractionNpcManager {
     }
     
     try {
-      // Préparer les données pour le QuestManager
       const questData = {
         ...npcData,
-        type: 'questGiver', // Force le type pour que QuestManager le reconnaisse
+        type: 'questGiver',
         source: 'InteractionNpcManager',
         timestamp: Date.now()
       };
       
       console.log('📤 [InteractionNpcManager] Envoi données au QuestManager:', questData);
       
-      // Déléguer au QuestManager
       const result = window.questSystem.manager.handleNpcInteraction(questData);
       
       console.log('📨 [InteractionNpcManager] Réponse QuestManager:', result);
@@ -134,7 +128,7 @@ export class InteractionNpcManager {
     }
   }
   
-  // === TRAITEMENT DES RÉPONSES DU SERVEUR (MODIFIÉ) ===
+  // === ✅ FIX: TRAITEMENT DES RÉPONSES SERVEUR - Éviter redélégation ===
   
   handleServerResponse(responseData) {
     console.log('📨 [InteractionNpcManager] === RÉPONSE SERVEUR ===');
@@ -143,28 +137,12 @@ export class InteractionNpcManager {
     
     this.stopProcessing();
     
-    // ✅ NOUVEAU: Déléguer les réponses quest au QuestManager en priorité
-    if (this.isQuestResponse(responseData)) {
-      console.log('🎯 [InteractionNpcManager] Réponse quest détectée - délégation QuestManager');
-      
-      if (window.questSystem?.manager?.handleServerResponse) {
-        try {
-          window.questSystem.manager.handleServerResponse(responseData);
-          console.log('✅ [InteractionNpcManager] Réponse quest déléguée avec succès');
-          return; // QuestManager gère tout
-        } catch (error) {
-          console.error('❌ [InteractionNpcManager] Erreur délégation réponse quest:', error);
-          // Continuer avec le traitement normal en cas d'erreur
-        }
-      }
-    }
+    // ✅ FIX: NE PAS déléguer les réponses quest au QuestManager
+    // Le QuestManager a ses propres handlers NetworkManager
+    console.log('ℹ️ [InteractionNpcManager] Traitement réponse sans redélégation quest');
     
     // Traitement normal pour les autres types
     switch (responseData.type) {
-      case 'questGiver':
-        this.handleQuestGiver(responseData);
-        break;
-        
       case 'shop':
         this.handleShop(responseData);
         break;
@@ -173,12 +151,17 @@ export class InteractionNpcManager {
         this.handleDialog(responseData);
         break;
         
-      case 'questComplete':
-        this.handleQuestComplete(responseData);
-        break;
-        
       case 'trainer':
         this.handleTrainer(responseData);
+        break;
+        
+      // ✅ FIX: Ne plus gérer questGiver ici - laissé au QuestManager
+      case 'questGiver':
+        console.log('ℹ️ [InteractionNpcManager] questGiver ignoré - géré par QuestManager');
+        break;
+        
+      case 'questComplete':
+        console.log('ℹ️ [InteractionNpcManager] questComplete ignoré - géré par QuestManager');
         break;
         
       default:
@@ -187,52 +170,9 @@ export class InteractionNpcManager {
     }
   }
   
-  // === ✅ NOUVEAU: DÉTECTION RÉPONSE QUEST ===
+  // === ✅ SUPPRIMÉ: isQuestResponse et délégation quest ===
   
-  isQuestResponse(responseData) {
-    if (!responseData) return false;
-    
-    const questResponseIndicators = [
-      responseData.type === 'questGiver',
-      responseData.type === 'questComplete',
-      responseData.type === 'quest',
-      responseData.availableQuests && Array.isArray(responseData.availableQuests),
-      responseData.questData !== undefined,
-      responseData.questId !== undefined,
-      responseData.questStarted === true,
-      responseData.questCompleted === true
-    ];
-    
-    return questResponseIndicators.some(indicator => indicator);
-  }
-  
-  // === GESTIONNAIRES SPÉCIALISÉS PAR TYPE NPC ===
-  
-  handleQuestGiver(data) {
-    console.log('🎯 [InteractionNpcManager] Quest Giver (fallback)');
-    
-    // ✅ Note: Normalement délégué au QuestManager, ceci est un fallback
-    if (data.availableQuests && data.availableQuests.length > 0) {
-      console.log('⚠️ [InteractionNpcManager] Fallback: tentative délégation tardive QuestManager');
-      
-      if (window.questSystem?.manager?.showQuestSelectionDialog) {
-        try {
-          window.questSystem.manager.showQuestSelectionDialog('Choisir une quête', data.availableQuests);
-          return;
-        } catch (error) {
-          console.error('❌ [InteractionNpcManager] Fallback délégation échouée:', error);
-        }
-      }
-      
-      // Ultimate fallback - message simple
-      this.showNpcMessage({
-        npcName: data.npcName || 'Guide',
-        message: `J'ai ${data.availableQuests.length} quête(s) pour vous, mais le système de quêtes n'est pas disponible.`
-      });
-    } else if (data.message) {
-      this.showNpcMessage(data);
-    }
-  }
+  // === GESTIONNAIRES SPÉCIALISÉS PAR TYPE NPC (simplifiés) ===
   
   handleShop(data) {
     console.log('🏪 [InteractionNpcManager] Shop');
@@ -252,26 +192,6 @@ export class InteractionNpcManager {
     }
   }
   
-  handleQuestComplete(data) {
-    console.log('✅ [InteractionNpcManager] Quest Complete (fallback)');
-    
-    // ✅ Déléguer au QuestManager si possible
-    if (window.questSystem?.manager?.handleQuestCompletion) {
-      try {
-        window.questSystem.manager.handleQuestCompletion(data);
-        return;
-      } catch (error) {
-        console.error('❌ [InteractionNpcManager] Erreur délégation quest completion:', error);
-      }
-    }
-    
-    // Fallback
-    this.showNpcMessage({
-      npcName: data.npcName || 'NPC',
-      message: data.message || 'Quête terminée !'
-    });
-  }
-  
   handleTrainer(data) {
     console.log('⚔️ [InteractionNpcManager] Trainer');
     
@@ -288,7 +208,7 @@ export class InteractionNpcManager {
     }
   }
   
-  // === UTILITAIRES ===
+  // === UTILITAIRES (inchangés) ===
   
   canProcessInteraction() {
     const now = Date.now();
@@ -301,7 +221,6 @@ export class InteractionNpcManager {
       return false;
     }
     
-    // ✅ NOUVEAU: Vérifier aussi l'état du QuestManager
     if (window.questSystem?.manager?.canProcessInteraction) {
       if (!window.questSystem.manager.canProcessInteraction()) {
         console.log('🚫 [InteractionNpcManager] QuestManager bloqué');
@@ -354,8 +273,6 @@ export class InteractionNpcManager {
       this.showNpcMessage(data);
     }
   }
-  
-  // === ✅ NOUVEAU: DEBUG QUESTMANAGER ===
   
   debugQuestManagerConnection() {
     const info = {
