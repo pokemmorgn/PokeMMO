@@ -160,12 +160,6 @@ export class QuestModule extends BaseModule {
   async createComponentsSequential() {
     console.log('🔧 [QuestModule] Création composants séquentielle...');
     
-    // ✅ PROTECTION: Éviter la re-création
-    if (this.componentsReady) {
-      console.log('🔄 [QuestModule] Composants déjà créés, skip');
-      return;
-    }
-    
     await this.createIconComponent();
     await this.createUIComponent();
     await this.waitForComponentsReady();
@@ -176,12 +170,6 @@ export class QuestModule extends BaseModule {
   
   async createIconComponent() {
     console.log('🎨 [QuestModule] Création icône...');
-    
-    // ✅ PROTECTION: Éviter la re-création
-    if (this.icon && this.icon.iconElement) {
-      console.log('🔄 [QuestModule] Icône déjà créée, skip');
-      return;
-    }
     
     if (!this.icon) {
       this.icon = new QuestIcon(this.manager);
@@ -194,13 +182,6 @@ export class QuestModule extends BaseModule {
   
   forceIconDisplay() {
     if (this.icon?.iconElement) {
-      // ✅ PROTECTION: Éviter les appels multiples
-      if (this.icon.iconElement.style.display === 'block' && 
-          this.icon.iconElement.style.opacity === '1') {
-        console.log('🔄 [QuestModule] Icône déjà affichée, skip');
-        return;
-      }
-      
       const iconEl = this.icon.iconElement;
       
       iconEl.style.position = 'fixed';
@@ -220,12 +201,6 @@ export class QuestModule extends BaseModule {
   
   async createUIComponent() {
     console.log('📱 [QuestModule] Création interface...');
-    
-    // ✅ PROTECTION: Éviter la re-création
-    if (this.ui && this.ui.overlayElement && this.ui.trackerElement) {
-      console.log('🔄 [QuestModule] UI déjà créée, skip');
-      return;
-    }
     
     if (!this.ui) {
       this.ui = new QuestUI(this.manager, this.gameRoom);
@@ -264,12 +239,6 @@ export class QuestModule extends BaseModule {
   connectComponents() {
     console.log('🔗 [QuestModule] Connexion composants...');
     
-    // ✅ PROTECTION: Éviter les re-connexions
-    if (this.manager?.onStatsUpdate && this.icon?.onClick && this.ui?.onAction) {
-      console.log('🔄 [QuestModule] Composants déjà connectés, skip');
-      return;
-    }
-    
     this.connectManagerToIcon();
     this.connectIconToUI();
     this.connectManagerToUI();
@@ -280,12 +249,6 @@ export class QuestModule extends BaseModule {
   
   connectManagerToIcon() {
     if (this.manager && this.icon) {
-      // ✅ PROTECTION: Éviter les re-connexions
-      if (this.manager.onStatsUpdate) {
-        console.log('🔄 [QuestModule] Manager→Icône déjà connecté, skip');
-        return;
-      }
-      
       this.manager.onStatsUpdate = (stats) => {
         try {
           this.icon.updateStats(stats);
@@ -326,12 +289,6 @@ export class QuestModule extends BaseModule {
   
   connectIconToUI() {
     if (this.icon && this.ui) {
-      // ✅ PROTECTION: Éviter les re-connexions
-      if (this.icon.onClick) {
-        console.log('🔄 [QuestModule] Icône→UI déjà connecté, skip');
-        return;
-      }
-      
       this.icon.onClick = () => {
         try {
           if (this.canOpenUI()) {
@@ -350,12 +307,6 @@ export class QuestModule extends BaseModule {
   
   connectManagerToUI() {
     if (this.manager && this.ui) {
-      // ✅ PROTECTION: Éviter les re-connexions
-      if (this.manager.questUI === this.ui) {
-        console.log('🔄 [QuestModule] Manager→UI déjà connecté, skip');
-        return;
-      }
-      
       this.manager.connectQuestUI(this.ui);
       
       this.manager.onQuestUpdate = (quests) => {
@@ -379,12 +330,6 @@ export class QuestModule extends BaseModule {
   
   connectUIToManager() {
     if (this.ui && this.manager) {
-      // ✅ PROTECTION: Éviter les re-connexions
-      if (this.ui.onAction) {
-        console.log('🔄 [QuestModule] UI→Manager déjà connecté, skip');
-        return;
-      }
-      
       this.ui.onAction = (action, data) => {
         try {
           this.manager.handleAction(action, data);
@@ -417,8 +362,6 @@ export class QuestModule extends BaseModule {
   }
   
   resetComponents() {
-    console.log('🔄 [QuestModule] Reset composants...');
-    
     if (this.icon) {
       this.icon.destroy?.();
       this.icon = null;
@@ -430,9 +373,9 @@ export class QuestModule extends BaseModule {
     }
     
     this.componentsReady = false;
-    this.verificationInProgress = false;
     
-    console.log('✅ [QuestModule] Composants reset');
+    // ✅ CORRECTION: Reset du flag de vérification
+    this.verificationInProgress = false;
   }
   
   async createMinimalInterface() {
@@ -447,13 +390,6 @@ export class QuestModule extends BaseModule {
   
   async createIcon() {
     console.log('🎨 [QuestModule] createIcon() pour UIManager');
-    
-    // ✅ PROTECTION: Éviter la re-création
-    if (this.icon?.iconElement && document.contains(this.icon.iconElement)) {
-      console.log('🔄 [QuestModule] Icône déjà créée pour UIManager, skip');
-      this.forceIconDisplay();
-      return this.icon.iconElement;
-    }
     
     if (!this.icon?.iconElement) {
       await this.createIconComponent();
