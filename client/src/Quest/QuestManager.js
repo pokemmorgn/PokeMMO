@@ -505,6 +505,8 @@ export class QuestManager {
   handleQuestProgress(data) {
     if (!Array.isArray(data)) return;
     
+    console.log('🎯 [QuestManager] Traitement progression quête:', data);
+    
     data.forEach(result => {
       if (result.questCompleted) {
         this.triggerCallback('onQuestCompleted', result);
@@ -517,13 +519,22 @@ export class QuestManager {
       }
     });
     
-    // ✅ FIX: Protection contre boucle infinie
+    // ✅ FIX: TOUJOURS rafraîchir après progression
+    console.log('🔄 [QuestManager] Rafraîchissement forcé après progression...');
     if (!this.isRequestingActiveQuests) {
       this.isRequestingActiveQuests = true;
       setTimeout(() => {
         this.requestActiveQuests();
         this.isRequestingActiveQuests = false;
-      }, 500);
+        
+        // ✅ FIX: Forcer mise à jour tracker après données reçues
+        setTimeout(() => {
+          if (this.questUI && this.questUI.updateTracker) {
+            console.log('🎯 [QuestManager] Force mise à jour tracker...');
+            this.questUI.updateTracker();
+          }
+        }, 500);
+      }, 100);
     }
   }
   
