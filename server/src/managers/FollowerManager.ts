@@ -77,7 +77,7 @@ export class FollowerManager {
     
     // ✅ NOUVEAU: Ignorer la validation de téléportation si en transition
     if (this.isPlayerTransitioning(playerId)) {
-      console.log(`🚪 [FollowerManager] Position acceptée (transition en cours) pour ${playerId}: (${x}, ${y})`);
+//      console.log(`🚪 [FollowerManager] Position acceptée (transition en cours) pour ${playerId}: (${x}, ${y})`);
       return true;
     }
     
