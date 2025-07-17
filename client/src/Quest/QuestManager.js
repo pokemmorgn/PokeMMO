@@ -18,10 +18,15 @@ export class QuestManager {
     this.completedQuests = [];
     this.availableQuests = [];
     
-    // ✅ FIX 2: Déduplication hash pour availableQuestsList
-    this.lastQuestsHash = null;
-    this.lastQuestsTime = 0;
-    this.questsHashCooldown = 1000; // 1 seconde
+    // ✅ FIX 2: Déduplication hash pour TOUS les handlers
+    this.handlerHashes = {
+      availableQuestsList: { hash: null, time: 0 },
+      activeQuestsList: { hash: null, time: 0 },
+      questStartResult: { hash: null, time: 0 },
+      questStatuses: { hash: null, time: 0 },
+      questProgressUpdate: { hash: null, time: 0 }
+    };
+    this.hashCooldown = 1000; // 1 seconde
     
     // Stats
     this.questStats = {
@@ -115,6 +120,32 @@ export class QuestManager {
     console.log('✅ [QuestManager] GameRoom configurée');
   }
   
+  // ✅ FIX: Méthode générique de déduplication
+  isDuplicate(handlerName, data) {
+    const dataHash = JSON.stringify(data);
+    const now = Date.now();
+    const handlerCache = this.handlerHashes[handlerName];
+    
+    if (!handlerCache) {
+      console.warn(`⚠️ [QuestManager] Handler ${handlerName} non configuré pour déduplication`);
+      return false;
+    }
+    
+    // Vérifier hash ET timestamp
+    if (handlerCache.hash === dataHash && 
+        handlerCache.time && 
+        (now - handlerCache.time) < this.hashCooldown) {
+      console.log(`🚫 [QuestManager] ${handlerName} DUPLIQUÉ ignoré (hash+time)`);
+      return true;
+    }
+    
+    // Mettre à jour hash et timestamp
+    handlerCache.hash = dataHash;
+    handlerCache.time = now;
+    
+    return false;
+  }
+  
   // === 📡 ENREGISTREMENT HANDLERS AVEC NETTOYAGE AGRESSIF ===
   
   registerHandlers() {
@@ -132,33 +163,18 @@ export class QuestManager {
       // Créer et stocker les handlers
       const handlers = {
         "activeQuestsList": (data) => {
-          console.log('📥 [QuestManager] Quêtes actives:', data);
+          // ✅ DÉDUPLICATION GÉNÉRALISÉE
+          if (this.isDuplicate('activeQuestsList', data)) return;
+          
+          console.log('📥 [QuestManager] Quêtes actives (UNIQUE):', data);
           this.activeQuests = this.extractQuests(data);
           this.updateStats();
           this.triggerCallbacks();
         },
 
         "availableQuestsList": (data) => {
-          // ✅ FIX 6: DÉDUPLICATION RENFORCÉE avec hash + timestamp
-          const questsHash = JSON.stringify(data);
-          const now = Date.now();
-          
-          // Vérifier hash ET timestamp
-          if (this.lastQuestsHash === questsHash && 
-              this.lastQuestsTime && 
-              (now - this.lastQuestsTime) < this.questsHashCooldown) {
-            console.log('🚫 [QuestManager] availableQuestsList DUPLIQUÉ ignoré (hash+time)');
-            return;
-          }
-          
-          // Mettre à jour hash et timestamp
-          this.lastQuestsHash = questsHash;
-          this.lastQuestsTime = now;
-          
-          console.log('🔍 [DEBUG] availableQuestsList handler UNIQUE appelé');
-          console.log('🔍 [DEBUG] Data reçue:', data);
-          console.log('🔍 [DEBUG] Hash:', questsHash.substring(0, 50) + '...');
-          console.log('🔍 [DEBUG] Timestamp:', now);
+          // ✅ DÉDUPLICATION GÉNÉRALISÉE
+          if (this.isDuplicate('availableQuestsList', data)) return;
           
           console.log('📥 [QuestManager] Quêtes disponibles (UNIQUE):', data);
           this.availableQuests = this.extractQuests(data);
@@ -170,17 +186,26 @@ export class QuestManager {
         },
 
         "questStartResult": (data) => {
-          console.log('📥 [QuestManager] Résultat démarrage:', data);
+          // ✅ DÉDUPLICATION GÉNÉRALISÉE
+          if (this.isDuplicate('questStartResult', data)) return;
+          
+          console.log('📥 [QuestManager] Résultat démarrage (UNIQUE):', data);
           this.handleQuestStartResult(data);
         },
 
         "questProgressUpdate": (data) => {
-          console.log('📥 [QuestManager] Progression:', data);
+          // ✅ DÉDUPLICATION GÉNÉRALISÉE
+          if (this.isDuplicate('questProgressUpdate', data)) return;
+          
+          console.log('📥 [QuestManager] Progression (UNIQUE):', data);
           this.handleQuestProgress(data);
         },
 
         "questStatuses": (data) => {
-          console.log('📥 [QuestManager] Statuts:', data);
+          // ✅ DÉDUPLICATION GÉNÉRALISÉE
+          if (this.isDuplicate('questStatuses', data)) return;
+          
+          console.log('📥 [QuestManager] Statuts (UNIQUE):', data);
           this.handleQuestStatuses(data);
         }
       };
@@ -244,9 +269,10 @@ export class QuestManager {
     // Nettoyer nos références
     this.handlerRefs.clear();
     
-    // Reset des timestamps pour éviter les conflits
-    this.lastQuestsHash = null;
-    this.lastQuestsTime = 0;
+    // Reset des hashes pour éviter les conflits
+    Object.keys(this.handlerHashes).forEach(handler => {
+      this.handlerHashes[handler] = { hash: null, time: 0 };
+    });
     
     console.log('✅ [QuestManager] Nettoyage AGRESSIF terminé');
   }
@@ -563,8 +589,16 @@ export class QuestManager {
       // ✅ Info debug anti-duplication
       debugCallCount: this.debugCallCount,
       debugCallLog: this.debugCallLog.slice(-5),
-      lastQuestsHash: this.lastQuestsHash ? this.lastQuestsHash.substring(0, 50) + '...' : null,
-      lastQuestsTime: this.lastQuestsTime,
+      handlerHashes: Object.fromEntries(
+        Object.entries(this.handlerHashes).map(([handler, cache]) => [
+          handler, 
+          { 
+            hasHash: !!cache.hash, 
+            lastTime: cache.time,
+            age: cache.time ? Date.now() - cache.time : 0
+          }
+        ])
+      ),
       handlerCleanupAttempts: this.handlerCleanupAttempts,
       interactionCooldown: this.interactionCooldown
     };
@@ -574,10 +608,14 @@ export class QuestManager {
   resetDebug() {
     this.debugCallCount = 0;
     this.debugCallLog = [];
-    this.lastQuestsHash = null;
-    this.lastQuestsTime = 0;
     this.lastInteractionTime = 0;
-    console.log('🔄 [QuestManager] Debug complet reset');
+    
+    // Reset tous les hashes
+    Object.keys(this.handlerHashes).forEach(handler => {
+      this.handlerHashes[handler] = { hash: null, time: 0 };
+    });
+    
+    console.log('🔄 [QuestManager] Debug complet reset avec hashes');
   }
   
   // === 🧹 NETTOYAGE AMÉLIORÉ ===
