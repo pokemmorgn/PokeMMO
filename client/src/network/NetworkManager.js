@@ -124,24 +124,47 @@ export class NetworkManager {
     });
 
     this.connectionManager.onMaxReconnectReached((attempts) => {
-      console.error('💀 [NetworkManager] Reconnexion impossible après', attempts, 'tentatives');
-      
-      if (window.showGameNotification) {
-        window.showGameNotification(
-          'Connexion perdue définitivement. Rechargez la page (F5).',
-          'error',
-          { duration: 10000, position: 'top-center' }
-        );
-      }
-      
-      // Proposer de recharger la page après un délai
-      setTimeout(() => {
-        if (confirm('Impossible de rétablir la connexion. Recharger la page ?')) {
-          window.location.reload();
-        }
-      }, 5000);
-    });
-  }
+ console.error('💀 [NetworkManager] Reconnexion impossible après', attempts, 'tentatives');
+ 
+ if (window.showGameNotification) {
+   window.showGameNotification(
+     'Connexion perdue définitivement. Rechargez la page (F5).',
+     'error',
+     { duration: 10000, position: 'top-center' }
+   );
+ }
+ 
+ // Proposer de recharger la page après un délai
+ setTimeout(() => {
+   if (confirm('Impossible de rétablir la connexion. Recharger la page ?')) {
+     window.location.reload();
+   }
+ }, 5000);
+});
+
+// ✅ NOUVEAU: Redémarrage serveur détecté
+this.connectionManager.onServerRestartDetected((data) => {
+ console.error('🚨 [NetworkManager] Server restart detected:', data);
+ if (window.showGameNotification) {
+   window.showGameNotification('Server restarting...', 'warning', { duration: 5000 });
+ }
+});
+
+// ✅ NOUVEAU: Erreur d'authentification
+this.connectionManager.onAuthFailure((errorCode, message) => {
+ console.error(`🔐 [NetworkManager] Auth error: ${errorCode} - ${message}`);
+ if (window.showGameNotification) {
+   window.showGameNotification('Authentication expired...', 'error', { duration: 3000 });
+ }
+});
+
+// ✅ NOUVEAU: Déconnexion forcée (popup automatique)
+this.connectionManager.onForceLogout((data) => {
+ console.error('🚪 [NetworkManager] Forced logout:', data);
+ // Le ConnectionManager s'occupe automatiquement de la popup et redirect
+});
+
+} // ← Fermeture de setupConnectionManagerCallbacks()
 
   async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
     try {
