@@ -579,6 +579,12 @@ export class TransitionManager {
     };
 
     console.log(`🚀 [TransitionManager] Démarrage ${targetSceneKey} avec data:`, transitionData);
+    // ✅ FORCER LA RESTAURATION DES HANDLERS POUR LA NOUVELLE SCÈNE
+    if (this.scene.networkManager?.setupRoomListeners) {
+      console.log(`🔧 [TransitionManager] Pre-setup handlers pour nouvelle scène`);
+      // Le NetworkManager intelligent va détecter les handlers manquants
+      this.scene.networkManager.setupRoomListeners();
+    }
     this.scene.scene.start(targetSceneKey, transitionData);
   }
 
