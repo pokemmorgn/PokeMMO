@@ -1587,7 +1587,15 @@ let decodedToken: any = null;
       const decoded = jwt.verify(options.sessionToken, process.env.JWT_SECRET!) as any;
       console.log(`✅ [WorldRoom] Token JWT valide pour ${decoded.username}`);
        // ✅ NOUVEAU : Enregistrer dans JWTManager
-      this.jwtManager.registerUser(client.sessionId, decoded);
+// Juste après le decode du JWT
+try {
+  await this.jwtManager.registerUser(client.sessionId, decoded);
+} catch (err) {
+  console.error(`⛔ [WorldRoom] Refus connexion multiple pour ${decoded.username}: ${err.message}`);
+  client.send("login_error", { message: err.message });
+  client.leave(4001, "Vous êtes déjà connecté sur un autre onglet ou appareil.");
+  return;
+}
       // Vérifier cohérence username
       if (decoded.username !== options.name) {
         console.error(`❌ [WorldRoom] Username incohérent: token=${decoded.username}, options=${options.name}`);
