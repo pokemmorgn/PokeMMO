@@ -1,11 +1,15 @@
-// Quest/QuestManager.js - FIX HANDLERS DUPLIQUÉS
+// Quest/QuestManager.js - AVEC DEBUG INTÉGRÉ
 
 export class QuestManager {
   constructor(gameRoom) {
     // État simple
     this.ready = false;
     this.initialized = false;
-    this.handlersRegistered = false; // ✅ NOUVEAU: Flag pour éviter duplication
+    this.handlersRegistered = false;
+    
+    // ✅ NOUVEAU: Compteur debug
+    this.debugCallCount = 0;
+    this.debugCallLog = [];
     
     // Données
     this.activeQuests = [];
@@ -37,10 +41,10 @@ export class QuestManager {
     this.lastInteractionTime = 0;
     this.interactionCooldown = 1000;
     
-    // ✅ NOUVEAU: Références des handlers pour nettoyage
+    // Références des handlers pour nettoyage
     this.handlerRefs = new Map();
     
-    console.log('📖 [QuestManager] Instance créée - Version simplifiée');
+    console.log('📖 [QuestManager] Instance créée - Version avec debug');
     
     if (gameRoom) {
       this.setGameRoom(gameRoom);
@@ -111,7 +115,7 @@ export class QuestManager {
     
     console.log('📡 [QuestManager] Enregistrement handlers direct...');
     
-    // ✅ NOUVEAU: Nettoyer les anciens handlers d'abord
+    // Nettoyer les anciens handlers d'abord
     this.unregisterHandlers();
     
     try {
@@ -165,7 +169,7 @@ export class QuestManager {
     }
   }
   
-  // ✅ NOUVEAU: Méthode pour nettoyer les handlers
+  // Méthode pour nettoyer les handlers
   unregisterHandlers() {
     if (!this.gameRoom || !this.handlerRefs.size) {
       return;
@@ -254,33 +258,64 @@ export class QuestManager {
     return this.sendRequest("startQuest", { questId });
   }
   
-  // === 🗣️ INTERACTION NPC SIMPLE ===
+  // === 🗣️ INTERACTION NPC AVEC DEBUG ===
   
   handleNpcInteraction(data) {
+    // ✅ NOUVEAU: Debug des appels
+    this.debugCallCount++;
+    const callInfo = {
+      callNumber: this.debugCallCount,
+      timestamp: Date.now(),
+      data: data,
+      stack: new Error().stack.split('\n')[2]?.trim() || 'unknown'
+    };
+    
+    this.debugCallLog.push(callInfo);
+    
+    // ✅ LOGS DE DEBUG
+    console.log(`🔔 [QuestManager] === APPEL #${this.debugCallCount} ===`);
+    console.log('📊 Données:', data);
+    console.log('🕒 Timestamp:', new Date().toLocaleTimeString());
+    
+    // Afficher les derniers appels si on dépasse 3
+    if (this.debugCallCount > 3) {
+      console.log('📈 [QuestManager] APPELS MULTIPLES DÉTECTÉS !');
+      console.log('📋 Historique des 5 derniers appels:');
+      this.debugCallLog.slice(-5).forEach((call, index) => {
+        console.log(`  ${call.callNumber}. ${new Date(call.timestamp).toLocaleTimeString()} - ${call.stack}`);
+      });
+    }
+    
+    // ✅ LOGIQUE ORIGINALE
     console.log('🗣️ [QuestManager] Interaction NPC:', data);
     
     if (!this.canProcessInteraction()) {
+      console.log(`🚫 [QuestManager] Interaction bloquée (appel #${this.debugCallCount})`);
       return 'BLOCKED';
     }
     
     this.lastInteractionTime = Date.now();
     
     if (!data || data.type !== 'questGiver') {
+      console.log(`❌ [QuestManager] Pas un quest giver (appel #${this.debugCallCount})`);
       return 'NO_QUEST';
     }
     
     // Quêtes fournies directement
     if (data.availableQuests?.length > 0) {
+      console.log(`✅ [QuestManager] Quêtes directes trouvées (appel #${this.debugCallCount})`);
       this.showQuestDialog('Choisir une quête', data.availableQuests);
       return 'QUESTS_SHOWN';
     }
     
     // Demander quêtes au serveur
     if (!this.pendingQuestRequest) {
+      console.log(`📤 [QuestManager] Demande quêtes serveur (appel #${this.debugCallCount})`);
       this.requestAvailableQuests();
       return 'REQUESTING_QUESTS';
     }
     
+    console.log(`⏳ [QuestManager] Déjà en attente (appel #${this.debugCallCount})`);
     return 'ALREADY_REQUESTING';
   }
   
@@ -451,17 +486,50 @@ export class QuestManager {
     return this.activeQuests.length > 0;
   }
   
+  // === 🐛 DEBUG AMÉLIORÉ ===
+  
+  getDebugInfo() {
+    return {
+      ready: this.ready,
+      initialized: this.initialized,
+      handlersRegistered: this.handlersRegistered,
+      questCount: this.activeQuests.length,
+      availableQuestCount: this.availableQuests.length,
+      hasGameRoom: !!this.gameRoom,
+      hasQuestUI: !!this.questUI,
+      hasNetworkManager: !!this.networkManager,
+      pendingQuestRequest: this.pendingQuestRequest,
+      lastInteractionTime: this.lastInteractionTime,
+      canProcessInteraction: this.canProcessInteraction(),
+      handlerRefsCount: this.handlerRefs.size,
+      
+      // ✅ NOUVEAU: Info debug
+      debugCallCount: this.debugCallCount,
+      debugCallLog: this.debugCallLog.slice(-5) // 5 derniers appels
+    };
+  }
+  
+  // ✅ NOUVEAU: Méthode pour reset debug
+  resetDebug() {
+    this.debugCallCount = 0;
+    this.debugCallLog = [];
+    console.log('🔄 [QuestManager] Debug reset');
+  }
+  
   // === 🧹 NETTOYAGE AMÉLIORÉ ===
   
   destroy() {
     console.log('🧹 [QuestManager] Destruction...');
     
-    // ✅ NOUVEAU: Nettoyer les handlers
+    // Nettoyer les handlers
     this.unregisterHandlers();
     
     this.ready = false;
     this.initialized = false;
     this.handlersRegistered = false;
+    
+    // Reset debug
+    this.resetDebug();
     
     // Reset callbacks
     this.onQuestUpdate = null;
@@ -481,24 +549,5 @@ export class QuestManager {
     this.networkManager = null;
     
     console.log('✅ [QuestManager] Détruit');
-  }
-  
-  // === 🐛 DEBUG ===
-  
-  getDebugInfo() {
-    return {
-      ready: this.ready,
-      initialized: this.initialized,
-      handlersRegistered: this.handlersRegistered,
-      questCount: this.activeQuests.length,
-      availableQuestCount: this.availableQuests.length,
-      hasGameRoom: !!this.gameRoom,
-      hasQuestUI: !!this.questUI,
-      hasNetworkManager: !!this.networkManager,
-      pendingQuestRequest: this.pendingQuestRequest,
-      lastInteractionTime: this.lastInteractionTime,
-      canProcessInteraction: this.canProcessInteraction(),
-      handlerRefsCount: this.handlerRefs.size
-    };
   }
 }
