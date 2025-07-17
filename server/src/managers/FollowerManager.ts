@@ -11,11 +11,16 @@ export class FollowerManager {
   private lastDistanceChange: Map<string, number> = new Map();
   private distanceChangeInterval = 5000; // 5 secondes minimum entre changements
   
+  // ✅ NOUVEAU: Gestion des transitions
+  private playerTransitioning: Map<string, number> = new Map(); // Timestamp de début de transition
+  private transitionGracePeriod = 5000; // 5 secondes de grâce après une transition
+  
   // ✅ SÉCURITÉ: Limites de validation
   private readonly MAX_DISTANCE = 10;
   private readonly MIN_DISTANCE = 1;
   private readonly MAX_TRAIL_SIZE = 15;
   private readonly MAX_POSITION_DIFF = 100; // Pixels max de différence entre positions
+  private readonly TELEPORT_THRESHOLD = 200; // Seuil pour détecter une téléportation légitime
   
   constructor(room: any) {
     this.room = room;
@@ -23,7 +28,36 @@ export class FollowerManager {
   }
 
   /**
-   * ✅ SÉCURITÉ: Validation stricte des positions
+   * ✅ NOUVEAU: Marquer un joueur comme en transition
+   */
+  markPlayerTransitioning(playerId: string): void {
+    console.log(`🚪 [FollowerManager] Joueur ${playerId} en transition`);
+    this.playerTransitioning.set(playerId, Date.now());
+    
+    // Nettoyer le trail existant car on change de carte
+    this.playerTrail.delete(playerId);
+  }
+
+  /**
+   * ✅ NOUVEAU: Vérifier si un joueur est en transition
+   */
+  private isPlayerTransitioning(playerId: string): boolean {
+    const transitionStart = this.playerTransitioning.get(playerId);
+    if (!transitionStart) return false;
+    
+    const elapsed = Date.now() - transitionStart;
+    
+    // Si la période de grâce est écoulée, nettoyer
+    if (elapsed > this.transitionGracePeriod) {
+      this.playerTransitioning.delete(playerId);
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Validation stricte des positions avec gestion des transitions
    */
   private validatePosition(x: number, y: number, playerId: string): boolean {
     // Vérifier que les coordonnées sont des nombres valides
@@ -41,6 +75,12 @@ export class FollowerManager {
       return false;
     }
     
+    // ✅ NOUVEAU: Ignorer la validation de téléportation si en transition
+    if (this.isPlayerTransitioning(playerId)) {
+      console.log(`🚪 [FollowerManager] Position acceptée (transition en cours) pour ${playerId}: (${x}, ${y})`);
+      return true;
+    }
+    
     // Vérifier la différence avec la dernière position connue
     const trail = this.playerTrail.get(playerId);
     if (trail && trail.length > 0) {
@@ -48,6 +88,13 @@ export class FollowerManager {
       const distance = Math.sqrt(Math.pow(x - lastPos.x, 2) + Math.pow(y - lastPos.y, 2));
       
       if (distance > this.MAX_POSITION_DIFF) {
+        // ✅ AMÉLIORATION: Détecter si c'est une téléportation légitime (transition de carte)
+        if (distance > this.TELEPORT_THRESHOLD) {
+          console.log(`🚪 [FollowerManager] Téléportation importante détectée (${distance}px), marquage en transition pour ${playerId}`);
+          this.markPlayerTransitioning(playerId);
+          return true;
+        }
+        
         console.warn(`⚠️ [FollowerManager] Téléportation détectée pour ${playerId}: ${distance}px`);
         return false;
       }
@@ -271,6 +318,29 @@ export class FollowerManager {
   }
 
   /**
+   * ✅ NOUVEAU: Méthode appelée lors d'une transition de carte
+   */
+  onPlayerMapTransition(playerId: string, newX: number, newY: number): void {
+    console.log(`🗺️ [FollowerManager] Transition de carte pour ${playerId} vers (${newX}, ${newY})`);
+    
+    // Marquer le joueur en transition
+    this.markPlayerTransitioning(playerId);
+    
+    const player = this.room.state.players.get(playerId);
+    if (player && player.follower) {
+      // Téléporter le follower derrière le joueur dans la nouvelle position
+      const behindPosition = this.calculateBehindPosition(newX, newY, player.direction || 'down');
+      
+      player.follower.x = behindPosition.x;
+      player.follower.y = behindPosition.y;
+      player.follower.direction = player.direction || 'down';
+      player.follower.isMoving = false;
+      
+      console.log(`🐾 [FollowerManager] Follower téléporté à (${behindPosition.x}, ${behindPosition.y}) après transition`);
+    }
+  }
+
+  /**
    * ✅ SÉCURITÉ: Rate limiting pour changement de distance
    */
   setTrailDistance(distance: number, playerId?: string): boolean {
@@ -317,6 +387,8 @@ export class FollowerManager {
       this.playerTrail.delete(playerId);
       // Nettoyer le rate limiting
       this.lastDistanceChange.delete(playerId);
+      // ✅ NOUVEAU: Nettoyer la transition
+      this.playerTransitioning.delete(playerId);
 
     } catch (error) {
       console.error(`❌ [FollowerManager] Erreur removePlayerFollower:`, error);
@@ -335,9 +407,10 @@ export class FollowerManager {
       }
     });
 
-    // Nettoyer tous les trails et rate limiting
+    // Nettoyer tous les trails, rate limiting et transitions
     this.playerTrail.clear();
     this.lastDistanceChange.clear();
+    this.playerTransitioning.clear();
   }
 
   /**
@@ -362,6 +435,13 @@ export class FollowerManager {
         this.lastDistanceChange.delete(playerId);
       }
     });
+    
+    // ✅ NOUVEAU: Nettoyer les transitions expirées
+    this.playerTransitioning.forEach((timestamp, playerId) => {
+      if (now - timestamp > this.transitionGracePeriod) {
+        this.playerTransitioning.delete(playerId);
+      }
+    });
   }
 
   /**
@@ -374,6 +454,7 @@ export class FollowerManager {
       currentDistance: this.trailDistance,
       maxDistance: this.MAX_DISTANCE,
       rateLimitedPlayers: this.lastDistanceChange.size,
+      playersInTransition: this.playerTransitioning.size,
       timestamp: Date.now()
     };
   }
@@ -392,6 +473,7 @@ export class FollowerManager {
     console.log(`📊 Followers actifs: ${this.playerTrail.size}`);
     console.log(`📏 Distance actuelle: ${this.trailDistance}`);
     console.log(`⏰ Rate limits actifs: ${this.lastDistanceChange.size}`);
+    console.log(`🚪 Joueurs en transition: ${this.playerTransitioning.size}`);
     
     let count = 0;
     this.room.state.players.forEach((player: any, playerId: string) => {
@@ -400,6 +482,7 @@ export class FollowerManager {
         const trail = this.playerTrail.get(playerId);
         const trailLength = trail ? trail.length : 0;
         const lastTimestamp = trail && trail.length > 0 ? trail[trail.length - 1].timestamp : 0;
+        const isTransitioning = this.isPlayerTransitioning(playerId);
         
         console.log(`🐾 ${player.name}:`, {
           pokemonId: player.follower.pokemonId,
@@ -408,13 +491,14 @@ export class FollowerManager {
           direction: player.follower.direction,
           isMoving: player.follower.isMoving,
           trailLength: trailLength,
+          isTransitioning: isTransitioning,
           lastUpdate: lastTimestamp ? new Date(lastTimestamp).toLocaleTimeString() : 'N/A'
         });
       }
     });
     
     console.log(`📊 Total followers: ${count}`);
-    console.log(`🔒 Sécurité: Rate limiting activé, validation stricte`);
+    console.log(`🔒 Sécurité: Rate limiting activé, validation stricte, gestion transitions`);
   }
 
   /**
