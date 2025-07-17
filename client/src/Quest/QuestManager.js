@@ -260,70 +260,45 @@ export class QuestManager {
   
   // === 🗣️ INTERACTION NPC AVEC DEBUG ===
   
-  handleNpcInteraction(data) {
-    // ✅ NOUVEAU: Debug des appels avec stack trace complète
-    this.debugCallCount++;
-    const fullStack = new Error().stack.split('\n');
-    const callInfo = {
-      callNumber: this.debugCallCount,
-      timestamp: Date.now(),
-      data: data,
-      stack: fullStack.slice(1, 6).map(line => line.trim()).join(' -> ')
-    };
-    
-    this.debugCallLog.push(callInfo);
-    
-    // ✅ LOGS DE DEBUG DÉTAILLÉS
-    console.log(`🔔 [QuestManager] === APPEL #${this.debugCallCount} ===`);
-    console.log('📊 Données:', data);
-    console.log('🕒 Timestamp:', new Date().toLocaleTimeString());
-    console.log('📍 Stack trace:');
-    fullStack.slice(1, 6).forEach((line, index) => {
-      console.log(`  ${index + 1}. ${line.trim()}`);
-    });
-    
-    // Afficher l'historique complet si on dépasse 1 appel
-    if (this.debugCallCount > 1) {
-      console.log('📈 [QuestManager] APPELS MULTIPLES DÉTECTÉS !');
-      console.log('📋 Historique complet:');
-      this.debugCallLog.forEach((call, index) => {
-        console.log(`--- APPEL ${call.callNumber} à ${new Date(call.timestamp).toLocaleTimeString()} ---`);
-        console.log(`Stack: ${call.stack}`);
-      });
-    }
-    
-    // ✅ LOGIQUE ORIGINALE
+handleNpcInteraction(data, debugSource = 'unknown') {
+  // Incrémenter le compteur
+  this.debugCallCount++;
+  
+  // Log simple avec source
+  console.log(`🔔 [QuestManager] APPEL #${this.debugCallCount} depuis: ${debugSource}`);
+  
+  // Si c'est le premier appel, continuer normalement
+  if (this.debugCallCount === 1) {
+    // Logique originale...
     console.log('🗣️ [QuestManager] Interaction NPC:', data);
     
     if (!this.canProcessInteraction()) {
-      console.log(`🚫 [QuestManager] Interaction bloquée (appel #${this.debugCallCount})`);
       return 'BLOCKED';
     }
     
     this.lastInteractionTime = Date.now();
     
     if (!data || data.type !== 'questGiver') {
-      console.log(`❌ [QuestManager] Pas un quest giver (appel #${this.debugCallCount})`);
       return 'NO_QUEST';
     }
     
-    // Quêtes fournies directement
     if (data.availableQuests?.length > 0) {
-      console.log(`✅ [QuestManager] Quêtes directes trouvées (appel #${this.debugCallCount})`);
       this.showQuestDialog('Choisir une quête', data.availableQuests);
       return 'QUESTS_SHOWN';
     }
     
-    // Demander quêtes au serveur
     if (!this.pendingQuestRequest) {
-      console.log(`📤 [QuestManager] Demande quêtes serveur (appel #${this.debugCallCount})`);
       this.requestAvailableQuests();
       return 'REQUESTING_QUESTS';
     }
     
-    console.log(`⏳ [QuestManager] Déjà en attente (appel #${this.debugCallCount})`);
     return 'ALREADY_REQUESTING';
+  } else {
+    // Appels supplémentaires - juste logger et bloquer
+    console.log('🚫 [QuestManager] Appel supplémentaire ignoré');
+    return 'BLOCKED';
   }
+}
   
   // === 📊 GESTION DONNÉES SIMPLE ===
   
