@@ -123,6 +123,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ TeamHandlers initialisé`);
 
     this.followerHandlers = new FollowerHandlers(this);
+    // Enregistrer les followers dans le service de transition
+if (this.transitionService && this.followerHandlers) {
+  this.transitionService.setFollowerHandlers(this.followerHandlers);
+}
     console.log(`✅ FollowerHandlers initialisé`);
     
     this.questHandlers = new QuestHandlers(this);
