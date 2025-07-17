@@ -182,7 +182,235 @@ async restoreUserSession(sessionId: string, username: string): Promise<boolean> 
   console.log(`❌ [JWTManager] Aucun JWT trouvé pour ${username}`);
   return false;
 }
+
+  // ✅ DANS JWTManager.ts - AJOUTER CETTE MÉTHODE GLOBALE
+
+/**
+ * ✅ MÉTHODE UNIVERSELLE: Récupère userId de manière robuste avec auto-restauration
+ */
+async getUserIdRobust(sessionId: string, playerName?: string): Promise<string | null> {
+  console.log(`🔍 [JWTManager] getUserIdRobust pour session: ${sessionId}`);
   
+  // ✅ ÉTAPE 1: Essayer mapping normal
+  let userId = this.getUserId(sessionId);
+  
+  if (userId) {
+    console.log(`✅ [JWTManager] UserId trouvé directement: ${userId}`);
+    return userId;
+  }
+  
+  // ✅ ÉTAPE 2: Si pas de mapping et nom fourni, essayer restauration
+  if (playerName) {
+    console.log(`🔄 [JWTManager] Tentative restauration pour: ${playerName}`);
+    
+    try {
+      const restored = await this.restoreUserSession(sessionId, playerName);
+      
+      if (restored) {
+        userId = this.getUserId(sessionId);
+        console.log(`✅ [JWTManager] UserId restauré: ${userId}`);
+        return userId;
+      }
+    } catch (error) {
+      console.error(`❌ [JWTManager] Erreur restauration:`, error);
+    }
+  }
+  
+  // ✅ ÉTAPE 3: Dernier recours - chercher par nom dans tous les mappings
+  if (playerName) {
+    console.log(`🔄 [JWTManager] Recherche par nom dans mappings: ${playerName}`);
+    
+    for (const [existingSessionId, existingUserId] of this.sessionToUser.entries()) {
+      const jwtData = this.userJWTData.get(existingUserId);
+      if (jwtData?.username === playerName) {
+        console.log(`🔗 [JWTManager] Mapping trouvé, re-association: ${sessionId} -> ${existingUserId}`);
+        
+        // Re-créer le mapping pour cette session
+        this.sessionToUser.set(sessionId, existingUserId);
+        this.userToSession.set(existingUserId, sessionId);
+        
+        return existingUserId;
+      }
+    }
+  }
+  
+  console.log(`❌ [JWTManager] Impossible de résoudre userId pour session: ${sessionId}`);
+  return null;
+}
+
+/**
+ * ✅ MÉTHODE UNIVERSELLE: Valide session avec auto-restauration
+ */
+async validateSessionRobust(sessionId: string, playerName?: string, action?: string): Promise<{
+  valid: boolean;
+  userId?: string;
+  jwtData?: any;
+  reason?: string;
+}> {
+  console.log(`🔍 [JWTManager] validateSessionRobust: ${sessionId} (${playerName}) pour ${action || 'action'}`);
+  
+  // ✅ Récupérer userId de manière robuste
+  const userId = await this.getUserIdRobust(sessionId, playerName);
+  
+  if (!userId) {
+    return {
+      valid: false,
+      reason: `Impossible de résoudre userId pour session ${sessionId}`
+    };
+  }
+  
+  // ✅ Récupérer JWT data
+  const jwtData = this.getJWTDataBySession(sessionId);
+  
+  if (!jwtData) {
+    return {
+      valid: false,
+      userId,
+      reason: `JWT Data manquant pour userId ${userId}`
+    };
+  }
+  
+  // ✅ Vérifier expiration
+  if (jwtData.exp && Date.now() >= jwtData.exp * 1000) {
+    const expiredSince = Math.round((Date.now() - jwtData.exp * 1000) / 1000);
+    return {
+      valid: false,
+      userId,
+      jwtData,
+      reason: `JWT expiré depuis ${expiredSince}s`
+    };
+  }
+  
+  console.log(`✅ [JWTManager] Session validée: ${sessionId} -> ${userId} (${jwtData.username})`);
+  
+  return {
+    valid: true,
+    userId,
+    jwtData
+  };
+}
+
+// ✅ DANS BattleHandlers.ts - SIMPLIFIER À L'EXTRÊME
+
+public async handleStartWildBattle(client: Client, data: {
+  wildPokemon: WildPokemon;
+  location: string;
+  method: string;
+  currentZone?: string;
+  zoneId?: string;
+}): Promise<void> {
+  console.log(`🔍 [DEBUG] === TENTATIVE COMBAT #${Date.now()} ===`);
+  
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("battleError", { message: "Joueur non trouvé" });
+    return;
+  }
+  
+  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+  const sessionValidation = await this.jwtManager.validateSessionRobust(
+    client.sessionId, 
+    player.name, 
+    'startWildBattle'
+  );
+  
+  if (!sessionValidation.valid) {
+    console.error(`❌ [BattleHandlers] ${sessionValidation.reason}`);
+    client.send("battleError", { 
+      message: "Session invalide pour le combat",
+      details: sessionValidation.reason
+    });
+    return;
+  }
+  
+  const { userId, jwtData } = sessionValidation;
+  console.log(`✅ [BattleHandlers] Session validée: ${userId} (${jwtData.username})`);
+  
+  // ✅ NETTOYAGE SYSTÉMATIQUE
+  await this.cleanupBattle(client.sessionId, "preventive");
+  this.room.unblockPlayerMovement(client.sessionId, 'battle');
+  
+  // ... reste du code identique, mais maintenant userId et jwtData sont garantis valides !
+}
+
+// ✅ DANS WorldRoom.ts - REMPLACER LE HANDLER battleFinished
+
+this.onMessage("battleFinished", async (client, data) => {
+  console.log(`🏁 [WorldRoom] battleFinished reçu de ${client.sessionId}`);
+  
+  const player = this.state.players.get(client.sessionId);
+  const playerName = player?.name;
+  
+  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+  const sessionValidation = await this.jwtManager.validateSessionRobust(
+    client.sessionId, 
+    playerName, 
+    'battleFinished'
+  );
+  
+  if (!sessionValidation.valid) {
+    console.error(`❌ [WorldRoom] ${sessionValidation.reason}`);
+    client.send("battleFinishedError", { 
+      reason: "Session invalide - reconnexion requise",
+      details: sessionValidation.reason
+    });
+    return;
+  }
+  
+  const { userId } = sessionValidation;
+  console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
+  
+  // ✅ RESTE DU CODE IDENTIQUE
+  this.battleHandlers.onBattleFinished(userId, data.battleResult);
+  this.unblockPlayerMovement(client.sessionId, 'battle');
+  this.jwtManager.clearBattleState(userId);
+  
+  client.send("battleFinishedAck", { success: true });
+});
+
+// ✅ DANS TransitionService.ts - UTILISER LA MÊME MÉTHODE
+
+async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
+  console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
+  
+  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+  const sessionValidation = await this.jwtManager.validateSessionRobust(
+    client.sessionId, 
+    player.name, 
+    'transition'
+  );
+  
+  if (!sessionValidation.valid) {
+    console.error(`❌ [TransitionService] ${sessionValidation.reason}`);
+    return {
+      success: false,
+      reason: "Session invalide pour transition",
+      rollback: true
+    };
+  }
+  
+  const { userId } = sessionValidation;
+  console.log(`✅ [TransitionService] Session validée pour transition: ${userId}`);
+  
+  // ... reste de la logique de transition
+}
+
+// ✅ DANS N'IMPORTE QUEL AUTRE ENDROIT - UTILISATION UNIVERSELLE
+
+// Pour des actions non-critiques (pas besoin du nom)
+const userId = await this.jwtManager.getUserIdRobust(client.sessionId);
+
+// Pour des actions critiques (avec nom pour restauration)
+const validation = await this.jwtManager.validateSessionRobust(
+  client.sessionId, 
+  player.name, 
+  'action_name'
+);
+
+if (validation.valid) {
+  // userId et jwtData garantis disponibles
+  const { userId, jwtData } = validation;
+}
   /**
    * ✅ NOUVEAU: Sauvegarder l'état de combat d'un utilisateur
    */
