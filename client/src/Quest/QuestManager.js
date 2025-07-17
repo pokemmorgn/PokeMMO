@@ -128,15 +128,22 @@ export class QuestManager {
           this.triggerCallbacks();
         },
 
-        "availableQuestsList": (data) => {
-          console.log('📥 [QuestManager] Quêtes disponibles:', data);
-          this.availableQuests = this.extractQuests(data);
-          
-          if (this.pendingQuestRequest && this.availableQuests.length > 0) {
-            this.showQuestSelection();
-          }
-          this.pendingQuestRequest = false;
-        },
+"availableQuestsList": (data) => {
+  console.log('🔍 [DEBUG] availableQuestsList handler appelé');
+  console.log('🔍 [DEBUG] Data reçue:', data);
+  console.log('🔍 [DEBUG] Type de data:', typeof data);
+  console.log('🔍 [DEBUG] Est-ce un array?', Array.isArray(data));
+  console.log('🔍 [DEBUG] data.quests:', data.quests);
+  console.log('🔍 [DEBUG] Nombre de quêtes:', data.quests?.length);
+  
+  console.log('📥 [QuestManager] Quêtes disponibles:', data);
+  this.availableQuests = this.extractQuests(data);
+  
+  if (this.pendingQuestRequest && this.availableQuests.length > 0) {
+    this.showQuestSelection();
+  }
+  this.pendingQuestRequest = false;
+},
 
         "questStartResult": (data) => {
           console.log('📥 [QuestManager] Résultat démarrage:', data);
