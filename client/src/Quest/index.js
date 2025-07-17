@@ -460,6 +460,38 @@ export async function createQuestModule(gameRoom, scene, options = {}) {
   }
 }
 
+// === 🔧 FONCTION COMPATIBILITÉ BASEZONESCENE ===
+
+export async function setupQuestSystem(uiManager) {
+  try {
+    console.log('🔧 [QuestSetup] Configuration depuis BaseZoneScene...');
+    
+    // Utiliser la fonction globale optimisée
+    const questInstance = await initializeQuestModule(uiManager);
+    
+    // Exposition globale pour compatibilité
+    if (!window.questSystem) {
+      window.questSystem = questInstance;
+      window.questSystemGlobal = questInstance;
+      
+      window.toggleQuest = () => questInstance.toggle();
+      window.openQuest = () => questInstance.show();
+      window.closeQuest = () => questInstance.hide();
+      window.startQuest = (questId) => questInstance.startQuest(questId);
+      window.triggerQuestProgress = (type, data) => questInstance.triggerProgress(type, data);
+      
+      console.log('🌐 [QuestSetup] Fonctions globales exposées');
+    }
+    
+    console.log('✅ [QuestSetup] Configuration terminée');
+    return questInstance;
+    
+  } catch (error) {
+    console.error('❌ [QuestSetup] Erreur configuration:', error);
+    throw error;
+  }
+}
+
 // === 🚀 INITIALISATION GLOBALE SIMPLIFIÉE ===
 
 export async function initializeQuestSystemGlobal(networkManager, gameRoom, scene = null, uiManager = null) {
