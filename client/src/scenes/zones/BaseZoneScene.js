@@ -383,11 +383,24 @@ async initializeUIQuietly() {
     this.networkManager._worldHandlersSetup = false;
     this.networkManager.setupRoomListeners();
     this.networkManager.restoreCustomCallbacks?.();
-    if (window.battleManager && this.networkManager.battleNetworkHandler) {
-  console.log('🔗 [BaseZoneScene] Re-connexion BattleManager...');
-  window.battleManager.networkHandler = this.networkManager.battleNetworkHandler;
-  window.battleManager.setupNetworkEvents();
-}
+    
+    // ✅ AJOUT CRITIQUE: Re-initialiser le système de combat
+    if (window.battleSystem && this.networkManager.battleNetworkHandler) {
+      console.log('🔗 [BaseZoneScene] Re-connexion BattleManager...');
+      window.battleSystem.battleConnection = this.networkManager.battleNetworkHandler;
+      
+      // ✅ NOUVEAU: Re-setup des événements de combat
+      if (window.battleSystem.battleConnection.networkHandler) {
+        window.battleSystem.battleConnection.networkHandler = this.networkManager.battleNetworkHandler;
+        window.battleSystem.battleConnection.setupNetworkEvents();
+      }
+    }
+    
+    // ✅ NOUVEAU: Vérifier que BattleNetworkHandler a le bon client
+    if (this.networkManager.battleNetworkHandler && window.client) {
+      this.networkManager.battleNetworkHandler.client = window.client;
+      console.log('✅ [BaseZoneScene] BattleNetworkHandler client mis à jour');
+    }
   }
 
   // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
