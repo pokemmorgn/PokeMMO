@@ -398,7 +398,7 @@ export class ConnectionManager {
       this.handleForceLogout('Server restarted. Please log in again.');
     } else {
       console.log('🔄 [ConnectionManager] Attempting post-restart reconnection');
-      this.handlePostRestartReconnection();
+  this.handleForceLogout('Server restarted. Please log in again.');
     }
   }
 
