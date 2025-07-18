@@ -97,7 +97,6 @@ const POKEMON_UI_GROUPS = {
     },
     priority: 100
   },
-  
   'panels': {
     modules: ['questTracker'],
     layout: {
@@ -106,8 +105,19 @@ const POKEMON_UI_GROUPS = {
       spacing: 15
     },
     priority: 90
+  },
+  'weather': {
+    modules: ['timeWeather'],
+    layout: {
+      type: 'horizontal',
+      anchor: 'top-right',
+      spacing: 10,
+      order: ['timeWeather']
+    },
+    priority: 99
   }
 };
+
 
 // === CLASSE UI SYSTEM POKÉMON ===
 export class PokemonUISystem {
@@ -305,7 +315,7 @@ export class PokemonUISystem {
     const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
     return createTimeWeatherModule();
   },
-  groups: ['panels'], // Ou un nouveau groupe si besoin
+  groups: ['weather'], // Ou un nouveau groupe si besoin
   layout: {
     type: 'icon',
     anchor: 'top-right',
