@@ -1,144 +1,143 @@
-// TimeWeatherWidget.js - Widget compact heure/météo pour HUD (coin écran)
-
+// ui/TimeWeatherWidget.js - version DOM/UIManager-compatible
 export class TimeWeatherWidget {
-  constructor(scene) {
-    this.scene = scene;
-    this.container = null;
-    this.timeText = null;
-    this.weatherIcon = null;
-    this.weatherText = null;
-
-    this.currentTime = { hour: 12, minute: 0, isDayTime: true };
-    this.currentWeather = { weather: 'clear', displayName: 'Clear' };
-
-    this.config = {
-      x: scene.scale.width - 168, // Coin supérieur droit (modifiable)
-      y: 20,
-      fontSize: 18,
-      fontFamily: 'Arial, sans-serif',
-      fontColor: '#ECF0F1',
-      fontStroke: '#222',
-      fontStrokeThickness: 2,
-      weatherFontSize: 22,
-      weatherIconGap: 12,
-      containerPadding: 10,
-      depth: 2000
-    };
-
-    this.weatherIcons = {
-      clear: '☀️',
-      rain: '🌧️',
-      storm: '⛈️',
-      snow: '❄️',
-      fog: '🌫️',
-      cloudy: '☁️'
+  constructor(options = {}) {
+    this.id = options.id || 'time-weather-widget';
+    this.anchor = options.anchor || 'top-right'; // Compatible avec UIManager
+    this.element = null;
+    this.currentHour = 12;
+    this.isDayTime = true;
+    this.weather = { weather: 'clear', displayName: 'Clear' };
+    this.icons = {
+      clear: '☀️', rain: '🌧️', storm: '⛈️', snow: '❄️', fog: '🌫️', cloudy: '☁️'
     };
   }
 
-  create() {
-    // Container principal
-    this.container = this.scene.add.container(this.config.x, this.config.y);
-    this.container.setDepth(this.config.depth);
-    this.container.setScrollFactor(0);
-
-    // Rectangle de fond léger pour la lisibilité (optionnel, désactive en mettant alpha à 0)
-    const bg = this.scene.add.rectangle(0, 0, 155, 38, 0x21292b, 0.68)
-      .setOrigin(0)
-      .setStrokeStyle(1, 0x444a52, 0.6)
-      .setScrollFactor(0)
-      .setDepth(-1);
-    this.container.add(bg);
-
-    // Heure numérique
-    this.timeText = this.scene.add.text(
-      this.config.containerPadding,
-      this.config.containerPadding,
-      this.formatTime(this.currentTime.hour, this.currentTime.minute),
-      {
-        fontSize: `${this.config.fontSize}px`,
-        fill: this.config.fontColor,
-        fontFamily: this.config.fontFamily,
-        stroke: this.config.fontStroke,
-        strokeThickness: this.config.fontStrokeThickness
-      }
-    ).setOrigin(0, 0).setScrollFactor(0);
-
-    // Icône météo
-    this.weatherIcon = this.scene.add.text(
-      this.config.containerPadding + 62, // position à droite de l'heure
-      this.config.containerPadding - 2,
-      this.weatherIcons[this.currentWeather.weather] || '☀️',
-      {
-        fontSize: `${this.config.weatherFontSize}px`
-      }
-    ).setOrigin(0, 0).setScrollFactor(0);
-
-    // Texte météo
-    this.weatherText = this.scene.add.text(
-      this.config.containerPadding + 92,
-      this.config.containerPadding + 1,
-      this.currentWeather.displayName,
-      {
-        fontSize: '13px',
-        fill: '#b8d8f7',
-        fontFamily: this.config.fontFamily
-      }
-    ).setOrigin(0, 0).setScrollFactor(0);
-
-    this.container.add([this.timeText, this.weatherIcon, this.weatherText]);
-  }
-
-  // Heure au format anglais (ex: 3:00 PM)
-  formatTime(hour, minute = 0) {
-    const isAM = hour < 12;
-    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-    const period = isAM ? 'AM' : 'PM';
-    const min = minute.toString().padStart(2, '0');
-    return `${displayHour}:${min} ${period}`;
-  }
-
-  // Mise à jour de l'heure (hour: int [0-23], minute: int [0-59])
-  updateTime(hour, minute = 0) {
-    this.currentTime.hour = hour;
-    this.currentTime.minute = minute;
-    if (this.timeText) {
-      this.timeText.setText(this.formatTime(hour, minute));
+  createIcon() {
+    // Empêche doublon
+    if (document.getElementById(this.id)) {
+      this.element = document.getElementById(this.id);
+      return this.element;
     }
+    // Conteneur principal
+    const el = document.createElement('div');
+    el.id = this.id;
+    el.className = 'time-weather-widget ui-icon'; // Compatible UIManager
+    el.innerHTML = `
+      <div class="tw-time" id="${this.id}-time"></div>
+      <div class="tw-sep"></div>
+      <div class="tw-weather" id="${this.id}-weather"></div>
+    `;
+    // Appliquer état initial
+    this.updateTime(this.currentHour, this.isDayTime);
+    this.updateWeather(this.weather.weather, this.weather.displayName);
+
+    document.body.appendChild(el);
+    this.element = el;
+    this.injectStyles();
+    return el;
   }
 
-  // Mise à jour de la météo (weather: 'clear', 'rain', ... ; displayName: string anglais)
+  updateTime(hour, isDayTime) {
+    this.currentHour = hour;
+    this.isDayTime = isDayTime;
+    if (!this.element) return;
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    const period = hour < 12 ? 'AM' : 'PM';
+    const icon = isDayTime ? '☀️' : '🌙';
+    this.element.querySelector('.tw-time').textContent = `${h12}:00 ${period} ${icon}`;
+  }
+
   updateWeather(weather, displayName) {
-    this.currentWeather.weather = weather;
-    this.currentWeather.displayName = displayName;
-    if (this.weatherIcon) {
-      this.weatherIcon.setText(this.weatherIcons[weather] || '☀️');
-    }
-    if (this.weatherText) {
-      this.weatherText.setText(displayName);
-    }
+    this.weather = { weather, displayName };
+    if (!this.element) return;
+    const icon = this.icons[weather] || '☀️';
+    this.element.querySelector('.tw-weather').textContent = `${icon} ${displayName}`;
   }
 
-  // Pour déplacer le widget si tu veux un autre coin de l'écran
-  setPosition(x, y) {
-    if (this.container) {
-      this.container.setPosition(x, y);
-    }
+  show() {
+    if (this.element) this.element.style.display = '';
   }
 
-  // Redimensionne et replace si l'écran change de taille
-  onResize() {
-    this.setPosition(this.scene.scale.width - 168, 20);
+  hide() {
+    if (this.element) this.element.style.display = 'none';
   }
 
-  setVisible(visible) {
-    if (this.container) this.container.setVisible(visible);
+  setEnabled(enabled) {
+    if (!this.element) return;
+    this.element.classList.toggle('ui-disabled', !enabled);
   }
 
   destroy() {
-    if (this.container) this.container.destroy();
-    this.container = null;
-    this.timeText = null;
-    this.weatherIcon = null;
-    this.weatherText = null;
+    if (this.element && this.element.parentNode) {
+      this.element.parentNode.removeChild(this.element);
+    }
+    this.element = null;
+  }
+
+  injectStyles() {
+    if (document.getElementById('time-weather-widget-css')) return;
+    const style = document.createElement('style');
+    style.id = 'time-weather-widget-css';
+    style.textContent = `
+      .time-weather-widget.ui-icon {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        width: 195px;
+        min-width: 180px;
+        max-width: 220px;
+        height: 42px;
+        padding: 0 12px;
+        background: rgba(24,30,50,0.92);
+        border-radius: 15px;
+        font-size: 17px;
+        color: #fff;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.09);
+        border: 1px solid #3a4a68;
+        position: fixed;
+        top: 22px; right: 22px;
+        z-index: 2222;
+        font-family: 'Montserrat', Arial, sans-serif;
+        user-select: none;
+        transition: opacity 0.2s;
+      }
+      .time-weather-widget .tw-time {
+        font-weight: 700;
+        letter-spacing: 1px;
+        min-width: 82px;
+        text-align: right;
+      }
+      .time-weather-widget .tw-sep {
+        width: 1px; height: 24px;
+        background: #55608044;
+        margin: 0 8px;
+        border-radius: 1px;
+      }
+      .time-weather-widget .tw-weather {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        min-width: 72px;
+        text-align: left;
+        opacity: 0.9;
+        white-space: nowrap;
+      }
+      .time-weather-widget.ui-disabled {
+        opacity: 0.55;
+        filter: grayscale(60%);
+        pointer-events: none;
+      }
+      @media (max-width: 800px) {
+        .time-weather-widget.ui-icon {
+          font-size: 15px;
+          width: 150px;
+          height: 36px;
+          top: 14px; right: 10px;
+          padding: 0 7px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
   }
 }
+export default TimeWeatherWidget;
