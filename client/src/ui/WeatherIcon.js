@@ -48,12 +48,11 @@ export class WeatherIcon {
        </div>
    `;
    
-   // ✅ POSITION POUR ÊTRE AU-DESSUS DE L'ICÔNE BAG
-   // Si l'icône bag est à right: 20px, on met weather un peu plus à gauche
+   // ✅ POSITION JUSTE AU-DESSUS DE L'ICÔNE BAG (en bas à droite)
    icon.style.cssText = `
        position: fixed;
-       top: 20px;
-       right: 110px;
+       bottom: 110px;
+       right: 20px;
        width: 60px;
        height: 70px;
        z-index: 1000;
@@ -65,7 +64,7 @@ export class WeatherIcon {
    document.body.appendChild(icon);
    this.weatherIconElement = icon;
    
-   console.log(`🌤️ [WeatherIcon] Créé à right: 110px (au-dessus de l'icône bag)`);
+   console.log(`🌤️ [WeatherIcon] Créé à bottom: 110px (juste au-dessus de l'icône bag)`);
  }
 
  addWeatherIconStyles() {
