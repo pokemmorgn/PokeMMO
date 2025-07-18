@@ -1277,7 +1277,7 @@ export class QuestUI {
       
       try {
         // Trouver l'élément de l'objectif dans le tracker
-        const objectiveElement = this.findObjectiveElement(result.objectiveName);
+        const objectiveElement = this.findObjectiveById(result.questId || 'unknown', result.objectiveName);
         
         if (!objectiveElement) {
           console.warn(`⚠️ [QuestUI] Élément objectif non trouvé: ${result.objectiveName}`);
@@ -1376,7 +1376,7 @@ animateObjectiveTransition(result) {
   console.log(`➡️ [QuestUI] Animation transition depuis "${result.objectiveName}"`);
   
   try {
-    const currentObjective = this.findObjectiveElement(result.objectiveName);
+    const currentObjective = this.findObjectiveById(result.questId || 'unknown', result.objectiveName);
     
     if (currentObjective) {
       // Animation slide out de l'ancien objectif
