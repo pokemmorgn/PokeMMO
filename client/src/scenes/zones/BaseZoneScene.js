@@ -2293,7 +2293,6 @@ createTimeWeatherWidget() {
   });
   
   // Apparition en fade
-  this.timeWeatherWidget.fadeIn();
   
   // ✅ CONNECTER AU SYSTÈME MÉTÉO GLOBAL
   this.time.delayedCall(2000, () => {
