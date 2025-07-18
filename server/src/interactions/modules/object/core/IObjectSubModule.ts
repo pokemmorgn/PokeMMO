@@ -1,10 +1,15 @@
 // src/interactions/modules/object/core/IObjectSubModule.ts
-// Interface contractuelle pour tous les sous-modules d'objets
+// Interface contractuelle pour tous les sous-modules d'objets - VERSION CORRIGÉE
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { 
   InteractionResult,
-  InteractionContext
+  InteractionContext,
+  InteractionResultType,
+  ObjectInteractionResult,
+  ObjectInteractionData,
+  INTERACTION_RESULT_TYPES,
+  createInteractionResult
 } from "../../../types/BaseInteractionTypes";
 
 // ✅ DÉFINITION D'UN OBJET PARSÉ DEPUIS TILED
@@ -40,16 +45,6 @@ export interface ObjectDefinition {
   
   // Toutes les autres propriétés custom de Tiled
   customProperties: Record<string, any>;
-}
-
-// ✅ RÉSULTAT SPÉCIALISÉ POUR OBJETS
-// Utilise la structure InteractionResult existante : data.objectData
-// Les données spécifiques aux objets vont dans data.objectData
-// Les métadonnées additionnelles vont dans data.metadata
-export interface ObjectInteractionResult extends InteractionResult {
-  // Pas de redéfinition, on utilise les champs existants :
-  // - data.objectData : infos de l'objet (objectId, objectType, collected, etc.)
-  // - data.metadata : données additionnelles (itemReceived, searchResult, etc.)
 }
 
 // ✅ INTERFACE PRINCIPALE DES SOUS-MODULES
@@ -146,7 +141,7 @@ export interface IObjectSubModule {
   };
 }
 
-// ✅ CLASSE DE BASE ABSTRAITE (Optionnelle mais utile)
+// ✅ CLASSE DE BASE ABSTRAITE - VERSION CORRIGÉE
 export abstract class BaseObjectSubModule implements IObjectSubModule {
   
   abstract readonly typeName: string;
@@ -200,7 +195,7 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     };
   }
   
-  // === MÉTHODES UTILITAIRES PROTÉGÉES ===
+  // === MÉTHODES UTILITAIRES PROTÉGÉES - VERSION CORRIGÉE ===
   
   /**
    * Met à jour les statistiques
@@ -226,9 +221,14 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
   protected createErrorResult(message: string, code?: string): ObjectInteractionResult {
     return {
       success: false,
-      type: 'error',
+      type: INTERACTION_RESULT_TYPES.ERROR,
       message,
       data: {
+        objectData: {
+          objectId: "0",
+          objectType: "error",
+          collected: false
+        },
         metadata: {
           errorCode: code,
           subModule: this.typeName,
@@ -239,16 +239,14 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
   }
   
   /**
-   * Créer un résultat de succès avec données objet
+   * Créer un résultat de succès avec données objet - CORRECTION ICI
    */
   protected createSuccessResult(
-    type: string,
+    type: InteractionResultType, // ✅ UTILISE LE TYPE UNION AU LIEU DE STRING
     message: string,
-    objectData: {
+    objectData: Partial<ObjectInteractionData> & {
       objectId: string;
       objectType: string;
-      collected?: boolean;
-      newState?: string;
     },
     additionalData?: Record<string, any>
   ): ObjectInteractionResult {
@@ -257,11 +255,163 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
       type,
       message,
       data: {
-        objectData,
+        objectData: {
+          collected: false,
+          ...objectData
+        },
         ...additionalData
       }
     };
   }
+  
+  // === NOUVELLES MÉTHODES HELPER AVEC TYPES PRÉDÉFINIS ===
+  
+  /**
+   * Créer un résultat d'objet collecté
+   */
+  protected createObjectCollectedResult(
+    objectId: string,
+    objectType: string,
+    message: string = "Objet collecté avec succès !",
+    additionalData?: Partial<ObjectInteractionData>
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.OBJECT_COLLECTED,
+      message,
+      {
+        objectId,
+        objectType,
+        collected: true,
+        ...additionalData
+      }
+    );
+  }
+  
+  /**
+   * Créer un résultat d'item trouvé lors d'une recherche
+   */
+  protected createItemFoundResult(
+    objectId: string,
+    objectType: string,
+    itemsFound: string[] = [],
+    message: string = "Vous avez trouvé quelque chose !",
+    attempts: number = 1,
+    additionalData?: Partial<ObjectInteractionData>
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.ITEM_FOUND,
+      message,
+      {
+        objectId,
+        objectType,
+        collected: true,
+        searchResult: { 
+          found: true, 
+          attempts, 
+          itemsFound 
+        },
+        ...additionalData
+      }
+    );
+  }
+  
+  /**
+   * Créer un résultat de recherche sans résultat
+   */
+  protected createNoItemFoundResult(
+    objectId: string = "0",
+    objectType: string = "search",
+    message: string = "Il n'y a rien ici.",
+    attempts: number = 1
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.NO_ITEM_FOUND,
+      message,
+      {
+        objectId,
+        objectType,
+        collected: false,
+        searchResult: { found: false, attempts }
+      }
+    );
+  }
+  
+  /**
+   * Créer un résultat d'accès PC
+   */
+  protected createPcAccessResult(
+    objectId: string,
+    operation: string = "access",
+    message: string = "Accès au PC autorisé",
+    storage?: any
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.PC_ACCESS,
+      message,
+      {
+        objectId,
+        objectType: "pc",
+        pcData: {
+          accessed: true,
+          operation,
+          storage
+        }
+      }
+    );
+  }
+  
+  /**
+   * Créer un résultat d'activation de machine
+   */
+  protected createMachineActivatedResult(
+    objectId: string,
+    objectType: string,
+    output?: any,
+    message: string = "Machine activée",
+    newState?: string
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.MACHINE_ACTIVATED,
+      message,
+      {
+        objectId,
+        objectType,
+        newState,
+        machineData: {
+          activated: true,
+          output,
+          state: newState
+        }
+      }
+    );
+  }
+  
+  /**
+   * Créer un résultat de lecture de panneau
+   */
+  protected createPanelReadResult(
+    objectId: string,
+    title: string,
+    content: string[],
+    message: string = "Panneau lu",
+    imageUrl?: string
+  ): ObjectInteractionResult {
+    return this.createSuccessResult(
+      INTERACTION_RESULT_TYPES.PANEL_READ,
+      message,
+      {
+        objectId,
+        objectType: "panel",
+        panelData: {
+          title,
+          content,
+          imageUrl
+        }
+      }
+    );
+  }
+  
+  // === MÉTHODES UTILITAIRES EXISTANTES ===
   
   /**
    * Log avec préfixe du sous-module
@@ -322,6 +472,42 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     
     return defaultValue;
   }
+  
+  /**
+   * Vérifier si un joueur a déjà collecté cet objet
+   */
+  protected hasPlayerCollected(objectDef: ObjectDefinition, playerName: string): boolean {
+    return objectDef.state.collectedBy?.includes(playerName) ?? false;
+  }
+  
+  /**
+   * Vérifier les prérequis d'un objet pour un joueur
+   */
+  protected validateRequirements(
+    player: Player,
+    objectDef: ObjectDefinition
+  ): { valid: boolean; reason?: string } {
+    const req = objectDef.requirements;
+    if (!req) return { valid: true };
+    
+    if (req.level && (player.level || 1) < req.level) {
+      return { valid: false, reason: `Niveau ${req.level} requis` };
+    }
+    
+    if (req.badge && !player.badges?.includes(req.badge)) {
+      return { valid: false, reason: `Badge ${req.badge} requis` };
+    }
+    
+    if (req.item && !player.inventory?.some(item => item.id === req.item)) {
+      return { valid: false, reason: `Objet ${req.item} requis` };
+    }
+    
+    if (req.quest) {
+      // TODO: Vérifier les quêtes si nécessaire
+    }
+    
+    return { valid: true };
+  }
 }
 
 // ✅ FACTORY D'ERREURS STANDARDISÉES
@@ -338,8 +524,16 @@ export const ObjectErrors = {
     code: 'MISSING_ITEM', 
     message: `Objet requis manquant: ${itemId}` 
   }),
+  MISSING_BADGE: (badgeId: string) => ({
+    code: 'MISSING_BADGE',
+    message: `Badge requis manquant: ${badgeId}`
+  }),
   PROCESSING_FAILED: (reason: string) => ({ 
     code: 'PROCESSING_FAILED', 
     message: `Erreur de traitement: ${reason}` 
+  }),
+  NOT_AVAILABLE: () => ({
+    code: 'NOT_AVAILABLE',
+    message: 'Cet objet n\'est pas disponible actuellement'
   })
 } as const;
