@@ -20,7 +20,7 @@ import { InventoryManager } from "../../managers/InventoryManager";
 import { 
   IObjectSubModule, 
   ObjectDefinition, 
-  ObjectSubModuleResult 
+  ObjectInteractionResult as SubModuleResult 
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
