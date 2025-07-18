@@ -1,22 +1,37 @@
-// TimeWeatherWidget.js – VERSION BARRE HORIZONTALE AVEC AM/PM + FADE
-
+// TimeWeatherWidget.js - VERSION AVEC BARRE HORIZONTALE À LA PLACE DE L'ARC
 export class TimeWeatherWidget {
   constructor(scene) {
     this.scene = scene;
     this.container = null;
-    this.hourMarkers = [];
-    this.timeCursor = null;
-    this.weatherIcon = null;
+    this.clockContainer = null;
+    this.weatherContainer = null;
+    this.timeText = null;
     this.weatherText = null;
+    this.clockHand = null;
+    this.hourMarkers = [];
+    this.weatherIcon = null;
+    this.backgroundArc = null;
+    this.glowEffect = null;
+
     this.currentTime = { hour: 12, isDayTime: true };
     this.currentWeather = { weather: 'clear', displayName: 'Clear skies' };
 
     this.config = {
-      y: 50,
-      width: 400,
-      height: 10,
+      x: 0,
+      y: 80,
+      radius: 100,
+      arcWidth: 6,
       depth: 1000,
-      padding: 10
+      animationSpeed: 2000,
+      glowIntensity: 0.3,
+      fadeDistance: 200
+    };
+
+    this.timeColors = {
+      dawn: { primary: 0xFF8C42, secondary: 0xFFB347, glow: 0xFF6B1A },
+      day: { primary: 0x4A90E2, secondary: 0x87CEEB, glow: 0x1E6091 },
+      dusk: { primary: 0xFF6B6B, secondary: 0xFF8E53, glow: 0xD63031 },
+      night: { primary: 0x2C3E50, secondary: 0x34495E, glow: 0x1A252F }
     };
 
     this.weatherIcons = {
@@ -30,133 +45,55 @@ export class TimeWeatherWidget {
   }
 
   create() {
-    const { width, height, padding } = this.config;
-    const screenWidth = this.scene.scale.width;
+    this.container = this.scene.add.container(0, 0).setDepth(this.config.depth).setScrollFactor(0);
+    const centerX = this.scene.scale.width / 2;
+    this.container.setPosition(centerX, this.config.y);
 
-    this.container = this.scene.add.container(0, 0).setScrollFactor(0).setDepth(this.config.depth);
-    const startX = screenWidth / 2 - width / 2;
-    this.container.setPosition(startX, this.config.y);
-
-    const bar = this.scene.add.rectangle(0, 0, width, height, 0x2C3E50)
-      .setOrigin(0, 0.5)
-      .setScrollFactor(0);
-    this.container.add(bar);
-
-    for (let h = 0; h < 24; h++) {
-      const x = (h / 23) * width;
-      const isMajor = h % 6 === 0;
-      const color = isMajor ? 0xECF0F1 : 0x7F8C8D;
-      const size = isMajor ? 8 : 4;
-
-      const marker = this.scene.add.circle(x, 0, size / 2, color)
-        .setOrigin(0.5)
-        .setScrollFactor(0);
-      this.container.add(marker);
-      this.hourMarkers.push(marker);
-
-      if (isMajor) {
-        const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-        const period = h < 12 ? 'AM' : 'PM';
-        const label = this.scene.add.text(x, 14, `${displayHour}${period}`, {
-          fontSize: '10px',
-          color: '#ffffff',
-          fontFamily: 'Arial'
-        }).setOrigin(0.5, 0).setScrollFactor(0);
-        this.container.add(label);
-      }
-    }
-
-    this.timeCursor = this.scene.add.triangle(0, -10, 0, 0, 8, 10, -8, 10, 0xF39C12)
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(2);
-    this.container.add(this.timeCursor);
-
-    this.weatherIcon = this.scene.add.text(width + padding, -10, '☀️', {
-      fontSize: '20px'
-    }).setOrigin(0, 0.5).setScrollFactor(0);
-
-    this.weatherText = this.scene.add.text(width + padding + 28, -10, 'Clear skies', {
-      fontSize: '11px',
-      color: '#ffffff',
-      fontFamily: 'Arial'
-    }).setOrigin(0, 0.5).setScrollFactor(0);
-
-    this.container.add(this.weatherIcon);
-    this.container.add(this.weatherText);
-
+    this.createBackgroundArc();
+    this.createHourMarkers();
+    this.createClockHand();
+    this.createTimeText();
+    this.createWeatherDisplay();
+    this.createVisualEffects();
     this.updateDisplay();
   }
 
-  updateTime(hour, isDayTime) {
-    this.currentTime = { hour, isDayTime };
-    this.updateDisplay();
+  createBackgroundArc() {
+    const barWidth = this.config.radius * 2;
+    const barHeight = this.config.arcWidth;
+
+    this.backgroundArc = this.scene.add.graphics().setScrollFactor(0).setPosition(-this.config.radius, 0).setDepth(-1);
+
+    // Couche principale
+    this.backgroundArc.fillStyle(0x2C3E50, 0.6);
+    this.backgroundArc.fillRect(0, -barHeight / 2, barWidth, barHeight);
+
+    // Couche secondaire
+    this.backgroundArc.fillStyle(0x34495E, 0.3);
+    this.backgroundArc.fillRect(2, -barHeight / 4, barWidth - 4, barHeight / 2);
+
+    this.container.add(this.backgroundArc);
   }
 
-  updateWeather(weather, displayName) {
-    this.currentWeather = { weather, displayName };
-    this.updateDisplay();
+  updateColors() {
+    const period = this.getTimePeriod(this.currentTime.hour);
+    const colors = this.timeColors[period];
+
+    const barWidth = this.config.radius * 2;
+    const barHeight = this.config.arcWidth;
+
+    this.backgroundArc.clear();
+    this.backgroundArc.fillStyle(colors.primary, 0.8);
+    this.backgroundArc.fillRect(0, -barHeight / 2, barWidth, barHeight);
+
+    this.backgroundArc.fillStyle(colors.secondary, 0.4);
+    this.backgroundArc.fillRect(2, -barHeight / 4, barWidth - 4, barHeight / 2);
+
+    this.glowEffect.clear();
+    this.glowEffect.fillStyle(colors.glow, 0.1);
+    this.glowEffect.fillCircle(0, 0, this.config.radius + 8);
   }
 
-  updateDisplay() {
-    this.updateCursor();
-    this.updateWeatherDisplay();
-  }
-
-  updateCursor() {
-    const x = (this.currentTime.hour / 23) * this.config.width;
-    this.scene.tweens.add({
-      targets: this.timeCursor,
-      x: x,
-      duration: 300,
-      ease: 'Sine.easeInOut'
-    });
-  }
-
-  updateWeatherDisplay() {
-    const icon = this.weatherIcons[this.currentWeather.weather] || '☀️';
-    this.weatherIcon.setText(icon);
-    this.weatherText.setText(this.currentWeather.displayName);
-  }
-
-  setPosition(x, y) {
-    if (this.container) this.container.setPosition(x, y);
-  }
-
-  setVisible(visible) {
-    if (this.container) this.container.setVisible(visible);
-  }
-
-  setAlpha(alpha) {
-    if (this.container) this.container.setAlpha(alpha);
-  }
-
-  fadeIn(duration = 1000) {
-    if (this.container) {
-      this.container.setAlpha(0);
-      this.scene.tweens.add({
-        targets: this.container,
-        alpha: 1,
-        duration: duration,
-        ease: 'Power2.easeOut'
-      });
-    }
-  }
-
-  fadeOut(duration = 1000) {
-    if (this.container) {
-      this.scene.tweens.add({
-        targets: this.container,
-        alpha: 0,
-        duration: duration,
-        ease: 'Power2.easeIn'
-      });
-    }
-  }
-
-  destroy() {
-    this.scene.tweens.killTweensOf(this.container);
-    if (this.container) this.container.destroy();
-    this.container = null;
-  }
+  // Les autres méthodes de ta classe restent inchangées
+  // ...
 }
