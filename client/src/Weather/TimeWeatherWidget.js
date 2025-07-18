@@ -96,6 +96,11 @@ export class TimeWeatherWidget {
     // Démarrer les animations
     this.startAnimations();
     
+    // 🔥 NOUVEAU: FORCER LA SYNC IMMÉDIATE
+    setTimeout(() => {
+      this.forceImmediateSync();
+    }, 100); // ← DÉLAI MINIMAL POUR LAISSER LE DOM
+    
     // Marquer comme initialisé
     this.initialized = true;
     
@@ -135,10 +140,59 @@ export class TimeWeatherWidget {
     } else {
       console.warn('⚠️ [TimeWeatherWidget] GlobalWeatherManager non disponible, retry...');
       
-      // Retry dans 2 secondes
+      // Retry dans 100ms au lieu de 2 secondes
       setTimeout(() => {
         this.connectToGlobalWeatherManager();
-      }, 2000);
+      }, 100);
+    }
+  }
+
+  // === 🚀 NOUVELLE MÉTHODE: SYNCHRONISATION IMMÉDIATE ===
+  forceImmediateSync() {
+    console.log('🚀 [TimeWeatherWidget] SYNC IMMÉDIATE FORCÉE');
+    
+    // ✅ BYPASSER TOUS LES DÉLAIS
+    if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
+      console.log('⚡ [TimeWeatherWidget] Récupération état serveur immédiate');
+      
+      const currentTime = window.globalWeatherManager.getCurrentTime();
+      const currentWeather = window.globalWeatherManager.getCurrentWeather();
+      
+      // ✅ APPLIQUER IMMÉDIATEMENT
+      if (currentTime) {
+        this.updateTime(currentTime.hour, currentTime.isDayTime);
+        console.log(`🕐 [TimeWeatherWidget] Temps appliqué: ${currentTime.hour}h`);
+      }
+      
+      if (currentWeather) {
+        this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
+        console.log(`🌤️ [TimeWeatherWidget] Météo appliquée: ${currentWeather.displayName}`);
+      }
+    }
+    
+    // ✅ FORCER AUSSI LA SYNCHRONISATION SERVEUR
+    if (window.globalNetworkManager && window.globalNetworkManager.room) {
+      const room = window.globalNetworkManager.room;
+      
+      // ✅ RÉCUPÉRER L'ÉTAT BRUT DU SERVEUR
+      const serverTime = {
+        hour: room.state.gameHour,
+        isDayTime: room.state.isDayTime
+      };
+      
+      const serverWeather = {
+        weather: room.state.weather,
+        displayName: this.getWeatherDisplayName(room.state.weather)
+      };
+      
+      console.log('📡 [TimeWeatherWidget] État serveur direct:', {
+        time: serverTime,
+        weather: serverWeather
+      });
+      
+      // ✅ APPLIQUER L'ÉTAT SERVEUR DIRECTEMENT
+      this.updateTime(serverTime.hour, serverTime.isDayTime);
+      this.updateWeather(serverWeather.weather, serverWeather.displayName, '22°C');
     }
   }
 
@@ -226,9 +280,9 @@ export class TimeWeatherWidget {
         
         lastState = currentState;
         
-      }, 2000); // ✅ Intervalle fixe de 2 secondes (compromis optimal)
+      }, 500); // ✅ RÉDUIT de 2s à 500ms
       
-      console.log('✅ [TimeWeatherWidget] Polling intelligent démarré (2s)');
+      console.log('✅ [TimeWeatherWidget] Polling intelligent démarré (500ms)');
     }
   }
 
@@ -251,9 +305,9 @@ export class TimeWeatherWidget {
     // Synchronisation de backup moins fréquente
     this.syncInterval = setInterval(() => {
       this.syncWithServer();
-    }, 5000); // ✅ 5 secondes au lieu de 10
+    }, 2000); // ✅ 2 secondes au lieu de 5
     
-    console.log('🔄 [TimeWeatherWidget] Synchronisation périodique démarrée (5s)');
+    console.log('🔄 [TimeWeatherWidget] Synchronisation périodique démarrée (2s)');
   }
 
   syncWithServer() {
@@ -672,17 +726,6 @@ export class TimeWeatherWidget {
           transform: translateY(-30px) scale(0.8);
         }
         100% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      
-      @keyframes modernFadeOut {
-        0% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-        100% {
           opacity: 0;
           transform: translateY(-20px) scale(0.9);
         }
@@ -834,4 +877,15 @@ export class TimeWeatherWidget {
   }
 }
 
-export default TimeWeatherWidget;
+export default TimeWeatherWidget;% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      
+      @keyframes modernFadeOut {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100
