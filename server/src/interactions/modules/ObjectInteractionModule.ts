@@ -16,11 +16,11 @@ import {
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 import { InventoryManager } from "../../managers/InventoryManager";
 
-// ✅ IMPORTS DU SYSTÈME MODULAIRE
+// ✅ IMPORTS DU SYSTÈME MODULAIRE - CORRECTION IMPORT
 import { 
   IObjectSubModule, 
   ObjectDefinition, 
-  ObjectInteractionResult as SubModuleResult 
+  ObjectSubModuleResult 
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
@@ -255,6 +255,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   // === HANDLERS SPÉCIALISÉS - VERSION CORRIGÉE ===
 
   private async handleSpecificObject(player: Player, request: InteractionRequest): Promise<InteractionResult> {
+    const startTime = Date.now(); // CORRECTION - Déplacer ici
     const objectIdRaw = request.data?.objectId;
     const objectId = typeof objectIdRaw === 'string' ? parseInt(objectIdRaw, 10) : objectIdRaw;
     const zone = player.currentZone;
@@ -284,7 +285,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     // Déléguer au sous-module
     const result = await subModule.handle(player, objectDef, request.data);
 
-    // Mettre à jour les statistiques
+    // Mettre à jour les statistiques - CORRECTION ICI
     const processingTime = Date.now() - startTime;
     this.updateStats(result.success, processingTime);
 
@@ -645,22 +646,15 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     console.log(`💾 États: ${JSON.stringify(stateStats, null, 2)}`);
   }
 
-  // === MÉTHODES UTILITAIRES PRIVÉES ===
+  // === MÉTHODES UTILITAIRES PROTÉGÉES ===
 
   /**
    * Créer un résultat d'erreur standardisé - VERSION CORRIGÉE
    */
-  private createErrorResult(message: string, code?: string): InteractionResult {
+  protected createErrorResult(message: string, code?: string): InteractionResult {
     return createInteractionResult.error(message, code, {
       module: this.moduleName,
       timestamp: Date.now()
     });
-  }
-
-  /**
-   * Variable pour le startTime dans handleSpecificObject - CORRECTION
-   */
-  private get startTime(): number {
-    return Date.now();
   }
 }
