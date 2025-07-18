@@ -2259,77 +2259,23 @@ onPlayerPositioned(player, initData) {
 }
 
 createWeatherIcon() {
-    console.log(`🌤️ [${this.scene.key}] Création icône météo directe...`);
+    console.log(`🌤️ [${this.scene.key}] Création icône météo...`);
     
-    // Conteneur principal
-    const iconContainer = this.add.container(this.scale.width - 60, 70);
-    iconContainer.setDepth(10000);
-    iconContainer.setScrollFactor(0);
+    // Créer l'icône météo (coin haut-droite)
+    this.weatherIcon = new WeatherIcon(this, this.scale.width - 60, 70);
     
-    // Background rond
-    const bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.4);
-    bg.fillRoundedRect(-20, -20, 40, 40, 8);
-    
-    // Icône emoji
-    const iconText = this.add.text(0, 0, '☀️', {
-        fontSize: '24px',
-        fill: '#ffffff',
-        align: 'center'
-    });
-    iconText.setOrigin(0.5, 0.5);
-    
-    // Assembler
-    iconContainer.add([bg, iconText]);
-    
-    // Stocker pour accès global
-    this.weatherIcon = {
-        container: iconContainer,
-        iconText: iconText,
-        setWeather: (weather) => {
-            const icons = {
-                clear: '☀️',
-                sunny: '☀️', 
-                rain: '🌧️', 
-                storm: '⛈️',
-                snow: '❄️',
-                fog: '🌫️'
-            };
-            iconText.setText(icons[weather] || '☀️');
-            console.log(`🌤️ Icône météo changée: ${weather} → ${icons[weather] || '☀️'}`);
-        }
-    };
-    
-    // Connecter au système météo global
+    // Connecter au système météo global avec un délai
     this.time.delayedCall(2000, () => {
-        this.connectWeatherIcon();
+        if (window.globalWeatherManager?.isInitialized) {
+            this.weatherIcon.connectToGlobalWeather(window.globalWeatherManager);
+            console.log(`✅ [${this.scene.key}] Icône météo connectée`);
+        } else {
+            console.warn(`⚠️ [${this.scene.key}] Système météo global pas prêt`);
+        }
     });
-    
-    console.log(`✅ [${this.scene.key}] Icône météo directe créée`);
 }
 
-// ✅ AJOUTER CETTE MÉTHODE APRÈS createWeatherIcon()
-connectWeatherIcon() {
-    if (!window.globalWeatherManager?.isInitialized) {
-        console.warn(`⚠️ [${this.scene.key}] Système météo global pas prêt`);
-        return;
-    }
-    
-    // Écouter les changements de météo
-    window.globalWeatherManager.getTimeWeatherManager().onWeatherChange((weather, displayName) => {
-        if (this.weatherIcon) {
-            this.weatherIcon.setWeather(weather);
-        }
-    });
-    
-    // Appliquer la météo actuelle
-    const currentWeather = window.globalWeatherManager.getCurrentWeather();
-    if (this.weatherIcon) {
-        this.weatherIcon.setWeather(currentWeather.weather);
-    }
-    
-    console.log(`🔗 [${this.scene.key}] Icône météo connectée au système global`);
-}
+  
   handleZoneData(data) {
     console.log(`🗺️ [${this.scene.key}] Handling zone data for: ${data.zone}`);
     
