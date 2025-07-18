@@ -22,9 +22,9 @@ export class TimeWeatherWidget {
     // Configuration
     this.config = {
       x: 0, // Position X (sera centrée)
-      y: 60, // Position Y depuis le haut
-      radius: 120, // Rayon de l'arc
-      arcWidth: 8, // Épaisseur de l'arc
+      y: 80, // Position Y depuis le haut
+      radius: 100, // Rayon de l'arc
+      arcWidth: 6, // Épaisseur de l'arc
       depth: 1000, // Profondeur d'affichage
       animationSpeed: 2000, // Vitesse d'animation en ms
       glowIntensity: 0.3, // Intensité du glow
@@ -126,7 +126,7 @@ export class TimeWeatherWidget {
       
       // Taille du marqueur (plus gros pour les heures importantes)
       const isMainHour = hour % 6 === 0; // 0h, 6h, 12h, 18h
-      const markerSize = isMainHour ? 4 : 2;
+      const markerSize = isMainHour ? 3 : 1.5;
       const markerColor = this.getMarkerColor(hour);
       
       // Créer le marqueur
@@ -135,11 +135,11 @@ export class TimeWeatherWidget {
       
       // Ajouter un label pour les heures principales
       if (isMainHour) {
-        const labelX = Math.cos(angle) * (this.config.radius + 20);
-        const labelY = Math.sin(angle) * (this.config.radius + 20);
+        const labelX = Math.cos(angle) * (this.config.radius + 15);
+        const labelY = Math.sin(angle) * (this.config.radius + 15);
         
         const label = this.scene.add.text(labelX, labelY, `${hour}h`, {
-          fontSize: '14px',
+          fontSize: '12px',
           fill: '#ECF0F1',
           fontFamily: 'Arial, sans-serif',
           fontStyle: 'bold'
@@ -169,16 +169,16 @@ export class TimeWeatherWidget {
     this.clockHand.setDepth(3);
     
     // Style de l'aiguille
-    this.clockHand.lineStyle(3, 0xECF0F1, 0.9);
+    this.clockHand.lineStyle(2, 0xECF0F1, 0.9);
     this.clockHand.beginPath();
     this.clockHand.moveTo(0, 0);
-    this.clockHand.lineTo(0, -this.config.radius + 10);
+    this.clockHand.lineTo(0, -this.config.radius + 15);
     this.clockHand.strokePath();
     
     // Centre de l'aiguille
-    const center = this.scene.add.circle(0, 0, 6, 0xF39C12, 0.9);
+    const center = this.scene.add.circle(0, 0, 4, 0xF39C12, 0.9);
     center.setDepth(4);
-    center.setStrokeStyle(2, 0xECF0F1, 0.8);
+    center.setStrokeStyle(1, 0xECF0F1, 0.8);
     
     this.container.add(this.clockHand);
     this.container.add(center);
@@ -186,20 +186,20 @@ export class TimeWeatherWidget {
 
   createTimeText() {
     // Texte de l'heure principale
-    this.timeText = this.scene.add.text(0, 30, '12:00', {
-      fontSize: '24px',
+    this.timeText = this.scene.add.text(0, 25, '12:00', {
+      fontSize: '20px',
       fill: '#ECF0F1',
       fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold',
       stroke: '#2C3E50',
-      strokeThickness: 2
+      strokeThickness: 1
     });
     this.timeText.setOrigin(0.5, 0.5);
     this.timeText.setDepth(5);
     
     // Indicateur jour/nuit
-    this.dayNightIndicator = this.scene.add.text(0, 50, '☀️ JOUR', {
-      fontSize: '14px',
+    this.dayNightIndicator = this.scene.add.text(0, 42, '☀️ JOUR', {
+      fontSize: '12px',
       fill: '#F39C12',
       fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold'
@@ -213,18 +213,18 @@ export class TimeWeatherWidget {
 
   createWeatherDisplay() {
     // Container météo
-    this.weatherContainer = this.scene.add.container(0, -40);
+    this.weatherContainer = this.scene.add.container(0, -35);
     this.weatherContainer.setDepth(5);
     
     // Icône météo
     this.weatherIcon = this.scene.add.text(0, 0, '☀️', {
-      fontSize: '32px'
+      fontSize: '28px'
     });
     this.weatherIcon.setOrigin(0.5, 0.5);
     
     // Texte météo
-    this.weatherText = this.scene.add.text(0, 25, 'Ciel dégagé', {
-      fontSize: '12px',
+    this.weatherText = this.scene.add.text(0, 20, 'Ciel dégagé', {
+      fontSize: '11px',
       fill: '#BDC3C7',
       fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold'
@@ -242,9 +242,9 @@ export class TimeWeatherWidget {
     this.glowEffect.setDepth(-2);
     
     // Glow externe
-    this.glowEffect.lineStyle(12, 0x3498DB, 0.1);
+    this.glowEffect.lineStyle(10, 0x3498DB, 0.1);
     this.glowEffect.beginPath();
-    this.glowEffect.arc(0, 0, this.config.radius + 10, 
+    this.glowEffect.arc(0, 0, this.config.radius + 8, 
       Phaser.Math.DegToRad(210), 
       Phaser.Math.DegToRad(330), 
       false);
@@ -385,9 +385,9 @@ export class TimeWeatherWidget {
     
     // Mettre à jour le glow
     this.glowEffect.clear();
-    this.glowEffect.lineStyle(12, colors.glow, 0.2);
+    this.glowEffect.lineStyle(10, colors.glow, 0.2);
     this.glowEffect.beginPath();
-    this.glowEffect.arc(0, 0, this.config.radius + 10, 
+    this.glowEffect.arc(0, 0, this.config.radius + 8, 
       Phaser.Math.DegToRad(210), 
       Phaser.Math.DegToRad(330), 
       false);
@@ -494,49 +494,6 @@ export class TimeWeatherWidget {
     console.log('✅ [TimeWeatherWidget] Widget détruit');
   }
 }
-
-// =====================================
-// INTÉGRATION AVEC LES SCÈNES
-// =====================================
-
-// Mixin pour ajouter le widget à une scène
-export const TimeWeatherWidgetMixin = {
-  createTimeWeatherWidget() {
-    console.log('🎨 [Scene] Création du widget temps/météo...');
-    
-    // Créer le widget
-    this.timeWeatherWidget = new TimeWeatherWidget(this);
-    this.timeWeatherWidget.create();
-    
-    // Connecter aux événements de redimensionnement
-    this.scale.on('resize', () => {
-      this.timeWeatherWidget.onResize();
-    });
-    
-    // Apparition en fade
-    this.timeWeatherWidget.fadeIn();
-    
-    console.log('✅ [Scene] Widget temps/météo créé');
-  },
-
-  updateTimeWeatherWidget(timeData, weatherData) {
-    if (this.timeWeatherWidget) {
-      if (timeData) {
-        this.timeWeatherWidget.updateTime(timeData.hour, timeData.isDayTime);
-      }
-      if (weatherData) {
-        this.timeWeatherWidget.updateWeather(weatherData.weather, weatherData.displayName);
-      }
-    }
-  },
-
-  destroyTimeWeatherWidget() {
-    if (this.timeWeatherWidget) {
-      this.timeWeatherWidget.destroy();
-      this.timeWeatherWidget = null;
-    }
-  }
-};
 
 console.log('✅ [TimeWeatherWidget] Classe chargée');
 console.log('📖 Utilisation: const widget = new TimeWeatherWidget(scene); widget.create();');
