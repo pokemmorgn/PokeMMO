@@ -550,23 +550,36 @@ delay(ms) {
 }
   
   // ✅ NOUVELLE MÉTHODE: Marquer objectif en cours de completion (VERT)
-  markObjectiveAsCompleting(result) {
-    console.log('🟢 [QuestManager] Objectif → VERT (completing)');
-    
-    // ✅ UTILISER LE SYSTÈME EXISTANT: Forcer mise à jour immédiate
-    if (this.questUI && this.questUI.updateTracker) {
-      // Modifier temporairement les données pour affichage vert
-      this.markObjectiveAsCompletedInData(result);
-      this.questUI.updateTracker();
-    }
-    
-    // Déclencher callback pour extensions futures
-    this.triggerCallback('onObjectiveCompleting', {
-      questId: result.questId,
-      objectiveName: result.objectiveName,
-      phase: 'completing'
-    });
+// ✅ NOUVELLE VERSION: Appel direct des animations
+markObjectiveAsCompleting(result) {
+  console.log('🟢 [QuestManager] Objectif → VERT (completing)');
+  
+  // Appel direct de l'animation au lieu de callback
+  if (this.questUI && this.questUI.animateObjectiveCompletion) {
+    this.questUI.animateObjectiveCompletion(result, 'completing');
   }
+}
+
+markObjectiveAsCompleted(result) {
+  console.log('✅ [QuestManager] Objectif → COMPLETED');
+  
+  // Appel direct de l'animation au lieu de callback
+  if (this.questUI && this.questUI.animateObjectiveCompletion) {
+    this.questUI.animateObjectiveCompletion(result, 'completed');
+  }
+}
+
+transitionToNextObjective(result) {
+  console.log('➡️ [QuestManager] Transition → Objectif suivant');
+  
+  // Appel direct de l'animation au lieu de callback
+  if (this.questUI && this.questUI.animateObjectiveTransition) {
+    this.questUI.animateObjectiveTransition(result);
+  }
+  
+  // Rafraîchir les données pour afficher next objective
+  this.refreshQuestDataAfterProgress();
+}
   
   // ✅ NOUVELLE MÉTHODE: Marquer objectif comme terminé dans les données
   markObjectiveAsCompletedInData(result) {
