@@ -91,7 +91,7 @@ export class MovementHandlers {
     // ✅ ÉTAPE 1: Validation des mouvements via MovementBlockManager
     const validation = movementBlockManager.validateMovement(client.sessionId, data);
     if (!validation.allowed) {
-      console.log(`🚫 [MovementHandlers] Mouvement refusé pour ${player.name}: ${validation.reason}`);
+//      console.log(`🚫 [MovementHandlers] Mouvement refusé pour ${player.name}: ${validation.reason}`);
       
       // Renvoyer la position serveur pour rollback avec info de blocage
       client.send("forcePlayerPosition", {
@@ -152,7 +152,7 @@ export class MovementHandlers {
     }
     // Log occasionnel pour debug
     if (Math.random() < 0.05) { // 5% de chance
-      console.log(`🚶 [MovementHandlers] ${player.name}: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+//      console.log(`🚶 [MovementHandlers] ${player.name}: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     }
 
     // ✅ NOUVEAU: Tracking des rencontres automatique
