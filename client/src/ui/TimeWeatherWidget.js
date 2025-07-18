@@ -1,5 +1,5 @@
-// client/src/ui/TimeWeatherWidget.js
-// WIDGET TEMPS/MÉTÉO - ARC DE CERCLE MMO STYLE
+// TimeWeatherWidget.js - VERSION CORRIGÉE avec ScrollFactor
+// 🔧 FIX: Utiliser scrollFactor(0) pour rester fixe à l'écran
 
 export class TimeWeatherWidget {
   constructor(scene) {
@@ -59,9 +59,12 @@ export class TimeWeatherWidget {
     this.container = this.scene.add.container(0, 0);
     this.container.setDepth(this.config.depth);
     
-    // Positionner au centre horizontal
-    const camera = this.scene.cameras.main;
-    this.container.setPosition(camera.centerX, this.config.y);
+    // ✅ FIX CRITIQUE: ScrollFactor(0) pour rester fixe à l'écran
+    this.container.setScrollFactor(0);
+    
+    // Positionner au centre horizontal de l'écran
+    const centerX = this.scene.scale.width / 2;
+    this.container.setPosition(centerX, this.config.y);
     
     // Créer l'arc de fond
     this.createBackgroundArc();
@@ -84,13 +87,17 @@ export class TimeWeatherWidget {
     // Mise à jour initiale
     this.updateDisplay();
     
-    console.log('✅ [TimeWeatherWidget] Widget créé avec succès');
+    console.log('✅ [TimeWeatherWidget] Widget créé avec scrollFactor(0)');
+    console.log('📍 Position widget:', this.container.x, this.container.y);
   }
 
   createBackgroundArc() {
     // Arc de fond principal
     this.backgroundArc = this.scene.add.graphics();
     this.backgroundArc.setDepth(-1);
+    
+    // ✅ FIX: ScrollFactor pour chaque élément
+    this.backgroundArc.setScrollFactor(0);
     
     // Arc externe (fond)
     this.backgroundArc.lineStyle(this.config.arcWidth, 0x2C3E50, 0.6);
@@ -132,6 +139,7 @@ export class TimeWeatherWidget {
       // Créer le marqueur
       const marker = this.scene.add.circle(x, y, markerSize, markerColor, 0.8);
       marker.setDepth(1);
+      marker.setScrollFactor(0); // ✅ FIX
       
       // Ajouter un label pour les heures principales
       if (isMainHour) {
@@ -147,6 +155,7 @@ export class TimeWeatherWidget {
         label.setOrigin(0.5, 0.5);
         label.setDepth(2);
         label.setAlpha(0.7);
+        label.setScrollFactor(0); // ✅ FIX
         
         this.container.add(label);
       }
@@ -167,6 +176,7 @@ export class TimeWeatherWidget {
     // Aiguille principale
     this.clockHand = this.scene.add.graphics();
     this.clockHand.setDepth(3);
+    this.clockHand.setScrollFactor(0); // ✅ FIX
     
     // Style de l'aiguille
     this.clockHand.lineStyle(2, 0xECF0F1, 0.9);
@@ -179,6 +189,7 @@ export class TimeWeatherWidget {
     const center = this.scene.add.circle(0, 0, 4, 0xF39C12, 0.9);
     center.setDepth(4);
     center.setStrokeStyle(1, 0xECF0F1, 0.8);
+    center.setScrollFactor(0); // ✅ FIX
     
     this.container.add(this.clockHand);
     this.container.add(center);
@@ -196,6 +207,7 @@ export class TimeWeatherWidget {
     });
     this.timeText.setOrigin(0.5, 0.5);
     this.timeText.setDepth(5);
+    this.timeText.setScrollFactor(0); // ✅ FIX
     
     // Indicateur jour/nuit
     this.dayNightIndicator = this.scene.add.text(0, 42, '☀️ JOUR', {
@@ -206,6 +218,7 @@ export class TimeWeatherWidget {
     });
     this.dayNightIndicator.setOrigin(0.5, 0.5);
     this.dayNightIndicator.setDepth(5);
+    this.dayNightIndicator.setScrollFactor(0); // ✅ FIX
     
     this.container.add(this.timeText);
     this.container.add(this.dayNightIndicator);
@@ -215,12 +228,14 @@ export class TimeWeatherWidget {
     // Container météo
     this.weatherContainer = this.scene.add.container(0, -35);
     this.weatherContainer.setDepth(5);
+    this.weatherContainer.setScrollFactor(0); // ✅ FIX
     
     // Icône météo
     this.weatherIcon = this.scene.add.text(0, 0, '☀️', {
       fontSize: '28px'
     });
     this.weatherIcon.setOrigin(0.5, 0.5);
+    this.weatherIcon.setScrollFactor(0); // ✅ FIX
     
     // Texte météo
     this.weatherText = this.scene.add.text(0, 20, 'Ciel dégagé', {
@@ -230,6 +245,7 @@ export class TimeWeatherWidget {
       fontStyle: 'bold'
     });
     this.weatherText.setOrigin(0.5, 0.5);
+    this.weatherText.setScrollFactor(0); // ✅ FIX
     
     this.weatherContainer.add(this.weatherIcon);
     this.weatherContainer.add(this.weatherText);
@@ -240,6 +256,7 @@ export class TimeWeatherWidget {
     // Effet de glow autour du widget
     this.glowEffect = this.scene.add.graphics();
     this.glowEffect.setDepth(-2);
+    this.glowEffect.setScrollFactor(0); // ✅ FIX
     
     // Glow externe
     this.glowEffect.lineStyle(10, 0x3498DB, 0.1);
@@ -408,6 +425,7 @@ export class TimeWeatherWidget {
   setPosition(x, y) {
     if (this.container) {
       this.container.setPosition(x, y);
+      console.log(`📍 [TimeWeatherWidget] Position mise à jour: ${x}, ${y}`);
     }
   }
 
@@ -451,18 +469,22 @@ export class TimeWeatherWidget {
   // Adapter à la taille de l'écran
   onResize() {
     if (this.container) {
-      const camera = this.scene.cameras.main;
-      this.container.setPosition(camera.centerX, this.config.y);
+      const centerX = this.scene.scale.width / 2;
+      this.container.setPosition(centerX, this.config.y);
+      console.log(`📱 [TimeWeatherWidget] Redimensionné: ${centerX}, ${this.config.y}`);
     }
   }
 
   debug() {
     console.log('🔍 [TimeWeatherWidget] === DEBUG WIDGET ===');
     console.log('📊 Position:', this.container?.x, this.container?.y);
+    console.log('📊 ScrollFactor:', this.container?.scrollFactorX, this.container?.scrollFactorY);
     console.log('🕐 Temps actuel:', this.currentTime);
     console.log('🌤️ Météo actuelle:', this.currentWeather);
     console.log('👁️ Visible:', this.container?.visible);
     console.log('🎨 Alpha:', this.container?.alpha);
+    console.log('🔢 Depth:', this.container?.depth);
+    console.log('📏 Taille écran:', this.scene.scale.width, 'x', this.scene.scale.height);
   }
 
   destroy() {
@@ -495,5 +517,5 @@ export class TimeWeatherWidget {
   }
 }
 
-console.log('✅ [TimeWeatherWidget] Classe chargée');
-console.log('📖 Utilisation: const widget = new TimeWeatherWidget(scene); widget.create();');
+console.log('✅ [TimeWeatherWidget] Classe chargée avec scrollFactor(0)');
+console.log('📖 Le widget sera maintenant fixe à l\'écran !');
