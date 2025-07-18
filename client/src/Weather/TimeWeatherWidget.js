@@ -153,7 +153,7 @@ export class TimeWeatherWidget {
           </div>
           
           <!-- Section Bonus Gameplay -->
-          <div class="bonus-section" id="${this.id}-bonus">
+<div class="bonus-section" id="${this.id}-bonus" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="bonus-icon">🎮</div>
             <div class="bonus-text">+15% XP Pokémon Eau</div>
             <div class="bonus-type-icon">💧</div>
