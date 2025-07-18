@@ -75,25 +75,22 @@ export class TimeWeatherWidget {
 createTimeBar() {
   if (this.timeBar) this.timeBar.destroy();
 
-  // Couleur dynamique selon période
-  const period = this.getTimePeriod(this.currentTime.hour);
-  const color = this.timeColors[period].primary;
-
-  // Augmente la hauteur et opacité pour test
-  const barY = 18; // décale la barre pour éviter d'être à 0
+  // Ajout direct au dessus de tout
   this.timeBar = this.scene.add.graphics();
   this.timeBar.setScrollFactor(0);
-  this.timeBar.setDepth(1);
+  this.timeBar.setDepth(9999); // tout devant
 
-  // Fond visible
-  this.timeBar.fillStyle(color, 0.5); // opacité augmentée
-  this.timeBar.fillRoundedRect(-this.config.width / 2, barY, this.config.width, 28, 10);
-
-  // Bordure contrastée
-  this.timeBar.lineStyle(3, 0xffffff, 0.8);
-  this.timeBar.strokeRoundedRect(-this.config.width / 2, barY, this.config.width, 28, 10);
+  // Rectangle rouge bien visible
+  this.timeBar.fillStyle(0xff0000, 1);
+  this.timeBar.fillRect(-200, 0, 400, 40);
 
   this.container.add(this.timeBar);
+
+  // Debug forcé sur le container
+  this.container.setVisible(true);
+  this.container.setAlpha(1);
+  this.container.setScale(1, 1);
+  this.container.setPosition(this.scene.scale.width / 2, 120); // milieu-top
 }
 
   createHourMarkers() {
