@@ -313,7 +313,7 @@ export class FollowerManager {
     
     // Log occasionnel pour debug
     if (Math.random() < 0.05) { // Réduit à 5% pour moins de spam
-      console.log(`🐾 [FollowerManager] ${player.name} - Joueur: (${playerX}, ${playerY}) moving: ${isMoving} → Follower: (${player.follower.x}, ${player.follower.y}) moving: ${player.follower.isMoving} | Trail: ${trail.length}`);
+ //     console.log(`🐾 [FollowerManager] ${player.name} - Joueur: (${playerX}, ${playerY}) moving: ${isMoving} → Follower: (${player.follower.x}, ${player.follower.y}) moving: ${player.follower.isMoving} | Trail: ${trail.length}`);
     }
   }
 
