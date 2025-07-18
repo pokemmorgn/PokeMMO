@@ -1,7 +1,6 @@
 // client/src/managers/GlobalWeatherManager.js
-// VERSION ULTRA-OPTIMISÉE - OVERLAY NUIT RÉDUIT + SYNCHRONISATION AUTOMATIQUE
+// VERSION ULTRA-OPTIMISÉE - SYNCHRONISATION DIRECTE AVEC SERVEUR
 
-import { ClientTimeWeatherManager } from './ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from './ZoneEnvironmentManager.js';
 import { WeatherEffects } from '../effects/WeatherEffects.js';
 
@@ -9,11 +8,10 @@ export class GlobalWeatherManager {
   constructor() {
     console.log('🌍 [GlobalWeatherManager] === CRÉATION SYSTÈME MÉTÉO ULTRA-OPTIMISÉ ===');
     
-    // Managers internes
-    this.timeWeatherManager = null;
+    // Managers internes - PLUS DE ClientTimeWeatherManager
     this.networkManager = null;
     
-    // État global
+    // État global - DIRECTEMENT DEPUIS LE SERVEUR
     this.isInitialized = false;
     this.currentTime = { hour: 12, isDayTime: true };
     this.currentWeather = { weather: 'clear', displayName: 'Ciel dégagé' };
@@ -35,11 +33,15 @@ export class GlobalWeatherManager {
     this.lastUpdateState = null;
     this.updateInProgress = false;
     
-    console.log('✅ [GlobalWeatherManager] Instance ultra-optimisée créée');
+    // ✅ NOUVEAU: Callbacks pour widgets
+    this.timeChangeCallbacks = [];
+    this.weatherChangeCallbacks = [];
+    
+    console.log('✅ [GlobalWeatherManager] Instance ultra-optimisée créée (SYNC DIRECTE)');
   }
 
   // =====================================
-  // INITIALISATION CORRIGÉE
+  // INITIALISATION DIRECTE AVEC SERVEUR
   // =====================================
 
   async initialize(networkManager) {
@@ -48,70 +50,25 @@ export class GlobalWeatherManager {
       return true;
     }
 
-    console.log('🚀 [GlobalWeatherManager] === INITIALISATION ULTRA-OPTIMISÉE ===');
+    console.log('🚀 [GlobalWeatherManager] === INITIALISATION DIRECTE SERVEUR ===');
 
     try {
       this.networkManager = networkManager;
-      this.timeWeatherManager = new ClientTimeWeatherManager(null);
-      this.timeWeatherManager.initialize(networkManager);
       
-      // ✅ NOUVEAU: Attendre que la connexion soit établie et synchroniser immédiatement
+      // ✅ SETUP HANDLERS RÉSEAU DIRECTS
+      this.setupDirectNetworkHandlers();
+      
+      // ✅ SYNCHRONISATION IMMÉDIATE si état serveur disponible
       if (networkManager.room && networkManager.room.state) {
-        console.log('📡 [GlobalWeatherManager] État serveur disponible, synchronisation immédiate...');
-        
-        // Synchroniser immédiatement avec l'état serveur
-        this.currentTime = {
-          hour: networkManager.room.state.gameHour,
-          isDayTime: networkManager.room.state.isDayTime
-        };
-        
-        this.currentWeather = {
-          weather: networkManager.room.state.weather,
-          displayName: networkManager.room.state.weather === 'clear' ? 'Ciel dégagé' : networkManager.room.state.weather
-        };
-        
-        console.log('✅ [GlobalWeatherManager] Synchronisation initiale:', {
-          time: this.currentTime,
-          weather: this.currentWeather
-        });
+        console.log('📡 [GlobalWeatherManager] État serveur disponible, sync immédiate...');
+        this.syncFromServerState();
       } else {
         console.log('⏳ [GlobalWeatherManager] État serveur pas encore disponible, attente...');
-        
-        // Attendre l'état serveur avec plusieurs tentatives
-        const waitForServerState = () => {
-          if (networkManager.room && networkManager.room.state && 
-              networkManager.room.state.gameHour !== undefined) {
-            
-            this.currentTime = {
-              hour: networkManager.room.state.gameHour,
-              isDayTime: networkManager.room.state.isDayTime
-            };
-            
-            this.currentWeather = {
-              weather: networkManager.room.state.weather,
-              displayName: networkManager.room.state.weather === 'clear' ? 'Ciel dégagé' : networkManager.room.state.weather
-            };
-            
-            console.log('✅ [GlobalWeatherManager] Synchronisation différée:', {
-              time: this.currentTime,
-              weather: this.currentWeather
-            });
-            
-            // Forcer l'update de toutes les scènes
-            this.updateAllScenes('initialization');
-          } else {
-            // Réessayer dans 500ms
-            setTimeout(waitForServerState, 500);
-          }
-        };
-        
-        setTimeout(waitForServerState, 1000);
+        this.waitForServerState();
       }
       
-      this.setupTimeWeatherCallbacks();
       this.isInitialized = true;
-
-      console.log('✅ [GlobalWeatherManager] Initialisé ultra-optimisé');
+      console.log('✅ [GlobalWeatherManager] Initialisé avec sync directe serveur');
       return true;
 
     } catch (error) {
@@ -120,27 +77,203 @@ export class GlobalWeatherManager {
     }
   }
 
-  setupTimeWeatherCallbacks() {
-    // Callback changement de temps
-    this.timeWeatherManager.onTimeChange((hour, isDayTime) => {
-      console.log(`🕐 [GlobalWeatherManager] Changement temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+  // ✅ NOUVEAU: Setup handlers réseau directs (sans ClientTimeWeatherManager)
+  setupDirectNetworkHandlers() {
+    console.log('📡 [GlobalWeatherManager] Setup handlers réseau directs...');
+    
+    // Handler temps direct
+    this.networkManager.onMessage("timeUpdate", (data) => {
+      console.log(`🕐 [GlobalWeatherManager] TimeUpdate direct: ${data.displayTime}`);
+      this.handleDirectTimeUpdate(data);
+    });
+
+    // Handler météo direct
+    this.networkManager.onMessage("weatherUpdate", (data) => {
+      console.log(`🌤️ [GlobalWeatherManager] WeatherUpdate direct: ${data.displayName}`);
+      this.handleDirectWeatherUpdate(data);
+    });
+
+    // Handler état initial temps
+    this.networkManager.onMessage("currentTime", (data) => {
+      console.log(`🕐 [GlobalWeatherManager] CurrentTime direct: ${data.displayTime}`);
+      this.handleDirectTimeUpdate(data);
+    });
+
+    // Handler état initial météo
+    this.networkManager.onMessage("currentWeather", (data) => {
+      console.log(`🌤️ [GlobalWeatherManager] CurrentWeather direct: ${data.displayName}`);
+      this.handleDirectWeatherUpdate(data);
+    });
+
+    console.log('✅ [GlobalWeatherManager] Handlers directs configurés');
+  }
+
+  // ✅ NOUVEAU: Synchronisation depuis l'état du serveur
+  syncFromServerState() {
+    if (!this.networkManager.room || !this.networkManager.room.state) {
+      console.warn('⚠️ [GlobalWeatherManager] Pas d\'état serveur pour sync');
+      return;
+    }
+
+    const state = this.networkManager.room.state;
+    
+    // Mise à jour directe
+    this.currentTime = {
+      hour: state.gameHour,
+      isDayTime: state.isDayTime
+    };
+    
+    this.currentWeather = {
+      weather: state.weather,
+      displayName: this.getWeatherDisplayName(state.weather)
+    };
+    
+    console.log('✅ [GlobalWeatherManager] Sync directe depuis état serveur:', {
+      time: this.currentTime,
+      weather: this.currentWeather
+    });
+    
+    // Notifier les callbacks
+    this.notifyTimeCallbacks(this.currentTime.hour, this.currentTime.isDayTime);
+    this.notifyWeatherCallbacks(this.currentWeather.weather, this.currentWeather.displayName);
+    
+    // Mettre à jour toutes les scènes
+    this.updateAllScenes('sync');
+  }
+
+  // ✅ NOUVEAU: Attendre l'état serveur
+  waitForServerState() {
+    const checkServerState = () => {
+      if (this.networkManager.room && this.networkManager.room.state && 
+          this.networkManager.room.state.gameHour !== undefined) {
+        
+        console.log('✅ [GlobalWeatherManager] État serveur maintenant disponible');
+        this.syncFromServerState();
+        
+      } else {
+        // Réessayer dans 100ms
+        setTimeout(checkServerState, 100);
+      }
+    };
+    
+    setTimeout(checkServerState, 100);
+  }
+
+  // ✅ NOUVEAU: Handler temps direct
+  handleDirectTimeUpdate(data) {
+    const newTime = {
+      hour: data.gameHour,
+      isDayTime: data.isDayTime
+    };
+    
+    // Vérifier si changement
+    if (this.currentTime.hour !== newTime.hour || this.currentTime.isDayTime !== newTime.isDayTime) {
+      console.log(`🕐 [GlobalWeatherManager] Changement temps: ${this.currentTime.hour}h → ${newTime.hour}h`);
       
-      this.currentTime = { hour, isDayTime };
+      this.currentTime = newTime;
+      
+      // Notifier immédiatement les callbacks
+      this.notifyTimeCallbacks(newTime.hour, newTime.isDayTime);
+      
+      // Mettre à jour les scènes
       this.updateAllScenes('time');
-    });
+    }
+  }
 
-    // Callback changement météo
-    this.timeWeatherManager.onWeatherChange((weather, displayName) => {
-      console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${displayName}`);
+  // ✅ NOUVEAU: Handler météo direct
+  handleDirectWeatherUpdate(data) {
+    const newWeather = {
+      weather: data.weather,
+      displayName: data.displayName
+    };
+    
+    // Vérifier si changement
+    if (this.currentWeather.weather !== newWeather.weather) {
+      console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${this.currentWeather.displayName} → ${newWeather.displayName}`);
       
-      this.currentWeather = { weather, displayName };
+      this.currentWeather = newWeather;
+      
+      // Notifier immédiatement les callbacks
+      this.notifyWeatherCallbacks(newWeather.weather, newWeather.displayName);
+      
+      // Mettre à jour les scènes et effets
       this.updateAllScenes('weather');
-      
-      // Mettre à jour les effets visuels
-      this.updateWeatherEffectsForAllScenes(weather);
-    });
+      this.updateWeatherEffectsForAllScenes(newWeather.weather);
+    }
+  }
 
-    console.log('✅ [GlobalWeatherManager] Callbacks ultra-optimisés configurés');
+  // ✅ NOUVEAU: Conversion noms météo
+  getWeatherDisplayName(weatherName) {
+    const weatherNames = {
+      'clear': 'Ciel dégagé',
+      'rain': 'Pluie',
+      'storm': 'Orage',
+      'snow': 'Neige',
+      'fog': 'Brouillard',
+      'cloudy': 'Nuageux'
+    };
+    
+    return weatherNames[weatherName] || weatherName;
+  }
+
+  // ✅ NOUVEAU: API pour widgets - callbacks temps
+  onTimeChange(callback) {
+    this.timeChangeCallbacks.push(callback);
+    
+    // Appeler immédiatement avec l'état actuel
+    setTimeout(() => {
+      callback(this.currentTime.hour, this.currentTime.isDayTime);
+    }, 10);
+    
+    console.log(`✅ [GlobalWeatherManager] Callback temps enregistré (total: ${this.timeChangeCallbacks.length})`);
+  }
+
+  // ✅ NOUVEAU: API pour widgets - callbacks météo
+  onWeatherChange(callback) {
+    this.weatherChangeCallbacks.push(callback);
+    
+    // Appeler immédiatement avec l'état actuel
+    setTimeout(() => {
+      callback(this.currentWeather.weather, this.currentWeather.displayName);
+    }, 10);
+    
+    console.log(`✅ [GlobalWeatherManager] Callback météo enregistré (total: ${this.weatherChangeCallbacks.length})`);
+  }
+
+  // ✅ NOUVEAU: Notifier callbacks temps
+  notifyTimeCallbacks(hour, isDayTime) {
+    console.log(`📢 [GlobalWeatherManager] Notification temps: ${hour}h ${isDayTime ? '(JOUR)' : '(NUIT)'} → ${this.timeChangeCallbacks.length} callbacks`);
+    
+    this.timeChangeCallbacks.forEach(callback => {
+      try {
+        callback(hour, isDayTime);
+      } catch (error) {
+        console.error(`❌ [GlobalWeatherManager] Erreur callback temps:`, error);
+      }
+    });
+  }
+
+  // ✅ NOUVEAU: Notifier callbacks météo
+  notifyWeatherCallbacks(weather, displayName) {
+    console.log(`📢 [GlobalWeatherManager] Notification météo: ${displayName} → ${this.weatherChangeCallbacks.length} callbacks`);
+    
+    this.weatherChangeCallbacks.forEach(callback => {
+      try {
+        callback(weather, displayName);
+      } catch (error) {
+        console.error(`❌ [GlobalWeatherManager] Erreur callback météo:`, error);
+      }
+    });
+  }
+
+  // ✅ NOUVEAU: Pour compatibilité avec widget
+  getTimeWeatherManager() {
+    return {
+      onTimeChange: (callback) => this.onTimeChange(callback),
+      onWeatherChange: (callback) => this.onWeatherChange(callback),
+      getCurrentTime: () => this.getCurrentTime(),
+      getCurrentWeather: () => this.getCurrentWeather()
+    };
   }
 
   // =====================================
@@ -421,10 +554,6 @@ export class GlobalWeatherManager {
     return { ...this.currentWeather };
   }
 
-  getTimeWeatherManager() {
-    return this.timeWeatherManager;
-  }
-
   forceUpdate() {
     if (!this.isInitialized) {
       console.warn('⚠️ [GlobalWeatherManager] Pas initialisé pour force update ultra-optimisé');
@@ -437,6 +566,9 @@ export class GlobalWeatherManager {
     for (const sceneData of this.registeredScenes.values()) {
       sceneData.lastState = null;
     }
+
+    // ✅ FORCER AUSSI LA SYNC DEPUIS LE SERVEUR
+    this.syncFromServerState();
 
     this.updateAllScenes('force');
   }
@@ -461,11 +593,6 @@ export class GlobalWeatherManager {
   setDebugMode(enabled) {
     this.debugMode = enabled;
     console.log(`🔧 [GlobalWeatherManager] Debug mode ultra-optimisé: ${enabled ? 'ON' : 'OFF'}`);
-    
-    // Propager au TimeWeatherManager
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.setDebugMode(enabled);
-    }
   }
 
   getStats() {
@@ -477,7 +604,13 @@ export class GlobalWeatherManager {
       currentWeather: this.currentWeather,
       debugMode: this.debugMode,
       scenes: Array.from(this.registeredScenes.keys()),
+      callbacks: {
+        time: this.timeChangeCallbacks.length,
+        weather: this.weatherChangeCallbacks.length
+      },
       optimizations: {
+        directServerSync: true,
+        noClientTimeWeatherManager: true,
         reducedNightAlpha: true,
         noRainColorChange: true,
         singleTileSprite: true,
@@ -487,7 +620,7 @@ export class GlobalWeatherManager {
   }
 
   debug() {
-    console.log('🔍 [GlobalWeatherManager] === DEBUG ULTRA-OPTIMISÉ ===');
+    console.log('🔍 [GlobalWeatherManager] === DEBUG ULTRA-OPTIMISÉ (SYNC DIRECTE) ===');
     
     const stats = this.getStats();
     console.log('📊 Stats ultra-optimisées:', stats);
@@ -505,15 +638,20 @@ export class GlobalWeatherManager {
       });
     }
 
-    // Debug TimeWeatherManager
-    if (this.timeWeatherManager) {
-      console.log('⏰ TimeWeatherManager ultra-optimisé:');
-      this.timeWeatherManager.debug();
+    // Debug état serveur
+    if (this.networkManager?.room?.state) {
+      console.log('📡 État serveur direct:', {
+        gameHour: this.networkManager.room.state.gameHour,
+        isDayTime: this.networkManager.room.state.isDayTime,
+        weather: this.networkManager.room.state.weather
+      });
     }
 
     // Debug optimisations
     console.log('⚡ Optimisations actives:');
-    console.log('  - Synchronisation automatique au démarrage');
+    console.log('  - Synchronisation DIRECTE avec serveur');
+    console.log('  - SANS ClientTimeWeatherManager (supprimé)');
+    console.log('  - Callbacks directs pour widgets');
     console.log('  - Nuit réduite: 0.25 alpha (au lieu de 0.4)');
     console.log('  - Pluie: 0.2 alpha pour petit effet atmosphérique');
     console.log('  - Orage: 0.25 alpha (plus visible)');
@@ -542,17 +680,15 @@ export class GlobalWeatherManager {
     this.sceneOverlays.clear();
     this.sceneWeatherEffects.clear();
 
-    // Nettoyer le TimeWeatherManager
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.destroy();
-      this.timeWeatherManager = null;
-    }
+    // Nettoyer les callbacks
+    this.timeChangeCallbacks = [];
+    this.weatherChangeCallbacks = [];
 
     // Reset état
     this.isInitialized = false;
     this.networkManager = null;
 
-    console.log('✅ [GlobalWeatherManager] Détruit ultra-optimisé');
+    console.log('✅ [GlobalWeatherManager] Détruit ultra-optimisé (sync directe)');
   }
 }
 
@@ -567,7 +703,7 @@ export const globalWeatherManager = new GlobalWeatherManager();
 // =====================================
 
 window.checkTimeWeatherSync = function() {
-  console.log("🔍 === VÉRIFICATION SYNCHRONISATION ===");
+  console.log("🔍 === VÉRIFICATION SYNCHRONISATION DIRECTE ===");
   
   if (window.globalNetworkManager && window.globalWeatherManager) {
     const serverState = {
@@ -591,25 +727,15 @@ window.checkTimeWeatherSync = function() {
     );
     
     if (isSync) {
-      console.log("✅ SYNCHRONISATION OK");
+      console.log("✅ SYNCHRONISATION DIRECTE OK");
       return true;
     } else {
-      console.warn("❌ DÉSYNCHRONISATION DÉTECTÉE");
+      console.warn("❌ DÉSYNCHRONISATION DÉTECTÉE - FORCE SYNC");
       
-      // Auto-correction
+      // Auto-correction directe
       if (window.globalWeatherManager) {
-        window.globalWeatherManager.currentTime = {
-          hour: serverState.gameHour,
-          isDayTime: serverState.isDayTime
-        };
-        
-        window.globalWeatherManager.currentWeather = {
-          weather: serverState.weather,
-          displayName: serverState.weather === 'clear' ? 'Ciel dégagé' : serverState.weather
-        };
-        
-        window.globalWeatherManager.forceUpdate();
-        console.log("🔄 Auto-correction appliquée");
+        window.globalWeatherManager.syncFromServerState();
+        console.log("🔄 Auto-correction directe appliquée");
       }
       
       return false;
