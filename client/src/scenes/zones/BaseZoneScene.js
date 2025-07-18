@@ -25,6 +25,7 @@ import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
+import { TimeWeatherWidget } from '../../ui/TimeWeatherWidget.js';
 
 
 
@@ -49,7 +50,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.maxQuestModuleAttempts = 3;
     this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
     this.room = this.networkManager?.room || window.currentGameRoom;
-    this.weatherIcon = null;
+    this.timeWeatherWidget = null;
+    this.weatherIcon = null; // Remplace l'ancienne icône
 
     // Inventaire
     this.inventorySystem = null;
@@ -973,6 +975,12 @@ onZoneChanged(newZoneName) {
   if (typeof window.onWeatherZoneChanged === 'function') {
     window.onWeatherZoneChanged(newZoneName);
   }
+  
+  // ✅ NOUVEAU: Mettre à jour le widget si nécessaire
+  if (this.timeWeatherWidget) {
+    // Le widget se mettra à jour automatiquement via les callbacks
+    console.log(`🕐 [${this.scene.key}] Widget notifié du changement de zone`);
+  }
 }
 
 debugWeatherSystem() {
@@ -1698,6 +1706,12 @@ if (this.overworldPokemonManager) {
       this.scene.stop(this.scene.key);
       console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
     }
+      // ✅ NOUVEAU: Nettoyer le widget temps/météo
+  if (this.timeWeatherWidget) {
+    this.timeWeatherWidget.destroy();
+    this.timeWeatherWidget = null;
+    console.log(`🧹 [${this.scene.key}] Widget temps/météo nettoyé`);
+  }
   // ✅ NOUVEAU: Nettoyer les Pokémon overworld
     if (this.overworldPokemonManager) {
       this.overworldPokemonManager.cleanup();
@@ -2112,6 +2126,13 @@ onPlayerPositioned(player, initData) {
     this.globalWeatherManager.setActiveScene(this.scene.key);
     console.log(`🎯 [${this.scene.key}] Scène marquée comme active dans le système météo`);
   }
+  
+  // ✅ NOUVEAU: Forcer la mise à jour du widget après positionnement
+  if (this.timeWeatherWidget) {
+    this.time.delayedCall(1000, () => {
+      this.connectWidgetToWeatherSystem();
+    });
+  }
 }
   
   // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
@@ -2220,59 +2241,123 @@ onPlayerPositioned(player, initData) {
   }
 
   createUI() {
-    this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(0, 50, 0, 0.8)',
-      padding: { x: 8, y: 6 }
-    }).setScrollFactor(0).setDepth(1000);
+  this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
+    fontSize: '14px',
+    fontFamily: 'monospace',
+    color: '#fff',
+    backgroundColor: 'rgba(0, 50, 0, 0.8)',
+    padding: { x: 8, y: 6 }
+  }).setScrollFactor(0).setDepth(1000);
 
-    this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(255, 0, 0, 0.8)',
-      padding: { x: 6, y: 4 }
-    }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
+  this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
+    fontSize: '14px',
+    fontFamily: 'monospace',
+    color: '#fff',
+    backgroundColor: 'rgba(255, 0, 0, 0.8)',
+    padding: { x: 6, y: 4 }
+  }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
 
-    // 🆕 NOUVEAU: Texte d'info encounters
-    this.encounterText = this.add.text(16, this.scale.height - 60, 'Encounters: Not initialized', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(0, 0, 255, 0.8)',
-      padding: { x: 6, y: 4 }
-    }).setScrollFactor(0).setDepth(1000);
+  // 🆕 NOUVEAU: Texte d'info encounters
+  this.encounterText = this.add.text(16, this.scale.height - 60, 'Encounters: Not initialized', {
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    color: '#fff',
+    backgroundColor: 'rgba(0, 0, 255, 0.8)',
+    padding: { x: 6, y: 4 }
+  }).setScrollFactor(0).setDepth(1000);
 
-    // 🔒 NOUVEAU: Texte d'info MovementBlock
-    this.movementBlockText = this.add.text(16, this.scale.height - 100, 'Movement: OK', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(0, 255, 0, 0.8)',
-      padding: { x: 6, y: 4 }
-    }).setScrollFactor(0).setDepth(1000);
-    
-    // ✅ ICÔNE MÉTÉO DIRECTE
-    this.createWeatherIcon(); 
+  // 🔒 NOUVEAU: Texte d'info MovementBlock
+  this.movementBlockText = this.add.text(16, this.scale.height - 100, 'Movement: OK', {
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    color: '#fff',
+    backgroundColor: 'rgba(0, 255, 0, 0.8)',
+    padding: { x: 6, y: 4 }
+  }).setScrollFactor(0).setDepth(1000);
+  
+  // ✅ REMPLACER L'ANCIENNE ICÔNE PAR LE NOUVEAU WIDGET
+  this.createTimeWeatherWidget();
 }
 
-createWeatherIcon() {
-    console.log(`🌤️ [${this.scene.key}] Création icône météo...`);
-    
-    // Créer l'icône météo (coin haut-droite)
-    this.weatherIcon = new WeatherIcon(this, this.scale.width - 60, 70);
-    
-    // Connecter au système météo global avec un délai
-    this.time.delayedCall(2000, () => {
-        if (window.globalWeatherManager?.isInitialized) {
-            this.weatherIcon.connectToGlobalWeather(window.globalWeatherManager);
-            console.log(`✅ [${this.scene.key}] Icône météo connectée`);
-        } else {
-            console.warn(`⚠️ [${this.scene.key}] Système météo global pas prêt`);
-        }
+// 4. REMPLACER LA MÉTHODE createWeatherIcon() (ligne ~1520)
+createTimeWeatherWidget() {
+  console.log(`🕐 [${this.scene.key}] Création widget temps/météo...`);
+  
+  // Créer le widget
+  this.timeWeatherWidget = new TimeWeatherWidget(this);
+  this.timeWeatherWidget.create();
+  
+  // Connecter aux événements de redimensionnement
+  this.scale.on('resize', () => {
+    this.timeWeatherWidget.onResize();
+  });
+  
+  // Apparition en fade
+  this.timeWeatherWidget.fadeIn();
+  
+  // ✅ CONNECTER AU SYSTÈME MÉTÉO GLOBAL
+  this.time.delayedCall(2000, () => {
+    this.connectWidgetToWeatherSystem();
+  });
+  
+  console.log(`✅ [${this.scene.key}] Widget temps/météo créé`);
+}
+
+// 5. AJOUTER CETTE NOUVELLE MÉTHODE (après createTimeWeatherWidget)
+connectWidgetToWeatherSystem() {
+  console.log(`🔌 [${this.scene.key}] Connexion widget au système météo...`);
+  
+  // Récupérer le TimeWeatherManager
+  const timeWeatherManager = this.globalWeatherManager?.timeWeatherManager;
+  
+  if (timeWeatherManager) {
+    // ✅ CALLBACK TEMPS - Mettre à jour le widget
+    timeWeatherManager.onTimeChange((hour, isDayTime) => {
+      console.log(`🕐 [${this.scene.key}] Widget - Temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+      
+      if (this.timeWeatherWidget) {
+        this.timeWeatherWidget.updateTime(hour, isDayTime);
+      }
     });
+    
+    // ✅ CALLBACK MÉTÉO - Mettre à jour le widget
+    timeWeatherManager.onWeatherChange((weather, displayName) => {
+      console.log(`🌤️ [${this.scene.key}] Widget - Météo: ${displayName}`);
+      
+      if (this.timeWeatherWidget) {
+        this.timeWeatherWidget.updateWeather(weather, displayName);
+      }
+    });
+    
+    // ✅ SYNCHRONISATION INITIALE
+    const currentTime = timeWeatherManager.getCurrentTime();
+    const currentWeather = timeWeatherManager.getCurrentWeather();
+    
+    if (currentTime && currentWeather) {
+      console.log(`🎯 [${this.scene.key}] Synchronisation initiale widget:`, {
+        time: currentTime,
+        weather: currentWeather
+      });
+      
+      this.timeWeatherWidget.updateTime(currentTime.hour, currentTime.isDayTime);
+      this.timeWeatherWidget.updateWeather(currentWeather.weather, currentWeather.displayName);
+    }
+    
+    console.log(`✅ [${this.scene.key}] Widget connecté au système météo`);
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] TimeWeatherManager non disponible pour le widget`);
+    
+    // ✅ FALLBACK - Utiliser les données globales directement
+    if (window.globalWeatherManager?.isInitialized) {
+      const currentTime = window.globalWeatherManager.getCurrentTime();
+      const currentWeather = window.globalWeatherManager.getCurrentWeather();
+      
+      this.timeWeatherWidget.updateTime(currentTime.hour, currentTime.isDayTime);
+      this.timeWeatherWidget.updateWeather(currentWeather.weather, currentWeather.displayName);
+      
+      console.log(`✅ [${this.scene.key}] Widget connecté en mode fallback`);
+    }
+  }
 }
 
   
