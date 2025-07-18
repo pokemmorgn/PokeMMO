@@ -177,8 +177,6 @@ export class TimeWeatherWidget {
 
   // === 🧠 POLLING INTELLIGENT ===
   startIntelligentPolling() {
-    let pollingInterval = 2000; // Démarrer à 2 secondes
-    
     if (window.globalNetworkManager && window.globalNetworkManager.room) {
       const room = window.globalNetworkManager.room;
       
@@ -200,42 +198,37 @@ export class TimeWeatherWidget {
         const timeSinceLastRealTime = Date.now() - (this.lastRealTimeUpdate || 0);
         const realTimeWorking = timeSinceLastRealTime < 60000; // Moins de 1 minute
         
-        // Adapter l'intervalle selon l'efficacité du temps réel
-        if (realTimeWorking) {
-          pollingInterval = 10000; // Ralentir à 10s si temps réel fonctionne
-        } else {
-          pollingInterval = 1000; // Accélérer à 1s si temps réel ne fonctionne pas
-        }
+        // ✅ TOUJOURS vérifier les changements, même si temps réel fonctionne
+        // (double sécurité)
         
         // Vérifier les changements de temps
         if (currentState.gameHour !== lastState.gameHour || 
             currentState.isDayTime !== lastState.isDayTime) {
-          if (!realTimeWorking) {
+          
+          if (realTimeWorking) {
+            console.log('🔄 [TimeWeatherWidget] Temps via polling (double sécurité):', currentState);
+          } else {
             console.log('🔄 [TimeWeatherWidget] Temps via polling (backup):', currentState);
-            this.updateTime(currentState.gameHour, currentState.isDayTime);
           }
+          this.updateTime(currentState.gameHour, currentState.isDayTime);
         }
         
         // Vérifier les changements de météo
         if (currentState.weather !== lastState.weather) {
-          if (!realTimeWorking) {
+          if (realTimeWorking) {
+            console.log('🔄 [TimeWeatherWidget] Météo via polling (double sécurité):', currentState.weather);
+          } else {
             console.log('🔄 [TimeWeatherWidget] Météo via polling (backup):', currentState.weather);
-            const displayName = this.getWeatherDisplayName(currentState.weather);
-            this.updateWeather(currentState.weather, displayName, '22°C');
           }
+          const displayName = this.getWeatherDisplayName(currentState.weather);
+          this.updateWeather(currentState.weather, displayName, '22°C');
         }
         
         lastState = currentState;
         
-        // Réajuster l'intervalle si nécessaire
-        if (this.stateCheckInterval && this.stateCheckInterval._idleTimeout !== pollingInterval) {
-          clearInterval(this.stateCheckInterval);
-          this.stateCheckInterval = setInterval(arguments.callee, pollingInterval);
-        }
-        
-      }, pollingInterval);
+      }, 2000); // ✅ Intervalle fixe de 2 secondes (compromis optimal)
       
-      console.log('✅ [TimeWeatherWidget] Polling intelligent démarré');
+      console.log('✅ [TimeWeatherWidget] Polling intelligent démarré (2s)');
     }
   }
 
