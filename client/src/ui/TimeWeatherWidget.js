@@ -1,4 +1,4 @@
-// TimeWeatherWidget.js - VERSION BARRE HORIZONTALE AVEC AM/PM
+// TimeWeatherWidget.js – VERSION BARRE HORIZONTALE AVEC AM/PM + FADE
 
 export class TimeWeatherWidget {
   constructor(scene) {
@@ -75,6 +75,7 @@ export class TimeWeatherWidget {
     this.weatherIcon = this.scene.add.text(width + padding, -10, '☀️', {
       fontSize: '20px'
     }).setOrigin(0, 0.5).setScrollFactor(0);
+
     this.weatherText = this.scene.add.text(width + padding + 28, -10, 'Clear skies', {
       fontSize: '11px',
       color: '#ffffff',
@@ -128,6 +129,29 @@ export class TimeWeatherWidget {
 
   setAlpha(alpha) {
     if (this.container) this.container.setAlpha(alpha);
+  }
+
+  fadeIn(duration = 1000) {
+    if (this.container) {
+      this.container.setAlpha(0);
+      this.scene.tweens.add({
+        targets: this.container,
+        alpha: 1,
+        duration: duration,
+        ease: 'Power2.easeOut'
+      });
+    }
+  }
+
+  fadeOut(duration = 1000) {
+    if (this.container) {
+      this.scene.tweens.add({
+        targets: this.container,
+        alpha: 0,
+        duration: duration,
+        ease: 'Power2.easeIn'
+      });
+    }
   }
 
   destroy() {
