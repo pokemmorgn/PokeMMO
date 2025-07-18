@@ -602,7 +602,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     ];
 
     for (const zone of defaultZones) {
-      const mapPath = `../../../assets/maps/${zone}.tmj`;
+      const mapPath = `../assets/maps/${zone}.tmj`;
       await this.loadObjectsFromMap(zone, mapPath);
     }
   }
