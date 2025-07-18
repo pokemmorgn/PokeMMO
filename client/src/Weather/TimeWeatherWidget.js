@@ -313,28 +313,19 @@ export class TimeWeatherWidget {
           const displayName = this.getWeatherDisplayName(currentState.weather);
           this.updateWeather(currentState.weather, displayName, '22°C');
           
-          // ✅ SOLUTION HYBRIDE SAFE: Forcer sync + Application directe
+          // ✅ OPTIMISATION: Une seule opération efficace
           if (window.globalWeatherManager) {
-            console.log('🌦️ [TimeWeatherWidget] Sync hybride safe depuis polling');
+            console.log('⚡ [TimeWeatherWidget] Sync optimisée depuis polling');
             
-            // 1. Mettre à jour l'état du GlobalWeatherManager
+            // Mettre à jour l'état ET forcer les updates en une fois
             window.globalWeatherManager.currentWeather = {
               weather: currentState.weather,
               displayName: displayName
             };
             
-            // 2. Forcer l'update complet (safe)
+            // Une seule méthode qui fait tout
             if (typeof window.globalWeatherManager.updateAllScenes === 'function') {
-              window.globalWeatherManager.updateAllScenes('weather');
-            }
-            
-            // 3. Forcer les effets météo (backup direct)
-            if (window.globalWeatherManager.sceneWeatherEffects) {
-              window.globalWeatherManager.sceneWeatherEffects.forEach((weatherEffects) => {
-                if (weatherEffects && typeof weatherEffects.setWeather === 'function') {
-                  weatherEffects.setWeather(currentState.weather);
-                }
-              });
+              window.globalWeatherManager.updateAllScenes('weather-polling');
             }
           }
         }
