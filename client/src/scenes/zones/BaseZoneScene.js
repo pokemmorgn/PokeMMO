@@ -23,6 +23,8 @@ import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
 import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
+import { WeatherIcon } from '../ui/WeatherIcon.js';
+import { globalWeatherManager } from '../managers/GlobalWeatherManager.js';
 
 
 
@@ -47,7 +49,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.maxQuestModuleAttempts = 3;
     this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
     this.room = this.networkManager?.room || window.currentGameRoom;
-    
+    this.weatherIcon = null;
+
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
@@ -2250,8 +2253,25 @@ onPlayerPositioned(player, initData) {
       backgroundColor: 'rgba(0, 255, 0, 0.8)',
       padding: { x: 6, y: 4 }
     }).setScrollFactor(0).setDepth(1000);
+    
+    this.createWeatherIcon(); 
   }
-
+createWeatherIcon() {
+    console.log(`🌤️ [${this.scene.key}] Création icône météo...`);
+    
+    // Créer l'icône météo (coin haut-droite, sous les coordonnées)
+    this.weatherIcon = new WeatherIcon(this, this.scale.width - 60, 70);
+    
+    // Connecter au système météo global avec un délai
+    this.time.delayedCall(2000, () => {
+        if (window.globalWeatherManager?.isInitialized) {
+            this.weatherIcon.connectToGlobalWeather(window.globalWeatherManager);
+            console.log(`✅ [${this.scene.key}] Icône météo connectée au système global`);
+        } else {
+            console.warn(`⚠️ [${this.scene.key}] Système météo global pas encore prêt`);
+        }
+    });
+}
   handleZoneData(data) {
     console.log(`🗺️ [${this.scene.key}] Handling zone data for: ${data.zone}`);
     
