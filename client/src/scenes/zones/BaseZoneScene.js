@@ -23,8 +23,8 @@ import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
 import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
-import { WeatherIcon } from '../ui/WeatherIcon.js';
-import { globalWeatherManager } from '../managers/GlobalWeatherManager.js';
+import { WeatherIcon } from '../../ui/WeatherIcon.js';
+import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
 
 
 
