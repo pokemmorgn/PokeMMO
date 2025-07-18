@@ -34,6 +34,9 @@ import { BattleHandlers } from "../handlers/BattleHandlers";
 import { StarterHandlers } from "../handlers/StarterHandlers";
 import PokedexMessageHandler from '../handlers/PokedexMessageHandler';
 import { MovementHandlers } from "../handlers/MovementHandlers";
+// Après tes imports existants, ajoute :
+import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers";
+import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -66,7 +69,9 @@ export class WorldRoom extends Room<PokeWorldState> {
   private teamManagers: Map<string, TeamManager> = new Map();
   private overworldPokemonManager!: OverworldPokemonManager;
   private movementHandlers!: MovementHandlers;
-    private jwtManager = JWTManager.getInstance();
+  private objectInteractionHandlers!: ObjectInteractionHandlers;
+  private objectInteractionModule!: ObjectInteractionModule;
+  private jwtManager = JWTManager.getInstance();
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -148,6 +153,14 @@ if (this.transitionService && this.followerHandlers) {
 
     this.movementHandlers = new MovementHandlers(this);
     console.log(`✅ MovementHandlers initialisé`);
+
+    this.objectInteractionHandlers = new ObjectInteractionHandlers(this);
+    console.log(`✅ ObjectInteractionHandlers initialisé`);
+    
+    // ✅ NOUVEAU: Créer et configurer ObjectInteractionModule  
+    this.objectInteractionModule = new ObjectInteractionModule();
+    this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
+    console.log(`✅ ObjectInteractionModule créé et configuré`);
     
     // Messages handlers
     this.setupMessageHandlers();
@@ -437,6 +450,7 @@ if (this.transitionService && this.followerHandlers) {
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
     this.movementHandlers.setupHandlers();
+    this.objectInteractionHandlers.setupHandlers();
     console.log(`✅ PokédxMessageHandler initialisé`);
         // Nouveau handler dans setupMessageHandlers()
     
