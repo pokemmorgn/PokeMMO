@@ -11,7 +11,8 @@ export class TimeWeatherWidget {
     this.weather = { weather: 'clear', displayName: 'Clear', temperature: '22°C' };
     this.location = 'Village';
     this.gameplayBonus = { active: true, text: '+15% XP Pokémon Eau', type: 'water' };
-    
+      this.lastWeatherSent = null; // 🔥 NOUVEAU: Pour éviter les doubles updates
+
     // 🎮 Configuration météo Pokémon avec particules
     this.pokemonWeatherConfig = {
       clear: { 
@@ -446,39 +447,56 @@ subscribeToWeatherUpdates() {
     this.updateDayNightTheme(isDayTime);
   }
 
-  updateWeather(weather, displayName, temperature = '22°C') {
-    this.weather = { weather, displayName, temperature };
-    if (!this.element) return;
-    
-    const config = this.pokemonWeatherConfig[weather] || this.pokemonWeatherConfig.clear;
-    
-    // Mise à jour DOM optimisée
-    const updates = [
-      ['.weather-main', displayName],
-      ['.weather-temp', temperature],
-      ['.weather-icon', config.icon],
-      ['.pokemon-type-icon', config.pokemon]
-    ];
-    
-    updates.forEach(([selector, content]) => {
-      const element = this.element.querySelector(selector);
-      if (element && element.textContent !== content) {
-        element.textContent = content;
-      }
-    });
-    
-    // Mise à jour des effets visuels
-    this.updateWeatherEffects(config);
-    this.updateWeatherParticles(config);
-    this.updateGameplayBonus({
-      active: true,
-      text: `+15% XP Pokémon ${config.bonus}`,
-      type: weather
-    });
-    
-    console.log(`🌤️ Météo mise à jour: ${displayName} avec ${config.particleCount} particules`);
-  }
-
+updateWeather(weather, displayName, temperature = '22°C') {
+ this.weather = { weather, displayName, temperature };
+ if (!this.element) return;
+ 
+ const config = this.pokemonWeatherConfig[weather] || this.pokemonWeatherConfig.clear;
+ 
+ // Mise à jour DOM optimisée
+ const updates = [
+   ['.weather-main', displayName],
+   ['.weather-temp', temperature],
+   ['.weather-icon', config.icon],
+   ['.pokemon-type-icon', config.pokemon]
+ ];
+ 
+ updates.forEach(([selector, content]) => {
+   const element = this.element.querySelector(selector);
+   if (element && element.textContent !== content) {
+     element.textContent = content;
+   }
+ });
+ 
+ // 🔥 NOUVEAU: Forcer la mise à jour immédiate du weather system
+ if (window.globalWeatherManager && weather !== this.lastWeatherSent) {
+   console.log(`🔥 FORCE WEATHER SYSTEM UPDATE: ${weather}`);
+   
+   // Forcer la mise à jour immédiate du weather system
+   window.globalWeatherManager.currentWeather = {
+     weather: weather,
+     displayName: displayName
+   };
+   
+   // Déclencher immédiatement les effets visuels dans le jeu
+   if (typeof window.globalWeatherManager.updateAllScenes === 'function') {
+     window.globalWeatherManager.updateAllScenes('widget-force-update');
+   }
+   
+   this.lastWeatherSent = weather;
+ }
+ 
+ // Mise à jour des effets visuels du widget
+ this.updateWeatherEffects(config);
+ this.updateWeatherParticles(config);
+ this.updateGameplayBonus({
+   active: true,
+   text: `+15% XP Pokémon ${config.bonus}`,
+   type: weather
+ });
+ 
+ console.log(`🌤️ Météo mise à jour: ${displayName} avec ${config.particleCount} particules`);
+}
   updateWeatherEffects(config) {
     const glassContainer = this.element?.querySelector('.widget-glass-container');
     const glowElement = this.element?.querySelector('.widget-glow');
