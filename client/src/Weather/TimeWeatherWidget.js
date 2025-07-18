@@ -877,15 +877,4 @@ export class TimeWeatherWidget {
   }
 }
 
-export default TimeWeatherWidget;% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      
-      @keyframes modernFadeOut {
-        0% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-        100
+export default TimeWeatherWidget
