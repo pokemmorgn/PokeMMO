@@ -1,4 +1,15 @@
-// ui/TimeWeatherWidget.js - Style Pokémon Moderne
+// === 🎨 STYLES POKÉMON (IMPORT DU CSS SÉPARÉ) ===
+  injectStyles() {
+    if (document.getElementById('pokemon-weather-widget-css')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'pokemon-weather-widget-css';
+    style.textContent = POKEMON_WEATHER_STYLES;
+    document.head.appendChild(style);
+    console.log('🎨 [PokémonWeatherWidget] Styles Pokémon injectés depuis fichier séparé');
+  }// ui/TimeWeatherWidget.js - Style Pokémon Moderne
+import { POKEMON_WEATHER_STYLES } from './PokemonWeatherStyles.js';
+
 export class TimeWeatherWidget {
   constructor(options = {}) {
     this.id = options.id || 'time-weather-widget';
@@ -7,7 +18,7 @@ export class TimeWeatherWidget {
     this.currentHour = 12;
     this.isDayTime = true;
     this.weather = { weather: 'clear', displayName: 'Clear', temperature: '22°C' };
-    this.location = 'Pallet Town';
+    this.location = 'Village'; // Zone par défaut
     this.weatherIntensity = 75; // 0-100%
     this.gameplayBonus = { active: true, text: '+15% XP Pokémon Eau', type: 'water' };
     
@@ -120,7 +131,7 @@ export class TimeWeatherWidget {
           <div class="header-section">
             <div class="zone-badge" id="${this.id}-zone">
               <span class="zone-icon">📍</span>
-              <span class="zone-text">Pallet Town</span>
+              <span class="zone-text">Village</span>
             </div>
           </div>
           
@@ -195,8 +206,11 @@ export class TimeWeatherWidget {
     return el;
   }
 
-  // === 🌐 CONNEXION GLOBALE (identique) ===
+  // === 🌐 CONNEXION GLOBALE + ZONE MAPPING ===
   connectToGlobalWeatherManager() {
+    // Import du mapping des zones
+    this.initializeZoneMapping();
+    
     if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
       this.subscribeToWeatherUpdates();
       const currentTime = window.globalWeatherManager.getCurrentTime();
@@ -208,9 +222,85 @@ export class TimeWeatherWidget {
       if (currentWeather) {
         this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
       }
+      
+      // 🎯 RÉCUPÉRER LA ZONE ACTUELLE
+      this.updateCurrentZone();
     } else {
       setTimeout(() => this.connectToGlobalWeatherManager(), 100);
     }
+  }
+
+  // === 🗺️ INITIALISATION DU MAPPING DES ZONES ===
+  initializeZoneMapping() {
+    // Vérifier si le ZoneMapping est disponible
+    if (window.ZoneMapping && window.ZoneMapping.config) {
+      this.zoneMapping = window.ZoneMapping;
+      console.log('🗺️ [PokémonWeatherWidget] ZoneMapping connecté');
+    } else {
+      console.warn('⚠️ [PokémonWeatherWidget] ZoneMapping non disponible');
+    }
+  }
+
+  // === 📍 MISE À JOUR DE LA ZONE ACTUELLE ===
+  updateCurrentZone() {
+    let currentZone = 'Village'; // Fallback
+    
+    try {
+      // Méthode 1: Via Phaser scene manager
+      if (window.game && window.game.scene && window.game.scene.getScenes) {
+        const activeScenes = window.game.scene.getScenes(true);
+        if (activeScenes.length > 0) {
+          const currentScene = activeScenes[0];
+          const sceneName = currentScene.constructor.name;
+          
+          // Convertir le nom de scène en zone avec le mapping
+          if (this.zoneMapping && this.zoneMapping.sceneToZone) {
+            const zoneName = this.zoneMapping.sceneToZone(sceneName);
+            const zoneConfig = this.zoneMapping.getZoneConfig(zoneName);
+            
+            if (zoneConfig && zoneConfig.displayName) {
+              currentZone = zoneConfig.displayName;
+              console.log(`🎯 [PokémonWeatherWidget] Zone détectée: ${currentZone} (${sceneName})`);
+            }
+          }
+        }
+      }
+      
+      // Méthode 2: Via GlobalNetworkManager
+      if (currentZone === 'Village' && window.globalNetworkManager && window.globalNetworkManager.room) {
+        const room = window.globalNetworkManager.room;
+        if (room.state && room.state.currentZone) {
+          const serverZone = room.state.currentZone;
+          
+          if (this.zoneMapping && this.zoneMapping.getZoneConfig) {
+            const zoneConfig = this.zoneMapping.getZoneConfig(serverZone);
+            if (zoneConfig && zoneConfig.displayName) {
+              currentZone = zoneConfig.displayName;
+              console.log(`🌐 [PokémonWeatherWidget] Zone serveur: ${currentZone}`);
+            }
+          }
+        }
+      }
+      
+      // Méthode 3: Via PlayerManager
+      if (currentZone === 'Village' && window.playerManager && window.playerManager.currentZone) {
+        const playerZone = window.playerManager.currentZone;
+        
+        if (this.zoneMapping && this.zoneMapping.getZoneConfig) {
+          const zoneConfig = this.zoneMapping.getZoneConfig(playerZone);
+          if (zoneConfig && zoneConfig.displayName) {
+            currentZone = zoneConfig.displayName;
+            console.log(`👤 [PokémonWeatherWidget] Zone joueur: ${currentZone}`);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ [PokémonWeatherWidget] Erreur détection zone:', error);
+    }
+    
+    // Mettre à jour la zone affichée
+    this.updateZone(currentZone);
   }
 
   forceImmediateSync() {
@@ -258,14 +348,16 @@ export class TimeWeatherWidget {
       let lastState = {
         gameHour: room.state.gameHour,
         isDayTime: room.state.isDayTime,
-        weather: room.state.weather
+        weather: room.state.weather,
+        currentZone: room.state.currentZone || null
       };
       
       this.stateCheckInterval = setInterval(() => {
         const currentState = {
           gameHour: room.state.gameHour,
           isDayTime: room.state.isDayTime,
-          weather: room.state.weather
+          weather: room.state.weather,
+          currentZone: room.state.currentZone || null
         };
         
         if (currentState.gameHour !== lastState.gameHour || currentState.isDayTime !== lastState.isDayTime) {
@@ -275,6 +367,11 @@ export class TimeWeatherWidget {
         if (currentState.weather !== lastState.weather) {
           const displayName = this.getWeatherDisplayName(currentState.weather);
           this.updateWeather(currentState.weather, displayName, '22°C');
+        }
+        
+        // 🎯 NOUVEAU: Vérifier les changements de zone
+        if (currentState.currentZone !== lastState.currentZone && currentState.currentZone) {
+          this.updateCurrentZone();
         }
         
         lastState = currentState;
