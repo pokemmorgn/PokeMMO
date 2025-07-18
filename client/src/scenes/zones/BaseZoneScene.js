@@ -2283,21 +2283,34 @@ onPlayerPositioned(player, initData) {
 createTimeWeatherWidget() {
   console.log(`🕐 [${this.scene.key}] Création widget temps/météo...`);
 
-  // Utilise le module déjà créé et géré par UIManager
-this.timeWeatherWidget = this.uiManager.getModuleInstance('timeWeather');
-  // PAS d'appel à .create()
+  // Utilise window.uiManager si this.uiManager est undefined
+  const uiManagerRef = this.uiManager || window.uiManager;
+  if (!uiManagerRef) {
+    console.warn('Aucun UIManager trouvé');
+    return;
+  }
 
-  // (Optionnel) Connecter à l'événement resize si tu veux repositionner ou forcer un update
-  // Mais la gestion DOM se fait automatiquement par UIManager
-  // this.scale.on('resize', ...);  // Généralement inutile pour ce widget DOM
+  this.timeWeatherWidget = uiManagerRef.getModuleInstance('timeWeather');
+  if (!this.timeWeatherWidget) {
+    console.warn('Widget timeWeather non instancié dans UIManager');
+    return;
+  }
 
-  // Connecte le widget au système météo global
+  // Connecter aux événements de redimensionnement si utile
+  if (typeof this.timeWeatherWidget.onResize === 'function' && this.scale) {
+    this.scale.on('resize', () => {
+      this.timeWeatherWidget.onResize();
+    });
+  }
+
+  // Système météo...
   this.time.delayedCall(2000, () => {
     this.connectWidgetToWeatherSystem();
   });
 
   console.log(`✅ [${this.scene.key}] Widget temps/météo créé`);
 }
+
 
 connectWidgetToWeatherSystem() {
   console.log(`🔌 [${this.scene.key}] Connexion widget au système météo...`);
