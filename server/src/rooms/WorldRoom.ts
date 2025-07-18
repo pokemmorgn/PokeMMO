@@ -161,9 +161,12 @@ if (this.transitionService && this.followerHandlers) {
     this.objectInteractionModule = new ObjectInteractionModule();
     this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
     console.log(`✅ ObjectInteractionModule créé et configuré`);
-    // ✅ NOUVEAU: Initialiser le module d'objets
-    await this.objectInteractionModule.initialize();
-    console.log(`✅ ObjectInteractionModule initialisé`);
+    // ✅ NOUVEAU: Initialiser le module d'objets (en arrière-plan)
+    this.objectInteractionModule.initialize().then(() => {
+      console.log(`✅ ObjectInteractionModule initialisé`);
+    }).catch((error) => {
+      console.error(`❌ Erreur initialisation ObjectInteractionModule:`, error);
+    });
     
     // Messages handlers
     this.setupMessageHandlers();
