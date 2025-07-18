@@ -76,6 +76,58 @@ export const POKEMON_WEATHER_STYLES = `
   }
   
   /* === ✨ WEATHER PARTICLES === */
+  /* === ✨ ANIMATIONS PARTICULES MÉTÉO === */
+.pokemon-weather-widget .particle {
+  position: absolute;
+  font-size: 14px;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 2;
+  animation: particle-float 3s ease-in-out infinite;
+}
+
+/* Particules pluie */
+.pokemon-weather-widget .rain-particle {
+  animation: rain-drop 2s linear infinite;
+  color: #3b82f6;
+}
+
+/* Particules orage */
+.pokemon-weather-widget .storm-particle {
+  animation: lightning-flash 1s ease-in-out infinite;
+  color: #6366f1;
+}
+
+/* Particules neige */
+.pokemon-weather-widget .snow-particle {
+  animation: snow-fall 4s linear infinite;
+  color: #60a5fa;
+}
+
+/* Particules brouillard */
+.pokemon-weather-widget .fog-particle {
+  animation: fog-drift 6s ease-in-out infinite;
+  color: #9ca3af;
+  opacity: 0.4;
+}
+
+/* Particules soleil */
+.pokemon-weather-widget .clear-particle {
+  animation: sparkle-float 2s ease-in-out infinite;
+  color: #fbbf24;
+  font-size: 16px;
+}
+
+@keyframes sparkle-float {
+  0%, 100% { transform: translateY(0px) scale(1); opacity: 0.8; }
+  50% { transform: translateY(-15px) scale(1.2); opacity: 1; }
+}
+
+@keyframes fog-drift {
+  0%, 100% { transform: translateX(0px); opacity: 0.3; }
+  50% { transform: translateX(30px); opacity: 0.6; }
+}
+
   .pokemon-weather-widget .weather-particles {
     position: absolute;
     top: 0;
