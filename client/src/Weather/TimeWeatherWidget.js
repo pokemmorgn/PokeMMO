@@ -116,7 +116,10 @@ export class TimeWeatherWidget {
     if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
       console.log('✅ [TimeWeatherWidget] GlobalWeatherManager trouvé');
       
-      // Obtenir les données actuelles du serveur
+      // ✅ S'ABONNER AUX CALLBACKS EN PREMIER
+      this.subscribeToWeatherUpdates();
+      
+      // Obtenir les données actuelles du serveur APRÈS l'abonnement
       const currentTime = window.globalWeatherManager.getCurrentTime();
       const currentWeather = window.globalWeatherManager.getCurrentWeather();
       
@@ -134,9 +137,6 @@ export class TimeWeatherWidget {
         this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
       }
       
-      // S'abonner aux changements futurs
-      this.subscribeToWeatherUpdates();
-      
     } else {
       console.warn('⚠️ [TimeWeatherWidget] GlobalWeatherManager non disponible, retry...');
       
@@ -151,9 +151,9 @@ export class TimeWeatherWidget {
   forceImmediateSync() {
     console.log('🚀 [TimeWeatherWidget] SYNC IMMÉDIATE FORCÉE');
     
-    // ✅ BYPASSER TOUS LES DÉLAIS
+    // ✅ PRIORITÉ 1: Callbacks directs GlobalWeatherManager
     if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
-      console.log('⚡ [TimeWeatherWidget] Récupération état serveur immédiate');
+      console.log('⚡ [TimeWeatherWidget] Récupération état GlobalWeatherManager');
       
       const currentTime = window.globalWeatherManager.getCurrentTime();
       const currentWeather = window.globalWeatherManager.getCurrentWeather();
@@ -161,16 +161,31 @@ export class TimeWeatherWidget {
       // ✅ APPLIQUER IMMÉDIATEMENT
       if (currentTime) {
         this.updateTime(currentTime.hour, currentTime.isDayTime);
-        console.log(`🕐 [TimeWeatherWidget] Temps appliqué: ${currentTime.hour}h`);
+        console.log(`🕐 [TimeWeatherWidget] Temps GlobalWeatherManager: ${currentTime.hour}h`);
       }
       
       if (currentWeather) {
         this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
-        console.log(`🌤️ [TimeWeatherWidget] Météo appliquée: ${currentWeather.displayName}`);
+        console.log(`🌤️ [TimeWeatherWidget] Météo GlobalWeatherManager: ${currentWeather.displayName}`);
+      }
+      
+      // ✅ S'ASSURER QUE LES CALLBACKS SONT BIEN ENREGISTRÉS
+      const callbacksCount = {
+        time: window.globalWeatherManager.timeChangeCallbacks ? window.globalWeatherManager.timeChangeCallbacks.length : 0,
+        weather: window.globalWeatherManager.weatherChangeCallbacks ? window.globalWeatherManager.weatherChangeCallbacks.length : 0
+      };
+      
+      console.log(`📊 [TimeWeatherWidget] Callbacks enregistrés:`, callbacksCount);
+      
+      if (callbacksCount.time === 0 || callbacksCount.weather === 0) {
+        console.warn('⚠️ [TimeWeatherWidget] Callbacks manquants, re-enregistrement...');
+        setTimeout(() => {
+          this.subscribeToWeatherUpdates();
+        }, 100);
       }
     }
     
-    // ✅ FORCER AUSSI LA SYNCHRONISATION SERVEUR
+    // ✅ PRIORITÉ 2: État serveur direct (fallback)
     if (window.globalNetworkManager && window.globalNetworkManager.room) {
       const room = window.globalNetworkManager.room;
       
@@ -200,28 +215,49 @@ export class TimeWeatherWidget {
   subscribeToWeatherUpdates() {
     console.log('📡 [TimeWeatherWidget] Abonnement hybride optimal...');
     
-    // === MÉTHODE 1: Callbacks temps réel (priorité) ===
-    if (window.globalWeatherManager && window.globalWeatherManager.timeWeatherManager) {
-      const timeWeatherManager = window.globalWeatherManager.timeWeatherManager;
+    // === MÉTHODE DIRECTE: Callbacks via GlobalWeatherManager ===
+    if (window.globalWeatherManager && typeof window.globalWeatherManager.onTimeChange === 'function') {
       
-      // Callback pour les changements de temps
-      if (typeof timeWeatherManager.onTimeChange === 'function') {
-        timeWeatherManager.onTimeChange((hour, isDayTime) => {
-          console.log(`⚡ [TimeWeatherWidget] Temps TEMPS RÉEL: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
-          this.updateTime(hour, isDayTime);
-          this.lastRealTimeUpdate = Date.now();
-        });
-        console.log('✅ [TimeWeatherWidget] Callbacks temps réel configurés');
-      }
+      window.globalWeatherManager.onTimeChange((hour, isDayTime) => {
+        console.log(`⚡ [TimeWeatherWidget] Temps CALLBACK DIRECT: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+        this.updateTime(hour, isDayTime);
+        this.lastRealTimeUpdate = Date.now();
+      });
       
-      // Callback pour les changements de météo
-      if (typeof timeWeatherManager.onWeatherChange === 'function') {
-        timeWeatherManager.onWeatherChange((weather, displayName) => {
-          console.log(`⚡ [TimeWeatherWidget] Météo TEMPS RÉEL: ${displayName}`);
-          this.updateWeather(weather, displayName, '22°C');
-          this.lastRealTimeUpdate = Date.now();
-        });
-        console.log('✅ [TimeWeatherWidget] Callbacks météo temps réel configurés');
+      window.globalWeatherManager.onWeatherChange((weather, displayName) => {
+        console.log(`⚡ [TimeWeatherWidget] Météo CALLBACK DIRECT: ${displayName}`);
+        this.updateWeather(weather, displayName, '22°C');
+        this.lastRealTimeUpdate = Date.now();
+      });
+      
+      console.log('✅ [TimeWeatherWidget] Callbacks directs GlobalWeatherManager configurés');
+      
+    } else {
+      console.warn('⚠️ [TimeWeatherWidget] Callbacks directs non disponibles, fallback...');
+      
+      // === FALLBACK: Ancien système via timeWeatherManager ===
+      if (window.globalWeatherManager && window.globalWeatherManager.timeWeatherManager) {
+        const timeWeatherManager = window.globalWeatherManager.timeWeatherManager;
+        
+        // Callback pour les changements de temps
+        if (typeof timeWeatherManager.onTimeChange === 'function') {
+          timeWeatherManager.onTimeChange((hour, isDayTime) => {
+            console.log(`⚡ [TimeWeatherWidget] Temps FALLBACK: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+            this.updateTime(hour, isDayTime);
+            this.lastRealTimeUpdate = Date.now();
+          });
+        }
+        
+        // Callback pour les changements de météo
+        if (typeof timeWeatherManager.onWeatherChange === 'function') {
+          timeWeatherManager.onWeatherChange((weather, displayName) => {
+            console.log(`⚡ [TimeWeatherWidget] Météo FALLBACK: ${displayName}`);
+            this.updateWeather(weather, displayName, '22°C');
+            this.lastRealTimeUpdate = Date.now();
+          });
+        }
+        
+        console.log('✅ [TimeWeatherWidget] Callbacks fallback configurés');
       }
     }
     
@@ -877,4 +913,15 @@ export class TimeWeatherWidget {
   }
 }
 
-export default TimeWeatherWidget
+export default TimeWeatherWidget;% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      
+      @keyframes modernFadeOut {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100
