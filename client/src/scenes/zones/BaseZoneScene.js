@@ -2284,7 +2284,7 @@ createTimeWeatherWidget() {
   console.log(`🕐 [${this.scene.key}] Création widget temps/météo...`);
 
   // Utilise le module déjà créé et géré par UIManager
-  this.timeWeatherWidget = uiManager.getModuleInstance('timeWeather');
+this.timeWeatherWidget = this.uiManager.getModuleInstance('timeWeather');
   // PAS d'appel à .create()
 
   // (Optionnel) Connecter à l'événement resize si tu veux repositionner ou forcer un update
