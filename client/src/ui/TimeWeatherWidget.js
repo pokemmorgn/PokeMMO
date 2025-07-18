@@ -15,7 +15,7 @@ export class TimeWeatherWidget {
       x: 0,
       y: 80,
       width: 380,   // largeur totale de la barre
-      barHeight: 12,
+      barHeight: 28,
       markerHeight: 36,
       markerWidth: 6,
       depth: 1000,
@@ -72,24 +72,29 @@ export class TimeWeatherWidget {
     this.container.setPosition(centerX, this.config.y);
   }
 
-  createTimeBar() {
-    // Efface existant
-    if (this.timeBar) this.timeBar.destroy();
+createTimeBar() {
+  if (this.timeBar) this.timeBar.destroy();
 
-    // Couleur dynamique selon période
-    const period = this.getTimePeriod(this.currentTime.hour);
-    const color = this.timeColors[period].primary;
+  // Couleur dynamique selon période
+  const period = this.getTimePeriod(this.currentTime.hour);
+  const color = this.timeColors[period].primary;
 
-    this.timeBar = this.scene.add.graphics();
-    this.timeBar.setScrollFactor(0);
-    this.timeBar.setDepth(1);
-    this.timeBar.fillStyle(color, 0.28);
-    this.timeBar.fillRoundedRect(-this.config.width / 2, 0, this.config.width, this.config.barHeight, 8);
-    this.timeBar.lineStyle(2, color, 0.48);
-    this.timeBar.strokeRoundedRect(-this.config.width / 2, 0, this.config.width, this.config.barHeight, 8);
+  // Augmente la hauteur et opacité pour test
+  const barY = 18; // décale la barre pour éviter d'être à 0
+  this.timeBar = this.scene.add.graphics();
+  this.timeBar.setScrollFactor(0);
+  this.timeBar.setDepth(1);
 
-    this.container.add(this.timeBar);
-  }
+  // Fond visible
+  this.timeBar.fillStyle(color, 0.5); // opacité augmentée
+  this.timeBar.fillRoundedRect(-this.config.width / 2, barY, this.config.width, 28, 10);
+
+  // Bordure contrastée
+  this.timeBar.lineStyle(3, 0xffffff, 0.8);
+  this.timeBar.strokeRoundedRect(-this.config.width / 2, barY, this.config.width, 28, 10);
+
+  this.container.add(this.timeBar);
+}
 
   createHourMarkers() {
     // Efface existants
