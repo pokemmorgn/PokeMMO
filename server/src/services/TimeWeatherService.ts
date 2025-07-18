@@ -401,3 +401,4 @@ export class TimeWeatherService {
       hour: this.state.gameHour,
       isDayTime: this.state.isDayTime
     };
+  }
