@@ -469,8 +469,14 @@ export class TimeWeatherWidget {
   // Adapter à la taille de l'écran
   onResize() {
     if (this.container) {
-      const centerX = this.scene.scale.width / 2;
-      this.container.setPosition(centerX, this.config.y);
+// Position forcée au centre de l'écran
+const centerX = this.scene.scale.width / 2;
+const centerY = this.scene.scale.height / 2;
+this.container.setPosition(centerX, centerY);
+
+// Debug visuel temporaire
+const debugBg = this.scene.add.rectangle(0, 0, 200, 100, 0xff0000, 0.5);
+this.container.add(debugBg);
       console.log(`📱 [TimeWeatherWidget] Redimensionné: ${centerX}, ${this.config.y}`);
     }
   }
