@@ -470,10 +470,12 @@ export class SubModuleFactory {
     
     console.log(`📊 [SubModuleFactory] Chargement terminé: ${successCount} succès, ${errorCount} erreurs`);
     
+    // ✅ COMMENTAIRE TEMPORAIRE - À la fin de discoverAndLoadModules()
     // Démarrer la surveillance en mode dev
-    if (!this.securityConfig.enabled) {
-      this.startWatching();
-    }
+    // if (!this.securityConfig.enabled) {
+    //   this.startWatching(); // ← COMMENTER CETTE LIGNE
+    // }
+    console.log(`🚫 [SubModuleFactory] Hot-reload temporairement désactivé`);
   }
   
   private isValidModuleFile(filename: string): boolean {
