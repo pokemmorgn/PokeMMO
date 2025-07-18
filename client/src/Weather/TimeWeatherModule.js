@@ -1,5 +1,5 @@
 // client/src/Weather/TimeWeatherModule.js
-import { TimeWeatherWidget } from './weather/TimeWeatherWidget.js';
+import { TimeWeatherWidget } from './TimeWeatherWidget.js';
 
 export function createTimeWeatherModule() {
   const widget = new TimeWeatherWidget({ id: 'time-weather-widget', anchor: 'top-right' });
