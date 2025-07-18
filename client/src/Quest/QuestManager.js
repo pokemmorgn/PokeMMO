@@ -390,7 +390,6 @@ export class QuestManager {
       }
       
       if (!this.pendingQuestRequest) {
-        this.requestAvailableQuests();
         this.resetDebugCallCount();
         return 'REQUESTING_QUESTS';
       }
