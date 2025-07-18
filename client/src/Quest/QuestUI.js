@@ -1296,35 +1296,51 @@ export class QuestUI {
         console.error(`❌ [QuestUI] Erreur animation ${phase}:`, error);
       }
     }
-  // Méthode pour trouver l'élément objectif dans le DOM
-// Méthode pour trouver l'élément objectif dans le DOM
-findObjectiveElement(objectiveName) {
+  
+// À ajouter dans QuestUI.js, remplacer findObjectiveElement() par :
+findObjectiveById(questId, objectiveId) {
   try {
-    // ✅ FIX: Utiliser directement this.trackerElement
-    const trackerElement = this.trackerElement;
-    if (!trackerElement) {
-      console.warn('⚠️ [QuestUI] trackerElement non trouvé');
-      return null;
+    // Sélecteur robuste avec data-attributes
+    const selector = `[data-quest-id="${questId}"][data-objective-id="${objectiveId}"]`;
+    const element = this.trackerElement.querySelector(selector);
+    
+    if (element) {
+      console.log(`✅ [QuestUI] Objectif trouvé: ${questId}/${objectiveId}`);
+      return element;
     }
     
-    console.log(`🔍 [QuestUI] Recherche "${objectiveName}" dans tracker`);
+    // Fallback: chercher par texte (temporaire)
+    console.warn(`⚠️ [QuestUI] Fallback recherche par texte pour ${objectiveId}`);
+    return this.findObjectiveByTextFallback(objectiveId);
+    
+  } catch (error) {
+    console.error('❌ [QuestUI] Erreur findObjectiveById:', error);
+    return null;
+  }
+}
+  // Méthode fallback temporaire (en attendant les data-attributes)
+findObjectiveByTextFallback(objectiveText) {
+  try {
+    console.log(`🔄 [QuestUI] Fallback recherche texte: "${objectiveText}"`);
+    
+    const trackerElement = this.trackerElement;
+    if (!trackerElement) return null;
     
     // Chercher tous les éléments dans le tracker
     const allElements = trackerElement.querySelectorAll('*');
     
     for (const element of allElements) {
-      if (element.textContent && element.textContent.trim().includes(objectiveName)) {
-        console.log(`✅ [QuestUI] Objectif trouvé dans:`, element.tagName, element.className);
-        // Retourner l'élément ou son parent selon la structure
+      if (element.textContent && element.textContent.trim().includes(objectiveText)) {
+        console.log(`✅ [QuestUI] Trouvé par fallback:`, element.tagName, element.className);
         return element.closest('.quest-item, .quest-step') || element;
       }
     }
     
-    console.warn(`⚠️ [QuestUI] Objectif "${objectiveName}" non trouvé dans tracker`);
+    console.warn(`⚠️ [QuestUI] Objectif "${objectiveText}" non trouvé même en fallback`);
     return null;
     
   } catch (error) {
-    console.error('❌ [QuestUI] Erreur findObjectiveElement:', error);
+    console.error('❌ [QuestUI] Erreur fallback:', error);
     return null;
   }
 }
