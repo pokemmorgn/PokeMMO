@@ -1,4 +1,4 @@
-// Quest/QuestManager.js - FIXES ANTI-DUPLICATION APPLIQUÉS
+// Quest/QuestManager.js - FIXES ANTI-DUPLICATION + PROGRESSION OBJECTIFS
 
 export class QuestManager {
   constructor(gameRoom) {
@@ -57,7 +57,7 @@ export class QuestManager {
     this.handlerCleanupAttempts = 0;
     this.maxCleanupAttempts = 3;
     
-    console.log('📖 [QuestManager] Instance créée - Version ANTI-DUPLICATION');
+    console.log('📖 [QuestManager] Instance créée - Version ANTI-DUPLICATION + PROGRESSION');
     
     if (gameRoom) {
       this.setGameRoom(gameRoom);
@@ -502,6 +502,7 @@ export class QuestManager {
     }
   }
   
+  // ✅ NOUVELLE VERSION: Progression avec étapes visuelles
   handleQuestProgress(data) {
     if (!Array.isArray(data)) return;
     
@@ -509,150 +510,117 @@ export class QuestManager {
     
     data.forEach(result => {
       if (result.questCompleted) {
+        // Quête terminée complètement
         this.triggerCallback('onQuestCompleted', result);
         this.showNotification(`Quête terminée : ${result.questName} !`, 'success');
-        this.triggerQuestCompletionSequence(result);
+        this.scheduleDataRefresh(2000);
+        
       } else if (result.objectiveCompleted) {
-        // ✅ NOUVELLE SÉQUENCE: Progression d'objectif satisfaisante
-        this.triggerObjectiveCompletionSequence(result);
+        // ✅ NOUVEAU: Objectif terminé - progression en 3 étapes
+        this.handleObjectiveCompletion(result);
+        
       } else {
+        // Progression normale
         this.triggerCallback('onQuestProgress', result);
       }
     });
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Gestion completion objectif en 3 étapes SIMPLES
+  handleObjectiveCompletion(result) {
+    console.log('🎯 [QuestManager] Objectif terminé:', result.objectiveName);
     
-    // Rafraîchissement différé pour laisser les animations se jouer
+    // ÉTAPE 1: Objectif passe en VERT (immédiat)
+    this.makeObjectiveGreen(result);
+    
+    // ÉTAPE 2: Notification après 500ms
     setTimeout(() => {
-      this.refreshQuestDataAfterProgress();
-    }, 3000); // Après toute la séquence
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Séquence de completion d'objectif
-// ✅ VERSION SANS SETTIMEOUT : Séquence de completion d'objectif
-async triggerObjectiveCompletionSequence(result) {
-  console.log('🎬 [QuestManager] Démarrage séquence completion objectif (Promise):', result.objectiveName);
-  
-  // ÉTAPE 1 (Immédiate) : Objectif passe en VERT
-  this.markObjectiveAsCompleting(result);
-  
-  // ÉTAPE 2 (+500ms) : Notification "Objectif terminé" 
-  await this.delay(500);
-  this.showNotification(`✅ Objectif terminé : ${result.objectiveName}`, 'success');
-  this.markObjectiveAsCompleted(result);
-  
-  // ÉTAPE 3 (+2000ms) : Transition vers objectif suivant
-  await this.delay(2000);
-  this.transitionToNextObjective(result);
-}
-
-// Méthode helper pour remplacer setTimeout
-delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-  
-  // ✅ NOUVELLE MÉTHODE: Marquer objectif en cours de completion (VERT)
-// ✅ NOUVELLE VERSION: Appel direct des animations
-markObjectiveAsCompleting(result) {
-  console.log('🟢 [QuestManager] Objectif → VERT (completing)');
-  
-  // Appel direct de l'animation au lieu de callback
-  if (this.questUI && this.questUI.animateObjectiveCompletion) {
-    this.questUI.animateObjectiveCompletion(result, 'completing');
-  }
-}
-
-markObjectiveAsCompleted(result) {
-  console.log('✅ [QuestManager] Objectif → COMPLETED');
-  
-  // Appel direct de l'animation au lieu de callback
-  if (this.questUI && this.questUI.animateObjectiveCompletion) {
-    this.questUI.animateObjectiveCompletion(result, 'completed');
-  }
-}
-
-transitionToNextObjective(result) {
-  console.log('➡️ [QuestManager] Transition → Objectif suivant');
-  
-  // Appel direct de l'animation au lieu de callback
-  if (this.questUI && this.questUI.animateObjectiveTransition) {
-    this.questUI.animateObjectiveTransition(result);
-  }
-  
-  // Rafraîchir les données pour afficher next objective
-  this.refreshQuestDataAfterProgress();
-}
-  
-  // ✅ NOUVELLE MÉTHODE: Marquer objectif comme terminé dans les données
-  markObjectiveAsCompletedInData(result) {
-    // Trouver la quête dans activeQuests et marquer l'objectif comme terminé
-    const quest = this.activeQuests.find(q => q.id === result.questId);
-    if (quest && quest.currentStep) {
-      // Marquer l'étape actuelle comme terminée temporairement
-      quest.currentStep.completed = true;
-      quest.currentStep.isCompleting = true; // Flag spécial pour CSS vert
-      console.log('✅ [QuestManager] Données modifiées pour affichage vert');
-    }
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Marquer objectif comme terminé
-  markObjectiveAsCompleted(result) {
-    console.log('✅ [QuestManager] Objectif → COMPLETED');
+      this.showNotification(`✅ Objectif terminé : ${result.objectiveName}`, 'success');
+    }, 500);
     
-    this.triggerCallback('onObjectiveCompleted', {
-      questId: result.questId,
-      objectiveName: result.objectiveName,
-      phase: 'completed'
-    });
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Transition vers objectif suivant
-  transitionToNextObjective(result) {
-    console.log('➡️ [QuestManager] Transition → Objectif suivant');
-    
-    this.triggerCallback('onObjectiveTransition', {
-      questId: result.questId,
-      fromObjective: result.objectiveName,
-      phase: 'transitioning'
-    });
-    
-    // ✅ FORCER REFRESH POUR NEXT OBJECTIVE
-    this.refreshQuestDataAfterProgress();
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Séquence de completion de quête
-  triggerQuestCompletionSequence(result) {
-    console.log('🏆 [QuestManager] Séquence completion quête:', result.questName);
-    
-    // Animation spéciale pour quête terminée
-    if (this.questUI && this.questUI.animateQuestCompletion) {
-      this.questUI.animateQuestCompletion(result);
-    }
-    
-    // Rafraîchir après animation
+    // ÉTAPE 3: Refresh données après 2s pour afficher objectif suivant
     setTimeout(() => {
-      this.refreshQuestDataAfterProgress();
+      this.refreshQuestDataForNextObjective();
     }, 2000);
   }
   
-  // ✅ MÉTHODE REFACTORISÉE: Rafraîchissement après progression
-  refreshQuestDataAfterProgress() {
-    console.log('🔄 [QuestManager] Rafraîchissement données après progression...');
+  // ✅ NOUVELLE MÉTHODE: Passer objectif en VERT
+  makeObjectiveGreen(result) {
+    console.log('🟢 [QuestManager] Objectif → VERT');
+    
+    // Appel direct à QuestUI si connectée
+    if (this.questUI && this.questUI.highlightObjectiveAsCompleted) {
+      this.questUI.highlightObjectiveAsCompleted(result);
+    } else {
+      // Fallback: chercher directement dans le DOM
+      this.highlightObjectiveInTracker(result);
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Fallback DOM direct
+  highlightObjectiveInTracker(result) {
+    try {
+      console.log('🔍 [QuestManager] Recherche objectif dans tracker:', result.objectiveName);
+      
+      // Chercher dans le tracker
+      const tracker = document.querySelector('#quest-tracker');
+      if (!tracker) {
+        console.warn('⚠️ [QuestManager] Tracker non trouvé');
+        return;
+      }
+      
+      // Chercher tous les objectifs
+      const objectives = tracker.querySelectorAll('.quest-objective');
+      
+      for (const objective of objectives) {
+        if (objective.textContent && objective.textContent.includes(result.objectiveName)) {
+          console.log('✅ [QuestManager] Objectif trouvé, application style VERT');
+          
+          // Appliquer style VERT immédiatement
+          objective.style.transition = 'all 0.3s ease';
+          objective.style.backgroundColor = '#22c55e'; // Vert
+          objective.style.color = '#ffffff';
+          objective.style.fontWeight = 'bold';
+          objective.style.padding = '6px 8px';
+          objective.style.borderRadius = '4px';
+          objective.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.4)';
+          
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('❌ [QuestManager] Erreur highlight fallback:', error);
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Refresh pour objectif suivant
+  refreshQuestDataForNextObjective() {
+    console.log('🔄 [QuestManager] Refresh pour objectif suivant...');
     
     if (!this.isRequestingActiveQuests) {
       this.isRequestingActiveQuests = true;
       
+      // Petit délai pour laisser le serveur traiter
       setTimeout(() => {
         this.requestActiveQuests();
         this.isRequestingActiveQuests = false;
         
-        // Force mise à jour tracker après nouvelles données
+        // Force mise à jour UI après nouvelles données
         setTimeout(() => {
           if (this.questUI && this.questUI.updateTracker) {
-            console.log('🎯 [QuestManager] Force mise à jour tracker final');
+            console.log('🎯 [QuestManager] Force mise à jour tracker après refresh');
             this.questUI.updateTracker();
           }
-        }, 500);
+        }, 300);
       }, 100);
     }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Schedule refresh avec délai
+  scheduleDataRefresh(delay = 1000) {
+    setTimeout(() => {
+      this.refreshQuestDataForNextObjective();
+    }, delay);
   }
   
   handleQuestStatuses(data) {
