@@ -1,5 +1,5 @@
 // client/src/managers/GlobalWeatherManager.js
-// VERSION ULTRA-OPTIMISÉE - OVERLAY NUIT RÉDUIT + PAS DE CHANGEMENT COULEUR PLUIE
+// VERSION ULTRA-OPTIMISÉE - OVERLAY NUIT RÉDUIT + SYNCHRONISATION AUTOMATIQUE
 
 import { ClientTimeWeatherManager } from './ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from './ZoneEnvironmentManager.js';
@@ -39,7 +39,7 @@ export class GlobalWeatherManager {
   }
 
   // =====================================
-  // INITIALISATION INCHANGÉE
+  // INITIALISATION CORRIGÉE
   // =====================================
 
   async initialize(networkManager) {
@@ -54,6 +54,60 @@ export class GlobalWeatherManager {
       this.networkManager = networkManager;
       this.timeWeatherManager = new ClientTimeWeatherManager(null);
       this.timeWeatherManager.initialize(networkManager);
+      
+      // ✅ NOUVEAU: Attendre que la connexion soit établie et synchroniser immédiatement
+      if (networkManager.room && networkManager.room.state) {
+        console.log('📡 [GlobalWeatherManager] État serveur disponible, synchronisation immédiate...');
+        
+        // Synchroniser immédiatement avec l'état serveur
+        this.currentTime = {
+          hour: networkManager.room.state.gameHour,
+          isDayTime: networkManager.room.state.isDayTime
+        };
+        
+        this.currentWeather = {
+          weather: networkManager.room.state.weather,
+          displayName: networkManager.room.state.weather === 'clear' ? 'Ciel dégagé' : networkManager.room.state.weather
+        };
+        
+        console.log('✅ [GlobalWeatherManager] Synchronisation initiale:', {
+          time: this.currentTime,
+          weather: this.currentWeather
+        });
+      } else {
+        console.log('⏳ [GlobalWeatherManager] État serveur pas encore disponible, attente...');
+        
+        // Attendre l'état serveur avec plusieurs tentatives
+        const waitForServerState = () => {
+          if (networkManager.room && networkManager.room.state && 
+              networkManager.room.state.gameHour !== undefined) {
+            
+            this.currentTime = {
+              hour: networkManager.room.state.gameHour,
+              isDayTime: networkManager.room.state.isDayTime
+            };
+            
+            this.currentWeather = {
+              weather: networkManager.room.state.weather,
+              displayName: networkManager.room.state.weather === 'clear' ? 'Ciel dégagé' : networkManager.room.state.weather
+            };
+            
+            console.log('✅ [GlobalWeatherManager] Synchronisation différée:', {
+              time: this.currentTime,
+              weather: this.currentWeather
+            });
+            
+            // Forcer l'update de toutes les scènes
+            this.updateAllScenes('initialization');
+          } else {
+            // Réessayer dans 500ms
+            setTimeout(waitForServerState, 500);
+          }
+        };
+        
+        setTimeout(waitForServerState, 1000);
+      }
+      
       this.setupTimeWeatherCallbacks();
       this.isInitialized = true;
 
@@ -426,7 +480,8 @@ export class GlobalWeatherManager {
       optimizations: {
         reducedNightAlpha: true,
         noRainColorChange: true,
-        singleTileSprite: true
+        singleTileSprite: true,
+        automaticSync: true
       }
     };
   }
@@ -458,6 +513,7 @@ export class GlobalWeatherManager {
 
     // Debug optimisations
     console.log('⚡ Optimisations actives:');
+    console.log('  - Synchronisation automatique au démarrage');
     console.log('  - Nuit réduite: 0.25 alpha (au lieu de 0.4)');
     console.log('  - Pluie: 0.2 alpha pour petit effet atmosphérique');
     console.log('  - Orage: 0.25 alpha (plus visible)');
@@ -505,3 +561,61 @@ export class GlobalWeatherManager {
 // =====================================
 
 export const globalWeatherManager = new GlobalWeatherManager();
+
+// =====================================
+// FONCTION DE VÉRIFICATION GLOBALE
+// =====================================
+
+window.checkTimeWeatherSync = function() {
+  console.log("🔍 === VÉRIFICATION SYNCHRONISATION ===");
+  
+  if (window.globalNetworkManager && window.globalWeatherManager) {
+    const serverState = {
+      gameHour: window.globalNetworkManager.room?.state?.gameHour,
+      isDayTime: window.globalNetworkManager.room?.state?.isDayTime,
+      weather: window.globalNetworkManager.room?.state?.weather
+    };
+    
+    const clientState = {
+      time: window.globalWeatherManager.getCurrentTime(),
+      weather: window.globalWeatherManager.getCurrentWeather()
+    };
+    
+    console.log("État serveur:", serverState);
+    console.log("État client:", clientState);
+    
+    const isSync = (
+      serverState.gameHour === clientState.time.hour &&
+      serverState.isDayTime === clientState.time.isDayTime &&
+      serverState.weather === clientState.weather.weather
+    );
+    
+    if (isSync) {
+      console.log("✅ SYNCHRONISATION OK");
+      return true;
+    } else {
+      console.warn("❌ DÉSYNCHRONISATION DÉTECTÉE");
+      
+      // Auto-correction
+      if (window.globalWeatherManager) {
+        window.globalWeatherManager.currentTime = {
+          hour: serverState.gameHour,
+          isDayTime: serverState.isDayTime
+        };
+        
+        window.globalWeatherManager.currentWeather = {
+          weather: serverState.weather,
+          displayName: serverState.weather === 'clear' ? 'Ciel dégagé' : serverState.weather
+        };
+        
+        window.globalWeatherManager.forceUpdate();
+        console.log("🔄 Auto-correction appliquée");
+      }
+      
+      return false;
+    }
+  } else {
+    console.error("❌ NetworkManager ou GlobalWeatherManager manquant");
+    return false;
+  }
+};
