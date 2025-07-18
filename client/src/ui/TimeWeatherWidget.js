@@ -1,8 +1,8 @@
-// ui/TimeWeatherWidget.js - version DOM/UIManager-compatible
+// ui/TimeWeatherWidget.js - version UIManager-compatible SANS position fixe CSS
 export class TimeWeatherWidget {
   constructor(options = {}) {
     this.id = options.id || 'time-weather-widget';
-    this.anchor = options.anchor || 'top-right'; // Compatible avec UIManager
+    this.anchor = options.anchor || 'top-right'; // Pour UIManager
     this.element = null;
     this.currentHour = 12;
     this.isDayTime = true;
@@ -13,21 +13,18 @@ export class TimeWeatherWidget {
   }
 
   createIcon() {
-    // Empêche doublon
     if (document.getElementById(this.id)) {
       this.element = document.getElementById(this.id);
       return this.element;
     }
-    // Conteneur principal
     const el = document.createElement('div');
     el.id = this.id;
-    el.className = 'time-weather-widget ui-icon'; // Compatible UIManager
+    el.className = 'time-weather-widget ui-icon'; // Pour UIManager
     el.innerHTML = `
       <div class="tw-time" id="${this.id}-time"></div>
       <div class="tw-sep"></div>
       <div class="tw-weather" id="${this.id}-weather"></div>
     `;
-    // Appliquer état initial
     this.updateTime(this.currentHour, this.isDayTime);
     this.updateWeather(this.weather.weather, this.weather.displayName);
 
@@ -95,9 +92,7 @@ export class TimeWeatherWidget {
         color: #fff;
         box-shadow: 0 3px 8px rgba(0,0,0,0.09);
         border: 1px solid #3a4a68;
-        position: fixed;
-        top: 22px; right: 22px;
-        z-index: 2222;
+        /* position, top, right SUPPRIMÉS ! */
         font-family: 'Montserrat', Arial, sans-serif;
         user-select: none;
         transition: opacity 0.2s;
@@ -132,7 +127,6 @@ export class TimeWeatherWidget {
           font-size: 15px;
           width: 150px;
           height: 36px;
-          top: 14px; right: 10px;
           padding: 0 7px;
         }
       }
