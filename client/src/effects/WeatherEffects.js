@@ -23,43 +23,48 @@ export class WeatherEffects {
     console.log(`🌦️ [WeatherEffects] Initialisé ULTRA-OPTIMISÉ pour ${scene.scene.key}`);
   }
 
-  // ✅ TEXTURE MINIMALISTE 32x32
+  // ✅ TEXTURE MINIMALISTE 32x32 - PLUIE DE TRAVERS
   createOptimalRainTexture() {
     if (this.scene.textures.exists('rainOptimal')) {
       return;
     }
     
-    console.log(`🎨 [WeatherEffects] Création texture pluie optimale 32x32...`);
+    console.log(`🎨 [WeatherEffects] Création texture pluie optimale 32x32 (de travers)...`);
     
     const graphics = this.scene.add.graphics();
     
     // ✅ Seulement 8 gouttes dans un pattern 32x32
     for (let i = 0; i < 8; i++) {
-      const x = Phaser.Math.Between(2, 30);
-      const y = Phaser.Math.Between(2, 30);
+      const x = Phaser.Math.Between(2, 26);
+      const y = Phaser.Math.Between(2, 26);
       const length = Phaser.Math.Between(4, 8);
       
       // ✅ Couleur simple et fixe
       graphics.lineStyle(1, 0x87CEEB, 0.8); // Bleu ciel simple
       
+      // ✅ ANGLE DE TRAVERS - 75° pour effet naturel
+      const angle = Phaser.Math.DegToRad(75);
+      const endX = x + Math.cos(angle) * length;
+      const endY = y + Math.sin(angle) * length;
+      
       graphics.moveTo(x, y);
-      graphics.lineTo(x + 1, y + length);
+      graphics.lineTo(endX, endY);
     }
     
     graphics.strokePath();
     graphics.generateTexture('rainOptimal', 32, 32);
     graphics.destroy();
     
-    console.log(`✅ [WeatherEffects] Texture pluie optimale créée`);
+    console.log(`✅ [WeatherEffects] Texture pluie optimale créée (de travers)`);
   }
 
-  // ✅ PLUIE ULTRA-PERFORMANTE - 1 OBJET + 1 TWEEN
+  // ✅ PLUIE ULTRA-PERFORMANTE - 1 OBJET + 1 TWEEN + EFFET VENT LÉGER
   createOptimizedRainEffect() {
     if (this.effects.rain) {
       this.destroyRainEffect();
     }
 
-    console.log(`🌧️ [WeatherEffects] Création pluie ULTRA-OPTIMISÉE...`);
+    console.log(`🌧️ [WeatherEffects] Création pluie ULTRA-OPTIMISÉE (de travers)...`);
 
     // ✅ Créer texture si nécessaire
     this.createOptimalRainTexture();
@@ -77,7 +82,7 @@ export class WeatherEffects {
     this.effects.rain.setDepth(this.rainConfig.layerDepth);
     this.effects.rain.setScrollFactor(0);
     
-    // ✅ UN SEUL TWEEN - SIMPLE ET EFFICACE
+    // ✅ TWEEN VERTICAL
     this.rainTween = this.scene.tweens.add({
       targets: this.effects.rain,
       tilePositionY: this.effects.rain.height,
@@ -86,7 +91,16 @@ export class WeatherEffects {
       ease: 'Linear'
     });
     
-    console.log(`✅ [WeatherEffects] Pluie ultra-optimisée active (1 objet, 1 tween)`);
+    // ✅ EFFET VENT LÉGER - juste horizontal, pas de yoyo
+    this.windTween = this.scene.tweens.add({
+      targets: this.effects.rain,
+      tilePositionX: 80, // Déplacement horizontal léger
+      duration: this.rainConfig.baseSpeed / this.rainConfig.intensity,
+      repeat: -1,
+      ease: 'Linear'
+    });
+    
+    console.log(`✅ [WeatherEffects] Pluie ultra-optimisée active (1 objet, 2 tweens simples)`);
   }
 
   // ✅ NEIGE OPTIMISÉE
@@ -282,6 +296,11 @@ export class WeatherEffects {
     if (this.rainTween) {
       this.rainTween.destroy();
       this.rainTween = null;
+    }
+    
+    if (this.windTween) {
+      this.windTween.destroy();
+      this.windTween = null;
     }
     
     if (this.effects.rain) {
