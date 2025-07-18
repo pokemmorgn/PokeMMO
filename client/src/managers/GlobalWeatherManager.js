@@ -117,6 +117,10 @@ export class GlobalWeatherManager {
 
     const state = this.networkManager.room.state;
     
+    // Vérifier les changements
+    const oldTime = { ...this.currentTime };
+    const oldWeather = { ...this.currentWeather };
+    
     // Mise à jour directe
     this.currentTime = {
       hour: state.gameHour,
@@ -133,12 +137,26 @@ export class GlobalWeatherManager {
       weather: this.currentWeather
     });
     
-    // Notifier les callbacks
-    this.notifyTimeCallbacks(this.currentTime.hour, this.currentTime.isDayTime);
-    this.notifyWeatherCallbacks(this.currentWeather.weather, this.currentWeather.displayName);
+    // ✅ FORCER LES UPDATES SI CHANGEMENTS
+    let hasTimeChanged = oldTime.hour !== this.currentTime.hour || oldTime.isDayTime !== this.currentTime.isDayTime;
+    let hasWeatherChanged = oldWeather.weather !== this.currentWeather.weather;
     
-    // Mettre à jour toutes les scènes
-    this.updateAllScenes('sync');
+    if (hasTimeChanged) {
+      this.notifyTimeCallbacks(this.currentTime.hour, this.currentTime.isDayTime);
+      this.updateAllScenes('time');
+    }
+    
+    if (hasWeatherChanged) {
+      console.log(`🔄 [GlobalWeatherManager] FORCE UPDATE MÉTÉO: ${oldWeather.displayName} → ${this.currentWeather.displayName}`);
+      this.notifyWeatherCallbacks(this.currentWeather.weather, this.currentWeather.displayName);
+      this.updateAllScenes('weather');
+      this.updateWeatherEffectsForAllScenes(this.currentWeather.weather);
+    }
+    
+    // Si pas de changements majeurs, forcer quand même un sync complet
+    if (!hasTimeChanged && !hasWeatherChanged) {
+      this.updateAllScenes('sync');
+    }
   }
 
   // ✅ NOUVEAU: Attendre l'état serveur
@@ -193,12 +211,12 @@ export class GlobalWeatherManager {
       
       this.currentWeather = newWeather;
       
-      // Notifier immédiatement les callbacks
-      this.notifyWeatherCallbacks(newWeather.weather, newWeather.displayName);
-      
-      // Mettre à jour les scènes et effets
+      // ✅ FORCER L'UPDATE DES SCÈNES IMMÉDIATEMENT
       this.updateAllScenes('weather');
       this.updateWeatherEffectsForAllScenes(newWeather.weather);
+      
+      // Notifier immédiatement les callbacks
+      this.notifyWeatherCallbacks(newWeather.weather, newWeather.displayName);
     }
   }
 
