@@ -402,3 +402,160 @@ export class TimeWeatherService {
       isDayTime: this.state.isDayTime
     };
   }
+
+  setWeatherChangeCallback(callback: (weather: WeatherType) => void) {
+    this.onWeatherChangeCallback = callback;
+  }
+
+  setTimeChangeCallback(callback: (hour: number, isDayTime: boolean) => void) {
+    this.onTimeChangeCallback = callback;
+  }
+
+  getWeatherEffect(effectName: string): number {
+    return this.currentWeather.effects[effectName as keyof typeof this.currentWeather.effects] as number || 1.0;
+  }
+
+  getEncounterConditions(zoneName?: string): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+    let effectiveTimeOfDay: 'day' | 'night' = this.state.isDayTime ? 'day' : 'night';
+    let effectiveWeather: 'clear' | 'rain' = this.currentWeather.name === 'rain' ? 'rain' : 'clear';
+    
+    if (zoneName) {
+      const affectedByDayNight = serverZoneEnvironmentManager.isAffectedByDayNight(zoneName);
+      const affectedByWeather = serverZoneEnvironmentManager.isAffectedByWeather(zoneName);
+      
+      if (!affectedByDayNight) {
+        effectiveTimeOfDay = 'day';
+      }
+      
+      if (!affectedByWeather) {
+        effectiveWeather = 'clear';
+      }
+    }
+    
+    return {
+      timeOfDay: effectiveTimeOfDay,
+      weather: effectiveWeather
+    };
+  }
+
+  formatTime(): string {
+    const period = this.state.gameHour < 12 ? 'AM' : 'PM';
+    const displayHour = this.state.gameHour === 0 ? 12 : this.state.gameHour > 12 ? this.state.gameHour - 12 : this.state.gameHour;
+    return `${displayHour}:00 ${period}`;
+  }
+
+  public getConnectedClientsCount(): number {
+    return this.connectedClients.size;
+  }
+
+  public healthCheck(): { healthy: boolean; issues: string[] } {
+    const issues: string[] = [];
+    
+    if (!this.timeClockId) {
+      issues.push("Système de temps non actif");
+    }
+    
+    if (!this.weatherClockId) {
+      issues.push("Système de météo non actif");
+    }
+    
+    if (this.connectedClients.size === 0) {
+      issues.push("Aucun client connecté");
+    }
+    
+    const timeSinceLastSync = Date.now() - this.lastSyncTime;
+    if (timeSinceLastSync > 360000) { // Plus de 6 minutes
+      issues.push(`Dernière sync il y a ${Math.round(timeSinceLastSync / 1000)}s`);
+    }
+    
+    return {
+      healthy: issues.length === 0,
+      issues: issues
+    };
+  }
+
+  public debugSyncStatus() {
+    console.log(`🔍 [TimeWeatherService] === ÉTAT ANTI-SPAM ===`);
+    console.log(`👥 Clients connectés: ${this.connectedClients.size}`);
+    console.log(`⏳ Syncs en attente: ${this.pendingSyncs.size}`);
+    console.log(`🕐 Heure actuelle: ${this.formatTime()}`);
+    console.log(`🌤️ Météo actuelle: ${this.currentWeather.displayName}`);
+    console.log(`🔧 Debug mode: ${this.debugMode}`);
+    
+    if (this.pendingSyncs.size > 0) {
+      console.log(`📋 Syncs en attente:`, Array.from(this.pendingSyncs.keys()));
+    }
+  }
+
+  // ✅ TESTS AVEC DÉBOUNCING
+  public forceTime(hour: number, minute: number = 0): void {
+    const oldHour = this.state.gameHour;
+    
+    this.state.gameHour = hour;
+    this.state.isDayTime = this.calculateDayTime(hour);
+    
+    console.log(`🕐 [TEST] Heure forcée: ${oldHour}h → ${hour}h`);
+    
+    this.debouncedBroadcastTime();
+  }
+
+  public forceWeather(weatherName: string): void {
+    const weather = this.getWeatherByName(weatherName);
+    
+    if (!weather) {
+      console.warn(`⚠️ [TimeWeatherService] Météo inconnue: ${weatherName}`);
+      return;
+    }
+    
+    this.currentWeather = weather;
+    this.state.weather = weather.name;
+    
+    console.log(`🌦️ [TEST] Météo forcée: ${weatherName}`);
+    
+    this.debouncedBroadcastWeather();
+  }
+
+  public forceSyncAll(): void {
+    console.log(`🔄 [TimeWeatherService] SYNC FORCÉE (anti-spam)`);
+    
+    // ✅ Reset tous les états pour forcer l'envoi
+    this.clientZoneInfo.forEach(zoneInfo => {
+      zoneInfo.lastTimeState = undefined;
+      zoneInfo.lastWeatherState = undefined;
+    });
+    
+    this.sendCurrentStateToAllClients();
+  }
+
+  destroy() {
+    console.log(`🧹 [TimeWeatherService] Destruction avec nettoyage anti-spam...`);
+    
+    // ✅ Nettoyer tous les timers de débouncing
+    this.pendingSyncs.forEach(pending => {
+      if (pending.timer) {
+        clearTimeout(pending.timer);
+      }
+    });
+    this.pendingSyncs.clear();
+    
+    if (this.timeClockId) {
+      this.timeClockId.clear();
+      this.timeClockId = null;
+    }
+    
+    if (this.weatherClockId) {
+      this.weatherClockId.clear();
+      this.weatherClockId = null;
+    }
+    
+    if (this.syncClockId) {
+      this.syncClockId.clear();
+      this.syncClockId = null;
+    }
+    
+    this.connectedClients.clear();
+    this.clientZoneInfo.clear();
+    
+    console.log(`✅ [TimeWeatherService] Service détruit (anti-spam)`);
+  }
+}
