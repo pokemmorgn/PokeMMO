@@ -27,17 +27,18 @@ export class TimeWeatherWidget {
     const el = document.createElement('div');
     el.id = this.id;
     el.className = 'time-weather-widget ui-icon';
-    el.innerHTML = `
-      <div class="tw-time" id="${this.id}-time"></div>
-      <div class="tw-sep"></div>
-      <div class="tw-weather" id="${this.id}-weather"></div>
-    `;
-    this.updateTime(this.currentHour, this.isDayTime);
-    this.updateWeather(this.weather.weather, this.weather.displayName);
-    document.body.appendChild(el);
-    this.element = el;
-    this.injectStyles();
-    return el;
+el.innerHTML = `
+  <div class="tw-time" id="${this.id}-time"></div>
+  <div class="tw-sep"></div>
+  <div class="tw-weather" id="${this.id}-weather"></div>
+`;
+document.body.appendChild(el);    // Ajoute d'abord au DOM
+this.element = el;
+this.injectStyles();
+this.updateTime(this.currentHour, this.isDayTime); // Met à jour après
+this.updateWeather(this.weather.weather, this.weather.displayName); // Met à jour après
+return el;
+
   }
 
   updateTime(hour, isDayTime) {
