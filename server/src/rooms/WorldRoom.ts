@@ -161,6 +161,9 @@ if (this.transitionService && this.followerHandlers) {
     this.objectInteractionModule = new ObjectInteractionModule();
     this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
     console.log(`✅ ObjectInteractionModule créé et configuré`);
+    // ✅ NOUVEAU: Initialiser le module d'objets
+    await this.objectInteractionModule.initialize();
+    console.log(`✅ ObjectInteractionModule initialisé`);
     
     // Messages handlers
     this.setupMessageHandlers();
@@ -306,7 +309,8 @@ if (this.transitionService && this.followerHandlers) {
       client.send("npcList", npcs);
       console.log(`📤 ${npcs.length} NPCs envoyés IMMÉDIATEMENT pour ${zoneName}`);
     }
-
+      // ✅ NOUVEAU: Envoyer les objets visibles immédiatement
+    this.objectInteractionHandlers.sendZoneObjectsToClient(client, zoneName);
     // Mettre à jour la zone dans TimeWeatherService immédiatement
     if (this.timeWeatherService) {
       this.timeWeatherService.updateClientZone(client, zoneName);
