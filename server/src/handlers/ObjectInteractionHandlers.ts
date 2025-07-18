@@ -106,8 +106,7 @@ export class ObjectInteractionHandlers {
           mapId: player.currentZone
         },
         data: {
-          objectId: data.objectId,
-          action: 'interact'
+          objectId: data.objectId
         },
         timestamp: Date.now()
       };
