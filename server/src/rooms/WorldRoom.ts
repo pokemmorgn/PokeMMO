@@ -1918,6 +1918,13 @@ async onLeave(client: Client, consented: boolean) {
       this.battleHandlers.cleanup();
       console.log(`🧹 BattleHandlers nettoyés`);
     }
+    // ✅ NOUVEAU: Nettoyer ObjectInteractionHandlers
+    if (this.objectInteractionHandlers) {
+      this.objectInteractionHandlers.cleanup().catch((error) => {
+        console.error(`❌ Erreur nettoyage ObjectInteractionHandlers:`, error);
+      });
+      console.log(`🧹 ObjectInteractionHandlers nettoyés`);
+    }
     console.log(`✅ WorldRoom fermée`);
   }
 
@@ -2365,6 +2372,14 @@ async onLeave(client: Client, consented: boolean) {
     return this.zoneManager.getQuestManager();
   }
 
+      // ✅ NOUVEAU: Accès au système d'objets
+    getObjectInteractionHandlers(): ObjectInteractionHandlers {
+      return this.objectInteractionHandlers;
+    }
+    
+    getObjectInteractionModule(): ObjectInteractionModule {
+      return this.objectInteractionModule;
+    }
   getInteractionManager() {
     return this.zoneManager.getInteractionManager();
   }
