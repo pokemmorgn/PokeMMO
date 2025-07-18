@@ -25,7 +25,6 @@ import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
-import { TimeWeatherWidget } from '../../ui/TimeWeatherWidget.js';
 
 
 
@@ -2275,103 +2274,9 @@ onPlayerPositioned(player, initData) {
     padding: { x: 6, y: 4 }
   }).setScrollFactor(0).setDepth(1000);
   
-  // ✅ REMPLACER L'ANCIENNE ICÔNE PAR LE NOUVEAU WIDGET
-  this.createTimeWeatherWidget();
-}
-
-// 4. REMPLACER LA MÉTHODE createWeatherIcon() (ligne ~1520)
-createTimeWeatherWidget() {
-  console.log(`🕐 [${this.scene.key}] Création widget temps/météo...`);
-
-  // Utilise window.uiManager si this.uiManager est undefined
-  const uiManagerRef = this.uiManager || window.uiManager;
-  if (!uiManagerRef) {
-    console.warn('Aucun UIManager trouvé');
-    return;
-  }
-
-  this.timeWeatherWidget = uiManagerRef.getModuleInstance('timeWeather');
-  if (!this.timeWeatherWidget) {
-    console.warn('Widget timeWeather non instancié dans UIManager');
-    return;
-  }
-
-  // Connecter aux événements de redimensionnement si utile
-  if (typeof this.timeWeatherWidget.onResize === 'function' && this.scale) {
-    this.scale.on('resize', () => {
-      this.timeWeatherWidget.onResize();
-    });
-  }
-
-  // Système météo...
-  this.time.delayedCall(2000, () => {
-    this.connectWidgetToWeatherSystem();
-  });
-
-  console.log(`✅ [${this.scene.key}] Widget temps/météo créé`);
 }
 
 
-connectWidgetToWeatherSystem() {
-  console.log(`🔌 [${this.scene.key}] Connexion widget au système météo...`);
-
-  // Récupérer le TimeWeatherManager
-  const timeWeatherManager = this.globalWeatherManager?.timeWeatherManager;
-
-  if (timeWeatherManager) {
-    // CALLBACK TEMPS
-    timeWeatherManager.onTimeChange((hour, isDayTime) => {
-      console.log(`🕐 [${this.scene.key}] Widget - Temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
-      if (this.timeWeatherWidget) {
-        this.timeWeatherWidget.updateTime(hour, isDayTime);
-      }
-    });
-
-    // CALLBACK MÉTÉO
-    timeWeatherManager.onWeatherChange((weather, displayName) => {
-      console.log(`🌤️ [${this.scene.key}] Widget - Météo: ${displayName}`);
-      if (this.timeWeatherWidget) {
-        this.timeWeatherWidget.updateWeather(weather, displayName);
-      }
-    });
-
-    // SYNCHRONISATION INITIALE
-    const currentTime = timeWeatherManager.getCurrentTime();
-    const currentWeather = timeWeatherManager.getCurrentWeather();
-
-    if (currentTime && currentWeather) {
-      console.log(`🎯 [${this.scene.key}] Synchronisation initiale widget:`, {
-        time: currentTime,
-        weather: currentWeather
-      });
-
-      if (this.timeWeatherWidget) {
-        this.timeWeatherWidget.updateTime(currentTime.hour, currentTime.isDayTime);
-        this.timeWeatherWidget.updateWeather(currentWeather.weather, currentWeather.displayName);
-      }
-    }
-
-    console.log(`✅ [${this.scene.key}] Widget connecté au système météo`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] TimeWeatherManager non disponible pour le widget`);
-
-    // FALLBACK - Utiliser les données globales directement
-    if (window.globalWeatherManager?.isInitialized) {
-      const currentTime = window.globalWeatherManager.getCurrentTime();
-      const currentWeather = window.globalWeatherManager.getCurrentWeather();
-
-      if (this.timeWeatherWidget) {
-        this.timeWeatherWidget.updateTime(currentTime.hour, currentTime.isDayTime);
-        this.timeWeatherWidget.updateWeather(currentWeather.weather, currentWeather.displayName);
-      }
-
-      console.log(`✅ [${this.scene.key}] Widget connecté en mode fallback`);
-    }
-  }
-}
-
-
-  
   handleZoneData(data) {
     console.log(`🗺️ [${this.scene.key}] Handling zone data for: ${data.zone}`);
     
