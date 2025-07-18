@@ -21,7 +21,7 @@ export const POKEMON_WEATHER_STYLES = `
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
     margin-top: 20px;
-    margin-right: 120px;
+    margin-right: 220px;
     overflow: hidden;
   }
   
