@@ -312,6 +312,12 @@ export class TimeWeatherWidget {
           }
           const displayName = this.getWeatherDisplayName(currentState.weather);
           this.updateWeather(currentState.weather, displayName, '22°C');
+          
+          // ✅ NOUVEAU: FORCER LA SYNC DU GLOBALWEATHERMANAGER
+          if (window.globalWeatherManager && window.globalWeatherManager.syncFromServerState) {
+            console.log('🔄 [TimeWeatherWidget] Force sync GlobalWeatherManager depuis polling');
+            window.globalWeatherManager.syncFromServerState();
+          }
         }
         
         lastState = currentState;
