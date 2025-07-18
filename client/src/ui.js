@@ -309,7 +309,6 @@ export class PokemonUISystem {
         }
       },
       {
-{
   id: 'timeWeather',
   critical: false,
   factory: async () => {
