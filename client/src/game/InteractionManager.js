@@ -1,5 +1,5 @@
 // client/src/game/InteractionManager.js
-// ✅ VERSION AVEC FIXES ANTI-DUPLICATION APPLIQUÉS
+// ✅ VERSION COMPLÈTE AVEC FIXES ANTI-DUPLICATION
 
 export class InteractionManager {
   constructor(scene) {
@@ -32,7 +32,12 @@ export class InteractionManager {
     this._interactionResultCooldown = 500; // 500ms cooldown
     this._resultCallCount = 0;
 
-    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé avec protection anti-spam`);
+    // ✅ FIX 2: Protection STRICTE anti-multi-appels
+    this.interactionProcessingMap = new Map();
+    this.lastProcessedInteractionId = null;
+    this.isCurrentlyProcessingInteraction = false;
+
+    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé avec protection anti-duplication complète`);
   }
 
   initialize(networkManager, playerManager, npcManager) {
@@ -48,7 +53,7 @@ export class InteractionManager {
     this.setupNetworkHandlers();
     this.exposeDialogueAPI();
 
-    console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé avec fixes anti-duplication`);
+    console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé avec protection complète`);
     return this;
   }
 
@@ -221,20 +226,129 @@ export class InteractionManager {
     }
   }
 
-  // === GESTION RÉSEAU AVEC PROTECTION ANTI-SPAM ===
+  // === 🛡️ GESTION RÉSEAU AVEC PROTECTION ANTI-DUPLICATION STRICTE ===
 
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
+    console.log(`📡 [${this.scene.scene.key}] Setup handlers avec protection anti-duplication...`);
+
+    // ✅ PROTECTION: Un seul handler unifié avec déduplication stricte
     this.networkManager.onMessage("npcInteractionResult", (data) => {
-      if (this.isShopInteraction(data)) {
-        this.handleShopInteractionResult(data);
+      // ✅ DÉDUPLICATION STRICTE
+      const interactionId = this.generateInteractionId(data);
+      
+      if (this.isInteractionAlreadyProcessed(interactionId)) {
+        console.log(`🚫 [InteractionManager] Interaction DÉDUPLIQUÉE: ${interactionId}`);
         return;
       }
-      this.handleInteractionResult(data);
+      
+      // ✅ MARQUER COMME TRAITÉ
+      this.markInteractionAsProcessed(interactionId);
+      
+      console.log(`✅ [InteractionManager] Traitement interaction UNIQUE: ${interactionId}`);
+      
+      // ✅ DISPATCHER selon le type
+      if (this.isShopInteraction(data)) {
+        this.handleShopInteractionResult(data);
+      } else {
+        this.handleInteractionResultUnified(data);
+      }
     });
 
+    // ✅ Autres handlers spécifiques
+    this.setupOtherHandlers();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Génération ID unique pour interaction
+  generateInteractionId(data) {
+    const npcId = data.npcId || data.id || 'unknown';
+    const type = data.type || 'unknown';
+    const messageHash = this.hashMessage(data.message || data.lines?.join('') || '');
+    
+    return `${npcId}-${type}-${messageHash}`;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Hash simple du message
+  hashMessage(message) {
+    if (!message) return 'nomsg';
+    
+    let hash = 0;
+    for (let i = 0; i < Math.min(message.length, 50); i++) {
+      const char = message.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier si déjà traité
+  isInteractionAlreadyProcessed(interactionId) {
+    const now = Date.now();
+    
+    // ✅ Nettoyer les anciennes entrées (> 5 secondes)
+    for (const [id, timestamp] of this.interactionProcessingMap.entries()) {
+      if (now - timestamp > 5000) {
+        this.interactionProcessingMap.delete(id);
+      }
+    }
+    
+    return this.interactionProcessingMap.has(interactionId);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Marquer comme traité
+  markInteractionAsProcessed(interactionId) {
+    this.interactionProcessingMap.set(interactionId, Date.now());
+    this.lastProcessedInteractionId = interactionId;
+  }
+
+  // ✅ MÉTHODE UNIFIÉE de traitement (remplace handleInteractionResult)
+  handleInteractionResultUnified(data) {
+    console.log(`🎯 [InteractionManager] Traitement interaction UNIQUE:`, data);
+    
+    // ✅ PROTECTION SUPPLÉMENTAIRE au niveau méthode
+    if (this.isCurrentlyProcessingInteraction) {
+      console.log('🚫 [InteractionManager] Déjà en traitement, ignorer');
+      return;
+    }
+    
+    this.isCurrentlyProcessingInteraction = true;
+    
+    try {
+      // ✅ Déterminer le système selon le type
+      const systemName = this.mapResponseToSystem(data);
+      console.log(`🎯 [InteractionManager] Système déterminé: ${systemName}`);
+      
+      const system = this.interactionSystems.get(systemName);
+      const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+      
+      if (system) {
+        console.log(`✅ [InteractionManager] Appel système ${systemName}`);
+        system.handle(npc, data);
+      } else {
+        console.log(`⚠️ [InteractionManager] Système ${systemName} non trouvé, fallback`);
+        this.handleFallbackInteraction(data);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur traitement:`, error);
+      this.handleFallbackInteraction(data);
+      
+    } finally {
+      // ✅ DÉBLOQUER après un délai court
+      setTimeout(() => {
+        this.isCurrentlyProcessingInteraction = false;
+      }, 100);
+    }
+  }
+
+  setupOtherHandlers() {
+    // ✅ Handlers pour starter, heal, etc.
     this.networkManager.onMessage("starterEligibility", (data) => {
+      const interactionId = `starter-${data.timestamp || Date.now()}`;
+      if (this.isInteractionAlreadyProcessed(interactionId)) return;
+      this.markInteractionAsProcessed(interactionId);
+      
       if (data.eligible) {
         if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
           this.scene.starterSelector.starterOptions = data.availableStarters || [];
@@ -244,6 +358,10 @@ export class InteractionManager {
     });
 
     this.networkManager.onMessage("starterReceived", (data) => {
+      const interactionId = `starterReceived-${data.timestamp || Date.now()}`;
+      if (this.isInteractionAlreadyProcessed(interactionId)) return;
+      this.markInteractionAsProcessed(interactionId);
+      
       if (data.success) {
         const pokemonName = data.pokemon?.name || 'Pokémon';
         this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
@@ -290,49 +408,6 @@ export class InteractionManager {
     }
   }
 
-  // ✅ FIX 2: handleInteractionResult avec PROTECTION ANTI-SPAM RENFORCÉE
-  handleInteractionResult(data) {
-    if (this.isShopInteraction(data)) return;
-    if (window._questDialogActive) return;
-    
-    // ✅ PROTECTION ANTI-SPAM CRITIQUE
-    const now = Date.now();
-    this._resultCallCount++;
-    
-    console.log(`🔔 [InteractionManager] handleInteractionResult APPEL #${this._resultCallCount} (${now})`);
-    
-    // Vérifier le cooldown
-    if (this._lastInteractionResultTime && (now - this._lastInteractionResultTime) < this._interactionResultCooldown) {
-      console.log(`🚫 [InteractionManager] Interaction result BLOQUÉE #${this._resultCallCount} (anti-spam ${now - this._lastInteractionResultTime}ms < ${this._interactionResultCooldown}ms)`);
-      return;
-    }
-    
-    // ✅ TRAITEMENT SEULEMENT DU PREMIER APPEL VALIDE
-    this._lastInteractionResultTime = now;
-    console.log(`✅ [InteractionManager] Interaction result VALIDE #${this._resultCallCount} - traitement...`);
-    
-    const systemName = this.mapResponseToSystem(data);
-    const system = this.interactionSystems.get(systemName);
-    const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
-    
-    if (system) {
-      try {
-        system.handle(npc, data);
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur système ${systemName}:`, error);
-        this.handleFallbackInteraction(data);
-      }
-    } else {
-      this.handleFallbackInteraction(data);
-    }
-    
-    // ✅ RESET automatique après traitement réussi
-    setTimeout(() => {
-      this._resultCallCount = 0;
-      console.log(`🔄 [InteractionManager] Reset call count après traitement`);
-    }, 1000);
-  }
-
   mapResponseToSystem(data) {
     const typeMapping = {
       'shop': 'shop',
@@ -360,7 +435,8 @@ export class InteractionManager {
       shopOpen: this.isShopOpen(),
       dialogueOpen: this.isDialogueOpen(),
       interactionBlocked: this.state.isInteractionBlocked,
-      shopHandlerActive: this.shopHandlerActive
+      shopHandlerActive: this.shopHandlerActive,
+      currentlyProcessing: this.isCurrentlyProcessingInteraction
     };
     
     return !Object.values(checks).some(Boolean);
@@ -406,13 +482,28 @@ export class InteractionManager {
   }
 
   isNpcQuestGiver(npc) {
-    if (!npc || !npc.properties) return false;
-    return !!(
-      npc.properties.npcType === 'questGiver' ||
-      npc.properties.questId ||
-      npc.properties.quest ||
-      npc.properties.hasQuest === true
-    );
+    if (!npc) return false;
+    
+    // ✅ Vérifier les propriétés du NPC
+    if (npc.properties) {
+      return !!(
+        npc.properties.npcType === 'questGiver' ||
+        npc.properties.questId ||
+        npc.properties.quest ||
+        npc.properties.hasQuest === true ||
+        npc.properties.questGiver === true
+      );
+    }
+    
+    // ✅ Vérifier le nom du NPC
+    if (npc.name) {
+      const lowerName = npc.name.toLowerCase();
+      return lowerName.includes('quest') || 
+             lowerName.includes('quête') ||
+             lowerName.includes('mission');
+    }
+    
+    return false;
   }
 
   isNpcHealer(npc) {
@@ -453,95 +544,32 @@ export class InteractionManager {
     }
   }
 
-  // ✅ FIX 3: handleQuestInteraction avec source tracking amélioré
-handleQuestInteraction(npc, data) {
-  console.log('🎯 [InteractionManager] Quest interaction:', data);
-  
-  // ✅ ACCÈS SIMPLIFIÉ au nouveau QuestSystem
-  const questSystem = window.questSystem || window.questSystemGlobal;
-  
-  if (!questSystem || typeof questSystem.handleNpcInteraction !== 'function') {
-    console.warn('⚠️ [InteractionManager] QuestSystem non disponible');
+  // ✅ MÉTHODE QUEST SIMPLIFIÉE (une seule responsabilité)
+  handleQuestInteraction(npc, data) {
+    console.log('🎯 [InteractionManager] Quest interaction - APPEL UNIQUE:', data);
     
-    // ✅ FALLBACK: Afficher le dialogue directement
-    let questMessage = "Ce PNJ a des quêtes disponibles.";
+    const questSystem = window.questSystem || window.questSystemGlobal;
     
-    if (data && data.message) {
-      questMessage = data.message;
-    } else if (data && data.lines && Array.isArray(data.lines)) {
-      questMessage = data.lines.join('\n');
+    if (!questSystem?.handleNpcInteraction) {
+      console.warn('⚠️ [InteractionManager] QuestSystem non disponible');
+      this.handleDialogueInteraction(npc, {
+        message: data?.message || "Système de quêtes non disponible",
+        lines: data?.lines || ["Système de quêtes non disponible"],
+        name: data?.name || npc?.name || "PNJ"
+      });
+      return;
     }
     
-    this.handleDialogueInteraction(npc, {
-      message: questMessage,
-      lines: data?.lines || [questMessage],
-      name: data?.name || npc?.name || "PNJ",
-      portrait: data?.portrait || `/assets/portrait/${npc?.sprite || 'default'}Portrait.png`
-    });
-    return;
+    try {
+      // ✅ UN SEUL APPEL au QuestSystem
+      const result = questSystem.handleNpcInteraction(data || npc, 'InteractionManager');
+      console.log(`🎯 [InteractionManager] Quest result: ${result}`);
+      
+    } catch (error) {
+      console.error('❌ [InteractionManager] Erreur quest:', error);
+      this.handleDialogueInteraction(npc, data);
+    }
   }
-  
-  try {
-    // ✅ APPEL SIMPLIFIÉ - une seule méthode
-    const result = questSystem.handleNpcInteraction(data || npc, 'InteractionManager');
-    console.log(`🎯 [InteractionManager] Quest result: ${result}`);
-    
-    // ✅ PAS BESOIN de gérer les codes de retour - le QuestSystem gère tout
-    
-  } catch (error) {
-    console.error('❌ [InteractionManager] Erreur quest interaction:', error);
-    
-    // Fallback dialogue simple
-    this.handleDialogueInteraction(npc, {
-      message: data?.message || "Erreur du système de quêtes.",
-      lines: data?.lines || ["Erreur du système de quêtes."],
-      name: data?.name || npc?.name || "PNJ"
-    });
-  }
-}
-
-// ✅ NOUVEAU: Simplifier aussi la détection de quête
-isNpcQuestGiver(npc) {
-  if (!npc) return false;
-  
-  // ✅ Vérifier les propriétés du NPC
-  if (npc.properties) {
-    return !!(
-      npc.properties.npcType === 'questGiver' ||
-      npc.properties.questId ||
-      npc.properties.quest ||
-      npc.properties.hasQuest === true ||
-      npc.properties.questGiver === true
-    );
-  }
-  
-  // ✅ Vérifier le nom du NPC
-  if (npc.name) {
-    const lowerName = npc.name.toLowerCase();
-    return lowerName.includes('quest') || 
-           lowerName.includes('quête') ||
-           lowerName.includes('mission');
-  }
-  
-  return false;
-}
-
-// ✅ NOUVEAU: Méthode pour reset le système si nécessaire
-resetQuestSystem() {
-  console.log('🔄 [InteractionManager] Reset quest system...');
-  
-  const questSystem = window.questSystem || window.questSystemGlobal;
-  if (questSystem && questSystem.resetDebugCounters) {
-    questSystem.resetDebugCounters();
-  }
-  
-  // Reset des états locaux
-  this._lastInteractionResultTime = 0;
-  this._resultCallCount = 0;
-  this.state.lastInteractionTime = 0;
-  
-  console.log('✅ [InteractionManager] Quest system reset');
-}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
@@ -850,14 +878,11 @@ resetQuestSystem() {
     return this.npcManager.getNpcData(npcId);
   }
 
-  // ✅ FIX 4: showMessage sans récursion
   showMessage(message, type = 'info') {
-    // ✅ CORRECTION: Éviter la boucle avec try-catch simple
     if (typeof window.showGameNotification === 'function') {
       try {
         window.showGameNotification(message, type, { duration: 3000 });
       } catch (error) {
-        // Fallback simple sans recursion
         console.log(`📢 [InteractionManager] ${type.toUpperCase()}: ${message}`);
       }
     } else {
@@ -873,30 +898,54 @@ resetQuestSystem() {
     this.state.isInteractionBlocked = blocked;
   }
 
-  // ✅ FIX 5: Debug info enrichi
-  getDebugInfo() {
+  // === 🔧 MÉTHODES DEBUG NOUVELLES ===
+
+  resetInteractionState() {
+    console.log('🔄 [InteractionManager] Reset état interaction...');
+    
+    // Reset protection multi-appels
+    this.interactionProcessingMap.clear();
+    this.lastProcessedInteractionId = null;
+    this.isCurrentlyProcessingInteraction = false;
+    
+    // Reset protection anti-spam existante
+    this._lastInteractionResultTime = 0;
+    this._resultCallCount = 0;
+    this.state.lastInteractionTime = 0;
+    
+    console.log('✅ [InteractionManager] État reset');
+  }
+
+  getInteractionDebugInfo() {
     return {
       scene: this.scene.scene.key,
       state: this.state,
       shopHandlerActive: this.shopHandlerActive,
       lastShopOpenTime: this.lastShopOpenTime,
       
-      // ✅ Info anti-spam
+      // Info protection multi-appels
+      processingMapSize: this.interactionProcessingMap.size,
+      lastProcessedId: this.lastProcessedInteractionId,
+      isCurrentlyProcessing: this.isCurrentlyProcessingInteraction,
+      
+      // Info anti-spam
       lastInteractionResultTime: this._lastInteractionResultTime,
       interactionResultCooldown: this._interactionResultCooldown,
       resultCallCount: this._resultCallCount,
       
       systems: Array.from(this.interactionSystems.keys()),
-      canPlayerInteract: this.canPlayerInteract()
+      canPlayerInteract: this.canPlayerInteract(),
+      
+      protections: {
+        multiAppel: this.interactionProcessingMap.size,
+        antiSpam: Date.now() - (this._lastInteractionResultTime || 0),
+        processing: this.isCurrentlyProcessingInteraction
+      }
     };
   }
 
-  // ✅ FIX 6: Reset debug
-  resetDebugCounters() {
-    this._lastInteractionResultTime = 0;
-    this._resultCallCount = 0;
-    this.state.lastInteractionTime = 0;
-    console.log('🔄 [InteractionManager] Debug counters reset');
+  getDebugInfo() {
+    return this.getInteractionDebugInfo();
   }
 
   destroy() {
@@ -912,6 +961,10 @@ resetQuestSystem() {
 
     this.scene.input.keyboard.off(`keydown-${this.config.interactionKey}`);
     this.interactionSystems.clear();
+    
+    // ✅ Nettoyer les nouvelles protections
+    this.interactionProcessingMap.clear();
+    
     this.networkManager = null;
     this.playerManager = null;
     this.npcManager = null;
@@ -919,7 +972,7 @@ resetQuestSystem() {
     this.questSystem = null;
     this.scene = null;
 
-    console.log(`🧹 [InteractionManager] Détruit avec cleanup anti-spam`);
+    console.log(`🧹 [InteractionManager] Détruit avec cleanup complet`);
   }
 
   triggerStarter() {
