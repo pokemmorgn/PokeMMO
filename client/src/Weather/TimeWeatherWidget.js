@@ -127,7 +127,7 @@ export class TimeWeatherWidget {
           </div>
           
           <!-- Section Temps et Météo -->
-          <div class="main-section">
+<div class="main-section" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="time-section">
               <div class="time-display">
                 <div class="time-icon" id="${this.id}-time-icon">🕐</div>
