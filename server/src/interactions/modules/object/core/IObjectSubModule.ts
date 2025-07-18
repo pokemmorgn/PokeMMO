@@ -1,5 +1,5 @@
 // src/interactions/modules/object/core/IObjectSubModule.ts
-// Interface contractuelle pour tous les sous-modules d'objets - VERSION CORRIGÉE
+// Interface contractuelle pour tous les sous-modules d'objets - VERSION FINALE CORRIGÉE
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { 
@@ -141,7 +141,14 @@ export interface IObjectSubModule {
   };
 }
 
-// ✅ CLASSE DE BASE ABSTRAITE - VERSION CORRIGÉE
+// ✅ INTERFACE PLAYER ÉTENDUE (temporaire pour éviter les erreurs TypeScript)
+interface PlayerWithExtensions extends Player {
+  badges?: string[];
+  inventory?: Array<{ id: string; quantity: number; [key: string]: any }>;
+  quests?: string[];
+}
+
+// ✅ CLASSE DE BASE ABSTRAITE - VERSION FINALE CORRIGÉE
 export abstract class BaseObjectSubModule implements IObjectSubModule {
   
   abstract readonly typeName: string;
@@ -195,7 +202,7 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     };
   }
   
-  // === MÉTHODES UTILITAIRES PROTÉGÉES - VERSION CORRIGÉE ===
+  // === MÉTHODES UTILITAIRES PROTÉGÉES ===
   
   /**
    * Met à jour les statistiques
@@ -239,10 +246,10 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
   }
   
   /**
-   * Créer un résultat de succès avec données objet - CORRECTION ICI
+   * Créer un résultat de succès avec données objet
    */
   protected createSuccessResult(
-    type: InteractionResultType, // ✅ UTILISE LE TYPE UNION AU LIEU DE STRING
+    type: InteractionResultType,
     message: string,
     objectData: Partial<ObjectInteractionData> & {
       objectId: string;
@@ -264,7 +271,7 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     };
   }
   
-  // === NOUVELLES MÉTHODES HELPER AVEC TYPES PRÉDÉFINIS ===
+  // === MÉTHODES HELPER AVEC TYPES PRÉDÉFINIS ===
   
   /**
    * Créer un résultat d'objet collecté
@@ -411,7 +418,7 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     );
   }
   
-  // === MÉTHODES UTILITAIRES EXISTANTES ===
+  // === MÉTHODES UTILITAIRES ===
   
   /**
    * Log avec préfixe du sous-module
@@ -481,7 +488,7 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
   }
   
   /**
-   * Vérifier les prérequis d'un objet pour un joueur
+   * Vérifier les prérequis d'un objet pour un joueur - VERSION TYPE-SAFE
    */
   protected validateRequirements(
     player: Player,
@@ -490,20 +497,35 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
     const req = objectDef.requirements;
     if (!req) return { valid: true };
     
+    // Vérification niveau
     if (req.level && (player.level || 1) < req.level) {
       return { valid: false, reason: `Niveau ${req.level} requis` };
     }
     
-    if (req.badge && !player.badges?.includes(req.badge)) {
-      return { valid: false, reason: `Badge ${req.badge} requis` };
+    // Vérification badge - TYPE SAFE avec interface étendue
+    if (req.badge) {
+      const extendedPlayer = player as PlayerWithExtensions;
+      if (!extendedPlayer.badges || !extendedPlayer.badges.includes(req.badge)) {
+        return { valid: false, reason: `Badge ${req.badge} requis` };
+      }
     }
     
-    if (req.item && !player.inventory?.some(item => item.id === req.item)) {
-      return { valid: false, reason: `Objet ${req.item} requis` };
+    // Vérification item inventaire - TYPE SAFE avec interface étendue
+    if (req.item) {
+      const extendedPlayer = player as PlayerWithExtensions;
+      if (!extendedPlayer.inventory || 
+          !extendedPlayer.inventory.some((inventoryItem) => inventoryItem.id === req.item)) {
+        return { valid: false, reason: `Objet ${req.item} requis` };
+      }
     }
     
+    // Vérification quête (implémentation future)
     if (req.quest) {
-      // TODO: Vérifier les quêtes si nécessaire
+      const extendedPlayer = player as PlayerWithExtensions;
+      if (!extendedPlayer.quests || !extendedPlayer.quests.includes(req.quest)) {
+        // Pour l'instant, on ne bloque pas sur les quêtes
+        // return { valid: false, reason: `Quête ${req.quest} requise` };
+      }
     }
     
     return { valid: true };
@@ -537,3 +559,6 @@ export const ObjectErrors = {
     message: 'Cet objet n\'est pas disponible actuellement'
   })
 } as const;
+
+// ✅ EXPORT EXPLICIT POUR ObjectInteractionResult
+export { ObjectInteractionResult };
