@@ -2289,18 +2289,19 @@ createTimeWeatherWidget() {
   
   // Connecter aux événements de redimensionnement
   this.scale.on('resize', () => {
-    this.timeWeatherWidget.onResize();
+    if (typeof this.timeWeatherWidget.onResize === 'function') {
+      this.timeWeatherWidget.onResize();
+    }
   });
-  
-  // Apparition en fade
-  
+
   // ✅ CONNECTER AU SYSTÈME MÉTÉO GLOBAL
   this.time.delayedCall(2000, () => {
     this.connectWidgetToWeatherSystem();
   });
-  
+
   console.log(`✅ [${this.scene.key}] Widget temps/météo créé`);
 }
+
 
 // 5. AJOUTER CETTE NOUVELLE MÉTHODE (après createTimeWeatherWidget)
 connectWidgetToWeatherSystem() {
