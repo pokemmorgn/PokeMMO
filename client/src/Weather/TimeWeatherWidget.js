@@ -300,12 +300,12 @@ export class TimeWeatherWidget {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 280px !important;
-        height: 65px !important;
-        min-width: 280px !important;
-        max-width: 280px !important;
-        min-height: 65px !important;
-        max-height: 65px !important;
+        width: 320px !important;
+        height: 70px !important;
+        min-width: 320px !important;
+        max-width: 320px !important;
+        min-height: 70px !important;
+        max-height: 70px !important;
         background: transparent;
         border: none;
         border-radius: 0;
@@ -365,7 +365,7 @@ export class TimeWeatherWidget {
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 0 20px;
+        padding: 0 24px;
         z-index: 1;
       }
       
@@ -373,7 +373,8 @@ export class TimeWeatherWidget {
       .time-weather-widget .weather-section {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 15px;
+        flex: 1;
       }
       
       .time-weather-widget .time-icon,
@@ -392,20 +393,22 @@ export class TimeWeatherWidget {
       
       .time-weather-widget .time-main,
       .time-weather-widget .weather-main {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 700;
         color: #f1f5f9;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
         letter-spacing: 0.5px;
+        white-space: nowrap;
       }
       
       .time-weather-widget .time-period,
       .time-weather-widget .weather-temp {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         color: #cbd5e1;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
         letter-spacing: 0.25px;
+        white-space: nowrap;
       }
       
       .time-weather-widget .separator {
