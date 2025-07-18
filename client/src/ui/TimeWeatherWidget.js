@@ -1,31 +1,28 @@
-// TimeWeatherWidget.js - VERSION BARRE HORIZONTALE, PRÊT À COMMIT
+// TimeWeatherWidget.js - Widget compact heure/météo pour HUD (coin écran)
+
 export class TimeWeatherWidget {
   constructor(scene) {
     this.scene = scene;
     this.container = null;
-    this.hourMarkers = [];
+    this.timeText = null;
     this.weatherIcon = null;
     this.weatherText = null;
-    this.timeMarker = null;
 
-    this.currentTime = { hour: 12, isDayTime: true };
-    this.currentWeather = { weather: 'clear', displayName: 'Clear skies' };
+    this.currentTime = { hour: 12, minute: 0, isDayTime: true };
+    this.currentWeather = { weather: 'clear', displayName: 'Clear' };
 
     this.config = {
-      x: 0,
-      y: 80,
-      width: 380,   // largeur totale de la barre
-      barHeight: 28,
-      markerHeight: 36,
-      markerWidth: 6,
-      depth: 1000,
-    };
-
-    this.timeColors = {
-      dawn: { primary: 0xFF8C42, secondary: 0xFFB347, glow: 0xFF6B1A },
-      day: { primary: 0x4A90E2, secondary: 0x87CEEB, glow: 0x1E6091 },
-      dusk: { primary: 0xFF6B6B, secondary: 0xFF8E53, glow: 0xD63031 },
-      night: { primary: 0x2C3E50, secondary: 0x34495E, glow: 0x1A252F }
+      x: scene.scale.width - 168, // Coin supérieur droit (modifiable)
+      y: 20,
+      fontSize: 18,
+      fontFamily: 'Arial, sans-serif',
+      fontColor: '#ECF0F1',
+      fontStroke: '#222',
+      fontStrokeThickness: 2,
+      weatherFontSize: 22,
+      weatherIconGap: 12,
+      containerPadding: 10,
+      depth: 2000
     };
 
     this.weatherIcons = {
@@ -36,255 +33,112 @@ export class TimeWeatherWidget {
       fog: '🌫️',
       cloudy: '☁️'
     };
-
-    this.englishHourLabels = [
-      'Midn', '1am', '2am', '3am', '4am', '5am', '6am', '7am', '8am', '9am', '10am', '11am',
-      'Noon', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm'
-    ];
   }
 
   create() {
     // Container principal
-    this.container = this.scene.add.container(0, 0).setDepth(this.config.depth).setScrollFactor(0);
+    this.container = this.scene.add.container(this.config.x, this.config.y);
+    this.container.setDepth(this.config.depth);
+    this.container.setScrollFactor(0);
 
-    // Positionner au centre horizontal de l'écran
-    this.updatePosition();
+    // Rectangle de fond léger pour la lisibilité (optionnel, désactive en mettant alpha à 0)
+    const bg = this.scene.add.rectangle(0, 0, 155, 38, 0x21292b, 0.68)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x444a52, 0.6)
+      .setScrollFactor(0)
+      .setDepth(-1);
+    this.container.add(bg);
 
-    // Création de la barre principale horizontale
-    this.createTimeBar();
-
-    // Marqueurs d'heure (et labels anglais en-dessous)
-    this.createHourMarkers();
-
-    // Marqueur mobile (heure actuelle)
-    this.createTimeMarker();
-
-    // Météo à côté (ou dessous)
-    this.createWeatherDisplay();
-
-    // Initial update
-    this.updateDisplay();
-  }
-
-  updatePosition() {
-    // Centrer horizontalement, Y paramétrable
-    const centerX = this.scene.scale.width / 2;
-    this.container.setPosition(centerX, this.config.y);
-  }
-
-createTimeBar() {
-  if (this.timeBar) this.timeBar.destroy();
-
-  // Ajout direct au dessus de tout
-  this.timeBar = this.scene.add.graphics();
-  this.timeBar.setScrollFactor(0);
-  this.timeBar.setDepth(9999); // tout devant
-
-  // Rectangle rouge bien visible
-  this.timeBar.fillStyle(0xff0000, 1);
-  this.timeBar.fillRect(-200, 0, 400, 40);
-
-  this.container.add(this.timeBar);
-
-  // Debug forcé sur le container
-  this.container.setVisible(true);
-  this.container.setAlpha(1);
-  this.container.setScale(1, 1);
-  this.container.setPosition(this.scene.scale.width / 2, 120); // milieu-top
-}
-
-  createHourMarkers() {
-    // Efface existants
-    this.hourMarkers.forEach(marker => marker.destroy());
-    this.hourMarkers = [];
-    if (this.hourLabels) {
-      this.hourLabels.forEach(lbl => lbl.destroy());
-    }
-    this.hourLabels = [];
-
-    // Un marqueur toutes les 2h avec label, petit trait sinon
-    for (let hour = 0; hour < 24; hour++) {
-      const pos = -this.config.width/2 + (hour/23)*this.config.width;
-      const isMajor = (hour % 3 === 0); // toutes les 3h plus grand
-
-      // Trait
-      const marker = this.scene.add.rectangle(pos, this.config.barHeight / 2, isMajor ? 3 : 1.5, isMajor ? 18 : 10, 0xFFFFFF, isMajor ? 0.7 : 0.38)
-        .setOrigin(0.5, 0);
-      marker.setScrollFactor(0);
-      marker.setDepth(2);
-      this.container.add(marker);
-      this.hourMarkers.push(marker);
-
-      // Label anglais (sous la barre)
-      if (isMajor) {
-        const lbl = this.scene.add.text(
-          pos, this.config.barHeight + 8, this.englishHourLabels[hour],
-          { fontSize: '11px', fill: '#e6eaf2', fontFamily: 'Arial, sans-serif', fontStyle: 'bold' }
-        ).setOrigin(0.5, 0).setAlpha(0.8).setScrollFactor(0).setDepth(2);
-        this.container.add(lbl);
-        this.hourLabels.push(lbl);
+    // Heure numérique
+    this.timeText = this.scene.add.text(
+      this.config.containerPadding,
+      this.config.containerPadding,
+      this.formatTime(this.currentTime.hour, this.currentTime.minute),
+      {
+        fontSize: `${this.config.fontSize}px`,
+        fill: this.config.fontColor,
+        fontFamily: this.config.fontFamily,
+        stroke: this.config.fontStroke,
+        strokeThickness: this.config.fontStrokeThickness
       }
-    }
-  }
-
-  createTimeMarker() {
-    // Efface ancien
-    if (this.timeMarker) this.timeMarker.destroy();
-
-    // Position initiale
-    const pos = -this.config.width / 2 + (this.currentTime.hour / 23) * this.config.width;
-
-    this.timeMarker = this.scene.add.triangle(
-      pos, -7,
-      0, 0,
-      10, 0,
-      5, 16,
-      0xFFD700, 0.88
-    );
-    this.timeMarker.setOrigin(0.5, 1);
-    this.timeMarker.setDepth(5);
-    this.timeMarker.setScrollFactor(0);
-
-    this.container.add(this.timeMarker);
-
-    // Heure textuelle au-dessus
-    if (this.markerLabel) this.markerLabel.destroy();
-    this.markerLabel = this.scene.add.text(pos, -20, this.getFormattedHourLabel(), {
-      fontSize: '15px',
-      fill: '#fff9c2',
-      fontFamily: 'Arial, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#444', strokeThickness: 3
-    }).setOrigin(0.5, 1).setDepth(5).setScrollFactor(0);
-
-    this.container.add(this.markerLabel);
-  }
-
-  updateTimeMarker() {
-    // Calcul position
-    const pos = -this.config.width / 2 + (this.currentTime.hour / 23) * this.config.width;
-    this.timeMarker.setPosition(pos, -7);
-    this.markerLabel.setPosition(pos, -20);
-    this.markerLabel.setText(this.getFormattedHourLabel());
-  }
-
-  getFormattedHourLabel() {
-    let h = this.currentTime.hour;
-    let ampm = h < 12 ? 'am' : 'pm';
-    let hourDisp = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    if (h === 12) ampm = 'pm';
-    if (h === 0) ampm = 'am';
-    return `${hourDisp}:00 ${ampm}`;
-  }
-
-  createWeatherDisplay() {
-    if (this.weatherIcon) this.weatherIcon.destroy();
-    if (this.weatherText) this.weatherText.destroy();
+    ).setOrigin(0, 0).setScrollFactor(0);
 
     // Icône météo
     this.weatherIcon = this.scene.add.text(
-      this.config.width / 2 + 28, this.config.barHeight / 2,
+      this.config.containerPadding + 62, // position à droite de l'heure
+      this.config.containerPadding - 2,
       this.weatherIcons[this.currentWeather.weather] || '☀️',
-      { fontSize: '26px', fontFamily: 'Arial' }
-    ).setOrigin(0.5, 0.5).setDepth(10).setScrollFactor(0);
+      {
+        fontSize: `${this.config.weatherFontSize}px`
+      }
+    ).setOrigin(0, 0).setScrollFactor(0);
 
-    // Texte météo sous l'icône
+    // Texte météo
     this.weatherText = this.scene.add.text(
-      this.config.width / 2 + 28, this.config.barHeight / 2 + 20,
+      this.config.containerPadding + 92,
+      this.config.containerPadding + 1,
       this.currentWeather.displayName,
-      { fontSize: '11px', fill: '#BDC3C7', fontFamily: 'Arial, sans-serif', fontStyle: 'bold' }
-    ).setOrigin(0.5, 0).setDepth(10).setScrollFactor(0);
+      {
+        fontSize: '13px',
+        fill: '#b8d8f7',
+        fontFamily: this.config.fontFamily
+      }
+    ).setOrigin(0, 0).setScrollFactor(0);
 
-    this.container.add(this.weatherIcon);
-    this.container.add(this.weatherText);
+    this.container.add([this.timeText, this.weatherIcon, this.weatherText]);
   }
 
-  updateWeatherDisplay() {
-    this.weatherIcon.setText(this.weatherIcons[this.currentWeather.weather] || '☀️');
-    this.weatherText.setText(this.currentWeather.displayName);
+  // Heure au format anglais (ex: 3:00 PM)
+  formatTime(hour, minute = 0) {
+    const isAM = hour < 12;
+    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+    const period = isAM ? 'AM' : 'PM';
+    const min = minute.toString().padStart(2, '0');
+    return `${displayHour}:${min} ${period}`;
   }
 
-  getTimePeriod(hour) {
-    if (hour >= 5 && hour < 8) return 'dawn';
-    if (hour >= 8 && hour < 17) return 'day';
-    if (hour >= 17 && hour < 20) return 'dusk';
-    return 'night';
+  // Mise à jour de l'heure (hour: int [0-23], minute: int [0-59])
+  updateTime(hour, minute = 0) {
+    this.currentTime.hour = hour;
+    this.currentTime.minute = minute;
+    if (this.timeText) {
+      this.timeText.setText(this.formatTime(hour, minute));
+    }
   }
 
-  updateTime(hour, isDayTime) {
-    this.currentTime = { hour, isDayTime };
-    this.createTimeBar(); // Rafraîchir couleur selon période
-    this.updateTimeMarker();
-    this.updateDisplay();
-  }
-
+  // Mise à jour de la météo (weather: 'clear', 'rain', ... ; displayName: string anglais)
   updateWeather(weather, displayName) {
-    this.currentWeather = { weather, displayName };
-    this.updateWeatherDisplay();
+    this.currentWeather.weather = weather;
+    this.currentWeather.displayName = displayName;
+    if (this.weatherIcon) {
+      this.weatherIcon.setText(this.weatherIcons[weather] || '☀️');
+    }
+    if (this.weatherText) {
+      this.weatherText.setText(displayName);
+    }
   }
 
-  updateDisplay() {
-    this.updateTimeMarker();
-    this.updateWeatherDisplay();
-  }
-
+  // Pour déplacer le widget si tu veux un autre coin de l'écran
   setPosition(x, y) {
     if (this.container) {
       this.container.setPosition(x, y);
     }
   }
 
-  setVisible(visible) {
-    if (this.container) {
-      this.container.setVisible(visible);
-    }
-  }
-
-  setAlpha(alpha) {
-    if (this.container) {
-      this.container.setAlpha(alpha);
-    }
-  }
-
-  fadeIn(duration = 1000) {
-    if (this.container) {
-      this.container.setAlpha(0);
-      this.scene.tweens.add({
-        targets: this.container,
-        alpha: 1,
-        duration: duration,
-        ease: 'Power2.easeOut'
-      });
-    }
-  }
-
-  fadeOut(duration = 1000) {
-    if (this.container) {
-      this.scene.tweens.add({
-        targets: this.container,
-        alpha: 0,
-        duration: duration,
-        ease: 'Power2.easeIn'
-      });
-    }
-  }
-
+  // Redimensionne et replace si l'écran change de taille
   onResize() {
-    this.updatePosition();
-    // La barre et tous les éléments restent centrés
+    this.setPosition(this.scene.scale.width - 168, 20);
+  }
+
+  setVisible(visible) {
+    if (this.container) this.container.setVisible(visible);
   }
 
   destroy() {
-    if (this.container) {
-      this.container.destroy();
-      this.container = null;
-    }
-    this.hourMarkers = [];
-    if (this.weatherIcon) this.weatherIcon.destroy();
-    if (this.weatherText) this.weatherText.destroy();
-    if (this.timeMarker) this.timeMarker.destroy();
-    if (this.markerLabel) this.markerLabel.destroy();
+    if (this.container) this.container.destroy();
+    this.container = null;
+    this.timeText = null;
+    this.weatherIcon = null;
+    this.weatherText = null;
   }
 }
-
-console.log('[TimeWeatherWidget] Widget chargé (barre horizontale, météo à droite)');
