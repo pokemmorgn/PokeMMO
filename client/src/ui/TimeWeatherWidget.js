@@ -61,15 +61,15 @@ export class TimeWeatherWidget {
   createBackgroundArc() {
     this.backgroundArc = this.scene.add.graphics().setScrollFactor(0).setPosition(0, 0).setDepth(-1);
 
-    this.backgroundArc.lineStyle(this.config.arcWidth, 0x2C3E50, 0.6);
-    this.backgroundArc.beginPath();
-    this.backgroundArc.arc(0, 0, this.config.radius, Phaser.Math.DegToRad(210), Phaser.Math.DegToRad(330), false);
-    this.backgroundArc.strokePath();
+this.backgroundArc.lineStyle(this.config.arcWidth, 0x2C3E50, 0.6);
+this.backgroundArc.beginPath();
+this.backgroundArc.arc(0, 0, this.config.radius, Phaser.Math.DegToRad(30), Phaser.Math.DegToRad(150), false);
+this.backgroundArc.strokePath();
 
-    this.backgroundArc.lineStyle(this.config.arcWidth - 2, 0x34495E, 0.3);
-    this.backgroundArc.beginPath();
-    this.backgroundArc.arc(0, 0, this.config.radius - 2, Phaser.Math.DegToRad(210), Phaser.Math.DegToRad(330), false);
-    this.backgroundArc.strokePath();
+this.backgroundArc.lineStyle(this.config.arcWidth - 2, 0x34495E, 0.3);
+this.backgroundArc.beginPath();
+this.backgroundArc.arc(0, 0, this.config.radius - 2, Phaser.Math.DegToRad(30), Phaser.Math.DegToRad(150), false);
+this.backgroundArc.strokePath();
 
     this.container.add(this.backgroundArc);
   }
