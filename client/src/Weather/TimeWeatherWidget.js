@@ -1621,4 +1621,4 @@ export class TimeWeatherWidget {
   }
 }
 
-export default TimeWeatherWidget
+export default TimeWeatherWidget;
