@@ -454,93 +454,94 @@ export class InteractionManager {
   }
 
   // ✅ FIX 3: handleQuestInteraction avec source tracking amélioré
-  handleQuestInteraction(npc, data) {
-    // ✅ ACCÈS CORRIGÉ au QuestModule via UIManager
-    let questManager = null;
+handleQuestInteraction(npc, data) {
+  console.log('🎯 [InteractionManager] Quest interaction:', data);
+  
+  // ✅ ACCÈS SIMPLIFIÉ au nouveau QuestSystem
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  
+  if (!questSystem || typeof questSystem.handleNpcInteraction !== 'function') {
+    console.warn('⚠️ [InteractionManager] QuestSystem non disponible');
     
-    // Essayer UIManager d'abord
-    if (window.uiManager?.modules?.has('quest')) {
-      const questModuleWrapper = window.uiManager.modules.get('quest');
-      questManager = questModuleWrapper?.instance?.manager;
-      console.log('🔍 [InteractionManager] QuestManager via UIManager:', questManager);
+    // ✅ FALLBACK: Afficher le dialogue directement
+    let questMessage = "Ce PNJ a des quêtes disponibles.";
+    
+    if (data && data.message) {
+      questMessage = data.message;
+    } else if (data && data.lines && Array.isArray(data.lines)) {
+      questMessage = data.lines.join('\n');
     }
     
-    // Fallback vers window
-    if (!questManager) {
-      const questSystem = window.questSystem || window.questSystemGlobal;
-      questManager = questSystem?.manager || questSystem;
-    }
-    
-    if (!questManager || typeof questManager.handleNpcInteraction !== 'function') {
-      console.warn('⚠️ [InteractionManager] QuestManager.handleNpcInteraction non disponible');
-      
-      // ✅ FALLBACK: Afficher le dialogue directement
-      let questMessage = "Ce PNJ a des quêtes disponibles.";
-      
-      if (data && data.message) {
-        questMessage = data.message;
-      } else if (data && data.lines && Array.isArray(data.lines)) {
-        questMessage = data.lines.join('\n');
-      }
-      
-      this.handleDialogueInteraction(npc, {
-        message: questMessage,
-        lines: data?.lines || [questMessage],
-        name: data?.name || npc?.name || "Bob",
-        portrait: data?.portrait || `/assets/portrait/${npc?.sprite}Portrait.png`
-      });
-      return;
-    }
-    
-    try {
-      // ✅ APPEL avec source tracking
-      const result = questManager.handleNpcInteraction(data || npc, 'InteractionManager');
-      console.log(`🎯 [InteractionManager] Quest result: ${result}`);
-      
-      // ✅ Gérer les codes de retour du QuestManager
-      switch (result) {
-        case 'QUESTS_SHOWN':
-        case 'QUEST_COMPLETED':
-          console.log('✅ [InteractionManager] Quest interaction réussie');
-          break;
-        case 'REQUESTING_QUESTS':
-        case 'ALREADY_REQUESTING':
-          console.log('⏳ [InteractionManager] En attente réponse quest');
-          break;
-        case 'NO_QUEST':
-          this.handleDialogueInteraction(npc, data);
-          break;
-        case 'BLOCKED':
-        case 'BLOCKED_COOLDOWN':
-        case 'BLOCKED_DUPLICATE':
-          // ✅ CORRECTION: Éviter la boucle showMessage
-          console.warn(`🚫 [InteractionManager] Système de quêtes bloqué: ${result}`);
-          // Ne pas appeler showMessage pour éviter la boucle
-          break;
-        default:
-          console.warn(`⚠️ [InteractionManager] Code quest inconnu: ${result}`);
-          this.handleDialogueInteraction(npc, data);
-      }
-      
-    } catch (error) {
-      console.error('❌ [InteractionManager] Erreur quest interaction:', error);
-      
-      // Fallback dialogue avec le message d'origine
-      let questMessage = "Erreur du système de quêtes.";
-      
-      if (data && data.message) {
-        questMessage = data.message;
-      } else if (data && data.lines && Array.isArray(data.lines)) {
-        questMessage = data.lines.join('\n');
-      }
-      
-      this.handleDialogueInteraction(npc, {
-        message: questMessage,
-        lines: data?.lines || [questMessage],
-        name: data?.name || npc?.name || "Bob"
-      });
-    }
+    this.handleDialogueInteraction(npc, {
+      message: questMessage,
+      lines: data?.lines || [questMessage],
+      name: data?.name || npc?.name || "PNJ",
+      portrait: data?.portrait || `/assets/portrait/${npc?.sprite || 'default'}Portrait.png`
+    });
+    return;
   }
+  
+  try {
+    // ✅ APPEL SIMPLIFIÉ - une seule méthode
+    const result = questSystem.handleNpcInteraction(data || npc, 'InteractionManager');
+    console.log(`🎯 [InteractionManager] Quest result: ${result}`);
+    
+    // ✅ PAS BESOIN de gérer les codes de retour - le QuestSystem gère tout
+    
+  } catch (error) {
+    console.error('❌ [InteractionManager] Erreur quest interaction:', error);
+    
+    // Fallback dialogue simple
+    this.handleDialogueInteraction(npc, {
+      message: data?.message || "Erreur du système de quêtes.",
+      lines: data?.lines || ["Erreur du système de quêtes."],
+      name: data?.name || npc?.name || "PNJ"
+    });
+  }
+}
+
+// ✅ NOUVEAU: Simplifier aussi la détection de quête
+isNpcQuestGiver(npc) {
+  if (!npc) return false;
+  
+  // ✅ Vérifier les propriétés du NPC
+  if (npc.properties) {
+    return !!(
+      npc.properties.npcType === 'questGiver' ||
+      npc.properties.questId ||
+      npc.properties.quest ||
+      npc.properties.hasQuest === true ||
+      npc.properties.questGiver === true
+    );
+  }
+  
+  // ✅ Vérifier le nom du NPC
+  if (npc.name) {
+    const lowerName = npc.name.toLowerCase();
+    return lowerName.includes('quest') || 
+           lowerName.includes('quête') ||
+           lowerName.includes('mission');
+  }
+  
+  return false;
+}
+
+// ✅ NOUVEAU: Méthode pour reset le système si nécessaire
+resetQuestSystem() {
+  console.log('🔄 [InteractionManager] Reset quest system...');
+  
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.resetDebugCounters) {
+    questSystem.resetDebugCounters();
+  }
+  
+  // Reset des états locaux
+  this._lastInteractionResultTime = 0;
+  this._resultCallCount = 0;
+  this.state.lastInteractionTime = 0;
+  
+  console.log('✅ [InteractionManager] Quest system reset');
+}
 
   handleHealInteraction(npc, data) {
     const healData = data || {
