@@ -300,8 +300,12 @@ export class TimeWeatherWidget {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 280px;
-        height: 65px;
+        width: 280px !important;
+        height: 65px !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        min-height: 65px !important;
+        max-height: 65px !important;
         background: transparent;
         border: none;
         border-radius: 0;
@@ -516,8 +520,12 @@ export class TimeWeatherWidget {
       /* Responsive */
       @media (max-width: 800px) {
         .time-weather-widget.ui-icon.modern-mmo {
-          width: 220px;
-          height: 55px;
+          width: 220px !important;
+          height: 55px !important;
+          min-width: 220px !important;
+          max-width: 220px !important;
+          min-height: 55px !important;
+          max-height: 55px !important;
         }
         
         .time-weather-widget .widget-content {
