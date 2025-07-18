@@ -612,7 +612,7 @@ export class UIManager {
         break;
       case 'top-right':
         baseX = window.innerWidth - padding;
-        baseY = padding;
+        baseY = padding + 60; // Augmenter encore plus pour descendre le widget
         break;
       case 'top-left':
         baseX = padding;
