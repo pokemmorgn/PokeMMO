@@ -106,15 +106,15 @@ const POKEMON_UI_GROUPS = {
     },
     priority: 90
   },
-  'weather': {
+    'weather': {
     modules: ['timeWeather'],
     layout: {
       type: 'horizontal',
       anchor: 'top-right',
-      spacing: 10,
+      spacing: 15,
       order: ['timeWeather']
     },
-    priority: 99
+    priority: 95
   }
 };
 
@@ -309,24 +309,34 @@ export class PokemonUISystem {
         }
       },
       {
+{
   id: 'timeWeather',
   critical: false,
   factory: async () => {
+    console.log('🏭 [UI] Factory timeWeather appelée');
     const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
-    return createTimeWeatherModule();
+    const module = createTimeWeatherModule();
+    console.log('✅ [UI] Module timeWeather créé:', module);
+    return module;
   },
-  groups: ['weather'], // Ou un nouveau groupe si besoin
+  groups: ['weather'],
   layout: {
     type: 'icon',
     anchor: 'top-right',
-    order: 50,
-    spacing: 10
+    order: 0,
+    spacing: 15
   },
-  priority: 50,
+  priority: 95,
   defaultState: {
     visible: true,
     enabled: true,
     initialized: false
+  },
+  metadata: {
+    name: 'Time & Weather Widget',
+    description: 'Displays current time and weather conditions',
+    version: '1.0.0',
+    category: 'Information Display'
   }
 },
       {
