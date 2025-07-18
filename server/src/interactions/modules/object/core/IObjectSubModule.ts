@@ -43,39 +43,13 @@ export interface ObjectDefinition {
 }
 
 // ✅ RÉSULTAT SPÉCIALISÉ POUR OBJETS
+// Utilise la structure InteractionResult existante : data.objectData
+// Les données spécifiques aux objets vont dans data.objectData
+// Les métadonnées additionnelles vont dans data.metadata
 export interface ObjectInteractionResult extends InteractionResult {
-  objectData?: {
-    objectId: number;
-    objectType: string;
-    collected?: boolean;
-    newState?: string;
-    
-    // Item reçu
-    itemReceived?: {
-      itemId: string;
-      quantity: number;
-      rarity: string;
-    };
-    
-    // Résultat de fouille
-    searchResult?: {
-      found: boolean;
-      remainingChances?: number;
-    };
-    
-    // Données de machine/PC
-    machineData?: any;
-    
-    // Contenu de panneau
-    panelContent?: {
-      title: string;
-      content: string[];
-      imageUrl?: string;
-    };
-    
-    // Métadonnées
-    metadata?: Record<string, any>;
-  };
+  // Pas de redéfinition, on utilise les champs existants :
+  // - data.objectData : infos de l'objet (objectId, objectType, collected, etc.)
+  // - data.metadata : données additionnelles (itemReceived, searchResult, etc.)
 }
 
 // ✅ INTERFACE PRINCIPALE DES SOUS-MODULES
@@ -260,6 +234,31 @@ export abstract class BaseObjectSubModule implements IObjectSubModule {
           subModule: this.typeName,
           timestamp: Date.now()
         }
+      }
+    };
+  }
+  
+  /**
+   * Créer un résultat de succès avec données objet
+   */
+  protected createSuccessResult(
+    type: string,
+    message: string,
+    objectData: {
+      objectId: string;
+      objectType: string;
+      collected?: boolean;
+      newState?: string;
+    },
+    additionalData?: Record<string, any>
+  ): ObjectInteractionResult {
+    return {
+      success: true,
+      type,
+      message,
+      data: {
+        objectData,
+        ...additionalData
       }
     };
   }
