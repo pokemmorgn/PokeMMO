@@ -152,15 +152,6 @@ export class TimeWeatherWidget {
             </div>
           </div>
           
-          <!-- Section Intensité Météo -->
-          <div class="intensity-section">
-            <div class="intensity-label">Intensité</div>
-            <div class="intensity-bar">
-              <div class="intensity-fill" id="${this.id}-intensity"></div>
-            </div>
-            <div class="intensity-value" id="${this.id}-intensity-value">75%</div>
-          </div>
-          
           <!-- Section Bonus Gameplay -->
           <div class="bonus-section" id="${this.id}-bonus">
             <div class="bonus-icon">🎮</div>
@@ -184,7 +175,6 @@ export class TimeWeatherWidget {
     this.updateTime(this.currentHour, this.isDayTime);
     this.updateWeather(this.weather.weather, this.weather.displayName, this.weather.temperature);
     this.updateZone(this.location);
-    this.updateWeatherIntensity(this.weatherIntensity);
     this.updateGameplayBonus(this.gameplayBonus);
     
     this.startAnimations();
@@ -442,24 +432,6 @@ export class TimeWeatherWidget {
     if (zoneElement) zoneElement.textContent = zoneName;
   }
 
-  updateWeatherIntensity(intensity) {
-    this.weatherIntensity = Math.max(0, Math.min(100, intensity));
-    
-    const intensityFill = this.element?.querySelector('.intensity-fill');
-    const intensityValue = this.element?.querySelector('.intensity-value');
-    
-    if (intensityFill) {
-      intensityFill.style.width = `${this.weatherIntensity}%`;
-      
-      const color = this.weatherIntensity < 30 ? '#10b981' : 
-                   this.weatherIntensity < 70 ? '#f59e0b' : '#ef4444';
-      intensityFill.style.background = `linear-gradient(90deg, ${color}, ${color}aa)`;
-    }
-    
-    if (intensityValue) {
-      intensityValue.textContent = `${this.weatherIntensity}%`;
-    }
-  }
 
   updateGameplayBonus(bonus) {
     this.gameplayBonus = bonus;
