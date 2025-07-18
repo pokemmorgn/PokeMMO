@@ -1,14 +1,13 @@
 // client/src/managers/GlobalWeatherManager.js
-// SYSTÈME MÉTÉO 100% GLOBAL - REMPLACE TOUT LE SYSTÈME LOCAL
+// VERSION ULTRA-OPTIMISÉE - OVERLAY NUIT RÉDUIT + PAS DE CHANGEMENT COULEUR PLUIE
 
 import { ClientTimeWeatherManager } from './ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from './ZoneEnvironmentManager.js';
 import { WeatherEffects } from '../effects/WeatherEffects.js';
 
-
 export class GlobalWeatherManager {
   constructor() {
-    console.log('🌍 [GlobalWeatherManager] === CRÉATION SYSTÈME MÉTÉO GLOBAL ===');
+    console.log('🌍 [GlobalWeatherManager] === CRÉATION SYSTÈME MÉTÉO ULTRA-OPTIMISÉ ===');
     
     // Managers internes
     this.timeWeatherManager = null;
@@ -28,17 +27,19 @@ export class GlobalWeatherManager {
     
     // Mode debug
     this.debugMode = false;
-    // 🆕 NOUVEAU: Gestionnaire d'effets visuels
-this.sceneWeatherEffects = new Map();
+    
+    // Gestionnaire d'effets visuels
+    this.sceneWeatherEffects = new Map();
+    
     // Éviter les updates en boucle
     this.lastUpdateState = null;
     this.updateInProgress = false;
     
-    console.log('✅ [GlobalWeatherManager] Instance créée');
+    console.log('✅ [GlobalWeatherManager] Instance ultra-optimisée créée');
   }
 
   // =====================================
-  // INITIALISATION
+  // INITIALISATION INCHANGÉE
   // =====================================
 
   async initialize(networkManager) {
@@ -47,25 +48,16 @@ this.sceneWeatherEffects = new Map();
       return true;
     }
 
-    console.log('🚀 [GlobalWeatherManager] === INITIALISATION ===');
+    console.log('🚀 [GlobalWeatherManager] === INITIALISATION ULTRA-OPTIMISÉE ===');
 
     try {
-      // Stocker la référence réseau
       this.networkManager = networkManager;
-
-      // Créer le ClientTimeWeatherManager
-      this.timeWeatherManager = new ClientTimeWeatherManager(null); // Mode global
-      
-      // L'initialiser
+      this.timeWeatherManager = new ClientTimeWeatherManager(null);
       this.timeWeatherManager.initialize(networkManager);
-
-      // Setup des callbacks
       this.setupTimeWeatherCallbacks();
-
-      // Marquer comme initialisé
       this.isInitialized = true;
 
-      console.log('✅ [GlobalWeatherManager] Initialisé avec succès');
+      console.log('✅ [GlobalWeatherManager] Initialisé ultra-optimisé');
       return true;
 
     } catch (error) {
@@ -85,67 +77,65 @@ this.sceneWeatherEffects = new Map();
 
     // Callback changement météo
     this.timeWeatherManager.onWeatherChange((weather, displayName) => {
-  console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${displayName}`);
-  
-  this.currentWeather = { weather, displayName };
-  this.updateAllScenes('weather');
-  
-  // 🆕 NOUVEAU: Mettre à jour les effets visuels
-  this.updateWeatherEffectsForAllScenes(weather);
-});
+      console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${displayName}`);
+      
+      this.currentWeather = { weather, displayName };
+      this.updateAllScenes('weather');
+      
+      // Mettre à jour les effets visuels
+      this.updateWeatherEffectsForAllScenes(weather);
+    });
 
-    console.log('✅ [GlobalWeatherManager] Callbacks configurés');
+    console.log('✅ [GlobalWeatherManager] Callbacks ultra-optimisés configurés');
   }
 
   // =====================================
-  // GESTION DES SCÈNES
+  // GESTION DES SCÈNES AVEC EFFETS OPTIMISÉS
   // =====================================
 
-registerScene(scene, zoneName) {
-  if (!scene || !zoneName) {
-    console.warn('⚠️ [GlobalWeatherManager] Scene ou zone manquante pour enregistrement');
-    return false;
+  registerScene(scene, zoneName) {
+    if (!scene || !zoneName) {
+      console.warn('⚠️ [GlobalWeatherManager] Scene ou zone manquante pour enregistrement');
+      return false;
+    }
+
+    const sceneKey = scene.scene.key;
+    
+    console.log(`📝 [GlobalWeatherManager] Enregistrement scène ultra-optimisée: ${sceneKey} (zone: ${zoneName})`);
+
+    // ✅ CRÉER LES EFFETS MÉTÉO ULTRA-OPTIMISÉS
+    const weatherEffects = new WeatherEffects(scene);
+    scene.weatherEffects = weatherEffects;
+    this.sceneWeatherEffects.set(sceneKey, weatherEffects);
+
+    // Créer les données de la scène
+    const sceneData = {
+      scene: scene,
+      zoneName: zoneName,
+      sceneKey: sceneKey,
+      environment: zoneEnvironmentManager.getZoneEnvironment(zoneName),
+      overlay: null,
+      lastState: null,
+      weatherEffects: weatherEffects
+    };
+
+    // Enregistrer
+    this.registeredScenes.set(sceneKey, sceneData);
+    this.activeScenes.add(sceneKey);
+
+    // Créer l'overlay pour cette scène
+    this.createOptimizedSceneOverlay(sceneData);
+
+    // Appliquer l'état actuel
+    this.applyOptimizedWeatherToScene(sceneData);
+    this.applyWeatherEffectsToScene(sceneData);
+
+    console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} enregistrée ultra-optimisée (env: ${sceneData.environment})`);
+    return true;
   }
-
-  const sceneKey = scene.scene.key;
-  
-  console.log(`📝 [GlobalWeatherManager] Enregistrement scène: ${sceneKey} (zone: ${zoneName})`);
-
-  // ✅ CRÉER LES EFFETS MÉTÉO POUR CETTE SCÈNE
-  const weatherEffects = new WeatherEffects(scene);
-  scene.weatherEffects = weatherEffects;
-  this.sceneWeatherEffects.set(sceneKey, weatherEffects);
-
-  // Créer les données de la scène
-  const sceneData = {
-    scene: scene,
-    zoneName: zoneName,
-    sceneKey: sceneKey,
-    environment: zoneEnvironmentManager.getZoneEnvironment(zoneName),
-    overlay: null,
-    lastState: null,
-    weatherEffects: weatherEffects // 🆕 AJOUTER LA RÉFÉRENCE
-  };
-
-  // Enregistrer
-  this.registeredScenes.set(sceneKey, sceneData);
-  this.activeScenes.add(sceneKey);
-
-  // Créer l'overlay pour cette scène
-  this.createSceneOverlay(sceneData);
-
-  // Appliquer l'état actuel immédiatement
-  this.applyWeatherToScene(sceneData);
-  
-  // ✅ APPLIQUER LA MÉTÉO ACTUELLE AUX EFFETS
-  this.applyWeatherEffectsToScene(sceneData);
-
-  console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} enregistrée (env: ${sceneData.environment})`);
-  return true;
-}
   
   unregisterScene(sceneKey) {
-    console.log(`📤 [GlobalWeatherManager] Désenregistrement scène: ${sceneKey}`);
+    console.log(`📤 [GlobalWeatherManager] Désenregistrement scène ultra-optimisée: ${sceneKey}`);
 
     // Nettoyer l'overlay
     const sceneData = this.registeredScenes.get(sceneKey);
@@ -153,37 +143,37 @@ registerScene(scene, zoneName) {
       sceneData.overlay.destroy();
     }
 
+    // Nettoyer les effets météo
+    const weatherEffects = this.sceneWeatherEffects.get(sceneKey);
+    if (weatherEffects) {
+      weatherEffects.destroy();
+      this.sceneWeatherEffects.delete(sceneKey);
+    }
+
     // Supprimer des collections
     this.registeredScenes.delete(sceneKey);
     this.activeScenes.delete(sceneKey);
     this.sceneOverlays.delete(sceneKey);
 
-    console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} désenregistrée`);
-    const weatherEffects = this.sceneWeatherEffects.get(sceneKey);
-if (weatherEffects) {
-  weatherEffects.destroy();
-  this.sceneWeatherEffects.delete(sceneKey);
-}
+    console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} désenregistrée ultra-optimisée`);
   }
 
   setActiveScene(sceneKey) {
-    // Marquer comme active
     this.activeScenes.clear();
     this.activeScenes.add(sceneKey);
 
-    // Appliquer immédiatement
     const sceneData = this.registeredScenes.get(sceneKey);
     if (sceneData) {
-      this.applyWeatherToScene(sceneData, true); // Force = true
-      console.log(`🎯 [GlobalWeatherManager] Scène active: ${sceneKey}`);
+      this.applyOptimizedWeatherToScene(sceneData, true);
+      console.log(`🎯 [GlobalWeatherManager] Scène ultra-optimisée active: ${sceneKey}`);
     }
   }
 
   // =====================================
-  // GESTION DES OVERLAYS
+  // CRÉATION D'OVERLAY OPTIMISÉ
   // =====================================
 
-  createSceneOverlay(sceneData) {
+  createOptimizedSceneOverlay(sceneData) {
     const scene = sceneData.scene;
     
     if (!scene.cameras || !scene.cameras.main) {
@@ -199,7 +189,7 @@ if (weatherEffects) {
         camera.centerY,
         camera.width,
         camera.height,
-        0x000044,
+        0x000044, // ✅ Couleur fixe, pas de changement pour la pluie
         0
       );
 
@@ -213,44 +203,44 @@ if (weatherEffects) {
       sceneData.overlay = overlay;
       this.sceneOverlays.set(sceneData.sceneKey, overlay);
 
-      console.log(`🎨 [GlobalWeatherManager] Overlay créé pour ${sceneData.sceneKey}`);
+      console.log(`🎨 [GlobalWeatherManager] Overlay ultra-optimisé créé pour ${sceneData.sceneKey}`);
       return overlay;
 
     } catch (error) {
-      console.error(`❌ [GlobalWeatherManager] Erreur création overlay:`, error);
+      console.error(`❌ [GlobalWeatherManager] Erreur création overlay optimisé:`, error);
       return null;
     }
   }
 
   // =====================================
-  // APPLICATION MÉTÉO
+  // APPLICATION MÉTÉO ULTRA-OPTIMISÉE
   // =====================================
 
   updateAllScenes(changeType) {
-  if (this.updateInProgress) {
-    console.log('⏭️ [GlobalWeatherManager] Update déjà en cours, skip');
-    return;
-  }
-
-  this.updateInProgress = true;
-
-  console.log(`🔄 [GlobalWeatherManager] Update toutes les scènes (${changeType})`);
-
-  // Appliquer à toutes les scènes actives
-  for (const sceneKey of this.activeScenes) {
-    const sceneData = this.registeredScenes.get(sceneKey);
-    if (sceneData) {
-      this.applyWeatherToScene(sceneData);
-      // 🆕 NOUVEAU: Appliquer aussi les effets visuels
-      this.applyWeatherEffectsToScene(sceneData);
+    if (this.updateInProgress) {
+      console.log('⏭️ [GlobalWeatherManager] Update ultra-optimisé déjà en cours, skip');
+      return;
     }
+
+    this.updateInProgress = true;
+
+    console.log(`🔄 [GlobalWeatherManager] Update ultra-optimisé toutes les scènes (${changeType})`);
+
+    // Appliquer à toutes les scènes actives
+    for (const sceneKey of this.activeScenes) {
+      const sceneData = this.registeredScenes.get(sceneKey);
+      if (sceneData) {
+        this.applyOptimizedWeatherToScene(sceneData);
+        this.applyWeatherEffectsToScene(sceneData);
+      }
+    }
+
+    this.updateInProgress = false;
   }
 
-  this.updateInProgress = false;
-}
-
-  applyWeatherToScene(sceneData, force = false) {
-    const { environment, overlay, sceneKey, zoneName } = sceneData;
+  // ✅ APPLICATION MÉTÉO ULTRA-OPTIMISÉE - NUIT RÉDUITE + PAS DE COULEUR PLUIE
+  applyOptimizedWeatherToScene(sceneData, force = false) {
+    const { environment, overlay, sceneKey } = sceneData;
 
     if (!overlay) {
       if (this.debugMode) {
@@ -265,13 +255,13 @@ if (weatherEffects) {
     // Skip si même état (sauf si forcé)
     if (!force && sceneData.lastState === stateKey) {
       if (this.debugMode) {
-        console.log(`⚡ [GlobalWeatherManager] Skip ${sceneKey} - état identique: ${stateKey}`);
+        console.log(`⚡ [GlobalWeatherManager] Skip ultra-optimisé ${sceneKey} - état identique: ${stateKey}`);
       }
       return;
     }
 
-    // Calculer couleur et alpha
-    const { color, alpha } = this.calculateWeatherEffect(environment);
+    // ✅ CALCUL ULTRA-OPTIMISÉ
+    const { color, alpha } = this.calculateOptimizedWeatherEffect(environment);
 
     if (this.debugMode) {
       console.log(`🎨 [GlobalWeatherManager] ${sceneKey} → ${stateKey} (couleur: 0x${color.toString(16)}, alpha: ${alpha})`);
@@ -291,8 +281,9 @@ if (weatherEffects) {
     sceneData.lastState = stateKey;
   }
 
-  calculateWeatherEffect(environment) {
-    let color = 0x000044;
+  // ✅ CALCUL ULTRA-OPTIMISÉ - NUIT RÉDUITE + PAS DE COULEUR PLUIE
+  calculateOptimizedWeatherEffect(environment) {
+    let color = 0x000044; // ✅ COULEUR FIXE - PAS DE CHANGEMENT POUR LA PLUIE
     let alpha = 0;
 
     // Environnement spéciaux
@@ -301,41 +292,71 @@ if (weatherEffects) {
     }
 
     if (environment === 'cave') {
-      return { color: 0x2D1B0E, alpha: 0.6 }; // Toujours sombre
+      return { color: 0x2D1B0E, alpha: 0.4 }; // ✅ RÉDUIT de 0.6 à 0.4
     }
 
-    // Extérieur - effet nuit
+    // ✅ NUIT RÉDUITE - de 0.4 à 0.25
     if (!this.currentTime.isDayTime) {
-      alpha = 0.4;
-      color = 0x000044;
+      alpha = 0.25; // ✅ BEAUCOUP PLUS CLAIR LA NUIT
+      color = 0x000044; // Couleur fixe
     }
 
-    // Effets météo (s'ajoutent)
+    // ✅ EFFETS MÉTÉO SANS CHANGEMENT DE COULEUR
     const weather = this.currentWeather.weather;
     
     if (weather === 'rain') {
-      color = 0x4488FF;
-      alpha = Math.max(alpha, 0.1);
-      if (!this.currentTime.isDayTime) alpha = 0.5;
+      // ✅ PAS DE CHANGEMENT DE COULEUR - juste légère intensification
+      alpha = Math.max(alpha, 0.05); // Très léger
+      if (!this.currentTime.isDayTime) alpha = 0.35; // ✅ RÉDUIT de 0.5 à 0.35
     } else if (weather === 'storm') {
-      color = 0x333366;
-      alpha = Math.max(alpha, 0.15);
-      if (!this.currentTime.isDayTime) alpha = 0.6;
+      // ✅ PAS DE CHANGEMENT DE COULEUR
+      alpha = Math.max(alpha, 0.1);
+      if (!this.currentTime.isDayTime) alpha = 0.4; // ✅ RÉDUIT de 0.6 à 0.4
     } else if (weather === 'snow') {
+      // ✅ Neige garde un léger effet mais réduit
       color = this.currentTime.isDayTime ? 0xCCDDFF : 0x334466;
-      alpha = Math.max(alpha, 0.05);
-      if (!this.currentTime.isDayTime) alpha = 0.45;
+      alpha = Math.max(alpha, 0.03); // ✅ RÉDUIT de 0.05 à 0.03
+      if (!this.currentTime.isDayTime) alpha = 0.3; // ✅ RÉDUIT de 0.45 à 0.3
     } else if (weather === 'fog') {
       color = 0xCCCCCC;
-      alpha = Math.max(alpha, 0.1);
-      if (!this.currentTime.isDayTime) alpha = 0.55;
+      alpha = Math.max(alpha, 0.08); // ✅ RÉDUIT de 0.1 à 0.08
+      if (!this.currentTime.isDayTime) alpha = 0.4; // ✅ RÉDUIT de 0.55 à 0.4
     }
 
     return { color, alpha };
   }
 
   // =====================================
-  // API PUBLIQUE
+  // EFFETS VISUELS OPTIMISÉS
+  // =====================================
+
+  applyWeatherEffectsToScene(sceneData) {
+    const { weatherEffects, environment } = sceneData;
+    
+    if (!weatherEffects) return;
+
+    // Définir le type d'environnement
+    weatherEffects.setEnvironmentType(environment);
+
+    // Appliquer la météo actuelle
+    if (environment === 'outdoor') {
+      weatherEffects.setWeather(this.currentWeather.weather);
+    } else {
+      weatherEffects.setWeather('clear'); // Pas d'effets en intérieur
+    }
+  }
+
+  updateWeatherEffectsForAllScenes(weather) {
+    for (const [sceneKey, weatherEffects] of this.sceneWeatherEffects) {
+      const sceneData = this.registeredScenes.get(sceneKey);
+      if (sceneData && sceneData.environment === 'outdoor') {
+        weatherEffects.setWeather(weather);
+      }
+    }
+  }
+
+  // =====================================
+  // API PUBLIQUE INCHANGÉE
   // =====================================
 
   getCurrentTime() {
@@ -352,11 +373,11 @@ if (weatherEffects) {
 
   forceUpdate() {
     if (!this.isInitialized) {
-      console.warn('⚠️ [GlobalWeatherManager] Pas initialisé pour force update');
+      console.warn('⚠️ [GlobalWeatherManager] Pas initialisé pour force update ultra-optimisé');
       return;
     }
 
-    console.log('🔄 [GlobalWeatherManager] Force update de toutes les scènes');
+    console.log('🔄 [GlobalWeatherManager] Force update ultra-optimisé de toutes les scènes');
 
     // Reset des états pour forcer le refresh
     for (const sceneData of this.registeredScenes.values()) {
@@ -367,14 +388,13 @@ if (weatherEffects) {
   }
 
   onZoneChanged(zoneName) {
-    console.log(`🌍 [GlobalWeatherManager] Zone changée: ${zoneName}`);
+    console.log(`🌍 [GlobalWeatherManager] Zone changée ultra-optimisée: ${zoneName}`);
     
-    // Si on a une scène active qui correspond à cette zone, la réappliquer
     for (const sceneKey of this.activeScenes) {
       const sceneData = this.registeredScenes.get(sceneKey);
       if (sceneData && sceneData.zoneName === zoneName) {
-        sceneData.lastState = null; // Force refresh
-        this.applyWeatherToScene(sceneData, true);
+        sceneData.lastState = null;
+        this.applyOptimizedWeatherToScene(sceneData, true);
         break;
       }
     }
@@ -386,7 +406,7 @@ if (weatherEffects) {
 
   setDebugMode(enabled) {
     this.debugMode = enabled;
-    console.log(`🔧 [GlobalWeatherManager] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+    console.log(`🔧 [GlobalWeatherManager] Debug mode ultra-optimisé: ${enabled ? 'ON' : 'OFF'}`);
     
     // Propager au TimeWeatherManager
     if (this.timeWeatherManager) {
@@ -402,23 +422,29 @@ if (weatherEffects) {
       currentTime: this.currentTime,
       currentWeather: this.currentWeather,
       debugMode: this.debugMode,
-      scenes: Array.from(this.registeredScenes.keys())
+      scenes: Array.from(this.registeredScenes.keys()),
+      optimizations: {
+        reducedNightAlpha: true,
+        noRainColorChange: true,
+        singleTileSprite: true
+      }
     };
   }
 
   debug() {
-    console.log('🔍 [GlobalWeatherManager] === DEBUG ===');
+    console.log('🔍 [GlobalWeatherManager] === DEBUG ULTRA-OPTIMISÉ ===');
     
     const stats = this.getStats();
-    console.log('📊 Stats globales:', stats);
+    console.log('📊 Stats ultra-optimisées:', stats);
     
     // Debug par scène
-    console.log('📝 Scènes enregistrées:');
+    console.log('📝 Scènes ultra-optimisées:');
     for (const [sceneKey, sceneData] of this.registeredScenes) {
       console.log(`  ${sceneKey}:`, {
         zone: sceneData.zoneName,
         environment: sceneData.environment,
         hasOverlay: !!sceneData.overlay,
+        hasWeatherEffects: !!sceneData.weatherEffects,
         lastState: sceneData.lastState,
         isActive: this.activeScenes.has(sceneKey)
       });
@@ -426,42 +452,26 @@ if (weatherEffects) {
 
     // Debug TimeWeatherManager
     if (this.timeWeatherManager) {
-      console.log('⏰ TimeWeatherManager:');
+      console.log('⏰ TimeWeatherManager ultra-optimisé:');
       this.timeWeatherManager.debug();
     }
+
+    // Debug optimisations
+    console.log('⚡ Optimisations actives:');
+    console.log('  - Nuit réduite: 0.25 alpha (au lieu de 0.4)');
+    console.log('  - Pas de couleur pluie: couleur fixe 0x000044');
+    console.log('  - 1 TileSprite au lieu de 2 pour la pluie');
+    console.log('  - Textures 32x32 au lieu de 128x128');
+    console.log('  - Pas de variations automatiques');
+    console.log('  - Pas d\'effet de vent');
   }
 
-  applyWeatherEffectsToScene(sceneData) {
-  const { weatherEffects, environment } = sceneData;
-  
-  if (!weatherEffects) return;
-
-  // ✅ Définir le type d'environnement
-  weatherEffects.setEnvironmentType(environment);
-
-  // ✅ Appliquer la météo actuelle
-  if (environment === 'outdoor') {
-    weatherEffects.setWeather(this.currentWeather.weather);
-  } else {
-    weatherEffects.setWeather('clear'); // Pas d'effets en intérieur
-  }
-}
-
-// 🆕 NOUVELLE MÉTHODE: Mettre à jour effets pour toutes les scènes
-updateWeatherEffectsForAllScenes(weather) {
-  for (const [sceneKey, weatherEffects] of this.sceneWeatherEffects) {
-    const sceneData = this.registeredScenes.get(sceneKey);
-    if (sceneData && sceneData.environment === 'outdoor') {
-      weatherEffects.setWeather(weather);
-    }
-  }
-}
   // =====================================
-  // NETTOYAGE
+  // NETTOYAGE ULTRA-OPTIMISÉ
   // =====================================
 
   destroy() {
-    console.log('🧹 [GlobalWeatherManager] Destruction...');
+    console.log('🧹 [GlobalWeatherManager] Destruction ultra-optimisée...');
 
     // Nettoyer toutes les scènes
     for (const sceneKey of this.registeredScenes.keys()) {
@@ -472,6 +482,7 @@ updateWeatherEffectsForAllScenes(weather) {
     this.registeredScenes.clear();
     this.activeScenes.clear();
     this.sceneOverlays.clear();
+    this.sceneWeatherEffects.clear();
 
     // Nettoyer le TimeWeatherManager
     if (this.timeWeatherManager) {
@@ -483,12 +494,12 @@ updateWeatherEffectsForAllScenes(weather) {
     this.isInitialized = false;
     this.networkManager = null;
 
-    console.log('✅ [GlobalWeatherManager] Détruit');
+    console.log('✅ [GlobalWeatherManager] Détruit ultra-optimisé');
   }
 }
 
 // =====================================
-// INSTANCE GLOBALE
+// INSTANCE GLOBALE ULTRA-OPTIMISÉE
 // =====================================
 
 export const globalWeatherManager = new GlobalWeatherManager();
