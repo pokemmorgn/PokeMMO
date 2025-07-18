@@ -4,7 +4,7 @@ import { Schema, type } from "@colyseus/schema";
 import { verifyPersonalMessage } from "@mysten/sui.js/verify";
 import { PlayerData } from "../models/PlayerData";
 import bcrypt from 'bcrypt';
-import jwt, { SignOptions } from 'jsonwebtoken'; // ✅ Ajout SignOptions
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 // État de la room d'authentification
 export class AuthState extends Schema {
@@ -47,6 +47,29 @@ export class AuthRoom extends Room<AuthState> {
   }
 
   private setupMessageHandlers() {
+    // ✅ NOUVEAU: Debug connection pour vérifier les headers
+    this.onMessage("debug_connection", (client) => {
+      const headers = (client as any).request?.headers || {};
+      const connection = (client as any).request?.connection || {};
+      const socket = (client as any).request?.socket || {};
+      
+      console.log("🔍 [AuthRoom] DEBUG Headers pour", client.sessionId);
+      console.log("📋 Headers:", {
+        'x-forwarded-for': headers['x-forwarded-for'],
+        'x-real-ip': headers['x-real-ip'],
+        'cf-connecting-ip': headers['cf-connecting-ip'],
+        'x-client-ip': headers['x-client-ip'],
+        'x-cluster-client-ip': headers['x-cluster-client-ip'],
+        'forwarded': headers['forwarded'],
+        'user-agent': headers['user-agent']
+      });
+      console.log("🔌 Connection:", {
+        remoteAddress: connection.remoteAddress,
+        remotePort: connection.remotePort,
+        socketRemoteAddress: socket.remoteAddress
+      });
+    });
+
     // ✅ HANDLER : Registration sécurisée
     this.onMessage("user_register", async (client, payload) => {
       const clientIP = this.getClientIP(client);
@@ -134,15 +157,15 @@ export class AuthRoom extends Room<AuthState> {
         await newUser.save();
         
         // ✅ GÉNÉRER JWT sécurisé
-const sessionToken = this.generateJWT({
-  username: newUser.username,
-  userId: newUser._id,
-  permissions: ['play'],
-  type: 'game_session',
-  deviceFingerprint,
-  registrationTime: Date.now(),
-  isDev: newUser.isDev || false  // ✅ AJOUTER CETTE LIGNE
-});
+        const sessionToken = this.generateJWT({
+          username: newUser.username,
+          userId: newUser._id,
+          permissions: ['play'],
+          type: 'game_session',
+          deviceFingerprint,
+          registrationTime: Date.now(),
+          isDev: newUser.isDev || false
+        });
 
         // ✅ STOCKER session active avec métadonnées
         this.activeSessions.set(sessionToken, {
@@ -157,21 +180,21 @@ const sessionToken = this.generateJWT({
         });
 
         // ✅ RÉPONSE sécurisée (pas d'infos sensibles)
-client.send("register_result", {
-  status: "ok",
-  sessionToken,
-  tokenExpiry: Date.now() + this.getSessionDuration(),
-  permissions: ['play'],
-  userData: { 
-    username: newUser.username, 
-    email: newUser.email,
-    level: newUser.level,
-    coins: newUser.gold,
-    lastMap: newUser.lastMap,
-    isNewUser: true,
-    isDev: newUser.isDev || false  // ✅ AJOUTER CETTE LIGNE
-  }
-});
+        client.send("register_result", {
+          status: "ok",
+          sessionToken,
+          tokenExpiry: Date.now() + this.getSessionDuration(),
+          permissions: ['play'],
+          userData: { 
+            username: newUser.username, 
+            email: newUser.email,
+            level: newUser.level,
+            coins: newUser.gold,
+            lastMap: newUser.lastMap,
+            isNewUser: true,
+            isDev: newUser.isDev || false
+          }
+        });
 
         console.log(`✅ Nouvel utilisateur créé: ${newUser.username} (${newUser.email}) depuis ${clientIP}`);
 
@@ -229,7 +252,7 @@ client.send("register_result", {
         }
 
         // ✅ VÉRIFICATIONS de sécurité du compte
-if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date())) {
+        if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date())) {
           client.send("login_result", { 
             status: "error", 
             reason: `Account banned${user.banReason ? ': ' + user.banReason : ''}` 
@@ -237,7 +260,7 @@ if (user.isBanned && (!user.banExpiresAt || user.banExpiresAt > new Date())) {
           return;
         }
 
-if (user.failedLoginAttempts >= 5 && user.lastFailedLogin && (Date.now() - user.lastFailedLogin.getTime()) < 15 * 60 * 1000) {
+        if (user.failedLoginAttempts >= 5 && user.lastFailedLogin && (Date.now() - user.lastFailedLogin.getTime()) < 15 * 60 * 1000) {
           client.send("login_result", { 
             status: "error", 
             reason: "Account temporarily locked due to failed login attempts. Try again later." 
@@ -248,9 +271,9 @@ if (user.failedLoginAttempts >= 5 && user.lastFailedLogin && (Date.now() - user.
         // ✅ VÉRIFICATION mot de passe
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-user.lastFailedLogin = new Date();
-await user.save();
+          user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+          user.lastFailedLogin = new Date();
+          await user.save();
           this.recordFailedAttempt(clientIP, 'login');
           
           client.send("login_result", { 
@@ -261,29 +284,29 @@ await user.save();
         }
 
         // ✅ CONNEXION réussie - mise à jour utilisateur
-user.lastLogin = new Date();
-user.loginCount = (user.loginCount || 0) + 1;
-if (clientIP) user.lastLoginIP = clientIP;
+        user.lastLogin = new Date();
+        user.loginCount = (user.loginCount || 0) + 1;
+        if (clientIP) user.lastLoginIP = clientIP;
         user.currentSessionStart = new Date(); // Démarrer session
-
-user.failedLoginAttempts = 0;
-user.lastFailedLogin = undefined;
-await user.save();
+        user.failedLoginAttempts = 0;
+        user.lastFailedLogin = undefined;
+        
         if (deviceFingerprint) {
           user.deviceFingerprint = deviceFingerprint;
-          await user.save();
         }
+        
+        await user.save();
 
         // ✅ GÉNÉRER nouveau JWT
-const sessionToken = this.generateJWT({
-  username: user.username,
-  userId: user._id,
-  permissions: ['play'],
-  type: 'game_session',
-  deviceFingerprint,
-  loginTime: Date.now(),
-  isDev: user.isDev || false  // ✅ AJOUTER CETTE LIGNE
-});
+        const sessionToken = this.generateJWT({
+          username: user.username,
+          userId: user._id,
+          permissions: ['play'],
+          type: 'game_session',
+          deviceFingerprint,
+          loginTime: Date.now(),
+          isDev: user.isDev || false
+        });
 
         // ✅ STOCKER session active
         this.activeSessions.set(sessionToken, {
@@ -298,23 +321,23 @@ const sessionToken = this.generateJWT({
         });
 
         // ✅ RÉPONSE avec données utilisateur
-client.send("login_result", {
-  status: "ok",
-  sessionToken,
-  tokenExpiry: Date.now() + this.getSessionDuration(),
-  permissions: ['play'],
-  userData: { 
-    username: user.username, 
-    email: user.email,
-    level: user.level || 1,
-    coins: user.gold || 1000,
-    lastMap: user.lastMap || "beach",
-    playtime: user.totalPlaytime || 0,
-    loginCount: user.loginCount,
-    lastLogin: user.lastLogin,
-    isDev: user.isDev || false  // ✅ AJOUTER CETTE LIGNE
-  }
-});
+        client.send("login_result", {
+          status: "ok",
+          sessionToken,
+          tokenExpiry: Date.now() + this.getSessionDuration(),
+          permissions: ['play'],
+          userData: { 
+            username: user.username, 
+            email: user.email,
+            level: user.level || 1,
+            coins: user.gold || 1000,
+            lastMap: user.lastMap || "beach",
+            playtime: user.totalPlaytime || 0,
+            loginCount: user.loginCount,
+            lastLogin: user.lastLogin,
+            isDev: user.isDev || false
+          }
+        });
 
         console.log(`✅ Connexion réussie: ${user.username} (connexion #${user.loginCount}) depuis ${clientIP}`);
 
@@ -330,150 +353,153 @@ client.send("login_result", {
 
     // ✅ HANDLER : Session heartbeat
     this.onMessage("session_heartbeat", async (client, payload) => {
-  try {
-    const { sessionToken } = payload;
-    
-    if (!sessionToken) {
-      client.send("heartbeat_response", { status: "error", reason: "Token required" });
-      return;
-    }
-
-    if (this.activeSessions.has(sessionToken)) {
-      const session = this.activeSessions.get(sessionToken);
-      
-      const sessionAge = Date.now() - session.createdAt;
-      if (sessionAge > this.getSessionDuration()) {
-        this.activeSessions.delete(sessionToken);
-        client.send("heartbeat_response", { status: "expired" });
-        return;
-      }
-
-      // ✅ NOUVEAU : Mettre à jour playtime
-      if (session.username) {
-        try {
-          const user = await PlayerData.findOne({ username: session.username });
-          if (user && user.currentSessionStart) {
-            const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
-            user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
-            user.currentSessionStart = new Date(); // Reset pour prochaine mesure
-            await user.save();
-          }
-        } catch (error) {
-          console.error('❌ Erreur update playtime:', error);
-        }
-      }
-
-      session.lastActivity = Date.now();
-      client.send("heartbeat_response", { status: "ok", serverTime: Date.now() });
-      
-    } else {
       try {
-        const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
+        const { sessionToken } = payload;
         
-        this.activeSessions.set(sessionToken, {
-          username: decoded.username,
-          userId: decoded.userId,
-          lastActivity: Date.now(),
-          createdAt: Date.now(),
-          fromHeartbeat: true
-        });
-        
-        client.send("heartbeat_response", { status: "ok", restored: true });
-        
-      } catch (jwtError) {
-        client.send("heartbeat_response", { status: "expired" });
-      }
-    }
+        if (!sessionToken) {
+          client.send("heartbeat_response", { status: "error", reason: "Token required" });
+          return;
+        }
 
-  } catch (error) {
-    console.error('❌ Erreur heartbeat:', error);
-    client.send("heartbeat_response", { status: "error" });
-  }
-});
+        if (this.activeSessions.has(sessionToken)) {
+          const session = this.activeSessions.get(sessionToken);
+          
+          const sessionAge = Date.now() - session.createdAt;
+          if (sessionAge > this.getSessionDuration()) {
+            this.activeSessions.delete(sessionToken);
+            client.send("heartbeat_response", { status: "expired" });
+            return;
+          }
+
+          // ✅ NOUVEAU : Mettre à jour playtime
+          if (session.username) {
+            try {
+              const user = await PlayerData.findOne({ username: session.username });
+              if (user && user.currentSessionStart) {
+                const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
+                user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
+                user.currentSessionStart = new Date(); // Reset pour prochaine mesure
+                await user.save();
+              }
+            } catch (error) {
+              console.error('❌ Erreur update playtime:', error);
+            }
+          }
+
+          session.lastActivity = Date.now();
+          client.send("heartbeat_response", { status: "ok", serverTime: Date.now() });
+          
+        } else {
+          try {
+            const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
+            
+            this.activeSessions.set(sessionToken, {
+              username: decoded.username,
+              userId: decoded.userId,
+              lastActivity: Date.now(),
+              createdAt: Date.now(),
+              fromHeartbeat: true
+            });
+            
+            client.send("heartbeat_response", { status: "ok", restored: true });
+            
+          } catch (jwtError) {
+            client.send("heartbeat_response", { status: "expired" });
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur heartbeat:', error);
+        client.send("heartbeat_response", { status: "error" });
+      }
+    });
 
     // ✅ HANDLER : Logout sécurisé
-   this.onMessage("user_logout", async (client, payload) => {
-  try {
-    const { sessionToken } = payload;
-    
-    if (sessionToken && this.activeSessions.has(sessionToken)) {
-      const session = this.activeSessions.get(sessionToken);
-      
-      // ✅ NOUVEAU : Finaliser playtime
-      if (session.username) {
-        try {
-          const user = await PlayerData.findOne({ username: session.username });
-          if (user && user.currentSessionStart) {
-            const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
-            user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
-            user.currentSessionStart = null; // Fin de session
-            await user.save();
-            console.log(`⏰ Playtime mis à jour pour ${user.username}: +${sessionTime}min (total: ${user.totalPlaytime}min)`);
+    this.onMessage("user_logout", async (client, payload) => {
+      try {
+        const { sessionToken } = payload;
+        
+        if (sessionToken && this.activeSessions.has(sessionToken)) {
+          const session = this.activeSessions.get(sessionToken);
+          
+          // ✅ NOUVEAU : Finaliser playtime
+          if (session.username) {
+            try {
+              const user = await PlayerData.findOne({ username: session.username });
+              if (user && user.currentSessionStart) {
+                const sessionTime = Math.floor((Date.now() - user.currentSessionStart.getTime()) / (1000 * 60));
+                user.totalPlaytime = (user.totalPlaytime || 0) + sessionTime;
+                user.currentSessionStart = null; // Fin de session
+                await user.save();
+                console.log(`⏰ Playtime mis à jour pour ${user.username}: +${sessionTime}min (total: ${user.totalPlaytime}min)`);
+              }
+            } catch (error) {
+              console.error('❌ Erreur finalize playtime:', error);
+            }
           }
-        } catch (error) {
-          console.error('❌ Erreur finalize playtime:', error);
+          
+          this.activeSessions.delete(sessionToken);
+          console.log(`👋 Déconnexion volontaire: ${session.username}`);
         }
+        
+        client.send("logout_result", { status: "ok" });
+        
+      } catch (error) {
+        console.error('❌ Erreur logout:', error);
+        client.send("logout_result", { status: "error" });
       }
-      
-      this.activeSessions.delete(sessionToken);
-      console.log(`👋 Déconnexion volontaire: ${session.username}`);
-    }
-    
-    client.send("logout_result", { status: "ok" });
-    
-  } catch (error) {
-    console.error('❌ Erreur logout:', error);
-    client.send("logout_result", { status: "error" });
-  }
-});
+    });
 
     // ✅ HANDLER : Liaison wallet sécurisée
-this.onMessage("link_wallet", async (client, payload) => {
-  console.log("🔗 [AuthRoom] === WALLET LINK REQUEST ===");
-  console.log("👤 Client:", client.sessionId);
-  console.log("📊 Payload:", { 
-    username: payload.username, 
-    hasToken: !!payload.sessionToken,
-    tokenLength: payload.sessionToken?.length,
-    address: payload.address,
-    walletType: payload.walletType
-  });      try {
+    this.onMessage("link_wallet", async (client, payload) => {
+      console.log("🔗 [AuthRoom] === WALLET LINK REQUEST ===");
+      console.log("👤 Client:", client.sessionId);
+      console.log("📊 Payload:", { 
+        username: payload.username, 
+        hasToken: !!payload.sessionToken,
+        tokenLength: payload.sessionToken?.length,
+        address: payload.address,
+        walletType: payload.walletType
+      });
+      
+      try {
         const { username, sessionToken, address, signature, message, walletType } = payload;
         
-    // ✅ VÉRIFICATION SESSION AMÉLIORÉE avec debug
-    if (!sessionToken) {
-      console.log("❌ [AuthRoom] Pas de sessionToken");
-      client.send("wallet_linked", { 
-        status: "error", 
-        reason: "No session token provided" 
-      });
-      return;
-    }
- // Debug état des sessions actives
-    console.log("🔍 [AuthRoom] Sessions actives:", this.activeSessions.size);
-console.log("🔍 [AuthRoom] Token dans activeSessions:", this.activeSessions.has(sessionToken));
+        // ✅ VÉRIFICATION SESSION AMÉLIORÉE avec debug
+        if (!sessionToken) {
+          console.log("❌ [AuthRoom] Pas de sessionToken");
+          client.send("wallet_linked", { 
+            status: "error", 
+            reason: "No session token provided" 
+          });
+          return;
+        }
 
-// ✅ VALIDATION SESSION UNIFIÉE
-const sessionCheck = await this.validateSession(sessionToken);
-if (!sessionCheck.valid) {
-  console.log("❌ [AuthRoom] Session invalide");
-  client.send("wallet_linked", { 
-    status: "error", 
-    reason: "Invalid or expired session" 
-  });
-  return;
-}
+        // Debug état des sessions actives
+        console.log("🔍 [AuthRoom] Sessions actives:", this.activeSessions.size);
+        console.log("🔍 [AuthRoom] Token dans activeSessions:", this.activeSessions.has(sessionToken));
 
-if (sessionCheck.username !== username) {
-  console.log("❌ [AuthRoom] Username mismatch");
-  client.send("wallet_linked", { 
-    status: "error", 
-    reason: "Session username mismatch" 
-  });
-  return;
-}
+        // ✅ VALIDATION SESSION UNIFIÉE
+        const sessionCheck = await this.validateSession(sessionToken);
+        if (!sessionCheck.valid) {
+          console.log("❌ [AuthRoom] Session invalide");
+          client.send("wallet_linked", { 
+            status: "error", 
+            reason: "Invalid or expired session" 
+          });
+          return;
+        }
 
-console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
+        if (sessionCheck.username !== username) {
+          console.log("❌ [AuthRoom] Username mismatch");
+          client.send("wallet_linked", { 
+            status: "error", 
+            reason: "Session username mismatch" 
+          });
+          return;
+        }
+
+        console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
 
         // ✅ VÉRIFIER la signature wallet
         const isValid = await this.verifySlushSignature(address, signature, message);
@@ -527,7 +553,6 @@ console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
 
     // ✅ HANDLERS EXISTANTS (compatibilité)
     this.onMessage("authenticate", async (client, payload) => {
-      // Votre code wallet existant pour rétrocompatibilité
       console.log("📨 Demande d'authentification wallet (ancien système):", {
         address: payload.address,
         walletType: payload.walletType,
@@ -567,7 +592,6 @@ console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
     });
 
     this.onMessage("username_auth", async (client, payload) => {
-      // Votre code username existant pour rétrocompatibilité
       console.log("📨 Demande d'authentification username (ancien système):", payload);
 
       try {
@@ -634,6 +658,119 @@ console.log(`✅ [AuthRoom] Session validée pour ${sessionCheck.username}`);
     this.onMessage("ping", (client) => {
       client.send("pong", { time: Date.now() });
     });
+  }
+
+  // ✅ MÉTHODE AMÉLIORÉE pour récupérer l'IP
+  private getClientIP(client: Client): string {
+    try {
+      const headers = (client as any).request?.headers || {};
+      const connection = (client as any).request?.connection || {};
+      const socket = (client as any).request?.socket || {};
+      
+      console.log(`🔍 [AuthRoom] Recherche IP pour client ${client.sessionId}`);
+      
+      // ✅ ORDRE DE PRIORITÉ pour les headers d'IP
+      const ipSources = [
+        headers['cf-connecting-ip'],          // Cloudflare
+        headers['x-real-ip'],                 // Nginx/Apache
+        headers['x-forwarded-for']?.split(',')[0]?.trim(), // Load balancer
+        headers['x-client-ip'],               // Alternative
+        headers['x-cluster-client-ip'],       // Cluster
+        headers['forwarded']?.match(/for=([^;,\s]+)/)?.[1], // RFC 7239
+        connection.remoteAddress,             // Direct connection
+        socket.remoteAddress                  // Socket level
+      ];
+      
+      // ✅ TROUVER la première IP valide
+      for (const ip of ipSources) {
+        if (ip && this.isValidIP(ip)) {
+          const cleanedIP = this.cleanIP(ip);
+          console.log(`✅ [AuthRoom] IP trouvée: ${cleanedIP} pour client ${client.sessionId}`);
+          return cleanedIP;
+        }
+      }
+      
+      // ✅ FALLBACK: essayer de construire une IP unique
+      const fallbackIP = this.generateFallbackIP(client, headers);
+      console.log(`⚠️ [AuthRoom] IP fallback: ${fallbackIP} pour client ${client.sessionId}`);
+      return fallbackIP;
+      
+    } catch (error) {
+      console.error(`❌ [AuthRoom] Erreur récupération IP:`, error);
+      return `error_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Valider une IP
+  private isValidIP(ip: string): boolean {
+    if (!ip || ip === 'unknown' || ip.length < 7) return false;
+    
+    // IPv4 simple check
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipv4Regex.test(ip)) {
+      const parts = ip.split('.');
+      return parts.every(part => {
+        const num = parseInt(part);
+        return num >= 0 && num <= 255;
+      });
+    }
+    
+    // IPv6 simple check
+    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}$/;
+    if (ipv6Regex.test(ip)) return true;
+    
+    // Local addresses are valid
+    if (ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Nettoyer l'IP
+  private cleanIP(ip: string): string {
+    if (!ip) return 'unknown';
+    
+    // Retirer les ports
+    ip = ip.split(':')[0];
+    
+    // Retirer les caractères non-IP
+    ip = ip.replace(/[^\d\.\:a-fA-F]/g, '');
+    
+    // Mapping des IPs locales pour le développement
+    if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+      return 'localhost';
+    }
+    
+    if (ip.startsWith('192.168.') || ip.startsWith('10.')) {
+      return `local_${ip}`;
+    }
+    
+    return ip;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Générer IP de fallback
+  private generateFallbackIP(client: Client, headers: any): string {
+    const userAgent = headers['user-agent'] || '';
+    const acceptLanguage = headers['accept-language'] || '';
+    const sessionId = client.sessionId;
+    
+    // Créer un hash unique basé sur les infos disponibles
+    const fingerprint = `${userAgent}_${acceptLanguage}_${sessionId}`.slice(0, 50);
+    const hash = this.simpleHash(fingerprint);
+    
+    return `unknown_${hash}`;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Hash simple
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36).substring(0, 8);
   }
 
   // ✅ MÉTHODES UTILITAIRES de sécurité
