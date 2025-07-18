@@ -874,34 +874,6 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
       console.log(`👻 [WorldRoom] Vérification présence ${client.sessionId}: ${exists}`);
     });
     
-    // === HANDLERS POUR LES QUÊTES ===
-
-    // Démarrage de quête
-    this.onMessage("startQuest", (client, data) => {
-      console.log(`🎯 === QUEST START REQUEST ===`);
-      this.handleStartQuest(client, data);
-    });
-
-    // Récupérer les quêtes actives
-    this.onMessage("getActiveQuests", (client) => {
-      this.handleGetActiveQuests(client);
-    });
-
-    // Récupérer les quêtes disponibles
-    this.onMessage("getAvailableQuests", (client) => {
-      this.handleGetAvailableQuests(client);
-    });
-
-    // Progression de quête
-    this.onMessage("questProgress", (client, data) => {
-      this.handleQuestProgress(client, data);
-    });
-
-    // Debug des quêtes
-    this.onMessage("debugQuests", (client) => {
-      this.debugQuests(client);
-    });
-
     // === HANDLERS POUR LES SHOPS ===
 
     // Transaction shop (achat/vente)
