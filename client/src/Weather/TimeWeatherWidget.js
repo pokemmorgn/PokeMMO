@@ -247,28 +247,44 @@ export class TimeWeatherWidget {
       setTimeout(() => this.connectToGlobalWeatherManager(), 100);
     }
   }
-
-  subscribeToWeatherUpdates() {
-    console.log('📡 [PokémonWeatherWidget] Abonnement aux mises à jour météo');
-    
-    // Callbacks directs GlobalWeatherManager
-    if (window.globalWeatherManager && typeof window.globalWeatherManager.onTimeChange === 'function') {
+subscribeToWeatherUpdates() {
+  // PRIORITÉ 1: Callbacks directs (instantanés)
+  if (window.globalWeatherManager) {
+    if (typeof window.globalWeatherManager.onTimeChange === 'function') {
       window.globalWeatherManager.onTimeChange((hour, isDayTime) => {
-        console.log(`⚡ Temps mis à jour: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
         this.updateTime(hour, isDayTime);
-        this.lastRealTimeUpdate = Date.now();
-      });
-      
-      window.globalWeatherManager.onWeatherChange((weather, displayName) => {
-        console.log(`⚡ Météo mise à jour: ${displayName}`);
-        this.updateWeather(weather, displayName, '22°C');
         this.lastRealTimeUpdate = Date.now();
       });
     }
     
-    // Polling intelligent de backup
-    this.startIntelligentPolling();
+    if (typeof window.globalWeatherManager.onWeatherChange === 'function') {
+      window.globalWeatherManager.onWeatherChange((weather, displayName) => {
+        this.updateWeather(weather, displayName, '22°C');
+        this.lastRealTimeUpdate = Date.now();
+      });
+    }
   }
+  
+  // PRIORITÉ 2: Fallback via timeWeatherManager
+  if (window.globalWeatherManager?.timeWeatherManager) {
+    const manager = window.globalWeatherManager.timeWeatherManager;
+    
+    if (typeof manager.onTimeChange === 'function') {
+      manager.onTimeChange((hour, isDayTime) => {
+        this.updateTime(hour, isDayTime);
+      });
+    }
+    
+    if (typeof manager.onWeatherChange === 'function') {
+      manager.onWeatherChange((weather, displayName) => {
+        this.updateWeather(weather, displayName, '22°C');
+      });
+    }
+  }
+  
+  // PRIORITÉ 3: Polling de backup (500ms seulement)
+  this.startIntelligentPolling();
+}
 
   startIntelligentPolling() {
     if (!window.globalNetworkManager?.room) return;
