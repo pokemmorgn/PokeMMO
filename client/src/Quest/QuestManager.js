@@ -527,23 +527,27 @@ export class QuestManager {
   }
   
   // ✅ NOUVELLE MÉTHODE: Séquence de completion d'objectif
-  triggerObjectiveCompletionSequence(result) {
-    console.log('🎬 [QuestManager] Démarrage séquence completion objectif:', result.objectiveName);
-    
-    // ÉTAPE 1 (Immédiate) : Objectif passe en VERT
-    this.markObjectiveAsCompleting(result);
-    
-    // ÉTAPE 2 (+500ms) : Notification "Objectif terminé"
-    setTimeout(() => {
-      this.showNotification(`✅ Objectif terminé : ${result.objectiveName}`, 'success');
-      this.markObjectiveAsCompleted(result);
-    }, 500);
-    
-    // ÉTAPE 3 (+2500ms) : Transition vers objectif suivant
-    setTimeout(() => {
-      this.transitionToNextObjective(result);
-    }, 2500);
-  }
+// ✅ VERSION SANS SETTIMEOUT : Séquence de completion d'objectif
+async triggerObjectiveCompletionSequence(result) {
+  console.log('🎬 [QuestManager] Démarrage séquence completion objectif (Promise):', result.objectiveName);
+  
+  // ÉTAPE 1 (Immédiate) : Objectif passe en VERT
+  this.markObjectiveAsCompleting(result);
+  
+  // ÉTAPE 2 (+500ms) : Notification "Objectif terminé" 
+  await this.delay(500);
+  this.showNotification(`✅ Objectif terminé : ${result.objectiveName}`, 'success');
+  this.markObjectiveAsCompleted(result);
+  
+  // ÉTAPE 3 (+2000ms) : Transition vers objectif suivant
+  await this.delay(2000);
+  this.transitionToNextObjective(result);
+}
+
+// Méthode helper pour remplacer setTimeout
+delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
   
   // ✅ NOUVELLE MÉTHODE: Marquer objectif en cours de completion (VERT)
   markObjectiveAsCompleting(result) {
