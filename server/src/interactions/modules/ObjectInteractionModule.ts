@@ -9,7 +9,6 @@ import {
   InteractionResult, 
   InteractionContext,
   InteractionType,
-  ObjectInteractionResult,
   INTERACTION_RESULT_TYPES,
   createInteractionResult
 } from "../types/BaseInteractionTypes";
