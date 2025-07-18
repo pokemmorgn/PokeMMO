@@ -1,4 +1,4 @@
-// ui/TimeWeatherWidget.js - Style Pokémon Moderne
+// ui/TimeWeatherWidget.js - Style Pokémon Moderne avec Particules Dynamiques
 import { POKEMON_WEATHER_STYLES } from './PokemonWeatherStyles.js';
 
 export class TimeWeatherWidget {
@@ -10,18 +10,18 @@ export class TimeWeatherWidget {
     this.isDayTime = true;
     this.weather = { weather: 'clear', displayName: 'Clear', temperature: '22°C' };
     this.location = 'Village';
-    this.weatherIntensity = 75;
     this.gameplayBonus = { active: true, text: '+15% XP Pokémon Eau', type: 'water' };
     
-    // 🎮 Icônes météo Pokémon thématiques
-    this.pokemonWeatherIcons = {
+    // 🎮 Configuration météo Pokémon avec particules
+    this.pokemonWeatherConfig = {
       clear: { 
         icon: '☀️', 
         pokemon: '🔥', 
         gradient: 'linear-gradient(135deg, #ff9a56 0%, #ffcc33 100%)',
         particles: '✨',
         bonus: 'Feu',
-        color: '#ff9a56'
+        color: '#ff9a56',
+        particleCount: 6
       },
       rain: { 
         icon: '🌧️', 
@@ -29,7 +29,8 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(135deg, #3b82f6 0%, #64748b 100%)',
         particles: '💧',
         bonus: 'Eau',
-        color: '#3b82f6'
+        color: '#3b82f6',
+        particleCount: 8
       },
       storm: { 
         icon: '⚡', 
@@ -37,7 +38,8 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(135deg, #6366f1 0%, #1e1b4b 100%)',
         particles: '⚡',
         bonus: 'Électrik',
-        color: '#6366f1'
+        color: '#6366f1',
+        particleCount: 10
       },
       snow: { 
         icon: '❄️', 
@@ -45,7 +47,8 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(135deg, #60a5fa 0%, #f8fafc 100%)',
         particles: '❄️',
         bonus: 'Glace',
-        color: '#60a5fa'
+        color: '#60a5fa',
+        particleCount: 12
       },
       fog: { 
         icon: '🌫️', 
@@ -53,7 +56,8 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(135deg, #9ca3af 0%, #f3f4f6 100%)',
         particles: '🌫️',
         bonus: 'Spectre',
-        color: '#9ca3af'
+        color: '#9ca3af',
+        particleCount: 5
       },
       cloudy: { 
         icon: '☁️', 
@@ -61,44 +65,68 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(135deg, #6b7280 0%, #d1d5db 100%)',
         particles: '☁️',
         bonus: 'Vol',
-        color: '#6b7280'
+        color: '#6b7280',
+        particleCount: 4
       }
     };
     
-    // États pour UIManager
+    // États UIManager
     this.isVisible = true;
     this.isEnabled = true;
     this.initialized = false;
     
-    // Animation states
+    // Animation et synchronisation
     this.isAnimating = false;
     this.animationFrame = null;
+    this.particleAnimationFrame = null;
     this.syncInterval = null;
     this.stateCheckInterval = null;
-    this.particleAnimationFrame = null;
-    
-    // Tracking temps réel
     this.lastRealTimeUpdate = 0;
     
-    // UIManager control
+    // Configuration UIManager
     this.positioningMode = 'uimanager';
     this.uiManagerControlled = true;
-    
     this.onPositioned = this.onPositioned.bind(this);
-    console.log('🎮 [PokémonWeatherWidget] Instance créée - Style Pokémon Moderne');
+    
+    console.log('🎮 [PokémonWeatherWidget] Instance créée avec particules dynamiques');
   }
 
-  // === 🎨 CRÉATION DU WIDGET POKÉMON ===
+  // === 🎨 CRÉATION DU WIDGET ===
   createIcon() {
-    console.log('🎮 [PokémonWeatherWidget] createIcon() - Style Pokémon Moderne');
+    console.log('🎮 [PokémonWeatherWidget] Création du widget avec particules');
     
+    // Nettoyage
     const existing = document.getElementById(this.id);
     if (existing) existing.remove();
     
+    // Création de l'élément principal
     const el = document.createElement('div');
     el.id = this.id;
     el.className = 'pokemon-weather-widget ui-icon';
-    el.innerHTML = `
+    el.innerHTML = this.generateWidgetHTML();
+    
+    document.body.appendChild(el);
+    this.element = el;
+    
+    // Initialisation
+    this.injectStyles();
+    this.initializeConnections();
+    this.updateInitialContent();
+    this.startAllAnimations();
+    
+    // Synchronisation différée
+    setTimeout(() => {
+      this.forceImmediateSync();
+      setTimeout(() => this.updateCurrentZone(), 200);
+    }, 100);
+    
+    this.initialized = true;
+    console.log('✅ [PokémonWeatherWidget] Widget Pokémon créé avec succès');
+    return el;
+  }
+
+  generateWidgetHTML() {
+    return `
       <!-- Pokéball Background -->
       <div class="pokeball-background">
         <div class="pokeball-top"></div>
@@ -108,18 +136,16 @@ export class TimeWeatherWidget {
         </div>
       </div>
       
-      <!-- Weather Particles -->
-      <div class="weather-particles">
-        <div class="particle particle-1"></div>
-        <div class="particle particle-2"></div>
-        <div class="particle particle-3"></div>
+      <!-- Weather Particles Container -->
+      <div class="weather-particles" id="${this.id}-particles">
+        ${this.generateParticlesHTML()}
       </div>
       
       <!-- Main Widget Content -->
       <div class="widget-glass-container">
         <div class="widget-content">
           <!-- Header avec Zone -->
-          <div class="header-section">
+          <div class="header-section" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="zone-badge" id="${this.id}-zone">
               <span class="zone-icon">📍</span>
               <span class="zone-text">Village</span>
@@ -127,7 +153,7 @@ export class TimeWeatherWidget {
           </div>
           
           <!-- Section Temps et Météo -->
-<div class="main-section" style="margin-top: -22px; position: relative; top: -22px;">
+          <div class="main-section" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="time-section">
               <div class="time-display">
                 <div class="time-icon" id="${this.id}-time-icon">🕐</div>
@@ -153,7 +179,7 @@ export class TimeWeatherWidget {
           </div>
           
           <!-- Section Bonus Gameplay -->
-<div class="bonus-section" id="${this.id}-bonus" style="margin-top: -22px; position: relative; top: -22px;">
+          <div class="bonus-section" id="${this.id}-bonus" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="bonus-icon">🎮</div>
             <div class="bonus-text">+15% XP Pokémon Eau</div>
             <div class="bonus-type-icon">💧</div>
@@ -164,41 +190,48 @@ export class TimeWeatherWidget {
       <!-- Glow Effects -->
       <div class="widget-glow" id="${this.id}-glow"></div>
     `;
-    
-    document.body.appendChild(el);
-    this.element = el;
-    
-    this.injectStyles();
-    this.connectToGlobalWeatherManager();
-    
-    // Mise à jour initiale
-    this.updateTime(this.currentHour, this.isDayTime);
-    this.updateWeather(this.weather.weather, this.weather.displayName, this.weather.temperature);
-    this.updateZone(this.location);
-    this.updateGameplayBonus(this.gameplayBonus);
-    
-    this.startAnimations();
-    this.startParticleAnimation();
-    
-    setTimeout(() => {
-      this.forceImmediateSync();
-      setTimeout(() => {
-        this.updateCurrentZone();
-      }, 200);
-    }, 100);
-    
-    this.initialized = true;
-    
-    console.log('✨ [PokémonWeatherWidget] Widget Pokémon créé avec succès');
-    return el;
   }
 
-  // === 🌐 CONNEXION GLOBALE + ZONE MAPPING ===
-  connectToGlobalWeatherManager() {
-    this.initializeZoneMapping();
+  generateParticlesHTML() {
+    const particleCount = this.pokemonWeatherConfig[this.weather.weather]?.particleCount || 6;
+    let particlesHTML = '';
     
+    for (let i = 1; i <= particleCount; i++) {
+      const delay = i * 0.3;
+      const randomX = Math.random() * 100;
+      const randomY = Math.random() * 100;
+      
+      particlesHTML += `
+        <div class="particle particle-${i}" 
+             style="left: ${randomX}%; top: ${randomY}%; animation-delay: ${delay}s;">
+          ✨
+        </div>
+      `;
+    }
+    
+    return particlesHTML;
+  }
+
+  // === 🌐 CONNEXIONS ET SYNCHRONISATION ===
+  initializeConnections() {
+    this.initializeZoneMapping();
+    this.connectToGlobalWeatherManager();
+  }
+
+  initializeZoneMapping() {
+    if (window.ZoneMapping && window.ZoneMapping.config) {
+      this.zoneMapping = window.ZoneMapping;
+      console.log('🗺️ [PokémonWeatherWidget] ZoneMapping connecté');
+    } else {
+      console.warn('⚠️ [PokémonWeatherWidget] ZoneMapping non disponible');
+    }
+  }
+
+  connectToGlobalWeatherManager() {
     if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
       this.subscribeToWeatherUpdates();
+      
+      // Récupération des données actuelles
       const currentTime = window.globalWeatherManager.getCurrentTime();
       const currentWeather = window.globalWeatherManager.getCurrentWeather();
       
@@ -215,90 +248,81 @@ export class TimeWeatherWidget {
     }
   }
 
-  // === 🗺️ INITIALISATION DU MAPPING DES ZONES ===
-  initializeZoneMapping() {
-    if (window.ZoneMapping && window.ZoneMapping.config) {
-      this.zoneMapping = window.ZoneMapping;
-      console.log('🗺️ [PokémonWeatherWidget] ZoneMapping connecté');
-    } else {
-      console.warn('⚠️ [PokémonWeatherWidget] ZoneMapping non disponible');
+  subscribeToWeatherUpdates() {
+    console.log('📡 [PokémonWeatherWidget] Abonnement aux mises à jour météo');
+    
+    // Callbacks directs GlobalWeatherManager
+    if (window.globalWeatherManager && typeof window.globalWeatherManager.onTimeChange === 'function') {
+      window.globalWeatherManager.onTimeChange((hour, isDayTime) => {
+        console.log(`⚡ Temps mis à jour: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+        this.updateTime(hour, isDayTime);
+        this.lastRealTimeUpdate = Date.now();
+      });
+      
+      window.globalWeatherManager.onWeatherChange((weather, displayName) => {
+        console.log(`⚡ Météo mise à jour: ${displayName}`);
+        this.updateWeather(weather, displayName, '22°C');
+        this.lastRealTimeUpdate = Date.now();
+      });
     }
+    
+    // Polling intelligent de backup
+    this.startIntelligentPolling();
   }
 
-  // === 📍 MISE À JOUR DE LA ZONE ACTUELLE ===
-  updateCurrentZone() {
-    let currentZone = 'Village';
+  startIntelligentPolling() {
+    if (!window.globalNetworkManager?.room) return;
     
-    try {
-      // Méthode 1: Via Phaser scene manager
-      if (window.game && window.game.scene && window.game.scene.getScenes) {
-        const activeScenes = window.game.scene.getScenes(true);
-        if (activeScenes.length > 0) {
-          const currentScene = activeScenes[0];
-          const sceneName = currentScene.constructor.name;
-          
-          if (this.zoneMapping && this.zoneMapping.sceneToZone) {
-            const zoneName = this.zoneMapping.sceneToZone(sceneName);
-            const zoneConfig = this.zoneMapping.getZoneConfig(zoneName);
-            
-            if (zoneConfig && zoneConfig.displayName) {
-              currentZone = zoneConfig.displayName;
-              console.log(`🎯 [PokémonWeatherWidget] Zone détectée: ${currentZone} (${sceneName})`);
-            }
-          }
-        }
-      }
-      
-      // Méthode 2: Via GlobalNetworkManager
-      if (currentZone === 'Village' && window.globalNetworkManager && window.globalNetworkManager.room) {
-        const room = window.globalNetworkManager.room;
-        if (room.state && room.state.currentZone) {
-          const serverZone = room.state.currentZone;
-          
-          if (this.zoneMapping && this.zoneMapping.getZoneConfig) {
-            const zoneConfig = this.zoneMapping.getZoneConfig(serverZone);
-            if (zoneConfig && zoneConfig.displayName) {
-              currentZone = zoneConfig.displayName;
-              console.log(`🌐 [PokémonWeatherWidget] Zone serveur: ${currentZone}`);
-            }
-          }
-        }
-      }
-      
-      // Méthode 3: Via PlayerManager
-      if (currentZone === 'Village' && window.playerManager && window.playerManager.currentZone) {
-        const playerZone = window.playerManager.currentZone;
-        
-        if (this.zoneMapping && this.zoneMapping.getZoneConfig) {
-          const zoneConfig = this.zoneMapping.getZoneConfig(playerZone);
-          if (zoneConfig && zoneConfig.displayName) {
-            currentZone = zoneConfig.displayName;
-            console.log(`👤 [PokémonWeatherWidget] Zone joueur: ${currentZone}`);
-          }
-        }
-      }
-      
-    } catch (error) {
-      console.warn('⚠️ [PokémonWeatherWidget] Erreur détection zone:', error);
-    }
+    const room = window.globalNetworkManager.room;
+    let lastState = {
+      gameHour: room.state.gameHour,
+      isDayTime: room.state.isDayTime,
+      weather: room.state.weather,
+      currentZone: room.state.currentZone || null
+    };
     
-    this.updateZone(currentZone);
+    this.stateCheckInterval = setInterval(() => {
+      const currentState = {
+        gameHour: room.state.gameHour,
+        isDayTime: room.state.isDayTime,
+        weather: room.state.weather,
+        currentZone: room.state.currentZone || null
+      };
+      
+      // Vérification des changements
+      if (currentState.gameHour !== lastState.gameHour || currentState.isDayTime !== lastState.isDayTime) {
+        this.updateTime(currentState.gameHour, currentState.isDayTime);
+      }
+      
+      if (currentState.weather !== lastState.weather) {
+        const displayName = this.getWeatherDisplayName(currentState.weather);
+        this.updateWeather(currentState.weather, displayName, '22°C');
+      }
+      
+      if (currentState.currentZone !== lastState.currentZone && currentState.currentZone) {
+        this.updateCurrentZone();
+      }
+      
+      lastState = currentState;
+    }, 500);
+    
+    console.log('✅ [PokémonWeatherWidget] Polling intelligent démarré');
   }
 
   forceImmediateSync() {
-    if (window.globalWeatherManager && window.globalWeatherManager.isInitialized) {
+    console.log('🚀 [PokémonWeatherWidget] Synchronisation immédiate');
+    
+    // Sync GlobalWeatherManager
+    if (window.globalWeatherManager?.isInitialized) {
       const currentTime = window.globalWeatherManager.getCurrentTime();
       const currentWeather = window.globalWeatherManager.getCurrentWeather();
       
-      if (currentTime) {
-        this.updateTime(currentTime.hour, currentTime.isDayTime);
-      }
-      if (currentWeather) {
-        this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
-      }
+      if (currentTime) this.updateTime(currentTime.hour, currentTime.isDayTime);
+      if (currentWeather) this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
     }
     
-    if (window.globalNetworkManager && window.globalNetworkManager.room) {
+    // Sync serveur direct
+    if (window.globalNetworkManager?.room) {
       const room = window.globalNetworkManager.room;
       const serverTime = { hour: room.state.gameHour, isDayTime: room.state.isDayTime };
       const serverWeather = { weather: room.state.weather, displayName: this.getWeatherDisplayName(room.state.weather) };
@@ -308,56 +332,55 @@ export class TimeWeatherWidget {
     }
   }
 
-  subscribeToWeatherUpdates() {
-    if (window.globalWeatherManager && typeof window.globalWeatherManager.onTimeChange === 'function') {
-      window.globalWeatherManager.onTimeChange((hour, isDayTime) => {
-        this.updateTime(hour, isDayTime);
-        this.lastRealTimeUpdate = Date.now();
-      });
+  // === 📍 GESTION DES ZONES ===
+  updateCurrentZone() {
+    let currentZone = 'Village';
+    
+    try {
+      // Méthode 1: Phaser scene manager
+      if (window.game?.scene?.getScenes) {
+        const activeScenes = window.game.scene.getScenes(true);
+        if (activeScenes.length > 0) {
+          const sceneName = activeScenes[0].constructor.name;
+          
+          if (this.zoneMapping?.sceneToZone) {
+            const zoneName = this.zoneMapping.sceneToZone(sceneName);
+            const zoneConfig = this.zoneMapping.getZoneConfig(zoneName);
+            
+            if (zoneConfig?.displayName) {
+              currentZone = zoneConfig.displayName;
+              console.log(`🎯 Zone détectée: ${currentZone} (${sceneName})`);
+            }
+          }
+        }
+      }
       
-      window.globalWeatherManager.onWeatherChange((weather, displayName) => {
-        this.updateWeather(weather, displayName, '22°C');
-        this.lastRealTimeUpdate = Date.now();
-      });
+      // Méthode 2: GlobalNetworkManager
+      if (currentZone === 'Village' && window.globalNetworkManager?.room?.state?.currentZone) {
+        const serverZone = window.globalNetworkManager.room.state.currentZone;
+        const zoneConfig = this.zoneMapping?.getZoneConfig(serverZone);
+        
+        if (zoneConfig?.displayName) {
+          currentZone = zoneConfig.displayName;
+          console.log(`🌐 Zone serveur: ${currentZone}`);
+        }
+      }
+      
+      // Méthode 3: PlayerManager
+      if (currentZone === 'Village' && window.playerManager?.currentZone) {
+        const zoneConfig = this.zoneMapping?.getZoneConfig(window.playerManager.currentZone);
+        
+        if (zoneConfig?.displayName) {
+          currentZone = zoneConfig.displayName;
+          console.log(`👤 Zone joueur: ${currentZone}`);
+        }
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ [PokémonWeatherWidget] Erreur détection zone:', error);
     }
     
-    this.startIntelligentPolling();
-  }
-
-  startIntelligentPolling() {
-    if (window.globalNetworkManager && window.globalNetworkManager.room) {
-      const room = window.globalNetworkManager.room;
-      let lastState = {
-        gameHour: room.state.gameHour,
-        isDayTime: room.state.isDayTime,
-        weather: room.state.weather,
-        currentZone: room.state.currentZone || null
-      };
-      
-      this.stateCheckInterval = setInterval(() => {
-        const currentState = {
-          gameHour: room.state.gameHour,
-          isDayTime: room.state.isDayTime,
-          weather: room.state.weather,
-          currentZone: room.state.currentZone || null
-        };
-        
-        if (currentState.gameHour !== lastState.gameHour || currentState.isDayTime !== lastState.isDayTime) {
-          this.updateTime(currentState.gameHour, currentState.isDayTime);
-        }
-        
-        if (currentState.weather !== lastState.weather) {
-          const displayName = this.getWeatherDisplayName(currentState.weather);
-          this.updateWeather(currentState.weather, displayName, '22°C');
-        }
-        
-        if (currentState.currentZone !== lastState.currentZone && currentState.currentZone) {
-          this.updateCurrentZone();
-        }
-        
-        lastState = currentState;
-      }, 500);
-    }
+    this.updateZone(currentZone);
   }
 
   getWeatherDisplayName(weatherName) {
@@ -372,7 +395,14 @@ export class TimeWeatherWidget {
     return weatherNames[weatherName] || weatherName;
   }
 
-  // === 🎮 MÉTHODES DE MISE À JOUR POKÉMON ===
+  // === 🎮 MÉTHODES DE MISE À JOUR ===
+  updateInitialContent() {
+    this.updateTime(this.currentHour, this.isDayTime);
+    this.updateWeather(this.weather.weather, this.weather.displayName, this.weather.temperature);
+    this.updateZone(this.location);
+    this.updateGameplayBonus(this.gameplayBonus);
+  }
+
   updateTime(hour, isDayTime) {
     this.currentHour = hour;
     this.isDayTime = isDayTime;
@@ -380,17 +410,22 @@ export class TimeWeatherWidget {
     
     const h12 = hour % 12 === 0 ? 12 : hour % 12;
     const period = hour < 12 ? 'AM' : 'PM';
-    
     const timeIcons = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛'];
     const timeIcon = timeIcons[h12 - 1] || '🕐';
     
-    const timeElement = this.element.querySelector('.time-main');
-    const periodElement = this.element.querySelector('.time-period');
-    const timeIconElement = this.element.querySelector('.time-icon');
+    // Mise à jour DOM optimisée
+    const updates = [
+      ['.time-main', `${h12}:00`],
+      ['.time-period', period],
+      ['.time-icon', timeIcon]
+    ];
     
-    if (timeElement) timeElement.textContent = `${h12}:00`;
-    if (periodElement) periodElement.textContent = period;
-    if (timeIconElement) timeIconElement.textContent = timeIcon;
+    updates.forEach(([selector, content]) => {
+      const element = this.element.querySelector(selector);
+      if (element && element.textContent !== content) {
+        element.textContent = content;
+      }
+    });
     
     this.updateDayNightTheme(isDayTime);
   }
@@ -399,39 +434,76 @@ export class TimeWeatherWidget {
     this.weather = { weather, displayName, temperature };
     if (!this.element) return;
     
-    const pokemonWeather = this.pokemonWeatherIcons[weather] || this.pokemonWeatherIcons.clear;
+    const config = this.pokemonWeatherConfig[weather] || this.pokemonWeatherConfig.clear;
     
-    const weatherElement = this.element.querySelector('.weather-main');
-    const tempElement = this.element.querySelector('.weather-temp');
-    const weatherIconElement = this.element.querySelector('.weather-icon');
-    const pokemonIconElement = this.element.querySelector('.pokemon-type-icon');
-    const glassContainer = this.element.querySelector('.widget-glass-container');
+    // Mise à jour DOM optimisée
+    const updates = [
+      ['.weather-main', displayName],
+      ['.weather-temp', temperature],
+      ['.weather-icon', config.icon],
+      ['.pokemon-type-icon', config.pokemon]
+    ];
     
-    if (weatherElement) weatherElement.textContent = displayName;
-    if (tempElement) tempElement.textContent = temperature;
-    if (weatherIconElement) weatherIconElement.textContent = pokemonWeather.icon;
-    if (pokemonIconElement) pokemonIconElement.textContent = pokemonWeather.pokemon;
+    updates.forEach(([selector, content]) => {
+      const element = this.element.querySelector(selector);
+      if (element && element.textContent !== content) {
+        element.textContent = content;
+      }
+    });
     
-    if (glassContainer) {
-      glassContainer.style.background = pokemonWeather.gradient;
-    }
-    
-    this.updateWeatherParticles(pokemonWeather.particles);
-    this.updateWeatherGlow(pokemonWeather.color);
-    
+    // Mise à jour des effets visuels
+    this.updateWeatherEffects(config);
+    this.updateWeatherParticles(config);
     this.updateGameplayBonus({
       active: true,
-      text: `+15% XP Pokémon ${pokemonWeather.bonus}`,
+      text: `+15% XP Pokémon ${config.bonus}`,
       type: weather
     });
+    
+    console.log(`🌤️ Météo mise à jour: ${displayName} avec ${config.particleCount} particules`);
+  }
+
+  updateWeatherEffects(config) {
+    const glassContainer = this.element?.querySelector('.widget-glass-container');
+    const glowElement = this.element?.querySelector('.widget-glow');
+    
+    if (glassContainer) {
+      glassContainer.style.background = config.gradient;
+    }
+    
+    if (glowElement) {
+      glowElement.style.background = `radial-gradient(circle at 50% 50%, ${config.color}33 0%, transparent 70%)`;
+    }
+  }
+
+  updateWeatherParticles(config) {
+    const particleContainer = this.element?.querySelector('.weather-particles');
+    if (!particleContainer) return;
+    
+    // Régénérer les particules avec le bon nombre
+    particleContainer.innerHTML = '';
+    
+    for (let i = 1; i <= config.particleCount; i++) {
+      const particle = document.createElement('div');
+      particle.className = `particle particle-${i} ${this.weather.weather}-particle`;
+      particle.textContent = config.particles;
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 100}%`;
+      particle.style.animationDelay = `${i * 0.2}s`;
+      
+      particleContainer.appendChild(particle);
+    }
+    
+    console.log(`✨ ${config.particleCount} particules ${config.particles} générées`);
   }
 
   updateZone(zoneName) {
     this.location = zoneName;
     const zoneElement = this.element?.querySelector('.zone-text');
-    if (zoneElement) zoneElement.textContent = zoneName;
+    if (zoneElement && zoneElement.textContent !== zoneName) {
+      zoneElement.textContent = zoneName;
+    }
   }
-
 
   updateGameplayBonus(bonus) {
     this.gameplayBonus = bonus;
@@ -443,10 +515,15 @@ export class TimeWeatherWidget {
       bonusSection.style.display = bonus.active ? 'flex' : 'none';
     }
     
-    if (bonusText) bonusText.textContent = bonus.text;
+    if (bonusText && bonusText.textContent !== bonus.text) {
+      bonusText.textContent = bonus.text;
+    }
+    
     if (bonusTypeIcon && bonus.type) {
-      const typeIcon = this.pokemonWeatherIcons[bonus.type]?.pokemon || '🎮';
-      bonusTypeIcon.textContent = typeIcon;
+      const typeIcon = this.pokemonWeatherConfig[bonus.type]?.pokemon || '🎮';
+      if (bonusTypeIcon.textContent !== typeIcon) {
+        bonusTypeIcon.textContent = typeIcon;
+      }
     }
   }
 
@@ -463,21 +540,12 @@ export class TimeWeatherWidget {
     }
   }
 
-  updateWeatherParticles(particleType) {
-    const particles = this.element?.querySelectorAll('.particle');
-    particles?.forEach(particle => {
-      particle.textContent = particleType;
-    });
+  // === ✨ ANIMATIONS OPTIMISÉES ===
+  startAllAnimations() {
+    this.startAnimations();
+    this.startParticleAnimation();
   }
 
-  updateWeatherGlow(color) {
-    const glowElement = this.element?.querySelector('.widget-glow');
-    if (glowElement) {
-      glowElement.style.background = `radial-gradient(circle at 50% 50%, ${color}33 0%, transparent 70%)`;
-    }
-  }
-
-  // === ✨ ANIMATIONS POKÉMON ===
   startAnimations() {
     if (this.isAnimating) return;
     this.isAnimating = true;
@@ -487,31 +555,30 @@ export class TimeWeatherWidget {
   animateElements() {
     if (!this.element || !this.isAnimating) return;
     
-    const timeIcon = this.element.querySelector('.time-icon');
-    const weatherIcon = this.element.querySelector('.weather-icon');
-    const pokemonIcon = this.element.querySelector('.pokemon-type-icon');
-    const pokeball = this.element.querySelector('.pokeball-background');
-    
     const time = Date.now() * 0.001;
+    const elements = {
+      timeIcon: this.element.querySelector('.time-icon'),
+      weatherIcon: this.element.querySelector('.weather-icon'),
+      pokemonIcon: this.element.querySelector('.pokemon-type-icon'),
+      pokeball: this.element.querySelector('.pokeball-background')
+    };
     
-    if (timeIcon) {
-      const rotation = Math.sin(time) * 3;
-      timeIcon.style.transform = `rotate(${rotation}deg)`;
+    // Animations optimisées
+    if (elements.timeIcon) {
+      elements.timeIcon.style.transform = `rotate(${Math.sin(time) * 3}deg)`;
     }
     
-    if (weatherIcon) {
-      const scale = 1 + Math.sin(time * 1.5) * 0.05;
-      weatherIcon.style.transform = `scale(${scale})`;
+    if (elements.weatherIcon) {
+      elements.weatherIcon.style.transform = `scale(${1 + Math.sin(time * 1.5) * 0.05})`;
     }
     
-    if (pokemonIcon) {
+    if (elements.pokemonIcon) {
       const bounce = Math.sin(time * 2) * 0.03;
-      pokemonIcon.style.transform = `translateY(${bounce}px) scale(${1 + bounce})`;
+      elements.pokemonIcon.style.transform = `translateY(${bounce}px) scale(${1 + bounce})`;
     }
     
-    if (pokeball) {
-      const rotation = (time * 10) % 360;
-      pokeball.style.transform = `rotate(${rotation}deg)`;
+    if (elements.pokeball) {
+      elements.pokeball.style.transform = `rotate(${(time * 10) % 360}deg)`;
     }
     
     this.animationFrame = requestAnimationFrame(() => this.animateElements());
@@ -520,19 +587,32 @@ export class TimeWeatherWidget {
   startParticleAnimation() {
     if (!this.element) return;
     
-    const particles = this.element.querySelectorAll('.particle');
-    
     const animateParticles = () => {
+      if (!this.element || !this.isAnimating) return;
+      
+      const particles = this.element.querySelectorAll('.particle');
       const time = Date.now() * 0.001;
       
       particles.forEach((particle, index) => {
-        const delay = index * 0.5;
-        const x = Math.sin(time + delay) * 20;
-        const y = Math.cos(time * 0.8 + delay) * 15;
-        const opacity = 0.3 + Math.sin(time + delay) * 0.2;
+        const delay = index * 0.3;
         
-        particle.style.transform = `translate(${x}px, ${y}px)`;
-        particle.style.opacity = opacity;
+        // Animation selon le type de météo
+        switch (this.weather.weather) {
+          case 'rain':
+            this.animateRainParticle(particle, time, delay);
+            break;
+          case 'storm':
+            this.animateStormParticle(particle, time, delay);
+            break;
+          case 'snow':
+            this.animateSnowParticle(particle, time, delay);
+            break;
+          case 'fog':
+            this.animateFogParticle(particle, time, delay);
+            break;
+          default:
+            this.animateDefaultParticle(particle, time, delay);
+        }
       });
       
       this.particleAnimationFrame = requestAnimationFrame(animateParticles);
@@ -541,12 +621,53 @@ export class TimeWeatherWidget {
     animateParticles();
   }
 
+  animateRainParticle(particle, time, delay) {
+    const x = Math.sin(time + delay) * 5;
+    const y = ((time * 60 + delay * 100) % 250) - 50;
+    particle.style.transform = `translate(${x}px, ${y}px)`;
+    particle.style.opacity = y > 180 ? 0 : 0.8;
+  }
+
+  animateStormParticle(particle, time, delay) {
+    const x = Math.sin(time * 3 + delay) * 40;
+    const y = Math.cos(time * 2 + delay) * 25;
+    const flash = Math.sin(time * 8 + delay) > 0.6 ? 1 : 0.3;
+    particle.style.transform = `translate(${x}px, ${y}px)`;
+    particle.style.opacity = flash;
+  }
+
+  animateSnowParticle(particle, time, delay) {
+    const x = Math.sin(time * 0.5 + delay) * 30;
+    const y = ((time * 25 + delay * 80) % 220) - 40;
+    const rotation = (time * 50 + delay * 100) % 360;
+    particle.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+    particle.style.opacity = y > 160 ? 0 : 0.7;
+  }
+
+  animateFogParticle(particle, time, delay) {
+    const x = Math.sin(time * 0.3 + delay) * 50;
+    const y = Math.cos(time * 0.2 + delay) * 20;
+    const opacity = 0.2 + Math.sin(time + delay) * 0.3;
+    particle.style.transform = `translate(${x}px, ${y}px)`;
+    particle.style.opacity = Math.max(0.1, opacity);
+  }
+
+  animateDefaultParticle(particle, time, delay) {
+    const x = Math.sin(time + delay) * 20;
+    const y = Math.cos(time * 0.8 + delay) * 15;
+    const opacity = 0.3 + Math.sin(time + delay) * 0.2;
+    particle.style.transform = `translate(${x}px, ${y}px)`;
+    particle.style.opacity = opacity;
+  }
+
   stopAnimations() {
     this.isAnimating = false;
+    
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
     }
+    
     if (this.particleAnimationFrame) {
       cancelAnimationFrame(this.particleAnimationFrame);
       this.particleAnimationFrame = null;
@@ -563,9 +684,7 @@ export class TimeWeatherWidget {
       this.element.style.visibility = 'visible';
       this.element.style.opacity = '1';
       
-      this.startAnimations();
-      this.startParticleAnimation();
-      
+      this.startAllAnimations();
       setTimeout(() => this.element.classList.remove('ui-fade-in'), 500);
     }
     return true;
@@ -593,8 +712,7 @@ export class TimeWeatherWidget {
         this.element.classList.remove('ui-disabled', 'disabled');
         this.element.style.opacity = '1';
         this.element.style.pointerEvents = 'auto';
-        this.startAnimations();
-        this.startParticleAnimation();
+        this.startAllAnimations();
       } else {
         this.element.classList.add('ui-disabled');
         this.element.style.opacity = '0.5';
@@ -629,14 +747,10 @@ export class TimeWeatherWidget {
     }
     
     const computed = window.getComputedStyle(this.element);
-    return {
-      left: computed.left,
-      top: computed.top,
-      source: 'computed'
-    };
+    return { left: computed.left, top: computed.top, source: 'computed' };
   }
 
-  // === 🎨 INJECTION DES STYLES CSS ===
+  // === 🎨 INJECTION DES STYLES ===
   injectStyles() {
     if (document.getElementById('pokemon-weather-widget-css')) return;
     
@@ -644,13 +758,14 @@ export class TimeWeatherWidget {
     style.id = 'pokemon-weather-widget-css';
     style.textContent = POKEMON_WEATHER_STYLES;
     document.head.appendChild(style);
-    console.log('🎨 [PokémonWeatherWidget] Styles Pokémon injectés depuis fichier séparé');
+    console.log('🎨 [PokémonWeatherWidget] Styles Pokémon injectés');
   }
 
   // === 🧹 DESTRUCTION ===
   destroy() {
     this.stopAnimations();
     
+    // Nettoyage des intervalles
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
@@ -661,21 +776,24 @@ export class TimeWeatherWidget {
       this.stateCheckInterval = null;
     }
     
+    // Suppression du DOM
     if (this.element && this.element.parentNode) {
       this.element.parentNode.removeChild(this.element);
     }
     
+    // Suppression des styles
     const style = document.getElementById('pokemon-weather-widget-css');
     if (style) {
       style.remove();
     }
     
+    // Reset des états
     this.element = null;
     this.isVisible = false;
     this.isEnabled = false;
     this.initialized = false;
     
-    console.log('🧹 [PokémonWeatherWidget] Widget Pokémon détruit');
+    console.log('🧹 [PokémonWeatherWidget] Widget détruit avec particules');
   }
 
   // === 🐛 DEBUG ===
@@ -694,11 +812,19 @@ export class TimeWeatherWidget {
       currentPosition: this.getCurrentPosition(),
       currentTime: `${this.currentHour}:00 ${this.isDayTime ? 'Day' : 'Night'}`,
       currentWeather: this.weather,
-      weatherIntensity: this.weatherIntensity,
       location: this.location,
       gameplayBonus: this.gameplayBonus,
       theme: this.isDayTime ? 'day' : 'night',
-      pokemonWeatherData: this.pokemonWeatherIcons[this.weather.weather],
+      weatherConfig: this.pokemonWeatherConfig[this.weather.weather],
+      particleCount: this.pokemonWeatherConfig[this.weather.weather]?.particleCount || 0,
+      animationFrames: {
+        main: !!this.animationFrame,
+        particles: !!this.particleAnimationFrame
+      },
+      intervals: {
+        sync: !!this.syncInterval,
+        stateCheck: !!this.stateCheckInterval
+      },
       elementStyles: this.element ? {
         position: this.element.style.position,
         left: this.element.style.left,
@@ -708,7 +834,8 @@ export class TimeWeatherWidget {
         opacity: this.element.style.opacity,
         zIndex: this.element.style.zIndex
       } : null,
-      boundingRect: this.element ? this.element.getBoundingClientRect() : null
+      boundingRect: this.element ? this.element.getBoundingClientRect() : null,
+      particlesInDOM: this.element ? this.element.querySelectorAll('.particle').length : 0
     };
   }
 }
