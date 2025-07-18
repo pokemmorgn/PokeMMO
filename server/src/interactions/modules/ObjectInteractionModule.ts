@@ -16,11 +16,11 @@ import {
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 import { InventoryManager } from "../../managers/InventoryManager";
 
-// ✅ IMPORTS DU SYSTÈME MODULAIRE - CORRECTION IMPORT
+// ✅ IMPORTS DU SYSTÈME MODULAIRE - VERSION FINALE
 import { 
   IObjectSubModule, 
   ObjectDefinition, 
-  ObjectInteractionResult as SubModuleResult 
+  ObjectInteractionResult
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
