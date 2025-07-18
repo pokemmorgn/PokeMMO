@@ -252,8 +252,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   // === HANDLERS SPÉCIALISÉS ===
 
   private async handleSpecificObject(player: Player, request: InteractionRequest): Promise<InteractionResult> {
-    const objectId = request.data?.objectId;
+    const objectIdRaw = request.data?.objectId;
+    const objectId = typeof objectIdRaw === 'string' ? parseInt(objectIdRaw, 10) : objectIdRaw;
     const zone = player.currentZone;
+    
+    if (!objectId || isNaN(objectId)) {
+      return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
+    }
     
     // Récupérer la définition de l'objet
     const objectDef = this.getObject(zone, objectId);
@@ -283,6 +288,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     // Post-traitement si succès
     if (result.success && result.objectData?.collected) {
       this.stateManager.markAsCollected(zone, objectId, player.name);
+      
+      // Assurer compatibilité des types pour objectId
+      if (result.objectData) {
+        result.objectData.objectId = objectId.toString();
+      }
     }
 
     return result;
@@ -312,6 +322,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
         
         if (result.success && result.objectData?.collected) {
           this.stateManager.markAsCollected(zone, objectDef.id, player.name);
+          
+          // Assurer compatibilité des types pour objectId
+          if (result.objectData) {
+            result.objectData.objectId = objectDef.id.toString();
+          }
         }
         
         return result;
@@ -325,7 +340,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       message: "Il n'y a rien ici.",
       data: {
         objectData: {
-          objectId: 0,
+          objectId: "0",
           objectType: 'search',
           searchResult: { found: false }
         }
@@ -485,7 +500,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     }
 
     const zoneObjects = this.objectsByZone.get(zone)!;
-    const objectId = objectData.id || Date.now();
+    const objectId = objectData.id || Math.floor(Date.now() / 1000); // Utiliser timestamp en secondes comme number
 
     const objectDef: ObjectDefinition = {
       id: objectId,
