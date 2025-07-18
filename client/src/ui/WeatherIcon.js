@@ -48,13 +48,13 @@ export class WeatherIcon {
        </div>
    `;
    
-   // ✅ POSITION JUSTE AU-DESSUS DE L'ICÔNE BAG (en bas à droite)
+   // ✅ POSITION JUSTE AU-DESSUS DE L'ICÔNE BAG (en bas à droite) - PLUS GROS
    icon.style.cssText = `
        position: fixed;
        bottom: 110px;
        right: 20px;
-       width: 60px;
-       height: 70px;
+       width: 70px;
+       height: 80px;
        z-index: 1000;
        cursor: pointer;
        transition: all 0.3s ease;
@@ -64,7 +64,7 @@ export class WeatherIcon {
    document.body.appendChild(icon);
    this.weatherIconElement = icon;
    
-   console.log(`🌤️ [WeatherIcon] Créé à bottom: 110px (juste au-dessus de l'icône bag)`);
+   console.log(`🌤️ [WeatherIcon] Créé à bottom: 110px (juste au-dessus de l'icône bag) - PLUS GROS`);
  }
 
  addWeatherIconStyles() {
@@ -77,7 +77,7 @@ export class WeatherIcon {
    style.textContent = `
        .weather-icon .icon-background {
            width: 100%;
-           height: 60px;
+           height: 70px;
            background: linear-gradient(145deg, #2a3f5f, #1e2d42);
            border: 2px solid #4a90e2;
            border-radius: 15px;
@@ -106,11 +106,11 @@ export class WeatherIcon {
            flex-direction: column;
            align-items: center;
            justify-content: center;
-           gap: 1px;
+           gap: 2px;
        }
 
        .weather-icon .icon-emoji {
-           font-size: 20px;
+           font-size: 24px;
            transition: transform 0.3s ease;
            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
        }
@@ -122,18 +122,18 @@ export class WeatherIcon {
        .weather-time {
            display: flex;
            align-items: center;
-           font-size: 9px;
+           font-size: 10px;
            font-weight: bold;
            color: #87ceeb;
            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
        }
 
        .weather-icon .icon-label {
-           font-size: 9px;
+           font-size: 11px;
            color: #87ceeb;
            font-weight: 600;
            text-align: center;
-           padding: 2px 0;
+           padding: 4px 0;
            background: rgba(74, 144, 226, 0.2);
            width: 100%;
            border-radius: 0 0 13px 13px;
