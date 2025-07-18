@@ -28,6 +28,7 @@ export class TimeWeatherWidget {
     this.isAnimating = false;
     this.animationFrame = null;
     this.syncInterval = null;
+    this.stateCheckInterval = null;
     
     // === UIManager CONTROL FLAGS ===
     this.positioningMode = 'uimanager';
@@ -142,79 +143,121 @@ export class TimeWeatherWidget {
   subscribeToWeatherUpdates() {
     console.log('📡 [TimeWeatherWidget] Abonnement aux mises à jour...');
     
-    // Méthode 1: Via TimeWeatherManager si disponible
+    // Méthode 1: Via GlobalWeatherManager (plus fiable)
     if (window.globalWeatherManager && window.globalWeatherManager.timeWeatherManager) {
       const timeWeatherManager = window.globalWeatherManager.timeWeatherManager;
       
       // Callback pour les changements de temps
-      timeWeatherManager.onTimeChange((hour, isDayTime) => {
-        console.log(`🕐 [TimeWeatherWidget] Temps reçu: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
-        this.updateTime(hour, isDayTime);
-      });
+      if (typeof timeWeatherManager.onTimeChange === 'function') {
+        timeWeatherManager.onTimeChange((hour, isDayTime) => {
+          console.log(`🕐 [TimeWeatherWidget] Temps via callback: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+          this.updateTime(hour, isDayTime);
+        });
+        console.log('✅ [TimeWeatherWidget] Abonné aux changements de temps');
+      }
       
       // Callback pour les changements de météo
-      timeWeatherManager.onWeatherChange((weather, displayName) => {
-        console.log(`🌤️ [TimeWeatherWidget] Météo reçue: ${displayName}`);
-        this.updateWeather(weather, displayName, '22°C');
-      });
-      
-      console.log('✅ [TimeWeatherWidget] Abonné aux callbacks TimeWeatherManager');
+      if (typeof timeWeatherManager.onWeatherChange === 'function') {
+        timeWeatherManager.onWeatherChange((weather, displayName) => {
+          console.log(`🌤️ [TimeWeatherWidget] Météo via callback: ${displayName}`);
+          this.updateWeather(weather, displayName, '22°C');
+        });
+        console.log('✅ [TimeWeatherWidget] Abonné aux changements de météo');
+      }
     }
     
-    // Méthode 2: Via NetworkManager si disponible
+    // Méthode 2: Via état room direct (backup)
     if (window.globalNetworkManager && window.globalNetworkManager.room) {
       const room = window.globalNetworkManager.room;
       
-      // Écouter les changements d'état
-      room.state.onChange = (changes) => {
-        console.log('🔄 [TimeWeatherWidget] État serveur changé:', changes);
-        
-        const currentTime = {
-          hour: room.state.gameHour,
-          isDayTime: room.state.isDayTime
-        };
-        
-        const currentWeather = {
-          weather: room.state.weather,
-          displayName: room.state.weather === 'clear' ? 'Ciel dégagé' : room.state.weather
-        };
-        
-        this.updateTime(currentTime.hour, currentTime.isDayTime);
-        this.updateWeather(currentWeather.weather, currentWeather.displayName, '22°C');
+      // Sauvegarder l'état précédent pour détecter les changements
+      let lastState = {
+        gameHour: room.state.gameHour,
+        isDayTime: room.state.isDayTime,
+        weather: room.state.weather
       };
       
-      console.log('✅ [TimeWeatherWidget] Abonné aux changements d\'état serveur');
+      // Vérifier les changements d'état périodiquement
+      this.stateCheckInterval = setInterval(() => {
+        const currentState = {
+          gameHour: room.state.gameHour,
+          isDayTime: room.state.isDayTime,
+          weather: room.state.weather
+        };
+        
+        // Vérifier les changements de temps
+        if (currentState.gameHour !== lastState.gameHour || 
+            currentState.isDayTime !== lastState.isDayTime) {
+          console.log('🕐 [TimeWeatherWidget] Changement temps détecté:', currentState);
+          this.updateTime(currentState.gameHour, currentState.isDayTime);
+        }
+        
+        // Vérifier les changements de météo
+        if (currentState.weather !== lastState.weather) {
+          console.log('🌤️ [TimeWeatherWidget] Changement météo détecté:', currentState.weather);
+          const displayName = this.getWeatherDisplayName(currentState.weather);
+          this.updateWeather(currentState.weather, displayName, '22°C');
+        }
+        
+        lastState = currentState;
+      }, 5000); // Vérifier toutes les 5 secondes
+      
+      console.log('✅ [TimeWeatherWidget] Vérification d\'état configurée');
     }
     
     // Méthode 3: Poll périodique comme backup
     this.startPeriodicSync();
   }
 
+  // === 🌤️ CONVERSION NOMS MÉTÉO ===
+  getWeatherDisplayName(weatherName) {
+    const weatherNames = {
+      'clear': 'Ciel dégagé',
+      'rain': 'Pluie',
+      'storm': 'Orage',
+      'snow': 'Neige',
+      'fog': 'Brouillard',
+      'cloudy': 'Nuageux'
+    };
+    
+    return weatherNames[weatherName] || weatherName;
+  }
+
   // === 🔄 SYNCHRONISATION PÉRIODIQUE ===
   startPeriodicSync() {
-    // Vérifier toutes les 30 secondes si on est synchronisé
+    // Synchronisation plus fréquente pour détecter les changements
     this.syncInterval = setInterval(() => {
       this.syncWithServer();
-    }, 30000);
+    }, 10000); // Toutes les 10 secondes
     
-    console.log('🔄 [TimeWeatherWidget] Synchronisation périodique démarrée');
+    console.log('🔄 [TimeWeatherWidget] Synchronisation périodique démarrée (10s)');
   }
 
   syncWithServer() {
-    if (!window.globalWeatherManager || !window.globalWeatherManager.isInitialized) {
+    if (!window.globalNetworkManager || !window.globalNetworkManager.room) {
       return;
     }
     
-    const serverTime = window.globalWeatherManager.getCurrentTime();
-    const serverWeather = window.globalWeatherManager.getCurrentWeather();
+    const room = window.globalNetworkManager.room;
+    
+    // Obtenir l'état actuel du serveur
+    const serverTime = {
+      hour: room.state.gameHour,
+      isDayTime: room.state.isDayTime
+    };
+    
+    const serverWeather = {
+      weather: room.state.weather,
+      displayName: this.getWeatherDisplayName(room.state.weather)
+    };
     
     // Vérifier si on est désynchronisé
-    if (serverTime && (serverTime.hour !== this.currentHour || serverTime.isDayTime !== this.isDayTime)) {
+    if (serverTime.hour !== this.currentHour || serverTime.isDayTime !== this.isDayTime) {
       console.log('🔄 [TimeWeatherWidget] Resync temps:', serverTime);
       this.updateTime(serverTime.hour, serverTime.isDayTime);
     }
     
-    if (serverWeather && serverWeather.weather !== this.weather.weather) {
+    if (serverWeather.weather !== this.weather.weather) {
       console.log('🔄 [TimeWeatherWidget] Resync météo:', serverWeather);
       this.updateWeather(serverWeather.weather, serverWeather.displayName, '22°C');
     }
@@ -708,10 +751,15 @@ export class TimeWeatherWidget {
   destroy() {
     this.stopAnimations();
     
-    // Arrêter la synchronisation périodique
+    // Arrêter toutes les synchronisations
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
+    }
+    
+    if (this.stateCheckInterval) {
+      clearInterval(this.stateCheckInterval);
+      this.stateCheckInterval = null;
     }
     
     if (this.element && this.element.parentNode) {
