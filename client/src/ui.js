@@ -299,6 +299,27 @@ export class PokemonUISystem {
         }
       },
       {
+  id: 'timeWeather',
+  critical: false,
+  factory: async () => {
+    const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
+    return createTimeWeatherModule();
+  },
+  groups: ['panels'], // Ou un nouveau groupe si besoin
+  layout: {
+    type: 'icon',
+    anchor: 'top-right',
+    order: 50,
+    spacing: 10
+  },
+  priority: 50,
+  defaultState: {
+    visible: true,
+    enabled: true,
+    initialized: false
+  }
+},
+      {
         id: 'questTracker',
         critical: false,
         factory: this.createQuestTrackerModule.bind(this),
