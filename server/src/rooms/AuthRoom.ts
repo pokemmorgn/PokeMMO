@@ -859,14 +859,7 @@ private generateJWT(payload: any): string {
     return 6 * 60 * 60 * 1000; // Défaut 6h
   }
 
-  private getClientIP(client: Client): string {
-    // Extraire l'IP réelle du client
-    const forwarded = (client as any).request?.headers?.['x-forwarded-for'];
-    const realIP = (client as any).request?.headers?.['x-real-ip'];
-    const remoteAddress = (client as any).request?.connection?.remoteAddress;
-    
-    return forwarded?.split(',')[0] || realIP || remoteAddress || 'unknown';
-  }
+
 
   private isRateLimited(ip: string, action: string): boolean {
     const key = `${ip}_${action}`;
