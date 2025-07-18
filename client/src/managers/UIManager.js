@@ -590,63 +590,69 @@ export class UIManager {
   }
 
   positionIcon(moduleId) {
-  const iconConfig = this.registeredIcons.get(moduleId);
-  if (!iconConfig || !iconConfig.element) return;
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (!iconConfig || !iconConfig.element) return;
 
-  const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-  const memberIndex = group.members.indexOf(moduleId);
-  if (memberIndex === -1) return;
+    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+    const memberIndex = group.members.indexOf(moduleId);
+    
+    if (memberIndex === -1) return;
 
-  const padding = this.iconConfig.padding;
-  const spacing = this.iconConfig.spacing;
-  const iconWidth = iconConfig.size.width;
-  const iconHeight = iconConfig.size.height;
-  const element = iconConfig.element;
+    let baseX, baseY;
+    const padding = this.iconConfig.padding;
+    
+    switch (iconConfig.anchor) {
+      case 'bottom-right':
+        baseX = window.innerWidth - padding;
+        baseY = window.innerHeight - padding;
+        break;
+      case 'bottom-left':
+        baseX = padding;
+        baseY = window.innerHeight - padding;
+        break;
+      case 'top-right':
+        baseX = window.innerWidth - padding;
+        baseY = padding;
+        break;
+      case 'top-left':
+        baseX = padding;
+        baseY = padding;
+        break;
+      default:
+        baseX = window.innerWidth - padding;
+        baseY = window.innerHeight - padding;
+    }
 
-  element.style.position = 'fixed';
-  element.style.zIndex = this.iconConfig.zIndex;
+    const spacing = this.iconConfig.spacing;
+    const iconWidth = iconConfig.size.width;
+    
+    let offsetX = 0;
+    if (iconConfig.anchor.includes('right')) {
+      offsetX = -memberIndex * (iconWidth + spacing) - iconWidth;
+    } else {
+      offsetX = memberIndex * (iconWidth + spacing);
+    }
 
-  // Placement selon l'ancre (anchor)
-  switch (iconConfig.anchor) {
-    case 'top-right':
-      element.style.top = `${padding}px`;
-      element.style.right = `${padding + memberIndex * (iconWidth + spacing)}px`;
-      element.style.left = '';
-      element.style.bottom = '';
-      break;
-    case 'bottom-right':
-      element.style.bottom = `${padding}px`;
-      element.style.right = `${padding + memberIndex * (iconWidth + spacing)}px`;
-      element.style.left = '';
-      element.style.top = '';
-      break;
-    case 'top-left':
-      element.style.top = `${padding}px`;
-      element.style.left = `${padding + memberIndex * (iconWidth + spacing)}px`;
-      element.style.right = '';
-      element.style.bottom = '';
-      break;
-    case 'bottom-left':
-      element.style.bottom = `${padding}px`;
-      element.style.left = `${padding + memberIndex * (iconWidth + spacing)}px`;
-      element.style.right = '';
-      element.style.top = '';
-      break;
-    default:
-      // fallback: bottom-right
-      element.style.bottom = `${padding}px`;
-      element.style.right = `${padding + memberIndex * (iconWidth + spacing)}px`;
-      element.style.left = '';
-      element.style.top = '';
+    const element = iconConfig.element;
+    element.style.position = 'fixed';
+    element.style.left = `${baseX + offsetX}px`;
+    element.style.top = `${baseY - iconConfig.size.height}px`;
+    element.style.zIndex = this.iconConfig.zIndex;
+
+    if (this.debug) {
+      console.log(`📍 [UIManager] ${moduleId} positionné PROTÉGÉ à (${baseX + offsetX}, ${baseY - iconConfig.size.height})`);
+    }
   }
 
-  if (this.debug) {
-    console.log(
-      `📍 [UIManager] ${moduleId} positionné PROTÉGÉ anchor=${iconConfig.anchor}`
-    );
+  repositionAllIcons() {
+    this.registeredIcons.forEach((iconConfig, moduleId) => {
+      this.positionIcon(moduleId);
+    });
+    
+    if (this.debug) {
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées PROTÉGÉES');
+    }
   }
-}
-
 
   // === MÉTHODES PUBLIQUES (identiques mais avec protection) ===
 
