@@ -184,11 +184,11 @@ export class TimeWeatherWidget {
         align-items: center;
         justify-content: flex-end;
         gap: 10px;
-        width: 195px;
-        min-width: 180px;
-        max-width: 220px;
+        width: 250px;
+        min-width: 230px;
+        max-width: 280px;
         height: 42px;
-        padding: 0 12px;
+        padding: 0 15px;
         background: rgba(24,30,50,0.92);
         border-radius: 15px;
         font-size: 17px;
@@ -200,13 +200,17 @@ export class TimeWeatherWidget {
         transition: opacity 0.2s;
         /* AUCUNE position fixe - UIManager gère tout */
         z-index: 500;
+        /* Sécurité pour éviter de sortir de l'écran */
+        margin-top: 50px;
+        margin-right: 15px;
       }
       
       .time-weather-widget .tw-time {
         font-weight: 700;
         letter-spacing: 1px;
-        min-width: 82px;
+        min-width: 100px;
         text-align: right;
+        white-space: nowrap;
       }
       
       .time-weather-widget .tw-sep {
@@ -220,7 +224,7 @@ export class TimeWeatherWidget {
       .time-weather-widget .tw-weather {
         font-weight: 500;
         letter-spacing: 0.5px;
-        min-width: 72px;
+        min-width: 85px;
         text-align: left;
         opacity: 0.9;
         white-space: nowrap;
