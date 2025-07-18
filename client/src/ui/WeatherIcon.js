@@ -1,188 +1,208 @@
 // client/src/ui/WeatherIcon.js
-// ICÔNE MÉTÉO SIMPLE ET OPTIMISÉ
-
 export class WeatherIcon {
-  constructor(scene, x = 50, y = 50) {
+  constructor(scene, x, y) {
     this.scene = scene;
     this.x = x;
     this.y = y;
+    this.weatherIconElement = null;
+    this.isVisible = true;
+    this.isEnabled = true;
     
-    // Conteneur pour l'icône
-    this.container = null;
-    this.iconText = null;
-    this.background = null;
-    
-    // État actuel
-    this.currentWeather = 'clear';
-    this.currentTime = { isDayTime: true };
-    
-    // Configuration
-    this.config = {
-      size: 40,
-      fontSize: 24,
-      backgroundColor: 0x000000,
-      backgroundAlpha: 0.3,
-      depth: 10000
-    };
-    
-    // Mapping des icônes
-    this.weatherIcons = {
-      clear: { day: '☀️', night: '🌙' },
-      sunny: { day: '☀️', night: '🌙' },
-      rain: { day: '🌧️', night: '🌧️' },
-      storm: { day: '⛈️', night: '⛈️' },
-      snow: { day: '❄️', night: '❄️' },
-      fog: { day: '🌫️', night: '🌫️' }
-    };
-    
-    this.createIcon();
-    
-    console.log(`🌤️ [WeatherIcon] Créé à (${x}, ${y})`);
+    this.init();
   }
 
-  // ✅ CRÉER L'ICÔNE UI
-  createIcon() {
-    // Conteneur principal
-    this.container = this.scene.add.container(this.x, this.y);
-    this.container.setDepth(this.config.depth);
-    this.container.setScrollFactor(0); // Fixe à l'écran
+  init() {
+    console.log(`🌤️ [WeatherIcon] Initialisation...`);
     
-    // Background arrondi
-    this.background = this.scene.add.graphics();
-    this.background.fillStyle(this.config.backgroundColor, this.config.backgroundAlpha);
-    this.background.fillRoundedRect(
-      -this.config.size / 2, 
-      -this.config.size / 2, 
-      this.config.size, 
-      this.config.size, 
-      8
-    );
+    this.createWeatherIconElement();
+    this.addWeatherIconStyles();
+    this.setupWeatherIconEvents();
     
-    // Icône texte (emoji)
-    this.iconText = this.scene.add.text(0, 0, '☀️', {
-      fontSize: `${this.config.fontSize}px`,
-      fill: '#ffffff',
-      align: 'center'
-    });
-    this.iconText.setOrigin(0.5, 0.5);
-    
-    // Ajouter au conteneur
-    this.container.add([this.background, this.iconText]);
-    
-    // Effet hover optionnel
-    this.container.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -this.config.size / 2, 
-        -this.config.size / 2, 
-        this.config.size, 
-        this.config.size
-      ), 
-      Phaser.Geom.Rectangle.Contains
-    );
-    
-    this.container.on('pointerover', () => {
-      this.background.clear();
-      this.background.fillStyle(this.config.backgroundColor, 0.6);
-      this.background.fillRoundedRect(
-        -this.config.size / 2, 
-        -this.config.size / 2, 
-        this.config.size, 
-        this.config.size, 
-        8
-      );
-    });
-    
-    this.container.on('pointerout', () => {
-      this.background.clear();
-      this.background.fillStyle(this.config.backgroundColor, this.config.backgroundAlpha);
-      this.background.fillRoundedRect(
-        -this.config.size / 2, 
-        -this.config.size / 2, 
-        this.config.size, 
-        this.config.size, 
-        8
-      );
-    });
-    
-    // Mettre à jour l'icône initiale
-    this.updateIcon();
+    console.log(`✅ [WeatherIcon] Initialisé`);
   }
 
-  // ✅ METTRE À JOUR L'ICÔNE
-  updateIcon() {
-    const weatherData = this.weatherIcons[this.currentWeather] || this.weatherIcons.clear;
-    const icon = this.currentTime.isDayTime ? weatherData.day : weatherData.night;
-    
-    if (this.iconText) {
-      this.iconText.setText(icon);
-      
-      // Petite animation de changement
-      this.scene.tweens.add({
-        targets: this.iconText,
-        scaleX: 1.2,
-        scaleY: 1.2,
-        duration: 150,
-        yoyo: true,
-        ease: 'Back.easeOut'
-      });
+  createWeatherIconElement() {
+    // Supprimer l'ancien s'il existe
+    const existing = document.querySelector('#weather-icon');
+    if (existing) {
+        existing.remove();
     }
     
-    console.log(`🌤️ [WeatherIcon] Mis à jour: ${this.currentWeather} → ${icon}`);
+    const icon = document.createElement('div');
+    icon.id = 'weather-icon';
+    icon.className = 'weather-icon ui-icon';
+    
+    icon.innerHTML = `
+        <div class="icon-background">
+            <div class="icon-content">
+                <span class="icon-emoji">☀️</span>
+                <div class="weather-time">
+                    <span class="time-indicator">12:00</span>
+                </div>
+            </div>
+            <div class="icon-label">Weather</div>
+        </div>
+    `;
+    
+    // Position fixe
+    icon.style.cssText = `
+        position: fixed;
+        top: ${this.y}px;
+        right: ${window.innerWidth - this.x}px;
+        width: 70px;
+        height: 80px;
+        z-index: 1000;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        user-select: none;
+    `;
+    
+    document.body.appendChild(icon);
+    this.weatherIconElement = icon;
   }
 
-  // ✅ CHANGER LA MÉTÉO
+  addWeatherIconStyles() {
+    if (document.querySelector('#weather-icon-styles')) {
+        return;
+    }
+    
+    const style = document.createElement('style');
+    style.id = 'weather-icon-styles';
+    style.textContent = `
+        .weather-icon .icon-background {
+            width: 100%;
+            height: 70px;
+            background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+            border: 2px solid #4a90e2;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .weather-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .weather-icon:hover .icon-background {
+            background: linear-gradient(145deg, #3a4f6f, #2e3d52);
+            border-color: #5aa0f2;
+            box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+        }
+
+        .weather-icon .icon-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .weather-icon .icon-emoji {
+            font-size: 24px;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+        }
+
+        .weather-icon:hover .icon-emoji {
+            transform: scale(1.2);
+        }
+
+        .weather-time {
+            display: flex;
+            align-items: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #87ceeb;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .weather-icon .icon-label {
+            font-size: 11px;
+            color: #87ceeb;
+            font-weight: 600;
+            text-align: center;
+            padding: 4px 0;
+            background: rgba(74, 144, 226, 0.2);
+            width: 100%;
+            border-radius: 0 0 13px 13px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .weather-icon.weather-changed .icon-emoji {
+            animation: weatherBounce 0.6s ease;
+        }
+
+        @keyframes weatherBounce {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.3) rotate(-5deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+            75% { transform: scale(1.2) rotate(-2deg); }
+        }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
+  setupWeatherIconEvents() {
+    if (!this.weatherIconElement) return;
+    
+    this.weatherIconElement.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🌤️ [WeatherIcon] Clic détecté');
+    });
+  }
+
   setWeather(weather) {
-    if (this.currentWeather !== weather) {
-      this.currentWeather = weather;
-      this.updateIcon();
-    }
-  }
-
-  // ✅ CHANGER LE TEMPS (JOUR/NUIT)
-  setTime(isDayTime) {
-    if (this.currentTime.isDayTime !== isDayTime) {
-      this.currentTime.isDayTime = isDayTime;
-      this.updateIcon();
-    }
-  }
-
-  // ✅ CHANGER LA POSITION
-  setPosition(x, y) {
-    this.x = x;
-    this.y = y;
-    if (this.container) {
-      this.container.setPosition(x, y);
-    }
-  }
-
-  // ✅ MONTRER/CACHER
-  setVisible(visible) {
-    if (this.container) {
-      this.container.setVisible(visible);
-    }
-  }
-
-  // ✅ CHANGER LA TAILLE
-  setSize(size) {
-    this.config.size = size;
-    this.config.fontSize = size * 0.6;
+    const icons = {
+        clear: '☀️',
+        sunny: '☀️', 
+        rain: '🌧️', 
+        storm: '⛈️',
+        snow: '❄️',
+        fog: '🌫️'
+    };
     
-    if (this.container) {
-      this.destroy();
-      this.createIcon();
+    const emoji = this.weatherIconElement?.querySelector('.icon-emoji');
+    if (emoji) {
+        emoji.textContent = icons[weather] || '☀️';
+        
+        // Animation
+        this.weatherIconElement.classList.add('weather-changed');
+        setTimeout(() => {
+            this.weatherIconElement.classList.remove('weather-changed');
+        }, 600);
+    }
+    
+    console.log(`🌤️ Icône météo changée: ${weather} → ${icons[weather] || '☀️'}`);
+  }
+
+  setTime(time) {
+    const timeIndicator = this.weatherIconElement?.querySelector('.time-indicator');
+    if (timeIndicator) {
+        timeIndicator.textContent = time;
     }
   }
 
-  // ✅ INTÉGRATION AVEC GLOBALWEATHERMANAGER
   connectToGlobalWeather(globalWeatherManager) {
-    // Écouter les changements de météo
+    if (!globalWeatherManager?.isInitialized) {
+        console.warn(`⚠️ [WeatherIcon] Système météo global pas prêt`);
+        return;
+    }
+    
+    // Écouter les changements
     globalWeatherManager.getTimeWeatherManager().onWeatherChange((weather, displayName) => {
-      this.setWeather(weather);
+        this.setWeather(weather);
     });
     
-    // Écouter les changements de temps
     globalWeatherManager.getTimeWeatherManager().onTimeChange((hour, isDayTime) => {
-      this.setTime(isDayTime);
+        this.setTime(`${hour}:00`);
     });
     
     // Appliquer l'état actuel
@@ -190,78 +210,16 @@ export class WeatherIcon {
     const currentTime = globalWeatherManager.getCurrentTime();
     
     this.setWeather(currentWeather.weather);
-    this.setTime(currentTime.isDayTime);
+    this.setTime(`${currentTime.hour}:00`);
     
-    console.log(`🔗 [WeatherIcon] Connecté au GlobalWeatherManager`);
+    console.log(`🔗 [WeatherIcon] Connecté au système météo global`);
   }
 
-  // ✅ NETTOYAGE
   destroy() {
-    if (this.container) {
-      this.container.destroy();
-      this.container = null;
-      this.iconText = null;
-      this.background = null;
+    if (this.weatherIconElement && this.weatherIconElement.parentNode) {
+        this.weatherIconElement.parentNode.removeChild(this.weatherIconElement);
     }
-    
+    this.weatherIconElement = null;
     console.log(`🧹 [WeatherIcon] Détruit`);
   }
-}
-
-// ✅ UTILISATION DANS UNE SCÈNE
-/*
-// Dans ta scène (ex: GameScene.js)
-import { WeatherIcon } from '../ui/WeatherIcon.js';
-import { globalWeatherManager } from '../managers/GlobalWeatherManager.js';
-
-export class GameScene extends Phaser.Scene {
-  create() {
-    // Créer l'icône météo (coin haut-gauche)
-    this.weatherIcon = new WeatherIcon(this, 50, 50);
-    
-    // Connecter au système météo global
-    if (globalWeatherManager.isInitialized) {
-      this.weatherIcon.connectToGlobalWeather(globalWeatherManager);
-    } else {
-      // Attendre que le système soit prêt
-      setTimeout(() => {
-        this.weatherIcon.connectToGlobalWeather(globalWeatherManager);
-      }, 1000);
-    }
-  }
-  
-  destroy() {
-    if (this.weatherIcon) {
-      this.weatherIcon.destroy();
-    }
-  }
-}
-*/
-
-// ✅ COMMANDES DE TEST
-if (typeof window !== 'undefined') {
-  window.createWeatherIcon = (scene, x = 50, y = 50) => {
-    const icon = new WeatherIcon(scene, x, y);
-    console.log('🌤️ Icône météo créée');
-    return icon;
-  };
-  
-  window.testWeatherIcon = (scene) => {
-    const icon = window.createWeatherIcon(scene, 50, 50);
-    
-    // Test séquence
-    setTimeout(() => icon.setWeather('rain'), 1000);
-    setTimeout(() => icon.setWeather('storm'), 2000);
-    setTimeout(() => icon.setWeather('snow'), 3000);
-    setTimeout(() => icon.setTime(false), 4000); // Nuit
-    setTimeout(() => icon.setWeather('clear'), 5000);
-    setTimeout(() => icon.setTime(true), 6000); // Jour
-    
-    console.log('🧪 Test séquence icône météo lancé');
-    return icon;
-  };
-  
-  console.log('🎮 Commandes icône météo disponibles:');
-  console.log('  - window.createWeatherIcon(scene, x, y)');
-  console.log('  - window.testWeatherIcon(scene)');
 }
