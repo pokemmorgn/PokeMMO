@@ -301,17 +301,17 @@ export class GlobalWeatherManager {
       color = 0x000044; // Couleur fixe
     }
 
-    // ✅ EFFETS MÉTÉO SANS CHANGEMENT DE COULEUR
+    // ✅ EFFETS MÉTÉO AVEC ALPHA PLUIE
     const weather = this.currentWeather.weather;
     
     if (weather === 'rain') {
-      // ✅ PAS DE CHANGEMENT DE COULEUR - juste légère intensification
-      alpha = Math.max(alpha, 0.05); // Très léger
-      if (!this.currentTime.isDayTime) alpha = 0.35; // ✅ RÉDUIT de 0.5 à 0.35
+      // ✅ ALPHA 0.2 pour donner un petit effet pluie
+      alpha = Math.max(alpha, 0.2); // Effet pluie visible
+      if (!this.currentTime.isDayTime) alpha = Math.max(alpha, 0.4); // Nuit + pluie
     } else if (weather === 'storm') {
-      // ✅ PAS DE CHANGEMENT DE COULEUR
-      alpha = Math.max(alpha, 0.1);
-      if (!this.currentTime.isDayTime) alpha = 0.4; // ✅ RÉDUIT de 0.6 à 0.4
+      // ✅ Orage plus intense
+      alpha = Math.max(alpha, 0.25); // Effet orage plus visible
+      if (!this.currentTime.isDayTime) alpha = Math.max(alpha, 0.5); // Nuit + orage
     } else if (weather === 'snow') {
       // ✅ Neige garde un léger effet mais réduit
       color = this.currentTime.isDayTime ? 0xCCDDFF : 0x334466;
@@ -459,11 +459,13 @@ export class GlobalWeatherManager {
     // Debug optimisations
     console.log('⚡ Optimisations actives:');
     console.log('  - Nuit réduite: 0.25 alpha (au lieu de 0.4)');
+    console.log('  - Pluie: 0.2 alpha pour petit effet atmosphérique');
+    console.log('  - Orage: 0.25 alpha (plus visible)');
     console.log('  - Pas de couleur pluie: couleur fixe 0x000044');
     console.log('  - 1 TileSprite au lieu de 2 pour la pluie');
     console.log('  - Textures 32x32 au lieu de 128x128');
     console.log('  - Pas de variations automatiques');
-    console.log('  - Pas d\'effet de vent');
+    console.log('  - Effet vent léger optimisé');
   }
 
   // =====================================
