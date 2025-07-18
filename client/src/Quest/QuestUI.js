@@ -1,4 +1,4 @@
-// Quest/QuestUI.js - VERSION OPTIMISÉE ALIGNÉE
+// Quest/QuestUI.js - VERSION OPTIMISÉE ALIGNÉE + PROGRESSION OBJECTIFS
 // 🎯 Interface Quest complète mais simplifiée
 
 export class QuestUI {
@@ -28,7 +28,7 @@ export class QuestUI {
     this.currentDialog = null;
     this.onAction = null;
     
-    console.log('📖 [QuestUI] Instance créée - Version optimisée');
+    console.log('📖 [QuestUI] Instance créée - Version optimisée + progression');
   }
   
   // === 🚀 INITIALISATION SIMPLE ===
@@ -51,7 +51,7 @@ export class QuestUI {
     }
   }
   
-  // === 🎨 STYLES OPTIMISÉS ===
+  // === 🎨 STYLES OPTIMISÉS + PROGRESSION ===
   
   addStyles() {
     if (document.querySelector('#quest-ui-styles')) return;
@@ -59,7 +59,7 @@ export class QuestUI {
     const style = document.createElement('style');
     style.id = 'quest-ui-styles';
     style.textContent = `
-      /* ===== QUEST UI STYLES OPTIMISÉS ===== */
+      /* ===== QUEST UI STYLES OPTIMISÉS + PROGRESSION ===== */
       
       /* Journal Overlay */
       div#quest-journal.quest-journal {
@@ -285,6 +285,29 @@ export class QuestUI {
         color: #28a745 !important;
       }
       
+      /* ✅ NOUVEAU: Objectif en progression VERT */
+      div#quest-journal .quest-objective.completing {
+        background-color: #22c55e !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
+        transition: all 0.3s ease !important;
+        animation: objectiveCompleting 0.6s ease !important;
+      }
+      
+      div#quest-journal .quest-objective.completing:before {
+        content: "⚡" !important;
+        color: #ffffff !important;
+      }
+      
+      @keyframes objectiveCompleting {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+      
       div#quest-journal .quest-empty {
         text-align: center !important;
         color: #888 !important;
@@ -323,7 +346,7 @@ export class QuestUI {
         cursor: not-allowed !important;
       }
       
-      /* ===== QUEST TRACKER ===== */
+      /* ===== QUEST TRACKER + PROGRESSION ===== */
       div#quest-tracker.quest-tracker {
         position: fixed !important;
         top: 120px !important;
@@ -452,6 +475,7 @@ export class QuestUI {
         position: relative !important;
         color: #ccc !important;
         line-height: 1.3 !important;
+        transition: all 0.3s ease !important;
       }
       
       div#quest-tracker .quest-objective:before {
@@ -470,6 +494,29 @@ export class QuestUI {
       div#quest-tracker .quest-objective.completed:before {
         content: "✓" !important;
         color: #4caf50 !important;
+      }
+      
+      /* ✅ NOUVEAU: Styles progression dans tracker */
+      div#quest-tracker .quest-objective.completing {
+        background-color: #22c55e !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
+        transform: scale(1.02) !important;
+        animation: trackerObjectiveCompleting 0.6s ease !important;
+      }
+      
+      div#quest-tracker .quest-objective.completing:before {
+        content: "⚡" !important;
+        color: #ffffff !important;
+      }
+      
+      @keyframes trackerObjectiveCompleting {
+        0% { transform: scale(1); background-color: #4a90e2; }
+        50% { transform: scale(1.05); background-color: #22c55e; }
+        100% { transform: scale(1.02); background-color: #22c55e; }
       }
       
       /* ===== QUEST DIALOG ===== */
@@ -591,7 +638,7 @@ export class QuestUI {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [QuestUI] Styles optimisés ajoutés');
+    console.log('🎨 [QuestUI] Styles optimisés + progression ajoutés');
   }
   
   // === 🏗️ CRÉATION INTERFACES ===
@@ -1008,11 +1055,16 @@ export class QuestUI {
               <div class="quest-step-title">${step.name || `Etape ${index + 1}`}</div>
               <div class="quest-step-description">${step.description || ''}</div>
               
-              ${step.objectives ? step.objectives.map(obj => {
+              ${step.objectives ? step.objectives.map((obj, objIndex) => {
                 const progress = Math.min(obj.currentAmount || 0, obj.requiredAmount || 1);
+                const objId = `${quest.id}-${index}-${objIndex}`;
                 
                 return `
-                  <div class="quest-objective ${obj.completed ? 'completed' : ''}">
+                  <div class="quest-objective ${obj.completed ? 'completed' : ''}" 
+                       data-quest-id="${quest.id}" 
+                       data-step-index="${index}" 
+                       data-objective-index="${objIndex}"
+                       data-objective-id="${objId}">
                     ${obj.description || 'Objectif'} (${progress}/${obj.requiredAmount || 1})
                   </div>
                 `;
@@ -1096,10 +1148,11 @@ export class QuestUI {
       return '';
     }
     
-    return currentStep.objectives.map(objective => {
+    return currentStep.objectives.map((objective, objIndex) => {
       const isCompleted = objective.completed;
       const current = objective.currentAmount || 0;
       const required = objective.requiredAmount || 1;
+      const objId = `${quest.id}-${quest.currentStepIndex}-${objIndex}`;
       
       let objectiveClass = 'quest-objective';
       if (isCompleted) objectiveClass += ' completed';
@@ -1109,8 +1162,147 @@ export class QuestUI {
         objectiveText += ` (${current}/${required})`;
       }
       
-      return `<div class="${objectiveClass}">${objectiveText}</div>`;
+      return `<div class="${objectiveClass}" 
+                   data-quest-id="${quest.id}" 
+                   data-step-index="${quest.currentStepIndex}" 
+                   data-objective-index="${objIndex}"
+                   data-objective-id="${objId}">${objectiveText}</div>`;
     }).join('');
+  }
+  
+  // === 🎨 PROGRESSION OBJECTIFS - MÉTHODES PRINCIPALES ===
+  
+  // ✅ NOUVELLE MÉTHODE: Highlight objectif terminé (appelée par QuestManager)
+  highlightObjectiveAsCompleted(result) {
+    console.log('🟢 [QuestUI] Highlight objectif terminé:', result.objectiveName);
+    
+    try {
+      // Chercher l'objectif dans le tracker
+      const objectiveElement = this.findObjectiveInTracker(result);
+      
+      if (objectiveElement) {
+        console.log('✅ [QuestUI] Objectif trouvé dans tracker, application style VERT');
+        this.applyCompletingStyle(objectiveElement);
+        return true;
+      }
+      
+      // Chercher dans le journal si ouvert
+      if (this.isVisible) {
+        const journalObjective = this.findObjectiveInJournal(result);
+        if (journalObjective) {
+          console.log('✅ [QuestUI] Objectif trouvé dans journal, application style VERT');
+          this.applyCompletingStyle(journalObjective);
+          return true;
+        }
+      }
+      
+      console.warn('⚠️ [QuestUI] Objectif non trouvé pour highlight:', result.objectiveName);
+      return false;
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur highlight objectif:', error);
+      return false;
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Recherche objectif dans tracker
+  findObjectiveInTracker(result) {
+    if (!this.trackerElement) return null;
+    
+    try {
+      // Méthode 1: Recherche par data-attributes (robuste)
+      const questId = result.questId || '';
+      const selector = `[data-quest-id="${questId}"] .quest-objective`;
+      const objectives = this.trackerElement.querySelectorAll(selector);
+      
+      for (const objective of objectives) {
+        if (objective.textContent && objective.textContent.includes(result.objectiveName)) {
+          console.log('✅ [QuestUI] Objectif trouvé par data-attributes dans tracker');
+          return objective;
+        }
+      }
+      
+      // Méthode 2: Fallback par texte
+      console.log('🔄 [QuestUI] Fallback recherche par texte dans tracker');
+      return this.findObjectiveByTextInContainer(this.trackerElement, result.objectiveName);
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur recherche tracker:', error);
+      return null;
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Recherche objectif dans journal
+  findObjectiveInJournal(result) {
+    if (!this.overlayElement) return null;
+    
+    try {
+      // Recherche dans les détails de la quête sélectionnée
+      const questDetails = this.overlayElement.querySelector('#quest-details');
+      if (questDetails) {
+        return this.findObjectiveByTextInContainer(questDetails, result.objectiveName);
+      }
+      
+      return null;
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur recherche journal:', error);
+      return null;
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Recherche par texte dans conteneur
+  findObjectiveByTextInContainer(container, objectiveText) {
+    try {
+      const objectives = container.querySelectorAll('.quest-objective');
+      
+      for (const objective of objectives) {
+        if (objective.textContent && objective.textContent.includes(objectiveText)) {
+          console.log('✅ [QuestUI] Objectif trouvé par texte');
+          return objective;
+        }
+      }
+      
+      console.log('⚠️ [QuestUI] Objectif non trouvé par texte:', objectiveText);
+      return null;
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur recherche par texte:', error);
+      return null;
+    }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Application style VERT completing
+  applyCompletingStyle(element) {
+    try {
+      console.log('🎨 [QuestUI] Application style VERT completing');
+      
+      // Supprimer classes existantes
+      element.classList.remove('completed', 'completing');
+      
+      // Ajouter classe completing (style VERT défini dans CSS)
+      element.classList.add('completing');
+      
+      // Style inline pour garantir l'effet
+      element.style.backgroundColor = '#22c55e';
+      element.style.color = '#ffffff';
+      element.style.fontWeight = 'bold';
+      element.style.padding = '4px 8px';
+      element.style.borderRadius = '4px';
+      element.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.4)';
+      element.style.transition = 'all 0.3s ease';
+      element.style.transform = 'scale(1.02)';
+      
+      // Animation de pulse pour attirer l'attention
+      element.style.animation = 'trackerObjectiveCompleting 0.6s ease';
+      
+      console.log('✅ [QuestUI] Style VERT appliqué');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur application style:', error);
+      return false;
+    }
   }
   
   // === 🎬 GESTION ACTIONS ===
@@ -1270,205 +1462,37 @@ export class QuestUI {
     
     console.log('✅ [QuestUI] Détruit');
   }
-  // === 🎨 ANIMATIONS DE PROGRESSION ===
-
-    animateObjectiveCompletion(result, phase) {
-      console.log(`🎨 [QuestUI] Animation objectif: ${phase} pour "${result.objectiveName}"`);
-      
-      try {
-        // Trouver l'élément de l'objectif dans le tracker
-        const objectiveElement = this.findObjectiveById(result.questId || 'unknown', result.objectiveName);
-        
-        if (!objectiveElement) {
-          console.warn(`⚠️ [QuestUI] Élément objectif non trouvé: ${result.objectiveName}`);
-          return;
-        }
-        
-        if (phase === 'completing') {
-          // Phase 1: Objectif devient VERT
-          this.animateObjectiveGreen(objectiveElement);
-        } else if (phase === 'completed') {
-          // Phase 2: Animation de validation
-          this.animateObjectiveValidation(objectiveElement);
-        }
-        
-      } catch (error) {
-        console.error(`❌ [QuestUI] Erreur animation ${phase}:`, error);
-      }
-    }
-  
-// À ajouter dans QuestUI.js, remplacer findObjectiveElement() par :
-findObjectiveById(questId, objectiveId) {
-  try {
-    // Sélecteur robuste avec data-attributes
-    const selector = `[data-quest-id="${questId}"][data-objective-id="${objectiveId}"]`;
-    const element = this.trackerElement.querySelector(selector);
-    
-    if (element) {
-      console.log(`✅ [QuestUI] Objectif trouvé: ${questId}/${objectiveId}`);
-      return element;
-    }
-    
-    // Fallback: chercher par texte (temporaire)
-    console.warn(`⚠️ [QuestUI] Fallback recherche par texte pour ${objectiveId}`);
-    return this.findObjectiveByTextFallback(objectiveId);
-    
-  } catch (error) {
-    console.error('❌ [QuestUI] Erreur findObjectiveById:', error);
-    return null;
-  }
-}
-  // Méthode fallback temporaire (en attendant les data-attributes)
-findObjectiveByTextFallback(objectiveText) {
-  try {
-    console.log(`🔄 [QuestUI] Fallback recherche texte: "${objectiveText}"`);
-    
-    const trackerElement = this.trackerElement;
-    if (!trackerElement) return null;
-    
-    // Chercher tous les éléments dans le tracker
-    const allElements = trackerElement.querySelectorAll('*');
-    
-    for (const element of allElements) {
-      if (element.textContent && element.textContent.trim().includes(objectiveText)) {
-        console.log(`✅ [QuestUI] Trouvé par fallback:`, element.tagName, element.className);
-        return element.closest('.quest-item, .quest-step') || element;
-      }
-    }
-    
-    console.warn(`⚠️ [QuestUI] Objectif "${objectiveText}" non trouvé même en fallback`);
-    return null;
-    
-  } catch (error) {
-    console.error('❌ [QuestUI] Erreur fallback:', error);
-    return null;
-  }
-}
-
-// Animation: Objectif devient VERT
-animateObjectiveGreen(element) {
-  console.log('🟢 [QuestUI] Animation → VERT');
-  
-  element.style.transition = 'all 0.3s ease';
-  element.style.backgroundColor = '#4ade80'; // Vert
-  element.style.color = '#ffffff';
-  element.style.transform = 'scale(1.05)';
-  element.style.boxShadow = '0 0 10px rgba(74, 222, 128, 0.5)';
-}
-
-// Animation: Validation avec checkmark
-animateObjectiveValidation(element) {
-  console.log('✅ [QuestUI] Animation → VALIDATION');
-  
-  // Ajouter le checkmark
-  const checkmark = document.createElement('span');
-  checkmark.innerHTML = ' ✅';
-  checkmark.style.fontWeight = 'bold';
-  checkmark.style.animation = 'bounce 0.5s ease';
-  
-  element.appendChild(checkmark);
-  
-  // Animation de pulse
-  element.style.animation = 'pulse 0.5s ease';
-}
-  // Animation: Transition vers objectif suivant  
-animateObjectiveTransition(result) {
-  console.log(`➡️ [QuestUI] Animation transition depuis "${result.objectiveName}"`);
-  
-  try {
-    const currentObjective = this.findObjectiveById(result.questId || 'unknown', result.objectiveName);
-    
-    if (currentObjective) {
-      // Animation slide out de l'ancien objectif
-      this.animateSlideOut(currentObjective, () => {
-        // Après slide out, rafraîchir le tracker pour afficher le nouveau
-        setTimeout(() => {
-          this.updateTracker();
-          this.animateNewObjectiveIn();
-        }, 200);
-      });
-    } else {
-      // Si pas trouvé, juste rafraîchir
-      this.updateTracker();
-    }
-    
-  } catch (error) {
-    console.error('❌ [QuestUI] Erreur transition:', error);
-    // Fallback: juste rafraîchir
-    this.updateTracker();
-  }
-}
-  // Animation: Slide out (disparition)
-animateSlideOut(element, callback) {
-  console.log('⬅️ [QuestUI] Animation slide out');
-  
-  element.style.transition = 'all 0.4s ease';
-  element.style.transform = 'translateX(-100%) scale(0.8)';
-  element.style.opacity = '0';
-  
-  // Callback après animation
-  setTimeout(() => {
-    if (callback) callback();
-  }, 400);
-}
-
-// Animation: Nouvel objectif slide in
-animateNewObjectiveIn() {
-  console.log('➡️ [QuestUI] Animation nouvel objectif slide in');
-  
-  try {
-    // Chercher le nouvel objectif (premier dans la liste)
-    const trackerElement = this.trackerElement || document.querySelector('#quest-tracker');
-    const firstObjective = trackerElement?.querySelector('.objective-item, .quest-step, .objective-container');
-    
-    if (firstObjective) {
-      // Préparer l'animation
-      firstObjective.style.transform = 'translateX(100%) scale(0.8)';
-      firstObjective.style.opacity = '0';
-      
-      // Animer l'entrée
-      setTimeout(() => {
-        firstObjective.style.transition = 'all 0.4s ease';
-        firstObjective.style.transform = 'translateX(0) scale(1)';
-        firstObjective.style.opacity = '1';
-        firstObjective.style.backgroundColor = '#3b82f6'; // Bleu pour nouveauté
-        
-        // Retour normal après 1 seconde
-        setTimeout(() => {
-          firstObjective.style.backgroundColor = '';
-        }, 1000);
-      }, 100);
-    }
-  } catch (error) {
-    console.error('❌ [QuestUI] Erreur slide in:', error);
-  }
-}
 }
 
 export default QuestUI;
 
 console.log(`
-📖 === QUEST UI OPTIMISÉ ===
+📖 === QUEST UI OPTIMISÉ + PROGRESSION ===
 
-✅ OPTIMISATIONS:
-• Simplifié: CSS gardé essentiel, supprimé debug
-• Simplifié: Gestion événements directe sans sur-vérification
-• Simplifié: Logique affichage/masquage
-• Supprimé: Méthodes complexes de validation
-• Gardé: Toutes fonctionnalités utilisateur importantes
+✅ NOUVELLES FONCTIONNALITÉS PROGRESSION:
+• highlightObjectiveAsCompleted() - Méthode principale appelée par QuestManager
+• findObjectiveInTracker() - Recherche robuste dans tracker
+• findObjectiveInJournal() - Recherche dans journal si ouvert
+• applyCompletingStyle() - Application style VERT avec animation
+• CSS progression - Classes .completing avec animation
 
-🎨 FONCTIONNALITÉS CONSERVÉES:
-• Journal complet (sidebar coulissant)
-• Tracker temps réel (overlay flottant)  
-• Dialogues de sélection NPC
-• Navigation par onglets
-• Détails de quêtes et objectifs
+🎨 STYLES PROGRESSION AJOUTÉS:
+• .quest-objective.completing - Style VERT avec animation
+• @keyframes trackerObjectiveCompleting - Animation de validation
+• Data attributes sur objectifs - Pour recherche robuste
+• Fallback recherche par texte - Si data-attributes échouent
+
+🔗 INTÉGRATION QUESTMANAGER:
+• QuestManager.makeObjectiveGreen() appelle QuestUI.highlightObjectiveAsCompleted()
+• Fallback DOM direct si QuestUI pas connectée
+• Recherche multi-méthodes (data-attributes + texte)
+• Application garantie du style VERT
 
 ⚡ RÉSULTAT:
-• Code 30% plus court
-• Logique plus directe
-• Même expérience utilisateur
-• Aligné sur architecture simplifiée
+• Objectif devient VERT instantanément quand terminé
+• Animation de validation fluide
+• Système robuste avec fallbacks
+• Compatible tracker + journal
 
-✅ QUEST UI COHÉRENT AVEC NOUVELLE ARCHITECTURE !
+✅ PROGRESSION OBJECTIFS INTÉGRÉE ET FONCTIONNELLE !
 `);
