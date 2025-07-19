@@ -31,8 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
             LogsToolsModule
         ])
         
-        // ✅ AJOUTER CETTE LIGNE
-        window.adminPanel = adminPanel
         
         console.log('✅ [Admin] Admin Panel initialized successfully')
         console.log('🎯 [Admin] adminPanel exposed to window:', window.adminPanel)
