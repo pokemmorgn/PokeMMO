@@ -241,30 +241,49 @@ export class NetworkInteractionHandler {
     }
   }
 
-  sendNpcInteract(npcId, additionalData = {}) {
-    // ✅ Wrapper pour compatibilité - délègue au NetworkManager existant
-    this.debugCounters.npcInteractions++;
-    console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT #${this.debugCounters.npcInteractions} ===`);
-    console.log('[NetworkInteractionHandler] NPC ID:', npcId);
+sendNpcInteract(npcId, additionalData = {}) {
+  // ✅ Assurer que npcId est string
+  const stringNpcId = String(npcId);
+  
+  console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT ===`);
+  console.log('[NetworkInteractionHandler] NPC ID (string):', stringNpcId);
+  console.log('[NetworkInteractionHandler] Additional data:', additionalData);
+  
+  try {
+    // ✅ CORRECTION : Utiliser le bon format pour Colyseus
+    const npcInteractionData = {
+      npcId: stringNpcId, // ← String forcée
+      timestamp: Date.now(),
+      zone: this.networkManager.currentZone,
+      sessionId: this.networkManager.sessionId,
+      playerPosition: this.getPlayerPosition(),
+      ...additionalData
+    };
     
-    try {
-      // ✅ Utiliser la méthode existante du NetworkManager
-      if (this.networkManager.sendNpcInteraction) {
-        return this.networkManager.sendNpcInteraction(npcId, additionalData);
-      } else if (this.networkManager.sendNpcInteract) {
-        this.networkManager.sendNpcInteract(npcId);
-        return true;
-      } else {
-        console.error('[NetworkInteractionHandler] ❌ Aucune méthode NPC disponible');
-        return false;
-      }
-      
-    } catch (error) {
-      console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
-      this.handleSendError('npcInteract', error);
+    // ✅ CHOIX : Utiliser l'ancien système qui fonctionne
+    if (this.networkManager.sendNpcInteraction) {
+      console.log('[NetworkInteractionHandler] 🔧 Utilisation ancienne méthode sendNpcInteraction');
+      return this.networkManager.sendNpcInteraction(stringNpcId, npcInteractionData);
+    } 
+    
+    // ✅ Ou nouvelle méthode si préférée
+    else if (this.networkManager.room) {
+      console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send');
+      this.networkManager.room.send("npcInteract", npcInteractionData);
+      return true;
+    }
+    
+    else {
+      console.error('[NetworkInteractionHandler] ❌ Aucune méthode d\'envoi disponible');
       return false;
     }
+    
+  } catch (error) {
+    console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
+    this.handleSendError('npcInteract', error);
+    return false;
   }
+}
 
   // === GESTION DES RÉSULTATS ===
 
