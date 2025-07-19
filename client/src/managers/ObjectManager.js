@@ -90,6 +90,9 @@ export class ObjectManager {
       // ✅ Nettoyer les anciens groupes si ils existent
       this.safeCleanupGroups();
       
+      // ✅ Créer une texture de fallback si nécessaire
+      this.ensureFallbackTexture();
+      
       // ✅ Créer nouveaux groupes
       this.phaserGroups.objects = this.scene.add.group({
         name: 'ObjectManagerGroup',
@@ -123,7 +126,67 @@ export class ObjectManager {
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Créer une texture de fallback
+  ensureFallbackTexture() {
+    if (this.scene.textures.exists('object_fallback')) {
+      return; // Déjà créée
+    }
+    
+    try {
+      // Créer une texture carrée simple de 16x16 pixels
+      const canvas = this.scene.textures.createCanvas('object_fallback', 16, 16);
+      const context = canvas.getContext();
+      
+      // Dessiner un carré simple
+      context.fillStyle = '#4CAF50'; // Vert
+      context.fillRect(0, 0, 16, 16);
+      context.strokeStyle = '#2E7D32'; // Vert foncé
+      context.strokeRect(0, 0, 16, 16);
+      
+      // Ajouter un petit point au centre
+      context.fillStyle = '#FFFFFF';
+      context.fillRect(7, 7, 2, 2);
+      
+      canvas.refresh();
+      
+      console.log('[ObjectManager] ✅ Texture de fallback créée: object_fallback');
+      
+    } catch (error) {
+      console.warn('[ObjectManager] ⚠️ Impossible de créer texture fallback:', error);
+    }
+  }
+
   // === GESTION DES OBJETS ===
+
+  // ✅ NOUVELLE MÉTHODE: Handler pour les objets reçus du NetworkManager
+  handleZoneObjectsReceived(data) {
+    console.log('[ObjectManager] 📨 === HANDLER OBJETS DE ZONE ===');
+    console.log('[ObjectManager] Zone:', data.zone);
+    console.log('[ObjectManager] Objets reçus:', data.objects?.length || 0);
+    
+    if (!data.objects || !Array.isArray(data.objects)) {
+      console.warn('[ObjectManager] ⚠️ Pas d\'objets valides dans les données');
+      return false;
+    }
+    
+    if (data.objects.length === 0) {
+      console.log('[ObjectManager] ℹ️ Aucun objet à afficher dans cette zone');
+      this.updateObjects([]); // Nettoyer les objets existants
+      return true;
+    }
+    
+    // ✅ Traiter les objets avec la méthode existante
+    console.log(`[ObjectManager] 🔄 Traitement de ${data.objects.length} objets...`);
+    const result = this.updateObjects(data.objects);
+    
+    if (result) {
+      console.log(`[ObjectManager] ✅ Objets de zone traités avec succès`);
+    } else {
+      console.error(`[ObjectManager] ❌ Erreur traitement objets de zone`);
+    }
+    
+    return result;
+  }
 
   updateObjects(serverObjects) {
     if (!this.isInitialized) {
@@ -541,9 +604,14 @@ export class ObjectManager {
   }
 
   determineTexture(objectData) {
-    // ✅ Logique de détermination de texture
+    // ✅ Logique de détermination de texture améliorée
     if (objectData.sprite) {
-      return objectData.sprite;
+      // Vérifier si la texture existe dans Phaser
+      if (this.scene.textures.exists(objectData.sprite)) {
+        return objectData.sprite;
+      } else {
+        console.warn(`[ObjectManager] ⚠️ Texture '${objectData.sprite}' non trouvée, fallback`);
+      }
     }
     
     if (objectData.type) {
@@ -552,20 +620,52 @@ export class ObjectManager {
         'potion': 'potion',
         'berry': 'berry',
         'item': 'item_generic',
-        'collectible': 'collectible'
+        'collectible': 'collectible',
+        'ball': 'pokeball',
+        'heal': 'potion',
+        'food': 'berry',
+        'treasure': 'collectible'
       };
       
-      return textureMap[objectData.type.toLowerCase()] || 'item_generic';
+      const mappedTexture = textureMap[objectData.type.toLowerCase()];
+      if (mappedTexture && this.scene.textures.exists(mappedTexture)) {
+        return mappedTexture;
+      }
     }
     
     if (objectData.name) {
       const name = objectData.name.toLowerCase();
-      if (name.includes('ball')) return 'pokeball';
-      if (name.includes('potion')) return 'potion';
-      if (name.includes('berry')) return 'berry';
+      if (name.includes('ball') && this.scene.textures.exists('pokeball')) {
+        return 'pokeball';
+      }
+      if (name.includes('potion') && this.scene.textures.exists('potion')) {
+        return 'potion';
+      }
+      if (name.includes('berry') && this.scene.textures.exists('berry')) {
+        return 'berry';
+      }
     }
     
-    return 'item_generic'; // Fallback
+    // ✅ Fallbacks sécurisés
+    const fallbackTextures = ['item_generic', 'pokeball', 'potion', 'object_fallback', 'dude'];
+    
+    for (const fallback of fallbackTextures) {
+      if (this.scene.textures.exists(fallback)) {
+        console.log(`[ObjectManager] 🔄 Utilisation texture fallback: ${fallback} pour objet ${objectData.id}`);
+        return fallback;
+      }
+    }
+    
+    // ✅ Dernier recours : créer une texture d'urgence
+    console.warn(`[ObjectManager] ⚠️ Création texture d'urgence pour objet ${objectData.id}`);
+    this.ensureFallbackTexture();
+    
+    if (this.scene.textures.exists('object_fallback')) {
+      return 'object_fallback';
+    }
+    
+    // ✅ Vraiment dernier recours : texture par défaut de Phaser
+    return '__DEFAULT';
   }
 
   configureSprite(sprite, objectData) {
@@ -611,6 +711,45 @@ export class ObjectManager {
   }
 
   // === API PUBLIQUE ===
+
+  // ✅ NOUVELLE MÉTHODE: Demander les objets d'une zone au serveur
+  requestZoneObjects(zoneName, networkManager) {
+    console.log(`[ObjectManager] 📤 Demande objets pour zone: ${zoneName}`);
+    
+    if (!networkManager?.room) {
+      console.warn('[ObjectManager] ⚠️ Pas de connexion réseau pour demander les objets');
+      return false;
+    }
+    
+    try {
+      networkManager.room.send("requestZoneObjects", { 
+        zone: zoneName,
+        timestamp: Date.now()
+      });
+      
+      console.log(`[ObjectManager] ✅ Demande envoyée pour zone: ${zoneName}`);
+      return true;
+      
+    } catch (error) {
+      console.error('[ObjectManager] ❌ Erreur demande objets:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer une synchronisation
+  forceSynchronization(networkManager, zoneName) {
+    console.log('[ObjectManager] 🔄 Force synchronisation des objets...');
+    
+    // Nettoyer les objets actuels
+    this.updateObjects([]);
+    
+    // Redemander les objets
+    if (zoneName && networkManager) {
+      setTimeout(() => {
+        this.requestZoneObjects(zoneName, networkManager);
+      }, 100);
+    }
+  }
 
   getObjectById(objectId) {
     return this.objectSprites.get(objectId) || null;
