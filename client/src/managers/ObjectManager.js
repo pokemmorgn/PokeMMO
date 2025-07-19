@@ -28,7 +28,7 @@ export default class ObjectManager {
             return false;
         }
 
-        console.log(`[ObjectManager] 🚀 === INITIALISATION ===`);
+        console.log(`[ObjectManager] 🚀 === INITIALISATION AAAA ===`);
         console.log(`[ObjectManager] Scène: ${this.scene.constructor.name}`);
 
         try {
