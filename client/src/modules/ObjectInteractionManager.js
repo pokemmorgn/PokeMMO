@@ -344,8 +344,8 @@ async sendObjectInteraction(object, options = {}) {
     // ✅ CORRECTION : Utiliser les propriétés du sprite Phaser
     const objectId = object.objectId || object.id || object.name || 'unknown_object';
     
-    // ✅ CORRECTION : Utiliser objectType du sprite
-    const objectType = object.objectType || this.state.currentInteractionType || options.objectType || 'unknown';
+    // ✅ CORRECTION CRITIQUE : Utiliser this.state.currentInteractionType en PRIORITÉ (contient "pokeball")
+    const objectType = this.state.currentInteractionType || object.objectType || options.objectType || 'unknown';
     
     // ✅ Position de l'objet
     const objectPosition = object.x !== undefined && object.y !== undefined 
@@ -355,16 +355,24 @@ async sendObjectInteraction(object, options = {}) {
     // ✅ CORRECTION : Données supplémentaires avec les bonnes propriétés
     const additionalData = {
       objectName: object.name || object.objectId || objectId,
-      objectType: objectType,
-      interactionType: this.state.currentInteractionType,
-      properties: object.objectData || object.properties, // ✅ objectData du sprite
+      objectType: objectType, // ✅ Utilise le type détecté
+      interactionType: this.state.currentInteractionType, // ✅ Type détecté ("pokeball")
+      properties: object.objectData || object.properties,
       ...options
     };
+    
+    // ✅ LOG DEBUG pour vérifier les valeurs
+    console.log('[ObjectInteractionManager] 🔍 DEBUG ENVOI:', {
+      objectId,
+      objectType,
+      currentInteractionType: this.state.currentInteractionType,
+      objectObjectType: object.objectType
+    });
     
     // ✅ Envoyer via NetworkHandler
     const result = this.networkHandler.sendObjectInteract(
       objectId,
-      objectType,
+      objectType, // ✅ Maintenant ça devrait être "pokeball" !
       objectPosition,
       additionalData
     );
@@ -377,7 +385,6 @@ async sendObjectInteraction(object, options = {}) {
     return false;
   }
 }
-
   // === FOUILLE D'OBJETS CACHÉS ===
 
   async searchHiddenItems(position = null, searchRadius = null) {
