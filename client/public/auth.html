@@ -1773,6 +1773,18 @@ clearSession() {
     
     console.log('✅ Updater playtime démarré (1min)');
 }
+            openAdminPanel() {
+                if (!this.currentUser || !this.currentUser.isDev) {
+                    this.showNotification('Accès développeur requis', 'error');
+                    return;
+                }
+                
+                console.log('🔧 Ouverture Admin Panel...');
+                this.showNotification('Redirection vers Admin Panel...', 'info');
+                
+                // Ouvrir dans un nouvel onglet
+                window.open('/admin', '_blank');
+            }
         }
         
 
