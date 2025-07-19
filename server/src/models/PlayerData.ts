@@ -1,12 +1,12 @@
-import mongoose, { Document } from "mongoose";
+import mongoose from "mongoose";
 
-// ✅ INTERFACE pour les méthodes personnalisées
-interface IPlayerData extends Document {
+// ✅ INTERFACE pour les méthodes personnalisées - AVEC COOLDOWNS
+interface IPlayerData extends mongoose.Document {
   // Propriétés virtuelles
   isAccountLocked: boolean;
   isBanActive: boolean;
   
-  // Méthodes personnalisées
+  // Méthodes personnalisées existantes
   recordFailedLogin(): Promise<any>;
   resetFailedLogins(): Promise<any>;
   recordSuccessfulLogin(ip?: string): Promise<any>;
@@ -74,7 +74,7 @@ walletAddress: {
   totalPlaytime: { type: Number, default: 0 }, // en minutes
   currentSessionStart: { type: Date, default: null },
   
-  // États des objets collectés avec cooldowns
+  // ✅ NOUVEAU : États des objets collectés avec cooldowns
   objectStates: [{
     objectId: { type: Number, required: true },
     zone: { type: String, required: true },
@@ -103,6 +103,9 @@ PlayerDataSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
 PlayerDataSchema.index({ deviceFingerprint: 1 });
 PlayerDataSchema.index({ isActive: 1 });
 PlayerDataSchema.index({ createdAt: 1 });
+
+// NOUVEAU INDEX pour les cooldowns d'objets
+PlayerDataSchema.index({ 'objectStates.objectId': 1, 'objectStates.zone': 1 });
 
 // ✅ MÉTHODES virtuelles pour sécurité
 PlayerDataSchema.virtual('isAccountLocked').get(function() {
@@ -137,7 +140,7 @@ PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
   return this.save();
 };
 
-// ✅ MÉTHODES pour gestion des cooldowns d'objets
+// ✅ NOUVELLES MÉTHODES pour gestion des cooldowns d'objets
 PlayerDataSchema.methods.canCollectObject = function(objectId: number, zone: string) {
   const objectState = this.objectStates.find(
     (state: any) => state.objectId === objectId && state.zone === zone
@@ -220,4 +223,5 @@ PlayerDataSchema.pre('save', function(next) {
   next();
 });
 
+// ✅ EXPORT avec interface typée
 export const PlayerData = mongoose.model<IPlayerData>("PlayerData", PlayerDataSchema);
