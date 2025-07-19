@@ -13,6 +13,33 @@ import {
   ObjectInteractionResult 
 } from "../core/IObjectSubModule";
 
+// ✅ TYPES POUR CORRIGER LES ERREURS TYPESCRIPT
+type PcType = 'basic' | 'pokemon' | 'bill' | 'admin' | 'storage';
+type AccessLevel = 'view' | 'basic' | 'admin';
+
+interface PcStorageData {
+  team: {
+    pokemon: any[];
+    activePokemon: number;
+    maxSize: number;
+  };
+  boxes: Record<number, any[]>;
+  totalBoxes: number;
+  availableOperations: string[];
+  specialFeatures?: {
+    pokemonStorage: boolean;
+    massTransfer: boolean;
+    pokemonSearch: boolean;
+    statistics: boolean;
+  };
+  adminFeatures?: {
+    debugInfo: boolean;
+    pokemonEdit: boolean;
+    massOperations: boolean;
+    systemInfo: any;
+  };
+}
+
 /**
  * Sous-module pour les PC Pokémon avec accès complet aux données
  * Type: "pc"
@@ -163,8 +190,8 @@ export default class PcSubModule extends BaseObjectSubModule {
 
       // === ÉTAPE 6 : DÉTERMINER LE TYPE D'OPÉRATION ===
       
-      const pcType = this.getProperty(objectDef, 'pcType', 'pokemon');
-      const accessLevel = this.getProperty(objectDef, 'accessLevel', 'basic');
+      const pcType = this.getProperty(objectDef, 'pcType', 'pokemon') as PcType;
+      const accessLevel = this.getProperty(objectDef, 'accessLevel', 'basic') as AccessLevel;
       const operation = actionData?.operation || 'access';
 
       // === ÉTAPE 7 : TRAITEMENT SELON L'OPÉRATION ===
@@ -253,8 +280,8 @@ export default class PcSubModule extends BaseObjectSubModule {
     objectDef: ObjectDefinition
   ): Promise<{ valid: boolean; reason?: string }> {
     
-    const accessLevel = this.getProperty(objectDef, 'accessLevel', 'basic');
-    const pcType = this.getProperty(objectDef, 'pcType', 'pokemon');
+    const accessLevel = this.getProperty(objectDef, 'accessLevel', 'basic') as AccessLevel;
+    const pcType = this.getProperty(objectDef, 'pcType', 'pokemon') as PcType;
     
     // Validation niveau minimum pour certains PC
     const requiredLevel = this.getProperty(objectDef, 'requiredLevel', 1);
@@ -310,7 +337,7 @@ export default class PcSubModule extends BaseObjectSubModule {
       pcBoxCount: Object.keys(enrichedPcBoxes).length
     });
 
-    const storage = {
+    const storage: PcStorageData = {
       team: {
         pokemon: enrichedTeam,
         activePokemon: -1, // Index sera déterminé côté client
@@ -318,7 +345,7 @@ export default class PcSubModule extends BaseObjectSubModule {
       },
       boxes: enrichedPcBoxes,
       totalBoxes: Math.max(1, ...Object.keys(enrichedPcBoxes).map(Number)) + 1,
-      availableOperations: this.getAvailableOperations(accessLevel)
+      availableOperations: this.getAvailableOperations(accessLevel as AccessLevel)
     };
 
     // Ajout fonctionnalités spéciales selon le type de PC
@@ -346,7 +373,7 @@ export default class PcSubModule extends BaseObjectSubModule {
     pokemonTeam: IPokemonTeam,
     pcPokemon: IOwnedPokemon[],
     actionData: any,
-    accessLevel: string
+    accessLevel: AccessLevel
   ) {
     if (accessLevel === 'view') {
       throw new Error("Opération non autorisée avec ce niveau d'accès");
@@ -373,7 +400,7 @@ export default class PcSubModule extends BaseObjectSubModule {
   private async handlePcOrganization(
     pcPokemon: IOwnedPokemon[],
     actionData: any,
-    accessLevel: string
+    accessLevel: AccessLevel
   ) {
     if (accessLevel === 'view') {
       throw new Error("Opération non autorisée avec ce niveau d'accès");
@@ -564,8 +591,8 @@ export default class PcSubModule extends BaseObjectSubModule {
     return names[pcType] || 'PC';
   }
 
-  private getAvailableOperations(accessLevel: string): string[] {
-    const operations: Record<string, string[]> = {
+  private getAvailableOperations(accessLevel: AccessLevel): string[] {
+    const operations: Record<AccessLevel, string[]> = {
       'view': ['view', 'consult'],
       'basic': ['view', 'consult', 'transfer', 'organize'],
       'admin': ['view', 'consult', 'transfer', 'organize', 'edit', 'debug', 'mass_operations']
