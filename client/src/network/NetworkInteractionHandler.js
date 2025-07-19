@@ -241,40 +241,36 @@ export class NetworkInteractionHandler {
     }
   }
 
-sendNpcInteract(npcId, additionalData = {}) {
-  // ✅ GARDER le number original (pas de conversion string!)
-  console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT ===`);
-  console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
-  
-  try {
-    // ✅ FORMAT MINIMAL qui fonctionne (comme les tests en console)
-    if (this.networkManager.sendNpcInteraction) {
-      console.log('[NetworkInteractionHandler] 🔧 Utilisation ancienne méthode sendNpcInteraction');
-      // ✅ Juste l'ID number, pas de données supplémentaires
-      return this.networkManager.sendNpcInteraction(npcId);
-    } 
+  sendNpcInteract(npcId, additionalData = {}) {
+    this.debugCounters.npcInteractions++;
+    console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT #${this.debugCounters.npcInteractions} ===`);
+    console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
     
-    // ✅ Ou envoi direct minimal
-    else if (this.networkManager.room) {
-      console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send');
-      // ✅ Format minimal qui fonctionne
-      this.networkManager.room.send("npcInteract", {
-        npcId: npcId // ← NUMBER, format minimal
-      });
-      return true;
-    }
-    
-    else {
-      console.error('[NetworkInteractionHandler] ❌ Aucune méthode d\'envoi disponible');
+    try {
+      // ✅ BYPASSER l'ancienne méthode - utiliser directement room.send
+      if (this.networkManager.room) {
+        console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send (format minimal)');
+        
+        // ✅ Format EXACT qui fonctionne (testé en console)
+        this.networkManager.room.send("npcInteract", {
+          npcId: npcId // ← JUSTE ÇA !
+        });
+        
+        console.log('[NetworkInteractionHandler] ✅ Interaction NPC envoyée (format minimal)');
+        return true;
+      }
+      
+      else {
+        console.error('[NetworkInteractionHandler] ❌ Room non disponible');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
+      this.handleSendError('npcInteract', error);
       return false;
     }
-    
-  } catch (error) {
-    console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
-    this.handleSendError('npcInteract', error);
-    return false;
   }
-}
 
   // === GESTION DES RÉSULTATS ===
 
