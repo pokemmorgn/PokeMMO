@@ -11,7 +11,7 @@ import {
 } from '../types/InteractionTypes.js';
 
 import { NpcInteractionManager } from '../modules/NpcInteractionManager.js';
-import { ObjectInteractionManager } from '../modules/ObjectInteractionManager.js';
+
 export class BaseInteractionManager {
   constructor(scene) {
     this.scene = scene;
@@ -154,32 +154,7 @@ export class BaseInteractionManager {
     } catch (error) {
       console.error('[BaseInteractionManager] ❌ Erreur création NpcInteractionManager:', error);
     }
-
-      // ✅ Module Objets
-  try {
-    this.modules.objectInteractionManager = new ObjectInteractionManager(
-      this.scene, 
-      this.dependencies.networkInteractionHandler
-    );
     
-    const objectResult = this.modules.objectInteractionManager.initialize({
-      playerManager: this.dependencies.playerManager,
-      inventorySystem: this.dependencies.inventorySystem || window.inventorySystem,
-      notificationSystem: this.dependencies.notificationSystem || window.showGameNotification
-    });
-    
-    if (objectResult) {
-      console.log('[BaseInteractionManager] ✅ ObjectInteractionManager initialisé');
-      
-      // ✅ Connecter les callbacks
-      this.setupObjectCallbacks();
-    } else {
-      console.error('[BaseInteractionManager] ❌ Échec initialisation ObjectInteractionManager');
-    }
-    
-  } catch (error) {
-    console.error('[BaseInteractionManager] ❌ Erreur création ObjectInteractionManager:', error);
-  }
     // ✅ Module Objets (à venir)
     // this.modules.objectInteractionManager = new ObjectInteractionManager(...)
     
@@ -212,54 +187,6 @@ export class BaseInteractionManager {
         this.callbacks.onInteractionStart(INTERACTION_TYPES.NPC, npc, type);
       }
     });
-
-    setupObjectCallbacks() {
-  const objectManager = this.modules.objectInteractionManager;
-  if (!objectManager) return;
-  
-  console.log('[BaseInteractionManager] 🔗 Configuration callbacks objets...');
-  
-  objectManager.onObjectInteractionStart((object, type) => {
-    console.log(`[BaseInteractionManager] 📦 Interaction objet démarrée: ${object?.name || object?.id} (${type})`);
-    this.state.currentInteraction = {
-      type: INTERACTION_TYPES.OBJECT,
-      target: object,
-      subType: type,
-      startTime: Date.now()
-    };
-    
-    if (this.callbacks.onInteractionStart) {
-      this.callbacks.onInteractionStart(INTERACTION_TYPES.OBJECT, object, type);
-    }
-  });
-  
-  objectManager.onObjectInteractionComplete((object, data, result) => {
-    console.log(`[BaseInteractionManager] ✅ Interaction objet complétée: ${object?.name || object?.id}`);
-    
-    if (this.state.currentInteraction) {
-      this.state.lastInteractionDuration = Date.now() - this.state.currentInteraction.startTime;
-      this.updateAverageResponseTime(this.state.lastInteractionDuration);
-    }
-    
-    this.state.currentInteraction = null;
-    
-    if (this.callbacks.onInteractionComplete) {
-      this.callbacks.onInteractionComplete(INTERACTION_TYPES.OBJECT, object, data, result);
-    }
-  });
-  
-  objectManager.onObjectInteractionError((error, object, data) => {
-    console.error(`[BaseInteractionManager] ❌ Erreur interaction objet: ${error.message}`);
-    this.stats.errors++;
-    this.state.currentInteraction = null;
-    
-    if (this.callbacks.onInteractionError) {
-      this.callbacks.onInteractionError(INTERACTION_TYPES.OBJECT, error, object, data);
-    }
-  });
-  
-  console.log('[BaseInteractionManager] ✅ Callbacks objets configurés');
-}
     
     npcManager.onNpcInteractionComplete((npc, data, result) => {
       console.log(`[BaseInteractionManager] ✅ Interaction NPC complétée: ${npc?.name}`);
@@ -509,20 +436,9 @@ export class BaseInteractionManager {
   }
 
   detectNearbyObjects() {
-    const objectManager = this.modules.objectInteractionManager;
-    if (!objectManager) {
-      console.log('[BaseInteractionManager] ⚠️ ObjectInteractionManager non disponible');
-      return [];
-    }
-    
-    // ✅ Utiliser le cache d'objets du manager
-    const interactableObjects = objectManager.objectCache.interactableObjects;
-    
-    if (this.config.enableDebugLogs && interactableObjects.length > 0) {
-      console.log(`[BaseInteractionManager] 📦 ${interactableObjects.length} objet(s) interactable(s) détecté(s)`);
-    }
-    
-    return interactableObjects;
+    // ✅ À implémenter avec ObjectInteractionManager
+    console.log('[BaseInteractionManager] 🚧 Détection objets - À implémenter');
+    return [];
   }
 
   detectEnvironmentInteractions() {
@@ -644,8 +560,9 @@ export class BaseInteractionManager {
     
     this.updateDelegationStats('ObjectInteractionManager');
     
-    // ✅ Déléguer l'interaction à l'ObjectInteractionManager
-    return objectModule.interactWithObject(object);
+    // ✅ À implémenter
+    // return objectModule.interactWithObject(object);
+    return false;
   }
 
   delegateToEnvironmentModule(environmentTarget) {
@@ -731,26 +648,6 @@ export class BaseInteractionManager {
     return this.delegateToModule(targetInfo);
   }
 
-  searchHiddenItems(position = null, searchRadius = null) {
-  console.log('[BaseInteractionManager] 🔍 Recherche objets cachés...');
-  
-  const objectModule = this.modules.objectInteractionManager;
-  if (!objectModule) {
-    console.error('[BaseInteractionManager] ❌ ObjectInteractionManager non disponible');
-    this.showInteractionMessage('Système de fouille non disponible', 'error');
-    return false;
-  }
-  
-  // ✅ Vérifier si on peut traiter l'input
-  if (!this.canProcessInput()) {
-    console.log('[BaseInteractionManager] 🚫 Input bloqué pour fouille');
-    return false;
-  }
-  
-  // ✅ Déléguer la fouille
-  return objectModule.searchHiddenItems(position, searchRadius);
-}
-  
   blockInteractions(duration = 5000, reason = "Interactions bloquées") {
     console.log(`[BaseInteractionManager] 🚫 Blocage interactions: ${duration}ms (${reason})`);
     this.state.blockedUntil = Date.now() + duration;
@@ -900,11 +797,6 @@ export class BaseInteractionManager {
         maxInteractionDistance: newConfig.maxInteractionDistance
       });
     }
-    if (newConfig.maxInteractionDistance && this.modules.objectInteractionManager) {
-      this.modules.objectInteractionManager.setConfig({
-        maxInteractionDistance: newConfig.maxInteractionDistance
-      });
-    }
   }
 
   // === DEBUG ===
@@ -950,9 +842,6 @@ export class BaseInteractionManager {
     // ✅ Reset stats des modules
     if (this.modules.npcInteractionManager?.resetStats) {
       this.modules.npcInteractionManager.resetStats();
-    }
-    if (this.modules.objectInteractionManager?.resetStats) {
-      this.modules.objectInteractionManager.resetStats();
     }
   }
 
