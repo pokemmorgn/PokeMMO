@@ -298,35 +298,43 @@ sessionStorage.removeItem('sessionToken');
     }
   }
 
-  async initializeInteractionHandler() {
-  console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
-  
-  if (!this.room || !this.sessionId) {
-    console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
-    return false;
-  }
-  
-  try {
-    // Créer le NetworkInteractionHandler
-    this.interactionHandler = new NetworkInteractionHandler(this);
-    
-    // L'initialiser avec la room actuelle
-    const success = this.interactionHandler.initialize();
-    
-    if (success) {
-      console.log('✅ [NetworkManager] Système d\'interactions initialisé');
-      return true;
-    } else {
-      console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
-      return false;
+    async initializeInteractionHandler() {
+      console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
+      
+      if (!this.room || !this.sessionId) {
+        console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
+        return false;
+      }
+      
+      try {
+        // Créer le NetworkInteractionHandler
+        this.interactionHandler = new NetworkInteractionHandler(this);
+        
+        // L'initialiser avec la room actuelle
+        const success = this.interactionHandler.initialize();
+        
+        if (success) {
+          // ✅ NOUVEAU : Connecter NetworkManager → NetworkInteractionHandler
+          this.onNpcInteraction((result) => {
+            console.log('🔗 [NetworkManager] Routage vers NetworkInteractionHandler:', result);
+            if (this.interactionHandler?.callbacks?.onNpcInteraction) {
+              this.interactionHandler.callbacks.onNpcInteraction(result);
+            }
+          });
+          
+          console.log('✅ [NetworkManager] Système d\'interactions initialisé');
+          return true;
+        } else {
+          console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
+          return false;
+        }
+        
+      } catch (error) {
+        console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
+        return false;
+      }
     }
-    
-  } catch (error) {
-    console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
-    return false;
-  }
-}
-  
+      
   setupRoomListeners() {
     if (!this.room) return;
 
