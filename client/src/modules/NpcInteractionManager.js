@@ -299,47 +299,54 @@ export class NpcInteractionManager {
     }
   }
 
-  async sendNpcInteraction(npc, options = {}) {
-    console.log('[NpcInteractionManager] 📤 Envoi interaction réseau...');
-    
-    if (!this.networkHandler) {
-      console.error('[NpcInteractionManager] ❌ Pas de NetworkHandler');
-      return false;
-    }
-    
-    try {
-      // ✅ Créer données d'interaction
-      const playerPosition = this.getPlayerPosition();
-      const interactionData = InteractionHelpers.createNpcInteraction(
-        npc.id,
-        this.networkHandler.networkManager.sessionId,
-        this.networkHandler.networkManager.currentZone,
-        playerPosition,
-        {
-          npcName: npc.name,
-          interactionType: this.state.currentInteractionType,
-          ...options
-        }
-      );
-      
-      // ✅ Validation côté client
-      const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
-      if (!validation.isValid) {
-        console.warn('[NpcInteractionManager] ⚠️ Validation échouée:', validation.errors);
-        // Continuer quand même - le serveur validera
-      }
-      
-      // ✅ Envoyer via NetworkHandler
-      const result = this.networkHandler.sendNpcInteract(npc.id, interactionData);
-      
-      console.log(`[NpcInteractionManager] Résultat envoi: ${result}`);
-      return result;
-      
-    } catch (error) {
-      console.error('[NpcInteractionManager] ❌ Erreur envoi:', error);
-      return false;
-    }
+// ✅ NOUVELLE VERSION CORRIGÉE
+async sendNpcInteraction(npc, options = {}) {
+  console.log('[NpcInteractionManager] 📤 Envoi interaction réseau...');
+  
+  if (!this.networkHandler) {
+    console.error('[NpcInteractionManager] ❌ Pas de NetworkHandler');
+    return false;
   }
+  
+  try {
+    // ✅ CORRECTION : Assurer que npcId est une string
+    const npcId = String(npc.id || npc.name || 'unknown');
+    
+    // ✅ Créer données d'interaction avec types corrects
+    const playerPosition = this.getPlayerPosition();
+    const interactionData = InteractionHelpers.createNpcInteraction(
+      npcId, // ← String maintenant
+      this.networkHandler.networkManager.sessionId,
+      this.networkHandler.networkManager.currentZone,
+      playerPosition,
+      {
+        npcName: npc.name,
+        interactionType: this.state.currentInteractionType,
+        ...options
+      }
+    );
+    
+    // ✅ Validation côté client (pour debug seulement)
+    const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
+    if (!validation.isValid) {
+      console.warn('[NpcInteractionManager] ⚠️ Validation échouée:', validation.errors);
+      // ⚠️ NE PAS ARRÊTER - Le serveur validera
+    } else {
+      console.log('[NpcInteractionManager] ✅ Validation client réussie');
+    }
+    
+    // ✅ CHOIX DE MÉTHODE D'ENVOI
+    // Option A: Utiliser la nouvelle méthode (recommandé)
+    const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
+    
+    console.log(`[NpcInteractionManager] Résultat envoi: ${result}`);
+    return result;
+    
+  } catch (error) {
+    console.error('[NpcInteractionManager] ❌ Erreur envoi:', error);
+    return false;
+  }
+}
 
   // === GESTION DES RÉSULTATS RÉSEAU ===
 
@@ -803,11 +810,20 @@ export class NpcInteractionManager {
   }
 
   getPlayerPosition() {
-    const playerManager = this.dependencies.playerManager;
-    if (!playerManager) return null;
+    const playerManager = this.dependencies?.playerManager || 
+                         this.networkManager?.playerManager ||
+                         this.scene?.playerManager;
+                         
+    if (!playerManager) {
+      console.warn('[NetworkInteractionHandler] ⚠️ PlayerManager non trouvé');
+      return null;
+    }
     
     const myPlayer = playerManager.getMyPlayer();
-    if (!myPlayer) return null;
+    if (!myPlayer) {
+      console.warn('[NetworkInteractionHandler] ⚠️ Mon joueur non trouvé');
+      return null;
+    }
     
     return { x: myPlayer.x, y: myPlayer.y };
   }
