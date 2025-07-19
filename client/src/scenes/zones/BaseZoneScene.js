@@ -21,7 +21,7 @@ import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
-
+import { ObjectManager } from '../managers/ObjectManager.js';
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -1200,9 +1200,15 @@ initPlayerSpawnFromSceneData() {
       
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
     });
-this.networkManager.onMessage("overworldPokemon", (data) => {
-//    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
-    
+    this.networkManager.onMessage("overworldPokemon", (data) => {
+    //    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
+    // ✅ AJOUTER : Handler pour objets de zone
+    this.networkManager.onMessage("zoneObjects", (data) => {
+      console.log(`📦 [${this.scene.key}] Objets de zone reçus:`, data);
+      if (this.objectManager) {
+        this.objectManager.handleZoneObjectsReceived(data);
+      }
+    });
     if (this.overworldPokemonManager) {
       this.overworldPokemonManager.handleServerMessage(data);
     } else {
@@ -2134,7 +2140,12 @@ onPlayerPositioned(player, initData) {
     this.globalWeatherManager.setActiveScene(this.scene.key);
     console.log(`🎯 [${this.scene.key}] Scène marquée comme active dans le système météo`);
   }
-  
+    // ✅ AJOUTER : Demander les objets de la zone
+  if (this.objectManager && this.networkManager?.room) {
+    const zoneName = this.mapSceneToZone(this.scene.key);
+    console.log(`📦 [${this.scene.key}] Demande objets pour zone: ${zoneName}`);
+    this.networkManager.room.send("requestZoneObjects", { zone: zoneName });
+  }
   // ✅ NOUVEAU: Forcer la mise à jour du widget après positionnement
   if (this.timeWeatherWidget) {
     this.time.delayedCall(1000, () => {
@@ -2155,7 +2166,10 @@ onPlayerPositioned(player, initData) {
       // ✅ AJOUTER CETTE LIGNE MANQUANTE :
   this.overworldPokemonManager = new OverworldPokemonManager(this);
   console.log("✅ OverworldPokemonManager initialisé");
-    
+        // ✅ AJOUTER : ObjectManager
+    this.objectManager = new ObjectManager(this);
+    this.objectManager.initialize();
+    console.log("✅ ObjectManager initialisé");
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
     }
