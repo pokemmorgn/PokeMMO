@@ -435,11 +435,44 @@ export class BaseInteractionManager {
     return closestNpc ? [closestNpc] : [];
   }
 
-  detectNearbyObjects() {
-    // ✅ À implémenter avec ObjectInteractionManager
-    console.log('[BaseInteractionManager] 🚧 Détection objets - À implémenter');
-    return [];
-  }
+    detectNearbyObjects() {
+        // ✅ CONNEXION avec ObjectManager de la scène
+        console.log('[BaseInteractionManager] 🔍 Détection objets via ObjectManager...');
+        
+        // ✅ Vérifier que ObjectManager existe
+        if (!this.scene || !this.scene.objectManager) {
+            console.warn('[BaseInteractionManager] ⚠️ ObjectManager non disponible');
+            return [];
+        }
+        
+        // ✅ Obtenir la position du joueur
+        const playerManager = this.dependencies.playerManager;
+        if (!playerManager) {
+            console.warn('[BaseInteractionManager] ⚠️ PlayerManager non disponible');
+            return [];
+        }
+        
+        const myPlayer = playerManager.getMyPlayer();
+        if (!myPlayer) {
+            console.warn('[BaseInteractionManager] ⚠️ Joueur non trouvé');
+            return [];
+        }
+        
+        // ✅ Détecter les objets via ObjectManager
+        const maxDistance = this.config.maxInteractionDistance;
+        const objectsInRadius = this.scene.objectManager.getObjectsInRadius(
+            myPlayer.x, 
+            myPlayer.y, 
+            maxDistance
+        );
+        
+        // ✅ Extraire seulement les sprites pour compatibilité avec le système existant
+        const sprites = objectsInRadius.map(obj => obj.sprite).filter(sprite => sprite && sprite.active);
+        
+        console.log(`[BaseInteractionManager] 🔍 Objets détectés: ${sprites.length} (dans ${maxDistance}px)`);
+        
+        return sprites;
+    }
 
   detectEnvironmentInteractions() {
     // ✅ Futur - Portes, commutateurs, etc.
