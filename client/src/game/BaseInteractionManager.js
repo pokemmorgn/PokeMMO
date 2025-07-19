@@ -620,9 +620,8 @@ console.log(`[BaseInteractionManager] 🎯 Propriétés du sprite:`, {
     
     this.updateDelegationStats('ObjectInteractionManager');
     
-    // ✅ À implémenter
-    // return objectModule.interactWithObject(object);
-    return false;
+    // ✅ LIGNE DÉCOMMENTÉE - Appel effectif à l'ObjectInteractionManager
+    return objectModule.interactWithObject(object);
   }
 
   delegateToEnvironmentModule(environmentTarget) {
