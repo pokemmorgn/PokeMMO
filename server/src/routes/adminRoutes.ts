@@ -98,9 +98,9 @@ const requireMacAndDev = async (req: any, res: any, next: any) => {
     console.log(`❌ [AdminRoute] IP non autorisée: ${clientIP}`);
     return res.status(403).json({ error: 'IP non autorisée' });
 
-  } catch (error) {
+} catch (error) {
     console.error('❌ [AdminRoute] Erreur middleware:', error);
-    return res.status(403).json({ error: 'Erreur authentification: ' + error.message });
+    return res.status(403).json({ error: 'Token invalide ou expiré' });
   }
 };
 
