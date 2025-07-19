@@ -3,6 +3,7 @@
 // VERSION AVEC AUTO-DÉTECTION PAR NOM
 
 import { Player } from "../../../../schema/PokeWorldState";
+import { PlayerData } from "../../../../models/PlayerData";
 import { InventoryManager } from "../../../../managers/InventoryManager";
 import { 
   BaseObjectSubModule, 
@@ -102,16 +103,23 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
 
       // === VALIDATION SPÉCIFIQUE ===
       
-      // 1. Vérifier si déjà collecté
-      if (objectDef.state.collected) {
-        const processingTime = Date.now() - startTime;
-        this.updateStats(false, processingTime);
-        
-        return this.createErrorResult(
-          "Cet objet a déjà été ramassé.",
-          'ALREADY_COLLECTED'
-        );
-      }
+    // 1. Vérifier cooldown via PlayerData
+          const playerData = await PlayerData.findOne({ username: player.name });
+          if (!playerData) {
+            return this.createErrorResult("Données joueur introuvables", 'PLAYER_NOT_FOUND');
+          }
+          
+          const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
+          if (!cooldownInfo.canCollect) {
+            const hoursLeft = Math.ceil(cooldownInfo.timeLeft / (1000 * 60 * 60));
+            const processingTime = Date.now() - startTime;
+            this.updateStats(false, processingTime);
+            
+            return this.createErrorResult(
+              `Objet déjà collecté. Disponible dans ${hoursLeft}h`,
+              'COOLDOWN_ACTIVE'
+            );
+          }
 
       // 2. Vérifier que l'item existe (double vérification)
       if (!itemId) {
@@ -139,6 +147,19 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           source: autoDetected ? 'auto-detection' : 'manual'
         });
 
+        // === ENREGISTRER LA COLLECTE AVEC COOLDOWN ===
+        
+        const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
+        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+        
+        await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownMs);
+        
+        this.log('info', `⏰ Cooldown enregistré`, {
+          objectId: objectDef.id,
+          zone: objectDef.zone,
+          cooldownHours,
+          nextAvailable: new Date(Date.now() + cooldownMs)
+        });
         // === PROGRAMMATION DU RESPAWN (si configuré) ===
         
         const respawnTime = this.getProperty(objectDef, 'respawnTime', 0);
