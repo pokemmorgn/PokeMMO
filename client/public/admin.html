@@ -772,32 +772,35 @@
     </div>
 
     <script>
-        class AdminPanel {
-            constructor() {
-                this.currentPlayer = null;
-                this.autoRefreshInterval = null;
-                this.token = localStorage.getItem('sessionToken');
-                
-                if (!this.token) {
-                    window.location.href = '/auth';
-                    return;
-                }
+class AdminPanel {
+    constructor() {
+        console.log('🚀 [AdminPanel] Initialisation...');
+        
+        this.token = sessionStorage.getItem('sessionToken');
+        console.log('🎫 [AdminPanel] Token trouvé:', this.token ? 'OUI' : 'NON');
+        
+        if (!this.token) {
+            console.log('❌ [AdminPanel] Aucun token, redirection vers /auth');
+            window.location.href = '/auth';
+            return;
+        }
+        
+        console.log('✅ [AdminPanel] Token présent, tentative de connexion...');
+        this.init();
+    }
 
-                this.init();
-            }
-
-            async init() {
-                try {
-                    // Vérifier l'authentification
-                    await this.loadDashboard();
-                    this.setupEventListeners();
-                    console.log('✅ Admin Panel initialisé');
-                } catch (error) {
-                    console.error('❌ Erreur initialisation:', error);
-                    this.showNotification('Erreur d\'authentification', 'error');
-                    setTimeout(() => window.location.href = '/auth', 2000);
-                }
-            }
+    async init() {
+        try {
+            console.log('🔄 [AdminPanel] Chargement dashboard...');
+            await this.loadDashboard();
+            this.setupEventListeners();
+            console.log('✅ [AdminPanel] Initialisé avec succès');
+        } catch (error) {
+            console.error('❌ [AdminPanel] Erreur initialisation:', error);
+            this.showNotification('Erreur d\'authentification: ' + error.message, 'error');
+            setTimeout(() => window.location.href = '/auth', 2000);
+        }
+    }
 
             setupEventListeners() {
                 // Navigation par onglets
@@ -854,23 +857,30 @@
                 }
             }
 
-            async apiCall(endpoint, options = {}) {
-                const response = await fetch(`/api/admin${endpoint}`, {
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    },
-                    ...options
-                });
+    async apiCall(endpoint, options = {}) {
+        console.log(`📡 [AdminPanel] API Call: ${endpoint}`);
+        console.log('🎫 [AdminPanel] Token utilisé:', this.token.substring(0, 20) + '...');
+        
+        const response = await fetch(`/api/admin${endpoint}`, {
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json',
+                ...options.headers
+            },
+            ...options
+        });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Erreur API');
-                }
+        console.log(`📡 [AdminPanel] Réponse API: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('❌ [AdminPanel] Erreur API:', error);
+            throw new Error(error.error || 'Erreur API');
+        }
 
-                return response.json();
-            }
+        return response.json();
+    }
+}
 
             async loadDashboard() {
                 try {
