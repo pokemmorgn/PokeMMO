@@ -1033,7 +1033,7 @@ initializeZoneEnvironment() {
     }
 
     try {
-      console.log(`🎯 [${this.scene.key}] === INITIALISATION INTERACTION MANAGER ===`);
+     console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
 
     // Créer le BaseInteractionManager
     this.interactionManager = new BaseInteractionManager(this);
@@ -1048,7 +1048,7 @@ initializeZoneEnvironment() {
       shopSystem: this.scene?.shopIntegration?.getShopSystem() || window.shopSystem
     });
 
-      console.log(`✅ [${this.scene.key}] InteractionManager initialisé avec succès`);
+      console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec succès`);
 
       // ✅ Shop integration
       integrateShopToScene(this, this.networkManager);
@@ -1056,7 +1056,7 @@ initializeZoneEnvironment() {
       console.log(`✅ [${this.scene.key}] Shop intégré via InteractionManager`);
 
     } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation InteractionManager:`, error);
+      console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
     }
   }
 
@@ -2399,7 +2399,7 @@ onPlayerPositioned(player, initData) {
 
   showNotification(message, type = 'info') {
     if (this.interactionManager) {
-      this.interactionManager.showMessage(message, type);
+      this.interactionManager.showInteractionMessage(message, type);
       return;
     }
 
@@ -3107,6 +3107,13 @@ debugMusicSystem() {
       getMovementBlockStatus: () => this.getMovementBlockSystemStatus(),
       forceMovementBlockInit: () => this.forceMovementBlockSystemInit(),
       forceInputManagerInit: () => this.forceInputManagerInit(),
+      // ✅ NOUVELLES FONCTIONS BASEINTERACTIONMANAGER
+      debugBaseInteraction: () => this.interactionManager?.getDebugInfo(),
+      testNpcInteraction: (npcId) => this.interactionManager?.manualInteraction({id: npcId}, {type: 'npc'}),
+      testObjectInteraction: (objectId) => this.interactionManager?.manualInteraction({id: objectId}, {type: 'object'}),
+      searchHiddenItems: (x, y, radius) => this.interactionManager?.searchHiddenItems({x, y}, radius),
+      blockInteractions: (duration, reason) => this.interactionManager?.blockInteractions(duration, reason),
+      unblockInteractions: () => this.interactionManager?.unblockInteractions(),
     debugWeather: () => this.debugWeatherSystem(),
     testWeather: () => this.testGlobalWeatherConnection(),
     forceWeatherRefresh: () => this.forceWeatherRefresh(),
