@@ -804,6 +804,9 @@
                         <button class="action-button primary" id="startGameButton">
                             🎮 Start Game
                         </button>
+                        <button class="action-button secondary" id="adminButton" style="display: none;">
+                            🔧 Admin Panel
+                        </button>
                         <button class="action-button danger" id="logoutButton">
                             🚪 Logout
                         </button>
@@ -888,7 +891,9 @@
                 document.getElementById('startGameButton').addEventListener('click', () => {
                     this.startGame();
                 });
-
+                document.getElementById('adminButton').addEventListener('click', () => {
+                    this.openAdminPanel();
+                });
                 document.getElementById('logoutButton').addEventListener('click', () => {
                     this.logout();
                 });
@@ -1225,6 +1230,7 @@
 
                 return true;
             }
+            
 
             generateSecureChallenge() {
                 // Generate a cryptographically secure random challenge
@@ -1565,17 +1571,17 @@ startGame() {
     window.location.href = '/index.html';
   }, 1000);
 }
-           showUserDashboard() {
+showUserDashboard() {
     document.getElementById('guestSection').style.display = 'none';
     document.getElementById('userDashboard').classList.add('active');
     
     // Update user info
-document.getElementById('userDisplayName').textContent = this.currentUser.username;
-document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
+    document.getElementById('userDisplayName').textContent = this.currentUser.username;
+    document.getElementById('userPlaytime').textContent = this.formatPlaytime(this.currentUser.playtime || 0);
 
-// ✅ NOUVEAU: Mettre à jour le playtime en temps réel
-this.startPlaytimeUpdater();
-     this.updatePlaytimeDisplay();
+    // ✅ NOUVEAU: Mettre à jour le playtime en temps réel
+    this.startPlaytimeUpdater();
+    this.updatePlaytimeDisplay();
    
     // ✅ Montrer la section wallet mais avec message optionnel
     const walletSection = document.getElementById('walletSection');
@@ -1591,6 +1597,12 @@ this.startPlaytimeUpdater();
     
     // Update wallet UI
     this.updateWalletUI();
+    
+    // ✅ Afficher bouton admin si développeur
+    if (this.currentUser.isDev) {
+        document.getElementById('adminButton').style.display = 'inline-flex';
+        console.log('🔧 Bouton admin affiché pour développeur');
+    }
 }
 
             showGuestSection() {
