@@ -26,6 +26,30 @@ let globalPokemonManager: PokemonManager;
 
 export default config({
   initializeGameServer: (gameServer) => {
+    // ✅ NOUVEAU: Middleware pour capturer l'IP
+    gameServer.onAuth = (client: any, options: any, req: any) => {
+      const headers = req?.headers || {};
+      
+      const ipSources = [
+        headers['x-real-ip'],                 // Nginx
+        headers['x-forwarded-for']?.split(',')[0]?.trim(),
+        headers['x-client-ip'],
+        '127.0.0.1'
+      ];
+      
+      let detectedIP = 'localhost';
+      for (const ip of ipSources) {
+        if (ip && ip !== 'unknown' && ip.length > 3) {
+          detectedIP = ip;
+          break;
+        }
+      }
+      
+      client.detectedIP = detectedIP;
+      console.log(`🌐 [IP] Client ${client.sessionId}: ${detectedIP}`);
+      
+      return true;
+    };
     // ✅ ENREGISTREMENT des rooms avec AuthRoom en priorité
     gameServer.define('AuthRoom', AuthRoom);
     gameServer.define('world', WorldRoom);
@@ -40,6 +64,8 @@ export default config({
     // ✅ MIDDLEWARE pour parser JSON
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
+    app.set('trust proxy', true);
+
 
     // ✅ MIDDLEWARE de sécurité basique
     app.use((req, res, next) => {
