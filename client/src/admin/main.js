@@ -15,7 +15,6 @@ import { LogsToolsModule } from './js/logs-tools.js'
 let adminPanel
 
 // Initialize when DOM is ready
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 [Admin] Initializing PokeWorld Admin Panel...')
     
@@ -31,9 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             LogsToolsModule
         ])
         
-        
         console.log('✅ [Admin] Admin Panel initialized successfully')
-        console.log('🎯 [Admin] adminPanel exposed to window:', window.adminPanel)
     } catch (error) {
         console.error('❌ [Admin] Failed to initialize:', error)
         showErrorMessage('Erreur d\'initialisation: ' + error.message)
