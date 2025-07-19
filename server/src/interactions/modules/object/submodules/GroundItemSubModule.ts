@@ -4,7 +4,7 @@
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { InventoryManager } from "../../../../managers/InventoryManager";
-import { PlayerData } from "../../../../models/PlayerData";
+import { PlayerData, IPlayerData } from "../../../../models/PlayerData";
 import { 
   BaseObjectSubModule, 
   ObjectDefinition, 
@@ -106,8 +106,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
 
       // === ÉTAPE 2 : RÉCUPÉRER LE JOUEUR DEPUIS MONGODB ===
       
-      const playerData = await PlayerData.findOne({ username: player.name });
-      if (!playerData) {
+      const playerDataDoc = await PlayerData.findOne({ username: player.name });
+      if (!playerDataDoc) {
         const processingTime = Date.now() - startTime;
         this.updateStats(false, processingTime);
         
@@ -117,6 +117,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           'PLAYER_NOT_FOUND'
         );
       }
+
+      // Cast vers le type avec nos méthodes personnalisées
+      const playerData = playerDataDoc as IPlayerData;
 
       // === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
       
@@ -399,11 +402,12 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     lastCollectedTime?: number;
   }> {
     try {
-      const playerData = await PlayerData.findOne({ username: playerName });
-      if (!playerData) {
+      const playerDataDoc = await PlayerData.findOne({ username: playerName });
+      if (!playerDataDoc) {
         return { canCollect: true, cooldownRemaining: 0 };
       }
       
+      const playerData = playerDataDoc as IPlayerData;
       return playerData.getObjectCooldownInfo(objectId, zone);
     } catch (error) {
       this.log('error', 'Erreur vérification cooldown', { error, playerName, objectId, zone });
@@ -420,17 +424,29 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     zone: string
   ): Promise<boolean> {
     try {
-      const playerData = await PlayerData.findOne({ username: playerName });
-      if (!playerData) {
+      const playerDataDoc = await PlayerData.findOne({ username: playerName });
+      if (!playerDataDoc) {
         this.log('warn', 'Joueur non trouvé pour reset cooldown', { playerName });
         return false;
       }
       
+      const playerData = playerDataDoc as IPlayerData;
+      
       // Retirer l'état d'objet spécifique
       const initialLength = playerData.objectStates.length;
-      playerData.objectStates = playerData.objectStates.filter(
-        state => !(state.objectId === objectId && state.zone === zone)
-      );
+      
+      // Utiliser splice pour modifier le DocumentArray correctement
+      const indicesToRemove: number[] = [];
+      playerData.objectStates.forEach((state, index) => {
+        if (state.objectId === objectId && state.zone === zone) {
+          indicesToRemove.push(index);
+        }
+      });
+      
+      // Supprimer en ordre inverse pour ne pas décaler les indices
+      for (let i = indicesToRemove.length - 1; i >= 0; i--) {
+        playerData.objectStates.splice(indicesToRemove[i], 1);
+      }
       
       if (playerData.objectStates.length !== initialLength) {
         await playerData.save();
@@ -457,12 +473,14 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     nextAvailable: Date;
   }>> {
     try {
-      const playerData = await PlayerData.findOne({ username: playerName });
-      if (!playerData || !playerData.objectStates.length) {
+      const playerDataDoc = await PlayerData.findOne({ username: playerName });
+      if (!playerDataDoc || !playerDataDoc.objectStates.length) {
         return [];
       }
       
+      const playerData = playerDataDoc as IPlayerData;
       const now = Date.now();
+      
       return playerData.objectStates
         .filter(state => state.nextAvailableTime > now)
         .map(state => ({
@@ -505,8 +523,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         
         if (players.length === 0) break;
         
-        for (const player of players) {
+        for (const playerDoc of players) {
           try {
+            const player = playerDoc as IPlayerData;
             const initialCount = player.objectStates.length;
             await player.cleanupExpiredCooldowns();
             const finalCount = player.objectStates.length;
@@ -517,7 +536,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           } catch (playerError) {
             this.log('error', 'Erreur nettoyage joueur', { 
               error: playerError, 
-              player: player.username 
+              player: playerDoc.username 
             });
             errors++;
           }
