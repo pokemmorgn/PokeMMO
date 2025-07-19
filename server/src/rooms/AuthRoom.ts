@@ -831,20 +831,20 @@ export class AuthRoom extends Room<AuthState> {
     return { valid: true };
   }
 
-private generateJWT(payload: any): string {
-  return jwt.sign(
-    {
-      ...payload,
-      isDev: payload.isDev || false  // ✅ AJOUTER CETTE LIGNE
-    },
-    process.env.JWT_SECRET!,
-    { 
-      expiresIn: '6h',
-      issuer: 'pokeworld-auth',
-      audience: 'pokeworld-game'
-    }
-  );
-}
+  private generateJWT(payload: any): string {
+    return jwt.sign(
+      {
+        ...payload,
+        isDev: payload.isDev || false
+      },
+      process.env.JWT_SECRET!,
+      { 
+        expiresIn: '6h',
+        issuer: 'pokeworld-auth',
+        audience: 'pokeworld-game'
+      }
+    );
+  }
 
   private getSessionDuration(): number {
     const duration = process.env.SESSION_DURATION || '6h';
@@ -858,8 +858,6 @@ private generateJWT(payload: any): string {
     }
     return 6 * 60 * 60 * 1000; // Défaut 6h
   }
-
-
 
   private isRateLimited(ip: string, action: string): boolean {
     const key = `${ip}_${action}`;
@@ -964,6 +962,11 @@ private generateJWT(payload: any): string {
 
   onJoin(client: Client, options: any) {
     console.log(`👤 Client ${client.sessionId} a rejoint AuthRoom`);
+    
+    // ✅ NOUVEAU: Log IP à la connexion
+    const clientIP = this.getClientIP(client);
+    console.log(`🌐 IP détectée: ${clientIP}`);
+    
     client.send("welcome", {
       message: "Bienvenue dans l'AuthRoom. Veuillez vous authentifier.",
       sessionId: client.sessionId,
@@ -1027,15 +1030,18 @@ private generateJWT(payload: any): string {
       return result;
     }, {});
   }
+
   private async validateSession(sessionToken: string): Promise<{ valid: boolean, username?: string }> {
     if (!sessionToken) {
       return { valid: false };
     }
+    
     // Vérifier dans activeSessions
     if (this.activeSessions.has(sessionToken)) {
       const session = this.activeSessions.get(sessionToken);
       return { valid: true, username: session.username };
     }
+    
     // Fallback: restaurer depuis JWT
     try {
       const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET!) as any;
@@ -1063,6 +1069,4 @@ private generateJWT(payload: any): string {
       return { valid: false };
     }
   }
-
-  // ✅ Autres méthodes de la classe...
-}  // ← Cette accolade ferme TOUTE la classe AuthRoom
+}
