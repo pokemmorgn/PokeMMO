@@ -184,7 +184,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     stateFile: './data/object_states.json',
     autoLoadMaps: true,
     securityEnabled: process.env.NODE_ENV === 'production',
-    objectLayerName: 'objects' // ✅ VARIABLE CONFIGURABLE POUR LE NOM DU LAYER
+    objectLayerName: 'gobject' // ✅ VARIABLE CONFIGURABLE POUR LE NOM DU LAYER
   };
 
   constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
