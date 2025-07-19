@@ -11,6 +11,7 @@ import {
 } from '../types/InteractionTypes.js';
 
 import { NpcInteractionManager } from '../modules/NpcInteractionManager.js';
+import { ObjectInteractionManager } from '../modules/ObjectInteractionManager.js';
 
 export class BaseInteractionManager {
   constructor(scene) {
@@ -155,8 +156,28 @@ export class BaseInteractionManager {
       console.error('[BaseInteractionManager] ❌ Erreur création NpcInteractionManager:', error);
     }
     
-    // ✅ Module Objets (à venir)
-    // this.modules.objectInteractionManager = new ObjectInteractionManager(...)
+    // ✅ Module Objets
+    try {
+      this.modules.objectInteractionManager = new ObjectInteractionManager(
+        this.scene, 
+        this.dependencies.networkInteractionHandler
+      );
+      
+      const objectResult = this.modules.objectInteractionManager.initialize({
+        playerManager: this.dependencies.playerManager,
+        inventorySystem: this.dependencies.inventorySystem || window.inventorySystem,
+        notificationSystem: window.showGameNotification
+      });
+      
+      if (objectResult) {
+        console.log('[BaseInteractionManager] ✅ ObjectInteractionManager initialisé');
+      } else {
+        console.error('[BaseInteractionManager] ❌ Échec initialisation ObjectInteractionManager');
+      }
+      
+    } catch (error) {
+      console.error('[BaseInteractionManager] ❌ Erreur création ObjectInteractionManager:', error);
+    }
     
     // ✅ Module Environnement (futur)
     // this.modules.environmentInteractionManager = new EnvironmentInteractionManager(...)
