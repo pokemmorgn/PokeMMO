@@ -1037,49 +1037,90 @@ initializeInteractionManager() {
     return this.interactionManager;
   }
     
-    if (!this.networkManager) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
-      return;
-    }
+  if (!this.networkManager) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
+    return;
+  }
 
-    try {
-     console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
+  try {
+   console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
 
     // Créer le BaseInteractionManager
     this.interactionManager = new BaseInteractionManager(this);
     
-    // L'initialiser avec les dependencies
+    // ✅ L'initialiser avec les dependencies INCLUANT objectManager
     this.interactionManager.initialize({
       networkManager: this.networkManager,
       networkInteractionHandler: this.networkManager?.interactionHandler,
       playerManager: this.playerManager,
       npcManager: this.npcManager,
       questSystem: window.questSystem || window.questSystemGlobal,
-      shopSystem: this.scene?.shopIntegration?.getShopSystem() || window.shopSystem
+      shopSystem: this.scene?.shopIntegration?.getShopSystem() || window.shopSystem,
+      objectManager: this.objectManager  // ← AJOUTER CETTE LIGNE CRITIQUE !
     });
 
-      console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec succès`);
+    console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec ObjectManager`);
 
-      // ✅ Shop integration
-      integrateShopToScene(this, this.networkManager);
+    // ✅ Shop integration
+    integrateShopToScene(this, this.networkManager);
 
-      console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
-      // ✅ AJOUTER : Connecter NetworkManager → ObjectManager
-      if (this.networkManager && this.objectManager) {
-        console.log(`🔗 [${this.scene.key}] Connexion NetworkManager ↔ ObjectManager...`);
-        
-        this.networkManager.onZoneObjects((data) => {
-          if (this.objectManager) {
-            this.objectManager.handleZoneObjectsReceived(data);
-          }
-        });
-        
-        console.log(`✅ [${this.scene.key}] Connexion ObjectManager établie`);
-      }
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
+    console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
+    
+    // ✅ AJOUTER : Connecter NetworkManager → ObjectManager (code existant)
+    if (this.networkManager && this.objectManager) {
+      console.log(`🔗 [${this.scene.key}] Connexion NetworkManager ↔ ObjectManager...`);
+      
+      this.networkManager.onZoneObjects((data) => {
+        if (this.objectManager) {
+          this.objectManager.handleZoneObjectsReceived(data);
+        }
+      });
+      
+      console.log(`✅ [${this.scene.key}] Connexion ObjectManager établie`);
     }
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
   }
+}
+
+// ✅ AJOUTER CETTE NOUVELLE MÉTHODE DANS BaseZoneScene.js POUR DEBUG
+testObjectInteractionConnection() {
+  console.log(`🧪 [${this.scene.key}] === TEST CONNEXION OBJECT INTERACTION ===`);
+  
+  if (!this.interactionManager) {
+    console.log("❌ BaseInteractionManager non initialisé");
+    return false;
+  }
+  
+  if (!this.objectManager) {
+    console.log("❌ ObjectManager non initialisé");
+    return false;
+  }
+  
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.log("❌ Pas de joueur pour test");
+    return false;
+  }
+  
+  // ✅ Test direct de la détection
+  const detectedObjects = this.interactionManager.detectNearbyObjects();
+  console.log(`🔍 Objets détectés via BaseInteractionManager: ${detectedObjects.length}`);
+  
+  // ✅ Comparer avec ObjectManager direct
+  const directObjects = this.objectManager.detectNearbyObjects(
+    myPlayer.x, 
+    myPlayer.y, 
+    this.interactionManager.config.maxInteractionDistance
+  );
+  console.log(`🔍 Objets détectés via ObjectManager direct: ${directObjects.length}`);
+  
+  const success = detectedObjects.length === directObjects.length;
+  console.log(`${success ? '✅' : '❌'} Test connexion: ${success ? 'SUCCÈS' : 'ÉCHEC'}`);
+  
+  return success;
+}
 
 onPlayerReady(player) {
   console.log(`✅ [${this.scene.key}] === PLAYER READY HOOK ===`);
