@@ -2735,7 +2735,7 @@ onPlayerPositioned(player, initData) {
       playerManager: !!this.playerManager,
       npcManager: !!this.npcManager,
       networkManager: !!this.networkManager,
-      interactionManager: !!this.interactionManager,
+      baseInteractionManager: !!this.interactionManager,
       inventorySystem: !!this.inventorySystem,
       encounterManager: !!this.encounterManager, // 🆕
       inputManager: !!this.inputManager, // 🔒
@@ -2877,9 +2877,16 @@ onPlayerPositioned(player, initData) {
 
   debugShop() {
     if (this.interactionManager) {
-      this.interactionManager.debugState();
+      const debugInfo = this.interactionManager.getDebugInfo();
+      console.log(`🔍 [${this.scene.key}] BaseInteractionManager debug:`, debugInfo);
+      
+      // Debug spécifique du shop via les modules
+      const shopSystem = this.interactionManager.modules?.npcInteractionManager?.dependencies?.shopSystem;
+      if (shopSystem) {
+        console.log(`🏪 [${this.scene.key}] ShopSystem disponible:`, !!shopSystem);
+      }
     } else {
-      console.log(`🔍 [${this.scene.key}] Aucun InteractionManager`);
+      console.log(`🔍 [${this.scene.key}] Aucun BaseInteractionManager`);
     }
   }
 
