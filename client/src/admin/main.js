@@ -1,6 +1,6 @@
 // PokeWorld Admin Panel - Main Entry Point
 
-// Import CSS
+// Import CSS (Vite will bundle these)
 import './styles/main.css'
 import './styles/components.css'
 
