@@ -19,6 +19,7 @@ export class AdminPanel {
         this.autoRefreshInterval = null
         this.modules = {}
         
+        // Initialize immediately
         this.init()
     }
 
@@ -35,10 +36,16 @@ export class AdminPanel {
     }
 
     loadModules(moduleClasses) {
+        console.log('📦 [AdminPanel] Chargement des modules...')
+        
         moduleClasses.forEach(ModuleClass => {
-            const instance = new ModuleClass(this)
-            this.modules[instance.name] = instance
-            console.log(`📦 [AdminPanel] Module ${instance.name} chargé`)
+            try {
+                const instance = new ModuleClass(this)
+                this.modules[instance.name] = instance
+                console.log(`✅ [AdminPanel] Module ${instance.name} chargé`)
+            } catch (error) {
+                console.error(`❌ [AdminPanel] Erreur chargement module:`, error)
+            }
         })
         
         // Expose modules for easy access
@@ -46,6 +53,8 @@ export class AdminPanel {
         this.players = this.modules.players
         this.quests = this.modules.quests
         this.logsTools = this.modules.logsTools
+        
+        console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
     }
 
     setupEventListeners() {
@@ -184,7 +193,10 @@ export class AdminPanel {
 
     // Modal Management
     showModal(modalId) {
-        document.getElementById(modalId)?.classList.add('active')
+        const modal = document.getElementById(modalId)
+        if (modal) {
+            modal.classList.add('active')
+        }
     }
 
     closeModal() {
