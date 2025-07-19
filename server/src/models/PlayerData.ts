@@ -126,6 +126,71 @@ PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
   return this.save();
 };
 
+// ✅ MÉTHODES pour gestion des cooldowns d'objets
+PlayerDataSchema.methods.canCollectObject = function(objectId: number, zone: string) {
+  const objectState = this.objectStates.find(
+    (state: any) => state.objectId === objectId && state.zone === zone
+  );
+  
+  // Si jamais collecté = OK
+  if (!objectState) return true;
+  
+  // Vérifier si cooldown écoulé
+  return Date.now() >= objectState.nextAvailableTime;
+};
+
+PlayerDataSchema.methods.recordObjectCollection = function(
+  objectId: number, 
+  zone: string, 
+  cooldownDurationMs: number
+) {
+  const now = Date.now();
+  const nextAvailable = now + cooldownDurationMs;
+  
+  // Chercher état existant
+  const existingIndex = this.objectStates.findIndex(
+    (state: any) => state.objectId === objectId && state.zone === zone
+  );
+  
+  if (existingIndex >= 0) {
+    // Mettre à jour existant
+    this.objectStates[existingIndex].lastCollectedTime = now;
+    this.objectStates[existingIndex].nextAvailableTime = nextAvailable;
+    this.objectStates[existingIndex].cooldownDuration = cooldownDurationMs;
+  } else {
+    // Créer nouveau
+    this.objectStates.push({
+      objectId,
+      zone,
+      lastCollectedTime: now,
+      nextAvailableTime: nextAvailable,
+      cooldownDuration: cooldownDurationMs
+    });
+  }
+  
+  return this.save();
+};
+
+PlayerDataSchema.methods.getObjectCooldownInfo = function(objectId: number, zone: string) {
+  const objectState = this.objectStates.find(
+    (state: any) => state.objectId === objectId && state.zone === zone
+  );
+  
+  if (!objectState) {
+    return { canCollect: true, timeLeft: 0 };
+  }
+  
+  const now = Date.now();
+  const timeLeft = Math.max(0, objectState.nextAvailableTime - now);
+  
+  return {
+    canCollect: now >= objectState.nextAvailableTime,
+    timeLeft,
+    lastCollected: new Date(objectState.lastCollectedTime),
+    nextAvailable: new Date(objectState.nextAvailableTime)
+  };
+};
+
 // ✅ MIDDLEWARE pre-save pour sécurité
 PlayerDataSchema.pre('save', function(next) {
   // Nettoyer l'email
