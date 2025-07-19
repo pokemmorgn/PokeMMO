@@ -5,6 +5,7 @@ import { GAME_CONFIG } from "../config/gameConfig.js";
 import { BattleNetworkHandler } from "./BattleNetworkHandler.js";
 import { sceneToZone, zoneToScene } from "../config/ZoneMapping.js";
 import { ConnectionManager } from "../managers/ConnectionManager.js";
+import { NetworkInteractionHandler } from "./NetworkInteractionHandler.js";
 
 export class NetworkManager {
   /**
@@ -26,7 +27,8 @@ export class NetworkManager {
 
     // ✅ NOUVEAU: Handler de combat spécialisé
     this.battleNetworkHandler = null;
-    
+    // ✅ NOUVEAU: Handler d'interactions spécialisé
+    this.interactionHandler = null;
     // ✅ NOUVEAU: Données de mon joueur
     this.myPlayerData = null;
     this.myPlayerConfirmed = false;
@@ -218,6 +220,7 @@ this.connectionManager.onForceLogout((data) => {
       this.connectionManager.startMonitoring();
       
       await this.initializeBattleSystem();
+      await this.initializeInteractionHandler();
       return true;
 
     } catch (error) {
@@ -295,6 +298,35 @@ sessionStorage.removeItem('sessionToken');
     }
   }
 
+  async initializeInteractionHandler() {
+  console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
+  
+  if (!this.room || !this.sessionId) {
+    console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
+    return false;
+  }
+  
+  try {
+    // Créer le NetworkInteractionHandler
+    this.interactionHandler = new NetworkInteractionHandler(this);
+    
+    // L'initialiser avec la room actuelle
+    const success = this.interactionHandler.initialize();
+    
+    if (success) {
+      console.log('✅ [NetworkManager] Système d\'interactions initialisé');
+      return true;
+    } else {
+      console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
+    return false;
+  }
+}
+  
   setupRoomListeners() {
     if (!this.room) return;
 
@@ -1045,7 +1077,10 @@ this.room.onLeave((code) => {
       await this.battleNetworkHandler.destroy();
       this.battleNetworkHandler = null;
     }
-      
+    if (this.interactionHandler) {
+  this.interactionHandler.destroy();
+  this.interactionHandler = null;
+    }
     this.myPlayerConfirmed = false;
     this.myPlayerData = null;
     
@@ -1136,6 +1171,30 @@ this.room.onLeave((code) => {
     return this.battleNetworkHandler;
   }
 
+  // === MÉTHODES D'INTERACTION PUBLIQUES ===
+
+  getInteractionHandler() {
+    return this.interactionHandler;
+  }
+  
+  // ✅ Méthodes de convenance pour interactions objets
+  sendObjectInteract(objectId, objectType = null, position = null, additionalData = {}) {
+    if (this.interactionHandler) {
+      return this.interactionHandler.sendObjectInteract(objectId, objectType, position, additionalData);
+    } else {
+      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible');
+      return false;
+    }
+  }
+  
+  sendSearchHiddenItem(position, searchRadius = 32, additionalData = {}) {
+    if (this.interactionHandler) {
+      return this.interactionHandler.sendSearchHiddenItem(position, searchRadius, additionalData);
+    } else {
+      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible');
+      return false;
+    }
+  }
   // ✅ NOUVEAU: Méthodes de gestion du ConnectionManager
   
   // Forcer une reconnexion manuelle
@@ -1264,8 +1323,19 @@ window.getConnectionStats = function() {
   }
 };
 
+window.debugInteractionHandler = function() {
+  if (window.globalNetworkManager?.interactionHandler) {
+    const info = window.globalNetworkManager.interactionHandler.getDebugInfo();
+    console.log('🎭 [InteractionHandler] Debug info:', info);
+    return info;
+  } else {
+    console.error('❌ InteractionHandler non disponible');
+    return null;
+  }
+};
 console.log('✅ NetworkManager avec ConnectionManager intégré chargé!');
 console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
 console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
 console.log('🔄 Utilisez window.forceReconnection() pour forcer une reconnexion');
 console.log('📊 Utilisez window.getConnectionStats() pour les stats complètes');
+console.log('🎭 Utilisez window.debugInteractionHandler() pour debug interactions');
