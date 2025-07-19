@@ -22,7 +22,6 @@ import { PlayerQuest } from "./models/PlayerQuest";
 import { BattleRoom } from "./rooms/BattleRoom";
 import jwt from 'jsonwebtoken';
 import adminRoutes from './routes/adminRoutes';
-import { requireMacAndDev } from './routes/adminRoutes'; // ✅ AJOUTER
 
 let globalPokemonManager: PokemonManager;
 
