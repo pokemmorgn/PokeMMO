@@ -58,7 +58,7 @@ export class ObjectManager {
         'machine': 0xFFFF44,      // Jaune
         'container': 0xFF44FF,    // Magenta
         'collectible': 0x44FFFF,  // Cyan
-        'berry': 0FFA500,         // Orange
+        'berry': 0xFFA500,         // Orange
         'default': 0x888888       // Gris
       },
       
