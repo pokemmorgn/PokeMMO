@@ -27,29 +27,30 @@ let globalPokemonManager: PokemonManager;
 export default config({
   initializeGameServer: (gameServer) => {
     // ✅ NOUVEAU: Middleware pour capturer l'IP
-    gameServer.onAuth = (client: any, options: any, req: any) => {
-      const headers = req?.headers || {};
-      
-      const ipSources = [
-        headers['x-real-ip'],                 // Nginx
-        headers['x-forwarded-for']?.split(',')[0]?.trim(),
-        headers['x-client-ip'],
-        '127.0.0.1'
-      ];
-      
-      let detectedIP = 'localhost';
-      for (const ip of ipSources) {
-        if (ip && ip !== 'unknown' && ip.length > 3) {
-          detectedIP = ip;
-          break;
+    gameServer.define('AuthRoom', AuthRoom)
+      .onAuth((client: any, options: any, req: any) => {
+        const headers = req?.headers || {};
+        
+        const ipSources = [
+          headers['x-real-ip'],
+          headers['x-forwarded-for']?.split(',')[0]?.trim(),
+          headers['x-client-ip'],
+          '127.0.0.1'
+        ];
+        
+        let detectedIP = 'localhost';
+        for (const ip of ipSources) {
+          if (ip && ip !== 'unknown' && ip.length > 3) {
+            detectedIP = ip;
+            break;
+          }
         }
-      }
-      
-      client.detectedIP = detectedIP;
-      console.log(`🌐 [IP] Client ${client.sessionId}: ${detectedIP}`);
-      
-      return true;
-    };
+        
+        client.detectedIP = detectedIP;
+        console.log(`🌐 [AuthRoom] Client ${client.sessionId}: ${detectedIP}`);
+        
+        return true;
+      });
     // ✅ ENREGISTREMENT des rooms avec AuthRoom en priorité
     gameServer.define('AuthRoom', AuthRoom);
     gameServer.define('world', WorldRoom);
