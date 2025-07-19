@@ -84,6 +84,7 @@ const requireMacAndDev = async (req: any, res: any, next: any) => {
                        clientIP.includes('::1') || 
                        clientIP.includes('localhost') ||
                        clientIP.includes('192.168.') ||
+                       clientIP.includes('90.126.88.90') ||
                        clientIP.includes('5.51.41.59');
 
     console.log('🏠 Localhost détecté:', isLocalhost);
