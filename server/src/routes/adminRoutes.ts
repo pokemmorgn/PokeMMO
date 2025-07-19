@@ -40,65 +40,67 @@ async function getServerMacAddress(): Promise<string[]> {
 
 // ✅ MIDDLEWARE de vérification MAC + Dev
 const requireMacAndDev = async (req: any, res: any, next: any) => {
+  console.log('🔍 [AdminRoute] === NOUVELLE REQUÊTE ADMIN ===');
+  console.log('📍 URL:', req.url);
+  console.log('🌐 Method:', req.method);
+  console.log('📡 Headers:', JSON.stringify(req.headers, null, 2));
+  
   try {
     // 1. Vérifier le token JWT
     const authHeader = req.headers.authorization;
+    console.log('🔑 Auth Header:', authHeader ? 'Présent' : 'MANQUANT');
+    
     const token = authHeader && authHeader.split(' ')[1];
+    console.log('🎫 Token:', token ? `${token.substring(0, 20)}...` : 'AUCUN');
 
     if (!token) {
+      console.log('❌ [AdminRoute] Pas de token fourni');
       return res.status(401).json({ error: 'Token requis' });
     }
 
+    console.log('🔐 Vérification JWT...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    console.log('✅ JWT décodé:', { username: decoded.username, isDev: decoded.isDev, exp: decoded.exp });
     
     // 2. Vérifier que l'utilisateur est développeur
+    console.log('👤 Recherche utilisateur dans DB...');
     const player = await PlayerData.findOne({ username: decoded.username });
+    console.log('👤 Utilisateur trouvé:', player ? `${player.username} (isDev: ${player.isDev})` : 'AUCUN');
+    
     if (!player || !player.isDev) {
+      console.log('❌ [AdminRoute] Accès refusé: pas développeur');
       return res.status(403).json({ error: 'Accès développeur requis' });
     }
 
-    // 3. Récupérer les adresses MAC autorisées (dans ce cas, les MACs du serveur)
-    const serverMacs = await getServerMacAddress();
-    
-    // 4. Récupérer l'IP du client pour log
+    // 3. Récupérer l'IP du client
     const clientIP = req.headers['x-forwarded-for'] || 
                     req.headers['x-real-ip'] || 
                     req.connection.remoteAddress || 
-                    req.socket.remoteAddress ||
                     'unknown';
+    console.log('🌍 IP Client:', clientIP);
 
-    // ✅ POUR LE DÉVELOPPEMENT LOCAL: accepter les connexions localhost
+    // 4. Vérification IP (plus permissive pour debug)
     const isLocalhost = clientIP.includes('127.0.0.1') || 
                        clientIP.includes('::1') || 
                        clientIP.includes('localhost') ||
-                       clientIP.includes('192.168.');
+                       clientIP.includes('192.168.') ||
+                       clientIP.includes('5.51.41.59');
+
+    console.log('🏠 Localhost détecté:', isLocalhost);
 
     if (isLocalhost) {
-      console.log(`🔓 [AdminRoute] Accès localhost autorisé pour ${decoded.username} depuis ${clientIP}`);
+      console.log('✅ [AdminRoute] Accès autorisé (localhost/IP autorisée)');
       req.user = decoded;
       req.clientInfo = { ip: clientIP, isLocalhost: true };
       return next();
     }
 
-    // Pour production: vérification MAC stricte
-    // Note: En réalité, récupérer la MAC du client depuis le serveur web est complexe
-    // Alternative: utiliser une liste de MACs autorisées en dur ou en DB
-    const authorizedMacs = process.env.AUTHORIZED_MACS?.split(',') || serverMacs;
-    
-    console.log(`🔍 [AdminRoute] Vérification MAC pour ${decoded.username}`);
-    console.log(`📡 Client IP: ${clientIP}`);
-    console.log(`🖥️ MACs autorisées: ${authorizedMacs.join(', ')}`);
-
-    // ✅ ACCEPTER pour le moment (logique MAC à adapter selon votre infrastructure)
-    console.log(`✅ [AdminRoute] Accès admin autorisé pour ${decoded.username}`);
-    
-    req.user = decoded;
-    req.clientInfo = { ip: clientIP, authorizedMacs, isLocalhost: false };
-    next();
+    console.log(`❌ [AdminRoute] IP non autorisée: ${clientIP}`);
+    return res.status(403).json({ error: 'IP non autorisée' });
 
   } catch (error) {
-    console.error('❌ Erreur middleware admin:', error);
-    return res.status(403).json({ error: 'Accès refusé' });
+    console.error('❌ [AdminRoute] Erreur middleware:', error);
+    return res.status(403).json({ error: 'Erreur authentification: ' + error.message });
   }
 };
 
