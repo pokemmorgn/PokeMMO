@@ -880,9 +880,9 @@ class AdminPanel {
 
         return response.json();
     }
-}
 
-            async loadDashboard() {
+
+async loadDashboard() {
                 try {
                     const data = await this.apiCall('/dashboard');
                     
