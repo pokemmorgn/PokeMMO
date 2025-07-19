@@ -1027,6 +1027,14 @@ initializeZoneEnvironment() {
 
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
+    console.log('[BaseZoneScene] 🚨 INIT APPELÉ DEPUIS:', new Error().stack);
+
+        // Protection temporaire
+    if (this.interactionManager?.isInitialized) {
+      console.log('[BaseZoneScene] ⚠️ Déjà initialisé, skip');
+      return;
+    }
+    
     if (!this.networkManager) {
       console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
       return;
