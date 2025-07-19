@@ -1783,27 +1783,17 @@ openAdminPanel() {
         return;
     }
     
-    console.log('🔧 Test redirection...');
-    console.log('🔍 window.location:', window.location);
-    console.log('🔍 document.location:', document.location);
+    console.log('🔧 Token:', this.currentUser.sessionToken);
+    console.log('🔧 Username:', this.currentUser.username);
+    console.log('🔧 isDev:', this.currentUser.isDev);
     
-    // Test 1
-    console.log('Test 1: window.location.href');
-    window.location.href = '/admin';
+    // ✅ Test SANS redirection d'abord
+    console.log('✅ Admin panel accessible !');
     
-    // Si ça ne marche pas, Test 2 après 1 seconde
-    setTimeout(() => {
-        console.log('Test 2: document.location');
-        document.location = '/admin';
-    }, 1000);
-    
-    // Si ça ne marche pas, Test 3 après 2 secondes
-    setTimeout(() => {
-        console.log('Test 3: window.location.replace');
-        window.location.replace('/admin');
-    }, 2000);
+    // Décommentez quand prêt :
+    // window.location.href = '/admin';
 }
-        } 
+        }
 
         // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
