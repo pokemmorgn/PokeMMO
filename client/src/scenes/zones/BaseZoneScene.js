@@ -1733,6 +1733,11 @@ if (this.overworldPokemonManager) {
       this.overworldPokemonInitialized = false;
       console.log(`🧹 [${this.scene.key}] OverworldPokemonManager nettoyé`);
     }
+    if (this.objectManager) {
+      this.objectManager.destroy();
+      this.objectManager = null;
+      console.log(`🧹 [${this.scene.key}] ObjectManager nettoyé`);
+    }
     if (this.networkManager?.room) {
       this.networkManager.room.removeAllListeners("currentZone");
       this.networkManager.room.removeAllListeners("snap");
