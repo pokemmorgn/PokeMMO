@@ -125,69 +125,68 @@ export class BaseInteractionManager {
     return this;
   }
 
-  initializeModules() {
-    console.log('[BaseInteractionManager] 🔧 === INITIALISATION MODULES ===');
+initializeModules() {
+  console.log('[BaseInteractionManager] 🔧 === INITIALISATION MODULES ===');
+  
+  // ✅ Module NPC
+  try {
+    this.modules.npcInteractionManager = new NpcInteractionManager(
+      this.scene, 
+      this.dependencies.networkInteractionHandler
+    );
     
-    // ✅ Module NPC
-    try {
-      this.modules.npcInteractionManager = new NpcInteractionManager(
-        this.scene, 
-        this.dependencies.networkInteractionHandler
-      );
-      
-      const npcResult = this.modules.npcInteractionManager.initialize({
-        npcManager: this.dependencies.npcManager,
-        playerManager: this.dependencies.playerManager,
-        questSystem: this.dependencies.questSystem,
-        shopSystem: this.dependencies.shopSystem,
-        dialogueSystem: window.showNpcDialogue
-      });
-      
-      if (npcResult) {
-        console.log('[BaseInteractionManager] ✅ NpcInteractionManager initialisé');
-        
-        // ✅ Connecter les callbacks
-        this.setupNpcCallbacks();
-      } else {
-        console.error('[BaseInteractionManager] ❌ Échec initialisation NpcInteractionManager');
-      }
-      
-    } catch (error) {
-      console.error('[BaseInteractionManager] ❌ Erreur création NpcInteractionManager:', error);
-    }
-    
-    // ✅ Module Objets
-    try {
-      this.modules.objectInteractionManager = new ObjectInteractionManager(
-        this.scene, 
-        this.dependencies.networkInteractionHandler
-      );
-      
-      const objectResult = this.modules.objectInteractionManager.initialize({
-        playerManager: this.dependencies.playerManager,
-        inventorySystem: this.dependencies.inventorySystem || window.inventorySystem,
-        notificationSystem: window.showGameNotification
-      });
-      
-      if (objectResult) {
-        console.log('[BaseInteractionManager] ✅ ObjectInteractionManager initialisé');
-      } else {
-        console.error('[BaseInteractionManager] ❌ Échec initialisation ObjectInteractionManager');
-      }
-      
-    } catch (error) {
-      console.error('[BaseInteractionManager] ❌ Erreur création ObjectInteractionManager:', error);
-    }
-    
-    // ✅ Module Environnement (futur)
-    // this.modules.environmentInteractionManager = new EnvironmentInteractionManager(...)
-    
-    console.log('[BaseInteractionManager] 📊 Modules initialisés:', {
-      npc: !!this.modules.npcInteractionManager,
-      objects: !!this.modules.objectInteractionManager,
-      environment: !!this.modules.environmentInteractionManager
+    const npcResult = this.modules.npcInteractionManager.initialize({
+      npcManager: this.dependencies.npcManager,
+      playerManager: this.dependencies.playerManager,
+      questSystem: this.dependencies.questSystem,
+      shopSystem: this.dependencies.shopSystem,
+      dialogueSystem: window.showNpcDialogue
     });
+    
+    if (npcResult) {
+      console.log('[BaseInteractionManager] ✅ NpcInteractionManager initialisé');
+      this.setupNpcCallbacks();
+    } else {
+      console.error('[BaseInteractionManager] ❌ Échec initialisation NpcInteractionManager');
+    }
+    
+  } catch (error) {
+    console.error('[BaseInteractionManager] ❌ Erreur création NpcInteractionManager:', error);
   }
+  
+  // ✅ Module Objets (NOUVEAU!)
+  try {
+    this.modules.objectInteractionManager = new ObjectInteractionManager(
+      this.scene, 
+      this.dependencies.networkInteractionHandler
+    );
+    
+    const objectResult = this.modules.objectInteractionManager.initialize({
+      playerManager: this.dependencies.playerManager,
+      inventorySystem: this.dependencies.inventorySystem || window.inventorySystem,
+      notificationSystem: window.showGameNotification
+    });
+    
+    if (objectResult) {
+      console.log('[BaseInteractionManager] ✅ ObjectInteractionManager initialisé');
+      // TODO: Setup object callbacks si nécessaire
+    } else {
+      console.error('[BaseInteractionManager] ❌ Échec initialisation ObjectInteractionManager');
+    }
+    
+  } catch (error) {
+    console.error('[BaseInteractionManager] ❌ Erreur création ObjectInteractionManager:', error);
+  }
+  
+  // ✅ Module Environnement (futur)
+  // this.modules.environmentInteractionManager = new EnvironmentInteractionManager(...)
+  
+  console.log('[BaseInteractionManager] 📊 Modules initialisés:', {
+    npc: !!this.modules.npcInteractionManager,
+    objects: !!this.modules.objectInteractionManager,
+    environment: !!this.modules.environmentInteractionManager
+  });
+}
 
   setupNpcCallbacks() {
     const npcManager = this.modules.npcInteractionManager;
