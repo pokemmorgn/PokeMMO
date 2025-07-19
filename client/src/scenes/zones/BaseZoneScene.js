@@ -2868,11 +2868,12 @@ onPlayerPositioned(player, initData) {
 
   // ✅ MÉTHODES UTILITAIRES POUR LE SHOP ET AUTRES SYSTÈMES
   getShopSystem() {
-    return this.interactionManager?.shopSystem || null;
+    return this.interactionManager?.modules?.npcInteractionManager?.dependencies?.shopSystem || null;
   }
-
+  
   isShopOpen() {
-    return this.interactionManager?.isShopOpen() || false;
+    const shopSystem = this.getShopSystem();
+    return shopSystem?.isShopOpen() || false;
   }
 
   debugShop() {
