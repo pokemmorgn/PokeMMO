@@ -743,70 +743,106 @@ this.battleEngine.on('battleEvent', async (event: any) => {
   
 // ✅ DANS BattleRoom.ts - Méthode onJoin()
 
+// ✅ CORRECTION BattleRoom.ts - Méthode onJoin()
+
 async onJoin(client: Client, options: any) {
-  console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom avec auto-registration JWT`);
+  console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom`);
+  console.log(`📋 [JOIN] Options reçues:`, JSON.stringify(options, null, 2));
   
   try {
-    // ✅ VÉRIFICATION JWT DEPUIS OPTIONS
+    // ✅ ÉTAPE 1: Récupérer worldSessionId
     const worldSessionId = options.worldSessionId;
+    const playerName = options.playerName;
+    
     if (!worldSessionId) {
-      console.error(`❌ [BattleRoom] worldSessionId manquant`);
+      console.error(`❌ [BattleRoom] worldSessionId manquant dans options:`, options);
       client.leave(1000, "worldSessionId manquant");
       return;
     }
-
-    // ✅ RÉCUPÉRER JWT DEPUIS WORLDROOM SESSION
-    let jwtData = this.jwtManager.getJWTDataBySession(worldSessionId);
-    let userId = this.jwtManager.getUserId(worldSessionId);
     
-    // ✅ FALLBACK: Utiliser les données depuis battleInitData
-    if (!jwtData || !userId) {
-      console.warn(`⚠️ [BattleRoom] JWT non trouvé pour WorldSession ${worldSessionId}, utilisation battleInitData`);
-      jwtData = this.battleInitData.playerData.jwtData;
-      userId = this.battleInitData.playerData.userId;
-    }
+    console.log(`🔍 [JOIN] Recherche JWT pour worldSession: ${worldSessionId}, player: ${playerName}`);
     
-    if (!jwtData || !userId) {
-      console.error(`❌ [BattleRoom] Aucune donnée JWT disponible`);
-      client.leave(1000, "Données session manquantes");
+    // ✅ ÉTAPE 2: Validation session robuste avec auto-restauration
+    const validation = await this.jwtManager.validateSessionRobust(
+      worldSessionId, 
+      playerName, 
+      'battleRoom_join'
+    );
+    
+    if (!validation.valid) {
+      console.error(`❌ [BattleRoom] Validation échouée: ${validation.reason}`);
+      client.leave(1000, `Session invalide: ${validation.reason}`);
       return;
     }
     
-    // ✅ ENREGISTRER JWT AVEC LE NOUVEAU SESSIONID BATTLEROOM
-    await this.jwtManager.registerUser(client.sessionId, jwtData);
-    console.log(`✅ [BattleRoom] JWT re-enregistré: ${client.sessionId} → ${userId} (${jwtData.username})`);
+    const { userId, jwtData } = validation;
+    console.log(`✅ [JOIN] Validation réussie: ${userId} (${jwtData.username})`);
     
-    // ✅ VÉRIFICATION QUE ÇA MARCHE
-    const verifyUserId = this.jwtManager.getUserId(client.sessionId);
-    if (verifyUserId !== userId) {
-      console.error(`❌ [BattleRoom] Erreur re-registration: attendu ${userId}, reçu ${verifyUserId}`);
-      client.leave(1000, "Erreur session registration");
+    // ✅ ÉTAPE 3: Enregistrer le nouveau sessionId avec les données JWT existantes
+    try {
+      await this.jwtManager.registerUser(client.sessionId, jwtData);
+      console.log(`✅ [JOIN] JWT enregistré pour BattleRoom: ${client.sessionId} → ${userId}`);
+    } catch (registrationError) {
+      console.error(`❌ [JOIN] Erreur registration JWT:`, registrationError);
+      
+      // ✅ FALLBACK: Forcer le mapping manuel
+      this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
+      console.log(`🔄 [JOIN] Mapping forcé: ${client.sessionId} → ${userId}`);
+    }
+    
+    // ✅ ÉTAPE 4: Vérification finale
+    const finalUserId = this.jwtManager.getUserId(client.sessionId);
+    if (!finalUserId || finalUserId !== userId) {
+      console.error(`❌ [JOIN] Mapping final échoué: attendu ${userId}, reçu ${finalUserId}`);
+      client.leave(1000, "Erreur mapping session");
       return;
     }
     
-    console.log(`🎯 [BattleRoom] JWT validation OK: ${client.sessionId} → ${userId}`);
+    console.log(`🎯 [JOIN] Session BattleRoom validée: ${client.sessionId} → ${finalUserId}`);
     
-    // ✅ MAINTENANT LE RESTE DU CODE PEUT UTILISER getUserId() NORMALEMENT
-    this.state.player1Id = userId;
-    this.state.player1Name = this.battleInitData.playerData.name;
+    // ✅ ÉTAPE 5: Configuration BattleRoom normale
+    this.state.player1Id = finalUserId;
+    this.state.player1Name = jwtData.username; // Utiliser le nom depuis JWT pour cohérence
     
-    // Créer TeamManager
-    const teamManager = new TeamManager(this.state.player1Name);
-    await teamManager.load();
-    this.teamManagers.set(client.sessionId, teamManager);
+    // ✅ ÉTAPE 6: Créer TeamManager
+    console.log(`👥 [JOIN] Création TeamManager pour ${jwtData.username}`);
+    const teamManager = new TeamManager(jwtData.username);
     
+    try {
+      await teamManager.load();
+      this.teamManagers.set(client.sessionId, teamManager);
+      console.log(`✅ [JOIN] TeamManager chargé pour ${jwtData.username}`);
+    } catch (teamError) {
+      console.error(`❌ [JOIN] Erreur TeamManager:`, teamError);
+      client.leave(1000, "Erreur chargement équipe");
+      return;
+    }
+    
+    // ✅ ÉTAPE 7: Notifier le client
     client.send("battleJoined", {
       battleId: this.state.battleId,
       battleType: this.state.battleType,
-      yourRole: "player1"
+      yourRole: "player1",
+      playerId: finalUserId,
+      playerName: jwtData.username
     });
     
-    // Démarrer le combat automatiquement
-    this.clock.setTimeout(() => this.startBattleAuthentic(), 1000);
+    console.log(`✅ [JOIN] Client notifié du succès de la connexion`);
+    
+    // ✅ ÉTAPE 8: Démarrer le combat avec délai
+    this.clock.setTimeout(() => {
+      console.log(`🚀 [JOIN] Démarrage combat différé...`);
+      this.startBattleAuthentic();
+    }, 1000);
+    
+    console.log(`🎉 [JOIN] Connexion BattleRoom complète pour ${jwtData.username}`);
     
   } catch (error) {
-    console.error(`❌ [JOIN] Erreur:`, error);
-    client.leave(1000, "Erreur lors de l'entrée en combat");
+    console.error(`❌ [JOIN] Erreur critique:`, error);
+    console.error(`❌ [JOIN] Stack:`, error instanceof Error ? error.stack : 'Pas de stack');
+    
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    client.leave(1000, `Erreur: ${errorMessage}`);
   }
 }
   
