@@ -65,6 +65,10 @@ export class ObjectManager {
     try {
       this.setupPhaserGroups();
       this.isInitialized = true;
+      
+      // ✅ S'exposer globalement pour BaseInteractionManager
+      this.exposeGlobally();
+      
       return true;
     } catch (error) {
       console.error('[ObjectManager] ❌ Erreur initialisation:', error);
@@ -817,9 +821,49 @@ export class ObjectManager {
       this.isInitialized = false;
       this.scene = null;
       
+      // ✅ Nettoyer l'exposition globale
+      if (window.currentObjectManager === this) {
+        window.currentObjectManager = null;
+      }
+      
     } catch (error) {
       console.error('[ObjectManager] ❌ Erreur destruction finale:', error);
     }
+  }
+
+  // === EXPOSITION GLOBALE ===
+
+  // ✅ NOUVELLE MÉTHODE: S'exposer globalement pour BaseInteractionManager
+  exposeGlobally() {
+    window.currentObjectManager = this;
+    
+    // ✅ Expose aussi des helpers pour le debug
+    window.testObjectDetection = (playerX, playerY, maxDistance = 50) => {
+      if (!window.currentObjectManager) {
+        console.error('[ObjectManager] ❌ Pas d\'ObjectManager global');
+        return [];
+      }
+      
+      return window.currentObjectManager.debugNearbyObjects(playerX, playerY, maxDistance);
+    };
+    
+    window.getClosestObject = (playerX, playerY, maxDistance = 50) => {
+      if (!window.currentObjectManager) {
+        console.error('[ObjectManager] ❌ Pas d\'ObjectManager global');
+        return null;
+      }
+      
+      return window.currentObjectManager.getClosestObject(playerX, playerY, maxDistance);
+    };
+    
+    window.getAllGameObjects = () => {
+      if (!window.currentObjectManager) {
+        console.error('[ObjectManager] ❌ Pas d\'ObjectManager global');
+        return [];
+      }
+      
+      return window.currentObjectManager.getAllVisibleObjects();
+    };
   }
 }
 
@@ -827,8 +871,8 @@ export class ObjectManager {
 
 window.debugObjectManager = function() {
   const managers = [
-    window.game?.scene?.getScenes(true)?.[0]?.objectManager,
-    window.currentObjectManager
+    window.currentObjectManager,
+    window.game?.scene?.getScenes(true)?.[0]?.objectManager
   ].filter(Boolean);
   
   if (managers.length > 0) {
@@ -836,12 +880,14 @@ window.debugObjectManager = function() {
     console.log('[ObjectManager] === DEBUG INFO ===');
     console.table({
       'Objets en Scène': info.stats.objectsInScene,
+      'Objets Visibles': info.visibleObjects,
       'Créés (Session)': info.stats.objectsCreatedThisSession,
       'Détruits (Session)': info.stats.objectsDestroyedThisSession,
       'Tentatives Nettoyage': info.stats.cleanupAttempts,
       'Erreurs Nettoyage': info.stats.cleanupErrors,
       'Sprites Stockés': info.objectCounts.spritesStored,
-      'Données Stockées': info.objectCounts.dataStored
+      'Données Stockées': info.objectCounts.dataStored,
+      'Textures Créées': info.texturesCreated
     });
     
     if (info.lastError) {
@@ -849,11 +895,40 @@ window.debugObjectManager = function() {
     }
     
     console.log('[ObjectManager] Info complète:', info);
+    console.log('🧪 Tests disponibles:');
+    console.log('  - window.testObjectDetection(x, y, distance) : Teste la détection d\'objets');
+    console.log('  - window.getClosestObject(x, y, distance) : Obtient l\'objet le plus proche');
+    console.log('  - window.getAllGameObjects() : Liste tous les objets visibles');
+    
     return info;
   } else {
     console.error('[ObjectManager] Manager non trouvé');
     return null;
   }
+};
+
+// ✅ NOUVELLE FONCTION: Test rapide de détection avec position du joueur
+window.testObjectDetectionAtPlayer = function() {
+  // Essayer de trouver la position du joueur
+  const scenes = window.game?.scene?.getScenes(true) || [];
+  let playerX = 0, playerY = 0;
+  
+  for (const scene of scenes) {
+    const myPlayer = scene.playerManager?.getMyPlayer();
+    if (myPlayer) {
+      playerX = myPlayer.x;
+      playerY = myPlayer.y;
+      break;
+    }
+  }
+  
+  if (playerX === 0 && playerY === 0) {
+    console.error('[ObjectManager] ❌ Position du joueur non trouvée');
+    return null;
+  }
+  
+  console.log(`[ObjectManager] 🧪 Test détection à la position du joueur: (${playerX}, ${playerY})`);
+  return window.testObjectDetection(playerX, playerY, 50);
 };
 
 // ✅ EXPORT PAR DÉFAUT (corrige l'erreur d'import)
