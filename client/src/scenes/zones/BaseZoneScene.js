@@ -63,7 +63,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // Grace period pour éviter les transitions involontaires
     this.justArrivedAtZone = false;
 
-    // ✅ InteractionManager au lieu de ShopIntegration direct
+    // ✅ BaseInteractionManager (architecture modulaire) au lieu de ShopIntegration direct
     this.interactionManager = null;
 
     // ✅ Système d'équipe avec protection
@@ -1053,7 +1053,7 @@ initializeZoneEnvironment() {
       // ✅ Shop integration
       integrateShopToScene(this, this.networkManager);
 
-      console.log(`✅ [${this.scene.key}] Shop intégré via InteractionManager`);
+      console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
 
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
