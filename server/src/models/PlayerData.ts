@@ -63,6 +63,15 @@ walletAddress: {
   experience: { type: Number, default: 0 },
   totalPlaytime: { type: Number, default: 0 }, // en minutes
   currentSessionStart: { type: Date, default: null },
+  // États des objets collectés avec cooldowns
+  objectStates: [{
+    objectId: { type: Number, required: true },
+    zone: { type: String, required: true },
+    lastCollectedTime: { type: Number, required: true }, // timestamp
+    nextAvailableTime: { type: Number, required: true }, // timestamp
+    cooldownDuration: { type: Number, required: true }   // en millisecondes
+  }],
+  
   // Préférences utilisateur
   emailVerified: { type: Boolean, default: false },
   twoFactorEnabled: { type: Boolean, default: false },
