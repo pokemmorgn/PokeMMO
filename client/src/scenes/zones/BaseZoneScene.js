@@ -1,6 +1,6 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC ENCOUNTER MANAGER INTÉGRÉ
-// ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
-// 🆕 NOUVEAU: Intégration complète du ClientEncounterManager
+// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC BASEINTERACTIONMANAGER
+// ✅ Migration complète vers le nouveau système d'interactions modulaire
+// 🆕 NOUVEAU: Utilise BaseInteractionManager avec détection automatique
 // 🔒 MODIFIÉ: Système MovementBlockHandler uniquement
 
 // ✅ NOUVEAU: Import du système de chargement
@@ -9,6 +9,7 @@ import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
 import { InventorySystem } from "../../game/InventorySystem.js";
+// 🆕 NOUVEAU: Import du BaseInteractionManager moderne
 import { BaseInteractionManager } from "../../game/BaseInteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
@@ -25,8 +26,6 @@ import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
-
-
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -55,7 +54,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
-        // ✅ NOUVEAU: Propriétés pour les Pokémon overworld
+    // ✅ NOUVEAU: Propriétés pour les Pokémon overworld
     this.overworldPokemonManager = null;
     this.overworldPokemonInitialized = false;
     // Zone et état réseau
@@ -67,8 +66,9 @@ export class BaseZoneScene extends Phaser.Scene {
     // Grace period pour éviter les transitions involontaires
     this.justArrivedAtZone = false;
 
-    // ✅ InteractionManager au lieu de ShopIntegration direct
+    // 🆕 NOUVEAU: BaseInteractionManager au lieu de l'ancien InteractionManager
     this.interactionManager = null;
+    this.interactionManagerInitialized = false;
 
     // ✅ Système d'équipe avec protection
     this.teamSystemInitialized = false;
@@ -91,7 +91,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.inputManager = null;
     this.inputManagerReady = false;
 
-  // ✅ NOUVEAU: Tracking initialisation UI
+    // ✅ NOUVEAU: Tracking initialisation UI
     this.uiInitialized = false;
     this.uiInitializationAttempts = 0;
     this.maxUIInitAttempts = 3;
@@ -107,7 +107,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-create() {
+  create() {
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
     
@@ -116,11 +116,10 @@ create() {
     
     // ✅ UN SEUL APPEL - startOptimizedLoading() fait TOUT
     this.startOptimizedLoading();
-}
+  }
 
-  
-// ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
-startOptimizedLoading() {
+  // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
+  startOptimizedLoading() {
     console.log(`🚀 [${this.scene.key}] === CHARGEMENT DIRECT SANS ÉCRAN ===`);
     
     // ✅ Faire tout le chargement DIRECTEMENT (pas d'écran)
@@ -145,10 +144,10 @@ startOptimizedLoading() {
     
     // ✅ Initialiser les systèmes en arrière-plan
     this.initializeGameSystems();
-}
+  }
 
-// ✅ NOUVELLE MÉTHODE - UI EN SILENCE TOTALE
-async initializeUIQuietly() {
+  // ✅ NOUVELLE MÉTHODE - UI EN SILENCE TOTALE
+  async initializeUIQuietly() {
     console.log(`🤫 [${this.scene.key}] UI en silence...`);
     
     if (this.uiInitialized) return;
@@ -160,266 +159,1017 @@ async initializeUIQuietly() {
             
             if (result.success) {
                 this.uiInitialized = true;
-                console.log(`✅ [${this.scene.key}] UI prête en silence`);
+                console.log(`✅ [${this.scene.key}] Test interaction forcée:`, result);
+      this.showNotification(`Test interaction forcée: ${result ? 'Réussi' : 'Échec'}`, result ? 'success' : 'warning');
+      return result;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur test interaction forcée:`, error);
+      this.showNotification(`Erreur test interaction: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  listNearbyNpcs() {
+    console.log(`🤖 [${this.scene.key}] Liste NPCs à proximité...`);
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.log("❌ Pas de joueur");
+      return [];
+    }
+    
+    const nearbyNpcs = this.npcManager?.getNpcsInRange(myPlayer.x, myPlayer.y, 100) || [];
+    console.log(`📊 ${nearbyNpcs.length} NPCs à proximité:`, nearbyNpcs.map(npc => ({
+      name: npc.name,
+      id: npc.id,
+      distance: Math.sqrt(Math.pow(npc.x - myPlayer.x, 2) + Math.pow(npc.y - myPlayer.y, 2)).toFixed(1)
+    })));
+    
+    return nearbyNpcs;
+  }
+
+  getBaseInteractionStats() {
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      return null;
+    }
+    
+    const stats = this.interactionManager.getDebugInfo();
+    console.log(`📊 [${this.scene.key}] Stats BaseInteractionManager:`, stats);
+    return stats;
+  }
+
+  resetBaseInteractionStats() {
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      return false;
+    }
+    
+    try {
+      this.interactionManager.resetStats();
+      console.log(`🔄 [${this.scene.key}] Stats BaseInteractionManager reset`);
+      this.showNotification('Stats BaseInteractionManager reset', 'success');
+      return true;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur reset stats:`, error);
+      this.showNotification(`Erreur reset stats: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  setInteractionConfig(config) {
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      return false;
+    }
+    
+    try {
+      this.interactionManager.setConfig(config);
+      console.log(`🔧 [${this.scene.key}] Configuration BaseInteractionManager mise à jour:`, config);
+      this.showNotification('Configuration interactions mise à jour', 'success');
+      return true;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur mise à jour config:`, error);
+      this.showNotification(`Erreur config: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  getInteractionConfig() {
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      return null;
+    }
+    
+    const config = this.interactionManager.getConfig();
+    console.log(`🔧 [${this.scene.key}] Configuration BaseInteractionManager:`, config);
+    return config;
+  }
+
+  testEncounterAtPosition(x, y) {
+    if (!this.encounterManager) {
+      console.log("❌ EncounterManager non disponible");
+      return null;
+    }
+    
+    console.log(`🧪 Test encounter à (${x}, ${y})`);
+    return this.encounterManager.forceEncounterCheck(x, y);
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe
+  getTeamSystemStatus() {
+    return {
+      initialized: this.teamSystemInitialized,
+      attempts: this.teamInitializationAttempts,
+      maxAttempts: this.maxTeamInitAttempts,
+      globalManagerExists: !!window.TeamManager,
+      globalManagerInitialized: window.TeamManager?.isInitialized || false
+    };
+  }
+
+  getQuestModuleStatus() {
+    return {
+      initialized: this.questModuleInitialized,
+      attempts: this.questModuleAttempts,
+      maxAttempts: this.maxQuestModuleAttempts,
+      globalSystemExists: !!window.questSystem,
+      globalSystemReady: !!window.questSystemReady,
+      uiManagerExists: !!window.uiManager
+    };
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Gestion du système d'encounter
+  getEncounterSystemStatus() {
+    return {
+      initialized: this.encounterInitialized,
+      managerExists: !!this.encounterManager,
+      mapLoaded: !!this.map,
+      stats: this.encounterManager?.getStats() || null
+    };
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Gestion du système BaseInteractionManager
+  getBaseInteractionSystemStatus() {
+    return {
+      initialized: this.interactionManagerInitialized,
+      managerExists: !!this.interactionManager,
+      npcManagerReady: !!this.interactionManager?.npcInteractionManager,
+      objectManagerReady: !!this.interactionManager?.objectInteractionManager,
+      networkHandlerReady: !!this.interactionManager?.networkInteractionHandler,
+      stats: this.interactionManager?.getDebugInfo()?.stats || null
+    };
+  }
+
+  // 🔒 NOUVELLES MÉTHODES: Gestion du système MovementBlock
+  getMovementBlockSystemStatus() {
+    return {
+      initialized: this.movementBlockHandlerInitialized,
+      attempts: this.movementBlockInitAttempts,
+      maxAttempts: this.maxMovementBlockInitAttempts,
+      inputManagerReady: this.inputManagerReady,
+      inputManagerExists: !!this.inputManager,
+      globalHandlerExists: !!movementBlockHandler,
+      globalHandlerReady: movementBlockHandler?.isReady() || false,
+      isBlocked: movementBlockHandler?.isMovementBlocked() || false,
+      blockReason: movementBlockHandler?.blockReason || null
+    };
+  }
+
+  forceTeamSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
+    this.teamSystemInitialized = false;
+    this.teamInitializationAttempts = 0;
+    
+    setTimeout(() => {
+      this.initializeTeamSystemSafely();
+    }, 1000);
+  }
+
+  forceEncounterSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'encounter...`);
+    this.encounterInitialized = false;
+    this.encounterManager = null;
+    
+    setTimeout(() => {
+      this.initializeEncounterManager();
+    }, 1000);
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Force réinit BaseInteractionManager
+  forceBaseInteractionSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation BaseInteractionManager...`);
+    
+    if (this.interactionManager) {
+      this.interactionManager.destroy();
+    }
+    
+    this.interactionManager = null;
+    this.interactionManagerInitialized = false;
+    
+    setTimeout(() => {
+      this.initializeBaseInteractionManager();
+    }, 1000);
+  }
+
+  // 🔒 NOUVELLE MÉTHODE: Force réinit MovementBlock
+  forceMovementBlockSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système MovementBlock...`);
+    this.movementBlockHandlerInitialized = false;
+    this.movementBlockInitAttempts = 0;
+    
+    // Reset du handler global si nécessaire
+    if (movementBlockHandler && movementBlockHandler.scene === this) {
+      movementBlockHandler.reset();
+    }
+    
+    setTimeout(() => {
+      this.initializeMovementBlockHandler();
+    }, 1000);
+  }
+
+  // 🔒 NOUVELLE MÉTHODE: Force réinit InputManager
+  forceInputManagerInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation InputManager...`);
+    
+    if (this.inputManager) {
+      this.inputManager.destroy();
+    }
+    
+    this.inputManager = null;
+    this.inputManagerReady = false;
+    
+    setTimeout(() => {
+      this.setupInputs();
+    }, 500);
+  }
+
+  isTeamSystemReady() {
+    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
+  }
+
+  isEncounterSystemReady() {
+    return this.encounterInitialized && !!this.encounterManager;
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Status BaseInteractionManager
+  isBaseInteractionSystemReady() {
+    return this.interactionManagerInitialized && !!this.interactionManager;
+  }
+
+  // 🔒 NOUVELLES MÉTHODES: Status MovementBlock
+  isMovementBlockSystemReady() {
+    return this.movementBlockHandlerInitialized && 
+           this.inputManagerReady && 
+           movementBlockHandler?.isReady();
+  }
+
+  isInputManagerReady() {
+    return this.inputManagerReady && !!this.inputManager;
+  }
+
+  getTeamManager() {
+    return this.isTeamSystemReady() ? window.TeamManager : null;
+  }
+
+  getEncounterManager() {
+    return this.isEncounterSystemReady() ? this.encounterManager : null;
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Getters BaseInteractionManager
+  getBaseInteractionManager() {
+    return this.isBaseInteractionSystemReady() ? this.interactionManager : null;
+  }
+
+  // 🔒 NOUVELLES MÉTHODES: Getters MovementBlock
+  getMovementBlockHandler() {
+    return this.isMovementBlockSystemReady() ? movementBlockHandler : null;
+  }
+
+  getInputManager() {
+    return this.isInputManagerReady() ? this.inputManager : null;
+  }
+
+  // ✅ MÉTHODES DE DEBUG ÉTENDUES
+  debugScene() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
+    console.log(`📊 Managers:`, {
+      playerManager: !!this.playerManager,
+      npcManager: !!this.npcManager,
+      networkManager: !!this.networkManager,
+      interactionManager: !!this.interactionManager, // 🆕 NOUVEAU
+      inventorySystem: !!this.inventorySystem,
+      encounterManager: !!this.encounterManager,
+      inputManager: !!this.inputManager,
+      movementBlockHandler: !!movementBlockHandler
+    });
+    
+    console.log(`📊 État scène:`, {
+      isReady: this.isSceneReady,
+      networkSetup: this.networkSetupComplete,
+      playerReady: this.myPlayerReady,
+      zoneName: this.zoneName,
+      sessionId: this.mySessionId,
+      teamSystemInitialized: this.teamSystemInitialized,
+      teamInitAttempts: this.teamInitializationAttempts,
+      encounterSystemInitialized: this.encounterInitialized,
+      interactionSystemInitialized: this.interactionManagerInitialized, // 🆕 NOUVEAU
+      movementBlockSystemInitialized: this.movementBlockHandlerInitialized,
+      inputManagerReady: this.inputManagerReady
+    });
+  }
+
+  debugAllSystems() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
+    
+    this.debugScene();
+    
+    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
+    
+    // 🆕 NOUVEAU: Debug encounter system
+    console.log(`🎲 Encounter System:`, this.getEncounterSystemStatus());
+    
+    // 🆕 NOUVEAU: Debug BaseInteractionManager system
+    console.log(`🎯 BaseInteraction System:`, this.getBaseInteractionSystemStatus());
+    
+    // 🔒 NOUVEAU: Debug movement block system
+    console.log(`🔒 MovementBlock System:`, this.getMovementBlockSystemStatus());
+    
+    console.log(`🎒 Inventory:`, {
+      exists: !!this.inventorySystem,
+      initialized: this.inventoryInitialized,
+      global: !!window.inventorySystem
+    });
+    
+    console.log(`🎮 Network:`, {
+      manager: !!this.networkManager,
+      connected: this.networkManager?.isConnected,
+      room: !!this.networkManager?.room,
+      sessionId: this.mySessionId
+    });
+  }
+
+  testTeamConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
+    
+    if (!this.isTeamSystemReady()) {
+      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
+      return false;
+    }
+    
+    try {
+      const teamManager = this.getTeamManager();
+      teamManager.requestTeamData();
+      console.log(`✅ Test connexion team réussi`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test connexion team:`, error);
+      return false;
+    }
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Test du système d'encounter
+  testEncounterConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Encounter System...`);
+    
+    if (!this.isEncounterSystemReady()) {
+      console.log(`❌ Encounter System pas prêt, status:`, this.getEncounterSystemStatus());
+      return false;
+    }
+    
+    try {
+      const myPlayer = this.playerManager?.getMyPlayer();
+      if (!myPlayer) {
+        console.log(`❌ Pas de joueur pour test encounter`);
+        return false;
+      }
+      
+      const encounterData = this.encounterManager.checkEncounterOnMove(myPlayer.x, myPlayer.y);
+      console.log(`✅ Test encounter réussi:`, encounterData);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test encounter:`, error);
+      return false;
+    }
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Test du système BaseInteractionManager
+  testBaseInteractionConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion BaseInteractionManager...`);
+    
+    if (!this.isBaseInteractionSystemReady()) {
+      console.log(`❌ BaseInteraction System pas prêt, status:`, this.getBaseInteractionSystemStatus());
+      return false;
+    }
+    
+    try {
+      const manager = this.getBaseInteractionManager();
+      
+      // Test des managers internes
+      const hasNpcManager = !!manager.npcInteractionManager;
+      const hasObjectManager = !!manager.objectInteractionManager;
+      const hasNetworkHandler = !!manager.networkInteractionHandler;
+      
+      console.log(`✅ Test BaseInteractionManager réussi:`, {
+        hasNpcManager,
+        hasObjectManager,
+        hasNetworkHandler,
+        isReady: hasNpcManager && hasObjectManager && hasNetworkHandler
+      });
+      
+      return hasNpcManager && hasObjectManager && hasNetworkHandler;
+    } catch (error) {
+      console.error(`❌ Erreur test BaseInteractionManager:`, error);
+      return false;
+    }
+  }
+
+  // 🔒 NOUVELLE MÉTHODE: Test du système MovementBlock
+  testMovementBlockConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion MovementBlock System...`);
+    
+    if (!this.isMovementBlockSystemReady()) {
+      console.log(`❌ MovementBlock System pas prêt, status:`, this.getMovementBlockSystemStatus());
+      return false;
+    }
+    
+    try {
+      const handler = this.getMovementBlockHandler();
+      const inputManager = this.getInputManager();
+      
+      console.log(`🔒 Handler status:`, handler.getStatus());
+      console.log(`⌨️ InputManager status:`, inputManager.getStatus());
+      
+      // Test de base
+      const isBlocked = handler.isMovementBlocked();
+      const areInputsEnabled = inputManager.areInputsEnabled();
+      
+      console.log(`✅ Test MovementBlock réussi:`, {
+        isBlocked,
+        areInputsEnabled,
+        consistent: isBlocked !== areInputsEnabled
+      });
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test MovementBlock:`, error);
+      return false;
+    }
+  }
+
+  // ✅ MÉTHODES UTILITAIRES POUR LE SHOP ET AUTRES SYSTÈMES
+  getShopSystem() {
+    return this.interactionManager?.getShopSystem() || null;
+  }
+
+  isShopOpen() {
+    return this.interactionManager?.isShopOpen() || false;
+  }
+
+  debugShop() {
+    if (this.interactionManager) {
+      this.interactionManager.debugState();
+    } else {
+      console.log(`🔍 [${this.scene.key}] Aucun BaseInteractionManager`);
+    }
+  }
+
+  requestTime() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getTime");
+    }
+  }
+
+  requestWeather() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getWeather");
+    }
+  }
+
+  // 🆕 NOUVELLES MÉTHODES UTILITAIRES POUR LES ENCOUNTERS
+
+  getCurrentEncounterInfo() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer || !this.encounterManager) {
+      return null;
+    }
+    
+    return {
+      position: { x: myPlayer.x, y: myPlayer.y },
+      positionInfo: this.encounterManager.getPositionInfo(myPlayer.x, myPlayer.y),
+      stats: this.encounterManager.getStats()
+    };
+  }
+
+  resetEncounterCooldowns() {
+    if (this.encounterManager) {
+      this.encounterManager.resetCooldowns();
+      console.log(`🔄 [${this.scene.key}] Cooldowns encounter reset`);
+      this.showNotification("Cooldowns encounter reset", 'info');
+    }
+  }
+
+  simulateEncounterSteps(count = 5) {
+    if (this.encounterManager) {
+      this.encounterManager.simulateSteps(count);
+      console.log(`👟 [${this.scene.key}] ${count} pas simulés`);
+      this.showNotification(`${count} pas simulés pour encounter`, 'info');
+    }
+  }
+
+  // 🆕 NOUVELLES MÉTHODES UTILITAIRES POUR BASEINTERACTIONMANAGER
+
+  getCurrentInteractionInfo() {
+    if (!this.isBaseInteractionSystemReady()) {
+      return {
+        error: "BaseInteractionManager system not ready"
+      };
+    }
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      return {
+        error: "No player found"
+      };
+    }
+    
+    return {
+      position: { x: myPlayer.x, y: myPlayer.y },
+      nearbyNpcs: this.listNearbyNpcs(),
+      stats: this.getBaseInteractionStats(),
+      config: this.getInteractionConfig(),
+      systemStatus: this.getBaseInteractionSystemStatus()
+    };
+  }
+
+  // 🔒 NOUVELLES MÉTHODES UTILITAIRES POUR MOVEMENTBLOCK
+
+  getCurrentMovementBlockInfo() {
+    if (!this.isMovementBlockSystemReady()) {
+      return {
+        error: "MovementBlock system not ready"
+      };
+    }
+    
+    return {
+      handler: movementBlockHandler.getStatus(),
+      inputManager: this.inputManager.getStatus(),
+      isBlocked: movementBlockHandler.isMovementBlocked(),
+      blockReason: movementBlockHandler.blockReason,
+      blockMessage: movementBlockHandler.blockMessage
+    };
+  }
+
+  // AJOUTER ces méthodes après getCurrentMovementBlockInfo() :
+
+  testGlobalWeatherConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion système météo global...`);
+    
+    if (!window.globalWeatherManager?.isInitialized) {
+      console.error(`❌ [${this.scene.key}] Système météo global pas prêt`);
+      return false;
+    }
+    
+    try {
+      // Test des fonctions de base
+      const currentTime = window.globalWeatherManager.getCurrentTime();
+      const currentWeather = window.globalWeatherManager.getCurrentWeather();
+      
+      console.log(`⏰ Temps global:`, currentTime);
+      console.log(`🌦️ Météo globale:`, currentWeather);
+      
+      // Test de l'enregistrement de cette scène
+      const stats = window.globalWeatherManager.getStats();
+      console.log(`📊 Stats système global:`, stats);
+      
+      // Test de force update
+      window.globalWeatherManager.forceUpdate();
+      
+      console.log(`✅ [${this.scene.key}] Test connexion météo global réussi`);
+      return true;
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur test météo global:`, error);
+      return false;
+    }
+  }
+
+  forceWeatherRefresh() {
+    console.log(`🔄 [${this.scene.key}] Force refresh météo...`);
+    
+    if (window.globalWeatherManager?.isInitialized) {
+      // Désenregistrer et re-enregistrer pour forcer un refresh
+      window.globalWeatherManager.unregisterScene(this.scene.key);
+      
+      setTimeout(() => {
+        this.connectToGlobalWeatherSystem();
+      }, 100);
+      
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] Système global pas disponible pour refresh`);
+    }
+  }
+      
+  debugMusicSystem() {
+      console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MUSIQUE ===`);
+      
+      // Vérifier si le MapMusicManager est chargé
+      if (window.mapMusicManager) {
+          console.log(`✅ [${this.scene.key}] MapMusicManager global disponible`);
+          window.mapMusicManager.debugState();
+      } else {
+          console.error(`❌ [${this.scene.key}] MapMusicManager global MANQUANT`);
+      }
+      
+      // Vérifier si cette scène a l'intégration
+      if (this.musicManager) {
+          console.log(`✅ [${this.scene.key}] MusicManager local disponible`);
+          console.log(`🎯 Zone actuelle:`, this.musicManager.currentZone);
+          console.log(`🎵 Track actuelle:`, this.musicManager.currentTrack?.key);
+      } else {
+          console.error(`❌ [${this.scene.key}] MusicManager local MANQUANT`);
+      }
+      
+      // Vérifier les assets audio
+      if (this.cache?.audio) {
+          const audioKeys = this.cache.audio.getKeys();
+          console.log(`🎼 [${this.scene.key}] Assets audio (${audioKeys.length}):`, audioKeys);
+          
+          // Vérifier les tracks spécifiques
+          const requiredTracks = ['road1_theme', 'village_theme', 'lavandia_theme'];
+          requiredTracks.forEach(track => {
+              const exists = this.cache.audio.exists(track);
+              console.log(`${exists ? '✅' : '❌'} [${this.scene.key}] ${track}: ${exists ? 'DISPONIBLE' : 'MANQUANT'}`);
+          });
+      } else {
+          console.error(`❌ [${this.scene.key}] Cache audio MANQUANT`);
+      }
+      
+      // Vérifier le SoundManager
+      if (this.sound) {
+          console.log(`✅ [${this.scene.key}] SoundManager disponible`);
+          console.log(`🔧 [${this.scene.key}] Context state:`, this.sound.context?.state || 'unknown');
+          console.log(`🔊 [${this.scene.key}] Volume global:`, this.sound.volume);
+          console.log(`🔇 [${this.scene.key}] Muted:`, this.sound.mute);
+      } else {
+          console.error(`❌ [${this.scene.key}] SoundManager MANQUANT`);
+      }
+  }
+
+  forceUnblockMovement() {
+    if (movementBlockHandler) {
+      movementBlockHandler.requestForceUnblock();
+      console.log(`🔓 [${this.scene.key}] Demande déblocage forcé envoyée`);
+      this.showNotification("Demande déblocage forcé envoyée", 'info');
+    }
+  }
+
+  requestMovementBlockStatus() {
+    if (movementBlockHandler) {
+      movementBlockHandler.requestBlockStatus();
+      console.log(`📊 [${this.scene.key}] Demande status blocage envoyée`);
+      this.showNotification("Demande status blocage envoyée", 'info');
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES DE DEBUG MÉTÉO
+  debugWeatherSystem() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO GLOBAL ===`);
+    
+    const status = {
+      weatherSystemType: this.weatherSystemType || 'unknown',
+      hasGlobalManager: !!this.globalWeatherManager,
+      globalSystemExists: !!window.globalWeatherManager,
+      globalSystemInitialized: window.globalWeatherManager?.isInitialized || false,
+      environment: this.currentEnvironment,
+      zoneName: this.normalizeZoneName(this.scene.key),
+      isRegistered: window.globalWeatherManager?.registeredScenes?.has(this.scene.key) || false,
+      isActive: window.globalWeatherManager?.activeScenes?.has(this.scene.key) || false
+    };
+    
+    console.log(`📊 Status météo ${this.scene.key}:`, status);
+    return status;
+  }
+
+  getCurrentTimeWeather() {
+    if (window.globalWeatherManager?.isInitialized) {
+      return {
+        time: window.globalWeatherManager.getCurrentTime(),
+        weather: window.globalWeatherManager.getCurrentWeather()
+      };
+    }
+    
+    // Fallback
+    return {
+      time: { hour: 12, isDayTime: true },
+      weather: { weather: 'clear', displayName: 'Ciel dégagé' }
+    };
+  }
+
+  onZoneChanged(newZoneName) {
+    console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
+    
+    // ✅ NOTIFIER LE SYSTÈME GLOBAL
+    if (this.globalWeatherManager && typeof this.globalWeatherManager.onZoneChanged === 'function') {
+      this.globalWeatherManager.onZoneChanged(newZoneName);
+    }
+    
+    // ✅ OU UTILISER LA FONCTION GLOBALE
+    if (typeof window.onWeatherZoneChanged === 'function') {
+      window.onWeatherZoneChanged(newZoneName);
+    }
+    
+    // ✅ NOUVEAU: Mettre à jour le widget si nécessaire
+    if (this.timeWeatherWidget) {
+      // Le widget se mettra à jour automatiquement via les callbacks
+      console.log(`🕐 [${this.scene.key}] Widget notifié du changement de zone`);
+    }
+  }
+
+  // 🆕 MÉTHODES D'EXPOSITION GLOBALE POUR LE DEBUG
+  exposeDebugFunctions() {
+    // Exposer les fonctions de debug sur window pour usage en console
+    window[`debug_${this.scene.key}`] = {
+      debugScene: () => this.debugScene(),
+      debugAllSystems: () => this.debugAllSystems(),
+      debugEncounters: () => this.debugEncounters(),
+      forceEncounter: () => this.forceEncounterTest(),
+      testEncounter: () => this.testEncounterConnection(),
+      resetEncounterCooldowns: () => this.resetEncounterCooldowns(),
+      simulateSteps: (count) => this.simulateEncounterSteps(count),
+      getEncounterInfo: () => this.getCurrentEncounterInfo(),
+      getEncounterStatus: () => this.getEncounterSystemStatus(),
+      // 🔒 NOUVELLES FONCTIONS MOVEMENTBLOCK
+      debugMovementBlock: () => this.debugMovementBlockHandler(),
+      debugInputManager: () => this.debugInputManager(),
+      testMovementBlock: () => this.testMovementBlockConnection(),
+      forceUnblock: () => this.forceUnblockMovement(),
+      requestBlockStatus: () => this.requestMovementBlockStatus(),
+      getMovementBlockInfo: () => this.getCurrentMovementBlockInfo(),
+      getMovementBlockStatus: () => this.getMovementBlockSystemStatus(),
+      forceMovementBlockInit: () => this.forceMovementBlockSystemInit(),
+      forceInputManagerInit: () => this.forceInputManagerInit(),
+      // ✅ NOUVELLES FONCTIONS DEBUG BASE INTERACTION MANAGER
+      debugBaseInteraction: () => this.debugBaseInteractionManager(),
+      testNpcInteraction: () => this.testNpcInteractionSystem(),
+      testObjectInteraction: () => this.testObjectInteractionSystem(),
+      searchHiddenItems: (x, y) => this.testSearchHiddenItems(x, y),
+      testUniversalE: () => this.testUniversalInputE(),
+      forceInteraction: (target) => this.forceInteractionTest(target),
+      getInteractionStats: () => this.getBaseInteractionStats(),
+      resetInteractionStats: () => this.resetBaseInteractionStats(),
+      getInteractionInfo: () => this.getCurrentInteractionInfo(),
+      getInteractionStatus: () => this.getBaseInteractionSystemStatus(),
+      forceInteractionInit: () => this.forceBaseInteractionSystemInit(),
+      setInteractionConfig: (config) => this.setInteractionConfig(config),
+      getInteractionConfig: () => this.getInteractionConfig(),
+      debugWeather: () => this.debugWeatherSystem(),
+      testWeather: () => this.testGlobalWeatherConnection(),
+      forceWeatherRefresh: () => this.forceWeatherRefresh(),
+      getCurrentWeather: () => this.getCurrentTimeWeather()
+    };
+    
+    console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
+  }
+
+  // ✅ MÉTHODES DE CHARGEMENT ASYNC
+  async loadZoneComponents() {
+      return new Promise(resolve => {
+          this.createPlayerAnimations();
+          this.setupManagers();
+          this.initPlayerSpawnFromSceneData();
+          this.justArrivedAtZone = true;
+          this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+          
+          this.loadMap();
+          this.setupInputs();
+          this.createUI();
+          this.myPlayerReady = false;
+          this.isSceneReady = true;
+          
+          this.initializeWithExistingConnection();
+          this.setupPlayerReadyHandler();
+          this.setupCleanupHandlers();
+
+          this.events.once('shutdown', this.cleanup, this);
+          this.events.once('destroy', this.cleanup, this);
+          
+          setTimeout(resolve, 300);
+      });
+  }
+
+  async initializeUIComponents() {
+      return new Promise(async resolve => {
+          try {
+              if (typeof initializePokemonUI === 'function') {
+                  await initializePokemonUI();
+                  console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée`);
+              } else {
+                  console.warn(`⚠️ [${this.scene.key}] initializePokemonUI non disponible`);
+              }
+              resolve();
+          } catch (error) {
+              console.error(`❌ [${this.scene.key}] Erreur UI:`, error);
+              resolve(); // Continuer même en cas d'erreur
+          }
+      });
+  }
+
+  performDirectLoading() {
+      console.log(`🔄 [${this.scene.key}] Chargement direct de secours...`);
+      
+      this.createPlayerAnimations();
+      this.setupManagers();
+      this.initPlayerSpawnFromSceneData();
+      this.justArrivedAtZone = true;
+      this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+      
+      this.loadMap();
+      this.setupInputs();
+      this.createUI();
+      this.myPlayerReady = false;
+      this.isSceneReady = true;
+      
+      this.initializeWithExistingConnection();
+      this.setupPlayerReadyHandler();
+      this.setupCleanupHandlers();
+
+      this.events.once('shutdown', this.cleanup, this);
+      this.events.once('destroy', this.cleanup, this);
+      
+      this.initializeGameSystems();
+    this.initializeOverworldPokemon();
+  }
+
+  // ✅ FONCTIONS UTILITAIRES
+  delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  promisifyMethod(method) {
+      return new Promise(resolve => {
+          try {
+              method();
+              setTimeout(resolve, 200);
+          } catch (error) {
+              console.error('Erreur dans promisifyMethod:', error);
+              resolve();
+          }
+      });
+  }
+
+  // ✅ NOUVELLES MÉTHODES DE DEBUG pour Pokémon overworld
+
+  debugOverworldPokemon() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG POKÉMON OVERWORLD ===`);
+    
+    // ✅ UTILISER LA FONCTION EXISTANTE
+    const currentZone = this.mapSceneToZone(this.scene.key); // Utilise la méthode existante
+    
+    // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+    const configuredZones = ['village', 'lavandia']; // Zones avec des Pokémon overworld
+    
+    if (!configuredZones.includes(currentZone)) {
+      console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+      this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'info');
+      return;
+    }
+    
+    if (!this.overworldPokemonManager) {
+      console.log("❌ OverworldPokemonManager non initialisé");
+      return;
+    }
+    
+    this.overworldPokemonManager.debugOverworldPokemon();
+    
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("debugOverworldPokemon");
+    }
+    
+    this.showNotification(`Debug Pokémon overworld dans la console`, 'info');
+  }
+
+  forceSpawnOverworldPokemon() {
+    console.log(`🎯 [${this.scene.key}] Force spawn Pokémon overworld`);
+    
+    // ✅ UTILISER LA FONCTION EXISTANTE
+    const currentZone = this.mapSceneToZone(this.scene.key);
+    
+    // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+    const configuredZones = ['village', 'lavandia'];
+    
+    if (!configuredZones.includes(currentZone)) {
+      console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+      this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
+      return;
+    }
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.log("❌ Pas de joueur pour spawn");
+      this.showNotification("Pas de joueur trouvé", 'error');
+      return;
+    }
+    
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("forceSpawnOverworldPokemon", {
+        areaId: currentZone, // ✅ Utiliser directement le nom de zone
+        pokemonId: 17, // Roucoups par défaut
+        x: myPlayer.x,
+        y: myPlayer.y
+      });
+      
+      this.showNotification(`Force spawn Roucoups dans ${currentZone}`, 'success');
+    } else {
+      this.showNotification("Pas de connexion serveur", 'error');
+    }
+  }
+
+  clearCurrentOverworldArea() {
+    console.log(`🧹 [${this.scene.key}] Nettoyage zone overworld actuelle`);
+    
+    // ✅ UTILISER LA FONCTION EXISTANTE
+    const currentZone = this.mapSceneToZone(this.scene.key);
+    
+    // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+    const configuredZones = ['village', 'lavandia'];
+    
+    if (!configuredZones.includes(currentZone)) {
+      console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+      this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
+      return;
+    }
+    
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("clearOverworldArea", {
+        areaId: currentZone // ✅ Utiliser directement le nom de zone
+      });
+      
+      this.showNotification(`Zone ${currentZone} nettoyée`, 'success');
+    } else {
+      this.showNotification("Pas de connexion serveur", 'error');
+    }
+  }
+}${this.scene.key}] UI prête en silence`);
             }
         }
     } catch (error) {
         console.error(`❌ [${this.scene.key}] Erreur UI silencieuse:`, error);
     }
-}
-
-  // ✅ NOUVELLE MÉTHODE: Démarrer LoadingScreen avec UI intégrée
-  startIntegratedLoadingScreen() {
-    console.log(`🎮 [${this.scene.key}] === CHARGEMENT INTÉGRÉ ZONE + UI ===`);
-    
-    // Créer un LoadingScreen personnalisé pour cette zone avec UI intégrée
-    if (window.globalLoadingScreen) {
-      // Étapes combinées : zone + UI
-      const integratedSteps = [
-        "Chargement de la carte...",
-        "Initialisation des joueurs...",
-        "Configuration réseau...",
-        "Démarrage interface utilisateur...",
-        "Chargement modules UI...",
-        "Configuration des icônes...",
-        "Finalisation de l'interface...",
-        "Zone prête !"
-      ];
-      
-      // Démarrer l'écran de chargement personnalisé
-      window.globalLoadingScreen.showCustomLoading(integratedSteps, {
-        title: `Chargement ${this.scene.key}`,
-        icon: '🌍',
-        stepDelay: 400
-      }).then(() => {
-        console.log(`✅ [${this.scene.key}] Chargement intégré terminé`);
-        // L'écran se ferme automatiquement
-      });
-      
-    } else {
-      console.warn(`⚠️ [${this.scene.key}] GlobalLoadingScreen non disponible`);
-    }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Initialisation UI PENDANT le chargement (pas après)
-  async initializeUISystemsDuringLoading() {
-    console.log(`🎮 [${this.scene.key}] === INITIALISATION UI PENDANT CHARGEMENT ===`);
-    
-    // Protection contre initialisations multiples
-    if (this.uiInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] UI déjà initialisée`);
-      return;
-    }
-    
-    if (this.uiInitializationAttempts >= this.maxUIInitAttempts) {
-      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation UI - abandon`);
-      return;
-    }
-    
-    this.uiInitializationAttempts++;
-    console.log(`🎮 [${this.scene.key}] Tentative UI ${this.uiInitializationAttempts}/${this.maxUIInitAttempts}`);
-    
-    try {
-      // Vérifier que les pré-requis sont prêts
-      if (!window.globalNetworkManager?.isConnected) {
-        console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt, retry dans 1s...`);
-        this.time.delayedCall(1000, () => {
-          this.initializeUISystemsDuringLoading();
-        });
-        return;
-      }
-      
-      // ✅ NOUVEAU: Initialiser directement sans LoadingScreen séparé
-      if (typeof window.initializePokemonUI === 'function') {
-        console.log(`🚀 [${this.scene.key}] Initialisation directe PokemonUI...`);
-        
-        const result = await window.initializePokemonUI();
-        
-        if (result.success) {
-          this.uiInitialized = true;
-          console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée !`);
-          
-          // Déclencher notification de succès
-          if (typeof window.showGameNotification === 'function') {
-            window.showGameNotification('Interface prête !', 'success', { 
-              duration: 1500, 
-              position: 'bottom-center' 
-            });
-          }
-          
-        } else {
-          console.error(`❌ [${this.scene.key}] Erreur initialisation UI:`, result.error);
-          this.handleUIInitializationFailure(result.error);
-        }
-        
-      } else {
-        console.error(`❌ [${this.scene.key}] window.initializePokemonUI non disponible !`);
-        this.handleUIInitializationFailure("Fonction d'initialisation UI manquante");
-      }
-      
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur critique initialisation UI:`, error);
-      this.handleUIInitializationFailure(error.message);
-    }
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Initialisation UI avec LoadingScreen
-  async initializeUISystemsWithLoading() {
-    console.log(`🎮 [${this.scene.key}] === INITIALISATION UI AVEC CHARGEMENT ===`);
-    
-    // Protection contre initialisations multiples
-    if (this.uiInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] UI déjà initialisée`);
-      return;
-    }
-    
-    if (this.uiInitializationAttempts >= this.maxUIInitAttempts) {
-      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation UI - abandon`);
-      return;
-    }
-    
-    this.uiInitializationAttempts++;
-    console.log(`🎮 [${this.scene.key}] Tentative UI ${this.uiInitializationAttempts}/${this.maxUIInitAttempts}`);
-    
-    try {
-      // Vérifier que les pré-requis sont prêts
-      if (!window.globalNetworkManager?.isConnected) {
-        console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt, retry dans 2s...`);
-        this.time.delayedCall(2000, () => {
-          this.initializeUISystemsWithLoading();
-        });
-        return;
-      }
-      
-      // Déclencher l'initialisation UI avec LoadingScreen
-      if (typeof window.initializeUIWithLoading === 'function') {
-        console.log(`🚀 [${this.scene.key}] Lancement initialisation UI avec écran de chargement...`);
-        
-        const result = await window.initializeUIWithLoading();
-        
-        if (result.success) {
-          this.uiInitialized = true;
-          console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée avec succès !`);
-          
-          // Cacher l'ancien overlay s'il existe
-          if (window.hideLoadingOverlay) {
-            window.hideLoadingOverlay();
-          }
-          
-        } else {
-          console.error(`❌ [${this.scene.key}] Erreur initialisation UI:`, result.error);
-          this.handleUIInitializationFailure(result.error);
-        }
-        
-      } else {
-        console.error(`❌ [${this.scene.key}] window.initializeUIWithLoading non disponible !`);
-        this.handleUIInitializationFailure("Fonction d'initialisation UI manquante");
-      }
-      
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur critique initialisation UI:`, error);
-      this.handleUIInitializationFailure(error.message);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation UI
-  handleUIInitializationFailure(errorMessage) {
-    if (this.uiInitializationAttempts < this.maxUIInitAttempts) {
-      console.log(`🔄 [${this.scene.key}] Retry initialisation UI dans 3s... (${this.uiInitializationAttempts}/${this.maxUIInitAttempts})`);
-      this.time.delayedCall(3000, () => {
-        this.initializeUISystemsWithLoading();
-      });
-    } else {
-      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation UI`);
-      
-      // Afficher un fallback notification
-      if (typeof window.showGameNotification === 'function') {
-        window.showGameNotification('Interface utilisateur indisponible', 'error', {
-          duration: 5000,
-          position: 'top-center'
-        });
-      }
-      
-      // Cacher l'overlay même en cas d'échec pour ne pas bloquer le jeu
-      if (window.hideLoadingOverlay) {
-        window.hideLoadingOverlay();
-      }
-    }
-  }
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
- initializeWithExistingConnection() {
-  console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
-  
-  if (!window.globalNetworkManager) {
-    console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
-    this.showErrorState("NetworkManager global introuvable");
-    return;
-  }
-
-  if (!window.globalNetworkManager.isConnected) {
-    console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
-    this.showErrorState("Connexion réseau inactive");
-    return;
-  }
-
-  this.networkManager = this.networkManager || window.globalNetworkManager;
-  console.log('[BaseZoneScene] NetworkManager utilisé :', this.networkManager, 'Room:', this.room);
-  this.mySessionId = this.networkManager.getSessionId();
-
-  console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
-    sessionId: this.mySessionId,
-    isConnected: this.networkManager.isConnected,
-    currentZone: this.networkManager.getCurrentZone()
-  });
-
-  this.setupNetworkHandlers();
-  this.networkSetupComplete = true;
-
-  // ✅ Initialiser les systèmes de jeu
-  this.initializeGameSystems();
-
-  this.requestServerZone();
-  this.verifyNetworkState();
-
-  // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
-  if (this.networkManager && this.networkManager.room) {
-    this.networkManager._networkHandlersSetup = false;
-    this.networkManager._worldHandlersSetup = false;
-    this.networkManager.setupRoomListeners();
-    this.networkManager.restoreCustomCallbacks?.();
+  initializeWithExistingConnection() {
+    console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
     
-    // ✅ AJOUT CRITIQUE: Re-initialiser le système de combat
-    if (window.battleSystem && this.networkManager.battleNetworkHandler) {
-      console.log('🔗 [BaseZoneScene] Re-connexion BattleManager...');
-      window.battleSystem.battleConnection = this.networkManager.battleNetworkHandler;
+    if (!window.globalNetworkManager) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
+      this.showErrorState("NetworkManager global introuvable");
+      return;
+    }
+
+    if (!window.globalNetworkManager.isConnected) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
+      this.showErrorState("Connexion réseau inactive");
+      return;
+    }
+
+    this.networkManager = this.networkManager || window.globalNetworkManager;
+    console.log('[BaseZoneScene] NetworkManager utilisé :', this.networkManager, 'Room:', this.room);
+    this.mySessionId = this.networkManager.getSessionId();
+
+    console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
+      sessionId: this.mySessionId,
+      isConnected: this.networkManager.isConnected,
+      currentZone: this.networkManager.getCurrentZone()
+    });
+
+    this.setupNetworkHandlers();
+    this.networkSetupComplete = true;
+
+    // ✅ Initialiser les systèmes de jeu
+    this.initializeGameSystems();
+
+    this.requestServerZone();
+    this.verifyNetworkState();
+
+    // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
+    if (this.networkManager && this.networkManager.room) {
+      this.networkManager._networkHandlersSetup = false;
+      this.networkManager._worldHandlersSetup = false;
+      this.networkManager.setupRoomListeners();
+      this.networkManager.restoreCustomCallbacks?.();
       
-      // ✅ NOUVEAU: Re-setup des événements de combat
-      if (window.battleSystem.battleConnection.networkHandler) {
-        window.battleSystem.battleConnection.networkHandler = this.networkManager.battleNetworkHandler;
-        window.battleSystem.battleConnection.setupNetworkEvents();
+      // ✅ AJOUT CRITIQUE: Re-initialiser le système de combat
+      if (window.battleSystem && this.networkManager.battleNetworkHandler) {
+        console.log('🔗 [BaseZoneScene] Re-connexion BattleManager...');
+        window.battleSystem.battleConnection = this.networkManager.battleNetworkHandler;
+        
+        // ✅ NOUVEAU: Re-setup des événements de combat
+        if (window.battleSystem.battleConnection.networkHandler) {
+          window.battleSystem.battleConnection.networkHandler = this.networkManager.battleNetworkHandler;
+          window.battleSystem.battleConnection.setupNetworkEvents();
+        }
+      }
+      
+      // ✅ NOUVEAU: Vérifier que BattleNetworkHandler a le bon client
+      if (this.networkManager.battleNetworkHandler && window.client) {
+        this.networkManager.battleNetworkHandler.client = window.client;
+        console.log('✅ [BaseZoneScene] BattleNetworkHandler client mis à jour');
       }
     }
-    
-    // ✅ NOUVEAU: Vérifier que BattleNetworkHandler a le bon client
-    if (this.networkManager.battleNetworkHandler && window.client) {
-      this.networkManager.battleNetworkHandler.client = window.client;
-      console.log('✅ [BaseZoneScene] BattleNetworkHandler client mis à jour');
+
+    // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
+    this.initializeMovementBlockHandler();
+    this.networkSetupComplete = true;
+
+    // === [HOOK ROOM READY] ===
+    if (this.networkManager && this.networkManager.room) {
+      this.room = this.networkManager.room; // Synchronise la référence locale
+      if (typeof this.onRoomAvailable === "function") {
+        this.onRoomAvailable(this.room);
+      }
     }
   }
-
-  // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
-  this.initializeMovementBlockHandler();
-  this.networkSetupComplete = true;
-
-  // === [HOOK ROOM READY] ===
-  if (this.networkManager && this.networkManager.room) {
-    this.room = this.networkManager.room; // Synchronise la référence locale
-    if (typeof this.onRoomAvailable === "function") {
-      this.onRoomAvailable(this.room);
-    }
-  }
-}
-
 
   // 🔒 NOUVELLE MÉTHODE: Initialisation MovementBlockHandler avec protection
   initializeMovementBlockHandler() {
@@ -516,26 +1266,24 @@ async initializeUIQuietly() {
     }
   }
 
-setRoom(room) {
-  // Méthode à appeler pour changer de room (par exemple lors d'une transition de zone)
-  console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] setRoom appelé :`, room);
+  setRoom(room) {
+    // Méthode à appeler pour changer de room (par exemple lors d'une transition de zone)
+    console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] setRoom appelé :`, room);
 
-  this.room = room;
-  if (this.networkManager) {
-    this.networkManager.room = room;
-    console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] Changement de room dans NetworkManager`);
-    this.networkManager.setupRoomListeners();
-    this.networkManager.restoreCustomCallbacks?.();
-  } else {
-    console.warn(`⚠️ [${this.scene?.key || 'BaseZoneScene'}] Pas de networkManager pour setRoom`);
+    this.room = room;
+    if (this.networkManager) {
+      this.networkManager.room = room;
+      console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] Changement de room dans NetworkManager`);
+      this.networkManager.setupRoomListeners();
+      this.networkManager.restoreCustomCallbacks?.();
+    } else {
+      console.warn(`⚠️ [${this.scene?.key || 'BaseZoneScene'}] Pas de networkManager pour setRoom`);
+    }
+    // Re-initialiser certains systèmes si besoin
+    this.initializeGameSystems();
+    console.log(`✅ [${this.scene?.key || 'BaseZoneScene'}] Systèmes réinitialisés après changement de room`);
   }
-  // Re-initialiser certains systèmes si besoin
-  this.initializeGameSystems();
-  console.log(`✅ [${this.scene?.key || 'BaseZoneScene'}] Systèmes réinitialisés après changement de room`);
-}
 
-
-  
   // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés + EncounterManager
   initializeGameSystems() {
     console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
@@ -545,14 +1293,14 @@ setRoom(room) {
     // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
 
-        // 4. Temps/Météo (peu de risque de conflit)
+    // 4. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
     }, 300);
     
-    // 2. InteractionManager (dépend de networkManager)
+    // 🆕 2. NOUVEAU: BaseInteractionManager (dépend de networkManager)
     setTimeout(() => {
-      this.initializeInteractionManager();
+      this.initializeBaseInteractionManager();
     }, 600);
     
     // 3. Quêtes (dépend de la connexion stable)
@@ -564,63 +1312,191 @@ setRoom(room) {
       const zoneName = this.normalizeZoneName(this.scene.key);
       console.log(`🌍 [${this.scene.key}] Application météo finale pour: ${zoneName}`);
       
-    // 5. Système d'équipe
-    setTimeout(() => {
-      // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
-      if (typeof window.initTeamSystem === 'function') {
-        console.log(`⚔️ [${this.scene.key}] Init team system global`);
-        window.initTeamSystem(this.networkManager.room);
-      }
-    }, 1500);
+      // 5. Système d'équipe
+      setTimeout(() => {
+        // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
+        if (typeof window.initTeamSystem === 'function') {
+          console.log(`⚔️ [${this.scene.key}] Init team system global`);
+          window.initTeamSystem(this.networkManager.room);
+        }
+      }, 1500);
     }, 1200);
+    
     // 🆕 6. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
     }, 1800);
-      setTimeout(() => {
-    this.initializeOverworldPokemon();
-  }, 2100);
-    console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
-
-  }
-// ✅ NOUVELLE MÉTHODE: Initialisation des Pokémon overworld
-initializeOverworldPokemon() {
-  console.log(`🌍 [${this.scene.key}] === INITIALISATION POKÉMON OVERWORLD ===`);
-  
-  try {
-    if (!this.overworldPokemonManager) {
-      console.error(`❌ [${this.scene.key}] OverworldPokemonManager non initialisé`);
-      return;
-    }
     
-    // ✅ UTILISER LA FONCTION EXISTANTE
-    const currentZone = this.mapSceneToZone(this.scene.key);
-    
-    // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
-    const configuredZones = ['village', 'lavandia'];
-    
-    if (!configuredZones.includes(currentZone)) {
-      console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld - skip`);
-      return;
-    }
-    
-    // Marquer comme initialisé
-    this.overworldPokemonInitialized = true;
-    
-    // Demander la synchronisation au serveur
     setTimeout(() => {
-      if (this.networkManager?.room) {
-        console.log(`🔄 [${this.scene.key}] Demande synchronisation Pokémon overworld pour zone: ${currentZone}`);
-        this.networkManager.room.send("requestOverworldSync");
-      }
-    }, 3000); // Après tous les autres systèmes
+      this.initializeOverworldPokemon();
+    }, 2100);
     
-    console.log(`✅ [${this.scene.key}] Pokémon overworld initialisé pour zone: ${currentZone}`);
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation Pokémon overworld:`, error);
+    console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
   }
-}
+
+  // 🆕 NOUVELLE MÉTHODE: Initialisation du BaseInteractionManager moderne
+  initializeBaseInteractionManager() {
+    if (this.interactionManagerInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] BaseInteractionManager déjà initialisé`);
+      return;
+    }
+
+    if (!this.networkManager) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour BaseInteractionManager`);
+      return;
+    }
+  
+    try {
+      console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
+  
+      // ✅ Créer le BaseInteractionManager moderne
+      this.interactionManager = new BaseInteractionManager(this);
+  
+      // ✅ L'initialiser avec les dépendances modernes
+      this.interactionManager.initialize({
+        networkManager: this.networkManager,
+        networkInteractionHandler: this.networkManager.interactionHandler,
+        playerManager: this.playerManager,
+        npcManager: this.npcManager,
+        questSystem: window.questSystem || window.questSystemGlobal,
+        shopSystem: window.shopSystem,
+        inventorySystem: this.inventorySystem || window.inventorySystem
+      });
+
+      // ✅ Marquer comme initialisé
+      this.interactionManagerInitialized = true;
+  
+      console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec succès`);
+
+      // ✅ Setup des callbacks pour le monitoring
+      this.setupInteractionManagerCallbacks();
+  
+      // ✅ Shop integration (automatique avec BaseInteractionManager)
+      integrateShopToScene(this, this.networkManager);
+  
+      console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
+
+      // ✅ Exposer les méthodes debug globalement
+      this.exposeInteractionDebugMethods();
+  
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
+      
+      // ✅ Retry après délai si échec
+      setTimeout(() => {
+        if (this.scene.isActive() && !this.interactionManagerInitialized) {
+          console.log(`🔄 [${this.scene.key}] Retry initialisation BaseInteractionManager...`);
+          this.initializeBaseInteractionManager();
+        }
+      }, 2000);
+    }
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Setup des callbacks BaseInteractionManager
+  setupInteractionManagerCallbacks() {
+    if (!this.interactionManager) return;
+
+    console.log(`🔧 [${this.scene.key}] Configuration callbacks BaseInteractionManager...`);
+
+    // ✅ Callbacks pour monitoring et debug
+    this.interactionManager.onNpcInteractionStart((npc, type) => {
+      console.log(`🎭 [${this.scene.key}] Début interaction NPC: ${npc?.name} (${type})`);
+    });
+
+    this.interactionManager.onNpcInteractionComplete((npc, data, result) => {
+      console.log(`✅ [${this.scene.key}] Interaction NPC terminée: ${npc?.name}`, result);
+    });
+
+    this.interactionManager.onObjectInteractionStart((object, type) => {
+      console.log(`📦 [${this.scene.key}] Début interaction objet: ${object?.name} (${type})`);
+    });
+
+    this.interactionManager.onObjectInteractionComplete((object, data, result) => {
+      console.log(`✅ [${this.scene.key}] Interaction objet terminée: ${object?.name}`, result);
+    });
+
+    this.interactionManager.onSearchComplete((data) => {
+      console.log(`🔍 [${this.scene.key}] Fouille terminée:`, data);
+    });
+
+    this.interactionManager.onInteractionError((error, target, data) => {
+      console.error(`❌ [${this.scene.key}] Erreur interaction:`, error, target);
+      this.showNotification(`Erreur interaction: ${error.message || error}`, 'error');
+    });
+
+    console.log(`✅ [${this.scene.key}] Callbacks BaseInteractionManager configurés`);
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Exposer les méthodes debug globalement
+  exposeInteractionDebugMethods() {
+    if (!this.interactionManager) return;
+
+    // ✅ Exposer sur window pour usage en console
+    const debugKey = `debug_${this.scene.key}_interactions`;
+    window[debugKey] = {
+      // Debug général
+      debugBaseInteraction: () => this.debugBaseInteractionManager(),
+      getInteractionStats: () => this.getBaseInteractionStats(),
+      resetInteractionStats: () => this.resetBaseInteractionStats(),
+      
+      // Tests NPCs
+      testNpcInteraction: () => this.testNpcInteractionSystem(),
+      listNearbyNpcs: () => this.listNearbyNpcs(),
+      
+      // Tests objets
+      testObjectInteraction: () => this.testObjectInteractionSystem(),
+      searchHiddenItems: (x, y) => this.testSearchHiddenItems(x, y),
+      
+      // Tests système
+      testInputE: () => this.testUniversalInputE(),
+      forceInteraction: (target) => this.forceInteractionTest(target),
+      
+      // Configuration
+      setInteractionConfig: (config) => this.setInteractionConfig(config),
+      getInteractionConfig: () => this.getInteractionConfig()
+    };
+
+    console.log(`🔧 [${this.scene.key}] Méthodes debug BaseInteractionManager exposées: window.${debugKey}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation des Pokémon overworld
+  initializeOverworldPokemon() {
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION POKÉMON OVERWORLD ===`);
+    
+    try {
+      if (!this.overworldPokemonManager) {
+        console.error(`❌ [${this.scene.key}] OverworldPokemonManager non initialisé`);
+        return;
+      }
+      
+      // ✅ UTILISER LA FONCTION EXISTANTE
+      const currentZone = this.mapSceneToZone(this.scene.key);
+      
+      // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+      const configuredZones = ['village', 'lavandia'];
+      
+      if (!configuredZones.includes(currentZone)) {
+        console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld - skip`);
+        return;
+      }
+      
+      // Marquer comme initialisé
+      this.overworldPokemonInitialized = true;
+      
+      // Demander la synchronisation au serveur
+      setTimeout(() => {
+        if (this.networkManager?.room) {
+          console.log(`🔄 [${this.scene.key}] Demande synchronisation Pokémon overworld pour zone: ${currentZone}`);
+          this.networkManager.room.send("requestOverworldSync");
+        }
+      }, 3000); // Après tous les autres systèmes
+      
+      console.log(`✅ [${this.scene.key}] Pokémon overworld initialisé pour zone: ${currentZone}`);
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation Pokémon overworld:`, error);
+    }
+  }
 
   // 🆕 NOUVELLE MÉTHODE: Initialisation du ClientEncounterManager
   initializeEncounterManager() {
@@ -665,76 +1541,62 @@ initializeOverworldPokemon() {
   }
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
-setupEncounterNetworkHandlers() {
-  if (!this.networkManager?.room) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
-    return;
-  }
-
-  console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
-
-  // ✅ SEUL HANDLER : Combat confirmé par le serveur
-  this.networkManager.onMessage("wildEncounter", (data) => {
-    if (data.success) {
-      this.handleWildEncounter(data);
+  setupEncounterNetworkHandlers() {
+    if (!this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
+      return;
     }
-    // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
-  });
 
-  console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
-}
+    console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
+
+    // ✅ SEUL HANDLER : Combat confirmé par le serveur
+    this.networkManager.onMessage("wildEncounter", (data) => {
+      if (data.success) {
+        this.handleWildEncounter(data);
+      }
+      // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
+    });
+
+    console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
+  }
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
-handleWildEncounter(data) {
-  console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
-  console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+  handleWildEncounter(data) {
+    console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
+    console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
 
-  // ✅ Arrêter le joueur
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (myPlayer && myPlayer.body) {
-    myPlayer.body.setVelocity(0, 0);
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-  }
+    // ✅ Arrêter le joueur
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      myPlayer.body.setVelocity(0, 0);
+      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    }
 
-  // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
-  if (window.showGameNotification) {
-    window.showGameNotification(
-      `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
-      'encounter',
-      { 
-        duration: 3000, 
-        position: 'top-center',
-        bounce: true 
-      }
-    );
-  }
-
-  // ✅ Transition vers combat (TODO)
-  this.time.delayedCall(1000, () => {
-    console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
-    
+    // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
     if (window.showGameNotification) {
       window.showGameNotification(
-        `Combat non implémenté - continuez à explorer !`,
-        'info',
-        { duration: 2000, position: 'bottom-center' }
+        `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
+        'encounter',
+        { 
+          duration: 3000, 
+          position: 'top-center',
+          bounce: true 
+        }
       );
     }
-  });
-}
 
-  // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
-  handleEncounterZoneInfo(data) {
-    console.log(`📍 [${this.scene.key}] Info zone encounter mise à jour:`, data);
-    
-    // Optionnel: Afficher les infos de zone
-    if (data.zoneId && window.showGameNotification) {
-      window.showGameNotification(
-        `Zone: ${data.zoneId} - ${data.encounterRate ? (data.encounterRate * 100).toFixed(1) + '%' : 'Pas d\'encounter'}`,
-        'info',
-        { duration: 2000, position: 'bottom-left' }
-      );
-    }
+    // ✅ Transition vers combat (TODO)
+    this.time.delayedCall(1000, () => {
+      console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
+      
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          `Combat non implémenté - continuez à explorer !`,
+          'info',
+          { duration: 2000, position: 'bottom-center' }
+        );
+      }
+    });
   }
 
   // 🆕 NOUVELLE MÉTHODE: Vérification des encounters lors du mouvement
@@ -777,413 +1639,103 @@ handleWildEncounter(data) {
     }
   }
 
-  // ✅ MÉTHODE INCHANGÉE: Initialisation sécurisée du système d'équipe
-  initializeTeamSystemSafely() {
-    console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
+  // 🔧 MÉTHODE CORRIGÉE: Initialisation système météo/temps
+  initializeTimeWeatherSystem() {
+    console.log(`🌍 [${this.scene.key}] === CONNEXION AU SYSTÈME MÉTÉO GLOBAL ===`);
 
-    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
-    if (this.teamSystemInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
+    // ✅ VÉRIFIER QUE LE SYSTÈME GLOBAL EXISTE
+    if (!window.globalWeatherManager) {
+      console.error(`❌ [${this.scene.key}] GlobalWeatherManager manquant!`);
+      this.setupWeatherFallback();
       return;
     }
 
-    if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
-      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
-      return;
-    }
-
-    this.teamInitializationAttempts++;
-    console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
-
-    // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
-      setTimeout(() => this.initializeTeamSystemSafely(), 2000);
-      return;
-    }
-
-    // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
-    if (window.TeamManager && window.TeamManager.isInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
-      this.teamSystemInitialized = true;
-      return;
-    }
-
-    try {
-      console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
+    if (!window.globalWeatherManager.isInitialized) {
+      console.warn(`⚠️ [${this.scene.key}] GlobalWeatherManager pas encore initialisé, attente...`);
       
-      // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
-      if (typeof window.initTeamSystem === 'function') {
-        console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
+      // Attendre jusqu'à 5 secondes
+      this.waitForGlobalWeatherSystem(0, 25); // 25 x 200ms = 5 secondes
+      return;
+    }
+
+    // ✅ ENREGISTRER CETTE SCÈNE DANS LE SYSTÈME GLOBAL
+    this.connectToGlobalWeatherSystem();
+  }
+
+  waitForGlobalWeatherSystem(attempts, maxAttempts) {
+    if (attempts >= maxAttempts) {
+      console.error(`❌ [${this.scene.key}] Timeout attente système météo global - fallback`);
+      this.setupWeatherFallback();
+      return;
+    }
+
+    console.log(`⏳ [${this.scene.key}] Attente système météo global... (${attempts + 1}/${maxAttempts})`);
+
+    setTimeout(() => {
+      if (window.globalWeatherManager?.isInitialized) {
+        console.log(`✅ [${this.scene.key}] Système météo global prêt!`);
+        this.connectToGlobalWeatherSystem();
+      } else {
+        this.waitForGlobalWeatherSystem(attempts + 1, maxAttempts);
+      }
+    }, 200);
+  }
+
+  connectToGlobalWeatherSystem() {
+    try {
+      const zoneName = this.normalizeZoneName(this.scene.key);
+      
+      console.log(`🔗 [${this.scene.key}] Connexion au système météo global pour zone: ${zoneName}`);
+
+      // ✅ ENREGISTRER CETTE SCÈNE
+      const success = window.globalWeatherManager.registerScene(this, zoneName);
+      
+      if (success) {
+        // ✅ MARQUER COMME ACTIVE
+        window.globalWeatherManager.setActiveScene(this.scene.key);
         
-        const teamManager = window.initTeamSystem(this.networkManager.room);
+        // ✅ STOCKER LA RÉFÉRENCE
+        this.globalWeatherManager = window.globalWeatherManager;
+        this.weatherSystemType = 'global';
         
-        if (teamManager) {
-          console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
-          this.teamSystemInitialized = true;
-          
-          // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
-          if (typeof window.onSystemInitialized === 'function') {
-            window.onSystemInitialized('team');
-          }
-          
-          // ✅ TEST SIMPLE après un délai
-          setTimeout(() => {
-            console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
-            console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
-          }, 1000);
-          
-        } else {
-          console.error(`❌ [${this.scene.key}] window.initTeamSystem a retourné null`);
-          this.handleTeamInitFailure();
-        }
+        console.log(`✅ [${this.scene.key}] Connecté au système météo global`);
+        
+        // ✅ INITIALISER L'ENVIRONNEMENT LOCAL
+        this.initializeZoneEnvironment();
         
       } else {
-        console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
-        this.handleTeamInitFailure();
+        console.error(`❌ [${this.scene.key}] Échec enregistrement dans le système global`);
+        this.setupWeatherFallback();
       }
 
     } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
-      this.handleTeamInitFailure();
-    }
-  }
-
-  // ✅ MÉTHODE INCHANGÉE: Gestion des échecs d'initialisation
-  handleTeamInitFailure() {
-    if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
-      console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
-      setTimeout(() => this.initializeTeamSystemSafely(), 5000);
-    } else {
-      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système d'équipe`);
-      // Signaler l'échec mais ne pas bloquer le jeu
-      if (typeof window.showGameNotification === 'function') {
-        window.showGameNotification('Système d\'équipe indisponible', 'warning', {
-          duration: 5000,
-          position: 'top-center'
-        });
-      }
-    }
-  }
-
-// ✅ DANS BaseZoneScene.js - REMPLACE initializeTimeWeatherSystem() par :
-
-initializeTimeWeatherSystem() {
-  console.log(`🌍 [${this.scene.key}] === CONNEXION AU SYSTÈME MÉTÉO GLOBAL ===`);
-
-  // ✅ VÉRIFIER QUE LE SYSTÈME GLOBAL EXISTE
-  if (!window.globalWeatherManager) {
-    console.error(`❌ [${this.scene.key}] GlobalWeatherManager manquant!`);
-    this.setupWeatherFallback();
-    return;
-  }
-
-  if (!window.globalWeatherManager.isInitialized) {
-    console.warn(`⚠️ [${this.scene.key}] GlobalWeatherManager pas encore initialisé, attente...`);
-    
-    // Attendre jusqu'à 5 secondes
-    this.waitForGlobalWeatherSystem(0, 25); // 25 x 200ms = 5 secondes
-    return;
-  }
-
-  // ✅ ENREGISTRER CETTE SCÈNE DANS LE SYSTÈME GLOBAL
-  this.connectToGlobalWeatherSystem();
-}
-
-waitForGlobalWeatherSystem(attempts, maxAttempts) {
-  if (attempts >= maxAttempts) {
-    console.error(`❌ [${this.scene.key}] Timeout attente système météo global - fallback`);
-    this.setupWeatherFallback();
-    return;
-  }
-
-  console.log(`⏳ [${this.scene.key}] Attente système météo global... (${attempts + 1}/${maxAttempts})`);
-
-  setTimeout(() => {
-    if (window.globalWeatherManager?.isInitialized) {
-      console.log(`✅ [${this.scene.key}] Système météo global prêt!`);
-      this.connectToGlobalWeatherSystem();
-    } else {
-      this.waitForGlobalWeatherSystem(attempts + 1, maxAttempts);
-    }
-  }, 200);
-}
-
-connectToGlobalWeatherSystem() {
-  try {
-    const zoneName = this.normalizeZoneName(this.scene.key);
-    
-    console.log(`🔗 [${this.scene.key}] Connexion au système météo global pour zone: ${zoneName}`);
-
-    // ✅ ENREGISTRER CETTE SCÈNE
-    const success = window.globalWeatherManager.registerScene(this, zoneName);
-    
-    if (success) {
-      // ✅ MARQUER COMME ACTIVE
-      window.globalWeatherManager.setActiveScene(this.scene.key);
-      
-      // ✅ STOCKER LA RÉFÉRENCE
-      this.globalWeatherManager = window.globalWeatherManager;
-      this.weatherSystemType = 'global';
-      
-      console.log(`✅ [${this.scene.key}] Connecté au système météo global`);
-      
-      // ✅ INITIALISER L'ENVIRONNEMENT LOCAL
-      this.initializeZoneEnvironment();
-      
-    } else {
-      console.error(`❌ [${this.scene.key}] Échec enregistrement dans le système global`);
+      console.error(`❌ [${this.scene.key}] Erreur connexion système global:`, error);
       this.setupWeatherFallback();
     }
+  }
 
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur connexion système global:`, error);
-    this.setupWeatherFallback();
-  }
-}
-
-setupWeatherFallback() {
-  console.log(`🔄 [${this.scene.key}] Configuration météo fallback...`);
-  
-  // ✅ SYSTÈME MINIMAL LOCAL
-  this.globalWeatherManager = {
-    isInitialized: true,
-    fallbackMode: true,
-    getCurrentTime: () => ({ hour: 12, isDayTime: true }),
-    getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
-    registerScene: () => false,
-    setActiveScene: () => {},
-    onZoneChanged: (zone) => console.log(`🌤️ [FALLBACK] Zone changée: ${zone}`)
-  };
-  
-  this.weatherSystemType = 'fallback';
-  this.initializeZoneEnvironment();
-  
-  console.log(`✅ [${this.scene.key}] Météo fallback configurée`);
-}
-
-onZoneChanged(newZoneName) {
-  console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
-  
-  // ✅ NOTIFIER LE SYSTÈME GLOBAL
-  if (this.globalWeatherManager && typeof this.globalWeatherManager.onZoneChanged === 'function') {
-    this.globalWeatherManager.onZoneChanged(newZoneName);
-  }
-  
-  // ✅ OU UTILISER LA FONCTION GLOBALE
-  if (typeof window.onWeatherZoneChanged === 'function') {
-    window.onWeatherZoneChanged(newZoneName);
-  }
-  
-  // ✅ NOUVEAU: Mettre à jour le widget si nécessaire
-  if (this.timeWeatherWidget) {
-    // Le widget se mettra à jour automatiquement via les callbacks
-    console.log(`🕐 [${this.scene.key}] Widget notifié du changement de zone`);
-  }
-}
-
-debugWeatherSystem() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO GLOBAL ===`);
-  
-  const status = {
-    weatherSystemType: this.weatherSystemType || 'unknown',
-    hasGlobalManager: !!this.globalWeatherManager,
-    globalSystemExists: !!window.globalWeatherManager,
-    globalSystemInitialized: window.globalWeatherManager?.isInitialized || false,
-    environment: this.currentEnvironment,
-    zoneName: this.normalizeZoneName(this.scene.key),
-    isRegistered: window.globalWeatherManager?.registeredScenes?.has(this.scene.key) || false,
-    isActive: window.globalWeatherManager?.activeScenes?.has(this.scene.key) || false
-  };
-  
-  console.log(`📊 Status météo ${this.scene.key}:`, status);
-  return status;
-}
-
-getCurrentTimeWeather() {
-  if (window.globalWeatherManager?.isInitialized) {
-    return {
-      time: window.globalWeatherManager.getCurrentTime(),
-      weather: window.globalWeatherManager.getCurrentWeather()
-    };
-  }
-  
-  // Fallback
-  return {
-    time: { hour: 12, isDayTime: true },
-    weather: { weather: 'clear', displayName: 'Ciel dégagé' }
-  };
-}
-
-  // === MÉTHODES DE DEBUG POUR BASE INTERACTION MANAGER ===
-
-debugBaseInteractionManager() {
-  console.log(`🎯 [${this.scene.key}] === DEBUG BASE INTERACTION MANAGER ===`);
-  
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non initialisé`);
-    return null;
-  }
-  
-  const info = this.interactionManager.getDebugInfo();
-  console.table({
-    'Interactions Totales': info.stats.totalInteractions,
-    'Erreurs': info.stats.errors,
-    'Taux de Succès': info.stats.successRate,
-    'Inputs': info.stats.inputEvents,
-    'Inputs Bloqués': info.stats.blockedInputs,
-    'Temps Moyen': `${info.stats.averageResponseTime.toFixed(0)}ms`
-  });
-  
-  console.log(`📊 [${this.scene.key}] Info complète BaseInteractionManager:`, info);
-  this.showNotification('Debug BaseInteractionManager dans la console', 'info');
-  
-  return info;
-}
-
-testNpcInteractionSystem() {
-  console.log(`🧪 [${this.scene.key}] Test système interaction NPC...`);
-  
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
-    this.showNotification('BaseInteractionManager non disponible', 'error');
-    return false;
-  }
-  
-  // Trouver le NPC le plus proche pour test
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (!myPlayer) {
-    console.error(`❌ [${this.scene.key}] Pas de joueur pour test NPC`);
-    this.showNotification('Pas de joueur trouvé', 'error');
-    return false;
-  }
-  
-  const targetNpc = this.npcManager?.getClosestNpc(myPlayer.x, myPlayer.y, 100);
-  if (!targetNpc) {
-    console.error(`❌ [${this.scene.key}] Aucun NPC à proximité pour test`);
-    this.showNotification('Aucun NPC à proximité', 'warning');
-    return false;
-  }
-  
-  console.log(`🎯 [${this.scene.key}] Test interaction avec NPC: ${targetNpc.name}`);
-  
-  try {
-    const result = this.interactionManager.manualInteraction(targetNpc, { type: 'npc' });
-    console.log(`✅ [${this.scene.key}] Test NPC réussi:`, result);
-    this.showNotification(`Test NPC réussi avec ${targetNpc.name}`, 'success');
-    return result;
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur test NPC:`, error);
-    this.showNotification(`Erreur test NPC: ${error.message}`, 'error');
-    return false;
-  }
-}
-
-testObjectInteractionSystem() {
-  console.log(`🧪 [${this.scene.key}] Test système interaction objets...`);
-  
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
-    this.showNotification('BaseInteractionManager non disponible', 'error');
-    return false;
-  }
-  
-  // Créer un objet test factice
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (!myPlayer) {
-    console.error(`❌ [${this.scene.key}] Pas de joueur pour test objet`);
-    this.showNotification('Pas de joueur trouvé', 'error');
-    return false;
-  }
-  
-  const testObject = {
-    id: 'test_pokeball',
-    name: 'test_pokeball',
-    x: myPlayer.x + 32,
-    y: myPlayer.y,
-    properties: {
-      objectType: 'pokeball',
-      collectible: true
-    }
-  };
-  
-  console.log(`🎯 [${this.scene.key}] Test interaction avec objet test:`, testObject);
-  
-  try {
-    const result = this.interactionManager.manualInteraction(testObject, { type: 'object' });
-    console.log(`✅ [${this.scene.key}] Test objet réussi:`, result);
-    this.showNotification(`Test objet réussi`, 'success');
-    return result;
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur test objet:`, error);
-    this.showNotification(`Erreur test objet: ${error.message}`, 'error');
-    return false;
-  }
-}
-
-testSearchHiddenItems(x = null, y = null) {
-  console.log(`🧪 [${this.scene.key}] Test fouille objets cachés...`);
-  
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
-    this.showNotification('BaseInteractionManager non disponible', 'error');
-    return false;
-  }
-  
-  // Utiliser position du joueur si pas spécifiée
-  const myPlayer = this.playerManager?.getMyPlayer();
-  const searchX = x !== null ? x : (myPlayer ? myPlayer.x : 100);
-  const searchY = y !== null ? y : (myPlayer ? myPlayer.y : 100);
-  
-  console.log(`🔍 [${this.scene.key}] Test fouille à position (${searchX}, ${searchY})`);
-  
-  try {
-    const result = this.interactionManager.searchHiddenItems(
-      { x: searchX, y: searchY },
-      32 // radius
-    );
+  setupWeatherFallback() {
+    console.log(`🔄 [${this.scene.key}] Configuration météo fallback...`);
     
-    console.log(`✅ [${this.scene.key}] Test fouille envoyé:`, result);
-    this.showNotification(`Test fouille envoyé à (${searchX}, ${searchY})`, 'success');
-    return result;
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur test fouille:`, error);
-    this.showNotification(`Erreur test fouille: ${error.message}`, 'error');
-    return false;
+    // ✅ SYSTÈME MINIMAL LOCAL
+    this.globalWeatherManager = {
+      isInitialized: true,
+      fallbackMode: true,
+      getCurrentTime: () => ({ hour: 12, isDayTime: true }),
+      getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
+      registerScene: () => false,
+      setActiveScene: () => {},
+      onZoneChanged: (zone) => console.log(`🌤️ [FALLBACK] Zone changée: ${zone}`)
+    };
+    
+    this.weatherSystemType = 'fallback';
+    this.initializeZoneEnvironment();
+    
+    console.log(`✅ [${this.scene.key}] Météo fallback configurée`);
   }
-}
 
-getBaseInteractionStats() {
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
-    return null;
-  }
-  
-  const stats = this.interactionManager.getDebugInfo();
-  console.log(`📊 [${this.scene.key}] Stats BaseInteractionManager:`, stats);
-  return stats;
-}
-
-resetBaseInteractionStats() {
-  if (!this.interactionManager) {
-    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
-    return false;
-  }
-  
-  try {
-    this.interactionManager.resetStats();
-    console.log(`🔄 [${this.scene.key}] Stats BaseInteractionManager reset`);
-    this.showNotification('Stats BaseInteractionManager reset', 'success');
-    return true;
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur reset stats:`, error);
-    this.showNotification(`Erreur reset stats: ${error.message}`, 'error');
-    return false;
-  }
-}
-  
   // ✅ MÉTHODE INCHANGÉE: Initialiser l'environnement de la zone
-initializeZoneEnvironment() {
+  initializeZoneEnvironment() {
     const zoneName = this.normalizeZoneName(this.scene.key);
     this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
     
@@ -1195,117 +1747,81 @@ initializeZoneEnvironment() {
     }
     
     this.environmentInitialized = true;
-}
-
-  // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
-  initializeInteractionManager() {
-    if (!this.networkManager) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour BaseInteractionManager`);
-      return;
-    }
-  
-    try {
-      console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
-  
-      // Créer le BaseInteractionManager
-      this.interactionManager = new BaseInteractionManager(this);
-  
-      // L'initialiser avec les dépendances
-      this.interactionManager.initialize({
-        networkManager: this.networkManager,
-        networkInteractionHandler: this.networkManager.interactionHandler,
-        playerManager: this.playerManager,
-        npcManager: this.npcManager,
-        questSystem: window.questSystem || window.questSystemGlobal,
-        shopSystem: window.shopSystem
-      });
-  
-      console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec succès`);
-  
-      // ✅ Shop integration (automatique avec BaseInteractionManager)
-      integrateShopToScene(this, this.networkManager);
-  
-      console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
-  
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
-    }
   }
 
-onPlayerReady(player) {
-  console.log(`✅ [${this.scene.key}] === PLAYER READY HOOK ===`);
-  console.log(`👤 Joueur prêt: ${player.sessionId} à (${player.x}, ${player.y})`);
-  
-  // ✅ MARQUER comme spawné
-  this._playerFullySpawned = true;
-  
-  // ✅ NOUVEAU: Mettre à jour le flag global playerSpawned
-  if (typeof window !== "undefined") {
-    window.playerSpawned = true;
-    console.log('[GLOBAL] playerSpawned = true (joueur prêt)');
+  onPlayerReady(player) {
+    console.log(`✅ [${this.scene.key}] === PLAYER READY HOOK ===`);
+    console.log(`👤 Joueur prêt: ${player.sessionId} à (${player.x}, ${player.y})`);
     
-    // ✅ Si le loading screen est déjà fermé, marquer playerReady
-    if (window.loadingScreenClosed && !window.playerReady) {
-      window.playerReady = true;
-      console.log('[GLOBAL] playerReady = true (playerSpawned + loading déjà fermé)');
+    // ✅ MARQUER comme spawné
+    this._playerFullySpawned = true;
+    
+    // ✅ NOUVEAU: Mettre à jour le flag global playerSpawned
+    if (typeof window !== "undefined") {
+      window.playerSpawned = true;
+      console.log('[GLOBAL] playerSpawned = true (joueur prêt)');
+      
+      // ✅ Si le loading screen est déjà fermé, marquer playerReady
+      if (window.loadingScreenClosed && !window.playerReady) {
+        window.playerReady = true;
+        console.log('[GLOBAL] playerReady = true (playerSpawned + loading déjà fermé)');
+      }
     }
-  }
-  
-  // ✅ VÉRIFIER position valide
-  if (player.x !== undefined && player.y !== undefined && player.x !== 0 && player.y !== 0) {
-    this._playerPositionConfirmed = true;
-    console.log(`📍 [${this.scene.key}] Position joueur confirmée: (${player.x}, ${player.y})`);
-  }
-  
-  // ✅ Si on attendait le spawn pour envoyer clientReady
-  if (this._waitingForPlayerSpawn && !this._clientReadySent) {
-    console.log(`🚦 [${this.scene.key}] Joueur prêt, envoi clientReady maintenant`);
-    this.time.delayedCall(500, () => {
-      this.sendClientReady();
+    
+    // ✅ VÉRIFIER position valide
+    if (player.x !== undefined && player.y !== undefined && player.x !== 0 && player.y !== 0) {
+      this._playerPositionConfirmed = true;
+      console.log(`📍 [${this.scene.key}] Position joueur confirmée: (${player.x}, ${player.y})`);
+    }
+    
+    // ✅ Si on attendait le spawn pour envoyer clientReady
+    if (this._waitingForPlayerSpawn && !this._clientReadySent) {
+      console.log(`🚦 [${this.scene.key}] Joueur prêt, envoi clientReady maintenant`);
+      this.time.delayedCall(500, () => {
+        this.sendClientReady();
+      });
+    }
+    
+    // ✅ DÉLAI SÉCURISÉ avant de pouvoir démarrer l'intro
+    this.time.delayedCall(1000, () => {
+      this._introReadyToStart = true;
+      console.log(`🎬 [${this.scene.key}] Intro maintenant autorisée à démarrer`);
+      
+      // Si on a une intro en attente, la démarrer maintenant
+      if (this._pendingIntroStart) {
+        console.log(`🚀 [${this.scene.key}] Démarrage intro qui était en attente`);
+        this._pendingIntroStart();
+        this._pendingIntroStart = null;
+      }
+    });
+    
+    // ✅ Debug final
+    console.log('🏁 [BaseZoneScene] État flags après onPlayerReady:', {
+      playerSpawned: window?.playerSpawned,
+      loadingScreenClosed: window?.loadingScreenClosed,
+      playerReady: window?.playerReady
     });
   }
   
-  // ✅ DÉLAI SÉCURISÉ avant de pouvoir démarrer l'intro
-  this.time.delayedCall(1000, () => {
-    this._introReadyToStart = true;
-    console.log(`🎬 [${this.scene.key}] Intro maintenant autorisée à démarrer`);
+  initPlayerSpawnFromSceneData() {
+    const data = this.scene.settings.data || {};
+    const sessionId = this.mySessionId;
     
-    // Si on a une intro en attente, la démarrer maintenant
-    if (this._pendingIntroStart) {
-      console.log(`🚀 [${this.scene.key}] Démarrage intro qui était en attente`);
-      this._pendingIntroStart();
-      this._pendingIntroStart = null;
+    if (!sessionId) {
+      console.warn(`⚠️ [${this.scene.key}] sessionId manquant, retry dans 1s...`);
+      setTimeout(() => {
+        if (this.networkManager?.getSessionId()) {
+          this.mySessionId = this.networkManager.getSessionId();
+          this.initPlayerSpawnFromSceneData();
+        }
+      }, 1000);
+      return;
     }
-  });
-  
-  // ✅ Debug final
-  console.log('🏁 [BaseZoneScene] État flags après onPlayerReady:', {
-    playerSpawned: window?.playerSpawned,
-    loadingScreenClosed: window?.loadingScreenClosed,
-    playerReady: window?.playerReady
-  });
-}
-  
-initPlayerSpawnFromSceneData() {
-  const data = this.scene.settings.data || {};
-  const sessionId = this.mySessionId;
-  
-  if (!sessionId) {
-    console.warn(`⚠️ [${this.scene.key}] sessionId manquant, retry dans 1s...`);
-    setTimeout(() => {
-      if (this.networkManager?.getSessionId()) {
-        this.mySessionId = this.networkManager.getSessionId();
-        this.initPlayerSpawnFromSceneData();
-      }
-    }, 1000);
-    return;
+    
+    // ✅ FIX: Ne plus créer le joueur ici, attendre le serveur
+    console.log(`⏸️ [${this.scene.key}] Attente position serveur pour ${sessionId}`);
   }
-  
-  // ✅ FIX: Ne plus créer le joueur ici, attendre le serveur
-  console.log(`⏸️ [${this.scene.key}] Attente position serveur pour ${sessionId}`);
-  
- 
-}
+
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
   requestServerZone() {
     console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
@@ -1327,7 +1843,7 @@ initPlayerSpawnFromSceneData() {
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
-        // ✅ AJOUTER CES LIGNES AU DÉBUT :
+    // ✅ AJOUTER CES LIGNES AU DÉBUT :
     if (this.networkManager._networkHandlersSetup) {
       console.log(`⚠️ [${this.scene.key}] Network handlers déjà configurés, skip`);
       return;
@@ -1362,22 +1878,22 @@ initPlayerSpawnFromSceneData() {
       
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
     });
-this.networkManager.onMessage("overworldPokemon", (data) => {
-//    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
-    
-    if (this.overworldPokemonManager) {
-      this.overworldPokemonManager.handleServerMessage(data);
-    } else {
-      console.warn(`⚠️ [${this.scene.key}] OverworldPokemonManager pas prêt pour message ${data.type}`);
-    }
-  });
+
+    this.networkManager.onMessage("overworldPokemon", (data) => {
+      if (this.overworldPokemonManager) {
+        this.overworldPokemonManager.handleServerMessage(data);
+      } else {
+        console.warn(`⚠️ [${this.scene.key}] OverworldPokemonManager pas prêt pour message ${data.type}`);
+      }
+    });
 
     // ✅ AJOUTER APRÈS le handler "overworldPokemon" existant :
-this.networkManager.send = (messageType, data) => {
-  if (this.networkManager?.room) {
-    this.networkManager.room.send(messageType, data);
-  }
-};
+    this.networkManager.send = (messageType, data) => {
+      if (this.networkManager?.room) {
+        this.networkManager.room.send(messageType, data);
+      }
+    };
+    
     // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
       if (!this.isSceneReady || !this.networkSetupComplete) {
@@ -1389,7 +1905,7 @@ this.networkManager.send = (messageType, data) => {
       if (!this.playerManager) return;
 
       this.synchronizeSessionId();
-            if (this.pokemonFollowerManager && state && state.players) {
+      if (this.pokemonFollowerManager && state && state.players) {
         this.updateFollowersFromState(state);
       }
       this.playerManager.updatePlayers(state);
@@ -1406,7 +1922,6 @@ this.networkManager.send = (messageType, data) => {
     this.setupExistingHandlers();
     this.networkManager._networkHandlersSetup = true;
 
-    
     // Forcer une première synchronisation
     this.time.delayedCall(500, () => {
       console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
@@ -1419,68 +1934,68 @@ this.networkManager.send = (messageType, data) => {
   }
 
   // ================================================================================================
-// FIX POUR L'ERREUR shouldDisplayPlayer
-// ================================================================================================
+  // FIX POUR L'ERREUR shouldDisplayPlayer
+  // ================================================================================================
 
-// REMPLACER la méthode updateFollowersFromState dans BaseZoneScene.js
+  // REMPLACER la méthode updateFollowersFromState dans BaseZoneScene.js
 
-updateFollowersFromState(state) {
-  if (!this.pokemonFollowerManager || !this.isSceneReady || !this.playerManager) {
-    return;
-  }
-  
-  state.players.forEach((playerState, sessionId) => {
-    // ✅ FIX: Vérifier que le joueur existe côté PlayerManager
-    const playerExists = this.playerManager.players.has(sessionId);
-    
-    // Logique simple : si le joueur existe dans PlayerManager, afficher son follower
-    const shouldShowPlayer = playerExists;
-    
-    if (shouldShowPlayer && playerState.follower) {
-      // Créer ou mettre à jour le follower
-      if (!this.pokemonFollowerManager.hasFollower(sessionId)) {
-        this.pokemonFollowerManager.createFollower(sessionId, {
-          pokemonId: playerState.follower.pokemonId,
-          nickname: playerState.follower.nickname,
-          x: playerState.follower.x,
-          y: playerState.follower.y,
-          direction: playerState.follower.direction,
-          isMoving: playerState.follower.isMoving,
-          isShiny: playerState.follower.isShiny,
-          level: playerState.follower.level
-        });
-      } else {
-        this.pokemonFollowerManager.updateFollower(sessionId, {
-          x: playerState.follower.x,
-          y: playerState.follower.y,
-          direction: playerState.follower.direction,
-          isMoving: playerState.follower.isMoving
-        });
-      }
-    } else {
-      // Supprimer le follower si le joueur n'est plus dans la zone ou n'a plus de follower
-      if (this.pokemonFollowerManager.hasFollower(sessionId)) {
-        this.pokemonFollowerManager.removeFollower(sessionId);
-      }
+  updateFollowersFromState(state) {
+    if (!this.pokemonFollowerManager || !this.isSceneReady || !this.playerManager) {
+      return;
     }
-  });
-}
+    
+    state.players.forEach((playerState, sessionId) => {
+      // ✅ FIX: Vérifier que le joueur existe côté PlayerManager
+      const playerExists = this.playerManager.players.has(sessionId);
+      
+      // Logique simple : si le joueur existe dans PlayerManager, afficher son follower
+      const shouldShowPlayer = playerExists;
+      
+      if (shouldShowPlayer && playerState.follower) {
+        // Créer ou mettre à jour le follower
+        if (!this.pokemonFollowerManager.hasFollower(sessionId)) {
+          this.pokemonFollowerManager.createFollower(sessionId, {
+            pokemonId: playerState.follower.pokemonId,
+            nickname: playerState.follower.nickname,
+            x: playerState.follower.x,
+            y: playerState.follower.y,
+            direction: playerState.follower.direction,
+            isMoving: playerState.follower.isMoving,
+            isShiny: playerState.follower.isShiny,
+            level: playerState.follower.level
+          });
+        } else {
+          this.pokemonFollowerManager.updateFollower(sessionId, {
+            x: playerState.follower.x,
+            y: playerState.follower.y,
+            direction: playerState.follower.direction,
+            isMoving: playerState.follower.isMoving
+          });
+        }
+      } else {
+        // Supprimer le follower si le joueur n'est plus dans la zone ou n'a plus de follower
+        if (this.pokemonFollowerManager.hasFollower(sessionId)) {
+          this.pokemonFollowerManager.removeFollower(sessionId);
+        }
+      }
+    });
+  }
 
-// ✅ AJOUTER cette méthode fallback dans BaseZoneScene
-shouldShowPlayerFallback(sessionId, playerState) {
-  // Toujours afficher notre propre joueur
-  if (sessionId === this.mySessionId) {
+  // ✅ AJOUTER cette méthode fallback dans BaseZoneScene
+  shouldShowPlayerFallback(sessionId, playerState) {
+    // Toujours afficher notre propre joueur
+    if (sessionId === this.mySessionId) {
+      return true;
+    }
+    
+    // Pour les autres joueurs, vérifier la zone
+    if (playerState.currentZone && this.zoneName) {
+      return playerState.currentZone === this.zoneName;
+    }
+    
+    // Si pas d'info de zone, afficher par défaut
     return true;
   }
-  
-  // Pour les autres joueurs, vérifier la zone
-  if (playerState.currentZone && this.zoneName) {
-    return playerState.currentZone === this.zoneName;
-  }
-  
-  // Si pas d'info de zone, afficher par défaut
-  return true;
-}
   
   // ✅ MÉTHODE INCHANGÉE: Redirection vers la bonne scène
   redirectToCorrectScene(correctScene, serverData) {
@@ -1498,7 +2013,6 @@ shouldShowPlayerFallback(sessionId, playerState) {
       serverForced: true,
       preservePlayer: true,
       weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
-
     };
 
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
@@ -1607,7 +2121,7 @@ shouldShowPlayerFallback(sessionId, playerState) {
     // ✅ AJOUTER CETTE LIGNE À LA FIN :
     this.networkManager._worldHandlersSetup = true;
     console.log(`✅ [${this.scene.key}] Tous les handlers WorldRoom configurés`);
-}
+  }
 
   // ✅ MÉTHODE INCHANGÉE: Setup handler quest statuses
   setupQuestStatusHandler() {
@@ -1699,6 +2213,92 @@ shouldShowPlayerFallback(sessionId, playerState) {
   
   setupInventoryEventHandlers() { }
   
+  // ✅ MÉTHODE INCHANGÉE: Initialisation du système de quêtes
+  initializeQuestSystem() {
+    console.log(`🎯 [${this.scene.key}] === INITIALISATION QUEST SYSTEM ===`);
+    
+    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
+    if (this.questModuleInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] Système de quêtes déjà initialisé`);
+      return;
+    }
+    
+    if (this.questModuleAttempts >= this.maxQuestModuleAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation quest - abandon`);
+      return;
+    }
+    
+    this.questModuleAttempts++;
+    console.log(`🎯 [${this.scene.key}] Tentative ${this.questModuleAttempts}/${this.maxQuestModuleAttempts}`);
+    
+    // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
+    if (!this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
+      setTimeout(() => this.initializeQuestSystem(), 2000);
+      return;
+    }
+    
+    // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
+    if (window.questSystem && window.questSystemReady) {
+      console.log(`ℹ️ [${this.scene.key}] QuestSystem global déjà initialisé - réutilisation`);
+      this.questModuleInitialized = true;
+      return;
+    }
+    
+    try {
+      console.log(`🚀 [${this.scene.key}] Initialisation quest system...`);
+      
+      // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/équipe)
+      if (typeof window.initQuestSystemAsync === 'function') {
+        console.log(`🎯 [${this.scene.key}] Appel window.initQuestSystemAsync avec room...`);
+        
+        window.initQuestSystemAsync(this.networkManager.room).then(() => {
+          console.log(`✅ [${this.scene.key}] Système de quêtes initialisé avec succès!`);
+          this.questModuleInitialized = true;
+          
+          // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
+          if (typeof window.onSystemInitialized === 'function') {
+            window.onSystemInitialized('quest');
+          }
+          
+          // ✅ TEST SIMPLE après un délai
+          setTimeout(() => {
+            console.log(`✅ [${this.scene.key}] Test: questSystem exists:`, !!window.questSystem);
+            console.log(`✅ [${this.scene.key}] Test: questSystemReady:`, !!window.questSystemReady);
+          }, 1000);
+        }).catch((error) => {
+          console.error(`❌ [${this.scene.key}] Erreur async quest system:`, error);
+          this.handleQuestInitFailure();
+        });
+        
+      } else {
+        console.error(`❌ [${this.scene.key}] window.initQuestSystemAsync n'existe pas!`);
+        this.handleQuestInitFailure();
+      }
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation quest:`, error);
+      this.handleQuestInitFailure();
+    }
+  }
+  
+  // ✅ MÉTHODE INCHANGÉE: Gestion des échecs d'initialisation quest
+  handleQuestInitFailure() {
+    if (this.questModuleAttempts < this.maxQuestModuleAttempts) {
+      console.log(`🔄 [${this.scene.key}] Retry initialisation quest dans 5s... (${this.questModuleAttempts}/${this.maxQuestModuleAttempts})`);
+      setTimeout(() => this.initializeQuestSystem(), 5000);
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système de quêtes`);
+      // Signaler l'échec mais ne pas bloquer le jeu
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Système de quêtes indisponible', 'warning', {
+          duration: 5000,
+          position: 'top-center'
+        });
+      }
+    }
+  }
+  
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
   setupPlayerReadyHandler() {
     if (!this.playerManager) return;
@@ -1753,57 +2353,57 @@ shouldShowPlayerFallback(sessionId, playerState) {
   }
 
   // ✅ MÉTHODE CORRIGÉE: Position du joueur avec priorité serveur
-positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-  console.log(`📊 InitData:`, initData);
-  console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
-  
-  // ✅ PRIORITÉ 1: Transition avec données explicites (MÊME SI le joueur a déjà une position)
-  if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-    console.log(`📍 [${this.scene.key}] OVERRIDE - Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-    player.x = initData.spawnX;
-    player.y = initData.spawnY;
-    player.targetX = initData.spawnX;
-    player.targetY = initData.spawnY;
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
     
-    // Forcer la mise à jour visuelle
-    player.setPosition(initData.spawnX, initData.spawnY);
-  } 
-  // ✅ PRIORITÉ 2: Si le joueur a déjà une position valide du serveur ET qu'on n'est pas en transition
-  else if (player.x !== undefined && player.y !== undefined && 
-           player.x !== 0 && player.y !== 0) {
-    console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
-  } 
-  // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
-  else {
-    console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
-    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-    console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-    player.x = defaultPos.x;
-    player.y = defaultPos.y;
-    player.targetX = defaultPos.x;
-    player.targetY = defaultPos.y;
+    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+    console.log(`📊 InitData:`, initData);
+    console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
+    
+    // ✅ PRIORITÉ 1: Transition avec données explicites (MÊME SI le joueur a déjà une position)
+    if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      console.log(`📍 [${this.scene.key}] OVERRIDE - Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+      player.targetX = initData.spawnX;
+      player.targetY = initData.spawnY;
+      
+      // Forcer la mise à jour visuelle
+      player.setPosition(initData.spawnX, initData.spawnY);
+    } 
+    // ✅ PRIORITÉ 2: Si le joueur a déjà une position valide du serveur ET qu'on n'est pas en transition
+    else if (player.x !== undefined && player.y !== undefined && 
+             player.x !== 0 && player.y !== 0) {
+      console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
+    } 
+    // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
+    else {
+      console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
+      player.targetX = defaultPos.x;
+      player.targetY = defaultPos.y;
+    }
+
+    // Setup final du joueur
+    player.setVisible(true);
+    player.setActive(true);
+    player.setDepth(5);
+
+    if (player.indicator) {
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
+      player.indicator.setVisible(true);
+    }
+
+    if (this.networkManager && this.networkManager.isConnected) {
+      this.networkManager.sendMove(player.x, player.y, 'down', false);
+    }
+
+    this.onPlayerPositioned(player, initData);
   }
-
-  // Setup final du joueur
-  player.setVisible(true);
-  player.setActive(true);
-  player.setDepth(5);
-
-  if (player.indicator) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 32;
-    player.indicator.setVisible(true);
-  }
-
-  if (this.networkManager && this.networkManager.isConnected) {
-    this.networkManager.sendMove(player.x, player.y, 'down', false);
-  }
-
-  this.onPlayerPositioned(player, initData);
-}
 
   // ✅ MÉTHODE INCHANGÉE: Affichage d'état d'erreur
   showErrorState(message) {
@@ -1836,10 +2436,10 @@ positionPlayer(player) {
 
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
-// ✅ CORRIGER EN :
-if (this.overworldPokemonManager) {
-    this.overworldPokemonManager.update(this.game.loop.delta);
-}
+    // ✅ CORRIGER EN :
+    if (this.overworldPokemonManager) {
+        this.overworldPokemonManager.update(this.game.loop.delta);
+    }
     
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
@@ -1876,19 +2476,22 @@ if (this.overworldPokemonManager) {
       this.scene.stop(this.scene.key);
       console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
     }
-      // ✅ NOUVEAU: Nettoyer le widget temps/météo
-  if (this.timeWeatherWidget) {
-    this.timeWeatherWidget.destroy();
-    this.timeWeatherWidget = null;
-    console.log(`🧹 [${this.scene.key}] Widget temps/météo nettoyé`);
-  }
-  // ✅ NOUVEAU: Nettoyer les Pokémon overworld
+    
+    // ✅ NOUVEAU: Nettoyer le widget temps/météo
+    if (this.timeWeatherWidget) {
+      this.timeWeatherWidget.destroy();
+      this.timeWeatherWidget = null;
+      console.log(`🧹 [${this.scene.key}] Widget temps/météo nettoyé`);
+    }
+    
+    // ✅ NOUVEAU: Nettoyer les Pokémon overworld
     if (this.overworldPokemonManager) {
       this.overworldPokemonManager.cleanup();
       this.overworldPokemonManager = null;
       this.overworldPokemonInitialized = false;
       console.log(`🧹 [${this.scene.key}] OverworldPokemonManager nettoyé`);
     }
+    
     if (this.networkManager?.room) {
       this.networkManager.room.removeAllListeners("currentZone");
       this.networkManager.room.removeAllListeners("snap");
@@ -1899,6 +2502,7 @@ if (this.overworldPokemonManager) {
       this.networkManager.room.removeAllListeners("encounterZoneInfo");
       console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
     }
+    
     if (this.pokemonFollowerManager) {
       this.pokemonFollowerManager.cleanup();
       this.pokemonFollowerManager = null;
@@ -1925,10 +2529,12 @@ if (this.overworldPokemonManager) {
       console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
     }
 
-    // ✅ NOUVEAU: Nettoyer l'InteractionManager
+    // 🆕 NOUVEAU: Nettoyer le BaseInteractionManager
     if (this.interactionManager) {
+      console.log(`🧹 [${this.scene.key}] Nettoyage BaseInteractionManager...`);
       this.interactionManager.destroy();
       this.interactionManager = null;
+      this.interactionManagerInitialized = false;
     }
 
     // ✅ NOUVEAU: Nettoyage conditionnel du TeamManager
@@ -1959,6 +2565,7 @@ if (this.overworldPokemonManager) {
         movementBlockHandler.reset();
       }
     }
+    
     if (this.questModuleInitialized && !isTransition) {
       console.log(`🧹 [${this.scene.key}] Nettoyage Quest Module (non-transition)`);
       
@@ -1969,6 +2576,7 @@ if (this.overworldPokemonManager) {
     } else if (isTransition) {
       console.log(`🔄 [${this.scene.key}] Quest Module conservé pour transition`);
     }
+    
     // 🔒 NOUVEAU: Nettoyage InputManager
     if (this.inputManager) {
       console.log(`🧹 [${this.scene.key}] Nettoyage InputManager...`);
@@ -1988,7 +2596,6 @@ if (this.overworldPokemonManager) {
     if (this.npcManager) {
       this.npcManager.clearAllNpcs();
     }
-    
     
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
@@ -2128,14 +2735,14 @@ if (this.overworldPokemonManager) {
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
- // Remplacer les méthodes mapSceneToZone et mapZoneToScene
-mapSceneToZone(sceneName) {
-  return sceneToZone(sceneName);
-}
+  // Remplacer les méthodes mapSceneToZone et mapZoneToScene
+  mapSceneToZone(sceneName) {
+    return sceneToZone(sceneName);
+  }
 
-mapZoneToScene(zoneName) {
-  return zoneToScene(zoneName);
-}
+  mapZoneToScene(zoneName) {
+    return zoneToScene(zoneName);
+  }
 
   normalizeZoneName(sceneName) {
     return this.mapSceneToZone(sceneName);
@@ -2233,7 +2840,6 @@ mapZoneToScene(zoneName) {
     }
   }
 
-  
   setupScene() {
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
@@ -2254,56 +2860,56 @@ mapZoneToScene(zoneName) {
     this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
     
     // ✅ STOCKER LES LAYERS POUR COLLISIONS
-    // ✅ STOCKER LES LAYERS POUR COLLISIONS
-this.collisionLayers = [];
-Object.values(this.layers).forEach(layer => {
-  if (layer && layer.layer) {
-    const layerName = layer.layer.name.toLowerCase();
-    // Inclure les layers "world" ET "bellowplayer2"
-    if (layerName.includes('world') || layerName.includes('bellowplayer2')) {
-      layer.setCollisionByProperty({ collides: true });
-      this.collisionLayers.push(layer);
-      console.log(`[BaseZoneScene] Collisions activées pour: ${layer.layer.name}`);
-    }
-  }
-});
+    this.collisionLayers = [];
+    Object.values(this.layers).forEach(layer => {
+      if (layer && layer.layer) {
+        const layerName = layer.layer.name.toLowerCase();
+        // Inclure les layers "world" ET "bellowplayer2"
+        if (layerName.includes('world') || layerName.includes('bellowplayer2')) {
+          layer.setCollisionByProperty({ collides: true });
+          this.collisionLayers.push(layer);
+          console.log(`[BaseZoneScene] Collisions activées pour: ${layer.layer.name}`);
+        }
+      }
+    });
     
     // 🔥 NOUVEAU: CRÉER LES COLLIDERS
     this.time.delayedCall(100, () => {
       this.setupPlayerCollisions();
     });
-// 🔧 FIX: INTÉGRER LA MUSIQUE ICI, quand tout est prêt
-this.time.delayedCall(300, () => {
-    console.log(`🎵 [${this.scene.key}] === INTÉGRATION MUSIQUE (DÉLAI) ===`);
-    try {
-        integrateMusicToScene(this); // ← UTILISER L'IMPORT STATIQUE
-        console.log(`✅ [${this.scene.key}] Musique intégrée avec succès`);
-    } catch (error) {
-        console.error(`❌ [${this.scene.key}] Erreur intégration musique:`, error);
-    }
-});
+    
+    // 🔧 FIX: INTÉGRER LA MUSIQUE ICI, quand tout est prêt
+    this.time.delayedCall(300, () => {
+        console.log(`🎵 [${this.scene.key}] === INTÉGRATION MUSIQUE (DÉLAI) ===`);
+        try {
+            integrateMusicToScene(this); // ← UTILISER L'IMPORT STATIQUE
+            console.log(`✅ [${this.scene.key}] Musique intégrée avec succès`);
+        } catch (error) {
+            console.error(`❌ [${this.scene.key}] Erreur intégration musique:`, error);
+        }
+    });
   }
 
   getDefaultSpawnPosition(fromZone) {
     return { x: 100, y: 100 };
   }
 
-onPlayerPositioned(player, initData) {
-  console.log(`📍 [${this.scene.key}] Joueur positionné`);
-  
-  // ✅ MARQUER CETTE SCÈNE COMME ACTIVE DANS LE SYSTÈME GLOBAL
-  if (this.globalWeatherManager && this.globalWeatherManager.setActiveScene) {
-    this.globalWeatherManager.setActiveScene(this.scene.key);
-    console.log(`🎯 [${this.scene.key}] Scène marquée comme active dans le système météo`);
+  onPlayerPositioned(player, initData) {
+    console.log(`📍 [${this.scene.key}] Joueur positionné`);
+    
+    // ✅ MARQUER CETTE SCÈNE COMME ACTIVE DANS LE SYSTÈME GLOBAL
+    if (this.globalWeatherManager && this.globalWeatherManager.setActiveScene) {
+      this.globalWeatherManager.setActiveScene(this.scene.key);
+      console.log(`🎯 [${this.scene.key}] Scène marquée comme active dans le système météo`);
+    }
+    
+    // ✅ NOUVEAU: Forcer la mise à jour du widget après positionnement
+    if (this.timeWeatherWidget) {
+      this.time.delayedCall(1000, () => {
+        this.connectWidgetToWeatherSystem();
+      });
+    }
   }
-  
-  // ✅ NOUVEAU: Forcer la mise à jour du widget après positionnement
-  if (this.timeWeatherWidget) {
-    this.time.delayedCall(1000, () => {
-      this.connectWidgetToWeatherSystem();
-    });
-  }
-}
   
   // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
   setupManagers() {
@@ -2314,9 +2920,9 @@ onPlayerPositioned(player, initData) {
     this.pokemonFollowerManager = new PokemonFollowerManager(this);
     console.log("✅ PokemonFollowerManager initialisé");
 
-      // ✅ AJOUTER CETTE LIGNE MANQUANTE :
-  this.overworldPokemonManager = new OverworldPokemonManager(this);
-  console.log("✅ OverworldPokemonManager initialisé");
+    // ✅ AJOUTER CETTE LIGNE MANQUANTE :
+    this.overworldPokemonManager = new OverworldPokemonManager(this);
+    console.log("✅ OverworldPokemonManager initialisé");
     
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
@@ -2360,6 +2966,7 @@ onPlayerPositioned(player, initData) {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
+    
     this.input.keyboard.on('keydown-O', () => {
       this.debugOverworldPokemon();
     });
@@ -2371,6 +2978,7 @@ onPlayerPositioned(player, initData) {
     this.input.keyboard.on('keydown-L', () => {
       this.clearCurrentOverworldArea();
     });
+    
     try {
       // 🔒 Créer l'InputManager ici AVANT tout le reste
       this.inputManager = new InputManager(this);
@@ -2408,45 +3016,62 @@ onPlayerPositioned(player, initData) {
     this.input.keyboard.on('keydown-I', () => {
       this.debugInputManager();
     });
+
+    // 🆕 NOUVEAU: Raccourci pour debug BaseInteractionManager
+    this.input.keyboard.on('keydown-B', () => {
+      this.debugBaseInteractionManager();
+    });
+
+    // 🆕 NOUVEAU: Raccourci pour test interaction E
+    this.input.keyboard.on('keydown-E', () => {
+      this.testUniversalInputE();
+    });
   }
 
   createUI() {
-  this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
-    fontSize: '14px',
-    fontFamily: 'monospace',
-    color: '#fff',
-    backgroundColor: 'rgba(0, 50, 0, 0.8)',
-    padding: { x: 8, y: 6 }
-  }).setScrollFactor(0).setDepth(1000);
+    this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(0, 50, 0, 0.8)',
+      padding: { x: 8, y: 6 }
+    }).setScrollFactor(0).setDepth(1000);
 
-  this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
-    fontSize: '14px',
-    fontFamily: 'monospace',
-    color: '#fff',
-    backgroundColor: 'rgba(255, 0, 0, 0.8)',
-    padding: { x: 6, y: 4 }
-  }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
+    this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(255, 0, 0, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
 
-  // 🆕 NOUVEAU: Texte d'info encounters
-  this.encounterText = this.add.text(16, this.scale.height - 60, 'Encounters: Not initialized', {
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    color: '#fff',
-    backgroundColor: 'rgba(0, 0, 255, 0.8)',
-    padding: { x: 6, y: 4 }
-  }).setScrollFactor(0).setDepth(1000);
+    // 🆕 NOUVEAU: Texte d'info encounters
+    this.encounterText = this.add.text(16, this.scale.height - 60, 'Encounters: Not initialized', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(0, 0, 255, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000);
 
-  // 🔒 NOUVEAU: Texte d'info MovementBlock
-  this.movementBlockText = this.add.text(16, this.scale.height - 100, 'Movement: OK', {
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    color: '#fff',
-    backgroundColor: 'rgba(0, 255, 0, 0.8)',
-    padding: { x: 6, y: 4 }
-  }).setScrollFactor(0).setDepth(1000);
-  
-}
+    // 🔒 NOUVEAU: Texte d'info MovementBlock
+    this.movementBlockText = this.add.text(16, this.scale.height - 100, 'Movement: OK', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(0, 255, 0, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000);
 
+    // 🆕 NOUVEAU: Texte d'info BaseInteractionManager
+    this.interactionText = this.add.text(16, this.scale.height - 140, 'BaseInteraction: Not initialized', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(255, 255, 0, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000);
+  }
 
   handleZoneData(data) {
     console.log(`🗺️ [${this.scene.key}] Handling zone data for: ${data.zone}`);
@@ -2514,6 +3139,9 @@ onPlayerPositioned(player, initData) {
     
     // 🔒 NOUVEAU: Mettre à jour l'affichage MovementBlock
     this.updateMovementBlockDisplay();
+
+    // 🆕 NOUVEAU: Mettre à jour l'affichage BaseInteractionManager
+    this.updateInteractionDisplay();
     
     return true;
   }
@@ -2569,8 +3197,32 @@ onPlayerPositioned(player, initData) {
     this.movementBlockText.setBackgroundColor(bgColor);
   }
 
+  // 🆕 NOUVELLE MÉTHODE: Mettre à jour l'affichage BaseInteractionManager
+  updateInteractionDisplay() {
+    if (!this.interactionText) return;
+
+    let displayText = `BaseInteraction: `;
+    let bgColor = 'rgba(255, 255, 0, 0.8)'; // Jaune par défaut
+    
+    if (!this.interactionManagerInitialized) {
+      displayText += `❌ Not initialized`;
+      bgColor = 'rgba(255, 0, 0, 0.8)'; // Rouge
+    } else if (!this.interactionManager) {
+      displayText += `❌ Manager missing`;
+      bgColor = 'rgba(255, 0, 0, 0.8)'; // Rouge
+    } else {
+      const stats = this.interactionManager.getDebugInfo();
+      displayText += `✅ | NPC:${stats.stats.npcInteractions} | OBJ:${stats.stats.objectInteractions} | E:${stats.stats.errors}`;
+      bgColor = 'rgba(0, 255, 0, 0.8)'; // Vert
+    }
+    
+    this.interactionText.setText(displayText);
+    this.interactionText.setBackgroundColor(bgColor);
+  }
+
   showNotification(message, type = 'info') {
-    if (this.interactionManager) {
+    // 🆕 NOUVEAU: Utiliser le BaseInteractionManager si disponible
+    if (this.interactionManager && this.interactionManagerInitialized) {
       this.interactionManager.showMessage(message, type);
       return;
     }
@@ -2617,7 +3269,6 @@ onPlayerPositioned(player, initData) {
     });
   }
 
-  
   debugCollisions() {
     console.log("🔍 === DEBUG COLLISIONS ===");
     
@@ -2637,7 +3288,6 @@ onPlayerPositioned(player, initData) {
   }
 
   // 🆕 NOUVELLES MÉTHODES DE DEBUG POUR LES ENCOUNTERS
-
   debugEncounters() {
     console.log("🎲 === DEBUG ENCOUNTERS ===");
     
@@ -2716,7 +3366,6 @@ onPlayerPositioned(player, initData) {
   }
 
   // 🔒 NOUVELLES MÉTHODES DE DEBUG POUR MOVEMENTBLOCKHANDLER
-
   debugMovementBlockHandler() {
     console.log("🔒 === DEBUG MOVEMENT BLOCK HANDLER ===");
     
@@ -2757,712 +3406,196 @@ onPlayerPositioned(player, initData) {
     this.showNotification(`Debug InputManager dans la console`, 'info');
   }
 
-  testEncounterAtPosition(x, y) {
-    if (!this.encounterManager) {
-      console.log("❌ EncounterManager non disponible");
+  // 🆕 NOUVELLES MÉTHODES DE DEBUG POUR BASEINTERACTIONMANAGER
+
+  debugBaseInteractionManager() {
+    console.log(`🎯 [${this.scene.key}] === DEBUG BASE INTERACTION MANAGER ===`);
+    
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non initialisé`);
+      this.showNotification("BaseInteractionManager non initialisé", 'error');
       return null;
     }
     
-    console.log(`🧪 Test encounter à (${x}, ${y})`);
-    return this.encounterManager.forceEncounterCheck(x, y);
-  }
-
-  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe
-  getTeamSystemStatus() {
-    return {
-      initialized: this.teamSystemInitialized,
-      attempts: this.teamInitializationAttempts,
-      maxAttempts: this.maxTeamInitAttempts,
-      globalManagerExists: !!window.TeamManager,
-      globalManagerInitialized: window.TeamManager?.isInitialized || false
-    };
-  }
-    getQuestModuleStatus() {
-      return {
-        initialized: this.questModuleInitialized,
-        attempts: this.questModuleAttempts,
-        maxAttempts: this.maxQuestModuleAttempts,
-        globalSystemExists: !!window.questSystem,
-        globalSystemReady: !!window.questSystemReady,
-        uiManagerExists: !!window.uiManager
-      };
-    }
-  // 🆕 NOUVELLES MÉTHODES: Gestion du système d'encounter
-  getEncounterSystemStatus() {
-    return {
-      initialized: this.encounterInitialized,
-      managerExists: !!this.encounterManager,
-      mapLoaded: !!this.map,
-      stats: this.encounterManager?.getStats() || null
-    };
-  }
-
-  // 🔒 NOUVELLES MÉTHODES: Gestion du système MovementBlock
-  getMovementBlockSystemStatus() {
-    return {
-      initialized: this.movementBlockHandlerInitialized,
-      attempts: this.movementBlockInitAttempts,
-      maxAttempts: this.maxMovementBlockInitAttempts,
-      inputManagerReady: this.inputManagerReady,
-      inputManagerExists: !!this.inputManager,
-      globalHandlerExists: !!movementBlockHandler,
-      globalHandlerReady: movementBlockHandler?.isReady() || false,
-      isBlocked: movementBlockHandler?.isMovementBlocked() || false,
-      blockReason: movementBlockHandler?.blockReason || null
-    };
-  }
-
-  forceTeamSystemInit() {
-    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
-    this.teamSystemInitialized = false;
-    this.teamInitializationAttempts = 0;
-    
-    setTimeout(() => {
-      this.initializeTeamSystemSafely();
-    }, 1000);
-  }
-
-  forceEncounterSystemInit() {
-    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'encounter...`);
-    this.encounterInitialized = false;
-    this.encounterManager = null;
-    
-    setTimeout(() => {
-      this.initializeEncounterManager();
-    }, 1000);
-  }
-
-  // 🔒 NOUVELLE MÉTHODE: Force réinit MovementBlock
-  forceMovementBlockSystemInit() {
-    console.log(`🔧 [${this.scene.key}] Force réinitialisation système MovementBlock...`);
-    this.movementBlockHandlerInitialized = false;
-    this.movementBlockInitAttempts = 0;
-    
-    // Reset du handler global si nécessaire
-    if (movementBlockHandler && movementBlockHandler.scene === this) {
-      movementBlockHandler.reset();
-    }
-    
-    setTimeout(() => {
-      this.initializeMovementBlockHandler();
-    }, 1000);
-  }
-
-  // 🔒 NOUVELLE MÉTHODE: Force réinit InputManager
-  forceInputManagerInit() {
-    console.log(`🔧 [${this.scene.key}] Force réinitialisation InputManager...`);
-    
-    if (this.inputManager) {
-      this.inputManager.destroy();
-    }
-    
-    this.inputManager = null;
-    this.inputManagerReady = false;
-    
-    setTimeout(() => {
-      this.setupInputs();
-    }, 500);
-  }
-
-  isTeamSystemReady() {
-    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
-  }
-
-  isEncounterSystemReady() {
-    return this.encounterInitialized && !!this.encounterManager;
-  }
-
-  // 🔒 NOUVELLES MÉTHODES: Status MovementBlock
-  isMovementBlockSystemReady() {
-    return this.movementBlockHandlerInitialized && 
-           this.inputManagerReady && 
-           movementBlockHandler?.isReady();
-  }
-
-  isInputManagerReady() {
-    return this.inputManagerReady && !!this.inputManager;
-  }
-
-  getTeamManager() {
-    return this.isTeamSystemReady() ? window.TeamManager : null;
-  }
-
-  getEncounterManager() {
-    return this.isEncounterSystemReady() ? this.encounterManager : null;
-  }
-
-  // 🔒 NOUVELLES MÉTHODES: Getters MovementBlock
-  getMovementBlockHandler() {
-    return this.isMovementBlockSystemReady() ? movementBlockHandler : null;
-  }
-
-  getInputManager() {
-    return this.isInputManagerReady() ? this.inputManager : null;
-  }
-
-  // ✅ MÉTHODES DE DEBUG ÉTENDUES
-  debugScene() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
-    console.log(`📊 Managers:`, {
-      playerManager: !!this.playerManager,
-      npcManager: !!this.npcManager,
-      networkManager: !!this.networkManager,
-      interactionManager: !!this.interactionManager,
-      inventorySystem: !!this.inventorySystem,
-      encounterManager: !!this.encounterManager, // 🆕
-      inputManager: !!this.inputManager, // 🔒
-      movementBlockHandler: !!movementBlockHandler // 🔒
+    const info = this.interactionManager.getDebugInfo();
+    console.table({
+      'Interactions Totales': info.stats.totalInteractions,
+      'NPCs': info.stats.npcInteractions,
+      'Objets': info.stats.objectInteractions,
+      'Erreurs': info.stats.errors,
+      'Taux de Succès': info.stats.successRate,
+      'Inputs E': info.stats.inputEvents,
+      'Inputs Bloqués': info.stats.blockedInputs,
+      'Temps Moyen': `${info.stats.averageResponseTime.toFixed(0)}ms`
     });
     
-    console.log(`📊 État scène:`, {
-      isReady: this.isSceneReady,
-      networkSetup: this.networkSetupComplete,
-      playerReady: this.myPlayerReady,
-      zoneName: this.zoneName,
-      sessionId: this.mySessionId,
-      teamSystemInitialized: this.teamSystemInitialized,
-      teamInitAttempts: this.teamInitializationAttempts,
-      encounterSystemInitialized: this.encounterInitialized, // 🆕
-      movementBlockSystemInitialized: this.movementBlockHandlerInitialized, // 🔒
-      inputManagerReady: this.inputManagerReady // 🔒
-    });
+    console.log(`📊 [${this.scene.key}] Info complète BaseInteractionManager:`, info);
+    this.showNotification('Debug BaseInteractionManager dans la console', 'info');
+    
+    return info;
   }
 
-  debugAllSystems() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
+  testNpcInteractionSystem() {
+    console.log(`🧪 [${this.scene.key}] Test système interaction NPC...`);
     
-    this.debugScene();
-    
-    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
-    
-    // 🆕 NOUVEAU: Debug encounter system
-    console.log(`🎲 Encounter System:`, this.getEncounterSystemStatus());
-    
-    // 🔒 NOUVEAU: Debug movement block system
-    console.log(`🔒 MovementBlock System:`, this.getMovementBlockSystemStatus());
-    
-    console.log(`🎒 Inventory:`, {
-      exists: !!this.inventorySystem,
-      initialized: this.inventoryInitialized,
-      global: !!window.inventorySystem
-    });
-    
-    console.log(`🎯 Interaction:`, {
-      exists: !!this.interactionManager,
-      shopSystem: !!this.interactionManager?.shopSystem
-    });
-
-    
-    console.log(`🎮 Network:`, {
-      manager: !!this.networkManager,
-      connected: this.networkManager?.isConnected,
-      room: !!this.networkManager?.room,
-      sessionId: this.mySessionId
-    });
-  }
-
-  testTeamConnection() {
-    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
-    
-    if (!this.isTeamSystemReady()) {
-      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      this.showNotification('BaseInteractionManager non disponible', 'error');
       return false;
     }
     
+    // Trouver le NPC le plus proche pour test
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`❌ [${this.scene.key}] Pas de joueur pour test NPC`);
+      this.showNotification('Pas de joueur trouvé', 'error');
+      return false;
+    }
+    
+    const targetNpc = this.npcManager?.getClosestNpc(myPlayer.x, myPlayer.y, 100);
+    if (!targetNpc) {
+      console.error(`❌ [${this.scene.key}] Aucun NPC à proximité pour test`);
+      this.showNotification('Aucun NPC à proximité', 'warning');
+      return false;
+    }
+    
+    console.log(`🎯 [${this.scene.key}] Test interaction avec NPC: ${targetNpc.name}`);
+    
     try {
-      const teamManager = this.getTeamManager();
-      teamManager.requestTeamData();
-      console.log(`✅ Test connexion team réussi`);
-      return true;
+      const result = this.interactionManager.manualInteraction(targetNpc, { type: 'npc' });
+      console.log(`✅ [${this.scene.key}] Test NPC réussi:`, result);
+      this.showNotification(`Test NPC réussi avec ${targetNpc.name}`, 'success');
+      return result;
     } catch (error) {
-      console.error(`❌ Erreur test connexion team:`, error);
+      console.error(`❌ [${this.scene.key}] Erreur test NPC:`, error);
+      this.showNotification(`Erreur test NPC: ${error.message}`, 'error');
       return false;
     }
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Test du système d'encounter
-  testEncounterConnection() {
-    console.log(`🧪 [${this.scene.key}] Test connexion Encounter System...`);
+  testObjectInteractionSystem() {
+    console.log(`🧪 [${this.scene.key}] Test système interaction objets...`);
     
-    if (!this.isEncounterSystemReady()) {
-      console.log(`❌ Encounter System pas prêt, status:`, this.getEncounterSystemStatus());
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      this.showNotification('BaseInteractionManager non disponible', 'error');
+      return false;
+    }
+    
+    // Créer un objet test factice
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`❌ [${this.scene.key}] Pas de joueur pour test objet`);
+      this.showNotification('Pas de joueur trouvé', 'error');
+      return false;
+    }
+    
+    const testObject = {
+      id: 'test_pokeball',
+      name: 'test_pokeball',
+      x: myPlayer.x + 32,
+      y: myPlayer.y,
+      properties: {
+        objectType: 'pokeball',
+        collectible: true
+      }
+    };
+    
+    console.log(`🎯 [${this.scene.key}] Test interaction avec objet test:`, testObject);
+    
+    try {
+      const result = this.interactionManager.manualInteraction(testObject, { type: 'object' });
+      console.log(`✅ [${this.scene.key}] Test objet réussi:`, result);
+      this.showNotification(`Test objet réussi`, 'success');
+      return result;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur test objet:`, error);
+      this.showNotification(`Erreur test objet: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  testSearchHiddenItems(x = null, y = null) {
+    console.log(`🧪 [${this.scene.key}] Test fouille objets cachés...`);
+    
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      this.showNotification('BaseInteractionManager non disponible', 'error');
+      return false;
+    }
+    
+    // Utiliser position du joueur si pas spécifiée
+    const myPlayer = this.playerManager?.getMyPlayer();
+    const searchX = x !== null ? x : (myPlayer ? myPlayer.x : 100);
+    const searchY = y !== null ? y : (myPlayer ? myPlayer.y : 100);
+    
+    console.log(`🔍 [${this.scene.key}] Test fouille à position (${searchX}, ${searchY})`);
+    
+    try {
+      const result = this.interactionManager.searchHiddenItems(
+        { x: searchX, y: searchY },
+        32 // radius
+      );
+      
+      console.log(`✅ [${this.scene.key}] Test fouille envoyé:`, result);
+      this.showNotification(`Test fouille envoyé à (${searchX}, ${searchY})`, 'success');
+      return result;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur test fouille:`, error);
+      this.showNotification(`Erreur test fouille: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  testUniversalInputE() {
+    console.log(`🧪 [${this.scene.key}] Test input E universel...`);
+    
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      this.showNotification('BaseInteractionManager non disponible', 'error');
+      return false;
+    }
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`❌ [${this.scene.key}] Pas de joueur pour test E`);
+      this.showNotification('Pas de joueur trouvé', 'error');
+      return false;
+    }
+    
+    console.log(`🎯 [${this.scene.key}] Test E universel à position (${myPlayer.x}, ${myPlayer.y})`);
+    
+    try {
+      // Simuler appui sur E
+      const result = this.interactionManager.handleUniversalInteraction(myPlayer.x, myPlayer.y);
+      console.log(`✅ [${this.scene.key}] Test E universel:`, result);
+      this.showNotification(`Test E universel: ${result ? 'Interaction trouvée' : 'Rien à proximité'}`, result ? 'success' : 'info');
+      return result;
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur test E:`, error);
+      this.showNotification(`Erreur test E: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  forceInteractionTest(target) {
+    console.log(`🧪 [${this.scene.key}] Test interaction forcée...`);
+    
+    if (!this.interactionManager) {
+      console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+      this.showNotification('BaseInteractionManager non disponible', 'error');
       return false;
     }
     
     try {
-      const myPlayer = this.playerManager?.getMyPlayer();
-      if (!myPlayer) {
-        console.log(`❌ Pas de joueur pour test encounter`);
-        return false;
+      let result;
+      
+      if (!target) {
+        // Test automatique
+        result = this.interactionManager.forceClosestInteraction();
+      } else {
+        // Test avec target spécifique
+        result = this.interactionManager.manualInteraction(target);
       }
       
-      const encounterData = this.encounterManager.checkEncounterOnMove(myPlayer.x, myPlayer.y);
-      console.log(`✅ Test encounter réussi:`, encounterData);
-      return true;
-    } catch (error) {
-      console.error(`❌ Erreur test encounter:`, error);
-      return false;
-    }
-  }
-
-  // 🔒 NOUVELLE MÉTHODE: Test du système MovementBlock
-  testMovementBlockConnection() {
-    console.log(`🧪 [${this.scene.key}] Test connexion MovementBlock System...`);
-    
-    if (!this.isMovementBlockSystemReady()) {
-      console.log(`❌ MovementBlock System pas prêt, status:`, this.getMovementBlockSystemStatus());
-      return false;
-    }
-    
-    try {
-      const handler = this.getMovementBlockHandler();
-      const inputManager = this.getInputManager();
-      
-      console.log(`🔒 Handler status:`, handler.getStatus());
-      console.log(`⌨️ InputManager status:`, inputManager.getStatus());
-      
-      // Test de base
-      const isBlocked = handler.isMovementBlocked();
-      const areInputsEnabled = inputManager.areInputsEnabled();
-      
-      console.log(`✅ Test MovementBlock réussi:`, {
-        isBlocked,
-        areInputsEnabled,
-        consistent: isBlocked !== areInputsEnabled
-      });
-      
-      return true;
-    } catch (error) {
-      console.error(`❌ Erreur test MovementBlock:`, error);
-      return false;
-    }
-  }
-
-  // ✅ MÉTHODES UTILITAIRES POUR LE SHOP ET AUTRES SYSTÈMES
-  getShopSystem() {
-    return this.interactionManager?.shopSystem || null;
-  }
-
-  isShopOpen() {
-    return this.interactionManager?.isShopOpen() || false;
-  }
-
-  debugShop() {
-    if (this.interactionManager) {
-      this.interactionManager.debugState();
-    } else {
-      console.log(`🔍 [${this.scene.key}] Aucun InteractionManager`);
-    }
-  }
-
-  requestTime() {
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("getTime");
-    }
-  }
-
-  requestWeather() {
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("getWeather");
-    }
-  }
-
-
-  // 🆕 NOUVELLES MÉTHODES UTILITAIRES POUR LES ENCOUNTERS
-
-  getCurrentEncounterInfo() {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer || !this.encounterManager) {
-      return null;
-    }
-    
-    return {
-      position: { x: myPlayer.x, y: myPlayer.y },
-      positionInfo: this.encounterManager.getPositionInfo(myPlayer.x, myPlayer.y),
-      stats: this.encounterManager.getStats()
-    };
-  }
-
-  resetEncounterCooldowns() {
-    if (this.encounterManager) {
-      this.encounterManager.resetCooldowns();
-      console.log(`🔄 [${this.scene.key}] Cooldowns encounter reset`);
-      this.showNotification("Cooldowns encounter reset", 'info');
-    }
-  }
-
-  simulateEncounterSteps(count = 5) {
-    if (this.encounterManager) {
-      this.encounterManager.simulateSteps(count);
-      console.log(`👟 [${this.scene.key}] ${count} pas simulés`);
-      this.showNotification(`${count} pas simulés pour encounter`, 'info');
-    }
-  }
-
-  // 🔒 NOUVELLES MÉTHODES UTILITAIRES POUR MOVEMENTBLOCK
-
-  getCurrentMovementBlockInfo() {
-    if (!this.isMovementBlockSystemReady()) {
-      return {
-        error: "MovementBlock system not ready"
-      };
-    }
-    
-    return {
-      handler: movementBlockHandler.getStatus(),
-      inputManager: this.inputManager.getStatus(),
-      isBlocked: movementBlockHandler.isMovementBlocked(),
-      blockReason: movementBlockHandler.blockReason,
-      blockMessage: movementBlockHandler.blockMessage
-    };
-  }
-
-    // AJOUTER ces méthodes après getCurrentMovementBlockInfo() :
-
-testGlobalWeatherConnection() {
-  console.log(`🧪 [${this.scene.key}] Test connexion système météo global...`);
-  
-  if (!window.globalWeatherManager?.isInitialized) {
-    console.error(`❌ [${this.scene.key}] Système météo global pas prêt`);
-    return false;
-  }
-  
-  try {
-    // Test des fonctions de base
-    const currentTime = window.globalWeatherManager.getCurrentTime();
-    const currentWeather = window.globalWeatherManager.getCurrentWeather();
-    
-    console.log(`⏰ Temps global:`, currentTime);
-    console.log(`🌦️ Météo globale:`, currentWeather);
-    
-    // Test de l'enregistrement de cette scène
-    const stats = window.globalWeatherManager.getStats();
-    console.log(`📊 Stats système global:`, stats);
-    
-    // Test de force update
-    window.globalWeatherManager.forceUpdate();
-    
-    console.log(`✅ [${this.scene.key}] Test connexion météo global réussi`);
-    return true;
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur test météo global:`, error);
-    return false;
-  }
-}
-
-forceWeatherRefresh() {
-  console.log(`🔄 [${this.scene.key}] Force refresh météo...`);
-  
-  if (window.globalWeatherManager?.isInitialized) {
-    // Désenregistrer et re-enregistrer pour forcer un refresh
-    window.globalWeatherManager.unregisterScene(this.scene.key);
-    
-    setTimeout(() => {
-      this.connectToGlobalWeatherSystem();
-    }, 100);
-    
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] Système global pas disponible pour refresh`);
-  }
-}
-    
-debugMusicSystem() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MUSIQUE ===`);
-    
-    // Vérifier si le MapMusicManager est chargé
-    if (window.mapMusicManager) {
-        console.log(`✅ [${this.scene.key}] MapMusicManager global disponible`);
-        window.mapMusicManager.debugState();
-    } else {
-        console.error(`❌ [${this.scene.key}] MapMusicManager global MANQUANT`);
-    }
-    
-    // Vérifier si cette scène a l'intégration
-    if (this.musicManager) {
-        console.log(`✅ [${this.scene.key}] MusicManager local disponible`);
-        console.log(`🎯 Zone actuelle:`, this.musicManager.currentZone);
-        console.log(`🎵 Track actuelle:`, this.musicManager.currentTrack?.key);
-    } else {
-        console.error(`❌ [${this.scene.key}] MusicManager local MANQUANT`);
-    }
-    
-    // Vérifier les assets audio
-    if (this.cache?.audio) {
-        const audioKeys = this.cache.audio.getKeys();
-        console.log(`🎼 [${this.scene.key}] Assets audio (${audioKeys.length}):`, audioKeys);
-        
-        // Vérifier les tracks spécifiques
-        const requiredTracks = ['road1_theme', 'village_theme', 'lavandia_theme'];
-        requiredTracks.forEach(track => {
-            const exists = this.cache.audio.exists(track);
-            console.log(`${exists ? '✅' : '❌'} [${this.scene.key}] ${track}: ${exists ? 'DISPONIBLE' : 'MANQUANT'}`);
-        });
-    } else {
-        console.error(`❌ [${this.scene.key}] Cache audio MANQUANT`);
-    }
-    
-    // Vérifier le SoundManager
-    if (this.sound) {
-        console.log(`✅ [${this.scene.key}] SoundManager disponible`);
-        console.log(`🔧 [${this.scene.key}] Context state:`, this.sound.context?.state || 'unknown');
-        console.log(`🔊 [${this.scene.key}] Volume global:`, this.sound.volume);
-        console.log(`🔇 [${this.scene.key}] Muted:`, this.sound.mute);
-    } else {
-        console.error(`❌ [${this.scene.key}] SoundManager MANQUANT`);
-    }
-}
-  forceUnblockMovement() {
-    if (movementBlockHandler) {
-      movementBlockHandler.requestForceUnblock();
-      console.log(`🔓 [${this.scene.key}] Demande déblocage forcé envoyée`);
-      this.showNotification("Demande déblocage forcé envoyée", 'info');
-    }
-  }
-
-  requestMovementBlockStatus() {
-    if (movementBlockHandler) {
-      movementBlockHandler.requestBlockStatus();
-      console.log(`📊 [${this.scene.key}] Demande status blocage envoyée`);
-      this.showNotification("Demande status blocage envoyée", 'info');
-    }
-  }
-
-  // ✅ NOUVELLES MÉTHODES DE DEBUG MÉTÉO
-  debugWeatherSystem() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO GLOBAL ===`);
-  
-  const status = {
-    weatherSystemType: this.weatherSystemType || 'unknown',
-    hasGlobalManager: !!this.globalWeatherManager,
-    globalSystemExists: !!window.globalWeatherManager,
-    globalSystemInitialized: window.globalWeatherManager?.isInitialized || false,
-    environment: this.currentEnvironment,
-    zoneName: this.normalizeZoneName(this.scene.key),
-    isRegistered: window.globalWeatherManager?.registeredScenes?.has(this.scene.key) || false,
-    isActive: window.globalWeatherManager?.activeScenes?.has(this.scene.key) || false
-  };
-  
-  console.log(`📊 Status météo ${this.scene.key}:`, status);
-  return status;
-}
-
-  
-  // 🆕 MÉTHODES D'EXPOSITION GLOBALE POUR LE DEBUG
-  exposeDebugFunctions() {
-    // Exposer les fonctions de debug sur window pour usage en console
-    window[`debug_${this.scene.key}`] = {
-      debugScene: () => this.debugScene(),
-      debugAllSystems: () => this.debugAllSystems(),
-      debugEncounters: () => this.debugEncounters(),
-      forceEncounter: () => this.forceEncounterTest(),
-      testEncounter: () => this.testEncounterConnection(),
-      resetEncounterCooldowns: () => this.resetEncounterCooldowns(),
-      simulateSteps: (count) => this.simulateEncounterSteps(count),
-      getEncounterInfo: () => this.getCurrentEncounterInfo(),
-      getEncounterStatus: () => this.getEncounterSystemStatus(),
-      // 🔒 NOUVELLES FONCTIONS MOVEMENTBLOCK
-      debugMovementBlock: () => this.debugMovementBlockHandler(),
-      debugInputManager: () => this.debugInputManager(),
-      testMovementBlock: () => this.testMovementBlockConnection(),
-      forceUnblock: () => this.forceUnblockMovement(),
-      requestBlockStatus: () => this.requestMovementBlockStatus(),
-      getMovementBlockInfo: () => this.getCurrentMovementBlockInfo(),
-      getMovementBlockStatus: () => this.getMovementBlockSystemStatus(),
-      forceMovementBlockInit: () => this.forceMovementBlockSystemInit(),
-      forceInputManagerInit: () => this.forceInputManagerInit(),
-            // ✅ NOUVELLES FONCTIONS DEBUG BASE INTERACTION MANAGER
-      debugBaseInteraction: () => this.debugBaseInteractionManager(),
-      testNpcInteraction: () => this.testNpcInteractionSystem(),
-      testObjectInteraction: () => this.testObjectInteractionSystem(),
-      searchHiddenItems: (x, y) => this.testSearchHiddenItems(x, y),
-      getInteractionStats: () => this.getBaseInteractionStats(),
-      resetInteractionStats: () => this.resetBaseInteractionStats(),
-    debugWeather: () => this.debugWeatherSystem(),
-    testWeather: () => this.testGlobalWeatherConnection(),
-    forceWeatherRefresh: () => this.forceWeatherRefresh(),
-    getCurrentWeather: () => this.getCurrentTimeWeather()
-    };
-    
-    console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
-  }
-  // ✅ MÉTHODES DE CHARGEMENT ASYNC
-async loadZoneComponents() {
-    return new Promise(resolve => {
-        this.createPlayerAnimations();
-        this.setupManagers();
-        this.initPlayerSpawnFromSceneData();
-        this.justArrivedAtZone = true;
-        this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-        
-        this.loadMap();
-        this.setupInputs();
-        this.createUI();
-        this.myPlayerReady = false;
-        this.isSceneReady = true;
-        
-        this.initializeWithExistingConnection();
-        this.setupPlayerReadyHandler();
-        this.setupCleanupHandlers();
-
-        this.events.once('shutdown', this.cleanup, this);
-        this.events.once('destroy', this.cleanup, this);
-        
-        setTimeout(resolve, 300);
-    });
-}
-
-async initializeUIComponents() {
-    return new Promise(async resolve => {
-        try {
-            if (typeof initializePokemonUI === 'function') {
-                await initializePokemonUI();
-                console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée`);
-            } else {
-                console.warn(`⚠️ [${this.scene.key}] initializePokemonUI non disponible`);
-            }
-            resolve();
-        } catch (error) {
-            console.error(`❌ [${this.scene.key}] Erreur UI:`, error);
-            resolve(); // Continuer même en cas d'erreur
-        }
-    });
-}
-
-performDirectLoading() {
-    console.log(`🔄 [${this.scene.key}] Chargement direct de secours...`);
-    
-    this.createPlayerAnimations();
-    this.setupManagers();
-    this.initPlayerSpawnFromSceneData();
-    this.justArrivedAtZone = true;
-    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-    
-    this.loadMap();
-    this.setupInputs();
-    this.createUI();
-    this.myPlayerReady = false;
-    this.isSceneReady = true;
-    
-    this.initializeWithExistingConnection();
-    this.setupPlayerReadyHandler();
-    this.setupCleanupHandlers();
-
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
-    
-    this.initializeGameSystems();
-  this.initializeOverworldPokemon();
-
-}
-
-// ✅ FONCTIONS UTILITAIRES
-delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-promisifyMethod(method) {
-    return new Promise(resolve => {
-        try {
-            method();
-            setTimeout(resolve, 200);
-        } catch (error) {
-            console.error('Erreur dans promisifyMethod:', error);
-            resolve();
-        }
-    });
-}
-  // ✅ NOUVELLES MÉTHODES DE DEBUG pour Pokémon overworld
-
-debugOverworldPokemon() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG POKÉMON OVERWORLD ===`);
-  
-  // ✅ UTILISER LA FONCTION EXISTANTE
-  const currentZone = this.mapSceneToZone(this.scene.key); // Utilise la méthode existante
-  
-  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
-  const configuredZones = ['village', 'lavandia']; // Zones avec des Pokémon overworld
-  
-  if (!configuredZones.includes(currentZone)) {
-    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
-    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'info');
-    return;
-  }
-  
-  if (!this.overworldPokemonManager) {
-    console.log("❌ OverworldPokemonManager non initialisé");
-    return;
-  }
-  
-  this.overworldPokemonManager.debugOverworldPokemon();
-  
-  if (this.networkManager?.room) {
-    this.networkManager.room.send("debugOverworldPokemon");
-  }
-  
-  this.showNotification(`Debug Pokémon overworld dans la console`, 'info');
-}
-
-forceSpawnOverworldPokemon() {
-  console.log(`🎯 [${this.scene.key}] Force spawn Pokémon overworld`);
-  
-  // ✅ UTILISER LA FONCTION EXISTANTE
-  const currentZone = this.mapSceneToZone(this.scene.key);
-  
-  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
-  const configuredZones = ['village', 'lavandia'];
-  
-  if (!configuredZones.includes(currentZone)) {
-    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
-    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
-    return;
-  }
-  
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (!myPlayer) {
-    console.log("❌ Pas de joueur pour spawn");
-    this.showNotification("Pas de joueur trouvé", 'error');
-    return;
-  }
-  
-  if (this.networkManager?.room) {
-    this.networkManager.room.send("forceSpawnOverworldPokemon", {
-      areaId: currentZone, // ✅ Utiliser directement le nom de zone
-      pokemonId: 17, // Roucoups par défaut
-      x: myPlayer.x,
-      y: myPlayer.y
-    });
-    
-    this.showNotification(`Force spawn Roucoups dans ${currentZone}`, 'success');
-  } else {
-    this.showNotification("Pas de connexion serveur", 'error');
-  }
-}
-
-clearCurrentOverworldArea() {
-  console.log(`🧹 [${this.scene.key}] Nettoyage zone overworld actuelle`);
-  
-  // ✅ UTILISER LA FONCTION EXISTANTE
-  const currentZone = this.mapSceneToZone(this.scene.key);
-  
-  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
-  const configuredZones = ['village', 'lavandia'];
-  
-  if (!configuredZones.includes(currentZone)) {
-    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
-    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
-    return;
-  }
-  
-  if (this.networkManager?.room) {
-    this.networkManager.room.send("clearOverworldArea", {
-      areaId: currentZone // ✅ Utiliser directement le nom de zone
-    });
-    
-    this.showNotification(`Zone ${currentZone} nettoyée`, 'success');
-  } else {
-    this.showNotification("Pas de connexion serveur", 'error');
-  }
-}
-
-}
+      console.log(`✅ [
