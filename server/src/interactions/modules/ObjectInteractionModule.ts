@@ -360,67 +360,165 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   /**
    * Charger les objets d'une zone depuis la map Tiled
    */
-  async loadObjectsFromMap(zoneName: string, mapPath: string): Promise<void> {
-    try {
-      const resolvedPath = path.isAbsolute(mapPath) 
-        ? mapPath 
-        : path.resolve(__dirname, mapPath);
+/**
+ * Charger les objets d'une zone depuis la map Tiled
+ * ✅ VERSION AVEC DEBUG COMPLET DES LAYERS
+ */
+async loadObjectsFromMap(zoneName: string, mapPath: string): Promise<void> {
+  try {
+    const resolvedPath = path.isAbsolute(mapPath) 
+      ? mapPath 
+      : path.resolve(__dirname, mapPath);
 
-      if (!fs.existsSync(resolvedPath)) {
-        this.log('warn', `Fichier map introuvable: ${resolvedPath}`);
-        return;
-      }
+    if (!fs.existsSync(resolvedPath)) {
+      this.log('warn', `Fichier map introuvable: ${resolvedPath}`);
+      return;
+    }
 
-      const mapData = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
+    const mapData = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
+    
+    // 🐛 DEBUG: Afficher tous les layers trouvés
+    this.log('info', `🗺️  === DEBUG LAYERS POUR ${zoneName.toUpperCase()} ===`);
+    this.log('info', `📁 Fichier: ${resolvedPath}`);
+    this.log('info', `📊 Dimensions map: ${mapData.width}x${mapData.height} (tilesize: ${mapData.tilewidth}x${mapData.tileheight})`);
+    
+    if (!mapData.layers || !Array.isArray(mapData.layers)) {
+      this.log('warn', `❌ Aucun layer trouvé dans ${zoneName}`);
+      return;
+    }
+    
+    this.log('info', `🔍 ${mapData.layers.length} layer(s) trouvé(s):`);
+    
+    // Parcourir tous les layers pour debug
+    mapData.layers.forEach((layer: any, index: number) => {
+      this.log('info', `\n📋 Layer ${index + 1}: "${layer.name}"`);
+      this.log('info', `   └─ Type: ${layer.type}`);
+      this.log('info', `   └─ Visible: ${layer.visible !== false}`);
+      this.log('info', `   └─ Taille: ${layer.width || 'N/A'}x${layer.height || 'N/A'}`);
       
-      // ✅ UTILISE LA VARIABLE CONFIGURABLE POUR LE LAYER
-      const objectLayer = mapData.layers?.find((l: any) => l.name === this.config.objectLayerName);
-      if (!objectLayer || !objectLayer.objects) {
-        this.log('info', `Aucun layer "${this.config.objectLayerName}" dans ${zoneName}`);
-        return;
-      }
-
-      const objects = new Map<number, ObjectDefinition>();
-
-      // Parser chaque objet
-      for (const obj of objectLayer.objects) {
-        const customProperties: Record<string, any> = {};
-        
-        if (obj.properties) {
-          for (const prop of obj.properties) {
-            customProperties[prop.name] = prop.value;
+      // Debug spécifique selon le type de layer
+      switch (layer.type) {
+        case 'objectgroup':
+          const objectCount = layer.objects?.length || 0;
+          this.log('info', `   └─ 🎯 OBJETS: ${objectCount} objet(s)`);
+          
+          if (objectCount > 0) {
+            layer.objects.forEach((obj: any, objIndex: number) => {
+              const customProps = obj.properties ? 
+                obj.properties.reduce((acc: any, prop: any) => {
+                  acc[prop.name] = prop.value;
+                  return acc;
+                }, {}) : {};
+              
+              this.log('info', `       │`);
+              this.log('info', `       ├─ Objet ${objIndex + 1}: ID=${obj.id} "${obj.name || 'Sans nom'}"`);
+              this.log('info', `       │   └─ Position: (${obj.x}, ${obj.y})`);
+              this.log('info', `       │   └─ Taille: ${obj.width || 0}x${obj.height || 0}`);
+              this.log('info', `       │   └─ Type Tiled: "${obj.type || 'aucun'}"`);
+              
+              // Afficher les propriétés personnalisées
+              if (Object.keys(customProps).length > 0) {
+                this.log('info', `       │   └─ Propriétés: ${JSON.stringify(customProps)}`);
+              } else {
+                this.log('info', `       │   └─ Propriétés: aucune`);
+              }
+            });
           }
+          break;
+          
+        case 'tilelayer':
+          const tileData = layer.data ? 
+            (Array.isArray(layer.data) ? layer.data.length : 'Format compressé') : 
+            'Aucune donnée';
+          this.log('info', `   └─ 🏗️  TILES: ${tileData} tiles`);
+          break;
+          
+        case 'imagelayer':
+          this.log('info', `   └─ 🖼️  IMAGE: ${layer.image || 'Aucune image'}`);
+          break;
+          
+        case 'group':
+          this.log('info', `   └─ 📁 GROUPE: ${layer.layers?.length || 0} sous-layers`);
+          break;
+          
+        default:
+          this.log('info', `   └─ ❓ TYPE INCONNU`);
+      }
+      
+      // Afficher les propriétés du layer si elles existent
+      if (layer.properties && layer.properties.length > 0) {
+        const layerProps = layer.properties.reduce((acc: any, prop: any) => {
+          acc[prop.name] = prop.value;
+          return acc;
+        }, {});
+        this.log('info', `   └─ ⚙️  Propriétés layer: ${JSON.stringify(layerProps)}`);
+      }
+    });
+    
+    // 🎯 Traitement du layer d'objets configuré
+    this.log('info', `\n🎯 === TRAITEMENT DU LAYER "${this.config.objectLayerName}" ===`);
+    
+    const objectLayer = mapData.layers?.find((l: any) => l.name === this.config.objectLayerName);
+    if (!objectLayer || !objectLayer.objects) {
+      this.log('warn', `❌ Aucun layer "${this.config.objectLayerName}" trouvé ou vide dans ${zoneName}`);
+      this.log('info', `💡 Layers disponibles: ${mapData.layers.map((l: any) => l.name).join(', ')}`);
+      return;
+    }
+
+    this.log('info', `✅ Layer "${this.config.objectLayerName}" trouvé avec ${objectLayer.objects.length} objet(s)`);
+
+    const objects = new Map<number, ObjectDefinition>();
+
+    // Parser chaque objet
+    for (const obj of objectLayer.objects) {
+      const customProperties: Record<string, any> = {};
+      
+      if (obj.properties) {
+        for (const prop of obj.properties) {
+          customProperties[prop.name] = prop.value;
         }
-
-        const objectDef: ObjectDefinition = {
-          id: obj.id,
-          name: obj.name || customProperties['name'] || `Object_${obj.id}`,
-          x: obj.x,
-          y: obj.y,
-          zone: zoneName,
-          type: customProperties['type'] || 'unknown',
-          itemId: customProperties['itemId'],
-          quantity: customProperties['quantity'] || 1,
-          rarity: customProperties['rarity'] || 'common',
-          respawnTime: customProperties['respawnTime'] || 0,
-          requirements: this.parseRequirements(customProperties),
-          customProperties,
-          state: {
-            collected: false,
-            collectedBy: []
-          }
-        };
-
-        objects.set(obj.id, objectDef);
       }
 
-      this.objectsByZone.set(zoneName, objects);
-      this.log('info', `${objects.size} objets chargés pour ${zoneName}`);
+      const objectDef: ObjectDefinition = {
+        id: obj.id,
+        name: obj.name || customProperties['name'] || `Object_${obj.id}`,
+        x: obj.x,
+        y: obj.y,
+        zone: zoneName,
+        type: customProperties['type'] || 'unknown',
+        itemId: customProperties['itemId'],
+        quantity: customProperties['quantity'] || 1,
+        rarity: customProperties['rarity'] || 'common',
+        respawnTime: customProperties['respawnTime'] || 0,
+        requirements: this.parseRequirements(customProperties),
+        customProperties,
+        state: {
+          collected: false,
+          collectedBy: []
+        }
+      };
 
-    } catch (error) {
-      this.log('error', `Erreur chargement map ${zoneName}`, error);
+      objects.set(obj.id, objectDef);
+      
+      // Debug de chaque objet parsé
+      this.log('info', `   ├─ Objet parsé: ${objectDef.name} (ID: ${objectDef.id})`);
+      this.log('info', `   │   └─ Type: ${objectDef.type}, Item: ${objectDef.itemId || 'aucun'}`);
+    }
+
+    this.objectsByZone.set(zoneName, objects);
+    
+    this.log('info', `🎉 ${objects.size} objets chargés avec succès pour ${zoneName}`);
+    this.log('info', `🗺️  === FIN DEBUG LAYERS ${zoneName.toUpperCase()} ===\n`);
+
+  } catch (error) {
+    this.log('error', `❌ Erreur chargement map ${zoneName}`, error);
+    
+    // Debug en cas d'erreur
+    if (error instanceof SyntaxError) {
+      this.log('error', `💥 Erreur de parsing JSON - le fichier .tmj est peut-être corrompu`);
     }
   }
+}
 
   private parseRequirements(props: Record<string, any>): ObjectDefinition['requirements'] {
     const requirements: any = {};
