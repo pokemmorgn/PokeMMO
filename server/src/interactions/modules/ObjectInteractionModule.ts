@@ -599,7 +599,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     await super.cleanup();
   }
 
-  // ✅ MÉTHODE FINALE CORRIGÉE AVEC CHEMIN ABSOLU
+  // ✅ MÉTHODE FINALE CORRIGÉE AVEC BON CHEMIN BUILD
   private async loadDefaultMaps(): Promise<void> {
     // Lister des zones par défaut (comme dans WorldRoom)
     const defaultZones = [
@@ -611,12 +611,12 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     this.log('info', 'Debug chemins', {
       __dirname: __dirname,
       'process.cwd()': process.cwd(),
-      'path.resolve(process.cwd(), "assets", "maps")': path.resolve(process.cwd(), 'assets', 'maps')
+      'path.resolve(process.cwd(), "build", "assets", "maps")': path.resolve(process.cwd(), 'build', 'assets', 'maps')
     });
 
     for (const zone of defaultZones) {
-      // ✅ SOLUTION ROBUSTE : Chemin absolu depuis la racine du projet
-      const mapPath = path.resolve(process.cwd(), 'assets', 'maps', `${zone}.tmj`);
+      // ✅ CORRECTION FINALE : Ajouter "build" dans le chemin
+      const mapPath = path.resolve(process.cwd(), 'build', 'assets', 'maps', `${zone}.tmj`);
       await this.loadObjectsFromMap(zone, mapPath);
     }
   }
