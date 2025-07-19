@@ -451,6 +451,9 @@
             <button class="tab-btn" data-tab="players">
                 <i class="fas fa-users"></i> Joueurs
             </button>
+            <button class="tab-btn" data-tab="quests">
+    <i class="fas fa-scroll"></i> Quêtes
+</button>
             <button class="tab-btn" data-tab="edit">
                 <i class="fas fa-edit"></i> Édition
             </button>
@@ -771,6 +774,191 @@
         </div>
     </div>
 
+    <!-- Panel Quêtes -->
+<div class="panel" id="quests">
+    <h2 style="margin-bottom: 25px; color: #2c3e50;">
+        <i class="fas fa-scroll"></i> Gestion des Quêtes
+    </h2>
+
+    <!-- Actions rapides -->
+    <div style="display: flex; gap: 15px; margin-bottom: 25px; align-items: center; flex-wrap: wrap;">
+        <button class="btn btn-success" onclick="createNewQuest()">
+            <i class="fas fa-plus"></i> Nouvelle Quête
+        </button>
+        <button class="btn btn-info" onclick="loadQuests()">
+            <i class="fas fa-sync-alt"></i> Actualiser
+        </button>
+        <button class="btn btn-warning" onclick="reloadQuestSystem()">
+            <i class="fas fa-redo"></i> Recharger Système
+        </button>
+        <button class="btn btn-secondary" onclick="showBackups()">
+            <i class="fas fa-history"></i> Backups
+        </button>
+        <span id="questsLastUpdate" style="color: #7f8c8d; font-size: 0.9rem;">
+            Dernière mise à jour: ...
+        </span>
+    </div>
+
+    <!-- Liste des quêtes -->
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Catégorie</th>
+                    <th>Étapes</th>
+                    <th>Répétable</th>
+                    <th>Auto-Complete</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="questsTableBody">
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        Cliquez sur "Actualiser" pour charger les quêtes
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="loading" id="questsLoading">
+        <div class="spinner"></div>
+        Chargement des quêtes...
+    </div>
+</div>
+
+<!-- Modal Éditeur de Quête -->
+<div class="modal" id="questEditorModal">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+        <h3 style="margin-bottom: 20px; color: #2c3e50;">
+            <i class="fas fa-edit"></i> <span id="questEditorTitle">Éditeur de Quête</span>
+        </h3>
+        
+        <form id="questEditorForm">
+            <!-- Informations de base -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                <div class="form-group">
+                    <label class="form-label">ID de la Quête</label>
+                    <input type="text" class="form-input" id="questId" required>
+                    <div class="input-help">Identifiant unique (pas d'espaces)</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-input" id="questName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Catégorie</label>
+                    <select class="form-select" id="questCategory">
+                        <option value="main">Principale</option>
+                        <option value="side">Secondaire</option>
+                        <option value="daily">Quotidienne</option>
+                        <option value="event">Événement</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-input" id="questDescription" rows="3"></textarea>
+            </div>
+
+            <!-- Paramètres -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                <div class="form-group">
+                    <label class="form-label">NPC de Début</label>
+                    <input type="number" class="form-input" id="questStartNpc" placeholder="ID du NPC">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">NPC de Fin</label>
+                    <input type="number" class="form-input" id="questEndNpc" placeholder="ID du NPC">
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="questRepeatable">
+                        <span>Répétable</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="questAutoComplete">
+                        <span>Auto-Complete</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dialogues -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                <h4 style="margin-bottom: 15px; color: #2c3e50;">Dialogues</h4>
+                
+                <div class="form-group">
+                    <label class="form-label">Dialogue d'Offre</label>
+                    <textarea class="form-input" id="questDialogueOffer" rows="3" 
+                              placeholder="Une ligne par dialogue (Entrée pour nouvelle ligne)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Dialogue en Cours</label>
+                    <textarea class="form-input" id="questDialogueProgress" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Dialogue de Fin</label>
+                    <textarea class="form-input" id="questDialogueComplete" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Étapes -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="color: #2c3e50;">Étapes de la Quête</h4>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addQuestStep()">
+                        <i class="fas fa-plus"></i> Ajouter Étape
+                    </button>
+                </div>
+                
+                <div id="questStepsContainer">
+                    <!-- Les étapes seront ajoutées dynamiquement ici -->
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeQuestEditor()">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-info" onclick="previewQuest()">
+                    <i class="fas fa-eye"></i> Aperçu
+                </button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Sauvegarder
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Backups -->
+<div class="modal" id="backupsModal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 20px; color: #2c3e50;">
+            <i class="fas fa-history"></i> Backups des Quêtes
+        </h3>
+        
+        <div id="backupsList">
+            <!-- Liste des backups -->
+        </div>
+        
+        <div style="margin-top: 25px; text-align: right;">
+            <button class="btn btn-secondary" onclick="closeModal()">
+                <i class="fas fa-times"></i> Fermer
+            </button>
+        </div>
+    </div>
+</div>
+
+    
     <script>
 class AdminPanel {
     constructor() {
@@ -1316,6 +1504,372 @@ async loadDashboard() {
                 };
                 return icons[type] || 'info-circle';
             }
+async loadQuests() {
+    this.showLoading('questsLoading', true);
+    try {
+        const data = await this.apiCall('/quests');
+        this.displayQuests(data.quests);
+        document.getElementById('questsLastUpdate').textContent = 
+            `Dernière mise à jour: ${new Date().toLocaleTimeString()} (${data.total} quêtes)`;
+    } catch (error) {
+        this.showNotification('Erreur chargement quêtes: ' + error.message, 'error');
+    } finally {
+        this.showLoading('questsLoading', false);
+    }
+}
+
+displayQuests(quests) {
+    const tbody = document.getElementById('questsTableBody');
+    
+    if (quests.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                    Aucune quête trouvée
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = quests.map(quest => `
+        <tr>
+            <td><code>${quest.id}</code></td>
+            <td><strong>${quest.name}</strong></td>
+            <td>
+                <span class="badge ${this.getCategoryColor(quest.category)}">
+                    ${quest.category}
+                </span>
+            </td>
+            <td>${quest.steps?.length || 0} étapes</td>
+            <td>${quest.isRepeatable ? '✅' : '❌'}</td>
+            <td>${quest.autoComplete ? '✅' : '❌'}</td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-primary btn-sm" onclick="editQuest('${quest.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-info btn-sm" onclick="duplicateQuest('${quest.id}')">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteQuest('${quest.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+getCategoryColor(category) {
+    const colors = {
+        'main': 'danger',
+        'side': 'info',
+        'daily': 'warning',
+        'event': 'success'
+    };
+    return colors[category] || 'secondary';
+}
+
+createNewQuest() {
+    this.currentQuest = null;
+    document.getElementById('questEditorTitle').textContent = 'Nouvelle Quête';
+    this.clearQuestEditor();
+    this.showModal('questEditorModal');
+}
+
+async editQuest(questId) {
+    try {
+        const data = await this.apiCall('/quests');
+        const quest = data.quests.find(q => q.id === questId);
+        
+        if (!quest) {
+            this.showNotification('Quête non trouvée', 'error');
+            return;
+        }
+        
+        this.currentQuest = quest;
+        document.getElementById('questEditorTitle').textContent = `Éditer: ${quest.name}`;
+        this.fillQuestEditor(quest);
+        this.showModal('questEditorModal');
+    } catch (error) {
+        this.showNotification('Erreur chargement quête: ' + error.message, 'error');
+    }
+}
+
+async duplicateQuest(questId) {
+    if (!confirm(`Dupliquer la quête "${questId}" ?`)) return;
+    
+    try {
+        const data = await this.apiCall(`/quests/${questId}/duplicate`, { method: 'POST' });
+        this.showNotification('Quête dupliquée avec succès', 'success');
+        this.loadQuests();
+    } catch (error) {
+        this.showNotification('Erreur duplication: ' + error.message, 'error');
+    }
+}
+
+async deleteQuest(questId) {
+    if (!confirm(`SUPPRIMER définitivement la quête "${questId}" ?`)) return;
+    
+    try {
+        await this.apiCall(`/quests/${questId}`, { method: 'DELETE' });
+        this.showNotification('Quête supprimée avec succès', 'success');
+        this.loadQuests();
+    } catch (error) {
+        this.showNotification('Erreur suppression: ' + error.message, 'error');
+    }
+}
+
+fillQuestEditor(quest) {
+    document.getElementById('questId').value = quest.id || '';
+    document.getElementById('questName').value = quest.name || '';
+    document.getElementById('questCategory').value = quest.category || 'side';
+    document.getElementById('questDescription').value = quest.description || '';
+    document.getElementById('questStartNpc').value = quest.startNpcId || '';
+    document.getElementById('questEndNpc').value = quest.endNpcId || '';
+    document.getElementById('questRepeatable').checked = quest.isRepeatable || false;
+    document.getElementById('questAutoComplete').checked = quest.autoComplete || false;
+    
+    // Dialogues
+    document.getElementById('questDialogueOffer').value = 
+        quest.dialogues?.questOffer?.join('\n') || '';
+    document.getElementById('questDialogueProgress').value = 
+        quest.dialogues?.questInProgress?.join('\n') || '';
+    document.getElementById('questDialogueComplete').value = 
+        quest.dialogues?.questComplete?.join('\n') || '';
+    
+    // Étapes
+    this.renderQuestSteps(quest.steps || []);
+}
+
+clearQuestEditor() {
+    document.getElementById('questEditorForm').reset();
+    document.getElementById('questStepsContainer').innerHTML = '';
+}
+
+renderQuestSteps(steps) {
+    const container = document.getElementById('questStepsContainer');
+    container.innerHTML = '';
+    
+    steps.forEach((step, index) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'quest-step-editor';
+        stepDiv.style.cssText = 'border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: white;';
+        
+        stepDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h5>Étape ${index + 1}: ${step.name || 'Sans nom'}</h5>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeQuestStep(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" class="form-input" placeholder="Nom de l'étape" 
+                       value="${step.name || ''}" onchange="updateStepData(${index}, 'name', this.value)">
+                <input type="text" class="form-input" placeholder="Description" 
+                       value="${step.description || ''}" onchange="updateStepData(${index}, 'description', this.value)">
+            </div>
+            <div style="margin-top: 10px;">
+                <textarea class="form-input" rows="2" placeholder="Objectifs (JSON)" 
+                          onchange="updateStepData(${index}, 'objectives', this.value)">${JSON.stringify(step.objectives || [], null, 2)}</textarea>
+            </div>
+        `;
+        
+        container.appendChild(stepDiv);
+    });
+}
+
+addQuestStep() {
+    const steps = this.getCurrentQuestSteps();
+    steps.push({
+        id: `step_${steps.length + 1}`,
+        name: 'Nouvelle étape',
+        description: 'Description de l\'étape',
+        objectives: []
+    });
+    this.renderQuestSteps(steps);
+}
+
+removeQuestStep(index) {
+    const steps = this.getCurrentQuestSteps();
+    steps.splice(index, 1);
+    this.renderQuestSteps(steps);
+}
+
+getCurrentQuestSteps() {
+    // Récupérer les étapes actuelles depuis l'interface
+    const stepElements = document.querySelectorAll('.quest-step-editor');
+    return Array.from(stepElements).map((element, index) => {
+        const nameInput = element.querySelector('input[placeholder="Nom de l\'étape"]');
+        const descInput = element.querySelector('input[placeholder="Description"]');
+        const objectivesTextarea = element.querySelector('textarea[placeholder="Objectifs (JSON)"]');
+        
+        let objectives = [];
+        try {
+            objectives = JSON.parse(objectivesTextarea.value || '[]');
+        } catch (e) {
+            console.warn('Invalid JSON in objectives for step', index);
+        }
+        
+        return {
+            id: `step_${index + 1}`,
+            name: nameInput.value || 'Sans nom',
+            description: descInput.value || '',
+            objectives: objectives,
+            rewards: []
+        };
+    });
+}
+
+updateStepData(stepIndex, field, value) {
+    // Cette fonction est appelée quand un champ d'étape change
+    console.log(`Updating step ${stepIndex}, field ${field}:`, value);
+}
+
+async saveQuest() {
+    try {
+        const questData = {
+            id: document.getElementById('questId').value,
+            name: document.getElementById('questName').value,
+            description: document.getElementById('questDescription').value,
+            category: document.getElementById('questCategory').value,
+            startNpcId: document.getElementById('questStartNpc').value ? 
+                       parseInt(document.getElementById('questStartNpc').value) : null,
+            endNpcId: document.getElementById('questEndNpc').value ? 
+                     parseInt(document.getElementById('questEndNpc').value) : null,
+            isRepeatable: document.getElementById('questRepeatable').checked,
+            autoComplete: document.getElementById('questAutoComplete').checked,
+            dialogues: {
+                questOffer: document.getElementById('questDialogueOffer').value.split('\n').filter(line => line.trim()),
+                questInProgress: document.getElementById('questDialogueProgress').value.split('\n').filter(line => line.trim()),
+                questComplete: document.getElementById('questDialogueComplete').value.split('\n').filter(line => line.trim())
+            },
+            steps: this.getCurrentQuestSteps()
+        };
+        
+        // Validation
+        if (!questData.id || !questData.name) {
+            this.showNotification('ID et nom de quête requis', 'error');
+            return;
+        }
+        
+        if (!/^[a-zA-Z0-9_-]+$/.test(questData.id)) {
+            this.showNotification('ID invalide (lettres, chiffres, - et _ seulement)', 'error');
+            return;
+        }
+        
+        const method = this.currentQuest ? 'PUT' : 'POST';
+        const endpoint = this.currentQuest ? `/quests/${this.currentQuest.id}` : '/quests';
+        
+        const result = await this.apiCall(endpoint, {
+            method: method,
+            body: JSON.stringify(questData)
+        });
+        
+        this.showNotification(result.message, 'success');
+        this.closeQuestEditor();
+        this.loadQuests();
+        
+    } catch (error) {
+        this.showNotification('Erreur sauvegarde: ' + error.message, 'error');
+    }
+}
+
+closeQuestEditor() {
+    this.closeModal();
+    this.currentQuest = null;
+}
+
+previewQuest() {
+    const questData = {
+        id: document.getElementById('questId').value,
+        name: document.getElementById('questName').value,
+        description: document.getElementById('questDescription').value,
+        category: document.getElementById('questCategory').value,
+        steps: this.getCurrentQuestSteps()
+    };
+    
+    const preview = `
+=== APERÇU QUÊTE ===
+ID: ${questData.id}
+Nom: ${questData.name}
+Description: ${questData.description}
+Catégorie: ${questData.category}
+Étapes: ${questData.steps.length}
+
+${questData.steps.map((step, i) => `
+Étape ${i + 1}: ${step.name}
+  Description: ${step.description}
+  Objectifs: ${step.objectives.length}
+`).join('')}
+    `;
+    
+    alert(preview);
+}
+
+async reloadQuestSystem() {
+    if (!confirm('Recharger le système de quêtes ? Cela appliquera les modifications.')) return;
+    
+    try {
+        await this.apiCall('/quests/reload', { method: 'POST' });
+        this.showNotification('Système de quêtes rechargé avec succès', 'success');
+    } catch (error) {
+        this.showNotification('Erreur rechargement: ' + error.message, 'error');
+    }
+}
+
+async showBackups() {
+    try {
+        const data = await this.apiCall('/quests/backups');
+        
+        const backupsList = document.getElementById('backupsList');
+        backupsList.innerHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                ${data.backups.map(backup => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; 
+                                padding: 10px; border-bottom: 1px solid #eee;">
+                        <div>
+                            <strong>${backup.filename}</strong><br>
+                            <small style="color: #666;">
+                                ${new Date(backup.date).toLocaleString()} 
+                                (${Math.round(backup.size / 1024)} KB)
+                            </small>
+                        </div>
+                        <button class="btn btn-warning btn-sm" onclick="restoreBackup('${backup.filename}')">
+                            <i class="fas fa-undo"></i> Restaurer
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            
+            ${data.backups.length === 0 ? 
+                '<p style="text-align: center; color: #666; padding: 20px;">Aucun backup disponible</p>' : 
+                `<p style="text-align: center; margin-top: 15px; color: #666;">
+                    ${data.total} backup(s) au total
+                </p>`
+            }
+        `;
+        
+        this.showModal('backupsModal');
+    } catch (error) {
+        this.showNotification('Erreur chargement backups: ' + error.message, 'error');
+    }
+}
+
+async restoreBackup(backupFile) {
+    if (!confirm(`Restaurer le backup "${backupFile}" ?\n\nCela remplacera le fichier de quêtes actuel !`)) return;
+    
+    try {
+        const result = await this.apiCall(`/quests/restore/${backupFile}`, { method: 'POST' });
+        this.showNotification(result.message, 'success');
+        this.closeModal();
+        this.loadQuests();
+    } catch (error) {
+        this.showNotification('Erreur restauration: ' + error.message, 'error');
+    }
+}
+    
         }
 
         // Fonctions globales pour l'interface
@@ -1337,6 +1891,19 @@ async loadDashboard() {
         function getActiveConnections() { adminPanel.getActiveConnections(); }
         function emergencyShutdown() { adminPanel.emergencyShutdown(); }
 
+        function loadQuests() { adminPanel.loadQuests(); }
+function createNewQuest() { adminPanel.createNewQuest(); }
+function editQuest(questId) { adminPanel.editQuest(questId); }
+function duplicateQuest(questId) { adminPanel.duplicateQuest(questId); }
+function deleteQuest(questId) { adminPanel.deleteQuest(questId); }
+function closeQuestEditor() { adminPanel.closeQuestEditor(); }
+function previewQuest() { adminPanel.previewQuest(); }
+function addQuestStep() { adminPanel.addQuestStep(); }
+function removeQuestStep(index) { adminPanel.removeQuestStep(index); }
+function updateStepData(index, field, value) { adminPanel.updateStepData(index, field, value); }
+function reloadQuestSystem() { adminPanel.reloadQuestSystem(); }
+function showBackups() { adminPanel.showBackups(); }
+function restoreBackup(file) { adminPanel.restoreBackup(file); }
         // Initialisation
         let adminPanel;
         document.addEventListener('DOMContentLoaded', () => {
