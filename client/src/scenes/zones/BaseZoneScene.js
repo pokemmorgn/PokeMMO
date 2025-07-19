@@ -1026,14 +1026,16 @@ initializeZoneEnvironment() {
 }
 
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
-  initializeInteractionManager() {
-    console.log('[BaseZoneScene] 🚨 INIT APPELÉ DEPUIS:', new Error().stack);
-
-        // Protection temporaire
-    if (this.interactionManager?.isInitialized) {
-      console.log('[BaseZoneScene] ⚠️ Déjà initialisé, skip');
-      return;
-    }
+initializeInteractionManager() {
+  // 🕵️ Debug simple mais efficace
+  const caller = new Error().stack.split('\n')[2]?.replace(/.*\//, '').substring(0, 100);
+  console.log(`[BaseZoneScene] 🚨 INIT #${++this._initCount || 1} depuis: ${caller}`);
+  
+  // ✅ Protection immédiate
+  if (this.interactionManager?.isInitialized) {
+    console.log('[BaseZoneScene] ⚠️ DÉJÀ INITIALISÉ - SKIP');
+    return this.interactionManager;
+  }
     
     if (!this.networkManager) {
       console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
