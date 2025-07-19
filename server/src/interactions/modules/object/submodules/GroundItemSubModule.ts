@@ -1,10 +1,10 @@
 // src/interactions/modules/object/submodules/GroundItemSubModule.ts
-// Sous-module pour gérer les objets au sol (Pokéballs, potions, etc.)
-// VERSION AVEC AUTO-DÉTECTION PAR NOM
+// Sous-module pour gérer les objets au sol avec auto-détection + cooldowns MongoDB
+// VERSION FINALE INTÉGRÉE
 
 import { Player } from "../../../../schema/PokeWorldState";
-import { PlayerData } from "../../../../models/PlayerData";
 import { InventoryManager } from "../../../../managers/InventoryManager";
+import { PlayerData } from "../../../../models/PlayerData";
 import { 
   BaseObjectSubModule, 
   ObjectDefinition, 
@@ -13,25 +13,27 @@ import {
 import { ObjectNameMapper, MappingResult } from "../utils/ObjectNameMapper";
 
 /**
- * Sous-module pour les objets ramassables au sol avec auto-détection intelligente
+ * Sous-module pour les objets ramassables au sol avec système complet
  * Type: "ground_item"
  * 
- * NOUVELLES FONCTIONNALITÉS :
+ * FONCTIONNALITÉS COMPLÈTES :
  * - Auto-détection par nom : "pokeball" → "poke_ball"
  * - Intégration ItemDB pour validation
+ * - Cooldowns par joueur stockés en MongoDB
+ * - Configuration flexible (cooldownHours dans Tiled)
  * - Fallback avec suggestions si nom non reconnu
  * - Rétrocompatibilité avec itemId manuel
  * 
  * Gère :
  * - Objets brillants visibles (Pokéballs, potions, etc.)
- * - Vérification si déjà collecté
+ * - Cooldowns par joueur (24h par défaut, configurable)
+ * - Persistance en base de données MongoDB
  * - Ajout automatique à l'inventaire
- * - Gestion du respawn (optionnel)
  */
 export default class GroundItemSubModule extends BaseObjectSubModule {
   
   readonly typeName = "GroundItem";
-  readonly version = "2.0.0"; // Version avec auto-détection
+  readonly version = "3.0.0"; // Version avec cooldowns MongoDB
 
   // === MÉTHODES PRINCIPALES ===
 
@@ -52,10 +54,11 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         objectId: objectDef.id, 
         player: player.name,
         objectName: objectDef.name,
+        zone: objectDef.zone,
         manualItemId: objectDef.itemId 
       });
 
-      // === NOUVELLE LOGIQUE : AUTO-DÉTECTION PAR NOM ===
+      // === ÉTAPE 1 : AUTO-DÉTECTION PAR NOM ===
       
       let itemId: string;
       let autoDetected = false;
@@ -101,27 +104,53 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         }
       }
 
-      // === VALIDATION SPÉCIFIQUE ===
+      // === ÉTAPE 2 : RÉCUPÉRER LE JOUEUR DEPUIS MONGODB ===
       
-    // 1. Vérifier cooldown via PlayerData
-          const playerData = await PlayerData.findOne({ username: player.name });
-          if (!playerData) {
-            return this.createErrorResult("Données joueur introuvables", 'PLAYER_NOT_FOUND');
-          }
-          
-          const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
-          if (!cooldownInfo.canCollect) {
-            const hoursLeft = Math.ceil(cooldownInfo.timeLeft / (1000 * 60 * 60));
-            const processingTime = Date.now() - startTime;
-            this.updateStats(false, processingTime);
-            
-            return this.createErrorResult(
-              `Objet déjà collecté. Disponible dans ${hoursLeft}h`,
-              'COOLDOWN_ACTIVE'
-            );
-          }
+      const playerData = await PlayerData.findOne({ username: player.name });
+      if (!playerData) {
+        const processingTime = Date.now() - startTime;
+        this.updateStats(false, processingTime);
+        
+        this.log('error', 'Joueur non trouvé en base', { player: player.name });
+        return this.createErrorResult(
+          "Données joueur non trouvées.",
+          'PLAYER_NOT_FOUND'
+        );
+      }
 
-      // 2. Vérifier que l'item existe (double vérification)
+      // === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
+      
+      const canCollect = playerData.canCollectObject(objectDef.id, objectDef.zone);
+      
+      if (!canCollect) {
+        const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
+        const hoursRemaining = Math.ceil(cooldownInfo.cooldownRemaining / (1000 * 60 * 60));
+        const minutesRemaining = Math.ceil((cooldownInfo.cooldownRemaining % (1000 * 60 * 60)) / (1000 * 60));
+        
+        const processingTime = Date.now() - startTime;
+        this.updateStats(false, processingTime);
+        
+        this.log('info', `⏰ Cooldown actif pour objet`, {
+          objectId: objectDef.id,
+          player: player.name,
+          hoursRemaining,
+          minutesRemaining,
+          nextAvailable: new Date(cooldownInfo.nextAvailableTime!).toISOString()
+        });
+        
+        const timeText = hoursRemaining > 0 
+          ? `${hoursRemaining}h ${minutesRemaining}min`
+          : `${minutesRemaining}min`;
+        
+        return this.createErrorResult(
+          `Cooldown actif. Disponible dans ${timeText}.`,
+          'COOLDOWN_ACTIVE'
+        );
+      }
+
+      // === ÉTAPE 4 : VALIDATION ET TRAITEMENT ===
+
+      // Vérifier que l'item existe (double sécurité)
       if (!itemId) {
         const processingTime = Date.now() - startTime;
         this.updateStats(false, processingTime);
@@ -131,8 +160,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           'NO_ITEM_CONTENT'
         );
       }
-
-      // === TRAITEMENT PRINCIPAL ===
 
       try {
         // Ajouter à l'inventaire du joueur
@@ -147,31 +174,20 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           source: autoDetected ? 'auto-detection' : 'manual'
         });
 
-        // === ENREGISTRER LA COLLECTE AVEC COOLDOWN ===
+        // === ÉTAPE 5 : ENREGISTRER LE COOLDOWN ===
         
         const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
-        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+        await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownHours);
         
-        await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownMs);
-        
-        this.log('info', `⏰ Cooldown enregistré`, {
+        this.log('info', `🕒 Cooldown enregistré`, {
           objectId: objectDef.id,
           zone: objectDef.zone,
+          player: player.name,
           cooldownHours,
-          nextAvailable: new Date(Date.now() + cooldownMs)
+          nextAvailable: new Date(Date.now() + cooldownHours * 60 * 60 * 1000).toISOString()
         });
-        // === PROGRAMMATION DU RESPAWN (si configuré) ===
-        
-        const respawnTime = this.getProperty(objectDef, 'respawnTime', 0);
-        if (respawnTime > 0) {
-          this.scheduleRespawn(objectDef, respawnTime);
-          this.log('info', `⏰ Respawn programmé`, { 
-            objectId: objectDef.id, 
-            respawnTime 
-          });
-        }
 
-        // === DÉTERMINER LA RARETÉ ===
+        // === ÉTAPE 6 : DÉTERMINER LA RARETÉ ===
         
         let rarity = this.getProperty(objectDef, 'rarity', 'common');
         
@@ -205,6 +221,11 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
                 rarity,
                 autoDetected,
                 pocket: mappingResult?.itemData?.pocket || 'items'
+              },
+              cooldown: {
+                duration: cooldownHours,
+                nextAvailable: Date.now() + cooldownHours * 60 * 60 * 1000,
+                storedInMongoDB: true
               },
               processingTime,
               timestamp: Date.now(),
@@ -308,7 +329,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     result: ObjectInteractionResult
   ): Promise<void> {
     
-    // Log analytics avec détails de l'auto-détection
+    // Log analytics avec détails de l'auto-détection et cooldown
     const metadata = result.data?.metadata;
     
     this.log('info', '🎉 Objet collecté avec succès', {
@@ -319,14 +340,16 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       autoDetected: metadata?.itemReceived?.autoDetected,
       detectionMethod: metadata?.detectionMethod,
       pocket: metadata?.itemReceived?.pocket,
+      cooldownHours: metadata?.cooldown?.duration,
       zone: objectDef.zone
     });
     
     // TODO: Ici on pourrait :
     // - Envoyer des events pour analytics
-    // - Déclencher des achievements
+    // - Déclencher des achievements selon la rareté
     // - Notifier d'autres systèmes
     // - Jouer des sons/effets spéciaux selon la rareté
+    // - Logger pour système anti-cheat (fréquence de collecte)
   }
 
   // === MÉTHODES UTILITAIRES PRIVÉES ===
@@ -342,25 +365,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     
     // Sinon utiliser le nom de l'objet ou l'itemId
     return objectDef.name || objectDef.itemId || `Objet #${objectDef.id}`;
-  }
-
-  /**
-   * Programmer le respawn d'un objet
-   */
-  private scheduleRespawn(objectDef: ObjectDefinition, respawnTimeMs: number): void {
-    setTimeout(() => {
-      // Réinitialiser l'état de l'objet
-      objectDef.state.collected = false;
-      objectDef.state.lastCollectedTime = undefined;
-      objectDef.state.collectedBy = [];
-      
-      this.log('info', `🔄 Objet respawné`, { 
-        objectId: objectDef.id, 
-        zone: objectDef.zone,
-        name: objectDef.name
-      });
-      
-    }, respawnTimeMs);
   }
 
   // === MÉTHODES PUBLIQUES POUR ADMINISTRATION ===
@@ -382,41 +386,164 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
   }
 
   /**
-   * Obtenir les statistiques d'auto-détection
+   * Vérifier le cooldown d'un joueur pour un objet
    */
-  getAutoDetectionStats(): {
-    totalInteractions: number;
-    autoDetectedCount: number;
-    manualItemIdCount: number;
-    failedDetectionCount: number;
-    autoDetectionRate: number;
-  } {
-    // Pour une vraie implémentation, il faudrait tracker ces stats
-    // Ici c'est juste un exemple de structure
+  async checkPlayerCooldown(
+    playerName: string, 
+    objectId: number, 
+    zone: string
+  ): Promise<{
+    canCollect: boolean;
+    cooldownRemaining: number;
+    nextAvailableTime?: number;
+    lastCollectedTime?: number;
+  }> {
+    try {
+      const playerData = await PlayerData.findOne({ username: playerName });
+      if (!playerData) {
+        return { canCollect: true, cooldownRemaining: 0 };
+      }
+      
+      return playerData.getObjectCooldownInfo(objectId, zone);
+    } catch (error) {
+      this.log('error', 'Erreur vérification cooldown', { error, playerName, objectId, zone });
+      return { canCollect: true, cooldownRemaining: 0 };
+    }
+  }
+
+  /**
+   * Réinitialiser le cooldown d'un joueur pour un objet (admin)
+   */
+  async resetPlayerCooldown(
+    playerName: string, 
+    objectId: number, 
+    zone: string
+  ): Promise<boolean> {
+    try {
+      const playerData = await PlayerData.findOne({ username: playerName });
+      if (!playerData) {
+        this.log('warn', 'Joueur non trouvé pour reset cooldown', { playerName });
+        return false;
+      }
+      
+      // Retirer l'état d'objet spécifique
+      const initialLength = playerData.objectStates.length;
+      playerData.objectStates = playerData.objectStates.filter(
+        state => !(state.objectId === objectId && state.zone === zone)
+      );
+      
+      if (playerData.objectStates.length !== initialLength) {
+        await playerData.save();
+        this.log('info', 'Cooldown réinitialisé', { playerName, objectId, zone });
+        return true;
+      }
+      
+      this.log('info', 'Aucun cooldown à réinitialiser', { playerName, objectId, zone });
+      return false;
+      
+    } catch (error) {
+      this.log('error', 'Erreur reset cooldown', { error, playerName, objectId, zone });
+      return false;
+    }
+  }
+
+  /**
+   * Obtenir tous les cooldowns actifs d'un joueur
+   */
+  async getPlayerCooldowns(playerName: string): Promise<Array<{
+    objectId: number;
+    zone: string;
+    hoursRemaining: number;
+    nextAvailable: Date;
+  }>> {
+    try {
+      const playerData = await PlayerData.findOne({ username: playerName });
+      if (!playerData || !playerData.objectStates.length) {
+        return [];
+      }
+      
+      const now = Date.now();
+      return playerData.objectStates
+        .filter(state => state.nextAvailableTime > now)
+        .map(state => ({
+          objectId: state.objectId,
+          zone: state.zone,
+          hoursRemaining: Math.ceil((state.nextAvailableTime - now) / (1000 * 60 * 60)),
+          nextAvailable: new Date(state.nextAvailableTime)
+        }));
+        
+    } catch (error) {
+      this.log('error', 'Erreur récupération cooldowns', { error, playerName });
+      return [];
+    }
+  }
+
+  /**
+   * Nettoyer les cooldowns expirés de tous les joueurs (tâche de maintenance)
+   */
+  async cleanupAllExpiredCooldowns(): Promise<{
+    playersProcessed: number;
+    cooldownsRemoved: number;
+    errors: number;
+  }> {
+    let playersProcessed = 0;
+    let cooldownsRemoved = 0;
+    let errors = 0;
     
-    const baseStats = this.getStats();
+    try {
+      // Traiter par batch pour éviter la surcharge mémoire
+      const batchSize = 100;
+      let skip = 0;
+      
+      while (true) {
+        const players = await PlayerData.find({
+          'objectStates.0': { $exists: true } // Seulement ceux avec des objectStates
+        })
+        .skip(skip)
+        .limit(batchSize)
+        .exec();
+        
+        if (players.length === 0) break;
+        
+        for (const player of players) {
+          try {
+            const initialCount = player.objectStates.length;
+            await player.cleanupExpiredCooldowns();
+            const finalCount = player.objectStates.length;
+            
+            cooldownsRemoved += initialCount - finalCount;
+            playersProcessed++;
+            
+          } catch (playerError) {
+            this.log('error', 'Erreur nettoyage joueur', { 
+              error: playerError, 
+              player: player.username 
+            });
+            errors++;
+          }
+        }
+        
+        skip += batchSize;
+      }
+      
+      this.log('info', 'Nettoyage cooldowns terminé', {
+        playersProcessed,
+        cooldownsRemoved,
+        errors
+      });
+      
+    } catch (error) {
+      this.log('error', 'Erreur nettoyage global cooldowns', error);
+      errors++;
+    }
     
-    // Simulation de stats (remplacer par vraie logique)
-    const autoDetectedCount = Math.floor(baseStats.successfulInteractions * 0.7);
-    const manualItemIdCount = baseStats.successfulInteractions - autoDetectedCount;
-    const failedDetectionCount = Math.floor(baseStats.failedInteractions * 0.3);
-    
-    return {
-      totalInteractions: baseStats.totalInteractions,
-      autoDetectedCount,
-      manualItemIdCount,
-      failedDetectionCount,
-      autoDetectionRate: baseStats.totalInteractions > 0 
-        ? (autoDetectedCount / baseStats.totalInteractions) * 100 
-        : 0
-    };
+    return { playersProcessed, cooldownsRemoved, errors };
   }
 
   // === STATISTIQUES SPÉCIALISÉES ===
 
   getStats() {
     const baseStats = super.getStats();
-    const autoDetectionStats = this.getAutoDetectionStats();
     
     return {
       ...baseStats,
@@ -426,12 +553,15 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         'auto_detection_by_name',
         'itemdb_integration',
         'inventory_integration',
-        'respawn_support', 
+        'mongodb_cooldowns',
+        'per_player_cooldowns',
+        'configurable_cooldown_duration',
         'requirements_validation',
         'rarity_calculation',
-        'error_handling_with_suggestions'
+        'error_handling_with_suggestions',
+        'admin_cooldown_management'
       ],
-      autoDetection: autoDetectionStats
+      storageMethod: 'mongodb_player_document'
     };
   }
 
@@ -440,8 +570,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
   getHealth() {
     const baseHealth = super.getHealth();
     
-    // Test de santé de l'auto-détection
+    // Test de santé de l'auto-détection et MongoDB
     let autoDetectionHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
+    let mongodbHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
     
     try {
       // Test rapide de l'auto-détection
@@ -460,20 +591,33 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       autoDetectionHealth = 'critical';
     }
     
+    // Test MongoDB (asynchrone mais on fait un test simple)
+    try {
+      // Test basique de disponibilité MongoDB via PlayerData
+      if (!PlayerData) {
+        mongodbHealth = 'critical';
+      }
+    } catch (error) {
+      mongodbHealth = 'critical';
+    }
+    
     const details = {
       ...baseHealth.details,
       inventoryManagerAvailable: !!InventoryManager,
       objectNameMapperAvailable: !!ObjectNameMapper,
+      playerDataModelAvailable: !!PlayerData,
       autoDetectionHealth,
+      mongodbHealth,
       lastSuccessfulInteraction: this.stats.lastInteraction
     };
     
-    // Santé globale basée sur la pire santé - CORRECTION DU TYPE
-    const globalHealth: 'healthy' | 'warning' | 'critical' = [baseHealth.status, autoDetectionHealth].includes('critical') 
-      ? 'critical' 
-      : [baseHealth.status, autoDetectionHealth].includes('warning') 
-        ? 'warning' 
-        : 'healthy';
+    // Santé globale basée sur la pire santé
+    const globalHealth: 'healthy' | 'warning' | 'critical' = 
+      [baseHealth.status, autoDetectionHealth, mongodbHealth].includes('critical') 
+        ? 'critical' 
+        : [baseHealth.status, autoDetectionHealth, mongodbHealth].includes('warning') 
+          ? 'warning' 
+          : 'healthy';
     
     return {
       ...baseHealth,
@@ -490,6 +634,11 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     // Vérifier que InventoryManager est disponible
     if (!InventoryManager) {
       throw new Error('InventoryManager non disponible');
+    }
+    
+    // Vérifier que PlayerData est disponible
+    if (!PlayerData) {
+      throw new Error('PlayerData model non disponible');
     }
     
     // Vérifier que ObjectNameMapper fonctionne
@@ -510,54 +659,46 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       });
     }
     
-    this.log('info', 'GroundItemSubModule avec auto-détection initialisé', {
+    this.log('info', 'GroundItemSubModule avec cooldowns MongoDB initialisé', {
       validMappings: validation.valid,
       invalidMappings: validation.invalid,
-      inventoryManagerReady: !!InventoryManager
+      inventoryManagerReady: !!InventoryManager,
+      playerDataModelReady: !!PlayerData,
+      storageMethod: 'mongodb'
     });
   }
 
   // === NETTOYAGE ===
 
   async cleanup(): Promise<void> {
-    this.log('info', 'Nettoyage GroundItemSubModule avec auto-détection');
+    this.log('info', 'Nettoyage GroundItemSubModule avec cooldowns MongoDB');
     
-    // Ici on pourrait :
-    // - Annuler les timers de respawn en cours
-    // - Sauvegarder des stats d'auto-détection
-    // - Libérer des ressources
+    // Optionnel : Nettoyer les cooldowns expirés avant arrêt
+    try {
+      const cleanupResult = await this.cleanupAllExpiredCooldowns();
+      this.log('info', 'Nettoyage final cooldowns', cleanupResult);
+    } catch (error) {
+      this.log('warn', 'Erreur nettoyage final cooldowns', error);
+    }
     
     await super.cleanup();
   }
 }
 
-// ✅ EXEMPLE D'UTILISATION AVEC AUTO-DÉTECTION
+// ✅ EXEMPLE D'UTILISATION AVEC COOLDOWNS MONGODB
 
 /*
-// Dans Tiled, pour créer un objet au sol avec auto-détection :
+// Dans Tiled, pour créer un objet au sol avec cooldown personnalisé :
 {
   "id": 1,
-  "name": "pokeball",        // ← AUTO-DÉTECTION : "pokeball" → "poke_ball"
-  "type": "ground_item",     // ← Type requis
+  "name": "pokeball",              // ← AUTO-DÉTECTION : "pokeball" → "poke_ball"
+  "type": "ground_item",           // ← Type requis
   "x": 400,
   "y": 200,
   "properties": [
     {"name": "type", "value": "ground_item"},
-    {"name": "quantity", "value": 1},        // Optionnel
-    {"name": "respawnTime", "value": 300000} // Optionnel - 5 minutes
-    // PLUS BESOIN de {"name": "itemId", "value": "poke_ball"} !
-  ]
-}
-
-// Ou avec itemId manuel (rétrocompatibilité) :
-{
-  "id": 2,
-  "name": "special_potion",
-  "type": "ground_item",
-  "properties": [
-    {"name": "type", "value": "ground_item"},
-    {"name": "itemId", "value": "max_potion"}, // ← Manuel, priorité
-    {"name": "quantity", "value": 2}
+    {"name": "quantity", "value": 1},          // Optionnel
+    {"name": "cooldownHours", "value": 6}      // ← COOLDOWN : 6 heures au lieu de 24h
   ]
 }
 
@@ -566,7 +707,7 @@ this.socket.emit("objectInteract", {
   objectId: "1" 
 });
 
-// Résultat avec auto-détection :
+// Résultat avec cooldown :
 {
   "success": true,
   "type": "objectCollected",
@@ -586,10 +727,42 @@ this.socket.emit("objectInteract", {
         "autoDetected": true,
         "pocket": "balls"
       },
+      "cooldown": {
+        "duration": 6,                    // 6 heures
+        "nextAvailable": 1234567890123,   // Timestamp
+        "storedInMongoDB": true
+      },
       "detectionMethod": "name-mapping",
-      "processingTime": 12,
+      "processingTime": 15,
       "timestamp": 1234567890
     }
   }
 }
+
+// Si interaction pendant cooldown :
+{
+  "success": false,
+  "type": "error",
+  "message": "Cooldown actif. Disponible dans 3h 25min.",
+  "data": {
+    "metadata": {
+      "errorCode": "COOLDOWN_ACTIVE"
+    }
+  }
+}
+
+// Méthodes admin disponibles :
+const module = new GroundItemSubModule();
+
+// Vérifier cooldown joueur
+await module.checkPlayerCooldown("alice", 83, "road1");
+
+// Reset cooldown (admin)
+await module.resetPlayerCooldown("alice", 83, "road1");
+
+// Voir tous cooldowns actifs
+await module.getPlayerCooldowns("alice");
+
+// Nettoyage global (tâche cron)
+await module.cleanupAllExpiredCooldowns();
 */
