@@ -661,94 +661,62 @@ export class AuthRoom extends Room<AuthState> {
   }
 
   // ✅ MÉTHODE AMÉLIORÉE pour récupérer l'IP avec DEBUG COMPLET
-  private getClientIP(client: Client): string {
-    try {
-      const headers = (client as any).request?.headers || {};
-      const connection = (client as any).request?.connection || {};
-      const socket = (client as any).request?.socket || {};
-      const rawRequest = (client as any).request || {};
+ private getClientIP(client: Client): string {
+  try {
+    console.log(`🔍 [AuthRoom] === RÉCUPÉRATION IP pour ${client.sessionId} ===`);
+    
+    // ✅ PRIORITÉ 1: IP injectée par le middleware global
+    const detectedIP = (client as any).detectedIP;
+    if (detectedIP && detectedIP !== 'unknown') {
+      console.log(`✅ [AuthRoom] IP via middleware: ${detectedIP}`);
       
-      console.log(`🔍 [AuthRoom] === DEBUG IP DÉTAILLÉ pour ${client.sessionId} ===`);
-      
-      // ✅ DEBUG COMPLET: Afficher TOUT ce qui est disponible
-      console.log(`📋 Headers disponibles:`, Object.keys(headers));
-      console.log(`📋 Headers complets:`, headers);
-      console.log(`🔌 Connection:`, {
-        remoteAddress: connection.remoteAddress,
-        remotePort: connection.remotePort,
-        localAddress: connection.localAddress,
-        localPort: connection.localPort
-      });
-      console.log(`🔌 Socket:`, {
-        remoteAddress: socket.remoteAddress,
-        remotePort: socket.remotePort,
-        localAddress: socket.localAddress,
-        localPort: socket.localPort
-      });
-      console.log(`🌐 Raw request props:`, Object.keys(rawRequest));
-      
-      // ✅ ORDRE DE PRIORITÉ pour les headers d'IP avec DEBUG
-      const ipSources = [
-        { name: 'cf-connecting-ip', value: headers['cf-connecting-ip'] },
-        { name: 'x-real-ip', value: headers['x-real-ip'] },
-        { name: 'x-forwarded-for', value: headers['x-forwarded-for']?.split(',')[0]?.trim() },
-        { name: 'x-client-ip', value: headers['x-client-ip'] },
-        { name: 'x-cluster-client-ip', value: headers['x-cluster-client-ip'] },
-        { name: 'forwarded', value: headers['forwarded']?.match(/for=([^;,\s]+)/)?.[1] },
-        { name: 'connection.remoteAddress', value: connection.remoteAddress },
-        { name: 'socket.remoteAddress', value: socket.remoteAddress },
-        { name: 'req.ip', value: rawRequest.ip },
-        { name: 'req.ips', value: rawRequest.ips },
-        { name: 'req.connection.remoteAddress', value: rawRequest.connection?.remoteAddress }
-      ];
-      
-      console.log(`🔍 [AuthRoom] Sources IP testées:`);
-      ipSources.forEach(source => {
-        console.log(`  - ${source.name}: ${source.value || 'undefined'} ${source.value ? (this.isValidIP(source.value) ? '✅' : '❌') : ''}`);
-      });
-      
-      // ✅ TROUVER la première IP valide
-      for (const source of ipSources) {
-        if (source.value && this.isValidIP(source.value)) {
-          const cleanedIP = this.cleanIP(source.value);
-          console.log(`✅ [AuthRoom] IP trouvée via ${source.name}: ${cleanedIP} pour client ${client.sessionId}`);
-          return cleanedIP;
-        }
+      // Analyser le type d'IP
+      if (detectedIP.startsWith('127.') || detectedIP === 'localhost') {
+        console.log(`🏠 [IP] Connexion locale: ${detectedIP}`);
+        return 'localhost';
+      } else if (detectedIP.startsWith('192.168.') || detectedIP.startsWith('10.')) {
+        console.log(`🏢 [IP] Réseau privé: ${detectedIP}`);
+        return `local_${detectedIP}`;
+      } else {
+        console.log(`🌐 [IP] IP publique: ${detectedIP}`);
+        return detectedIP;
       }
-      
-      // ✅ FALLBACK AMÉLIORÉ: Essayer les headers en mode "forcé"
-      const forcedSources = [
-        headers['x-forwarded-for'], // Prendre la valeur brute
-        connection.remoteAddress,
-        socket.remoteAddress,
-        '127.0.0.1' // Localhost par défaut
-      ];
-      
-      console.log(`🔄 [AuthRoom] Tentative sources forcées:`);
-      for (let i = 0; i < forcedSources.length; i++) {
-        const rawIP = forcedSources[i];
-        console.log(`  - Source forcée ${i}: ${rawIP}`);
-        
-        if (rawIP) {
-          // Nettoyer et utiliser même si pas "parfaitement" valide
-          const cleanedIP = this.cleanIP(rawIP);
-          if (cleanedIP && cleanedIP !== 'unknown') {
-            console.log(`🎯 [AuthRoom] IP forcée acceptée: ${cleanedIP}`);
-            return cleanedIP;
-          }
-        }
-      }
-      
-      // ✅ FALLBACK final
-      const fallbackIP = this.generateFallbackIP(client, headers);
-      console.log(`⚠️ [AuthRoom] IP fallback finale: ${fallbackIP} pour client ${client.sessionId}`);
-      return fallbackIP;
-      
-    } catch (error) {
-      console.error(`❌ [AuthRoom] Erreur récupération IP:`, error);
-      return `error_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     }
+    
+    // ✅ PRIORITÉ 2: Fallback vers les propriétés Colyseus (si middleware échoue)
+    const headers = (client as any).request?.headers || {};
+    const connection = (client as any).request?.connection || {};
+    
+    console.log(`🔍 [AuthRoom] Fallback - Headers:`, {
+      'x-real-ip': headers['x-real-ip'],
+      'x-forwarded-for': headers['x-forwarded-for'],
+      'x-client-ip': headers['x-client-ip']
+    });
+    
+    const fallbackSources = [
+      headers['x-real-ip'],
+      headers['x-forwarded-for']?.split(',')[0]?.trim(),
+      headers['x-client-ip'],
+      connection.remoteAddress
+    ];
+    
+    for (const ip of fallbackSources) {
+      if (ip && this.isValidIP(ip)) {
+        const cleanedIP = this.cleanIP(ip);
+        console.log(`✅ [AuthRoom] IP via fallback: ${cleanedIP}`);
+        return cleanedIP;
+      }
+    }
+    
+    // ✅ PRIORITÉ 3: Dernier recours
+    console.log(`⚠️ [AuthRoom] Utilisation localhost par défaut`);
+    return 'localhost';
+    
+  } catch (error) {
+    console.error(`❌ [AuthRoom] Erreur récupération IP:`, error);
+    return 'localhost';
   }
+}
 
   // ✅ MÉTHODE AMÉLIORÉE: Valider une IP (plus permissive)
   private isValidIP(ip: string): boolean {
