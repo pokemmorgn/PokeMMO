@@ -29,7 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
             QuestsModule,
             LogsToolsModule
         ])
-        
+
+      window.adminPanel = adminPanel
+
         console.log('✅ [Admin] Admin Panel initialized successfully')
     } catch (error) {
         console.error('❌ [Admin] Failed to initialize:', error)
@@ -66,8 +68,6 @@ function showErrorMessage(message) {
     }, 5000)
 }
 
-// Export for global access
-window.adminPanel = adminPanel
 
 // Expose global functions for backwards compatibility
 window.refreshStats = () => adminPanel?.dashboard?.refreshStats()
