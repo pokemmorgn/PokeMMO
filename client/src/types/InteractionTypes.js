@@ -120,22 +120,21 @@ export const INTERACTION_DATA_FORMATS = {
 export class InteractionValidator {
   
   // Valider données interaction NPC
-  static validateNpcInteract(data) {
-    const errors = [];
-    
-    if (!data.npcId || typeof data.npcId !== 'string') {
-      errors.push('npcId requis (string)');
-    }
-    
-    if (data.playerPosition && (!data.playerPosition.x || !data.playerPosition.y)) {
-      errors.push('playerPosition invalide (doit avoir x et y)');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors: errors
-    };
+static validateNpcInteract(data) {
+  const errors = [];
+  
+  // ✅ Accepter number ET string
+  if (!data.npcId || (typeof data.npcId !== 'string' && typeof data.npcId !== 'number')) {
+    errors.push('npcId requis (string ou number)');
   }
+  
+  // ❌ NE PAS convertir en string - garder le type original
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
+}
   
   // Valider données interaction objet
   static validateObjectInteract(data) {
