@@ -447,8 +447,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       lastSuccessfulInteraction: this.stats.lastInteraction
     };
     
-    // Santé globale basée sur la pire santé
-    const globalHealth = [baseHealth.status, autoDetectionHealth].includes('critical') 
+    // Santé globale basée sur la pire santé - CORRECTION DU TYPE
+    const globalHealth: 'healthy' | 'warning' | 'critical' = [baseHealth.status, autoDetectionHealth].includes('critical') 
       ? 'critical' 
       : [baseHealth.status, autoDetectionHealth].includes('warning') 
         ? 'warning' 
