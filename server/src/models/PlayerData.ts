@@ -12,22 +12,31 @@ interface IPlayerData extends Document {
   recordSuccessfulLogin(ip?: string): Promise<any>;
 }
 
+// ✅ NOUVEAU : Interface pour les états d'objets (cooldowns)
+interface ObjectStateEntry {
+  objectId: number;
+  zone: string;
+  lastCollectedTime: number;    // timestamp
+  nextAvailableTime: number;    // timestamp
+  cooldownDuration: number;     // durée en millisecondes
+}
+
 const PlayerDataSchema = new mongoose.Schema({
-  // ✅ CHAMPS EXISTANTS (vos données de jeu)
+  // ✅ CHAMPS EXISTANTS (vos données de jeu) - INCHANGÉS
   username: { type: String, required: true, unique: true },
   gold: { type: Number, default: 1000 },
   team: [{ type: mongoose.Schema.Types.ObjectId, ref: "OwnedPokemon" }],
   lastX: { type: Number, default: 360 },
   lastY: { type: Number, default: 120 },
   lastMap: { type: String, default: "beach" },
-walletAddress: { 
-  type: String, 
-  required: false, 
-  unique: true, 
-  sparse: true 
-},
+  walletAddress: { 
+    type: String, 
+    required: false, 
+    unique: true, 
+    sparse: true 
+  },
 
-  // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée
+  // ✅ NOUVEAUX CHAMPS pour l'authentification sécurisée - INCHANGÉS
   email: { 
     type: String, 
     required: false, 
@@ -40,16 +49,16 @@ walletAddress: {
     type: String, 
     required: false // Optionnel pour compatibilité avec système wallet existant
   },
-    isDev: {
+  isDev: {
     type: Boolean,
     default: false
   },
-  // Sécurité et métadonnées
+  // Sécurité et métadonnées - INCHANGÉS
   deviceFingerprint: { type: String },
   registrationIP: { type: String },
   lastLoginIP: { type: String },
   
-  // Timestamps et statistiques
+  // Timestamps et statistiques - INCHANGÉS
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date, default: Date.now },
   loginCount: { type: Number, default: 0 },
@@ -58,25 +67,37 @@ walletAddress: {
   banReason: { type: String },
   banExpiresAt: { type: Date },
   
-  // Données de jeu (gardez vos champs existants)
+  // Données de jeu (gardez vos champs existants) - INCHANGÉS
   level: { type: Number, default: 1 },
   experience: { type: Number, default: 0 },
   totalPlaytime: { type: Number, default: 0 }, // en minutes
   currentSessionStart: { type: Date, default: null },
-  // Préférences utilisateur
+  // Préférences utilisateur - INCHANGÉS
   emailVerified: { type: Boolean, default: false },
   twoFactorEnabled: { type: Boolean, default: false },
   preferredLanguage: { type: String, default: 'en' },
   
-  // Statistiques de sécurité
+  // Statistiques de sécurité - INCHANGÉS
   failedLoginAttempts: { type: Number, default: 0 },
   lastFailedLogin: { type: Date },
-  passwordChangedAt: { type: Date, default: Date.now }
+  passwordChangedAt: { type: Date, default: Date.now },
+
+  // ✅ NOUVEAU : États des objets collectés avec cooldowns
+  objectStates: {
+    type: [{
+      objectId: { type: Number, required: true },
+      zone: { type: String, required: true },
+      lastCollectedTime: { type: Number, required: true }, // timestamp en ms
+      nextAvailableTime: { type: Number, required: true }, // timestamp en ms
+      cooldownDuration: { type: Number, required: true }   // durée en ms
+    }],
+    default: [] // ✅ IMPORTANT : Valeur par défaut pour compatibilité
+  }
 }, {
   timestamps: true // Ajoute automatiquement createdAt et updatedAt
 });
 
-// ✅ INDEX pour performance et sécurité
+// ✅ INDEX pour performance et sécurité - INCHANGÉS + NOUVEAUX
 PlayerDataSchema.index({ username: 1 });
 PlayerDataSchema.index({ email: 1 });
 PlayerDataSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
@@ -84,7 +105,11 @@ PlayerDataSchema.index({ deviceFingerprint: 1 });
 PlayerDataSchema.index({ isActive: 1 });
 PlayerDataSchema.index({ createdAt: 1 });
 
-// ✅ MÉTHODES virtuelles pour sécurité
+// ✅ NOUVEAU : Index pour les requêtes d'objets
+PlayerDataSchema.index({ "objectStates.objectId": 1, "objectStates.zone": 1 });
+PlayerDataSchema.index({ "objectStates.nextAvailableTime": 1 }); // Pour cleanup des cooldowns expirés
+
+// ✅ MÉTHODES virtuelles pour sécurité - INCHANGÉES
 PlayerDataSchema.virtual('isAccountLocked').get(function() {
   return this.failedLoginAttempts >= 5 && 
          this.lastFailedLogin && 
@@ -95,7 +120,7 @@ PlayerDataSchema.virtual('isBanActive').get(function() {
   return this.isBanned && (!this.banExpiresAt || this.banExpiresAt > new Date());
 });
 
-// ✅ MÉTHODES pour gestion des tentatives de connexion
+// ✅ MÉTHODES pour gestion des tentatives de connexion - INCHANGÉES
 PlayerDataSchema.methods.recordFailedLogin = function() {
   this.failedLoginAttempts = (this.failedLoginAttempts || 0) + 1;
   this.lastFailedLogin = new Date();
@@ -117,7 +142,112 @@ PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
   return this.save();
 };
 
-// ✅ MIDDLEWARE pre-save pour sécurité
+// ✅ NOUVELLES MÉTHODES pour gestion des objets avec cooldown
+PlayerDataSchema.methods.canCollectObject = function(objectId: number, zone: string): boolean {
+  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+    return true; // Première fois ou pas d'états = peut collecter
+  }
+  
+  const objectState = this.objectStates.find(
+    (state: ObjectStateEntry) => state.objectId === objectId && state.zone === zone
+  );
+  
+  if (!objectState) {
+    return true; // Jamais collecté = peut collecter
+  }
+  
+  // Vérifier si le cooldown est écoulé
+  return Date.now() >= objectState.nextAvailableTime;
+};
+
+PlayerDataSchema.methods.recordObjectCollection = function(
+  objectId: number, 
+  zone: string, 
+  cooldownHours: number = 24
+): Promise<any> {
+  // Initialiser objectStates si pas défini (compatibilité)
+  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+    this.objectStates = [];
+  }
+  
+  const now = Date.now();
+  const cooldownDuration = cooldownHours * 60 * 60 * 1000; // Heures → ms
+  const nextAvailableTime = now + cooldownDuration;
+  
+  // Chercher un état existant
+  const existingStateIndex = this.objectStates.findIndex(
+    (state: ObjectStateEntry) => state.objectId === objectId && state.zone === zone
+  );
+  
+  if (existingStateIndex >= 0) {
+    // Mettre à jour l'état existant
+    this.objectStates[existingStateIndex] = {
+      objectId,
+      zone,
+      lastCollectedTime: now,
+      nextAvailableTime,
+      cooldownDuration
+    };
+  } else {
+    // Ajouter un nouvel état
+    this.objectStates.push({
+      objectId,
+      zone,
+      lastCollectedTime: now,
+      nextAvailableTime,
+      cooldownDuration
+    });
+  }
+  
+  return this.save();
+};
+
+PlayerDataSchema.methods.getObjectCooldownInfo = function(objectId: number, zone: string) {
+  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+    return { canCollect: true, cooldownRemaining: 0 };
+  }
+  
+  const objectState = this.objectStates.find(
+    (state: ObjectStateEntry) => state.objectId === objectId && state.zone === zone
+  );
+  
+  if (!objectState) {
+    return { canCollect: true, cooldownRemaining: 0 };
+  }
+  
+  const now = Date.now();
+  const canCollect = now >= objectState.nextAvailableTime;
+  const cooldownRemaining = Math.max(0, objectState.nextAvailableTime - now);
+  
+  return {
+    canCollect,
+    cooldownRemaining, // en millisecondes
+    nextAvailableTime: objectState.nextAvailableTime,
+    lastCollectedTime: objectState.lastCollectedTime
+  };
+};
+
+// ✅ MÉTHODE pour nettoyer les anciens cooldowns expirés (optionnel)
+PlayerDataSchema.methods.cleanupExpiredCooldowns = function(): Promise<any> {
+  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+    return Promise.resolve(this);
+  }
+  
+  const now = Date.now();
+  const activeStates = this.objectStates.filter(
+    (state: ObjectStateEntry) => state.nextAvailableTime > now
+  );
+  
+  // Seulement sauvegarder si des changements
+  if (activeStates.length !== this.objectStates.length) {
+    this.objectStates = activeStates;
+    return this.save();
+  }
+  
+  return Promise.resolve(this);
+};
+
+// ✅ MIDDLEWARE pre-save pour sécurité - ÉTENDU
 PlayerDataSchema.pre('save', function(next) {
   // Nettoyer l'email
   if (this.email) {
@@ -130,9 +260,15 @@ PlayerDataSchema.pre('save', function(next) {
     if (this.gold === undefined) this.gold = 1000;
     if (this.lastX === undefined) this.lastX = 360;
     if (this.lastY === undefined) this.lastY = 120;
+    
+    // ✅ NOUVEAU : Initialiser objectStates pour nouveaux joueurs
+    if (!this.objectStates) this.objectStates = [];
   }
   
   next();
 });
 
 export const PlayerData = mongoose.model("PlayerData", PlayerDataSchema);
+
+// ✅ EXPORT des types pour TypeScript
+export type { ObjectStateEntry };
