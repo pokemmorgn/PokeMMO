@@ -215,6 +215,17 @@
                  "width":0,
                  "x":243.333333333333,
                  "y":394
+                }, 
+                {
+                 "height":59.3333333333333,
+                 "id":5,
+                 "name":"pc_center",
+                 "rotation":0,
+                 "type":"pc",
+                 "visible":true,
+                 "width":30,
+                 "x":320,
+                 "y":205.333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -246,7 +257,7 @@
                         {
                          "name":"dialogueId",
                          "type":"string",
-                         "value":"greeting_Noelle"
+                         "value":"greeting_noelle"
                         }, 
                         {
                          "name":"direction",
@@ -316,7 +327,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"HealerNoelle"
+                         "value":"healer"
                         }, 
                         {
                          "name":"trainerId",
@@ -337,7 +348,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":5,
+ "nextobjectid":6,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
