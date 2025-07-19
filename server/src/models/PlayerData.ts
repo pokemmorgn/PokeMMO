@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 // ✅ INTERFACE pour les méthodes personnalisées
 interface IPlayerData extends Document {
@@ -10,6 +10,16 @@ interface IPlayerData extends Document {
   recordFailedLogin(): Promise<any>;
   resetFailedLogins(): Promise<any>;
   recordSuccessfulLogin(ip?: string): Promise<any>;
+  
+  // NOUVELLES MÉTHODES pour cooldowns d'objets
+  canCollectObject(objectId: number, zone: string): boolean;
+  recordObjectCollection(objectId: number, zone: string, cooldownDurationMs: number): Promise<any>;
+  getObjectCooldownInfo(objectId: number, zone: string): {
+    canCollect: boolean;
+    timeLeft: number;
+    lastCollected?: Date;
+    nextAvailable?: Date;
+  };
 }
 
 const PlayerDataSchema = new mongoose.Schema({
@@ -63,6 +73,7 @@ walletAddress: {
   experience: { type: Number, default: 0 },
   totalPlaytime: { type: Number, default: 0 }, // en minutes
   currentSessionStart: { type: Date, default: null },
+  
   // États des objets collectés avec cooldowns
   objectStates: [{
     objectId: { type: Number, required: true },
@@ -209,4 +220,4 @@ PlayerDataSchema.pre('save', function(next) {
   next();
 });
 
-export const PlayerData = mongoose.model("PlayerData", PlayerDataSchema);
+export const PlayerData = mongoose.model<IPlayerData>("PlayerData", PlayerDataSchema);
