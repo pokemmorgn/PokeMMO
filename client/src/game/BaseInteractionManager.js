@@ -299,7 +299,14 @@ initializeModules() {
       return;
     }
     
-    console.log(`[BaseInteractionManager] 🎯 Cible sélectionnée: ${primaryTarget.type} - ${primaryTarget.target?.name || primaryTarget.target?.id}`);
+console.log(`[BaseInteractionManager] 🎯 Cible sélectionnée: ${primaryTarget.type} - Sprite:`, primaryTarget.target);
+console.log(`[BaseInteractionManager] 🎯 Propriétés du sprite:`, {
+  x: primaryTarget.target?.x,
+  y: primaryTarget.target?.y,
+  objectId: primaryTarget.target?.objectId,
+  objectType: primaryTarget.target?.objectType,
+  texture: primaryTarget.target?.texture?.key
+});
     
     // ✅ Callback de détection
     if (this.callbacks.onTargetDetected) {
