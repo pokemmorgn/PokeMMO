@@ -1060,7 +1060,7 @@
                                 sessionToken: data.sessionToken,
                                 tokenExpiry: data.tokenExpiry,
                                 permissions: data.permissions || ['play'],
-                                lastLogin: Date.now()
+                                lastLogin: Date.now(),
                                  isDev: data.userData.isDev || false  // ✅ AJOUTER CETTE LIGNE
 
                             };
@@ -1140,7 +1140,7 @@
                                 tokenExpiry: data.tokenExpiry,
                                 permissions: data.permissions || ['play'],
                                 isNewUser: true,
-                                registrationDate: Date.now()
+                                registrationDate: Date.now(),
                                                                 isDev: data.userData.isDev || false  // ✅ AJOUTER CETTE LIGNE
 
                             };
