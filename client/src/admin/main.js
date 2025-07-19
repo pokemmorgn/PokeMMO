@@ -15,7 +15,7 @@ import { LogsToolsModule } from './js/logs-tools.js'
 let adminPanel
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 [Admin] Initializing PokeWorld Admin Panel...')
     
     try {
@@ -30,12 +30,268 @@ document.addEventListener('DOMContentLoaded', () => {
             LogsToolsModule
         ])
         
+        // Export for global access AFTER initialization
+        window.adminPanel = adminPanel
+        
+        // Expose global functions for backwards compatibility
+        setupGlobalFunctions()
+        
         console.log('✅ [Admin] Admin Panel initialized successfully')
     } catch (error) {
         console.error('❌ [Admin] Failed to initialize:', error)
         showErrorMessage('Erreur d\'initialisation: ' + error.message)
     }
 })
+
+// Setup global functions with proper error handling
+function setupGlobalFunctions() {
+    // Dashboard functions
+    window.refreshStats = () => {
+        if (!adminPanel?.dashboard) {
+            console.error('Dashboard module not loaded')
+            return
+        }
+        adminPanel.dashboard.refreshStats()
+    }
+
+    // Players functions
+    window.searchPlayers = () => {
+        if (!adminPanel?.players) {
+            console.error('Players module not loaded')
+            return
+        }
+        adminPanel.players.searchPlayers()
+    }
+
+    window.loadAllPlayers = () => {
+        if (!adminPanel?.players) {
+            console.error('Players module not loaded')
+            return
+        }
+        adminPanel.players.loadAllPlayers()
+    }
+
+    window.editPlayer = () => {
+        if (!adminPanel?.players) {
+            console.error('Players module not loaded')
+            return
+        }
+        adminPanel.players.editPlayer()
+    }
+
+    window.cancelEdit = () => {
+        if (!adminPanel?.players) {
+            console.error('Players module not loaded')
+            return
+        }
+        adminPanel.players.cancelEdit()
+    }
+
+    window.resetPlayerData = () => {
+        if (!adminPanel?.players) {
+            console.error('Players module not loaded')
+            return
+        }
+        adminPanel.players.resetPlayerData()
+    }
+
+    // Quests functions
+    window.loadQuests = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.loadQuests()
+    }
+
+    window.createNewQuest = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.createNewQuest()
+    }
+
+    window.editQuest = (id) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.editQuest(id)
+    }
+
+    window.duplicateQuest = (id) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.duplicateQuest(id)
+    }
+
+    window.deleteQuest = (id) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.deleteQuest(id)
+    }
+
+    window.reloadQuestSystem = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.reloadQuestSystem()
+    }
+
+    window.showBackups = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.showBackups()
+    }
+
+    window.restoreBackup = (file) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.restoreBackup(file)
+    }
+
+    window.addQuestStep = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.addQuestStep()
+    }
+
+    window.removeQuestStep = (index) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.removeQuestStep(index)
+    }
+
+    window.updateStepData = (index, field, value) => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.updateStepData(index, field, value)
+    }
+
+    window.previewQuest = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.previewQuest()
+    }
+
+    window.closeQuestEditor = () => {
+        if (!adminPanel?.quests) {
+            console.error('Quests module not loaded')
+            return
+        }
+        adminPanel.quests.closeQuestEditor()
+    }
+
+    // Logs & Tools functions
+    window.loadLogs = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.loadLogs()
+    }
+
+    window.clearLogs = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.clearLogs()
+    }
+
+    window.toggleAutoRefresh = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.toggleAutoRefresh()
+    }
+
+    window.executeBulkAction = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.executeBulkAction()
+    }
+
+    window.getDBStats = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.getDBStats()
+    }
+
+    window.optimizeDB = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.optimizeDB()
+    }
+
+    window.backupDB = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.backupDB()
+    }
+
+    window.restartGameRooms = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.restartGameRooms()
+    }
+
+    window.getActiveConnections = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.getActiveConnections()
+    }
+
+    window.emergencyShutdown = () => {
+        if (!adminPanel?.logsTools) {
+            console.error('LogsTools module not loaded')
+            return
+        }
+        adminPanel.logsTools.emergencyShutdown()
+    }
+
+    // Modal functions
+    window.closeModal = () => {
+        if (!adminPanel) {
+            console.error('AdminPanel not loaded')
+            return
+        }
+        adminPanel.closeModal()
+    }
+
+    console.log('✅ [Admin] Global functions setup completed')
+}
 
 // Global error handler
 window.addEventListener('error', (event) => {
@@ -65,38 +321,3 @@ function showErrorMessage(message) {
         setTimeout(() => notification.remove(), 300)
     }, 5000)
 }
-
-// Export for global access
-window.adminPanel = adminPanel
-
-// Expose global functions for backwards compatibility
-window.refreshStats = () => adminPanel?.dashboard?.refreshStats()
-window.searchPlayers = () => adminPanel?.players?.searchPlayers()
-window.loadAllPlayers = () => adminPanel?.players?.loadAllPlayers()
-window.loadQuests = () => adminPanel?.quests?.loadQuests()
-window.createNewQuest = () => adminPanel?.quests?.createNewQuest()
-window.editQuest = (id) => adminPanel?.quests?.editQuest(id)
-window.duplicateQuest = (id) => adminPanel?.quests?.duplicateQuest(id)
-window.deleteQuest = (id) => adminPanel?.quests?.deleteQuest(id)
-window.reloadQuestSystem = () => adminPanel?.quests?.reloadQuestSystem()
-window.showBackups = () => adminPanel?.quests?.showBackups()
-window.restoreBackup = (file) => adminPanel?.quests?.restoreBackup(file)
-window.addQuestStep = () => adminPanel?.quests?.addQuestStep()
-window.removeQuestStep = (index) => adminPanel?.quests?.removeQuestStep(index)
-window.updateStepData = (index, field, value) => adminPanel?.quests?.updateStepData(index, field, value)
-window.previewQuest = () => adminPanel?.quests?.previewQuest()
-window.closeQuestEditor = () => adminPanel?.quests?.closeQuestEditor()
-window.editPlayer = () => adminPanel?.players?.editPlayer()
-window.cancelEdit = () => adminPanel?.players?.cancelEdit()
-window.resetPlayerData = () => adminPanel?.players?.resetPlayerData()
-window.closeModal = () => adminPanel?.closeModal()
-window.loadLogs = () => adminPanel?.logsTools?.loadLogs()
-window.clearLogs = () => adminPanel?.logsTools?.clearLogs()
-window.toggleAutoRefresh = () => adminPanel?.logsTools?.toggleAutoRefresh()
-window.executeBulkAction = () => adminPanel?.logsTools?.executeBulkAction()
-window.getDBStats = () => adminPanel?.logsTools?.getDBStats()
-window.optimizeDB = () => adminPanel?.logsTools?.optimizeDB()
-window.backupDB = () => adminPanel?.logsTools?.backupDB()
-window.restartGameRooms = () => adminPanel?.logsTools?.restartGameRooms()
-window.getActiveConnections = () => adminPanel?.logsTools?.getActiveConnections()
-window.emergencyShutdown = () => adminPanel?.logsTools?.emergencyShutdown()
