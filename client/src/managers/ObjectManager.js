@@ -760,6 +760,9 @@ window.debugObjectManager = function() {
   }
 };
 
+// ✅ EXPORT PAR DÉFAUT (corrige l'erreur d'import)
+export default ObjectManager;
+
 console.log('✅ ObjectManager chargé (VERSION CORRIGÉE)!');
 console.log('🔍 Utilisez window.debugObjectManager() pour diagnostiquer');
 console.log('🎯 Le problème de nettoyage des groupes Phaser devrait être résolu!');
