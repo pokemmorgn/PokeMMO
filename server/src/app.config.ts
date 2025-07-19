@@ -67,14 +67,14 @@ export default config({
   }
 };
     // ✅ ROUTE pour servir l'interface admin
-app.get("/admin", requireDev, (req: any, res) => {
-  console.log('🎯 [App] Route /admin appelée');
-  console.log('👤 User:', req.user?.username);
+app.get("/admin", (req: any, res) => {
+  console.log('🎯 [App] Route /admin appelée (sans auth)');
+  console.log('🌐 IP:', req.headers['x-real-ip'] || req.connection.remoteAddress);
   console.log('📁 Chemin fichier:', path.join(__dirname, '../../client/public/admin.html'));
   
   const adminPath = path.join(__dirname, '../../client/public/admin.html');
   if (require('fs').existsSync(adminPath)) {
-    console.log('✅ [App] Fichier admin.html trouvé');
+    console.log('✅ [App] Fichier admin.html trouvé, envoi...');
     res.sendFile(adminPath);
   } else {
     console.log('❌ [App] Fichier admin.html MANQUANT !');
@@ -82,6 +82,9 @@ app.get("/admin", requireDev, (req: any, res) => {
   }
 });
 
+// ✅ La sécurité reste sur les API (ne pas toucher)
+app.use('/api/admin', requireMacAndDev, adminRoutes);
+    
     // ✅ ROUTE de base améliorée
     app.get("/hello_world", (req, res) => {
       res.json({
