@@ -332,51 +332,51 @@ export class ObjectInteractionManager {
     }
   }
 
-  async sendObjectInteraction(object, options = {}) {
-    console.log('[ObjectInteractionManager] 📤 Envoi interaction objet...');
-    
-    if (!this.networkHandler) {
-      console.error('[ObjectInteractionManager] ❌ Pas de NetworkHandler');
-      return false;
-    }
-    
-    try {
-      // ✅ Déterminer ID de l'objet
-      const objectId = object.id || object.name || 'unknown_object';
-      
-      // ✅ Déterminer type d'objet
-      const objectType = this.state.currentInteractionType || options.objectType;
-      
-      // ✅ Position de l'objet
-      const objectPosition = object.x !== undefined && object.y !== undefined 
-        ? { x: object.x, y: object.y }
-        : null;
-      
-      // ✅ Données supplémentaires
-      const additionalData = {
-        objectName: object.name,
-        objectType: objectType,
-        interactionType: this.state.currentInteractionType,
-        properties: object.properties,
-        ...options
-      };
-      
-      // ✅ Envoyer via NetworkHandler
-      const result = this.networkHandler.sendObjectInteract(
-        objectId,
-        objectType,
-        objectPosition,
-        additionalData
-      );
-      
-      console.log(`[ObjectInteractionManager] Résultat envoi: ${result}`);
-      return result;
-      
-    } catch (error) {
-      console.error('[ObjectInteractionManager] ❌ Erreur envoi:', error);
-      return false;
-    }
+async sendObjectInteraction(object, options = {}) {
+  console.log('[ObjectInteractionManager] 📤 Envoi interaction objet...');
+  
+  if (!this.networkHandler) {
+    console.error('[ObjectInteractionManager] ❌ Pas de NetworkHandler');
+    return false;
   }
+  
+  try {
+    // ✅ CORRECTION : Utiliser les propriétés du sprite Phaser
+    const objectId = object.objectId || object.id || object.name || 'unknown_object';
+    
+    // ✅ CORRECTION : Utiliser objectType du sprite
+    const objectType = object.objectType || this.state.currentInteractionType || options.objectType || 'unknown';
+    
+    // ✅ Position de l'objet
+    const objectPosition = object.x !== undefined && object.y !== undefined 
+      ? { x: object.x, y: object.y }
+      : null;
+    
+    // ✅ CORRECTION : Données supplémentaires avec les bonnes propriétés
+    const additionalData = {
+      objectName: object.name || object.objectId || objectId,
+      objectType: objectType,
+      interactionType: this.state.currentInteractionType,
+      properties: object.objectData || object.properties, // ✅ objectData du sprite
+      ...options
+    };
+    
+    // ✅ Envoyer via NetworkHandler
+    const result = this.networkHandler.sendObjectInteract(
+      objectId,
+      objectType,
+      objectPosition,
+      additionalData
+    );
+    
+    console.log(`[ObjectInteractionManager] Résultat envoi: ${result}`);
+    return result;
+    
+  } catch (error) {
+    console.error('[ObjectInteractionManager] ❌ Erreur envoi:', error);
+    return false;
+  }
+}
 
   // === FOUILLE D'OBJETS CACHÉS ===
 
