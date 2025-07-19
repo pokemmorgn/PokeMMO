@@ -21,6 +21,7 @@ import { getServerConfig } from "./config/serverConfig";
 import { PlayerQuest } from "./models/PlayerQuest";
 import { BattleRoom } from "./rooms/BattleRoom";
 import jwt from 'jsonwebtoken';
+import adminRoutes from './routes/adminRoutes';
 
 let globalPokemonManager: PokemonManager;
 
@@ -40,7 +41,13 @@ export default config({
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.set('trust proxy', true);
+    app.use('/api/admin', adminRoutes);
+    console.log("🔧 Routes admin configurées avec vérification MAC");
 
+    // ✅ ROUTE pour servir l'interface admin
+    app.get("/admin", requireDev, (req: any, res) => {
+      res.sendFile(path.join(__dirname, '../../client/public/admin.html'));
+    });
 
     // ✅ MIDDLEWARE de sécurité basique
     app.use((req, res, next) => {
