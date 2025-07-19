@@ -1,5 +1,10 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION FINALE CORRIGÉE
+// Module principal d'interaction avec les objets - VERSION FINALE PROPRE
+//
+// ✅ CONFIGURATION FACILE DU LAYER :
+// Pour changer le nom du layer dans Tiled, modifiez :
+// - objectLayerName: 'objects' → 'items' ou 'interactables' etc.
+// Ou utilisez : objectModule.setObjectLayerName('mon_layer')
 
 import fs from 'fs';
 import path from 'path';
@@ -178,7 +183,8 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     submodulesPath: path.resolve(__dirname, './object/submodules'),
     stateFile: './data/object_states.json',
     autoLoadMaps: true,
-    securityEnabled: process.env.NODE_ENV === 'production'
+    securityEnabled: process.env.NODE_ENV === 'production',
+    objectLayerName: 'objects' // ✅ VARIABLE CONFIGURABLE POUR LE NOM DU LAYER
   };
 
   constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
@@ -189,7 +195,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `Initialisation avec config:`, this.config);
+    this.log('info', `Initialisation avec config:`, {
+      objectLayerName: this.config.objectLayerName,
+      autoLoadMaps: this.config.autoLoadMaps,
+      securityEnabled: this.config.securityEnabled
+    });
     
     // Initialiser composants
     this.stateManager = new ObjectStateManager(this.config.stateFile);
@@ -348,18 +358,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   // === PARSING DES MAPS - VERSION FINALE CORRIGÉE ===
 
   /**
-   * Charger les objets d'une zone depuis la map Tiled - VERSION CORRIGÉE
+   * Charger les objets d'une zone depuis la map Tiled
    */
   async loadObjectsFromMap(zoneName: string, mapPath: string): Promise<void> {
     try {
-      this.log('info', `Chargement objets pour zone ${zoneName}`, { mapPath });
-
-      // ✅ GESTION CHEMIN ABSOLU OU RELATIF
       const resolvedPath = path.isAbsolute(mapPath) 
         ? mapPath 
         : path.resolve(__dirname, mapPath);
-      
-      this.log('info', `Chemin résolu: ${resolvedPath}`);
 
       if (!fs.existsSync(resolvedPath)) {
         this.log('warn', `Fichier map introuvable: ${resolvedPath}`);
@@ -368,27 +373,25 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
       const mapData = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
       
-      // Chercher le layer "objects" (comme "npcs" pour NPCManager)
-      const objectLayer = mapData.layers?.find((l: any) => l.name === "objects");
+      // ✅ UTILISE LA VARIABLE CONFIGURABLE POUR LE LAYER
+      const objectLayer = mapData.layers?.find((l: any) => l.name === this.config.objectLayerName);
       if (!objectLayer || !objectLayer.objects) {
-        this.log('info', `Aucun layer "objects" dans ${zoneName}`);
+        this.log('info', `Aucun layer "${this.config.objectLayerName}" dans ${zoneName}`);
         return;
       }
 
       const objects = new Map<number, ObjectDefinition>();
 
-      // Parser chaque objet (même logique que NPCManager)
+      // Parser chaque objet
       for (const obj of objectLayer.objects) {
         const customProperties: Record<string, any> = {};
         
-        // Extraire les propriétés (même pattern que NPCManager)
         if (obj.properties) {
           for (const prop of obj.properties) {
             customProperties[prop.name] = prop.value;
           }
         }
 
-        // Créer ObjectDefinition
         const objectDef: ObjectDefinition = {
           id: obj.id,
           name: obj.name || customProperties['name'] || `Object_${obj.id}`,
@@ -411,9 +414,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
         objects.set(obj.id, objectDef);
       }
 
-      // Stocker les objets de cette zone
       this.objectsByZone.set(zoneName, objects);
-      
       this.log('info', `${objects.size} objets chargés pour ${zoneName}`);
 
     } catch (error) {
@@ -599,23 +600,14 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     await super.cleanup();
   }
 
-  // ✅ MÉTHODE FINALE CORRIGÉE AVEC BON CHEMIN BUILD
+  // ✅ MÉTHODE FINALE SANS DEBUG
   private async loadDefaultMaps(): Promise<void> {
-    // Lister des zones par défaut (comme dans WorldRoom)
     const defaultZones = [
       'beach', 'village', 'villagelab', 'villagehouse1', 'villagewindmill', 
       'villagehouse2', 'villageflorist', 'road1', 'road2', 'road3'
     ];
 
-    // ✅ DEBUG : Afficher les chemins pour comprendre la structure
-    this.log('info', 'Debug chemins', {
-      __dirname: __dirname,
-      'process.cwd()': process.cwd(),
-      'path.resolve(process.cwd(), "build", "assets", "maps")': path.resolve(process.cwd(), 'build', 'assets', 'maps')
-    });
-
     for (const zone of defaultZones) {
-      // ✅ CORRECTION FINALE : Ajouter "build" dans le chemin
       const mapPath = path.resolve(process.cwd(), 'build', 'assets', 'maps', `${zone}.tmj`);
       await this.loadObjectsFromMap(zone, mapPath);
     }
@@ -627,6 +619,22 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     return await this.subModuleFactory.reloadModule(typeName);
   }
 
+  /**
+   * ✅ CHANGER LE NOM DU LAYER D'OBJETS (facilement configurable)
+   * @param layerName - Nom du layer dans Tiled (ex: "objects", "items", "interactables")
+   */
+  setObjectLayerName(layerName: string): void {
+    this.config.objectLayerName = layerName;
+    this.log('info', `Nom du layer d'objets changé: ${layerName}`);
+  }
+
+  /**
+   * Obtenir le nom du layer actuel
+   */
+  getObjectLayerName(): string {
+    return this.config.objectLayerName;
+  }
+
   getSystemStats(): any {
     const factoryStats = this.subModuleFactory.getStats();
     const stateStats = this.stateManager.getStats();
@@ -636,6 +644,10 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       module: baseStats,
       factory: factoryStats,
       states: stateStats,
+      config: {
+        objectLayerName: this.config.objectLayerName,
+        autoLoadMaps: this.config.autoLoadMaps
+      },
       zones: {
         total: this.objectsByZone.size,
         zones: Array.from(this.objectsByZone.keys()),
