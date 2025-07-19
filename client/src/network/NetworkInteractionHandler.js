@@ -251,14 +251,14 @@ sendNpcInteract(npcId, additionalData = {}) {
   
   try {
     // ✅ CORRECTION : Utiliser le bon format pour Colyseus
-    const npcInteractionData = {
-      npcId: stringNpcId, // ← String forcée
-      timestamp: Date.now(),
-      zone: this.networkManager.currentZone,
-      sessionId: this.networkManager.sessionId,
-      playerPosition: this.getPlayerPosition(),
-      ...additionalData
-    };
+const npcInteractionData = {
+  npcId: stringNpcId,
+  timestamp: Date.now(),
+  zone: this.networkManager.currentZone,
+  sessionId: this.networkManager.sessionId,
+  // ✅ Utiliser la position déjà fournie dans additionalData
+  ...additionalData
+};
     
     // ✅ CHOIX : Utiliser l'ancien système qui fonctionne
     if (this.networkManager.sendNpcInteraction) {
