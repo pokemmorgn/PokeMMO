@@ -67,17 +67,20 @@ export default config({
   }
 };
     // ✅ ROUTE pour servir l'interface admin
-    app.get("/admin", requireDev, (req: any, res) => {
-      res.sendFile(path.join(__dirname, '../../client/public/admin.html'));
-    });
-
-    // ✅ MIDDLEWARE de sécurité basique
-    app.use((req, res, next) => {
-      res.header('X-Content-Type-Options', 'nosniff');
-      res.header('X-Frame-Options', 'DENY');
-      res.header('X-XSS-Protection', '1; mode=block');
-      next();
-    });
+app.get("/admin", requireDev, (req: any, res) => {
+  console.log('🎯 [App] Route /admin appelée');
+  console.log('👤 User:', req.user?.username);
+  console.log('📁 Chemin fichier:', path.join(__dirname, '../../client/public/admin.html'));
+  
+  const adminPath = path.join(__dirname, '../../client/public/admin.html');
+  if (require('fs').existsSync(adminPath)) {
+    console.log('✅ [App] Fichier admin.html trouvé');
+    res.sendFile(adminPath);
+  } else {
+    console.log('❌ [App] Fichier admin.html MANQUANT !');
+    res.status(404).send('Interface admin non trouvée');
+  }
+});
 
     // ✅ ROUTE de base améliorée
     app.get("/hello_world", (req, res) => {
