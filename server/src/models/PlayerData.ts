@@ -1,17 +1,61 @@
 import mongoose, { Document } from "mongoose";
 
-// ✅ INTERFACE pour les méthodes personnalisées
+// ✅ NOUVEAU : Interface pour les états d'objets (cooldowns)
+export interface ObjectStateEntry {
+  objectId: number;
+  zone: string;
+  lastCollectedTime: number;    // timestamp
+  nextAvailableTime: number;    // timestamp
+  cooldownDuration: number;     // durée en millisecondes
+}
+
+// ✅ INTERFACE pour les méthodes personnalisées - COMPATIBLE AVEC LE SCHÉMA
 interface IPlayerData extends Document {
-  // Propriétés virtuelles
+  // === CHAMPS EXISTANTS DU SCHÉMA (ne pas modifier) ===
+  username: string;
+  gold: number;
+  team: mongoose.Types.ObjectId[];
+  lastX: number;
+  lastY: number;
+  lastMap: string;
+  walletAddress?: string;
+  email?: string;
+  password?: string;
+  isDev: boolean;
+  deviceFingerprint?: string;
+  registrationIP?: string;
+  lastLoginIP?: string;
+  createdAt: Date;
+  lastLogin: Date;
+  loginCount: number;
+  isActive: boolean;
+  isBanned: boolean;
+  banReason?: string;
+  banExpiresAt?: Date;
+  level: number;
+  experience: number;
+  totalPlaytime: number;
+  currentSessionStart?: Date;
+  emailVerified: boolean;
+  twoFactorEnabled: boolean;
+  preferredLanguage: string;
+  failedLoginAttempts: number;
+  lastFailedLogin?: Date;
+  passwordChangedAt: Date;
+  
+  // === NOUVEAU CHAMP SEULEMENT ===
+  objectStates: ObjectStateEntry[];
+  
+  // === PROPRIÉTÉS VIRTUELLES EXISTANTES ===
   isAccountLocked: boolean;
   isBanActive: boolean;
   
-  // Méthodes personnalisées existantes
+  // === MÉTHODES EXISTANTES ===
   recordFailedLogin(): Promise<any>;
   resetFailedLogins(): Promise<any>;
   recordSuccessfulLogin(ip?: string): Promise<any>;
   
-  // ✅ NOUVELLES méthodes pour gestion des objets
+  // === NOUVELLES MÉTHODES SEULEMENT ===
   canCollectObject(objectId: number, zone: string): boolean;
   recordObjectCollection(objectId: number, zone: string, cooldownHours?: number): Promise<any>;
   getObjectCooldownInfo(objectId: number, zone: string): {
@@ -21,15 +65,6 @@ interface IPlayerData extends Document {
     lastCollectedTime?: number;
   };
   cleanupExpiredCooldowns(): Promise<any>;
-}
-
-// ✅ NOUVEAU : Interface pour les états d'objets (cooldowns)
-interface ObjectStateEntry {
-  objectId: number;
-  zone: string;
-  lastCollectedTime: number;    // timestamp
-  nextAvailableTime: number;    // timestamp
-  cooldownDuration: number;     // durée en millisecondes
 }
 
 const PlayerDataSchema = new mongoose.Schema({
@@ -278,6 +313,6 @@ PlayerDataSchema.pre('save', function(next) {
 
 export const PlayerData = mongoose.model<IPlayerData>("PlayerData", PlayerDataSchema);
 
-// ✅ EXPORT des types et interface pour TypeScript
+// ✅ EXPORT des types pour TypeScript
 export type { ObjectStateEntry };
 export type { IPlayerData };
