@@ -1064,7 +1064,18 @@ initializeInteractionManager() {
       integrateShopToScene(this, this.networkManager);
 
       console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
-
+      // ✅ AJOUTER : Connecter NetworkManager → ObjectManager
+      if (this.networkManager && this.objectManager) {
+        console.log(`🔗 [${this.scene.key}] Connexion NetworkManager ↔ ObjectManager...`);
+        
+        this.networkManager.onZoneObjects((data) => {
+          if (this.objectManager) {
+            this.objectManager.handleZoneObjectsReceived(data);
+          }
+        });
+        
+        console.log(`✅ [${this.scene.key}] Connexion ObjectManager établie`);
+      }
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
     }
