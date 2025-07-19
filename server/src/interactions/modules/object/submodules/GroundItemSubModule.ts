@@ -4,7 +4,7 @@
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { InventoryManager } from "../../../../managers/InventoryManager";
-import { PlayerData, IPlayerData } from "../../../../models/PlayerData";
+import { PlayerData, IPlayerData, ObjectStateEntry } from "../../../../models/PlayerData";
 import { 
   BaseObjectSubModule, 
   ObjectDefinition, 
@@ -118,7 +118,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         );
       }
 
-      // Cast vers le type avec nos méthodes personnalisées
+      // Cast pour accéder aux méthodes personnalisées
       const playerData = playerDataDoc as IPlayerData;
 
       // === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
@@ -437,7 +437,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       
       // Utiliser splice pour modifier le DocumentArray correctement
       const indicesToRemove: number[] = [];
-      playerData.objectStates.forEach((state, index) => {
+      playerData.objectStates.forEach((state: ObjectStateEntry, index: number) => {
         if (state.objectId === objectId && state.zone === zone) {
           indicesToRemove.push(index);
         }
@@ -482,8 +482,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       const now = Date.now();
       
       return playerData.objectStates
-        .filter(state => state.nextAvailableTime > now)
-        .map(state => ({
+        .filter((state: ObjectStateEntry) => state.nextAvailableTime > now)
+        .map((state: ObjectStateEntry) => ({
           objectId: state.objectId,
           zone: state.zone,
           hoursRemaining: Math.ceil((state.nextAvailableTime - now) / (1000 * 60 * 60)),
