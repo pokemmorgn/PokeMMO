@@ -15,7 +15,39 @@ export class AuthState extends Schema {
 
 export class AuthRoom extends Room<AuthState> {
   private authenticatedClients: Map<string, string> = new Map();
-  
+  // ✅ MIDDLEWARE pour capturer l'IP à la connexion
+  onAuth(client: any, options: any, req: any) {
+    console.log(`🔍 [AuthRoom] onAuth pour client ${client.sessionId}`);
+    
+    const headers = req?.headers || {};
+    console.log(`📋 [AuthRoom] Headers reçus:`, {
+      'x-real-ip': headers['x-real-ip'],
+      'x-forwarded-for': headers['x-forwarded-for'],
+      'x-client-ip': headers['x-client-ip'],
+      'host': headers['host']
+    });
+    
+    const ipSources = [
+      headers['x-real-ip'],
+      headers['x-forwarded-for']?.split(',')[0]?.trim(),
+      headers['x-client-ip'],
+      '127.0.0.1'
+    ];
+    
+    let detectedIP = 'localhost';
+    for (const ip of ipSources) {
+      if (ip && ip !== 'unknown' && ip.length > 3) {
+        detectedIP = ip;
+        console.log(`✅ [AuthRoom] IP détectée: ${ip}`);
+        break;
+      }
+    }
+    
+    // Injecter l'IP dans le client
+    client.detectedIP = detectedIP;
+    
+    return true; // Autoriser la connexion
+  }
   // ✅ NOUVELLES PROPRIÉTÉS pour sécurité renforcée
   private activeSessions: Map<string, any> = new Map();
   private failedAttempts: Map<string, number> = new Map();
