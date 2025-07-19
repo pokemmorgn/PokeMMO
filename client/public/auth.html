@@ -1783,14 +1783,25 @@ openAdminPanel() {
         return;
     }
     
-    console.log('🔧 Ouverture Admin Panel...');
-    this.showNotification('Redirection vers Admin Panel...', 'info');
+    console.log('🔧 Test redirection...');
+    console.log('🔍 window.location:', window.location);
+    console.log('🔍 document.location:', document.location);
     
-    // ✅ SOLUTION 1: Redirection dans le même onglet (RECOMMANDÉ)
+    // Test 1
+    console.log('Test 1: window.location.href');
     window.location.href = '/admin';
     
-    // ❌ ANCIEN CODE (nouvel onglet sans token):
-    // window.open('/admin', '_blank');
+    // Si ça ne marche pas, Test 2 après 1 seconde
+    setTimeout(() => {
+        console.log('Test 2: document.location');
+        document.location = '/admin';
+    }, 1000);
+    
+    // Si ça ne marche pas, Test 3 après 2 secondes
+    setTimeout(() => {
+        console.log('Test 3: window.location.replace');
+        window.location.replace('/admin');
+    }, 2000);
 }
         
 
