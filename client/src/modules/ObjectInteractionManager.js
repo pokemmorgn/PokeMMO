@@ -771,43 +771,104 @@ async sendObjectInteraction(object, options = {}) {
 
   // === DÉTECTION ET VALIDATION ===
 
-  detectObjectInteractionType(object) {
-    console.log('[ObjectInteractionManager] 🔍 === DÉTECTION TYPE OBJET ===');
-    console.log('[ObjectInteractionManager] Objet:', object?.name || object?.id);
-    console.log('[ObjectInteractionManager] Propriétés:', object?.properties);
-    
-    if (!this.config.enableAutoDetection) {
-      console.log('[ObjectInteractionManager] Auto-détection désactivée');
-      return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
-    }
-    
-    // ✅ Tester chaque détecteur avec un seul objet
-    const singleObjectArray = [object];
-    
-    // ✅ Trier par priorité
-    const sortedDetectors = Array.from(this.objectDetectors.values())
-      .sort((a, b) => a.priority - b.priority);
-    
-    console.log(`[ObjectInteractionManager] Test de ${sortedDetectors.length} détecteurs...`);
-    
-    // ✅ Tester chaque détecteur
-    for (const detector of sortedDetectors) {
-      try {
-        console.log(`[ObjectInteractionManager] Test détecteur: ${detector.type}`);
-        
-        const matches = detector.detector(singleObjectArray);
-        if (matches && matches.length > 0) {
-          console.log(`[ObjectInteractionManager] ✅ Match trouvé: ${detector.type}`);
-          return detector.type;
-        }
-      } catch (error) {
-        console.error(`[ObjectInteractionManager] ❌ Erreur détecteur "${detector.type}":`, error);
-      }
-    }
-    
-    console.log('[ObjectInteractionManager] 🚫 Aucun type détecté, fallback vers COLLECTIBLE');
+detectObjectInteractionType(object) {
+  console.log('[ObjectInteractionManager] 🔍 === DÉTECTION TYPE OBJET ===');
+  
+  // ✅ CORRECTION : Utiliser les propriétés du sprite Phaser
+  const objectName = object?.name || object?.objectId || 'unknown';
+  const objectType = object?.objectType || 'unknown';
+  const objectData = object?.objectData || {};
+  const texture = object?.texture?.key || '';
+  
+  console.log('[ObjectInteractionManager] === PROPRIÉTÉS SPRITE ===');
+  console.log('[ObjectInteractionManager] Nom/ID:', objectName);
+  console.log('[ObjectInteractionManager] Type:', objectType);
+  console.log('[ObjectInteractionManager] Texture:', texture);
+  console.log('[ObjectInteractionManager] ObjectData:', objectData);
+  
+  if (!this.config.enableAutoDetection) {
+    console.log('[ObjectInteractionManager] Auto-détection désactivée');
     return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
   }
+  
+  // ✅ DÉTECTION PRIORITAIRE PAR TEXTURE
+  if (texture.includes('pokeball')) {
+    console.log('[ObjectInteractionManager] ✅ Détecté comme POKEBALL via texture');
+    return OBJECT_INTERACTION_TYPES.POKEBALL;
+  }
+  
+  if (texture.includes('potion')) {
+    console.log('[ObjectInteractionManager] ✅ Détecté comme COLLECTIBLE (potion) via texture');
+    return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
+  }
+  
+  if (texture.includes('berry')) {
+    console.log('[ObjectInteractionManager] ✅ Détecté comme COLLECTIBLE (berry) via texture');
+    return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
+  }
+  
+  if (texture.includes('treasure') || texture.includes('chest')) {
+    console.log('[ObjectInteractionManager] ✅ Détecté comme CONTAINER via texture');
+    return OBJECT_INTERACTION_TYPES.CONTAINER;
+  }
+  
+  // ✅ DÉTECTION PAR PROPRIÉTÉS OBJECTDATA
+  if (objectData.type) {
+    const dataType = objectData.type.toLowerCase();
+    if (dataType.includes('pokeball') || dataType.includes('ball')) {
+      console.log('[ObjectInteractionManager] ✅ Détecté comme POKEBALL via objectData.type');
+      return OBJECT_INTERACTION_TYPES.POKEBALL;
+    }
+    if (dataType.includes('potion') || dataType.includes('heal')) {
+      console.log('[ObjectInteractionManager] ✅ Détecté comme COLLECTIBLE via objectData.type');
+      return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
+    }
+  }
+  
+  // ✅ DÉTECTION PAR NOM
+  if (objectName && typeof objectName === 'string') {
+    const name = objectName.toLowerCase();
+    if (name.includes('pokeball') || name.includes('ball')) {
+      console.log('[ObjectInteractionManager] ✅ Détecté comme POKEBALL via nom');
+      return OBJECT_INTERACTION_TYPES.POKEBALL;
+    }
+    if (name.includes('potion') || name.includes('heal')) {
+      console.log('[ObjectInteractionManager] ✅ Détecté comme COLLECTIBLE via nom');
+      return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
+    }
+    if (name.includes('pc') || name.includes('computer')) {
+      console.log('[ObjectInteractionManager] ✅ Détecté comme PC via nom');
+      return OBJECT_INTERACTION_TYPES.PC;
+    }
+  }
+  
+  // ✅ ANCIENNE LOGIQUE DÉTECTEURS (en fallback)
+  const singleObjectArray = [object];
+  
+  // Trier par priorité
+  const sortedDetectors = Array.from(this.objectDetectors.values())
+    .sort((a, b) => a.priority - b.priority);
+  
+  console.log(`[ObjectInteractionManager] Test de ${sortedDetectors.length} détecteurs...`);
+  
+  // Tester chaque détecteur
+  for (const detector of sortedDetectors) {
+    try {
+      console.log(`[ObjectInteractionManager] Test détecteur: ${detector.type}`);
+      
+      const matches = detector.detector(singleObjectArray);
+      if (matches && matches.length > 0) {
+        console.log(`[ObjectInteractionManager] ✅ Match trouvé: ${detector.type}`);
+        return detector.type;
+      }
+    } catch (error) {
+      console.error(`[ObjectInteractionManager] ❌ Erreur détecteur "${detector.type}":`, error);
+    }
+  }
+  
+  console.log('[ObjectInteractionManager] 🚫 Aucun type détecté, fallback vers COLLECTIBLE');
+  return OBJECT_INTERACTION_TYPES.COLLECTIBLE;
+}
 
   canInteractWithObject(object) {
     // ✅ Vérifications de base
