@@ -1061,6 +1061,8 @@
                                 tokenExpiry: data.tokenExpiry,
                                 permissions: data.permissions || ['play'],
                                 lastLogin: Date.now()
+                                 isDev: data.userData.isDev || false  // ✅ AJOUTER CETTE LIGNE
+
                             };
                             
                             this.showUserDashboard();
@@ -1139,6 +1141,8 @@
                                 permissions: data.permissions || ['play'],
                                 isNewUser: true,
                                 registrationDate: Date.now()
+                                                                isDev: data.userData.isDev || false  // ✅ AJOUTER CETTE LIGNE
+
                             };
                             
                             this.showUserDashboard();
