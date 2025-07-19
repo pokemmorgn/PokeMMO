@@ -1,5 +1,5 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION CORRIGÉE
+// Module principal d'interaction avec les objets - VERSION CORRIGÉE AVEC LOGIQUE NPCMANAGER
 
 import fs from 'fs';
 import path from 'path';
@@ -161,7 +161,7 @@ class ObjectStateManager {
   }
 }
 
-// ✅ MODULE PRINCIPAL - VERSION CORRIGÉE
+// ✅ MODULE PRINCIPAL - VERSION CORRIGÉE AVEC LOGIQUE NPCMANAGER
 export class ObjectInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "ObjectInteractionModule";
@@ -254,7 +254,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   // === HANDLERS SPÉCIALISÉS - VERSION CORRIGÉE ===
 
   private async handleSpecificObject(player: Player, request: InteractionRequest): Promise<InteractionResult> {
-    const startTime = Date.now(); // CORRECTION - Déplacer ici
+    const startTime = Date.now();
     const objectIdRaw = request.data?.objectId;
     const objectId = typeof objectIdRaw === 'string' ? parseInt(objectIdRaw, 10) : objectIdRaw;
     const zone = player.currentZone;
@@ -284,15 +284,15 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     // Déléguer au sous-module
     const result = await subModule.handle(player, objectDef, request.data);
 
-    // Mettre à jour les statistiques - CORRECTION ICI
+    // Mettre à jour les statistiques
     const processingTime = Date.now() - startTime;
     this.updateStats(result.success, processingTime);
 
-    // Post-traitement si succès - CORRECTION MAJEURE ICI
+    // Post-traitement si succès
     if (result.success && result.data?.objectData?.collected) {
       this.stateManager.markAsCollected(zone, objectId, player.name);
       
-      // Assurer compatibilité des types pour objectId - CORRECTION ICI
+      // Assurer compatibilité des types pour objectId
       if (result.data?.objectData) {
         result.data.objectData.objectId = objectId.toString();
       }
@@ -323,11 +323,10 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       if (subModule) {
         const result = await subModule.handle(player, objectDef, { action: 'search' });
         
-        // CORRECTION MAJEURE ICI
         if (result.success && result.data?.objectData?.collected) {
           this.stateManager.markAsCollected(zone, objectDef.id, player.name);
           
-          // Assurer compatibilité des types pour objectId - CORRECTION ICI
+          // Assurer compatibilité des types pour objectId
           if (result.data?.objectData) {
             result.data.objectData.objectId = objectDef.id.toString();
           }
@@ -337,7 +336,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       }
     }
 
-    // Rien trouvé - CORRECTION ICI (utilise le helper)
+    // Rien trouvé
     return createInteractionResult.noItemFound(
       "0",           // objectId
       "search",      // objectType  
@@ -346,7 +345,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     );
   }
 
-  // === PARSING DES MAPS (Pattern NPCManager) ===
+  // === PARSING DES MAPS (Pattern NPCManager) - VERSION CORRIGÉE ===
 
   /**
    * Charger les objets d'une zone depuis la map Tiled
@@ -355,7 +354,10 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     try {
       this.log('info', `Chargement objets pour zone ${zoneName}`, { mapPath });
 
+      // ✅ COPIE EXACTE DE LA LOGIQUE NPCMANAGER
       const resolvedPath = path.resolve(__dirname, mapPath);
+      this.log('info', `Chemin résolu: ${resolvedPath}`);
+
       if (!fs.existsSync(resolvedPath)) {
         this.log('warn', `Fichier map introuvable: ${resolvedPath}`);
         return;
@@ -498,7 +500,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     }
 
     const zoneObjects = this.objectsByZone.get(zone)!;
-    const objectId = objectData.id || Math.floor(Date.now() / 1000); // Utiliser timestamp en secondes comme number
+    const objectId = objectData.id || Math.floor(Date.now() / 1000);
 
     const objectDef: ObjectDefinition = {
       id: objectId,
@@ -594,6 +596,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     await super.cleanup();
   }
 
+  // ✅ MÉTHODE CORRIGÉE AVEC LOGIQUE NPCMANAGER
   private async loadDefaultMaps(): Promise<void> {
     // Lister des zones par défaut (comme dans WorldRoom)
     const defaultZones = [
@@ -602,6 +605,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     ];
 
     for (const zone of defaultZones) {
+      // ✅ EXACTEMENT COMME NPCMANAGER DANS WORLDROOM
       const mapPath = `../assets/maps/${zone}.tmj`;
       await this.loadObjectsFromMap(zone, mapPath);
     }
@@ -648,7 +652,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   // === MÉTHODES UTILITAIRES PROTÉGÉES ===
 
   /**
-   * Créer un résultat d'erreur standardisé - VERSION CORRIGÉE
+   * Créer un résultat d'erreur standardisé
    */
   protected createErrorResult(message: string, code?: string): InteractionResult {
     return createInteractionResult.error(message, code, {
