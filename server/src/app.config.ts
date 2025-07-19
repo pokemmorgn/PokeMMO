@@ -44,6 +44,28 @@ export default config({
     app.use('/api/admin', adminRoutes);
     console.log("🔧 Routes admin configurées avec vérification MAC");
 
+    const requireDev = async (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token requis' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    
+    const player = await PlayerData.findOne({ username: decoded.username });
+    if (!player || !player.isDev) {
+      return res.status(403).json({ error: 'Accès développeur requis' });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Token invalide' });
+  }
+};
     // ✅ ROUTE pour servir l'interface admin
     app.get("/admin", requireDev, (req: any, res) => {
       res.sendFile(path.join(__dirname, '../../client/public/admin.html'));
@@ -114,30 +136,6 @@ export default config({
         next();
       } catch (error) {
         return res.status(403).json({ error: 'Token invalide ou expiré' });
-      }
-    };
-
-    // ✅ NOUVEAU: MIDDLEWARE pour développeurs uniquement
-    const requireDev = async (req: any, res: any, next: any) => {
-      const authHeader = req.headers.authorization;
-      const token = authHeader && authHeader.split(' ')[1];
-
-      if (!token) {
-        return res.status(401).json({ error: 'Token requis' });
-      }
-
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-        
-        const player = await PlayerData.findOne({ username: decoded.username });
-        if (!player || !player.isDev) {
-          return res.status(403).json({ error: 'Accès développeur requis' });
-        }
-
-        req.user = decoded;
-        next();
-      } catch (error) {
-        return res.status(403).json({ error: 'Token invalide' });
       }
     };
 
