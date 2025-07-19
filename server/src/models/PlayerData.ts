@@ -1,25 +1,15 @@
 import mongoose from "mongoose";
 
-// ✅ INTERFACE pour les méthodes personnalisées - AVEC COOLDOWNS
-interface IPlayerData extends mongoose.Document {
+// ✅ INTERFACE pour les méthodes personnalisées
+interface IPlayerData extends Document {
   // Propriétés virtuelles
   isAccountLocked: boolean;
   isBanActive: boolean;
   
-  // Méthodes personnalisées existantes
+  // Méthodes personnalisées
   recordFailedLogin(): Promise<any>;
   resetFailedLogins(): Promise<any>;
   recordSuccessfulLogin(ip?: string): Promise<any>;
-  
-  // NOUVELLES MÉTHODES pour cooldowns d'objets
-  canCollectObject(objectId: number, zone: string): boolean;
-  recordObjectCollection(objectId: number, zone: string, cooldownDurationMs: number): Promise<any>;
-  getObjectCooldownInfo(objectId: number, zone: string): {
-    canCollect: boolean;
-    timeLeft: number;
-    lastCollected?: Date;
-    nextAvailable?: Date;
-  };
 }
 
 const PlayerDataSchema = new mongoose.Schema({
@@ -73,16 +63,6 @@ walletAddress: {
   experience: { type: Number, default: 0 },
   totalPlaytime: { type: Number, default: 0 }, // en minutes
   currentSessionStart: { type: Date, default: null },
-  
-  // ✅ NOUVEAU : États des objets collectés avec cooldowns
-  objectStates: [{
-    objectId: { type: Number, required: true },
-    zone: { type: String, required: true },
-    lastCollectedTime: { type: Number, required: true }, // timestamp
-    nextAvailableTime: { type: Number, required: true }, // timestamp
-    cooldownDuration: { type: Number, required: true }   // en millisecondes
-  }],
-  
   // Préférences utilisateur
   emailVerified: { type: Boolean, default: false },
   twoFactorEnabled: { type: Boolean, default: false },
@@ -103,9 +83,6 @@ PlayerDataSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
 PlayerDataSchema.index({ deviceFingerprint: 1 });
 PlayerDataSchema.index({ isActive: 1 });
 PlayerDataSchema.index({ createdAt: 1 });
-
-// NOUVEAU INDEX pour les cooldowns d'objets
-PlayerDataSchema.index({ 'objectStates.objectId': 1, 'objectStates.zone': 1 });
 
 // ✅ MÉTHODES virtuelles pour sécurité
 PlayerDataSchema.virtual('isAccountLocked').get(function() {
@@ -140,71 +117,6 @@ PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
   return this.save();
 };
 
-// ✅ NOUVELLES MÉTHODES pour gestion des cooldowns d'objets
-PlayerDataSchema.methods.canCollectObject = function(objectId: number, zone: string) {
-  const objectState = this.objectStates.find(
-    (state: any) => state.objectId === objectId && state.zone === zone
-  );
-  
-  // Si jamais collecté = OK
-  if (!objectState) return true;
-  
-  // Vérifier si cooldown écoulé
-  return Date.now() >= objectState.nextAvailableTime;
-};
-
-PlayerDataSchema.methods.recordObjectCollection = function(
-  objectId: number, 
-  zone: string, 
-  cooldownDurationMs: number
-) {
-  const now = Date.now();
-  const nextAvailable = now + cooldownDurationMs;
-  
-  // Chercher état existant
-  const existingIndex = this.objectStates.findIndex(
-    (state: any) => state.objectId === objectId && state.zone === zone
-  );
-  
-  if (existingIndex >= 0) {
-    // Mettre à jour existant
-    this.objectStates[existingIndex].lastCollectedTime = now;
-    this.objectStates[existingIndex].nextAvailableTime = nextAvailable;
-    this.objectStates[existingIndex].cooldownDuration = cooldownDurationMs;
-  } else {
-    // Créer nouveau
-    this.objectStates.push({
-      objectId,
-      zone,
-      lastCollectedTime: now,
-      nextAvailableTime: nextAvailable,
-      cooldownDuration: cooldownDurationMs
-    });
-  }
-  
-  return this.save();
-};
-
-PlayerDataSchema.methods.getObjectCooldownInfo = function(objectId: number, zone: string) {
-  const objectState = this.objectStates.find(
-    (state: any) => state.objectId === objectId && state.zone === zone
-  );
-  
-  if (!objectState) {
-    return { canCollect: true, timeLeft: 0 };
-  }
-  
-  const now = Date.now();
-  const timeLeft = Math.max(0, objectState.nextAvailableTime - now);
-  
-  return {
-    canCollect: now >= objectState.nextAvailableTime,
-    timeLeft,
-    lastCollected: new Date(objectState.lastCollectedTime),
-    nextAvailable: new Date(objectState.nextAvailableTime)
-  };
-};
-
 // ✅ MIDDLEWARE pre-save pour sécurité
 PlayerDataSchema.pre('save', function(next) {
   // Nettoyer l'email
@@ -223,5 +135,4 @@ PlayerDataSchema.pre('save', function(next) {
   next();
 });
 
-// ✅ EXPORT avec interface typée
-export const PlayerData = mongoose.model<IPlayerData>("PlayerData", PlayerDataSchema);
+export const PlayerData = mongoose.model("PlayerData", PlayerDataSchema);
