@@ -342,7 +342,7 @@ export default config({
     </div>
 
     <script>
-        const token = localStorage.getItem('sessionToken');
+        const token = sessionStorage.getItem('sessionToken');  // ✅ NOUVEAU SYSTÈME
         
         async function loadStats() {
             try {
