@@ -83,10 +83,10 @@ export class PlayersModule {
                 </td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-primary btn-sm" onclick="adminPanel.players.viewPlayer('${player.username}')">
+<button class="btn btn-primary btn-sm" onclick="window.adminPanel.players.viewPlayer('${player.username}')">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-warning btn-sm" onclick="adminPanel.players.quickEdit('${player.username}')">
+<button class="btn btn-warning btn-sm" onclick="window.adminPanel.players.quickEdit('${player.username}')">
                             <i class="fas fa-edit"></i>
                         </button>
                     </div>
