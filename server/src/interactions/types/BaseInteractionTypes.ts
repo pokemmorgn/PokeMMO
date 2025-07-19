@@ -108,7 +108,11 @@ export interface ObjectInteractionData {
     found: boolean; 
     attempts?: number;
     itemsFound?: string[];
-  };
+    // NOUVELLES PROPRIÉTÉS pour HiddenItem
+    chance?: number;        // Pourcentage de chance (ex: 70)
+    roll?: number;          // Résultat du dé (ex: 45) 
+    hasItemfinder?: boolean; // Bonus Itemfinder utilisé
+  }
   machineData?: { 
     activated: boolean; 
     output?: any;
