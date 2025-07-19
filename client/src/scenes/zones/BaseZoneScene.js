@@ -9,7 +9,7 @@ import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
 import { InventorySystem } from "../../game/InventorySystem.js";
-import { InteractionManager } from "../../game/InteractionManager.js";
+import { BaseInteractionManager } from "../../game/BaseInteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
