@@ -242,34 +242,25 @@ export class NetworkInteractionHandler {
   }
 
 sendNpcInteract(npcId, additionalData = {}) {
-  // ✅ Assurer que npcId est string
-  const stringNpcId = String(npcId);
-  
+  // ✅ GARDER le number original (pas de conversion string!)
   console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT ===`);
-  console.log('[NetworkInteractionHandler] NPC ID (string):', stringNpcId);
-  console.log('[NetworkInteractionHandler] Additional data:', additionalData);
+  console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
   
   try {
-    // ✅ CORRECTION : Utiliser le bon format pour Colyseus
-const npcInteractionData = {
-  npcId: stringNpcId,
-  timestamp: Date.now(),
-  zone: this.networkManager.currentZone,
-  sessionId: this.networkManager.sessionId,
-  // ✅ Utiliser la position déjà fournie dans additionalData
-  ...additionalData
-};
-    
-    // ✅ CHOIX : Utiliser l'ancien système qui fonctionne
+    // ✅ FORMAT MINIMAL qui fonctionne (comme les tests en console)
     if (this.networkManager.sendNpcInteraction) {
       console.log('[NetworkInteractionHandler] 🔧 Utilisation ancienne méthode sendNpcInteraction');
-      return this.networkManager.sendNpcInteraction(stringNpcId, npcInteractionData);
+      // ✅ Juste l'ID number, pas de données supplémentaires
+      return this.networkManager.sendNpcInteraction(npcId);
     } 
     
-    // ✅ Ou nouvelle méthode si préférée
+    // ✅ Ou envoi direct minimal
     else if (this.networkManager.room) {
       console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send');
-      this.networkManager.room.send("npcInteract", npcInteractionData);
+      // ✅ Format minimal qui fonctionne
+      this.networkManager.room.send("npcInteract", {
+        npcId: npcId // ← NUMBER, format minimal
+      });
       return true;
     }
     
