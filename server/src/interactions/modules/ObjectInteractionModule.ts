@@ -354,8 +354,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     try {
       this.log('info', `Chargement objets pour zone ${zoneName}`, { mapPath });
 
-      // ✅ COPIE EXACTE DE LA LOGIQUE NPCMANAGER
-      const resolvedPath = path.resolve(__dirname, mapPath);
+      // ✅ GESTION CHEMIN ABSOLU OU RELATIF
+      const resolvedPath = path.isAbsolute(mapPath) 
+        ? mapPath 
+        : path.resolve(__dirname, mapPath);
+      
       this.log('info', `Chemin résolu: ${resolvedPath}`);
 
       if (!fs.existsSync(resolvedPath)) {
@@ -596,7 +599,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     await super.cleanup();
   }
 
-  // ✅ MÉTHODE CORRIGÉE AVEC LOGIQUE NPCMANAGER
+  // ✅ MÉTHODE CORRIGÉE AVEC CHEMIN ABSOLU SÉCURISÉ
   private async loadDefaultMaps(): Promise<void> {
     // Lister des zones par défaut (comme dans WorldRoom)
     const defaultZones = [
@@ -604,9 +607,16 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       'villagehouse2', 'villageflorist', 'road1', 'road2', 'road3'
     ];
 
+    // ✅ DEBUG : Afficher les chemins pour comprendre la structure
+    this.log('info', 'Debug chemins', {
+      __dirname: __dirname,
+      'process.cwd()': process.cwd(),
+      'path.resolve(process.cwd(), "assets", "maps")': path.resolve(process.cwd(), 'assets', 'maps')
+    });
+
     for (const zone of defaultZones) {
-      // ✅ EXACTEMENT COMME NPCMANAGER DANS WORLDROOM
-      const mapPath = `../assets/maps/${zone}.tmj`;
+      // ✅ SOLUTION ROBUSTE : Chemin absolu depuis la racine du projet
+      const mapPath = path.resolve(process.cwd(), 'assets', 'maps', `${zone}.tmj`);
       await this.loadObjectsFromMap(zone, mapPath);
     }
   }
