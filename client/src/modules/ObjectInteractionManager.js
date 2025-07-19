@@ -304,7 +304,11 @@ export class ObjectInteractionManager {
       }
       
       // ✅ Envoyer l'interaction au serveur
-      const networkResult = await this.sendObjectInteraction(object, options);
+      // ✅ APRÈS - Passer le type détecté
+      const networkResult = await this.sendObjectInteraction(object, {
+        ...options,
+        detectedType: interactionType
+      });
       if (!networkResult) {
         throw new Error('Échec envoi interaction réseau');
       }
@@ -345,7 +349,7 @@ async sendObjectInteraction(object, options = {}) {
     const objectId = object.objectId || object.id || object.name || 'unknown_object';
     
     // ✅ CORRECTION CRITIQUE : Utiliser this.state.currentInteractionType en PRIORITÉ (contient "pokeball")
-    const objectType = this.state.currentInteractionType || object.objectType || options.objectType || 'unknown';
+  const objectType = options.detectedType || this.state.currentInteractionType || object.objectType || options.objectType || 'unknown';
     
     // ✅ Position de l'objet
     const objectPosition = object.x !== undefined && object.y !== undefined 
