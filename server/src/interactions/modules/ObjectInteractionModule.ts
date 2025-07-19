@@ -1,5 +1,5 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION CORRIGÉE AVEC LOGIQUE NPCMANAGER
+// Module principal d'interaction avec les objets - VERSION FINALE CORRIGÉE
 
 import fs from 'fs';
 import path from 'path';
@@ -161,7 +161,7 @@ class ObjectStateManager {
   }
 }
 
-// ✅ MODULE PRINCIPAL - VERSION CORRIGÉE AVEC LOGIQUE NPCMANAGER
+// ✅ MODULE PRINCIPAL - VERSION FINALE CORRIGÉE
 export class ObjectInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "ObjectInteractionModule";
@@ -345,10 +345,10 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     );
   }
 
-  // === PARSING DES MAPS (Pattern NPCManager) - VERSION CORRIGÉE ===
+  // === PARSING DES MAPS - VERSION FINALE CORRIGÉE ===
 
   /**
-   * Charger les objets d'une zone depuis la map Tiled
+   * Charger les objets d'une zone depuis la map Tiled - VERSION CORRIGÉE
    */
   async loadObjectsFromMap(zoneName: string, mapPath: string): Promise<void> {
     try {
@@ -599,7 +599,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     await super.cleanup();
   }
 
-  // ✅ MÉTHODE CORRIGÉE AVEC CHEMIN ABSOLU SÉCURISÉ
+  // ✅ MÉTHODE FINALE CORRIGÉE AVEC CHEMIN ABSOLU
   private async loadDefaultMaps(): Promise<void> {
     // Lister des zones par défaut (comme dans WorldRoom)
     const defaultZones = [
