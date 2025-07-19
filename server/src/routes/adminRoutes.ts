@@ -248,7 +248,7 @@ router.post('/search', requireMacAndDev, async (req: any, res) => {
       return res.json({ results: [] });
     }
 
-    let results = [];
+let results: Array<{ username: string; email?: string; level?: number; gold?: number; lastLogin: Date; isActive: boolean; isDev?: boolean }> = [];
 
     if (type === 'players') {
       results = await PlayerData.find({
