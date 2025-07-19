@@ -218,7 +218,9 @@ export default class VendingMachineSubModule extends BaseObjectSubModule {
         machineData: {
           activated: true,
           output: null,
-          state: "catalog_displayed",
+          state: "catalog_displayed"
+        },
+        vendingData: {
           catalog: enrichedCatalog,
           playerGold,
           machineInfo: {
