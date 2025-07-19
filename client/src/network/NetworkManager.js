@@ -697,6 +697,13 @@ this.room.onLeave((code) => {
       // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
+    this.room.onMessage("zoneObjects", (data) => {
+      console.log(`📦 [NetworkManager] Objets de zone reçus:`, data);
+      if (this.callbacks.onZoneObjects) {
+        this.callbacks.onZoneObjects(data);
+      }
+    });
+    
     this.room.onMessage("goldUpdate", (data) => {
       console.log(`💰 [NetworkManager] Update or:`, data);
       // Ces messages sont gérés directement par les systèmes shop/inventaire
@@ -1053,7 +1060,7 @@ this.room.onLeave((code) => {
   onSnap(callback) { this.callbacks.onSnap = callback; }
   onTransitionValidation(callback) { this.callbacks.onTransitionValidation = callback; }
   onCurrentZone(callback) { this.callbacks.onCurrentZone = callback; }
-
+  onZoneObjects(callback) { this.callbacks.onZoneObjects = callback; }
   onMessage(type, callback) {
     if (this.room) {
       this.room.onMessage(type, callback);
