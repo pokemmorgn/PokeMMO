@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 // ✅ INTERFACE pour les méthodes personnalisées
 interface IPlayerData extends Document {
@@ -6,10 +6,21 @@ interface IPlayerData extends Document {
   isAccountLocked: boolean;
   isBanActive: boolean;
   
-  // Méthodes personnalisées
+  // Méthodes personnalisées existantes
   recordFailedLogin(): Promise<any>;
   resetFailedLogins(): Promise<any>;
   recordSuccessfulLogin(ip?: string): Promise<any>;
+  
+  // ✅ NOUVELLES méthodes pour gestion des objets
+  canCollectObject(objectId: number, zone: string): boolean;
+  recordObjectCollection(objectId: number, zone: string, cooldownHours?: number): Promise<any>;
+  getObjectCooldownInfo(objectId: number, zone: string): {
+    canCollect: boolean;
+    cooldownRemaining: number;
+    nextAvailableTime?: number;
+    lastCollectedTime?: number;
+  };
+  cleanupExpiredCooldowns(): Promise<any>;
 }
 
 // ✅ NOUVEAU : Interface pour les états d'objets (cooldowns)
@@ -144,7 +155,7 @@ PlayerDataSchema.methods.recordSuccessfulLogin = function(ip?: string) {
 
 // ✅ NOUVELLES MÉTHODES pour gestion des objets avec cooldown
 PlayerDataSchema.methods.canCollectObject = function(objectId: number, zone: string): boolean {
-  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+  if (!this.objectStates || this.objectStates.length === 0) {
     return true; // Première fois ou pas d'états = peut collecter
   }
   
@@ -165,10 +176,7 @@ PlayerDataSchema.methods.recordObjectCollection = function(
   zone: string, 
   cooldownHours: number = 24
 ): Promise<any> {
-  // Initialiser objectStates si pas défini (compatibilité)
-  if (!this.objectStates || !Array.isArray(this.objectStates)) {
-    this.objectStates = [];
-  }
+  // objectStates est automatiquement initialisé par Mongoose avec default: []
   
   const now = Date.now();
   const cooldownDuration = cooldownHours * 60 * 60 * 1000; // Heures → ms
@@ -203,7 +211,7 @@ PlayerDataSchema.methods.recordObjectCollection = function(
 };
 
 PlayerDataSchema.methods.getObjectCooldownInfo = function(objectId: number, zone: string) {
-  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+  if (!this.objectStates || this.objectStates.length === 0) {
     return { canCollect: true, cooldownRemaining: 0 };
   }
   
@@ -229,7 +237,7 @@ PlayerDataSchema.methods.getObjectCooldownInfo = function(objectId: number, zone
 
 // ✅ MÉTHODE pour nettoyer les anciens cooldowns expirés (optionnel)
 PlayerDataSchema.methods.cleanupExpiredCooldowns = function(): Promise<any> {
-  if (!this.objectStates || !Array.isArray(this.objectStates)) {
+  if (!this.objectStates || this.objectStates.length === 0) {
     return Promise.resolve(this);
   }
   
@@ -240,7 +248,8 @@ PlayerDataSchema.methods.cleanupExpiredCooldowns = function(): Promise<any> {
   
   // Seulement sauvegarder si des changements
   if (activeStates.length !== this.objectStates.length) {
-    this.objectStates = activeStates;
+    // Vider et repeupler le DocumentArray
+    this.objectStates.splice(0, this.objectStates.length, ...activeStates);
     return this.save();
   }
   
@@ -261,8 +270,7 @@ PlayerDataSchema.pre('save', function(next) {
     if (this.lastX === undefined) this.lastX = 360;
     if (this.lastY === undefined) this.lastY = 120;
     
-    // ✅ NOUVEAU : Initialiser objectStates pour nouveaux joueurs
-    if (!this.objectStates) this.objectStates = [];
+    // ✅ NOUVEAU : objectStates est initialisé automatiquement par Mongoose avec default: []
   }
   
   next();
