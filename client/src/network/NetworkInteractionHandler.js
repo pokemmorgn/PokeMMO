@@ -242,37 +242,23 @@ export class NetworkInteractionHandler {
   }
 
 sendNpcInteract(npcId, additionalData = {}) {
-  // ✅ GARDER le number original (pas de conversion string)
+  // ✅ Assurer que npcId est string
+  const stringNpcId = String(npcId);
+  
   console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT ===`);
-  console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
+  console.log('[NetworkInteractionHandler] NPC ID (string):', stringNpcId);
+  console.log('[NetworkInteractionHandler] Additional data:', additionalData);
   
   try {
-    // ✅ Utiliser l'ancienne méthode qui fonctionne avec format minimal
-    if (this.networkManager.sendNpcInteraction) {
-      console.log('[NetworkInteractionHandler] 🔧 Utilisation ancienne méthode sendNpcInteraction');
-      return this.networkManager.sendNpcInteraction(npcId); // ← Juste l'ID number
-    } 
-    
-    // ✅ Ou envoi direct avec format minimal si pas d'ancienne méthode
-    else if (this.networkManager.room) {
-      console.log('[NetworkInteractionHandler] 🔧 Envoi direct format minimal');
-      this.networkManager.room.send("npcInteract", {
-        npcId: npcId // ← NUMBER, format minimal
-      });
-      return true;
-    }
-    
-    else {
-      console.error('[NetworkInteractionHandler] ❌ Aucune méthode d\'envoi disponible');
-      return false;
-    }
-    
-  } catch (error) {
-    console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
-    this.handleSendError('npcInteract', error);
-    return false;
-  }
-}
+    // ✅ CORRECTION : Utiliser le bon format pour Colyseus
+const npcInteractionData = {
+  npcId: stringNpcId,
+  timestamp: Date.now(),
+  zone: this.networkManager.currentZone,
+  sessionId: this.networkManager.sessionId,
+  // ✅ Utiliser la position déjà fournie dans additionalData
+  ...additionalData
+};
     
     // ✅ CHOIX : Utiliser l'ancien système qui fonctionne
     if (this.networkManager.sendNpcInteraction) {
