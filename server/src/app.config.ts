@@ -22,6 +22,7 @@ import { PlayerQuest } from "./models/PlayerQuest";
 import { BattleRoom } from "./rooms/BattleRoom";
 import jwt from 'jsonwebtoken';
 import adminRoutes from './routes/adminRoutes';
+import { requireMacAndDev } from './routes/adminRoutes'; // ✅ AJOUTER
 
 let globalPokemonManager: PokemonManager;
 
@@ -81,9 +82,6 @@ app.get("/admin", (req: any, res) => {
     res.status(404).send('Interface admin non trouvée');
   }
 });
-
-// ✅ La sécurité reste sur les API (ne pas toucher)
-app.use('/api/admin', requireMacAndDev, adminRoutes);
     
     // ✅ ROUTE de base améliorée
     app.get("/hello_world", (req, res) => {
