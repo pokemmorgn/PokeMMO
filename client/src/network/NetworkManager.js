@@ -1326,13 +1326,13 @@ window.getConnectionStats = function() {
 window.debugInteractionHandler = function() {
   if (window.globalNetworkManager?.interactionHandler) {
     const info = window.globalNetworkManager.interactionHandler.getDebugInfo();
-    console.log('🎭 [InteractionHandler] Debug info:', info);
     return info;
   } else {
     console.error('❌ InteractionHandler non disponible');
     return null;
   }
 };
+
 console.log('✅ NetworkManager avec ConnectionManager intégré chargé!');
 console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
 console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
