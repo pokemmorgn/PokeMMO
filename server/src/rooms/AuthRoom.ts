@@ -660,39 +660,88 @@ export class AuthRoom extends Room<AuthState> {
     });
   }
 
-  // ✅ MÉTHODE AMÉLIORÉE pour récupérer l'IP
+  // ✅ MÉTHODE AMÉLIORÉE pour récupérer l'IP avec DEBUG COMPLET
   private getClientIP(client: Client): string {
     try {
       const headers = (client as any).request?.headers || {};
       const connection = (client as any).request?.connection || {};
       const socket = (client as any).request?.socket || {};
+      const rawRequest = (client as any).request || {};
       
-      console.log(`🔍 [AuthRoom] Recherche IP pour client ${client.sessionId}`);
+      console.log(`🔍 [AuthRoom] === DEBUG IP DÉTAILLÉ pour ${client.sessionId} ===`);
       
-      // ✅ ORDRE DE PRIORITÉ pour les headers d'IP
+      // ✅ DEBUG COMPLET: Afficher TOUT ce qui est disponible
+      console.log(`📋 Headers disponibles:`, Object.keys(headers));
+      console.log(`📋 Headers complets:`, headers);
+      console.log(`🔌 Connection:`, {
+        remoteAddress: connection.remoteAddress,
+        remotePort: connection.remotePort,
+        localAddress: connection.localAddress,
+        localPort: connection.localPort
+      });
+      console.log(`🔌 Socket:`, {
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort,
+        localAddress: socket.localAddress,
+        localPort: socket.localPort
+      });
+      console.log(`🌐 Raw request props:`, Object.keys(rawRequest));
+      
+      // ✅ ORDRE DE PRIORITÉ pour les headers d'IP avec DEBUG
       const ipSources = [
-        headers['cf-connecting-ip'],          // Cloudflare
-        headers['x-real-ip'],                 // Nginx/Apache
-        headers['x-forwarded-for']?.split(',')[0]?.trim(), // Load balancer
-        headers['x-client-ip'],               // Alternative
-        headers['x-cluster-client-ip'],       // Cluster
-        headers['forwarded']?.match(/for=([^;,\s]+)/)?.[1], // RFC 7239
-        connection.remoteAddress,             // Direct connection
-        socket.remoteAddress                  // Socket level
+        { name: 'cf-connecting-ip', value: headers['cf-connecting-ip'] },
+        { name: 'x-real-ip', value: headers['x-real-ip'] },
+        { name: 'x-forwarded-for', value: headers['x-forwarded-for']?.split(',')[0]?.trim() },
+        { name: 'x-client-ip', value: headers['x-client-ip'] },
+        { name: 'x-cluster-client-ip', value: headers['x-cluster-client-ip'] },
+        { name: 'forwarded', value: headers['forwarded']?.match(/for=([^;,\s]+)/)?.[1] },
+        { name: 'connection.remoteAddress', value: connection.remoteAddress },
+        { name: 'socket.remoteAddress', value: socket.remoteAddress },
+        { name: 'req.ip', value: rawRequest.ip },
+        { name: 'req.ips', value: rawRequest.ips },
+        { name: 'req.connection.remoteAddress', value: rawRequest.connection?.remoteAddress }
       ];
       
+      console.log(`🔍 [AuthRoom] Sources IP testées:`);
+      ipSources.forEach(source => {
+        console.log(`  - ${source.name}: ${source.value || 'undefined'} ${source.value ? (this.isValidIP(source.value) ? '✅' : '❌') : ''}`);
+      });
+      
       // ✅ TROUVER la première IP valide
-      for (const ip of ipSources) {
-        if (ip && this.isValidIP(ip)) {
-          const cleanedIP = this.cleanIP(ip);
-          console.log(`✅ [AuthRoom] IP trouvée: ${cleanedIP} pour client ${client.sessionId}`);
+      for (const source of ipSources) {
+        if (source.value && this.isValidIP(source.value)) {
+          const cleanedIP = this.cleanIP(source.value);
+          console.log(`✅ [AuthRoom] IP trouvée via ${source.name}: ${cleanedIP} pour client ${client.sessionId}`);
           return cleanedIP;
         }
       }
       
-      // ✅ FALLBACK: essayer de construire une IP unique
+      // ✅ FALLBACK AMÉLIORÉ: Essayer les headers en mode "forcé"
+      const forcedSources = [
+        headers['x-forwarded-for'], // Prendre la valeur brute
+        connection.remoteAddress,
+        socket.remoteAddress,
+        '127.0.0.1' // Localhost par défaut
+      ];
+      
+      console.log(`🔄 [AuthRoom] Tentative sources forcées:`);
+      for (let i = 0; i < forcedSources.length; i++) {
+        const rawIP = forcedSources[i];
+        console.log(`  - Source forcée ${i}: ${rawIP}`);
+        
+        if (rawIP) {
+          // Nettoyer et utiliser même si pas "parfaitement" valide
+          const cleanedIP = this.cleanIP(rawIP);
+          if (cleanedIP && cleanedIP !== 'unknown') {
+            console.log(`🎯 [AuthRoom] IP forcée acceptée: ${cleanedIP}`);
+            return cleanedIP;
+          }
+        }
+      }
+      
+      // ✅ FALLBACK final
       const fallbackIP = this.generateFallbackIP(client, headers);
-      console.log(`⚠️ [AuthRoom] IP fallback: ${fallbackIP} pour client ${client.sessionId}`);
+      console.log(`⚠️ [AuthRoom] IP fallback finale: ${fallbackIP} pour client ${client.sessionId}`);
       return fallbackIP;
       
     } catch (error) {
@@ -701,52 +750,90 @@ export class AuthRoom extends Room<AuthState> {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Valider une IP
+  // ✅ MÉTHODE AMÉLIORÉE: Valider une IP (plus permissive)
   private isValidIP(ip: string): boolean {
-    if (!ip || ip === 'unknown' || ip.length < 7) return false;
+    if (!ip || ip === 'unknown' || ip.length < 3) return false;
     
-    // IPv4 simple check
+    // Nettoyer d'abord
+    const cleanedIP = ip.split(':')[0].trim();
+    
+    // IPv4 check (plus permissif)
     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipv4Regex.test(ip)) {
-      const parts = ip.split('.');
-      return parts.every(part => {
+    if (ipv4Regex.test(cleanedIP)) {
+      const parts = cleanedIP.split('.');
+      const validParts = parts.every(part => {
         const num = parseInt(part);
-        return num >= 0 && num <= 255;
+        return !isNaN(num) && num >= 0 && num <= 255;
       });
+      if (validParts) {
+        console.log(`✅ IP IPv4 valide: ${cleanedIP}`);
+        return true;
+      }
     }
     
-    // IPv6 simple check
-    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}$/;
-    if (ipv6Regex.test(ip)) return true;
-    
-    // Local addresses are valid
-    if (ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
+    // IPv6 check
+    const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+    if (ipv6Regex.test(cleanedIP)) {
+      console.log(`✅ IP IPv6 valide: ${cleanedIP}`);
       return true;
     }
     
+    // Adresses spéciales acceptées
+    const specialAddresses = [
+      '127.0.0.1', 'localhost', '::1', '0.0.0.0'
+    ];
+    
+    if (specialAddresses.includes(cleanedIP)) {
+      console.log(`✅ IP spéciale valide: ${cleanedIP}`);
+      return true;
+    }
+    
+    // Réseaux privés acceptés
+    if (cleanedIP.startsWith('192.168.') || 
+        cleanedIP.startsWith('10.') || 
+        cleanedIP.startsWith('172.')) {
+      console.log(`✅ IP réseau privé valide: ${cleanedIP}`);
+      return true;
+    }
+    
+    console.log(`❌ IP invalide: ${cleanedIP}`);
     return false;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Nettoyer l'IP
+  // ✅ MÉTHODE AMÉLIORÉE: Nettoyer l'IP (plus robuste)
   private cleanIP(ip: string): string {
     if (!ip) return 'unknown';
     
-    // Retirer les ports
-    ip = ip.split(':')[0];
+    // Nettoyer la chaîne
+    let cleanedIP = ip.toString().trim();
     
-    // Retirer les caractères non-IP
-    ip = ip.replace(/[^\d\.\:a-fA-F]/g, '');
-    
-    // Mapping des IPs locales pour le développement
-    if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
-      return 'localhost';
+    // Retirer les ports (IPv4)
+    if (cleanedIP.includes(':') && !cleanedIP.includes('::')) {
+      // IPv4 avec port
+      cleanedIP = cleanedIP.split(':')[0];
     }
     
-    if (ip.startsWith('192.168.') || ip.startsWith('10.')) {
-      return `local_${ip}`;
+    // Retirer les caractères de formatage
+    cleanedIP = cleanedIP.replace(/[\[\]]/g, ''); // Enlever [] des IPv6
+    
+    // Mapping des IPs spéciales
+    const mappings: { [key: string]: string } = {
+      '127.0.0.1': 'localhost',
+      '::1': 'localhost',
+      'localhost': 'localhost',
+      '0.0.0.0': 'localhost'
+    };
+    
+    if (mappings[cleanedIP]) {
+      return mappings[cleanedIP];
     }
     
-    return ip;
+    // Préfixer les réseaux privés
+    if (cleanedIP.startsWith('192.168.') || cleanedIP.startsWith('10.')) {
+      return `local_${cleanedIP}`;
+    }
+    
+    return cleanedIP;
   }
 
   // ✅ NOUVELLE MÉTHODE: Générer IP de fallback
