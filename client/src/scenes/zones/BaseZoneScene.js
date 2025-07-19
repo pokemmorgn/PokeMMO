@@ -1,9 +1,5 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC ENCOUNTER MANAGER INTÉGRÉ
-// ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
-// 🆕 NOUVEAU: Intégration complète du ClientEncounterManager
-// 🔒 MODIFIÉ: Système MovementBlockHandler uniquement
+// client/src/scenes/zones/BaseZoneScene.js -
 
-// ✅ NOUVEAU: Import du système de chargement
 import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -1039,15 +1035,18 @@ initializeZoneEnvironment() {
     try {
       console.log(`🎯 [${this.scene.key}] === INITIALISATION INTERACTION MANAGER ===`);
 
-      // Créer l'InteractionManager
-      this.interactionManager = new InteractionManager(this);
-
-      // L'initialiser avec les managers requis
-      this.interactionManager.initialize(
-        this.networkManager,
-        this.playerManager,
-        this.npcManager
-      );
+    // Créer le BaseInteractionManager
+    this.interactionManager = new BaseInteractionManager(this);
+    
+    // L'initialiser avec les dependencies
+    this.interactionManager.initialize({
+      networkManager: this.networkManager,
+      networkInteractionHandler: this.networkManager?.interactionHandler,
+      playerManager: this.playerManager,
+      npcManager: this.npcManager,
+      questSystem: window.questSystem || window.questSystemGlobal,
+      shopSystem: this.scene?.shopIntegration?.getShopSystem() || window.shopSystem
+    });
 
       console.log(`✅ [${this.scene.key}] InteractionManager initialisé avec succès`);
 
