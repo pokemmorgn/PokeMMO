@@ -70,9 +70,11 @@ export default config({
 app.get("/admin", (req: any, res) => {
   console.log('🎯 [App] Route /admin appelée (sans auth)');
   console.log('🌐 IP:', req.headers['x-real-ip'] || req.connection.remoteAddress);
-  console.log('📁 Chemin fichier:', path.join(__dirname, '../../client/public/admin.html'));
   
-  const adminPath = path.join(__dirname, '../../client/dist/admin.html')
+  // ✅ Changer le chemin vers dist/ au lieu de public/
+  const adminPath = path.join(__dirname, '../../client/dist/admin.html');
+  console.log('📁 Chemin fichier:', adminPath);
+  
   if (require('fs').existsSync(adminPath)) {
     console.log('✅ [App] Fichier admin.html trouvé, envoi...');
     res.sendFile(adminPath);
