@@ -9,7 +9,7 @@ import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
 import { InventorySystem } from "../../game/InventorySystem.js";
-import { InteractionManager } from "../../game/InteractionManager.js";
+import { BaseInteractionManager } from "../../game/BaseInteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
@@ -1014,6 +1014,174 @@ getCurrentTimeWeather() {
     weather: { weather: 'clear', displayName: 'Ciel dégagé' }
   };
 }
+
+  // === MÉTHODES DE DEBUG POUR BASE INTERACTION MANAGER ===
+
+debugBaseInteractionManager() {
+  console.log(`🎯 [${this.scene.key}] === DEBUG BASE INTERACTION MANAGER ===`);
+  
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non initialisé`);
+    return null;
+  }
+  
+  const info = this.interactionManager.getDebugInfo();
+  console.table({
+    'Interactions Totales': info.stats.totalInteractions,
+    'Erreurs': info.stats.errors,
+    'Taux de Succès': info.stats.successRate,
+    'Inputs': info.stats.inputEvents,
+    'Inputs Bloqués': info.stats.blockedInputs,
+    'Temps Moyen': `${info.stats.averageResponseTime.toFixed(0)}ms`
+  });
+  
+  console.log(`📊 [${this.scene.key}] Info complète BaseInteractionManager:`, info);
+  this.showNotification('Debug BaseInteractionManager dans la console', 'info');
+  
+  return info;
+}
+
+testNpcInteractionSystem() {
+  console.log(`🧪 [${this.scene.key}] Test système interaction NPC...`);
+  
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+    this.showNotification('BaseInteractionManager non disponible', 'error');
+    return false;
+  }
+  
+  // Trouver le NPC le plus proche pour test
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.error(`❌ [${this.scene.key}] Pas de joueur pour test NPC`);
+    this.showNotification('Pas de joueur trouvé', 'error');
+    return false;
+  }
+  
+  const targetNpc = this.npcManager?.getClosestNpc(myPlayer.x, myPlayer.y, 100);
+  if (!targetNpc) {
+    console.error(`❌ [${this.scene.key}] Aucun NPC à proximité pour test`);
+    this.showNotification('Aucun NPC à proximité', 'warning');
+    return false;
+  }
+  
+  console.log(`🎯 [${this.scene.key}] Test interaction avec NPC: ${targetNpc.name}`);
+  
+  try {
+    const result = this.interactionManager.manualInteraction(targetNpc, { type: 'npc' });
+    console.log(`✅ [${this.scene.key}] Test NPC réussi:`, result);
+    this.showNotification(`Test NPC réussi avec ${targetNpc.name}`, 'success');
+    return result;
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test NPC:`, error);
+    this.showNotification(`Erreur test NPC: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+testObjectInteractionSystem() {
+  console.log(`🧪 [${this.scene.key}] Test système interaction objets...`);
+  
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+    this.showNotification('BaseInteractionManager non disponible', 'error');
+    return false;
+  }
+  
+  // Créer un objet test factice
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.error(`❌ [${this.scene.key}] Pas de joueur pour test objet`);
+    this.showNotification('Pas de joueur trouvé', 'error');
+    return false;
+  }
+  
+  const testObject = {
+    id: 'test_pokeball',
+    name: 'test_pokeball',
+    x: myPlayer.x + 32,
+    y: myPlayer.y,
+    properties: {
+      objectType: 'pokeball',
+      collectible: true
+    }
+  };
+  
+  console.log(`🎯 [${this.scene.key}] Test interaction avec objet test:`, testObject);
+  
+  try {
+    const result = this.interactionManager.manualInteraction(testObject, { type: 'object' });
+    console.log(`✅ [${this.scene.key}] Test objet réussi:`, result);
+    this.showNotification(`Test objet réussi`, 'success');
+    return result;
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test objet:`, error);
+    this.showNotification(`Erreur test objet: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+testSearchHiddenItems(x = null, y = null) {
+  console.log(`🧪 [${this.scene.key}] Test fouille objets cachés...`);
+  
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+    this.showNotification('BaseInteractionManager non disponible', 'error');
+    return false;
+  }
+  
+  // Utiliser position du joueur si pas spécifiée
+  const myPlayer = this.playerManager?.getMyPlayer();
+  const searchX = x !== null ? x : (myPlayer ? myPlayer.x : 100);
+  const searchY = y !== null ? y : (myPlayer ? myPlayer.y : 100);
+  
+  console.log(`🔍 [${this.scene.key}] Test fouille à position (${searchX}, ${searchY})`);
+  
+  try {
+    const result = this.interactionManager.searchHiddenItems(
+      { x: searchX, y: searchY },
+      32 // radius
+    );
+    
+    console.log(`✅ [${this.scene.key}] Test fouille envoyé:`, result);
+    this.showNotification(`Test fouille envoyé à (${searchX}, ${searchY})`, 'success');
+    return result;
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test fouille:`, error);
+    this.showNotification(`Erreur test fouille: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+getBaseInteractionStats() {
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+    return null;
+  }
+  
+  const stats = this.interactionManager.getDebugInfo();
+  console.log(`📊 [${this.scene.key}] Stats BaseInteractionManager:`, stats);
+  return stats;
+}
+
+resetBaseInteractionStats() {
+  if (!this.interactionManager) {
+    console.error(`❌ [${this.scene.key}] BaseInteractionManager non disponible`);
+    return false;
+  }
+  
+  try {
+    this.interactionManager.resetStats();
+    console.log(`🔄 [${this.scene.key}] Stats BaseInteractionManager reset`);
+    this.showNotification('Stats BaseInteractionManager reset', 'success');
+    return true;
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur reset stats:`, error);
+    this.showNotification(`Erreur reset stats: ${error.message}`, 'error');
+    return false;
+  }
+}
+  
   // ✅ MÉTHODE INCHANGÉE: Initialiser l'environnement de la zone
 initializeZoneEnvironment() {
     const zoneName = this.normalizeZoneName(this.scene.key);
@@ -1032,32 +1200,35 @@ initializeZoneEnvironment() {
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
+      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour BaseInteractionManager`);
       return;
     }
-
+  
     try {
-      console.log(`🎯 [${this.scene.key}] === INITIALISATION INTERACTION MANAGER ===`);
-
-      // Créer l'InteractionManager
-      this.interactionManager = new InteractionManager(this);
-
-      // L'initialiser avec les managers requis
-      this.interactionManager.initialize(
-        this.networkManager,
-        this.playerManager,
-        this.npcManager
-      );
-
-      console.log(`✅ [${this.scene.key}] InteractionManager initialisé avec succès`);
-
-      // ✅ Shop integration
+      console.log(`🎯 [${this.scene.key}] === INITIALISATION BASE INTERACTION MANAGER ===`);
+  
+      // Créer le BaseInteractionManager
+      this.interactionManager = new BaseInteractionManager(this);
+  
+      // L'initialiser avec les dépendances
+      this.interactionManager.initialize({
+        networkManager: this.networkManager,
+        networkInteractionHandler: this.networkManager.interactionHandler,
+        playerManager: this.playerManager,
+        npcManager: this.npcManager,
+        questSystem: window.questSystem || window.questSystemGlobal,
+        shopSystem: window.shopSystem
+      });
+  
+      console.log(`✅ [${this.scene.key}] BaseInteractionManager initialisé avec succès`);
+  
+      // ✅ Shop integration (automatique avec BaseInteractionManager)
       integrateShopToScene(this, this.networkManager);
-
-      console.log(`✅ [${this.scene.key}] Shop intégré via InteractionManager`);
-
+  
+      console.log(`✅ [${this.scene.key}] Shop intégré via BaseInteractionManager`);
+  
     } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation InteractionManager:`, error);
+      console.error(`❌ [${this.scene.key}] Erreur initialisation BaseInteractionManager:`, error);
     }
   }
 
@@ -3100,6 +3271,13 @@ debugMusicSystem() {
       getMovementBlockStatus: () => this.getMovementBlockSystemStatus(),
       forceMovementBlockInit: () => this.forceMovementBlockSystemInit(),
       forceInputManagerInit: () => this.forceInputManagerInit(),
+            // ✅ NOUVELLES FONCTIONS DEBUG BASE INTERACTION MANAGER
+      debugBaseInteraction: () => this.debugBaseInteractionManager(),
+      testNpcInteraction: () => this.testNpcInteractionSystem(),
+      testObjectInteraction: () => this.testObjectInteractionSystem(),
+      searchHiddenItems: (x, y) => this.testSearchHiddenItems(x, y),
+      getInteractionStats: () => this.getBaseInteractionStats(),
+      resetInteractionStats: () => this.resetBaseInteractionStats(),
     debugWeather: () => this.debugWeatherSystem(),
     testWeather: () => this.testGlobalWeatherConnection(),
     forceWeatherRefresh: () => this.forceWeatherRefresh(),
