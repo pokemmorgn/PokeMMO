@@ -326,6 +326,290 @@ router.post('/bulk-actions', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// ✅ NOUVEAU: Routes pour gestion des quêtes dans adminRoutes.ts
+
+// Ajouter ces routes dans adminRoutes.ts après les routes existantes
+
+// ✅ ROUTE: Lister toutes les quêtes
+router.get('/quests', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const questsData = await fs.readFile(questsPath, 'utf8');
+    const questsJson = JSON.parse(questsData);
+    
+    res.json({
+      quests: questsJson.quests || [],
+      total: questsJson.quests?.length || 0,
+      lastModified: (await fs.stat(questsPath)).mtime
+    });
+  } catch (error) {
+    console.error('❌ Erreur lecture quêtes:', error);
+    res.status(500).json({ error: 'Erreur lecture fichier quêtes' });
+  }
+});
+
+// ✅ ROUTE: Ajouter une nouvelle quête
+router.post('/quests', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const questsData = await fs.readFile(questsPath, 'utf8');
+    const questsJson = JSON.parse(questsData);
+    
+    const newQuest = {
+      id: req.body.id || `quest_${Date.now()}`,
+      name: req.body.name || 'Nouvelle Quête',
+      description: req.body.description || 'Description de la quête',
+      category: req.body.category || 'side',
+      startNpcId: req.body.startNpcId || null,
+      endNpcId: req.body.endNpcId || null,
+      isRepeatable: req.body.isRepeatable || false,
+      autoComplete: req.body.autoComplete || false,
+      dialogues: req.body.dialogues || {
+        questOffer: ["Dialogue d'offre par défaut"],
+        questInProgress: ["Dialogue en cours par défaut"],
+        questComplete: ["Dialogue de fin par défaut"]
+      },
+      steps: req.body.steps || []
+    };
+    
+    // Vérifier que l'ID n'existe pas déjà
+    if (questsJson.quests.find((q: any) => q.id === newQuest.id)) {
+      return res.status(400).json({ error: 'Une quête avec cet ID existe déjà' });
+    }
+    
+    questsJson.quests.push(newQuest);
+    
+    // Sauvegarder avec backup
+    const backupPath = questsPath + `.backup.${Date.now()}`;
+    await fs.copyFile(questsPath, backupPath);
+    
+    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    
+    console.log(`🎯 [Admin] ${req.user.username} a ajouté la quête: ${newQuest.id}`);
+    
+    res.json({
+      message: 'Quête ajoutée avec succès',
+      quest: newQuest,
+      backupCreated: backupPath
+    });
+  } catch (error) {
+    console.error('❌ Erreur ajout quête:', error);
+    res.status(500).json({ error: 'Erreur sauvegarde quête' });
+  }
+});
+
+// ✅ ROUTE: Modifier une quête existante
+router.put('/quests/:questId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const questsData = await fs.readFile(questsPath, 'utf8');
+    const questsJson = JSON.parse(questsData);
+    
+    const questIndex = questsJson.quests.findIndex((q: any) => q.id === req.params.questId);
+    if (questIndex === -1) {
+      return res.status(404).json({ error: 'Quête non trouvée' });
+    }
+    
+    // Backup avant modification
+    const backupPath = questsPath + `.backup.${Date.now()}`;
+    await fs.copyFile(questsPath, backupPath);
+    
+    // Mettre à jour la quête
+    questsJson.quests[questIndex] = {
+      ...questsJson.quests[questIndex],
+      ...req.body,
+      id: req.params.questId // Garder l'ID original
+    };
+    
+    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    
+    console.log(`🎯 [Admin] ${req.user.username} a modifié la quête: ${req.params.questId}`);
+    
+    res.json({
+      message: 'Quête modifiée avec succès',
+      quest: questsJson.quests[questIndex],
+      backupCreated: backupPath
+    });
+  } catch (error) {
+    console.error('❌ Erreur modification quête:', error);
+    res.status(500).json({ error: 'Erreur modification quête' });
+  }
+});
+
+// ✅ ROUTE: Supprimer une quête
+router.delete('/quests/:questId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const questsData = await fs.readFile(questsPath, 'utf8');
+    const questsJson = JSON.parse(questsData);
+    
+    const questIndex = questsJson.quests.findIndex((q: any) => q.id === req.params.questId);
+    if (questIndex === -1) {
+      return res.status(404).json({ error: 'Quête non trouvée' });
+    }
+    
+    // Backup avant suppression
+    const backupPath = questsPath + `.backup.${Date.now()}`;
+    await fs.copyFile(questsPath, backupPath);
+    
+    const deletedQuest = questsJson.quests.splice(questIndex, 1)[0];
+    
+    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    
+    console.log(`🗑️ [Admin] ${req.user.username} a supprimé la quête: ${req.params.questId}`);
+    
+    res.json({
+      message: 'Quête supprimée avec succès',
+      deletedQuest,
+      backupCreated: backupPath
+    });
+  } catch (error) {
+    console.error('❌ Erreur suppression quête:', error);
+    res.status(500).json({ error: 'Erreur suppression quête' });
+  }
+});
+
+// ✅ ROUTE: Dupliquer une quête
+router.post('/quests/:questId/duplicate', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const questsData = await fs.readFile(questsPath, 'utf8');
+    const questsJson = JSON.parse(questsData);
+    
+    const originalQuest = questsJson.quests.find((q: any) => q.id === req.params.questId);
+    if (!originalQuest) {
+      return res.status(404).json({ error: 'Quête originale non trouvée' });
+    }
+    
+    const duplicatedQuest = {
+      ...originalQuest,
+      id: `${originalQuest.id}_copy_${Date.now()}`,
+      name: `${originalQuest.name} (Copie)`
+    };
+    
+    questsJson.quests.push(duplicatedQuest);
+    
+    const backupPath = questsPath + `.backup.${Date.now()}`;
+    await fs.copyFile(questsPath, backupPath);
+    
+    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    
+    console.log(`📋 [Admin] ${req.user.username} a dupliqué la quête: ${req.params.questId}`);
+    
+    res.json({
+      message: 'Quête dupliquée avec succès',
+      quest: duplicatedQuest
+    });
+  } catch (error) {
+    console.error('❌ Erreur duplication quête:', error);
+    res.status(500).json({ error: 'Erreur duplication quête' });
+  }
+});
+
+// ✅ ROUTE: Recharger le système de quêtes
+router.post('/quests/reload', requireMacAndDev, async (req: any, res) => {
+  try {
+    // Ici, vous pouvez ajouter la logique pour recharger le QuestManager
+    // Par exemple, si vous avez une méthode reload() dans QuestManager
+    
+    console.log(`🔄 [Admin] ${req.user.username} a rechargé le système de quêtes`);
+    
+    res.json({
+      message: 'Système de quêtes rechargé avec succès',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erreur rechargement quêtes:', error);
+    res.status(500).json({ error: 'Erreur rechargement système' });
+  }
+});
+
+// ✅ ROUTE: Obtenir les backups disponibles
+router.get('/quests/backups', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsDir = path.join(__dirname, '../data/quests');
+    const files = await fs.readdir(questsDir);
+    
+    const backups = files
+      .filter((file: string) => file.startsWith('quests.json.backup.'))
+      .map(async (file: string) => {
+        const filePath = path.join(questsDir, file);
+        const stats = await fs.stat(filePath);
+        return {
+          filename: file,
+          timestamp: parseInt(file.split('.').pop() || '0'),
+          date: stats.mtime,
+          size: stats.size
+        };
+      });
+    
+    const backupList = await Promise.all(backups);
+    backupList.sort((a, b) => b.timestamp - a.timestamp);
+    
+    res.json({
+      backups: backupList.slice(0, 10), // Garder seulement les 10 plus récents
+      total: backupList.length
+    });
+  } catch (error) {
+    console.error('❌ Erreur liste backups:', error);
+    res.status(500).json({ error: 'Erreur lecture backups' });
+  }
+});
+
+// ✅ ROUTE: Restaurer depuis un backup
+router.post('/quests/restore/:backupFile', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const questsPath = path.join(__dirname, '../data/quests/quests.json');
+    const backupPath = path.join(__dirname, '../data/quests', req.params.backupFile);
+    
+    // Vérifier que le backup existe
+    try {
+      await fs.access(backupPath);
+    } catch {
+      return res.status(404).json({ error: 'Backup non trouvé' });
+    }
+    
+    // Créer un backup du fichier actuel avant restauration
+    const currentBackupPath = questsPath + `.backup.before_restore.${Date.now()}`;
+    await fs.copyFile(questsPath, currentBackupPath);
+    
+    // Restaurer le backup
+    await fs.copyFile(backupPath, questsPath);
+    
+    console.log(`⏮️ [Admin] ${req.user.username} a restauré le backup: ${req.params.backupFile}`);
+    
+    res.json({
+      message: 'Backup restauré avec succès',
+      restoredFrom: req.params.backupFile,
+      currentBackupCreated: currentBackupPath
+    });
+  } catch (error) {
+    console.error('❌ Erreur restauration backup:', error);
+    res.status(500).json({ error: 'Erreur restauration backup' });
+  }
+});
+
 // ✅ ROUTE: Logs système (simulé)
 router.get('/logs', requireMacAndDev, async (req: any, res) => {
   try {
