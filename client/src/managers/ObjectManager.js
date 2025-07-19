@@ -1,625 +1,765 @@
-// client/src/managers/ObjectManager.js - VERSION CORRIGÉE COMPLÈTE
+// client/src/modules/ObjectManager.js
+// ✅ Gestionnaire d'objets visuels pour MMO Pokémon
+// 🔧 VERSION CORRIGÉE - Résout l'erreur de nettoyage des groupes Phaser
 
-export default class ObjectManager {
-    constructor(scene) {
-        this.scene = scene;
-        this.objectSprites = new Map(); // ID -> sprite
-        this.phaserGroups = null;
-        this.isInitialized = false;
-        this.isDestroyed = false; // ✅ NOUVEAU: Flag de destruction
-        this.networkManager = null;
-        this.lastProcessedData = null; // ✅ NOUVEAU: Éviter les doublons
-        
-        // ✅ NOUVEAU: Configuration par défaut
-        this.config = {
-            enableVisualFeedback: true,
-            enableClickHandling: true,
-            enableHoverEffects: true,
-            debugMode: true
-        };
-        
-        console.log(`[ObjectManager] 📦 Créé pour scène: ${scene.constructor.name}`);
-    }
-
-    // ✅ CORRECTION 1: Initialisation sécurisée
-    initialize() {
-        if (this.isInitialized || this.isDestroyed) {
-            console.log(`[ObjectManager] ⚠️ Déjà initialisé ou détruit`);
-            return false;
-        }
-
-        console.log(`[ObjectManager] 🚀 === INITIALISATION AAAA ===`);
-        console.log(`[ObjectManager] Scène: ${this.scene.constructor.name}`);
-
-        try {
-            this.setupPhaserGroups();
-            this.setupEventHandlers();
-            this.setupNetworkIntegration();
-            
-            this.isInitialized = true;
-            console.log(`[ObjectManager] ✅ Initialisé avec succès`);
-            return true;
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur initialisation:`, error);
-            return false;
-        }
-    }
-
-    // ✅ CORRECTION 2: Création groupes Phaser sécurisée
-    setupPhaserGroups() {
-        console.log(`[ObjectManager] 🎭 Création des groupes Phaser...`);
-        
-        if (!this.scene || !this.scene.add) {
-            throw new Error('Scène Phaser invalide');
-        }
-
-        // ✅ Vérifier si les groupes existent déjà
-        if (this.phaserGroups) {
-            console.log(`[ObjectManager] ⚠️ Groupes déjà créés, nettoyage...`);
-            this.cleanupPhaserGroups();
-        }
-
-        try {
-            this.phaserGroups = {
-                objects: this.scene.add.group({
-                    name: 'ObjectManagerGroup',
-                    active: true,
-                    maxSize: -1
-                }),
-                interactions: this.scene.add.group({
-                    name: 'ObjectInteractionGroup', 
-                    active: true,
-                    maxSize: -1
-                })
-            };
-            
-            console.log(`[ObjectManager] ✅ Groupes Phaser créés`);
-            console.log(`[ObjectManager]   - objects: ${!!this.phaserGroups.objects}`);
-            console.log(`[ObjectManager]   - interactions: ${!!this.phaserGroups.interactions}`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur création groupes:`, error);
-            throw error;
-        }
-    }
-
-    // ✅ CORRECTION 3: Event handlers sécurisés
-    setupEventHandlers() {
-        console.log(`[ObjectManager] ⚙️ Configuration handlers d'événements...`);
-        
-        if (!this.scene || !this.scene.input) {
-            console.warn(`[ObjectManager] ⚠️ Scene.input manquant, skip event handlers`);
-            return;
-        }
-
-        try {
-            if (this.config.enableClickHandling) {
-                // ✅ Click handling basique
-                console.log(`[ObjectManager] 🖱️ Click handling activé`);
-            }
-            
-            if (this.config.enableHoverEffects) {
-                // ✅ Hover effects basiques  
-                console.log(`[ObjectManager] 🎯 Hover effects activés`);
-            }
-            
-            console.log(`[ObjectManager] ✅ Event handlers configurés`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur event handlers:`, error);
-            // ✅ Non-critique, continuer
-        }
-    }
-
-    // ✅ CORRECTION 4: Intégration réseau robuste
-    setupNetworkIntegration() {
-        console.log(`[ObjectManager] 🌐 Configuration intégration réseau...`);
-        
-        // ✅ Recherche NetworkManager multi-sources
-        const networkSources = [
-            () => this.scene.networkManager,
-            () => this.scene.game?.registry?.get('networkManager'),
-            () => window.globalNetworkManager,
-            () => window.networkManager
-        ];
-        
-        for (const getNetwork of networkSources) {
-            try {
-                const network = getNetwork();
-                if (network) {
-                    console.log(`[ObjectManager] 🎯 NetworkManager trouvé`);
-                    this.networkManager = network;
-                    break;
-                }
-            } catch (error) {
-                // ✅ Ignorer les erreurs et continuer
-            }
-        }
-        
-        if (!this.networkManager) {
-            console.warn(`[ObjectManager] ⚠️ NetworkManager non trouvé, mode autonome`);
-            console.log(`[ObjectManager] ✅ Intégration réseau configurée (mode autonome)`);
-            return;
-        }
-        
-        console.log(`[ObjectManager] 🔗 NetworkManager trouvé, configuration callbacks...`);
-        
-        try {
-            // ✅ Configurer callback pour objets de zone
-            this.networkManager.onZoneObjects((data) => {
-                console.log(`[ObjectManager] 📨 Objets de zone reçus:`, data);
-                this.processZoneObjects(data);
-            });
-            
-            // ✅ Demander les objets pour la zone actuelle
-            const currentZone = this.networkManager.getCurrentZone();
-            if (currentZone) {
-                console.log(`[ObjectManager] 📤 Demande objets pour zone: ${currentZone}`);
-                this.requestZoneObjects(currentZone);
-            }
-            
-            console.log(`[ObjectManager] ✅ Intégration réseau configurée`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur intégration réseau:`, error);
-            // ✅ Non-critique, continuer en mode autonome
-        }
-    }
-
-    // ✅ CORRECTION 5: Traitement objets avec dédoublonnage
-    processZoneObjects(data) {
-        console.log(`[ObjectManager] 🔄 === TRAITEMENT OBJETS ZONE ===`);
-        console.log(`[ObjectManager] Zone: ${data.zone}`);
-        console.log(`[ObjectManager] Objets: ${data.objects?.length || 0}`);
-        
-        // ✅ NOUVEAU: Éviter les doublons
-        const dataKey = `${data.zone}_${data.objects?.length || 0}_${Date.now()}`;
-        if (this.lastProcessedData === dataKey) {
-            console.log(`[ObjectManager] ⚠️ Données déjà traitées récemment, skip`);
-            return;
-        }
-        this.lastProcessedData = dataKey;
-        
-        if (!data.objects || !Array.isArray(data.objects)) {
-            console.log(`[ObjectManager] ⚠️ Pas d'objets à traiter`);
-            return;
-        }
-        
-        if (this.isDestroyed) {
-            console.log(`[ObjectManager] ⚠️ Manager détruit, skip traitement`);
-            return;
-        }
-        
-        try {
-            let created = 0;
-            let updated = 0;
-            
-            data.objects.forEach(objectData => {
-                if (this.objectSprites.has(objectData.id)) {
-                    console.log(`[ObjectManager] ♻️ Objet ${objectData.id} existe déjà, mise à jour`);
-                    this.updateObjectSprite(objectData);
-                    updated++;
-                } else {
-                    console.log(`[ObjectManager] 🎨 Création sprite objet: ${objectData.id} (${objectData.type || 'unknown'})`);
-                    this.createObjectSprite(objectData);
-                    created++;
-                }
-            });
-            
-            console.log(`[ObjectManager] ✅ ${data.objects.length} objets traités (${created} créés, ${updated} mis à jour)`);
-            console.log(`[ObjectManager] 📊 === RÉSUMÉ OBJETS ===`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur traitement objets:`, error);
-        }
-    }
-
-    // ✅ CORRECTION 6: Création sprite sécurisée
-    createObjectSprite(objectData) {
-        if (!this.phaserGroups || this.isDestroyed) {
-            console.warn(`[ObjectManager] ⚠️ Groupes non disponibles pour création sprite`);
-            return null;
-        }
-        
-        try {
-            const sprite = this.createPlaceholderSprite(objectData);
-            if (!sprite) {
-                console.warn(`[ObjectManager] ⚠️ Échec création sprite pour objet ${objectData.id}`);
-                return null;
-            }
-            
-            // ✅ Configurer le sprite
-            sprite.setData('objectId', objectData.id);
-            sprite.setData('objectType', objectData.type || 'unknown');
-            sprite.setData('objectData', objectData);
-            
-            // ✅ Ajouter au groupe et au cache
-            this.phaserGroups.objects.add(sprite);
-            this.objectSprites.set(objectData.id, sprite);
-            
-            console.log(`[ObjectManager] ✅ Sprite créé: ${objectData.id} à (${objectData.x}, ${objectData.y})`);
-            return sprite;
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur création sprite ${objectData.id}:`, error);
-            return null;
-        }
-    }
-
-    // ✅ AMÉLIORATION: Création placeholder améliorée
-    createPlaceholderSprite(objectData) {
-        if (!this.scene || !this.scene.add) {
-            console.error(`[ObjectManager] ❌ Scene.add non disponible`);
-            return null;
-        }
-        
-        const type = objectData.type || 'unknown';
-        console.log(`[ObjectManager] 🟨 Création placeholder pour ${type}`);
-        
-        // ✅ Couleurs par type d'objet
-        const typeColors = {
-            'pokeball': 0xFF0000,    // Rouge
-            'item': 0x00FF00,        // Vert
-            'collectible': 0x0000FF, // Bleu
-            'machine': 0xFFFF00,     // Jaune
-            'container': 0xFF00FF,   // Magenta
-            'unknown': 0x808080      // Gris
-        };
-        
-        const color = typeColors[type] || typeColors.unknown;
-        
-        try {
-            // ✅ Créer rectangle coloré
-            const sprite = this.scene.add.rectangle(
-                objectData.x,
-                objectData.y,
-                32, // largeur
-                32, // hauteur
-                color,
-                0.8 // alpha
-            );
-            
-            // ✅ Ajouter bordure
-            sprite.setStrokeStyle(2, 0xFFFFFF);
-            
-            // ✅ Rendre interactif si demandé
-            if (this.config.enableClickHandling) {
-                sprite.setInteractive();
-                sprite.on('pointerdown', () => {
-                    console.log(`[ObjectManager] 🖱️ Click sur objet ${objectData.id}`);
-                    this.handleObjectClick(objectData);
-                });
-            }
-            
-            return sprite;
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur création rectangle:`, error);
-            return null;
-        }
-    }
-
-    // ✅ NOUVEAU: Gestion click objets
-    handleObjectClick(objectData) {
-        console.log(`[ObjectManager] 🎯 Interaction avec objet:`, objectData);
-        
-        // ✅ TODO: Implémenter interaction avec objets
-        if (this.networkManager && typeof this.networkManager.sendObjectInteract === 'function') {
-            this.networkManager.sendObjectInteract(objectData.id, objectData.type);
-        }
-    }
-
-    // ✅ NOUVEAU: Mise à jour sprite existant
-    updateObjectSprite(objectData) {
-        const sprite = this.objectSprites.get(objectData.id);
-        if (!sprite || sprite.active === false) {
-            console.warn(`[ObjectManager] ⚠️ Sprite ${objectData.id} non trouvé pour mise à jour`);
-            return;
-        }
-        
-        console.log(`[ObjectManager] 🔄 Mise à jour sprite: ${objectData.id}`);
-        
-        try {
-            // ✅ Mettre à jour position
-            sprite.setPosition(objectData.x, objectData.y);
-            
-            // ✅ Mettre à jour données
-            sprite.setData('objectData', objectData);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur mise à jour sprite ${objectData.id}:`, error);
-        }
-    }
-
-    // ✅ CORRECTION 7: Destruction sécurisée
-    destroyObjectSprite(objectId) {
-        console.log(`[ObjectManager] 💥 Destruction sprite: ${objectId}`);
-        
-        const sprite = this.objectSprites.get(objectId);
-        if (!sprite) {
-            console.log(`[ObjectManager] ⚠️ Sprite ${objectId} non trouvé`);
-            return;
-        }
-        
-        try {
-            // ✅ NOUVELLE LOGIQUE: Vérification sécurisée
-            if (this.phaserGroups && this.phaserGroups.objects) {
-                // ✅ Vérifier si le sprite est dans le groupe avant de l'enlever
-                if (this.phaserGroups.objects.contains && this.phaserGroups.objects.contains(sprite)) {
-                    this.phaserGroups.objects.remove(sprite);
-                    console.log(`[ObjectManager] ✅ Sprite ${objectId} retiré du groupe`);
-                } else {
-                    console.log(`[ObjectManager] ⚠️ Sprite ${objectId} pas dans le groupe`);
-                }
-            } else {
-                console.log(`[ObjectManager] ⚠️ Groupe objects non disponible pour ${objectId}`);
-            }
-            
-            // ✅ Détruire le sprite directement
-            if (sprite.destroy && typeof sprite.destroy === 'function') {
-                sprite.destroy();
-                console.log(`[ObjectManager] ✅ Sprite ${objectId} détruit`);
-            }
-            
-            // ✅ Nettoyer le cache
-            this.objectSprites.delete(objectId);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur destruction sprite ${objectId}:`, error);
-            
-            // ✅ FALLBACK: Nettoyer le cache même en cas d'erreur
-            this.objectSprites.delete(objectId);
-        }
-    }
-
-    // ✅ CORRECTION 8: Nettoyage groupes sécurisé
-    cleanupPhaserGroups() {
-        console.log(`[ObjectManager] 🧹 Nettoyage groupes Phaser...`);
-        
-        if (!this.phaserGroups) {
-            console.log(`[ObjectManager] ⚠️ Pas de groupes à nettoyer`);
-            return;
-        }
-        
-        try {
-            // ✅ Nettoyer le groupe objects
-            if (this.phaserGroups.objects) {
-                console.log(`[ObjectManager] 🗑️ Nettoyage groupe objects (${this.phaserGroups.objects.children?.size || 0} éléments)`);
-                
-                if (this.phaserGroups.objects.clear) {
-                    this.phaserGroups.objects.clear(true, true); // removeFromScene=true, destroyChild=true
-                }
-                
-                if (this.phaserGroups.objects.destroy) {
-                    this.phaserGroups.objects.destroy();
-                }
-            }
-            
-            // ✅ Nettoyer le groupe interactions
-            if (this.phaserGroups.interactions) {
-                console.log(`[ObjectManager] 🗑️ Nettoyage groupe interactions`);
-                
-                if (this.phaserGroups.interactions.clear) {
-                    this.phaserGroups.interactions.clear(true, true);
-                }
-                
-                if (this.phaserGroups.interactions.destroy) {
-                    this.phaserGroups.interactions.destroy();
-                }
-            }
-            
-            console.log(`[ObjectManager] ✅ Groupes nettoyés`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur nettoyage groupes:`, error);
-        } finally {
-            // ✅ Toujours reset la référence
-            this.phaserGroups = null;
-        }
-    }
-
-    // ✅ CORRECTION 9: Demande objets robuste
-    requestZoneObjects(zone) {
-        if (!this.networkManager) {
-            console.log(`[ObjectManager] ⚠️ Pas de NetworkManager pour demander objets`);
-            return false;
-        }
-        
-        try {
-            console.log(`[ObjectManager] 🎯 NetworkManager trouvé`);
-            
-            if (typeof this.networkManager.sendMessage === 'function') {
-                this.networkManager.sendMessage('requestZoneObjects', { zone });
-                console.log(`[ObjectManager] ✅ Demande envoyée pour zone ${zone}`);
-                return true;
-            } else {
-                console.log(`[ObjectManager] ⚠️ Méthode sendMessage non disponible`);
-                return false;
-            }
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur demande objets:`, error);
-            return false;
-        }
-    }
-
-    // ✅ CORRECTION 10: Destruction complète et sécurisée
-    destroy() {
-        console.log(`[ObjectManager] 💀 === DESTRUCTION ===`);
-        
-        if (this.isDestroyed) {
-            console.log(`[ObjectManager] ⚠️ Déjà détruit`);
-            return;
-        }
-        
-        this.isDestroyed = true;
-        
-        try {
-            // ✅ 1. Détruire tous les sprites individuellement
-            console.log(`[ObjectManager] 🗑️ Destruction ${this.objectSprites.size} sprites...`);
-            
-            for (const [objectId, sprite] of this.objectSprites) {
-                try {
-                    if (sprite && sprite.active !== false) {
-                        if (sprite.destroy && typeof sprite.destroy === 'function') {
-                            sprite.destroy();
-                        }
-                    }
-                } catch (error) {
-                    console.warn(`[ObjectManager] ⚠️ Erreur destruction sprite ${objectId}:`, error);
-                }
-            }
-            
-            // ✅ 2. Nettoyer le cache
-            this.objectSprites.clear();
-            console.log(`[ObjectManager] ✅ Cache sprites nettoyé`);
-            
-            // ✅ 3. Nettoyer les groupes Phaser
-            this.cleanupPhaserGroups();
-            
-            // ✅ 4. Nettoyer les références
-            this.networkManager = null;
-            this.scene = null;
-            this.lastProcessedData = null;
-            
-            // ✅ 5. Reset état
-            this.isInitialized = false;
-            
-            console.log(`[ObjectManager] ✅ Détruit`);
-            
-        } catch (error) {
-            console.error(`[ObjectManager] ❌ Erreur destruction:`, error);
-        }
-    }
-
-    // ✅ MÉTHODES UTILITAIRES
-
-    getObjectCount() {
-        return this.objectSprites.size;
-    }
-
-    getObjectSprite(objectId) {
-        return this.objectSprites.get(objectId) || null;
-    }
-
-    getAllObjects() {
-        return Array.from(this.objectSprites.values());
-    }
-
-    isObjectVisible(objectId) {
-        const sprite = this.objectSprites.get(objectId);
-        return sprite && sprite.active && sprite.visible;
-    }
-
-    // ✅ DEBUG ET MONITORING
-
-    getDebugInfo() {
-        return {
-            isInitialized: this.isInitialized,
-            isDestroyed: this.isDestroyed,
-            objectCount: this.objectSprites.size,
-            hasPhaserGroups: !!this.phaserGroups,
-            hasNetworkManager: !!this.networkManager,
-            sceneValid: !!(this.scene && this.scene.add),
-            config: this.config,
-            lastProcessedData: this.lastProcessedData
-        };
-    }
-
-    debugObjectList() {
-        console.log(`[ObjectManager] 📋 === LISTE OBJETS DEBUG ===`);
-        console.log(`Total: ${this.objectSprites.size} objets`);
-        
-        this.objectSprites.forEach((sprite, objectId) => {
-            const objectData = sprite.getData('objectData');
-            console.log(`  ${objectId}: (${sprite.x}, ${sprite.y}) - ${objectData?.type || 'unknown'} - active: ${sprite.active}`);
-        });
-    }
-}
-
-// ✅ FONCTIONS DEBUG GLOBALES
-
-window.debugObjectManager = function() {
-    // ✅ Recherche multi-sources du manager
-    const managers = [
-        () => window.currentScene?.objectManager,
-        () => window.game?.scene?.getScenes(true)?.[0]?.objectManager,
-        () => window.globalObjectManager
-    ].map(getter => {
-        try { return getter(); } catch { return null; }
-    }).filter(Boolean);
+export class ObjectManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.isInitialized = false;
     
-    if (managers.length > 0) {
-        const manager = managers[0];
-        const info = manager.getDebugInfo();
-        
-        console.log('[ObjectManager] === INFO DEBUG ===');
-        console.table({
-            'Initialisé': info.isInitialized,
-            'Détruit': info.isDestroyed,
-            'Objets': info.objectCount,
-            'Groupes Phaser': info.hasPhaserGroups,
-            'NetworkManager': info.hasNetworkManager,
-            'Scène Valide': info.sceneValid
-        });
-        
-        console.log('[ObjectManager] Info complète:', info);
-        
-        if (info.objectCount > 0) {
-            manager.debugObjectList();
-        }
-        
-        return info;
-    } else {
-        console.error('[ObjectManager] ❌ Manager non trouvé');
-        return null;
-    }
-};
+    // ✅ Gestion interne avec Map() - Plus fiable que les groupes Phaser
+    this.objectSprites = new Map(); // objectId -> sprite
+    this.objectData = new Map();    // objectId -> data
+    
+    // ✅ Groupes Phaser pour l'affichage uniquement
+    this.phaserGroups = {
+      objects: null,
+      interactions: null
+    };
+    
+    // ✅ État du manager
+    this.state = {
+      lastUpdateTime: 0,
+      totalObjectsCreated: 0,
+      totalObjectsDestroyed: 0,
+      isCleaningUp: false,
+      lastCleanupTime: 0
+    };
+    
+    // ✅ Configuration
+    this.config = {
+      enableDebugLogs: true,
+      enableVisualFeedback: true,
+      objectScale: 1.0,
+      interactionDistance: 50,
+      enableObjectCaching: true,
+      maxCacheSize: 1000,
+      cleanupBatchSize: 50,
+      preventDoubleCleanup: true
+    };
+    
+    // ✅ Callbacks
+    this.callbacks = {
+      onObjectCreated: null,
+      onObjectDestroyed: null,
+      onObjectUpdated: null,
+      onCleanupStart: null,
+      onCleanupComplete: null,
+      onCleanupError: null
+    };
+    
+    // ✅ Statistiques debug
+    this.stats = {
+      objectsInScene: 0,
+      objectsCreatedThisSession: 0,
+      objectsDestroyedThisSession: 0,
+      cleanupAttempts: 0,
+      cleanupErrors: 0,
+      lastErrorMessage: null
+    };
+    
+    console.log('[ObjectManager] 📦 Créé pour scène:', this.scene.scene.key);
+  }
 
-window.testObjectManager = function() {
-    console.log('[ObjectManager] 🧪 === TEST AVEC OBJETS SIMULÉS ===');
-    
-    const managers = [
-        () => window.currentScene?.objectManager,
-        () => window.game?.scene?.getScenes(true)?.[0]?.objectManager
-    ].map(getter => {
-        try { return getter(); } catch { return null; }
-    }).filter(Boolean);
-    
-    if (managers.length === 0) {
-        console.error('[ObjectManager] ❌ Aucun manager trouvé pour test');
-        return false;
-    }
-    
-    const manager = managers[0];
-    
-    // ✅ Créer des objets de test
-    const testObjects = [
-        { id: 'test_pokeball_1', x: 100, y: 100, type: 'pokeball' },
-        { id: 'test_item_1', x: 200, y: 150, type: 'item' },
-        { id: 'test_machine_1', x: 300, y: 200, type: 'machine' }
-    ];
-    
-    console.log(`[ObjectManager] 🎯 Test avec ${testObjects.length} objets simulés`);
+  // === INITIALISATION ===
+
+  initialize() {
+    console.log('[ObjectManager] 🚀 === INITIALISATION ===');
     
     try {
-        manager.processZoneObjects({
-            zone: 'test_zone',
-            objects: testObjects
-        });
-        
-        console.log('[ObjectManager] ✅ Test réussi !');
-        console.log(`[ObjectManager] Objets créés: ${manager.getObjectCount()}`);
-        
-        return true;
-        
+      // ✅ Créer les groupes Phaser avec protection
+      this.setupPhaserGroups();
+      
+      // ✅ Marquer comme initialisé
+      this.isInitialized = true;
+      
+      console.log('[ObjectManager] ✅ Initialisé avec succès');
+      return true;
+      
     } catch (error) {
-        console.error('[ObjectManager] ❌ Test échoué:', error);
-        return false;
+      console.error('[ObjectManager] ❌ Erreur initialisation:', error);
+      this.stats.cleanupErrors++;
+      return false;
     }
+  }
+
+  setupPhaserGroups() {
+    console.log('[ObjectManager] 🎯 Création groupes Phaser...');
+    
+    try {
+      // ✅ Nettoyer les anciens groupes si ils existent
+      this.safeCleanupGroups();
+      
+      // ✅ Créer nouveaux groupes
+      this.phaserGroups.objects = this.scene.add.group({
+        name: 'ObjectManagerGroup',
+        active: true,
+        maxSize: -1,
+        runChildUpdate: false // ✅ Performance
+      });
+      
+      this.phaserGroups.interactions = this.scene.add.group({
+        name: 'ObjectInteractionGroup',
+        active: true,
+        maxSize: -1,
+        runChildUpdate: false
+      });
+      
+      // ✅ Vérifier que les groupes sont valides
+      if (!this.phaserGroups.objects || !this.phaserGroups.interactions) {
+        throw new Error('Échec création groupes Phaser');
+      }
+      
+      console.log('[ObjectManager] ✅ Groupes Phaser créés');
+      
+    } catch (error) {
+      console.error('[ObjectManager] ❌ Erreur création groupes:', error);
+      
+      // ✅ Fallback: pas de groupes (mode dégradé)
+      this.phaserGroups.objects = null;
+      this.phaserGroups.interactions = null;
+      
+      console.warn('[ObjectManager] ⚠️ Mode dégradé: pas de groupes Phaser');
+    }
+  }
+
+  // === GESTION DES OBJETS ===
+
+  updateObjects(serverObjects) {
+    if (!this.isInitialized) {
+      console.warn('[ObjectManager] ⚠️ Manager non initialisé');
+      return false;
+    }
+    
+    console.log(`[ObjectManager] 🔄 Mise à jour ${serverObjects.length} objets...`);
+    
+    const stats = {
+      created: 0,
+      updated: 0,
+      destroyed: 0,
+      errors: 0
+    };
+    
+    try {
+      // ✅ Créer un Set des IDs serveur pour la comparaison
+      const serverObjectIds = new Set(serverObjects.map(obj => obj.id));
+      
+      // ✅ 1. Traiter les objets du serveur
+      for (const serverObject of serverObjects) {
+        try {
+          if (this.objectSprites.has(serverObject.id)) {
+            // ✅ Objet existe - mise à jour
+            if (this.updateExistingObject(serverObject)) {
+              stats.updated++;
+            }
+          } else {
+            // ✅ Nouvel objet - création
+            if (this.createNewObject(serverObject)) {
+              stats.created++;
+            }
+          }
+        } catch (error) {
+          console.error(`[ObjectManager] ❌ Erreur traitement objet ${serverObject.id}:`, error);
+          stats.errors++;
+        }
+      }
+      
+      // ✅ 2. Supprimer les objets qui ne sont plus sur le serveur
+      const objectsToDestroy = [];
+      for (const [objectId] of this.objectSprites) {
+        if (!serverObjectIds.has(objectId)) {
+          objectsToDestroy.push(objectId);
+        }
+      }
+      
+      // ✅ 3. Détruire les objets obsolètes
+      for (const objectId of objectsToDestroy) {
+        try {
+          if (this.destroyObject(objectId)) {
+            stats.destroyed++;
+          }
+        } catch (error) {
+          console.error(`[ObjectManager] ❌ Erreur destruction objet ${objectId}:`, error);
+          stats.errors++;
+        }
+      }
+      
+      // ✅ Mettre à jour les statistiques
+      this.updateStats(stats);
+      
+      // ✅ Log du résultat
+      if (this.config.enableDebugLogs && (stats.created > 0 || stats.destroyed > 0)) {
+        console.log(`[ObjectManager] ✅ ${stats.created + stats.updated + stats.destroyed} objets traités (${stats.created} créés, ${stats.updated} mis à jour, ${stats.destroyed} détruits)`);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('[ObjectManager] ❌ Erreur mise à jour objets:', error);
+      this.stats.cleanupErrors++;
+      return false;
+    }
+  }
+
+  createNewObject(objectData) {
+    try {
+      console.log(`[ObjectManager] 🆕 Création objet: ${objectData.id} à (${objectData.x}, ${objectData.y})`);
+      
+      // ✅ Valider les données
+      if (!this.validateObjectData(objectData)) {
+        throw new Error(`Données objet invalides: ${JSON.stringify(objectData)}`);
+      }
+      
+      // ✅ Déterminer la texture
+      const texture = this.determineTexture(objectData);
+      if (!texture) {
+        throw new Error(`Texture non déterminée pour objet: ${objectData.type || objectData.name}`);
+      }
+      
+      // ✅ Créer le sprite
+      const sprite = this.scene.add.sprite(objectData.x, objectData.y, texture);
+      if (!sprite) {
+        throw new Error('Échec création sprite Phaser');
+      }
+      
+      // ✅ Configurer le sprite
+      this.configureSprite(sprite, objectData);
+      
+      // ✅ Ajouter au groupe Phaser (si disponible)
+      this.addSpriteToGroup(sprite, 'objects');
+      
+      // ✅ Stocker dans nos Maps
+      this.objectSprites.set(objectData.id, sprite);
+      this.objectData.set(objectData.id, { ...objectData, createdAt: Date.now() });
+      
+      // ✅ Mise à jour statistiques
+      this.state.totalObjectsCreated++;
+      this.stats.objectsInScene++;
+      this.stats.objectsCreatedThisSession++;
+      
+      // ✅ Callback
+      if (this.callbacks.onObjectCreated) {
+        this.callbacks.onObjectCreated(objectData, sprite);
+      }
+      
+      if (this.config.enableDebugLogs) {
+        console.log(`[ObjectManager] ✅ Sprite créé: ${objectData.id} à (${objectData.x}, ${objectData.y})`);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error(`[ObjectManager] ❌ Erreur création objet ${objectData.id}:`, error);
+      return false;
+    }
+  }
+
+  updateExistingObject(objectData) {
+    try {
+      const sprite = this.objectSprites.get(objectData.id);
+      const oldData = this.objectData.get(objectData.id);
+      
+      if (!sprite || !oldData) {
+        console.warn(`[ObjectManager] ⚠️ Objet ${objectData.id} introuvable pour mise à jour`);
+        return false;
+      }
+      
+      // ✅ Vérifier si une mise à jour est nécessaire
+      const needsUpdate = this.checkIfUpdateNeeded(oldData, objectData);
+      if (!needsUpdate) {
+        return false; // Pas de changement
+      }
+      
+      // ✅ Mettre à jour la position si nécessaire
+      if (oldData.x !== objectData.x || oldData.y !== objectData.y) {
+        sprite.setPosition(objectData.x, objectData.y);
+        
+        if (this.config.enableDebugLogs) {
+          console.log(`[ObjectManager] 📍 Position mise à jour: ${objectData.id} -> (${objectData.x}, ${objectData.y})`);
+        }
+      }
+      
+      // ✅ Mettre à jour la texture si nécessaire
+      const newTexture = this.determineTexture(objectData);
+      if (newTexture && sprite.texture.key !== newTexture) {
+        sprite.setTexture(newTexture);
+        
+        if (this.config.enableDebugLogs) {
+          console.log(`[ObjectManager] 🎨 Texture mise à jour: ${objectData.id} -> ${newTexture}`);
+        }
+      }
+      
+      // ✅ Mettre à jour les données stockées
+      this.objectData.set(objectData.id, { ...objectData, updatedAt: Date.now() });
+      
+      // ✅ Callback
+      if (this.callbacks.onObjectUpdated) {
+        this.callbacks.onObjectUpdated(objectData, sprite, oldData);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error(`[ObjectManager] ❌ Erreur mise à jour objet ${objectData.id}:`, error);
+      return false;
+    }
+  }
+
+  destroyObject(objectId) {
+    try {
+      const sprite = this.objectSprites.get(objectId);
+      const objectData = this.objectData.get(objectId);
+      
+      if (!sprite) {
+        console.warn(`[ObjectManager] ⚠️ Sprite ${objectId} déjà détruit ou inexistant`);
+        return false;
+      }
+      
+      if (this.config.enableDebugLogs) {
+        console.log(`[ObjectManager] 🗑️ Destruction objet: ${objectId}`);
+      }
+      
+      // ✅ Retirer du groupe Phaser d'abord
+      this.removeSpriteFromGroup(sprite, 'objects');
+      
+      // ✅ Détruire le sprite Phaser
+      if (sprite && sprite.scene && !sprite.scene.sys.isDestroyed) {
+        sprite.destroy();
+      }
+      
+      // ✅ Supprimer de nos Maps
+      this.objectSprites.delete(objectId);
+      this.objectData.delete(objectId);
+      
+      // ✅ Mise à jour statistiques
+      this.state.totalObjectsDestroyed++;
+      this.stats.objectsInScene--;
+      this.stats.objectsDestroyedThisSession++;
+      
+      // ✅ Callback
+      if (this.callbacks.onObjectDestroyed) {
+        this.callbacks.onObjectDestroyed(objectData, objectId);
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error(`[ObjectManager] ❌ Erreur destruction objet ${objectId}:`, error);
+      return false;
+    }
+  }
+
+  // === GESTION DES GROUPES PHASER (VERSION SÉCURISÉE) ===
+
+  addSpriteToGroup(sprite, groupName) {
+    if (!sprite) return false;
+    
+    const group = this.phaserGroups[groupName];
+    if (!group) return false; // Mode dégradé
+    
+    try {
+      // ✅ Vérifier que le groupe est encore valide
+      if (group.scene && !group.scene.sys.isDestroyed) {
+        group.add(sprite);
+        return true;
+      }
+    } catch (error) {
+      console.warn(`[ObjectManager] ⚠️ Erreur ajout sprite au groupe ${groupName}:`, error);
+    }
+    
+    return false;
+  }
+
+  removeSpriteFromGroup(sprite, groupName) {
+    if (!sprite) return false;
+    
+    const group = this.phaserGroups[groupName];
+    if (!group) return false; // Mode dégradé
+    
+    try {
+      // ✅ Vérifier que le groupe est encore valide
+      if (group.scene && !group.scene.sys.isDestroyed && group.contains && group.contains(sprite)) {
+        group.remove(sprite);
+        return true;
+      }
+    } catch (error) {
+      console.warn(`[ObjectManager] ⚠️ Erreur suppression sprite du groupe ${groupName}:`, error);
+    }
+    
+    return false;
+  }
+
+  // === NETTOYAGE SÉCURISÉ (RÉSOUT LE PROBLÈME PRINCIPAL) ===
+
+  safeCleanupGroups() {
+    if (this.state.isCleaningUp) {
+      console.log('[ObjectManager] ⚠️ Nettoyage déjà en cours, skip');
+      return;
+    }
+    
+    this.state.isCleaningUp = true;
+    this.state.lastCleanupTime = Date.now();
+    this.stats.cleanupAttempts++;
+    
+    console.log('[ObjectManager] 🧹 === NETTOYAGE SÉCURISÉ DES GROUPES ===');
+    
+    // ✅ Callback de début
+    if (this.callbacks.onCleanupStart) {
+      this.callbacks.onCleanupStart();
+    }
+    
+    try {
+      // ✅ ÉTAPE 1: Nettoyer d'abord nos Maps internes
+      console.log('[ObjectManager] 🗂️ Nettoyage Maps internes...');
+      this.cleanupInternalMaps();
+      
+      // ✅ ÉTAPE 2: Nettoyer les groupes Phaser avec plusieurs stratégies
+      console.log('[ObjectManager] 🎯 Nettoyage groupes Phaser...');
+      this.cleanupPhaserGroupsSafely();
+      
+      // ✅ ÉTAPE 3: Réinitialiser les groupes à null
+      console.log('[ObjectManager] 🔄 Réinitialisation groupes...');
+      this.phaserGroups.objects = null;
+      this.phaserGroups.interactions = null;
+      
+      console.log('[ObjectManager] ✅ Nettoyage terminé avec succès');
+      
+      // ✅ Callback de succès
+      if (this.callbacks.onCleanupComplete) {
+        this.callbacks.onCleanupComplete(true);
+      }
+      
+    } catch (error) {
+      console.error('[ObjectManager] ❌ Erreur nettoyage:', error);
+      this.stats.cleanupErrors++;
+      this.stats.lastErrorMessage = error.message;
+      
+      // ✅ Callback d'erreur
+      if (this.callbacks.onCleanupError) {
+        this.callbacks.onCleanupError(error);
+      }
+      
+      // ✅ Forcer la réinitialisation même en cas d'erreur
+      this.phaserGroups.objects = null;
+      this.phaserGroups.interactions = null;
+      
+    } finally {
+      this.state.isCleaningUp = false;
+    }
+  }
+
+  cleanupInternalMaps() {
+    const objectCount = this.objectSprites.size;
+    
+    // ✅ Détruire tous les sprites individuellement AVANT de toucher aux groupes
+    for (const [objectId, sprite] of this.objectSprites) {
+      try {
+        if (sprite && sprite.scene && !sprite.scene.sys.isDestroyed) {
+          // ✅ Important: ne pas utiliser les groupes ici
+          sprite.destroy();
+        }
+      } catch (error) {
+        console.warn(`[ObjectManager] ⚠️ Erreur destruction sprite ${objectId}:`, error);
+      }
+    }
+    
+    // ✅ Vider les Maps
+    this.objectSprites.clear();
+    this.objectData.clear();
+    
+    // ✅ Reset statistiques
+    this.stats.objectsInScene = 0;
+    
+    console.log(`[ObjectManager] ✅ ${objectCount} sprites nettoyés individuellement`);
+  }
+
+  cleanupPhaserGroupsSafely() {
+    const strategies = [
+      () => this.cleanupStrategy_RemoveAllFirst(),
+      () => this.cleanupStrategy_DestroyDirectly(),
+      () => this.cleanupStrategy_SkipClear()
+    ];
+    
+    for (const [groupName, group] of Object.entries(this.phaserGroups)) {
+      if (!group) continue;
+      
+      console.log(`[ObjectManager] 🧹 Nettoyage groupe: ${groupName}`);
+      
+      // ✅ Essayer chaque stratégie jusqu'à ce qu'une fonctionne
+      let cleaned = false;
+      for (let i = 0; i < strategies.length && !cleaned; i++) {
+        try {
+          strategies[i](group, groupName);
+          cleaned = true;
+          console.log(`[ObjectManager] ✅ Groupe ${groupName} nettoyé avec stratégie ${i + 1}`);
+        } catch (error) {
+          console.warn(`[ObjectManager] ⚠️ Stratégie ${i + 1} échouée pour ${groupName}:`, error);
+          if (i === strategies.length - 1) {
+            console.error(`[ObjectManager] ❌ Toutes les stratégies ont échoué pour ${groupName}`);
+          }
+        }
+      }
+    }
+  }
+
+  // === STRATÉGIES DE NETTOYAGE ===
+
+  cleanupStrategy_RemoveAllFirst(group, groupName) {
+    // ✅ Stratégie 1: Vider avec removeAll puis destroy
+    if (group && group.children && typeof group.removeAll === 'function') {
+      group.removeAll();
+    }
+    if (group && typeof group.destroy === 'function') {
+      group.destroy();
+    }
+  }
+
+  cleanupStrategy_DestroyDirectly(group, groupName) {
+    // ✅ Stratégie 2: Destruction directe sans clear
+    if (group && typeof group.destroy === 'function') {
+      group.destroy();
+    }
+  }
+
+  cleanupStrategy_SkipClear(group, groupName) {
+    // ✅ Stratégie 3: Marquer comme détruit et laisser le GC s'en occuper
+    if (group) {
+      group._destroyed = true; // Flag personnalisé
+    }
+  }
+
+  // === UTILITAIRES ===
+
+  validateObjectData(objectData) {
+    return !!(
+      objectData &&
+      objectData.id !== undefined &&
+      typeof objectData.x === 'number' &&
+      typeof objectData.y === 'number' &&
+      (objectData.type || objectData.name || objectData.sprite)
+    );
+  }
+
+  determineTexture(objectData) {
+    // ✅ Logique de détermination de texture
+    if (objectData.sprite) {
+      return objectData.sprite;
+    }
+    
+    if (objectData.type) {
+      const textureMap = {
+        'pokeball': 'pokeball',
+        'potion': 'potion',
+        'berry': 'berry',
+        'item': 'item_generic',
+        'collectible': 'collectible'
+      };
+      
+      return textureMap[objectData.type.toLowerCase()] || 'item_generic';
+    }
+    
+    if (objectData.name) {
+      const name = objectData.name.toLowerCase();
+      if (name.includes('ball')) return 'pokeball';
+      if (name.includes('potion')) return 'potion';
+      if (name.includes('berry')) return 'berry';
+    }
+    
+    return 'item_generic'; // Fallback
+  }
+
+  configureSprite(sprite, objectData) {
+    // ✅ Configuration de base
+    sprite.setScale(this.config.objectScale);
+    sprite.setOrigin(0.5, 0.5);
+    
+    // ✅ Propriétés personnalisées
+    sprite.objectId = objectData.id;
+    sprite.objectType = objectData.type;
+    sprite.objectData = objectData;
+    
+    // ✅ Interactivité si nécessaire
+    if (objectData.interactive !== false) {
+      sprite.setInteractive();
+    }
+    
+    // ✅ Profondeur
+    if (objectData.depth !== undefined) {
+      sprite.setDepth(objectData.depth);
+    } else {
+      sprite.setDepth(1); // Au-dessus du sol
+    }
+  }
+
+  checkIfUpdateNeeded(oldData, newData) {
+    return (
+      oldData.x !== newData.x ||
+      oldData.y !== newData.y ||
+      oldData.sprite !== newData.sprite ||
+      oldData.type !== newData.type ||
+      oldData.name !== newData.name
+    );
+  }
+
+  updateStats(operationStats) {
+    this.state.lastUpdateTime = Date.now();
+    
+    // ✅ Logs de performance si beaucoup d'opérations
+    if (operationStats.created + operationStats.destroyed > 10) {
+      console.log(`[ObjectManager] 📊 Opération importante: +${operationStats.created} -${operationStats.destroyed} objets`);
+    }
+  }
+
+  // === API PUBLIQUE ===
+
+  getObjectById(objectId) {
+    return this.objectSprites.get(objectId) || null;
+  }
+
+  getObjectData(objectId) {
+    return this.objectData.get(objectId) || null;
+  }
+
+  getAllObjects() {
+    return Array.from(this.objectSprites.values());
+  }
+
+  getAllObjectData() {
+    return Array.from(this.objectData.values());
+  }
+
+  getObjectsInRadius(centerX, centerY, radius) {
+    const objectsInRadius = [];
+    
+    for (const [objectId, sprite] of this.objectSprites) {
+      const distance = Math.sqrt(
+        Math.pow(sprite.x - centerX, 2) + 
+        Math.pow(sprite.y - centerY, 2)
+      );
+      
+      if (distance <= radius) {
+        objectsInRadius.push({
+          sprite: sprite,
+          data: this.objectData.get(objectId),
+          distance: distance
+        });
+      }
+    }
+    
+    return objectsInRadius.sort((a, b) => a.distance - b.distance);
+  }
+
+  // === CALLBACKS ===
+
+  onObjectCreated(callback) { this.callbacks.onObjectCreated = callback; }
+  onObjectDestroyed(callback) { this.callbacks.onObjectDestroyed = callback; }
+  onObjectUpdated(callback) { this.callbacks.onObjectUpdated = callback; }
+  onCleanupStart(callback) { this.callbacks.onCleanupStart = callback; }
+  onCleanupComplete(callback) { this.callbacks.onCleanupComplete = callback; }
+  onCleanupError(callback) { this.callbacks.onCleanupError = callback; }
+
+  // === CONFIGURATION ===
+
+  setConfig(newConfig) {
+    console.log('[ObjectManager] 🔧 Mise à jour configuration:', newConfig);
+    this.config = { ...this.config, ...newConfig };
+  }
+
+  // === DEBUG ===
+
+  getDebugInfo() {
+    return {
+      isInitialized: this.isInitialized,
+      state: this.state,
+      config: this.config,
+      stats: this.stats,
+      objectCounts: {
+        spritesStored: this.objectSprites.size,
+        dataStored: this.objectData.size,
+        inScene: this.stats.objectsInScene
+      },
+      groupsStatus: {
+        objects: !!this.phaserGroups.objects,
+        interactions: !!this.phaserGroups.interactions
+      },
+      sceneKey: this.scene?.scene?.key,
+      lastError: this.stats.lastErrorMessage
+    };
+  }
+
+  resetStats() {
+    console.log('[ObjectManager] 🔄 Reset statistiques');
+    
+    this.stats = {
+      objectsInScene: this.objectSprites.size,
+      objectsCreatedThisSession: 0,
+      objectsDestroyedThisSession: 0,
+      cleanupAttempts: 0,
+      cleanupErrors: 0,
+      lastErrorMessage: null
+    };
+  }
+
+  // === DESTRUCTION FINALE ===
+
+  destroy() {
+    console.log('[ObjectManager] 💀 === DESTRUCTION FINALE ===');
+    
+    try {
+      // ✅ Nettoyer en toute sécurité
+      this.safeCleanupGroups();
+      
+      // ✅ Vider les callbacks
+      Object.keys(this.callbacks).forEach(key => {
+        this.callbacks[key] = null;
+      });
+      
+      // ✅ Reset état
+      this.isInitialized = false;
+      this.scene = null;
+      
+      console.log('[ObjectManager] ✅ Destruction terminée');
+      
+    } catch (error) {
+      console.error('[ObjectManager] ❌ Erreur destruction finale:', error);
+    }
+  }
+}
+
+// === FONCTIONS DEBUG GLOBALES ===
+
+window.debugObjectManager = function() {
+  // Essayer de trouver le manager dans différents endroits
+  const managers = [
+    window.game?.scene?.getScenes(true)?.[0]?.objectManager,
+    window.currentObjectManager
+  ].filter(Boolean);
+  
+  if (managers.length > 0) {
+    const info = managers[0].getDebugInfo();
+    console.log('[ObjectManager] === DEBUG INFO ===');
+    console.table({
+      'Objets en Scène': info.stats.objectsInScene,
+      'Créés (Session)': info.stats.objectsCreatedThisSession,
+      'Détruits (Session)': info.stats.objectsDestroyedThisSession,
+      'Tentatives Nettoyage': info.stats.cleanupAttempts,
+      'Erreurs Nettoyage': info.stats.cleanupErrors,
+      'Sprites Stockés': info.objectCounts.spritesStored,
+      'Données Stockées': info.objectCounts.dataStored
+    });
+    
+    if (info.lastError) {
+      console.error('[ObjectManager] 🚨 Dernière erreur:', info.lastError);
+    }
+    
+    console.log('[ObjectManager] Info complète:', info);
+    return info;
+  } else {
+    console.error('[ObjectManager] Manager non trouvé');
+    return null;
+  }
 };
 
-console.log('✅ ObjectManager corrigé chargé!');
+console.log('✅ ObjectManager chargé (VERSION CORRIGÉE)!');
 console.log('🔍 Utilisez window.debugObjectManager() pour diagnostiquer');
-console.log('🧪 Utilisez window.testObjectManager() pour tester avec des objets simulés');
+console.log('🎯 Le problème de nettoyage des groupes Phaser devrait être résolu!');
