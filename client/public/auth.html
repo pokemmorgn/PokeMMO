@@ -1783,15 +1783,11 @@ openAdminPanel() {
         return;
     }
     
-    console.log('🔧 Token:', this.currentUser.sessionToken);
-    console.log('🔧 Username:', this.currentUser.username);
-    console.log('🔧 isDev:', this.currentUser.isDev);
+    console.log('🔧 Redirection vers admin avec token valide...');
+    console.log('🎫 Token length:', this.currentUser.sessionToken.length);
     
-    // ✅ Test SANS redirection d'abord
-    console.log('✅ Admin panel accessible !');
-    
-    // Décommentez quand prêt :
-    // window.location.href = '/admin';
+    // ✅ Redirection simple
+    window.location.href = '/admin';
 }
         }
 
