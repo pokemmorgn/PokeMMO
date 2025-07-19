@@ -314,5 +314,4 @@ PlayerDataSchema.pre('save', function(next) {
 export const PlayerData = mongoose.model<IPlayerData>("PlayerData", PlayerDataSchema);
 
 // ✅ EXPORT des types pour TypeScript
-export type { ObjectStateEntry };
 export type { IPlayerData };
