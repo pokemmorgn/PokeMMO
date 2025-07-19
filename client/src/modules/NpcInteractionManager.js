@@ -309,8 +309,8 @@ async sendNpcInteraction(npc, options = {}) {
   }
   
   try {
-    // ✅ CORRECTION : Assurer que npcId est une string
-    const npcId = String(npc.id || npc.name || 'unknown');
+    // ✅(garder number)
+    const npcId = npc.id; // Garder le number original
     
     // ✅ Créer données d'interaction avec types corrects
     const playerPosition = this.getPlayerPosition();
