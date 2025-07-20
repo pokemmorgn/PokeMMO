@@ -652,4 +652,722 @@ router.get('/logs', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// ✅ ROUTE: Récupérer l'équipe Pokémon d'un joueur
+router.get('/players/:username/team', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log(`📊 [AdminAPI] Récupération équipe pour: ${username}`);
+    
+    // Vérifier que le joueur existe
+    const player = await PlayerData.findOne({ username });
+    if (!player) {
+      return res.status(404).json({ error: 'Joueur non trouvé' });
+    }
+
+    // Récupérer l'équipe avec les détails des Pokémon
+    const teamPokemon = await OwnedPokemon.find({
+      owner: username,
+      isInTeam: true
+    }).sort({ slot: 1 });
+
+    // Formater la réponse
+    const teamData = {
+      username,
+      pokemon: teamPokemon.map(pokemon => ({
+        id: pokemon._id.toString(),
+        pokemonId: pokemon.pokemonId,
+        nickname: pokemon.nickname,
+        level: pokemon.level,
+        experience: pokemon.experience,
+        currentHp: pokemon.currentHp,
+        maxHp: pokemon.maxHp,
+        status: pokemon.status,
+        nature: pokemon.nature,
+        ability: pokemon.ability,
+        gender: pokemon.gender,
+        isShiny: pokemon.shiny,
+        stats: {
+          hp: pokemon.maxHp,
+          attack: pokemon.calculatedStats.attack,
+          defense: pokemon.calculatedStats.defense,
+          specialAttack: pokemon.calculatedStats.spAttack,
+          specialDefense: pokemon.calculatedStats.spDefense,
+          speed: pokemon.calculatedStats.speed
+        },
+        moves: pokemon.moves.map(move => ({
+          moveId: move.moveId,
+          currentPp: move.currentPp,
+          maxPp: move.maxPp
+        })),
+        slot: pokemon.slot,
+        originalTrainer: pokemon.originalTrainer,
+        catchDate: pokemon.caughtAt,
+        pokeball: pokemon.pokeball,
+        happiness: pokemon.friendship,
+        heldItem: pokemon.heldItem
+      })),
+      activePokemon: teamPokemon.length > 0 ? 
+        teamPokemon.findIndex(p => p.slot === 0) : -1,
+      count: teamPokemon.length
+    };
+
+    res.json(teamData);
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur récupération équipe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Ajouter un Pokémon à l'équipe
+router.post('/players/:username/team/add', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    const { pokemonId, level = 50, nickname } = req.body;
+
+    console.log(`➕ [AdminAPI] Ajout Pokémon ${pokemonId} à l'équipe de ${username}`);
+
+    // Vérifications
+    const player = await PlayerData.findOne({ username });
+    if (!player) {
+      return res.status(404).json({ error: 'Joueur non trouvé' });
+    }
+
+    // Compter l'équipe actuelle
+    const teamCount = await OwnedPokemon.countDocuments({
+      owner: username,
+      isInTeam: true
+    });
+
+    if (teamCount >= 6) {
+      return res.status(400).json({ error: 'Équipe pleine (6 Pokémon maximum)' });
+    }
+
+    // Créer le nouveau Pokémon
+    const newPokemon = new OwnedPokemon({
+      owner: username,
+      pokemonId: parseInt(pokemonId),
+      level: Math.min(100, Math.max(1, parseInt(level))),
+      experience: 0,
+      nickname: nickname || undefined,
+      nature: 'hardy',
+      ability: 'unknown',
+      gender: 'Male',
+      shiny: Math.random() < 0.001, // 0.1% de chance de shiny
+      
+      // IVs aléatoires
+      ivs: {
+        hp: Math.floor(Math.random() * 32),
+        attack: Math.floor(Math.random() * 32),
+        defense: Math.floor(Math.random() * 32),
+        spAttack: Math.floor(Math.random() * 32),
+        spDefense: Math.floor(Math.random() * 32),
+        speed: Math.floor(Math.random() * 32)
+      },
+      
+      // EVs à zéro
+      evs: {
+        hp: 0, attack: 0, defense: 0,
+        spAttack: 0, spDefense: 0, speed: 0
+      },
+      
+      // Attaques de base
+      moves: [
+        { moveId: 'tackle', currentPp: 35, maxPp: 35 },
+        { moveId: 'growl', currentPp: 40, maxPp: 40 }
+      ],
+      
+      // Équipe
+      isInTeam: true,
+      slot: teamCount,
+      
+      // Métadonnées
+      originalTrainer: username,
+      pokeball: 'poke_ball',
+      friendship: 70
+    });
+
+    await newPokemon.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a ajouté un Pokémon #${pokemonId} à ${username}`);
+    
+    res.json({ 
+      message: 'Pokémon ajouté à l\'équipe avec succès',
+      pokemon: {
+        id: newPokemon._id.toString(),
+        pokemonId: newPokemon.pokemonId,
+        level: newPokemon.level,
+        nickname: newPokemon.nickname,
+        slot: newPokemon.slot
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur ajout Pokémon:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Soigner tous les Pokémon de l'équipe
+router.post('/players/:username/team/heal-all', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log(`💚 [AdminAPI] Soin de l'équipe de ${username}`);
+
+    const result = await OwnedPokemon.updateMany(
+      { owner: username, isInTeam: true },
+      {
+        $set: {
+          status: 'normal',
+          statusTurns: undefined
+        }
+      }
+    );
+
+    // Mettre à jour les HP et PP individuellement (MongoDB ne supporte pas les références dans $set)
+    const teamPokemon = await OwnedPokemon.find({ owner: username, isInTeam: true });
+    for (const pokemon of teamPokemon) {
+      pokemon.currentHp = pokemon.maxHp;
+      pokemon.moves.forEach(move => {
+        move.currentPp = move.maxPp;
+      });
+      await pokemon.save();
+    }
+
+    console.log(`✅ [Admin] ${req.user.username} a soigné l'équipe de ${username}`);
+
+    res.json({ 
+      message: `${result.matchedCount} Pokémon soignés`,
+      count: result.matchedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur soin équipe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Définir le Pokémon actif
+router.post('/players/:username/team/set-active', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    const { index } = req.body;
+    
+    console.log(`⭐ [AdminAPI] Pokémon actif ${index} pour ${username}`);
+
+    // Récupérer l'équipe
+    const teamPokemon = await OwnedPokemon.find({
+      owner: username,
+      isInTeam: true
+    }).sort({ slot: 1 });
+
+    if (index >= teamPokemon.length) {
+      return res.status(400).json({ error: 'Index invalide' });
+    }
+
+    // Réassigner les slots
+    for (let i = 0; i < teamPokemon.length; i++) {
+      teamPokemon[i].slot = i === index ? 0 : i + 1;
+      await teamPokemon[i].save();
+    }
+
+    console.log(`✅ [Admin] ${req.user.username} a changé le Pokémon actif de ${username}`);
+
+    res.json({ message: 'Pokémon actif modifié' });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur changement Pokémon actif:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Retirer un Pokémon de l'équipe
+router.delete('/players/:username/team/:pokemonId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username, pokemonId } = req.params;
+    
+    console.log(`🗑️ [AdminAPI] Retrait Pokémon ${pokemonId} de l'équipe de ${username}`);
+
+    const pokemon = await OwnedPokemon.findById(pokemonId);
+    if (!pokemon || pokemon.owner !== username) {
+      return res.status(404).json({ error: 'Pokémon non trouvé' });
+    }
+
+    // Retirer de l'équipe (ne pas supprimer, juste désactiver)
+    pokemon.isInTeam = false;
+    pokemon.slot = undefined;
+    await pokemon.save();
+
+    console.log(`✅ [Admin] ${req.user.username} a retiré un Pokémon de l'équipe de ${username}`);
+
+    res.json({ message: 'Pokémon retiré de l\'équipe' });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur retrait Pokémon:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Récupérer l'inventaire d'un joueur
+router.get('/players/:username/inventory', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log(`🎒 [AdminAPI] Récupération inventaire pour: ${username}`);
+
+    let inventory = await Inventory.findOne({ username });
+    
+    // Créer un inventaire vide si n'existe pas
+    if (!inventory) {
+      inventory = new Inventory({ username });
+      await inventory.save();
+    }
+
+    res.json({
+      username,
+      items: inventory.items || [],
+      medicine: inventory.medicine || [],
+      balls: inventory.balls || [],
+      berries: inventory.berries || [],
+      key_items: inventory.key_items || [],
+      tms: inventory.tms || [],
+      battle_items: inventory.battle_items || [],
+      valuables: inventory.valuables || [],
+      held_items: inventory.held_items || [],
+      totalItems: Object.values(inventory.toObject()).reduce((total, category) => {
+        if (Array.isArray(category)) {
+          return total + category.reduce((sum, item: any) => sum + (item.quantity || 0), 0);
+        }
+        return total;
+      }, 0)
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur récupération inventaire:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Ajouter un objet à l'inventaire
+router.post('/players/:username/inventory/add', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    const { category, itemId, quantity = 1 } = req.body;
+    
+    console.log(`➕ [AdminAPI] Ajout ${quantity}x ${itemId} (${category}) pour ${username}`);
+
+    let inventory = await Inventory.findOne({ username });
+    if (!inventory) {
+      inventory = new Inventory({ username });
+    }
+
+    // Vérifier que la catégorie existe
+    if (!inventory[category]) {
+      return res.status(400).json({ error: 'Catégorie invalide' });
+    }
+
+    // Chercher l'objet existant
+    const existingItem = inventory[category].find((item: any) => item.itemId === itemId);
+    
+    if (existingItem) {
+      existingItem.quantity += parseInt(quantity);
+    } else {
+      inventory[category].push({
+        itemId,
+        quantity: parseInt(quantity)
+      });
+    }
+
+    await inventory.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a ajouté ${quantity}x ${itemId} à ${username}`);
+    
+    res.json({ 
+      message: `${quantity}x ${itemId} ajouté à l'inventaire`,
+      category,
+      itemId,
+      newQuantity: existingItem ? existingItem.quantity : parseInt(quantity)
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur ajout objet:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Modifier la quantité d'un objet
+router.put('/players/:username/inventory/:category/:itemId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username, category, itemId } = req.params;
+    const { quantity } = req.body;
+    
+    console.log(`✏️ [AdminAPI] Modification ${itemId}: ${quantity} pour ${username}`);
+
+    const inventory = await Inventory.findOne({ username });
+    if (!inventory) {
+      return res.status(404).json({ error: 'Inventaire non trouvé' });
+    }
+
+    const item = inventory[category].find((item: any) => item.itemId === itemId);
+    if (!item) {
+      return res.status(404).json({ error: 'Objet non trouvé' });
+    }
+
+    if (parseInt(quantity) <= 0) {
+      // Supprimer l'objet si quantité <= 0
+      inventory[category] = inventory[category].filter((item: any) => item.itemId !== itemId);
+    } else {
+      item.quantity = parseInt(quantity);
+    }
+
+    await inventory.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a modifié la quantité de ${itemId} pour ${username}`);
+    
+    res.json({ 
+      message: `Quantité de ${itemId} mise à jour`,
+      newQuantity: parseInt(quantity)
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur modification objet:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Supprimer un objet de l'inventaire
+router.delete('/players/:username/inventory/:category/:itemId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username, category, itemId } = req.params;
+    
+    console.log(`🗑️ [AdminAPI] Suppression ${itemId} (${category}) pour ${username}`);
+
+    const inventory = await Inventory.findOne({ username });
+    if (!inventory) {
+      return res.status(404).json({ error: 'Inventaire non trouvé' });
+    }
+
+    inventory[category] = inventory[category].filter((item: any) => item.itemId !== itemId);
+    await inventory.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a supprimé ${itemId} de l'inventaire de ${username}`);
+    
+    res.json({ message: `${itemId} supprimé de l'inventaire` });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur suppression objet:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Récupérer les statistiques du Pokédex d'un joueur
+router.get('/players/:username/pokedex', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log(`📖 [AdminAPI] Récupération Pokédex pour: ${username}`);
+
+    // Récupérer les stats du Pokédex
+    let stats = await PokedexStats.findOne({ playerId: username });
+    if (!stats) {
+      stats = await PokedexStats.findOrCreate(username);
+    }
+
+    // Récupérer quelques entrées récentes
+    const recentEntries = await PokedexEntry.find({ playerId: username })
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .lean();
+
+    res.json({
+      username,
+      totalSeen: stats.totalSeen,
+      totalCaught: stats.totalCaught,
+      totalPokemon: stats.totalPokemon,
+      seenPercentage: stats.seenPercentage,
+      caughtPercentage: stats.caughtPercentage,
+      records: stats.records,
+      activity: stats.activity,
+      recentEntries: recentEntries.map(entry => ({
+        pokemonId: entry.pokemonId,
+        isSeen: entry.isSeen,
+        isCaught: entry.isCaught,
+        firstSeenAt: entry.firstSeenAt,
+        firstCaughtAt: entry.firstCaughtAt,
+        timesEncountered: entry.timesEncountered,
+        timesCaught: entry.timesCaught,
+        isShiny: entry.bestSpecimen?.isShiny || false
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur récupération Pokédex:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Récupérer les statistiques détaillées d'un joueur
+router.get('/players/:username/stats', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    
+    console.log(`📈 [AdminAPI] Récupération stats pour: ${username}`);
+
+    // Stats de base du joueur
+    const player = await PlayerData.findOne({ username });
+    if (!player) {
+      return res.status(404).json({ error: 'Joueur non trouvé' });
+    }
+
+    // Stats Pokémon
+    const pokemonCount = await OwnedPokemon.countDocuments({ owner: username });
+    const teamCount = await OwnedPokemon.countDocuments({ owner: username, isInTeam: true });
+    const shinyCount = await OwnedPokemon.countDocuments({ owner: username, shiny: true });
+    
+    // Stats niveau moyen
+    const avgLevelResult = await OwnedPokemon.aggregate([
+      { $match: { owner: username } },
+      { $group: { _id: null, avgLevel: { $avg: "$level" } } }
+    ]);
+    
+    // Stats Pokédex
+    let pokedexStats = await PokedexStats.findOne({ playerId: username });
+    if (!pokedexStats) {
+      pokedexStats = await PokedexStats.findOrCreate(username);
+    }
+
+    // Stats inventaire
+    const inventory = await Inventory.findOne({ username });
+    let totalItems = 0;
+    if (inventory) {
+      const categories = ['items', 'medicine', 'balls', 'berries', 'key_items', 'tms', 'battle_items', 'valuables', 'held_items'];
+      totalItems = categories.reduce((total, category) => {
+        return total + (inventory[category] || []).reduce((sum: number, item: any) => sum + item.quantity, 0);
+      }, 0);
+    }
+
+    res.json({
+      username,
+      player: {
+        level: player.level,
+        experience: player.experience,
+        gold: player.gold,
+        totalPlaytime: player.totalPlaytime,
+        loginCount: player.loginCount,
+        lastLogin: player.lastLogin,
+        createdAt: player.createdAt,
+        isDev: player.isDev,
+        isActive: player.isActive,
+        location: {
+          map: player.lastMap,
+          x: player.lastX,
+          y: player.lastY
+        }
+      },
+      pokemon: {
+        total: pokemonCount,
+        inTeam: teamCount,
+        shiny: shinyCount,
+        averageLevel: avgLevelResult[0]?.avgLevel || 0,
+        pc: pokemonCount - teamCount
+      },
+      pokedex: {
+        seen: pokedexStats.totalSeen,
+        caught: pokedexStats.totalCaught,
+        percentage: pokedexStats.caughtPercentage,
+        shiniesFound: pokedexStats.records.totalShinyCaught,
+        longestStreak: pokedexStats.records.longestCaughtStreak
+      },
+      inventory: {
+        totalItems,
+        uniqueItems: inventory ? Object.keys(inventory.toObject()).reduce((count, key) => {
+          if (Array.isArray(inventory[key])) {
+            return count + inventory[key].length;
+          }
+          return count;
+        }, 0) : 0
+      },
+      activity: {
+        lastActivity: player.lastLogin,
+        sessionDuration: player.currentSessionStart ? 
+          Math.floor((Date.now() - player.currentSessionStart.getTime()) / 1000 / 60) : 0,
+        totalSessions: player.loginCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur récupération stats:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Modifier un Pokémon spécifique
+router.put('/players/:username/pokemon/:pokemonId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username, pokemonId } = req.params;
+    const updates = req.body;
+    
+    console.log(`✏️ [AdminAPI] Modification Pokémon ${pokemonId} pour ${username}`);
+
+    const pokemon = await OwnedPokemon.findById(pokemonId);
+    if (!pokemon || pokemon.owner !== username) {
+      return res.status(404).json({ error: 'Pokémon non trouvé' });
+    }
+
+    // Appliquer les modifications autorisées
+    const allowedFields = ['nickname', 'level', 'experience', 'currentHp', 'status', 'nature', 'friendship'];
+    allowedFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        pokemon[field] = updates[field];
+      }
+    });
+
+    // Validation spéciale pour le niveau
+    if (updates.level !== undefined) {
+      pokemon.level = Math.min(100, Math.max(1, parseInt(updates.level)));
+      await pokemon.recalculateStats();
+    }
+
+    // Validation HP
+    if (updates.currentHp !== undefined) {
+      pokemon.currentHp = Math.min(pokemon.maxHp, Math.max(0, parseInt(updates.currentHp)));
+    }
+
+    await pokemon.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a modifié le Pokémon ${pokemonId} de ${username}`);
+    
+    res.json({ 
+      message: 'Pokémon modifié avec succès',
+      pokemon: {
+        id: pokemon._id.toString(),
+        nickname: pokemon.nickname,
+        level: pokemon.level,
+        currentHp: pokemon.currentHp,
+        maxHp: pokemon.maxHp,
+        status: pokemon.status
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur modification Pokémon:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Soigner un Pokémon spécifique
+router.post('/players/:username/pokemon/:pokemonId/heal', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username, pokemonId } = req.params;
+    
+    console.log(`💚 [AdminAPI] Soin Pokémon ${pokemonId} pour ${username}`);
+
+    const pokemon = await OwnedPokemon.findById(pokemonId);
+    if (!pokemon || pokemon.owner !== username) {
+      return res.status(404).json({ error: 'Pokémon non trouvé' });
+    }
+
+    // Utiliser la méthode heal() du modèle
+    pokemon.heal();
+    await pokemon.save();
+    
+    console.log(`✅ [Admin] ${req.user.username} a soigné le Pokémon ${pokemonId} de ${username}`);
+    
+    res.json({ 
+      message: 'Pokémon soigné avec succès',
+      pokemon: {
+        id: pokemon._id.toString(),
+        currentHp: pokemon.currentHp,
+        maxHp: pokemon.maxHp,
+        status: pokemon.status
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur soin Pokémon:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE: Actions en lot avancées pour un joueur
+router.post('/players/:username/bulk-actions', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { username } = req.params;
+    const { action, targets } = req.body;
+    
+    console.log(`⚡ [AdminAPI] Action en lot "${action}" pour ${username}`);
+
+    let result = { success: 0, failed: 0, message: '' };
+
+    switch (action) {
+      case 'heal_all_pokemon':
+        const healResult = await OwnedPokemon.updateMany(
+          { owner: username },
+          { $set: { status: 'normal', statusTurns: undefined } }
+        );
+        
+        // Mettre à jour HP et PP individuellement
+        const allPokemon = await OwnedPokemon.find({ owner: username });
+        for (const pokemon of allPokemon) {
+          pokemon.currentHp = pokemon.maxHp;
+          pokemon.moves.forEach(move => {
+            move.currentPp = move.maxPp;
+          });
+          await pokemon.save();
+        }
+        
+        result.success = healResult.matchedCount;
+        result.message = `${healResult.matchedCount} Pokémon soignés`;
+        break;
+
+      case 'clear_inventory_category':
+        if (!targets?.category) {
+          return res.status(400).json({ error: 'Catégorie requise' });
+        }
+        
+        const inventory = await Inventory.findOne({ username });
+        if (inventory && inventory[targets.category]) {
+          const itemCount = inventory[targets.category].length;
+          inventory[targets.category] = [];
+          await inventory.save();
+          result.success = itemCount;
+          result.message = `${itemCount} objets supprimés de ${targets.category}`;
+        }
+        break;
+
+      case 'reset_pokedex':
+        const deletedEntries = await PokedexEntry.deleteMany({ playerId: username });
+        const deletedStats = await PokedexStats.deleteMany({ playerId: username });
+        result.success = deletedEntries.deletedCount + deletedStats.deletedCount;
+        result.message = `Pokédex reseté (${deletedEntries.deletedCount} entrées supprimées)`;
+        break;
+
+      case 'release_all_pc_pokemon':
+        const releasedResult = await OwnedPokemon.deleteMany({
+          owner: username,
+          isInTeam: false
+        });
+        result.success = releasedResult.deletedCount;
+        result.message = `${releasedResult.deletedCount} Pokémon du PC relâchés`;
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Action non reconnue' });
+    }
+
+    console.log(`✅ [Admin] ${req.user.username} a effectué l'action "${action}" pour ${username}`);
+
+    res.json({
+      message: 'Action en lot terminée',
+      result
+    });
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Erreur action en lot:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 export default router;
