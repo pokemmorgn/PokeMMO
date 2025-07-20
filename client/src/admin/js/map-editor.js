@@ -451,8 +451,42 @@ export class MapEditorModule {
         const tileHeight = this.currentMapData.tileheight * this.zoom
         
         // Définir les dimensions CSS du canvas
-        const canvasWidth = mapWidth * tileWidth
-        const canvasHeight = mapHeight * tileHeight
+// Calculer l'espace disponible (en tenant compte du panel des objets)
+const mapCanvasContainer = document.getElementById('mapCanvasContainer')
+const objectsPanel = document.getElementById('objectsPanel')
+
+let availableWidth = mapCanvasContainer ? mapCanvasContainer.clientWidth : window.innerWidth
+let availableHeight = mapCanvasContainer ? mapCanvasContainer.clientHeight : window.innerHeight
+
+// Soustraire la largeur du panel des objets s'il est visible
+if (objectsPanel && objectsPanel.style.display !== 'none') {
+    availableWidth -= 350 // Largeur du panel des objets
+}
+
+// Soustraire les marges
+availableWidth -= 60 // Marges du canvas (20px * 2 + padding)
+availableHeight -= 60
+
+// Dimensions idéales de la carte
+const idealWidth = mapWidth * tileWidth
+const idealHeight = mapHeight * tileHeight
+
+// Calculer le facteur d'échelle pour que ça rentre dans l'espace disponible
+const scaleX = availableWidth / idealWidth
+const scaleY = availableHeight / idealHeight
+const scale = Math.min(scaleX, scaleY, 1) // Ne pas agrandir, seulement réduire
+
+// Appliquer l'échelle
+const canvasWidth = idealWidth * scale
+const canvasHeight = idealHeight * scale
+
+canvas.style.width = canvasWidth + 'px'
+canvas.style.height = canvasHeight + 'px'
+
+// Ajuster le zoom si nécessaire
+if (scale < 1 && this.zoom === 1) {
+    console.log(`🗺️ [MapEditor] Auto-scaling map to fit: ${scale.toFixed(2)}x`)
+}
         
         canvas.style.width = canvasWidth + 'px'
         canvas.style.height = canvasHeight + 'px'
