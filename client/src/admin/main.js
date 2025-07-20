@@ -3,7 +3,6 @@
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
 import './styles/components.css'
-import { QuestGeneratorModule } from './js/quest-generator.js'
 
 // Import modules
 import { AdminPanel } from './js/admin-panel.js'
@@ -11,6 +10,7 @@ import { DashboardModule } from './js/dashboard.js'
 import { PlayersModule } from './js/players.js'
 import { QuestsModule } from './js/quests.js'
 import { LogsToolsModule } from './js/logs-tools.js'
+import { QuestGeneratorModule } from './js/quest-generator.js' // ← DÉPLACÉ ICI
 
 // Global admin panel instance
 let adminPanel
@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             QuestsModule,
             LogsToolsModule,
             QuestGeneratorModule  // ← Ajout du nouveau module
-
         ])
         
         // Export for global access AFTER initialization
@@ -98,29 +97,30 @@ function setupGlobalFunctions() {
         adminPanel.players.resetPlayerData()
     }
 
+    // Quest Generator functions
     window.generateRandomQuest = () => {
-    if (!adminPanel?.questGenerator) {
-        console.error('QuestGenerator module not loaded')
-        return
+        if (!adminPanel?.questGenerator) {
+            console.error('QuestGenerator module not loaded')
+            return
+        }
+        adminPanel.questGenerator.generateRandomQuest()
     }
-    adminPanel.questGenerator.generateRandomQuest()
-}
 
-window.createQuestFromGenerated = () => {
-    if (!adminPanel?.questGenerator) {
-        console.error('QuestGenerator module not loaded')
-        return
+    window.createQuestFromGenerated = () => {
+        if (!adminPanel?.questGenerator) {
+            console.error('QuestGenerator module not loaded')
+            return
+        }
+        adminPanel.questGenerator.createQuestFromGenerated()
     }
-    adminPanel.questGenerator.createQuestFromGenerated()
-}
 
-window.regenerateQuest = () => {
-    if (!adminPanel?.questGenerator) {
-        console.error('QuestGenerator module not loaded')
-        return
+    window.regenerateQuest = () => {
+        if (!adminPanel?.questGenerator) {
+            console.error('QuestGenerator module not loaded')
+            return
+        }
+        adminPanel.questGenerator.regenerateQuest()
     }
-    adminPanel.questGenerator.regenerateQuest()
-}
     
     // Quests functions
     window.loadQuests = () => {
