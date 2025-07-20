@@ -408,6 +408,11 @@ async initializeUIQuietly() {
   this.initializeMovementBlockHandler();
   this.networkSetupComplete = true;
 
+  if (this.networkManager?.interactionHandler && !this.networkManager.interactionHandler.isInitialized) {
+    console.log(`🔧 [${this.scene.key}] Initialisation NetworkInteractionHandler...`);
+    this.networkManager.interactionHandler.initialize();
+  }
+   
   // === [HOOK ROOM READY] ===
   if (this.networkManager && this.networkManager.room) {
     this.room = this.networkManager.room; // Synchronise la référence locale
