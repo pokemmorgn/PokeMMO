@@ -960,18 +960,7 @@ window.forceReinitInteractionHandlers = function() {
   return false;
 };
 
-// ✅ NOUVELLE FONCTION : Reset du cache des handlers
-window.resetInteractionHandlersCache = function() {
-  if (window.globalNetworkManager?.interactionHandler) {
-    window.globalNetworkManager.interactionHandler.resetHandlersCache();
-    console.log('[NetworkInteractionHandler] Cache handlers reset');
-    return true;
-  }
-  return false;
-};
-
 console.log('✅ NetworkInteractionHandler chargé!');
 console.log('🔍 Utilisez window.debugInteractionHandler() pour diagnostiquer');
 console.log('🔄 Utilisez window.resetInteractionHandlerDebug() pour reset compteurs');
 console.log('🔧 Utilisez window.forceReinitInteractionHandlers() pour force réinit handlers');
-console.log('🗑️ Utilisez window.resetInteractionHandlersCache() pour reset cache handlers');
