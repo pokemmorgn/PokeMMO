@@ -1223,7 +1223,7 @@ router.put('/players/:username/pokemon/:pokemonId', requireMacAndDev, async (req
     const allowedFields = ['nickname', 'level', 'experience', 'currentHp', 'status', 'nature', 'friendship'];
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
-        pokemon[field] = updates[field];
+(pokemon as any)[field] = updates[field];
       }
     });
 
