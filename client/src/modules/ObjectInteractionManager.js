@@ -1141,7 +1141,7 @@ removeObjectFromScene(object) {
         console.log(`[ObjectInteractionManager] 🎯 Tentative suppression objectId: ${objectId}`);
         
         // Appeler la méthode de suppression du ObjectManager de la scène
-        const removed = this.scene.objectManager.removeObjectById(objectId);
+        const removed = this.scene.objectManager.destroyObject(objectId);
         
         if (removed) {
           console.log(`[ObjectInteractionManager] ✅ Objet ${objectId} supprimé de la scène`);
