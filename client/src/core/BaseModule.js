@@ -368,7 +368,13 @@ export class BaseModule {
     // Vérifications génériques
     const blockers = [
       document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
+      (() => {
+        const dialogueBox = document.querySelector('#dialogue-box');
+        return dialogueBox && 
+          dialogueBox.style.display !== 'none' && 
+          dialogueBox.style.visibility !== 'hidden' &&
+          !dialogueBox.hidden;
+      })(),
       document.querySelector('#shop-overlay:not(.hidden)')
     ];
     
