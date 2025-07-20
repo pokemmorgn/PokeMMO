@@ -3,11 +3,6 @@
 // Étend les capacités du NetworkManager sans le polluer
 
 export class NetworkInteractionHandler {
-  // ✅ CACHE : Propriétés statiques pour optimiser les vérifications
-  static lastVerificationTime = 0;
-  static verificationInterval = 5000; // 5 secondes
-  static lastVerificationResult = false;
-
   constructor(networkManager) {
     this.networkManager = networkManager;
     this.isInitialized = false;
@@ -306,10 +301,6 @@ export class NetworkInteractionHandler {
   forceReinitializeHandlers() {
     console.log('[NetworkInteractionHandler] 🔧 Force re-initialisation handlers...');
     
-    // ✅ NOUVEAU : Reset du cache pour forcer la vérification
-    NetworkInteractionHandler.lastVerificationTime = 0;
-    NetworkInteractionHandler.lastVerificationResult = false;
-    
     this.handlersSetup = false;
     
     const result = this.setupInteractionHandlers();
@@ -317,9 +308,6 @@ export class NetworkInteractionHandler {
       const verification = this.verifyHandlersSetup();
       if (verification.success) {
         this.handlersSetup = true;
-        // ✅ NOUVEAU : Mettre à jour le cache après succès
-        NetworkInteractionHandler.lastVerificationTime = Date.now();
-        NetworkInteractionHandler.lastVerificationResult = true;
         console.log('[NetworkInteractionHandler] ✅ Re-initialisation handlers réussie');
         return true;
       } else {
@@ -476,22 +464,48 @@ export class NetworkInteractionHandler {
   }
 
   // ✅ NOUVELLE MÉTHODE : S'assurer que les handlers sont prêts
-  ensureHandlersReady() {
-    if (!this.isInitialized || !this.handlersSetup) {
-      console.warn('[NetworkInteractionHandler] ⚠️ Handlers pas initialisés, tentative de fix...');
-      
-      // ✅ Tentative de fix automatique
-      const fixResult = this.forceReinitializeHandlers();
-      if (!fixResult) {
-        console.error('[NetworkInteractionHandler] ❌ Impossible de réparer les handlers');
-        return false;
-      }
+// ✅ CORRECTION : Vérification directe à chaque interaction
+ensureHandlersReady() {
+  const room = this.networkManager?.room;
+  
+  if (!room || !room.onMessageHandlers) {
+    console.error('[NetworkInteractionHandler] ❌ Room ou handlers manquants');
+    return false;
+  }
+  
+  // ✅ VÉRIFICATION DIRECTE : Les handlers existent-ils vraiment ?
+  const requiredHandlers = ['objectInteractionResult', 'searchResult', 'interactionError'];
+  const missingHandlers = requiredHandlers.filter(handler => 
+    !room.onMessageHandlers.events[handler]
+  );
+  
+  if (missingHandlers.length > 0) {
+    console.warn(`[NetworkInteractionHandler] ⚠️ Handlers manquants: ${missingHandlers.join(', ')}`);
+    console.log('[NetworkInteractionHandler] 🔧 Re-setup automatique des handlers...');
+    
+    // ✅ RE-SETUP IMMÉDIAT
+    const setupResult = this.setupInteractionHandlers();
+    if (!setupResult) {
+      console.error('[NetworkInteractionHandler] ❌ Échec re-setup handlers');
+      return false;
     }
     
-    // ✅ Vérification finale
-    const verification = this.verifyHandlersSetup();
-    return verification.success;
+    // ✅ RE-VÉRIFICATION
+    const stillMissing = requiredHandlers.filter(handler => 
+      !room.onMessageHandlers.events[handler]
+    );
+    
+    if (stillMissing.length > 0) {
+      console.error(`[NetworkInteractionHandler] ❌ Handlers toujours manquants après re-setup: ${stillMissing.join(', ')}`);
+      return false;
+    }
+    
+    console.log('[NetworkInteractionHandler] ✅ Handlers re-setup avec succès');
+    this.handlersSetup = true;
   }
+  
+  return true;
+}
 
   // === GESTION DES RÉSULTATS ===
 
@@ -828,17 +842,6 @@ export class NetworkInteractionHandler {
       key.includes('interaction') || key.includes('search') || key.includes('Result')
     ) : [];
 
-    // ✅ NOUVEAU : Informations du cache
-    const now = Date.now();
-    const cacheInfo = {
-      lastVerificationTime: NetworkInteractionHandler.lastVerificationTime,
-      timeSinceLastVerification: now - NetworkInteractionHandler.lastVerificationTime,
-      verificationInterval: NetworkInteractionHandler.verificationInterval,
-      lastVerificationResult: NetworkInteractionHandler.lastVerificationResult,
-      cacheValid: (now - NetworkInteractionHandler.lastVerificationTime) < NetworkInteractionHandler.verificationInterval,
-      nextVerificationIn: Math.max(0, NetworkInteractionHandler.verificationInterval - (now - NetworkInteractionHandler.lastVerificationTime))
-    };
-
     return {
       isInitialized: this.isInitialized,
       handlersSetup: this.handlersSetup, // ✅ NOUVEAU
@@ -859,8 +862,7 @@ export class NetworkInteractionHandler {
         interactionHandlers: interactionHandlers,
         hasObjectHandler: interactionHandlers.includes('objectInteractionResult'),
         hasSearchHandler: interactionHandlers.includes('searchResult')
-      },
-      cache: cacheInfo // ✅ NOUVEAU : Informations du cache
+      }
     };
   }
 
@@ -879,14 +881,6 @@ export class NetworkInteractionHandler {
     };
     
     console.log('[NetworkInteractionHandler] Anciens compteurs:', oldCounters);
-  }
-
-  // ✅ NOUVELLE MÉTHODE : Reset du cache de vérification des handlers
-  resetHandlersCache() {
-    console.log('[NetworkInteractionHandler] 🗑️ Reset cache handlers');
-    NetworkInteractionHandler.lastVerificationTime = 0;
-    NetworkInteractionHandler.lastVerificationResult = false;
-    console.log('[NetworkInteractionHandler] ✅ Cache reset - prochaine interaction forcera une vérification');
   }
 
   clearPendingInteractions() {
