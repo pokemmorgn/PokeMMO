@@ -368,6 +368,11 @@ export class NetworkInteractionHandler {
       console.log('📤 PAYLOAD COMPLET:', JSON.stringify(interactionData, null, 2));
       
       const room = this.networkManager.room;
+      // Dans NetworkInteractionHandler.sendObjectInteract(), JUSTE AVANT room.send() :
+      console.log('[NetworkInteractionHandler] 🔍 DONNÉES VRAIMENT ENVOYÉES À LA ROOM:');
+      console.log('Message type:', "objectInteract");
+      console.log('Data envoyée:', JSON.stringify(interactionData, null, 2));
+      
       room.send("objectInteract", interactionData);
       
       // ✅ Tracking de l'interaction
