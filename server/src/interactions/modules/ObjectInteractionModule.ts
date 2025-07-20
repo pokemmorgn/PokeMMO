@@ -284,6 +284,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     objectDef.state = state;
 
     // Trouver le sous-module approprié
+    // ✅ AUTO-DÉTECTION si type inconnu
+    if (objectDef.type === 'unknown' || !objectDef.type) {
+      objectDef.type = 'ground_item'; // Force ground_item pour objets détectés
+      this.log('info', `Auto-détection: "${objectDef.name}" → ground_item`);
+    }
+    
+    // Trouver le sous-module approprié
     const subModule = this.subModuleFactory.findModuleForObject(objectDef);
     if (!subModule) {
       return this.createErrorResult(`Aucun gestionnaire pour le type: ${objectDef.type}`, "NO_HANDLER");
