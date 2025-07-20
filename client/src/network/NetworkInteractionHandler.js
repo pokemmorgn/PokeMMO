@@ -464,22 +464,48 @@ export class NetworkInteractionHandler {
   }
 
   // ✅ NOUVELLE MÉTHODE : S'assurer que les handlers sont prêts
-  ensureHandlersReady() {
-    if (!this.isInitialized || !this.handlersSetup) {
-      console.warn('[NetworkInteractionHandler] ⚠️ Handlers pas initialisés, tentative de fix...');
-      
-      // ✅ Tentative de fix automatique
-      const fixResult = this.forceReinitializeHandlers();
-      if (!fixResult) {
-        console.error('[NetworkInteractionHandler] ❌ Impossible de réparer les handlers');
-        return false;
-      }
+// ✅ CORRECTION : Vérification directe à chaque interaction
+ensureHandlersReady() {
+  const room = this.networkManager?.room;
+  
+  if (!room || !room.onMessageHandlers) {
+    console.error('[NetworkInteractionHandler] ❌ Room ou handlers manquants');
+    return false;
+  }
+  
+  // ✅ VÉRIFICATION DIRECTE : Les handlers existent-ils vraiment ?
+  const requiredHandlers = ['objectInteractionResult', 'searchResult', 'interactionError'];
+  const missingHandlers = requiredHandlers.filter(handler => 
+    !room.onMessageHandlers.events[handler]
+  );
+  
+  if (missingHandlers.length > 0) {
+    console.warn(`[NetworkInteractionHandler] ⚠️ Handlers manquants: ${missingHandlers.join(', ')}`);
+    console.log('[NetworkInteractionHandler] 🔧 Re-setup automatique des handlers...');
+    
+    // ✅ RE-SETUP IMMÉDIAT
+    const setupResult = this.setupInteractionHandlers();
+    if (!setupResult) {
+      console.error('[NetworkInteractionHandler] ❌ Échec re-setup handlers');
+      return false;
     }
     
-    // ✅ Vérification finale
-    const verification = this.verifyHandlersSetup();
-    return verification.success;
+    // ✅ RE-VÉRIFICATION
+    const stillMissing = requiredHandlers.filter(handler => 
+      !room.onMessageHandlers.events[handler]
+    );
+    
+    if (stillMissing.length > 0) {
+      console.error(`[NetworkInteractionHandler] ❌ Handlers toujours manquants après re-setup: ${stillMissing.join(', ')}`);
+      return false;
+    }
+    
+    console.log('[NetworkInteractionHandler] ✅ Handlers re-setup avec succès');
+    this.handlersSetup = true;
   }
+  
+  return true;
+}
 
   // === GESTION DES RÉSULTATS ===
 
