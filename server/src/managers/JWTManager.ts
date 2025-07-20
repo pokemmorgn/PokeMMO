@@ -1,5 +1,6 @@
 // server/src/managers/JWTManager.ts
 import { QuestManager } from "./QuestManager";
+import { PlayerData, IPlayerData } from "../models/PlayerData";
 
 export class JWTManager {
   private static instance: JWTManager;
@@ -36,7 +37,15 @@ async registerUser(sessionId: string, jwt: any): Promise<void> {
   this.sessionToUser.set(sessionId, userId);
   this.userToSession.set(userId, sessionId);
   this.userJWTData.set(userId, jwt);
-      await this.handleQuestAutoReset(jwt.username);
+  await this.handleQuestAutoReset(jwt.username);
+
+    // ✅ NOUVEAU: Reset objets en mode dev
+  const { getServerConfig } = require('../config/serverConfig');
+  const serverConfig = getServerConfig();
+  
+  if (serverConfig.autoresetObjects) {
+    await this.resetPlayerObjects(jwt.username);
+  }
 
   console.log(`✅ [JWTManager] Utilisateur enregistré: ${jwt.username} (${userId})`);
 }
@@ -398,6 +407,33 @@ async validateSessionRobust(sessionId: string, playerName?: string, action?: str
     }
     
     return activeBattles;
+  }
+
+  /**
+   * ✅ NOUVEAU: Reset tous les objets collectés d'un joueur (mode dev)
+   */
+  async resetPlayerObjects(username: string): Promise<void> {
+    try {
+      console.log(`🔄 [JWTManager] Reset objets pour ${username}`);
+      
+      const playerDataDoc = await PlayerData.findOne({ username });
+      if (!playerDataDoc) {
+        console.log(`⚠️ [JWTManager] Joueur ${username} non trouvé pour reset objets`);
+        return;
+      }
+
+      const playerData = playerDataDoc as IPlayerData;
+      
+      // Supprimer tous les cooldowns objets
+      const initialCount = playerData.objectStates.length;
+      playerData.objectStates = [];
+      await playerData.save();
+      
+      console.log(`✅ [JWTManager] ${initialCount} cooldowns objets supprimés pour ${username}`);
+      
+    } catch (error) {
+      console.error(`❌ [JWTManager] Erreur reset objets pour ${username}:`, error);
+    }
   }
   
   /**
