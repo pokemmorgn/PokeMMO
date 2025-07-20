@@ -38,6 +38,9 @@
             <button class="tab-btn" data-tab="quests">
                 <i class="fas fa-scroll"></i> Quêtes
             </button>
+            <button class="tab-btn" data-tab="maps">
+                <i class="fas fa-map"></i> Cartes
+            </button>
             <button class="tab-btn" data-tab="edit">
                 <i class="fas fa-edit"></i> Édition
             </button>
@@ -190,6 +193,100 @@
             <div class="loading" id="questsLoading">
                 <div class="spinner"></div>
                 Chargement des quêtes...
+            </div>
+        </div>
+
+        <!-- Panel Cartes (NOUVEAU) -->
+        <div class="panel" id="maps">
+            <div class="map-editor-container" style="height: 100%; display: flex; flex-direction: column;">
+                <!-- Toolbar -->
+                <div class="map-toolbar" style="background: white; padding: 15px; border-bottom: 2px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <h3 style="margin: 0; color: #2c3e50;">
+                                <i class="fas fa-map"></i> Éditeur de Cartes
+                            </h3>
+                            
+                            <select id="mapSelect" class="form-select" style="min-width: 200px;" onchange="adminPanel.mapEditor?.loadMap(this.value)">
+                                <option value="">Sélectionner une carte...</option>
+                            </select>
+                        </div>
+
+                        <div id="mapTools" style="display: none; flex: 1; justify-content: center; gap: 10px;">
+                            <button class="btn-tool active" data-tool="npc" onclick="adminPanel.mapEditor?.selectTool('npc')">
+                                <i class="fas fa-users"></i> NPC
+                            </button>
+                            <button class="btn-tool" data-tool="object" onclick="adminPanel.mapEditor?.selectTool('object')">
+                                <i class="fas fa-cube"></i> Objet
+                            </button>
+                            <button class="btn-tool" data-tool="spawn" onclick="adminPanel.mapEditor?.selectTool('spawn')">
+                                <i class="fas fa-map-marker-alt"></i> Spawn
+                            </button>
+                            <button class="btn-tool" data-tool="teleport" onclick="adminPanel.mapEditor?.selectTool('teleport')">
+                                <i class="fas fa-portal-exit"></i> Téléport
+                            </button>
+                        </div>
+
+                        <div id="mapActions" style="display: none; align-items: center; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-weight: 500;">Zoom:</label>
+                                <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" 
+                                       onchange="adminPanel.mapEditor?.setZoom(this.value)" style="width: 80px;">
+                                <span id="zoomValue">100%</span>
+                            </div>
+                            
+                            <button class="btn btn-success" onclick="adminPanel.mapEditor?.saveMapObjects()">
+                                <i class="fas fa-save"></i> Sauvegarder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone principale -->
+                <div style="flex: 1; display: flex; min-height: 0;">
+                    <!-- Canvas de la carte -->
+                    <div id="mapCanvasContainer" style="flex: 1; background: #f8f9fa; position: relative; overflow: auto;">
+                        <div id="mapLoadingMessage" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;">
+                            <div style="text-align: center;">
+                                <i class="fas fa-map-marked-alt" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
+                                <h4>Sélectionnez une carte pour commencer</h4>
+                                <p>Choisissez une carte TMJ dans la liste ci-dessus</p>
+                            </div>
+                        </div>
+                        
+                        <canvas id="mapCanvas" style="display: none; cursor: crosshair; border: 2px solid #007bff; border-radius: 8px; margin: 20px;"></canvas>
+                    </div>
+
+                    <!-- Panel des objets -->
+                    <div id="objectsPanel" style="width: 350px; background: white; border-left: 2px solid #e9ecef; padding: 20px; overflow-y: auto; display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4 style="margin: 0; color: #2c3e50;">
+                                <i class="fas fa-layer-group"></i> Objets Placés
+                            </h4>
+                            <span id="objectsCount" class="badge badge-primary">0</span>
+                        </div>
+                        
+                        <div id="objectsList" style="space-y: 10px;">
+                            <!-- Les objets seront ajoutés ici dynamiquement -->
+                        </div>
+                        
+                        <div id="noObjectsMessage" style="text-align: center; padding: 40px; color: #6c757d;">
+                            <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                            <p>Aucun objet placé</p>
+                            <small>Cliquez sur la carte pour placer des objets</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div style="background: #e8f4fd; border-top: 2px solid #007bff; padding: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 30px; font-size: 0.9rem; color: #0066cc;">
+                        <span><strong>Instructions:</strong></span>
+                        <span><i class="fas fa-mouse-pointer"></i> Clic = Placer objet</span>
+                        <span><i class="fas fa-times"></i> Clic sur objet = Supprimer</span>
+                        <span><i class="fas fa-save"></i> Sauvegarde = Fichier JSON</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -529,6 +626,6 @@
         </div>
     </div>
 
-<script type="module" src="/assets/admin.js"></script>
+    <script type="module" src="/assets/admin.js"></script>
 </body>
 </html>
