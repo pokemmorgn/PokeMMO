@@ -414,8 +414,7 @@ dialogueTemplates: {
             "The cosmos sings an eternal song of your victory!",
             "You have achieved something truly LEGENDARY!"
         ]
-    }
-}
+    },
     
     caring: {
         offer: [
