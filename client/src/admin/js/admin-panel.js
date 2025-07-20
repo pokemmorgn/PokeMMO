@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Core Class
+// PokeWorld Admin Panel - Core Class (Version corrigée)
 
 export class AdminPanel {
     constructor() {
@@ -55,8 +55,7 @@ export class AdminPanel {
         this.quests = this.modules.quests
         this.logsTools = this.modules.logsTools
         this.questGenerator = this.modules.questGenerator
-        this.mapEditor = this.modules.mapEditor // ← AJOUT du nouveau module
-
+        this.mapEditor = this.modules.mapEditor
         
         console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
     }
@@ -162,14 +161,15 @@ export class AdminPanel {
             case 'quests':
                 // Le chargement se fait manuellement
                 break
+            case 'maps':
+                console.log('🗺️ [AdminPanel] Activating maps tab')
+                this.mapEditor?.onTabActivated()
+                break
             case 'logs':
                 this.logsTools?.loadLogs()
                 break
             case 'tools':
                 // Pas d'action spécifique
-                break
-            case 'maps': // ← NOUVEAU CAS POUR L'ÉDITEUR DE CARTES
-                this.mapEditor?.onTabActivated()
                 break
         }
     }
