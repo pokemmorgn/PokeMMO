@@ -166,6 +166,13 @@ export class MapEditorModule {
 }
     async loadMap(mapId) {
         if (!mapId) return
+
+         // ✅ AJOUTEZ CES LIGNES POUR VIDER LE CACHE
+    console.log('🗺️ [MapEditor] Clearing tileset cache...')
+    this.tilesets.clear()
+    this.tilesetImages.clear()
+    this.currentMapData = null
+
         
         console.log(`🗺️ [MapEditor] Loading map: ${mapId}`)
         
