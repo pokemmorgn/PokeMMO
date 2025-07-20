@@ -475,7 +475,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
    * Obtenir les objets visibles d'une zone
    */
 getVisibleObjectsInZone(zone: string): any[] {
-  // ✅ NOUVEAU : Vérifier le mode dev
+  // ✅ NOUVEAU : Vérifier le mode autoresetObjects
   const { getServerConfig } = require('../../config/serverConfig');
   const serverConfig = getServerConfig();
   
@@ -489,7 +489,7 @@ getVisibleObjectsInZone(zone: string): any[] {
     if (objectDef.type !== 'hidden_item') {
       const state = this.stateManager.getObjectState(zone, objectDef.id);
       
-      // ✅ NOUVEAU : En mode dev, ignorer l'état collected
+      // ✅ MODIFIÉ : En mode autoresetObjects, ignorer l'état collected
       const isCollected = serverConfig.autoresetObjects ? false : state.collected;
       
       if (!isCollected) {
@@ -506,9 +506,9 @@ getVisibleObjectsInZone(zone: string): any[] {
     }
   }
 
-  // ✅ NOUVEAU : Log pour debugging
+  // ✅ NOUVEAU : Log pour debugging mode dev
   if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
-    console.log(`🛠️ [ObjectModule] Mode dev: ${visibleObjects.length} objets visibles dans ${zone}`);
+    console.log(`🔄 [ObjectModule] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
   }
 
   return visibleObjects;
