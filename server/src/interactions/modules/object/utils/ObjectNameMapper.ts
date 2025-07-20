@@ -77,6 +77,16 @@ const OBJECT_NAME_MAPPINGS: Record<string, ObjectMapping> = {
     type: 'ground_item',
     defaultQuantity: 1
   },
+  'loveball': {
+  itemId: 'love_ball',
+  type: 'ground_item',
+  defaultQuantity: 1
+  },
+  'love_ball': {
+    itemId: 'love_ball',
+    type: 'ground_item', 
+    defaultQuantity: 1
+  },
 
   // === POTIONS ET SOINS (basé sur items.json) ===
   'potion': {
