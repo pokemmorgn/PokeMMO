@@ -384,12 +384,7 @@ async sendObjectInteraction(object, options = {}) {
     });
     
     // ✅ Envoyer via NetworkHandler
-    const result = this.networkHandler.sendObjectInteract(
-      objectId,
-      objectType,
-      objectPosition,
-      additionalData
-    );
+     const result = this.networkHandler.sendObjectInteract(objectId);
     
     console.log(`[ObjectInteractionManager] Résultat envoi: ${result}`);
     return result;
