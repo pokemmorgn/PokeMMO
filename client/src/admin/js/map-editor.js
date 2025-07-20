@@ -435,31 +435,28 @@ export class MapEditorModule {
         }
     }
 
-    renderMap() {
-        if (!this.currentMapData) return
+renderMap() {
+    if (!this.currentMapData) return
 
-        const canvas = document.getElementById('mapCanvas')
-        if (!canvas) {
-            console.error('Canvas mapCanvas not found')
-            return
-        }
-        
-        // Calculer les dimensions logiques (avant DPI)
-        const mapWidth = this.currentMapData.width
-        const mapHeight = this.currentMapData.height
-        const tileWidth = this.currentMapData.tilewidth * this.zoom
-        const tileHeight = this.currentMapData.tileheight * this.zoom
-        
-        // Définir les dimensions CSS du canvas
-        const canvasWidth = mapWidth * tileWidth
-        const canvasHeight = mapHeight * tileHeight
-        
-        canvas.style.width = canvasWidth + 'px'
-        canvas.style.height = canvasHeight + 'px'
-        canvas.style.display = 'block'
-        
-        // Corriger le DPI
-        const ctx = this.fixCanvasDPI(canvas)
+    const canvas = document.getElementById('mapCanvas')
+    if (!canvas) {
+        console.error('Canvas mapCanvas not found')
+        return
+    }
+    
+    // Dimensions logiques simples
+    const mapWidth = this.currentMapData.width
+    const mapHeight = this.currentMapData.height
+    const tileWidth = this.currentMapData.tilewidth * this.zoom
+    const tileHeight = this.currentMapData.tileheight * this.zoom
+    
+    // Dimensions CSS fixes
+    const canvasWidth = mapWidth * tileWidth
+    const canvasHeight = mapHeight * tileHeight
+    
+    canvas.style.width = canvasWidth + 'px'
+    canvas.style.height = canvasHeight + 'px'
+    canvas.style.display = 'block'
         
         // Effacer le canvas
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
