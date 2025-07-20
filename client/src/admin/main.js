@@ -1,4 +1,4 @@
-// client/src/admin/main.js - Mise à jour avec le module avancé
+// client/src/admin/main.js - Mise à jour avec le module MapEditor
 
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
@@ -8,10 +8,11 @@ import './styles/components.css'
 import { AdminPanel } from './js/admin-panel.js'
 import { DashboardModule } from './js/dashboard.js'
 import { PlayersModule } from './js/players.js'
-import { PlayersAdvancedModule } from './js/players-advanced.js' // ← NOUVEAU MODULE
+import { PlayersAdvancedModule } from './js/players-advanced.js'
 import { QuestsModule } from './js/quests.js'
 import { LogsToolsModule } from './js/logs-tools.js'
 import { QuestGeneratorModule } from './js/quest-generator.js'
+import { MapEditorModule } from './js/map-editor.js' // ← NOUVEAU MODULE
 
 // Global admin panel instance
 let adminPanel
@@ -28,10 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         adminPanel.loadModules([
             DashboardModule,
             PlayersModule,
-            PlayersAdvancedModule,  // ← AJOUT du nouveau module
+            PlayersAdvancedModule,
             QuestsModule,
             LogsToolsModule,
-            QuestGeneratorModule
+            QuestGeneratorModule,
+            MapEditorModule // ← AJOUT du nouveau module
         ])
         
         // Export for global access AFTER initialization
@@ -99,7 +101,7 @@ function setupGlobalFunctions() {
         adminPanel.players.resetPlayerData()
     }
 
-    // ✅ NOUVELLES FONCTIONS POUR LE MODULE AVANCÉ
+    // PlayersAdvanced functions
     window.openAdvancedPlayerView = (username) => {
         if (!adminPanel?.playersAdvanced) {
             console.error('PlayersAdvanced module not loaded')
@@ -317,6 +319,15 @@ function setupGlobalFunctions() {
             return
         }
         adminPanel.logsTools.emergencyShutdown()
+    }
+
+    // ✅ NOUVELLES FONCTIONS POUR LE MODULE MAP EDITOR
+    window.loadMapEditor = () => {
+        if (!adminPanel?.mapEditor) {
+            console.error('MapEditor module not loaded')
+            return
+        }
+        adminPanel.mapEditor.onTabActivated()
     }
 
     // Modal functions
