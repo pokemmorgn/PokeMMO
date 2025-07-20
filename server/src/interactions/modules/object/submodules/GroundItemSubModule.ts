@@ -121,35 +121,48 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       // Cast pour accéder aux méthodes personnalisées
       const playerData = playerDataDoc as IPlayerData;
 
-      // === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
-      
-      const canCollect = playerData.canCollectObject(objectDef.id, objectDef.zone);
-      
-      if (!canCollect) {
-        const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
-        const hoursRemaining = Math.ceil(cooldownInfo.cooldownRemaining / (1000 * 60 * 60));
-        const minutesRemaining = Math.ceil((cooldownInfo.cooldownRemaining % (1000 * 60 * 60)) / (1000 * 60));
-        
-        const processingTime = Date.now() - startTime;
-        this.updateStats(false, processingTime);
-        
-        this.log('info', `⏰ Cooldown actif pour objet`, {
-          objectId: objectDef.id,
-          player: player.name,
-          hoursRemaining,
-          minutesRemaining,
-          nextAvailable: new Date(cooldownInfo.nextAvailableTime!).toISOString()
-        });
-        
-        const timeText = hoursRemaining > 0 
-          ? `${hoursRemaining}h ${minutesRemaining}min`
-          : `${minutesRemaining}min`;
-        
-        return this.createErrorResult(
-          `Cooldown actif. Disponible dans ${timeText}.`,
-          'COOLDOWN_ACTIVE'
-        );
-      }
+// === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
+
+// ✅ VÉRIFIER SI MODE DEV (bypass cooldown)
+const { getServerConfig } = require('../../../../config/serverConfig');
+const serverConfig = getServerConfig();
+
+if (serverConfig.autoresetObjects) {
+  this.log('info', '🛠️ Mode dev: Bypass cooldown objet', {
+    objectId: objectDef.id,
+    player: player.name,
+    zone: objectDef.zone
+  });
+} else {
+  // ✅ LOGIQUE COOLDOWN NORMALE
+  const canCollect = playerData.canCollectObject(objectDef.id, objectDef.zone);
+  
+  if (!canCollect) {
+    const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
+    const hoursRemaining = Math.ceil(cooldownInfo.cooldownRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.ceil((cooldownInfo.cooldownRemaining % (1000 * 60 * 60)) / (1000 * 60));
+    
+    const processingTime = Date.now() - startTime;
+    this.updateStats(false, processingTime);
+    
+    this.log('info', `⏰ Cooldown actif pour objet`, {
+      objectId: objectDef.id,
+      player: player.name,
+      hoursRemaining,
+      minutesRemaining,
+      nextAvailable: new Date(cooldownInfo.nextAvailableTime!).toISOString()
+    });
+    
+    const timeText = hoursRemaining > 0 
+      ? `${hoursRemaining}h ${minutesRemaining}min`
+      : `${minutesRemaining}min`;
+    
+    return this.createErrorResult(
+      `Cooldown actif. Disponible dans ${timeText}.`,
+      'COOLDOWN_ACTIVE'
+    );
+  }
+}
 
       // === ÉTAPE 4 : VALIDATION ET TRAITEMENT ===
 
