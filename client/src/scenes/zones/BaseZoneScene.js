@@ -346,11 +346,6 @@ async initializeUIQuietly() {
  initializeWithExistingConnection() {
   console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
 
-   if (this._networkInitialized) {
-        console.log(`⚠️ [${this.scene.key}] Network déjà initialisé, skip`);
-        return;
-    }
-    this._networkInitialized = true;
    
   if (!window.globalNetworkManager) {
     console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
