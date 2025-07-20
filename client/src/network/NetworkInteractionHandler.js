@@ -359,6 +359,13 @@ export class NetworkInteractionHandler {
       }
 
       console.log('[NetworkInteractionHandler] 📤 Envoi objectInteract:', interactionData);
+
+      console.log('[NetworkInteractionHandler] 🔍 === DEBUG PAYLOAD COMPLET ===');
+      console.log('📤 objectId:', interactionData.objectId);
+      console.log('📤 objectType:', interactionData.objectType);  
+      console.log('📤 zone:', interactionData.zone);
+      console.log('📤 position:', interactionData.position);
+      console.log('📤 PAYLOAD COMPLET:', JSON.stringify(interactionData, null, 2));
       
       const room = this.networkManager.room;
       room.send("objectInteract", interactionData);
