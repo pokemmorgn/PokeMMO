@@ -394,27 +394,31 @@ export class PokemonFollowerManager {
       }
     }
     
-    // ✅ OPTIMISÉ: Direction et animation seulement si nécessaire
-    if (followerData.direction !== undefined && followerData.direction !== follower.lastDirection) {
-      follower.lastDirection = followerData.direction;
-      
-      // ✅ NOUVEAU: Ajuster la profondeur selon la direction
-      this.updateFollowerDepth(follower, followerData.direction);
-      
-      const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction);
-      const animKey = followerData.isMoving 
-        ? `pokemon_${follower.pokemonId}_walk_${pokemonDirection}`
-        : `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
-      
-      if (this.scene.anims.exists(animKey)) {
-        // ✅ OPTIMISATION: Ne jouer l'animation que si elle est différente
-        if (!follower.anims.currentAnim || follower.anims.currentAnim.key !== animKey) {
-          follower.anims.play(animKey, true);
-        }
-      } else {
-        console.warn(`⚠️ [PokemonFollowerManager] Animation ${animKey} n'existe pas`);
-      }
-    }
+// ✅ CORRIGÉ: Gestion des animations selon l'état réel du follower
+const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction || follower.lastDirection);
+
+// ✅ NOUVEAU: Déterminer l'animation basée sur l'état RÉEL du follower
+const shouldBeWalking = follower.isMoving && follower.isInterpolating;
+const animKey = shouldBeWalking
+  ? `pokemon_${follower.pokemonId}_walk_${pokemonDirection}`
+  : `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
+
+// ✅ TOUJOURS mettre à jour l'animation si l'état a changé
+const currentAnimKey = follower.anims.currentAnim ? follower.anims.currentAnim.key : null;
+if (currentAnimKey !== animKey) {
+  if (this.scene.anims.exists(animKey)) {
+    follower.anims.play(animKey, true);
+    console.log(`🎬 [PokemonFollowerManager] Animation changée: ${animKey} (moving: ${shouldBeWalking})`);
+  } else {
+    console.warn(`⚠️ [PokemonFollowerManager] Animation ${animKey} n'existe pas`);
+  }
+}
+
+// ✅ Mettre à jour la direction si nécessaire
+if (followerData.direction !== undefined) {
+  follower.lastDirection = followerData.direction;
+  this.updateFollowerDepth(follower, followerData.direction);
+}
     
     // ✅ NOUVEAU: Mettre à jour le timestamp et cache
     follower.lastUpdateTime = now;
@@ -553,7 +557,21 @@ export class PokemonFollowerManager {
       }
     });
   }
-
+/**
+ * ✅ NOUVEAU: Force l'animation idle quand le follower s'arrête
+ */
+forceIdleAnimation(follower) {
+  const pokemonDirection = this.getPlayerToPokemonDirection(follower.lastDirection);
+  const idleAnimKey = `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
+  
+  if (this.scene.anims.exists(idleAnimKey)) {
+    const currentAnimKey = follower.anims.currentAnim ? follower.anims.currentAnim.key : null;
+    if (currentAnimKey !== idleAnimKey) {
+      follower.anims.play(idleAnimKey, true);
+      console.log(`🛑 [PokemonFollowerManager] Animation idle forcée: ${idleAnimKey}`);
+    }
+  }
+}
   /**
    * Nettoie tous les followers
    */
