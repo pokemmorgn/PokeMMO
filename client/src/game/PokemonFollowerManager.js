@@ -1,5 +1,5 @@
 // ================================================================================================
-// CLIENT/SRC/GAME/POKEMONFOLLOWERMANAGER.JS - VERSION FINALE SIMPLE
+// CLIENT/SRC/GAME/POKEMONFOLLOWERMANAGER.JS - VERSION ANTI-LAG OPTIMISÉE
 // ================================================================================================
 
 export class PokemonFollowerManager {
@@ -10,7 +10,15 @@ export class PokemonFollowerManager {
     this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
     this.spriteStructures = new Map(); // Cache des structures détectées par pokemonId
     
-    console.log("🐾 [PokemonFollowerManager] Version simple initialisée");
+    // ✅ NOUVEAU: Système d'interpolation fluide
+    this.interpolationSpeed = 0.15; // Vitesse d'interpolation (0.1 = lent, 0.3 = rapide)
+    this.maxInterpolationDistance = 80; // Distance max avant téléportation
+    this.smoothingEnabled = true; // Activer le lissage des mouvements
+    
+    // ✅ NOUVEAU: Cache des dernières positions pour éviter les doublons
+    this.lastPositions = new Map(); // sessionId -> {x, y, direction, isMoving}
+    
+    console.log("🐾 [PokemonFollowerManager] Version anti-lag initialisée avec interpolation fluide");
   }
 
   /**
@@ -227,6 +235,33 @@ export class PokemonFollowerManager {
   }
 
   /**
+   * ✅ NOUVEAU: Vérifie si les données ont changé pour éviter les updates inutiles
+   */
+  hasDataChanged(sessionId, newData) {
+    const lastData = this.lastPositions.get(sessionId);
+    if (!lastData) return true;
+    
+    return (
+      lastData.x !== newData.x ||
+      lastData.y !== newData.y ||
+      lastData.direction !== newData.direction ||
+      lastData.isMoving !== newData.isMoving
+    );
+  }
+
+  /**
+   * ✅ NOUVEAU: Met en cache la dernière position
+   */
+  cachePosition(sessionId, data) {
+    this.lastPositions.set(sessionId, {
+      x: data.x,
+      y: data.y,
+      direction: data.direction,
+      isMoving: data.isMoving
+    });
+  }
+
+  /**
    * Crée un follower Pokémon pour un joueur
    */
   async createFollower(sessionId, followerData) {
@@ -267,9 +302,11 @@ export class PokemonFollowerManager {
       follower.lastDirection = followerData.direction || 'down';
       follower.isMoving = false;
       
-      // ✅ Position cible pour interpolation
+      // ✅ NOUVEAU: Système d'interpolation fluide
       follower.targetX = followerData.x || 0;
       follower.targetY = followerData.y || 0;
+      follower.isInterpolating = false;
+      follower.lastUpdateTime = Date.now();
       
       // Animation initiale
       const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction || 'down');
@@ -281,6 +318,9 @@ export class PokemonFollowerManager {
       } else {
         console.warn(`⚠️ [PokemonFollowerManager] Animation initiale ${initialAnimKey} n'existe pas`);
       }
+      
+      // ✅ NOUVEAU: Initialiser le cache de position
+      this.cachePosition(sessionId, followerData);
       
       // Ajouter au cache
       this.followers.set(sessionId, follower);
@@ -295,7 +335,7 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * Met à jour un follower existant
+   * ✅ OPTIMISÉ: Met à jour un follower existant avec interpolation fluide
    */
   updateFollower(sessionId, followerData) {
     const follower = this.followers.get(sessionId);
@@ -304,21 +344,58 @@ export class PokemonFollowerManager {
       return;
     }
 
-    // ✅ POSITION DIRECTE (pas d'interpolation) pour arrêt net
+    // ✅ NOUVEAU: Éviter les updates inutiles
+    if (!this.hasDataChanged(sessionId, followerData)) {
+      return; // Pas de changement, on évite le traitement
+    }
+
+    const now = Date.now();
+    
+    // ✅ NOUVEAU: Position avec interpolation fluide
     if (followerData.x !== undefined && followerData.y !== undefined) {
-      follower.x = followerData.x;
-      follower.y = followerData.y;
-      follower.targetX = followerData.x;
-      follower.targetY = followerData.y;
+      const distance = Math.sqrt(
+        Math.pow(followerData.x - follower.x, 2) + 
+        Math.pow(followerData.y - follower.y, 2)
+      );
+      
+      // Si la distance est trop grande, téléporter directement (transition de carte, etc.)
+      if (distance > this.maxInterpolationDistance) {
+        console.log(`🚀 [PokemonFollowerManager] Téléportation follower ${sessionId}: distance ${distance.toFixed(1)}px`);
+        follower.x = followerData.x;
+        follower.y = followerData.y;
+        follower.targetX = followerData.x;
+        follower.targetY = followerData.y;
+        follower.isInterpolating = false;
+      } else if (this.smoothingEnabled && distance > 1) {
+        // Interpolation fluide pour les petites distances
+        follower.targetX = followerData.x;
+        follower.targetY = followerData.y;
+        follower.isInterpolating = true;
+      } else {
+        // Micro-mouvements : position directe
+        follower.x = followerData.x;
+        follower.y = followerData.y;
+        follower.targetX = followerData.x;
+        follower.targetY = followerData.y;
+        follower.isInterpolating = false;
+      }
     }
     
-    // ✅ État de mouvement direct
+    // ✅ OPTIMISÉ: État de mouvement avec logique améliorée
     if (followerData.isMoving !== undefined) {
+      const wasMoving = follower.isMoving;
       follower.isMoving = followerData.isMoving;
+      
+      // ✅ NOUVEAU: Arrêt immédiat si le mouvement s'arrête
+      if (wasMoving && !followerData.isMoving) {
+        follower.isInterpolating = false;
+        follower.targetX = follower.x;
+        follower.targetY = follower.y;
+      }
     }
     
-    // Direction et animation
-    if (followerData.direction !== undefined) {
+    // ✅ OPTIMISÉ: Direction et animation seulement si nécessaire
+    if (followerData.direction !== undefined && followerData.direction !== follower.lastDirection) {
       follower.lastDirection = followerData.direction;
       
       // ✅ NOUVEAU: Ajuster la profondeur selon la direction
@@ -330,11 +407,18 @@ export class PokemonFollowerManager {
         : `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
       
       if (this.scene.anims.exists(animKey)) {
-        follower.anims.play(animKey, true);
+        // ✅ OPTIMISATION: Ne jouer l'animation que si elle est différente
+        if (!follower.anims.currentAnim || follower.anims.currentAnim.key !== animKey) {
+          follower.anims.play(animKey, true);
+        }
       } else {
         console.warn(`⚠️ [PokemonFollowerManager] Animation ${animKey} n'existe pas`);
       }
     }
+    
+    // ✅ NOUVEAU: Mettre à jour le timestamp et cache
+    follower.lastUpdateTime = now;
+    this.cachePosition(sessionId, followerData);
   }
 
   /**
@@ -431,15 +515,43 @@ export class PokemonFollowerManager {
       try { follower.destroy(); } catch(e) {}
       
       this.followers.delete(sessionId);
+      
+      // ✅ NOUVEAU: Nettoyer le cache de position
+      this.lastPositions.delete(sessionId);
     }
   }
 
   /**
-   * Met à jour tous les followers - PAS D'INTERPOLATION pour arrêt net
+   * ✅ OPTIMISÉ: Met à jour tous les followers avec interpolation
    */
   update(delta = 16) {
-    // ✅ RIEN À FAIRE : Les positions sont mises à jour directement
-    // Pas d'interpolation = arrêt net exactement où le serveur dit
+    if (!this.smoothingEnabled) return;
+    
+    this.followers.forEach((follower) => {
+      if (follower.isInterpolating) {
+        const currentX = follower.x;
+        const currentY = follower.y;
+        const targetX = follower.targetX;
+        const targetY = follower.targetY;
+        
+        // Calculer la distance restante
+        const distanceX = targetX - currentX;
+        const distanceY = targetY - currentY;
+        const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+        
+        // Si on est très proche de la cible, arrêter l'interpolation
+        if (distance < 1) {
+          follower.x = targetX;
+          follower.y = targetY;
+          follower.isInterpolating = false;
+        } else {
+          // Interpolation fluide
+          const factor = Math.min(this.interpolationSpeed, distance / 60); // Adaptative selon la distance
+          follower.x += distanceX * factor;
+          follower.y += distanceY * factor;
+        }
+      }
+    });
   }
 
   /**
@@ -456,17 +568,40 @@ export class PokemonFollowerManager {
     this.loadedSprites.clear();
     this.loadingSprites.clear();
     this.spriteStructures.clear();
+    
+    // ✅ NOUVEAU: Nettoyer le cache de positions
+    this.lastPositions.clear();
+  }
+
+  /**
+   * ✅ NOUVEAU: Méthodes pour ajuster les performances
+   */
+  setSmoothingEnabled(enabled) {
+    this.smoothingEnabled = enabled;
+    console.log(`🎛️ [PokemonFollowerManager] Lissage des mouvements: ${enabled ? 'activé' : 'désactivé'}`);
+  }
+
+  setInterpolationSpeed(speed) {
+    this.interpolationSpeed = Math.max(0.05, Math.min(0.5, speed));
+    console.log(`⚡ [PokemonFollowerManager] Vitesse d'interpolation: ${this.interpolationSpeed}`);
+  }
+
+  setMaxInterpolationDistance(distance) {
+    this.maxInterpolationDistance = Math.max(20, distance);
+    console.log(`📏 [PokemonFollowerManager] Distance max d'interpolation: ${this.maxInterpolationDistance}px`);
   }
 
   /**
    * Debug - affiche l'état des followers
    */
   debugFollowers() {
-    console.log(`🔍 [PokemonFollowerManager] === DEBUG FOLLOWERS ===`);
+    console.log(`🔍 [PokemonFollowerManager] === DEBUG FOLLOWERS ANTI-LAG ===`);
     console.log(`📊 Followers actifs: ${this.followers.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`⏳ Sprites en chargement: ${this.loadingSprites.size}`);
     console.log(`📐 Structures détectées: ${this.spriteStructures.size}`);
+    console.log(`💾 Positions en cache: ${this.lastPositions.size}`);
+    console.log(`🎛️ Lissage: ${this.smoothingEnabled}, Vitesse: ${this.interpolationSpeed}, Distance max: ${this.maxInterpolationDistance}`);
     
     this.followers.forEach((follower, sessionId) => {
       console.log(`🐾 ${sessionId}:`, {
@@ -476,6 +611,8 @@ export class PokemonFollowerManager {
         target: `(${follower.targetX?.toFixed(1)}, ${follower.targetY?.toFixed(1)})`,
         direction: follower.lastDirection,
         isMoving: follower.isMoving,
+        isInterpolating: follower.isInterpolating,
+        lastUpdate: follower.lastUpdateTime ? `${Date.now() - follower.lastUpdateTime}ms ago` : 'N/A',
         visible: follower.visible
       });
     });
@@ -502,5 +639,23 @@ export class PokemonFollowerManager {
 
   getSpriteStructure(pokemonId) {
     return this.spriteStructures.get(pokemonId);
+  }
+
+  /**
+   * ✅ NOUVEAU: Statistiques de performance
+   */
+  getPerformanceStats() {
+    const interpolatingCount = Array.from(this.followers.values()).filter(f => f.isInterpolating).length;
+    
+    return {
+      totalFollowers: this.followers.size,
+      interpolatingFollowers: interpolatingCount,
+      cachedPositions: this.lastPositions.size,
+      smoothingEnabled: this.smoothingEnabled,
+      interpolationSpeed: this.interpolationSpeed,
+      maxInterpolationDistance: this.maxInterpolationDistance,
+      loadedSprites: this.loadedSprites.size,
+      loadingSprites: this.loadingSprites.size
+    };
   }
 }
