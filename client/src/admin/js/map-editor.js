@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Map Editor Module (Version corrigée)
+// PokeWorld Admin Panel - Map Editor Module (Version avec correction DPI)
 
 export class MapEditorModule {
     constructor(adminPanel) {
@@ -10,14 +10,43 @@ export class MapEditorModule {
         this.selectedTool = 'npc'
         this.zoom = 1
         this.tileSize = 16
+        this.dpi = window.devicePixelRatio || 1
         
-        console.log('🗺️ [MapEditor] Module initialized')
+        console.log('🗺️ [MapEditor] Module initialized with DPI:', this.dpi)
         this.init()
     }
 
     init() {
-        // Plus besoin d'ajouter l'onglet, il est maintenant dans le HTML
         console.log('🗺️ [MapEditor] Initialisation terminée - onglet déjà présent dans le HTML')
+    }
+
+    // Fonction pour corriger le DPI du canvas
+    fixCanvasDPI(canvas) {
+        const ctx = canvas.getContext('2d')
+        
+        // Obtenir les dimensions CSS
+        const rect = canvas.getBoundingClientRect()
+        const cssWidth = rect.width
+        const cssHeight = rect.height
+        
+        // Ajuster les dimensions du canvas pour le DPI
+        canvas.width = cssWidth * this.dpi
+        canvas.height = cssHeight * this.dpi
+        
+        // Réajuster les dimensions CSS pour maintenir la taille d'affichage
+        canvas.style.width = cssWidth + 'px'
+        canvas.style.height = cssHeight + 'px'
+        
+        // Appliquer le scaling au contexte
+        ctx.scale(this.dpi, this.dpi)
+        
+        // Désactiver le lissage pour les pixels art
+        ctx.imageSmoothingEnabled = false
+        ctx.imageSmoothingQuality = 'high'
+        
+        console.log(`🗺️ [MapEditor] Canvas DPI corrected - CSS: ${cssWidth}x${cssHeight}, Canvas: ${canvas.width}x${canvas.height}, DPI: ${this.dpi}`)
+        
+        return ctx
     }
 
     async loadAvailableMaps() {
@@ -118,20 +147,25 @@ export class MapEditorModule {
             return
         }
         
-        const ctx = canvas.getContext('2d')
-        
-        // Calculer les dimensions
+        // Calculer les dimensions logiques (avant DPI)
         const mapWidth = this.currentMapData.width
         const mapHeight = this.currentMapData.height
         const tileWidth = this.currentMapData.tilewidth * this.zoom
         const tileHeight = this.currentMapData.tileheight * this.zoom
         
-        canvas.width = mapWidth * tileWidth
-        canvas.height = mapHeight * tileHeight
+        // Définir les dimensions CSS du canvas
+        const canvasWidth = mapWidth * tileWidth
+        const canvasHeight = mapHeight * tileHeight
+        
+        canvas.style.width = canvasWidth + 'px'
+        canvas.style.height = canvasHeight + 'px'
         canvas.style.display = 'block'
         
+        // Corriger le DPI
+        const ctx = this.fixCanvasDPI(canvas)
+        
         // Effacer le canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight)
         
         // Dessiner le fond (grille)
         this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
@@ -144,11 +178,13 @@ export class MapEditorModule {
         
         // Mettre à jour l'affichage des objets
         this.updateObjectsList()
+        
+        console.log(`🗺️ [MapEditor] Map rendered - ${mapWidth}x${mapHeight} tiles, ${tileWidth}x${tileHeight}px per tile`)
     }
 
     drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight) {
         ctx.strokeStyle = '#e0e0e0'
-        ctx.lineWidth = 1
+        ctx.lineWidth = 1 / this.dpi // Ajuster pour le DPI
         
         // Lignes verticales
         for (let x = 0; x <= mapWidth; x++) {
@@ -179,8 +215,15 @@ export class MapEditorModule {
                         
                         // Colorer selon l'ID de tile (version simplifiée)
                         const hue = (tileId * 137) % 360
-                        ctx.fillStyle = `hsla(${hue}, 20%, 85%, 0.6)`
+                        ctx.fillStyle = `hsla(${hue}, 30%, 80%, 0.8)`
                         ctx.fillRect(x, y, tileWidth, tileHeight)
+                        
+                        // Ajouter le numéro de tile pour debug
+                        ctx.fillStyle = '#333'
+                        ctx.font = `${Math.max(8, tileWidth * 0.3)}px Arial`
+                        ctx.textAlign = 'center'
+                        ctx.textBaseline = 'middle'
+                        ctx.fillText(tileId.toString(), x + tileWidth/2, y + tileHeight/2)
                     }
                 }
             }
@@ -203,9 +246,14 @@ export class MapEditorModule {
             ctx.fillStyle = colors[obj.type] || '#95a5a6'
             ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
+            // Bordure
+            ctx.strokeStyle = '#fff'
+            ctx.lineWidth = 2 / this.dpi
+            ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
+            
             // Icône
             ctx.fillStyle = 'white'
-            ctx.font = `${Math.max(10, tileWidth * 0.4)}px Arial`
+            ctx.font = `bold ${Math.max(10, tileWidth * 0.4)}px Arial`
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
             
@@ -256,8 +304,14 @@ export class MapEditorModule {
         const tileWidth = this.currentMapData.tilewidth * this.zoom
         const tileHeight = this.currentMapData.tileheight * this.zoom
         
-        const tileX = Math.floor((event.clientX - rect.left) / tileWidth)
-        const tileY = Math.floor((event.clientY - rect.top) / tileHeight)
+        // Ajuster pour le DPI
+        const x = (event.clientX - rect.left)
+        const y = (event.clientY - rect.top)
+        
+        const tileX = Math.floor(x / tileWidth)
+        const tileY = Math.floor(y / tileHeight)
+        
+        console.log(`🗺️ [MapEditor] Click at (${x}, ${y}) -> tile (${tileX}, ${tileY})`)
         
         // Vérifier si on clique sur un objet existant
         const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
