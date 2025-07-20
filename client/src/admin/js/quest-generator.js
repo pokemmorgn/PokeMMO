@@ -125,872 +125,188 @@ export class QuestGeneratorModule {
             },
             
             // Dialogue templates by personality with context
-// Enhanced English Dialogue Templates - Replace the dialogueTemplates section in quest-generator.js
-
-dialogueTemplates: {
-    scientist: {
-        offer: [
-            "Fascinating! I have a research opportunity that requires field work.",
-            "My studies have revealed something that needs investigation.",
-            "Science requires data, and I need someone brave enough to gather it.",
-            "This discovery could change everything we know about Pokemon!",
-            "Eureka! I need a field assistant to validate my theory!",
-            "Data doesn't lie, but we need to obtain it first... are you up for it?",
-            "My laboratory overflows with hypotheses, but I lack empirical proof!",
-            "Scientific research is a battle against ignorance. Join me!",
-            "I've made a troubling discovery that requires field verification.",
-            "Pokemon still hide so many secrets... help me uncover them!",
-            "Excellent! My calculations indicate a research mission is necessary.",
-            "The scientific method demands rigorous testing. Will you assist?",
-            "I've theorized something incredible, but theory without proof is just wishful thinking!",
-            "My instruments are detecting anomalies that need investigation!",
-            "The pursuit of knowledge never ends, and I need a capable research partner!"
-        ],
-        progress: [
-            "How goes the data collection? Every sample matters!",
-            "Science is built on careful observation and dedication.",
-            "Your fieldwork is contributing to groundbreaking research!",
-            "Excellent progress! The data you're gathering is invaluable!",
-            "Keep documenting everything - even the smallest detail matters!",
-            "Science rewards patience and thoroughness. You're doing brilliantly!",
-            "Each piece of evidence brings us closer to the truth!",
-            "Your methodology is impeccable! Continue the good work!",
-            "The scientific community will thank you for this research!",
-            "Remember: observe, hypothesize, test, repeat!",
-            "Your dedication to the scientific method is commendable!",
-            "The data you're collecting will advance our understanding tremendously!"
-        ],
-        complete: [
-            "Extraordinary! This data will advance our understanding significantly!",
-            "Your contribution to science will be remembered for generations!",
-            "These findings are beyond my wildest theoretical predictions!",
-            "Remarkable! You've provided the missing piece to my research puzzle!",
-            "This data validates my hypothesis perfectly! Outstanding work!",
-            "The scientific implications of your findings are staggering!",
-            "You've just contributed to a major scientific breakthrough!",
-            "This research will be published in the most prestigious journals!",
-            "Your fieldwork has exceeded all my expectations!",
-            "The accuracy of your data collection is simply phenomenal!",
-            "Science has advanced today thanks to your efforts!",
-            "This discovery will revolutionize our field of study!"
-        ]
-    },
-    
-    competitive: {
-        offer: [
-            "Think you've got what it takes to beat the competition?",
-            "I need someone who plays to win, not just to participate!",
-            "This challenge will separate the champions from the also-rans!",
-            "Are you ready to prove you're the best at what you do?",
-            "I don't accept second place - do you have that killer instinct?",
-            "This task requires someone who thrives under pressure!",
-            "Only winners need apply for this challenge!",
-            "I can smell victory from here - can you deliver it?",
-            "This is your chance to show everyone what you're made of!",
-            "Champions are forged in moments like this!",
-            "I need someone who doesn't know the meaning of 'quit'!",
-            "This competition will push you to your absolute limits!",
-            "Are you hungry for victory? Because that's what this takes!",
-            "I'm looking for someone who makes winning look effortless!",
-            "This challenge demands nothing less than perfection!"
-        ],
-        progress: [
-            "Stay focused! Champions never take their eyes off the prize!",
-            "You're in the lead, but don't get complacent now!",
-            "Push harder! The competition doesn't rest!",
-            "This is where winners separate themselves from the pack!",
-            "Feel that pressure? That's the weight of victory calling!",
-            "Your competitive spirit is exactly what this needs!",
-            "Don't just meet expectations - obliterate them!",
-            "You're performing like a true champion out there!",
-            "The finish line is in sight - sprint for glory!",
-            "Your drive to win is absolutely inspiring!",
-            "This is championship-level performance!",
-            "You're making victory look inevitable!"
-        ],
-        complete: [
-            "VICTORY! You've proven you're a true champion!",
-            "That's how winners get it done! Absolutely flawless!",
-            "You didn't just win - you dominated completely!",
-            "Champion mindset, champion results - perfect!",
-            "You've set the gold standard for excellence!",
-            "That performance will be talked about for years!",
-            "You've earned your place among the elite!",
-            "Victory tastes sweeter when it's earned like this!",
-            "You've redefined what winning looks like!",
-            "That's not just success - that's pure championship glory!",
-            "You've proven that true champions rise to every occasion!",
-            "Flawless victory! You've achieved legendary status!"
-        ]
-    },
-    
-    mysterious: {
-        offer: [
-            "The shadows whisper of a task that requires... special attention.",
-            "I have knowledge of something that others must not discover.",
-            "There are secrets in this world that demand careful handling.",
-            "What I'm about to tell you must remain between us alone.",
-            "The veil between worlds grows thin, and action is required.",
-            "Ancient forces stir, and I need someone who understands discretion.",
-            "Some truths are too dangerous for common knowledge.",
-            "The cosmos has aligned to bring you to me at this moment.",
-            "I deal in mysteries that most minds cannot comprehend.",
-            "There are powers at work here beyond ordinary understanding.",
-            "The unseen world has needs that the visible cannot fulfill.",
-            "Destiny has woven our paths together for this purpose.",
-            "I have glimpsed something that requires immediate yet subtle action.",
-            "The balance of things depends on what I'm about to ask.",
-            "Some knowledge comes with a price - are you willing to pay it?"
-        ],
-        progress: [
-            "The shadows watch your progress with great interest.",
-            "You move through this task like one touched by destiny.",
-            "The unseen forces approve of your methods.",
-            "Each step you take ripples through the fabric of reality.",
-            "You handle these mysteries with admirable discretion.",
-            "The ancient ones smile upon your progress.",
-            "Your actions echo through dimensions unknown.",
-            "The veil grows thinner with each task you complete.",
-            "You walk the path between worlds with grace.",
-            "The cosmic balance shifts favorably with your efforts.",
-            "Hidden truths reveal themselves to worthy souls like yours.",
-            "The mysteries unfold before you as they should."
-        ],
-        complete: [
-            "The cosmos recognizes your service to the hidden truths.",
-            "You have maintained the balance between seen and unseen.",
-            "The mysteries you've preserved will protect many.",
-            "Your discretion has prevented chaos from spilling into our world.",
-            "The ancient pacts have been honored through your actions.",
-            "You've proven worthy of the deepest secrets.",
-            "The shadows themselves sing your praises.",
-            "Reality remains stable thanks to your intervention.",
-            "You have walked between worlds and emerged victorious.",
-            "The hidden knowledge is safe in hands like yours.",
-            "The universe owes you a debt that cannot be repaid.",
-            "You've become a guardian of mysteries most sacred."
-        ]
-    },
-    
-    eccentric: {
-        offer: [
-            "Splendid! I have a wonderfully peculiar task that needs doing!",
-            "Most people think I'm mad, but you look like you might understand!",
-            "This job is so bizarre that it just might work perfectly!",
-            "Conventional wisdom says this is impossible - want to prove it wrong?",
-            "I've got an idea that's so crazy it circles back to genius!",
-            "Normal people wouldn't understand, but you're not normal, are you?",
-            "This task defies logic, reason, and probably several laws of physics!",
-            "They said it couldn't be done - let's prove them magnificently wrong!",
-            "I need someone who appreciates the beauty of organized chaos!",
-            "This mission requires thinking so far outside the box we can't see it!",
-            "Madness and genius are separated by the thinnest of lines!",
-            "I've concocted a plan so outrageous it might just succeed!",
-            "Logic is overrated - intuition and chaos are where the magic happens!",
-            "This task will either be brilliant or completely insane - possibly both!",
-            "I need someone who dances to the beat of their own drummer!"
-        ],
-        progress: [
-            "Marvelous! You're embracing the beautiful madness of it all!",
-            "See? What others call crazy, we call creative problem-solving!",
-            "Your unconventional approach is working perfectly!",
-            "Chaos theory in action - beautiful, isn't it?",
-            "You're proving that the impossible is just improbable!",
-            "This glorious madness is exactly what the situation needed!",
-            "Convention is the enemy of innovation - you understand this!",
-            "Your delightfully eccentric methods are yielding results!",
-            "The universe appreciates a good dose of controlled chaos!",
-            "You're thinking in dimensions that most people can't see!",
-            "This organized insanity is a work of art!",
-            "Your beautifully bizarre approach is pure genius!"
-        ],
-        complete: [
-            "EUREKA! Your magnificent madness has achieved the impossible!",
-            "They said we were crazy - and they were absolutely right!",
-            "This gloriously chaotic success will confound the experts!",
-            "You've transformed beautiful madness into practical magic!",
-            "The impossible has become inevitable through sheer eccentricity!",
-            "Your wonderfully weird methods have saved the day!",
-            "This outcome is so delightfully absurd it must be perfect!",
-            "You've proven that genius and madness are the same thing!",
-            "The chaos you've created has birthed perfect order!",
-            "This success is beautifully, brilliantly, completely bonkers!",
-            "You've redefined the possible through pure eccentricity!",
-            "History will remember this as magnificently mad genius!"
-        ]
-    },
-    
-    mentor: {
-        offer: [
-            "Young one, it's time for you to take on a greater challenge.",
-            "I see potential in you that must be properly cultivated.",
-            "This task will teach you lessons no classroom ever could.",
-            "Every master was once a student - let me guide your growth.",
-            "True learning comes from facing real challenges with purpose.",
-            "I offer you wisdom earned through years of experience.",
-            "This mission will reveal strengths you didn't know you possessed.",
-            "A teacher's greatest joy is watching students surpass them.",
-            "Some lessons can only be learned through direct experience.",
-            "I've walked this path before - let me help you navigate it.",
-            "Growth requires stepping outside your comfort zone.",
-            "This challenge will forge you into something greater.",
-            "The best education happens when theory meets practice.",
-            "I see in you the spark that all great achievements require.",
-            "This task will be your graduation from novice to expert."
-        ],
-        progress: [
-            "Excellent! You're learning faster than I anticipated!",
-            "Your growth through this challenge fills me with pride.",
-            "Each obstacle overcome makes you stronger and wiser.",
-            "You're beginning to see solutions I haven't taught you yet.",
-            "The student becomes the teacher through experiences like this.",
-            "Your instincts are developing beautifully.",
-            "This is exactly the kind of progress I hoped to see.",
-            "You're not just completing a task - you're becoming complete.",
-            "Each step forward is a lesson mastered.",
-            "Your confidence is growing along with your skills.",
-            "The wisdom you're gaining will serve you for life.",
-            "I can see the expert you're becoming emerging clearly."
-        ],
-        complete: [
-            "Magnificent! You've exceeded even my highest expectations!",
-            "The student has truly become the master today.",
-            "You've learned more than I could have taught in years.",
-            "This achievement marks your transformation into excellence.",
-            "You've proven ready for challenges I never dreamed to give you.",
-            "The wisdom you've gained through this is immeasurable.",
-            "You've graduated from my tutelage with highest honors.",
-            "This success proves you've internalized everything I've taught.",
-            "You've shown that the greatest lessons are self-discovered.",
-            "Your growth through this trial has been extraordinary.",
-            "I can now proudly call you colleague rather than student.",
-            "You've achieved something that will inspire future learners."
-        ]
-    },
-    
-    dramatic: {
-        offer: [
-            "FATE ITSELF has conspired to bring us together at this moment!",
-            "The very foundations of our world tremble, demanding action!",
-            "This task shall echo through the ages as legend!",
-            "Destiny calls your name with the voice of thunder!",
-            "The stars have aligned to herald this momentous occasion!",
-            "This mission will be sung by bards for a thousand years!",
-            "The weight of history itself rests upon what I ask!",
-            "This is your moment of destiny - seize it with both hands!",
-            "The gods themselves have orchestrated this meeting!",
-            "This quest shall be etched in stone for all eternity!",
-            "The very air crackles with the electricity of importance!",
-            "This is no mere task - it is DESTINY INCARNATE!",
-            "The universe holds its breath awaiting your decision!",
-            "This moment shall be remembered as the turning point!",
-            "Glory and honor await those brave enough to answer!"
-        ],
-        progress: [
-            "BEHOLD! Your progress shakes the very heavens!",
-            "The earth itself trembles at your magnificent efforts!",
-            "Your deeds write themselves across the sky in letters of fire!",
-            "Each step you take resonates through the corridors of time!",
-            "The angels weep tears of joy at your dedication!",
-            "Your noble quest unfolds like the greatest epic ever told!",
-            "The winds carry tales of your heroism to distant lands!",
-            "Your courage blazes like a beacon in the darkness!",
-            "The very stones beneath your feet sing of your valor!",
-            "Your actions paint masterpieces across the canvas of history!",
-            "The cosmos aligns itself in recognition of your greatness!",
-            "Your journey becomes the stuff of immortal legend!"
-        ],
-        complete: [
-            "TRIUMPH! The heavens themselves rejoice at your victory!",
-            "Your success shall be remembered until the end of days!",
-            "The universe itself applauds your magnificent achievement!",
-            "This victory shall inspire heroes for generations to come!",
-            "Your name is now written in the stars themselves!",
-            "The gods have witnessed greatness incarnate today!",
-            "This achievement transcends mortal accomplishment!",
-            "The very fabric of reality celebrates your success!",
-            "Your triumph shall echo through eternity's halls!",
-            "History itself has been rewritten by your deeds!",
-            "The cosmos sings an eternal song of your victory!",
-            "You have achieved something truly LEGENDARY!"
-        ]
-    },
-    
-    caring: {
-        offer: [
-            "Oh dear, I'm so worried about this situation...",
-            "Someone with a kind heart like yours could really help.",
-            "I hate to ask, but I really need assistance with something important.",
-            "Your compassionate nature makes you perfect for this task.",
-            "Please, I'm at my wit's end and could use your help!",
-            "You have such a gentle soul... would you consider helping me?",
-            "I've been losing sleep over this problem. Could you assist?",
-            "Your reputation for kindness precedes you. I need your help!",
-            "This situation weighs heavily on my heart. Will you help?",
-            "I can see the goodness in your eyes. Please, lend me your aid!",
-            "My heart aches thinking about this problem. Can you help?",
-            "You seem like someone who truly cares about others...",
-            "I'm desperate and need someone with your compassion!",
-            "This matter is close to my heart. Would you be willing to help?",
-            "Your kindness could make all the difference in this situation!"
-        ],
-        progress: [
-            "Please be careful out there! I worry about you.",
-            "Your kindness gives me hope that everything will work out.",
-            "Thank you for taking on this burden. It means so much.",
-            "I'm praying for your safety every step of the way!",
-            "Your compassion shines through everything you do!",
-            "Knowing you're helping puts my mind at ease.",
-            "You're an angel for taking this on. Please stay safe!",
-            "Your gentle nature is exactly what this situation needs.",
-            "I can't thank you enough for your selfless help!",
-            "You're making such a positive difference!",
-            "My heart is full of gratitude for your assistance!",
-            "Please don't push yourself too hard. Your wellbeing matters!"
-        ],
-        complete: [
-            "Oh, thank goodness! You've put my mind at ease!",
-            "Your kindness has made all the difference in the world!",
-            "I knew I could count on someone with such a caring heart!",
-            "You've lifted such a weight off my shoulders! Bless you!",
-            "Your compassion has saved the day once again!",
-            "I'm moved to tears by your generosity and kindness!",
-            "You're truly a guardian angel in disguise!",
-            "The world needs more people like you in it!",
-            "Your selfless actions have touched my heart deeply!",
-            "You've restored my faith in the goodness of people!",
-            "I'll never forget your kindness and compassion!",
-            "You've made an old soul very, very happy today!"
-        ]
-    },
-    
-    strict: {
-        offer: [
-            "Citizen! I have an official matter that requires your cooperation.",
-            "The law demands action, and I need a capable individual.",
-            "Justice cannot wait! This situation requires immediate attention.",
-            "By the authority vested in me, I'm requesting your assistance.",
-            "Order must be maintained! Are you willing to serve justice?",
-            "The safety of our community depends on swift action!",
-            "I need someone who respects the law and order!",
-            "This is a matter of public safety and civic duty!",
-            "The authorities require a responsible citizen for this task!",
-            "Justice is blind, but it needs dedicated hands to work!",
-            "I'm calling upon your sense of civic responsibility!",
-            "The law is clear, and so is what needs to be done!",
-            "Discipline and order are the foundation of civilization!",
-            "I need someone who understands the importance of rules!",
-            "This official business cannot be delayed any longer!"
-        ],
-        progress: [
-            "Stay focused on the mission! Justice depends on it.",
-            "Follow protocol and you'll succeed in this endeavor.",
-            "The law is clear, and so is your duty in this matter.",
-            "Maintain discipline and see this through to completion!",
-            "Your adherence to procedure is exemplary!",
-            "Justice moves forward thanks to your dedication!",
-            "Stay the course - the law backs your actions!",
-            "Your commitment to order is commendable!",
-            "Precision and discipline will lead to success!",
-            "The community's safety rests on your shoulders!",
-            "Follow regulations and victory is assured!",
-            "Your methodical approach is exactly what's needed!"
-        ],
-        complete: [
-            "Outstanding work! You've upheld justice admirably!",
-            "The community is safer thanks to your actions!",
-            "You've proven yourself worthy of official commendation!",
-            "Exemplary service! You understand the meaning of duty!",
-            "Your adherence to protocol has ensured success!",
-            "Justice has been served through your dedicated efforts!",
-            "You've set an example for all citizens to follow!",
-            "The law has been upheld through your actions!",
-            "Your discipline and dedication are truly inspiring!",
-            "Order has been restored thanks to your intervention!",
-            "You've demonstrated the highest standards of citizenship!",
-            "The authorities recognize your exceptional service!"
-        ]
-    },
-    
-    greedy: {
-        offer: [
-            "Psst... I've got a lucrative proposition for someone like you.",
-            "Money talks, and this opportunity is shouting profits!",
-            "Business is business, and this deal could make us both rich.",
-            "I smell opportunity, and it smells like gold coins!",
-            "Listen, there's serious money to be made here!",
-            "This could be the deal of a lifetime! Interested?",
-            "I've got a business venture that's pure gold!",
-            "Forget charity work - this pays REAL money!",
-            "Want to turn a quick profit? I've got just the thing!",
-            "My nose for business is never wrong - this is big!",
-            "Coins are calling, and they're calling YOUR name!",
-            "I see dollar signs when I look at this opportunity!",
-            "Strike while the iron is hot - and the gold is flowing!",
-            "This isn't just business, it's a goldmine waiting to happen!",
-            "They say money can't buy happiness, but it sure helps!"
-        ],
-        progress: [
-            "Time is money! The sooner you finish, the bigger the profit!",
-            "Think of all the coins waiting for you at the end!",
-            "Every second you waste is money down the drain!",
-            "Ka-ching! Can you hear those coins calling?",
-            "Speed equals profit in this business!",
-            "The meter is running, and so should you be!",
-            "Efficiency means more money in your pocket!",
-            "Don't let this golden opportunity slip away!",
-            "The competition never sleeps - neither should we!",
-            "Every moment counts when profit is on the line!",
-            "Money doesn't grow on trees, but this is close!",
-            "The treasure chest is waiting - go claim it!"
-        ],
-        complete: [
-            "Excellent! Our business partnership has been most profitable!",
-            "Ka-ching! That's the sound of success!",
-            "Money well earned! You've got a good head for business!",
-            "Pure profit! I knew you had the golden touch!",
-            "This deal was worth its weight in gold!",
-            "You've just made yourself a very wealthy individual!",
-            "The coins are practically singing your praises!",
-            "Business with you is always a pleasure and a profit!",
-            "You've got the Midas touch - everything turns to gold!",
-            "This partnership is more valuable than any treasure!",
-            "The cash register in my mind is going wild!",
-            "You've proven that success and profit go hand in hand!"
-        ]
-    },
-    
-    tough: {
-        offer: [
-            "You look like someone who doesn't back down from a challenge!",
-            "I need someone with real backbone for this job!",
-            "Think you're tough enough to handle what I'm about to ask?",
-            "Only the strongest trainers can succeed at this task!",
-            "This job separates the warriors from the weaklings!",
-            "I need someone who fights first and asks questions later!",
-            "Are you ready to prove your mettle in battle?",
-            "This task requires guts, determination, and raw strength!",
-            "Weaklings need not apply - this is serious business!",
-            "I can see the fire in your eyes. You're ready for this!",
-            "This challenge will test every fiber of your being!",
-            "Only those with iron will can handle what's coming!",
-            "The weak crumble under pressure. You don't look weak!",
-            "This mission demands a warrior's spirit and heart!",
-            "Blood, sweat, and determination - that's what this takes!"
-        ],
-        progress: [
-            "Show me what you're really made of out there!",
-            "Toughness isn't just physical - it's mental determination!",
-            "Pain is temporary, but glory lasts forever!",
-            "Push through the pain and emerge victorious!",
-            "Real warriors never give up, no matter the odds!",
-            "Your strength is being tested - don't let me down!",
-            "Fight like your life depends on it!",
-            "Channel that inner fire and burn through obstacles!",
-            "Weakness is a choice - choose strength instead!",
-            "Every scar tells a story of survival and strength!",
-            "The battlefield rewards only the strong!",
-            "Your determination is your greatest weapon!"
-        ],
-        complete: [
-            "Now THAT'S what I call real strength and determination!",
-            "You've proven you have the heart of a true warrior!",
-            "Incredible! You're tougher than I even imagined!",
-            "That display of strength was absolutely phenomenal!",
-            "You've earned the respect of every warrior I know!",
-            "Your courage under fire is the stuff of legends!",
-            "I've seen battles, but that performance was art!",
-            "You've got the soul of a champion burning within you!",
-            "That kind of determination can't be taught - it's earned!",
-            "You've proven that true strength comes from within!",
-            "Warriors like you are born once in a generation!",
-            "Your victory echoes through the halls of the mighty!"
-        ]
-    },
-    
-    wise: {
-        offer: [
-            "Young one, wisdom comes through experience and challenges.",
-            "Life has taught me much, and this task will teach you.",
-            "Every journey begins with understanding one's purpose.",
-            "Ancient knowledge speaks of the importance of such missions.",
-            "The path of wisdom is paved with meaningful actions.",
-            "In my years, I've learned that some tasks choose their bearers.",
-            "Destiny whispers, and I believe it speaks through this quest.",
-            "The universe has a way of putting the right person in place.",
-            "True understanding comes from walking difficult paths.",
-            "The old ways teach us that every challenge has purpose.",
-            "Enlightenment awaits those brave enough to seek it.",
-            "The wheel of fate turns, and your time has come.",
-            "Ancient texts foretold of one who would take this task.",
-            "Wisdom flows to those who act with pure intentions.",
-            "The spirits of old guide us toward meaningful deeds."
-        ],
-        progress: [
-            "Patience, young traveler. All good things take time.",
-            "Each step forward brings you closer to true understanding.",
-            "Wisdom is not in the destination, but in the journey itself.",
-            "The path you walk now will shape who you become.",
-            "Every lesson learned is a treasure more valuable than gold.",
-            "The ancient ones smile upon your progress.",
-            "Trust in the journey, for it knows where it leads.",
-            "Your growth through this trial brings me great joy.",
-            "The seeds of wisdom you plant now will bloom in time.",
-            "Experience is the greatest teacher of all.",
-            "The universe conspires to help those who help others.",
-            "Your journey echoes the great heroes of old."
-        ],
-        complete: [
-            "You have grown wiser through this experience, child.",
-            "The knowledge you've gained is worth more than gold.",
-            "You've learned something valuable that will serve you well.",
-            "Your spirit has matured through this trial.",
-            "The wisdom you've earned will light your path forward.",
-            "You've proven that age is not the only source of wisdom.",
-            "The ancestors would be proud of your accomplishment.",
-            "This experience has forged you into someone greater.",
-            "You carry within you now a piece of ancient understanding.",
-            "The circle of wisdom continues through your actions.",
-            "You've taken your first steps on the path to enlightenment.",
-            "The universe recognizes your growth and smiles upon you."
-        ]
-    },
-    
-    adventurous: {
-        offer: [
-            "Adventure calls to those brave enough to answer!",
-            "I've discovered something that'll get your blood pumping!",
-            "Ready for an expedition that'll test your mettle?",
-            "The thrill of discovery awaits those bold enough to seek it!",
-            "Pack your bags - we're about to embark on something epic!",
-            "I can smell adventure in the air, can't you?",
-            "Life's too short for boring quests - this one's incredible!",
-            "Are you ready to write your name in the book of legends?",
-            "The unknown beckons with promises of glory and discovery!",
-            "I've got a map to places most people only dream about!",
-            "Adventure doesn't come knocking - you have to chase it!",
-            "The wild calls, and only the brave dare answer!",
-            "This journey will be talked about for generations!",
-            "Forget the beaten path - we're forging our own trail!",
-            "The horizon holds secrets just waiting to be uncovered!"
-        ],
-        progress: [
-            "Feel that rush? That's the spirit of adventure!",
-            "Every step into the unknown brings new possibilities!",
-            "Adventure isn't just a hobby - it's a way of life!",
-            "You're living the dream that most people only imagine!",
-            "Each discovery makes the next one even more exciting!",
-            "The thrill of exploration never gets old, does it?",
-            "You're writing an adventure story with every step!",
-            "The unknown becomes known through brave souls like you!",
-            "Adventure rewards the bold and punishes the timid!",
-            "You're dancing on the edge of the map itself!",
-            "Every true adventurer knows this feeling!",
-            "The world reveals its secrets to those who dare explore!"
-        ],
-        complete: [
-            "What an absolutely incredible adventure we've shared!",
-            "You've got the soul of a true explorer!",
-            "That was the kind of adventure legends are made of!",
-            "I knew you had the spirit of a real adventurer!",
-            "This expedition will be remembered for years to come!",
-            "You've proven that the age of exploration isn't over!",
-            "The tales of this adventure will inspire others to explore!",
-            "You've expanded the boundaries of the known world!",
-            "Adventure flows through your veins like wildfire!",
-            "You've experienced something most people never will!",
-            "This journey has forged you into a true explorer!",
-            "The spirit of adventure burns brightest in souls like yours!"
-        ]
-    },
-    
-    hardworking: {
-        offer: [
-            "I've got honest work that needs doing by honest hands.",
-            "Roll up your sleeves - this job requires real effort.",
-            "Hard work builds character, and this task builds both.",
-            "No shortcuts here - just good old-fashioned labor.",
-            "This job won't do itself, and I need someone reliable.",
-            "I need someone who understands the value of hard work.",
-            "Sweat equity pays the best dividends in life.",
-            "This task requires elbow grease and determination.",
-            "I'm looking for someone who takes pride in their work.",
-            "Good work requires good workers - are you one?",
-            "This job demands dedication and a strong work ethic.",
-            "I need someone who finishes what they start.",
-            "Hard work never killed anyone - it made them stronger!",
-            "This is the kind of work that builds backbone.",
-            "I can tell by looking at you that you're not afraid of work."
-        ],
-        progress: [
-            "Keep at it! Persistence pays off in the end!",
-            "Every drop of sweat is an investment in success!",
-            "Hard work never killed anyone - it just made them stronger!",
-            "You're proving that dedication always pays off!",
-            "Your work ethic is something to be proud of!",
-            "This is how real progress gets made - one step at a time!",
-            "Steady effort beats sporadic brilliance every time!",
-            "You're showing what true commitment looks like!",
-            "The fruits of labor are always the sweetest!",
-            "Your persistence is an inspiration to us all!",
-            "Good things come to those who work for them!",
-            "You're building more than just completing a task - you're building character!"
-        ],
-        complete: [
-            "Outstanding work ethic! You've earned every bit of this reward!",
-            "That's what I call putting in an honest day's work!",
-            "You've proven that dedication and effort always pay off!",
-            "The quality of your work speaks volumes about your character!",
-            "You've accomplished something you can be truly proud of!",
-            "Hard work like yours is becoming rarer these days!",
-            "You've shown that there's no substitute for good old effort!",
-            "The pride in good work well done is written all over your face!",
-            "You've earned the respect that comes with honest labor!",
-            "This is what happens when skill meets determination!",
-            "Your work ethic is a testament to your character!",
-            "You've proven that rolling up your sleeves gets results!"
-        ]
-    },
-    
-    relaxed: {
-        offer: [
-            "Hey there, no pressure, but I could use some help.",
-            "Take it easy, but maybe you could lend me a hand?",
-            "Life's too short to stress, but this still needs doing.",
-            "Whenever you get a chance, would you mind helping out?",
-            "No rush at all, but I've got something that needs attention.",
-            "Chill vibes only, but I could really use your assistance.",
-            "Don't stress about it, but this task could use someone like you.",
-            "Easy does it, but would you be up for lending a hand?",
-            "Keep calm and carry on... to help me with this task!",
-            "No worries if you're busy, but this could use your touch.",
-            "Take your time deciding, but I think you'd be perfect for this.",
-            "Smooth sailing ahead if you're willing to help out.",
-            "Keep it cool, keep it simple - just like this task.",
-            "No pressure, no diamonds... but also no stress here!",
-            "Laid back doesn't mean lazy - sometimes it means efficient."
-        ],
-        progress: [
-            "No rush at all - just whenever you get around to it.",
-            "Take your time, enjoy the journey, no need to hurry.",
-            "Everything happens at its own pace, just go with the flow.",
-            "You're doing great - no need to stress about timing.",
-            "Slow and steady wins the race, my friend.",
-            "Take it one step at a time, no pressure whatsoever.",
-            "You're handling this beautifully - stay relaxed!",
-            "Good things come to those who don't rush.",
-            "Keep that zen attitude - it's working perfectly!",
-            "No deadlines here, just progress at your own pace.",
-            "You're in the flow now - keep that energy!",
-            "Relax and let things unfold naturally."
-        ],
-        complete: [
-            "Perfect! Thanks for keeping things nice and easy.",
-            "See? No stress, no pressure, just good results.",
-            "That was smooth sailing from start to finish!",
-            "You handled that with exactly the right energy.",
-            "Cool, calm, and collected - that's how it's done!",
-            "Thanks for proving that easy does it!",
-            "You made that look effortless - well done!",
-            "That's the kind of laid-back excellence I appreciate!",
-            "No stress, all success - exactly what I hoped for!",
-            "You kept your cool and delivered perfectly!",
-            "Sometimes the best approach is the relaxed approach!",
-            "You've shown that calm confidence gets results!"
-        ]
-    },
-    
-    curious: {
-        offer: [
-            "I wonder... could you help me investigate something fascinating?",
-            "My curiosity has uncovered a mystery that needs solving.",
-            "Questions lead to answers, and I have so many questions!",
-            "The pursuit of knowledge never ends, and I need assistance.",
-            "Something peculiar has caught my attention... interested?",
-            "I've stumbled upon a puzzle that's driving me crazy!",
-            "My inquisitive nature has led to something requiring investigation.",
-            "There's a mystery here that's begging to be solved!",
-            "I can't rest until I know the truth about this situation.",
-            "Something doesn't add up, and I need help figuring it out.",
-            "The more I learn, the more questions I have!",
-            "This enigma has captured my imagination completely.",
-            "I've found something that defies explanation... so far.",
-            "My curiosity is killing me - I must know more!",
-            "There are secrets here waiting to be uncovered!"
-        ],
-        progress: [
-            "What have you discovered? I'm dying to know!",
-            "Every answer seems to lead to three more questions!",
-            "The more we learn, the more we realize how much we don't know!",
-            "Your findings are adding pieces to this fascinating puzzle!",
-            "I can barely contain my excitement about what you might find!",
-            "Each discovery opens new avenues of investigation!",
-            "You're unraveling mysteries that have puzzled me for ages!",
-            "The plot thickens with every piece of information you gather!",
-            "I'm on the edge of my seat waiting for your next discovery!",
-            "This investigation is revealing more than I ever imagined!",
-            "Your detective work is absolutely fascinating!",
-            "We're getting closer to the truth with each step!"
-        ],
-        complete: [
-            "Fascinating discoveries! My curiosity is thoroughly satisfied!",
-            "The knowledge you've uncovered is absolutely incredible!",
-            "Questions answered, mysteries solved - perfect!",
-            "You've satisfied my burning curiosity completely!",
-            "The truth was even more interesting than I imagined!",
-            "You've solved a puzzle that's been haunting my thoughts!",
-            "This investigation has exceeded all my expectations!",
-            "The mysteries you've unraveled are simply astounding!",
-            "My thirst for knowledge has been thoroughly quenched!",
-            "You've answered questions I didn't even know I had!",
-            "The truth is often stranger than fiction - and this proves it!",
-            "Your investigative skills have impressed me beyond measure!"
-        ]
-    },
-    
-    gentle: {
-        offer: [
-            "Oh my, I hope you don't mind me asking for a small favor?",
-            "Would you be so kind as to help me with something delicate?",
-            "I apologize for bothering you, but I could use gentle assistance.",
-            "Your tender approach would be perfect for this task.",
-            "This requires a soft touch and caring heart - like yours.",
-            "I hope I'm not imposing, but you seem like someone who understands.",
-            "This situation calls for someone with your gentle nature.",
-            "Would you mind terribly helping with something that needs care?",
-            "I sense you have the patience this task requires.",
-            "Your kind spirit is exactly what this situation needs.",
-            "I don't mean to trouble you, but this needs a gentle hand.",
-            "You have such a calming presence - would you help me?",
-            "This delicate matter could benefit from your tender care.",
-            "I hope you'll forgive my asking, but you're perfect for this.",
-            "Sometimes the gentlest approach yields the best results."
-        ],
-        progress: [
-            "You're handling this with such grace and care.",
-            "Your gentle approach is making all the difference.",
-            "Thank you for being so patient and understanding.",
-            "Your tender care shows in everything you do.",
-            "You have such a soothing way about you.",
-            "This situation is in the best possible hands.",
-            "Your kindness shines through every action.",
-            "You're approaching this with perfect sensitivity.",
-            "I knew your gentle nature was right for this task.",
-            "Your caring touch is exactly what was needed.",
-            "You're handling this more beautifully than I hoped.",
-            "Your compassionate approach is truly heartwarming."
-        ],
-        complete: [
-            "You've handled this with such beautiful care and grace.",
-            "Your gentle touch has made all the difference in the world.",
-            "Thank you for approaching this with such tender consideration.",
-            "You've shown that kindness truly is the most powerful force.",
-            "Your gentle nature has brought peace to this situation.",
-            "I'm moved by the care and love you've shown throughout.",
-            "You've proven that softness can be a tremendous strength.",
-            "Your tender heart has created something truly beautiful here.",
-            "The world needs more people with your gentle spirit.",
-            "You've touched this situation with grace and made it better.",
-            "Your caring approach has brought harmony where there was none.",
-            "Thank you for showing that gentleness can accomplish miracles."
-        ]
-    },
-    
-    intellectual: {
-        offer: [
-            "I've been contemplating a problem that requires practical application.",
-            "My theoretical framework needs empirical validation.",
-            "The literature suggests this phenomenon requires investigation.",
-            "I've hypothesized something that demands field verification.",
-            "This intellectual puzzle requires more than just theory.",
-            "My research has reached a point where action is necessary.",
-            "Academic discourse only goes so far - I need practical results.",
-            "The philosophical implications of this task are quite intriguing.",
-            "I've been analyzing patterns that suggest intervention is needed.",
-            "This conundrum requires both intellectual rigor and practical action.",
-            "My studies have led to a hypothesis that needs testing.",
-            "The complexity of this situation fascinates me intellectually.",
-            "I need someone who can bridge theory and practice effectively.",
-            "This challenge combines multiple disciplines beautifully.",
-            "The epistemological implications of this task are remarkable."
-        ],
-        progress: [
-            "Your methodology is quite sound from an analytical perspective.",
-            "I'm documenting your progress for future academic reference.",
-            "The data you're providing supports my theoretical framework.",
-            "Your approach demonstrates excellent critical thinking skills.",
-            "This case study is developing beautifully.",
-            "Your practical application of theory is exemplary.",
-            "The empirical evidence you're gathering is invaluable.",
-            "I'm observing fascinating patterns in your work.",
-            "Your logical approach to this problem is commendable.",
-            "The intellectual rigor you're applying is impressive.",
-            "You're validating several key theoretical principles.",
-            "This research is yielding exceptional insights."
-        ],
-        complete: [
-            "Excellent! Your work has validated my theoretical predictions.",
-            "The intellectual satisfaction of this completion is immense.",
-            "You've provided empirical proof for several academic theories.",
-            "This case study will contribute significantly to the literature.",
-            "Your practical application of theory has been remarkable.",
-            "The academic implications of your success are far-reaching.",
-            "You've demonstrated the beautiful marriage of theory and practice.",
-            "This outcome supports my research hypothesis perfectly.",
-            "Your intellectual approach to this problem was exemplary.",
-            "The scholarly community would appreciate your methodology.",
-            "You've contributed to the advancement of knowledge itself.",
-            "This research will influence academic thinking for years to come."
-        ]
-    },
-    
-    passionate: {
-        offer: [
-            "This task ignites a fire in my soul! Will you help me?",
-            "I'm absolutely burning with enthusiasm for this project!",
-            "My heart races just thinking about this opportunity!",
-            "This is more than a job - it's my calling, my passion!",
-            "I live and breathe for challenges like this one!",
-            "Every fiber of my being tells me this is important!",
-            "This isn't just work - it's art, it's poetry in motion!",
-            "My passion for this task knows no bounds!",
-            "I'm electrified by the possibilities this task presents!",
-            "This challenge speaks to the very core of who I am!",
-            "I've never felt more alive than when working on tasks like this!",
-            "My enthusiasm for this project is absolutely infectious!",
-            "This task embodies everything I'm passionate about!",
-            "I'm completely consumed by the potential of this mission!",
-            "Every instinct I have screams that this is vital work!"
-        ],
-        progress: [
-            "Your dedication feeds my passion even more!",
-            "I can feel the energy and love you're putting into this!",
-            "This is what happens when passion meets action!",
-            "Your commitment to excellence mirrors my own fervor!",
-            "Every step you take increases my excitement!",
-            "You're bringing the same intensity I feel to this task!",
-            "The passion you're showing makes my heart sing!",
-            "This is pure artistry in motion - absolutely beautiful!",
-            "Your effort is fueling the fire of my enthusiasm!",
-            "I can see the love and care in everything you're doing!",
-            "This collaboration is everything I dreamed it could be!",
-            "You're channeling the same passionate energy I feel!"
-        ],
-        complete: [
-            "MAGNIFICENT! Your passion has created something beautiful!",
-            "This outcome exceeds even my most passionate dreams!",
-            "You've poured your heart into this, and it shows!",
-            "The fire in your work has ignited something truly special!",
-            "This completion fills my soul with indescribable joy!",
-            "You've transformed my passionate vision into reality!",
-            "The love and dedication you've shown is overwhelming!",
-            "This is what happens when passion meets perfect execution!",
-            "My heart is overflowing with gratitude and excitement!",
-            "You've proven that passion truly is the secret ingredient!",
-            "This masterpiece will inspire passion in others for years!",
-            "You've shown that when hearts are in it, miracles happen!"
-        ]
-    },
+            dialogueTemplates: {
+                scientist: {
+                    offer: [
+                        "Fascinating! I have a research opportunity that requires field work.",
+                        "My studies have revealed something that needs investigation.",
+                        "Science requires data, and I need someone brave enough to gather it.",
+                        "This discovery could change everything we know about Pokemon!"
+                    ],
+                    progress: [
+                        "How goes the data collection? Every sample matters!",
+                        "Science is built on careful observation and dedication.",
+                        "Your fieldwork is contributing to groundbreaking research!"
+                    ],
+                    complete: [
+                        "Extraordinary! This data will advance our understanding significantly!",
+                        "Your contribution to science will be remembered for generations!",
+                        "These findings are beyond my wildest theoretical predictions!"
+                    ]
+                },
+                caring: {
+                    offer: [
+                        "Oh dear, I'm so worried about this situation...",
+                        "Someone with a kind heart like yours could really help.",
+                        "I hate to ask, but I really need assistance with something important.",
+                        "Your compassionate nature makes you perfect for this task."
+                    ],
+                    progress: [
+                        "Please be careful out there! I worry about you.",
+                        "Your kindness gives me hope that everything will work out.",
+                        "Thank you for taking on this burden. It means so much."
+                    ],
+                    complete: [
+                        "Oh, thank goodness! You've put my mind at ease!",
+                        "Your kindness has made all the difference in the world!",
+                        "I knew I could count on someone with such a caring heart!"
+                    ]
+                },
+                strict: {
+                    offer: [
+                        "Citizen! I have an official matter that requires your cooperation.",
+                        "The law demands action, and I need a capable individual.",
+                        "Justice cannot wait! This situation requires immediate attention.",
+                        "By the authority vested in me, I'm requesting your assistance."
+                    ],
+                    progress: [
+                        "Stay focused on the mission! Justice depends on it.",
+                        "Follow protocol and you'll succeed in this endeavor.",
+                        "The law is clear, and so is your duty in this matter."
+                    ],
+                    complete: [
+                        "Outstanding work! You've upheld justice admirably!",
+                        "The community is safer thanks to your actions!",
+                        "You've proven yourself worthy of official commendation!"
+                    ]
+                },
+                greedy: {
+                    offer: [
+                        "Psst... I've got a lucrative proposition for someone like you.",
+                        "Money talks, and this opportunity is shouting profits!",
+                        "Business is business, and this deal could make us both rich.",
+                        "I smell opportunity, and it smells like gold coins!"
+                    ],
+                    progress: [
+                        "Time is money! The sooner you finish, the bigger the profit!",
+                        "Think of all the coins waiting for you at the end!",
+                        "Every second you waste is money down the drain!"
+                    ],
+                    complete: [
+                        "Excellent! Our business partnership has been most profitable!",
+                        "Ka-ching! That's the sound of success!",
+                        "Money well earned! You've got a good head for business!"
+                    ]
+                },
+                tough: {
+                    offer: [
+                        "You look like someone who doesn't back down from a challenge!",
+                        "I need someone with real backbone for this job!",
+                        "Think you're tough enough to handle what I'm about to ask?",
+                        "Only the strongest trainers can succeed at this task!"
+                    ],
+                    progress: [
+                        "Show me what you're really made of out there!",
+                        "Toughness isn't just physical - it's mental determination!",
+                        "Pain is temporary, but glory lasts forever!"
+                    ],
+                    complete: [
+                        "Now THAT'S what I call real strength and determination!",
+                        "You've proven you have the heart of a true warrior!",
+                        "Incredible! You're tougher than I even imagined!"
+                    ]
+                },
+                wise: {
+                    offer: [
+                        "Young one, wisdom comes through experience and challenges.",
+                        "Life has taught me much, and this task will teach you.",
+                        "Every journey begins with understanding one's purpose.",
+                        "Ancient knowledge speaks of the importance of such missions."
+                    ],
+                    progress: [
+                        "Patience, young traveler. All good things take time.",
+                        "Each step forward brings you closer to true understanding.",
+                        "Wisdom is not in the destination, but in the journey itself."
+                    ],
+                    complete: [
+                        "You have grown wiser through this experience, child.",
+                        "The knowledge you've gained is worth more than gold.",
+                        "You've learned something valuable that will serve you well."
+                    ]
+                },
+                adventurous: {
+                    offer: [
+                        "Adventure calls to those brave enough to answer!",
+                        "I've discovered something that'll get your blood pumping!",
+                        "Ready for an expedition that'll test your mettle?",
+                        "The thrill of discovery awaits those bold enough to seek it!"
+                    ],
+                    progress: [
+                        "Feel that rush? That's the spirit of adventure!",
+                        "Every step into the unknown brings new possibilities!",
+                        "Adventure isn't just a hobby - it's a way of life!"
+                    ],
+                    complete: [
+                        "What an absolutely incredible adventure we've shared!",
+                        "You've got the soul of a true explorer!",
+                        "That was the kind of adventure legends are made of!"
+                    ]
+                },
+                hardworking: {
+                    offer: [
+                        "I've got honest work that needs doing by honest hands.",
+                        "Roll up your sleeves - this job requires real effort.",
+                        "Hard work builds character, and this task builds both.",
+                        "No shortcuts here - just good old-fashioned labor."
+                    ],
+                    progress: [
+                        "Keep at it! Persistence pays off in the end!",
+                        "Every drop of sweat is an investment in success!",
+                        "Hard work never killed anyone - it just made them stronger!"
+                    ],
+                    complete: [
+                        "Outstanding work ethic! You've earned every bit of this reward!",
+                        "That's what I call putting in an honest day's work!",
+                        "You've proven that dedication and effort always pay off!"
+                    ]
+                },
+                relaxed: {
+                    offer: [
+                        "Hey there, no pressure, but I could use some help.",
+                        "Take it easy, but maybe you could lend me a hand?",
+                        "Life's too short to stress, but this still needs doing.",
+                        "Whenever you get a chance, would you mind helping out?"
+                    ],
+                    progress: [
+                        "No rush at all - just whenever you get around to it.",
+                        "Take your time, enjoy the journey, no need to hurry.",
+                        "Everything happens at its own pace, just go with the flow."
+                    ],
+                    complete: [
+                        "Perfect! Thanks for keeping things nice and easy.",
+                        "See? No stress, no pressure, just good results.",
+                        "That was smooth sailing from start to finish!"
+                    ]
+                },
+                curious: {
+                    offer: [
+                        "I wonder... could you help me investigate something fascinating?",
+                        "My curiosity has uncovered a mystery that needs solving.",
+                        "Questions lead to answers, and I have so many questions!",
+                        "The pursuit of knowledge never ends, and I need assistance."
+                    ],
+                    progress: [
+                        "What have you discovered? I'm dying to know!",
+                        "Every answer seems to lead to three more questions!",
+                        "The more we learn, the more we realize how much we don't know!"
+                    ],
+                    complete: [
+                        "Fascinating discoveries! My curiosity is thoroughly satisfied!",
+                        "The knowledge you've uncovered is absolutely incredible!",
+                        "Questions answered, mysteries solved - perfect!"
+                    ]
+                }
+            },
             
             // Advanced rewards system
             rewards: {
