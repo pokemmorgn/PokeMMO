@@ -52,15 +52,28 @@ export class MapEditorModule {
     }
 
     async loadAvailableMaps() {
-        console.log('🗺️ [MapEditor] Loading available maps...')
+    console.log('🗺️ [MapEditor] Auto-scanning maps directory...')
+    
+    try {
+        // Essayer l'API en premier
+        const response = await this.adminPanel.apiCall('/maps/list')
+        this.availableMaps = response.maps || []
+    } catch (error) {
+        console.log('🗺️ [MapEditor] API not available, scanning filesystem...')
         
+        // Scanner le répertoire maps via l'API filesystem
         try {
-            // Essayer de charger depuis l'API
-            const response = await this.adminPanel.apiCall('/maps/list')
-            this.availableMaps = response.maps || []
-        } catch (error) {
-            console.log('🗺️ [MapEditor] API not available, using default maps')
-            // Liste par défaut basée sur vos fichiers
+            const files = await window.fs.readdir('client/public/assets/maps')
+            this.availableMaps = files
+                .filter(file => file.endsWith('.tmj'))
+                .map(file => ({
+                    id: file.replace('.tmj', ''),
+                    name: file.replace('.tmj', '').replace(/([A-Z])/g, ' $1').trim(),
+                    file: file
+                }))
+        } catch (fsError) {
+            console.log('🗺️ [MapEditor] Filesystem not available, using defaults')
+            // Liste de base comme fallback
             this.availableMaps = [
                 { id: 'wraithmoormanor1', name: 'Wraithmoor Manor 1', file: 'wraithmoormanor1.tmj' },
                 { id: 'beach', name: 'Beach', file: 'beach.tmj' },
@@ -68,19 +81,39 @@ export class MapEditorModule {
                 { id: 'lavandia', name: 'Lavandia', file: 'lavandia.tmj' }
             ]
         }
-
-        // Remplir le select
-        const mapSelect = document.getElementById('mapSelect')
-        if (mapSelect) {
-            mapSelect.innerHTML = '<option value="">Sélectionner une carte...</option>' +
-                this.availableMaps.map(map => 
-                    `<option value="${map.id}">${map.name}</option>`
-                ).join('')
-        }
-
-        console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes disponibles`)
     }
 
+    // Remplir le select
+    const mapSelect = document.getElementById('mapSelect')
+    if (mapSelect) {
+        mapSelect.innerHTML = '<option value="">Sélectionner une carte...</option>' +
+            this.availableMaps.map(map => 
+                `<option value="${map.id}">${map.name}</option>`
+            ).join('')
+    }
+
+    console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes détectées`)
+}
+
+    onTabActivated() {
+    console.log('🗺️ [MapEditor] Tab activated')
+    
+    if (this.availableMaps.length === 0) {
+        this.loadAvailableMaps()
+    }
+    
+    // Scanner les sprites disponibles
+    if (!this.availableSprites) {
+        this.loadAvailableSprites()
+    }
+    
+    // Event listeners...
+    const canvas = document.getElementById('mapCanvas')
+    if (canvas && !canvas.hasClickListener) {
+        canvas.addEventListener('click', (e) => this.handleCanvasClick(e))
+        canvas.hasClickListener = true
+    }
+}
     async loadMap(mapId) {
         if (!mapId) return
         
@@ -180,57 +213,130 @@ export class MapEditorModule {
         console.log(`✅ [MapEditor] ${this.tilesets.size} tilesets loaded`)
     }
 
-    async processTileset(tileset) {
-        if (!tileset.image) {
-            console.warn('🖼️ [MapEditor] Tileset without image:', tileset)
-            return null
-        }
-
-        const tilesetKey = tileset.firstgid || 1
-        
-        // Stocker les infos du tileset
-        this.tilesets.set(tilesetKey, {
-            firstgid: tileset.firstgid || 1,
-            tilewidth: tileset.tilewidth || 16,
-            tileheight: tileset.tileheight || 16,
-            tilecount: tileset.tilecount || 0,
-            columns: tileset.columns || 1,
-            image: tileset.image,
-            imagewidth: tileset.imagewidth || 256,
-            imageheight: tileset.imageheight || 256,
-            name: tileset.name || 'unnamed'
-        })
-
-        // Charger l'image du tileset
-// Nettoyer le chemin de l'image (supprimer ../ et _Sprites/)
-const cleanImageName = tileset.image
-    .replace(/\.\.\//g, '')           // Supprimer ../
-    .replace(/\/_Sprites\//g, '/')    // Supprimer /_Sprites/
-    .replace(/^_Sprites\//, '')       // Supprimer _Sprites/ au début
-    .split('/').pop()                 // Garder seulement le nom du fichier
-
-const imagePath = `/assets/sprites/${cleanImageName}`
-    console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
-        
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            img.crossOrigin = 'anonymous'
-            
-            img.onload = () => {
-                this.tilesetImages.set(tilesetKey, img)
-                console.log(`✅ [MapEditor] Tileset image loaded: ${tileset.name} (${img.width}x${img.height})`)
-                resolve(img)
-            }
-            
-            img.onerror = (error) => {
-                console.error(`❌ [MapEditor] Failed to load tileset image: ${imagePath}`, error)
-                resolve(null) // Continue même si une image échoue
-            }
-            
-            img.src = imagePath
-        })
+async processTileset(tileset) {
+    if (!tileset.image) {
+        console.warn('🖼️ [MapEditor] Tileset without image:', tileset)
+        return null
     }
 
+    const tilesetKey = tileset.firstgid || 1
+    
+    // Stocker les infos du tileset
+    this.tilesets.set(tilesetKey, {
+        firstgid: tileset.firstgid || 1,
+        tilewidth: tileset.tilewidth || 16,
+        tileheight: tileset.tileheight || 16,
+        tilecount: tileset.tilecount || 0,
+        columns: tileset.columns || 1,
+        image: tileset.image,
+        imagewidth: tileset.imagewidth || 256,
+        imageheight: tileset.imageheight || 256,
+        name: tileset.name || 'unnamed'
+    })
+
+    // Auto-détecter l'image correspondante
+    const imageName = await this.findMatchingImage(tileset.image, tileset.name)
+    if (!imageName) {
+        console.warn(`🖼️ [MapEditor] No matching image found for tileset: ${tileset.name}`)
+        return null
+    }
+
+    const imagePath = `/assets/sprites/${imageName}`
+    console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
+    
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        
+        img.onload = () => {
+            this.tilesetImages.set(tilesetKey, img)
+            console.log(`✅ [MapEditor] Tileset image loaded: ${tileset.name} (${img.width}x${img.height})`)
+            resolve(img)
+        }
+        
+        img.onerror = (error) => {
+            console.error(`❌ [MapEditor] Failed to load tileset image: ${imagePath}`, error)
+            resolve(null)
+        }
+        
+        img.src = imagePath
+    })
+}
+    async findMatchingImage(originalPath, tilesetName) {
+    // Scanner tous les PNG disponibles
+    if (!this.availableSprites) {
+        await this.loadAvailableSprites()
+    }
+
+    // Nettoyer le nom du fichier recherché
+    const cleanName = originalPath
+        .replace(/\.\.\//g, '')
+        .replace(/\/_Sprites\//g, '/')
+        .replace(/^_Sprites\//, '')
+        .split('/').pop()
+        .toLowerCase()
+
+    // Chercher par nom exact
+    let match = this.availableSprites.find(sprite => 
+        sprite.toLowerCase() === cleanName
+    )
+
+    if (match) {
+        console.log(`🎯 [MapEditor] Exact match found: ${cleanName} -> ${match}`)
+        return match
+    }
+
+    // Chercher par nom partiel (sans extension)
+    const baseName = cleanName.replace('.png', '')
+    match = this.availableSprites.find(sprite => 
+        sprite.toLowerCase().includes(baseName) || 
+        baseName.includes(sprite.toLowerCase().replace('.png', ''))
+    )
+
+    if (match) {
+        console.log(`🎯 [MapEditor] Partial match found: ${baseName} -> ${match}`)
+        return match
+    }
+
+    // Chercher par nom du tileset
+    if (tilesetName) {
+        const tilesetBaseName = tilesetName.toLowerCase()
+        match = this.availableSprites.find(sprite => 
+            sprite.toLowerCase().includes(tilesetBaseName) ||
+            tilesetBaseName.includes(sprite.toLowerCase().replace('.png', ''))
+        )
+
+        if (match) {
+            console.log(`🎯 [MapEditor] Tileset name match: ${tilesetName} -> ${match}`)
+            return match
+        }
+    }
+
+    console.warn(`❌ [MapEditor] No match found for: ${originalPath} (tileset: ${tilesetName})`)
+    return null
+}
+
+async loadAvailableSprites() {
+    console.log('📂 [MapEditor] Scanning sprites directory...')
+    
+    try {
+        // Scanner le répertoire sprites
+        const files = await window.fs.readdir('client/public/assets/sprites')
+        this.availableSprites = files.filter(file => 
+            file.toLowerCase().endsWith('.png') || 
+            file.toLowerCase().endsWith('.jpg') || 
+            file.toLowerCase().endsWith('.jpeg')
+        )
+        
+        console.log(`✅ [MapEditor] Found ${this.availableSprites.length} sprite files:`)
+        this.availableSprites.forEach(sprite => console.log(`  📄 ${sprite}`))
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error scanning sprites:', error)
+        this.availableSprites = []
+    }
+}
+    
     async loadExistingObjects(mapId) {
         try {
             // Essayer de charger les objets existants depuis l'API
