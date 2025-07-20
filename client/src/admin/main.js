@@ -3,6 +3,7 @@
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
 import './styles/components.css'
+import { QuestGeneratorModule } from './js/quest-generator.js'
 
 // Import modules
 import { AdminPanel } from './js/admin-panel.js'
@@ -27,7 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             DashboardModule,
             PlayersModule,
             QuestsModule,
-            LogsToolsModule
+            LogsToolsModule,
+            QuestGeneratorModule  // ← Ajout du nouveau module
+
         ])
         
         // Export for global access AFTER initialization
@@ -95,6 +98,30 @@ function setupGlobalFunctions() {
         adminPanel.players.resetPlayerData()
     }
 
+    window.generateRandomQuest = () => {
+    if (!adminPanel?.questGenerator) {
+        console.error('QuestGenerator module not loaded')
+        return
+    }
+    adminPanel.questGenerator.generateRandomQuest()
+}
+
+window.createQuestFromGenerated = () => {
+    if (!adminPanel?.questGenerator) {
+        console.error('QuestGenerator module not loaded')
+        return
+    }
+    adminPanel.questGenerator.createQuestFromGenerated()
+}
+
+window.regenerateQuest = () => {
+    if (!adminPanel?.questGenerator) {
+        console.error('QuestGenerator module not loaded')
+        return
+    }
+    adminPanel.questGenerator.regenerateQuest()
+}
+    
     // Quests functions
     window.loadQuests = () => {
         if (!adminPanel?.quests) {
