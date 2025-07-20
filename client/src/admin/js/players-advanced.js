@@ -440,6 +440,182 @@ export class PlayersAdvancedModule {
     }
 
     // Méthodes d'action pour l'équipe
+    async editPokemon(pokemonId) {
+        console.log(`✏️ [PlayersAdvanced] Édition Pokémon: ${pokemonId}`)
+        
+        if (!this.currentPlayerData) {
+            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+            return
+        }
+
+        const pokemon = this.currentPlayerData.team.pokemon.find(p => p.id === pokemonId)
+        if (!pokemon) {
+            this.adminPanel.showNotification('Pokémon non trouvé', 'error')
+            return
+        }
+
+        // Créer un modal d'édition simple
+        const newNickname = prompt(`Nouveau surnom pour ${pokemon.nickname || `Pokémon #${pokemon.pokemonId}`}:`, pokemon.nickname || '')
+        if (newNickname === null) return // Annulé
+
+        const newLevel = prompt(`Nouveau niveau (1-100):`, pokemon.level.toString())
+        if (newLevel === null) return // Annulé
+
+        const level = parseInt(newLevel)
+        if (isNaN(level) || level < 1 || level > 100) {
+            this.adminPanel.showNotification('Niveau invalide (1-100)', 'error')
+            return
+        }
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/pokemon/${pokemonId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    nickname: newNickname.trim() || undefined,
+                    level: level
+                })
+            })
+
+            this.adminPanel.showNotification('Pokémon modifié avec succès', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderTeamContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
+    async healPokemon(pokemonId) {
+        console.log(`💚 [PlayersAdvanced] Soin Pokémon: ${pokemonId}`)
+        
+        if (!this.currentPlayerData) {
+            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+            return
+        }
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/pokemon/${pokemonId}/heal`, {
+                method: 'POST'
+            })
+
+            this.adminPanel.showNotification('Pokémon soigné', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderTeamContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
+    async removePokemon(pokemonId) {
+        if (!this.currentPlayerData) {
+            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+            return
+        }
+
+        const pokemon = this.currentPlayerData.team.pokemon.find(p => p.id === pokemonId)
+        if (!pokemon) {
+            this.adminPanel.showNotification('Pokémon non trouvé', 'error')
+            return
+        }
+
+        if (!confirm(`Retirer ${pokemon.nickname || `Pokémon #${pokemon.pokemonId}`} de l'équipe ?`)) {
+            return
+        }
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/team/${pokemonId}`, {
+                method: 'DELETE'
+            })
+
+            this.adminPanel.showNotification('Pokémon retiré de l\'équipe', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderTeamContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
+    // Méthodes pour l'inventaire
+    async addItemToInventory() {
+        if (!this.currentPlayerData) {
+            this.adminPanel.showNotification('Aucun joueur sélectionné', 'error')
+            return
+        }
+
+        const itemId = prompt('ID de l\'objet à ajouter:')
+        if (!itemId) return
+
+        const category = prompt('Catégorie (items, medicine, balls, berries, key_items, tms, battle_items, valuables, held_items):')
+        if (!category) return
+
+        const quantity = prompt('Quantité:', '1')
+        if (!quantity) return
+
+        const qty = parseInt(quantity)
+        if (isNaN(qty) || qty < 1) {
+            this.adminPanel.showNotification('Quantité invalide', 'error')
+            return
+        }
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/inventory/add`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    category: category,
+                    itemId: itemId,
+                    quantity: qty
+                })
+            })
+
+            this.adminPanel.showNotification('Objet ajouté à l\'inventaire', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderInventoryContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
+    async editItemQuantity(category, itemId, currentQuantity) {
+        if (!this.currentPlayerData) return
+
+        const newQuantity = prompt(`Nouvelle quantité pour ${this.formatItemName(itemId)}:`, currentQuantity.toString())
+        if (newQuantity === null) return
+
+        const qty = parseInt(newQuantity)
+        if (isNaN(qty) || qty < 0) {
+            this.adminPanel.showNotification('Quantité invalide', 'error')
+            return
+        }
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/inventory/${category}/${itemId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ quantity: qty })
+            })
+
+            this.adminPanel.showNotification('Quantité modifiée', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderInventoryContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
+    async removeItem(category, itemId) {
+        if (!confirm(`Supprimer ${this.formatItemName(itemId)} ?`)) return
+
+        try {
+            await this.adminPanel.apiCall(`/players/${this.currentPlayerData.username}/inventory/${category}/${itemId}`, {
+                method: 'DELETE'
+            })
+
+            this.adminPanel.showNotification('Objet supprimé', 'success')
+            await this.loadPlayerAdvancedData(this.currentPlayerData.username)
+            this.renderInventoryContent()
+        } catch (error) {
+            this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        }
+    }
+
     async addPokemonToTeam() {
         const pokemonId = prompt('ID du Pokémon à ajouter (1-151):')
         if (!pokemonId || isNaN(pokemonId)) return
