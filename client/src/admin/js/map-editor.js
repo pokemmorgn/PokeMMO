@@ -488,9 +488,7 @@ if (scale < 1 && this.zoom === 1) {
     console.log(`🗺️ [MapEditor] Auto-scaling map to fit: ${scale.toFixed(2)}x`)
 }
         
-        canvas.style.width = canvasWidth + 'px'
-        canvas.style.height = canvasHeight + 'px'
-        canvas.style.display = 'block'
+
         
         // Corriger le DPI
         const ctx = this.fixCanvasDPI(canvas)
