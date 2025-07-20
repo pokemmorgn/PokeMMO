@@ -723,7 +723,7 @@ router.get('/players/:username/team', requireMacAndDev, async (req: any, res) =>
   }
 });
 
-// ✅ ROUTE: Ajouter un Pokémon à l'équipe
+// Remplacez complètement la route POST /players/:username/team/add par :
 router.post('/players/:username/team/add', requireMacAndDev, async (req: any, res) => {
   try {
     const { username } = req.params;
@@ -747,17 +747,22 @@ router.post('/players/:username/team/add', requireMacAndDev, async (req: any, re
       return res.status(400).json({ error: 'Équipe pleine (6 Pokémon maximum)' });
     }
 
-    // Créer le nouveau Pokémon
+    // Calculer les stats de base (formule simplifiée)
+    const pokemonLevel = Math.min(100, Math.max(1, parseInt(level)));
+    const baseHp = Math.floor(((2 * 50 + 15 + 0) * pokemonLevel) / 100) + pokemonLevel + 10;
+    const baseStat = Math.floor(((2 * 50 + 15 + 0) * pokemonLevel) / 100) + 5;
+
+    // Créer le nouveau Pokémon avec TOUS les champs requis
     const newPokemon = new OwnedPokemon({
       owner: username,
       pokemonId: parseInt(pokemonId),
-      level: Math.min(100, Math.max(1, parseInt(level))),
+      level: pokemonLevel,
       experience: 0,
       nickname: nickname || undefined,
       nature: 'hardy',
-      ability: 'unknown',
-      gender: 'Male',
-      shiny: Math.random() < 0.001, // 0.1% de chance de shiny
+      ability: 'overgrow',
+      gender: Math.random() > 0.5 ? 'Male' : 'Female',
+      shiny: Math.random() < 0.001,
       
       // IVs aléatoires
       ivs: {
@@ -775,10 +780,22 @@ router.post('/players/:username/team/add', requireMacAndDev, async (req: any, re
         spAttack: 0, spDefense: 0, speed: 0
       },
       
+      // ✅ CHAMPS REQUIS - Stats calculées
+      calculatedStats: {
+        attack: baseStat,
+        defense: baseStat,
+        spAttack: baseStat,
+        spDefense: baseStat,
+        speed: baseStat
+      },
+      
+      // ✅ CHAMPS REQUIS - HP
+      currentHp: baseHp,
+      maxHp: baseHp,
+      
       // Attaques de base
       moves: [
-        { moveId: 'tackle', currentPp: 35, maxPp: 35 },
-        { moveId: 'growl', currentPp: 40, maxPp: 40 }
+        { moveId: 'tackle', currentPp: 35, maxPp: 35 }
       ],
       
       // Équipe
@@ -791,6 +808,7 @@ router.post('/players/:username/team/add', requireMacAndDev, async (req: any, re
       friendship: 70
     });
 
+    console.log('💾 [AdminAPI] Sauvegarde du Pokémon...');
     await newPokemon.save();
     
     console.log(`✅ [Admin] ${req.user.username} a ajouté un Pokémon #${pokemonId} à ${username}`);
@@ -808,7 +826,11 @@ router.post('/players/:username/team/add', requireMacAndDev, async (req: any, re
     
   } catch (error) {
     console.error('❌ [AdminAPI] Erreur ajout Pokémon:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Erreur serveur',
+      details: error.message
+    });
   }
 });
 
