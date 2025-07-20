@@ -1,12 +1,12 @@
-// Inventory/InventoryIcon.js - CORRIGÉ pour UIManager complet
-// 🎯 UIManager prend le contrôle TOTAL - aucune position manuelle
-// ✅ Délégation propre vers module parent pour canOpenUI
+// Inventory/InventoryIcon.js - VERSION NETTOYÉE
+// 🎯 RESPONSABILITÉ: Gestion de l'affichage de l'icône SEULEMENT
+// 🔗 DÉLÉGATION: Directe vers BaseModule (window.inventorySystemGlobal)
 
 export class InventoryIcon {
   constructor(inventoryUI) {
     this.inventoryUI = inventoryUI;
     
-    // === ÉTAT ===
+    // === ÉTAT ICÔNE SEULEMENT ===
     this.isVisible = true;
     this.isEnabled = true;
     this.iconElement = null;
@@ -17,28 +17,26 @@ export class InventoryIcon {
     // === DONNÉES AFFICHÉES ===
     this.displayData = {
       hasNotification: false,
-      notificationCount: 0,
-      canOpen: true
+      notificationCount: 0
     };
     
-    // === UIManager contrôle TOUT ===
+    // === UIManager contrôle le positionnement ===
     this.positioningMode = 'uimanager';
-    this.uiManagerControlled = true; // ✅ NOUVEAU FLAG
+    this.uiManagerControlled = true;
     
-    console.log('🎒 [InventoryIcon] Instance créée - UIManager contrôle TOTAL');
+    console.log('🎒 [InventoryIcon] Instance créée - UIManager contrôle');
   }
   
-  // === 🚀 INITIALISATION CORRIGÉE ===
+  // === 🚀 INITIALISATION ===
   
   init() {
     try {
-      console.log('🚀 [InventoryIcon] Initialisation SANS positionnement...');
+      console.log('🚀 [InventoryIcon] Initialisation...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
       
-      // ✅ PAS de forçage de position - UIManager s'en charge
       console.log('✅ [InventoryIcon] Initialisé - UIManager gérera la position');
       return this;
       
@@ -48,7 +46,7 @@ export class InventoryIcon {
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE CORRIGÉE ===
+  // === 🎨 CRÉATION INTERFACE ===
   
   createIcon() {
     const existing = document.querySelector('#inventory-icon');
@@ -77,10 +75,10 @@ export class InventoryIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [InventoryIcon] Icône créée - ZÉRO positionnement manuel');
+    console.log('🎨 [InventoryIcon] Icône créée sans positionnement');
   }
   
-  // === 🎨 STYLES CORRIGÉS SANS POSITION ===
+  // === 🎨 STYLES (IDENTIQUES - déjà corrects) ===
   
   addStyles() {
     if (document.querySelector('#inventory-icon-styles')) {
@@ -92,7 +90,6 @@ export class InventoryIcon {
     style.textContent = `
       /* ===== INVENTORY ICON - AUCUNE POSITION FIXE ===== */
       .inventory-icon {
-        /* ✅ AUCUNE POSITION CSS - UIManager contrôle tout */
         width: 70px;
         height: 80px;
         cursor: pointer;
@@ -101,8 +98,6 @@ export class InventoryIcon {
         user-select: none;
         display: block;
         box-sizing: border-box;
-        
-        /* ✅ Position sera définie par UIManager uniquement */
       }
 
       .inventory-icon:hover {
@@ -211,7 +206,7 @@ export class InventoryIcon {
         100% { transform: scale(1) rotate(0deg); }
       }
 
-      /* Responsive TAILLE seulement */
+      /* Responsive */
       @media (max-width: 768px) {
         .inventory-icon {
           width: 60px;
@@ -226,27 +221,16 @@ export class InventoryIcon {
           font-size: 24px;
         }
       }
-      
-      /* Indicateur UIManager */
-      .inventory-icon[data-positioned-by="uimanager"]::after {
-        content: "📍";
-        position: absolute;
-        top: -10px;
-        left: -10px;
-        font-size: 8px;
-        opacity: 0.7;
-        pointer-events: none;
-      }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [InventoryIcon] Styles sans position fixe appliqués');
+    console.log('🎨 [InventoryIcon] Styles appliqués');
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
+  // === 🎛️ CONTRÔLE UI MANAGER ===
   
   show() {
-    console.log('👁️ [InventoryIcon] Affichage via UIManager');
+    console.log('👁️ [InventoryIcon] Affichage');
     
     this.isVisible = true;
     
@@ -254,12 +238,9 @@ export class InventoryIcon {
       this.iconElement.classList.remove('ui-hidden', 'hidden');
       this.iconElement.classList.add('ui-fade-in');
       
-      // ✅ FORCER AFFICHAGE sans toucher à la position
       this.iconElement.style.display = 'block';
       this.iconElement.style.visibility = 'visible';
       this.iconElement.style.opacity = '1';
-      
-      // ✅ NE PAS TOUCHER À LA POSITION - UIManager s'en charge
       
       setTimeout(() => {
         this.iconElement.classList.remove('ui-fade-in');
@@ -310,7 +291,6 @@ export class InventoryIcon {
     if (this.iconElement) {
       this.iconElement.setAttribute('data-positioned-by', 'uimanager');
       this.iconElement.setAttribute('data-position', JSON.stringify(position));
-      console.log('✅ [InventoryIcon] Position UIManager confirmée');
     }
   }
   
@@ -360,17 +340,12 @@ export class InventoryIcon {
     }
   }
   
-  // === 🔍 VÉRIFICATION OUVERTURE UI - DÉLÉGATION PROPRE ===
+  // === 🔍 VÉRIFICATION OUVERTURE UI - DÉLÉGATION SIMPLE ===
   
   canOpenUI() {
-    // ✅ DÉLÉGATION VERS MODULE PARENT (architecture propre)
+    // ✅ DÉLÉGATION DIRECTE vers BaseModule
     if (window.inventorySystemGlobal && window.inventorySystemGlobal.canOpenUI) {
       return window.inventorySystemGlobal.canOpenUI();
-    }
-    
-    // ✅ FALLBACK VERS UIMANAGER (règles globales)
-    if (window.uiManager && window.uiManager.canShowModule) {
-      return window.uiManager.canShowModule('inventory');
     }
     
     // ✅ FALLBACK SIMPLE (état local seulement)
@@ -386,7 +361,7 @@ export class InventoryIcon {
     }
   }
   
-  // === 🎛️ ÉVÉNEMENTS CORRIGÉS ===
+  // === 🎛️ ÉVÉNEMENTS ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -405,7 +380,7 @@ export class InventoryIcon {
         this.iconElement.classList.remove('opening');
       }, 600);
       
-      // ✅ FIX: Vérification via délégation + contexte this correct
+      // ✅ VÉRIFICATION via délégation simple
       if (this.canOpenUI()) {
         if (this.onClick) {
           this.onClick();
@@ -432,7 +407,7 @@ export class InventoryIcon {
     console.log('🎛️ [InventoryIcon] Événements configurés');
   }
   
-  // === 💬 TOOLTIP CORRIGÉ ===
+  // === 💬 TOOLTIP ===
   
   showTooltip() {
     if (!this.iconElement) return;
@@ -440,7 +415,6 @@ export class InventoryIcon {
     const tooltip = document.createElement('div');
     tooltip.className = 'inventory-tooltip';
     
-    // ✅ Position relative à l'icône ACTUELLE (positionnée par UIManager)
     const iconRect = this.iconElement.getBoundingClientRect();
     
     tooltip.style.cssText = `
@@ -528,7 +502,7 @@ export class InventoryIcon {
     console.log('✅ [InventoryIcon] Détruit');
   }
   
-  // === 🐛 DEBUG AMÉLIORÉ ===
+  // === 🐛 DEBUG ===
   
   debugInfo() {
     return {
@@ -542,24 +516,7 @@ export class InventoryIcon {
       uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
-      canOpenUI: this.canOpenUI(),
-      delegationChain: {
-        inventorySystemGlobal: !!window.inventorySystemGlobal?.canOpenUI,
-        uiManager: !!window.uiManager?.canShowModule,
-        fallback: this.isEnabled
-      },
-      elementStyles: this.iconElement ? {
-        position: this.iconElement.style.position,
-        left: this.iconElement.style.left,
-        top: this.iconElement.style.top,
-        right: this.iconElement.style.right,
-        bottom: this.iconElement.style.bottom,
-        zIndex: this.iconElement.style.zIndex,
-        display: this.iconElement.style.display,
-        visibility: this.iconElement.style.visibility,
-        opacity: this.iconElement.style.opacity
-      } : null,
-      boundingRect: this.iconElement ? this.iconElement.getBoundingClientRect() : null
+      canOpenUI: this.canOpenUI()
     };
   }
 }
@@ -567,27 +524,20 @@ export class InventoryIcon {
 export default InventoryIcon;
 
 console.log(`
-🎒 === INVENTORY ICON AVEC DÉLÉGATION PROPRE ===
+🎒 === INVENTORY ICON NETTOYÉ ===
 
-❌ SUPPRIMÉ:
-• Position CSS fixe (bottom: 20px, right: 20px)
-• setFallbackPosition() - écrasait UIManager
-• Tout positionnement manuel en CSS et JS
-• Logique métier dans l'icône (mauvaise architecture)
+✅ RESPONSABILITÉ CLAIRE:
+• Gestion affichage icône uniquement
+• Délégation simple vers BaseModule
+• Aucune vérification métier
 
-✅ AJOUTÉ:
-• uiManagerControlled flag
-• onPositioned() callback pour UIManager
-• Styles sans position fixe
-• Position relative tooltip corrigée
-• Délégation propre vers module parent
-• Architecture en couches respectée
+🔗 DÉLÉGATION SIMPLIFIÉE:
+• canOpenUI() → window.inventorySystemGlobal.canOpenUI()
+• Fallback → this.isEnabled
+• Plus de chaîne complexe
 
-📍 DÉLÉGATION:
-1. InventoryIcon.canOpenUI() → inventorySystemGlobal.canOpenUI()
-2. Fallback → uiManager.canShowModule('inventory')  
-3. Fallback → this.isEnabled
-
-🎯 RÉSULTAT:
-Architecture propre + UIManager contrôle 100% du positionnement !
+🎯 SUPPRIMÉ:
+• Toutes les vérifications DOM
+• Fallbacks vers UIManager
+• Logique métier dans l'icône
 `);
