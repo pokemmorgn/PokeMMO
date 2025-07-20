@@ -349,12 +349,20 @@ async sendObjectInteraction(object, options = {}) {
     const objectId = object.objectId || object.id || object.name || 'unknown_object';
     
     // ✅ CORRECTION CRITIQUE : Utiliser this.state.currentInteractionType en PRIORITÉ (contient "pokeball")
-  const objectType = options.detectedType || this.state.currentInteractionType || object.objectType || options.objectType || 'unknown';
+    const objectType = options.detectedType || this.state.currentInteractionType || object.objectType || options.objectType || 'unknown';
     
     // ✅ Position de l'objet
     const objectPosition = object.x !== undefined && object.y !== undefined 
       ? { x: object.x, y: object.y }
       : null;
+    
+    // ✅ AJOUTER CE DEBUG ICI :
+    console.log('[ObjectInteractionManager] 🔍 DEBUG OBJET COMPLET:');
+    console.log('object:', object);
+    console.log('object.properties:', object.properties);
+    console.log('object.objectData:', object.objectData);
+    console.log('object.name:', object.name);
+    console.log('object.properties?.name:', object.properties?.name);
     
     // ✅ CORRECTION : Données supplémentaires avec les bonnes propriétés
     const additionalData = {
