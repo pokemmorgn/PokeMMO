@@ -2,6 +2,7 @@
 // 🎯 ÉVITE LA DUPLICATION DE CODE entre modules (Team, Inventory, Quest, etc.)
 // 📍 INTÉGRÉ avec UIManager pour positionnement automatique
 // 🆕 SUPPORT SINGLETON OPTIONNEL par module
+// ✅ ARCHITECTURE PROPRE avec délégation vers UIManager
 
 /**
  * Classe de base abstraite pour tous les modules du jeu
@@ -185,6 +186,9 @@ export class BaseModule {
       // Marquer comme connecté
       this.icon.iconElement.setAttribute('data-positioned-by-uimanager', 'true');
       
+      // ✅ STOCKER RÉFÉRENCE UIMANAGER pour délégation
+      this.uiManager = uiManager;
+      
       console.log(`✅ [${this.moduleId}Module] Connecté à UIManager avec succès`);
       return true;
       
@@ -362,27 +366,44 @@ export class BaseModule {
   }
   
   /**
-   * Vérifier si on peut ouvrir l'interface (à surcharger si nécessaire)
+   * ✅ VÉRIFICATION OUVERTURE UI - ARCHITECTURE PROPRE AVEC DÉLÉGATION
+   * 
+   * Architecture en couches:
+   * 1. Délégation vers UIManager (règles globales)
+   * 2. Vérifications de base (enabled state)
+   * 3. Peut être surchargée dans les classes filles pour règles spécifiques
    */
   canOpenUI() {
-    // Vérifications génériques
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      (() => {
-        const dialogueBox = document.querySelector('#dialogue-box');
-        return dialogueBox && 
-          dialogueBox.style.display !== 'none' && 
-          dialogueBox.style.visibility !== 'hidden' &&
-          !dialogueBox.hidden;
-      })(),
-      document.querySelector('#shop-overlay:not(.hidden)')
-    ];
+    // === DÉLÉGATION VERS UIMANAGER (PRIORITÉ 1) ===
+    if (this.uiManager && typeof this.uiManager.canShowModule === 'function') {
+      const uiManagerResult = this.uiManager.canShowModule(this.moduleId);
+      
+      // Si UIManager dit non, respecter sa décision
+      if (!uiManagerResult) {
+        return false;
+      }
+      
+      // Si UIManager dit oui, vérifier l'état local
+      return this.uiManagerState.enabled;
+    }
     
-    const hasBlocker = blockers.some(el => el !== null);
+    // === FALLBACK: VÉRIFICATIONS DE BASE (PRIORITÉ 2) ===
+    // Seulement si UIManager n'est pas disponible
+    console.warn(`⚠️ [${this.moduleId}Module] UIManager non disponible, vérifications de base seulement`);
+    
+    // Vérifications critiques minimales
+    const dialogueBox = document.querySelector('#dialogue-box');
+    const dialogueVisible = dialogueBox && 
+      dialogueBox.style.display !== 'none' && 
+      dialogueBox.style.visibility !== 'hidden' &&
+      !dialogueBox.hidden;
+    
     const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
     
-    return !hasBlocker && !chatFocused && !inventoryOpen && this.uiManagerState.enabled;
+    // Seulement les blockers vraiment critiques
+    const hasBlocker = dialogueVisible;
+    
+    return !hasBlocker && !chatFocused && this.uiManagerState.enabled;
   }
   
   /**
@@ -509,6 +530,7 @@ export class BaseModule {
       
       // Reset état
       this.uiManagerState.initialized = false;
+      this.uiManager = null;
       
       // Reset singleton si applicable
       if (this.options.singleton) {
@@ -657,13 +679,16 @@ export function debugModule(moduleId, ModuleClass) {
     uiVisible: instance ? instance.ui?.isVisible : false,
     iconVisible: instance ? instance.icon?.isVisible : false,
     gameRoom: instance ? !!instance.gameRoom : false,
+    hasUIManager: instance ? !!instance.uiManager : false,
+    canOpenUI: instance ? instance.canOpenUI() : false,
     
     state: instance ? instance.getUIManagerState() : null,
     
     solutions: instance ? [
       '✅ Instance OK - utilisez forceCloseUI()',
       `🔒 window.${moduleId}System.forceCloseUI() pour fermer UI`,
-      `🔄 window.${moduleId}SystemGlobal pour accès direct`
+      `🔄 window.${moduleId}SystemGlobal pour accès direct`,
+      `🎛️ Délégation vers UIManager active: ${!!instance.uiManager}`
     ] : [
       `🚀 Créez avec createModule(${ModuleClass.name}, '${moduleId}', ...)`,
       `🔧 Utilisez la factory générique`
@@ -677,3 +702,27 @@ export function debugModule(moduleId, ModuleClass) {
 }
 
 export default BaseModule;
+
+console.log(`
+🏗️ === BASE MODULE AVEC ARCHITECTURE PROPRE ===
+
+✅ AMÉLIORATIONS ARCHITECTURE:
+• Délégation vers UIManager (canShowModule)
+• Stockage référence UIManager dans modules
+• Vérifications minimales en fallback
+• Séparation des responsabilités respectée
+
+📍 FLUX CANOPEN:
+1. Module.canOpenUI() → UIManager.canShowModule()
+2. Fallback → vérifications critiques minimales
+3. Classes filles peuvent surcharger pour règles spécifiques
+
+🎯 AVANTAGES:
+• Logique centralisée dans UIManager
+• Modules ne gèrent plus les règles globales
+• Architecture en couches respectée
+• Maintenance simplifiée
+
+🛡️ DÉLÉGATION:
+Module → UIManager → Règles globales
+`);
