@@ -4,9 +4,9 @@
 // 📱 SYSTÈME POKÉDX SANS BLOCAGES
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
-import { PokedxSystem } from './PokedxSystem.js';
-import { PokedxIcon } from './PokedxIcon.js';
-import { PokedxUI } from './PokedxUI.js';
+import { PokedxSystem } from './PokedexSystem.js';
+import { PokedxIcon } from './PokedexIcon.js';
+import { PokedxUI } from './PokedexUI.js';
 
 /**
  * ✅ Module Pokédx avec BaseModule PUR - SANS surcharge canOpenUI()
