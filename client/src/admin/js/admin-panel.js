@@ -53,6 +53,8 @@ export class AdminPanel {
         this.players = this.modules.players
         this.quests = this.modules.quests
         this.logsTools = this.modules.logsTools
+        this.questGenerator = this.modules.questGenerator  // ← Ajout de cette ligne
+
         
         console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
     }
