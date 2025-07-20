@@ -51,6 +51,7 @@ export class AdminPanel {
         // Expose modules for easy access
         this.dashboard = this.modules.dashboard
         this.players = this.modules.players
+        this.playersAdvanced = this.modules.playersAdvanced  // ← Ajoutez cette ligne
         this.quests = this.modules.quests
         this.logsTools = this.modules.logsTools
         this.questGenerator = this.modules.questGenerator  // ← Ajout de cette ligne
