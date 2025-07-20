@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Quests Module
+// PokeWorld Admin Panel - Enhanced Quests Module
 
 export class QuestsModule {
     constructor(adminPanel) {
@@ -7,7 +7,7 @@ export class QuestsModule {
         this.currentQuest = null
         this.questSteps = []
         
-        console.log('📜 [Quests] Module initialized')
+        console.log('📜 [Quests] Enhanced Module initialized')
     }
 
     async loadQuests() {
@@ -230,26 +230,180 @@ export class QuestsModule {
             const stepDiv = document.createElement('div')
             stepDiv.className = 'quest-step-editor'
             stepDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h5>Étape ${index + 1}: ${step.name || 'Sans nom'}</h5>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                    <h5 style="margin: 0; color: #2c3e50;">Étape ${index + 1}: ${step.name || 'Sans nom'}</h5>
                     <button type="button" class="btn btn-danger btn-sm" onclick="adminPanel.quests.removeQuestStep(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <input type="text" class="form-input" placeholder="Nom de l'étape" 
-                           value="${step.name || ''}" onchange="adminPanel.quests.updateStepData(${index}, 'name', this.value)">
-                    <input type="text" class="form-input" placeholder="Description" 
-                           value="${step.description || ''}" onchange="adminPanel.quests.updateStepData(${index}, 'description', this.value)">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label class="form-label">Nom de l'étape</label>
+                        <input type="text" class="form-input" placeholder="Nom de l'étape" 
+                               value="${step.name || ''}" onchange="adminPanel.quests.updateStepData(${index}, 'name', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" placeholder="Description de l'étape" 
+                               value="${step.description || ''}" onchange="adminPanel.quests.updateStepData(${index}, 'description', this.value)">
+                    </div>
                 </div>
-                <div style="margin-top: 10px;">
-                    <textarea class="form-input" rows="2" placeholder="Objectifs (JSON)" 
-                              onchange="adminPanel.quests.updateStepData(${index}, 'objectives', this.value)">${JSON.stringify(step.objectives || [], null, 2)}</textarea>
+                
+                <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h6 style="margin: 0; color: #495057;">Objectifs de l'étape</h6>
+                        <button type="button" class="btn btn-success btn-sm" onclick="adminPanel.quests.addObjectiveToStep(${index})">
+                            <i class="fas fa-plus"></i> Ajouter Objectif
+                        </button>
+                    </div>
+                    
+                    <div id="objectives-${index}">
+                        ${step.objectives ? step.objectives.map((obj, objIndex) => this.renderObjectiveEditor(index, objIndex, obj)).join('') : ''}
+                    </div>
+                </div>
+                
+                <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h6 style="margin: 0; color: #495057;">Récompenses</h6>
+                        <button type="button" class="btn btn-success btn-sm" onclick="adminPanel.quests.addRewardToStep(${index})">
+                            <i class="fas fa-plus"></i> Ajouter Récompense
+                        </button>
+                    </div>
+                    
+                    <div id="rewards-${index}">
+                        ${step.rewards ? step.rewards.map((reward, rewardIndex) => this.renderRewardEditor(index, rewardIndex, reward)).join('') : ''}
+                    </div>
                 </div>
             `
             
             container.appendChild(stepDiv)
         })
+    }
+
+    renderObjectiveEditor(stepIndex, objIndex, objective) {
+        return `
+            <div style="border: 1px solid #e9ecef; border-radius: 6px; padding: 15px; margin-bottom: 10px; position: relative;">
+                <button type="button" class="btn btn-danger btn-sm" 
+                        style="position: absolute; top: 5px; right: 5px; padding: 2px 6px;"
+                        onclick="adminPanel.quests.removeObjective(${stepIndex}, ${objIndex})">
+                    <i class="fas fa-times"></i>
+                </button>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Type d'objectif</label>
+                        <select class="form-select" onchange="adminPanel.quests.updateObjectiveType(${stepIndex}, ${objIndex}, this.value)">
+                            <option value="collect" ${objective.type === 'collect' ? 'selected' : ''}>Collecte</option>
+                            <option value="defeat" ${objective.type === 'defeat' ? 'selected' : ''}>Vaincre Pokémon</option>
+                            <option value="defeat_trainers" ${objective.type === 'defeat_trainers' ? 'selected' : ''}>Vaincre Dresseurs</option>
+                            <option value="talk" ${objective.type === 'talk' ? 'selected' : ''}>Parler</option>
+                            <option value="deliver" ${objective.type === 'deliver' ? 'selected' : ''}>Livrer</option>
+                            <option value="reach" ${objective.type === 'reach' ? 'selected' : ''}>Atteindre</option>
+                            <option value="trade" ${objective.type === 'trade' ? 'selected' : ''}>Échanger</option>
+                            <option value="catch" ${objective.type === 'catch' ? 'selected' : ''}>Capturer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Cible</label>
+                        <input type="text" class="form-input" placeholder="ID ou nom de la cible" 
+                               value="${objective.target || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Quantité</label>
+                        <input type="number" class="form-input" placeholder="1" min="1"
+                               value="${objective.requiredAmount || 1}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'requiredAmount', parseInt(this.value))">
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Nom affiché</label>
+                        <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
+                               value="${objective.targetName || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Item (pour livraison/échange)</label>
+                        <input type="text" class="form-input" placeholder="ID de l'item" 
+                               value="${objective.itemId || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'itemId', this.value)">
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label" style="font-size: 0.9rem;">Description</label>
+                    <input type="text" class="form-input" placeholder="Description de l'objectif" 
+                           value="${objective.description || ''}" 
+                           onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'description', this.value)">
+                </div>
+                
+                ${objective.type === 'talk' || objective.type === 'deliver' ? `
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Dialogue de validation (une ligne par dialogue)</label>
+                        <textarea class="form-input" rows="3" placeholder="Dialogue après accomplissement..."
+                                  onchange="adminPanel.quests.updateObjectiveValidation(${stepIndex}, ${objIndex}, this.value)">${(objective.validationDialogue || []).join('\n')}</textarea>
+                    </div>
+                ` : ''}
+                
+                ${objective.type === 'trade' ? `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Pokémon à donner</label>
+                            <input type="text" class="form-input" placeholder="Nom du Pokémon" 
+                                   value="${objective.tradePokemon || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'tradePokemon', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Pokémon à recevoir</label>
+                            <input type="text" class="form-input" placeholder="Nom du Pokémon" 
+                                   value="${objective.receivePokemon || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'receivePokemon', this.value)">
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `
+    }
+
+    renderRewardEditor(stepIndex, rewardIndex, reward) {
+        return `
+            <div style="border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; margin-bottom: 10px; position: relative;">
+                <button type="button" class="btn btn-danger btn-sm" 
+                        style="position: absolute; top: 5px; right: 5px; padding: 2px 6px;"
+                        onclick="adminPanel.quests.removeReward(${stepIndex}, ${rewardIndex})">
+                    <i class="fas fa-times"></i>
+                </button>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">Type</label>
+                        <select class="form-select" onchange="adminPanel.quests.updateRewardField(${stepIndex}, ${rewardIndex}, 'type', this.value)">
+                            <option value="gold" ${reward.type === 'gold' ? 'selected' : ''}>Gold</option>
+                            <option value="item" ${reward.type === 'item' ? 'selected' : ''}>Item</option>
+                            <option value="pokemon" ${reward.type === 'pokemon' ? 'selected' : ''}>Pokémon</option>
+                            <option value="experience" ${reward.type === 'experience' ? 'selected' : ''}>Expérience</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.9rem;">${reward.type === 'item' ? 'Item ID' : reward.type === 'pokemon' ? 'Pokémon' : 'Quantité'}</label>
+                        <input type="text" class="form-input" 
+                               value="${reward.type === 'item' ? (reward.itemId || '') : reward.type === 'pokemon' ? (reward.pokemonId || '') : (reward.amount || 0)}" 
+                               onchange="adminPanel.quests.updateRewardField(${stepIndex}, ${rewardIndex}, '${reward.type === 'item' ? 'itemId' : reward.type === 'pokemon' ? 'pokemonId' : 'amount'}', this.value)">
+                    </div>
+                    ${reward.type === 'item' || reward.type === 'pokemon' ? `
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Quantité</label>
+                            <input type="number" class="form-input" min="1"
+                                   value="${reward.amount || 1}" 
+                                   onchange="adminPanel.quests.updateRewardField(${stepIndex}, ${rewardIndex}, 'amount', parseInt(this.value))">
+                        </div>
+                    ` : '<div></div>'}
+                </div>
+            </div>
+        `
     }
 
     addQuestStep() {
@@ -259,7 +413,8 @@ export class QuestsModule {
             id: `step_${this.questSteps.length + 1}`,
             name: 'Nouvelle étape',
             description: 'Description de l\'étape',
-            objectives: []
+            objectives: [],
+            rewards: []
         }
         
         this.questSteps.push(newStep)
@@ -277,16 +432,91 @@ export class QuestsModule {
 
     updateStepData(stepIndex, field, value) {
         if (this.questSteps[stepIndex]) {
-            if (field === 'objectives') {
-                try {
-                    this.questSteps[stepIndex][field] = JSON.parse(value || '[]')
-                } catch (e) {
-                    console.warn('Invalid JSON in objectives for step', stepIndex)
-                    this.questSteps[stepIndex][field] = []
-                }
-            } else {
-                this.questSteps[stepIndex][field] = value
-            }
+            this.questSteps[stepIndex][field] = value
+        }
+    }
+
+    addObjectiveToStep(stepIndex) {
+        if (!this.questSteps[stepIndex]) return
+        
+        const newObjective = {
+            id: `obj_${Math.random().toString(36).substring(2, 8)}`,
+            type: 'collect',
+            description: 'Nouvel objectif',
+            target: '',
+            targetName: '',
+            requiredAmount: 1
+        }
+        
+        if (!this.questSteps[stepIndex].objectives) {
+            this.questSteps[stepIndex].objectives = []
+        }
+        
+        this.questSteps[stepIndex].objectives.push(newObjective)
+        this.renderQuestSteps(this.questSteps)
+    }
+
+    removeObjective(stepIndex, objIndex) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].objectives) {
+            this.questSteps[stepIndex].objectives.splice(objIndex, 1)
+            this.renderQuestSteps(this.questSteps)
+        }
+    }
+
+    updateObjectiveType(stepIndex, objIndex, newType) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].objectives[objIndex]) {
+            const objective = this.questSteps[stepIndex].objectives[objIndex]
+            objective.type = newType
+            
+            // Reset type-specific fields
+            delete objective.itemId
+            delete objective.tradePokemon
+            delete objective.receivePokemon
+            delete objective.validationDialogue
+            
+            this.renderQuestSteps(this.questSteps)
+        }
+    }
+
+    updateObjectiveField(stepIndex, objIndex, field, value) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].objectives[objIndex]) {
+            this.questSteps[stepIndex].objectives[objIndex][field] = value
+        }
+    }
+
+    updateObjectiveValidation(stepIndex, objIndex, value) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].objectives[objIndex]) {
+            this.questSteps[stepIndex].objectives[objIndex].validationDialogue = 
+                value.split('\n').filter(line => line.trim())
+        }
+    }
+
+    addRewardToStep(stepIndex) {
+        if (!this.questSteps[stepIndex]) return
+        
+        const newReward = {
+            type: 'gold',
+            amount: 100
+        }
+        
+        if (!this.questSteps[stepIndex].rewards) {
+            this.questSteps[stepIndex].rewards = []
+        }
+        
+        this.questSteps[stepIndex].rewards.push(newReward)
+        this.renderQuestSteps(this.questSteps)
+    }
+
+    removeReward(stepIndex, rewardIndex) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].rewards) {
+            this.questSteps[stepIndex].rewards.splice(rewardIndex, 1)
+            this.renderQuestSteps(this.questSteps)
+        }
+    }
+
+    updateRewardField(stepIndex, rewardIndex, field, value) {
+        if (this.questSteps[stepIndex] && this.questSteps[stepIndex].rewards[rewardIndex]) {
+            this.questSteps[stepIndex].rewards[rewardIndex][field] = value
         }
     }
 
@@ -384,6 +614,7 @@ ${questData.steps.map((step, i) => `
 Étape ${i + 1}: ${step.name}
   Description: ${step.description}
   Objectifs: ${step.objectives.length}
+  Récompenses: ${step.rewards.length}
 `).join('')}
 
 Dialogues:
@@ -475,7 +706,7 @@ Dialogues:
     cleanup() {
         this.currentQuest = null
         this.questSteps = []
-        console.log('🧹 [Quests] Module cleanup completed')
+        console.log('🧹 [Quests] Enhanced module cleanup completed')
     }
 }
 
