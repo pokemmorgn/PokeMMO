@@ -359,12 +359,14 @@ async sendObjectInteraction(object, options = {}) {
     // ✅ CORRECTION : Données supplémentaires avec les bonnes propriétés
     const additionalData = {
       objectName: object.name || object.objectId || objectId,
-      objectType: objectType, // ✅ Utilise le type détecté
-      interactionType: this.state.currentInteractionType, // ✅ Type détecté ("pokeball")
-      properties: object.objectData || object.properties,
+      objectType: objectType, // ← "pokeball" (détecté client)
+      name: object.properties?.name || object.name, // ← "loveball" (spécifique)
+      interactionType: this.state.currentInteractionType,
+      // ✅ NE PLUS ENVOYER properties.type qui est "unknown"
+      // properties: object.objectData || object.properties, // ← SUPPRIMER ÇA
       ...options
     };
-    
+        
     // ✅ LOG DEBUG pour vérifier les valeurs
     console.log('[ObjectInteractionManager] 🔍 DEBUG ENVOI:', {
       objectId,
