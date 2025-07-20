@@ -1128,16 +1128,37 @@ detectObjectInteractionType(object) {
     ) || null;
   }
 
-  removeObjectFromScene(object) {
-    console.log(`[ObjectInteractionManager] 🗑️ Suppression objet de la scène: ${object?.name || object?.id}`);
-    
-    // ✅ À implémenter selon la structure de la scène
-    // TODO: Supprimer l'objet de la scène Phaser
-    
-    // ✅ Supprimer du cache
-    this.objectCache.nearbyObjects = this.objectCache.nearbyObjects.filter(obj => obj !== object);
-    this.objectCache.interactableObjects = this.objectCache.interactableObjects.filter(obj => obj !== object);
+removeObjectFromScene(object) {
+  console.log(`[ObjectInteractionManager] 🗑️ Suppression objet de la scène: ${object?.name || object?.id}`);
+  
+  // ✅ NOUVELLE LOGIQUE - Suppression via ObjectManager de la scène
+  if (this.scene && this.scene.objectManager) {
+    try {
+      // Trouver l'objet par ID dans ObjectManager
+      const objectId = object?.objectId || object?.id || this.state.lastInteractedObject?.objectId;
+      
+      if (objectId) {
+        console.log(`[ObjectInteractionManager] 🎯 Tentative suppression objectId: ${objectId}`);
+        
+        // Appeler la méthode de suppression du ObjectManager de la scène
+        const removed = this.scene.objectManager.removeObjectById(objectId);
+        
+        if (removed) {
+          console.log(`[ObjectInteractionManager] ✅ Objet ${objectId} supprimé de la scène`);
+        } else {
+          console.warn(`[ObjectInteractionManager] ⚠️ Objet ${objectId} non trouvé pour suppression`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('[ObjectInteractionManager] ❌ Erreur suppression objet:', error);
+    }
   }
+  
+  // ✅ Supprimer du cache local
+  this.objectCache.nearbyObjects = this.objectCache.nearbyObjects.filter(obj => obj !== object);
+  this.objectCache.interactableObjects = this.objectCache.interactableObjects.filter(obj => obj !== object);
+}
 
   handleInteractionError(error, object = null, data = null) {
     console.error('[ObjectInteractionManager] ❌ Erreur interaction:', error);
