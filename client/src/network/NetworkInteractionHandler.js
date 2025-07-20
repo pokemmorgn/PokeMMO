@@ -322,34 +322,27 @@ export class NetworkInteractionHandler {
 
   // === ENVOI D'INTERACTIONS ===
 
-  sendObjectInteract(objectId, objectType = null, position = null, additionalData = {}) {
+  sendObjectInteract(objectId) {
     // ✅ NOUVEAU : Vérification handlers avant envoi
     if (!this.ensureHandlersReady()) {
       console.error('[NetworkInteractionHandler] ❌ Handlers pas prêts, envoi impossible');
       return false;
     }
-
+  
     if (!this.canSendInteraction()) {
       return false;
     }
-
+  
     this.debugCounters.objectInteractions++;
-    console.log(`[NetworkInteractionHandler] 📤 === OBJECT INTERACT #${this.debugCounters.objectInteractions} ===`);
+    console.log(`[NetworkInteractionHandler] 📤 === OBJECT INTERACT SIMPLIFIÉ #${this.debugCounters.objectInteractions} ===`);
     console.log('[NetworkInteractionHandler] Object ID:', objectId);
-    console.log('[NetworkInteractionHandler] Type:', objectType);
-    console.log('[NetworkInteractionHandler] Position:', position);
-
+  
     try {
+      // ✅ PAYLOAD SIMPLIFIÉ - SEULEMENT L'ESSENTIEL
       const interactionData = {
-        objectId: objectId,
-        objectType: objectType,
-        position: position,
-        timestamp: Date.now(),
-        zone: this.networkManager.currentZone,
-        sessionId: this.networkManager.sessionId,
-        ...additionalData
+        objectId: objectId
       };
-
+  
       // ✅ Ajouter position du joueur si disponible
       if (this.networkManager.myPlayerData) {
         interactionData.playerPosition = {
@@ -357,30 +350,18 @@ export class NetworkInteractionHandler {
           y: this.networkManager.myPlayerData.y
         };
       }
-
-      console.log('[NetworkInteractionHandler] 📤 Envoi objectInteract:', interactionData);
-
-      console.log('[NetworkInteractionHandler] 🔍 === DEBUG PAYLOAD COMPLET ===');
-      console.log('📤 objectId:', interactionData.objectId);
-      console.log('📤 objectType:', interactionData.objectType);  
-      console.log('📤 zone:', interactionData.zone);
-      console.log('📤 position:', interactionData.position);
-      console.log('📤 PAYLOAD COMPLET:', JSON.stringify(interactionData, null, 2));
+  
+      console.log('[NetworkInteractionHandler] 📤 Payload simplifié:', interactionData);
       
       const room = this.networkManager.room;
-      // Dans NetworkInteractionHandler.sendObjectInteract(), JUSTE AVANT room.send() :
-      console.log('[NetworkInteractionHandler] 🔍 DONNÉES VRAIMENT ENVOYÉES À LA ROOM:');
-      console.log('Message type:', "objectInteract");
-      console.log('Data envoyée:', JSON.stringify(interactionData, null, 2));
-      
       room.send("objectInteract", interactionData);
       
       // ✅ Tracking de l'interaction
       this.trackInteraction('object', interactionData);
       
-      console.log('[NetworkInteractionHandler] ✅ Interaction objet envoyée');
+      console.log('[NetworkInteractionHandler] ✅ Interaction objet envoyée (format simplifié)');
       return true;
-
+  
     } catch (error) {
       console.error('[NetworkInteractionHandler] ❌ Erreur envoi objectInteract:', error);
       this.handleSendError('objectInteract', error);
