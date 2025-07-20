@@ -1074,9 +1074,9 @@ router.get('/players/:username/pokedex', requireMacAndDev, async (req: any, res)
 
     // Récupérer les stats du Pokédex
     let stats = await PokedexStats.findOne({ playerId: username });
-    if (!stats) {
-      stats = await PokedexStats.findOrCreate(username);
-    }
+if (!stats) {
+  stats = await PokedexStats.findOrCreate(username) as any;
+}
 
     // Récupérer quelques entrées récentes
     const recentEntries = await PokedexEntry.find({ playerId: username })
@@ -1137,9 +1137,9 @@ router.get('/players/:username/stats', requireMacAndDev, async (req: any, res) =
     
     // Stats Pokédex
     let pokedexStats = await PokedexStats.findOne({ playerId: username });
-    if (!pokedexStats) {
-      pokedexStats = await PokedexStats.findOrCreate(username);
-    }
+if (!pokedexStats) {
+  pokedexStats = await PokedexStats.findOrCreate(username) as any;
+}
 
     // Stats inventaire
     const inventory = await Inventory.findOne({ username });
