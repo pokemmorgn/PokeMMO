@@ -356,22 +356,22 @@ async sendObjectInteraction(object, options = {}) {
       ? { x: object.x, y: object.y }
       : null;
     
-    // ✅ AJOUTER CE DEBUG ICI :
-    console.log('[ObjectInteractionManager] 🔍 DEBUG OBJET COMPLET:');
-    console.log('object:', object);
-    console.log('object.properties:', object.properties);
-    console.log('object.objectData:', object.objectData);
-    console.log('object.name:', object.name);
-    console.log('object.properties?.name:', object.properties?.name);
+    // ✅ CORRECTION : Récupérer le nom depuis objectData en PRIORITÉ
+    const itemName = object.objectData?.name || object.properties?.name || object.name || '';
+    
+    console.log('[ObjectInteractionManager] 🔍 DEBUG NAME:', {
+      'objectData.name': object.objectData?.name,
+      'properties.name': object.properties?.name,
+      'object.name': object.name,
+      'itemName final': itemName
+    });
     
     // ✅ CORRECTION : Données supplémentaires avec les bonnes propriétés
     const additionalData = {
       objectName: object.name || object.objectId || objectId,
       objectType: objectType, // ← "pokeball" (détecté client)
-      name: object.properties?.name || object.name, // ← "loveball" (spécifique)
+      name: itemName, // ← "loveball" depuis objectData ✅
       interactionType: this.state.currentInteractionType,
-      // ✅ NE PLUS ENVOYER properties.type qui est "unknown"
-      // properties: object.objectData || object.properties, // ← SUPPRIMER ÇA
       ...options
     };
         
@@ -379,14 +379,14 @@ async sendObjectInteraction(object, options = {}) {
     console.log('[ObjectInteractionManager] 🔍 DEBUG ENVOI:', {
       objectId,
       objectType,
-      currentInteractionType: this.state.currentInteractionType,
-      objectObjectType: object.objectType
+      name: itemName, // ← Vérifier que c'est "loveball"
+      currentInteractionType: this.state.currentInteractionType
     });
     
     // ✅ Envoyer via NetworkHandler
     const result = this.networkHandler.sendObjectInteract(
       objectId,
-      objectType, // ✅ Maintenant ça devrait être "pokeball" !
+      objectType,
       objectPosition,
       additionalData
     );
