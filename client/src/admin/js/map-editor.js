@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Map Editor Module (Version avec correction DPI)
+// PokeWorld Admin Panel - Map Editor Module (Version avec support tilesets Tiled)
 
 export class MapEditorModule {
     constructor(adminPanel) {
@@ -11,13 +11,15 @@ export class MapEditorModule {
         this.zoom = 1
         this.tileSize = 16
         this.dpi = window.devicePixelRatio || 1
+        this.tilesets = new Map() // Cache des tilesets chargés
+        this.tilesetImages = new Map() // Cache des images de tilesets
         
-        console.log('🗺️ [MapEditor] Module initialized with DPI:', this.dpi)
+        console.log('🗺️ [MapEditor] Module initialized with tileset support, DPI:', this.dpi)
         this.init()
     }
 
     init() {
-        console.log('🗺️ [MapEditor] Initialisation terminée - onglet déjà présent dans le HTML')
+        console.log('🗺️ [MapEditor] Initialisation terminée - support des tilesets Tiled activé')
     }
 
     // Fonction pour corriger le DPI du canvas
@@ -102,6 +104,9 @@ export class MapEditorModule {
 
             this.currentMapData = mapData
             
+            // Charger les tilesets de la carte
+            await this.loadTilesets(mapData)
+            
             // Charger les objets existants
             await this.loadExistingObjects(mapId)
             
@@ -125,6 +130,98 @@ export class MapEditorModule {
             console.error('❌ [MapEditor] Error loading map:', error)
             this.adminPanel.showNotification('Erreur chargement carte: ' + error.message, 'error')
         }
+    }
+
+    async loadTilesets(mapData) {
+        console.log('🖼️ [MapEditor] Loading tilesets...')
+        
+        if (!mapData.tilesets || mapData.tilesets.length === 0) {
+            console.warn('🖼️ [MapEditor] No tilesets found in map')
+            return
+        }
+
+        const promises = mapData.tilesets.map(async (tileset) => {
+            try {
+                // Si c'est un tileset intégré
+                if (tileset.tiles || tileset.image) {
+                    return this.processTileset(tileset)
+                }
+                
+                // Si c'est un tileset externe (fichier .tsj)
+                if (tileset.source) {
+                    const tilesetPath = `/assets/maps/${tileset.source}`
+                    console.log(`🖼️ [MapEditor] Loading external tileset: ${tilesetPath}`)
+                    
+                    try {
+                        const response = await fetch(tilesetPath)
+                        if (!response.ok) throw new Error(`Tileset not found: ${tilesetPath}`)
+                        const externalTileset = await response.json()
+                        
+                        // Fusionner les propriétés
+                        const fullTileset = {
+                            ...externalTileset,
+                            firstgid: tileset.firstgid
+                        }
+                        
+                        return this.processTileset(fullTileset)
+                    } catch (error) {
+                        console.error(`❌ [MapEditor] Error loading external tileset ${tilesetPath}:`, error)
+                        return null
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ [MapEditor] Error processing tileset:', error)
+                return null
+            }
+        })
+
+        await Promise.all(promises)
+        console.log(`✅ [MapEditor] ${this.tilesets.size} tilesets loaded`)
+    }
+
+    async processTileset(tileset) {
+        if (!tileset.image) {
+            console.warn('🖼️ [MapEditor] Tileset without image:', tileset)
+            return null
+        }
+
+        const tilesetKey = tileset.firstgid || 1
+        
+        // Stocker les infos du tileset
+        this.tilesets.set(tilesetKey, {
+            firstgid: tileset.firstgid || 1,
+            tilewidth: tileset.tilewidth || 16,
+            tileheight: tileset.tileheight || 16,
+            tilecount: tileset.tilecount || 0,
+            columns: tileset.columns || 1,
+            image: tileset.image,
+            imagewidth: tileset.imagewidth || 256,
+            imageheight: tileset.imageheight || 256,
+            name: tileset.name || 'unnamed'
+        })
+
+        // Charger l'image du tileset
+        const imagePath = `/assets/maps/${tileset.image}`
+        console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
+        
+        return new Promise((resolve, reject) => {
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            
+            img.onload = () => {
+                this.tilesetImages.set(tilesetKey, img)
+                console.log(`✅ [MapEditor] Tileset image loaded: ${tileset.name} (${img.width}x${img.height})`)
+                resolve(img)
+            }
+            
+            img.onerror = (error) => {
+                console.error(`❌ [MapEditor] Failed to load tileset image: ${imagePath}`, error)
+                resolve(null) // Continue même si une image échoue
+            }
+            
+            img.src = imagePath
+        })
     }
 
     async loadExistingObjects(mapId) {
@@ -167,11 +264,13 @@ export class MapEditorModule {
         // Effacer le canvas
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
         
-        // Dessiner le fond (grille)
-        this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
-        
-        // Dessiner les layers de la carte
+        // Dessiner les layers de la carte (avec vraies textures)
         this.drawMapLayers(ctx, tileWidth, tileHeight)
+        
+        // Dessiner la grille par-dessus (optionnel)
+        if (this.zoom >= 0.5) { // Seulement si pas trop dézoomé
+            this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
+        }
         
         // Dessiner les objets placés
         this.drawPlacedObjects(ctx, tileWidth, tileHeight)
@@ -183,7 +282,7 @@ export class MapEditorModule {
     }
 
     drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight) {
-        ctx.strokeStyle = '#e0e0e0'
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)'
         ctx.lineWidth = 1 / this.dpi // Ajuster pour le DPI
         
         // Lignes verticales
@@ -204,30 +303,119 @@ export class MapEditorModule {
     }
 
     drawMapLayers(ctx, tileWidth, tileHeight) {
-        // Version simplifiée : dessiner un fond coloré basé sur les tile IDs
-        this.currentMapData.layers.forEach(layer => {
-            if (layer.type === 'tilelayer' && layer.data) {
-                for (let i = 0; i < layer.data.length; i++) {
-                    const tileId = layer.data[i]
-                    if (tileId > 0) {
-                        const x = (i % this.currentMapData.width) * tileWidth
-                        const y = Math.floor(i / this.currentMapData.width) * tileHeight
-                        
-                        // Colorer selon l'ID de tile (version simplifiée)
-                        const hue = (tileId * 137) % 360
-                        ctx.fillStyle = `hsla(${hue}, 30%, 80%, 0.8)`
-                        ctx.fillRect(x, y, tileWidth, tileHeight)
-                        
-                        // Ajouter le numéro de tile pour debug
-                        ctx.fillStyle = '#333'
-                        ctx.font = `${Math.max(8, tileWidth * 0.3)}px Arial`
-                        ctx.textAlign = 'center'
-                        ctx.textBaseline = 'middle'
-                        ctx.fillText(tileId.toString(), x + tileWidth/2, y + tileHeight/2)
-                    }
-                }
-            }
+        if (!this.currentMapData.layers) {
+            console.warn('🗺️ [MapEditor] No layers found in map')
+            return
+        }
+
+        // Trier les layers par ordre (les plus bas en premier)
+        const sortedLayers = this.currentMapData.layers
+            .filter(layer => layer.type === 'tilelayer' && layer.data && layer.visible !== false)
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+        sortedLayers.forEach(layer => {
+            this.drawTileLayer(ctx, layer, tileWidth, tileHeight)
         })
+    }
+
+    drawTileLayer(ctx, layer, tileWidth, tileHeight) {
+        if (!layer.data || layer.data.length === 0) {
+            return
+        }
+
+        const mapWidth = this.currentMapData.width
+        const opacity = layer.opacity || 1
+
+        // Sauvegarder l'état du contexte pour l'opacité
+        ctx.save()
+        ctx.globalAlpha = opacity
+
+        for (let i = 0; i < layer.data.length; i++) {
+            const tileId = layer.data[i]
+            if (tileId === 0) continue // Tile vide
+
+            const tileX = i % mapWidth
+            const tileY = Math.floor(i / mapWidth)
+            const x = tileX * tileWidth
+            const y = tileY * tileHeight
+
+            // Trouver le tileset approprié pour ce tile
+            const tilesetInfo = this.findTilesetForTile(tileId)
+            if (tilesetInfo) {
+                this.drawTile(ctx, tileId, tilesetInfo, x, y, tileWidth, tileHeight)
+            } else {
+                // Fallback: dessiner un carré coloré si pas de tileset
+                ctx.fillStyle = `hsl(${(tileId * 137) % 360}, 50%, 70%)`
+                ctx.fillRect(x, y, tileWidth, tileHeight)
+                
+                // Numéro du tile pour debug
+                ctx.fillStyle = '#000'
+                ctx.font = `${Math.max(8, tileWidth * 0.2)}px Arial`
+                ctx.textAlign = 'center'
+                ctx.textBaseline = 'middle'
+                ctx.fillText(tileId.toString(), x + tileWidth/2, y + tileHeight/2)
+            }
+        }
+
+        ctx.restore()
+    }
+
+    findTilesetForTile(tileId) {
+        // Trouver le tileset qui contient ce tile ID
+        let bestTileset = null
+        let bestFirstgid = 0
+
+        for (const [key, tileset] of this.tilesets) {
+            if (tileset.firstgid <= tileId && tileset.firstgid > bestFirstgid) {
+                bestTileset = tileset
+                bestFirstgid = tileset.firstgid
+            }
+        }
+
+        if (bestTileset && this.tilesetImages.has(bestFirstgid)) {
+            return {
+                tileset: bestTileset,
+                image: this.tilesetImages.get(bestFirstgid),
+                localTileId: tileId - bestTileset.firstgid
+            }
+        }
+
+        return null
+    }
+
+    drawTile(ctx, tileId, tilesetInfo, x, y, tileWidth, tileHeight) {
+        const { tileset, image, localTileId } = tilesetInfo
+
+        if (!image || !image.complete) {
+            // Image pas encore chargée, dessiner un placeholder
+            ctx.fillStyle = '#ddd'
+            ctx.fillRect(x, y, tileWidth, tileHeight)
+            ctx.fillStyle = '#999'
+            ctx.font = `${Math.max(8, tileWidth * 0.2)}px Arial`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText('...', x + tileWidth/2, y + tileHeight/2)
+            return
+        }
+
+        // Calculer la position du tile dans le tileset
+        const tilesPerRow = tileset.columns || Math.floor(tileset.imagewidth / tileset.tilewidth)
+        const sourceX = (localTileId % tilesPerRow) * tileset.tilewidth
+        const sourceY = Math.floor(localTileId / tilesPerRow) * tileset.tileheight
+
+        // Dessiner le tile
+        try {
+            ctx.drawImage(
+                image,
+                sourceX, sourceY, tileset.tilewidth, tileset.tileheight, // Source
+                x, y, tileWidth, tileHeight // Destination
+            )
+        } catch (error) {
+            console.warn(`🖼️ [MapEditor] Error drawing tile ${tileId}:`, error)
+            // Fallback
+            ctx.fillStyle = '#f00'
+            ctx.fillRect(x, y, tileWidth, tileHeight)
+        }
     }
 
     drawPlacedObjects(ctx, tileWidth, tileHeight) {
@@ -235,15 +423,16 @@ export class MapEditorModule {
             const x = obj.x * tileWidth
             const y = obj.y * tileHeight
             
-            // Couleur selon le type
+            // Couleur selon le type avec transparence
             const colors = {
-                npc: '#ff6b6b',
-                object: '#4ecdc4', 
-                spawn: '#45b7d1',
-                teleport: '#9b59b6'
+                npc: 'rgba(255, 107, 107, 0.8)',
+                object: 'rgba(78, 205, 196, 0.8)', 
+                spawn: 'rgba(69, 183, 209, 0.8)',
+                teleport: 'rgba(155, 89, 182, 0.8)'
             }
             
-            ctx.fillStyle = colors[obj.type] || '#95a5a6'
+            // Fond coloré
+            ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
             ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
             // Bordure
@@ -264,6 +453,16 @@ export class MapEditorModule {
                 teleport: '🌀'
             }
             
+            // Ombre du texte
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+            ctx.fillText(
+                icons[obj.type] || '?',
+                x + tileWidth / 2 + 1,
+                y + tileHeight / 2 + 1
+            )
+            
+            // Texte principal
+            ctx.fillStyle = 'white'
             ctx.fillText(
                 icons[obj.type] || '?',
                 x + tileWidth / 2,
@@ -477,6 +676,8 @@ export class MapEditorModule {
         this.currentMapData = null
         this.availableMaps = []
         this.placedObjects = []
+        this.tilesets.clear()
+        this.tilesetImages.clear()
         
         console.log('🧹 [MapEditor] Module cleanup completed')
     }
