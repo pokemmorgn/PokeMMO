@@ -202,8 +202,15 @@ export class MapEditorModule {
         })
 
         // Charger l'image du tileset
-        const imagePath = `/assets/sprites/${tileset.image}`
-        console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
+// Nettoyer le chemin de l'image (supprimer ../ et _Sprites/)
+const cleanImageName = tileset.image
+    .replace(/\.\.\//g, '')           // Supprimer ../
+    .replace(/\/_Sprites\//g, '/')    // Supprimer /_Sprites/
+    .replace(/^_Sprites\//, '')       // Supprimer _Sprites/ au début
+    .split('/').pop()                 // Garder seulement le nom du fichier
+
+const imagePath = `/assets/sprites/${cleanImageName}`
+    console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
         
         return new Promise((resolve, reject) => {
             const img = new Image()
