@@ -1,5 +1,6 @@
 // Inventory/InventoryIcon.js - CORRIGÉ pour UIManager complet
 // 🎯 UIManager prend le contrôle TOTAL - aucune position manuelle
+// ✅ Délégation propre vers module parent pour canOpenUI
 
 export class InventoryIcon {
   constructor(inventoryUI) {
@@ -303,17 +304,15 @@ export class InventoryIcon {
   
   // === 📍 MÉTHODES UIMANAGER ===
   
-
-onPositioned(position) {
-  console.log('📍 [InventoryIcon] Position reçue de UIManager:', position);
-  
-  if (this.iconElement) {
-    this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-    this.iconElement.setAttribute('data-position', JSON.stringify(position));
-    console.log('✅ [InventoryIcon] Position UIManager confirmée');
+  onPositioned(position) {
+    console.log('📍 [InventoryIcon] Position reçue de UIManager:', position);
+    
+    if (this.iconElement) {
+      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+      this.iconElement.setAttribute('data-position', JSON.stringify(position));
+      console.log('✅ [InventoryIcon] Position UIManager confirmée');
+    }
   }
-}
-
   
   isPositionedByUIManager() {
     return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
@@ -339,7 +338,7 @@ onPositioned(position) {
     };
   }
   
-  // === 📊 MISE À JOUR DONNÉES (inchangé) ===
+  // === 📊 MISE À JOUR DONNÉES ===
   
   updateNotification(show = true, count = 0) {
     if (!this.iconElement) return;
@@ -361,7 +360,33 @@ onPositioned(position) {
     }
   }
   
-  // === 🎛️ ÉVÉNEMENTS (inchangé) ===
+  // === 🔍 VÉRIFICATION OUVERTURE UI - DÉLÉGATION PROPRE ===
+  
+  canOpenUI() {
+    // ✅ DÉLÉGATION VERS MODULE PARENT (architecture propre)
+    if (window.inventorySystemGlobal && window.inventorySystemGlobal.canOpenUI) {
+      return window.inventorySystemGlobal.canOpenUI();
+    }
+    
+    // ✅ FALLBACK VERS UIMANAGER (règles globales)
+    if (window.uiManager && window.uiManager.canShowModule) {
+      return window.uiManager.canShowModule('inventory');
+    }
+    
+    // ✅ FALLBACK SIMPLE (état local seulement)
+    return this.isEnabled;
+  }
+  
+  showCannotOpenMessage() {
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification('Cannot open inventory right now', 'warning', {
+        duration: 2000,
+        position: 'bottom-center'
+      });
+    }
+  }
+  
+  // === 🎛️ ÉVÉNEMENTS CORRIGÉS ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -380,10 +405,15 @@ onPositioned(position) {
         this.iconElement.classList.remove('opening');
       }, 600);
       
-      if (this.onClick) {
-        this.onClick();
-      } else if (this.inventoryUI) {
-        this.inventoryUI.toggle();
+      // ✅ FIX: Vérification via délégation + contexte this correct
+      if (this.canOpenUI()) {
+        if (this.onClick) {
+          this.onClick();
+        } else if (this.inventoryUI) {
+          this.inventoryUI.toggle();
+        }
+      } else {
+        this.showCannotOpenMessage();
       }
       
       console.log('🎒 [InventoryIcon] Clic détecté');
@@ -462,7 +492,7 @@ onPositioned(position) {
     }
   }
   
-  // === 🎭 ANIMATIONS (inchangées) ===
+  // === 🎭 ANIMATIONS ===
   
   animateNewItem() {
     if (!this.iconElement) return;
@@ -512,6 +542,12 @@ onPositioned(position) {
       uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
+      canOpenUI: this.canOpenUI(),
+      delegationChain: {
+        inventorySystemGlobal: !!window.inventorySystemGlobal?.canOpenUI,
+        uiManager: !!window.uiManager?.canShowModule,
+        fallback: this.isEnabled
+      },
       elementStyles: this.iconElement ? {
         position: this.iconElement.style.position,
         left: this.iconElement.style.left,
@@ -531,25 +567,27 @@ onPositioned(position) {
 export default InventoryIcon;
 
 console.log(`
-🎒 === INVENTORY ICON CORRIGÉ POUR UIMANAGER ===
+🎒 === INVENTORY ICON AVEC DÉLÉGATION PROPRE ===
 
 ❌ SUPPRIMÉ:
 • Position CSS fixe (bottom: 20px, right: 20px)
 • setFallbackPosition() - écrasait UIManager
 • Tout positionnement manuel en CSS et JS
+• Logique métier dans l'icône (mauvaise architecture)
 
 ✅ AJOUTÉ:
 • uiManagerControlled flag
 • onPositioned() callback pour UIManager
 • Styles sans position fixe
 • Position relative tooltip corrigée
+• Délégation propre vers module parent
+• Architecture en couches respectée
 
-📍 FONCTIONNEMENT:
-1. InventoryIcon crée l'élément SANS position
-2. UIManager.registerIconPosition() prend le contrôle
-3. UIManager.positionIcon() définit position/left/top
-4. Tooltip utilise getBoundingClientRect() pour position actuelle
+📍 DÉLÉGATION:
+1. InventoryIcon.canOpenUI() → inventorySystemGlobal.canOpenUI()
+2. Fallback → uiManager.canShowModule('inventory')  
+3. Fallback → this.isEnabled
 
 🎯 RÉSULTAT:
-UIManager contrôle 100% du positionnement !
+Architecture propre + UIManager contrôle 100% du positionnement !
 `);
