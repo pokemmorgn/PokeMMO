@@ -1,4 +1,6 @@
-// Inventory/InventoryUI.js - Interface Inventory PROPRE avec gestion d'affichage corrigée
+// Inventory/InventoryUI.js - VERSION NETTOYÉE
+// 🎯 RESPONSABILITÉ: Gestion de l'interface utilisateur SEULEMENT
+// 🔗 DÉLÉGATION: Aucune - se contente d'afficher/masquer
 
 import { INVENTORY_UI_STYLES } from './InventoryUICSS.js';
 
@@ -48,9 +50,8 @@ export class InventoryUI {
     this.createInventoryInterface();
     this.addStyles();
     this.setupServerListeners();
-    // ✅ NE PAS attacher les événements ici - ils seront attachés à l'ouverture
     
-    // ✅ FERMER PAR DÉFAUT (important pour UIManager)
+    // ✅ FERMER PAR DÉFAUT
     this.forceClose();
     
     console.log('🎒 Interface d\'inventaire initialisée et fermée par défaut');
@@ -159,17 +160,14 @@ export class InventoryUI {
     console.log('🎨 [InventoryUI] Styles modulaires appliqués');
   }
 
-  // ✅ NOUVELLE MÉTHODE: Fermeture forcée propre
+  // ✅ FERMETURE FORCÉE PROPRE
   forceClose() {
     console.log('🔒 [InventoryUI] Fermeture forcée...');
     
     this.isVisible = false;
     
     if (this.overlay) {
-      // Supprimer toutes les classes d'animation
       this.overlay.classList.remove('ui-fade-in', 'ui-fade-out');
-      
-      // Forcer masquage complet
       this.overlay.classList.add('hidden');
       this.overlay.style.display = 'none';
       this.overlay.style.opacity = '0';
@@ -177,14 +175,13 @@ export class InventoryUI {
       this.overlay.style.pointerEvents = 'none';
     }
     
-    // Reset état
     this.selectedItem = null;
     this._eventsAttached = false;
     
     console.log('✅ [InventoryUI] Fermé complètement');
   }
 
-  // ✅ MÉTHODE SHOW CORRIGÉE
+  // ✅ MÉTHODE SHOW NETTOYÉE
   show() {
     if (this.isVisible) {
       console.log('ℹ️ [InventoryUI] Déjà ouvert');
@@ -196,17 +193,13 @@ export class InventoryUI {
     this.isVisible = true;
     
     if (this.overlay) {
-      // Supprimer les classes de masquage
       this.overlay.classList.remove('hidden', 'ui-hidden', 'ui-fade-out');
-      
-      // Afficher avec styles corrects
       this.overlay.style.display = 'flex';
       this.overlay.style.opacity = '1';
       this.overlay.style.visibility = 'visible';
       this.overlay.style.pointerEvents = 'auto';
       this.overlay.style.zIndex = '1000';
       
-      // Animation d'entrée
       this.overlay.classList.add('ui-fade-in');
       setTimeout(() => {
         this.overlay.classList.remove('ui-fade-in');
@@ -229,7 +222,7 @@ export class InventoryUI {
     console.log('✅ [InventoryUI] Inventaire ouvert');
   }
 
-  // ✅ MÉTHODE HIDE CORRIGÉE
+  // ✅ MÉTHODE HIDE NETTOYÉE
   hide() {
     if (!this.isVisible) {
       console.log('ℹ️ [InventoryUI] Déjà fermé');
@@ -241,14 +234,11 @@ export class InventoryUI {
     this.isVisible = false;
     
     if (this.overlay) {
-      // Animation de sortie rapide
       this.overlay.classList.add('ui-fade-out');
       
       setTimeout(() => {
         this.overlay.classList.add('hidden');
         this.overlay.classList.remove('ui-fade-out');
-        
-        // Forcer masquage complet
         this.overlay.style.display = 'none';
         this.overlay.style.opacity = '0';
         this.overlay.style.visibility = 'hidden';
@@ -256,7 +246,6 @@ export class InventoryUI {
       }, 150);
     }
     
-    // Reset sélection
     this.selectedItem = null;
     this.updateItemDetails();
     
@@ -272,7 +261,7 @@ export class InventoryUI {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: S'assurer que les événements sont attachés
+  // ✅ S'ASSURER QUE LES ÉVÉNEMENTS SONT ATTACHÉS
   ensureEventListeners() {
     if (this._eventsAttached) {
       console.log('ℹ️ [InventoryUI] Événements déjà attachés');
@@ -766,7 +755,7 @@ export class InventoryUI {
     }, 3000);
   }
 
-  // === MÉTHODES PUBLIQUES POUR L'INTÉGRATION ===
+  // === 🔧 MÉTHODES PUBLIQUES POUR L'INTÉGRATION ===
 
   openToPocket(pocketName) {
     this.show();
@@ -791,13 +780,7 @@ export class InventoryUI {
     }
   }
 
-  canPlayerInteract() {
-    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
-    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-    
-    return !this.isVisible && !questDialogOpen && !chatOpen && !starterHudOpen;
-  }
+  // ✅ SUPPRIMÉ canPlayerInteract() - plus de vérifications redondantes
 
   handleKeyPress(key) {
     if (!this.isVisible) return false;
@@ -894,3 +877,22 @@ export class InventoryUI {
     console.log('✅ [InventoryUI] Détruit');
   }
 }
+
+console.log(`
+🎒 === INVENTORY UI NETTOYÉ ===
+
+✅ RESPONSABILITÉ CLAIRE:
+• Gestion interface utilisateur uniquement
+• Affichage/masquage des éléments
+• Aucune vérification d'autorisation
+
+❌ SUPPRIMÉ:
+• canPlayerInteract() avec vérifications DOM
+• Toutes les vérifications métier
+• Délégations vers autres modules
+
+🎯 FOCALISÉ SUR:
+• show(), hide(), toggle()
+• Gestion des poches et objets
+• Événements interface seulement
+`);
