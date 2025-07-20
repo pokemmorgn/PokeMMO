@@ -51,10 +51,11 @@ export class AdminPanel {
         // Expose modules for easy access
         this.dashboard = this.modules.dashboard
         this.players = this.modules.players
-        this.playersAdvanced = this.modules.playersAdvanced  // ← Ajoutez cette ligne
+        this.playersAdvanced = this.modules.playersAdvanced
         this.quests = this.modules.quests
         this.logsTools = this.modules.logsTools
-        this.questGenerator = this.modules.questGenerator  // ← Ajout de cette ligne
+        this.questGenerator = this.modules.questGenerator
+        this.mapEditor = this.modules.mapEditor // ← AJOUT du nouveau module
 
         
         console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
@@ -166,6 +167,9 @@ export class AdminPanel {
                 break
             case 'tools':
                 // Pas d'action spécifique
+                break
+            case 'maps': // ← NOUVEAU CAS POUR L'ÉDITEUR DE CARTES
+                this.mapEditor?.onTabActivated()
                 break
         }
     }
