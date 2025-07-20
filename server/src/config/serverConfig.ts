@@ -71,7 +71,8 @@ export interface ServerConfig {
   chatCooldown: number;
 
   autoresetQuest?: boolean;
-
+  autoresetObjects?: boolean;
+  
   // ✅ SYSTÈMES TEMPS ET MÉTÉO
   timeSystem: TimeSystemConfig;
   weatherSystem: WeatherSystemConfig;
