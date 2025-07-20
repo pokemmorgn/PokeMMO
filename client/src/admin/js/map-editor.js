@@ -202,7 +202,7 @@ export class MapEditorModule {
         })
 
         // Charger l'image du tileset
-        const imagePath = `/assets/maps/${tileset.image}`
+        const imagePath = `/assets/sprites/${tileset.image}`
         console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
         
         return new Promise((resolve, reject) => {
