@@ -14,7 +14,10 @@ export class FollowerManager {
   // ✅ NOUVEAU: Gestion des transitions
   private playerTransitioning: Map<string, number> = new Map(); // Timestamp de début de transition
   private transitionGracePeriod = 5000; // 5 secondes de grâce après une transition
-  
+  // ✅ NOUVEAU: Optimisations anti-lag
+private lastFollowerUpdate: Map<string, number> = new Map(); // Timestamp dernière update
+private minUpdateInterval = 50; // 50ms minimum entre updates (20 FPS max)
+private lastPositionSent: Map<string, {x: number, y: number, direction: string, isMoving: boolean}> = new Map();
   // ✅ SÉCURITÉ: Limites de validation
   private readonly MAX_DISTANCE = 10;
   private readonly MIN_DISTANCE = 1;
@@ -30,13 +33,17 @@ export class FollowerManager {
   /**
    * ✅ NOUVEAU: Marquer un joueur comme en transition
    */
-  markPlayerTransitioning(playerId: string): void {
-    console.log(`🚪 [FollowerManager] Joueur ${playerId} en transition`);
-    this.playerTransitioning.set(playerId, Date.now());
-    
-    // Nettoyer le trail existant car on change de carte
-    this.playerTrail.delete(playerId);
-  }
+markPlayerTransitioning(playerId: string): void {
+  console.log(`🚪 [FollowerManager] Joueur ${playerId} en transition`);
+  this.playerTransitioning.set(playerId, Date.now());
+  
+  // Nettoyer le trail existant car on change de carte
+  this.playerTrail.delete(playerId);
+  
+  // ✅ NOUVEAU: Nettoyer aussi les caches d'optimisation
+  this.lastFollowerUpdate.delete(playerId);
+  this.lastPositionSent.delete(playerId);
+}
 
   /**
    * ✅ NOUVEAU: Vérifier si un joueur est en transition
@@ -111,6 +118,59 @@ export class FollowerManager {
     return validDirections.includes(direction);
   }
 
+  /**
+ * ✅ NOUVEAU: Vérifier si on doit envoyer une update (anti-spam)
+ */
+private shouldSendUpdate(playerId: string, newData: {x: number, y: number, direction: string, isMoving: boolean}): boolean {
+  const now = Date.now();
+  
+  // Rate limiting temporel
+  const lastUpdate = this.lastFollowerUpdate.get(playerId);
+  if (lastUpdate && now - lastUpdate < this.minUpdateInterval) {
+    return false; // Trop tôt pour une nouvelle update
+  }
+  
+  // Vérifier si les données ont vraiment changé
+  const lastPosition = this.lastPositionSent.get(playerId);
+  if (lastPosition) {
+    const positionChanged = lastPosition.x !== newData.x || lastPosition.y !== newData.y;
+    const directionChanged = lastPosition.direction !== newData.direction;
+    const movementChanged = lastPosition.isMoving !== newData.isMoving;
+    
+    // Si rien n'a changé, pas besoin d'update
+    if (!positionChanged && !directionChanged && !movementChanged) {
+      return false;
+    }
+    
+    // Si seule la position a bougé de très peu et qu'on n'est pas en mouvement, ignorer
+    if (!newData.isMoving && !directionChanged && !movementChanged && positionChanged) {
+      const distance = Math.sqrt(
+        Math.pow(newData.x - lastPosition.x, 2) + 
+        Math.pow(newData.y - lastPosition.y, 2)
+      );
+      
+      if (distance < 2) { // Moins de 2 pixels de différence
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * ✅ NOUVEAU: Marquer une update comme envoyée
+ */
+private markUpdateSent(playerId: string, data: {x: number, y: number, direction: string, isMoving: boolean}): void {
+  this.lastFollowerUpdate.set(playerId, Date.now());
+  this.lastPositionSent.set(playerId, {
+    x: data.x,
+    y: data.y,
+    direction: data.direction,
+    isMoving: data.isMoving
+  });
+}
+  
   /**
    * ✅ SÉCURITÉ: Méthode pour obtenir les limites de la carte
    */
@@ -259,6 +319,11 @@ export class FollowerManager {
       return;
     }
 
+    const updateData = { x: playerX, y: playerY, direction, isMoving };
+if (!this.shouldSendUpdate(playerId, updateData)) {
+  return; // Skip cette update pour éviter le spam
+}
+
     // Initialiser le trail si nécessaire
     if (!this.playerTrail.has(playerId)) {
       this.playerTrail.set(playerId, []);
@@ -369,6 +434,13 @@ export class FollowerManager {
   }
 
   /**
+ * ✅ NOUVEAU: Ajuster la fréquence des updates
+ */
+setUpdateInterval(intervalMs: number): void {
+  this.minUpdateInterval = Math.max(16, Math.min(500, intervalMs)); // Entre 16ms (60fps) et 500ms (2fps)
+  console.log(`⚡ [FollowerManager] Intervalle minimum entre updates: ${this.minUpdateInterval}ms`);
+}
+  /**
    * Supprime le follower d'un joueur
    */
   removePlayerFollower(playerId: string): void {
@@ -389,12 +461,15 @@ export class FollowerManager {
       this.lastDistanceChange.delete(playerId);
       // ✅ NOUVEAU: Nettoyer la transition
       this.playerTransitioning.delete(playerId);
-
+// ✅ NOUVEAU: Nettoyer les caches d'optimisation
+this.lastFollowerUpdate.delete(playerId);
+this.lastPositionSent.delete(playerId);
     } catch (error) {
       console.error(`❌ [FollowerManager] Erreur removePlayerFollower:`, error);
     }
   }
 
+  
   /**
    * Supprime tous les followers de la room
    */
