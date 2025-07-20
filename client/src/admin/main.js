@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Main Entry Point
+// client/src/admin/main.js - Mise à jour avec le module avancé
 
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
@@ -8,9 +8,10 @@ import './styles/components.css'
 import { AdminPanel } from './js/admin-panel.js'
 import { DashboardModule } from './js/dashboard.js'
 import { PlayersModule } from './js/players.js'
+import { PlayersAdvancedModule } from './js/players-advanced.js' // ← NOUVEAU MODULE
 import { QuestsModule } from './js/quests.js'
 import { LogsToolsModule } from './js/logs-tools.js'
-import { QuestGeneratorModule } from './js/quest-generator.js' // ← DÉPLACÉ ICI
+import { QuestGeneratorModule } from './js/quest-generator.js'
 
 // Global admin panel instance
 let adminPanel
@@ -23,13 +24,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Create main admin panel
         adminPanel = new AdminPanel()
         
-        // Load modules
+        // Load modules (ordre important : PlayersAdvancedModule après PlayersModule)
         adminPanel.loadModules([
             DashboardModule,
             PlayersModule,
+            PlayersAdvancedModule,  // ← AJOUT du nouveau module
             QuestsModule,
             LogsToolsModule,
-            QuestGeneratorModule  // ← Ajout du nouveau module
+            QuestGeneratorModule
         ])
         
         // Export for global access AFTER initialization
@@ -95,6 +97,15 @@ function setupGlobalFunctions() {
             return
         }
         adminPanel.players.resetPlayerData()
+    }
+
+    // ✅ NOUVELLES FONCTIONS POUR LE MODULE AVANCÉ
+    window.openAdvancedPlayerView = (username) => {
+        if (!adminPanel?.playersAdvanced) {
+            console.error('PlayersAdvanced module not loaded')
+            return
+        }
+        adminPanel.playersAdvanced.openAdvancedView(username)
     }
 
     // Quest Generator functions
