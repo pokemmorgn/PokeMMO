@@ -26,7 +26,8 @@
   "chatCooldown": 2,
 
   "autoresetQuest": true,
-
+  "autoresetObjects": true,
+  
   "timeSystem": {
     "enabled": true,
     "startHour": 12,
