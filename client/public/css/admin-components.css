@@ -496,3 +496,221 @@ details[open] summary {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
 }
+
+/* Styles pour le Map Editor */
+
+.map-editor-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+}
+
+.map-toolbar {
+    background: white;
+    padding: 15px;
+    border-bottom: 2px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+.btn-tool {
+    padding: 10px 16px;
+    margin: 0 4px;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #495057;
+}
+
+.btn-tool:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+.btn-tool.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.btn-tool i {
+    margin-right: 6px;
+}
+
+#mapCanvasContainer {
+    flex: 1;
+    background: #f8f9fa;
+    position: relative;
+    overflow: auto;
+    border-radius: 8px;
+    margin: 10px;
+}
+
+#mapCanvas {
+    display: none;
+    cursor: crosshair;
+    border: 2px solid #007bff;
+    border-radius: 8px;
+    margin: 20px;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+    background: white;
+}
+
+#objectsPanel {
+    width: 350px;
+    background: white;
+    border-left: 2px solid #e9ecef;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+}
+
+.object-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+
+.object-item:hover {
+    background: #e9ecef;
+    border-color: #007bff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+}
+
+.form-select, .form-input {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: white;
+    transition: border-color 0.3s ease;
+}
+
+.form-select:focus, .form-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: #007bff;
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    #objectsPanel {
+        width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .map-editor-container {
+        flex-direction: column;
+    }
+    
+    #objectsPanel {
+        width: 100%;
+        height: 300px;
+        border-left: none;
+        border-top: 2px solid #e9ecef;
+    }
+    
+    .map-toolbar {
+        padding: 10px;
+    }
+    
+    .map-toolbar > div {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #mapTools {
+        justify-content: center !important;
+        flex-wrap: wrap;
+    }
+    
+    .btn-tool {
+        margin: 2px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Animation pour le chargement */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* Styles pour les notifications de l'éditeur */
+.map-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Amélioration de l'affichage du canvas */
+#mapCanvas:hover {
+    border-color: #0056b3;
+}
+
+/* Style pour les coordonnées affichées */
+.coordinates-display {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    pointer-events: none;
+}
