@@ -27,6 +27,7 @@
 
   "autoresetQuest": true,
   "autoresetObjects": true,
+  "bypassObjectCooldowns": true, 
   
   "timeSystem": {
     "enabled": true,
