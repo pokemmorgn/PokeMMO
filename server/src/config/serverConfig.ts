@@ -72,6 +72,7 @@ export interface ServerConfig {
 
   autoresetQuest?: boolean;
   autoresetObjects?: boolean;
+  bypassObjectCooldowns?: boolean;
   
   // ✅ SYSTÈMES TEMPS ET MÉTÉO
   timeSystem: TimeSystemConfig;
