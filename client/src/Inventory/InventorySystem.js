@@ -1,4 +1,6 @@
-// client/src/game/InventorySystem.js - Adaptations pour NotificationManager
+// client/src/game/InventorySystem.js - VERSION NETTOYÉE
+// 🎯 RESPONSABILITÉ: Logique métier inventaire SEULEMENT
+// 🔗 DÉLÉGATION: Aucune vérification d'autorisation (BaseModule s'en charge)
 
 import { InventoryUI } from './InventoryUI.js';
 import { InventoryIcon } from './InventoryIcon.js';
@@ -10,7 +12,7 @@ export class InventorySystem {
     this.inventoryUI = null;
     this.inventoryIcon = null;
     
-    // ✅ NOUVEAU: Référence au NotificationManager
+    // ✅ Référence au NotificationManager
     this.notificationManager = window.NotificationManager;
     
     this.init();
@@ -51,7 +53,7 @@ export class InventorySystem {
       this.inventoryUI.updateInventoryData(data);
     });
 
-    // ✅ NOUVEAU: Mises à jour d'inventaire avec NotificationManager
+    // ✅ Mises à jour d'inventaire avec NotificationManager
     this.gameRoom.onMessage("inventoryUpdate", (data) => {
       this.inventoryUI.handleInventoryUpdate(data);
       this.inventoryIcon.onInventoryUpdate(data);
@@ -60,7 +62,7 @@ export class InventorySystem {
       this.showInventoryNotification(data);
     });
 
-    // ✅ NOUVEAU: Résultat d'utilisation d'objet
+    // ✅ Résultat d'utilisation d'objet
     this.gameRoom.onMessage("itemUseResult", (data) => {
       this.inventoryUI.handleItemUseResult(data);
       
@@ -77,18 +79,18 @@ export class InventorySystem {
       }
     });
 
-    // ✅ NOUVEAU: Notification d'objet ramassé
+    // ✅ Notification d'objet ramassé
     this.gameRoom.onMessage("itemPickup", (data) => {
       this.showPickupNotification(data);
     });
 
-    // ✅ NOUVEAU: Erreurs d'inventaire
+    // ✅ Erreurs d'inventaire
     this.gameRoom.onMessage("inventoryError", (data) => {
       this.notificationManager.error(data.message, { duration: 4000 });
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Notifications d'inventaire intelligentes
+  // ✅ Notifications d'inventaire intelligentes
   showInventoryNotification(data) {
     const itemName = this.inventoryUI.getItemName(data.itemId);
     const isAdd = data.type === "add";
@@ -138,7 +140,7 @@ export class InventorySystem {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Notification de ramassage
+  // ✅ Notification de ramassage
   showPickupNotification(data) {
     const itemName = this.inventoryUI.getItemName(data.itemId);
     
@@ -158,7 +160,7 @@ export class InventorySystem {
     this.inventoryIcon.showNewItemEffect();
   }
 
-  // ✅ NOUVELLE MÉTHODE: Déterminer si un objet est important
+  // ✅ Déterminer si un objet est important
   isImportantItem(itemId) {
     const importantItems = [
       'master_ball',
@@ -175,7 +177,7 @@ export class InventorySystem {
     return importantItems.includes(itemId);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Notification d'inventaire plein
+  // ✅ Notification d'inventaire plein
   onInventoryFull(pocketName) {
     this.notificationManager.warning(
       `Poche ${pocketName} pleine ! Impossible d'ajouter plus d'objets.`,
@@ -190,7 +192,7 @@ export class InventorySystem {
     this.inventoryIcon.setTemporaryIcon('⚠️', 3000);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Notification d'objet important obtenu
+  // ✅ Notification d'objet important obtenu
   onImportantItemObtained(itemId) {
     const itemName = this.inventoryUI.getItemName(itemId);
     
@@ -210,7 +212,7 @@ export class InventorySystem {
     this.inventoryIcon.setTemporaryIcon('⭐', 5000);
   }
 
-  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
+  // === NOTIFICATIONS POUR DIFFÉRENTS TYPES D'OBJETS ===
 
   notifyItemCombined(item1, item2, result) {
     this.notificationManager.success(
@@ -252,7 +254,7 @@ export class InventorySystem {
     );
   }
 
-  // === MÉTHODES POUR LES REPELS ET OBJETS SPÉCIAUX ===
+  // === NOTIFICATIONS REPELS ET OBJETS SPÉCIAUX ===
 
   notifyRepelActivated(repelType, steps) {
     this.notificationManager.inventory(
@@ -285,7 +287,7 @@ export class InventorySystem {
     );
   }
 
-  // === MÉTHODES POUR LES POKÉ BALLS ===
+  // === NOTIFICATIONS POKÉ BALLS ===
 
   notifyPokeBallUsed(ballType, result) {
     const messages = {
@@ -311,7 +313,7 @@ export class InventorySystem {
     );
   }
 
-  // === MÉTHODES POUR LES OBJETS DE SOIN ===
+  // === NOTIFICATIONS OBJETS DE SOIN ===
 
   notifyHealingItemUsed(itemName, pokemonName, effect) {
     this.notificationManager.success(
@@ -332,12 +334,11 @@ export class InventorySystem {
     );
   }
 
-  // === MÉTHODES CONSERVÉES ET ADAPTÉES ===
+  // === RACCOURCIS CLAVIER ===
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Ne pas traiter les raccourcis si on ne peut pas interagir
-      if (!this.canPlayerInteract()) return;
+      // ✅ SUPPRIMÉ canPlayerInteract() - BaseModule s'en charge
 
       switch (e.key.toLowerCase()) {
         case 'i':
@@ -376,33 +377,32 @@ export class InventorySystem {
     });
   }
 
-setupSystemIntegration() {
-  // Intégration avec le système de quêtes
-  if (window.questSystem) {
-    this.gameRoom?.onMessage("inventoryUpdate", (data) => {
-      if (data.type === 'add') {
-        window.questSystem.triggerCollectEvent(data.itemId, data.quantity);
-      }
-    });
-  }
-
-  // Intégration avec le chat
-  if (typeof window.isChatFocused === 'function') {
-    // On récupère l’input du chat (à adapter selon ton code)
-    const chatInput = document.querySelector('#chat-input'); // Mets le bon sélecteur !
-    if (chatInput) {
-      chatInput.addEventListener('focus', () => {
-        this.inventoryIcon.setEnabled(false);
-      });
-      chatInput.addEventListener('blur', () => {
-        this.inventoryIcon.setEnabled(true);
+  setupSystemIntegration() {
+    // Intégration avec le système de quêtes
+    if (window.questSystem) {
+      this.gameRoom?.onMessage("inventoryUpdate", (data) => {
+        if (data.type === 'add') {
+          window.questSystem.triggerCollectEvent(data.itemId, data.quantity);
+        }
       });
     }
+
+    // Intégration avec le chat
+    if (typeof window.isChatFocused === 'function') {
+      // On récupère l'input du chat (à adapter selon ton code)
+      const chatInput = document.querySelector('#chat-input'); // Mets le bon sélecteur !
+      if (chatInput) {
+        chatInput.addEventListener('focus', () => {
+          this.inventoryIcon.setEnabled(false);
+        });
+        chatInput.addEventListener('blur', () => {
+          this.inventoryIcon.setEnabled(true);
+        });
+      }
+    }
   }
-}
 
-
-  // === MÉTHODES PUBLIQUES INCHANGÉES ===
+  // === API PUBLIQUE - LOGIQUE MÉTIER SEULEMENT ===
 
   toggleInventory() {
     if (this.inventoryUI) {
@@ -447,9 +447,7 @@ setupSystemIntegration() {
     }
   }
 
-  canPlayerInteract() {
-    return this.inventoryUI.canPlayerInteract();
-  }
+  // ✅ SUPPRIMÉ canPlayerInteract() et canOpenMenus() - BaseModule s'en charge
 
   onItemPickup(itemId, quantity = 1) {
     this.showPickupNotification({ itemId, quantity });
@@ -463,11 +461,7 @@ setupSystemIntegration() {
     }
   }
 
-  canOpenMenus() {
-    return !this.isInventoryOpen() && this.canPlayerInteract();
-  }
-
-  // === MÉTHODES POUR L'UTILISATION AUTOMATIQUE ===
+  // === LOGIQUE MÉTIER INVENTAIRE ===
 
   useItemAutomatically(itemId) {
     this.useItem(itemId, "field");
@@ -618,4 +612,46 @@ setupSystemIntegration() {
       return false;
     }
   }
+
+  // === NETTOYAGE ===
+
+  destroy() {
+    console.log('🧹 [InventorySystem] Destruction...');
+    
+    if (this.inventoryUI) {
+      this.inventoryUI.destroy();
+      this.inventoryUI = null;
+    }
+    
+    if (this.inventoryIcon) {
+      this.inventoryIcon.destroy();
+      this.inventoryIcon = null;
+    }
+    
+    this.gameRoom = null;
+    this.scene = null;
+    this.notificationManager = null;
+    
+    console.log('✅ [InventorySystem] Détruit');
+  }
 }
+
+console.log(`
+🎒 === INVENTORY SYSTEM NETTOYÉ ===
+
+✅ RESPONSABILITÉ CLAIRE:
+• Logique métier inventaire uniquement
+• Gestion des notifications
+• Intégration serveur et systèmes
+
+❌ SUPPRIMÉ:
+• canPlayerInteract() redondant
+• canOpenMenus() redondant
+• Toutes vérifications d'autorisation
+
+🎯 FOCALISÉ SUR:
+• useItem(), hasItem(), getItemCount()
+• Notifications intelligentes
+• Auto-heal, Poké Balls, objets clés
+• Intégration quêtes et chat
+`);
