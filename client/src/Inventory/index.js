@@ -1,7 +1,6 @@
-// Inventory/index.js - InventoryModule refactorisé avec BaseModule
-// 🎯 UTILISE BaseModule pour éviter duplication de code
-// 📍 INTÉGRÉ avec UIManager via BaseModule
-// 🆕 BASÉ SUR LE MODÈLE TEAM QUI FONCTIONNE
+// Inventory/index.js - InventoryModule NETTOYÉ avec BaseModule
+// 🎯 RESPONSABILITÉ: Délégation vers BaseModule + spécificités Inventory
+// 🔗 DÉLÉGATION: BaseModule.canOpenUI() → UIManager (architecture propre)
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { InventorySystem } from './InventorySystem.js';
@@ -99,6 +98,7 @@ export class InventoryModule extends BaseModule {
     // Icône → Interface (via BaseModule)
     if (this.icon) {
       this.icon.onClick = () => {
+        // ✅ UTILISER BaseModule.canOpenUI() (qui délègue vers UIManager)
         if (this.canOpenUI()) {
           this.ui.toggle();
         } else {
@@ -210,24 +210,11 @@ export class InventoryModule extends BaseModule {
     };
   }
   
-  /**
-   * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
-   */
-  canOpenUI() {
-    // Vérifications spécifiques à l'inventaire
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#team-overlay:not(.hidden)'),
-      document.querySelector('#shop-overlay:not(.hidden)')
-    ];
-    
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-    
-    return !hasBlocker && !chatFocused && !starterHudOpen && this.uiManagerState.enabled;
-  }
+  // ✅ SUPPRIMÉ canOpenUI() - utilise BaseModule.canOpenUI() qui délègue vers UIManager
+  // BaseModule.canOpenUI() fait :
+  // 1. Délégation vers UIManager.canShowModule('inventory')
+  // 2. Fallback vers this.uiManagerState.enabled
+  // Architecture propre : Icon → BaseModule → UIManager
   
   /**
    * Exposer le système globalement pour compatibilité
@@ -276,6 +263,22 @@ export class InventoryModule extends BaseModule {
     
     console.warn('❌ [InventoryModule] Icône non disponible');
     return false;
+  }
+  
+  // === 🧹 NETTOYAGE ===
+  
+  destroy() {
+    console.log('🧹 [InventoryModule] Destruction...');
+    
+    if (this.system) {
+      this.system.destroy();
+      this.system = null;
+    }
+    
+    // Appeler destruction BaseModule
+    super.destroy();
+    
+    console.log('✅ [InventoryModule] Détruit');
   }
 }
 
@@ -493,38 +496,26 @@ export function fixInventoryModule() {
 export default InventoryModule;
 
 console.log(`
-🎒 === INVENTORY MODULE AVEC BASEMODULE ===
+🎒 === INVENTORY MODULE NETTOYÉ AVEC BASEMODULE ===
 
-🎯 NOUVELLES FONCTIONNALITÉS:
-• BaseModule - logique UIManager mutualisée
-• Code simplifié - moins de duplication
-• Patterns standards - consistent avec Team
-• Singleton intégré - via BaseModule
+✅ RESPONSABILITÉ CLAIRE:
+• Délégation vers BaseModule pour autorisations
+• Spécificités métier Inventory seulement
+• Architecture propre respectée
 
-📍 AVANTAGES BASEMODULE:
-• connectUIManager() générique
-• forceCloseUI() standardisé
-• Gestion état UIManager uniforme
-• Raccourcis clavier automatiques
+❌ SUPPRIMÉ:
+• canOpenUI() redondant avec vérifications DOM
+• Toutes vérifications d'autorisation locales
+• Fallbacks vers UIManager (BaseModule s'en charge)
 
-🔧 MÉTHODES HÉRITÉES:
-• show(), hide(), setEnabled() - standards
-• connectUIManager() - connexion sécurisée
-• getUIManagerState() - état complet
-• forceCloseUI() - fermeture forcée
+🔗 DÉLÉGATION SIMPLIFIÉE:
+Icon → BaseModule.canOpenUI() → UIManager.canShowModule()
 
-🎯 SPÉCIFICITÉS INVENTORY:
-• getItems() - objets disponibles
-• useItem() - utiliser objet
-• hasItem() - vérifier possession
-• openToPocket() - ouvrir poche spécifique
-• API legacy maintenue
+🎯 ARCHITECTURE PROPRE:
+• UIManager = source de vérité autorisations
+• BaseModule = logique commune modules
+• InventoryModule = spécificités métier uniquement
+• Icon/UI/System = composants spécialisés
 
-🔗 INTÉGRATION SYSTÈME:
-• InventorySystem conservé intact
-• InventoryUI et InventoryIcon réutilisés
-• Compatibilité totale avec existant
-• Fonctions globales exposées
-
-✅ INVENTORY REFACTORISÉ AVEC BASEMODULE !
+✅ INVENTORY MODULE NETTOYÉ !
 `);
