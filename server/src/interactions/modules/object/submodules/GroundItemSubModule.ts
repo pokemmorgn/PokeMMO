@@ -41,247 +41,247 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     return objectDef.type === 'ground_item';
   }
 
-  async handle(
-    player: Player, 
-    objectDef: ObjectDefinition, 
-    actionData?: any
-  ): Promise<ObjectInteractionResult> {
-    
-    const startTime = Date.now();
-    
-    try {
-      this.log('info', `Ramassage objet au sol`, { 
-        objectId: objectDef.id, 
-        player: player.name,
-        objectName: objectDef.name,
-        zone: objectDef.zone,
-        manualItemId: objectDef.itemId 
-      });
+async handle(
+  player: Player, 
+  objectDef: ObjectDefinition, 
+  actionData?: any
+): Promise<ObjectInteractionResult> {
+  
+  const startTime = Date.now();
+  
+  try {
+    this.log('info', `Ramassage objet au sol`, { 
+      objectId: objectDef.id, 
+      player: player.name,
+      objectName: objectDef.name,
+      zone: objectDef.zone,
+      manualItemId: objectDef.itemId 
+    });
 
-      // === ÉTAPE 1 : AUTO-DÉTECTION PAR NOM ===
+    // === ÉTAPE 1 : AUTO-DÉTECTION PAR NOM ===
+    
+    let itemId: string;
+    let autoDetected = false;
+    let mappingResult: MappingResult | null = null;
+
+    if (objectDef.itemId) {
+      // Cas 1: itemId défini manuellement dans Tiled (rétrocompatibilité)
+      itemId = objectDef.itemId;
+      this.log('info', `ItemId manuel utilisé: ${itemId}`);
       
-      let itemId: string;
-      let autoDetected = false;
-      let mappingResult: MappingResult | null = null;
-
-      if (objectDef.itemId) {
-        // Cas 1: itemId défini manuellement dans Tiled (rétrocompatibilité)
-        itemId = objectDef.itemId;
-        this.log('info', `ItemId manuel utilisé: ${itemId}`);
+    } else {
+      // Cas 2: Auto-détection par nom
+      mappingResult = ObjectNameMapper.mapObjectName(objectDef.name);
+      
+      if (mappingResult.found && mappingResult.mapping) {
+        itemId = mappingResult.mapping.itemId;
+        autoDetected = true;
+        
+        this.log('info', `✅ Auto-détecté: "${objectDef.name}" → "${itemId}"`, {
+          pocket: mappingResult.itemData?.pocket,
+          price: mappingResult.itemData?.price
+        });
         
       } else {
-        // Cas 2: Auto-détection par nom
-        mappingResult = ObjectNameMapper.mapObjectName(objectDef.name);
+        // Cas 3: Objet non reconnu
+        const processingTime = Date.now() - startTime;
+        this.updateStats(false, processingTime);
         
-        if (mappingResult.found && mappingResult.mapping) {
-          itemId = mappingResult.mapping.itemId;
-          autoDetected = true;
-          
-          this.log('info', `✅ Auto-détecté: "${objectDef.name}" → "${itemId}"`, {
-            pocket: mappingResult.itemData?.pocket,
-            price: mappingResult.itemData?.price
-          });
-          
-        } else {
-          // Cas 3: Objet non reconnu
-          const processingTime = Date.now() - startTime;
-          this.updateStats(false, processingTime);
-          
-          const suggestions = mappingResult.suggestions || [];
-          const suggestionText = suggestions.length > 0 
-            ? `Suggestions: ${suggestions.join(', ')}` 
-            : 'Aucune suggestion disponible';
+        const suggestions = mappingResult.suggestions || [];
+        const suggestionText = suggestions.length > 0 
+          ? `Suggestions: ${suggestions.join(', ')}` 
+          : 'Aucune suggestion disponible';
             
-          this.log('warn', `❌ Objet non reconnu: "${objectDef.name}"`, { 
-            suggestions,
-            validationError: mappingResult.validationError
-          });
-          
-          return this.createErrorResult(
-            `Objet "${objectDef.name}" non reconnu. ${suggestionText}`,
-            'UNKNOWN_OBJECT'
-          );
-        }
-      }
-
-      // === ÉTAPE 2 : RÉCUPÉRER LE JOUEUR DEPUIS MONGODB ===
-      
-      const playerDataDoc = await PlayerData.findOne({ username: player.name });
-      if (!playerDataDoc) {
-        const processingTime = Date.now() - startTime;
-        this.updateStats(false, processingTime);
-        
-        this.log('error', 'Joueur non trouvé en base', { player: player.name });
-        return this.createErrorResult(
-          "Données joueur non trouvées.",
-          'PLAYER_NOT_FOUND'
-        );
-      }
-
-      // Cast pour accéder aux méthodes personnalisées
-      const playerData = playerDataDoc as IPlayerData;
-
-// === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
-
-// ✅ VÉRIFIER SI MODE DEV (bypass cooldown)
-const { getServerConfig } = require('../../../../config/serverConfig');
-const serverConfig = getServerConfig();
-
-if (serverConfig.autoresetObjects) {
-  this.log('info', '🛠️ Mode dev: Bypass cooldown objet', {
-    objectId: objectDef.id,
-    player: player.name,
-    zone: objectDef.zone
-  });
-} else {
-  // ✅ LOGIQUE COOLDOWN NORMALE
-  const canCollect = playerData.canCollectObject(objectDef.id, objectDef.zone);
-  
-  if (!canCollect) {
-    const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
-    const hoursRemaining = Math.ceil(cooldownInfo.cooldownRemaining / (1000 * 60 * 60));
-    const minutesRemaining = Math.ceil((cooldownInfo.cooldownRemaining % (1000 * 60 * 60)) / (1000 * 60));
-    
-    const processingTime = Date.now() - startTime;
-    this.updateStats(false, processingTime);
-    
-    this.log('info', `⏰ Cooldown actif pour objet`, {
-      objectId: objectDef.id,
-      player: player.name,
-      hoursRemaining,
-      minutesRemaining,
-      nextAvailable: new Date(cooldownInfo.nextAvailableTime!).toISOString()
-    });
-    
-    const timeText = hoursRemaining > 0 
-      ? `${hoursRemaining}h ${minutesRemaining}min`
-      : `${minutesRemaining}min`;
-    
-    return this.createErrorResult(
-      `Cooldown actif. Disponible dans ${timeText}.`,
-      'COOLDOWN_ACTIVE'
-    );
-  }
-}
-
-      // === ÉTAPE 4 : VALIDATION ET TRAITEMENT ===
-
-      // Vérifier que l'item existe (double sécurité)
-      if (!itemId) {
-        const processingTime = Date.now() - startTime;
-        this.updateStats(false, processingTime);
-        
-        return this.createErrorResult(
-          "Objet sans contenu valide.",
-          'NO_ITEM_CONTENT'
-        );
-      }
-
-      try {
-        // Ajouter à l'inventaire du joueur
-        const quantity = this.getProperty(objectDef, 'quantity', mappingResult?.mapping?.defaultQuantity || 1);
-        await InventoryManager.addItem(player.name, itemId, quantity);
-        
-        this.log('info', `✅ Item ajouté à l'inventaire`, { 
-          player: player.name,
-          itemId, 
-          quantity,
-          autoDetected,
-          source: autoDetected ? 'auto-detection' : 'manual'
-        });
-
-        // === ÉTAPE 5 : ENREGISTRER LE COOLDOWN ===
-        
-        const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
-        await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownHours);
-        
-        this.log('info', `🕒 Cooldown enregistré`, {
-          objectId: objectDef.id,
-          zone: objectDef.zone,
-          player: player.name,
-          cooldownHours,
-          nextAvailable: new Date(Date.now() + cooldownHours * 60 * 60 * 1000).toISOString()
-        });
-
-        // === ÉTAPE 6 : DÉTERMINER LA RARETÉ ===
-        
-        let rarity = this.getProperty(objectDef, 'rarity', 'common');
-        
-        // Si auto-détecté, calculer rareté depuis prix ItemDB
-        if (autoDetected && mappingResult?.itemData) {
-          rarity = ObjectNameMapper.calculateRarityFromPrice(mappingResult.itemData);
-          this.log('info', `Rareté calculée depuis prix: ${rarity}`, {
-            price: mappingResult.itemData.price
-          });
-        }
-
-        // === SUCCÈS ===
-        
-        const processingTime = Date.now() - startTime;
-        this.updateStats(true, processingTime);
-        
-        return this.createSuccessResult(
-          "objectCollected",
-          `Vous avez trouvé ${this.getDisplayName(objectDef, mappingResult)} !`,
-          {
-            objectId: objectDef.id.toString(),
-            objectType: objectDef.type,
-            collected: true,
-            newState: "collected"
-          },
-          {
-            metadata: {
-              itemReceived: {
-                itemId,
-                quantity,
-                rarity,
-                autoDetected,
-                pocket: mappingResult?.itemData?.pocket || 'items'
-              },
-              cooldown: {
-                duration: cooldownHours,
-                nextAvailable: Date.now() + cooldownHours * 60 * 60 * 1000,
-                storedInMongoDB: true
-              },
-              processingTime,
-              timestamp: Date.now(),
-              detectionMethod: autoDetected ? 'name-mapping' : 'manual-itemId'
-            }
-          }
-        );
-
-      } catch (inventoryError) {
-        // Erreur d'inventaire (inventaire plein, item invalide, etc.)
-        const processingTime = Date.now() - startTime;
-        this.updateStats(false, processingTime);
-        
-        this.log('error', 'Erreur ajout inventaire', {
-          error: inventoryError,
-          itemId,
-          player: player.name
+        this.log('warn', `❌ Objet non reconnu: "${objectDef.name}"`, { 
+          suggestions,
+          validationError: mappingResult.validationError
         });
         
         return this.createErrorResult(
-          inventoryError instanceof Error 
-            ? inventoryError.message 
-            : "Impossible d'ajouter l'objet à l'inventaire",
-          'INVENTORY_ERROR'
+          `Objet "${objectDef.name}" non reconnu. ${suggestionText}`,
+          'UNKNOWN_OBJECT'
         );
       }
+    }
 
-    } catch (error) {
-      // Erreur générale
+    // === ÉTAPE 2 : RÉCUPÉRER LE JOUEUR DEPUIS MONGODB ===
+    
+    const playerDataDoc = await PlayerData.findOne({ username: player.name });
+    if (!playerDataDoc) {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', 'Erreur traitement ground_item', error);
-      
+      this.log('error', 'Joueur non trouvé en base', { player: player.name });
       return this.createErrorResult(
-        error instanceof Error ? error.message : 'Erreur inconnue',
-        'PROCESSING_FAILED'
+        "Données joueur non trouvées.",
+        'PLAYER_NOT_FOUND'
       );
     }
+
+    // Cast pour accéder aux méthodes personnalisées
+    const playerData = playerDataDoc as IPlayerData;
+
+    // === ÉTAPE 3 : VÉRIFIER LE COOLDOWN ===
+
+    // ✅ MODIFIÉ : Utiliser bypassObjectCooldowns au lieu de autoresetObjects
+    const { getServerConfig } = require('../../../../config/serverConfig');
+    const serverConfig = getServerConfig();
+
+    if (serverConfig.bypassObjectCooldowns) {
+      this.log('info', '🛠️ Mode dev: Bypass cooldown objet', {
+        objectId: objectDef.id,
+        player: player.name,
+        zone: objectDef.zone
+      });
+    } else {
+      // ✅ LOGIQUE COOLDOWN NORMALE
+      const canCollect = playerData.canCollectObject(objectDef.id, objectDef.zone);
+      
+      if (!canCollect) {
+        const cooldownInfo = playerData.getObjectCooldownInfo(objectDef.id, objectDef.zone);
+        const hoursRemaining = Math.ceil(cooldownInfo.cooldownRemaining / (1000 * 60 * 60));
+        const minutesRemaining = Math.ceil((cooldownInfo.cooldownRemaining % (1000 * 60 * 60)) / (1000 * 60));
+        
+        const processingTime = Date.now() - startTime;
+        this.updateStats(false, processingTime);
+        
+        this.log('info', `⏰ Cooldown actif pour objet`, {
+          objectId: objectDef.id,
+          player: player.name,
+          hoursRemaining,
+          minutesRemaining,
+          nextAvailable: new Date(cooldownInfo.nextAvailableTime!).toISOString()
+        });
+        
+        const timeText = hoursRemaining > 0 
+          ? `${hoursRemaining}h ${minutesRemaining}min`
+          : `${minutesRemaining}min`;
+        
+        return this.createErrorResult(
+          `Cooldown actif. Disponible dans ${timeText}.`,
+          'COOLDOWN_ACTIVE'
+        );
+      }
+    }
+
+    // === ÉTAPE 4 : VALIDATION ET TRAITEMENT ===
+
+    // Vérifier que l'item existe (double sécurité)
+    if (!itemId) {
+      const processingTime = Date.now() - startTime;
+      this.updateStats(false, processingTime);
+      
+      return this.createErrorResult(
+        "Objet sans contenu valide.",
+        'NO_ITEM_CONTENT'
+      );
+    }
+
+    try {
+      // Ajouter à l'inventaire du joueur
+      const quantity = this.getProperty(objectDef, 'quantity', mappingResult?.mapping?.defaultQuantity || 1);
+      await InventoryManager.addItem(player.name, itemId, quantity);
+      
+      this.log('info', `✅ Item ajouté à l'inventaire`, { 
+        player: player.name,
+        itemId, 
+        quantity,
+        autoDetected,
+        source: autoDetected ? 'auto-detection' : 'manual'
+      });
+
+      // === ÉTAPE 5 : ENREGISTRER LE COOLDOWN ===
+      
+      const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
+      await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownHours);
+      
+      this.log('info', `🕒 Cooldown enregistré`, {
+        objectId: objectDef.id,
+        zone: objectDef.zone,
+        player: player.name,
+        cooldownHours,
+        nextAvailable: new Date(Date.now() + cooldownHours * 60 * 60 * 1000).toISOString()
+      });
+
+      // === ÉTAPE 6 : DÉTERMINER LA RARETÉ ===
+      
+      let rarity = this.getProperty(objectDef, 'rarity', 'common');
+      
+      // Si auto-détecté, calculer rareté depuis prix ItemDB
+      if (autoDetected && mappingResult?.itemData) {
+        rarity = ObjectNameMapper.calculateRarityFromPrice(mappingResult.itemData);
+        this.log('info', `Rareté calculée depuis prix: ${rarity}`, {
+          price: mappingResult.itemData.price
+        });
+      }
+
+      // === SUCCÈS ===
+      
+      const processingTime = Date.now() - startTime;
+      this.updateStats(true, processingTime);
+      
+      return this.createSuccessResult(
+        "objectCollected",
+        `Vous avez trouvé ${this.getDisplayName(objectDef, mappingResult)} !`,
+        {
+          objectId: objectDef.id.toString(),
+          objectType: objectDef.type,
+          collected: true,
+          newState: "collected"
+        },
+        {
+          metadata: {
+            itemReceived: {
+              itemId,
+              quantity,
+              rarity,
+              autoDetected,
+              pocket: mappingResult?.itemData?.pocket || 'items'
+            },
+            cooldown: {
+              duration: cooldownHours,
+              nextAvailable: Date.now() + cooldownHours * 60 * 60 * 1000,
+              storedInMongoDB: true
+            },
+            processingTime,
+            timestamp: Date.now(),
+            detectionMethod: autoDetected ? 'name-mapping' : 'manual-itemId'
+          }
+        }
+      );
+
+    } catch (inventoryError) {
+      // Erreur d'inventaire (inventaire plein, item invalide, etc.)
+      const processingTime = Date.now() - startTime;
+      this.updateStats(false, processingTime);
+      
+      this.log('error', 'Erreur ajout inventaire', {
+        error: inventoryError,
+        itemId,
+        player: player.name
+      });
+      
+      return this.createErrorResult(
+        inventoryError instanceof Error 
+          ? inventoryError.message 
+          : "Impossible d'ajouter l'objet à l'inventaire",
+        'INVENTORY_ERROR'
+      );
+    }
+
+  } catch (error) {
+    // Erreur générale
+    const processingTime = Date.now() - startTime;
+    this.updateStats(false, processingTime);
+    
+    this.log('error', 'Erreur traitement ground_item', error);
+    
+    return this.createErrorResult(
+      error instanceof Error ? error.message : 'Erreur inconnue',
+      'PROCESSING_FAILED'
+    );
   }
+}
 
   // === VALIDATION SPÉCIFIQUE (optionnelle) ===
 
