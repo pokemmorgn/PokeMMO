@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Map Editor Module (Version avec support tilesets Tiled)
+// PokeWorld Admin Panel - Map Editor Module (Version avec support tilesets Tiled et objets existants)
 
 export class MapEditorModule {
     constructor(adminPanel) {
@@ -164,16 +164,17 @@ export class MapEditorModule {
 
     console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes chargées`)
 }
+
     async loadMap(mapId) {
         if (!mapId) return
 
-         // ✅ AJOUTEZ CES LIGNES POUR VIDER LE CACHE
-    console.log('🗺️ [MapEditor] Clearing tileset cache...')
-    this.tilesets.clear()
-    this.tilesetImages.clear()
-    this.currentMapData = null
+        // Vider le cache pour éviter les conflits
+        console.log('🗺️ [MapEditor] Clearing tileset cache...')
+        this.tilesets.clear()
+        this.tilesetImages.clear()
+        this.currentMapData = null
+        this.placedObjects = [] // Vider aussi les objets
 
-        
         console.log(`🗺️ [MapEditor] Loading map: ${mapId}`)
         
         try {
@@ -197,7 +198,10 @@ export class MapEditorModule {
             // Charger les tilesets de la carte
             await this.loadTilesets(mapData)
             
-            // Charger les objets existants
+            // Charger les objets existants de la carte (depuis Tiled)
+            this.loadExistingMapObjects()
+            
+            // Charger les objets sauvegardés (depuis l'admin)
             await this.loadExistingObjects(mapId)
             
             // Afficher la carte
@@ -220,6 +224,98 @@ export class MapEditorModule {
             console.error('❌ [MapEditor] Error loading map:', error)
             this.adminPanel.showNotification('Erreur chargement carte: ' + error.message, 'error')
         }
+    }
+
+    loadExistingMapObjects() {
+        if (!this.currentMapData || !this.currentMapData.layers) {
+            return
+        }
+        
+        console.log('🔍 [MapEditor] Loading existing map objects...')
+        
+        // Chercher les object layers dans la carte
+        const objectLayers = this.currentMapData.layers.filter(layer => 
+            layer.type === 'objectgroup' && layer.objects && layer.objects.length > 0
+        )
+        
+        let totalObjects = 0
+        
+        objectLayers.forEach(layer => {
+            console.log(`📋 [MapEditor] Found object layer: "${layer.name}" with ${layer.objects.length} objects`)
+            
+            layer.objects.forEach(obj => {
+                // Convertir les coordonnées pixels en coordonnées tiles
+                const tileX = Math.floor(obj.x / this.currentMapData.tilewidth)
+                const tileY = Math.floor(obj.y / this.currentMapData.tileheight)
+                
+                // Déterminer le type d'objet
+                let objectType = 'object' // par défaut
+                
+                if (obj.name) {
+                    const name = obj.name.toLowerCase()
+                    if (name.includes('spawn') || name.includes('player')) {
+                        objectType = 'spawn'
+                    } else if (name.includes('npc') || name.includes('character')) {
+                        objectType = 'npc'
+                    } else if (name.includes('teleport') || name.includes('portal') || name.includes('door')) {
+                        objectType = 'teleport'
+                    }
+                }
+                
+                // Vérifier les propriétés pour plus de précision
+                if (obj.properties) {
+                    obj.properties.forEach(prop => {
+                        if (prop.name === 'type') {
+                            objectType = prop.value
+                        }
+                    })
+                }
+                
+                // Ajouter l'objet existant à la liste
+                const existingObject = {
+                    id: `existing_${obj.id || Date.now()}_${totalObjects}`,
+                    type: objectType,
+                    x: tileX,
+                    y: tileY,
+                    name: obj.name || `${objectType}_${tileX}_${tileY}`,
+                    isFromMap: true, // Marquer comme objet existant
+                    originalData: obj, // Garder les données originales
+                    properties: {
+                        width: obj.width,
+                        height: obj.height,
+                        ...this.extractProperties(obj.properties)
+                    }
+                }
+                
+                // Vérifier qu'il n'existe pas déjà
+                const exists = this.placedObjects.find(existing => 
+                    existing.x === tileX && existing.y === tileY && existing.isFromMap
+                )
+                
+                if (!exists) {
+                    this.placedObjects.push(existingObject)
+                    totalObjects++
+                }
+            })
+        })
+        
+        console.log(`✅ [MapEditor] Loaded ${totalObjects} existing objects from map`)
+        
+        if (totalObjects > 0) {
+            this.adminPanel.showNotification(`${totalObjects} objets existants chargés depuis la carte`, 'info')
+        }
+    }
+
+    extractProperties(properties) {
+        if (!properties || !Array.isArray(properties)) {
+            return {}
+        }
+        
+        const props = {}
+        properties.forEach(prop => {
+            props[prop.name] = prop.value
+        })
+        return props
     }
 
     async loadTilesets(mapData) {
@@ -291,16 +387,15 @@ export class MapEditorModule {
             name: tileset.name || 'unnamed'
         })
 
-        // Charger l'image du tileset
-// Nettoyer le chemin de l'image (supprimer ../ et _Sprites/)
-const cleanImageName = tileset.image
-    .replace(/\.\.\//g, '')           // Supprimer ../
-    .replace(/\/_Sprites\//g, '/')    // Supprimer /_Sprites/
-    .replace(/^_Sprites\//, '')       // Supprimer _Sprites/ au début
-    .split('/').pop()                 // Garder seulement le nom du fichier
+        // Nettoyer le chemin de l'image (supprimer ../ et _Sprites/)
+        const cleanImageName = tileset.image
+            .replace(/\.\.\//g, '')           // Supprimer ../
+            .replace(/\/_Sprites\//g, '/')    // Supprimer /_Sprites/
+            .replace(/^_Sprites\//, '')       // Supprimer _Sprites/ au début
+            .split('/').pop()                 // Garder seulement le nom du fichier
 
-const imagePath = `/assets/sprites/${cleanImageName}`
-    console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
+        const imagePath = `/assets/sprites/${cleanImageName}`
+        console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
         
         return new Promise((resolve, reject) => {
             const img = new Image()
@@ -325,10 +420,18 @@ const imagePath = `/assets/sprites/${cleanImageName}`
         try {
             // Essayer de charger les objets existants depuis l'API
             const response = await this.adminPanel.apiCall(`/maps/${mapId}/objects`)
-            this.placedObjects = response.objects || []
+            const savedObjects = response.objects || []
+            
+            // Ajouter les objets sauvegardés (qui ne sont pas de la carte)
+            savedObjects.forEach(obj => {
+                if (!obj.isFromMap) {
+                    this.placedObjects.push(obj)
+                }
+            })
+            
+            console.log(`✅ [MapEditor] Loaded ${savedObjects.length} saved objects`)
         } catch (error) {
-            console.log('🗺️ [MapEditor] No existing objects found, starting fresh')
-            this.placedObjects = []
+            console.log('🗺️ [MapEditor] No saved objects found')
         }
     }
 
@@ -520,21 +623,27 @@ const imagePath = `/assets/sprites/${cleanImageName}`
             const x = obj.x * tileWidth
             const y = obj.y * tileHeight
             
-            // Couleur selon le type avec transparence
+            // Couleurs selon le type et origine
             const colors = {
-                npc: 'rgba(255, 107, 107, 0.8)',
-                object: 'rgba(78, 205, 196, 0.8)', 
-                spawn: 'rgba(69, 183, 209, 0.8)',
-                teleport: 'rgba(155, 89, 182, 0.8)'
+                npc: obj.isFromMap ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 107, 107, 0.9)',
+                object: obj.isFromMap ? 'rgba(78, 205, 196, 0.6)' : 'rgba(78, 205, 196, 0.9)', 
+                spawn: obj.isFromMap ? 'rgba(69, 183, 209, 0.6)' : 'rgba(69, 183, 209, 0.9)',
+                teleport: obj.isFromMap ? 'rgba(155, 89, 182, 0.6)' : 'rgba(155, 89, 182, 0.9)'
+            }
+            
+            // Fond avec ombre pour objets existants
+            if (obj.isFromMap) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+                ctx.fillRect(x + 4, y + 4, tileWidth - 4, tileHeight - 4)
             }
             
             // Fond coloré
             ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
             ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
-            // Bordure
-            ctx.strokeStyle = '#fff'
-            ctx.lineWidth = 2 / this.dpi
+            // Bordure différente pour les objets existants vs nouveaux
+            ctx.strokeStyle = obj.isFromMap ? '#ffff00' : '#fff' // Jaune pour existants
+            ctx.lineWidth = obj.isFromMap ? 3 / this.dpi : 2 / this.dpi
             ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
             
             // Icône
@@ -565,6 +674,12 @@ const imagePath = `/assets/sprites/${cleanImageName}`
                 x + tileWidth / 2,
                 y + tileHeight / 2
             )
+            
+            // Petit indicateur pour objets existants
+            if (obj.isFromMap) {
+                ctx.fillStyle = '#ffff00'
+                ctx.fillRect(x + tileWidth - 6, y + 2, 4, 4)
+            }
         })
     }
 
@@ -613,7 +728,15 @@ const imagePath = `/assets/sprites/${cleanImageName}`
         const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
         
         if (existingIndex !== -1) {
-            // Supprimer l'objet existant
+            const existingObj = this.placedObjects[existingIndex]
+            
+            // Ne pas supprimer les objets de la carte (seulement les afficher)
+            if (existingObj.isFromMap) {
+                this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
+                return
+            }
+            
+            // Supprimer l'objet ajouté manuellement
             this.placedObjects.splice(existingIndex, 1)
             this.adminPanel.showNotification('Objet supprimé', 'info')
         } else {
@@ -624,6 +747,7 @@ const imagePath = `/assets/sprites/${cleanImageName}`
                 x: tileX,
                 y: tileY,
                 name: `${this.selectedTool}_${tileX}_${tileY}`,
+                isFromMap: false, // Marquer comme objet ajouté
                 properties: this.getDefaultProperties(this.selectedTool)
             }
             
@@ -674,18 +798,19 @@ const imagePath = `/assets/sprites/${cleanImageName}`
         }
         
         objectsList.innerHTML = this.placedObjects.map((obj, index) => `
-            <div class="object-item" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+            <div class="object-item" style="background: ${obj.isFromMap ? '#fff3cd' : '#f8f9fa'}; border: 1px solid ${obj.isFromMap ? '#ffeaa7' : '#dee2e6'}; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-weight: 600; color: #2c3e50;">
                         ${icons[obj.type]} ${obj.name}
+                        ${obj.isFromMap ? '<span style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-left: 8px;">MAP</span>' : ''}
                     </span>
-                    <button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" style="padding: 2px 6px;">
+                    ${!obj.isFromMap ? `<button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" style="padding: 2px 6px;">
                         <i class="fas fa-trash"></i>
-                    </button>
+                    </button>` : '<span style="color: #6c757d; font-size: 0.8rem;">Lecture seule</span>'}
                 </div>
                 <div style="font-size: 0.85rem; color: #6c757d;">
                     Position: (${obj.x}, ${obj.y})<br>
-                    Type: ${obj.type}
+                    Type: ${obj.type}${obj.isFromMap ? ' (depuis la carte)' : ' (ajouté)'}
                 </div>
             </div>
         `).join('')
@@ -693,6 +818,14 @@ const imagePath = `/assets/sprites/${cleanImageName}`
 
     removeObject(index) {
         if (index >= 0 && index < this.placedObjects.length) {
+            const obj = this.placedObjects[index]
+            
+            // Ne pas supprimer les objets de la carte
+            if (obj.isFromMap) {
+                this.adminPanel.showNotification('Impossible de supprimer un objet de la carte', 'warning')
+                return
+            }
+            
             this.placedObjects.splice(index, 1)
             this.renderMap()
             this.adminPanel.showNotification('Objet supprimé', 'info')
@@ -715,12 +848,16 @@ const imagePath = `/assets/sprites/${cleanImageName}`
 
         console.log('💾 [MapEditor] Saving map objects...')
         
+        // Sauvegarder seulement les objets ajoutés manuellement
+        const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
+        
         const saveData = {
             mapId: mapId,
             mapName: this.availableMaps.find(m => m.id === mapId)?.name || mapId,
-            objects: this.placedObjects,
+            objects: addedObjects,
             timestamp: new Date().toISOString(),
-            totalObjects: this.placedObjects.length
+            totalObjects: addedObjects.length,
+            mapObjects: this.placedObjects.filter(obj => obj.isFromMap).length // Pour info
         }
 
         try {
@@ -730,7 +867,7 @@ const imagePath = `/assets/sprites/${cleanImageName}`
                 body: JSON.stringify(saveData)
             })
             
-            this.adminPanel.showNotification('Objets sauvegardés sur le serveur', 'success')
+            this.adminPanel.showNotification(`${addedObjects.length} objets ajoutés sauvegardés`, 'success')
         } catch (error) {
             console.log('🗺️ [MapEditor] API save failed, downloading JSON file instead')
             
