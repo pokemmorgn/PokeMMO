@@ -474,33 +474,45 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   /**
    * Obtenir les objets visibles d'une zone
    */
-  getVisibleObjectsInZone(zone: string): any[] {
-    const zoneObjects = this.objectsByZone.get(zone);
-    if (!zoneObjects) return [];
+getVisibleObjectsInZone(zone: string): any[] {
+  // ✅ NOUVEAU : Vérifier le mode dev
+  const { getServerConfig } = require('../../config/serverConfig');
+  const serverConfig = getServerConfig();
+  
+  const zoneObjects = this.objectsByZone.get(zone);
+  if (!zoneObjects) return [];
 
-    const visibleObjects: any[] = [];
+  const visibleObjects: any[] = [];
 
-    for (const objectDef of zoneObjects.values()) {
-      // Exclure les objets cachés et collectés
-      if (objectDef.type !== 'hidden_item') {
-        const state = this.stateManager.getObjectState(zone, objectDef.id);
-        
-        if (!state.collected) {
-          visibleObjects.push({
-            id: objectDef.id,
-            type: objectDef.type,
-            name: objectDef.name,
-            x: objectDef.x,
-            y: objectDef.y,
-            rarity: objectDef.rarity,
-            collected: false
-          });
-        }
+  for (const objectDef of zoneObjects.values()) {
+    // Exclure les objets cachés
+    if (objectDef.type !== 'hidden_item') {
+      const state = this.stateManager.getObjectState(zone, objectDef.id);
+      
+      // ✅ NOUVEAU : En mode dev, ignorer l'état collected
+      const isCollected = serverConfig.autoresetObjects ? false : state.collected;
+      
+      if (!isCollected) {
+        visibleObjects.push({
+          id: objectDef.id,
+          type: objectDef.type,
+          name: objectDef.name,
+          x: objectDef.x,
+          y: objectDef.y,
+          rarity: objectDef.rarity,
+          collected: false
+        });
       }
     }
-
-    return visibleObjects;
   }
+
+  // ✅ NOUVEAU : Log pour debugging
+  if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
+    console.log(`🛠️ [ObjectModule] Mode dev: ${visibleObjects.length} objets visibles dans ${zone}`);
+  }
+
+  return visibleObjects;
+}
 
   /**
    * Ajouter un objet dynamiquement (admin/dev)
