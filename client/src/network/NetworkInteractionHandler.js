@@ -1,11 +1,12 @@
 // client/src/network/NetworkInteractionHandler.js
-// ✅ Handler spécialisé pour toutes les interactions réseau
+// ✅ CORRECTED - Handler spécialisé pour toutes les interactions réseau
 // Étend les capacités du NetworkManager sans le polluer
 
 export class NetworkInteractionHandler {
   constructor(networkManager) {
     this.networkManager = networkManager;
     this.isInitialized = false;
+    this.handlersSetup = false; // ✅ NOUVEAU FLAG
     
     // ✅ État des interactions
     this.state = {
@@ -31,7 +32,8 @@ export class NetworkInteractionHandler {
       searchInteractions: 0,
       npcInteractions: 0,
       errorsReceived: 0,
-      messagesHandled: 0
+      messagesHandled: 0,
+      initializationAttempts: 0 // ✅ NOUVEAU
     };
     
     // ✅ Configuration
@@ -39,145 +41,294 @@ export class NetworkInteractionHandler {
       enableDebugLogs: true,
       maxPendingInteractions: 10,
       interactionTimeout: 8000,
-      retryAttempts: 2
+      retryAttempts: 2,
+      maxInitRetries: 5, // ✅ NOUVEAU
+      initRetryDelay: 500 // ✅ NOUVEAU
     };
     
     console.log('[NetworkInteractionHandler] 🔧 Créé avec NetworkManager');
     
-    // ✅ Auto-initialisation si NetworkManager est connecté
-    if (this.networkManager?.isConnected && this.networkManager?.room) {
-      this.initialize();
-    }
+    // ✅ SUPPRIMÉ : L'auto-initialisation du constructeur
+    // On attend l'appel explicite à initialize()
   }
 
-  // === INITIALISATION ===
+  // === INITIALISATION REFACTORISÉE ===
 
   initialize() {
-    if (!this.networkManager || !this.networkManager.room) {
-      console.error('[NetworkInteractionHandler] ❌ NetworkManager ou Room manquant');
+    this.debugCounters.initializationAttempts++;
+    
+    console.log(`[NetworkInteractionHandler] 🚀 === INITIALISATION ATTEMPT #${this.debugCounters.initializationAttempts} ===`);
+    
+    // ✅ Vérifications préliminaires
+    if (!this.networkManager) {
+      console.error('[NetworkInteractionHandler] ❌ NetworkManager manquant');
       return false;
     }
 
-    // ✅ FIX 1: Vérifier que la room est prête (hasJoined)
-    if (!this.networkManager.room.hasJoined) {
-      console.warn('[NetworkInteractionHandler] ⚠️ Room pas encore joinée, retry dans 500ms...');
-      setTimeout(() => {
-        if (!this.isInitialized) {
+    if (!this.networkManager.room) {
+      console.error('[NetworkInteractionHandler] ❌ Room manquante');
+      return false;
+    }
+
+    // ✅ NOUVELLE LOGIQUE : Vérification d'état de la room plus robuste
+    const roomState = this.checkRoomReadiness();
+    if (!roomState.ready) {
+      console.warn(`[NetworkInteractionHandler] ⚠️ Room pas prête: ${roomState.reason}`);
+      
+      // ✅ Retry intelligent avec limite
+      if (this.debugCounters.initializationAttempts < this.config.maxInitRetries) {
+        console.log(`[NetworkInteractionHandler] 🔄 Retry dans ${this.config.initRetryDelay}ms...`);
+        setTimeout(() => {
           this.initialize();
-        }
-      }, 500);
+        }, this.config.initRetryDelay);
+      } else {
+        console.error('[NetworkInteractionHandler] ❌ Max retries atteint, abandon');
+      }
+      
       return false;
     }
 
-    console.log('[NetworkInteractionHandler] 🚀 === INITIALISATION ===');
+    console.log('[NetworkInteractionHandler] ✅ Room prête, setup handlers...');
     console.log('[NetworkInteractionHandler] Room ID:', this.networkManager.room.roomId);
     console.log('[NetworkInteractionHandler] Session ID:', this.networkManager.sessionId);
     console.log('[NetworkInteractionHandler] Room hasJoined:', this.networkManager.room.hasJoined);
 
-    // ✅ FIX PRINCIPAL: Toujours vérifier les handlers, même si "déjà initialisé"
-    if (this.isInitialized) {
-      console.log('[NetworkInteractionHandler] ⚠️ Déjà initialisé, mais vérification handlers...');
-      
-      // Vérifier que les handlers sont bien présents
-      const room = this.networkManager.room;
-      if (room?.onMessageHandlers) {
-        const events = Object.keys(room.onMessageHandlers.events);
-        const hasObjectHandler = events.includes('objectInteractionResult');
-        const hasSearchHandler = events.includes('searchResult');
-        
-        console.log('[NetworkInteractionHandler] 🧪 Handlers présents:');
-        console.log(`  objectInteractionResult: ${hasObjectHandler ? '✅' : '❌'}`);
-        console.log(`  searchResult: ${hasSearchHandler ? '✅' : '❌'}`);
-        
-        // Si les handlers manquent, les re-setup
-        if (!hasObjectHandler || !hasSearchHandler) {
-          console.log('[NetworkInteractionHandler] 🔧 Handlers manquants, re-setup...');
-          this.setupInteractionHandlers();
-        } else {
-          console.log('[NetworkInteractionHandler] ✅ Handlers OK, pas besoin de re-setup');
-        }
+    try {
+      // ✅ NOUVEAU : Setup handlers avec vérification
+      const handlersResult = this.setupInteractionHandlers();
+      if (!handlersResult) {
+        throw new Error('Échec setup handlers');
       }
       
-      return true;
-    }
-
-    try {
-      this.setupInteractionHandlers();
+      // ✅ NOUVEAU : Vérification post-setup
+      const verificationResult = this.verifyHandlersSetup();
+      if (!verificationResult.success) {
+        throw new Error(`Handlers non vérifiés: ${verificationResult.error}`);
+      }
+      
       this.isInitialized = true;
+      this.handlersSetup = true;
       
       console.log('[NetworkInteractionHandler] ✅ Initialisé avec succès');
+      console.log(`[NetworkInteractionHandler] 📊 Tentatives: ${this.debugCounters.initializationAttempts}`);
+      
       return true;
       
     } catch (error) {
       console.error('[NetworkInteractionHandler] ❌ Erreur initialisation:', error);
+      
+      // ✅ Reset flags en cas d'erreur
+      this.isInitialized = false;
+      this.handlersSetup = false;
+      
       return false;
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE : Vérification robuste de l'état de la room
+  checkRoomReadiness() {
+    const room = this.networkManager.room;
+    
+    // ✅ Vérifications basiques
+    if (!room) {
+      return { ready: false, reason: 'room_missing' };
+    }
+
+    if (!room.hasJoined) {
+      return { ready: false, reason: 'room_not_joined' };
+    }
+
+    if (!this.networkManager.isConnected) {
+      return { ready: false, reason: 'network_not_connected' };
+    }
+
+    // ✅ Vérification de l'état interne de la room Colyseus
+    if (room.state === undefined) {
+      return { ready: false, reason: 'room_state_undefined' };
+    }
+
+    // ✅ Vérification que la room peut recevoir des messages
+    if (typeof room.send !== 'function') {
+      return { ready: false, reason: 'room_send_unavailable' };
+    }
+
+    // ✅ Vérification des handlers Colyseus
+    if (!room.onMessageHandlers) {
+      return { ready: false, reason: 'room_handlers_missing' };
+    }
+
+    return { ready: true, reason: 'all_checks_passed' };
+  }
+
+  // ✅ MÉTHODE REFACTORISÉE : Setup handlers avec retour booléen
   setupInteractionHandlers() {
     const room = this.networkManager.room;
     
     console.log('[NetworkInteractionHandler] 👂 Configuration des handlers...');
     
-    // ✅ Handler pour résultats d'interaction objet
-    room.onMessage("objectInteractionResult", (data) => {
-      this.debugCounters.messagesHandled++;
-      console.log(`[NetworkInteractionHandler] 📦 === OBJECT INTERACTION RESULT #${this.debugCounters.messagesHandled} ===`);
-      console.log('[NetworkInteractionHandler] Data:', data);
+    try {
+      // ✅ NOUVEAU : Nettoyer les anciens handlers si ils existent
+      this.cleanupExistingHandlers();
       
-      this.handleObjectInteractionResult(data);
-    });
+      // ✅ Handler pour résultats d'interaction objet
+      room.onMessage("objectInteractionResult", (data) => {
+        this.debugCounters.messagesHandled++;
+        console.log(`[NetworkInteractionHandler] 📦 === OBJECT INTERACTION RESULT #${this.debugCounters.messagesHandled} ===`);
+        console.log('[NetworkInteractionHandler] Data:', data);
+        
+        this.handleObjectInteractionResult(data);
+      });
 
-    // ✅ Handler pour résultats de fouille
-    room.onMessage("searchResult", (data) => {
-      this.debugCounters.messagesHandled++;
-      console.log(`[NetworkInteractionHandler] 🔍 === SEARCH RESULT #${this.debugCounters.messagesHandled} ===`);
-      console.log('[NetworkInteractionHandler] Data:', data);
+      // ✅ Handler pour résultats de fouille
+      room.onMessage("searchResult", (data) => {
+        this.debugCounters.messagesHandled++;
+        console.log(`[NetworkInteractionHandler] 🔍 === SEARCH RESULT #${this.debugCounters.messagesHandled} ===`);
+        console.log('[NetworkInteractionHandler] Data:', data);
+        
+        this.handleSearchResult(data);
+      });
+
+      // ✅ Handler pour erreurs d'interaction
+      room.onMessage("interactionError", (data) => {
+        this.debugCounters.errorsReceived++;
+        console.log(`[NetworkInteractionHandler] ❌ === INTERACTION ERROR #${this.debugCounters.errorsReceived} ===`);
+        console.log('[NetworkInteractionHandler] Error:', data);
+        
+        this.handleInteractionError(data);
+      });
+
+      // ✅ Handler pour blocages d'interaction
+      room.onMessage("interactionBlocked", (data) => {
+        console.log('[NetworkInteractionHandler] 🚫 === INTERACTION BLOCKED ===');
+        console.log('[NetworkInteractionHandler] Reason:', data.reason);
+        
+        this.handleInteractionBlocked(data);
+      });
+
+      // ✅ Handler pour cooldowns
+      room.onMessage("interactionCooldown", (data) => {
+        console.log('[NetworkInteractionHandler] ⏰ === INTERACTION COOLDOWN ===');
+        console.log('[NetworkInteractionHandler] Cooldown:', data.remainingTime + 'ms');
+        
+        this.handleInteractionCooldown(data);
+      });
+
+      // ✅ Handler générique pour nouveaux types d'interaction
+      room.onMessage("interactionResult", (data) => {
+        this.debugCounters.messagesHandled++;
+        console.log(`[NetworkInteractionHandler] 🎭 === INTERACTION RESULT GÉNÉRIQUE #${this.debugCounters.messagesHandled} ===`);
+        console.log('[NetworkInteractionHandler] Type:', data.type);
+        console.log('[NetworkInteractionHandler] Data:', data);
+        
+        this.handleGenericInteractionResult(data);
+      });
+
+      console.log('[NetworkInteractionHandler] ✅ Handlers configurés');
+      return true;
       
-      this.handleSearchResult(data);
-    });
+    } catch (error) {
+      console.error('[NetworkInteractionHandler] ❌ Erreur setup handlers:', error);
+      return false;
+    }
+  }
 
-    // ✅ Handler pour erreurs d'interaction
-    room.onMessage("interactionError", (data) => {
-      this.debugCounters.errorsReceived++;
-      console.log(`[NetworkInteractionHandler] ❌ === INTERACTION ERROR #${this.debugCounters.errorsReceived} ===`);
-      console.log('[NetworkInteractionHandler] Error:', data);
-      
-      this.handleInteractionError(data);
+  // ✅ NOUVELLE MÉTHODE : Nettoyage des anciens handlers
+  cleanupExistingHandlers() {
+    const room = this.networkManager.room;
+    
+    if (!room || !room.onMessageHandlers) {
+      return;
+    }
+    
+    const interactionEvents = [
+      'objectInteractionResult',
+      'searchResult', 
+      'interactionError',
+      'interactionBlocked',
+      'interactionCooldown',
+      'interactionResult'
+    ];
+    
+    let cleanedCount = 0;
+    
+    interactionEvents.forEach(eventName => {
+      if (room.onMessageHandlers.events[eventName]) {
+        // ✅ Supprimer les anciens handlers
+        delete room.onMessageHandlers.events[eventName];
+        cleanedCount++;
+      }
     });
+    
+    if (cleanedCount > 0) {
+      console.log(`[NetworkInteractionHandler] 🧹 Nettoyé ${cleanedCount} anciens handlers`);
+    }
+  }
 
-    // ✅ Handler pour blocages d'interaction
-    room.onMessage("interactionBlocked", (data) => {
-      console.log('[NetworkInteractionHandler] 🚫 === INTERACTION BLOCKED ===');
-      console.log('[NetworkInteractionHandler] Reason:', data.reason);
-      
-      this.handleInteractionBlocked(data);
+  // ✅ NOUVELLE MÉTHODE : Vérification post-setup
+  verifyHandlersSetup() {
+    const room = this.networkManager.room;
+    
+    if (!room || !room.onMessageHandlers) {
+      return { success: false, error: 'room_or_handlers_missing' };
+    }
+    
+    const requiredHandlers = [
+      'objectInteractionResult',
+      'searchResult',
+      'interactionError'
+    ];
+    
+    const missingHandlers = [];
+    
+    requiredHandlers.forEach(handler => {
+      if (!room.onMessageHandlers.events[handler]) {
+        missingHandlers.push(handler);
+      }
     });
+    
+    if (missingHandlers.length > 0) {
+      return { 
+        success: false, 
+        error: `handlers_missing: ${missingHandlers.join(', ')}` 
+      };
+    }
+    
+    console.log('[NetworkInteractionHandler] ✅ Vérification handlers OK');
+    return { success: true };
+  }
 
-    // ✅ Handler pour cooldowns
-    room.onMessage("interactionCooldown", (data) => {
-      console.log('[NetworkInteractionHandler] ⏰ === INTERACTION COOLDOWN ===');
-      console.log('[NetworkInteractionHandler] Cooldown:', data.remainingTime + 'ms');
-      
-      this.handleInteractionCooldown(data);
-    });
-
-    // ✅ Handler générique pour nouveaux types d'interaction
-    room.onMessage("interactionResult", (data) => {
-      this.debugCounters.messagesHandled++;
-      console.log(`[NetworkInteractionHandler] 🎭 === INTERACTION RESULT GÉNÉRIQUE #${this.debugCounters.messagesHandled} ===`);
-      console.log('[NetworkInteractionHandler] Type:', data.type);
-      console.log('[NetworkInteractionHandler] Data:', data);
-      
-      this.handleGenericInteractionResult(data);
-    });
-
-    console.log('[NetworkInteractionHandler] ✅ Handlers configurés');
+  // ✅ NOUVELLE MÉTHODE PUBLIQUE : Force re-setup des handlers
+  forceReinitializeHandlers() {
+    console.log('[NetworkInteractionHandler] 🔧 Force re-initialisation handlers...');
+    
+    this.handlersSetup = false;
+    
+    const result = this.setupInteractionHandlers();
+    if (result) {
+      const verification = this.verifyHandlersSetup();
+      if (verification.success) {
+        this.handlersSetup = true;
+        console.log('[NetworkInteractionHandler] ✅ Re-initialisation handlers réussie');
+        return true;
+      } else {
+        console.error('[NetworkInteractionHandler] ❌ Échec vérification après re-init:', verification.error);
+        return false;
+      }
+    }
+    
+    console.error('[NetworkInteractionHandler] ❌ Échec re-initialisation handlers');
+    return false;
   }
 
   // === ENVOI D'INTERACTIONS ===
 
   sendObjectInteract(objectId, objectType = null, position = null, additionalData = {}) {
+    // ✅ NOUVEAU : Vérification handlers avant envoi
+    if (!this.ensureHandlersReady()) {
+      console.error('[NetworkInteractionHandler] ❌ Handlers pas prêts, envoi impossible');
+      return false;
+    }
+
     if (!this.canSendInteraction()) {
       return false;
     }
@@ -226,6 +377,12 @@ export class NetworkInteractionHandler {
   }
 
   sendSearchHiddenItem(position, searchRadius = 32, additionalData = {}) {
+    // ✅ NOUVEAU : Vérification handlers avant envoi
+    if (!this.ensureHandlersReady()) {
+      console.error('[NetworkInteractionHandler] ❌ Handlers pas prêts, envoi impossible');
+      return false;
+    }
+
     if (!this.canSendInteraction()) {
       return false;
     }
@@ -304,6 +461,24 @@ export class NetworkInteractionHandler {
       this.handleSendError('npcInteract', error);
       return false;
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : S'assurer que les handlers sont prêts
+  ensureHandlersReady() {
+    if (!this.isInitialized || !this.handlersSetup) {
+      console.warn('[NetworkInteractionHandler] ⚠️ Handlers pas initialisés, tentative de fix...');
+      
+      // ✅ Tentative de fix automatique
+      const fixResult = this.forceReinitializeHandlers();
+      if (!fixResult) {
+        console.error('[NetworkInteractionHandler] ❌ Impossible de réparer les handlers');
+        return false;
+      }
+    }
+    
+    // ✅ Vérification finale
+    const verification = this.verifyHandlersSetup();
+    return verification.success;
   }
 
   // === GESTION DES RÉSULTATS ===
@@ -635,8 +810,15 @@ export class NetworkInteractionHandler {
   // === DEBUG ET MONITORING ===
 
   getDebugInfo() {
+    const room = this.networkManager?.room;
+    const handlersCount = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).length : 0;
+    const interactionHandlers = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).filter(key => 
+      key.includes('interaction') || key.includes('search') || key.includes('Result')
+    ) : [];
+
     return {
       isInitialized: this.isInitialized,
+      handlersSetup: this.handlersSetup, // ✅ NOUVEAU
       counters: this.debugCounters,
       state: {
         ...this.state,
@@ -647,7 +829,14 @@ export class NetworkInteractionHandler {
       networkManagerReady: !!(this.networkManager?.isConnected && this.networkManager?.room),
       roomId: this.networkManager?.room?.roomId,
       sessionId: this.networkManager?.sessionId,
-      currentZone: this.networkManager?.currentZone
+      currentZone: this.networkManager?.currentZone,
+      roomReadiness: this.checkRoomReadiness(), // ✅ NOUVEAU
+      handlersInfo: { // ✅ NOUVEAU
+        totalHandlers: handlersCount,
+        interactionHandlers: interactionHandlers,
+        hasObjectHandler: interactionHandlers.includes('objectInteractionResult'),
+        hasSearchHandler: interactionHandlers.includes('searchResult')
+      }
     };
   }
 
@@ -661,7 +850,8 @@ export class NetworkInteractionHandler {
       searchInteractions: 0,
       npcInteractions: 0,
       errorsReceived: 0,
-      messagesHandled: 0
+      messagesHandled: 0,
+      initializationAttempts: 0
     };
     
     console.log('[NetworkInteractionHandler] Anciens compteurs:', oldCounters);
@@ -698,6 +888,7 @@ export class NetworkInteractionHandler {
     
     // ✅ Réinitialiser l'état
     this.isInitialized = false;
+    this.handlersSetup = false;
     this.networkManager = null;
     
     console.log('[NetworkInteractionHandler] ✅ Détruit');
@@ -728,6 +919,16 @@ window.resetInteractionHandlerDebug = function() {
   return false;
 };
 
+window.forceReinitInteractionHandlers = function() {
+  if (window.globalNetworkManager?.interactionHandler) {
+    const result = window.globalNetworkManager.interactionHandler.forceReinitializeHandlers();
+    console.log('[NetworkInteractionHandler] Force réinit result:', result);
+    return result;
+  }
+  return false;
+};
+
 console.log('✅ NetworkInteractionHandler chargé!');
 console.log('🔍 Utilisez window.debugInteractionHandler() pour diagnostiquer');
 console.log('🔄 Utilisez window.resetInteractionHandlerDebug() pour reset compteurs');
+console.log('🔧 Utilisez window.forceReinitInteractionHandlers() pour force réinit handlers');
