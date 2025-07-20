@@ -53,11 +53,6 @@ export class NetworkInteractionHandler {
   // === INITIALISATION ===
 
   initialize() {
-    if (this.isInitialized) {
-      console.log('[NetworkInteractionHandler] ⚠️ Déjà initialisé');
-      return true;
-    }
-
     if (!this.networkManager || !this.networkManager.room) {
       console.error('[NetworkInteractionHandler] ❌ NetworkManager ou Room manquant');
       return false;
@@ -75,10 +70,36 @@ export class NetworkInteractionHandler {
     }
 
     console.log('[NetworkInteractionHandler] 🚀 === INITIALISATION ===');
-    // ✅ FIX 2: Utiliser roomId au lieu de id
     console.log('[NetworkInteractionHandler] Room ID:', this.networkManager.room.roomId);
     console.log('[NetworkInteractionHandler] Session ID:', this.networkManager.sessionId);
     console.log('[NetworkInteractionHandler] Room hasJoined:', this.networkManager.room.hasJoined);
+
+    // ✅ FIX PRINCIPAL: Toujours vérifier les handlers, même si "déjà initialisé"
+    if (this.isInitialized) {
+      console.log('[NetworkInteractionHandler] ⚠️ Déjà initialisé, mais vérification handlers...');
+      
+      // Vérifier que les handlers sont bien présents
+      const room = this.networkManager.room;
+      if (room?.onMessageHandlers) {
+        const events = Object.keys(room.onMessageHandlers.events);
+        const hasObjectHandler = events.includes('objectInteractionResult');
+        const hasSearchHandler = events.includes('searchResult');
+        
+        console.log('[NetworkInteractionHandler] 🧪 Handlers présents:');
+        console.log(`  objectInteractionResult: ${hasObjectHandler ? '✅' : '❌'}`);
+        console.log(`  searchResult: ${hasSearchHandler ? '✅' : '❌'}`);
+        
+        // Si les handlers manquent, les re-setup
+        if (!hasObjectHandler || !hasSearchHandler) {
+          console.log('[NetworkInteractionHandler] 🔧 Handlers manquants, re-setup...');
+          this.setupInteractionHandlers();
+        } else {
+          console.log('[NetworkInteractionHandler] ✅ Handlers OK, pas besoin de re-setup');
+        }
+      }
+      
+      return true;
+    }
 
     try {
       this.setupInteractionHandlers();
