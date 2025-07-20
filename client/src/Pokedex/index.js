@@ -1,43 +1,43 @@
-// Pokedex/index.js - PokedexModule avec BaseModule et UIManager
-// 🎯 UTILISE BaseModule pour éviter duplication de code
-// 📍 INTÉGRÉ avec UIManager via BaseModule
-// 📱 SYSTÈME POKÉDX COMPLET
+// Pokedx/index.js - PokedxModule CORRIGÉ avec BaseModule pur
+// 🎯 UTILISE BaseModule.canOpenUI() sans surcharge problématique
+// 📍 DÉLÉGATION PROPRE vers UIManager
+// 📱 SYSTÈME POKÉDX SANS BLOCAGES
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
-import { PokedexSystem } from './PokedexSystem.js';
-import { PokedexIcon } from './PokedexIcon.js';
-import { PokedexUI } from './PokedexUI.js';
+import { PokedxSystem } from './PokedxSystem.js';
+import { PokedxIcon } from './PokedxIcon.js';
+import { PokedxUI } from './PokedxUI.js';
 
 /**
- * Module Pokédx utilisant BaseModule
- * Hérite de toute la logique UIManager générique
+ * ✅ Module Pokédx avec BaseModule PUR - SANS surcharge canOpenUI()
+ * Délégation complète vers UIManager pour les autorisations
  */
-export class PokedexModule extends BaseModule {
+export class PokedxModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
     // Configuration spécifique Pokédx
-    const pokedexOptions = {
+    const pokedxOptions = {
       singleton: true,           // Pokédx est un singleton
       autoCloseUI: true,         // Fermer UI par défaut
       keyboardShortcut: 'p',     // Touche P pour ouvrir/fermer
       uiManagerConfig: {
         anchor: 'bottom-right',
-        order: 1,                // Deuxième dans la liste (entre inventory et team)
+        order: 2,                // Troisième dans la liste (après inventory et quest)
         group: 'ui-icons'
       },
       ...options
     };
     
-    super(moduleId || 'pokedex', gameRoom, scene, pokedexOptions);
+    super(moduleId || 'pokedx', gameRoom, scene, pokedxOptions);
     
     // === RÉFÉRENCE AU SYSTÈME PRINCIPAL ===
-    this.system = null;  // PokedexSystem (logique complète)
+    this.system = null;  // PokedxSystem (logique complète)
     
     // === DONNÉES POKÉDX ===
-    this.pokedexData = {};
+    this.pokedxData = {};
     this.playerStats = {};
     this.notifications = [];
     
-    console.log('📱 [PokedexModule] Instance créée avec BaseModule');
+    console.log('📱 [PokedxModule] Instance créée avec BaseModule pur');
   }
   
   // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
@@ -46,28 +46,28 @@ export class PokedexModule extends BaseModule {
    * Initialisation spécifique Pokédx
    */
   async init() {
-    console.log('🚀 [PokedexModule] Initialisation métier Pokédx...');
+    console.log('🚀 [PokedxModule] Initialisation métier Pokédx...');
     
     // Créer le système principal (qui inclut la logique métier)
-    this.system = new PokedexSystem(this.scene, this.gameRoom);
+    this.system = new PokedxSystem(this.scene, this.gameRoom);
     
-    console.log('✅ [PokedexModule] Système Pokédx initialisé');
+    console.log('✅ [PokedxModule] Système Pokédx initialisé');
   }
   
   /**
    * Création des composants Pokédx
    */
   createComponents() {
-    console.log('🔧 [PokedexModule] Création composants Pokédx...');
+    console.log('🔧 [PokedxModule] Création composants Pokédx...');
     
     // Le système a déjà créé l'UI et l'icône, on les récupère
     if (this.system) {
-      this.ui = this.system.pokedexUI;
-      this.icon = this.system.pokedexIcon;
+      this.ui = this.system.pokedxUI;
+      this.icon = this.system.pokedxIcon;
       
       // 🆕 ASSURER QUE L'ICÔNE EST INITIALISÉE
       if (this.icon && !this.icon.iconElement) {
-        console.log('🔧 [PokedexModule] Initialisation icône manquante...');
+        console.log('🔧 [PokedxModule] Initialisation icône manquante...');
         this.icon.init();
       }
       
@@ -83,27 +83,28 @@ export class PokedexModule extends BaseModule {
         this.icon.iconElement.style.top = '';
         this.icon.iconElement.style.zIndex = '';
         
-        console.log('✅ [PokedexModule] Icône préparée pour UIManager');
+        console.log('✅ [PokedxModule] Icône préparée pour UIManager');
       } else {
-        console.warn('❌ [PokedexModule] Impossible de préparer l\'icône');
+        console.warn('❌ [PokedxModule] Impossible de préparer l\'icône');
       }
     }
     
-    console.log('✅ [PokedexModule] Composants Pokédx récupérés du système');
+    console.log('✅ [PokedxModule] Composants Pokédx récupérés du système');
   }
   
   /**
    * Connexion des composants Pokédx
    */
   connectComponents() {
-    console.log('🔗 [PokedexModule] Connexion composants Pokédx...');
+    console.log('🔗 [PokedxModule] Connexion composants Pokédx...');
     
-    // Les composants sont déjà connectés par PokedexSystem
+    // Les composants sont déjà connectés par PokedxSystem
     // On ajoute juste la logique spécifique UIManager
     
-    // Icône → Interface (via BaseModule)
+    // ✅ DÉLÉGATION PROPRE: Icône → BaseModule → UIManager
     if (this.icon) {
       this.icon.onClick = () => {
+        // 🎯 VÉRIFICATION VIA BASEMODULE (qui délègue vers UIManager)
         if (this.canOpenUI()) {
           this.ui.toggle();
         } else {
@@ -115,8 +116,37 @@ export class PokedexModule extends BaseModule {
     // Assurer compatibilité UIManager
     this.ensureIconForUIManager();
     
-    console.log('✅ [PokedexModule] Composants Pokédx connectés via BaseModule');
+    console.log('✅ [PokedxModule] Composants Pokédx connectés via BaseModule');
   }
+  
+  // === ❌ SUPPRESSION canOpenUI() PROBLÉMATIQUE ===
+  
+  /**
+   * ❌ MÉTHODE SUPPRIMÉE: canOpenUI() avec vérifications DOM
+   * 
+   * Ancienne logique problématique:
+   * ```javascript
+   * canOpenUI() {
+   *   // Vérifications spécifiques au Pokédx
+   *   const blockers = [
+   *     document.querySelector('.quest-dialog-overlay'),
+   *     document.querySelector('#dialogue-box:not([style*="display: none"])'),
+   *     // ... autres blockers DOM
+   *   ];
+   *   // ← Encore une autre logique redondante !
+   * }
+   * ```
+   * 
+   * ✅ REMPLACEMENT: BaseModule.canOpenUI() par défaut
+   * - Délégation directe vers UIManager.canShowModule()
+   * - Plus de vérifications DOM redondantes
+   * - Architecture propre en couches
+   * 
+   * Le BaseModule se charge automatiquement de:
+   * 1. this.canOpenUI() → BaseModule.canOpenUI()
+   * 2. BaseModule.canOpenUI() → UIManager.canShowModule('pokedx')
+   * 3. UIManager décide selon ses règles globales
+   */
   
   // === 📊 MÉTHODES SPÉCIFIQUES POKÉDX ===
   
@@ -129,7 +159,7 @@ export class PokedexModule extends BaseModule {
     // Demander données Pokédx spécifiquement
     if (this.system) {
       setTimeout(() => {
-        this.system.requestPokedexData();
+        this.system.requestPokedxData();
       }, 200);
     }
     
@@ -220,9 +250,9 @@ export class PokedexModule extends BaseModule {
   /**
    * Synchroniser le Pokédx
    */
-  syncPokedex() {
+  syncPokedx() {
     if (this.system) {
-      this.system.syncPokedex();
+      this.system.syncPokedx();
     }
   }
   
@@ -253,19 +283,19 @@ export class PokedexModule extends BaseModule {
   /**
    * API legacy pour compatibilité
    */
-  togglePokedexUI() {
+  togglePokedxUI() {
     this.toggleUI();
   }
   
-  openPokedex() {
+  openPokedx() {
     this.open();
   }
   
-  closePokedex() {
+  closePokedx() {
     this.close();
   }
   
-  isPokedexOpen() {
+  isPokedxOpen() {
     return this.ui ? this.ui.isVisible : false;
   }
   
@@ -277,44 +307,36 @@ export class PokedexModule extends BaseModule {
     // Ajouter infos spécifiques Pokédx
     return {
       ...baseState,
-      hasData: this.ui ? Object.keys(this.ui.pokedexData || {}).length > 0 : false,
+      hasData: this.ui ? Object.keys(this.ui.pokedxData || {}).length > 0 : false,
       completionRate: this.getCompletionRate(),
       totalSeen: this.playerStats.totalSeen || 0,
       totalCaught: this.playerStats.totalCaught || 0,
       hasNotifications: this.notifications.length > 0,
-      canOpen: this.canOpenUI(),
-      moduleType: 'pokedex'
+      canOpen: this.canOpenUI(), // ← Utilise BaseModule.canOpenUI() automatiquement
+      moduleType: 'pokedx',
+      delegationMode: 'pure-basemodule'
     };
   }
   
   /**
-   * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
+   * ✅ MÉTHODE HÉRITÉE DE BASEMODULE - DÉLÉGATION AUTOMATIQUE
+   * 
+   * Plus besoin de surcharger canOpenUI() !
+   * BaseModule.canOpenUI() se charge de:
+   * 1. Déléguer vers UIManager.canShowModule('pokedx')
+   * 2. Fallback sur vérifications de base si UIManager indisponible
+   * 3. Architecture propre en couches
    */
-  canOpenUI() {
-    // Vérifications spécifiques au Pokédx
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#team-overlay:not(.hidden)'),
-      document.querySelector('#shop-overlay:not(.hidden)'),
-      document.querySelector('#inventory-overlay:not(.hidden)')
-    ];
-    
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-    
-    return !hasBlocker && !chatFocused && !starterHudOpen && this.uiManagerState.enabled;
-  }
+  // canOpenUI() → Héritée de BaseModule, délégation automatique !
   
   /**
    * Exposer le système globalement pour compatibilité
    */
   exposeGlobally() {
-    if (!window.pokedexSystem) {
-      window.pokedexSystem = this.system;
-      window.pokedexSystemGlobal = this;
-      console.log('🌐 [PokedexModule] Système exposé globalement');
+    if (!window.pokedxSystem) {
+      window.pokedxSystem = this.system;
+      window.pokedxSystemGlobal = this;
+      console.log('🌐 [PokedxModule] Système exposé globalement');
     }
   }
   
@@ -334,7 +356,7 @@ export class PokedexModule extends BaseModule {
    * Méthode pour assurer la compatibilité avec UIManager
    */
   ensureIconForUIManager() {
-    console.log('🔧 [PokedexModule] Vérification icône pour UIManager...');
+    console.log('🔧 [PokedxModule] Vérification icône pour UIManager...');
     
     if (this.icon && this.icon.iconElement) {
       // Reset du positionnement pour UIManager
@@ -348,11 +370,11 @@ export class PokedexModule extends BaseModule {
       this.icon.iconElement.style.top = '';
       this.icon.iconElement.style.zIndex = '';
       
-      console.log('✅ [PokedexModule] Icône prête pour UIManager');
+      console.log('✅ [PokedxModule] Icône prête pour UIManager');
       return true;
     }
     
-    console.warn('❌ [PokedexModule] Icône non disponible');
+    console.warn('❌ [PokedxModule] Icône non disponible');
     return false;
   }
   
@@ -362,7 +384,7 @@ export class PokedexModule extends BaseModule {
    * Gérer une rencontre Pokémon (appelé par le moteur de jeu)
    */
   onPokemonEncounter(pokemonData) {
-    console.log('👁️ [PokedexModule] Rencontre Pokémon:', pokemonData);
+    console.log('👁️ [PokedxModule] Rencontre Pokémon:', pokemonData);
     
     if (!pokemonData || !pokemonData.pokemonId) return;
     
@@ -389,7 +411,7 @@ export class PokedexModule extends BaseModule {
    * Gérer une capture Pokémon (appelé par le moteur de jeu)
    */
   onPokemonCapture(pokemonData) {
-    console.log('🎯 [PokedexModule] Capture Pokémon:', pokemonData);
+    console.log('🎯 [PokedxModule] Capture Pokémon:', pokemonData);
     
     if (!pokemonData || !pokemonData.pokemonId || !pokemonData.ownedPokemonId) return;
     
@@ -433,7 +455,7 @@ export class PokedexModule extends BaseModule {
    * Gérer une évolution Pokémon (appelé par le moteur de jeu)
    */
   onPokemonEvolution(evolutionData) {
-    console.log('🔄 [PokedexModule] Évolution Pokémon:', evolutionData);
+    console.log('🔄 [PokedxModule] Évolution Pokémon:', evolutionData);
     
     if (!evolutionData || !evolutionData.newPokemonId) return;
     
@@ -489,31 +511,31 @@ export class PokedexModule extends BaseModule {
  * Factory function pour créer le module Pokédx
  * Utilise la factory générique de BaseModule
  */
-export async function createPokedexModule(gameRoom, scene, options = {}) {
+export async function createPokedxModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [PokedexFactory] Création module Pokédx avec BaseModule...');
+    console.log('🏭 [PokedxFactory] Création module Pokédx avec BaseModule...');
     
-    const pokedexOptions = {
+    const pokedxOptions = {
       singleton: true,
       ...options
     };
     
-    const pokedexInstance = await createModule(PokedexModule, 'pokedex', gameRoom, scene, pokedexOptions);
+    const pokedxInstance = await createModule(PokedxModule, 'pokedx', gameRoom, scene, pokedxOptions);
     
-    console.log('✅ [PokedexFactory] Module Pokédx créé avec succès');
-    return pokedexInstance;
+    console.log('✅ [PokedxFactory] Module Pokédx créé avec succès');
+    return pokedxInstance;
     
   } catch (error) {
-    console.error('❌ [PokedexFactory] Erreur création module Pokédx:', error);
+    console.error('❌ [PokedxFactory] Erreur création module Pokédx:', error);
     throw error;
   }
 }
 
 // === 📋 CONFIGURATION POKÉDX POUR UIMANAGER ===
 
-export const POKEDEX_MODULE_CONFIG = generateModuleConfig('pokedex', {
-  moduleClass: PokedexModule,
-  order: 1,  // Deuxième = entre inventory et team
+export const POKEDX_MODULE_CONFIG = generateModuleConfig('pokedx', {
+  moduleClass: PokedxModule,
+  order: 2,  // Troisième = après inventory et quest
   
   options: {
     singleton: true,
@@ -525,11 +547,12 @@ export const POKEDEX_MODULE_CONFIG = generateModuleConfig('pokedex', {
   metadata: {
     name: 'Pokédx National',
     description: 'Complete Pokédx system with discovery tracking',
-    version: '1.0.0',
-    category: 'Data Management'
+    version: '2.0.0',
+    category: 'Data Management',
+    architecture: 'Pure BaseModule with UIManager delegation'
   },
   
-  factory: () => createPokedexModule(
+  factory: () => createPokedxModule(
     window.currentGameRoom, 
     window.game?.scene?.getScenes(true)[0]
   )
@@ -540,22 +563,22 @@ export const POKEDEX_MODULE_CONFIG = generateModuleConfig('pokedex', {
 /**
  * Enregistrer le module Pokédx dans UIManager
  */
-export async function registerPokedexModule(uiManager) {
+export async function registerPokedxModule(uiManager) {
   try {
-    console.log('📝 [PokedexIntegration] Enregistrement Pokédx...');
+    console.log('📝 [PokedxIntegration] Enregistrement Pokédx...');
     
     // Vérifier si déjà enregistré
-    if (uiManager.modules && uiManager.modules.has('pokedex')) {
-      console.log('ℹ️ [PokedexIntegration] Module déjà enregistré');
+    if (uiManager.modules && uiManager.modules.has('pokedx')) {
+      console.log('ℹ️ [PokedxIntegration] Module déjà enregistré');
       return true;
     }
     
-    await uiManager.registerModule('pokedex', POKEDX_MODULE_CONFIG);
-    console.log('✅ [PokedexIntegration] Module Pokédx enregistré');
+    await uiManager.registerModule('pokedx', POKEDX_MODULE_CONFIG);
+    console.log('✅ [PokedxIntegration] Module Pokédx enregistré');
     
     return true;
   } catch (error) {
-    console.error('❌ [PokedexIntegration] Erreur enregistrement:', error);
+    console.error('❌ [PokedxIntegration] Erreur enregistrement:', error);
     throw error;
   }
 }
@@ -563,84 +586,84 @@ export async function registerPokedexModule(uiManager) {
 /**
  * Initialiser et connecter le module Pokédx
  */
-export async function initializePokedexModule(uiManager) {
+export async function initializePokedxModule(uiManager) {
   try {
-    console.log('🚀 [PokedexIntegration] Initialisation Pokédx...');
+    console.log('🚀 [PokedxIntegration] Initialisation Pokédx...');
     
     // Enregistrer le module
-    await registerPokedexModule(uiManager);
+    await registerPokedxModule(uiManager);
     
     // Vérifier si déjà initialisé (singleton)
-    let pokedexInstance = PokedexModule.getInstance('pokedex');
+    let pokedxInstance = PokedxModule.getInstance('pokedx');
     
-    if (!pokedexInstance || !pokedexInstance.uiManagerState.initialized) {
+    if (!pokedxInstance || !pokedxInstance.uiManagerState.initialized) {
       // Initialiser le module
-      pokedexInstance = await uiManager.initializeModule('pokedex');
+      pokedxInstance = await uiManager.initializeModule('pokedx');
     } else {
-      console.log('ℹ️ [PokedexIntegration] Instance déjà initialisée');
+      console.log('ℹ️ [PokedxIntegration] Instance déjà initialisée');
       
       // Connecter à UIManager si pas encore fait
-      pokedexInstance.connectUIManager(uiManager);
+      pokedxInstance.connectUIManager(uiManager);
     }
     
     // Setup des événements globaux Pokédx
-    setupPokedexGlobalEvents(pokedexInstance);
+    setupPokedxGlobalEvents(pokedxInstance);
     
-    console.log('✅ [PokedexIntegration] Initialisation Pokédx terminée');
-    return pokedexInstance;
+    console.log('✅ [PokedxIntegration] Initialisation Pokédx terminée');
+    return pokedxInstance;
     
   } catch (error) {
-    console.error('❌ [PokedexIntegration] Erreur initialisation:', error);
+    console.error('❌ [PokedxIntegration] Erreur initialisation:', error);
     throw error;
   }
 }
 
 // === 🌐 ÉVÉNEMENTS GLOBAUX POKÉDX ===
 
-function setupPokedexGlobalEvents(pokedexInstance) {
+function setupPokedxGlobalEvents(pokedxInstance) {
   // Éviter double setup
-  if (window._pokedexEventsSetup) {
-    console.log('ℹ️ [PokedexEvents] Événements déjà configurés');
+  if (window._pokedxEventsSetup) {
+    console.log('ℹ️ [PokedxEvents] Événements déjà configurés');
     return;
   }
   
   // Événement: Pokémon rencontré
   window.addEventListener('pokemonEncountered', (event) => {
-    if (pokedexInstance.onPokemonEncounter) {
-      pokedexInstance.onPokemonEncounter(event.detail);
+    if (pokedxInstance.onPokemonEncounter) {
+      pokedxInstance.onPokemonEncounter(event.detail);
     }
   });
   
   // Événement: Pokémon capturé
   window.addEventListener('pokemonCaptured', (event) => {
-    if (pokedexInstance.onPokemonCapture) {
-      pokedexInstance.onPokemonCapture(event.detail);
+    if (pokedxInstance.onPokemonCapture) {
+      pokedxInstance.onPokemonCapture(event.detail);
     }
   });
   
   // Événement: Pokémon évolué
   window.addEventListener('pokemonEvolved', (event) => {
-    if (pokedexInstance.onPokemonEvolution) {
-      pokedexInstance.onPokemonEvolution(event.detail);
+    if (pokedxInstance.onPokemonEvolution) {
+      pokedxInstance.onPokemonEvolution(event.detail);
     }
   });
   
   // Événement: Combat commencé (fermer le Pokédx)
   window.addEventListener('battleStarted', () => {
-    if (pokedexInstance.ui && pokedexInstance.ui.isVisible) {
-      pokedexInstance.ui.hide();
+    if (pokedxInstance.ui && pokedxInstance.ui.isVisible) {
+      pokedxInstance.ui.hide();
     }
   });
   
   // Événement: Shop ouvert (fermer le Pokédx)
   window.addEventListener('shopOpened', () => {
-    if (pokedexInstance.ui && pokedexInstance.ui.isVisible) {
-      pokedexInstance.ui.hide();
+    if (pokedxInstance.ui && pokedxInstance.ui.isVisible) {
+      pokedxInstance.ui.hide();
     }
   });
   
-  window._pokedexEventsSetup = true;
-  console.log('🌐 [PokedexEvents] Événements Pokédx configurés');
+  window._pokedxEventsSetup = true;
+  console.log('🌐 [PokedxEvents] Événements Pokédx configurés');
 }
 
 // === 💡 UTILISATION SIMPLE ===
@@ -648,120 +671,104 @@ function setupPokedexGlobalEvents(pokedexInstance) {
 /**
  * Fonction d'utilisation simple pour intégrer Pokédx dans un projet
  */
-export async function setupPokedexSystem(uiManager) {
+export async function setupPokedxSystem(uiManager) {
   try {
-    console.log('🔧 [PokedexSetup] Configuration système Pokédx avec BaseModule...');
+    console.log('🔧 [PokedxSetup] Configuration système Pokédx avec BaseModule pur...');
     
     // Initialiser le module
-    const pokedexInstance = await initializePokedexModule(uiManager);
+    const pokedxInstance = await initializePokedxModule(uiManager);
     
     // Exposer globalement pour compatibilité
-    if (!window.pokedexSystem) {
-      window.pokedexSystem = pokedexInstance.system;
-      window.pokedexSystemGlobal = pokedexInstance;
-      window.togglePokedex = () => pokedexInstance.toggleUI();
-      window.openPokedex = () => pokedexInstance.open();
-      window.closePokedex = () => pokedexInstance.close();
-      window.isPokedexOpen = () => pokedexInstance.ui?.isVisible || false;
+    if (!window.pokedxSystem) {
+      window.pokedxSystem = pokedxInstance.system;
+      window.pokedxSystemGlobal = pokedxInstance;
+      window.togglePokedx = () => pokedxInstance.toggleUI();
+      window.openPokedx = () => pokedxInstance.open();
+      window.closePokedx = () => pokedxInstance.close();
+      window.isPokedxOpen = () => pokedxInstance.ui?.isVisible || false;
       
       // Fonctions spécifiques Pokédx
       window.markPokemonSeen = (pokemonId, level, location, options) => 
-        pokedexInstance.markPokemonSeen(pokemonId, level, location, options);
+        pokedxInstance.markPokemonSeen(pokemonId, level, location, options);
       window.markPokemonCaught = (pokemonId, level, location, ownedPokemonId, options) => 
-        pokedexInstance.markPokemonCaught(pokemonId, level, location, ownedPokemonId, options);
+        pokedxInstance.markPokemonCaught(pokemonId, level, location, ownedPokemonId, options);
       window.isPokemonSeen = (pokemonId) => 
-        pokedexInstance.isPokemonSeen(pokemonId);
+        pokedxInstance.isPokemonSeen(pokemonId);
       window.isPokemonCaught = (pokemonId) => 
-        pokedexInstance.isPokemonCaught(pokemonId);
-      window.getPokedexCompletionRate = () => 
-        pokedexInstance.getCompletionRate();
+        pokedxInstance.isPokemonCaught(pokemonId);
+      window.getPokedxCompletionRate = () => 
+        pokedxInstance.getCompletionRate();
       
-      console.log('🌐 [PokedexSetup] Fonctions globales Pokédx exposées');
+      console.log('🌐 [PokedxSetup] Fonctions globales Pokédx exposées');
     }
     
-    console.log('✅ [PokedexSetup] Système Pokédx configuré avec BaseModule');
-    return pokedexInstance;
+    console.log('✅ [PokedxSetup] Système Pokédx configuré avec BaseModule pur');
+    return pokedxInstance;
     
   } catch (error) {
-    console.error('❌ [PokedexSetup] Erreur configuration:', error);
+    console.error('❌ [PokedxSetup] Erreur configuration:', error);
     throw error;
   }
 }
 
 // === 🔍 UTILITÉS DE DEBUG POKÉDX ===
 
-export function debugPokedexModule() {
+export function debugPokedxModule() {
   const { debugModule } = require('../core/BaseModule.js');
-  return debugModule('pokedex', PokedexModule);
+  return debugModule('pokedx', PokedxModule);
 }
 
-export function fixPokedexModule() {
-  console.log('🔧 [PokedexFix] Réparation module Pokédx...');
+export function fixPokedxModule() {
+  console.log('🔧 [PokedxFix] Réparation module Pokédx...');
   
   try {
-    const instance = PokedexModule.getInstance('pokedex');
+    const instance = PokedxModule.getInstance('pokedx');
     
     if (instance) {
       // Force fermeture UI via BaseModule
       instance.forceCloseUI();
       
-      console.log('✅ [PokedexFix] Module Pokédx réparé');
+      console.log('✅ [PokedxFix] Module Pokédx réparé');
       return true;
     } else {
-      console.log('ℹ️ [PokedexFix] Aucune instance à réparer');
+      console.log('ℹ️ [PokedxFix] Aucune instance à réparer');
       return false;
     }
     
   } catch (error) {
-    console.error('❌ [PokedexFix] Erreur réparation:', error);
+    console.error('❌ [PokedxFix] Erreur réparation:', error);
     return false;
   }
 }
 
 // === 📋 EXPORT PAR DÉFAUT ===
 
-export default PokedexModule;
+export default PokedxModule;
 
 console.log(`
-📱 === POKÉDX MODULE AVEC BASEMODULE ===
+📱 === POKÉDX MODULE AVEC BASEMODULE PUR ===
 
-🎯 NOUVELLES FONCTIONNALITÉS:
-• BaseModule - logique UIManager mutualisée
-• Code simplifié - moins de duplication
-• Patterns standards - consistent avec Team/Inventory
-• Singleton intégré - via BaseModule
+❌ SUPPRESSION CANOPEN() PROBLÉMATIQUE:
+• Plus de vérifications DOM redondantes
+• Plus de blockers spécifiques au module
+• Plus de logique dupliquée avec UIManager
 
-📍 AVANTAGES BASEMODULE:
-• connectUIManager() générique
-• forceCloseUI() standardisé
-• Gestion état UIManager uniforme
-• Raccourcis clavier automatiques
+✅ DÉLÉGATION PURE VERS UIMANAGER:
+• BaseModule.canOpenUI() utilisé tel quel
+• Délégation automatique vers UIManager.canShowModule()
+• Architecture propre en couches respectée
 
-🔧 MÉTHODES HÉRITÉES:
-• show(), hide(), setEnabled() - standards
-• connectUIManager() - connexion sécurisée
-• getUIManagerState() - état complet
-• forceCloseUI() - fermeture forcée
+🎯 FLUX SIMPLIFIÉ:
+1. Icon.onClick() → Module.canOpenUI()
+2. Module.canOpenUI() → BaseModule.canOpenUI() (hérité)
+3. BaseModule.canOpenUI() → UIManager.canShowModule('pokedx')
+4. UIManager décide selon ses règles globales
 
-🎯 SPÉCIFICITÉS POKÉDX:
-• markPokemonSeen() - marquer comme vu
-• markPokemonCaught() - marquer comme capturé
-• isPokemonSeen() - vérifier statut
-• getCompletionRate() - taux de complétion
-• openToView() - ouvrir vue spécifique
-• API legacy maintenue
+🛡️ PLUS DE CONFLITS:
+• Fini les 4 couches de vérifications
+• Fini les conditions contradictoires
+• UIManager seule source de vérité
+• canOpenUI() héritée = délégation automatique
 
-🔗 INTÉGRATION SYSTÈME:
-• PokedexSystem conservé intact
-• PokedexUI et PokedexIcon réutilisés
-• Compatibilité totale avec existant
-• Fonctions globales exposées
-
-🎮 ÉVÉNEMENTS AUTOMATIQUES:
-• pokemonEncountered - auto-marquer vu
-• pokemonCaptured - auto-marquer capturé  
-• pokemonEvolved - gérer évolutions
-• battleStarted - fermer auto
-
-✅ POKÉDX REFACTORISÉ AVEC BASEMODULE !
+✅ POKÉDX MODULE REFACTORISÉ AVEC BASEMODULE PUR !
 `);
