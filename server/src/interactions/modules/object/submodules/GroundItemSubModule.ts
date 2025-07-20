@@ -192,8 +192,25 @@ async handle(
 
       // === ÉTAPE 5 : ENREGISTRER LE COOLDOWN ===
       
-      const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
-      await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownHours);
+const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24); // 24h par défaut
+
+      // ✅ MODIFIÉ: Enregistrer cooldown seulement si pas en mode bypass
+      if (!serverConfig.bypassObjectCooldowns) {
+        await playerData.recordObjectCollection(objectDef.id, objectDef.zone, cooldownHours);
+        
+        this.log('info', `🕒 Cooldown enregistré`, {
+          objectId: objectDef.id,
+          zone: objectDef.zone,
+          player: player.name,
+          cooldownHours,
+          nextAvailable: new Date(Date.now() + cooldownHours * 60 * 60 * 1000).toISOString()
+        });
+      } else {
+        this.log('info', `🛠️ Mode dev: Pas de cooldown enregistré`, {
+          objectId: objectDef.id,
+          player: player.name
+        });
+      }
       
       this.log('info', `🕒 Cooldown enregistré`, {
         objectId: objectDef.id,
@@ -226,8 +243,8 @@ async handle(
         {
           objectId: objectDef.id.toString(),
           objectType: objectDef.type,
-          collected: true,
-          newState: "collected"
+          collected: !serverConfig.bypassObjectCooldowns, // ✅ false en mode bypass
+          newState: serverConfig.bypassObjectCooldowns ? "available" : "collected" // ✅ reste disponible en mode bypass
         },
         {
           metadata: {
