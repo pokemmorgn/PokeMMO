@@ -1402,4 +1402,366 @@ router.post('/players/:username/bulk-actions', requireMacAndDev, async (req: any
   }
 });
 
+// ========================================
+// 🗺️ ROUTES POUR L'ÉDITEUR DE CARTES
+// ========================================
+
+interface MapObject {
+  id: string;
+  type: 'npc' | 'object' | 'spawn' | 'teleport';
+  x: number;
+  y: number;
+  name: string;
+  properties: Record<string, any>;
+}
+
+interface MapData {
+  mapId: string;
+  mapName: string;
+  objects: MapObject[];
+  timestamp: string;
+  totalObjects: number;
+}
+
+// Import nécessaire pour les fichiers (ajoutez en haut du fichier si pas déjà fait)
+import { promises as fs } from 'fs';
+import path from 'path';
+
+// Dossiers de stockage
+const MAPS_DIR = path.join(process.cwd(), 'client/public/assets/maps');
+const MAP_OBJECTS_DIR = path.join(process.cwd(), 'server/data/map-objects');
+
+// S'assurer que le dossier existe
+async function ensureMapObjectsDir() {
+  try {
+    await fs.access(MAP_OBJECTS_DIR);
+  } catch {
+    await fs.mkdir(MAP_OBJECTS_DIR, { recursive: true });
+  }
+}
+
+// ✅ ROUTE: Liste des cartes disponibles
+router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('🗺️ [Maps API] Getting available maps list');
+    
+    const files = await fs.readdir(MAPS_DIR);
+    const tmjFiles = files.filter(file => file.endsWith('.tmj'));
+    
+    const maps = tmjFiles.map(file => {
+      const id = file.replace('.tmj', '');
+      return {
+        id,
+        name: formatMapName(id),
+        file
+      };
+    });
+    
+    res.json({
+      success: true,
+      maps,
+      total: maps.length
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error listing maps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement de la liste des cartes'
+    });
+  }
+});
+
+// ✅ ROUTE: Charger une carte TMJ
+router.get('/maps/:mapId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    console.log(`🗺️ [Maps API] Loading map data: ${mapId}`);
+    
+    const mapFile = path.join(MAPS_DIR, `${mapId}.tmj`);
+    
+    try {
+      await fs.access(mapFile);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Carte non trouvée'
+      });
+    }
+    
+    const mapData = await fs.readFile(mapFile, 'utf-8');
+    const parsedMap = JSON.parse(mapData);
+    
+    res.json({
+      success: true,
+      map: parsedMap,
+      mapId
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error loading map:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement de la carte'
+    });
+  }
+});
+
+// ✅ ROUTE: Charger les objets d'une carte
+router.get('/maps/:mapId/objects', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    console.log(`🗺️ [Maps API] Loading objects for map: ${mapId}`);
+    
+    await ensureMapObjectsDir();
+    
+    const objectsFile = path.join(MAP_OBJECTS_DIR, `${mapId}.json`);
+    
+    try {
+      await fs.access(objectsFile);
+      const objectsData = await fs.readFile(objectsFile, 'utf-8');
+      const parsedObjects = JSON.parse(objectsData);
+      
+      res.json({
+        success: true,
+        objects: parsedObjects.objects || [],
+        mapId,
+        lastModified: parsedObjects.timestamp
+      });
+    } catch {
+      // Fichier n'existe pas, retourner une liste vide
+      res.json({
+        success: true,
+        objects: [],
+        mapId,
+        lastModified: null
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error loading objects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement des objets'
+    });
+  }
+});
+
+// ✅ ROUTE: Sauvegarder les objets d'une carte
+router.post('/maps/:mapId/objects', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    const mapData: MapData = req.body;
+    
+    console.log(`💾 [Maps API] Saving objects for map: ${mapId}`);
+    console.log(`📊 [Maps API] Total objects: ${mapData.objects?.length || 0}`);
+    
+    // Validation des données
+    if (!mapData.objects || !Array.isArray(mapData.objects)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Données d\'objets invalides'
+      });
+    }
+    
+    // Validation des objets
+    for (const obj of mapData.objects) {
+      if (!obj.id || !obj.type || typeof obj.x !== 'number' || typeof obj.y !== 'number') {
+        return res.status(400).json({
+          success: false,
+          error: 'Format d\'objet invalide'
+        });
+      }
+    }
+    
+    await ensureMapObjectsDir();
+    
+    // Préparer les données à sauvegarder
+    const saveData: MapData = {
+      mapId,
+      mapName: mapData.mapName || mapId,
+      objects: mapData.objects,
+      timestamp: new Date().toISOString(),
+      totalObjects: mapData.objects.length
+    };
+    
+    // Sauvegarder dans le fichier
+    const objectsFile = path.join(MAP_OBJECTS_DIR, `${mapId}.json`);
+    await fs.writeFile(objectsFile, JSON.stringify(saveData, null, 2), 'utf-8');
+    
+    // Optionnel: créer une backup
+    const backupFile = path.join(MAP_OBJECTS_DIR, `${mapId}_backup_${Date.now()}.json`);
+    await fs.writeFile(backupFile, JSON.stringify(saveData, null, 2), 'utf-8');
+    
+    console.log(`✅ [Maps API] Objects saved successfully for ${mapId} by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: `${saveData.totalObjects} objets sauvegardés pour la carte ${mapId}`,
+      mapId,
+      totalObjects: saveData.totalObjects,
+      timestamp: saveData.timestamp,
+      savedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error saving objects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la sauvegarde des objets'
+    });
+  }
+});
+
+// ✅ ROUTE: Supprimer tous les objets d'une carte
+router.delete('/maps/:mapId/objects', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    console.log(`🗑️ [Maps API] Deleting all objects for map: ${mapId} by ${req.user.username}`);
+    
+    await ensureMapObjectsDir();
+    
+    const objectsFile = path.join(MAP_OBJECTS_DIR, `${mapId}.json`);
+    
+    try {
+      // Créer une backup avant suppression
+      const backupFile = path.join(MAP_OBJECTS_DIR, `${mapId}_backup_before_delete_${Date.now()}.json`);
+      await fs.copyFile(objectsFile, backupFile);
+      
+      await fs.unlink(objectsFile);
+      console.log(`✅ [Maps API] Objects file deleted for ${mapId}`);
+    } catch {
+      // Fichier n'existe pas, pas d'erreur
+    }
+    
+    res.json({
+      success: true,
+      message: `Objets supprimés pour la carte ${mapId}`,
+      mapId,
+      deletedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error deleting objects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la suppression des objets'
+    });
+  }
+});
+
+// ✅ ROUTE: Statistiques des cartes
+router.get('/maps/stats', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('📊 [Maps API] Getting maps statistics');
+    
+    // Compter les fichiers TMJ
+    const mapFiles = await fs.readdir(MAPS_DIR);
+    const totalMaps = mapFiles.filter(file => file.endsWith('.tmj')).length;
+    
+    // Compter les objets par carte
+    await ensureMapObjectsDir();
+    const objectFiles = await fs.readdir(MAP_OBJECTS_DIR);
+    const mapObjectFiles = objectFiles.filter(file => 
+      file.endsWith('.json') && !file.includes('_backup_')
+    );
+    
+    let totalObjects = 0;
+    const mapStats = [];
+    
+    for (const file of mapObjectFiles) {
+      try {
+        const content = await fs.readFile(path.join(MAP_OBJECTS_DIR, file), 'utf-8');
+        const data = JSON.parse(content);
+        const objectCount = data.totalObjects || 0;
+        totalObjects += objectCount;
+        
+        mapStats.push({
+          mapId: data.mapId || file.replace('.json', ''),
+          objectCount,
+          lastModified: data.timestamp
+        });
+      } catch {
+        // Ignorer les fichiers corrompus
+      }
+    }
+    
+    res.json({
+      success: true,
+      stats: {
+        totalMaps,
+        mapsWithObjects: mapStats.length,
+        totalObjects,
+        mapStats
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error getting stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement des statistiques'
+    });
+  }
+});
+
+// ✅ ROUTE: Exporter tous les objets de cartes
+router.get('/maps/export/all', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log(`📤 [Maps API] Exporting all map objects by ${req.user.username}`);
+    
+    await ensureMapObjectsDir();
+    const objectFiles = await fs.readdir(MAP_OBJECTS_DIR);
+    const mapObjectFiles = objectFiles.filter(file => 
+      file.endsWith('.json') && !file.includes('_backup_')
+    );
+    
+    const allMapData: Record<string, any> = {};
+    
+    for (const file of mapObjectFiles) {
+      try {
+        const content = await fs.readFile(path.join(MAP_OBJECTS_DIR, file), 'utf-8');
+        const data = JSON.parse(content);
+        allMapData[data.mapId || file.replace('.json', '')] = data;
+      } catch {
+        // Ignorer les fichiers corrompus
+      }
+    }
+    
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      exportedBy: req.user.username,
+      totalMaps: Object.keys(allMapData).length,
+      totalObjects: Object.values(allMapData).reduce((total: number, map: any) => total + (map.totalObjects || 0), 0),
+      maps: allMapData
+    };
+    
+    res.json({
+      success: true,
+      data: exportData
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error exporting:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de l\'export'
+    });
+  }
+});
+
+// Fonction utilitaire pour formater les noms de cartes
+function formatMapName(mapId: string): string {
+  return mapId
+    .split(/(?=[A-Z])/)
+    .join(' ')
+    .split('_')
+    .join(' ')
+    .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// ========================================
+// FIN DES ROUTES MAPS
+// ========================================
+
 export default router;
