@@ -51,36 +51,119 @@ export class MapEditorModule {
         return ctx
     }
 
-    async loadAvailableMaps() {
-        console.log('🗺️ [MapEditor] Loading available maps...')
+   async loadAvailableMaps() {
+    console.log('🗺️ [MapEditor] Loading all available maps...')
+    
+    // Liste complète de vos cartes
+    this.availableMaps = [
+        { id: 'beach', name: '🏖️ Beach', file: 'beach.tmj' },
+        { id: 'village', name: '🏘️ Village', file: 'village.tmj' },
+        { id: 'lavandia', name: '🏙️ Lavandia', file: 'lavandia.tmj' },
+        { id: 'road1', name: '🛤️ Route 1', file: 'road1.tmj' },
+        { id: 'road2', name: '🛤️ Route 2', file: 'road2.tmj' },
+        { id: 'road3', name: '🛤️ Route 3', file: 'road3.tmj' },
         
-        try {
-            // Essayer de charger depuis l'API
-            const response = await this.adminPanel.apiCall('/maps/list')
-            this.availableMaps = response.maps || []
-        } catch (error) {
-            console.log('🗺️ [MapEditor] API not available, using default maps')
-            // Liste par défaut basée sur vos fichiers
-            this.availableMaps = [
-                { id: 'wraithmoormanor1', name: 'Wraithmoor Manor 1', file: 'wraithmoormanor1.tmj' },
-                { id: 'beach', name: 'Beach', file: 'beach.tmj' },
-                { id: 'village', name: 'Village', file: 'village.tmj' },
-                { id: 'lavandia', name: 'Lavandia', file: 'lavandia.tmj' }
-            ]
-        }
+        // Maisons Village
+        { id: 'villagehouse1', name: '🏠 Maison Village 1', file: 'villagehouse1.tmj' },
+        { id: 'villagehouse2', name: '🏠 Maison Village 2', file: 'villagehouse2.tmj' },
+        { id: 'villagelab', name: '🔬 Laboratoire Village', file: 'villagelab.tmj' },
+        { id: 'villageflorist', name: '🌸 Fleuriste Village', file: 'villageflorist.tmj' },
+        { id: 'villagewindmill', name: '🌾 Moulin Village', file: 'villagewindmill.tmj' },
+        
+        // Maisons Lavandia
+        { id: 'lavandiahouse1', name: '🏠 Maison Lavandia 1', file: 'lavandiahouse1.tmj' },
+        { id: 'lavandiahouse2', name: '🏠 Maison Lavandia 2', file: 'lavandiahouse2.tmj' },
+        { id: 'lavandiahouse3', name: '🏠 Maison Lavandia 3', file: 'lavandiahouse3.tmj' },
+        { id: 'lavandiahouse4', name: '🏠 Maison Lavandia 4', file: 'lavandiahouse4.tmj' },
+        { id: 'lavandiahouse5', name: '🏠 Maison Lavandia 5', file: 'lavandiahouse5.tmj' },
+        { id: 'lavandiahouse6', name: '🏠 Maison Lavandia 6', file: 'lavandiahouse6.tmj' },
+        { id: 'lavandiahouse7', name: '🏠 Maison Lavandia 7', file: 'lavandiahouse7.tmj' },
+        { id: 'lavandiahouse8', name: '🏠 Maison Lavandia 8', file: 'lavandiahouse8.tmj' },
+        { id: 'lavandiahouse9', name: '🏠 Maison Lavandia 9', file: 'lavandiahouse9.tmj' },
+        
+        // Bâtiments Lavandia
+        { id: 'lavandiashop', name: '🛒 Magasin Lavandia', file: 'lavandiashop.tmj' },
+        { id: 'lavandiahealingcenter', name: '🏥 Centre Pokémon Lavandia', file: 'lavandiahealingcenter.tmj' },
+        { id: 'lavandiaresearchlab', name: '🔬 Labo Recherche Lavandia', file: 'lavandiaresearchlab.tmj' },
+        { id: 'lavandiaequipment', name: '⚒️ Équipement Lavandia', file: 'lavandiaequipment.tmj' },
+        { id: 'lavandiafurniture', name: '🪑 Mobilier Lavandia', file: 'lavandiafurniture.tmj' },
+        { id: 'lavandiaanalysis', name: '🔍 Analyse Lavandia', file: 'lavandiaanalysis.tmj' },
+        { id: 'lavandiabossroom', name: '👑 Salle Boss Lavandia', file: 'lavandiabossroom.tmj' },
+        { id: 'lavandiacelebitemple', name: '🏛️ Temple Celebi Lavandia', file: 'lavandiacelebitemple.tmj' },
+        
+        // Grottes
+        { id: 'noctherbcave1', name: '🕳️ Grotte Noctherb 1', file: 'noctherbcave1.tmj' },
+        { id: 'noctherbcave2', name: '🕳️ Grotte Noctherb 2', file: 'noctherbcave2.tmj' },
+        { id: 'noctherbcave2bis', name: '🕳️ Grotte Noctherb 2bis', file: 'noctherbcave2bis.tmj' },
+        
+        // Zones spéciales
+        { id: 'greenroot', name: '🌳 Greenroot', file: 'Greenroot.tmj' },
+        { id: 'greenrootbeach', name: '🌳🏖️ Greenroot Beach', file: 'GreenrootBeach.tmj' },
+        { id: 'florist', name: '🌺 Fleuriste', file: 'Florist.tmj' },
+        { id: 'wraithmoor', name: '👻 Wraithmoor', file: 'wraithmoor.tmj' },
+        { id: 'wraithmoorcimetery', name: '⚰️ Cimetière Wraithmoor', file: 'wraithmoorcimetery.tmj' },
+        { id: 'wraithmoormanor1', name: '🏚️ Manoir Wraithmoor 1', file: 'wraithmoormanor1.tmj' },
+        
+        // Routes cachées/spéciales
+        { id: 'road1hidden', name: '🛤️ Route 1 Cachée', file: 'road1hidden.tmj' },
+        { id: 'road1house', name: '🏠 Maison Route 1', file: 'road1house.tmj' },
+        { id: 'villagehouse1old', name: '🏠 Ancienne Maison Village 1', file: 'VillageHouse1.tmj' },
+        { id: 'villagehouse2old', name: '🏠 Ancienne Maison Village 2', file: 'VillageHouse2.tmj' }
+    ]
 
-        // Remplir le select
-        const mapSelect = document.getElementById('mapSelect')
-        if (mapSelect) {
-            mapSelect.innerHTML = '<option value="">Sélectionner une carte...</option>' +
-                this.availableMaps.map(map => 
-                    `<option value="${map.id}">${map.name}</option>`
-                ).join('')
-        }
-
-        console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes disponibles`)
+    // Remplir le select avec des catégories
+    const mapSelect = document.getElementById('mapSelect')
+    if (mapSelect) {
+        mapSelect.innerHTML = `
+            <option value="">Sélectionner une carte...</option>
+            <optgroup label="🌍 Zones principales">
+                <option value="beach">🏖️ Beach</option>
+                <option value="village">🏘️ Village</option>
+                <option value="lavandia">🏙️ Lavandia</option>
+                <option value="greenroot">🌳 Greenroot</option>
+                <option value="wraithmoor">👻 Wraithmoor</option>
+            </optgroup>
+            <optgroup label="🛤️ Routes">
+                <option value="road1">🛤️ Route 1</option>
+                <option value="road2">🛤️ Route 2</option>
+                <option value="road3">🛤️ Route 3</option>
+                <option value="road1hidden">🛤️ Route 1 Cachée</option>
+            </optgroup>
+            <optgroup label="🏠 Maisons Village">
+                <option value="villagehouse1">🏠 Maison Village 1</option>
+                <option value="villagehouse2">🏠 Maison Village 2</option>
+                <option value="villagelab">🔬 Laboratoire</option>
+                <option value="villageflorist">🌸 Fleuriste</option>
+                <option value="villagewindmill">🌾 Moulin</option>
+            </optgroup>
+            <optgroup label="🏙️ Bâtiments Lavandia">
+                <option value="lavandiashop">🛒 Magasin</option>
+                <option value="lavandiahealingcenter">🏥 Centre Pokémon</option>
+                <option value="lavandiaresearchlab">🔬 Labo Recherche</option>
+                <option value="lavandiaequipment">⚒️ Équipement</option>
+                <option value="lavandiacelebitemple">🏛️ Temple Celebi</option>
+            </optgroup>
+            <optgroup label="🏠 Maisons Lavandia">
+                <option value="lavandiahouse1">🏠 Maison 1</option>
+                <option value="lavandiahouse2">🏠 Maison 2</option>
+                <option value="lavandiahouse3">🏠 Maison 3</option>
+                <option value="lavandiahouse4">🏠 Maison 4</option>
+                <option value="lavandiahouse5">🏠 Maison 5</option>
+                <option value="lavandiahouse6">🏠 Maison 6</option>
+                <option value="lavandiahouse7">🏠 Maison 7</option>
+                <option value="lavandiahouse8">🏠 Maison 8</option>
+                <option value="lavandiahouse9">🏠 Maison 9</option>
+            </optgroup>
+            <optgroup label="🕳️ Grottes">
+                <option value="noctherbcave1">🕳️ Grotte Noctherb 1</option>
+                <option value="noctherbcave2">🕳️ Grotte Noctherb 2</option>
+                <option value="noctherbcave2bis">🕳️ Grotte Noctherb 2bis</option>
+            </optgroup>
+        `
     }
 
+    console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes chargées`)
+}
     async loadMap(mapId) {
         if (!mapId) return
         
