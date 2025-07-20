@@ -49,16 +49,7 @@
     "usable_in_field": false,
     "stackable": true
   },
-  "love_ball": {
-    "id": "love_ball",
-    "type": "ball",
-    "pocket": "balls",
-    "price": 300,
-    "sell_price": 150,
-    "usable_in_battle": true,
-    "usable_in_field": false,
-    "stackable": true
-  },
+
   "potion": {
     "id": "potion",
     "type": "medicine",
@@ -203,6 +194,7 @@
     "stackable": true,
     "status_cure": ["all"]
   },
+
   "escape_rope": {
     "id": "escape_rope",
     "type": "item",
@@ -246,6 +238,201 @@
     "stackable": true,
     "effect_steps": 250
   },
+
+  "x_attack": {
+    "id": "x_attack",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 500,
+    "sell_price": 250,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "x_defend": {
+    "id": "x_defend",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 550,
+    "sell_price": 275,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "x_speed": {
+    "id": "x_speed",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 350,
+    "sell_price": 175,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "x_special": {
+    "id": "x_special",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 350,
+    "sell_price": 175,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "x_accuracy": {
+    "id": "x_accuracy",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 950,
+    "sell_price": 475,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "guard_spec": {
+    "id": "guard_spec",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 700,
+    "sell_price": 350,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "dire_hit": {
+    "id": "dire_hit",
+    "type": "battle_item",
+    "pocket": "items",
+    "price": 650,
+    "sell_price": 325,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+
+  "hp_up": {
+    "id": "hp_up",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": 9800,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "protein": {
+    "id": "protein",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": 9800,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "iron": {
+    "id": "iron",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": 9800,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "carbos": {
+    "id": "carbos",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": 9800,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "calcium": {
+    "id": "calcium",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": 9800,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "pp_up": {
+    "id": "pp_up",
+    "type": "vitamin",
+    "pocket": "items",
+    "price": null,
+    "sell_price": 4900,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+
+  "rare_candy": {
+    "id": "rare_candy",
+    "type": "item",
+    "pocket": "items",
+    "price": 4800,
+    "sell_price": 2400,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+
+  "moon_stone": {
+    "id": "moon_stone",
+    "type": "evolution_stone",
+    "pocket": "items",
+    "price": null,
+    "sell_price": 1050,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "fire_stone": {
+    "id": "fire_stone",
+    "type": "evolution_stone",
+    "pocket": "items",
+    "price": 2100,
+    "sell_price": 1050,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "water_stone": {
+    "id": "water_stone",
+    "type": "evolution_stone",
+    "pocket": "items",
+    "price": 2100,
+    "sell_price": 1050,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "thunder_stone": {
+    "id": "thunder_stone",
+    "type": "evolution_stone",
+    "pocket": "items",
+    "price": 2100,
+    "sell_price": 1050,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "leaf_stone": {
+    "id": "leaf_stone",
+    "type": "evolution_stone",
+    "pocket": "items",
+    "price": 2100,
+    "sell_price": 1050,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+
   "bike_voucher": {
     "id": "bike_voucher",
     "type": "key_item",
@@ -425,5 +612,75 @@
     "usable_in_battle": false,
     "usable_in_field": false,
     "stackable": false
-  }
+  },
+
+  "coin": {
+    "id": "coin",
+    "type": "special",
+    "pocket": "items",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": true
+  },
+
+  // CT (Capsule Technique) = TM
+  "ct01": { "id": "ct01", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct02": { "id": "ct02", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct03": { "id": "ct03", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct04": { "id": "ct04", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct05": { "id": "ct05", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct06": { "id": "ct06", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct07": { "id": "ct07", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct08": { "id": "ct08", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct09": { "id": "ct09", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct10": { "id": "ct10", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct11": { "id": "ct11", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct12": { "id": "ct12", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct13": { "id": "ct13", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct14": { "id": "ct14", "type": "ct", "pocket": "tms", "price": 5500, "sell_price": 2750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct15": { "id": "ct15", "type": "ct", "pocket": "tms", "price": 7500, "sell_price": 3750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct16": { "id": "ct16", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct17": { "id": "ct17", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct18": { "id": "ct18", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct19": { "id": "ct19", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct20": { "id": "ct20", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct21": { "id": "ct21", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct22": { "id": "ct22", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct23": { "id": "ct23", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct24": { "id": "ct24", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct25": { "id": "ct25", "type": "ct", "pocket": "tms", "price": 5500, "sell_price": 2750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct26": { "id": "ct26", "type": "ct", "pocket": "tms", "price": 5500, "sell_price": 2750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct27": { "id": "ct27", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct28": { "id": "ct28", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct29": { "id": "ct29", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct30": { "id": "ct30", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct31": { "id": "ct31", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct32": { "id": "ct32", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct33": { "id": "ct33", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct34": { "id": "ct34", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct35": { "id": "ct35", "type": "ct", "pocket": "tms", "price": 3000, "sell_price": 1500, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct36": { "id": "ct36", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct37": { "id": "ct37", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct38": { "id": "ct38", "type": "ct", "pocket": "tms", "price": 5500, "sell_price": 2750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct39": { "id": "ct39", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct40": { "id": "ct40", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct41": { "id": "ct41", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct42": { "id": "ct42", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct43": { "id": "ct43", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct44": { "id": "ct44", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct45": { "id": "ct45", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct46": { "id": "ct46", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct47": { "id": "ct47", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct48": { "id": "ct48", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct49": { "id": "ct49", "type": "ct", "pocket": "tms", "price": 2000, "sell_price": 1000, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "ct50": { "id": "ct50", "type": "ct", "pocket": "tms", "price": 5500, "sell_price": 2750, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+
+  // CS (Capsule Secrète) = HM
+  "cs01": { "id": "cs01", "type": "cs", "pocket": "tms", "price": 0, "sell_price": 0, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "cs02": { "id": "cs02", "type": "cs", "pocket": "tms", "price": 0, "sell_price": 0, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "cs03": { "id": "cs03", "type": "cs", "pocket": "tms", "price": 0, "sell_price": 0, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "cs04": { "id": "cs04", "type": "cs", "pocket": "tms", "price": 0, "sell_price": 0, "usable_in_battle": false, "usable_in_field": true, "stackable": true },
+  "cs05": { "id": "cs05", "type": "cs", "pocket": "tms", "price": 0, "sell_price": 0, "usable_in_battle": false, "usable_in_field": true, "stackable": true }
 }
