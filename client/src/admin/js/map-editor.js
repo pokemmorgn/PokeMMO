@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Map Editor Module
+// PokeWorld Admin Panel - Map Editor Module (Version corrigée)
 
 export class MapEditorModule {
     constructor(adminPanel) {
@@ -16,135 +16,8 @@ export class MapEditorModule {
     }
 
     init() {
-        // Ajouter l'onglet dans le menu admin après initialisation
-        setTimeout(() => this.addMapEditorTab(), 2000)
-    }
-
-    addMapEditorTab() {
-        console.log('🗺️ [MapEditor] Adding map editor tab...')
-        
-        // Vérifier si l'onglet existe déjà
-        if (document.querySelector('[data-tab="maps"]')) {
-            console.log('Map editor tab already exists')
-            return
-        }
-
-        // Ajouter l'onglet dans la navigation
-        const navTabs = document.querySelector('.nav-tabs')
-        if (navTabs) {
-            const mapTab = document.createElement('button')
-            mapTab.className = 'tab-btn'
-            mapTab.setAttribute('data-tab', 'maps')
-            mapTab.innerHTML = '<i class="fas fa-map"></i> Cartes'
-            navTabs.appendChild(mapTab)
-        }
-
-        // Créer le panel des cartes
-        const mainContent = document.querySelector('.main-content')
-        if (mainContent) {
-            const mapPanel = document.createElement('div')
-            mapPanel.className = 'panel'
-            mapPanel.id = 'maps'
-            mapPanel.innerHTML = this.createMapEditorHTML()
-            mainContent.appendChild(mapPanel)
-        }
-
-        console.log('✅ Map editor tab added successfully')
-    }
-
-    createMapEditorHTML() {
-        return `
-            <div class="map-editor-container" style="height: 100%; display: flex; flex-direction: column;">
-                <!-- Toolbar -->
-                <div class="map-toolbar" style="background: white; padding: 15px; border-bottom: 2px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="display: flex; justify-content: between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <h3 style="margin: 0; color: #2c3e50;">
-                                <i class="fas fa-map"></i> Éditeur de Cartes
-                            </h3>
-                            
-                            <select id="mapSelect" class="form-select" style="min-width: 200px;" onchange="adminPanel.mapEditor.loadMap(this.value)">
-                                <option value="">Sélectionner une carte...</option>
-                            </select>
-                        </div>
-
-                        <div id="mapTools" style="display: none; flex: 1; justify-content: center; gap: 10px;">
-                            <button class="btn btn-tool ${this.selectedTool === 'npc' ? 'active' : ''}" data-tool="npc" onclick="adminPanel.mapEditor.selectTool('npc')">
-                                <i class="fas fa-users"></i> NPC
-                            </button>
-                            <button class="btn btn-tool ${this.selectedTool === 'object' ? 'active' : ''}" data-tool="object" onclick="adminPanel.mapEditor.selectTool('object')">
-                                <i class="fas fa-cube"></i> Objet
-                            </button>
-                            <button class="btn btn-tool ${this.selectedTool === 'spawn' ? 'active' : ''}" data-tool="spawn" onclick="adminPanel.mapEditor.selectTool('spawn')">
-                                <i class="fas fa-map-marker-alt"></i> Spawn
-                            </button>
-                            <button class="btn btn-tool ${this.selectedTool === 'teleport' ? 'active' : ''}" data-tool="teleport" onclick="adminPanel.mapEditor.selectTool('teleport')">
-                                <i class="fas fa-portal-exit"></i> Téléport
-                            </button>
-                        </div>
-
-                        <div id="mapActions" style="display: none; align-items: center; gap: 10px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label style="font-weight: 500;">Zoom:</label>
-                                <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" 
-                                       onchange="adminPanel.mapEditor.setZoom(this.value)" style="width: 80px;">
-                                <span id="zoomValue">100%</span>
-                            </div>
-                            
-                            <button class="btn btn-success" onclick="adminPanel.mapEditor.saveMapObjects()">
-                                <i class="fas fa-save"></i> Sauvegarder
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Zone principale -->
-                <div style="flex: 1; display: flex; min-height: 0;">
-                    <!-- Canvas de la carte -->
-                    <div id="mapCanvasContainer" style="flex: 1; background: #f8f9fa; position: relative; overflow: auto;">
-                        <div id="mapLoadingMessage" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;">
-                            <div style="text-align: center;">
-                                <i class="fas fa-map-marked-alt" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                                <h4>Sélectionnez une carte pour commencer</h4>
-                                <p>Choisissez une carte TMJ dans la liste ci-dessus</p>
-                            </div>
-                        </div>
-                        
-                        <canvas id="mapCanvas" style="display: none; cursor: crosshair; border: 2px solid #007bff; border-radius: 8px; margin: 20px;"></canvas>
-                    </div>
-
-                    <!-- Panel des objets -->
-                    <div id="objectsPanel" style="width: 350px; background: white; border-left: 2px solid #e9ecef; padding: 20px; overflow-y: auto; display: none;">
-                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                            <h4 style="margin: 0; color: #2c3e50;">
-                                <i class="fas fa-layer-group"></i> Objets Placés
-                            </h4>
-                            <span id="objectsCount" class="badge badge-primary">0</span>
-                        </div>
-                        
-                        <div id="objectsList" style="space-y: 10px;">
-                            <!-- Les objets seront ajoutés ici dynamiquement -->
-                        </div>
-                        
-                        <div id="noObjectsMessage" style="text-align: center; padding: 40px; color: #6c757d;">
-                            <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                            <p>Aucun objet placé</p>
-                            <small>Cliquez sur la carte pour placer des objets</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Instructions -->
-                <div style="background: #e8f4fd; border-top: 2px solid #007bff; padding: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 30px; font-size: 0.9rem; color: #0066cc;">
-                        <span><strong>Instructions:</strong></span>
-                        <span><i class="fas fa-mouse-pointer"></i> Clic = Placer objet</span>
-                        <span><i class="fas fa-times"></i> Clic sur objet = Supprimer</span>
-                        <span><i class="fas fa-save"></i> Sauvegarde = Fichier JSON</span>
-                    </div>
-                </div>
-            </div>
-        `
+        // Plus besoin d'ajouter l'onglet, il est maintenant dans le HTML
+        console.log('🗺️ [MapEditor] Initialisation terminée - onglet déjà présent dans le HTML')
     }
 
     async loadAvailableMaps() {
@@ -207,10 +80,15 @@ export class MapEditorModule {
             this.renderMap()
             
             // Afficher les outils
-            document.getElementById('mapTools').style.display = 'flex'
-            document.getElementById('mapActions').style.display = 'flex'
-            document.getElementById('objectsPanel').style.display = 'block'
-            document.getElementById('mapLoadingMessage').style.display = 'none'
+            const mapTools = document.getElementById('mapTools')
+            const mapActions = document.getElementById('mapActions')
+            const objectsPanel = document.getElementById('objectsPanel')
+            const mapLoadingMessage = document.getElementById('mapLoadingMessage')
+            
+            if (mapTools) mapTools.style.display = 'flex'
+            if (mapActions) mapActions.style.display = 'flex'
+            if (objectsPanel) objectsPanel.style.display = 'block'
+            if (mapLoadingMessage) mapLoadingMessage.style.display = 'none'
             
             this.adminPanel.showNotification(`Carte "${mapFile}" chargée avec succès`, 'success')
             
@@ -235,6 +113,11 @@ export class MapEditorModule {
         if (!this.currentMapData) return
 
         const canvas = document.getElementById('mapCanvas')
+        if (!canvas) {
+            console.error('Canvas mapCanvas not found')
+            return
+        }
+        
         const ctx = canvas.getContext('2d')
         
         // Calculer les dimensions
@@ -354,7 +237,10 @@ export class MapEditorModule {
 
     setZoom(value) {
         this.zoom = parseFloat(value)
-        document.getElementById('zoomValue').textContent = Math.round(this.zoom * 100) + '%'
+        const zoomValue = document.getElementById('zoomValue')
+        if (zoomValue) {
+            zoomValue.textContent = Math.round(this.zoom * 100) + '%'
+        }
         
         if (this.currentMapData) {
             this.renderMap()
@@ -418,6 +304,8 @@ export class MapEditorModule {
         const objectsCount = document.getElementById('objectsCount')
         const noObjectsMessage = document.getElementById('noObjectsMessage')
         
+        if (!objectsList || !objectsCount || !noObjectsMessage) return
+        
         objectsCount.textContent = this.placedObjects.length
         
         if (this.placedObjects.length === 0) {
@@ -437,7 +325,7 @@ export class MapEditorModule {
         
         objectsList.innerHTML = this.placedObjects.map((obj, index) => `
             <div class="object-item" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-weight: 600; color: #2c3e50;">
                         ${icons[obj.type]} ${obj.name}
                     </span>
@@ -468,7 +356,7 @@ export class MapEditorModule {
         }
 
         const mapSelect = document.getElementById('mapSelect')
-        const mapId = mapSelect.value
+        const mapId = mapSelect?.value
         
         if (!mapId) {
             this.adminPanel.showNotification('Aucune carte sélectionnée', 'error')
