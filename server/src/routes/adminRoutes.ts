@@ -824,12 +824,19 @@ router.post('/players/:username/team/add', requireMacAndDev, async (req: any, re
       }
     });
     
-  } catch (error) {
+} catch (error) {
     console.error('❌ [AdminAPI] Erreur ajout Pokémon:', error);
-    console.error('❌ Stack trace:', error.stack);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    if (errorStack) {
+      console.error('❌ Stack trace:', errorStack);
+    }
+    
     res.status(500).json({ 
       error: 'Erreur serveur',
-      details: error.message
+      details: errorMessage
     });
   }
 });
