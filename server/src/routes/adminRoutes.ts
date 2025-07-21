@@ -140,6 +140,42 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// ✅ ROUTE: Sauvegarder les objets au format gameobjects.json
+router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    const gameObjectsData = req.body;
+    
+    console.log(`💾 [Maps API] Saving gameobjects for map: ${mapId}`);
+    console.log(`📊 [Maps API] Total objects: ${gameObjectsData.objects?.length || 0}`);
+    
+    // Créer le dossier server/data/gameobjects s'il n'existe pas
+    const gameObjectsDir = path.join(process.cwd(), 'server/data/gameobjects');
+    await fs.mkdir(gameObjectsDir, { recursive: true });
+    
+    // Sauvegarder dans le fichier
+    const gameObjectsFile = path.join(gameObjectsDir, `${mapId}.json`);
+    await fs.writeFile(gameObjectsFile, JSON.stringify(gameObjectsData, null, 2), 'utf-8');
+    
+    console.log(`✅ [Maps API] Gameobjects saved successfully for ${mapId} by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: `${gameObjectsData.objects.length} objets sauvegardés au format gameobjects.json`,
+      mapId,
+      totalObjects: gameObjectsData.objects.length,
+      timestamp: gameObjectsData.lastUpdated,
+      savedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error saving gameobjects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la sauvegarde des gameobjects'
+    });
+  }
+});
 // ✅ ROUTE: Récupérer tous les items depuis items.json
 router.get('/items', requireMacAndDev, async (req: any, res) => {
   try {
