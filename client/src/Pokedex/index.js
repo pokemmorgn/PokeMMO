@@ -290,22 +290,59 @@ export class PokedexModule extends BaseModule {
   /**
    * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
    */
-  canOpenUI() {
-    // Vérifications spécifiques au Pokédx
-    const blockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#dialogue-box:not([style*="display: none"])'),
-      document.querySelector('#team-overlay:not(.hidden)'),
-      document.querySelector('#shop-overlay:not(.hidden)'),
-      document.querySelector('#inventory-overlay:not(.hidden)')
-    ];
-    
-    const hasBlocker = blockers.some(el => el !== null);
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-    
-    return !hasBlocker && !chatFocused && !starterHudOpen && this.uiManagerState.enabled;
+/**
+ * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
+ */
+canOpenUI() {
+  console.log('🔍 [PokedexModule] Vérification canOpenUI...');
+  
+  // ✅ CORRECTION: Vérification dialogue-box plus robuste
+  const dialogueBox = document.querySelector('#dialogue-box');
+  const dialogueVisible = dialogueBox && 
+    window.getComputedStyle(dialogueBox).display !== 'none' &&
+    window.getComputedStyle(dialogueBox).visibility !== 'hidden' &&
+    !dialogueBox.hidden;
+  
+  console.log('  💬 Dialogue visible (corrigé):', dialogueVisible);
+  
+  // ✅ Vérifications autres overlays (gardées identiques)
+  const otherBlockers = [
+    document.querySelector('.quest-dialog-overlay'),
+    document.querySelector('#team-overlay:not(.hidden)'),
+    document.querySelector('#shop-overlay:not(.hidden)'),
+    document.querySelector('#inventory-overlay:not(.hidden)')
+  ].filter(el => el !== null);
+  
+  console.log('  🚫 Autres bloqueurs:', otherBlockers.length);
+  
+  const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+  const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
+  
+  console.log('  💭 Chat focusé:', chatFocused);
+  console.log('  🎮 Starter HUD:', starterHudOpen);
+  
+  // ✅ CORRECTION: Vérifier enabled de façon sécurisée
+  let isEnabled = true; // Par défaut
+  
+  if (this.uiManagerState && typeof this.uiManagerState.enabled !== 'undefined') {
+    isEnabled = this.uiManagerState.enabled;
+    console.log('  🔧 Enabled (uiManagerState):', isEnabled);
+  } else if (typeof this.isEnabled !== 'undefined') {
+    isEnabled = this.isEnabled;
+    console.log('  🔧 Enabled (isEnabled):', isEnabled);
+  } else {
+    console.log('  🔧 Enabled (défaut):', isEnabled);
   }
+  
+  const result = !dialogueVisible && 
+                 otherBlockers.length === 0 && 
+                 !chatFocused && 
+                 !starterHudOpen && 
+                 isEnabled;
+  
+  console.log('  📊 Résultat final:', result);
+  return result;
+}
   
   /**
    * Exposer le système globalement pour compatibilité
