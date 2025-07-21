@@ -279,11 +279,26 @@ if (this.transitionService && this.followerHandlers) {
     });
   }
 
-private initializeNpcManagers() {
-  // ✅ SIMPLE : Le NPCManager gère tout en interne
-  const npcManager = new NPCManager(); // Scan automatique
-  this.npcManagers.set('global', npcManager);
-}
+    private initializeNpcManagers() {
+      console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
+      
+      try {
+        // ✅ SUPER SIMPLE : NPCManager gère tout automatiquement
+        const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
+        
+        // Option : Si vous voulez garder l'ancienne API par zone
+        const zones = globalNpcManager.getLoadedZones();
+        zones.forEach(zoneName => {
+          this.npcManagers.set(zoneName, globalNpcManager);
+        });
+        
+        console.log(`✅ [WorldRoom] NPCManager initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
+        globalNpcManager.debugSystem();
+        
+      } catch (error) {
+        console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
+      }
+    }
 
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
