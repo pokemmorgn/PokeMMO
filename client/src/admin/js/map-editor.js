@@ -370,76 +370,78 @@ export class MapEditorModule {
     // ==============================
 
     async saveMapObjects() {
-        if (!this.currentMapData) {
-            this.adminPanel.showNotification('Aucune carte chargée', 'error')
-            return
-        }
-
-        const mapSelect = document.getElementById('mapSelect')
-        const mapId = mapSelect?.value
-        
-        if (!mapId) {
-            this.adminPanel.showNotification('Aucune carte sélectionnée', 'error')
-            return
-        }
-
-        console.log('💾 [MapEditor] Saving map objects in gameobjects format...')
-        
-        // Filtrer seulement les objets ajoutés manuellement
-        const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
-        
-        // Convertir au format gameobjects.json
-        const gameObjectsFormat = {
-            zone: mapId,
-            version: "2.0.0",
-            lastUpdated: new Date().toISOString(),
-            description: `${mapId} - Objets générés par l'éditeur de carte`,
-            
-            defaultRequirements: {
-                ground: { minLevel: 1 },
-                hidden: { minLevel: 1 }
-            },
-            
-            requirementPresets: {
-                starter: { minLevel: 1 }
-            },
-            
-            objects: addedObjects.map((obj, index) => ({
-                id: index + 1,
-                position: obj.position || { 
-                    x: obj.x * this.currentMapData.tilewidth, 
-                    y: obj.y * this.currentMapData.tileheight 
-                },
-                type: obj.type || 'ground',
-                itemId: obj.itemId || obj.name,
-                sprite: obj.sprite || 'item_ground.png',
-                quantity: obj.quantity || 1,
-                cooldown: obj.cooldown || 24,
-                rarity: obj.rarity || 'common',
-                ...(obj.searchRadius && { searchRadius: obj.searchRadius }),
-                ...(obj.itemfinderRadius && { itemfinderRadius: obj.itemfinderRadius })
-            }))
-        }
-
-        try {
-            // Essayer de sauvegarder via l'API
-            await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`, {
-                method: 'POST',
-                body: JSON.stringify(gameObjectsFormat)
-            })
-            
-            this.adminPanel.showNotification(
-                `${addedObjects.length} objets sauvegardés au format gameobjects.json`, 
-                'success'
-            )
-        } catch (error) {
-            console.log('🗺️ [MapEditor] API save failed, downloading JSON file instead')
-            
-            // Fallback: télécharger le fichier
-            this.downloadGameObjectsJSON(gameObjectsFormat, mapId)
-            this.adminPanel.showNotification('Fichier gameobjects.json téléchargé', 'success')
-        }
+    if (!this.currentMapData) {
+        this.adminPanel.showNotification('Aucune carte chargée', 'error')
+        return
     }
+
+    const mapSelect = document.getElementById('mapSelect')
+    const mapId = mapSelect?.value
+    
+    if (!mapId) {
+        this.adminPanel.showNotification('Aucune carte sélectionnée', 'error')
+        return
+    }
+
+    console.log(`💾 [MapEditor] Saving gameobjects for zone: ${mapId}`)
+    
+    // Filtrer seulement les objets ajoutés manuellement (pas ceux de la carte TMJ)
+    const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
+    
+    // Convertir au format gameobjects.json
+    const gameObjectsFormat = {
+        zone: mapId,
+        version: "2.0.0",
+        lastUpdated: new Date().toISOString(),
+        description: `${mapId} - Objets générés par l'éditeur de carte`,
+        
+        defaultRequirements: {
+            ground: { minLevel: 1 },
+            hidden: { minLevel: 1 }
+        },
+        
+        requirementPresets: {
+            starter: { minLevel: 1 }
+        },
+        
+        objects: addedObjects.map((obj, index) => ({
+            id: index + 1,
+            position: obj.position || { 
+                x: obj.x * this.currentMapData.tilewidth, 
+                y: obj.y * this.currentMapData.tileheight 
+            },
+            type: obj.type || 'ground',
+            itemId: obj.itemId || obj.name,
+            sprite: obj.sprite || this.getItemSprite({ type: this.availableItems[obj.itemId]?.type }),
+            quantity: obj.quantity || 1,
+            cooldown: obj.cooldown || 24,
+            rarity: obj.rarity || 'common',
+            ...(obj.searchRadius && { searchRadius: obj.searchRadius }),
+            ...(obj.itemfinderRadius && { itemfinderRadius: obj.itemfinderRadius })
+        }))
+    }
+
+    try {
+        // Sauvegarder via l'API
+        const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`, {
+            method: 'POST',
+            body: JSON.stringify(gameObjectsFormat)
+        })
+        
+        console.log('✅ [MapEditor] Gameobjects saved:', response)
+        this.adminPanel.showNotification(
+            `${addedObjects.length} objets sauvegardés dans ${mapId}.json`, 
+            'success'
+        )
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error saving gameobjects:', error)
+        
+        // Fallback: télécharger le fichier JSON
+        this.downloadGameObjectsJSON(gameObjectsFormat, mapId)
+        this.adminPanel.showNotification('Fichier JSON téléchargé (sauvegarde API échouée)', 'warning')
+    }
+}
 
     downloadGameObjectsJSON(data, mapId) {
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
