@@ -1,10 +1,8 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION FINALE PROPRE
+// Module principal d'interaction avec les objets - VERSION JSON
 //
-// ✅ CONFIGURATION FACILE DU LAYER :
-// Pour changer le nom du layer dans Tiled, modifiez :
-// - objectLayerName: 'objects' → 'items' ou 'interactables' etc.
-// Ou utilisez : objectModule.setObjectLayerName('mon_layer')
+// ✅ NOUVELLE APPROCHE : Lecture depuis fichiers JSON au lieu de Tiled
+// Fichiers : /data/gameobjects/{zone}.json
 
 import fs from 'fs';
 import path from 'path';
@@ -28,6 +26,34 @@ import {
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
+// ✅ INTERFACE POUR JSON DE ZONE
+interface GameObjectZoneData {
+  zone: string;
+  version: string;
+  lastUpdated: string;
+  description?: string;
+  defaultRequirements?: {
+    ground?: Record<string, any>;
+    hidden?: Record<string, any>;
+  };
+  requirementPresets?: Record<string, Record<string, any>>;
+  objects: Array<{
+    id: number;
+    position: { x: number; y: number };
+    type: 'ground' | 'hidden';
+    name?: string;
+    itemId?: string;
+    sprite?: string;
+    quantity?: number;
+    cooldown?: number;
+    rarity?: string;
+    searchRadius?: number;
+    itemfinderRadius?: number;
+    requirements?: Record<string, any>;
+    requirementPreset?: string;
+  }>;
+}
+
 // ✅ INTERFACE POUR ÉTAT PERSISTANT DES OBJETS
 interface ObjectState {
   objectId: number;
@@ -38,9 +64,9 @@ interface ObjectState {
   customState?: Record<string, any>;
 }
 
-// ✅ GESTIONNAIRE D'ÉTAT PERSISTANT
+// ✅ GESTIONNAIRE D'ÉTAT PERSISTANT (INCHANGÉ)
 class ObjectStateManager {
-  private states: Map<string, ObjectState> = new Map(); // `${zone}_${objectId}` -> state
+  private states: Map<string, ObjectState> = new Map();
   private stateFile: string;
   private autoSaveInterval: NodeJS.Timeout | null = null;
   
@@ -58,7 +84,6 @@ class ObjectStateManager {
     const key = this.getStateKey(zone, objectId);
     
     if (!this.states.has(key)) {
-      // Créer état par défaut
       const defaultState: ObjectState = {
         objectId,
         zone,
@@ -117,7 +142,6 @@ class ObjectStateManager {
   
   saveStates(): void {
     try {
-      // Créer le dossier si nécessaire
       const dir = path.dirname(this.stateFile);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -133,7 +157,6 @@ class ObjectStateManager {
   }
   
   private startAutoSave(): void {
-    // Sauvegarde automatique toutes les 5 minutes
     this.autoSaveInterval = setInterval(() => {
       this.saveStates();
     }, 5 * 60 * 1000);
@@ -166,42 +189,40 @@ class ObjectStateManager {
   }
 }
 
-// ✅ MODULE PRINCIPAL - VERSION FINALE CORRIGÉE
+// ✅ MODULE PRINCIPAL - VERSION JSON
 export class ObjectInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "ObjectInteractionModule";
   readonly supportedTypes: InteractionType[] = ["object"];
-  readonly version = "1.0.0";
+  readonly version = "2.0.0"; // ← Version JSON
 
   // ✅ COMPOSANTS DU SYSTÈME
   private subModuleFactory: SubModuleFactory;
   private stateManager: ObjectStateManager;
   private objectsByZone: Map<string, Map<number, ObjectDefinition>> = new Map();
   
-  // ✅ CONFIGURATION
+  // ✅ CONFIGURATION MODIFIÉE POUR JSON
   private config = {
     submodulesPath: path.resolve(__dirname, './object/submodules'),
     stateFile: './data/object_states.json',
+    gameObjectsPath: './data/gameobjects',  // ← NOUVEAU : dossier JSON
     autoLoadMaps: true,
-    securityEnabled: process.env.NODE_ENV === 'production',
-    objectLayerName: 'gobject' // ✅ VARIABLE CONFIGURABLE POUR LE NOM DU LAYER
+    securityEnabled: process.env.NODE_ENV === 'production'
   };
 
   constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
     super();
     
-    // Fusionner configuration
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `Initialisation avec config:`, {
-      objectLayerName: this.config.objectLayerName,
+    this.log('info', `🔄 [JSON] Initialisation avec fichiers JSON`, {
+      gameObjectsPath: this.config.gameObjectsPath,
       autoLoadMaps: this.config.autoLoadMaps,
       securityEnabled: this.config.securityEnabled
     });
     
-    // Initialiser composants
     this.stateManager = new ObjectStateManager(this.config.stateFile);
     
     this.subModuleFactory = new SubModuleFactory(
@@ -223,7 +244,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     );
   }
 
-  // === MÉTHODES PRINCIPALES (BaseInteractionModule) ===
+  // === MÉTHODES PRINCIPALES (INCHANGÉES) ===
 
   canHandle(request: InteractionRequest): boolean {
     return request.type === 'object';
@@ -235,12 +256,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     try {
       const { player, request } = context;
       
-      this.log('info', `Traitement interaction objet`, { 
+      this.log('info', `🎯 [JSON] Traitement interaction objet`, { 
         player: player.name, 
         data: request.data 
       });
 
-      // Déterminer le type d'interaction
       if (request.data?.action === 'search') {
         return await this.handleGeneralSearch(player, request);
       } else if (request.data?.objectId) {
@@ -253,7 +273,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', 'Erreur traitement objet', error);
+      this.log('error', '❌ [JSON] Erreur traitement objet', error);
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
         "PROCESSING_FAILED"
@@ -261,7 +281,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === HANDLERS SPÉCIALISÉS - VERSION CORRIGÉE ===
+  // === HANDLERS SPÉCIALISÉS (INCHANGÉS) ===
 
   private async handleSpecificObject(player: Player, request: InteractionRequest): Promise<InteractionResult> {
     const startTime = Date.now();
@@ -273,43 +293,46 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
     }
     
-    // Récupérer la définition de l'objet
+    this.log('info', `🔍 [JSON] Recherche objet ${objectId} dans zone ${zone}`);
+    
     const objectDef = this.getObject(zone, objectId);
     if (!objectDef) {
+      this.log('warn', `❌ [JSON] Objet ${objectId} non trouvé dans ${zone}`);
       return this.createErrorResult(`Objet ${objectId} non trouvé dans ${zone}`, "OBJECT_NOT_FOUND");
     }
 
-    // Mettre à jour l'état depuis le StateManager
+    this.log('info', `✅ [JSON] Objet trouvé: ${objectDef.name || objectDef.type}`, {
+      type: objectDef.type,
+      hasName: !!objectDef.name,
+      hasItemId: !!objectDef.itemId
+    });
+
     const state = this.stateManager.getObjectState(zone, objectId);
     objectDef.state = state;
 
-    // Trouver le sous-module approprié
-    // ✅ AUTO-DÉTECTION si type inconnu
     if (objectDef.type === 'unknown' || !objectDef.type) {
-      objectDef.type = 'ground_item'; // Force ground_item pour objets détectés
-      this.log('info', `Auto-détection: "${objectDef.name}" → ground_item`);
+      objectDef.type = 'ground_item';
+      this.log('info', `🔧 [JSON] Auto-détection: "${objectDef.name}" → ground_item`);
     }
     
-    // Trouver le sous-module approprié
     const subModule = this.subModuleFactory.findModuleForObject(objectDef);
     if (!subModule) {
       return this.createErrorResult(`Aucun gestionnaire pour le type: ${objectDef.type}`, "NO_HANDLER");
     }
 
-    this.log('info', `Délégation à ${subModule.typeName}`, { objectId, type: objectDef.type });
+    this.log('info', `🚀 [JSON] Délégation à ${subModule.typeName}`, { 
+      objectId, 
+      type: objectDef.type 
+    });
 
-    // Déléguer au sous-module
     const result = await subModule.handle(player, objectDef, request.data);
 
-    // Mettre à jour les statistiques
     const processingTime = Date.now() - startTime;
     this.updateStats(result.success, processingTime);
 
-    // Post-traitement si succès
     if (result.success && result.data?.objectData?.collected) {
       this.stateManager.markAsCollected(zone, objectId, player.name);
       
-      // Assurer compatibilité des types pour objectId
       if (result.data?.objectData) {
         result.data.objectData.objectId = objectId.toString();
       }
@@ -326,24 +349,28 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
     const zone = player.currentZone;
     
-    // Chercher des objets cachés proches
+    this.log('info', `🔍 [JSON] Fouille générale dans ${zone}`, {
+      position: { x: position.x, y: position.y }
+    });
+    
     const nearbyHiddenObjects = this.findHiddenObjectsNear(zone, position.x, position.y, 32);
+    
+    this.log('info', `🔍 [JSON] ${nearbyHiddenObjects.length} objets cachés trouvés dans la zone`);
 
     if (nearbyHiddenObjects.length > 0) {
-      // Prendre le premier objet caché trouvé
       const objectDef = nearbyHiddenObjects[0];
       const state = this.stateManager.getObjectState(zone, objectDef.id);
       objectDef.state = state;
 
-      // Trouver le sous-module pour objets cachés
       const subModule = this.subModuleFactory.findModuleForObject(objectDef);
       if (subModule) {
+        this.log('info', `🚀 [JSON] Fouille délégué à ${subModule.typeName}`);
+        
         const result = await subModule.handle(player, objectDef, { action: 'search' });
         
         if (result.success && result.data?.objectData?.collected) {
           this.stateManager.markAsCollected(zone, objectDef.id, player.name);
           
-          // Assurer compatibilité des types pour objectId
           if (result.data?.objectData) {
             result.data.objectData.objectId = objectDef.id.toString();
           }
@@ -353,94 +380,174 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       }
     }
 
-    // Rien trouvé
+    this.log('info', `❌ [JSON] Rien trouvé lors de la fouille`);
     return createInteractionResult.noItemFound(
-      "0",           // objectId
-      "search",      // objectType  
-      "Il n'y a rien ici.", // message
-      1              // attempts
+      "0",
+      "search",
+      "Il n'y a rien ici.",
+      1
     );
   }
 
-  // === PARSING DES MAPS - VERSION FINALE CORRIGÉE ===
+  // === PARSING DES JSON - VERSION COMPLÈTEMENT NOUVELLE ===
 
   /**
-   * Charger les objets d'une zone depuis la map Tiled
+   * ✅ NOUVELLE MÉTHODE : Charger les objets depuis JSON
    */
-  async loadObjectsFromMap(zoneName: string, mapPath: string): Promise<void> {
+  async loadObjectsFromJSON(zoneName: string): Promise<void> {
     try {
-      const resolvedPath = path.isAbsolute(mapPath) 
-        ? mapPath 
-        : path.resolve(__dirname, mapPath);
+      const jsonPath = path.resolve(this.config.gameObjectsPath, `${zoneName}.json`);
+      
+      console.log(`🔍 [JSON] Tentative chargement: ${jsonPath}`);
 
-      if (!fs.existsSync(resolvedPath)) {
-        this.log('warn', `Fichier map introuvable: ${resolvedPath}`);
+      if (!fs.existsSync(jsonPath)) {
+        this.log('warn', `📄 [JSON] Fichier introuvable: ${jsonPath}`);
         return;
       }
 
-      const mapData = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
+      console.log(`📖 [JSON] Lecture fichier ${zoneName}.json...`);
+      const jsonData: GameObjectZoneData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
       
-      // ✅ UTILISE LA VARIABLE CONFIGURABLE POUR LE LAYER
-      const objectLayer = mapData.layers?.find((l: any) => l.name === this.config.objectLayerName);
-      if (!objectLayer || !objectLayer.objects) {
-        this.log('info', `Aucun layer "${this.config.objectLayerName}" dans ${zoneName}`);
+      console.log(`✅ [JSON] Données lues:`, {
+        zone: jsonData.zone,
+        version: jsonData.version,
+        objectCount: jsonData.objects?.length || 0,
+        hasDefaultRequirements: !!jsonData.defaultRequirements,
+        hasPresets: !!jsonData.requirementPresets
+      });
+
+      if (!jsonData.objects || !Array.isArray(jsonData.objects)) {
+        this.log('warn', `⚠️ [JSON] Aucun objet dans ${zoneName}.json`);
         return;
       }
 
       const objects = new Map<number, ObjectDefinition>();
 
-      // Parser chaque objet
-      for (const obj of objectLayer.objects) {
-        const customProperties: Record<string, any> = {};
-        
-        if (obj.properties) {
-          for (const prop of obj.properties) {
-            customProperties[prop.name] = prop.value;
-          }
+      console.log(`🔧 [JSON] Traitement de ${jsonData.objects.length} objets...`);
+
+      for (const objData of jsonData.objects) {
+        try {
+          console.log(`📦 [JSON] Traitement objet ID ${objData.id}:`, {
+            type: objData.type,
+            name: objData.name,
+            itemId: objData.itemId,
+            position: objData.position,
+            sprite: objData.sprite
+          });
+
+          // Résoudre les requirements avec héritage
+          const resolvedRequirements = this.resolveRequirements(
+            objData, 
+            jsonData.defaultRequirements, 
+            jsonData.requirementPresets
+          );
+
+          console.log(`🔑 [JSON] Requirements résolus pour objet ${objData.id}:`, resolvedRequirements);
+
+          // Déterminer le type final
+          let finalType = objData.type;
+          if (finalType === 'ground') finalType = 'ground_item';
+          if (finalType === 'hidden') finalType = 'hidden_item';
+
+          const objectDef: ObjectDefinition = {
+            // Données de base
+            id: objData.id,
+            name: objData.name || `Object_${objData.id}`,
+            x: objData.position.x,
+            y: objData.position.y,
+            zone: zoneName,
+            
+            // Type et contenu
+            type: finalType,
+            itemId: objData.itemId,
+            quantity: objData.quantity || 1,
+            rarity: objData.rarity || 'common',
+            respawnTime: 0, // Géré par cooldown système
+            
+            // Requirements résolus
+            requirements: Object.keys(resolvedRequirements).length > 0 ? resolvedRequirements : undefined,
+            
+            // Propriétés custom (pour compatibilité)
+            customProperties: {
+              // Données JSON originales
+              sprite: objData.sprite,
+              cooldownHours: objData.cooldown || 24,
+              
+              // Propriétés spécifiques hidden
+              ...(objData.type === 'hidden' && {
+                searchRadius: objData.searchRadius || 16,
+                itemfinderRadius: objData.itemfinderRadius || 64
+              }),
+              
+              // Toutes les autres propriétés
+              originalType: objData.type,
+              requirementPreset: objData.requirementPreset
+            },
+            
+            // État runtime
+            state: {
+              collected: false,
+              collectedBy: []
+            }
+          };
+
+          objects.set(objData.id, objectDef);
+          
+          console.log(`✅ [JSON] Objet ${objData.id} ajouté:`, {
+            finalType,
+            hasRequirements: !!objectDef.requirements,
+            customPropsCount: Object.keys(objectDef.customProperties).length
+          });
+
+        } catch (objError) {
+          console.error(`❌ [JSON] Erreur traitement objet ${objData.id}:`, objError);
+          this.log('error', `Erreur objet ${objData.id}`, objError);
         }
-
-        const objectDef: ObjectDefinition = {
-          id: obj.id,
-          name: obj.name || customProperties['name'] || `Object_${obj.id}`,
-          x: obj.x,
-          y: obj.y,
-          zone: zoneName,
-          type: customProperties['type'] || 'unknown',
-          itemId: customProperties['itemId'],
-          quantity: customProperties['quantity'] || 1,
-          rarity: customProperties['rarity'] || 'common',
-          respawnTime: customProperties['respawnTime'] || 0,
-          requirements: this.parseRequirements(customProperties),
-          customProperties,
-          state: {
-            collected: false,
-            collectedBy: []
-          }
-        };
-
-        objects.set(obj.id, objectDef);
       }
 
       this.objectsByZone.set(zoneName, objects);
-      this.log('info', `${objects.size} objets chargés pour ${zoneName}`);
+      
+      console.log(`🎉 [JSON] Zone ${zoneName} chargée avec succès:`, {
+        totalObjects: objects.size,
+        groundItems: Array.from(objects.values()).filter(o => o.type === 'ground_item').length,
+        hiddenItems: Array.from(objects.values()).filter(o => o.type === 'hidden_item').length
+      });
 
     } catch (error) {
-      this.log('error', `Erreur chargement map ${zoneName}`, error);
+      console.error(`❌ [JSON] Erreur chargement ${zoneName}.json:`, error);
+      this.log('error', `Erreur chargement JSON ${zoneName}`, error);
     }
   }
 
-  private parseRequirements(props: Record<string, any>): ObjectDefinition['requirements'] {
-    const requirements: any = {};
-    
-    if (props.level) requirements.level = props.level;
-    if (props.badge) requirements.badge = props.badge;
-    if (props.item) requirements.item = props.item;
-    if (props.quest) requirements.quest = props.quest;
-    
-    return Object.keys(requirements).length > 0 ? requirements : undefined;
+  /**
+   * ✅ NOUVELLE MÉTHODE : Résoudre requirements avec héritage
+   */
+  private resolveRequirements(
+    objData: any,
+    defaultRequirements?: GameObjectZoneData['defaultRequirements'],
+    requirementPresets?: GameObjectZoneData['requirementPresets']
+  ): Record<string, any> {
+    let resolved: Record<string, any> = {};
+
+    // 1. Defaults selon le type
+    if (defaultRequirements && objData.type in defaultRequirements) {
+      resolved = { ...resolved, ...defaultRequirements[objData.type as keyof typeof defaultRequirements] };
+    }
+
+    // 2. Preset spécifique
+    if (objData.requirementPreset && requirementPresets?.[objData.requirementPreset]) {
+      resolved = { ...resolved, ...requirementPresets[objData.requirementPreset] };
+    }
+
+    // 3. Requirements directs (priorité max)
+    if (objData.requirements) {
+      resolved = { ...resolved, ...objData.requirements };
+    }
+
+    return resolved;
   }
 
-  // === ACCÈS AUX OBJETS ===
+  // === ACCÈS AUX OBJETS (INCHANGÉ) ===
 
   private getObject(zone: string, objectId: number): ObjectDefinition | undefined {
     const zoneObjects = this.objectsByZone.get(zone);
@@ -471,52 +578,43 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
   // === MÉTHODES PUBLIQUES POUR WORLDROOM ===
 
-  /**
-   * Obtenir les objets visibles d'une zone
-   */
-getVisibleObjectsInZone(zone: string): any[] {
-  // ✅ NOUVEAU : Vérifier le mode autoresetObjects
-  const { getServerConfig } = require('../../config/serverConfig');
-  const serverConfig = getServerConfig();
-  
-  const zoneObjects = this.objectsByZone.get(zone);
-  if (!zoneObjects) return [];
+  getVisibleObjectsInZone(zone: string): any[] {
+    const { getServerConfig } = require('../../config/serverConfig');
+    const serverConfig = getServerConfig();
+    
+    const zoneObjects = this.objectsByZone.get(zone);
+    if (!zoneObjects) return [];
 
-  const visibleObjects: any[] = [];
+    const visibleObjects: any[] = [];
 
-  for (const objectDef of zoneObjects.values()) {
-    // Exclure les objets cachés
-    if (objectDef.type !== 'hidden_item') {
-      const state = this.stateManager.getObjectState(zone, objectDef.id);
-      
-      // ✅ MODIFIÉ : En mode autoresetObjects, ignorer l'état collected
-      const isCollected = serverConfig.autoresetObjects ? false : state.collected;
-      
-      if (!isCollected) {
-        visibleObjects.push({
-          id: objectDef.id,
-          type: objectDef.type,
-          name: objectDef.name,
-          x: objectDef.x,
-          y: objectDef.y,
-          rarity: objectDef.rarity,
-          collected: false
-        });
+    for (const objectDef of zoneObjects.values()) {
+      if (objectDef.type !== 'hidden_item') {
+        const state = this.stateManager.getObjectState(zone, objectDef.id);
+        
+        const isCollected = serverConfig.autoresetObjects ? false : state.collected;
+        
+        if (!isCollected) {
+          visibleObjects.push({
+            id: objectDef.id,
+            type: objectDef.type,
+            name: objectDef.name,
+            x: objectDef.x,
+            y: objectDef.y,
+            rarity: objectDef.rarity,
+            sprite: objectDef.customProperties?.sprite, // ← NOUVEAU
+            collected: false
+          });
+        }
       }
     }
+
+    if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
+      console.log(`🔄 [JSON] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
+    }
+
+    return visibleObjects;
   }
 
-  // ✅ NOUVEAU : Log pour debugging mode dev
-  if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
-    console.log(`🔄 [ObjectModule] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
-  }
-
-  return visibleObjects;
-}
-
-  /**
-   * Ajouter un objet dynamiquement (admin/dev)
-   */
   addObject(zone: string, objectData: Partial<ObjectDefinition>): void {
     if (!this.objectsByZone.has(zone)) {
       this.objectsByZone.set(zone, new Map());
@@ -545,26 +643,20 @@ getVisibleObjectsInZone(zone: string): any[] {
     };
 
     zoneObjects.set(objectId, objectDef);
-    this.log('info', `Objet ${objectId} ajouté à la zone ${zone}`);
+    this.log('info', `📦 [JSON] Objet ${objectId} ajouté dynamiquement à ${zone}`);
   }
 
-  /**
-   * Réinitialiser un objet (admin)
-   */
   resetObject(zone: string, objectId: number): boolean {
     const objectDef = this.getObject(zone, objectId);
     if (!objectDef) return false;
 
     this.stateManager.resetObject(zone, objectId);
-    this.log('info', `Objet ${objectId} réinitialisé dans ${zone}`);
+    this.log('info', `🔄 [JSON] Objet ${objectId} réinitialisé dans ${zone}`);
     return true;
   }
 
-  // === MÉTHODES PUBLIQUES POUR L'INVENTAIRE ===
+  // === MÉTHODES PUBLIQUES POUR L'INVENTAIRE (INCHANGÉ) ===
 
-  /**
-   * Donner un objet au joueur via l'InventoryManager
-   */
   async giveItemToPlayer(
     playerName: string,
     itemId: string,
@@ -572,11 +664,8 @@ getVisibleObjectsInZone(zone: string): any[] {
     source: string = 'object_interaction'
   ): Promise<{ success: boolean; message: string; newQuantity?: number }> {
     try {
-      // TODO: Intégrer avec InventoryManager quand disponible
-      // Pour l'instant, log seulement
-      this.log('info', `Donner item à ${playerName}`, { itemId, quantity, source });
+      this.log('info', `🎁 [JSON] Donner item à ${playerName}`, { itemId, quantity, source });
       
-      // Simulation - remplacer par vraie logique InventoryManager
       return {
         success: true,
         message: `${quantity}x ${itemId} ajouté à l'inventaire`,
@@ -584,7 +673,7 @@ getVisibleObjectsInZone(zone: string): any[] {
       };
       
     } catch (error) {
-      this.log('error', 'Erreur giveItemToPlayer', error);
+      this.log('error', '❌ [JSON] Erreur giveItemToPlayer', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -597,21 +686,19 @@ getVisibleObjectsInZone(zone: string): any[] {
   async initialize(): Promise<void> {
     await super.initialize();
     
-    this.log('info', 'Initialisation du système modulaire...');
+    console.log(`🚀 [JSON] Initialisation du système modulaire avec JSON...`);
     
-    // Initialiser la factory et découvrir les sous-modules
     await this.subModuleFactory.discoverAndLoadModules();
     
-    // Charger automatiquement les maps si configuré
     if (this.config.autoLoadMaps) {
-      await this.loadDefaultMaps();
+      await this.loadDefaultJSONZones();
     }
     
-    this.log('info', 'Système d\'objets initialisé avec succès');
+    console.log(`✅ [JSON] Système d'objets JSON initialisé avec succès`);
   }
 
   async cleanup(): Promise<void> {
-    this.log('info', 'Nettoyage du système d\'objets...');
+    this.log('info', '🧹 [JSON] Nettoyage du système d\'objets...');
     
     await this.subModuleFactory.cleanup();
     this.stateManager.cleanup();
@@ -619,16 +706,36 @@ getVisibleObjectsInZone(zone: string): any[] {
     await super.cleanup();
   }
 
-  // ✅ MÉTHODE FINALE SANS DEBUG
-  private async loadDefaultMaps(): Promise<void> {
-    const defaultZones = [
-      'beach', 'village', 'villagelab', 'villagehouse1', 'villagewindmill', 
-      'villagehouse2', 'villageflorist', 'road1', 'road2', 'road3'
-    ];
+  /**
+   * ✅ NOUVELLE MÉTHODE : Charger les zones JSON par défaut
+   */
+  private async loadDefaultJSONZones(): Promise<void> {
+    console.log(`📂 [JSON] Chargement des zones depuis: ${this.config.gameObjectsPath}`);
+    
+    try {
+      const gameObjectsDir = path.resolve(this.config.gameObjectsPath);
+      
+      if (!fs.existsSync(gameObjectsDir)) {
+        console.log(`📁 [JSON] Création du dossier: ${gameObjectsDir}`);
+        fs.mkdirSync(gameObjectsDir, { recursive: true });
+        return;
+      }
 
-    for (const zone of defaultZones) {
-      const mapPath = path.resolve(process.cwd(), 'build', 'assets', 'maps', `${zone}.tmj`);
-      await this.loadObjectsFromMap(zone, mapPath);
+      const jsonFiles = fs.readdirSync(gameObjectsDir)
+        .filter(file => file.endsWith('.json'))
+        .map(file => file.replace('.json', ''));
+
+      console.log(`📋 [JSON] ${jsonFiles.length} fichiers JSON trouvés:`, jsonFiles);
+
+      for (const zoneName of jsonFiles) {
+        console.log(`⏳ [JSON] Chargement zone: ${zoneName}...`);
+        await this.loadObjectsFromJSON(zoneName);
+      }
+
+      console.log(`🎉 [JSON] Toutes les zones chargées avec succès !`);
+      
+    } catch (error) {
+      console.error(`❌ [JSON] Erreur chargement zones:`, error);
     }
   }
 
@@ -639,19 +746,26 @@ getVisibleObjectsInZone(zone: string): any[] {
   }
 
   /**
-   * ✅ CHANGER LE NOM DU LAYER D'OBJETS (facilement configurable)
-   * @param layerName - Nom du layer dans Tiled (ex: "objects", "items", "interactables")
+   * ✅ MODIFIÉ : Recharger une zone JSON
    */
-  setObjectLayerName(layerName: string): void {
-    this.config.objectLayerName = layerName;
-    this.log('info', `Nom du layer d'objets changé: ${layerName}`);
-  }
-
-  /**
-   * Obtenir le nom du layer actuel
-   */
-  getObjectLayerName(): string {
-    return this.config.objectLayerName;
+  async reloadZone(zoneName: string): Promise<boolean> {
+    try {
+      console.log(`🔄 [JSON] Rechargement zone: ${zoneName}`);
+      
+      // Supprimer la zone actuelle
+      this.objectsByZone.delete(zoneName);
+      
+      // Recharger depuis JSON
+      await this.loadObjectsFromJSON(zoneName);
+      
+      const reloadedObjects = this.objectsByZone.get(zoneName)?.size || 0;
+      console.log(`✅ [JSON] Zone ${zoneName} rechargée: ${reloadedObjects} objets`);
+      
+      return reloadedObjects > 0;
+    } catch (error) {
+      console.error(`❌ [JSON] Erreur rechargement ${zoneName}:`, error);
+      return false;
+    }
   }
 
   getSystemStats(): any {
@@ -664,8 +778,9 @@ getVisibleObjectsInZone(zone: string): any[] {
       factory: factoryStats,
       states: stateStats,
       config: {
-        objectLayerName: this.config.objectLayerName,
-        autoLoadMaps: this.config.autoLoadMaps
+        gameObjectsPath: this.config.gameObjectsPath, // ← MODIFIÉ
+        autoLoadMaps: this.config.autoLoadMaps,
+        version: this.version
       },
       zones: {
         total: this.objectsByZone.size,
@@ -677,11 +792,20 @@ getVisibleObjectsInZone(zone: string): any[] {
   }
 
   debugSystem(): void {
-    this.log('info', '=== DEBUG SYSTÈME OBJETS ===');
+    console.log(`🔍 [JSON] === DEBUG SYSTÈME OBJETS JSON ===`);
     
     console.log(`📦 Zones chargées: ${this.objectsByZone.size}`);
     for (const [zone, objects] of this.objectsByZone.entries()) {
       console.log(`  🌍 ${zone}: ${objects.size} objets`);
+      
+      // Détails par type
+      const byType: Record<string, number> = {};
+      for (const obj of objects.values()) {
+        byType[obj.type] = (byType[obj.type] || 0) + 1;
+      }
+      for (const [type, count] of Object.entries(byType)) {
+        console.log(`    📋 ${type}: ${count}`);
+      }
     }
     
     this.subModuleFactory.debug();
@@ -692,9 +816,6 @@ getVisibleObjectsInZone(zone: string): any[] {
 
   // === MÉTHODES UTILITAIRES PROTÉGÉES ===
 
-  /**
-   * Créer un résultat d'erreur standardisé
-   */
   protected createErrorResult(message: string, code?: string): InteractionResult {
     return createInteractionResult.error(message, code, {
       module: this.moduleName,
