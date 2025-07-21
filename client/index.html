@@ -56,7 +56,7 @@
     }
   }
 
-  /* ===== STYLES POUR LE NOUVEAU SYSTÈME DE DIALOGUE ===== */
+  /* ===== STYLES POUR LE CONTENU INTÉGRÉ DANS LES DIALOGUES ===== */
   
   /* Styles pour le contenu shop intégré */
   .embedded-shop {
@@ -423,10 +423,7 @@
     </div>
   </div>
 
-  <!-- ✅ NOUVEAU: Le système de dialogue est maintenant géré par DialogueManager -->
-  <!-- L'ancien #dialogue-box a été supprimé - il est créé dynamiquement par DialogueUI -->
-
-  <!-- Script d'initialisation simplifié -->
+  <!-- Scripts d'initialisation minimal -->
   <script>
     console.log('🎮 Initialisation du jeu...');
 
@@ -440,68 +437,6 @@
       }
     };
 
-    // ✅ NOUVEAU: Initialisation du système de dialogue
-    let dialogueSystemReady = false;
-    
-    // Fonction d'initialisation du dialogue
-    async function initDialogueSystem() {
-      try {
-        console.log('🎭 Initialisation du système de dialogue...');
-        
-        // Importer et créer le DialogueManager
-        const { DialogueManager } = await import('/src/components/DialogueManager.js');
-        
-        // Créer l'instance globale
-        window.dialogueManager = new DialogueManager();
-        
-        // Marquer comme prêt
-        dialogueSystemReady = true;
-        
-        console.log('✅ Système de dialogue initialisé');
-        
-        // Test automatique après 3 secondes
-        setTimeout(() => {
-          console.log('🎭 État du système de dialogue:', {
-            manager: !!window.dialogueManager,
-            UI: !!window.dialogueManager?.dialogueUI,
-            isOpen: window.dialogueManager?.isOpen(),
-            canInteract: window.dialogueManager?.canPlayerInteract()
-          });
-        }, 3000);
-        
-      } catch (error) {
-        console.error('❌ Erreur initialisation système de dialogue:', error);
-      }
-    }
-
-    // ✅ LEGACY: Support pour l'ancien système (transition douce)
-    // Ces fonctions seront automatiquement remplacées par le DialogueManager
-    window._npcDialogueState = {
-      lines: [],
-      page: 0,
-      onClose: null
-    };
-
-    // Fonction de test T (conservée pour compatibilité)
-    document.addEventListener('keypress', function(e) {
-      if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
-        // Utiliser le nouveau système si disponible
-        if (window.dialogueManager && dialogueSystemReady) {
-          window.dialogueManager.show({
-            portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
-            name: 'Professor Oak',
-            lines: [
-              'Hello young trainer!',
-              'Ready for your Pokémon adventure?',
-              'This is the new dialogue system!'
-            ]
-          });
-        } else {
-          console.log('⚠️ Nouveau système de dialogue non encore prêt');
-        }
-      }
-    });
-
     // Test automatique après 2 secondes
     setTimeout(function() {
       console.log('🎒 État de l\'inventaire:', {
@@ -512,128 +447,14 @@
       
       console.log('🎭 État du dialogue:', {
         manager: !!window.dialogueManager,
-        ready: dialogueSystemReady
+        legacy: typeof window.showNpcDialogue === 'function'
       });
     }, 2000);
 
-    // ✅ NOUVEAU: Tests globaux disponibles
-    window.testClassicDialogue = function() {
-      if (window.dialogueManager) {
-        window.dialogueManager.show({
-          portrait: 'https://via.placeholder.com/80x80/28a745/ffffff?text=NPC',
-          name: 'Villageois',
-          lines: [
-            'Bonjour, aventurier !',
-            'Bienvenue dans notre village.',
-            'N\'hésitez pas à explorer les environs.'
-          ]
-        });
-        console.log('✅ Dialogue classique de test affiché');
-      } else {
-        console.error('❌ DialogueManager non disponible');
-      }
-    };
-
-    window.testUnifiedInterface = function() {
-      if (window.dialogueManager) {
-        const testData = {
-          isUnifiedInterface: true,
-          name: 'Marchand Expert',
-          title: 'Maître Commerçant',
-          portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=SHOP',
-          tabs: [
-            { id: 'dialogue', label: 'Dialogue', icon: '💬' },
-            { id: 'shop', label: 'Boutique', icon: '🛒', badge: '5' },
-            { id: 'quest', label: 'Quêtes', icon: '📋', badge: '2' },
-            { id: 'info', label: 'Info', icon: 'ℹ️' }
-          ],
-          tabData: {
-            dialogue: {
-              lines: [
-                'Salutations, brave aventurier !',
-                'Je suis le marchand le plus réputé de la région.',
-                'Que puis-je faire pour vous aider aujourd\'hui ?'
-              ]
-            },
-            shop: {
-              name: 'Boutique Premium',
-              shopId: 'premium_shop',
-              playerGold: 2500
-            },
-            quest: {
-              available: [
-                {
-                  id: 'delivery_quest',
-                  title: 'Livraison urgente',
-                  description: 'Apportez ce colis au village voisin dans les 30 minutes.',
-                  reward: 500
-                },
-                {
-                  id: 'rare_item_quest',
-                  title: 'Objets rares',
-                  description: 'Trouvez 3 Baies Sitrus pour ma collection.',
-                  reward: 750
-                }
-              ]
-            },
-            info: {
-              description: 'Un marchand légendaire qui parcourt les régions depuis plus de 20 ans. Il possède une connaissance encyclopédique des objets Pokémon.',
-              tips: [
-                'Ses prix sont plus élevés mais ses objets sont de qualité supérieure',
-                'Il propose parfois des quêtes exclusives aux dresseurs expérimentés',
-                'Revenez chaque semaine pour découvrir de nouveaux articles'
-              ],
-              location: 'Voyage entre les grandes villes - Position actuelle: Centre Pokémon'
-            }
-          },
-          quickActions: [
-            { 
-              label: 'Achat Rapide', 
-              icon: '⚡', 
-              type: 'primary',
-              callback: () => console.log('🛒 Achat rapide déclenché')
-            },
-            { 
-              label: 'Catalogue', 
-              icon: '📖', 
-              type: 'secondary',
-              callback: () => console.log('📖 Catalogue ouvert')
-            },
-            { 
-              label: 'Au revoir', 
-              icon: '👋', 
-              type: 'secondary',
-              callback: () => window.dialogueManager?.hide()
-            }
-          ],
-          onClose: () => console.log('🎭 Interface unifiée fermée')
-        };
-        
-        window.dialogueManager.show(testData);
-        console.log('✅ Interface unifiée complète de test affichée');
-      } else {
-        console.error('❌ DialogueManager non disponible');
-      }
-    };
-
-    console.log('✅ Scripts chargés');
-    console.log('🧪 Tests disponibles:');
-    console.log('  - testInventory() - Test inventaire');
-    console.log('  - testClassicDialogue() - Test dialogue classique');
-    console.log('  - testUnifiedInterface() - Test interface unifiée');
-    console.log('  - Appuyez sur T pour dialogue Professor Oak');
+    console.log('✅ Scripts chargés - Prêt pour initialisation des modules');
   </script>
 
-  <!-- ✅ CHARGEMENT DU SYSTÈME DE DIALOGUE -->
-  <script>
-    // Initialiser le système de dialogue dès que le DOM est prêt
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initDialogueSystem);
-    } else {
-      initDialogueSystem();
-    }
-  </script>
-
+  <!-- Main module loading -->
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
