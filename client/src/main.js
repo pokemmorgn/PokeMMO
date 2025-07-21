@@ -535,7 +535,14 @@ if (!connectionSuccess) {
     
     console.log("🕐 Connexion du TimeService au serveur...");
     TimeService.getInstance().connectToRoom(window.currentGameRoom);
-
+    // 🎭 NOUVEAU: INITIALISATION DIALOGUE SYSTEM
+    console.log("🎭 Initialisation du système de dialogue...");
+    const dialogueSuccess = await initializeDialogueSystem();
+    if (dialogueSuccess) {
+      console.log("✅ Système de dialogue initialisé avec succès");
+    } else {
+      console.warn("⚠️ Système de dialogue en mode dégradé");
+    }
     console.log("🔍 [DEBUG] SessionId après connexion:");
     console.log("- NetworkManager sessionId:", window.globalNetworkManager.getSessionId());
     console.log("- Room sessionId:", window.globalNetworkManager.room?.sessionId);
