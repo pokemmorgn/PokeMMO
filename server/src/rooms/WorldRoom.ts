@@ -310,11 +310,11 @@ private initializeNpcManagers() {
     }
 
     // Envoyer les NPCs immédiatement
-    const npcManager = this.npcManagers.get(zoneName);
+    const npcManager = this.npcManagers.get('global'); // Manager global
     if (npcManager) {
-      const npcs = npcManager.getAllNpcs();
+      const npcs = npcManager.getNpcsByZone(zoneName); // Juste cette zone !
       client.send("npcList", npcs);
-      console.log(`📤 ${npcs.length} NPCs envoyés IMMÉDIATEMENT pour ${zoneName}`);
+      console.log(`📤 ${npcs.length} NPCs envoyés pour zone ${zoneName}`);
     }
       // ✅ NOUVEAU: Envoyer les objets visibles immédiatement
     this.objectInteractionHandlers.sendZoneObjectsToClient(client, zoneName);
