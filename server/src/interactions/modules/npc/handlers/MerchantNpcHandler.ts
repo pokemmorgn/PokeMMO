@@ -299,18 +299,19 @@ export class MerchantNpcHandler {
       }
       
       // Ajouter dialogues contextuels
-      if (result.success) {
-        result.dialogues = this.getTransactionDialogues(npc, action, 'success');
-      } else {
-        result.dialogues = this.getTransactionDialogues(npc, action, 'failure');
-      }
-      
-      this.log('info', `${result.success ? '✅' : '❌'} [Transaction] ${action} résultat`, {
-        success: result.success,
-        message: result.message
-      });
-      
-      return result;
+const dialogues = result.success 
+  ? this.getTransactionDialogues(npc, action, 'success')
+  : this.getTransactionDialogues(npc, action, 'failure');
+
+this.log('info', `${result.success ? '✅' : '❌'} [Transaction] ${action} résultat`, {
+  success: result.success,
+  message: result.message
+});
+
+return {
+  ...result,
+  dialogues
+};
       
     } catch (error) {
       this.log('error', `❌ [Transaction] Erreur ${action}`, error);
