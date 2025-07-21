@@ -160,6 +160,7 @@ export class DialogueUI {
         transition: all 0.3s ease;
         pointer-events: auto;
         overflow: hidden;
+        width: auto;
       }
 
       /* Partie haute du dialogue */
@@ -167,9 +168,10 @@ export class DialogueUI {
         display: flex;
         flex-direction: row;
         align-items: center;
-        padding: 0;
+        padding: 15px 20px;
         cursor: pointer;
         min-height: 80px;
+        flex: 1;
       }
 
       /* Partie basse des actions intégrées */
@@ -177,6 +179,8 @@ export class DialogueUI {
         background: linear-gradient(135deg, rgba(20, 45, 75, 0.8), rgba(30, 60, 100, 0.8));
         padding: 15px 20px;
         border-top: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .actions-separator {
@@ -226,6 +230,7 @@ export class DialogueUI {
         gap: 10px;
         justify-content: center;
         align-items: center;
+        width: 100%;
       }
 
       .action-btn {
@@ -233,7 +238,7 @@ export class DialogueUI {
         border: 2px solid rgba(255, 255, 255, 0.3);
         border-radius: 12px;
         color: white;
-        padding: 8px 15px;
+        padding: 10px 18px;
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
         font-size: 13px;
         font-weight: bold;
@@ -242,11 +247,12 @@ export class DialogueUI {
         display: flex;
         align-items: center;
         gap: 8px;
-        min-width: 120px;
+        min-width: 140px;
         justify-content: center;
         position: relative;
         overflow: hidden;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        white-space: nowrap;
       }
 
       .action-btn:hover {
