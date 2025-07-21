@@ -973,7 +973,84 @@ if (!connectionSuccess) {
       
       return allReady;
     };
+window.testDialogueManager = function() {
+  console.log('🧪 [DIALOGUE] Test DialogueManager...');
+  if (window.dialogueManager) {
+    return window.dialogueManager.debugState();
+  } else {
+    console.error('❌ DialogueManager non disponible');
+    return null;
+  }
+};
 
+window.testClassicDialogue = function() {
+  if (!window.dialogueManager) {
+    console.error('❌ DialogueManager non disponible');
+    return false;
+  }
+  
+  const testData = {
+    name: 'PNJ Test',
+    portrait: 'https://via.placeholder.com/80x80/green/white?text=NPC',
+    lines: [
+      'Bonjour ! Ceci est un dialogue classique.',
+      'Appuyez sur E ou cliquez pour continuer.',
+      'Ceci est la dernière ligne du dialogue.'
+    ],
+    onClose: () => {
+      console.log('✅ Dialogue classique fermé');
+      window.showGameNotification?.('Dialogue terminé', 'info', { duration: 1500 });
+    }
+  };
+  
+  window.dialogueManager.show(testData);
+  console.log('✅ Dialogue classique de test affiché');
+  return true;
+};
+
+window.testUnifiedInterface = function() {
+  if (!window.dialogueManager) {
+    console.error('❌ DialogueManager non disponible');
+    return false;
+  }
+  
+  const testData = {
+    isUnifiedInterface: true,
+    name: 'Marchand Test',
+    title: 'Vendeur d\'objets',
+    portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=SHOP',
+    tabs: [
+      { id: 'dialogue', label: 'Dialogue', icon: '💬' },
+      { id: 'shop', label: 'Boutique', icon: '🛒', badge: '3' },
+      { id: 'info', label: 'Info', icon: 'ℹ️' }
+    ],
+    tabData: {
+      dialogue: {
+        lines: ['Bonjour, aventurier !', 'Que puis-je faire pour toi ?']
+      },
+      shop: {
+        name: 'Boutique Test',
+        shopId: 'test_shop'
+      },
+      info: {
+        description: 'Un marchand expérimenté qui vend des objets utiles.',
+        tips: ['Les prix varient selon votre niveau', 'Revenez souvent pour de nouveaux objets']
+      }
+    },
+    quickActions: [
+      { label: 'Acheter Vite', icon: '🛒', type: 'primary' },
+      { label: 'Partir', icon: '👋', type: 'secondary' }
+    ],
+    onClose: () => {
+      console.log('✅ Interface unifiée fermée');
+      window.showGameNotification?.('Interface fermée', 'info', { duration: 1500 });
+    }
+  };
+  
+  window.dialogueManager.show(testData);
+  console.log('✅ Interface unifiée de test affichée');
+  return true;
+};
     window.debugEncounterSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
       
