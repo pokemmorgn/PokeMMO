@@ -1013,22 +1013,78 @@ extractProperties(properties) {
         })
     }
 
-    async loadExistingObjects(mapId) {
-        try {
-            const response = await this.adminPanel.apiCall(`/maps/${mapId}/objects`)
-            const savedObjects = response.objects || []
+async loadExistingObjects(mapId) {
+    try {
+        console.log(`🗺️ [MapEditor] Loading gameobjects for zone: ${mapId}`)
+        
+        // Charger les gameobjects sauvegardés
+        const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
+        
+        if (response.success && response.data && response.data.objects) {
+            const gameObjectsData = response.data
             
-            savedObjects.forEach(obj => {
-                if (!obj.isFromMap) {
-                    this.placedObjects.push(obj)
+            console.log(`📦 [MapEditor] Found ${gameObjectsData.objects.length} saved gameobjects`)
+            
+            // Convertir chaque objet du format gameobjects vers le format éditeur
+            gameObjectsData.objects.forEach(obj => {
+                const editorObject = {
+                    id: `gameobject_${obj.id}`,
+                    type: obj.type || 'ground',
+                    // Convertir position pixels vers tiles
+                    x: Math.floor(obj.position.x / this.currentMapData.tilewidth),
+                    y: Math.floor(obj.position.y / this.currentMapData.tileheight),
+                    name: obj.itemId || `object_${obj.id}`,
+                    itemId: obj.itemId,
+                    quantity: obj.quantity || 1,
+                    cooldown: obj.cooldown || 24,
+                    rarity: obj.rarity || 'common',
+                    sprite: obj.sprite,
+                    isFromMap: false, // Ces objets sont éditables
+                    searchRadius: obj.searchRadius,
+                    itemfinderRadius: obj.itemfinderRadius,
+                    // Garder les données originales pour la sauvegarde
+                    position: obj.position
+                }
+                
+                console.log(`📍 [MapEditor] Loading object: ${editorObject.name} at (${editorObject.x}, ${editorObject.y})`)
+                
+                // Vérifier qu'il n'existe pas déjà à cette position
+                const existsIndex = this.placedObjects.findIndex(existing => 
+                    existing.x === editorObject.x && 
+                    existing.y === editorObject.y && 
+                    !existing.isFromMap
+                )
+                
+                if (existsIndex !== -1) {
+                    // Remplacer l'objet existant
+                    this.placedObjects[existsIndex] = editorObject
+                    console.log(`🔄 [MapEditor] Replaced existing object at (${editorObject.x}, ${editorObject.y})`)
+                } else {
+                    // Ajouter le nouvel objet
+                    this.placedObjects.push(editorObject)
+                    console.log(`➕ [MapEditor] Added new object at (${editorObject.x}, ${editorObject.y})`)
                 }
             })
             
-            console.log(`✅ [MapEditor] Loaded ${savedObjects.length} saved objects`)
-        } catch (error) {
-            console.log('🗺️ [MapEditor] No saved objects found')
+            console.log(`✅ [MapEditor] Loaded ${gameObjectsData.objects.length} gameobjects from ${mapId}.json`)
+            this.adminPanel.showNotification(`${gameObjectsData.objects.length} objets chargés depuis ${mapId}.json`, 'success')
+            
+        } else if (response.success && response.created) {
+            console.log(`📝 [MapEditor] No existing gameobjects for ${mapId}, starting fresh`)
+            this.adminPanel.showNotification(`Nouveau fichier ${mapId}.json créé`, 'info')
+        } else {
+            console.log(`⚠️ [MapEditor] Unexpected response format:`, response)
+        }
+        
+    } catch (error) {
+        console.log(`📝 [MapEditor] No gameobjects found for ${mapId}:`, error.message)
+        
+        // Ne pas montrer d'erreur si c'est juste qu'il n'y a pas de fichier
+        if (!error.message.includes('404') && !error.message.includes('non trouvé')) {
+            this.adminPanel.showNotification(`Erreur chargement objets: ${error.message}`, 'warning')
         }
     }
+}
 
     renderMap() {
         if (!this.currentMapData) return
