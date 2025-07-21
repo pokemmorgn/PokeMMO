@@ -605,6 +605,21 @@ export class NpcManager {
   getNpcsBySource(source: 'tiled' | 'json'): NpcData[] {
     return this.npcs.filter(npc => npc.sourceType === source);
   }
+
+  // Obtenir NPCs d'une zone spécifique
+  getNpcsByZone(zoneName: string): NpcData[] {
+    return this.npcs.filter(npc => {
+      // Pour les NPCs Tiled, vérifier le sourceFile
+      if (npc.sourceType === 'tiled' && npc.sourceFile) {
+        return npc.sourceFile.includes(`${zoneName}.tmj`);
+      }
+      // Pour les NPCs JSON, vérifier les zones chargées + sourceFile
+      if (npc.sourceType === 'json' && npc.sourceFile) {
+        return npc.sourceFile.includes(`${zoneName}.json`);
+      }
+      return false;
+    });
+  }
   
   // Obtenir NPCs dans une zone (rayon)
   getNpcsInRadius(centerX: number, centerY: number, radius: number): NpcData[] {
