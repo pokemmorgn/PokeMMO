@@ -213,7 +213,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
         // Conversion vers NpcInteractionResult pour compatibilité
         const result: NpcInteractionResult = {
           success: true,
-          type: "unifiedInterface",
+          type: "dialogue", // ✅ CORRIGÉ : utilise type existant au lieu de "unifiedInterface"
           message: `Interface unifiée pour ${npc.name}`,
           npcId: npcId,
           npcName: npc.name,
@@ -494,7 +494,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
           message: result ? `Quête "${result.questName}" terminée !` : "Impossible de terminer la quête",
           actionType: 'quest',
           npcId: npc.id,
-          questResult: result || undefined
+          questResult: result ? {
+            success: true,
+            message: `Quête "${result.questName}" terminée !`,
+            questCompleted: result,
+            rewards: result.questRewards || []
+          } : undefined
         };
       } catch (error) {
         return {
