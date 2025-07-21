@@ -140,6 +140,34 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// ✅ ROUTE: Récupérer tous les items depuis items.json
+router.get('/items', requireMacAndDev, async (req: any, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const itemsPath = path.join(__dirname, '../data/items.json');
+    
+    try {
+      const itemsData = await fs.readFile(itemsPath, 'utf8');
+      const items = JSON.parse(itemsData);
+      
+      console.log(`📦 [AdminAPI] Items loaded: ${Object.keys(items).length} items`);
+      
+      res.json(items);
+    } catch (error) {
+      console.error('❌ [AdminAPI] Error reading items.json:', error);
+      res.status(404).json({ error: 'Fichier items.json non trouvé' });
+    }
+    
+  } catch (error) {
+    console.error('❌ [AdminAPI] Error loading items:', error);
+    res.status(500).json({ 
+      error: 'Erreur chargement items',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 // ✅ ROUTE: Liste complète des joueurs avec données détaillées
 router.get('/players', requireMacAndDev, async (req: any, res) => {
   try {
