@@ -631,6 +631,11 @@ export class NpcManager {
     return this.loadedZones.has(zoneName);
   }
   
+  // Obtenir toutes les zones chargées
+  getLoadedZones(): string[] {
+    return Array.from(this.loadedZones);
+  }
+  
   // Recharger une zone JSON
   reloadZone(zoneName: string): boolean {
     try {
