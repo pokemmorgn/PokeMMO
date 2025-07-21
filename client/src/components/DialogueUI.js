@@ -38,18 +38,26 @@ export class DialogueUI {
     
     // Structure HTML complète
     this.container.innerHTML = `
-      <!-- Dialogue classique (existant) -->
-      <div id="dialogue-box" class="dialogue-box-classic" style="display:none;">
-        <div id="npc-portrait" class="npc-portrait"></div>
-        <div id="npc-dialogue" class="npc-dialogue">
-          <span id="npc-name" class="npc-name"></span>
-          <span id="npc-text" class="npc-text"></span>
-        </div>
-        <div class="dialogue-continue-indicator">
-          <span class="dialogue-counter">1/1</span>
-          <div class="dialogue-arrow"></div>
+    <!-- Dialogue classique ÉTENDU avec actions -->
+    <div id="dialogue-box" class="dialogue-box-classic" style="display:none;">
+      <div id="npc-portrait" class="npc-portrait"></div>
+      <div id="npc-dialogue" class="npc-dialogue">
+        <span id="npc-name" class="npc-name"></span>
+        <span id="npc-text" class="npc-text"></span>
+      </div>
+      <div class="dialogue-continue-indicator">
+        <span class="dialogue-counter">1/1</span>
+        <div class="dialogue-arrow"></div>
+      </div>
+      
+      <!-- NOUVELLE ZONE D'ACTIONS -->
+      <div id="dialogue-actions" class="dialogue-actions" style="display:none;">
+        <div class="actions-header">Actions disponibles:</div>
+        <div class="actions-buttons" id="actions-buttons">
+          <!-- Les boutons seront générés dynamiquement -->
         </div>
       </div>
+    </div>
 
       <!-- Interface unifiée avec onglets -->
       <div id="unified-interface" class="unified-interface" style="display:none;">
@@ -790,6 +798,86 @@ export class DialogueUI {
     console.log('✅ Dialogue classique affiché');
   }
 
+  // === NOUVELLE MÉTHODE : Dialogue avec actions ===
+showDialogueWithActions(data) {
+  console.log('🎭 Affichage dialogue avec actions:', data);
+
+  const dialogueBox = this.container.querySelector('#dialogue-box');
+  const actionsZone = this.container.querySelector('#dialogue-actions');
+  const actionsButtons = this.container.querySelector('#actions-buttons');
+
+  // 1. Afficher le dialogue classique normal
+  this.showClassicDialogue(data);
+
+  // 2. Générer et afficher les actions si disponibles
+  if (data.actions && data.actions.length > 0) {
+    console.log(`🎯 Génération de ${data.actions.length} actions`);
+    
+    // Nettoyer les boutons existants
+    actionsButtons.innerHTML = '';
+    
+    // Créer les boutons d'actions
+    data.actions.forEach(action => {
+      const actionBtn = this.createActionButton(action);
+      actionsButtons.appendChild(actionBtn);
+    });
+    
+    // Afficher la zone d'actions
+    actionsZone.style.display = 'block';
+    
+    // Ajuster la classe du dialogue pour inclure les actions
+    dialogueBox.classList.add('has-actions');
+    
+  } else {
+    // Pas d'actions = dialogue simple
+    actionsZone.style.display = 'none';
+    dialogueBox.classList.remove('has-actions');
+  }
+
+  console.log('✅ Dialogue avec actions affiché');
+}
+
+// === NOUVELLE MÉTHODE : Créer bouton d'action ===
+createActionButton(action) {
+  const button = document.createElement('button');
+  button.className = `action-btn ${action.type || 'default'}`;
+  button.innerHTML = `
+    <span class="action-icon">${action.icon || '🔧'}</span>
+    <span class="action-label">${action.label}</span>
+    ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
+  `;
+  
+  // Ajouter les données d'action
+  button.dataset.actionId = action.id;
+  button.dataset.actionType = action.type;
+  
+  // Handler de clic
+  button.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.handleActionClick(action);
+  });
+  
+  return button;
+}
+
+// === NOUVELLE MÉTHODE : Gérer clic action ===
+handleActionClick(action) {
+  console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
+  
+  // Callback vers le DialogueManager
+  if (this.onActionClick && typeof this.onActionClick === 'function') {
+    this.onActionClick(action);
+  }
+  
+  // Animation feedback
+  const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
+  if (button) {
+    button.classList.add('clicked');
+    setTimeout(() => button.classList.remove('clicked'), 200);
+  }
+}
+  
   showUnifiedInterface(data) {
     console.log('🎭 Affichage interface unifiée:', data);
 
