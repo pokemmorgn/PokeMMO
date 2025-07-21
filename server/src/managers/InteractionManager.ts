@@ -13,47 +13,19 @@ import { BaseInteractionManager } from "../interactions/BaseInteractionManager";
 import { 
   NpcInteractionModule, 
   NpcInteractionResult,
+  // Pas de redéfinition locale, on utilise celle du module
+} from "../interactions/modules/NpcInteractionModule";
+import type { 
   NpcCapability,
   NpcChoiceResult
-} from "../interactions/modules/NpcInteractionModule";
+} from "../interactions/types/BaseInteractionTypes";
 import { 
   InteractionRequest,
   InteractionResult,
   InteractionContext
 } from "../interactions/types/BaseInteractionTypes";
 
-// ✅ INTERFACES ÉTENDUES POUR COMPATIBILITÉ
-export interface NpcInteractionResult {
-  type: string;
-  message?: string;
-  shopId?: string;
-  shopData?: any;
-  lines?: string[];
-  availableQuests?: any[];
-  questRewards?: any[];
-  questProgress?: any[];
-  npcId?: number;
-  npcName?: string;
-  questId?: string;
-  questName?: string;
-  starterData?: any;
-  starterEligible?: boolean;
-  starterReason?: string;
-
-  battleSpectate?: {
-    battleId: string;
-    battleRoomId: string;
-    targetPlayerName: string;
-    canWatch: boolean;
-    reason?: string;
-  };
-  
-  // ✅ NOUVEAU : Support multi-fonctionnel
-  capabilities?: NpcCapability[];
-  welcomeMessage?: string;
-}
-
-// ✅ NOUVELLE INTERFACE POUR LE CLIENT
+// ✅ NOUVELLE INTERFACE POUR LE CLIENT (pas de conflit car nom différent)
 export interface NpcCapabilityRequest {
   npcId: number;
   capability: string;
@@ -148,6 +120,7 @@ export class InteractionManager {
       
       if (!this.isInitialized) {
         return { 
+          success: false,
           type: "error", 
           message: "Système d'interaction temporairement indisponible." 
         };
@@ -217,6 +190,7 @@ export class InteractionManager {
       
       // Retour d'erreur au format existant
       return {
+        success: false,
         type: "error",
         message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
       };
@@ -239,6 +213,7 @@ export class InteractionManager {
       
       if (!this.isInitialized) {
         return { 
+          success: false,
           type: "error", 
           message: "Système d'interaction temporairement indisponible." 
         };
@@ -300,6 +275,7 @@ export class InteractionManager {
       console.error(`❌ [InteractionManager] Erreur capability ${request.capability}:`, error);
       
       return {
+        success: false,
         type: "error",
         message: error instanceof Error ? error.message : "Erreur lors de l'exécution de l'action"
       };
@@ -328,11 +304,10 @@ export class InteractionManager {
       }
 
       // Utiliser la méthode d'analyse du module
-      // Note: On devrait exposer cette méthode dans le module pour éviter la duplication
       const capabilities = await this.npcModule.debugNpcCapabilities(player, npcId);
       
-      console.log(`🎛️ [InteractionManager] ${capabilities?.length || 0} capabilities trouvées`);
-      return capabilities || [];
+      console.log(`🎛️ [InteractionManager] ${capabilities.length || 0} capabilities trouvées`);
+      return capabilities;
 
     } catch (error) {
       console.error(`❌ [InteractionManager] Erreur getNpcCapabilities:`, error);
@@ -376,6 +351,7 @@ export class InteractionManager {
     
     if (!this.isInitialized || !this.npcModule) {
       return {
+        success: false,
         type: "error",
         message: "Système d'interaction temporairement indisponible"
       };
