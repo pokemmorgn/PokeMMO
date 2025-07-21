@@ -1,503 +1,495 @@
-// server/src/managers/InteractionManager.ts - VERSION MODULAIRE
-// Utilise le nouveau système BaseInteractionManager + modules
+// src/interactions/BaseInteractionManager.ts
+// Gestionnaire de base pour toutes les interactions - Orchestrateur principal
 
-import { QuestManager } from "./QuestManager";
-import { ShopManager } from "./ShopManager";
-import { StarterHandlers } from "../handlers/StarterHandlers";
-import { InventoryManager } from "./InventoryManager";
 import { Player } from "../schema/PokeWorldState";
-import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
-
-// ✅ IMPORTS DU NOUVEAU SYSTÈME
-import { BaseInteractionManager } from "../interactions/BaseInteractionManager";
-import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
 import { 
-  InteractionRequest,
-  InteractionResult,
-  InteractionContext
-} from "../interactions/types/BaseInteractionTypes";
+  InteractionRequest, 
+  InteractionResult, 
+  InteractionContext,
+  InteractionConfig,
+  ProximityValidation,
+  ConditionValidation,
+  CooldownInfo,
+  InteractionError,
+  INTERACTION_ERROR_CODES,
+  InteractionType
+} from "./types/BaseInteractionTypes";
+import { 
+  IInteractionModule,
+  IModuleRegistry,
+  ModuleConfig,
+  ModulesConfiguration,
+  GlobalModuleStats
+} from "./interfaces/InteractionModule";
 
-// ✅ INTERFACE CONSERVÉE POUR COMPATIBILITÉ
-export interface NpcInteractionResult {
-  type: string;
-  message?: string;
-  shopId?: string;
-  shopData?: any;
-  lines?: string[];
-  availableQuests?: any[];
-  questRewards?: any[];
-  questProgress?: any[];
-  npcId?: number;
-  npcName?: string;
-  questId?: string;
-  questName?: string;
-  starterData?: any;
-  starterEligible?: boolean;
-  starterReason?: string;
+// ✅ REGISTRY SIMPLE DES MODULES
+class ModuleRegistry implements IModuleRegistry {
+  private modules: Map<string, IInteractionModule> = new Map();
+  private config: ModulesConfiguration = {};
 
-  battleSpectate?: {
-    battleId: string;
-    battleRoomId: string;
-    targetPlayerName: string;
-    canWatch: boolean;
-    reason?: string;
-  };
-}
-
-export class InteractionManager {
-  // ✅ DÉPENDANCES EXISTANTES CONSERVÉES
-  private getNpcManager: (zoneName: string) => any;
-  private questManager: QuestManager;
-  private shopManager: ShopManager;
-  private starterHandlers: StarterHandlers;
-  private spectatorManager: SpectatorManager;
-
-  // ✅ NOUVEAU SYSTÈME MODULAIRE
-  private baseInteractionManager: BaseInteractionManager;
-  private npcModule: NpcInteractionModule;
-  private isInitialized: boolean = false;
-
-  constructor(
-    getNpcManager: (zoneName: string) => any, 
-    questManager: QuestManager,
-    shopManager: ShopManager,
-    starterHandlers: StarterHandlers,
-    spectatorManager: SpectatorManager
-  ) {
-    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire`);
-    
-    // ✅ CONSERVATION DES DÉPENDANCES EXISTANTES
-    this.getNpcManager = getNpcManager;
-    this.questManager = questManager;
-    this.shopManager = shopManager;
-    this.starterHandlers = starterHandlers;
-    this.spectatorManager = spectatorManager;
-
-    // ✅ INITIALISATION DU NOUVEAU SYSTÈME
-    this.initializeModularSystem();
+  register(module: IInteractionModule): void {
+    console.log(`📦 [Registry] Enregistrement module: ${module.moduleName} v${module.version}`);
+    this.modules.set(module.moduleName, module);
   }
 
-  private async initializeModularSystem(): Promise<void> {
-    try {
-      console.log(`🚀 [InteractionManager] Configuration système modulaire...`);
-
-      // 1. Créer BaseInteractionManager avec configuration
-      this.baseInteractionManager = new BaseInteractionManager({
-        maxDistance: 64,
-        cooldowns: {
-          npc: 500,
-          object: 200,
-          environment: 1000,
-          player: 2000,
-          puzzle: 0
-        },
-        debug: process.env.NODE_ENV === 'development',
-        logLevel: 'info'
-      });
-
-      // 2. Créer et enregistrer le module NPC
-      this.npcModule = new NpcInteractionModule(
-        this.getNpcManager,
-        this.questManager,
-        this.shopManager,
-        this.starterHandlers,
-        this.spectatorManager
-      );
-
-      this.baseInteractionManager.registerModule(this.npcModule);
-
-      // 3. Initialiser le système
-      await this.baseInteractionManager.initialize();
-
-      this.isInitialized = true;
-      console.log(`✅ [InteractionManager] Système modulaire initialisé avec succès`);
-      console.log(`📦 [InteractionManager] Modules enregistrés: ${this.baseInteractionManager.listModules().join(', ')}`);
-
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur initialisation modulaire:`, error);
-      this.isInitialized = false;
-      
-      // En cas d'erreur, on pourrait fallback sur l'ancien système
-      // Mais pour l'instant on log juste l'erreur
-    }
-  }
-
-  // ✅ MÉTHODE PRINCIPALE - INTERFACE PUBLIQUE IDENTIQUE
-  async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
-    console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
-
-    // Vérification que le système modulaire est prêt
-    if (!this.isInitialized) {
-      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
-      await this.initializeModularSystem();
-      
-      if (!this.isInitialized) {
-        return { 
-          type: "error", 
-          message: "Système d'interaction temporairement indisponible." 
-        };
+  findModule(request: InteractionRequest): IInteractionModule | null {
+    // Chercher le premier module qui peut gérer cette requête
+    for (const module of this.modules.values()) {
+      if (this.isModuleEnabled(module.moduleName) && module.canHandle(request)) {
+        return module;
       }
     }
-
-    try {
-      // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME
-      const request: InteractionRequest = {
-        type: 'npc',
-        targetId: npcId,
-        position: {
-          x: player.x,
-          y: player.y,
-          mapId: player.currentZone
-        },
-        data: {
-          npcId: npcId
-        },
-        timestamp: Date.now()
-      };
-
-      // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
-      const result = await this.baseInteractionManager.processInteraction(player, request);
-
-      // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT
-      const npcResult: NpcInteractionResult = {
-        type: result.type,
-        message: result.message,
-        
-        // Données spécifiques NPCs du nouveau système
-        shopId: result.data?.shopId,
-        shopData: result.data?.shopData,
-        lines: result.lines,
-        availableQuests: result.data?.availableQuests,
-        questRewards: result.data?.questRewards,
-        questProgress: result.data?.questProgress,
-        npcId: result.data?.npcId,
-        npcName: result.data?.npcName,
-        questId: result.data?.questId,
-        questName: result.data?.questName,
-        starterData: result.data?.starterData,
-        starterEligible: result.data?.starterEligible,
-        starterReason: result.data?.starterReason,
-        battleSpectate: result.data?.battleSpectate
-      };
-
-      console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
-      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
-
-      return npcResult;
-
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
-      
-      // Retour d'erreur au format existant
-      return {
-        type: "error",
-        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
-      };
-    }
+    return null;
   }
 
-  // ✅ MÉTHODES EXISTANTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
+  getAllModules(): IInteractionModule[] {
+    return Array.from(this.modules.values());
+  }
 
-  async handleShopTransaction(
-    player: Player, 
-    shopId: string, 
-    action: 'buy' | 'sell',
-    itemId: string,
-    quantity: number
-  ): Promise<{
-    success: boolean;
-    message: string;
-    newGold?: number;
-    itemsChanged?: any[];
-    shopStockChanged?: any[];
-  }> {
-    console.log(`💰 [InteractionManager] Transaction shop via module`);
+  getModule(moduleName: string): IInteractionModule | null {
+    return this.modules.get(moduleName) || null;
+  }
+
+  async initializeAll(): Promise<void> {
+    console.log(`🚀 [Registry] Initialisation de ${this.modules.size} modules...`);
     
-    if (!this.isInitialized || !this.npcModule) {
-      return {
-        success: false,
-        message: "Système de boutique temporairement indisponible"
-      };
-    }
-
-    return this.npcModule.handleShopTransaction(player, shopId, action, itemId, quantity);
-  }
-
-  async handlePlayerInteraction(
-    spectatorPlayer: Player, 
-    targetPlayerId: string,
-    targetPlayerPosition: { x: number; y: number; mapId: string }
-  ): Promise<NpcInteractionResult> {
-    console.log(`👁️ [InteractionManager] Interaction joueur via module`);
-    
-    if (!this.isInitialized || !this.npcModule) {
-      return {
-        type: "error",
-        message: "Système d'interaction temporairement indisponible"
-      };
-    }
-
-    return this.npcModule.handlePlayerInteraction(spectatorPlayer, targetPlayerId, targetPlayerPosition);
-  }
-
-  async confirmSpectatorJoin(
-    spectatorId: string,
-    battleId: string,
-    battleRoomId: string,
-    spectatorPosition: { x: number; y: number; mapId: string }
-  ): Promise<boolean> {
-    console.log(`✅ [InteractionManager] Confirmation spectateur ${spectatorId}`);
-    
-    return this.spectatorManager.addSpectator(
-      spectatorId,
-      battleId,
-      battleRoomId,
-      spectatorPosition
-    );
-  }
-
-  removeSpectator(spectatorId: string): {
-    removed: boolean;
-    shouldLeaveBattleRoom: boolean;
-    battleRoomId?: string;
-  } {
-    console.log(`👋 [InteractionManager] Retrait spectateur ${spectatorId}`);
-    return this.spectatorManager.removeSpectator(spectatorId);
-  }
-
-  isPlayerInBattle(playerId: string): boolean {
-    return this.spectatorManager.isPlayerInBattle(playerId);
-  }
-
-  getBattleSpectatorCount(battleId: string): number {
-    return this.spectatorManager.getBattleSpectatorCount(battleId);
-  }
-
-  // ✅ MÉTHODES QUÊTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
-
-  async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-    console.log(`🎯 [InteractionManager] Démarrage quête via module`);
-    
-    if (!this.isInitialized || !this.npcModule) {
-      return {
-        success: false,
-        message: "Système de quêtes temporairement indisponible"
-      };
-    }
-
-    return this.npcModule.handleQuestStart(username, questId);
-  }
-
-  async updatePlayerProgress(username: string, eventType: string, data: any): Promise<any[]> {
-    try {
-      switch (eventType) {
-        case 'collect':
-          return await this.questManager.updateQuestProgress(username, {
-            type: 'collect',
-            targetId: data.itemId,
-            amount: data.amount || 1
-          });
-
-        case 'defeat':
-          return await this.questManager.updateQuestProgress(username, {
-            type: 'defeat',
-            pokemonId: data.pokemonId,
-            amount: 1
-          });
-
-        case 'reach':
-          return await this.questManager.updateQuestProgress(username, {
-            type: 'reach',
-            targetId: data.zoneId,
-            location: { x: data.x, y: data.y, map: data.map }
-          });
-
-        case 'deliver':
-          return await this.questManager.updateQuestProgress(username, {
-            type: 'deliver',
-            npcId: data.npcId,
-            targetId: data.targetId
-          });
-
-        default:
-          return [];
-      }
-    } catch (error) {
-      console.error("❌ [InteractionManager] Erreur mise à jour progression:", error);
-      return [];
-    }
-  }
-
-  async getQuestStatuses(username: string): Promise<any[]> {
-    try {
-      const availableQuests = await this.questManager.getAvailableQuests(username);
-      const activeQuests = await this.questManager.getActiveQuests(username);
-      
-      const questStatuses: any[] = [];
-      
-      for (const quest of availableQuests) {
-        if (quest.startNpcId) {
-          questStatuses.push({
-            npcId: quest.startNpcId,
-            type: 'questAvailable'
-          });
+    for (const module of this.modules.values()) {
+      if (this.isModuleEnabled(module.moduleName) && module.initialize) {
+        try {
+          await module.initialize();
+        } catch (error) {
+          console.error(`❌ [Registry] Erreur initialisation ${module.moduleName}:`, error);
         }
       }
-      
-      for (const quest of activeQuests) {
-        if (quest.status === 'readyToComplete' && quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questReadyToComplete'
-          });
+    }
+  }
+
+  async cleanupAll(): Promise<void> {
+    console.log(`🧹 [Registry] Nettoyage de ${this.modules.size} modules...`);
+    
+    for (const module of this.modules.values()) {
+      if (module.cleanup) {
+        try {
+          await module.cleanup();
+        } catch (error) {
+          console.error(`❌ [Registry] Erreur nettoyage ${module.moduleName}:`, error);
         }
-        else if (quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questInProgress'
-          });
-        }
+      }
+    }
+  }
+
+  getGlobalStats(): GlobalModuleStats {
+    const moduleStats: Record<string, any> = {};
+    let totalInteractions = 0;
+    let healthyModules = 0;
+
+    for (const module of this.modules.values()) {
+      if (module.getStats) {
+        const stats = module.getStats();
+        moduleStats[module.moduleName] = stats;
+        totalInteractions += stats.totalInteractions;
       }
       
-      return questStatuses;
-    } catch (error) {
-      console.error("❌ [InteractionManager] Erreur getQuestStatuses:", error);
-      return [];
-    }
-  }
-
-  // ✅ MÉTHODES UTILITAIRES CONSERVÉES
-
-  async giveItemToPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
-    try {
-      await InventoryManager.addItem(username, itemId, quantity);
-      console.log(`✅ [InteractionManager] Donné ${quantity}x ${itemId} à ${username}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur don d'objet:`, error);
-      return false;
-    }
-  }
-
-  async takeItemFromPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
-    try {
-      const success = await InventoryManager.removeItem(username, itemId, quantity);
-      if (success) {
-        console.log(`✅ [InteractionManager] Retiré ${quantity}x ${itemId} à ${username}`);
+      if (module.getHealth) {
+        const health = module.getHealth();
+        if (health.status === 'healthy') healthyModules++;
       }
-      return success;
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur retrait d'objet:`, error);
-      return false;
     }
-  }
-
-  async playerHasItem(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
-    try {
-      const count = await InventoryManager.getItemCount(username, itemId);
-      return count >= quantity;
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur vérification d'objet:`, error);
-      return false;
-    }
-  }
-
-  async giveQuestReward(username: string, reward: {
-    type: 'item' | 'gold' | 'experience';
-    itemId?: string;
-    amount: number;
-  }): Promise<boolean> {
-    try {
-      switch (reward.type) {
-        case 'item':
-          if (reward.itemId) {
-            return await this.giveItemToPlayer(username, reward.itemId, reward.amount);
-          }
-          return false;
-
-        case 'gold':
-          console.log(`💰 [InteractionManager] Donner ${reward.amount} or à ${username} (non implémenté)`);
-          return true;
-
-        case 'experience':
-          console.log(`⭐ [InteractionManager] Donner ${reward.amount} XP à ${username} (non implémenté)`);
-          return true;
-
-        default:
-          console.warn(`⚠️ [InteractionManager] Type de récompense inconnu: ${reward.type}`);
-          return false;
-      }
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur giveQuestReward:`, error);
-      return false;
-    }
-  }
-
-  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING
-
-  /**
-   * Obtenir les statistiques du système modulaire
-   */
-  getModularSystemStats(): any {
-    if (!this.isInitialized || !this.baseInteractionManager) {
-      return {
-        initialized: false,
-        error: "Système modulaire non initialisé"
-      };
-    }
-
-    const stats = this.baseInteractionManager.getStats();
-    const config = this.baseInteractionManager.getConfig();
 
     return {
-      initialized: true,
-      stats: stats,
-      config: config,
-      modules: this.baseInteractionManager.listModules()
+      totalModules: this.modules.size,
+      activeModules: healthyModules,
+      totalInteractions,
+      moduleStats,
+      systemHealth: healthyModules === this.modules.size ? 'healthy' : 
+                   healthyModules > this.modules.size * 0.7 ? 'warning' : 'critical'
+    };
+  }
+
+  setConfiguration(config: ModulesConfiguration): void {
+    this.config = config;
+  }
+
+  private isModuleEnabled(moduleName: string): boolean {
+    return this.config[moduleName]?.enabled !== false;
+  }
+}
+
+// ✅ GESTIONNAIRE DE BASE PRINCIPAL
+export class BaseInteractionManager {
+  
+  private registry: IModuleRegistry = new ModuleRegistry();
+  private config: InteractionConfig;
+  private playerCooldowns: Map<string, Map<string, number>> = new Map();
+
+  constructor(config?: Partial<InteractionConfig>) {
+    // Configuration par défaut
+    this.config = {
+      maxDistance: 64,
+      cooldowns: {
+        npc: 500,           // 500ms entre interactions NPCs
+        object: 200,        // 200ms entre ramassages
+        environment: 1000,  // 1s entre fouilles
+        player: 2000,       // 2s entre interactions joueurs
+        puzzle: 0           // Pas de cooldown puzzles
+      },
+      requiredValidations: {
+        npc: ['proximity', 'cooldown'],
+        object: ['proximity', 'cooldown'],
+        environment: ['proximity', 'cooldown'],
+        player: ['proximity', 'cooldown'],
+        puzzle: ['conditions']
+      },
+      debug: false,
+      logLevel: 'info',
+      ...config
+    };
+
+    console.log(`🎮 [BaseInteractionManager] Initialisé avec config:`, this.config);
+  }
+
+  // === MÉTHODES PRINCIPALES ===
+
+  /**
+   * Traite une interaction de manière complète
+   */
+  async processInteraction(
+    player: Player, 
+    request: InteractionRequest
+  ): Promise<InteractionResult> {
+    
+    const startTime = Date.now();
+    
+    try {
+      this.debugLog('info', `Traitement interaction ${request.type}`, { 
+        player: player.name, 
+        targetId: request.targetId 
+      });
+
+      // 1. Valider la requête de base
+      const requestValidation = this.validateRequest(request);
+      if (!requestValidation.valid) {
+        return this.createErrorResult(requestValidation.reason || 'Requête invalide', 'INVALID_REQUEST');
+      }
+
+      // 2. Trouver le module approprié
+      const module = this.registry.findModule(request);
+      if (!module) {
+        return this.createErrorResult(
+          `Aucun module disponible pour le type: ${request.type}`, 
+          'MODULE_NOT_FOUND'
+        );
+      }
+
+      // 3. Effectuer les validations requises
+      const context = await this.buildInteractionContext(player, request);
+      const validationResult = await this.performValidations(context, module);
+      
+      if (!validationResult.valid) {
+        return this.createErrorResult(validationResult.reason || 'Validation échouée', validationResult.code);
+      }
+
+      // 4. Traiter l'interaction via le module
+      const result = await module.handle(context);
+
+      // 5. Post-traitement
+      if (result.success) {
+        this.updateCooldown(player.name, request.type);
+      }
+
+      const processingTime = Date.now() - startTime;
+      result.processingTime = processingTime;
+      result.moduleUsed = module.moduleName;
+      result.timestamp = Date.now();
+
+      this.debugLog('info', `Interaction terminée en ${processingTime}ms`, { 
+        success: result.success, 
+        type: result.type,
+        module: module.moduleName
+      });
+
+      return result;
+
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      
+      this.debugLog('error', 'Erreur traitement interaction', error);
+      
+      return this.createErrorResult(
+        error instanceof Error ? error.message : 'Erreur inconnue',
+        'PROCESSING_FAILED',
+        { processingTime, error: error instanceof Error ? error.stack : error }
+      );
+    }
+  }
+
+  // === GESTION DES MODULES ===
+
+  /**
+   * Enregistrer un module d'interaction
+   */
+  registerModule(module: IInteractionModule): void {
+    this.registry.register(module);
+  }
+
+  /**
+   * Initialiser tous les modules
+   */
+  async initialize(): Promise<void> {
+    await this.registry.initializeAll();
+    console.log(`✅ [BaseInteractionManager] Système d'interaction initialisé`);
+  }
+
+  /**
+   * Nettoyer tous les modules
+   */
+  async cleanup(): Promise<void> {
+    await this.registry.cleanupAll();
+    console.log(`🧹 [BaseInteractionManager] Système d'interaction nettoyé`);
+  }
+
+  // === VALIDATIONS ===
+
+  /**
+   * Validation de base de la requête
+   */
+  private validateRequest(request: InteractionRequest): { valid: boolean; reason?: string } {
+    if (!request.type) {
+      return { valid: false, reason: 'Type d\'interaction manquant' };
+    }
+
+    if (!request.position && ['npc', 'object', 'environment'].includes(request.type)) {
+      return { valid: false, reason: 'Position requise pour ce type d\'interaction' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Validation de proximité
+   */
+  validateProximity(player: Player, targetPosition: { x: number; y: number }): ProximityValidation {
+    const dx = Math.abs(player.x - targetPosition.x);
+    const dy = Math.abs(player.y - targetPosition.y);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > this.config.maxDistance) {
+      return {
+        valid: false,
+        distance,
+        maxDistance: this.config.maxDistance,
+        reason: `Trop loin (${Math.round(distance)}px > ${this.config.maxDistance}px)`
+      };
+    }
+
+    return {
+      valid: true,
+      distance,
+      maxDistance: this.config.maxDistance
     };
   }
 
   /**
-   * Reinitialiser le système modulaire (pour debugging)
+   * Validation de cooldown
    */
-  async reinitializeModularSystem(): Promise<boolean> {
-    try {
-      console.log(`🔄 [InteractionManager] Réinitialisation système modulaire...`);
-      
-      if (this.baseInteractionManager) {
-        await this.baseInteractionManager.cleanup();
-      }
-      
-      this.isInitialized = false;
-      await this.initializeModularSystem();
-      
-      return this.isInitialized;
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur réinitialisation:`, error);
-      return false;
+  validateCooldown(playerName: string, interactionType: InteractionType): CooldownInfo {
+    const playerCooldowns = this.playerCooldowns.get(playerName);
+    if (!playerCooldowns) {
+      return { active: false };
     }
+
+    const lastInteraction = playerCooldowns.get(interactionType);
+    if (!lastInteraction) {
+      return { active: false };
+    }
+
+    const cooldownDuration = this.config.cooldowns?.[interactionType] || 0;
+    if (cooldownDuration === 0) {
+      return { active: false };
+    }
+
+    const timeSinceLastInteraction = Date.now() - lastInteraction;
+    if (timeSinceLastInteraction < cooldownDuration) {
+      const remainingTime = cooldownDuration - timeSinceLastInteraction;
+      return {
+        active: true,
+        remainingTime,
+        nextAvailable: new Date(Date.now() + remainingTime),
+        cooldownType: interactionType
+      };
+    }
+
+    return { active: false };
+  }
+
+  // === MÉTHODES UTILITAIRES ===
+
+  /**
+   * Construit le contexte complet d'interaction
+   */
+  private async buildInteractionContext(
+    player: Player, 
+    request: InteractionRequest
+  ): Promise<InteractionContext> {
+    
+    const context: InteractionContext = {
+      player,
+      request,
+      validations: {},
+      metadata: {
+        timestamp: Date.now(),
+        sessionId: 'unknown' // TODO: Récupérer depuis player si disponible
+      }
+    };
+
+    return context;
   }
 
   /**
-   * Activer/désactiver le mode debug
+   * Effectue toutes les validations requises
    */
-  setDebugMode(enabled: boolean): void {
-    if (this.baseInteractionManager) {
-      this.baseInteractionManager.updateConfig({ debug: enabled });
-      console.log(`🔧 [InteractionManager] Mode debug: ${enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
+  private async performValidations(
+    context: InteractionContext, 
+    module: IInteractionModule
+  ): Promise<{ valid: boolean; reason?: string; code?: string }> {
+    
+    const requiredValidations = this.config.requiredValidations?.[context.request.type] || [];
+
+    // Validation proximité
+    if (requiredValidations.includes('proximity') && context.request.position) {
+      const proximityValidation = this.validateProximity(context.player, context.request.position);
+      context.validations.proximity = proximityValidation;
+      
+      if (!proximityValidation.valid) {
+        return { 
+          valid: false, 
+          reason: proximityValidation.reason, 
+          code: 'TOO_FAR' 
+        };
+      }
+    }
+
+    // Validation cooldown
+    if (requiredValidations.includes('cooldown')) {
+      const cooldownValidation = this.validateCooldown(context.player.name, context.request.type);
+      context.validations.cooldown = cooldownValidation;
+      
+      if (cooldownValidation.active) {
+        return { 
+          valid: false, 
+          reason: `Cooldown actif (${Math.ceil((cooldownValidation.remainingTime || 0) / 1000)}s restantes)`, 
+          code: 'COOLDOWN_ACTIVE' 
+        };
+      }
+    }
+
+    // Validation spécifique du module
+    if (module.validateSpecific) {
+      const specificValidation = await module.validateSpecific(context);
+      context.validations.conditions = [specificValidation];
+      
+      if (!specificValidation.valid) {
+        return { 
+          valid: false, 
+          reason: specificValidation.reason, 
+          code: 'CONDITIONS_NOT_MET' 
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Met à jour le cooldown du joueur
+   */
+  private updateCooldown(playerName: string, interactionType: InteractionType): void {
+    if (!this.playerCooldowns.has(playerName)) {
+      this.playerCooldowns.set(playerName, new Map());
+    }
+    
+    const playerCooldowns = this.playerCooldowns.get(playerName)!;
+    playerCooldowns.set(interactionType, Date.now());
+  }
+
+  /**
+   * Crée un résultat d'erreur standardisé
+   */
+  private createErrorResult(
+    message: string, 
+    code: string, 
+    additionalData?: any
+  ): InteractionResult {
+    return {
+      success: false,
+      type: 'error',
+      message,
+      data: {
+        metadata: {
+          errorCode: code,
+          timestamp: Date.now(),
+          ...additionalData
+        }
+      }
+    };
+  }
+
+  /**
+   * Logging avec niveau configurable
+   */
+  private debugLog(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+    if (!this.config.debug && level === 'info') return;
+    
+    const prefix = `🎮 [BaseInteractionManager]`;
+    
+    switch (level) {
+      case 'info':
+        console.log(`ℹ️ ${prefix} ${message}`, data || '');
+        break;
+      case 'warn':
+        console.warn(`⚠️ ${prefix} ${message}`, data || '');
+        break;
+      case 'error':
+        console.error(`❌ ${prefix} ${message}`, data || '');
+        break;
     }
   }
 
-  // ✅ NETTOYAGE LORS DE LA DESTRUCTION
-  async cleanup(): Promise<void> {
-    console.log(`🧹 [InteractionManager] Nettoyage du système modulaire...`);
-    
-    if (this.baseInteractionManager) {
-      await this.baseInteractionManager.cleanup();
-    }
-    
-    this.isInitialized = false;
-    console.log(`✅ [InteractionManager] Nettoyage terminé`);
+  // === MÉTHODES D'INFORMATION ===
+
+  /**
+   * Obtenir les statistiques globales
+   */
+  getStats(): GlobalModuleStats {
+    return this.registry.getGlobalStats();
+  }
+
+  /**
+   * Obtenir la configuration actuelle
+   */
+  getConfig(): InteractionConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Mettre à jour la configuration
+   */
+  updateConfig(newConfig: Partial<InteractionConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    console.log(`🔧 [BaseInteractionManager] Configuration mise à jour`);
+  }
+
+  /**
+   * Obtenir un module par nom
+   */
+  getModule(moduleName: string): IInteractionModule | null {
+    return this.registry.getModule(moduleName);
+  }
+
+  /**
+   * Lister tous les modules enregistrés
+   */
+  listModules(): string[] {
+    return this.registry.getAllModules().map(m => m.moduleName);
   }
 }
