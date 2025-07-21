@@ -1,6 +1,6 @@
 // client/src/components/DialogueManager.js
-// 🎭 Gestionnaire logique pour les dialogues NPCs - Version complète
-// ✅ Gestion dialogue classique + interface unifiée
+// 🎭 Gestionnaire logique pour les dialogues NPCs - Version avec Actions Contextuelles
+// ✅ Gestion dialogue classique + actions contextuelles + interface unifiée
 // ✅ Intégration avec ShopSystem, QuestSystem, etc.
 // ✅ Remplacement des fonctions globales de index.html
 
@@ -17,7 +17,8 @@ export class DialogueManager {
     this.classicState = {
       lines: [],
       currentPage: 0,
-      onClose: null
+      onClose: null,
+      actions: [] // 🆕 NOUVEAU: Actions disponibles
     };
     
     // État de l'interface unifiée
@@ -35,7 +36,7 @@ export class DialogueManager {
     this.questSystem = null;
     this.inventorySystem = null;
     
-    console.log('🎭 DialogueManager créé');
+    console.log('🎭 DialogueManager créé avec support actions');
     this.init();
   }
 
@@ -59,7 +60,7 @@ export class DialogueManager {
       this.replaceGlobalFunctions();
       
       this.isInitialized = true;
-      console.log('✅ DialogueManager initialisé');
+      console.log('✅ DialogueManager initialisé avec actions');
       
     } catch (error) {
       console.error('❌ Erreur initialisation DialogueManager:', error);
@@ -171,23 +172,250 @@ export class DialogueManager {
     }
   }
 
+  // 🆕 MÉTHODE MODIFIÉE: Support des actions contextuelles
   showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue classique');
+    console.log('🎭 Affichage dialogue classique avec actions possibles');
     
     this.currentMode = 'classic';
     
     // Préparer les données pour l'UI
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     
+    // 🆕 NOUVEAU: Détecter et préparer les actions
+    const actions = this.detectAvailableActions(data);
+    
     // Configurer l'état interne
     this.classicState = {
       lines: lines,
       currentPage: 0,
-      onClose: data.onClose
+      onClose: data.onClose,
+      actions: actions // Stocker les actions
     };
 
-    // Afficher via l'UI
-    this.dialogueUI.showClassicDialogue(data);
+    // Préparer les données complètes pour l'UI
+    const dialogueDataWithActions = {
+      ...data,
+      lines: lines,
+      actions: actions
+    };
+
+    // 🆕 Utiliser la nouvelle méthode avec actions
+    if (actions && actions.length > 0) {
+      this.dialogueUI.showDialogueWithActions(dialogueDataWithActions);
+    } else {
+      this.dialogueUI.showClassicDialogue(dialogueDataWithActions);
+    }
+
+    // Configurer le callback pour les actions
+    this.dialogueUI.onActionClick = (action) => {
+      this.handleDialogueAction(action, data);
+    };
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Détecter les actions disponibles
+  detectAvailableActions(data) {
+    const actions = [];
+    
+    // Détecter selon les capabilities ou le type de données
+    const capabilities = data.capabilities || data.unifiedInterface?.capabilities || [];
+    const npcType = data.npcType || data.type;
+    
+    console.log('🔍 Détection actions pour:', { capabilities, npcType, hasShopData: !!data.shopData });
+    
+    // Action Boutique
+    if (capabilities.includes('merchant') || npcType === 'merchant' || data.shopData || data.shopId) {
+      actions.push({
+        id: 'open_shop',
+        type: 'shop',
+        label: 'Boutique',
+        icon: '🛒',
+        description: 'Acheter et vendre des objets',
+        data: data.shopData || data.merchantData
+      });
+    }
+    
+    // Action Quêtes
+    if (capabilities.includes('questGiver') || npcType === 'questGiver' || data.questData || data.questId) {
+      const questData = data.questData || data.questGiver || {};
+      const questCount = questData.availableQuests?.length || (data.questId ? 1 : 0);
+      
+      actions.push({
+        id: 'open_quests',
+        type: 'quest',
+        label: questCount > 1 ? 'Quêtes' : 'Quête',
+        icon: '📋',
+        badge: questCount > 0 ? questCount.toString() : null,
+        description: 'Missions disponibles',
+        data: questData
+      });
+    }
+    
+    // Action Soins
+    if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
+      actions.push({
+        id: 'heal_pokemon',
+        type: 'heal',
+        label: 'Soigner',
+        icon: '💊',
+        description: 'Soigner vos Pokémon',
+        data: data.healerData
+      });
+    }
+    
+    // Action Informations (si des données supplémentaires)
+    if (data.infoData || (data.tabData && data.tabData.info)) {
+      actions.push({
+        id: 'show_info',
+        type: 'info',
+        label: 'Infos',
+        icon: 'ℹ️',
+        description: 'Informations supplémentaires',
+        data: data.infoData || data.tabData.info
+      });
+    }
+    
+    console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
+    return actions;
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Gérer les clics sur actions
+  handleDialogueAction(action, originalData) {
+    console.log(`🎯 Exécution action: ${action.id} (${action.type})`);
+    
+    // Fermer le dialogue actuel
+    this.hide();
+    
+    // Délai court pour la transition
+    setTimeout(() => {
+      switch (action.type) {
+        case 'shop':
+          this.handleShopAction(action, originalData);
+          break;
+          
+        case 'quest':
+          this.handleQuestAction(action, originalData);
+          break;
+          
+        case 'heal':
+          this.handleHealAction(action, originalData);
+          break;
+          
+        case 'info':
+          this.handleInfoAction(action, originalData);
+          break;
+          
+        default:
+          console.warn(`Action non gérée: ${action.type}`);
+          this.handleGenericAction(action, originalData);
+          break;
+      }
+    }, 200);
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Gestion des actions spécifiques
+  handleShopAction(action, originalData) {
+    console.log('🛒 Ouverture boutique...');
+    
+    if (this.shopSystem && this.shopSystem.openShop) {
+      // Déléguer au ShopSystem
+      const shopData = {
+        ...originalData,
+        shopData: action.data,
+        fromDialogueAction: true
+      };
+      this.shopSystem.openShop(shopData);
+    } else {
+      // Fallback vers interface unifiée
+      this.showUnifiedInterfaceForAction('shop', action, originalData);
+    }
+  }
+
+  handleQuestAction(action, originalData) {
+    console.log('📋 Ouverture journal quêtes...');
+    
+    if (this.questSystem && this.questSystem.openQuestJournal) {
+      // Déléguer au QuestSystem
+      this.questSystem.openQuestJournal(action.data);
+    } else {
+      // Fallback vers interface unifiée
+      this.showUnifiedInterfaceForAction('quest', action, originalData);
+    }
+  }
+
+  handleHealAction(action, originalData) {
+    console.log('💊 Démarrage soins...');
+    
+    // Action directe de soin
+    if (window.globalNetworkManager && window.globalNetworkManager.room) {
+      window.globalNetworkManager.room.send('healPokemon', {
+        npcId: originalData.npcId,
+        healType: 'full'
+      });
+      
+      // Feedback utilisateur
+      window.showGameNotification?.('Vos Pokémon sont soignés !', 'success', {
+        duration: 2000,
+        position: 'top-center'
+      });
+    }
+  }
+
+  handleInfoAction(action, originalData) {
+    console.log('ℹ️ Affichage informations...');
+    
+    // Fallback vers interface unifiée pour les infos
+    this.showUnifiedInterfaceForAction('info', action, originalData);
+  }
+
+  handleGenericAction(action, originalData) {
+    console.log('🔧 Action générique...');
+    
+    // Fallback universel
+    this.showUnifiedInterfaceForAction(action.type, action, originalData);
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Fallback pour interface unifiée
+  showUnifiedInterfaceForAction(targetTab, action, originalData) {
+    console.log(`🎭 Fallback interface unifiée pour: ${targetTab}`);
+    
+    // Construire les données d'interface unifiée
+    const unifiedData = {
+      ...originalData,
+      isUnifiedInterface: true,
+      tabs: this.generateTabsFromAction(action, originalData),
+      defaultTab: targetTab,
+      tabData: {
+        [targetTab]: action.data
+      },
+      fromDialogueAction: true,
+      sourceAction: action
+    };
+    
+    // Afficher l'interface unifiée
+    this.showUnifiedInterface(unifiedData);
+  }
+
+  generateTabsFromAction(action, originalData) {
+    // Générer les onglets basés sur l'action + données disponibles
+    const tabs = [];
+    
+    // Toujours inclure l'onglet de l'action
+    tabs.push({
+      id: action.type,
+      label: action.label,
+      icon: action.icon,
+      description: action.description
+    });
+    
+    // Ajouter dialogue si pas la seule option
+    tabs.push({
+      id: 'dialogue',
+      label: 'Discussion',
+      icon: '💬',
+      description: 'Parler avec le PNJ'
+    });
+    
+    return tabs;
   }
 
   showUnifiedInterface(data) {
@@ -620,7 +848,7 @@ export class DialogueManager {
     // Nettoyer l'état
     this.currentDialogueData = null;
     this.currentMode = null;
-    this.classicState = { lines: [], currentPage: 0, onClose: null };
+    this.classicState = { lines: [], currentPage: 0, onClose: null, actions: [] };
     this.unifiedState = { tabs: [], currentTab: null, tabData: {}, npcData: {}, onTabSwitch: null, onClose: null };
     this.dialoguePaginationData = null;
 
@@ -772,7 +1000,7 @@ export class DialogueManager {
   // ===== DEBUG ET DÉVELOPPEMENT =====
 
   debugState() {
-    console.log('🔍 === DEBUG DIALOGUE MANAGER ===');
+    console.log('🔍 === DEBUG DIALOGUE MANAGER AVEC ACTIONS ===');
     console.log('📊 ÉTAT GÉNÉRAL:');
     console.log('  - Initialisé:', this.isInitialized);
     console.log('  - Ouvert:', this.isOpen());
@@ -782,6 +1010,7 @@ export class DialogueManager {
     console.log('🎭 DIALOGUE CLASSIQUE:');
     console.log('  - Lignes:', this.classicState.lines.length);
     console.log('  - Page actuelle:', this.classicState.currentPage);
+    console.log('  - Actions disponibles:', this.classicState.actions.length);
     
     console.log('🎯 INTERFACE UNIFIÉE:');
     console.log('  - Onglets:', this.unifiedState.tabs.length);
@@ -798,6 +1027,12 @@ export class DialogueManager {
       isOpen: this.isOpen(),
       currentMode: this.currentMode,
       hasUI: !!this.dialogueUI,
+      classicState: {
+        linesCount: this.classicState.lines.length,
+        currentPage: this.classicState.currentPage,
+        actionsCount: this.classicState.actions.length,
+        actions: this.classicState.actions.map(a => ({ id: a.id, type: a.type, label: a.label }))
+      },
       systems: {
         shop: !!this.shopSystem,
         quest: !!this.questSystem,
@@ -841,55 +1076,119 @@ export class DialogueManager {
   }
 }
 
-// ===== FONCTIONS GLOBALES DE DEBUG =====
+// ===== FONCTIONS GLOBALES DE DEBUG MISES À JOUR =====
 
 window.testDialogueManager = function() {
   if (window.dialogueManager) {
-    console.log('🧪 Test DialogueManager...');
+    console.log('🧪 Test DialogueManager avec actions...');
     return window.dialogueManager.debugState();
   } else {
     console.error('❌ DialogueManager non disponible');
   }
 };
 
-window.testUnifiedDialogue = function() {
+// 🆕 NOUVELLES FONCTIONS DE TEST AVEC ACTIONS
+window.testDialogueWithShop = function() {
   if (window.dialogueManager) {
     const testData = {
-      isUnifiedInterface: true,
       name: 'Marchand Test',
-      title: 'Vendeur d\'objets',
-      portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=SHOP',
-      tabs: [
-        { id: 'dialogue', label: 'Dialogue', icon: '💬' },
-        { id: 'shop', label: 'Boutique', icon: '🛒', badge: '3' },
-        { id: 'info', label: 'Info', icon: 'ℹ️' }
-      ],
-      tabData: {
-        dialogue: {
-          lines: ['Bonjour, aventurier !', 'Que puis-je faire pour toi ?']
-        },
-        shop: {
-          name: 'Boutique Test',
-          shopId: 'test_shop'
-        },
-        info: {
-          description: 'Un marchand expérimenté qui vend des objets utiles.',
-          tips: ['Les prix varient selon votre niveau', 'Revenez souvent pour de nouveaux objets']
-        }
+      portrait: 'https://via.placeholder.com/80x80/green/white?text=SHOP',
+      lines: ['Bonjour ! Bienvenue dans ma boutique.', 'Que puis-je faire pour vous ?'],
+      capabilities: ['merchant'],
+      shopData: { 
+        shopId: 'test_shop',
+        name: 'Boutique du Marchand'
       },
-      quickActions: [
-        { label: 'Acheter Vite', icon: '🛒', type: 'primary' },
-        { label: 'Partir', icon: '👋', type: 'secondary' }
-      ]
+      onClose: () => {
+        console.log('✅ Dialogue marchand fermé');
+        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
+      }
     };
     
     window.dialogueManager.show(testData);
-    console.log('✅ Interface unifiée de test affichée');
+    console.log('✅ Dialogue marchand avec actions affiché');
   } else {
     console.error('❌ DialogueManager non disponible');
   }
 };
 
-console.log('✅ DialogueManager chargé!');
+window.testDialogueWithQuest = function() {
+  if (window.dialogueManager) {
+    const testData = {
+      name: 'Garde Questeur',
+      portrait: 'https://via.placeholder.com/80x80/orange/white?text=QUEST',
+      lines: ['Salut, aventurier !', 'J\'ai des missions importantes pour toi.'],
+      capabilities: ['questGiver'],
+      questData: { 
+        availableQuests: [
+          { id: 'quest1', title: 'Mission Test 1' },
+          { id: 'quest2', title: 'Mission Test 2' },
+          { id: 'quest3', title: 'Mission Test 3' }
+        ]
+      },
+      onClose: () => {
+        console.log('✅ Dialogue quêtes fermé');
+        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
+      }
+    };
+    
+    window.dialogueManager.show(testData);
+    console.log('✅ Dialogue quêtes avec actions affiché');
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
+window.testDialogueWithHealer = function() {
+  if (window.dialogueManager) {
+    const testData = {
+      name: 'Infirmière Joy',
+      portrait: 'https://via.placeholder.com/80x80/red/white?text=HEAL',
+      lines: ['Bonjour ! Vos Pokémon ont l\'air fatigués.', 'Voulez-vous que je les soigne ?'],
+      capabilities: ['healer'],
+      healerData: { 
+        healType: 'full',
+        cost: 0
+      },
+      onClose: () => {
+        console.log('✅ Dialogue soigneur fermé');
+        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
+      }
+    };
+    
+    window.dialogueManager.show(testData);
+    console.log('✅ Dialogue soigneur avec actions affiché');
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
+window.testDialogueMultiActions = function() {
+  if (window.dialogueManager) {
+    const testData = {
+      name: 'PNJ Multifonction',
+      portrait: 'https://via.placeholder.com/80x80/purple/white?text=MULTI',
+      lines: ['Salutations !', 'Je propose plusieurs services.'],
+      capabilities: ['merchant', 'questGiver', 'healer'],
+      shopData: { shopId: 'multi_shop' },
+      questData: { availableQuests: [{ id: 'multi_quest' }] },
+      healerData: { healType: 'full' },
+      onClose: () => {
+        console.log('✅ Dialogue multi-actions fermé');
+        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
+      }
+    };
+    
+    window.dialogueManager.show(testData);
+    console.log('✅ Dialogue multi-actions affiché');
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
+console.log('✅ DialogueManager avec Actions Contextuelles chargé!');
 console.log('🧪 Utilisez window.testDialogueManager() pour diagnostiquer');
-console.log('🧪 Utilisez window.testUnifiedDialogue() pour tester l\'interface unifiée');
+console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand');
+console.log('📋 Utilisez window.testDialogueWithQuest() pour tester quêtes');
+console.log('💊 Utilisez window.testDialogueWithHealer() pour tester soigneur');
+console.log('🎯 Utilisez window.testDialogueMultiActions() pour tester multi-actions');
