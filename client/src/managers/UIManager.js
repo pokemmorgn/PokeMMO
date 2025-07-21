@@ -891,30 +891,66 @@ export class UIManager {
     return true;
   }
 
-  applyGameState(stateConfig, animated = true) {
-    const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
-    
-    hiddenModules.forEach(moduleId => {
-      this.hideModule(moduleId, { animated });
+applyGameState(stateConfig, animated = true) {
+  console.log(`🎮 [UIManager] Application état avec reset complet:`, stateConfig);
+  
+  const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
+  
+  // ✅ ÉTAPE 1: RESET COMPLET - tous les modules dans un état neutre
+  const allModuleIds = Array.from(this.modules.keys());
+  
+  // D'abord, remettre tous les modules visibles et activés
+  allModuleIds.forEach(moduleId => {
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (iconConfig && iconConfig.element) {
+      // Reset styles
+      iconConfig.element.style.display = 'block';
+      iconConfig.element.style.visibility = 'visible';
+      iconConfig.element.style.opacity = '1';
+      iconConfig.element.style.pointerEvents = 'auto';
+      iconConfig.element.style.filter = '';
+      iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+    }
+  });
+  
+  console.log(`🔄 [UIManager] Reset ${allModuleIds.length} modules en état neutre`);
+  
+  // ✅ ÉTAPE 2: Appliquer les restrictions (hide/disable)
+  
+  // D'abord désactiver
+  disabledModules.forEach(moduleId => {
+    this.disableModule(moduleId);
+    console.log(`🔒 [UIManager] Module ${moduleId} désactivé`);
+  });
+  
+  // Puis cacher (plus restrictif que désactiver)
+  hiddenModules.forEach(moduleId => {
+    this.hideModule(moduleId, { animated });
+    console.log(`👻 [UIManager] Module ${moduleId} caché`);
+  });
+  
+  // ✅ ÉTAPE 3: Appliquer les permissions (show/enable) avec délai
+  setTimeout(() => {
+    // D'abord montrer
+    visibleModules.forEach(moduleId => {
+      this.showModule(moduleId, { animated });
+      console.log(`👁️ [UIManager] Module ${moduleId} affiché`);
     });
     
-    disabledModules.forEach(moduleId => {
-      this.disableModule(moduleId);
+    // Puis activer
+    enabledModules.forEach(moduleId => {
+      this.enableModule(moduleId);
+      console.log(`🔧 [UIManager] Module ${moduleId} activé`);
     });
     
-    setTimeout(() => {
-      visibleModules.forEach(moduleId => {
-        this.showModule(moduleId, { animated });
-      });
-      
-      enabledModules.forEach(moduleId => {
-        this.enableModule(moduleId);
-      });
-      
-      this.repositionAllIcons();
-    }, animated ? 100 : 0);
-  }
-
+    // ✅ ÉTAPE 4: Repositionner toutes les icônes
+    this.repositionAllIcons();
+    
+    console.log(`✅ [UIManager] État appliqué avec repositionnement`);
+    
+  }, animated ? 150 : 0);
+}
+  
   toggleModule(moduleId, options = {}) {
     const state = this.moduleStates.get(moduleId);
     if (!state) return false;
