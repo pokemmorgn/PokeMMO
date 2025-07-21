@@ -444,10 +444,10 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
           console.log(`🔑 [JSON] Requirements résolus pour objet ${objData.id}:`, resolvedRequirements);
 
-          // Déterminer le type final
-          let finalType = objData.type;
-          if (finalType === 'ground') finalType = 'ground_item';
-          if (finalType === 'hidden') finalType = 'hidden_item';
+          // Déterminer le type final pour ObjectDefinition
+          let finalType: string = objData.type;
+          if (objData.type === 'ground') finalType = 'ground_item';
+          if (objData.type === 'hidden') finalType = 'hidden_item';
 
           const objectDef: ObjectDefinition = {
             // Données de base
