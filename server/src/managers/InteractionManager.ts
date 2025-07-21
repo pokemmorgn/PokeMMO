@@ -149,6 +149,7 @@ export class InteractionManager {
 
       // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT + NOUVEAU
       const npcResult: NpcInteractionResult = {
+        success: result.success, // ✅ AJOUTÉ : propriété success manquante
         type: result.type,
         message: result.message,
         
@@ -242,6 +243,7 @@ export class InteractionManager {
 
       // ✅ CONVERTIR LE RÉSULTAT
       const npcResult: NpcInteractionResult = {
+        success: result.success, // ✅ AJOUTÉ : propriété success manquante
         type: result.type,
         message: result.message,
         
