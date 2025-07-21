@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - Map Editor Module (Version avec support tilesets Tiled et objets existants)
+// PokeWorld Admin Panel - Map Editor Module avec Items Dynamiques
 
 export class MapEditorModule {
     constructor(adminPanel) {
@@ -7,187 +7,614 @@ export class MapEditorModule {
         this.currentMapData = null
         this.availableMaps = []
         this.placedObjects = []
-        this.selectedTool = 'npc'
+        this.selectedTool = 'object' // Changer pour mode item par défaut
+        this.selectedItem = null // Nouvel état pour l'item sélectionné
+        this.availableItems = {} // Cache des items chargés
         this.zoom = 1
         this.tileSize = 16
         this.dpi = window.devicePixelRatio || 1
-        this.tilesets = new Map() // Cache des tilesets chargés
-        this.tilesetImages = new Map() // Cache des images de tilesets
+        this.tilesets = new Map()
+        this.tilesetImages = new Map()
         
-        console.log('🗺️ [MapEditor] Module initialized with tileset support, DPI:', this.dpi)
+        console.log('🗺️ [MapEditor] Module initialized with items support')
         this.init()
     }
 
-    init() {
-        console.log('🗺️ [MapEditor] Initialisation terminée - support des tilesets Tiled activé')
+    async init() {
+        // Charger les items au démarrage
+        await this.loadAvailableItems()
+        console.log('🗺️ [MapEditor] Initialisation terminée - support des items dynamiques activé')
     }
 
-    // Fonction pour corriger le DPI du canvas
+    // ==============================
+    // GESTION DES ITEMS
+    // ==============================
+
+    async loadAvailableItems() {
+        try {
+            console.log('📦 [MapEditor] Loading items from items.json...')
+            
+            let itemsData
+            try {
+                // Essayer de lire depuis le système de fichiers
+                const fileContent = await window.fs.readFile('server/src/data/items.json', { encoding: 'utf8' })
+                itemsData = JSON.parse(fileContent)
+            } catch (fsError) {
+                // Fallback: essayer de charger depuis l'API
+                const response = await fetch('/api/admin/items')
+                if (!response.ok) throw new Error('Items non trouvés')
+                itemsData = await response.json()
+            }
+
+            this.availableItems = itemsData
+            
+            // Mettre à jour l'interface utilisateur
+            this.renderItemsPanel()
+            
+            console.log(`✅ [MapEditor] ${Object.keys(itemsData).length} items chargés`)
+            
+        } catch (error) {
+            console.error('❌ [MapEditor] Error loading items:', error)
+            this.adminPanel.showNotification('Erreur chargement items: ' + error.message, 'error')
+            
+            // Items par défaut en cas d'erreur
+            this.availableItems = {
+                'poke_ball': { id: 'poke_ball', type: 'ball', pocket: 'balls' },
+                'potion': { id: 'potion', type: 'medicine', pocket: 'medicine' }
+            }
+            this.renderItemsPanel()
+        }
+    }
+
+    renderItemsPanel() {
+        const itemsContainer = document.getElementById('itemsContainer')
+        if (!itemsContainer) return
+
+        // Grouper les items par type
+        const itemsByType = {}
+        Object.values(this.availableItems).forEach(item => {
+            const type = item.type || 'other'
+            if (!itemsByType[type]) itemsByType[type] = []
+            itemsByType[type].push(item)
+        })
+
+        // Générer le HTML pour chaque catégorie
+        const categoriesHTML = Object.entries(itemsByType).map(([type, items]) => `
+            <div class="items-category">
+                <h4 class="category-title">${this.getTypeDisplayName(type)} (${items.length})</h4>
+                <div class="items-grid">
+                    ${items.map(item => `
+                        <div class="item-card ${this.selectedItem?.id === item.id ? 'selected' : ''}" 
+                             onclick="adminPanel.mapEditor.selectItem('${item.id}')"
+                             title="${item.id}">
+                            <div class="item-icon">${this.getItemIcon(item)}</div>
+                            <div class="item-name">${this.getItemDisplayName(item.id)}</div>
+                            <div class="item-type">${item.type}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('')
+
+        itemsContainer.innerHTML = `
+            <div class="items-header">
+                <h3>📦 Items Disponibles</h3>
+                <div class="items-stats">
+                    <span class="badge badge-primary">${Object.keys(this.availableItems).length} items</span>
+                    ${this.selectedItem ? `<span class="badge badge-success">Sélectionné: ${this.selectedItem.id}</span>` : ''}
+                </div>
+            </div>
+            <div class="items-search">
+                <input type="text" id="itemSearch" placeholder="🔍 Rechercher un item..." 
+                       onkeyup="adminPanel.mapEditor.filterItems(this.value)" class="form-input">
+            </div>
+            <div class="items-list">
+                ${categoriesHTML}
+            </div>
+        `
+    }
+
+    selectItem(itemId) {
+        this.selectedItem = this.availableItems[itemId]
+        this.selectedTool = 'object' // Forcer le mode objet
+        
+        // Mettre à jour l'affichage des outils
+        document.querySelectorAll('.btn-tool').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tool === 'object')
+        })
+        
+        // Mettre à jour l'affichage des items
+        this.renderItemsPanel()
+        
+        console.log(`📦 [MapEditor] Item selected: ${itemId}`)
+        this.adminPanel.showNotification(`Item sélectionné: ${this.getItemDisplayName(itemId)}`, 'info')
+    }
+
+    filterItems(searchTerm) {
+        const itemCards = document.querySelectorAll('.item-card')
+        const categories = document.querySelectorAll('.items-category')
+        
+        searchTerm = searchTerm.toLowerCase()
+        
+        itemCards.forEach(card => {
+            const itemName = card.querySelector('.item-name').textContent.toLowerCase()
+            const itemId = card.title.toLowerCase()
+            const matches = itemName.includes(searchTerm) || itemId.includes(searchTerm)
+            
+            card.style.display = matches ? 'block' : 'none'
+        })
+        
+        // Masquer les catégories vides
+        categories.forEach(category => {
+            const visibleItems = category.querySelectorAll('.item-card:not([style*="display: none"])')
+            category.style.display = visibleItems.length > 0 ? 'block' : 'none'
+        })
+    }
+
+    getTypeDisplayName(type) {
+        const typeNames = {
+            'ball': '⚾ Pokéballs',
+            'medicine': '💊 Médicaments', 
+            'item': '📦 Objets',
+            'key_item': '🗝️ Objets Clés',
+            'other': '❓ Autres'
+        }
+        return typeNames[type] || type
+    }
+
+    getItemIcon(item) {
+        const icons = {
+            'ball': '⚾',
+            'medicine': '💊',
+            'key_item': '🗝️',
+            'item': '📦'
+        }
+        return icons[item.type] || '❓'
+    }
+
+    getItemDisplayName(itemId) {
+        return itemId.replace(/_/g, ' ')
+                    .replace(/\b\w/g, l => l.toUpperCase())
+    }
+
+    // ==============================
+    // PLACEMENT D'OBJETS AMÉLIORÉ
+    // ==============================
+
+    handleCanvasClick(event) {
+        if (!this.currentMapData) return
+
+        const canvas = document.getElementById('mapCanvas')
+        const rect = canvas.getBoundingClientRect()
+        
+        const tileWidth = this.currentMapData.tilewidth * this.zoom
+        const tileHeight = this.currentMapData.tileheight * this.zoom
+        
+        const x = (event.clientX - rect.left)
+        const y = (event.clientY - rect.top)
+        
+        const tileX = Math.floor(x / tileWidth)
+        const tileY = Math.floor(y / tileHeight)
+        
+        console.log(`🗺️ [MapEditor] Click at (${x}, ${y}) -> tile (${tileX}, ${tileY})`)
+        
+        // Vérifier si on clique sur un objet existant
+        const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
+        
+        if (existingIndex !== -1) {
+            const existingObj = this.placedObjects[existingIndex]
+            
+            if (existingObj.isFromMap) {
+                this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
+                return
+            }
+            
+            // Supprimer l'objet ajouté manuellement
+            this.placedObjects.splice(existingIndex, 1)
+            this.adminPanel.showNotification('Objet supprimé', 'info')
+        } else {
+            // Ajouter un nouvel objet selon le mode
+            if (this.selectedTool === 'object' && this.selectedItem) {
+                this.placeItemObject(tileX, tileY)
+            } else {
+                this.placeGenericObject(tileX, tileY)
+            }
+        }
+        
+        this.renderMap()
+    }
+
+    placeItemObject(tileX, tileY) {
+        if (!this.selectedItem) {
+            this.adminPanel.showNotification('Aucun item sélectionné !', 'warning')
+            return
+        }
+
+        const newObject = {
+            id: Date.now(),
+            position: { x: tileX * this.currentMapData.tilewidth, y: tileY * this.currentMapData.tileheight },
+            type: this.determineObjectType(this.selectedItem),
+            itemId: this.selectedItem.id,
+            sprite: this.getItemSprite(this.selectedItem),
+            quantity: this.getDefaultQuantity(this.selectedItem),
+            cooldown: this.getDefaultCooldown(this.selectedItem),
+            rarity: this.getItemRarity(this.selectedItem),
+            name: this.selectedItem.id,
+            isFromMap: false,
+            // Coordonnées tiles pour l'affichage
+            x: tileX,
+            y: tileY,
+            // Propriétés spécifiques selon le type
+            ...this.getItemSpecificProperties(this.selectedItem)
+        }
+        
+        this.placedObjects.push(newObject)
+        this.adminPanel.showNotification(
+            `${this.getItemDisplayName(this.selectedItem.id)} placé en (${tileX}, ${tileY})`, 
+            'success'
+        )
+    }
+
+    placeGenericObject(tileX, tileY) {
+        const newObject = {
+            id: `${this.selectedTool}_${Date.now()}`,
+            type: this.selectedTool,
+            x: tileX,
+            y: tileY,
+            name: `${this.selectedTool}_${tileX}_${tileY}`,
+            isFromMap: false,
+            properties: this.getDefaultProperties(this.selectedTool)
+        }
+        
+        this.placedObjects.push(newObject)
+        this.adminPanel.showNotification(
+            `${this.selectedTool.toUpperCase()} placé en (${tileX}, ${tileY})`, 
+            'success'
+        )
+    }
+
+    // ==============================
+    // PROPRIÉTÉS DES ITEMS
+    // ==============================
+
+    determineObjectType(item) {
+        // Déterminer si c'est un objet visible ou caché
+        if (item.type === 'key_item' || item.type === 'ball') {
+            return 'ground' // Objets visibles
+        }
+        return 'hidden' // Objets cachés par défaut
+    }
+
+    getItemSprite(item) {
+        const spriteMap = {
+            'ball': 'pokeball_ground.png',
+            'medicine': 'potion_ground.png',
+            'key_item': 'keyitem_ground.png',
+            'item': 'item_ground.png'
+        }
+        return spriteMap[item.type] || 'hidden_shimmer.png'
+    }
+
+    getDefaultQuantity(item) {
+        if (item.stackable === false) return 1
+        if (item.type === 'medicine') return Math.floor(Math.random() * 3) + 1 // 1-3
+        if (item.type === 'ball') return Math.floor(Math.random() * 5) + 1 // 1-5
+        return 1
+    }
+
+    getDefaultCooldown(item) {
+        const cooldowns = {
+            'ball': 6,
+            'medicine': 12,
+            'key_item': 48,
+            'item': 24
+        }
+        return cooldowns[item.type] || 24
+    }
+
+    getItemRarity(item) {
+        if (item.type === 'key_item') return 'rare'
+        if (item.type === 'ball' && item.id !== 'poke_ball') return 'uncommon'
+        if (item.type === 'medicine' && item.heal_amount === 'full') return 'rare'
+        return 'common'
+    }
+
+    getItemSpecificProperties(item) {
+        const properties = {}
+        
+        // Propriétés pour objets cachés
+        if (this.determineObjectType(item) === 'hidden') {
+            properties.searchRadius = 16
+            properties.itemfinderRadius = 64
+        }
+        
+        return properties
+    }
+
+    // ==============================
+    // SAUVEGARDE AU FORMAT GAMEOBJECTS
+    // ==============================
+
+    async saveMapObjects() {
+        if (!this.currentMapData) {
+            this.adminPanel.showNotification('Aucune carte chargée', 'error')
+            return
+        }
+
+        const mapSelect = document.getElementById('mapSelect')
+        const mapId = mapSelect?.value
+        
+        if (!mapId) {
+            this.adminPanel.showNotification('Aucune carte sélectionnée', 'error')
+            return
+        }
+
+        console.log('💾 [MapEditor] Saving map objects in gameobjects format...')
+        
+        // Filtrer seulement les objets ajoutés manuellement
+        const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
+        
+        // Convertir au format gameobjects.json
+        const gameObjectsFormat = {
+            zone: mapId,
+            version: "2.0.0",
+            lastUpdated: new Date().toISOString(),
+            description: `${mapId} - Objets générés par l'éditeur de carte`,
+            
+            defaultRequirements: {
+                ground: { minLevel: 1 },
+                hidden: { minLevel: 1 }
+            },
+            
+            requirementPresets: {
+                starter: { minLevel: 1 }
+            },
+            
+            objects: addedObjects.map((obj, index) => ({
+                id: index + 1,
+                position: obj.position || { 
+                    x: obj.x * this.currentMapData.tilewidth, 
+                    y: obj.y * this.currentMapData.tileheight 
+                },
+                type: obj.type || 'ground',
+                itemId: obj.itemId || obj.name,
+                sprite: obj.sprite || 'item_ground.png',
+                quantity: obj.quantity || 1,
+                cooldown: obj.cooldown || 24,
+                rarity: obj.rarity || 'common',
+                ...(obj.searchRadius && { searchRadius: obj.searchRadius }),
+                ...(obj.itemfinderRadius && { itemfinderRadius: obj.itemfinderRadius })
+            }))
+        }
+
+        try {
+            // Essayer de sauvegarder via l'API
+            await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`, {
+                method: 'POST',
+                body: JSON.stringify(gameObjectsFormat)
+            })
+            
+            this.adminPanel.showNotification(
+                `${addedObjects.length} objets sauvegardés au format gameobjects.json`, 
+                'success'
+            )
+        } catch (error) {
+            console.log('🗺️ [MapEditor] API save failed, downloading JSON file instead')
+            
+            // Fallback: télécharger le fichier
+            this.downloadGameObjectsJSON(gameObjectsFormat, mapId)
+            this.adminPanel.showNotification('Fichier gameobjects.json téléchargé', 'success')
+        }
+    }
+
+    downloadGameObjectsJSON(data, mapId) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${mapId}.json`
+        a.click()
+        
+        URL.revokeObjectURL(url)
+    }
+
+    // ==============================
+    // AFFICHAGE AMÉLIORÉ
+    // ==============================
+
+    updateObjectsList() {
+        const objectsList = document.getElementById('objectsList')
+        const objectsCount = document.getElementById('objectsCount')
+        const noObjectsMessage = document.getElementById('noObjectsMessage')
+        
+        if (!objectsList || !objectsCount || !noObjectsMessage) return
+        
+        objectsCount.textContent = this.placedObjects.length
+        
+        if (this.placedObjects.length === 0) {
+            objectsList.innerHTML = ''
+            noObjectsMessage.style.display = 'block'
+            return
+        }
+        
+        noObjectsMessage.style.display = 'none'
+        
+        objectsList.innerHTML = this.placedObjects.map((obj, index) => `
+            <div class="object-item ${obj.isFromMap ? 'from-map' : 'added'}" style="
+                background: ${obj.isFromMap ? '#fff3cd' : '#f8f9fa'}; 
+                border: 1px solid ${obj.isFromMap ? '#ffeaa7' : '#dee2e6'}; 
+                border-radius: 8px; padding: 12px; margin-bottom: 8px;
+            ">
+                <div class="object-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span class="object-name" style="font-weight: 600; color: #2c3e50;">
+                        ${this.getObjectIcon(obj)} ${obj.name || obj.itemId}
+                        ${obj.isFromMap ? '<span class="badge" style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-left: 8px;">MAP</span>' : ''}
+                    </span>
+                    ${!obj.isFromMap ? `
+                        <button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" 
+                                style="padding: 2px 6px; font-size: 0.7rem;">
+                            🗑️
+                        </button>
+                    ` : '<span style="color: #6c757d; font-size: 0.8rem;">Lecture seule</span>'}
+                </div>
+                <div class="object-details" style="font-size: 0.85rem; color: #6c757d;">
+                    Position: (${obj.x}, ${obj.y})<br>
+                    ${obj.itemId ? `Item: ${this.getItemDisplayName(obj.itemId)}<br>` : ''}
+                    ${obj.quantity ? `Quantité: ${obj.quantity}<br>` : ''}
+                    ${obj.type ? `Type: ${obj.type}` : ''}${obj.rarity ? ` | Rareté: ${obj.rarity}` : ''}
+                    ${obj.isFromMap ? ' (depuis la carte)' : ' (ajouté)'}
+                </div>
+            </div>
+        `).join('')
+    }
+
+    getObjectIcon(obj) {
+        if (obj.itemId && this.availableItems[obj.itemId]) {
+            return this.getItemIcon(this.availableItems[obj.itemId])
+        }
+        
+        const icons = {
+            npc: '👤',
+            object: '📦',
+            ground: '📦',
+            hidden: '🔍',
+            spawn: '🎯',
+            teleport: '🌀'
+        }
+        
+        return icons[obj.type] || '❓'
+    }
+
+    drawPlacedObjects(ctx, tileWidth, tileHeight) {
+        this.placedObjects.forEach(obj => {
+            const x = obj.x * tileWidth
+            const y = obj.y * tileHeight
+            
+            // Couleurs selon le type et origine
+            const colors = {
+                ground: obj.isFromMap ? 'rgba(78, 205, 196, 0.6)' : 'rgba(78, 205, 196, 0.9)',
+                hidden: obj.isFromMap ? 'rgba(255, 193, 7, 0.6)' : 'rgba(255, 193, 7, 0.9)',
+                npc: obj.isFromMap ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 107, 107, 0.9)',
+                spawn: obj.isFromMap ? 'rgba(69, 183, 209, 0.6)' : 'rgba(69, 183, 209, 0.9)',
+                teleport: obj.isFromMap ? 'rgba(155, 89, 182, 0.6)' : 'rgba(155, 89, 182, 0.9)'
+            }
+            
+            // Fond avec ombre pour objets existants
+            if (obj.isFromMap) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+                ctx.fillRect(x + 4, y + 4, tileWidth - 4, tileHeight - 4)
+            }
+            
+            // Fond coloré
+            ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
+            ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
+            
+            // Bordure différente pour les objets existants vs nouveaux
+            ctx.strokeStyle = obj.isFromMap ? '#ffff00' : '#fff'
+            ctx.lineWidth = obj.isFromMap ? 3 / this.dpi : 2 / this.dpi
+            ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
+            
+            // Icône
+            ctx.fillStyle = 'white'
+            ctx.font = `bold ${Math.max(10, tileWidth * 0.4)}px Arial`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            
+            const icon = this.getObjectIcon(obj)
+            
+            // Ombre du texte
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+            ctx.fillText(icon, x + tileWidth / 2 + 1, y + tileHeight / 2 + 1)
+            
+            // Texte principal
+            ctx.fillStyle = 'white'
+            ctx.fillText(icon, x + tileWidth / 2, y + tileHeight / 2)
+            
+            // Petit indicateur pour objets existants
+            if (obj.isFromMap) {
+                ctx.fillStyle = '#ffff00'
+                ctx.fillRect(x + tileWidth - 6, y + 2, 4, 4)
+            }
+        })
+    }
+
+    // ==============================
+    // MÉTHODES HÉRITÉES INCHANGÉES
+    // ==============================
+
     fixCanvasDPI(canvas) {
         const ctx = canvas.getContext('2d')
         
-        // Obtenir les dimensions CSS
         const rect = canvas.getBoundingClientRect()
         const cssWidth = rect.width
         const cssHeight = rect.height
         
-        // Ajuster les dimensions du canvas pour le DPI
         canvas.width = cssWidth * this.dpi
         canvas.height = cssHeight * this.dpi
         
-        // Réajuster les dimensions CSS pour maintenir la taille d'affichage
         canvas.style.width = cssWidth + 'px'
         canvas.style.height = cssHeight + 'px'
         
-        // Appliquer le scaling au contexte
         ctx.scale(this.dpi, this.dpi)
         
-        // Désactiver le lissage pour les pixels art
         ctx.imageSmoothingEnabled = false
         ctx.imageSmoothingQuality = 'high'
-        
-        console.log(`🗺️ [MapEditor] Canvas DPI corrected - CSS: ${cssWidth}x${cssHeight}, Canvas: ${canvas.width}x${canvas.height}, DPI: ${this.dpi}`)
         
         return ctx
     }
 
-   async loadAvailableMaps() {
-    console.log('🗺️ [MapEditor] Loading all available maps...')
-    
-    // Liste complète de vos cartes
-    this.availableMaps = [
-        { id: 'beach', name: '🏖️ Beach', file: 'beach.tmj' },
-        { id: 'village', name: '🏘️ Village', file: 'village.tmj' },
-        { id: 'lavandia', name: '🏙️ Lavandia', file: 'lavandia.tmj' },
-        { id: 'road1', name: '🛤️ Route 1', file: 'road1.tmj' },
-        { id: 'road2', name: '🛤️ Route 2', file: 'road2.tmj' },
-        { id: 'road3', name: '🛤️ Route 3', file: 'road3.tmj' },
+    async loadAvailableMaps() {
+        console.log('🗺️ [MapEditor] Loading all available maps...')
         
-        // Maisons Village
-        { id: 'villagehouse1', name: '🏠 Maison Village 1', file: 'villagehouse1.tmj' },
-        { id: 'villagehouse2', name: '🏠 Maison Village 2', file: 'villagehouse2.tmj' },
-        { id: 'villagelab', name: '🔬 Laboratoire Village', file: 'villagelab.tmj' },
-        { id: 'villageflorist', name: '🌸 Fleuriste Village', file: 'villageflorist.tmj' },
-        { id: 'villagewindmill', name: '🌾 Moulin Village', file: 'villagewindmill.tmj' },
-        
-        // Maisons Lavandia
-        { id: 'lavandiahouse1', name: '🏠 Maison Lavandia 1', file: 'lavandiahouse1.tmj' },
-        { id: 'lavandiahouse2', name: '🏠 Maison Lavandia 2', file: 'lavandiahouse2.tmj' },
-        { id: 'lavandiahouse3', name: '🏠 Maison Lavandia 3', file: 'lavandiahouse3.tmj' },
-        { id: 'lavandiahouse4', name: '🏠 Maison Lavandia 4', file: 'lavandiahouse4.tmj' },
-        { id: 'lavandiahouse5', name: '🏠 Maison Lavandia 5', file: 'lavandiahouse5.tmj' },
-        { id: 'lavandiahouse6', name: '🏠 Maison Lavandia 6', file: 'lavandiahouse6.tmj' },
-        { id: 'lavandiahouse7', name: '🏠 Maison Lavandia 7', file: 'lavandiahouse7.tmj' },
-        { id: 'lavandiahouse8', name: '🏠 Maison Lavandia 8', file: 'lavandiahouse8.tmj' },
-        { id: 'lavandiahouse9', name: '🏠 Maison Lavandia 9', file: 'lavandiahouse9.tmj' },
-        
-        // Bâtiments Lavandia
-        { id: 'lavandiashop', name: '🛒 Magasin Lavandia', file: 'lavandiashop.tmj' },
-        { id: 'lavandiahealingcenter', name: '🏥 Centre Pokémon Lavandia', file: 'lavandiahealingcenter.tmj' },
-        { id: 'lavandiaresearchlab', name: '🔬 Labo Recherche Lavandia', file: 'lavandiaresearchlab.tmj' },
-        { id: 'lavandiaequipment', name: '⚒️ Équipement Lavandia', file: 'lavandiaequipment.tmj' },
-        { id: 'lavandiafurniture', name: '🪑 Mobilier Lavandia', file: 'lavandiafurniture.tmj' },
-        { id: 'lavandiaanalysis', name: '🔍 Analyse Lavandia', file: 'lavandiaanalysis.tmj' },
-        { id: 'lavandiabossroom', name: '👑 Salle Boss Lavandia', file: 'lavandiabossroom.tmj' },
-        { id: 'lavandiacelebitemple', name: '🏛️ Temple Celebi Lavandia', file: 'lavandiacelebitemple.tmj' },
-        
-        // Grottes
-        { id: 'noctherbcave1', name: '🕳️ Grotte Noctherb 1', file: 'noctherbcave1.tmj' },
-        { id: 'noctherbcave2', name: '🕳️ Grotte Noctherb 2', file: 'noctherbcave2.tmj' },
-        { id: 'noctherbcave2bis', name: '🕳️ Grotte Noctherb 2bis', file: 'noctherbcave2bis.tmj' },
-        
-        // Zones spéciales
-        { id: 'greenroot', name: '🌳 Greenroot', file: 'Greenroot.tmj' },
-        { id: 'greenrootbeach', name: '🌳🏖️ Greenroot Beach', file: 'GreenrootBeach.tmj' },
-        { id: 'florist', name: '🌺 Fleuriste', file: 'Florist.tmj' },
-        { id: 'wraithmoor', name: '👻 Wraithmoor', file: 'wraithmoor.tmj' },
-        { id: 'wraithmoorcimetery', name: '⚰️ Cimetière Wraithmoor', file: 'wraithmoorcimetery.tmj' },
-        { id: 'wraithmoormanor1', name: '🏚️ Manoir Wraithmoor 1', file: 'wraithmoormanor1.tmj' },
-        
-        // Routes cachées/spéciales
-        { id: 'road1hidden', name: '🛤️ Route 1 Cachée', file: 'road1hidden.tmj' },
-        { id: 'road1house', name: '🏠 Maison Route 1', file: 'road1house.tmj' },
-        { id: 'villagehouse1old', name: '🏠 Ancienne Maison Village 1', file: 'VillageHouse1.tmj' },
-        { id: 'villagehouse2old', name: '🏠 Ancienne Maison Village 2', file: 'VillageHouse2.tmj' }
-    ]
+        this.availableMaps = [
+            { id: 'beach', name: '🏖️ Beach', file: 'beach.tmj' },
+            { id: 'village', name: '🏘️ Village', file: 'village.tmj' },
+            { id: 'lavandia', name: '🏙️ Lavandia', file: 'lavandia.tmj' },
+            { id: 'road1', name: '🛤️ Route 1', file: 'road1.tmj' },
+            { id: 'road2', name: '🛤️ Route 2', file: 'road2.tmj' },
+            { id: 'road3', name: '🛤️ Route 3', file: 'road3.tmj' },
+        ]
 
-    // Remplir le select avec des catégories
-    const mapSelect = document.getElementById('mapSelect')
-    if (mapSelect) {
-        mapSelect.innerHTML = `
-            <option value="">Sélectionner une carte...</option>
-            <optgroup label="🌍 Zones principales">
-                <option value="beach">🏖️ Beach</option>
-                <option value="village">🏘️ Village</option>
-                <option value="lavandia">🏙️ Lavandia</option>
-                <option value="greenroot">🌳 Greenroot</option>
-                <option value="wraithmoor">👻 Wraithmoor</option>
-            </optgroup>
-            <optgroup label="🛤️ Routes">
-                <option value="road1">🛤️ Route 1</option>
-                <option value="road2">🛤️ Route 2</option>
-                <option value="road3">🛤️ Route 3</option>
-                <option value="road1hidden">🛤️ Route 1 Cachée</option>
-            </optgroup>
-            <optgroup label="🏠 Maisons Village">
-                <option value="villagehouse1">🏠 Maison Village 1</option>
-                <option value="villagehouse2">🏠 Maison Village 2</option>
-                <option value="villagelab">🔬 Laboratoire</option>
-                <option value="villageflorist">🌸 Fleuriste</option>
-                <option value="villagewindmill">🌾 Moulin</option>
-            </optgroup>
-            <optgroup label="🏙️ Bâtiments Lavandia">
-                <option value="lavandiashop">🛒 Magasin</option>
-                <option value="lavandiahealingcenter">🏥 Centre Pokémon</option>
-                <option value="lavandiaresearchlab">🔬 Labo Recherche</option>
-                <option value="lavandiaequipment">⚒️ Équipement</option>
-                <option value="lavandiacelebitemple">🏛️ Temple Celebi</option>
-            </optgroup>
-            <optgroup label="🏠 Maisons Lavandia">
-                <option value="lavandiahouse1">🏠 Maison 1</option>
-                <option value="lavandiahouse2">🏠 Maison 2</option>
-                <option value="lavandiahouse3">🏠 Maison 3</option>
-                <option value="lavandiahouse4">🏠 Maison 4</option>
-                <option value="lavandiahouse5">🏠 Maison 5</option>
-                <option value="lavandiahouse6">🏠 Maison 6</option>
-                <option value="lavandiahouse7">🏠 Maison 7</option>
-                <option value="lavandiahouse8">🏠 Maison 8</option>
-                <option value="lavandiahouse9">🏠 Maison 9</option>
-            </optgroup>
-            <optgroup label="🕳️ Grottes">
-                <option value="noctherbcave1">🕳️ Grotte Noctherb 1</option>
-                <option value="noctherbcave2">🕳️ Grotte Noctherb 2</option>
-                <option value="noctherbcave2bis">🕳️ Grotte Noctherb 2bis</option>
-            </optgroup>
-        `
+        const mapSelect = document.getElementById('mapSelect')
+        if (mapSelect) {
+            mapSelect.innerHTML = `
+                <option value="">Sélectionner une carte...</option>
+                <optgroup label="🌍 Zones principales">
+                    <option value="beach">🏖️ Beach</option>
+                    <option value="village">🏘️ Village</option>
+                    <option value="lavandia">🏙️ Lavandia</option>
+                </optgroup>
+                <optgroup label="🛤️ Routes">
+                    <option value="road1">🛤️ Route 1</option>
+                    <option value="road2">🛤️ Route 2</option>
+                    <option value="road3">🛤️ Route 3</option>
+                </optgroup>
+            `
+        }
+
+        console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes chargées`)
     }
-
-    console.log(`✅ [MapEditor] ${this.availableMaps.length} cartes chargées`)
-}
 
     async loadMap(mapId) {
         if (!mapId) return
 
-        // Vider le cache pour éviter les conflits
-        console.log('🗺️ [MapEditor] Clearing tileset cache...')
+        console.log('🗺️ [MapEditor] Clearing caches...')
         this.tilesets.clear()
         this.tilesetImages.clear()
         this.currentMapData = null
-        this.placedObjects = [] // Vider aussi les objets
+        this.placedObjects = []
 
         console.log(`🗺️ [MapEditor] Loading map: ${mapId}`)
         
         try {
-            // Charger le fichier TMJ
             const mapFile = this.availableMaps.find(m => m.id === mapId)?.file || `${mapId}.tmj`
             
             let mapData
             try {
-                // Essayer de lire depuis le système de fichiers
                 const fileContent = await window.fs.readFile(`client/public/assets/maps/${mapFile}`, { encoding: 'utf8' })
                 mapData = JSON.parse(fileContent)
             } catch (fsError) {
-                // Fallback: essayer de charger depuis l'API ou URL publique
                 const response = await fetch(`/assets/maps/${mapFile}`)
                 if (!response.ok) throw new Error('Carte non trouvée')
                 mapData = await response.json()
@@ -195,19 +622,12 @@ export class MapEditorModule {
 
             this.currentMapData = mapData
             
-            // Charger les tilesets de la carte
             await this.loadTilesets(mapData)
-            
-            // Charger les objets existants de la carte (depuis Tiled)
             this.loadExistingMapObjects()
-            
-            // Charger les objets sauvegardés (depuis l'admin)
             await this.loadExistingObjects(mapId)
             
-            // Afficher la carte
             this.renderMap()
             
-            // Afficher les outils
             const mapTools = document.getElementById('mapTools')
             const mapActions = document.getElementById('mapActions')
             const objectsPanel = document.getElementById('objectsPanel')
@@ -226,6 +646,88 @@ export class MapEditorModule {
         }
     }
 
+    selectTool(tool) {
+        this.selectedTool = tool
+        
+        // Si on sélectionne autre chose que "object", désélectionner l'item
+        if (tool !== 'object') {
+            this.selectedItem = null
+            this.renderItemsPanel()
+        }
+        
+        document.querySelectorAll('.btn-tool').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tool === tool)
+        })
+        
+        console.log(`🛠️ [MapEditor] Tool selected: ${tool}`)
+    }
+
+    setZoom(value) {
+        this.zoom = parseFloat(value)
+        const zoomValue = document.getElementById('zoomValue')
+        if (zoomValue) {
+            zoomValue.textContent = Math.round(this.zoom * 100) + '%'
+        }
+        
+        if (this.currentMapData) {
+            this.renderMap()
+        }
+    }
+
+    getDefaultProperties(type) {
+        switch (type) {
+            case 'npc':
+                return { dialogue: 'Hello!', sprite: 'npc_default' }
+            case 'object':
+                return { itemId: 'potion', quantity: 1 }
+            case 'spawn':
+                return { playerSpawn: true }
+            case 'teleport':
+                return { targetMap: '', targetX: 0, targetY: 0 }
+            default:
+                return {}
+        }
+    }
+
+    removeObject(index) {
+        if (index >= 0 && index < this.placedObjects.length) {
+            const obj = this.placedObjects[index]
+            
+            if (obj.isFromMap) {
+                this.adminPanel.showNotification('Impossible de supprimer un objet de la carte', 'warning')
+                return
+            }
+            
+            this.placedObjects.splice(index, 1)
+            this.renderMap()
+            this.adminPanel.showNotification('Objet supprimé', 'info')
+        }
+    }
+
+    onTabActivated() {
+        console.log('🗺️ [MapEditor] Tab activated')
+        
+        if (this.availableMaps.length === 0) {
+            this.loadAvailableMaps()
+        }
+        
+        // Recharger les items si nécessaire
+        if (Object.keys(this.availableItems).length === 0) {
+            this.loadAvailableItems()
+        }
+        
+        // Configurer les event listeners pour le canvas
+        const canvas = document.getElementById('mapCanvas')
+        if (canvas && !canvas.hasClickListener) {
+            canvas.addEventListener('click', (e) => this.handleCanvasClick(e))
+            canvas.hasClickListener = true
+        }
+    }
+
+    // ==============================
+    // MÉTHODES HÉRITÉES (SUITE)
+    // ==============================
+
     loadExistingMapObjects() {
         if (!this.currentMapData || !this.currentMapData.layers) {
             return
@@ -233,7 +735,6 @@ export class MapEditorModule {
         
         console.log('🔍 [MapEditor] Loading existing map objects...')
         
-        // Chercher les object layers dans la carte
         const objectLayers = this.currentMapData.layers.filter(layer => 
             layer.type === 'objectgroup' && layer.objects && layer.objects.length > 0
         )
@@ -244,12 +745,10 @@ export class MapEditorModule {
             console.log(`📋 [MapEditor] Found object layer: "${layer.name}" with ${layer.objects.length} objects`)
             
             layer.objects.forEach(obj => {
-                // Convertir les coordonnées pixels en coordonnées tiles
                 const tileX = Math.floor(obj.x / this.currentMapData.tilewidth)
                 const tileY = Math.floor(obj.y / this.currentMapData.tileheight)
                 
-                // Déterminer le type d'objet
-                let objectType = 'object' // par défaut
+                let objectType = 'object'
                 
                 if (obj.name) {
                     const name = obj.name.toLowerCase()
@@ -262,7 +761,6 @@ export class MapEditorModule {
                     }
                 }
                 
-                // Vérifier les propriétés pour plus de précision
                 if (obj.properties) {
                     obj.properties.forEach(prop => {
                         if (prop.name === 'type') {
@@ -271,15 +769,14 @@ export class MapEditorModule {
                     })
                 }
                 
-                // Ajouter l'objet existant à la liste
                 const existingObject = {
                     id: `existing_${obj.id || Date.now()}_${totalObjects}`,
                     type: objectType,
                     x: tileX,
                     y: tileY,
                     name: obj.name || `${objectType}_${tileX}_${tileY}`,
-                    isFromMap: true, // Marquer comme objet existant
-                    originalData: obj, // Garder les données originales
+                    isFromMap: true,
+                    originalData: obj,
                     properties: {
                         width: obj.width,
                         height: obj.height,
@@ -287,7 +784,6 @@ export class MapEditorModule {
                     }
                 }
                 
-                // Vérifier qu'il n'existe pas déjà
                 const exists = this.placedObjects.find(existing => 
                     existing.x === tileX && existing.y === tileY && existing.isFromMap
                 )
@@ -328,12 +824,10 @@ export class MapEditorModule {
 
         const promises = mapData.tilesets.map(async (tileset) => {
             try {
-                // Si c'est un tileset intégré
                 if (tileset.tiles || tileset.image) {
                     return this.processTileset(tileset)
                 }
                 
-                // Si c'est un tileset externe (fichier .tsj)
                 if (tileset.source) {
                     const tilesetPath = `/assets/maps/${tileset.source}`
                     console.log(`🖼️ [MapEditor] Loading external tileset: ${tilesetPath}`)
@@ -343,7 +837,6 @@ export class MapEditorModule {
                         if (!response.ok) throw new Error(`Tileset not found: ${tilesetPath}`)
                         const externalTileset = await response.json()
                         
-                        // Fusionner les propriétés
                         const fullTileset = {
                             ...externalTileset,
                             firstgid: tileset.firstgid
@@ -374,7 +867,6 @@ export class MapEditorModule {
 
         const tilesetKey = tileset.firstgid || 1
         
-        // Stocker les infos du tileset
         this.tilesets.set(tilesetKey, {
             firstgid: tileset.firstgid || 1,
             tilewidth: tileset.tilewidth || 16,
@@ -387,12 +879,11 @@ export class MapEditorModule {
             name: tileset.name || 'unnamed'
         })
 
-        // Nettoyer le chemin de l'image (supprimer ../ et _Sprites/)
         const cleanImageName = tileset.image
-            .replace(/\.\.\//g, '')           // Supprimer ../
-            .replace(/\/_Sprites\//g, '/')    // Supprimer /_Sprites/
-            .replace(/^_Sprites\//, '')       // Supprimer _Sprites/ au début
-            .split('/').pop()                 // Garder seulement le nom du fichier
+            .replace(/\.\.\//g, '')
+            .replace(/\/_Sprites\//g, '/')
+            .replace(/^_Sprites\//, '')
+            .split('/').pop()
 
         const imagePath = `/assets/sprites/${cleanImageName}`
         console.log(`🖼️ [MapEditor] Loading tileset image: ${imagePath}`)
@@ -409,7 +900,7 @@ export class MapEditorModule {
             
             img.onerror = (error) => {
                 console.error(`❌ [MapEditor] Failed to load tileset image: ${imagePath}`, error)
-                resolve(null) // Continue même si une image échoue
+                resolve(null)
             }
             
             img.src = imagePath
@@ -418,11 +909,9 @@ export class MapEditorModule {
 
     async loadExistingObjects(mapId) {
         try {
-            // Essayer de charger les objets existants depuis l'API
             const response = await this.adminPanel.apiCall(`/maps/${mapId}/objects`)
             const savedObjects = response.objects || []
             
-            // Ajouter les objets sauvegardés (qui ne sont pas de la carte)
             savedObjects.forEach(obj => {
                 if (!obj.isFromMap) {
                     this.placedObjects.push(obj)
@@ -435,44 +924,42 @@ export class MapEditorModule {
         }
     }
 
-renderMap() {
-    if (!this.currentMapData) return
+    renderMap() {
+        if (!this.currentMapData) return
 
-    const canvas = document.getElementById('mapCanvas')
-    if (!canvas) {
-        console.error('Canvas mapCanvas not found')
-        return
-    }
-    
-    // Dimensions logiques simples
-    const mapWidth = this.currentMapData.width
-    const mapHeight = this.currentMapData.height
-    const tileWidth = this.currentMapData.tilewidth * this.zoom
-    const tileHeight = this.currentMapData.tileheight * this.zoom
-    
-    // Dimensions CSS fixes
-    const canvasWidth = mapWidth * tileWidth
-    const canvasHeight = mapHeight * tileHeight
-    
-    canvas.style.width = canvasWidth + 'px'
-    canvas.style.height = canvasHeight + 'px'
-    canvas.style.display = 'block'
+        const canvas = document.getElementById('mapCanvas')
+        if (!canvas) {
+            console.error('Canvas mapCanvas not found')
+            return
+        }
         
-        // Effacer le canvas
+        const mapWidth = this.currentMapData.width
+        const mapHeight = this.currentMapData.height
+        const tileWidth = this.currentMapData.tilewidth * this.zoom
+        const tileHeight = this.currentMapData.tileheight * this.zoom
+        
+        const canvasWidth = mapWidth * tileWidth
+        const canvasHeight = mapHeight * tileHeight
+        
+        canvas.style.width = canvasWidth + 'px'
+        canvas.style.height = canvasHeight + 'px'
+        canvas.style.display = 'block'
+        canvas.width = canvasWidth
+        canvas.height = canvasHeight
+        
+        const ctx = canvas.getContext('2d')
+        ctx.imageSmoothingEnabled = false
+        
         ctx.clearRect(0, 0, canvasWidth, canvasHeight)
         
-        // Dessiner les layers de la carte (avec vraies textures)
         this.drawMapLayers(ctx, tileWidth, tileHeight)
         
-        // Dessiner la grille par-dessus (optionnel)
-        if (this.zoom >= 0.5) { // Seulement si pas trop dézoomé
+        if (this.zoom >= 0.5) {
             this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
         }
         
-        // Dessiner les objets placés
         this.drawPlacedObjects(ctx, tileWidth, tileHeight)
         
-        // Mettre à jour l'affichage des objets
         this.updateObjectsList()
         
         console.log(`🗺️ [MapEditor] Map rendered - ${mapWidth}x${mapHeight} tiles, ${tileWidth}x${tileHeight}px per tile`)
@@ -480,9 +967,8 @@ renderMap() {
 
     drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight) {
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)'
-        ctx.lineWidth = 1 / this.dpi // Ajuster pour le DPI
+        ctx.lineWidth = 1
         
-        // Lignes verticales
         for (let x = 0; x <= mapWidth; x++) {
             ctx.beginPath()
             ctx.moveTo(x * tileWidth, 0)
@@ -490,7 +976,6 @@ renderMap() {
             ctx.stroke()
         }
         
-        // Lignes horizontales
         for (let y = 0; y <= mapHeight; y++) {
             ctx.beginPath()
             ctx.moveTo(0, y * tileHeight)
@@ -505,7 +990,6 @@ renderMap() {
             return
         }
 
-        // Trier les layers par ordre (les plus bas en premier)
         const sortedLayers = this.currentMapData.layers
             .filter(layer => layer.type === 'tilelayer' && layer.data && layer.visible !== false)
             .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -523,29 +1007,25 @@ renderMap() {
         const mapWidth = this.currentMapData.width
         const opacity = layer.opacity || 1
 
-        // Sauvegarder l'état du contexte pour l'opacité
         ctx.save()
         ctx.globalAlpha = opacity
 
         for (let i = 0; i < layer.data.length; i++) {
             const tileId = layer.data[i]
-            if (tileId === 0) continue // Tile vide
+            if (tileId === 0) continue
 
             const tileX = i % mapWidth
             const tileY = Math.floor(i / mapWidth)
             const x = tileX * tileWidth
             const y = tileY * tileHeight
 
-            // Trouver le tileset approprié pour ce tile
             const tilesetInfo = this.findTilesetForTile(tileId)
             if (tilesetInfo) {
                 this.drawTile(ctx, tileId, tilesetInfo, x, y, tileWidth, tileHeight)
             } else {
-                // Fallback: dessiner un carré coloré si pas de tileset
                 ctx.fillStyle = `hsl(${(tileId * 137) % 360}, 50%, 70%)`
                 ctx.fillRect(x, y, tileWidth, tileHeight)
                 
-                // Numéro du tile pour debug
                 ctx.fillStyle = '#000'
                 ctx.font = `${Math.max(8, tileWidth * 0.2)}px Arial`
                 ctx.textAlign = 'center'
@@ -558,7 +1038,6 @@ renderMap() {
     }
 
     findTilesetForTile(tileId) {
-        // Trouver le tileset qui contient ce tile ID
         let bestTileset = null
         let bestFirstgid = 0
 
@@ -584,7 +1063,6 @@ renderMap() {
         const { tileset, image, localTileId } = tilesetInfo
 
         if (!image || !image.complete) {
-            // Image pas encore chargée, dessiner un placeholder
             ctx.fillStyle = '#ddd'
             ctx.fillRect(x, y, tileWidth, tileHeight)
             ctx.fillStyle = '#999'
@@ -595,318 +1073,33 @@ renderMap() {
             return
         }
 
-        // Calculer la position du tile dans le tileset
         const tilesPerRow = tileset.columns || Math.floor(tileset.imagewidth / tileset.tilewidth)
         const sourceX = (localTileId % tilesPerRow) * tileset.tilewidth
         const sourceY = Math.floor(localTileId / tilesPerRow) * tileset.tileheight
 
-        // Dessiner le tile
         try {
             ctx.drawImage(
                 image,
-                sourceX, sourceY, tileset.tilewidth, tileset.tileheight, // Source
-                x, y, tileWidth, tileHeight // Destination
+                sourceX, sourceY, tileset.tilewidth, tileset.tileheight,
+                x, y, tileWidth, tileHeight
             )
         } catch (error) {
             console.warn(`🖼️ [MapEditor] Error drawing tile ${tileId}:`, error)
-            // Fallback
             ctx.fillStyle = '#f00'
             ctx.fillRect(x, y, tileWidth, tileHeight)
         }
     }
 
-    drawPlacedObjects(ctx, tileWidth, tileHeight) {
-        this.placedObjects.forEach(obj => {
-            const x = obj.x * tileWidth
-            const y = obj.y * tileHeight
-            
-            // Couleurs selon le type et origine
-            const colors = {
-                npc: obj.isFromMap ? 'rgba(255, 107, 107, 0.6)' : 'rgba(255, 107, 107, 0.9)',
-                object: obj.isFromMap ? 'rgba(78, 205, 196, 0.6)' : 'rgba(78, 205, 196, 0.9)', 
-                spawn: obj.isFromMap ? 'rgba(69, 183, 209, 0.6)' : 'rgba(69, 183, 209, 0.9)',
-                teleport: obj.isFromMap ? 'rgba(155, 89, 182, 0.6)' : 'rgba(155, 89, 182, 0.9)'
-            }
-            
-            // Fond avec ombre pour objets existants
-            if (obj.isFromMap) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-                ctx.fillRect(x + 4, y + 4, tileWidth - 4, tileHeight - 4)
-            }
-            
-            // Fond coloré
-            ctx.fillStyle = colors[obj.type] || 'rgba(149, 165, 166, 0.8)'
-            ctx.fillRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
-            
-            // Bordure différente pour les objets existants vs nouveaux
-            ctx.strokeStyle = obj.isFromMap ? '#ffff00' : '#fff' // Jaune pour existants
-            ctx.lineWidth = obj.isFromMap ? 3 / this.dpi : 2 / this.dpi
-            ctx.strokeRect(x + 2, y + 2, tileWidth - 4, tileHeight - 4)
-            
-            // Icône
-            ctx.fillStyle = 'white'
-            ctx.font = `bold ${Math.max(10, tileWidth * 0.4)}px Arial`
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'middle'
-            
-            const icons = {
-                npc: '👤',
-                object: '📦',
-                spawn: '🎯',
-                teleport: '🌀'
-            }
-            
-            // Ombre du texte
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-            ctx.fillText(
-                icons[obj.type] || '?',
-                x + tileWidth / 2 + 1,
-                y + tileHeight / 2 + 1
-            )
-            
-            // Texte principal
-            ctx.fillStyle = 'white'
-            ctx.fillText(
-                icons[obj.type] || '?',
-                x + tileWidth / 2,
-                y + tileHeight / 2
-            )
-            
-            // Petit indicateur pour objets existants
-            if (obj.isFromMap) {
-                ctx.fillStyle = '#ffff00'
-                ctx.fillRect(x + tileWidth - 6, y + 2, 4, 4)
-            }
-        })
-    }
+    // ==============================
+    // CLEANUP
+    // ==============================
 
-    selectTool(tool) {
-        this.selectedTool = tool
-        
-        // Mettre à jour l'UI
-        document.querySelectorAll('.btn-tool').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tool === tool)
-        })
-        
-        console.log(`🛠️ [MapEditor] Tool selected: ${tool}`)
-    }
-
-    setZoom(value) {
-        this.zoom = parseFloat(value)
-        const zoomValue = document.getElementById('zoomValue')
-        if (zoomValue) {
-            zoomValue.textContent = Math.round(this.zoom * 100) + '%'
-        }
-        
-        if (this.currentMapData) {
-            this.renderMap()
-        }
-    }
-
-    handleCanvasClick(event) {
-        if (!this.currentMapData) return
-
-        const canvas = document.getElementById('mapCanvas')
-        const rect = canvas.getBoundingClientRect()
-        
-        const tileWidth = this.currentMapData.tilewidth * this.zoom
-        const tileHeight = this.currentMapData.tileheight * this.zoom
-        
-        // Ajuster pour le DPI
-        const x = (event.clientX - rect.left)
-        const y = (event.clientY - rect.top)
-        
-        const tileX = Math.floor(x / tileWidth)
-        const tileY = Math.floor(y / tileHeight)
-        
-        console.log(`🗺️ [MapEditor] Click at (${x}, ${y}) -> tile (${tileX}, ${tileY})`)
-        
-        // Vérifier si on clique sur un objet existant
-        const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
-        
-        if (existingIndex !== -1) {
-            const existingObj = this.placedObjects[existingIndex]
-            
-            // Ne pas supprimer les objets de la carte (seulement les afficher)
-            if (existingObj.isFromMap) {
-                this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
-                return
-            }
-            
-            // Supprimer l'objet ajouté manuellement
-            this.placedObjects.splice(existingIndex, 1)
-            this.adminPanel.showNotification('Objet supprimé', 'info')
-        } else {
-            // Ajouter un nouvel objet
-            const newObject = {
-                id: `${this.selectedTool}_${Date.now()}`,
-                type: this.selectedTool,
-                x: tileX,
-                y: tileY,
-                name: `${this.selectedTool}_${tileX}_${tileY}`,
-                isFromMap: false, // Marquer comme objet ajouté
-                properties: this.getDefaultProperties(this.selectedTool)
-            }
-            
-            this.placedObjects.push(newObject)
-            this.adminPanel.showNotification(`${this.selectedTool.toUpperCase()} placé en (${tileX}, ${tileY})`, 'success')
-        }
-        
-        this.renderMap()
-    }
-
-    getDefaultProperties(type) {
-        switch (type) {
-            case 'npc':
-                return { dialogue: 'Hello!', sprite: 'npc_default' }
-            case 'object':
-                return { itemId: 'potion', quantity: 1 }
-            case 'spawn':
-                return { playerSpawn: true }
-            case 'teleport':
-                return { targetMap: '', targetX: 0, targetY: 0 }
-            default:
-                return {}
-        }
-    }
-
-    updateObjectsList() {
-        const objectsList = document.getElementById('objectsList')
-        const objectsCount = document.getElementById('objectsCount')
-        const noObjectsMessage = document.getElementById('noObjectsMessage')
-        
-        if (!objectsList || !objectsCount || !noObjectsMessage) return
-        
-        objectsCount.textContent = this.placedObjects.length
-        
-        if (this.placedObjects.length === 0) {
-            objectsList.innerHTML = ''
-            noObjectsMessage.style.display = 'block'
-            return
-        }
-        
-        noObjectsMessage.style.display = 'none'
-        
-        const icons = {
-            npc: '👤',
-            object: '📦',
-            spawn: '🎯',
-            teleport: '🌀'
-        }
-        
-        objectsList.innerHTML = this.placedObjects.map((obj, index) => `
-            <div class="object-item" style="background: ${obj.isFromMap ? '#fff3cd' : '#f8f9fa'}; border: 1px solid ${obj.isFromMap ? '#ffeaa7' : '#dee2e6'}; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600; color: #2c3e50;">
-                        ${icons[obj.type]} ${obj.name}
-                        ${obj.isFromMap ? '<span style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; margin-left: 8px;">MAP</span>' : ''}
-                    </span>
-                    ${!obj.isFromMap ? `<button class="btn btn-danger btn-sm" onclick="adminPanel.mapEditor.removeObject(${index})" style="padding: 2px 6px;">
-                        <i class="fas fa-trash"></i>
-                    </button>` : '<span style="color: #6c757d; font-size: 0.8rem;">Lecture seule</span>'}
-                </div>
-                <div style="font-size: 0.85rem; color: #6c757d;">
-                    Position: (${obj.x}, ${obj.y})<br>
-                    Type: ${obj.type}${obj.isFromMap ? ' (depuis la carte)' : ' (ajouté)'}
-                </div>
-            </div>
-        `).join('')
-    }
-
-    removeObject(index) {
-        if (index >= 0 && index < this.placedObjects.length) {
-            const obj = this.placedObjects[index]
-            
-            // Ne pas supprimer les objets de la carte
-            if (obj.isFromMap) {
-                this.adminPanel.showNotification('Impossible de supprimer un objet de la carte', 'warning')
-                return
-            }
-            
-            this.placedObjects.splice(index, 1)
-            this.renderMap()
-            this.adminPanel.showNotification('Objet supprimé', 'info')
-        }
-    }
-
-    async saveMapObjects() {
-        if (!this.currentMapData) {
-            this.adminPanel.showNotification('Aucune carte chargée', 'error')
-            return
-        }
-
-        const mapSelect = document.getElementById('mapSelect')
-        const mapId = mapSelect?.value
-        
-        if (!mapId) {
-            this.adminPanel.showNotification('Aucune carte sélectionnée', 'error')
-            return
-        }
-
-        console.log('💾 [MapEditor] Saving map objects...')
-        
-        // Sauvegarder seulement les objets ajoutés manuellement
-        const addedObjects = this.placedObjects.filter(obj => !obj.isFromMap)
-        
-        const saveData = {
-            mapId: mapId,
-            mapName: this.availableMaps.find(m => m.id === mapId)?.name || mapId,
-            objects: addedObjects,
-            timestamp: new Date().toISOString(),
-            totalObjects: addedObjects.length,
-            mapObjects: this.placedObjects.filter(obj => obj.isFromMap).length // Pour info
-        }
-
-        try {
-            // Essayer de sauvegarder via l'API
-            await this.adminPanel.apiCall(`/maps/${mapId}/objects`, {
-                method: 'POST',
-                body: JSON.stringify(saveData)
-            })
-            
-            this.adminPanel.showNotification(`${addedObjects.length} objets ajoutés sauvegardés`, 'success')
-        } catch (error) {
-            console.log('🗺️ [MapEditor] API save failed, downloading JSON file instead')
-            
-            // Fallback: télécharger en tant que fichier JSON
-            this.downloadObjectsJSON(saveData)
-            this.adminPanel.showNotification('Fichier JSON téléchargé', 'success')
-        }
-    }
-
-    downloadObjectsJSON(data) {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `map_objects_${data.mapId}_${new Date().toISOString().split('T')[0]}.json`
-        a.click()
-        
-        URL.revokeObjectURL(url)
-    }
-
-    // Méthode appelée quand l'onglet maps devient actif
-    onTabActivated() {
-        console.log('🗺️ [MapEditor] Tab activated')
-        
-        if (this.availableMaps.length === 0) {
-            this.loadAvailableMaps()
-        }
-        
-        // Configurer les event listeners pour le canvas
-        const canvas = document.getElementById('mapCanvas')
-        if (canvas && !canvas.hasClickListener) {
-            canvas.addEventListener('click', (e) => this.handleCanvasClick(e))
-            canvas.hasClickListener = true
-        }
-    }
-
-    // Cleanup
     cleanup() {
         this.currentMapData = null
         this.availableMaps = []
         this.placedObjects = []
+        this.availableItems = {}
+        this.selectedItem = null
         this.tilesets.clear()
         this.tilesetImages.clear()
         
