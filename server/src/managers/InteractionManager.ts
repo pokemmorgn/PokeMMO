@@ -1,5 +1,5 @@
-// server/src/managers/InteractionManager.ts - VERSION MODULAIRE MULTI-FONCTIONNELLE
-// Utilise le nouveau système BaseInteractionManager + modules avec support des capabilities
+// server/src/managers/InteractionManager.ts - VERSION MODULAIRE
+// Utilise le nouveau système BaseInteractionManager + modules
 
 import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager";
@@ -10,26 +10,38 @@ import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 
 // ✅ IMPORTS DU NOUVEAU SYSTÈME
 import { BaseInteractionManager } from "../interactions/BaseInteractionManager";
-import { 
-  NpcInteractionModule, 
-  NpcInteractionResult,
-  // Pas de redéfinition locale, on utilise celle du module
-} from "../interactions/modules/NpcInteractionModule";
-import type { 
-  NpcCapability,
-  NpcChoiceResult
-} from "../interactions/types/BaseInteractionTypes";
+import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
 import { 
   InteractionRequest,
   InteractionResult,
   InteractionContext
 } from "../interactions/types/BaseInteractionTypes";
 
-// ✅ NOUVELLE INTERFACE POUR LE CLIENT (pas de conflit car nom différent)
-export interface NpcCapabilityRequest {
-  npcId: number;
-  capability: string;
-  playerPosition?: { x: number; y: number; mapId: string };
+// ✅ INTERFACE CONSERVÉE POUR COMPATIBILITÉ
+export interface NpcInteractionResult {
+  type: string;
+  message?: string;
+  shopId?: string;
+  shopData?: any;
+  lines?: string[];
+  availableQuests?: any[];
+  questRewards?: any[];
+  questProgress?: any[];
+  npcId?: number;
+  npcName?: string;
+  questId?: string;
+  questName?: string;
+  starterData?: any;
+  starterEligible?: boolean;
+  starterReason?: string;
+
+  battleSpectate?: {
+    battleId: string;
+    battleRoomId: string;
+    targetPlayerName: string;
+    canWatch: boolean;
+    reason?: string;
+  };
 }
 
 export class InteractionManager {
@@ -52,7 +64,7 @@ export class InteractionManager {
     starterHandlers: StarterHandlers,
     spectatorManager: SpectatorManager
   ) {
-    console.log(`🔄 [InteractionManager] Initialisation avec système multi-fonctionnel`);
+    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire`);
     
     // ✅ CONSERVATION DES DÉPENDANCES EXISTANTES
     this.getNpcManager = getNpcManager;
@@ -67,7 +79,7 @@ export class InteractionManager {
 
   private async initializeModularSystem(): Promise<void> {
     try {
-      console.log(`🚀 [InteractionManager] Configuration système multi-fonctionnel...`);
+      console.log(`🚀 [InteractionManager] Configuration système modulaire...`);
 
       // 1. Créer BaseInteractionManager avec configuration
       this.baseInteractionManager = new BaseInteractionManager({
@@ -83,7 +95,7 @@ export class InteractionManager {
         logLevel: 'info'
       });
 
-      // 2. Créer et enregistrer le module NPC avec support multi-fonctionnel
+      // 2. Créer et enregistrer le module NPC
       this.npcModule = new NpcInteractionModule(
         this.getNpcManager,
         this.questManager,
@@ -98,19 +110,21 @@ export class InteractionManager {
       await this.baseInteractionManager.initialize();
 
       this.isInitialized = true;
-      console.log(`✅ [InteractionManager] Système multi-fonctionnel initialisé avec succès`);
+      console.log(`✅ [InteractionManager] Système modulaire initialisé avec succès`);
       console.log(`📦 [InteractionManager] Modules enregistrés: ${this.baseInteractionManager.listModules().join(', ')}`);
-      console.log(`🎛️ [InteractionManager] Support capabilities: ACTIVÉ`);
 
     } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur initialisation multi-fonctionnelle:`, error);
+      console.error(`❌ [InteractionManager] Erreur initialisation modulaire:`, error);
       this.isInitialized = false;
+      
+      // En cas d'erreur, on pourrait fallback sur l'ancien système
+      // Mais pour l'instant on log juste l'erreur
     }
   }
 
-  // ✅ MÉTHODE PRINCIPALE - INTERFACE PUBLIQUE IDENTIQUE (avec détection auto capabilities)
+  // ✅ MÉTHODE PRINCIPALE - INTERFACE PUBLIQUE IDENTIQUE
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} (AUTO-DETECT) ===`);
+    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
     console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
 
     // Vérification que le système modulaire est prêt
@@ -120,7 +134,6 @@ export class InteractionManager {
       
       if (!this.isInitialized) {
         return { 
-          success: false,
           type: "error", 
           message: "Système d'interaction temporairement indisponible." 
         };
@@ -128,7 +141,7 @@ export class InteractionManager {
     }
 
     try {
-      // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME (sans capability spécifique)
+      // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME
       const request: InteractionRequest = {
         type: 'npc',
         targetId: npcId,
@@ -139,7 +152,6 @@ export class InteractionManager {
         },
         data: {
           npcId: npcId
-          // Pas de capability → Détection automatique
         },
         timestamp: Date.now()
       };
@@ -147,9 +159,8 @@ export class InteractionManager {
       // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
       const result = await this.baseInteractionManager.processInteraction(player, request);
 
-      // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT + NOUVEAU
+      // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT
       const npcResult: NpcInteractionResult = {
-        success: result.success, // ✅ AJOUTÉ : propriété success manquante
         type: result.type,
         message: result.message,
         
@@ -167,21 +178,10 @@ export class InteractionManager {
         starterData: result.data?.starterData,
         starterEligible: result.data?.starterEligible,
         starterReason: result.data?.starterReason,
-        battleSpectate: result.data?.battleSpectate,
-        
-        // ✅ NOUVEAU : Données multi-fonctionnelles
-        capabilities: result.data?.capabilities,
-        welcomeMessage: result.data?.welcomeMessage
+        battleSpectate: result.data?.battleSpectate
       };
 
-      // ✅ LOGGING AMÉLIORÉ POUR MULTI-FONCTIONNEL
-      if (result.type === 'npc_choice') {
-        const capCount = result.data?.capabilities?.length || 0;
-        console.log(`🎛️ [InteractionManager] Interface de choix générée (${capCount} options)`);
-      } else {
-        console.log(`✅ [InteractionManager] Interaction directe traitée`);
-      }
-      
+      console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
       console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
 
       return npcResult;
@@ -191,129 +191,9 @@ export class InteractionManager {
       
       // Retour d'erreur au format existant
       return {
-        success: false,
         type: "error",
         message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
       };
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE PUBLIQUE : INTERACTION AVEC CAPABILITY SPÉCIFIQUE
-  async handleNpcCapabilityInteraction(
-    player: Player, 
-    request: NpcCapabilityRequest
-  ): Promise<NpcInteractionResult> {
-    
-    console.log(`🎯 [InteractionManager] === INTERACTION CAPABILITY SPÉCIFIQUE ===`);
-    console.log(`👤 Player: ${player.name}, NPC: ${request.npcId}, Capability: ${request.capability}`);
-
-    // Vérification que le système modulaire est prêt
-    if (!this.isInitialized) {
-      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
-      await this.initializeModularSystem();
-      
-      if (!this.isInitialized) {
-        return { 
-          success: false,
-          type: "error", 
-          message: "Système d'interaction temporairement indisponible." 
-        };
-      }
-    }
-
-    try {
-      // ✅ CONSTRUIRE LA REQUÊTE AVEC CAPABILITY SPÉCIFIQUE
-      const interactionRequest: InteractionRequest = {
-        type: 'npc',
-        targetId: request.npcId,
-        position: request.playerPosition || {
-          x: player.x,
-          y: player.y,
-          mapId: player.currentZone
-        },
-        data: {
-          npcId: request.npcId,
-          capability: request.capability  // ✅ NOUVEAU : Capability demandée
-        },
-        timestamp: Date.now()
-      };
-
-      // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
-      const result = await this.baseInteractionManager.processInteraction(player, interactionRequest);
-
-      // ✅ CONVERTIR LE RÉSULTAT
-      const npcResult: NpcInteractionResult = {
-        success: result.success, // ✅ AJOUTÉ : propriété success manquante
-        type: result.type,
-        message: result.message,
-        
-        // Données spécifiques NPCs
-        shopId: result.data?.shopId,
-        shopData: result.data?.shopData,
-        lines: result.lines,
-        availableQuests: result.data?.availableQuests,
-        questRewards: result.data?.questRewards,
-        questProgress: result.data?.questProgress,
-        npcId: result.data?.npcId,
-        npcName: result.data?.npcName,
-        questId: result.data?.questId,
-        questName: result.data?.questName,
-        starterData: result.data?.starterData,
-        starterEligible: result.data?.starterEligible,
-        starterReason: result.data?.starterReason,
-        battleSpectate: result.data?.battleSpectate,
-        
-        // Données multi-fonctionnelles
-        capabilities: result.data?.capabilities,
-        welcomeMessage: result.data?.welcomeMessage
-      };
-
-      console.log(`✅ [InteractionManager] Capability ${request.capability} exécutée`);
-      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Temps: ${result.processingTime}ms`);
-
-      return npcResult;
-
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur capability ${request.capability}:`, error);
-      
-      return {
-        success: false,
-        type: "error",
-        message: error instanceof Error ? error.message : "Erreur lors de l'exécution de l'action"
-      };
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE : RÉCUPÉRER LES CAPABILITIES D'UN NPC (sans interaction)
-  async getNpcCapabilities(player: Player, npcId: number): Promise<NpcCapability[]> {
-    console.log(`🔍 [InteractionManager] Récupération capabilities NPC ${npcId}`);
-
-    if (!this.isInitialized || !this.npcModule) {
-      console.warn(`⚠️ [InteractionManager] Système non initialisé pour getNpcCapabilities`);
-      return [];
-    }
-
-    try {
-      // Analyser les capabilities sans déclencher d'interaction
-      const npcManager = this.getNpcManager(player.currentZone);
-      if (!npcManager) {
-        return [];
-      }
-
-      const npc = npcManager.getNpcById(npcId);
-      if (!npc) {
-        return [];
-      }
-
-      // Utiliser la méthode d'analyse du module
-      const capabilities = await this.npcModule.debugNpcCapabilities(player, npcId);
-      
-      console.log(`🎛️ [InteractionManager] ${capabilities.length || 0} capabilities trouvées`);
-      return capabilities;
-
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur getNpcCapabilities:`, error);
-      return [];
     }
   }
 
@@ -353,7 +233,6 @@ export class InteractionManager {
     
     if (!this.isInitialized || !this.npcModule) {
       return {
-        success: false,
         type: "error",
         message: "Système d'interaction temporairement indisponible"
       };
@@ -555,10 +434,10 @@ export class InteractionManager {
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING MULTI-FONCTIONNEL
+  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING
 
   /**
-   * Obtenir les statistiques du système modulaire avec support multi-fonctionnel
+   * Obtenir les statistiques du système modulaire
    */
   getModularSystemStats(): any {
     if (!this.isInitialized || !this.baseInteractionManager) {
@@ -570,89 +449,13 @@ export class InteractionManager {
 
     const stats = this.baseInteractionManager.getStats();
     const config = this.baseInteractionManager.getConfig();
-    const handlerStats = this.npcModule?.getHandlerStats();
 
     return {
       initialized: true,
-      version: "3.0.0",
-      multiFunction: true,
       stats: stats,
       config: config,
-      modules: this.baseInteractionManager.listModules(),
-      capabilities: {
-        autoDetection: true,
-        choiceInterface: true,
-        specificCapability: true,
-        prioritySystem: true
-      },
-      handlers: handlerStats
+      modules: this.baseInteractionManager.listModules()
     };
-  }
-
-  /**
-   * Debug des capabilities d'un NPC spécifique
-   */
-  async debugNpcCapabilities(player: Player, npcId: number): Promise<void> {
-    console.log(`🔍 [InteractionManager] === DEBUG CAPABILITIES NPC ${npcId} ===`);
-    
-    if (!this.isInitialized || !this.npcModule) {
-      console.log(`❌ Système non initialisé`);
-      return;
-    }
-
-    try {
-      await this.npcModule.debugNpcCapabilities(player, npcId);
-    } catch (error) {
-      console.error(`❌ Erreur debug capabilities:`, error);
-    }
-  }
-
-  /**
-   * Test d'une capability spécifique sans l'exécuter
-   */
-  async testNpcCapability(player: Player, npcId: number, capability: string): Promise<{
-    available: boolean;
-    reason?: string;
-    details?: any;
-  }> {
-    console.log(`🧪 [InteractionManager] Test capability ${capability} pour NPC ${npcId}`);
-    
-    if (!this.isInitialized || !this.npcModule) {
-      return {
-        available: false,
-        reason: "Système non initialisé"
-      };
-    }
-
-    try {
-      const capabilities = await this.getNpcCapabilities(player, npcId);
-      const targetCapability = capabilities.find(c => c.type === capability);
-      
-      if (!targetCapability) {
-        return {
-          available: false,
-          reason: "Capability non supportée par ce NPC"
-        };
-      }
-      
-      return {
-        available: targetCapability.available,
-        reason: targetCapability.reason,
-        details: {
-          label: targetCapability.label,
-          description: targetCapability.description,
-          priority: targetCapability.priority,
-          handler: targetCapability.handler
-        }
-      };
-      
-    } catch (error) {
-      console.error(`❌ Erreur test capability:`, error);
-      return {
-        available: false,
-        reason: "Erreur lors du test"
-      };
-    }
   }
 
   /**
@@ -660,7 +463,7 @@ export class InteractionManager {
    */
   async reinitializeModularSystem(): Promise<boolean> {
     try {
-      console.log(`🔄 [InteractionManager] Réinitialisation système multi-fonctionnel...`);
+      console.log(`🔄 [InteractionManager] Réinitialisation système modulaire...`);
       
       if (this.baseInteractionManager) {
         await this.baseInteractionManager.cleanup();
@@ -686,27 +489,9 @@ export class InteractionManager {
     }
   }
 
-  /**
-   * Lister toutes les capabilities disponibles dans le système
-   */
-  getAvailableCapabilityTypes(): string[] {
-    return [
-      'merchant',
-      'quest_giver', 
-      'quest_ender',
-      'healer',
-      'starter',
-      'dialogue',
-      'transport',
-      'service',
-      'minigame',
-      'spectate'
-    ];
-  }
-
   // ✅ NETTOYAGE LORS DE LA DESTRUCTION
   async cleanup(): Promise<void> {
-    console.log(`🧹 [InteractionManager] Nettoyage du système multi-fonctionnel...`);
+    console.log(`🧹 [InteractionManager] Nettoyage du système modulaire...`);
     
     if (this.baseInteractionManager) {
       await this.baseInteractionManager.cleanup();
