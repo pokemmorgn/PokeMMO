@@ -5,7 +5,7 @@
 
 export type InteractionType = 'npc' | 'object' | 'environment' | 'player' | 'puzzle';
 
-// ✅ NOUVEAU : Types de résultats étendus pour multi-fonctionnel
+// ✅ NOUVEAU : Types de résultats étendus pour multi-fonctionnel + CONSERVATION EXISTANTS
 export type InteractionResultType = 
   | 'success' 
   | 'error' 
@@ -20,7 +20,13 @@ export type InteractionResultType =
   | 'transport'
   | 'service'
   | 'minigame'
-  | 'research';
+  | 'research'
+  // ✅ TYPES EXISTANTS CONSERVÉS POUR COMPATIBILITÉ
+  | 'objectCollected'
+  | 'searchComplete'
+  | 'itemFound'
+  | 'pcAccess'
+  | 'machineActivated';
 
 // ===== INTERFACES REQUÊTES =====
 
@@ -112,6 +118,11 @@ export interface InteractionResult {
       errorCode?: string;
       debugInfo?: any;
       timestamp?: number;
+      
+      // ✅ PROPRIÉTÉS EXISTANTES CONSERVÉES pour compatibilité
+      itemReceived?: any;
+      module?: string;
+      [key: string]: any; // Flexibilité pour propriétés futures
     };
   };
   
@@ -181,7 +192,7 @@ export interface InteractionContext {
   };
   metadata: {
     timestamp: number;
-    sessionId: string;
+    sessionId?: string; // ✅ RENDU OPTIONNEL pour compatibilité
     previousInteraction?: {
       type: InteractionType;
       targetId: number | string;
@@ -441,3 +452,53 @@ export const DEFAULT_CAPABILITY_LABELS = {
 export type CapabilityType = keyof typeof DEFAULT_CAPABILITY_PRIORITIES;
 export type CapabilityIcon = typeof DEFAULT_CAPABILITY_ICONS[keyof typeof DEFAULT_CAPABILITY_ICONS];
 export type CapabilityLabel = typeof DEFAULT_CAPABILITY_LABELS[keyof typeof DEFAULT_CAPABILITY_LABELS];
+
+// ===== ✅ TYPES EXISTANTS CONSERVÉS POUR COMPATIBILITÉ =====
+
+// Types pour ObjectInteractionModule
+export interface ObjectInteractionResult extends InteractionResult {
+  objectId?: string;
+  itemsFound?: any[];
+  searchComplete?: boolean;
+}
+
+export interface ObjectInteractionData {
+  objectId: string;
+  objectType: string;
+  action: string;
+  playerPosition: { x: number; y: number };
+  metadata?: Record<string, any>;
+}
+
+// Constantes pour compatibilité
+export const INTERACTION_RESULT_TYPES = {
+  SUCCESS: 'success' as const,
+  ERROR: 'error' as const,
+  DIALOGUE: 'dialogue' as const,
+  SHOP: 'shop' as const,
+  QUEST_GIVER: 'questGiver' as const,
+  QUEST_COMPLETE: 'questComplete' as const,
+  HEAL: 'heal' as const,
+  STARTER_TABLE: 'starterTable' as const,
+  BATTLE_SPECTATE: 'battleSpectate' as const,
+  NPC_CHOICE: 'npc_choice' as const,
+  OBJECT_COLLECTED: 'objectCollected' as const,
+  SEARCH_COMPLETE: 'searchComplete' as const,
+  ITEM_FOUND: 'itemFound' as const,
+  PC_ACCESS: 'pcAccess' as const,
+  MACHINE_ACTIVATED: 'machineActivated' as const,
+} as const;
+
+// Helper function pour créer des résultats (compatibilité)
+export function createInteractionResult(
+  type: InteractionResultType,
+  message: string,
+  data?: any
+): InteractionResult {
+  return {
+    success: type !== 'error',
+    type,
+    message,
+    data
+  };
+}
