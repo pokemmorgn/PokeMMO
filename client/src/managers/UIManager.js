@@ -1023,20 +1023,36 @@ applyGameState(stateConfig, animated = true) {
     return true;
   }
 
-  isRuleActive(rule) {
-    switch (rule) {
-      case 'inventory_open':
-        return this.openModules.has('inventory');
-      case 'team_open':
-        return this.openModules.has('team') || this.openModules.has('teamUI');
-      case 'dialogue_active':
-        return this.globalState.currentGameState === 'dialogue';
-      case 'battle_active':
-        return this.globalState.currentGameState === 'battle';
-      default:
-        return false;
-    }
+isRuleActive(rule) {
+  switch (rule) {
+    case 'inventory_open':
+      // ✅ CORRECTION: Vérifier si l'interface inventaire est vraiment ouverte
+      const inventoryOverlay = document.querySelector('#inventory-overlay');
+      const inventoryVisible = inventoryOverlay && 
+        inventoryOverlay.style.display !== 'none' && 
+        !inventoryOverlay.classList.contains('hidden') &&
+        window.getComputedStyle(inventoryOverlay).opacity > 0.1;
+      return inventoryVisible;
+      
+    case 'team_open':
+      // ✅ CORRECTION: Vérifier si l'interface team est vraiment ouverte
+      const teamOverlay = document.querySelector('#team-overlay');
+      const teamVisible = teamOverlay && 
+        teamOverlay.style.display !== 'none' && 
+        !teamOverlay.classList.contains('hidden') &&
+        window.getComputedStyle(teamOverlay).opacity > 0.1;
+      return teamVisible;
+      
+    case 'dialogue_active':
+      return this.globalState.currentGameState === 'dialogue';
+      
+    case 'battle_active':
+      return this.globalState.currentGameState === 'battle';
+      
+    default:
+      return false;
   }
+}
 
   getModule(moduleId) {
     return this.modules.get(moduleId) || null;
