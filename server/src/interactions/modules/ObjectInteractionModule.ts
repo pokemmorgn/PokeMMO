@@ -202,13 +202,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   private objectsByZone: Map<string, Map<number, ObjectDefinition>> = new Map();
   
   // ✅ CONFIGURATION MODIFIÉE POUR JSON
-  private config = {
-    submodulesPath: path.resolve(__dirname, './object/submodules'),
-    stateFile: './data/object_states.json',
-    gameObjectsPath: './data/gameobjects',  // ← NOUVEAU : dossier JSON
-    autoLoadMaps: true,
-    securityEnabled: process.env.NODE_ENV === 'production'
-  };
+private config = {
+  submodulesPath: path.resolve(__dirname, './object/submodules'),
+  stateFile: './data/object_states.json',
+  gameObjectsPath: './build/data/gameobjects',  // ← MODIFIÉ
+  autoLoadMaps: true,
+  securityEnabled: process.env.NODE_ENV === 'production'
+};
 
   constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
     super();
