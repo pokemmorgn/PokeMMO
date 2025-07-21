@@ -686,43 +686,52 @@ export class UIManager {
     return this;
   }
 
-  showModule(moduleId, options = {}) {
-    if (!this.canShowModule(moduleId)) {
-      if (this.debug) {
-        console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
-      }
-      return false;
-    }
-    
-    const success = this.setModuleState(moduleId, { visible: true });
-    
-    if (success) {
-      this.openModules.add(moduleId);
-      
-      // ✅ FIX: Synchroniser l'état avec l'instance
-      const instance = this.getModuleInstance(moduleId);
-      if (instance) {
-        instance.isEnabled = true;
-        instance.initialized = true;
-      }
-      
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.display = 'block';
-        iconConfig.element.style.visibility = 'visible';
-        iconConfig.element.style.opacity = '1';
-        iconConfig.element.style.pointerEvents = 'auto';
-        iconConfig.element.classList.remove('ui-hidden', 'hidden');
-        this.positionIcon(moduleId);
-      }
-      
-      if (this.debug) {
-        console.log(`👁️ [UIManager] Module ${moduleId} affiché PROTÉGÉ avec états synchronisés`);
-      }
-    }
-    
-    return success;
+showModule(moduleId, options = {}) {
+  console.log(`👁️ [UIManager] Affichage module ${moduleId}...`);
+  
+  if (!this.canShowModule(moduleId)) {
+    console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
+    return false;
   }
+  
+  const success = this.setModuleState(moduleId, { visible: true });
+  
+  if (success) {
+    this.openModules.add(moduleId);
+    
+    // ✅ Synchroniser l'état avec l'instance
+    const instance = this.getModuleInstance(moduleId);
+    if (instance) {
+      instance.isEnabled = true;
+      instance.initialized = true;
+    }
+    
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (iconConfig && iconConfig.element) {
+      const element = iconConfig.element;
+      
+      // ✅ CORRECTION SPÉCIFIQUE : Nettoyer tous les états de masquage
+      element.style.display = 'block';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      element.style.pointerEvents = 'auto';
+      element.style.transform = ''; // Reset transform
+      element.style.transition = ''; // Reset transition
+      
+      // ✅ CORRECTION CRITIQUE : Supprimer toutes les classes de masquage
+      element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+      
+      console.log(`🧹 [UIManager] ${moduleId} - classes supprimées:`, element.classList.contains('ui-hidden') ? 'ÉCHEC' : 'OK');
+      
+      // Repositionner
+      this.positionIcon(moduleId);
+    }
+    
+    console.log(`✅ [UIManager] Module ${moduleId} affiché avec nettoyage complet`);
+  }
+  
+  return success;
+}
   
   hideModule(moduleId, options = {}) {
     const success = this.setModuleState(moduleId, { visible: false });
