@@ -1,136 +1,154 @@
 // src/interactions/types/BaseInteractionTypes.ts
-// Types de base pour le système d'interactions - Version multi-fonctionnelle
+// Types de base pour le système d'interaction modulaire - VERSION CORRIGÉE
 
-// ===== TYPES DE BASE =====
+import { Player } from "../../schema/PokeWorldState";
 
-export type InteractionType = 'npc' | 'object' | 'environment' | 'player' | 'puzzle';
+// ✅ TYPES DE REQUÊTES D'INTERACTION
+export type InteractionType = 
+  | 'npc'           // NPCs (quêtes, shops, dialogues)
+  | 'object'        // Objets du monde (ramassables, panneaux, machines)
+  | 'environment'   // Cases/tiles (fouille, pêche, surf)
+  | 'player'        // Autres joueurs (échange, combat, spectateur)
+  | 'puzzle';       // Énigmes/séquences complexes
 
-// ===== CONSTANTES POUR MULTI-FONCTIONNEL (définies tôt pour utilisation) =====
-
-// Priorités par défaut des capabilities
-export const DEFAULT_CAPABILITY_PRIORITIES = {
-  quest_ender: 5,      // Terminer quête = priorité max
-  quest_giver: 20,     // Recevoir quête
-  merchant: 10,        // Boutique
-  healer: 40,          // Soins
-  starter: 50,         // Starter
-  transport: 60,       // Transport
-  service: 70,         // Services
-  minigame: 80,        // Mini-jeux
-  research: 90,        // Recherche
-  guild: 95,           // Guilde
-  event: 30,           // Événements (priorité haute)
-  dialogue: 100        // Dialogue = fallback
-} as const;
-
-// Icônes par défaut des capabilities
-export const DEFAULT_CAPABILITY_ICONS = {
-  merchant: '🛒',
-  quest_giver: '📜',
-  quest_ender: '✅',
-  healer: '🏥',
-  starter: '🎁',
-  transport: '🚢',
-  service: '🔧',
-  minigame: '🎮',
-  research: '🔬',
-  guild: '⚔️',
-  event: '🎉',
-  dialogue: '💬',
-  spectate: '👁️'
-} as const;
-
-// Labels par défaut des capabilities
-export const DEFAULT_CAPABILITY_LABELS = {
-  merchant: 'Ouvrir la boutique',
-  quest_giver: 'Recevoir une quête',
-  quest_ender: 'Terminer une quête',
-  healer: 'Soigner les Pokémon',
-  starter: 'Choisir un starter',
-  transport: 'Voyager',
-  service: 'Utiliser un service',
-  minigame: 'Jouer un mini-jeu',
-  research: 'Recherche',
-  guild: 'Rejoindre la guilde',
-  event: 'Participer à l\'événement',
-  dialogue: 'Discuter',
-  spectate: 'Regarder le combat'
-} as const;
-
-// ✅ NOUVEAU : Types de résultats étendus pour multi-fonctionnel + CONSERVATION EXISTANTS
-export type InteractionResultType = 
-  | 'success' 
-  | 'error' 
-  | 'dialogue' 
-  | 'shop' 
-  | 'questGiver' 
-  | 'questComplete' 
-  | 'heal' 
-  | 'starterTable' 
-  | 'battleSpectate'
-  | 'npc_choice'        // ✅ NOUVEAU : Interface de choix multi-fonctionnel
-  | 'transport'
-  | 'service'
-  | 'minigame'
-  | 'research'
-  // ✅ TYPES EXISTANTS CONSERVÉS POUR COMPATIBILITÉ
-  | 'objectCollected'
-  | 'searchComplete'
-  | 'itemFound'
-  | 'pcAccess'
-  | 'machineActivated';
-
-// ===== INTERFACES REQUÊTES =====
-
+// ✅ REQUÊTE D'INTERACTION STANDARDISÉE
 export interface InteractionRequest {
+  // Type d'interaction
   type: InteractionType;
-  targetId: number | string;
+  
+  // Identification de la cible
+  targetId?: string | number;
+  
+  // Position pour validations
   position?: {
     x: number;
     y: number;
-    mapId: string;
+    mapId?: string;
   };
-  // ✅ STRUCTURE DATA ÉTENDUE POUR MULTI-FONCTIONNEL
+  
+  // Données spécifiques selon le type
   data?: {
-    // Propriétés existantes
+    // Pour NPCs
     npcId?: number;
+    
+    // Pour objets
     objectId?: string;
     objectType?: string;
+    
+    // Pour environnement
     tileX?: number;
     tileY?: number;
-    action?: 'search' | 'surf' | 'fish' | 'examine';
+    action?: 'search' | 'fish' | 'surf' | 'examine';
+    
+    // Pour joueurs
     targetPlayerId?: string;
-    playerAction?: 'battle' | 'trade' | 'spectate';
+    playerAction?: 'trade' | 'battle' | 'spectate';
+    
+    // Données additionnelles
     itemId?: string;
     direction?: 'north' | 'south' | 'east' | 'west';
     metadata?: Record<string, any>;
-    
-    // ✅ NOUVELLES PROPRIÉTÉS MULTI-FONCTIONNELLES
-    capability?: string;              // Capability spécifique demandée
-    capabilities?: string[];          // Liste de capabilities à vérifier
-    forceChoice?: boolean;           // Forcer l'interface de choix même si une seule option
-    skipAutoDetection?: boolean;     // Désactiver la détection automatique
-    
-    // Propriétés spécialisées par capability
-    shopAction?: 'buy' | 'sell' | 'browse';
-    questAction?: 'accept' | 'complete' | 'check_progress';
-    healerAction?: 'heal' | 'check_health' | 'premium_heal';
-    serviceAction?: 'use' | 'info' | 'upgrade';
   };
-  timestamp: number;
+  
+  // Timestamp pour debugging/analytics
+  timestamp?: number;
 }
 
-// ===== INTERFACES RÉSULTATS =====
+// ✅ NOUVEAUX TYPES DE RÉSULTATS ÉTENDUS
+export type InteractionResultType = 
+  | 'error' 
+  | 'dialogue' 
+  | 'shop' 
+  | 'heal' 
+  | 'questGiver' 
+  | 'questComplete' 
+  | 'starterTable' 
+  | 'battleSpectate' 
+  | 'objectCollected' 
+  | 'panelRead' 
+  | 'itemFound' 
+  | 'noItemFound' 
+  | 'machineActivated'
+  | 'pcAccess'
+  | 'vendingMachine'
+  | 'hiddenItemFound'
+  | 'itemPickup'
+  | 'searchComplete';
 
+// ✅ CONSTANTES POUR ÉVITER LES ERREURS DE TYPO
+export const INTERACTION_RESULT_TYPES = {
+  ERROR: 'error' as const,
+  DIALOGUE: 'dialogue' as const,
+  SHOP: 'shop' as const,
+  HEAL: 'heal' as const,
+  QUEST_GIVER: 'questGiver' as const,
+  QUEST_COMPLETE: 'questComplete' as const,
+  STARTER_TABLE: 'starterTable' as const,
+  BATTLE_SPECTATE: 'battleSpectate' as const,
+  OBJECT_COLLECTED: 'objectCollected' as const,
+  PANEL_READ: 'panelRead' as const,
+  ITEM_FOUND: 'itemFound' as const,
+  NO_ITEM_FOUND: 'noItemFound' as const,
+  MACHINE_ACTIVATED: 'machineActivated' as const,
+  PC_ACCESS: 'pcAccess' as const,
+  VENDING_MACHINE: 'vendingMachine' as const,
+  HIDDEN_ITEM_FOUND: 'hiddenItemFound' as const,
+  ITEM_PICKUP: 'itemPickup' as const,
+  SEARCH_COMPLETE: 'searchComplete' as const
+} as const;
+
+// ✅ INTERFACE POUR OBJECT DATA ÉTENDUE
+export interface ObjectInteractionData {
+  objectId: string;
+  objectType: string;
+  collected?: boolean;
+  newState?: string;
+  // NOUVELLES PROPRIÉTÉS POUR CORRIGER LES ERREURS
+  searchResult?: { 
+    found: boolean; 
+    attempts?: number;
+    itemsFound?: string[];
+    // NOUVELLES PROPRIÉTÉS pour HiddenItem
+    chance?: number;        // Pourcentage de chance (ex: 70)
+    roll?: number;          // Résultat du dé (ex: 45) 
+    hasItemfinder?: boolean; // Bonus Itemfinder utilisé
+  }
+  machineData?: { 
+    activated: boolean; 
+    output?: any;
+    state?: string;
+  };
+  pcData?: { 
+    accessed: boolean; 
+    storage?: any;
+    operation?: string;
+  };
+  panelData?: {
+    title?: string;
+    content?: string[];
+    imageUrl?: string;
+  };
+  // Permet l'extension future
+  [key: string]: any;
+}
+
+// ✅ RÉSULTAT D'INTERACTION STANDARDISÉ - VERSION CORRIGÉE
 export interface InteractionResult {
+  // Succès ou échec
   success: boolean;
-  type: InteractionResultType;
-  message?: string;
-  lines?: string[];  // Dialogues à afficher
   
-  // ✅ DONNÉES MULTI-FONCTIONNELLES
+  // Type de résultat - UTILISE LE NOUVEAU TYPE UNION
+  type: InteractionResultType;
+  
+  // Message principal
+  message?: string;
+  
+  // Messages multiples (dialogues)
+  lines?: string[];
+  
+  // Données spécifiques selon le type de résultat
   data?: {
-    // Données existantes (shop, quêtes, etc.)
+    // NPCs - Données existantes conservées
     shopId?: string;
     shopData?: any;
     availableQuests?: any[];
@@ -151,356 +169,209 @@ export interface InteractionResult {
       reason?: string;
     };
     
-    // ✅ NOUVELLES DONNÉES MULTI-FONCTIONNELLES
-    capabilities?: NpcCapability[];   // Capacités disponibles du NPC
-    welcomeMessage?: string;          // Message d'accueil personnalisé
-    choiceContext?: {                 // Contexte pour l'interface de choix
-      title?: string;
-      description?: string;
-      allowCancel?: boolean;
-      defaultChoice?: string;
+    // OBJETS - UTILISE LA NOUVELLE INTERFACE ÉTENDUE
+    objectData?: ObjectInteractionData;
+    
+    // Nouveaux - Items collectés
+    itemData?: {
+      itemId: string;
+      quantity: number;
+      rarity?: 'common' | 'rare' | 'epic' | 'legendary';
     };
     
-    // Métadonnées système
-    metadata?: {
-      processingTime?: number;
-      moduleUsed?: string;
-      handlerUsed?: string;
-      capabilitiesAnalyzed?: number;
-      errorCode?: string;
-      debugInfo?: any;
-      timestamp?: number;
-      
-      // ✅ PROPRIÉTÉS EXISTANTES CONSERVÉES pour compatibilité
-      itemReceived?: any;
-      module?: string;
-      [key: string]: any; // Flexibilité pour propriétés futures
+    // Nouveaux - Informations lues
+    panelData?: {
+      title: string;
+      content: string[];
+      imageUrl?: string;
     };
+    
+    // Métadonnées pour extensions futures
+    metadata?: Record<string, any>;
   };
   
-  // Propriétés système (conservées pour compatibilité)
+  // Timing pour animations/effets
+  timing?: {
+    duration?: number;
+    delay?: number;
+    animation?: string;
+  };
+  
+  // Pour debugging/analytics
   processingTime?: number;
   moduleUsed?: string;
   timestamp?: number;
 }
 
-// ✅ NOUVELLE INTERFACE : Capacité NPC
-export interface NpcCapability {
-  type: 'merchant' | 'quest_giver' | 'quest_ender' | 'healer' | 'dialogue' | 'starter' | 'spectate' | 'transport' | 'service' | 'minigame' | 'research' | 'guild' | 'event';
-  priority: number;                // Ordre d'affichage (plus petit = plus prioritaire)
-  handler?: string;               // Handler responsable
-  icon?: string;                  // Icône pour l'interface (emoji ou code)
-  label: string;                  // Texte affiché au joueur
-  description?: string;           // Description détaillée
-  available: boolean;             // Disponible actuellement
-  reason?: string;               // Raison si non disponible
-  
-  // Propriétés étendues
-  cooldown?: {
-    active: boolean;
-    remainingTime?: number;      // ms
-    nextAvailable?: Date;
+// ✅ TYPE HELPER POUR LES RÉSULTATS D'OBJETS
+export type ObjectInteractionResult = InteractionResult & {
+  data: NonNullable<InteractionResult['data']> & {
+    objectData: ObjectInteractionData;
   };
+};
+
+// ✅ VALIDATION DE PROXIMITÉ
+export interface ProximityValidation {
+  valid: boolean;
+  distance?: number;
+  maxDistance?: number;
+  reason?: string;
+}
+
+// ✅ VALIDATION DE CONDITION
+export interface ConditionValidation {
+  valid: boolean;
+  reason?: string;
   requirements?: {
+    item?: string;
     level?: number;
-    items?: string[];
-    badges?: string[];
-    flags?: string[];
-    forbiddenFlags?: string[];
-  };
-  rewards?: {
-    preview?: string;           // Aperçu des récompenses
-    guaranteed?: any[];         // Récompenses garanties
-    possible?: any[];          // Récompenses possibles
-  };
-  
-  // Métadonnées
-  metadata?: {
-    timesUsed?: number;
-    lastUsed?: Date;
-    category?: string;
-    tags?: string[];
+    quest?: string;
+    badge?: string;
+    [key: string]: any;
   };
 }
 
-// ✅ NOUVELLE INTERFACE : Résultat de choix NPC
-export interface NpcChoiceResult extends Omit<InteractionResult, 'type'> {
-  type: 'npc_choice';
-  capabilities: NpcCapability[];
-  npcId: number;
-  npcName: string;
-  welcomeMessage?: string;
+// ✅ COOLDOWN INFO
+export interface CooldownInfo {
+  active: boolean;
+  remainingTime?: number;
+  nextAvailable?: Date;
+  cooldownType?: string;
 }
 
-// ===== INTERFACES CONTEXTE =====
-
+// ✅ CONTEXTE D'INTERACTION (pour modules)
 export interface InteractionContext {
-  player: any; // Player object
+  player: Player;
   request: InteractionRequest;
   validations: {
     proximity?: ProximityValidation;
-    cooldown?: CooldownInfo;
     conditions?: ConditionValidation[];
+    cooldown?: CooldownInfo;
   };
-  metadata: {
-    timestamp: number;
-    sessionId?: string; // ✅ RENDU OPTIONNEL pour compatibilité
-    previousInteraction?: {
-      type: InteractionType;
-      targetId: number | string;
-      timestamp: number;
-    };
-  };
-}
-
-// ===== INTERFACES VALIDATIONS =====
-
-export interface ProximityValidation {
-  valid: boolean;
-  distance: number;
-  maxDistance: number;
-  reason?: string;
-}
-
-export interface ConditionValidation {
-  valid: boolean;
-  condition: string;
-  reason?: string;
   metadata?: Record<string, any>;
 }
 
-export interface CooldownInfo {
-  active: boolean;
-  remainingTime?: number; // millisecondes
-  nextAvailable?: Date;
-  cooldownType?: InteractionType;
-}
-
-// ===== INTERFACES CONFIGURATION =====
-
+// ✅ CONFIGURATION D'INTERACTION
 export interface InteractionConfig {
+  // Distance maximale pour interaction
   maxDistance: number;
-  cooldowns?: Partial<Record<InteractionType, number>>; // millisecondes
-  requiredValidations?: Partial<Record<InteractionType, string[]>>;
+  
+  // Cooldown global par type
+  cooldowns?: {
+    [key in InteractionType]?: number; // en millisecondes
+  };
+  
+  // Validations requises par type
+  requiredValidations?: {
+    [key in InteractionType]?: ('proximity' | 'conditions' | 'cooldown')[];
+  };
+  
+  // Configuration debugging
   debug?: boolean;
-  logLevel?: 'info' | 'warn' | 'error';
-  
-  // ✅ NOUVELLES CONFIGURATIONS MULTI-FONCTIONNELLES
-  multiFunction?: {
-    enabled: boolean;
-    autoDetection: boolean;           // Détection automatique des capabilities
-    forceChoiceThreshold: number;     // Nombre min de capabilities pour forcer le choix
-    prioritySystem: boolean;          // Utiliser le système de priorité
-    cacheCapabilities: boolean;      // Cache des capabilities pour performance
-    cacheDuration: number;           // Durée du cache en ms
-  };
-  
-  // Configuration des capabilities
-  capabilities?: {
-    merchant?: {
-      enabled: boolean;
-      priority: number;
-      requirements?: any;
-    };
-    questGiver?: {
-      enabled: boolean;
-      priority: number;
-      requirements?: any;
-    };
-    healer?: {
-      enabled: boolean;
-      priority: number;
-      requirements?: any;
-    };
-    // ... autres capabilities
-  };
+  logLevel?: 'error' | 'warn' | 'info' | 'debug';
 }
 
-// ===== INTERFACES ERREURS =====
-
-export interface InteractionError {
-  code: string;
-  message: string;
-  details?: any;
-  timestamp: number;
+// ✅ ERREURS STANDARDISÉES
+export class InteractionError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'InteractionError';
+  }
 }
 
+// Codes d'erreur standardisés
 export const INTERACTION_ERROR_CODES = {
-  // Codes existants
-  INVALID_REQUEST: 'INVALID_REQUEST',
-  MODULE_NOT_FOUND: 'MODULE_NOT_FOUND',
+  // Erreurs de validation
   TOO_FAR: 'TOO_FAR',
-  COOLDOWN_ACTIVE: 'COOLDOWN_ACTIVE',
+  INVALID_TARGET: 'INVALID_TARGET',
   CONDITIONS_NOT_MET: 'CONDITIONS_NOT_MET',
-  PROCESSING_FAILED: 'PROCESSING_FAILED',
+  COOLDOWN_ACTIVE: 'COOLDOWN_ACTIVE',
   
-  // ✅ NOUVEAUX CODES MULTI-FONCTIONNELS
-  CAPABILITY_NOT_FOUND: 'CAPABILITY_NOT_FOUND',
-  CAPABILITY_NOT_AVAILABLE: 'CAPABILITY_NOT_AVAILABLE',
-  MULTIPLE_CAPABILITIES_DETECTED: 'MULTIPLE_CAPABILITIES_DETECTED',
-  NO_CAPABILITIES_AVAILABLE: 'NO_CAPABILITIES_AVAILABLE',
-  CAPABILITY_HANDLER_ERROR: 'CAPABILITY_HANDLER_ERROR',
-  CHOICE_INTERFACE_ERROR: 'CHOICE_INTERFACE_ERROR',
-  PRIORITY_SYSTEM_ERROR: 'PRIORITY_SYSTEM_ERROR'
+  // Erreurs de traitement
+  MODULE_NOT_FOUND: 'MODULE_NOT_FOUND',
+  PROCESSING_FAILED: 'PROCESSING_FAILED',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  
+  // Erreurs système
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  TIMEOUT: 'TIMEOUT'
 } as const;
-
-// ===== TYPES HELPER =====
 
 export type InteractionErrorCode = typeof INTERACTION_ERROR_CODES[keyof typeof INTERACTION_ERROR_CODES];
 
-// ✅ NOUVELLES INTERFACES POUR REQUÊTES SPÉCIALISÉES
-
-export interface NpcCapabilityRequest {
-  npcId: number;
-  capability: string;
-  playerPosition?: { x: number; y: number; mapId: string };
-  context?: {
-    skipValidation?: boolean;
-    forceExecution?: boolean;
-    metadata?: Record<string, any>;
-  };
-}
-
-export interface CapabilityAnalysisRequest {
-  npcId: number;
-  playerPosition: { x: number; y: number; mapId: string };
-  options?: {
-    includeUnavailable?: boolean;
-    filterByPriority?: boolean;
-    maxResults?: number;
-    categoryFilter?: string[];
-  };
-}
-
-export interface CapabilityAnalysisResult {
-  npcId: number;
-  npcName: string;
-  totalCapabilities: number;
-  availableCapabilities: number;
-  capabilities: NpcCapability[];
-  recommendedAction?: {
-    capability: string;
-    reason: string;
-  };
-  analysisTime: number;
-}
-
-// ===== TYPES UTILITAIRES =====
-
-// Type guard pour vérifier si un résultat est un choix NPC
-export const isNpcChoiceResult = (result: InteractionResult): result is NpcChoiceResult => {
-  return result.type === 'npc_choice';
-};
-
-// Type guard pour vérifier si une requête a une capability spécifique
-export const hasSpecificCapability = (request: InteractionRequest): boolean => {
-  return !!(request.data?.capability);
-};
-
-// Type guard pour vérifier si un NPC a des capabilities multiples
-export const hasMultipleCapabilities = (capabilities: NpcCapability[]): boolean => {
-  return capabilities.filter(c => c.available).length > 1;
-};
-
-// ===== CONSTANTES =====
-
-export const DEFAULT_INTERACTION_CONFIG: InteractionConfig = {
-  maxDistance: 64,
-  cooldowns: {
-    npc: 500,
-    object: 200,
-    environment: 1000,
-    player: 2000,
-    puzzle: 0
-  },
-  requiredValidations: {
-    npc: ['proximity', 'cooldown'],
-    object: ['proximity', 'cooldown'],
-    environment: ['proximity', 'cooldown'],
-    player: ['proximity', 'cooldown'],
-    puzzle: ['conditions']
-  },
-  debug: false,
-  logLevel: 'info',
-  
-  // Configuration multi-fonctionnelle par défaut
-  multiFunction: {
-    enabled: true,
-    autoDetection: true,
-    forceChoiceThreshold: 2,
-    prioritySystem: true,
-    cacheCapabilities: true,
-    cacheDuration: 30000 // 30 secondes
-  },
-  
-  capabilities: {
-    merchant: {
-      enabled: true,
-      priority: DEFAULT_CAPABILITY_PRIORITIES.merchant
-    },
-    questGiver: {
-      enabled: true,
-      priority: DEFAULT_CAPABILITY_PRIORITIES.quest_giver
-    },
-    healer: {
-      enabled: true,
-      priority: DEFAULT_CAPABILITY_PRIORITIES.healer
-    }
-  }
-};
-
-// ===== EXPORT TYPES UTILITAIRES =====
-
-export type CapabilityType = keyof typeof DEFAULT_CAPABILITY_PRIORITIES;
-export type CapabilityIcon = typeof DEFAULT_CAPABILITY_ICONS[keyof typeof DEFAULT_CAPABILITY_ICONS];
-export type CapabilityLabel = typeof DEFAULT_CAPABILITY_LABELS[keyof typeof DEFAULT_CAPABILITY_LABELS];
-
-// ===== ✅ TYPES EXISTANTS CONSERVÉS POUR COMPATIBILITÉ =====
-
-// Types pour ObjectInteractionModule
-export interface ObjectInteractionResult extends InteractionResult {
-  objectId?: string;
-  itemsFound?: any[];
-  searchComplete?: boolean;
-}
-
-export interface ObjectInteractionData {
-  objectId: string;
-  objectType: string;
-  action: string;
-  playerPosition: { x: number; y: number };
-  metadata?: Record<string, any>;
-}
-
-// Constantes pour compatibilité
-export const INTERACTION_RESULT_TYPES = {
-  SUCCESS: 'success' as const,
-  ERROR: 'error' as const,
-  DIALOGUE: 'dialogue' as const,
-  SHOP: 'shop' as const,
-  QUEST_GIVER: 'questGiver' as const,
-  QUEST_COMPLETE: 'questComplete' as const,
-  HEAL: 'heal' as const,
-  STARTER_TABLE: 'starterTable' as const,
-  BATTLE_SPECTATE: 'battleSpectate' as const,
-  NPC_CHOICE: 'npc_choice' as const,
-  OBJECT_COLLECTED: 'objectCollected' as const,
-  SEARCH_COMPLETE: 'searchComplete' as const,
-  ITEM_FOUND: 'itemFound' as const,
-  PC_ACCESS: 'pcAccess' as const,
-  MACHINE_ACTIVATED: 'machineActivated' as const,
-} as const;
-
-// Helper function pour créer des résultats (compatibilité)
-export function createInteractionResult(
-  type: InteractionResultType,
-  message: string,
-  data?: any
-): InteractionResult {
-  return {
-    success: type !== 'error',
+// ✅ HELPERS POUR LA CRÉATION DE RÉSULTATS
+export const createInteractionResult = {
+  success: (
+    type: InteractionResultType,
+    message?: string,
+    data?: InteractionResult['data']
+  ): InteractionResult => ({
+    success: true,
     type,
     message,
-    data
-  };
-}
+    data,
+    timestamp: Date.now()
+  }),
+  
+  error: (
+    message: string,
+    code?: string,
+    metadata?: Record<string, any>
+  ): InteractionResult => ({
+    success: false,
+    type: INTERACTION_RESULT_TYPES.ERROR,
+    message,
+    data: {
+      metadata: {
+        errorCode: code,
+        timestamp: Date.now(),
+        ...metadata
+      }
+    },
+    timestamp: Date.now()
+  }),
+  
+  objectCollected: (
+    objectId: string,
+    objectType: string,
+    message?: string,
+    additionalData?: Partial<ObjectInteractionData>
+  ): ObjectInteractionResult => ({
+    success: true,
+    type: INTERACTION_RESULT_TYPES.OBJECT_COLLECTED,
+    message: message || "Objet collecté avec succès !",
+    data: {
+      objectData: {
+        objectId,
+        objectType,
+        collected: true,
+        ...additionalData
+      }
+    },
+    timestamp: Date.now()
+  }),
+  
+  noItemFound: (
+    objectId: string = "0",
+    objectType: string = "search",
+    message?: string,
+    attempts: number = 1
+  ): ObjectInteractionResult => ({
+    success: true,
+    type: INTERACTION_RESULT_TYPES.NO_ITEM_FOUND,
+    message: message || "Il n'y a rien ici.",
+    data: {
+      objectData: {
+        objectId,
+        objectType,
+        collected: false,
+        searchResult: { found: false, attempts }
+      }
+    },
+    timestamp: Date.now()
+  })
+};
