@@ -106,7 +106,7 @@ export interface NpcData {
 }
 
 // ✅ CONFIGURATION DU MANAGER
-interface NPCManagerConfig {
+interface NpcManagerConfig {
   npcDataPath: string;
   autoLoadJSON: boolean;
   strictValidation: boolean;
@@ -114,7 +114,7 @@ interface NPCManagerConfig {
   cacheEnabled: boolean;
 }
 
-export class NPCManager {
+export class NpcManager {
   npcs: NpcData[] = [];
   
   // ✅ NOUVELLES PROPRIÉTÉS POUR SUPPORT JSON
@@ -123,7 +123,7 @@ export class NPCManager {
   private validationErrors: Map<number, string[]> = new Map();
   private lastLoadTime: number = 0;
   
-  private config: NPCManagerConfig = {
+  private config: NpcManagerConfig = {
     npcDataPath: './build/data/npcs',
     autoLoadJSON: true,
     strictValidation: process.env.NODE_ENV === 'production',
@@ -132,12 +132,12 @@ export class NPCManager {
   };
 
   // ✅ CONSTRUCTEUR ÉTENDU - Support Tiled ET JSON
-  constructor(mapPath?: string, zoneName?: string, customConfig?: Partial<NPCManagerConfig>) {
+  constructor(mapPath?: string, zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `🚀 [NPCManager] Initialisation`, {
+    this.log('info', `🚀 [NpcManager] Initialisation`, {
       mapPath,
       zoneName,
       config: this.config
@@ -155,7 +155,7 @@ export class NPCManager {
     
     this.lastLoadTime = Date.now();
     
-    this.log('info', `✅ [NPCManager] Initialisé avec succès`, {
+    this.log('info', `✅ [NpcManager] Initialisé avec succès`, {
       totalNpcs: this.npcs.length,
       tiledNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length,
       jsonNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length,
@@ -583,7 +583,7 @@ export class NPCManager {
   }
   
   debugSystem(): void {
-    console.log(`🔍 [NPCManager] === DEBUG SYSTÈME NPCs ===`);
+    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs ===`);
     
     const stats = this.getSystemStats();
     console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
