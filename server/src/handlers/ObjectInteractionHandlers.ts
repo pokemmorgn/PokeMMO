@@ -423,7 +423,7 @@ export class ObjectInteractionHandlers {
 
     try {
       const mapPath = `../../../assets/maps/${zoneName}.tmj`;
-      await this.objectModule.loadObjectsFromMap(zoneName, mapPath);
+      await this.objectModule.loadObjectsFromJSON(zoneName);
       console.log(`✅ [ObjectHandlers] Objets chargés pour zone ${zoneName}`);
     } catch (error) {
       console.error(`❌ [ObjectHandlers] Erreur chargement objets zone ${zoneName}:`, error);
