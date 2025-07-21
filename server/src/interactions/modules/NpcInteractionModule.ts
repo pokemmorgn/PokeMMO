@@ -18,11 +18,13 @@ import { BaseInteractionModule } from "../interfaces/InteractionModule";
 // ✅ Import du handler merchant
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ IMPORT DES TYPES DEPUIS BaseInteractionTypes pour éviter les doublons
+// ✅ IMPORT DES TYPES ET CONSTANTES depuis BaseInteractionTypes
 import type { 
   NpcCapability, 
   NpcChoiceResult,
-  CapabilityType,
+  CapabilityType
+} from "../types/BaseInteractionTypes";
+import { 
   DEFAULT_CAPABILITY_PRIORITIES,
   DEFAULT_CAPABILITY_ICONS,
   DEFAULT_CAPABILITY_LABELS
