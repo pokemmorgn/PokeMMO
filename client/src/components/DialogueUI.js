@@ -1,7 +1,7 @@
 // client/src/components/DialogueUI.js
-// 🎭 Interface utilisateur pour les dialogues NPCs - Version modulaire
-// ✅ Support dialogue classique + interface unifiée à onglets
-// ✅ Réutilise dialogue.css + styles intégrés pour onglets
+// 🎭 Interface utilisateur pour les dialogues NPCs - Version avec Actions Contextuelles
+// ✅ Support dialogue classique + zone d'actions + interface unifiée à onglets
+// ✅ Réutilise dialogue.css + styles intégrés pour onglets + nouveaux styles actions
 
 export class DialogueUI {
   constructor() {
@@ -16,8 +16,9 @@ export class DialogueUI {
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
+    this.onActionClick = null; // 🆕 NOUVEAU: Callback pour actions dialogue
     
-    console.log('🎭 DialogueUI créé');
+    console.log('🎭 DialogueUI créé avec support actions');
     this.init();
   }
 
@@ -25,7 +26,7 @@ export class DialogueUI {
     this.createDialogueContainer();
     this.addIntegratedStyles();
     this.setupEventListeners();
-    console.log('✅ DialogueUI initialisé');
+    console.log('✅ DialogueUI initialisé avec actions');
   }
 
   // ===== CRÉATION DE L'INTERFACE =====
@@ -36,28 +37,28 @@ export class DialogueUI {
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
     
-    // Structure HTML complète
+    // Structure HTML complète MISE À JOUR
     this.container.innerHTML = `
-    <!-- Dialogue classique ÉTENDU avec actions -->
-    <div id="dialogue-box" class="dialogue-box-classic" style="display:none;">
-      <div id="npc-portrait" class="npc-portrait"></div>
-      <div id="npc-dialogue" class="npc-dialogue">
-        <span id="npc-name" class="npc-name"></span>
-        <span id="npc-text" class="npc-text"></span>
-      </div>
-      <div class="dialogue-continue-indicator">
-        <span class="dialogue-counter">1/1</span>
-        <div class="dialogue-arrow"></div>
-      </div>
-      
-      <!-- NOUVELLE ZONE D'ACTIONS -->
-      <div id="dialogue-actions" class="dialogue-actions" style="display:none;">
-        <div class="actions-header">Actions disponibles:</div>
-        <div class="actions-buttons" id="actions-buttons">
-          <!-- Les boutons seront générés dynamiquement -->
+      <!-- Dialogue classique ÉTENDU avec actions -->
+      <div id="dialogue-box" class="dialogue-box-classic" style="display:none;">
+        <div id="npc-portrait" class="npc-portrait"></div>
+        <div id="npc-dialogue" class="npc-dialogue">
+          <span id="npc-name" class="npc-name"></span>
+          <span id="npc-text" class="npc-text"></span>
+        </div>
+        <div class="dialogue-continue-indicator">
+          <span class="dialogue-counter">1/1</span>
+          <div class="dialogue-arrow"></div>
+        </div>
+        
+        <!-- 🆕 NOUVELLE ZONE D'ACTIONS -->
+        <div id="dialogue-actions" class="dialogue-actions" style="display:none;">
+          <div class="actions-header">Actions disponibles:</div>
+          <div class="actions-buttons" id="actions-buttons">
+            <!-- Les boutons seront générés dynamiquement -->
+          </div>
         </div>
       </div>
-    </div>
 
       <!-- Interface unifiée avec onglets -->
       <div id="unified-interface" class="unified-interface" style="display:none;">
@@ -103,7 +104,7 @@ export class DialogueUI {
     document.body.appendChild(this.container);
   }
 
-  // ===== STYLES INTÉGRÉS =====
+  // ===== STYLES INTÉGRÉS ÉTENDUS =====
   
   addIntegratedStyles() {
     if (document.querySelector('#dialogue-ui-styles')) return;
@@ -157,6 +158,156 @@ export class DialogueUI {
         cursor: pointer;
         transition: all 0.3s ease;
         pointer-events: auto;
+      }
+
+      /* 🆕 STYLES ZONE D'ACTIONS */
+      .dialogue-actions {
+        position: absolute;
+        bottom: -70px;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, rgba(25, 55, 95, 0.9), rgba(36, 76, 116, 0.9));
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 0 0 15px 15px;
+        padding: 15px 20px;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+        z-index: 101;
+      }
+
+      .dialogue-box-classic.has-actions {
+        border-radius: 20px 20px 0 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .actions-header {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+      }
+
+      .actions-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .action-btn {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        color: white;
+        padding: 8px 15px;
+        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 120px;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      }
+
+      .action-btn:hover {
+        background: linear-gradient(135deg, #5ba0f2, #4080cd);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+      }
+
+      .action-btn:active,
+      .action-btn.clicked {
+        transform: translateY(0);
+        background: linear-gradient(135deg, #357abd, #2a6a9d);
+        animation: actionClick 0.2s ease;
+      }
+
+      /* Styles par type d'action */
+      .action-btn.shop {
+        background: linear-gradient(135deg, #28a745, #20c997);
+      }
+
+      .action-btn.shop:hover {
+        background: linear-gradient(135deg, #32b855, #24d3a7);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      }
+
+      .action-btn.quest {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        color: #333;
+        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+      }
+
+      .action-btn.quest:hover {
+        background: linear-gradient(135deg, #ffcd17, #ebb000);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+      }
+
+      .action-btn.heal {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+      }
+
+      .action-btn.heal:hover {
+        background: linear-gradient(135deg, #e64555, #d32f43);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      .action-btn.info {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+      }
+
+      .action-btn.info:hover {
+        background: linear-gradient(135deg, #7c858d, #6a7278);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+      }
+
+      .action-icon {
+        font-size: 16px;
+        line-height: 1;
+        filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.3));
+      }
+
+      .action-label {
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .action-badge {
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        margin-left: 5px;
+        min-width: 16px;
+        text-align: center;
+        animation: badgePulse 2s infinite;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      @keyframes badgePulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+
+      @keyframes actionClick {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.95); }
+        100% { transform: scale(1); }
       }
 
       /* ===== INTERFACE UNIFIÉE ===== */
@@ -393,11 +544,6 @@ export class DialogueUI {
         animation: badgePulse 1.5s infinite;
       }
 
-      @keyframes badgePulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.1); }
-      }
-
       /* ===== CONTENU ===== */
       .unified-content {
         flex: 1;
@@ -538,41 +684,6 @@ export class DialogueUI {
         border-radius: 6px;
       }
 
-      /* ===== ÉTAT DE CHARGEMENT ===== */
-      .unified-loading {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 200px;
-        color: #ccc;
-      }
-
-      .unified-loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(74, 144, 226, 0.3);
-        border-top: 3px solid #4a90e2;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 15px;
-      }
-
-      @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-
-      .unified-loading-text {
-        font-size: 14px;
-        margin-bottom: 5px;
-      }
-
-      .unified-loading-subtext {
-        font-size: 12px;
-        opacity: 0.7;
-      }
-
       /* ===== RESPONSIVE ===== */
       @media (max-width: 768px) {
         .unified-interface {
@@ -581,47 +692,21 @@ export class DialogueUI {
           border-radius: 15px;
         }
 
-        .unified-header {
-          padding: 15px 20px;
-          border-radius: 12px 12px 0 0;
-        }
-
-        .unified-portrait {
-          width: 60px;
-          height: 60px;
-        }
-
-        .unified-npc-name {
-          font-size: 20px;
-        }
-
-        .unified-tabs {
-          min-height: 45px;
-        }
-
-        .unified-tab {
-          padding: 10px 15px;
-          font-size: 13px;
-        }
-
-        .tab-icon {
-          font-size: 16px;
-        }
-
-        .unified-content {
-          padding: 20px;
-        }
-
-        .unified-footer {
-          padding: 12px 20px;
-          border-radius: 0 0 12px 12px;
-        }
-
         .dialogue-box-classic {
           min-width: calc(100vw - 40px);
           left: 20px;
           right: 20px;
           transform: none;
+        }
+
+        .actions-buttons {
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .action-btn {
+          width: 100%;
+          max-width: 250px;
         }
       }
 
@@ -642,14 +727,6 @@ export class DialogueUI {
 
       .unified-content::-webkit-scrollbar-thumb:hover {
         background: rgba(74, 144, 226, 0.8);
-      }
-
-      /* ===== ACCESSIBILITÉ ===== */
-      .unified-tab:focus,
-      .quick-action-btn:focus,
-      .unified-close-btn:focus {
-        outline: 2px solid #4a90e2;
-        outline-offset: 2px;
       }
 
       /* ===== ANIMATIONS D'ENTRÉE/SORTIE ===== */
@@ -673,7 +750,7 @@ export class DialogueUI {
     `;
 
     document.head.appendChild(style);
-    console.log('✅ Styles DialogueUI intégrés');
+    console.log('✅ Styles DialogueUI avec actions intégrés');
   }
 
   // ===== GESTION DES ÉVÉNEMENTS =====
@@ -681,7 +758,7 @@ export class DialogueUI {
   setupEventListeners() {
     // Clic pour fermer (dialogue classique)
     this.container.addEventListener('click', (e) => {
-      if (e.target.closest('#dialogue-box')) {
+      if (e.target.closest('#dialogue-box') && !e.target.closest('#dialogue-actions')) {
         this.handleDialogueClick();
       }
     });
@@ -764,6 +841,7 @@ export class DialogueUI {
     const portrait = this.container.querySelector('#npc-portrait');
     const npcName = this.container.querySelector('#npc-name');
     const npcText = this.container.querySelector('#npc-text');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
 
     // Configuration du portrait
     portrait.innerHTML = data.portrait
@@ -782,6 +860,10 @@ export class DialogueUI {
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
+    // Masquer les actions pour dialogue simple
+    actionsZone.style.display = 'none';
+    dialogueBox.classList.remove('has-actions');
+
     // Stocker les données pour la pagination
     this.classicDialogueData = {
       lines: lines,
@@ -798,86 +880,86 @@ export class DialogueUI {
     console.log('✅ Dialogue classique affiché');
   }
 
-  // === NOUVELLE MÉTHODE : Dialogue avec actions ===
-showDialogueWithActions(data) {
-  console.log('🎭 Affichage dialogue avec actions:', data);
+  // 🆕 NOUVELLE MÉTHODE: Afficher dialogue avec actions
+  showDialogueWithActions(data) {
+    console.log('🎭 Affichage dialogue avec actions:', data);
 
-  const dialogueBox = this.container.querySelector('#dialogue-box');
-  const actionsZone = this.container.querySelector('#dialogue-actions');
-  const actionsButtons = this.container.querySelector('#actions-buttons');
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
+    const actionsButtons = this.container.querySelector('#actions-buttons');
 
-  // 1. Afficher le dialogue classique normal
-  this.showClassicDialogue(data);
+    // 1. Afficher le dialogue classique normal
+    this.showClassicDialogue(data);
 
-  // 2. Générer et afficher les actions si disponibles
-  if (data.actions && data.actions.length > 0) {
-    console.log(`🎯 Génération de ${data.actions.length} actions`);
+    // 2. Générer et afficher les actions si disponibles
+    if (data.actions && data.actions.length > 0) {
+      console.log(`🎯 Génération de ${data.actions.length} actions`);
+      
+      // Nettoyer les boutons existants
+      actionsButtons.innerHTML = '';
+      
+      // Créer les boutons d'actions
+      data.actions.forEach(action => {
+        const actionBtn = this.createActionButton(action);
+        actionsButtons.appendChild(actionBtn);
+      });
+      
+      // Afficher la zone d'actions
+      actionsZone.style.display = 'block';
+      
+      // Ajuster la classe du dialogue pour inclure les actions
+      dialogueBox.classList.add('has-actions');
+      
+    } else {
+      // Pas d'actions = dialogue simple
+      actionsZone.style.display = 'none';
+      dialogueBox.classList.remove('has-actions');
+    }
+
+    console.log('✅ Dialogue avec actions affiché');
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Créer un bouton d'action
+  createActionButton(action) {
+    const button = document.createElement('button');
+    button.className = `action-btn ${action.type || 'default'}`;
+    button.innerHTML = `
+      <span class="action-icon">${action.icon || '🔧'}</span>
+      <span class="action-label">${action.label}</span>
+      ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
+    `;
     
-    // Nettoyer les boutons existants
-    actionsButtons.innerHTML = '';
+    // Ajouter les données d'action
+    button.dataset.actionId = action.id;
+    button.dataset.actionType = action.type;
     
-    // Créer les boutons d'actions
-    data.actions.forEach(action => {
-      const actionBtn = this.createActionButton(action);
-      actionsButtons.appendChild(actionBtn);
+    // Handler de clic
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleActionClick(action);
     });
     
-    // Afficher la zone d'actions
-    actionsZone.style.display = 'block';
+    return button;
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Handler pour les clics sur actions
+  handleActionClick(action) {
+    console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
     
-    // Ajuster la classe du dialogue pour inclure les actions
-    dialogueBox.classList.add('has-actions');
+    // Callback vers le DialogueManager
+    if (this.onActionClick && typeof this.onActionClick === 'function') {
+      this.onActionClick(action);
+    }
     
-  } else {
-    // Pas d'actions = dialogue simple
-    actionsZone.style.display = 'none';
-    dialogueBox.classList.remove('has-actions');
+    // Animation feedback
+    const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
+    if (button) {
+      button.classList.add('clicked');
+      setTimeout(() => button.classList.remove('clicked'), 200);
+    }
   }
 
-  console.log('✅ Dialogue avec actions affiché');
-}
-
-// === NOUVELLE MÉTHODE : Créer bouton d'action ===
-createActionButton(action) {
-  const button = document.createElement('button');
-  button.className = `action-btn ${action.type || 'default'}`;
-  button.innerHTML = `
-    <span class="action-icon">${action.icon || '🔧'}</span>
-    <span class="action-label">${action.label}</span>
-    ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
-  `;
-  
-  // Ajouter les données d'action
-  button.dataset.actionId = action.id;
-  button.dataset.actionType = action.type;
-  
-  // Handler de clic
-  button.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    this.handleActionClick(action);
-  });
-  
-  return button;
-}
-
-// === NOUVELLE MÉTHODE : Gérer clic action ===
-handleActionClick(action) {
-  console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
-  
-  // Callback vers le DialogueManager
-  if (this.onActionClick && typeof this.onActionClick === 'function') {
-    this.onActionClick(action);
-  }
-  
-  // Animation feedback
-  const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
-  if (button) {
-    button.classList.add('clicked');
-    setTimeout(() => button.classList.remove('clicked'), 200);
-  }
-}
-  
   showUnifiedInterface(data) {
     console.log('🎭 Affichage interface unifiée:', data);
 
@@ -1054,6 +1136,8 @@ handleActionClick(action) {
   show(data) {
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
+    } else if (data.actions && data.actions.length > 0) {
+      this.showDialogueWithActions(data);
     } else {
       this.showClassicDialogue(data);
     }
@@ -1127,6 +1211,7 @@ handleActionClick(action) {
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
+    this.onActionClick = null;
     
     console.log('💀 DialogueUI détruit');
   }
