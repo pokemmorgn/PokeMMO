@@ -182,6 +182,41 @@ export class DialogueUI {
         flex-direction: column;
         margin-left: 15px;
         position: relative;
+        min-height: 60px;
+      }
+
+      /* Indicateur de continuation - repositionné */
+      .dialogue-continue-indicator {
+        position: absolute;
+        bottom: -5px;
+        right: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .dialogue-counter {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+
+      .dialogue-arrow {
+        width: 0;
+        height: 0;
+        border-left: 6px solid rgba(255, 255, 255, 0.7);
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        animation: arrowBlink 1.5s infinite;
+      }
+
+      @keyframes arrowBlink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.3; }
       }
 
       /* Partie basse des actions - CORRIGÉE */
@@ -902,6 +937,7 @@ export class DialogueUI {
     const npcName = this.container.querySelector('#npc-name');
     const npcText = this.container.querySelector('#npc-text');
     const actionsZone = this.container.querySelector('#dialogue-actions');
+    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
     // Configuration du portrait
     portrait.innerHTML = data.portrait
@@ -919,6 +955,17 @@ export class DialogueUI {
     // Configuration du texte
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
+
+    // 🆕 Afficher le compteur seulement si plusieurs pages
+    if (lines.length > 1) {
+      continueIndicator.style.display = 'block';
+      const counter = continueIndicator.querySelector('.dialogue-counter');
+      if (counter) {
+        counter.textContent = `1/${lines.length}`;
+      }
+    } else {
+      continueIndicator.style.display = 'none';
+    }
 
     // Masquer les actions pour dialogue simple et utiliser classe unifiée
     actionsZone.style.display = 'none';
@@ -947,6 +994,7 @@ export class DialogueUI {
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const actionsZone = this.container.querySelector('#dialogue-actions');
     const actionsButtons = this.container.querySelector('#actions-buttons');
+    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
     // 1. Afficher le dialogue de base
     this.showClassicDialogue(data);
@@ -969,6 +1017,18 @@ export class DialogueUI {
       
       // Changer de classe pour le style unifié
       dialogueBox.className = 'dialogue-box-unified with-actions';
+      
+      // 🆕 Gérer le compteur avec actions
+      const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+      if (lines.length > 1) {
+        continueIndicator.style.display = 'block';
+        const counter = continueIndicator.querySelector('.dialogue-counter');
+        if (counter) {
+          counter.textContent = `1/${lines.length}`;
+        }
+      } else {
+        continueIndicator.style.display = 'none';
+      }
       
     } else {
       // Pas d'actions = dialogue simple
