@@ -295,7 +295,7 @@ export class UnifiedInterfaceHandler {
         price: item.buyPrice || 0,
         stock: (item as any).stock || 99,
         category: 'items', // Valeur par défaut
-        description: undefined // Pas de description disponible
+        description: undefined as string | undefined // Pas de description disponible
       })),
       playerGold: player.gold || 1000,
       welcomeDialogue: this.getShopDialogue(npc, 'welcome'),
@@ -327,7 +327,11 @@ export class UnifiedInterfaceHandler {
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: [] // TODO: Récupérer les récompenses réelles depuis la définition de quête
+        rewards: [] as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }> // TODO: Récupérer les récompenses réelles depuis la définition de quête
       })),
       questsInProgress: questsInProgress.map(quest => ({
         id: quest.id,
@@ -338,7 +342,11 @@ export class UnifiedInterfaceHandler {
       questsToComplete: questsToComplete.map(quest => ({
         id: quest.id,
         name: quest.name,
-        rewards: [] // ✅ CORRIGÉ : Pas d'accès direct aux récompenses
+        rewards: [] as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }> // ✅ CORRIGÉ : Pas d'accès direct aux récompenses
       })),
       questDialogue: this.getQuestDialogue(npc),
       canGiveQuests: availableQuests.length > 0,
