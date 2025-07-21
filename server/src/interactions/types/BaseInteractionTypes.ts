@@ -5,6 +5,58 @@
 
 export type InteractionType = 'npc' | 'object' | 'environment' | 'player' | 'puzzle';
 
+// ===== CONSTANTES POUR MULTI-FONCTIONNEL (définies tôt pour utilisation) =====
+
+// Priorités par défaut des capabilities
+export const DEFAULT_CAPABILITY_PRIORITIES = {
+  quest_ender: 5,      // Terminer quête = priorité max
+  quest_giver: 20,     // Recevoir quête
+  merchant: 10,        // Boutique
+  healer: 40,          // Soins
+  starter: 50,         // Starter
+  transport: 60,       // Transport
+  service: 70,         // Services
+  minigame: 80,        // Mini-jeux
+  research: 90,        // Recherche
+  guild: 95,           // Guilde
+  event: 30,           // Événements (priorité haute)
+  dialogue: 100        // Dialogue = fallback
+} as const;
+
+// Icônes par défaut des capabilities
+export const DEFAULT_CAPABILITY_ICONS = {
+  merchant: '🛒',
+  quest_giver: '📜',
+  quest_ender: '✅',
+  healer: '🏥',
+  starter: '🎁',
+  transport: '🚢',
+  service: '🔧',
+  minigame: '🎮',
+  research: '🔬',
+  guild: '⚔️',
+  event: '🎉',
+  dialogue: '💬',
+  spectate: '👁️'
+} as const;
+
+// Labels par défaut des capabilities
+export const DEFAULT_CAPABILITY_LABELS = {
+  merchant: 'Ouvrir la boutique',
+  quest_giver: 'Recevoir une quête',
+  quest_ender: 'Terminer une quête',
+  healer: 'Soigner les Pokémon',
+  starter: 'Choisir un starter',
+  transport: 'Voyager',
+  service: 'Utiliser un service',
+  minigame: 'Jouer un mini-jeu',
+  research: 'Recherche',
+  guild: 'Rejoindre la guilde',
+  event: 'Participer à l\'événement',
+  dialogue: 'Discuter',
+  spectate: 'Regarder le combat'
+} as const;
+
 // ✅ NOUVEAU : Types de résultats étendus pour multi-fonctionnel + CONSERVATION EXISTANTS
 export type InteractionResultType = 
   | 'success' 
@@ -384,68 +436,18 @@ export const DEFAULT_INTERACTION_CONFIG: InteractionConfig = {
   capabilities: {
     merchant: {
       enabled: true,
-      priority: 10
+      priority: DEFAULT_CAPABILITY_PRIORITIES.merchant
     },
     questGiver: {
       enabled: true,
-      priority: 20
+      priority: DEFAULT_CAPABILITY_PRIORITIES.quest_giver
     },
     healer: {
       enabled: true,
-      priority: 40
+      priority: DEFAULT_CAPABILITY_PRIORITIES.healer
     }
   }
 };
-
-// Priorités par défaut des capabilities
-export const DEFAULT_CAPABILITY_PRIORITIES = {
-  quest_ender: 5,      // Terminer quête = priorité max
-  quest_giver: 20,     // Recevoir quête
-  merchant: 10,        // Boutique
-  healer: 40,          // Soins
-  starter: 50,         // Starter
-  transport: 60,       // Transport
-  service: 70,         // Services
-  minigame: 80,        // Mini-jeux
-  research: 90,        // Recherche
-  guild: 95,           // Guilde
-  event: 30,           // Événements (priorité haute)
-  dialogue: 100        // Dialogue = fallback
-} as const;
-
-// Icônes par défaut des capabilities
-export const DEFAULT_CAPABILITY_ICONS = {
-  merchant: '🛒',
-  quest_giver: '📜',
-  quest_ender: '✅',
-  healer: '🏥',
-  starter: '🎁',
-  transport: '🚢',
-  service: '🔧',
-  minigame: '🎮',
-  research: '🔬',
-  guild: '⚔️',
-  event: '🎉',
-  dialogue: '💬',
-  spectate: '👁️'
-} as const;
-
-// Labels par défaut des capabilities
-export const DEFAULT_CAPABILITY_LABELS = {
-  merchant: 'Ouvrir la boutique',
-  quest_giver: 'Recevoir une quête',
-  quest_ender: 'Terminer une quête',
-  healer: 'Soigner les Pokémon',
-  starter: 'Choisir un starter',
-  transport: 'Voyager',
-  service: 'Utiliser un service',
-  minigame: 'Jouer un mini-jeu',
-  research: 'Recherche',
-  guild: 'Rejoindre la guilde',
-  event: 'Participer à l\'événement',
-  dialogue: 'Discuter',
-  spectate: 'Regarder le combat'
-} as const;
 
 // ===== EXPORT TYPES UTILITAIRES =====
 
