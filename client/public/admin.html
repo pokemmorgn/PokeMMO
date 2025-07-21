@@ -196,99 +196,117 @@
             </div>
         </div>
 
-        <!-- Panel Cartes (NOUVEAU) -->
-        <div class="panel" id="maps">
-            <div class="map-editor-container" style="height: 100%; display: flex; flex-direction: column;">
-                <!-- Toolbar -->
-                <div class="map-toolbar" style="background: white; padding: 15px; border-bottom: 2px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <h3 style="margin: 0; color: #2c3e50;">
-                                <i class="fas fa-map"></i> Éditeur de Cartes
-                            </h3>
-                            
-                            <select id="mapSelect" class="form-select" style="min-width: 200px;" onchange="adminPanel.mapEditor?.loadMap(this.value)">
-                                <option value="">Sélectionner une carte...</option>
-                            </select>
-                        </div>
-
-                        <div id="mapTools" style="display: none; flex: 1; justify-content: center; gap: 10px;">
-                            <button class="btn-tool active" data-tool="npc" onclick="adminPanel.mapEditor?.selectTool('npc')">
-                                <i class="fas fa-users"></i> NPC
-                            </button>
-                            <button class="btn-tool" data-tool="object" onclick="adminPanel.mapEditor?.selectTool('object')">
-                                <i class="fas fa-cube"></i> Objet
-                            </button>
-                            <button class="btn-tool" data-tool="spawn" onclick="adminPanel.mapEditor?.selectTool('spawn')">
-                                <i class="fas fa-map-marker-alt"></i> Spawn
-                            </button>
-                            <button class="btn-tool" data-tool="teleport" onclick="adminPanel.mapEditor?.selectTool('teleport')">
-                                <i class="fas fa-portal-exit"></i> Téléport
-                            </button>
-                        </div>
-
-                        <div id="mapActions" style="display: none; align-items: center; gap: 10px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label style="font-weight: 500;">Zoom:</label>
-                                <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" 
-                                       onchange="adminPanel.mapEditor?.setZoom(this.value)" style="width: 80px;">
-                                <span id="zoomValue">100%</span>
-                            </div>
-                            
-                            <button class="btn btn-success" onclick="adminPanel.mapEditor?.saveMapObjects()">
-                                <i class="fas fa-save"></i> Sauvegarder
-                            </button>
-                        </div>
-                    </div>
+<!-- Panel Cartes avec Items -->
+<div class="panel" id="maps">
+    <div class="map-editor-container">
+        <!-- Header de l'éditeur -->
+        <div class="map-toolbar">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                
+                <!-- Sélection de carte -->
+                <div class="toolbar-group">
+                    <label for="mapSelect" class="form-label">🗺️ Carte:</label>
+                    <select id="mapSelect" class="form-select" onchange="adminPanel.mapEditor.loadMap(this.value)" style="min-width: 200px;">
+                        <option value="">Chargement...</option>
+                    </select>
                 </div>
 
-                <!-- Zone principale -->
-                <div style="flex: 1; display: flex; min-height: 0;">
-                    <!-- Canvas de la carte -->
-                    <div id="mapCanvasContainer" style="flex: 1; background: #f8f9fa; position: relative; overflow: auto;">
-                        <div id="mapLoadingMessage" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d;">
-                            <div style="text-align: center;">
-                                <i class="fas fa-map-marked-alt" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                                <h4>Sélectionnez une carte pour commencer</h4>
-                                <p>Choisissez une carte TMJ dans la liste ci-dessus</p>
-                            </div>
-                        </div>
-                        
-                        <canvas id="mapCanvas" style="display: none; cursor: crosshair; border: 2px solid #007bff; border-radius: 8px; margin: 20px;"></canvas>
-                    </div>
-
-                    <!-- Panel des objets -->
-                    <div id="objectsPanel" style="width: 350px; background: white; border-left: 2px solid #e9ecef; padding: 20px; overflow-y: auto; display: none;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h4 style="margin: 0; color: #2c3e50;">
-                                <i class="fas fa-layer-group"></i> Objets Placés
-                            </h4>
-                            <span id="objectsCount" class="badge badge-primary">0</span>
-                        </div>
-                        
-                        <div id="objectsList" style="space-y: 10px;">
-                            <!-- Les objets seront ajoutés ici dynamiquement -->
-                        </div>
-                        
-                        <div id="noObjectsMessage" style="text-align: center; padding: 40px; color: #6c757d;">
-                            <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                            <p>Aucun objet placé</p>
-                            <small>Cliquez sur la carte pour placer des objets</small>
-                        </div>
-                    </div>
+                <!-- Outils de placement -->
+                <div class="toolbar-group" id="mapTools" style="display: none;">
+                    <span class="form-label">🛠️ Outils:</span>
+                    <button class="btn-tool active" data-tool="object" onclick="adminPanel.mapEditor.selectTool('object')">
+                        📦 Items
+                    </button>
+                    <button class="btn-tool" data-tool="npc" onclick="adminPanel.mapEditor.selectTool('npc')">
+                        👤 NPC
+                    </button>
+                    <button class="btn-tool" data-tool="spawn" onclick="adminPanel.mapEditor.selectTool('spawn')">
+                        🎯 Spawn
+                    </button>
+                    <button class="btn-tool" data-tool="teleport" onclick="adminPanel.mapEditor.selectTool('teleport')">
+                        🌀 Téléport
+                    </button>
                 </div>
 
-                <!-- Instructions -->
-                <div style="background: #e8f4fd; border-top: 2px solid #007bff; padding: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 30px; font-size: 0.9rem; color: #0066cc;">
-                        <span><strong>Instructions:</strong></span>
-                        <span><i class="fas fa-mouse-pointer"></i> Clic = Placer objet</span>
-                        <span><i class="fas fa-times"></i> Clic sur objet = Supprimer</span>
-                        <span><i class="fas fa-save"></i> Sauvegarde = Fichier JSON</span>
-                    </div>
+                <!-- Contrôles de zoom -->
+                <div class="toolbar-group">
+                    <label for="zoomSlider" class="form-label">🔍 Zoom:</label>
+                    <input type="range" id="zoomSlider" min="0.25" max="3" step="0.25" value="1" 
+                           onchange="adminPanel.mapEditor.setZoom(this.value)" style="width: 100px;">
+                    <span id="zoomValue" style="min-width: 40px; font-weight: bold;">100%</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="toolbar-group" id="mapActions" style="display: none;">
+                    <button class="btn btn-success" onclick="adminPanel.mapEditor.saveMapObjects()">
+                        💾 Sauvegarder
+                    </button>
+                    <button class="btn btn-warning" onclick="location.reload()">
+                        🔄 Actualiser
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Zone principale avec carte et panels -->
+        <div class="map-main-area">
+            
+            <!-- Container du canvas -->
+            <div id="mapCanvasContainer">
+                <div id="mapLoadingMessage" style="text-align: center; color: #6c757d; font-size: 1.2rem;">
+                    <div style="margin-bottom: 15px;">🗺️</div>
+                    <div>Sélectionnez une carte pour commencer</div>
+                </div>
+                <canvas id="mapCanvas" style="display: none;"></canvas>
+            </div>
+
+            <!-- Panel des objets et items -->
+            <div id="objectsPanel" style="display: none;">
+                
+                <!-- Section Items -->
+                <div class="panel-section">
+                    <div id="itemsContainer">
+                        <!-- Sera rempli dynamiquement par renderItemsPanel() -->
+                        <div style="text-align: center; padding: 20px; color: #6c757d;">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">📦</div>
+                            <div>Chargement des items...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Objets placés -->
+                <div class="panel-section">
+                    <h3 style="color: #2c3e50; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                        🎯 Objets Placés 
+                        <span id="objectsCount" class="badge badge-primary">0</span>
+                    </h3>
+                    
+                    <div id="noObjectsMessage" style="text-align: center; padding: 20px; color: #6c757d; border: 2px dashed #dee2e6; border-radius: 8px;">
+                        <div style="font-size: 1.5rem; margin-bottom: 8px;">🎯</div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Aucun objet placé</div>
+                        <div style="font-size: 0.9rem;">Cliquez sur la carte pour placer des objets</div>
+                    </div>
+                    
+                    <div id="objectsList" class="placed-objects-list">
+                        <!-- Sera rempli dynamiquement par updateObjectsList() -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Instructions en bas -->
+        <div class="map-instructions">
+            <div class="map-instructions-content">
+                <div>💡 <strong>Instructions:</strong></div>
+                <div>🖱️ Clic pour placer/supprimer</div>
+                <div>📦 Sélectionnez un item puis cliquez</div>
+                <div>🔍 Utilisez le zoom pour ajuster la vue</div>
+                <div>💾 N'oubliez pas de sauvegarder !</div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Panel Édition -->
         <div class="panel" id="edit">
