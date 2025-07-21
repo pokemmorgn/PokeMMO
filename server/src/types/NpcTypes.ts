@@ -756,7 +756,7 @@ export interface NpcValidationResult {
 }
 
 export interface NpcTypeGuards {
-  isBattlerNpc(npc: AnyNpc): npc is BattlerNpc;
+  isBattlerNpc(npc: AnyNpc): npc is AnyBattlerNpc;
   isDialogueNpc(npc: AnyNpc): npc is DialogueNpc;
   isMerchantNpc(npc: AnyNpc): npc is MerchantNpc;
   isTrainerNpc(npc: AnyNpc): npc is TrainerNpc;
