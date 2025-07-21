@@ -1,5 +1,5 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - Version complète avec système multi-fonctionnel
+// Module de gestion des interactions avec les NPCs - Version complète avec handlers modulaires
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -15,22 +15,10 @@ import {
 } from "../types/BaseInteractionTypes";
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 
-// ✅ Import du handler merchant
+// ✅ NOUVEAU: Import du handler merchant
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ IMPORT DES TYPES ET CONSTANTES depuis BaseInteractionTypes
-import type { 
-  NpcCapability, 
-  NpcChoiceResult,
-  CapabilityType
-} from "../types/BaseInteractionTypes";
-import { 
-  DEFAULT_CAPABILITY_PRIORITIES,
-  DEFAULT_CAPABILITY_ICONS,
-  DEFAULT_CAPABILITY_LABELS
-} from "../types/BaseInteractionTypes";
-
-// ✅ INTERFACE RESULT NPC (conserve compatibilité existante + nouveaux types)
+// ✅ INTERFACE RESULT NPC (conserve compatibilité existante)
 export interface NpcInteractionResult extends InteractionResult {
   // Données NPCs existantes
   shopId?: string;
@@ -53,17 +41,13 @@ export interface NpcInteractionResult extends InteractionResult {
     canWatch: boolean;
     reason?: string;
   };
-  
-  // ✅ NOUVEAU : Capacités multi-fonctionnelles (utilise les types de BaseInteractionTypes)
-  capabilities?: NpcCapability[];
-  welcomeMessage?: string;
 }
 
 export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "3.0.0"; // ✅ Version avec système multi-fonctionnel
+  readonly version = "2.0.0"; // ✅ Version avec handlers modulaires
 
   // === DÉPENDANCES (injectées depuis InteractionManager existant) ===
   private getNpcManager: (zoneName: string) => any;
@@ -72,7 +56,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   private starterHandlers: StarterHandlers;
   private spectatorManager: SpectatorManager;
   
-  // ✅ HANDLERS MODULAIRES
+  // ✅ NOUVEAUX HANDLERS MODULAIRES
   private merchantHandler: MerchantNpcHandler;
 
   constructor(
@@ -92,14 +76,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // ✅ INITIALISATION HANDLERS MODULAIRES
     this.initializeHandlers();
 
-    this.log('info', '🔄 Module NPC initialisé avec système multi-fonctionnel', {
+    this.log('info', '🔄 Module NPC initialisé avec handlers modulaires', {
       version: this.version,
-      handlersLoaded: ['merchant'],
-      capabilities: ['multi_function_detection', 'choice_interface', 'priority_system']
+      handlersLoaded: ['merchant'] // TODO: ajouter autres handlers
     });
   }
 
-  // ✅ INITIALISATION DES HANDLERS
+  // ✅ NOUVELLE MÉTHODE: Initialisation des handlers
   private initializeHandlers(): void {
     try {
       // Handler Merchant
@@ -129,19 +112,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
     try {
       const { player, request } = context;
       const npcId = request.data?.npcId;
-      const requestedCapability = request.data?.capability; // ✅ NOUVEAU : Capability demandée
 
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
 
-      this.log('info', `Interaction NPC ${npcId}`, { 
-        player: player.name,
-        requestedCapability: requestedCapability || 'auto_detect'
-      });
+      this.log('info', `Interaction NPC ${npcId}`, { player: player.name });
 
-      // === LOGIQUE AVEC SYSTÈME MULTI-FONCTIONNEL ===
-      const result = await this.handleNpcInteractionLogic(player, npcId, requestedCapability);
+      // === LOGIQUE AVEC HANDLERS MODULAIRES ===
+      const result = await this.handleNpcInteractionLogic(player, npcId);
 
       // Mise à jour des stats
       const processingTime = Date.now() - startTime;
@@ -161,17 +140,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === LOGIQUE MÉTIER NPCs AVEC SYSTÈME MULTI-FONCTIONNEL ===
+  // === LOGIQUE MÉTIER NPCs (MODIFIÉE AVEC HANDLERS) ===
 
-  private async handleNpcInteractionLogic(
-    player: Player, 
-    npcId: number, 
-    requestedCapability?: string
-  ): Promise<NpcInteractionResult> {
-    
-    this.log('info', `Traitement logique NPC ${npcId} pour ${player.name}`, {
-      requestedCapability: requestedCapability || 'detection_auto'
-    });
+  private async handleNpcInteractionLogic(player: Player, npcId: number): Promise<NpcInteractionResult> {
+    this.log('info', `Traitement logique NPC ${npcId} pour ${player.name}`);
     
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
@@ -195,320 +167,73 @@ export class NpcInteractionModule extends BaseInteractionModule {
     this.log('info', `NPC trouvé: ${npc.name}`, { 
       type: npc.type || 'legacy',
       sourceType: npc.sourceType || 'tiled',
-      properties: Object.keys(npc.properties || {}).slice(0, 5)
+      properties: Object.keys(npc.properties || {}).slice(0, 5) // Limiter pour logs
     });
 
-    // === NOUVELLE LOGIQUE : ANALYSE DES CAPACITÉS DISPONIBLES ===
-    const capabilities = await this.analyzeNpcCapabilities(player, npc, npcId);
-    
-    this.log('info', `🔍 Capacités détectées pour NPC ${npcId}:`, {
-      total: capabilities.length,
-      available: capabilities.filter(c => c.available).length,
-      types: capabilities.map(c => c.type)
-    });
+    // === DÉLÉGATION PRIORITAIRE AUX HANDLERS MODULAIRES ===
 
-    // === CAS 1 : CAPABILITY SPÉCIFIQUE DEMANDÉE ===
-    if (requestedCapability) {
-      this.log('info', `🎯 Capability spécifique demandée: ${requestedCapability}`);
+    // ✅ HANDLER MERCHANT (priorité 1)
+    if (this.merchantHandler.isMerchantNpc(npc)) {
+      this.log('info', '🛒 Délégation au MerchantNpcHandler');
+      const merchantResult = await this.merchantHandler.handle(player, npc, npcId);
       
-      const targetCapability = capabilities.find(c => c.type === requestedCapability);
-      if (!targetCapability) {
-        return {
-          success: false,
-          type: "error",
-          message: `Cette action n'est pas disponible pour ce NPC.`,
-          capabilities
-        };
-      }
+      // Ajouter quest progress pour compatibilité
+      const questProgress = await this.getQuestProgressSafe(player.name, npcId);
       
-      if (!targetCapability.available) {
-        return {
-          success: false,
-          type: "error",
-          message: targetCapability.reason || "Action temporairement indisponible.",
-          capabilities
-        };
-      }
-      
-      // Déléguer à la capability demandée
-      return await this.delegateToSpecificCapability(player, npc, npcId, targetCapability, capabilities);
-    }
-
-    // === CAS 2 : UNE SEULE CAPABILITY DISPONIBLE - DÉLÉGATION DIRECTE ===
-    const availableCapabilities = capabilities.filter(c => c.available);
-    
-    if (availableCapabilities.length === 1) {
-      const singleCapability = availableCapabilities[0];
-      this.log('info', `🎯 Une seule capability disponible: ${singleCapability.type}`);
-      
-      return await this.delegateToSpecificCapability(player, npc, npcId, singleCapability, capabilities);
-    }
-
-    // === CAS 3 : AUCUNE CAPABILITY DISPONIBLE ===
-    if (availableCapabilities.length === 0) {
-      this.log('warn', `⚠️ Aucune capability disponible pour NPC ${npcId}`);
-      
-      // Fallback vers dialogue par défaut
-      const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
+      // Conversion vers NpcInteractionResult
       return {
-        success: true,
-        type: "dialogue",
-        lines: defaultDialogue,
-        npcId: npcId,
-        npcName: npc.name,
-        capabilities
+        ...merchantResult,
+        questProgress
       };
     }
 
-    // === CAS 4 : MULTIPLE CAPABILITIES - INTERFACE DE CHOIX ===
-    this.log('info', `🎛️ Capabilities multiples disponibles (${availableCapabilities.length}), génération interface de choix`);
-    
-    const welcomeLines = await this.generateWelcomeMessage(npc, availableCapabilities);
-    
-    return {
-      success: true,
-      type: "npc_choice",
-      capabilities: availableCapabilities,
-      npcId: npcId,
-      npcName: npc.name,
-      lines: welcomeLines,
-      welcomeMessage: `Bonjour ! Comment puis-je vous aider ?`,
-      message: "Choisissez une option"
-    } as NpcChoiceResult;
+    // ✅ TODO: Autres handlers
+    // if (this.trainerHandler?.isTrainerNpc(npc)) { return this.trainerHandler.handle(...) }
+    // if (this.healerHandler?.isHealerNpc(npc)) { return this.healerHandler.handle(...) }
+
+    // === LOGIQUE EXISTANTE POUR LES TYPES NON GÉRÉS (fallback) ===
+    this.log('info', '⚠️ Fallback vers logique existante (pas de handler spécialisé)');
+    return await this.handleLegacyNpcInteraction(player, npc, npcId);
   }
 
-  // === NOUVELLE MÉTHODE : ANALYSE DES CAPACITÉS NPCs ===
-  
-  private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): Promise<NpcCapability[]> {
-    const capabilities: NpcCapability[] = [];
+  // ✅ LOGIQUE LEGACY (code existant pour les NPCs non migrés)
+  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+    // === LOGIQUE DE PRIORITÉ EXISTANTE ===
+
+    // 1. Vérifier si c'est une table starter
+    if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
+      this.log('info', 'Table starter détectée');
+      return await this.handleStarterTableInteraction(player, npc, npcId);
+    }
+
+    // 2. Vérifier d'abord les objectifs talk
+    const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
+    if (talkValidationResult) {
+      this.log('info', `Objectif talk validé pour NPC ${npcId}`);
+      return talkValidationResult;
+    }
+
+    // 3. Progression normale des quêtes
+    this.log('info', 'Déclenchement updateQuestProgress pour talk');
     
+    let questProgress: any[] = [];
     try {
-      // === 1. CAPABILITY MERCHANT ===
-      if (this.merchantHandler.isMerchantNpc(npc)) {
-        const shopId = this.getShopId(npc);
-        const shopAvailable = shopId ? !!this.shopManager.getShopCatalog(shopId, player.level || 1) : false;
-        
-        capabilities.push({
-          type: 'merchant',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.merchant,
-          handler: 'MerchantNpcHandler',
-          icon: DEFAULT_CAPABILITY_ICONS.merchant,
-          label: DEFAULT_CAPABILITY_LABELS.merchant,
-          description: 'Acheter et vendre des objets',
-          available: shopAvailable,
-          reason: shopAvailable ? undefined : 'Boutique temporairement fermée'
-        });
-      }
-
-      // === 2. CAPABILITY QUEST GIVER ===
-      const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
-      if (availableQuests.length > 0) {
-        capabilities.push({
-          type: 'quest_giver',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.quest_giver,
-          handler: 'QuestSystem',
-          icon: DEFAULT_CAPABILITY_ICONS.quest_giver,
-          label: DEFAULT_CAPABILITY_LABELS.quest_giver,
-          description: `${availableQuests.length} quête(s) disponible(s)`,
-          available: true
-        });
-      }
-
-      // === 3. CAPABILITY QUEST ENDER ===
-      const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
-      if (readyToCompleteQuests.length > 0) {
-        capabilities.push({
-          type: 'quest_ender',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.quest_ender,
-          handler: 'QuestSystem',
-          icon: DEFAULT_CAPABILITY_ICONS.quest_ender,
-          label: DEFAULT_CAPABILITY_LABELS.quest_ender,
-          description: `${readyToCompleteQuests.length} quête(s) à rendre`,
-          available: true
-        });
-      }
-
-      // === 4. CAPABILITY HEALER ===
-      if (npc.properties?.healer || npc.type === 'healer') {
-        const hasWoundedPokemon = this.playerHasWoundedPokemon(player);
-        capabilities.push({
-          type: 'healer',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.healer,
-          handler: 'HealerSystem',
-          icon: DEFAULT_CAPABILITY_ICONS.healer,
-          label: DEFAULT_CAPABILITY_LABELS.healer,
-          description: hasWoundedPokemon ? 'Vos Pokémon ont besoin de soins' : 'Vos Pokémon sont en bonne santé',
-          available: true
-        });
-      }
-
-      // === 5. CAPABILITY STARTER ===
-      if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
-        const validation = await this.starterHandlers.validateStarterRequest(player, 1);
-        capabilities.push({
-          type: 'starter',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.starter,
-          handler: 'StarterSystem',
-          icon: DEFAULT_CAPABILITY_ICONS.starter,
-          label: DEFAULT_CAPABILITY_LABELS.starter,
-          description: validation.valid ? 'Choisissez votre premier Pokémon' : validation.message,
-          available: validation.valid,
-          reason: validation.valid ? undefined : validation.reason
-        });
-      }
-
-      // === 6. CAPABILITY DIALOGUE (toujours disponible comme fallback) ===
-      const hasDialogue = npc.dialogueIds || npc.properties?.dialogue || npc.properties?.dialogueId;
-      if (hasDialogue || capabilities.length === 0) {
-        capabilities.push({
-          type: 'dialogue',
-          priority: DEFAULT_CAPABILITY_PRIORITIES.dialogue,
-          handler: 'DialogueSystem',
-          icon: DEFAULT_CAPABILITY_ICONS.dialogue,
-          label: DEFAULT_CAPABILITY_LABELS.dialogue,
-          description: 'Avoir une conversation',
-          available: true
-        });
-      }
-
-      // === 7. CAPABILITY SPECTATE (pour les autres joueurs) ===
-      // Note: Cette capability est gérée différemment car elle s'applique aux joueurs, pas aux NPCs
-
-      // === TRI PAR PRIORITÉ ===
-      capabilities.sort((a, b) => a.priority - b.priority);
-
-      return capabilities;
-
-    } catch (error) {
-      this.log('error', 'Erreur analyse des capacités', error);
-      
-      // Fallback vers dialogue simple
-      return [{
-        type: 'dialogue',
-        priority: DEFAULT_CAPABILITY_PRIORITIES.dialogue,
-        handler: 'DialogueSystem',
-        icon: DEFAULT_CAPABILITY_ICONS.dialogue,
-        label: DEFAULT_CAPABILITY_LABELS.dialogue,
-        description: 'Avoir une conversation',
-        available: true
-      }];
-    }
-  }
-
-  // === NOUVELLE MÉTHODE : DÉLÉGATION VERS CAPABILITY SPÉCIFIQUE ===
-
-  private async delegateToSpecificCapability(
-    player: Player, 
-    npc: any, 
-    npcId: number, 
-    capability: NpcCapability,
-    allCapabilities: NpcCapability[]
-  ): Promise<NpcInteractionResult> {
-    
-    this.log('info', `🎯 Délégation vers capability: ${capability.type}`, {
-      handler: capability.handler,
-      available: capability.available
-    });
-
-    // Ajouter les capabilities à tous les résultats pour compatibilité
-    const baseResult = { capabilities: allCapabilities };
-
-    switch (capability.type) {
-      case 'merchant':
-        if (this.merchantHandler.isMerchantNpc(npc)) {
-          this.log('info', '🛒 Délégation au MerchantNpcHandler');
-          const merchantResult = await this.merchantHandler.handle(player, npc, npcId);
-          
-          // Ajouter quest progress pour compatibilité
-          const questProgress = await this.getQuestProgressSafe(player.name, npcId);
-          
-          return {
-            ...merchantResult,
-            questProgress,
-            ...baseResult
-          };
-        }
-        break;
-
-      case 'quest_giver':
-        this.log('info', '📜 Délégation au système de quêtes (quest giver)');
-        return await this.handleQuestGiverLogic(player, npc, npcId, allCapabilities);
-
-      case 'quest_ender':
-        this.log('info', '✅ Délégation au système de quêtes (quest ender)');
-        return await this.handleQuestEnderLogic(player, npc, npcId, allCapabilities);
-
-      case 'healer':
-        this.log('info', '🏥 Délégation au système de soins');
-        return await this.handleHealerLogic(player, npc, npcId, allCapabilities);
-
-      case 'starter':
-        this.log('info', '🎁 Délégation au système de starters');
-        return await this.handleStarterTableInteraction(player, npc, npcId, allCapabilities);
-
-      case 'dialogue':
-        this.log('info', '💬 Délégation au système de dialogue');
-        return await this.handleDialogueLogic(player, npc, npcId, allCapabilities);
-
-      default:
-        this.log('warn', `⚠️ Capability non gérée: ${capability.type}`);
-        return await this.handleDialogueLogic(player, npc, npcId, allCapabilities);
-    }
-
-    // Fallback
-    return await this.handleDialogueLogic(player, npc, npcId, allCapabilities);
-  }
-
-  // === HANDLERS SPÉCIALISÉS PAR CAPABILITY ===
-
-  private async handleQuestGiverLogic(player: Player, npc: any, npcId: number, capabilities: NpcCapability[]): Promise<NpcInteractionResult> {
-    const questProgress = await this.getQuestProgressSafe(player.name, npcId);
-    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
-    
-    if (availableQuests.length > 0) {
-      const firstQuest = availableQuests[0];
-      const questOfferDialogue = this.getQuestDialogue(firstQuest, 'questOffer');
-      
-      const serializedQuests = availableQuests.map(quest => ({
-        id: quest.id,
-        name: quest.name,
-        description: quest.description,
-        category: quest.category,
-        steps: quest.steps.map((step: any) => ({
-          id: step.id,
-          name: step.name,
-          description: step.description,
-          objectives: step.objectives,
-          rewards: step.rewards
-        }))
-      }));
-
-      return {
-        success: true,
-        type: "questGiver",
-        message: questOfferDialogue.join(' '),
-        lines: questOfferDialogue,
-        availableQuests: serializedQuests,
-        questProgress: questProgress,
+      questProgress = await this.questManager.updateQuestProgress(player.name, {
+        type: 'talk',
         npcId: npcId,
-        npcName: npc.name,
-        capabilities
-      };
+        targetId: npcId.toString()
+      });
+      this.log('info', 'Résultats progression quêtes', questProgress);
+    } catch (error) {
+      this.log('error', 'Erreur updateQuestProgress', error);
     }
 
-    return {
-      success: false,
-      type: "error",
-      message: "Aucune quête disponible pour le moment.",
-      capabilities
-    };
-  }
-
-  private async handleQuestEnderLogic(player: Player, npc: any, npcId: number, capabilities: NpcCapability[]): Promise<NpcInteractionResult> {
-    const questProgress = await this.getQuestProgressSafe(player.name, npcId);
+    // 4. Vérifier les quêtes prêtes à compléter
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
     
     if (readyToCompleteQuests.length > 0) {
+      this.log('info', `${readyToCompleteQuests.length} quêtes prêtes à compléter`);
+      
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const completionDialogue = this.getQuestDialogue(questDefinition, 'questComplete');
@@ -539,39 +264,119 @@ export class NpcInteractionModule extends BaseInteractionModule {
           npcId: npcId,
           npcName: npc.name,
           lines: completionDialogue,
-          message: `Félicitations ! Vous avez terminé : ${questNames}`,
-          capabilities
+          message: `Félicitations ! Vous avez terminé : ${questNames}`
         };
       }
     }
 
-    return {
-      success: false,
-      type: "error",
-      message: "Aucune quête à terminer pour le moment.",
-      capabilities
-    };
-  }
-
-  private async handleHealerLogic(player: Player, npc: any, npcId: number, capabilities: NpcCapability[]): Promise<NpcInteractionResult> {
-    const questProgress = await this.getQuestProgressSafe(player.name, npcId);
+    // 5. Vérifier les quêtes disponibles
+    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
     
-    return {
-      success: true,
-      type: "heal",
-      message: "Vos Pokémon sont soignés !",
-      lines: [
-        "Bienvenue au centre de soins !",
-        "Vos Pokémon sont maintenant en pleine forme !"
-      ],
-      npcId: npcId,
-      npcName: npc.name,
-      questProgress,
-      capabilities
-    };
+    if (availableQuests.length > 0) {
+      this.log('info', `${availableQuests.length} quêtes disponibles`);
+      
+      const firstQuest = availableQuests[0];
+      const questOfferDialogue = this.getQuestDialogue(firstQuest, 'questOffer');
+      
+      const serializedQuests = availableQuests.map(quest => ({
+        id: quest.id,
+        name: quest.name,
+        description: quest.description,
+        category: quest.category,
+        steps: quest.steps.map((step: any) => ({
+          id: step.id,
+          name: step.name,
+          description: step.description,
+          objectives: step.objectives,
+          rewards: step.rewards
+        }))
+      }));
+
+      return {
+        success: true,
+        type: "questGiver",
+        message: questOfferDialogue.join(' '),
+        lines: questOfferDialogue,
+        availableQuests: serializedQuests,
+        questProgress: questProgress,
+        npcId: npcId,
+        npcName: npc.name
+      };
+    }
+
+    // 6. Vérifier les quêtes en cours
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questsForThisNpc = activeQuests.filter(q => 
+      q.startNpcId === npcId || q.endNpcId === npcId
+    );
+
+    if (questsForThisNpc.length > 0) {
+      this.log('info', `${questsForThisNpc.length} quêtes en cours pour ce NPC`);
+      
+      const firstQuest = questsForThisNpc[0];
+      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
+      const progressDialogue = this.getQuestDialogue(questDefinition, 'questInProgress');
+      
+      return {
+        success: true,
+        type: "dialogue",
+        lines: progressDialogue,
+        npcId: npcId,
+        npcName: npc.name,
+        questProgress: questProgress
+      };
+    }
+
+    // 7. Comportement NPC normal (avec support JSON)
+    this.log('info', 'Aucune quête, dialogue normal');
+
+    if (npc.properties?.shop || npc.shopId) {
+      const shopId = npc.shopId || npc.properties.shop;
+      return { 
+        success: true,
+        type: "shop", 
+        shopId: shopId,
+        npcId: npcId,
+        npcName: npc.name,
+        questProgress: questProgress
+      };
+    } else if (npc.properties?.healer || npc.type === 'healer') {
+      return { 
+        success: true,
+        type: "heal", 
+        message: "Vos Pokémon sont soignés !",
+        npcId: npcId,
+        npcName: npc.name,
+        questProgress: questProgress
+      };
+    } else if (npc.properties?.dialogue || npc.dialogueIds) {
+      const lines = this.getDialogueLines(npc);
+      return { 
+        success: true,
+        type: "dialogue", 
+        lines,
+        npcId: npcId,
+        npcName: npc.name,
+        questProgress: questProgress
+      };
+    } else {
+      const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
+      return { 
+        success: true,
+        type: "dialogue", 
+        lines: defaultDialogue,
+        questProgress: questProgress,
+        npcId: npcId,
+        npcName: npc.name
+      };
+    }
   }
 
-  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number, capabilities: NpcCapability[]): Promise<NpcInteractionResult> {
+  // === MÉTHODES SPÉCIALISÉES (CODE EXISTANT CONSERVÉ) ===
+
+  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+    this.log('info', 'Traitement interaction table starter');
+  
     const validation = await this.starterHandlers.validateStarterRequest(player, 1);
     
     if (validation.valid) {
@@ -585,8 +390,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
         lines: [
           "Voici les trois Pokémon starter !",
           "Choisissez celui qui vous accompagnera dans votre aventure !"
-        ],
-        capabilities
+        ]
       };
     } else {
       return {
@@ -597,71 +401,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
         npcName: npc.name || "Table des starters",
         starterEligible: false,
         starterReason: validation.reason,
-        lines: [validation.message],
-        capabilities
+        lines: [validation.message]
       };
     }
   }
 
-  private async handleDialogueLogic(player: Player, npc: any, npcId: number, capabilities: NpcCapability[]): Promise<NpcInteractionResult> {
-    const questProgress = await this.getQuestProgressSafe(player.name, npcId);
-    const lines = this.getDialogueLines(npc);
-    
-    return {
-      success: true,
-      type: "dialogue",
-      lines,
-      npcId: npcId,
-      npcName: npc.name,
-      questProgress,
-      capabilities
-    };
-  }
+  // === MÉTHODES UTILITAIRES (MODIFIÉES ET NOUVELLES) ===
 
-  // === MÉTHODES UTILITAIRES NOUVELLES ===
-
-  private async generateWelcomeMessage(npc: any, capabilities: NpcCapability[]): Promise<string[]> {
-    const npcName = npc.name || "quelqu'un";
-    
-    // Message d'accueil basé sur les capabilities disponibles
-    const welcomeLines = [`Bonjour ! Je suis ${npcName}.`];
-    
-    if (capabilities.some(c => c.type === 'merchant')) {
-      welcomeLines.push("Je tiens une boutique ici.");
-    }
-    
-    if (capabilities.some(c => c.type === 'quest_giver' || c.type === 'quest_ender')) {
-      welcomeLines.push("J'ai peut-être des missions pour vous.");
-    }
-    
-    if (capabilities.some(c => c.type === 'healer')) {
-      welcomeLines.push("Je peux soigner vos Pokémon.");
-    }
-    
-    welcomeLines.push("Comment puis-je vous aider ?");
-    
-    return welcomeLines;
-  }
-
-  private getShopId(npc: any): string | null {
-    // JSON : shopId direct (priorité)
-    if (npc.shopId) return npc.shopId;
-    
-    // Tiled : propriétés legacy
-    if (npc.properties?.shopId) return npc.properties.shopId;
-    if (npc.properties?.shop) return npc.properties.shop;
-    
-    return null;
-  }
-
-  private playerHasWoundedPokemon(player: Player): boolean {
-    // TODO: Implémenter la vérification des Pokémon blessés
-    // Pour l'instant, on simule que le joueur a des Pokémon blessés
-    return true;
-  }
-
-  // === MÉTHODES UTILITAIRES EXISTANTES (CONSERVÉES) ===
-
+  // ✅ Support JSON + Tiled pour dialogues
   private getDialogueLines(npc: any): string[] {
     // JSON : dialogueIds
     if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
@@ -677,6 +424,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return ["Bonjour !"];
   }
 
+  // ✅ Récupération quest progress safe
   private async getQuestProgressSafe(username: string, npcId: number): Promise<any[]> {
     try {
       return await this.questManager.updateQuestProgress(username, {
@@ -879,7 +627,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     newGold?: number;
     itemsChanged?: any[];
     shopStockChanged?: any[];
-    dialogues?: string[];
+    dialogues?: string[];  // ✅ AJOUTÉ: propriété optionnelle
   }> {
     this.log('info', 'Transaction shop', { 
       player: player.name, 
@@ -889,7 +637,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       quantity 
     });
 
-    // ✅ Essayer de déléguer au MerchantHandler si possible
+    // ✅ NOUVEAU: Essayer de déléguer au MerchantHandler si possible
     try {
       const npcManager = this.getNpcManager(player.currentZone);
       if (npcManager) {
@@ -928,7 +676,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       
       return {
         ...result,
-        dialogues: undefined
+        dialogues: undefined  // ✅ AJOUTÉ: pas de dialogues en fallback
       };
       
     } else if (action === 'sell') {
@@ -945,33 +693,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
       
       return {
         ...result,
-        dialogues: undefined
+        dialogues: undefined  // ✅ AJOUTÉ: pas de dialogues en fallback
       };
     }
 
     return {
       success: false,
       message: "Action non reconnue",
-      dialogues: undefined
+      dialogues: undefined  // ✅ AJOUTÉ: cohérence avec signature
     };
-  }
-
-  // === ✅ NOUVELLE MÉTHODE PUBLIQUE : INTERACTION AVEC CAPABILITY SPÉCIFIQUE ===
-
-  /**
-   * Permet de déclencher une capability spécifique sur un NPC
-   * Utilisé par le client après avoir choisi une option dans l'interface
-   */
-  async handleSpecificCapability(
-    player: Player, 
-    npcId: number, 
-    capability: string
-  ): Promise<NpcInteractionResult> {
-    
-    this.log('info', `🎯 Capability spécifique demandée: ${capability} pour NPC ${npcId}`);
-    
-    // Utiliser la logique existante avec la capability spécifiée
-    return await this.handleNpcInteractionLogic(player, npcId, capability);
   }
 
   // === MÉTHODES PUBLIQUES POUR QUÊTES (INCHANGÉES) ===
@@ -1066,11 +796,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
   getHandlerStats(): any {
     return {
       module: this.getStats(),
-      capabilities: {
-        multiFunction: true,
-        choiceInterface: true,
-        prioritySystem: true
-      },
       handlers: {
         merchant: this.merchantHandler?.getStats(),
         // TODO: autres handlers
@@ -1082,6 +807,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     switch (handlerType) {
       case 'merchant':
         if (npcId) {
+          // Chercher le NPC dans toutes les zones (approximatif pour debug)
           console.log(`🔍 Debug MerchantHandler pour NPC ${npcId}`);
           console.log('Stats:', this.merchantHandler.getStats());
         } else {
@@ -1091,42 +817,5 @@ export class NpcInteractionModule extends BaseInteractionModule {
       default:
         console.log('Handler non supporté:', handlerType);
     }
-  }
-
-  // === ✅ NOUVELLE MÉTHODE : DEBUG CAPABILITIES ===
-  
-  async debugNpcCapabilities(player: Player, npcId: number): Promise<NpcCapability[]> {
-    const npcManager = this.getNpcManager(player.currentZone);
-    if (!npcManager) {
-      console.log(`❌ NPCManager non trouvé pour zone ${player.currentZone}`);
-      return [];
-    }
-
-    const npc = npcManager.getNpcById(npcId);
-    if (!npc) {
-      console.log(`❌ NPC ${npcId} non trouvé`);
-      return [];
-    }
-
-    console.log(`🔍 === DEBUG CAPABILITIES NPC ${npcId} ===`);
-    console.log(`📋 NPC: ${npc.name} (${npc.type || 'legacy'})`);
-    
-    const capabilities = await this.analyzeNpcCapabilities(player, npc, npcId);
-    
-    console.log(`🎛️ Capabilities détectées (${capabilities.length}):`);
-    capabilities.forEach((cap, index) => {
-      console.log(`   ${index + 1}. ${cap.icon} ${cap.label} (${cap.type})`);
-      console.log(`      Disponible: ${cap.available ? '✅' : '❌'}`);
-      console.log(`      Priorité: ${cap.priority}`);
-      console.log(`      Handler: ${cap.handler}`);
-      if (!cap.available && cap.reason) {
-        console.log(`      Raison: ${cap.reason}`);
-      }
-      console.log('');
-    });
-    
-    console.log(`=======================================`);
-    
-    return capabilities;
   }
 }
