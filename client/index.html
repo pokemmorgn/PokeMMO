@@ -6,7 +6,6 @@
   <link rel="stylesheet" href="/chat.css">
   <link rel="stylesheet" href="/css/dialogue.css">
   <link rel="stylesheet" href="/inventory.css">
-  <!-- ❌ SUPPRIMÉ: <link rel="stylesheet" href="/css/team-ui.css"> -->
   <link rel="stylesheet" href="/css/starterSelector.css">
   <link rel="stylesheet" href="/css/pokemon-selection.css">
   <link rel="stylesheet" href="/css/battle-centered.css">
@@ -56,6 +55,337 @@
       right: 80px !important;
     }
   }
+
+  /* ===== STYLES POUR LE NOUVEAU SYSTÈME DE DIALOGUE ===== */
+  
+  /* Styles pour le contenu shop intégré */
+  .embedded-shop {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(74, 144, 226, 0.3);
+  }
+
+  .shop-header-mini {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .shop-header-mini h3 {
+    margin: 0;
+    color: #87ceeb;
+    font-size: 18px;
+  }
+
+  .player-gold {
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    border-radius: 15px;
+    padding: 5px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffc107;
+  }
+
+  .shop-items-grid-mini {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+  }
+
+  .shop-item-mini {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .shop-item-mini:hover {
+    background: rgba(74, 144, 226, 0.2);
+    border-color: #4a90e2;
+    transform: translateY(-2px);
+  }
+
+  .shop-item-mini .item-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+
+  .shop-item-mini .item-name {
+    font-size: 11px;
+    color: #e0e0e0;
+    margin-bottom: 5px;
+  }
+
+  .shop-item-mini .item-price {
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffc107;
+    background: rgba(255, 193, 7, 0.2);
+    border-radius: 8px;
+    padding: 2px 6px;
+  }
+
+  .shop-actions-mini {
+    text-align: center;
+    margin-top: 15px;
+  }
+
+  .shop-btn {
+    background: rgba(74, 144, 226, 0.8);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .shop-btn:hover {
+    background: rgba(74, 144, 226, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+  }
+
+  .shop-btn.primary {
+    background: linear-gradient(135deg, #28a745, #20c997);
+  }
+
+  .shop-btn.primary:hover {
+    background: linear-gradient(135deg, #218838, #1ea080);
+  }
+
+  .shop-btn.secondary {
+    background: rgba(108, 117, 125, 0.8);
+  }
+
+  .shop-btn.secondary:hover {
+    background: rgba(108, 117, 125, 1);
+  }
+
+  .shop-more {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    margin-top: 10px;
+  }
+
+  .shop-empty, .shop-loading {
+    text-align: center;
+    padding: 30px;
+    color: #888;
+  }
+
+  .shop-empty-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+
+  .shop-loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(74, 144, 226, 0.3);
+    border-top: 3px solid #4a90e2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Styles pour le contenu quête */
+  .quest-content {
+    padding: 10px;
+  }
+
+  .quest-header h3 {
+    margin: 0 0 15px 0;
+    color: #87ceeb;
+    text-align: center;
+  }
+
+  .quest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .quest-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(74, 144, 226, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    transition: all 0.3s ease;
+  }
+
+  .quest-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #4a90e2;
+  }
+
+  .quest-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #87ceeb;
+    margin-bottom: 8px;
+  }
+
+  .quest-description {
+    font-size: 14px;
+    color: #e0e0e0;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .quest-reward {
+    font-size: 12px;
+    color: #ffc107;
+    margin-bottom: 10px;
+  }
+
+  .quest-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  .quest-btn:hover {
+    background: linear-gradient(135deg, #218838, #1ea080);
+    transform: translateY(-1px);
+  }
+
+  .quest-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+  }
+
+  .quest-empty-icon {
+    font-size: 64px;
+    margin-bottom: 15px;
+    opacity: 0.3;
+  }
+
+  /* Styles pour le contenu info */
+  .info-content {
+    padding: 10px;
+  }
+
+  .npc-info-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(74, 144, 226, 0.3);
+  }
+
+  .npc-info-card h3 {
+    margin: 0 0 20px 0;
+    color: #87ceeb;
+    text-align: center;
+    font-size: 20px;
+  }
+
+  .info-section {
+    margin-bottom: 20px;
+  }
+
+  .info-section h4 {
+    margin: 0 0 10px 0;
+    color: #ffc107;
+    font-size: 16px;
+  }
+
+  .info-section p {
+    margin: 0;
+    color: #e0e0e0;
+    line-height: 1.5;
+  }
+
+  .info-tips {
+    margin: 0;
+    padding-left: 20px;
+    color: #e0e0e0;
+  }
+
+  .info-tips li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  /* Styles pour les contenus génériques */
+  .generic-tab-content, .trade-content, .battle-content {
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .generic-tab-content h3, .trade-content h3, .battle-content h3 {
+    margin: 0 0 15px 0;
+    color: #87ceeb;
+  }
+
+  .trade-btn, .battle-btn, .error-btn {
+    background: rgba(108, 117, 125, 0.8);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+
+  .trade-btn:not(:disabled):hover, .battle-btn:not(:disabled):hover, .error-btn:hover {
+    background: rgba(108, 117, 125, 1);
+    transform: translateY(-1px);
+  }
+
+  .trade-btn:disabled, .battle-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Styles pour les erreurs */
+  .error-content {
+    text-align: center;
+    padding: 40px 20px;
+    color: #dc3545;
+  }
+
+  .error-content h3 {
+    margin: 0 0 15px 0;
+    color: #dc3545;
+  }
+
+  .error-message {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    margin: 10px 0;
+  }
 </style>
 </head>
 <body>
@@ -93,121 +423,14 @@
     </div>
   </div>
 
-  <!-- NPC Dialogue Box -->
-  <div id="dialogue-box" style="display:none;">
-    <div id="npc-portrait"></div>
-    <div id="npc-dialogue">
-      <span id="npc-name"></span>
-      <span id="npc-text"></span>
-    </div>
-  </div>
-
-<script>
-  // Dialogue state global
-  window._npcDialogueState = {
-    lines: [],
-    page: 0,
-    onClose: null
-  };
-
-  // Affiche le dialogue NPC, accepte lines: [string] OU text: string
-window.showNpcDialogue = function({ portrait, name, lines, text, onClose, hideName }) {
-  console.log("🐛 showNpcDialogue appelée avec name =", name);
-  const box = document.getElementById("dialogue-box");
-  const npcPortrait = document.getElementById("npc-portrait");
-  const npcName = document.getElementById("npc-name");
-  const npcText = document.getElementById("npc-text");
-  
-  // Multi-page setup
-  window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
-  window._npcDialogueState.page = 0;
-  window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
-  
-  box.style.display = "flex";
-  npcPortrait.innerHTML = portrait
-    ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
-    : "";
-  npcName.innerText = name || "";
-  if (hideName) {
-    npcName.style.display = "none";
-  } else {
-    npcName.style.display = "";
-  }
-  
-  npcText.innerText = window._npcDialogueState.lines[0] || "";
-
-  // Close with click
-  box.onclick = () => closeDialogue();
-};
-
-
-  function advanceDialogue() {
-    const box = document.getElementById("dialogue-box");
-    const npcText = document.getElementById("npc-text");
-    if (box.style.display === "none") return;
-    window._npcDialogueState.page++;
-    if (window._npcDialogueState.page >= window._npcDialogueState.lines.length) {
-      closeDialogue();
-    } else {
-      npcText.innerText = window._npcDialogueState.lines[window._npcDialogueState.page];
-    }
-  }
-
-  function closeDialogue() {
-    const box = document.getElementById("dialogue-box");
-    box.style.display = "none";
-    if (window._npcDialogueState.onClose) {
-      window._npcDialogueState.onClose();
-    }
-  }
-
-  // T pour test si chat non focus
-  document.addEventListener('keypress', function(e) {
-    if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
-      window.showNpcDialogue({
-        portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
-        name: 'Professor Oak',
-        lines: [
-          'Hello young trainer!',
-          'Ready for your Pokémon adventure?',
-          'Press E to continue, or click/Esc to close.'
-        ]
-      });
-    }
-  });
-
-  // E pour avancer, ESC pour fermer
-document.addEventListener('keydown', function(e) {
-  const box = document.getElementById('dialogue-box');
-  if (!box || box.style.display === 'none') return;
-  
-  // ✅ NOUVEAU: Bloquer si chat ouvert
-  if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
-
-  // ✅ NOUVEAU: Vérifier si une fenêtre de quête est ouverte
-  if (window._questDialogActive) {
-    console.log("⚠️ Fenêtre de quête ouverte, E bloqué pour dialogue");
-    return;
-  }
-
-  if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
-    advanceDialogue();
-    e.preventDefault();
-    e.stopPropagation();
-  }
-  else if (e.key === 'Escape' || e.code === 'Escape') {
-    closeDialogue();
-    e.preventDefault();
-    e.stopPropagation();
-  }
-});
-</script>
+  <!-- ✅ NOUVEAU: Le système de dialogue est maintenant géré par DialogueManager -->
+  <!-- L'ancien #dialogue-box a été supprimé - il est créé dynamiquement par DialogueUI -->
 
   <!-- Script d'initialisation simplifié -->
   <script>
     console.log('🎮 Initialisation du jeu...');
 
-    // Fonction de test simple
+    // Fonction de test simple pour l'inventaire
     window.testInventory = function() {
       console.log('🧪 Test de l\'inventaire');
       if (window.inventorySystem) {
@@ -217,6 +440,68 @@ document.addEventListener('keydown', function(e) {
       }
     };
 
+    // ✅ NOUVEAU: Initialisation du système de dialogue
+    let dialogueSystemReady = false;
+    
+    // Fonction d'initialisation du dialogue
+    async function initDialogueSystem() {
+      try {
+        console.log('🎭 Initialisation du système de dialogue...');
+        
+        // Importer et créer le DialogueManager
+        const { DialogueManager } = await import('/src/components/DialogueManager.js');
+        
+        // Créer l'instance globale
+        window.dialogueManager = new DialogueManager();
+        
+        // Marquer comme prêt
+        dialogueSystemReady = true;
+        
+        console.log('✅ Système de dialogue initialisé');
+        
+        // Test automatique après 3 secondes
+        setTimeout(() => {
+          console.log('🎭 État du système de dialogue:', {
+            manager: !!window.dialogueManager,
+            UI: !!window.dialogueManager?.dialogueUI,
+            isOpen: window.dialogueManager?.isOpen(),
+            canInteract: window.dialogueManager?.canPlayerInteract()
+          });
+        }, 3000);
+        
+      } catch (error) {
+        console.error('❌ Erreur initialisation système de dialogue:', error);
+      }
+    }
+
+    // ✅ LEGACY: Support pour l'ancien système (transition douce)
+    // Ces fonctions seront automatiquement remplacées par le DialogueManager
+    window._npcDialogueState = {
+      lines: [],
+      page: 0,
+      onClose: null
+    };
+
+    // Fonction de test T (conservée pour compatibilité)
+    document.addEventListener('keypress', function(e) {
+      if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
+        // Utiliser le nouveau système si disponible
+        if (window.dialogueManager && dialogueSystemReady) {
+          window.dialogueManager.show({
+            portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
+            name: 'Professor Oak',
+            lines: [
+              'Hello young trainer!',
+              'Ready for your Pokémon adventure?',
+              'This is the new dialogue system!'
+            ]
+          });
+        } else {
+          console.log('⚠️ Nouveau système de dialogue non encore prêt');
+        }
+      }
+    });
+
     // Test automatique après 2 secondes
     setTimeout(function() {
       console.log('🎒 État de l\'inventaire:', {
@@ -224,9 +509,129 @@ document.addEventListener('keydown', function(e) {
         icon: !!document.getElementById('inventory-icon'),
         overlay: !!document.getElementById('inventory-overlay')
       });
+      
+      console.log('🎭 État du dialogue:', {
+        manager: !!window.dialogueManager,
+        ready: dialogueSystemReady
+      });
     }, 2000);
 
-    console.log('✅ Scripts chargés - Tapez testInventory() ou appuyez sur I');
+    // ✅ NOUVEAU: Tests globaux disponibles
+    window.testClassicDialogue = function() {
+      if (window.dialogueManager) {
+        window.dialogueManager.show({
+          portrait: 'https://via.placeholder.com/80x80/28a745/ffffff?text=NPC',
+          name: 'Villageois',
+          lines: [
+            'Bonjour, aventurier !',
+            'Bienvenue dans notre village.',
+            'N\'hésitez pas à explorer les environs.'
+          ]
+        });
+        console.log('✅ Dialogue classique de test affiché');
+      } else {
+        console.error('❌ DialogueManager non disponible');
+      }
+    };
+
+    window.testUnifiedInterface = function() {
+      if (window.dialogueManager) {
+        const testData = {
+          isUnifiedInterface: true,
+          name: 'Marchand Expert',
+          title: 'Maître Commerçant',
+          portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=SHOP',
+          tabs: [
+            { id: 'dialogue', label: 'Dialogue', icon: '💬' },
+            { id: 'shop', label: 'Boutique', icon: '🛒', badge: '5' },
+            { id: 'quest', label: 'Quêtes', icon: '📋', badge: '2' },
+            { id: 'info', label: 'Info', icon: 'ℹ️' }
+          ],
+          tabData: {
+            dialogue: {
+              lines: [
+                'Salutations, brave aventurier !',
+                'Je suis le marchand le plus réputé de la région.',
+                'Que puis-je faire pour vous aider aujourd\'hui ?'
+              ]
+            },
+            shop: {
+              name: 'Boutique Premium',
+              shopId: 'premium_shop',
+              playerGold: 2500
+            },
+            quest: {
+              available: [
+                {
+                  id: 'delivery_quest',
+                  title: 'Livraison urgente',
+                  description: 'Apportez ce colis au village voisin dans les 30 minutes.',
+                  reward: 500
+                },
+                {
+                  id: 'rare_item_quest',
+                  title: 'Objets rares',
+                  description: 'Trouvez 3 Baies Sitrus pour ma collection.',
+                  reward: 750
+                }
+              ]
+            },
+            info: {
+              description: 'Un marchand légendaire qui parcourt les régions depuis plus de 20 ans. Il possède une connaissance encyclopédique des objets Pokémon.',
+              tips: [
+                'Ses prix sont plus élevés mais ses objets sont de qualité supérieure',
+                'Il propose parfois des quêtes exclusives aux dresseurs expérimentés',
+                'Revenez chaque semaine pour découvrir de nouveaux articles'
+              ],
+              location: 'Voyage entre les grandes villes - Position actuelle: Centre Pokémon'
+            }
+          },
+          quickActions: [
+            { 
+              label: 'Achat Rapide', 
+              icon: '⚡', 
+              type: 'primary',
+              callback: () => console.log('🛒 Achat rapide déclenché')
+            },
+            { 
+              label: 'Catalogue', 
+              icon: '📖', 
+              type: 'secondary',
+              callback: () => console.log('📖 Catalogue ouvert')
+            },
+            { 
+              label: 'Au revoir', 
+              icon: '👋', 
+              type: 'secondary',
+              callback: () => window.dialogueManager?.hide()
+            }
+          ],
+          onClose: () => console.log('🎭 Interface unifiée fermée')
+        };
+        
+        window.dialogueManager.show(testData);
+        console.log('✅ Interface unifiée complète de test affichée');
+      } else {
+        console.error('❌ DialogueManager non disponible');
+      }
+    };
+
+    console.log('✅ Scripts chargés');
+    console.log('🧪 Tests disponibles:');
+    console.log('  - testInventory() - Test inventaire');
+    console.log('  - testClassicDialogue() - Test dialogue classique');
+    console.log('  - testUnifiedInterface() - Test interface unifiée');
+    console.log('  - Appuyez sur T pour dialogue Professor Oak');
+  </script>
+
+  <!-- ✅ CHARGEMENT DU SYSTÈME DE DIALOGUE -->
+  <script>
+    // Initialiser le système de dialogue dès que le DOM est prêt
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDialogueSystem);
+    } else {
+      initDialogueSystem();
+    }
   </script>
 
   <script type="module" src="/src/main.js"></script>
