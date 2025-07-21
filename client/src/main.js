@@ -242,6 +242,52 @@ window.fixBattleClient = function() {
   console.error('❌ NetworkHandler introuvable');
   return false;
 };
+async function initializeDialogueSystem() {
+  console.log("🎭 [MAIN] === INITIALISATION SYSTÈME DE DIALOGUE ===");
+  
+  try {
+    console.log("🎭 [MAIN] Création DialogueManager...");
+    window.dialogueManager = new DialogueManager();
+    
+    // Le DialogueManager s'initialise automatiquement dans son constructeur
+    // Attendre que l'initialisation soit complète
+    await new Promise((resolve) => {
+      const checkInit = () => {
+        if (window.dialogueManager.isInitialized) {
+          console.log("✅ [MAIN] DialogueManager initialisé avec succès");
+          resolve();
+        } else {
+          console.log("⏳ [MAIN] Attente initialisation DialogueManager...");
+          setTimeout(checkInit, 100);
+        }
+      };
+      checkInit();
+    });
+    
+    // Configuration globale pour compatibilité
+    window.dialogueSystemGlobal = window.dialogueManager;
+    window.showDialogue = (data) => window.dialogueManager.show(data);
+    window.hideDialogue = () => window.dialogueManager.hide();
+    window.isDialogueOpen = () => window.dialogueManager.isOpen();
+    
+    console.log("✅ [MAIN] Système de dialogue configuré globalement");
+    return true;
+    
+  } catch (error) {
+    console.error("❌ [MAIN] Erreur initialisation DialogueManager:", error);
+    
+    // Fallback: créer des fonctions vides pour éviter les erreurs
+    window.dialogueManager = {
+      isInitialized: false,
+      show: () => console.warn('DialogueManager non initialisé'),
+      hide: () => console.warn('DialogueManager non initialisé'),
+      isOpen: () => false,
+      debugState: () => ({ error: 'Non initialisé' })
+    };
+    
+    return false;
+  }
+}
 
 async function initializeGlobalWeatherSystem() {
   console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL SIMPLE ===");
