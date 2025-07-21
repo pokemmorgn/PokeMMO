@@ -1,8 +1,7 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION JSON
+// Module principal d'interaction avec les objets - VERSION JSON SIMPLIFIÉE
 //
-// ✅ NOUVELLE APPROCHE : Lecture depuis fichiers JSON au lieu de Tiled
-// Fichiers : /data/gameobjects/{zone}.json
+// ✅ NOUVELLE APPROCHE : itemId direct depuis JSON, plus de mapping
 
 import fs from 'fs';
 import path from 'path';
@@ -17,6 +16,7 @@ import {
 } from "../types/BaseInteractionTypes";
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 import { InventoryManager } from "../../managers/InventoryManager";
+import { isValidItemId } from "../../utils/ItemDB"; // ✅ AJOUTÉ
 
 // ✅ IMPORTS DU SYSTÈME MODULAIRE - VERSION FINALE
 import { 
@@ -26,7 +26,7 @@ import {
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
-// ✅ INTERFACE POUR JSON DE ZONE
+// ✅ INTERFACE POUR JSON DE ZONE (MISE À JOUR)
 interface GameObjectZoneData {
   zone: string;
   version: string;
@@ -41,12 +41,10 @@ interface GameObjectZoneData {
     id: number;
     position: { x: number; y: number };
     type: 'ground' | 'hidden';
-    name?: string;
-    itemId?: string;
+    itemId: string;           // ✅ REQUIS maintenant
     sprite?: string;
     quantity?: number;
     cooldown?: number;
-    rarity?: string;
     searchRadius?: number;
     itemfinderRadius?: number;
     requirements?: Record<string, any>;
@@ -54,7 +52,7 @@ interface GameObjectZoneData {
   }>;
 }
 
-// ✅ INTERFACE POUR ÉTAT PERSISTANT DES OBJETS
+// ✅ INTERFACE POUR ÉTAT PERSISTANT DES OBJETS (INCHANGÉ)
 interface ObjectState {
   objectId: number;
   zone: string;
@@ -189,26 +187,26 @@ class ObjectStateManager {
   }
 }
 
-// ✅ MODULE PRINCIPAL - VERSION JSON
+// ✅ MODULE PRINCIPAL - VERSION JSON SIMPLIFIÉE
 export class ObjectInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "ObjectInteractionModule";
   readonly supportedTypes: InteractionType[] = ["object"];
-  readonly version = "2.0.0"; // ← Version JSON
+  readonly version = "2.1.0"; // ✅ VERSION JSON SIMPLIFIÉE
 
   // ✅ COMPOSANTS DU SYSTÈME
   private subModuleFactory: SubModuleFactory;
   private stateManager: ObjectStateManager;
   private objectsByZone: Map<string, Map<number, ObjectDefinition>> = new Map();
   
-  // ✅ CONFIGURATION MODIFIÉE POUR JSON
-private config = {
-  submodulesPath: path.resolve(__dirname, './object/submodules'),
-  stateFile: './data/object_states.json',
-  gameObjectsPath: './build/data/gameobjects',  // ← MODIFIÉ
-  autoLoadMaps: true,
-  securityEnabled: process.env.NODE_ENV === 'production'
-};
+  // ✅ CONFIGURATION POUR JSON DIRECT
+  private config = {
+    submodulesPath: path.resolve(__dirname, './object/submodules'),
+    stateFile: './data/object_states.json',
+    gameObjectsPath: './build/data/gameobjects',
+    autoLoadMaps: true,
+    securityEnabled: process.env.NODE_ENV === 'production'
+  };
 
   constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
     super();
@@ -217,7 +215,7 @@ private config = {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `🔄 [JSON] Initialisation avec fichiers JSON`, {
+    this.log('info', `🔄 [JSON-SIMPLE] Initialisation avec itemId direct`, {
       gameObjectsPath: this.config.gameObjectsPath,
       autoLoadMaps: this.config.autoLoadMaps,
       securityEnabled: this.config.securityEnabled
@@ -256,7 +254,7 @@ private config = {
     try {
       const { player, request } = context;
       
-      this.log('info', `🎯 [JSON] Traitement interaction objet`, { 
+      this.log('info', `🎯 [JSON-SIMPLE] Traitement interaction objet`, { 
         player: player.name, 
         data: request.data 
       });
@@ -273,7 +271,7 @@ private config = {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', '❌ [JSON] Erreur traitement objet', error);
+      this.log('error', '❌ [JSON-SIMPLE] Erreur traitement objet', error);
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
         "PROCESSING_FAILED"
@@ -293,18 +291,17 @@ private config = {
       return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
     }
     
-    this.log('info', `🔍 [JSON] Recherche objet ${objectId} dans zone ${zone}`);
+    this.log('info', `🔍 [JSON-SIMPLE] Recherche objet ${objectId} dans zone ${zone}`);
     
     const objectDef = this.getObject(zone, objectId);
     if (!objectDef) {
-      this.log('warn', `❌ [JSON] Objet ${objectId} non trouvé dans ${zone}`);
+      this.log('warn', `❌ [JSON-SIMPLE] Objet ${objectId} non trouvé dans ${zone}`);
       return this.createErrorResult(`Objet ${objectId} non trouvé dans ${zone}`, "OBJECT_NOT_FOUND");
     }
 
-    this.log('info', `✅ [JSON] Objet trouvé: ${objectDef.name || objectDef.type}`, {
+    this.log('info', `✅ [JSON-SIMPLE] Objet trouvé: ${objectDef.name}`, {
       type: objectDef.type,
-      hasName: !!objectDef.name,
-      hasItemId: !!objectDef.itemId
+      itemId: objectDef.itemId
     });
 
     const state = this.stateManager.getObjectState(zone, objectId);
@@ -312,7 +309,7 @@ private config = {
 
     if (objectDef.type === 'unknown' || !objectDef.type) {
       objectDef.type = 'ground_item';
-      this.log('info', `🔧 [JSON] Auto-détection: "${objectDef.name}" → ground_item`);
+      this.log('info', `🔧 [JSON-SIMPLE] Auto-détection: type → ground_item`);
     }
     
     const subModule = this.subModuleFactory.findModuleForObject(objectDef);
@@ -320,9 +317,10 @@ private config = {
       return this.createErrorResult(`Aucun gestionnaire pour le type: ${objectDef.type}`, "NO_HANDLER");
     }
 
-    this.log('info', `🚀 [JSON] Délégation à ${subModule.typeName}`, { 
+    this.log('info', `🚀 [JSON-SIMPLE] Délégation à ${subModule.typeName}`, { 
       objectId, 
-      type: objectDef.type 
+      type: objectDef.type,
+      itemId: objectDef.itemId
     });
 
     const result = await subModule.handle(player, objectDef, request.data);
@@ -349,13 +347,13 @@ private config = {
 
     const zone = player.currentZone;
     
-    this.log('info', `🔍 [JSON] Fouille générale dans ${zone}`, {
+    this.log('info', `🔍 [JSON-SIMPLE] Fouille générale dans ${zone}`, {
       position: { x: position.x, y: position.y }
     });
     
     const nearbyHiddenObjects = this.findHiddenObjectsNear(zone, position.x, position.y, 32);
     
-    this.log('info', `🔍 [JSON] ${nearbyHiddenObjects.length} objets cachés trouvés dans la zone`);
+    this.log('info', `🔍 [JSON-SIMPLE] ${nearbyHiddenObjects.length} objets cachés trouvés dans la zone`);
 
     if (nearbyHiddenObjects.length > 0) {
       const objectDef = nearbyHiddenObjects[0];
@@ -364,7 +362,7 @@ private config = {
 
       const subModule = this.subModuleFactory.findModuleForObject(objectDef);
       if (subModule) {
-        this.log('info', `🚀 [JSON] Fouille délégué à ${subModule.typeName}`);
+        this.log('info', `🚀 [JSON-SIMPLE] Fouille délégué à ${subModule.typeName}`);
         
         const result = await subModule.handle(player, objectDef, { action: 'search' });
         
@@ -380,7 +378,7 @@ private config = {
       }
     }
 
-    this.log('info', `❌ [JSON] Rien trouvé lors de la fouille`);
+    this.log('info', `❌ [JSON-SIMPLE] Rien trouvé lors de la fouille`);
     return createInteractionResult.noItemFound(
       "0",
       "search",
@@ -389,60 +387,69 @@ private config = {
     );
   }
 
-  // === PARSING DES JSON - VERSION COMPLÈTEMENT NOUVELLE ===
+  // === PARSING JSON - VERSION SIMPLIFIÉE ===
 
   /**
-   * ✅ NOUVELLE MÉTHODE : Charger les objets depuis JSON
+   * ✅ MÉTHODE SIMPLIFIÉE : Charger les objets depuis JSON avec itemId direct
    */
   async loadObjectsFromJSON(zoneName: string): Promise<void> {
     try {
       const jsonPath = path.resolve(this.config.gameObjectsPath, `${zoneName}.json`);
       
-      console.log(`🔍 [JSON] Tentative chargement: ${jsonPath}`);
+      console.log(`🔍 [JSON-SIMPLE] Tentative chargement: ${jsonPath}`);
 
       if (!fs.existsSync(jsonPath)) {
-        this.log('warn', `📄 [JSON] Fichier introuvable: ${jsonPath}`);
+        this.log('warn', `📄 [JSON-SIMPLE] Fichier introuvable: ${jsonPath}`);
         return;
       }
 
-      console.log(`📖 [JSON] Lecture fichier ${zoneName}.json...`);
+      console.log(`📖 [JSON-SIMPLE] Lecture fichier ${zoneName}.json...`);
       const jsonData: GameObjectZoneData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
       
-      console.log(`✅ [JSON] Données lues:`, {
+      console.log(`✅ [JSON-SIMPLE] Données lues:`, {
         zone: jsonData.zone,
         version: jsonData.version,
-        objectCount: jsonData.objects?.length || 0,
-        hasDefaultRequirements: !!jsonData.defaultRequirements,
-        hasPresets: !!jsonData.requirementPresets
+        objectCount: jsonData.objects?.length || 0
       });
 
       if (!jsonData.objects || !Array.isArray(jsonData.objects)) {
-        this.log('warn', `⚠️ [JSON] Aucun objet dans ${zoneName}.json`);
+        this.log('warn', `⚠️ [JSON-SIMPLE] Aucun objet dans ${zoneName}.json`);
         return;
       }
 
       const objects = new Map<number, ObjectDefinition>();
 
-      console.log(`🔧 [JSON] Traitement de ${jsonData.objects.length} objets...`);
+      console.log(`🔧 [JSON-SIMPLE] Traitement de ${jsonData.objects.length} objets...`);
 
       for (const objData of jsonData.objects) {
         try {
-          console.log(`📦 [JSON] Traitement objet ID ${objData.id}:`, {
+          console.log(`📦 [JSON-SIMPLE] Traitement objet ID ${objData.id}:`, {
             type: objData.type,
-            name: objData.name,
             itemId: objData.itemId,
             position: objData.position,
             sprite: objData.sprite
           });
 
-          // Résoudre les requirements avec héritage
+          // ✅ VALIDATION 1: itemId requis
+          if (!objData.itemId) {
+            console.error(`❌ [JSON-SIMPLE] Objet ${objData.id}: itemId manquant`);
+            continue;
+          }
+
+          // ✅ VALIDATION 2: itemId existe dans ItemDB
+          if (!isValidItemId(objData.itemId)) {
+            console.error(`❌ [JSON-SIMPLE] Objet ${objData.id}: itemId "${objData.itemId}" invalide`);
+            continue;
+          }
+
+          // Résoudre les requirements avec héritage (inchangé)
           const resolvedRequirements = this.resolveRequirements(
             objData, 
             jsonData.defaultRequirements, 
             jsonData.requirementPresets
           );
 
-          console.log(`🔑 [JSON] Requirements résolus pour objet ${objData.id}:`, resolvedRequirements);
+          console.log(`🔑 [JSON-SIMPLE] Requirements résolus pour objet ${objData.id}:`, resolvedRequirements);
 
           // Déterminer le type final pour ObjectDefinition
           let finalType: string = objData.type;
@@ -452,22 +459,21 @@ private config = {
           const objectDef: ObjectDefinition = {
             // Données de base
             id: objData.id,
-            name: objData.name || `Object_${objData.id}`,
+            name: objData.itemId, // ✅ SIMPLIFIÉ: itemId comme nom
             x: objData.position.x,
             y: objData.position.y,
             zone: zoneName,
             
-            // Type et contenu
+            // Type et contenu - ✅ DIRECT
             type: finalType,
-            itemId: objData.itemId,
+            itemId: objData.itemId,  // ✅ DIRECT depuis JSON
             quantity: objData.quantity || 1,
-            rarity: objData.rarity || 'common',
             respawnTime: 0, // Géré par cooldown système
             
             // Requirements résolus
             requirements: Object.keys(resolvedRequirements).length > 0 ? resolvedRequirements : undefined,
             
-            // Propriétés custom (pour compatibilité)
+            // Propriétés custom
             customProperties: {
               // Données JSON originales
               sprite: objData.sprite,
@@ -493,34 +499,35 @@ private config = {
 
           objects.set(objData.id, objectDef);
           
-          console.log(`✅ [JSON] Objet ${objData.id} ajouté:`, {
+          console.log(`✅ [JSON-SIMPLE] Objet ${objData.id} ajouté:`, {
             finalType,
+            itemId: objectDef.itemId,
             hasRequirements: !!objectDef.requirements,
             customPropsCount: Object.keys(objectDef.customProperties).length
           });
 
         } catch (objError) {
-          console.error(`❌ [JSON] Erreur traitement objet ${objData.id}:`, objError);
+          console.error(`❌ [JSON-SIMPLE] Erreur traitement objet ${objData.id}:`, objError);
           this.log('error', `Erreur objet ${objData.id}`, objError);
         }
       }
 
       this.objectsByZone.set(zoneName, objects);
       
-      console.log(`🎉 [JSON] Zone ${zoneName} chargée avec succès:`, {
+      console.log(`🎉 [JSON-SIMPLE] Zone ${zoneName} chargée avec succès:`, {
         totalObjects: objects.size,
         groundItems: Array.from(objects.values()).filter(o => o.type === 'ground_item').length,
         hiddenItems: Array.from(objects.values()).filter(o => o.type === 'hidden_item').length
       });
 
     } catch (error) {
-      console.error(`❌ [JSON] Erreur chargement ${zoneName}.json:`, error);
+      console.error(`❌ [JSON-SIMPLE] Erreur chargement ${zoneName}.json:`, error);
       this.log('error', `Erreur chargement JSON ${zoneName}`, error);
     }
   }
 
   /**
-   * ✅ NOUVELLE MÉTHODE : Résoudre requirements avec héritage
+   * ✅ INCHANGÉ : Résoudre requirements avec héritage
    */
   private resolveRequirements(
     objData: any,
@@ -576,7 +583,7 @@ private config = {
     return nearbyObjects;
   }
 
-  // === MÉTHODES PUBLIQUES POUR WORLDROOM ===
+  // === MÉTHODES PUBLIQUES POUR WORLDROOM (INCHANGÉES) ===
 
   getVisibleObjectsInZone(zone: string): any[] {
     const { getServerConfig } = require('../../config/serverConfig');
@@ -600,8 +607,8 @@ private config = {
             name: objectDef.name,
             x: objectDef.x,
             y: objectDef.y,
-            rarity: objectDef.rarity,
-            sprite: objectDef.customProperties?.sprite, // ← NOUVEAU
+            itemId: objectDef.itemId, // ✅ AJOUTÉ pour le client
+            sprite: objectDef.customProperties?.sprite,
             collected: false
           });
         }
@@ -609,7 +616,7 @@ private config = {
     }
 
     if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
-      console.log(`🔄 [JSON] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
+      console.log(`🔄 [JSON-SIMPLE] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
     }
 
     return visibleObjects;
@@ -625,14 +632,13 @@ private config = {
 
     const objectDef: ObjectDefinition = {
       id: objectId,
-      name: objectData.name || `Object_${objectId}`,
+      name: objectData.name || objectData.itemId || `Object_${objectId}`, // ✅ MODIFIÉ
       x: objectData.x || 0,
       y: objectData.y || 0,
       zone,
       type: objectData.type || 'unknown',
       itemId: objectData.itemId,
       quantity: objectData.quantity || 1,
-      rarity: objectData.rarity || 'common',
       respawnTime: objectData.respawnTime || 0,
       requirements: objectData.requirements,
       customProperties: objectData.customProperties || {},
@@ -643,7 +649,7 @@ private config = {
     };
 
     zoneObjects.set(objectId, objectDef);
-    this.log('info', `📦 [JSON] Objet ${objectId} ajouté dynamiquement à ${zone}`);
+    this.log('info', `📦 [JSON-SIMPLE] Objet ${objectId} ajouté dynamiquement à ${zone}`);
   }
 
   resetObject(zone: string, objectId: number): boolean {
@@ -651,7 +657,7 @@ private config = {
     if (!objectDef) return false;
 
     this.stateManager.resetObject(zone, objectId);
-    this.log('info', `🔄 [JSON] Objet ${objectId} réinitialisé dans ${zone}`);
+    this.log('info', `🔄 [JSON-SIMPLE] Objet ${objectId} réinitialisé dans ${zone}`);
     return true;
   }
 
@@ -664,7 +670,7 @@ private config = {
     source: string = 'object_interaction'
   ): Promise<{ success: boolean; message: string; newQuantity?: number }> {
     try {
-      this.log('info', `🎁 [JSON] Donner item à ${playerName}`, { itemId, quantity, source });
+      this.log('info', `🎁 [JSON-SIMPLE] Donner item à ${playerName}`, { itemId, quantity, source });
       
       return {
         success: true,
@@ -673,7 +679,7 @@ private config = {
       };
       
     } catch (error) {
-      this.log('error', '❌ [JSON] Erreur giveItemToPlayer', error);
+      this.log('error', '❌ [JSON-SIMPLE] Erreur giveItemToPlayer', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -686,7 +692,7 @@ private config = {
   async initialize(): Promise<void> {
     await super.initialize();
     
-    console.log(`🚀 [JSON] Initialisation du système modulaire avec JSON...`);
+    console.log(`🚀 [JSON-SIMPLE] Initialisation du système avec itemId direct...`);
     
     await this.subModuleFactory.discoverAndLoadModules();
     
@@ -694,11 +700,11 @@ private config = {
       await this.loadDefaultJSONZones();
     }
     
-    console.log(`✅ [JSON] Système d'objets JSON initialisé avec succès`);
+    console.log(`✅ [JSON-SIMPLE] Système d'objets JSON simplifié initialisé avec succès`);
   }
 
   async cleanup(): Promise<void> {
-    this.log('info', '🧹 [JSON] Nettoyage du système d\'objets...');
+    this.log('info', '🧹 [JSON-SIMPLE] Nettoyage du système d\'objets...');
     
     await this.subModuleFactory.cleanup();
     this.stateManager.cleanup();
@@ -707,16 +713,16 @@ private config = {
   }
 
   /**
-   * ✅ NOUVELLE MÉTHODE : Charger les zones JSON par défaut
+   * ✅ INCHANGÉ : Charger les zones JSON par défaut
    */
   private async loadDefaultJSONZones(): Promise<void> {
-    console.log(`📂 [JSON] Chargement des zones depuis: ${this.config.gameObjectsPath}`);
+    console.log(`📂 [JSON-SIMPLE] Chargement des zones depuis: ${this.config.gameObjectsPath}`);
     
     try {
       const gameObjectsDir = path.resolve(this.config.gameObjectsPath);
       
       if (!fs.existsSync(gameObjectsDir)) {
-        console.log(`📁 [JSON] Création du dossier: ${gameObjectsDir}`);
+        console.log(`📁 [JSON-SIMPLE] Création du dossier: ${gameObjectsDir}`);
         fs.mkdirSync(gameObjectsDir, { recursive: true });
         return;
       }
@@ -725,17 +731,17 @@ private config = {
         .filter(file => file.endsWith('.json'))
         .map(file => file.replace('.json', ''));
 
-      console.log(`📋 [JSON] ${jsonFiles.length} fichiers JSON trouvés:`, jsonFiles);
+      console.log(`📋 [JSON-SIMPLE] ${jsonFiles.length} fichiers JSON trouvés:`, jsonFiles);
 
       for (const zoneName of jsonFiles) {
-        console.log(`⏳ [JSON] Chargement zone: ${zoneName}...`);
+        console.log(`⏳ [JSON-SIMPLE] Chargement zone: ${zoneName}...`);
         await this.loadObjectsFromJSON(zoneName);
       }
 
-      console.log(`🎉 [JSON] Toutes les zones chargées avec succès !`);
+      console.log(`🎉 [JSON-SIMPLE] Toutes les zones chargées avec succès !`);
       
     } catch (error) {
-      console.error(`❌ [JSON] Erreur chargement zones:`, error);
+      console.error(`❌ [JSON-SIMPLE] Erreur chargement zones:`, error);
     }
   }
 
@@ -746,11 +752,11 @@ private config = {
   }
 
   /**
-   * ✅ MODIFIÉ : Recharger une zone JSON
+   * ✅ INCHANGÉ : Recharger une zone JSON
    */
   async reloadZone(zoneName: string): Promise<boolean> {
     try {
-      console.log(`🔄 [JSON] Rechargement zone: ${zoneName}`);
+      console.log(`🔄 [JSON-SIMPLE] Rechargement zone: ${zoneName}`);
       
       // Supprimer la zone actuelle
       this.objectsByZone.delete(zoneName);
@@ -759,11 +765,11 @@ private config = {
       await this.loadObjectsFromJSON(zoneName);
       
       const reloadedObjects = this.objectsByZone.get(zoneName)?.size || 0;
-      console.log(`✅ [JSON] Zone ${zoneName} rechargée: ${reloadedObjects} objets`);
+      console.log(`✅ [JSON-SIMPLE] Zone ${zoneName} rechargée: ${reloadedObjects} objets`);
       
       return reloadedObjects > 0;
     } catch (error) {
-      console.error(`❌ [JSON] Erreur rechargement ${zoneName}:`, error);
+      console.error(`❌ [JSON-SIMPLE] Erreur rechargement ${zoneName}:`, error);
       return false;
     }
   }
@@ -778,7 +784,7 @@ private config = {
       factory: factoryStats,
       states: stateStats,
       config: {
-        gameObjectsPath: this.config.gameObjectsPath, // ← MODIFIÉ
+        gameObjectsPath: this.config.gameObjectsPath,
         autoLoadMaps: this.config.autoLoadMaps,
         version: this.version
       },
@@ -792,7 +798,7 @@ private config = {
   }
 
   debugSystem(): void {
-    console.log(`🔍 [JSON] === DEBUG SYSTÈME OBJETS JSON ===`);
+    console.log(`🔍 [JSON-SIMPLE] === DEBUG SYSTÈME OBJETS JSON SIMPLIFIÉ ===`);
     
     console.log(`📦 Zones chargées: ${this.objectsByZone.size}`);
     for (const [zone, objects] of this.objectsByZone.entries()) {
