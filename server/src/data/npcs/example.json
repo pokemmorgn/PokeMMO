@@ -1,0 +1,1249 @@
+{
+  "// === FICHIER RÉFÉRENCE COMPLET ===": "",
+  "meta": {
+    "title": "NPCs Reference Complete - Tous Types Possibles",
+    "description": "Fichier de référence montrant TOUS les types NPCs avec TOUTES leurs propriétés potentielles",
+    "version": "1.0.0",
+    "purpose": "Documentation, guide développement, base panel admin",
+    "lastUpdated": "2025-01-21T12:30:00Z"
+  },
+
+  "zone": "reference_complete",
+  "version": "1.0.0",
+  "description": "Zone de référence avec tous types NPCs possibles - Ne pas utiliser en production",
+  
+  "// === SYSTÈME DE TRADUCTION ===": "",
+  "translationSystem": {
+    "description": "Tous les textes utilisent des IDs traduits côté client",
+    "structure": "npc.{type}.{name}.{context}.{index}",
+    "fallback": "Si ID manquant, afficher l'ID ou texte par défaut",
+    "implementation": "Client traduit selon langue utilisateur"
+  },
+  
+  "npcs": [
+    {
+      "// === TYPE: DIALOGUE (Guide/Information basique) ===": "",
+      "id": 1,
+      "name": "Guide Marcel",
+      "type": "dialogue",
+      "position": { "x": 100, "y": 100 },
+      "sprite": "guide_tourist.png",
+      "direction": "south",
+      
+      "// Dialogues de base": "",
+      "dialogueIds": [
+        "npc.dialogue.marcel.welcome.1",
+        "npc.dialogue.marcel.info.1"
+      ],
+      "dialogueId": "npc.dialogue.marcel.main",
+      
+      "// Dialogues conditionnels": "",
+      "conditionalDialogueIds": {
+        "firstVisit": ["npc.dialogue.marcel.first.1"],
+        "hasPokedex": ["npc.dialogue.marcel.pokedex.1"],
+        "championLevel": ["npc.dialogue.marcel.champion.1"]
+      },
+      
+      "// Informations zone": "",
+      "zoneInfo": {
+        "zoneName": "reference_zone",
+        "connections": ["zone_a", "zone_b"],
+        "wildPokemon": [{"name": "rattata", "level": "2-5", "rarity": "common"}]
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["exploration_quest"],
+      "questsToEnd": [],
+      "questRequirements": {
+        "exploration_quest": {
+          "minLevel": 1,
+          "requiredFlags": [],
+          "forbiddenFlags": ["exploration_completed"]
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.dialogue.marcel.quest_offer.1"],
+        "questInProgress": ["npc.dialogue.marcel.quest_progress.1"],
+        "questComplete": ["npc.dialogue.marcel.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 48,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 0,
+      
+      "// Conditions apparition": "",
+      "spawnConditions": {
+        "timeOfDay": ["morning", "day", "evening"],
+        "weather": null,
+        "minPlayerLevel": 1,
+        "maxPlayerLevel": null,
+        "requiredFlags": [],
+        "forbiddenFlags": []
+      }
+    },
+
+    {
+      "// === TYPE: MERCHANT (Boutique complète) ===": "",
+      "id": 2,
+      "name": "Marchand Julie",
+      "type": "merchant",
+      "position": { "x": 200, "y": 100 },
+      "sprite": "shopkeeper_female.png",
+      "direction": "west",
+      
+      "// Configuration boutique": "",
+      "shopId": "reference_shop",
+      "shopType": "pokemart",
+      
+      "// Dialogues boutique": "",
+      "dialogueIds": ["npc.merchant.julie.welcome.1"],
+      "shopDialogueIds": {
+        "shopOpen": ["npc.merchant.julie.shop_open.1"],
+        "shopClose": ["npc.merchant.julie.shop_close.1"],
+        "noMoney": ["npc.merchant.julie.no_money.1"],
+        "purchaseSuccess": ["npc.merchant.julie.purchase_success.1"],
+        "stockEmpty": ["npc.merchant.julie.stock_empty.1"],
+        "bulkDiscount": ["npc.merchant.julie.bulk_discount.1"],
+        "vipWelcome": ["npc.merchant.julie.vip_welcome.1"]
+      },
+      
+      "// Configuration avancée": "",
+      "shopConfig": {
+        "currency": "gold",
+        "discountPercent": 0,
+        "memberDiscount": 10,
+        "vipDiscount": 20,
+        "restockHours": 24,
+        "limitedStock": true,
+        "bulkDiscounts": {
+          "enabled": true,
+          "threshold": 10,
+          "discountPercent": 15
+        },
+        "loyaltyProgram": {
+          "enabled": true,
+          "pointsPerGold": 1,
+          "rewardThresholds": [100, 500, 1000]
+        }
+      },
+      
+      "// Restrictions d'accès": "",
+      "accessRestrictions": {
+        "minPlayerLevel": 1,
+        "maxPlayerLevel": null,
+        "requiredBadges": [],
+        "requiredItems": [],
+        "requiredFlags": [],
+        "forbiddenFlags": ["banned_from_shop"],
+        "vipOnly": false,
+        "guildOnly": false,
+        "membershipRequired": false
+      },
+      
+      "// Horaires business": "",
+      "businessHours": {
+        "enabled": true,
+        "openTime": "08:00",
+        "closeTime": "20:00",
+        "closedDays": ["sunday"],
+        "closedMessageId": "npc.merchant.julie.closed",
+        "holidaySchedule": {
+          "enabled": true,
+          "closedDates": ["2025-12-25", "2025-01-01"]
+        }
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["delivery_quest", "bulk_purchase_quest"],
+      "questsToEnd": ["item_collection_quest"],
+      "questRequirements": {
+        "delivery_quest": {
+          "minLevel": 3,
+          "requiredFlags": [],
+          "forbiddenFlags": ["delivery_completed"]
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.merchant.julie.quest_offer.1"],
+        "questInProgress": ["npc.merchant.julie.quest_progress.1"],
+        "questComplete": ["npc.merchant.julie.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 32,
+      "canWalkAway": false,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 0
+    },
+
+    {
+      "// === TYPE: TRAINER (Dresseur combat complet) ===": "",
+      "id": 3,
+      "name": "Dresseur Thomas",
+      "type": "trainer",
+      "position": { "x": 300, "y": 100 },
+      "sprite": "youngster_thomas.png",
+      "direction": "north",
+      
+      "// Configuration dresseur": "",
+      "trainerId": "youngster_thomas_001",
+      "trainerClass": "youngster",
+      "trainerRank": 1,
+      "trainerTitle": "Rookie Trainer",
+      
+      "// Configuration combat": "",
+      "battleConfig": {
+        "teamId": "youngster_team_basic",
+        "battleType": "single",
+        "allowItems": true,
+        "allowSwitching": true,
+        "levelCap": 15,
+        "customRules": ["no_legendary", "max_level_15"],
+        "weatherCondition": null,
+        "terrainCondition": null
+      },
+      
+      "// Dialogues combat": "",
+      "battleDialogueIds": {
+        "preBattle": ["npc.trainer.thomas.pre_battle.1"],
+        "defeat": ["npc.trainer.thomas.defeat.1"],
+        "victory": ["npc.trainer.thomas.victory.1"],
+        "rematch": ["npc.trainer.thomas.rematch.1"],
+        "busy": ["npc.trainer.thomas.busy.1"],
+        "lowHealth": ["npc.trainer.thomas.low_health.1"],
+        "lastPokemon": ["npc.trainer.thomas.last_pokemon.1"]
+      },
+      
+      "// Système récompenses": "",
+      "rewards": {
+        "money": {
+          "base": 500,
+          "perPokemonLevel": 50,
+          "bonus": 100,
+          "multiplier": 1.0
+        },
+        "experience": {
+          "enabled": true,
+          "multiplier": 1.2,
+          "bonusExp": 100
+        },
+        "items": [
+          {"itemId": "potion", "quantity": 2, "chance": 100},
+          {"itemId": "poke_ball", "quantity": 1, "chance": 50},
+          {"itemId": "rare_candy", "quantity": 1, "chance": 5}
+        ],
+        "badges": [],
+        "trophies": ["youngster_defeated"]
+      },
+      
+      "// Système rebattle": "",
+      "rebattle": {
+        "enabled": true,
+        "cooldownHours": 24,
+        "rematchTeamId": "youngster_team_advanced",
+        "increasedRewards": true,
+        "maxRebattles": 0,
+        "scalingDifficulty": true
+      },
+      
+      "// Vision et IA": "",
+      "visionConfig": {
+        "sightRange": 96,
+        "sightAngle": 90,
+        "chaseRange": 128,
+        "returnToPosition": true,
+        "blockMovement": true,
+        "canSeeHiddenPlayers": false
+      },
+      
+      "// Conditions battle": "",
+      "battleConditions": {
+        "minPlayerLevel": 3,
+        "maxPlayerLevel": 20,
+        "requiredBadges": [],
+        "requiredFlags": ["has_pokemon"],
+        "forbiddenFlags": ["defeated_thomas_today"],
+        "timeRestrictions": {
+          "enabled": false,
+          "allowedTimes": ["morning", "day"]
+        }
+      },
+      
+      "// Flags progression": "",
+      "progressionFlags": {
+        "onDefeat": ["defeated_thomas", "route_trainer_beaten"],
+        "onVictory": ["lost_to_thomas"],
+        "onRematch": ["thomas_rematch_available"],
+        "onFirstMeeting": ["met_thomas"]
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["trainer_challenge"],
+      "questsToEnd": ["first_battle_win"],
+      "questRequirements": {
+        "trainer_challenge": {
+          "minLevel": 3,
+          "requiredFlags": ["has_pokemon"],
+          "forbiddenFlags": ["trainer_challenge_completed"]
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.trainer.thomas.quest_offer.1"],
+        "questInProgress": ["npc.trainer.thomas.quest_progress.1"],
+        "questComplete": ["npc.trainer.thomas.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 32,
+      "canWalkAway": false,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 5
+    },
+
+    {
+      "// === TYPE: HEALER (Centre Pokémon) ===": "",
+      "id": 4,
+      "name": "Infirmière Joy",
+      "type": "healer",
+      "position": { "x": 400, "y": 100 },
+      "sprite": "nurse_joy.png",
+      "direction": "south",
+      
+      "// Configuration soins": "",
+      "healerConfig": {
+        "healingType": "pokemon_center",
+        "cost": 0,
+        "currency": "gold",
+        "instantHealing": true,
+        "healFullTeam": true,
+        "removeStatusEffects": true,
+        "restorePP": true
+      },
+      
+      "// Dialogues soins": "",
+      "healerDialogueIds": {
+        "welcome": ["npc.healer.joy.welcome.1"],
+        "offerHealing": ["npc.healer.joy.offer_healing.1"],
+        "healingStart": ["npc.healer.joy.healing_start.1"],
+        "healingComplete": ["npc.healer.joy.healing_complete.1"],
+        "noMoney": ["npc.healer.joy.no_money.1"],
+        "alreadyHealthy": ["npc.healer.joy.already_healthy.1"],
+        "noPokemon": ["npc.healer.joy.no_pokemon.1"]
+      },
+      
+      "// Services additionnels": "",
+      "additionalServices": {
+        "pcAccess": true,
+        "pokemonStorage": true,
+        "tradeCenter": false,
+        "moveReminder": false,
+        "pokemonDaycare": false
+      },
+      
+      "// Restrictions service": "",
+      "serviceRestrictions": {
+        "minPlayerLevel": 1,
+        "maxUsesPerDay": 0,
+        "cooldownBetweenUses": 0,
+        "requiredFlags": [],
+        "forbiddenFlags": []
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["pokemon_care_tutorial"],
+      "questsToEnd": ["healing_quest"],
+      "questRequirements": {
+        "pokemon_care_tutorial": {
+          "minLevel": 1,
+          "requiredFlags": ["has_injured_pokemon"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.healer.joy.quest_offer.1"],
+        "questInProgress": ["npc.healer.joy.quest_progress.1"],
+        "questComplete": ["npc.healer.joy.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 40,
+      "canWalkAway": false,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 1
+    },
+
+    {
+      "// === TYPE: GYM_LEADER (Chef d'arène) ===": "",
+      "id": 5,
+      "name": "Champion Lt. Surge",
+      "type": "gym_leader",
+      "position": { "x": 500, "y": 100 },
+      "sprite": "gym_leader_surge.png",
+      "direction": "south",
+      
+      "// Configuration arène": "",
+      "gymConfig": {
+        "gymId": "vermilion_gym",
+        "gymType": "electric",
+        "gymLevel": 3,
+        "badgeId": "thunder_badge",
+        "badgeName": "Thunder Badge",
+        "gymPuzzle": "trash_cans_puzzle",
+        "requiredBadges": ["boulder_badge", "cascade_badge"]
+      },
+      
+      "// Configuration combat": "",
+      "battleConfig": {
+        "teamId": "surge_gym_team",
+        "battleType": "single",
+        "allowItems": false,
+        "allowSwitching": true,
+        "levelCap": 25,
+        "customRules": ["gym_battle_rules"],
+        "weatherCondition": null,
+        "terrainCondition": "electric_terrain"
+      },
+      
+      "// Dialogues spéciaux": "",
+      "gymDialogueIds": {
+        "firstChallenge": ["npc.gym.surge.first_challenge.1"],
+        "preBattle": ["npc.gym.surge.pre_battle.1"],
+        "defeat": ["npc.gym.surge.defeat.1"],
+        "victory": ["npc.gym.surge.victory.1"],
+        "badgeAwarded": ["npc.gym.surge.badge_awarded.1"],
+        "alreadyDefeated": ["npc.gym.surge.already_defeated.1"],
+        "notReady": ["npc.gym.surge.not_ready.1"],
+        "rematch": ["npc.gym.surge.rematch.1"]
+      },
+      
+      "// Conditions défi": "",
+      "challengeConditions": {
+        "minPlayerLevel": 20,
+        "maxPlayerLevel": null,
+        "requiredBadges": ["boulder_badge", "cascade_badge"],
+        "requiredFlags": ["completed_gym_puzzle"],
+        "forbiddenFlags": ["thunder_badge_obtained"],
+        "minimumPokemon": 3,
+        "maximumPokemon": 6
+      },
+      
+      "// Récompenses": "",
+      "gymRewards": {
+        "badge": {
+          "badgeId": "thunder_badge",
+          "tmReward": "tm24_thunderbolt",
+          "pokemonObeyLevel": 30
+        },
+        "money": {
+          "base": 2500,
+          "multiplier": 1.5
+        },
+        "items": [
+          {"itemId": "tm24", "quantity": 1, "chance": 100},
+          {"itemId": "ultra_ball", "quantity": 3, "chance": 100}
+        ],
+        "titles": ["Thunder Badge Holder"]
+      },
+      
+      "// Système rematch": "",
+      "rematchConfig": {
+        "enabled": true,
+        "cooldownDays": 7,
+        "rematchTeamId": "surge_elite_team",
+        "levelIncrease": 10,
+        "newRewards": true,
+        "championRequirement": true
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["electric_pokemon_mastery"],
+      "questsToEnd": ["gym_challenge_preparation"],
+      "questRequirements": {
+        "electric_pokemon_mastery": {
+          "minLevel": 25,
+          "requiredFlags": ["thunder_badge_obtained"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.gym.surge.quest_offer.1"],
+        "questInProgress": ["npc.gym.surge.quest_progress.1"],
+        "questComplete": ["npc.gym.surge.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 48,
+      "canWalkAway": false,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 0
+    },
+
+    {
+      "// === TYPE: TRANSPORT (Capitaine/Pilote) ===": "",
+      "id": 6,
+      "name": "Capitaine Briney",
+      "type": "transport",
+      "position": { "x": 600, "y": 100 },
+      "sprite": "captain_briney.png",
+      "direction": "west",
+      
+      "// Configuration transport": "",
+      "transportConfig": {
+        "transportType": "boat",
+        "vehicleId": "ss_anne",
+        "capacity": 50,
+        "travelTime": 300
+      },
+      
+      "// Destinations": "",
+      "destinations": [
+        {
+          "mapId": "cinnabar_island",
+          "mapName": "Cinnabar Island",
+          "cost": 500,
+          "currency": "gold",
+          "travelTime": 600,
+          "requiredFlags": ["has_surf"],
+          "forbiddenFlags": []
+        },
+        {
+          "mapId": "seafoam_islands", 
+          "mapName": "Seafoam Islands",
+          "cost": 1000,
+          "currency": "gold",
+          "travelTime": 900,
+          "requiredFlags": ["elite_four_beaten"],
+          "forbiddenFlags": []
+        }
+      ],
+      
+      "// Horaires transport": "",
+      "schedules": [
+        {
+          "departTime": "08:00",
+          "arrivalTime": "08:30",
+          "destination": "cinnabar_island",
+          "daysOfWeek": ["monday", "wednesday", "friday"]
+        },
+        {
+          "departTime": "14:00", 
+          "arrivalTime": "14:45",
+          "destination": "seafoam_islands",
+          "daysOfWeek": ["tuesday", "thursday", "saturday"]
+        }
+      ],
+      
+      "// Dialogues transport": "",
+      "transportDialogueIds": {
+        "welcome": ["npc.transport.briney.welcome.1"],
+        "destinations": ["npc.transport.briney.destinations.1"],
+        "confirmTravel": ["npc.transport.briney.confirm_travel.1"],
+        "boarding": ["npc.transport.briney.boarding.1"],
+        "departure": ["npc.transport.briney.departure.1"],
+        "arrival": ["npc.transport.briney.arrival.1"],
+        "noMoney": ["npc.transport.briney.no_money.1"],
+        "notAvailable": ["npc.transport.briney.not_available.1"],
+        "weatherDelay": ["npc.transport.briney.weather_delay.1"]
+      },
+      
+      "// Restrictions météo": "",
+      "weatherRestrictions": {
+        "enabled": true,
+        "forbiddenWeather": ["storm", "heavy_rain"],
+        "delayWeather": ["rain", "fog"],
+        "delayMessageId": "npc.transport.briney.weather_delay.1"
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["sea_exploration"],
+      "questsToEnd": ["island_delivery"],
+      "questRequirements": {
+        "sea_exploration": {
+          "minLevel": 15,
+          "requiredFlags": ["has_surf"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.transport.briney.quest_offer.1"],
+        "questInProgress": ["npc.transport.briney.quest_progress.1"],
+        "questComplete": ["npc.transport.briney.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 40,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 2
+    },
+
+    {
+      "// === TYPE: SERVICE (Name Rater/Move Deleter/etc.) ===": "",
+      "id": 7,
+      "name": "Name Rater Bob",
+      "type": "service",
+      "position": { "x": 700, "y": 100 },
+      "sprite": "name_rater.png",
+      "direction": "south",
+      
+      "// Configuration service": "",
+      "serviceConfig": {
+        "serviceType": "name_rater",
+        "cost": 200,
+        "currency": "gold",
+        "instantService": true,
+        "maxUsesPerDay": 5
+      },
+      
+      "// Services disponibles": "",
+      "availableServices": [
+        {
+          "serviceId": "rename_pokemon",
+          "serviceName": "Rename Pokémon",
+          "cost": 200,
+          "requirements": {
+            "originalTrainer": true,
+            "minFriendship": 0
+          }
+        },
+        {
+          "serviceId": "nickname_check",
+          "serviceName": "Check Nickname History", 
+          "cost": 50,
+          "requirements": {}
+        }
+      ],
+      
+      "// Dialogues service": "",
+      "serviceDialogueIds": {
+        "welcome": ["npc.service.bob.welcome.1"],
+        "serviceOffer": ["npc.service.bob.service_offer.1"],
+        "serviceStart": ["npc.service.bob.service_start.1"],
+        "serviceComplete": ["npc.service.bob.service_complete.1"],
+        "noMoney": ["npc.service.bob.no_money.1"],
+        "notEligible": ["npc.service.bob.not_eligible.1"],
+        "limitReached": ["npc.service.bob.limit_reached.1"]
+      },
+      
+      "// Restrictions service": "",
+      "serviceRestrictions": {
+        "minPlayerLevel": 5,
+        "maxUsesPerDay": 5,
+        "cooldownBetweenUses": 300,
+        "requiredFlags": [],
+        "forbiddenFlags": ["service_banned"]
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["pokemon_bonding"],
+      "questsToEnd": ["naming_expert"],
+      "questRequirements": {
+        "pokemon_bonding": {
+          "minLevel": 10,
+          "requiredFlags": ["has_nicknamed_pokemon"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.service.bob.quest_offer.1"],
+        "questInProgress": ["npc.service.bob.quest_progress.1"],
+        "questComplete": ["npc.service.bob.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 32,
+      "canWalkAway": false,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 1
+    },
+
+    {
+      "// === TYPE: MINIGAME (Concours/Casino) ===": "",
+      "id": 8,
+      "name": "Contest Judge Marina",
+      "type": "minigame",
+      "position": { "x": 800, "y": 100 },
+      "sprite": "contest_judge.png",
+      "direction": "west",
+      
+      "// Configuration mini-jeu": "",
+      "minigameConfig": {
+        "minigameType": "pokemon_contest",
+        "contestCategory": "beauty",
+        "entryFee": 1000,
+        "currency": "gold",
+        "maxParticipants": 4,
+        "duration": 300
+      },
+      
+      "// Catégories concours": "",
+      "contestCategories": [
+        {
+          "categoryId": "beauty",
+          "categoryName": "Beauty Contest",
+          "requiredStat": "beauty",
+          "entryFee": 1000,
+          "minLevel": 10
+        },
+        {
+          "categoryId": "cute",
+          "categoryName": "Cute Contest", 
+          "requiredStat": "cute",
+          "entryFee": 800,
+          "minLevel": 5
+        }
+      ],
+      
+      "// Système récompenses": "",
+      "contestRewards": {
+        "first": {
+          "money": 5000,
+          "items": [{"itemId": "contest_ribbon", "quantity": 1}],
+          "titles": ["Contest Winner"]
+        },
+        "second": {
+          "money": 3000,
+          "items": [{"itemId": "silver_ribbon", "quantity": 1}]
+        },
+        "third": {
+          "money": 1500,
+          "items": [{"itemId": "bronze_ribbon", "quantity": 1}]
+        },
+        "participation": {
+          "money": 500,
+          "items": [{"itemId": "pokeblock", "quantity": 3}]
+        }
+      },
+      
+      "// Dialogues concours": "",
+      "contestDialogueIds": {
+        "welcome": ["npc.minigame.marina.welcome.1"],
+        "rules": ["npc.minigame.marina.rules.1"],
+        "entry": ["npc.minigame.marina.entry.1"],
+        "contestStart": ["npc.minigame.marina.contest_start.1"],
+        "judging": ["npc.minigame.marina.judging.1"],
+        "results": ["npc.minigame.marina.results.1"],
+        "winner": ["npc.minigame.marina.winner.1"],
+        "loser": ["npc.minigame.marina.loser.1"],
+        "noMoney": ["npc.minigame.marina.no_money.1"]
+      },
+      
+      "// Horaires concours": "",
+      "contestSchedule": {
+        "enabled": true,
+        "startTimes": ["10:00", "14:00", "18:00"],
+        "registrationDeadline": 300,
+        "waitingRoom": true
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["contest_champion"],
+      "questsToEnd": ["first_contest"],
+      "questRequirements": {
+        "contest_champion": {
+          "minLevel": 20,
+          "requiredFlags": ["won_contest"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.minigame.marina.quest_offer.1"],
+        "questInProgress": ["npc.minigame.marina.quest_progress.1"],
+        "questComplete": ["npc.minigame.marina.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 40,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 2
+    },
+
+    {
+      "// === TYPE: RESEARCHER (Breeding/Pokédex) ===": "",
+      "id": 9,
+      "name": "Professeur Willow",
+      "type": "researcher",
+      "position": { "x": 900, "y": 100 },
+      "sprite": "professor_willow.png",
+      "direction": "south",
+      
+      "// Configuration recherche": "",
+      "researchConfig": {
+        "researchType": "pokedex",
+        "specialization": "genetics",
+        "researchLevel": 5,
+        "acceptDonations": true
+      },
+      
+      "// Services de recherche": "",
+      "researchServices": [
+        {
+          "serviceId": "pokedex_evaluation",
+          "serviceName": "Pokédex Evaluation",
+          "cost": 0,
+          "requirements": {
+            "minPokedexEntries": 10
+          }
+        },
+        {
+          "serviceId": "iv_analysis",
+          "serviceName": "IV Analysis",
+          "cost": 500,
+          "requirements": {
+            "minPlayerLevel": 20
+          }
+        },
+        {
+          "serviceId": "breeding_consultation",
+          "serviceName": "Breeding Consultation", 
+          "cost": 1000,
+          "requirements": {
+            "minPlayerLevel": 25,
+            "requiredFlags": ["daycare_unlocked"]
+          }
+        }
+      ],
+      
+      "// Pokémon acceptés": "",
+      "acceptedPokemon": {
+        "forResearch": ["all"],
+        "forBreeding": ["compatible_groups"],
+        "forAnalysis": ["owned_by_player"],
+        "restrictions": {
+          "noLegendary": true,
+          "minLevel": 5,
+          "maxLevel": 100
+        }
+      },
+      
+      "// Dialogues recherche": "",
+      "researchDialogueIds": {
+        "welcome": ["npc.researcher.willow.welcome.1"],
+        "services": ["npc.researcher.willow.services.1"],
+        "pokedexCheck": ["npc.researcher.willow.pokedex_check.1"],
+        "ivAnalysis": ["npc.researcher.willow.iv_analysis.1"],
+        "breedingAdvice": ["npc.researcher.willow.breeding_advice.1"],
+        "researchComplete": ["npc.researcher.willow.research_complete.1"],
+        "notEligible": ["npc.researcher.willow.not_eligible.1"]
+      },
+      
+      "// Système récompenses recherche": "",
+      "researchRewards": {
+        "pokedexMilestones": {
+          "50": {"items": [{"itemId": "exp_share", "quantity": 1}]},
+          "100": {"items": [{"itemId": "master_ball", "quantity": 1}]},
+          "150": {"items": [{"itemId": "shiny_charm", "quantity": 1}]}
+        },
+        "researchContribution": {
+          "perPokemon": 100,
+          "rareBonus": 500,
+          "legendaryBonus": 2000
+        }
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["pokedex_completion", "genetic_research"],
+      "questsToEnd": ["pokemon_donation"],
+      "questRequirements": {
+        "pokedex_completion": {
+          "minLevel": 15,
+          "requiredFlags": ["has_pokedex"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.researcher.willow.quest_offer.1"],
+        "questInProgress": ["npc.researcher.willow.quest_progress.1"],
+        "questComplete": ["npc.researcher.willow.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 48,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 3
+    },
+
+    {
+      "// === TYPE: GUILD (Guildes/Factions) ===": "",
+      "id": 10,
+      "name": "Recruteur Team Rocket",
+      "type": "guild",
+      "position": { "x": 1000, "y": 100 },
+      "sprite": "team_rocket_grunt.png",
+      "direction": "west",
+      
+      "// Configuration guilde": "",
+      "guildConfig": {
+        "guildId": "team_rocket",
+        "guildName": "Team Rocket",
+        "factionType": "criminal",
+        "recruitmentOpen": true,
+        "maxMembers": 1000
+      },
+      
+      "// Prérequis recrutement": "",
+      "recruitmentRequirements": {
+        "minPlayerLevel": 20,
+        "maxPlayerLevel": null,
+        "requiredBadges": [],
+        "requiredFlags": ["met_giovanni"],
+        "forbiddenFlags": ["police_record", "ranger_member"],
+        "alignmentRequired": "evil",
+        "minimumReputation": -100
+      },
+      
+      "// Services guilde": "",
+      "guildServices": [
+        {
+          "serviceId": "hideout_access",
+          "serviceName": "Hideout Access",
+          "memberRankRequired": 1
+        },
+        {
+          "serviceId": "black_market",
+          "serviceName": "Black Market Shop",
+          "memberRankRequired": 3
+        },
+        {
+          "serviceId": "special_missions",
+          "serviceName": "Special Missions",
+          "memberRankRequired": 5
+        }
+      ],
+      
+      "// Dialogues guilde": "",
+      "guildDialogueIds": {
+        "recruitment": ["npc.guild.rocket.recruitment.1"],
+        "welcome": ["npc.guild.rocket.welcome.1"],
+        "services": ["npc.guild.rocket.services.1"],
+        "missions": ["npc.guild.rocket.missions.1"],
+        "promotion": ["npc.guild.rocket.promotion.1"],
+        "rejected": ["npc.guild.rocket.rejected.1"],
+        "traitor": ["npc.guild.rocket.traitor.1"]
+      },
+      
+      "// Système rang": "",
+      "rankSystem": {
+        "ranks": [
+          {"rankId": 1, "rankName": "Grunt", "requirements": {"reputation": -50}},
+          {"rankId": 2, "rankName": "Agent", "requirements": {"reputation": -200}},
+          {"rankId": 3, "rankName": "Executive", "requirements": {"reputation": -500}}
+        ],
+        "promotionRewards": {
+          "2": {"items": [{"itemId": "team_rocket_uniform", "quantity": 1}]},
+          "3": {"items": [{"itemId": "giovanni_phone", "quantity": 1}]}
+        }
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["rocket_initiation", "steal_pokemon"],
+      "questsToEnd": ["prove_loyalty"],
+      "questRequirements": {
+        "rocket_initiation": {
+          "minLevel": 20,
+          "requiredFlags": ["guild_member_rocket"],
+          "forbiddenFlags": []
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.guild.rocket.quest_offer.1"],
+        "questInProgress": ["npc.guild.rocket.quest_progress.1"],
+        "questComplete": ["npc.guild.rocket.quest_complete.1"]
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 40,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 5
+    },
+
+    {
+      "// === TYPE: EVENT (Événements spéciaux) ===": "",
+      "id": 11,
+      "name": "Event Coordinator Luna",
+      "type": "event",
+      "position": { "x": 1100, "y": 100 },
+      "sprite": "event_coordinator.png",
+      "direction": "south",
+      
+      "// Configuration événement": "",
+      "eventConfig": {
+        "eventId": "summer_festival_2025",
+        "eventType": "seasonal",
+        "eventStatus": "active",
+        "globalEvent": true
+      },
+      
+      "// Période événement": "",
+      "eventPeriod": {
+        "startDate": "2025-06-01T00:00:00Z",
+        "endDate": "2025-08-31T23:59:59Z",
+        "timezone": "UTC",
+        "earlyAccess": {
+          "enabled": true,
+          "startDate": "2025-05-28T00:00:00Z",
+          "requiredFlags": ["vip_member"]
+        }
+      },
+      
+      "// Activités événement": "",
+      "eventActivities": [
+        {
+          "activityId": "beach_volleyball",
+          "activityName": "Beach Volleyball Tournament",
+          "participationFee": 500,
+          "rewards": {
+            "winner": {"items": [{"itemId": "summer_trophy", "quantity": 1}]},
+            "participation": {"items": [{"itemId": "beach_ball", "quantity": 1}]}
+          }
+        },
+        {
+          "activityId": "shiny_hunt",
+          "activityName": "Summer Shiny Hunt",
+          "participationFee": 0,
+          "rewards": {
+            "completion": {"items": [{"itemId": "shiny_charm", "quantity": 1}]}
+          }
+        }
+      ],
+      
+      "// Dialogues événement": "",
+      "eventDialogueIds": {
+        "welcome": ["npc.event.luna.welcome.1"],
+        "activities": ["npc.event.luna.activities.1"],
+        "registration": ["npc.event.luna.registration.1"],
+        "results": ["npc.event.luna.results.1"],
+        "rewards": ["npc.event.luna.rewards.1"],
+        "eventEnded": ["npc.event.luna.event_ended.1"],
+        "notStarted": ["npc.event.luna.not_started.1"]
+      },
+      
+      "// Progression globale": "",
+      "globalProgress": {
+        "enabled": true,
+        "targetGoal": 10000,
+        "currentProgress": 3500,
+        "progressType": "pokemon_caught",
+        "rewards": {
+          "25": {"items": [{"itemId": "rare_candy", "quantity": 10}]},
+          "50": {"items": [{"itemId": "master_ball", "quantity": 1}]},
+          "100": {"items": [{"itemId": "mew", "quantity": 1}]}
+        }
+      },
+      
+      "// Système quêtes": "",
+      "questsToGive": ["summer_festival_chain"],
+      "questsToEnd": ["event_preparation"],
+      "questRequirements": {
+        "summer_festival_chain": {
+          "minLevel": 10,
+          "requiredFlags": ["event_active"],
+          "forbiddenFlags": ["festival_completed"]
+        }
+      },
+      "questDialogueIds": {
+        "questOffer": ["npc.event.luna.quest_offer.1"],
+        "questInProgress": ["npc.event.luna.quest_progress.1"],
+        "questComplete": ["npc.event.luna.quest_complete.1"]
+      },
+      
+      "// Conditions apparition": "",
+      "spawnConditions": {
+        "timeOfDay": null,
+        "weather": null,
+        "minPlayerLevel": 1,
+        "maxPlayerLevel": null,
+        "requiredFlags": ["event_summer_2025_active"],
+        "forbiddenFlags": [],
+        "dateRange": {
+          "start": "2025-06-01",
+          "end": "2025-08-31"
+        }
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 50,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 2
+    },
+
+    {
+      "// === TYPE: QUEST_MASTER (Super donneur de quêtes) ===": "",
+      "id": 12,
+      "name": "Quest Master Sage",
+      "type": "quest_master",
+      "position": { "x": 1200, "y": 100 },
+      "sprite": "quest_master_sage.png",
+      "direction": "west",
+      
+      "// Configuration quête maître": "",
+      "questMasterConfig": {
+        "masterId": "sage_of_routes",
+        "specialization": "exploration",
+        "questTier": "epic",
+        "maxActiveQuests": 3
+      },
+      
+      "// Quêtes spécialisées": "",
+      "questsToGive": [
+        "legendary_pokemon_hunt",
+        "region_explorer",
+        "gym_leader_challenge",
+        "elite_four_preparation",
+        "champion_road"
+      ],
+      "questsToEnd": [
+        "rookie_trainer_graduation",
+        "advanced_trainer_certification",
+        "master_trainer_recognition"
+      ],
+      
+      "// Prérequis quêtes": "",
+      "questRequirements": {
+        "legendary_pokemon_hunt": {
+          "minLevel": 50,
+          "requiredBadges": ["all_8_badges"],
+          "requiredFlags": ["elite_four_beaten"],
+          "forbiddenFlags": ["legendary_hunt_completed"]
+        },
+        "region_explorer": {
+          "minLevel": 25,
+          "requiredFlags": ["visited_all_cities"],
+          "forbiddenFlags": []
+        },
+        "champion_road": {
+          "minLevel": 60,
+          "requiredBadges": ["all_8_badges"],
+          "requiredFlags": ["elite_four_beaten", "legendary_captured"],
+          "forbiddenFlags": ["champion_defeated"]
+        }
+      },
+      
+      "// Dialogues maître quête": "",
+      "questMasterDialogueIds": {
+        "welcome": ["npc.quest_master.sage.welcome.1"],
+        "questsAvailable": ["npc.quest_master.sage.quests_available.1"],
+        "questOffer": ["npc.quest_master.sage.quest_offer.1"],
+        "questAccepted": ["npc.quest_master.sage.quest_accepted.1"],
+        "questInProgress": ["npc.quest_master.sage.quest_progress.1"],
+        "questComplete": ["npc.quest_master.sage.quest_complete.1"],
+        "notReady": ["npc.quest_master.sage.not_ready.1"],
+        "tooManyQuests": ["npc.quest_master.sage.too_many_quests.1"],
+        "masterRank": ["npc.quest_master.sage.master_rank.1"]
+      },
+      
+      "// Système rang quête": "",
+      "questRankSystem": {
+        "ranks": [
+          {"rankId": 1, "rankName": "Novice", "questsRequired": 5},
+          {"rankId": 2, "rankName": "Adept", "questsRequired": 15},
+          {"rankId": 3, "rankName": "Expert", "questsRequired": 30},
+          {"rankId": 4, "rankName": "Master", "questsRequired": 50}
+        ],
+        "rankRewards": {
+          "2": {"items": [{"itemId": "quest_compass", "quantity": 1}]},
+          "3": {"items": [{"itemId": "adventure_backpack", "quantity": 1}]},
+          "4": {"items": [{"itemId": "master_quest_seal", "quantity": 1}]}
+        }
+      },
+      
+      "// Récompenses épiques": "",
+      "epicRewards": {
+        "legendary_pokemon_hunt": {
+          "money": 50000,
+          "items": [
+            {"itemId": "master_ball", "quantity": 5},
+            {"itemId": "legendary_tracker", "quantity": 1}
+          ],
+          "titles": ["Legendary Hunter"]
+        },
+        "champion_road": {
+          "money": 100000,
+          "items": [
+            {"itemId": "champion_ribbon", "quantity": 1},
+            {"itemId": "rare_candy", "quantity": 50}
+          ],
+          "titles": ["Champion Challenger"]
+        }
+      },
+      
+      "// Conditions spéciales": "",
+      "specialConditions": {
+        "timeRestrictions": {
+          "enabled": false
+        },
+        "weatherRequirements": {
+          "enabled": false
+        },
+        "playerAlignment": {
+          "required": "good",
+          "minKarma": 100
+        }
+      },
+      
+      "// Propriétés interaction": "",
+      "interactionRadius": 64,
+      "canWalkAway": true,
+      "autoFacePlayer": true,
+      "repeatable": true,
+      "cooldownSeconds": 0
+    }
+  ],
+
+  "// === DOCUMENTATION SYSTÈME ===": "",
+  "systemDocumentation": {
+    "description": "Fichier de référence complète pour tous types NPCs",
+    "usage": "Guide pour développement et panel admin",
+    "extensibility": "Facilement extensible avec nouveaux types",
+    "translation": "Tous textes utilisent des IDs traduits côté client",
+    "flexibility": "Système quêtes intégré à tous types NPCs"
+  },
+  
+  "// === STATISTIQUES FICHIER ===": "",
+  "fileStatistics": {
+    "totalNpcs": 12,
+    "npcTypes": {
+      "dialogue": 1,
+      "merchant": 1,
+      "trainer": 1,
+      "healer": 1,
+      "gym_leader": 1,
+      "transport": 1,
+      "service": 1,
+      "minigame": 1,
+      "researcher": 1,
+      "guild": 1,
+      "event": 1,
+      "quest_master": 1
+    },
+    "totalTextIds": 156,
+    "totalQuestIds": 24,
+    "propertiesDocumented": "Toutes propriétés possibles pour chaque type"
+  },
+  
+  "// Métadonnées": "",
+  "metadata": {
+    "purpose": "Référence complète - Ne pas utiliser en production",
+    "createdBy": "admin",
+    "lastModifiedBy": "admin",
+    "validated": true,
+    "notes": "Fichier guide complet avec tous types NPCs et propriétés possibles"
+  }
+}
