@@ -140,31 +140,133 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
   }
 });
 
-// ✅ ROUTE: Sauvegarder les objets au format gameobjects.json
+// ✅ ROUTE: Charger les gameobjects d'une zone spécifique
+router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { mapId } = req.params;
+    console.log(`🗺️ [Maps API] Loading gameobjects for zone: ${mapId}`);
+    
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    // Détecter l'environnement
+    const isDev = __filename.includes('/src/');
+    
+    let gameObjectsPath: string;
+    
+    if (isDev) {
+      // Mode développement
+      gameObjectsPath = path.join(__dirname, `../data/gameobjects/${mapId}.json`);
+    } else {
+      // Mode production (build)
+      gameObjectsPath = path.join(__dirname, `../data/gameobjects/${mapId}.json`);
+    }
+    
+    console.log('📂 [Maps API] Looking for gameobjects at:', gameObjectsPath);
+    
+    try {
+      const gameObjectsData = await fs.readFile(gameObjectsPath, 'utf-8');
+      const parsedGameObjects = JSON.parse(gameObjectsData);
+      
+      console.log(`✅ [Maps API] Gameobjects loaded for ${mapId}: ${parsedGameObjects.objects?.length || 0} objects`);
+      
+      res.json({
+        success: true,
+        data: parsedGameObjects,
+        mapId,
+        objectCount: parsedGameObjects.objects?.length || 0
+      });
+      
+    } catch (fileError) {
+      console.log(`📝 [Maps API] No gameobjects file found for ${mapId}, will create new one`);
+      
+      // Pas de fichier trouvé, retourner une structure vide
+      res.json({
+        success: true,
+        data: {
+          zone: mapId,
+          version: "2.0.0",
+          lastUpdated: new Date().toISOString(),
+          description: `${mapId} - Objets générés par l'éditeur de carte`,
+          defaultRequirements: {
+            ground: { minLevel: 1 },
+            hidden: { minLevel: 1 }
+          },
+          requirementPresets: {
+            starter: { minLevel: 1 }
+          },
+          objects: []
+        },
+        mapId,
+        objectCount: 0,
+        created: true
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [Maps API] Error loading gameobjects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement des gameobjects'
+    });
+  }
+});
+
+// ✅ ROUTE: Sauvegarder les gameobjects d'une zone
 router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
   try {
     const { mapId } = req.params;
     const gameObjectsData = req.body;
     
-    console.log(`💾 [Maps API] Saving gameobjects for map: ${mapId}`);
+    console.log(`💾 [Maps API] Saving gameobjects for zone: ${mapId}`);
     console.log(`📊 [Maps API] Total objects: ${gameObjectsData.objects?.length || 0}`);
     
-    // Créer le dossier server/data/gameobjects s'il n'existe pas
-    const gameObjectsDir = path.join(process.cwd(), 'server/data/gameobjects');
-    await fs.mkdir(gameObjectsDir, { recursive: true });
+    const fs = require('fs').promises;
+    const path = require('path');
     
-    // Sauvegarder dans le fichier
-    const gameObjectsFile = path.join(gameObjectsDir, `${mapId}.json`);
+    // Détecter l'environnement
+    const isDev = __filename.includes('/src/');
+    
+    let gameObjectsDir: string;
+    let gameObjectsFile: string;
+    
+    if (isDev) {
+      // Mode développement
+      gameObjectsDir = path.join(__dirname, '../data/gameobjects');
+      gameObjectsFile = path.join(gameObjectsDir, `${mapId}.json`);
+    } else {
+      // Mode production (build)
+      gameObjectsDir = path.join(__dirname, '../data/gameobjects');
+      gameObjectsFile = path.join(gameObjectsDir, `${mapId}.json`);
+    }
+    
+    // Créer le dossier s'il n'existe pas
+    try {
+      await fs.access(gameObjectsDir);
+    } catch {
+      await fs.mkdir(gameObjectsDir, { recursive: true });
+      console.log(`📁 [Maps API] Created gameobjects directory: ${gameObjectsDir}`);
+    }
+    
+    // Sauvegarder le fichier
     await fs.writeFile(gameObjectsFile, JSON.stringify(gameObjectsData, null, 2), 'utf-8');
     
-    console.log(`✅ [Maps API] Gameobjects saved successfully for ${mapId} by ${req.user.username}`);
+    // Optionnel: créer une backup avec timestamp
+    const backupFile = path.join(gameObjectsDir, `${mapId}_backup_${Date.now()}.json`);
+    await fs.writeFile(backupFile, JSON.stringify(gameObjectsData, null, 2), 'utf-8');
+    
+    console.log(`✅ [Maps API] Gameobjects saved for ${mapId} by ${req.user.username}`);
+    console.log(`💾 [Maps API] File saved at: ${gameObjectsFile}`);
+    console.log(`🔄 [Maps API] Backup created at: ${backupFile}`);
     
     res.json({
       success: true,
-      message: `${gameObjectsData.objects.length} objets sauvegardés au format gameobjects.json`,
+      message: `Gameobjects sauvegardés pour ${mapId}`,
       mapId,
-      totalObjects: gameObjectsData.objects.length,
+      totalObjects: gameObjectsData.objects?.length || 0,
       timestamp: gameObjectsData.lastUpdated,
+      filePath: gameObjectsFile,
+      backupPath: backupFile,
       savedBy: req.user.username
     });
     
@@ -176,6 +278,7 @@ router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) 
     });
   }
 });
+
 // ✅ ROUTE: Récupérer tous les items depuis items.json (dev + production)
 router.get('/items', requireMacAndDev, async (req: any, res) => {
   try {
