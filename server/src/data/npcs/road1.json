@@ -1,26 +1,499 @@
 {
   "zone": "road1",
   "version": "1.0.0",
-  "description": "Test NPCs JSON Road 1",
+  "lastUpdated": "2025-07-21T12:00:00Z",
+  "description": "NPCs de test pour road1 - Un de chaque type",
+  
   "npcs": [
     {
+      "// === 1. DIALOGUE NPC ===": "",
       "id": 9001,
-      "name": "Test Marchand JSON",
-      "type": "merchant",
-      "position": { "x": 100, "y": 100 },
-      "sprite": "shopkeeper.png",
-      "shopId": "test_shop",
-      "shopDialogueIds": {
-        "shopOpen": ["npc.merchant.test.welcome.1"]
+      "name": "Guide Marcel JSON",
+      "type": "dialogue",
+      "position": { "x": 100, "y": 200 },
+      "sprite": "guide.png",
+      "direction": "south",
+      "interactionRadius": 48,
+      
+      "dialogueIds": [
+        "Bonjour ! Je suis un guide JSON !",
+        "Cette route mène vers de nouvelles aventures !"
+      ],
+      
+      "questsToGive": ["exploration_test_quest"],
+      "questDialogueIds": {
+        "questOffer": ["J'ai une mission pour toi ! Veux-tu explorer la zone ?"],
+        "questInProgress": ["Comment avance ton exploration ?"],
+        "questComplete": ["Bravo ! Tu as terminé l'exploration !"]
       }
     },
+
     {
-      "id": 9002, 
-      "name": "Test Guide JSON",
-      "type": "dialogue",
-      "position": { "x": 200, "y": 150 },
-      "sprite": "guide.png",
-      "dialogueIds": ["npc.guide.test.hello.1"]
+      "// === 2. MERCHANT NPC ===": "",
+      "id": 9002,
+      "name": "Marchand Julie JSON",
+      "type": "merchant",
+      "position": { "x": 200, "y": 200 },
+      "sprite": "shopkeeper_female.png",
+      "direction": "west",
+      "interactionRadius": 32,
+      
+      "shopId": "road1_test_shop",
+      "shopType": "pokemart",
+      
+      "shopDialogueIds": {
+        "shopOpen": ["Bienvenue dans ma boutique JSON !"],
+        "shopClose": ["Merci de votre visite !"],
+        "noMoney": ["Vous n'avez pas assez d'argent !"],
+        "purchaseSuccess": ["Merci pour votre achat !"]
+      },
+      
+      "questsToGive": ["merchant_delivery_quest"],
+      "questDialogueIds": {
+        "questOffer": ["Pourrais-tu livrer ce colis pour moi ?"],
+        "questComplete": ["Merci pour la livraison ! Voici ta récompense."]
+      }
+    },
+
+    {
+      "// === 3. TRAINER NPC ===": "",
+      "id": 9003,
+      "name": "Dresseur Thomas JSON",
+      "type": "trainer",
+      "position": { "x": 300, "y": 200 },
+      "sprite": "youngster.png",
+      "direction": "north",
+      "interactionRadius": 32,
+      
+      "trainerId": "youngster_thomas_json",
+      "trainerClass": "youngster",
+      "trainerRank": 1,
+      
+      "battleConfig": {
+        "teamId": "youngster_basic_team",
+        "battleType": "single",
+        "allowItems": true,
+        "levelCap": 15
+      },
+      
+      "battleDialogueIds": {
+        "preBattle": ["Hé ! Tu veux te battre ?"],
+        "defeat": ["Waah ! J'ai perdu !"],
+        "victory": ["J'ai gagné ! Youpi !"],
+        "rematch": ["On remet ça ?"]
+      },
+      
+      "rewards": {
+        "money": {
+          "base": 300,
+          "perPokemonLevel": 25
+        },
+        "items": [
+          {"itemId": "potion", "quantity": 1, "chance": 100},
+          {"itemId": "poke_ball", "quantity": 1, "chance": 50}
+        ]
+      },
+      
+      "visionConfig": {
+        "sightRange": 96,
+        "sightAngle": 90,
+        "chaseRange": 64
+      }
+    },
+
+    {
+      "// === 4. HEALER NPC ===": "",
+      "id": 9004,
+      "name": "Infirmière Joy JSON",
+      "type": "healer",
+      "position": { "x": 400, "y": 200 },
+      "sprite": "nurse_joy.png", 
+      "direction": "south",
+      "interactionRadius": 40,
+      
+      "healerConfig": {
+        "healingType": "free",
+        "cost": 0,
+        "instantHealing": true,
+        "healFullTeam": true,
+        "removeStatusEffects": true,
+        "restorePP": true
+      },
+      
+      "healerDialogueIds": {
+        "welcome": ["Bonjour ! Voulez-vous soigner vos Pokémon ?"],
+        "offerHealing": ["Je vais soigner vos Pokémon !"],
+        "healingStart": ["Un instant s'il vous plaît..."],
+        "healingComplete": ["Vos Pokémon sont en pleine forme !"],
+        "alreadyHealthy": ["Vos Pokémon vont déjà très bien !"],
+        "noPokemon": ["Vous n'avez pas de Pokémon à soigner."]
+      }
+    },
+
+    {
+      "// === 5. TRANSPORT NPC ===": "",
+      "id": 9005,
+      "name": "Capitaine Briney JSON",
+      "type": "transport",
+      "position": { "x": 500, "y": 200 },
+      "sprite": "sailor.png",
+      "direction": "west",
+      "interactionRadius": 40,
+      
+      "transportConfig": {
+        "transportType": "boat",
+        "vehicleId": "test_boat",
+        "capacity": 10,
+        "travelTime": 30
+      },
+      
+      "destinations": [
+        {
+          "mapId": "village",
+          "mapName": "Village",
+          "cost": 100,
+          "currency": "gold",
+          "travelTime": 30
+        },
+        {
+          "mapId": "beach",
+          "mapName": "Plage",
+          "cost": 150,
+          "currency": "gold", 
+          "travelTime": 45
+        }
+      ],
+      
+      "transportDialogueIds": {
+        "welcome": ["Ahoy ! Où voulez-vous aller ?"],
+        "destinations": ["Je peux vous emmener au Village ou à la Plage."],
+        "confirmTravel": ["Êtes-vous sûr de vouloir voyager ?"],
+        "boarding": ["Montez à bord !"],
+        "departure": ["Nous partons !"],
+        "arrival": ["Nous sommes arrivés !"],
+        "noMoney": ["Vous n'avez pas assez d'argent pour le voyage."]
+      }
+    },
+
+    {
+      "// === 6. SERVICE NPC ===": "",
+      "id": 9006,
+      "name": "Name Rater Bob JSON",
+      "type": "service",
+      "position": { "x": 600, "y": 200 },
+      "sprite": "old_man.png",
+      "direction": "south",
+      "interactionRadius": 32,
+      
+      "serviceConfig": {
+        "serviceType": "name_rater",
+        "cost": 100,
+        "currency": "gold",
+        "instantService": true,
+        "maxUsesPerDay": 5
+      },
+      
+      "availableServices": [
+        {
+          "serviceId": "rename_pokemon",
+          "serviceName": "Renommer Pokémon",
+          "cost": 100,
+          "requirements": {
+            "originalTrainer": true
+          }
+        }
+      ],
+      
+      "serviceDialogueIds": {
+        "welcome": ["Je peux donner un surnom à vos Pokémon !"],
+        "serviceOffer": ["Quel Pokémon voulez-vous renommer ?"],
+        "serviceComplete": ["Voilà ! Votre Pokémon a un nouveau nom !"],
+        "noMoney": ["Vous n'avez pas assez d'argent."],
+        "notEligible": ["Ce Pokémon ne peut pas être renommé."]
+      }
+    },
+
+    {
+      "// === 7. MINIGAME NPC ===": "",
+      "id": 9007,
+      "name": "Contest Judge Marina JSON",
+      "type": "minigame",
+      "position": { "x": 100, "y": 300 },
+      "sprite": "contest_judge.png",
+      "direction": "west",
+      "interactionRadius": 40,
+      
+      "minigameConfig": {
+        "minigameType": "pokemon_contest",
+        "contestCategory": "beauty",
+        "entryFee": 200,
+        "currency": "gold",
+        "maxParticipants": 4,
+        "duration": 60
+      },
+      
+      "contestRewards": {
+        "first": {
+          "money": 1000,
+          "items": [{"itemId": "contest_ribbon", "quantity": 1}]
+        },
+        "participation": {
+          "money": 100,
+          "items": [{"itemId": "poke_block", "quantity": 2}]
+        }
+      },
+      
+      "contestDialogueIds": {
+        "welcome": ["Bienvenue au concours Pokémon !"],
+        "rules": ["Montrez-moi la beauté de votre Pokémon !"],
+        "entry": ["Voulez-vous participer ? Ça coûte 200 Gold."],
+        "contestStart": ["Le concours commence !"],
+        "results": ["Voici les résultats !"],
+        "winner": ["Félicitations ! Vous avez gagné !"],
+        "noMoney": ["Vous n'avez pas assez d'argent pour participer."]
+      }
+    },
+
+    {
+      "// === 8. RESEARCHER NPC ===": "",
+      "id": 9008,
+      "name": "Professeur Willow JSON",
+      "type": "researcher",
+      "position": { "x": 200, "y": 300 },
+      "sprite": "professor.png",
+      "direction": "south",
+      "interactionRadius": 48,
+      
+      "researchConfig": {
+        "researchType": "pokedex",
+        "specialization": "genetics",
+        "researchLevel": 3,
+        "acceptDonations": true
+      },
+      
+      "researchServices": [
+        {
+          "serviceId": "pokedex_evaluation",
+          "serviceName": "Évaluation Pokédex",
+          "cost": 0,
+          "requirements": {
+            "minPokedexEntries": 5
+          }
+        },
+        {
+          "serviceId": "iv_analysis",
+          "serviceName": "Analyse IV",
+          "cost": 300,
+          "requirements": {
+            "minPlayerLevel": 10
+          }
+        }
+      ],
+      
+      "researchDialogueIds": {
+        "welcome": ["Bonjour ! Je suis un chercheur Pokémon."],
+        "services": ["Je peux évaluer votre Pokédex ou analyser vos Pokémon."],
+        "pokedexCheck": ["Voyons votre Pokédex..."],
+        "ivAnalysis": ["Je vais analyser les statistiques de ce Pokémon."],
+        "researchComplete": ["Mes recherches sont terminées !"],
+        "notEligible": ["Vous n'êtes pas encore prêt pour ce service."]
+      }
+    },
+
+    {
+      "// === 9. GUILD NPC ===": "",
+      "id": 9009,
+      "name": "Recruteur Team Rocket JSON",
+      "type": "guild",
+      "position": { "x": 300, "y": 300 },
+      "sprite": "team_rocket_grunt.png",
+      "direction": "west",
+      "interactionRadius": 40,
+      
+      "guildConfig": {
+        "guildId": "team_rocket_test",
+        "guildName": "Team Rocket",
+        "factionType": "criminal",
+        "recruitmentOpen": true,
+        "maxMembers": 100
+      },
+      
+      "recruitmentRequirements": {
+        "minPlayerLevel": 10,
+        "requiredFlags": [],
+        "forbiddenFlags": ["police_record", "ranger_member"],
+        "alignmentRequired": "evil",
+        "minimumReputation": -50
+      },
+      
+      "guildDialogueIds": {
+        "recruitment": ["Veux-tu rejoindre la Team Rocket ?"],
+        "welcome": ["Bienvenue dans la Team Rocket !"],
+        "services": ["Nous avons des missions spéciales pour toi."],
+        "rejected": ["Tu n'es pas fait pour nous..."],
+        "traitor": ["TRAÎTRE ! Tu nous as trahis !"]
+      }
+    },
+
+    {
+      "// === 10. EVENT NPC ===": "",
+      "id": 9010,
+      "name": "Event Coordinator Luna JSON",
+      "type": "event",
+      "position": { "x": 400, "y": 300 },
+      "sprite": "event_coordinator.png",
+      "direction": "south",
+      "interactionRadius": 50,
+      
+      "eventConfig": {
+        "eventId": "test_event_2025",
+        "eventType": "seasonal",
+        "eventStatus": "active",
+        "globalEvent": true
+      },
+      
+      "eventPeriod": {
+        "startDate": "2025-07-01T00:00:00Z",
+        "endDate": "2025-12-31T23:59:59Z",
+        "timezone": "UTC"
+      },
+      
+      "eventActivities": [
+        {
+          "activityId": "catch_contest",
+          "activityName": "Concours de Capture",
+          "participationFee": 0,
+          "rewards": {
+            "winner": {"items": [{"itemId": "master_ball", "quantity": 1}]},
+            "participation": {"items": [{"itemId": "ultra_ball", "quantity": 3}]}
+          }
+        }
+      ],
+      
+      "eventDialogueIds": {
+        "welcome": ["Bienvenue à l'événement spécial !"],
+        "activities": ["Participez au concours de capture !"],
+        "registration": ["Voulez-vous vous inscrire ?"],
+        "results": ["Voici les résultats du concours !"],
+        "rewards": ["Félicitations ! Voici votre récompense !"],
+        "eventEnded": ["L'événement est terminé, merci d'avoir participé !"],
+        "notStarted": ["L'événement n'a pas encore commencé."]
+      }
+    },
+
+    {
+      "// === 11. QUEST MASTER NPC ===": "",
+      "id": 9011,
+      "name": "Quest Master Sage JSON",
+      "type": "quest_master",
+      "position": { "x": 500, "y": 300 },
+      "sprite": "quest_master.png",
+      "direction": "west",
+      "interactionRadius": 64,
+      
+      "questMasterConfig": {
+        "masterId": "sage_of_road1",
+        "specialization": "exploration",
+        "questTier": "epic",
+        "maxActiveQuests": 3
+      },
+      
+      "questsToGive": [
+        "legendary_pokemon_hunt_test",
+        "region_explorer_test",
+        "gym_leader_challenge_test"
+      ],
+      "questsToEnd": [
+        "rookie_trainer_graduation_test"
+      ],
+      
+      "questRequirements": {
+        "legendary_pokemon_hunt_test": {
+          "minLevel": 30,
+          "requiredFlags": ["elite_four_beaten"],
+          "forbiddenFlags": ["legendary_hunt_completed"]
+        },
+        "region_explorer_test": {
+          "minLevel": 15,
+          "requiredFlags": [],
+          "forbiddenFlags": []
+        }
+      },
+      
+      "questMasterDialogueIds": {
+        "welcome": ["Je suis le maître des quêtes !"],
+        "questsAvailable": ["J'ai des quêtes épiques pour toi !"],
+        "questOffer": ["Cette quête est très dangereuse. Es-tu prêt ?"],
+        "questAccepted": ["Parfait ! Bonne chance dans ta quête !"],
+        "questInProgress": ["Comment avance ta quête épique ?"],
+        "questComplete": ["Incroyable ! Tu as terminé cette quête épique !"],
+        "notReady": ["Tu n'es pas encore prêt pour mes quêtes."],
+        "tooManyQuests": ["Tu as déjà trop de quêtes actives !"]
+      }
+    },
+
+    {
+      "// === 12. GYM LEADER NPC (bonus) ===": "",
+      "id": 9012,
+      "name": "Champion Lt. Surge JSON",
+      "type": "gym_leader",
+      "position": { "x": 600, "y": 300 },
+      "sprite": "gym_leader_surge.png",
+      "direction": "south",
+      "interactionRadius": 48,
+      
+      "trainerId": "surge_gym_json",
+      "trainerClass": "gym_leader",
+      "trainerRank": 8,
+      
+      "gymConfig": {
+        "gymId": "test_gym",
+        "gymType": "electric",
+        "gymLevel": 3,
+        "badgeId": "thunder_badge_test",
+        "badgeName": "Test Thunder Badge",
+        "requiredBadges": []
+      },
+      
+      "battleConfig": {
+        "teamId": "surge_test_team",
+        "battleType": "single",
+        "allowItems": false,
+        "levelCap": 25,
+        "terrainCondition": "electric_terrain"
+      },
+      
+      "gymDialogueIds": {
+        "firstChallenge": ["Tu veux défier le champion du tonnerre ?"],
+        "preBattle": ["Prépare-toi à subir ma foudre !"],
+        "defeat": ["Impossible ! J'ai été battu !"],
+        "victory": ["Ahahah ! La foudre l'emporte !"],
+        "badgeAwarded": ["Tu mérites ce badge ! Prends-le !"],
+        "alreadyDefeated": ["Tu m'as déjà battu une fois..."],
+        "notReady": ["Tu n'es pas prêt à me défier !"]
+      },
+      
+      "challengeConditions": {
+        "minPlayerLevel": 20,
+        "requiredBadges": [],
+        "forbiddenFlags": ["thunder_badge_test_obtained"],
+        "minimumPokemon": 1
+      },
+      
+      "gymRewards": {
+        "badge": {
+          "badgeId": "thunder_badge_test",
+          "tmReward": "tm24_thunderbolt",
+          "pokemonObeyLevel": 30
+        },
+        "money": {
+          "base": 2000,
+          "multiplier": 1.5
+        },
+        "items": [
+          {"itemId": "tm24", "quantity": 1, "chance": 100}
+        ]
+      }
     }
   ]
 }
