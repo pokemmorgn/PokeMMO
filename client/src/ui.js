@@ -56,12 +56,12 @@ exploration: {
   }
 },
   
-  battle: {
-    visibleModules: [],
-    enabledModules: [],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker'],
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker']
-  },
+battle: {
+  visibleModules: [],
+  enabledModules: [],
+  hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'],
+  disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex']
+},
   
 pokemonCenter: {
   visibleModules: ['team', 'inventory', 'pokedex'],
