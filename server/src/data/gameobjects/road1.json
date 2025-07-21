@@ -1,0 +1,46 @@
+{
+  "zone": "road1",
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-21T10:30:00Z",
+  "description": "Route 1 - Première zone du jeu, objets d'introduction",
+  
+  "defaultRequirements": {
+    "ground": {
+      "minLevel": 1
+    },
+    "hidden": {
+      "minLevel": 1
+    }
+  },
+  
+  "requirementPresets": {
+    "starter": {
+      "minLevel": 1
+    }
+  },
+  
+  "objects": [
+    {
+      "id": 1,
+      "position": { "x": 320, "y": 480 },
+      "type": "ground",
+      "name": "pokeball",
+      "sprite": "pokeball_ground.png",
+      "quantity": 1,
+      "cooldown": 24,
+      "rarity": "common"
+    },
+    {
+      "id": 2,
+      "position": { "x": 640, "y": 320 },
+      "type": "hidden",
+      "name": "potion",
+      "sprite": "hidden_shimmer.png",
+      "quantity": 1,
+      "cooldown": 12,
+      "rarity": "common",
+      "searchRadius": 16,
+      "itemfinderRadius": 64
+    }
+  ]
+}
