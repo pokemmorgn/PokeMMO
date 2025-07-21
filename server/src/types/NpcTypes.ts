@@ -172,9 +172,8 @@ export interface MerchantNpc extends BaseNpc {
   };
 }
 
-// TRAINER NPC
-export interface TrainerNpc extends BaseNpc {
-  type: 'trainer';
+// BATTLER NPC (Base commune pour Trainer et Gym Leader)
+export interface BattlerNpc extends BaseNpc {
   trainerId: string;
   trainerClass: string;
   trainerRank?: number;
@@ -253,6 +252,11 @@ export interface TrainerNpc extends BaseNpc {
   };
 }
 
+// TRAINER NPC
+export interface TrainerNpc extends BattlerNpc {
+  type: 'trainer';
+}
+
 // HEALER NPC
 export interface HealerNpc extends BaseNpc {
   type: 'healer';
@@ -291,7 +295,7 @@ export interface HealerNpc extends BaseNpc {
 }
 
 // GYM LEADER NPC
-export interface GymLeaderNpc extends TrainerNpc {
+export interface GymLeaderNpc extends BattlerNpc {
   type: 'gym_leader';
   gymConfig: {
     gymId: string;
@@ -699,6 +703,10 @@ export type AnyNpc =
   | EventNpc
   | QuestMasterNpc;
 
+// ===== UNION TYPE POUR LES COMBATTANTS =====
+
+export type AnyBattlerNpc = TrainerNpc | GymLeaderNpc;
+
 // ===== INTERFACE ZONE NPCs =====
 
 export interface NpcZoneData {
@@ -748,6 +756,7 @@ export interface NpcValidationResult {
 }
 
 export interface NpcTypeGuards {
+  isBattlerNpc(npc: AnyNpc): npc is BattlerNpc;
   isDialogueNpc(npc: AnyNpc): npc is DialogueNpc;
   isMerchantNpc(npc: AnyNpc): npc is MerchantNpc;
   isTrainerNpc(npc: AnyNpc): npc is TrainerNpc;
