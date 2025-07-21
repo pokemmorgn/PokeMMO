@@ -627,6 +627,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     newGold?: number;
     itemsChanged?: any[];
     shopStockChanged?: any[];
+    dialogues?: string[];  // ✅ AJOUTÉ: propriété optionnelle
   }> {
     this.log('info', 'Transaction shop', { 
       player: player.name, 
@@ -673,7 +674,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
         this.log('info', 'Achat réussi', { itemId, quantity, newGold: result.newGold });
       }
       
-      return result;
+      return {
+        ...result,
+        dialogues: undefined  // ✅ AJOUTÉ: pas de dialogues en fallback
+      };
       
     } else if (action === 'sell') {
       const result = await this.shopManager.sellItem(
@@ -687,12 +691,16 @@ export class NpcInteractionModule extends BaseInteractionModule {
         this.log('info', 'Vente réussie', { itemId, quantity, goldGained: result.newGold });
       }
       
-      return result;
+      return {
+        ...result,
+        dialogues: undefined  // ✅ AJOUTÉ: pas de dialogues en fallback
+      };
     }
 
     return {
       success: false,
-      message: "Action non reconnue"
+      message: "Action non reconnue",
+      dialogues: undefined  // ✅ AJOUTÉ: cohérence avec signature
     };
   }
 
