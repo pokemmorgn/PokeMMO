@@ -279,65 +279,82 @@ if (this.transitionService && this.followerHandlers) {
     });
   }
 
-  private initializeNpcManagers() {
-    const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'villagewindmill', 'villagehouse2', 'villageflorist', 'road1', 'road2', 'road3', 'road1house', 'road1hidden', 'noctherbcave1', 'noctherbcave2', 'noctherbcave2bis', 'wraithmoor', 'wraithmoorcimetery', 'wraithmoormanor1', 'lavandia', 'lavandiahouse1', 'lavandiahouse2', 'lavandiahouse3', 'lavandiahouse4', 'lavandiahouse5', 'lavandiahouse6', 'lavandiahouse7', 'lavandiahouse8', 'lavandiahouse9', 'lavandiashop', 'lavandiaanalysis', 'lavandiabossroom', 'lavandiacelebitemple', 'lavandiaequipment', 'lavandiafurniture', 'lavandiahealingcenter', 'lavandiaresearchlab'];
-    zones.forEach(zoneName => {
-      try {
-        const mapPath = `../assets/maps/${zoneName}.tmj`;
-        const npcManager = new NpcManager(mapPath);
-        this.npcManagers.set(zoneName, npcManager);
-        console.log(`✅ NPCs chargés pour ${zoneName}: ${npcManager.getAllNpcs().length}`);
-      } catch (error) {
-        console.warn(`⚠️ Impossible de charger les NPCs pour ${zoneName}:`, error);
-      }
-    });
+private initializeNpcManagers() {
+  console.log(`📂 [NPCManager] Chargement automatique des zones...`);
+  
+  // === SCAN AUTOMATIQUE DES ZONES TILED ===
+  const tiledZones = this.scanTiledMaps();
+  
+  // === SCAN AUTOMATIQUE DES ZONES JSON ===
+  const jsonZones = this.scanNpcJsonFiles();
+  
+  // === COMBINER ET CHARGER ===
+  const allZones = new Set([...tiledZones, ...jsonZones]);
+  
+  console.log(`🎯 [NPCManager] ${allZones.size} zones détectées:`, Array.from(allZones));
+  
+  allZones.forEach(zoneName => {
+    try {
+      const mapPath = `../assets/maps/${zoneName}.tmj`;
+      const hasMap = fs.existsSync(path.resolve(__dirname, mapPath));
+      
+      // Constructeur hybride : Tiled (si existe) + JSON (si existe)
+      const npcManager = new NpcManager(
+        hasMap ? mapPath : undefined,  // Tiled optionnel
+        zoneName                       // JSON optionnel
+      );
+      
+      this.npcManagers.set(zoneName, npcManager);
+      
+      const npcCount = npcManager.getAllNpcs().length;
+      const tiledCount = npcManager.getNpcsBySource('tiled').length;
+      const jsonCount = npcManager.getNpcsBySource('json').length;
+      
+      console.log(`✅ Zone ${zoneName}: ${npcCount} NPCs (${tiledCount} Tiled + ${jsonCount} JSON)`);
+      
+    } catch (error) {
+      console.warn(`⚠️ Impossible de charger NPCs pour ${zoneName}:`, error);
+    }
+  });
+}
+
+private scanTiledMaps(): string[] {
+  try {
+    const mapsDir = path.resolve(__dirname, '../assets/maps');
+    if (!fs.existsSync(mapsDir)) return [];
+    
+    const tiledFiles = fs.readdirSync(mapsDir)
+      .filter(file => file.endsWith('.tmj'))
+      .map(file => file.replace('.tmj', ''));
+    
+    console.log(`🗺️ [NPCManager] ${tiledFiles.length} cartes Tiled trouvées`);
+    return tiledFiles;
+  } catch (error) {
+    console.warn(`⚠️ Erreur scan Tiled:`, error);
+    return [];
   }
+}
 
-  async onPlayerJoinZone(client: Client, zoneName: string) {
-    console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`🌍 Zone: ${zoneName}`);
-      
-    // Sauvegarde lors de la transition
-    const playerForSave = this.state.players.get(client.sessionId);
-    if (playerForSave) {
-      const position = this.positionSaver.extractPosition(playerForSave);
-      this.positionSaver.savePosition(position, "transition");
+private scanNpcJsonFiles(): string[] {
+  try {
+    const npcDir = path.resolve('./build/data/npcs');
+    if (!fs.existsSync(npcDir)) {
+      console.log(`📁 [NPCManager] Création dossier NPCs: ${npcDir}`);
+      fs.mkdirSync(npcDir, { recursive: true });
+      return [];
     }
-
-    // Envoyer les NPCs immédiatement
-    const npcManager = this.npcManagers.get(zoneName);
-    if (npcManager) {
-      const npcs = npcManager.getAllNpcs();
-      client.send("npcList", npcs);
-      console.log(`📤 ${npcs.length} NPCs envoyés IMMÉDIATEMENT pour ${zoneName}`);
-    }
-      // ✅ NOUVEAU: Envoyer les objets visibles immédiatement
-    this.objectInteractionHandlers.sendZoneObjectsToClient(client, zoneName);
-    // Mettre à jour la zone dans TimeWeatherService immédiatement
-    if (this.timeWeatherService) {
-      this.timeWeatherService.updateClientZone(client, zoneName);
-      
-      // Forcer l'envoi immédiat de l'état temps/météo
-      setTimeout(() => {
-        if (this.timeWeatherService) {
-          this.timeWeatherService.sendCurrentStateToAllClients();
-        }
-      }, 50); // 50ms seulement
-    }
-
-    // Quest statuses avec délai réduit
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      console.log(`🎯 [WorldRoom] Programmation RAPIDE des quest statuses pour ${player.name}`);
-      
-      // Délai réduit de 2s à 500ms
-      this.clock.setTimeout(async () => {
-        console.log(`⏰ [WorldRoom] Exécution RAPIDE des quest statuses pour ${player.name}`);
-        await this.updateQuestStatusesFixed(player.name, client);
-      }, 500); // 500ms au lieu de 2000ms
-    }
+    
+    const jsonFiles = fs.readdirSync(npcDir)
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''));
+    
+    console.log(`📄 [NPCManager] ${jsonFiles.length} fichiers NPCs JSON trouvés`);
+    return jsonFiles;
+  } catch (error) {
+    console.warn(`⚠️ Erreur scan NPCs JSON:`, error);
+    return [];
   }
+}
 
   // Mise à jour quest statuses avec debug
   private async updateQuestStatusesFixed(username: string, client?: Client) {
