@@ -27,8 +27,7 @@
       "itemId": "poke_ball",
       "sprite": "pokeball_ground.png",
       "quantity": 1,
-      "cooldown": 24,
-      "rarity": "common"
+      "cooldown": 24
     },
     {
       "id": 2,
@@ -38,7 +37,6 @@
       "sprite": "hidden_shimmer.png",
       "quantity": 1,
       "cooldown": 12,
-      "rarity": "common",
       "searchRadius": 16,
       "itemfinderRadius": 64
     }
