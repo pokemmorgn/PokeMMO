@@ -2,1058 +2,233 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PokeWorld - Dialogue Unifié</title>
-  <style>
-    /* ===== EXTENSION DU SYSTÈME DE DIALOGUE POUR INTERFACE UNIFIÉE ===== */
+  <title>PokeWorld - Multiplayer Game</title>
+  <link rel="stylesheet" href="/chat.css">
+  <link rel="stylesheet" href="/css/dialogue.css">
+  <link rel="stylesheet" href="/inventory.css">
+  <!-- ❌ SUPPRIMÉ: <link rel="stylesheet" href="/css/team-ui.css"> -->
+  <link rel="stylesheet" href="/css/starterSelector.css">
+  <link rel="stylesheet" href="/css/pokemon-selection.css">
+  <link rel="stylesheet" href="/css/battle-centered.css">
+
+<style>
+  body {
+    background-color: black;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* Ajustements pour l'intégration avec le système d'inventaire */
+  .inventory-overlay {
+    z-index: 1000;
+  }
+
+  .quest-dialog-overlay {
+    z-index: 1050;
+  }
+
+  .inventory-notification {
+    top: 80px !important;
+    right: 20px !important;
+  }
+
+  /* Animation au survol de l'icône d'inventaire */
+  .inventory-icon:hover {
+    filter: brightness(1.2);
+  }
+
+  /* Indicateur visuel quand l'inventaire est ouvert */
+  .inventory-icon.inventory-open .icon-background {
+    border-color: #87ceeb !important;
+    box-shadow: 0 0 20px rgba(135, 206, 235, 0.6) !important;
+  }
+
+  /* Responsive pour l'icône d'inventaire sur mobile */
+  @media (max-width: 768px) {
+    .inventory-icon {
+      bottom: 340px !important;
+      right: 15px !important;
+    }
     
-    /* Dialogue box de base (préservé) */
-    #dialogue-box {
-      position: absolute;
-      bottom: 120px;
-      left: 50%;
-      transform: translateX(-50%);
-      min-width: 500px;
-      max-width: 750px;
-      background: linear-gradient(145deg, rgba(36, 76, 116, 0.95), rgba(25, 55, 95, 0.95));
-      border: 3px solid rgba(255, 255, 255, 0.8);
-      border-radius: 20px;
-      box-shadow: 
-        0 8px 40px rgba(0, 0, 0, 0.6),
-        0 0 0 1px rgba(255, 255, 255, 0.2),
-        inset 0 2px 0 rgba(255, 255, 255, 0.3);
-      display: flex;
-      flex-direction: row;
-      align-items: center; 
-      z-index: 99;
-      font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
-      backdrop-filter: blur(8px);
-      cursor: pointer;
-      transition: all 0.3s ease;
+    /* Si le chat est visible, déplacer l'icône */
+    #chat-window:not(.hidden) ~ .inventory-icon {
+      bottom: 15px !important;
+      right: 80px !important;
     }
-
-    /* ===== NOUVEAU : INTERFACE UNIFIÉE ===== */
-    #dialogue-box.unified-interface {
-      flex-direction: column;
-      align-items: stretch;
-      min-width: 600px;
-      max-width: 900px;
-      min-height: 400px;
-      cursor: default;
-    }
-
-    /* Header unifié avec NPC info + onglets */
-    .unified-header {
-      background: linear-gradient(90deg, #4a90e2, #357abd);
-      padding: 15px 25px;
-      border-radius: 17px 17px 0 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #357abd;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .unified-header::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-      animation: shimmer 3s infinite;
-    }
-
-    @keyframes shimmer {
-      0% { left: -100%; }
-      100% { left: 100%; }
-    }
-
-    .unified-npc-info {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      z-index: 1;
-    }
-
-    .unified-npc-portrait {
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(145deg, #fff, #f0f0f0);
-      border: 2px solid rgba(255, 255, 255, 0.8);
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    }
-
-    .unified-npc-portrait img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 10px;
-    }
-
-    .unified-npc-name {
-      font-size: 20px;
-      font-weight: bold;
-      color: #ffff80;
-      text-shadow: 1px 2px 0 #222, 0 0 12px rgba(241, 241, 145, 0.8);
-    }
-
-    .unified-close-btn {
-      background: rgba(220, 53, 69, 0.8);
-      border: none;
-      color: white;
-      width: 35px;
-      height: 35px;
-      border-radius: 50%;
-      font-size: 16px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      z-index: 1;
-    }
-
-    .unified-close-btn:hover {
-      background: rgba(220, 53, 69, 1);
-      transform: scale(1.1);
-      box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
-    }
-
-    /* Système d'onglets */
-    .unified-tabs {
-      background: rgba(0, 0, 0, 0.2);
-      display: flex;
-      border-bottom: 2px solid #357abd;
-    }
-
-    .unified-tab {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.05);
-      border: none;
-      color: rgba(255, 255, 255, 0.7);
-      padding: 12px 20px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .unified-tab:hover {
-      background: rgba(74, 144, 226, 0.2);
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    .unified-tab.active {
-      background: linear-gradient(180deg, rgba(74, 144, 226, 0.4), rgba(74, 144, 226, 0.2));
-      color: #87ceeb;
-      border-bottom: 3px solid #4a90e2;
-    }
-
-    .unified-tab.active::before {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #4a90e2, #87ceeb, #4a90e2);
-      animation: tabGlow 2s ease-in-out infinite alternate;
-    }
-
-    @keyframes tabGlow {
-      from { opacity: 0.6; }
-      to { opacity: 1; }
-    }
-
-    .tab-icon {
-      font-size: 18px;
-      transition: transform 0.3s ease;
-    }
-
-    .unified-tab.active .tab-icon {
-      animation: tabIconPulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes tabIconPulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-    }
-
-    /* Contenu des onglets */
-    .unified-content {
-      flex: 1;
-      padding: 20px;
-      overflow-y: auto;
-      min-height: 250px;
-      background: rgba(0, 0, 0, 0.1);
-    }
-
-    .tab-content {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Contenu dialogue standard dans les onglets */
-    .dialogue-tab-content {
-      color: #fff;
-      font-size: 16px;
-      line-height: 1.6;
-      text-shadow: 1px 1px 0 #222, 0 0 8px rgba(255, 255, 255, 0.3);
-    }
-
-    /* Contenu marchand intégré */
-    .merchant-tab-content {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .merchant-preview {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-
-    .merchant-item-preview {
-      background: rgba(255, 255, 255, 0.1);
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      padding: 10px;
-      text-align: center;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .merchant-item-preview:hover {
-      background: rgba(74, 144, 226, 0.2);
-      border-color: #4a90e2;
-      transform: translateY(-2px);
-    }
-
-    .merchant-item-icon {
-      font-size: 24px;
-      margin-bottom: 5px;
-    }
-
-    .merchant-item-name {
-      font-size: 11px;
-      color: #e0e0e0;
-      margin-bottom: 3px;
-    }
-
-    .merchant-item-price {
-      font-size: 12px;
-      color: #ffc107;
-      font-weight: bold;
-    }
-
-    .merchant-open-shop {
-      background: linear-gradient(135deg, #28a745, #20c997);
-      border: none;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .merchant-open-shop:hover {
-      background: linear-gradient(135deg, #218838, #1ea080);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-    }
-
-    /* Actions rapides */
-    .unified-actions {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 15px 20px;
-      border-top: 1px solid rgba(74, 144, 226, 0.3);
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      border-radius: 0 0 17px 17px;
-    }
-
-    .quick-action {
-      background: rgba(74, 144, 226, 0.8);
-      border: none;
-      color: white;
-      padding: 8px 15px;
-      border-radius: 8px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .quick-action:hover {
-      background: rgba(74, 144, 226, 1);
-      transform: translateY(-1px);
-    }
-
-    .quick-action.primary {
-      background: linear-gradient(135deg, #28a745, #20c997);
-    }
-
-    .quick-action.primary:hover {
-      background: linear-gradient(135deg, #218838, #1ea080);
-    }
-
-    /* Contenu vide */
-    .tab-empty {
-      text-align: center;
-      color: #888;
-      padding: 40px 20px;
-    }
-
-    .tab-empty-icon {
-      font-size: 48px;
-      margin-bottom: 15px;
-      opacity: 0.5;
-      animation: float 3s ease-in-out infinite;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      #dialogue-box.unified-interface {
-        min-width: calc(100vw - 40px);
-        max-width: calc(100vw - 40px);
-        left: 20px;
-        right: 20px;
-        transform: none;
-      }
-
-      .unified-tabs {
-        overflow-x: auto;
-      }
-
-      .unified-tab {
-        flex-shrink: 0;
-        min-width: 100px;
-      }
-
-      .merchant-preview {
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      }
-    }
-
-    /* Scrollbar custom */
-    .unified-content::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .unified-content::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
-
-    .unified-content::-webkit-scrollbar-thumb {
-      background: rgba(74, 144, 226, 0.6);
-      border-radius: 4px;
-    }
-
-    .unified-content::-webkit-scrollbar-thumb:hover {
-      background: rgba(74, 144, 226, 0.8);
-    }
-
-    /* Indicateurs visuels */
-    .tab-indicator {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      width: 8px;
-      height: 8px;
-      background: #ffc107;
-      border-radius: 50%;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.7; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.2); }
-    }
-
-    .tab-indicator.success { background: #28a745; }
-    .tab-indicator.warning { background: #ffc107; }
-    .tab-indicator.error { background: #dc3545; }
-    .tab-indicator.info { background: #17a2b8; }
-  </style>
+  }
+</style>
 </head>
-<body style="background-color: black; margin: 0; font-family: 'Segoe UI', Arial, sans-serif;">
+<body>
+  <!-- Chat Toggle Button (appears when chat is hidden) -->
+  <div id="chat-toggle">
+    <span id="chat-toggle-icon">💬</span>
+  </div>
 
-  <!-- Dialogue Box Original + Extension Unifiée -->
-  <div id="dialogue-box" style="display:none;">
-    <!-- Structure originale pour dialogues simples (préservée) -->
-    <div id="classic-dialogue" class="classic-dialogue">
-      <div id="npc-portrait"></div>
-      <div id="npc-dialogue">
-        <span id="npc-name"></span>
-        <span id="npc-text"></span>
+  <!-- Chat Window -->
+  <div id="chat-window">
+    <div id="chat-header">
+      <div id="chat-title">
+        <span>💬 Global Chat</span>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
+      </div>
+      <div id="chat-controls">
+        <span id="online-count">🟢 42 online</span>
+        <button class="chat-btn" id="minimize-btn">−</button>
+        <button class="chat-btn" id="hide-btn">←</button>
+        <button class="chat-btn" id="settings-btn">⚙️</button>
       </div>
     </div>
     
-    <!-- NOUVELLE : Structure unifiée pour interfaces complexes -->
-    <div id="unified-interface" class="unified-interface" style="display: none;">
-      <!-- Header avec infos NPC -->
-      <div class="unified-header">
-        <div class="unified-npc-info">
-          <div class="unified-npc-portrait" id="unified-portrait"></div>
-          <span class="unified-npc-name" id="unified-name">NPC Name</span>
-        </div>
-        <button class="unified-close-btn" id="unified-close">✕</button>
-      </div>
-      
-      <!-- Onglets -->
-      <div class="unified-tabs" id="unified-tabs">
-        <!-- Tabs générés dynamiquement -->
-      </div>
-      
-      <!-- Contenu des onglets -->
-      <div class="unified-content" id="unified-content">
-        <!-- Tab contents générés dynamiquement -->
-      </div>
-      
-      <!-- Actions rapides -->
-      <div class="unified-actions" id="unified-actions">
-        <!-- Quick actions générées dynamiquement -->
-      </div>
+    <div id="chat-messages"></div>
+    
+    <div id="typing-indicator">
+      <span class="typing-dots">PikachuMaster is typing</span>
+    </div>
+    
+    <div id="chat-input-container">
+      <input id="chat-input" type="text" placeholder="Type your message and press Enter..." autocomplete="off" maxlength="200" />
+      <span id="char-counter">200</span>
     </div>
   </div>
 
-  <script>
-    // État global du dialogue unifié
-    window._unifiedDialogueState = {
-      isUnified: false,
-      currentTab: null,
-      tabs: [],
-      tabData: {},
-      quickActions: [],
-      onTabSwitch: null,
-      onClose: null,
-      onQuickAction: null
-    };
+  <!-- NPC Dialogue Box -->
+  <div id="dialogue-box" style="display:none;">
+    <div id="npc-portrait"></div>
+    <div id="npc-dialogue">
+      <span id="npc-name"></span>
+      <span id="npc-text"></span>
+    </div>
+  </div>
 
-    // ===== FONCTION PRINCIPALE ÉTENDUE =====
-    window.showNpcDialogue = function(data) {
-      console.log("🐛 showNpcDialogue appelée avec:", data);
-      
-      const box = document.getElementById("dialogue-box");
-      
-      // ✅ DÉTECTION : Interface unifiée ou dialogue classique ?
-      if (data.isUnifiedInterface) {
-        console.log("🎯 Interface unifiée détectée");
-        showUnifiedInterface(data);
-      } else {
-        console.log("💬 Dialogue classique");
-        showClassicDialogue(data);
-      }
-      
-      // Afficher la boîte de dialogue
-      box.style.display = "flex";
-    };
+<script>
+  // Dialogue state global
+  window._npcDialogueState = {
+    lines: [],
+    page: 0,
+    onClose: null
+  };
 
-    // ===== DIALOGUE CLASSIQUE (INCHANGÉ) =====
-    function showClassicDialogue(data) {
-      const box = document.getElementById("dialogue-box");
-      const classicDiv = document.getElementById("classic-dialogue");
-      const unifiedDiv = document.getElementById("unified-interface");
-      
-      // Configuration pour dialogue classique
-      box.classList.remove('unified-interface');
-      classicDiv.style.display = "flex";
-      unifiedDiv.style.display = "none";
-      
-      // Code original préservé
-      const npcPortrait = document.getElementById("npc-portrait");
-      const npcName = document.getElementById("npc-name");
-      const npcText = document.getElementById("npc-text");
-      
-      // Multi-page setup (original)
-      const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-      window._npcDialogueState = {
-        lines: lines,
-        page: 0,
-        onClose: typeof data.onClose === "function" ? data.onClose : null
-      };
-      
-      npcPortrait.innerHTML = data.portrait
-        ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
-        : "";
-      npcName.innerText = data.name || "";
-      if (data.hideName) {
-        npcName.style.display = "none";
-      } else {
-        npcName.style.display = "";
-      }
-      
-      npcText.innerText = lines[0] || "";
+  // Affiche le dialogue NPC, accepte lines: [string] OU text: string
+window.showNpcDialogue = function({ portrait, name, lines, text, onClose, hideName }) {
+  console.log("🐛 showNpcDialogue appelée avec name =", name);
+  const box = document.getElementById("dialogue-box");
+  const npcPortrait = document.getElementById("npc-portrait");
+  const npcName = document.getElementById("npc-name");
+  const npcText = document.getElementById("npc-text");
+  
+  // Multi-page setup
+  window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
+  window._npcDialogueState.page = 0;
+  window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
+  
+  box.style.display = "flex";
+  npcPortrait.innerHTML = portrait
+    ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
+    : "";
+  npcName.innerText = name || "";
+  if (hideName) {
+    npcName.style.display = "none";
+  } else {
+    npcName.style.display = "";
+  }
+  
+  npcText.innerText = window._npcDialogueState.lines[0] || "";
 
-      // Click to close (original)
-      box.onclick = () => closeDialogue();
-    }
+  // Close with click
+  box.onclick = () => closeDialogue();
+};
 
-    // ===== NOUVELLE : INTERFACE UNIFIÉE =====
-    function showUnifiedInterface(data) {
-      console.log("🎯 Initialisation interface unifiée:", data);
-      
-      const box = document.getElementById("dialogue-box");
-      const classicDiv = document.getElementById("classic-dialogue");
-      const unifiedDiv = document.getElementById("unified-interface");
-      
-      // Configuration pour interface unifiée
-      box.classList.add('unified-interface');
-      classicDiv.style.display = "none";
-      unifiedDiv.style.display = "flex";
-      
-      // Stocker l'état
-      window._unifiedDialogueState = {
-        isUnified: true,
-        currentTab: data.tabs && data.tabs.length > 0 ? data.tabs[0].id : null,
-        tabs: data.tabs || [],
-        tabData: data.tabData || {},
-        quickActions: data.quickActions || [],
-        onTabSwitch: data.onTabSwitch || null,
-        onClose: data.onClose || null,
-        onQuickAction: data.onQuickAction || null
-      };
-      
-      // Setup de l'interface
-      setupUnifiedHeader(data);
-      setupUnifiedTabs(data.tabs || []);
-      setupUnifiedContent(data.tabData || {});
-      setupUnifiedActions(data.quickActions || []);
-      
-      // Afficher le premier onglet
-      if (data.tabs && data.tabs.length > 0) {
-        switchToTab(data.tabs[0].id);
-      }
-      
-      // Désactiver le click-to-close pour l'interface unifiée
-      box.onclick = null;
-    }
 
-    // ===== SETUP HEADER UNIFIÉ =====
-    function setupUnifiedHeader(data) {
-      const portrait = document.getElementById("unified-portrait");
-      const name = document.getElementById("unified-name");
-      const closeBtn = document.getElementById("unified-close");
-      
-      // Portrait
-      portrait.innerHTML = data.portrait
-        ? `<img src="${data.portrait}" alt="${data.name}">`
-        : (data.npcIcon || '🧑‍💼');
-      
-      // Nom
-      name.textContent = data.name || "NPC";
-      
-      // Bouton fermer
-      closeBtn.onclick = () => closeUnifiedInterface();
-    }
-
-    // ===== SETUP ONGLETS =====
-    function setupUnifiedTabs(tabs) {
-      const tabsContainer = document.getElementById("unified-tabs");
-      tabsContainer.innerHTML = "";
-      
-      if (tabs.length === 0) {
-        tabsContainer.style.display = "none";
-        return;
-      }
-      
-      tabsContainer.style.display = "flex";
-      
-      tabs.forEach((tab, index) => {
-        const tabElement = document.createElement("button");
-        tabElement.className = "unified-tab";
-        tabElement.dataset.tabId = tab.id;
-        
-        if (index === 0) {
-          tabElement.classList.add("active");
-        }
-        
-        tabElement.innerHTML = `
-          <span class="tab-icon">${tab.icon || '📄'}</span>
-          <span class="tab-text">${tab.label || tab.id}</span>
-          ${tab.indicator ? `<div class="tab-indicator ${tab.indicator}"></div>` : ''}
-        `;
-        
-        tabElement.onclick = () => switchToTab(tab.id);
-        tabsContainer.appendChild(tabElement);
-      });
-    }
-
-    // ===== SETUP CONTENU =====
-    function setupUnifiedContent(tabData) {
-      const contentContainer = document.getElementById("unified-content");
-      contentContainer.innerHTML = "";
-      
-      Object.keys(tabData).forEach(tabId => {
-        const tabContent = document.createElement("div");
-        tabContent.className = "tab-content";
-        tabContent.dataset.tabId = tabId;
-        
-        // Générer le contenu selon le type
-        tabContent.innerHTML = generateTabContent(tabId, tabData[tabId]);
-        
-        contentContainer.appendChild(tabContent);
-      });
-    }
-
-    // ===== GÉNÉRATION CONTENU ONGLET =====
-    function generateTabContent(tabId, data) {
-      switch (tabId) {
-        case 'dialogue':
-          return generateDialogueContent(data);
-        case 'merchant':
-        case 'shop':
-          return generateMerchantContent(data);
-        case 'quest':
-          return generateQuestContent(data);
-        case 'info':
-          return generateInfoContent(data);
-        default:
-          return generateGenericContent(data);
-      }
-    }
-
-    function generateDialogueContent(data) {
-      return `
-        <div class="dialogue-tab-content">
-          ${data.text || data.message || "Bonjour, que puis-je faire pour vous ?"}
-        </div>
-      `;
-    }
-
-    function generateMerchantContent(data) {
-      if (!data.items || data.items.length === 0) {
-        return `
-          <div class="tab-empty">
-            <div class="tab-empty-icon">🏪</div>
-            <p>Aucun article disponible pour le moment</p>
-          </div>
-        `;
-      }
-      
-      const itemsHtml = data.items.slice(0, 6).map(item => `
-        <div class="merchant-item-preview" onclick="previewItem('${item.id}')">
-          <div class="merchant-item-icon">${getItemIcon(item.id)}</div>
-          <div class="merchant-item-name">${getItemName(item.id)}</div>
-          <div class="merchant-item-price">${item.price}₽</div>
-        </div>
-      `).join('');
-      
-      return `
-        <div class="merchant-tab-content">
-          <div class="merchant-preview">
-            ${itemsHtml}
-          </div>
-          <button class="merchant-open-shop" onclick="openFullShop('${data.shopId || 'default'}')">
-            🛒 Ouvrir la boutique complète
-          </button>
-        </div>
-      `;
-    }
-
-    function generateQuestContent(data) {
-      return `
-        <div class="quest-tab-content">
-          <h4>🗡️ ${data.title || "Quête disponible"}</h4>
-          <p>${data.description || "Une nouvelle aventure vous attend !"}</p>
-          ${data.objectives ? `
-            <div class="quest-objectives">
-              <h5>Objectifs:</h5>
-              <ul>
-                ${data.objectives.map(obj => `<li>${obj}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
-          ${data.reward ? `<p><strong>Récompense:</strong> ${data.reward}</p>` : ''}
-        </div>
-      `;
-    }
-
-    function generateInfoContent(data) {
-      return `
-        <div class="info-tab-content">
-          ${data.content || data.text || "Informations non disponibles."}
-        </div>
-      `;
-    }
-
-    function generateGenericContent(data) {
-      if (typeof data === 'string') {
-        return `<div class="generic-tab-content">${data}</div>`;
-      }
-      
-      return `
-        <div class="generic-tab-content">
-          ${data.content || data.text || JSON.stringify(data, null, 2)}
-        </div>
-      `;
-    }
-
-    // ===== SETUP ACTIONS RAPIDES =====
-    function setupUnifiedActions(quickActions) {
-      const actionsContainer = document.getElementById("unified-actions");
-      actionsContainer.innerHTML = "";
-      
-      if (quickActions.length === 0) {
-        actionsContainer.style.display = "none";
-        return;
-      }
-      
-      actionsContainer.style.display = "flex";
-      
-      quickActions.forEach(action => {
-        const actionBtn = document.createElement("button");
-        actionBtn.className = `quick-action ${action.type || ''}`;
-        actionBtn.innerHTML = `
-          <span>${action.icon || '⚡'}</span>
-          <span>${action.label}</span>
-        `;
-        actionBtn.onclick = () => executeQuickAction(action);
-        actionsContainer.appendChild(actionBtn);
-      });
-    }
-
-    // ===== CHANGEMENT D'ONGLET =====
-    function switchToTab(tabId) {
-      console.log("🔄 Changement vers onglet:", tabId);
-      
-      // Mettre à jour l'état
-      window._unifiedDialogueState.currentTab = tabId;
-      
-      // Mettre à jour les onglets visuels
-      document.querySelectorAll('.unified-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.tabId === tabId);
-      });
-      
-      // Mettre à jour le contenu
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.dataset.tabId === tabId);
-      });
-      
-      // Callback personnalisé
-      if (window._unifiedDialogueState.onTabSwitch) {
-        window._unifiedDialogueState.onTabSwitch(tabId);
-      }
-    }
-
-    // ===== EXÉCUTION ACTION RAPIDE =====
-    function executeQuickAction(action) {
-      console.log("⚡ Exécution action rapide:", action);
-      
-      // Actions prédéfinies
-      switch (action.action) {
-        case 'openShop':
-          openFullShop(action.shopId || 'default');
-          break;
-        case 'startQuest':
-          startQuest(action.questId);
-          break;
-        case 'showInfo':
-          showInfo(action.content);
-          break;
-        case 'trade':
-          openTrade();
-          break;
-        default:
-          // Callback personnalisé
-          if (window._unifiedDialogueState.onQuickAction) {
-            window._unifiedDialogueState.onQuickAction(action);
-          } else if (action.callback && typeof action.callback === 'function') {
-            action.callback(action);
-          }
-          break;
-      }
-    }
-
-    // ===== FERMETURE INTERFACE UNIFIÉE =====
-    function closeUnifiedInterface() {
-      console.log("❌ Fermeture interface unifiée");
-      
-      // Callback de fermeture
-      if (window._unifiedDialogueState.onClose) {
-        window._unifiedDialogueState.onClose();
-      }
-      
-      // Reset de l'état
-      window._unifiedDialogueState = {
-        isUnified: false,
-        currentTab: null,
-        tabs: [],
-        tabData: {},
-        quickActions: [],
-        onTabSwitch: null,
-        onClose: null,
-        onQuickAction: null
-      };
-      
-      // Fermer la boîte de dialogue
+  function advanceDialogue() {
+    const box = document.getElementById("dialogue-box");
+    const npcText = document.getElementById("npc-text");
+    if (box.style.display === "none") return;
+    window._npcDialogueState.page++;
+    if (window._npcDialogueState.page >= window._npcDialogueState.lines.length) {
       closeDialogue();
+    } else {
+      npcText.innerText = window._npcDialogueState.lines[window._npcDialogueState.page];
     }
+  }
 
-    // ===== FONCTIONS UTILITAIRES =====
-    function getItemIcon(itemId) {
-      const iconMap = {
-        'poke_ball': '⚪', 'great_ball': '🟡', 'ultra_ball': '🟠',
-        'potion': '💊', 'super_potion': '💉', 'hyper_potion': '🧪',
-        'antidote': '🟢', 'awakening': '🔵', 'burn_heal': '🔴'
-      };
-      return iconMap[itemId] || '📦';
+  function closeDialogue() {
+    const box = document.getElementById("dialogue-box");
+    box.style.display = "none";
+    if (window._npcDialogueState.onClose) {
+      window._npcDialogueState.onClose();
     }
+  }
 
-    function getItemName(itemId) {
-      return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  // T pour test si chat non focus
+  document.addEventListener('keypress', function(e) {
+    if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
+      window.showNpcDialogue({
+        portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
+        name: 'Professor Oak',
+        lines: [
+          'Hello young trainer!',
+          'Ready for your Pokémon adventure?',
+          'Press E to continue, or click/Esc to close.'
+        ]
+      });
     }
+  });
 
-    function previewItem(itemId) {
-      console.log("👁️ Aperçu item:", itemId);
-      // Ici on peut afficher un tooltip ou une modal avec les détails
-    }
+  // E pour avancer, ESC pour fermer
+document.addEventListener('keydown', function(e) {
+  const box = document.getElementById('dialogue-box');
+  if (!box || box.style.display === 'none') return;
+  
+  // ✅ NOUVEAU: Bloquer si chat ouvert
+  if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
 
-    function openFullShop(shopId) {
-      console.log("🛒 Ouverture shop complet:", shopId);
-      closeUnifiedInterface();
-      
-      // Intégration avec le ShopSystem existant
-      if (window.shopSystem && window.shopSystem.directOpenShop) {
-        const npcData = { 
-          name: window._unifiedDialogueState.npcName || "Marchand",
-          id: window._unifiedDialogueState.npcId || "merchant"
-        };
-        window.shopSystem.directOpenShop(shopId, npcData);
-      }
-    }
+  // ✅ NOUVEAU: Vérifier si une fenêtre de quête est ouverte
+  if (window._questDialogActive) {
+    console.log("⚠️ Fenêtre de quête ouverte, E bloqué pour dialogue");
+    return;
+  }
 
-    function startQuest(questId) {
-      console.log("🗡️ Démarrage quête:", questId);
-      // Intégration avec le système de quêtes
-    }
+  if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
+    advanceDialogue();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  else if (e.key === 'Escape' || e.code === 'Escape') {
+    closeDialogue();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+</script>
 
-    function showInfo(content) {
-      console.log("ℹ️ Affichage info:", content);
-      // Afficher une modal d'information
-    }
+  <!-- Script d'initialisation simplifié -->
+  <script>
+    console.log('🎮 Initialisation du jeu...');
 
-    function openTrade() {
-      console.log("🔄 Ouverture échange");
-      // Intégration avec le système d'échange
-    }
-
-    // ===== FONCTIONS DIALOGUE ORIGINALES (PRÉSERVÉES) =====
-    function advanceDialogue() {
-      const box = document.getElementById("dialogue-box");
-      const npcText = document.getElementById("npc-text");
-      if (box.style.display === "none" || window._unifiedDialogueState.isUnified) return;
-      
-      window._npcDialogueState.page++;
-      if (window._npcDialogueState.page >= window._npcDialogueState.lines.length) {
-        closeDialogue();
+    // Fonction de test simple
+    window.testInventory = function() {
+      console.log('🧪 Test de l\'inventaire');
+      if (window.inventorySystem) {
+        window.inventorySystem.toggle();
       } else {
-        npcText.innerText = window._npcDialogueState.lines[window._npcDialogueState.page];
+        console.warn('Système d\'inventaire non disponible');
       }
-    }
-
-    function closeDialogue() {
-      const box = document.getElementById("dialogue-box");
-      box.style.display = "none";
-      
-      if (window._unifiedDialogueState.isUnified) {
-        if (window._unifiedDialogueState.onClose) {
-          window._unifiedDialogueState.onClose();
-        }
-      } else {
-        if (window._npcDialogueState.onClose) {
-          window._npcDialogueState.onClose();
-        }
-      }
-    }
-
-    // ===== GESTION CLAVIER (ÉTENDUE) =====
-    document.addEventListener('keydown', function(e) {
-      const box = document.getElementById('dialogue-box');
-      if (!box || box.style.display === 'none') return;
-      
-      // Bloquer si chat ouvert
-      if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
-      
-      // Vérifier si c'est une interface unifiée ou dialogue classique
-      if (window._unifiedDialogueState.isUnified) {
-        handleUnifiedKeydown(e);
-      } else {
-        handleClassicKeydown(e);
-      }
-    });
-
-    function handleUnifiedKeydown(e) {
-      switch (e.code) {
-        case 'Escape':
-          closeUnifiedInterface();
-          e.preventDefault();
-          e.stopPropagation();
-          break;
-        case 'Tab':
-          e.preventDefault();
-          switchToNextTab();
-          break;
-        case 'Digit1':
-        case 'Digit2':
-        case 'Digit3':
-        case 'Digit4':
-        case 'Digit5':
-          const tabIndex = parseInt(e.code.slice(-1)) - 1;
-          if (window._unifiedDialogueState.tabs[tabIndex]) {
-            switchToTab(window._unifiedDialogueState.tabs[tabIndex].id);
-          }
-          e.preventDefault();
-          break;
-      }
-    }
-
-    function handleClassicKeydown(e) {
-      // Vérifier si une fenêtre de quête est ouverte
-      if (window._questDialogActive) {
-        console.log("⚠️ Fenêtre de quête ouverte, E bloqué pour dialogue");
-        return;
-      }
-
-      if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
-        advanceDialogue();
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      else if (e.key === 'Escape' || e.code === 'Escape') {
-        closeDialogue();
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }
-
-    function switchToNextTab() {
-      if (!window._unifiedDialogueState.tabs.length) return;
-      
-      const currentIndex = window._unifiedDialogueState.tabs.findIndex(
-        tab => tab.id === window._unifiedDialogueState.currentTab
-      );
-      const nextIndex = (currentIndex + 1) % window._unifiedDialogueState.tabs.length;
-      switchToTab(window._unifiedDialogueState.tabs[nextIndex].id);
-    }
-
-    // ===== FONCTION DE TEST =====
-    window.testUnifiedInterface = function() {
-      console.log("🧪 Test interface unifiée...");
-      
-      const testData = {
-        isUnifiedInterface: true,
-        name: "Marchand Pokémon",
-        portrait: "https://via.placeholder.com/60x60/4a90e2/ffffff?text=🛒",
-        tabs: [
-          { id: 'dialogue', label: 'Dialogue', icon: '💬' },
-          { id: 'merchant', label: 'Boutique', icon: '🛒', indicator: 'success' },
-          { id: 'quest', label: 'Quêtes', icon: '🗡️' },
-          { id: 'info', label: 'Infos', icon: 'ℹ️' }
-        ],
-        tabData: {
-          dialogue: {
-            text: "Bonjour jeune dresseur ! Je propose les meilleurs objets pour ton aventure Pokémon. Que puis-je faire pour toi aujourd'hui ?"
-          },
-          merchant: {
-            shopId: 'pokemart_1',
-            items: [
-              { id: 'poke_ball', price: 200 },
-              { id: 'potion', price: 300 },
-              { id: 'antidote', price: 100 },
-              { id: 'awakening', price: 250 },
-              { id: 'great_ball', price: 600 },
-              { id: 'super_potion', price: 700 }
-            ]
-          },
-          quest: {
-            title: "Collectionneur d'objets",
-            description: "Aide-moi à rassembler 10 Baies Oran pour mes clients.",
-            objectives: ["Trouver 10 Baies Oran", "Rapporter les baies au marchand"],
-            reward: "500₽ + 3 Super Potions"
-          },
-          info: {
-            content: `
-              <h4>📍 PokéMart Central</h4>
-              <p>Le plus grand magasin d'objets Pokémon de la région !</p>
-              <ul>
-                <li>🕒 Ouvert 24h/24</li>
-                <li>💰 Meilleurs prix garantis</li>
-                <li>🚚 Livraison gratuite dès 1000₽</li>
-                <li>🎁 Programme de fidélité</li>
-              </ul>
-            `
-          }
-        },
-        quickActions: [
-          { 
-            icon: '🛒', 
-            label: 'Boutique', 
-            action: 'openShop', 
-            shopId: 'pokemart_1',
-            type: 'primary'
-          },
-          { 
-            icon: '🗡️', 
-            label: 'Accepter Quête', 
-            action: 'startQuest', 
-            questId: 'collect_berries'
-          },
-          { 
-            icon: '🔄', 
-            label: 'Échanger', 
-            action: 'trade'
-          }
-        ],
-        onTabSwitch: (tabId) => {
-          console.log("🔄 Onglet changé vers:", tabId);
-        },
-        onClose: () => {
-          console.log("❌ Interface fermée");
-        },
-        onQuickAction: (action) => {
-          console.log("⚡ Action rapide:", action);
-        }
-      };
-      
-      window.showNpcDialogue(testData);
     };
 
-    console.log("✅ Système de dialogue unifié initialisé !");
-    console.log("🧪 Testez avec: testUnifiedInterface()");
-    console.log("💬 Dialogue classique toujours compatible");
+    // Test automatique après 2 secondes
+    setTimeout(function() {
+      console.log('🎒 État de l\'inventaire:', {
+        system: !!window.inventorySystem,
+        icon: !!document.getElementById('inventory-icon'),
+        overlay: !!document.getElementById('inventory-overlay')
+      });
+    }, 2000);
+
+    console.log('✅ Scripts chargés - Tapez testInventory() ou appuyez sur I');
   </script>
+
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
