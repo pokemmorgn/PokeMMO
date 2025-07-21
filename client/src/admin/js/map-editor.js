@@ -31,40 +31,74 @@ export class MapEditorModule {
     // ==============================
 
     async loadAvailableItems() {
-        try {
-            console.log('📦 [MapEditor] Loading items from items.json...')
-            
-            let itemsData
-            try {
-                // Essayer de lire depuis le système de fichiers
-                const fileContent = await window.fs.readFile('server/src/data/items.json', { encoding: 'utf8' })
-                itemsData = JSON.parse(fileContent)
-            } catch (fsError) {
-                // Fallback: essayer de charger depuis l'API
-                const response = await fetch('/api/admin/items')
-                if (!response.ok) throw new Error('Items non trouvés')
-                itemsData = await response.json()
+    try {
+        console.log('📦 [MapEditor] Loading items from API...')
+        
+        // Utiliser uniquement l'API
+        const response = await this.adminPanel.apiCall('/items')
+        this.availableItems = response
+        
+        // Mettre à jour l'interface utilisateur
+        this.renderItemsPanel()
+        
+        console.log(`✅ [MapEditor] ${Object.keys(response).length} items chargés depuis l'API`)
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error loading items:', error)
+        this.adminPanel.showNotification('Erreur chargement items: ' + error.message, 'warning')
+        
+        // Items par défaut en cas d'erreur
+        this.availableItems = {
+            'poke_ball': { 
+                id: 'poke_ball', 
+                type: 'ball', 
+                pocket: 'balls',
+                price: 200,
+                stackable: true 
+            },
+            'potion': { 
+                id: 'potion', 
+                type: 'medicine', 
+                pocket: 'medicine',
+                price: 300,
+                heal_amount: 20,
+                stackable: true
+            },
+            'super_potion': { 
+                id: 'super_potion', 
+                type: 'medicine', 
+                pocket: 'medicine',
+                price: 700,
+                heal_amount: 50,
+                stackable: true
+            },
+            'great_ball': { 
+                id: 'great_ball', 
+                type: 'ball', 
+                pocket: 'balls',
+                price: 600,
+                stackable: true
+            },
+            'antidote': { 
+                id: 'antidote', 
+                type: 'medicine', 
+                pocket: 'medicine',
+                price: 100,
+                status_cure: ['poison'],
+                stackable: true
+            },
+            'escape_rope': { 
+                id: 'escape_rope', 
+                type: 'item', 
+                pocket: 'items',
+                price: 550,
+                stackable: true
             }
-
-            this.availableItems = itemsData
-            
-            // Mettre à jour l'interface utilisateur
-            this.renderItemsPanel()
-            
-            console.log(`✅ [MapEditor] ${Object.keys(itemsData).length} items chargés`)
-            
-        } catch (error) {
-            console.error('❌ [MapEditor] Error loading items:', error)
-            this.adminPanel.showNotification('Erreur chargement items: ' + error.message, 'error')
-            
-            // Items par défaut en cas d'erreur
-            this.availableItems = {
-                'poke_ball': { id: 'poke_ball', type: 'ball', pocket: 'balls' },
-                'potion': { id: 'potion', type: 'medicine', pocket: 'medicine' }
-            }
-            this.renderItemsPanel()
         }
+        this.renderItemsPanel()
+        console.log('📦 [MapEditor] Items par défaut utilisés')
     }
+}
 
     renderItemsPanel() {
         const itemsContainer = document.getElementById('itemsContainer')
