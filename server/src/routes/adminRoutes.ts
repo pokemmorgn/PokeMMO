@@ -176,24 +176,74 @@ router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) 
     });
   }
 });
-// ✅ ROUTE: Récupérer tous les items depuis items.json
+// ✅ ROUTE: Récupérer tous les items depuis items.json (dev + production)
 router.get('/items', requireMacAndDev, async (req: any, res) => {
   try {
+    console.log('📦 [AdminAPI] Loading items.json...');
+    
     const fs = require('fs').promises;
     const path = require('path');
     
-    const itemsPath = path.join(__dirname, '../data/items.json');
+    // Détecter si on est en mode build ou dev
+    const isDev = __filename.includes('/src/');
+    console.log('🔧 [AdminAPI] Mode détecté:', isDev ? 'DEVELOPMENT' : 'PRODUCTION');
+    
+    let itemsPath: string;
+    
+    if (isDev) {
+      // Mode développement : server/src/data/items.json
+      itemsPath = path.join(__dirname, '../data/items.json');
+    } else {
+      // Mode production : server/build/data/items.json  
+      itemsPath = path.join(__dirname, '../data/items.json');
+    }
+    
+    console.log('📂 [AdminAPI] Items path:', itemsPath);
     
     try {
       const itemsData = await fs.readFile(itemsPath, 'utf8');
       const items = JSON.parse(itemsData);
       
-      console.log(`📦 [AdminAPI] Items loaded: ${Object.keys(items).length} items`);
+      console.log(`✅ [AdminAPI] Items loaded: ${Object.keys(items).length} items`);
       
       res.json(items);
-    } catch (error) {
-      console.error('❌ [AdminAPI] Error reading items.json:', error);
-      res.status(404).json({ error: 'Fichier items.json non trouvé' });
+      
+    } catch (fileError) {
+      console.error('❌ [AdminAPI] Error reading items.json:', fileError);
+      console.log('📂 [AdminAPI] Tried path:', itemsPath);
+      
+      // Essayer plusieurs chemins possibles
+      const possiblePaths = [
+        path.join(__dirname, '../data/items.json'),           // Relatif normal
+        path.join(__dirname, '../../data/items.json'),        // Un niveau plus haut
+        path.join(process.cwd(), 'server/build/data/items.json'), // Absolu build
+        path.join(process.cwd(), 'server/src/data/items.json'),   // Absolu src
+        path.join(process.cwd(), 'server/data/items.json'),       // Racine server
+        path.join(process.cwd(), 'data/items.json')               // Racine projet
+      ];
+      
+      console.log('🔍 [AdminAPI] Trying alternative paths...');
+      
+      for (const altPath of possiblePaths) {
+        try {
+          console.log('📂 [AdminAPI] Trying:', altPath);
+          const altItemsData = await fs.readFile(altPath, 'utf8');
+          const altItems = JSON.parse(altItemsData);
+          
+          console.log(`✅ [AdminAPI] Items found at: ${altPath} (${Object.keys(altItems).length} items)`);
+          return res.json(altItems);
+          
+        } catch (altError) {
+          // Continue à l'itération suivante
+        }
+      }
+      
+      // Aucun chemin n'a fonctionné
+      console.error('❌ [AdminAPI] Items.json not found in any location');
+      res.status(404).json({ 
+        error: 'Fichier items.json non trouvé',
+        searchedPaths: possiblePaths
+      });
     }
     
   } catch (error) {
@@ -204,6 +254,7 @@ router.get('/items', requireMacAndDev, async (req: any, res) => {
     });
   }
 });
+
 // ✅ ROUTE: Liste complète des joueurs avec données détaillées
 router.get('/players', requireMacAndDev, async (req: any, res) => {
   try {
