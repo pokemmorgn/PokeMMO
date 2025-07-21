@@ -18,28 +18,17 @@ import { BaseInteractionModule } from "../interfaces/InteractionModule";
 // ✅ Import du handler merchant
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ NOUVELLES INTERFACES POUR SYSTÈME MULTI-FONCTIONNEL
-export interface NpcCapability {
-  type: 'merchant' | 'quest_giver' | 'quest_ender' | 'healer' | 'dialogue' | 'starter' | 'spectate';
-  priority: number;
-  handler?: string;
-  icon?: string;
-  label: string;
-  description?: string;
-  available: boolean;
-  reason?: string; // Si non disponible
-}
+// ✅ IMPORT DES TYPES DEPUIS BaseInteractionTypes pour éviter les doublons
+import type { 
+  NpcCapability, 
+  NpcChoiceResult,
+  CapabilityType,
+  DEFAULT_CAPABILITY_PRIORITIES,
+  DEFAULT_CAPABILITY_ICONS,
+  DEFAULT_CAPABILITY_LABELS
+} from "../types/BaseInteractionTypes";
 
-export interface NpcChoiceResult extends InteractionResult {
-  type: "npc_choice";
-  capabilities: NpcCapability[];
-  npcId: number;
-  npcName: string;
-  welcomeMessage?: string;
-  lines?: string[];
-}
-
-// ✅ INTERFACE RESULT NPC (conserve compatibilité existante)
+// ✅ INTERFACE RESULT NPC (conserve compatibilité existante + nouveaux types)
 export interface NpcInteractionResult extends InteractionResult {
   // Données NPCs existantes
   shopId?: string;
@@ -63,8 +52,9 @@ export interface NpcInteractionResult extends InteractionResult {
     reason?: string;
   };
   
-  // ✅ NOUVEAU : Capacités multi-fonctionnelles
+  // ✅ NOUVEAU : Capacités multi-fonctionnelles (utilise les types de BaseInteractionTypes)
   capabilities?: NpcCapability[];
+  welcomeMessage?: string;
 }
 
 export class NpcInteractionModule extends BaseInteractionModule {
@@ -298,10 +288,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
         
         capabilities.push({
           type: 'merchant',
-          priority: 10,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.merchant,
           handler: 'MerchantNpcHandler',
-          icon: '🛒',
-          label: 'Ouvrir la boutique',
+          icon: DEFAULT_CAPABILITY_ICONS.merchant,
+          label: DEFAULT_CAPABILITY_LABELS.merchant,
           description: 'Acheter et vendre des objets',
           available: shopAvailable,
           reason: shopAvailable ? undefined : 'Boutique temporairement fermée'
@@ -313,10 +303,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
       if (availableQuests.length > 0) {
         capabilities.push({
           type: 'quest_giver',
-          priority: 20,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.quest_giver,
           handler: 'QuestSystem',
-          icon: '📜',
-          label: 'Recevoir une quête',
+          icon: DEFAULT_CAPABILITY_ICONS.quest_giver,
+          label: DEFAULT_CAPABILITY_LABELS.quest_giver,
           description: `${availableQuests.length} quête(s) disponible(s)`,
           available: true
         });
@@ -327,10 +317,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
       if (readyToCompleteQuests.length > 0) {
         capabilities.push({
           type: 'quest_ender',
-          priority: 30,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.quest_ender,
           handler: 'QuestSystem',
-          icon: '✅',
-          label: 'Terminer une quête',
+          icon: DEFAULT_CAPABILITY_ICONS.quest_ender,
+          label: DEFAULT_CAPABILITY_LABELS.quest_ender,
           description: `${readyToCompleteQuests.length} quête(s) à rendre`,
           available: true
         });
@@ -341,10 +331,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
         const hasWoundedPokemon = this.playerHasWoundedPokemon(player);
         capabilities.push({
           type: 'healer',
-          priority: 40,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.healer,
           handler: 'HealerSystem',
-          icon: '🏥',
-          label: 'Soigner les Pokémon',
+          icon: DEFAULT_CAPABILITY_ICONS.healer,
+          label: DEFAULT_CAPABILITY_LABELS.healer,
           description: hasWoundedPokemon ? 'Vos Pokémon ont besoin de soins' : 'Vos Pokémon sont en bonne santé',
           available: true
         });
@@ -355,10 +345,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
         const validation = await this.starterHandlers.validateStarterRequest(player, 1);
         capabilities.push({
           type: 'starter',
-          priority: 50,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.starter,
           handler: 'StarterSystem',
-          icon: '🎁',
-          label: 'Choisir un starter',
+          icon: DEFAULT_CAPABILITY_ICONS.starter,
+          label: DEFAULT_CAPABILITY_LABELS.starter,
           description: validation.valid ? 'Choisissez votre premier Pokémon' : validation.message,
           available: validation.valid,
           reason: validation.valid ? undefined : validation.reason
@@ -370,10 +360,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
       if (hasDialogue || capabilities.length === 0) {
         capabilities.push({
           type: 'dialogue',
-          priority: 100,
+          priority: DEFAULT_CAPABILITY_PRIORITIES.dialogue,
           handler: 'DialogueSystem',
-          icon: '💬',
-          label: 'Discuter',
+          icon: DEFAULT_CAPABILITY_ICONS.dialogue,
+          label: DEFAULT_CAPABILITY_LABELS.dialogue,
           description: 'Avoir une conversation',
           available: true
         });
@@ -393,10 +383,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // Fallback vers dialogue simple
       return [{
         type: 'dialogue',
-        priority: 100,
+        priority: DEFAULT_CAPABILITY_PRIORITIES.dialogue,
         handler: 'DialogueSystem',
-        icon: '💬',
-        label: 'Discuter',
+        icon: DEFAULT_CAPABILITY_ICONS.dialogue,
+        label: DEFAULT_CAPABILITY_LABELS.dialogue,
         description: 'Avoir une conversation',
         available: true
       }];
@@ -1103,17 +1093,17 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // === ✅ NOUVELLE MÉTHODE : DEBUG CAPABILITIES ===
   
-  async debugNpcCapabilities(player: Player, npcId: number): Promise<void> {
+  async debugNpcCapabilities(player: Player, npcId: number): Promise<NpcCapability[]> {
     const npcManager = this.getNpcManager(player.currentZone);
     if (!npcManager) {
       console.log(`❌ NPCManager non trouvé pour zone ${player.currentZone}`);
-      return;
+      return [];
     }
 
     const npc = npcManager.getNpcById(npcId);
     if (!npc) {
       console.log(`❌ NPC ${npcId} non trouvé`);
-      return;
+      return [];
     }
 
     console.log(`🔍 === DEBUG CAPABILITIES NPC ${npcId} ===`);
@@ -1134,5 +1124,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     });
     
     console.log(`=======================================`);
+    
+    return capabilities;
   }
 }
