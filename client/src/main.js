@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { NetworkManager } from "./network/NetworkManager.js";
 import { LoadingScreen, QuickLoading } from './components/LoadingScreen.js';
+import { DialogueManager } from './components/DialogueManager.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
