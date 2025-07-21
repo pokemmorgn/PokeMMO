@@ -1,5 +1,5 @@
 // client/src/network/NetworkInteractionHandler.js
-// ✅ CORRECTED - Handler spécialisé pour toutes les interactions réseau
+// ✅ UNIFIED INTERFACE EXTENSIONS - Handler spécialisé pour toutes les interactions réseau
 // Étend les capacités du NetworkManager sans le polluer
 
 export class NetworkInteractionHandler {
@@ -21,6 +21,7 @@ export class NetworkInteractionHandler {
       onObjectInteraction: null,
       onSearchResult: null,
       onNpcInteraction: null,
+      onUnifiedInterfaceResult: null, // ✅ NOUVEAU CALLBACK
       onInteractionError: null,
       onInteractionSuccess: null,
       onInteractionBlocked: null
@@ -31,9 +32,10 @@ export class NetworkInteractionHandler {
       objectInteractions: 0,
       searchInteractions: 0,
       npcInteractions: 0,
+      unifiedInterfaceResults: 0, // ✅ NOUVEAU COMPTEUR
       errorsReceived: 0,
       messagesHandled: 0,
-      initializationAttempts: 0 // ✅ NOUVEAU
+      initializationAttempts: 0
     };
     
     // ✅ Configuration
@@ -42,14 +44,11 @@ export class NetworkInteractionHandler {
       maxPendingInteractions: 10,
       interactionTimeout: 8000,
       retryAttempts: 2,
-      maxInitRetries: 5, // ✅ NOUVEAU
-      initRetryDelay: 500 // ✅ NOUVEAU
+      maxInitRetries: 5,
+      initRetryDelay: 500
     };
     
-    console.log('[NetworkInteractionHandler] 🔧 Créé avec NetworkManager');
-    
-    // ✅ SUPPRIMÉ : L'auto-initialisation du constructeur
-    // On attend l'appel explicite à initialize()
+    console.log('[NetworkInteractionHandler] 🔧 Créé avec NetworkManager + Extensions Interface Unifiée');
   }
 
   // === INITIALISATION REFACTORISÉE ===
@@ -109,7 +108,7 @@ export class NetworkInteractionHandler {
       this.isInitialized = true;
       this.handlersSetup = true;
       
-      console.log('[NetworkInteractionHandler] ✅ Initialisé avec succès');
+      console.log('[NetworkInteractionHandler] ✅ Initialisé avec succès + Extensions Interface Unifiée');
       console.log(`[NetworkInteractionHandler] 📊 Tentatives: ${this.debugCounters.initializationAttempts}`);
       
       return true;
@@ -213,7 +212,7 @@ export class NetworkInteractionHandler {
         this.handleInteractionCooldown(data);
       });
 
-      // ✅ Handler générique pour nouveaux types d'interaction
+      // ✅ Handler générique pour nouveaux types d'interaction + EXTENSIONS UNIFIÉES
       room.onMessage("interactionResult", (data) => {
         this.debugCounters.messagesHandled++;
         console.log(`[NetworkInteractionHandler] 🎭 === INTERACTION RESULT GÉNÉRIQUE #${this.debugCounters.messagesHandled} ===`);
@@ -223,7 +222,7 @@ export class NetworkInteractionHandler {
         this.handleGenericInteractionResult(data);
       });
 
-      console.log('[NetworkInteractionHandler] ✅ Handlers configurés');
+      console.log('[NetworkInteractionHandler] ✅ Handlers configurés avec extensions interface unifiée');
       return true;
       
     } catch (error) {
@@ -617,8 +616,11 @@ ensureHandlersReady() {
     this.showInteractionMessage(`Attendez ${seconds} seconde(s) avant d'interagir à nouveau`, 'warning');
   }
 
+  // ✅ MÉTHODE ÉTENDUE - Gestion générique avec support interface unifiée
   handleGenericInteractionResult(data) {
-    console.log('[NetworkInteractionHandler] 🔄 Traitement résultat générique');
+    console.log('[NetworkInteractionHandler] 🔄 === TRAITEMENT RÉSULTAT GÉNÉRIQUE ÉTENDU ===');
+    console.log('[NetworkInteractionHandler] Type:', data.type);
+    console.log('[NetworkInteractionHandler] Has unifiedInterface:', !!data.unifiedInterface);
     
     // ✅ Router selon le type
     switch (data.type) {
@@ -631,20 +633,140 @@ ensureHandlersReady() {
         break;
         
       case 'npc':
-        // ✅ Déléguer au système NPC existant
-        if (this.callbacks.onNpcInteraction) {
-          this.callbacks.onNpcInteraction(data);
+        // ✅ NOUVEAU - Vérifier si c'est une interface unifiée
+        if (data.unifiedInterface) {
+          console.log('[NetworkInteractionHandler] 🎭 Interface unifiée détectée pour NPC');
+          this.handleUnifiedInterfaceResult(data);
+        } else {
+          console.log('[NetworkInteractionHandler] 💬 Interaction NPC simple');
+          // ✅ Déléguer au système NPC existant
+          if (this.callbacks.onNpcInteraction) {
+            this.callbacks.onNpcInteraction(data);
+          }
         }
         break;
         
       default:
         console.log('[NetworkInteractionHandler] ❓ Type d\'interaction inconnu:', data.type);
         
-        // ✅ Callback générique
-        if (this.callbacks.onInteractionSuccess) {
-          this.callbacks.onInteractionSuccess(data.type, data);
+        // ✅ NOUVEAU - Vérifier interface unifiée même pour types inconnus
+        if (data.unifiedInterface) {
+          console.log('[NetworkInteractionHandler] 🎭 Interface unifiée détectée pour type inconnu');
+          this.handleUnifiedInterfaceResult(data);
+        } else {
+          // ✅ Callback générique
+          if (this.callbacks.onInteractionSuccess) {
+            this.callbacks.onInteractionSuccess(data.type, data);
+          }
         }
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE - Handler spécialisé pour interface unifiée
+  handleUnifiedInterfaceResult(data) {
+    this.debugCounters.unifiedInterfaceResults++;
+    console.log(`[NetworkInteractionHandler] 🎯 === UNIFIED INTERFACE RESULT #${this.debugCounters.unifiedInterfaceResults} ===`);
+    console.log('[NetworkInteractionHandler] NPC:', data.npcName);
+    console.log('[NetworkInteractionHandler] Capabilities:', data.unifiedInterface?.capabilities);
+    console.log('[NetworkInteractionHandler] Default Action:', data.unifiedInterface?.defaultAction);
+    console.log('[NetworkInteractionHandler] Quick Actions:', data.unifiedInterface?.quickActions?.length || 0);
+    
+    // ✅ Validation des données d'interface unifiée
+    if (!this.validateUnifiedInterfaceData(data)) {
+      console.error('[NetworkInteractionHandler] ❌ Données interface unifiée invalides');
+      // ✅ Fallback vers NPC simple
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction(data);
+      }
+      return;
+    }
+    
+    try {
+      // ✅ Marquer comme interface unifiée pour traitement spécial
+      const unifiedData = {
+        ...data,
+        isUnifiedInterface: true,
+        originalData: data,
+        timestamp: Date.now(),
+        handlerVersion: 'NetworkInteractionHandler_v1'
+      };
+      
+      // ✅ Callback spécialisé pour interface unifiée
+      if (this.callbacks.onUnifiedInterfaceResult) {
+        console.log('[NetworkInteractionHandler] 🎭 Délégation vers callback interface unifiée');
+        this.callbacks.onUnifiedInterfaceResult(unifiedData);
+      } 
+      // ✅ Fallback vers callback NPC normal avec marquage spécial
+      else if (this.callbacks.onNpcInteraction) {
+        console.log('[NetworkInteractionHandler] 🔄 Fallback vers callback NPC avec marquage interface unifiée');
+        this.callbacks.onNpcInteraction(unifiedData);
+      } 
+      // ✅ Pas de callback disponible
+      else {
+        console.error('[NetworkInteractionHandler] ❌ Aucun callback disponible pour interface unifiée');
+        this.showInteractionMessage('Interface unifiée non supportée par ce client', 'warning');
+      }
+      
+      // ✅ Callback succès global
+      if (this.callbacks.onInteractionSuccess) {
+        this.callbacks.onInteractionSuccess('unifiedInterface', data);
+      }
+      
+      console.log('[NetworkInteractionHandler] ✅ Interface unifiée traitée avec succès');
+      
+    } catch (error) {
+      console.error('[NetworkInteractionHandler] ❌ Erreur traitement interface unifiée:', error);
+      
+      // ✅ Callback d'erreur
+      if (this.callbacks.onInteractionError) {
+        this.callbacks.onInteractionError('unifiedInterface', {
+          error: error.message,
+          originalData: data
+        });
+      }
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE - Validation des données interface unifiée
+  validateUnifiedInterfaceData(data) {
+    if (!data) {
+      console.error('[NetworkInteractionHandler] ❌ Pas de données');
+      return false;
+    }
+    
+    if (!data.unifiedInterface) {
+      console.error('[NetworkInteractionHandler] ❌ Propriété unifiedInterface manquante');
+      return false;
+    }
+    
+    const ui = data.unifiedInterface;
+    
+    if (!ui.npcId) {
+      console.error('[NetworkInteractionHandler] ❌ NPC ID manquant dans unifiedInterface');
+      return false;
+    }
+    
+    if (!ui.capabilities || !Array.isArray(ui.capabilities) || ui.capabilities.length === 0) {
+      console.error('[NetworkInteractionHandler] ❌ Capabilities manquantes ou vides');
+      return false;
+    }
+    
+    // ✅ Vérifier que chaque capability a des données correspondantes
+    const missingData = [];
+    ui.capabilities.forEach(capability => {
+      const dataKey = `${capability}Data`;
+      if (!ui[dataKey]) {
+        missingData.push(dataKey);
+      }
+    });
+    
+    if (missingData.length > 0) {
+      console.warn(`[NetworkInteractionHandler] ⚠️ Données manquantes pour capabilities: ${missingData.join(', ')}`);
+      // ✅ Pas bloquant - on continue avec un warning
+    }
+    
+    console.log('[NetworkInteractionHandler] ✅ Données interface unifiée valides');
+    return true;
   }
 
   // === GESTION D'ÉTAT ===
@@ -769,6 +891,12 @@ ensureHandlersReady() {
     console.log('[NetworkInteractionHandler] 🔧 Callback npcInteraction configuré');
   }
 
+  // ✅ NOUVEAU CALLBACK SPÉCIALISÉ
+  onUnifiedInterfaceResult(callback) {
+    this.callbacks.onUnifiedInterfaceResult = callback;
+    console.log('[NetworkInteractionHandler] 🎭 Callback unifiedInterfaceResult configuré');
+  }
+
   onInteractionError(callback) {
     this.callbacks.onInteractionError = callback;
     console.log('[NetworkInteractionHandler] 🔧 Callback interactionError configuré');
@@ -828,6 +956,7 @@ ensureHandlersReady() {
 
   // === DEBUG ET MONITORING ===
 
+  // ✅ MÉTHODE DEBUG ÉTENDUE
   getDebugInfo() {
     const room = this.networkManager?.room;
     const handlersCount = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).length : 0;
@@ -837,8 +966,8 @@ ensureHandlersReady() {
 
     return {
       isInitialized: this.isInitialized,
-      handlersSetup: this.handlersSetup, // ✅ NOUVEAU
-      counters: this.debugCounters,
+      handlersSetup: this.handlersSetup,
+      counters: this.debugCounters, // ✅ Inclut maintenant unifiedInterfaceResults
       state: {
         ...this.state,
         pendingInteractionsCount: this.state.pendingInteractions.size,
@@ -849,12 +978,18 @@ ensureHandlersReady() {
       roomId: this.networkManager?.room?.roomId,
       sessionId: this.networkManager?.sessionId,
       currentZone: this.networkManager?.currentZone,
-      roomReadiness: this.checkRoomReadiness(), // ✅ NOUVEAU
-      handlersInfo: { // ✅ NOUVEAU
+      roomReadiness: this.checkRoomReadiness(),
+      handlersInfo: {
         totalHandlers: handlersCount,
         interactionHandlers: interactionHandlers,
         hasObjectHandler: interactionHandlers.includes('objectInteractionResult'),
         hasSearchHandler: interactionHandlers.includes('searchResult')
+      },
+      // ✅ NOUVELLES INFOS DEBUG INTERFACE UNIFIÉE
+      unifiedInterfaceSupport: {
+        hasUnifiedCallback: !!this.callbacks.onUnifiedInterfaceResult,
+        unifiedResultsProcessed: this.debugCounters.unifiedInterfaceResults,
+        lastUnifiedResultTime: this.lastUnifiedResultTime || null
       }
     };
   }
@@ -868,6 +1003,7 @@ ensureHandlersReady() {
       objectInteractions: 0,
       searchInteractions: 0,
       npcInteractions: 0,
+      unifiedInterfaceResults: 0, // ✅ NOUVEAU
       errorsReceived: 0,
       messagesHandled: 0,
       initializationAttempts: 0
@@ -914,15 +1050,52 @@ ensureHandlersReady() {
   }
 }
 
-// === FONCTIONS DEBUG GLOBALES ===
+// === FONCTIONS DEBUG GLOBALES ÉTENDUES ===
 
 window.debugInteractionHandler = function() {
   if (window.globalNetworkManager?.interactionHandler) {
     const info = window.globalNetworkManager.interactionHandler.getDebugInfo();
-    console.log('[NetworkInteractionHandler] === DEBUG INFO ===');
+    console.log('[NetworkInteractionHandler] === DEBUG INFO ÉTENDU ===');
     console.table(info.counters);
+    console.log('[NetworkInteractionHandler] Support Interface Unifiée:', info.unifiedInterfaceSupport);
     console.log('[NetworkInteractionHandler] Info complète:', info);
     return info;
+  } else {
+    console.error('[NetworkInteractionHandler] Handler non trouvé');
+    return null;
+  }
+};
+
+window.testUnifiedInterface = function() {
+  if (window.globalNetworkManager?.interactionHandler) {
+    const handler = window.globalNetworkManager.interactionHandler;
+    
+    console.log('[NetworkInteractionHandler] 🧪 Test interface unifiée...');
+    
+    // Mock data d'interface unifiée
+    const mockData = {
+      type: 'npc',
+      npcId: 9002,
+      npcName: 'Marchand Test',
+      unifiedInterface: {
+        npcId: 9002,
+        npcName: 'Marchand Test',
+        capabilities: ['merchant', 'dialogue'],
+        defaultAction: 'merchant',
+        merchantData: {
+          shopId: 'test_shop',
+          availableItems: [
+            { itemId: 'potion', buyPrice: 300, stock: 10 }
+          ]
+        },
+        dialogueData: {
+          lines: ['Bonjour ! Bienvenue dans mon shop de test !']
+        }
+      }
+    };
+    
+    handler.handleUnifiedInterfaceResult(mockData);
+    return mockData;
   } else {
     console.error('[NetworkInteractionHandler] Handler non trouvé');
     return null;
@@ -947,7 +1120,8 @@ window.forceReinitInteractionHandlers = function() {
   return false;
 };
 
-console.log('✅ NetworkInteractionHandler chargé!');
+console.log('✅ NetworkInteractionHandler avec Extensions Interface Unifiée chargé!');
 console.log('🔍 Utilisez window.debugInteractionHandler() pour diagnostiquer');
+console.log('🧪 Utilisez window.testUnifiedInterface() pour tester interface unifiée');
 console.log('🔄 Utilisez window.resetInteractionHandlerDebug() pour reset compteurs');
 console.log('🔧 Utilisez window.forceReinitInteractionHandlers() pour force réinit handlers');
