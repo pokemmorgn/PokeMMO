@@ -1,0 +1,26 @@
+{
+  "zone": "road1",
+  "version": "1.0.0",
+  "description": "Test NPCs JSON Road 1",
+  "npcs": [
+    {
+      "id": 9001,
+      "name": "Test Marchand JSON",
+      "type": "merchant",
+      "position": { "x": 100, "y": 100 },
+      "sprite": "shopkeeper.png",
+      "shopId": "test_shop",
+      "shopDialogueIds": {
+        "shopOpen": ["npc.merchant.test.welcome.1"]
+      }
+    },
+    {
+      "id": 9002, 
+      "name": "Test Guide JSON",
+      "type": "dialogue",
+      "position": { "x": 200, "y": 150 },
+      "sprite": "guide.png",
+      "dialogueIds": ["npc.guide.test.hello.1"]
+    }
+  ]
+}
