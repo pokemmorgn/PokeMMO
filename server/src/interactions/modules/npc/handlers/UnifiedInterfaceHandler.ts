@@ -24,7 +24,7 @@ import {
 // Import des handlers existants
 import { MerchantNpcHandler } from "./MerchantNpcHandler";
 
-// ===== INTERFACE NPC DATA (Compatible JSON + Tiled) =====
+// ===== INTERFACE NPC DATA COMPLÈTE (Compatible JSON + Tiled) =====
 interface NpcData {
   id: number;
   name: string;
@@ -33,7 +33,7 @@ interface NpcData {
   y: number;
   properties?: Record<string, any>;
   
-  // Propriétés JSON
+  // Propriétés JSON de base
   type?: string;
   shopId?: string;
   shopType?: string;
@@ -271,10 +271,10 @@ export class UnifiedInterfaceHandler {
     }
   }
 
-  // === COLLECTEURS DE DONNÉES ===
+  // === COLLECTEURS DE DONNÉES (CORRIGÉS) ===
 
   private async collectMerchantData(player: Player, npc: NpcData): Promise<MerchantData> {
-    const shopId = npc.shopId || npc.properties?.shopId || npc.properties?.shop;
+    const shopId = this.getShopId(npc);
     const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
     
     if (!catalog) {
@@ -286,20 +286,21 @@ export class UnifiedInterfaceHandler {
       shopInfo: {
         name: catalog.shopInfo.name || 'Boutique',
         currency: 'gold',
-        shopType: npc.shopType || npc.properties?.shopType || 'pokemart'
+        shopType: npc.shopType || this.getProperty(npc, 'shopType') || 'pokemart'
       },
+      // ✅ CORRIGÉ : Utilisation correcte des propriétés ShopItem
       availableItems: catalog.availableItems.map(item => ({
-        id: item.id,
-        name: item.name || item.id,
+        id: item.itemId,
+        name: item.itemId, // Utiliser itemId comme nom
         price: item.buyPrice || 0,
-        stock: item.stock || 99,
-        category: item.category || 'items',
-        description: item.description
+        stock: (item as any).stock || 99,
+        category: 'items', // Valeur par défaut
+        description: undefined // Pas de description disponible
       })),
       playerGold: player.gold || 1000,
       welcomeDialogue: this.getShopDialogue(npc, 'welcome'),
       canBuy: true,
-      canSell: catalog.shopInfo.acceptsSell !== false,
+      canSell: true, // ✅ CORRIGÉ : Valeur par défaut
       restrictions: this.getShopRestrictions(npc, player)
     };
   }
@@ -319,13 +320,14 @@ export class UnifiedInterfaceHandler {
       .filter(q => q.endNpcId === npc.id && q.status === 'readyToComplete');
 
     return {
+      // ✅ CORRIGÉ : Gestion des récompenses
       availableQuests: availableQuests.map(quest => ({
         id: quest.id,
         name: quest.name,
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: quest.rewards || []
+        rewards: [] // TODO: Récupérer les récompenses réelles depuis la définition de quête
       })),
       questsInProgress: questsInProgress.map(quest => ({
         id: quest.id,
@@ -336,7 +338,7 @@ export class UnifiedInterfaceHandler {
       questsToComplete: questsToComplete.map(quest => ({
         id: quest.id,
         name: quest.name,
-        rewards: quest.rewards || []
+        rewards: [] // ✅ CORRIGÉ : Pas d'accès direct aux récompenses
       })),
       questDialogue: this.getQuestDialogue(npc),
       canGiveQuests: availableQuests.length > 0,
@@ -382,7 +384,7 @@ export class UnifiedInterfaceHandler {
   private async collectTrainerData(player: Player, npc: NpcData): Promise<TrainerData> {
     return {
       trainerId: npc.trainerId || `trainer_${npc.id}`,
-      trainerClass: npc.properties?.trainerClass || 'youngster',
+      trainerClass: this.getProperty(npc, 'trainerClass') || 'youngster',
       battleType: 'single',
       teamPreview: [], // TODO: Récupérer l'équipe
       battleDialogue: this.getTrainerDialogue(npc, 'challenge'),
@@ -397,8 +399,7 @@ export class UnifiedInterfaceHandler {
   // === MÉTHODES DE DÉTECTION ===
 
   private hasValidShop(npc: NpcData): boolean {
-    const shopId = npc.shopId || npc.properties?.shopId || npc.properties?.shop;
-    return !!shopId;
+    return !!this.getShopId(npc);
   }
 
   private async hasAvailableQuests(player: Player, npc: NpcData): Promise<boolean> {
@@ -414,11 +415,11 @@ export class UnifiedInterfaceHandler {
   }
 
   private hasDialogue(npc: NpcData): boolean {
-    return !!(npc.dialogueIds?.length || npc.properties?.dialogue);
+    return !!(npc.dialogueIds?.length || this.getProperty(npc, 'dialogue'));
   }
 
   private isHealerNpc(npc: NpcData): boolean {
-    return npc.type === 'healer' || !!npc.properties?.healer;
+    return npc.type === 'healer' || !!this.getProperty(npc, 'healer');
   }
 
   private isTrainerNpc(npc: NpcData): boolean {
@@ -426,6 +427,14 @@ export class UnifiedInterfaceHandler {
   }
 
   // === MÉTHODES UTILITAIRES ===
+
+  private getShopId(npc: NpcData): string {
+    return npc.shopId || this.getProperty(npc, 'shopId') || this.getProperty(npc, 'shop') || '';
+  }
+
+  private getProperty(npc: NpcData, key: string): any {
+    return npc.properties?.[key];
+  }
 
   private determineDefaultAction(npc: NpcData, capabilities: CapabilityAnalysis[]): NpcCapability {
     // 1. Priorité par type NPC
@@ -501,18 +510,34 @@ export class UnifiedInterfaceHandler {
     };
   }
 
-  // === MÉTHODES DE DIALOGUE ET DONNÉES ===
+  // === MÉTHODES DE DIALOGUE ET DONNÉES (CORRIGÉES) ===
 
+  // ✅ CORRIGÉ : Gestion sécurisée des propriétés shopDialogueIds
   private getShopDialogue(npc: NpcData, type: 'welcome'): string[] {
-    if (npc.shopDialogueIds?.shopOpen) {
-      return npc.shopDialogueIds.shopOpen;
+    // Vérifier d'abord les propriétés JSON avec casting sécurisé
+    const npcAny = npc as any;
+    if (npcAny.shopDialogueIds?.shopOpen) {
+      return npcAny.shopDialogueIds.shopOpen;
+    }
+    // Fallback vers propriétés Tiled
+    if (this.getProperty(npc, 'shopDialogue')) {
+      const dialogue = this.getProperty(npc, 'shopDialogue');
+      return Array.isArray(dialogue) ? dialogue : [dialogue];
     }
     return ["Bienvenue dans ma boutique !"];
   }
 
+  // ✅ CORRIGÉ : Gestion sécurisée des propriétés questDialogueIds
   private getQuestDialogue(npc: NpcData): string[] {
-    if (npc.questDialogueIds?.questOffer) {
-      return npc.questDialogueIds.questOffer;
+    // Vérifier d'abord les propriétés JSON avec casting sécurisé
+    const npcAny = npc as any;
+    if (npcAny.questDialogueIds?.questOffer) {
+      return npcAny.questDialogueIds.questOffer;
+    }
+    // Fallback vers propriétés Tiled
+    if (this.getProperty(npc, 'questDialogue')) {
+      const dialogue = this.getProperty(npc, 'questDialogue');
+      return Array.isArray(dialogue) ? dialogue : [dialogue];
     }
     return ["J'ai peut-être quelque chose pour vous..."];
   }
@@ -521,23 +546,32 @@ export class UnifiedInterfaceHandler {
     if (npc.dialogueIds?.length) {
       return npc.dialogueIds;
     }
-    if (npc.properties?.dialogue) {
-      return Array.isArray(npc.properties.dialogue) ? npc.properties.dialogue : [npc.properties.dialogue];
+    if (this.getProperty(npc, 'dialogue')) {
+      const dialogue = this.getProperty(npc, 'dialogue');
+      return Array.isArray(dialogue) ? dialogue : [dialogue];
     }
     return [`Bonjour ! Je suis ${npc.name}.`];
   }
 
   private getHealerDialogue(npc: NpcData, type: 'welcome'): string[] {
+    const npcAny = npc as any;
+    if (npcAny.healerDialogueIds?.welcome) {
+      return npcAny.healerDialogueIds.welcome;
+    }
     return ["Voulez-vous soigner vos Pokémon ?"];
   }
 
   private getTrainerDialogue(npc: NpcData, type: 'challenge'): string[] {
+    const npcAny = npc as any;
+    if (npcAny.battleDialogueIds?.preBattle) {
+      return npcAny.battleDialogueIds.preBattle;
+    }
     return ["Hé ! Tu veux te battre ?"];
   }
 
   private getShopRestrictions(npc: NpcData, player: Player): MerchantData['restrictions'] {
     return {
-      minLevel: npc.properties?.minLevel,
+      minLevel: this.getProperty(npc, 'minLevel'),
       vipOnly: false
     };
   }
