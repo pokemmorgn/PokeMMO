@@ -1,5 +1,5 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - Migration du code existant
+// Module de gestion des interactions avec les NPCs - Version complète avec handlers modulaires
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -14,6 +14,9 @@ import {
   InteractionType
 } from "../types/BaseInteractionTypes";
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
+
+// ✅ NOUVEAU: Import du handler merchant
+import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
 // ✅ INTERFACE RESULT NPC (conserve compatibilité existante)
 export interface NpcInteractionResult extends InteractionResult {
@@ -44,7 +47,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "1.0.0";
+  readonly version = "2.0.0"; // ✅ Version avec handlers modulaires
 
   // === DÉPENDANCES (injectées depuis InteractionManager existant) ===
   private getNpcManager: (zoneName: string) => any;
@@ -52,6 +55,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
   private shopManager: ShopManager;
   private starterHandlers: StarterHandlers;
   private spectatorManager: SpectatorManager;
+  
+  // ✅ NOUVEAUX HANDLERS MODULAIRES
+  private merchantHandler: MerchantNpcHandler;
 
   constructor(
     getNpcManager: (zoneName: string) => any,
@@ -67,7 +73,31 @@ export class NpcInteractionModule extends BaseInteractionModule {
     this.starterHandlers = starterHandlers;
     this.spectatorManager = spectatorManager;
 
-    this.log('info', 'Module NPC initialisé avec toutes les dépendances');
+    // ✅ INITIALISATION HANDLERS MODULAIRES
+    this.initializeHandlers();
+
+    this.log('info', '🔄 Module NPC initialisé avec handlers modulaires', {
+      version: this.version,
+      handlersLoaded: ['merchant'] // TODO: ajouter autres handlers
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation des handlers
+  private initializeHandlers(): void {
+    try {
+      // Handler Merchant
+      this.merchantHandler = new MerchantNpcHandler(this.shopManager, {
+        debugMode: process.env.NODE_ENV === 'development'
+      });
+      
+      this.log('info', '✅ Handlers modulaires initialisés', {
+        merchantHandler: !!this.merchantHandler
+      });
+      
+    } catch (error) {
+      this.log('error', '❌ Erreur initialisation handlers', error);
+      throw new Error(`Impossible d'initialiser les handlers NPCs: ${error}`);
+    }
   }
 
   // === MÉTHODES PRINCIPALES ===
@@ -89,7 +119,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
       this.log('info', `Interaction NPC ${npcId}`, { player: player.name });
 
-      // === LOGIQUE MIGRÉE DE L'INTERACTIONMANAGER EXISTANT ===
+      // === LOGIQUE AVEC HANDLERS MODULAIRES ===
       const result = await this.handleNpcInteractionLogic(player, npcId);
 
       // Mise à jour des stats
@@ -110,7 +140,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === LOGIQUE MÉTIER NPCs (CODE EXISTANT MIGRÉ) ===
+  // === LOGIQUE MÉTIER NPCs (MODIFIÉE AVEC HANDLERS) ===
 
   private async handleNpcInteractionLogic(player: Player, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', `Traitement logique NPC ${npcId} pour ${player.name}`);
@@ -134,30 +164,56 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
 
-    this.log('info', `NPC trouvé: ${npc.name}`, { properties: npc.properties });
+    this.log('info', `NPC trouvé: ${npc.name}`, { 
+      type: npc.type || 'legacy',
+      sourceType: npc.sourceType || 'tiled',
+      properties: Object.keys(npc.properties || {}).slice(0, 5) // Limiter pour logs
+    });
 
-    // === LOGIQUE DE PRIORITÉ EXISTANTE ===
+    // === DÉLÉGATION PRIORITAIRE AUX HANDLERS MODULAIRES ===
 
-    // 1. Vérifier si c'est un marchand
-    if (npc.properties.npcType === 'merchant' || npc.properties.shopId) {
-      this.log('info', 'NPC Marchand détecté');
-      return await this.handleMerchantInteraction(player, npc, npcId);
+    // ✅ HANDLER MERCHANT (priorité 1)
+    if (this.merchantHandler.isMerchantNpc(npc)) {
+      this.log('info', '🛒 Délégation au MerchantNpcHandler');
+      const merchantResult = await this.merchantHandler.handle(player, npc, npcId);
+      
+      // Ajouter quest progress pour compatibilité
+      const questProgress = await this.getQuestProgressSafe(player.name, npcId);
+      
+      // Conversion vers NpcInteractionResult
+      return {
+        ...merchantResult,
+        questProgress
+      };
     }
 
-    // 2. Vérifier si c'est une table starter
-    if (npc.properties.startertable === true || npc.properties.startertable === 'true') {
+    // ✅ TODO: Autres handlers
+    // if (this.trainerHandler?.isTrainerNpc(npc)) { return this.trainerHandler.handle(...) }
+    // if (this.healerHandler?.isHealerNpc(npc)) { return this.healerHandler.handle(...) }
+
+    // === LOGIQUE EXISTANTE POUR LES TYPES NON GÉRÉS (fallback) ===
+    this.log('info', '⚠️ Fallback vers logique existante (pas de handler spécialisé)');
+    return await this.handleLegacyNpcInteraction(player, npc, npcId);
+  }
+
+  // ✅ LOGIQUE LEGACY (code existant pour les NPCs non migrés)
+  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+    // === LOGIQUE DE PRIORITÉ EXISTANTE ===
+
+    // 1. Vérifier si c'est une table starter
+    if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
       this.log('info', 'Table starter détectée');
       return await this.handleStarterTableInteraction(player, npc, npcId);
     }
 
-    // 3. Vérifier d'abord les objectifs talk
+    // 2. Vérifier d'abord les objectifs talk
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
       this.log('info', `Objectif talk validé pour NPC ${npcId}`);
       return talkValidationResult;
     }
 
-    // 4. Progression normale des quêtes
+    // 3. Progression normale des quêtes
     this.log('info', 'Déclenchement updateQuestProgress pour talk');
     
     let questProgress: any[] = [];
@@ -172,7 +228,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       this.log('error', 'Erreur updateQuestProgress', error);
     }
 
-    // 5. Vérifier les quêtes prêtes à compléter
+    // 4. Vérifier les quêtes prêtes à compléter
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
     
     if (readyToCompleteQuests.length > 0) {
@@ -213,7 +269,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     }
 
-    // 6. Vérifier les quêtes disponibles
+    // 5. Vérifier les quêtes disponibles
     const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
     
     if (availableQuests.length > 0) {
@@ -248,7 +304,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
 
-    // 7. Vérifier les quêtes en cours
+    // 6. Vérifier les quêtes en cours
     const activeQuests = await this.questManager.getActiveQuests(player.name);
     const questsForThisNpc = activeQuests.filter(q => 
       q.startNpcId === npcId || q.endNpcId === npcId
@@ -271,19 +327,20 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
 
-    // 8. Comportement NPC normal
+    // 7. Comportement NPC normal (avec support JSON)
     this.log('info', 'Aucune quête, dialogue normal');
 
-    if (npc.properties.shop) {
+    if (npc.properties?.shop || npc.shopId) {
+      const shopId = npc.shopId || npc.properties.shop;
       return { 
         success: true,
         type: "shop", 
-        shopId: npc.properties.shop,
+        shopId: shopId,
         npcId: npcId,
         npcName: npc.name,
         questProgress: questProgress
       };
-    } else if (npc.properties.healer) {
+    } else if (npc.properties?.healer || npc.type === 'healer') {
       return { 
         success: true,
         type: "heal", 
@@ -292,10 +349,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
         npcName: npc.name,
         questProgress: questProgress
       };
-    } else if (npc.properties.dialogue) {
-      const lines = Array.isArray(npc.properties.dialogue)
-        ? npc.properties.dialogue
-        : [npc.properties.dialogue];
+    } else if (npc.properties?.dialogue || npc.dialogueIds) {
+      const lines = this.getDialogueLines(npc);
       return { 
         success: true,
         type: "dialogue", 
@@ -317,51 +372,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === MÉTHODES SPÉCIALISÉES (CODE EXISTANT MIGRÉ) ===
-
-  private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
-    this.log('info', 'Traitement interaction marchand');
-    
-    const shopId = npc.properties.shopId || npc.properties.shop;
-    
-    if (!shopId) {
-      this.log('error', `NPC marchand ${npcId} sans shopId`);
-      return {
-        success: false,
-        type: "error",
-        message: "Ce marchand n'a pas de boutique configurée."
-      };
-    }
-
-    const shopCatalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
-    
-    if (!shopCatalog) {
-      this.log('error', `Shop ${shopId} introuvable`);
-      return {
-        success: false,
-        type: "error",
-        message: "Boutique indisponible."
-      };
-    }
-
-    this.log('info', `Shop ${shopId} chargé`, { itemCount: shopCatalog.availableItems.length });
-
-    return {
-      success: true,
-      type: "shop",
-      shopId: shopId,
-      shopData: {
-        shopInfo: shopCatalog.shopInfo,
-        availableItems: shopCatalog.availableItems,
-        playerGold: player.gold || 1000,
-        playerLevel: player.level || 1,
-        npcName: npc.name || "Marchand"
-      },
-      npcId: npcId,
-      npcName: npc.name,
-      message: `Bienvenue dans ${shopCatalog.shopInfo.name} !`
-    };
-  }
+  // === MÉTHODES SPÉCIALISÉES (CODE EXISTANT CONSERVÉ) ===
 
   private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', 'Traitement interaction table starter');
@@ -395,7 +406,37 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === MÉTHODES UTILITAIRES (CODE EXISTANT MIGRÉ) ===
+  // === MÉTHODES UTILITAIRES (MODIFIÉES ET NOUVELLES) ===
+
+  // ✅ Support JSON + Tiled pour dialogues
+  private getDialogueLines(npc: any): string[] {
+    // JSON : dialogueIds
+    if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
+      return npc.dialogueIds;
+    }
+    
+    // Tiled : properties.dialogue
+    if (npc.properties?.dialogue) {
+      const dialogue = npc.properties.dialogue;
+      return Array.isArray(dialogue) ? dialogue : [dialogue];
+    }
+    
+    return ["Bonjour !"];
+  }
+
+  // ✅ Récupération quest progress safe
+  private async getQuestProgressSafe(username: string, npcId: number): Promise<any[]> {
+    try {
+      return await this.questManager.updateQuestProgress(username, {
+        type: 'talk',
+        npcId: npcId,
+        targetId: npcId.toString()
+      });
+    } catch (error) {
+      this.log('error', 'Erreur getQuestProgressSafe', error);
+      return [];
+    }
+  }
 
   private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
     try {
@@ -517,14 +558,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     }
     
-    if (npc.properties?.shop || npc.properties?.shopId || npc.properties?.npcType === 'merchant') {
+    // ✅ Support JSON + Tiled
+    if (npc.shopId || npc.properties?.shop || npc.properties?.shopId || npc.type === 'merchant') {
       return [
         `Bienvenue dans ma boutique !`,
         `Regardez mes marchandises !`
       ];
     }
     
-    if (npc.properties?.healer) {
+    if (npc.type === 'healer' || npc.properties?.healer) {
       return [
         `Voulez-vous que je soigne vos Pokémon ?`,
         `Ils seront en pleine forme !`
@@ -571,7 +613,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return npcNames[npcId] || `NPC #${npcId}`;
   }
 
-  // === MÉTHODES PUBLIQUES POUR TRANSACTIONS SHOP ===
+  // === MÉTHODES PUBLIQUES POUR TRANSACTIONS SHOP (MODIFIÉES) ===
 
   async handleShopTransaction(
     player: Player, 
@@ -594,6 +636,26 @@ export class NpcInteractionModule extends BaseInteractionModule {
       quantity 
     });
 
+    // ✅ NOUVEAU: Essayer de déléguer au MerchantHandler si possible
+    try {
+      const npcManager = this.getNpcManager(player.currentZone);
+      if (npcManager) {
+        const allNpcs = npcManager.getAllNpcs();
+        const merchantNpc = allNpcs.find((npc: any) => 
+          this.merchantHandler.isMerchantNpc(npc) && 
+          (npc.shopId === shopId || npc.properties?.shopId === shopId || npc.properties?.shop === shopId)
+        );
+        
+        if (merchantNpc) {
+          this.log('info', `🛒 Transaction déléguée au MerchantHandler (NPC ${merchantNpc.id})`);
+          return await this.merchantHandler.handleShopTransaction(player, merchantNpc, action, itemId, quantity);
+        }
+      }
+    } catch (error) {
+      this.log('warn', 'Erreur délégation MerchantHandler, fallback vers logique legacy', error);
+    }
+
+    // ✅ FALLBACK: Logique existante
     const playerGold = player.gold || 1000;
     const playerLevel = player.level || 1;
 
@@ -634,7 +696,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     };
   }
 
-  // === MÉTHODES PUBLIQUES POUR QUÊTES ===
+  // === MÉTHODES PUBLIQUES POUR QUÊTES (INCHANGÉES) ===
 
   async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     try {
@@ -663,7 +725,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === MÉTHODES PUBLIQUES POUR SPECTATEURS ===
+  // === MÉTHODES PUBLIQUES POUR SPECTATEURS (INCHANGÉES) ===
 
   async handlePlayerInteraction(
     spectatorPlayer: Player, 
@@ -719,5 +781,33 @@ export class NpcInteractionModule extends BaseInteractionModule {
         canWatch: true
       }
     };
+  }
+
+  // === NOUVELLES MÉTHODES D'ADMINISTRATION ===
+
+  getHandlerStats(): any {
+    return {
+      module: this.getStats(),
+      handlers: {
+        merchant: this.merchantHandler?.getStats(),
+        // TODO: autres handlers
+      }
+    };
+  }
+
+  debugHandler(handlerType: 'merchant', npcId?: number): void {
+    switch (handlerType) {
+      case 'merchant':
+        if (npcId) {
+          // Chercher le NPC dans toutes les zones (approximatif pour debug)
+          console.log(`🔍 Debug MerchantHandler pour NPC ${npcId}`);
+          console.log('Stats:', this.merchantHandler.getStats());
+        } else {
+          console.log('🔍 MerchantHandler Stats:', this.merchantHandler.getStats());
+        }
+        break;
+      default:
+        console.log('Handler non supporté:', handlerType);
+    }
   }
 }
