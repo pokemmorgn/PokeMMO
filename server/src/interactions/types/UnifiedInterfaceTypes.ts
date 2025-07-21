@@ -1,8 +1,6 @@
 // server/src/interactions/types/UnifiedInterfaceTypes.ts
 // Types pour l'interface unifiée des NPCs multi-fonctionnels
 
-import { InteractionResult } from "./BaseInteractionTypes";
-
 // ===== TYPES DE CAPACITÉS NPCs =====
 
 export type NpcCapability = 
@@ -179,9 +177,10 @@ export interface ServiceData {
 
 // ===== INTERFACE PRINCIPALE =====
 
-export interface UnifiedInterfaceResult extends InteractionResult {
+export interface UnifiedInterfaceResult {
   success: true;
   type: "unifiedInterface";
+  message?: string;
   
   // Informations NPC
   npcId: number;
@@ -254,7 +253,10 @@ export interface SpecificActionRequest {
   };
 }
 
-export interface SpecificActionResult extends InteractionResult {
+export interface SpecificActionResult {
+  success: boolean;
+  type: string;
+  message?: string;
   actionType: NpcCapability;
   npcId: number;
   
