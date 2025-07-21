@@ -1,6 +1,6 @@
 // client/src/modules/NpcInteractionManager.js
-// ✅ UNIFIED INTERFACE EXTENSIONS - Gestionnaire spécialisé pour toutes les interactions NPC
-// Extrait de l'ancien InteractionManager monolithique
+// ✅ VERSION MISE À JOUR POUR DIALOGUEMANAGER
+// ✅ Support complet du nouveau système de dialogue modulaire
 
 import { 
   INTERACTION_TYPES, 
@@ -17,13 +17,15 @@ export class NpcInteractionManager {
     this.networkHandler = networkInteractionHandler;
     this.isInitialized = false;
     
-    // ✅ Dépendances systèmes (injection)
+    // ✅ Dépendances systèmes (injection mise à jour)
     this.dependencies = {
       npcManager: null,
       playerManager: null,
       questSystem: null,
       shopSystem: null,
-      dialogueSystem: null
+      // ✅ MISE À JOUR : Support des deux systèmes de dialogue
+      dialogueManager: null,      // Nouveau système (priorité)
+      legacyDialogueSystem: null  // Ancien système (fallback)
     };
     
     // ✅ État des interactions NPC
@@ -33,7 +35,7 @@ export class NpcInteractionManager {
       isProcessingInteraction: false,
       lastInteractionTime: 0,
       blockedUntil: 0,
-      // ✅ NOUVEAU - État interface unifiée
+      // ✅ État interface unifiée
       currentUnifiedInterface: null,
       lastUnifiedInterfaceTime: 0,
       unifiedInterfaceActive: false
@@ -54,7 +56,7 @@ export class NpcInteractionManager {
       onNpcInteractionError: null,
       onNpcTypeDetected: null,
       onSystemDelegation: null,
-      // ✅ NOUVEAU - Callbacks interface unifiée
+      // ✅ Callbacks interface unifiée
       onUnifiedInterfaceShow: null,
       onUnifiedInterfaceHide: null,
       onUnifiedTabSwitch: null
@@ -67,10 +69,13 @@ export class NpcInteractionManager {
       enableAutoDetection: true,
       enableSystemDelegation: true,
       debugMode: INTERACTION_CONFIG.ENABLE_DEBUG_LOGS,
-      // ✅ NOUVEAU - Configuration interface unifiée
+      // ✅ Configuration interface unifiée
       enableUnifiedInterface: true,
       unifiedInterfaceTimeout: 30000, // 30 secondes max
-      defaultUnifiedTab: 'auto' // 'auto' utilise defaultAction du serveur
+      defaultUnifiedTab: 'auto', // 'auto' utilise defaultAction du serveur
+      // ✅ NOUVEAU : Configuration système dialogue
+      preferNewDialogueSystem: true, // Préférer le nouveau DialogueManager
+      enableDialogueFallback: true   // Fallback vers ancien système si nécessaire
     };
     
     // ✅ Statistiques debug
@@ -80,44 +85,139 @@ export class NpcInteractionManager {
       systemDelegations: new Map(),
       errors: 0,
       successfulInteractions: 0,
-      // ✅ NOUVEAU - Stats interface unifiée
+      // ✅ Stats interface unifiée
       unifiedInterfacesShown: 0,
       unifiedInterfacesByCapabilities: new Map(),
-      tabSwitches: 0
+      tabSwitches: 0,
+      // ✅ NOUVEAU : Stats système dialogue
+      newDialogueSystemUsed: 0,
+      legacyDialogueSystemUsed: 0,
+      dialogueSystemDetections: 0
     };
     
-    console.log('[NpcInteractionManager] 🎭 Créé pour scène avec Extensions Interface Unifiée:', this.scene.scene.key);
+    console.log('[NpcInteractionManager] 🎭 Créé avec support DialogueManager:', this.scene.scene.key);
   }
 
-  // === INITIALISATION ===
+  // === INITIALISATION MISE À JOUR ===
 
   initialize(dependencies = {}) {
-    console.log('[NpcInteractionManager] 🚀 === INITIALISATION AVEC EXTENSIONS ===');
+    console.log('[NpcInteractionManager] 🚀 === INITIALISATION AVEC DIALOGUEMANAGER ===');
     
-    // ✅ Injection des dépendances
+    // ✅ Injection des dépendances MISE À JOUR
     this.dependencies = {
       npcManager: dependencies.npcManager || this.scene.npcManager,
       playerManager: dependencies.playerManager || this.scene.playerManager,
       questSystem: dependencies.questSystem || window.questSystem || window.questSystemGlobal,
       shopSystem: dependencies.shopSystem || this.scene.shopIntegration?.getShopSystem() || window.shopSystem,
-      dialogueSystem: dependencies.dialogueSystem || window.showNpcDialogue
+      // ✅ MISE À JOUR : Détecter le nouveau système de dialogue
+      dialogueManager: dependencies.dialogueManager || this.detectDialogueManager(),
+      legacyDialogueSystem: dependencies.legacyDialogueSystem || this.detectLegacyDialogueSystem()
     };
     
-    console.log('[NpcInteractionManager] 📦 Dépendances injectées:');
+    console.log('[NpcInteractionManager] 📦 Dépendances détectées:');
     Object.entries(this.dependencies).forEach(([key, value]) => {
-      console.log(`  ${key}: ${!!value ? '✅' : '❌'}`);
+      const status = this.getSystemStatus(key, value);
+      console.log(`  ${key}: ${status}`);
     });
+    
+    // ✅ Vérifier quel système dialogue utiliser
+    this.determineDialogueSystem();
     
     // ✅ Configurer les callbacks réseau
     this.setupNetworkCallbacks();
     
-    // ✅ NOUVEAU - Configurer callbacks interface unifiée
+    // ✅ Configurer callbacks interface unifiée
     this.setupUnifiedInterfaceCallbacks();
     
     this.isInitialized = true;
-    console.log('[NpcInteractionManager] ✅ Initialisé avec succès + Interface Unifiée');
+    console.log('[NpcInteractionManager] ✅ Initialisé avec DialogueManager');
     
     return this;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Détecter le nouveau DialogueManager
+  detectDialogueManager() {
+    this.stats.dialogueSystemDetections++;
+    
+    // 1. Vérifier window.dialogueManager
+    if (window.dialogueManager && typeof window.dialogueManager.show === 'function') {
+      console.log('[NpcInteractionManager] ✅ DialogueManager détecté (window.dialogueManager)');
+      return window.dialogueManager;
+    }
+    
+    // 2. Vérifier dans les dépendances explicites
+    if (window.dialogueSystemGlobal && typeof window.dialogueSystemGlobal.show === 'function') {
+      console.log('[NpcInteractionManager] ✅ DialogueManager détecté (window.dialogueSystemGlobal)');
+      return window.dialogueSystemGlobal;
+    }
+    
+    // 3. Vérifier dans la scène
+    if (this.scene.dialogueManager && typeof this.scene.dialogueManager.show === 'function') {
+      console.log('[NpcInteractionManager] ✅ DialogueManager détecté (scene.dialogueManager)');
+      return this.scene.dialogueManager;
+    }
+    
+    console.log('[NpcInteractionManager] ⚠️ Nouveau DialogueManager non détecté');
+    return null;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Détecter l'ancien système de dialogue
+  detectLegacyDialogueSystem() {
+    // 1. Fonction showNpcDialogue
+    if (typeof window.showNpcDialogue === 'function') {
+      console.log('[NpcInteractionManager] ✅ Ancien système détecté (window.showNpcDialogue)');
+      return window.showNpcDialogue;
+    }
+    
+    // 2. Fonction showDialogue
+    if (typeof window.showDialogue === 'function') {
+      console.log('[NpcInteractionManager] ✅ Ancien système détecté (window.showDialogue)');
+      return window.showDialogue;
+    }
+    
+    console.log('[NpcInteractionManager] ⚠️ Ancien système dialogue non détecté');
+    return null;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Déterminer quel système utiliser
+  determineDialogueSystem() {
+    const hasNew = !!this.dependencies.dialogueManager;
+    const hasLegacy = !!this.dependencies.legacyDialogueSystem;
+    
+    if (hasNew && this.config.preferNewDialogueSystem) {
+      console.log('[NpcInteractionManager] 🎭 Utilisation du nouveau DialogueManager');
+      this.activeDialogueSystem = 'new';
+    } else if (hasLegacy && this.config.enableDialogueFallback) {
+      console.log('[NpcInteractionManager] 🎭 Utilisation de l\'ancien système dialogue');
+      this.activeDialogueSystem = 'legacy';
+    } else if (hasNew) {
+      console.log('[NpcInteractionManager] 🎭 Utilisation du DialogueManager (fallback)');
+      this.activeDialogueSystem = 'new';
+    } else if (hasLegacy) {
+      console.log('[NpcInteractionManager] 🎭 Utilisation de l\'ancien système (fallback)');
+      this.activeDialogueSystem = 'legacy';
+    } else {
+      console.error('[NpcInteractionManager] ❌ Aucun système dialogue disponible !');
+      this.activeDialogueSystem = null;
+    }
+    
+    console.log(`[NpcInteractionManager] Système dialogue actif: ${this.activeDialogueSystem}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Obtenir le statut d'un système
+  getSystemStatus(systemName, system) {
+    if (!system) return '❌ Non détecté';
+    
+    switch (systemName) {
+      case 'dialogueManager':
+        return typeof system.show === 'function' ? '✅ DialogueManager' : '⚠️ Invalide';
+      case 'legacyDialogueSystem':
+        return typeof system === 'function' ? '✅ Legacy' : '⚠️ Invalide';
+      case 'shopSystem':
+        return system.isShopOpen ? '✅ ShopSystem' : '⚠️ Incomplet';
+      default:
+        return '✅ Détecté';
+    }
   }
 
   setupNetworkCallbacks() {
@@ -134,16 +234,15 @@ export class NpcInteractionManager {
       this.handleNetworkInteractionResult(data);
     });
 
-    // ✅ NOUVEAU - Callback spécialisé pour interface unifiée
+    // ✅ Callback spécialisé pour interface unifiée
     this.networkHandler.onUnifiedInterfaceResult((data) => {
       console.log('[NpcInteractionManager] 🎭 Résultat interface unifiée reçu:', data);
       this.handleUnifiedInterfaceResult(data);
     });
     
-    console.log('[NpcInteractionManager] ✅ Callbacks réseau configurés avec extensions');
+    console.log('[NpcInteractionManager] ✅ Callbacks réseau configurés');
   }
 
-  // ✅ NOUVELLE MÉTHODE - Setup callbacks interface unifiée
   setupUnifiedInterfaceCallbacks() {
     // Setup des événements globaux pour interface unifiée
     if (typeof window !== 'undefined') {
@@ -342,7 +441,6 @@ export class NpcInteractionManager {
     }
   }
 
-  // ✅ NOUVELLE VERSION CORRIGÉE
   async sendNpcInteraction(npc, options = {}) {
     console.log('[NpcInteractionManager] 📤 Envoi interaction réseau...');
     
@@ -352,13 +450,12 @@ export class NpcInteractionManager {
     }
     
     try {
-      // ✅(garder number)
-      const npcId = npc.id; // Garder le number original
+      const npcId = npc.id;
       
       // ✅ Créer données d'interaction avec types corrects
       const playerPosition = this.getPlayerPosition();
       const interactionData = InteractionHelpers.createNpcInteraction(
-        npcId, // ← String maintenant
+        npcId,
         this.networkHandler.networkManager.sessionId,
         this.networkHandler.networkManager.currentZone,
         playerPosition,
@@ -369,17 +466,15 @@ export class NpcInteractionManager {
         }
       );
       
-      // ✅ Validation côté client (pour debug seulement)
+      // ✅ Validation côté client
       const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
       if (!validation.isValid) {
         console.warn('[NpcInteractionManager] ⚠️ Validation échouée:', validation.errors);
-        // ⚠️ NE PAS ARRÊTER - Le serveur validera
       } else {
         console.log('[NpcInteractionManager] ✅ Validation client réussie');
       }
       
-      // ✅ CHOIX DE MÉTHODE D'ENVOI
-      // Option A: Utiliser la nouvelle méthode (recommandé)
+      // ✅ Envoyer l'interaction
       const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
       
       console.log(`[NpcInteractionManager] Résultat envoi: ${result}`);
@@ -393,19 +488,18 @@ export class NpcInteractionManager {
 
   // === GESTION DES RÉSULTATS RÉSEAU ===
 
-  // ✅ MÉTHODE PRINCIPALE ÉTENDUE - Détection interface unifiée prioritaire
   handleNetworkInteractionResult(data) {
-    console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ÉTENDU ===');
+    console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
     console.log('[NpcInteractionManager] Data:', data);
     
     try {
-      // ✅ NOUVEAU - Vérification interface unifiée EN PREMIER (avant determineResultType)
+      // ✅ Vérification interface unifiée EN PREMIER
       if (data.isUnifiedInterface || data.unifiedInterface) {
         console.log('[NpcInteractionManager] 🎭 Interface unifiée détectée - traitement prioritaire');
         return this.handleUnifiedInterfaceResult(data);
       }
       
-      // ✅ Traitement normal pour NPCs simples (code existant inchangé)
+      // ✅ Traitement normal pour NPCs simples
       const resultType = this.determineResultType(data);
       console.log(`[NpcInteractionManager] Type de résultat (NPC simple): ${resultType}`);
       
@@ -439,7 +533,8 @@ export class NpcInteractionManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE - Handler principal interface unifiée
+  // === GESTION INTERFACE UNIFIÉE ===
+
   handleUnifiedInterfaceResult(data) {
     console.log('[NpcInteractionManager] 🎭 === HANDLER INTERFACE UNIFIÉE ===');
     
@@ -494,7 +589,6 @@ export class NpcInteractionManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE - Validation interface unifiée
   validateUnifiedInterface(interfaceData) {
     if (!interfaceData) {
       console.error('[NpcInteractionManager] ❌ Pas de données interface');
@@ -516,51 +610,114 @@ export class NpcInteractionManager {
       return false;
     }
     
-    // ✅ Vérifier que chaque capability a des données
-    for (const capability of interfaceData.capabilities) {
-      const dataKey = `${capability}Data`;
-      if (!interfaceData[dataKey]) {
-        console.warn(`[NpcInteractionManager] ⚠️ Pas de données pour ${capability}`);
-      }
-    }
-    
     console.log('[NpcInteractionManager] ✅ Interface unifiée valide');
     return true;
   }
 
-  // ✅ NOUVELLE MÉTHODE - Affichage interface unifiée avec extension dialogue
+  // ✅ MÉTHODE MISE À JOUR : Support DialogueManager
   showUnifiedNpcInterface(interfaceData, npc) {
     console.log('[NpcInteractionManager] 🖼️ === AFFICHAGE INTERFACE UNIFIÉE ===');
     
     // ✅ Préparer les données pour le système dialogue étendu
     const unifiedDialogueData = this.prepareUnifiedDialogueData(interfaceData, npc);
     
-    // ✅ Vérifier si le système dialogue est disponible
-    const dialogueSystem = this.dependencies.dialogueSystem;
-    if (typeof dialogueSystem !== 'function') {
+    // ✅ MISE À JOUR : Utiliser le bon système dialogue
+    const success = this.callDialogueSystem(unifiedDialogueData);
+    
+    if (success) {
+      console.log('[NpcInteractionManager] ✅ Données dialogue unifié préparées');
+      return true;
+    } else {
       console.error('[NpcInteractionManager] ❌ Système dialogue non disponible');
       this.showErrorMessage("Système de dialogue non disponible");
       return false;
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Appeler le bon système dialogue
+  callDialogueSystem(dialogueData) {
+    console.log('[NpcInteractionManager] 🎭 === APPEL SYSTÈME DIALOGUE ===');
+    console.log(`[NpcInteractionManager] Système actif: ${this.activeDialogueSystem}`);
     
     try {
-      console.log('[NpcInteractionManager] 🎭 Affichage dialogue unifié...');
-      console.log('[NpcInteractionManager] Données préparées:', unifiedDialogueData);
-      
-      // ✅ Appeler le système dialogue avec mode unifié
-      dialogueSystem(unifiedDialogueData);
-      
-      console.log('[NpcInteractionManager] ✅ Interface unifiée affichée via dialogue étendu');
-      return true;
+      if (this.activeDialogueSystem === 'new' && this.dependencies.dialogueManager) {
+        // ✅ Utiliser le nouveau DialogueManager
+        console.log('[NpcInteractionManager] 🆕 Utilisation DialogueManager.show()');
+        this.dependencies.dialogueManager.show(dialogueData);
+        this.stats.newDialogueSystemUsed++;
+        this.updateDelegationStats('NewDialogueManager');
+        return true;
+        
+      } else if (this.activeDialogueSystem === 'legacy' && this.dependencies.legacyDialogueSystem) {
+        // ✅ Utiliser l'ancien système
+        console.log('[NpcInteractionManager] 🔄 Utilisation ancien système dialogue');
+        this.dependencies.legacyDialogueSystem(dialogueData);
+        this.stats.legacyDialogueSystemUsed++;
+        this.updateDelegationStats('LegacyDialogueSystem');
+        return true;
+        
+      } else {
+        // ✅ Tentative de détection temps réel
+        console.log('[NpcInteractionManager] 🔍 Tentative de redétection...');
+        this.dependencies.dialogueManager = this.detectDialogueManager();
+        this.dependencies.legacyDialogueSystem = this.detectLegacyDialogueSystem();
+        this.determineDialogueSystem();
+        
+        // ✅ Nouvel essai après redétection
+        if (this.activeDialogueSystem === 'new' && this.dependencies.dialogueManager) {
+          console.log('[NpcInteractionManager] 🔄 Retry avec DialogueManager détecté');
+          this.dependencies.dialogueManager.show(dialogueData);
+          this.stats.newDialogueSystemUsed++;
+          return true;
+          
+        } else if (this.activeDialogueSystem === 'legacy' && this.dependencies.legacyDialogueSystem) {
+          console.log('[NpcInteractionManager] 🔄 Retry avec ancien système détecté');
+          this.dependencies.legacyDialogueSystem(dialogueData);
+          this.stats.legacyDialogueSystemUsed++;
+          return true;
+          
+        } else {
+          console.error('[NpcInteractionManager] ❌ Aucun système dialogue utilisable après redétection');
+          return false;
+        }
+      }
       
     } catch (error) {
-      console.error('[NpcInteractionManager] ❌ Erreur affichage interface unifiée:', error);
-      // ✅ Fallback vers dialogue simple
-      return this.showUnifiedFallbackDialogue(interfaceData, npc);
+      console.error('[NpcInteractionManager] ❌ Erreur appel système dialogue:', error);
+      
+      // ✅ Fallback vers l'autre système si possible
+      return this.tryDialogueFallback(dialogueData, error);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE - Préparer données pour dialogue unifié
+  // ✅ NOUVELLE MÉTHODE : Fallback entre systèmes
+  tryDialogueFallback(dialogueData, originalError) {
+    console.log('[NpcInteractionManager] 🔄 === FALLBACK SYSTÈME DIALOGUE ===');
+    
+    try {
+      if (this.activeDialogueSystem === 'new' && this.dependencies.legacyDialogueSystem) {
+        console.log('[NpcInteractionManager] 🔄 Fallback vers ancien système');
+        this.dependencies.legacyDialogueSystem(dialogueData);
+        this.stats.legacyDialogueSystemUsed++;
+        return true;
+        
+      } else if (this.activeDialogueSystem === 'legacy' && this.dependencies.dialogueManager) {
+        console.log('[NpcInteractionManager] 🔄 Fallback vers DialogueManager');
+        this.dependencies.dialogueManager.show(dialogueData);
+        this.stats.newDialogueSystemUsed++;
+        return true;
+        
+      } else {
+        console.error('[NpcInteractionManager] ❌ Aucun fallback disponible');
+        throw originalError;
+      }
+      
+    } catch (fallbackError) {
+      console.error('[NpcInteractionManager] ❌ Échec fallback:', fallbackError);
+      return false;
+    }
+  }
+
   prepareUnifiedDialogueData(interfaceData, npc) {
     // ✅ Données de base du dialogue
     const baseDialogueData = this.prepareDialogueData(npc, {
@@ -604,7 +761,6 @@ export class NpcInteractionManager {
     return unifiedDialogueData;
   }
 
-  // ✅ NOUVELLE MÉTHODE - Générer onglets depuis capabilities
   generateTabsFromCapabilities(capabilities) {
     const tabConfig = {
       merchant: { 
@@ -645,7 +801,6 @@ export class NpcInteractionManager {
           enabled: true
         };
       } else {
-        // ✅ Fallback pour capabilities inconnues
         return {
           id: capability.toLowerCase(),
           capability: capability,
@@ -658,11 +813,9 @@ export class NpcInteractionManager {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE - Extraire données par onglet
   extractTabData(interfaceData) {
     const tabData = {};
     
-    // ✅ Extraire données pour chaque capability
     interfaceData.capabilities?.forEach(capability => {
       const dataKey = `${capability}Data`;
       if (interfaceData[dataKey]) {
@@ -673,11 +826,9 @@ export class NpcInteractionManager {
     return tabData;
   }
 
-  // ✅ NOUVELLE MÉTHODE - Générer actions rapides par défaut
   generateDefaultQuickActions(interfaceData) {
     const quickActions = [];
     
-    // ✅ Actions basées sur capabilities
     interfaceData.capabilities?.forEach(capability => {
       switch (capability) {
         case 'merchant':
@@ -712,7 +863,6 @@ export class NpcInteractionManager {
       }
     });
     
-    // ✅ Action fermer toujours présente
     quickActions.push({
       id: 'close',
       label: 'Fermer',
@@ -724,19 +874,16 @@ export class NpcInteractionManager {
     return quickActions;
   }
 
-  // ✅ NOUVELLE MÉTHODE - Gestion changement d'onglet
   handleUnifiedTabSwitch(tabName, interfaceData) {
     console.log('[NpcInteractionManager] 🔄 === CHANGEMENT ONGLET ===');
     console.log('[NpcInteractionManager] Onglet:', tabName);
     
     this.stats.tabSwitches++;
     
-    // ✅ Callback spécialisé
     if (this.callbacks.onUnifiedTabSwitch) {
       this.callbacks.onUnifiedTabSwitch(tabName, interfaceData);
     }
     
-    // ✅ Traitement selon l'onglet
     switch (tabName) {
       case 'shop':
       case 'merchant':
@@ -760,7 +907,6 @@ export class NpcInteractionManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE - Gestion action rapide
   handleUnifiedQuickAction(actionName, interfaceData) {
     console.log('[NpcInteractionManager] ⚡ === ACTION RAPIDE ===');
     console.log('[NpcInteractionManager] Action:', actionName);
@@ -784,32 +930,26 @@ export class NpcInteractionManager {
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES - Handlers d'onglets spécialisés
   handleMerchantTab(merchantData) {
     console.log('[NpcInteractionManager] 🏪 Handler onglet marchand');
-    // ✅ Le ShopUI sera embedde dans l'onglet par le système dialogue étendu
     return true;
   }
 
   handleQuestTab(questData) {
     console.log('[NpcInteractionManager] ⚔️ Handler onglet quêtes');
-    // ✅ Le QuestSystem sera embedde dans l'onglet par le système dialogue étendu
     return true;
   }
 
   handleHealerTab(healerData) {
     console.log('[NpcInteractionManager] 🏥 Handler onglet soigneur');
-    // ✅ Interface de soin sera embeddee dans l'onglet
     return true;
   }
 
   handleDialogueTab(dialogueData) {
     console.log('[NpcInteractionManager] 💬 Handler onglet dialogue');
-    // ✅ Dialogue normal sera affiché dans l'onglet
     return true;
   }
 
-  // ✅ NOUVELLE MÉTHODE - Fermeture interface unifiée
   closeUnifiedInterface() {
     console.log('[NpcInteractionManager] 🚪 === FERMETURE INTERFACE UNIFIÉE ===');
     
@@ -818,68 +958,29 @@ export class NpcInteractionManager {
       return;
     }
     
-    // ✅ Reset état
     this.state.currentUnifiedInterface = null;
     this.state.unifiedInterfaceActive = false;
     
-    // ✅ Callback spécialisé
     if (this.callbacks.onUnifiedInterfaceHide) {
       this.callbacks.onUnifiedInterfaceHide();
     }
     
-    // ✅ Fermer le dialogue (qui fermera l'interface unifiée)
-    const dialogueBox = document.getElementById('dialogue-box');
-    if (dialogueBox) {
-      dialogueBox.style.display = 'none';
+    // ✅ MISE À JOUR : Fermer via le bon système
+    if (this.dependencies.dialogueManager && this.dependencies.dialogueManager.hide) {
+      this.dependencies.dialogueManager.hide();
+    } else {
+      const dialogueBox = document.getElementById('dialogue-box');
+      if (dialogueBox) {
+        dialogueBox.style.display = 'none';
+      }
     }
     
     console.log('[NpcInteractionManager] ✅ Interface unifiée fermée');
   }
 
-  // ✅ NOUVELLE MÉTHODE - Fallback dialogue simple
-  showUnifiedFallbackDialogue(interfaceData, npc) {
-    console.log('[NpcInteractionManager] 🔄 === FALLBACK DIALOGUE UNIFIÉ ===');
-    
-    // ✅ Créer un dialogue avec boutons d'actions rapides
-    const quickActions = interfaceData.quickActions || [];
-    const capabilities = interfaceData.capabilities || [];
-    
-    // ✅ Message principal
-    let dialogueLines = interfaceData.dialogueData?.lines || ["Que puis-je faire pour vous ?"];
-    
-    // ✅ Ajouter les actions disponibles
-    if (quickActions.length > 0 || capabilities.length > 0) {
-      dialogueLines.push(""); // Ligne vide
-      dialogueLines.push("Actions disponibles :");
-      
-      const actions = quickActions.length > 0 ? quickActions : 
-        capabilities.map((cap, index) => ({
-          label: `${index + 1}. ${cap.charAt(0).toUpperCase() + cap.slice(1)}`
-        }));
-        
-      actions.forEach((action) => {
-        dialogueLines.push(action.label);
-      });
-    }
-    
-    // ✅ Afficher via système dialogue existant
-    const dialogueData = this.prepareDialogueData(npc, {
-      lines: dialogueLines,
-      name: interfaceData.npcName || npc?.name,
-      portrait: npc?.portrait,
-      // ✅ Marquer comme fallback unifié
-      unifiedFallback: true,
-      originalUnifiedData: interfaceData
-    });
-    
-    return this.handleDialogueInteraction(npc, dialogueData);
-  }
-
-  // ✅ NOUVELLE MÉTHODE - Mise à jour statistiques unifiées
   updateUnifiedStats(interfaceData) {
     this.stats.unifiedInterfacesShown++;
     
-    // ✅ Stats par type de capabilities
     const capabilitiesKey = interfaceData.capabilities.sort().join(',');
     const current = this.stats.unifiedInterfacesByCapabilities.get(capabilitiesKey) || 0;
     this.stats.unifiedInterfacesByCapabilities.set(capabilitiesKey, current + 1);
@@ -887,8 +988,9 @@ export class NpcInteractionManager {
     console.log(`[NpcInteractionManager] 📊 Stats: ${this.stats.unifiedInterfacesShown} interfaces unifiées affichées`);
   }
 
+  // === HANDLERS SPÉCIALISÉS (inchangés) ===
+
   determineResultType(data) {
-    // ✅ Mapping des types serveur vers types client
     const typeMapping = {
       'shop': NPC_INTERACTION_TYPES.MERCHANT,
       'merchant': NPC_INTERACTION_TYPES.MERCHANT,
@@ -900,33 +1002,26 @@ export class NpcInteractionManager {
       'dialogue': NPC_INTERACTION_TYPES.DIALOGUE
     };
     
-    // ✅ Vérifier type explicite
     if (data.type && typeMapping[data.type]) {
       return typeMapping[data.type];
     }
     
-    // ✅ Vérifier npcType
     if (data.npcType && typeMapping[data.npcType]) {
       return typeMapping[data.npcType];
     }
     
-    // ✅ Vérifier présence shopId
     if (data.shopId || data.shopData) {
       return NPC_INTERACTION_TYPES.MERCHANT;
     }
     
-    // ✅ Fallback vers dialogue
     return NPC_INTERACTION_TYPES.DIALOGUE;
   }
-
-  // === HANDLERS SPÉCIALISÉS (code existant avec améliorations mineures) ===
 
   handleMerchantInteraction(npc, data) {
     console.log('[NpcInteractionManager] 🏪 === HANDLER MARCHAND ===');
     console.log('[NpcInteractionManager] NPC:', npc?.name);
     console.log('[NpcInteractionManager] Data:', data);
     
-    // ✅ Vérifier disponibilité du système shop
     const shopSystem = this.dependencies.shopSystem;
     if (!shopSystem) {
       console.warn('[NpcInteractionManager] ⚠️ ShopSystem non disponible');
@@ -935,22 +1030,16 @@ export class NpcInteractionManager {
       });
     }
     
-    // ✅ Déléguer au système shop
     try {
       console.log('[NpcInteractionManager] 🔗 Délégation vers ShopSystem...');
       
-      // ✅ Statistiques de délégation spécialisée
       this.updateDelegationStats('ShopSystem');
       
-      // ✅ Callback de délégation
       if (this.callbacks.onSystemDelegation) {
         this.callbacks.onSystemDelegation('ShopSystem', npc, data);
       }
       
-      // ✅ Préparer données shop
       const shopData = this.prepareShopData(npc, data);
-      
-      // ✅ Appel système
       const result = shopSystem.handleShopNpcInteraction(shopData);
       
       console.log('[NpcInteractionManager] ✅ ShopSystem appelé avec succès');
@@ -969,7 +1058,6 @@ export class NpcInteractionManager {
     console.log('[NpcInteractionManager] NPC:', npc?.name);
     console.log('[NpcInteractionManager] Data:', data);
     
-    // ✅ Vérifier disponibilité du système quest
     const questSystem = this.dependencies.questSystem;
     if (!questSystem?.handleNpcInteraction) {
       console.warn('[NpcInteractionManager] ⚠️ QuestSystem non disponible');
@@ -980,19 +1068,15 @@ export class NpcInteractionManager {
       });
     }
     
-    // ✅ Déléguer au système quest
     try {
       console.log('[NpcInteractionManager] 🔗 Délégation vers QuestSystem...');
       
-      // ✅ Statistiques de délégation
       this.updateDelegationStats('QuestSystem');
       
-      // ✅ Callback de délégation
       if (this.callbacks.onSystemDelegation) {
         this.callbacks.onSystemDelegation('QuestSystem', npc, data);
       }
       
-      // ✅ Appel système
       const result = questSystem.handleNpcInteraction(data || npc, 'NpcInteractionManager');
       
       console.log('[NpcInteractionManager] ✅ QuestSystem appelé, résultat:', result);
@@ -1007,7 +1091,6 @@ export class NpcInteractionManager {
   handleHealerInteraction(npc, data) {
     console.log('[NpcInteractionManager] 🏥 === HANDLER SOIGNEUR ===');
     
-    // ✅ Créer données de soin
     const healData = data || {
       type: "heal",
       npcId: npc?.id,
@@ -1016,18 +1099,15 @@ export class NpcInteractionManager {
       portrait: "/assets/portrait/nurse.png"
     };
     
-    // ✅ Déléguer au système dialogue
     return this.handleDialogueInteraction(npc, healData);
   }
 
   handleStarterInteraction(npc, data) {
     console.log('[NpcInteractionManager] 🎮 === HANDLER STARTER ===');
     
-    // ✅ Vérifier méthode scene
     if (this.scene.showStarterSelection) {
       console.log('[NpcInteractionManager] 🔗 Délégation vers scene.showStarterSelection');
       
-      // ✅ Statistiques de délégation
       this.updateDelegationStats('StarterSelection');
       
       try {
@@ -1047,18 +1127,11 @@ export class NpcInteractionManager {
     }
   }
 
+  // ✅ HANDLER DIALOGUE MISE À JOUR
   handleDialogueInteraction(npc, data) {
     console.log('[NpcInteractionManager] 💬 === HANDLER DIALOGUE ===');
     console.log('[NpcInteractionManager] NPC:', npc?.name);
     console.log('[NpcInteractionManager] Data:', data);
-    
-    // ✅ Vérifier disponibilité du système dialogue
-    const dialogueSystem = this.dependencies.dialogueSystem;
-    if (typeof dialogueSystem !== 'function') {
-      console.error('[NpcInteractionManager] ❌ Système dialogue non disponible');
-      this.showErrorMessage("Système de dialogue non disponible");
-      return false;
-    }
     
     try {
       // ✅ Préparer données dialogue
@@ -1066,19 +1139,22 @@ export class NpcInteractionManager {
       
       console.log('[NpcInteractionManager] 📤 Données dialogue:', dialogueData);
       
-      // ✅ Statistiques de délégation
-      this.updateDelegationStats('DialogueSystem');
+      // ✅ MISE À JOUR : Utiliser le bon système
+      const success = this.callDialogueSystem(dialogueData);
       
-      // ✅ Callback de délégation
-      if (this.callbacks.onSystemDelegation) {
-        this.callbacks.onSystemDelegation('DialogueSystem', npc, data);
+      if (success) {
+        this.updateDelegationStats('DialogueSystem');
+        
+        if (this.callbacks.onSystemDelegation) {
+          this.callbacks.onSystemDelegation('DialogueSystem', npc, data);
+        }
+        
+        console.log('[NpcInteractionManager] ✅ Dialogue affiché');
+        return true;
+      } else {
+        this.showErrorMessage("Erreur d'affichage du dialogue");
+        return false;
       }
-      
-      // ✅ Appel système dialogue
-      dialogueSystem(dialogueData);
-      
-      console.log('[NpcInteractionManager] ✅ Dialogue affiché');
-      return true;
       
     } catch (error) {
       console.error('[NpcInteractionManager] ❌ Erreur dialogue:', error);
@@ -1091,14 +1167,13 @@ export class NpcInteractionManager {
     console.log('[NpcInteractionManager] ❓ === HANDLER GÉNÉRIQUE ===');
     console.log('[NpcInteractionManager] Data:', data);
     
-    // ✅ Fallback vers dialogue
     return this.handleDialogueInteraction(null, {
       message: data?.message || "Interaction non gérée",
       lines: data?.lines || ["Interaction non gérée"]
     });
   }
 
-  // === DÉTECTION ET VALIDATION (code existant inchangé) ===
+  // === UTILITAIRES (inchangés sauf prepareDialogueData) ===
 
   detectNpcInteractionType(npc) {
     console.log('[NpcInteractionManager] 🔍 === DÉTECTION TYPE NPC ===');
@@ -1110,13 +1185,11 @@ export class NpcInteractionManager {
       return NPC_INTERACTION_TYPES.DIALOGUE;
     }
     
-    // ✅ Trier par priorité
     const sortedDetectors = Array.from(this.npcDetectors.values())
       .sort((a, b) => a.priority - b.priority);
     
     console.log(`[NpcInteractionManager] Test de ${sortedDetectors.length} détecteurs...`);
     
-    // ✅ Tester chaque détecteur
     for (const detector of sortedDetectors) {
       try {
         console.log(`[NpcInteractionManager] Test détecteur: ${detector.type}`);
@@ -1125,7 +1198,6 @@ export class NpcInteractionManager {
         if (matches) {
           console.log(`[NpcInteractionManager] ✅ Match trouvé: ${detector.type}`);
           
-          // ✅ Callback de détection
           if (this.callbacks.onNpcTypeDetected) {
             this.callbacks.onNpcTypeDetected(npc, detector.type);
           }
@@ -1141,10 +1213,7 @@ export class NpcInteractionManager {
     return null;
   }
 
-  // === UTILITAIRES (code existant + extensions) ===
-
   prepareShopData(npc, data) {
-    // ✅ Assurer compatibilité nom NPC
     if (data && typeof data.npcName === "object" && data.npcName.name) {
       data.npcName = data.npcName.name;
     }
@@ -1176,6 +1245,7 @@ export class NpcInteractionManager {
     };
   }
 
+  // ✅ MÉTHODE MISE À JOUR : Préparation dialogue compatible
   prepareDialogueData(npc, data) {
     let npcName = "PNJ";
     let portrait = "/assets/portrait/defaultPortrait.png";
@@ -1211,7 +1281,7 @@ export class NpcInteractionManager {
       name: npcName,
       lines,
       text: data?.text || null,
-      // ✅ NOUVEAU - Préserver métadonnées interface unifiée si présentes
+      // ✅ Préserver métadonnées interface unifiée si présentes
       ...(data?.unifiedFallback && {
         unifiedFallback: data.unifiedFallback,
         originalUnifiedData: data.originalUnifiedData
@@ -1245,10 +1315,9 @@ export class NpcInteractionManager {
     return npcManager.getNpcData(npcId);
   }
 
-  // === VALIDATION ET ÉTAT ===
+  // === VALIDATION ET ÉTAT (inchangés) ===
 
   canInteractWithNpc(npc) {
-    // ✅ Vérifications de base
     if (!npc) {
       console.log('[NpcInteractionManager] 🚫 NPC manquant');
       return false;
@@ -1264,13 +1333,10 @@ export class NpcInteractionManager {
       return false;
     }
     
-    // ✅ NOUVEAU - Vérifier si interface unifiée active (pas bloquant)
     if (this.state.unifiedInterfaceActive) {
       console.log('[NpcInteractionManager] ℹ️ Interface unifiée déjà active');
-      // Ne pas bloquer - permet changement de NPC
     }
     
-    // ✅ Vérification cooldown
     const now = Date.now();
     if (now < this.state.blockedUntil) {
       const remaining = this.state.blockedUntil - now;
@@ -1284,13 +1350,11 @@ export class NpcInteractionManager {
       return false;
     }
     
-    // ✅ Vérification distance
     if (!this.isNpcInRange(npc)) {
       console.log('[NpcInteractionManager] 🚫 NPC trop loin');
       return false;
     }
     
-    // ✅ Vérifications systèmes bloquants
     if (this.areSystemsBlocking()) {
       console.log('[NpcInteractionManager] 🚫 Systèmes bloquants actifs');
       return false;
@@ -1303,7 +1367,7 @@ export class NpcInteractionManager {
     const playerManager = this.dependencies.playerManager;
     if (!playerManager) {
       console.log('[NpcInteractionManager] ⚠️ PlayerManager manquant - skip vérification distance');
-      return true; // Assume OK si pas de PlayerManager
+      return true;
     }
     
     const myPlayer = playerManager.getMyPlayer();
@@ -1342,23 +1406,26 @@ export class NpcInteractionManager {
   }
 
   isDialogueOpen() {
+    // ✅ MISE À JOUR : Vérifier les deux systèmes
+    if (this.dependencies.dialogueManager && this.dependencies.dialogueManager.isOpen) {
+      return this.dependencies.dialogueManager.isOpen();
+    }
+    
     const dialogueBox = document.getElementById('dialogue-box');
     return dialogueBox && dialogueBox.style.display !== 'none';
   }
 
-  // === GESTION D'ERREURS ===
+  // === GESTION D'ERREURS (inchangée) ===
 
   handleInteractionError(error, npc = null, data = null) {
     console.error('[NpcInteractionManager] ❌ Erreur interaction:', error);
     
     this.stats.errors++;
     
-    // ✅ Callback d'erreur
     if (this.callbacks.onNpcInteractionError) {
       this.callbacks.onNpcInteractionError(error, npc, data);
     }
     
-    // ✅ Afficher message d'erreur
     this.showErrorMessage(error.message || 'Erreur d\'interaction avec le NPC');
   }
 
@@ -1377,7 +1444,7 @@ export class NpcInteractionManager {
     }
   }
 
-  // === STATISTIQUES (améliorées avec interface unifiée) ===
+  // === STATISTIQUES (mises à jour) ===
 
   updateStats(interactionType, success) {
     this.stats.totalInteractions++;
@@ -1396,27 +1463,24 @@ export class NpcInteractionManager {
     const current = this.stats.systemDelegations.get(systemName) || 0;
     this.stats.systemDelegations.set(systemName, current + 1);
     
-    // ✅ NOUVEAU - Track spécialement les interfaces unifiées
     if (systemName.startsWith('UnifiedInterface_')) {
       const unifiedCount = this.stats.systemDelegations.get('_UnifiedInterfaceTotal') || 0;
       this.stats.systemDelegations.set('_UnifiedInterfaceTotal', unifiedCount + 1);
     }
   }
 
-  // === CALLBACKS PUBLICS ===
+  // === CALLBACKS PUBLICS (inchangés) ===
 
   onNpcInteractionStart(callback) { this.callbacks.onNpcInteractionStart = callback; }
   onNpcInteractionComplete(callback) { this.callbacks.onNpcInteractionComplete = callback; }
   onNpcInteractionError(callback) { this.callbacks.onNpcInteractionError = callback; }
   onNpcTypeDetected(callback) { this.callbacks.onNpcTypeDetected = callback; }
   onSystemDelegation(callback) { this.callbacks.onSystemDelegation = callback; }
-
-  // ✅ NOUVEAUX CALLBACKS INTERFACE UNIFIÉE
   onUnifiedInterfaceShow(callback) { this.callbacks.onUnifiedInterfaceShow = callback; }
   onUnifiedInterfaceHide(callback) { this.callbacks.onUnifiedInterfaceHide = callback; }
   onUnifiedTabSwitch(callback) { this.callbacks.onUnifiedTabSwitch = callback; }
 
-  // === CONFIGURATION ===
+  // === CONFIGURATION (inchangée) ===
 
   setConfig(newConfig) {
     console.log('[NpcInteractionManager] 🔧 Mise à jour configuration:', newConfig);
@@ -1433,9 +1497,9 @@ export class NpcInteractionManager {
   getDebugInfo() {
     return {
       isInitialized: this.isInitialized,
+      activeDialogueSystem: this.activeDialogueSystem,
       state: {
         ...this.state,
-        // ✅ NOUVEAU - État interface unifiée
         unifiedInterfaceInfo: this.state.currentUnifiedInterface ? {
           npcName: this.state.currentUnifiedInterface.npcName,
           capabilities: this.state.currentUnifiedInterface.capabilities,
@@ -1447,8 +1511,14 @@ export class NpcInteractionManager {
         ...this.stats,
         interactionsByType: Object.fromEntries(this.stats.interactionsByType),
         systemDelegations: Object.fromEntries(this.stats.systemDelegations),
-        // ✅ NOUVEAU - Stats interface unifiée
-        unifiedInterfacesByCapabilities: Object.fromEntries(this.stats.unifiedInterfacesByCapabilities)
+        unifiedInterfacesByCapabilities: Object.fromEntries(this.stats.unifiedInterfacesByCapabilities),
+        // ✅ NOUVEAU : Stats système dialogue
+        dialogueSystemStats: {
+          newSystemUsed: this.stats.newDialogueSystemUsed,
+          legacySystemUsed: this.stats.legacyDialogueSystemUsed,
+          detections: this.stats.dialogueSystemDetections,
+          currentSystem: this.activeDialogueSystem
+        }
       },
       detectors: Array.from(this.npcDetectors.keys()),
       handlers: Array.from(this.npcHandlers.keys()),
@@ -1457,7 +1527,6 @@ export class NpcInteractionManager {
       ),
       sceneKey: this.scene?.scene?.key,
       networkHandlerReady: !!this.networkHandler?.isInitialized,
-      // ✅ NOUVEAU - Support interface unifiée
       unifiedInterfaceSupport: {
         enabled: this.config.enableUnifiedInterface,
         currentlyActive: this.state.unifiedInterfaceActive,
@@ -1476,14 +1545,17 @@ export class NpcInteractionManager {
       systemDelegations: new Map(),
       errors: 0,
       successfulInteractions: 0,
-      // ✅ NOUVEAU - Reset stats interface unifiée
       unifiedInterfacesShown: 0,
       unifiedInterfacesByCapabilities: new Map(),
-      tabSwitches: 0
+      tabSwitches: 0,
+      // ✅ NOUVEAU : Reset stats dialogue
+      newDialogueSystemUsed: 0,
+      legacyDialogueSystemUsed: 0,
+      dialogueSystemDetections: 0
     };
   }
 
-  // === MÉTHODES UTILITAIRES SUPPLÉMENTAIRES ===
+  // === MÉTHODES UTILITAIRES (inchangées) ===
 
   getClosestNpc(playerX, playerY, maxDist = 64) {
     if (this.isDestroyed) return null;
@@ -1513,30 +1585,25 @@ export class NpcInteractionManager {
   destroy() {
     console.log('[NpcInteractionManager] 💀 Destruction...');
     
-    // ✅ Fermer interface unifiée si active
     if (this.state.unifiedInterfaceActive) {
       this.closeUnifiedInterface();
     }
     
-    // ✅ Nettoyer callbacks globaux
     if (typeof window !== 'undefined') {
       delete window.closeUnifiedNpcInterface;
       delete window.switchUnifiedTab;
     }
     
-    // ✅ Nettoyer callbacks
     Object.keys(this.callbacks).forEach(key => {
       this.callbacks[key] = null;
     });
     
-    // ✅ Nettoyer collections
     this.npcDetectors.clear();
     this.npcHandlers.clear();
     this.stats.interactionsByType.clear();
     this.stats.systemDelegations.clear();
     this.stats.unifiedInterfacesByCapabilities.clear();
     
-    // ✅ Reset état
     this.isInitialized = false;
     this.scene = null;
     this.networkHandler = null;
@@ -1545,10 +1612,9 @@ export class NpcInteractionManager {
   }
 }
 
-// === FONCTIONS DEBUG GLOBALES ÉTENDUES ===
+// === FONCTIONS DEBUG GLOBALES MISES À JOUR ===
 
 window.debugNpcInteractionManager = function() {
-  // Essayer de trouver le manager dans différents endroits
   const managers = [
     window.globalNetworkManager?.npcInteractionManager,
     window.game?.scene?.getScenes(true)?.[0]?.npcInteractionManager,
@@ -1557,16 +1623,18 @@ window.debugNpcInteractionManager = function() {
   
   if (managers.length > 0) {
     const info = managers[0].getDebugInfo();
-    console.log('[NpcInteractionManager] === DEBUG INFO ÉTENDU ===');
+    console.log('[NpcInteractionManager] === DEBUG INFO AVEC DIALOGUEMANAGER ===');
     console.table({
+      'Système Dialogue Actif': info.activeDialogueSystem,
+      'Nouveau Système Utilisé': info.stats.dialogueSystemStats.newSystemUsed,
+      'Ancien Système Utilisé': info.stats.dialogueSystemStats.legacySystemUsed,
+      'Détections Système': info.stats.dialogueSystemStats.detections,
       'Interactions Totales': info.stats.totalInteractions,
-      'Interactions Réussies': info.stats.successfulInteractions,
-      'Erreurs': info.stats.errors,
       'Interfaces Unifiées': info.stats.unifiedInterfacesShown,
-      'Changements d\'Onglet': info.stats.tabSwitches,
       'Taux de Succès': `${((info.stats.successfulInteractions / Math.max(info.stats.totalInteractions, 1)) * 100).toFixed(1)}%`
     });
-    console.log('[NpcInteractionManager] Support Interface Unifiée:', info.unifiedInterfaceSupport);
+    console.log('[NpcInteractionManager] Dépendances:', info.dependencies);
+    console.log('[NpcInteractionManager] Stats Dialogue:', info.stats.dialogueSystemStats);
     console.log('[NpcInteractionManager] Info complète:', info);
     return info;
   } else {
@@ -1585,32 +1653,31 @@ window.testUnifiedNpcInterface = function() {
   if (managers.length > 0) {
     const manager = managers[0];
     
-    console.log('[NpcInteractionManager] 🧪 Test interface unifiée...');
+    console.log('[NpcInteractionManager] 🧪 Test interface unifiée avec DialogueManager...');
     
-    // Mock data d'interface unifiée
     const mockData = {
       type: 'npc',
       npcId: 9002,
-      npcName: 'Marchand Test Unifié',
+      npcName: 'Marchand Test DialogueManager',
       isUnifiedInterface: true,
       unifiedInterface: {
         npcId: 9002,
-        npcName: 'Marchand Test Unifié',
+        npcName: 'Marchand Test DialogueManager',
         capabilities: ['merchant', 'questGiver', 'dialogue'],
         defaultAction: 'merchant',
         merchantData: {
-          shopId: 'test_unified_shop',
+          shopId: 'test_dialogue_manager_shop',
           availableItems: [
             { itemId: 'potion', buyPrice: 300, stock: 10 }
           ]
         },
         questData: {
           availableQuests: [
-            { id: 'test_quest', title: 'Quête Test', description: 'Une quête de test' }
+            { id: 'test_quest_dm', title: 'Quête DialogueManager', description: 'Test avec nouveau système' }
           ]
         },
         dialogueData: {
-          lines: ['Bonjour ! Je suis un NPC test avec interface unifiée !']
+          lines: ['Bonjour ! Je teste le nouveau DialogueManager !', 'Interface unifiée fonctionnelle !']
         },
         quickActions: [
           { id: 'quick_shop', label: 'Boutique Rapide', action: 'shop' },
@@ -1627,7 +1694,7 @@ window.testUnifiedNpcInterface = function() {
   }
 };
 
-window.closeCurrentUnifiedInterface = function() {
+window.testDialogueSystemDetection = function() {
   const managers = [
     window.globalNetworkManager?.npcInteractionManager,
     window.game?.scene?.getScenes(true)?.[0]?.npcInteractionManager,
@@ -1635,13 +1702,33 @@ window.closeCurrentUnifiedInterface = function() {
   ].filter(Boolean);
   
   if (managers.length > 0) {
-    managers[0].closeUnifiedInterface();
-    return true;
+    const manager = managers[0];
+    
+    console.log('[NpcInteractionManager] 🔍 Test détection système dialogue...');
+    
+    const dialogueManager = manager.detectDialogueManager();
+    const legacySystem = manager.detectLegacyDialogueSystem();
+    
+    console.table({
+      'DialogueManager Détecté': !!dialogueManager,
+      'Ancien Système Détecté': !!legacySystem,
+      'Système Actif': manager.activeDialogueSystem,
+      'window.dialogueManager': !!window.dialogueManager,
+      'window.showNpcDialogue': typeof window.showNpcDialogue === 'function'
+    });
+    
+    return {
+      dialogueManager: !!dialogueManager,
+      legacySystem: !!legacySystem,
+      activeSystem: manager.activeDialogueSystem
+    };
+  } else {
+    console.error('[NpcInteractionManager] Manager non trouvé');
+    return null;
   }
-  return false;
 };
 
-console.log('✅ NpcInteractionManager avec Extensions Interface Unifiée chargé!');
+console.log('✅ NpcInteractionManager MISE À JOUR pour DialogueManager chargé!');
 console.log('🔍 Utilisez window.debugNpcInteractionManager() pour diagnostiquer');
-console.log('🧪 Utilisez window.testUnifiedNpcInterface() pour tester interface unifiée');
-console.log('🚪 Utilisez window.closeCurrentUnifiedInterface() pour fermer interface active');
+console.log('🧪 Utilisez window.testUnifiedNpcInterface() pour tester avec DialogueManager');
+console.log('🔍 Utilisez window.testDialogueSystemDetection() pour tester la détection');
