@@ -279,26 +279,23 @@ if (this.transitionService && this.followerHandlers) {
     });
   }
 
-    private initializeNpcManagers() {
-      console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
-      
-      try {
-        // ✅ SUPER SIMPLE : NPCManager gère tout automatiquement
-        const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
-        
-        // Option : Si vous voulez garder l'ancienne API par zone
-        const zones = globalNpcManager.getLoadedZones();
-        zones.forEach(zoneName => {
-          this.npcManagers.set(zoneName, globalNpcManager);
-        });
-        
-        console.log(`✅ [WorldRoom] NPCManager initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
-        globalNpcManager.debugSystem();
-        
-      } catch (error) {
-        console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
-      }
-    }
+private initializeNpcManagers() {
+  console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
+  
+  try {
+    // ✅ ENCORE PLUS SIMPLE : Un seul NPCManager pour toutes les zones
+    const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
+    
+    // Stocker le manager global
+    this.npcManagers.set('global', globalNpcManager);
+    
+    console.log(`✅ [WorldRoom] NPCManager global initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
+    globalNpcManager.debugSystem();
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
+  }
+}
 
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
@@ -427,12 +424,13 @@ if (this.transitionService && this.followerHandlers) {
 
   // Méthodes publiques
   public getNpcManager(zoneName: string): NpcManager | undefined {
-    const npcManager = this.npcManagers.get(zoneName);
-    if (!npcManager) {
-      console.warn(`⚠️ [WorldRoom] NpcManager non trouvé pour la zone: ${zoneName}`);
-      console.log(`📋 [WorldRoom] Zones disponibles:`, Array.from(this.npcManagers.keys()));
+    // Utiliser le manager global
+    const globalManager = this.npcManagers.get('global');
+    if (!globalManager) {
+      console.warn(`⚠️ [WorldRoom] NPCManager global non trouvé`);
+      return undefined;
     }
-    return npcManager;
+    return globalManager;
   }
 
   public getAvailableNpcZones(): string[] {
