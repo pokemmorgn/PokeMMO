@@ -37,23 +37,27 @@ export class DialogueUI {
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
     
-    // Structure HTML complète MISE À JOUR
+    // Structure HTML complète UNIFIÉE
     this.container.innerHTML = `
-      <!-- Dialogue classique ÉTENDU avec actions -->
-      <div id="dialogue-box" class="dialogue-box-classic" style="display:none;">
-        <div id="npc-portrait" class="npc-portrait"></div>
-        <div id="npc-dialogue" class="npc-dialogue">
-          <span id="npc-name" class="npc-name"></span>
-          <span id="npc-text" class="npc-text"></span>
-        </div>
-        <div class="dialogue-continue-indicator">
-          <span class="dialogue-counter">1/1</span>
-          <div class="dialogue-arrow"></div>
+      <!-- Dialogue unifié avec actions intégrées -->
+      <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
+        <!-- Partie haute: Portrait + Dialogue -->
+        <div class="dialogue-main-content">
+          <div id="npc-portrait" class="npc-portrait"></div>
+          <div id="npc-dialogue" class="npc-dialogue">
+            <span id="npc-name" class="npc-name"></span>
+            <span id="npc-text" class="npc-text"></span>
+          </div>
+          <div class="dialogue-continue-indicator">
+            <span class="dialogue-counter">1/1</span>
+            <div class="dialogue-arrow"></div>
+          </div>
         </div>
         
-        <!-- 🆕 NOUVELLE ZONE D'ACTIONS -->
-        <div id="dialogue-actions" class="dialogue-actions" style="display:none;">
-          <div class="actions-header">Actions disponibles:</div>
+        <!-- Partie basse: Actions intégrées -->
+        <div id="dialogue-actions" class="dialogue-actions-integrated" style="display:none;">
+          <div class="actions-separator"></div>
+          <div class="actions-header">Actions disponibles</div>
           <div class="actions-buttons" id="actions-buttons">
             <!-- Les boutons seront générés dynamiquement -->
           </div>
@@ -134,9 +138,8 @@ export class DialogueUI {
         pointer-events: auto;
       }
 
-      /* ===== DIALOGUE CLASSIQUE (préservé) ===== */
-      .dialogue-box-classic {
-        /* Styles de dialogue.css préservés */
+      /* ===== DIALOGUE UNIFIÉ ===== */
+      .dialogue-box-unified {
         position: absolute;
         bottom: 120px;
         left: 50%;
@@ -151,45 +154,70 @@ export class DialogueUI {
           0 0 0 1px rgba(255, 255, 255, 0.2),
           inset 0 2px 0 rgba(255, 255, 255, 0.3);
         display: flex;
-        flex-direction: row;
-        align-items: center;
+        flex-direction: column;
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
         backdrop-filter: blur(8px);
-        cursor: pointer;
         transition: all 0.3s ease;
         pointer-events: auto;
+        overflow: hidden;
       }
 
-      /* 🆕 STYLES ZONE D'ACTIONS */
-      .dialogue-actions {
-        position: absolute;
-        bottom: -70px;
-        left: 0;
-        right: 0;
-        background: linear-gradient(135deg, rgba(25, 55, 95, 0.9), rgba(36, 76, 116, 0.9));
-        border: 2px solid rgba(255, 255, 255, 0.6);
-        border-top: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 0 0 15px 15px;
+      /* Partie haute du dialogue */
+      .dialogue-main-content {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 0;
+        cursor: pointer;
+        min-height: 80px;
+      }
+
+      /* Partie basse des actions intégrées */
+      .dialogue-actions-integrated {
+        background: linear-gradient(135deg, rgba(20, 45, 75, 0.8), rgba(30, 60, 100, 0.8));
         padding: 15px 20px;
-        backdrop-filter: blur(5px);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
-        z-index: 101;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
       }
 
-      .dialogue-box-classic.has-actions {
-        border-radius: 20px 20px 0 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      .actions-separator {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        margin: -1px 0 12px 0;
       }
 
       .actions-header {
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.9);
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         text-align: center;
         text-transform: uppercase;
         letter-spacing: 1px;
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+      }
+
+      /* Style avec actions */
+      .dialogue-box-unified.with-actions {
+        box-shadow: 
+          0 12px 50px rgba(0, 0, 0, 0.7),
+          0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 2px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      /* Animation d'apparition unifiée */
+      .dialogue-box-unified.appear {
+        animation: dialogueUnifiedAppear 0.4s ease;
+      }
+
+      @keyframes dialogueUnifiedAppear {
+        from { 
+          opacity: 0; 
+          transform: translateX(-50%) translateY(30px) scale(0.95); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0) scale(1); 
+        }
       }
 
       .actions-buttons {
@@ -692,11 +720,12 @@ export class DialogueUI {
           border-radius: 15px;
         }
 
-        .dialogue-box-classic {
+        .dialogue-box-unified {
           min-width: calc(100vw - 40px);
           left: 20px;
           right: 20px;
-          transform: none;
+          transform: translateX(0);
+          margin: 0 auto;
         }
 
         .actions-buttons {
@@ -707,6 +736,14 @@ export class DialogueUI {
         .action-btn {
           width: 100%;
           max-width: 250px;
+        }
+
+        .dialogue-main-content {
+          padding: 15px;
+        }
+
+        .dialogue-actions-integrated {
+          padding: 12px 15px;
         }
       }
 
@@ -739,13 +776,19 @@ export class DialogueUI {
         to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
       }
 
-      .dialogue-box-classic.appear {
-        animation: dialogueAppear 0.3s ease;
+      .dialogue-box-unified.appear {
+        animation: dialogueUnifiedAppear 0.4s ease;
       }
 
-      @keyframes dialogueAppear {
-        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      @keyframes dialogueUnifiedAppear {
+        from { 
+          opacity: 0; 
+          transform: translateX(-50%) translateY(30px) scale(0.95); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0) scale(1); 
+        }
       }
     `;
 
@@ -756,9 +799,9 @@ export class DialogueUI {
   // ===== GESTION DES ÉVÉNEMENTS =====
   
   setupEventListeners() {
-    // Clic pour fermer (dialogue classique)
+    // Clic pour fermer (dialogue unifié - seulement sur la partie dialogue)
     this.container.addEventListener('click', (e) => {
-      if (e.target.closest('#dialogue-box') && !e.target.closest('#dialogue-actions')) {
+      if (e.target.closest('.dialogue-main-content') && !e.target.closest('.dialogue-actions-integrated')) {
         this.handleDialogueClick();
       }
     });
@@ -835,7 +878,7 @@ export class DialogueUI {
   // ===== AFFICHAGE DES DIALOGUES =====
 
   showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue classique:', data);
+    console.log('🎭 Affichage dialogue unifié simple:', data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const portrait = this.container.querySelector('#npc-portrait');
@@ -860,9 +903,9 @@ export class DialogueUI {
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
-    // Masquer les actions pour dialogue simple
+    // Masquer les actions pour dialogue simple et utiliser classe unifiée
     actionsZone.style.display = 'none';
-    dialogueBox.classList.remove('has-actions');
+    dialogueBox.className = 'dialogue-box-unified';
 
     // Stocker les données pour la pagination
     this.classicDialogueData = {
@@ -877,18 +920,18 @@ export class DialogueUI {
     dialogueBox.classList.add('appear');
     this.isVisible = true;
 
-    console.log('✅ Dialogue classique affiché');
+    console.log('✅ Dialogue unifié simple affiché');
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Afficher dialogue avec actions
+  // 🆕 NOUVELLE MÉTHODE: Afficher dialogue unifié avec actions
   showDialogueWithActions(data) {
-    console.log('🎭 Affichage dialogue avec actions:', data);
+    console.log('🎭 Affichage dialogue unifié avec actions:', data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const actionsZone = this.container.querySelector('#dialogue-actions');
     const actionsButtons = this.container.querySelector('#actions-buttons');
 
-    // 1. Afficher le dialogue classique normal
+    // 1. Afficher le dialogue de base
     this.showClassicDialogue(data);
 
     // 2. Générer et afficher les actions si disponibles
@@ -904,19 +947,19 @@ export class DialogueUI {
         actionsButtons.appendChild(actionBtn);
       });
       
-      // Afficher la zone d'actions
+      // Afficher la zone d'actions intégrée
       actionsZone.style.display = 'block';
       
-      // Ajuster la classe du dialogue pour inclure les actions
-      dialogueBox.classList.add('has-actions');
+      // Changer de classe pour le style unifié
+      dialogueBox.className = 'dialogue-box-unified with-actions';
       
     } else {
       // Pas d'actions = dialogue simple
       actionsZone.style.display = 'none';
-      dialogueBox.classList.remove('has-actions');
+      dialogueBox.className = 'dialogue-box-unified';
     }
 
-    console.log('✅ Dialogue avec actions affiché');
+    console.log('✅ Dialogue unifié avec actions affiché');
   }
 
   // 🆕 NOUVELLE MÉTHODE: Créer un bouton d'action
