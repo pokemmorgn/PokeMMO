@@ -354,6 +354,31 @@ window.addEventListener('unhandledrejection', (event) => {
     showErrorMessage('Erreur async: ' + event.reason?.message)
 })
 
+// ✅ FONCTIONS AVANCÉES POUR LE MODULE MAP EDITOR AVEC ITEMS
+window.selectItem = (itemId) => {
+    if (!adminPanel?.mapEditor) {
+        console.error('MapEditor module not loaded')
+        return
+    }
+    adminPanel.mapEditor.selectItem(itemId)
+}
+
+window.filterItems = (searchTerm) => {
+    if (!adminPanel?.mapEditor) {
+        console.error('MapEditor module not loaded')
+        return
+    }
+    adminPanel.mapEditor.filterItems(searchTerm)
+}
+
+// Fonction pour recharger les items
+window.reloadItems = () => {
+    if (!adminPanel?.mapEditor) {
+        console.error('MapEditor module not loaded')
+        return
+    }
+    adminPanel.mapEditor.loadAvailableItems()
+}
 // Helper function to show error messages
 function showErrorMessage(message) {
     const notification = document.createElement('div')
