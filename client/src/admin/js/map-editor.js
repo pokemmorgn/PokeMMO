@@ -764,6 +764,98 @@ export class MapEditorModule {
     // MÉTHODES HÉRITÉES (SUITE)
     // ==============================
 
+    loadExistingMapObjects() {
+    if (!this.currentMapData || !this.currentMapData.layers) {
+        return
+    }
+    
+    console.log('🔍 [MapEditor] Loading existing map objects from TMJ...')
+    
+    // Chercher les object layers dans la carte TMJ
+    const objectLayers = this.currentMapData.layers.filter(layer => 
+        layer.type === 'objectgroup' && layer.objects && layer.objects.length > 0
+    )
+    
+    let totalObjects = 0
+    
+    objectLayers.forEach(layer => {
+        console.log(`📋 [MapEditor] Found object layer: "${layer.name}" with ${layer.objects.length} objects`)
+        
+        layer.objects.forEach(obj => {
+            // Convertir les coordonnées pixels en coordonnées tiles
+            const tileX = Math.floor(obj.x / this.currentMapData.tilewidth)
+            const tileY = Math.floor(obj.y / this.currentMapData.tileheight)
+            
+            // Déterminer le type d'objet selon le nom
+            let objectType = 'object' // par défaut
+            
+            if (obj.name) {
+                const name = obj.name.toLowerCase()
+                if (name.includes('spawn') || name.includes('player')) {
+                    objectType = 'spawn'
+                } else if (name.includes('npc') || name.includes('character')) {
+                    objectType = 'npc'
+                } else if (name.includes('teleport') || name.includes('portal') || name.includes('door')) {
+                    objectType = 'teleport'
+                }
+            }
+            
+            // Vérifier les propriétés pour plus de précision
+            if (obj.properties) {
+                obj.properties.forEach(prop => {
+                    if (prop.name === 'type') {
+                        objectType = prop.value
+                    }
+                })
+            }
+            
+            // Ajouter l'objet existant à la liste (lecture seule)
+            const existingObject = {
+                id: `existing_${obj.id || Date.now()}_${totalObjects}`,
+                type: objectType,
+                x: tileX,
+                y: tileY,
+                name: obj.name || `${objectType}_${tileX}_${tileY}`,
+                isFromMap: true, // Marquer comme objet de la carte TMJ (lecture seule)
+                originalData: obj,
+                properties: {
+                    width: obj.width,
+                    height: obj.height,
+                    ...this.extractProperties(obj.properties)
+                }
+            }
+            
+            // Vérifier qu'il n'existe pas déjà
+            const exists = this.placedObjects.find(existing => 
+                existing.x === tileX && existing.y === tileY && existing.isFromMap
+            )
+            
+            if (!exists) {
+                this.placedObjects.push(existingObject)
+                totalObjects++
+            }
+        })
+    })
+    
+    console.log(`✅ [MapEditor] Loaded ${totalObjects} existing objects from TMJ`)
+    
+    if (totalObjects > 0) {
+        this.adminPanel.showNotification(`${totalObjects} objets existants chargés depuis la carte TMJ`, 'info')
+    }
+}
+
+extractProperties(properties) {
+    if (!properties || !Array.isArray(properties)) {
+        return {}
+    }
+    
+    const props = {}
+    properties.forEach(prop => {
+        props[prop.name] = prop.value
+    })
+    return props
+}
+    
   async loadExistingObjects(mapId) {
     try {
         console.log(`🗺️ [MapEditor] Loading gameobjects for zone: ${mapId}`)
