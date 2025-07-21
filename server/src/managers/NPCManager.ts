@@ -131,7 +131,7 @@ export class NpcManager {
     cacheEnabled: true
   };
 
-  // ✅ CONSTRUCTEUR ÉTENDU - Support Tiled ET JSON
+  // ✅ CONSTRUCTEUR ÉTENDU - Support Tiled ET JSON + AUTO-SCAN
   constructor(mapPath?: string, zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
@@ -140,17 +140,26 @@ export class NpcManager {
     this.log('info', `🚀 [NpcManager] Initialisation`, {
       mapPath,
       zoneName,
+      autoScan: !mapPath && !zoneName,
       config: this.config
     });
 
-    // Chargement Tiled (existant)
-    if (mapPath) {
-      this.loadNpcsFromMap(mapPath);
-    }
-    
-    // Chargement JSON (nouveau)
-    if (zoneName) {
-      this.loadNpcsFromJSON(zoneName);
+    // === MODE 1: Chargement spécifique (existant) ===
+    if (mapPath || zoneName) {
+      // Chargement Tiled (existant)
+      if (mapPath) {
+        this.loadNpcsFromMap(mapPath);
+      }
+      
+      // Chargement JSON (nouveau)
+      if (zoneName) {
+        this.loadNpcsFromJSON(zoneName);
+      }
+    } 
+    // === MODE 2: Auto-scan complet (nouveau) ===
+    else {
+      this.log('info', `🔍 [NpcManager] Mode auto-scan activé`);
+      this.autoLoadAllZones();
     }
     
     this.lastLoadTime = Date.now();
@@ -484,6 +493,105 @@ export class NpcManager {
 
   getNpcById(id: number): NpcData | undefined {
     return this.npcs.find(npc => npc.id === id);
+  }
+
+  // ✅ MÉTHODES PUBLIQUES POUR L'AUTO-SCAN
+  
+  // Auto-chargement de toutes les zones (Tiled + JSON)
+  private autoLoadAllZones(): void {
+    this.log('info', `📂 [NpcManager] Auto-scan de toutes les zones...`);
+    
+    // === SCAN AUTOMATIQUE DES ZONES TILED ===
+    const tiledZones = this.scanTiledMaps();
+    
+    // === SCAN AUTOMATIQUE DES ZONES JSON ===
+    const jsonZones = this.scanNpcJsonFiles();
+    
+    // === COMBINER ET CHARGER ===
+    const allZones = new Set([...tiledZones, ...jsonZones]);
+    
+    this.log('info', `🎯 [NpcManager] ${allZones.size} zones détectées:`, Array.from(allZones));
+    
+    let totalLoaded = 0;
+    let tiledTotal = 0;
+    let jsonTotal = 0;
+    
+    allZones.forEach(zoneName => {
+      try {
+        const mapPath = `../assets/maps/${zoneName}.tmj`;
+        const hasMap = fs.existsSync(path.resolve(__dirname, mapPath));
+        
+        const npcsBeforeLoad = this.npcs.length;
+        
+        // Chargement hybride : Tiled (si existe) + JSON (si existe)
+        if (hasMap) {
+          this.loadNpcsFromMap(mapPath);
+          const tiledCount = this.npcs.length - npcsBeforeLoad;
+          tiledTotal += tiledCount;
+          this.log('info', `📄 [Tiled] ${zoneName}: ${tiledCount} NPCs`);
+        }
+        
+        // Toujours essayer JSON
+        this.loadNpcsFromJSON(zoneName);
+        const jsonCount = this.npcs.length - npcsBeforeLoad - (hasMap ? this.npcSourceMap.size - npcsBeforeLoad : 0);
+        if (jsonCount > 0) {
+          jsonTotal += jsonCount;
+          this.log('info', `📄 [JSON] ${zoneName}: ${jsonCount} NPCs`);
+        }
+        
+        const zoneTotal = this.npcs.length - npcsBeforeLoad;
+        if (zoneTotal > 0) {
+          totalLoaded += zoneTotal;
+          this.log('info', `✅ Zone ${zoneName}: ${zoneTotal} NPCs total`);
+        }
+        
+      } catch (error) {
+        this.log('warn', `⚠️ Erreur zone ${zoneName}:`, error);
+      }
+    });
+    
+    this.log('info', `🎉 [NpcManager] Auto-scan terminé: ${totalLoaded} NPCs (${tiledTotal} Tiled + ${jsonTotal} JSON)`);
+  }
+
+  private scanTiledMaps(): string[] {
+    try {
+      const mapsDir = path.resolve(__dirname, '../assets/maps');
+      if (!fs.existsSync(mapsDir)) {
+        this.log('warn', `📁 [NpcManager] Dossier maps non trouvé: ${mapsDir}`);
+        return [];
+      }
+      
+      const tiledFiles = fs.readdirSync(mapsDir)
+        .filter((file: string) => file.endsWith('.tmj'))
+        .map((file: string) => file.replace('.tmj', ''));
+      
+      this.log('info', `🗺️ [NpcManager] ${tiledFiles.length} cartes Tiled trouvées`);
+      return tiledFiles;
+    } catch (error) {
+      this.log('error', `❌ Erreur scan Tiled:`, error);
+      return [];
+    }
+  }
+
+  private scanNpcJsonFiles(): string[] {
+    try {
+      const npcDir = path.resolve(this.config.npcDataPath);
+      if (!fs.existsSync(npcDir)) {
+        this.log('info', `📁 [NpcManager] Création dossier NPCs: ${npcDir}`);
+        fs.mkdirSync(npcDir, { recursive: true });
+        return [];
+      }
+      
+      const jsonFiles = fs.readdirSync(npcDir)
+        .filter((file: string) => file.endsWith('.json'))
+        .map((file: string) => file.replace('.json', ''));
+      
+      this.log('info', `📄 [NpcManager] ${jsonFiles.length} fichiers NPCs JSON trouvés`);
+      return jsonFiles;
+    } catch (error) {
+      this.log('error', `❌ Erreur scan NPCs JSON:`, error);
+      return [];
+    }
   }
 
   // ✅ NOUVELLES MÉTHODES PUBLIQUES
