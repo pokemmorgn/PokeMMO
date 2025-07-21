@@ -762,79 +762,57 @@ export class MapEditorModule {
     // MÉTHODES HÉRITÉES (SUITE)
     // ==============================
 
-    loadExistingMapObjects() {
-        if (!this.currentMapData || !this.currentMapData.layers) {
-            return
-        }
+  async loadExistingObjects(mapId) {
+    try {
+        console.log(`🗺️ [MapEditor] Loading gameobjects for zone: ${mapId}`)
         
-        console.log('🔍 [MapEditor] Loading existing map objects...')
+        // Essayer de charger le fichier gameobjects de la zone
+        const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
+        const gameObjectsData = response.data || response
         
-        const objectLayers = this.currentMapData.layers.filter(layer => 
-            layer.type === 'objectgroup' && layer.objects && layer.objects.length > 0
-        )
-        
-        let totalObjects = 0
-        
-        objectLayers.forEach(layer => {
-            console.log(`📋 [MapEditor] Found object layer: "${layer.name}" with ${layer.objects.length} objects`)
-            
-            layer.objects.forEach(obj => {
-                const tileX = Math.floor(obj.x / this.currentMapData.tilewidth)
-                const tileY = Math.floor(obj.y / this.currentMapData.tileheight)
-                
-                let objectType = 'object'
-                
-                if (obj.name) {
-                    const name = obj.name.toLowerCase()
-                    if (name.includes('spawn') || name.includes('player')) {
-                        objectType = 'spawn'
-                    } else if (name.includes('npc') || name.includes('character')) {
-                        objectType = 'npc'
-                    } else if (name.includes('teleport') || name.includes('portal') || name.includes('door')) {
-                        objectType = 'teleport'
-                    }
+        if (gameObjectsData && gameObjectsData.objects) {
+            // Convertir les objets du format gameobjects vers le format éditeur
+            gameObjectsData.objects.forEach(obj => {
+                const editorObject = {
+                    id: obj.id,
+                    type: obj.type || 'ground',
+                    x: Math.floor(obj.position.x / this.currentMapData.tilewidth),
+                    y: Math.floor(obj.position.y / this.currentMapData.tileheight),
+                    name: obj.itemId || `object_${obj.id}`,
+                    itemId: obj.itemId,
+                    quantity: obj.quantity || 1,
+                    cooldown: obj.cooldown || 24,
+                    rarity: obj.rarity || 'common',
+                    sprite: obj.sprite,
+                    isFromMap: false, // Ces objets sont éditables
+                    searchRadius: obj.searchRadius,
+                    itemfinderRadius: obj.itemfinderRadius,
+                    // Garder les données originales
+                    position: obj.position
                 }
                 
-                if (obj.properties) {
-                    obj.properties.forEach(prop => {
-                        if (prop.name === 'type') {
-                            objectType = prop.value
-                        }
-                    })
-                }
-                
-                const existingObject = {
-                    id: `existing_${obj.id || Date.now()}_${totalObjects}`,
-                    type: objectType,
-                    x: tileX,
-                    y: tileY,
-                    name: obj.name || `${objectType}_${tileX}_${tileY}`,
-                    isFromMap: true,
-                    originalData: obj,
-                    properties: {
-                        width: obj.width,
-                        height: obj.height,
-                        ...this.extractProperties(obj.properties)
-                    }
-                }
-                
+                // Vérifier qu'il n'existe pas déjà
                 const exists = this.placedObjects.find(existing => 
-                    existing.x === tileX && existing.y === tileY && existing.isFromMap
+                    existing.x === editorObject.x && existing.y === editorObject.y && !existing.isFromMap
                 )
                 
                 if (!exists) {
-                    this.placedObjects.push(existingObject)
-                    totalObjects++
+                    this.placedObjects.push(editorObject)
                 }
             })
-        })
-        
-        console.log(`✅ [MapEditor] Loaded ${totalObjects} existing objects from map`)
-        
-        if (totalObjects > 0) {
-            this.adminPanel.showNotification(`${totalObjects} objets existants chargés depuis la carte`, 'info')
+            
+            console.log(`✅ [MapEditor] Loaded ${gameObjectsData.objects.length} gameobjects from ${mapId}.json`)
+            this.adminPanel.showNotification(`${gameObjectsData.objects.length} objets chargés depuis ${mapId}.json`, 'info')
+        } else {
+            console.log(`📝 [MapEditor] No gameobjects file found for ${mapId}, starting fresh`)
+            this.adminPanel.showNotification(`Pas de fichier ${mapId}.json trouvé, création d'un nouveau`, 'info')
         }
+        
+    } catch (error) {
+        console.log(`📝 [MapEditor] No gameobjects found for ${mapId}:`, error.message)
+        this.adminPanel.showNotification(`Pas d'objets sauvegardés pour ${mapId}`, 'info')
     }
+}
 
     extractProperties(properties) {
         if (!properties || !Array.isArray(properties)) {
