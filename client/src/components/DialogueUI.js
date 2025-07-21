@@ -37,7 +37,7 @@ export class DialogueUI {
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
     
-    // Structure HTML complète UNIFIÉE
+    // Structure HTML complète UNIFIÉE - CORRIGÉE
     this.container.innerHTML = `
       <!-- Dialogue unifié avec actions intégrées -->
       <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
@@ -47,10 +47,10 @@ export class DialogueUI {
           <div id="npc-dialogue" class="npc-dialogue">
             <span id="npc-name" class="npc-name"></span>
             <span id="npc-text" class="npc-text"></span>
-          </div>
-          <div class="dialogue-continue-indicator">
-            <span class="dialogue-counter">1/1</span>
-            <div class="dialogue-arrow"></div>
+            <div class="dialogue-continue-indicator">
+              <span class="dialogue-counter">1/1</span>
+              <div class="dialogue-arrow"></div>
+            </div>
           </div>
         </div>
         
@@ -138,7 +138,7 @@ export class DialogueUI {
         pointer-events: auto;
       }
 
-      /* ===== DIALOGUE UNIFIÉ ===== */
+      /* ===== DIALOGUE UNIFIÉ - CORRIGÉ ===== */
       .dialogue-box-unified {
         position: absolute;
         bottom: 120px;
@@ -153,8 +153,8 @@ export class DialogueUI {
           0 8px 40px rgba(0, 0, 0, 0.6),
           0 0 0 1px rgba(255, 255, 255, 0.2),
           inset 0 2px 0 rgba(255, 255, 255, 0.3);
-        display: flex;
-        flex-direction: column;
+        display: flex !important;
+        flex-direction: column !important;
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
         backdrop-filter: blur(8px);
         transition: all 0.3s ease;
@@ -163,7 +163,7 @@ export class DialogueUI {
         width: auto;
       }
 
-      /* Partie haute du dialogue */
+      /* Partie haute du dialogue - CORRIGÉE */
       .dialogue-main-content {
         display: flex;
         flex-direction: row;
@@ -171,16 +171,27 @@ export class DialogueUI {
         padding: 15px 20px;
         cursor: pointer;
         min-height: 80px;
-        flex: 1;
+        width: 100%;
+        box-sizing: border-box;
       }
 
-      /* Partie basse des actions intégrées */
+      /* Zone de dialogue */
+      .npc-dialogue {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-left: 15px;
+        position: relative;
+      }
+
+      /* Partie basse des actions - CORRIGÉE */
       .dialogue-actions-integrated {
         background: linear-gradient(135deg, rgba(20, 45, 75, 0.8), rgba(30, 60, 100, 0.8));
         padding: 15px 20px;
         border-top: 1px solid rgba(255, 255, 255, 0.2);
         width: 100%;
         box-sizing: border-box;
+        display: block !important;
       }
 
       .actions-separator {
