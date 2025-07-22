@@ -1,6 +1,6 @@
 // client/src/types/InteractionTypes.js
 // ✅ Types et constantes d'interaction - Validés par le serveur
-// Pas d'auto-découverte côté client - Sécurité first
+// 🆕 INTERFACE UNIFIÉE supportée - Champs étendus pour transmission réseau
 
 // === TYPES D'INTERACTION DE BASE ===
 
@@ -36,6 +36,9 @@ export const INTERACTION_RESULT_TYPES = {
   DOOR_OPENED: 'doorOpened',
   SWITCH_ACTIVATED: 'switchActivated',
   
+  // 🆕 INTERFACE UNIFIÉE
+  UNIFIED_INTERFACE: 'unifiedInterface',
+  
   // Résultats Universels
   SUCCESS: 'success',
   ERROR: 'error',
@@ -64,7 +67,9 @@ export const NETWORK_MESSAGES = {
     INTERACTION_ERROR: 'interactionError',
     INTERACTION_BLOCKED: 'interactionBlocked',
     INTERACTION_COOLDOWN: 'interactionCooldown',
-    INTERACTION_RESULT: 'interactionResult' // Générique
+    INTERACTION_RESULT: 'interactionResult', // Générique
+    // 🆕 INTERFACE UNIFIÉE
+    UNIFIED_INTERFACE_RESULT: 'unifiedInterfaceResult'
   }
 };
 
@@ -73,7 +78,7 @@ export const NETWORK_MESSAGES = {
 export const INTERACTION_DATA_FORMATS = {
   // Format d'envoi interaction NPC
   NPC_INTERACT: {
-    npcId: 'string', // required
+    npcId: 'string|number', // required - support string ET number
     additionalData: 'object', // optional
     playerPosition: 'object', // optional {x, y}
     timestamp: 'number', // auto
@@ -102,16 +107,92 @@ export const INTERACTION_DATA_FORMATS = {
     sessionId: 'string' // auto
   },
   
-  // Format réponse générique
+  // 🆕 FORMAT RÉPONSE ÉTENDU - Interface Unifiée
   INTERACTION_RESULT: {
+    // === CHAMPS DE BASE (existants) ===
     success: 'boolean', // required
     type: 'string', // required (INTERACTION_TYPES)
     resultType: 'string', // required (INTERACTION_RESULT_TYPES)
     message: 'string', // optional
     data: 'object', // optional - données spécifiques
     interactionId: 'string', // optional
+    timestamp: 'number', // auto
+    
+    // === 🆕 CHAMPS INTERFACE UNIFIÉE ===
+    // Identification NPC/Objet
+    npcId: 'string|number', // optional - ID du NPC (pour compatibilité serveur)
+    npcName: 'string', // optional - Nom du NPC
+    objectId: 'string', // optional - ID de l'objet
+    objectName: 'string', // optional - Nom de l'objet
+    
+    // Interface unifiée
+    isUnifiedInterface: 'boolean', // optional - Flag interface unifiée
+    capabilities: 'array', // optional - ['merchant', 'dialogue', 'questGiver']
+    contextualData: 'object', // optional - Données contextuelles spécifiques
+    
+    // Métadonnées étendues
+    zone: 'string', // optional - Zone actuelle
+    playerPosition: 'object', // optional - {x, y}
+    targetPosition: 'object', // optional - {x, y}
+    distance: 'number', // optional - Distance calculée
+    priority: 'number', // optional - Priorité d'interaction
+    
+    // Données système
+    requiresResponse: 'boolean', // optional - Nécessite une réponse utilisateur
+    autoClose: 'boolean', // optional - Fermeture automatique
+    cooldownDuration: 'number', // optional - Durée de cooldown (ms)
+    
+    // Gestion d'erreurs étendues
+    errorCode: 'string', // optional - Code erreur spécifique
+    errorDetails: 'object', // optional - Détails d'erreur
+    
+    // Compatibilité future
+    version: 'string', // optional - Version de l'interface
+    extensions: 'object' // optional - Extensions futures
+  },
+  
+  // 🆕 FORMAT SPÉCIFIQUE INTERFACE UNIFIÉE
+  UNIFIED_INTERFACE_RESULT: {
+    // Hérite de INTERACTION_RESULT avec champs requis pour interface unifiée
+    success: 'boolean', // required
+    type: 'string', // required - toujours INTERACTION_TYPES.NPC ou OBJECT
+    resultType: 'string', // required - toujours 'unifiedInterface'
+    isUnifiedInterface: 'boolean', // required - toujours true
+    capabilities: 'array', // required - au moins une capability
+    contextualData: 'object', // required - données contextuelles
+    npcId: 'string|number', // required si type=NPC
+    npcName: 'string', // required si type=NPC
+    objectId: 'string', // required si type=OBJECT
     timestamp: 'number' // auto
   }
+};
+
+// === 🆕 CAPABILITIES STANDARDISÉES ===
+
+export const UNIFIED_CAPABILITIES = {
+  // NPC Capabilities
+  DIALOGUE: 'dialogue',
+  MERCHANT: 'merchant',
+  QUEST_GIVER: 'questGiver',
+  HEALER: 'healer',
+  TRAINER: 'trainer',
+  GYM_LEADER: 'gymLeader',
+  STARTER_SELECTOR: 'starterSelector',
+  TELEPORTER: 'teleporter',
+  
+  // Object Capabilities
+  COLLECTIBLE: 'collectible',
+  CONTAINER: 'container',
+  PC_ACCESS: 'pcAccess',
+  MACHINE: 'machine',
+  VENDING: 'vending',
+  STORAGE: 'storage',
+  
+  // Environment Capabilities
+  DOOR: 'door',
+  SWITCH: 'switch',
+  PORTAL: 'portal',
+  TRIGGER: 'trigger'
 };
 
 // === VALIDATEURS CÔTÉ CLIENT ===
@@ -120,21 +201,21 @@ export const INTERACTION_DATA_FORMATS = {
 export class InteractionValidator {
   
   // Valider données interaction NPC
-static validateNpcInteract(data) {
-  const errors = [];
-  
-  // ✅ Accepter number ET string
-  if (!data.npcId || (typeof data.npcId !== 'string' && typeof data.npcId !== 'number')) {
-    errors.push('npcId requis (string ou number)');
+  static validateNpcInteract(data) {
+    const errors = [];
+    
+    // ✅ Accepter number ET string
+    if (!data.npcId || (typeof data.npcId !== 'string' && typeof data.npcId !== 'number')) {
+      errors.push('npcId requis (string ou number)');
+    }
+    
+    // ❌ NE PAS convertir en string - garder le type original
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
   }
-  
-  // ❌ NE PAS convertir en string - garder le type original
-  
-  return {
-    isValid: errors.length === 0,
-    errors: errors
-  };
-}
   
   // Valider données interaction objet
   static validateObjectInteract(data) {
@@ -180,7 +261,54 @@ static validateNpcInteract(data) {
     };
   }
   
-  // Valider résultat interaction
+  // 🆕 Valider interface unifiée
+  static validateUnifiedInterface(data) {
+    const errors = [];
+    
+    if (typeof data.success !== 'boolean') {
+      errors.push('success requis (boolean)');
+    }
+    
+    if (typeof data.isUnifiedInterface !== 'boolean' || !data.isUnifiedInterface) {
+      errors.push('isUnifiedInterface requis et doit être true');
+    }
+    
+    if (!Array.isArray(data.capabilities) || data.capabilities.length === 0) {
+      errors.push('capabilities requis (array non-vide)');
+    } else {
+      // Valider que toutes les capabilities sont reconnues
+      const validCapabilities = Object.values(UNIFIED_CAPABILITIES);
+      const invalidCapabilities = data.capabilities.filter(cap => !validCapabilities.includes(cap));
+      if (invalidCapabilities.length > 0) {
+        errors.push(`capabilities non reconnues: ${invalidCapabilities.join(', ')}`);
+      }
+    }
+    
+    if (!data.contextualData || typeof data.contextualData !== 'object') {
+      errors.push('contextualData requis (object)');
+    }
+    
+    // Validation selon le type
+    if (data.type === INTERACTION_TYPES.NPC) {
+      if (!data.npcId || (typeof data.npcId !== 'string' && typeof data.npcId !== 'number')) {
+        errors.push('npcId requis pour type NPC');
+      }
+      if (!data.npcName || typeof data.npcName !== 'string') {
+        errors.push('npcName requis pour type NPC');
+      }
+    } else if (data.type === INTERACTION_TYPES.OBJECT) {
+      if (!data.objectId || typeof data.objectId !== 'string') {
+        errors.push('objectId requis pour type OBJECT');
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
+  
+  // Valider résultat interaction (étendu)
   static validateInteractionResult(data) {
     const errors = [];
     
@@ -196,13 +324,38 @@ static validateNpcInteract(data) {
       errors.push('resultType invalide (doit être dans INTERACTION_RESULT_TYPES)');
     }
     
+    // 🆕 Validation spécifique interface unifiée
+    if (data.resultType === INTERACTION_RESULT_TYPES.UNIFIED_INTERFACE) {
+      const unifiedValidation = this.validateUnifiedInterface(data);
+      if (!unifiedValidation.isValid) {
+        errors.push(...unifiedValidation.errors);
+      }
+    }
+    
+    // Validation des champs optionnels étendus
+    if (data.capabilities && !Array.isArray(data.capabilities)) {
+      errors.push('capabilities doit être un array');
+    }
+    
+    if (data.contextualData && typeof data.contextualData !== 'object') {
+      errors.push('contextualData doit être un object');
+    }
+    
+    if (data.playerPosition && (!data.playerPosition.x || !data.playerPosition.y)) {
+      errors.push('playerPosition invalide (doit avoir x et y)');
+    }
+    
+    if (data.targetPosition && (!data.targetPosition.x || !data.targetPosition.y)) {
+      errors.push('targetPosition invalide (doit avoir x et y)');
+    }
+    
     return {
       isValid: errors.length === 0,
       errors: errors
     };
   }
   
-  // Validation générique par type
+  // Validation générique par type (étendue)
   static validate(type, data) {
     switch (type) {
       case INTERACTION_TYPES.NPC:
@@ -213,6 +366,8 @@ static validateNpcInteract(data) {
         return this.validateSearchHiddenItem(data);
       case 'result':
         return this.validateInteractionResult(data);
+      case 'unifiedInterface':
+        return this.validateUnifiedInterface(data);
       default:
         return { isValid: false, errors: ['Type de validation inconnu'] };
     }
@@ -265,6 +420,64 @@ export class InteractionHelpers {
     };
   }
   
+  // 🆕 Créer réponse interface unifiée
+  static createUnifiedInterfaceResult(type, targetId, targetName, capabilities, contextualData, additionalData = {}) {
+    const result = {
+      success: true,
+      type: type,
+      resultType: INTERACTION_RESULT_TYPES.UNIFIED_INTERFACE,
+      isUnifiedInterface: true,
+      capabilities: capabilities,
+      contextualData: contextualData,
+      timestamp: Date.now(),
+      ...additionalData
+    };
+    
+    // Ajouter les champs spécifiques selon le type
+    if (type === INTERACTION_TYPES.NPC) {
+      result.npcId = targetId;
+      result.npcName = targetName;
+    } else if (type === INTERACTION_TYPES.OBJECT) {
+      result.objectId = targetId;
+      result.objectName = targetName;
+    }
+    
+    return result;
+  }
+  
+  // 🆕 Vérifier si une capability est supportée
+  static isValidCapability(capability) {
+    return Object.values(UNIFIED_CAPABILITIES).includes(capability);
+  }
+  
+  // 🆕 Extraire les capabilities d'un résultat d'interaction
+  static extractCapabilities(interactionResult) {
+    if (!interactionResult || !interactionResult.isUnifiedInterface) {
+      return [];
+    }
+    
+    return interactionResult.capabilities || [];
+  }
+  
+  // 🆕 Vérifier si une interaction supporte une capability spécifique
+  static hasCapability(interactionResult, capability) {
+    const capabilities = this.extractCapabilities(interactionResult);
+    return capabilities.includes(capability);
+  }
+  
+  // 🆕 Formater le nom d'affichage selon le type
+  static getDisplayName(interactionResult) {
+    if (!interactionResult) return 'Inconnu';
+    
+    if (interactionResult.type === INTERACTION_TYPES.NPC) {
+      return interactionResult.npcName || `NPC #${interactionResult.npcId}`;
+    } else if (interactionResult.type === INTERACTION_TYPES.OBJECT) {
+      return interactionResult.objectName || `Objet #${interactionResult.objectId}`;
+    }
+    
+    return 'Cible inconnue';
+  }
+  
   // Vérifier si un type d'interaction est supporté
   static isValidInteractionType(type) {
     return Object.values(INTERACTION_TYPES).includes(type);
@@ -296,6 +509,8 @@ export class InteractionHelpers {
           return NETWORK_MESSAGES.RECEIVE.OBJECT_INTERACTION_RESULT;
         case 'search':
           return NETWORK_MESSAGES.RECEIVE.SEARCH_RESULT;
+        case 'unifiedInterface':
+          return NETWORK_MESSAGES.RECEIVE.UNIFIED_INTERFACE_RESULT;
         default:
           return NETWORK_MESSAGES.RECEIVE.INTERACTION_RESULT;
       }
@@ -315,6 +530,55 @@ export class InteractionHelpers {
     
     return `Erreurs multiples: ${errors.join(', ')}`;
   }
+  
+  // 🆕 Diagnostiquer un résultat d'interaction
+  static diagnoseInteractionResult(result) {
+    const diagnosis = {
+      isValid: false,
+      isUnified: false,
+      type: null,
+      capabilities: [],
+      issues: [],
+      suggestions: []
+    };
+    
+    if (!result) {
+      diagnosis.issues.push('Résultat manquant');
+      diagnosis.suggestions.push('Vérifier que le serveur envoie une réponse');
+      return diagnosis;
+    }
+    
+    diagnosis.type = result.type;
+    diagnosis.isUnified = !!result.isUnifiedInterface;
+    
+    // Validation de base
+    const validation = this.validate('result', result);
+    diagnosis.isValid = validation.isValid;
+    if (!validation.isValid) {
+      diagnosis.issues.push(...validation.errors);
+    }
+    
+    // Analyse des capabilities
+    if (result.capabilities) {
+      diagnosis.capabilities = result.capabilities;
+      const invalidCaps = result.capabilities.filter(cap => !this.isValidCapability(cap));
+      if (invalidCaps.length > 0) {
+        diagnosis.issues.push(`Capabilities invalides: ${invalidCaps.join(', ')}`);
+        diagnosis.suggestions.push('Vérifier les capabilities côté serveur');
+      }
+    }
+    
+    // Suggestions d'amélioration
+    if (!diagnosis.isUnified) {
+      diagnosis.suggestions.push('Considérer l\'utilisation de l\'interface unifiée');
+    }
+    
+    if (!result.contextualData) {
+      diagnosis.suggestions.push('Ajouter contextualData pour une meilleure UX');
+    }
+    
+    return diagnosis;
+  }
 }
 
 // === CONSTANTES DE CONFIGURATION ===
@@ -330,6 +594,11 @@ export const INTERACTION_CONFIG = {
   SEARCH_COOLDOWN: 1000,
   OBJECT_COLLECT_COOLDOWN: 300,
   
+  // 🆕 Interface unifiée
+  UNIFIED_INTERFACE_TIMEOUT: 10000,
+  MAX_CAPABILITIES_PER_TARGET: 10,
+  CONTEXTUAL_DATA_MAX_SIZE: 1024 * 10, // 10KB
+  
   // Timeouts (ms)
   INTERACTION_TIMEOUT: 8000,
   NETWORK_TIMEOUT: 5000,
@@ -341,7 +610,11 @@ export const INTERACTION_CONFIG = {
   // Debug
   ENABLE_DEBUG_LOGS: true,
   ENABLE_INTERACTION_HISTORY: true,
-  MAX_HISTORY_SIZE: 50
+  MAX_HISTORY_SIZE: 50,
+  
+  // 🆕 Validation
+  STRICT_CAPABILITY_VALIDATION: true,
+  ALLOW_UNKNOWN_FIELDS: false
 };
 
 // === ÉNUMÉRATIONS ÉTENDUES ===
@@ -387,8 +660,65 @@ export const INTERACTION_ERROR_MESSAGES = {
   INTERACTION_FAILED: 'Échec de l\'interaction',
   TIMEOUT: 'Interaction expirée',
   BLOCKED: 'Interaction bloquée',
-  UNKNOWN_ERROR: 'Erreur d\'interaction inconnue'
+  UNKNOWN_ERROR: 'Erreur d\'interaction inconnue',
+  
+  // 🆕 Erreurs interface unifiée
+  UNIFIED_INTERFACE_UNSUPPORTED: 'Interface unifiée non supportée par cette cible',
+  CAPABILITY_NOT_AVAILABLE: 'Capability non disponible actuellement',
+  CONTEXTUAL_DATA_MISSING: 'Données contextuelles manquantes',
+  INVALID_CAPABILITY: 'Capability non reconnue'
 };
+
+// === 🆕 FACTORY CLASSES POUR INTERFACE UNIFIÉE ===
+
+export class UnifiedInterfaceFactory {
+  
+  // Créer interface unifiée pour NPC
+  static createNpcInterface(npcId, npcName, capabilities, contextualData, additionalData = {}) {
+    const validCapabilities = capabilities.filter(cap => InteractionHelpers.isValidCapability(cap));
+    
+    if (validCapabilities.length === 0) {
+      console.warn(`[UnifiedInterfaceFactory] Aucune capability valide pour NPC ${npcName}`);
+      validCapabilities.push(UNIFIED_CAPABILITIES.DIALOGUE); // Fallback
+    }
+    
+    return InteractionHelpers.createUnifiedInterfaceResult(
+      INTERACTION_TYPES.NPC,
+      npcId,
+      npcName,
+      validCapabilities,
+      contextualData,
+      {
+        priority: INTERACTION_PRIORITIES.HIGH,
+        requiresResponse: true,
+        ...additionalData
+      }
+    );
+  }
+  
+  // Créer interface unifiée pour objet
+  static createObjectInterface(objectId, objectName, capabilities, contextualData, additionalData = {}) {
+    const validCapabilities = capabilities.filter(cap => InteractionHelpers.isValidCapability(cap));
+    
+    if (validCapabilities.length === 0) {
+      console.warn(`[UnifiedInterfaceFactory] Aucune capability valide pour objet ${objectName}`);
+      validCapabilities.push(UNIFIED_CAPABILITIES.COLLECTIBLE); // Fallback
+    }
+    
+    return InteractionHelpers.createUnifiedInterfaceResult(
+      INTERACTION_TYPES.OBJECT,
+      objectId,
+      objectName,
+      validCapabilities,
+      contextualData,
+      {
+        priority: INTERACTION_PRIORITIES.NORMAL,
+        requiresResponse: false,
+        ...additionalData
+      }
+    );
+  }
+}
 
 // === EXPORT GLOBAL POUR DEBUG ===
 
@@ -396,13 +726,30 @@ if (typeof window !== 'undefined') {
   window.InteractionTypes = {
     INTERACTION_TYPES,
     INTERACTION_RESULT_TYPES,
+    UNIFIED_CAPABILITIES,
     NETWORK_MESSAGES,
     INTERACTION_CONFIG,
     InteractionValidator,
-    InteractionHelpers
+    InteractionHelpers,
+    UnifiedInterfaceFactory
+  };
+  
+  // 🆕 Utilitaires de debug interface unifiée
+  window.debugUnifiedInterface = function(interactionResult) {
+    const diagnosis = InteractionHelpers.diagnoseInteractionResult(interactionResult);
+    console.log('🔍 DIAGNOSTIC INTERFACE UNIFIÉE:', diagnosis);
+    return diagnosis;
+  };
+  
+  window.testUnifiedValidation = function(data) {
+    const validation = InteractionValidator.validateUnifiedInterface(data);
+    console.log('✅ VALIDATION INTERFACE UNIFIÉE:', validation);
+    return validation;
   };
   
   console.log('✅ InteractionTypes chargé et exposé globalement');
+  console.log('🆕 Interface unifiée supportée - Utilisez window.debugUnifiedInterface() pour diagnostiquer');
 }
 
-console.log('📋 InteractionTypes.js loaded - Types validés côté serveur uniquement');
+console.log('📋 InteractionTypes.js loaded - Interface unifiée supportée');
+console.log('🆕 Nouveaux champs supportés: isUnifiedInterface, capabilities, contextualData, npcId, npcName');
