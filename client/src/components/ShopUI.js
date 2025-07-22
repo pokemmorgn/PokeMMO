@@ -1,6 +1,6 @@
-// client/src/components/ShopUI.js - COMPLETE with integrated CSS
+// client/src/components/ShopUI.js - VERSION CORRIGÉE NOM NPC
 // ✅ Consistent style with inventory - Blue gradients, modern animations
-// ✅ CORRECTION: Localisation des descriptions d'objets
+// ✅ CORRECTION: Nom du NPC affiché correctement
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -12,6 +12,10 @@ export class ShopUI {
     this.currentTab = 'buy';
     this.itemLocalizations = {};
     this.currentLanguage = 'en';
+    
+    // ✅ NOUVEAU: Stockage du nom du NPC
+    this.currentNpcName = 'Marchand';
+    this.currentNpcData = null;
     
     // ✅ SIMPLIFIED LOCKS
     this.isProcessingCatalog = false;
@@ -37,9 +41,8 @@ async loadLocalizations() {
   }
 }
 
-
 getItemName(itemId) {
-  // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
+  // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
   if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
     console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
     return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -68,7 +71,6 @@ getItemDescription(itemId) {
   console.warn(`⚠️ [ShopUI] Description manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
   return 'Description not available.';
 }
-
 
   async init() {
     // ✅ CHARGER LES LOCALISATIONS EN PREMIER
@@ -1445,40 +1447,63 @@ getItemDescription(itemId) {
     });
   }
 
-  // ✅ SHOW - SIMPLIFIED VERSION
+  // ✅ SHOW - VERSION CORRIGÉE POUR LE NOM
   async show(shopId, npcName = "Merchant") {
     console.log(`🏪 [ShopUI] === SHOW CALLED ===`);
     console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
-    console.log(`📊 current isVisible: ${this.isVisible}`);
 
     // ✅ S'ASSURER QUE LES LOCALISATIONS SONT CHARGÉES
     if (this.initializationPromise) {
       await this.initializationPromise;
     }
 
+    // 🔧 EXTRACTION ET STOCKAGE DU NOM NPC
+    let displayName = "Merchant";
+    let npcData = {};
+    
+    if (typeof npcName === 'object' && npcName !== null) {
+      // npcName est un objet NPC complet
+      npcData = npcName;
+      displayName = npcName.name || npcName.npcName || "Merchant";
+    } else if (typeof npcName === 'string') {
+      // npcName est juste un string
+      displayName = npcName;
+      npcData = { name: npcName };
+    }
+
+    // 🆕 STOCKAGE GLOBAL du nom pour utilisation ultérieure
+    this.currentNpcName = displayName;
+    this.currentNpcData = npcData;
+    
+    console.log(`🎭 [ShopUI] Nom NPC stocké: "${this.currentNpcName}"`);
+
     // ✅ IMMEDIATE DISPLAY
     this.overlay.classList.remove('hidden');
     this.overlay.style.display = 'flex';
     this.isVisible = true;
 
-    // ✅ SIMPLE NPC NAME HANDLING
-    let displayName = "Merchant";
-    if (typeof npcName === 'object' && npcName?.name) {
-      displayName = npcName.name;
-    } else if (typeof npcName === 'string') {
-      displayName = npcName;
-    }
-
-    // ✅ IMMEDIATE TITLE UPDATE
-    const shopNameElement = this.overlay.querySelector('.shop-name');
-    if (shopNameElement) {
-      shopNameElement.textContent = displayName;
-    }
+    // 🔧 MISE À JOUR IMMÉDIATE ET FORCÉE DU NOM
+    this.forceUpdateShopName(this.currentNpcName);
 
     // ✅ REQUEST CATALOG
     this.requestShopCatalog(shopId);
 
-    console.log(`✅ [ShopUI] Shop displayed for ${displayName}`);
+    console.log(`✅ [ShopUI] Shop displayed for ${this.currentNpcName}`);
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Forcer la mise à jour du nom
+  forceUpdateShopName(npcName) {
+    const shopNameElement = this.overlay.querySelector('.shop-name');
+    const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
+    
+    if (shopNameElement) {
+      shopNameElement.textContent = npcName || this.currentNpcName || 'Marchand';
+      console.log(`🏷️ [ShopUI] Nom forcé dans header: "${shopNameElement.textContent}"`);
+    }
+    
+    if (shopSubtitleElement) {
+      shopSubtitleElement.textContent = "Marchand temporaire avec des objets de base";
+    }
   }
 
   createEmptyShopItemElement() {
@@ -1517,7 +1542,7 @@ getItemDescription(itemId) {
     }
   }
 
-  // ✅ HANDLE SHOP CATALOG - SIMPLIFIED AND ROBUST VERSION
+  // ✅ HANDLE SHOP CATALOG - VERSION CORRIGÉE POUR LE NOM
   handleShopCatalog(data) {
     console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ===`);
     console.log(`📊 Data received:`, data);
@@ -1570,7 +1595,10 @@ getItemDescription(itemId) {
 
       // ✅ INTERFACE UPDATE
       this.updatePlayerGoldDisplay();
-      this.updateShopTitle(this.shopData.shopInfo || {});
+      
+      // 🔧 CORRECTION CRITIQUE: Mise à jour du titre avec priorités correctes
+      this.updateShopTitleWithPriorities(data);
+      
       this.refreshCurrentTab();
       
       console.log(`✅ [ShopUI] Shop catalog processed with ${this.shopData.availableItems.length} objects`);
@@ -1589,22 +1617,76 @@ getItemDescription(itemId) {
     }
   }
 
-  updateShopTitle(shopInfo) {
-    const shopNameElement = this.overlay.querySelector('.shop-name');
-    const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
+  // 🆕 NOUVELLE MÉTHODE: Mise à jour avec priorités correctes
+  updateShopTitleWithPriorities(data) {
+    console.log('🏷️ [ShopUI] === UPDATE SHOP TITLE WITH PRIORITIES ===');
+    
+    let finalName = 'Marchand';
+    const sources = [];
 
-    console.log('[DEBUG SHOP TITLE]', {
+    // PRIORITÉ 1 : Nom NPC stocké lors de l'ouverture (le plus fiable)
+    if (this.currentNpcName && this.currentNpcName !== 'Merchant' && this.currentNpcName !== 'Marchand') {
+      finalName = this.currentNpcName;
+      sources.push(`stored: "${this.currentNpcName}"`);
+    }
+    
+    // PRIORITÉ 2 : Nom depuis les données du catalogue (peut avoir été injecté)
+    else if (data.catalog?.npcName) {
+      finalName = data.catalog.npcName;
+      sources.push(`catalog.npcName: "${data.catalog.npcName}"`);
+    }
+    
+    // PRIORITÉ 3 : Nom depuis la racine des données
+    else if (data.npcName) {
+      finalName = data.npcName;
+      sources.push(`data.npcName: "${data.npcName}"`);
+    }
+    
+    // PRIORITÉ 4 : Nom depuis shopInfo
+    else if (this.shopData?.shopInfo?.npcName) {
+      finalName = this.shopData.shopInfo.npcName;
+      sources.push(`shopInfo.npcName: "${this.shopData.shopInfo.npcName}"`);
+    }
+    
+    // PRIORITÉ 5 : Nom depuis shopInfo.name
+    else if (this.shopData?.shopInfo?.name) {
+      finalName = this.shopData.shopInfo.name;
+      sources.push(`shopInfo.name: "${this.shopData.shopInfo.name}"`);
+    }
+
+    console.log(`🏷️ [ShopUI] Sources détectées:`, sources);
+    console.log(`🏷️ [ShopUI] Nom final choisi: "${finalName}"`);
+
+    // Mettre à jour l'interface
+    this.forceUpdateShopName(finalName);
+    
+    // Mettre à jour aussi le message de bienvenue
+    const welcomeElement = this.overlay.querySelector('.shop-welcome');
+    if (welcomeElement) {
+      welcomeElement.textContent = `Bienvenue chez ${finalName} !`;
+    }
+  }
+
+  // ✅ ANCIENNE MÉTHODE GARDÉE POUR COMPATIBILITÉ mais corrigée
+  updateShopTitle(shopInfo) {
+    console.log('[DEBUG SHOP TITLE] updateShopTitle appelé avec:', {
       shopInfo,
+      currentNpcName: this.currentNpcName,
       npcName: this.shopData?.npcName
     });
 
-    shopNameElement.textContent =
-      this.shopData?.npcName
-      || shopInfo.npcName
-      || shopInfo.name
-      || "PokéMart";
+    // 🔧 PRIORITÉ AU NOM STOCKÉ
+    let displayName = this.currentNpcName || 'Marchand';
+    
+    // Puis essayer les autres sources seulement si pas de nom stocké
+    if (!this.currentNpcName || this.currentNpcName === 'Merchant') {
+      displayName = shopInfo.npcName
+        || this.shopData?.npcName
+        || shopInfo.name
+        || "PokéMart";
+    }
 
-    shopSubtitleElement.textContent = shopInfo.description || "Trainer Items";
+    this.forceUpdateShopName(displayName);
   }
 
   switchTab(tabType) {
@@ -2309,6 +2391,8 @@ updateItemDetails() {
     this.shopData = null;
     this.selectedItem = null;
     this.overlay = null;
+    this.currentNpcName = null;
+    this.currentNpcData = null;
     
     console.log('🏪 ShopUI destroyed');
   }
