@@ -7,20 +7,21 @@ import { NPCValidator, BatchNPCValidator } from './npc-validator.js'
 import NPCFormBuilder from './npc-form-builder.js'
 
 export class NPCEditorModule {
-    constructor(adminPanel) {
-        this.adminPanel = adminPanel
-        this.name = 'npcEditor'
-        this.currentZone = null
-        this.npcs = []
-        this.selectedNPC = null
-        this.formBuilder = null
-        this.validator = new NPCValidator()
-        this.batchValidator = new BatchNPCValidator()
-        this.unsavedChanges = false
-        
-        console.log('👤 [NPCEditor] Module initialized')
-        this.init()
-    }
+constructor(adminPanel) {
+    this.adminPanel = adminPanel
+    this.name = 'npcEditor'
+    this.currentZone = null
+    this.npcs = []
+    this.selectedNPC = null
+    this.formBuilder = null
+    this.validator = new NPCValidator()
+    this.batchValidator = new BatchNPCValidator()
+    this.unsavedChanges = false
+    this.availableZones = []
+    
+    console.log('👤 [NPCEditor] Module initialized')
+    this.init()
+}
 
     async init() {
         // Charger les zones disponibles
