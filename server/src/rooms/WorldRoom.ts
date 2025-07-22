@@ -78,7 +78,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private lastStateUpdate = 0;
   private stateUpdateInterval = 100;
 
-  async onCreate(options: any) {
+  onCreate(options: any) {
     console.log(`🌍 === WORLDROOM CRÉATION ===`);
     console.log(`📊 Options:`, options);
 
@@ -124,7 +124,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
     
 // ✅ ÉTAPE 1: Initialiser NPCManagers et TransitionService EN PREMIER
-   await this.initializeNpcManagers();
+    this.initializeNpcManagers();
     this.transitionService = new TransitionService();
     console.log(`✅ TransitionService initialisé`);
 
@@ -280,26 +280,23 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-    private async initializeNpcManagers() {
-      console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
-      
-      try {
-        // ✅ ENCORE PLUS SIMPLE : Un seul NPCManager pour toutes les zones
-        const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
-        
-        // ✅ ATTENDRE QUE LES NPCs SE CHARGENT !
-        await globalNpcManager.waitForLoad();
-        
-        // Stocker le manager global
-        this.npcManagers.set('global', globalNpcManager);
-        
-        console.log(`✅ [WorldRoom] NPCManager global initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
-        globalNpcManager.debugSystem();
-        
-      } catch (error) {
-        console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
-      }
-    }
+private initializeNpcManagers() {
+  console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
+  
+  try {
+    // ✅ ENCORE PLUS SIMPLE : Un seul NPCManager pour toutes les zones
+    const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
+    
+    // Stocker le manager global
+    this.npcManagers.set('global', globalNpcManager);
+    
+    console.log(`✅ [WorldRoom] NPCManager global initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
+    globalNpcManager.debugSystem();
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
+  }
+}
 
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
