@@ -402,19 +402,24 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   // ✅ NOUVELLE MÉTHODE UTILITAIRE : Labels des capacités
-  private getCapabilityLabel(capability: NpcCapability): string {
-    const labels = {
-      'merchant': '🛒 Boutique',
-      'quest': '📋 Quêtes', 
-      'healer': '🏥 Soins',
-      'trainer': '⚔️ Combat',
-      'transport': '🚀 Transport',
-      'dialogue': '💬 Discussion',
-      'service': '⚙️ Services'
-    };
-    
-    return labels[capability] || `${capability}`;
-  }
+// ✅ MÉTHODE CORRIGÉE : Labels des capacités avec gestion complète des types
+private getCapabilityLabel(capability: NpcCapability): string {
+  const labels: Record<string, string> = {
+    'merchant': '🛒 Boutique',
+    'quest': '📋 Quêtes', 
+    'healer': '🏥 Soins',
+    'trainer': '⚔️ Combat',
+    'transport': '🚀 Transport',
+    'dialogue': '💬 Discussion',
+    'service': '⚙️ Services',
+    'minigame': '🎮 Mini-jeu',
+    'storage': '📦 Stockage',
+    'teleport': '⚡ Téléport',
+    'crafting': '🔨 Artisanat'
+  };
+  
+  return labels[capability] || `${capability.charAt(0).toUpperCase() + capability.slice(1)}`;
+}
 
   // ✅ NOUVELLE MÉTHODE PUBLIQUE : Gestion des actions spécifiques (pour client)
   async handleSpecificAction(
