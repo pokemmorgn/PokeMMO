@@ -246,6 +246,18 @@ export class DialogueUI {
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
       }
 
+      /* Style simple sans actions */
+      .dialogue-box-unified.simple {
+        box-shadow: 
+          0 8px 40px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 2px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      .dialogue-box-unified.simple .dialogue-actions-integrated {
+        display: none !important;
+      }
+
       /* Style avec actions */
       .dialogue-box-unified.with-actions {
         box-shadow: 
@@ -930,7 +942,7 @@ export class DialogueUI {
   // ===== AFFICHAGE DES DIALOGUES =====
 
   showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue unifié simple:', data);
+    console.log('🎭 Affichage dialogue simple SANS actions:', data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const portrait = this.container.querySelector('#npc-portrait');
@@ -967,9 +979,9 @@ export class DialogueUI {
       continueIndicator.style.display = 'none';
     }
 
-    // Masquer les actions pour dialogue simple et utiliser classe unifiée
+    // 🔧 CORRECTION CRITIQUE: Masquer COMPLÈTEMENT la zone d'actions pour dialogue simple
     actionsZone.style.display = 'none';
-    dialogueBox.className = 'dialogue-box-unified';
+    dialogueBox.className = 'dialogue-box-unified simple'; // Classe différente
 
     // Stocker les données pour la pagination
     this.classicDialogueData = {
@@ -984,20 +996,39 @@ export class DialogueUI {
     dialogueBox.classList.add('appear');
     this.isVisible = true;
 
-    console.log('✅ Dialogue unifié simple affiché');
+    console.log('✅ Dialogue simple affiché SANS zone d\'actions');
   }
 
   // 🆕 NOUVELLE MÉTHODE: Afficher dialogue unifié avec actions
   showDialogueWithActions(data) {
-    console.log('🎭 Affichage dialogue unifié avec actions:', data);
+    console.log('🎭 Affichage dialogue unifié AVEC actions:', data);
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const actionsZone = this.container.querySelector('#dialogue-actions');
     const actionsButtons = this.container.querySelector('#actions-buttons');
     const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
-    // 1. Afficher le dialogue de base
-    this.showClassicDialogue(data);
+    // 1. D'abord configurer la partie dialogue (sans les actions)
+    const portrait = this.container.querySelector('#npc-portrait');
+    const npcName = this.container.querySelector('#npc-name');
+    const npcText = this.container.querySelector('#npc-text');
+
+    // Configuration du portrait
+    portrait.innerHTML = data.portrait
+      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+      : '';
+
+    // Configuration du nom
+    npcName.textContent = data.name || '';
+    if (data.hideName) {
+      npcName.style.display = 'none';
+    } else {
+      npcName.style.display = '';
+    }
+
+    // Configuration du texte
+    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+    npcText.textContent = lines[0] || "";
 
     // 2. Générer et afficher les actions si disponibles
     if (data.actions && data.actions.length > 0) {
@@ -1012,14 +1043,13 @@ export class DialogueUI {
         actionsButtons.appendChild(actionBtn);
       });
       
-      // Afficher la zone d'actions intégrée
+      // 🔧 CORRECTION: Forcer l'affichage de la zone d'actions
       actionsZone.style.display = 'block';
       
-      // Changer de classe pour le style unifié
+      // Changer de classe pour le style unifié avec actions
       dialogueBox.className = 'dialogue-box-unified with-actions';
       
       // 🆕 Gérer le compteur avec actions
-      const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
       if (lines.length > 1) {
         continueIndicator.style.display = 'block';
         const counter = continueIndicator.querySelector('.dialogue-counter');
@@ -1031,10 +1061,23 @@ export class DialogueUI {
       }
       
     } else {
-      // Pas d'actions = dialogue simple
+      // 🔧 SÉCURITÉ: Pas d'actions = masquer complètement
       actionsZone.style.display = 'none';
-      dialogueBox.className = 'dialogue-box-unified';
+      dialogueBox.className = 'dialogue-box-unified simple';
     }
+
+    // Stocker les données pour la pagination
+    this.classicDialogueData = {
+      lines: lines,
+      currentPage: 0,
+      onClose: data.onClose
+    };
+
+    // Afficher
+    this.container.classList.remove('hidden');
+    dialogueBox.style.display = 'flex';
+    dialogueBox.classList.add('appear');
+    this.isVisible = true;
 
     console.log('✅ Dialogue unifié avec actions affiché');
   }
