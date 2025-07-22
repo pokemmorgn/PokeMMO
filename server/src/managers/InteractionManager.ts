@@ -1,5 +1,5 @@
-// server/src/managers/InteractionManager.ts - VERSION MODULAIRE
-// Utilise le nouveau système BaseInteractionManager + modules
+// server/src/managers/InteractionManager.ts - VERSION MODULAIRE CORRIGÉE
+// ✅ Interface Unifiée : Champs correctement copiés depuis result vers npcResult
 
 import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager";
@@ -17,7 +17,7 @@ import {
   InteractionContext
 } from "../interactions/types/BaseInteractionTypes";
 
-// ✅ INTERFACE CONSERVÉE POUR COMPATIBILITÉ
+// ✅ INTERFACE CORRIGÉE POUR COMPATIBILITÉ avec Interface Unifiée
 export interface NpcInteractionResult {
   type: string;
   message?: string;
@@ -34,6 +34,24 @@ export interface NpcInteractionResult {
   starterData?: any;
   starterEligible?: boolean;
   starterReason?: string;
+
+  // ✅ NOUVEAUX CHAMPS : Interface Unifiée (ajoutés)
+  isUnifiedInterface?: boolean;
+  capabilities?: string[];
+  contextualData?: {
+    hasShop: boolean;
+    hasQuests: boolean;
+    hasHealing: boolean;
+    defaultAction: string;
+    quickActions: Array<{
+      id: string;
+      label: string;
+      action: string;
+      enabled: boolean;
+    }>;
+  };
+  unifiedInterface?: any;
+  unifiedMode?: boolean;
 
   battleSpectate?: {
     battleId: string;
@@ -122,7 +140,7 @@ export class InteractionManager {
     }
   }
 
-  // ✅ MÉTHODE PRINCIPALE - INTERFACE PUBLIQUE IDENTIQUE
+  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - Copie correcte des champs Interface Unifiée
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
     console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
     console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
@@ -159,30 +177,61 @@ export class InteractionManager {
       // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
       const result = await this.baseInteractionManager.processInteraction(player, request);
 
-      // ✅ CONVERTIR LE RÉSULTAT AU FORMAT EXISTANT
+      // ✅ DEBUG AVANT CONVERSION
+      console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
+        type: result.type,
+        npcId: result.npcId,
+        npcIdType: typeof result.npcId,
+        npcName: result.npcName,
+        isUnifiedInterface: result.isUnifiedInterface,
+        capabilities: result.capabilities?.length || 0,
+        contextualData: !!result.contextualData
+      });
+
+      // ✅ CONVERSION CORRIGÉE - Prendre les champs de result ET result.data
       const npcResult: NpcInteractionResult = {
         type: result.type,
         message: result.message,
         
-        // Données spécifiques NPCs du nouveau système
-        shopId: result.data?.shopId,
-        shopData: result.data?.shopData,
-        lines: result.lines,
-        availableQuests: result.data?.availableQuests,
-        questRewards: result.data?.questRewards,
-        questProgress: result.data?.questProgress,
-        npcId: result.data?.npcId,
-        npcName: result.data?.npcName,
-        questId: result.data?.questId,
-        questName: result.data?.questName,
-        starterData: result.data?.starterData,
-        starterEligible: result.data?.starterEligible,
-        starterReason: result.data?.starterReason,
-        battleSpectate: result.data?.battleSpectate
+        // ✅ CORRIGÉ : Prendre les champs de la racine de result (pas result.data)
+        npcId: result.npcId ?? result.data?.npcId,
+        npcName: result.npcName ?? result.data?.npcName,
+        
+        // ✅ NOUVEAUX CHAMPS : Interface unifiée (ajoutés depuis result)
+        isUnifiedInterface: result.isUnifiedInterface,
+        capabilities: result.capabilities,
+        contextualData: result.contextualData,
+        unifiedInterface: result.unifiedInterface,
+        unifiedMode: result.unifiedMode,
+        
+        // Données spécifiques NPCs du nouveau système (existantes, avec fallback)
+        shopId: result.shopId ?? result.data?.shopId,
+        shopData: result.shopData ?? result.data?.shopData,
+        lines: result.lines ?? result.data?.lines,
+        availableQuests: result.availableQuests ?? result.data?.availableQuests,
+        questRewards: result.questRewards ?? result.data?.questRewards,
+        questProgress: result.questProgress ?? result.data?.questProgress,
+        questId: result.questId ?? result.data?.questId,
+        questName: result.questName ?? result.data?.questName,
+        starterData: result.starterData ?? result.data?.starterData,
+        starterEligible: result.starterEligible ?? result.data?.starterEligible,
+        starterReason: result.starterReason ?? result.data?.starterReason,
+        battleSpectate: result.battleSpectate ?? result.data?.battleSpectate
       };
+
+      // ✅ DEBUG APRÈS CONVERSION
+      console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
+        type: npcResult.type,
+        npcId: npcResult.npcId,
+        npcName: npcResult.npcName,
+        isUnifiedInterface: npcResult.isUnifiedInterface,
+        capabilities: npcResult.capabilities?.length || 0,
+        contextualData: !!npcResult.contextualData
+      });
 
       console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
       console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
+      console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
 
       return npcResult;
 
