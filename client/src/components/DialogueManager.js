@@ -113,6 +113,13 @@ export class DialogueManager {
     window.hideDialogue = () => this.hide();
     window.isDialogueOpen = () => this.isOpen();
     
+    // 🆕 ÉCOUTER les catalogues shop pour ouverture automatique
+    if (window.globalNetworkManager && window.globalNetworkManager.room) {
+      window.globalNetworkManager.room.onMessage("shopCatalogResult", (data) => {
+        this.handleShopCatalogReceived(data);
+      });
+    }
+    
     console.log('🌍 API globale DialogueManager configurée');
   }
 
@@ -333,37 +340,125 @@ export class DialogueManager {
   handleShopAction(action, originalData) {
     console.log('🛒 Ouverture boutique depuis dialogue...');
     
+    // 🔧 MISE À JOUR des références aux systèmes en temps réel
+    this.shopSystem = window.shopSystem || null;
+    
     // Extraire les bonnes données de shop
     let shopData = action.data || originalData.merchantData || originalData.shopData || {};
+    let shopId = originalData.shopId || shopData.shopId || 'default_shop';
     
     // Enrichir avec les données unifiées si disponibles
     if (originalData.unifiedInterface && originalData.unifiedInterface.merchantData) {
       shopData = { ...shopData, ...originalData.unifiedInterface.merchantData };
+      shopId = originalData.unifiedInterface.merchantData.shopId || shopId;
+    }
+
+    console.log(`🎯 Tentative ouverture shop: ${shopId}`);
+    console.log(`🔗 ShopSystem disponible:`, !!this.shopSystem);
+    
+    // 🆕 APPROCHE 1 : Utiliser le ShopSystem si disponible
+    if (this.shopSystem && this.shopSystem.directOpenShop) {
+      console.log('✅ Utilisation du ShopSystem existant');
+      
+      const npcData = {
+        name: originalData.npcName || originalData.name || 'Marchand',
+        id: originalData.npcId || 'unknown'
+      };
+      
+      const success = this.shopSystem.directOpenShop(shopId, npcData, shopData);
+      if (success) {
+        console.log('✅ Shop ouvert via ShopSystem');
+        return;
+      }
     }
     
-    // Si on a un ShopSystem, l'utiliser
-    if (this.shopSystem && this.shopSystem.openShop) {
-      const shopRequestData = {
-        ...originalData,
-        shopData: shopData,
-        fromDialogueAction: true
+    // 🆕 APPROCHE 2 : Créer/ouvrir le ShopUI directement
+    console.log('🔄 Création/ouverture directe du ShopUI...');
+    this.createOrOpenShopUI(shopId, originalData, shopData);
+  }
+
+  // 🆕 NOUVELLE MÉTHODE : Créer ou ouvrir le ShopUI directement
+  async createOrOpenShopUI(shopId, originalData, shopData) {
+    try {
+      // 1. S'assurer que le ShopUI existe
+      if (!window.shopUI) {
+        console.log('🆕 Création du ShopUI...');
+        
+        // Essayer d'importer le ShopUI dynamiquement
+        let ShopUIClass = window.ShopUI;
+        
+        if (!ShopUIClass && window.shopSystem?.shopUI?.constructor) {
+          ShopUIClass = window.shopSystem.shopUI.constructor;
+        }
+        
+        if (!ShopUIClass) {
+          // Import dynamique comme fallback
+          try {
+            const { ShopUI } = await import('../components/ShopUI.js');
+            ShopUIClass = ShopUI;
+            window.ShopUI = ShopUI; // Rendre accessible globalement
+          } catch (importError) {
+            console.error('❌ Impossible d\'importer ShopUI:', importError);
+            throw new Error('ShopUI not available');
+          }
+        }
+
+        if (ShopUIClass) {
+          const networkRoom = window.globalNetworkManager?.room;
+          window.shopUI = new ShopUIClass(networkRoom);
+          console.log('✅ ShopUI créé');
+        } else {
+          throw new Error('ShopUI class not found');
+        }
+      }
+
+      // 2. Préparer les données du NPC
+      const npcData = {
+        name: originalData.npcName || originalData.name || 'Marchand',
+        id: originalData.npcId || 'unknown'
       };
-      this.shopSystem.openShop(shopRequestData);
-    } else {
-      // Sinon, déclencher l'ouverture via NetworkManager
+
+      console.log(`🚪 Ouverture ShopUI pour ${npcData.name}...`);
+      
+      // 3. Ouvrir le shop
+      await window.shopUI.show(shopId, npcData);
+      
+      // 4. Si on a des données de shop, les injecter immédiatement
+      if (shopData && Object.keys(shopData).length > 0) {
+        console.log('💉 Injection des données shop...');
+        
+        setTimeout(() => {
+          if (window.shopUI && window.shopUI.isVisible) {
+            const catalogData = {
+              success: true,
+              catalog: shopData,
+              playerGold: shopData.playerGold || 1000
+            };
+            window.shopUI.handleShopCatalog(catalogData);
+          }
+        }, 100);
+      }
+
+      console.log('✅ ShopUI ouvert avec succès');
+      
+    } catch (error) {
+      console.error('❌ Erreur ouverture ShopUI directe:', error);
+      
+      // 🆕 FALLBACK FINAL : Demander le catalogue via NetworkManager
+      console.log('🔄 Fallback vers NetworkManager...');
       if (window.globalNetworkManager && window.globalNetworkManager.room) {
         if (originalData.npcId) {
           window.globalNetworkManager.room.send('interactWithNpc', { 
             npcId: originalData.npcId,
             action: 'merchant'
           });
-        } else if (shopData.shopId) {
+        } else {
           window.globalNetworkManager.room.send('getShopCatalog', { 
-            shopId: shopData.shopId 
+            shopId: shopId 
           });
         }
+        console.log('📡 Demande catalogue envoyée');
       }
-      console.warn('⚠️ Pas de ShopSystem disponible, tentative via NetworkManager');
     }
   }
 
@@ -492,6 +587,31 @@ export class DialogueManager {
       this.show(data);
     } else if (!data.success) {
       console.warn('⚠️ Interaction NPC échouée:', data.message);
+    }
+  }
+
+  // ===== GESTION CATALOGUE SHOP AUTOMATIQUE =====
+  
+  handleShopCatalogReceived(data) {
+    console.log('🏪 [DialogueManager] Catalogue shop reçu:', data);
+    
+    // Si le shop n'est pas encore ouvert, l'ouvrir automatiquement
+    if (data.success && (!window.shopUI || !window.shopUI.isVisible)) {
+      console.log('🚪 Ouverture automatique du shop suite au catalogue...');
+      
+      // Essayer d'extraire le nom du marchand depuis les données
+      let npcName = 'Marchand';
+      if (data.catalog && data.catalog.npcName) {
+        npcName = data.catalog.npcName;
+      } else if (data.npcName) {
+        npcName = data.npcName;
+      }
+      
+      // Ouvrir le shop avec les données du catalogue
+      this.createOrOpenShopUI(data.shopId || 'default_shop', {
+        npcName: npcName,
+        npcId: data.npcId || 'unknown'
+      }, data.catalog);
     }
   }
 
