@@ -17,10 +17,8 @@ const execAsync = promisify(exec);
 
 // Configuration MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
-const mongoClientInstance = new MongoClient(MONGODB_URI, {
-    directConnection: true,
-    serverSelectionTimeoutMS: 5000
-});
+const mongoClientInstance = new MongoClient(MONGODB_URI);
+
 
 // Interfaces MongoDB
 interface MongoQueryRequest {
