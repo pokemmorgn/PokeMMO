@@ -492,6 +492,21 @@ handleNetworkInteractionResult(data) {
   console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
   console.log('[NpcInteractionManager] Data:', data);
   
+  // ✅ FORCER L'AFFICHAGE COMPLET DES DONNÉES
+  console.log('[NpcInteractionManager] 🔍 === DEBUG COMPLET DONNÉES ===');
+  console.log('[NpcInteractionManager] JSON.stringify(data):', JSON.stringify(data, null, 2));
+  console.log('[NpcInteractionManager] Object.keys(data):', Object.keys(data));
+  console.log('[NpcInteractionManager] Champs critiques:', {
+    type: data.type,
+    npcId: data.npcId,
+    npcName: data.npcName,
+    isUnifiedInterface: data.isUnifiedInterface,
+    capabilities: data.capabilities,
+    contextualData: data.contextualData,
+    shopId: data.shopId,
+    shopData: data.shopData
+  });
+  
   try {
     // ✅ DÉTECTION AMÉLIORÉE : Vérifier plusieurs critères
     const isUnifiedInterface = (
