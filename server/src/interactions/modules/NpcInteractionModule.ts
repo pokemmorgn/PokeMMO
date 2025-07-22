@@ -1,5 +1,5 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - Version complète avec Interface Unifiée
+// Module de gestion des interactions avec les NPCs - Version complète avec Interface Unifiée CORRIGÉE
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -27,17 +27,15 @@ import {
 // Import du handler merchant existant
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ INTERFACE RESULT NPC (conserve compatibilité existante)
+// ✅ INTERFACE RESULT NPC CORRIGÉE - Champs interface unifiée REQUIS pour transmission réseau
 export interface NpcInteractionResult extends InteractionResult {
-  // Données NPCs existantes
+  // Données NPCs existantes (gardées optionnelles pour rétro-compatibilité)
   shopId?: string;
   shopData?: any;
   lines?: string[];
   availableQuests?: any[];
   questRewards?: any[];
   questProgress?: any[];
-  npcId?: number;
-  npcName?: string;
   questId?: string;
   questName?: string;
   starterData?: any;
@@ -51,14 +49,12 @@ export interface NpcInteractionResult extends InteractionResult {
     reason?: string;
   };
   
-  // ✅ NOUVEAUX : Interface Unifiée
-  unifiedInterface?: UnifiedInterfaceResult;
-  capabilities?: NpcCapability[];
-  
-  // ✅ AJOUTÉ : Nouvelles propriétés pour détection client
-  isUnifiedInterface?: boolean;
-  unifiedMode?: boolean;
-  contextualData?: {
+  // ✅ CORRIGÉ : Interface Unifiée avec champs REQUIS (pas optionnels !)
+  npcId: number | string;         // ❌ PLUS optionnel ! Requis pour transmission
+  npcName: string;                // ❌ PLUS optionnel ! Requis pour transmission
+  isUnifiedInterface: boolean;    // ❌ PLUS optionnel ! Flag explicite requis
+  capabilities: NpcCapability[];  // ❌ PLUS optionnel ! Array requis
+  contextualData: {               // ❌ PLUS optionnel ! Données contextuelles requises
     hasShop: boolean;
     hasQuests: boolean;
     hasHealing: boolean;
@@ -70,13 +66,17 @@ export interface NpcInteractionResult extends InteractionResult {
       enabled: boolean;
     }>;
   };
+  
+  // Données interface unifiée (gardées optionnelles car spécifiques)
+  unifiedInterface?: UnifiedInterfaceResult;
+  unifiedMode?: boolean;
 }
 
 export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "3.0.0"; // ✅ Version avec interface unifiée
+  readonly version = "3.0.1"; // ✅ Version corrigée pour transmission réseau
 
   // === DÉPENDANCES (injectées depuis InteractionManager existant) ===
   private getNpcManager: (zoneName: string) => any;
@@ -87,7 +87,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   // ✅ HANDLERS MODULAIRES
   private merchantHandler: MerchantNpcHandler;
-  private unifiedInterfaceHandler: UnifiedInterfaceHandler; // NOUVEAU
+  private unifiedInterfaceHandler: UnifiedInterfaceHandler;
 
   constructor(
     getNpcManager: (zoneName: string) => any,
@@ -106,7 +106,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // ✅ INITIALISATION HANDLERS MODULAIRES (existant + nouveau)
     this.initializeHandlers();
 
-    this.log('info', '🔄 Module NPC initialisé avec Interface Unifiée', {
+    this.log('info', '🔄 Module NPC initialisé avec Interface Unifiée CORRIGÉE', {
       version: this.version,
       handlersLoaded: ['merchant', 'unifiedInterface']
     });
@@ -162,7 +162,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
       this.log('info', `Interaction NPC ${npcId}`, { player: player.name });
 
-      // === LOGIQUE AVEC INTERFACE UNIFIÉE ===
+      // === LOGIQUE AVEC INTERFACE UNIFIÉE CORRIGÉE ===
       const result = await this.handleNpcInteractionLogic(player, npcId);
 
       // Mise à jour des stats
@@ -183,7 +183,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === LOGIQUE MÉTIER NPCs (MODIFIÉE AVEC INTERFACE UNIFIÉE) ===
+  // === ✅ LOGIQUE MÉTIER NPCs CORRIGÉE ===
 
   private async handleNpcInteractionLogic(player: Player, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', `Traitement logique NPC ${npcId} pour ${player.name}`);
@@ -191,26 +191,34 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
     if (!npcManager) {
-      return {
-        success: false,
-        type: "error", 
-        message: "NPCs non disponibles dans cette zone."
-      };
+      // ✅ FALLBACK SÉCURISÉ avec tous les champs requis
+      return this.createFailbackResult(npcId, "NPCs non disponibles dans cette zone.");
     }
 
     const npc = npcManager.getNpcById(npcId);
     if (!npc) {
-      return {
-        success: false,
-        type: "error", 
-        message: "NPC inconnu."
-      };
+      // ✅ FALLBACK SÉCURISÉ avec tous les champs requis
+      return this.createFailbackResult(npcId, "NPC inconnu.");
     }
 
-    this.log('info', `NPC trouvé: ${npc.name}`, { 
+    // ✅ DÉBOGAGE EXPLICIT : Vérifier les propriétés NPC avant traitement
+    this.log('info', `🔍 NPC PROPERTIES DEBUG:`, {
+      id: npc.id,
+      name: npc.name,
+      nameType: typeof npc.name,
+      nameValue: JSON.stringify(npc.name),
+      hasName: npc.hasOwnProperty('name'),
+      hasId: npc.hasOwnProperty('id')
+    });
+
+    // ✅ SÉCURITÉ : Valeurs par défaut si propriétés manquantes
+    const safeNpcId = npc.id ?? npcId;
+    const safeNpcName = npc.name || `NPC #${npcId}`;
+
+    this.log('info', `✅ NPC trouvé: ${safeNpcName} (ID: ${safeNpcId})`, { 
       type: npc.type || 'legacy',
       sourceType: npc.sourceType || 'tiled',
-      properties: Object.keys(npc.properties || {}).slice(0, 5) // Limiter pour logs
+      propertiesCount: Object.keys(npc.properties || {}).length
     });
 
     // ✅ NOUVELLE LOGIQUE : Analyse des capacités pour Interface Unifiée
@@ -226,23 +234,18 @@ export class NpcInteractionModule extends BaseInteractionModule {
       try {
         const unifiedResult = await this.unifiedInterfaceHandler.build(player, npc, capabilities);
         
-        // ✅ CONSTRUCTION RÉSULTAT COMPLÈTE AVEC TOUS LES FLAGS
+        // ✅ CONSTRUCTION RÉSULTAT COMPLÈTE AVEC TOUS LES CHAMPS REQUIS
         const result: NpcInteractionResult = {
           success: true,
           type: "unifiedInterface",
-          message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
-          npcId: npcId,
-          npcName: npc.name,
+          message: `Interface ${capabilities.join(', ')} pour ${safeNpcName}`,
           
-          // ✅ FLAGS EXPLICITES pour détection client
-          isUnifiedInterface: true,
-          unifiedMode: true,
-          
-          unifiedInterface: unifiedResult,
-          capabilities: capabilities,
-          
-          // ✅ DONNÉES CONTEXTUELLES pour détection client (FORMAT CORRIGÉ)
-          contextualData: {
+          // ✅ CHAMPS REQUIS (pas optionnels) - GARANTIS pour transmission réseau
+          npcId: safeNpcId,
+          npcName: safeNpcName,
+          isUnifiedInterface: true,      // ✅ TOUJOURS true pour interface unifiée
+          capabilities: capabilities,     // ✅ TOUJOURS array (peut être vide)
+          contextualData: {              // ✅ TOUJOURS objet (jamais undefined)
             hasShop: capabilities.includes('merchant'),
             hasQuests: capabilities.includes('quest'),
             hasHealing: capabilities.includes('healer'),
@@ -260,6 +263,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
             }))
           },
           
+          // Données optionnelles spécifiques
+          unifiedInterface: unifiedResult,
+          unifiedMode: true,
+          
           // ✅ DONNÉES SHOP si présentes
           ...(unifiedResult.merchantData && {
             shopId: unifiedResult.merchantData.shopId,
@@ -271,25 +278,33 @@ export class NpcInteractionModule extends BaseInteractionModule {
           }),
           
           // Données legacy pour rétro-compatibilité
-          lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${npc.name}.`]
+          lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${safeNpcName}.`]
         };
 
-        this.log('info', '✅ Interface Unifiée construite', { 
-          capabilities: unifiedResult.capabilities.length,
-          defaultAction: unifiedResult.defaultAction,
-          hasContextualData: !!result.contextualData,
-          hasShopData: !!result.shopId,
-          // ✅ NOUVEAU : Debug des champs transmis
-          resultFields: Object.keys(result),
-          resultSample: {
-            isUnifiedInterface: result.isUnifiedInterface,
-            capabilities: result.capabilities,
-            hasContextualData: !!result.contextualData
-          }
+        // ✅ DÉBOGAGE FINAL : Vérifier le résultat avant envoi
+        this.log('info', '📤 RÉSULTAT FINAL AVANT ENVOI:', {
+          type: result.type,
+          npcId: result.npcId,
+          npcIdType: typeof result.npcId,
+          npcName: result.npcName,
+          npcNameType: typeof result.npcName,
+          isUnifiedInterface: result.isUnifiedInterface,
+          isUnifiedInterfaceType: typeof result.isUnifiedInterface,
+          capabilities: result.capabilities,
+          capabilitiesType: typeof result.capabilities,
+          capabilitiesLength: result.capabilities?.length,
+          contextualData: !!result.contextualData,
+          contextualDataKeys: result.contextualData ? Object.keys(result.contextualData) : []
+        });
+
+        this.log('info', '✅ Interface Unifiée construite avec champs requis', { 
+          capabilities: result.capabilities.length,
+          defaultAction: result.contextualData.defaultAction,
+          hasAllRequiredFields: !!(result.npcId && result.npcName && typeof result.isUnifiedInterface === 'boolean')
         });
         
         // ✅ NOUVEAU : Log avant envoi au client
-        console.log('📤 [NpcInteractionModule] ENVOI AU CLIENT:', {
+        console.log('📤 [NpcInteractionModule] ENVOI AU CLIENT CORRIGÉ:', {
           type: result.type,
           npcId: result.npcId,
           npcName: result.npcName,
@@ -301,14 +316,91 @@ export class NpcInteractionModule extends BaseInteractionModule {
         return result;
         
       } catch (error) {
-        this.log('error', '❌ Erreur Interface Unifiée, fallback legacy', error);
-        // Fallback vers logique existante en cas d'erreur
+        this.log('error', '❌ Erreur Interface Unifiée, fallback legacy avec champs requis', error);
+        // ✅ Fallback sécurisé avec tous les champs requis
+        return await this.handleLegacyNpcInteractionSafe(player, npc, safeNpcId, safeNpcName, capabilities);
       }
     }
 
-    // === CAS MONO-CAPACITÉ OU FALLBACK : Logique Existante ===
-    this.log('info', '⚠️ NPC mono-capacité ou fallback -> Logique existante');
-    return await this.handleLegacyNpcInteraction(player, npc, npcId);
+    // === CAS MONO-CAPACITÉ OU FALLBACK : Logique Existante sécurisée ===
+    this.log('info', '⚠️ NPC mono-capacité ou fallback -> Logique existante sécurisée');
+    return await this.handleLegacyNpcInteractionSafe(player, npc, safeNpcId, safeNpcName, capabilities);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Fallback sécurisé avec champs requis
+  private createFailbackResult(npcId: number, message: string): NpcInteractionResult {
+    return {
+      success: false,
+      type: "error", 
+      message: message,
+      
+      // ✅ CHAMPS REQUIS même en cas d'erreur
+      npcId: npcId,
+      npcName: `NPC #${npcId}`,
+      isUnifiedInterface: false,        // ✅ false pour les erreurs
+      capabilities: [],                 // ✅ Array vide
+      contextualData: {                 // ✅ Objet par défaut
+        hasShop: false,
+        hasQuests: false,
+        hasHealing: false,
+        defaultAction: 'dialogue',
+        quickActions: []
+      }
+    };
+  }
+
+  // ✅ MÉTHODE CORRIGÉE : Legacy sécurisé avec champs requis
+  private async handleLegacyNpcInteractionSafe(
+    player: Player, 
+    npc: any, 
+    npcId: number, 
+    npcName: string, 
+    detectedCapabilities: NpcCapability[]
+  ): Promise<NpcInteractionResult> {
+    
+    // Appeler la logique legacy existante
+    const legacyResult = await this.handleLegacyNpcInteraction(player, npc, npcId);
+    
+    // ✅ GARANTIR les champs requis même pour les résultats legacy
+    const safeResult: NpcInteractionResult = {
+      ...legacyResult,
+      
+      // ✅ FORCER les champs requis
+      npcId: npcId,
+      npcName: npcName,
+      isUnifiedInterface: false,           // ✅ Legacy = pas interface unifiée
+      capabilities: detectedCapabilities,  // ✅ Capacités détectées même en mode legacy
+      contextualData: {                    // ✅ Données contextuelles basiques
+        hasShop: detectedCapabilities.includes('merchant') || !!(legacyResult as any).shopId,
+        hasQuests: detectedCapabilities.includes('quest') || !!(legacyResult as any).availableQuests?.length,
+        hasHealing: detectedCapabilities.includes('healer') || legacyResult.type === 'heal',
+        defaultAction: this.determineDefaultActionLegacy(legacyResult.type || 'dialogue'),
+        quickActions: detectedCapabilities.map(cap => ({
+          id: `legacy_${cap}`,
+          label: this.getCapabilityLabel(cap),
+          action: cap,
+          enabled: true
+        }))
+      }
+    };
+    
+    this.log('info', '✅ Résultat legacy sécurisé avec champs requis', {
+      type: safeResult.type,
+      hasRequiredFields: !!(safeResult.npcId && safeResult.npcName && typeof safeResult.isUnifiedInterface === 'boolean')
+    });
+    
+    return safeResult;
+  }
+
+  // ✅ MÉTHODE UTILITAIRE : Déterminer action par défaut legacy
+  private determineDefaultActionLegacy(resultType: string): string {
+    switch (resultType) {
+      case 'shop': return 'merchant';
+      case 'questGiver': return 'quest';
+      case 'heal': return 'healer';
+      case 'trainer': return 'trainer';
+      default: return 'dialogue';
+    }
   }
 
   // ✅ NOUVELLE MÉTHODE : Analyse des capacités NPCs
@@ -418,25 +510,24 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return true;
   }
 
-  // ✅ NOUVELLE MÉTHODE UTILITAIRE : Labels des capacités
-// ✅ MÉTHODE CORRIGÉE : Labels des capacités avec gestion complète des types
-private getCapabilityLabel(capability: NpcCapability): string {
-  const labels: Record<string, string> = {
-    'merchant': '🛒 Boutique',
-    'quest': '📋 Quêtes', 
-    'healer': '🏥 Soins',
-    'trainer': '⚔️ Combat',
-    'transport': '🚀 Transport',
-    'dialogue': '💬 Discussion',
-    'service': '⚙️ Services',
-    'minigame': '🎮 Mini-jeu',
-    'storage': '📦 Stockage',
-    'teleport': '⚡ Téléport',
-    'crafting': '🔨 Artisanat'
-  };
-  
-  return labels[capability] || `${capability.charAt(0).toUpperCase() + capability.slice(1)}`;
-}
+  // ✅ MÉTHODE CORRIGÉE : Labels des capacités avec gestion complète
+  private getCapabilityLabel(capability: NpcCapability): string {
+    const labels: Record<string, string> = {
+      'merchant': '🛒 Boutique',
+      'quest': '📋 Quêtes', 
+      'healer': '🏥 Soins',
+      'trainer': '⚔️ Combat',
+      'transport': '🚀 Transport',
+      'dialogue': '💬 Discussion',
+      'service': '⚙️ Services',
+      'minigame': '🎮 Mini-jeu',
+      'storage': '📦 Stockage',
+      'teleport': '⚡ Téléport',
+      'crafting': '🔨 Artisanat'
+    };
+    
+    return labels[capability] || `${capability.charAt(0).toUpperCase() + capability.slice(1)}`;
+  }
 
   // ✅ NOUVELLE MÉTHODE PUBLIQUE : Gestion des actions spécifiques (pour client)
   async handleSpecificAction(
@@ -644,7 +735,7 @@ private getCapabilityLabel(capability: NpcCapability): string {
   }
 
   // ✅ LOGIQUE LEGACY (code existant pour les NPCs non migrés) - INCHANGÉE
-  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<InteractionResult> {
     // === LOGIQUE DE PRIORITÉ EXISTANTE ===
 
     // 1. Vérifier si c'est une table starter
@@ -708,8 +799,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
           questName: questNames,
           questRewards: totalRewards,
           questProgress: questProgress,
-          npcId: npcId,
-          npcName: npc.name,
           lines: completionDialogue,
           message: `Félicitations ! Vous avez terminé : ${questNames}`
         };
@@ -745,9 +834,7 @@ private getCapabilityLabel(capability: NpcCapability): string {
         message: questOfferDialogue.join(' '),
         lines: questOfferDialogue,
         availableQuests: serializedQuests,
-        questProgress: questProgress,
-        npcId: npcId,
-        npcName: npc.name
+        questProgress: questProgress
       };
     }
 
@@ -768,8 +855,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "dialogue",
         lines: progressDialogue,
-        npcId: npcId,
-        npcName: npc.name,
         questProgress: questProgress
       };
     }
@@ -783,8 +868,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "shop", 
         shopId: shopId,
-        npcId: npcId,
-        npcName: npc.name,
         questProgress: questProgress
       };
     } else if (npc.properties?.healer || npc.type === 'healer') {
@@ -792,8 +875,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "heal", 
         message: "Vos Pokémon sont soignés !",
-        npcId: npcId,
-        npcName: npc.name,
         questProgress: questProgress
       };
     } else if (npc.properties?.dialogue || npc.dialogueIds) {
@@ -802,8 +883,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "dialogue", 
         lines,
-        npcId: npcId,
-        npcName: npc.name,
         questProgress: questProgress
       };
     } else {
@@ -812,16 +891,14 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "dialogue", 
         lines: defaultDialogue,
-        questProgress: questProgress,
-        npcId: npcId,
-        npcName: npc.name
+        questProgress: questProgress
       };
     }
   }
 
   // === MÉTHODES SPÉCIALISÉES (CODE EXISTANT CONSERVÉ) ===
 
-  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<InteractionResult> {
     this.log('info', 'Traitement interaction table starter');
   
     const validation = await this.starterHandlers.validateStarterRequest(player, 1);
@@ -831,8 +908,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "starterTable",
         message: "Choisissez votre Pokémon starter !",
-        npcId: npcId,
-        npcName: npc.name || "Table des starters",
         starterEligible: true,
         lines: [
           "Voici les trois Pokémon starter !",
@@ -844,8 +919,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
         success: true,
         type: "dialogue",
         message: validation.message,
-        npcId: npcId,
-        npcName: npc.name || "Table des starters",
         starterEligible: false,
         starterReason: validation.reason,
         lines: [validation.message]
@@ -885,7 +958,7 @@ private getCapabilityLabel(capability: NpcCapability): string {
     }
   }
 
-  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
+  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<InteractionResult | null> {
     try {
       const activeQuests = await this.questManager.getActiveQuests(username);
       this.log('info', `Vérification talk objectives`, { activeQuests: activeQuests.length });
@@ -920,8 +993,6 @@ private getCapabilityLabel(capability: NpcCapability): string {
                   success: true,
                   type: "dialogue",
                   lines: validationDialogue,
-                  npcId: npcId,
-                  npcName: await this.getNpcName(npcId),
                   questProgress: progressResults,
                   message: result.message
                 };
@@ -1186,7 +1257,7 @@ private getCapabilityLabel(capability: NpcCapability): string {
     spectatorPlayer: Player, 
     targetPlayerId: string,
     targetPlayerPosition: { x: number; y: number; mapId: string }
-  ): Promise<NpcInteractionResult> {
+  ): Promise<InteractionResult> {
     
     this.log('info', 'Interaction joueur combat', { 
       spectator: spectatorPlayer.name, 
@@ -1229,11 +1300,13 @@ private getCapabilityLabel(capability: NpcCapability): string {
       success: true,
       type: "battleSpectate",
       message: `Vous regardez le combat de ${targetPlayerId}`,
-      battleSpectate: {
-        battleId: watchResult.battleId!,
-        battleRoomId: watchResult.battleRoomId!,
-        targetPlayerName: targetPlayerId,
-        canWatch: true
+      data: {
+        battleSpectate: {
+          battleId: watchResult.battleId!,
+          battleRoomId: watchResult.battleRoomId!,
+          targetPlayerName: targetPlayerId,
+          canWatch: true
+        }
       }
     };
   }
