@@ -3,7 +3,6 @@
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
 import './styles/components.css'
-import { MongoDBModule } from './js/mongodb-module.js'
 
 // Import modules
 import { AdminPanel } from './js/admin-panel.js'
@@ -15,6 +14,7 @@ import { LogsToolsModule } from './js/logs-tools.js'
 import { QuestGeneratorModule } from './js/quest-generator.js'
 import { MapEditorModule } from './js/map-editor.js' // ← NOUVEAU MODULE
 import { NPCEditorModule } from './js/npc-editor.js'
+import { MongoDBModule } from './js/mongodb-module.js'
 
 // Global admin panel instance
 let adminPanel
@@ -36,7 +36,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             LogsToolsModule,
             QuestGeneratorModule,
             MapEditorModule,
-            NPCEditorModule// ← AJOUT du nouveau module
+            NPCEditorModule,// ← AJOUT du nouveau module
+            MongoDBModule  // ← AJOUTER CETTE LIGNE
+
         ])
         
         // Export for global access AFTER initialization
