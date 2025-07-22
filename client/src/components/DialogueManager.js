@@ -172,9 +172,9 @@ export class DialogueManager {
     }
   }
 
-  // 🆕 MÉTHODE MODIFIÉE: Support des actions contextuelles
+  // 🆕 MÉTHODE MODIFIÉE: Logique claire pour les actions
   showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue classique avec actions possibles');
+    console.log('🎭 Affichage dialogue avec détection actions');
     
     this.currentMode = 'classic';
     
@@ -199,17 +199,21 @@ export class DialogueManager {
       actions: actions
     };
 
-    // 🆕 Utiliser la nouvelle méthode avec actions
+    // 🔧 CORRECTION: Logique claire selon les actions
     if (actions && actions.length > 0) {
+      console.log(`✅ ${actions.length} actions détectées - affichage avec zone d'actions`);
       this.dialogueUI.showDialogueWithActions(dialogueDataWithActions);
     } else {
+      console.log('✅ Aucune action - dialogue simple sans zone d\'actions');
       this.dialogueUI.showClassicDialogue(dialogueDataWithActions);
     }
 
-    // Configurer le callback pour les actions
-    this.dialogueUI.onActionClick = (action) => {
-      this.handleDialogueAction(action, data);
-    };
+    // Configurer le callback pour les actions (seulement si nécessaire)
+    if (actions && actions.length > 0) {
+      this.dialogueUI.onActionClick = (action) => {
+        this.handleDialogueAction(action, data);
+      };
+    }
   }
 
   // 🆕 NOUVELLE MÉTHODE: Détecter les actions disponibles
@@ -220,7 +224,14 @@ export class DialogueManager {
     const capabilities = data.capabilities || data.unifiedInterface?.capabilities || [];
     const npcType = data.npcType || data.type;
     
-    console.log('🔍 Détection actions pour:', { capabilities, npcType, hasShopData: !!data.shopData });
+    console.log('🔍 Détection actions pour:', { 
+      name: data.name,
+      capabilities, 
+      npcType, 
+      hasShopData: !!data.shopData,
+      hasQuestData: !!data.questData,
+      hasHealerData: !!data.healerData
+    });
     
     // Action Boutique
     if (capabilities.includes('merchant') || npcType === 'merchant' || data.shopData || data.shopId) {
@@ -274,8 +285,13 @@ export class DialogueManager {
       });
     }
     
-    console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
-    return actions;
+    if (actions.length === 0) {
+      console.log('✅ Aucune action détectée - NPC dialogue simple');
+      return []; // ✅ Retourner tableau vide explicitement
+    } else {
+      console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
+      return actions;
+    }
   }
 
   // 🆕 NOUVELLE MÉTHODE: Gérer les clics sur actions
@@ -1246,5 +1262,27 @@ window.testDialogueMultiPagesWithActions = function() {
   }
 };
 
+window.testDialogueSimpleNPC = function() {
+  if (window.dialogueManager) {
+    const testData = {
+      name: 'Villageois',
+      portrait: 'https://via.placeholder.com/80x80/gray/white?text=NPC',
+      lines: ['Bonjour !', 'Belle journée, n\'est-ce pas ?'],
+      // ✅ PAS de capabilities, shopData, questData, etc.
+      onClose: () => {
+        console.log('✅ Dialogue simple fermé');
+        window.showGameNotification?.('Dialogue simple fini', 'info', { duration: 1500 });
+      }
+    };
+    
+    window.dialogueManager.show(testData);
+    console.log('✅ Dialogue simple SANS actions affiché (pas de zone d\'actions)');
+    return testData;
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
 console.log('📖 Utilisez window.testDialogueMultiPages() pour tester le compteur multi-pages');
 console.log('📚 Utilisez window.testDialogueMultiPagesWithActions() pour tester pages + actions');
+console.log('👤 Utilisez window.testDialogueSimpleNPC() pour tester NPC simple SANS actions');
