@@ -12,9 +12,8 @@ import {
   NpcValidationResult 
 } from "../types/NpcTypes";
 
-// ✅ NOUVEAU : Énumération des sources de données
+// ✅ NOUVEAU : Énumération des sources de données (SIMPLIFIÉ - sans Tiled)
 export enum NpcDataSource {
-  TILED = 'tiled',
   JSON = 'json', 
   MONGODB = 'mongodb',
   HYBRID = 'hybrid' // MongoDB + JSON fallback
@@ -109,7 +108,7 @@ export interface NpcData {
   };
   
   // Métadonnées source
-  sourceType?: 'tiled' | 'json' | 'mongodb';
+  sourceType?: 'json' | 'mongodb'; // ✅ SIMPLIFIÉ : que JSON et MongoDB
   sourceFile?: string;
   lastLoaded?: number;
   
@@ -137,15 +136,15 @@ interface NpcManagerConfig {
 export class NpcManager {
   npcs: NpcData[] = []; // ✅ TON ARRAY EXISTANT - inchangé
   
-  // === PROPRIÉTÉS EXISTANTES (inchangées) ===
+  // === PROPRIÉTÉS EXISTANTES (JSON/MongoDB seulement) ===
   private loadedZones: Set<string> = new Set();
-  private npcSourceMap: Map<number, 'tiled' | 'json'> = new Map();
+  private npcSourceMap: Map<number, 'json' | 'mongodb'> = new Map(); // ✅ SIMPLIFIÉ
   private validationErrors: Map<number, string[]> = new Map();
   private lastLoadTime: number = 0;
   
   // ✅ NOUVELLES PROPRIÉTÉS MongoDB
   private mongoCache: Map<string, { data: NpcData[]; timestamp: number }> = new Map();
-  private npcSourceMapExtended: Map<number, NpcDataSource> = new Map(); // Version étendue
+  private npcSourceMapExtended: Map<number, NpcDataSource> = new Map();
   
   // ✅ CONFIGURATION ÉTENDUE
   private config: NpcManagerConfig = {
@@ -163,25 +162,24 @@ export class NpcManager {
     cacheEnabled: true
   };
 
-  // ✅ CONSTRUCTEUR ÉTENDU (rétrocompatible avec ton code existant)
-  constructor(mapPath?: string, zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
+  // ✅ CONSTRUCTEUR SIMPLIFIÉ (JSON + MongoDB seulement)
+  constructor(zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
     }
     
     this.log('info', `🚀 [NpcManager] Initialisation`, {
-      mapPath,
       zoneName,
       primarySource: this.config.primaryDataSource,
-      autoScan: !mapPath && !zoneName,
+      autoScan: !zoneName,
       config: this.config
     });
 
-    // === MODE 1: Chargement spécifique (ton code existant adapté) ===
-    if (mapPath || zoneName) {
-      this.initializeSpecific(mapPath, zoneName);
+    // === MODE 1: Chargement spécifique (adapté) ===
+    if (zoneName) {
+      this.initializeSpecific(zoneName);
     } 
-    // === MODE 2: Auto-scan complet (ton code existant adapté) ===
+    // === MODE 2: Auto-scan complet (adapté) ===
     else {
       this.log('info', `🔍 [NpcManager] Mode auto-scan activé`);
       this.autoLoadAllZones();
@@ -191,25 +189,17 @@ export class NpcManager {
     
     this.log('info', `✅ [NpcManager] Initialisé avec succès`, {
       totalNpcs: this.npcs.length,
-      tiledNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length,
       jsonNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length,
       mongoNpcs: Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length,
       zonesLoaded: Array.from(this.loadedZones)
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE : Initialisation spécifique avec MongoDB
-  private async initializeSpecific(mapPath?: string, zoneName?: string): Promise<void> {
+  // ✅ MÉTHODE SIMPLIFIÉE : Initialisation spécifique (JSON + MongoDB seulement)
+  private async initializeSpecific(zoneName: string): Promise<void> {
     try {
-      if (zoneName) {
-        // ✅ NOUVEAU : Chargement selon la source configurée
-        await this.loadNpcsForZone(zoneName);
-      }
-      
-      if (mapPath) {
-        // ✅ EXISTANT : Chargement Tiled inchangé
-        this.loadNpcsFromMap(mapPath);
-      }
+      // ✅ SIMPLIFIÉ : Chargement selon la source configurée
+      await this.loadNpcsForZone(zoneName);
       
     } catch (error) {
       this.log('error', 'Erreur initialisation spécifique', error);
@@ -217,7 +207,7 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE PRINCIPALE : Chargement hybride par zone
+  // ✅ MÉTHODE PRINCIPALE SIMPLIFIÉE : Chargement par zone (JSON + MongoDB seulement)
   private async loadNpcsForZone(zoneName: string): Promise<void> {
     const startTime = Date.now();
     
@@ -241,11 +231,6 @@ export class NpcManager {
             this.log('warn', `⚠️  [Hybrid] MongoDB échoué pour ${zoneName}, fallback JSON`);
             this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
           }
-          break;
-          
-        case NpcDataSource.TILED:
-          const mapPath = `../assets/maps/${zoneName}.tmj`;
-          this.loadNpcsFromMap(mapPath); // ✅ TON CODE EXISTANT
           break;
       }
       
@@ -349,7 +334,7 @@ export class NpcManager {
     };
   }
 
-  // ✅ NOUVELLE MÉTHODE : Ajouter NPCs à ta collection existante
+  // ✅ MÉTHODE SIMPLIFIÉE : Ajouter NPCs à ta collection existante (sans Tiled)
   private addNpcsToCollection(npcsData: NpcData[], source: NpcDataSource): void {
     for (const npc of npcsData) {
       // Éviter les doublons (même logique que ton code existant)
@@ -363,8 +348,8 @@ export class NpcManager {
         this.npcs.push(npc); // Ajouter
       }
       
-      // Mettre à jour les maps de sources (existant + nouveau)
-      this.npcSourceMap.set(npc.id, npc.sourceType as 'tiled' | 'json');
+      // Mettre à jour les maps de sources (JSON + MongoDB seulement)
+      this.npcSourceMap.set(npc.id, npc.sourceType as 'json' | 'mongodb');
       this.npcSourceMapExtended.set(npc.id, source);
     }
   }
@@ -391,63 +376,7 @@ export class NpcManager {
     });
   }
 
-  // ===== TES MÉTHODES EXISTANTES (INCHANGÉES) =====
-
-  loadNpcsFromMap(mapPath: string): void {
-    try {
-      const resolvedPath = path.resolve(__dirname, mapPath);
-      
-      this.log('info', `📄 [Tiled] Chargement NPCs depuis: ${resolvedPath}`);
-      
-      if (!fs.existsSync(resolvedPath)) {
-        throw new Error(`NPCManager: Le fichier map n'existe pas : ${resolvedPath}`);
-      }
-      
-      const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-      const npcLayer = mapData.layers.find((l: any) => l.name === "npcs");
-      
-      if (!npcLayer || !npcLayer.objects) {
-        this.log('warn', `⚠️ [Tiled] Aucun layer NPCs trouvé dans ${resolvedPath}`);
-        return;
-      }
-
-      let tiledNpcCount = 0;
-      
-      for (const obj of npcLayer.objects) {
-        const propMap: Record<string, any> = {};
-        if (obj.properties) {
-          for (const prop of obj.properties) {
-            propMap[prop.name] = prop.value;
-          }
-        }
-
-        const npcData: NpcData = {
-          id: obj.id,
-          name: obj.name || propMap['Nom'] || "NPC",
-          sprite: propMap['sprite'] || "npc_placeholder",
-          x: obj.x,
-          y: obj.y,
-          properties: propMap,
-          
-          // Métadonnées source
-          sourceType: 'tiled',
-          sourceFile: mapPath,
-          lastLoaded: Date.now()
-        };
-
-        this.npcs.push(npcData);
-        this.npcSourceMap.set(obj.id, 'tiled');
-        this.npcSourceMapExtended.set(obj.id, NpcDataSource.TILED);
-        tiledNpcCount++;
-      }
-      
-      this.log('info', `✅ [Tiled] ${tiledNpcCount} NPCs chargés depuis ${mapPath}`);
-      
-    } catch (error) {
-      this.log('error', `❌ [Tiled] Erreur chargement ${mapPath}`, error);
-      throw error;
-    }
-  }
+  // ===== MÉTHODE JSON EXISTANTE (INCHANGÉE) =====
 
   loadNpcsFromJSON(zoneName: string): void {
     try {
@@ -692,7 +621,7 @@ export class NpcManager {
   // ✅ MÉTHODES UTILITAIRES pour MongoDB
   private extractZoneFromNpc(npc: NpcData): string {
     if (npc.sourceFile) {
-      const match = npc.sourceFile.match(/([^\/\\]+)\.(?:json|tmj)$/);
+      const match = npc.sourceFile.match(/([^\/\\]+)\.json$/); // ✅ Seulement JSON
       return match ? match[1] : 'unknown';
     }
     return 'unknown';
@@ -775,50 +704,33 @@ export class NpcManager {
     }
   }
 
-  // Auto-scan des fichiers (ton code existant)
+  // Auto-scan des fichiers JSON seulement (simplifié)
   private autoLoadFromFiles(): void {
-    const tiledZones = this.scanTiledMaps();
     const jsonZones = this.scanNpcJsonFiles();
-    const allZones = new Set([...tiledZones, ...jsonZones]);
     
-    this.log('info', `🎯 [NpcManager] ${allZones.size} zones détectées dans les fichiers`);
+    this.log('info', `🎯 [NpcManager] ${jsonZones.size} zones JSON détectées`);
     
-    allZones.forEach(zoneName => {
+    jsonZones.forEach(zoneName => {
       try {
-        if (this.config.primaryDataSource === NpcDataSource.JSON) {
-          this.loadNpcsFromJSON(zoneName);
-        } else {
-          // Mode hybride fichiers
-          const mapPath = `../assets/maps/${zoneName}.tmj`;
-          const hasMap = fs.existsSync(path.resolve(__dirname, mapPath));
-          
-          if (hasMap) {
-            this.loadNpcsFromMap(mapPath);
-          }
-          
-          this.loadNpcsFromJSON(zoneName);
-        }
+        this.loadNpcsFromJSON(zoneName);
       } catch (error) {
-        this.log('warn', `⚠️ Erreur zone fichier ${zoneName}:`, error);
+        this.log('warn', `⚠️ Erreur zone JSON ${zoneName}:`, error);
       }
     });
   }
 
-  // ===== TES MÉTHODES EXISTANTES INCHANGÉES =====
+  // ===== MÉTHODES PUBLIQUES SIMPLIFIÉES (JSON + MongoDB seulement) =====
   
   getNpcsByType(type: NpcType): NpcData[] {
     return this.npcs.filter(npc => npc.type === type);
   }
   
-  getNpcsBySource(source: 'tiled' | 'json'): NpcData[] {
+  getNpcsBySource(source: 'json' | 'mongodb'): NpcData[] {
     return this.npcs.filter(npc => npc.sourceType === source);
   }
 
   getNpcsByZone(zoneName: string): NpcData[] {
     return this.npcs.filter(npc => {
-      if (npc.sourceType === 'tiled' && npc.sourceFile) {
-        return npc.sourceFile.includes(`${zoneName}.tmj`);
-      }
       if (npc.sourceType === 'json' && npc.sourceFile) {
         return npc.sourceFile.includes(`${zoneName}.json`);
       }
@@ -855,11 +767,10 @@ export class NpcManager {
     return Array.from(this.loadedZones);
   }
   
-  // ✅ TES MÉTHODES D'ADMIN ET DEBUG (étendues)
+  // ✅ STATS SIMPLIFIÉES (JSON + MongoDB seulement)
   
   getSystemStats() {
     const mongoCount = Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length;
-    const tiledCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length;
     const jsonCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length;
     
     const npcsByType: Record<string, number> = {};
@@ -872,7 +783,6 @@ export class NpcManager {
     return {
       totalNpcs: this.npcs.length,
       sources: {
-        tiled: tiledCount,
         json: jsonCount,
         mongodb: mongoCount
       },
@@ -891,9 +801,9 @@ export class NpcManager {
     };
   }
 
-  // ✅ TA MÉTHODE DEBUG EXISTANTE (remise)
+  // ✅ DEBUG SIMPLIFIÉ (JSON + MongoDB seulement)
   debugSystem(): void {
-    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs ÉTENDU ===`);
+    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs SIMPLIFIÉ ===`);
     
     const stats = this.getSystemStats();
     console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
@@ -910,7 +820,7 @@ export class NpcManager {
       }
     }
 
-    // ✅ NOUVELLES INFOS DEBUG MongoDB
+    // ✅ INFOS DEBUG MongoDB
     console.log(`\n💾 État du cache MongoDB:`);
     console.log(`  - Taille: ${this.mongoCache.size}`);
     console.log(`  - TTL: ${this.config.cacheTTL / 1000}s`);
@@ -943,33 +853,13 @@ export class NpcManager {
     };
   }
 
-  private scanTiledMaps(): string[] {
-    try {
-      const mapsDir = path.resolve(__dirname, '../assets/maps');
-      if (!fs.existsSync(mapsDir)) {
-        this.log('warn', `📁 [NpcManager] Dossier maps non trouvé: ${mapsDir}`);
-        return [];
-      }
-      
-      const tiledFiles = fs.readdirSync(mapsDir)
-        .filter((file: string) => file.endsWith('.tmj'))
-        .map((file: string) => file.replace('.tmj', ''));
-      
-      this.log('info', `🗺️ [NpcManager] ${tiledFiles.length} cartes Tiled trouvées`);
-      return tiledFiles;
-    } catch (error) {
-      this.log('error', `❌ Erreur scan Tiled:`, error);
-      return [];
-    }
-  }
-
-  private scanNpcJsonFiles(): string[] {
+  private scanNpcJsonFiles(): Set<string> {
     try {
       const npcDir = path.resolve(this.config.npcDataPath);
       if (!fs.existsSync(npcDir)) {
         this.log('info', `📁 [NpcManager] Création dossier NPCs: ${npcDir}`);
         fs.mkdirSync(npcDir, { recursive: true });
-        return [];
+        return new Set();
       }
       
       const jsonFiles = fs.readdirSync(npcDir)
@@ -977,10 +867,10 @@ export class NpcManager {
         .map((file: string) => file.replace('.json', ''));
       
       this.log('info', `📄 [NpcManager] ${jsonFiles.length} fichiers NPCs JSON trouvés`);
-      return jsonFiles;
+      return new Set(jsonFiles);
     } catch (error) {
       this.log('error', `❌ Erreur scan NPCs JSON:`, error);
-      return [];
+      return new Set();
     }
   }
 
