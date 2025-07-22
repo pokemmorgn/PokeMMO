@@ -17,6 +17,45 @@ const execAsync = promisify(exec);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const client = new MongoClient(MONGODB_URI)
 
+// Interfaces TypeScript
+interface MongoQueryRequest {
+    database: string
+    collection: string
+    query?: any
+    page?: number
+    limit?: number
+}
+
+interface MongoDocumentRequest {
+    database: string
+    collection: string
+    id: string
+    data?: any
+}
+
+interface MongoCustomQueryRequest {
+    database: string
+    collection: string
+    operation: string
+    query: any
+    options?: any
+}
+
+interface CollectionStats {
+    name: string
+    count: number
+    size: number
+    avgObjSize: number
+}
+
+interface DatabaseStats {
+    name: string
+    collections: number
+    dataSize: number
+    indexSize: number
+    totalSize: number
+}
+
 // Middleware de connexion MongoDB
 async function connectMongo() {
     try {
@@ -2550,8 +2589,7 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // FIN DES ROUTES NPCs
 // ========================================
 
-// GET /api/admin/mongodb/databases - Lister les bases de données
-router.get('/databases', async (req, res) => {
+router.get('/databases', async (req: Request, res: Response) => {
     try {
         console.log('🗄️ [MongoDB API] Récupération des bases de données...')
         
@@ -2573,13 +2611,13 @@ router.get('/databases', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur databases:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // GET /api/admin/mongodb/collections/:database - Lister les collections
-router.get('/collections/:database', async (req, res) => {
+router.get('/collections/:database', async (req: Request, res: Response) => {
     try {
         const { database } = req.params
         console.log(`🗄️ [MongoDB API] Collections de ${database}...`)
@@ -2600,13 +2638,13 @@ router.get('/collections/:database', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur collections:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // POST /api/admin/mongodb/documents - Récupérer les documents avec pagination
-router.post('/documents', async (req, res) => {
+router.post('/documents', async (req: Request<{}, any, MongoQueryRequest>, res: Response) => {
     try {
         const { database, collection, query = {}, page = 0, limit = 20 } = req.body
         
@@ -2643,13 +2681,13 @@ router.post('/documents', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur documents:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // PUT /api/admin/mongodb/document - Mettre à jour un document
-router.put('/document', async (req, res) => {
+router.put('/document', async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
     try {
         const { database, collection, id, data } = req.body
         
@@ -2687,13 +2725,13 @@ router.put('/document', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur mise à jour:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // DELETE /api/admin/mongodb/document - Supprimer un document
-router.delete('/document', async (req, res) => {
+router.delete('/document', async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
     try {
         const { database, collection, id } = req.body
         
@@ -2724,13 +2762,13 @@ router.delete('/document', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur suppression:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // POST /api/admin/mongodb/document - Créer un nouveau document
-router.post('/document', async (req, res) => {
+router.post('/document', async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
     try {
         const { database, collection, data } = req.body
         
@@ -2754,13 +2792,13 @@ router.post('/document', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur création:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // GET /api/admin/mongodb/stats/:database - Statistiques d'une base
-router.get('/stats/:database', async (req, res) => {
+router.get('/stats/:database', async (req: Request, res: Response) => {
     try {
         const { database } = req.params
         
@@ -2774,16 +2812,34 @@ router.get('/stats/:database', async (req, res) => {
         
         // Récupérer les stats des collections
         const collections = await db.listCollections().toArray()
-        const collectionsStats = []
+        const collectionsStats: CollectionStats[] = []
         
         for (const col of collections) {
             try {
-                const collStats = await db.collection(col.name).stats()
+                // Utiliser countDocuments au lieu de stats() qui n'est pas toujours disponible
+                const count = await db.collection(col.name).countDocuments()
+                
+                // Essayer d'obtenir des stats basiques
+                let size = 0
+                let avgObjSize = 0
+                
+                try {
+                    // Utiliser aggregate pour obtenir des statistiques approximatives
+                    const sampleDoc = await db.collection(col.name).findOne()
+                    if (sampleDoc) {
+                        const docSize = JSON.stringify(sampleDoc).length
+                        avgObjSize = docSize
+                        size = count * docSize
+                    }
+                } catch {
+                    // Ignorer si impossible d'obtenir les stats
+                }
+                
                 collectionsStats.push({
                     name: col.name,
-                    count: collStats.count || 0,
-                    size: collStats.size || 0,
-                    avgObjSize: collStats.avgObjSize || 0
+                    count: count,
+                    size: size,
+                    avgObjSize: avgObjSize
                 })
             } catch (error) {
                 // Certaines collections peuvent ne pas avoir de stats
@@ -2798,28 +2854,30 @@ router.get('/stats/:database', async (req, res) => {
         
         console.log(`✅ [MongoDB API] Stats récupérées`)
         
+        const databaseStats: DatabaseStats = {
+            name: database,
+            collections: dbStats.collections || 0,
+            dataSize: dbStats.dataSize || 0,
+            indexSize: dbStats.indexSize || 0,
+            totalSize: (dbStats.dataSize || 0) + (dbStats.indexSize || 0)
+        }
+        
         res.json({ 
             success: true,
-            database: {
-                name: database,
-                collections: dbStats.collections || 0,
-                dataSize: dbStats.dataSize || 0,
-                indexSize: dbStats.indexSize || 0,
-                totalSize: (dbStats.dataSize || 0) + (dbStats.indexSize || 0)
-            },
+            database: databaseStats,
             collections: collectionsStats
         })
     } catch (error) {
         console.error('❌ [MongoDB API] Erreur stats:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // POST /api/admin/mongodb/query - Exécuter une requête personnalisée
-router.post('/query', async (req, res) => {
+router.post('/query', async (req: Request<{}, any, MongoCustomQueryRequest>, res: Response) => {
     try {
         const { database, collection, operation, query, options = {} } = req.body
         
@@ -2829,7 +2887,7 @@ router.post('/query', async (req, res) => {
         const db = mongoClient.db(database)
         const coll = db.collection(collection)
         
-        let result
+        let result: any
         
         switch (operation) {
             case 'find':
@@ -2864,23 +2922,23 @@ router.post('/query', async (req, res) => {
         console.error('❌ [MongoDB API] Erreur requête:', error)
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
         })
     }
 })
 
 // Utilitaires
-function prepareMongoQuery(query) {
+function prepareMongoQuery(query: any): any {
     if (!query || typeof query !== 'object') return {}
     
     // Convertir les chaînes ObjectId
     const convertedQuery = JSON.parse(JSON.stringify(query))
     
-    function convertObjectIds(obj) {
+    function convertObjectIds(obj: any): void {
         for (const key in obj) {
             if (obj[key] && typeof obj[key] === 'object') {
                 if (Array.isArray(obj[key])) {
-                    obj[key] = obj[key].map(item => 
+                    obj[key] = obj[key].map((item: any) => 
                         typeof item === 'string' && ObjectId.isValid(item) 
                             ? new ObjectId(item) 
                             : item
@@ -2899,12 +2957,13 @@ function prepareMongoQuery(query) {
 }
 
 // Middleware de gestion d'erreurs
-router.use((error, req, res, next) => {
+router.use((error: any, req: Request, res: Response, next: NextFunction) => {
     console.error('❌ [MongoDB API] Erreur middleware:', error)
     res.status(500).json({
         success: false,
         error: 'Erreur interne du serveur MongoDB'
     })
 })
+
 
 export default router;
