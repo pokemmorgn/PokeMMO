@@ -124,7 +124,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
     
 // ✅ ÉTAPE 1: Initialiser NPCManagers et TransitionService EN PREMIER
-    this.initializeNpcManagers();
+    await this.initializeNpcManagers();
     this.transitionService = new TransitionService();
     console.log(`✅ TransitionService initialisé`);
 
@@ -281,22 +281,6 @@ export class WorldRoom extends Room<PokeWorldState> {
   }
 
 private initializeNpcManagers() {
-  console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
-  
-  try {
-    // ✅ ENCORE PLUS SIMPLE : Un seul NPCManager pour toutes les zones
-    const globalNpcManager = new NpcManager(); // Auto-scan de toutes les zones
-    
-    // Stocker le manager global
-    this.npcManagers.set('global', globalNpcManager);
-    
-    console.log(`✅ [WorldRoom] NPCManager global initialisé avec ${globalNpcManager.getAllNpcs().length} NPCs total`);
-    globalNpcManager.debugSystem();
-    
-  } catch (error) {
-    console.error(`❌ [WorldRoom] Erreur initialisation NPCManager:`, error);
-  }
-}
 
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
