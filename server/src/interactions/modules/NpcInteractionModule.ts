@@ -203,7 +203,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     this.log('info', `Capacités détectées: ${capabilities.length}`, { capabilities });
 
     // ✅ LOGIQUE CONDITIONNELLE : Multi-capacités vs Mono-capacité
-    if (capabilities.length > 1) {
+    if (capabilities.length >= 1 && this.shouldUseUnifiedInterface(capabilities)) {
       // === CAS MULTI-CAPACITÉS : Interface Unifiée ===
       this.log('info', '🔗 NPC multi-capacités -> Interface Unifiée');
       
@@ -334,6 +334,20 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return npc.type === 'service' || !!npc.serviceConfig || !!npc.properties?.service;
   }
 
+  // ✅ NOUVELLE MÉTHODE : Déterminer si utiliser l'interface unifiée
+private shouldUseUnifiedInterface(capabilities: NpcCapability[]): boolean {
+  // Ne pas utiliser interface unifiée si pas de capabilities
+  if (capabilities.length === 0) return false;
+  
+  // Si seulement "dialogue", utiliser legacy pour performance
+  if (capabilities.length === 1 && capabilities[0] === 'dialogue') {
+    return false;
+  }
+  
+  // Sinon, utiliser interface unifiée
+  this.log('info', `🔍 shouldUseUnifiedInterface: ${capabilities.join(',')} -> OUI`);
+  return true;
+}
   // ✅ NOUVELLE MÉTHODE PUBLIQUE : Gestion des actions spécifiques (pour client)
   async handleSpecificAction(
     player: Player, 
