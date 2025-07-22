@@ -1,9 +1,9 @@
 // PokeMMO/server/src/managers/NPCManager.ts
-// Version adaptée : Ton code existant + Support MongoDB + waitForLoad()
+// Version corrigée : Synchronisation waitForLoad() + autoLoadFromMongoDB()
 
 import fs from "fs";
 import path from "path";
-import { NpcData } from "../models/NpcData"; // ✅ NOUVEAU : Import du modèle MongoDB
+import { NpcData } from "../models/NpcData";
 import { 
   AnyNpc, 
   NpcZoneData, 
@@ -12,16 +12,16 @@ import {
   NpcValidationResult 
 } from "../types/NpcTypes";
 
-// ✅ NOUVEAU : Énumération des sources de données (SIMPLIFIÉ - sans Tiled)
+// ✅ ÉNUMÉRATION DES SOURCES DE DONNÉES
 export enum NpcDataSource {
   JSON = 'json', 
   MONGODB = 'mongodb',
-  HYBRID = 'hybrid' // MongoDB + JSON fallback
+  HYBRID = 'hybrid'
 }
 
-// ✅ EXTENSION de ton interface existante (pas de breaking changes)
+// ✅ INTERFACE ÉTENDUE (inchangée)
 export interface NpcData {
-  // === PROPRIÉTÉS EXISTANTES (Tiled) - INCHANGÉES ===
+  // === PROPRIÉTÉS EXISTANTES ===
   id: number;
   name: string;
   sprite: string;
@@ -29,7 +29,7 @@ export interface NpcData {
   y: number;
   properties: Record<string, any>;
   
-  // === PROPRIÉTÉS JSON (existantes) - INCHANGÉES ===
+  // === PROPRIÉTÉS JSON ===
   type?: NpcType;
   position?: { x: number; y: number };
   direction?: Direction;
@@ -39,12 +39,12 @@ export interface NpcData {
   repeatable?: boolean;
   cooldownSeconds?: number;
   
-  // Système de traduction (IDs)
+  // Système de traduction
   dialogueIds?: string[];
   dialogueId?: string;
   conditionalDialogueIds?: Record<string, string[]>;
   
-  // Système quêtes flexible
+  // Système quêtes
   questsToGive?: string[];
   questsToEnd?: string[];
   questRequirements?: Record<string, any>;
@@ -108,24 +108,22 @@ export interface NpcData {
   };
   
   // Métadonnées source
-  sourceType?: 'json' | 'mongodb'; // ✅ SIMPLIFIÉ : que JSON et MongoDB
+  sourceType?: 'json' | 'mongodb';
   sourceFile?: string;
   lastLoaded?: number;
   
-  // ✅ NOUVEAU : Support MongoDB
+  // Support MongoDB
   isActive?: boolean;
-  mongoDoc?: any; // Référence au document MongoDB si chargé depuis là
+  mongoDoc?: any;
 }
 
-// ✅ CONFIGURATION ÉTENDUE (avec tes paramètres existants)
+// ✅ CONFIGURATION
 interface NpcManagerConfig {
-  // === NOUVEAUX PARAMÈTRES MongoDB ===
   primaryDataSource: NpcDataSource;
   useMongoCache: boolean;
-  cacheTTL: number; // TTL du cache en millisecondes
-  enableFallback: boolean; // Fallback JSON si MongoDB échoue
+  cacheTTL: number;
+  enableFallback: boolean;
   
-  // === PARAMÈTRES EXISTANTS (inchangés) ===
   npcDataPath: string;
   autoLoadJSON: boolean;
   strictValidation: boolean;
@@ -134,32 +132,35 @@ interface NpcManagerConfig {
 }
 
 export class NpcManager {
-  npcs: NpcData[] = []; // ✅ TON ARRAY EXISTANT - inchangé
+  npcs: NpcData[] = [];
   
-  // === PROPRIÉTÉS EXISTANTES (JSON/MongoDB seulement) ===
+  // ✅ NOUVEAUX FLAGS D'ÉTAT
+  private isInitialized: boolean = false;
+  private isInitializing: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
+  
+  // Propriétés existantes
   private loadedZones: Set<string> = new Set();
-  private npcSourceMap: Map<number, 'json' | 'mongodb'> = new Map(); // ✅ SIMPLIFIÉ
+  private npcSourceMap: Map<number, 'json' | 'mongodb'> = new Map();
   private validationErrors: Map<number, string[]> = new Map();
   private lastLoadTime: number = 0;
   
-  // ✅ NOUVELLES PROPRIÉTÉS MongoDB
+  // Propriétés MongoDB
   private mongoCache: Map<string, { data: NpcData[]; timestamp: number }> = new Map();
   private npcSourceMapExtended: Map<number, NpcDataSource> = new Map();
   
-  // ✅ HOT RELOAD SYSTEM
+  // Hot Reload
   private changeStream: any = null;
   private hotReloadEnabled: boolean = true;
   private reloadCallbacks: Array<(event: string, npcData?: any) => void> = [];
   
-  // ✅ CONFIGURATION ÉTENDUE
+  // Configuration
   private config: NpcManagerConfig = {
-    // Nouveaux paramètres
-    primaryDataSource: NpcDataSource.MONGODB, // ✅ FORCÉ EN MONGODB
+    primaryDataSource: NpcDataSource.MONGODB,
     useMongoCache: process.env.NPC_USE_CACHE !== 'false',
-    cacheTTL: parseInt(process.env.NPC_CACHE_TTL || '1800000'), // 30 minutes
+    cacheTTL: parseInt(process.env.NPC_CACHE_TTL || '1800000'),
     enableFallback: process.env.NPC_FALLBACK !== 'false',
     
-    // Paramètres existants
     npcDataPath: './build/data/npcs',
     autoLoadJSON: true,
     strictValidation: process.env.NODE_ENV === 'production',
@@ -167,78 +168,155 @@ export class NpcManager {
     cacheEnabled: true
   };
 
-  // ✅ CONSTRUCTEUR SIMPLIFIÉ (JSON + MongoDB seulement)
+  // ✅ CONSTRUCTEUR CORRIGÉ : Ne lance plus le chargement automatique
   constructor(zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `🚀 [NpcManager] Initialisation`, {
+    this.log('info', `🚀 [NpcManager] Construction`, {
       zoneName,
       primarySource: this.config.primaryDataSource,
       autoScan: !zoneName,
       config: this.config
     });
 
-    // === MODE 1: Chargement spécifique (adapté) ===
-    if (zoneName) {
-      this.initializeSpecific(zoneName);
-    } 
-    // === MODE 2: Auto-scan complet (adapté) ===
-    else {
-      this.log('info', `🔍 [NpcManager] Mode auto-scan activé`);
-      this.autoLoadAllZones();
-    }
+    // ✅ IMPORTANT : Ne plus lancer le chargement ici !
+    // Le chargement sera lancé par initialize() ou waitForLoad()
     
     this.lastLoadTime = Date.now();
     
-    this.log('info', `✅ [NpcManager] Initialisé avec succès`, {
+    this.log('info', `✅ [NpcManager] Construit (pas encore initialisé)`, {
       totalNpcs: this.npcs.length,
-      jsonNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length,
-      mongoNpcs: Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length,
-      zonesLoaded: Array.from(this.loadedZones)
+      needsInitialization: true
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE : Attendre que le chargement MongoDB soit terminé
+  // ✅ NOUVELLE MÉTHODE : Initialisation asynchrone
+  async initialize(zoneName?: string): Promise<void> {
+    // Éviter les initialisations multiples
+    if (this.isInitialized) {
+      this.log('info', `♻️ [NpcManager] Déjà initialisé`);
+      return;
+    }
+    
+    if (this.isInitializing) {
+      this.log('info', `⏳ [NpcManager] Initialisation en cours, attente...`);
+      if (this.initializationPromise) {
+        await this.initializationPromise;
+      }
+      return;
+    }
+    
+    this.isInitializing = true;
+    this.log('info', `🔄 [NpcManager] Démarrage initialisation asynchrone...`);
+    
+    // Créer la promesse d'initialisation
+    this.initializationPromise = this.performInitialization(zoneName);
+    
+    try {
+      await this.initializationPromise;
+      this.isInitialized = true;
+      this.log('info', `✅ [NpcManager] Initialisation terminée avec succès`, {
+        totalNpcs: this.npcs.length,
+        zones: Array.from(this.loadedZones)
+      });
+    } catch (error) {
+      this.log('error', `❌ [NpcManager] Erreur lors de l'initialisation:`, error);
+      throw error;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  // ✅ MÉTHODE PRIVÉE : Logique d'initialisation
+  private async performInitialization(zoneName?: string): Promise<void> {
+    try {
+      if (zoneName) {
+        // Mode spécifique
+        this.log('info', `🎯 [NpcManager] Mode spécifique: ${zoneName}`);
+        await this.loadNpcsForZone(zoneName);
+      } else {
+        // Mode auto-scan
+        this.log('info', `🔍 [NpcManager] Mode auto-scan activé`);
+        await this.autoLoadAllZonesSync(); // ✅ Version synchrone !
+      }
+    } catch (error) {
+      this.log('error', `❌ [NpcManager] Erreur initialisation:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ MÉTHODE CORRIGÉE : waitForLoad attend maintenant vraiment !
   async waitForLoad(timeoutMs: number = 10000): Promise<boolean> {
     const startTime = Date.now();
     
     this.log('info', `⏳ [WaitForLoad] Attente du chargement des NPCs (timeout: ${timeoutMs}ms)...`);
     
-    while (this.npcs.length === 0 && (Date.now() - startTime) < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Attendre 100ms
+    // ✅ ÉTAPE 1: S'assurer que l'initialisation est lancée
+    if (!this.isInitialized && !this.isInitializing) {
+      this.log('info', `🚀 [WaitForLoad] Lancement de l'initialisation...`);
+      this.initialize().catch(error => {
+        this.log('error', `❌ [WaitForLoad] Erreur initialisation:`, error);
+      });
     }
     
-    const loaded = this.npcs.length > 0;
+    // ✅ ÉTAPE 2: Attendre que l'initialisation se termine
+    while ((!this.isInitialized || this.npcs.length === 0) && (Date.now() - startTime) < timeoutMs) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    const loaded = this.isInitialized && this.npcs.length > 0;
     const loadTime = Date.now() - startTime;
     
     if (loaded) {
       this.log('info', `✅ [WaitForLoad] NPCs chargés: ${this.npcs.length} NPCs en ${loadTime}ms`);
       this.log('info', `🗺️  [WaitForLoad] Zones chargées: ${Array.from(this.loadedZones).join(', ')}`);
       
-      // ✅ DÉMARRER HOT RELOAD après chargement initial
+      // ✅ DÉMARRER HOT RELOAD après chargement réussi
       if (this.config.primaryDataSource === NpcDataSource.MONGODB && this.hotReloadEnabled) {
         this.startHotReload();
       }
     } else {
-      this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, ${this.npcs.length} NPCs chargés`);
+      this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, initialisé: ${this.isInitialized}, NPCs: ${this.npcs.length}`);
     }
     
     return loaded;
   }
 
-  // ✅ NOUVEAU : Système Hot Reload avec MongoDB Change Streams
+  // ✅ VERSION SYNCHRONE d'autoLoadAllZones
+  private async autoLoadAllZonesSync(): Promise<void> {
+    this.log('info', `📂 [NpcManager] Auto-scan synchrone avec source: ${this.config.primaryDataSource}...`);
+    
+    if (this.config.primaryDataSource === NpcDataSource.MONGODB || 
+        this.config.primaryDataSource === NpcDataSource.HYBRID) {
+      // ✅ MongoDB en mode synchrone (await)
+      try {
+        await this.autoLoadFromMongoDB();
+      } catch (error) {
+        this.log('error', 'Erreur auto-scan MongoDB:', error);
+        if (this.config.enableFallback) {
+          this.log('info', 'Fallback vers scan JSON');
+          this.autoLoadFromFiles();
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      // Scan des fichiers JSON
+      this.autoLoadFromFiles();
+    }
+  }
+
+  // ✅ MÉTHODE HOT RELOAD (inchangée)
   private startHotReload(): void {
     try {
       this.log('info', '🔥 [HotReload] Démarrage MongoDB Change Streams...');
       
-      // Créer le Change Stream sur la collection npc_data
       this.changeStream = NpcData.watch([], { 
-        fullDocument: 'updateLookup' // Récupère le document complet après modification
+        fullDocument: 'updateLookup'
       });
       
-      // Écouter les changements
       this.changeStream.on('change', (change: any) => {
         this.handleMongoDBChange(change);
       });
@@ -246,7 +324,6 @@ export class NpcManager {
       this.changeStream.on('error', (error: any) => {
         this.log('error', '❌ [HotReload] Erreur Change Stream:', error);
         
-        // Retry après 5 secondes
         setTimeout(() => {
           this.log('info', '🔄 [HotReload] Redémarrage Change Stream...');
           this.startHotReload();
@@ -260,7 +337,7 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Traiter les changements MongoDB
+  // ✅ MÉTHODES HOT RELOAD (inchangées)
   private async handleMongoDBChange(change: any): Promise<void> {
     try {
       this.log('info', `🔥 [HotReload] Changement détecté: ${change.operationType}`);
@@ -291,24 +368,18 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Gestion ajout NPC
   private async handleNpcInsert(mongoDoc: any): Promise<void> {
     try {
       const zoneName = mongoDoc.zone;
       const npcData = this.convertMongoDocToNpcData(mongoDoc, zoneName);
       
-      // Ajouter à la collection
       this.npcs.push(npcData);
       this.npcSourceMap.set(npcData.id, 'mongodb');
       this.npcSourceMapExtended.set(npcData.id, NpcDataSource.MONGODB);
       this.loadedZones.add(zoneName);
-      
-      // Invalider le cache de la zone
       this.mongoCache.delete(zoneName);
       
       this.log('info', `➕ [HotReload] NPC ajouté: ${npcData.name} (ID: ${npcData.id}) dans ${zoneName}`);
-      
-      // Notifier les callbacks
       this.notifyReloadCallbacks('insert', npcData);
       
     } catch (error) {
@@ -316,30 +387,24 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Gestion modification NPC
   private async handleNpcUpdate(mongoDoc: any): Promise<void> {
     try {
       const zoneName = mongoDoc.zone;
       const npcData = this.convertMongoDocToNpcData(mongoDoc, zoneName);
       
-      // Trouver et remplacer le NPC existant
       const existingIndex = this.npcs.findIndex(npc => npc.id === npcData.id);
       if (existingIndex >= 0) {
         this.npcs[existingIndex] = npcData;
         this.log('info', `🔄 [HotReload] NPC mis à jour: ${npcData.name} (ID: ${npcData.id})`);
       } else {
-        // Si pas trouvé, l'ajouter (cas edge)
         this.npcs.push(npcData);
         this.npcSourceMap.set(npcData.id, 'mongodb');
         this.npcSourceMapExtended.set(npcData.id, NpcDataSource.MONGODB);
         this.log('info', `➕ [HotReload] NPC ajouté (via update): ${npcData.name} (ID: ${npcData.id})`);
       }
       
-      // Invalider le cache de la zone
       this.mongoCache.delete(zoneName);
       this.loadedZones.add(zoneName);
-      
-      // Notifier les callbacks
       this.notifyReloadCallbacks('update', npcData);
       
     } catch (error) {
@@ -347,27 +412,20 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Gestion suppression NPC
   private async handleNpcDelete(documentId: any): Promise<void> {
     try {
-      // Trouver le NPC à supprimer
       const npcIndex = this.npcs.findIndex(npc => npc.mongoDoc && npc.mongoDoc._id.equals(documentId));
       
       if (npcIndex >= 0) {
         const deletedNpc = this.npcs[npcIndex];
         const zoneName = this.extractZoneFromNpc(deletedNpc);
         
-        // Supprimer de la collection
         this.npcs.splice(npcIndex, 1);
         this.npcSourceMap.delete(deletedNpc.id);
         this.npcSourceMapExtended.delete(deletedNpc.id);
-        
-        // Invalider le cache de la zone
         this.mongoCache.delete(zoneName);
         
         this.log('info', `➖ [HotReload] NPC supprimé: ${deletedNpc.name} (ID: ${deletedNpc.id})`);
-        
-        // Notifier les callbacks
         this.notifyReloadCallbacks('delete', deletedNpc);
         
       } else {
@@ -379,7 +437,6 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Notifier les callbacks
   private notifyReloadCallbacks(event: string, npcData?: any): void {
     this.reloadCallbacks.forEach(callback => {
       try {
@@ -390,7 +447,7 @@ export class NpcManager {
     });
   }
 
-  // ✅ NOUVEAU : Méthodes publiques pour le Hot Reload
+  // ✅ MÉTHODES PUBLIQUES HOT RELOAD
   public onNpcChange(callback: (event: string, npcData?: any) => void): void {
     this.reloadCallbacks.push(callback);
     this.log('info', `📋 [HotReload] Callback enregistré (total: ${this.reloadCallbacks.length})`);
@@ -412,19 +469,7 @@ export class NpcManager {
     };
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE : Initialisation spécifique (JSON + MongoDB seulement)
-  private async initializeSpecific(zoneName: string): Promise<void> {
-    try {
-      // ✅ SIMPLIFIÉ : Chargement selon la source configurée
-      await this.loadNpcsForZone(zoneName);
-      
-    } catch (error) {
-      this.log('error', 'Erreur initialisation spécifique', error);
-      throw error;
-    }
-  }
-
-  // ✅ MÉTHODE PRINCIPALE SIMPLIFIÉE : Chargement par zone (JSON + MongoDB seulement)
+  // ✅ MÉTHODES EXISTANTES (inchangées) - Chargement MongoDB
   private async loadNpcsForZone(zoneName: string): Promise<void> {
     const startTime = Date.now();
     
@@ -437,16 +482,15 @@ export class NpcManager {
           break;
           
         case NpcDataSource.JSON:
-          this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+          this.loadNpcsFromJSON(zoneName);
           break;
           
         case NpcDataSource.HYBRID:
-          // Essayer MongoDB d'abord, fallback JSON
           try {
             await this.loadNpcsFromMongoDB(zoneName);
           } catch (mongoError) {
             this.log('warn', `⚠️  [Hybrid] MongoDB échoué pour ${zoneName}, fallback JSON`);
-            this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+            this.loadNpcsFromJSON(zoneName);
           }
           break;
       }
@@ -460,12 +504,10 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Chargement depuis MongoDB
   private async loadNpcsFromMongoDB(zoneName: string): Promise<void> {
     const startTime = Date.now();
     
     try {
-      // Vérifier cache
       if (this.config.useMongoCache) {
         const cached = this.getFromCache(zoneName);
         if (cached) {
@@ -475,20 +517,16 @@ export class NpcManager {
         }
       }
       
-      // Requête MongoDB
       this.log('info', `🗄️  [MongoDB] Chargement zone ${zoneName}...`);
       
       const mongoNpcs = await NpcData.findByZone(zoneName);
       
-      // Conversion au format de ton système existant
       const npcsData: NpcData[] = mongoNpcs.map(mongoDoc => 
         this.convertMongoDocToNpcData(mongoDoc, zoneName)
       );
       
-      // Ajouter à ta collection existante
       this.addNpcsToCollection(npcsData, NpcDataSource.MONGODB);
       
-      // Mise en cache
       if (this.config.useMongoCache) {
         this.setCache(zoneName, npcsData);
       }
@@ -501,30 +539,26 @@ export class NpcManager {
     } catch (error) {
       this.log('error', `❌ [MongoDB] Erreur chargement zone ${zoneName}:`, error);
       
-      // Fallback vers JSON si activé
       if (this.config.enableFallback) {
         this.log('info', `🔄 [Fallback] Tentative chargement JSON pour ${zoneName}`);
-        this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+        this.loadNpcsFromJSON(zoneName);
       } else {
         throw error;
       }
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Conversion MongoDB vers ton format
   private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
     const npcFormat = mongoDoc.toNpcFormat();
     
     return {
-      // ✅ COMPATIBLE avec ton système existant
       id: npcFormat.id,
       name: npcFormat.name,
       sprite: npcFormat.sprite,
       x: npcFormat.position.x,
       y: npcFormat.position.y,
-      properties: {}, // Vide pour MongoDB, tout est structuré
+      properties: {},
       
-      // Propriétés étendues
       type: npcFormat.type,
       position: npcFormat.position,
       direction: npcFormat.direction,
@@ -539,39 +573,115 @@ export class NpcManager {
       questRequirements: npcFormat.questRequirements,
       questDialogueIds: npcFormat.questDialogueIds,
       
-      // Données spécialisées (fusionnées depuis npcData)
       ...mongoDoc.npcData,
       
-      // Métadonnées
       sourceType: 'mongodb',
       sourceFile: mongoDoc.sourceFile,
       lastLoaded: Date.now(),
       isActive: mongoDoc.isActive,
-      mongoDoc: mongoDoc // Référence pour updates
+      mongoDoc: mongoDoc
     };
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE : Ajouter NPCs à ta collection existante (sans Tiled)
   private addNpcsToCollection(npcsData: NpcData[], source: NpcDataSource): void {
     for (const npc of npcsData) {
-      // Éviter les doublons (même logique que ton code existant)
       const existingIndex = this.npcs.findIndex(existing => 
         existing.id === npc.id
       );
       
       if (existingIndex >= 0) {
-        this.npcs[existingIndex] = npc; // Remplacer
+        this.npcs[existingIndex] = npc;
       } else {
-        this.npcs.push(npc); // Ajouter
+        this.npcs.push(npc);
       }
       
-      // Mettre à jour les maps de sources (JSON + MongoDB seulement)
       this.npcSourceMap.set(npc.id, npc.sourceType as 'json' | 'mongodb');
       this.npcSourceMapExtended.set(npc.id, source);
     }
   }
 
-  // ✅ MÉTHODES DE CACHE (nouvelles)
+  // ✅ PING MONGODB INTELLIGENT (inchangé)
+  private async waitForMongoDBReady(maxRetries: number = 10): Promise<void> {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        this.log('info', `🏓 [MongoDB Ping] Tentative ${retries + 1}/${maxRetries}...`);
+        
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+          throw new Error('Mongoose pas encore connecté');
+        }
+        
+        await mongoose.connection.db.admin().ping();
+        
+        const dbName = mongoose.connection.db.databaseName;
+        this.log('info', `🗄️ [MongoDB Ping] Base de données: ${dbName}`);
+        
+        const rawCount = await mongoose.connection.db.collection('npc_data').countDocuments();
+        this.log('info', `📊 [MongoDB Ping] NPCs collection brute: ${rawCount}`);
+        
+        const testCount = await NpcData.countDocuments();
+        this.log('info', `📊 [MongoDB Ping] NPCs via modèle: ${testCount}`);
+        
+        if (rawCount !== testCount) {
+          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
+          
+          const rawSample = await mongoose.connection.db.collection('npc_data').findOne();
+          this.log('info', `📄 [MongoDB Ping] Exemple brut:`, rawSample ? {
+            _id: rawSample._id,
+            npcId: rawSample.npcId,
+            zone: rawSample.zone,
+            name: rawSample.name
+          } : 'Aucun');
+        }
+        
+        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} NPCs détectés via modèle`);
+        return;
+        
+      } catch (error) {
+        retries++;
+        const waitTime = Math.min(1000 * retries, 5000);
+        
+        this.log('warn', `⚠️ [MongoDB Ping] Échec ${retries}/${maxRetries}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retries >= maxRetries) {
+          throw new Error(`MongoDB non prêt après ${maxRetries} tentatives`);
+        }
+        
+        this.log('info', `⏳ [MongoDB Ping] Attente ${waitTime}ms avant retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  private async autoLoadFromMongoDB(): Promise<void> {
+    try {
+      this.log('info', '🗄️  [Auto-scan MongoDB] Vérification connectivité...');
+      
+      await this.waitForMongoDBReady();
+      
+      const zones = await NpcData.distinct('zone');
+      
+      this.log('info', `📋 [MongoDB] ${zones.length} zones trouvées: ${zones.join(', ')}`);
+      
+      for (const zoneName of zones) {
+        try {
+          await this.loadNpcsForZone(zoneName);
+        } catch (error) {
+          this.log('warn', `⚠️ Erreur zone MongoDB ${zoneName}:`, error);
+        }
+      }
+      
+      this.log('info', `🎉 [Auto-scan MongoDB] Terminé: ${this.npcs.length} NPCs chargés`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Auto-scan MongoDB] Erreur:', error);
+      throw error;
+    }
+  }
+
+  // ✅ MÉTHODES CACHE
   private getFromCache(zoneName: string): NpcData[] | null {
     const cached = this.mongoCache.get(zoneName);
     
@@ -588,13 +698,12 @@ export class NpcManager {
 
   private setCache(zoneName: string, data: NpcData[]): void {
     this.mongoCache.set(zoneName, {
-      data: [...data], // Copie pour éviter mutations
+      data: [...data],
       timestamp: Date.now()
     });
   }
 
-  // ===== MÉTHODE JSON EXISTANTE (INCHANGÉE) =====
-
+  // ✅ MÉTHODES JSON (inchangées)
   loadNpcsFromJSON(zoneName: string): void {
     try {
       const jsonPath = path.resolve(this.config.npcDataPath, `${zoneName}.json`);
@@ -619,7 +728,6 @@ export class NpcManager {
         npcCount: jsonData.npcs?.length || 0
       });
 
-      // Validation de base
       if (!jsonData.npcs || !Array.isArray(jsonData.npcs)) {
         this.log('warn', `⚠️ [JSON] Aucun NPC dans ${zoneName}.json`);
         return;
@@ -630,7 +738,6 @@ export class NpcManager {
 
       for (const npcJson of jsonData.npcs) {
         try {
-          // Validation stricte si activée
           if (this.config.strictValidation) {
             const validation = this.validateNpcJson(npcJson);
             if (!validation.valid) {
@@ -641,15 +748,12 @@ export class NpcManager {
             }
           }
 
-          // Conversion NpcJson -> NpcData unifié
           const npcData = this.convertJsonToNpcData(npcJson, zoneName, jsonPath);
           
-          // Vérification conflit d'ID
           const existingNpc = this.npcs.find(n => n.id === npcJson.id);
           if (existingNpc) {
             this.log('warn', `⚠️ [JSON] Conflit ID ${npcJson.id}: ${existingNpc.sourceType} vs JSON`);
             
-            // Remplacer si JSON est plus récent
             const index = this.npcs.findIndex(n => n.id === npcJson.id);
             this.npcs[index] = npcData;
             this.npcSourceMap.set(npcJson.id, 'json');
@@ -682,7 +786,42 @@ export class NpcManager {
     }
   }
 
-  // ✅ TES MÉTHODES PUBLIQUES EXISTANTES (INCHANGÉES - API COMPATIBLE)
+  private autoLoadFromFiles(): void {
+    const jsonZones = this.scanNpcJsonFiles();
+    
+    this.log('info', `🎯 [NpcManager] ${jsonZones.size} zones JSON détectées`);
+    
+    jsonZones.forEach(zoneName => {
+      try {
+        this.loadNpcsFromJSON(zoneName);
+      } catch (error) {
+        this.log('warn', `⚠️ Erreur zone JSON ${zoneName}:`, error);
+      }
+    });
+  }
+
+  private scanNpcJsonFiles(): Set<string> {
+    try {
+      const npcDir = path.resolve(this.config.npcDataPath);
+      if (!fs.existsSync(npcDir)) {
+        this.log('info', `📁 [NpcManager] Création dossier NPCs: ${npcDir}`);
+        fs.mkdirSync(npcDir, { recursive: true });
+        return new Set();
+      }
+      
+      const jsonFiles = fs.readdirSync(npcDir)
+        .filter((file: string) => file.endsWith('.json'))
+        .map((file: string) => file.replace('.json', ''));
+      
+      this.log('info', `📄 [NpcManager] ${jsonFiles.length} fichiers NPCs JSON trouvés`);
+      return new Set(jsonFiles);
+    } catch (error) {
+      this.log('error', `❌ Erreur scan NPCs JSON:`, error);
+      return new Set();
+    }
+  }
+
+  // ✅ MÉTHODES PUBLIQUES (inchangées)
   getAllNpcs(): NpcData[] {
     return this.npcs;
   }
@@ -691,23 +830,129 @@ export class NpcManager {
     return this.npcs.find(npc => npc.id === id);
   }
 
-  // ===== NOUVELLES MÉTHODES PUBLIQUES MongoDB =====
+  getNpcsByZone(zoneName: string): NpcData[] {
+    return this.npcs.filter(npc => {
+      if (npc.sourceType === 'json' && npc.sourceFile) {
+        return npc.sourceFile.includes(`${zoneName}.json`);
+      }
+      if (npc.sourceType === 'mongodb') {
+        return this.extractZoneFromNpc(npc) === zoneName;
+      }
+      return false;
+    });
+  }
 
-  /**
-   * ✅ NOUVEAU : Recharge une zone depuis MongoDB
-   */
+  // ✅ MÉTHODES UTILITAIRES (inchangées)
+  private convertJsonToNpcData(npcJson: AnyNpc, zoneName: string, sourceFile: string): NpcData {
+    const npcData: NpcData = {
+      id: npcJson.id,
+      name: npcJson.name,
+      sprite: npcJson.sprite,
+      x: npcJson.position.x,
+      y: npcJson.position.y,
+      properties: {},
+      
+      type: npcJson.type,
+      position: npcJson.position,
+      direction: npcJson.direction,
+      interactionRadius: npcJson.interactionRadius,
+      canWalkAway: npcJson.canWalkAway,
+      autoFacePlayer: npcJson.autoFacePlayer,
+      repeatable: npcJson.repeatable,
+      cooldownSeconds: npcJson.cooldownSeconds,
+      
+      spawnConditions: npcJson.spawnConditions,
+      
+      questsToGive: npcJson.questsToGive,
+      questsToEnd: npcJson.questsToEnd,
+      questRequirements: npcJson.questRequirements,
+      questDialogueIds: npcJson.questDialogueIds,
+      
+      ...(npcJson.type === 'dialogue' && {
+        dialogueIds: (npcJson as any).dialogueIds,
+        dialogueId: (npcJson as any).dialogueId,
+        conditionalDialogueIds: (npcJson as any).conditionalDialogueIds
+      }),
+      
+      ...(npcJson.type === 'merchant' && {
+        shopId: (npcJson as any).shopId,
+        shopType: (npcJson as any).shopType,
+        shopDialogueIds: (npcJson as any).shopDialogueIds,
+        shopConfig: (npcJson as any).shopConfig
+      }),
+      
+      ...(npcJson.type === 'trainer' && {
+        trainerId: (npcJson as any).trainerId,
+        trainerClass: (npcJson as any).trainerClass,
+        battleConfig: (npcJson as any).battleConfig,
+        battleDialogueIds: (npcJson as any).battleDialogueIds
+      }),
+      
+      sourceType: 'json',
+      sourceFile,
+      lastLoaded: Date.now()
+    };
+
+    return npcData;
+  }
+
+  private extractZoneFromNpc(npc: NpcData): string {
+    if (npc.sourceFile) {
+      const match = npc.sourceFile.match(/([^\/\\]+)\.json$/);
+      return match ? match[1] : 'unknown';
+    }
+    return 'unknown';
+  }
+
+  private validateNpcJson(npcJson: any): NpcValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!npcJson.id || typeof npcJson.id !== 'number') {
+      errors.push(`ID manquant ou invalide: ${npcJson.id}`);
+    }
+    
+    if (!npcJson.name || typeof npcJson.name !== 'string') {
+      errors.push(`Nom manquant ou invalide: ${npcJson.name}`);
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined
+    };
+  }
+
+  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+    if (!this.config.debugMode && level === 'info') return;
+    
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}`;
+    
+    switch (level) {
+      case 'info':
+        console.log(logMessage, data || '');
+        break;
+      case 'warn':
+        console.warn(logMessage, data || '');
+        break;
+      case 'error':
+        console.error(logMessage, data || '');
+        break;
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES PUBLIQUES MongoDB
   async reloadZoneFromMongoDB(zoneName: string): Promise<boolean> {
     try {
       this.log('info', `🔄 [Reload] Rechargement zone ${zoneName} depuis MongoDB`);
       
-      // Nettoyer cache et NPCs existants de cette zone
       this.mongoCache.delete(zoneName);
       this.npcs = this.npcs.filter(npc => 
         !(npc.sourceType === 'mongodb' && this.extractZoneFromNpc(npc) === zoneName)
       );
       this.loadedZones.delete(zoneName);
       
-      // Recharger
       await this.loadNpcsFromMongoDB(zoneName);
       
       this.log('info', `✅ [Reload] Zone ${zoneName} rechargée`);
@@ -719,9 +964,6 @@ export class NpcManager {
     }
   }
 
-  /**
-   * ✅ NOUVEAU : Synchroniser modifications vers MongoDB
-   */
   async syncNpcsToMongoDB(zoneName?: string): Promise<{ success: number; errors: string[] }> {
     const results: { success: number; errors: string[] } = { success: 0, errors: [] };
     
@@ -736,18 +978,15 @@ export class NpcManager {
         try {
           const zone = this.extractZoneFromNpc(npc);
           
-          // Chercher ou créer en MongoDB
           let mongoDoc = await NpcData.findOne({ 
             zone,
             npcId: npc.id 
           });
           
           if (mongoDoc) {
-            // Mettre à jour
             await mongoDoc.updateFromJson(this.convertNpcDataToJson(npc));
             results.success++;
           } else {
-            // Créer nouveau
             mongoDoc = await (NpcData as any).createFromJson(
               this.convertNpcDataToJson(npc), 
               zone
@@ -772,97 +1011,6 @@ export class NpcManager {
     return results;
   }
 
-  // ✅ NOUVEAU : Nettoyage complet avec Hot Reload
-  public cleanup(): void {
-    this.log('info', '🧹 [NpcManager] Nettoyage...');
-    
-    // Arrêter le Hot Reload
-    this.stopHotReload();
-    
-    // Nettoyer les callbacks
-    this.reloadCallbacks = [];
-    
-    // Nettoyer les caches
-    this.mongoCache.clear();
-    this.npcSourceMap.clear();
-    this.npcSourceMapExtended.clear();
-    this.validationErrors.clear();
-    
-    this.log('info', '✅ [NpcManager] Nettoyage terminé');
-  }
-
-  // ===== TES MÉTHODES UTILITAIRES EXISTANTES (adaptées) =====
-
-  private convertJsonToNpcData(npcJson: AnyNpc, zoneName: string, sourceFile: string): NpcData {
-    const npcData: NpcData = {
-      // === PROPRIÉTÉS DE BASE (mappées) ===
-      id: npcJson.id,
-      name: npcJson.name,
-      sprite: npcJson.sprite,
-      x: npcJson.position.x,
-      y: npcJson.position.y,
-      properties: {}, // Vide pour JSON, tout est structuré
-      
-      // === PROPRIÉTÉS JSON STRUCTURÉES ===
-      type: npcJson.type,
-      position: npcJson.position,
-      direction: npcJson.direction,
-      interactionRadius: npcJson.interactionRadius,
-      canWalkAway: npcJson.canWalkAway,
-      autoFacePlayer: npcJson.autoFacePlayer,
-      repeatable: npcJson.repeatable,
-      cooldownSeconds: npcJson.cooldownSeconds,
-      
-      // Conditions d'apparition
-      spawnConditions: npcJson.spawnConditions,
-      
-      // Système quêtes flexible
-      questsToGive: npcJson.questsToGive,
-      questsToEnd: npcJson.questsToEnd,
-      questRequirements: npcJson.questRequirements,
-      questDialogueIds: npcJson.questDialogueIds,
-      
-      // === PROPRIÉTÉS SPÉCIALISÉES PAR TYPE ===
-      ...(npcJson.type === 'dialogue' && {
-        dialogueIds: (npcJson as any).dialogueIds,
-        dialogueId: (npcJson as any).dialogueId,
-        conditionalDialogueIds: (npcJson as any).conditionalDialogueIds
-      }),
-      
-      ...(npcJson.type === 'merchant' && {
-        shopId: (npcJson as any).shopId,
-        shopType: (npcJson as any).shopType,
-        shopDialogueIds: (npcJson as any).shopDialogueIds,
-        shopConfig: (npcJson as any).shopConfig
-      }),
-      
-      ...(npcJson.type === 'trainer' && {
-        trainerId: (npcJson as any).trainerId,
-        trainerClass: (npcJson as any).trainerClass,
-        battleConfig: (npcJson as any).battleConfig,
-        battleDialogueIds: (npcJson as any).battleDialogueIds
-      }),
-      
-      // ... autres types
-      
-      // === MÉTADONNÉES SOURCE ===
-      sourceType: 'json',
-      sourceFile,
-      lastLoaded: Date.now()
-    };
-
-    return npcData;
-  }
-
-  // ✅ MÉTHODES UTILITAIRES pour MongoDB
-  private extractZoneFromNpc(npc: NpcData): string {
-    if (npc.sourceFile) {
-      const match = npc.sourceFile.match(/([^\/\\]+)\.json$/); // ✅ Seulement JSON
-      return match ? match[1] : 'unknown';
-    }
-    return 'unknown';
-  }
-
   private convertNpcDataToJson(npc: NpcData): any {
     return {
       id: npc.id,
@@ -882,164 +1030,38 @@ export class NpcManager {
       questRequirements: npc.questRequirements,
       questDialogueIds: npc.questDialogueIds,
       
-      // Propriétés spécialisées
       ...(npc.shopId && { shopId: npc.shopId }),
       ...(npc.shopType && { shopType: npc.shopType }),
       ...(npc.shopDialogueIds && { shopDialogueIds: npc.shopDialogueIds }),
       ...(npc.trainerId && { trainerId: npc.trainerId }),
-      // ... autres propriétés selon le type
     };
   }
 
-  // ===== TES AUTRES MÉTHODES EXISTANTES (toutes inchangées) =====
-  
-  // Auto-chargement de toutes les zones (Tiled + JSON)
-  private autoLoadAllZones(): void {
-    this.log('info', `📂 [NpcManager] Auto-scan avec source: ${this.config.primaryDataSource}...`);
+  public cleanup(): void {
+    this.log('info', '🧹 [NpcManager] Nettoyage...');
     
-    if (this.config.primaryDataSource === NpcDataSource.MONGODB || 
-        this.config.primaryDataSource === NpcDataSource.HYBRID) {
-      // MongoDB en mode asynchrone
-      this.autoLoadFromMongoDB().catch(error => {
-        this.log('error', 'Erreur auto-scan MongoDB:', error);
-        if (this.config.enableFallback) {
-          this.log('info', 'Fallback vers scan JSON/Tiled');
-          this.autoLoadFromFiles();
-        }
-      });
-    } else {
-      // Scan des fichiers JSON/Tiled (ton code existant)
-      this.autoLoadFromFiles();
-    }
+    this.stopHotReload();
+    this.reloadCallbacks = [];
+    this.mongoCache.clear();
+    this.npcSourceMap.clear();
+    this.npcSourceMapExtended.clear();
+    this.validationErrors.clear();
+    
+    // Reset flags d'état
+    this.isInitialized = false;
+    this.isInitializing = false;
+    this.initializationPromise = null;
+    
+    this.log('info', '✅ [NpcManager] Nettoyage terminé');
   }
 
-  // ✅ NOUVELLE MÉTHODE : Ping intelligent MongoDB
-  private async waitForMongoDBReady(maxRetries: number = 10): Promise<void> {
-    let retries = 0;
-    
-    while (retries < maxRetries) {
-      try {
-        this.log('info', `🏓 [MongoDB Ping] Tentative ${retries + 1}/${maxRetries}...`);
-        
-        // Test 1: Vérifier que mongoose est connecté
-        const mongoose = require('mongoose');
-        if (mongoose.connection.readyState !== 1) {
-          throw new Error('Mongoose pas encore connecté');
-        }
-        
-        // Test 2: Ping basique de la DB
-        await mongoose.connection.db.admin().ping();
-        
-        // ✅ DIAGNOSTIC AVANCÉ : Vérifier quelle DB on utilise
-        const dbName = mongoose.connection.db.databaseName;
-        this.log('info', `🗄️ [MongoDB Ping] Base de données: ${dbName}`);
-        
-        // Test 3: Compter dans collection brute
-        const rawCount = await mongoose.connection.db.collection('npc_data').countDocuments();
-        this.log('info', `📊 [MongoDB Ping] NPCs collection brute: ${rawCount}`);
-        
-        // Test 4: Test spécifique NpcData (le plus important!)
-        const testCount = await NpcData.countDocuments();
-        this.log('info', `📊 [MongoDB Ping] NPCs via modèle: ${testCount}`);
-        
-        // Test 5: Si différence, diagnostiquer pourquoi
-        if (rawCount !== testCount) {
-          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
-          
-          // Essayer de voir un exemple
-          const rawSample = await mongoose.connection.db.collection('npc_data').findOne();
-          this.log('info', `📄 [MongoDB Ping] Exemple brut:`, rawSample ? {
-            _id: rawSample._id,
-            npcId: rawSample.npcId,
-            zone: rawSample.zone,
-            name: rawSample.name
-          } : 'Aucun');
-        }
-        
-        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} NPCs détectés via modèle`);
-        return; // Tout fonctionne !
-        
-      } catch (error) {
-        retries++;
-        const waitTime = Math.min(1000 * retries, 5000); // Backoff progressif, max 5s
-        
-        this.log('warn', `⚠️ [MongoDB Ping] Échec ${retries}/${maxRetries}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-        
-        if (retries >= maxRetries) {
-          throw new Error(`MongoDB non prêt après ${maxRetries} tentatives`);
-        }
-        
-        this.log('info', `⏳ [MongoDB Ping] Attente ${waitTime}ms avant retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      }
-    }
-  }
-
-  // ✅ NOUVEAU : Auto-scan MongoDB avec ping intelligent avec ping intelligent
-  private async autoLoadFromMongoDB(): Promise<void> {
-    try {
-      this.log('info', '🗄️  [Auto-scan MongoDB] Vérification connectivité...');
-      
-      // ✅ PING MONGODB INTELLIGENT
-      await this.waitForMongoDBReady();
-      
-      // Récupérer toutes les zones distinctes
-      const zones = await NpcData.distinct('zone');
-      
-      this.log('info', `📋 [MongoDB] ${zones.length} zones trouvées: ${zones.join(', ')}`);
-      
-      // Charger chaque zone
-      for (const zoneName of zones) {
-        try {
-          await this.loadNpcsForZone(zoneName);
-        } catch (error) {
-          this.log('warn', `⚠️ Erreur zone MongoDB ${zoneName}:`, error);
-        }
-      }
-      
-      this.log('info', `🎉 [Auto-scan MongoDB] Terminé: ${this.npcs.length} NPCs chargés`);
-      
-    } catch (error) {
-      this.log('error', '❌ [Auto-scan MongoDB] Erreur:', error);
-      throw error;
-    }
-  }
-
-  // Auto-scan des fichiers JSON seulement (simplifié)
-  private autoLoadFromFiles(): void {
-    const jsonZones = this.scanNpcJsonFiles();
-    
-    this.log('info', `🎯 [NpcManager] ${jsonZones.size} zones JSON détectées`);
-    
-    jsonZones.forEach(zoneName => {
-      try {
-        this.loadNpcsFromJSON(zoneName);
-      } catch (error) {
-        this.log('warn', `⚠️ Erreur zone JSON ${zoneName}:`, error);
-      }
-    });
-  }
-
-  // ===== MÉTHODES PUBLIQUES SIMPLIFIÉES (JSON + MongoDB seulement) =====
-  
+  // ✅ AUTRES MÉTHODES PUBLIQUES (inchangées)
   getNpcsByType(type: NpcType): NpcData[] {
     return this.npcs.filter(npc => npc.type === type);
   }
   
   getNpcsBySource(source: 'json' | 'mongodb'): NpcData[] {
     return this.npcs.filter(npc => npc.sourceType === source);
-  }
-
-  getNpcsByZone(zoneName: string): NpcData[] {
-    return this.npcs.filter(npc => {
-      if (npc.sourceType === 'json' && npc.sourceFile) {
-        return npc.sourceFile.includes(`${zoneName}.json`);
-      }
-      if (npc.sourceType === 'mongodb') {
-        return this.extractZoneFromNpc(npc) === zoneName;
-      }
-      return false;
-    });
   }
   
   getNpcsInRadius(centerX: number, centerY: number, radius: number): NpcData[] {
@@ -1068,8 +1090,6 @@ export class NpcManager {
     return Array.from(this.loadedZones);
   }
   
-  // ✅ STATS SIMPLIFIÉES (JSON + MongoDB seulement)
-  
   getSystemStats() {
     const mongoCount = Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length;
     const jsonCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length;
@@ -1083,6 +1103,8 @@ export class NpcManager {
     
     return {
       totalNpcs: this.npcs.length,
+      initialized: this.isInitialized,
+      initializing: this.isInitializing,
       sources: {
         json: jsonCount,
         mongodb: mongoCount
@@ -1098,13 +1120,13 @@ export class NpcManager {
       cache: {
         size: this.mongoCache.size,
         ttl: this.config.cacheTTL
-      }
+      },
+      hotReload: this.getHotReloadStatus()
     };
   }
 
-  // ✅ DEBUG SIMPLIFIÉ (JSON + MongoDB seulement)
   debugSystem(): void {
-    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs SIMPLIFIÉ ===`);
+    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs AVEC HOT RELOAD ===`);
     
     const stats = this.getSystemStats();
     console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
@@ -1121,76 +1143,21 @@ export class NpcManager {
       }
     }
 
-    // ✅ INFOS DEBUG MongoDB
     console.log(`\n💾 État du cache MongoDB:`);
     console.log(`  - Taille: ${this.mongoCache.size}`);
     console.log(`  - TTL: ${this.config.cacheTTL / 1000}s`);
+    
+    console.log(`\n🔥 État Hot Reload:`);
+    const hotReloadStatus = this.getHotReloadStatus();
+    console.log(`  - Activé: ${hotReloadStatus.enabled}`);
+    console.log(`  - Actif: ${hotReloadStatus.active}`);
+    console.log(`  - Callbacks: ${hotReloadStatus.callbackCount}`);
     
     console.log(`\n⚙️  Configuration:`);
     console.log(`  - Source primaire: ${this.config.primaryDataSource}`);
     console.log(`  - Fallback activé: ${this.config.enableFallback}`);
     console.log(`  - Cache MongoDB: ${this.config.useMongoCache}`);
-  }
-
-  // ===== TES MÉTHODES PRIVÉES EXISTANTES (toutes inchangées) =====
-
-  private validateNpcJson(npcJson: any): NpcValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Validation des champs obligatoires
-    if (!npcJson.id || typeof npcJson.id !== 'number') {
-      errors.push(`ID manquant ou invalide: ${npcJson.id}`);
-    }
-    
-    if (!npcJson.name || typeof npcJson.name !== 'string') {
-      errors.push(`Nom manquant ou invalide: ${npcJson.name}`);
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined,
-      warnings: warnings.length > 0 ? warnings : undefined
-    };
-  }
-
-  private scanNpcJsonFiles(): Set<string> {
-    try {
-      const npcDir = path.resolve(this.config.npcDataPath);
-      if (!fs.existsSync(npcDir)) {
-        this.log('info', `📁 [NpcManager] Création dossier NPCs: ${npcDir}`);
-        fs.mkdirSync(npcDir, { recursive: true });
-        return new Set();
-      }
-      
-      const jsonFiles = fs.readdirSync(npcDir)
-        .filter((file: string) => file.endsWith('.json'))
-        .map((file: string) => file.replace('.json', ''));
-      
-      this.log('info', `📄 [NpcManager] ${jsonFiles.length} fichiers NPCs JSON trouvés`);
-      return new Set(jsonFiles);
-    } catch (error) {
-      this.log('error', `❌ Erreur scan NPCs JSON:`, error);
-      return new Set();
-    }
-  }
-
-  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
-    if (!this.config.debugMode && level === 'info') return;
-    
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${message}`;
-    
-    switch (level) {
-      case 'info':
-        console.log(logMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(logMessage, data || '');
-        break;
-      case 'error':
-        console.error(logMessage, data || '');
-        break;
-    }
+    console.log(`  - Initialisé: ${this.isInitialized}`);
+    console.log(`  - En cours d'initialisation: ${this.isInitializing}`);
   }
 }
