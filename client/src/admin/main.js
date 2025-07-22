@@ -13,6 +13,7 @@ import { QuestsModule } from './js/quests.js'
 import { LogsToolsModule } from './js/logs-tools.js'
 import { QuestGeneratorModule } from './js/quest-generator.js'
 import { MapEditorModule } from './js/map-editor.js' // ← NOUVEAU MODULE
+import { NPCEditorModule } from './js/npc-editor.js'
 
 // Global admin panel instance
 let adminPanel
@@ -33,7 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             QuestsModule,
             LogsToolsModule,
             QuestGeneratorModule,
-            MapEditorModule // ← AJOUT du nouveau module
+            MapEditorModule,
+            NPCEditorModule// ← AJOUT du nouveau module
         ])
         
         // Export for global access AFTER initialization
@@ -109,7 +111,30 @@ function setupGlobalFunctions() {
         }
         adminPanel.playersAdvanced.openAdvancedView(username)
     }
+// NPCs Editor functions
+window.selectZone = (zoneId) => {
+    if (!adminPanel?.npcEditor) {
+        console.error('NPCEditor module not loaded')
+        return
+    }
+    adminPanel.npcEditor.selectZone(zoneId)
+}
 
+window.createNewNPC = () => {
+    if (!adminPanel?.npcEditor) {
+        console.error('NPCEditor module not loaded')
+        return
+    }
+    adminPanel.npcEditor.createNewNPC()
+}
+
+window.saveAllNPCs = () => {
+    if (!adminPanel?.npcEditor) {
+        console.error('NPCEditor module not loaded')
+        return
+    }
+    adminPanel.npcEditor.saveAllNPCs()
+}
     // Quest Generator functions
     window.generateRandomQuest = () => {
         if (!adminPanel?.questGenerator) {
