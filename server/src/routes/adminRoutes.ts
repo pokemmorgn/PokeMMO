@@ -9,15 +9,16 @@ import { PokedexStats } from '../models/PokedexStats';
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { Router } from 'express'
-import { MongoClient, ObjectId } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'  // ← GARDER CETTE LIGNE
 
 const router = express.Router();
 const execAsync = promisify(exec);
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-const client = new MongoClient(MONGODB_URI)
 
-// Interfaces TypeScript
+// AJOUTER APRÈS const execAsync = promisify(exec);
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017'
+const mongoClient = new MongoClient(MONGODB_URI)
+
+// Interfaces MongoDB
 interface MongoQueryRequest {
     database: string
     collection: string
@@ -56,17 +57,16 @@ interface DatabaseStats {
     totalSize: number
 }
 
-// Middleware de connexion MongoDB
+// Fonction de connexion MongoDB
 async function connectMongo() {
     try {
-        await client.connect()
-        return client
+        await mongoClient.connect()
+        return mongoClient
     } catch (error) {
         console.error('❌ [MongoDB] Erreur de connexion:', error)
         throw error
     }
 }
-
 // ✅ FONCTION pour récupérer l'adresse MAC du serveur
 async function getServerMacAddress(): Promise<string[]> {
   try {
