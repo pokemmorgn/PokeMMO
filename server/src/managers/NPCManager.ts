@@ -149,7 +149,8 @@ export class NpcManager {
   // ✅ CONFIGURATION ÉTENDUE
   private config: NpcManagerConfig = {
     // Nouveaux paramètres
-    primaryDataSource: (process.env.NPC_DATA_SOURCE as NpcDataSource) || NpcDataSource.JSON, // Par défaut JSON (pas de breaking change)
+    // primaryDataSource: (process.env.NPC_DATA_SOURCE as NpcDataSource) || NpcDataSource.JSON, // Par défaut JSON (pas de breaking change)
+    primaryDataSource: NpcDataSource.MONGODB,
     useMongoCache: process.env.NPC_USE_CACHE !== 'false',
     cacheTTL: parseInt(process.env.NPC_CACHE_TTL || '1800000'), // 30 minutes
     enableFallback: process.env.NPC_FALLBACK !== 'false',
