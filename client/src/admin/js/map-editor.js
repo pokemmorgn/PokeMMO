@@ -4,6 +4,7 @@ export class MapEditorModule {
     constructor(adminPanel) {
         this.adminPanel = adminPanel
         this.name = 'mapEditor'
+        this.npcEditButtons = [] // NOUVELLE LIGNE
         this.currentMapData = null
         this.availableMaps = []
         this.placedObjects = []
@@ -226,6 +227,17 @@ export class MapEditorModule {
         
         const x = (event.clientX - rect.left)
         const y = (event.clientY - rect.top)
+
+            // NOUVEAU : Vérifier les clics sur boutons NPC
+    if (this.npcEditButtons) {
+        for (const button of this.npcEditButtons) {
+            if (x >= button.x && x <= button.x + button.width &&
+                y >= button.y && y <= button.y + button.height) {
+                this.openNPCEditor(button.npc)
+                return
+            }
+        }
+    }
         
         const tileX = Math.floor(x / tileWidth)
         const tileY = Math.floor(y / tileHeight)
@@ -523,6 +535,7 @@ export class MapEditorModule {
     }
 
     drawPlacedObjects(ctx, tileWidth, tileHeight) {
+        this.npcEditButtons = []
         this.placedObjects.forEach(obj => {
             const x = obj.x * tileWidth
             const y = obj.y * tileHeight
@@ -572,9 +585,88 @@ export class MapEditorModule {
                 ctx.fillStyle = '#ffff00'
                 ctx.fillRect(x + tileWidth - 6, y + 2, 4, 4)
             }
+            if (obj.type === 'npc') {
+            this.drawNPCEditButton(ctx, x, y, tileWidth, tileHeight, obj)
+            }
         })
     }
 
+    // NOUVELLE MÉTHODE 1
+drawNPCEditButton(ctx, x, y, tileWidth, tileHeight, obj) {
+    const buttonSize = Math.min(tileWidth * 0.25, 16)
+    const buttonX = x + tileWidth - buttonSize - 3
+    const buttonY = y + 3
+    
+    // Fond du bouton
+    ctx.fillStyle = 'rgba(0, 123, 255, 0.9)'
+    ctx.fillRect(buttonX, buttonY, buttonSize, buttonSize)
+    
+    // Bordure
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 1
+    ctx.strokeRect(buttonX, buttonY, buttonSize, buttonSize)
+    
+    // Icône
+    ctx.fillStyle = 'white'
+    ctx.font = `${Math.max(8, buttonSize * 0.7)}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('✏', buttonX + buttonSize/2, buttonY + buttonSize/2)
+    
+    // Stocker pour gestion des clics
+    this.npcEditButtons.push({
+        x: buttonX,
+        y: buttonY,
+        width: buttonSize,
+        height: buttonSize,
+        npc: obj
+    })
+}
+
+// NOUVELLE MÉTHODE 2
+openNPCEditor(npcObj) {
+    console.log('🎯 [MapEditor] Opening NPC Editor for:', npcObj)
+    
+    if (!this.adminPanel.npcEditor) {
+        this.adminPanel.showNotification('Module NPC Editor non disponible', 'error')
+        return
+    }
+    
+    // Changer d'onglet
+    const npcTab = document.querySelector('[data-tab="npcs"]')
+    if (npcTab) {
+        npcTab.click()
+        
+        setTimeout(() => {
+            const currentMap = document.getElementById('mapSelect')?.value
+            if (currentMap) {
+                this.adminPanel.npcEditor.selectZone(currentMap)
+                setTimeout(() => this.findAndEditNPC(npcObj), 500)
+            }
+        }, 200)
+    }
+}
+
+// NOUVELLE MÉTHODE 3
+findAndEditNPC(npcObj) {
+    const npcs = this.adminPanel.npcEditor.getCurrentNPCs()
+    const targetX = npcObj.x * this.currentMapData.tilewidth
+    const targetY = npcObj.y * this.currentMapData.tileheight
+    
+    const foundNPC = npcs.find(npc => 
+        Math.abs(npc.position.x - targetX) < 50 &&
+        Math.abs(npc.position.y - targetY) < 50
+    )
+    
+    if (foundNPC) {
+        const npcIndex = npcs.indexOf(foundNPC)
+        this.adminPanel.npcEditor.selectNPC(npcIndex)
+        this.adminPanel.showNotification(`NPC "${foundNPC.name}" ouvert`, 'success')
+    } else {
+        this.adminPanel.showNotification('NPC non trouvé', 'warning')
+    }
+}
+    
     // ==============================
     // MÉTHODES HÉRITÉES INCHANGÉES
     // ==============================
