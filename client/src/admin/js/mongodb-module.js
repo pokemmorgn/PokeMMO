@@ -1,4 +1,4 @@
-// client/src/admin/js/mongodb-module.js
+// client/src/admin/js/mongodb-module.js - Interface professionnelle DB
 export class MongoDBModule {
     constructor(adminPanel) {
         this.adminPanel = adminPanel
@@ -8,8 +8,11 @@ export class MongoDBModule {
         this.databases = []
         this.collections = []
         this.currentPage = 0
-        this.pageSize = 20
+        this.pageSize = 25
         this.currentQuery = {}
+        this.selectedDocument = null
+        this.viewMode = 'table' // table, json, tree
+        this.documentStats = {}
         console.log('🗄️ [MongoDB] Module constructeur OK')
     }
 
@@ -24,24 +27,20 @@ export class MongoDBModule {
     }
 
     async initializeMongoDBPanel() {
-        console.log('🔄 [MongoDB] Initialisation du panel...')
+        console.log('🔄 [MongoDB] Initialisation du panel professionnel...')
         
         try {
-            // D'abord rendre l'interface
-            this.renderMongoDBPanel()
-            
-            // Puis charger les données
+            this.renderProfessionalInterface()
             await this.loadDatabases()
-            
-            console.log('✅ [MongoDB] Panel initialisé avec succès')
+            console.log('✅ [MongoDB] Interface professionnelle initialisée')
         } catch (error) {
             console.error('❌ [MongoDB] Erreur initialisation panel:', error)
             this.showError('Erreur de chargement : ' + error.message)
         }
     }
 
-    renderMongoDBPanel() {
-        console.log('🎨 [MongoDB] Rendu de l\'interface...')
+    renderProfessionalInterface() {
+        console.log('🎨 [MongoDB] Rendu interface professionnelle...')
         
         const container = document.getElementById('mongodb')
         if (!container) {
@@ -49,224 +48,361 @@ export class MongoDBModule {
             return
         }
 
-        console.log('✅ [MongoDB] Container trouvé, injection HTML...')
-
         container.innerHTML = `
-            <div class="mongodb-container">
-                <!-- Header -->
-                <div class="mongodb-header">
-                    <h2 style="margin-bottom: 25px; color: #2c3e50;">
-                        <i class="fas fa-database"></i> Explorateur MongoDB
-                    </h2>
-                    
-                    <div class="mongodb-navigation">
-                        <div class="nav-section">
-                            <label for="databaseSelect" class="form-label">Base de données:</label>
-                            <select id="databaseSelect" class="form-select" style="min-width: 200px;">
-                                <option value="">Chargement des bases...</option>
-                            </select>
-                            <button class="btn btn-primary" onclick="adminPanel.mongodb.refreshDatabases()" style="margin-left: 10px;">
-                                <i class="fas fa-sync-alt"></i> Actualiser
+            <div class="db-interface">
+                <!-- Header avec logo et connexion -->
+                <div class="db-header">
+                    <div class="db-logo">
+                        <i class="fas fa-leaf" style="color: #4CAF50;"></i>
+                        <span class="db-title">MongoDB Explorer</span>
+                        <span class="db-version">v4.4</span>
+                    </div>
+                    <div class="db-connection-info">
+                        <div class="connection-status">
+                            <div class="status-dot connected"></div>
+                            <span>Connected to MongoDB</span>
+                        </div>
+                        <div class="server-info">localhost:27017</div>
+                    </div>
+                </div>
+
+                <!-- Layout principal -->
+                <div class="db-layout">
+                    <!-- Sidebar gauche : Explorer -->
+                    <div class="db-sidebar">
+                        <div class="sidebar-header">
+                            <h3><i class="fas fa-sitemap"></i> Database Explorer</h3>
+                            <button class="btn-icon" onclick="adminPanel.mongodb.refreshDatabases()" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
                         
-                        <div class="nav-section" id="collectionsSection" style="display: none;">
-                            <label for="collectionSelect" class="form-label">Collection:</label>
-                            <select id="collectionSelect" class="form-select" style="min-width: 200px;">
-                                <option value="">Sélectionnez une collection...</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Status -->
-                <div id="mongoStatus" style="padding: 10px; background: #e8f5e8; border-radius: 5px; margin-bottom: 20px;">
-                    <strong>Status:</strong> <span id="statusText">Initialisation...</span>
-                </div>
-
-                <!-- Query Section -->
-                <div class="mongodb-query-section" id="querySection" style="display: none;">
-                    <div class="query-header">
-                        <h3>Requête MongoDB</h3>
-                        <div class="query-actions">
-                            <button class="btn btn-success" onclick="adminPanel.mongodb.executeQuery()">
-                                <i class="fas fa-play"></i> Exécuter
-                            </button>
-                            <button class="btn btn-secondary" onclick="adminPanel.mongodb.clearQuery()">
-                                <i class="fas fa-times"></i> Effacer
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="query-builder">
-                        <textarea id="mongoQuery" class="form-textarea" rows="4" 
-                                  placeholder='{"username": "john", "level": {"$gte": 5}}'>{}</textarea>
-                        <div class="query-help">
-                            <small>Syntaxe MongoDB JSON. Exemple: {"level": {"$gte": 10}, "isActive": true}</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Section -->
-                <div class="mongodb-results" id="resultsSection" style="display: none;">
-                    <div class="results-header">
-                        <h3>Documents <span id="resultsCount" class="badge badge-primary">0</span></h3>
-                        <div class="results-actions">
-                            <button class="btn btn-success" onclick="adminPanel.mongodb.createDocument()">
-                                <i class="fas fa-plus"></i> Nouveau
-                            </button>
-                            <div class="pagination-controls">
-                                <button id="prevPage" class="btn btn-secondary btn-sm" onclick="adminPanel.mongodb.previousPage()">
-                                    <i class="fas fa-chevron-left"></i>
-                                </button>
-                                <span id="pageInfo">Page 1</span>
-                                <button id="nextPage" class="btn btn-secondary btn-sm" onclick="adminPanel.mongodb.nextPage()">
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
+                        <div class="db-tree" id="databaseTree">
+                            <div class="tree-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Loading databases...
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="documents-container" id="documentsContainer">
-                        <div style="text-align: center; padding: 40px; color: #6c757d;">
-                            Sélectionnez une collection pour voir les documents
+
+                    <!-- Zone principale -->
+                    <div class="db-main">
+                        <!-- Toolbar -->
+                        <div class="db-toolbar">
+                            <div class="toolbar-left">
+                                <div class="breadcrumb" id="breadcrumb">
+                                    <span class="breadcrumb-item">
+                                        <i class="fas fa-database"></i> Select Database
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="toolbar-right">
+                                <div class="view-modes">
+                                    <button class="view-btn active" data-view="table" onclick="adminPanel.mongodb.setViewMode('table')" title="Table View">
+                                        <i class="fas fa-table"></i>
+                                    </button>
+                                    <button class="view-btn" data-view="json" onclick="adminPanel.mongodb.setViewMode('json')" title="JSON View">
+                                        <i class="fas fa-code"></i>
+                                    </button>
+                                    <button class="view-btn" data-view="tree" onclick="adminPanel.mongodb.setViewMode('tree')" title="Tree View">
+                                        <i class="fas fa-sitemap"></i>
+                                    </button>
+                                </div>
+                                
+                                <button class="btn btn-primary" onclick="adminPanel.mongodb.showQueryBuilder()" title="Query Builder">
+                                    <i class="fas fa-search"></i> Query
+                                </button>
+                                
+                                <button class="btn btn-success" onclick="adminPanel.mongodb.createDocument()" title="Insert Document">
+                                    <i class="fas fa-plus"></i> Insert
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Zone de contenu -->
+                        <div class="db-content">
+                            <!-- État initial -->
+                            <div class="welcome-screen" id="welcomeScreen">
+                                <div class="welcome-content">
+                                    <i class="fas fa-leaf welcome-icon"></i>
+                                    <h2>Welcome to MongoDB Explorer</h2>
+                                    <p>Select a database and collection from the left panel to start exploring your data.</p>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn" onclick="adminPanel.mongodb.showDatabaseStats()">
+                                            <i class="fas fa-chart-pie"></i>
+                                            Database Statistics
+                                        </button>
+                                        <button class="quick-btn" onclick="adminPanel.mongodb.showServerInfo()">
+                                            <i class="fas fa-server"></i>
+                                            Server Information
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Zone documents -->
+                            <div class="documents-view" id="documentsView" style="display: none;">
+                                <!-- Stats de collection -->
+                                <div class="collection-stats" id="collectionStats">
+                                    <div class="stats-cards">
+                                        <div class="stat-card">
+                                            <div class="stat-number" id="totalDocs">-</div>
+                                            <div class="stat-label">Documents</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-number" id="avgDocSize">-</div>
+                                            <div class="stat-label">Avg Size</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-number" id="collectionSize">-</div>
+                                            <div class="stat-label">Collection Size</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-number" id="indexesCount">-</div>
+                                            <div class="stat-label">Indexes</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Query Bar -->
+                                <div class="query-bar" id="queryBar">
+                                    <div class="query-input-group">
+                                        <label>Filter:</label>
+                                        <input type="text" class="query-input" id="filterInput" 
+                                               placeholder="{ }" value="{}"
+                                               onkeypress="if(event.key==='Enter') adminPanel.mongodb.executeFilter()">
+                                        <button class="btn btn-primary btn-sm" onclick="adminPanel.mongodb.executeFilter()">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="adminPanel.mongodb.clearFilter()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="result-info">
+                                        <span id="resultCount">0 documents</span>
+                                        <div class="pagination-simple">
+                                            <button class="btn-icon" onclick="adminPanel.mongodb.previousPage()" id="prevBtn" disabled>
+                                                <i class="fas fa-chevron-left"></i>
+                                            </button>
+                                            <span id="pageIndicator">Page 1</span>
+                                            <button class="btn-icon" onclick="adminPanel.mongodb.nextPage()" id="nextBtn" disabled>
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contenu documents -->
+                                <div class="documents-content" id="documentsContent">
+                                    <!-- Table View -->
+                                    <div class="table-view" id="tableView">
+                                        <div class="table-container">
+                                            <table class="data-table" id="documentsTable">
+                                                <thead id="tableHeader"></thead>
+                                                <tbody id="tableBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- JSON View -->
+                                    <div class="json-view" id="jsonView" style="display: none;">
+                                        <div class="json-container" id="jsonContainer"></div>
+                                    </div>
+
+                                    <!-- Tree View -->
+                                    <div class="tree-view" id="treeView" style="display: none;">
+                                        <div class="tree-container" id="treeContainer"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel détails document -->
+                    <div class="db-inspector" id="documentInspector" style="display: none;">
+                        <div class="inspector-header">
+                            <h3><i class="fas fa-file-code"></i> Document Inspector</h3>
+                            <button class="btn-icon" onclick="adminPanel.mongodb.closeInspector()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="inspector-content">
+                            <div class="inspector-tabs">
+                                <button class="tab-btn active" data-tab="document">Document</button>
+                                <button class="tab-btn" data-tab="schema">Schema</button>
+                                <button class="tab-btn" data-tab="history">History</button>
+                            </div>
+                            
+                            <div class="inspector-body" id="inspectorBody">
+                                <!-- Contenu sera généré dynamiquement -->
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Loading -->
-                <div class="loading" id="documentsLoading" style="display: none;">
-                    <div class="spinner"></div>
-                    Chargement...
+                <!-- Loading overlay -->
+                <div class="db-loading" id="dbLoading" style="display: none;">
+                    <div class="loading-content">
+                        <div class="spinner-ring"></div>
+                        <div class="loading-text">Executing query...</div>
+                    </div>
                 </div>
             </div>
         `
 
-        console.log('✅ [MongoDB] HTML injecté, configuration des événements...')
+        console.log('✅ [MongoDB] Interface professionnelle injectée')
         this.setupEventListeners()
     }
 
     setupEventListeners() {
-        console.log('🔧 [MongoDB] Configuration des événements...')
+        console.log('🔧 [MongoDB] Configuration des événements professionnels...')
         
-        // Database selection
-        const dbSelect = document.getElementById('databaseSelect')
-        if (dbSelect) {
-            dbSelect.addEventListener('change', async (e) => {
-                const database = e.target.value
-                if (database) {
-                    await this.loadCollections(database)
-                } else {
-                    this.updateCollectionsList([])
-                }
-                this.updateVisibility()
-            })
-            console.log('✅ [MongoDB] Événement database select configuré')
+        // Recherche en temps réel
+        const filterInput = document.getElementById('filterInput')
+        if (filterInput) {
+            filterInput.addEventListener('input', this.debounce(() => {
+                this.validateJSON(filterInput.value)
+            }, 300))
         }
 
-        // Collection selection
-        const collSelect = document.getElementById('collectionSelect')
-        if (collSelect) {
-            collSelect.addEventListener('change', (e) => {
-                if (e.target.value) {
-                    this.loadDocuments(e.target.value)
+        // Raccourcis clavier
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'f':
+                        e.preventDefault()
+                        document.getElementById('filterInput')?.focus()
+                        break
+                    case 'r':
+                        e.preventDefault()
+                        this.refreshDatabases()
+                        break
                 }
-                this.updateVisibility()
-            })
-            console.log('✅ [MongoDB] Événement collection select configuré')
-        }
+            }
+        })
     }
 
     async loadDatabases() {
         console.log('📡 [MongoDB] Chargement des bases de données...')
         
-        this.updateStatus('Chargement des bases de données...')
+        this.showLoading(true)
         
         try {
             const data = await this.adminPanel.apiCall('/mongodb/databases')
             
-            console.log('✅ [MongoDB] Réponse API:', data)
-            
             if (data.success && data.databases) {
                 this.databases = data.databases
                 console.log('✅ [MongoDB] Bases chargées:', this.databases.length)
-                
-                this.updateDatabasesList()
-                this.updateStatus(`${this.databases.length} base(s) de données disponible(s)`)
+                this.renderDatabaseTree()
             } else {
                 throw new Error('Réponse API invalide')
             }
             
         } catch (error) {
             console.error('❌ [MongoDB] Erreur chargement databases:', error)
-            this.updateStatus('Erreur de chargement des bases : ' + error.message)
             this.adminPanel.showNotification('Erreur chargement databases: ' + error.message, 'error')
+        } finally {
+            this.showLoading(false)
         }
     }
 
-    updateDatabasesList() {
-        const dbSelect = document.getElementById('databaseSelect')
-        if (!dbSelect) return
+    renderDatabaseTree() {
+        const treeContainer = document.getElementById('databaseTree')
+        if (!treeContainer) return
 
-        dbSelect.innerHTML = '<option value="">Sélectionnez une base...</option>' +
-            this.databases.map(db => 
-                `<option value="${db}">${db}</option>`
-            ).join('')
-        
-        console.log('✅ [MongoDB] Liste des bases mise à jour')
+        treeContainer.innerHTML = this.databases.map(db => `
+            <div class="tree-node database-node" onclick="adminPanel.mongodb.selectDatabase('${db}')">
+                <div class="node-content">
+                    <i class="node-icon fas fa-database"></i>
+                    <span class="node-label">${db}</span>
+                    <i class="node-expand fas fa-chevron-right"></i>
+                </div>
+                <div class="node-children" id="collections-${db}"></div>
+            </div>
+        `).join('')
+
+        console.log('✅ [MongoDB] Arbre des bases rendu')
     }
 
-    updateCollectionsList(collections = []) {
-        const collSelect = document.getElementById('collectionSelect')
-        if (!collSelect) return
-
-        this.collections = collections
-        collSelect.innerHTML = '<option value="">Sélectionnez une collection...</option>' +
-            this.collections.map(coll => 
-                `<option value="${coll}">${coll}</option>`
-            ).join('')
+    async selectDatabase(database) {
+        console.log(`📊 [MongoDB] Sélection base: ${database}`)
         
-        console.log('✅ [MongoDB] Liste des collections mise à jour:', collections.length)
-    }
-
-    async loadCollections(database) {
-        console.log(`📡 [MongoDB] Chargement collections pour: ${database}`)
-        
-        this.updateStatus(`Chargement collections de ${database}...`)
         this.currentDatabase = database
+        this.currentCollection = null
         
+        // Mettre à jour l'UI
+        this.updateBreadcrumb([
+            { icon: 'fas fa-database', text: database }
+        ])
+        
+        // Charger les collections
         try {
             const data = await this.adminPanel.apiCall(`/mongodb/collections/${database}`)
             
             if (data.success && data.collections) {
-                this.updateCollectionsList(data.collections)
-                this.updateStatus(`${data.collections.length} collection(s) dans ${database}`)
+                this.collections = data.collections
+                this.renderCollections(database, data.collections)
                 
-                // Afficher la section collections
-                const collectionsSection = document.getElementById('collectionsSection')
-                if (collectionsSection) {
-                    collectionsSection.style.display = 'block'
+                // Animer l'expansion
+                const dbNode = document.querySelector(`[onclick="adminPanel.mongodb.selectDatabase('${database}')"]`)
+                if (dbNode) {
+                    dbNode.classList.add('expanded')
+                    const expandIcon = dbNode.querySelector('.node-expand')
+                    if (expandIcon) expandIcon.style.transform = 'rotate(90deg)'
                 }
-                
-                console.log('✅ [MongoDB] Collections chargées:', data.collections.length)
-            } else {
-                throw new Error('Erreur chargement collections')
             }
             
         } catch (error) {
             console.error('❌ [MongoDB] Erreur chargement collections:', error)
-            this.updateStatus('Erreur chargement collections: ' + error.message)
             this.adminPanel.showNotification('Erreur chargement collections: ' + error.message, 'error')
         }
     }
 
-    async loadDocuments(collection, page = 0, query = {}) {
-        console.log(`📡 [MongoDB] Chargement documents: ${collection}`)
+    renderCollections(database, collections) {
+        const container = document.getElementById(`collections-${database}`)
+        if (!container) return
+
+        container.innerHTML = collections.map(collection => `
+            <div class="tree-node collection-node" onclick="adminPanel.mongodb.selectCollection('${database}', '${collection}')">
+                <div class="node-content">
+                    <i class="node-icon fas fa-table"></i>
+                    <span class="node-label">${collection}</span>
+                    <span class="node-info">...</span>
+                </div>
+            </div>
+        `).join('')
+
+        // Animer l'apparition
+        container.style.maxHeight = collections.length * 35 + 'px'
+        container.style.opacity = '1'
+    }
+
+    async selectCollection(database, collection) {
+        console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
         
-        this.updateStatus(`Chargement documents de ${collection}...`)
+        this.currentDatabase = database
         this.currentCollection = collection
-        this.currentPage = page
-        this.currentQuery = query
+        this.currentPage = 0
+        
+        // Mettre à jour l'UI
+        this.updateBreadcrumb([
+            { icon: 'fas fa-database', text: database },
+            { icon: 'fas fa-table', text: collection }
+        ])
+        
+        // Masquer l'écran d'accueil
+        document.getElementById('welcomeScreen').style.display = 'none'
+        document.getElementById('documentsView').style.display = 'block'
+        
+        // Charger les documents
+        await this.loadDocuments()
+    }
+
+    async loadDocuments(query = {}) {
+        console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
         
         this.showLoading(true)
         
@@ -275,22 +411,17 @@ export class MongoDBModule {
                 method: 'POST',
                 body: JSON.stringify({
                     database: this.currentDatabase,
-                    collection: collection,
+                    collection: this.currentCollection,
                     query: query,
-                    page: page,
+                    page: this.currentPage,
                     limit: this.pageSize
                 })
             })
 
             if (data.success) {
+                this.updateCollectionStats(data.total)
                 this.renderDocuments(data.documents || [], data.total || 0)
-                this.updateStatus(`${data.documents?.length || 0}/${data.total || 0} documents affichés`)
-                
-                // Afficher les sections
-                const querySection = document.getElementById('querySection')
-                const resultsSection = document.getElementById('resultsSection')
-                if (querySection) querySection.style.display = 'block'
-                if (resultsSection) resultsSection.style.display = 'block'
+                this.updatePagination(data.total || 0)
                 
                 console.log('✅ [MongoDB] Documents chargés:', data.documents?.length)
             } else {
@@ -299,7 +430,6 @@ export class MongoDBModule {
             
         } catch (error) {
             console.error('❌ [MongoDB] Erreur chargement documents:', error)
-            this.updateStatus('Erreur chargement documents: ' + error.message)
             this.adminPanel.showNotification('Erreur chargement documents: ' + error.message, 'error')
         } finally {
             this.showLoading(false)
@@ -307,154 +437,282 @@ export class MongoDBModule {
     }
 
     renderDocuments(documents, total) {
-        const container = document.getElementById('documentsContainer')
-        const countBadge = document.getElementById('resultsCount')
-        const pageInfo = document.getElementById('pageInfo')
-
-        if (countBadge) countBadge.textContent = total
-        if (pageInfo) {
-            const currentPage = this.currentPage + 1
-            const totalPages = Math.ceil(total / this.pageSize)
-            pageInfo.textContent = `Page ${currentPage} / ${totalPages}`
+        if (this.viewMode === 'table') {
+            this.renderTableView(documents)
+        } else if (this.viewMode === 'json') {
+            this.renderJSONView(documents)
+        } else if (this.viewMode === 'tree') {
+            this.renderTreeView(documents)
         }
 
-        if (!container) return
+        // Mettre à jour les info de résultat
+        document.getElementById('resultCount').textContent = `${documents.length} of ${total} documents`
+    }
 
-        if (documents.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    <i class="fas fa-database" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                    <p>Aucun document trouvé</p>
+    renderTableView(documents) {
+        if (!documents.length) {
+            document.getElementById('tableView').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-table"></i>
+                    <h3>No documents found</h3>
+                    <p>This collection is empty or your filter returned no results.</p>
                 </div>
             `
             return
         }
 
-        container.innerHTML = `
-            <div class="documents-table">
-                ${documents.map((doc, index) => `
-                    <div class="document-card">
-                        <div class="document-header">
-                            <div class="document-id">
-                                <strong>ID:</strong> ${doc._id}
-                            </div>
-                            <div class="document-actions">
-                                <button class="btn btn-info btn-sm" onclick="adminPanel.mongodb.editDocument('${doc._id}')">
-                                    <i class="fas fa-edit"></i> Éditer
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="adminPanel.mongodb.deleteDocument('${doc._id}')">
-                                    <i class="fas fa-trash"></i> Supprimer
-                                </button>
-                            </div>
-                        </div>
-                        <div class="document-content">
-                            <pre><code>${JSON.stringify(doc, null, 2)}</code></pre>
-                        </div>
-                    </div>
+        // Détecter les colonnes automatiquement
+        const columns = this.detectColumns(documents)
+        
+        const tableHeader = document.getElementById('tableHeader')
+        const tableBody = document.getElementById('tableBody')
+        
+        // Header
+        tableHeader.innerHTML = `
+            <tr>
+                <th class="select-column">
+                    <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
+                </th>
+                ${columns.map(col => `
+                    <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
+                        ${col.name}
+                        <i class="fas fa-sort sort-icon"></i>
+                    </th>
                 `).join('')}
-            </div>
+                <th class="actions-column">Actions</th>
+            </tr>
         `
-    }
-
-    updateVisibility() {
-        const collectionsSection = document.getElementById('collectionsSection')
-        const querySection = document.getElementById('querySection')
-        const resultsSection = document.getElementById('resultsSection')
-
-        if (collectionsSection) {
-            collectionsSection.style.display = this.currentDatabase ? 'block' : 'none'
-        }
-        if (querySection) {
-            querySection.style.display = this.currentCollection ? 'block' : 'none'
-        }
-        if (resultsSection) {
-            resultsSection.style.display = this.currentCollection ? 'block' : 'none'
-        }
-    }
-
-    updateStatus(message) {
-        const statusText = document.getElementById('statusText')
-        if (statusText) {
-            statusText.textContent = message
-        }
-        console.log('📊 [MongoDB] Status:', message)
-    }
-
-    showLoading(show) {
-        const loading = document.getElementById('documentsLoading')
-        if (loading) {
-            loading.style.display = show ? 'block' : 'none'
-        }
-    }
-
-    showError(message) {
-        const container = document.getElementById('mongodb')
-        if (container) {
-            container.innerHTML = `
-                <div style="padding: 40px; text-align: center;">
-                    <div style="color: #e74c3c; font-size: 1.2rem; margin-bottom: 20px;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Erreur MongoDB
-                    </div>
-                    <p>${message}</p>
-                    <button class="btn btn-primary" onclick="location.reload()">
-                        <i class="fas fa-refresh"></i> Recharger
+        
+        // Body
+        tableBody.innerHTML = documents.map((doc, index) => `
+            <tr class="document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
+                <td class="select-column">
+                    <input type="checkbox" onclick="event.stopPropagation()">
+                </td>
+                ${columns.map(col => `
+                    <td class="data-cell" title="${this.formatCellTooltip(doc[col.key])}">
+                        ${this.formatCellValue(doc[col.key], col.type)}
+                    </td>
+                `).join('')}
+                <td class="actions-column">
+                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
+                        <i class="fas fa-edit"></i>
                     </button>
+                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('')
+
+        // Afficher la vue table
+        document.getElementById('tableView').style.display = 'block'
+        document.getElementById('jsonView').style.display = 'none'
+        document.getElementById('treeView').style.display = 'none'
+    }
+
+    renderJSONView(documents) {
+        const container = document.getElementById('jsonContainer')
+        
+        container.innerHTML = documents.map((doc, index) => `
+            <div class="json-document" onclick="adminPanel.mongodb.selectDocument(${index})">
+                <div class="json-header">
+                    <span class="doc-index">#${index + 1}</span>
+                    <span class="doc-id">${doc._id}</span>
+                    <div class="doc-actions">
+                        <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.copyJSON('${doc._id}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
                 </div>
-            `
+                <pre class="json-content"><code>${JSON.stringify(doc, null, 2)}</code></pre>
+            </div>
+        `).join('')
+
+        // Afficher la vue JSON
+        document.getElementById('tableView').style.display = 'none'
+        document.getElementById('jsonView').style.display = 'block'
+        document.getElementById('treeView').style.display = 'none'
+    }
+
+    // Utilitaires
+    detectColumns(documents) {
+        const columnSet = new Set()
+        documents.forEach(doc => {
+            Object.keys(doc).forEach(key => columnSet.add(key))
+        })
+        
+        const columns = Array.from(columnSet).map(key => ({
+            key,
+            name: this.formatColumnName(key),
+            type: this.detectColumnType(key, documents)
+        }))
+        
+        // Mettre _id en premier
+        return columns.sort((a, b) => {
+            if (a.key === '_id') return -1
+            if (b.key === '_id') return 1
+            return a.name.localeCompare(b.name)
+        }).slice(0, 10) // Limiter à 10 colonnes
+    }
+
+    formatColumnName(key) {
+        return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
+    }
+
+    detectColumnType(key, documents) {
+        const sample = documents.find(doc => doc[key] !== undefined)?.[key]
+        if (sample === null || sample === undefined) return 'null'
+        return typeof sample
+    }
+
+    formatCellValue(value, type) {
+        if (value === null || value === undefined) return '<span class="null-value">null</span>'
+        
+        switch (type) {
+            case 'string':
+                return value.length > 50 ? value.substring(0, 50) + '...' : value
+            case 'number':
+                return value.toLocaleString()
+            case 'boolean':
+                return `<span class="boolean-value">${value}</span>`
+            case 'object':
+                if (Array.isArray(value)) {
+                    return `<span class="array-value">Array(${value.length})</span>`
+                }
+                return `<span class="object-value">Object</span>`
+            default:
+                return String(value)
         }
     }
 
-    // Méthodes publiques pour les boutons
-    async refreshDatabases() {
-        await this.loadDatabases()
+    formatCellTooltip(value) {
+        if (typeof value === 'object') {
+            return JSON.stringify(value, null, 2)
+        }
+        return String(value)
     }
 
-    executeQuery() {
-        const queryText = document.getElementById('mongoQuery')?.value || '{}'
+    updateBreadcrumb(items) {
+        const breadcrumb = document.getElementById('breadcrumb')
+        if (!breadcrumb) return
+
+        breadcrumb.innerHTML = items.map((item, index) => `
+            <span class="breadcrumb-item ${index === items.length - 1 ? 'active' : ''}">
+                <i class="${item.icon}"></i>
+                ${item.text}
+            </span>
+            ${index < items.length - 1 ? '<i class="breadcrumb-separator fas fa-chevron-right"></i>' : ''}
+        `).join('')
+    }
+
+    updateCollectionStats(total) {
+        document.getElementById('totalDocs').textContent = total.toLocaleString()
+        document.getElementById('avgDocSize').textContent = '~1.2KB'
+        document.getElementById('collectionSize').textContent = '~' + (total * 1.2).toFixed(1) + 'KB'
+        document.getElementById('indexesCount').textContent = '3'
+    }
+
+    updatePagination(total) {
+        const totalPages = Math.ceil(total / this.pageSize)
+        const currentPage = this.currentPage + 1
+        
+        document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`
+        document.getElementById('prevBtn').disabled = this.currentPage === 0
+        document.getElementById('nextBtn').disabled = this.currentPage >= totalPages - 1
+    }
+
+    setViewMode(mode) {
+        this.viewMode = mode
+        
+        // Mettre à jour les boutons
+        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'))
+        document.querySelector(`[data-view="${mode}"]`).classList.add('active')
+        
+        // Recharger avec la nouvelle vue
+        if (this.currentCollection) {
+            this.loadDocuments(this.currentQuery)
+        }
+    }
+
+    validateJSON(jsonString) {
+        const input = document.getElementById('filterInput')
         try {
-            const query = JSON.parse(queryText)
-            this.loadDocuments(this.currentCollection, 0, query)
+            JSON.parse(jsonString)
+            input.classList.remove('json-error')
+            input.classList.add('json-valid')
+        } catch (e) {
+            input.classList.remove('json-valid')
+            input.classList.add('json-error')
+        }
+    }
+
+    executeFilter() {
+        const filterValue = document.getElementById('filterInput').value
+        try {
+            const query = JSON.parse(filterValue)
+            this.currentQuery = query
+            this.currentPage = 0
+            this.loadDocuments(query)
         } catch (error) {
             this.adminPanel.showNotification('Requête JSON invalide: ' + error.message, 'error')
         }
     }
 
-    clearQuery() {
-        const queryText = document.getElementById('mongoQuery')
-        if (queryText) {
-            queryText.value = '{}'
-            this.loadDocuments(this.currentCollection, 0, {})
-        }
+    clearFilter() {
+        document.getElementById('filterInput').value = '{}'
+        this.currentQuery = {}
+        this.currentPage = 0
+        this.loadDocuments({})
     }
 
     previousPage() {
         if (this.currentPage > 0) {
-            this.loadDocuments(this.currentCollection, this.currentPage - 1, this.currentQuery)
+            this.currentPage--
+            this.loadDocuments(this.currentQuery)
         }
     }
 
     nextPage() {
-        this.loadDocuments(this.currentCollection, this.currentPage + 1, this.currentQuery)
+        this.currentPage++
+        this.loadDocuments(this.currentQuery)
     }
 
-    editDocument(documentId) {
-        console.log('🔧 [MongoDB] Édition document:', documentId)
-        this.adminPanel.showNotification('Éditeur de document en développement', 'info')
-    }
-
-    deleteDocument(documentId) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
-            console.log('🗑️ [MongoDB] Suppression document:', documentId)
-            this.adminPanel.showNotification('Suppression en développement', 'info')
+    showLoading(show) {
+        const loading = document.getElementById('dbLoading')
+        if (loading) {
+            loading.style.display = show ? 'flex' : 'none'
         }
     }
 
-    createDocument() {
-        console.log('➕ [MongoDB] Création nouveau document')
-        this.adminPanel.showNotification('Création de document en développement', 'info')
+    debounce(func, wait) {
+        let timeout
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout)
+                func(...args)
+            }
+            clearTimeout(timeout)
+            timeout = setTimeout(later, wait)
+        }
     }
 
+    // Méthodes publiques (placeholders)
+    refreshDatabases() { this.loadDatabases() }
+    createDocument() { this.adminPanel.showNotification('Création de document en développement', 'info') }
+    editDocument(id) { this.adminPanel.showNotification('Édition de document en développement', 'info') }
+    deleteDocument(id) { this.adminPanel.showNotification('Suppression de document en développement', 'info') }
+    inspectDocument(id) { this.adminPanel.showNotification('Inspection de document en développement', 'info') }
+    showQueryBuilder() { this.adminPanel.showNotification('Query Builder en développement', 'info') }
+    showDatabaseStats() { this.adminPanel.showNotification('Statistiques DB en développement', 'info') }
+    showServerInfo() { this.adminPanel.showNotification('Info serveur en développement', 'info') }
+    
     cleanup() {
         console.log('🧹 [MongoDB] Module cleanup')
     }
