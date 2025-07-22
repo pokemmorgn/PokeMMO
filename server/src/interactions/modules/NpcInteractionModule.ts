@@ -278,9 +278,26 @@ export class NpcInteractionModule extends BaseInteractionModule {
           capabilities: unifiedResult.capabilities.length,
           defaultAction: unifiedResult.defaultAction,
           hasContextualData: !!result.contextualData,
-          hasShopData: !!result.shopId
+          hasShopData: !!result.shopId,
+          // ✅ NOUVEAU : Debug des champs transmis
+          resultFields: Object.keys(result),
+          resultSample: {
+            isUnifiedInterface: result.isUnifiedInterface,
+            capabilities: result.capabilities,
+            hasContextualData: !!result.contextualData
+          }
         });
-
+        
+        // ✅ NOUVEAU : Log avant envoi au client
+        console.log('📤 [NpcInteractionModule] ENVOI AU CLIENT:', {
+          type: result.type,
+          npcId: result.npcId,
+          npcName: result.npcName,
+          isUnifiedInterface: result.isUnifiedInterface,
+          capabilities: result.capabilities,
+          contextualData: result.contextualData
+        });
+        
         return result;
         
       } catch (error) {
