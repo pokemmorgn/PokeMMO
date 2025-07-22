@@ -700,10 +700,52 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVEAU : Auto-scan MongoDB
+  // ✅ NOUVELLE MÉTHODE : Ping intelligent MongoDB
+  private async waitForMongoDBReady(maxRetries: number = 10): Promise<void> {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        this.log('info', `🏓 [MongoDB Ping] Tentative ${retries + 1}/${maxRetries}...`);
+        
+        // Test 1: Vérifier que mongoose est connecté
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+          throw new Error('Mongoose pas encore connecté');
+        }
+        
+        // Test 2: Ping basique de la DB
+        await mongoose.connection.db.admin().ping();
+        
+        // Test 3: Test spécifique NpcData (le plus important!)
+        const testCount = await NpcData.countDocuments();
+        
+        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} NPCs détectés`);
+        return; // Tout fonctionne !
+        
+      } catch (error) {
+        retries++;
+        const waitTime = Math.min(1000 * retries, 5000); // Backoff progressif, max 5s
+        
+        this.log('warn', `⚠️ [MongoDB Ping] Échec ${retries}/${maxRetries}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retries >= maxRetries) {
+          throw new Error(`MongoDB non prêt après ${maxRetries} tentatives`);
+        }
+        
+        this.log('info', `⏳ [MongoDB Ping] Attente ${waitTime}ms avant retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // ✅ NOUVEAU : Auto-scan MongoDB avec ping intelligent avec ping intelligent
   private async autoLoadFromMongoDB(): Promise<void> {
     try {
-      this.log('info', '🗄️  [Auto-scan MongoDB] Récupération des zones...');
+      this.log('info', '🗄️  [Auto-scan MongoDB] Vérification connectivité...');
+      
+      // ✅ PING MONGODB INTELLIGENT
+      await this.waitForMongoDBReady();
       
       // Récupérer toutes les zones distinctes
       const zones = await NpcData.distinct('zone');
