@@ -607,7 +607,11 @@ this.room.onLeave((code) => {
     // ✅ HANDLERS D'INTERACTION NPC MODERNISÉS - SUPPORT DOUBLE FORMAT
     this.room.onMessage("npcInteractionResult", (result) => {
       console.log(`💬 [NetworkManager] === NPC INTERACTION RESULT ===`, result);
+      console.log('💬 [NetworkManager] === NPC INTERACTION RESULT === COMPLET ===');
+      console.log('📦 Données complètes reçues:', JSON.stringify(data, null, 2));
+      console.log('🔑 Clés disponibles:', Object.keys(data));
       this.logInteraction('npc_interaction_result', result);
+      
       
       if (this.callbacks.onNpcInteraction) {
         this.callbacks.onNpcInteraction(result);
