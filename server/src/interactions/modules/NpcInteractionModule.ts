@@ -213,10 +213,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
         // Conversion vers NpcInteractionResult pour compatibilité
         const result: NpcInteractionResult = {
           success: true,
-          type: "dialogue", // ✅ CORRIGÉ : utilise type existant au lieu de "unifiedInterface"
-          message: `Interface unifiée pour ${npc.name}`,
+          type: "unifiedInterface", // ✅ CHANGÉ
+          message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
           npcId: npcId,
           npcName: npc.name,
+          
+          // ✅ AJOUTÉ : Flags explicites pour le client
+          isUnifiedInterface: true,
+          unifiedMode: true,
+          
           unifiedInterface: unifiedResult,
           capabilities: capabilities,
           
