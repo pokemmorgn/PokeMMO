@@ -123,62 +123,63 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`✅ Services enregistrés dans ServiceRegistry`);
     }
     
-    // Initialiser les TeamHandlers
+// ✅ ÉTAPE 1: Initialiser NPCManagers et TransitionService EN PREMIER
+    this.initializeNpcManagers();
+    this.transitionService = new TransitionService();
+    console.log(`✅ TransitionService initialisé`);
+
+    // ✅ ÉTAPE 2: Initialiser TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
 
+    // ✅ ÉTAPE 3: Initialiser FollowerHandlers et l'enregistrer immédiatement
     this.followerHandlers = new FollowerHandlers(this);
-    // Enregistrer les followers dans le service de transition
-if (this.transitionService && this.followerHandlers) {
-  this.transitionService.setFollowerHandlers(this.followerHandlers);
-}
-    console.log(`✅ FollowerHandlers initialisé`);
+    this.transitionService.setFollowerHandlers(this.followerHandlers);
+    console.log(`✅ FollowerHandlers initialisé et enregistré dans TransitionService`);
     
+    // ✅ ÉTAPE 4: Initialiser les autres handlers
     this.questHandlers = new QuestHandlers(this);
     console.log(`✅ QuestHandlers initialisé`);
     
-    // Initialiser les BattleHandlers
     this.battleHandlers = new BattleHandlers(this);
     console.log(`✅ BattleHandlers initialisé`);
     
-    // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
     console.log(`✅ EncounterHandlers initialisé`);
 
-    this.initializeNpcManagers();
-    this.transitionService = new TransitionService(this.npcManagers);
-    console.log(`✅ TransitionService initialisé`);
-
+    // ✅ ÉTAPE 5: Initialiser TimeWeatherService
     this.initializeTimeWeatherService();
 
+    // ✅ ÉTAPE 6: Initialiser les handlers de mouvement et objets
     this.movementHandlers = new MovementHandlers(this);
     console.log(`✅ MovementHandlers initialisé`);
 
     this.objectInteractionHandlers = new ObjectInteractionHandlers(this);
     console.log(`✅ ObjectInteractionHandlers initialisé`);
     
-    // ✅ NOUVEAU: Créer et configurer ObjectInteractionModule  
+    // ✅ ÉTAPE 7: Créer et configurer ObjectInteractionModule  
     this.objectInteractionModule = new ObjectInteractionModule();
     this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
     console.log(`✅ ObjectInteractionModule créé et configuré`);
-    // ✅ NOUVEAU: Initialiser le module d'objets (en arrière-plan)
+    
+    // Initialiser le module d'objets (en arrière-plan)
     this.objectInteractionModule.initialize().then(() => {
       console.log(`✅ ObjectInteractionModule initialisé`);
     }).catch((error) => {
       console.error(`❌ Erreur initialisation ObjectInteractionModule:`, error);
     });
     
-    // Messages handlers
+    // ✅ ÉTAPE 8: Configurer les message handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
     
-    // Initialiser le ShopManager
+    // ✅ ÉTAPE 9: Initialiser ShopManager
     this.shopManager = new ShopManager();
     console.log(`✅ ShopManager initialisé`);
 
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
     
-    // Auto-save des positions toutes les 30 secondes
+    // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
       this.autoSaveAllPositions();
     }, 30000);
