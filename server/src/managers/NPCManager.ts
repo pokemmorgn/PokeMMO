@@ -1,5 +1,5 @@
 // PokeMMO/server/src/managers/NPCManager.ts
-// Version adaptée : Ton code existant + Support MongoDB
+// Version adaptée : Ton code existant + Support MongoDB + waitForLoad()
 
 import fs from "fs";
 import path from "path";
@@ -149,8 +149,7 @@ export class NpcManager {
   // ✅ CONFIGURATION ÉTENDUE
   private config: NpcManagerConfig = {
     // Nouveaux paramètres
-    // primaryDataSource: (process.env.NPC_DATA_SOURCE as NpcDataSource) || NpcDataSource.JSON, // Par défaut JSON (pas de breaking change)
-    primaryDataSource: NpcDataSource.MONGODB,
+    primaryDataSource: NpcDataSource.MONGODB, // ✅ FORCÉ EN MONGODB
     useMongoCache: process.env.NPC_USE_CACHE !== 'false',
     cacheTTL: parseInt(process.env.NPC_CACHE_TTL || '1800000'), // 30 minutes
     enableFallback: process.env.NPC_FALLBACK !== 'false',
@@ -194,6 +193,29 @@ export class NpcManager {
       mongoNpcs: Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length,
       zonesLoaded: Array.from(this.loadedZones)
     });
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Attendre que le chargement MongoDB soit terminé
+  async waitForLoad(timeoutMs: number = 10000): Promise<boolean> {
+    const startTime = Date.now();
+    
+    this.log('info', `⏳ [WaitForLoad] Attente du chargement des NPCs (timeout: ${timeoutMs}ms)...`);
+    
+    while (this.npcs.length === 0 && (Date.now() - startTime) < timeoutMs) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Attendre 100ms
+    }
+    
+    const loaded = this.npcs.length > 0;
+    const loadTime = Date.now() - startTime;
+    
+    if (loaded) {
+      this.log('info', `✅ [WaitForLoad] NPCs chargés: ${this.npcs.length} NPCs en ${loadTime}ms`);
+      this.log('info', `🗺️  [WaitForLoad] Zones chargées: ${Array.from(this.loadedZones).join(', ')}`);
+    } else {
+      this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, ${this.npcs.length} NPCs chargés`);
+    }
+    
+    return loaded;
   }
 
   // ✅ MÉTHODE SIMPLIFIÉE : Initialisation spécifique (JSON + MongoDB seulement)
