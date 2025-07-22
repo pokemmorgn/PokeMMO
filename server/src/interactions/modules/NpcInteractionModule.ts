@@ -54,6 +54,22 @@ export interface NpcInteractionResult extends InteractionResult {
   // ✅ NOUVEAUX : Interface Unifiée
   unifiedInterface?: UnifiedInterfaceResult;
   capabilities?: NpcCapability[];
+  
+  // ✅ AJOUTÉ : Nouvelles propriétés pour détection client
+  isUnifiedInterface?: boolean;
+  unifiedMode?: boolean;
+  contextualData?: {
+    hasShop: boolean;
+    hasQuests: boolean;
+    hasHealing: boolean;
+    defaultAction: string;
+    quickActions: Array<{
+      id: string;
+      label: string;
+      action: string;
+      enabled: boolean;
+    }>;
+  };
 }
 
 export class NpcInteractionModule extends BaseInteractionModule {
