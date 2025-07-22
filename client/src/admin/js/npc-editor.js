@@ -144,7 +144,7 @@ async init() {
     // ==============================
 
     renderMainInterface() {
-        const container = document.querySelector('#npcs .panel')
+const container = document.querySelector('#npcs')
         if (!container) return
 
         container.innerHTML = `
