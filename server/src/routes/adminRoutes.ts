@@ -10,8 +10,7 @@ import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
-import { promises as fs } from 'fs';
-import path from 'path';
+
 
 const router = express.Router();
 const execAsync = promisify(exec);
@@ -2625,7 +2624,7 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // ========================================
 
 // GET /api/admin/mongodb/databases
-router.get('/mongodb/databases', requireMacAndDev, async (req: Request, res: Response) => {
+router.get('/mongodb/databases', requireMacAndDev, async (req: any, res: any) => {
     try {
         console.log('🗄️ [MongoDB API] Récupération des bases de données...');
         
@@ -2634,8 +2633,8 @@ router.get('/mongodb/databases', requireMacAndDev, async (req: Request, res: Res
         const databasesList = await adminDb.listDatabases();
         
         const databases = databasesList.databases
-            .filter(db => !['admin', 'local', 'config'].includes(db.name))
-            .map(db => db.name);
+            .filter((db: any) => !['admin', 'local', 'config'].includes(db.name))
+            .map((db: any) => db.name);
         
         console.log('✅ [MongoDB API] Bases trouvées:', databases);
         
@@ -2653,7 +2652,7 @@ router.get('/mongodb/databases', requireMacAndDev, async (req: Request, res: Res
 });
 
 // GET /api/admin/mongodb/collections/:database
-router.get('/mongodb/collections/:database', requireMacAndDev, async (req: Request, res: Response) => {
+router.get('/mongodb/collections/:database', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database } = req.params;
         console.log(`🗄️ [MongoDB API] Collections de ${database}...`);
@@ -2662,7 +2661,7 @@ router.get('/mongodb/collections/:database', requireMacAndDev, async (req: Reque
         const db = mongoConnection.db(database);
         const collections = await db.listCollections().toArray();
         
-        const collectionNames = collections.map(col => col.name);
+        const collectionNames = collections.map((col: any) => col.name);
         
         console.log(`✅ [MongoDB API] Collections trouvées:`, collectionNames);
         
@@ -2680,7 +2679,7 @@ router.get('/mongodb/collections/:database', requireMacAndDev, async (req: Reque
 });
 
 // POST /api/admin/mongodb/documents
-router.post('/mongodb/documents', requireMacAndDev, async (req: Request<{}, any, MongoQueryRequest>, res: Response) => {
+router.post('/mongodb/documents', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, query = {}, page = 0, limit = 20 } = req.body;
         
@@ -2718,7 +2717,7 @@ router.post('/mongodb/documents', requireMacAndDev, async (req: Request<{}, any,
 });
 
 // PUT /api/admin/mongodb/document
-router.put('/mongodb/document', requireMacAndDev, async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
+router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, id, data } = req.body;
         
@@ -2758,7 +2757,7 @@ router.put('/mongodb/document', requireMacAndDev, async (req: Request<{}, any, M
 });
 
 // DELETE /api/admin/mongodb/document
-router.delete('/mongodb/document', requireMacAndDev, async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
+router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, id } = req.body;
         
@@ -2790,4 +2789,5 @@ router.delete('/mongodb/document', requireMacAndDev, async (req: Request<{}, any
         });
     }
 });
+
 export default router;
