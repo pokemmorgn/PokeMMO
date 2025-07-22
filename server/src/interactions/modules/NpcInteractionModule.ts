@@ -227,23 +227,42 @@ export class NpcInteractionModule extends BaseInteractionModule {
         const unifiedResult = await this.unifiedInterfaceHandler.build(player, npc, capabilities);
         
         // Conversion vers NpcInteractionResult pour compatibilité
-        const result: NpcInteractionResult = {
-          success: true,
-          type: "unifiedInterface", // ✅ CHANGÉ
-          message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
-          npcId: npcId,
-          npcName: npc.name,
-          
-          // ✅ AJOUTÉ : Flags explicites pour le client
-          isUnifiedInterface: true,
-          unifiedMode: true,
-          
-          unifiedInterface: unifiedResult,
-          capabilities: capabilities,
-          
-          // Données legacy pour rétro-compatibilité
-          lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${npc.name}.`]
-        };
+      const result: NpcInteractionResult = {
+        success: true,
+        type: "unifiedInterface",
+        message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
+        npcId: npcId,
+        npcName: npc.name,
+        
+        // ✅ AJOUTÉ : Flags explicites pour le client
+        isUnifiedInterface: true,
+        unifiedMode: true,
+        
+        unifiedInterface: unifiedResult,
+        capabilities: capabilities,
+        
+        // ✅ NOUVEAU : Données contextuelles pour détection client
+        contextualData: {
+          hasShop: capabilities.includes('merchant'),
+          hasQuests: capabilities.includes('quest'),
+          hasHealing: capabilities.includes('healer'),
+          defaultAction: unifiedResult.defaultAction,
+          quickActions: unifiedResult.quickActions || []
+        },
+        
+        // ✅ NOUVEAU : Données shop si présentes
+        ...(unifiedResult.merchantData && {
+          shopId: unifiedResult.merchantData.shopId,
+          shopData: {
+            shopInfo: unifiedResult.merchantData.shopInfo,
+            availableItems: unifiedResult.merchantData.availableItems,
+            playerGold: unifiedResult.merchantData.playerGold
+          }
+        }),
+        
+        // Données legacy pour rétro-compatibilité
+        lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${npc.name}.`]
+      };
 
         this.log('info', '✅ Interface Unifiée construite', { 
           capabilities: unifiedResult.capabilities.length,
