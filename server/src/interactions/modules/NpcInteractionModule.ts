@@ -49,12 +49,12 @@ export interface NpcInteractionResult extends InteractionResult {
     reason?: string;
   };
   
-  // ✅ CORRIGÉ : Interface Unifiée avec champs REQUIS (pas optionnels !)
-  npcId: number | string;         // ❌ PLUS optionnel ! Requis pour transmission
-  npcName: string;                // ❌ PLUS optionnel ! Requis pour transmission
-  isUnifiedInterface: boolean;    // ❌ PLUS optionnel ! Flag explicite requis
-  capabilities: NpcCapability[];  // ❌ PLUS optionnel ! Array requis
-  contextualData: {               // ❌ PLUS optionnel ! Données contextuelles requises
+  // ✅ CORRIGÉ : Champs interface unifiée REQUIS (pas optionnels) pour garantir transmission
+  npcId: number | string;         // ❌ PLUS optionnel - Requis pour transmission réseau
+  npcName: string;                // ❌ PLUS optionnel - Requis pour transmission réseau
+  isUnifiedInterface: boolean;    // ❌ PLUS optionnel - Flag explicite requis
+  capabilities: NpcCapability[];  // ❌ PLUS optionnel - Array requis (vide si aucune)
+  contextualData: {               // ❌ PLUS optionnel - Données contextuelles requises
     hasShop: boolean;
     hasQuests: boolean;
     hasHealing: boolean;
@@ -67,7 +67,7 @@ export interface NpcInteractionResult extends InteractionResult {
     }>;
   };
   
-  // Données interface unifiée (gardées optionnelles car spécifiques)
+  // Données interface unifiée spécifiques (gardées optionnelles)
   unifiedInterface?: UnifiedInterfaceResult;
   unifiedMode?: boolean;
 }
@@ -183,7 +183,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === ✅ LOGIQUE MÉTIER NPCs CORRIGÉE ===
+  // === ✅ LOGIQUE MÉTIER NPCs CORRIGÉE POUR TRANSMISSION RÉSEAU ===
 
   private async handleNpcInteractionLogic(player: Player, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', `Traitement logique NPC ${npcId} pour ${player.name}`);
@@ -191,25 +191,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
     if (!npcManager) {
-      // ✅ FALLBACK SÉCURISÉ avec tous les champs requis
-      return this.createFailbackResult(npcId, "NPCs non disponibles dans cette zone.");
+      return this.createSafeErrorResult(npcId, "NPCs non disponibles dans cette zone.");
     }
 
     const npc = npcManager.getNpcById(npcId);
     if (!npc) {
-      // ✅ FALLBACK SÉCURISÉ avec tous les champs requis
-      return this.createFailbackResult(npcId, "NPC inconnu.");
+      return this.createSafeErrorResult(npcId, "NPC inconnu.");
     }
-
-    // ✅ DÉBOGAGE EXPLICIT : Vérifier les propriétés NPC avant traitement
-    this.log('info', `🔍 NPC PROPERTIES DEBUG:`, {
-      id: npc.id,
-      name: npc.name,
-      nameType: typeof npc.name,
-      nameValue: JSON.stringify(npc.name),
-      hasName: npc.hasOwnProperty('name'),
-      hasId: npc.hasOwnProperty('id')
-    });
 
     // ✅ SÉCURITÉ : Valeurs par défaut si propriétés manquantes
     const safeNpcId = npc.id ?? npcId;
@@ -221,31 +209,31 @@ export class NpcInteractionModule extends BaseInteractionModule {
       propertiesCount: Object.keys(npc.properties || {}).length
     });
 
-    // ✅ NOUVELLE LOGIQUE : Analyse des capacités pour Interface Unifiée
+    // ✅ LOGIQUE : Analyse des capacités pour Interface Unifiée
     const capabilities = await this.analyzeNpcCapabilities(player, npc);
     
-    this.log('info', `Capacités détectées: ${capabilities.length}`, { capabilities });
+    this.log('info', `🔍 Capacités détectées: ${capabilities.length}`, { capabilities });
 
     // ✅ LOGIQUE CONDITIONNELLE : Multi-capacités vs Mono-capacité
     if (capabilities.length >= 1 && this.shouldUseUnifiedInterface(capabilities)) {
-      // === CAS INTERFACE UNIFIÉE : 1+ capacités ===
+      // === CAS INTERFACE UNIFIÉE ===
       this.log('info', '🔗 NPC -> Interface Unifiée');
       
       try {
         const unifiedResult = await this.unifiedInterfaceHandler.build(player, npc, capabilities);
         
-        // ✅ CONSTRUCTION RÉSULTAT COMPLÈTE AVEC TOUS LES CHAMPS REQUIS
+        // ✅ CONSTRUCTION RÉSULTAT AVEC TOUS LES CHAMPS REQUIS GARANTIS
         const result: NpcInteractionResult = {
           success: true,
           type: "unifiedInterface",
           message: `Interface ${capabilities.join(', ')} pour ${safeNpcName}`,
           
-          // ✅ CHAMPS REQUIS (pas optionnels) - GARANTIS pour transmission réseau
+          // ✅ CHAMPS REQUIS - GARANTIS pour transmission réseau
           npcId: safeNpcId,
           npcName: safeNpcName,
-          isUnifiedInterface: true,      // ✅ TOUJOURS true pour interface unifiée
-          capabilities: capabilities,     // ✅ TOUJOURS array (peut être vide)
-          contextualData: {              // ✅ TOUJOURS objet (jamais undefined)
+          isUnifiedInterface: true,
+          capabilities: capabilities,
+          contextualData: {
             hasShop: capabilities.includes('merchant'),
             hasQuests: capabilities.includes('quest'),
             hasHealing: capabilities.includes('healer'),
@@ -281,43 +269,26 @@ export class NpcInteractionModule extends BaseInteractionModule {
           lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${safeNpcName}.`]
         };
 
-        // ✅ DÉBOGAGE FINAL : Vérifier le résultat avant envoi
+        // ✅ DEBUG AVANT ENVOI
         this.log('info', '📤 RÉSULTAT FINAL AVANT ENVOI:', {
           type: result.type,
           npcId: result.npcId,
-          npcIdType: typeof result.npcId,
           npcName: result.npcName,
-          npcNameType: typeof result.npcName,
           isUnifiedInterface: result.isUnifiedInterface,
-          isUnifiedInterfaceType: typeof result.isUnifiedInterface,
           capabilities: result.capabilities,
-          capabilitiesType: typeof result.capabilities,
-          capabilitiesLength: result.capabilities?.length,
-          contextualData: !!result.contextualData,
-          contextualDataKeys: result.contextualData ? Object.keys(result.contextualData) : []
+          hasContextualData: !!result.contextualData
         });
 
-        this.log('info', '✅ Interface Unifiée construite avec champs requis', { 
+        this.log('info', '✅ Interface Unifiée construite avec tous les champs requis', { 
           capabilities: result.capabilities.length,
           defaultAction: result.contextualData.defaultAction,
-          hasAllRequiredFields: !!(result.npcId && result.npcName && typeof result.isUnifiedInterface === 'boolean')
-        });
-        
-        // ✅ NOUVEAU : Log avant envoi au client
-        console.log('📤 [NpcInteractionModule] ENVOI AU CLIENT CORRIGÉ:', {
-          type: result.type,
-          npcId: result.npcId,
-          npcName: result.npcName,
-          isUnifiedInterface: result.isUnifiedInterface,
-          capabilities: result.capabilities,
-          contextualData: result.contextualData
+          hasAllRequiredFields: !!(result.npcId && result.npcName && typeof result.isUnifiedInterface === 'boolean' && Array.isArray(result.capabilities))
         });
         
         return result;
         
       } catch (error) {
-        this.log('error', '❌ Erreur Interface Unifiée, fallback legacy avec champs requis', error);
-        // ✅ Fallback sécurisé avec tous les champs requis
+        this.log('error', '❌ Erreur Interface Unifiée, fallback legacy sécurisé', error);
         return await this.handleLegacyNpcInteractionSafe(player, npc, safeNpcId, safeNpcName, capabilities);
       }
     }
@@ -327,19 +298,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return await this.handleLegacyNpcInteractionSafe(player, npc, safeNpcId, safeNpcName, capabilities);
   }
 
-  // ✅ NOUVELLE MÉTHODE : Fallback sécurisé avec champs requis
-  private createFailbackResult(npcId: number, message: string): NpcInteractionResult {
+  // ✅ NOUVELLE MÉTHODE : Fallback d'erreur sécurisé avec champs requis
+  private createSafeErrorResult(npcId: number, message: string): NpcInteractionResult {
     return {
       success: false,
-      type: "error", 
+      type: "error",
       message: message,
       
       // ✅ CHAMPS REQUIS même en cas d'erreur
       npcId: npcId,
       npcName: `NPC #${npcId}`,
-      isUnifiedInterface: false,        // ✅ false pour les erreurs
-      capabilities: [],                 // ✅ Array vide
-      contextualData: {                 // ✅ Objet par défaut
+      isUnifiedInterface: false,
+      capabilities: [],
+      contextualData: {
         hasShop: false,
         hasQuests: false,
         hasHealing: false,
@@ -351,15 +322,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // ✅ MÉTHODE CORRIGÉE : Legacy sécurisé avec champs requis
   private async handleLegacyNpcInteractionSafe(
-    player: Player, 
-    npc: any, 
-    npcId: number, 
-    npcName: string, 
+    player: Player,
+    npc: any,
+    npcId: number | string,
+    npcName: string,
     detectedCapabilities: NpcCapability[]
   ): Promise<NpcInteractionResult> {
     
     // Appeler la logique legacy existante
-    const legacyResult = await this.handleLegacyNpcInteraction(player, npc, npcId);
+    const legacyResult = await this.handleLegacyNpcInteraction(player, npc, typeof npcId === 'string' ? parseInt(npcId.toString()) : npcId);
     
     // ✅ GARANTIR les champs requis même pour les résultats legacy
     const safeResult: NpcInteractionResult = {
@@ -368,9 +339,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // ✅ FORCER les champs requis
       npcId: npcId,
       npcName: npcName,
-      isUnifiedInterface: false,           // ✅ Legacy = pas interface unifiée
-      capabilities: detectedCapabilities,  // ✅ Capacités détectées même en mode legacy
-      contextualData: {                    // ✅ Données contextuelles basiques
+      isUnifiedInterface: false,
+      capabilities: detectedCapabilities,
+      contextualData: {
         hasShop: detectedCapabilities.includes('merchant') || !!(legacyResult as any).shopId,
         hasQuests: detectedCapabilities.includes('quest') || !!(legacyResult as any).availableQuests?.length,
         hasHealing: detectedCapabilities.includes('healer') || legacyResult.type === 'heal',
@@ -462,10 +433,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   private async hasQuestCapability(player: Player, npc: any): Promise<boolean> {
     try {
-      // Quêtes disponibles
       const availableQuests = await this.getAvailableQuestsForNpc(player.name, npc.id);
-      
-      // Quêtes à compléter
       const activeQuests = await this.questManager.getActiveQuests(player.name);
       const questsToComplete = activeQuests.filter(q => q.endNpcId === npc.id && q.status === 'readyToComplete');
       
@@ -476,7 +444,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   private hasDialogueCapability(npc: any): boolean {
-    return !!(npc.dialogueIds?.length || npc.properties?.dialogue) || true; // Toujours disponible comme fallback
+    return !!(npc.dialogueIds?.length || npc.properties?.dialogue) || true;
   }
 
   private hasHealerCapability(npc: any): boolean {
@@ -497,20 +465,16 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // ✅ NOUVELLE MÉTHODE : Déterminer si utiliser l'interface unifiée
   private shouldUseUnifiedInterface(capabilities: NpcCapability[]): boolean {
-    // Ne pas utiliser interface unifiée si pas de capabilities
     if (capabilities.length === 0) return false;
-    
-    // Si seulement "dialogue", utiliser legacy pour performance
     if (capabilities.length === 1 && capabilities[0] === 'dialogue') {
       return false;
     }
     
-    // Sinon, utiliser interface unifiée
     this.log('info', `🔍 shouldUseUnifiedInterface: ${capabilities.join(',')} -> OUI`);
     return true;
   }
 
-  // ✅ MÉTHODE CORRIGÉE : Labels des capacités avec gestion complète
+  // ✅ MÉTHODE CORRIGÉE : Labels des capacités avec gestion complète des types
   private getCapabilityLabel(capability: NpcCapability): string {
     const labels: Record<string, string> = {
       'merchant': '🛒 Boutique',
@@ -722,7 +686,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     request: SpecificActionRequest
   ): Promise<SpecificActionResult> {
     
-    // Pour dialogue, on retourne juste les lignes de dialogue
     const lines = this.getDialogueLines(npc);
     
     return {
@@ -735,7 +698,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   // ✅ LOGIQUE LEGACY (code existant pour les NPCs non migrés) - INCHANGÉE
-  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<InteractionResult> {
+  private async handleLegacyNpcInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     // === LOGIQUE DE PRIORITÉ EXISTANTE ===
 
     // 1. Vérifier si c'est une table starter
@@ -799,6 +762,18 @@ export class NpcInteractionModule extends BaseInteractionModule {
           questName: questNames,
           questRewards: totalRewards,
           questProgress: questProgress,
+          // ✅ Champs requis ajoutés
+          npcId: npcId,
+          npcName: npc.name || `NPC #${npcId}`,
+          isUnifiedInterface: false,
+          capabilities: [],
+          contextualData: {
+            hasShop: false,
+            hasQuests: true,
+            hasHealing: false,
+            defaultAction: 'quest',
+            quickActions: []
+          },
           lines: completionDialogue,
           message: `Félicitations ! Vous avez terminé : ${questNames}`
         };
@@ -834,7 +809,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         message: questOfferDialogue.join(' '),
         lines: questOfferDialogue,
         availableQuests: serializedQuests,
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: [],
+        contextualData: {
+          hasShop: false,
+          hasQuests: true,
+          hasHealing: false,
+          defaultAction: 'quest',
+          quickActions: []
+        }
       };
     }
 
@@ -855,7 +842,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         success: true,
         type: "dialogue",
         lines: progressDialogue,
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: [],
+        contextualData: {
+          hasShop: false,
+          hasQuests: true,
+          hasHealing: false,
+          defaultAction: 'quest',
+          quickActions: []
+        }
       };
     }
 
@@ -868,14 +867,38 @@ export class NpcInteractionModule extends BaseInteractionModule {
         success: true,
         type: "shop", 
         shopId: shopId,
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: ['merchant'],
+        contextualData: {
+          hasShop: true,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'merchant',
+          quickActions: []
+        }
       };
     } else if (npc.properties?.healer || npc.type === 'healer') {
       return { 
         success: true,
         type: "heal", 
         message: "Vos Pokémon sont soignés !",
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: ['healer'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: true,
+          defaultAction: 'healer',
+          quickActions: []
+        }
       };
     } else if (npc.properties?.dialogue || npc.dialogueIds) {
       const lines = this.getDialogueLines(npc);
@@ -883,7 +906,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         success: true,
         type: "dialogue", 
         lines,
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: ['dialogue'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
     } else {
       const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
@@ -891,14 +926,26 @@ export class NpcInteractionModule extends BaseInteractionModule {
         success: true,
         type: "dialogue", 
         lines: defaultDialogue,
-        questProgress: questProgress
+        questProgress: questProgress,
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: ['dialogue'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
     }
   }
 
   // === MÉTHODES SPÉCIALISÉES (CODE EXISTANT CONSERVÉ) ===
 
-  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<InteractionResult> {
+  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', 'Traitement interaction table starter');
   
     const validation = await this.starterHandlers.validateStarterRequest(player, 1);
@@ -912,7 +959,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         lines: [
           "Voici les trois Pokémon starter !",
           "Choisissez celui qui vous accompagnera dans votre aventure !"
-        ]
+        ],
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || "Table des starters",
+        isUnifiedInterface: false,
+        capabilities: ['service'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'service',
+          quickActions: []
+        }
       };
     } else {
       return {
@@ -921,7 +980,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         message: validation.message,
         starterEligible: false,
         starterReason: validation.reason,
-        lines: [validation.message]
+        lines: [validation.message],
+        // ✅ Champs requis ajoutés
+        npcId: npcId,
+        npcName: npc.name || "Table des starters",
+        isUnifiedInterface: false,
+        capabilities: ['dialogue'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
     }
   }
@@ -930,12 +1001,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // ✅ Support JSON + Tiled pour dialogues
   private getDialogueLines(npc: any): string[] {
-    // JSON : dialogueIds
     if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
       return npc.dialogueIds;
     }
     
-    // Tiled : properties.dialogue
     if (npc.properties?.dialogue) {
       const dialogue = npc.properties.dialogue;
       return Array.isArray(dialogue) ? dialogue : [dialogue];
@@ -944,21 +1013,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return ["Bonjour !"];
   }
 
-  // ✅ Récupération quest progress safe
-  private async getQuestProgressSafe(username: string, npcId: number): Promise<any[]> {
-    try {
-      return await this.questManager.updateQuestProgress(username, {
-        type: 'talk',
-        npcId: npcId,
-        targetId: npcId.toString()
-      });
-    } catch (error) {
-      this.log('error', 'Erreur getQuestProgressSafe', error);
-      return [];
-    }
-  }
-
-  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<InteractionResult | null> {
+  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
     try {
       const activeQuests = await this.questManager.getActiveQuests(username);
       this.log('info', `Vérification talk objectives`, { activeQuests: activeQuests.length });
@@ -994,7 +1049,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
                   type: "dialogue",
                   lines: validationDialogue,
                   questProgress: progressResults,
-                  message: result.message
+                  message: result.message,
+                  // ✅ Champs requis ajoutés
+                  npcId: npcId,
+                  npcName: await this.getNpcName(npcId),
+                  isUnifiedInterface: false,
+                  capabilities: ['quest', 'dialogue'],
+                  contextualData: {
+                    hasShop: false,
+                    hasQuests: true,
+                    hasHealing: false,
+                    defaultAction: 'quest',
+                    quickActions: []
+                  }
                 };
               }
             }
@@ -1076,7 +1143,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     }
     
-    // ✅ Support JSON + Tiled
     if (npc.shopId || npc.properties?.shop || npc.properties?.shopId || npc.type === 'merchant') {
       return [
         `Bienvenue dans ma boutique !`,
@@ -1257,7 +1323,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     spectatorPlayer: Player, 
     targetPlayerId: string,
     targetPlayerPosition: { x: number; y: number; mapId: string }
-  ): Promise<InteractionResult> {
+  ): Promise<NpcInteractionResult> {
     
     this.log('info', 'Interaction joueur combat', { 
       spectator: spectatorPlayer.name, 
@@ -1270,7 +1336,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return {
         success: false,
         type: "error",
-        message: "Ce joueur n'est pas en combat actuellement."
+        message: "Ce joueur n'est pas en combat actuellement.",
+        // ✅ Champs requis ajoutés
+        npcId: 0,
+        npcName: targetPlayerId,
+        isUnifiedInterface: false,
+        capabilities: [],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
     }
     
@@ -1292,7 +1370,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return {
         success: false,
         type: "error",
-        message: watchResult.reason || "Impossible de regarder ce combat"
+        message: watchResult.reason || "Impossible de regarder ce combat",
+        // ✅ Champs requis ajoutés
+        npcId: 0,
+        npcName: targetPlayerId,
+        isUnifiedInterface: false,
+        capabilities: [],
+        contextualData: {
+          hasShop: false,
+          hasQuests: false,
+          hasHealing: false,
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
     }
     
@@ -1300,13 +1390,23 @@ export class NpcInteractionModule extends BaseInteractionModule {
       success: true,
       type: "battleSpectate",
       message: `Vous regardez le combat de ${targetPlayerId}`,
-      data: {
-        battleSpectate: {
-          battleId: watchResult.battleId!,
-          battleRoomId: watchResult.battleRoomId!,
-          targetPlayerName: targetPlayerId,
-          canWatch: true
-        }
+      battleSpectate: {
+        battleId: watchResult.battleId!,
+        battleRoomId: watchResult.battleRoomId!,
+        targetPlayerName: targetPlayerId,
+        canWatch: true
+      },
+      // ✅ Champs requis ajoutés
+      npcId: 0,
+      npcName: targetPlayerId,
+      isUnifiedInterface: false,
+      capabilities: ['service'],
+      contextualData: {
+        hasShop: false,
+        hasQuests: false,
+        hasHealing: false,
+        defaultAction: 'service',
+        quickActions: []
       }
     };
   }
