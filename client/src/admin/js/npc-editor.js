@@ -23,11 +23,27 @@ constructor(adminPanel) {
     this.init()
 }
 
-    async init() {
-        // Charger les zones disponibles
-        await this.loadAvailableZones()
-        console.log('👤 [NPCEditor] Initialisation terminée - éditeur NPCs prêt')
+async init() {
+    try {
+        console.log('👤 [NPCEditor] Starting initialization...')
+        
+        // Initialiser les zones par défaut immédiatement
+        this.availableZones = [
+            { id: 'beach', name: '🏖️ Beach', description: 'Zone de plage avec touristes' },
+            { id: 'village', name: '🏘️ Village', description: 'Village principal avec habitants' },
+            { id: 'lavandia', name: '🏙️ Lavandia', description: 'Grande ville avec services' },
+            { id: 'road1', name: '🛤️ Route 1', description: 'Route avec dresseurs débutants' },
+            { id: 'road2', name: '🛤️ Route 2', description: 'Route intermédiaire' },
+            { id: 'road3', name: '🛤️ Route 3', description: 'Route avancée' },
+            { id: 'forest', name: '🌲 Forêt', description: 'Forêt mystérieuse' },
+            { id: 'cave', name: '🕳️ Grotte', description: 'Système de grottes' }
+        ]
+        
+        console.log('✅ [NPCEditor] Initialization completed - NPC editor ready')
+    } catch (error) {
+        console.error('❌ [NPCEditor] Initialization failed:', error)
     }
+}
 
     // ==============================
     // GESTION DES ZONES ET CHARGEMENT
@@ -671,23 +687,26 @@ constructor(adminPanel) {
     // API PUBLIQUE
     // ==============================
 
-    onTabActivated() {
-        console.log('👤 [NPCEditor] Tab activated')
-        
-        // Charger les zones si nécessaire
-        if (!this.availableZones || this.availableZones.length === 0) {
-            this.loadAvailableZones()
-        }
-        
-        // Rendre l'interface principale
-        this.renderMainInterface()
-        
-        // Recharger la zone courante si nécessaire
-        if (this.currentZone) {
-            this.renderNPCsList()
-            this.renderZoneStats()
-        }
+ onTabActivated() {
+    console.log('👤 [NPCEditor] Tab activated')
+    
+    // Rendre l'interface IMMÉDIATEMENT
+    this.renderMainInterface()
+    
+    // Charger les zones en arrière-plan si nécessaire
+    if (!this.availableZones || this.availableZones.length === 0) {
+        this.loadAvailableZones().then(() => {
+            // Re-render après chargement des zones
+            this.renderMainInterface()
+        })
     }
+    
+    // Recharger la zone courante si nécessaire
+    if (this.currentZone) {
+        this.renderNPCsList()
+        this.renderZoneStats()
+    }
+}
 
     cleanup() {
         this.currentZone = null
