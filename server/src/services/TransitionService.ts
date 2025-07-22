@@ -1,14 +1,12 @@
 // server/src/services/TransitionService.ts
-// ✅ VERSION AVEC SYSTÈME SPAWN DYNAMIQUE VIA OBJETS TILED + JWT
+// ✅ VERSION INDÉPENDANTE SANS NPCManager
 
 import { Client } from "@colyseus/core";
-import { NpcManager } from "../managers/NPCManager";
 import { Player } from "../schema/PokeWorldState";
 import { TeleportConfig, TransitionRule, ValidationContext } from "../config/TeleportConfig";
 import { JWTManager } from "../managers/JWTManager";
-import { FollowerHandlers } from "../handlers/FollowerHandlers"; // ✅ AJOUT
+import { FollowerHandlers } from "../handlers/FollowerHandlers";
 import fs from "fs";
-
 import path from "path";
 
 export interface TransitionRequest {
@@ -26,7 +24,7 @@ export interface TransitionResult {
   currentZone?: string;
   rollback?: boolean;
   validatedTeleport?: TeleportData;
-  userId?: string; // ✅ AJOUT pour traçabilité
+  userId?: string;
 }
 
 export interface TeleportData {
@@ -36,7 +34,7 @@ export interface TeleportData {
   width: number;
   height: number;
   targetZone: string;
-  targetSpawn: string; // ✅ AJOUT targetSpawn
+  targetSpawn: string;
 }
 
 export interface SpawnData {
@@ -45,140 +43,139 @@ export interface SpawnData {
   y: number;
   width: number;
   height: number;
-  targetSpawn: string; // ✅ Propriété pour matcher avec le téléport
+  targetSpawn: string;
 }
 
 export class TransitionService {
-  private npcManagers: Map<string, NpcManager>;
   private teleportData: Map<string, TeleportData[]> = new Map();
-  private spawnData: Map<string, SpawnData[]> = new Map(); // ✅ NOUVEAU: Cache des spawns
+  private spawnData: Map<string, SpawnData[]> = new Map();
   private config: TeleportConfig;
-  private jwtManager: JWTManager; // ✅ AJOUT
-  private followerHandlers: FollowerHandlers | null = null; // ✅ AJOUT
+  private jwtManager: JWTManager;
+  private followerHandlers: FollowerHandlers | null = null;
 
-
-  constructor(npcManagers: Map<string, NpcManager>) {
-    this.npcManagers = npcManagers;
-    this.jwtManager = JWTManager.getInstance(); // ✅ AJOUT
+  // ✅ CONSTRUCTEUR SIMPLIFIÉ - Plus de dépendance NPCManager
+  constructor() {
+    this.jwtManager = JWTManager.getInstance();
     this.config = new TeleportConfig();
     this.loadAllMapsData();
     
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
-/**
- * ✅ NOUVEAU: Enregistrer le handler de followers
- */
-setFollowerHandlers(followerHandlers: FollowerHandlers): void {
-  this.followerHandlers = followerHandlers;
-  console.log(`🐾 [TransitionService] FollowerHandlers enregistré pour les transitions`);
-}
+
+  /**
+   * ✅ NOUVEAU: Enregistrer le handler de followers
+   */
+  setFollowerHandlers(followerHandlers: FollowerHandlers): void {
+    this.followerHandlers = followerHandlers;
+    console.log(`🐾 [TransitionService] FollowerHandlers enregistré pour les transitions`);
+  }
+
   // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
-// ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
-async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
-  console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
-  
-  // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
-  const sessionValidation = await this.jwtManager.validateSessionRobust(
-    client.sessionId, 
-    player.name, 
-    'transition'
-  );
-  
-  if (!sessionValidation.valid) {
-    console.error(`❌ [TransitionService] ${sessionValidation.reason}`);
-    return {
-      success: false,
-      reason: "Session invalide pour transition",
-      rollback: true
-    };
+  async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
+    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
+    
+    // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
+    const sessionValidation = await this.jwtManager.validateSessionRobust(
+      client.sessionId, 
+      player.name, 
+      'transition'
+    );
+    
+    if (!sessionValidation.valid) {
+      console.error(`❌ [TransitionService] ${sessionValidation.reason}`);
+      return {
+        success: false,
+        reason: "Session invalide pour transition",
+        rollback: true
+      };
+    }
+    
+    const { userId, jwtData } = sessionValidation;
+    console.log(`✅ [TransitionService] Session validée pour transition: ${userId}`);
+    
+    console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
+    console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
+    console.log(`📍 ${data.fromZone} → ${data.targetZone}`);
+    console.log(`📊 Position: (${data.playerX}, ${data.playerY})`);
+
+    try {
+      // 1. Vérifier que les zones existent
+      if (!this.teleportData.has(data.fromZone)) {
+        console.error(`❌ [TransitionService] Zone source inconnue: ${data.fromZone}`);
+        console.log(`📋 [TransitionService] Zones disponibles:`, Array.from(this.teleportData.keys()));
+        return {
+          success: false,
+          reason: `Zone source inconnue: ${data.fromZone}`,
+          rollback: true
+        };
+      }
+
+      if (!this.spawnData.has(data.targetZone)) {
+        console.error(`❌ [TransitionService] Zone cible sans spawns: ${data.targetZone}`);
+        console.log(`📋 [TransitionService] Zones avec spawns:`, Array.from(this.spawnData.keys()));
+        return {
+          success: false,
+          reason: `Zone cible sans spawns: ${data.targetZone}`,
+          rollback: true
+        };
+      }
+
+      // 2. Validation physique du téléport (collision + destination)
+      const teleportValidation = this.validateTeleportCollision(data);
+      if (!teleportValidation.success) {
+        return teleportValidation;
+      }
+
+      // 3. Récupérer le téléport validé
+      const validatedTeleport = teleportValidation.validatedTeleport!;
+      console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
+      console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
+
+      // 4. Vérifier les règles de configuration avec JWT
+      const configValidation = await this.validateConfigRules(client, player, data);
+      if (!configValidation.success) {
+        return configValidation;
+      }
+
+      // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
+      const spawnPosition = this.findTargetSpawn(data.targetZone, validatedTeleport.targetSpawn);
+      if (!spawnPosition) {
+        console.error(`❌ [TransitionService] Spawn introuvable: ${data.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
+        return {
+          success: false,
+          reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
+          rollback: true
+        };
+      }
+
+      // 6. ✅ NOUVEAU: Gérer la transition du follower
+      if (this.followerHandlers) {
+        console.log(`🐾 [TransitionService] Gestion transition follower pour ${client.sessionId}`);
+        this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
+      }
+
+      // 7. Validation réussie
+      console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
+      console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
+      this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
+
+      return {
+        success: true,
+        position: spawnPosition,
+        currentZone: data.targetZone,
+        validatedTeleport: validatedTeleport,
+        userId: userId
+      };
+
+    } catch (error) {
+      console.error(`❌ [TransitionService] Erreur validation:`, error);
+      return {
+        success: false,
+        reason: "Erreur serveur lors de la validation",
+        rollback: true
+      };
+    }
   }
-  
-  const { userId, jwtData } = sessionValidation; // ✅ CORRECTION: Récupérer jwtData
-  console.log(`✅ [TransitionService] Session validée pour transition: ${userId}`);
-  
-  // ✅ CORRECTION: Utiliser 'data' au lieu de 'request'
-  console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
-  console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
-  console.log(`📍 ${data.fromZone} → ${data.targetZone}`);
-  console.log(`📊 Position: (${data.playerX}, ${data.playerY})`);
-
-  try {
-    // 1. Vérifier que les zones existent
-    if (!this.teleportData.has(data.fromZone)) {
-      console.error(`❌ [TransitionService] Zone source inconnue: ${data.fromZone}`);
-      return {
-        success: false,
-        reason: `Zone source inconnue: ${data.fromZone}`,
-        rollback: true
-      };
-    }
-
-    if (!this.spawnData.has(data.targetZone)) {
-      console.error(`❌ [TransitionService] Zone cible sans spawns: ${data.targetZone}`);
-      return {
-        success: false,
-        reason: `Zone cible sans spawns: ${data.targetZone}`,
-        rollback: true
-      };
-    }
-
-    // 2. Validation physique du téléport (collision + destination)
-    const teleportValidation = this.validateTeleportCollision(data);
-    if (!teleportValidation.success) {
-      return teleportValidation;
-    }
-
-    // 3. Récupérer le téléport validé
-    const validatedTeleport = teleportValidation.validatedTeleport!;
-    console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
-    console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
-
-    // 4. Vérifier les règles de configuration avec JWT
-    const configValidation = await this.validateConfigRules(client, player, data);
-    if (!configValidation.success) {
-      return configValidation;
-    }
-
-    // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
-    const spawnPosition = this.findTargetSpawn(data.targetZone, validatedTeleport.targetSpawn);
-    if (!spawnPosition) {
-      console.error(`❌ [TransitionService] Spawn introuvable: ${data.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
-      return {
-        success: false,
-        reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
-        rollback: true
-      };
-    }
-
-    // 6. Validation réussie
-    // 6. ✅ NOUVEAU: Gérer la transition du follower
-    if (this.followerHandlers) {
-      console.log(`🐾 [TransitionService] Gestion transition follower pour ${client.sessionId}`);
-      this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
-    }
-
-    // 7. Validation réussie
-    console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
-    console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
-    this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
-
-    return {
-      success: true,
-      position: spawnPosition,
-      currentZone: data.targetZone,
-      validatedTeleport: validatedTeleport,
-      userId: userId // ✅ AJOUT pour traçabilité
-    };
-
-  } catch (error) {
-    console.error(`❌ [TransitionService] Erreur validation:`, error);
-    return {
-      success: false,
-      reason: "Erreur serveur lors de la validation",
-      rollback: true
-    };
-  }
-}
 
   // ✅ VALIDATION TÉLÉPORT AVEC targetSpawn
   private validateTeleportCollision(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
@@ -294,22 +291,43 @@ async validateTransition(client: Client, player: any, data: TransitionRequest): 
     return { x: matchingSpawn.x, y: matchingSpawn.y };
   }
 
-  // ✅ CHARGEMENT DES TÉLÉPORTS ET SPAWNS
+  // ✅ CHARGEMENT INDÉPENDANT DES TÉLÉPORTS ET SPAWNS
   private loadAllMapsData() {
-    console.log(`🔄 [TransitionService] Chargement téléports et spawns depuis NPCManagers...`);
+    console.log(`🔄 [TransitionService] Scan direct du dossier maps...`);
     
-    this.npcManagers.forEach((npcManager, zoneName) => {
-      try {
-        this.extractTeleportsAndSpawnsFromNpcManager(zoneName, npcManager);
-      } catch (error) {
-        console.warn(`⚠️ [TransitionService] Erreur extraction ${zoneName}:`, error);
+    try {
+      const mapsDir = path.resolve(__dirname, '../assets/maps/');
+      
+      if (!fs.existsSync(mapsDir)) {
+        console.error(`❌ [TransitionService] Dossier maps introuvable: ${mapsDir}`);
+        return;
       }
-    });
+
+      // Scanner tous les fichiers .tmj
+      const mapFiles = fs.readdirSync(mapsDir)
+        .filter(file => file.endsWith('.tmj'))
+        .map(file => file.replace('.tmj', ''));
+
+      console.log(`📁 [TransitionService] ${mapFiles.length} cartes trouvées:`, mapFiles);
+
+      // Charger chaque carte
+      mapFiles.forEach(zoneName => {
+        try {
+          this.extractTeleportsAndSpawns(zoneName);
+        } catch (error) {
+          console.warn(`⚠️ [TransitionService] Erreur extraction ${zoneName}:`, error);
+        }
+      });
+
+    } catch (error) {
+      console.error(`❌ [TransitionService] Erreur scan dossier maps:`, error);
+    }
 
     console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} zones`);
   }
 
-  private extractTeleportsAndSpawnsFromNpcManager(zoneName: string, npcManager: NpcManager) {
+  // ✅ EXTRACTION DIRECTE DEPUIS LES FICHIERS TMJ
+  private extractTeleportsAndSpawns(zoneName: string) {
     const mapPath = path.resolve(__dirname, `../assets/maps/${zoneName}.tmj`);
     
     if (!fs.existsSync(mapPath)) {
