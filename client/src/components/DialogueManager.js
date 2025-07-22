@@ -429,12 +429,31 @@ export class DialogueManager {
         
         setTimeout(() => {
           if (window.shopUI && window.shopUI.isVisible) {
+            // 🔧 CORRECTION : S'assurer que le nom du NPC est dans les données du catalogue
             const catalogData = {
               success: true,
-              catalog: shopData,
-              playerGold: shopData.playerGold || 1000
+              catalog: {
+                ...shopData,
+                npcName: npcData.name, // 🆕 FORCER le nom du NPC
+                shopInfo: {
+                  ...shopData.shopInfo,
+                  npcName: npcData.name // 🆕 AUSSI dans shopInfo
+                }
+              },
+              playerGold: shopData.playerGold || 1000,
+              npcName: npcData.name // 🆕 AUSSI à la racine
             };
             window.shopUI.handleShopCatalog(catalogData);
+            
+            // 🆕 FORCER la mise à jour du titre après injection
+            setTimeout(() => {
+              if (window.shopUI && window.shopUI.updateShopTitle) {
+                window.shopUI.updateShopTitle({
+                  npcName: npcData.name,
+                  name: npcData.name
+                });
+              }
+            }, 50);
           }
         }, 100);
       }
@@ -599,18 +618,39 @@ export class DialogueManager {
     if (data.success && (!window.shopUI || !window.shopUI.isVisible)) {
       console.log('🚪 Ouverture automatique du shop suite au catalogue...');
       
-      // Essayer d'extraire le nom du marchand depuis les données
+      // 🔧 EXTRACTION ROBUSTE du nom du marchand
       let npcName = 'Marchand';
-      if (data.catalog && data.catalog.npcName) {
-        npcName = data.catalog.npcName;
-      } else if (data.npcName) {
-        npcName = data.npcName;
+      let npcId = 'unknown';
+      
+      // Priorité 1 : Depuis les données de dialogue en mémoire
+      if (this.currentDialogueData) {
+        npcName = this.currentDialogueData.npcName || this.currentDialogueData.name || npcName;
+        npcId = this.currentDialogueData.npcId || npcId;
+        console.log(`🎭 Nom depuis dialogue courant: ${npcName}`);
       }
       
-      // Ouvrir le shop avec les données du catalogue
+      // Priorité 2 : Depuis les données du catalogue
+      if (data.catalog && data.catalog.npcName) {
+        npcName = data.catalog.npcName;
+        console.log(`🎭 Nom depuis catalog.npcName: ${npcName}`);
+      } else if (data.npcName) {
+        npcName = data.npcName;
+        console.log(`🎭 Nom depuis data.npcName: ${npcName}`);
+      }
+      
+      // Priorité 3 : Depuis l'état de l'interaction manager
+      if (window.interactionManager?.state?.lastInteractedNpc) {
+        const lastNpc = window.interactionManager.state.lastInteractedNpc;
+        npcName = lastNpc.name || npcName;
+        npcId = lastNpc.id || npcId;
+        console.log(`🎭 Nom depuis InteractionManager: ${npcName}`);
+      }
+      
+      // Ouvrir le shop avec les données du catalogue ET le bon nom
       this.createOrOpenShopUI(data.shopId || 'default_shop', {
         npcName: npcName,
-        npcId: data.npcId || 'unknown'
+        npcId: npcId,
+        name: npcName
       }, data.catalog);
     }
   }
