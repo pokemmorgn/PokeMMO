@@ -2590,49 +2590,6 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // ========================================
 
 // ========================================
-// CONFIGURATION MONGODB AVEC MONGOOSE
-// ========================================
-
-// Utiliser la connexion Mongoose existante
-import mongoose from 'mongoose';
-
-// Fonction pour récupérer la DB Mongoose
-async function getMongooseDB() {
-    if (mongoose.connection.readyState !== 1) {
-        throw new Error('MongoDB not connected via Mongoose');
-    }
-    return mongoose.connection.db;
-}
-
-// Utilitaire pour préparer les requêtes MongoDB
-function prepareMongoQuery(query: any): any {
-    if (!query || typeof query !== 'object') return {};
-    
-    const convertedQuery = JSON.parse(JSON.stringify(query));
-    
-    function convertObjectIds(obj: any): void {
-        for (const key in obj) {
-            if (obj[key] && typeof obj[key] === 'object') {
-                if (Array.isArray(obj[key])) {
-                    obj[key] = obj[key].map((item: any) => 
-                        typeof item === 'string' && ObjectId.isValid(item) 
-                            ? new ObjectId(item) 
-                            : item
-                    );
-                } else {
-                    convertObjectIds(obj[key]);
-                }
-            } else if (key === '_id' && typeof obj[key] === 'string' && ObjectId.isValid(obj[key])) {
-                obj[key] = new ObjectId(obj[key]);
-            }
-        }
-    }
-    
-    convertObjectIds(convertedQuery);
-    return convertedQuery;
-}
-
-// ========================================
 // ROUTES MONGODB
 // ========================================
 
