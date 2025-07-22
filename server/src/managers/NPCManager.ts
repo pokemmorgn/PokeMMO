@@ -891,6 +891,36 @@ export class NpcManager {
     };
   }
 
+  // ✅ TA MÉTHODE DEBUG EXISTANTE (remise)
+  debugSystem(): void {
+    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs ÉTENDU ===`);
+    
+    const stats = this.getSystemStats();
+    console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
+    
+    console.log(`\n📦 NPCs par ID (premiers 10):`);
+    for (const npc of this.npcs.slice(0, 10)) {
+      console.log(`  🤖 ${npc.id}: ${npc.name} (${npc.type || 'legacy'}) [${npc.sourceType}] - Zone: ${this.extractZoneFromNpc(npc)}`);
+    }
+    
+    if (this.validationErrors.size > 0) {
+      console.log(`\n❌ Erreurs de validation:`);
+      for (const [npcId, errors] of this.validationErrors.entries()) {
+        console.log(`  🚫 NPC ${npcId}: ${errors.join(', ')}`);
+      }
+    }
+
+    // ✅ NOUVELLES INFOS DEBUG MongoDB
+    console.log(`\n💾 État du cache MongoDB:`);
+    console.log(`  - Taille: ${this.mongoCache.size}`);
+    console.log(`  - TTL: ${this.config.cacheTTL / 1000}s`);
+    
+    console.log(`\n⚙️  Configuration:`);
+    console.log(`  - Source primaire: ${this.config.primaryDataSource}`);
+    console.log(`  - Fallback activé: ${this.config.enableFallback}`);
+    console.log(`  - Cache MongoDB: ${this.config.useMongoCache}`);
+  }
+
   // ===== TES MÉTHODES PRIVÉES EXISTANTES (toutes inchangées) =====
 
   private validateNpcJson(npcJson: any): NpcValidationResult {
