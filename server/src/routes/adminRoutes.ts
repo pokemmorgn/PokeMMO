@@ -16,10 +16,20 @@ import mongoose from 'mongoose';
 const router = express.Router();
 const execAsync = promisify(exec);
 
-// Configuration MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
-const mongoClientInstance = new MongoClient(MONGODB_URI);
+interface CollectionStats {
+    name: string;
+    count: number;
+    size: number;
+    avgObjSize: number;
+}
 
+interface DatabaseStats {
+    name: string;
+    collections: number;
+    dataSize: number;
+    indexSize: number;
+    totalSize: number;
+}
 
 // Fonction pour récupérer la DB Mongoose
 async function getMongooseDB() {
@@ -2666,7 +2676,7 @@ router.get('/mongodb/collections/:database', requireMacAndDev, async (req: any, 
         // Si on veut une autre base, on change la connexion
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const collections = await targetDb.listCollections().toArray();
         const collectionNames = collections.map((col: any) => col.name);
@@ -2699,7 +2709,7 @@ router.post('/mongodb/documents', requireMacAndDev, async (req: any, res: any) =
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const coll = targetDb.collection(collection);
         
@@ -2746,7 +2756,7 @@ router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => 
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const coll = targetDb.collection(collection);
         
@@ -2795,7 +2805,7 @@ router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) 
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const coll = targetDb.collection(collection);
         
@@ -2837,7 +2847,7 @@ router.post('/mongodb/document', requireMacAndDev, async (req: any, res: any) =>
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const coll = targetDb.collection(collection);
         
@@ -2872,7 +2882,7 @@ router.get('/mongodb/stats/:database', requireMacAndDev, async (req: any, res: a
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         // Récupérer les stats de la base
         const dbStats = await targetDb.stats();
@@ -2955,7 +2965,7 @@ router.post('/mongodb/query', requireMacAndDev, async (req: any, res: any) => {
         // Utiliser la bonne base de données
         const targetDb = database === mongoose.connection.db?.databaseName ? 
             db : 
-            mongoose.connection.client.db(database);
+            mongoose.connection.getClient().db(database);
         
         const coll = targetDb.collection(collection);
         
