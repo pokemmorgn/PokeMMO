@@ -717,10 +717,33 @@ export class NpcManager {
         // Test 2: Ping basique de la DB
         await mongoose.connection.db.admin().ping();
         
-        // Test 3: Test spécifique NpcData (le plus important!)
-        const testCount = await NpcData.countDocuments();
+        // ✅ DIAGNOSTIC AVANCÉ : Vérifier quelle DB on utilise
+        const dbName = mongoose.connection.db.databaseName;
+        this.log('info', `🗄️ [MongoDB Ping] Base de données: ${dbName}`);
         
-        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} NPCs détectés`);
+        // Test 3: Compter dans collection brute
+        const rawCount = await mongoose.connection.db.collection('npc_data').countDocuments();
+        this.log('info', `📊 [MongoDB Ping] NPCs collection brute: ${rawCount}`);
+        
+        // Test 4: Test spécifique NpcData (le plus important!)
+        const testCount = await NpcData.countDocuments();
+        this.log('info', `📊 [MongoDB Ping] NPCs via modèle: ${testCount}`);
+        
+        // Test 5: Si différence, diagnostiquer pourquoi
+        if (rawCount !== testCount) {
+          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
+          
+          // Essayer de voir un exemple
+          const rawSample = await mongoose.connection.db.collection('npc_data').findOne();
+          this.log('info', `📄 [MongoDB Ping] Exemple brut:`, rawSample ? {
+            _id: rawSample._id,
+            npcId: rawSample.npcId,
+            zone: rawSample.zone,
+            name: rawSample.name
+          } : 'Aucun');
+        }
+        
+        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} NPCs détectés via modèle`);
         return; // Tout fonctionne !
         
       } catch (error) {
