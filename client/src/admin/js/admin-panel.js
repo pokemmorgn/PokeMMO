@@ -35,32 +35,32 @@ export class AdminPanel {
         }
     }
 
-    loadModules(moduleClasses) {
-        console.log('📦 [AdminPanel] Chargement des modules...')
-        
-        moduleClasses.forEach(ModuleClass => {
-            try {
-                const instance = new ModuleClass(this)
-                this.modules[instance.name] = instance
-                console.log(`✅ [AdminPanel] Module ${instance.name} chargé`)
-            } catch (error) {
-                console.error(`❌ [AdminPanel] Erreur chargement module:`, error)
-            }
-        })
-        
-        // Expose modules for easy access
-        this.dashboard = this.modules.dashboard
-        this.players = this.modules.players
-        this.playersAdvanced = this.modules.playersAdvanced
-        this.quests = this.modules.quests
-        this.logsTools = this.modules.logsTools
-        this.questGenerator = this.modules.questGenerator
-        this.mapEditor = this.modules.mapEditor
-        this.npcEditor = this.modules.npcEditor  // ← AJOUTER CETTE LIGNE
-
-        
-        console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
-    }
+   loadModules(moduleClasses) {
+    console.log('📦 [AdminPanel] Chargement des modules...')
+    
+    moduleClasses.forEach(ModuleClass => {
+        try {
+            const instance = new ModuleClass(this)
+            this.modules[instance.name] = instance
+            console.log(`✅ [AdminPanel] Module ${instance.name} chargé`)
+        } catch (error) {
+            console.error(`❌ [AdminPanel] Erreur chargement module:`, error)
+        }
+    })
+    
+    // Expose modules for easy access
+    this.dashboard = this.modules.dashboard
+    this.players = this.modules.players
+    this.playersAdvanced = this.modules.playersAdvanced
+    this.quests = this.modules.quests
+    this.logsTools = this.modules.logsTools
+    this.questGenerator = this.modules.questGenerator
+    this.mapEditor = this.modules.mapEditor
+    this.npcEditor = this.modules.npcEditor
+    this.mongodb = this.modules.mongodb  // ← AJOUTER CETTE LIGNE
+    
+    console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
+}
 
     setupEventListeners() {
         // Navigation par onglets
@@ -176,6 +176,10 @@ export class AdminPanel {
                 case 'npcs':
     console.log('👤 [AdminPanel] Activating NPCs tab')
     this.npcEditor?.onTabActivated()
+    break
+                case 'mongodb':
+    console.log('🗄️ [AdminPanel] Activating MongoDB tab')
+    this.mongodb?.onTabActivated()
     break
         }
     }
