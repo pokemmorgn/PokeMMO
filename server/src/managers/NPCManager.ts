@@ -146,6 +146,11 @@ export class NpcManager {
   private mongoCache: Map<string, { data: NpcData[]; timestamp: number }> = new Map();
   private npcSourceMapExtended: Map<number, NpcDataSource> = new Map();
   
+  // ✅ HOT RELOAD SYSTEM
+  private changeStream: any = null;
+  private hotReloadEnabled: boolean = true;
+  private reloadCallbacks: Array<(event: string, npcData?: any) => void> = [];
+  
   // ✅ CONFIGURATION ÉTENDUE
   private config: NpcManagerConfig = {
     // Nouveaux paramètres
@@ -211,11 +216,200 @@ export class NpcManager {
     if (loaded) {
       this.log('info', `✅ [WaitForLoad] NPCs chargés: ${this.npcs.length} NPCs en ${loadTime}ms`);
       this.log('info', `🗺️  [WaitForLoad] Zones chargées: ${Array.from(this.loadedZones).join(', ')}`);
+      
+      // ✅ DÉMARRER HOT RELOAD après chargement initial
+      if (this.config.primaryDataSource === NpcDataSource.MONGODB && this.hotReloadEnabled) {
+        this.startHotReload();
+      }
     } else {
       this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, ${this.npcs.length} NPCs chargés`);
     }
     
     return loaded;
+  }
+
+  // ✅ NOUVEAU : Système Hot Reload avec MongoDB Change Streams
+  private startHotReload(): void {
+    try {
+      this.log('info', '🔥 [HotReload] Démarrage MongoDB Change Streams...');
+      
+      // Créer le Change Stream sur la collection npc_data
+      this.changeStream = NpcData.watch([], { 
+        fullDocument: 'updateLookup' // Récupère le document complet après modification
+      });
+      
+      // Écouter les changements
+      this.changeStream.on('change', (change: any) => {
+        this.handleMongoDBChange(change);
+      });
+      
+      this.changeStream.on('error', (error: any) => {
+        this.log('error', '❌ [HotReload] Erreur Change Stream:', error);
+        
+        // Retry après 5 secondes
+        setTimeout(() => {
+          this.log('info', '🔄 [HotReload] Redémarrage Change Stream...');
+          this.startHotReload();
+        }, 5000);
+      });
+      
+      this.log('info', '✅ [HotReload] Change Streams actif !');
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Impossible de démarrer Change Streams:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Traiter les changements MongoDB
+  private async handleMongoDBChange(change: any): Promise<void> {
+    try {
+      this.log('info', `🔥 [HotReload] Changement détecté: ${change.operationType}`);
+      
+      switch (change.operationType) {
+        case 'insert':
+          await this.handleNpcInsert(change.fullDocument);
+          break;
+          
+        case 'update':
+          await this.handleNpcUpdate(change.fullDocument);
+          break;
+          
+        case 'delete':
+          await this.handleNpcDelete(change.documentKey._id);
+          break;
+          
+        case 'replace':
+          await this.handleNpcUpdate(change.fullDocument);
+          break;
+          
+        default:
+          this.log('info', `ℹ️ [HotReload] Opération ignorée: ${change.operationType}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur traitement changement:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Gestion ajout NPC
+  private async handleNpcInsert(mongoDoc: any): Promise<void> {
+    try {
+      const zoneName = mongoDoc.zone;
+      const npcData = this.convertMongoDocToNpcData(mongoDoc, zoneName);
+      
+      // Ajouter à la collection
+      this.npcs.push(npcData);
+      this.npcSourceMap.set(npcData.id, 'mongodb');
+      this.npcSourceMapExtended.set(npcData.id, NpcDataSource.MONGODB);
+      this.loadedZones.add(zoneName);
+      
+      // Invalider le cache de la zone
+      this.mongoCache.delete(zoneName);
+      
+      this.log('info', `➕ [HotReload] NPC ajouté: ${npcData.name} (ID: ${npcData.id}) dans ${zoneName}`);
+      
+      // Notifier les callbacks
+      this.notifyReloadCallbacks('insert', npcData);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur ajout NPC:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Gestion modification NPC
+  private async handleNpcUpdate(mongoDoc: any): Promise<void> {
+    try {
+      const zoneName = mongoDoc.zone;
+      const npcData = this.convertMongoDocToNpcData(mongoDoc, zoneName);
+      
+      // Trouver et remplacer le NPC existant
+      const existingIndex = this.npcs.findIndex(npc => npc.id === npcData.id);
+      if (existingIndex >= 0) {
+        this.npcs[existingIndex] = npcData;
+        this.log('info', `🔄 [HotReload] NPC mis à jour: ${npcData.name} (ID: ${npcData.id})`);
+      } else {
+        // Si pas trouvé, l'ajouter (cas edge)
+        this.npcs.push(npcData);
+        this.npcSourceMap.set(npcData.id, 'mongodb');
+        this.npcSourceMapExtended.set(npcData.id, NpcDataSource.MONGODB);
+        this.log('info', `➕ [HotReload] NPC ajouté (via update): ${npcData.name} (ID: ${npcData.id})`);
+      }
+      
+      // Invalider le cache de la zone
+      this.mongoCache.delete(zoneName);
+      this.loadedZones.add(zoneName);
+      
+      // Notifier les callbacks
+      this.notifyReloadCallbacks('update', npcData);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur modification NPC:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Gestion suppression NPC
+  private async handleNpcDelete(documentId: any): Promise<void> {
+    try {
+      // Trouver le NPC à supprimer
+      const npcIndex = this.npcs.findIndex(npc => npc.mongoDoc && npc.mongoDoc._id.equals(documentId));
+      
+      if (npcIndex >= 0) {
+        const deletedNpc = this.npcs[npcIndex];
+        const zoneName = this.extractZoneFromNpc(deletedNpc);
+        
+        // Supprimer de la collection
+        this.npcs.splice(npcIndex, 1);
+        this.npcSourceMap.delete(deletedNpc.id);
+        this.npcSourceMapExtended.delete(deletedNpc.id);
+        
+        // Invalider le cache de la zone
+        this.mongoCache.delete(zoneName);
+        
+        this.log('info', `➖ [HotReload] NPC supprimé: ${deletedNpc.name} (ID: ${deletedNpc.id})`);
+        
+        // Notifier les callbacks
+        this.notifyReloadCallbacks('delete', deletedNpc);
+        
+      } else {
+        this.log('warn', `⚠️ [HotReload] NPC à supprimer non trouvé: ${documentId}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur suppression NPC:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Notifier les callbacks
+  private notifyReloadCallbacks(event: string, npcData?: any): void {
+    this.reloadCallbacks.forEach(callback => {
+      try {
+        callback(event, npcData);
+      } catch (error) {
+        this.log('error', '❌ [HotReload] Erreur callback:', error);
+      }
+    });
+  }
+
+  // ✅ NOUVEAU : Méthodes publiques pour le Hot Reload
+  public onNpcChange(callback: (event: string, npcData?: any) => void): void {
+    this.reloadCallbacks.push(callback);
+    this.log('info', `📋 [HotReload] Callback enregistré (total: ${this.reloadCallbacks.length})`);
+  }
+
+  public stopHotReload(): void {
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = null;
+      this.log('info', '🛑 [HotReload] Change Streams arrêté');
+    }
+  }
+
+  public getHotReloadStatus(): { enabled: boolean; active: boolean; callbackCount: number } {
+    return {
+      enabled: this.hotReloadEnabled,
+      active: !!this.changeStream,
+      callbackCount: this.reloadCallbacks.length
+    };
   }
 
   // ✅ MÉTHODE SIMPLIFIÉE : Initialisation spécifique (JSON + MongoDB seulement)
@@ -576,6 +770,25 @@ export class NpcManager {
     }
     
     return results;
+  }
+
+  // ✅ NOUVEAU : Nettoyage complet avec Hot Reload
+  public cleanup(): void {
+    this.log('info', '🧹 [NpcManager] Nettoyage...');
+    
+    // Arrêter le Hot Reload
+    this.stopHotReload();
+    
+    // Nettoyer les callbacks
+    this.reloadCallbacks = [];
+    
+    // Nettoyer les caches
+    this.mongoCache.clear();
+    this.npcSourceMap.clear();
+    this.npcSourceMapExtended.clear();
+    this.validationErrors.clear();
+    
+    this.log('info', '✅ [NpcManager] Nettoyage terminé');
   }
 
   // ===== TES MÉTHODES UTILITAIRES EXISTANTES (adaptées) =====
