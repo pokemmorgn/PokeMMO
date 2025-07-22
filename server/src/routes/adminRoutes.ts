@@ -1,4 +1,3 @@
-
 // server/src/routes/adminRoutes.ts
 import express from 'express';
 import { PlayerData } from '../models/PlayerData';
@@ -10,9 +9,94 @@ import { PokedexStats } from '../models/PokedexStats';
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { MongoClient, ObjectId } from 'mongodb';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const router = express.Router();
 const execAsync = promisify(exec);
+
+// Configuration MongoDB
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+const mongoClientInstance = new MongoClient(MONGODB_URI);
+
+// Interfaces MongoDB
+interface MongoQueryRequest {
+    database: string;
+    collection: string;
+    query?: any;
+    page?: number;
+    limit?: number;
+}
+
+interface MongoDocumentRequest {
+    database: string;
+    collection: string;
+    id: string;
+    data?: any;
+}
+
+interface MongoCustomQueryRequest {
+    database: string;
+    collection: string;
+    operation: string;
+    query: any;
+    options?: any;
+}
+
+interface CollectionStats {
+    name: string;
+    count: number;
+    size: number;
+    avgObjSize: number;
+}
+
+interface DatabaseStats {
+    name: string;
+    collections: number;
+    dataSize: number;
+    indexSize: number;
+    totalSize: number;
+}
+
+// Fonction de connexion MongoDB
+async function connectMongo(): Promise<MongoClient> {
+    try {
+        await mongoClientInstance.connect();
+        return mongoClientInstance;
+    } catch (error) {
+        console.error('❌ [MongoDB] Erreur de connexion:', error);
+        throw error;
+    }
+}
+
+// Utilitaire pour préparer les requêtes MongoDB
+function prepareMongoQuery(query: any): any {
+    if (!query || typeof query !== 'object') return {};
+    
+    const convertedQuery = JSON.parse(JSON.stringify(query));
+    
+    function convertObjectIds(obj: any): void {
+        for (const key in obj) {
+            if (obj[key] && typeof obj[key] === 'object') {
+                if (Array.isArray(obj[key])) {
+                    obj[key] = obj[key].map((item: any) => 
+                        typeof item === 'string' && ObjectId.isValid(item) 
+                            ? new ObjectId(item) 
+                            : item
+                    );
+                } else {
+                    convertObjectIds(obj[key]);
+                }
+            } else if (key === '_id' && typeof obj[key] === 'string' && ObjectId.isValid(obj[key])) {
+                obj[key] = new ObjectId(obj[key]);
+            }
+        }
+    }
+    
+    convertObjectIds(convertedQuery);
+    return convertedQuery;
+}
 
 // ✅ FONCTION pour récupérer l'adresse MAC du serveur
 async function getServerMacAddress(): Promise<string[]> {
@@ -2535,4 +2619,175 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // ========================================
 // FIN DES ROUTES NPCs
 // ========================================
+
+// ========================================
+// ROUTES MONGODB
+// ========================================
+
+// GET /api/admin/mongodb/databases
+router.get('/mongodb/databases', requireMacAndDev, async (req: Request, res: Response) => {
+    try {
+        console.log('🗄️ [MongoDB API] Récupération des bases de données...');
+        
+        const mongoConnection = await connectMongo();
+        const adminDb = mongoConnection.db().admin();
+        const databasesList = await adminDb.listDatabases();
+        
+        const databases = databasesList.databases
+            .filter(db => !['admin', 'local', 'config'].includes(db.name))
+            .map(db => db.name);
+        
+        console.log('✅ [MongoDB API] Bases trouvées:', databases);
+        
+        res.json({ 
+            success: true, 
+            databases: databases
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur databases:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// GET /api/admin/mongodb/collections/:database
+router.get('/mongodb/collections/:database', requireMacAndDev, async (req: Request, res: Response) => {
+    try {
+        const { database } = req.params;
+        console.log(`🗄️ [MongoDB API] Collections de ${database}...`);
+        
+        const mongoConnection = await connectMongo();
+        const db = mongoConnection.db(database);
+        const collections = await db.listCollections().toArray();
+        
+        const collectionNames = collections.map(col => col.name);
+        
+        console.log(`✅ [MongoDB API] Collections trouvées:`, collectionNames);
+        
+        res.json({ 
+            success: true, 
+            collections: collectionNames
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur collections:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// POST /api/admin/mongodb/documents
+router.post('/mongodb/documents', requireMacAndDev, async (req: Request<{}, any, MongoQueryRequest>, res: Response) => {
+    try {
+        const { database, collection, query = {}, page = 0, limit = 20 } = req.body;
+        
+        console.log(`🔍 [MongoDB API] Documents ${database}.${collection}, page ${page}`);
+        
+        const mongoConnection = await connectMongo();
+        const db = mongoConnection.db(database);
+        const coll = db.collection(collection);
+        
+        const mongoQuery = prepareMongoQuery(query);
+        const total = await coll.countDocuments(mongoQuery);
+        
+        const documents = await coll
+            .find(mongoQuery)
+            .skip(page * limit)
+            .limit(limit)
+            .toArray();
+        
+        console.log(`✅ [MongoDB API] ${documents.length}/${total} documents récupérés`);
+        
+        res.json({ 
+            success: true, 
+            documents: documents,
+            total: total,
+            page: page,
+            limit: limit
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur documents:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// PUT /api/admin/mongodb/document
+router.put('/mongodb/document', requireMacAndDev, async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
+    try {
+        const { database, collection, id, data } = req.body;
+        
+        console.log(`💾 [MongoDB API] Mise à jour ${database}.${collection} ID: ${id}`);
+        
+        const mongoConnection = await connectMongo();
+        const db = mongoConnection.db(database);
+        const coll = db.collection(collection);
+        
+        const updateData = { ...data };
+        delete updateData._id;
+        
+        const result = await coll.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Document non trouvé' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Document mis à jour avec succès',
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur mise à jour:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// DELETE /api/admin/mongodb/document
+router.delete('/mongodb/document', requireMacAndDev, async (req: Request<{}, any, MongoDocumentRequest>, res: Response) => {
+    try {
+        const { database, collection, id } = req.body;
+        
+        console.log(`🗑️ [MongoDB API] Suppression ${database}.${collection} ID: ${id}`);
+        
+        const mongoConnection = await connectMongo();
+        const db = mongoConnection.db(database);
+        const coll = db.collection(collection);
+        
+        const result = await coll.deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Document non trouvé' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Document supprimé avec succès',
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur suppression:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
 export default router;
