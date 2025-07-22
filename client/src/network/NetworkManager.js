@@ -606,10 +606,17 @@ this.room.onLeave((code) => {
 
     // ✅ HANDLERS D'INTERACTION NPC MODERNISÉS - SUPPORT DOUBLE FORMAT
     this.room.onMessage("npcInteractionResult", (result) => {
-      console.log(`💬 [NetworkManager] === NPC INTERACTION RESULT ===`, result);
-      console.log('💬 [NetworkManager] === NPC INTERACTION RESULT === COMPLET ===');
-      console.log('📦 Données complètes reçues:', JSON.stringify(data, null, 2));
-      console.log('🔑 Clés disponibles:', Object.keys(data));
+console.log('💬 [NetworkManager] === NPC INTERACTION RESULT ===', result);
+console.log('💬 [NetworkManager] === DEBUG COMPLET ===', JSON.stringify(result, null, 2));
+console.log('💬 [NetworkManager] === CLÉS DISPONIBLES ===', Object.keys(result));
+console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
+  type: result.type,
+  npcId: result.npcId,
+  npcName: result.npcName,
+  isUnifiedInterface: result.isUnifiedInterface,
+  capabilities: result.capabilities,
+  contextualData: result.contextualData
+});
       this.logInteraction('npc_interaction_result', result);
       
       
