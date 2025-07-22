@@ -1,1194 +1,1338 @@
-// client/src/components/DialogueManager.js
-// 🎭 Gestionnaire logique pour les dialogues NPCs - Version avec Actions Contextuelles
-// ✅ Gestion dialogue classique + actions contextuelles + interface unifiée
-// ✅ Intégration avec ShopSystem, QuestSystem, etc.
-// ✅ Remplacement des fonctions globales de index.html
+// client/src/components/DialogueUI.js
+// 🎭 Interface utilisateur pour les dialogues NPCs - Version avec Actions Contextuelles
+// ✅ Support dialogue classique + zone d'actions + interface unifiée à onglets
+// ✅ Réutilise dialogue.css + styles intégrés pour onglets + nouveaux styles actions
 
-import { DialogueUI } from './DialogueUI.js';
-
-export class DialogueManager {
+export class DialogueUI {
   constructor() {
-    this.dialogueUI = null;
-    this.isInitialized = false;
-    this.currentDialogueData = null;
-    this.currentMode = null; // 'classic' | 'unified'
+    this.container = null;
+    this.isVisible = false;
+    this.isUnifiedInterface = false;
+    this.currentTab = null;
+    this.tabs = [];
+    this.quickActions = [];
     
-    // État du dialogue classique
-    this.classicState = {
-      lines: [],
-      currentPage: 0,
-      onClose: null,
-      actions: [] // 🆕 NOUVEAU: Actions disponibles
-    };
+    // Callbacks
+    this.onTabSwitch = null;
+    this.onClose = null;
+    this.onQuickAction = null;
+    this.onActionClick = null; // 🆕 NOUVEAU: Callback pour actions dialogue
     
-    // État de l'interface unifiée
-    this.unifiedState = {
-      tabs: [],
-      currentTab: null,
-      tabData: {},
-      npcData: {},
-      onTabSwitch: null,
-      onClose: null
-    };
-    
-    // Systèmes intégrés
-    this.shopSystem = null;
-    this.questSystem = null;
-    this.inventorySystem = null;
-    
-    console.log('🎭 DialogueManager créé avec support actions');
+    console.log('🎭 DialogueUI créé avec support actions');
     this.init();
   }
 
-  // ===== INITIALISATION =====
+  init() {
+    this.createDialogueContainer();
+    this.addIntegratedStyles();
+    this.setupEventListeners();
+    console.log('✅ DialogueUI initialisé avec actions');
+  }
+
+  // ===== CRÉATION DE L'INTERFACE =====
   
-  async init() {
-    try {
-      // Créer l'interface utilisateur
-      this.dialogueUI = new DialogueUI();
-      
-      // Configurer les callbacks de l'UI
-      this.setupUICallbacks();
-      
-      // Intégrer avec les autres systèmes
-      this.integrateWithSystems();
-      
-      // Configurer l'API globale
-      this.setupGlobalAPI();
-      
-      // Remplacer les fonctions globales existantes
-      this.replaceGlobalFunctions();
-      
-      this.isInitialized = true;
-      console.log('✅ DialogueManager initialisé avec actions');
-      
-    } catch (error) {
-      console.error('❌ Erreur initialisation DialogueManager:', error);
+  createDialogueContainer() {
+    // Créer le conteneur principal
+    this.container = document.createElement('div');
+    this.container.id = 'dialogue-container';
+    this.container.className = 'dialogue-container hidden';
+    
+    // Structure HTML complète UNIFIÉE - CORRIGÉE
+    this.container.innerHTML = `
+      <!-- Dialogue unifié avec actions intégrées -->
+      <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
+        <!-- Partie haute: Portrait + Dialogue -->
+        <div class="dialogue-main-content">
+          <div id="npc-portrait" class="npc-portrait"></div>
+          <div id="npc-dialogue" class="npc-dialogue">
+            <span id="npc-name" class="npc-name"></span>
+            <span id="npc-text" class="npc-text"></span>
+            <div class="dialogue-continue-indicator">
+              <span class="dialogue-counter">1/1</span>
+              <div class="dialogue-arrow"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Partie basse: Actions intégrées -->
+        <div id="dialogue-actions" class="dialogue-actions-integrated" style="display:none;">
+          <div class="actions-separator"></div>
+          <div class="actions-header">Actions disponibles</div>
+          <div class="actions-buttons" id="actions-buttons">
+            <!-- Les boutons seront générés dynamiquement -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Interface unifiée avec onglets -->
+      <div id="unified-interface" class="unified-interface" style="display:none;">
+        <!-- Header avec portrait et nom NPC -->
+        <div class="unified-header">
+          <div class="unified-portrait">
+            <img id="unified-npc-image" src="" alt="NPC" class="unified-npc-image">
+            <div class="unified-npc-status"></div>
+          </div>
+          <div class="unified-info">
+            <h2 id="unified-npc-name" class="unified-npc-name">NPC Name</h2>
+            <p id="unified-npc-title" class="unified-npc-title">NPC Title</p>
+            <div class="unified-npc-level">Level 15</div>
+          </div>
+          <div class="unified-controls">
+            <button class="unified-close-btn" id="unified-close">✕</button>
+          </div>
+        </div>
+
+        <!-- Navigation par onglets -->
+        <div class="unified-tabs" id="unified-tabs">
+          <!-- Les onglets seront générés dynamiquement -->
+        </div>
+
+        <!-- Contenu des onglets -->
+        <div class="unified-content" id="unified-content">
+          <!-- Le contenu sera injecté selon l'onglet actif -->
+        </div>
+
+        <!-- Actions rapides (footer) -->
+        <div class="unified-footer" id="unified-footer">
+          <div class="quick-actions" id="quick-actions">
+            <!-- Actions rapides générées dynamiquement -->
+          </div>
+          <div class="unified-tips">
+            <span class="tip-text">💡 Utilisez Tab pour changer d'onglet</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Ajouter au DOM
+    document.body.appendChild(this.container);
+  }
+
+  // ===== STYLES INTÉGRÉS ÉTENDUS =====
+  
+  addIntegratedStyles() {
+    if (document.querySelector('#dialogue-ui-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'dialogue-ui-styles';
+    style.textContent = `
+      /* ===== CONTENEUR PRINCIPAL ===== */
+      .dialogue-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .dialogue-container.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .dialogue-container:not(.hidden) {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* ===== DIALOGUE UNIFIÉ - CORRIGÉ ===== */
+      .dialogue-box-unified {
+        position: absolute;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        min-width: 500px;
+        max-width: 750px;
+        background: linear-gradient(145deg, rgba(36, 76, 116, 0.95), rgba(25, 55, 95, 0.95));
+        border: 3px solid rgba(255, 255, 255, 0.8);
+        border-radius: 20px;
+        box-shadow: 
+          0 8px 40px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 2px 0 rgba(255, 255, 255, 0.3);
+        display: flex !important;
+        flex-direction: column !important;
+        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+        backdrop-filter: blur(8px);
+        transition: all 0.3s ease;
+        pointer-events: auto;
+        overflow: hidden;
+        width: auto;
+      }
+
+      /* Partie haute du dialogue - CORRIGÉE */
+      .dialogue-main-content {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 15px 20px;
+        cursor: pointer;
+        min-height: 80px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* Zone de dialogue */
+      .npc-dialogue {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-left: 15px;
+        position: relative;
+        min-height: 60px;
+      }
+
+      /* Indicateur de continuation - repositionné */
+      .dialogue-continue-indicator {
+        position: absolute;
+        bottom: -5px;
+        right: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .dialogue-counter {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+
+      .dialogue-arrow {
+        width: 0;
+        height: 0;
+        border-left: 6px solid rgba(255, 255, 255, 0.7);
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        animation: arrowBlink 1.5s infinite;
+      }
+
+      @keyframes arrowBlink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.3; }
+      }
+
+      /* Partie basse des actions - CORRIGÉE */
+      .dialogue-actions-integrated {
+        background: linear-gradient(135deg, rgba(20, 45, 75, 0.8), rgba(30, 60, 100, 0.8));
+        padding: 15px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+        box-sizing: border-box;
+        display: block !important;
+      }
+
+      .actions-separator {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        margin: -1px 0 12px 0;
+      }
+
+      .actions-header {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: bold;
+        margin-bottom: 12px;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+      }
+
+      /* Style avec actions */
+      .dialogue-box-unified.with-actions {
+        box-shadow: 
+          0 12px 50px rgba(0, 0, 0, 0.7),
+          0 0 0 1px rgba(255, 255, 255, 0.2),
+          inset 0 2px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      /* Animation d'apparition unifiée */
+      .dialogue-box-unified.appear {
+        animation: dialogueUnifiedAppear 0.4s ease;
+      }
+
+      @keyframes dialogueUnifiedAppear {
+        from { 
+          opacity: 0; 
+          transform: translateX(-50%) translateY(30px) scale(0.95); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0) scale(1); 
+        }
+      }
+
+      .actions-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+      }
+
+      .action-btn {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        color: white;
+        padding: 10px 18px;
+        font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 140px;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        white-space: nowrap;
+      }
+
+      .action-btn:hover {
+        background: linear-gradient(135deg, #5ba0f2, #4080cd);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+      }
+
+      .action-btn:active,
+      .action-btn.clicked {
+        transform: translateY(0);
+        background: linear-gradient(135deg, #357abd, #2a6a9d);
+        animation: actionClick 0.2s ease;
+      }
+
+      /* Styles par type d'action */
+      .action-btn.shop {
+        background: linear-gradient(135deg, #28a745, #20c997);
+      }
+
+      .action-btn.shop:hover {
+        background: linear-gradient(135deg, #32b855, #24d3a7);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      }
+
+      .action-btn.quest {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        color: #333;
+        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+      }
+
+      .action-btn.quest:hover {
+        background: linear-gradient(135deg, #ffcd17, #ebb000);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+      }
+
+      .action-btn.heal {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+      }
+
+      .action-btn.heal:hover {
+        background: linear-gradient(135deg, #e64555, #d32f43);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      .action-btn.info {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+      }
+
+      .action-btn.info:hover {
+        background: linear-gradient(135deg, #7c858d, #6a7278);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+      }
+
+      .action-icon {
+        font-size: 16px;
+        line-height: 1;
+        filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.3));
+      }
+
+      .action-label {
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .action-badge {
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        margin-left: 5px;
+        min-width: 16px;
+        text-align: center;
+        animation: badgePulse 2s infinite;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      @keyframes badgePulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+
+      @keyframes actionClick {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.95); }
+        100% { transform: scale(1); }
+      }
+
+      /* ===== INTERFACE UNIFIÉE ===== */
+      .unified-interface {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: 900px;
+        height: 80%;
+        max-height: 650px;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        color: white;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+        animation: unifiedAppear 0.4s ease;
+        pointer-events: auto;
+      }
+
+      @keyframes unifiedAppear {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+
+      /* ===== HEADER UNIFIÉ ===== */
+      .unified-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 20px 25px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-bottom: 2px solid #357abd;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .unified-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        animation: headerShimmer 4s infinite;
+      }
+
+      @keyframes headerShimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+
+      .unified-portrait {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.8);
+        overflow: hidden;
+        background: linear-gradient(145deg, #fff, #f0f0f0);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        flex-shrink: 0;
+      }
+
+      .unified-npc-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .unified-npc-status {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        width: 16px;
+        height: 16px;
+        background: #28a745;
+        border: 2px solid white;
+        border-radius: 50%;
+        animation: statusPulse 2s infinite;
+      }
+
+      @keyframes statusPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.1); }
+      }
+
+      .unified-info {
+        flex: 1;
+        z-index: 1;
+      }
+
+      .unified-npc-name {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0 0 5px 0;
+        color: #ffff80;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+      }
+
+      .unified-npc-title {
+        font-size: 14px;
+        margin: 0 0 8px 0;
+        color: #87ceeb;
+        font-style: italic;
+        opacity: 0.9;
+      }
+
+      .unified-npc-level {
+        display: inline-block;
+        background: rgba(255, 193, 7, 0.2);
+        border: 1px solid rgba(255, 193, 7, 0.5);
+        border-radius: 12px;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: bold;
+        color: #ffc107;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .unified-controls {
+        z-index: 1;
+      }
+
+      .unified-close-btn {
+        background: rgba(220, 53, 69, 0.8);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .unified-close-btn:hover {
+        background: rgba(220, 53, 69, 1);
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      /* ===== ONGLETS ===== */
+      .unified-tabs {
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        border-bottom: 2px solid #357abd;
+        min-height: 50px;
+      }
+
+      .unified-tab {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .unified-tab:hover {
+        background: rgba(74, 144, 226, 0.2);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .unified-tab.active {
+        background: linear-gradient(180deg, rgba(74, 144, 226, 0.4), rgba(74, 144, 226, 0.2));
+        color: #87ceeb;
+        border-bottom: 3px solid #4a90e2;
+      }
+
+      .unified-tab.active::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #4a90e2, #87ceeb, #4a90e2);
+        animation: tabGlow 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes tabGlow {
+        from { opacity: 0.6; }
+        to { opacity: 1; }
+      }
+
+      .tab-icon {
+        font-size: 18px;
+        transition: transform 0.3s ease;
+      }
+
+      .unified-tab.active .tab-icon {
+        animation: tabIconPulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes tabIconPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      .tab-label {
+        font-weight: bold;
+      }
+
+      .tab-badge {
+        background: #dc3545;
+        color: white;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        margin-left: 5px;
+        min-width: 16px;
+        text-align: center;
+        animation: badgePulse 1.5s infinite;
+      }
+
+      /* ===== CONTENU ===== */
+      .unified-content {
+        flex: 1;
+        padding: 25px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.1);
+      }
+
+      /* Contenu de dialogue */
+      .dialogue-content {
+        text-align: center;
+      }
+
+      .dialogue-text {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #e0e0e0;
+        margin-bottom: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 4px solid #4a90e2;
+      }
+
+      .dialogue-speaker {
+        font-size: 14px;
+        color: #87ceeb;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-align: left;
+      }
+
+      .dialogue-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-top: 15px;
+      }
+
+      .dialogue-nav-btn {
+        background: rgba(74, 144, 226, 0.8);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .dialogue-nav-btn:hover:not(:disabled) {
+        background: rgba(74, 144, 226, 1);
+        transform: translateY(-1px);
+      }
+
+      .dialogue-nav-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .dialogue-page-info {
+        color: #ccc;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 5px 10px;
+        border-radius: 8px;
+      }
+
+      /* Contenu intégré (shop, quêtes, etc.) */
+      .embedded-content {
+        width: 100%;
+        height: 100%;
+        min-height: 300px;
+      }
+
+      /* ===== FOOTER ===== */
+      .unified-footer {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px 25px;
+        border-top: 2px solid #357abd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 0 0 17px 17px;
+        min-height: 60px;
+      }
+
+      .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .quick-action-btn {
+        background: rgba(74, 144, 226, 0.8);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .quick-action-btn:hover {
+        background: rgba(74, 144, 226, 1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+      }
+
+      .quick-action-btn.primary {
+        background: linear-gradient(135deg, #28a745, #20c997);
+      }
+
+      .quick-action-btn.secondary {
+        background: rgba(108, 117, 125, 0.8);
+      }
+
+      .quick-action-btn.danger {
+        background: rgba(220, 53, 69, 0.8);
+      }
+
+      .unified-tips {
+        color: #888;
+        font-size: 11px;
+        font-style: italic;
+      }
+
+      .tip-text {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .unified-interface {
+          width: 95%;
+          height: 90%;
+          border-radius: 15px;
+        }
+
+        .dialogue-box-unified {
+          min-width: calc(100vw - 40px);
+          left: 20px;
+          right: 20px;
+          transform: translateX(0);
+          margin: 0 auto;
+        }
+
+        .actions-buttons {
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .action-btn {
+          width: 100%;
+          max-width: 250px;
+        }
+
+        .dialogue-main-content {
+          padding: 15px;
+        }
+
+        .dialogue-actions-integrated {
+          padding: 12px 15px;
+        }
+      }
+
+      /* ===== SCROLLBAR PERSONNALISÉE ===== */
+      .unified-content::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .unified-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      .unified-content::-webkit-scrollbar-thumb {
+        background: rgba(74, 144, 226, 0.6);
+        border-radius: 4px;
+      }
+
+      .unified-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 144, 226, 0.8);
+      }
+
+      /* ===== ANIMATIONS D'ENTRÉE/SORTIE ===== */
+      .unified-interface.closing {
+        animation: unifiedDisappear 0.3s ease forwards;
+      }
+
+      @keyframes unifiedDisappear {
+        from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+      }
+
+      .dialogue-box-unified.appear {
+        animation: dialogueUnifiedAppear 0.4s ease;
+      }
+
+      @keyframes dialogueUnifiedAppear {
+        from { 
+          opacity: 0; 
+          transform: translateX(-50%) translateY(30px) scale(0.95); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0) scale(1); 
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+    console.log('✅ Styles DialogueUI avec actions intégrés');
+  }
+
+  // ===== GESTION DES ÉVÉNEMENTS =====
+  
+  setupEventListeners() {
+    // Clic pour fermer (dialogue unifié - seulement sur la partie dialogue)
+    this.container.addEventListener('click', (e) => {
+      if (e.target.closest('.dialogue-main-content') && !e.target.closest('.dialogue-actions-integrated')) {
+        this.handleDialogueClick();
+      }
+    });
+
+    // Bouton fermer (interface unifiée)
+    const closeBtn = this.container.querySelector('#unified-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.hide();
+      });
+    }
+
+    // Événements clavier
+    document.addEventListener('keydown', (e) => {
+      if (this.isVisible) {
+        this.handleKeyDown(e);
+      }
+    });
+
+    console.log('✅ Event listeners DialogueUI configurés');
+  }
+
+  handleDialogueClick() {
+    if (this.onDialogueAdvance && typeof this.onDialogueAdvance === 'function') {
+      this.onDialogueAdvance();
     }
   }
 
-  setupUICallbacks() {
-    if (!this.dialogueUI) return;
+  handleKeyDown(e) {
+    // Vérifier si une autre interface importante est ouverte
+    if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
+    if (window._questDialogActive) return;
 
-    // Callback pour l'avancement des dialogues classiques
-    this.dialogueUI.onDialogueAdvance = () => {
-      this.advanceClassicDialogue();
-    };
+    switch (e.code) {
+      case 'Escape':
+        this.hide();
+        e.preventDefault();
+        e.stopPropagation();
+        break;
 
-    console.log('✅ Callbacks UI configurés');
-  }
+      case 'KeyE':
+        if (!this.isUnifiedInterface) {
+          this.handleDialogueClick();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        break;
 
-  integrateWithSystems() {
-    // Références aux systèmes existants
-    this.shopSystem = window.shopSystem || null;
-    this.questSystem = window.questSystem || null;
-    this.inventorySystem = window.inventorySystem || null;
-    
-    // Surveiller l'apparition de nouveaux systèmes
-    this.watchForSystems();
-    
-    console.log('🔗 Intégration systèmes:', {
-      shop: !!this.shopSystem,
-      quest: !!this.questSystem,
-      inventory: !!this.inventorySystem
-    });
-  }
+      case 'Tab':
+        if (this.isUnifiedInterface && this.tabs.length > 1) {
+          this.switchToNextTab();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        break;
 
-  watchForSystems() {
-    // Observer l'ajout de nouveaux systèmes
-    const checkSystems = () => {
-      if (!this.shopSystem && window.shopSystem) {
-        this.shopSystem = window.shopSystem;
-        console.log('🔗 ShopSystem connecté');
-      }
-      if (!this.questSystem && window.questSystem) {
-        this.questSystem = window.questSystem;
-        console.log('🔗 QuestSystem connecté');
-      }
-      if (!this.inventorySystem && window.inventorySystem) {
-        this.inventorySystem = window.inventorySystem;
-        console.log('🔗 InventorySystem connecté');
-      }
-    };
-
-    // Vérifier toutes les 2 secondes
-    setInterval(checkSystems, 2000);
-  }
-
-  setupGlobalAPI() {
-    // API globale pour les autres modules
-    window.dialogueManager = this;
-    
-    // Raccourcis pour compatibilité
-    window.showDialogue = (data) => this.show(data);
-    window.hideDialogue = () => this.hide();
-    window.isDialogueOpen = () => this.isOpen();
-    
-    console.log('🌍 API globale DialogueManager configurée');
-  }
-
-  replaceGlobalFunctions() {
-    // Remplacer showNpcDialogue de index.html
-    window.showNpcDialogue = (data) => {
-      console.log('🎭 showNpcDialogue appelé via DialogueManager:', data);
-      this.show(data);
-    };
-
-    // Remplacer les fonctions de dialogue
-    window.advanceDialogue = () => {
-      this.advanceClassicDialogue();
-    };
-
-    window.closeDialogue = () => {
-      this.hide();
-    };
-
-    console.log('🔄 Fonctions globales remplacées');
+      case 'Digit1':
+      case 'Digit2':
+      case 'Digit3':
+      case 'Digit4':
+      case 'Digit5':
+        if (this.isUnifiedInterface) {
+          const tabIndex = parseInt(e.code.slice(-1)) - 1;
+          if (tabIndex < this.tabs.length) {
+            this.switchToTab(this.tabs[tabIndex].id);
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+        break;
+    }
   }
 
   // ===== AFFICHAGE DES DIALOGUES =====
 
-  show(data) {
-    if (!data) {
-      console.warn('⚠️ Données de dialogue manquantes');
+  showClassicDialogue(data) {
+    console.log('🎭 Affichage dialogue unifié simple:', data);
+
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const portrait = this.container.querySelector('#npc-portrait');
+    const npcName = this.container.querySelector('#npc-name');
+    const npcText = this.container.querySelector('#npc-text');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
+    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
+
+    // Configuration du portrait
+    portrait.innerHTML = data.portrait
+      ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
+      : '';
+
+    // Configuration du nom
+    npcName.textContent = data.name || '';
+    if (data.hideName) {
+      npcName.style.display = 'none';
+    } else {
+      npcName.style.display = '';
+    }
+
+    // Configuration du texte
+    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+    npcText.textContent = lines[0] || "";
+
+    // 🆕 Afficher le compteur seulement si plusieurs pages
+    if (lines.length > 1) {
+      continueIndicator.style.display = 'block';
+      const counter = continueIndicator.querySelector('.dialogue-counter');
+      if (counter) {
+        counter.textContent = `1/${lines.length}`;
+      }
+    } else {
+      continueIndicator.style.display = 'none';
+    }
+
+    // Masquer les actions pour dialogue simple et utiliser classe unifiée
+    actionsZone.style.display = 'none';
+    dialogueBox.className = 'dialogue-box-unified';
+
+    // Stocker les données pour la pagination
+    this.classicDialogueData = {
+      lines: lines,
+      currentPage: 0,
+      onClose: data.onClose
+    };
+
+    // Afficher
+    this.container.classList.remove('hidden');
+    dialogueBox.style.display = 'flex';
+    dialogueBox.classList.add('appear');
+    this.isVisible = true;
+
+    console.log('✅ Dialogue unifié simple affiché');
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Afficher dialogue unifié avec actions
+  showDialogueWithActions(data) {
+    console.log('🎭 Affichage dialogue unifié avec actions:', data);
+
+    const dialogueBox = this.container.querySelector('#dialogue-box');
+    const actionsZone = this.container.querySelector('#dialogue-actions');
+    const actionsButtons = this.container.querySelector('#actions-buttons');
+    const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
+
+    // 1. Afficher le dialogue de base
+    this.showClassicDialogue(data);
+
+    // 2. Générer et afficher les actions si disponibles
+    if (data.actions && data.actions.length > 0) {
+      console.log(`🎯 Génération de ${data.actions.length} actions`);
+      
+      // Nettoyer les boutons existants
+      actionsButtons.innerHTML = '';
+      
+      // Créer les boutons d'actions
+      data.actions.forEach(action => {
+        const actionBtn = this.createActionButton(action);
+        actionsButtons.appendChild(actionBtn);
+      });
+      
+      // Afficher la zone d'actions intégrée
+      actionsZone.style.display = 'block';
+      
+      // Changer de classe pour le style unifié
+      dialogueBox.className = 'dialogue-box-unified with-actions';
+      
+      // 🆕 Gérer le compteur avec actions
+      const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
+      if (lines.length > 1) {
+        continueIndicator.style.display = 'block';
+        const counter = continueIndicator.querySelector('.dialogue-counter');
+        if (counter) {
+          counter.textContent = `1/${lines.length}`;
+        }
+      } else {
+        continueIndicator.style.display = 'none';
+      }
+      
+    } else {
+      // Pas d'actions = dialogue simple
+      actionsZone.style.display = 'none';
+      dialogueBox.className = 'dialogue-box-unified';
+    }
+
+    console.log('✅ Dialogue unifié avec actions affiché');
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Créer un bouton d'action
+  createActionButton(action) {
+    const button = document.createElement('button');
+    button.className = `action-btn ${action.type || 'default'}`;
+    button.innerHTML = `
+      <span class="action-icon">${action.icon || '🔧'}</span>
+      <span class="action-label">${action.label}</span>
+      ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
+    `;
+    
+    // Ajouter les données d'action
+    button.dataset.actionId = action.id;
+    button.dataset.actionType = action.type;
+    
+    // Handler de clic
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleActionClick(action);
+    });
+    
+    return button;
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Handler pour les clics sur actions
+  handleActionClick(action) {
+    console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
+    
+    // Callback vers le DialogueManager
+    if (this.onActionClick && typeof this.onActionClick === 'function') {
+      this.onActionClick(action);
+    }
+    
+    // Animation feedback
+    const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
+    if (button) {
+      button.classList.add('clicked');
+      setTimeout(() => button.classList.remove('clicked'), 200);
+    }
+  }
+
+  showUnifiedInterface(data) {
+    console.log('🎭 Affichage interface unifiée:', data);
+
+    const unifiedInterface = this.container.querySelector('#unified-interface');
+    
+    // Configuration du header
+    this.setupUnifiedHeader(data);
+    
+    // Configuration des onglets
+    this.setupUnifiedTabs(data.tabs);
+    
+    // Configuration des actions rapides
+    this.setupQuickActions(data.quickActions);
+    
+    // Stocker les callbacks
+    this.onTabSwitch = data.onTabSwitch;
+    this.onClose = data.onClose;
+    this.tabData = data.tabData || {};
+    
+    // Afficher le premier onglet
+    if (this.tabs.length > 0) {
+      this.switchToTab(this.tabs[0].id);
+    }
+    
+    // Afficher l'interface
+    this.container.classList.remove('hidden');
+    unifiedInterface.style.display = 'flex';
+    this.isVisible = true;
+    this.isUnifiedInterface = true;
+
+    console.log('✅ Interface unifiée affichée');
+  }
+
+  setupUnifiedHeader(data) {
+    const npcImage = this.container.querySelector('#unified-npc-image');
+    const npcName = this.container.querySelector('#unified-npc-name');
+    const npcTitle = this.container.querySelector('#unified-npc-title');
+
+    npcImage.src = data.portrait || 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=NPC';
+    npcImage.alt = data.name || 'NPC';
+    npcName.textContent = data.name || 'Unknown NPC';
+    npcTitle.textContent = data.title || 'Villager';
+  }
+
+  setupUnifiedTabs(tabs) {
+    const tabsContainer = this.container.querySelector('#unified-tabs');
+    tabsContainer.innerHTML = '';
+    
+    this.tabs = tabs || [];
+    
+    this.tabs.forEach((tab, index) => {
+      const tabElement = document.createElement('button');
+      tabElement.className = 'unified-tab';
+      tabElement.dataset.tabId = tab.id;
+      
+      tabElement.innerHTML = `
+        <span class="tab-icon">${tab.icon || '📄'}</span>
+        <span class="tab-label">${tab.label}</span>
+        ${tab.badge ? `<span class="tab-badge">${tab.badge}</span>` : ''}
+      `;
+      
+      tabElement.addEventListener('click', () => {
+        this.switchToTab(tab.id);
+      });
+      
+      tabsContainer.appendChild(tabElement);
+    });
+
+    console.log(`✅ ${this.tabs.length} onglets configurés`);
+  }
+
+  setupQuickActions(actions) {
+    const actionsContainer = this.container.querySelector('#quick-actions');
+    actionsContainer.innerHTML = '';
+    
+    this.quickActions = actions || [];
+    
+    this.quickActions.forEach(action => {
+      const actionBtn = document.createElement('button');
+      actionBtn.className = `quick-action-btn ${action.type || 'primary'}`;
+      actionBtn.innerHTML = `
+        <span>${action.icon || '🔧'}</span>
+        <span>${action.label}</span>
+      `;
+      
+      actionBtn.addEventListener('click', () => {
+        if (action.callback && typeof action.callback === 'function') {
+          action.callback();
+        }
+        if (this.onQuickAction && typeof this.onQuickAction === 'function') {
+          this.onQuickAction(action);
+        }
+      });
+      
+      actionsContainer.appendChild(actionBtn);
+    });
+
+    console.log(`✅ ${this.quickActions.length} actions rapides configurées`);
+  }
+
+  // ===== GESTION DES ONGLETS =====
+
+  switchToTab(tabId) {
+    console.log(`🎭 Changement vers onglet: ${tabId}`);
+
+    // Mettre à jour la navigation
+    const tabs = this.container.querySelectorAll('.unified-tab');
+    tabs.forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.tabId === tabId);
+    });
+
+    // Mettre à jour le contenu
+    this.currentTab = tabId;
+    this.loadTabContent(tabId);
+
+    // Appeler le callback
+    if (this.onTabSwitch && typeof this.onTabSwitch === 'function') {
+      this.onTabSwitch(tabId);
+    }
+  }
+
+  switchToNextTab() {
+    if (this.tabs.length <= 1) return;
+
+    const currentIndex = this.tabs.findIndex(tab => tab.id === this.currentTab);
+    const nextIndex = (currentIndex + 1) % this.tabs.length;
+    this.switchToTab(this.tabs[nextIndex].id);
+  }
+
+  loadTabContent(tabId) {
+    const contentContainer = this.container.querySelector('#unified-content');
+    
+    // Afficher un état de chargement
+    contentContainer.innerHTML = `
+      <div class="unified-loading">
+        <div class="unified-loading-spinner"></div>
+        <div class="unified-loading-text">Loading ${tabId}...</div>
+        <div class="unified-loading-subtext">Please wait...</div>
+      </div>
+    `;
+
+    // Le contenu réel sera injecté par le DialogueManager
+    console.log(`📄 Contenu de l'onglet ${tabId} demandé`);
+  }
+
+  // ===== INJECTION DE CONTENU =====
+
+  injectTabContent(tabId, htmlContent) {
+    if (this.currentTab !== tabId) return;
+
+    const contentContainer = this.container.querySelector('#unified-content');
+    contentContainer.innerHTML = htmlContent;
+    console.log(`✅ Contenu injecté pour l'onglet ${tabId}`);
+  }
+
+  // ===== DIALOGUE CLASSIQUE - PAGINATION =====
+
+  advanceClassicDialogue() {
+    if (!this.classicDialogueData) return;
+
+    this.classicDialogueData.currentPage++;
+    
+    if (this.classicDialogueData.currentPage >= this.classicDialogueData.lines.length) {
+      this.hide();
       return;
     }
 
-    console.log('🎭 DialogueManager.show:', data);
+    const npcText = this.container.querySelector('#npc-text');
+    npcText.textContent = this.classicDialogueData.lines[this.classicDialogueData.currentPage];
+  }
 
-    // Fermer le dialogue précédent si nécessaire
-    if (this.isOpen()) {
-      this.hide();
-    }
+  // ===== AFFICHAGE/MASQUAGE =====
 
-    // Stocker les données
-    this.currentDialogueData = data;
-
-    // Déterminer le mode
+  show(data) {
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
+    } else if (data.actions && data.actions.length > 0) {
+      this.showDialogueWithActions(data);
     } else {
       this.showClassicDialogue(data);
     }
   }
 
-  // 🆕 MÉTHODE MODIFIÉE: Support des actions contextuelles
-  showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue classique avec actions possibles');
-    
-    this.currentMode = 'classic';
-    
-    // Préparer les données pour l'UI
-    const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
-    
-    // 🆕 NOUVEAU: Détecter et préparer les actions
-    const actions = this.detectAvailableActions(data);
-    
-    // Configurer l'état interne
-    this.classicState = {
-      lines: lines,
-      currentPage: 0,
-      onClose: data.onClose,
-      actions: actions // Stocker les actions
-    };
+  hide() {
+    console.log('🎭 Fermeture DialogueUI');
 
-    // Préparer les données complètes pour l'UI
-    const dialogueDataWithActions = {
-      ...data,
-      lines: lines,
-      actions: actions
-    };
-
-    // 🆕 Utiliser la nouvelle méthode avec actions
-    if (actions && actions.length > 0) {
-      this.dialogueUI.showDialogueWithActions(dialogueDataWithActions);
-    } else {
-      this.dialogueUI.showClassicDialogue(dialogueDataWithActions);
-    }
-
-    // Configurer le callback pour les actions
-    this.dialogueUI.onActionClick = (action) => {
-      this.handleDialogueAction(action, data);
-    };
-  }
-
-  // 🆕 NOUVELLE MÉTHODE: Détecter les actions disponibles
-  detectAvailableActions(data) {
-    const actions = [];
-    
-    // Détecter selon les capabilities ou le type de données
-    const capabilities = data.capabilities || data.unifiedInterface?.capabilities || [];
-    const npcType = data.npcType || data.type;
-    
-    console.log('🔍 Détection actions pour:', { capabilities, npcType, hasShopData: !!data.shopData });
-    
-    // Action Boutique
-    if (capabilities.includes('merchant') || npcType === 'merchant' || data.shopData || data.shopId) {
-      actions.push({
-        id: 'open_shop',
-        type: 'shop',
-        label: 'Boutique',
-        icon: '🛒',
-        description: 'Acheter et vendre des objets',
-        data: data.shopData || data.merchantData
-      });
-    }
-    
-    // Action Quêtes
-    if (capabilities.includes('questGiver') || npcType === 'questGiver' || data.questData || data.questId) {
-      const questData = data.questData || data.questGiver || {};
-      const questCount = questData.availableQuests?.length || (data.questId ? 1 : 0);
+    // Animation de fermeture
+    if (this.isUnifiedInterface) {
+      const unifiedInterface = this.container.querySelector('#unified-interface');
+      unifiedInterface.classList.add('closing');
       
-      actions.push({
-        id: 'open_quests',
-        type: 'quest',
-        label: questCount > 1 ? 'Quêtes' : 'Quête',
-        icon: '📋',
-        badge: questCount > 0 ? questCount.toString() : null,
-        description: 'Missions disponibles',
-        data: questData
-      });
-    }
-    
-    // Action Soins
-    if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
-      actions.push({
-        id: 'heal_pokemon',
-        type: 'heal',
-        label: 'Soigner',
-        icon: '💊',
-        description: 'Soigner vos Pokémon',
-        data: data.healerData
-      });
-    }
-    
-    // Action Informations (si des données supplémentaires)
-    if (data.infoData || (data.tabData && data.tabData.info)) {
-      actions.push({
-        id: 'show_info',
-        type: 'info',
-        label: 'Infos',
-        icon: 'ℹ️',
-        description: 'Informations supplémentaires',
-        data: data.infoData || data.tabData.info
-      });
-    }
-    
-    console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
-    return actions;
-  }
-
-  // 🆕 NOUVELLE MÉTHODE: Gérer les clics sur actions
-  handleDialogueAction(action, originalData) {
-    console.log(`🎯 Exécution action: ${action.id} (${action.type})`);
-    
-    // Fermer le dialogue actuel
-    this.hide();
-    
-    // Délai court pour la transition
-    setTimeout(() => {
-      switch (action.type) {
-        case 'shop':
-          this.handleShopAction(action, originalData);
-          break;
-          
-        case 'quest':
-          this.handleQuestAction(action, originalData);
-          break;
-          
-        case 'heal':
-          this.handleHealAction(action, originalData);
-          break;
-          
-        case 'info':
-          this.handleInfoAction(action, originalData);
-          break;
-          
-        default:
-          console.warn(`Action non gérée: ${action.type}`);
-          this.handleGenericAction(action, originalData);
-          break;
-      }
-    }, 200);
-  }
-
-  // 🆕 NOUVELLES MÉTHODES: Gestion des actions spécifiques
-  handleShopAction(action, originalData) {
-    console.log('🛒 Ouverture boutique...');
-    
-    if (this.shopSystem && this.shopSystem.openShop) {
-      // Déléguer au ShopSystem
-      const shopData = {
-        ...originalData,
-        shopData: action.data,
-        fromDialogueAction: true
-      };
-      this.shopSystem.openShop(shopData);
+      setTimeout(() => {
+        unifiedInterface.style.display = 'none';
+        unifiedInterface.classList.remove('closing');
+        this.completeHide();
+      }, 300);
     } else {
-      // Fallback vers interface unifiée
-      this.showUnifiedInterfaceForAction('shop', action, originalData);
+      const dialogueBox = this.container.querySelector('#dialogue-box');
+      dialogueBox.style.display = 'none';
+      this.completeHide();
     }
   }
 
-  handleQuestAction(action, originalData) {
-    console.log('📋 Ouverture journal quêtes...');
-    
-    if (this.questSystem && this.questSystem.openQuestJournal) {
-      // Déléguer au QuestSystem
-      this.questSystem.openQuestJournal(action.data);
-    } else {
-      // Fallback vers interface unifiée
-      this.showUnifiedInterfaceForAction('quest', action, originalData);
-    }
-  }
+  completeHide() {
+    this.container.classList.add('hidden');
+    this.isVisible = false;
+    this.isUnifiedInterface = false;
+    this.currentTab = null;
+    this.tabs = [];
+    this.quickActions = [];
+    this.classicDialogueData = null;
 
-  handleHealAction(action, originalData) {
-    console.log('💊 Démarrage soins...');
-    
-    // Action directe de soin
-    if (window.globalNetworkManager && window.globalNetworkManager.room) {
-      window.globalNetworkManager.room.send('healPokemon', {
-        npcId: originalData.npcId,
-        healType: 'full'
-      });
-      
-      // Feedback utilisateur
-      window.showGameNotification?.('Vos Pokémon sont soignés !', 'success', {
-        duration: 2000,
-        position: 'top-center'
-      });
-    }
-  }
-
-  handleInfoAction(action, originalData) {
-    console.log('ℹ️ Affichage informations...');
-    
-    // Fallback vers interface unifiée pour les infos
-    this.showUnifiedInterfaceForAction('info', action, originalData);
-  }
-
-  handleGenericAction(action, originalData) {
-    console.log('🔧 Action générique...');
-    
-    // Fallback universel
-    this.showUnifiedInterfaceForAction(action.type, action, originalData);
-  }
-
-  // 🆕 NOUVELLE MÉTHODE: Fallback pour interface unifiée
-  showUnifiedInterfaceForAction(targetTab, action, originalData) {
-    console.log(`🎭 Fallback interface unifiée pour: ${targetTab}`);
-    
-    // Construire les données d'interface unifiée
-    const unifiedData = {
-      ...originalData,
-      isUnifiedInterface: true,
-      tabs: this.generateTabsFromAction(action, originalData),
-      defaultTab: targetTab,
-      tabData: {
-        [targetTab]: action.data
-      },
-      fromDialogueAction: true,
-      sourceAction: action
-    };
-    
-    // Afficher l'interface unifiée
-    this.showUnifiedInterface(unifiedData);
-  }
-
-  generateTabsFromAction(action, originalData) {
-    // Générer les onglets basés sur l'action + données disponibles
-    const tabs = [];
-    
-    // Toujours inclure l'onglet de l'action
-    tabs.push({
-      id: action.type,
-      label: action.label,
-      icon: action.icon,
-      description: action.description
-    });
-    
-    // Ajouter dialogue si pas la seule option
-    tabs.push({
-      id: 'dialogue',
-      label: 'Discussion',
-      icon: '💬',
-      description: 'Parler avec le PNJ'
-    });
-    
-    return tabs;
-  }
-
-  showUnifiedInterface(data) {
-    console.log('🎭 Affichage interface unifiée');
-    
-    this.currentMode = 'unified';
-    
-    // Configurer l'état interne
-    this.unifiedState = {
-      tabs: data.tabs || [],
-      currentTab: null,
-      tabData: data.tabData || {},
-      npcData: {
-        name: data.name || 'Unknown NPC',
-        title: data.title || 'Villager',
-        portrait: data.portrait || null
-      },
-      onTabSwitch: (tabId) => this.handleTabSwitch(tabId),
-      onClose: data.onClose
-    };
-
-    // Préparer les données pour l'UI
-    const uiData = {
-      ...data,
-      onTabSwitch: this.unifiedState.onTabSwitch,
-      onClose: () => this.hide()
-    };
-
-    // Afficher via l'UI
-    this.dialogueUI.showUnifiedInterface(uiData);
-  }
-
-  // ===== GESTION DES ONGLETS (INTERFACE UNIFIÉE) =====
-
-  handleTabSwitch(tabId) {
-    console.log(`🎭 Changement d'onglet: ${tabId}`);
-    
-    this.unifiedState.currentTab = tabId;
-    
-    // Charger le contenu de l'onglet
-    this.loadTabContent(tabId);
-    
-    // Appeler le callback original si fourni
-    if (this.currentDialogueData.onTabSwitch && typeof this.currentDialogueData.onTabSwitch === 'function') {
-      this.currentDialogueData.onTabSwitch(tabId);
-    }
-  }
-
-  async loadTabContent(tabId) {
-    console.log(`📄 Chargement contenu onglet: ${tabId}`);
-
-    try {
-      switch (tabId) {
-        case 'dialogue':
-          this.loadDialogueTabContent();
-          break;
-          
-        case 'shop':
-        case 'merchant':
-          await this.loadShopTabContent();
-          break;
-          
-        case 'quest':
-        case 'quests':
-          await this.loadQuestTabContent();
-          break;
-          
-        case 'info':
-        case 'information':
-          this.loadInfoTabContent();
-          break;
-          
-        case 'trade':
-          this.loadTradeTabContent();
-          break;
-          
-        case 'battle':
-          this.loadBattleTabContent();
-          break;
-          
-        default:
-          this.loadGenericTabContent(tabId);
-          break;
-      }
-    } catch (error) {
-      console.error(`❌ Erreur chargement onglet ${tabId}:`, error);
-      this.loadErrorTabContent(tabId, error);
-    }
-  }
-
-  loadDialogueTabContent() {
-    const dialogueData = this.unifiedState.tabData.dialogue || {};
-    const lines = dialogueData.lines || [dialogueData.text || "Bonjour !"];
-    
-    const html = `
-      <div class="dialogue-content">
-        <div class="dialogue-speaker">${this.unifiedState.npcData.name}</div>
-        <div class="dialogue-text">${lines[0]}</div>
-        ${lines.length > 1 ? `
-          <div class="dialogue-pagination">
-            <button class="dialogue-nav-btn" onclick="window.dialogueManager.prevDialoguePage()" disabled>◀ Précédent</button>
-            <span class="dialogue-page-info">1 / ${lines.length}</span>
-            <button class="dialogue-nav-btn" onclick="window.dialogueManager.nextDialoguePage()">Suivant ▶</button>
-          </div>
-        ` : ''}
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent('dialogue', html);
-    
-    // Stocker les lignes pour la pagination
-    this.dialoguePaginationData = {
-      lines: lines,
-      currentPage: 0
-    };
-  }
-
-  async loadShopTabContent() {
-    if (!this.shopSystem) {
-      this.loadErrorTabContent('shop', new Error('Système de shop non disponible'));
-      return;
+    // Appeler le callback de fermeture
+    if (this.onClose && typeof this.onClose === 'function') {
+      this.onClose();
+      this.onClose = null;
     }
 
-    // Créer un conteneur pour le shop
-    const html = `<div id="embedded-shop-content" class="embedded-content"></div>`;
-    this.dialogueUI.injectTabContent('shop', html);
-    
-    // Obtenir le conteneur et y injecter l'interface shop
-    const container = this.dialogueUI.getContentContainer().querySelector('#embedded-shop-content');
-    if (container && this.shopSystem.shopUI) {
-      // Modifier temporairement l'affichage du shop pour l'intégrer
-      await this.embedShopInterface(container);
-    }
-  }
-
-  async embedShopInterface(container) {
-    try {
-      // Créer une version simplifiée de l'interface shop
-      const shopData = this.unifiedState.tabData.merchant || this.unifiedState.tabData.shop || {};
-      
-      container.innerHTML = `
-        <div class="embedded-shop">
-          <div class="shop-header-mini">
-            <h3>🏪 ${shopData.name || 'Boutique'}</h3>
-            <div class="player-gold">💰 ${this.shopSystem.getPlayerGold()} ₽</div>
-          </div>
-          <div class="shop-items-mini" id="embedded-shop-items">
-            <div class="shop-loading">
-              <div class="shop-loading-spinner"></div>
-              <div>Chargement des articles...</div>
-            </div>
-          </div>
-          <div class="shop-actions-mini">
-            <button onclick="window.dialogueManager.openFullShop()" class="shop-btn primary">
-              🛒 Ouvrir la boutique complète
-            </button>
-          </div>
-        </div>
-      `;
-
-      // Demander le catalogue si nécessaire
-      if (shopData.shopId) {
-        this.requestShopCatalogForEmbed(shopData.shopId);
-      }
-
-    } catch (error) {
-      console.error('❌ Erreur intégration shop:', error);
-      container.innerHTML = `
-        <div class="error-content">
-          <h3>❌ Erreur shop</h3>
-          <p>${error.message}</p>
-          <button onclick="window.dialogueManager.openFullShop()" class="shop-btn secondary">
-            Essayer d'ouvrir le shop
-          </button>
-        </div>
-      `;
-    }
-  }
-
-  async loadQuestTabContent() {
-    const questData = this.unifiedState.tabData.quest || {};
-    
-    let html = `
-      <div class="quest-content">
-        <div class="quest-header">
-          <h3>📋 Quêtes disponibles</h3>
-        </div>
-    `;
-
-    if (questData.available && questData.available.length > 0) {
-      html += `<div class="quest-list">`;
-      questData.available.forEach(quest => {
-        html += `
-          <div class="quest-item">
-            <div class="quest-title">${quest.title}</div>
-            <div class="quest-description">${quest.description}</div>
-            <div class="quest-reward">💰 ${quest.reward} XP</div>
-            <button onclick="window.dialogueManager.acceptQuest('${quest.id}')" class="quest-btn primary">
-              Accepter
-            </button>
-          </div>
-        `;
-      });
-      html += `</div>`;
-    } else {
-      html += `
-        <div class="quest-empty">
-          <div class="quest-empty-icon">📭</div>
-          <p>Aucune quête disponible pour le moment</p>
-        </div>
-      `;
-    }
-
-    html += `</div>`;
-    
-    this.dialogueUI.injectTabContent('quest', html);
-  }
-
-  loadInfoTabContent() {
-    const infoData = this.unifiedState.tabData.info || {};
-    
-    const html = `
-      <div class="info-content">
-        <div class="npc-info-card">
-          <h3>ℹ️ Informations</h3>
-          <div class="info-section">
-            <h4>À propos de ${this.unifiedState.npcData.name}</h4>
-            <p>${infoData.description || 'Aucune information supplémentaire disponible.'}</p>
-          </div>
-          ${infoData.tips ? `
-            <div class="info-section">
-              <h4>💡 Conseils</h4>
-              <ul class="info-tips">
-                ${infoData.tips.map(tip => `<li>${tip}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
-          ${infoData.location ? `
-            <div class="info-section">
-              <h4>📍 Localisation</h4>
-              <p>${infoData.location}</p>
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent('info', html);
-  }
-
-  loadTradeTabContent() {
-    const html = `
-      <div class="trade-content">
-        <h3>🔄 Échange</h3>
-        <p>Fonctionnalité d'échange en développement...</p>
-        <button class="trade-btn secondary" disabled>Bientôt disponible</button>
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent('trade', html);
-  }
-
-  loadBattleTabContent() {
-    const html = `
-      <div class="battle-content">
-        <h3>⚔️ Combat</h3>
-        <p>Fonctionnalité de combat en développement...</p>
-        <button class="battle-btn secondary" disabled>Bientôt disponible</button>
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent('battle', html);
-  }
-
-  loadGenericTabContent(tabId) {
-    const tabData = this.unifiedState.tabData[tabId] || {};
-    
-    const html = `
-      <div class="generic-tab-content">
-        <h3>${tabData.title || `Onglet ${tabId}`}</h3>
-        <p>${tabData.content || 'Contenu en cours de développement...'}</p>
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent(tabId, html);
-  }
-
-  loadErrorTabContent(tabId, error) {
-    const html = `
-      <div class="error-content">
-        <h3>❌ Erreur</h3>
-        <p>Impossible de charger l'onglet "${tabId}"</p>
-        <p class="error-message">${error.message}</p>
-        <button onclick="window.dialogueManager.reloadTab('${tabId}')" class="error-btn">
-          🔄 Réessayer
-        </button>
-      </div>
-    `;
-    
-    this.dialogueUI.injectTabContent(tabId, html);
-  }
-
-  // ===== NAVIGATION DIALOGUE CLASSIQUE =====
-
-  advanceClassicDialogue() {
-    if (this.currentMode !== 'classic') return;
-
-    this.classicState.currentPage++;
-    
-    if (this.classicState.currentPage >= this.classicState.lines.length) {
-      this.hide();
-      return;
-    }
-
-    // Mettre à jour le texte affiché
-    const npcText = this.dialogueUI.container.querySelector('#npc-text');
-    if (npcText) {
-      npcText.textContent = this.classicState.lines[this.classicState.currentPage];
-    }
-  }
-
-  // ===== PAGINATION DIALOGUE DANS ONGLET =====
-
-  nextDialoguePage() {
-    if (!this.dialoguePaginationData) return;
-    
-    const { lines, currentPage } = this.dialoguePaginationData;
-    if (currentPage < lines.length - 1) {
-      this.dialoguePaginationData.currentPage++;
-      this.updateDialoguePagination();
-    }
-  }
-
-  prevDialoguePage() {
-    if (!this.dialoguePaginationData) return;
-    
-    if (this.dialoguePaginationData.currentPage > 0) {
-      this.dialoguePaginationData.currentPage--;
-      this.updateDialoguePagination();
-    }
-  }
-
-  updateDialoguePagination() {
-    const { lines, currentPage } = this.dialoguePaginationData;
-    const container = this.dialogueUI.getContentContainer();
-    
-    const textElement = container.querySelector('.dialogue-text');
-    const pageInfo = container.querySelector('.dialogue-page-info');
-    const prevBtn = container.querySelector('.dialogue-nav-btn');
-    const nextBtn = container.querySelectorAll('.dialogue-nav-btn')[1];
-    
-    if (textElement) textElement.textContent = lines[currentPage];
-    if (pageInfo) pageInfo.textContent = `${currentPage + 1} / ${lines.length}`;
-    if (prevBtn) prevBtn.disabled = currentPage === 0;
-    if (nextBtn) nextBtn.disabled = currentPage === lines.length - 1;
-  }
-
-  // ===== ACTIONS SHOP INTÉGRÉES =====
-
-  openFullShop() {
-    if (!this.shopSystem) {
-      console.error('❌ ShopSystem non disponible');
-      return;
-    }
-
-    // Masquer le dialogue unifié
-    this.hide();
-
-    // Ouvrir le shop complet
-    const shopData = this.unifiedState.tabData.merchant || this.unifiedState.tabData.shop || {};
-    if (shopData.shopId) {
-      // Utiliser les données existantes ou déclencher une interaction
-      if (this.shopSystem.directOpenShop) {
-        this.shopSystem.directOpenShop(shopData.shopId, this.unifiedState.npcData, shopData);
-      } else {
-        console.warn('⚠️ Méthode directOpenShop non disponible');
-      }
-    }
-  }
-
-  requestShopCatalogForEmbed(shopId) {
-    // Demander le catalogue pour affichage simplifié
-    if (this.shopSystem && this.shopSystem.gameRoom) {
-      this.shopSystem.gameRoom.send("getShopCatalog", { shopId });
-    }
-  }
-
-  // ===== ACTIONS QUÊTE =====
-
-  acceptQuest(questId) {
-    console.log(`📋 Acceptation quête: ${questId}`);
-    
-    if (this.questSystem && this.questSystem.acceptQuest) {
-      this.questSystem.acceptQuest(questId);
-    } else {
-      // Envoyer au serveur directement
-      if (window.networkManager && window.networkManager.room) {
-        window.networkManager.room.send("acceptQuest", { questId });
-      }
-    }
-    
-    // Optionnel : rafraîchir l'onglet quête
-    this.reloadTab('quest');
+    console.log('✅ DialogueUI fermé');
   }
 
   // ===== UTILITAIRES =====
 
-  reloadTab(tabId) {
-    if (this.currentMode === 'unified' && this.unifiedState.currentTab === tabId) {
-      this.loadTabContent(tabId);
-    }
-  }
-
-  hide() {
-    if (!this.isOpen()) return;
-
-    console.log('🎭 Fermeture DialogueManager');
-
-    // Appeler le callback de fermeture approprié
-    let onCloseCallback = null;
-    if (this.currentMode === 'classic') {
-      onCloseCallback = this.classicState.onClose;
-    } else if (this.currentMode === 'unified') {
-      onCloseCallback = this.unifiedState.onClose;
-    }
-
-    // Fermer l'UI
-    this.dialogueUI.hide();
-
-    // Nettoyer l'état
-    this.currentDialogueData = null;
-    this.currentMode = null;
-    this.classicState = { lines: [], currentPage: 0, onClose: null, actions: [] };
-    this.unifiedState = { tabs: [], currentTab: null, tabData: {}, npcData: {}, onTabSwitch: null, onClose: null };
-    this.dialoguePaginationData = null;
-
-    // Appeler le callback
-    if (onCloseCallback && typeof onCloseCallback === 'function') {
-      try {
-        onCloseCallback();
-      } catch (error) {
-        console.error('❌ Erreur callback fermeture:', error);
-      }
-    }
-  }
-
-  // ===== ÉTAT ET INFORMATIONS =====
-
   isOpen() {
-    return this.dialogueUI ? this.dialogueUI.isOpen() : false;
-  }
-
-  getCurrentMode() {
-    return this.currentMode;
+    return this.isVisible;
   }
 
   getCurrentTab() {
-    return this.unifiedState.currentTab;
+    return this.currentTab;
   }
 
-  canPlayerInteract() {
-    const questDialogOpen = window._questDialogActive || false;
-    const chatOpen = typeof window.isChatFocused === "function" && window.isChatFocused();
-    const inventoryOpen = this.inventorySystem?.isInventoryOpen() || false;
-    const shopOpen = this.shopSystem?.isShopOpen() || false;
-    
-    return !this.isOpen() && !questDialogOpen && !chatOpen && !inventoryOpen && !shopOpen;
-  }
-
-  // ===== INTÉGRATION AVEC L'EXISTANT =====
-
-  // Méthode pour l'InteractionManager
-  handleNpcInteractionResult(data) {
-    console.log('🎭 Résultat interaction NPC reçu:', data);
-    
-    if (data.success && (data.dialogue || data.unifiedInterface)) {
-      this.show(data);
-    } else if (!data.success) {
-      console.warn('⚠️ Interaction NPC échouée:', data.message);
-    }
-  }
-
-  // Méthode pour les systèmes externes
-  notify(eventType, data) {
-    console.log(`🔔 Notification DialogueManager: ${eventType}`, data);
-    
-    switch (eventType) {
-      case 'shop_catalog_received':
-        this.handleShopCatalogForEmbed(data);
-        break;
-        
-      case 'quest_completed':
-        this.handleQuestCompleted(data);
-        break;
-        
-      case 'player_level_up':
-        this.handlePlayerLevelUp(data);
-        break;
-    }
-  }
-
-  handleShopCatalogForEmbed(data) {
-    // Mettre à jour l'affichage shop intégré si visible
-    if (this.unifiedState.currentTab === 'shop' || this.unifiedState.currentTab === 'merchant') {
-      const container = this.dialogueUI.getContentContainer().querySelector('#embedded-shop-items');
-      if (container && data.catalog) {
-        this.updateEmbeddedShopItems(container, data.catalog);
-      }
-    }
-  }
-
-  updateEmbeddedShopItems(container, catalog) {
-    const items = catalog.availableItems || [];
-    
-    if (items.length === 0) {
-      container.innerHTML = `
-        <div class="shop-empty">
-          <div class="shop-empty-icon">🏪</div>
-          <p>Aucun article disponible</p>
-        </div>
-      `;
-      return;
-    }
-
-    let html = '<div class="shop-items-grid-mini">';
-    items.slice(0, 6).forEach(item => { // Max 6 items dans l'aperçu
-      html += `
-        <div class="shop-item-mini">
-          <div class="item-icon">${this.getItemIcon(item.itemId)}</div>
-          <div class="item-name">${this.getItemName(item.itemId)}</div>
-          <div class="item-price">${item.buyPrice}₽</div>
-        </div>
-      `;
-    });
-    html += '</div>';
-    
-    if (items.length > 6) {
-      html += `<p class="shop-more">... et ${items.length - 6} autres articles</p>`;
-    }
-    
-    container.innerHTML = html;
-  }
-
-  getItemIcon(itemId) {
-    // Réutiliser la logique du ShopSystem si disponible
-    if (this.shopSystem && this.shopSystem.shopUI && this.shopSystem.shopUI.getItemIcon) {
-      return this.shopSystem.shopUI.getItemIcon(itemId);
-    }
-    
-    // Fallback simple
-    const iconMap = {
-      'potion': '💊',
-      'poke_ball': '⚪',
-      'great_ball': '🟡',
-      'ultra_ball': '🟠'
-    };
-    return iconMap[itemId] || '📦';
-  }
-
-  getItemName(itemId) {
-    // Réutiliser la logique du ShopSystem si disponible
-    if (this.shopSystem && this.shopSystem.shopUI && this.shopSystem.shopUI.getItemName) {
-      return this.shopSystem.shopUI.getItemName(itemId);
-    }
-    
-    // Fallback simple
-    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }
-
-  handleQuestCompleted(data) {
-    // Si l'onglet quête est ouvert, le rafraîchir
-    if (this.unifiedState.currentTab === 'quest') {
-      this.reloadTab('quest');
-    }
-  }
-
-  handlePlayerLevelUp(data) {
-    // Mettre à jour les informations du joueur si affichées
-    console.log('🎉 Joueur level up:', data);
-  }
-
-  // ===== DEBUG ET DÉVELOPPEMENT =====
-
-  debugState() {
-    console.log('🔍 === DEBUG DIALOGUE MANAGER AVEC ACTIONS ===');
-    console.log('📊 ÉTAT GÉNÉRAL:');
-    console.log('  - Initialisé:', this.isInitialized);
-    console.log('  - Ouvert:', this.isOpen());
-    console.log('  - Mode actuel:', this.currentMode);
-    console.log('  - DialogueUI existe:', !!this.dialogueUI);
-    
-    console.log('🎭 DIALOGUE CLASSIQUE:');
-    console.log('  - Lignes:', this.classicState.lines.length);
-    console.log('  - Page actuelle:', this.classicState.currentPage);
-    console.log('  - Actions disponibles:', this.classicState.actions.length);
-    
-    console.log('🎯 INTERFACE UNIFIÉE:');
-    console.log('  - Onglets:', this.unifiedState.tabs.length);
-    console.log('  - Onglet actuel:', this.unifiedState.currentTab);
-    console.log('  - NPC:', this.unifiedState.npcData.name);
-    
-    console.log('🔗 SYSTÈMES:');
-    console.log('  - ShopSystem:', !!this.shopSystem);
-    console.log('  - QuestSystem:', !!this.questSystem);
-    console.log('  - InventorySystem:', !!this.inventorySystem);
-    
-    return {
-      isInitialized: this.isInitialized,
-      isOpen: this.isOpen(),
-      currentMode: this.currentMode,
-      hasUI: !!this.dialogueUI,
-      classicState: {
-        linesCount: this.classicState.lines.length,
-        currentPage: this.classicState.currentPage,
-        actionsCount: this.classicState.actions.length,
-        actions: this.classicState.actions.map(a => ({ id: a.id, type: a.type, label: a.label }))
-      },
-      systems: {
-        shop: !!this.shopSystem,
-        quest: !!this.questSystem,
-        inventory: !!this.inventorySystem
-      }
-    };
+  getContentContainer() {
+    return this.container.querySelector('#unified-content');
   }
 
   // ===== NETTOYAGE =====
 
   destroy() {
-    console.log('💀 Destruction DialogueManager');
-    
-    // Fermer le dialogue si ouvert
-    if (this.isOpen()) {
-      this.hide();
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
     }
     
-    // Détruire l'UI
-    if (this.dialogueUI) {
-      this.dialogueUI.destroy();
-      this.dialogueUI = null;
+    const style = document.querySelector('#dialogue-ui-styles');
+    if (style) {
+      style.remove();
     }
     
-    // Nettoyer les références
-    this.shopSystem = null;
-    this.questSystem = null;
-    this.inventorySystem = null;
-    this.currentDialogueData = null;
+    this.container = null;
+    this.onTabSwitch = null;
+    this.onClose = null;
+    this.onQuickAction = null;
+    this.onActionClick = null;
     
-    // Supprimer les références globales
-    if (window.dialogueManager === this) {
-      window.dialogueManager = null;
-      delete window.showNpcDialogue;
-      delete window.advanceDialogue;
-      delete window.closeDialogue;
-    }
-    
-    this.isInitialized = false;
-    console.log('✅ DialogueManager détruit');
+    console.log('💀 DialogueUI détruit');
   }
 }
-
-// ===== FONCTIONS GLOBALES DE DEBUG MISES À JOUR =====
-
-window.testDialogueManager = function() {
-  if (window.dialogueManager) {
-    console.log('🧪 Test DialogueManager avec actions...');
-    return window.dialogueManager.debugState();
-  } else {
-    console.error('❌ DialogueManager non disponible');
-  }
-};
-
-// 🆕 NOUVELLES FONCTIONS DE TEST AVEC ACTIONS
-window.testDialogueWithShop = function() {
-  if (window.dialogueManager) {
-    const testData = {
-      name: 'Marchand Test',
-      portrait: 'https://via.placeholder.com/80x80/green/white?text=SHOP',
-      lines: ['Bonjour ! Bienvenue dans ma boutique.', 'Que puis-je faire pour vous ?'],
-      capabilities: ['merchant'],
-      shopData: { 
-        shopId: 'test_shop',
-        name: 'Boutique du Marchand'
-      },
-      onClose: () => {
-        console.log('✅ Dialogue marchand fermé');
-        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
-      }
-    };
-    
-    window.dialogueManager.show(testData);
-    console.log('✅ Dialogue marchand avec actions affiché');
-  } else {
-    console.error('❌ DialogueManager non disponible');
-  }
-};
-
-window.testDialogueWithQuest = function() {
-  if (window.dialogueManager) {
-    const testData = {
-      name: 'Garde Questeur',
-      portrait: 'https://via.placeholder.com/80x80/orange/white?text=QUEST',
-      lines: ['Salut, aventurier !', 'J\'ai des missions importantes pour toi.'],
-      capabilities: ['questGiver'],
-      questData: { 
-        availableQuests: [
-          { id: 'quest1', title: 'Mission Test 1' },
-          { id: 'quest2', title: 'Mission Test 2' },
-          { id: 'quest3', title: 'Mission Test 3' }
-        ]
-      },
-      onClose: () => {
-        console.log('✅ Dialogue quêtes fermé');
-        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
-      }
-    };
-    
-    window.dialogueManager.show(testData);
-    console.log('✅ Dialogue quêtes avec actions affiché');
-  } else {
-    console.error('❌ DialogueManager non disponible');
-  }
-};
-
-window.testDialogueWithHealer = function() {
-  if (window.dialogueManager) {
-    const testData = {
-      name: 'Infirmière Joy',
-      portrait: 'https://via.placeholder.com/80x80/red/white?text=HEAL',
-      lines: ['Bonjour ! Vos Pokémon ont l\'air fatigués.', 'Voulez-vous que je les soigne ?'],
-      capabilities: ['healer'],
-      healerData: { 
-        healType: 'full',
-        cost: 0
-      },
-      onClose: () => {
-        console.log('✅ Dialogue soigneur fermé');
-        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
-      }
-    };
-    
-    window.dialogueManager.show(testData);
-    console.log('✅ Dialogue soigneur avec actions affiché');
-  } else {
-    console.error('❌ DialogueManager non disponible');
-  }
-};
-
-window.testDialogueMultiActions = function() {
-  if (window.dialogueManager) {
-    const testData = {
-      name: 'PNJ Multifonction',
-      portrait: 'https://via.placeholder.com/80x80/purple/white?text=MULTI',
-      lines: ['Salutations !', 'Je propose plusieurs services.'],
-      capabilities: ['merchant', 'questGiver', 'healer'],
-      shopData: { shopId: 'multi_shop' },
-      questData: { availableQuests: [{ id: 'multi_quest' }] },
-      healerData: { healType: 'full' },
-      onClose: () => {
-        console.log('✅ Dialogue multi-actions fermé');
-        window.showGameNotification?.('Dialogue fermé', 'info', { duration: 1500 });
-      }
-    };
-    
-    window.dialogueManager.show(testData);
-    console.log('✅ Dialogue multi-actions affiché');
-  } else {
-    console.error('❌ DialogueManager non disponible');
-  }
-};
-
-console.log('✅ DialogueManager avec Actions Contextuelles chargé!');
-console.log('🧪 Utilisez window.testDialogueManager() pour diagnostiquer');
-console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand');
-console.log('📋 Utilisez window.testDialogueWithQuest() pour tester quêtes');
-console.log('💊 Utilisez window.testDialogueWithHealer() pour tester soigneur');
-console.log('🎯 Utilisez window.testDialogueMultiActions() pour tester multi-actions');
