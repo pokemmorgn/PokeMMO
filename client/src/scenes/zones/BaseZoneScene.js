@@ -558,9 +558,9 @@ setRoom(room) {
     }, 600);
     
     // 3. Quêtes (dépend de la connexion stable)
-    setTimeout(() => {
-      this.initializeQuestSystem();
-    }, 900);
+ //   setTimeout(() => {
+ //     this.initializeQuestSystem();
+ //   }, 900);
     
     setTimeout(() => {
       const zoneName = this.normalizeZoneName(this.scene.key);
