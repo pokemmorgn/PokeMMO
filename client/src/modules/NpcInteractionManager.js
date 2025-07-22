@@ -1620,8 +1620,41 @@ handleUnifiedInterfaceResult(data) {
     return npcManager.getAllNpcs();
   }
 
-  // === DESTRUCTION ===
-
+    deriveActionsFromData(data) {
+      const actions = [];
+      
+      if (data.shopId || data.shopData) {
+        actions.push({
+          id: 'shop_action',
+          label: '🛒 Boutique', 
+          type: 'shop',
+          callback: () => {
+            // Ouvrir boutique directement
+            if (this.dependencies.shopSystem && data.shopData) {
+              this.dependencies.shopSystem.handleShopNpcInteraction(data);
+            }
+          }
+        });
+      }
+      
+      if (data.availableQuests && data.availableQuests.length > 0) {
+        actions.push({
+          id: 'quest_action',
+          label: '📋 Quêtes',
+          type: 'quest',
+          callback: () => {
+            // Ouvrir quêtes directement
+            if (this.dependencies.questSystem) {
+              this.dependencies.questSystem.handleNpcInteraction(data);
+            }
+          }
+        });
+      }
+      
+      return actions;
+    }
+  
+    // === DESTRUCTION ===
   destroy() {
     console.log('[NpcInteractionManager] 💀 Destruction...');
     
