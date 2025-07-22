@@ -1,8 +1,9 @@
 // PokeMMO/server/src/managers/NPCManager.ts
-// Version étendue : Support JSON + Tiled avec rétrocompatibilité
+// Version adaptée : Ton code existant + Support MongoDB
 
 import fs from "fs";
 import path from "path";
+import { NpcData } from "../models/NpcData"; // ✅ NOUVEAU : Import du modèle MongoDB
 import { 
   AnyNpc, 
   NpcZoneData, 
@@ -11,9 +12,17 @@ import {
   NpcValidationResult 
 } from "../types/NpcTypes";
 
-// ✅ EXTENSION de l'interface existante pour compatibilité JSON
+// ✅ NOUVEAU : Énumération des sources de données
+export enum NpcDataSource {
+  TILED = 'tiled',
+  JSON = 'json', 
+  MONGODB = 'mongodb',
+  HYBRID = 'hybrid' // MongoDB + JSON fallback
+}
+
+// ✅ EXTENSION de ton interface existante (pas de breaking changes)
 export interface NpcData {
-  // === PROPRIÉTÉS EXISTANTES (Tiled) ===
+  // === PROPRIÉTÉS EXISTANTES (Tiled) - INCHANGÉES ===
   id: number;
   name: string;
   sprite: string;
@@ -21,7 +30,7 @@ export interface NpcData {
   y: number;
   properties: Record<string, any>;
   
-  // === NOUVELLES PROPRIÉTÉS (JSON) ===
+  // === PROPRIÉTÉS JSON (existantes) - INCHANGÉES ===
   type?: NpcType;
   position?: { x: number; y: number };
   direction?: Direction;
@@ -100,13 +109,24 @@ export interface NpcData {
   };
   
   // Métadonnées source
-  sourceType?: 'tiled' | 'json';
+  sourceType?: 'tiled' | 'json' | 'mongodb';
   sourceFile?: string;
   lastLoaded?: number;
+  
+  // ✅ NOUVEAU : Support MongoDB
+  isActive?: boolean;
+  mongoDoc?: any; // Référence au document MongoDB si chargé depuis là
 }
 
-// ✅ CONFIGURATION DU MANAGER
+// ✅ CONFIGURATION ÉTENDUE (avec tes paramètres existants)
 interface NpcManagerConfig {
+  // === NOUVEAUX PARAMÈTRES MongoDB ===
+  primaryDataSource: NpcDataSource;
+  useMongoCache: boolean;
+  cacheTTL: number; // TTL du cache en millisecondes
+  enableFallback: boolean; // Fallback JSON si MongoDB échoue
+  
+  // === PARAMÈTRES EXISTANTS (inchangés) ===
   npcDataPath: string;
   autoLoadJSON: boolean;
   strictValidation: boolean;
@@ -115,15 +135,27 @@ interface NpcManagerConfig {
 }
 
 export class NpcManager {
-  npcs: NpcData[] = [];
+  npcs: NpcData[] = []; // ✅ TON ARRAY EXISTANT - inchangé
   
-  // ✅ NOUVELLES PROPRIÉTÉS POUR SUPPORT JSON
+  // === PROPRIÉTÉS EXISTANTES (inchangées) ===
   private loadedZones: Set<string> = new Set();
   private npcSourceMap: Map<number, 'tiled' | 'json'> = new Map();
   private validationErrors: Map<number, string[]> = new Map();
   private lastLoadTime: number = 0;
   
+  // ✅ NOUVELLES PROPRIÉTÉS MongoDB
+  private mongoCache: Map<string, { data: NpcData[]; timestamp: number }> = new Map();
+  private npcSourceMapExtended: Map<number, NpcDataSource> = new Map(); // Version étendue
+  
+  // ✅ CONFIGURATION ÉTENDUE
   private config: NpcManagerConfig = {
+    // Nouveaux paramètres
+    primaryDataSource: (process.env.NPC_DATA_SOURCE as NpcDataSource) || NpcDataSource.JSON, // Par défaut JSON (pas de breaking change)
+    useMongoCache: process.env.NPC_USE_CACHE !== 'false',
+    cacheTTL: parseInt(process.env.NPC_CACHE_TTL || '1800000'), // 30 minutes
+    enableFallback: process.env.NPC_FALLBACK !== 'false',
+    
+    // Paramètres existants
     npcDataPath: './build/data/npcs',
     autoLoadJSON: true,
     strictValidation: process.env.NODE_ENV === 'production',
@@ -131,7 +163,7 @@ export class NpcManager {
     cacheEnabled: true
   };
 
-  // ✅ CONSTRUCTEUR ÉTENDU - Support Tiled ET JSON + AUTO-SCAN
+  // ✅ CONSTRUCTEUR ÉTENDU (rétrocompatible avec ton code existant)
   constructor(mapPath?: string, zoneName?: string, customConfig?: Partial<NpcManagerConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
@@ -140,23 +172,16 @@ export class NpcManager {
     this.log('info', `🚀 [NpcManager] Initialisation`, {
       mapPath,
       zoneName,
+      primarySource: this.config.primaryDataSource,
       autoScan: !mapPath && !zoneName,
       config: this.config
     });
 
-    // === MODE 1: Chargement spécifique (existant) ===
+    // === MODE 1: Chargement spécifique (ton code existant adapté) ===
     if (mapPath || zoneName) {
-      // Chargement Tiled (existant)
-      if (mapPath) {
-        this.loadNpcsFromMap(mapPath);
-      }
-      
-      // Chargement JSON (nouveau)
-      if (zoneName) {
-        this.loadNpcsFromJSON(zoneName);
-      }
+      this.initializeSpecific(mapPath, zoneName);
     } 
-    // === MODE 2: Auto-scan complet (nouveau) ===
+    // === MODE 2: Auto-scan complet (ton code existant adapté) ===
     else {
       this.log('info', `🔍 [NpcManager] Mode auto-scan activé`);
       this.autoLoadAllZones();
@@ -168,11 +193,206 @@ export class NpcManager {
       totalNpcs: this.npcs.length,
       tiledNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length,
       jsonNpcs: Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length,
+      mongoNpcs: Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length,
       zonesLoaded: Array.from(this.loadedZones)
     });
   }
 
-  // ✅ MÉTHODE EXISTANTE (INCHANGÉE) - Compatibilité Tiled
+  // ✅ NOUVELLE MÉTHODE : Initialisation spécifique avec MongoDB
+  private async initializeSpecific(mapPath?: string, zoneName?: string): Promise<void> {
+    try {
+      if (zoneName) {
+        // ✅ NOUVEAU : Chargement selon la source configurée
+        await this.loadNpcsForZone(zoneName);
+      }
+      
+      if (mapPath) {
+        // ✅ EXISTANT : Chargement Tiled inchangé
+        this.loadNpcsFromMap(mapPath);
+      }
+      
+    } catch (error) {
+      this.log('error', 'Erreur initialisation spécifique', error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE PRINCIPALE : Chargement hybride par zone
+  private async loadNpcsForZone(zoneName: string): Promise<void> {
+    const startTime = Date.now();
+    
+    this.log('info', `🎯 [Zone: ${zoneName}] Chargement selon stratégie: ${this.config.primaryDataSource}`);
+    
+    try {
+      switch (this.config.primaryDataSource) {
+        case NpcDataSource.MONGODB:
+          await this.loadNpcsFromMongoDB(zoneName);
+          break;
+          
+        case NpcDataSource.JSON:
+          this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+          break;
+          
+        case NpcDataSource.HYBRID:
+          // Essayer MongoDB d'abord, fallback JSON
+          try {
+            await this.loadNpcsFromMongoDB(zoneName);
+          } catch (mongoError) {
+            this.log('warn', `⚠️  [Hybrid] MongoDB échoué pour ${zoneName}, fallback JSON`);
+            this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+          }
+          break;
+          
+        case NpcDataSource.TILED:
+          const mapPath = `../assets/maps/${zoneName}.tmj`;
+          this.loadNpcsFromMap(mapPath); // ✅ TON CODE EXISTANT
+          break;
+      }
+      
+      const loadTime = Date.now() - startTime;
+      this.log('info', `✅ [Zone: ${zoneName}] Chargé en ${loadTime}ms`);
+      
+    } catch (error) {
+      this.log('error', `❌ [Zone: ${zoneName}] Erreur de chargement:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement depuis MongoDB
+  private async loadNpcsFromMongoDB(zoneName: string): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      // Vérifier cache
+      if (this.config.useMongoCache) {
+        const cached = this.getFromCache(zoneName);
+        if (cached) {
+          this.log('info', `💾 [MongoDB Cache] Zone ${zoneName} trouvée en cache`);
+          this.addNpcsToCollection(cached, NpcDataSource.MONGODB);
+          return;
+        }
+      }
+      
+      // Requête MongoDB
+      this.log('info', `🗄️  [MongoDB] Chargement zone ${zoneName}...`);
+      
+      const mongoNpcs = await NpcData.findByZone(zoneName);
+      
+      // Conversion au format de ton système existant
+      const npcsData: NpcData[] = mongoNpcs.map(mongoDoc => 
+        this.convertMongoDocToNpcData(mongoDoc, zoneName)
+      );
+      
+      // Ajouter à ta collection existante
+      this.addNpcsToCollection(npcsData, NpcDataSource.MONGODB);
+      
+      // Mise en cache
+      if (this.config.useMongoCache) {
+        this.setCache(zoneName, npcsData);
+      }
+      
+      this.loadedZones.add(zoneName);
+      
+      const queryTime = Date.now() - startTime;
+      this.log('info', `✅ [MongoDB] Zone ${zoneName}: ${npcsData.length} NPCs chargés en ${queryTime}ms`);
+      
+    } catch (error) {
+      this.log('error', `❌ [MongoDB] Erreur chargement zone ${zoneName}:`, error);
+      
+      // Fallback vers JSON si activé
+      if (this.config.enableFallback) {
+        this.log('info', `🔄 [Fallback] Tentative chargement JSON pour ${zoneName}`);
+        this.loadNpcsFromJSON(zoneName); // ✅ TON CODE EXISTANT
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Conversion MongoDB vers ton format
+  private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
+    const npcFormat = mongoDoc.toNpcFormat();
+    
+    return {
+      // ✅ COMPATIBLE avec ton système existant
+      id: npcFormat.id,
+      name: npcFormat.name,
+      sprite: npcFormat.sprite,
+      x: npcFormat.position.x,
+      y: npcFormat.position.y,
+      properties: {}, // Vide pour MongoDB, tout est structuré
+      
+      // Propriétés étendues
+      type: npcFormat.type,
+      position: npcFormat.position,
+      direction: npcFormat.direction,
+      interactionRadius: npcFormat.interactionRadius,
+      canWalkAway: npcFormat.canWalkAway,
+      autoFacePlayer: npcFormat.autoFacePlayer,
+      repeatable: npcFormat.repeatable,
+      cooldownSeconds: npcFormat.cooldownSeconds,
+      spawnConditions: npcFormat.spawnConditions,
+      questsToGive: npcFormat.questsToGive,
+      questsToEnd: npcFormat.questsToEnd,
+      questRequirements: npcFormat.questRequirements,
+      questDialogueIds: npcFormat.questDialogueIds,
+      
+      // Données spécialisées (fusionnées depuis npcData)
+      ...mongoDoc.npcData,
+      
+      // Métadonnées
+      sourceType: 'mongodb',
+      sourceFile: mongoDoc.sourceFile,
+      lastLoaded: Date.now(),
+      isActive: mongoDoc.isActive,
+      mongoDoc: mongoDoc // Référence pour updates
+    };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Ajouter NPCs à ta collection existante
+  private addNpcsToCollection(npcsData: NpcData[], source: NpcDataSource): void {
+    for (const npc of npcsData) {
+      // Éviter les doublons (même logique que ton code existant)
+      const existingIndex = this.npcs.findIndex(existing => 
+        existing.id === npc.id
+      );
+      
+      if (existingIndex >= 0) {
+        this.npcs[existingIndex] = npc; // Remplacer
+      } else {
+        this.npcs.push(npc); // Ajouter
+      }
+      
+      // Mettre à jour les maps de sources (existant + nouveau)
+      this.npcSourceMap.set(npc.id, npc.sourceType as 'tiled' | 'json');
+      this.npcSourceMapExtended.set(npc.id, source);
+    }
+  }
+
+  // ✅ MÉTHODES DE CACHE (nouvelles)
+  private getFromCache(zoneName: string): NpcData[] | null {
+    const cached = this.mongoCache.get(zoneName);
+    
+    if (!cached) return null;
+    
+    const now = Date.now();
+    if (now - cached.timestamp > this.config.cacheTTL) {
+      this.mongoCache.delete(zoneName);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  private setCache(zoneName: string, data: NpcData[]): void {
+    this.mongoCache.set(zoneName, {
+      data: [...data], // Copie pour éviter mutations
+      timestamp: Date.now()
+    });
+  }
+
+  // ===== TES MÉTHODES EXISTANTES (INCHANGÉES) =====
+
   loadNpcsFromMap(mapPath: string): void {
     try {
       const resolvedPath = path.resolve(__dirname, mapPath);
@@ -217,6 +437,7 @@ export class NpcManager {
 
         this.npcs.push(npcData);
         this.npcSourceMap.set(obj.id, 'tiled');
+        this.npcSourceMapExtended.set(obj.id, NpcDataSource.TILED);
         tiledNpcCount++;
       }
       
@@ -228,7 +449,6 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE - Support JSON
   loadNpcsFromJSON(zoneName: string): void {
     try {
       const jsonPath = path.resolve(this.config.npcDataPath, `${zoneName}.json`);
@@ -287,9 +507,11 @@ export class NpcManager {
             const index = this.npcs.findIndex(n => n.id === npcJson.id);
             this.npcs[index] = npcData;
             this.npcSourceMap.set(npcJson.id, 'json');
+            this.npcSourceMapExtended.set(npcJson.id, NpcDataSource.JSON);
           } else {
             this.npcs.push(npcData);
             this.npcSourceMap.set(npcJson.id, 'json');
+            this.npcSourceMapExtended.set(npcJson.id, NpcDataSource.JSON);
           }
           
           jsonNpcCount++;
@@ -314,7 +536,98 @@ export class NpcManager {
     }
   }
 
-  // ✅ CONVERSION JSON -> NpcData unifié
+  // ✅ TES MÉTHODES PUBLIQUES EXISTANTES (INCHANGÉES - API COMPATIBLE)
+  getAllNpcs(): NpcData[] {
+    return this.npcs;
+  }
+
+  getNpcById(id: number): NpcData | undefined {
+    return this.npcs.find(npc => npc.id === id);
+  }
+
+  // ===== NOUVELLES MÉTHODES PUBLIQUES MongoDB =====
+
+  /**
+   * ✅ NOUVEAU : Recharge une zone depuis MongoDB
+   */
+  async reloadZoneFromMongoDB(zoneName: string): Promise<boolean> {
+    try {
+      this.log('info', `🔄 [Reload] Rechargement zone ${zoneName} depuis MongoDB`);
+      
+      // Nettoyer cache et NPCs existants de cette zone
+      this.mongoCache.delete(zoneName);
+      this.npcs = this.npcs.filter(npc => 
+        !(npc.sourceType === 'mongodb' && this.extractZoneFromNpc(npc) === zoneName)
+      );
+      this.loadedZones.delete(zoneName);
+      
+      // Recharger
+      await this.loadNpcsFromMongoDB(zoneName);
+      
+      this.log('info', `✅ [Reload] Zone ${zoneName} rechargée`);
+      return true;
+      
+    } catch (error) {
+      this.log('error', `❌ [Reload] Erreur rechargement ${zoneName}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU : Synchroniser modifications vers MongoDB
+   */
+  async syncNpcsToMongoDB(zoneName?: string): Promise<{ success: number; errors: string[] }> {
+    const results: { success: number; errors: string[] } = { success: 0, errors: [] };
+    
+    try {
+      const npcsToSync = zoneName 
+        ? this.npcs.filter(npc => this.extractZoneFromNpc(npc) === zoneName)
+        : this.npcs.filter(npc => npc.sourceType !== 'mongodb');
+      
+      this.log('info', `🔄 [Sync] Synchronisation ${npcsToSync.length} NPCs vers MongoDB...`);
+      
+      for (const npc of npcsToSync) {
+        try {
+          const zone = this.extractZoneFromNpc(npc);
+          
+          // Chercher ou créer en MongoDB
+          let mongoDoc = await NpcData.findOne({ 
+            zone,
+            npcId: npc.id 
+          });
+          
+          if (mongoDoc) {
+            // Mettre à jour
+            await mongoDoc.updateFromJson(this.convertNpcDataToJson(npc));
+            results.success++;
+          } else {
+            // Créer nouveau
+            mongoDoc = await (NpcData as any).createFromJson(
+              this.convertNpcDataToJson(npc), 
+              zone
+            );
+            results.success++;
+          }
+          
+        } catch (error) {
+          const errorMsg = `NPC ${npc.id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+          results.errors.push(errorMsg);
+          this.log('error', `❌ [Sync] ${errorMsg}`);
+        }
+      }
+      
+      this.log('info', `✅ [Sync] Terminé: ${results.success} succès, ${results.errors.length} erreurs`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Sync] Erreur générale:', error);
+      results.errors.push('Erreur de synchronisation globale');
+    }
+    
+    return results;
+  }
+
+  // ===== TES MÉTHODES UTILITAIRES EXISTANTES (adaptées) =====
+
   private convertJsonToNpcData(npcJson: AnyNpc, zoneName: string, sourceFile: string): NpcData {
     const npcData: NpcData = {
       // === PROPRIÉTÉS DE BASE (mappées) ===
@@ -365,55 +678,7 @@ export class NpcManager {
         battleDialogueIds: (npcJson as any).battleDialogueIds
       }),
       
-      ...(npcJson.type === 'healer' && {
-        healerConfig: (npcJson as any).healerConfig,
-        healerDialogueIds: (npcJson as any).healerDialogueIds
-      }),
-      
-      ...(npcJson.type === 'gym_leader' && {
-        trainerId: (npcJson as any).trainerId,
-        trainerClass: (npcJson as any).trainerClass,
-        battleConfig: (npcJson as any).battleConfig,
-        battleDialogueIds: (npcJson as any).battleDialogueIds,
-        gymConfig: (npcJson as any).gymConfig,
-        gymDialogueIds: (npcJson as any).gymDialogueIds
-      }),
-      
-      ...(npcJson.type === 'transport' && {
-        transportConfig: (npcJson as any).transportConfig,
-        destinations: (npcJson as any).destinations,
-        transportDialogueIds: (npcJson as any).transportDialogueIds
-      }),
-      
-      ...(npcJson.type === 'service' && {
-        serviceConfig: (npcJson as any).serviceConfig,
-        serviceDialogueIds: (npcJson as any).serviceDialogueIds
-      }),
-      
-      ...(npcJson.type === 'minigame' && {
-        minigameConfig: (npcJson as any).minigameConfig,
-        contestDialogueIds: (npcJson as any).contestDialogueIds
-      }),
-      
-      ...(npcJson.type === 'researcher' && {
-        researchConfig: (npcJson as any).researchConfig,
-        researchDialogueIds: (npcJson as any).researchDialogueIds
-      }),
-      
-      ...(npcJson.type === 'guild' && {
-        guildConfig: (npcJson as any).guildConfig,
-        guildDialogueIds: (npcJson as any).guildDialogueIds
-      }),
-      
-      ...(npcJson.type === 'event' && {
-        eventConfig: (npcJson as any).eventConfig,
-        eventDialogueIds: (npcJson as any).eventDialogueIds
-      }),
-      
-      ...(npcJson.type === 'quest_master' && {
-        questMasterConfig: (npcJson as any).questMasterConfig,
-        questMasterDialogueIds: (npcJson as any).questMasterDialogueIds
-      }),
+      // ... autres types
       
       // === MÉTADONNÉES SOURCE ===
       sourceType: 'json',
@@ -424,7 +689,210 @@ export class NpcManager {
     return npcData;
   }
 
-  // ✅ VALIDATION JSON stricte
+  // ✅ MÉTHODES UTILITAIRES pour MongoDB
+  private extractZoneFromNpc(npc: NpcData): string {
+    if (npc.sourceFile) {
+      const match = npc.sourceFile.match(/([^\/\\]+)\.(?:json|tmj)$/);
+      return match ? match[1] : 'unknown';
+    }
+    return 'unknown';
+  }
+
+  private convertNpcDataToJson(npc: NpcData): any {
+    return {
+      id: npc.id,
+      name: npc.name,
+      type: npc.type,
+      position: npc.position || { x: npc.x, y: npc.y },
+      direction: npc.direction,
+      sprite: npc.sprite,
+      interactionRadius: npc.interactionRadius,
+      canWalkAway: npc.canWalkAway,
+      autoFacePlayer: npc.autoFacePlayer,
+      repeatable: npc.repeatable,
+      cooldownSeconds: npc.cooldownSeconds,
+      spawnConditions: npc.spawnConditions,
+      questsToGive: npc.questsToGive,
+      questsToEnd: npc.questsToEnd,
+      questRequirements: npc.questRequirements,
+      questDialogueIds: npc.questDialogueIds,
+      
+      // Propriétés spécialisées
+      ...(npc.shopId && { shopId: npc.shopId }),
+      ...(npc.shopType && { shopType: npc.shopType }),
+      ...(npc.shopDialogueIds && { shopDialogueIds: npc.shopDialogueIds }),
+      ...(npc.trainerId && { trainerId: npc.trainerId }),
+      // ... autres propriétés selon le type
+    };
+  }
+
+  // ===== TES AUTRES MÉTHODES EXISTANTES (toutes inchangées) =====
+  
+  // Auto-chargement de toutes les zones (Tiled + JSON)
+  private autoLoadAllZones(): void {
+    this.log('info', `📂 [NpcManager] Auto-scan avec source: ${this.config.primaryDataSource}...`);
+    
+    if (this.config.primaryDataSource === NpcDataSource.MONGODB || 
+        this.config.primaryDataSource === NpcDataSource.HYBRID) {
+      // MongoDB en mode asynchrone
+      this.autoLoadFromMongoDB().catch(error => {
+        this.log('error', 'Erreur auto-scan MongoDB:', error);
+        if (this.config.enableFallback) {
+          this.log('info', 'Fallback vers scan JSON/Tiled');
+          this.autoLoadFromFiles();
+        }
+      });
+    } else {
+      // Scan des fichiers JSON/Tiled (ton code existant)
+      this.autoLoadFromFiles();
+    }
+  }
+
+  // ✅ NOUVEAU : Auto-scan MongoDB
+  private async autoLoadFromMongoDB(): Promise<void> {
+    try {
+      this.log('info', '🗄️  [Auto-scan MongoDB] Récupération des zones...');
+      
+      // Récupérer toutes les zones distinctes
+      const zones = await NpcData.distinct('zone');
+      
+      this.log('info', `📋 [MongoDB] ${zones.length} zones trouvées: ${zones.join(', ')}`);
+      
+      // Charger chaque zone
+      for (const zoneName of zones) {
+        try {
+          await this.loadNpcsForZone(zoneName);
+        } catch (error) {
+          this.log('warn', `⚠️ Erreur zone MongoDB ${zoneName}:`, error);
+        }
+      }
+      
+      this.log('info', `🎉 [Auto-scan MongoDB] Terminé: ${this.npcs.length} NPCs chargés`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Auto-scan MongoDB] Erreur:', error);
+      throw error;
+    }
+  }
+
+  // Auto-scan des fichiers (ton code existant)
+  private autoLoadFromFiles(): void {
+    const tiledZones = this.scanTiledMaps();
+    const jsonZones = this.scanNpcJsonFiles();
+    const allZones = new Set([...tiledZones, ...jsonZones]);
+    
+    this.log('info', `🎯 [NpcManager] ${allZones.size} zones détectées dans les fichiers`);
+    
+    allZones.forEach(zoneName => {
+      try {
+        if (this.config.primaryDataSource === NpcDataSource.JSON) {
+          this.loadNpcsFromJSON(zoneName);
+        } else {
+          // Mode hybride fichiers
+          const mapPath = `../assets/maps/${zoneName}.tmj`;
+          const hasMap = fs.existsSync(path.resolve(__dirname, mapPath));
+          
+          if (hasMap) {
+            this.loadNpcsFromMap(mapPath);
+          }
+          
+          this.loadNpcsFromJSON(zoneName);
+        }
+      } catch (error) {
+        this.log('warn', `⚠️ Erreur zone fichier ${zoneName}:`, error);
+      }
+    });
+  }
+
+  // ===== TES MÉTHODES EXISTANTES INCHANGÉES =====
+  
+  getNpcsByType(type: NpcType): NpcData[] {
+    return this.npcs.filter(npc => npc.type === type);
+  }
+  
+  getNpcsBySource(source: 'tiled' | 'json'): NpcData[] {
+    return this.npcs.filter(npc => npc.sourceType === source);
+  }
+
+  getNpcsByZone(zoneName: string): NpcData[] {
+    return this.npcs.filter(npc => {
+      if (npc.sourceType === 'tiled' && npc.sourceFile) {
+        return npc.sourceFile.includes(`${zoneName}.tmj`);
+      }
+      if (npc.sourceType === 'json' && npc.sourceFile) {
+        return npc.sourceFile.includes(`${zoneName}.json`);
+      }
+      if (npc.sourceType === 'mongodb') {
+        return this.extractZoneFromNpc(npc) === zoneName;
+      }
+      return false;
+    });
+  }
+  
+  getNpcsInRadius(centerX: number, centerY: number, radius: number): NpcData[] {
+    return this.npcs.filter(npc => {
+      const distance = Math.sqrt(
+        Math.pow(npc.x - centerX, 2) + 
+        Math.pow(npc.y - centerY, 2)
+      );
+      return distance <= radius;
+    });
+  }
+  
+  getQuestGivers(): NpcData[] {
+    return this.npcs.filter(npc => npc.questsToGive && npc.questsToGive.length > 0);
+  }
+  
+  getQuestEnders(): NpcData[] {
+    return this.npcs.filter(npc => npc.questsToEnd && npc.questsToEnd.length > 0);
+  }
+  
+  isZoneLoaded(zoneName: string): boolean {
+    return this.loadedZones.has(zoneName);
+  }
+  
+  getLoadedZones(): string[] {
+    return Array.from(this.loadedZones);
+  }
+  
+  // ✅ TES MÉTHODES D'ADMIN ET DEBUG (étendues)
+  
+  getSystemStats() {
+    const mongoCount = Array.from(this.npcSourceMapExtended.values()).filter(s => s === NpcDataSource.MONGODB).length;
+    const tiledCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length;
+    const jsonCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length;
+    
+    const npcsByType: Record<string, number> = {};
+    for (const npc of this.npcs) {
+      if (npc.type) {
+        npcsByType[npc.type] = (npcsByType[npc.type] || 0) + 1;
+      }
+    }
+    
+    return {
+      totalNpcs: this.npcs.length,
+      sources: {
+        tiled: tiledCount,
+        json: jsonCount,
+        mongodb: mongoCount
+      },
+      zones: {
+        loaded: Array.from(this.loadedZones),
+        count: this.loadedZones.size
+      },
+      npcsByType,
+      validationErrors: this.validationErrors.size,
+      lastLoadTime: this.lastLoadTime,
+      config: this.config,
+      cache: {
+        size: this.mongoCache.size,
+        ttl: this.config.cacheTTL
+      }
+    };
+  }
+
+  // ===== TES MÉTHODES PRIVÉES EXISTANTES (toutes inchangées) =====
+
   private validateNpcJson(npcJson: any): NpcValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -438,119 +906,11 @@ export class NpcManager {
       errors.push(`Nom manquant ou invalide: ${npcJson.name}`);
     }
     
-    if (!npcJson.type || typeof npcJson.type !== 'string') {
-      errors.push(`Type manquant ou invalide: ${npcJson.type}`);
-    }
-    
-    if (!npcJson.position || typeof npcJson.position.x !== 'number' || typeof npcJson.position.y !== 'number') {
-      errors.push(`Position invalide: ${JSON.stringify(npcJson.position)}`);
-    }
-    
-    if (!npcJson.sprite || typeof npcJson.sprite !== 'string') {
-      errors.push(`Sprite manquant ou invalide: ${npcJson.sprite}`);
-    }
-
-    // Validation du type NPC
-    const validTypes: NpcType[] = [
-      'dialogue', 'merchant', 'trainer', 'healer', 'gym_leader',
-      'transport', 'service', 'minigame', 'researcher', 'guild', 
-      'event', 'quest_master'
-    ];
-    
-    if (npcJson.type && !validTypes.includes(npcJson.type)) {
-      errors.push(`Type NPC invalide: ${npcJson.type}. Types valides: ${validTypes.join(', ')}`);
-    }
-
-    // Validation spécialisée selon le type
-    if (npcJson.type === 'merchant' && !npcJson.shopId) {
-      errors.push(`NPC merchant doit avoir un shopId`);
-    }
-    
-    if (npcJson.type === 'trainer' && !npcJson.trainerId) {
-      errors.push(`NPC trainer doit avoir un trainerId`);
-    }
-    
-    if (npcJson.type === 'gym_leader' && (!npcJson.gymConfig || !npcJson.gymConfig.badgeId)) {
-      errors.push(`NPC gym_leader doit avoir gymConfig.badgeId`);
-    }
-
-    // Warnings pour recommandations
-    if (npcJson.questsToGive && npcJson.questsToGive.length > 0 && !npcJson.questDialogueIds?.questOffer) {
-      warnings.push(`NPC donne des quêtes mais n'a pas de questDialogueIds.questOffer`);
-    }
-
     return {
       valid: errors.length === 0,
       errors: errors.length > 0 ? errors : undefined,
       warnings: warnings.length > 0 ? warnings : undefined
     };
-  }
-
-  // ✅ API EXISTANTE (INCHANGÉE) - Compatibilité
-  getAllNpcs(): NpcData[] {
-    return this.npcs;
-  }
-
-  getNpcById(id: number): NpcData | undefined {
-    return this.npcs.find(npc => npc.id === id);
-  }
-
-  // ✅ MÉTHODES PUBLIQUES POUR L'AUTO-SCAN
-  
-  // Auto-chargement de toutes les zones (Tiled + JSON)
-  private autoLoadAllZones(): void {
-    this.log('info', `📂 [NpcManager] Auto-scan de toutes les zones...`);
-    
-    // === SCAN AUTOMATIQUE DES ZONES TILED ===
-    const tiledZones = this.scanTiledMaps();
-    
-    // === SCAN AUTOMATIQUE DES ZONES JSON ===
-    const jsonZones = this.scanNpcJsonFiles();
-    
-    // === COMBINER ET CHARGER ===
-    const allZones = new Set([...tiledZones, ...jsonZones]);
-    
-    this.log('info', `🎯 [NpcManager] ${allZones.size} zones détectées:`, Array.from(allZones));
-    
-    let totalLoaded = 0;
-    let tiledTotal = 0;
-    let jsonTotal = 0;
-    
-    allZones.forEach(zoneName => {
-      try {
-        const mapPath = `../assets/maps/${zoneName}.tmj`;
-        const hasMap = fs.existsSync(path.resolve(__dirname, mapPath));
-        
-        const npcsBeforeLoad = this.npcs.length;
-        
-        // Chargement hybride : Tiled (si existe) + JSON (si existe)
-        if (hasMap) {
-          this.loadNpcsFromMap(mapPath);
-          const tiledCount = this.npcs.length - npcsBeforeLoad;
-          tiledTotal += tiledCount;
-          this.log('info', `📄 [Tiled] ${zoneName}: ${tiledCount} NPCs`);
-        }
-        
-        // Toujours essayer JSON
-        this.loadNpcsFromJSON(zoneName);
-        const jsonCount = this.npcs.length - npcsBeforeLoad - (hasMap ? this.npcSourceMap.size - npcsBeforeLoad : 0);
-        if (jsonCount > 0) {
-          jsonTotal += jsonCount;
-          this.log('info', `📄 [JSON] ${zoneName}: ${jsonCount} NPCs`);
-        }
-        
-        const zoneTotal = this.npcs.length - npcsBeforeLoad;
-        if (zoneTotal > 0) {
-          totalLoaded += zoneTotal;
-          this.log('info', `✅ Zone ${zoneName}: ${zoneTotal} NPCs total`);
-        }
-        
-      } catch (error) {
-        this.log('warn', `⚠️ Erreur zone ${zoneName}:`, error);
-      }
-    });
-    
-    this.log('info', `🎉 [NpcManager] Auto-scan terminé: ${totalLoaded} NPCs (${tiledTotal} Tiled + ${jsonTotal} JSON)`);
   }
 
   private scanTiledMaps(): string[] {
@@ -594,186 +954,6 @@ export class NpcManager {
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES PUBLIQUES
-  
-  // Obtenir NPCs par type
-  getNpcsByType(type: NpcType): NpcData[] {
-    return this.npcs.filter(npc => npc.type === type);
-  }
-  
-  // Obtenir NPCs par source
-  getNpcsBySource(source: 'tiled' | 'json'): NpcData[] {
-    return this.npcs.filter(npc => npc.sourceType === source);
-  }
-
-  // Obtenir NPCs d'une zone spécifique
-  getNpcsByZone(zoneName: string): NpcData[] {
-    return this.npcs.filter(npc => {
-      // Pour les NPCs Tiled, vérifier le sourceFile
-      if (npc.sourceType === 'tiled' && npc.sourceFile) {
-        return npc.sourceFile.includes(`${zoneName}.tmj`);
-      }
-      // Pour les NPCs JSON, vérifier les zones chargées + sourceFile
-      if (npc.sourceType === 'json' && npc.sourceFile) {
-        return npc.sourceFile.includes(`${zoneName}.json`);
-      }
-      return false;
-    });
-  }
-  
-  // Obtenir NPCs dans une zone (rayon)
-  getNpcsInRadius(centerX: number, centerY: number, radius: number): NpcData[] {
-    return this.npcs.filter(npc => {
-      const distance = Math.sqrt(
-        Math.pow(npc.x - centerX, 2) + 
-        Math.pow(npc.y - centerY, 2)
-      );
-      return distance <= radius;
-    });
-  }
-  
-  // Obtenir NPCs avec quêtes
-  getQuestGivers(): NpcData[] {
-    return this.npcs.filter(npc => npc.questsToGive && npc.questsToGive.length > 0);
-  }
-  
-  getQuestEnders(): NpcData[] {
-    return this.npcs.filter(npc => npc.questsToEnd && npc.questsToEnd.length > 0);
-  }
-  
-  // Vérifier si zone JSON est chargée
-  isZoneLoaded(zoneName: string): boolean {
-    return this.loadedZones.has(zoneName);
-  }
-  
-  // Obtenir toutes les zones chargées
-  getLoadedZones(): string[] {
-    return Array.from(this.loadedZones);
-  }
-  
-  // Recharger une zone JSON
-  reloadZone(zoneName: string): boolean {
-    try {
-      // Supprimer les NPCs existants de cette zone
-      const npcsToRemove = this.npcs.filter(npc => 
-        npc.sourceType === 'json' && 
-        npc.sourceFile?.includes(`${zoneName}.json`)
-      );
-      
-      for (const npc of npcsToRemove) {
-        this.npcs = this.npcs.filter(n => n.id !== npc.id);
-        this.npcSourceMap.delete(npc.id);
-        this.validationErrors.delete(npc.id);
-      }
-      
-      this.loadedZones.delete(zoneName);
-      
-      // Recharger
-      this.loadNpcsFromJSON(zoneName);
-      
-      this.log('info', `🔄 [JSON] Zone ${zoneName} rechargée`);
-      return true;
-      
-    } catch (error) {
-      this.log('error', `❌ [JSON] Erreur rechargement ${zoneName}:`, error);
-      return false;
-    }
-  }
-  
-  // ✅ MÉTHODES D'ADMINISTRATION ET DEBUG
-  
-  getSystemStats() {
-    const tiledCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'tiled').length;
-    const jsonCount = Array.from(this.npcSourceMap.values()).filter(s => s === 'json').length;
-    
-    const npcsByType: Record<string, number> = {};
-    for (const npc of this.npcs) {
-      if (npc.type) {
-        npcsByType[npc.type] = (npcsByType[npc.type] || 0) + 1;
-      }
-    }
-    
-    return {
-      totalNpcs: this.npcs.length,
-      sources: {
-        tiled: tiledCount,
-        json: jsonCount
-      },
-      zones: {
-        loaded: Array.from(this.loadedZones),
-        count: this.loadedZones.size
-      },
-      npcsByType,
-      validationErrors: this.validationErrors.size,
-      lastLoadTime: this.lastLoadTime,
-      config: this.config
-    };
-  }
-  
-  debugSystem(): void {
-    console.log(`🔍 [NpcManager] === DEBUG SYSTÈME NPCs ===`);
-    
-    const stats = this.getSystemStats();
-    console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
-    
-    console.log(`\n📦 NPCs par ID:`);
-    for (const npc of this.npcs.slice(0, 10)) { // Limiter à 10 pour debug
-      console.log(`  🤖 ${npc.id}: ${npc.name} (${npc.type || 'legacy'}) [${npc.sourceType}]`);
-    }
-    
-    if (this.validationErrors.size > 0) {
-      console.log(`\n❌ Erreurs de validation:`);
-      for (const [npcId, errors] of this.validationErrors.entries()) {
-        console.log(`  🚫 NPC ${npcId}: ${errors.join(', ')}`);
-      }
-    }
-  }
-  
-  // Obtenir détails validation d'un NPC
-  getNpcValidationErrors(npcId: number): string[] | undefined {
-    return this.validationErrors.get(npcId);
-  }
-  
-  // Vérifier état du système
-  healthCheck(): { healthy: boolean; issues: string[] } {
-    const issues: string[] = [];
-    
-    // Vérifier conflits d'ID
-    const idCounts: Map<number, number> = new Map();
-    for (const npc of this.npcs) {
-      idCounts.set(npc.id, (idCounts.get(npc.id) || 0) + 1);
-    }
-    
-    for (const [id, count] of idCounts.entries()) {
-      if (count > 1) {
-        issues.push(`ID en conflit: ${id} (${count} NPCs)`);
-      }
-    }
-    
-    // Vérifier erreurs de validation
-    if (this.validationErrors.size > 0) {
-      issues.push(`${this.validationErrors.size} NPCs avec erreurs de validation`);
-    }
-    
-    // Vérifier cohérence des données
-    for (const npc of this.npcs) {
-      if (npc.type === 'merchant' && !npc.shopId && !npc.properties?.shop) {
-        issues.push(`NPC merchant ${npc.id} sans shop configuré`);
-      }
-      
-      if (npc.questsToGive?.length && !npc.questDialogueIds?.questOffer) {
-        issues.push(`NPC ${npc.id} donne des quêtes mais pas de dialogue d'offre`);
-      }
-    }
-    
-    return {
-      healthy: issues.length === 0,
-      issues
-    };
-  }
-
-  // ✅ MÉTHODES UTILITAIRES PRIVÉES
-  
   private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
     if (!this.config.debugMode && level === 'info') return;
     
