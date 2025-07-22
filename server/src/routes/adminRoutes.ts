@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
+import mongoose from 'mongoose';
 
 
 const router = express.Router();
@@ -20,54 +21,12 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokewo
 const mongoClientInstance = new MongoClient(MONGODB_URI);
 
 
-// Interfaces MongoDB
-interface MongoQueryRequest {
-    database: string;
-    collection: string;
-    query?: any;
-    page?: number;
-    limit?: number;
-}
-
-interface MongoDocumentRequest {
-    database: string;
-    collection: string;
-    id: string;
-    data?: any;
-}
-
-interface MongoCustomQueryRequest {
-    database: string;
-    collection: string;
-    operation: string;
-    query: any;
-    options?: any;
-}
-
-interface CollectionStats {
-    name: string;
-    count: number;
-    size: number;
-    avgObjSize: number;
-}
-
-interface DatabaseStats {
-    name: string;
-    collections: number;
-    dataSize: number;
-    indexSize: number;
-    totalSize: number;
-}
-
-// Fonction de connexion MongoDB
-async function connectMongo(): Promise<MongoClient> {
-    try {
-        await mongoClientInstance.connect();
-        return mongoClientInstance;
-    } catch (error) {
-        console.error('❌ [MongoDB] Erreur de connexion:', error);
-        throw error;
+// Fonction pour récupérer la DB Mongoose
+async function getMongooseDB() {
+    if (mongoose.connection.readyState !== 1) {
+        throw new Error('MongoDB not connected via Mongoose');
     }
+    return mongoose.connection.db;
 }
 
 // Utilitaire pour préparer les requêtes MongoDB
@@ -2621,21 +2580,64 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // ========================================
 
 // ========================================
+// CONFIGURATION MONGODB AVEC MONGOOSE
+// ========================================
+
+// Utiliser la connexion Mongoose existante
+import mongoose from 'mongoose';
+
+// Fonction pour récupérer la DB Mongoose
+async function getMongooseDB() {
+    if (mongoose.connection.readyState !== 1) {
+        throw new Error('MongoDB not connected via Mongoose');
+    }
+    return mongoose.connection.db;
+}
+
+// Utilitaire pour préparer les requêtes MongoDB
+function prepareMongoQuery(query: any): any {
+    if (!query || typeof query !== 'object') return {};
+    
+    const convertedQuery = JSON.parse(JSON.stringify(query));
+    
+    function convertObjectIds(obj: any): void {
+        for (const key in obj) {
+            if (obj[key] && typeof obj[key] === 'object') {
+                if (Array.isArray(obj[key])) {
+                    obj[key] = obj[key].map((item: any) => 
+                        typeof item === 'string' && ObjectId.isValid(item) 
+                            ? new ObjectId(item) 
+                            : item
+                    );
+                } else {
+                    convertObjectIds(obj[key]);
+                }
+            } else if (key === '_id' && typeof obj[key] === 'string' && ObjectId.isValid(obj[key])) {
+                obj[key] = new ObjectId(obj[key]);
+            }
+        }
+    }
+    
+    convertObjectIds(convertedQuery);
+    return convertedQuery;
+}
+
+// ========================================
 // ROUTES MONGODB
 // ========================================
 
-// GET /api/admin/mongodb/databases
+// GET /api/admin/mongodb/databases - Lister les bases de données
 router.get('/mongodb/databases', requireMacAndDev, async (req: any, res: any) => {
     try {
         console.log('🗄️ [MongoDB API] Récupération des bases de données...');
         
-        const mongoConnection = await connectMongo();
-        const adminDb = mongoConnection.db().admin();
-        const databasesList = await adminDb.listDatabases();
+        const db = await getMongooseDB();
+        const admin = db.admin();
+        const databasesList = await admin.listDatabases();
         
         const databases = databasesList.databases
-            .filter((db: any) => !['admin', 'local', 'config'].includes(db.name))
-            .map((db: any) => db.name);
+            .filter((database: any) => !['admin', 'local', 'config'].includes(database.name))
+            .map((database: any) => database.name);
         
         console.log('✅ [MongoDB API] Bases trouvées:', databases);
         
@@ -2652,16 +2654,21 @@ router.get('/mongodb/databases', requireMacAndDev, async (req: any, res: any) =>
     }
 });
 
-// GET /api/admin/mongodb/collections/:database
+// GET /api/admin/mongodb/collections/:database - Lister les collections
 router.get('/mongodb/collections/:database', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database } = req.params;
         console.log(`🗄️ [MongoDB API] Collections de ${database}...`);
         
-        const mongoConnection = await connectMongo();
-        const db = mongoConnection.db(database);
-        const collections = await db.listCollections().toArray();
+        // Pour Mongoose, on utilise directement la DB actuelle
+        const db = await getMongooseDB();
         
+        // Si on veut une autre base, on change la connexion
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const collections = await targetDb.listCollections().toArray();
         const collectionNames = collections.map((col: any) => col.name);
         
         console.log(`✅ [MongoDB API] Collections trouvées:`, collectionNames);
@@ -2679,20 +2686,30 @@ router.get('/mongodb/collections/:database', requireMacAndDev, async (req: any, 
     }
 });
 
-// POST /api/admin/mongodb/documents
+// POST /api/admin/mongodb/documents - Récupérer les documents avec pagination
 router.post('/mongodb/documents', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, query = {}, page = 0, limit = 20 } = req.body;
         
         console.log(`🔍 [MongoDB API] Documents ${database}.${collection}, page ${page}`);
+        console.log('🔍 [MongoDB API] Query:', JSON.stringify(query));
         
-        const mongoConnection = await connectMongo();
-        const db = mongoConnection.db(database);
-        const coll = db.collection(collection);
+        const db = await getMongooseDB();
         
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        // Préparer la requête MongoDB
         const mongoQuery = prepareMongoQuery(query);
+        
+        // Compter le total
         const total = await coll.countDocuments(mongoQuery);
         
+        // Récupérer les documents avec pagination
         const documents = await coll
             .find(mongoQuery)
             .skip(page * limit)
@@ -2717,20 +2734,27 @@ router.post('/mongodb/documents', requireMacAndDev, async (req: any, res: any) =
     }
 });
 
-// PUT /api/admin/mongodb/document
+// PUT /api/admin/mongodb/document - Mettre à jour un document
 router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, id, data } = req.body;
         
         console.log(`💾 [MongoDB API] Mise à jour ${database}.${collection} ID: ${id}`);
         
-        const mongoConnection = await connectMongo();
-        const db = mongoConnection.db(database);
-        const coll = db.collection(collection);
+        const db = await getMongooseDB();
         
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        // Préparer les données (enlever l'_id s'il est présent)
         const updateData = { ...data };
         delete updateData._id;
         
+        // Mettre à jour le document
         const result = await coll.updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
@@ -2742,6 +2766,8 @@ router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => 
                 error: 'Document non trouvé' 
             });
         }
+        
+        console.log(`✅ [MongoDB API] Document mis à jour`);
         
         res.json({ 
             success: true, 
@@ -2757,17 +2783,23 @@ router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => 
     }
 });
 
-// DELETE /api/admin/mongodb/document
+// DELETE /api/admin/mongodb/document - Supprimer un document
 router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, id } = req.body;
         
         console.log(`🗑️ [MongoDB API] Suppression ${database}.${collection} ID: ${id}`);
         
-        const mongoConnection = await connectMongo();
-        const db = mongoConnection.db(database);
-        const coll = db.collection(collection);
+        const db = await getMongooseDB();
         
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        // Supprimer le document
         const result = await coll.deleteOne({ _id: new ObjectId(id) });
         
         if (result.deletedCount === 0) {
@@ -2776,6 +2808,8 @@ router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) 
                 error: 'Document non trouvé' 
             });
         }
+        
+        console.log(`✅ [MongoDB API] Document supprimé`);
         
         res.json({ 
             success: true, 
@@ -2790,5 +2824,180 @@ router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) 
         });
     }
 });
+
+// POST /api/admin/mongodb/document - Créer un nouveau document
+router.post('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
+    try {
+        const { database, collection, data } = req.body;
+        
+        console.log(`➕ [MongoDB API] Création document ${database}.${collection}`);
+        
+        const db = await getMongooseDB();
+        
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        // Insérer le nouveau document
+        const result = await coll.insertOne(data);
+        
+        console.log(`✅ [MongoDB API] Document créé avec ID: ${result.insertedId}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Document créé avec succès',
+            insertedId: result.insertedId
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur création:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// GET /api/admin/mongodb/stats/:database - Statistiques d'une base
+router.get('/mongodb/stats/:database', requireMacAndDev, async (req: any, res: any) => {
+    try {
+        const { database } = req.params;
+        
+        console.log(`📊 [MongoDB API] Stats de ${database}`);
+        
+        const db = await getMongooseDB();
+        
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        // Récupérer les stats de la base
+        const dbStats = await targetDb.stats();
+        
+        // Récupérer les stats des collections
+        const collections = await targetDb.listCollections().toArray();
+        const collectionsStats: CollectionStats[] = [];
+        
+        for (const col of collections) {
+            try {
+                // Utiliser countDocuments au lieu de stats()
+                const count = await targetDb.collection(col.name).countDocuments();
+                
+                // Essayer d'obtenir des stats basiques
+                let size = 0;
+                let avgObjSize = 0;
+                
+                try {
+                    // Utiliser un document échantillon pour estimer la taille
+                    const sampleDoc = await targetDb.collection(col.name).findOne();
+                    if (sampleDoc) {
+                        const docSize = JSON.stringify(sampleDoc).length;
+                        avgObjSize = docSize;
+                        size = count * docSize;
+                    }
+                } catch {
+                    // Ignorer si impossible d'obtenir les stats
+                }
+                
+                collectionsStats.push({
+                    name: col.name,
+                    count: count,
+                    size: size,
+                    avgObjSize: avgObjSize
+                });
+            } catch (error) {
+                // Certaines collections peuvent ne pas avoir de stats
+                collectionsStats.push({
+                    name: col.name,
+                    count: 0,
+                    size: 0,
+                    avgObjSize: 0
+                });
+            }
+        }
+        
+        console.log(`✅ [MongoDB API] Stats récupérées`);
+        
+        const databaseStats: DatabaseStats = {
+            name: database,
+            collections: dbStats.collections || 0,
+            dataSize: dbStats.dataSize || 0,
+            indexSize: dbStats.indexSize || 0,
+            totalSize: (dbStats.dataSize || 0) + (dbStats.indexSize || 0)
+        };
+        
+        res.json({ 
+            success: true,
+            database: databaseStats,
+            collections: collectionsStats
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur stats:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// POST /api/admin/mongodb/query - Exécuter une requête personnalisée
+router.post('/mongodb/query', requireMacAndDev, async (req: any, res: any) => {
+    try {
+        const { database, collection, operation, query, options = {} } = req.body;
+        
+        console.log(`🔧 [MongoDB API] Requête personnalisée ${operation} sur ${database}.${collection}`);
+        
+        const db = await getMongooseDB();
+        
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.client.db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        let result: any;
+        
+        switch (operation) {
+            case 'find':
+                result = await coll.find(query, options).toArray();
+                break;
+            case 'findOne':
+                result = await coll.findOne(query, options);
+                break;
+            case 'count':
+                result = await coll.countDocuments(query);
+                break;
+            case 'aggregate':
+                result = await coll.aggregate(query).toArray();
+                break;
+            case 'distinct':
+                const field = options.field;
+                if (!field) throw new Error('Le champ "field" est requis pour distinct');
+                result = await coll.distinct(field, query);
+                break;
+            default:
+                throw new Error(`Opération non supportée: ${operation}`);
+        }
+        
+        console.log(`✅ [MongoDB API] Requête exécutée`);
+        
+        res.json({ 
+            success: true,
+            operation: operation,
+            result: result
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur requête:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
 
 export default router;
