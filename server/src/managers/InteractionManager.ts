@@ -179,6 +179,7 @@ export class InteractionManager {
 
       // ✅ CASTING SÉCURISÉ vers le type NPC du module
       const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
+      const resultData = result.data as any; // Casting pour result.data aussi
 
       // ✅ DEBUG AVANT CONVERSION
       console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
@@ -197,8 +198,8 @@ export class InteractionManager {
         message: result.message,
         
         // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
-        npcId: npcModuleResult.npcId ?? result.data?.npcId,
-        npcName: npcModuleResult.npcName ?? result.data?.npcName,
+        npcId: npcModuleResult.npcId ?? resultData?.npcId,
+        npcName: npcModuleResult.npcName ?? resultData?.npcName,
         
         // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting)
         isUnifiedInterface: npcModuleResult.isUnifiedInterface,
@@ -208,18 +209,18 @@ export class InteractionManager {
         unifiedMode: npcModuleResult.unifiedMode,
         
         // Données spécifiques NPCs (depuis casting avec fallback)
-        shopId: npcModuleResult.shopId ?? result.data?.shopId,
-        shopData: npcModuleResult.shopData ?? result.data?.shopData,
-        lines: npcModuleResult.lines ?? result.data?.lines,
-        availableQuests: npcModuleResult.availableQuests ?? result.data?.availableQuests,
-        questRewards: npcModuleResult.questRewards ?? result.data?.questRewards,
-        questProgress: npcModuleResult.questProgress ?? result.data?.questProgress,
-        questId: npcModuleResult.questId ?? result.data?.questId,
-        questName: npcModuleResult.questName ?? result.data?.questName,
-        starterData: npcModuleResult.starterData ?? result.data?.starterData,
-        starterEligible: npcModuleResult.starterEligible ?? result.data?.starterEligible,
-        starterReason: npcModuleResult.starterReason ?? result.data?.starterReason,
-        battleSpectate: npcModuleResult.battleSpectate ?? result.data?.battleSpectate
+        shopId: npcModuleResult.shopId ?? resultData?.shopId,
+        shopData: npcModuleResult.shopData ?? resultData?.shopData,
+        lines: npcModuleResult.lines ?? resultData?.lines,
+        availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
+        questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
+        questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
+        questId: npcModuleResult.questId ?? resultData?.questId,
+        questName: npcModuleResult.questName ?? resultData?.questName,
+        starterData: npcModuleResult.starterData ?? resultData?.starterData,
+        starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
+        starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
+        battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate
       };
 
       // ✅ DEBUG APRÈS CONVERSION
