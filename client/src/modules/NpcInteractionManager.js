@@ -488,50 +488,66 @@ export class NpcInteractionManager {
 
   // === GESTION DES RÉSULTATS RÉSEAU ===
 
-  handleNetworkInteractionResult(data) {
-    console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
-    console.log('[NpcInteractionManager] Data:', data);
+handleNetworkInteractionResult(data) {
+  console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
+  console.log('[NpcInteractionManager] Data:', data);
+  
+  try {
+    // ✅ DÉTECTION AMÉLIORÉE : Vérifier plusieurs critères
+    const isUnifiedInterface = (
+      data.isUnifiedInterface === true ||
+      data.type === 'unifiedInterface' ||  
+      (data.unifiedInterface && typeof data.unifiedInterface === 'object') ||
+      (data.capabilities && Array.isArray(data.capabilities) && data.capabilities.length > 0) ||
+      (data.contextualData && typeof data.contextualData === 'object')
+    );
     
-    try {
-      // ✅ Vérification interface unifiée EN PREMIER
-      if (data.isUnifiedInterface || data.unifiedInterface) {
-        console.log('[NpcInteractionManager] 🎭 Interface unifiée détectée - traitement prioritaire');
-        return this.handleUnifiedInterfaceResult(data);
-      }
-      
-      // ✅ Traitement normal pour NPCs simples
-      const resultType = this.determineResultType(data);
-      console.log(`[NpcInteractionManager] Type de résultat (NPC simple): ${resultType}`);
-      
-      // ✅ Obtenir le handler approprié
-      const handler = this.npcHandlers.get(resultType);
-      if (!handler) {
-        console.warn(`[NpcInteractionManager] ⚠️ Pas de handler pour: ${resultType}`);
-        this.handleGenericResult(data);
-        return;
-      }
-      
-      // ✅ Récupérer le NPC
-      const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
-      if (!npc) {
-        console.warn('[NpcInteractionManager] ⚠️ NPC non trouvé pour résultat');
-      }
-      
-      // ✅ Appeler le handler spécialisé
-      const result = handler.handler(npc, data);
-      
-      // ✅ Callback de complétion
-      if (this.callbacks.onNpcInteractionComplete) {
-        this.callbacks.onNpcInteractionComplete(npc, data, result);
-      }
-      
-      console.log('[NpcInteractionManager] ✅ Résultat NPC simple traité avec succès');
-      
-    } catch (error) {
-      console.error('[NpcInteractionManager] ❌ Erreur traitement résultat:', error);
-      this.handleInteractionError(error, null, data);
+    if (isUnifiedInterface) {
+      console.log('[NpcInteractionManager] 🎭 Interface unifiée détectée - traitement prioritaire');
+      console.log('[NpcInteractionManager] 🔍 Critères détection:', {
+        typeMatch: data.type === 'unifiedInterface',
+        flagExplicit: data.isUnifiedInterface === true,
+        hasUnifiedObj: !!(data.unifiedInterface),
+        hasCapabilities: !!(data.capabilities && data.capabilities.length > 0),
+        hasContextualData: !!(data.contextualData)
+      });
+      return this.handleUnifiedInterfaceResult(data);
     }
+    
+    // ✅ Traitement normal pour NPCs simples
+    console.log('[NpcInteractionManager] 📝 Traitement NPC simple');
+    const resultType = this.determineResultType(data);
+    console.log(`[NpcInteractionManager] Type de résultat (NPC simple): ${resultType}`);
+    
+    // ✅ Obtenir le handler approprié
+    const handler = this.npcHandlers.get(resultType);
+    if (!handler) {
+      console.warn(`[NpcInteractionManager] ⚠️ Pas de handler pour: ${resultType}`);
+      this.handleGenericResult(data);
+      return;
+    }
+    
+    // ✅ Récupérer le NPC
+    const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+    if (!npc) {
+      console.warn('[NpcInteractionManager] ⚠️ NPC non trouvé pour résultat');
+    }
+    
+    // ✅ Appeler le handler spécialisé
+    const result = handler.handler(npc, data);
+    
+    // ✅ Callback de complétion
+    if (this.callbacks.onNpcInteractionComplete) {
+      this.callbacks.onNpcInteractionComplete(npc, data, result);
+    }
+    
+    console.log('[NpcInteractionManager] ✅ Résultat NPC simple traité avec succès');
+    
+  } catch (error) {
+    console.error('[NpcInteractionManager] ❌ Erreur traitement résultat:', error);
+    this.handleInteractionError(error, null, data);
   }
+}
 
   // === GESTION INTERFACE UNIFIÉE ===
 
