@@ -687,24 +687,50 @@ async init() {
     // API PUBLIQUE
     // ==============================
 
- onTabActivated() {
+onTabActivated() {
     console.log('👤 [NPCEditor] Tab activated')
     
-    // Rendre l'interface IMMÉDIATEMENT
-    this.renderMainInterface()
-    
-    // Charger les zones en arrière-plan si nécessaire
-    if (!this.availableZones || this.availableZones.length === 0) {
-        this.loadAvailableZones().then(() => {
-            // Re-render après chargement des zones
-            this.renderMainInterface()
-        })
-    }
-    
-    // Recharger la zone courante si nécessaire
-    if (this.currentZone) {
-        this.renderNPCsList()
-        this.renderZoneStats()
+    try {
+        // Forcer le rendu immédiatement
+        console.log('👤 [NPCEditor] Rendering interface...')
+        this.renderMainInterface()
+        console.log('👤 [NPCEditor] Interface rendered successfully')
+        
+        // Charger les zones en arrière-plan si nécessaire
+        if (!this.availableZones || this.availableZones.length === 0) {
+            console.log('👤 [NPCEditor] Loading zones...')
+            this.loadAvailableZones().then(() => {
+                console.log('👤 [NPCEditor] Zones loaded, re-rendering...')
+                this.renderMainInterface()
+            }).catch(error => {
+                console.error('❌ [NPCEditor] Error loading zones:', error)
+                // Continuer quand même avec zones par défaut
+                this.renderMainInterface()
+            })
+        }
+        
+        // Recharger la zone courante si nécessaire
+        if (this.currentZone) {
+            this.renderNPCsList()
+            this.renderZoneStats()
+        }
+        
+    } catch (error) {
+        console.error('❌ [NPCEditor] Error in onTabActivated:', error)
+        
+        // Fallback - afficher au moins quelque chose
+        const container = document.querySelector('#npcs .panel')
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                    <h3>❌ Erreur de chargement</h3>
+                    <p>Erreur: ${error.message}</p>
+                    <button onclick="window.adminPanel.npcEditor.onTabActivated()" class="btn btn-primary">
+                        🔄 Réessayer
+                    </button>
+                </div>
+            `
+        }
     }
 }
 
