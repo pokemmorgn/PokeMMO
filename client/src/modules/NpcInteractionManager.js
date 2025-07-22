@@ -551,59 +551,83 @@ handleNetworkInteractionResult(data) {
 
   // === GESTION INTERFACE UNIFIÉE ===
 
-  handleUnifiedInterfaceResult(data) {
-    console.log('[NpcInteractionManager] 🎭 === HANDLER INTERFACE UNIFIÉE ===');
+handleUnifiedInterfaceResult(data) {
+  console.log('[NpcInteractionManager] 🎭 === HANDLER INTERFACE UNIFIÉE AMÉLIORÉ ===');
+  
+  // ✅ EXTRACTION CORRIGÉE : Les données sont dans l'objet racine
+  const interfaceData = {
+    npcId: data.npcId,                                    // ✅ Directement dans data
+    npcName: data.npcName,                                // ✅ Directement dans data
+    capabilities: data.capabilities || [],               // ✅ Directement dans data
+    defaultAction: data.contextualData?.defaultAction || data.capabilities?.[0],
+    quickActions: data.contextualData?.quickActions || [],
+    contextualData: data.contextualData,
     
-    const interfaceData = data.unifiedInterface || data;
-    const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+    // ✅ Données interface unifiée (si présentes)
+    ...(data.unifiedInterface || {}),
     
-    console.log('[NpcInteractionManager] Interface Data:', {
-      npcId: interfaceData.npcId,
-      npcName: interfaceData.npcName,
-      capabilities: interfaceData.capabilities,
-      defaultAction: interfaceData.defaultAction,
-      quickActions: interfaceData.quickActions?.length || 0
-    });
+    // ✅ Reconstruire données par capability
+    merchantData: data.shopData ? {
+      shopId: data.shopId,
+      shopInfo: data.shopData.shopInfo || { name: data.npcName },
+      availableItems: data.shopData.availableItems || []
+    } : undefined,
     
-    try {
-      // ✅ Validation des données
-      if (!this.validateUnifiedInterface(interfaceData)) {
-        throw new Error('Données interface unifiée invalides');
-      }
-      
-      // ✅ Stocker l'état interface unifiée
-      this.state.currentUnifiedInterface = interfaceData;
-      this.state.lastUnifiedInterfaceTime = Date.now();
-      this.state.unifiedInterfaceActive = true;
-      
-      // ✅ Créer et afficher l'interface unifiée
-      this.showUnifiedNpcInterface(interfaceData, npc);
-      
-      // ✅ Mise à jour statistiques
-      this.updateUnifiedStats(interfaceData);
-      
-      // ✅ Callback de complétion
-      if (this.callbacks.onNpcInteractionComplete) {
-        this.callbacks.onNpcInteractionComplete(npc, data, true);
-      }
-      
-      // ✅ Callback spécialisé interface unifiée
-      if (this.callbacks.onUnifiedInterfaceShow) {
-        this.callbacks.onUnifiedInterfaceShow(interfaceData, npc);
-      }
-      
-      console.log('[NpcInteractionManager] ✅ Interface unifiée affichée');
-      return true;
-      
-    } catch (error) {
-      console.error('[NpcInteractionManager] ❌ Erreur interface unifiée:', error);
-      
-      // ✅ Fallback vers dialogue simple
-      return this.handleDialogueInteraction(npc, {
-        message: interfaceData.dialogueData?.lines?.[0] || "Interface temporairement indisponible"
-      });
+    dialogueData: {
+      lines: data.lines || [data.message || "Bonjour !"]
     }
+  };
+  
+  const npc = this.state.lastInteractedNpc || this.findNpcById(data.npcId);
+  
+  console.log('[NpcInteractionManager] Interface Data extraite:', {
+    npcId: interfaceData.npcId,
+    npcName: interfaceData.npcName,
+    capabilities: interfaceData.capabilities,
+    defaultAction: interfaceData.defaultAction,
+    hasContextualData: !!data.contextualData,
+    quickActionsCount: interfaceData.quickActions?.length || 0
+  });
+  
+  try {
+    // ✅ Validation simple mais efficace
+    if (!interfaceData.npcId) {
+      throw new Error('NPC ID manquant');
+    }
+    
+    if (!interfaceData.capabilities || interfaceData.capabilities.length === 0) {
+      throw new Error('Capabilities manquantes');
+    }
+    
+    // ✅ Stocker l'état
+    this.state.currentUnifiedInterface = interfaceData;
+    this.state.unifiedInterfaceActive = true;
+    
+    // ✅ Afficher interface
+    const success = this.showUnifiedNpcInterface(interfaceData, npc);
+    
+    if (success) {
+      console.log('[NpcInteractionManager] ✅ Interface unifiée affichée avec succès');
+      this.updateUnifiedStats(interfaceData);
+      return true;
+    } else {
+      throw new Error('Échec affichage interface');
+    }
+    
+  } catch (error) {
+    console.error('[NpcInteractionManager] ❌ Erreur interface unifiée:', error);
+    
+    // ✅ Fallback intelligent
+    return this.handleDialogueInteraction(npc, {
+      message: data.message || data.lines?.[0] || "Bonjour !",
+      lines: data.lines || [data.message || "Bonjour !"],
+      name: data.npcName || npc?.name,
+      
+      // ✅ Préserver actions disponibles
+      availableActions: this.deriveActionsFromData(data)
+    });
   }
+}
 
   validateUnifiedInterface(interfaceData) {
     if (!interfaceData) {
