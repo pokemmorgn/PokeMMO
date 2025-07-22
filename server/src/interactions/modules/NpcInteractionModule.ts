@@ -220,53 +220,65 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
     // ✅ LOGIQUE CONDITIONNELLE : Multi-capacités vs Mono-capacité
     if (capabilities.length >= 1 && this.shouldUseUnifiedInterface(capabilities)) {
-      // === CAS MULTI-CAPACITÉS : Interface Unifiée ===
-      this.log('info', '🔗 NPC multi-capacités -> Interface Unifiée');
+      // === CAS INTERFACE UNIFIÉE : 1+ capacités ===
+      this.log('info', '🔗 NPC -> Interface Unifiée');
       
       try {
         const unifiedResult = await this.unifiedInterfaceHandler.build(player, npc, capabilities);
         
-        // Conversion vers NpcInteractionResult pour compatibilité
-      const result: NpcInteractionResult = {
-        success: true,
-        type: "unifiedInterface",
-        message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
-        npcId: npcId,
-        npcName: npc.name,
-        
-        // ✅ AJOUTÉ : Flags explicites pour le client
-        isUnifiedInterface: true,
-        unifiedMode: true,
-        
-        unifiedInterface: unifiedResult,
-        capabilities: capabilities,
-        
-        // ✅ NOUVEAU : Données contextuelles pour détection client
-        contextualData: {
-          hasShop: capabilities.includes('merchant'),
-          hasQuests: capabilities.includes('quest'),
-          hasHealing: capabilities.includes('healer'),
-          defaultAction: unifiedResult.defaultAction,
-          quickActions: unifiedResult.quickActions || []
-        },
-        
-        // ✅ NOUVEAU : Données shop si présentes
-        ...(unifiedResult.merchantData && {
-          shopId: unifiedResult.merchantData.shopId,
-          shopData: {
-            shopInfo: unifiedResult.merchantData.shopInfo,
-            availableItems: unifiedResult.merchantData.availableItems,
-            playerGold: unifiedResult.merchantData.playerGold
-          }
-        }),
-        
-        // Données legacy pour rétro-compatibilité
-        lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${npc.name}.`]
-      };
+        // ✅ CONSTRUCTION RÉSULTAT COMPLÈTE AVEC TOUS LES FLAGS
+        const result: NpcInteractionResult = {
+          success: true,
+          type: "unifiedInterface",
+          message: `Interface ${capabilities.join(', ')} pour ${npc.name}`,
+          npcId: npcId,
+          npcName: npc.name,
+          
+          // ✅ FLAGS EXPLICITES pour détection client
+          isUnifiedInterface: true,
+          unifiedMode: true,
+          
+          unifiedInterface: unifiedResult,
+          capabilities: capabilities,
+          
+          // ✅ DONNÉES CONTEXTUELLES pour détection client (FORMAT CORRIGÉ)
+          contextualData: {
+            hasShop: capabilities.includes('merchant'),
+            hasQuests: capabilities.includes('quest'),
+            hasHealing: capabilities.includes('healer'),
+            defaultAction: unifiedResult.defaultAction,
+            quickActions: unifiedResult.quickActions?.map(action => ({
+              id: `quick_${action.actionType}`,
+              label: action.label,
+              action: action.actionType,
+              enabled: action.enabled
+            })) || capabilities.map(cap => ({
+              id: `quick_${cap}`,
+              label: this.getCapabilityLabel(cap),
+              action: cap,
+              enabled: true
+            }))
+          },
+          
+          // ✅ DONNÉES SHOP si présentes
+          ...(unifiedResult.merchantData && {
+            shopId: unifiedResult.merchantData.shopId,
+            shopData: {
+              shopInfo: unifiedResult.merchantData.shopInfo,
+              availableItems: unifiedResult.merchantData.availableItems,
+              playerGold: unifiedResult.merchantData.playerGold
+            }
+          }),
+          
+          // Données legacy pour rétro-compatibilité
+          lines: unifiedResult.dialogueData?.lines || [`Bonjour ! Je suis ${npc.name}.`]
+        };
 
         this.log('info', '✅ Interface Unifiée construite', { 
           capabilities: unifiedResult.capabilities.length,
-          defaultAction: unifiedResult.defaultAction
+          defaultAction: unifiedResult.defaultAction,
+          hasContextualData: !!result.contextualData,
+          hasShopData: !!result.shopId
         });
 
         return result;
@@ -375,19 +387,35 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   // ✅ NOUVELLE MÉTHODE : Déterminer si utiliser l'interface unifiée
-private shouldUseUnifiedInterface(capabilities: NpcCapability[]): boolean {
-  // Ne pas utiliser interface unifiée si pas de capabilities
-  if (capabilities.length === 0) return false;
-  
-  // Si seulement "dialogue", utiliser legacy pour performance
-  if (capabilities.length === 1 && capabilities[0] === 'dialogue') {
-    return false;
+  private shouldUseUnifiedInterface(capabilities: NpcCapability[]): boolean {
+    // Ne pas utiliser interface unifiée si pas de capabilities
+    if (capabilities.length === 0) return false;
+    
+    // Si seulement "dialogue", utiliser legacy pour performance
+    if (capabilities.length === 1 && capabilities[0] === 'dialogue') {
+      return false;
+    }
+    
+    // Sinon, utiliser interface unifiée
+    this.log('info', `🔍 shouldUseUnifiedInterface: ${capabilities.join(',')} -> OUI`);
+    return true;
   }
-  
-  // Sinon, utiliser interface unifiée
-  this.log('info', `🔍 shouldUseUnifiedInterface: ${capabilities.join(',')} -> OUI`);
-  return true;
-}
+
+  // ✅ NOUVELLE MÉTHODE UTILITAIRE : Labels des capacités
+  private getCapabilityLabel(capability: NpcCapability): string {
+    const labels = {
+      'merchant': '🛒 Boutique',
+      'quest': '📋 Quêtes', 
+      'healer': '🏥 Soins',
+      'trainer': '⚔️ Combat',
+      'transport': '🚀 Transport',
+      'dialogue': '💬 Discussion',
+      'service': '⚙️ Services'
+    };
+    
+    return labels[capability] || `${capability}`;
+  }
+
   // ✅ NOUVELLE MÉTHODE PUBLIQUE : Gestion des actions spécifiques (pour client)
   async handleSpecificAction(
     player: Player, 
