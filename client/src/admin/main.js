@@ -3,6 +3,7 @@
 // Import CSS (Vite will bundle these)
 import './styles/main.css'
 import './styles/components.css'
+import { MongoDBModule } from './js/mongodb-module.js'
 
 // Import modules
 import { AdminPanel } from './js/admin-panel.js'
@@ -403,6 +404,14 @@ window.reloadItems = () => {
         return
     }
     adminPanel.mapEditor.loadAvailableItems()
+}
+
+window.loadMongoDB = () => {
+    if (!adminPanel?.mongodb) {
+        console.error('MongoDB module not loaded')
+        return
+    }
+    adminPanel.mongodb.onTabActivated()
 }
 // Helper function to show error messages
 function showErrorMessage(message) {
