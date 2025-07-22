@@ -2005,7 +2005,7 @@ interface NPCZoneData {
 }
 
 // Dossier de stockage des NPCs
-const NPC_DATA_DIR = path.join(process.cwd(), 'server/data/npcs');
+const NPC_DATA_DIR = path.join(process.cwd(), '../data/npcs');
 
 // S'assurer que le dossier existe
 async function ensureNPCDataDir() {
