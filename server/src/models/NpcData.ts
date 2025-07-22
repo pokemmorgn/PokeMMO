@@ -428,7 +428,7 @@ NpcDataSchema.statics.findActiveNpcs = function(zone: string): Promise<INpcData[
 NpcDataSchema.statics.bulkImportFromJson = async function(
   zoneData: any
 ): Promise<{ success: number; errors: string[] }> {
-  const results = { success: 0, errors: [] };
+  const results: { success: number; errors: string[] } = { success: 0, errors: [] };
   
   if (!zoneData.zone || !zoneData.npcs || !Array.isArray(zoneData.npcs)) {
     results.errors.push('Invalid zone data format');
@@ -437,7 +437,7 @@ NpcDataSchema.statics.bulkImportFromJson = async function(
   
   for (const jsonNpc of zoneData.npcs) {
     try {
-      await this.createFromJson(jsonNpc, zoneData.zone);
+      await (this as INpcDataModel).createFromJson(jsonNpc, zoneData.zone);
       results.success++;
     } catch (error) {
       results.errors.push(`NPC ${jsonNpc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
