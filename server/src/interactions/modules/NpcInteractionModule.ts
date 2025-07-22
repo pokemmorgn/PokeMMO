@@ -50,7 +50,7 @@ export interface NpcInteractionResult extends InteractionResult {
   };
   
   // ✅ CORRIGÉ : Champs interface unifiée REQUIS (pas optionnels) pour garantir transmission
-  npcId: number | string;         // ❌ PLUS optionnel - Requis pour transmission réseau
+  npcId: number;                  // ❌ PLUS optionnel - Requis pour transmission réseau (type number pour compatibilité)
   npcName: string;                // ❌ PLUS optionnel - Requis pour transmission réseau
   isUnifiedInterface: boolean;    // ❌ PLUS optionnel - Flag explicite requis
   capabilities: NpcCapability[];  // ❌ PLUS optionnel - Array requis (vide si aucune)
@@ -324,13 +324,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
   private async handleLegacyNpcInteractionSafe(
     player: Player,
     npc: any,
-    npcId: number | string,
+    npcId: number,
     npcName: string,
     detectedCapabilities: NpcCapability[]
   ): Promise<NpcInteractionResult> {
     
     // Appeler la logique legacy existante
-    const legacyResult = await this.handleLegacyNpcInteraction(player, npc, typeof npcId === 'string' ? parseInt(npcId.toString()) : npcId);
+    const legacyResult = await this.handleLegacyNpcInteraction(player, npc, npcId);
     
     // ✅ GARANTIR les champs requis même pour les résultats legacy
     const safeResult: NpcInteractionResult = {
