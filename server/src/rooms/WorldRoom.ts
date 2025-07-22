@@ -78,7 +78,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private lastStateUpdate = 0;
   private stateUpdateInterval = 100;
 
-  onCreate(options: any) {
+  async onCreate(options: any) {
     console.log(`🌍 === WORLDROOM CRÉATION ===`);
     console.log(`📊 Options:`, options);
 
