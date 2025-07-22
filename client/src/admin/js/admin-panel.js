@@ -56,6 +56,8 @@ export class AdminPanel {
         this.logsTools = this.modules.logsTools
         this.questGenerator = this.modules.questGenerator
         this.mapEditor = this.modules.mapEditor
+        this.npcEditor = this.modules.npcEditor  // ← AJOUTER CETTE LIGNE
+
         
         console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
     }
