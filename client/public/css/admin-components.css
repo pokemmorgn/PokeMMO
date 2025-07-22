@@ -1921,6 +1921,381 @@ details[open] summary {
     cursor: pointer;
 }
 
+/* MongoDB Module Styles - À ajouter dans admin-components.css */
+
+/* MongoDB Container */
+.mongodb-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 20px;
+}
+
+.mongodb-header {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.mongodb-navigation {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.nav-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+/* Query Section */
+.mongodb-query-section {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.query-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.query-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.query-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.query-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.json-editor {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    resize: vertical;
+}
+
+.json-editor:focus {
+    border-color: #007bff;
+    background: white;
+}
+
+.query-help {
+    padding: 8px 12px;
+    background: #e8f4fd;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.query-help small {
+    color: #0066cc;
+    font-size: 0.8rem;
+}
+
+/* Results Section */
+.mongodb-results {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.results-header {
+    padding: 20px;
+    border-bottom: 2px solid #e9ecef;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.results-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.results-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+}
+
+#pageInfo {
+    min-width: 80px;
+    text-align: center;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Documents Container */
+.documents-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.documents-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.document-card {
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.3s ease;
+}
+
+.document-card:hover {
+    background: #f8f9fa;
+}
+
+.document-card:last-child {
+    border-bottom: none;
+}
+
+.document-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: #fdfdfd;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.document-id {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #495057;
+    font-weight: 600;
+}
+
+.document-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.document-content {
+    padding: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.document-content pre {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #2c3e50;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    overflow-x: auto;
+}
+
+.document-content code {
+    color: inherit;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Badge Styles */
+.badge-primary {
+    background: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Loading Spinner */
+.mongodb-container .loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    z-index: 1000;
+}
+
+.mongodb-container .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e9ecef;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .mongodb-navigation {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .nav-section {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .results-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .results-actions {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 768px) {
+    .mongodb-header {
+        padding: 15px;
+    }
+    
+    .mongodb-query-section,
+    .mongodb-results {
+        margin: 0 -10px;
+        border-radius: 0;
+    }
+    
+    .document-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .document-actions {
+        justify-content: center;
+    }
+    
+    .document-content {
+        padding: 15px;
+    }
+    
+    .document-content pre {
+        font-size: 0.75rem;
+        padding: 10px;
+    }
+    
+    .query-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .pagination-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+/* Animation pour les documents */
+@keyframes documentSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.document-card {
+    animation: documentSlideIn 0.3s ease-out;
+}
+
+/* Highlight pour les requêtes JSON */
+.json-editor.json-valid {
+    border-color: #28a745;
+    background: #f8fff8;
+}
+
+.json-editor.json-invalid {
+    border-color: #dc3545;
+    background: #fff8f8;
+}
+
+/* Empty state styling */
+.mongodb-container .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
 /* MongoDB Professional Interface Styles */
 
 .db-interface {
