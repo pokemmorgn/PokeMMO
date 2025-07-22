@@ -173,6 +173,10 @@ export class AdminPanel {
             case 'tools':
                 // Pas d'action spécifique
                 break
+                case 'npcs':
+    console.log('👤 [AdminPanel] Activating NPCs tab')
+    this.npcEditor?.onTabActivated()
+    break
         }
     }
 
