@@ -73,7 +73,8 @@ export type InteractionResultType =
   | 'vendingMachine'
   | 'hiddenItemFound'
   | 'itemPickup'
-  | 'searchComplete';
+  | 'searchComplete'
+  | 'unifiedInterface'; 
 
 // ✅ CONSTANTES POUR ÉVITER LES ERREURS DE TYPO
 export const INTERACTION_RESULT_TYPES = {
