@@ -177,46 +177,49 @@ export class InteractionManager {
       // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
       const result = await this.baseInteractionManager.processInteraction(player, request);
 
+      // ✅ CASTING SÉCURISÉ vers le type NPC du module
+      const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
+
       // ✅ DEBUG AVANT CONVERSION
       console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
         type: result.type,
-        npcId: result.npcId,
-        npcIdType: typeof result.npcId,
-        npcName: result.npcName,
-        isUnifiedInterface: result.isUnifiedInterface,
-        capabilities: result.capabilities?.length || 0,
-        contextualData: !!result.contextualData
+        npcId: npcModuleResult.npcId,
+        npcIdType: typeof npcModuleResult.npcId,
+        npcName: npcModuleResult.npcName,
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+        capabilities: npcModuleResult.capabilities?.length || 0,
+        contextualData: !!npcModuleResult.contextualData
       });
 
-      // ✅ CONVERSION CORRIGÉE - Prendre les champs de result ET result.data
+      // ✅ CONVERSION CORRIGÉE - Utiliser le casting pour accéder aux propriétés étendues
       const npcResult: NpcInteractionResult = {
         type: result.type,
         message: result.message,
         
-        // ✅ CORRIGÉ : Prendre les champs de la racine de result (pas result.data)
-        npcId: result.npcId ?? result.data?.npcId,
-        npcName: result.npcName ?? result.data?.npcName,
+        // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
+        npcId: npcModuleResult.npcId ?? result.data?.npcId,
+        npcName: npcModuleResult.npcName ?? result.data?.npcName,
         
-        // ✅ NOUVEAUX CHAMPS : Interface unifiée (ajoutés depuis result)
-        isUnifiedInterface: result.isUnifiedInterface,
-        capabilities: result.capabilities,
-        contextualData: result.contextualData,
-        unifiedInterface: result.unifiedInterface,
-        unifiedMode: result.unifiedMode,
+        // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting)
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+        capabilities: npcModuleResult.capabilities,
+        contextualData: npcModuleResult.contextualData,
+        unifiedInterface: npcModuleResult.unifiedInterface,
+        unifiedMode: npcModuleResult.unifiedMode,
         
-        // Données spécifiques NPCs du nouveau système (existantes, avec fallback)
-        shopId: result.shopId ?? result.data?.shopId,
-        shopData: result.shopData ?? result.data?.shopData,
-        lines: result.lines ?? result.data?.lines,
-        availableQuests: result.availableQuests ?? result.data?.availableQuests,
-        questRewards: result.questRewards ?? result.data?.questRewards,
-        questProgress: result.questProgress ?? result.data?.questProgress,
-        questId: result.questId ?? result.data?.questId,
-        questName: result.questName ?? result.data?.questName,
-        starterData: result.starterData ?? result.data?.starterData,
-        starterEligible: result.starterEligible ?? result.data?.starterEligible,
-        starterReason: result.starterReason ?? result.data?.starterReason,
-        battleSpectate: result.battleSpectate ?? result.data?.battleSpectate
+        // Données spécifiques NPCs (depuis casting avec fallback)
+        shopId: npcModuleResult.shopId ?? result.data?.shopId,
+        shopData: npcModuleResult.shopData ?? result.data?.shopData,
+        lines: npcModuleResult.lines ?? result.data?.lines,
+        availableQuests: npcModuleResult.availableQuests ?? result.data?.availableQuests,
+        questRewards: npcModuleResult.questRewards ?? result.data?.questRewards,
+        questProgress: npcModuleResult.questProgress ?? result.data?.questProgress,
+        questId: npcModuleResult.questId ?? result.data?.questId,
+        questName: npcModuleResult.questName ?? result.data?.questName,
+        starterData: npcModuleResult.starterData ?? result.data?.starterData,
+        starterEligible: npcModuleResult.starterEligible ?? result.data?.starterEligible,
+        starterReason: npcModuleResult.starterReason ?? result.data?.starterReason,
+        battleSpectate: npcModuleResult.battleSpectate ?? result.data?.battleSpectate
       };
 
       // ✅ DEBUG APRÈS CONVERSION
