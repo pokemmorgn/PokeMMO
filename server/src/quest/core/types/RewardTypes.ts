@@ -1,7 +1,7 @@
 // src/quest/core/types/RewardTypes.ts
 // Types pour le système de récompenses étendu du QuestManager modulaire
 
-import { QuestReward, QuestRewardType } from './QuestTypes';
+import { QuestReward, QuestRewardType, RewardRarity } from './QuestTypes';
 
 // ===== RÉCOMPENSES ÉTENDUES =====
 
