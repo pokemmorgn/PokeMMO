@@ -504,74 +504,119 @@ async onTabActivated() {
         document.getElementById('resultCount').textContent = `${documents.length} of ${total} documents`
     }
 
-    renderTableView(documents) {
-        if (!documents.length) {
-            document.getElementById('tableView').innerHTML = `
+  renderTableView(documents) {
+    // ✅ CORRECTION SIMPLE: Vérifier et réinitialiser les éléments
+    const tableHeader = document.getElementById('tableHeader')
+    const tableBody = document.getElementById('tableBody')
+    
+    if (!tableHeader || !tableBody) {
+        console.error('❌ [MongoDB] Éléments de table non trouvés, tentative de réinitialisation...')
+        
+        // Réinitialiser la vue complète
+        const tableView = document.getElementById('tableView')
+        if (tableView) {
+            tableView.innerHTML = `
+                <div class="mongodb-table-container">
+                    <table class="mongodb-data-table" id="documentsTable">
+                        <thead id="tableHeader"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            `
+            
+            // Récupérer les nouveaux éléments
+            const newTableHeader = document.getElementById('tableHeader')
+            const newTableBody = document.getElementById('tableBody')
+            
+            if (!newTableHeader || !newTableBody) {
+                console.error('❌ [MongoDB] Impossible de créer les éléments de table')
+                return
+            }
+            
+            // Continuer avec les nouveaux éléments
+            this.renderTableContent(documents, newTableHeader, newTableBody)
+        }
+        return
+    }
+    
+    // Les éléments existent, continuer normalement
+    this.renderTableContent(documents, tableHeader, tableBody)
+}
+
+// NOUVELLE méthode pour séparer le rendu du contenu
+renderTableContent(documents, tableHeader, tableBody) {
+    if (!documents.length) {
+        const tableView = document.getElementById('tableView')
+        if (tableView) {
+            tableView.innerHTML = `
                 <div class="mongodb-empty-state">
                     <i class="fas fa-table"></i>
                     <h3>No documents found</h3>
                     <p>This collection is empty or your filter returned no results.</p>
                 </div>
             `
-            return
         }
-
-        // Détecter les colonnes automatiquement
-        const columns = this.detectColumns(documents)
-        
-        const tableHeader = document.getElementById('tableHeader')
-        const tableBody = document.getElementById('tableBody')
-        
-        // Header
-        tableHeader.innerHTML = `
-            <tr>
-                <th class="mongodb-select-column">
-                    <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
-                </th>
-                ${columns.map(col => `
-                    <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
-                        ${col.name}
-                        <i class="fas fa-sort mongodb-sort-icon"></i>
-                    </th>
-                `).join('')}
-                <th class="mongodb-actions-column">Actions</th>
-            </tr>
-        `
-        
-        // Body avec amélioration pour les valeurs imbriquées
-        tableBody.innerHTML = documents.map((doc, index) => `
-            <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
-                <td class="mongodb-select-column">
-                    <input type="checkbox" onclick="event.stopPropagation()">
-                </td>
-                ${columns.map(col => {
-                    const value = this.getNestedValue(doc, col.key)
-                    return `
-                        <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
-                            ${this.formatCellValue(value, col.type)}
-                        </td>
-                    `
-                }).join('')}
-                <td class="mongodb-actions-column">
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('')
-
-        // Afficher la vue table
-        document.getElementById('tableView').style.display = 'block'
-        document.getElementById('jsonView').style.display = 'none'
-        document.getElementById('treeView').style.display = 'none'
+        return
     }
 
+    // Détecter les colonnes automatiquement
+    const columns = this.detectColumns(documents)
+    
+    // Header
+    tableHeader.innerHTML = `
+        <tr>
+            <th class="mongodb-select-column">
+                <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
+            </th>
+            ${columns.map(col => `
+                <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
+                    ${col.name}
+                    <i class="fas fa-sort mongodb-sort-icon"></i>
+                </th>
+            `).join('')}
+            <th class="mongodb-actions-column">Actions</th>
+        </tr>
+    `
+    
+    // Body
+    tableBody.innerHTML = documents.map((doc, index) => `
+        <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
+            <td class="mongodb-select-column">
+                <input type="checkbox" onclick="event.stopPropagation()">
+            </td>
+            ${columns.map(col => {
+                const value = this.getNestedValue(doc, col.key)
+                return `
+                    <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
+                        ${this.formatCellValue(value, col.type)}
+                    </td>
+                `
+            }).join('')}
+            <td class="mongodb-actions-column">
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
+                    <i class="fas fa-search"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('')
+
+    // Afficher la vue table
+    const tableView = document.getElementById('tableView')
+    const jsonView = document.getElementById('jsonView')
+    const treeView = document.getElementById('treeView')
+    
+    if (tableView) tableView.style.display = 'block'
+    if (jsonView) jsonView.style.display = 'none'
+    if (treeView) treeView.style.display = 'none'
+    
+    console.log('✅ [MongoDB] Table rendue:', documents.length, 'documents')
+}
     renderJSONView(documents) {
         const container = document.getElementById('jsonContainer')
         
