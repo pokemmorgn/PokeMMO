@@ -415,6 +415,13 @@ export class MongoDBModule {
     }
 
     renderDocuments(documents, total) {
+        // ✅ DEBUG : Afficher la structure des documents
+        if (documents.length > 0) {
+            console.log('🔍 [MongoDB] Premier document:', documents[0])
+            console.log('🔍 [MongoDB] Clés disponibles:', Object.keys(documents[0]))
+            console.log('🔍 [MongoDB] Username trouvé:', documents[0].username)
+        }
+
         if (this.viewMode === 'table') {
             this.renderTableView(documents)
         } else if (this.viewMode === 'json') {
@@ -522,10 +529,30 @@ export class MongoDBModule {
         document.getElementById('treeView').style.display = 'none'
     }
 
-    // Améliorer la détection des colonnes
+    // Améliorer la détection des colonnes avec priorité pour les champs importants
     detectColumns(documents) {
         const columnSet = new Set()
         const columnFrequency = new Map()
+        
+        // ✅ CHAMPS PRIORITAIRES dans l'ordre exact souhaité
+        const priorityFields = [
+            '_id',           // ID MongoDB
+            'username',      // Nom d'utilisateur (LE PLUS IMPORTANT)
+            'email',         // Email
+            'level',         // Niveau du joueur
+            'gold',          // Argent
+            'experience',    // Expérience
+            'lastMap',       // Dernière carte
+            'lastX',         // Position X
+            'lastY',         // Position Y
+            'isDev',         // Développeur
+            'isActive',      // Compte actif
+            'isBanned',      // Banni
+            'lastLogin',     // Dernière connexion
+            'loginCount',    // Nombre de connexions
+            'createdAt',     // Date de création
+            'totalPlaytime'  // Temps de jeu total
+        ]
         
         // Analyser tous les documents pour trouver TOUS les champs
         documents.forEach(doc => {
@@ -535,30 +562,49 @@ export class MongoDBModule {
             })
         })
         
-        // Convertir en array et trier par fréquence
-        const columns = Array.from(columnSet)
-            .map(key => ({
+        // Séparer les colonnes en prioritaires et autres
+        const priorityColumns = []
+        const otherColumns = []
+        
+        // D'abord ajouter les champs prioritaires dans l'ordre exact
+        priorityFields.forEach(field => {
+            if (columnSet.has(field)) {
+                priorityColumns.push({
+                    key: field,
+                    name: this.formatColumnName(field),
+                    type: this.detectColumnType(field, documents),
+                    frequency: columnFrequency.get(field) || 0,
+                    isPriority: true
+                })
+                columnSet.delete(field) // Retirer pour éviter les doublons
+            }
+        })
+        
+        // Puis ajouter les autres champs triés par fréquence
+        Array.from(columnSet).forEach(key => {
+            otherColumns.push({
                 key,
                 name: this.formatColumnName(key),
                 type: this.detectColumnType(key, documents),
-                frequency: columnFrequency.get(key) || 0
-            }))
-            .sort((a, b) => {
-                // _id toujours en premier
-                if (a.key === '_id') return -1
-                if (b.key === '_id') return 1
-                
-                // Puis par fréquence (les plus communs d'abord)
-                if (b.frequency !== a.frequency) return b.frequency - a.frequency
-                
-                // Puis alphabétique
-                return a.name.localeCompare(b.name)
+                frequency: columnFrequency.get(key) || 0,
+                isPriority: false
             })
+        })
         
-        console.log('📋 [MongoDB] Colonnes détectées:', columns.map(c => `${c.key} (${c.frequency}/${documents.length})`))
+        // Trier les autres colonnes par fréquence puis alphabétiquement
+        otherColumns.sort((a, b) => {
+            if (b.frequency !== a.frequency) return b.frequency - a.frequency
+            return a.name.localeCompare(b.name)
+        })
         
-        // Retourner TOUTES les colonnes (pas de limite)
-        return columns
+        // Combiner : prioritaires en premier, puis autres
+        const allColumns = [...priorityColumns, ...otherColumns]
+        
+        console.log('📋 [MongoDB] Colonnes prioritaires:', priorityColumns.map(c => c.key))
+        console.log('📋 [MongoDB] Autres colonnes:', otherColumns.map(c => `${c.key} (${c.frequency})`))
+        console.log('📋 [MongoDB] Total colonnes:', allColumns.length)
+        
+        return allColumns
     }
 
     // Extraire récursivement toutes les clés d'un objet (même imbriquées)
