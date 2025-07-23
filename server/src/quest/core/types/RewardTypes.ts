@@ -41,18 +41,6 @@ export interface ExtendedQuestReward extends QuestReward {
 }
 
 /**
- * 🌟 Rareté des récompenses
- */
-export type RewardRarity = 
-  | 'common'     // Gris - Récompenses standard
-  | 'uncommon'   // Vert - Légèrement meilleures
-  | 'rare'       // Bleu - Difficiles à obtenir
-  | 'epic'       // Violet - Très rares
-  | 'legendary'  // Orange - Extrêmement rares
-  | 'mythic'     // Rose - Uniques/événements
-  | 'artifact';  // Doré - Légendaires historiques
-
-/**
  * 🎯 Conditions d'attribution des récompenses
  */
 export interface RewardConditions {
