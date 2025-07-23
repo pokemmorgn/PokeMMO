@@ -1063,7 +1063,16 @@ handleInterfaceError(error, context) {
     console.error(`❌ [MongoDB] Erreur interface (${context}):`, error)
     this.adminPanel.showNotification(`Erreur: ${error.message}`, 'error')
 }
-    
+    // Ajouter cette méthode dans mongodb-module.js
+forceSetCollection(database, collection) {
+    console.log(`🔧 [MongoDB] Force mise à jour: ${database}.${collection}`)
+    this.currentDatabase = database
+    this.currentCollection = collection
+    console.log(`✅ [MongoDB] Variables forcées:`, {
+        currentDatabase: this.currentDatabase,
+        currentCollection: this.currentCollection
+    })
+}
 cleanup() {
     this.advanced?.cleanup()
     console.log('🧹 [MongoDB] Module cleanup')
