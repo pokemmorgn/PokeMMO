@@ -415,13 +415,6 @@ export class MongoDBModule {
     }
 
     renderDocuments(documents, total) {
-        // ✅ DEBUG : Afficher la structure des documents
-        if (documents.length > 0) {
-            console.log('🔍 [MongoDB] Premier document:', documents[0])
-            console.log('🔍 [MongoDB] Clés disponibles:', Object.keys(documents[0]))
-            console.log('🔍 [MongoDB] Username trouvé:', documents[0].username)
-        }
-
         if (this.viewMode === 'table') {
             this.renderTableView(documents)
         } else if (this.viewMode === 'json') {
@@ -529,30 +522,10 @@ export class MongoDBModule {
         document.getElementById('treeView').style.display = 'none'
     }
 
-    // Améliorer la détection des colonnes avec priorité pour les champs importants
+    // Améliorer la détection des colonnes
     detectColumns(documents) {
         const columnSet = new Set()
         const columnFrequency = new Map()
-        
-        // ✅ CHAMPS PRIORITAIRES dans l'ordre exact souhaité
-        const priorityFields = [
-            '_id',           // ID MongoDB
-            'username',      // Nom d'utilisateur (LE PLUS IMPORTANT)
-            'email',         // Email
-            'level',         // Niveau du joueur
-            'gold',          // Argent
-            'experience',    // Expérience
-            'lastMap',       // Dernière carte
-            'lastX',         // Position X
-            'lastY',         // Position Y
-            'isDev',         // Développeur
-            'isActive',      // Compte actif
-            'isBanned',      // Banni
-            'lastLogin',     // Dernière connexion
-            'loginCount',    // Nombre de connexions
-            'createdAt',     // Date de création
-            'totalPlaytime'  // Temps de jeu total
-        ]
         
         // Analyser tous les documents pour trouver TOUS les champs
         documents.forEach(doc => {
@@ -562,49 +535,30 @@ export class MongoDBModule {
             })
         })
         
-        // Séparer les colonnes en prioritaires et autres
-        const priorityColumns = []
-        const otherColumns = []
-        
-        // D'abord ajouter les champs prioritaires dans l'ordre exact
-        priorityFields.forEach(field => {
-            if (columnSet.has(field)) {
-                priorityColumns.push({
-                    key: field,
-                    name: this.formatColumnName(field),
-                    type: this.detectColumnType(field, documents),
-                    frequency: columnFrequency.get(field) || 0,
-                    isPriority: true
-                })
-                columnSet.delete(field) // Retirer pour éviter les doublons
-            }
-        })
-        
-        // Puis ajouter les autres champs triés par fréquence
-        Array.from(columnSet).forEach(key => {
-            otherColumns.push({
+        // Convertir en array et trier par fréquence
+        const columns = Array.from(columnSet)
+            .map(key => ({
                 key,
                 name: this.formatColumnName(key),
                 type: this.detectColumnType(key, documents),
-                frequency: columnFrequency.get(key) || 0,
-                isPriority: false
+                frequency: columnFrequency.get(key) || 0
+            }))
+            .sort((a, b) => {
+                // _id toujours en premier
+                if (a.key === '_id') return -1
+                if (b.key === '_id') return 1
+                
+                // Puis par fréquence (les plus communs d'abord)
+                if (b.frequency !== a.frequency) return b.frequency - a.frequency
+                
+                // Puis alphabétique
+                return a.name.localeCompare(b.name)
             })
-        })
         
-        // Trier les autres colonnes par fréquence puis alphabétiquement
-        otherColumns.sort((a, b) => {
-            if (b.frequency !== a.frequency) return b.frequency - a.frequency
-            return a.name.localeCompare(b.name)
-        })
+        console.log('📋 [MongoDB] Colonnes détectées:', columns.map(c => `${c.key} (${c.frequency}/${documents.length})`))
         
-        // Combiner : prioritaires en premier, puis autres
-        const allColumns = [...priorityColumns, ...otherColumns]
-        
-        console.log('📋 [MongoDB] Colonnes prioritaires:', priorityColumns.map(c => c.key))
-        console.log('📋 [MongoDB] Autres colonnes:', otherColumns.map(c => `${c.key} (${c.frequency})`))
-        console.log('📋 [MongoDB] Total colonnes:', allColumns.length)
-        
-        return allColumns
+        // Retourner TOUTES les colonnes (pas de limite)
+        return columns
     }
 
     // Extraire récursivement toutes les clés d'un objet (même imbriquées)
@@ -819,437 +773,15 @@ export class MongoDBModule {
         }
     }
 
-    // ========================================
-    // FONCTIONNALITÉS COMPLÈTES MONGODB
-    // ========================================
-
-    // ✅ 1. ÉDITION DE DOCUMENT
-    async editDocument(id) {
-        console.log(`✏️ [MongoDB] Édition document: ${id}`)
-        
-        try {
-            // Récupérer le document complet
-            const data = await this.adminPanel.apiCall('/mongodb/documents', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.currentDatabase,
-                    collection: this.currentCollection,
-                    query: { _id: id },
-                    page: 0,
-                    limit: 1
-                })
-            })
-
-            if (data.success && data.documents.length > 0) {
-                this.showDocumentEditor(data.documents[0], 'edit')
-            } else {
-                this.adminPanel.showNotification('Document non trouvé', 'error')
-            }
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur récupération document:', error)
-            this.adminPanel.showNotification('Erreur récupération document: ' + error.message, 'error')
-        }
-    }
-
-    // ✅ 2. CRÉATION DE DOCUMENT
-    createDocument() {
-        console.log('➕ [MongoDB] Création nouveau document')
-        
-        if (!this.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez une collection d\'abord', 'warning')
-            return
-        }
-
-        // Document vide avec structure de base
-        const emptyDoc = {
-            // Pas d'_id - MongoDB le générera automatiquement
-        }
-
-        this.showDocumentEditor(emptyDoc, 'create')
-    }
-
-    // ✅ 3. SUPPRESSION DE DOCUMENT
-    async deleteDocument(id) {
-        console.log(`🗑️ [MongoDB] Suppression document: ${id}`)
-        
-        if (!confirm('Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.')) {
-            return
-        }
-
-        this.showLoading(true)
-        
-        try {
-            const data = await this.adminPanel.apiCall('/mongodb/document', {
-                method: 'DELETE',
-                body: JSON.stringify({
-                    database: this.currentDatabase,
-                    collection: this.currentCollection,
-                    id: id
-                })
-            })
-
-            if (data.success) {
-                this.adminPanel.showNotification('Document supprimé avec succès', 'success')
-                // Recharger la liste
-                await this.loadDocuments(this.currentQuery)
-            } else {
-                throw new Error(data.error || 'Erreur suppression')
-            }
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur suppression:', error)
-            this.adminPanel.showNotification('Erreur suppression: ' + error.message, 'error')
-        } finally {
-            this.showLoading(false)
-        }
-    }
-
-    // ✅ 4. INSPECTION DE DOCUMENT (Panel détaillé)
-    async inspectDocument(id) {
-        console.log(`🔍 [MongoDB] Inspection document: ${id}`)
-        
-        try {
-            // Récupérer le document complet
-            const data = await this.adminPanel.apiCall('/mongodb/documents', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.currentDatabase,
-                    collection: this.currentCollection,
-                    query: { _id: id },
-                    page: 0,
-                    limit: 1
-                })
-            })
-
-            if (data.success && data.documents.length > 0) {
-                this.showDocumentInspector(data.documents[0])
-            } else {
-                this.adminPanel.showNotification('Document non trouvé', 'error')
-            }
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur inspection:', error)
-            this.adminPanel.showNotification('Erreur inspection: ' + error.message, 'error')
-        }
-    }
-
-    // ✅ 5. QUERY BUILDER AVANCÉ
-    showQueryBuilder() {
-        console.log('🔧 [MongoDB] Ouverture Query Builder')
-        
-        if (!this.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez une collection d\'abord', 'warning')
-            return
-        }
-
-        this.showQueryBuilderModal()
-    }
-
-    // ✅ 6. STATISTIQUES DE BASE DE DONNÉES
-    async showDatabaseStats() {
-        console.log('📊 [MongoDB] Statistiques base de données')
-        
-        if (!this.currentDatabase) {
-            this.adminPanel.showNotification('Sélectionnez une base d\'abord', 'warning')
-            return
-        }
-
-        this.showLoading(true)
-        
-        try {
-            const data = await this.adminPanel.apiCall(`/mongodb/stats/${this.currentDatabase}`)
-            
-            if (data.success) {
-                this.showDatabaseStatsModal(data.database, data.collections)
-            } else {
-                throw new Error(data.error || 'Erreur statistiques')
-            }
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur stats:', error)
-            this.adminPanel.showNotification('Erreur statistiques: ' + error.message, 'error')
-        } finally {
-            this.showLoading(false)
-        }
-    }
-
-    // ✅ 7. INFORMATIONS SERVEUR
-    showServerInfo() {
-        console.log('🖥️ [MongoDB] Informations serveur')
-        this.showServerInfoModal()
-    }
-
-    // ========================================
-    // MODALES ET INTERFACES
-    // ========================================
-
-    // Modal d'édition/création de document
-    showDocumentEditor(document, mode = 'edit') {
-        const isEdit = mode === 'edit'
-        const title = isEdit ? `Éditer Document ${document._id}` : 'Nouveau Document'
-        
-        const modalHtml = `
-            <div class="mongodb-modal-overlay" onclick="adminPanel.mongodb.closeModal()">
-                <div class="mongodb-modal" onclick="event.stopPropagation()" style="width: 90%; max-width: 800px; max-height: 90vh;">
-                    <div class="mongodb-modal-header">
-                        <h3><i class="fas fa-edit"></i> ${title}</h3>
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn-icon">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="mongodb-modal-body" style="max-height: 60vh; overflow-y: auto;">
-                        <div style="margin-bottom: 15px;">
-                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Document JSON:</label>
-                            <textarea id="documentEditor" style="width: 100%; height: 400px; font-family: monospace; font-size: 0.9rem; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">${JSON.stringify(document, null, 2)}</textarea>
-                        </div>
-                        
-                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.8rem; color: #666;">
-                            <strong>💡 Conseils:</strong><br>
-                            • Format JSON valide requis<br>
-                            • ${isEdit ? 'L\'_id ne peut pas être modifié' : 'L\'_id sera généré automatiquement'}<br>
-                            • Utilisez Ctrl+A pour sélectionner tout
-                        </div>
-                    </div>
-                    
-                    <div class="mongodb-modal-footer">
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn">
-                            <i class="fas fa-times"></i> Annuler
-                        </button>
-                        <button onclick="adminPanel.mongodb.validateAndSaveDocument('${mode}')" class="mongodb-btn mongodb-btn-success">
-                            <i class="fas fa-save"></i> ${isEdit ? 'Mettre à jour' : 'Créer'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `
-        
-        document.body.insertAdjacentHTML('beforeend', modalHtml)
-        
-        // Focus sur l'éditeur
-        setTimeout(() => {
-            const editor = document.getElementById('documentEditor')
-            if (editor) editor.focus()
-        }, 100)
-    }
-
-    // Modal Query Builder
-    showQueryBuilderModal() {
-        const modalHtml = `
-            <div class="mongodb-modal-overlay" onclick="adminPanel.mongodb.closeModal()">
-                <div class="mongodb-modal" onclick="event.stopPropagation()" style="width: 90%; max-width: 700px;">
-                    <div class="mongodb-modal-header">
-                        <h3><i class="fas fa-search"></i> Query Builder - ${this.currentCollection}</h3>
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn-icon">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="mongodb-modal-body">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                            <div>
-                                <label style="font-weight: 600; margin-bottom: 5px; display: block;">Opération:</label>
-                                <select id="queryOperation" class="mongodb-query-input" style="width: 100%;">
-                                    <option value="find">Find (Rechercher)</option>
-                                    <option value="count">Count (Compter)</option>
-                                    <option value="distinct">Distinct (Valeurs uniques)</option>
-                                    <option value="aggregate">Aggregate (Pipeline)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-weight: 600; margin-bottom: 5px; display: block;">Limite:</label>
-                                <input type="number" id="queryLimit" class="mongodb-query-input" value="25" min="1" max="1000" style="width: 100%;">
-                            </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Filtre/Query:</label>
-                            <textarea id="queryBuilderFilter" class="mongodb-query-input" rows="6" placeholder='{"level": {"$gte": 10}, "isActive": true}' style="width: 100%; font-family: monospace;"></textarea>
-                        </div>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="font-weight: 600; margin-bottom: 5px; display: block;">Projection (optionnel):</label>
-                            <textarea id="queryBuilderProjection" class="mongodb-query-input" rows="3" placeholder='{"username": 1, "level": 1, "gold": 1}' style="width: 100%; font-family: monospace;"></textarea>
-                        </div>
-                        
-                        <div style="background: #e8f4fd; padding: 15px; border-radius: 4px; font-size: 0.85rem;">
-                            <strong>📚 Exemples de requêtes:</strong><br>
-                            • <code>{"level": {"$gte": 10}}</code> - Niveau >= 10<br>
-                            • <code>{"username": {"$regex": "admin", "$options": "i"}}</code> - Username contient "admin"<br>
-                            • <code>{"$and": [{"level": {"$gte": 5}}, {"gold": {"$lte": 1000}}]}</code> - Conditions multiples<br>
-                            • <code>{"createdAt": {"$gte": {"$date": "2024-01-01"}}}</code> - Date après 1er janvier 2024
-                        </div>
-                    </div>
-                    
-                    <div class="mongodb-modal-footer">
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn">
-                            <i class="fas fa-times"></i> Annuler
-                        </button>
-                        <button onclick="adminPanel.mongodb.executeCustomQuery()" class="mongodb-btn mongodb-btn-primary">
-                            <i class="fas fa-play"></i> Exécuter Query
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `
-        
-        document.body.insertAdjacentHTML('beforeend', modalHtml)
-    }
-
-    // Modal des statistiques
-    showDatabaseStatsModal(dbStats, collections) {
-        const totalSize = this.formatBytes(dbStats.totalSize || 0)
-        const dataSize = this.formatBytes(dbStats.dataSize || 0)
-        const indexSize = this.formatBytes(dbStats.indexSize || 0)
-        
-        const modalHtml = `
-            <div class="mongodb-modal-overlay" onclick="adminPanel.mongodb.closeModal()">
-                <div class="mongodb-modal" onclick="event.stopPropagation()" style="width: 90%; max-width: 900px;">
-                    <div class="mongodb-modal-header">
-                        <h3><i class="fas fa-chart-pie"></i> Statistiques - ${dbStats.name}</h3>
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn-icon">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="mongodb-modal-body" style="max-height: 70vh; overflow-y: auto;">
-                        <!-- Stats générales -->
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #333;">${dbStats.collections || 0}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Collections</div>
-                            </div>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #333;">${totalSize}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Taille totale</div>
-                            </div>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #333;">${dataSize}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Données</div>
-                            </div>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #333;">${indexSize}</div>
-                                <div style="font-size: 0.8rem; color: #666;">Index</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Collections détaillées -->
-                        <h4 style="margin-bottom: 15px;">📋 Collections détaillées</h4>
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                                <thead>
-                                    <tr style="background: #f5f5f5;">
-                                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Collection</th>
-                                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Documents</th>
-                                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Taille</th>
-                                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Taille moy.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${collections.map(coll => `
-                                        <tr>
-                                            <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                                                <i class="fas fa-table" style="color: #ff9800; margin-right: 5px;"></i>
-                                                ${coll.name}
-                                            </td>
-                                            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #eee;">
-                                                ${coll.count.toLocaleString()}
-                                            </td>
-                                            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #eee;">
-                                                ${this.formatBytes(coll.size)}
-                                            </td>
-                                            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #eee;">
-                                                ${this.formatBytes(coll.avgObjSize)}
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div class="mongodb-modal-footer">
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn">
-                            <i class="fas fa-times"></i> Fermer
-                        </button>
-                        <button onclick="adminPanel.mongodb.exportStats()" class="mongodb-btn mongodb-btn-primary">
-                            <i class="fas fa-download"></i> Exporter
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `
-        
-        document.body.insertAdjacentHTML('beforeend', modalHtml)
-    }
-
-    // Modal info serveur
-    showServerInfoModal() {
-        const modalHtml = `
-            <div class="mongodb-modal-overlay" onclick="adminPanel.mongodb.closeModal()">
-                <div class="mongodb-modal" onclick="event.stopPropagation()" style="width: 90%; max-width: 600px;">
-                    <div class="mongodb-modal-header">
-                        <h3><i class="fas fa-server"></i> Informations Serveur MongoDB</h3>
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn-icon">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="mongodb-modal-body">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div>
-                                <strong>🌐 Connexion</strong><br>
-                                <div style="font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 5px 0;">
-                                    localhost:27017
-                                </div>
-                            </div>
-                            <div>
-                                <strong>📊 Status</strong><br>
-                                <div style="color: #4CAF50; font-weight: 600; margin: 5px 0;">
-                                    <i class="fas fa-check-circle"></i> Connecté
-                                </div>
-                            </div>
-                            <div>
-                                <strong>🗃️ Type</strong><br>
-                                <div style="margin: 5px 0;">MongoDB Local</div>
-                            </div>
-                            <div>
-                                <strong>🔧 Version</strong><br>
-                                <div style="margin: 5px 0;">4.4+ (Compatible)</div>
-                            </div>
-                            <div>
-                                <strong>🏠 Bases disponibles</strong><br>
-                                <div style="margin: 5px 0;">${this.databases.length} base(s)</div>
-                            </div>
-                            <div>
-                                <strong>⚡ Interface</strong><br>
-                                <div style="margin: 5px 0;">MongoDB Explorer v1.0</div>
-                            </div>
-                        </div>
-                        
-                        <div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 6px;">
-                            <strong>🔗 Bases de données détectées:</strong><br>
-                            <div style="margin-top: 10px;">
-                                ${this.databases.map(db => `
-                                    <span style="display: inline-block; background: white; padding: 4px 8px; border-radius: 12px; margin: 2px; font-size: 0.85rem;">
-                                        <i class="fas fa-database" style="color: #4CAF50;"></i> ${db}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mongodb-modal-footer">
-                        <button onclick="adminPanel.mongodb.closeModal()" class="mongodb-btn">
-                            <i class="fas fa-times"></i> Fermer
-                        </button>
-                        <button onclick="adminPanel.mongodb.testConnection()" class="mongodb-btn mongodb-btn-primary">
-                            <i class="fas fa-wifi"></i> Tester Connexion
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `
-        
-        document.body.insertAdjacentHTML('beforeend', modalHtml)
-    }
+    // Méthodes publiques (placeholders)
+    refreshDatabases() { this.loadDatabases() }
+    createDocument() { this.adminPanel.showNotification('Création de document en développement', 'info') }
+    editDocument(id) { this.adminPanel.showNotification('Édition de document en développement', 'info') }
+    deleteDocument(id) { this.adminPanel.showNotification('Suppression de document en développement', 'info') }
+    inspectDocument(id) { this.adminPanel.showNotification('Inspection de document en développement', 'info') }
+    showQueryBuilder() { this.adminPanel.showNotification('Query Builder en développement', 'info') }
+    showDatabaseStats() { this.adminPanel.showNotification('Statistiques DB en développement', 'info') }
+    showServerInfo() { this.adminPanel.showNotification('Info serveur en développement', 'info') }
     
     cleanup() {
         console.log('🧹 [MongoDB] Module cleanup')
