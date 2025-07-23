@@ -1,18 +1,18 @@
-// scripts/migrate-gameobjects.ts
+// server/src/scripts/migrateGameObjectsToMongoDB.ts
 // Script de migration simple pour migrer les objets JSON vers MongoDB
-// Usage: npx ts-node scripts/migrate-gameobjects.ts
+// Usage: npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts
 
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 
 // Import du modèle
-import { GameObjectData } from '../server/src/models/GameObjectData';
+import { GameObjectData } from '../models/GameObjectData';
 
 // Configuration
 const CONFIG = {
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemmo',
-  gameObjectsPath: './build/data/gameobjects',
+  gameObjectsPath: './build/data/gameobjects', // Depuis la racine du projet
   dryRun: process.argv.includes('--dry-run'),
   force: process.argv.includes('--force'),
   verbose: process.argv.includes('--verbose')
@@ -255,7 +255,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 🎮 Migration des objets de jeu JSON vers MongoDB
 
 Usage:
-  npx ts-node scripts/migrate-gameobjects.ts [options]
+  npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts [options]
 
 Options:
   --dry-run     Simuler la migration sans rien écrire en base
@@ -269,16 +269,16 @@ Variables d'environnement:
 
 Exemples:
   # Simulation
-  npx ts-node scripts/migrate-gameobjects.ts --dry-run
+  npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts --dry-run
 
   # Migration réelle
-  npx ts-node scripts/migrate-gameobjects.ts --yes
+  npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts --yes
 
   # Migration avec écrasement
-  npx ts-node scripts/migrate-gameobjects.ts --force --yes
+  npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts --force --yes
 
   # Migration détaillée
-  npx ts-node scripts/migrate-gameobjects.ts --verbose --yes
+  npx ts-node server/src/scripts/migrateGameObjectsToMongoDB.ts --verbose --yes
 `);
   process.exit(0);
 }
