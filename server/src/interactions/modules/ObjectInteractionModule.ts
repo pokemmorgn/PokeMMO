@@ -1,7 +1,7 @@
 // src/interactions/modules/ObjectInteractionModule.ts
-// Module principal d'interaction avec les objets - VERSION JSON SIMPLIFIÉE
+// Module principal d'interaction avec les objets - VERSION MONGODB HYBRIDE
 //
-// ✅ NOUVELLE APPROCHE : itemId direct depuis JSON, plus de mapping
+// ✅ NOUVELLE APPROCHE : MongoDB primary avec fallback JSON + Hot Reload
 
 import fs from 'fs';
 import path from 'path';
@@ -16,9 +16,12 @@ import {
 } from "../types/BaseInteractionTypes";
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 import { InventoryManager } from "../../managers/InventoryManager";
-import { isValidItemId } from "../../utils/ItemDB"; // ✅ AJOUTÉ
+import { isValidItemId } from "../../utils/ItemDB";
 
-// ✅ IMPORTS DU SYSTÈME MODULAIRE - VERSION FINALE
+// ✅ IMPORT DU MODÈLE MONGODB
+import { GameObjectData, IGameObjectData, GameObjectType } from "../../models/GameObjectData";
+
+// ✅ IMPORTS DU SYSTÈME MODULAIRE (INCHANGÉ)
 import { 
   IObjectSubModule, 
   ObjectDefinition, 
@@ -26,7 +29,14 @@ import {
 } from "./object/core/IObjectSubModule";
 import { SubModuleFactory } from "./object/core/SubModuleFactory";
 
-// ✅ INTERFACE POUR JSON DE ZONE (MISE À JOUR)
+// ✅ ÉNUMÉRATION DES SOURCES DE DONNÉES
+export enum ObjectDataSource {
+  JSON = 'json', 
+  MONGODB = 'mongodb',
+  HYBRID = 'hybrid'
+}
+
+// ✅ INTERFACE POUR JSON DE ZONE (RÉTROCOMPATIBILITÉ)
 interface GameObjectZoneData {
   zone: string;
   version: string;
@@ -40,8 +50,8 @@ interface GameObjectZoneData {
   objects: Array<{
     id: number;
     position: { x: number; y: number };
-    type: 'ground' | 'hidden';
-    itemId: string;           // ✅ REQUIS maintenant
+    type: 'ground' | 'hidden' | 'pc' | 'vending_machine' | 'panel' | 'guild_board';
+    itemId?: string;
     sprite?: string;
     quantity?: number;
     cooldown?: number;
@@ -49,6 +59,7 @@ interface GameObjectZoneData {
     itemfinderRadius?: number;
     requirements?: Record<string, any>;
     requirementPreset?: string;
+    [key: string]: any;
   }>;
 }
 
@@ -187,38 +198,73 @@ class ObjectStateManager {
   }
 }
 
-// ✅ MODULE PRINCIPAL - VERSION JSON SIMPLIFIÉE
+// ✅ CONFIGURATION HYBRIDE
+interface ObjectManagerConfig {
+  primaryDataSource: ObjectDataSource;
+  useMongoCache: boolean;
+  cacheTTL: number;
+  enableFallback: boolean;
+  
+  submodulesPath: string;
+  stateFile: string;
+  gameObjectsPath: string;
+  autoLoadMaps: boolean;
+  securityEnabled: boolean;
+  debugMode: boolean;
+}
+
+// ✅ MODULE PRINCIPAL - VERSION MONGODB HYBRIDE
 export class ObjectInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "ObjectInteractionModule";
   readonly supportedTypes: InteractionType[] = ["object"];
-  readonly version = "2.1.0"; // ✅ VERSION JSON SIMPLIFIÉE
+  readonly version = "3.0.0"; // ✅ VERSION MONGODB HYBRIDE
+
+  // ✅ NOUVEAUX FLAGS D'ÉTAT (comme NpcManager)
+  private isInitialized: boolean = false;
+  private isInitializing: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
 
   // ✅ COMPOSANTS DU SYSTÈME
   private subModuleFactory: SubModuleFactory;
   private stateManager: ObjectStateManager;
   private objectsByZone: Map<string, Map<number, ObjectDefinition>> = new Map();
+  private loadedZones: Set<string> = new Set();
   
-  // ✅ CONFIGURATION POUR JSON DIRECT
-  private config = {
+  // ✅ PROPRIÉTÉS MONGODB + HOT RELOAD
+  private mongoCache: Map<string, { data: ObjectDefinition[]; timestamp: number }> = new Map();
+  private objectSourceMap: Map<number, ObjectDataSource> = new Map();
+  private changeStream: any = null;
+  private hotReloadEnabled: boolean = true;
+  private reloadCallbacks: Array<(event: string, objectData?: any) => void> = [];
+  
+  // ✅ CONFIGURATION HYBRIDE
+  private config: ObjectManagerConfig = {
+    primaryDataSource: ObjectDataSource.MONGODB,
+    useMongoCache: process.env.OBJECT_USE_CACHE !== 'false',
+    cacheTTL: parseInt(process.env.OBJECT_CACHE_TTL || '1800000'),
+    enableFallback: process.env.OBJECT_FALLBACK !== 'false',
+    
     submodulesPath: path.resolve(__dirname, './object/submodules'),
     stateFile: './data/object_states.json',
-    gameObjectsPath: './build/data/gameobjects',
+    gameObjectsPath: './server/build/data/gameobjects',
     autoLoadMaps: true,
-    securityEnabled: process.env.NODE_ENV === 'production'
+    securityEnabled: process.env.NODE_ENV === 'production',
+    debugMode: process.env.NODE_ENV === 'development'
   };
 
-  constructor(customConfig?: Partial<typeof ObjectInteractionModule.prototype.config>) {
+  constructor(customConfig?: Partial<ObjectManagerConfig>) {
     super();
     
     if (customConfig) {
       this.config = { ...this.config, ...customConfig };
     }
     
-    this.log('info', `🔄 [JSON-SIMPLE] Initialisation avec itemId direct`, {
-      gameObjectsPath: this.config.gameObjectsPath,
+    this.log('info', `🔄 [MONGODB-HYBRID] Initialisation`, {
+      primarySource: this.config.primaryDataSource,
       autoLoadMaps: this.config.autoLoadMaps,
-      securityEnabled: this.config.securityEnabled
+      securityEnabled: this.config.securityEnabled,
+      version: this.version
     });
     
     this.stateManager = new ObjectStateManager(this.config.stateFile);
@@ -242,6 +288,91 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     );
   }
 
+  // ✅ NOUVELLE MÉTHODE : Initialisation asynchrone (comme NpcManager)
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      this.log('info', `♻️ [MONGODB-HYBRID] Déjà initialisé`);
+      return;
+    }
+    
+    if (this.isInitializing) {
+      this.log('info', `⏳ [MONGODB-HYBRID] Initialisation en cours, attente...`);
+      if (this.initializationPromise) {
+        await this.initializationPromise;
+      }
+      return;
+    }
+    
+    this.isInitializing = true;
+    this.log('info', `🔄 [MONGODB-HYBRID] Démarrage initialisation asynchrone...`);
+    
+    this.initializationPromise = this.performInitialization();
+    
+    try {
+      await this.initializationPromise;
+      this.isInitialized = true;
+      this.log('info', `✅ [MONGODB-HYBRID] Initialisation terminée`, {
+        totalObjects: Array.from(this.objectsByZone.values()).reduce((sum, zoneMap) => sum + zoneMap.size, 0),
+        zones: Array.from(this.loadedZones)
+      });
+    } catch (error) {
+      this.log('error', `❌ [MONGODB-HYBRID] Erreur lors de l'initialisation:`, error);
+      throw error;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  // ✅ MÉTHODE PRIVÉE : Logique d'initialisation
+  private async performInitialization(): Promise<void> {
+    try {
+      await this.subModuleFactory.discoverAndLoadModules();
+      
+      if (this.config.autoLoadMaps) {
+        await this.autoLoadAllZonesSync();
+      }
+    } catch (error) {
+      this.log('error', `❌ [MONGODB-HYBRID] Erreur initialisation:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ MÉTHODE CORRIGÉE : waitForLoad (comme NpcManager)
+  async waitForLoad(timeoutMs: number = 10000): Promise<boolean> {
+    const startTime = Date.now();
+    
+    this.log('info', `⏳ [WaitForLoad] Attente du chargement des objets (timeout: ${timeoutMs}ms)...`);
+    
+    if (!this.isInitialized && !this.isInitializing) {
+      this.log('info', `🚀 [WaitForLoad] Lancement de l'initialisation...`);
+      this.initialize().catch(error => {
+        this.log('error', `❌ [WaitForLoad] Erreur initialisation:`, error);
+      });
+    }
+    
+    const totalObjects = Array.from(this.objectsByZone.values()).reduce((sum, zoneMap) => sum + zoneMap.size, 0);
+    
+    while ((!this.isInitialized || totalObjects === 0) && (Date.now() - startTime) < timeoutMs) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    const loaded = this.isInitialized && totalObjects > 0;
+    const loadTime = Date.now() - startTime;
+    
+    if (loaded) {
+      this.log('info', `✅ [WaitForLoad] Objets chargés: ${totalObjects} objets en ${loadTime}ms`);
+      this.log('info', `🗺️  [WaitForLoad] Zones chargées: ${Array.from(this.loadedZones).join(', ')}`);
+      
+      if (this.config.primaryDataSource === ObjectDataSource.MONGODB && this.hotReloadEnabled) {
+        this.startHotReload();
+      }
+    } else {
+      this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, initialisé: ${this.isInitialized}, Objets: ${totalObjects}`);
+    }
+    
+    return loaded;
+  }
+
   // === MÉTHODES PRINCIPALES (INCHANGÉES) ===
 
   canHandle(request: InteractionRequest): boolean {
@@ -254,7 +385,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     try {
       const { player, request } = context;
       
-      this.log('info', `🎯 [JSON-SIMPLE] Traitement interaction objet`, { 
+      this.log('info', `🎯 [MONGODB-HYBRID] Traitement interaction objet`, { 
         player: player.name, 
         data: request.data 
       });
@@ -271,7 +402,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', '❌ [JSON-SIMPLE] Erreur traitement objet', error);
+      this.log('error', '❌ [MONGODB-HYBRID] Erreur traitement objet', error);
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
         "PROCESSING_FAILED"
@@ -291,17 +422,18 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
     }
     
-    this.log('info', `🔍 [JSON-SIMPLE] Recherche objet ${objectId} dans zone ${zone}`);
+    this.log('info', `🔍 [MONGODB-HYBRID] Recherche objet ${objectId} dans zone ${zone}`);
     
     const objectDef = this.getObject(zone, objectId);
     if (!objectDef) {
-      this.log('warn', `❌ [JSON-SIMPLE] Objet ${objectId} non trouvé dans ${zone}`);
+      this.log('warn', `❌ [MONGODB-HYBRID] Objet ${objectId} non trouvé dans ${zone}`);
       return this.createErrorResult(`Objet ${objectId} non trouvé dans ${zone}`, "OBJECT_NOT_FOUND");
     }
 
-    this.log('info', `✅ [JSON-SIMPLE] Objet trouvé: ${objectDef.name}`, {
+    this.log('info', `✅ [MONGODB-HYBRID] Objet trouvé: ${objectDef.name}`, {
       type: objectDef.type,
-      itemId: objectDef.itemId
+      itemId: objectDef.itemId,
+      source: this.objectSourceMap.get(objectId)
     });
 
     const state = this.stateManager.getObjectState(zone, objectId);
@@ -309,7 +441,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
     if (objectDef.type === 'unknown' || !objectDef.type) {
       objectDef.type = 'ground_item';
-      this.log('info', `🔧 [JSON-SIMPLE] Auto-détection: type → ground_item`);
+      this.log('info', `🔧 [MONGODB-HYBRID] Auto-détection: type → ground_item`);
     }
     
     const subModule = this.subModuleFactory.findModuleForObject(objectDef);
@@ -317,7 +449,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       return this.createErrorResult(`Aucun gestionnaire pour le type: ${objectDef.type}`, "NO_HANDLER");
     }
 
-    this.log('info', `🚀 [JSON-SIMPLE] Délégation à ${subModule.typeName}`, { 
+    this.log('info', `🚀 [MONGODB-HYBRID] Délégation à ${subModule.typeName}`, { 
       objectId, 
       type: objectDef.type,
       itemId: objectDef.itemId
@@ -347,13 +479,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
     const zone = player.currentZone;
     
-    this.log('info', `🔍 [JSON-SIMPLE] Fouille générale dans ${zone}`, {
+    this.log('info', `🔍 [MONGODB-HYBRID] Fouille générale dans ${zone}`, {
       position: { x: position.x, y: position.y }
     });
     
     const nearbyHiddenObjects = this.findHiddenObjectsNear(zone, position.x, position.y, 32);
     
-    this.log('info', `🔍 [JSON-SIMPLE] ${nearbyHiddenObjects.length} objets cachés trouvés dans la zone`);
+    this.log('info', `🔍 [MONGODB-HYBRID] ${nearbyHiddenObjects.length} objets cachés trouvés dans la zone`);
 
     if (nearbyHiddenObjects.length > 0) {
       const objectDef = nearbyHiddenObjects[0];
@@ -362,7 +494,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
       const subModule = this.subModuleFactory.findModuleForObject(objectDef);
       if (subModule) {
-        this.log('info', `🚀 [JSON-SIMPLE] Fouille délégué à ${subModule.typeName}`);
+        this.log('info', `🚀 [MONGODB-HYBRID] Fouille délégué à ${subModule.typeName}`);
         
         const result = await subModule.handle(player, objectDef, { action: 'search' });
         
@@ -378,7 +510,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       }
     }
 
-    this.log('info', `❌ [JSON-SIMPLE] Rien trouvé lors de la fouille`);
+    this.log('info', `❌ [MONGODB-HYBRID] Rien trouvé lors de la fouille`);
     return createInteractionResult.noItemFound(
       "0",
       "search",
@@ -387,110 +519,324 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     );
   }
 
-  // === PARSING JSON - VERSION SIMPLIFIÉE ===
+  // ✅ CHARGEMENT SYNCHRONE HYBRIDE
+  private async autoLoadAllZonesSync(): Promise<void> {
+    this.log('info', `📂 [MONGODB-HYBRID] Auto-scan avec source: ${this.config.primaryDataSource}...`);
+    
+    if (this.config.primaryDataSource === ObjectDataSource.MONGODB || 
+        this.config.primaryDataSource === ObjectDataSource.HYBRID) {
+      try {
+        await this.autoLoadFromMongoDB();
+      } catch (error) {
+        this.log('error', 'Erreur auto-scan MongoDB:', error);
+        if (this.config.enableFallback) {
+          this.log('info', 'Fallback vers scan JSON');
+          this.autoLoadFromFiles();
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      this.autoLoadFromFiles();
+    }
+  }
 
-  /**
-   * ✅ MÉTHODE SIMPLIFIÉE : Charger les objets depuis JSON avec itemId direct
-   */
+  // ✅ CHARGEMENT MONGODB
+  private async autoLoadFromMongoDB(): Promise<void> {
+    try {
+      this.log('info', '🗄️  [Auto-scan MongoDB] Vérification connectivité...');
+      
+      await this.waitForMongoDBReady();
+      
+      const zones = await GameObjectData.distinct('zone');
+      
+      this.log('info', `📋 [MongoDB] ${zones.length} zones trouvées: ${zones.join(', ')}`);
+      
+      for (const zoneName of zones) {
+        try {
+          await this.loadObjectsForZone(zoneName);
+        } catch (error) {
+          this.log('warn', `⚠️ Erreur zone MongoDB ${zoneName}:`, error);
+        }
+      }
+      
+      this.log('info', `🎉 [Auto-scan MongoDB] Terminé: ${Array.from(this.objectsByZone.values()).reduce((sum, zoneMap) => sum + zoneMap.size, 0)} objets chargés`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Auto-scan MongoDB] Erreur:', error);
+      throw error;
+    }
+  }
+
+  // ✅ PING MONGODB INTELLIGENT
+  private async waitForMongoDBReady(maxRetries: number = 10): Promise<void> {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        this.log('info', `🏓 [MongoDB Ping] Tentative ${retries + 1}/${maxRetries}...`);
+        
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+          throw new Error('Mongoose pas encore connecté');
+        }
+        
+        await mongoose.connection.db.admin().ping();
+        
+        const rawCount = await mongoose.connection.db.collection('game_objects').countDocuments();
+        const testCount = await GameObjectData.countDocuments();
+        
+        this.log('info', `📊 [MongoDB Ping] Objets via modèle: ${testCount}`);
+        
+        if (rawCount !== testCount) {
+          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
+        }
+        
+        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} objets détectés`);
+        return;
+        
+      } catch (error) {
+        retries++;
+        const waitTime = Math.min(1000 * retries, 5000);
+        
+        this.log('warn', `⚠️ [MongoDB Ping] Échec ${retries}/${maxRetries}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retries >= maxRetries) {
+          throw new Error(`MongoDB non prêt après ${maxRetries} tentatives`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // ✅ CHARGEMENT PAR ZONE HYBRIDE
+  private async loadObjectsForZone(zoneName: string): Promise<void> {
+    const startTime = Date.now();
+    
+    this.log('info', `🎯 [Zone: ${zoneName}] Chargement selon stratégie: ${this.config.primaryDataSource}`);
+    
+    try {
+      switch (this.config.primaryDataSource) {
+        case ObjectDataSource.MONGODB:
+          await this.loadObjectsFromMongoDB(zoneName);
+          break;
+          
+        case ObjectDataSource.JSON:
+          await this.loadObjectsFromJSON(zoneName);
+          break;
+          
+        case ObjectDataSource.HYBRID:
+          try {
+            await this.loadObjectsFromMongoDB(zoneName);
+          } catch (mongoError) {
+            this.log('warn', `⚠️  [Hybrid] MongoDB échoué pour ${zoneName}, fallback JSON`);
+            await this.loadObjectsFromJSON(zoneName);
+          }
+          break;
+      }
+      
+      const loadTime = Date.now() - startTime;
+      this.log('info', `✅ [Zone: ${zoneName}] Chargé en ${loadTime}ms`);
+      
+    } catch (error) {
+      this.log('error', `❌ [Zone: ${zoneName}] Erreur de chargement:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ CHARGEMENT DEPUIS MONGODB
+  private async loadObjectsFromMongoDB(zoneName: string): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      if (this.config.useMongoCache) {
+        const cached = this.getFromCache(zoneName);
+        if (cached) {
+          this.log('info', `💾 [MongoDB Cache] Zone ${zoneName} trouvée en cache`);
+          this.addObjectsToCollection(cached, ObjectDataSource.MONGODB);
+          return;
+        }
+      }
+      
+      this.log('info', `🗄️  [MongoDB] Chargement zone ${zoneName}...`);
+      
+      const mongoObjects = await GameObjectData.findByZone(zoneName);
+      
+      const objectsData: ObjectDefinition[] = mongoObjects.map(mongoDoc => 
+        this.convertMongoDocToObjectDefinition(mongoDoc, zoneName)
+      );
+      
+      this.addObjectsToCollection(objectsData, ObjectDataSource.MONGODB);
+      
+      if (this.config.useMongoCache) {
+        this.setCache(zoneName, objectsData);
+      }
+      
+      this.loadedZones.add(zoneName);
+      
+      const queryTime = Date.now() - startTime;
+      this.log('info', `✅ [MongoDB] Zone ${zoneName}: ${objectsData.length} objets chargés en ${queryTime}ms`);
+      
+    } catch (error) {
+      this.log('error', `❌ [MongoDB] Erreur chargement zone ${zoneName}:`, error);
+      
+      if (this.config.enableFallback) {
+        this.log('info', `🔄 [Fallback] Tentative chargement JSON pour ${zoneName}`);
+        await this.loadObjectsFromJSON(zoneName);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // ✅ CONVERSION MONGODB → OBJECTDEFINITION
+  private convertMongoDocToObjectDefinition(mongoDoc: IGameObjectData, zoneName: string): ObjectDefinition {
+    try {
+      // Utiliser la méthode toObjectFormat() du modèle
+      const objectFormat = mongoDoc.toObjectFormat();
+      
+      // Enrichir avec métadonnées MongoDB
+      objectFormat.customProperties = {
+        ...objectFormat.customProperties,
+        mongoId: mongoDoc._id.toString(),
+        sourceType: 'mongodb',
+        lastUpdated: mongoDoc.lastUpdated,
+        version: mongoDoc.version
+      };
+      
+      return objectFormat;
+      
+    } catch (error) {
+      this.log('error', '❌ [convertMongoDocToObjectDefinition] Erreur conversion:', error);
+      throw error;
+    }
+  }
+
+  // ✅ AJOUT D'OBJETS À LA COLLECTION
+  private addObjectsToCollection(objectsData: ObjectDefinition[], source: ObjectDataSource): void {
+    for (const obj of objectsData) {
+      const zoneName = obj.zone;
+      
+      if (!this.objectsByZone.has(zoneName)) {
+        this.objectsByZone.set(zoneName, new Map());
+      }
+      
+      const zoneObjects = this.objectsByZone.get(zoneName)!;
+      
+      const existingIndex = Array.from(zoneObjects.values()).findIndex(existing => 
+        existing.id === obj.id
+      );
+      
+      if (existingIndex >= 0) {
+        zoneObjects.set(obj.id, obj);
+      } else {
+        zoneObjects.set(obj.id, obj);
+      }
+      
+      this.objectSourceMap.set(obj.id, source);
+    }
+  }
+
+  // ✅ MÉTHODES CACHE
+  private getFromCache(zoneName: string): ObjectDefinition[] | null {
+    const cached = this.mongoCache.get(zoneName);
+    
+    if (!cached) return null;
+    
+    const now = Date.now();
+    if (now - cached.timestamp > this.config.cacheTTL) {
+      this.mongoCache.delete(zoneName);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  private setCache(zoneName: string, data: ObjectDefinition[]): void {
+    this.mongoCache.set(zoneName, {
+      data: [...data],
+      timestamp: Date.now()
+    });
+  }
+
+  // ✅ CHARGEMENT JSON (RÉTROCOMPATIBILITÉ)
   async loadObjectsFromJSON(zoneName: string): Promise<void> {
     try {
       const jsonPath = path.resolve(this.config.gameObjectsPath, `${zoneName}.json`);
       
-      console.log(`🔍 [JSON-SIMPLE] Tentative chargement: ${jsonPath}`);
-
+      this.log('info', `📄 [JSON] Chargement objets depuis: ${jsonPath}`);
+      
       if (!fs.existsSync(jsonPath)) {
-        this.log('warn', `📄 [JSON-SIMPLE] Fichier introuvable: ${jsonPath}`);
+        this.log('warn', `📁 [JSON] Fichier introuvable: ${jsonPath}`);
         return;
       }
 
-      console.log(`📖 [JSON-SIMPLE] Lecture fichier ${zoneName}.json...`);
       const jsonData: GameObjectZoneData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
       
-      console.log(`✅ [JSON-SIMPLE] Données lues:`, {
+      this.log('info', `📖 [JSON] Données lues:`, {
         zone: jsonData.zone,
         version: jsonData.version,
         objectCount: jsonData.objects?.length || 0
       });
 
       if (!jsonData.objects || !Array.isArray(jsonData.objects)) {
-        this.log('warn', `⚠️ [JSON-SIMPLE] Aucun objet dans ${zoneName}.json`);
+        this.log('warn', `⚠️ [JSON] Aucun objet dans ${zoneName}.json`);
         return;
       }
 
       const objects = new Map<number, ObjectDefinition>();
 
-      console.log(`🔧 [JSON-SIMPLE] Traitement de ${jsonData.objects.length} objets...`);
-
       for (const objData of jsonData.objects) {
         try {
-          console.log(`📦 [JSON-SIMPLE] Traitement objet ID ${objData.id}:`, {
-            type: objData.type,
-            itemId: objData.itemId,
-            position: objData.position,
-            sprite: objData.sprite
-          });
-
-          // ✅ VALIDATION 1: itemId requis
           if (!objData.itemId) {
-            console.error(`❌ [JSON-SIMPLE] Objet ${objData.id}: itemId manquant`);
+            this.log('error', `❌ [JSON] Objet ${objData.id}: itemId manquant`);
             continue;
           }
 
-          // ✅ VALIDATION 2: itemId existe dans ItemDB
           if (!isValidItemId(objData.itemId)) {
-            console.error(`❌ [JSON-SIMPLE] Objet ${objData.id}: itemId "${objData.itemId}" invalide`);
+            this.log('error', `❌ [JSON] Objet ${objData.id}: itemId "${objData.itemId}" invalide`);
             continue;
           }
 
-          // Résoudre les requirements avec héritage (inchangé)
           const resolvedRequirements = this.resolveRequirements(
             objData, 
             jsonData.defaultRequirements, 
             jsonData.requirementPresets
           );
 
-          console.log(`🔑 [JSON-SIMPLE] Requirements résolus pour objet ${objData.id}:`, resolvedRequirements);
-
-          // Déterminer le type final pour ObjectDefinition
           let finalType: string = objData.type;
           if (objData.type === 'ground') finalType = 'ground_item';
           if (objData.type === 'hidden') finalType = 'hidden_item';
 
           const objectDef: ObjectDefinition = {
-            // Données de base
             id: objData.id,
-            name: objData.itemId, // ✅ SIMPLIFIÉ: itemId comme nom
+            name: objData.itemId,
             x: objData.position.x,
             y: objData.position.y,
             zone: zoneName,
             
-            // Type et contenu - ✅ DIRECT
             type: finalType,
-            itemId: objData.itemId,  // ✅ DIRECT depuis JSON
+            itemId: objData.itemId,
             quantity: objData.quantity || 1,
-            respawnTime: 0, // Géré par cooldown système
+            respawnTime: 0,
             
-            // Requirements résolus
             requirements: Object.keys(resolvedRequirements).length > 0 ? resolvedRequirements : undefined,
             
-            // Propriétés custom
             customProperties: {
-              // Données JSON originales
               sprite: objData.sprite,
               cooldownHours: objData.cooldown || 24,
               
-              // Propriétés spécifiques hidden
               ...(objData.type === 'hidden' && {
                 searchRadius: objData.searchRadius || 16,
                 itemfinderRadius: objData.itemfinderRadius || 64
               }),
               
-              // Toutes les autres propriétés
               originalType: objData.type,
-              requirementPreset: objData.requirementPreset
+              requirementPreset: objData.requirementPreset,
+              sourceType: 'json'
             },
             
-            // État runtime
             state: {
               collected: false,
               collectedBy: []
@@ -498,37 +844,209 @@ export class ObjectInteractionModule extends BaseInteractionModule {
           };
 
           objects.set(objData.id, objectDef);
-          
-          console.log(`✅ [JSON-SIMPLE] Objet ${objData.id} ajouté:`, {
-            finalType,
-            itemId: objectDef.itemId,
-            hasRequirements: !!objectDef.requirements,
-            customPropsCount: Object.keys(objectDef.customProperties).length
-          });
+          this.objectSourceMap.set(objData.id, ObjectDataSource.JSON);
 
         } catch (objError) {
-          console.error(`❌ [JSON-SIMPLE] Erreur traitement objet ${objData.id}:`, objError);
-          this.log('error', `Erreur objet ${objData.id}`, objError);
+          this.log('error', `❌ [JSON] Erreur traitement objet ${objData.id}:`, objError);
         }
       }
 
       this.objectsByZone.set(zoneName, objects);
+      this.loadedZones.add(zoneName);
       
-      console.log(`🎉 [JSON-SIMPLE] Zone ${zoneName} chargée avec succès:`, {
-        totalObjects: objects.size,
-        groundItems: Array.from(objects.values()).filter(o => o.type === 'ground_item').length,
-        hiddenItems: Array.from(objects.values()).filter(o => o.type === 'hidden_item').length
-      });
+      this.log('info', `🎉 [JSON] Zone ${zoneName} chargée: ${objects.size} objets`);
 
     } catch (error) {
-      console.error(`❌ [JSON-SIMPLE] Erreur chargement ${zoneName}.json:`, error);
-      this.log('error', `Erreur chargement JSON ${zoneName}`, error);
+      this.log('error', `❌ [JSON] Erreur chargement ${zoneName}.json:`, error);
+      throw error;
     }
   }
 
-  /**
-   * ✅ INCHANGÉ : Résoudre requirements avec héritage
-   */
+  // ✅ SCAN DES FICHIERS JSON (RÉTROCOMPATIBILITÉ)
+  private autoLoadFromFiles(): void {
+    try {
+      const gameObjectsDir = path.resolve(this.config.gameObjectsPath);
+      
+      if (!fs.existsSync(gameObjectsDir)) {
+        this.log('info', `📁 [JSON] Création du dossier: ${gameObjectsDir}`);
+        fs.mkdirSync(gameObjectsDir, { recursive: true });
+        return;
+      }
+
+      const jsonFiles = fs.readdirSync(gameObjectsDir)
+        .filter(file => file.endsWith('.json'))
+        .map(file => file.replace('.json', ''));
+
+      this.log('info', `📋 [JSON] ${jsonFiles.length} fichiers JSON trouvés:`, jsonFiles);
+
+      for (const zoneName of jsonFiles) {
+        this.log('info', `⏳ [JSON] Chargement zone: ${zoneName}...`);
+        this.loadObjectsFromJSON(zoneName).catch(error => {
+          this.log('error', `❌ [JSON] Erreur ${zoneName}:`, error);
+        });
+      }
+
+    } catch (error) {
+      this.log('error', `❌ [JSON] Erreur scan fichiers:`, error);
+    }
+  }
+
+  // ✅ HOT RELOAD MONGODB
+  private startHotReload(): void {
+    try {
+      this.log('info', '🔥 [HotReload] Démarrage MongoDB Change Streams...');
+      
+      this.changeStream = GameObjectData.watch([], { 
+        fullDocument: 'updateLookup'
+      });
+      
+      this.changeStream.on('change', (change: any) => {
+        this.handleMongoDBChange(change);
+      });
+      
+      this.changeStream.on('error', (error: any) => {
+        this.log('error', '❌ [HotReload] Erreur Change Stream:', error);
+        
+        setTimeout(() => {
+          this.log('info', '🔄 [HotReload] Redémarrage Change Stream...');
+          this.startHotReload();
+        }, 5000);
+      });
+      
+      this.log('info', '✅ [HotReload] Change Streams actif !');
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Impossible de démarrer Change Streams:', error);
+    }
+  }
+
+  private async handleMongoDBChange(change: any): Promise<void> {
+    try {
+      this.log('info', `🔥 [HotReload] Changement détecté: ${change.operationType}`);
+      
+      switch (change.operationType) {
+        case 'insert':
+          await this.handleObjectInsert(change.fullDocument);
+          break;
+          
+        case 'update':
+          await this.handleObjectUpdate(change.fullDocument);
+          break;
+          
+        case 'delete':
+          await this.handleObjectDelete(change.documentKey._id);
+          break;
+          
+        default:
+          this.log('info', `ℹ️ [HotReload] Opération ignorée: ${change.operationType}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur traitement changement:', error);
+    }
+  }
+
+  private async handleObjectInsert(mongoDoc: any): Promise<void> {
+    try {
+      const zoneName = mongoDoc.zone;
+      const objectDef = this.convertMongoDocToObjectDefinition(mongoDoc, zoneName);
+      
+      if (!this.objectsByZone.has(zoneName)) {
+        this.objectsByZone.set(zoneName, new Map());
+      }
+      
+      this.objectsByZone.get(zoneName)!.set(objectDef.id, objectDef);
+      this.objectSourceMap.set(objectDef.id, ObjectDataSource.MONGODB);
+      this.loadedZones.add(zoneName);
+      this.mongoCache.delete(zoneName);
+      
+      this.log('info', `➕ [HotReload] Objet ajouté: ${objectDef.name} (ID: ${objectDef.id}) dans ${zoneName}`);
+      this.notifyReloadCallbacks('insert', objectDef);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur ajout objet:', error);
+    }
+  }
+
+  private async handleObjectUpdate(mongoDoc: any): Promise<void> {
+    try {
+      const zoneName = mongoDoc.zone;
+      const objectDef = this.convertMongoDocToObjectDefinition(mongoDoc, zoneName);
+      
+      if (!this.objectsByZone.has(zoneName)) {
+        this.objectsByZone.set(zoneName, new Map());
+      }
+      
+      this.objectsByZone.get(zoneName)!.set(objectDef.id, objectDef);
+      this.objectSourceMap.set(objectDef.id, ObjectDataSource.MONGODB);
+      this.mongoCache.delete(zoneName);
+      this.loadedZones.add(zoneName);
+      
+      this.log('info', `🔄 [HotReload] Objet mis à jour: ${objectDef.name} (ID: ${objectDef.id})`);
+      this.notifyReloadCallbacks('update', objectDef);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur modification objet:', error);
+    }
+  }
+
+  private async handleObjectDelete(documentId: any): Promise<void> {
+    try {
+      let deletedObject: ObjectDefinition | null = null;
+      let zoneName = '';
+      
+      for (const [zone, objects] of this.objectsByZone.entries()) {
+        for (const [objectId, obj] of objects.entries()) {
+          if (obj.customProperties?.mongoId === documentId.toString()) {
+            deletedObject = obj;
+            zoneName = zone;
+            objects.delete(objectId);
+            this.objectSourceMap.delete(objectId);
+            break;
+          }
+        }
+        if (deletedObject) break;
+      }
+      
+      if (deletedObject) {
+        this.mongoCache.delete(zoneName);
+        this.log('info', `➖ [HotReload] Objet supprimé: ${deletedObject.name} (ID: ${deletedObject.id})`);
+        this.notifyReloadCallbacks('delete', deletedObject);
+      } else {
+        this.log('warn', `⚠️ [HotReload] Objet à supprimer non trouvé: ${documentId}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur suppression objet:', error);
+    }
+  }
+
+  private notifyReloadCallbacks(event: string, objectData?: any): void {
+    this.reloadCallbacks.forEach(callback => {
+      try {
+        callback(event, objectData);
+      } catch (error) {
+        this.log('error', '❌ [HotReload] Erreur callback:', error);
+      }
+    });
+  }
+
+  // ✅ MÉTHODES PUBLIQUES HOT RELOAD
+  public onObjectChange(callback: (event: string, objectData?: any) => void): void {
+    this.reloadCallbacks.push(callback);
+    this.log('info', `📋 [HotReload] Callback enregistré (total: ${this.reloadCallbacks.length})`);
+  }
+
+  public stopHotReload(): void {
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = null;
+      this.log('info', '🛑 [HotReload] Change Streams arrêté');
+    }
+  }
+
+  // === MÉTHODES UTILITAIRES (INCHANGÉES) ===
+
   private resolveRequirements(
     objData: any,
     defaultRequirements?: GameObjectZoneData['defaultRequirements'],
@@ -536,25 +1054,20 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   ): Record<string, any> {
     let resolved: Record<string, any> = {};
 
-    // 1. Defaults selon le type
     if (defaultRequirements && objData.type in defaultRequirements) {
       resolved = { ...resolved, ...defaultRequirements[objData.type as keyof typeof defaultRequirements] };
     }
 
-    // 2. Preset spécifique
     if (objData.requirementPreset && requirementPresets?.[objData.requirementPreset]) {
       resolved = { ...resolved, ...requirementPresets[objData.requirementPreset] };
     }
 
-    // 3. Requirements directs (priorité max)
     if (objData.requirements) {
       resolved = { ...resolved, ...objData.requirements };
     }
 
     return resolved;
   }
-
-  // === ACCÈS AUX OBJETS (INCHANGÉ) ===
 
   private getObject(zone: string, objectId: number): ObjectDefinition | undefined {
     const zoneObjects = this.objectsByZone.get(zone);
@@ -583,7 +1096,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     return nearbyObjects;
   }
 
-  // === MÉTHODES PUBLIQUES POUR WORLDROOM (INCHANGÉES) ===
+  // === MÉTHODES PUBLIQUES POUR WORLDROOM ===
 
   getVisibleObjectsInZone(zone: string): any[] {
     const { getServerConfig } = require('../../config/serverConfig');
@@ -607,16 +1120,17 @@ export class ObjectInteractionModule extends BaseInteractionModule {
             name: objectDef.name,
             x: objectDef.x,
             y: objectDef.y,
-            itemId: objectDef.itemId, // ✅ AJOUTÉ pour le client
+            itemId: objectDef.itemId,
             sprite: objectDef.customProperties?.sprite,
-            collected: false
+            collected: false,
+            source: this.objectSourceMap.get(objectDef.id) || 'unknown'
           });
         }
       }
     }
 
     if (serverConfig.autoresetObjects && visibleObjects.length > 0) {
-      console.log(`🔄 [JSON-SIMPLE] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
+      this.log('info', `🔄 [MONGODB-HYBRID] Reset visuel: ${visibleObjects.length} objets visibles dans ${zone}`);
     }
 
     return visibleObjects;
@@ -632,7 +1146,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
 
     const objectDef: ObjectDefinition = {
       id: objectId,
-      name: objectData.name || objectData.itemId || `Object_${objectId}`, // ✅ MODIFIÉ
+      name: objectData.name || objectData.itemId || `Object_${objectId}`,
       x: objectData.x || 0,
       y: objectData.y || 0,
       zone,
@@ -649,7 +1163,8 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     };
 
     zoneObjects.set(objectId, objectDef);
-    this.log('info', `📦 [JSON-SIMPLE] Objet ${objectId} ajouté dynamiquement à ${zone}`);
+    this.objectSourceMap.set(objectId, ObjectDataSource.JSON); // Par défaut
+    this.log('info', `📦 [MONGODB-HYBRID] Objet ${objectId} ajouté dynamiquement à ${zone}`);
   }
 
   resetObject(zone: string, objectId: number): boolean {
@@ -657,7 +1172,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     if (!objectDef) return false;
 
     this.stateManager.resetObject(zone, objectId);
-    this.log('info', `🔄 [JSON-SIMPLE] Objet ${objectId} réinitialisé dans ${zone}`);
+    this.log('info', `🔄 [MONGODB-HYBRID] Objet ${objectId} réinitialisé dans ${zone}`);
     return true;
   }
 
@@ -670,7 +1185,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     source: string = 'object_interaction'
   ): Promise<{ success: boolean; message: string; newQuantity?: number }> {
     try {
-      this.log('info', `🎁 [JSON-SIMPLE] Donner item à ${playerName}`, { itemId, quantity, source });
+      this.log('info', `🎁 [MONGODB-HYBRID] Donner item à ${playerName}`, { itemId, quantity, source });
       
       return {
         success: true,
@@ -679,7 +1194,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       };
       
     } catch (error) {
-      this.log('error', '❌ [JSON-SIMPLE] Erreur giveItemToPlayer', error);
+      this.log('error', '❌ [MONGODB-HYBRID] Erreur giveItemToPlayer', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -687,62 +1202,135 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === CYCLE DE VIE ===
+  // === NOUVELLES MÉTHODES PUBLIQUES MONGODB ===
 
-  async initialize(): Promise<void> {
-    await super.initialize();
-    
-    console.log(`🚀 [JSON-SIMPLE] Initialisation du système avec itemId direct...`);
-    
-    await this.subModuleFactory.discoverAndLoadModules();
-    
-    if (this.config.autoLoadMaps) {
-      await this.loadDefaultJSONZones();
+  async reloadZoneFromMongoDB(zoneName: string): Promise<boolean> {
+    try {
+      this.log('info', `🔄 [Reload] Rechargement zone ${zoneName} depuis MongoDB`);
+      
+      this.mongoCache.delete(zoneName);
+      
+      // Supprimer objets MongoDB de cette zone
+      const zoneObjects = this.objectsByZone.get(zoneName);
+      if (zoneObjects) {
+        for (const [objectId, obj] of zoneObjects.entries()) {
+          if (this.objectSourceMap.get(objectId) === ObjectDataSource.MONGODB) {
+            zoneObjects.delete(objectId);
+            this.objectSourceMap.delete(objectId);
+          }
+        }
+      }
+      
+      await this.loadObjectsFromMongoDB(zoneName);
+      
+      this.log('info', `✅ [Reload] Zone ${zoneName} rechargée`);
+      return true;
+      
+    } catch (error) {
+      this.log('error', `❌ [Reload] Erreur rechargement ${zoneName}:`, error);
+      return false;
     }
-    
-    console.log(`✅ [JSON-SIMPLE] Système d'objets JSON simplifié initialisé avec succès`);
   }
 
+  async syncObjectsToMongoDB(zoneName?: string): Promise<{ success: number; errors: string[] }> {
+    const results: { success: number; errors: string[] } = { success: 0, errors: [] };
+    
+    try {
+      let objectsToSync: ObjectDefinition[] = [];
+      
+      if (zoneName) {
+        const zoneObjects = this.objectsByZone.get(zoneName);
+        if (zoneObjects) {
+          objectsToSync = Array.from(zoneObjects.values())
+            .filter(obj => this.objectSourceMap.get(obj.id) !== ObjectDataSource.MONGODB);
+        }
+      } else {
+        for (const [zone, objects] of this.objectsByZone.entries()) {
+          for (const obj of objects.values()) {
+            if (this.objectSourceMap.get(obj.id) !== ObjectDataSource.MONGODB) {
+              objectsToSync.push(obj);
+            }
+          }
+        }
+      }
+      
+      this.log('info', `🔄 [Sync] Synchronisation ${objectsToSync.length} objets vers MongoDB...`);
+      
+      for (const obj of objectsToSync) {
+        try {
+          let mongoDoc = await GameObjectData.findOne({ 
+            zone: obj.zone,
+            objectId: obj.id 
+          });
+          
+          const jsonObject = this.convertObjectDefinitionToJson(obj);
+          
+          if (mongoDoc) {
+            await mongoDoc.updateFromJson(jsonObject);
+            results.success++;
+          } else {
+            mongoDoc = await GameObjectData.createFromJson(jsonObject, obj.zone);
+            results.success++;
+          }
+          
+        } catch (error) {
+          const errorMsg = `Objet ${obj.id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+          results.errors.push(errorMsg);
+          this.log('error', `❌ [Sync] ${errorMsg}`);
+        }
+      }
+      
+      this.log('info', `✅ [Sync] Terminé: ${results.success} succès, ${results.errors.length} erreurs`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Sync] Erreur générale:', error);
+      results.errors.push('Erreur de synchronisation globale');
+    }
+    
+    return results;
+  }
+
+  private convertObjectDefinitionToJson(obj: ObjectDefinition): any {
+    return {
+      id: obj.id,
+      name: obj.name,
+      position: { x: obj.x, y: obj.y },
+      type: obj.customProperties?.originalType || obj.type.replace('_item', ''),
+      itemId: obj.itemId,
+      sprite: obj.customProperties?.sprite,
+      quantity: obj.quantity,
+      cooldown: obj.customProperties?.cooldownHours,
+      searchRadius: obj.customProperties?.searchRadius,
+      itemfinderRadius: obj.customProperties?.itemfinderRadius,
+      requirements: obj.requirements,
+      
+      // Propriétés custom additionnelles
+      ...Object.fromEntries(
+        Object.entries(obj.customProperties || {})
+          .filter(([key]) => !['sprite', 'cooldownHours', 'searchRadius', 'itemfinderRadius', 'originalType', 'mongoId', 'sourceType'].includes(key))
+      )
+    };
+  }
+
+  // === CYCLE DE VIE ===
+
   async cleanup(): Promise<void> {
-    this.log('info', '🧹 [JSON-SIMPLE] Nettoyage du système d\'objets...');
+    this.log('info', '🧹 [MONGODB-HYBRID] Nettoyage du système d\'objets...');
+    
+    this.stopHotReload();
+    this.reloadCallbacks = [];
+    this.mongoCache.clear();
+    this.objectSourceMap.clear();
     
     await this.subModuleFactory.cleanup();
     this.stateManager.cleanup();
     
-    await super.cleanup();
-  }
-
-  /**
-   * ✅ INCHANGÉ : Charger les zones JSON par défaut
-   */
-  private async loadDefaultJSONZones(): Promise<void> {
-    console.log(`📂 [JSON-SIMPLE] Chargement des zones depuis: ${this.config.gameObjectsPath}`);
+    // Reset flags d'état
+    this.isInitialized = false;
+    this.isInitializing = false;
+    this.initializationPromise = null;
     
-    try {
-      const gameObjectsDir = path.resolve(this.config.gameObjectsPath);
-      
-      if (!fs.existsSync(gameObjectsDir)) {
-        console.log(`📁 [JSON-SIMPLE] Création du dossier: ${gameObjectsDir}`);
-        fs.mkdirSync(gameObjectsDir, { recursive: true });
-        return;
-      }
-
-      const jsonFiles = fs.readdirSync(gameObjectsDir)
-        .filter(file => file.endsWith('.json'))
-        .map(file => file.replace('.json', ''));
-
-      console.log(`📋 [JSON-SIMPLE] ${jsonFiles.length} fichiers JSON trouvés:`, jsonFiles);
-
-      for (const zoneName of jsonFiles) {
-        console.log(`⏳ [JSON-SIMPLE] Chargement zone: ${zoneName}...`);
-        await this.loadObjectsFromJSON(zoneName);
-      }
-
-      console.log(`🎉 [JSON-SIMPLE] Toutes les zones chargées avec succès !`);
-      
-    } catch (error) {
-      console.error(`❌ [JSON-SIMPLE] Erreur chargement zones:`, error);
-    }
+    await super.cleanup();
   }
 
   // === MÉTHODES D'ADMINISTRATION ===
@@ -751,25 +1339,22 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     return await this.subModuleFactory.reloadModule(typeName);
   }
 
-  /**
-   * ✅ INCHANGÉ : Recharger une zone JSON
-   */
   async reloadZone(zoneName: string): Promise<boolean> {
     try {
-      console.log(`🔄 [JSON-SIMPLE] Rechargement zone: ${zoneName}`);
+      this.log('info', `🔄 [MONGODB-HYBRID] Rechargement zone: ${zoneName}`);
       
-      // Supprimer la zone actuelle
       this.objectsByZone.delete(zoneName);
+      this.loadedZones.delete(zoneName);
+      this.mongoCache.delete(zoneName);
       
-      // Recharger depuis JSON
-      await this.loadObjectsFromJSON(zoneName);
+      await this.loadObjectsForZone(zoneName);
       
       const reloadedObjects = this.objectsByZone.get(zoneName)?.size || 0;
-      console.log(`✅ [JSON-SIMPLE] Zone ${zoneName} rechargée: ${reloadedObjects} objets`);
+      this.log('info', `✅ [MONGODB-HYBRID] Zone ${zoneName} rechargée: ${reloadedObjects} objets`);
       
       return reloadedObjects > 0;
     } catch (error) {
-      console.error(`❌ [JSON-SIMPLE] Erreur rechargement ${zoneName}:`, error);
+      this.log('error', `❌ [MONGODB-HYBRID] Erreur rechargement ${zoneName}:`, error);
       return false;
     }
   }
@@ -779,38 +1364,69 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     const stateStats = this.stateManager.getStats();
     const baseStats = this.getStats();
 
+    const mongoCount = Array.from(this.objectSourceMap.values()).filter(s => s === ObjectDataSource.MONGODB).length;
+    const jsonCount = Array.from(this.objectSourceMap.values()).filter(s => s === ObjectDataSource.JSON).length;
+
     return {
       module: baseStats,
       factory: factoryStats,
       states: stateStats,
       config: {
+        primaryDataSource: this.config.primaryDataSource,
+        useMongoCache: this.config.useMongoCache,
+        enableFallback: this.config.enableFallback,
         gameObjectsPath: this.config.gameObjectsPath,
         autoLoadMaps: this.config.autoLoadMaps,
         version: this.version
       },
       zones: {
         total: this.objectsByZone.size,
-        zones: Array.from(this.objectsByZone.keys()),
+        zones: Array.from(this.loadedZones),
         totalObjects: Array.from(this.objectsByZone.values())
           .reduce((sum, zoneMap) => sum + zoneMap.size, 0)
+      },
+      sources: {
+        mongodb: mongoCount,
+        json: jsonCount,
+        hybrid: mongoCount > 0 && jsonCount > 0
+      },
+      cache: {
+        size: this.mongoCache.size,
+        ttl: this.config.cacheTTL
+      },
+      hotReload: {
+        enabled: this.hotReloadEnabled,
+        active: !!this.changeStream,
+        callbackCount: this.reloadCallbacks.length
+      },
+      initialization: {
+        initialized: this.isInitialized,
+        initializing: this.isInitializing
       }
     };
   }
 
   debugSystem(): void {
-    console.log(`🔍 [JSON-SIMPLE] === DEBUG SYSTÈME OBJETS JSON SIMPLIFIÉ ===`);
+    console.log(`🔍 [MONGODB-HYBRID] === DEBUG SYSTÈME OBJETS MONGODB ===`);
     
     console.log(`📦 Zones chargées: ${this.objectsByZone.size}`);
     for (const [zone, objects] of this.objectsByZone.entries()) {
       console.log(`  🌍 ${zone}: ${objects.size} objets`);
       
-      // Détails par type
       const byType: Record<string, number> = {};
+      const bySource: Record<string, number> = {};
+      
       for (const obj of objects.values()) {
         byType[obj.type] = (byType[obj.type] || 0) + 1;
+        const source = this.objectSourceMap.get(obj.id) || 'unknown';
+        bySource[source] = (bySource[source] || 0) + 1;
       }
+      
       for (const [type, count] of Object.entries(byType)) {
         console.log(`    📋 ${type}: ${count}`);
+      }
+      for (const [source, count] of Object.entries(bySource)) {
+        console.log(`    🗄️ ${source}: ${count}`);
       }
     }
     
@@ -818,6 +1434,14 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     
     const stateStats = this.stateManager.getStats();
     console.log(`💾 États: ${JSON.stringify(stateStats, null, 2)}`);
+    
+    console.log(`🔥 Hot Reload: ${this.hotReloadEnabled ? 'ON' : 'OFF'} (actif: ${!!this.changeStream})`);
+    console.log(`📊 Cache MongoDB: ${this.mongoCache.size} zones en cache`);
+    console.log(`⚙️ Config: ${JSON.stringify({
+      primarySource: this.config.primaryDataSource,
+      useCache: this.config.useMongoCache,
+      fallback: this.config.enableFallback
+    }, null, 2)}`);
   }
 
   // === MÉTHODES UTILITAIRES PROTÉGÉES ===
@@ -825,7 +1449,27 @@ export class ObjectInteractionModule extends BaseInteractionModule {
   protected createErrorResult(message: string, code?: string): InteractionResult {
     return createInteractionResult.error(message, code, {
       module: this.moduleName,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      version: this.version
     });
+  }
+
+  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+    if (!this.config.debugMode && level === 'info') return;
+    
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}`;
+    
+    switch (level) {
+      case 'info':
+        console.log(logMessage, data || '');
+        break;
+      case 'warn':
+        console.warn(logMessage, data || '');
+        break;
+      case 'error':
+        console.error(logMessage, data || '');
+        break;
+    }
   }
 }
