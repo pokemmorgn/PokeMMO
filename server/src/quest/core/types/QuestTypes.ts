@@ -678,8 +678,5 @@ export type {
   QuestDefinition as LegacyQuestDefinition
 };
 
-// ✅ EXPORTS MANQUANTS pour QuestData.ts
-export type { QuestObjectiveType };
-export type { QuestRewardType };
-export type { QuestCategory };
-export type { RewardRarity };
+// Note: QuestObjectiveType, QuestRewardType, QuestCategory, RewardRarity 
+// sont déjà exportés dans leurs déclarations respectives ci-dessus
