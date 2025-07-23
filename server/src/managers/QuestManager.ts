@@ -662,13 +662,13 @@ export class QuestManager {
       
       for (const quest of questsToSync) {
         try {
-          let mongoDoc = await QuestData.findOne({ questId: quest.id });
+          const existingDoc = await QuestData.findOne({ questId: quest.id });
           
-          if (mongoDoc) {
-            await mongoDoc.updateFromJson(quest);
+          if (existingDoc) {
+            await existingDoc.updateFromJson(quest);
             results.success++;
           } else {
-            mongoDoc = await QuestData.createFromJson(quest);
+            const newDoc = await (QuestData as any).createFromJson(quest);
             results.success++;
           }
           
