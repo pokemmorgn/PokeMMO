@@ -1269,7 +1269,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
             await mongoDoc.updateFromJson(jsonObject);
             results.success++;
           } else {
-            mongoDoc = await GameObjectData.createFromJson(jsonObject, obj.zone);
+            const newDoc = await GameObjectData.createFromJson(jsonObject, obj.zone);
             results.success++;
           }
           
@@ -1454,7 +1454,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     });
   }
 
-  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+  protected log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
     if (!this.config.debugMode && level === 'info') return;
     
     const timestamp = new Date().toISOString();
