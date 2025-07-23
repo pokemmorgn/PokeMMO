@@ -1050,7 +1050,6 @@ handleInterfaceError(error, context) {
     console.error(`❌ [MongoDB] Erreur interface (${context}):`, error)
     this.adminPanel.showNotification(`Erreur: ${error.message}`, 'error')
 }
-
     
 cleanup() {
     this.advanced?.cleanup()
