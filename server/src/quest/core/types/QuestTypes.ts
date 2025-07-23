@@ -80,8 +80,8 @@ export interface QuestObjectiveConditions {
   perfectScore?: boolean;
   noDamage?: boolean;
   
-  // Conditions d'objet
-  itemRarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  // Conditions d'objet (CORRIGÉ : utilise RewardRarity complet)
+  itemRarity?: RewardRarity;
   firstTime?: boolean;
   
   // Conditions de joueur
