@@ -794,24 +794,30 @@ async loadDocumentForEdit(documentId) {
     }
 }
 
-    populateFormFromDocument(document) {
-        const fieldsContainer = document.getElementById('documentFields')
-        fieldsContainer.innerHTML = ''
-        
-        Object.entries(document).forEach(([key, value]) => {
-            this.addDocumentField(key, value, this.detectFieldType(value))
-        })
-        
-        // Ajouter le bouton pour ajouter des champs
-        const addButton = document.createElement('div')
-        addButton.className = 'mongodb-field-group'
-        addButton.innerHTML = `
-            <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').addDocumentField()">
-                <i class="fas fa-plus"></i> Ajouter un champ
-            </button>
-        `
-        fieldsContainer.appendChild(addButton)
+   populateFormFromDocument(documentData) {
+    // ✅ CORRECTION: Renommer le paramètre pour éviter le conflit avec l'objet global 'document'
+    const fieldsContainer = document.getElementById('documentFields')
+    if (!fieldsContainer) {
+        console.error('❌ [MongoDB] Container documentFields non trouvé')
+        return
     }
+    
+    fieldsContainer.innerHTML = ''
+    
+    Object.entries(documentData).forEach(([key, value]) => {
+        this.addDocumentField(key, value, this.detectFieldType(value))
+    })
+    
+    // Ajouter le bouton pour ajouter des champs
+    const addButton = document.createElement('div')
+    addButton.className = 'mongodb-field-group'
+    addButton.innerHTML = `
+        <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="window.mongoAdvancedRef.addDocumentField()">
+            <i class="fas fa-plus"></i> Ajouter un champ
+        </button>
+    `
+    fieldsContainer.appendChild(addButton)
+}
 
    // 1. CORRIGER la méthode createModal (vers la fin du fichier)
 createModal(title, className, content) {
@@ -883,7 +889,7 @@ createModal(title, className, content) {
 }
 
 // 2. CORRIGER la méthode showDocumentEditor
-showDocumentEditor(document = null, isEdit = false) {
+showDocumentEditor(documentData = null, isEdit = false) {
     const title = isEdit ? 'Modifier le document' : 'Créer un document'
     
     const modal = this.createModal(title, 'mongodb-document-editor', `
@@ -921,7 +927,7 @@ showDocumentEditor(document = null, isEdit = false) {
             <!-- Mode JSON -->
             <div class="mongodb-json-mode" id="jsonMode" style="display: none;">
                 <div class="mongodb-json-editor">
-                    <textarea class="mongodb-json-textarea" id="documentJSON" placeholder="Entrez le JSON du document...">${document ? JSON.stringify(document, null, 2) : `{
+                    <textarea class="mongodb-json-textarea" id="documentJSON" placeholder="Entrez le JSON du document...">${documentData ? JSON.stringify(documentData, null, 2) : `{
   "_id": null,
   "name": "",
   "email": "",
@@ -947,14 +953,14 @@ showDocumentEditor(document = null, isEdit = false) {
     window.mongoAdvancedRef = this
     
     // Stocker le document original
-    this.currentEditingDocument = document
+    this.currentEditingDocument = documentData
     
     console.log('✅ [MongoDB] Éditeur de document configuré avec référence globale')
     
-    if (isEdit && document) {
+    if (isEdit && documentData) {
         // Attendre un peu que le modal soit rendu
         setTimeout(() => {
-            this.populateFormFromDocument(document)
+            this.populateFormFromDocument(documentData)
         }, 100)
     } else {
         setTimeout(() => {
@@ -1147,17 +1153,18 @@ addDocumentField(key = '', value = '', type = 'string') {
         }
     }
 
-    updateFormFromJSON() {
-        try {
-            const jsonValue = document.getElementById('documentJSON').value
-            const document = JSON.parse(jsonValue)
-            
-            // Recréer le formulaire
-            this.populateFormFromDocument(document)
-        } catch (error) {
-            this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
-        }
+updateFormFromJSON() {
+    try {
+        const jsonValue = document.getElementById('documentJSON').value
+        const documentData = JSON.parse(jsonValue)
+        
+        // Recréer le formulaire
+        this.populateFormFromDocument(documentData)
+    } catch (error) {
+        this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
     }
+}
+
 
     validateDocument() {
         try {
@@ -1204,97 +1211,102 @@ addDocumentField(key = '', value = '', type = 'string') {
     }
 
     async saveDocument(isEdit = false) {
-        if (!this.validateDocument()) return
+    if (!this.validateDocument()) return
+    
+    try {
+        const jsonValue = document.getElementById('documentJSON').value
+        const documentData = JSON.parse(jsonValue)
         
-        try {
-            const jsonValue = document.getElementById('documentJSON').value
-            const document = JSON.parse(jsonValue)
-            
-            const endpoint = isEdit ? '/mongodb/update-document' : '/mongodb/create-document'
-            const response = await this.adminPanel.apiCall(endpoint, {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.mongo.currentDatabase,
-                    collection: this.mongo.currentCollection,
-                    document: document,
-                    originalId: isEdit ? document._id : null
-                })
+        const endpoint = isEdit ? '/mongodb/update-document' : '/mongodb/create-document'
+        const response = await this.adminPanel.apiCall(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+                database: this.mongo.currentDatabase,
+                collection: this.mongo.currentCollection,
+                document: documentData,
+                originalId: isEdit ? this.currentEditingDocument._id : null
             })
+        })
+        
+        if (response.success) {
+            document.querySelector('.mongodb-modal').remove()
             
-            if (response.success) {
-                document.querySelector('.mongodb-modal').remove()
-                this.mongo.loadDocuments(this.mongo.currentQuery) // Refresh
-                
-                const message = isEdit ? 'Document mis à jour avec succès' : 'Document créé avec succès'
-                this.adminPanel.showNotification(message, 'success')
-            } else {
-                throw new Error(response.message || 'Erreur lors de la sauvegarde')
-            }
-        } catch (error) {
-            this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error')
+            // ✅ Nettoyer la référence globale
+            window.mongoAdvancedRef = null
+            
+            this.mongo.loadDocuments(this.mongo.currentQuery) // Refresh
+            
+            const message = isEdit ? 'Document mis à jour avec succès' : 'Document créé avec succès'
+            this.adminPanel.showNotification(message, 'success')
+        } else {
+            throw new Error(response.message || 'Erreur lors de la sauvegarde')
         }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error')
     }
+}
+
 
     loadDocumentTemplate() {
-        const templates = {
-            'Utilisateur': {
-                name: 'John Doe',
-                email: 'john@example.com',
-                age: 30,
-                active: true,
-                roles: ['user'],
-                profile: {
-                    avatar: 'avatar.jpg',
-                    bio: 'Description de l\'utilisateur'
-                },
-                createdAt: new Date(),
-                updatedAt: new Date()
+    const templates = {
+        'Utilisateur': {
+            name: 'John Doe',
+            email: 'john@example.com',
+            age: 30,
+            active: true,
+            roles: ['user'],
+            profile: {
+                avatar: 'avatar.jpg',
+                bio: 'Description de l\'utilisateur'
             },
-            'Produit': {
-                name: 'Nom du produit',
-                description: 'Description du produit',
-                price: 29.99,
-                category: 'Category Name',
-                tags: ['tag1', 'tag2'],
-                inStock: true,
-                specifications: {
-                    weight: '1kg',
-                    dimensions: '10x10x10cm'
-                },
-                createdAt: new Date()
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        'Produit': {
+            name: 'Nom du produit',
+            description: 'Description du produit',
+            price: 29.99,
+            category: 'Category Name',
+            tags: ['tag1', 'tag2'],
+            inStock: true,
+            specifications: {
+                weight: '1kg',
+                dimensions: '10x10x10cm'
             },
-            'Commande': {
-                orderId: 'ORD-' + Date.now(),
-                customerId: null,
-                items: [
-                    {
-                        productId: null,
-                        quantity: 1,
-                        price: 29.99
-                    }
-                ],
-                total: 29.99,
-                status: 'pending',
-                shippingAddress: {
-                    street: '',
-                    city: '',
-                    zipCode: '',
-                    country: ''
-                },
-                createdAt: new Date()
-            }
-        }
-        
-        const templateName = prompt('Choisir un template:\n- Utilisateur\n- Produit\n- Commande\n\nOu entrez "custom" pour un template vide')
-        
-        if (templates[templateName]) {
-            document.getElementById('documentJSON').value = JSON.stringify(templates[templateName], null, 2)
-            this.updateFormFromJSON()
-        } else if (templateName === 'custom') {
-            document.getElementById('documentJSON').value = '{\n  \n}'
-            this.updateFormFromJSON()
+            createdAt: new Date()
+        },
+        'Commande': {
+            orderId: 'ORD-' + Date.now(),
+            customerId: null,
+            items: [
+                {
+                    productId: null,
+                    quantity: 1,
+                    price: 29.99
+                }
+            ],
+            total: 29.99,
+            status: 'pending',
+            shippingAddress: {
+                street: '',
+                city: '',
+                zipCode: '',
+                country: ''
+            },
+            createdAt: new Date()
         }
     }
+    
+    const templateName = prompt('Choisir un template:\n- Utilisateur\n- Produit\n- Commande\n\nOu entrez "custom" pour un template vide')
+    
+    if (templates[templateName]) {
+        document.getElementById('documentJSON').value = JSON.stringify(templates[templateName], null, 2)
+        this.updateFormFromJSON()
+    } else if (templateName === 'custom') {
+        document.getElementById('documentJSON').value = '{\n  \n}'
+        this.updateFormFromJSON()
+    }
+}
 
     // =============================================================================
     // SUPPRESSION DE DOCUMENTS
