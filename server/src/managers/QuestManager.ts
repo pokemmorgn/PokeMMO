@@ -1,8 +1,9 @@
-// server/src/managers/QuestManager.ts - VERSION COMPLÈTE AVEC NOUVELLES MÉTHODES
+// server/src/managers/QuestManager.ts - VERSION MONGODB AVEC HOT-RELOAD
 
 import fs from "fs";
 import path from "path";
 import { PlayerQuest } from "../models/PlayerQuest";
+import { QuestData } from "../models/QuestData";
 import { 
   QuestDefinition, 
   Quest, 
@@ -11,6 +12,27 @@ import {
   QuestReward 
 } from "../types/QuestTypes";
 import { ServiceRegistry } from "../services/ServiceRegistry";
+
+// ===== ÉNUMÉRATION DES SOURCES DE DONNÉES =====
+export enum QuestDataSource {
+  JSON = 'json',
+  MONGODB = 'mongodb',
+  HYBRID = 'hybrid'
+}
+
+// ===== CONFIGURATION =====
+interface QuestManagerConfig {
+  primaryDataSource: QuestDataSource;
+  useMongoCache: boolean;
+  cacheTTL: number;
+  enableFallback: boolean;
+  
+  questDataPath: string;
+  autoLoadJSON: boolean;
+  strictValidation: boolean;
+  debugMode: boolean;
+  cacheEnabled: boolean;
+}
 
 export interface QuestUpdateResult {
   questId: string;
@@ -38,30 +60,672 @@ export interface QuestUpdateResult {
 
 export class QuestManager {
   private questDefinitions: Map<string, QuestDefinition> = new Map();
+  
+  // ✅ NOUVEAUX FLAGS D'ÉTAT
+  private isInitialized: boolean = false;
+  private isInitializing: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
+  
+  // Propriétés MongoDB
+  private mongoCache: Map<string, { data: QuestDefinition[]; timestamp: number }> = new Map();
+  private questSourceMap: Map<string, 'json' | 'mongodb'> = new Map();
+  private validationErrors: Map<string, string[]> = new Map();
+  private lastLoadTime: number = 0;
+  
+  // Hot Reload
+  private changeStream: any = null;
+  private hotReloadEnabled: boolean = true;
+  private reloadCallbacks: Array<(event: string, questData?: any) => void> = [];
+  
+  // Configuration
+  private config: QuestManagerConfig = {
+    primaryDataSource: QuestDataSource.MONGODB,
+    useMongoCache: process.env.QUEST_USE_CACHE !== 'false',
+    cacheTTL: parseInt(process.env.QUEST_CACHE_TTL || '1800000'),
+    enableFallback: process.env.QUEST_FALLBACK !== 'false',
+    
+    questDataPath: './build/data/quests/quests.json',
+    autoLoadJSON: true,
+    strictValidation: process.env.NODE_ENV === 'production',
+    debugMode: process.env.NODE_ENV === 'development',
+    cacheEnabled: true
+  };
 
-  constructor(questDataPath: string = "../data/quests/quests.json") {
-    this.loadQuestDefinitions(questDataPath);
+  // ✅ CONSTRUCTEUR CORRIGÉ : Ne lance plus le chargement automatique
+  constructor(questDataPath?: string, customConfig?: Partial<QuestManagerConfig>) {
+    if (questDataPath) {
+      this.config.questDataPath = questDataPath;
+    }
+    
+    if (customConfig) {
+      this.config = { ...this.config, ...customConfig };
+    }
+    
+    this.log('info', `🚀 [QuestManager] Construction`, {
+      primarySource: this.config.primaryDataSource,
+      config: this.config
+    });
+
+    // ✅ IMPORTANT : Ne plus lancer le chargement ici !
+    // Le chargement sera lancé par initialize() ou waitForLoad()
+    
+    this.lastLoadTime = Date.now();
+    
+    this.log('info', `✅ [QuestManager] Construit (pas encore initialisé)`, {
+      totalQuests: this.questDefinitions.size,
+      needsInitialization: true
+    });
   }
 
-  private loadQuestDefinitions(questDataPath: string): void {
+  // ✅ NOUVELLE MÉTHODE : Initialisation asynchrone
+  async initialize(): Promise<void> {
+    // Éviter les initialisations multiples
+    if (this.isInitialized) {
+      this.log('info', `♻️ [QuestManager] Déjà initialisé`);
+      return;
+    }
+    
+    if (this.isInitializing) {
+      this.log('info', `⏳ [QuestManager] Initialisation en cours, attente...`);
+      if (this.initializationPromise) {
+        await this.initializationPromise;
+      }
+      return;
+    }
+    
+    this.isInitializing = true;
+    this.log('info', `🔄 [QuestManager] Démarrage initialisation asynchrone...`);
+    
+    // Créer la promesse d'initialisation
+    this.initializationPromise = this.performInitialization();
+    
     try {
-      const resolvedPath = path.resolve(__dirname, questDataPath);
+      await this.initializationPromise;
+      this.isInitialized = true;
+      this.log('info', `✅ [QuestManager] Initialisation terminée avec succès`, {
+        totalQuests: this.questDefinitions.size
+      });
+    } catch (error) {
+      this.log('error', `❌ [QuestManager] Erreur lors de l'initialisation:`, error);
+      throw error;
+    } finally {
+      this.isInitializing = false;
+    }
+  }
+
+  // ✅ MÉTHODE PRIVÉE : Logique d'initialisation
+  private async performInitialization(): Promise<void> {
+    try {
+      this.log('info', `🔍 [QuestManager] Chargement selon stratégie: ${this.config.primaryDataSource}`);
+      await this.loadQuestDefinitions();
+    } catch (error) {
+      this.log('error', `❌ [QuestManager] Erreur initialisation:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ MÉTHODE CORRIGÉE : waitForLoad attend maintenant vraiment !
+  async waitForLoad(timeoutMs: number = 10000): Promise<boolean> {
+    const startTime = Date.now();
+    
+    this.log('info', `⏳ [WaitForLoad] Attente du chargement des quêtes (timeout: ${timeoutMs}ms)...`);
+    
+    // ✅ ÉTAPE 1: S'assurer que l'initialisation est lancée
+    if (!this.isInitialized && !this.isInitializing) {
+      this.log('info', `🚀 [WaitForLoad] Lancement de l'initialisation...`);
+      this.initialize().catch(error => {
+        this.log('error', `❌ [WaitForLoad] Erreur initialisation:`, error);
+      });
+    }
+    
+    // ✅ ÉTAPE 2: Attendre que l'initialisation se termine
+    while ((!this.isInitialized || this.questDefinitions.size === 0) && (Date.now() - startTime) < timeoutMs) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    const loaded = this.isInitialized && this.questDefinitions.size > 0;
+    const loadTime = Date.now() - startTime;
+    
+    if (loaded) {
+      this.log('info', `✅ [WaitForLoad] Quêtes chargées: ${this.questDefinitions.size} quêtes en ${loadTime}ms`);
+      
+      // ✅ DÉMARRER HOT RELOAD après chargement réussi
+      if (this.config.primaryDataSource === QuestDataSource.MONGODB && this.hotReloadEnabled) {
+        this.startHotReload();
+      }
+    } else {
+      this.log('warn', `⚠️ [WaitForLoad] Timeout après ${timeoutMs}ms, initialisé: ${this.isInitialized}, Quêtes: ${this.questDefinitions.size}`);
+    }
+    
+    return loaded;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement des définitions depuis MongoDB
+  private async loadQuestDefinitions(): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      switch (this.config.primaryDataSource) {
+        case QuestDataSource.MONGODB:
+          await this.loadQuestDefinitionsFromMongoDB();
+          break;
+          
+        case QuestDataSource.JSON:
+          this.loadQuestDefinitionsFromJSON();
+          break;
+          
+        case QuestDataSource.HYBRID:
+          try {
+            await this.loadQuestDefinitionsFromMongoDB();
+          } catch (mongoError) {
+            this.log('warn', `⚠️ [Hybrid] MongoDB échoué, fallback JSON`);
+            this.loadQuestDefinitionsFromJSON();
+          }
+          break;
+      }
+      
+      const loadTime = Date.now() - startTime;
+      this.log('info', `✅ Quêtes chargées en ${loadTime}ms`, {
+        total: this.questDefinitions.size,
+        source: this.config.primaryDataSource
+      });
+      
+    } catch (error) {
+      this.log('error', `❌ Erreur de chargement des quêtes:`, error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Chargement MongoDB
+  private async loadQuestDefinitionsFromMongoDB(): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      if (this.config.useMongoCache) {
+        const cached = this.getFromCache('all_quests');
+        if (cached) {
+          this.log('info', `💾 [MongoDB Cache] Quêtes trouvées en cache`);
+          this.addQuestsToCollection(cached, QuestDataSource.MONGODB);
+          return;
+        }
+      }
+      
+      this.log('info', `🗄️ [MongoDB] Chargement des quêtes...`);
+      
+      await this.waitForMongoDBReady();
+      
+      const mongoQuests = await QuestData.findActiveQuests();
+      
+      const questDefinitions: QuestDefinition[] = mongoQuests.map(mongoDoc => 
+        this.convertMongoDocToQuestDefinition(mongoDoc)
+      );
+      
+      this.addQuestsToCollection(questDefinitions, QuestDataSource.MONGODB);
+      
+      if (this.config.useMongoCache) {
+        this.setCache('all_quests', questDefinitions);
+      }
+      
+      const queryTime = Date.now() - startTime;
+      this.log('info', `✅ [MongoDB] ${questDefinitions.length} quêtes chargées en ${queryTime}ms`);
+      
+    } catch (error) {
+      this.log('error', `❌ [MongoDB] Erreur chargement quêtes:`, error);
+      
+      if (this.config.enableFallback) {
+        this.log('info', `🔄 [Fallback] Tentative chargement JSON`);
+        this.loadQuestDefinitionsFromJSON();
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // ✅ MÉTHODE : Conversion MongoDB vers QuestDefinition
+  private convertMongoDocToQuestDefinition(mongoDoc: any): QuestDefinition {
+    try {
+      // ✅ GESTION : Objet Mongoose VS objet brut des Change Streams
+      let questDefinition: QuestDefinition;
+      
+      if (typeof mongoDoc.toQuestDefinition === 'function') {
+        // Document Mongoose complet avec méthodes
+        questDefinition = mongoDoc.toQuestDefinition();
+      } else {
+        // ✅ NOUVEAU : Objet brut des Change Streams - conversion manuelle
+        questDefinition = {
+          id: mongoDoc.questId,
+          name: mongoDoc.name,
+          description: mongoDoc.description,
+          category: mongoDoc.category,
+          prerequisites: mongoDoc.prerequisites,
+          startNpcId: mongoDoc.startNpcId,
+          endNpcId: mongoDoc.endNpcId,
+          isRepeatable: mongoDoc.isRepeatable,
+          cooldownHours: mongoDoc.cooldownHours,
+          autoComplete: mongoDoc.autoComplete,
+          dialogues: mongoDoc.dialogues,
+          steps: mongoDoc.steps
+        };
+      }
+      
+      return questDefinition;
+      
+    } catch (error) {
+      this.log('error', '❌ [convertMongoDocToQuestDefinition] Erreur conversion:', error);
+      this.log('info', '📄 [convertMongoDocToQuestDefinition] mongoDoc:', {
+        _id: mongoDoc._id,
+        questId: mongoDoc.questId,
+        name: mongoDoc.name,
+        hasToQuestDefinition: typeof mongoDoc.toQuestDefinition === 'function'
+      });
+      throw error;
+    }
+  }
+
+  // ✅ MÉTHODE : Ajout des quêtes à la collection
+  private addQuestsToCollection(questDefinitions: QuestDefinition[], source: QuestDataSource): void {
+    for (const quest of questDefinitions) {
+      this.questDefinitions.set(quest.id, quest);
+      this.questSourceMap.set(quest.id, source === QuestDataSource.MONGODB ? 'mongodb' : 'json');
+    }
+  }
+
+  // ✅ MÉTHODE : Chargement JSON (version existante)
+  private loadQuestDefinitionsFromJSON(): void {
+    try {
+      const resolvedPath = path.resolve(__dirname, this.config.questDataPath);
       if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️ Fichier de quêtes introuvable : ${resolvedPath}`);
+        this.log('warn', `⚠️ Fichier de quêtes JSON introuvable : ${resolvedPath}`);
         return;
       }
 
       const questData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
       
-      for (const quest of questData.quests) {
-        this.questDefinitions.set(quest.id, quest);
+      if (!questData.quests || !Array.isArray(questData.quests)) {
+        this.log('warn', `⚠️ Format JSON invalid dans ${resolvedPath}`);
+        return;
       }
+      
+      let jsonQuestCount = 0;
+      let validationErrors = 0;
 
-      console.log(`📜 ${this.questDefinitions.size} définitions de quêtes chargées`);
+      for (const quest of questData.quests) {
+        try {
+          if (this.config.strictValidation) {
+            const validation = this.validateQuestJson(quest);
+            if (!validation.valid) {
+              this.validationErrors.set(quest.id, validation.errors || []);
+              this.log('error', `❌ [JSON] Quête ${quest.id} invalide:`, validation.errors);
+              validationErrors++;
+              continue;
+            }
+          }
+
+          this.questDefinitions.set(quest.id, quest);
+          this.questSourceMap.set(quest.id, 'json');
+          jsonQuestCount++;
+          
+        } catch (questError) {
+          this.log('error', `❌ [JSON] Erreur quête ${quest.id}:`, questError);
+          validationErrors++;
+        }
+      }
+      
+      this.log('info', `✅ [JSON] Quêtes chargées:`, {
+        questsLoaded: jsonQuestCount,
+        validationErrors,
+        totalQuests: this.questDefinitions.size
+      });
+      
     } catch (error) {
-      console.error("❌ Erreur lors du chargement des quêtes:", error);
+      this.log('error', `❌ [JSON] Erreur chargement quêtes.json:`, error);
+      throw error;
     }
   }
+
+  // ✅ PING MONGODB INTELLIGENT
+  private async waitForMongoDBReady(maxRetries: number = 10): Promise<void> {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        this.log('info', `🏓 [MongoDB Ping] Tentative ${retries + 1}/${maxRetries}...`);
+        
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+          throw new Error('Mongoose pas encore connecté');
+        }
+        
+        await mongoose.connection.db.admin().ping();
+        
+        const dbName = mongoose.connection.db.databaseName;
+        this.log('info', `🗄️ [MongoDB Ping] Base de données: ${dbName}`);
+        
+        const rawCount = await mongoose.connection.db.collection('quest_data').countDocuments();
+        this.log('info', `📊 [MongoDB Ping] Quêtes collection brute: ${rawCount}`);
+        
+        const testCount = await QuestData.countDocuments();
+        this.log('info', `📊 [MongoDB Ping] Quêtes via modèle: ${testCount}`);
+        
+        if (rawCount !== testCount) {
+          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
+          
+          const rawSample = await mongoose.connection.db.collection('quest_data').findOne();
+          this.log('info', `📄 [MongoDB Ping] Exemple brut:`, rawSample ? {
+            _id: rawSample._id,
+            questId: rawSample.questId,
+            name: rawSample.name
+          } : 'Aucun');
+        }
+        
+        this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} quêtes détectées via modèle`);
+        return;
+        
+      } catch (error) {
+        retries++;
+        const waitTime = Math.min(1000 * retries, 5000);
+        
+        this.log('warn', `⚠️ [MongoDB Ping] Échec ${retries}/${maxRetries}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retries >= maxRetries) {
+          throw new Error(`MongoDB non prêt après ${maxRetries} tentatives`);
+        }
+        
+        this.log('info', `⏳ [MongoDB Ping] Attente ${waitTime}ms avant retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // ✅ HOT RELOAD METHODS
+  private startHotReload(): void {
+    try {
+      this.log('info', '🔥 [HotReload] Démarrage MongoDB Change Streams...');
+      
+      this.changeStream = QuestData.watch([], { 
+        fullDocument: 'updateLookup'
+      });
+      
+      this.changeStream.on('change', (change: any) => {
+        this.handleMongoDBChange(change);
+      });
+      
+      this.changeStream.on('error', (error: any) => {
+        this.log('error', '❌ [HotReload] Erreur Change Stream:', error);
+        
+        setTimeout(() => {
+          this.log('info', '🔄 [HotReload] Redémarrage Change Stream...');
+          this.startHotReload();
+        }, 5000);
+      });
+      
+      this.log('info', '✅ [HotReload] Change Streams actif !');
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Impossible de démarrer Change Streams:', error);
+    }
+  }
+
+  private async handleMongoDBChange(change: any): Promise<void> {
+    try {
+      this.log('info', `🔥 [HotReload] Changement détecté: ${change.operationType}`);
+      
+      switch (change.operationType) {
+        case 'insert':
+          await this.handleQuestInsert(change.fullDocument);
+          break;
+          
+        case 'update':
+          await this.handleQuestUpdate(change.fullDocument);
+          break;
+          
+        case 'delete':
+          await this.handleQuestDelete(change.documentKey._id);
+          break;
+          
+        case 'replace':
+          await this.handleQuestUpdate(change.fullDocument);
+          break;
+          
+        default:
+          this.log('info', `ℹ️ [HotReload] Opération ignorée: ${change.operationType}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur traitement changement:', error);
+    }
+  }
+
+  private async handleQuestInsert(mongoDoc: any): Promise<void> {
+    try {
+      const questDefinition = this.convertMongoDocToQuestDefinition(mongoDoc);
+      
+      this.questDefinitions.set(questDefinition.id, questDefinition);
+      this.questSourceMap.set(questDefinition.id, 'mongodb');
+      this.mongoCache.delete('all_quests');
+      
+      this.log('info', `➕ [HotReload] Quête ajoutée: ${questDefinition.name} (ID: ${questDefinition.id})`);
+      this.notifyReloadCallbacks('insert', questDefinition);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur ajout quête:', error);
+    }
+  }
+
+  private async handleQuestUpdate(mongoDoc: any): Promise<void> {
+    try {
+      const questDefinition = this.convertMongoDocToQuestDefinition(mongoDoc);
+      
+      this.questDefinitions.set(questDefinition.id, questDefinition);
+      this.questSourceMap.set(questDefinition.id, 'mongodb');
+      this.mongoCache.delete('all_quests');
+      
+      this.log('info', `🔄 [HotReload] Quête mise à jour: ${questDefinition.name} (ID: ${questDefinition.id})`);
+      this.notifyReloadCallbacks('update', questDefinition);
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur modification quête:', error);
+    }
+  }
+
+  private async handleQuestDelete(documentId: any): Promise<void> {
+    try {
+      const questToDelete = Array.from(this.questDefinitions.values()).find(quest => {
+        // Trouver via la source MongoDB
+        return this.questSourceMap.get(quest.id) === 'mongodb';
+      });
+      
+      if (questToDelete) {
+        this.questDefinitions.delete(questToDelete.id);
+        this.questSourceMap.delete(questToDelete.id);
+        this.mongoCache.delete('all_quests');
+        
+        this.log('info', `➖ [HotReload] Quête supprimée: ${questToDelete.name} (ID: ${questToDelete.id})`);
+        this.notifyReloadCallbacks('delete', questToDelete);
+        
+      } else {
+        this.log('warn', `⚠️ [HotReload] Quête à supprimer non trouvée: ${documentId}`);
+      }
+      
+    } catch (error) {
+      this.log('error', '❌ [HotReload] Erreur suppression quête:', error);
+    }
+  }
+
+  private notifyReloadCallbacks(event: string, questData?: any): void {
+    this.reloadCallbacks.forEach(callback => {
+      try {
+        callback(event, questData);
+      } catch (error) {
+        this.log('error', '❌ [HotReload] Erreur callback:', error);
+      }
+    });
+  }
+
+  // ✅ MÉTHODES PUBLIQUES HOT RELOAD
+  public onQuestChange(callback: (event: string, questData?: any) => void): void {
+    this.reloadCallbacks.push(callback);
+    this.log('info', `📋 [HotReload] Callback enregistré (total: ${this.reloadCallbacks.length})`);
+  }
+
+  public stopHotReload(): void {
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = null;
+      this.log('info', '🛑 [HotReload] Change Streams arrêté');
+    }
+  }
+
+  public getHotReloadStatus(): { enabled: boolean; active: boolean; callbackCount: number } {
+    return {
+      enabled: this.hotReloadEnabled,
+      active: !!this.changeStream,
+      callbackCount: this.reloadCallbacks.length
+    };
+  }
+
+  // ✅ MÉTHODES CACHE
+  private getFromCache(key: string): QuestDefinition[] | null {
+    const cached = this.mongoCache.get(key);
+    
+    if (!cached) return null;
+    
+    const now = Date.now();
+    if (now - cached.timestamp > this.config.cacheTTL) {
+      this.mongoCache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  private setCache(key: string, data: QuestDefinition[]): void {
+    this.mongoCache.set(key, {
+      data: [...data],
+      timestamp: Date.now()
+    });
+  }
+
+  // ✅ MÉTHODE DE VALIDATION
+  private validateQuestJson(questJson: any): { valid: boolean; errors?: string[]; warnings?: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!questJson.id || typeof questJson.id !== 'string') {
+      errors.push(`ID manquant ou invalide: ${questJson.id}`);
+    }
+    
+    if (!questJson.name || typeof questJson.name !== 'string') {
+      errors.push(`Nom manquant ou invalide: ${questJson.name}`);
+    }
+    
+    if (!questJson.steps || !Array.isArray(questJson.steps) || questJson.steps.length === 0) {
+      errors.push(`Étapes manquantes ou invalides`);
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined
+    };
+  }
+
+  // ✅ MÉTHODES PUBLIQUES MONGODB
+  async reloadQuestsFromMongoDB(): Promise<boolean> {
+    try {
+      this.log('info', `🔄 [Reload] Rechargement quêtes depuis MongoDB`);
+      
+      this.mongoCache.clear();
+      this.questDefinitions.clear();
+      this.questSourceMap.clear();
+      
+      await this.loadQuestDefinitionsFromMongoDB();
+      
+      this.log('info', `✅ [Reload] Quêtes rechargées: ${this.questDefinitions.size}`);
+      return true;
+      
+    } catch (error) {
+      this.log('error', `❌ [Reload] Erreur rechargement:`, error);
+      return false;
+    }
+  }
+
+  async syncQuestsToMongoDB(): Promise<{ success: number; errors: string[] }> {
+    const results: { success: number; errors: string[] } = { success: 0, errors: [] };
+    
+    try {
+      const questsToSync = Array.from(this.questDefinitions.values()).filter(quest => 
+        this.questSourceMap.get(quest.id) !== 'mongodb'
+      );
+      
+      this.log('info', `🔄 [Sync] Synchronisation ${questsToSync.length} quêtes vers MongoDB...`);
+      
+      for (const quest of questsToSync) {
+        try {
+          let mongoDoc = await QuestData.findOne({ questId: quest.id });
+          
+          if (mongoDoc) {
+            await mongoDoc.updateFromJson(quest);
+            results.success++;
+          } else {
+            mongoDoc = await QuestData.createFromJson(quest);
+            results.success++;
+          }
+          
+        } catch (error) {
+          const errorMsg = `Quête ${quest.id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+          results.errors.push(errorMsg);
+          this.log('error', `❌ [Sync] ${errorMsg}`);
+        }
+      }
+      
+      this.log('info', `✅ [Sync] Terminé: ${results.success} succès, ${results.errors.length} erreurs`);
+      
+    } catch (error) {
+      this.log('error', '❌ [Sync] Erreur générale:', error);
+      results.errors.push('Erreur de synchronisation globale');
+    }
+    
+    return results;
+  }
+
+  public cleanup(): void {
+    this.log('info', '🧹 [QuestManager] Nettoyage...');
+    
+    this.stopHotReload();
+    this.reloadCallbacks = [];
+    this.mongoCache.clear();
+    this.questSourceMap.clear();
+    this.validationErrors.clear();
+    
+    // Reset flags d'état
+    this.isInitialized = false;
+    this.isInitializing = false;
+    this.initializationPromise = null;
+    
+    this.log('info', '✅ [QuestManager] Nettoyage terminé');
+  }
+
+  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+    if (!this.config.debugMode && level === 'info') return;
+    
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}`;
+    
+    switch (level) {
+      case 'info':
+        console.log(logMessage, data || '');
+        break;
+      case 'warn':
+        console.warn(logMessage, data || '');
+        break;
+      case 'error':
+        console.error(logMessage, data || '');
+        break;
+    }
+  }
+
+  // ✅ === MÉTHODES EXISTANTES CONSERVÉES ===
 
   async handlePlayerReconnection(username: string): Promise<{ resetOccurred: boolean; message?: string }> {
   try {
@@ -880,5 +1544,71 @@ export class QuestManager {
       console.error(`❌ [QuestManager] Erreur completeQuest:`, error);
       return { success: false, message: "Erreur lors de la completion de la quête" };
     }
+  }
+
+  // ✅ === MÉTHODES D'ADMINISTRATION ===
+
+  getSystemStats() {
+    const mongoCount = Array.from(this.questSourceMap.values()).filter(s => s === 'mongodb').length;
+    const jsonCount = Array.from(this.questSourceMap.values()).filter(s => s === 'json').length;
+    
+    const questsByCategory: Record<string, number> = {};
+    for (const quest of this.questDefinitions.values()) {
+      questsByCategory[quest.category] = (questsByCategory[quest.category] || 0) + 1;
+    }
+    
+    return {
+      totalQuests: this.questDefinitions.size,
+      initialized: this.isInitialized,
+      initializing: this.isInitializing,
+      sources: {
+        json: jsonCount,
+        mongodb: mongoCount
+      },
+      questsByCategory,
+      validationErrors: this.validationErrors.size,
+      lastLoadTime: this.lastLoadTime,
+      config: this.config,
+      cache: {
+        size: this.mongoCache.size,
+        ttl: this.config.cacheTTL
+      },
+      hotReload: this.getHotReloadStatus()
+    };
+  }
+
+  debugSystem(): void {
+    console.log(`🔍 [QuestManager] === DEBUG SYSTÈME QUÊTES AVEC HOT RELOAD ===`);
+    
+    const stats = this.getSystemStats();
+    console.log(`📊 Statistiques:`, JSON.stringify(stats, null, 2));
+    
+    console.log(`\n📦 Quêtes par ID (premières 10):`);
+    let count = 0;
+    for (const [questId, quest] of this.questDefinitions) {
+      if (count >= 10) break;
+      console.log(`  📜 ${questId}: ${quest.name} (${quest.category}) [${this.questSourceMap.get(questId)}]`);
+      count++;
+    }
+    
+    if (this.validationErrors.size > 0) {
+      console.log(`\n❌ Erreurs de validation:`);
+      for (const [questId, errors] of this.validationErrors.entries()) {
+        console.log(`  🚫 Quête ${questId}: ${errors.join(', ')}`);
+      }
+    }
+
+    console.log(`\n🔥 État Hot Reload:`);
+    const hotReloadStatus = this.getHotReloadStatus();
+    console.log(`  - Activé: ${hotReloadStatus.enabled}`);
+    console.log(`  - Actif: ${hotReloadStatus.active}`);
+    console.log(`  - Callbacks: ${hotReloadStatus.callbackCount}`);
+    
+    console.log(`\n⚙️ Configuration:`);
+    console.log(`  - Source primaire: ${this.config.primaryDataSource}`);
+    console.log(`  - Fallback activé: ${this.config.enableFallback}`);
+    console.log(`  - Cache MongoDB: ${this.config.useMongoCache}`);
+    console.log(`  - Initialisé: ${this.isInitialized}`);
+    console.log(`  - En cours d'initialisation: ${this.isInitializing}`);
   }
 }
