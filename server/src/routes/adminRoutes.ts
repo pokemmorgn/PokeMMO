@@ -3071,6 +3071,7 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
         const { database, collection, document, originalId } = req.body;
         
         console.log(`✏️ [MongoDB API] Mise à jour document dans ${database}.${collection}`);
+        console.log(`✏️ [MongoDB API] originalId: ${originalId}, document._id: ${document?._id}`);
         
         if (!database || !collection || !document) {
             return res.status(400).json({
@@ -3086,16 +3087,29 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
         
         const coll = targetDb.collection(collection);
         
+        // CORRECTION: Utiliser originalId en priorité, puis document._id
+        const idToUse = originalId || document._id;
+        console.log(`✏️ [MongoDB API] ID utilisé: ${idToUse}`);
+        
+        if (!idToUse) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID du document requis (originalId ou document._id)'
+            });
+        }
+        
         let documentId;
         try {
-            documentId = new ObjectId(originalId || document._id);
+            documentId = new ObjectId(idToUse);
         } catch (error) {
-            documentId = originalId || document._id;
+            documentId = idToUse;
         }
         
         // Créer le document de mise à jour
         const updateDocument = { ...document };
         delete updateDocument._id; // Ne pas inclure _id dans l'update
+        
+        console.log(`✏️ [MongoDB API] Document à mettre à jour:`, Object.keys(updateDocument));
         
         const result = await coll.replaceOne(
             { _id: documentId },
@@ -3471,4 +3485,5 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
         });
     }
 });
+
 export default router;
