@@ -416,8 +416,16 @@ async onTabActivated() {
     console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
     console.log(`  - this.currentCollection = "${this.currentCollection}"`)
 }
+    
    async loadDocuments(query = {}) {
     console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
+    
+    // ⚠️ ATTENTION : Ne jamais faire ceci dans loadDocuments :
+    // this.currentCollection = null  // ❌ Cette ligne écrase la variable !
+    // this.currentDatabase = null    // ❌ Cette ligne aussi !
+    
+    // 🔍 DEBUG : Ajouter ceci au début de loadDocuments pour traquer le problème
+    console.log(`🔍 [MongoDB] loadDocuments DÉBUT - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
     
     this.showLoading(true)
     
@@ -431,6 +439,9 @@ async onTabActivated() {
             limit: this.pageSize
         }
         
+        // 🔍 DEBUG : Vérifier les données envoyées
+        console.log(`🔍 [MongoDB] Données requête:`, requestData)
+        
         // Ajouter le tri si défini
         if (this.currentSort) {
             requestData.sort = {
@@ -442,6 +453,9 @@ async onTabActivated() {
             method: 'POST',
             body: JSON.stringify(requestData)
         })
+
+        // 🔍 DEBUG : Vérifier après l'appel API
+        console.log(`🔍 [MongoDB] loadDocuments APRÈS API - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
 
         if (data.success) {
             this.updateCollectionStats(data.total)
@@ -455,9 +469,12 @@ async onTabActivated() {
         
     } catch (error) {
         console.error('❌ [MongoDB] Erreur chargement documents:', error)
-        this.handleInterfaceError(error, 'loadDocuments') // NOUVEAU
+        this.handleInterfaceError(error, 'loadDocuments')
     } finally {
         this.showLoading(false)
+        
+        // 🔍 DEBUG : Vérifier à la fin
+        console.log(`🔍 [MongoDB] loadDocuments FIN - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
     }
 }
 
