@@ -382,27 +382,40 @@ async onTabActivated() {
         container.style.opacity = '1'
     }
 
-    async selectCollection(database, collection) {
-        console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
-        
-        this.currentDatabase = database
-        this.currentCollection = collection
-        this.currentPage = 0
-        
-        // Mettre à jour l'UI
-        this.updateBreadcrumb([
-            { icon: 'fas fa-database', text: database },
-            { icon: 'fas fa-table', text: collection }
-        ])
-        
-        // Masquer l'écran d'accueil
-        document.getElementById('welcomeScreen').style.display = 'none'
-        document.getElementById('documentsView').style.display = 'block'
-        
-        // Charger les documents
-        await this.loadDocuments()
-    }
-
+   async selectCollection(database, collection) {
+    console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
+    
+    // IMPORTANT: Mettre à jour les variables AVANT tout autre traitement
+    this.currentDatabase = database
+    this.currentCollection = collection
+    this.currentPage = 0
+    
+    // DEBUG: Vérifier que les variables sont bien définies
+    console.log(`✅ [MongoDB] Variables mises à jour:`)
+    console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
+    console.log(`  - this.currentCollection = "${this.currentCollection}"`)
+    
+    // Mettre à jour l'UI
+    this.updateBreadcrumb([
+        { icon: 'fas fa-database', text: database },
+        { icon: 'fas fa-table', text: collection }
+    ])
+    
+    // Masquer l'écran d'accueil
+    const welcomeScreen = document.getElementById('welcomeScreen')
+    const documentsView = document.getElementById('documentsView')
+    
+    if (welcomeScreen) welcomeScreen.style.display = 'none'
+    if (documentsView) documentsView.style.display = 'block'
+    
+    // Charger les documents
+    await this.loadDocuments()
+    
+    // DEBUG FINAL: Vérifier à nouveau après chargement
+    console.log(`🔍 [MongoDB] État final après sélection:`)
+    console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
+    console.log(`  - this.currentCollection = "${this.currentCollection}"`)
+}
    async loadDocuments(query = {}) {
     console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
     
