@@ -677,3 +677,9 @@ export type {
   QuestProgressEvent as LegacyQuestProgressEvent,
   QuestDefinition as LegacyQuestDefinition
 };
+
+// ✅ EXPORTS MANQUANTS pour QuestData.ts
+export type { QuestObjectiveType };
+export type { QuestRewardType };
+export type { QuestCategory };
+export type { RewardRarity };
