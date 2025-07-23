@@ -2590,7 +2590,7 @@ router.get('/npcs/export/all', requireMacAndDev, async (req: any, res) => {
 // ========================================
 
 // ========================================
-// ROUTES MONGODB
+// ROUTES MONGODB CORRIGÉES
 // ========================================
 
 // GET /api/admin/mongodb/databases - Lister les bases de données
@@ -2701,6 +2701,85 @@ router.post('/mongodb/documents', requireMacAndDev, async (req: any, res: any) =
     }
 });
 
+// GET /api/admin/mongodb/document/:database/:collection/:id - Récupérer un document par ID
+router.get('/mongodb/document/:database/:collection/:id', requireMacAndDev, async (req: any, res: any) => {
+    try {
+        const { database, collection, id } = req.params;
+        
+        console.log(`📄 [MongoDB API] Récupération document: ${database}.${collection}#${id}`);
+        
+        const db = await getMongooseDB();
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.getClient().db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        let documentId;
+        try {
+            documentId = new ObjectId(id);
+        } catch (error) {
+            documentId = id;
+        }
+        
+        const document = await coll.findOne({ _id: documentId });
+        
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document non trouvé'
+            });
+        }
+        
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur récupération document:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// POST /api/admin/mongodb/document - Créer un nouveau document
+router.post('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
+    try {
+        const { database, collection, data } = req.body;
+        
+        console.log(`➕ [MongoDB API] Création document ${database}.${collection}`);
+        
+        const db = await getMongooseDB();
+        
+        // Utiliser la bonne base de données
+        const targetDb = database === mongoose.connection.db?.databaseName ? 
+            db : 
+            mongoose.connection.getClient().db(database);
+        
+        const coll = targetDb.collection(collection);
+        
+        // Insérer le nouveau document
+        const result = await coll.insertOne(data);
+        
+        console.log(`✅ [MongoDB API] Document créé avec ID: ${result.insertedId}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Document créé avec succès',
+            insertedId: result.insertedId
+        });
+    } catch (error) {
+        console.error('❌ [MongoDB API] Erreur création:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
 // PUT /api/admin/mongodb/document - Mettre à jour un document
 router.put('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
     try {
@@ -2785,41 +2864,6 @@ router.delete('/mongodb/document', requireMacAndDev, async (req: any, res: any) 
         });
     } catch (error) {
         console.error('❌ [MongoDB API] Erreur suppression:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Erreur inconnue'
-        });
-    }
-});
-
-// POST /api/admin/mongodb/document - Créer un nouveau document
-router.post('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
-    try {
-        const { database, collection, data } = req.body;
-        
-        console.log(`➕ [MongoDB API] Création document ${database}.${collection}`);
-        
-        const db = await getMongooseDB();
-        
-        // Utiliser la bonne base de données
-        const targetDb = database === mongoose.connection.db?.databaseName ? 
-            db : 
-            mongoose.connection.getClient().db(database);
-        
-        const coll = targetDb.collection(collection);
-        
-        // Insérer le nouveau document
-        const result = await coll.insertOne(data);
-        
-        console.log(`✅ [MongoDB API] Document créé avec ID: ${result.insertedId}`);
-        
-        res.json({ 
-            success: true, 
-            message: 'Document créé avec succès',
-            insertedId: result.insertedId
-        });
-    } catch (error) {
-        console.error('❌ [MongoDB API] Erreur création:', error);
         res.status(500).json({ 
             success: false, 
             error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -2966,62 +3010,7 @@ router.post('/mongodb/query', requireMacAndDev, async (req: any, res: any) => {
     }
 });
 
-// ========================================
-// ROUTES MONGODB COMPLÈTES À AJOUTER
-// ========================================
-
-// 1. POST /mongodb/document - Récupérer un document par ID
-router.post('/mongodb/document', requireMacAndDev, async (req: any, res: any) => {
-    try {
-        const { database, collection, id } = req.body;
-        
-        console.log(`📄 [MongoDB API] Récupération document: ${database}.${collection}#${id}`);
-        
-        if (!database || !collection || !id) {
-            return res.status(400).json({
-                success: false,
-                error: 'Database, collection et id sont requis'
-            });
-        }
-        
-        const db = await getMongooseDB();
-        const targetDb = database === mongoose.connection.db?.databaseName ? 
-            db : 
-            mongoose.connection.getClient().db(database);
-        
-        const coll = targetDb.collection(collection);
-        
-        let documentId;
-        try {
-            documentId = new ObjectId(id);
-        } catch (error) {
-            documentId = id;
-        }
-        
-        const document = await coll.findOne({ _id: documentId });
-        
-        if (!document) {
-            return res.status(404).json({
-                success: false,
-                error: 'Document non trouvé'
-            });
-        }
-        
-        res.json({
-            success: true,
-            document: document
-        });
-        
-    } catch (error) {
-        console.error('❌ [MongoDB API] Erreur récupération document:', error);
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Erreur inconnue'
-        });
-    }
-});
-
-// 2. POST /mongodb/create-document - Créer un nouveau document
+// POST /mongodb/create-document - Créer un nouveau document (avec nettoyage avancé)
 router.post('/mongodb/create-document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, document } = req.body;
@@ -3036,7 +3025,7 @@ router.post('/mongodb/create-document', requireMacAndDev, async (req: any, res: 
             });
         }
         
-        // CORRECTION: Fonction pour nettoyer le document récursivement
+        // Fonction pour nettoyer le document récursivement
         function cleanDocument(obj: any): any {
             if (obj === null || obj === undefined) {
                 return null;
@@ -3105,7 +3094,7 @@ router.post('/mongodb/create-document', requireMacAndDev, async (req: any, res: 
     }
 });
 
-// 3. POST /mongodb/update-document - Mettre à jour un document
+// POST /mongodb/update-document - Mettre à jour un document (avec nettoyage avancé)
 router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, document, originalId } = req.body;
@@ -3120,7 +3109,7 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
             });
         }
         
-        // CORRECTION: Fonction pour nettoyer le document récursivement
+        // Fonction pour nettoyer le document récursivement
         function cleanDocument(obj: any): any {
             if (obj === null || obj === undefined) {
                 return null;
@@ -3151,7 +3140,7 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
         
         const coll = targetDb.collection(collection);
         
-        // CORRECTION: Utiliser originalId en priorité, puis document._id
+        // Utiliser originalId en priorité, puis document._id
         const idToUse = originalId || document._id;
         console.log(`✏️ [MongoDB API] ID utilisé: ${idToUse}`);
         
@@ -3211,7 +3200,7 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
     }
 });
 
-// 4. POST /mongodb/delete-document - Supprimer un document
+// POST /mongodb/delete-document - Supprimer un document
 router.post('/mongodb/delete-document', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, id } = req.body;
@@ -3262,8 +3251,8 @@ router.post('/mongodb/delete-document', requireMacAndDev, async (req: any, res: 
     }
 });
 
-// 5. POST /mongodb/query - Exécuter une requête Find avancée
-router.post('/mongodb/query', requireMacAndDev, async (req: any, res: any) => {
+// POST /mongodb/query-advanced - Exécuter une requête Find avancée
+router.post('/mongodb/query-advanced', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, query, projection, sort, limit, skip } = req.body;
         
@@ -3316,7 +3305,7 @@ router.post('/mongodb/query', requireMacAndDev, async (req: any, res: any) => {
     }
 });
 
-// 6. POST /mongodb/aggregate - Pipeline d'agrégation
+// POST /mongodb/aggregate - Pipeline d'agrégation
 router.post('/mongodb/aggregate', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, pipeline } = req.body;
@@ -3347,7 +3336,7 @@ router.post('/mongodb/aggregate', requireMacAndDev, async (req: any, res: any) =
     }
 });
 
-// 7. POST /mongodb/database-stats - Statistiques de base de données
+// POST /mongodb/database-stats - Statistiques de base de données
 router.post('/mongodb/database-stats', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database } = req.body;
@@ -3415,7 +3404,7 @@ router.post('/mongodb/database-stats', requireMacAndDev, async (req: any, res: a
     }
 });
 
-// 8. GET /mongodb/server-info - Informations serveur
+// GET /mongodb/server-info - Informations serveur
 router.get('/mongodb/server-info', requireMacAndDev, async (req: any, res: any) => {
     try {
         console.log(`🖥️ [MongoDB API] Info serveur`);
@@ -3472,7 +3461,7 @@ router.get('/mongodb/server-info', requireMacAndDev, async (req: any, res: any) 
     }
 });
 
-// 9. POST /mongodb/update - Mettre à jour plusieurs documents (pour query builder)
+// POST /mongodb/update - Mettre à jour plusieurs documents (pour query builder)
 router.post('/mongodb/update', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, filter, update, multi, upsert } = req.body;
@@ -3517,7 +3506,7 @@ router.post('/mongodb/update', requireMacAndDev, async (req: any, res: any) => {
     }
 });
 
-// 10. POST /mongodb/delete - Supprimer plusieurs documents (pour query builder)
+// POST /mongodb/delete - Supprimer plusieurs documents (pour query builder)
 router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
     try {
         const { database, collection, filter, multi } = req.body;
@@ -3558,4 +3547,5 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
         });
     }
 });
+
 export default router;
