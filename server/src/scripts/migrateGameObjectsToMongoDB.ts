@@ -12,7 +12,7 @@ import { GameObjectData } from '../models/GameObjectData';
 // Configuration
 const CONFIG = {
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemmo',
-  gameObjectsPath: './build/data/gameobjects', // Depuis la racine du projet
+  gameObjectsPath: './server/build/data/gameobjects', // Chemin correct trouvé
   dryRun: process.argv.includes('--dry-run'),
   force: process.argv.includes('--force'),
   verbose: process.argv.includes('--verbose')
