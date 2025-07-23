@@ -7,12 +7,38 @@ import {
   QuestObjective,
   QuestObjectiveType,
   QuestObjectiveConditions,
-  QuestUpdateResult,
   QuestEventMetadata,
   QuestEventContext
 } from "../core/types/QuestTypes";
 
-// ===== INTERFACE DU SERVICE =====
+// Import QuestUpdateResult from QuestManager
+import type { QuestUpdateResult } from "../../managers/QuestManager";
+
+// ===== TYPES POUR OBJECTIFS =====
+
+/**
+ * 🎯 Objectif de définition (sans progression)
+ */
+export interface QuestObjectiveDefinition {
+  id: string;
+  type: QuestObjectiveType;
+  description: string;
+  target?: string;
+  targetName?: string;
+  itemId?: string;
+  requiredAmount: number;
+  validationDialogue?: string[];
+  conditions?: QuestObjectiveConditions;
+  metadata?: any;
+}
+
+/**
+ * 🎯 Objectif avec progression (pour validation)
+ */
+export interface QuestObjectiveWithProgress extends QuestObjectiveDefinition {
+  currentAmount: number;
+  completed: boolean;
+}
 
 /**
  * 🎯 Interface principale du service de progression
@@ -27,9 +53,9 @@ export interface IQuestProgressTracker {
   ): Promise<QuestUpdateResult[]>;
   
   // Méthodes de support
-  checkObjectiveProgress(objective: QuestObjective, event: QuestProgressEvent): boolean;
-  validateAdvancedConditions(objective: QuestObjective, event: QuestProgressEvent): boolean;
-  calculateProgressIncrement(objective: QuestObjective, event: QuestProgressEvent): number;
+  checkObjectiveProgress(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean;
+  validateAdvancedConditions(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean;
+  calculateProgressIncrement(objective: QuestObjectiveDefinition, event: QuestProgressEvent): number;
   
   // Méthodes de gestion d'étapes
   processStepProgress(
@@ -43,7 +69,7 @@ export interface IQuestProgressTracker {
   
   // Validation et conditions
   validateObjectiveConditions(
-    objective: QuestObjective, 
+    objective: QuestObjectiveDefinition, 
     event: QuestProgressEvent,
     context?: QuestEventContext
   ): QuestConditionValidationResult;
@@ -56,7 +82,7 @@ export interface QuestStepProgressResult {
   stepCompleted: boolean;
   questCompleted: boolean;
   nextStepIndex?: number;
-  newObjectives?: QuestObjective[];
+  newObjectives?: QuestObjectiveWithProgress[];
   stepRewards?: any[];
   questRewards?: any[];
   requiresNpcReturn?: boolean;
@@ -106,7 +132,7 @@ export interface QuestProgressTrackerConfig {
  * 🎯 Service de progression des quêtes
  * Extrait du QuestManager pour modularité
  */
-export class QuestProgressTracker implements IQuestProgressTracker {
+class QuestProgressTracker implements IQuestProgressTracker {
   private config: QuestProgressTrackerConfig;
   
   constructor(config?: Partial<QuestProgressTrackerConfig>) {
@@ -281,7 +307,7 @@ export class QuestProgressTracker implements IQuestProgressTracker {
    * 🎯 Vérification si un objectif progresse avec un événement
    * Version étendues avec nouveaux types + conditions avancées
    */
-  checkObjectiveProgress(objective: QuestObjective, event: QuestProgressEvent): boolean {
+  checkObjectiveProgress(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean {
     this.log('debug', `🔍 Vérification objectif: ${objective.type} vs event: ${event.type}`, {
       objectiveTarget: objective.target,
       eventTargetId: event.targetId,
@@ -310,7 +336,7 @@ export class QuestProgressTracker implements IQuestProgressTracker {
   /**
    * 🎯 Vérification des types de base (compatibilité + nouveaux)
    */
-  private checkBaseObjectiveType(objective: QuestObjective, event: QuestProgressEvent): boolean {
+  private checkBaseObjectiveType(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean {
     switch (objective.type) {
       // ===== TYPES EXISTANTS (CONSERVÉS) =====
       case 'collect':
@@ -393,7 +419,7 @@ export class QuestProgressTracker implements IQuestProgressTracker {
   /**
    * 🎯 Validation des conditions avancées
    */
-  validateAdvancedConditions(objective: QuestObjective, event: QuestProgressEvent): boolean {
+  validateAdvancedConditions(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean {
     if (!objective.conditions) return true;
     
     const conditions = objective.conditions;
@@ -546,7 +572,7 @@ export class QuestProgressTracker implements IQuestProgressTracker {
   /**
    * 🎯 Calcul de l'incrément de progression
    */
-  calculateProgressIncrement(objective: QuestObjective, event: QuestProgressEvent): number {
+  calculateProgressIncrement(objective: QuestObjectiveDefinition, event: QuestProgressEvent): number {
     let baseIncrement = event.amount || 1;
     
     // Appliquer des bonus basés sur les conditions
@@ -668,10 +694,19 @@ export class QuestProgressTracker implements IQuestProgressTracker {
           questCompleted: false,
           nextStepIndex: questProgress.currentStepIndex,
           newObjectives: nextStep.objectives.map((obj: any) => ({
-            ...obj,
+            id: obj.id,
+            type: obj.type,
+            description: obj.description,
+            target: obj.target,
+            targetName: obj.targetName,
+            itemId: obj.itemId,
+            requiredAmount: obj.requiredAmount,
             currentAmount: 0,
-            completed: false
-          })),
+            completed: false,
+            validationDialogue: obj.validationDialogue,
+            conditions: obj.conditions,
+            metadata: obj.metadata
+          } as QuestObjectiveWithProgress)),
           stepRewards: stepRewards,
           message: `Étape "${currentStep.name}" terminée ! Objectif suivant: ${nextStep.name}`
         };
@@ -761,7 +796,7 @@ export class QuestProgressTracker implements IQuestProgressTracker {
    * 🎯 Validation complète des conditions d'objectif
    */
   validateObjectiveConditions(
-    objective: QuestObjective, 
+    objective: QuestObjectiveDefinition, 
     event: QuestProgressEvent,
     context?: QuestEventContext
   ): QuestConditionValidationResult {
@@ -893,10 +928,4 @@ export class QuestProgressTracker implements IQuestProgressTracker {
 }
 
 // ===== EXPORT =====
-export { QuestProgressTracker };
-export type { 
-  IQuestProgressTracker,
-  QuestStepProgressResult,
-  QuestConditionValidationResult,
-  QuestProgressTrackerConfig
-};
+export default QuestProgressTracker;
