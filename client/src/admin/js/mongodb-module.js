@@ -382,7 +382,7 @@ async onTabActivated() {
         container.style.opacity = '1'
     }
 
- async selectCollection(database, collection) {
+async selectCollection(database, collection) {
     console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
     
     // IMPORTANT: Mettre à jour les variables AVANT tout autre traitement
@@ -390,45 +390,61 @@ async onTabActivated() {
     this.currentCollection = collection
     this.currentPage = 0
     
-    // DEBUG: Vérifier que les variables sont bien définies
     console.log(`✅ [MongoDB] Variables mises à jour:`)
     console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
     console.log(`  - this.currentCollection = "${this.currentCollection}"`)
     
-    // Mettre à jour l'UI
+    // Mettre à jour l'UI immédiatement
     this.updateBreadcrumb([
         { icon: 'fas fa-database', text: database },
         { icon: 'fas fa-table', text: collection }
     ])
     
-    // Masquer l'écran d'accueil et afficher la vue documents
+    // ✅ CORRECTION: S'assurer que la vue documents est visible AVANT de charger
     const welcomeScreen = document.getElementById('welcomeScreen')
     const documentsView = document.getElementById('documentsView')
     
-    if (welcomeScreen) welcomeScreen.style.display = 'none'
-    if (documentsView) documentsView.style.display = 'block'
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none'
+        console.log('✅ [MongoDB] Écran d\'accueil masqué')
+    }
     
-    // VÉRIFICATION AVANT loadDocuments
-    console.log(`🔍 [MongoDB] AVANT loadDocuments - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
+    if (documentsView) {
+        documentsView.style.display = 'block'
+        console.log('✅ [MongoDB] Vue documents affichée')
+    }
+    
+    // Attendre que les éléments DOM soient rendus avant de charger les documents
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    // Vérifier que les éléments de table existent
+    const tableHeader = document.getElementById('tableHeader')
+    const tableBody = document.getElementById('tableBody')
+    
+    if (!tableHeader || !tableBody) {
+        console.error('❌ [MongoDB] Éléments de table non trouvés après attente')
+        console.log('📊 [MongoDB] tableHeader:', !!tableHeader)
+        console.log('📊 [MongoDB] tableBody:', !!tableBody)
+        
+        // Essayer de forcer le rendu
+        if (documentsView) {
+            console.log('🔄 [MongoDB] Tentative de force du rendu...')
+            documentsView.style.display = 'none'
+            setTimeout(() => {
+                documentsView.style.display = 'block'
+                // Réessayer après un délai plus long
+                setTimeout(() => this.loadDocuments(), 500)
+            }, 100)
+            return
+        }
+    }
+    
+    console.log('✅ [MongoDB] Éléments DOM vérifiés, chargement des documents...')
     
     // Charger les documents
     await this.loadDocuments()
-    
-    // VÉRIFICATION APRÈS loadDocuments
-    console.log(`🔍 [MongoDB] APRÈS loadDocuments - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
-    
-    // SI currentCollection est devenu null, le remettre !
-    if (!this.currentCollection || this.currentCollection === 'null') {
-        console.log(`🔧 [MongoDB] CORRECTION: currentCollection était devenu null, remise à "${collection}"`)
-        this.currentCollection = collection
-        this.currentDatabase = database
-    }
-    
-    // DEBUG FINAL
-    console.log(`🔍 [MongoDB] État final après sélection:`)
-    console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
-    console.log(`  - this.currentCollection = "${this.currentCollection}"`)
 }
+
     
    async loadDocuments(query = {}) {
     console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
@@ -492,6 +508,21 @@ async onTabActivated() {
 }
 
     renderDocuments(documents, total) {
+    console.log('📊 [MongoDB] renderDocuments appelée:', documents.length, 'documents')
+    
+    // ✅ CORRECTION: S'assurer que la vue documents est visible AVANT de render
+    const documentsView = document.getElementById('documentsView')
+    const welcomeScreen = document.getElementById('welcomeScreen')
+    
+    if (documentsView) {
+        documentsView.style.display = 'block'
+    }
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none'
+    }
+    
+    // Attendre un petit moment que les éléments soient rendus
+    setTimeout(() => {
         if (this.viewMode === 'table') {
             this.renderTableView(documents)
         } else if (this.viewMode === 'json') {
@@ -501,77 +532,106 @@ async onTabActivated() {
         }
 
         // Mettre à jour les info de résultat
-        document.getElementById('resultCount').textContent = `${documents.length} of ${total} documents`
-    }
+        const resultCount = document.getElementById('resultCount')
+        if (resultCount) {
+            resultCount.textContent = `${documents.length} of ${total} documents`
+        }
+        
+        console.log('✅ [MongoDB] Documents rendus avec succès')
+    }, 100)
+}
 
     renderTableView(documents) {
-        if (!documents.length) {
-            document.getElementById('tableView').innerHTML = `
-                <div class="mongodb-empty-state">
-                    <i class="fas fa-table"></i>
-                    <h3>No documents found</h3>
-                    <p>This collection is empty or your filter returned no results.</p>
-                </div>
-            `
-            return
-        }
-
-        // Détecter les colonnes automatiquement
-        const columns = this.detectColumns(documents)
-        
-        const tableHeader = document.getElementById('tableHeader')
-        const tableBody = document.getElementById('tableBody')
-        
-        // Header
-        tableHeader.innerHTML = `
-            <tr>
-                <th class="mongodb-select-column">
-                    <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
-                </th>
-                ${columns.map(col => `
-                    <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
-                        ${col.name}
-                        <i class="fas fa-sort mongodb-sort-icon"></i>
-                    </th>
-                `).join('')}
-                <th class="mongodb-actions-column">Actions</th>
-            </tr>
+    console.log('📊 [MongoDB] renderTableView appelée avec', documents.length, 'documents')
+    
+    // ✅ CORRECTION: Vérifier que les éléments DOM existent
+    const tableView = document.getElementById('tableView')
+    const tableHeader = document.getElementById('tableHeader')
+    const tableBody = document.getElementById('tableBody')
+    
+    if (!tableView) {
+        console.error('❌ [MongoDB] Element tableView non trouvé')
+        return
+    }
+    
+    if (!tableHeader) {
+        console.error('❌ [MongoDB] Element tableHeader non trouvé')
+        return
+    }
+    
+    if (!tableBody) {
+        console.error('❌ [MongoDB] Element tableBody non trouvé')
+        return
+    }
+    
+    if (!documents.length) {
+        tableView.innerHTML = `
+            <div class="mongodb-empty-state">
+                <i class="fas fa-table"></i>
+                <h3>No documents found</h3>
+                <p>This collection is empty or your filter returned no results.</p>
+            </div>
         `
-        
-        // Body avec amélioration pour les valeurs imbriquées
-        tableBody.innerHTML = documents.map((doc, index) => `
-            <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
-                <td class="mongodb-select-column">
-                    <input type="checkbox" onclick="event.stopPropagation()">
-                </td>
-                ${columns.map(col => {
-                    const value = this.getNestedValue(doc, col.key)
-                    return `
-                        <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
-                            ${this.formatCellValue(value, col.type)}
-                        </td>
-                    `
-                }).join('')}
-                <td class="mongodb-actions-column">
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('')
-
-        // Afficher la vue table
-        document.getElementById('tableView').style.display = 'block'
-        document.getElementById('jsonView').style.display = 'none'
-        document.getElementById('treeView').style.display = 'none'
+        return
     }
 
+    // Détecter les colonnes automatiquement
+    const columns = this.detectColumns(documents)
+    
+    // Header
+    tableHeader.innerHTML = `
+        <tr>
+            <th class="mongodb-select-column">
+                <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
+            </th>
+            ${columns.map(col => `
+                <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
+                    ${col.name}
+                    <i class="fas fa-sort mongodb-sort-icon"></i>
+                </th>
+            `).join('')}
+            <th class="mongodb-actions-column">Actions</th>
+        </tr>
+    `
+    
+    // Body avec amélioration pour les valeurs imbriquées
+    tableBody.innerHTML = documents.map((doc, index) => `
+        <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
+            <td class="mongodb-select-column">
+                <input type="checkbox" onclick="event.stopPropagation()">
+            </td>
+            ${columns.map(col => {
+                const value = this.getNestedValue(doc, col.key)
+                return `
+                    <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
+                        ${this.formatCellValue(value, col.type)}
+                    </td>
+                `
+            }).join('')}
+            <td class="mongodb-actions-column">
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
+                    <i class="fas fa-search"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('')
+
+    // Afficher la vue table
+    const jsonView = document.getElementById('jsonView')
+    const treeView = document.getElementById('treeView')
+    
+    if (tableView) tableView.style.display = 'block'
+    if (jsonView) jsonView.style.display = 'none'
+    if (treeView) treeView.style.display = 'none'
+    
+    console.log('✅ [MongoDB] Table view rendue avec succès')
+}
     renderJSONView(documents) {
         const container = document.getElementById('jsonContainer')
         
