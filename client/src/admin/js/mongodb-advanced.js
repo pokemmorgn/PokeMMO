@@ -795,30 +795,41 @@ async loadDocumentForEdit(documentId) {
 }
 
    populateFormFromDocument(documentData) {
-    // ✅ CORRECTION: Renommer le paramètre pour éviter le conflit avec l'objet global 'document'
+    console.log('📝 [MongoDB] Population du formulaire avec:', documentData)
+    
     const fieldsContainer = document.getElementById('documentFields')
     if (!fieldsContainer) {
         console.error('❌ [MongoDB] Container documentFields non trouvé')
         return
     }
     
+    // Vider le container
     fieldsContainer.innerHTML = ''
     
-    Object.entries(documentData).forEach(([key, value]) => {
-        this.addDocumentField(key, value, this.detectFieldType(value))
-    })
-    
-    // Ajouter le bouton pour ajouter des champs
-    const addButton = document.createElement('div')
-    addButton.className = 'mongodb-field-group'
-    addButton.innerHTML = `
-        <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="window.mongoAdvancedRef.addDocumentField()">
-            <i class="fas fa-plus"></i> Ajouter un champ
-        </button>
-    `
-    fieldsContainer.appendChild(addButton)
+    // Ajouter les champs un par un
+    try {
+        Object.entries(documentData).forEach(([key, value]) => {
+            console.log(`📝 [MongoDB] Ajout champ: ${key} = ${value} (type: ${typeof value})`)
+            this.addDocumentField(key, value, this.detectFieldType(value))
+        })
+        
+        // Ajouter le bouton pour ajouter des champs
+        const addButton = document.createElement('div')
+        addButton.className = 'mongodb-field-group'
+        addButton.innerHTML = `
+            <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="window.mongoAdvancedRef.addDocumentField()">
+                <i class="fas fa-plus"></i> Ajouter un champ
+            </button>
+        `
+        fieldsContainer.appendChild(addButton)
+        
+        console.log('✅ [MongoDB] Formulaire populé avec succès')
+        
+    } catch (error) {
+        console.error('❌ [MongoDB] Erreur population formulaire:', error)
+        this.adminPanel.showNotification('Erreur lors du chargement du formulaire: ' + error.message, 'error')
+    }
 }
-
    // 1. CORRIGER la méthode createModal (vers la fin du fichier)
 createModal(title, className, content) {
     // Supprimer les modals existants
@@ -1051,13 +1062,13 @@ addDocumentField(key = '', value = '', type = 'string') {
     }
 }
 
-    changeFieldType(select) {
-        const fieldContent = select.closest('.mongodb-document-field').querySelector('.mongodb-field-content')
-        const currentValue = this.getFieldValue(fieldContent)
-        
-        fieldContent.innerHTML = this.renderFieldInput(select.value, currentValue, fieldContent.id)
-        this.updateDocumentJSON()
-    }
+changeFieldType(select) {
+    const fieldContent = select.closest('.mongodb-document-field').querySelector('.mongodb-field-content')
+    const currentValue = this.getFieldValue(fieldContent)
+    
+    fieldContent.innerHTML = this.renderFieldInput(select.value, currentValue, fieldContent.id)
+    this.updateDocumentJSON()
+}
 
     getFieldValue(fieldContent) {
         const input = fieldContent.querySelector('.mongodb-field-input')
@@ -1105,96 +1116,165 @@ addDocumentField(key = '', value = '', type = 'string') {
         document.querySelector(`[data-mode="${mode}"]`).classList.add('active')
     }
 
-    updateDocumentJSON() {
-        const fields = document.querySelectorAll('.mongodb-document-field')
-        const document = {}
+updateDocumentJSON() {
+    const fields = document.querySelectorAll('.mongodb-document-field')
+    const documentData = {} // ✅ Renommer pour éviter le conflit avec l'objet global 'document'
+    
+    fields.forEach(field => {
+        const nameInput = field.querySelector('.mongodb-field-name')
+        const typeSelect = field.querySelector('.mongodb-field-type')
+        const content = field.querySelector('.mongodb-field-content')
         
-        fields.forEach(field => {
-            const nameInput = field.querySelector('.mongodb-field-name')
-            const typeSelect = field.querySelector('.mongodb-field-type')
-            const content = field.querySelector('.mongodb-field-content')
+        if (nameInput && nameInput.value.trim()) {
+            const fieldName = nameInput.value.trim()
+            const fieldType = typeSelect.value
+            const fieldValue = this.getFieldValue(content)
             
-            if (nameInput && nameInput.value.trim()) {
-                const fieldName = nameInput.value.trim()
-                const fieldType = typeSelect.value
-                const fieldValue = this.getFieldValue(content)
-                
-                // Convertir la valeur selon le type
-                switch (fieldType) {
-                    case 'number':
-                        document[fieldName] = parseFloat(fieldValue) || 0
-                        break
-                    case 'boolean':
-                        document[fieldName] = fieldValue === 'true' || fieldValue === true
-                        break
-                    case 'date':
-                        document[fieldName] = fieldValue ? new Date(fieldValue) : new Date()
-                        break
-                    case 'array':
-                    case 'object':
-                        try {
-                            document[fieldName] = JSON.parse(fieldValue || (fieldType === 'array' ? '[]' : '{}'))
-                        } catch {
-                            document[fieldName] = fieldType === 'array' ? [] : {}
-                        }
-                        break
-                    case 'objectid':
-                        document[fieldName] = fieldValue || null
-                        break
-                    default:
-                        document[fieldName] = fieldValue || ''
-                }
+            // Convertir la valeur selon le type
+            switch (fieldType) {
+                case 'number':
+                    documentData[fieldName] = parseFloat(fieldValue) || 0
+                    break
+                case 'boolean':
+                    documentData[fieldName] = fieldValue === 'true' || fieldValue === true
+                    break
+                case 'date':
+                    documentData[fieldName] = fieldValue ? new Date(fieldValue) : new Date()
+                    break
+                case 'array':
+                case 'object':
+                    try {
+                        documentData[fieldName] = JSON.parse(fieldValue || (fieldType === 'array' ? '[]' : '{}'))
+                    } catch {
+                        documentData[fieldName] = fieldType === 'array' ? [] : {}
+                    }
+                    break
+                case 'objectid':
+                    documentData[fieldName] = fieldValue || null
+                    break
+                default:
+                    documentData[fieldName] = fieldValue || ''
             }
-        })
-        
-        const jsonTextarea = document.getElementById('documentJSON')
-        if (jsonTextarea) {
-            jsonTextarea.value = JSON.stringify(document, null, 2)
         }
+    })
+    
+    const jsonTextarea = document.getElementById('documentJSON')
+    if (jsonTextarea) {
+        jsonTextarea.value = JSON.stringify(documentData, null, 2)
     }
+}
 
+// CORRIGER également la méthode updateFormFromJSON
 updateFormFromJSON() {
     try {
         const jsonValue = document.getElementById('documentJSON').value
-        const documentData = JSON.parse(jsonValue)
+        const parsedDocument = JSON.parse(jsonValue) // ✅ Renommer pour éviter le conflit
         
         // Recréer le formulaire
-        this.populateFormFromDocument(documentData)
+        this.populateFormFromDocument(parsedDocument)
     } catch (error) {
         this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
     }
 }
 
-
-    validateDocument() {
-        try {
-            const jsonValue = document.getElementById('documentJSON').value
-            const document = JSON.parse(jsonValue)
-            
-            // Validations basiques
-            const errors = []
-            
-            // Vérifier que ce n'est pas un objet vide
-            if (Object.keys(document).length === 0) {
-                errors.push('Le document ne peut pas être vide')
-            }
-            
-            // Vérifier les types MongoDB valides
-            this.validateMongoTypes(document, '', errors)
-            
-            if (errors.length > 0) {
-                this.adminPanel.showNotification('Erreurs de validation:\n' + errors.join('\n'), 'error')
-                return false
-            } else {
-                this.adminPanel.showNotification('Document valide ✓', 'success')
-                return true
-            }
-        } catch (error) {
-            this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
+// CORRIGER la méthode validateDocument
+validateDocument() {
+    try {
+        const jsonValue = document.getElementById('documentJSON').value
+        const parsedDocument = JSON.parse(jsonValue) // ✅ Renommer pour éviter le conflit
+        
+        // Validations basiques
+        const errors = []
+        
+        // Vérifier que ce n'est pas un objet vide
+        if (Object.keys(parsedDocument).length === 0) {
+            errors.push('Le document ne peut pas être vide')
+        }
+        
+        // Vérifier les types MongoDB valides
+        this.validateMongoTypes(parsedDocument, '', errors)
+        
+        if (errors.length > 0) {
+            this.adminPanel.showNotification('Erreurs de validation:\n' + errors.join('\n'), 'error')
             return false
+        } else {
+            this.adminPanel.showNotification('Document valide ✓', 'success')
+            return true
+        }
+    } catch (error) {
+        this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
+        return false
+    }
+}
+
+// CORRIGER la méthode saveDocument
+async saveDocument(isEdit = false) {
+    if (!this.validateDocument()) return
+    
+    try {
+        const jsonValue = document.getElementById('documentJSON').value
+        const parsedDocument = JSON.parse(jsonValue) // ✅ Renommer pour éviter le conflit
+        
+        const endpoint = isEdit ? '/mongodb/update-document' : '/mongodb/create-document'
+        const response = await this.adminPanel.apiCall(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+                database: this.mongo.currentDatabase,
+                collection: this.mongo.currentCollection,
+                document: parsedDocument,
+                originalId: isEdit ? this.currentEditingDocument._id : null
+            })
+        })
+        
+        if (response.success) {
+            document.querySelector('.mongodb-modal').remove()
+            
+            // ✅ Nettoyer la référence globale
+            window.mongoAdvancedRef = null
+            
+            this.mongo.loadDocuments(this.mongo.currentQuery) // Refresh
+            
+            const message = isEdit ? 'Document mis à jour avec succès' : 'Document créé avec succès'
+            this.adminPanel.showNotification(message, 'success')
+        } else {
+            throw new Error(response.message || 'Erreur lors de la sauvegarde')
+        }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error')
+    }
+}
+
+    getFieldValue(fieldContent) {
+    if (!fieldContent) return ''
+    
+    const input = fieldContent.querySelector('.mongodb-field-input')
+    if (!input) return ''
+    
+    if (input.type === 'checkbox') return input.checked
+    if (input.tagName === 'SELECT') return input.value === 'true'
+    if (input.classList.contains('mongodb-array-textarea') || input.classList.contains('mongodb-object-textarea')) {
+        try {
+            return JSON.parse(input.value || '{}')
+        } catch {
+            return input.value
         }
     }
+    
+    return input.value
+}
 
+    // AJOUTER une méthode pour détecter le type de champ de manière sécurisée
+detectFieldType(value) {
+    if (value === null || value === undefined) return 'string'
+    if (typeof value === 'boolean') return 'boolean'
+    if (typeof value === 'number') return 'number'
+    if (Array.isArray(value)) return 'array'
+    if (value instanceof Date) return 'date'
+    if (typeof value === 'object') return 'object'
+    if (typeof value === 'string' && value.match(/^[0-9a-fA-F]{24}$/)) return 'objectid'
+    return 'string'
+}
+    
     validateMongoTypes(obj, path, errors) {
         for (const [key, value] of Object.entries(obj)) {
             const fullPath = path ? `${path}.${key}` : key
@@ -1340,6 +1420,20 @@ updateFormFromJSON() {
         }
     }
 
+    debugVariables() {
+    console.log('🔍 [MongoDB Debug] Variables état:')
+    console.log('- window.mongoAdvancedRef:', window.mongoAdvancedRef)
+    console.log('- this.mongo.currentDatabase:', this.mongo.currentDatabase)
+    console.log('- this.mongo.currentCollection:', this.mongo.currentCollection)
+    console.log('- this.currentEditingDocument:', this.currentEditingDocument)
+    
+    const fields = document.querySelectorAll('.mongodb-document-field')
+    console.log('- Champs de formulaire trouvés:', fields.length)
+    
+    const jsonTextarea = document.getElementById('documentJSON')
+    console.log('- Textarea JSON trouvée:', !!jsonTextarea)
+}
+    
     // =============================================================================
     // INSPECTION DE DOCUMENTS
     // =============================================================================
