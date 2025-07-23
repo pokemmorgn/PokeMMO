@@ -1755,40 +1755,24 @@ export class MongoDBAdvanced {
     }
 
     createDocument() {
-        if (!this.mongo.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez d\'abord une collection', 'warning')
+        if (!this.mongo.currentCollection || !this.mongo.currentDatabase) {
+            this.adminPanel.showNotification('Sélectionnez d\'abord une base de données et une collection', 'warning')
             return
         }
         this.showDocumentEditor()
     }
 
-    editDocument(id) {
-        if (!this.mongo.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez d\'abord une collection', 'warning')
-            return
-        }
-        this.loadDocumentForEdit(id)
-    }
-
-    deleteDocument(id) {
-        if (!this.mongo.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez d\'abord une collection', 'warning')
-            return
-        }
-        this.deleteDocument(id)
-    }
-
     inspectDocument(id) {
-        if (!this.mongo.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez d\'abord une collection', 'warning')
+        if (!this.mongo.currentCollection || !this.mongo.currentDatabase) {
+            this.adminPanel.showNotification('Sélectionnez d\'abord une base de données et une collection', 'warning')
             return
         }
         this.inspectDocument(id)
     }
 
     showQueryBuilder() {
-        if (!this.mongo.currentCollection) {
-            this.adminPanel.showNotification('Sélectionnez d\'abord une collection', 'warning')
+        if (!this.mongo.currentCollection || !this.mongo.currentDatabase) {
+            this.adminPanel.showNotification('Sélectionnez d\'abord une base de données et une collection', 'warning')
             return
         }
         this.showQueryBuilder()
