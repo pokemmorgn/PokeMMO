@@ -1,6 +1,6 @@
 #!/usr/bin/env npx ts-node
 
-// scripts/migrate-quests.ts
+// server/src/scripts/migrate-quests.ts
 // Script de migration des quêtes depuis JSON vers MongoDB (Base: pokeworld)
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
@@ -9,14 +9,22 @@ import path from 'path';
 
 // ===== CONFIGURATION =====
 const MONGODB_URI = 'mongodb://localhost:27017/pokeworld';
-const QUEST_JSON_PATH = './build/data/quests/quests.json';
+const QUEST_JSON_PATH = './server/src/data/quests/quests.json';
 const FALLBACK_PATHS = [
-  './server/data/quests/quests.json',
+  './build/data/quests/quests.json',
   './data/quests/quests.json',
-  './src/data/quests/quests.json'
+  './src/data/quests/quests.json',
+  './server/data/quests/quests.json'
 ];
 
 // ===== INTERFACES TYPESCRIPT =====
+interface QuestReward {
+  type: 'gold' | 'item' | 'pokemon' | 'experience';
+  itemId?: string;
+  amount?: number;
+  pokemonId?: number;
+}
+
 interface QuestObjective {
   id: string;
   type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
@@ -26,13 +34,6 @@ interface QuestObjective {
   itemId?: string;
   requiredAmount: number;
   validationDialogue?: string[];
-}
-
-interface QuestReward {
-  type: 'gold' | 'item' | 'pokemon' | 'experience';
-  itemId?: string;
-  amount?: number;
-  pokemonId?: number;
 }
 
 interface QuestStep {
@@ -62,7 +63,7 @@ interface QuestJson {
   steps: QuestStep[];
 }
 
-interface QuestDataDoc extends Document {
+interface QuestDataDocument extends Document {
   questId: string;
   name: string;
   description: string;
@@ -86,26 +87,8 @@ interface QuestDataDoc extends Document {
   tags?: string[];
 }
 
-interface MigrationResult {
-  success: boolean;
-  questId: string;
-  action?: 'created' | 'updated';
-  error?: string;
-}
-
-interface MigrationStats {
-  total: number;
-  created: number;
-  updated: number;
-  errors: number;
-  errorDetails: Array<{
-    questId: string;
-    error: string;
-  }>;
-}
-
-// ===== SCHÉMA QUEST DATA (simplifié pour migration) =====
-const QuestDataSchema = new Schema<QuestDataDoc>({
+// ===== SCHÉMA QUEST DATA =====
+const QuestDataSchema = new Schema<QuestDataDocument>({
   questId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   description: { type: String, required: true },
@@ -166,11 +149,27 @@ const QuestDataSchema = new Schema<QuestDataDoc>({
 });
 
 // ===== MODÈLE =====
-const QuestData = mongoose.model<QuestDataDoc>('QuestData', QuestDataSchema);
+const QuestData = mongoose.model<QuestDataDocument>('QuestData', QuestDataSchema);
+
+// ===== TYPES POUR LES RÉSULTATS =====
+interface MigrationResult {
+  success: boolean;
+  questId: string;
+  action?: 'created' | 'updated';
+  error?: string;
+}
+
+interface MigrationStats {
+  total: number;
+  created: number;
+  updated: number;
+  errors: number;
+  errorDetails: Array<{ questId: string; error: string }>;
+}
 
 // ===== FONCTIONS UTILITAIRES =====
 
-function log(level: 'info' | 'warn' | 'error' | 'success', message: string, data: any = null): void {
+function log(level: 'info' | 'warn' | 'error' | 'success', message: string, data?: any): void {
   const timestamp = new Date().toISOString();
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
   
@@ -208,7 +207,7 @@ function findQuestJsonFile(): string {
   throw new Error(`Fichier quests.json introuvable. Chemins vérifiés: ${[QUEST_JSON_PATH, ...FALLBACK_PATHS].join(', ')}`);
 }
 
-function validateQuestData(quest: QuestJson): { valid: boolean; errors: string[] } {
+function validateQuestData(quest: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
   if (!quest.id || typeof quest.id !== 'string') {
@@ -222,7 +221,7 @@ function validateQuestData(quest: QuestJson): { valid: boolean; errors: string[]
   if (!quest.steps || !Array.isArray(quest.steps) || quest.steps.length === 0) {
     errors.push('Étapes manquantes ou invalides');
   } else {
-    quest.steps.forEach((step, index) => {
+    quest.steps.forEach((step: any, index: number) => {
       if (!step.objectives || !Array.isArray(step.objectives) || step.objectives.length === 0) {
         errors.push(`Étape ${index + 1}: objectifs manquants`);
       }
@@ -251,7 +250,7 @@ async function connectToMongoDB(): Promise<boolean> {
     
     return true;
   } catch (error) {
-    log('error', 'Erreur connexion MongoDB:', (error as Error).message);
+    log('error', 'Erreur connexion MongoDB:', error instanceof Error ? error.message : 'Erreur inconnue');
     throw error;
   }
 }
@@ -275,7 +274,7 @@ async function loadQuestJsonData(): Promise<{ quests: QuestJson[]; sourceFile: s
     };
     
   } catch (error) {
-    log('error', 'Erreur lecture JSON:', (error as Error).message);
+    log('error', 'Erreur lecture JSON:', error instanceof Error ? error.message : 'Erreur inconnue');
     throw error;
   }
 }
@@ -361,7 +360,7 @@ async function migrateQuest(questJson: QuestJson, sourceFile: string): Promise<M
     return {
       success: false,
       questId: questJson.id || 'UNKNOWN',
-      error: (error as Error).message
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     };
   }
 }
@@ -403,7 +402,7 @@ async function performMigration(): Promise<MigrationStats> {
         stats.errors++;
         stats.errorDetails.push({
           questId: result.questId,
-          error: result.error!
+          error: result.error || 'Erreur inconnue'
         });
         log('error', `${progress} ❌ Erreur ${result.questId}: ${result.error}`);
       }
@@ -412,7 +411,7 @@ async function performMigration(): Promise<MigrationStats> {
     return stats;
     
   } catch (error) {
-    log('error', 'Erreur durant la migration:', (error as Error).message);
+    log('error', 'Erreur durant la migration:', error instanceof Error ? error.message : 'Erreur inconnue');
     throw error;
   }
 }
@@ -472,8 +471,10 @@ async function main(): Promise<void> {
     }
     
   } catch (error) {
-    log('error', '💥 Erreur fatale durant la migration:', (error as Error).message);
-    console.error((error as Error).stack);
+    log('error', '💥 Erreur fatale durant la migration:', error instanceof Error ? error.message : 'Erreur inconnue');
+    if (error instanceof Error) {
+      console.error(error.stack);
+    }
     exitCode = 2;
   } finally {
     // Fermer la connexion MongoDB
