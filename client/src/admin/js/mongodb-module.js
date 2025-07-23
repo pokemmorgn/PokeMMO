@@ -786,6 +786,224 @@ inspectDocument(id) { return this.advanced.inspectDocument(id) }
 showQueryBuilder() { return this.advanced.showQueryBuilder() }
 showDatabaseStats() { return this.advanced.showDatabaseStats() }
 showServerInfo() { return this.advanced.showServerInfo() }
+
+// Ajouter ces méthodes à la fin de la classe MongoDBModule (avant cleanup())
+
+// =============================================================================
+// MÉTHODES MANQUANTES POUR L'INTERFACE
+// =============================================================================
+
+selectDocumentRow(index) {
+    console.log(`👆 [MongoDB] Sélection ligne document: ${index}`)
+    
+    // Désélectionner toutes les lignes
+    document.querySelectorAll('.mongodb-document-row').forEach(row => {
+        row.classList.remove('selected')
+    })
+    
+    // Sélectionner la ligne cliquée
+    const rows = document.querySelectorAll('.mongodb-document-row')
+    if (rows[index]) {
+        rows[index].classList.add('selected')
+        this.selectedDocument = index
+    }
+}
+
+selectDocument(index) {
+    console.log(`📄 [MongoDB] Sélection document: ${index}`)
+    this.selectedDocument = index
+    
+    // Mettre en surbrillance le document JSON sélectionné
+    document.querySelectorAll('.mongodb-json-document').forEach(doc => {
+        doc.classList.remove('selected')
+    })
+    
+    const jsonDocs = document.querySelectorAll('.mongodb-json-document')
+    if (jsonDocs[index]) {
+        jsonDocs[index].classList.add('selected')
+    }
+}
+
+toggleAllRows(checked) {
+    console.log(`☑️ [MongoDB] Toggle toutes les lignes: ${checked}`)
+    
+    document.querySelectorAll('.mongodb-document-row input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = checked
+    })
+    
+    // Mettre à jour la sélection visuelle
+    document.querySelectorAll('.mongodb-document-row').forEach(row => {
+        if (checked) {
+            row.classList.add('bulk-selected')
+        } else {
+            row.classList.remove('bulk-selected')
+        }
+    })
+}
+
+sortBy(column) {
+    console.log(`🔄 [MongoDB] Tri par colonne: ${column}`)
+    
+    // Pour l'instant, on recharge avec un tri
+    const currentQuery = { ...this.currentQuery }
+    
+    // Alterner l'ordre de tri
+    if (this.currentSort && this.currentSort.field === column) {
+        this.currentSort.order = this.currentSort.order === 1 ? -1 : 1
+    } else {
+        this.currentSort = { field: column, order: 1 }
+    }
+    
+    // Mettre à jour les icônes de tri
+    document.querySelectorAll('.mongodb-sort-icon').forEach(icon => {
+        icon.className = 'fas fa-sort mongodb-sort-icon'
+    })
+    
+    const currentIcon = document.querySelector(`th[onclick*="${column}"] .mongodb-sort-icon`)
+    if (currentIcon) {
+        currentIcon.className = this.currentSort.order === 1 ? 
+            'fas fa-sort-up mongodb-sort-icon' : 
+            'fas fa-sort-down mongodb-sort-icon'
+    }
+    
+    // Recharger avec le nouveau tri
+    this.loadDocuments(currentQuery)
+}
+
+copyJSON(documentId) {
+    console.log(`📋 [MongoDB] Copie JSON document: ${documentId}`)
+    
+    // Trouver le document dans les données actuelles
+    const jsonDocs = document.querySelectorAll('.mongodb-json-content code')
+    const targetDoc = Array.from(jsonDocs).find(code => {
+        try {
+            const doc = JSON.parse(code.textContent)
+            return doc._id === documentId
+        } catch {
+            return false
+        }
+    })
+    
+    if (targetDoc) {
+        navigator.clipboard.writeText(targetDoc.textContent).then(() => {
+            this.adminPanel.showNotification('JSON copié dans le presse-papiers', 'success')
+        }).catch(() => {
+            this.adminPanel.showNotification('Erreur lors de la copie', 'error')
+        })
+    }
+}
+
+// Initialiser les méthodes avancées si le module advanced est chargé
+initializeAdvanced() {
+    if (this.advanced) {
+        console.log('🚀 [MongoDB] Initialisation module avancé')
+        return
+    }
+    
+    // Si le module advanced n'est pas encore chargé, utiliser des implémentations basiques
+    console.log('⚠️ [MongoDB] Module avancé non chargé, utilisation des méthodes de base')
+}
+
+// Méthodes de base si le module advanced n'est pas disponible
+createDocument() {
+    if (this.advanced) {
+        return this.advanced.createDocument()
+    }
+    
+    // Version basique
+    const newDoc = prompt('JSON du nouveau document:', '{"name": "Nouveau document"}')
+    if (newDoc) {
+        try {
+            JSON.parse(newDoc) // Validation
+            this.adminPanel.showNotification('Création de document en développement', 'info')
+        } catch (error) {
+            this.adminPanel.showNotification('JSON invalide: ' + error.message, 'error')
+        }
+    }
+}
+
+editDocument(id) {
+    if (this.advanced) {
+        return this.advanced.editDocument(id)
+    }
+    
+    // Version basique
+    this.adminPanel.showNotification('Édition de document en développement', 'info')
+    console.log(`✏️ [MongoDB] Édition document basique: ${id}`)
+}
+
+deleteDocument(id) {
+    if (this.advanced) {
+        return this.advanced.deleteDocument(id)
+    }
+    
+    // Version basique avec confirmation
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+        this.adminPanel.showNotification('Suppression de document en développement', 'info')
+        console.log(`🗑️ [MongoDB] Suppression document basique: ${id}`)
+    }
+}
+
+inspectDocument(id) {
+    if (this.advanced) {
+        return this.advanced.inspectDocument(id)
+    }
+    
+    // Version basique - afficher dans une alert
+    console.log(`🔍 [MongoDB] Inspection document basique: ${id}`)
+    this.adminPanel.showNotification('Inspection de document en développement', 'info')
+}
+
+showQueryBuilder() {
+    if (this.advanced) {
+        return this.advanced.showQueryBuilder()
+    }
+    
+    // Version basique
+    const query = prompt('Requête MongoDB (JSON):', '{}')
+    if (query) {
+        try {
+            const parsedQuery = JSON.parse(query)
+            this.currentQuery = parsedQuery
+            this.currentPage = 0
+            this.loadDocuments(parsedQuery)
+        } catch (error) {
+            this.adminPanel.showNotification('Requête JSON invalide: ' + error.message, 'error')
+        }
+    }
+}
+
+showDatabaseStats() {
+    if (this.advanced) {
+        return this.advanced.showDatabaseStats()
+    }
+    
+    // Version basique
+    this.adminPanel.showNotification('Statistiques DB en développement', 'info')
+    console.log('📊 [MongoDB] Stats DB basiques')
+}
+
+showServerInfo() {
+    if (this.advanced) {
+        return this.advanced.showServerInfo()
+    }
+    
+    // Version basique
+    this.adminPanel.showNotification('Info serveur en développement', 'info')
+    console.log('🖥️ [MongoDB] Info serveur basiques')
+}
+
+// Ajouter également une méthode pour initialiser le tri
+initializeSorting() {
+    this.currentSort = null
+    console.log('🔄 [MongoDB] Système de tri initialisé')
+}
+
+// Méthode pour gérer les erreurs d'interface
+handleInterfaceError(error, context) {
+    console.error(`❌ [MongoDB] Erreur interface (${context}):`, error)
+    this.adminPanel.showNotification(`Erreur: ${error.message}`, 'error')
+}
     
 cleanup() {
     this.advanced?.cleanup()
