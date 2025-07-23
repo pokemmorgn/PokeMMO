@@ -116,6 +116,18 @@ export interface QuestObjectiveMetadata {
 }
 
 /**
+ * 🌟 Rareté des récompenses (types étendus)
+ */
+export type RewardRarity = 
+  | 'common'     // Gris - Récompenses standard
+  | 'uncommon'   // Vert - Légèrement meilleures
+  | 'rare'       // Bleu - Difficiles à obtenir
+  | 'epic'       // Violet - Très rares
+  | 'legendary'  // Orange - Extrêmement rares
+  | 'mythic'     // Rose - Uniques/événements
+  | 'artifact';  // Doré - Légendaires historiques
+
+/**
  * ✅ CONSERVÉ : Types de récompenses avec extensions
  */
 export type QuestRewardType = 
@@ -154,8 +166,8 @@ export interface QuestReward {
   boostId?: string;
   cosmeticId?: string;
   
-  // 🆕 NOUVEAUX : Métadonnées
-  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  // 🆕 NOUVEAUX : Métadonnées (avec RewardRarity complet)
+  rarity?: RewardRarity;
   temporary?: boolean;
   duration?: number; // en minutes si temporaire
   description?: string;
