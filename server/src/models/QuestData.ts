@@ -1,32 +1,29 @@
 // server/src/models/QuestData.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
-import { QuestDefinition, QuestObjective, QuestReward } from "../types/QuestTypes";
+import { QuestDefinition, QuestReward } from "../types/QuestTypes";
 
 // ===== INTERFACES =====
 
 export interface IQuestData extends Document {
   // === IDENTIFICATION ===
-  questId: string;                    // ID unique de la quête
-  zone?: string;                      // Zone associée (optionnel)
-  name: string;                       // Nom de la quête
-  description: string;                // Description
+  questId: string;                  // ID unique de la quête
+  name: string;                     // Nom de la quête
+  description: string;              // Description de la quête
   category: 'main' | 'side' | 'daily' | 'repeatable';
   
-  // === PRÉREQUIS ET NPCS ===
-  prerequisites?: string[];           // Quêtes prérequises
-  startNpcId?: number;               // NPC qui donne la quête
-  endNpcId?: number;                 // NPC qui termine la quête
-  
-  // === RÉPÉTABILITÉ ===
-  isRepeatable: boolean;
-  cooldownHours?: number;
-  autoComplete?: boolean;            // Completion automatique ou manuelle
+  // === CONFIGURATION ===
+  prerequisites?: string[];         // IDs des quêtes prérequises
+  startNpcId?: number;             // NPC qui donne la quête
+  endNpcId?: number;               // NPC qui reçoit la quête
+  isRepeatable: boolean;           // Quête répétable
+  cooldownHours?: number;          // Cooldown entre répétitions
+  autoComplete: boolean;           // Completion automatique ou manuelle
   
   // === DIALOGUES ===
   dialogues?: {
-    questOffer?: string[];
-    questInProgress?: string[];
-    questComplete?: string[];
+    questOffer?: string[];         // Dialogues d'offre de quête
+    questInProgress?: string[];    // Dialogues pendant la quête
+    questComplete?: string[];      // Dialogues de completion
   };
   
   // === ÉTAPES DE LA QUÊTE ===
@@ -52,117 +49,137 @@ export interface IQuestData extends Document {
     }>;
   }>;
   
-  // === CONDITIONS DE DISPONIBILITÉ ===
-  availabilityConditions?: {
-    minPlayerLevel?: number;
-    maxPlayerLevel?: number;
-    requiredBadges?: string[];
-    requiredItems?: string[];
-    requiredFlags?: string[];
-    forbiddenFlags?: string[];
-    timeRestrictions?: {
-      enabled: boolean;
-      allowedTimes?: string[];
-    };
-    weatherRestrictions?: {
-      enabled: boolean;
-      allowedWeather?: string[];
-    };
-  };
-  
   // === MÉTADONNÉES ===
-  isActive: boolean;                 // Quête active ou désactivée
-  version: string;                   // Version des données
+  isActive: boolean;               // Quête active ou désactivée
+  version: string;                 // Version des données
   lastUpdated: Date;
-  sourceFile?: string;               // Fichier source original
-  createdBy?: string;                // Créateur
-  tags?: string[];                   // Tags pour classification
+  sourceFile?: string;             // Fichier source original (pour migration)
+  tags?: string[];                 // Tags pour catégorisation
   
   // === MÉTHODES D'INSTANCE ===
   toQuestDefinition(): QuestDefinition;
   updateFromJson(jsonData: any): Promise<void>;
-  isAvailableForPlayer(playerLevel: number, playerFlags: string[], playerBadges: string[]): boolean;
+  isAvailableForPlayer(playerLevel: number, completedQuests: string[]): boolean;
 }
 
 // Interface pour les méthodes statiques
 export interface IQuestDataModel extends Model<IQuestData> {
-  findByZone(zone: string): Promise<IQuestData[]>;
-  findByCategory(category: string, zone?: string): Promise<IQuestData[]>;
-  findActiveQuests(zone?: string): Promise<IQuestData[]>;
-  findByNpc(npcId: number, type: 'start' | 'end' | 'both'): Promise<IQuestData[]>;
+  findByCategory(category: string): Promise<IQuestData[]>;
+  findByNpc(npcId: number, type: 'start' | 'end'): Promise<IQuestData[]>;
+  findActiveQuests(): Promise<IQuestData[]>;
+  findRepeatableQuests(): Promise<IQuestData[]>;
   bulkImportFromJson(questsData: any): Promise<{ success: number; errors: string[] }>;
-  createFromJson(jsonQuest: any, zone?: string): Promise<IQuestData>;
+  createFromJson(jsonQuest: any): Promise<IQuestData>;
 }
 
 // ===== SCHÉMAS =====
 
-// Schéma pour les objectifs
-const QuestObjectiveSchema = new Schema({
-  id: { type: String, required: true },
+// Schéma pour les récompenses
+const RewardSchema = new Schema({
   type: { 
     type: String, 
     required: true,
-    enum: ['collect', 'defeat', 'talk', 'reach', 'deliver']
+    enum: {
+      values: ['gold', 'item', 'pokemon', 'experience'],
+      message: 'Invalid reward type'
+    }
   },
-  description: { type: String, required: true },
-  target: { type: String },
-  targetName: { type: String },
-  itemId: { type: String },
+  itemId: { 
+    type: String,
+    trim: true
+  },
+  amount: { 
+    type: Number,
+    min: [0, 'Amount cannot be negative']
+  },
+  pokemonId: { 
+    type: Number,
+    min: [1, 'Pokemon ID must be positive']
+  }
+}, { _id: false });
+
+// Schéma pour les objectifs
+const ObjectiveSchema = new Schema({
+  id: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  type: { 
+    type: String, 
+    required: true,
+    enum: {
+      values: ['collect', 'defeat', 'talk', 'reach', 'deliver'],
+      message: 'Invalid objective type'
+    }
+  },
+  description: { 
+    type: String, 
+    required: true,
+    trim: true,
+    maxlength: [500, 'Description too long']
+  },
+  target: { 
+    type: String,
+    trim: true
+  },
+  targetName: { 
+    type: String,
+    trim: true,
+    maxlength: [100, 'Target name too long']
+  },
+  itemId: { 
+    type: String,
+    trim: true
+  },
   requiredAmount: { 
     type: Number, 
     required: true,
     min: [1, 'Required amount must be positive']
   },
-  validationDialogue: [{ type: String }]
-}, { _id: false });
-
-// Schéma pour les récompenses
-const QuestRewardSchema = new Schema({
-  type: { 
-    type: String, 
-    required: true,
-    enum: ['gold', 'item', 'pokemon', 'experience']
-  },
-  itemId: { type: String },
-  amount: { 
-    type: Number,
-    min: [0, 'Amount cannot be negative']
-  },
-  pokemonId: { type: Number }
+  validationDialogue: [{ 
+    type: String,
+    trim: true
+  }]
 }, { _id: false });
 
 // Schéma pour les étapes
-const QuestStepSchema = new Schema({
-  id: { type: String, required: true },
-  name: { type: String, required: true },
-  description: { type: String, required: true },
-  objectives: [QuestObjectiveSchema],
-  rewards: [QuestRewardSchema]
+const StepSchema = new Schema({
+  id: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  name: { 
+    type: String, 
+    required: true,
+    trim: true,
+    maxlength: [200, 'Step name too long']
+  },
+  description: { 
+    type: String, 
+    required: true,
+    trim: true,
+    maxlength: [1000, 'Step description too long']
+  },
+  objectives: [ObjectiveSchema],
+  rewards: [RewardSchema]
 }, { _id: false });
 
 // Schéma pour les dialogues
-const QuestDialoguesSchema = new Schema({
-  questOffer: [{ type: String }],
-  questInProgress: [{ type: String }],
-  questComplete: [{ type: String }]
-}, { _id: false });
-
-// Schéma pour les conditions de disponibilité
-const AvailabilityConditionsSchema = new Schema({
-  minPlayerLevel: { type: Number, min: 1, max: 100 },
-  maxPlayerLevel: { type: Number, min: 1, max: 100 },
-  requiredBadges: [{ type: String }],
-  requiredItems: [{ type: String }],
-  requiredFlags: [{ type: String }],
-  forbiddenFlags: [{ type: String }],
-  timeRestrictions: {
-    enabled: { type: Boolean, default: false },
-    allowedTimes: [{ type: String }]
-  },
-  weatherRestrictions: {
-    enabled: { type: Boolean, default: false },
-    allowedWeather: [{ type: String }]
-  }
+const DialoguesSchema = new Schema({
+  questOffer: [{ 
+    type: String,
+    trim: true
+  }],
+  questInProgress: [{ 
+    type: String,
+    trim: true
+  }],
+  questComplete: [{ 
+    type: String,
+    trim: true
+  }]
 }, { _id: false });
 
 // ===== SCHÉMA PRINCIPAL =====
@@ -177,12 +194,6 @@ const QuestDataSchema = new Schema<IQuestData>({
     maxlength: [100, 'Quest ID too long'],
     index: true
   },
-  zone: { 
-    type: String,
-    trim: true,
-    maxlength: [50, 'Zone name too long'],
-    index: true
-  },
   name: { 
     type: String, 
     required: true,
@@ -193,7 +204,7 @@ const QuestDataSchema = new Schema<IQuestData>({
     type: String, 
     required: true,
     trim: true,
-    maxlength: [1000, 'Quest description too long']
+    maxlength: [2000, 'Quest description too long']
   },
   category: { 
     type: String, 
@@ -205,10 +216,10 @@ const QuestDataSchema = new Schema<IQuestData>({
     index: true
   },
   
-  // === PRÉREQUIS ET NPCS ===
+  // === CONFIGURATION ===
   prerequisites: [{ 
     type: String,
-    trim: true 
+    trim: true
   }],
   startNpcId: { 
     type: Number,
@@ -220,8 +231,6 @@ const QuestDataSchema = new Schema<IQuestData>({
     min: [1, 'End NPC ID must be positive'],
     index: true
   },
-  
-  // === RÉPÉTABILITÉ ===
   isRepeatable: { 
     type: Boolean, 
     default: false,
@@ -239,13 +248,13 @@ const QuestDataSchema = new Schema<IQuestData>({
   
   // === DIALOGUES ===
   dialogues: { 
-    type: QuestDialoguesSchema,
+    type: DialoguesSchema,
     default: undefined
   },
   
   // === ÉTAPES ===
   steps: { 
-    type: [QuestStepSchema], 
+    type: [StepSchema], 
     required: true,
     validate: {
       validator: function(steps: any[]) {
@@ -253,12 +262,6 @@ const QuestDataSchema = new Schema<IQuestData>({
       },
       message: 'Quest must have at least one step'
     }
-  },
-  
-  // === CONDITIONS DE DISPONIBILITÉ ===
-  availabilityConditions: { 
-    type: AvailabilityConditionsSchema,
-    default: undefined
   },
   
   // === MÉTADONNÉES ===
@@ -282,11 +285,6 @@ const QuestDataSchema = new Schema<IQuestData>({
     trim: true,
     maxlength: [200, 'Source file path too long']
   },
-  createdBy: { 
-    type: String,
-    trim: true,
-    maxlength: [100, 'Creator name too long']
-  },
   tags: [{ 
     type: String,
     trim: true,
@@ -300,32 +298,24 @@ const QuestDataSchema = new Schema<IQuestData>({
 
 // ===== INDEX COMPOSITES =====
 
-// Index principal
-QuestDataSchema.index({ questId: 1 }, { unique: true });
-
-// Index pour les requêtes fréquentes
-QuestDataSchema.index({ zone: 1, isActive: 1 });
-QuestDataSchema.index({ category: 1, isActive: 1 });
+// Index pour les quêtes par NPC
 QuestDataSchema.index({ startNpcId: 1, isActive: 1 });
 QuestDataSchema.index({ endNpcId: 1, isActive: 1 });
+
+// Index pour les requêtes fréquentes
+QuestDataSchema.index({ category: 1, isActive: 1 });
 QuestDataSchema.index({ isRepeatable: 1, isActive: 1 });
 
-// Index pour les tags
-QuestDataSchema.index({ tags: 1 });
-
-// Index pour les prérequis
-QuestDataSchema.index({ prerequisites: 1 });
+// Index de recherche textuelle
+QuestDataSchema.index({ 
+  name: 'text', 
+  description: 'text',
+  tags: 'text'
+});
 
 // ===== VALIDATIONS PRE-SAVE =====
 
 QuestDataSchema.pre('save', function(next) {
-  // Validation de cohérence des conditions
-  if (this.availabilityConditions?.minPlayerLevel && this.availabilityConditions?.maxPlayerLevel) {
-    if (this.availabilityConditions.minPlayerLevel > this.availabilityConditions.maxPlayerLevel) {
-      return next(new Error('Min player level cannot be greater than max player level'));
-    }
-  }
-  
   // Validation des étapes
   if (this.steps && this.steps.length > 0) {
     for (const step of this.steps) {
@@ -335,12 +325,19 @@ QuestDataSchema.pre('save', function(next) {
     }
   }
   
-  // Nettoyage des arrays
+  // Validation NPC
+  if (this.startNpcId && this.endNpcId && this.startNpcId === this.endNpcId) {
+    console.warn(`Quest ${this.questId}: Start and end NPC are the same`);
+  }
+  
+  // Nettoyage des prerequisites
   if (this.prerequisites) {
     this.prerequisites = this.prerequisites.filter(p => p && p.trim().length > 0);
   }
+  
+  // Nettoyage des tags
   if (this.tags) {
-    this.tags = this.tags.filter(t => t && t.trim().length > 0);
+    this.tags = [...new Set(this.tags.filter(t => t && t.trim().length > 0))];
   }
   
   // Mise à jour timestamp
@@ -390,7 +387,7 @@ QuestDataSchema.methods.toQuestDefinition = function(this: IQuestData): QuestDef
  * Met à jour les données depuis un objet JSON
  */
 QuestDataSchema.methods.updateFromJson = async function(
-  this: IQuestData, 
+  this: IQuestData,
   jsonData: any
 ): Promise<void> {
   // Propriétés de base
@@ -398,70 +395,45 @@ QuestDataSchema.methods.updateFromJson = async function(
   if (jsonData.description) this.description = jsonData.description;
   if (jsonData.category) this.category = jsonData.category;
   
-  // Prérequis et NPCs
+  // Configuration
   if (jsonData.prerequisites) this.prerequisites = jsonData.prerequisites;
   if (jsonData.startNpcId) this.startNpcId = jsonData.startNpcId;
   if (jsonData.endNpcId) this.endNpcId = jsonData.endNpcId;
-  
-  // Répétabilité
   if (typeof jsonData.isRepeatable === 'boolean') this.isRepeatable = jsonData.isRepeatable;
   if (jsonData.cooldownHours) this.cooldownHours = jsonData.cooldownHours;
   if (typeof jsonData.autoComplete === 'boolean') this.autoComplete = jsonData.autoComplete;
   
-  // Dialogues et étapes
+  // Dialogues
   if (jsonData.dialogues) this.dialogues = jsonData.dialogues;
+  
+  // Étapes
   if (jsonData.steps) this.steps = jsonData.steps;
   
-  // Conditions et métadonnées
-  if (jsonData.availabilityConditions) this.availabilityConditions = jsonData.availabilityConditions;
+  // Tags
   if (jsonData.tags) this.tags = jsonData.tags;
   
   await this.save();
 };
 
 /**
- * Vérifie si la quête est disponible pour un joueur donné
+ * Vérifie si la quête est disponible pour un joueur
  */
 QuestDataSchema.methods.isAvailableForPlayer = function(
   this: IQuestData,
   playerLevel: number,
-  playerFlags: string[] = [],
-  playerBadges: string[] = []
+  completedQuests: string[] = []
 ): boolean {
   if (!this.isActive) return false;
   
-  const conditions = this.availabilityConditions;
-  if (!conditions) return true;
-  
-  // Vérification niveau
-  if (conditions.minPlayerLevel && playerLevel < conditions.minPlayerLevel) return false;
-  if (conditions.maxPlayerLevel && playerLevel > conditions.maxPlayerLevel) return false;
-  
-  // Vérification badges requis
-  if (conditions.requiredBadges?.length) {
-    const hasAllBadges = conditions.requiredBadges.every(badge => 
-      playerBadges.includes(badge)
+  // Vérifier les prérequis
+  if (this.prerequisites && this.prerequisites.length > 0) {
+    const hasAllPrerequisites = this.prerequisites.every(prereq => 
+      completedQuests.includes(prereq)
     );
-    if (!hasAllBadges) return false;
+    if (!hasAllPrerequisites) return false;
   }
   
-  // Vérification flags requis
-  if (conditions.requiredFlags?.length) {
-    const hasAllFlags = conditions.requiredFlags.every(flag => 
-      playerFlags.includes(flag)
-    );
-    if (!hasAllFlags) return false;
-  }
-  
-  // Vérification flags interdits
-  if (conditions.forbiddenFlags?.length) {
-    const hasAnyForbidden = conditions.forbiddenFlags.some(flag => 
-      playerFlags.includes(flag)
-    );
-    if (hasAnyForbidden) return false;
-  }
-  
-  // TODO: Vérification temps et météo
+  // TODO: Ajouter d'autres vérifications (niveau, flags, etc.)
   
   return true;
 };
@@ -469,21 +441,25 @@ QuestDataSchema.methods.isAvailableForPlayer = function(
 // ===== MÉTHODES STATIQUES =====
 
 /**
- * Trouve toutes les quêtes d'une zone
+ * Trouve les quêtes par catégorie
  */
-QuestDataSchema.statics.findByZone = function(zone: string): Promise<IQuestData[]> {
-  return this.find({ zone, isActive: true }).sort({ questId: 1 });
+QuestDataSchema.statics.findByCategory = function(category: string): Promise<IQuestData[]> {
+  return this.find({ category, isActive: true }).sort({ questId: 1 });
 };
 
 /**
- * Trouve les quêtes par catégorie
+ * Trouve les quêtes par NPC
  */
-QuestDataSchema.statics.findByCategory = function(
-  category: string, 
-  zone?: string
+QuestDataSchema.statics.findByNpc = function(
+  npcId: number,
+  type: 'start' | 'end'
 ): Promise<IQuestData[]> {
-  const query: any = { category, isActive: true };
-  if (zone) query.zone = zone;
+  const query: any = { isActive: true };
+  if (type === 'start') {
+    query.startNpcId = npcId;
+  } else {
+    query.endNpcId = npcId;
+  }
   
   return this.find(query).sort({ questId: 1 });
 };
@@ -491,38 +467,15 @@ QuestDataSchema.statics.findByCategory = function(
 /**
  * Trouve toutes les quêtes actives
  */
-QuestDataSchema.statics.findActiveQuests = function(zone?: string): Promise<IQuestData[]> {
-  const query: any = { isActive: true };
-  if (zone) query.zone = zone;
-  
-  return this.find(query).sort({ category: 1, questId: 1 });
+QuestDataSchema.statics.findActiveQuests = function(): Promise<IQuestData[]> {
+  return this.find({ isActive: true }).sort({ category: 1, questId: 1 });
 };
 
 /**
- * Trouve les quêtes par NPC
+ * Trouve les quêtes répétables
  */
-QuestDataSchema.statics.findByNpc = function(
-  npcId: number, 
-  type: 'start' | 'end' | 'both' = 'both'
-): Promise<IQuestData[]> {
-  let query: any = { isActive: true };
-  
-  switch (type) {
-    case 'start':
-      query.startNpcId = npcId;
-      break;
-    case 'end':
-      query.endNpcId = npcId;
-      break;
-    case 'both':
-      query.$or = [
-        { startNpcId: npcId },
-        { endNpcId: npcId }
-      ];
-      break;
-  }
-  
-  return this.find(query).sort({ questId: 1 });
+QuestDataSchema.statics.findRepeatableQuests = function(): Promise<IQuestData[]> {
+  return this.find({ isRepeatable: true, isActive: true }).sort({ questId: 1 });
 };
 
 /**
@@ -534,7 +487,7 @@ QuestDataSchema.statics.bulkImportFromJson = async function(
   const results: { success: number; errors: string[] } = { success: 0, errors: [] };
   
   if (!questsData.quests || !Array.isArray(questsData.quests)) {
-    results.errors.push('Invalid quests data format - missing "quests" array');
+    results.errors.push('Invalid quests data format');
     return results;
   }
   
@@ -554,8 +507,7 @@ QuestDataSchema.statics.bulkImportFromJson = async function(
  * Crée une quête depuis des données JSON
  */
 QuestDataSchema.statics.createFromJson = async function(
-  jsonQuest: any, 
-  zone?: string
+  jsonQuest: any
 ): Promise<IQuestData> {
   // Validation de base
   if (!jsonQuest.id || !jsonQuest.name || !jsonQuest.steps) {
@@ -573,7 +525,6 @@ QuestDataSchema.statics.createFromJson = async function(
   // Créer nouveau
   const questData = new this({
     questId: jsonQuest.id,
-    zone,
     name: jsonQuest.name,
     description: jsonQuest.description || '',
     category: jsonQuest.category || 'side',
@@ -582,13 +533,11 @@ QuestDataSchema.statics.createFromJson = async function(
     endNpcId: jsonQuest.endNpcId,
     isRepeatable: jsonQuest.isRepeatable || false,
     cooldownHours: jsonQuest.cooldownHours,
-    autoComplete: jsonQuest.autoComplete !== false, // true par défaut
+    autoComplete: jsonQuest.autoComplete !== false, // Par défaut true
     dialogues: jsonQuest.dialogues,
     steps: jsonQuest.steps,
-    availabilityConditions: jsonQuest.availabilityConditions,
     version: '1.0.0',
-    sourceFile: zone ? `${zone}_quests.json` : 'quests.json',
-    tags: jsonQuest.tags || []
+    sourceFile: 'quests.json'
   });
   
   await questData.save();
@@ -601,5 +550,5 @@ export const QuestData = mongoose.model<IQuestData, IQuestDataModel>('QuestData'
 // Types d'export
 export type QuestDataDocument = IQuestData;
 export type CreateQuestData = Partial<Pick<IQuestData, 
-  'questId' | 'zone' | 'name' | 'description' | 'category' | 'steps'
+  'questId' | 'name' | 'description' | 'category' | 'steps'
 >>;
