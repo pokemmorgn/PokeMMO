@@ -49,36 +49,36 @@ export class MongoDBModule {
         }
 
         container.innerHTML = `
-            <div class="db-interface">
+            <div class="mongodb-pro-interface">
                 <!-- Header avec logo et connexion -->
-                <div class="db-header">
-                    <div class="db-logo">
+                <div class="mongodb-pro-header">
+                    <div class="mongodb-pro-logo">
                         <i class="fas fa-leaf" style="color: #4CAF50;"></i>
-                        <span class="db-title">MongoDB Explorer</span>
-                        <span class="db-version">v4.4</span>
+                        <span class="mongodb-pro-title">MongoDB Explorer</span>
+                        <span class="mongodb-pro-version">v4.4</span>
                     </div>
-                    <div class="db-connection-info">
-                        <div class="connection-status">
-                            <div class="status-dot connected"></div>
+                    <div class="mongodb-connection-info">
+                        <div class="mongodb-connection-status">
+                            <div class="mongodb-status-dot connected"></div>
                             <span>Connected to MongoDB</span>
                         </div>
-                        <div class="server-info">localhost:27017</div>
+                        <div class="mongodb-server-info">localhost:27017</div>
                     </div>
                 </div>
 
                 <!-- Layout principal -->
-                <div class="db-layout">
+                <div class="mongodb-pro-layout">
                     <!-- Sidebar gauche : Explorer -->
-                    <div class="db-sidebar">
-                        <div class="sidebar-header">
+                    <div class="mongodb-pro-sidebar">
+                        <div class="mongodb-sidebar-header">
                             <h3><i class="fas fa-sitemap"></i> Database Explorer</h3>
-                            <button class="btn-icon" onclick="adminPanel.mongodb.refreshDatabases()" title="Refresh">
+                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.refreshDatabases()" title="Refresh">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
                         
-                        <div class="db-tree" id="databaseTree">
-                            <div class="tree-loading">
+                        <div class="mongodb-db-tree" id="databaseTree">
+                            <div class="mongodb-tree-loading">
                                 <i class="fas fa-spinner fa-spin"></i>
                                 Loading databases...
                             </div>
@@ -86,54 +86,54 @@ export class MongoDBModule {
                     </div>
 
                     <!-- Zone principale -->
-                    <div class="db-main">
+                    <div class="mongodb-pro-main">
                         <!-- Toolbar -->
-                        <div class="db-toolbar">
-                            <div class="toolbar-left">
-                                <div class="breadcrumb" id="breadcrumb">
-                                    <span class="breadcrumb-item">
+                        <div class="mongodb-pro-toolbar">
+                            <div class="mongodb-toolbar-left">
+                                <div class="mongodb-breadcrumb" id="breadcrumb">
+                                    <span class="mongodb-breadcrumb-item">
                                         <i class="fas fa-database"></i> Select Database
                                     </span>
                                 </div>
                             </div>
                             
-                            <div class="toolbar-right">
-                                <div class="view-modes">
-                                    <button class="view-btn active" data-view="table" onclick="adminPanel.mongodb.setViewMode('table')" title="Table View">
+                            <div class="mongodb-toolbar-right">
+                                <div class="mongodb-view-modes">
+                                    <button class="mongodb-view-btn active" data-view="table" onclick="adminPanel.mongodb.setViewMode('table')" title="Table View">
                                         <i class="fas fa-table"></i>
                                     </button>
-                                    <button class="view-btn" data-view="json" onclick="adminPanel.mongodb.setViewMode('json')" title="JSON View">
+                                    <button class="mongodb-view-btn" data-view="json" onclick="adminPanel.mongodb.setViewMode('json')" title="JSON View">
                                         <i class="fas fa-code"></i>
                                     </button>
-                                    <button class="view-btn" data-view="tree" onclick="adminPanel.mongodb.setViewMode('tree')" title="Tree View">
+                                    <button class="mongodb-view-btn" data-view="tree" onclick="adminPanel.mongodb.setViewMode('tree')" title="Tree View">
                                         <i class="fas fa-sitemap"></i>
                                     </button>
                                 </div>
                                 
-                                <button class="btn btn-primary" onclick="adminPanel.mongodb.showQueryBuilder()" title="Query Builder">
+                                <button class="mongodb-btn mongodb-btn-primary" onclick="adminPanel.mongodb.showQueryBuilder()" title="Query Builder">
                                     <i class="fas fa-search"></i> Query
                                 </button>
                                 
-                                <button class="btn btn-success" onclick="adminPanel.mongodb.createDocument()" title="Insert Document">
+                                <button class="mongodb-btn mongodb-btn-success" onclick="adminPanel.mongodb.createDocument()" title="Insert Document">
                                     <i class="fas fa-plus"></i> Insert
                                 </button>
                             </div>
                         </div>
 
                         <!-- Zone de contenu -->
-                        <div class="db-content">
+                        <div class="mongodb-pro-content">
                             <!-- État initial -->
-                            <div class="welcome-screen" id="welcomeScreen">
-                                <div class="welcome-content">
-                                    <i class="fas fa-leaf welcome-icon"></i>
+                            <div class="mongodb-welcome-screen" id="welcomeScreen">
+                                <div class="mongodb-welcome-content">
+                                    <i class="fas fa-leaf mongodb-welcome-icon"></i>
                                     <h2>Welcome to MongoDB Explorer</h2>
                                     <p>Select a database and collection from the left panel to start exploring your data.</p>
-                                    <div class="quick-actions">
-                                        <button class="quick-btn" onclick="adminPanel.mongodb.showDatabaseStats()">
+                                    <div class="mongodb-quick-actions">
+                                        <button class="mongodb-quick-btn" onclick="adminPanel.mongodb.showDatabaseStats()">
                                             <i class="fas fa-chart-pie"></i>
                                             Database Statistics
                                         </button>
-                                        <button class="quick-btn" onclick="adminPanel.mongodb.showServerInfo()">
+                                        <button class="mongodb-quick-btn" onclick="adminPanel.mongodb.showServerInfo()">
                                             <i class="fas fa-server"></i>
                                             Server Information
                                         </button>
@@ -142,52 +142,52 @@ export class MongoDBModule {
                             </div>
 
                             <!-- Zone documents -->
-                            <div class="documents-view" id="documentsView" style="display: none;">
+                            <div class="mongodb-documents-view" id="documentsView" style="display: none;">
                                 <!-- Stats de collection -->
-                                <div class="collection-stats" id="collectionStats">
-                                    <div class="stats-cards">
-                                        <div class="stat-card">
-                                            <div class="stat-number" id="totalDocs">-</div>
-                                            <div class="stat-label">Documents</div>
+                                <div class="mongodb-collection-stats" id="collectionStats">
+                                    <div class="mongodb-stats-cards">
+                                        <div class="mongodb-stat-card">
+                                            <div class="mongodb-stat-number" id="totalDocs">-</div>
+                                            <div class="mongodb-stat-label">Documents</div>
                                         </div>
-                                        <div class="stat-card">
-                                            <div class="stat-number" id="avgDocSize">-</div>
-                                            <div class="stat-label">Avg Size</div>
+                                        <div class="mongodb-stat-card">
+                                            <div class="mongodb-stat-number" id="avgDocSize">-</div>
+                                            <div class="mongodb-stat-label">Avg Size</div>
                                         </div>
-                                        <div class="stat-card">
-                                            <div class="stat-number" id="collectionSize">-</div>
-                                            <div class="stat-label">Collection Size</div>
+                                        <div class="mongodb-stat-card">
+                                            <div class="mongodb-stat-number" id="collectionSize">-</div>
+                                            <div class="mongodb-stat-label">Collection Size</div>
                                         </div>
-                                        <div class="stat-card">
-                                            <div class="stat-number" id="indexesCount">-</div>
-                                            <div class="stat-label">Indexes</div>
+                                        <div class="mongodb-stat-card">
+                                            <div class="mongodb-stat-number" id="indexesCount">-</div>
+                                            <div class="mongodb-stat-label">Indexes</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Query Bar -->
-                                <div class="query-bar" id="queryBar">
-                                    <div class="query-input-group">
+                                <div class="mongodb-query-bar" id="queryBar">
+                                    <div class="mongodb-query-input-group">
                                         <label>Filter:</label>
-                                        <input type="text" class="query-input" id="filterInput" 
+                                        <input type="text" class="mongodb-query-input" id="filterInput" 
                                                placeholder="{ }" value="{}"
                                                onkeypress="if(event.key==='Enter') adminPanel.mongodb.executeFilter()">
-                                        <button class="btn btn-primary btn-sm" onclick="adminPanel.mongodb.executeFilter()">
+                                        <button class="mongodb-btn mongodb-btn-primary mongodb-btn-sm" onclick="adminPanel.mongodb.executeFilter()">
                                             <i class="fas fa-play"></i>
                                         </button>
-                                        <button class="btn btn-secondary btn-sm" onclick="adminPanel.mongodb.clearFilter()">
+                                        <button class="mongodb-btn mongodb-btn-sm" onclick="adminPanel.mongodb.clearFilter()">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
                                     
-                                    <div class="result-info">
+                                    <div class="mongodb-result-info">
                                         <span id="resultCount">0 documents</span>
-                                        <div class="pagination-simple">
-                                            <button class="btn-icon" onclick="adminPanel.mongodb.previousPage()" id="prevBtn" disabled>
+                                        <div class="mongodb-pagination-simple">
+                                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.previousPage()" id="prevBtn" disabled>
                                                 <i class="fas fa-chevron-left"></i>
                                             </button>
                                             <span id="pageIndicator">Page 1</span>
-                                            <button class="btn-icon" onclick="adminPanel.mongodb.nextPage()" id="nextBtn" disabled>
+                                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.nextPage()" id="nextBtn" disabled>
                                                 <i class="fas fa-chevron-right"></i>
                                             </button>
                                         </div>
@@ -195,11 +195,11 @@ export class MongoDBModule {
                                 </div>
 
                                 <!-- Contenu documents -->
-                                <div class="documents-content" id="documentsContent">
+                                <div class="mongodb-documents-content" id="documentsContent">
                                     <!-- Table View -->
-                                    <div class="table-view" id="tableView">
-                                        <div class="table-container">
-                                            <table class="data-table" id="documentsTable">
+                                    <div class="mongodb-table-view" id="tableView">
+                                        <div class="mongodb-table-container">
+                                            <table class="mongodb-data-table" id="documentsTable">
                                                 <thead id="tableHeader"></thead>
                                                 <tbody id="tableBody"></tbody>
                                             </table>
@@ -207,47 +207,25 @@ export class MongoDBModule {
                                     </div>
 
                                     <!-- JSON View -->
-                                    <div class="json-view" id="jsonView" style="display: none;">
-                                        <div class="json-container" id="jsonContainer"></div>
+                                    <div class="mongodb-json-view" id="jsonView" style="display: none;">
+                                        <div class="mongodb-json-container" id="jsonContainer"></div>
                                     </div>
 
                                     <!-- Tree View -->
-                                    <div class="tree-view" id="treeView" style="display: none;">
-                                        <div class="tree-container" id="treeContainer"></div>
+                                    <div class="mongodb-tree-view" id="treeView" style="display: none;">
+                                        <div class="mongodb-tree-container" id="treeContainer"></div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Panel détails document -->
-                    <div class="db-inspector" id="documentInspector" style="display: none;">
-                        <div class="inspector-header">
-                            <h3><i class="fas fa-file-code"></i> Document Inspector</h3>
-                            <button class="btn-icon" onclick="adminPanel.mongodb.closeInspector()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="inspector-content">
-                            <div class="inspector-tabs">
-                                <button class="tab-btn active" data-tab="document">Document</button>
-                                <button class="tab-btn" data-tab="schema">Schema</button>
-                                <button class="tab-btn" data-tab="history">History</button>
-                            </div>
-                            
-                            <div class="inspector-body" id="inspectorBody">
-                                <!-- Contenu sera généré dynamiquement -->
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Loading overlay -->
-                <div class="db-loading" id="dbLoading" style="display: none;">
-                    <div class="loading-content">
-                        <div class="spinner-ring"></div>
-                        <div class="loading-text">Executing query...</div>
+                <div class="mongodb-db-loading" id="dbLoading" style="display: none;">
+                    <div class="mongodb-loading-content">
+                        <div class="mongodb-spinner-ring"></div>
+                        <div class="mongodb-loading-text">Executing query...</div>
                     </div>
                 </div>
             </div>
@@ -314,13 +292,13 @@ export class MongoDBModule {
         if (!treeContainer) return
 
         treeContainer.innerHTML = this.databases.map(db => `
-            <div class="tree-node database-node" onclick="adminPanel.mongodb.selectDatabase('${db}')">
-                <div class="node-content">
-                    <i class="node-icon fas fa-database"></i>
-                    <span class="node-label">${db}</span>
-                    <i class="node-expand fas fa-chevron-right"></i>
+            <div class="mongodb-tree-node mongodb-database-node" onclick="adminPanel.mongodb.selectDatabase('${db}')">
+                <div class="mongodb-node-content">
+                    <i class="mongodb-node-icon fas fa-database"></i>
+                    <span class="mongodb-node-label">${db}</span>
+                    <i class="mongodb-node-expand fas fa-chevron-right"></i>
                 </div>
-                <div class="node-children" id="collections-${db}"></div>
+                <div class="mongodb-node-children" id="collections-${db}"></div>
             </div>
         `).join('')
 
@@ -366,11 +344,11 @@ export class MongoDBModule {
         if (!container) return
 
         container.innerHTML = collections.map(collection => `
-            <div class="tree-node collection-node" onclick="adminPanel.mongodb.selectCollection('${database}', '${collection}')">
-                <div class="node-content">
-                    <i class="node-icon fas fa-table"></i>
-                    <span class="node-label">${collection}</span>
-                    <span class="node-info">...</span>
+            <div class="mongodb-tree-node mongodb-collection-node" onclick="adminPanel.mongodb.selectCollection('${database}', '${collection}')">
+                <div class="mongodb-node-content">
+                    <i class="mongodb-node-icon fas fa-table"></i>
+                    <span class="mongodb-node-label">${collection}</span>
+                    <span class="mongodb-node-info">...</span>
                 </div>
             </div>
         `).join('')
@@ -452,7 +430,7 @@ export class MongoDBModule {
     renderTableView(documents) {
         if (!documents.length) {
             document.getElementById('tableView').innerHTML = `
-                <div class="empty-state">
+                <div class="mongodb-empty-state">
                     <i class="fas fa-table"></i>
                     <h3>No documents found</h3>
                     <p>This collection is empty or your filter returned no results.</p>
@@ -470,38 +448,38 @@ export class MongoDBModule {
         // Header
         tableHeader.innerHTML = `
             <tr>
-                <th class="select-column">
+                <th class="mongodb-select-column">
                     <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
                 </th>
                 ${columns.map(col => `
                     <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
                         ${col.name}
-                        <i class="fas fa-sort sort-icon"></i>
+                        <i class="fas fa-sort mongodb-sort-icon"></i>
                     </th>
                 `).join('')}
-                <th class="actions-column">Actions</th>
+                <th class="mongodb-actions-column">Actions</th>
             </tr>
         `
         
         // Body
         tableBody.innerHTML = documents.map((doc, index) => `
-            <tr class="document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
-                <td class="select-column">
+            <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
+                <td class="mongodb-select-column">
                     <input type="checkbox" onclick="event.stopPropagation()">
                 </td>
                 ${columns.map(col => `
-                    <td class="data-cell" title="${this.formatCellTooltip(doc[col.key])}">
+                    <td class="mongodb-data-cell" title="${this.formatCellTooltip(doc[col.key])}">
                         ${this.formatCellValue(doc[col.key], col.type)}
                     </td>
                 `).join('')}
-                <td class="actions-column">
-                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
+                <td class="mongodb-actions-column">
+                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
-                    <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
+                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
                         <i class="fas fa-search"></i>
                     </button>
                 </td>
@@ -518,20 +496,20 @@ export class MongoDBModule {
         const container = document.getElementById('jsonContainer')
         
         container.innerHTML = documents.map((doc, index) => `
-            <div class="json-document" onclick="adminPanel.mongodb.selectDocument(${index})">
-                <div class="json-header">
-                    <span class="doc-index">#${index + 1}</span>
-                    <span class="doc-id">${doc._id}</span>
-                    <div class="doc-actions">
-                        <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.copyJSON('${doc._id}')">
+            <div class="mongodb-json-document" onclick="adminPanel.mongodb.selectDocument(${index})">
+                <div class="mongodb-json-header">
+                    <span class="mongodb-doc-index">#${index + 1}</span>
+                    <span class="mongodb-doc-id">${doc._id}</span>
+                    <div class="mongodb-doc-actions">
+                        <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.copyJSON('${doc._id}')">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')">
+                        <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')">
                             <i class="fas fa-edit"></i>
                         </button>
                     </div>
                 </div>
-                <pre class="json-content"><code>${JSON.stringify(doc, null, 2)}</code></pre>
+                <pre class="mongodb-json-content"><code>${JSON.stringify(doc, null, 2)}</code></pre>
             </div>
         `).join('')
 
@@ -573,7 +551,7 @@ export class MongoDBModule {
     }
 
     formatCellValue(value, type) {
-        if (value === null || value === undefined) return '<span class="null-value">null</span>'
+        if (value === null || value === undefined) return '<span class="mongodb-null-value">null</span>'
         
         switch (type) {
             case 'string':
@@ -581,12 +559,12 @@ export class MongoDBModule {
             case 'number':
                 return value.toLocaleString()
             case 'boolean':
-                return `<span class="boolean-value">${value}</span>`
+                return `<span class="mongodb-boolean-value">${value}</span>`
             case 'object':
                 if (Array.isArray(value)) {
-                    return `<span class="array-value">Array(${value.length})</span>`
+                    return `<span class="mongodb-array-value">Array(${value.length})</span>`
                 }
-                return `<span class="object-value">Object</span>`
+                return `<span class="mongodb-object-value">Object</span>`
             default:
                 return String(value)
         }
@@ -604,11 +582,11 @@ export class MongoDBModule {
         if (!breadcrumb) return
 
         breadcrumb.innerHTML = items.map((item, index) => `
-            <span class="breadcrumb-item ${index === items.length - 1 ? 'active' : ''}">
+            <span class="mongodb-breadcrumb-item ${index === items.length - 1 ? 'active' : ''}">
                 <i class="${item.icon}"></i>
                 ${item.text}
             </span>
-            ${index < items.length - 1 ? '<i class="breadcrumb-separator fas fa-chevron-right"></i>' : ''}
+            ${index < items.length - 1 ? '<i class="mongodb-breadcrumb-separator fas fa-chevron-right"></i>' : ''}
         `).join('')
     }
 
@@ -632,7 +610,7 @@ export class MongoDBModule {
         this.viewMode = mode
         
         // Mettre à jour les boutons
-        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'))
+        document.querySelectorAll('.mongodb-view-btn').forEach(btn => btn.classList.remove('active'))
         document.querySelector(`[data-view="${mode}"]`).classList.add('active')
         
         // Recharger avec la nouvelle vue
