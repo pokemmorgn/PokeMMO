@@ -548,17 +548,51 @@ export class NpcManager {
     }
   }
 
-  private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
-    const npcFormat = mongoDoc.toNpcFormat();
+// Dans NPCManager.ts - Remplacer la méthode convertMongoDocToNpcData
+
+private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
+  try {
+    // ✅ GESTION : Objet Mongoose VS objet brut des Change Streams
+    let npcFormat: any;
+    
+    if (typeof mongoDoc.toNpcFormat === 'function') {
+      // Document Mongoose complet avec méthodes
+      npcFormat = mongoDoc.toNpcFormat();
+    } else {
+      // ✅ NOUVEAU : Objet brut des Change Streams - conversion manuelle
+      npcFormat = {
+        id: mongoDoc.npcId,
+        name: mongoDoc.name,
+        type: mongoDoc.type,
+        position: mongoDoc.position || { x: 0, y: 0 },
+        direction: mongoDoc.direction || 'south',
+        sprite: mongoDoc.sprite || 'npc_default',
+        interactionRadius: mongoDoc.interactionRadius || 32,
+        canWalkAway: mongoDoc.canWalkAway || false,
+        autoFacePlayer: mongoDoc.autoFacePlayer !== false,
+        repeatable: mongoDoc.repeatable !== false,
+        cooldownSeconds: mongoDoc.cooldownSeconds || 0,
+        spawnConditions: mongoDoc.spawnConditions,
+        questsToGive: mongoDoc.questsToGive || [],
+        questsToEnd: mongoDoc.questsToEnd || [],
+        questRequirements: mongoDoc.questRequirements,
+        questDialogueIds: mongoDoc.questDialogueIds,
+        
+        // Fusionner les données spécifiques du type
+        ...mongoDoc.npcData
+      };
+    }
     
     return {
+      // ✅ COMPATIBLE avec ton système existant
       id: npcFormat.id,
       name: npcFormat.name,
       sprite: npcFormat.sprite,
       x: npcFormat.position.x,
       y: npcFormat.position.y,
-      properties: {},
+      properties: {}, // Vide pour MongoDB, tout est structuré
       
+      // Propriétés étendues
       type: npcFormat.type,
       position: npcFormat.position,
       direction: npcFormat.direction,
@@ -573,15 +607,28 @@ export class NpcManager {
       questRequirements: npcFormat.questRequirements,
       questDialogueIds: npcFormat.questDialogueIds,
       
-      ...mongoDoc.npcData,
+      // Données spécialisées (fusionnées depuis npcData)
+      ...(mongoDoc.npcData || {}),
       
+      // Métadonnées
       sourceType: 'mongodb',
       sourceFile: mongoDoc.sourceFile,
       lastLoaded: Date.now(),
       isActive: mongoDoc.isActive,
-      mongoDoc: mongoDoc
+      mongoDoc: mongoDoc // Référence pour updates
     };
+    
+  } catch (error) {
+    this.log('error', '❌ [convertMongoDocToNpcData] Erreur conversion:', error);
+    this.log('info', '📄 [convertMongoDocToNpcData] mongoDoc:', {
+      _id: mongoDoc._id,
+      npcId: mongoDoc.npcId,
+      name: mongoDoc.name,
+      hasToNpcFormat: typeof mongoDoc.toNpcFormat === 'function'
+    });
+    throw error;
   }
+}
 
   private addNpcsToCollection(npcsData: NpcData[], source: NpcDataSource): void {
     for (const npc of npcsData) {
