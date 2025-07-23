@@ -832,17 +832,24 @@ async loadDocumentForEdit(documentId) {
 }
    // 1. CORRIGER la méthode createModal (vers la fin du fichier)
 createModal(title, className, content) {
+    console.log(`🎨 [MongoDB] Création modal: ${className}`)
+    
     // Supprimer les modals existants
-    document.querySelectorAll('.mongodb-modal').forEach(modal => modal.remove())
+    document.querySelectorAll('.mongodb-modal').forEach(modal => {
+        console.log('🗑️ [MongoDB] Suppression modal existant')
+        modal.remove()
+    })
     
     const modal = document.createElement('div')
+    // ✅ CORRECTION: Utiliser les classes CSS qui existent dans admin-components.css
     modal.className = `mongodb-modal ${className}`
+    
     modal.innerHTML = `
-        <div class="mongodb-modal-backdrop" onclick="this.parentElement.remove()"></div>
+        <div class="mongodb-modal-backdrop" onclick="this.parentElement.remove(); if(window.mongoAdvancedRef) window.mongoAdvancedRef = null;"></div>
         <div class="mongodb-modal-content">
             <div class="mongodb-modal-header">
                 <h3 class="mongodb-modal-title">${title}</h3>
-                <button class="mongodb-modal-close" onclick="this.closest('.mongodb-modal').remove()">
+                <button class="mongodb-modal-close" onclick="this.closest('.mongodb-modal').remove(); if(window.mongoAdvancedRef) window.mongoAdvancedRef = null;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -853,11 +860,11 @@ createModal(title, className, content) {
     `
     
     document.body.appendChild(modal)
+    console.log('✅ [MongoDB] Modal ajouté au DOM')
     
-    // ✅ CORRECTION: Chercher l'élément par className dans le modal
+    // ✅ CORRECTION: Assigner la référence selon le type de modal
     let targetElement = null
     
-    // Essayer différents sélecteurs selon le type de modal
     if (className.includes('document-editor')) {
         targetElement = modal.querySelector('.mongodb-document-form')
         if (targetElement) {
@@ -870,18 +877,12 @@ createModal(title, className, content) {
             targetElement.mongoAdvanced = this
             console.log('✅ [MongoDB] Référence assignée à mongodb-query-builder')
         }
-    } else if (className.includes('document-inspector')) {
-        targetElement = modal.querySelector('.mongodb-inspector-container')
-        if (targetElement) {
-            targetElement.mongoAdvanced = this
-            console.log('✅ [MongoDB] Référence assignée à mongodb-inspector-container')
-        }
     } else {
-        // Fallback : chercher n'importe quel élément avec une classe mongodb-*
-        targetElement = modal.querySelector('[class*="mongodb-"]:not(.mongodb-modal):not(.mongodb-modal-content):not(.mongodb-modal-header):not(.mongodb-modal-body)')
+        // Fallback : assigner à modal-body
+        targetElement = modal.querySelector('.mongodb-modal-body')
         if (targetElement) {
             targetElement.mongoAdvanced = this
-            console.log('✅ [MongoDB] Référence assignée à:', targetElement.className)
+            console.log('✅ [MongoDB] Référence assignée à mongodb-modal-body (fallback)')
         }
     }
     
@@ -893,15 +894,19 @@ createModal(title, className, content) {
         }
     }
     
-    // Animation d'entrée
-    setTimeout(() => modal.classList.add('mongodb-modal-show'), 10)
+    // ✅ CORRECTION: Le modal sera visible automatiquement grâce aux styles CSS
+    console.log('✅ [MongoDB] Modal configuré et visible')
     
     return modal
 }
-
 // 2. CORRIGER la méthode showDocumentEditor
 showDocumentEditor(documentData = null, isEdit = false) {
+    console.log(`📝 [MongoDB] showDocumentEditor - isEdit: ${isEdit}`)
+    console.log(`📝 [MongoDB] documentData:`, documentData ? 'Présent' : 'Null')
+    
     const title = isEdit ? 'Modifier le document' : 'Créer un document'
+    
+    console.log(`🎨 [MongoDB] Création du modal: ${title}`)
     
     const modal = this.createModal(title, 'mongodb-document-editor', `
         <div class="mongodb-document-form">
@@ -969,17 +974,20 @@ showDocumentEditor(documentData = null, isEdit = false) {
     console.log('✅ [MongoDB] Éditeur de document configuré avec référence globale')
     
     if (isEdit && documentData) {
-        // Attendre un peu que le modal soit rendu
+        // Attendre que le modal soit complètement rendu
         setTimeout(() => {
+            console.log('📝 [MongoDB] Début population du formulaire...')
             this.populateFormFromDocument(documentData)
-        }, 100)
+        }, 200)
     } else {
         setTimeout(() => {
+            console.log('➕ [MongoDB] Ajout du premier champ...')
             this.addDocumentField() // Ajouter un premier champ pour la création
-        }, 100)
+        }, 200)
     }
+    
+    return modal
 }
-
 // 3. CORRIGER la méthode addDocumentField
 addDocumentField(key = '', value = '', type = 'string') {
     const container = document.getElementById('documentFields')
