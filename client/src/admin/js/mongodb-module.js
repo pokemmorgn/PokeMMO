@@ -382,7 +382,7 @@ async onTabActivated() {
         container.style.opacity = '1'
     }
 
-   async selectCollection(database, collection) {
+ async selectCollection(database, collection) {
     console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
     
     // IMPORTANT: Mettre à jour les variables AVANT tout autre traitement
@@ -401,17 +401,30 @@ async onTabActivated() {
         { icon: 'fas fa-table', text: collection }
     ])
     
-    // Masquer l'écran d'accueil
+    // Masquer l'écran d'accueil et afficher la vue documents
     const welcomeScreen = document.getElementById('welcomeScreen')
     const documentsView = document.getElementById('documentsView')
     
     if (welcomeScreen) welcomeScreen.style.display = 'none'
     if (documentsView) documentsView.style.display = 'block'
     
+    // VÉRIFICATION AVANT loadDocuments
+    console.log(`🔍 [MongoDB] AVANT loadDocuments - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
+    
     // Charger les documents
     await this.loadDocuments()
     
-    // DEBUG FINAL: Vérifier à nouveau après chargement
+    // VÉRIFICATION APRÈS loadDocuments
+    console.log(`🔍 [MongoDB] APRÈS loadDocuments - DB: "${this.currentDatabase}", Collection: "${this.currentCollection}"`)
+    
+    // SI currentCollection est devenu null, le remettre !
+    if (!this.currentCollection || this.currentCollection === 'null') {
+        console.log(`🔧 [MongoDB] CORRECTION: currentCollection était devenu null, remise à "${collection}"`)
+        this.currentCollection = collection
+        this.currentDatabase = database
+    }
+    
+    // DEBUG FINAL
     console.log(`🔍 [MongoDB] État final après sélection:`)
     console.log(`  - this.currentDatabase = "${this.currentDatabase}"`)
     console.log(`  - this.currentCollection = "${this.currentCollection}"`)
