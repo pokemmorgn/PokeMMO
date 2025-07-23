@@ -20,16 +20,29 @@ export class MongoDBModule {
         console.log('🗄️ [MongoDB] Module constructeur OK')
     }
 
-    async onTabActivated() {
-        console.log('🗄️ [MongoDB] Module activé')
-        try {
-            await this.initializeMongoDBPanel()
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur initialisation:', error)
-            this.showError('Erreur lors de l\'initialisation : ' + error.message)
-        }
+async onTabActivated() {
+    console.log('🗄️ [MongoDB] Module activé')
+    try {
+        await this.initializeMongoDBPanel()
+        this.initializeSorting() // NOUVEAU
+        this.initializeAdvanced() // NOUVEAU
+    } catch (error) {
+        console.error('❌ [MongoDB] Erreur initialisation:', error)
+        this.showError('Erreur lors de l\'initialisation : ' + error.message)
     }
+}
 
+    async loadAdvancedModule() {
+    try {
+        const { MongoDBAdvanced } = await import('./mongodb-advanced.js')
+        this.advanced = new MongoDBAdvanced(this)
+        console.log('✅ [MongoDB] Module avancé chargé')
+    } catch (error) {
+        console.warn('⚠️ [MongoDB] Module avancé non disponible:', error.message)
+        // Continuer avec les méthodes de base
+    }
+}
+    
     async initializeMongoDBPanel() {
         console.log('🔄 [MongoDB] Initialisation du panel professionnel...')
         
@@ -265,6 +278,13 @@ export class MongoDBModule {
                 }
             }
         })
+            window.addEventListener('error', (event) => {
+        if (event.message.includes('adminPanel.mongodb')) {
+            console.error('❌ [MongoDB] Erreur interface:', event.error)
+            this.handleInterfaceError(event.error, 'interface')
+            event.preventDefault()
+        }
+    })
     }
 
     async loadDatabases() {
@@ -383,40 +403,50 @@ export class MongoDBModule {
         await this.loadDocuments()
     }
 
-    async loadDocuments(query = {}) {
-        console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
-        
-        this.showLoading(true)
-        
-        try {
-            const data = await this.adminPanel.apiCall('/mongodb/documents', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.currentDatabase,
-                    collection: this.currentCollection,
-                    query: query,
-                    page: this.currentPage,
-                    limit: this.pageSize
-                })
-            })
-
-            if (data.success) {
-                this.updateCollectionStats(data.total)
-                this.renderDocuments(data.documents || [], data.total || 0)
-                this.updatePagination(data.total || 0)
-                
-                console.log('✅ [MongoDB] Documents chargés:', data.documents?.length)
-            } else {
-                throw new Error('Erreur chargement documents')
-            }
-            
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur chargement documents:', error)
-            this.adminPanel.showNotification('Erreur chargement documents: ' + error.message, 'error')
-        } finally {
-            this.showLoading(false)
+   async loadDocuments(query = {}) {
+    console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
+    
+    this.showLoading(true)
+    
+    try {
+        // NOUVEAU : Ajouter le tri à la requête
+        const requestData = {
+            database: this.currentDatabase,
+            collection: this.currentCollection,
+            query: query,
+            page: this.currentPage,
+            limit: this.pageSize
         }
+        
+        // Ajouter le tri si défini
+        if (this.currentSort) {
+            requestData.sort = {
+                [this.currentSort.field]: this.currentSort.order
+            }
+        }
+        
+        const data = await this.adminPanel.apiCall('/mongodb/documents', {
+            method: 'POST',
+            body: JSON.stringify(requestData)
+        })
+
+        if (data.success) {
+            this.updateCollectionStats(data.total)
+            this.renderDocuments(data.documents || [], data.total || 0)
+            this.updatePagination(data.total || 0)
+            
+            console.log('✅ [MongoDB] Documents chargés:', data.documents?.length)
+        } else {
+            throw new Error('Erreur chargement documents')
+        }
+        
+    } catch (error) {
+        console.error('❌ [MongoDB] Erreur chargement documents:', error)
+        this.handleInterfaceError(error, 'loadDocuments') // NOUVEAU
+    } finally {
+        this.showLoading(false)
     }
+}
 
     renderDocuments(documents, total) {
         if (this.viewMode === 'table') {
