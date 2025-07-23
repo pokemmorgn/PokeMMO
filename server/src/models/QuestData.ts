@@ -69,7 +69,7 @@ export interface IQuestDataModel extends Model<IQuestData> {
   findActiveQuests(): Promise<IQuestData[]>;
   findRepeatableQuests(): Promise<IQuestData[]>;
   bulkImportFromJson(questsData: any): Promise<{ success: number; errors: string[] }>;
-  createFromJson(jsonQuest: any): Promise<IQuestData>;
+  createFromJson(jsonQuest: any): Promise<IQuestData & Document>;
 }
 
 // ===== SCHÉMAS =====
@@ -508,7 +508,7 @@ QuestDataSchema.statics.bulkImportFromJson = async function(
  */
 QuestDataSchema.statics.createFromJson = async function(
   jsonQuest: any
-): Promise<IQuestData> {
+): Promise<IQuestData & Document> {
   // Validation de base
   if (!jsonQuest.id || !jsonQuest.name || !jsonQuest.steps) {
     throw new Error('Missing required fields: id, name, steps');
@@ -541,7 +541,7 @@ QuestDataSchema.statics.createFromJson = async function(
   });
   
   await questData.save();
-  return questData;
+  return questData as IQuestData & Document;
 };
 
 // ===== EXPORT =====
