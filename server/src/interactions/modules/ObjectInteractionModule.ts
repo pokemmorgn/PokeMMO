@@ -548,6 +548,13 @@ export class ObjectInteractionModule extends BaseInteractionModule {
       
       await this.waitForMongoDBReady();
       
+      // ✅ DEBUG AJOUTÉ
+      const totalCount = await GameObjectData.countDocuments();
+      this.log('info', `🔍 [DEBUG] Total objets en base: ${totalCount}`);
+      
+      const allObjects = await GameObjectData.find().limit(5);
+      this.log('info', `🔍 [DEBUG] Premiers objets:`, allObjects.map(o => ({ zone: o.zone, objectId: o.objectId })));
+      
       const zones = await GameObjectData.distinct('zone');
       
       this.log('info', `📋 [MongoDB] ${zones.length} zones trouvées: ${zones.join(', ')}`);
