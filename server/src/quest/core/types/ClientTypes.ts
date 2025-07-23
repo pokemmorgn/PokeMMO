@@ -2,7 +2,7 @@
 // Types pour les notifications et messages client du système de quêtes
 
 import { QuestNotificationType, QuestNotificationAction } from './EventTypes';
-import { QuestReward, QuestObjective, Quest, QuestStatus } from './QuestTypes';
+import { QuestReward, QuestObjective, Quest, QuestStatus, RewardRarity } from './QuestTypes';
 
 // ===== MESSAGES CLIENT AUTOMATIQUES =====
 
@@ -183,7 +183,7 @@ export interface QuestClientReward {
   
   // Affichage
   icon?: string;
-  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  rarity?: RewardRarity; // ✅ CORRIGÉ : Utilise RewardRarity complet
   color?: string;
   
   // Métadonnées
