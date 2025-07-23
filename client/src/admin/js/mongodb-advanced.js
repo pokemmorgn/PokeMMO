@@ -702,26 +702,20 @@ export class MongoDBAdvanced {
         this.loadDocumentForEdit(documentId)
     }
 
-    async loadDocumentForEdit(documentId) {
-        try {
-            const response = await this.adminPanel.apiCall('/mongodb/document', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.mongo.currentDatabase,
-                    collection: this.mongo.currentCollection,
-                    id: documentId
-                })
-            })
-            
-            if (response.success && response.document) {
-                this.showDocumentEditor(response.document, true)
-            } else {
-                throw new Error('Document non trouvé')
-            }
-        } catch (error) {
-            this.adminPanel.showNotification('Erreur chargement document: ' + error.message, 'error')
+async loadDocumentForEdit(documentId) {
+    try {
+        // ✅ CORRECTION: Utiliser la nouvelle route GET au lieu de POST
+        const response = await this.adminPanel.apiCall(`/mongodb/document/${this.mongo.currentDatabase}/${this.mongo.currentCollection}/${documentId}`)
+        
+        if (response.success && response.document) {
+            this.showDocumentEditor(response.document, true)
+        } else {
+            throw new Error('Document non trouvé')
         }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur chargement document: ' + error.message, 'error')
     }
+}
 
     showDocumentEditor(document = null, isEdit = false) {
         const title = isEdit ? 'Modifier le document' : 'Créer un document'
@@ -1176,28 +1170,22 @@ export class MongoDBAdvanced {
     // INSPECTION DE DOCUMENTS
     // =============================================================================
     
-    async inspectDocument(documentId) {
-        console.log(`🔍 [MongoDB] Inspection document: ${documentId}`)
+async inspectDocument(documentId) {
+    console.log(`🔍 [MongoDB] Inspection document: ${documentId}`)
+    
+    try {
+        // ✅ CORRECTION: Utiliser la nouvelle route GET au lieu de POST
+        const response = await this.adminPanel.apiCall(`/mongodb/document/${this.mongo.currentDatabase}/${this.mongo.currentCollection}/${documentId}`)
         
-        try {
-            const response = await this.adminPanel.apiCall('/mongodb/document', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.mongo.currentDatabase,
-                    collection: this.mongo.currentCollection,
-                    id: documentId
-                })
-            })
-            
-            if (response.success && response.document) {
-                this.showDocumentInspector(response.document)
-            } else {
-                throw new Error('Document non trouvé')
-            }
-        } catch (error) {
-            this.adminPanel.showNotification('Erreur inspection: ' + error.message, 'error')
+        if (response.success && response.document) {
+            this.showDocumentInspector(response.document)
+        } else {
+            throw new Error('Document non trouvé')
         }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur inspection: ' + error.message, 'error')
     }
+}
 
     showDocumentInspector(document) {
         const modal = this.createModal('Inspection du document', 'mongodb-document-inspector', `
