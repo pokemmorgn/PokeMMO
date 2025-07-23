@@ -1,6 +1,6 @@
 // server/src/models/QuestData.ts - VERSION ÉTENDUE AVEC MIGRATION PROGRESSIVE
 import mongoose, { Schema, Document, Model } from "mongoose";
-import { QuestDefinition, QuestReward, QuestObjectiveType, QuestRewardType, QuestCategory, RewardRarity } from "../../quest/core/types/QuestTypes";
+import { QuestDefinition, QuestReward, QuestObjectiveType, QuestRewardType, QuestCategory, RewardRarity } from "../quest/core/types/QuestTypes";
 
 // ===== INTERFACES ÉTENDUES =====
 
