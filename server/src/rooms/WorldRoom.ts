@@ -305,51 +305,96 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-    private async initializeNpcManagers() {
-      console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
-      
-      try {
-        // ✅ ÉTAPE 1: Créer l'instance (ne lance plus le chargement automatique)
-        const globalNpcManager = new NpcManager();
-        
-        // ✅ ÉTAPE 2: Lancer l'initialisation asynchrone
-        console.log(`🔄 [WorldRoom] Lancement initialisation asynchrone...`);
-        await globalNpcManager.initialize();
-        
-        // ✅ ÉTAPE 3: Attendre que le chargement soit complet
-        console.log(`⏳ [WorldRoom] Attente chargement complet...`);
-        const loaded = await globalNpcManager.waitForLoad(15000); // 15s timeout
+  private async initializeNpcManagers() {
+  console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
+  
+  try {
+    // ✅ ÉTAPE 1: Créer l'instance (ne lance plus le chargement automatique)
+    const globalNpcManager = new NpcManager();
     
-        if (!loaded) {
-          console.error(`❌ [WorldRoom] Timeout lors du chargement des NPCs !`);
-          // Continuer quand même, mais sans NPCs
-        }
+    // ✅ ÉTAPE 2: Lancer l'initialisation asynchrone
+    console.log(`🔄 [WorldRoom] Lancement initialisation asynchrone...`);
+    await globalNpcManager.initialize();
+    
+    // ✅ ÉTAPE 3: Attendre que le chargement soit complet
+    console.log(`⏳ [WorldRoom] Attente chargement complet...`);
+    const loaded = await globalNpcManager.waitForLoad(15000); // 15s timeout
+
+    if (!loaded) {
+      console.error(`❌ [WorldRoom] Timeout lors du chargement des NPCs !`);
+      // Continuer quand même, mais sans NPCs
+    }
+    
+    // ✅ ÉTAPE 4: Stocker le manager validé
+    this.npcManagers.set('global', globalNpcManager);
+    
+    // ✅ ÉTAPE 5: Vérification finale et debug
+    const stats = globalNpcManager.getSystemStats();
+    console.log(`✅ [WorldRoom] NPCManager initialisé avec succès:`, {
+      totalNpcs: stats.totalNpcs,
+      initialized: stats.initialized,
+      sources: stats.sources,
+      zones: stats.zones,
+      hotReload: stats.hotReload
+    });
+    
+    // Debug système pour validation
+    globalNpcManager.debugSystem();
+    
+    // ✅ NOUVEAU: Connecter Hot Reload au broadcast client
+    if (stats.hotReload && stats.hotReload.active) {
+      console.log(`📡 [WorldRoom] Configuration broadcast Hot Reload...`);
+      
+      globalNpcManager.onNpcChange((event, npcData) => {
+        console.log(`🔥 [WorldRoom] Changement NPC détecté: ${event}`, npcData ? {
+          id: npcData.id,
+          name: npcData.name,
+          zone: this.extractZoneFromNpc(npcData)
+        } : 'Pas de données');
         
-        // ✅ ÉTAPE 4: Stocker le manager validé
-        this.npcManagers.set('global', globalNpcManager);
-        
-        // ✅ ÉTAPE 5: Vérification finale et debug
-        const stats = globalNpcManager.getSystemStats();
-        console.log(`✅ [WorldRoom] NPCManager initialisé avec succès:`, {
-          totalNpcs: stats.totalNpcs,
-          initialized: stats.initialized,
-          sources: stats.sources,
-          zones: stats.zones,
-          hotReload: stats.hotReload
+        // ✅ BROADCAST à tous les clients connectés
+        this.broadcast("npcHotReload", {
+          event: event,
+          npcData: npcData ? {
+            id: npcData.id,
+            name: npcData.name,
+            x: npcData.x,
+            y: npcData.y,
+            type: npcData.type,
+            zone: this.extractZoneFromNpc(npcData)
+          } : null,
+          timestamp: Date.now()
         });
         
-        // Debug système pour validation
-        globalNpcManager.debugSystem();
-        
-      } catch (error) {
-        console.error(`❌ [WorldRoom] Erreur critique initialisation NPCManager:`, error);
-        
-        // ✅ FALLBACK: Créer un manager vide pour éviter les crashes
-        const fallbackManager = new NpcManager();
-        this.npcManagers.set('global', fallbackManager);
-        console.warn(`⚠️ [WorldRoom] Manager NPCs en mode fallback (0 NPCs)`);
-      }
+        console.log(`📡 [WorldRoom] Hot Reload broadcasté à ${this.clients.length} clients`);
+      });
+      
+      console.log(`✅ [WorldRoom] Hot Reload broadcast configuré !`);
+    } else {
+      console.log(`⚠️ [WorldRoom] Hot Reload non actif - pas de broadcast configuré`);
     }
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur critique initialisation NPCManager:`, error);
+    
+    // ✅ FALLBACK: Créer un manager vide pour éviter les crashes
+    const fallbackManager = new NpcManager();
+    this.npcManagers.set('global', fallbackManager);
+    console.warn(`⚠️ [WorldRoom] Manager NPCs en mode fallback (0 NPCs)`);
+  }
+}
+
+// ✅ MÉTHODE UTILITAIRE : Extraire zone depuis NPC (à ajouter dans WorldRoom)
+private extractZoneFromNpc(npc: any): string {
+  if (npc.sourceFile) {
+    const match = npc.sourceFile.match(/([^\/\\]+)\.json$/);
+    return match ? match[1] : 'unknown';
+  }
+  if (npc.mongoDoc && npc.mongoDoc.zone) {
+    return npc.mongoDoc.zone;
+  }
+  return 'unknown';
+}
 
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
