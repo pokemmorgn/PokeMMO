@@ -953,6 +953,14 @@ createDocument() {
 }
 
 editDocument(id) {
+    console.log(`✏️ [MongoDB] Demande édition document: ${id}`)
+    
+    // Vérifier qu'une collection est sélectionnée
+    if (!this.currentCollection || !this.currentDatabase) {
+        this.adminPanel.showNotification('Sélectionnez d\'abord une base de données et une collection', 'warning')
+        return
+    }
+    
     if (this.advanced) {
         return this.advanced.editDocument(id)
     }
@@ -963,6 +971,14 @@ editDocument(id) {
 }
 
 deleteDocument(id) {
+    console.log(`🗑️ [MongoDB] Demande suppression document: ${id}`)
+    
+    // Vérifier qu'une collection est sélectionnée
+    if (!this.currentCollection || !this.currentDatabase) {
+        this.adminPanel.showNotification('Sélectionnez d\'abord une base de données et une collection', 'warning')
+        return
+    }
+    
     if (this.advanced) {
         return this.advanced.deleteDocument(id)
     }
@@ -1034,6 +1050,7 @@ handleInterfaceError(error, context) {
     console.error(`❌ [MongoDB] Erreur interface (${context}):`, error)
     this.adminPanel.showNotification(`Erreur: ${error.message}`, 'error')
 }
+
     
 cleanup() {
     this.advanced?.cleanup()
