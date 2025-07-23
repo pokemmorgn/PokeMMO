@@ -718,75 +718,81 @@ async loadDocumentForEdit(documentId) {
 }
 
     showDocumentEditor(document = null, isEdit = false) {
-        const title = isEdit ? 'Modifier le document' : 'Créer un document'
-        
-        const modal = this.createModal(title, 'mongodb-document-editor', `
-            <div class="mongodb-document-form">
-                <div class="mongodb-editor-toolbar">
-                    <div class="mongodb-editor-modes">
-                        <button class="mongodb-mode-btn active" data-mode="form" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').switchEditorMode('form')">
-                            <i class="fas fa-edit"></i> Formulaire
-                        </button>
-                        <button class="mongodb-mode-btn" data-mode="json" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').switchEditorMode('json')">
-                            <i class="fas fa-code"></i> JSON
-                        </button>
-                    </div>
-                    <div class="mongodb-editor-actions">
-                        ${!isEdit ? `<button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').loadDocumentTemplate()">
-                            <i class="fas fa-magic"></i> Template
-                        </button>` : ''}
-                        <button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').validateDocument()">
-                            <i class="fas fa-check"></i> Valider
-                        </button>
-                    </div>
+    const title = isEdit ? 'Modifier le document' : 'Créer un document'
+    
+    const modal = this.createModal(title, 'mongodb-document-editor', `
+        <div class="mongodb-document-form">
+            <div class="mongodb-editor-toolbar">
+                <div class="mongodb-editor-modes">
+                    <button class="mongodb-mode-btn active" data-mode="form" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.switchEditorMode('form')">
+                        <i class="fas fa-edit"></i> Formulaire
+                    </button>
+                    <button class="mongodb-mode-btn" data-mode="json" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.switchEditorMode('json')">
+                        <i class="fas fa-code"></i> JSON
+                    </button>
                 </div>
-
-                <!-- Mode formulaire -->
-                <div class="mongodb-form-mode" id="formMode">
-                    <div class="mongodb-form-fields" id="documentFields">
-                        ${!isEdit ? `<div class="mongodb-field-group">
-                            <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').addDocumentField()">
-                                <i class="fas fa-plus"></i> Ajouter un champ
-                            </button>
-                        </div>` : ''}
-                    </div>
+                <div class="mongodb-editor-actions">
+                    ${!isEdit ? `<button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.loadDocumentTemplate()">
+                        <i class="fas fa-magic"></i> Template
+                    </button>` : ''}
+                    <button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.validateDocument()">
+                        <i class="fas fa-check"></i> Valider
+                    </button>
                 </div>
+            </div>
 
-                <!-- Mode JSON -->
-                <div class="mongodb-json-mode" id="jsonMode" style="display: none;">
-                    <div class="mongodb-json-editor">
-                        <textarea class="mongodb-json-textarea" id="documentJSON" placeholder="Entrez le JSON du document...">${document ? JSON.stringify(document, null, 2) : `{
+            <!-- Mode formulaire -->
+            <div class="mongodb-form-mode" id="formMode">
+                <div class="mongodb-form-fields" id="documentFields">
+                    ${!isEdit ? `<div class="mongodb-field-group">
+                        <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.addDocumentField()">
+                            <i class="fas fa-plus"></i> Ajouter un champ
+                        </button>
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- Mode JSON -->
+            <div class="mongodb-json-mode" id="jsonMode" style="display: none;">
+                <div class="mongodb-json-editor">
+                    <textarea class="mongodb-json-textarea" id="documentJSON" placeholder="Entrez le JSON du document...">${document ? JSON.stringify(document, null, 2) : `{
   "_id": null,
   "name": "",
   "email": "",
   "createdAt": new Date(),
   "status": "active"
 }`}</textarea>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="mongodb-modal-actions">
-                    <button class="mongodb-btn mongodb-btn-secondary" onclick="this.closest('.mongodb-modal').remove()">
-                        Annuler
-                    </button>
-                    <button class="mongodb-btn mongodb-btn-success" onclick="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').saveDocument(${isEdit})">
-                        <i class="fas fa-save"></i> ${isEdit ? 'Mettre à jour' : 'Créer le document'}
-                    </button>
                 </div>
             </div>
-        `)
-        
-        const editor = modal.querySelector('.mongodb-document-editor')
+
+            <!-- Actions -->
+            <div class="mongodb-modal-actions">
+                <button class="mongodb-btn mongodb-btn-secondary" onclick="this.closest('.mongodb-modal').remove()">
+                    Annuler
+                </button>
+                <button class="mongodb-btn mongodb-btn-success" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.saveDocument(${isEdit})">
+                    <i class="fas fa-save"></i> ${isEdit ? 'Mettre à jour' : 'Créer le document'}
+                </button>
+            </div>
+        </div>
+    `)
+    
+    // ✅ CORRECTION: S'assurer que la référence est bien assignée
+    const editor = modal.querySelector('.mongodb-document-editor')
+    if (editor) {
         editor.mongoAdvanced = this
         editor.originalDocument = document
-        
-        if (isEdit && document) {
-            this.populateFormFromDocument(document)
-        } else {
-            this.addDocumentField() // Ajouter un premier champ pour la création
-        }
+        console.log('✅ [MongoDB] Éditeur de document configuré')
+    } else {
+        console.error('❌ [MongoDB] Éditeur de document non trouvé dans le modal')
     }
+    
+    if (isEdit && document) {
+        this.populateFormFromDocument(document)
+    } else {
+        this.addDocumentField() // Ajouter un premier champ pour la création
+    }
+}
 
     populateFormFromDocument(document) {
         const fieldsContainer = document.getElementById('documentFields')
@@ -807,81 +813,199 @@ async loadDocumentForEdit(documentId) {
         fieldsContainer.appendChild(addButton)
     }
 
-    addDocumentField(key = '', value = '', type = 'string') {
-        const container = document.getElementById('documentFields')
-        const addButton = container.querySelector('.mongodb-add-field')?.parentElement
-        
-        const fieldDiv = document.createElement('div')
-        fieldDiv.className = 'mongodb-document-field'
-        
-        const fieldId = 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-        
-        fieldDiv.innerHTML = `
-            <div class="mongodb-field-header">
-                <input type="text" class="mongodb-field-name" placeholder="Nom du champ" value="${key}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()">
-                <select class="mongodb-field-type" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').changeFieldType(this)">
-                    <option value="string" ${type === 'string' ? 'selected' : ''}>String</option>
-                    <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
-                    <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Boolean</option>
-                    <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
-                    <option value="array" ${type === 'array' ? 'selected' : ''}>Array</option>
-                    <option value="object" ${type === 'object' ? 'selected' : ''}>Object</option>
-                    <option value="objectid" ${type === 'objectid' ? 'selected' : ''}>ObjectId</option>
-                </select>
-                <button class="mongodb-btn-icon mongodb-remove-field" onclick="this.closest('.mongodb-document-field').remove(); this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()">
+   // 1. CORRIGER la méthode createModal (vers la fin du fichier)
+createModal(title, className, content) {
+    // Supprimer les modals existants
+    document.querySelectorAll('.mongodb-modal').forEach(modal => modal.remove())
+    
+    const modal = document.createElement('div')
+    modal.className = `mongodb-modal ${className}`
+    modal.innerHTML = `
+        <div class="mongodb-modal-backdrop" onclick="this.parentElement.remove()"></div>
+        <div class="mongodb-modal-content">
+            <div class="mongodb-modal-header">
+                <h3 class="mongodb-modal-title">${title}</h3>
+                <button class="mongodb-modal-close" onclick="this.closest('.mongodb-modal').remove()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="mongodb-field-content" id="${fieldId}">
-                ${this.renderFieldInput(type, value, fieldId)}
+            <div class="mongodb-modal-body">
+                ${content}
             </div>
-        `
-        
-        if (addButton) {
-            container.insertBefore(fieldDiv, addButton)
-        } else {
-            container.appendChild(fieldDiv)
-        }
-        
-        this.updateDocumentJSON()
+        </div>
+    `
+    
+    document.body.appendChild(modal)
+    
+    // ✅ CORRECTION: Assigner la référence APRÈS que l'élément soit dans le DOM
+    const targetElement = modal.querySelector('.mongodb-document-editor, .mongodb-query-builder, .mongodb-document-inspector, .mongodb-aggregate-results')
+    if (targetElement) {
+        targetElement.mongoAdvanced = this
+        console.log('✅ [MongoDB] Référence mongoAdvanced assignée à:', targetElement.className)
+    } else {
+        console.warn('⚠️ [MongoDB] Élément cible non trouvé dans le modal')
     }
+    
+    // Animation d'entrée
+    setTimeout(() => modal.classList.add('mongodb-modal-show'), 10)
+    
+    return modal
+}
 
-    renderFieldInput(type, value, fieldId) {
-        switch (type) {
-            case 'string':
-                return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()" placeholder="Valeur texte">`
-            case 'number':
-                return `<input type="number" class="mongodb-field-input" value="${value || 0}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()" placeholder="Valeur numérique">`
-            case 'boolean':
-                return `
-                    <select class="mongodb-field-input" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()">
-                        <option value="true" ${value === true ? 'selected' : ''}>true</option>
-                        <option value="false" ${value === false ? 'selected' : ''}>false</option>
-                    </select>
-                `
-            case 'date':
-                const dateValue = value ? (value instanceof Date ? value.toISOString().slice(0, 16) : new Date(value).toISOString().slice(0, 16)) : ''
-                return `<input type="datetime-local" class="mongodb-field-input" value="${dateValue}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()">`
-            case 'array':
-                return `
-                    <div class="mongodb-array-editor">
-                        <textarea class="mongodb-field-input mongodb-array-textarea" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()" placeholder='["item1", "item2", "item3"]'>${JSON.stringify(value || [], null, 2)}</textarea>
-                        <small>Format JSON array</small>
-                    </div>
-                `
-            case 'object':
-                return `
-                    <div class="mongodb-object-editor">
-                        <textarea class="mongodb-field-input mongodb-object-textarea" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()" placeholder='{"key": "value"}'>${JSON.stringify(value || {}, null, 2)}</textarea>
-                        <small>Format JSON object</small>
-                    </div>
-                `
-            case 'objectid':
-                return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()" placeholder="ObjectId (laisser vide pour auto-génération)">`
-            default:
-                return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-editor').querySelector('.mongodb-advanced').updateDocumentJSON()">`
-        }
+// 2. CORRIGER la méthode showDocumentEditor
+showDocumentEditor(document = null, isEdit = false) {
+    const title = isEdit ? 'Modifier le document' : 'Créer un document'
+    
+    const modal = this.createModal(title, 'mongodb-document-editor', `
+        <div class="mongodb-document-form">
+            <div class="mongodb-editor-toolbar">
+                <div class="mongodb-editor-modes">
+                    <button class="mongodb-mode-btn active" data-mode="form" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.switchEditorMode('form')">
+                        <i class="fas fa-edit"></i> Formulaire
+                    </button>
+                    <button class="mongodb-mode-btn" data-mode="json" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.switchEditorMode('json')">
+                        <i class="fas fa-code"></i> JSON
+                    </button>
+                </div>
+                <div class="mongodb-editor-actions">
+                    ${!isEdit ? `<button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.loadDocumentTemplate()">
+                        <i class="fas fa-magic"></i> Template
+                    </button>` : ''}
+                    <button class="mongodb-btn mongodb-btn-sm" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.validateDocument()">
+                        <i class="fas fa-check"></i> Valider
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mode formulaire -->
+            <div class="mongodb-form-mode" id="formMode">
+                <div class="mongodb-form-fields" id="documentFields">
+                    ${!isEdit ? `<div class="mongodb-field-group">
+                        <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.addDocumentField()">
+                            <i class="fas fa-plus"></i> Ajouter un champ
+                        </button>
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- Mode JSON -->
+            <div class="mongodb-json-mode" id="jsonMode" style="display: none;">
+                <div class="mongodb-json-editor">
+                    <textarea class="mongodb-json-textarea" id="documentJSON" placeholder="Entrez le JSON du document...">${document ? JSON.stringify(document, null, 2) : `{
+  "_id": null,
+  "name": "",
+  "email": "",
+  "createdAt": new Date(),
+  "status": "active"
+}`}</textarea>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mongodb-modal-actions">
+                <button class="mongodb-btn mongodb-btn-secondary" onclick="this.closest('.mongodb-modal').remove()">
+                    Annuler
+                </button>
+                <button class="mongodb-btn mongodb-btn-success" onclick="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.saveDocument(${isEdit})">
+                    <i class="fas fa-save"></i> ${isEdit ? 'Mettre à jour' : 'Créer le document'}
+                </button>
+            </div>
+        </div>
+    `)
+    
+    // ✅ CORRECTION: S'assurer que la référence est bien assignée
+    const editor = modal.querySelector('.mongodb-document-editor')
+    if (editor) {
+        editor.mongoAdvanced = this
+        editor.originalDocument = document
+        console.log('✅ [MongoDB] Éditeur de document configuré')
+    } else {
+        console.error('❌ [MongoDB] Éditeur de document non trouvé dans le modal')
     }
+    
+    if (isEdit && document) {
+        this.populateFormFromDocument(document)
+    } else {
+        this.addDocumentField() // Ajouter un premier champ pour la création
+    }
+}
+
+// 3. CORRIGER la méthode addDocumentField
+addDocumentField(key = '', value = '', type = 'string') {
+    const container = document.getElementById('documentFields')
+    const addButton = container.querySelector('.mongodb-add-field')?.parentElement
+    
+    const fieldDiv = document.createElement('div')
+    fieldDiv.className = 'mongodb-document-field'
+    
+    const fieldId = 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+    
+    fieldDiv.innerHTML = `
+        <div class="mongodb-field-header">
+            <input type="text" class="mongodb-field-name" placeholder="Nom du champ" value="${key}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()">
+            <select class="mongodb-field-type" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.changeFieldType(this)">
+                <option value="string" ${type === 'string' ? 'selected' : ''}>String</option>
+                <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
+                <option value="boolean" ${type === 'boolean' ? 'selected' : ''}>Boolean</option>
+                <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
+                <option value="array" ${type === 'array' ? 'selected' : ''}>Array</option>
+                <option value="object" ${type === 'object' ? 'selected' : ''}>Object</option>
+                <option value="objectid" ${type === 'objectid' ? 'selected' : ''}>ObjectId</option>
+            </select>
+            <button class="mongodb-btn-icon mongodb-remove-field" onclick="this.closest('.mongodb-document-field').remove(); this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mongodb-field-content" id="${fieldId}">
+            ${this.renderFieldInput(type, value, fieldId)}
+        </div>
+    `
+    
+    if (addButton) {
+        container.insertBefore(fieldDiv, addButton)
+    } else {
+        container.appendChild(fieldDiv)
+    }
+    
+    this.updateDocumentJSON()
+}
+
+   renderFieldInput(type, value, fieldId) {
+    switch (type) {
+        case 'string':
+            return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()" placeholder="Valeur texte">`
+        case 'number':
+            return `<input type="number" class="mongodb-field-input" value="${value || 0}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()" placeholder="Valeur numérique">`
+        case 'boolean':
+            return `
+                <select class="mongodb-field-input" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()">
+                    <option value="true" ${value === true ? 'selected' : ''}>true</option>
+                    <option value="false" ${value === false ? 'selected' : ''}>false</option>
+                </select>
+            `
+        case 'date':
+            const dateValue = value ? (value instanceof Date ? value.toISOString().slice(0, 16) : new Date(value).toISOString().slice(0, 16)) : ''
+            return `<input type="datetime-local" class="mongodb-field-input" value="${dateValue}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()">`
+        case 'array':
+            return `
+                <div class="mongodb-array-editor">
+                    <textarea class="mongodb-field-input mongodb-array-textarea" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()" placeholder='["item1", "item2", "item3"]'>${JSON.stringify(value || [], null, 2)}</textarea>
+                    <small>Format JSON array</small>
+                </div>
+            `
+        case 'object':
+            return `
+                <div class="mongodb-object-editor">
+                    <textarea class="mongodb-field-input mongodb-object-textarea" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()" placeholder='{"key": "value"}'>${JSON.stringify(value || {}, null, 2)}</textarea>
+                    <small>Format JSON object</small>
+                </div>
+            `
+        case 'objectid':
+            return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()" placeholder="ObjectId (laisser vide pour auto-génération)">`
+        default:
+            return `<input type="text" class="mongodb-field-input" value="${value || ''}" onchange="this.closest('.mongodb-document-form').parentElement.querySelector('.mongodb-document-editor').mongoAdvanced.updateDocumentJSON()">`
+    }
+}
 
     changeFieldType(select) {
         const fieldContent = select.closest('.mongodb-document-field').querySelector('.mongodb-field-content')
@@ -1699,35 +1823,44 @@ async inspectDocument(documentId) {
         return `${minutes}m`
     }
 
-    createModal(title, className, content) {
-        // Supprimer les modals existants
-        document.querySelectorAll('.mongodb-modal').forEach(modal => modal.remove())
-        
-        const modal = document.createElement('div')
-        modal.className = `mongodb-modal ${className}`
-        modal.innerHTML = `
-            <div class="mongodb-modal-backdrop" onclick="this.parentElement.remove()"></div>
-            <div class="mongodb-modal-content">
-                <div class="mongodb-modal-header">
-                    <h3 class="mongodb-modal-title">${title}</h3>
-                    <button class="mongodb-modal-close" onclick="this.closest('.mongodb-modal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="mongodb-modal-body">
-                    ${content}
-                </div>
+   createModal(title, className, content) {
+    // Supprimer les modals existants
+    document.querySelectorAll('.mongodb-modal').forEach(modal => modal.remove())
+    
+    const modal = document.createElement('div')
+    modal.className = `mongodb-modal ${className}`
+    modal.innerHTML = `
+        <div class="mongodb-modal-backdrop" onclick="this.parentElement.remove()"></div>
+        <div class="mongodb-modal-content">
+            <div class="mongodb-modal-header">
+                <h3 class="mongodb-modal-title">${title}</h3>
+                <button class="mongodb-modal-close" onclick="this.closest('.mongodb-modal').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-        `
-        
-        document.body.appendChild(modal)
-        
-        // Animation d'entrée
-        setTimeout(() => modal.classList.add('mongodb-modal-show'), 10)
-        
-        return modal
+            <div class="mongodb-modal-body">
+                ${content}
+            </div>
+        </div>
+    `
+    
+    document.body.appendChild(modal)
+    
+    // ✅ CORRECTION: Assigner la référence APRÈS que l'élément soit dans le DOM
+    const targetElement = modal.querySelector('.mongodb-document-editor, .mongodb-query-builder, .mongodb-document-inspector, .mongodb-aggregate-results')
+    if (targetElement) {
+        targetElement.mongoAdvanced = this
+        console.log('✅ [MongoDB] Référence mongoAdvanced assignée à:', targetElement.className)
+    } else {
+        console.warn('⚠️ [MongoDB] Élément cible non trouvé dans le modal')
     }
-
+    
+    // Animation d'entrée
+    setTimeout(() => modal.classList.add('mongodb-modal-show'), 10)
+    
+    return modal
+}
+    
     exportResults() {
         // Placeholder pour l'export
         this.adminPanel.showNotification('Export en développement', 'info')
