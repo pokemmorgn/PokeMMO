@@ -6,6 +6,8 @@ export class MongoDBAdvanced {
         this.queryBuilder = null
         this.documentEditor = null
         this.statsCache = new Map()
+            this.addModalStyles()
+
         console.log('🚀 [MongoDB Advanced] Module initialisé')
     }
 
@@ -987,6 +989,91 @@ showDocumentEditor(documentData = null, isEdit = false) {
     }
     
     return modal
+}
+
+    
+// AJOUTER des styles CSS spécifiques si nécessaire
+addModalStyles() {
+    // Vérifier si les styles existent déjà
+    if (document.getElementById('mongodb-modal-styles')) {
+        return
+    }
+    
+    const style = document.createElement('style')
+    style.id = 'mongodb-modal-styles'
+    style.textContent = `
+        .mongodb-modal {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(0, 0, 0, 0.7) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 2000 !important;
+            animation: mongodb-modal-fade-in 0.3s ease !important;
+        }
+
+        .mongodb-modal-content {
+            background: white !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+            max-width: 90vw !important;
+            max-height: 90vh !important;
+            overflow: hidden !important;
+            animation: mongodb-modal-slide-in 0.3s ease !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        .mongodb-modal-header {
+            background: #f8f9fa !important;
+            padding: 20px !important;
+            border-bottom: 1px solid #e0e0e0 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            flex-shrink: 0 !important;
+        }
+
+        .mongodb-modal-body {
+            padding: 20px !important;
+            flex: 1 !important;
+            overflow-y: auto !important;
+        }
+
+        .mongodb-json-textarea {
+            width: 100% !important;
+            height: 400px !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 14px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 4px !important;
+            padding: 10px !important;
+            resize: vertical !important;
+        }
+
+        @keyframes mongodb-modal-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes mongodb-modal-slide-in {
+            from { 
+                opacity: 0; 
+                transform: scale(0.8) translateY(-20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: scale(1) translateY(0); 
+            }
+        }
+    `
+    
+    document.head.appendChild(style)
+    console.log('✅ [MongoDB] Styles CSS de modal ajoutés')
 }
 // 3. CORRIGER la méthode addDocumentField
 addDocumentField(key = '', value = '', type = 'string') {
