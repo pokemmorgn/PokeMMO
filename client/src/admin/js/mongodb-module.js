@@ -1,4 +1,6 @@
 // client/src/admin/js/mongodb-module.js - Interface professionnelle DB
+import { MongoDBAdvanced } from './mongodb-advanced.js'
+
 export class MongoDBModule {
     constructor(adminPanel) {
         this.adminPanel = adminPanel
@@ -13,6 +15,8 @@ export class MongoDBModule {
         this.selectedDocument = null
         this.viewMode = 'table' // table, json, tree
         this.documentStats = {}
+        this.advanced = new MongoDBAdvanced(this)
+
         console.log('🗄️ [MongoDB] Module constructeur OK')
     }
 
@@ -774,16 +778,17 @@ export class MongoDBModule {
     }
 
     // Méthodes publiques (placeholders)
-    refreshDatabases() { this.loadDatabases() }
-    createDocument() { this.adminPanel.showNotification('Création de document en développement', 'info') }
-    editDocument(id) { this.adminPanel.showNotification('Édition de document en développement', 'info') }
-    deleteDocument(id) { this.adminPanel.showNotification('Suppression de document en développement', 'info') }
-    inspectDocument(id) { this.adminPanel.showNotification('Inspection de document en développement', 'info') }
-    showQueryBuilder() { this.adminPanel.showNotification('Query Builder en développement', 'info') }
-    showDatabaseStats() { this.adminPanel.showNotification('Statistiques DB en développement', 'info') }
-    showServerInfo() { this.adminPanel.showNotification('Info serveur en développement', 'info') }
+refreshDatabases() { return this.advanced.refreshDatabases() }
+createDocument() { return this.advanced.createDocument() }
+editDocument(id) { return this.advanced.editDocument(id) }
+deleteDocument(id) { return this.advanced.deleteDocument(id) }
+inspectDocument(id) { return this.advanced.inspectDocument(id) }
+showQueryBuilder() { return this.advanced.showQueryBuilder() }
+showDatabaseStats() { return this.advanced.showDatabaseStats() }
+showServerInfo() { return this.advanced.showServerInfo() }
     
-    cleanup() {
-        console.log('🧹 [MongoDB] Module cleanup')
+cleanup() {
+    this.advanced?.cleanup()
+    console.log('🧹 [MongoDB] Module cleanup')
     }
 }
