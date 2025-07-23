@@ -1,789 +1,790 @@
-// client/src/admin/js/mongodb-module.js - Interface professionnelle DB
-export class MongoDBModule {
-    constructor(adminPanel) {
-        this.adminPanel = adminPanel
-        this.name = 'mongodb'
-        this.currentCollection = null
-        this.currentDatabase = null
-        this.databases = []
-        this.collections = []
-        this.currentPage = 0
-        this.pageSize = 25
-        this.currentQuery = {}
-        this.selectedDocument = null
-        this.viewMode = 'table' // table, json, tree
-        this.documentStats = {}
-        console.log('🗄️ [MongoDB] Module constructeur OK')
+.mongodb-data-cell {
+    max-width: /* MongoDB Professional Interface Styles - ISOLÉS */
+
+.mongodb-pro-interface {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f5f5f5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+}
+
+/* Header MongoDB */
+.mongodb-pro-header {
+    background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 100;
+}
+
+.mongodb-pro-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.mongodb-pro-title {
+    font-size: 1.3rem;
+}
+
+.mongodb-pro-version {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.mongodb-connection-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.mongodb-connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.mongodb-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+    animation: mongodb-pulse 2s infinite;
+}
+
+.mongodb-server-info {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    font-family: monospace;
+}
+
+@keyframes mongodb-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+/* Layout principal MongoDB */
+.mongodb-pro-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar MongoDB */
+.mongodb-pro-sidebar {
+    width: 280px;
+    background: white;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mongodb-sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mongodb-sidebar-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #333;
+    font-weight: 600;
+}
+
+.mongodb-btn-icon {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #666;
+    transition: all 0.2s ease;
+}
+
+.mongodb-btn-icon:hover {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Arbre des bases MongoDB */
+.mongodb-db-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.mongodb-tree-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.mongodb-tree-node {
+    margin-bottom: 2px;
+}
+
+.mongodb-node-content {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.mongodb-node-content:hover {
+    background: #f0f7ff;
+}
+
+.mongodb-database-node.expanded > .mongodb-node-content {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.mongodb-collection-node .mongodb-node-content:hover {
+    background: #fff3e0;
+}
+
+.mongodb-collection-node .mongodb-node-content.active {
+    background: #ff9800;
+    color: white;
+}
+
+.mongodb-node-icon {
+    margin-right: 8px;
+    width: 16px;
+    text-align: center;
+    color: #666;
+}
+
+.mongodb-database-node .mongodb-node-icon {
+    color: #4CAF50;
+}
+
+.mongodb-collection-node .mongodb-node-icon {
+    color: #ff9800;
+}
+
+.mongodb-node-label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.mongodb-node-expand {
+    margin-left: auto;
+    font-size: 0.7rem;
+    transition: transform 0.3s ease;
+    color: #999;
+}
+
+.mongodb-node-children {
+    margin-left: 20px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.mongodb-collection-node {
+    margin-bottom: 1px;
+}
+
+.mongodb-collection-node .mongodb-node-content {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* Zone principale MongoDB */
+.mongodb-pro-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Toolbar MongoDB */
+.mongodb-pro-toolbar {
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mongodb-toolbar-left,
+.mongodb-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.mongodb-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.mongodb-breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mongodb-breadcrumb-item.active {
+    color: #333;
+    font-weight: 600;
+}
+
+.mongodb-breadcrumb-separator {
+    color: #ccc;
+    font-size: 0.7rem;
+}
+
+.mongodb-view-modes {
+    display: flex;
+    background: #f5f5f5;
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.mongodb-view-btn {
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #666;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.mongodb-view-btn.active,
+.mongodb-view-btn:hover {
+    background: white;
+    color: #333;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mongodb-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mongodb-btn:hover {
+    border-color: #bbb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.mongodb-btn-primary {
+    background: #1976d2;
+    border-color: #1976d2;
+    color: white;
+}
+
+.mongodb-btn-primary:hover {
+    background: #1565c0;
+    border-color: #1565c0;
+}
+
+.mongodb-btn-success {
+    background: #4CAF50;
+    border-color: #4CAF50;
+    color: white;
+}
+
+.mongodb-btn-success:hover {
+    background: #43a047;
+    border-color: #43a047;
+}
+
+/* Contenu MongoDB */
+.mongodb-pro-content {
+    flex: 1;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+/* Écran d'accueil MongoDB */
+.mongodb-welcome-screen {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+}
+
+.mongodb-welcome-content {
+    text-align: center;
+    max-width: 500px;
+    padding: 40px;
+}
+
+.mongodb-welcome-icon {
+    font-size: 4rem;
+    color: #4CAF50;
+    margin-bottom: 20px;
+}
+
+.mongodb-welcome-content h2 {
+    color: #333;
+    margin-bottom: 15px;
+    font-weight: 300;
+}
+
+.mongodb-welcome-content p {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.mongodb-quick-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.mongodb-quick-btn {
+    padding: 12px 20px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 140px;
+}
+
+.mongodb-quick-btn:hover {
+    background: #e3f2fd;
+    border-color: #1976d2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+}
+
+.mongodb-quick-btn i {
+    font-size: 1.5rem;
+    color: #1976d2;
+}
+
+/* Zone documents MongoDB */
+.mongodb-documents-view {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+.mongodb-collection-stats {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+.mongodb-stats-cards {
+    display: flex;
+    gap: 20px;
+}
+
+.mongodb-stat-card {
+    text-align: center;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    min-width: 100px;
+}
+
+.mongodb-stat-number {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.mongodb-stat-label {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Barre de requête MongoDB */
+.mongodb-query-bar {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.mongodb-query-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.mongodb-query-input-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #666;
+    min-width: 40px;
+}
+
+.mongodb-query-input {
+    flex: 1;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: #fafafa;
+}
+
+.mongodb-query-input:focus {
+    outline: none;
+    border-color: #1976d2;
+    background: white;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.mongodb-query-input.json-valid {
+    border-color: #4CAF50;
+    background: #f8fff8;
+}
+
+.mongodb-query-input.json-error {
+    border-color: #f44336;
+    background: #fff8f8;
+}
+
+.mongodb-result-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.mongodb-pagination-simple {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mongodb-btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+/* Table View MongoDB */
+.mongodb-table-view {
+    flex: 1;
+    overflow: hidden;
+}
+
+.mongodb-table-container {
+    height: 100%;
+    overflow: auto;
+    /* Permettre le scroll horizontal si beaucoup de colonnes */
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.mongodb-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    /* Largeur minimale pour éviter que les colonnes soient trop compressées */
+    min-width: max-content;
+}
+
+.mongodb-data-table th {
+    background: #f5f5f5;
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 2px solid #e0e0e0;
+    font-weight: 600;
+    color: #333;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.mongodb-data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.mongodb-data-table th.sortable:hover {
+    background: #eeeeee;
+}
+
+.mongodb-sort-icon {
+    margin-left: 4px;
+    font-size: 0.7rem;
+    color: #999;
+}
+
+.mongodb-data-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+}
+
+.mongodb-document-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.mongodb-document-row:hover {
+    background: #f9f9f9;
+}
+
+.mongodb-document-row.selected {
+    background: #e3f2fd;
+}
+
+.mongodb-select-column {
+    width: 40px;
+    text-align: center;
+}
+
+.mongodb-actions-column {
+    width: 120px;
+    text-align: center;
+}
+
+.mongodb-data-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mongodb-null-value {
+    color: #999;
+    font-style: italic;
+}
+
+.mongodb-boolean-value {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.mongodb-array-value {
+    color: #ff9800;
+    font-weight: 500;
+}
+
+.mongodb-object-value {
+    color: #9c27b0;
+    font-weight: 500;
+}
+
+/* JSON View MongoDB */
+.mongodb-json-view {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+}
+
+.mongodb-json-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.mongodb-json-document {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mongodb-json-document:hover {
+    border-color: #1976d2;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+}
+
+.mongodb-json-header {
+    background: #fafafa;
+    padding: 10px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mongodb-doc-index {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.mongodb-doc-id {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #333;
+}
+
+.mongodb-doc-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.mongodb-json-content {
+    margin: 0;
+    padding: 15px;
+    background: #fafafa;
+    font-family: monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    overflow-x: auto;
+}
+
+/* Loading MongoDB */
+.mongodb-db-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.mongodb-loading-content {
+    text-align: center;
+    color: #666;
+}
+
+.mongodb-spinner-ring {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #4CAF50;
+    border-radius: 50%;
+    animation: mongodb-spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+.mongodb-loading-text {
+    font-size: 0.9rem;
+}
+
+@keyframes mongodb-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Empty State MongoDB */
+.mongodb-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.mongodb-empty-state i {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+.mongodb-empty-state h3 {
+    margin-bottom: 10px;
+    color: #333;
+    font-weight: 300;
+}
+
+.mongodb-empty-state p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Responsive MongoDB */
+@media (max-width: 1200px) {
+    .mongodb-pro-sidebar {
+        width: 240px;
     }
+}
 
-    async onTabActivated() {
-        console.log('🗄️ [MongoDB] Module activé')
-        try {
-            await this.initializeMongoDBPanel()
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur initialisation:', error)
-            this.showError('Erreur lors de l\'initialisation : ' + error.message)
-        }
+@media (max-width: 768px) {
+    .mongodb-pro-layout {
+        flex-direction: column;
     }
-
-    async initializeMongoDBPanel() {
-        console.log('🔄 [MongoDB] Initialisation du panel professionnel...')
-        
-        try {
-            this.renderProfessionalInterface()
-            await this.loadDatabases()
-            console.log('✅ [MongoDB] Interface professionnelle initialisée')
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur initialisation panel:', error)
-            this.showError('Erreur de chargement : ' + error.message)
-        }
-    }
-
-    renderProfessionalInterface() {
-        console.log('🎨 [MongoDB] Rendu interface professionnelle...')
-        
-        const container = document.getElementById('mongodb')
-        if (!container) {
-            console.error('❌ [MongoDB] Container #mongodb non trouvé !')
-            return
-        }
-
-        container.innerHTML = `
-            <div class="mongodb-pro-interface">
-                <!-- Header avec logo et connexion -->
-                <div class="mongodb-pro-header">
-                    <div class="mongodb-pro-logo">
-                        <i class="fas fa-leaf" style="color: #4CAF50;"></i>
-                        <span class="mongodb-pro-title">MongoDB Explorer</span>
-                        <span class="mongodb-pro-version">v4.4</span>
-                    </div>
-                    <div class="mongodb-connection-info">
-                        <div class="mongodb-connection-status">
-                            <div class="mongodb-status-dot connected"></div>
-                            <span>Connected to MongoDB</span>
-                        </div>
-                        <div class="mongodb-server-info">localhost:27017</div>
-                    </div>
-                </div>
-
-                <!-- Layout principal -->
-                <div class="mongodb-pro-layout">
-                    <!-- Sidebar gauche : Explorer -->
-                    <div class="mongodb-pro-sidebar">
-                        <div class="mongodb-sidebar-header">
-                            <h3><i class="fas fa-sitemap"></i> Database Explorer</h3>
-                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.refreshDatabases()" title="Refresh">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="mongodb-db-tree" id="databaseTree">
-                            <div class="mongodb-tree-loading">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                Loading databases...
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Zone principale -->
-                    <div class="mongodb-pro-main">
-                        <!-- Toolbar -->
-                        <div class="mongodb-pro-toolbar">
-                            <div class="mongodb-toolbar-left">
-                                <div class="mongodb-breadcrumb" id="breadcrumb">
-                                    <span class="mongodb-breadcrumb-item">
-                                        <i class="fas fa-database"></i> Select Database
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div class="mongodb-toolbar-right">
-                                <div class="mongodb-view-modes">
-                                    <button class="mongodb-view-btn active" data-view="table" onclick="adminPanel.mongodb.setViewMode('table')" title="Table View">
-                                        <i class="fas fa-table"></i>
-                                    </button>
-                                    <button class="mongodb-view-btn" data-view="json" onclick="adminPanel.mongodb.setViewMode('json')" title="JSON View">
-                                        <i class="fas fa-code"></i>
-                                    </button>
-                                    <button class="mongodb-view-btn" data-view="tree" onclick="adminPanel.mongodb.setViewMode('tree')" title="Tree View">
-                                        <i class="fas fa-sitemap"></i>
-                                    </button>
-                                </div>
-                                
-                                <button class="mongodb-btn mongodb-btn-primary" onclick="adminPanel.mongodb.showQueryBuilder()" title="Query Builder">
-                                    <i class="fas fa-search"></i> Query
-                                </button>
-                                
-                                <button class="mongodb-btn mongodb-btn-success" onclick="adminPanel.mongodb.createDocument()" title="Insert Document">
-                                    <i class="fas fa-plus"></i> Insert
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Zone de contenu -->
-                        <div class="mongodb-pro-content">
-                            <!-- État initial -->
-                            <div class="mongodb-welcome-screen" id="welcomeScreen">
-                                <div class="mongodb-welcome-content">
-                                    <i class="fas fa-leaf mongodb-welcome-icon"></i>
-                                    <h2>Welcome to MongoDB Explorer</h2>
-                                    <p>Select a database and collection from the left panel to start exploring your data.</p>
-                                    <div class="mongodb-quick-actions">
-                                        <button class="mongodb-quick-btn" onclick="adminPanel.mongodb.showDatabaseStats()">
-                                            <i class="fas fa-chart-pie"></i>
-                                            Database Statistics
-                                        </button>
-                                        <button class="mongodb-quick-btn" onclick="adminPanel.mongodb.showServerInfo()">
-                                            <i class="fas fa-server"></i>
-                                            Server Information
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Zone documents -->
-                            <div class="mongodb-documents-view" id="documentsView" style="display: none;">
-                                <!-- Stats de collection -->
-                                <div class="mongodb-collection-stats" id="collectionStats">
-                                    <div class="mongodb-stats-cards">
-                                        <div class="mongodb-stat-card">
-                                            <div class="mongodb-stat-number" id="totalDocs">-</div>
-                                            <div class="mongodb-stat-label">Documents</div>
-                                        </div>
-                                        <div class="mongodb-stat-card">
-                                            <div class="mongodb-stat-number" id="avgDocSize">-</div>
-                                            <div class="mongodb-stat-label">Avg Size</div>
-                                        </div>
-                                        <div class="mongodb-stat-card">
-                                            <div class="mongodb-stat-number" id="collectionSize">-</div>
-                                            <div class="mongodb-stat-label">Collection Size</div>
-                                        </div>
-                                        <div class="mongodb-stat-card">
-                                            <div class="mongodb-stat-number" id="indexesCount">-</div>
-                                            <div class="mongodb-stat-label">Indexes</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Query Bar -->
-                                <div class="mongodb-query-bar" id="queryBar">
-                                    <div class="mongodb-query-input-group">
-                                        <label>Filter:</label>
-                                        <input type="text" class="mongodb-query-input" id="filterInput" 
-                                               placeholder="{ }" value="{}"
-                                               onkeypress="if(event.key==='Enter') adminPanel.mongodb.executeFilter()">
-                                        <button class="mongodb-btn mongodb-btn-primary mongodb-btn-sm" onclick="adminPanel.mongodb.executeFilter()">
-                                            <i class="fas fa-play"></i>
-                                        </button>
-                                        <button class="mongodb-btn mongodb-btn-sm" onclick="adminPanel.mongodb.clearFilter()">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="mongodb-result-info">
-                                        <span id="resultCount">0 documents</span>
-                                        <div class="mongodb-pagination-simple">
-                                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.previousPage()" id="prevBtn" disabled>
-                                                <i class="fas fa-chevron-left"></i>
-                                            </button>
-                                            <span id="pageIndicator">Page 1</span>
-                                            <button class="mongodb-btn-icon" onclick="adminPanel.mongodb.nextPage()" id="nextBtn" disabled>
-                                                <i class="fas fa-chevron-right"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Contenu documents -->
-                                <div class="mongodb-documents-content" id="documentsContent">
-                                    <!-- Table View -->
-                                    <div class="mongodb-table-view" id="tableView">
-                                        <div class="mongodb-table-container">
-                                            <table class="mongodb-data-table" id="documentsTable">
-                                                <thead id="tableHeader"></thead>
-                                                <tbody id="tableBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-
-                                    <!-- JSON View -->
-                                    <div class="mongodb-json-view" id="jsonView" style="display: none;">
-                                        <div class="mongodb-json-container" id="jsonContainer"></div>
-                                    </div>
-
-                                    <!-- Tree View -->
-                                    <div class="mongodb-tree-view" id="treeView" style="display: none;">
-                                        <div class="mongodb-tree-container" id="treeContainer"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Loading overlay -->
-                <div class="mongodb-db-loading" id="dbLoading" style="display: none;">
-                    <div class="mongodb-loading-content">
-                        <div class="mongodb-spinner-ring"></div>
-                        <div class="mongodb-loading-text">Executing query...</div>
-                    </div>
-                </div>
-            </div>
-        `
-
-        console.log('✅ [MongoDB] Interface professionnelle injectée')
-        this.setupEventListeners()
-    }
-
-    setupEventListeners() {
-        console.log('🔧 [MongoDB] Configuration des événements professionnels...')
-        
-        // Recherche en temps réel
-        const filterInput = document.getElementById('filterInput')
-        if (filterInput) {
-            filterInput.addEventListener('input', this.debounce(() => {
-                this.validateJSON(filterInput.value)
-            }, 300))
-        }
-
-        // Raccourcis clavier
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey || e.metaKey) {
-                switch(e.key) {
-                    case 'f':
-                        e.preventDefault()
-                        document.getElementById('filterInput')?.focus()
-                        break
-                    case 'r':
-                        e.preventDefault()
-                        this.refreshDatabases()
-                        break
-                }
-            }
-        })
-    }
-
-    async loadDatabases() {
-        console.log('📡 [MongoDB] Chargement des bases de données...')
-        
-        this.showLoading(true)
-        
-        try {
-            const data = await this.adminPanel.apiCall('/mongodb/databases')
-            
-            if (data.success && data.databases) {
-                this.databases = data.databases
-                console.log('✅ [MongoDB] Bases chargées:', this.databases.length)
-                this.renderDatabaseTree()
-            } else {
-                throw new Error('Réponse API invalide')
-            }
-            
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur chargement databases:', error)
-            this.adminPanel.showNotification('Erreur chargement databases: ' + error.message, 'error')
-        } finally {
-            this.showLoading(false)
-        }
-    }
-
-    renderDatabaseTree() {
-        const treeContainer = document.getElementById('databaseTree')
-        if (!treeContainer) return
-
-        treeContainer.innerHTML = this.databases.map(db => `
-            <div class="mongodb-tree-node mongodb-database-node" onclick="adminPanel.mongodb.selectDatabase('${db}')">
-                <div class="mongodb-node-content">
-                    <i class="mongodb-node-icon fas fa-database"></i>
-                    <span class="mongodb-node-label">${db}</span>
-                    <i class="mongodb-node-expand fas fa-chevron-right"></i>
-                </div>
-                <div class="mongodb-node-children" id="collections-${db}"></div>
-            </div>
-        `).join('')
-
-        console.log('✅ [MongoDB] Arbre des bases rendu')
-    }
-
-    async selectDatabase(database) {
-        console.log(`📊 [MongoDB] Sélection base: ${database}`)
-        
-        this.currentDatabase = database
-        this.currentCollection = null
-        
-        // Mettre à jour l'UI
-        this.updateBreadcrumb([
-            { icon: 'fas fa-database', text: database }
-        ])
-        
-        // Charger les collections
-        try {
-            const data = await this.adminPanel.apiCall(`/mongodb/collections/${database}`)
-            
-            if (data.success && data.collections) {
-                this.collections = data.collections
-                this.renderCollections(database, data.collections)
-                
-                // Animer l'expansion
-                const dbNode = document.querySelector(`[onclick="adminPanel.mongodb.selectDatabase('${database}')"]`)
-                if (dbNode) {
-                    dbNode.classList.add('expanded')
-                    const expandIcon = dbNode.querySelector('.node-expand')
-                    if (expandIcon) expandIcon.style.transform = 'rotate(90deg)'
-                }
-            }
-            
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur chargement collections:', error)
-            this.adminPanel.showNotification('Erreur chargement collections: ' + error.message, 'error')
-        }
-    }
-
-    renderCollections(database, collections) {
-        const container = document.getElementById(`collections-${database}`)
-        if (!container) return
-
-        container.innerHTML = collections.map(collection => `
-            <div class="mongodb-tree-node mongodb-collection-node" onclick="adminPanel.mongodb.selectCollection('${database}', '${collection}')">
-                <div class="mongodb-node-content">
-                    <i class="mongodb-node-icon fas fa-table"></i>
-                    <span class="mongodb-node-label">${collection}</span>
-                    <span class="mongodb-node-info">...</span>
-                </div>
-            </div>
-        `).join('')
-
-        // Animer l'apparition
-        container.style.maxHeight = collections.length * 35 + 'px'
-        container.style.opacity = '1'
-    }
-
-    async selectCollection(database, collection) {
-        console.log(`📋 [MongoDB] Sélection collection: ${database}.${collection}`)
-        
-        this.currentDatabase = database
-        this.currentCollection = collection
-        this.currentPage = 0
-        
-        // Mettre à jour l'UI
-        this.updateBreadcrumb([
-            { icon: 'fas fa-database', text: database },
-            { icon: 'fas fa-table', text: collection }
-        ])
-        
-        // Masquer l'écran d'accueil
-        document.getElementById('welcomeScreen').style.display = 'none'
-        document.getElementById('documentsView').style.display = 'block'
-        
-        // Charger les documents
-        await this.loadDocuments()
-    }
-
-    async loadDocuments(query = {}) {
-        console.log(`📄 [MongoDB] Chargement documents: ${this.currentCollection}`)
-        
-        this.showLoading(true)
-        
-        try {
-            const data = await this.adminPanel.apiCall('/mongodb/documents', {
-                method: 'POST',
-                body: JSON.stringify({
-                    database: this.currentDatabase,
-                    collection: this.currentCollection,
-                    query: query,
-                    page: this.currentPage,
-                    limit: this.pageSize
-                })
-            })
-
-            if (data.success) {
-                this.updateCollectionStats(data.total)
-                this.renderDocuments(data.documents || [], data.total || 0)
-                this.updatePagination(data.total || 0)
-                
-                console.log('✅ [MongoDB] Documents chargés:', data.documents?.length)
-            } else {
-                throw new Error('Erreur chargement documents')
-            }
-            
-        } catch (error) {
-            console.error('❌ [MongoDB] Erreur chargement documents:', error)
-            this.adminPanel.showNotification('Erreur chargement documents: ' + error.message, 'error')
-        } finally {
-            this.showLoading(false)
-        }
-    }
-
-    renderDocuments(documents, total) {
-        if (this.viewMode === 'table') {
-            this.renderTableView(documents)
-        } else if (this.viewMode === 'json') {
-            this.renderJSONView(documents)
-        } else if (this.viewMode === 'tree') {
-            this.renderTreeView(documents)
-        }
-
-        // Mettre à jour les info de résultat
-        document.getElementById('resultCount').textContent = `${documents.length} of ${total} documents`
-    }
-
-    renderTableView(documents) {
-        if (!documents.length) {
-            document.getElementById('tableView').innerHTML = `
-                <div class="mongodb-empty-state">
-                    <i class="fas fa-table"></i>
-                    <h3>No documents found</h3>
-                    <p>This collection is empty or your filter returned no results.</p>
-                </div>
-            `
-            return
-        }
-
-        // Détecter les colonnes automatiquement
-        const columns = this.detectColumns(documents)
-        
-        const tableHeader = document.getElementById('tableHeader')
-        const tableBody = document.getElementById('tableBody')
-        
-        // Header
-        tableHeader.innerHTML = `
-            <tr>
-                <th class="mongodb-select-column">
-                    <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
-                </th>
-                ${columns.map(col => `
-                    <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
-                        ${col.name}
-                        <i class="fas fa-sort mongodb-sort-icon"></i>
-                    </th>
-                `).join('')}
-                <th class="mongodb-actions-column">Actions</th>
-            </tr>
-        `
-        
-        // Body avec amélioration pour les valeurs imbriquées
-        tableBody.innerHTML = documents.map((doc, index) => `
-            <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
-                <td class="mongodb-select-column">
-                    <input type="checkbox" onclick="event.stopPropagation()">
-                </td>
-                ${columns.map(col => {
-                    const value = this.getNestedValue(doc, col.key)
-                    return `
-                        <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
-                            ${this.formatCellValue(value, col.type)}
-                        </td>
-                    `
-                }).join('')}
-                <td class="mongodb-actions-column">
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('')
-
-        // Afficher la vue table
-        document.getElementById('tableView').style.display = 'block'
-        document.getElementById('jsonView').style.display = 'none'
-        document.getElementById('treeView').style.display = 'none'
-    }
-
-    renderJSONView(documents) {
-        const container = document.getElementById('jsonContainer')
-        
-        container.innerHTML = documents.map((doc, index) => `
-            <div class="mongodb-json-document" onclick="adminPanel.mongodb.selectDocument(${index})">
-                <div class="mongodb-json-header">
-                    <span class="mongodb-doc-index">#${index + 1}</span>
-                    <span class="mongodb-doc-id">${doc._id}</span>
-                    <div class="mongodb-doc-actions">
-                        <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.copyJSON('${doc._id}')">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </div>
-                </div>
-                <pre class="mongodb-json-content"><code>${JSON.stringify(doc, null, 2)}</code></pre>
-            </div>
-        `).join('')
-
-        // Afficher la vue JSON
-        document.getElementById('tableView').style.display = 'none'
-        document.getElementById('jsonView').style.display = 'block'
-        document.getElementById('treeView').style.display = 'none'
-    }
-
-    // Améliorer la détection des colonnes
-    detectColumns(documents) {
-        const columnSet = new Set()
-        const columnFrequency = new Map()
-        
-        // Analyser tous les documents pour trouver TOUS les champs
-        documents.forEach(doc => {
-            this.extractAllKeys(doc).forEach(key => {
-                columnSet.add(key)
-                columnFrequency.set(key, (columnFrequency.get(key) || 0) + 1)
-            })
-        })
-        
-        // Convertir en array et trier par fréquence
-        const columns = Array.from(columnSet)
-            .map(key => ({
-                key,
-                name: this.formatColumnName(key),
-                type: this.detectColumnType(key, documents),
-                frequency: columnFrequency.get(key) || 0
-            }))
-            .sort((a, b) => {
-                // _id toujours en premier
-                if (a.key === '_id') return -1
-                if (b.key === '_id') return 1
-                
-                // Puis par fréquence (les plus communs d'abord)
-                if (b.frequency !== a.frequency) return b.frequency - a.frequency
-                
-                // Puis alphabétique
-                return a.name.localeCompare(b.name)
-            })
-        
-        console.log('📋 [MongoDB] Colonnes détectées:', columns.map(c => `${c.key} (${c.frequency}/${documents.length})`))
-        
-        // Retourner les 15 premières colonnes max
-        return columns.slice(0, 15)
-    }
-
-    // Extraire récursivement toutes les clés d'un objet (même imbriquées)
-    extractAllKeys(obj, prefix = '') {
-        const keys = new Set()
-        
-        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-            Object.keys(obj).forEach(key => {
-                const fullKey = prefix ? `${prefix}.${key}` : key
-                keys.add(fullKey)
-                
-                // Si c'est un objet imbriqué (pas trop profond)
-                if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && prefix.split('.').length < 2) {
-                    this.extractAllKeys(obj[key], fullKey).forEach(nestedKey => {
-                        keys.add(nestedKey)
-                    })
-                }
-            })
-        }
-        
-        return keys
-    }
-
-    // Améliorer la récupération de valeur (même imbriquée)
-    getNestedValue(obj, key) {
-        if (!key.includes('.')) {
-            return obj[key]
-        }
-        
-        const keys = key.split('.')
-        let value = obj
-        
-        for (const k of keys) {
-            if (value && typeof value === 'object') {
-                value = value[k]
-            } else {
-                return undefined
-            }
-        }
-        
-        return value
-    }
-
-    formatColumnName(key) {
-        // Gérer les clés imbriquées
-        if (key.includes('.')) {
-            const parts = key.split('.')
-            return parts.map(part => 
-                part.charAt(0).toUpperCase() + part.slice(1).replace(/([A-Z])/g, ' $1')
-            ).join(' → ')
-        }
-        
-        return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
-    }
-
-    detectColumnType(key, documents) {
-        // Essayer de trouver une valeur non-null pour déterminer le type
-        for (const doc of documents) {
-            const sample = this.getNestedValue(doc, key)
-            if (sample !== null && sample !== undefined) {
-                if (Array.isArray(sample)) return 'array'
-                return typeof sample
-            }
-        }
-        return 'unknown'
-    }
-
-    formatCellValue(value, type) {
-        if (value === null || value === undefined) return '<span class="mongodb-null-value">null</span>'
-        
-        switch (type) {
-            case 'string':
-                // Tronquer les chaînes trop longues mais afficher plus que 50 caractères
-                return value.length > 80 ? value.substring(0, 80) + '...' : value
-            case 'number':
-                return value.toLocaleString()
-            case 'boolean':
-                return `<span class="mongodb-boolean-value">${value}</span>`
-            case 'array':
-                if (Array.isArray(value)) {
-                    return `<span class="mongodb-array-value">Array(${value.length})</span>`
-                }
-                return `<span class="mongodb-array-value">Array</span>`
-            case 'object':
-                if (Array.isArray(value)) {
-                    return `<span class="mongodb-array-value">Array(${value.length})</span>`
-                }
-                // Afficher le premier niveau de l'objet si petit
-                if (value && typeof value === 'object') {
-                    const keys = Object.keys(value)
-                    if (keys.length <= 3) {
-                        const preview = keys.map(k => `${k}: ${value[k]}`).join(', ')
-                        return preview.length > 60 ? `<span class="mongodb-object-value">{${keys.length} keys}</span>` : `{${preview}}`
-                    }
-                    return `<span class="mongodb-object-value">{${keys.length} keys}</span>`
-                }
-                return `<span class="mongodb-object-value">Object</span>`
-            default:
-                const str = String(value)
-                return str.length > 80 ? str.substring(0, 80) + '...' : str
-        }
-    }
-
-    formatCellTooltip(value) {
-        if (typeof value === 'object') {
-            return JSON.stringify(value, null, 2)
-        }
-        return String(value)
-    }
-
-    updateBreadcrumb(items) {
-        const breadcrumb = document.getElementById('breadcrumb')
-        if (!breadcrumb) return
-
-        breadcrumb.innerHTML = items.map((item, index) => `
-            <span class="mongodb-breadcrumb-item ${index === items.length - 1 ? 'active' : ''}">
-                <i class="${item.icon}"></i>
-                ${item.text}
-            </span>
-            ${index < items.length - 1 ? '<i class="mongodb-breadcrumb-separator fas fa-chevron-right"></i>' : ''}
-        `).join('')
-    }
-
-    updateCollectionStats(total) {
-        document.getElementById('totalDocs').textContent = total.toLocaleString()
-        document.getElementById('avgDocSize').textContent = '~1.2KB'
-        document.getElementById('collectionSize').textContent = '~' + (total * 1.2).toFixed(1) + 'KB'
-        document.getElementById('indexesCount').textContent = '3'
-    }
-
-    updatePagination(total) {
-        const totalPages = Math.ceil(total / this.pageSize)
-        const currentPage = this.currentPage + 1
-        
-        document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`
-        document.getElementById('prevBtn').disabled = this.currentPage === 0
-        document.getElementById('nextBtn').disabled = this.currentPage >= totalPages - 1
-    }
-
-    setViewMode(mode) {
-        this.viewMode = mode
-        
-        // Mettre à jour les boutons
-        document.querySelectorAll('.mongodb-view-btn').forEach(btn => btn.classList.remove('active'))
-        document.querySelector(`[data-view="${mode}"]`).classList.add('active')
-        
-        // Recharger avec la nouvelle vue
-        if (this.currentCollection) {
-            this.loadDocuments(this.currentQuery)
-        }
-    }
-
-    validateJSON(jsonString) {
-        const input = document.getElementById('filterInput')
-        try {
-            JSON.parse(jsonString)
-            input.classList.remove('json-error')
-            input.classList.add('json-valid')
-        } catch (e) {
-            input.classList.remove('json-valid')
-            input.classList.add('json-error')
-        }
-    }
-
-    executeFilter() {
-        const filterValue = document.getElementById('filterInput').value
-        try {
-            const query = JSON.parse(filterValue)
-            this.currentQuery = query
-            this.currentPage = 0
-            this.loadDocuments(query)
-        } catch (error) {
-            this.adminPanel.showNotification('Requête JSON invalide: ' + error.message, 'error')
-        }
-    }
-
-    clearFilter() {
-        document.getElementById('filterInput').value = '{}'
-        this.currentQuery = {}
-        this.currentPage = 0
-        this.loadDocuments({})
-    }
-
-    previousPage() {
-        if (this.currentPage > 0) {
-            this.currentPage--
-            this.loadDocuments(this.currentQuery)
-        }
-    }
-
-    nextPage() {
-        this.currentPage++
-        this.loadDocuments(this.currentQuery)
-    }
-
-    showLoading(show) {
-        const loading = document.getElementById('dbLoading')
-        if (loading) {
-            loading.style.display = show ? 'flex' : 'none'
-        }
-    }
-
-    debounce(func, wait) {
-        let timeout
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout)
-                func(...args)
-            }
-            clearTimeout(timeout)
-            timeout = setTimeout(later, wait)
-        }
-    }
-
-    // Méthodes publiques (placeholders)
-    refreshDatabases() { this.loadDatabases() }
-    createDocument() { this.adminPanel.showNotification('Création de document en développement', 'info') }
-    editDocument(id) { this.adminPanel.showNotification('Édition de document en développement', 'info') }
-    deleteDocument(id) { this.adminPanel.showNotification('Suppression de document en développement', 'info') }
-    inspectDocument(id) { this.adminPanel.showNotification('Inspection de document en développement', 'info') }
-    showQueryBuilder() { this.adminPanel.showNotification('Query Builder en développement', 'info') }
-    showDatabaseStats() { this.adminPanel.showNotification('Statistiques DB en développement', 'info') }
-    showServerInfo() { this.adminPanel.showNotification('Info serveur en développement', 'info') }
     
-    cleanup() {
-        console.log('🧹 [MongoDB] Module cleanup')
+    .mongodb-pro-sidebar {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .mongodb-pro-toolbar {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .mongodb-toolbar-left,
+    .mongodb-toolbar-right {
+        justify-content: center;
+    }
+    
+    .mongodb-stats-cards {
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+    
+    .mongodb-query-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
     }
 }
