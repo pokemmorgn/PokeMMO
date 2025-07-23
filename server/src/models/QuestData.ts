@@ -19,6 +19,10 @@ export interface IQuestData extends Document {
   cooldownHours?: number;          // Cooldown entre répétitions
   autoComplete: boolean;           // Completion automatique ou manuelle
   
+  // === TIMESTAMPS MONGOOSE (ajoutés automatiquement) ===
+  createdAt?: Date;
+  updatedAt?: Date;
+  
   // === DIALOGUES ÉTENDUS ===
   dialogues?: {
     questOffer?: string[];         // Dialogues d'offre de quête
@@ -1325,7 +1329,7 @@ QuestDataSchema.statics.createFromJson = async function(
     metadata: jsonQuest.metadata || {
       difficulty: 'medium',
       estimatedTime: 30,
-      createdAt: new Date(),
+      createdAt: new Date(), // ✅ CORRIGÉ : Utilise Date.now() au lieu de this.createdAt
       updatedAt: new Date()
     },
     config: jsonQuest.config || {
@@ -1348,7 +1352,7 @@ QuestDataSchema.statics.validateDatabaseIntegrity = async function(): Promise<{ 
   try {
     // Vérifier les prérequis orphelins
     const allQuests = await this.find({}).select('questId prerequisites');
-    const validQuestIds = new Set(allQuests.map(q => q.questId));
+    const validQuestIds = new Set(allQuests.map((q: any) => q.questId));
     
     for (const quest of allQuests) {
       if (quest.prerequisites) {
