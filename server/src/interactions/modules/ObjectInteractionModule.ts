@@ -590,13 +590,31 @@ export class ObjectInteractionModule extends BaseInteractionModule {
         
         await mongoose.connection.db.admin().ping();
         
-        const rawCount = await mongoose.connection.db.collection('game_objects').countDocuments();
-        const testCount = await GameObjectData.countDocuments();
+        // ✅ DEBUG AJOUTÉ - Vérifier la base utilisée
+        const dbName = mongoose.connection.db.databaseName;
+        this.log('info', `🗄️ [MongoDB Ping] Base de données connectée: ${dbName}`);
         
-        this.log('info', `📊 [MongoDB Ping] Objets via modèle: ${testCount}`);
+        // ✅ DEBUG AJOUTÉ - Vérifier la collection brute
+        const rawCount = await mongoose.connection.db.collection('game_objects').countDocuments();
+        this.log('info', `📊 [MongoDB Ping] Collection brute 'game_objects': ${rawCount} objets`);
+        
+        const testCount = await GameObjectData.countDocuments();
+        this.log('info', `📊 [MongoDB Ping] Via modèle GameObjectData: ${testCount} objets`);
         
         if (rawCount !== testCount) {
-          this.log('warn', `⚠️ [MongoDB Ping] Différence détectée ! Raw: ${rawCount}, Modèle: ${testCount}`);
+          this.log('warn', `⚠️ [MongoDB Ping] DIFFÉRENCE ! Raw: ${rawCount}, Modèle: ${testCount}`);
+          
+          // ✅ DEBUG AJOUTÉ - Voir un exemple brut
+          const rawSample = await mongoose.connection.db.collection('game_objects').findOne();
+          this.log('info', `📄 [MongoDB Ping] Exemple brut:`, rawSample ? {
+            _id: rawSample._id,
+            objectId: rawSample.objectId,
+            zone: rawSample.zone,
+            type: rawSample.type
+          } : 'Aucun');
+          
+          // ✅ DEBUG AJOUTÉ - Voir la vraie collection utilisée par le modèle
+          this.log('info', `📄 [MongoDB Ping] Collection modèle: ${GameObjectData.collection.name}`);
         }
         
         this.log('info', `✅ [MongoDB Ping] Succès ! ${testCount} objets détectés`);
