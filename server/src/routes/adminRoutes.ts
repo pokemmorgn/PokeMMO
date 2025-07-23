@@ -3027,12 +3027,37 @@ router.post('/mongodb/create-document', requireMacAndDev, async (req: any, res: 
         const { database, collection, document } = req.body;
         
         console.log(`📝 [MongoDB API] Création document dans ${database}.${collection}`);
+        console.log(`📝 [MongoDB API] Document reçu:`, JSON.stringify(document, null, 2));
         
         if (!database || !collection || !document) {
             return res.status(400).json({
                 success: false,
                 error: 'Database, collection et document sont requis'
             });
+        }
+        
+        // CORRECTION: Fonction pour nettoyer le document récursivement
+        function cleanDocument(obj: any): any {
+            if (obj === null || obj === undefined) {
+                return null;
+            }
+            
+            if (Array.isArray(obj)) {
+                return obj.map(item => cleanDocument(item));
+            }
+            
+            if (typeof obj === 'object' && obj.constructor === Object) {
+                const cleaned: any = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    // Ignorer les valeurs undefined
+                    if (value !== undefined) {
+                        cleaned[key] = cleanDocument(value);
+                    }
+                }
+                return cleaned;
+            }
+            
+            return obj;
         }
         
         const db = await getMongooseDB();
@@ -3042,22 +3067,37 @@ router.post('/mongodb/create-document', requireMacAndDev, async (req: any, res: 
         
         const coll = targetDb.collection(collection);
         
-        // Nettoyer le document (supprimer _id si null)
-        const cleanDocument = { ...document };
-        if (cleanDocument._id === null || cleanDocument._id === '') {
-            delete cleanDocument._id;
+        // Nettoyer le document complètement
+        let cleanedDocument = cleanDocument(document);
+        
+        // Supprimer _id si null ou vide
+        if (cleanedDocument._id === null || cleanedDocument._id === '' || cleanedDocument._id === undefined) {
+            delete cleanedDocument._id;
         }
         
-        const result = await coll.insertOne(cleanDocument);
+        console.log(`📝 [MongoDB API] Document nettoyé:`, JSON.stringify(cleanedDocument, null, 2));
+        
+        // Vérifier que le document n'est pas vide
+        if (!cleanedDocument || Object.keys(cleanedDocument).length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Le document ne peut pas être vide après nettoyage'
+            });
+        }
+        
+        const result = await coll.insertOne(cleanedDocument);
+        
+        console.log(`✅ [MongoDB API] Document créé avec ID: ${result.insertedId}`);
         
         res.json({
             success: true,
             insertedId: result.insertedId,
-            document: { ...cleanDocument, _id: result.insertedId }
+            document: { ...cleanedDocument, _id: result.insertedId }
         });
         
     } catch (error) {
         console.error('❌ [MongoDB API] Erreur création document:', error);
+        console.error('❌ [MongoDB API] Stack trace:', error instanceof Error ? error.stack : 'No stack');
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -3078,6 +3118,30 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
                 success: false,
                 error: 'Database, collection et document sont requis'
             });
+        }
+        
+        // CORRECTION: Fonction pour nettoyer le document récursivement
+        function cleanDocument(obj: any): any {
+            if (obj === null || obj === undefined) {
+                return null;
+            }
+            
+            if (Array.isArray(obj)) {
+                return obj.map(item => cleanDocument(item));
+            }
+            
+            if (typeof obj === 'object' && obj.constructor === Object) {
+                const cleaned: any = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    // Ignorer les valeurs undefined
+                    if (value !== undefined) {
+                        cleaned[key] = cleanDocument(value);
+                    }
+                }
+                return cleaned;
+            }
+            
+            return obj;
         }
         
         const db = await getMongooseDB();
@@ -3105,11 +3169,19 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
             documentId = idToUse;
         }
         
-        // Créer le document de mise à jour
-        const updateDocument = { ...document };
+        // Nettoyer et préparer le document de mise à jour
+        let updateDocument = cleanDocument(document);
         delete updateDocument._id; // Ne pas inclure _id dans l'update
         
         console.log(`✏️ [MongoDB API] Document à mettre à jour:`, Object.keys(updateDocument));
+        
+        // Vérifier que le document n'est pas vide
+        if (!updateDocument || Object.keys(updateDocument).length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Le document ne peut pas être vide après nettoyage'
+            });
+        }
         
         const result = await coll.replaceOne(
             { _id: documentId },
@@ -3131,6 +3203,7 @@ router.post('/mongodb/update-document', requireMacAndDev, async (req: any, res: 
         
     } catch (error) {
         console.error('❌ [MongoDB API] Erreur mise à jour document:', error);
+        console.error('❌ [MongoDB API] Stack trace:', error instanceof Error ? error.stack : 'No stack');
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -3485,5 +3558,4 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
         });
     }
 });
-
 export default router;
