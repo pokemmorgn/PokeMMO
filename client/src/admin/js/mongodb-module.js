@@ -461,17 +461,20 @@ export class MongoDBModule {
             </tr>
         `
         
-        // Body
+        // Body avec amélioration pour les valeurs imbriquées
         tableBody.innerHTML = documents.map((doc, index) => `
             <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
                 <td class="mongodb-select-column">
                     <input type="checkbox" onclick="event.stopPropagation()">
                 </td>
-                ${columns.map(col => `
-                    <td class="mongodb-data-cell" title="${this.formatCellTooltip(doc[col.key])}">
-                        ${this.formatCellValue(doc[col.key], col.type)}
-                    </td>
-                `).join('')}
+                ${columns.map(col => {
+                    const value = this.getNestedValue(doc, col.key)
+                    return `
+                        <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
+                            ${this.formatCellValue(value, col.type)}
+                        </td>
+                    `
+                }).join('')}
                 <td class="mongodb-actions-column">
                     <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
                         <i class="fas fa-edit"></i>
@@ -519,35 +522,108 @@ export class MongoDBModule {
         document.getElementById('treeView').style.display = 'none'
     }
 
-    // Utilitaires
+    // Améliorer la détection des colonnes
     detectColumns(documents) {
         const columnSet = new Set()
+        const columnFrequency = new Map()
+        
+        // Analyser tous les documents pour trouver TOUS les champs
         documents.forEach(doc => {
-            Object.keys(doc).forEach(key => columnSet.add(key))
+            this.extractAllKeys(doc).forEach(key => {
+                columnSet.add(key)
+                columnFrequency.set(key, (columnFrequency.get(key) || 0) + 1)
+            })
         })
         
-        const columns = Array.from(columnSet).map(key => ({
-            key,
-            name: this.formatColumnName(key),
-            type: this.detectColumnType(key, documents)
-        }))
+        // Convertir en array et trier par fréquence
+        const columns = Array.from(columnSet)
+            .map(key => ({
+                key,
+                name: this.formatColumnName(key),
+                type: this.detectColumnType(key, documents),
+                frequency: columnFrequency.get(key) || 0
+            }))
+            .sort((a, b) => {
+                // _id toujours en premier
+                if (a.key === '_id') return -1
+                if (b.key === '_id') return 1
+                
+                // Puis par fréquence (les plus communs d'abord)
+                if (b.frequency !== a.frequency) return b.frequency - a.frequency
+                
+                // Puis alphabétique
+                return a.name.localeCompare(b.name)
+            })
         
-        // Mettre _id en premier
-        return columns.sort((a, b) => {
-            if (a.key === '_id') return -1
-            if (b.key === '_id') return 1
-            return a.name.localeCompare(b.name)
-        }).slice(0, 10) // Limiter à 10 colonnes
+        console.log('📋 [MongoDB] Colonnes détectées:', columns.map(c => `${c.key} (${c.frequency}/${documents.length})`))
+        
+        // Retourner les 15 premières colonnes max
+        return columns.slice(0, 15)
+    }
+
+    // Extraire récursivement toutes les clés d'un objet (même imbriquées)
+    extractAllKeys(obj, prefix = '') {
+        const keys = new Set()
+        
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            Object.keys(obj).forEach(key => {
+                const fullKey = prefix ? `${prefix}.${key}` : key
+                keys.add(fullKey)
+                
+                // Si c'est un objet imbriqué (pas trop profond)
+                if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && prefix.split('.').length < 2) {
+                    this.extractAllKeys(obj[key], fullKey).forEach(nestedKey => {
+                        keys.add(nestedKey)
+                    })
+                }
+            })
+        }
+        
+        return keys
+    }
+
+    // Améliorer la récupération de valeur (même imbriquée)
+    getNestedValue(obj, key) {
+        if (!key.includes('.')) {
+            return obj[key]
+        }
+        
+        const keys = key.split('.')
+        let value = obj
+        
+        for (const k of keys) {
+            if (value && typeof value === 'object') {
+                value = value[k]
+            } else {
+                return undefined
+            }
+        }
+        
+        return value
     }
 
     formatColumnName(key) {
+        // Gérer les clés imbriquées
+        if (key.includes('.')) {
+            const parts = key.split('.')
+            return parts.map(part => 
+                part.charAt(0).toUpperCase() + part.slice(1).replace(/([A-Z])/g, ' $1')
+            ).join(' → ')
+        }
+        
         return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
     }
 
     detectColumnType(key, documents) {
-        const sample = documents.find(doc => doc[key] !== undefined)?.[key]
-        if (sample === null || sample === undefined) return 'null'
-        return typeof sample
+        // Essayer de trouver une valeur non-null pour déterminer le type
+        for (const doc of documents) {
+            const sample = this.getNestedValue(doc, key)
+            if (sample !== null && sample !== undefined) {
+                if (Array.isArray(sample)) return 'array'
+                return typeof sample
+            }
+        }
+        return 'unknown'
     }
 
     formatCellValue(value, type) {
@@ -555,18 +631,34 @@ export class MongoDBModule {
         
         switch (type) {
             case 'string':
-                return value.length > 50 ? value.substring(0, 50) + '...' : value
+                // Tronquer les chaînes trop longues mais afficher plus que 50 caractères
+                return value.length > 80 ? value.substring(0, 80) + '...' : value
             case 'number':
                 return value.toLocaleString()
             case 'boolean':
                 return `<span class="mongodb-boolean-value">${value}</span>`
+            case 'array':
+                if (Array.isArray(value)) {
+                    return `<span class="mongodb-array-value">Array(${value.length})</span>`
+                }
+                return `<span class="mongodb-array-value">Array</span>`
             case 'object':
                 if (Array.isArray(value)) {
                     return `<span class="mongodb-array-value">Array(${value.length})</span>`
                 }
+                // Afficher le premier niveau de l'objet si petit
+                if (value && typeof value === 'object') {
+                    const keys = Object.keys(value)
+                    if (keys.length <= 3) {
+                        const preview = keys.map(k => `${k}: ${value[k]}`).join(', ')
+                        return preview.length > 60 ? `<span class="mongodb-object-value">{${keys.length} keys}</span>` : `{${preview}}`
+                    }
+                    return `<span class="mongodb-object-value">{${keys.length} keys}</span>`
+                }
                 return `<span class="mongodb-object-value">Object</span>`
             default:
-                return String(value)
+                const str = String(value)
+                return str.length > 80 ? str.substring(0, 80) + '...' : str
         }
     }
 
