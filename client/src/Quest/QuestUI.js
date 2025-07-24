@@ -20,7 +20,7 @@ export class QuestUI {
     this.currentView = 'active';
     
     // === TRACKER ===
-    this.isTrackerVisible = true;
+    this.isTrackerVisible = false; // ✅ FIX: Masqué par défaut
     this.maxTrackedQuests = 5;
     
     // === CONTRÔLE ===
@@ -804,11 +804,19 @@ export class QuestUI {
   // === 🎛️ CONTRÔLES PRINCIPAUX ===
   
   show() {
+    // ✅ FIX: Debug pour identifier l'appel automatique
+    console.log('🔍 [QuestUI] show() appelé - Stack trace:');
+    console.trace();
+    
     this.isVisible = true;
     
     if (this.overlayElement) {
       this.overlayElement.className = 'quest-journal visible';
-      this.requestQuestData();
+      // ✅ FIX: Ne charger les données que si c'est un appel volontaire
+      // Pas automatiquement au démarrage
+      if (this.activeQuests.length === 0) {
+        this.requestQuestData();
+      }
     }
     
     console.log('✅ [QuestUI] Journal affiché');
@@ -927,7 +935,7 @@ export class QuestUI {
     console.log(`✅ [QuestUI] Vue ${viewName} activée`);
   }
   
-  // === 📊 GESTION DONNÉES ===
+  // === 📊 GESTION DONNÉES AVEC TRACKER INTELLIGENT ===
   
   updateQuestData(quests, type = 'active') {
     console.log(`📊 [QuestUI] Données ${type}:`, quests);
@@ -938,6 +946,7 @@ export class QuestUI {
         if (this.currentView === 'active') {
           this.refreshQuestList();
         }
+        // ✅ FIX: Toujours mettre à jour le tracker pour gérer l'affichage/masquage
         this.updateTracker();
         break;
         
@@ -1104,7 +1113,7 @@ export class QuestUI {
     return { completed, total };
   }
   
-  // === 📊 TRACKER ===
+  // === 📊 TRACKER AVEC LOGIQUE D'AFFICHAGE ===
   
   updateTracker() {
     const container = this.trackerElement?.querySelector('#tracked-quests');
@@ -1112,10 +1121,17 @@ export class QuestUI {
     
     const questsToTrack = this.activeQuests.slice(0, this.maxTrackedQuests);
     
+    // ✅ FIX: Masquer le tracker s'il n'y a pas de quêtes actives
     if (questsToTrack.length === 0) {
+      console.log('📊 [QuestUI] Aucune quête active - masquage tracker');
       container.innerHTML = '<div class="quest-empty">Aucune quête active</div>';
+      this.hideTracker(); // ✅ MASQUER le tracker complètement
       return;
     }
+    
+    // ✅ FIX: Afficher le tracker s'il y a des quêtes actives
+    console.log(`📊 [QuestUI] ${questsToTrack.length} quêtes actives - affichage tracker`);
+    this.showTracker(); // ✅ AFFICHER le tracker
     
     container.innerHTML = questsToTrack.map((quest, index) => {
       const isCompleted = quest.currentStepIndex >= (quest.steps?.length || 0);
