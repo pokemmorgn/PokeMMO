@@ -1237,7 +1237,7 @@ changeFieldType(select) {
 
 updateDocumentJSON() {
     const fields = document.querySelectorAll('.mongodb-document-field')
-    const documentData = {} // ✅ Renommer pour éviter le conflit avec l'objet global 'document'
+    const documentData = {}
     
     fields.forEach(field => {
         const nameInput = field.querySelector('.mongodb-field-name')
@@ -1249,30 +1249,59 @@ updateDocumentJSON() {
             const fieldType = typeSelect.value
             const fieldValue = this.getFieldValue(content)
             
+            // ✅ CORRECTION: Ne pas inclure les valeurs vides/null pour certains champs critiques
+            const criticalNPCFields = ['x', 'y', 'position', 'mapId', 'zoneId']
+            const isEmptyValue = fieldValue === null || fieldValue === undefined || fieldValue === '' || fieldValue === 'null'
+            
+            if (criticalNPCFields.includes(fieldName) && isEmptyValue) {
+                console.log(`🚫 [MongoDB] Champ critique ignoré car vide: ${fieldName} = ${fieldValue}`)
+                // Ne pas ajouter ce champ au document - il gardera sa valeur existante
+                return
+            }
+            
             // Convertir la valeur selon le type
             switch (fieldType) {
                 case 'number':
+                    // Si c'est vide pour un number, ne pas l'inclure plutôt que mettre 0
+                    if (fieldValue === '' || fieldValue === null || fieldValue === undefined) {
+                        console.log(`🚫 [MongoDB] Champ numérique ignoré car vide: ${fieldName}`)
+                        return
+                    }
                     documentData[fieldName] = parseFloat(fieldValue) || 0
                     break
                 case 'boolean':
                     documentData[fieldName] = fieldValue === 'true' || fieldValue === true
                     break
                 case 'date':
-                    documentData[fieldName] = fieldValue ? new Date(fieldValue) : new Date()
+                    if (fieldValue) {
+                        documentData[fieldName] = new Date(fieldValue)
+                    }
+                    // Si pas de valeur, ne pas inclure le champ
                     break
                 case 'array':
                 case 'object':
                     try {
                         documentData[fieldName] = JSON.parse(fieldValue || (fieldType === 'array' ? '[]' : '{}'))
                     } catch {
-                        documentData[fieldName] = fieldType === 'array' ? [] : {}
+                        if (fieldType === 'array') {
+                            documentData[fieldName] = []
+                        } else {
+                            documentData[fieldName] = {}
+                        }
                     }
                     break
                 case 'objectid':
-                    documentData[fieldName] = fieldValue || null
+                    // Pour ObjectId, seulement si ce n'est pas vide
+                    if (fieldValue && fieldValue !== 'null' && fieldValue !== '') {
+                        documentData[fieldName] = fieldValue
+                    }
+                    // Sinon on ne l'inclut pas
                     break
                 default:
-                    documentData[fieldName] = fieldValue || ''
+                    // Pour les strings, seulement si pas vide (sauf si c'est voulu)
+                    if (fieldValue !== null && fieldValue !== undefined) {
+                        documentData[fieldName] = fieldValue
+                    }
             }
         }
     })
@@ -1281,6 +1310,8 @@ updateDocumentJSON() {
     if (jsonTextarea) {
         jsonTextarea.value = JSON.stringify(documentData, null, 2)
     }
+    
+    console.log('📝 [MongoDB] Document JSON mis à jour:', documentData)
 }
 
 // CORRIGER également la méthode updateFormFromJSON
@@ -1333,40 +1364,45 @@ async saveDocument(isEdit = false) {
         const jsonValue = document.getElementById('documentJSON').value
         let documentData = JSON.parse(jsonValue)
         
-        // ✅ CORRECTION: En mode édition, préserver les champs existants
+        // ✅ CORRECTION: En mode édition, fusionner intelligemment
         if (isEdit && this.currentEditingDocument) {
-            console.log('📝 [MongoDB] Mode édition - préservation des données existantes')
+            console.log('📝 [MongoDB] Mode édition - fusion intelligente')
             console.log('📄 [MongoDB] Document original:', this.currentEditingDocument)
             console.log('📝 [MongoDB] Nouvelles données:', documentData)
             
-            // Créer un nouveau document qui fusionne l'ancien avec le nouveau
+            // Commencer avec le document original
             const mergedDocument = { ...this.currentEditingDocument }
             
-            // Appliquer les nouvelles valeurs par-dessus les anciennes
+            // Appliquer SEULEMENT les champs qui ont vraiment changé
             Object.keys(documentData).forEach(key => {
-                if (documentData[key] !== null && documentData[key] !== undefined && documentData[key] !== '') {
-                    mergedDocument[key] = documentData[key]
-                }
-                // Si la nouvelle valeur est vide mais qu'elle existait avant, on la garde
-                // Exception pour les champs qu'on veut vraiment pouvoir vider
-                else if (key === '_id') {
-                    // Toujours garder l'ID original
-                    mergedDocument[key] = this.currentEditingDocument[key]
+                const newValue = documentData[key]
+                const oldValue = this.currentEditingDocument[key]
+                
+                // Seulement mettre à jour si la valeur a vraiment changé
+                if (newValue !== null && newValue !== undefined && newValue !== '') {
+                    mergedDocument[key] = newValue
+                    console.log(`✅ [MongoDB] Champ mis à jour: ${key} = ${newValue}`)
+                } else if (oldValue !== undefined) {
+                    // Garder l'ancienne valeur si la nouvelle est vide
+                    mergedDocument[key] = oldValue
+                    console.log(`🔒 [MongoDB] Champ préservé: ${key} = ${oldValue}`)
                 }
             })
             
-            // S'assurer que les champs critiques des NPCs sont préservés
-            const criticalNPCFields = ['x', 'y', 'position', 'mapId', 'zoneId', 'sprite', 'direction']
-            criticalNPCFields.forEach(field => {
-                if (this.currentEditingDocument[field] !== undefined && 
-                    (documentData[field] === undefined || documentData[field] === null || documentData[field] === '')) {
-                    mergedDocument[field] = this.currentEditingDocument[field]
-                    console.log(`🔒 [MongoDB] Champ critique préservé: ${field} = ${this.currentEditingDocument[field]}`)
+            // Protection spéciale pour les champs de position des NPCs
+            ['x', 'y', 'position', 'mapId', 'zoneId', 'sprite', 'direction'].forEach(field => {
+                if (this.currentEditingDocument[field] !== undefined) {
+                    // Si le champ existe dans l'original, le préserver absolument
+                    if (documentData[field] === null || documentData[field] === undefined || 
+                        documentData[field] === '' || documentData[field] === 'null') {
+                        mergedDocument[field] = this.currentEditingDocument[field]
+                        console.log(`🛡️ [MongoDB] Protection NPC: ${field} = ${this.currentEditingDocument[field]}`)
+                    }
                 }
             })
             
             documentData = mergedDocument
-            console.log('✅ [MongoDB] Document fusionné:', documentData)
+            console.log('✅ [MongoDB] Document final fusionné:', documentData)
         }
         
         const endpoint = isEdit ? '/mongodb/update-document' : '/mongodb/create-document'
@@ -1382,11 +1418,9 @@ async saveDocument(isEdit = false) {
         
         if (response.success) {
             document.querySelector('.mongodb-modal').remove()
-            
-            // ✅ Nettoyer la référence globale
             window.mongoAdvancedRef = null
             
-            this.mongo.loadDocuments(this.mongo.currentQuery) // Refresh
+            this.mongo.loadDocuments(this.mongo.currentQuery)
             
             const message = isEdit ? 'Document mis à jour avec succès' : 'Document créé avec succès'
             this.adminPanel.showNotification(message, 'success')
@@ -1397,6 +1431,8 @@ async saveDocument(isEdit = false) {
         this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error')
     }
 }
+
+    
     getFieldValue(fieldContent) {
     if (!fieldContent) return ''
     
