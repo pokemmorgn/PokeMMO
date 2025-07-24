@@ -1,5 +1,5 @@
 // client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
-// ✅ Version COMPLÈTE CORRIGÉE avec positions d'icônes fixes
+// ✅ Version COMPLÈTE CORRIGÉE avec positions d'icônes fixes et protection anti-chevauchement
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -153,19 +153,25 @@ export class PokemonUISystem {
     }
   }
 
+  // ✅ FIX: Forcer le reload du UIManager pour éviter le cache
   async loadUIManager() {
     try {
-      const uiManagerModule = await import('./managers/UIManager.js');
+      // ✅ FIX: Forcer le reload avec timestamp pour éviter le cache
+      const timestamp = Date.now();
+      const uiManagerModule = await import(`./managers/UIManager.js?v=${timestamp}`);
       const UIManagerClass = uiManagerModule.UIManager;
       
       if (!UIManagerClass || typeof UIManagerClass.prototype.registerIconPosition !== 'function') {
         throw new Error('UIManager incomplet');
       }
       
+      console.log(`🔄 [PokemonUI] UIManager rechargé avec timestamp: ${timestamp}`);
       return UIManagerClass;
       
     } catch (importError) {
-      const uiManagerModule = await import('./managers/UIManager.js?v=' + Date.now());
+      console.warn('⚠️ [PokemonUI] Fallback import UIManager:', importError);
+      const fallbackTimestamp = Date.now() + 1000;
+      const uiManagerModule = await import(`./managers/UIManager.js?v=${fallbackTimestamp}`);
       return uiManagerModule.UIManager || uiManagerModule.default;
     }
   }
@@ -543,12 +549,12 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ QUEST MODULE AVEC INTEGRATION DIRECTE ET TIMING CORRIGÉ
+  // ✅ QUEST MODULE COMPLET AVEC PROTECTION ANTI-CHEVAUCHEMENT
   async createQuestModule() {
     try {
-      console.log('🚀 [PokemonUI] Création QuestSystem direct...');
+      console.log('🚀 [PokemonUI] Création QuestSystem avec protection position complète...');
       
-      // ✅ IMPORT et CRÉATION directe
+      // ✅ ÉTAPE 1: Import et création du QuestSystem
       const { createQuestSystem } = await import('./Quest/QuestSystem.js');
       
       const questSystem = await createQuestSystem(
@@ -562,57 +568,294 @@ export class PokemonUISystem {
       
       console.log('✅ [PokemonUI] QuestSystem créé avec succès');
       
-      // ✅ ATTENDRE que l'icône soit complètement créée
-      await new Promise(resolve => {
-        if (questSystem.icon && questSystem.icon.iconElement) {
-          resolve();
-        } else {
-          // Attendre un peu que l'icône soit créée
-          setTimeout(() => {
-            resolve();
-          }, 500);
-        }
-      });
+      // ✅ ÉTAPE 2: Attendre que l'icône soit créée ET que UIManager soit prêt
+      let attempts = 0;
+      const maxAttempts = 30; // Augmenté à 30 pour plus de sécurité
       
-      // ✅ INTEGRATION UIMANAGER avec vérification
-      if (this.uiManager && questSystem.connectUIManager) {
-        const connected = questSystem.connectUIManager(this.uiManager);
-        console.log(`🔗 [PokemonUI] UIManager ${connected ? 'CONNECTÉ avec succès' : 'ÉCHEC connexion'}`);
+      while (attempts < maxAttempts) {
+        if (questSystem.icon && questSystem.icon.iconElement && this.uiManager) {
+          console.log(`✅ [PokemonUI] Icône Quest et UIManager prêts (tentative ${attempts + 1})`);
+          break;
+        }
         
-        if (!connected) {
-          console.warn('⚠️ [PokemonUI] Fallback - repositionnement manuel après délai');
+        if (attempts % 5 === 0) {
+          console.log(`⏳ [PokemonUI] Attente icône Quest et UIManager (${attempts + 1}/${maxAttempts})...`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (attempts >= maxAttempts) {
+        console.warn('⚠️ [PokemonUI] Timeout attente icône Quest - continuons quand même');
+      }
+      
+      // ✅ ÉTAPE 3: PATCH CRITIQUE QuestIcon.forceDisplay() pour respecter UIManager
+      if (questSystem.icon && questSystem.icon.forceDisplay) {
+        console.log('🔧 [PokemonUI] Application patch QuestIcon.forceDisplay()...');
+        
+        // Sauvegarder la méthode originale
+        if (!questSystem.icon._originalForceDisplay) {
+          questSystem.icon._originalForceDisplay = questSystem.icon.forceDisplay.bind(questSystem.icon);
+        }
+        
+        // Patch de sécurité anti-écrasement position
+        questSystem.icon.forceDisplay = function() {
+          if (!this.iconElement) return;
+          
+          // ✅ Appliquer SEULEMENT les styles de visibilité
+          this.iconElement.style.display = 'block';
+          this.iconElement.style.visibility = 'visible';
+          this.iconElement.style.opacity = '1';
+          this.iconElement.style.pointerEvents = 'auto';
+          this.iconElement.style.zIndex = '1000';
+          
+          // ✅ Supprimer classes cachées
+          this.iconElement.classList.remove('hidden', 'ui-hidden');
+          
+          // 🔥 PROTECTION PRINCIPALE: Respecter position UIManager
+          const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+          
+          if (positionedBy && (
+            positionedBy.includes('uimanager') || 
+            positionedBy.includes('manual-fix') || 
+            positionedBy.includes('emergency') ||
+            positionedBy.includes('auto-correction')
+          )) {
+            console.log('🛡️ [QuestIcon-PATCH] Position UIManager respectée - PAS d\'écrasement');
+            return; // ✅ SORTIR SANS TOUCHER À LA POSITION
+          }
+          
+          // ✅ Position de secours UNIQUEMENT si vraiment aucune position
+          const hasPosition = !!(
+            this.iconElement.style.left || 
+            this.iconElement.style.right || 
+            this.iconElement.style.top || 
+            this.iconElement.style.bottom
+          );
+          
+          if (!hasPosition) {
+            console.log('⚠️ [QuestIcon-PATCH] Position de secours appliquée (aucune position détectée)');
+            this.iconElement.style.position = 'fixed';
+            this.iconElement.style.right = '20px';
+            this.iconElement.style.bottom = '20px';
+          } else {
+            console.log('ℹ️ [QuestIcon-PATCH] Position existante conservée');
+          }
+          
+          console.log('✅ [QuestIcon-PATCH] forceDisplay() sans écrasement position');
+        };
+        
+        console.log('✅ [PokemonUI] QuestIcon.forceDisplay() patchée avec succès');
+      }
+      
+      // ✅ ÉTAPE 4: Nettoyage préventif avant connexion UIManager
+      if (questSystem.icon && questSystem.icon.iconElement) {
+        const element = questSystem.icon.iconElement;
+        
+        console.log('🧹 [PokemonUI] Nettoyage préventif position Quest...');
+        
+        // Supprimer toutes les positions inline de secours
+        element.style.right = '';
+        element.style.bottom = '';
+        element.style.left = '';
+        element.style.top = '';
+        
+        // S'assurer que l'élément est visible
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        
+        console.log('✅ [PokemonUI] Nettoyage préventif terminé');
+      }
+      
+      // ✅ ÉTAPE 5: Connexion UIManager avec vérification robuste
+      if (this.uiManager && questSystem.connectUIManager) {
+        console.log('🔗 [PokemonUI] Connexion UIManager...');
+        
+        const connected = questSystem.connectUIManager(this.uiManager);
+        console.log(`🔗 [PokemonUI] UIManager connexion: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
+        
+        // ✅ Force repositioning après connexion avec délai
+        if (connected) {
           setTimeout(() => {
-            if (questSystem.icon && questSystem.icon.iconElement && this.uiManager.registerIconPosition) {
-              this.uiManager.registerIconPosition('quest', questSystem.icon.iconElement, {
-                anchor: 'bottom-right',
-                order: 1,
-                spacing: 10,
-                group: 'ui-icons'
-              });
-              console.log('🔧 [PokemonUI] Repositionnement manuel effectué');
+            if (this.uiManager.positionIcon) {
+              console.log('🔧 [PokemonUI] Force repositioning Quest après connexion...');
+              this.uiManager.positionIcon('quest');
+              
+              // Vérifier que la position a été appliquée
+              setTimeout(() => {
+                const element = document.querySelector('#quest-icon');
+                if (element) {
+                  const rect = element.getBoundingClientRect();
+                  console.log(`📐 [PokemonUI] Position Quest après UIManager: ${Math.round(rect.left)}px`);
+                }
+              }, 100);
             }
-          }, 1000);
+          }, 200);
+        } else {
+          // ✅ Fallback si connexion UIManager échoue
+          console.warn('⚠️ [PokemonUI] Connexion UIManager échouée, fallback manuel...');
+          setTimeout(() => {
+            this.applyManualQuestPosition();
+          }, 500);
         }
       }
       
-      // ✅ EXPOSER globalement (API compatibilité)
+      // ✅ ÉTAPE 6: AUTO-CORRECTION avec surveillance continue
+      if (questSystem.icon && questSystem.icon.iconElement) {
+        console.log('👁️ [PokemonUI] Mise en place surveillance anti-écrasement...');
+        
+        const questElement = questSystem.icon.iconElement;
+        let lastKnownGoodPosition = null;
+        let correctionCount = 0;
+        const maxCorrections = 5;
+        
+        const positionWatcher = () => {
+          if (correctionCount >= maxCorrections) {
+            console.log('⏹️ [PokemonUI] Limite corrections atteinte, arrêt surveillance');
+            return;
+          }
+          
+          const rect = questElement.getBoundingClientRect();
+          const currentLeft = Math.round(rect.left);
+          
+          // Position attendue pour quest (order=1)
+          const iconWidth = 70;
+          const spacing = 10;
+          const padding = 20;
+          const baseX = window.innerWidth - padding;
+          const expectedX = baseX + (-1 * (iconWidth + spacing) - iconWidth); // order=1
+          
+          // Vérifier si position incorrecte (tolérance 10px)
+          const isIncorrectPosition = Math.abs(currentLeft - expectedX) > 10;
+          
+          // Vérifier chevauchement avec inventory (position 1683)
+          const isOverlapping = Math.abs(currentLeft - 1683) < 10;
+          
+          if (isIncorrectPosition || isOverlapping) {
+            correctionCount++;
+            console.warn(`🚨 [PokemonUI] Position Quest incorrecte détectée (${correctionCount}/${maxCorrections}):`, {
+              current: currentLeft,
+              expected: expectedX,
+              overlapping: isOverlapping
+            });
+            
+            // Auto-correction
+            const baseY = window.innerHeight - padding - 80;
+            
+            questElement.style.position = 'fixed';
+            questElement.style.left = `${expectedX}px`;
+            questElement.style.top = `${baseY}px`;
+            questElement.style.right = '';
+            questElement.style.bottom = '';
+            questElement.setAttribute('data-positioned-by', `auto-correction-${correctionCount}`);
+            
+            console.log(`🔧 [PokemonUI] Auto-correction ${correctionCount} appliquée: ${currentLeft} → ${expectedX}`);
+            
+            // Sauvegarder la bonne position
+            lastKnownGoodPosition = expectedX;
+          } else if (Math.abs(currentLeft - expectedX) <= 10) {
+            // Position correcte détectée
+            lastKnownGoodPosition = currentLeft;
+          }
+        };
+        
+        // Surveillance initiale après 2 secondes
+        setTimeout(() => {
+          console.log('🔍 [PokemonUI] Première vérification position Quest...');
+          positionWatcher();
+        }, 2000);
+        
+        // Surveillance continue toutes les 5 secondes pendant 1 minute
+        let watchCount = 0;
+        const maxWatches = 12; // 12 * 5s = 1 minute
+        
+        const watchInterval = setInterval(() => {
+          watchCount++;
+          if (watchCount > maxWatches || correctionCount >= maxCorrections) {
+            clearInterval(watchInterval);
+            console.log('⏹️ [PokemonUI] Surveillance Quest terminée');
+            return;
+          }
+          
+          positionWatcher();
+        }, 5000);
+        
+        console.log('✅ [PokemonUI] Surveillance anti-écrasement activée (1 minute)');
+      }
+      
+      // ✅ ÉTAPE 7: Vérification finale différée
+      setTimeout(() => {
+        this.verifyQuestIconPosition();
+      }, 3000);
+      
+      // ✅ ÉTAPE 8: Exposer globalement avec API complète
       window.questSystem = questSystem;
       window.questSystemGlobal = questSystem;
       
-      // ✅ Fonctions globales de compatibilité
-      window.toggleQuest = () => questSystem.toggle();
-      window.openQuest = () => questSystem.show();
-      window.closeQuest = () => questSystem.hide();
+      // Fonctions globales de compatibilité
+      window.toggleQuest = () => {
+        try {
+          questSystem.toggle();
+        } catch (error) {
+          console.error('❌ Erreur toggleQuest:', error);
+        }
+      };
       
-      console.log('✅ [PokemonUI] QuestSystem exposé globalement');
+      window.openQuest = () => {
+        try {
+          questSystem.show();
+        } catch (error) {
+          console.error('❌ Erreur openQuest:', error);
+        }
+      };
       
-      // ✅ RETOUR DIRECT - pas de wrapper compliqué !
+      window.closeQuest = () => {
+        try {
+          questSystem.hide();
+        } catch (error) {
+          console.error('❌ Erreur closeQuest:', error);
+        }
+      };
+      
+      // ✅ Fonction de debug spécifique Quest
+      window.debugQuestPosition = () => {
+        const element = document.querySelector('#quest-icon');
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          const positionedBy = element.getAttribute('data-positioned-by');
+          
+          const info = {
+            position: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+            positionedBy: positionedBy,
+            hasInlineStyles: {
+              left: !!element.style.left,
+              right: !!element.style.right,
+              top: !!element.style.top,
+              bottom: !!element.style.bottom
+            },
+            computed: {
+              position: window.getComputedStyle(element).position,
+              zIndex: window.getComputedStyle(element).zIndex
+            }
+          };
+          
+          console.log('🔍 [DEBUG] Quest Icon Position:', info);
+          return info;
+        }
+        return null;
+      };
+      
+      console.log('✅ [PokemonUI] QuestSystem exposé globalement avec API complète');
+      
+      // ✅ RETOUR DU MODULE
       return questSystem;
       
     } catch (error) {
       console.error('❌ [PokemonUI] Erreur création QuestSystem:', error);
       
-      // ✅ FALLBACK simple
+      // ✅ Fallback gracieux
       return this.createEmptyWrapper('quest');
     }
   }
@@ -628,6 +871,86 @@ export class PokemonUISystem {
       return this.wrapExistingModule(tracker, 'questTracker');
     } catch (error) {
       return this.createEmptyWrapper('questTracker');
+    }
+  }
+
+  // ✅ MÉTHODES AUXILIAIRES POUR QUEST
+  applyManualQuestPosition() {
+    console.log('🛠️ [PokemonUI] Application position Quest manuelle...');
+    
+    const questElement = document.querySelector('#quest-icon');
+    if (!questElement) {
+      console.warn('⚠️ [PokemonUI] Element #quest-icon non trouvé pour position manuelle');
+      return false;
+    }
+    
+    const iconWidth = 70;
+    const spacing = 10;
+    const padding = 20;
+    const baseX = window.innerWidth - padding;
+    const baseY = window.innerHeight - padding - 80;
+    
+    // Position pour order=1
+    const offsetX = -1 * (iconWidth + spacing) - iconWidth;
+    const finalX = baseX + offsetX;
+    
+    questElement.style.position = 'fixed';
+    questElement.style.left = `${finalX}px`;
+    questElement.style.top = `${baseY}px`;
+    questElement.style.right = '';
+    questElement.style.bottom = '';
+    questElement.setAttribute('data-positioned-by', 'manual-fallback');
+    
+    console.log(`✅ [PokemonUI] Position Quest manuelle appliquée: (${finalX}, ${baseY})`);
+    return true;
+  }
+
+  verifyQuestIconPosition() {
+    console.log('🔍 [PokemonUI] Vérification finale position Quest...');
+    
+    const questIcon = document.querySelector('#quest-icon');
+    const inventoryIcon = document.querySelector('#inventory-icon');
+    
+    if (!questIcon || !inventoryIcon) {
+      console.warn('⚠️ [PokemonUI] Icônes Quest ou Inventory non trouvées pour vérification');
+      return false;
+    }
+    
+    const questRect = questIcon.getBoundingClientRect();
+    const inventoryRect = inventoryIcon.getBoundingClientRect();
+    
+    const questLeft = Math.round(questRect.left);
+    const inventoryLeft = Math.round(inventoryRect.left);
+    const overlap = Math.abs(questLeft - inventoryLeft) < 10;
+    
+    if (overlap) {
+      console.error('💥 [PokemonUI] CHEVAUCHEMENT DÉTECTÉ après initialisation !');
+      console.log('📐 Quest:', { left: questLeft, positionedBy: questIcon.getAttribute('data-positioned-by') });
+      console.log('📐 Inventory:', { left: inventoryLeft, positionedBy: inventoryIcon.getAttribute('data-positioned-by') });
+      
+      // ✅ Auto-correction d'urgence
+      console.log('🚨 [PokemonUI] Application correction d\'urgence...');
+      const corrected = this.applyManualQuestPosition();
+      
+      if (corrected) {
+        // Re-vérifier après correction
+        setTimeout(() => {
+          const newQuestRect = questIcon.getBoundingClientRect();
+          const newOverlap = Math.abs(newQuestRect.left - inventoryRect.left) < 10;
+          
+          if (newOverlap) {
+            console.error('💥 [PokemonUI] Correction d\'urgence ÉCHOUÉE !');
+          } else {
+            console.log('✅ [PokemonUI] Correction d\'urgence RÉUSSIE !');
+          }
+        }, 500);
+      }
+      
+      return false;
+    } else {
+      console.log('✅ [PokemonUI] Position Quest validée - pas de chevauchement');
+      console.log(`📐 Positions finales: Quest=${questLeft}px, Inventory=${inventoryLeft}px (écart: ${Math.abs(questLeft - inventoryLeft)}px)`);
+      return true;
     }
   }
     
@@ -1131,7 +1454,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-console.log('✅ [PokemonUI] Système UI Pokémon CORRIGÉ chargé');
+console.log('✅ [PokemonUI] Système UI Pokémon CORRIGÉ avec protection anti-chevauchement chargé');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('🔍 Utilisez window.debugPokemonUI() pour diagnostiquer');
+console.log('🛡️ Protection Quest: window.debugQuestPosition(), window.pokemonUISystem.verifyQuestIconPosition()');
