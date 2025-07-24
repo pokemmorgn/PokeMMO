@@ -733,67 +733,45 @@ renderTableContent(documents, tableHeader, tableBody) {
         return value
     }
 
-    editInlineDocument(docId, button) {
-    const row = button.closest('tr')
-    const cells = row.querySelectorAll('.mongodb-data-cell')
+editInlineDocument(docId, button) {
+    // ✅ SOLUTION: Éditer une seule cellule à la fois
+    const cellToEdit = prompt('Quel champ voulez-vous modifier ?', 'name')
+    if (!cellToEdit) return
     
-    // Transformer les cellules en inputs éditables
-    cells.forEach((cell, index) => {
-        if (index === 0) return // Skip l'ID
-        
-        const currentValue = cell.textContent.trim()
-        const input = document.createElement('input')
-        input.type = 'text'
-        input.value = currentValue
-        input.className = 'mongodb-inline-edit'
-        input.style.cssText = 'width: 100%; border: 1px solid #007bff; padding: 4px;'
-        
-        cell.innerHTML = ''
-        cell.appendChild(input)
-    })
+    const newValue = prompt(`Nouvelle valeur pour "${cellToEdit}":`)
+    if (newValue === null) return
     
-    // Changer le bouton Edit en Save
-    button.innerHTML = '<i class="fas fa-save"></i>'
-    button.onclick = () => this.saveInlineDocument(docId, button)
-    button.title = 'Save'
+    // Sauvegarder directement
+    this.saveFieldUpdate(docId, cellToEdit, newValue)
 }
 
-async saveInlineDocument(docId, button) {
-    const row = button.closest('tr')
-    const inputs = row.querySelectorAll('.mongodb-inline-edit')
-    
-    // Récupérer les nouvelles valeurs
-    const newData = {}
-    inputs.forEach((input, index) => {
-        const columnName = this.getColumnName(index + 1) // +1 car on skip l'ID
-        newData[columnName] = input.value
-    })
-    
+async saveFieldUpdate(docId, fieldName, newValue) {
     try {
-        // Sauvegarder directement
-        const response = await this.adminPanel.apiCall('/mongodb/update-document', {
-            method: 'POST',
-            body: JSON.stringify({
-                database: this.currentDatabase,
-                collection: this.currentCollection,
-                document: { _id: docId, ...newData },
-                originalId: docId
-            })
-        })
+        // Récupérer le document complet d'abord
+        const response = await this.adminPanel.apiCall(`/mongodb/document/${this.currentDatabase}/${this.currentCollection}/${docId}`)
         
         if (response.success) {
-            this.adminPanel.showNotification('Document mis à jour', 'success')
+            const fullDocument = response.document
+            fullDocument[fieldName] = newValue
             
-            // ✅ CORRECTION: Recharger complètement la table au lieu de garder les inputs
-            await this.loadDocuments(this.currentQuery)
-        } else {
-            throw new Error(response.message || 'Erreur sauvegarde')
+            // Sauvegarder le document complet
+            const saveResponse = await this.adminPanel.apiCall('/mongodb/update-document', {
+                method: 'POST',
+                body: JSON.stringify({
+                    database: this.currentDatabase,
+                    collection: this.currentCollection,
+                    document: fullDocument,
+                    originalId: docId
+                })
+            })
+            
+            if (saveResponse.success) {
+                this.adminPanel.showNotification(`Champ "${fieldName}" mis à jour`, 'success')
+                this.loadDocuments(this.currentQuery) // Refresh propre
+            }
         }
     } catch (error) {
         this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
-        
-        // ✅ En cas d'erreur, recharger aussi pour annuler l'édition
-        await this.loadDocuments(this.currentQuery)
     }
 }
     
