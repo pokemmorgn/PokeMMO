@@ -11,8 +11,34 @@ import {
   QuestEventContext
 } from "../core/types/QuestTypes";
 
-// Import QuestUpdateResult from QuestManager
-import type { QuestUpdateResult } from "../../managers/QuestManager";
+// ===== INTERFACE LOCALE POUR RÉSULTATS =====
+
+/**
+ * 🎯 Résultat de mise à jour de quête (compatible avec QuestManager)
+ */
+export interface QuestUpdateResult {
+  questId: string;
+  questName?: string;
+  
+  // ✅ PHASES DISTINCTES
+  objectiveCompleted?: boolean;
+  objectiveName?: string;
+  stepCompleted?: boolean;
+  stepName?: string;
+  questCompleted?: boolean;
+  
+  // ✅ DONNÉES DE PROGRESSION
+  newStepIndex?: number;
+  newObjectives?: any[]; // Type générique pour éviter conflits
+  stepRewards?: any[];
+  questRewards?: any[];
+  
+  // ✅ GESTION AUTO-COMPLETE
+  requiresNpcReturn?: boolean;
+  autoCompleted?: boolean;
+  
+  message?: string;
+}
 
 // ===== TYPES POUR OBJECTIFS =====
 
@@ -82,7 +108,7 @@ export interface QuestStepProgressResult {
   stepCompleted: boolean;
   questCompleted: boolean;
   nextStepIndex?: number;
-  newObjectives?: QuestObjectiveWithProgress[];
+  newObjectives?: any[]; // Type générique pour compatibilité
   stepRewards?: any[];
   questRewards?: any[];
   requiresNpcReturn?: boolean;
