@@ -714,19 +714,34 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return talkValidationResult;
     }
 
-    // 3. Progression normale des quêtes
-    this.log('info', 'Déclenchement updateQuestProgress pour talk');
+    // 3. ✨ NOUVEAU : Progression optimisée des quêtes avec triggers
+    this.log('info', 'Déclenchement trigger talk pour quêtes');
     
     let questProgress: any[] = [];
     try {
-      questProgress = await this.questManager.updateQuestProgress(player.name, {
+      // Utiliser la nouvelle méthode progressQuest du QuestManager
+      const progressResult = await this.questManager.progressQuest(player.name, {
         type: 'talk',
-        npcId: npcId,
-        targetId: npcId.toString()
+        target: npcId.toString(),
+        amount: 1,
+        data: {
+          npc: {
+            id: npcId,
+            name: npc.name || `NPC #${npcId}`,
+            type: npc.type || 'dialogue'
+          },
+          location: {
+            x: player.x,
+            y: player.y,
+            map: player.currentZone
+          }
+        }
       });
-      this.log('info', 'Résultats progression quêtes', questProgress);
+      
+      questProgress = progressResult.results || [];
+      this.log('info', `✅ Trigger talk traité: ${questProgress.length} progression(s)`, questProgress);
     } catch (error) {
-      this.log('error', 'Erreur updateQuestProgress', error);
+      this.log('error', '❌ Erreur trigger talk:', error);
     }
 
     // 4. Vérifier les quêtes prêtes à compléter
