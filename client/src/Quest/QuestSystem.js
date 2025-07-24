@@ -44,7 +44,7 @@ export class QuestSystem {
     }
   }
   
-  // === 📡 HANDLERS RÉSEAU SIMPLIFIÉS ===
+  // === 📡 HANDLERS RÉSEAU HARMONISÉS SERVEUR ===
   
   setupNetworkHandlers() {
     if (!this.networkManager) {
@@ -52,7 +52,7 @@ export class QuestSystem {
       return;
     }
     
-    // === MESSAGES SERVEUR DIRECTS ===
+    // === MESSAGES SERVEUR DIRECTS (QuestClientMessage) ===
     this.networkManager.onMessage("quest_started", (data) => {
       this.handleQuestStarted(data);
     });
@@ -69,52 +69,102 @@ export class QuestSystem {
       this.handleObjectiveCompleted(data);
     });
     
+    this.networkManager.onMessage("step_completed", (data) => {
+      this.handleStepCompleted(data);
+    });
+    
+    this.networkManager.onMessage("quest_failed", (data) => {
+      this.handleQuestFailed(data);
+    });
+    
+    this.networkManager.onMessage("quest_abandoned", (data) => {
+      this.handleQuestAbandoned(data);
+    });
+    
+    this.networkManager.onMessage("reward_received", (data) => {
+      this.handleRewardReceived(data);
+    });
+    
     this.networkManager.onMessage("quest_available", (data) => {
       this.handleQuestAvailable(data);
     });
     
-    // === INTERACTION NPC ===
+    this.networkManager.onMessage("quest_reminder", (data) => {
+      this.handleQuestReminder(data);
+    });
+    
+    this.networkManager.onMessage("system_notification", (data) => {
+      this.handleSystemNotification(data);
+    });
+    
+    this.networkManager.onMessage("error_message", (data) => {
+      this.handleErrorMessage(data);
+    });
+    
+    // === INTERACTION NPC (NpcInteractionResult) ===
     this.networkManager.onMessage("npcInteractionResult", (data) => {
       if (this.isQuestInteraction(data)) {
         this.handleNpcInteraction(data);
       }
     });
     
-    // === COMPATIBILITÉ MESSAGES EXISTANTS ===
+    // === COMPATIBILITÉ MESSAGES ANCIENS (à supprimer progressivement) ===
     this.networkManager.onMessage("activeQuestsList", (data) => {
+      console.warn('⚠️ [QuestSystem] Message ancien "activeQuestsList" - à migrer vers "quest_available"');
       this.handleActiveQuests(data);
     });
     
     this.networkManager.onMessage("availableQuestsList", (data) => {
+      console.warn('⚠️ [QuestSystem] Message ancien "availableQuestsList" - à migrer vers "quest_available"');
       this.handleAvailableQuests(data);
     });
     
     this.networkManager.onMessage("questStartResult", (data) => {
+      console.warn('⚠️ [QuestSystem] Message ancien "questStartResult" - à migrer vers "quest_started"');
       this.handleQuestStartResult(data);
     });
     
-    console.log('📡 [QuestSystem] Handlers réseau configurés');
+    console.log('📡 [QuestSystem] Handlers réseau harmonisés avec serveur');
   }
   
-  // === 📨 HANDLERS MESSAGES SERVEUR ===
+  // === 📨 HANDLERS MESSAGES SERVEUR (QuestClientMessage) ===
   
   handleQuestStarted(data) {
     console.log('🎯 [QuestSystem] Quête démarrée:', data);
     
-    if (data.quest) {
-      this.activeQuests.push(data.quest);
+    // Structure QuestClientMessage
+    if (data.questName && data.questId) {
+      // Créer objet quest à partir des données serveur
+      const quest = {
+        id: data.questId,
+        name: data.questName,
+        description: data.description || '',
+        category: data.data?.questInfo?.category || 'side',
+        status: 'active',
+        currentStepIndex: 0,
+        steps: data.data?.steps || []
+      };
+      
+      this.activeQuests.push(quest);
       this.updateUI();
-      this.triggerCallback('onQuestStarted', data.quest);
-      this.showMessage(`Quête "${data.quest.name}" acceptée !`, 'success');
+      this.triggerCallback('onQuestStarted', quest);
     }
+    
+    // Afficher message
+    this.showMessage(data.message || `Quête "${data.questName}" acceptée !`, 'success');
   }
   
   handleQuestProgress(data) {
     console.log('📈 [QuestSystem] Progression quête:', data);
     
-    // Mettre à jour la progression
-    if (data.questId && data.progress) {
-      this.updateQuestProgress(data.questId, data.progress);
+    // Mettre à jour la progression si questId fourni
+    if (data.questId && data.data?.progress) {
+      this.updateQuestProgress(data.questId, data.data.progress);
+    }
+    
+    // Afficher message de progression
+    if (data.message) {
+      this.showMessage(data.message, 'info');
     }
     
     this.updateUI();
@@ -124,25 +174,38 @@ export class QuestSystem {
     console.log('🎉 [QuestSystem] Quête terminée:', data);
     
     // Retirer des actives
-    this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
+    if (data.questId) {
+      this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
+    }
     
     // Ajouter aux terminées
-    this.completedQuests.push(data);
+    const completedQuest = {
+      id: data.questId,
+      name: data.questName,
+      description: data.description,
+      completedAt: new Date(),
+      rewards: data.data?.rewards || []
+    };
+    this.completedQuests.push(completedQuest);
     
-    this.triggerCallback('onQuestCompleted', data);
-    this.showMessage(`Quête terminée : ${data.questName}`, 'success');
+    this.triggerCallback('onQuestCompleted', completedQuest);
+    this.showMessage(data.message || `Quête terminée : ${data.questName}`, 'success');
     this.updateUI();
   }
   
   handleObjectiveCompleted(data) {
     console.log('✅ [QuestSystem] Objectif terminé:', data);
     
-    // Highlight dans l'UI
+    // Highlight dans l'UI avec le nom de l'objectif depuis le serveur
     if (this.ui && this.ui.highlightObjectiveAsCompleted) {
-      this.ui.highlightObjectiveAsCompleted(data);
+      this.ui.highlightObjectiveAsCompleted({
+        questId: data.questId,
+        objectiveName: data.title || data.message, // Utiliser title ou message pour le nom
+        ...data
+      });
     }
     
-    this.showMessage(`Objectif terminé : ${data.objectiveName}`, 'success');
+    this.showMessage(data.message || `Objectif terminé : ${data.title}`, 'success');
     
     // Refresh après délai
     setTimeout(() => {
@@ -160,84 +223,107 @@ export class QuestSystem {
     }
   }
   
-  // === 🎭 INTERACTION NPC ===
-  
-  handleNpcInteraction(data) {
-    console.log('🎭 [QuestSystem] Interaction NPC quest:', data);
+  handleStepCompleted(data) {
+    console.log('🔄 [QuestSystem] Étape terminée:', data);
     
-    if (this.isQuestGiverData(data)) {
-      this.handleQuestGiverInteraction(data);
-    } else if (this.isQuestProgressData(data)) {
-      this.handleQuestProgressInteraction(data);
+    // Afficher notification étape
+    this.showMessage(`Étape terminée : ${data.stepName || 'Étape'}`, 'success');
+    
+    // Mettre à jour UI
+    this.updateUI();
+    
+    // Refresh données après délai
+    setTimeout(() => {
+      this.requestActiveQuests();
+    }, 1000);
+  }
+  
+  handleQuestFailed(data) {
+    console.log('❌ [QuestSystem] Quête échouée:', data);
+    
+    // Retirer des actives si nécessaire
+    if (data.questId) {
+      this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
+    }
+    
+    this.showMessage(`Quête échouée : ${data.questName || 'Quête'}`, 'error');
+    this.updateUI();
+  }
+  
+  handleQuestAbandoned(data) {
+    console.log('🚫 [QuestSystem] Quête abandonnée:', data);
+    
+    // Retirer des actives
+    if (data.questId) {
+      this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
+    }
+    
+    this.showMessage(`Quête abandonnée : ${data.questName || 'Quête'}`, 'warning');
+    this.updateUI();
+  }
+  
+  handleRewardReceived(data) {
+    console.log('🎁 [QuestSystem] Récompense reçue:', data);
+    
+    // Afficher notification récompense
+    if (data.rewards && data.rewards.length > 0) {
+      const rewardText = data.rewards.map(r => `${r.name} x${r.amount || 1}`).join(', ');
+      this.showMessage(`Récompenses : ${rewardText}`, 'success');
+    } else {
+      this.showMessage('Récompense reçue !', 'success');
+    }
+    
+    // Animation sur l'icône
+    if (this.icon) {
+      this.icon.animateQuestCompleted();
     }
   }
   
-  handleQuestGiverInteraction(data) {
-    console.log('🎯 [QuestSystem] Quest Giver');
+  handleQuestReminder(data) {
+    console.log('🔔 [QuestSystem] Rappel quête:', data);
     
-    // Quêtes directement dans la réponse
-    if (data.availableQuests && data.availableQuests.length > 0) {
-      this.showQuestSelection(data.availableQuests, data.npcName);
-      return;
-    }
+    // Afficher notification rappel
+    this.showMessage(data.message || `Rappel : ${data.questName}`, 'info');
     
-    // Dialogue puis demander quêtes
-    if (data.message || data.lines) {
-      this.showQuestGiverDialogue(data);
-      setTimeout(() => {
-        this.requestAvailableQuests();
-      }, 1000);
-      return;
-    }
-    
-    // Fallback: demander directement
-    this.requestAvailableQuests();
-  }
-  
-  handleQuestProgressInteraction(data) {
-    console.log('📈 [QuestSystem] Progression NPC');
-    
-    if (data.message || data.lines) {
-      this.showQuestProgressDialogue(data);
-    }
-    
-    if (data.questId && data.progress) {
-      this.updateQuestProgress(data.questId, data.progress);
+    // Animation sur l'icône
+    if (this.icon) {
+      this.icon.animateQuestProgress();
     }
   }
   
-  // === 🔍 DÉTECTION TYPE ===
-  
-  isQuestInteraction(data) {
-    return !!(
-      data.type === 'questGiver' ||
-      data.questId ||
-      data.availableQuests ||
-      data.questData ||
-      (data.message && data.message.toLowerCase().includes('quête'))
-    );
+  handleSystemNotification(data) {
+    console.log('📢 [QuestSystem] Notification système:', data);
+    
+    // Afficher selon le type de display
+    const displayType = data.display?.type || 'toast';
+    const theme = data.display?.theme || 'info';
+    
+    if (displayType === 'modal') {
+      // Affichage modal si nécessaire
+      if (typeof window.showGameModal === 'function') {
+        window.showGameModal(data.title, data.message, data.actions);
+      } else {
+        this.showMessage(data.message, theme);
+      }
+    } else {
+      // Toast par défaut
+      this.showMessage(data.message, theme);
+    }
   }
   
-  isQuestGiverData(data) {
-    return !!(
-      data.type === 'questGiver' ||
-      data.availableQuests ||
-      (data.properties && data.properties.questGiver)
-    );
+  handleErrorMessage(data) {
+    console.error('💥 [QuestSystem] Erreur serveur:', data);
+    
+    // Afficher message d'erreur
+    this.showMessage(data.message || 'Erreur dans le système de quêtes', 'error');
   }
   
-  isQuestProgressData(data) {
-    return !!(
-      data.type === 'questProgress' ||
-      data.questId ||
-      data.progress
-    );
-  }
+
   
-  // === 📊 HANDLERS COMPATIBILITÉ ===
+  // === 📊 HANDLERS COMPATIBILITÉ (Messages anciens - à supprimer progressivement) ===
   
   handleActiveQuests(questsData) {
-    console.log('📋 [QuestSystem] Quêtes actives:', questsData);
+    console.log('📋 [QuestSystem] Quêtes actives (ancien format):', questsData);
     
     this.activeQuests = this.extractQuestArray(questsData);
     this.updateUI();
@@ -245,7 +331,7 @@ export class QuestSystem {
   }
   
   handleAvailableQuests(questsData) {
-    console.log('📋 [QuestSystem] Quêtes disponibles:', questsData);
+    console.log('📋 [QuestSystem] Quêtes disponibles (ancien format):', questsData);
     
     this.availableQuests = this.extractQuestArray(questsData);
     
@@ -257,7 +343,7 @@ export class QuestSystem {
   }
   
   handleQuestStartResult(data) {
-    console.log('🎯 [QuestSystem] Résultat démarrage:', data);
+    console.log('🎯 [QuestSystem] Résultat démarrage (ancien format):', data);
     
     if (data.success && data.quest) {
       this.activeQuests.push(data.quest);
@@ -385,11 +471,12 @@ export class QuestSystem {
     });
   }
   
-  // === 📡 REQUÊTES SERVEUR ===
+  // === 📡 REQUÊTES SERVEUR (Actions serveur) ===
   
   requestActiveQuests() {
     if (this.networkManager) {
       console.log('📤 [QuestSystem] Demande quêtes actives');
+      // Action serveur pour obtenir les quêtes actives
       this.networkManager.sendMessage('getActiveQuests');
     }
   }
@@ -397,6 +484,7 @@ export class QuestSystem {
   requestAvailableQuests() {
     if (this.networkManager) {
       console.log('📤 [QuestSystem] Demande quêtes disponibles');
+      // Action serveur pour obtenir les quêtes disponibles  
       this.networkManager.sendMessage('getAvailableQuests');
     }
   }
@@ -404,8 +492,118 @@ export class QuestSystem {
   startQuest(questId) {
     if (this.networkManager) {
       console.log(`📤 [QuestSystem] Démarrage quête: ${questId}`);
+      // Action serveur pour démarrer une quête
       this.networkManager.sendMessage('startQuest', { questId });
     }
+  }
+  
+  // === 🎭 INTERACTION NPC (selon NpcInteractionResult) ===
+  
+  handleNpcInteraction(data) {
+    console.log('🎭 [QuestSystem] Interaction NPC quest:', data);
+    
+    // Vérifier le type selon NpcInteractionResult
+    if (data.type === 'questGiver' || data.type === 'unifiedInterface') {
+      this.handleQuestGiverInteraction(data);
+    } else if (data.type === 'dialogue') {
+      this.handleQuestProgressInteraction(data);
+    }
+  }
+  
+  handleQuestGiverInteraction(data) {
+    console.log('🎯 [QuestSystem] Quest Giver NPC');
+    
+    // Utiliser availableQuests du NpcInteractionResult
+    if (data.availableQuests && data.availableQuests.length > 0) {
+      this.showQuestSelection(data.availableQuests, data.npcName);
+      return;
+    }
+    
+    // Vérifier contextualData pour hasQuests
+    if (data.contextualData?.hasQuests) {
+      // Dialogue puis demander quêtes
+      if (data.lines || data.message) {
+        this.showQuestGiverDialogue(data);
+      }
+      setTimeout(() => {
+        this.requestAvailableQuests();
+      }, 1000);
+      return;
+    }
+    
+    // Fallback: demander directement si c'est un questGiver
+    if (data.capabilities?.includes('quest')) {
+      this.requestAvailableQuests();
+    }
+  }
+  
+  handleQuestProgressInteraction(data) {
+    console.log('📈 [QuestSystem] Dialogue NPC');
+    
+    // Afficher les lignes de dialogue
+    if (data.lines || data.message) {
+      this.showQuestProgressDialogue(data);
+    }
+    
+    // Mettre à jour progression si fournie
+    if (data.questRewards && data.questRewards.length > 0) {
+      // Le NPC peut donner des récompenses de quête
+      this.handleRewardReceived({
+        rewards: data.questRewards,
+        message: 'Récompenses de quête reçues !'
+      });
+    }
+  }
+  
+  // === 📤 ACTIONS NPC SPÉCIFIQUES ===
+  
+  sendNpcAction(npcId, actionType, actionData = {}) {
+    if (this.networkManager) {
+      console.log(`📤 [QuestSystem] Action NPC: ${actionType} sur NPC ${npcId}`);
+      
+      // Selon la documentation serveur
+      this.networkManager.sendMessage('npcSpecificAction', {
+        npcId: npcId,
+        actionType: actionType, // 'merchant' | 'quest' | 'dialogue'
+        actionData: {
+          questAction: actionData.questAction, // 'start' | 'complete'
+          questId: actionData.questId,
+          ...actionData
+        }
+      });
+    }
+  }
+  
+  // === 🔍 DÉTECTION TYPE NPC AMÉLIORÉE ===
+  
+  isQuestInteraction(data) {
+    return !!(
+      data.type === 'questGiver' ||
+      data.type === 'unifiedInterface' ||
+      data.availableQuests ||
+      data.questRewards ||
+      data.contextualData?.hasQuests ||
+      data.capabilities?.includes('quest') ||
+      (data.message && data.message.toLowerCase().includes('quête'))
+    );
+  }
+  
+  isQuestGiverData(data) {
+    return !!(
+      data.type === 'questGiver' ||
+      data.type === 'unifiedInterface' ||
+      data.availableQuests ||
+      data.contextualData?.hasQuests ||
+      data.capabilities?.includes('quest')
+    );
+  }
+  
+  isQuestProgressData(data) {
+    return !!(
+      data.type === 'dialogue' ||
+      data.questRewards ||
+      data.lines
+    );
   }
   
   // === 🔧 UTILITAIRES ===
