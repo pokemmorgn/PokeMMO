@@ -1,5 +1,5 @@
 // PokeMMO/server/src/managers/NPCManager.ts
-// Version corrigée : Synchronisation waitForLoad() + autoLoadFromMongoDB()
+// Version corrigée : Synchronisation waitForLoad() + autoLoadFromMongoDB() + Zone fixing
 
 import fs from "fs";
 import path from "path";
@@ -19,7 +19,7 @@ export enum NpcDataSource {
   HYBRID = 'hybrid'
 }
 
-// ✅ INTERFACE ÉTENDUE (inchangée)
+// ✅ INTERFACE ÉTENDUE (corrigée avec zone)
 export interface NpcData {
   // === PROPRIÉTÉS EXISTANTES ===
   id: number;
@@ -28,6 +28,9 @@ export interface NpcData {
   x: number;
   y: number;
   properties: Record<string, any>;
+  
+  // ✅ AJOUT CRITIQUE: Zone du NPC (pour MongoDB et JSON)
+  zone?: string;
   
   // === PROPRIÉTÉS JSON ===
   type?: NpcType;
@@ -337,7 +340,7 @@ export class NpcManager {
     }
   }
 
-  // ✅ MÉTHODES HOT RELOAD (inchangées)
+  // ✅ MÉTHODES HOT RELOAD (corrigées avec zones)
   private async handleMongoDBChange(change: any): Promise<void> {
     try {
       this.log('info', `🔥 [HotReload] Changement détecté: ${change.operationType}`);
@@ -395,12 +398,12 @@ export class NpcManager {
       const existingIndex = this.npcs.findIndex(npc => npc.id === npcData.id);
       if (existingIndex >= 0) {
         this.npcs[existingIndex] = npcData;
-        this.log('info', `🔄 [HotReload] NPC mis à jour: ${npcData.name} (ID: ${npcData.id})`);
+        this.log('info', `🔄 [HotReload] NPC mis à jour: ${npcData.name} (ID: ${npcData.id}) dans ${zoneName}`);
       } else {
         this.npcs.push(npcData);
         this.npcSourceMap.set(npcData.id, 'mongodb');
         this.npcSourceMapExtended.set(npcData.id, NpcDataSource.MONGODB);
-        this.log('info', `➕ [HotReload] NPC ajouté (via update): ${npcData.name} (ID: ${npcData.id})`);
+        this.log('info', `➕ [HotReload] NPC ajouté (via update): ${npcData.name} (ID: ${npcData.id}) dans ${zoneName}`);
       }
       
       this.mongoCache.delete(zoneName);
@@ -425,7 +428,7 @@ export class NpcManager {
         this.npcSourceMapExtended.delete(deletedNpc.id);
         this.mongoCache.delete(zoneName);
         
-        this.log('info', `➖ [HotReload] NPC supprimé: ${deletedNpc.name} (ID: ${deletedNpc.id})`);
+        this.log('info', `➖ [HotReload] NPC supprimé: ${deletedNpc.name} (ID: ${deletedNpc.id}) de ${zoneName}`);
         this.notifyReloadCallbacks('delete', deletedNpc);
         
       } else {
@@ -548,8 +551,7 @@ export class NpcManager {
     }
   }
 
-// Dans NPCManager.ts - Remplacer la méthode convertMongoDocToNpcData
-
+// ✅ MÉTHODE CORRIGÉE : convertMongoDocToNpcData avec zone fixée
 private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
   try {
     // ✅ GESTION : Objet Mongoose VS objet brut des Change Streams
@@ -592,6 +594,9 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
       y: npcFormat.position.y,
       properties: {}, // Vide pour MongoDB, tout est structuré
       
+      // ✅ AJOUT CRITIQUE: Stockage explicite de la zone
+      zone: zoneName,
+      
       // Propriétés étendues
       type: npcFormat.type,
       position: npcFormat.position,
@@ -624,6 +629,7 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
       _id: mongoDoc._id,
       npcId: mongoDoc.npcId,
       name: mongoDoc.name,
+      zone: mongoDoc.zone,
       hasToNpcFormat: typeof mongoDoc.toNpcFormat === 'function'
     });
     throw error;
@@ -750,7 +756,7 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
     });
   }
 
-  // ✅ MÉTHODES JSON (inchangées)
+  // ✅ MÉTHODES JSON (corrigées avec zone)
   loadNpcsFromJSON(zoneName: string): void {
     try {
       const jsonPath = path.resolve(this.config.npcDataPath, `${zoneName}.json`);
@@ -889,7 +895,7 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
     });
   }
 
-  // ✅ MÉTHODES UTILITAIRES (inchangées)
+  // ✅ MÉTHODES UTILITAIRES (corrigées avec zone)
   private convertJsonToNpcData(npcJson: AnyNpc, zoneName: string, sourceFile: string): NpcData {
     const npcData: NpcData = {
       id: npcJson.id,
@@ -898,6 +904,9 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
       x: npcJson.position.x,
       y: npcJson.position.y,
       properties: {},
+      
+      // ✅ AJOUT CRITIQUE: Stockage de la zone pour JSON aussi
+      zone: zoneName,
       
       type: npcJson.type,
       position: npcJson.position,
@@ -943,11 +952,26 @@ private convertMongoDocToNpcData(mongoDoc: any, zoneName: string): NpcData {
     return npcData;
   }
 
+  // ✅ MÉTHODE CORRIGÉE : extractZoneFromNpc avec priorité sur la propriété zone
   private extractZoneFromNpc(npc: NpcData): string {
+    // ✅ PRIORITÉ 1: Zone explicitement stockée (MongoDB et JSON)
+    if (npc.zone) {
+      return npc.zone;
+    }
+    
+    // ✅ PRIORITÉ 2: Extraction depuis mongoDoc si disponible
+    if (npc.mongoDoc && npc.mongoDoc.zone) {
+      return npc.mongoDoc.zone;
+    }
+    
+    // ✅ PRIORITÉ 3: Extraction depuis sourceFile (JSON legacy)
     if (npc.sourceFile) {
       const match = npc.sourceFile.match(/([^\/\\]+)\.json$/);
-      return match ? match[1] : 'unknown';
+      if (match) {
+        return match[1];
+      }
     }
+    
     return 'unknown';
   }
 
