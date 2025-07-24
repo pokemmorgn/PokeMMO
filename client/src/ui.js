@@ -543,7 +543,7 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ QUEST MODULE AVEC INTEGRATION DIRECTE SIMPLIFIÉE
+  // ✅ QUEST MODULE AVEC INTEGRATION DIRECTE ET TIMING CORRIGÉ
   async createQuestModule() {
     try {
       console.log('🚀 [PokemonUI] Création QuestSystem direct...');
@@ -562,10 +562,37 @@ export class PokemonUISystem {
       
       console.log('✅ [PokemonUI] QuestSystem créé avec succès');
       
-      // ✅ INTEGRATION UIMANAGER DIRECTE - pas de wrapper !
+      // ✅ ATTENDRE que l'icône soit complètement créée
+      await new Promise(resolve => {
+        if (questSystem.icon && questSystem.icon.iconElement) {
+          resolve();
+        } else {
+          // Attendre un peu que l'icône soit créée
+          setTimeout(() => {
+            resolve();
+          }, 500);
+        }
+      });
+      
+      // ✅ INTEGRATION UIMANAGER avec vérification
       if (this.uiManager && questSystem.connectUIManager) {
         const connected = questSystem.connectUIManager(this.uiManager);
-        console.log(`🔗 [PokemonUI] UIManager ${connected ? 'connecté' : 'échec connexion'}`);
+        console.log(`🔗 [PokemonUI] UIManager ${connected ? 'CONNECTÉ avec succès' : 'ÉCHEC connexion'}`);
+        
+        if (!connected) {
+          console.warn('⚠️ [PokemonUI] Fallback - repositionnement manuel après délai');
+          setTimeout(() => {
+            if (questSystem.icon && questSystem.icon.iconElement && this.uiManager.registerIconPosition) {
+              this.uiManager.registerIconPosition('quest', questSystem.icon.iconElement, {
+                anchor: 'bottom-right',
+                order: 1,
+                spacing: 10,
+                group: 'ui-icons'
+              });
+              console.log('🔧 [PokemonUI] Repositionnement manuel effectué');
+            }
+          }, 1000);
+        }
       }
       
       // ✅ EXPOSER globalement (API compatibilité)
