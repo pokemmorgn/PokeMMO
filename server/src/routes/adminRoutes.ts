@@ -754,12 +754,22 @@ router.post('/quests/:questId/duplicate', requireMacAndDev, async (req: any, res
     }
     
     const duplicatedQuestData = {
-      ...originalQuest.toObject(),
-      _id: undefined, // Nouveau document
-      questId: `${originalQuest.questId}_copy_${Date.now()}`,
-      name: `${originalQuest.name} (Copie)`,
-      lastUpdated: new Date()
-    };
+  questId: `${originalQuest.questId}_copy_${Date.now()}`,
+  name: `${originalQuest.name} (Copie)`,
+  description: originalQuest.description,
+  category: originalQuest.category,
+  startNpcId: originalQuest.startNpcId,
+  endNpcId: originalQuest.endNpcId,
+  isRepeatable: originalQuest.isRepeatable,
+  autoComplete: originalQuest.autoComplete,
+  dialogues: originalQuest.dialogues,
+  steps: originalQuest.steps,
+  isActive: originalQuest.isActive,
+  version: originalQuest.version,
+  metadata: originalQuest.metadata,
+  config: originalQuest.config,
+  lastUpdated: new Date()
+};
     
     const duplicatedQuest = await QuestData.create(duplicatedQuestData);
     
