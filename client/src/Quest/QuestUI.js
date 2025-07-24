@@ -804,19 +804,11 @@ export class QuestUI {
   // === 🎛️ CONTRÔLES PRINCIPAUX ===
   
   show() {
-    // ✅ FIX: Debug pour identifier l'appel automatique
-    console.log('🔍 [QuestUI] show() appelé - Stack trace:');
-    console.trace();
-    
     this.isVisible = true;
     
     if (this.overlayElement) {
       this.overlayElement.className = 'quest-journal visible';
-      // ✅ FIX: Ne charger les données que si c'est un appel volontaire
-      // Pas automatiquement au démarrage
-      if (this.activeQuests.length === 0) {
-        this.requestQuestData();
-      }
+      this.requestQuestData();
     }
     
     console.log('✅ [QuestUI] Journal affiché');
