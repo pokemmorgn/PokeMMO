@@ -902,71 +902,22 @@ async loadExistingObjects(mapId) {
     try {
         console.log(`🗺️ [MapEditor] Loading gameobjects and NPCs for zone: ${mapId}`)
         
-        // Charger les gameobjects ET NPCs sauvegardés
         const response = await this.adminPanel.apiCall(`/maps/${mapId}/gameobjects`)
-        
-        // ✅ LOGS DE DEBUG - Réponse API brute
-        console.log('🔍 [DEBUG] Raw API response:', response)
-        console.log('🔍 [DEBUG] Response success:', response.success)
-        console.log('🔍 [DEBUG] Response data exists:', !!response.data)
-        console.log('🔍 [DEBUG] Objects in response:', response.data?.objects?.length || 0)
+        console.log('🔍 [DEBUG] API Response received, processing...')
         
         if (response.success && response.data && response.data.objects) {
             const allObjects = response.data.objects
+            console.log(`📦 [MapEditor] Found ${allObjects.length} saved objects`)
             
-            // ✅ LOG - Tous les objets reçus
-            console.log('🔍 [DEBUG] All objects received from API:', allObjects.map((obj, index) => ({
-                index: index,
-                id: obj.id,
-                type: obj.type,
-                name: obj.name,
-                x: obj.x,
-                y: obj.y,
-                hasPosition: !!obj.position,
-                positionX: obj.position?.x,
-                positionY: obj.position?.y,
-                sprite: obj.sprite
-            })))
-            
-            console.log(`📦 [MapEditor] Found ${allObjects.length} saved objects (gameobjects + NPCs)`)
-            
-            // Séparer les NPCs des gameobjects
+            // Séparer gameobjects et NPCs
             const gameObjects = allObjects.filter(obj => obj.type !== 'npc')
             const npcs = allObjects.filter(obj => obj.type === 'npc')
             
-            // ✅ LOGS - Après filtrage
-            console.log(`🔍 [DEBUG] After filtering:`)
-            console.log(`🔍 [DEBUG] - GameObjects: ${gameObjects.length}`)
-            console.log(`🔍 [DEBUG] - NPCs: ${npcs.length}`)
-            console.log('🔍 [DEBUG] NPCs details:', npcs.map(npc => ({
-                id: npc.id,
-                name: npc.name,
-                x: npc.x,
-                y: npc.y,
-                type: npc.type,
-                npcType: npc.npcType,
-                sprite: npc.sprite,
-                hasPosition: !!npc.position
-            })))
-            
-            // Compteur pour tracking
-            let processedGameObjects = 0
-            let processedNPCs = 0
-            let errors = []
+            console.log(`📊 [MapEditor] GameObjects: ${gameObjects.length}, NPCs: ${npcs.length}`)
             
             // Traiter les gameobjects
-            console.log('🔧 [DEBUG] Processing gameobjects...')
-            gameObjects.forEach((obj, index) => {
-                try {
-                    console.log(`🔧 [DEBUG] Processing gameobject ${index}:`, {
-                        id: obj.id,
-                        type: obj.type,
-                        x: obj.x,
-                        y: obj.y,
-                        position: obj.position,
-                        tilewidth: this.currentMapData.tilewidth
-                    })
-                    
+            gameObjects.forEach(obj => {
+                if (obj.position || (obj.x !== undefined && obj.y !== undefined)) {
                     const editorObject = {
                         id: `gameobject_${obj.id}`,
                         type: obj.type || 'ground',
@@ -978,126 +929,45 @@ async loadExistingObjects(mapId) {
                         cooldown: obj.cooldown || 24,
                         rarity: obj.rarity || 'common',
                         sprite: obj.sprite,
-                        isFromMap: false,
-                        searchRadius: obj.searchRadius,
-                        itemfinderRadius: obj.itemfinderRadius,
-                        position: obj.position || { x: obj.x || 0, y: obj.y || 0 }
+                        isFromMap: false
                     }
-                    
-                    this.addOrReplaceObject(editorObject)
-                    processedGameObjects++
-                } catch (error) {
-                    console.error(`❌ [DEBUG] Error processing gameobject ${index}:`, error)
-                    errors.push(`GameObject ${obj.id}: ${error.message}`)
+                    this.placedObjects.push(editorObject)
                 }
             })
             
-            // ✅ TRAITER LES NPCs avec protection contre les erreurs
-            console.log('🔧 [DEBUG] Processing NPCs...')
-            npcs.forEach((npc, index) => {
-                try {
-                    console.log(`👤 [DEBUG] Processing NPC ${index}:`, {
-                        id: npc.id,
-                        name: npc.name,
-                        originalX: npc.x,
-                        originalY: npc.y,
-                        hasPosition: !!npc.position,
-                        positionX: npc.position?.x,
-                        positionY: npc.position?.y,
-                        tilewidth: this.currentMapData.tilewidth,
-                        tileheight: this.currentMapData.tileheight
-                    })
-                    
-                    // Protection contre les valeurs undefined
-                    const safeX = npc.position?.x || npc.x || 0
-                    const safeY = npc.position?.y || npc.y || 0
-                    
-                    console.log(`👤 [DEBUG] Safe coordinates for NPC ${npc.id}: x=${safeX}, y=${safeY}`)
-                    
-                    const tileX = Math.floor(safeX / this.currentMapData.tilewidth)
-                    const tileY = Math.floor(safeY / this.currentMapData.tileheight)
-                    
-                    console.log(`👤 [DEBUG] Calculated tile position: (${tileX}, ${tileY})`)
-                    
+            // ✅ Traiter les NPCs avec les coordonnées en pixels
+            npcs.forEach(npc => {
+                if (npc.x !== undefined && npc.y !== undefined) {
                     const editorNPC = {
                         id: `npc_${npc.id}`,
                         type: 'npc',
-                        x: tileX,
-                        y: tileY,
+                        x: Math.floor(npc.x / this.currentMapData.tilewidth),
+                        y: Math.floor(npc.y / this.currentMapData.tileheight),
                         name: npc.name || `NPC_${npc.id}`,
                         sprite: npc.sprite || 'npc_default',
                         direction: npc.direction || 'south',
-                        npcType: npc.npcType || npc.customProperties?.originalNPCType || 'dialogue',
+                        npcType: npc.npcType || 'dialogue',
                         isFromMap: false,
-                        
-                        // Données spécifiques NPC
-                        dialogues: npc.dialogues,
-                        questsToGive: npc.questsToGive,
-                        questsToEnd: npc.questsToEnd,
-                        interactionRadius: npc.interactionRadius,
-                        customProperties: npc.customProperties || {},
-                        position: { x: safeX, y: safeY }
+                        customProperties: npc.customProperties || {}
                     }
                     
-                    console.log(`👤 [DEBUG] Created editor NPC:`, {
-                        id: editorNPC.id,
-                        name: editorNPC.name,
-                        tileX: editorNPC.x,
-                        tileY: editorNPC.y,
-                        sprite: editorNPC.sprite
-                    })
-                    
-                    this.addOrReplaceObject(editorNPC)
-                    processedNPCs++
-                    
-                } catch (error) {
-                    console.error(`❌ [DEBUG] Error processing NPC ${index}:`, error)
-                    console.error(`❌ [DEBUG] NPC data:`, npc)
-                    errors.push(`NPC ${npc.id}: ${error.message}`)
+                    console.log(`👤 [MapEditor] Added NPC: ${editorNPC.name} at tile (${editorNPC.x}, ${editorNPC.y})`)
+                    this.placedObjects.push(editorNPC)
                 }
             })
             
-            const totalProcessed = processedGameObjects + processedNPCs
+            console.log(`✅ [MapEditor] Total objects loaded: ${this.placedObjects.filter(obj => !obj.isFromMap).length}`)
+            this.adminPanel.showNotification(`${gameObjects.length} gameobjects et ${npcs.length} NPCs chargés`, 'success')
             
-            // ✅ LOGS FINAUX
-            console.log(`✅ [MapEditor] Processing complete:`)
-            console.log(`✅ [MapEditor] - Processed ${processedGameObjects} gameobjects`)
-            console.log(`✅ [MapEditor] - Processed ${processedNPCs} NPCs`)
-            console.log(`✅ [MapEditor] - Total objects in editor: ${this.placedObjects.length}`)
-            console.log(`✅ [MapEditor] - Errors: ${errors.length}`)
-            if (errors.length > 0) {
-                console.error(`❌ [MapEditor] Errors during processing:`, errors)
-            }
-            
-            console.log(`✅ [MapEditor] - Objects by type:`, this.placedObjects.reduce((acc, obj) => {
-                acc[obj.type] = (acc[obj.type] || 0) + 1
-                return acc
-            }, {}))
-            
-            if (errors.length > 0) {
-                this.adminPanel.showNotification(`${totalProcessed} objets chargés avec ${errors.length} erreurs`, 'warning')
-            } else {
-                this.adminPanel.showNotification(`${totalProcessed} objets chargés: ${processedGameObjects} gameobjects, ${processedNPCs} NPCs`, 'success')
-            }
-            
-        } else if (response.success && response.created) {
-            console.log(`📝 [MapEditor] No existing objects for ${mapId}, starting fresh`)
-            this.adminPanel.showNotification(`Nouveau fichier ${mapId} créé`, 'info')
         } else {
-            console.log(`⚠️ [MapEditor] Unexpected response format:`, response)
+            console.log(`📝 [MapEditor] No objects found for ${mapId}`)
         }
         
     } catch (error) {
-        console.error(`❌ [MapEditor] Error in loadExistingObjects:`, error)
-        console.error(`❌ [MapEditor] Error stack:`, error.stack)
-        console.log(`📝 [MapEditor] No objects found for ${mapId}:`, error.message)
-        
-        if (!error.message.includes('404') && !error.message.includes('non trouvé')) {
-            this.adminPanel.showNotification(`Erreur chargement objets: ${error.message}`, 'warning')
-        }
+        console.error(`❌ [MapEditor] Error loading objects:`, error)
+        this.adminPanel.showNotification(`Erreur chargement objets: ${error.message}`, 'error')
     }
 }
-
 // ✅ MÉTHODE HELPER avec logs
 addOrReplaceObject(editorObject) {
     const existsIndex = this.placedObjects.findIndex(existing => 
