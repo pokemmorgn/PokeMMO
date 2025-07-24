@@ -808,30 +808,54 @@ async loadDocumentForEdit(documentId) {
     // Vider le container
     fieldsContainer.innerHTML = ''
     
-    // Ajouter les champs un par un
-    try {
-        Object.entries(documentData).forEach(([key, value]) => {
-            console.log(`📝 [MongoDB] Ajout champ: ${key} = ${value} (type: ${typeof value})`)
-            this.addDocumentField(key, value, this.detectFieldType(value))
+    // ✅ CORRECTION: Identifier si c'est un NPC et organiser les champs
+    const isNPC = documentData.hasOwnProperty('x') || documentData.hasOwnProperty('y') || documentData.hasOwnProperty('sprite')
+    
+    if (isNPC) {
+        console.log('👤 [MongoDB] NPC détecté, organisation spéciale des champs')
+        
+        // Ordre spécifique pour les NPCs
+        const npcFieldOrder = [
+            '_id', 'name', 'type', 'sprite', 'direction',
+            'x', 'y', 'position', 'mapId', 'zoneId',
+            'dialogue', 'quest', 'shop', 'interactions'
+        ]
+        
+        // Ajouter d'abord les champs dans l'ordre défini
+        npcFieldOrder.forEach(key => {
+            if (documentData.hasOwnProperty(key)) {
+                this.addDocumentField(key, documentData[key], this.detectFieldType(documentData[key]))
+                console.log(`📝 [MongoDB] Champ NPC ordonné: ${key} = ${documentData[key]}`)
+            }
         })
         
-        // Ajouter le bouton pour ajouter des champs
-        const addButton = document.createElement('div')
-        addButton.className = 'mongodb-field-group'
-        addButton.innerHTML = `
-            <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="window.mongoAdvancedRef.addDocumentField()">
-                <i class="fas fa-plus"></i> Ajouter un champ
-            </button>
-        `
-        fieldsContainer.appendChild(addButton)
-        
-        console.log('✅ [MongoDB] Formulaire populé avec succès')
-        
-    } catch (error) {
-        console.error('❌ [MongoDB] Erreur population formulaire:', error)
-        this.adminPanel.showNotification('Erreur lors du chargement du formulaire: ' + error.message, 'error')
+        // Puis ajouter les champs restants
+        Object.entries(documentData).forEach(([key, value]) => {
+            if (!npcFieldOrder.includes(key)) {
+                this.addDocumentField(key, value, this.detectFieldType(value))
+                console.log(`📝 [MongoDB] Champ NPC supplémentaire: ${key} = ${value}`)
+            }
+        })
+    } else {
+        // Pour les documents normaux, ajouter tous les champs
+        Object.entries(documentData).forEach(([key, value]) => {
+            this.addDocumentField(key, value, this.detectFieldType(value))
+        })
     }
+    
+    // Ajouter le bouton pour ajouter des champs
+    const addButton = document.createElement('div')
+    addButton.className = 'mongodb-field-group'
+    addButton.innerHTML = `
+        <button class="mongodb-btn mongodb-btn-success mongodb-add-field" onclick="window.mongoAdvancedRef.addDocumentField()">
+            <i class="fas fa-plus"></i> Ajouter un champ
+        </button>
+    `
+    fieldsContainer.appendChild(addButton)
+    
+    console.log('✅ [MongoDB] Formulaire populé avec succès')
 }
+    
    // 1. CORRIGER la méthode createModal (vers la fin du fichier)
 createModal(title, className, content) {
     console.log(`🎨 [MongoDB] Création modal: ${className}`)
@@ -1302,13 +1326,48 @@ validateDocument() {
     }
 }
 
-// CORRIGER la méthode saveDocument
 async saveDocument(isEdit = false) {
     if (!this.validateDocument()) return
     
     try {
         const jsonValue = document.getElementById('documentJSON').value
-        const parsedDocument = JSON.parse(jsonValue) // ✅ Renommer pour éviter le conflit
+        let documentData = JSON.parse(jsonValue)
+        
+        // ✅ CORRECTION: En mode édition, préserver les champs existants
+        if (isEdit && this.currentEditingDocument) {
+            console.log('📝 [MongoDB] Mode édition - préservation des données existantes')
+            console.log('📄 [MongoDB] Document original:', this.currentEditingDocument)
+            console.log('📝 [MongoDB] Nouvelles données:', documentData)
+            
+            // Créer un nouveau document qui fusionne l'ancien avec le nouveau
+            const mergedDocument = { ...this.currentEditingDocument }
+            
+            // Appliquer les nouvelles valeurs par-dessus les anciennes
+            Object.keys(documentData).forEach(key => {
+                if (documentData[key] !== null && documentData[key] !== undefined && documentData[key] !== '') {
+                    mergedDocument[key] = documentData[key]
+                }
+                // Si la nouvelle valeur est vide mais qu'elle existait avant, on la garde
+                // Exception pour les champs qu'on veut vraiment pouvoir vider
+                else if (key === '_id') {
+                    // Toujours garder l'ID original
+                    mergedDocument[key] = this.currentEditingDocument[key]
+                }
+            })
+            
+            // S'assurer que les champs critiques des NPCs sont préservés
+            const criticalNPCFields = ['x', 'y', 'position', 'mapId', 'zoneId', 'sprite', 'direction']
+            criticalNPCFields.forEach(field => {
+                if (this.currentEditingDocument[field] !== undefined && 
+                    (documentData[field] === undefined || documentData[field] === null || documentData[field] === '')) {
+                    mergedDocument[field] = this.currentEditingDocument[field]
+                    console.log(`🔒 [MongoDB] Champ critique préservé: ${field} = ${this.currentEditingDocument[field]}`)
+                }
+            })
+            
+            documentData = mergedDocument
+            console.log('✅ [MongoDB] Document fusionné:', documentData)
+        }
         
         const endpoint = isEdit ? '/mongodb/update-document' : '/mongodb/create-document'
         const response = await this.adminPanel.apiCall(endpoint, {
@@ -1316,7 +1375,7 @@ async saveDocument(isEdit = false) {
             body: JSON.stringify({
                 database: this.mongo.currentDatabase,
                 collection: this.mongo.currentCollection,
-                document: parsedDocument,
+                document: documentData,
                 originalId: isEdit ? this.currentEditingDocument._id : null
             })
         })
@@ -1338,7 +1397,6 @@ async saveDocument(isEdit = false) {
         this.adminPanel.showNotification('Erreur sauvegarde: ' + error.message, 'error')
     }
 }
-
     getFieldValue(fieldContent) {
     if (!fieldContent) return ''
     
