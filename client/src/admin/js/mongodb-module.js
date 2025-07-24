@@ -563,45 +563,49 @@ renderTableContent(documents, tableHeader, tableBody) {
     const columns = this.detectColumns(documents)
     
     // Header
-    tableHeader.innerHTML = `
-        <tr>
-            <th class="mongodb-select-column">
-                <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
+   // Header - DÉPLACER les actions en premier
+tableHeader.innerHTML = `
+    <tr>
+        <th class="mongodb-actions-column">Actions</th>
+        <th class="mongodb-select-column">
+            <input type="checkbox" onchange="adminPanel.mongodb.toggleAllRows(this.checked)">
+        </th>
+        ${columns.map(col => `
+            <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
+                ${col.name}
+                <i class="fas fa-sort mongodb-sort-icon"></i>
             </th>
-            ${columns.map(col => `
-                <th class="sortable" onclick="adminPanel.mongodb.sortBy('${col.key}')">
-                    ${col.name}
-                    <i class="fas fa-sort mongodb-sort-icon"></i>
-                </th>
-            `).join('')}
-            <th class="mongodb-actions-column">Actions</th>
-        </tr>
-    `
-    
-    // Body
-    tableBody.innerHTML = documents.map((doc, index) => `
-        <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
-            <td class="mongodb-select-column">
-                <input type="checkbox" onclick="event.stopPropagation()">
-            </td>
-            ${columns.map(col => {
-                const value = this.getNestedValue(doc, col.key)
-                return `
-                    <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
-                        ${this.formatCellValue(value, col.type)}
-                    </td>
-                `
-            }).join('')}
-<td class="mongodb-actions-column">
-    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editInlineDocument('${doc._id}', this)" title="Edit">
-        <i class="fas fa-edit"></i>
-    </button>
-    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
-        <i class="fas fa-trash"></i>
-    </button>
-</td>
-        </tr>
-    `).join('')
+        `).join('')}
+    </tr>
+`
+
+// Body - DÉPLACER les actions en premier aussi
+tableBody.innerHTML = documents.map((doc, index) => `
+    <tr class="mongodb-document-row" onclick="adminPanel.mongodb.selectDocumentRow(${index})">
+        <td class="mongodb-actions-column">
+            <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editInlineDocument('${doc._id}', this)" title="Edit">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+                <i class="fas fa-trash"></i>
+            </button>
+            <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
+                <i class="fas fa-search"></i>
+            </button>
+        </td>
+        <td class="mongodb-select-column">
+            <input type="checkbox" onclick="event.stopPropagation()">
+        </td>
+        ${columns.map(col => {
+            const value = this.getNestedValue(doc, col.key)
+            return `
+                <td class="mongodb-data-cell" title="${this.formatCellTooltip(value)}">
+                    ${this.formatCellValue(value, col.type)}
+                </td>
+            `
+        }).join('')}
+    </tr>
+`).join('')
 
     // Afficher la vue table
     const tableView = document.getElementById('tableView')
