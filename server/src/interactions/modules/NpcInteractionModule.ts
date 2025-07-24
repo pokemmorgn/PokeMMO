@@ -1305,11 +1305,27 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // === MÉTHODES PUBLIQUES POUR QUÊTES (INCHANGÉES) ===
 
-  async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-    try {
-      this.log('info', 'Démarrage quête', { username, questId });
-      
-      const quest = await this.questManager.startQuest(username, questId);
+    async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
+      try {
+        this.log('info', '🎯 Démarrage quête via NPC', { username, questId });
+        
+        // ✨ NOUVEAU : Utilis`er la méthode ServiceRegistry
+        const giveResult = await this.questManager.giveQuest(username, questId);
+        
+        if (giveResult.success) {
+          this.log('info', `✅ Quête donnée avec succès: ${giveResult.quest?.name || questId}`);
+          return {
+            success: true,
+            message: giveResult.message,
+            quest: giveResult.quest
+          };
+        } else {
+          this.log('warn', `⚠️ Impossible de donner la quête: ${giveResult.message}`);
+          return {
+            success: false,
+            message: giveResult.message
+          };
+    }
       if (quest) {
         this.log('info', 'Quête démarrée avec succès', { questName: quest.name });
         return {
