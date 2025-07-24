@@ -297,7 +297,7 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 2,
+          order: 3,
           spacing: 10
         },
         groups: ['ui-icons'],
