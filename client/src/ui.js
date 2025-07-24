@@ -502,83 +502,51 @@ export class PokemonUISystem {
       return this.createEmptyWrapper('pokedex');
     }
   }
-async createQuestModule() {
-  try {
-    console.log('🚀 [PokemonUI] Création QuestSystem unifié...');
-    
-    // ✅ IMPORTER le nouveau système unifié
-    const { createQuestSystem } = await import('./Quest/QuestSystem.js');
-    
-    const questSystem = await createQuestSystem(
-      window.currentGameRoom,
-      window.globalNetworkManager || window.networkManager
-    );
-    
-    if (!questSystem) {
-      throw new Error('Échec création QuestSystem');
-    }
-    
-    console.log('✅ [PokemonUI] QuestSystem créé avec succès');
-    
-    // ✅ ADAPTER pour UIManager - créer les méthodes nécessaires
-    const questModuleWrapper = {
-      // Propriétés UIManager
-      iconElement: questSystem.icon?.iconElement || null,
-      isEnabled: true,
-      initialized: true,
-      
-      // Méthodes UIManager
-      show: () => questSystem.show(),
-      hide: () => questSystem.hide(),
-      toggle: () => questSystem.toggle(),
-      setEnabled: (enabled) => questSystem.setEnabled(enabled),
-      destroy: () => questSystem.destroy(),
-      
-      // Méthodes de compatibilité
-      toggleQuestJournal: () => questSystem.toggle(),
-      toggleUI: () => questSystem.toggle(),
-      open: () => questSystem.show(),
-      close: () => questSystem.hide(),
-      
-      // Référence au système original
-      system: questSystem,
-      manager: questSystem, // Pour compatibilité
-      
-      // Méthode pour UIManager
-      createIcon: async () => {
-        if (questSystem.icon?.iconElement) {
-          return questSystem.icon.iconElement;
+    async createQuestModule() {
+      try {
+        console.log('🚀 [PokemonUI] Création QuestSystem direct...');
+        
+        // ✅ IMPORT et CRÉATION directe
+        const { createQuestSystem } = await import('./Quest/QuestSystem.js');
+        
+        const questSystem = await createQuestSystem(
+          window.currentGameRoom,
+          window.globalNetworkManager || window.networkManager
+        );
+        
+        if (!questSystem) {
+          throw new Error('Échec création QuestSystem');
         }
-        return null;
-      },
-      
-      // Connexion UIManager
-      connectUIManager: (uiManager) => {
-        return questSystem.connectUIManager?.(uiManager) || false;
+        
+        console.log('✅ [PokemonUI] QuestSystem créé avec succès');
+        
+        // ✅ INTEGRATION UIMANAGER DIRECTE - pas de wrapper !
+        if (this.uiManager && questSystem.connectUIManager) {
+          const connected = questSystem.connectUIManager(this.uiManager);
+          console.log(`🔗 [PokemonUI] UIManager ${connected ? 'connecté' : 'échec connexion'}`);
+        }
+        
+        // ✅ EXPOSER globalement (API compatibilité)
+        window.questSystem = questSystem;
+        window.questSystemGlobal = questSystem;
+        
+        // ✅ Fonctions globales de compatibilité
+        window.toggleQuest = () => questSystem.toggle();
+        window.openQuest = () => questSystem.show();
+        window.closeQuest = () => questSystem.hide();
+        
+        console.log('✅ [PokemonUI] QuestSystem exposé globalement');
+        
+        // ✅ RETOUR DIRECT - pas de wrapper compliqué !
+        return questSystem;
+        
+      } catch (error) {
+        console.error('❌ [PokemonUI] Erreur création QuestSystem:', error);
+        
+        // ✅ FALLBACK simple
+        return this.createEmptyWrapper('quest');
       }
-    };
-    
-    // ✅ EXPOSER globalement
-    window.questSystem = questSystem;
-    window.questSystemGlobal = questSystem;
-    window.questModule = questModuleWrapper;
-    
-    // ✅ Fonctions globales de compatibilité
-    window.toggleQuest = () => questSystem.toggle();
-    window.openQuest = () => questSystem.show();
-    window.closeQuest = () => questSystem.hide();
-    
-    console.log('✅ [PokemonUI] QuestSystem exposé globalement');
-    
-    return questModuleWrapper;
-    
-  } catch (error) {
-    console.error('❌ [PokemonUI] Erreur création QuestSystem:', error);
-    
-    // ✅ FALLBACK: wrapper vide mais fonctionnel
-    return this.createEmptyWrapper('quest');
-  }
-}
+    }
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
