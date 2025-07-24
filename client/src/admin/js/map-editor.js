@@ -899,6 +899,8 @@ extractProperties(properties) {
 }
     
 async loadExistingObjects(mapId) {
+        // VERSION_2024_FIX_NPCs_v2 - Ne pas supprimer cette ligne
+
     try {
         console.log(`🗺️ [MapEditor] Loading gameobjects and NPCs for zone: ${mapId}`)
         
