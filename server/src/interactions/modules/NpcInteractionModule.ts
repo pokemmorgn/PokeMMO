@@ -106,11 +106,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // ✅ INITIALISATION HANDLERS MODULAIRES (existant + nouveau)
     this.initializeHandlers();
 
-    this.log('info', '🔄 Module NPC initialisé avec Intégration Quêtes Optimisée', {
+    this.log('info', '🔄 Module NPC initialisé avec Interface Unifiée CORRIGÉE', {
       version: this.version,
-      handlersLoaded: ['merchant', 'unifiedInterface'],
-      questIntegration: 'Phase 3 - Triggers automatiques',
-      questManager: !!this.questManager
+      handlersLoaded: ['merchant', 'unifiedInterface']
     });
   }
 
@@ -716,34 +714,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return talkValidationResult;
     }
 
-    // 3. ✨ NOUVEAU : Progression optimisée des quêtes avec triggers
-    this.log('info', 'Déclenchement trigger talk pour quêtes');
+    // 3. Progression normale des quêtes
+    this.log('info', 'Déclenchement updateQuestProgress pour talk');
     
     let questProgress: any[] = [];
     try {
-      // Utiliser la nouvelle méthode progressQuest du QuestManager
-      const progressResult = await this.questManager.progressQuest(player.name, {
+      questProgress = await this.questManager.updateQuestProgress(player.name, {
         type: 'talk',
-        target: npcId.toString(),
-        amount: 1,
-        data: {
-          npc: {
-            id: npcId,
-            name: npc.name || `NPC #${npcId}`,
-            type: npc.type || 'dialogue'
-          },
-          location: {
-            x: player.x,
-            y: player.y,
-            map: player.currentZone
-          }
-        }
+        npcId: npcId,
+        targetId: npcId.toString()
       });
-      
-      questProgress = progressResult.results || [];
-      this.log('info', `✅ Trigger talk traité: ${questProgress.length} progression(s)`, questProgress);
+      this.log('info', 'Résultats progression quêtes', questProgress);
     } catch (error) {
-      this.log('error', '❌ Erreur trigger talk:', error);
+      this.log('error', 'Erreur updateQuestProgress', error);
     }
 
     // 4. Vérifier les quêtes prêtes à compléter
@@ -756,22 +739,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const completionDialogue = this.getQuestDialogue(questDefinition, 'questComplete');
       
-      // ✨ NOUVEAU : Compléter via ServiceRegistry avec meilleure gestion
+      // Compléter automatiquement toutes les quêtes prêtes
       const completionResults = [];
       for (const quest of readyToCompleteQuests) {
-        this.log('info', `🏆 Tentative completion quête: ${quest.id}`);
-        
-        const result = await this.questManager.completePlayerQuest(player.name, quest.id);
-        if (result.success) {
-          completionResults.push({
-            questId: quest.id,
-            questName: questDefinition?.name || quest.id,
-            questRewards: result.rewards || [],
-            message: result.message
-          });
-          this.log('info', `✅ Quête complétée: ${quest.id}`);
-        } else {
-          this.log('warn', `⚠️ Échec completion: ${result.message}`);
+        const result = await this.questManager.completeQuestManually(player.name, quest.id);
+        if (result) {
+          completionResults.push(result);
         }
       }
       
@@ -1317,26 +1290,11 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // === MÉTHODES PUBLIQUES POUR QUÊTES (INCHANGÉES) ===
 
-async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-  try {
-    this.log('info', '🎯 Démarrage quête via NPC', { username, questId });
-    
-    // ✨ NOUVEAU : Utilis`er la méthode ServiceRegistry
-    const giveResult = await this.questManager.giveQuest(username, questId);
-    
-    if (giveResult.success) {
-      this.log('info', `✅ Quête donnée avec succès: ${giveResult.quest?.name || questId}`);
-      return {
-        success: true,
-        message: giveResult.message,
-        quest: giveResult.quest
-      };
-    } else {
-      this.log('warn', `⚠️ Impossible de donner la quête: ${giveResult.message}`);
-      return {
-        success: false,
-        message: giveResult.message
-      };
+  async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
+    try {
+      this.log('info', 'Démarrage quête', { username, questId });
+      
+      const quest = await this.questManager.startQuest(username, questId);
       if (quest) {
         this.log('info', 'Quête démarrée avec succès', { questName: quest.name });
         return {
