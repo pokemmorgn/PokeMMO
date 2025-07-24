@@ -734,17 +734,88 @@ renderTableContent(documents, tableHeader, tableBody) {
     }
 
 editInlineDocument(docId, button) {
-    // ✅ SOLUTION: Éditer une seule cellule à la fois
-    const cellToEdit = prompt('Quel champ voulez-vous modifier ?', 'name')
-    if (!cellToEdit) return
+    const row = button.closest('tr')
+    const cells = row.querySelectorAll('.mongodb-data-cell')
     
-    const newValue = prompt(`Nouvelle valeur pour "${cellToEdit}":`)
-    if (newValue === null) return
+    // Ajouter un événement click sur chaque cellule
+    cells.forEach((cell, index) => {
+        if (index === 0) return // Skip l'ID
+        
+        cell.style.cursor = 'pointer'
+        cell.style.backgroundColor = '#f0f8ff'
+        cell.title = 'Cliquer pour éditer'
+        
+        cell.onclick = () => this.editSingleCell(docId, cell, index)
+    })
     
-    // Sauvegarder directement
-    this.saveFieldUpdate(docId, cellToEdit, newValue)
+    // Changer le bouton en mode "Édition active"
+    button.innerHTML = '<i class="fas fa-times"></i>'
+    button.onclick = () => this.cancelEdit(row, button)
+    button.title = 'Annuler édition'
+    button.style.backgroundColor = '#ffc107'
 }
 
+editSingleCell(docId, cell, columnIndex) {
+    const currentValue = cell.textContent.trim()
+    const fieldName = this.getColumnName(columnIndex + 1)
+    
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.value = currentValue
+    input.className = 'mongodb-cell-edit'
+    input.style.cssText = 'width: 100%; border: 2px solid #007bff; padding: 4px; background: white;'
+    
+    cell.innerHTML = ''
+    cell.appendChild(input)
+    input.focus()
+    input.select()
+    
+    // Sauvegarder sur Enter ou perte de focus
+    const saveEdit = async () => {
+        const newValue = input.value
+        await this.saveSingleField(docId, fieldName, newValue)
+        this.loadDocuments(this.currentQuery) // Refresh
+    }
+    
+    input.onkeypress = (e) => {
+        if (e.key === 'Enter') saveEdit()
+    }
+    input.onblur = saveEdit
+}
+
+async saveSingleField(docId, fieldName, newValue) {
+    try {
+        // Récupérer le document complet
+        const response = await this.adminPanel.apiCall(`/mongodb/document/${this.currentDatabase}/${this.currentCollection}/${docId}`)
+        
+        if (response.success) {
+            const fullDocument = response.document
+            fullDocument[fieldName] = newValue
+            
+            // Sauvegarder
+            const saveResponse = await this.adminPanel.apiCall('/mongodb/update-document', {
+                method: 'POST',
+                body: JSON.stringify({
+                    database: this.currentDatabase,
+                    collection: this.currentCollection,
+                    document: fullDocument,
+                    originalId: docId
+                })
+            })
+            
+            if (saveResponse.success) {
+                this.adminPanel.showNotification(`"${fieldName}" mis à jour`, 'success')
+            }
+        }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+    }
+}
+
+cancelEdit(row, button) {
+    // Recharger pour annuler les modifications
+    this.loadDocuments(this.currentQuery)
+}
 async saveFieldUpdate(docId, fieldName, newValue) {
     try {
         // Récupérer le document complet d'abord
