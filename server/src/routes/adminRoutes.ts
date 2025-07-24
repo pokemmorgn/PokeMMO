@@ -225,43 +225,48 @@ router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) =
     // Convertir les gameobjects au format attendu
     const formattedObjects = gameObjects.map(obj => obj.toObjectFormat());
     
-    // Convertir les NPCs au format attendu par l'éditeur
-    const formattedNPCs = npcs.map((npc: any) => ({
-      id: npc.npcId,
-      type: 'npc',
-      name: npc.name,
-      x: npc.position.x,
-      y: npc.position.y,
-      sprite: npc.sprite,
-      direction: npc.direction,
-      npcType: npc.type,
-      
-      // Propriétés comportementales
-      interactionRadius: npc.interactionRadius,
-      canWalkAway: npc.canWalkAway,
-      autoFacePlayer: npc.autoFacePlayer,
-      repeatable: npc.repeatable,
-      cooldownSeconds: npc.cooldownSeconds,
-      
-      // Données spécifiques du type
-      npcData: npc.npcData,
-      
-      // Système de quêtes
-      questsToGive: npc.questsToGive,
-      questsToEnd: npc.questsToEnd,
-      questRequirements: npc.questRequirements,
-      questDialogueIds: npc.questDialogueIds,
-      
-      // Conditions de spawn
-      spawnConditions: npc.spawnConditions,
-      
-      customProperties: {
-        originalNPCType: npc.type,
-        mongoId: npc._id?.toString(),
-        isNPC: true,
-        version: npc.version
-      }
-    }));
+   // Convertir les NPCs au format attendu par l'éditeur
+const formattedNPCs = npcs.map((npc: any) => ({
+  id: npc.npcId,
+  type: 'npc',
+  name: npc.name,
+  // ✅ CORRECTION : Garder les coordonnées en pixels ET ajouter tiles
+  x: npc.position.x,  // Coordonnées en pixels pour compatibilité
+  y: npc.position.y,  // Coordonnées en pixels pour compatibilité
+  position: {         // Position en pixels (format standard)
+    x: npc.position.x,
+    y: npc.position.y
+  },
+  sprite: npc.sprite,
+  direction: npc.direction,
+  npcType: npc.type,
+  
+  // Propriétés comportementales
+  interactionRadius: npc.interactionRadius,
+  canWalkAway: npc.canWalkAway,
+  autoFacePlayer: npc.autoFacePlayer,
+  repeatable: npc.repeatable,
+  cooldownSeconds: npc.cooldownSeconds,
+  
+  // Données spécifiques du type
+  npcData: npc.npcData,
+  
+  // Système de quêtes
+  questsToGive: npc.questsToGive,
+  questsToEnd: npc.questsToEnd,
+  questRequirements: npc.questRequirements,
+  questDialogueIds: npc.questDialogueIds,
+  
+  // Conditions de spawn
+  spawnConditions: npc.spawnConditions,
+  
+  customProperties: {
+    originalNPCType: npc.type,
+    mongoId: npc._id?.toString(),
+    isNPC: true,
+    version: npc.version
+  }
+}));
     
     // ✅ LOG 2 - NPCs après conversion
     console.log('🔍 [DEBUG] Formatted NPCs:', formattedNPCs.map(npc => ({
@@ -273,20 +278,24 @@ router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) =
       sprite: npc.sprite
     })));
     
-    // ✅ NPC DE TEST
-    const testNPC = {
-      id: 9999,
-      type: 'npc',
-      name: 'Test NPC Debug',
-      x: 5,
-      y: 5,
-      sprite: 'npc_test',
-      direction: 'south',
-      npcType: 'dialogue',
-      customProperties: {
-        isTest: true
-      }
-    };
+// ✅ NPC DE TEST avec coordonnées en pixels
+const testNPC = {
+  id: 9999,
+  type: 'npc',
+  name: 'Test NPC Debug',
+  x: 5 * 16,  // ✅ Convertir en pixels (5 tiles * 16px)
+  y: 5 * 16,  // ✅ Convertir en pixels (5 tiles * 16px)
+  position: {
+    x: 5 * 16,
+    y: 5 * 16
+  },
+  sprite: 'npc_test',
+  direction: 'south',
+  npcType: 'dialogue',
+  customProperties: {
+    isTest: true
+  }
+};
     
     // Combiner objets et NPCs
     const allObjects = [...formattedObjects, ...formattedNPCs, testNPC];
