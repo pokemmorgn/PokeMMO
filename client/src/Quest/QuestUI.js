@@ -42,7 +42,13 @@ export class QuestUI {
       this.createTrackerInterface();
       this.setupEventListeners();
       
-      console.log('✅ [QuestUI] Interface prête');
+      // ✅ FIX: S'assurer que le journal est fermé par défaut
+      this.isVisible = false;
+      
+      // ✅ FIX: Masquer le tracker par défaut (il s'affichera quand il y aura des quêtes)
+      this.hideTracker();
+      
+      console.log('✅ [QuestUI] Interface prête - Journal fermé par défaut');
       return this;
       
     } catch (error) {
