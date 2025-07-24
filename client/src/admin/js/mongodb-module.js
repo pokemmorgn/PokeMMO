@@ -783,10 +783,17 @@ async saveInlineDocument(docId, button) {
         
         if (response.success) {
             this.adminPanel.showNotification('Document mis à jour', 'success')
-            this.loadDocuments() // Refresh
+            
+            // ✅ CORRECTION: Recharger complètement la table au lieu de garder les inputs
+            await this.loadDocuments(this.currentQuery)
+        } else {
+            throw new Error(response.message || 'Erreur sauvegarde')
         }
     } catch (error) {
         this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+        
+        // ✅ En cas d'erreur, recharger aussi pour annuler l'édition
+        await this.loadDocuments(this.currentQuery)
     }
 }
     
