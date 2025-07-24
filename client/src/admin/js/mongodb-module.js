@@ -701,6 +701,18 @@ renderTableContent(documents, tableHeader, tableBody) {
         return keys
     }
 
+    getColumnName(columnIndex) {
+    const headers = document.querySelectorAll('#tableHeader th')
+    if (headers[columnIndex]) {
+        const onclick = headers[columnIndex].getAttribute('onclick')
+        if (onclick) {
+            const match = onclick.match(/sortBy\('([^']+)'\)/)
+            return match ? match[1] : 'field' + columnIndex
+        }
+    }
+    return 'field' + columnIndex
+}
+    
     // Améliorer la récupération de valeur (même imbriquée)
     getNestedValue(obj, key) {
         if (!key.includes('.')) {
