@@ -589,60 +589,77 @@ export class UIManager {
     console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
-  positionIcon(moduleId) {
-    const iconConfig = this.registeredIcons.get(moduleId);
-    if (!iconConfig || !iconConfig.element) return;
-
-    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-    const memberIndex = group.members.indexOf(moduleId);
-    
-    if (memberIndex === -1) return;
-
-    let baseX, baseY;
-    const padding = this.iconConfig.padding;
-    
-    switch (iconConfig.anchor) {
-      case 'bottom-right':
-        baseX = window.innerWidth - padding;
-        baseY = window.innerHeight - padding;
-        break;
-      case 'bottom-left':
-        baseX = padding;
-        baseY = window.innerHeight - padding;
-        break;
-      case 'top-right':
-        baseX = window.innerWidth - padding;
-        baseY = padding + 60; // Augmenter encore plus pour descendre le widget
-        break;
-      case 'top-left':
-        baseX = padding;
-        baseY = padding;
-        break;
-      default:
-        baseX = window.innerWidth - padding;
-        baseY = window.innerHeight - padding;
-    }
-
-    const spacing = this.iconConfig.spacing;
-    const iconWidth = iconConfig.size.width;
-    
-    let offsetX = 0;
-    if (iconConfig.anchor.includes('right')) {
-      offsetX = -memberIndex * (iconWidth + spacing) - iconWidth;
-    } else {
-      offsetX = memberIndex * (iconWidth + spacing);
-    }
-
-    const element = iconConfig.element;
-    element.style.position = 'fixed';
-    element.style.left = `${baseX + offsetX}px`;
-    element.style.top = `${baseY - iconConfig.size.height}px`;
-    element.style.zIndex = this.iconConfig.zIndex;
-
-    if (this.debug) {
-      console.log(`📍 [UIManager] ${moduleId} positionné PROTÉGÉ à (${baseX + offsetX}, ${baseY - iconConfig.size.height})`);
-    }
+positionIcon(moduleId) {
+  const iconConfig = this.registeredIcons.get(moduleId);
+  if (!iconConfig || !iconConfig.element) {
+    console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
+    return;
   }
+
+  const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+  const memberIndex = group.members.indexOf(moduleId);
+  
+  if (memberIndex === -1) {
+    console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
+    return;
+  }
+
+  let baseX, baseY;
+  const padding = this.iconConfig.padding;
+  
+  switch (iconConfig.anchor) {
+    case 'bottom-right':
+      baseX = window.innerWidth - padding;
+      baseY = window.innerHeight - padding;
+      break;
+    case 'bottom-left':
+      baseX = padding;
+      baseY = window.innerHeight - padding;
+      break;
+    case 'top-right':
+      baseX = window.innerWidth - padding;
+      baseY = padding + 60;
+      break;
+    case 'top-left':
+      baseX = padding;
+      baseY = padding;
+      break;
+    default:
+      baseX = window.innerWidth - padding;
+      baseY = window.innerHeight - padding;
+  }
+
+  const spacing = this.iconConfig.spacing;
+  const iconWidth = iconConfig.size.width;
+  
+  // ✅ CORRECTION CRITIQUE: Utiliser ORDER au lieu de memberIndex
+  const iconOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
+  
+  let offsetX = 0;
+  if (iconConfig.anchor.includes('right')) {
+    // Pour bottom-right: chaque icône d'ordre supérieur va plus à gauche
+    offsetX = -iconOrder * (iconWidth + spacing) - iconWidth;
+  } else {
+    // Pour bottom-left: chaque icône d'ordre supérieur va plus à droite  
+    offsetX = iconOrder * (iconWidth + spacing);
+  }
+
+  const element = iconConfig.element;
+  const finalX = baseX + offsetX;
+  const finalY = baseY - iconConfig.size.height;
+  
+  element.style.position = 'fixed';
+  element.style.left = `${finalX}px`;
+  element.style.top = `${finalY}px`;
+  element.style.zIndex = this.iconConfig.zIndex;
+
+  // ✅ Marquer comme positionné
+  element.setAttribute('data-positioned-by', 'uimanager');
+  
+  if (this.debug) {
+    console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${iconOrder} (était memberIndex: ${memberIndex})`);
+  }
+}
 
   repositionAllIcons() {
     this.registeredIcons.forEach((iconConfig, moduleId) => {
