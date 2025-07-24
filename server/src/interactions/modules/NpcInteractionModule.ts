@@ -106,9 +106,11 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // ✅ INITIALISATION HANDLERS MODULAIRES (existant + nouveau)
     this.initializeHandlers();
 
-    this.log('info', '🔄 Module NPC initialisé avec Interface Unifiée CORRIGÉE', {
+    this.log('info', '🔄 Module NPC initialisé avec Intégration Quêtes Optimisée', {
       version: this.version,
-      handlersLoaded: ['merchant', 'unifiedInterface']
+      handlersLoaded: ['merchant', 'unifiedInterface'],
+      questIntegration: 'Phase 3 - Triggers automatiques',
+      questManager: !!this.questManager
     });
   }
 
