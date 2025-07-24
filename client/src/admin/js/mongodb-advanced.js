@@ -1195,13 +1195,20 @@ changeFieldType(select) {
         
         if (input.type === 'checkbox') return input.checked
         if (input.tagName === 'SELECT') return input.value === 'true'
-        if (input.classList.contains('mongodb-array-textarea') || input.classList.contains('mongodb-object-textarea')) {
-            try {
-                return JSON.parse(input.value || '{}')
-            } catch {
-                return input.value
+if (input.classList.contains('mongodb-array-textarea') || input.classList.contains('mongodb-object-textarea')) {
+    try {
+        // ✅ CORRECTION: Si le textarea est vide mais qu'il y avait une valeur, garder l'originale
+        if (!input.value.trim() && this.currentEditingDocument) {
+            const fieldName = input.closest('.mongodb-document-field').querySelector('.mongodb-field-name').value
+            if (this.currentEditingDocument[fieldName]) {
+                return this.currentEditingDocument[fieldName]
             }
         }
+        return JSON.parse(input.value || '{}')
+    } catch {
+        return input.value
+    }
+}
         
         return input.value
     }
