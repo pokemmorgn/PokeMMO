@@ -1,4 +1,5 @@
 // PokeWorld Admin Panel - Map Editor Module avec Items Dynamiques
+console.log('🔥 FICHIER MODIFIÉ LE 24 JUILLET 2025 - VERSION TEST');
 
 export class MapEditorModule {
     constructor(adminPanel) {
