@@ -755,11 +755,22 @@ export class NpcInteractionModule extends BaseInteractionModule {
       const completionDialogue = this.getQuestDialogue(questDefinition, 'questComplete');
       
       // Compléter automatiquement toutes les quêtes prêtes
+      // ✨ NOUVEAU : Compléter via ServiceRegistry avec meilleure gestion
       const completionResults = [];
       for (const quest of readyToCompleteQuests) {
-        const result = await this.questManager.completeQuestManually(player.name, quest.id);
-        if (result) {
-          completionResults.push(result);
+        this.log('info', `🏆 Tentative completion quête: ${quest.id}`);
+        
+        const result = await this.questManager.completePlayerQuest(player.name, quest.id);
+        if (result.success) {
+          completionResults.push({
+            questId: quest.id,
+            questName: questDefinition?.name || quest.id,
+            questRewards: result.rewards || [],
+            message: result.message
+          });
+          this.log('info', `✅ Quête complétée: ${quest.id}`);
+        } else {
+          this.log('warn', `⚠️ Échec completion: ${result.message}`);
         }
       }
       
