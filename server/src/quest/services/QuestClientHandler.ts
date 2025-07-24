@@ -819,6 +819,36 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return result;
   }
 
+  // ===== IMPLÉMENTATION QuestClientNotifier =====
+
+  /**
+   * 📡 Notification générique (interface QuestClientNotifier)
+   */
+  async notify(playerId: string, message: QuestClientMessage): Promise<boolean> {
+    return await this.sendMessage(playerId, message);
+  }
+
+  /**
+   * 📡 Notification batch (interface QuestClientNotifier)
+   */
+  async notifyBatch(messages: QuestClientMessage[]): Promise<QuestBatchNotificationResult> {
+    return await this.sendBatchNotifications(messages);
+  }
+
+  /**
+   * 📡 Mettre à jour config joueur (interface QuestClientNotifier)
+   */
+  async updatePlayerConfig(playerId: string, config: Partial<QuestNotificationConfig>): Promise<boolean> {
+    return await this.updatePlayerNotificationConfig(playerId, config);
+  }
+
+  /**
+   * 📡 Récupérer config joueur (interface QuestClientNotifier)
+   */
+  async getPlayerConfig(playerId: string): Promise<QuestNotificationConfig | null> {
+    return await this.getPlayerNotificationConfig(playerId);
+  }
+
   // ===== CONFIGURATION JOUEURS =====
 
   /**
@@ -1029,9 +1059,12 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     // Appliquer préférences utilisateur
     const config = state.config;
     
-    // Ajuster durée selon préférences
-    if (config.displaySettings[message.display.type]) {
-      const displayConfig = config.displaySettings[message.display.type];
+    // Ajuster durée selon préférences (vérifier que le type existe)
+    const displayType = message.display.type;
+    const supportedTypes: Array<keyof typeof config.displaySettings> = ['toast', 'modal', 'banner', 'popup'];
+    
+    if (supportedTypes.includes(displayType as any)) {
+      const displayConfig = config.displaySettings[displayType as keyof typeof config.displaySettings];
       message.display.duration = displayConfig.duration;
       
       if (message.display.sound) {
