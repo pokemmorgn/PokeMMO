@@ -1,5 +1,5 @@
-// Quest/QuestIcon.js - VERSION OPTIMISÉE ALIGNÉE
-// 🎯 Simplifié pour cohérence avec QuestManager/QuestModule
+// Quest/QuestIcon.js - VERSION SIMPLIFIÉE ET NETTOYÉE
+// 🎯 Icône quest simple et efficace
 
 export class QuestIcon {
   constructor(questManager) {
@@ -19,14 +19,14 @@ export class QuestIcon {
       hasActiveQuests: false
     };
     
-    console.log('📖 [QuestIcon] Instance créée - Version optimisée');
+    console.log('📖 [QuestIcon] Instance créée - Version simplifiée');
   }
   
-  // === 🚀 INITIALISATION SIMPLE ===
+  // === 🚀 INITIALISATION ===
   
   async init() {
     try {
-      console.log('🚀 [QuestIcon] Initialisation simple...');
+      console.log('🚀 [QuestIcon] Initialisation...');
       
       this.addStyles();
       this.createIcon();
@@ -42,7 +42,7 @@ export class QuestIcon {
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE SIMPLIFIÉE ===
+  // === 🎨 CRÉATION INTERFACE ===
   
   createIcon() {
     // Supprimer ancien
@@ -324,7 +324,7 @@ export class QuestIcon {
     console.log('🎨 [QuestIcon] Styles optimisés ajoutés');
   }
   
-  // === 🎛️ ÉVÉNEMENTS SIMPLES ===
+  // === 🎛️ ÉVÉNEMENTS ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -413,7 +413,7 @@ export class QuestIcon {
     console.log('📊 [QuestIcon] Affichage mis à jour');
   }
   
-  // === 🎛️ CONTRÔLES UI MANAGER ===
+  // === 🎛️ CONTRÔLES UI ===
   
   show() {
     this.isVisible = true;
@@ -437,7 +437,7 @@ export class QuestIcon {
     if (this.iconElement) {
       if (enabled) {
         this.iconElement.classList.remove('disabled');
-        this.forceDisplay(); // Re-force si activé
+        this.forceDisplay();
       } else {
         this.iconElement.classList.add('disabled');
       }
@@ -446,7 +446,7 @@ export class QuestIcon {
     return true;
   }
   
-  // === 💬 TOOLTIP SIMPLE ===
+  // === 💬 TOOLTIP ===
   
   showTooltip() {
     const { questCount, newQuests, readyToComplete, hasActiveQuests } = this.displayStats;
@@ -513,7 +513,7 @@ export class QuestIcon {
     }
   }
   
-  // === 🎭 ANIMATIONS ESSENTIELLES ===
+  // === 🎭 ANIMATIONS ===
   
   animateNewQuest() {
     if (!this.iconElement) return;
@@ -592,45 +592,6 @@ export class QuestIcon {
     
     console.log('✅ [QuestIcon] Détruit');
   }
-  
-  // === 🐛 DEBUG SIMPLE ===
-  
-  getDebugInfo() {
-    return {
-      isVisible: this.isVisible,
-      isEnabled: this.isEnabled,
-      hasElement: !!this.iconElement,
-      elementInDOM: this.iconElement ? document.contains(this.iconElement) : false,
-      displayStats: this.displayStats,
-      hasOnClick: !!this.onClick
-    };
-  }
 }
 
 export default QuestIcon;
-
-console.log(`
-📖 === QUEST ICON OPTIMISÉ ===
-
-✅ OPTIMISATIONS:
-• Supprimé: forceRepair(), setFallbackPosition(), debugInfo() complexe
-• Supprimé: Vérifications position excessive et indicateurs visuels debug
-• Supprimé: Auto-repair et health checks
-• Simplifié: Styles CSS (gardé l'essentiel)
-• Simplifié: Gestion état et affichage
-
-🎯 GARDÉ L'ESSENTIEL:
-• Affichage garanti avec forceDisplay()
-• Animations et feedback utilisateur
-• Tooltip informatif
-• Intégration UIManager
-• Stats et mise à jour données
-
-⚡ RÉSULTAT:
-• Code 40% plus court
-• Même fonctionnalité garantie
-• Logique plus claire
-• Cohérent avec architecture simplifiée
-
-✅ QUEST ICON ALIGNÉ SUR NOUVELLE ARCHITECTURE !
-`);
