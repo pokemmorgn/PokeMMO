@@ -683,7 +683,8 @@ export class QuestSystem {
   show() {
     if (this.ui) this.ui.show();
     if (this.icon) this.icon.show();
-    if (this.tracker) this.tracker.showTracker();
+    // ✅ FIX: Ne pas montrer le tracker automatiquement
+    // Le tracker s'affiche seulement s'il y a des quêtes actives
   }
   
   hide() {
