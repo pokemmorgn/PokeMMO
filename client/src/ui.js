@@ -231,136 +231,166 @@ export class PokemonUISystem {
     }
   }
 
-  // === ENREGISTREMENT MODULES ===
-  async registerAllModules() {
-    const moduleConfigs = [
-      {
-        id: 'inventory',
-        critical: true,
-        factory: this.createInventoryModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 0,
-          spacing: 10
+      // === ENREGISTREMENT MODULES ===
+    // === ENREGISTREMENT MODULES COMPLET CORRIGÉ ===
+    async registerAllModules() {
+      const moduleConfigs = [
+        {
+          id: 'inventory',
+          critical: true,
+          factory: this.createInventoryModule.bind(this),
+          groups: ['ui-icons'],
+          layout: {
+            type: 'icon',
+            anchor: 'bottom-right',
+            order: 0,
+            spacing: 10
+          },
+          priority: 100
+        },     
+        {
+          id: 'quest',
+          critical: false,
+          factory: this.createQuestModule.bind(this),
+          groups: ['ui-icons'],
+          layout: {
+            type: 'icon',
+            anchor: 'bottom-right',
+            order: 1,
+            spacing: 10
+          },
+          priority: 90,
+          // ✅ FIX: Journal fermé par défaut !
+          defaultState: {
+            visible: false, // ✅ CORRECTION PRINCIPALE
+            enabled: true,
+            initialized: false
+          },
+          metadata: {
+            name: 'Quest System',
+            description: 'Complete quest management system with progression tracking',
+            version: '1.0.0',
+            category: 'Quest Management'
+          }
         },
-        priority: 100
-      },     
-      {
-        id: 'quest',
-        critical: false,
-        factory: this.createQuestModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 1,
-          spacing: 10
+        {
+          id: 'pokedex',
+          critical: false,
+          factory: this.createPokedexModule.bind(this),
+          groups: ['ui-icons'],
+          layout: {
+            type: 'icon',
+            anchor: 'bottom-right',
+            order: 2,
+            spacing: 10
+          },
+          priority: 85,
+          defaultState: {
+            visible: true,
+            enabled: true,
+            initialized: false
+          },
+          metadata: {
+            name: 'Pokédex National',
+            description: 'Complete Pokédex system with discovery tracking',
+            version: '1.0.0',
+            category: 'Data Management'
+          }
         },
-        priority: 90
-      },
-{
-  id: 'pokedex',
-  critical: false,
-  factory: this.createPokedexModule.bind(this),
-  groups: ['ui-icons'],
-  layout: {
-    type: 'icon',
-    anchor: 'bottom-right',
-    order: 2,
-    spacing: 10
-  },
-  priority: 85,
-  defaultState: {
-    visible: true,
-    enabled: true,
-    initialized: false
-  },
-  metadata: {
-    name: 'Pokédx National',
-    description: 'Complete Pokédx system with discovery tracking',
-    version: '1.0.0',
-    category: 'Data Management'
-  }
-},
-      {
-        id: 'team',
-        critical: true,
-        factory: this.createTeamModule.bind(this),
-        defaultState: {
-          visible: true,
-          enabled: true,
-          initialized: false
+        {
+          id: 'team',
+          critical: true,
+          factory: this.createTeamModule.bind(this),
+          defaultState: {
+            visible: true,
+            enabled: true,
+            initialized: false
+          },
+          priority: 100,
+          layout: {
+            type: 'icon',
+            anchor: 'bottom-right',
+            order: 3, // ✅ FIX: ordre corrigé
+            spacing: 10
+          },
+          groups: ['ui-icons'],
+          metadata: {
+            name: 'Team Manager',
+            description: 'Complete Pokemon team management system',
+            version: '1.0.0',
+            category: 'Pokemon Management'
+          }
         },
-        priority: 100,
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 3,
-          spacing: 10
+        {
+          id: 'timeWeather',
+          critical: false,
+          factory: async () => {
+            const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
+            return createTimeWeatherModule();
+          },
+          groups: ['weather'],
+          layout: {
+            type: 'icon',
+            anchor: 'top-right',
+            order: 50,
+            spacing: 10
+          },
+          priority: 50,
+          defaultState: {
+            visible: true,
+            enabled: true,
+            initialized: false
+          },
+          metadata: {
+            name: 'Time & Weather',
+            description: 'Real-time weather and time tracking system',
+            version: '1.0.0',
+            category: 'Environment'
+          }
         },
-        groups: ['ui-icons'],
-        metadata: {
-          name: 'Team Manager',
-          description: 'Complete Pokemon team management system',
-          version: '1.0.0',
-          category: 'Pokemon Management'
+        {
+          id: 'questTracker',
+          critical: false,
+          factory: this.createQuestTrackerModule.bind(this),
+          groups: ['panels'],
+          layout: {
+            type: 'panel',
+            anchor: 'top-right',
+            order: 0
+          },
+          responsive: {
+            mobile: { hidden: true },
+            tablet: { scale: 0.9 },
+            desktop: { scale: 1.0 }
+          },
+          priority: 80,
+          defaultState: {
+            visible: false, // ✅ Masqué par défaut, géré par QuestUI
+            enabled: true,
+            initialized: false
+          },
+          metadata: {
+            name: 'Quest Tracker',
+            description: 'Floating quest objectives tracker',
+            version: '1.0.0',
+            category: 'Quest Management'
+          }
         }
-      },
-      {
-  id: 'timeWeather',
-  critical: false,
-  factory: async () => {
-    const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
-    return createTimeWeatherModule();
-  },
-  groups: ['weather'], // Ou un nouveau groupe si besoin
-  layout: {
-    type: 'icon',
-    anchor: 'top-right',
-    order: 50,
-    spacing: 10
-  },
-  priority: 50,
-  defaultState: {
-    visible: true,
-    enabled: true,
-    initialized: false
-  }
-},
-      {
-        id: 'questTracker',
-        critical: false,
-        factory: this.createQuestTrackerModule.bind(this),
-        groups: ['panels'],
-        layout: {
-          type: 'panel',
-          anchor: 'top-right',
-          order: 0
-        },
-        responsive: {
-          mobile: { hidden: true },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 80
-      }
-    ];
-
-    for (const config of moduleConfigs) {
-      try {
-        if (this.uiManager.registerModule) {
-          await this.uiManager.registerModule(config.id, config);
-        } else {
-          const instance = await config.factory();
-          this.moduleInstances.set(config.id, instance);
+      ];
+    
+      for (const config of moduleConfigs) {
+        try {
+          if (this.uiManager.registerModule) {
+            await this.uiManager.registerModule(config.id, config);
+          } else {
+            const instance = await config.factory();
+            this.moduleInstances.set(config.id, instance);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur module '${config.id}':`, error);
         }
-      } catch (error) {
-        console.error(`❌ Erreur module '${config.id}':`, error);
       }
     }
-  }
 
   // === FACTORIES DES MODULES ===
 
