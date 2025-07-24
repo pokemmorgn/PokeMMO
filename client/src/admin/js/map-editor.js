@@ -698,11 +698,14 @@ placeGenericObject(tileX, tileY) {
                 mapData = await response.json()
             }
 
-            this.currentMapData = mapData
-            
-            await this.loadTilesets(mapData)
-            this.loadExistingMapObjects()
-            await this.loadExistingObjects(mapId)
+           this.currentMapData = mapData
+
+await this.loadTilesets(mapData)
+this.loadExistingMapObjects()
+console.log('🔍 [DEBUG] Objects after TMJ:', this.placedObjects.length)
+
+await this.loadExistingObjects(mapId)
+console.log('🔍 [DEBUG] Objects after DB:', this.placedObjects.length)
             
             this.renderMap()
             
