@@ -6,6 +6,7 @@ import { PlayerQuest } from '../models/PlayerQuest';
 import { Inventory } from '../models/Inventory';
 import { PokedexEntry } from '../models/PokedexEntry';
 import { PokedexStats } from '../models/PokedexStats';
+import { QuestData } from '../models/QuestData'; // ✅ AJOUT: Import du modèle QuestData
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -605,287 +606,269 @@ router.post('/bulk-actions', requireMacAndDev, async (req: any, res) => {
 
 // ✅ NOUVEAU: Routes pour gestion des quêtes dans adminRoutes.ts
 
-// Ajouter ces routes dans adminRoutes.ts après les routes existantes
-
-// ✅ ROUTE: Lister toutes les quêtes
+// ✅ ROUTE: Lister toutes les quêtes depuis MongoDB
 router.get('/quests', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log('🎯 [Quests API] Loading quests from MongoDB...');
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const questsData = await fs.readFile(questsPath, 'utf8');
-    const questsJson = JSON.parse(questsData);
+    const quests = await QuestData.find({ isActive: true })
+      .sort({ category: 1, questId: 1 })
+      .lean();
+    
+    console.log(`✅ [Quests API] ${quests.length} quests loaded from database`);
     
     res.json({
-      quests: questsJson.quests || [],
-      total: questsJson.quests?.length || 0,
-      lastModified: (await fs.stat(questsPath)).mtime
+      quests: quests.map(quest => ({
+        id: quest.questId,
+        name: quest.name,
+        description: quest.description,
+        category: quest.category,
+        startNpcId: quest.startNpcId,
+        endNpcId: quest.endNpcId,
+        isRepeatable: quest.isRepeatable,
+        autoComplete: quest.autoComplete,
+        dialogues: quest.dialogues,
+        steps: quest.steps
+      })),
+      total: quests.length,
+      lastModified: new Date()
     });
   } catch (error) {
-    console.error('❌ Erreur lecture quêtes:', error);
-    res.status(500).json({ error: 'Erreur lecture fichier quêtes' });
+    console.error('❌ Erreur lecture quêtes MongoDB:', error);
+    res.status(500).json({ error: 'Erreur lecture base de données' });
   }
 });
 
-// ✅ ROUTE: Ajouter une nouvelle quête
+// ✅ ROUTE: Ajouter une nouvelle quête dans MongoDB
 router.post('/quests', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log('🎯 [Quests API] Creating new quest in MongoDB...');
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const questsData = await fs.readFile(questsPath, 'utf8');
-    const questsJson = JSON.parse(questsData);
-    
-    const newQuest = {
-      id: req.body.id || `quest_${Date.now()}`,
+    const questData = {
+      questId: req.body.id || `quest_${Date.now()}`,
       name: req.body.name || 'Nouvelle Quête',
       description: req.body.description || 'Description de la quête',
       category: req.body.category || 'side',
       startNpcId: req.body.startNpcId || null,
       endNpcId: req.body.endNpcId || null,
       isRepeatable: req.body.isRepeatable || false,
-      autoComplete: req.body.autoComplete || false,
+      autoComplete: req.body.autoComplete !== false,
       dialogues: req.body.dialogues || {
         questOffer: ["Dialogue d'offre par défaut"],
         questInProgress: ["Dialogue en cours par défaut"],
         questComplete: ["Dialogue de fin par défaut"]
       },
-      steps: req.body.steps || []
+      steps: req.body.steps || [],
+      isActive: true,
+      version: '2.0.0'
     };
     
     // Vérifier que l'ID n'existe pas déjà
-    if (questsJson.quests.find((q: any) => q.id === newQuest.id)) {
+    const existing = await QuestData.findOne({ questId: questData.questId });
+    if (existing) {
       return res.status(400).json({ error: 'Une quête avec cet ID existe déjà' });
     }
     
-    questsJson.quests.push(newQuest);
+    const newQuest = await QuestData.create(questData);
     
-    // Sauvegarder avec backup
-    const backupPath = questsPath + `.backup.${Date.now()}`;
-    await fs.copyFile(questsPath, backupPath);
-    
-    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
-    
-    console.log(`🎯 [Admin] ${req.user.username} a ajouté la quête: ${newQuest.id}`);
+    console.log(`🎯 [Admin] ${req.user.username} a ajouté la quête: ${questData.questId}`);
     
     res.json({
       message: 'Quête ajoutée avec succès',
-      quest: newQuest,
-      backupCreated: backupPath
+      quest: {
+        id: newQuest.questId,
+        name: newQuest.name,
+        category: newQuest.category,
+        steps: newQuest.steps
+      }
     });
   } catch (error) {
-    console.error('❌ Erreur ajout quête:', error);
+    console.error('❌ Erreur ajout quête MongoDB:', error);
     res.status(500).json({ error: 'Erreur sauvegarde quête' });
   }
 });
 
-// ✅ ROUTE: Modifier une quête existante
+// ✅ ROUTE: Modifier une quête existante dans MongoDB
 router.put('/quests/:questId', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log(`🎯 [Quests API] Updating quest: ${req.params.questId}`);
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const questsData = await fs.readFile(questsPath, 'utf8');
-    const questsJson = JSON.parse(questsData);
-    
-    const questIndex = questsJson.quests.findIndex((q: any) => q.id === req.params.questId);
-    if (questIndex === -1) {
+    const quest = await QuestData.findOne({ questId: req.params.questId });
+    if (!quest) {
       return res.status(404).json({ error: 'Quête non trouvée' });
     }
     
-    // Backup avant modification
-    const backupPath = questsPath + `.backup.${Date.now()}`;
-    await fs.copyFile(questsPath, backupPath);
-    
-    // Mettre à jour la quête
-    questsJson.quests[questIndex] = {
-      ...questsJson.quests[questIndex],
-      ...req.body,
-      id: req.params.questId // Garder l'ID original
-    };
-    
-    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    // Mettre à jour avec les nouvelles données
+    await quest.updateFromJson(req.body);
     
     console.log(`🎯 [Admin] ${req.user.username} a modifié la quête: ${req.params.questId}`);
     
     res.json({
       message: 'Quête modifiée avec succès',
-      quest: questsJson.quests[questIndex],
-      backupCreated: backupPath
+      quest: {
+        id: quest.questId,
+        name: quest.name,
+        category: quest.category,
+        steps: quest.steps
+      }
     });
   } catch (error) {
-    console.error('❌ Erreur modification quête:', error);
+    console.error('❌ Erreur modification quête MongoDB:', error);
     res.status(500).json({ error: 'Erreur modification quête' });
   }
 });
 
-// ✅ ROUTE: Supprimer une quête
+// ✅ ROUTE: Supprimer une quête de MongoDB
 router.delete('/quests/:questId', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log(`🎯 [Quests API] Deleting quest: ${req.params.questId}`);
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const questsData = await fs.readFile(questsPath, 'utf8');
-    const questsJson = JSON.parse(questsData);
-    
-    const questIndex = questsJson.quests.findIndex((q: any) => q.id === req.params.questId);
-    if (questIndex === -1) {
+    const quest = await QuestData.findOneAndDelete({ questId: req.params.questId });
+    if (!quest) {
       return res.status(404).json({ error: 'Quête non trouvée' });
     }
-    
-    // Backup avant suppression
-    const backupPath = questsPath + `.backup.${Date.now()}`;
-    await fs.copyFile(questsPath, backupPath);
-    
-    const deletedQuest = questsJson.quests.splice(questIndex, 1)[0];
-    
-    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
     
     console.log(`🗑️ [Admin] ${req.user.username} a supprimé la quête: ${req.params.questId}`);
     
     res.json({
       message: 'Quête supprimée avec succès',
-      deletedQuest,
-      backupCreated: backupPath
+      deletedQuest: {
+        id: quest.questId,
+        name: quest.name
+      }
     });
   } catch (error) {
-    console.error('❌ Erreur suppression quête:', error);
+    console.error('❌ Erreur suppression quête MongoDB:', error);
     res.status(500).json({ error: 'Erreur suppression quête' });
   }
 });
 
-// ✅ ROUTE: Dupliquer une quête
+// ✅ ROUTE: Dupliquer une quête dans MongoDB
 router.post('/quests/:questId/duplicate', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log(`🎯 [Quests API] Duplicating quest: ${req.params.questId}`);
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const questsData = await fs.readFile(questsPath, 'utf8');
-    const questsJson = JSON.parse(questsData);
-    
-    const originalQuest = questsJson.quests.find((q: any) => q.id === req.params.questId);
+    const originalQuest = await QuestData.findOne({ questId: req.params.questId });
     if (!originalQuest) {
       return res.status(404).json({ error: 'Quête originale non trouvée' });
     }
     
-    const duplicatedQuest = {
-      ...originalQuest,
-      id: `${originalQuest.id}_copy_${Date.now()}`,
-      name: `${originalQuest.name} (Copie)`
+    const duplicatedQuestData = {
+      ...originalQuest.toObject(),
+      _id: undefined, // Nouveau document
+      questId: `${originalQuest.questId}_copy_${Date.now()}`,
+      name: `${originalQuest.name} (Copie)`,
+      lastUpdated: new Date()
     };
     
-    questsJson.quests.push(duplicatedQuest);
-    
-    const backupPath = questsPath + `.backup.${Date.now()}`;
-    await fs.copyFile(questsPath, backupPath);
-    
-    await fs.writeFile(questsPath, JSON.stringify(questsJson, null, 2));
+    const duplicatedQuest = await QuestData.create(duplicatedQuestData);
     
     console.log(`📋 [Admin] ${req.user.username} a dupliqué la quête: ${req.params.questId}`);
     
     res.json({
       message: 'Quête dupliquée avec succès',
-      quest: duplicatedQuest
+      quest: {
+        id: duplicatedQuest.questId,
+        name: duplicatedQuest.name
+      }
     });
   } catch (error) {
-    console.error('❌ Erreur duplication quête:', error);
+    console.error('❌ Erreur duplication quête MongoDB:', error);
     res.status(500).json({ error: 'Erreur duplication quête' });
   }
 });
 
-// ✅ ROUTE: Recharger le système de quêtes
+// ✅ ROUTE: Recharger le système de quêtes (validation MongoDB)
 router.post('/quests/reload', requireMacAndDev, async (req: any, res) => {
   try {
-    // Ici, vous pouvez ajouter la logique pour recharger le QuestManager
-    // Par exemple, si vous avez une méthode reload() dans QuestManager
+    console.log(`🔄 [Admin] ${req.user.username} a demandé validation système quêtes`);
     
-    console.log(`🔄 [Admin] ${req.user.username} a rechargé le système de quêtes`);
+    // Valider l'intégrité de la base de données
+    const validation = await QuestData.validateDatabaseIntegrity();
+    
+    let message = 'Système de quêtes validé avec succès';
+    if (!validation.valid) {
+      message += ` - ${validation.issues.length} problèmes détectés`;
+    }
     
     res.json({
-      message: 'Système de quêtes rechargé avec succès',
+      message,
+      validation,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Erreur rechargement quêtes:', error);
-    res.status(500).json({ error: 'Erreur rechargement système' });
+    console.error('❌ Erreur validation système quêtes:', error);
+    res.status(500).json({ error: 'Erreur validation système' });
   }
 });
 
-// ✅ ROUTE: Obtenir les backups disponibles
-router.get('/quests/backups', requireMacAndDev, async (req: any, res) => {
+// ✅ ROUTE: Statistiques des quêtes MongoDB
+router.get('/quests/stats', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log('📊 [Quests API] Getting quest statistics from MongoDB');
     
-    const questsDir = path.join(__dirname, '../data/quests');
-    const files = await fs.readdir(questsDir);
-    
-    const backups = files
-      .filter((file: string) => file.startsWith('quests.json.backup.'))
-      .map(async (file: string) => {
-        const filePath = path.join(questsDir, file);
-        const stats = await fs.stat(filePath);
-        return {
-          filename: file,
-          timestamp: parseInt(file.split('.').pop() || '0'),
-          date: stats.mtime,
-          size: stats.size
-        };
-      });
-    
-    const backupList = await Promise.all(backups);
-    backupList.sort((a, b) => b.timestamp - a.timestamp);
+    const [
+      totalQuests,
+      activeQuests,
+      categoryStats,
+      repeatableQuests,
+      questsByDifficulty
+    ] = await Promise.all([
+      QuestData.countDocuments(),
+      QuestData.countDocuments({ isActive: true }),
+      QuestData.aggregate([
+        { $group: { _id: '$category', count: { $sum: 1 } } }
+      ]),
+      QuestData.countDocuments({ isRepeatable: true }),
+      QuestData.aggregate([
+        { $group: { _id: '$metadata.difficulty', count: { $sum: 1 } } }
+      ])
+    ]);
     
     res.json({
-      backups: backupList.slice(0, 10), // Garder seulement les 10 plus récents
-      total: backupList.length
+      success: true,
+      stats: {
+        total: totalQuests,
+        active: activeQuests,
+        inactive: totalQuests - activeQuests,
+        repeatable: repeatableQuests,
+        categories: categoryStats.reduce((acc: any, stat: any) => {
+          acc[stat._id] = stat.count;
+          return acc;
+        }, {}),
+        difficulties: questsByDifficulty.reduce((acc: any, stat: any) => {
+          acc[stat._id || 'unknown'] = stat.count;
+          return acc;
+        }, {})
+      }
     });
   } catch (error) {
-    console.error('❌ Erreur liste backups:', error);
-    res.status(500).json({ error: 'Erreur lecture backups' });
+    console.error('❌ Erreur stats quêtes MongoDB:', error);
+    res.status(500).json({ error: 'Erreur statistiques' });
   }
 });
 
-// ✅ ROUTE: Restaurer depuis un backup
-router.post('/quests/restore/:backupFile', requireMacAndDev, async (req: any, res) => {
+// ✅ ROUTE: Migrer toutes les quêtes vers la dernière version
+router.post('/quests/migrate', requireMacAndDev, async (req: any, res) => {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log(`🔄 [Admin] ${req.user.username} a lancé la migration des quêtes`);
     
-    const questsPath = path.join(__dirname, '../data/quests/quests.json');
-    const backupPath = path.join(__dirname, '../data/quests', req.params.backupFile);
-    
-    // Vérifier que le backup existe
-    try {
-      await fs.access(backupPath);
-    } catch {
-      return res.status(404).json({ error: 'Backup non trouvé' });
-    }
-    
-    // Créer un backup du fichier actuel avant restauration
-    const currentBackupPath = questsPath + `.backup.before_restore.${Date.now()}`;
-    await fs.copyFile(questsPath, currentBackupPath);
-    
-    // Restaurer le backup
-    await fs.copyFile(backupPath, questsPath);
-    
-    console.log(`⏮️ [Admin] ${req.user.username} a restauré le backup: ${req.params.backupFile}`);
+    const migrationResult = await QuestData.migrateAllToLatestVersion();
     
     res.json({
-      message: 'Backup restauré avec succès',
-      restoredFrom: req.params.backupFile,
-      currentBackupCreated: currentBackupPath
+      message: 'Migration terminée',
+      migrated: migrationResult.migrated,
+      errors: migrationResult.errors,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Erreur restauration backup:', error);
-    res.status(500).json({ error: 'Erreur restauration backup' });
+    console.error('❌ Erreur migration quêtes:', error);
+    res.status(500).json({ error: 'Erreur migration' });
   }
 });
+
+
+
 
 // ✅ ROUTE: Logs système (simulé)
 router.get('/logs', requireMacAndDev, async (req: any, res) => {
