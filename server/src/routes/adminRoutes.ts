@@ -8,6 +8,7 @@ import { PokedexEntry } from '../models/PokedexEntry';
 import { PokedexStats } from '../models/PokedexStats';
 import { QuestData } from '../models/QuestData'; // ✅ AJOUT: Import du modèle QuestData
 import { GameObjectData } from '../models/GameObjectData';
+import { NpcData } from '../models/NpcData'; // ✅ Correct
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -200,18 +201,63 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
 
 // ✅ ROUTE: Charger les gameobjects d'une zone spécifique
 // ✅ ROUTE: Charger les gameobjects d'une zone depuis MongoDB
+// ✅ ROUTE: Charger les gameobjects ET NPCs d'une zone depuis MongoDB
 router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
   try {
     const { mapId } = req.params;
-    console.log(`🗺️ [Maps API] Loading gameobjects from MongoDB for zone: ${mapId}`);
+    console.log(`🗺️ [Maps API] Loading gameobjects and NPCs from MongoDB for zone: ${mapId}`);
     
-    // Récupérer tous les objets actifs de la zone
-    const gameObjects = await GameObjectData.findByZone(mapId);
+    // Récupérer les gameobjects et NPCs en parallèle
+const [gameObjects, npcs] = await Promise.all([
+  GameObjectData.findByZone(mapId),
+  NpcData.findByZone(mapId)
+]);
     
-    console.log(`✅ [Maps API] Found ${gameObjects.length} gameobjects for ${mapId}`);
+    console.log(`✅ [Maps API] Found ${gameObjects.length} gameobjects and ${npcs.length} NPCs for ${mapId}`);
     
-    // Convertir au format attendu par l'éditeur
+    // Convertir les gameobjects au format attendu
     const formattedObjects = gameObjects.map(obj => obj.toObjectFormat());
+    
+    // Convertir les NPCs au format attendu par l'éditeur
+// ✅ Conversion adaptée au modèle NpcData
+const formattedNPCs = npcs.map((npc: any) => ({
+  id: npc.npcId, // ✅ Utiliser npcId du modèle
+  type: 'npc',
+  name: npc.name,
+  x: npc.position.x,
+  y: npc.position.y,
+  sprite: npc.sprite,
+  direction: npc.direction,
+  npcType: npc.type, // ✅ Le type du NPC (dialogue, merchant, etc.)
+  
+  // Données spécifiques du modèle NpcData
+  interactionRadius: npc.interactionRadius,
+  canWalkAway: npc.canWalkAway,
+  autoFacePlayer: npc.autoFacePlayer,
+  repeatable: npc.repeatable,
+  cooldownSeconds: npc.cooldownSeconds,
+  
+  // Données spécifiques par type
+  npcData: npc.npcData,
+  
+  // Quêtes
+  questsToGive: npc.questsToGive,
+  questsToEnd: npc.questsToEnd,
+  questRequirements: npc.questRequirements,
+  questDialogueIds: npc.questDialogueIds,
+  
+  // Conditions de spawn
+  spawnConditions: npc.spawnConditions,
+  
+  customProperties: {
+    originalNPCType: npc.type,
+    mongoId: npc._id?.toString(),
+    isNPC: true,
+    version: npc.version
+  }
+}));
+    // Combiner objets et NPCs
+    const allObjects = [...formattedObjects, ...formattedNPCs];
     
     res.json({
       success: true,
@@ -219,7 +265,7 @@ router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) =
         zone: mapId,
         version: "2.0.0",
         lastUpdated: new Date().toISOString(),
-        description: `${mapId} - Objects from MongoDB`,
+        description: `${mapId} - Objects and NPCs from MongoDB`,
         defaultRequirements: {
           ground: { minLevel: 1 },
           hidden: { minLevel: 1 }
@@ -227,55 +273,66 @@ router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) =
         requirementPresets: {
           starter: { minLevel: 1 }
         },
-        objects: formattedObjects
+        objects: allObjects
       },
       mapId,
-      objectCount: gameObjects.length
+      objectCount: gameObjects.length,
+      npcCount: npcs.length,
+      totalCount: allObjects.length
     });
     
   } catch (error) {
-    console.error('❌ [Maps API] Error loading gameobjects from MongoDB:', error);
+    console.error('❌ [Maps API] Error loading gameobjects and NPCs from MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors du chargement des gameobjects depuis la base de données'
+      error: 'Erreur lors du chargement des objets et NPCs depuis la base de données'
     });
   }
 });
 
 // ✅ ROUTE: Sauvegarder les gameobjects d'une zone
-// ✅ ROUTE: Sauvegarder les gameobjects d'une zone dans MongoDB
+// ✅ ROUTE: Sauvegarder les gameobjects ET NPCs d'une zone dans MongoDB
 router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
   try {
     const { mapId } = req.params;
-    const gameObjectsData = req.body;
+    const mapData = req.body;
     
-    console.log(`💾 [Maps API] Saving gameobjects to MongoDB for zone: ${mapId}`);
-    console.log(`📊 [Maps API] Total objects: ${gameObjectsData.objects?.length || 0}`);
+    console.log(`💾 [Maps API] Saving gameobjects and NPCs to MongoDB for zone: ${mapId}`);
+    console.log(`📊 [Maps API] Total objects: ${mapData.objects?.length || 0}`);
     
-    if (!gameObjectsData.objects || !Array.isArray(gameObjectsData.objects)) {
+    if (!mapData.objects || !Array.isArray(mapData.objects)) {
       return res.status(400).json({
         success: false,
         error: 'Format de données invalide - objects array requis'
       });
     }
     
-    // Supprimer tous les objets existants de cette zone
-    await GameObjectData.deleteMany({ zone: mapId });
-    console.log(`🗑️ [Maps API] Cleared existing objects for zone: ${mapId}`);
+    // Séparer les objets et les NPCs
+    const gameObjects = mapData.objects.filter((obj: any) => obj.type !== 'npc');
+    const npcs = mapData.objects.filter((obj: any) => obj.type === 'npc');
     
-    let savedCount = 0;
+    console.log(`📊 [Maps API] GameObjects: ${gameObjects.length}, NPCs: ${npcs.length}`);
+    
+    // Supprimer tous les objets et NPCs existants de cette zone
+await Promise.all([
+  GameObjectData.deleteMany({ zone: mapId }),
+  NpcData.deleteMany({ zone: mapId })
+]);
+    
+    console.log(`🗑️ [Maps API] Cleared existing objects and NPCs for zone: ${mapId}`);
+    
+    let savedGameObjects = 0;
+    let savedNPCs = 0;
     const errors: string[] = [];
     
-    // Sauvegarder chaque objet
-    for (const obj of gameObjectsData.objects) {
+    // Sauvegarder les gameobjects
+    for (const obj of gameObjects) {
       try {
-        // Validation de base
-        if (!obj.id || !obj.type || !obj.position) {
-          errors.push(`Object manque des champs requis: ${JSON.stringify(obj)}`);
+        if (!obj.id || !obj.type || (!obj.position && (!obj.x || !obj.y))) {
+          errors.push(`GameObject manque des champs requis: ${JSON.stringify(obj)}`);
           continue;
         }
         
-        // Créer l'objet en base
         const gameObject = new GameObjectData({
           objectId: obj.id,
           zone: mapId,
@@ -302,16 +359,76 @@ router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) 
         });
         
         await gameObject.save();
-        savedCount++;
+        savedGameObjects++;
         
       } catch (error) {
-        const errorMsg = `Object ${obj.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const errorMsg = `GameObject ${obj.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         errors.push(errorMsg);
-        console.error('❌ [Maps API] Error saving object:', errorMsg);
+        console.error('❌ [Maps API] Error saving gameobject:', errorMsg);
       }
     }
     
-    console.log(`✅ [Maps API] Saved ${savedCount}/${gameObjectsData.objects.length} objects for ${mapId}`);
+   // ✅ Sauvegarde adaptée au modèle NpcData
+if (npcs.length > 0) {
+  for (const npc of npcs) {
+    try {
+      if (!npc.id || !npc.name || (!npc.position && (!npc.x || !npc.y))) {
+        errors.push(`NPC manque des champs requis: ${JSON.stringify(npc)}`);
+        continue;
+      }
+      
+      const npcObject = new NpcData({
+        npcId: npc.id,
+        zone: mapId,
+        name: npc.name,
+        type: npc.npcType || npc.customProperties?.originalNPCType || 'dialogue',
+        position: {
+          x: npc.position?.x || npc.x,
+          y: npc.position?.y || npc.y
+        },
+        sprite: npc.sprite || 'npc_default',
+        direction: npc.direction || 'south',
+        
+        // Propriétés comportementales
+        interactionRadius: npc.interactionRadius || 32,
+        canWalkAway: npc.canWalkAway || false,
+        autoFacePlayer: npc.autoFacePlayer !== false,
+        repeatable: npc.repeatable !== false,
+        cooldownSeconds: npc.cooldownSeconds || 0,
+        
+        // Données spécifiques du type
+        npcData: npc.npcData || {},
+        
+        // Système de quêtes
+        questsToGive: npc.questsToGive || [],
+        questsToEnd: npc.questsToEnd || [],
+        questRequirements: npc.questRequirements,
+        questDialogueIds: npc.questDialogueIds,
+        
+        // Conditions de spawn
+        spawnConditions: npc.spawnConditions,
+        
+        // Métadonnées
+        isActive: true,
+        version: '1.0.0',
+        sourceFile: `editor_${mapId}`
+      });
+      
+      await npcObject.save();
+      savedNPCs++;
+      
+    } catch (error) {
+      const errorMsg = `NPC ${npc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errors.push(errorMsg);
+      console.error('❌ [Maps API] Error saving NPC:', errorMsg);
+    }
+  }
+}
+    
+    const totalSaved = savedGameObjects + savedNPCs;
+    const totalAttempted = gameObjects.length + npcs.length;
+    
+    console.log(`✅ [Maps API] Saved ${totalSaved}/${totalAttempted} objects for ${mapId} (${savedGameObjects} gameobjects, ${savedNPCs} NPCs)`);
     
     if (errors.length > 0) {
       console.warn(`⚠️ [Maps API] ${errors.length} errors during save:`, errors);
@@ -319,65 +436,84 @@ router.post('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) 
     
     res.json({
       success: true,
-      message: `Gameobjects sauvegardés pour ${mapId}`,
+      message: `Objects sauvegardés pour ${mapId}`,
       mapId,
-      totalObjects: savedCount,
+      totalObjects: totalSaved,
+      gameObjects: savedGameObjects,
+      npcs: savedNPCs,
       errors: errors.length > 0 ? errors : undefined,
       timestamp: new Date().toISOString(),
       savedBy: req.user.username
     });
     
   } catch (error) {
-    console.error('❌ [Maps API] Error saving gameobjects to MongoDB:', error);
+    console.error('❌ [Maps API] Error saving objects and NPCs to MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la sauvegarde des gameobjects'
+      error: 'Erreur lors de la sauvegarde des objets et NPCs'
     });
   }
 });
 
-// ✅ ROUTE: Statistiques des gameobjects
+// ✅ ROUTE: Statistiques des gameobjects et NPCs
 router.get('/maps/gameobjects/stats', requireMacAndDev, async (req: any, res) => {
   try {
-    console.log('📊 [Maps API] Getting gameobjects statistics from MongoDB');
+    console.log('📊 [Maps API] Getting gameobjects and NPCs statistics from MongoDB');
     
     const [
       totalObjects,
       activeObjects,
       typeStats,
-      zoneStats
+      zoneStats,
+      totalNPCs,
+      activeNPCs,
+      npcTypeStats
     ] = await Promise.all([
       GameObjectData.countDocuments(),
       GameObjectData.countDocuments({ isActive: true }),
-      GameObjectData.aggregate([
-        { $group: { _id: '$type', count: { $sum: 1 } } }
-      ]),
-      GameObjectData.aggregate([
-        { $group: { _id: '$zone', count: { $sum: 1 } } }
-      ])
+      GameObjectData.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+      GameObjectData.aggregate([{ $group: { _id: '$zone', count: { $sum: 1 } } }]),
+     NpcData.countDocuments(),
+  NpcData.countDocuments({ isActive: true }),
+  NpcData.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
     ]);
     
     res.json({
       success: true,
       stats: {
-        total: totalObjects,
-        active: activeObjects,
-        inactive: totalObjects - activeObjects,
-        byType: typeStats.reduce((acc: any, stat: any) => {
+        gameObjects: {
+          total: totalObjects,
+          active: activeObjects,
+          inactive: totalObjects - activeObjects,
+          byType: typeStats.reduce((acc: any, stat: any) => {
+            acc[stat._id] = stat.count;
+            return acc;
+          }, {})
+        },
+        npcs: {
+          total: totalNPCs,
+          active: activeNPCs,
+          inactive: totalNPCs - activeNPCs,
+          byType: npcTypeStats.reduce((acc: any, stat: any) => {
+            acc[stat._id] = stat.count;
+            return acc;
+          }, {})
+        },
+        zones: zoneStats.reduce((acc: any, stat: any) => {
           acc[stat._id] = stat.count;
           return acc;
         }, {}),
-        byZone: zoneStats.reduce((acc: any, stat: any) => {
-          acc[stat._id] = stat.count;
-          return acc;
-        }, {})
+        totals: {
+          allObjects: totalObjects + totalNPCs,
+          allActive: activeObjects + activeNPCs
+        }
       }
     });
   } catch (error) {
-    console.error('❌ [Maps API] Error getting gameobjects stats:', error);
+    console.error('❌ [Maps API] Error getting stats:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur statistiques gameobjects'
+      error: 'Erreur statistiques'
     });
   }
 });
