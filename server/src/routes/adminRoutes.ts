@@ -199,8 +199,6 @@ router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
   }
 });
 
-// ✅ ROUTE: Charger les gameobjects d'une zone spécifique
-// ✅ ROUTE: Charger les gameobjects d'une zone depuis MongoDB
 // ✅ ROUTE: Charger les gameobjects ET NPCs d'une zone depuis MongoDB
 router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) => {
   try {
@@ -208,10 +206,19 @@ router.get('/maps/:mapId/gameobjects', requireMacAndDev, async (req: any, res) =
     console.log(`🗺️ [Maps API] Loading gameobjects and NPCs from MongoDB for zone: ${mapId}`);
     
     // Récupérer les gameobjects et NPCs en parallèle
-const [gameObjects, npcs] = await Promise.all([
-  GameObjectData.findByZone(mapId),
-  NpcData.findByZone(mapId)
-]);
+    const [gameObjects, npcs] = await Promise.all([
+      GameObjectData.findByZone(mapId),
+      NpcData.findByZone(mapId)
+    ]);
+    
+    // ✅ LOG 1 - Données brutes de la DB
+    console.log('🔍 [DEBUG] Raw NPCs from DB:', npcs.map(npc => ({
+      id: npc.npcId,
+      name: npc.name,
+      position: npc.position,
+      type: npc.type,
+      zone: npc.zone
+    })));
     
     console.log(`✅ [Maps API] Found ${gameObjects.length} gameobjects and ${npcs.length} NPCs for ${mapId}`);
     
@@ -219,45 +226,89 @@ const [gameObjects, npcs] = await Promise.all([
     const formattedObjects = gameObjects.map(obj => obj.toObjectFormat());
     
     // Convertir les NPCs au format attendu par l'éditeur
-// ✅ Conversion adaptée au modèle NpcData
-const formattedNPCs = npcs.map((npc: any) => ({
-  id: npc.npcId, // ✅ Utiliser npcId du modèle
-  type: 'npc',
-  name: npc.name,
-  x: npc.position.x,
-  y: npc.position.y,
-  sprite: npc.sprite,
-  direction: npc.direction,
-  npcType: npc.type, // ✅ Le type du NPC (dialogue, merchant, etc.)
-  
-  // Données spécifiques du modèle NpcData
-  interactionRadius: npc.interactionRadius,
-  canWalkAway: npc.canWalkAway,
-  autoFacePlayer: npc.autoFacePlayer,
-  repeatable: npc.repeatable,
-  cooldownSeconds: npc.cooldownSeconds,
-  
-  // Données spécifiques par type
-  npcData: npc.npcData,
-  
-  // Quêtes
-  questsToGive: npc.questsToGive,
-  questsToEnd: npc.questsToEnd,
-  questRequirements: npc.questRequirements,
-  questDialogueIds: npc.questDialogueIds,
-  
-  // Conditions de spawn
-  spawnConditions: npc.spawnConditions,
-  
-  customProperties: {
-    originalNPCType: npc.type,
-    mongoId: npc._id?.toString(),
-    isNPC: true,
-    version: npc.version
-  }
-}));
+    const formattedNPCs = npcs.map((npc: any) => ({
+      id: npc.npcId,
+      type: 'npc',
+      name: npc.name,
+      x: npc.position.x,
+      y: npc.position.y,
+      sprite: npc.sprite,
+      direction: npc.direction,
+      npcType: npc.type,
+      
+      // Propriétés comportementales
+      interactionRadius: npc.interactionRadius,
+      canWalkAway: npc.canWalkAway,
+      autoFacePlayer: npc.autoFacePlayer,
+      repeatable: npc.repeatable,
+      cooldownSeconds: npc.cooldownSeconds,
+      
+      // Données spécifiques du type
+      npcData: npc.npcData,
+      
+      // Système de quêtes
+      questsToGive: npc.questsToGive,
+      questsToEnd: npc.questsToEnd,
+      questRequirements: npc.questRequirements,
+      questDialogueIds: npc.questDialogueIds,
+      
+      // Conditions de spawn
+      spawnConditions: npc.spawnConditions,
+      
+      customProperties: {
+        originalNPCType: npc.type,
+        mongoId: npc._id?.toString(),
+        isNPC: true,
+        version: npc.version
+      }
+    }));
+    
+    // ✅ LOG 2 - NPCs après conversion
+    console.log('🔍 [DEBUG] Formatted NPCs:', formattedNPCs.map(npc => ({
+      id: npc.id,
+      type: npc.type,
+      name: npc.name,
+      x: npc.x,
+      y: npc.y,
+      sprite: npc.sprite
+    })));
+    
+    // ✅ NPC DE TEST
+    const testNPC = {
+      id: 9999,
+      type: 'npc',
+      name: 'Test NPC Debug',
+      x: 5,
+      y: 5,
+      sprite: 'npc_test',
+      direction: 'south',
+      npcType: 'dialogue',
+      customProperties: {
+        isTest: true
+      }
+    };
+    
     // Combiner objets et NPCs
-    const allObjects = [...formattedObjects, ...formattedNPCs];
+    const allObjects = [...formattedObjects, ...formattedNPCs, testNPC];
+    
+    // ✅ LOG 3 - Objets finaux envoyés au client
+    console.log('🔍 [DEBUG] All objects sent to client:', {
+      totalObjects: allObjects.length,
+      gameObjects: formattedObjects.length,
+      npcs: formattedNPCs.length,
+      testNPC: 1,
+      byType: allObjects.reduce((acc, obj) => {
+        acc[obj.type] = (acc[obj.type] || 0) + 1;
+        return acc;
+      }, {}),
+      sampleObjects: allObjects.slice(0, 3).map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        name: obj.name,
+        x: obj.x,
+        y: obj.y
+      }))
+    });
     
     res.json({
       success: true,
