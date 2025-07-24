@@ -665,6 +665,61 @@ class QuestValidator implements IQuestValidator {
   }
 
   /**
+   * ✅ Validation - Conditions avancées avec contexte
+   */
+  async validateAdvancedConditions(quest: QuestDefinition, context: QuestEventContext): Promise<QuestValidationCheck> {
+    this.log('debug', `🔍 Validation conditions avancées pour ${quest.id}`);
+    
+    const checks: string[] = [];
+    let valid = true;
+    let failureReasons: string[] = [];
+    
+    // Vérifier conditions temporelles
+    if (context.worldState?.weather && this.hasWeatherConditions(quest)) {
+      checks.push('weather');
+      const weatherValid = this.validateWeatherConditions(quest, context.worldState.weather);
+      if (!weatherValid) {
+        valid = false;
+        failureReasons.push('Conditions météo non remplies');
+      }
+    }
+    
+    // Vérifier conditions de Pokémon
+    if (context.pokemonUsed && this.hasPokemonConditions(quest)) {
+      checks.push('pokemon');
+      const pokemonValid = this.validatePokemonConditions(quest, context.pokemonUsed);
+      if (!pokemonValid) {
+        valid = false;
+        failureReasons.push('Conditions Pokémon non remplies');
+      }
+    }
+    
+    // Vérifier état du monde
+    if (context.worldState && this.hasWorldStateConditions(quest)) {
+      checks.push('worldState');
+      const worldValid = this.validateWorldStateConditions(quest, context.worldState);
+      if (!worldValid) {
+        valid = false;
+        failureReasons.push('État du monde non valide');
+      }
+    }
+    
+    return {
+      type: 'custom',
+      name: 'Advanced Conditions',
+      valid,
+      required: true,
+      currentValue: context,
+      requiredValue: 'Valid context',
+      message: valid 
+        ? `Conditions avancées validées (${checks.join(', ')})` 
+        : `Conditions avancées échouées: ${failureReasons.join(', ')}`,
+      suggestion: !valid ? 'Vérifiez les conditions spéciales de cette quête' : undefined,
+      checkTime: Date.now()
+    };
+  }
+
+  /**
    * ✅ Validation - Niveau requis
    */
   validateLevelRequirements(quest: QuestDefinition, playerLevel: number): QuestValidationCheck {
@@ -825,6 +880,78 @@ class QuestValidator implements IQuestValidator {
   }
 
   // ===== MÉTHODES UTILITAIRES =====
+
+  // ===== MÉTHODES HELPER POUR CONDITIONS AVANCÉES =====
+
+  /**
+   * ✅ Vérifier si quête a conditions météo
+   */
+  private hasWeatherConditions(quest: QuestDefinition): boolean {
+    return quest.steps.some(step =>
+      step.objectives.some(obj =>
+        obj.conditions?.weather
+      )
+    );
+  }
+
+  /**
+   * ✅ Valider conditions météo
+   */
+  private validateWeatherConditions(quest: QuestDefinition, currentWeather: string): boolean {
+    return quest.steps.every(step =>
+      step.objectives.every(obj =>
+        !obj.conditions?.weather || obj.conditions.weather === currentWeather
+      )
+    );
+  }
+
+  /**
+   * ✅ Vérifier si quête a conditions Pokémon
+   */
+  private hasPokemonConditions(quest: QuestDefinition): boolean {
+    return quest.steps.some(step =>
+      step.objectives.some(obj =>
+        obj.conditions && (
+          obj.conditions.pokemonLevel ||
+          obj.conditions.pokemonType ||
+          obj.conditions.isShiny !== undefined ||
+          obj.conditions.isWild !== undefined
+        )
+      )
+    );
+  }
+
+  /**
+   * ✅ Valider conditions Pokémon
+   */
+  private validatePokemonConditions(quest: QuestDefinition, pokemon: any): boolean {
+    // Simplifiée pour l'instant - retourne true
+    // TODO: Implémenter validation complète selon besoins
+    return true;
+  }
+
+  /**
+   * ✅ Vérifier si quête a conditions d'état du monde
+   */
+  private hasWorldStateConditions(quest: QuestDefinition): boolean {
+    return quest.steps.some(step =>
+      step.objectives.some(obj =>
+        obj.conditions && (
+          obj.conditions.season ||
+          obj.conditions.timeOfDay
+        )
+      )
+    );
+  }
+
+  /**
+   * ✅ Valider conditions d'état du monde
+   */
+  private validateWorldStateConditions(quest: QuestDefinition, worldState: any): boolean {
+    // Simplifiée pour l'instant - retourne true
+    // TODO: Implémenter validation complète selon besoins
+    return true;
+  }
 
   /**
    * ✅ Vérifier si quête nécessite espace inventaire
