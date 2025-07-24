@@ -207,91 +207,106 @@ export class DialogueManager {
 
   // ===== DÉTECTION DES ACTIONS =====
   
-  detectAvailableActions(data) {
-    const actions = [];
+ // ===== DÉTECTION DES ACTIONS CORRIGÉE =====
+  
+detectAvailableActions(data) {
+  const actions = [];
+  
+  // Détecter selon les capabilities ou le type de données
+  let capabilities = data.capabilities || [];
+  
+  // 🆕 Si les données viennent de l'interface unifiée, extraire les capabilities
+  if (data.unifiedInterface && data.unifiedInterface.capabilities) {
+    capabilities = data.unifiedInterface.capabilities;
+    console.log('🔄 Extraction capabilities depuis interface unifiée:', capabilities);
+  }
+  
+  const npcType = data.npcType || data.type;
+  
+  // 🔧 EXTRACTION QUEST DATA CORRIGÉE
+  const unifiedQuestData = data.unifiedInterface?.questData;
+  const legacyQuestData = data.questData;
+  const hasAvailableQuests = (unifiedQuestData?.availableQuests?.length > 0) || 
+                            (legacyQuestData?.availableQuests?.length > 0) ||
+                            !!data.questId;
+  
+  console.log('🔍 Détection actions pour:', { 
+    name: data.npcName || data.name,
+    capabilities, 
+    npcType, 
+    hasShopData: !!(data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData)),
+    hasQuestData: hasAvailableQuests, // 🔧 CORRIGÉ
+    hasHealerData: !!data.healerData,
+    // 🆕 DEBUG SUPPLÉMENTAIRE
+    unifiedQuestData: !!unifiedQuestData,
+    availableQuestsCount: unifiedQuestData?.availableQuests?.length || 0
+  });
+  
+  // Action Boutique
+  const hasShopData = data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData);
+  if (capabilities.includes('merchant') || npcType === 'merchant' || hasShopData) {
+    actions.push({
+      id: 'open_shop',
+      type: 'shop',
+      label: 'Boutique',
+      icon: '🛒',
+      description: 'Acheter et vendre des objets',
+      data: hasShopData
+    });
+  }
+  
+  // 🔧 ACTION QUÊTES CORRIGÉE
+  if (capabilities.includes('quest') || capabilities.includes('questGiver') || npcType === 'questGiver' || hasAvailableQuests) {
+    // 🔧 UTILISER LES BONNES DONNÉES
+    const questData = unifiedQuestData || legacyQuestData || {};
+    const questCount = questData.availableQuests?.length || (data.questId ? 1 : 0);
     
-    // Détecter selon les capabilities ou le type de données
-    let capabilities = data.capabilities || [];
-    
-    // 🆕 Si les données viennent de l'interface unifiée, extraire les capabilities
-    if (data.unifiedInterface && data.unifiedInterface.capabilities) {
-      capabilities = data.unifiedInterface.capabilities;
-      console.log('🔄 Extraction capabilities depuis interface unifiée:', capabilities);
-    }
-    
-    const npcType = data.npcType || data.type;
-    
-    console.log('🔍 Détection actions pour:', { 
-      name: data.npcName || data.name,
-      capabilities, 
-      npcType, 
-      hasShopData: !!(data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData)),
-      hasQuestData: !!data.questData,
-      hasHealerData: !!data.healerData
+    actions.push({
+      id: 'open_quests',
+      type: 'quest',
+      label: questCount > 1 ? 'Quêtes' : 'Quête',
+      icon: '📋',
+      badge: questCount > 0 ? questCount.toString() : null,
+      description: 'Missions disponibles',
+      data: questData
     });
     
-    // Action Boutique
-    const hasShopData = data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData);
-    if (capabilities.includes('merchant') || npcType === 'merchant' || hasShopData) {
-      actions.push({
-        id: 'open_shop',
-        type: 'shop',
-        label: 'Boutique',
-        icon: '🛒',
-        description: 'Acheter et vendre des objets',
-        data: hasShopData
-      });
-    }
-    
-    // Action Quêtes
-    if (capabilities.includes('questGiver') || npcType === 'questGiver' || data.questData || data.questId) {
-      const questData = data.questData || data.questGiver || {};
-      const questCount = questData.availableQuests?.length || (data.questId ? 1 : 0);
-      
-      actions.push({
-        id: 'open_quests',
-        type: 'quest',
-        label: questCount > 1 ? 'Quêtes' : 'Quête',
-        icon: '📋',
-        badge: questCount > 0 ? questCount.toString() : null,
-        description: 'Missions disponibles',
-        data: questData
-      });
-    }
-    
-    // Action Soins
-    if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
-      actions.push({
-        id: 'heal_pokemon',
-        type: 'heal',
-        label: 'Soigner',
-        icon: '💊',
-        description: 'Soigner vos Pokémon',
-        data: data.healerData
-      });
-    }
-    
-    // Action Informations
-    if (data.infoData) {
-      actions.push({
-        id: 'show_info',
-        type: 'info',
-        label: 'Infos',
-        icon: 'ℹ️',
-        description: 'Informations supplémentaires',
-        data: data.infoData
-      });
-    }
-    
-    if (actions.length === 0) {
-      console.log('✅ Aucune action détectée - NPC dialogue simple');
-      return [];
-    } else {
-      console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
-      return actions;
-    }
+    console.log(`✅ Action quête ajoutée - ${questCount} quête(s) disponible(s)`);
   }
-
+  
+  // Action Soins
+  if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
+    actions.push({
+      id: 'heal_pokemon',
+      type: 'heal',
+      label: 'Soigner',
+      icon: '💊',
+      description: 'Soigner vos Pokémon',
+      data: data.healerData
+    });
+  }
+  
+  // Action Informations
+  if (data.infoData) {
+    actions.push({
+      id: 'show_info',
+      type: 'info',
+      label: 'Infos',
+      icon: 'ℹ️',
+      description: 'Informations supplémentaires',
+      data: data.infoData
+    });
+  }
+  
+  if (actions.length === 0) {
+    console.log('✅ Aucune action détectée - NPC dialogue simple');
+    return [];
+  } else {
+    console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
+    return actions;
+  }
+}
+  
   // ===== EXTRACTION DES DONNÉES =====
   
   extractPortraitUrl(data) {
