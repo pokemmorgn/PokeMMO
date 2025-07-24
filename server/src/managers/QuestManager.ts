@@ -13,6 +13,12 @@ import {
   QuestObjective,
   QuestReward 
 } from "../types/QuestTypes";
+
+// ✨ IMPORT DES TYPES ÉTENDUS AVEC ALIAS POUR ÉVITER CONFLITS
+import { 
+  QuestDefinition as ExtendedQuestDefinition,
+  QuestReward as ExtendedQuestReward
+} from "../quest/core/types/QuestTypes";
 import { ServiceRegistry } from "../services/ServiceRegistry";
 
 // ✨ IMPORT DES 4 SERVICES MODULAIRES
@@ -970,7 +976,18 @@ export class QuestManager {
       const quest = this.buildQuestFromProgress(definition, questProgress);
 
       // ✨ NOUVEAU : Notifier via service client
-      await this.clientHandler.notifyQuestStarted(username, quest, firstStep.objectives);
+      const questObjectives = firstStep.objectives.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        description: obj.description,
+        target: obj.target,
+        targetName: obj.targetName,
+        currentAmount: 0,
+        requiredAmount: obj.requiredAmount,
+        completed: false
+      }));
+      
+      await this.clientHandler.notifyQuestStarted(username, quest, questObjectives);
       
       this.log('info', `✅ ${username} a commencé la quête: ${definition.name}`);
       return quest;
@@ -1062,6 +1079,14 @@ export class QuestManager {
               questProgress.status = 'readyToComplete';
             }
           }
+          
+          // ✨ CORRECTION : Mettre à jour le résultat avec récompenses converties
+          if (result.questRewards) {
+            result.questRewards = this.convertToLegacyRewards(result.questRewards);
+          }
+          if (result.stepRewards) {
+            result.stepRewards = this.convertToLegacyRewards(result.stepRewards);
+          }
         } else if (result.objectiveCompleted || result.stepCompleted) {
           // Notification de progression simple
           const objective = this.findCurrentObjective(definition, 
@@ -1134,7 +1159,7 @@ export class QuestManager {
         questName: definition.name,
         questCompleted: true,
         autoCompleted: false,
-        questRewards: questRewards,
+        questRewards: this.convertToLegacyRewards(questRewards),
         message: `Félicitations ! Vous avez terminé "${definition.name}" !`
       };
 
@@ -1400,6 +1425,22 @@ export class QuestManager {
   }
 
   // ===== MÉTHODES PRIVÉES HELPERS =====
+
+  /**
+   * ✨ NOUVEAU : Convertir récompenses étendues vers format legacy
+   */
+  private convertToLegacyRewards(rewards: any[]): QuestReward[] {
+    return rewards.filter(reward => {
+      // Ne garder que les types compatibles avec l'ancien système
+      const legacyTypes = ['gold', 'item', 'pokemon', 'experience'];
+      return legacyTypes.includes(reward.type);
+    }).map(reward => ({
+      type: reward.type as 'gold' | 'item' | 'pokemon' | 'experience',
+      itemId: reward.itemId,
+      amount: reward.amount,
+      pokemonId: reward.pokemonId
+    }));
+  }
 
   /**
    * ✨ NOUVEAU : Trouver objectif par nom
