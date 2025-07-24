@@ -1,4 +1,4 @@
-// PokeWorld Admin Panel - NPC Form Builder
+// PokeWorld Admin Panel - NPC Form Builder - VERSION CORRIGÉE
 // Générateur dynamique de formulaires selon le type de NPC sélectionné
 
 import { NPC_TYPES, COMMON_FIELDS, FIELD_HELP } from './npc-types-config.js'
@@ -14,12 +14,25 @@ export class NPCFormBuilder {
         this.changeHandlers = []
         this.validationErrors = {}
         
+        // CORRECTION: Bind this context pour les méthodes appelées depuis HTML
+        this.boundSelectType = this.selectType.bind(this)
+        this.boundToggleSection = this.toggleSection.bind(this)
+        this.boundAddArrayItem = this.addArrayItem.bind(this)
+        this.boundRemoveArrayItem = this.removeArrayItem.bind(this)
+        this.boundSetPosition = this.setPosition.bind(this)
+        this.boundFormatJSON = this.formatJSON.bind(this)
+        this.boundValidateJSON = this.validateJSON.bind(this)
+        this.boundOpenSpriteBrowser = this.openSpriteBrowser.bind(this)
+        
         this.init()
     }
 
     init() {
         this.container.innerHTML = this.createFormStructure()
         this.setupEventListeners()
+        
+        // CORRECTION: Exposer l'instance dans le contexte global pour les handlers HTML
+        window.npcFormBuilder = this
     }
 
     // Structure principale du formulaire
@@ -58,7 +71,7 @@ export class NPCFormBuilder {
     // Créer le sélecteur de type
     createTypeSelector() {
         return Object.entries(NPC_TYPES).map(([type, config]) => `
-            <div class="type-card" data-type="${type}" onclick="npcFormBuilder.selectType('${type}')">
+            <div class="type-card" data-type="${type}" onclick="window.npcFormBuilder.selectType('${type}')">
                 <div class="type-icon">${config.icon}</div>
                 <div class="type-name">${config.name}</div>
                 <div class="type-description">${config.description}</div>
@@ -126,7 +139,7 @@ export class NPCFormBuilder {
         
         return `
             <div class="form-section" data-section="${sectionName}">
-                <div class="section-header" onclick="npcFormBuilder.toggleSection('${sectionName}')">
+                <div class="section-header" onclick="window.npcFormBuilder.toggleSection('${sectionName}')">
                     <h4>${sectionTitle}</h4>
                     <span class="section-toggle">▼</span>
                 </div>
@@ -196,6 +209,10 @@ export class NPCFormBuilder {
             return this.createSpriteField(fieldName, currentValue, isRequired)
         }
         
+        if (fieldName === 'position') {
+            return this.createPositionField(fieldName, currentValue)
+        }
+        
         if (fieldName.includes('dialogue') || fieldName.includes('Description')) {
             return `<textarea 
                 class="form-textarea" 
@@ -234,7 +251,7 @@ export class NPCFormBuilder {
                 <datalist id="spriteList">
                     ${suggestions.map(sprite => `<option value="${sprite}">`).join('')}
                 </datalist>
-                <button type="button" class="btn btn-sm sprite-browser" onclick="npcFormBuilder.openSpriteBrowser()">
+                <button type="button" class="btn btn-sm sprite-browser" onclick="window.npcFormBuilder.openSpriteBrowser()">
                     🖼️ Parcourir
                 </button>
             </div>
@@ -283,7 +300,7 @@ export class NPCFormBuilder {
             options = ['north', 'south', 'east', 'west']
         } else if (fieldName === 'type') {
             options = Object.keys(NPC_TYPES)
-        } else if (typeConfig.selectOptions && typeConfig.selectOptions[fieldName]) {
+        } else if (NPC_TYPES[type].selectOptions && NPC_TYPES[type].selectOptions[fieldName]) {
             options = NPC_TYPES[type].selectOptions[fieldName]
         }
         
@@ -326,7 +343,7 @@ export class NPCFormBuilder {
                 <div class="position-presets">
                     ${Object.entries(POSITION_PRESETS).map(([name, pos]) => `
                         <button type="button" class="btn btn-sm preset-btn" 
-                                onclick="npcFormBuilder.setPosition(${pos.x}, ${pos.y})">
+                                onclick="window.npcFormBuilder.setPosition(${pos.x}, ${pos.y})">
                             ${name}
                         </button>
                     `).join('')}
@@ -345,7 +362,7 @@ export class NPCFormBuilder {
                     ${items.map((item, index) => this.createArrayItem(fieldName, item, index)).join('')}
                 </div>
                 <button type="button" class="btn btn-sm add-array-item" 
-                        onclick="npcFormBuilder.addArrayItem('${fieldName}')">
+                        onclick="window.npcFormBuilder.addArrayItem('${fieldName}')">
                     ➕ Ajouter ${this.getFieldDisplayName(fieldName)}
                 </button>
             </div>
@@ -360,7 +377,7 @@ export class NPCFormBuilder {
                        value="${item}" 
                        placeholder="Élément ${index + 1}">
                 <button type="button" class="btn btn-sm btn-danger remove-array-item" 
-                        onclick="npcFormBuilder.removeArrayItem('${fieldName}', ${index})">
+                        onclick="window.npcFormBuilder.removeArrayItem('${fieldName}', ${index})">
                     🗑️
                 </button>
             </div>
@@ -381,10 +398,10 @@ export class NPCFormBuilder {
                     ${isRequired ? 'required' : ''}
                 >${jsonValue}</textarea>
                 <div class="json-tools">
-                    <button type="button" class="btn btn-sm" onclick="npcFormBuilder.formatJSON('${fieldName}')">
+                    <button type="button" class="btn btn-sm" onclick="window.npcFormBuilder.formatJSON('${fieldName}')">
                         🎨 Formater
                     </button>
-                    <button type="button" class="btn btn-sm" onclick="npcFormBuilder.validateJSON('${fieldName}')">
+                    <button type="button" class="btn btn-sm" onclick="window.npcFormBuilder.validateJSON('${fieldName}')">
                         ✅ Valider
                     </button>
                 </div>
@@ -595,7 +612,14 @@ export class NPCFormBuilder {
         this.setFieldValue(fieldName, currentValue)
         
         // Rebuilder le champ array
-        this.addArrayItem(fieldName)
+        const arrayField = document.querySelector(`[data-field-name="${fieldName}"]`)
+        if (arrayField) {
+            const itemsContainer = arrayField.querySelector('.array-items')
+            itemsContainer.innerHTML = currentValue.map((item, idx) => 
+                this.createArrayItem(fieldName, item, idx)
+            ).join('')
+        }
+        
         this.updateJsonPreview()
     }
 
@@ -778,6 +802,20 @@ export class NPCFormBuilder {
 
     isValid() {
         return this.validateForm().valid
+    }
+    
+    // CORRECTION: Méthode de nettoyage pour éviter les fuites mémoire
+    destroy() {
+        // Nettoyer la référence globale
+        if (window.npcFormBuilder === this) {
+            delete window.npcFormBuilder
+        }
+        
+        // Nettoyer les event listeners
+        this.changeHandlers = []
+        this.validationErrors = {}
+        this.currentNPC = null
+        this.currentType = null
     }
 }
 
