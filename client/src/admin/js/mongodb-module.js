@@ -592,17 +592,14 @@ renderTableContent(documents, tableHeader, tableBody) {
                     </td>
                 `
             }).join('')}
-            <td class="mongodb-actions-column">
-                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editDocument('${doc._id}')" title="Edit">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.inspectDocument('${doc._id}')" title="Inspect">
-                    <i class="fas fa-search"></i>
-                </button>
-            </td>
+<td class="mongodb-actions-column">
+    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.editInlineDocument('${doc._id}', this)" title="Edit">
+        <i class="fas fa-edit"></i>
+    </button>
+    <button class="mongodb-btn-icon" onclick="event.stopPropagation(); adminPanel.mongodb.deleteDocument('${doc._id}')" title="Delete">
+        <i class="fas fa-trash"></i>
+    </button>
+</td>
         </tr>
     `).join('')
 
@@ -724,6 +721,63 @@ renderTableContent(documents, tableHeader, tableBody) {
         return value
     }
 
+    editInlineDocument(docId, button) {
+    const row = button.closest('tr')
+    const cells = row.querySelectorAll('.mongodb-data-cell')
+    
+    // Transformer les cellules en inputs éditables
+    cells.forEach((cell, index) => {
+        if (index === 0) return // Skip l'ID
+        
+        const currentValue = cell.textContent.trim()
+        const input = document.createElement('input')
+        input.type = 'text'
+        input.value = currentValue
+        input.className = 'mongodb-inline-edit'
+        input.style.cssText = 'width: 100%; border: 1px solid #007bff; padding: 4px;'
+        
+        cell.innerHTML = ''
+        cell.appendChild(input)
+    })
+    
+    // Changer le bouton Edit en Save
+    button.innerHTML = '<i class="fas fa-save"></i>'
+    button.onclick = () => this.saveInlineDocument(docId, button)
+    button.title = 'Save'
+}
+
+async saveInlineDocument(docId, button) {
+    const row = button.closest('tr')
+    const inputs = row.querySelectorAll('.mongodb-inline-edit')
+    
+    // Récupérer les nouvelles valeurs
+    const newData = {}
+    inputs.forEach((input, index) => {
+        const columnName = this.getColumnName(index + 1) // +1 car on skip l'ID
+        newData[columnName] = input.value
+    })
+    
+    try {
+        // Sauvegarder directement
+        const response = await this.adminPanel.apiCall('/mongodb/update-document', {
+            method: 'POST',
+            body: JSON.stringify({
+                database: this.currentDatabase,
+                collection: this.currentCollection,
+                document: { _id: docId, ...newData },
+                originalId: docId
+            })
+        })
+        
+        if (response.success) {
+            this.adminPanel.showNotification('Document mis à jour', 'success')
+            this.loadDocuments() // Refresh
+        }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur: ' + error.message, 'error')
+    }
+}
+    
     formatColumnName(key) {
         // Gérer les clés imbriquées
         if (key.includes('.')) {
