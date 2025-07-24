@@ -1281,31 +1281,15 @@ updateDocumentJSON() {
                 case 'array':
 case 'object':
     try {
-        const parsedValue = JSON.parse(fieldValue || (fieldType === 'array' ? '[]' : '{}'))
-        // ✅ CORRECTION: Pour les objets, ne pas écraser si c'est vide
-        if (fieldType === 'object' && Object.keys(parsedValue).length === 0) {
-            // Si l'objet est vide ET qu'il y avait une valeur avant, ne pas l'inclure
-            if (this.currentEditingDocument && this.currentEditingDocument[fieldName] && 
-                Object.keys(this.currentEditingDocument[fieldName]).length > 0) {
-                console.log(`🚫 [MongoDB] Objet ${fieldName} ignoré car vide, gardera sa valeur originale`)
-                return // Ne pas inclure, gardera l'ancienne valeur
-            }
-        }
-        documentData[fieldName] = parsedValue
+        documentData[fieldName] = JSON.parse(fieldValue || (fieldType === 'array' ? '[]' : '{}'))
     } catch {
         if (fieldType === 'array') {
             documentData[fieldName] = []
         } else {
-            // Pour les objets en erreur, ne pas les inclure s'il y avait une valeur avant
-            if (this.currentEditingDocument && this.currentEditingDocument[fieldName]) {
-                console.log(`🚫 [MongoDB] Objet ${fieldName} en erreur, gardera sa valeur originale`)
-                return
-            }
             documentData[fieldName] = {}
         }
     }
     break
-
                 case 'objectid':
                     // Pour ObjectId, seulement si ce n'est pas vide
                     if (fieldValue && fieldValue !== 'null' && fieldValue !== '') {
