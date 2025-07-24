@@ -704,18 +704,40 @@ export class QuestSystem {
     if (this.icon) this.icon.setEnabled(enabled);
   }
   
-  // === 🔗 INTÉGRATION UIMANAGER ===
+  // === 🔗 INTÉGRATION UIMANAGER AMÉLIORÉE ===
   
   connectUIManager(uiManager) {
-    if (this.icon?.iconElement && uiManager.registerIconPosition) {
+    console.log('🔗 [QuestSystem] Connexion UIManager...');
+    
+    if (!uiManager || !uiManager.registerIconPosition) {
+      console.error('❌ [QuestSystem] UIManager invalide');
+      return false;
+    }
+    
+    if (!this.icon || !this.icon.iconElement) {
+      console.error('❌ [QuestSystem] Icône non disponible');
+      return false;
+    }
+    
+    try {
+      // ✅ Enregistrer la position avec UIManager
       uiManager.registerIconPosition('quest', this.icon.iconElement, {
         anchor: 'bottom-right',
-        order: 1,
-        spacing: 10
+        order: 1, // ✅ Position 2 (après inventory=0)
+        spacing: 10,
+        group: 'ui-icons'
       });
+      
+      // ✅ Marquer comme positionné par UIManager
+      this.icon.iconElement.setAttribute('data-positioned-by', 'uimanager');
+      
+      console.log('✅ [QuestSystem] UIManager connecté - icône enregistrée');
       return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestSystem] Erreur connexion UIManager:', error);
+      return false;
     }
-    return false;
   }
   
   // === 🧹 NETTOYAGE ===
