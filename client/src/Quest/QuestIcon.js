@@ -79,33 +79,37 @@ export class QuestIcon {
     console.log('🎨 [QuestIcon] Icône créée');
   }
   
-  forceDisplay() {
-    if (!this.iconElement) return;
-    
-    // Styles essentiels pour visibilité SANS position fixe
-    this.iconElement.style.display = 'block';
-    this.iconElement.style.visibility = 'visible';
-    this.iconElement.style.opacity = '1';
-    this.iconElement.style.pointerEvents = 'auto';
-    this.iconElement.style.zIndex = '1000';
-    
-    // ✅ FIX: NE PAS forcer de position - laisser UIManager gérer
-    // Position uniquement si UIManager n'a pas encore positionné
-    if (!this.iconElement.getAttribute('data-positioned-by')) {
-      console.log('⚠️ [QuestIcon] Position de secours - UIManager pas encore connecté');
-      this.iconElement.style.position = 'fixed';
-      this.iconElement.style.right = '20px';
-      this.iconElement.style.bottom = '20px';
-    } else {
-      console.log('✅ [QuestIcon] Position gérée par UIManager');
-      // Ne pas écraser la position de UIManager
-    }
-    
-    // Supprimer classes cachées
-    this.iconElement.classList.remove('hidden', 'ui-hidden');
-    
-    console.log('✅ [QuestIcon] Affichage forcé sans écraser position UIManager');
+forceDisplay() {
+  if (!this.iconElement) return;
+  
+  // ✅ Styles essentiels pour visibilité (OK)
+  this.iconElement.style.display = 'block';
+  this.iconElement.style.visibility = 'visible';
+  this.iconElement.style.opacity = '1';
+  this.iconElement.style.pointerEvents = 'auto';
+  this.iconElement.style.zIndex = '1000';
+  
+  // 🔥 FIX PRINCIPAL: Respecter la position UIManager
+  const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+  
+  if (positionedBy && (positionedBy.includes('uimanager') || positionedBy.includes('manual-fix'))) {
+    console.log('✅ [QuestIcon] Position UIManager respectée - pas d\'écrasement');
+    // Ne pas toucher à la position !
+    return;
   }
+  
+  // ✅ Position de secours UNIQUEMENT si aucune position n'existe
+  if (!this.iconElement.style.left && !this.iconElement.style.right) {
+    console.log('⚠️ [QuestIcon] Position de secours appliquée');
+    this.iconElement.style.position = 'fixed';
+    this.iconElement.style.right = '20px';
+    this.iconElement.style.bottom = '20px';
+  } else {
+    console.log('ℹ️ [QuestIcon] Position existante conservée');
+  }
+  
+  console.log('✅ [QuestIcon] forceDisplay() sans écrasement position');
+}
   
   // === 🎨 STYLES OPTIMISÉS ===
   
