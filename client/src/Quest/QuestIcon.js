@@ -82,22 +82,29 @@ export class QuestIcon {
   forceDisplay() {
     if (!this.iconElement) return;
     
-    // Styles essentiels pour visibilité
+    // Styles essentiels pour visibilité SANS position fixe
     this.iconElement.style.display = 'block';
     this.iconElement.style.visibility = 'visible';
     this.iconElement.style.opacity = '1';
     this.iconElement.style.pointerEvents = 'auto';
     this.iconElement.style.zIndex = '1000';
     
-    // Position de secours
-    this.iconElement.style.position = 'fixed';
-    this.iconElement.style.right = '20px';
-    this.iconElement.style.bottom = '20px';
+    // ✅ FIX: NE PAS forcer de position - laisser UIManager gérer
+    // Position uniquement si UIManager n'a pas encore positionné
+    if (!this.iconElement.getAttribute('data-positioned-by')) {
+      console.log('⚠️ [QuestIcon] Position de secours - UIManager pas encore connecté');
+      this.iconElement.style.position = 'fixed';
+      this.iconElement.style.right = '20px';
+      this.iconElement.style.bottom = '20px';
+    } else {
+      console.log('✅ [QuestIcon] Position gérée par UIManager');
+      // Ne pas écraser la position de UIManager
+    }
     
     // Supprimer classes cachées
     this.iconElement.classList.remove('hidden', 'ui-hidden');
     
-    console.log('✅ [QuestIcon] Affichage forcé');
+    console.log('✅ [QuestIcon] Affichage forcé sans écraser position UIManager');
   }
   
   // === 🎨 STYLES OPTIMISÉS ===
@@ -119,9 +126,7 @@ export class QuestIcon {
         z-index: 1000;
         transition: all 0.3s ease;
         user-select: none;
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
+        /* ✅ FIX: NE PAS forcer position - laisser UIManager gérer */
       }
       
       #quest-icon.quest-icon:hover {
@@ -564,14 +569,60 @@ export class QuestIcon {
     }
   }
   
-  // === 📍 MÉTHODES UIMANAGER ===
+  // === 📍 MÉTHODES UIMANAGER AMÉLIORÉES ===
   
   onPositioned(position) {
-    console.log('📍 [QuestIcon] Position reçue:', position);
+    console.log('📍 [QuestIcon] Position reçue de UIManager:', position);
     
     if (this.iconElement) {
       this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+      
+      // ✅ DEBUG: Vérifier la position appliquée
+      const rect = this.iconElement.getBoundingClientRect();
+      console.log(`📐 [QuestIcon] Position finale: x=${rect.left}, y=${rect.top}, right=${rect.right}, bottom=${rect.bottom}`);
+      
+      // ✅ S'assurer que les styles de position forcée sont supprimés
+      if (this.iconElement.style.position === 'fixed' && 
+          this.iconElement.style.right === '20px' && 
+          this.iconElement.style.bottom === '20px') {
+        console.log('🔧 [QuestIcon] Suppression position de secours au profit de UIManager');
+        this.iconElement.style.position = '';
+        this.iconElement.style.right = '';
+        this.iconElement.style.bottom = '';
+      }
     }
+  }
+  
+  // === 🐛 DEBUG - Méthode pour vérifier le positionnement ===
+  
+  debugPosition() {
+    if (!this.iconElement) {
+      console.log('❌ [QuestIcon] Pas d\'élément pour debug');
+      return;
+    }
+    
+    const rect = this.iconElement.getBoundingClientRect();
+    const styles = window.getComputedStyle(this.iconElement);
+    
+    console.log('🔍 [QuestIcon] Debug position:', {
+      positionedBy: this.iconElement.getAttribute('data-positioned-by'),
+      boundingRect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+      computedStyles: {
+        position: styles.position,
+        left: styles.left,
+        right: styles.right,
+        top: styles.top,
+        bottom: styles.bottom,
+        zIndex: styles.zIndex
+      },
+      inlineStyles: {
+        position: this.iconElement.style.position,
+        left: this.iconElement.style.left,
+        right: this.iconElement.style.right,
+        top: this.iconElement.style.top,
+        bottom: this.iconElement.style.bottom
+      }
+    });
   }
   
   // === 🧹 NETTOYAGE ===
