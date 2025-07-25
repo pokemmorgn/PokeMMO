@@ -1439,18 +1439,33 @@ async openQuestSelector(fieldName) {
 // MÉTHODE MISE À JOUR : Charger les quêtes depuis la DB
 async loadQuestsFromDB() {
     try {
-        // Utiliser la nouvelle route
+        // Récupérer le token depuis adminPanel si disponible
+        const token = this.getAuthToken()
+        console.log('🔑 [FormBuilder] Token récupéré:', token ? `${token.substring(0, 20)}...` : 'AUCUN')
+        
+        if (!token) {
+            throw new Error('Token d\'authentification manquant')
+        }
+        
+        // Utiliser la nouvelle route avec token correct
         const response = await fetch('/api/admin/quests/list', {
+            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.getAuthToken()}`
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
         })
         
+        console.log('📡 [FormBuilder] Response status:', response.status)
+        
         if (!response.ok) {
-            throw new Error('Erreur API quêtes')
+            const errorText = await response.text()
+            console.error('❌ [FormBuilder] API Error:', errorText)
+            throw new Error(`Erreur API quêtes: ${response.status}`)
         }
         
         const data = await response.json()
+        console.log('📋 [FormBuilder] Response data:', data)
         
         if (!data.success) {
             throw new Error(data.error || 'Erreur serveur')
@@ -1466,7 +1481,7 @@ async loadQuestsFromDB() {
         return data.quests
         
     } catch (error) {
-        console.error('Erreur chargement quêtes DB:', error)
+        console.error('❌ [FormBuilder] Erreur chargement quêtes DB:', error)
         return []
     }
 }
