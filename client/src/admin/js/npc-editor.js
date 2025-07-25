@@ -710,9 +710,9 @@ convertMongoNPCToEditorFormat(mongoNPC) {
                         <div class="editor-header">
                             <h3 id="editorTitle">Sélectionnez un NPC ou créez-en un nouveau</h3>
                             <div class="editor-actions" id="editorActions" style="display: none;">
-                                <button class="btn btn-success btn-sm" onclick="adminPanel.npcEditor.saveCurrentNPC()">
-                                    <i class="fas fa-check"></i> Valider
-                                </button>
+                                <button class="btn btn-success btn-sm" onclick="adminPanel.npcEditor.saveCurrentNPCToMongoDB()">
+    <i class="fas fa-save"></i> Valider & Sauvegarder
+</button>
                                 <button class="btn btn-secondary btn-sm" onclick="adminPanel.npcEditor.cancelEdit()">
                                     <i class="fas fa-times"></i> Annuler
                                 </button>
