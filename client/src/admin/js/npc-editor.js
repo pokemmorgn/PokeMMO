@@ -355,6 +355,43 @@ convertMongoNPCToEditorFormat(mongoNPC) {
         console.log('💾 [NPCEditor] NPC saved locally (MongoDB save required):', npc.name)
     }
 
+
+    async saveCurrentNPCToMongoDB() {
+    if (!this.selectedNPC || !this.formBuilder) return
+
+    const npc = this.formBuilder.getNPC()
+    if (!npc) return
+
+    // Valider le NPC
+    const validation = this.validator.validateNPC(npc)
+    if (!validation.valid) {
+        this.adminPanel.showNotification(`Erreurs de validation : ${validation.errors.length}`, 'error')
+        return
+    }
+
+    // Sauvegarder localement d'abord
+    const existingIndex = this.npcs.findIndex(n => n.id === npc.id)
+    
+    if (existingIndex !== -1) {
+        this.npcs[existingIndex] = { ...npc }
+    } else {
+        this.npcs.push({ ...npc })
+    }
+    
+    this.selectedNPC = { ...npc }
+    this.renderNPCsList()
+    this.renderZoneStats()
+
+    // ✅ NOUVEAU: Sauvegarder directement dans MongoDB
+    try {
+        await this.saveAllNPCs()
+        this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur sauvegarde MongoDB: ' + error.message, 'error')
+    }
+}
+
+    
     async deleteCurrentNPC() {
         if (!this.selectedNPC) return
         
