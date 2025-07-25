@@ -34,91 +34,130 @@ export class NPCFormBuilder {
         // Exposer l'instance dans le contexte global pour les handlers HTML
         window.npcFormBuilder = this
     }
+    
+// MÉTHODE CORRIGÉE : loadNPC avec délai plus long
+loadNPC(npc) {
+    console.log('🔄 [FormBuilder] Loading existing NPC:', npc)
+    
+    if (!npc || !npc.type) {
+        console.error('❌ [FormBuilder] Invalid NPC data')
+        return
+    }
+    
+    // Clone profond pour éviter les mutations
+    this.currentNPC = JSON.parse(JSON.stringify(npc))
+    this.currentType = npc.type
+    
+    console.log('📋 [FormBuilder] NPC loaded, type:', this.currentType)
+    console.log('📍 [FormBuilder] NPC position:', this.currentNPC.position)
+    
+    // Sélectionner le type et construire le formulaire
+    this.updateTypeSelection(this.currentType)
+    this.buildForm(this.currentType)
+    this.showFormContent()
+    
+    // CORRECTION : Délai plus long pour s'assurer que le DOM est prêt
+    setTimeout(() => {
+        console.log('⏰ [FormBuilder] Starting field population after DOM ready')
+        this.populateAllFields()
+        this.updateJsonPreview()
+        this.validateForm()
+    }, 300) // Augmenté de 100ms à 300ms
+}
+    
 
-    // CORRECTION 1: Méthode pour charger un NPC existant avec pré-remplissage
-    loadNPC(npc) {
-        console.log('🔄 [FormBuilder] Loading existing NPC:', npc)
+// MÉTHODE CORRIGÉE : populateAllFields
+populateAllFields() {
+    console.log('📝 [FormBuilder] Populating all fields for NPC:', this.currentNPC)
+    
+    if (!this.currentNPC) return
+    
+    // CORRECTION 1: Pré-remplir les champs de base
+    this.populateField('name', this.currentNPC.name)
+    this.populateField('sprite', this.currentNPC.sprite)
+    this.populateField('direction', this.currentNPC.direction)
+    
+    // CORRECTION 2: Position - gestion spéciale
+    if (this.currentNPC.position) {
+        console.log('📍 [FormBuilder] Setting position:', this.currentNPC.position)
         
-        if (!npc || !npc.type) {
-            console.error('❌ [FormBuilder] Invalid NPC data')
-            return
+        // Méthode directe pour les champs de position
+        const xInput = document.querySelector('input[name="position.x"]')
+        const yInput = document.querySelector('input[name="position.y"]')
+        
+        if (xInput && this.currentNPC.position.x !== undefined) {
+            xInput.value = this.currentNPC.position.x
+            console.log('✅ [FormBuilder] X position set to:', this.currentNPC.position.x)
         }
         
-        // Clone profond pour éviter les mutations
-        this.currentNPC = JSON.parse(JSON.stringify(npc))
-        this.currentType = npc.type
-        
-        console.log('📋 [FormBuilder] NPC loaded, type:', this.currentType)
-        
-        // Sélectionner le type et construire le formulaire
-        this.updateTypeSelection(this.currentType)
-        this.buildForm(this.currentType)
-        this.showFormContent()
-        
-        // CORRECTION : Pré-remplir TOUS les champs après construction du formulaire
-        setTimeout(() => {
-            this.populateAllFields()
-            this.updateJsonPreview()
-            this.validateForm()
-        }, 100) // Petit délai pour s'assurer que le DOM est prêt
-    }
-
-    // NOUVELLE MÉTHODE : Pré-remplir tous les champs du formulaire
-    populateAllFields() {
-        console.log('📝 [FormBuilder] Populating all fields for NPC:', this.currentNPC.name)
-        
-        if (!this.currentNPC) return
-        
-        // Parcourir tous les champs et les pré-remplir
-        this.populateField('name', this.currentNPC.name)
-        this.populateField('sprite', this.currentNPC.sprite)
-        this.populateField('direction', this.currentNPC.direction)
-        
-        // Position
-        if (this.currentNPC.position) {
-            this.populateField('position.x', this.currentNPC.position.x)
-            this.populateField('position.y', this.currentNPC.position.y)
+        if (yInput && this.currentNPC.position.y !== undefined) {
+            yInput.value = this.currentNPC.position.y
+            console.log('✅ [FormBuilder] Y position set to:', this.currentNPC.position.y)
         }
         
-        // Champs numériques communs
-        this.populateField('interactionRadius', this.currentNPC.interactionRadius)
-        this.populateField('cooldownSeconds', this.currentNPC.cooldownSeconds)
-        
-        // Champs booléens communs
-        this.populateField('canWalkAway', this.currentNPC.canWalkAway)
-        this.populateField('autoFacePlayer', this.currentNPC.autoFacePlayer)
-        this.populateField('repeatable', this.currentNPC.repeatable)
-        
-        // Champs spécifiques au type
-        this.populateTypeSpecificFields()
-        
-        // Arrays
-        this.populateArrayFields()
-        
-        // Objects JSON
-        this.populateObjectFields()
-        
-        console.log('✅ [FormBuilder] All fields populated')
+        // Aussi mettre à jour dans l'objet NPC courant
+        this.setFieldValue('position.x', this.currentNPC.position.x)
+        this.setFieldValue('position.y', this.currentNPC.position.y)
     }
+    
+    // Champs numériques communs
+    this.populateField('interactionRadius', this.currentNPC.interactionRadius)
+    this.populateField('cooldownSeconds', this.currentNPC.cooldownSeconds)
+    
+    // Champs booléens communs
+    this.populateField('canWalkAway', this.currentNPC.canWalkAway)
+    this.populateField('autoFacePlayer', this.currentNPC.autoFacePlayer)
+    this.populateField('repeatable', this.currentNPC.repeatable)
+    
+    // Champs spécifiques au type
+    this.populateTypeSpecificFields()
+    
+    // Arrays
+    this.populateArrayFields()
+    
+    // Objects JSON
+    this.populateObjectFields()
+    
+    console.log('✅ [FormBuilder] All fields populated successfully')
+}
 
-    // Pré-remplir un champ individuel
-    populateField(fieldName, value) {
-        if (value === undefined || value === null) return
-        
+// MÉTHODE CORRIGÉE : populateField pour mieux gérer les types
+populateField(fieldName, value) {
+    if (value === undefined || value === null) {
+        console.log(`⚠️ [FormBuilder] Skipping field ${fieldName} - value is ${value}`)
+        return
+    }
+    
+    // Gestion spéciale pour les champs de position
+    if (fieldName === 'position.x' || fieldName === 'position.y') {
         const field = document.querySelector(`[name="${fieldName}"]`)
-        if (!field) return
-        
-        if (field.type === 'checkbox') {
-            field.checked = Boolean(value)
-        } else if (field.type === 'number') {
+        if (field) {
             field.value = Number(value)
-        } else {
-            field.value = String(value)
+            console.log(`📍 [FormBuilder] ${fieldName} set to:`, Number(value))
         }
-        
-        // Déclencher l'événement change pour mettre à jour l'état
-        field.dispatchEvent(new Event('change', { bubbles: true }))
+        return
     }
+    
+    const field = document.querySelector(`[name="${fieldName}"]`)
+    if (!field) {
+        console.log(`⚠️ [FormBuilder] Field not found: ${fieldName}`)
+        return
+    }
+    
+    if (field.type === 'checkbox') {
+        field.checked = Boolean(value)
+        console.log(`☑️ [FormBuilder] ${fieldName} checked:`, Boolean(value))
+    } else if (field.type === 'number') {
+        field.value = Number(value)
+        console.log(`🔢 [FormBuilder] ${fieldName} set to:`, Number(value))
+    } else {
+        field.value = String(value)
+        console.log(`📝 [FormBuilder] ${fieldName} set to:`, String(value))
+    }
+    
+    // Déclencher l'événement change pour mettre à jour l'état
+    field.dispatchEvent(new Event('change', { bubbles: true }))
+}
 
     // Pré-remplir les champs spécifiques au type
     populateTypeSpecificFields() {
@@ -629,40 +668,47 @@ export class NPCFormBuilder {
         `
     }
 
-    createPositionField(fieldName, currentValue) {
-        const position = currentValue || { x: 0, y: 0 }
-        
-        return `
-            <div class="position-field">
-                <div class="position-inputs">
-                    <input 
-                        type="number" 
-                        class="form-input position-x" 
-                        name="${fieldName}.x" 
-                        value="${position.x || 0}" 
-                        placeholder="X" 
-                        min="0"
-                    >
-                    <input 
-                        type="number" 
-                        class="form-input position-y" 
-                        name="${fieldName}.y" 
-                        value="${position.y || 0}" 
-                        placeholder="Y" 
-                        min="0"
-                    >
-                </div>
-                <div class="position-presets">
-                    ${Object.entries(POSITION_PRESETS).map(([name, pos]) => `
-                        <button type="button" class="btn btn-sm preset-btn" 
-                                onclick="window.npcFormBuilder.setPosition(${pos.x}, ${pos.y})">
-                            ${name}
-                        </button>
-                    `).join('')}
-                </div>
+   createPositionField(fieldName, currentValue) {
+    console.log('🏗️ [FormBuilder] Creating position field, currentValue:', currentValue)
+    
+    const position = currentValue || { x: 0, y: 0 }
+    
+    return `
+        <div class="position-field">
+            <div class="position-inputs">
+                <input 
+                    type="number" 
+                    class="form-input position-x" 
+                    name="${fieldName}.x" 
+                    value="${position.x || 0}" 
+                    placeholder="X" 
+                    min="0"
+                    data-field-type="position-x"
+                >
+                <input 
+                    type="number" 
+                    class="form-input position-y" 
+                    name="${fieldName}.y" 
+                    value="${position.y || 0}" 
+                    placeholder="Y" 
+                    min="0"
+                    data-field-type="position-y"
+                >
             </div>
-        `
-    }
+            <div class="position-presets">
+                ${Object.entries(POSITION_PRESETS).map(([name, pos]) => `
+                    <button type="button" class="btn btn-sm preset-btn" 
+                            onclick="window.npcFormBuilder.setPosition(${pos.x}, ${pos.y})">
+                        ${name}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="position-display">
+                Position: <span id="currentPosition">${position.x}, ${position.y}</span>
+            </div>
+        </div>
+    `
+}
 
     createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
         const items = currentValue || []
@@ -740,23 +786,41 @@ export class NPCFormBuilder {
     }
 
     // Gestion des changements
-    handleFieldChange(e) {
-        const field = e.target
-        const fieldName = field.name
+   // MÉTHODE CORRIGÉE : handleFieldChange avec gestion position
+handleFieldChange(e) {
+    const field = e.target
+    const fieldName = field.name
+    
+    if (!fieldName || !this.currentNPC) return
+    
+    let value = this.getFieldInputValue(field)
+    
+    console.log(`📝 [FormBuilder] Field change: ${fieldName} = ${value}`)
+    
+    // Gestion spéciale pour les champs de position
+    if (fieldName === 'position.x' || fieldName === 'position.y') {
+        value = Number(value) || 0
+        console.log(`📍 [FormBuilder] Position field ${fieldName} changed to:`, value)
         
-        if (!fieldName || !this.currentNPC) return
+        // Mettre à jour l'affichage en temps réel
+        const xInput = document.querySelector('input[name="position.x"]')
+        const yInput = document.querySelector('input[name="position.y"]')
+        const positionDisplay = document.getElementById('currentPosition')
         
-        let value = this.getFieldInputValue(field)
-        this.setFieldValue(fieldName, value)
-        
-        // Validation en temps réel
-        this.validateField(fieldName)
-        this.updateJsonPreview()
-        
-        // Notify handlers
-        this.changeHandlers.forEach(handler => handler(this.currentNPC, fieldName, value))
+        if (positionDisplay && xInput && yInput) {
+            positionDisplay.textContent = `${xInput.value || 0}, ${yInput.value || 0}`
+        }
     }
-
+    
+    this.setFieldValue(fieldName, value)
+    
+    // Validation en temps réel
+    this.validateField(fieldName)
+    this.updateJsonPreview()
+    
+    // Notify handlers
+    this.changeHandlers.forEach(handler => handler(this.currentNPC, fieldName, value))
+}
     getFieldInputValue(field) {
         switch (field.type) {
             case 'checkbox':
@@ -796,6 +860,23 @@ export class NPCFormBuilder {
         return this.currentNPC[fieldName]
     }
 
+    debugNPCPosition() {
+    console.log('🔍 [FormBuilder] NPC Position Debug:')
+    console.log('📋 Current NPC:', this.currentNPC)
+    console.log('📍 Current NPC Position:', this.currentNPC?.position)
+    
+    const xInput = document.querySelector('input[name="position.x"]')
+    const yInput = document.querySelector('input[name="position.y"]')
+    
+    console.log('🔍 X Input:', xInput ? `value=${xInput.value}` : 'NOT FOUND')
+    console.log('🔍 Y Input:', yInput ? `value=${yInput.value}` : 'NOT FOUND')
+    
+    if (this.currentNPC && this.currentNPC.position) {
+        console.log('🔄 Forcing position update...')
+        this.setPosition(this.currentNPC.position.x, this.currentNPC.position.y)
+    }
+}
+    
     setFieldValue(fieldName, value) {
         if (!this.currentNPC) return
         
@@ -1050,32 +1131,38 @@ export class NPCFormBuilder {
         this.updateJsonPreview()
     }
 
-    setPosition(x, y) {
-        this.setFieldValue('position.x', x)
-        this.setFieldValue('position.y', y)
-        
-        // Mettre à jour les inputs
-        const xInput = document.querySelector('input[name="position.x"]')
-        const yInput = document.querySelector('input[name="position.y"]')
-        
-        if (xInput) xInput.value = x
-        if (yInput) yInput.value = y
-        
-        this.updateJsonPreview()
+setPosition(x, y) {
+    console.log('📍 [FormBuilder] Setting position to:', x, y)
+    
+    this.setFieldValue('position.x', x)
+    this.setFieldValue('position.y', y)
+    
+    // Mettre à jour les inputs
+    const xInput = document.querySelector('input[name="position.x"]')
+    const yInput = document.querySelector('input[name="position.y"]')
+    
+    if (xInput) {
+        xInput.value = x
+        console.log('✅ [FormBuilder] X input updated to:', x)
     }
-
-    formatJSON(fieldName) {
-        const textarea = document.querySelector(`textarea[name="${fieldName}"]`)
-        if (!textarea) return
-        
-        try {
-            const obj = JSON.parse(textarea.value)
-            textarea.value = JSON.stringify(obj, null, 2)
-            this.handleFieldChange({ target: textarea })
-        } catch (error) {
-            alert('JSON invalide : ' + error.message)
-        }
+    if (yInput) {
+        yInput.value = y
+        console.log('✅ [FormBuilder] Y input updated to:', y)
     }
+    
+    // Mettre à jour l'affichage de position
+    const positionDisplay = document.getElementById('currentPosition')
+    if (positionDisplay) {
+        positionDisplay.textContent = `${x}, ${y}`
+    }
+    
+    this.updateJsonPreview()
+    
+    // Déclencher les événements change
+    if (xInput) xInput.dispatchEvent(new Event('change', { bubbles: true }))
+    if (yInput) yInput.dispatchEvent(new Event('change', { bubbles: true }))
+}
+    
 
     validateJSON(fieldName) {
         const textarea = document.querySelector(`textarea[name="${fieldName}"]`)
