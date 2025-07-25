@@ -1436,52 +1436,66 @@ async openQuestSelector(fieldName) {
     }
 }
 
-// MÉTHODE MISE À JOUR : Charger les quêtes depuis la DB
+// MÉTHODE CORRIGÉE FINALE : loadQuestsFromDB
+// À remplacer dans npc-form-builder.js
+
 async loadQuestsFromDB() {
     try {
-        // Récupérer le token depuis adminPanel si disponible
-        const token = this.getAuthToken()
-        console.log('🔑 [FormBuilder] Token récupéré:', token ? `${token.substring(0, 20)}...` : 'AUCUN')
+        console.log('📋 [FormBuilder] Chargement quêtes depuis MongoDB via adminPanel.apiCall...')
         
-        if (!token) {
-            throw new Error('Token d\'authentification manquant')
+        // ✅ SOLUTION : Utiliser EXACTEMENT la même méthode que MongoDB
+        // Le middleware requireMacAndDev côté serveur gère automatiquement l'authentification
+        const response = await this.adminPanel.apiCall('/quests/list')
+        
+        console.log('📋 [FormBuilder] Response API reçue:', response)
+        
+        // Vérifier le format de réponse (même structure que les autres modules)
+        if (!response || typeof response !== 'object') {
+            throw new Error('Réponse API invalide')
         }
         
-        // Utiliser la nouvelle route avec token correct
-        const response = await fetch('/api/admin/quests/list', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        
-        console.log('📡 [FormBuilder] Response status:', response.status)
-        
-        if (!response.ok) {
-            const errorText = await response.text()
-            console.error('❌ [FormBuilder] API Error:', errorText)
-            throw new Error(`Erreur API quêtes: ${response.status}`)
+        if (!response.success) {
+            throw new Error(response.error || 'Erreur serveur inconnue')
         }
         
-        const data = await response.json()
-        console.log('📋 [FormBuilder] Response data:', data)
-        
-        if (!data.success) {
-            throw new Error(data.error || 'Erreur serveur')
+        // Vérifier que les quêtes sont présentes
+        if (!response.quests || !Array.isArray(response.quests)) {
+            console.warn('⚠️ [FormBuilder] Pas de quêtes dans la réponse, utiliser tableau vide')
+            return []
         }
         
         // Mettre en cache pour usage ultérieur
         this.questsCache = {}
-        data.quests.forEach(quest => {
-            this.questsCache[quest.id] = quest
+        response.quests.forEach(quest => {
+            if (quest && quest.id) {
+                this.questsCache[quest.id] = quest
+            }
         })
         
-        console.log(`📋 [FormBuilder] Loaded ${data.quests.length} quests from DB`)
-        return data.quests
+        console.log(`✅ [FormBuilder] ${response.quests.length} quêtes chargées depuis MongoDB`)
+        console.log('📋 [FormBuilder] Première quête exemple:', response.quests[0])
+        
+        return response.quests
         
     } catch (error) {
-        console.error('❌ [FormBuilder] Erreur chargement quêtes DB:', error)
+        console.error('❌ [FormBuilder] Erreur chargement quêtes depuis MongoDB:', error)
+        
+        // Diagnostic détaillé pour débugger
+        console.log('🔍 [FormBuilder] Diagnostic détaillé:')
+        console.log('  - this.adminPanel existe:', !!this.adminPanel)
+        console.log('  - this.adminPanel.apiCall existe:', !!this.adminPanel?.apiCall)
+        console.log('  - Type de this.adminPanel:', typeof this.adminPanel)
+        
+        if (this.adminPanel) {
+            console.log('  - adminPanel keys:', Object.keys(this.adminPanel))
+        }
+        
+        // Afficher l'erreur à l'utilisateur pour information
+        if (this.adminPanel && this.adminPanel.showNotification) {
+            this.adminPanel.showNotification('Erreur chargement quêtes: ' + error.message, 'error')
+        }
+        
+        // Retourner tableau vide en cas d'erreur pour éviter les crashes
         return []
     }
 }
@@ -1639,11 +1653,6 @@ async refreshQuestDetails(fieldName, index) {
     }
 }
 
-// MÉTHODE À AJOUTER : Obtenir le token d'auth
-getAuthToken() {
-    // Récupérer le token depuis localStorage ou autre
-    return localStorage.getItem('adminToken') || ''
-}
     // API publique
     getNPC() {
         return this.currentNPC ? { ...this.currentNPC } : null
