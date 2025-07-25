@@ -653,7 +653,7 @@ convertMongoNPCToEditorFormat(mongoNPC) {
                             <button class="btn btn-warning" onclick="adminPanel.npcEditor.exportNPCs()" ${!this.currentZone ? 'disabled' : ''}>
                                 <i class="fas fa-file-export"></i> Exporter
                             </button>
-                            <button class="btn btn-primary" onclick="adminPanel.npcEditor.saveAllNPCs()" ${!this.currentZone ? 'disabled' : ''}>
+<button class="btn btn-primary" onclick="saveAllNPCs()" ${!this.currentZone ? 'disabled' : ''}>
                                 <i class="fas fa-save"></i> Sauvegarder MongoDB
                             </button>
                             <button class="btn btn-secondary" onclick="adminPanel.npcEditor.validateZoneNPCs()" ${!this.currentZone ? 'disabled' : ''}>
