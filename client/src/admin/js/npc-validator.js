@@ -166,34 +166,35 @@ export class NPCValidator {
     }
 
     // Validations spécifiques par type
-    validateDialogueNPC(npc) {
-        if (!npc.dialogueIds || !Array.isArray(npc.dialogueIds) || npc.dialogueIds.length === 0) {
-            this.addError('dialogueIds', 'Au moins un dialogue est requis pour un NPC dialogue')
-        }
+   validateDialogueNPC(npc) {
+    // dialogueIds maintenant optionnel
+    if (npc.dialogueIds && (!Array.isArray(npc.dialogueIds) || npc.dialogueIds.length === 0)) {
+        this.addError('dialogueIds', 'dialogueIds doit être un tableau non vide')
+    }
 
-        if (npc.conditionalDialogueIds) {
-    // Si c'est un tableau (erreur), le convertir en objet vide
-    if (Array.isArray(npc.conditionalDialogueIds)) {
-        console.warn('Converting array to object for conditionalDialogueIds')
-        npc.conditionalDialogueIds = {}
-        return
-    }
-    
-    // Vérifier que c'est un objet valide
-    if (typeof npc.conditionalDialogueIds !== 'object') {
-        this.addError('conditionalDialogueIds', 'Dialogues conditionnels doivent être un objet JSON')
-        return
-    }
-    
-    // Valider chaque condition
-    Object.keys(npc.conditionalDialogueIds).forEach(condition => {
-        const conditionData = npc.conditionalDialogueIds[condition]
-        if (!conditionData.condition || !conditionData.dialogueId) {
-            this.addError('conditionalDialogueIds', `Condition "${condition}" incomplète (manque condition ou dialogueId)`)
+    // conditionalDialogueIds complètement optionnel
+    if (npc.conditionalDialogueIds) {
+        // Nettoyer automatiquement si c'est un tableau
+        if (Array.isArray(npc.conditionalDialogueIds)) {
+            npc.conditionalDialogueIds = {}
         }
-    })
-}
+        
+        // Si c'est un objet vide, c'est OK
+        if (typeof npc.conditionalDialogueIds === 'object' && Object.keys(npc.conditionalDialogueIds).length === 0) {
+            return // Objet vide = OK
+        }
+        
+        // Sinon valider la structure
+        if (typeof npc.conditionalDialogueIds === 'object') {
+            Object.keys(npc.conditionalDialogueIds).forEach(condition => {
+                const conditionData = npc.conditionalDialogueIds[condition]
+                if (!conditionData || !conditionData.condition || !conditionData.dialogueId) {
+                    this.addError('conditionalDialogueIds', `Condition "${condition}" incomplète`)
+                }
+            })
+        }
     }
+}
 
     validateMerchantNPC(npc) {
         if (!npc.shopId || typeof npc.shopId !== 'string') {
