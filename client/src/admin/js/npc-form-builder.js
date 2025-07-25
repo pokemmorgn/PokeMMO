@@ -14,11 +14,101 @@ constructor(container, adminPanel = null) {
         this.validator = new NPCValidator()
         this.changeHandlers = []
         this.validationErrors = {}
-        
+     this.availableSprites = []
+    this.currentSpriteIndex = 0
+    this.spritesLoaded = false
 
         this.init()
     }
 
+    // Charger les sprites disponibles
+async loadAvailableSprites() {
+    try {
+        console.log('🖼️ [FormBuilder] Loading available sprites...')
+        
+        // Appeler l'API pour lister les sprites
+        const response = await fetch('/api/admin/sprites/list')
+        const data = await response.json()
+        
+        if (data.success && data.sprites) {
+            this.availableSprites = data.sprites
+            this.spritesLoaded = true
+            
+            console.log(`✅ [FormBuilder] Loaded ${this.availableSprites.length} sprites`)
+            
+            // Afficher le premier sprite
+            if (this.availableSprites.length > 0) {
+                this.currentSpriteIndex = 0
+                this.displaySprite(this.availableSprites[0])
+            }
+            
+            this.adminPanel?.showNotification(`${this.availableSprites.length} sprites chargés`, 'success')
+        } else {
+            throw new Error('Erreur chargement sprites')
+        }
+    } catch (error) {
+        console.error('❌ [FormBuilder] Error loading sprites:', error)
+        this.adminPanel?.showNotification('Erreur chargement sprites: ' + error.message, 'error')
+    }
+}
+
+// Afficher un sprite
+displaySprite(spriteName) {
+    const img = document.getElementById('currentSpriteImg')
+    const error = document.getElementById('spriteError')
+    const nameDiv = document.getElementById('currentSpriteName')
+    
+    if (!img || !error || !nameDiv) return
+    
+    const spritePath = `/assets/npc/${spriteName}`
+    
+    img.src = spritePath
+    img.style.display = 'block'
+    error.style.display = 'none'
+    nameDiv.textContent = spriteName
+    
+    // Mettre à jour le champ input automatiquement
+    const spriteInput = document.querySelector('input[name="sprite"]')
+    if (spriteInput) {
+        spriteInput.value = spriteName
+        spriteInput.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+}
+
+// Navigation sprites
+previousSprite() {
+    if (!this.spritesLoaded || this.availableSprites.length === 0) {
+        this.loadAvailableSprites()
+        return
+    }
+    
+    this.currentSpriteIndex = (this.currentSpriteIndex - 1 + this.availableSprites.length) % this.availableSprites.length
+    this.displaySprite(this.availableSprites[this.currentSpriteIndex])
+}
+
+nextSprite() {
+    if (!this.spritesLoaded || this.availableSprites.length === 0) {
+        this.loadAvailableSprites()
+        return
+    }
+    
+    this.currentSpriteIndex = (this.currentSpriteIndex + 1) % this.availableSprites.length
+    this.displaySprite(this.availableSprites[this.currentSpriteIndex])
+}
+
+// Quand le nom change manuellement
+onSpriteNameChange(spriteName) {
+    if (spriteName) {
+        this.displaySprite(spriteName)
+        
+        // Trouver l'index dans la liste
+        const index = this.availableSprites.indexOf(spriteName)
+        if (index !== -1) {
+            this.currentSpriteIndex = index
+        }
+    }
+}
+    
     init() {
         this.container.innerHTML = this.createFormStructure()
         this.setupEventListeners()
@@ -583,28 +673,49 @@ populateField(fieldName, value) {
     }
 
     createSpriteField(fieldName, currentValue, isRequired) {
-        const suggestions = SUGGESTED_SPRITES[this.currentType] || []
-        
-        return `
-            <div class="sprite-field">
-                <input 
-                    type="text" 
-                    class="form-input" 
-                    name="${fieldName}" 
-                    value="${currentValue || ''}" 
-                    placeholder="nom_sprite.png"
-                    list="spriteList"
-                    ${isRequired ? 'required' : ''}
-                >
-                <datalist id="spriteList">
-                    ${suggestions.map(sprite => `<option value="${sprite}">`).join('')}
-                </datalist>
-                <button type="button" class="btn btn-sm sprite-browser" onclick="window.npcFormBuilder.openSpriteBrowser()">
-                    🖼️ Parcourir
+    const suggestions = SUGGESTED_SPRITES[this.currentType] || []
+    
+    return `
+        <div class="sprite-field">
+            <input 
+                type="text" 
+                class="form-input" 
+                name="${fieldName}" 
+                value="${currentValue || ''}" 
+                placeholder="nom_sprite.png"
+                list="spriteList"
+                ${isRequired ? 'required' : ''}
+                onchange="window.npcFormBuilder.onSpriteNameChange(this.value)"
+            >
+            <datalist id="spriteList">
+                ${suggestions.map(sprite => `<option value="${sprite}">`).join('')}
+            </datalist>
+            
+            <!-- Prévisualisation sprite -->
+            <div class="sprite-preview" id="spritePreview">
+                <div class="sprite-controls">
+                    <button type="button" class="btn-sprite-nav" onclick="window.npcFormBuilder.previousSprite()">
+                        ◀️
+                    </button>
+                    <div class="sprite-display">
+                        <img id="currentSpriteImg" src="" alt="Sprite" style="display: none;" 
+                             onerror="this.style.display='none'; document.getElementById('spriteError').style.display='block'">
+                        <div id="spriteError" class="sprite-error" style="display: none;">
+                            🚫 Sprite non trouvé
+                        </div>
+                        <div class="sprite-name" id="currentSpriteName">Aucun sprite</div>
+                    </div>
+                    <button type="button" class="btn-sprite-nav" onclick="window.npcFormBuilder.nextSprite()">
+                        ▶️
+                    </button>
+                </div>
+                <button type="button" class="btn btn-sm sprite-browser" onclick="window.npcFormBuilder.loadAvailableSprites()">
+                    🖼️ Charger sprites
                 </button>
             </div>
-        `
-    }
+        </div>
+    `
+}
 
     createNumberField(fieldName, fieldConfig, currentValue, isRequired) {
         const min = fieldConfig.min !== undefined ? fieldConfig.min : ''
