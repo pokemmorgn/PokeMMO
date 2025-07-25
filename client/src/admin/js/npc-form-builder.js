@@ -1176,6 +1176,21 @@ setPosition(x, y) {
         }
     }
 
+    formatJSON(fieldName) {
+    const textarea = document.querySelector(`textarea[name="${fieldName}"]`)
+    if (!textarea) return
+    
+    try {
+        const parsed = JSON.parse(textarea.value)
+        textarea.value = JSON.stringify(parsed, null, 2)
+        textarea.classList.remove('json-error')
+        this.adminPanel?.showNotification('JSON formaté avec succès', 'success')
+    } catch (error) {
+        textarea.classList.add('json-error')
+        this.adminPanel?.showNotification('JSON invalide : ' + error.message, 'error')
+    }
+}
+
     openSpriteBrowser() {
         // TODO: Implémenter un navigateur de sprites
         alert('Navigateur de sprites à implémenter')
