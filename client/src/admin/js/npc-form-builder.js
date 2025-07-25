@@ -14,16 +14,7 @@ export class NPCFormBuilder {
         this.changeHandlers = []
         this.validationErrors = {}
         
-        // Bind des méthodes pour les handlers HTML
-        this.boundSelectType = this.selectType.bind(this)
-        this.boundToggleSection = this.toggleSection.bind(this)
-        this.boundAddArrayItem = this.addArrayItem.bind(this)
-        this.boundRemoveArrayItem = this.removeArrayItem.bind(this)
-        this.boundSetPosition = this.setPosition.bind(this)
-        this.boundFormatJSON = this.formatJSON.bind(this)
-        this.boundValidateJSON = this.validateJSON.bind(this)
-        this.boundOpenSpriteBrowser = this.openSpriteBrowser.bind(this)
-        
+
         this.init()
     }
 
