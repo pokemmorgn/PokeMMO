@@ -784,14 +784,23 @@ createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
     }
 
     // Gestion des changements
-   // MÉTHODE CORRIGÉE : handleFieldChange avec gestion position
-handleFieldChange(e) {
+ handleFieldChange(e) {
     const field = e.target
     const fieldName = field.name
     
     if (!fieldName || !this.currentNPC) return
     
     let value = this.getFieldInputValue(field)
+    
+    // ✅ CORRECTION: Parser les objets JSON automatiquement
+    if (field.classList.contains('json-editor')) {
+        try {
+            value = JSON.parse(field.value || '{}')
+        } catch (error) {
+            console.warn('Invalid JSON, using empty object:', fieldName)
+            value = {}
+        }
+    }
     
     console.log(`📝 [FormBuilder] Field change: ${fieldName} = ${value}`)
     
@@ -819,6 +828,8 @@ handleFieldChange(e) {
     // Notify handlers
     this.changeHandlers.forEach(handler => handler(this.currentNPC, fieldName, value))
 }
+
+    
     getFieldInputValue(field) {
         switch (field.type) {
             case 'checkbox':
