@@ -1114,6 +1114,45 @@ router.post('/quests/:questId/duplicate', requireMacAndDev, async (req: any, res
   }
 });
 
+// ✅ ROUTE: Liste des quêtes pour le sélecteur NPC
+router.get('/quests/list', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('📋 [Quests API] Loading quests list for NPC selector...');
+    
+    const quests = await QuestData.find({ isActive: true })
+      .select('questId name description category startNpcId endNpcId isRepeatable')
+      .sort({ category: 1, name: 1 })
+      .lean();
+    
+    console.log(`✅ [Quests API] ${quests.length} quests loaded for selector`);
+    
+    // Formater pour le sélecteur
+    const formattedQuests = quests.map(quest => ({
+      id: quest.questId,
+      name: quest.name,
+      description: quest.description || 'Aucune description',
+      category: quest.category || 'general',
+      startNpcId: quest.startNpcId,
+      endNpcId: quest.endNpcId,
+      isRepeatable: quest.isRepeatable || false
+    }));
+    
+    res.json({
+      success: true,
+      quests: formattedQuests,
+      total: formattedQuests.length
+    });
+    
+  } catch (error) {
+    console.error('❌ [Quests API] Error loading quests for selector:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur lors du chargement des quêtes',
+      quests: []
+    });
+  }
+});
+
 // ✅ ROUTE: Recharger le système de quêtes (validation MongoDB)
 router.post('/quests/reload', requireMacAndDev, async (req: any, res) => {
   try {
