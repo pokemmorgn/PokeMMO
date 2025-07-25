@@ -701,21 +701,27 @@ populateField(fieldName, value) {
     `
 }
 
-    createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
-        const items = currentValue || []
-        
-        return `
-            <div class="array-field" data-field-name="${fieldName}">
-                <div class="array-items" id="${fieldName}_items">
-                    ${items.map((item, index) => this.createArrayItem(fieldName, item, index)).join('')}
-                </div>
-                <button type="button" class="btn btn-sm add-array-item" 
-                        onclick="window.npcFormBuilder.addArrayItem('${fieldName}')">
-                    ➕ Ajouter ${this.getFieldDisplayName(fieldName)}
-                </button>
-            </div>
-        `
+createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
+    // Vérifier si c'est un champ de quêtes
+    if (fieldName === 'questsToGive' || fieldName === 'questsToEnd' || fieldName.includes('quest')) {
+        return this.createQuestSelectorField(fieldName, currentValue, isRequired)
     }
+    
+    // Sinon, utiliser le champ array standard
+    const items = currentValue || []
+    
+    return `
+        <div class="array-field" data-field-name="${fieldName}">
+            <div class="array-items" id="${fieldName}_items">
+                ${items.map((item, index) => this.createArrayItem(fieldName, item, index)).join('')}
+            </div>
+            <button type="button" class="btn btn-sm add-array-item" 
+                    onclick="window.npcFormBuilder.addArrayItem('${fieldName}')">
+                ➕ Ajouter ${this.getFieldDisplayName(fieldName)}
+            </button>
+        </div>
+    `
+}
 
     createArrayItem(fieldName, item, index) {
         return `
@@ -1320,6 +1326,304 @@ setPosition(x, y) {
         return baseNPC
     }
 
+    // Ajout des méthodes pour la sélection de quêtes dans NPCFormBuilder
+
+// MÉTHODE À AJOUTER : Créer un champ de sélection de quêtes
+createQuestSelectorField(fieldName, currentValue, isRequired) {
+    const items = currentValue || []
+    
+    return `
+        <div class="quest-selector-field" data-field-name="${fieldName}">
+            <div class="quest-items" id="${fieldName}_items">
+                ${items.map((questId, index) => this.createQuestItem(fieldName, questId, index)).join('')}
+            </div>
+            <div class="quest-controls">
+                <button type="button" class="btn btn-sm btn-primary add-quest-manual" 
+                        onclick="window.npcFormBuilder.addQuestManual('${fieldName}')">
+                    ✏️ Ajouter ID manuel
+                </button>
+                <button type="button" class="btn btn-sm btn-success add-quest-from-db" 
+                        onclick="window.npcFormBuilder.openQuestSelector('${fieldName}')">
+                    📋 Choisir de la DB
+                </button>
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Créer un élément de quête avec détails
+createQuestItem(fieldName, questId, index) {
+    // Récupérer les détails de la quête si disponibles
+    const questDetails = this.getQuestDetails(questId)
+    
+    return `
+        <div class="quest-item" data-index="${index}">
+            <div class="quest-info">
+                <input type="text" class="form-input quest-id" 
+                       name="${fieldName}[${index}]" 
+                       value="${questId}" 
+                       placeholder="quest_id">
+                ${questDetails ? `
+                    <div class="quest-details">
+                        <span class="quest-name">${questDetails.name}</span>
+                        <span class="quest-category">${questDetails.category}</span>
+                    </div>
+                ` : `
+                    <div class="quest-details unknown">
+                        <span class="quest-name">Quête inconnue</span>
+                    </div>
+                `}
+            </div>
+            <div class="quest-actions">
+                <button type="button" class="btn btn-sm btn-info" 
+                        onclick="window.npcFormBuilder.refreshQuestDetails('${fieldName}', ${index})">
+                    🔄
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="window.npcFormBuilder.removeQuestItem('${fieldName}', ${index})">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Obtenir les détails d'une quête
+getQuestDetails(questId) {
+    // Ici vous pouvez récupérer depuis un cache local ou faire un appel API
+    if (this.questsCache && this.questsCache[questId]) {
+        return this.questsCache[questId]
+    }
+    return null
+}
+
+// MÉTHODE À AJOUTER : Ajouter une quête manuellement
+addQuestManual(fieldName) {
+    const questId = prompt('Entrez l\'ID de la quête:')
+    if (!questId) return
+    
+    const currentValue = this.getFieldValue(fieldName) || []
+    
+    // Vérifier les doublons
+    if (currentValue.includes(questId)) {
+        alert('Cette quête est déjà dans la liste')
+        return
+    }
+    
+    currentValue.push(questId)
+    this.setFieldValue(fieldName, currentValue)
+    this.rebuildQuestField(fieldName, currentValue)
+    this.updateJsonPreview()
+}
+
+// MÉTHODE À AJOUTER : Ouvrir le sélecteur de quêtes
+async openQuestSelector(fieldName) {
+    try {
+        // Charger les quêtes depuis la DB
+        const quests = await this.loadQuestsFromDB()
+        
+        if (!quests || quests.length === 0) {
+            alert('Aucune quête trouvée dans la base de données')
+            return
+        }
+        
+        // Créer et afficher la modal de sélection
+        this.showQuestSelectorModal(fieldName, quests)
+        
+    } catch (error) {
+        console.error('Erreur chargement quêtes:', error)
+        alert('Erreur lors du chargement des quêtes')
+    }
+}
+
+// MÉTHODE À AJOUTER : Charger les quêtes depuis la DB
+async loadQuestsFromDB() {
+    try {
+        // Appel API pour récupérer les quêtes
+        const response = await fetch('/api/admin/quests', {
+            headers: {
+                'Authorization': `Bearer ${this.getAuthToken()}`
+            }
+        })
+        
+        if (!response.ok) {
+            throw new Error('Erreur API quêtes')
+        }
+        
+        const data = await response.json()
+        
+        // Mettre en cache pour usage ultérieur
+        this.questsCache = {}
+        data.quests.forEach(quest => {
+            this.questsCache[quest.id] = quest
+        })
+        
+        return data.quests
+        
+    } catch (error) {
+        console.error('Erreur chargement quêtes DB:', error)
+        return []
+    }
+}
+
+// MÉTHODE À AJOUTER : Afficher la modal de sélection de quêtes
+showQuestSelectorModal(fieldName, quests) {
+    const currentQuests = this.getFieldValue(fieldName) || []
+    
+    const modalHTML = `
+        <div class="quest-selector-modal" id="questSelectorModal">
+            <div class="modal-backdrop" onclick="window.npcFormBuilder.closeQuestSelector()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📋 Sélectionner des Quêtes</h3>
+                    <button type="button" class="btn-close" onclick="window.npcFormBuilder.closeQuestSelector()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="🔍 Rechercher une quête..." 
+                               onkeyup="window.npcFormBuilder.filterQuests(this.value)">
+                    </div>
+                    <div class="quests-list" id="questsList">
+                        ${quests.map(quest => `
+                            <div class="quest-option" data-quest-id="${quest.id}">
+                                <label class="quest-label">
+                                    <input type="checkbox" 
+                                           value="${quest.id}" 
+                                           ${currentQuests.includes(quest.id) ? 'checked' : ''}
+                                           onchange="window.npcFormBuilder.toggleQuestSelection('${quest.id}')">
+                                    <div class="quest-info">
+                                        <div class="quest-name">${quest.name}</div>
+                                        <div class="quest-meta">
+                                            <span class="quest-id">ID: ${quest.id}</span>
+                                            <span class="quest-category">${quest.category}</span>
+                                        </div>
+                                        <div class="quest-description">${quest.description}</div>
+                                    </div>
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.npcFormBuilder.closeQuestSelector()">
+                        Annuler
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="window.npcFormBuilder.applyQuestSelection('${fieldName}')">
+                        Appliquer (${currentQuests.length} sélectionnées)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `
+    
+    // Ajouter la modal au DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML)
+    
+    // Stocker la sélection temporaire
+    this.tempQuestSelection = [...currentQuests]
+}
+
+// MÉTHODE À AJOUTER : Filtrer les quêtes dans la modal
+filterQuests(searchTerm) {
+    const questItems = document.querySelectorAll('.quest-option')
+    const term = searchTerm.toLowerCase()
+    
+    questItems.forEach(item => {
+        const questName = item.querySelector('.quest-name').textContent.toLowerCase()
+        const questId = item.querySelector('.quest-id').textContent.toLowerCase()
+        const questDesc = item.querySelector('.quest-description').textContent.toLowerCase()
+        
+        const matches = questName.includes(term) || questId.includes(term) || questDesc.includes(term)
+        item.style.display = matches ? 'block' : 'none'
+    })
+}
+
+// MÉTHODE À AJOUTER : Gérer la sélection de quêtes
+toggleQuestSelection(questId) {
+    if (!this.tempQuestSelection) this.tempQuestSelection = []
+    
+    const index = this.tempQuestSelection.indexOf(questId)
+    if (index === -1) {
+        this.tempQuestSelection.push(questId)
+    } else {
+        this.tempQuestSelection.splice(index, 1)
+    }
+    
+    // Mettre à jour le compteur
+    const footer = document.querySelector('.modal-footer .btn-primary')
+    if (footer) {
+        footer.textContent = `Appliquer (${this.tempQuestSelection.length} sélectionnées)`
+    }
+}
+
+// MÉTHODE À AJOUTER : Appliquer la sélection de quêtes
+applyQuestSelection(fieldName) {
+    if (this.tempQuestSelection) {
+        this.setFieldValue(fieldName, [...this.tempQuestSelection])
+        this.rebuildQuestField(fieldName, this.tempQuestSelection)
+        this.updateJsonPreview()
+    }
+    
+    this.closeQuestSelector()
+}
+
+// MÉTHODE À AJOUTER : Fermer la modal de sélection
+closeQuestSelector() {
+    const modal = document.getElementById('questSelectorModal')
+    if (modal) {
+        modal.remove()
+    }
+    this.tempQuestSelection = null
+}
+
+// MÉTHODE À AJOUTER : Reconstruire un champ de quêtes
+rebuildQuestField(fieldName, quests) {
+    const questField = document.querySelector(`[data-field-name="${fieldName}"]`)
+    if (!questField) return
+    
+    const itemsContainer = questField.querySelector('.quest-items')
+    if (itemsContainer) {
+        itemsContainer.innerHTML = quests.map((questId, index) => 
+            this.createQuestItem(fieldName, questId, index)
+        ).join('')
+    }
+}
+
+// MÉTHODE À AJOUTER : Supprimer un élément de quête
+removeQuestItem(fieldName, index) {
+    const currentValue = this.getFieldValue(fieldName) || []
+    currentValue.splice(index, 1)
+    this.setFieldValue(fieldName, currentValue)
+    this.rebuildQuestField(fieldName, currentValue)
+    this.updateJsonPreview()
+}
+
+// MÉTHODE À AJOUTER : Actualiser les détails d'une quête
+async refreshQuestDetails(fieldName, index) {
+    const input = document.querySelector(`[name="${fieldName}[${index}]"]`)
+    if (!input) return
+    
+    const questId = input.value
+    if (!questId) return
+    
+    try {
+        // Recharger les détails depuis la DB
+        await this.loadQuestsFromDB()
+        
+        // Reconstruire le champ
+        const currentValue = this.getFieldValue(fieldName)
+        this.rebuildQuestField(fieldName, currentValue)
+        
+    } catch (error) {
+        console.error('Erreur actualisation quête:', error)
+    }
+}
+
+// MÉTHODE À AJOUTER : Obtenir le token d'auth
+getAuthToken() {
+    // Récupérer le token depuis localStorage ou autre
+    return localStorage.getItem('adminToken') || ''
+}
     // API publique
     getNPC() {
         return this.currentNPC ? { ...this.currentNPC } : null
