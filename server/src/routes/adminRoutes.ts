@@ -15,6 +15,7 @@ import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
 import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
+import * as fsSync from 'fs';  // ← AJOUTER CETTE LIGNE
 
 const router = express.Router();
 const execAsync = promisify(exec);
