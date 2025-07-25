@@ -216,48 +216,57 @@ export class MapEditorModule {
     // PLACEMENT D'OBJETS AMÉLIORÉ
     // ==============================
 
-    handleCanvasClick(event) {
-        if (!this.currentMapData) return
+   // Remplacer la méthode handleCanvasClick dans votre fichier map-editor.js
 
-        const canvas = document.getElementById('mapCanvas')
-        const rect = canvas.getBoundingClientRect()
+handleCanvasClick(event) {
+    if (!this.currentMapData) return
+
+    const canvas = document.getElementById('mapCanvas')
+    const rect = canvas.getBoundingClientRect()
+    
+    // ✅ CORRECTION : Utiliser les dimensions de base de la tile, pas zoomées
+    const baseTileWidth = this.currentMapData.tilewidth
+    const baseTileHeight = this.currentMapData.tileheight
+    
+    // Calculer la position relative dans le canvas
+    const relativeX = (event.clientX - rect.left)
+    const relativeY = (event.clientY - rect.top)
+    
+    // ✅ CORRECTION : Diviser par le zoom pour obtenir les coordonnées réelles
+    const actualX = relativeX / this.zoom
+    const actualY = relativeY / this.zoom
+    
+    // Maintenant calculer les coordonnées tiles
+    const tileX = Math.floor(actualX / baseTileWidth)
+    const tileY = Math.floor(actualY / baseTileHeight)
+    
+    console.log(`🗺️ [MapEditor] Click at screen (${relativeX}, ${relativeY}) -> actual (${actualX}, ${actualY}) -> tile (${tileX}, ${tileY}) [zoom: ${this.zoom}]`)
+    
+    // Vérifier si on clique sur un objet existant
+    const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
+    
+    if (existingIndex !== -1) {
+        const existingObj = this.placedObjects[existingIndex]
         
-        const tileWidth = this.currentMapData.tilewidth * this.zoom
-        const tileHeight = this.currentMapData.tileheight * this.zoom
-        
-        const x = (event.clientX - rect.left)
-        const y = (event.clientY - rect.top)
-        
-        const tileX = Math.floor(x / tileWidth)
-        const tileY = Math.floor(y / tileHeight)
-        
-        console.log(`🗺️ [MapEditor] Click at (${x}, ${y}) -> tile (${tileX}, ${tileY})`)
-        
-        // Vérifier si on clique sur un objet existant
-        const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
-        
-        if (existingIndex !== -1) {
-            const existingObj = this.placedObjects[existingIndex]
-            
-            if (existingObj.isFromMap) {
-                this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
-                return
-            }
-            
-            // Supprimer l'objet ajouté manuellement
-            this.placedObjects.splice(existingIndex, 1)
-            this.adminPanel.showNotification('Objet supprimé', 'info')
-        } else {
-            // Ajouter un nouvel objet selon le mode
-            if (this.selectedTool === 'object' && this.selectedItem) {
-                this.placeItemObject(tileX, tileY)
-            } else {
-                this.placeGenericObject(tileX, tileY)
-            }
+        if (existingObj.isFromMap) {
+            this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
+            return
         }
         
-        this.renderMap()
+        // Supprimer l'objet ajouté manuellement
+        this.placedObjects.splice(existingIndex, 1)
+        this.adminPanel.showNotification('Objet supprimé', 'info')
+    } else {
+        // Ajouter un nouvel objet selon le mode
+        if (this.selectedTool === 'object' && this.selectedItem) {
+            this.placeItemObject(tileX, tileY)
+        } else {
+            this.placeGenericObject(tileX, tileY)
+        }
     }
+    
+    this.renderMap()
+}
 
     placeItemObject(tileX, tileY) {
         if (!this.selectedItem) {
