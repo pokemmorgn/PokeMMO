@@ -11,12 +11,12 @@ export const NPC_TYPES = {
         sections: ['basic', 'dialogues', 'zoneInfo', 'quests', 'conditions', 'interaction'],
         
         fields: {
-            required: ['name', 'type', 'position', 'sprite', 'dialogueIds'],
-            optional: [
-                'direction', 'dialogueId', 'conditionalDialogueIds', 'zoneInfo', 
-                'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds', 
-                'spawnConditions', 'interactionRadius', 'canWalkAway', 'autoFacePlayer', 
-                'repeatable', 'cooldownSeconds'
+    required: ['name', 'type', 'position', 'sprite'],
+    optional: [
+        'direction', 'dialogueIds', 'dialogueId', 'conditionalDialogueIds', 'zoneInfo', 
+        'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds', 
+        'spawnConditions', 'interactionRadius', 'canWalkAway', 'autoFacePlayer', 
+        'repeatable', 'cooldownSeconds'
             ]
         },
         
