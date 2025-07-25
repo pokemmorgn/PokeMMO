@@ -224,23 +224,36 @@ handleCanvasClick(event) {
     const canvas = document.getElementById('mapCanvas')
     const rect = canvas.getBoundingClientRect()
     
-    // ✅ CORRECTION : Utiliser les dimensions de base de la tile, pas zoomées
+    // ✅ CORRECTION COMPLÈTE : Tenir compte de la différence entre taille CSS et taille interne
     const baseTileWidth = this.currentMapData.tilewidth
     const baseTileHeight = this.currentMapData.tileheight
     
-    // Calculer la position relative dans le canvas
-    const relativeX = (event.clientX - rect.left)
-    const relativeY = (event.clientY - rect.top)
+    // Calculer la position relative dans le canvas CSS
+    const relativeX = event.clientX - rect.left
+    const relativeY = event.clientY - rect.top
     
-    // ✅ CORRECTION : Diviser par le zoom pour obtenir les coordonnées réelles
-    const actualX = relativeX / this.zoom
-    const actualY = relativeY / this.zoom
+    // ✅ NOUVEAU : Calculer les ratios entre taille CSS et taille interne du canvas
+    const canvasInternalWidth = this.currentMapData.width * baseTileWidth * this.zoom
+    const canvasInternalHeight = this.currentMapData.height * baseTileHeight * this.zoom
+    
+    const scaleX = canvasInternalWidth / rect.width
+    const scaleY = canvasInternalHeight / rect.height
+    
+    // Convertir les coordonnées CSS en coordonnées internes du canvas
+    const canvasX = relativeX * scaleX
+    const canvasY = relativeY * scaleY
     
     // Maintenant calculer les coordonnées tiles
-    const tileX = Math.floor(actualX / baseTileWidth)
-    const tileY = Math.floor(actualY / baseTileHeight)
+    const tileX = Math.floor(canvasX / (baseTileWidth * this.zoom))
+    const tileY = Math.floor(canvasY / (baseTileHeight * this.zoom))
     
-    console.log(`🗺️ [MapEditor] Click at screen (${relativeX}, ${relativeY}) -> actual (${actualX}, ${actualY}) -> tile (${tileX}, ${tileY}) [zoom: ${this.zoom}]`)
+    console.log(`🗺️ [MapEditor] Click: CSS(${relativeX.toFixed(1)}, ${relativeY.toFixed(1)}) -> Canvas(${canvasX.toFixed(1)}, ${canvasY.toFixed(1)}) -> Tile(${tileX}, ${tileY}) [zoom: ${this.zoom}, scale: ${scaleX.toFixed(2)}x${scaleY.toFixed(2)}]`)
+    
+    // Vérifier que les coordonnées sont dans les limites de la carte
+    if (tileX < 0 || tileY < 0 || tileX >= this.currentMapData.width || tileY >= this.currentMapData.height) {
+        console.warn(`🗺️ [MapEditor] Click outside map bounds: (${tileX}, ${tileY})`)
+        return
+    }
     
     // Vérifier si on clique sur un objet existant
     const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
@@ -1105,46 +1118,54 @@ addOrReplaceObject(editorObject) {
         })
     }
 
-    renderMap() {
-        if (!this.currentMapData) return
+    // ✅ REMPLACER AUSSI la méthode renderMap() dans votre fichier
 
-        const canvas = document.getElementById('mapCanvas')
-        if (!canvas) {
-            console.error('Canvas mapCanvas not found')
-            return
-        }
-        
-        const mapWidth = this.currentMapData.width
-        const mapHeight = this.currentMapData.height
-        const tileWidth = this.currentMapData.tilewidth * this.zoom
-        const tileHeight = this.currentMapData.tileheight * this.zoom
-        
-        const canvasWidth = mapWidth * tileWidth
-        const canvasHeight = mapHeight * tileHeight
-        
-        canvas.style.width = canvasWidth + 'px'
-        canvas.style.height = canvasHeight + 'px'
-        canvas.style.display = 'block'
-        canvas.width = canvasWidth
-        canvas.height = canvasHeight
-        
-        const ctx = canvas.getContext('2d')
-        ctx.imageSmoothingEnabled = false
-        
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-        
-        this.drawMapLayers(ctx, tileWidth, tileHeight)
-        
-        if (this.zoom >= 0.5) {
-            this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
-        }
-        
-        this.drawPlacedObjects(ctx, tileWidth, tileHeight)
-        
-        this.updateObjectsList()
-        
-        console.log(`🗺️ [MapEditor] Map rendered - ${mapWidth}x${mapHeight} tiles, ${tileWidth}x${tileHeight}px per tile`)
+renderMap() {
+    if (!this.currentMapData) return
+
+    const canvas = document.getElementById('mapCanvas')
+    if (!canvas) {
+        console.error('Canvas mapCanvas not found')
+        return
     }
+    
+    const mapWidth = this.currentMapData.width
+    const mapHeight = this.currentMapData.height
+    const tileWidth = this.currentMapData.tilewidth * this.zoom
+    const tileHeight = this.currentMapData.tileheight * this.zoom
+    
+    // ✅ CORRECTION : Définir explicitement les tailles CSS et internes
+    const canvasWidth = mapWidth * tileWidth
+    const canvasHeight = mapHeight * tileHeight
+    
+    // Taille CSS (ce que l'utilisateur voit)
+    canvas.style.width = canvasWidth + 'px'
+    canvas.style.height = canvasHeight + 'px'
+    canvas.style.display = 'block'
+    
+    // ✅ IMPORTANT : Taille interne du canvas = taille CSS (pas de différence)
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+    
+    const ctx = canvas.getContext('2d')
+    ctx.imageSmoothingEnabled = false
+    
+    // ✅ NOUVEAU : Pas de scale supplémentaire, le zoom est déjà appliqué dans les dimensions
+    
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+    
+    this.drawMapLayers(ctx, tileWidth, tileHeight)
+    
+    if (this.zoom >= 0.5) {
+        this.drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight)
+    }
+    
+    this.drawPlacedObjects(ctx, tileWidth, tileHeight)
+    
+    this.updateObjectsList()
+    
+    console.log(`🗺️ [MapEditor] Map rendered - ${mapWidth}x${mapHeight} tiles, ${tileWidth}x${tileHeight}px per tile, canvas: ${canvasWidth}x${canvasHeight}px`)
+}
 
     drawGrid(ctx, mapWidth, mapHeight, tileWidth, tileHeight) {
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)'
