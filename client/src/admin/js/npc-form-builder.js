@@ -22,79 +22,31 @@ constructor(container, adminPanel = null) {
     }
 
     // Charger les sprites disponibles
-// Charger les sprites automatiquement depuis le dossier
 async loadAvailableSprites() {
     try {
-        console.log('🖼️ [FormBuilder] Auto-loading sprites from directory...')
+        const response = await this.adminPanel.apiCall('/sprites/list')
         
-        // Utiliser fetch pour tenter de lire le dossier assets/npc
-        const response = await fetch('/assets/npc/')
-        
-        if (response.ok) {
-            const html = await response.text()
+        if (response.success) {
+            this.availableSprites = response.sprites
+            this.spritesLoaded = true
             
-            // Parser le HTML pour extraire les noms de fichiers .png
-            const parser = new DOMParser()
-            const doc = parser.parseFromString(html, 'text/html')
-            const links = doc.querySelectorAll('a[href$=".png"]')
-            
-            this.availableSprites = Array.from(links).map(link => {
-                return link.getAttribute('href').replace(/^.*\//, '') // Garder juste le nom du fichier
-            }).filter(name => name.endsWith('.png'))
-            
-        } else {
-            // Fallback: tenter de détecter les sprites en testant des noms communs
-            const commonSprites = [
-                'default.png', 'guide.png', 'merchant.png', 'nurse.png', 'trainer.png',
-                'professor.png', 'sailor.png', 'fisherman.png', 'hiker.png', 'scientist.png',
-                'policeman.png', 'chef.png', 'waiter.png', 'businessman.png', 'old_man.png'
-            ]
-            
-            this.availableSprites = []
-            
-            // Tester chaque sprite pour voir s'il existe
-            for (const sprite of commonSprites) {
-                const testImg = new Image()
-                testImg.onload = () => {
-                    if (!this.availableSprites.includes(sprite)) {
-                        this.availableSprites.push(sprite)
-                        console.log(`✅ Found sprite: ${sprite}`)
-                    }
-                }
-                testImg.onerror = () => {
-                    console.log(`❌ Sprite not found: ${sprite}`)
-                }
-                testImg.src = `/assets/npc/${sprite}`
+            // Afficher le sprite actuel ou le premier
+            const currentSprite = document.querySelector('input[name="sprite"]')?.value
+            if (currentSprite && this.availableSprites.includes(currentSprite)) {
+                this.currentSpriteIndex = this.availableSprites.indexOf(currentSprite)
+                this.displaySprite(currentSprite)
+            } else if (this.availableSprites.length > 0) {
+                this.currentSpriteIndex = 0
+                this.displaySprite(this.availableSprites[0])
             }
             
-            // Attendre un peu que les tests se terminent
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            this.adminPanel.showNotification(`${this.availableSprites.length} sprites chargés`, 'success')
         }
-        
-        this.spritesLoaded = true
-        
-        console.log(`✅ [FormBuilder] Auto-loaded ${this.availableSprites.length} sprites:`, this.availableSprites)
-        
-        // Afficher le premier sprite ou le sprite actuel
-        const currentSprite = document.querySelector('input[name="sprite"]')?.value
-        if (currentSprite && this.availableSprites.includes(currentSprite)) {
-            this.currentSpriteIndex = this.availableSprites.indexOf(currentSprite)
-            this.displaySprite(currentSprite)
-        } else if (this.availableSprites.length > 0) {
-            this.currentSpriteIndex = 0
-            this.displaySprite(this.availableSprites[0])
-        }
-        
-        this.adminPanel?.showNotification(`${this.availableSprites.length} sprites détectés automatiquement`, 'success')
-        
     } catch (error) {
-        console.error('❌ [FormBuilder] Error auto-loading sprites:', error)
-        this.availableSprites = ['default.png'] // Fallback minimal
-        this.spritesLoaded = true
-        this.adminPanel?.showNotification('Utilisation du sprite par défaut', 'warning')
+        console.error('❌ [FormBuilder] Error loading sprites:', error)
+        this.availableSprites = []
     }
 }
-
 // Afficher un sprite
 displaySprite(spriteName) {
     const img = document.getElementById('currentSpriteImg')
