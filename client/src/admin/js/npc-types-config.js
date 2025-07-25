@@ -87,7 +87,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -129,6 +134,113 @@ export const NPC_TYPES = {
             trainerClass: 'select',
             trainerRank: 'number',
             trainerTitle: 'string',
+            battleConfig: 'object',
+            battleDialogueIds: 'object',
+            rewards: 'object',
+            rebattle: 'object',
+            visionConfig: 'object',
+            battleConditions: 'object',
+            progressionFlags: 'object',
+            questsToGive: 'array',
+            questsToEnd: 'array',
+            questRequirements: 'object',
+            questDialogueIds: 'object',
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
+        },
+        
+        selectOptions: {
+            trainerClass: ['youngster', 'lass', 'bug_catcher', 'fisherman', 'hiker', 'biker', 'sailor', 'rocket_grunt']
+        }
+    },
+
+    healer: {
+        icon: '💊',
+        name: 'Soigneur/Centre Pokémon',
+        description: 'NPC qui soigne les Pokémon du joueur',
+        color: '#f39c12',
+        
+        sections: ['basic', 'healing', 'services', 'restrictions', 'dialogues', 'quests', 'interaction'],
+        
+        fields: {
+            required: ['name', 'type', 'position', 'sprite', 'healerConfig'],
+            optional: [
+                'direction', 'healerDialogueIds', 'additionalServices', 'serviceRestrictions',
+                'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
+                'spawnConditions', 'interactionRadius', 'canWalkAway', 'autoFacePlayer',
+                'repeatable', 'cooldownSeconds'
+            ]
+        },
+        
+        fieldGroups: {
+            basic: ['name', 'position', 'sprite', 'direction', 'interactionRadius'],
+            healing: ['healerConfig'],
+            services: ['additionalServices'],
+            restrictions: ['serviceRestrictions'],
+            dialogues: ['healerDialogueIds'],
+            quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
+            interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
+        },
+        
+        fieldTypes: {
+            healerConfig: 'object',
+            healerDialogueIds: 'object',
+            additionalServices: 'object',
+            serviceRestrictions: 'object',
+            questsToGive: 'array',
+            questsToEnd: 'array',
+            questRequirements: 'object',
+            questDialogueIds: 'object',
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
+        }
+    },
+
+    gym_leader: {
+        icon: '🏆',
+        name: 'Chef d\'Arène',
+        description: 'Leader de salle de sport Pokémon, donne des badges',
+        color: '#9b59b6',
+        
+        sections: ['basic', 'trainer', 'gym', 'battle', 'challenge', 'rewards', 'rematch', 'dialogues', 'quests', 'interaction'],
+        
+        fields: {
+            required: ['name', 'type', 'position', 'sprite', 'trainerId', 'trainerClass', 'gymConfig', 'battleConfig', 'challengeConditions'],
+            optional: [
+                'direction', 'trainerRank', 'trainerTitle', 'gymDialogueIds', 'gymRewards', 'rematchConfig',
+                'battleDialogueIds', 'rewards', 'rebattle', 'visionConfig', 'battleConditions',
+                'progressionFlags', 'questsToGive', 'questsToEnd', 'questRequirements',
+                'questDialogueIds', 'spawnConditions', 'interactionRadius', 'canWalkAway',
+                'autoFacePlayer', 'repeatable', 'cooldownSeconds'
+            ]
+        },
+        
+        fieldGroups: {
+            basic: ['name', 'position', 'sprite', 'direction', 'interactionRadius'],
+            trainer: ['trainerId', 'trainerClass', 'trainerRank', 'trainerTitle'],
+            gym: ['gymConfig'],
+            battle: ['battleConfig', 'battleConditions'],
+            challenge: ['challengeConditions'],
+            rewards: ['rewards', 'gymRewards'],
+            rematch: ['rematchConfig', 'rebattle'],
+            dialogues: ['gymDialogueIds', 'battleDialogueIds'],
+            quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
+            interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
+        },
+        
+        fieldTypes: {
+            trainerId: 'string',
+            trainerClass: 'select',
+            trainerRank: 'number',
+            trainerTitle: 'string',
             gymConfig: 'object',
             battleConfig: 'object',
             challengeConditions: 'object',
@@ -145,7 +257,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -192,7 +309,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -235,7 +357,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -282,7 +409,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -329,7 +461,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -376,7 +513,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -390,7 +532,7 @@ export const NPC_TYPES = {
         description: 'NPC d\'événements temporaires, saisonniers ou spéciaux',
         color: '#f1c40f',
         
-        sections: ['basic', 'event', 'period', 'activities', 'progress', 'dialogues', 'quests', 'interaction'],
+        sections: ['basic', 'event', 'period', 'activities', 'progress', 'dialogues', 'quests', 'conditions', 'interaction'],
         
         fields: {
             required: ['name', 'type', 'position', 'sprite', 'eventConfig', 'eventPeriod'],
@@ -410,6 +552,7 @@ export const NPC_TYPES = {
             progress: ['globalProgress'],
             dialogues: ['eventDialogueIds'],
             quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
+            conditions: ['spawnConditions'],
             interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
         },
         
@@ -423,7 +566,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -456,7 +604,7 @@ export const NPC_TYPES = {
             quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
             ranks: ['questRankSystem'],
             rewards: ['epicRewards'],
-            conditions: ['specialConditions'],
+            conditions: ['specialConditions', 'spawnConditions'],
             dialogues: ['questMasterDialogueIds'],
             interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
         },
@@ -471,7 +619,12 @@ export const NPC_TYPES = {
             questsToEnd: 'array',
             questRequirements: 'object',
             questDialogueIds: 'object',
-            spawnConditions: 'object'
+            spawnConditions: 'object',
+            interactionRadius: 'number',
+            canWalkAway: 'boolean',
+            autoFacePlayer: 'boolean',
+            repeatable: 'boolean',
+            cooldownSeconds: 'number'
         },
         
         selectOptions: {
@@ -548,8 +701,9 @@ export const FIELD_VALIDATORS = {
     select: (value, options) => options.includes(value)
 }
 
-// Messages d'aide contextuels
+// Messages d'aide contextuels - VERSION COMPLÈTE
 export const FIELD_HELP = {
+    // Champs de base
     position: 'Coordonnées du NPC sur la carte (en pixels)',
     sprite: 'Fichier image du NPC (doit être dans /assets/sprites/)',
     direction: 'Direction initiale du NPC',
@@ -646,13 +800,13 @@ export const FIELD_HELP = {
     epicRewards: 'Récompenses légendaires pour quêtes épiques',
     specialConditions: 'Conditions spéciales d\'accès',
     
-    // Quests (commun)
+    // Quests (commun à tous)
     questsToGive: 'Liste des quêtes que ce NPC peut donner',
     questsToEnd: 'Liste des quêtes que ce NPC peut terminer',
     questRequirements: 'Prérequis pour recevoir les quêtes',
     questDialogueIds: 'Dialogues liés aux quêtes',
     
-    // Conditions
+    // Conditions (commun à tous)
     spawnConditions: 'Conditions pour l\'apparition du NPC (météo, heure, flags, etc.)'
 }
 
