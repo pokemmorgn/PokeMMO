@@ -82,33 +82,67 @@ export class QuestIcon {
 forceDisplay() {
   if (!this.iconElement) return;
   
-  // ✅ Styles essentiels pour visibilité (OK)
+  // ✅ Styles essentiels pour visibilité SANS position fixe
   this.iconElement.style.display = 'block';
   this.iconElement.style.visibility = 'visible';
   this.iconElement.style.opacity = '1';
   this.iconElement.style.pointerEvents = 'auto';
   this.iconElement.style.zIndex = '1000';
   
-  // 🔥 FIX PRINCIPAL: Respecter la position UIManager
-  const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+  // ✅ Supprimer classes cachées
+  this.iconElement.classList.remove('hidden', 'ui-hidden');
   
-  if (positionedBy && (positionedBy.includes('uimanager') || positionedBy.includes('manual-fix'))) {
-    console.log('✅ [QuestIcon] Position UIManager respectée - pas d\'écrasement');
-    // Ne pas toucher à la position !
+  // 🔥 FIX DÉFINITIF: TOUJOURS respecter la position UIManager
+  const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+  const currentLeft = this.iconElement.getBoundingClientRect().left;
+  
+  // Si positionné par UIManager ou position correcte, NE PAS toucher
+  if (positionedBy && (
+    positionedBy.includes('uimanager') || 
+    positionedBy.includes('manual') || 
+    positionedBy.includes('ultimate') ||
+    positionedBy.includes('runtime')
+  )) {
+    console.log('🛡️ [QuestIcon] Position UIManager respectée - pas d\'écrasement');
     return;
   }
   
-  // ✅ Position de secours UNIQUEMENT si aucune position n'existe
-  if (!this.iconElement.style.left && !this.iconElement.style.right) {
-    console.log('⚠️ [QuestIcon] Position de secours appliquée');
-    this.iconElement.style.position = 'fixed';
-    this.iconElement.style.right = '20px';
-    this.iconElement.style.bottom = '20px';
-  } else {
-    console.log('ℹ️ [QuestIcon] Position existante conservée');
+  // Si position correcte (1603px), la protéger
+  if (Math.abs(currentLeft - 1603) < 20) {
+    console.log('✅ [QuestIcon] Position correcte détectée - protection');
+    this.iconElement.setAttribute('data-positioned-by', 'questicon-protection');
+    return;
   }
   
-  console.log('✅ [QuestIcon] forceDisplay() sans écrasement position');
+  // Si position incorrecte (1683px = inventory), corriger
+  if (Math.abs(currentLeft - 1683) < 20) {
+    console.warn('🚨 [QuestIcon] Position inventory détectée - correction immédiate');
+    this.iconElement.style.position = 'fixed';
+    this.iconElement.style.left = '1603px';
+    this.iconElement.style.top = '1021px';
+    this.iconElement.style.right = '';
+    this.iconElement.style.bottom = '';
+    this.iconElement.setAttribute('data-positioned-by', 'questicon-autocorrect');
+    return;
+  }
+  
+  // Position de secours UNIQUEMENT si aucune position et pas dans la zone UI
+  const hasPosition = !!(
+    this.iconElement.style.left || 
+    this.iconElement.style.right || 
+    this.iconElement.style.top || 
+    this.iconElement.style.bottom
+  );
+  
+  if (!hasPosition) {
+    console.log('⚠️ [QuestIcon] Position de secours appliquée');
+    this.iconElement.style.position = 'fixed';
+    this.iconElement.style.left = '1603px';  // Position correcte par défaut
+    this.iconElement.style.top = '1021px';
+    this.iconElement.setAttribute('data-positioned-by', 'questicon-fallback');
+  }
+  
+  console.log('✅ [QuestIcon] forceDisplay() avec protection anti-chevauchement');
 }
   
   // === 🎨 STYLES OPTIMISÉS ===
