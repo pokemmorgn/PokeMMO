@@ -4023,3 +4023,59 @@ details[open] summary {
 .quest-selector-field .btn:hover {
     opacity: 0.9;
 }
+
+.sprite-preview {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.sprite-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.sprite-display {
+    flex: 1;
+    text-align: center;
+    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sprite-display img {
+    max-width: 64px;
+    max-height: 64px;
+    image-rendering: pixelated;
+}
+
+.btn-sprite-nav {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.btn-sprite-nav:hover {
+    background: #0056b3;
+}
+
+.sprite-name {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.sprite-error {
+    color: #dc3545;
+    font-size: 14px;
+}
