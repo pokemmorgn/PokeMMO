@@ -167,6 +167,57 @@ const requireMacAndDev = async (req: any, res: any, next: any) => {
   }
 };
 
+// ✅ NOUVELLE ROUTE À AJOUTER
+router.get('/sprites/list', requireMacAndDev, (req, res) => {
+    try {
+        // Gérer __dirname avec ES6 modules
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        
+        // Chemins possibles pour les sprites
+        const possiblePaths = [
+            path.join(__dirname, '../../client/public/assets/npc'),
+            path.join(__dirname, '../../client/public/assets/sprites/npc'),
+            path.join(__dirname, '../public/assets/npc'),
+            path.join(__dirname, '../../assets/npc')
+        ];
+        
+        let sprites = [];
+        let foundPath = null;
+        
+        for (const spritePath of possiblePaths) {
+            try {
+                if (fs.existsSync(spritePath)) {
+                    const files = fs.readdirSync(spritePath);
+                    sprites = files
+                        .filter(file => file.toLowerCase().endsWith('.png'))
+                        .sort();
+                    foundPath = spritePath;
+                    break;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+        
+        console.log(`📁 [Admin] Found ${sprites.length} NPC sprites in: ${foundPath}`);
+        
+        res.json({
+            success: true,
+            sprites,
+            count: sprites.length,
+            path: foundPath
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error listing sprites:', error);
+        res.json({
+            success: false,
+            error: error.message,
+            sprites: []
+        });
+    }
+});
 // ✅ ROUTE PRINCIPALE: Dashboard admin
 router.get('/dashboard', requireMacAndDev, async (req: any, res) => {
   try {
