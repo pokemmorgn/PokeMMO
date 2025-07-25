@@ -1,5 +1,5 @@
-// PokeWorld Admin Panel - NPC Form Builder - VERSION CORRIGÉE
-// Générateur dynamique de formulaires selon le type de NPC sélectionné
+// PokeWorld Admin Panel - NPC Form Builder - CORRECTIONS COMPLÈTES
+// Fixes : 1) Pré-remplissage des champs lors de l'édition, 2) Tous les champs manquants
 
 import { NPC_TYPES, COMMON_FIELDS, FIELD_HELP } from './npc-types-config.js'
 import { SUGGESTED_SPRITES, POSITION_PRESETS } from './npc-templates.js'
@@ -14,7 +14,7 @@ export class NPCFormBuilder {
         this.changeHandlers = []
         this.validationErrors = {}
         
-        // CORRECTION: Bind this context pour les méthodes appelées depuis HTML
+        // Bind des méthodes pour les handlers HTML
         this.boundSelectType = this.selectType.bind(this)
         this.boundToggleSection = this.toggleSection.bind(this)
         this.boundAddArrayItem = this.addArrayItem.bind(this)
@@ -31,11 +31,211 @@ export class NPCFormBuilder {
         this.container.innerHTML = this.createFormStructure()
         this.setupEventListeners()
         
-        // CORRECTION: Exposer l'instance dans le contexte global pour les handlers HTML
+        // Exposer l'instance dans le contexte global pour les handlers HTML
         window.npcFormBuilder = this
     }
 
-    // Structure principale du formulaire
+    // CORRECTION 1: Méthode pour charger un NPC existant avec pré-remplissage
+    loadNPC(npc) {
+        console.log('🔄 [FormBuilder] Loading existing NPC:', npc)
+        
+        if (!npc || !npc.type) {
+            console.error('❌ [FormBuilder] Invalid NPC data')
+            return
+        }
+        
+        // Clone profond pour éviter les mutations
+        this.currentNPC = JSON.parse(JSON.stringify(npc))
+        this.currentType = npc.type
+        
+        console.log('📋 [FormBuilder] NPC loaded, type:', this.currentType)
+        
+        // Sélectionner le type et construire le formulaire
+        this.updateTypeSelection(this.currentType)
+        this.buildForm(this.currentType)
+        this.showFormContent()
+        
+        // CORRECTION : Pré-remplir TOUS les champs après construction du formulaire
+        setTimeout(() => {
+            this.populateAllFields()
+            this.updateJsonPreview()
+            this.validateForm()
+        }, 100) // Petit délai pour s'assurer que le DOM est prêt
+    }
+
+    // NOUVELLE MÉTHODE : Pré-remplir tous les champs du formulaire
+    populateAllFields() {
+        console.log('📝 [FormBuilder] Populating all fields for NPC:', this.currentNPC.name)
+        
+        if (!this.currentNPC) return
+        
+        // Parcourir tous les champs et les pré-remplir
+        this.populateField('name', this.currentNPC.name)
+        this.populateField('sprite', this.currentNPC.sprite)
+        this.populateField('direction', this.currentNPC.direction)
+        
+        // Position
+        if (this.currentNPC.position) {
+            this.populateField('position.x', this.currentNPC.position.x)
+            this.populateField('position.y', this.currentNPC.position.y)
+        }
+        
+        // Champs numériques communs
+        this.populateField('interactionRadius', this.currentNPC.interactionRadius)
+        this.populateField('cooldownSeconds', this.currentNPC.cooldownSeconds)
+        
+        // Champs booléens communs
+        this.populateField('canWalkAway', this.currentNPC.canWalkAway)
+        this.populateField('autoFacePlayer', this.currentNPC.autoFacePlayer)
+        this.populateField('repeatable', this.currentNPC.repeatable)
+        
+        // Champs spécifiques au type
+        this.populateTypeSpecificFields()
+        
+        // Arrays
+        this.populateArrayFields()
+        
+        // Objects JSON
+        this.populateObjectFields()
+        
+        console.log('✅ [FormBuilder] All fields populated')
+    }
+
+    // Pré-remplir un champ individuel
+    populateField(fieldName, value) {
+        if (value === undefined || value === null) return
+        
+        const field = document.querySelector(`[name="${fieldName}"]`)
+        if (!field) return
+        
+        if (field.type === 'checkbox') {
+            field.checked = Boolean(value)
+        } else if (field.type === 'number') {
+            field.value = Number(value)
+        } else {
+            field.value = String(value)
+        }
+        
+        // Déclencher l'événement change pour mettre à jour l'état
+        field.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    // Pré-remplir les champs spécifiques au type
+    populateTypeSpecificFields() {
+        const typeConfig = NPC_TYPES[this.currentType]
+        if (!typeConfig) return
+        
+        // Parcourir tous les champs optionnels du type
+        typeConfig.fields.optional.forEach(fieldName => {
+            const value = this.getNestedValue(this.currentNPC, fieldName)
+            if (value !== undefined) {
+                this.populateField(fieldName, value)
+            }
+        })
+        
+        // CORRECTION 2: Champs spécifiques selon le type
+        switch (this.currentType) {
+            case 'dialogue':
+                this.populateField('dialogueId', this.currentNPC.dialogueId)
+                break
+                
+            case 'merchant':
+                this.populateField('shopId', this.currentNPC.shopId)
+                this.populateField('shopType', this.currentNPC.shopType)
+                break
+                
+            case 'trainer':
+                this.populateField('trainerId', this.currentNPC.trainerId)
+                this.populateField('trainerClass', this.currentNPC.trainerClass)
+                this.populateField('trainerRank', this.currentNPC.trainerRank)
+                this.populateField('trainerTitle', this.currentNPC.trainerTitle)
+                break
+                
+            case 'gym_leader':
+                if (this.currentNPC.gymConfig) {
+                    this.populateField('gymId', this.currentNPC.gymConfig.gymId)
+                    this.populateField('gymType', this.currentNPC.gymConfig.gymType)
+                    this.populateField('badgeId', this.currentNPC.gymConfig.badgeId)
+                    this.populateField('badgeName', this.currentNPC.gymConfig.badgeName)
+                }
+                break
+                
+            case 'transport':
+                if (this.currentNPC.transportConfig) {
+                    this.populateField('transportType', this.currentNPC.transportConfig.transportType)
+                    this.populateField('vehicleId', this.currentNPC.transportConfig.vehicleId)
+                }
+                break
+                
+            case 'service':
+                if (this.currentNPC.serviceConfig) {
+                    this.populateField('serviceType', this.currentNPC.serviceConfig.serviceType)
+                    this.populateField('serviceCost', this.currentNPC.serviceConfig.cost)
+                }
+                break
+                
+            case 'healer':
+                if (this.currentNPC.healerConfig) {
+                    this.populateField('healingType', this.currentNPC.healerConfig.healingType)
+                    this.populateField('healingCost', this.currentNPC.healerConfig.cost)
+                }
+                break
+        }
+    }
+
+    // Pré-remplir les champs de type array
+    populateArrayFields() {
+        const arrayFields = ['dialogueIds', 'questsToGive', 'questsToEnd']
+        
+        arrayFields.forEach(fieldName => {
+            const value = this.getNestedValue(this.currentNPC, fieldName)
+            if (Array.isArray(value)) {
+                this.rebuildArrayField(fieldName, value)
+            }
+        })
+    }
+
+    // Pré-remplir les champs de type object/JSON
+    populateObjectFields() {
+        const objectFields = [
+            'conditionalDialogueIds', 'zoneInfo', 'shopConfig', 'battleConfig',
+            'healerConfig', 'gymConfig', 'transportConfig', 'serviceConfig',
+            'spawnConditions', 'questRequirements', 'questDialogueIds'
+        ]
+        
+        objectFields.forEach(fieldName => {
+            const value = this.getNestedValue(this.currentNPC, fieldName)
+            if (value && typeof value === 'object') {
+                const textarea = document.querySelector(`textarea[name="${fieldName}"]`)
+                if (textarea) {
+                    textarea.value = JSON.stringify(value, null, 2)
+                }
+            }
+        })
+    }
+
+    // Reconstruire un champ array avec ses valeurs
+    rebuildArrayField(fieldName, values) {
+        const arrayField = document.querySelector(`[data-field-name="${fieldName}"]`)
+        if (!arrayField) return
+        
+        const itemsContainer = arrayField.querySelector('.array-items')
+        if (!itemsContainer) return
+        
+        itemsContainer.innerHTML = values.map((item, index) => 
+            this.createArrayItem(fieldName, item, index)
+        ).join('')
+        
+        // Mettre à jour la valeur dans l'objet NPC
+        this.setFieldValue(fieldName, values)
+    }
+
+    // Obtenir une valeur imbriquée d'un objet
+    getNestedValue(obj, path) {
+        return path.split('.').reduce((current, key) => current?.[key], obj)
+    }
+
+    // Structure principale du formulaire (inchangée)
     createFormStructure() {
         return `
             <div class="npc-form-builder">
@@ -84,12 +284,27 @@ export class NPCFormBuilder {
         if (!NPC_TYPES[type]) return
         
         this.currentType = type
-        this.currentNPC = this.createEmptyNPCFromType(type)
+        
+        // Si pas de NPC courant, en créer un nouveau
+        if (!this.currentNPC) {
+            this.currentNPC = this.createEmptyNPCFromType(type)
+        } else {
+            // Mettre à jour le type du NPC existant
+            this.currentNPC.type = type
+        }
         
         // Mettre à jour l'interface
         this.updateTypeSelection(type)
         this.buildForm(type)
         this.showFormContent()
+        
+        // Si on charge un NPC existant, pré-remplir les champs
+        if (this.currentNPC.id) {
+            setTimeout(() => {
+                this.populateAllFields()
+            }, 100)
+        }
+        
         this.updateJsonPreview()
     }
 
@@ -108,7 +323,7 @@ export class NPCFormBuilder {
         }
     }
 
-    // Construire le formulaire pour un type spécifique
+    // Construire le formulaire pour un type spécifique (ÉTENDU)
     buildForm(type) {
         const typeConfig = NPC_TYPES[type]
         const formSections = document.getElementById('formSections')
@@ -117,7 +332,7 @@ export class NPCFormBuilder {
 
         let html = ''
         
-        // Créer chaque section
+        // Créer chaque section avec TOUS les champs
         typeConfig.sections.forEach(sectionName => {
             html += this.createSection(sectionName, type, typeConfig)
         })
@@ -127,9 +342,9 @@ export class NPCFormBuilder {
         this.validateForm()
     }
 
-    // Créer une section de formulaire
+    // Créer une section de formulaire (CORRIGÉE avec tous les champs)
     createSection(sectionName, type, typeConfig) {
-        const sectionFields = typeConfig.fieldGroups[sectionName] || []
+        const sectionFields = this.getAllSectionFields(sectionName, type, typeConfig)
         const sectionTitle = this.getSectionTitle(sectionName)
         
         let fieldsHTML = ''
@@ -152,7 +367,109 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer un champ de formulaire
+    // NOUVELLE MÉTHODE : Obtenir TOUS les champs d'une section (avec champs manquants)
+    getAllSectionFields(sectionName, type, typeConfig) {
+        // Champs de base de la section
+        let fields = typeConfig.fieldGroups[sectionName] || []
+        
+        // CORRECTION 2: Ajouter les champs manquants selon la section et le type
+        switch (sectionName) {
+            case 'basic':
+                // Champs de base toujours présents
+                fields = ['name', 'position', 'sprite', 'direction', 'interactionRadius']
+                break
+                
+            case 'dialogues':
+                if (type === 'dialogue') {
+                    fields = [...fields, 'dialogueIds', 'dialogueId', 'conditionalDialogueIds']
+                } else if (type === 'merchant') {
+                    fields = [...fields, 'dialogueIds', 'shopDialogueIds']
+                } else if (type === 'trainer' || type === 'gym_leader') {
+                    fields = [...fields, 'battleDialogueIds']
+                } else if (type === 'healer') {
+                    fields = [...fields, 'healerDialogueIds']
+                } else if (type === 'transport') {
+                    fields = [...fields, 'transportDialogueIds']
+                } else if (type === 'service') {
+                    fields = [...fields, 'serviceDialogueIds']
+                }
+                break
+                
+            case 'shop':
+                if (type === 'merchant') {
+                    fields = ['shopId', 'shopType', 'shopConfig']
+                }
+                break
+                
+            case 'trainer':
+                if (type === 'trainer' || type === 'gym_leader') {
+                    fields = ['trainerId', 'trainerClass', 'trainerRank', 'trainerTitle']
+                }
+                break
+                
+            case 'battle':
+                if (type === 'trainer' || type === 'gym_leader') {
+                    fields = ['battleConfig', 'battleConditions']
+                }
+                break
+                
+            case 'gym':
+                if (type === 'gym_leader') {
+                    fields = ['gymConfig', 'challengeConditions', 'gymRewards']
+                }
+                break
+                
+            case 'healing':
+                if (type === 'healer') {
+                    fields = ['healerConfig', 'additionalServices']
+                }
+                break
+                
+            case 'transport':
+                if (type === 'transport') {
+                    fields = ['transportConfig', 'destinations', 'schedules']
+                }
+                break
+                
+            case 'service':
+                if (type === 'service') {
+                    fields = ['serviceConfig', 'availableServices']
+                }
+                break
+                
+            case 'rewards':
+                if (type === 'trainer' || type === 'gym_leader') {
+                    fields = ['rewards', 'rebattle']
+                }
+                break
+                
+            case 'vision':
+                if (type === 'trainer') {
+                    fields = ['visionConfig']
+                }
+                break
+                
+            case 'quests':
+                // Tous les NPCs peuvent avoir des quêtes
+                fields = ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds']
+                break
+                
+            case 'conditions':
+                // Tous les NPCs peuvent avoir des conditions de spawn
+                fields = ['spawnConditions']
+                break
+                
+            case 'interaction':
+                // Champs d'interaction communs
+                fields = ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
+                break
+        }
+        
+        // Retirer les doublons
+        return [...new Set(fields)]
+    }
+
+    // Créer un champ de formulaire (méthode existante mais améliorée)
     createField(fieldName, type, typeConfig) {
         const fieldConfig = this.getFieldConfig(fieldName, typeConfig)
         const currentValue = this.getFieldValue(fieldName)
@@ -200,11 +517,12 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ texte
+    // ... (Garder toutes les autres méthodes existantes: createStringField, createNumberField, etc.)
+    
+    // MÉTHODES EXISTANTES (raccourcies pour l'espace, mais à garder intégralement)
     createStringField(fieldName, fieldConfig, currentValue, isRequired) {
         const placeholder = fieldConfig.placeholder || `Entrez ${this.getFieldDisplayName(fieldName)}`
         
-        // Cas spéciaux
         if (fieldName === 'sprite') {
             return this.createSpriteField(fieldName, currentValue, isRequired)
         }
@@ -233,7 +551,6 @@ export class NPCFormBuilder {
         >`
     }
 
-    // Créer champ sprite avec suggestions
     createSpriteField(fieldName, currentValue, isRequired) {
         const suggestions = SUGGESTED_SPRITES[this.currentType] || []
         
@@ -258,7 +575,6 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ numérique
     createNumberField(fieldName, fieldConfig, currentValue, isRequired) {
         const min = fieldConfig.min !== undefined ? fieldConfig.min : ''
         const max = fieldConfig.max !== undefined ? fieldConfig.max : ''
@@ -276,7 +592,6 @@ export class NPCFormBuilder {
         >`
     }
 
-    // Créer champ booléen
     createBooleanField(fieldName, fieldConfig, currentValue, isRequired) {
         return `
             <div class="boolean-field">
@@ -291,11 +606,9 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ select
     createSelectField(fieldName, fieldConfig, currentValue, isRequired, type) {
         let options = fieldConfig.options || []
         
-        // Options spéciales selon le champ
         if (fieldName === 'direction') {
             options = ['north', 'south', 'east', 'west']
         } else if (fieldName === 'type') {
@@ -316,7 +629,6 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ position (objet spécial)
     createPositionField(fieldName, currentValue) {
         const position = currentValue || { x: 0, y: 0 }
         
@@ -352,7 +664,6 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ array
     createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
         const items = currentValue || []
         
@@ -384,7 +695,6 @@ export class NPCFormBuilder {
         `
     }
 
-    // Créer champ object (JSON éditable)
     createObjectField(fieldName, fieldConfig, currentValue, isRequired) {
         const jsonValue = currentValue ? JSON.stringify(currentValue, null, 2) : '{}'
         
@@ -411,7 +721,6 @@ export class NPCFormBuilder {
 
     // Event listeners
     setupEventListeners() {
-        // Global change handler
         this.container.addEventListener('input', (e) => {
             this.handleFieldChange(e)
         })
@@ -422,7 +731,6 @@ export class NPCFormBuilder {
     }
 
     setupFieldEventListeners() {
-        // Position presets
         const presetButtons = this.container.querySelectorAll('.preset-btn')
         presetButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -460,14 +768,12 @@ export class NPCFormBuilder {
         }
     }
 
-    // Méthodes utilitaires pour les champs
+    // Méthodes utilitaires
     getFieldConfig(fieldName, typeConfig) {
-        // Champ commun
         if (COMMON_FIELDS[fieldName]) {
             return COMMON_FIELDS[fieldName]
         }
         
-        // Champ spécifique au type
         const fieldType = typeConfig.fieldTypes?.[fieldName]
         return {
             type: fieldType || 'string',
@@ -478,7 +784,6 @@ export class NPCFormBuilder {
     getFieldValue(fieldName) {
         if (!this.currentNPC) return null
         
-        // Gérer les champs imbriqués (ex: position.x)
         if (fieldName.includes('.')) {
             const parts = fieldName.split('.')
             let value = this.currentNPC
@@ -494,7 +799,6 @@ export class NPCFormBuilder {
     setFieldValue(fieldName, value) {
         if (!this.currentNPC) return
         
-        // Gérer les champs imbriqués
         if (fieldName.includes('.')) {
             const parts = fieldName.split('.')
             let obj = this.currentNPC
@@ -520,11 +824,75 @@ export class NPCFormBuilder {
             shopType: 'Type Boutique',
             trainerId: 'ID Dresseur',
             trainerClass: 'Classe Dresseur',
+            trainerRank: 'Rang Dresseur',
+            trainerTitle: 'Titre Dresseur',
             dialogueIds: 'IDs de Dialogue',
+            dialogueId: 'ID Dialogue Principal',
+            conditionalDialogueIds: 'Dialogues Conditionnels',
             questsToGive: 'Quêtes à Donner',
             questsToEnd: 'Quêtes à Terminer',
+            questRequirements: 'Prérequis Quêtes',
+            questDialogueIds: 'Dialogues de Quêtes',
             interactionRadius: 'Rayon d\'Interaction',
-            cooldownSeconds: 'Délai (secondes)'
+            cooldownSeconds: 'Délai (secondes)',
+            canWalkAway: 'Peut s\'éloigner',
+            autoFacePlayer: 'Se tourne vers le joueur',
+            repeatable: 'Répétable',
+            spawnConditions: 'Conditions d\'apparition',
+            zoneInfo: 'Informations de Zone',
+            shopConfig: 'Configuration Boutique',
+            shopDialogueIds: 'Dialogues Boutique',
+            businessHours: 'Horaires d\'ouverture',
+            accessRestrictions: 'Restrictions d\'accès',
+            battleConfig: 'Configuration Combat',
+            battleDialogueIds: 'Dialogues Combat',
+            battleConditions: 'Conditions Combat',
+            rewards: 'Récompenses',
+            rebattle: 'Recombat',
+            visionConfig: 'Configuration Vision',
+            progressionFlags: 'Flags de Progression',
+            healerConfig: 'Configuration Soins',
+            healerDialogueIds: 'Dialogues Soins',
+            additionalServices: 'Services Additionnels',
+            serviceRestrictions: 'Restrictions Service',
+            gymConfig: 'Configuration Arène',
+            gymDialogueIds: 'Dialogues Arène',
+            challengeConditions: 'Conditions Défi',
+            gymRewards: 'Récompenses Arène',
+            rematchConfig: 'Configuration Revanche',
+            transportConfig: 'Configuration Transport',
+            destinations: 'Destinations',
+            schedules: 'Horaires',
+            transportDialogueIds: 'Dialogues Transport',
+            weatherRestrictions: 'Restrictions Météo',
+            serviceConfig: 'Configuration Service',
+            availableServices: 'Services Disponibles',
+            serviceDialogueIds: 'Dialogues Service',
+            minigameConfig: 'Configuration Mini-jeu',
+            contestCategories: 'Catégories Concours',
+            contestRewards: 'Récompenses Concours',
+            contestDialogueIds: 'Dialogues Concours',
+            contestSchedule: 'Planning Concours',
+            researchConfig: 'Configuration Recherche',
+            researchServices: 'Services Recherche',
+            acceptedPokemon: 'Pokémon Acceptés',
+            researchDialogueIds: 'Dialogues Recherche',
+            researchRewards: 'Récompenses Recherche',
+            guildConfig: 'Configuration Guilde',
+            recruitmentRequirements: 'Prérequis Recrutement',
+            guildServices: 'Services Guilde',
+            guildDialogueIds: 'Dialogues Guilde',
+            rankSystem: 'Système de Rangs',
+            eventConfig: 'Configuration Événement',
+            eventPeriod: 'Période Événement',
+            eventActivities: 'Activités Événement',
+            eventDialogueIds: 'Dialogues Événement',
+            globalProgress: 'Progression Globale',
+            questMasterConfig: 'Configuration Maître Quêtes',
+            questMasterDialogueIds: 'Dialogues Maître Quêtes',
+            questRankSystem: 'Système Rangs Quêtes',
+            epicRewards: 'Récompenses Épiques',
+            specialConditions: 'Conditions Spéciales'
         }
         
         return displayNames[fieldName] || fieldName.replace(/([A-Z])/g, ' $1').trim()
@@ -535,21 +903,38 @@ export class NPCFormBuilder {
             basic: '📋 Informations de Base',
             dialogues: '💬 Dialogues',
             shop: '🏪 Configuration Boutique',
-            trainer: '⚔️ Configuration Dresseur',
+            business: '🕐 Gestion Commerciale',
+            access: '🔒 Restrictions d\'Accès',
+            trainer: '⚔️ Informations Dresseur',
             battle: '⚔️ Configuration Combat',
+            rewards: '🎁 Récompenses',
+            vision: '👁️ Vision et Détection',
+            healing: '💊 Configuration Soins',
+            services: '🔧 Services',
+            restrictions: '⚙️ Restrictions',
             gym: '🏆 Configuration Arène',
+            challenge: '🎯 Conditions de Défi',
+            rematch: '🔄 Système de Revanche',
             transport: '🚢 Configuration Transport',
+            destinations: '🗺️ Destinations',
+            schedule: '📅 Horaires',
+            weather: '🌤️ Restrictions Météo',
             service: '🔧 Configuration Service',
             minigame: '🎮 Configuration Mini-jeu',
+            activities: '🎪 Activités',
             research: '🔬 Configuration Recherche',
+            pokemon: '🐾 Gestion Pokémon',
             guild: '🏛️ Configuration Guilde',
+            recruitment: '👥 Recrutement',
+            ranks: '⭐ Système de Rangs',
             event: '🎉 Configuration Événement',
+            period: '📆 Période',
+            progress: '📊 Progression',
+            questmaster: '📜 Configuration Maître',
             quests: '📜 Système de Quêtes',
             conditions: '⚙️ Conditions',
             interaction: '🤝 Interaction',
-            rewards: '🎁 Récompenses',
-            schedule: '🕐 Horaires',
-            access: '🔒 Restrictions d\'Accès'
+            period: '🕐 Horaires'
         }
         
         return sectionTitles[sectionName] || sectionName
@@ -562,10 +947,52 @@ export class NPCFormBuilder {
             east: 'Est',
             west: 'Ouest',
             pokemart: 'PokéMart',
+            items: 'Objets Généraux',
+            tms: 'CTs/CSs',
+            berries: 'Baies',
+            clothes: 'Vêtements',
+            black_market: 'Marché Noir',
             department_store: 'Grand Magasin',
             youngster: 'Gamin',
             lass: 'Fillette',
-            bug_catcher: 'Attrape-Insectes'
+            bug_catcher: 'Attrape-Insectes',
+            fisherman: 'Pêcheur',
+            hiker: 'Montagnard',
+            biker: 'Motard',
+            sailor: 'Marin',
+            rocket_grunt: 'Sbire Rocket',
+            free: 'Gratuit',
+            paid: 'Payant',
+            pokemon_center: 'Centre Pokémon',
+            name_rater: 'Évaluateur de Noms',
+            move_deleter: 'Effaceur d\'Attaques',
+            move_reminder: 'Rappel d\'Attaques',
+            iv_checker: 'Vérificateur IV',
+            boat: 'Bateau',
+            train: 'Train',
+            fly: 'Vol',
+            teleport: 'Téléportation',
+            pokemon_contest: 'Concours Pokémon',
+            fishing_contest: 'Concours Pêche',
+            slots: 'Machine à Sous',
+            lottery: 'Loterie',
+            pokedex: 'Pokédex',
+            breeding: 'Reproduction',
+            genetics: 'Génétique',
+            evolution: 'Évolution',
+            neutral: 'Neutre',
+            good: 'Bon',
+            evil: 'Mauvais',
+            criminal: 'Criminel',
+            ranger: 'Ranger',
+            seasonal: 'Saisonnier',
+            raid: 'Raid',
+            tournament: 'Tournoi',
+            limited_time: 'Temps Limité',
+            normal: 'Normal',
+            rare: 'Rare',
+            epic: 'Épique',
+            legendary: 'Légendaire'
         }
         
         return optionNames[option] || option.replace(/_/g, ' ')
@@ -673,16 +1100,13 @@ export class NPCFormBuilder {
     validateField(fieldName) {
         if (!this.currentNPC) return
         
-        // Validation rapide du champ
         const result = this.validator.validateNPC(this.currentNPC)
         
-        // Mettre à jour les erreurs
         this.validationErrors = {}
         result.errors.forEach(error => {
             this.validationErrors[error.field] = error.message
         })
         
-        // Mettre à jour l'affichage
         this.updateFieldError(fieldName)
         this.updateValidationPanel(result)
     }
@@ -756,9 +1180,9 @@ export class NPCFormBuilder {
 
     // Méthodes utilitaires
     createEmptyNPCFromType(type) {
-        return {
+        const baseNPC = {
             id: null,
-            name: `Nouveau ${NPC_TYPES[type].name}`,
+            name: `Nouveau ${NPC_TYPES[type]?.name || type}`,
             type: type,
             position: { x: 0, y: 0 },
             sprite: 'default.png',
@@ -769,18 +1193,56 @@ export class NPCFormBuilder {
             repeatable: true,
             cooldownSeconds: 0
         }
+        
+        // Ajouter des champs spécifiques selon le type
+        switch (type) {
+            case 'dialogue':
+                baseNPC.dialogueIds = []
+                break
+            case 'merchant':
+                baseNPC.shopId = ''
+                baseNPC.shopType = 'pokemart'
+                break
+            case 'trainer':
+                baseNPC.trainerId = ''
+                baseNPC.trainerClass = 'youngster'
+                break
+            case 'gym_leader':
+                baseNPC.trainerId = ''
+                baseNPC.trainerClass = 'gym_leader'
+                baseNPC.gymConfig = {
+                    gymId: '',
+                    gymType: '',
+                    badgeId: '',
+                    badgeName: ''
+                }
+                break
+            case 'healer':
+                baseNPC.healerConfig = {
+                    healingType: 'free',
+                    cost: 0
+                }
+                break
+            case 'transport':
+                baseNPC.transportConfig = {
+                    transportType: 'boat',
+                    vehicleId: ''
+                }
+                baseNPC.destinations = []
+                break
+            case 'service':
+                baseNPC.serviceConfig = {
+                    serviceType: 'name_rater',
+                    cost: 0
+                }
+                baseNPC.availableServices = []
+                break
+        }
+        
+        return baseNPC
     }
 
     // API publique
-    loadNPC(npc) {
-        this.currentNPC = { ...npc }
-        this.currentType = npc.type
-        
-        if (this.currentType) {
-            this.selectType(this.currentType)
-        }
-    }
-
     getNPC() {
         return this.currentNPC ? { ...this.currentNPC } : null
     }
@@ -804,14 +1266,12 @@ export class NPCFormBuilder {
         return this.validateForm().valid
     }
     
-    // CORRECTION: Méthode de nettoyage pour éviter les fuites mémoire
+    // Nettoyage pour éviter les fuites mémoire
     destroy() {
-        // Nettoyer la référence globale
         if (window.npcFormBuilder === this) {
             delete window.npcFormBuilder
         }
         
-        // Nettoyer les event listeners
         this.changeHandlers = []
         this.validationErrors = {}
         this.currentNPC = null
