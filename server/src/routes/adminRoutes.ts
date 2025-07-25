@@ -14,7 +14,9 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
 import mongoose from 'mongoose';
-
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 const execAsync = promisify(exec);
@@ -4011,6 +4013,58 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
+    }
+});
+
+// ✅ ROUTE: Liste des sprites NPCs
+router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
+    try {
+        // Gérer __dirname avec ES6 modules (TypeScript)
+        const __dirname = path.dirname(__filename);
+        
+        // Chemins possibles pour les sprites
+        const possiblePaths = [
+            path.join(__dirname, '../../client/public/assets/npc'),
+            path.join(__dirname, '../../client/public/assets/sprites/npc'),
+            path.join(__dirname, '../public/assets/npc'),
+            path.join(__dirname, '../../assets/npc'),
+            path.join(process.cwd(), 'client/public/assets/npc')
+        ];
+        
+        let sprites: string[] = [];
+        let foundPath: string | null = null;
+        
+        for (const spritePath of possiblePaths) {
+            try {
+                if (fs.existsSync(spritePath)) {
+                    const files = fs.readdirSync(spritePath);
+                    sprites = files
+                        .filter(file => file.toLowerCase().endsWith('.png'))
+                        .sort();
+                    foundPath = spritePath;
+                    break;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+        
+        console.log(`📁 [Admin] Found ${sprites.length} NPC sprites in: ${foundPath}`);
+        
+        res.json({
+            success: true,
+            sprites,
+            count: sprites.length,
+            path: foundPath
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error listing sprites:', error);
+        res.json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erreur inconnue',
+            sprites: []
         });
     }
 });
