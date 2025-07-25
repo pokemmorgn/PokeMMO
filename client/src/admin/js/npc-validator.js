@@ -172,12 +172,27 @@ export class NPCValidator {
         }
 
         if (npc.conditionalDialogueIds) {
-            Object.keys(npc.conditionalDialogueIds).forEach(condition => {
-                if (!Array.isArray(npc.conditionalDialogueIds[condition])) {
-                    this.addError('conditionalDialogueIds', `Dialogue conditionnel invalide pour: ${condition}`)
-                }
-            })
+    // Si c'est un tableau (erreur), le convertir en objet vide
+    if (Array.isArray(npc.conditionalDialogueIds)) {
+        console.warn('Converting array to object for conditionalDialogueIds')
+        npc.conditionalDialogueIds = {}
+        return
+    }
+    
+    // Vérifier que c'est un objet valide
+    if (typeof npc.conditionalDialogueIds !== 'object') {
+        this.addError('conditionalDialogueIds', 'Dialogues conditionnels doivent être un objet JSON')
+        return
+    }
+    
+    // Valider chaque condition
+    Object.keys(npc.conditionalDialogueIds).forEach(condition => {
+        const conditionData = npc.conditionalDialogueIds[condition]
+        if (!conditionData.condition || !conditionData.dialogueId) {
+            this.addError('conditionalDialogueIds', `Condition "${condition}" incomplète (manque condition ou dialogueId)`)
         }
+    })
+}
     }
 
     validateMerchantNPC(npc) {
