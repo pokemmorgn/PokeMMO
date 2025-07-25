@@ -1436,11 +1436,11 @@ async openQuestSelector(fieldName) {
     }
 }
 
-// MÉTHODE À AJOUTER : Charger les quêtes depuis la DB
+// MÉTHODE MISE À JOUR : Charger les quêtes depuis la DB
 async loadQuestsFromDB() {
     try {
-        // Appel API pour récupérer les quêtes
-        const response = await fetch('/api/admin/quests', {
+        // Utiliser la nouvelle route
+        const response = await fetch('/api/admin/quests/list', {
             headers: {
                 'Authorization': `Bearer ${this.getAuthToken()}`
             }
@@ -1452,12 +1452,17 @@ async loadQuestsFromDB() {
         
         const data = await response.json()
         
+        if (!data.success) {
+            throw new Error(data.error || 'Erreur serveur')
+        }
+        
         // Mettre en cache pour usage ultérieur
         this.questsCache = {}
         data.quests.forEach(quest => {
             this.questsCache[quest.id] = quest
         })
         
+        console.log(`📋 [FormBuilder] Loaded ${data.quests.length} quests from DB`)
         return data.quests
         
     } catch (error) {
