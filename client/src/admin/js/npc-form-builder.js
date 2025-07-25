@@ -6,8 +6,9 @@ import { SUGGESTED_SPRITES, POSITION_PRESETS } from './npc-templates.js'
 import { NPCValidator } from './npc-validator.js'
 
 export class NPCFormBuilder {
-    constructor(container) {
-        this.container = container
+constructor(container, adminPanel = null) {
+    this.container = container
+    this.adminPanel = adminPanel
         this.currentNPC = null
         this.currentType = null
         this.validator = new NPCValidator()
@@ -1440,6 +1441,10 @@ async openQuestSelector(fieldName) {
 // À remplacer dans npc-form-builder.js
 
 async loadQuestsFromDB() {
+    // Vérification avant utilisation
+if (!this.adminPanel) {
+    throw new Error('AdminPanel non initialisé')
+}
     try {
         console.log('📋 [FormBuilder] Chargement quêtes depuis MongoDB via adminPanel.apiCall...')
         
