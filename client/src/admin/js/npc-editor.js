@@ -747,7 +747,7 @@ convertMongoNPCToEditorFormat(mongoNPC) {
         // Initialiser le FormBuilder dans le conteneur éditeur
         const editorContent = document.getElementById('editorContent')
         if (editorContent) {
-            this.formBuilder = new NPCFormBuilder(editorContent)
+this.formBuilder = new NPCFormBuilder(editorContent, this.adminPanel)
             this.formBuilder.onFormChange((npc, field, value) => {
                 this.onNPCDataChange(npc, field, value)
             })
