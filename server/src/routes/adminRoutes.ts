@@ -4016,13 +4016,24 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
     }
 });
 
-// ✅ ROUTE: Liste des sprites NPCs - VERSION CORRIGÉE
+// ✅ ROUTE: Liste des sprites NPCs - VERSION SERVEUR
 router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
     try {
+        // Détecter si on est en mode build ou dev
+        const isDev = __filename.includes('/src/');
+        console.log('🔧 [Sprites] Mode détecté:', isDev ? 'DEVELOPMENT' : 'PRODUCTION');
+        
         const possiblePaths = [
-            path.join(__dirname, '../../client/public/assets/npc'),
-            path.join(__dirname, '../../client/public/assets/sprites/npc'),
-            path.join(process.cwd(), 'client/public/assets/npc')
+            // Mode développement
+            path.join(__dirname, '../assets/npc'),           // src/routes/../assets/npc
+            path.join(__dirname, '../../assets/npc'),        // src/assets/npc
+            // Mode production  
+            path.join(__dirname, '../assets/npc'),           // build/routes/../assets/npc
+            path.join(__dirname, '../../assets/npc'),        // build/assets/npc
+            // Chemins absolus
+            path.join(process.cwd(), 'server/src/assets/npc'),
+            path.join(process.cwd(), 'server/build/assets/npc'),
+            path.join(process.cwd(), 'server/assets/npc')
         ];
         
         let sprites: string[] = [];
@@ -4030,26 +4041,33 @@ router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
         
         for (const spritePath of possiblePaths) {
             try {
+                console.log('📂 [Sprites] Testing path:', spritePath);
+                
                 if (fsSync.existsSync(spritePath)) {
                     const files = fsSync.readdirSync(spritePath);
                     sprites = files
                         .filter((file: string) => file.toLowerCase().endsWith('.png'))
                         .sort();
                     foundPath = spritePath;
+                    console.log(`✅ [Sprites] Found ${sprites.length} sprites in: ${foundPath}`);
                     break;
                 }
             } catch (error) {
+                console.log(`❌ [Sprites] Error testing ${spritePath}:`, error);
                 continue;
             }
         }
         
-        console.log(`📁 [Admin] Found ${sprites.length} NPC sprites in: ${foundPath}`);
+        if (sprites.length === 0) {
+            console.warn('⚠️ [Sprites] No sprites found in any path');
+        }
         
         res.json({
             success: true,
             sprites,
             count: sprites.length,
-            path: foundPath
+            path: foundPath,
+            mode: isDev ? 'development' : 'production'
         });
         
     } catch (error) {
