@@ -50,46 +50,177 @@ export class NPCEditorModule {
     // ==============================
 
     async loadNPCsForZone(zoneId) {
-        if (!zoneId) return
+    if (!zoneId) return
 
-        console.log(`👤 [NPCEditor] Loading NPCs for zone from MongoDB: ${zoneId}`)
+    console.log(`👤 [NPCEditor] Loading NPCs for zone from MongoDB: ${zoneId}`)
+    
+    try {
+        const response = await this.adminPanel.apiCall(`/zones/${zoneId}/npcs`)
         
-        try {
-            // Charger depuis MongoDB via l'API
-            const response = await this.adminPanel.apiCall(`/zones/${zoneId}/npcs`)
+        if (response.success && response.data) {
+            const rawNPCs = response.data.npcs || []
             
-            if (response.success && response.data) {
-                this.npcs = response.data.npcs || []
-                console.log(`✅ [NPCEditor] Loaded ${this.npcs.length} NPCs from MongoDB`)
-                
-                // Marquer comme source MongoDB
-                this.currentZoneSource = 'mongodb'
-            } else {
-                // Si aucune donnée, créer une zone vide
-                this.npcs = []
-                console.log(`📝 [NPCEditor] No NPCs found in MongoDB for ${zoneId}`)
-                this.currentZoneSource = 'mongodb'
-            }
+            console.log(`📥 [NPCEditor] Raw NPCs from MongoDB:`, rawNPCs.map(npc => ({
+                id: npc.npcId || npc.id,
+                name: npc.name,
+                position: npc.position
+            })))
             
-            this.currentZone = zoneId
-            this.renderNPCsList()
-            this.renderZoneStats()
+            // CONVERSION : Transformer chaque NPC au format éditeur
+            this.npcs = rawNPCs.map(npc => this.convertMongoNPCToEditorFormat(npc))
             
-            this.adminPanel.showNotification(`${this.npcs.length} NPCs chargés depuis MongoDB pour ${zoneId}`, 'success')
+            console.log(`✅ [NPCEditor] Loaded and converted ${this.npcs.length} NPCs from MongoDB`)
+            console.log('📋 [NPCEditor] Converted NPCs positions:', this.npcs.map(npc => ({
+                id: npc.id,
+                name: npc.name,
+                position: npc.position
+            })))
             
-        } catch (error) {
-            console.error('❌ [NPCEditor] Error loading NPCs from MongoDB:', error)
-            
-            // En cas d'erreur, initialiser une zone vide
-            this.npcs = []
-            this.currentZone = zoneId
             this.currentZoneSource = 'mongodb'
-            this.renderNPCsList()
-            
-            this.adminPanel.showNotification('Erreur chargement MongoDB - Zone vide initialisée', 'error')
+        } else {
+            this.npcs = []
+            console.log(`📝 [NPCEditor] No NPCs found in MongoDB for ${zoneId}`)
+            this.currentZoneSource = 'mongodb'
         }
+        
+        this.currentZone = zoneId
+        this.renderNPCsList()
+        this.renderZoneStats()
+        
+        this.adminPanel.showNotification(`${this.npcs.length} NPCs chargés depuis MongoDB pour ${zoneId}`, 'success')
+        
+    } catch (error) {
+        console.error('❌ [NPCEditor] Error loading NPCs from MongoDB:', error)
+        
+        this.npcs = []
+        this.currentZone = zoneId
+        this.currentZoneSource = 'mongodb'
+        this.renderNPCsList()
+        
+        this.adminPanel.showNotification('Erreur chargement MongoDB - Zone vide initialisée', 'error')
     }
+}
 
+
+    // Ajoutez cette méthode dans votre classe NPCEditorModule
+// Placez-la après la méthode loadNPCsForZone ou dans la section des méthodes utilitaires
+
+// ==============================
+// NOUVELLE MÉTHODE À AJOUTER
+// ==============================
+
+convertMongoNPCToEditorFormat(mongoNPC) {
+    console.log('🔄 [NPCEditor] Converting MongoDB NPC to editor format:', mongoNPC)
+    
+    // S'assurer que tous les champs requis sont présents
+    const editorNPC = {
+        // Champs de base obligatoires
+        id: mongoNPC.npcId || mongoNPC.id,
+        name: mongoNPC.name || 'NPC Sans Nom',
+        type: mongoNPC.type || 'dialogue',
+        sprite: mongoNPC.sprite || 'default.png',
+        direction: mongoNPC.direction || 'south',
+        
+        // Position avec validation STRICTE
+        position: {
+            x: Number(mongoNPC.position?.x) || 0,
+            y: Number(mongoNPC.position?.y) || 0
+        },
+        
+        // Champs comportementaux avec valeurs par défaut
+        interactionRadius: mongoNPC.interactionRadius || 32,
+        canWalkAway: mongoNPC.canWalkAway !== false,
+        autoFacePlayer: mongoNPC.autoFacePlayer !== false,
+        repeatable: mongoNPC.repeatable !== false,
+        cooldownSeconds: mongoNPC.cooldownSeconds || 0,
+        
+        // Système de quêtes
+        questsToGive: mongoNPC.questsToGive || [],
+        questsToEnd: mongoNPC.questsToEnd || [],
+        questRequirements: mongoNPC.questRequirements || {},
+        questDialogueIds: mongoNPC.questDialogueIds || {},
+        
+        // Conditions de spawn
+        spawnConditions: mongoNPC.spawnConditions || {}
+    }
+    
+    // Ajouter les données spécifiques selon le type depuis npcData
+    if (mongoNPC.npcData && typeof mongoNPC.npcData === 'object') {
+        // Copier tous les champs de npcData
+        Object.assign(editorNPC, mongoNPC.npcData)
+    }
+    
+    // Champs spécifiques selon le type avec fallbacks
+    switch (mongoNPC.type) {
+        case 'dialogue':
+            editorNPC.dialogueIds = editorNPC.dialogueIds || mongoNPC.npcData?.dialogueIds || []
+            editorNPC.dialogueId = editorNPC.dialogueId || mongoNPC.npcData?.dialogueId
+            editorNPC.conditionalDialogueIds = editorNPC.conditionalDialogueIds || mongoNPC.npcData?.conditionalDialogueIds || {}
+            editorNPC.zoneInfo = editorNPC.zoneInfo || mongoNPC.npcData?.zoneInfo || {}
+            break
+            
+        case 'merchant':
+            editorNPC.shopId = editorNPC.shopId || mongoNPC.npcData?.shopId || ''
+            editorNPC.shopType = editorNPC.shopType || mongoNPC.npcData?.shopType || 'pokemart'
+            editorNPC.shopConfig = editorNPC.shopConfig || mongoNPC.npcData?.shopConfig || {}
+            editorNPC.shopDialogueIds = editorNPC.shopDialogueIds || mongoNPC.npcData?.shopDialogueIds || {}
+            editorNPC.businessHours = editorNPC.businessHours || mongoNPC.npcData?.businessHours || {}
+            editorNPC.accessRestrictions = editorNPC.accessRestrictions || mongoNPC.npcData?.accessRestrictions || {}
+            break
+            
+        case 'trainer':
+            editorNPC.trainerId = editorNPC.trainerId || mongoNPC.npcData?.trainerId || ''
+            editorNPC.trainerClass = editorNPC.trainerClass || mongoNPC.npcData?.trainerClass || 'youngster'
+            editorNPC.trainerRank = editorNPC.trainerRank || mongoNPC.npcData?.trainerRank || 1
+            editorNPC.trainerTitle = editorNPC.trainerTitle || mongoNPC.npcData?.trainerTitle || ''
+            editorNPC.battleConfig = editorNPC.battleConfig || mongoNPC.npcData?.battleConfig || {}
+            editorNPC.battleDialogueIds = editorNPC.battleDialogueIds || mongoNPC.npcData?.battleDialogueIds || {}
+            editorNPC.rewards = editorNPC.rewards || mongoNPC.npcData?.rewards || {}
+            editorNPC.rebattle = editorNPC.rebattle || mongoNPC.npcData?.rebattle || {}
+            editorNPC.visionConfig = editorNPC.visionConfig || mongoNPC.npcData?.visionConfig || {}
+            editorNPC.battleConditions = editorNPC.battleConditions || mongoNPC.npcData?.battleConditions || {}
+            editorNPC.progressionFlags = editorNPC.progressionFlags || mongoNPC.npcData?.progressionFlags || {}
+            break
+            
+        case 'healer':
+            editorNPC.healerConfig = editorNPC.healerConfig || mongoNPC.npcData?.healerConfig || {}
+            editorNPC.healerDialogueIds = editorNPC.healerDialogueIds || mongoNPC.npcData?.healerDialogueIds || {}
+            editorNPC.additionalServices = editorNPC.additionalServices || mongoNPC.npcData?.additionalServices || {}
+            editorNPC.serviceRestrictions = editorNPC.serviceRestrictions || mongoNPC.npcData?.serviceRestrictions || {}
+            break
+            
+        case 'gym_leader':
+            editorNPC.trainerId = editorNPC.trainerId || mongoNPC.npcData?.trainerId || ''
+            editorNPC.trainerClass = editorNPC.trainerClass || mongoNPC.npcData?.trainerClass || 'gym_leader'
+            editorNPC.gymConfig = editorNPC.gymConfig || mongoNPC.npcData?.gymConfig || {}
+            editorNPC.battleConfig = editorNPC.battleConfig || mongoNPC.npcData?.battleConfig || {}
+            editorNPC.challengeConditions = editorNPC.challengeConditions || mongoNPC.npcData?.challengeConditions || {}
+            editorNPC.gymDialogueIds = editorNPC.gymDialogueIds || mongoNPC.npcData?.gymDialogueIds || {}
+            editorNPC.gymRewards = editorNPC.gymRewards || mongoNPC.npcData?.gymRewards || {}
+            editorNPC.rematchConfig = editorNPC.rematchConfig || mongoNPC.npcData?.rematchConfig || {}
+            break
+            
+        case 'transport':
+            editorNPC.transportConfig = editorNPC.transportConfig || mongoNPC.npcData?.transportConfig || {}
+            editorNPC.destinations = editorNPC.destinations || mongoNPC.npcData?.destinations || []
+            editorNPC.schedules = editorNPC.schedules || mongoNPC.npcData?.schedules || []
+            editorNPC.transportDialogueIds = editorNPC.transportDialogueIds || mongoNPC.npcData?.transportDialogueIds || {}
+            editorNPC.weatherRestrictions = editorNPC.weatherRestrictions || mongoNPC.npcData?.weatherRestrictions || {}
+            break
+            
+        case 'service':
+            editorNPC.serviceConfig = editorNPC.serviceConfig || mongoNPC.npcData?.serviceConfig || {}
+            editorNPC.availableServices = editorNPC.availableServices || mongoNPC.npcData?.availableServices || []
+            editorNPC.serviceDialogueIds = editorNPC.serviceDialogueIds || mongoNPC.npcData?.serviceDialogueIds || {}
+            editorNPC.serviceRestrictions = editorNPC.serviceRestrictions || mongoNPC.npcData?.serviceRestrictions || {}
+            break
+            
+        // Ajouter les autres types selon vos besoins...
+    }
+    
+    console.log('✅ [NPCEditor] Converted NPC with position:', editorNPC.position)
+    return editorNPC
+}
     // ==============================
     // SAUVEGARDE MONGODB
     // ==============================
@@ -799,27 +930,53 @@ export class NPCEditorModule {
         `).join('')
     }
 
-    selectNPC(index) {
-        if (index < 0 || index >= this.npcs.length) return
-        
-        if (this.unsavedChanges) {
-            if (!confirm('Vous avez des modifications non sauvegardées. Continuer ?')) {
-                return
-            }
+    
+selectNPC(index) {
+    if (index < 0 || index >= this.npcs.length) return
+    
+    if (this.unsavedChanges) {
+        if (!confirm('Vous avez des modifications non sauvegardées. Continuer ?')) {
+            return
         }
-
-        this.selectedNPC = { ...this.npcs[index] } // Clone pour éviter la mutation directe
-        this.unsavedChanges = false
-        
-        this.updateEditorState()
-        this.renderNPCsList()
-        
-        if (this.formBuilder) {
-            this.formBuilder.loadNPC(this.selectedNPC)
-        }
-        
-        console.log('👤 [NPCEditor] Selected NPC from MongoDB:', this.selectedNPC.name)
     }
+
+    // Sélection avec vérification des données
+    const originalNPC = this.npcs[index]
+    console.log('🔍 [NPCEditor] Original NPC data:', originalNPC)
+    
+    // Validation de la position
+    if (!originalNPC.position || typeof originalNPC.position.x !== 'number' || typeof originalNPC.position.y !== 'number') {
+        console.warn('⚠️ [NPCEditor] Invalid position detected, fixing...', originalNPC.position)
+        originalNPC.position = { 
+            x: Number(originalNPC.position?.x) || 0, 
+            y: Number(originalNPC.position?.y) || 0 
+        }
+    }
+    
+    this.selectedNPC = JSON.parse(JSON.stringify(originalNPC)) // Deep clone
+    this.unsavedChanges = false
+    
+    console.log('✅ [NPCEditor] Selected NPC with position:', this.selectedNPC.position)
+    
+    this.updateEditorState()
+    this.renderNPCsList()
+    
+    if (this.formBuilder) {
+        console.log('📋 [NPCEditor] Loading NPC into form builder...')
+        
+        // Délai pour s'assurer que l'UI est prête
+        setTimeout(() => {
+            this.formBuilder.loadNPC(this.selectedNPC)
+            
+            // Diagnostic supplémentaire après un délai
+            setTimeout(() => {
+                console.log('🔍 [NPCEditor] Final check - Form should show position:', this.selectedNPC.position)
+            }, 500)
+        }, 100)
+    }
+    
+    console.log('👤 [NPCEditor] Selected NPC from MongoDB:', this.selectedNPC.name, 'at position', this.selectedNPC.position)
+}
 
     cancelEdit() {
         if (this.unsavedChanges) {
