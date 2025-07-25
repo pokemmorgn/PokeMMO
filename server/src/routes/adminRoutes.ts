@@ -4016,18 +4016,12 @@ router.post('/mongodb/delete', requireMacAndDev, async (req: any, res: any) => {
     }
 });
 
-// ✅ ROUTE: Liste des sprites NPCs
+// ✅ ROUTE: Liste des sprites NPCs - VERSION CORRIGÉE
 router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
     try {
-        // Gérer __dirname avec ES6 modules (TypeScript)
-        const __dirname = path.dirname(__filename);
-        
-        // Chemins possibles pour les sprites
         const possiblePaths = [
             path.join(__dirname, '../../client/public/assets/npc'),
             path.join(__dirname, '../../client/public/assets/sprites/npc'),
-            path.join(__dirname, '../public/assets/npc'),
-            path.join(__dirname, '../../assets/npc'),
             path.join(process.cwd(), 'client/public/assets/npc')
         ];
         
@@ -4036,10 +4030,10 @@ router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
         
         for (const spritePath of possiblePaths) {
             try {
-                if (fs.existsSync(spritePath)) {
-                    const files = fs.readdirSync(spritePath);
+                if (fsSync.existsSync(spritePath)) {
+                    const files = fsSync.readdirSync(spritePath);
                     sprites = files
-                        .filter(file => file.toLowerCase().endsWith('.png'))
+                        .filter((file: string) => file.toLowerCase().endsWith('.png'))
                         .sort();
                     foundPath = spritePath;
                     break;
