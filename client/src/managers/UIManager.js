@@ -598,6 +598,7 @@ positionIcon(moduleId) {
 
   const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
   const memberIndex = group.members.indexOf(moduleId);
+  const iconOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
   
   if (memberIndex === -1) {
     console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
