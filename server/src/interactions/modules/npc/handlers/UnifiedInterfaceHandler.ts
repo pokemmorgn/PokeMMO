@@ -391,7 +391,7 @@ export class UnifiedInterfaceHandler {
         price: item.buyPrice || 0,
         stock: item.stock || 99,
         category: 'items',
-        description: undefined
+                  description: undefined as string | undefined
       })),
       playerGold: player.gold || 1000,
       welcomeDialogue: this.getShopDialogue(npc, 'welcome'),
@@ -499,7 +499,15 @@ export class UnifiedInterfaceHandler {
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: []
+        rewards: [] as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }> as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }>
       })),
       questsInProgress: questsInProgress.map(quest => ({
         id: quest.id,
