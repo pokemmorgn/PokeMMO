@@ -1873,6 +1873,9 @@ export class ShopUI {
       
       console.log(`✅ [ShopUI] ${this.t('debug.catalog_processed')} ${this.shopData.availableItems.length} ${this.t('debug.objects_for')} ${this.currentNpcData?.name}`);
       
+      // ✅ DEBUG COMPLET DES DONNÉES
+      this.debugShopCatalogData();
+      
       this.showNotification(this.t('messages.catalog_loaded'), 'success');
       
     } catch (error) {
@@ -2061,13 +2064,21 @@ export class ShopUI {
     return itemElement;
   }
 
-  // ✅ CREATE SELL ITEM - ADAPTÉ POUR NOUVELLE STRUCTURE (avec quantité inventaire)
+  // ✅ CREATE SELL ITEM - ADAPTÉ POUR NOUVELLE STRUCTURE (avec debugging)
   createSellItemElement(item, index) {
     const itemElement = document.createElement('div');
     itemElement.className = 'shop-item sell-item';
     itemElement.dataset.itemId = item.itemId;
     itemElement.dataset.index = index;
     itemElement.dataset.pocket = item.pocket || 'items';
+
+    // ✅ DEBUGGING: Log des données item
+    console.log(`🔍 [ShopUI] Creating sell item ${index}:`, {
+      itemId: item.itemId,
+      quantity: item.quantity,
+      sellPrice: item.sellPrice,
+      pocket: item.pocket
+    });
 
     // ✅ Vérifier si on a assez d'items à vendre
     const hasQuantity = item.quantity > 0;
@@ -2077,6 +2088,9 @@ export class ShopUI {
 
     const itemIcon = this.getItemIcon(item.itemId);
     const itemName = this.getItemName(item.itemId);
+    
+    // ✅ DEBUGGING: Log des données récupérées
+    console.log(`🎯 [ShopUI] Item ${item.itemId} -> Icon: "${itemIcon}", Name: "${itemName}"`);
 
     itemElement.innerHTML = `
       <div class="shop-item-icon">${itemIcon}</div>
@@ -2133,33 +2147,100 @@ export class ShopUI {
     return `<div class="shop-item-stock ${stockClass}">${stockText}</div>`;
   }
 
+  // ✅ GET ITEM ICON - VERSION ÉTENDUE AVEC DEBUGGING
   getItemIcon(itemId) {
+    console.log(`🎨 [ShopUI] Getting icon for itemId: "${itemId}"`);
+    
     const iconMap = {
+      // Pokéballs
       'poke_ball': '⚪',
-      'great_ball': '🟡',
+      'pokeball': '⚪',
+      'great_ball': '🟡', 
+      'greatball': '🟡',
       'ultra_ball': '🟠',
+      'ultraball': '🟠',
       'master_ball': '🟣',
+      'masterball': '🟣',
       'safari_ball': '🟢',
+      'safariball': '🟢',
+      
+      // Potions/Médecine
       'potion': '💊',
       'super_potion': '💉',
+      'superpotion': '💉',
       'hyper_potion': '🧪',
+      'hyperpotion': '🧪',
       'max_potion': '🍼',
+      'maxpotion': '🍼',
       'full_restore': '✨',
+      'fullrestore': '✨',
       'revive': '💎',
       'max_revive': '💠',
+      'maxrevive': '💠',
+      
+      // Status heal
       'antidote': '🟢',
       'parlyz_heal': '🟡',
+      'parlyzheal': '🟡',
       'awakening': '🔵',
       'burn_heal': '🔴',
+      'burnheal': '🔴',
       'ice_heal': '❄️',
+      'iceheal': '❄️',
       'full_heal': '⭐',
+      'fullheal': '⭐',
+      
+      // Outils
       'escape_rope': '🪢',
+      'escaperope': '🪢',
       'repel': '🚫',
       'super_repel': '⛔',
-      'max_repel': '🔒'
+      'superrepel': '⛔',
+      'max_repel': '🔒',
+      'maxrepel': '🔒',
+      
+      // Items communs
+      'rare_candy': '🍬',
+      'rarecandy': '🍬',
+      'tm': '💿',
+      'hm': '💽',
+      'stone': '💎',
+      'berry': '🫐',
+      'fossil': '🦕',
+      
+      // Fallbacks par type
+      'ball': '⚽',
+      'medicine': '💊',
+      'tool': '🔧',
+      'key': '🗝️'
     };
 
-    return iconMap[itemId] || '📦';
+    // Essayer avec l'ID exact
+    if (iconMap[itemId]) {
+      console.log(`✅ [ShopUI] Icon trouvée pour "${itemId}": ${iconMap[itemId]}`);
+      return iconMap[itemId];
+    }
+    
+    // Essayer avec l'ID en lowercase et sans underscore
+    const normalizedId = itemId.toLowerCase().replace(/_/g, '').replace(/\s/g, '');
+    if (iconMap[normalizedId]) {
+      console.log(`✅ [ShopUI] Icon trouvée (normalisé) pour "${itemId}" -> "${normalizedId}": ${iconMap[normalizedId]}`);
+      return iconMap[normalizedId];
+    }
+    
+    // Essayer de deviner par mot-clé
+    const lowerItemId = itemId.toLowerCase();
+    if (lowerItemId.includes('ball')) return '⚽';
+    if (lowerItemId.includes('potion')) return '💊';
+    if (lowerItemId.includes('heal')) return '💚';
+    if (lowerItemId.includes('berry')) return '🫐';
+    if (lowerItemId.includes('tm') || lowerItemId.includes('hm')) return '💿';
+    if (lowerItemId.includes('stone')) return '💎';
+    if (lowerItemId.includes('fossil')) return '🦕';
+    if (lowerItemId.includes('candy')) return '🍬';
+    
+    console.warn(`⚠️ [ShopUI] Aucune icône trouvée pour "${itemId}", utilisation par défaut`);
+    return '📦';
   }
 
   selectItem(item, element) {
@@ -2693,6 +2774,44 @@ export class ShopUI {
     };
   }
 
+  // ✅ NOUVELLE MÉTHODE: Debug complet des données catalogue
+  debugShopCatalogData() {
+    console.log(`🔍 [ShopUI] === DEBUG CATALOGUE SHOP ===`);
+    console.log(`📊 Structure shopData:`, {
+      hasShopInfo: !!this.shopData.shopInfo,
+      hasBuyItems: !!this.shopData.buyItems,
+      hasSellItems: !!this.shopData.sellItems,
+      hasAvailableItems: !!this.shopData.availableItems,
+      buyItemsCount: this.shopData.buyItems?.length || 0,
+      sellItemsCount: this.shopData.sellItems?.length || 0
+    });
+    
+    if (this.shopData.buyItems?.length > 0) {
+      console.log(`🛒 Premiers buyItems:`, this.shopData.buyItems.slice(0, 2));
+    }
+    
+    if (this.shopData.sellItems?.length > 0) {
+      console.log(`💰 Premiers sellItems:`, this.shopData.sellItems.slice(0, 2));
+      
+      // Test des méthodes sur le premier item
+      const firstSellItem = this.shopData.sellItems[0];
+      if (firstSellItem) {
+        console.log(`🧪 Test item "${firstSellItem.itemId}":`);
+        console.log(`  - Icon: ${this.getItemIcon(firstSellItem.itemId)}`);
+        console.log(`  - Name: ${this.getItemName(firstSellItem.itemId)}`);
+      }
+    }
+    
+    console.log(`🌐 Localisations disponibles:`, {
+      shopUI: Object.keys(this.shopUILocalizations).length > 0,
+      items: Object.keys(this.itemLocalizations).length,
+      dialogue: Object.keys(this.dialogueLocalizations).length,
+      currentLang: this.currentLanguage
+    });
+    
+    console.log(`🔍 [ShopUI] === FIN DEBUG CATALOGUE ===`);
+  }
+
   destroy() {
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
@@ -2709,4 +2828,61 @@ export class ShopUI {
     
     console.log(`🏪 ${this.t('debug.shop_destroyed') || 'ShopUI détruit'}`);
   }
+
+  // ✅ NOUVELLE MÉTHODE: Debug global accessible depuis console
+  debugComplete() {
+    console.log(`🔍 [ShopUI] === DEBUG COMPLET SHOPUI ===`);
+    
+    // État général
+    console.log(`📊 État général:`, {
+      isVisible: this.isVisible,
+      currentTab: this.currentTab,
+      playerGold: this.playerGold,
+      hasShopData: !!this.shopData,
+      hasSelectedItem: !!this.selectedItem
+    });
+    
+    // Données NPC
+    console.log(`🎭 Données NPC:`, this.currentNpcData);
+    
+    // Données shop si disponibles
+    if (this.shopData) {
+      this.debugShopCatalogData();
+    }
+    
+    // Test des méthodes sur quelques items communs
+    const testItems = ['potion', 'poke_ball', 'antidote', 'rare_candy'];
+    console.log(`🧪 Test méthodes sur items communs:`);
+    testItems.forEach(itemId => {
+      console.log(`  ${itemId}: Icon="${this.getItemIcon(itemId)}", Name="${this.getItemName(itemId)}"`);
+    });
+    
+    // Localisations
+    console.log(`🌐 État localisations:`, {
+      shopUIKeys: Object.keys(this.shopUILocalizations[this.currentLanguage] || {}).length,
+      itemKeys: Object.keys(this.itemLocalizations).length,
+      dialogueKeys: Object.keys(this.dialogueLocalizations).length,
+      currentLanguage: this.currentLanguage
+    });
+    
+    console.log(`🔍 [ShopUI] === FIN DEBUG COMPLET ===`);
+    
+    return {
+      isVisible: this.isVisible,
+      shopData: this.shopData,
+      npcData: this.currentNpcData,
+      stats: this.getShopStats()
+    };
+  }
+}
+
+// ✅ FONCTION DEBUG GLOBALE
+window.debugShopUI = function() {
+  if (window.shopSystem?.shopUI) {
+    return window.shopSystem.shopUI.debugComplete();
+  } else {
+    console.error('❌ ShopUI non disponible. window.shopSystem.shopUI manquant.');
+    return null;
+  }
+};
 }
