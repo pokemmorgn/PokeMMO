@@ -1005,6 +1005,41 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
           client.send("filteredState", filteredState);
           console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
         }
+}
+    });
+
+    // ✅ NOUVEAU : Actions spécifiques NPCs (achats directs depuis interface unifiée)
+    this.onMessage("npcSpecificAction", async (client, data) => {
+      console.log(`🎯 === NPC SPECIFIC ACTION ===`);
+      console.log(`👤 Client: ${client.sessionId}, Action: ${data.actionType} pour NPC: ${data.npcId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
+        client.send("npcSpecificActionResult", {
+          success: false,
+          type: "error",
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      try {
+        // ✅ DÉLÉGUER AU MODULE NPC POUR ACTIONS SPÉCIFIQUES
+        const result = await this.npcInteractionModule.handleSpecificAction(player, data);
+        
+        console.log(`📤 Envoi résultat action spécifique: ${result.actionType}`);
+        client.send("npcSpecificActionResult", result);
+        
+      } catch (error) {
+        console.error(`❌ Erreur action spécifique NPC:`, error);
+        client.send("npcSpecificActionResult", {
+          success: false,
+          type: "error",
+          message: "Erreur lors de l'action spécifique",
+          actionType: data.actionType,
+          npcId: data.npcId
+        });
       }
     });
 
