@@ -4532,22 +4532,57 @@ router.put('/zones/:zoneId/npcs/:npcId/update-from-map', requireMacAndDev, async
   }
 });
 
-// ✅ ROUTE: Supprimer un NPC depuis Map Editor
+// ✅ ROUTE CORRIGÉE: Supprimer un NPC depuis Map Editor
 router.delete('/zones/:zoneId/npcs/:npcId/delete-from-map', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId, npcId } = req.params;
     
     console.log(`🗑️ [NPCs API] Deleting NPC ${npcId} from zone ${zoneId} via map editor`);
     
-    const deletedNpc = await NpcData.findOneAndDelete({ 
-      zone: zoneId, 
-      npcId: parseInt(npcId) 
-    });
+    let deletedNpc = null;
+    
+    // ✅ CORRECTION: Même logique que pour l'édition
+    // Essayer d'abord avec l'ID numérique
+    if (!isNaN(parseInt(npcId))) {
+      deletedNpc = await NpcData.findOneAndDelete({ 
+        zone: zoneId, 
+        npcId: parseInt(npcId) 
+      });
+    }
+    
+    // Si pas trouvé et que l'ID commence par "npc_", extraire le nombre
+    if (!deletedNpc && npcId.startsWith('npc_')) {
+      const numericId = npcId.replace('npc_', '');
+      if (!isNaN(parseInt(numericId))) {
+        deletedNpc = await NpcData.findOneAndDelete({ 
+          zone: zoneId, 
+          npcId: parseInt(numericId) 
+        });
+      }
+    }
+    
+    // Dernier recours: chercher par ObjectId
+    if (!deletedNpc && npcId.length === 24) {
+      try {
+        deletedNpc = await NpcData.findOneAndDelete({ zone: zoneId, _id: npcId });
+      } catch (error) {
+        // Ignore si ce n'est pas un ObjectId valide
+      }
+    }
     
     if (!deletedNpc) {
+      console.error(`❌ [NPCs API] NPC not found for deletion: ${npcId} in zone ${zoneId}`);
+      
+      // Debug: lister tous les NPCs de la zone
+      const allNpcs = await NpcData.find({ zone: zoneId }).select('npcId name _id');
+      console.log(`🔍 [NPCs API] Available NPCs in ${zoneId}:`, 
+        allNpcs.map(n => ({ npcId: n.npcId, name: n.name, _id: n._id.toString() }))
+      );
+      
       return res.status(404).json({
         success: false,
-        error: 'NPC non trouvé'
+        error: `NPC non trouvé pour suppression: ${npcId} dans la zone ${zoneId}`,
+        availableNPCs: allNpcs.map(n => ({ npcId: n.npcId, name: n.name }))
       });
     }
     
@@ -4564,7 +4599,7 @@ router.delete('/zones/:zoneId/npcs/:npcId/delete-from-map', requireMacAndDev, as
     console.error('❌ [NPCs API] Error deleting NPC from map editor:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la suppression du NPC depuis la carte'
+      error: `Erreur serveur lors de la suppression: ${error instanceof Error ? error.message : 'Unknown error'}`
     });
   }
 });
