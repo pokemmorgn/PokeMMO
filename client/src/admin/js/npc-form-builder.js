@@ -17,6 +17,8 @@ constructor(container, adminPanel = null) {
      this.availableSprites = []
     this.currentSpriteIndex = 0
     this.spritesLoaded = false
+    this.shopsCache = {}
+this.tempShopSelection = null
 
         this.init()
     }
@@ -256,9 +258,16 @@ populateField(fieldName, value) {
                 break
                 
             case 'merchant':
-                this.populateField('shopId', this.currentNPC.shopId)
-                this.populateField('shopType', this.currentNPC.shopType)
-                break
+    this.populateField('shopId', this.currentNPC.shopId)
+    this.populateField('shopType', this.currentNPC.shopType)
+    
+    // ✅ NOUVEAU: Mettre à jour les détails de la boutique si shopId existe
+    if (this.currentNPC.shopId) {
+        setTimeout(() => {
+            this.updateShopDetails('shopId', this.currentNPC.shopId)
+        }, 200)
+    }
+    break
                 
             case 'trainer':
                 this.populateField('trainerId', this.currentNPC.trainerId)
@@ -646,6 +655,10 @@ populateField(fieldName, value) {
         if (fieldName === 'position') {
             return this.createPositionField(fieldName, currentValue)
         }
+
+        if (fieldName === 'shopId') {
+    return this.createShopSelectorField(fieldName, currentValue, isRequired)
+}
         
         if (fieldName.includes('dialogue') || fieldName.includes('Description')) {
             return `<textarea 
@@ -1018,6 +1031,10 @@ createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
             direction: 'Direction',
             shopId: 'ID Boutique',
             shopType: 'Type Boutique',
+            shopConfig: 'Configuration Boutique',
+            shopDialogueIds: 'Dialogues Boutique',
+            businessHours: 'Horaires d\'ouverture',
+            accessRestrictions: 'Restrictions d\'accès',
             trainerId: 'ID Dresseur',
             trainerClass: 'Classe Dresseur',
             trainerRank: 'Rang Dresseur',
