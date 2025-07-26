@@ -1,9 +1,9 @@
-// managers/UIManager.js - FIXÉ avec protection anti-duplication STRICTE + correction positionnement
-// 🚨 PRÉVENTION COMPLÈTE de la double initialisation des modules
+// managers/UIManager.js - VERSION FINALE CORRIGÉE avec synchronisation
+// 🚨 PRÉVENTION COMPLÈTE de la double initialisation des modules + Fix positionnement
 
 export class UIManager {
   constructor(options = {}) {
-    console.log('🎛️ UIManager avec protection anti-duplication initialisé');
+    console.log('🎛️ UIManager avec protection anti-duplication + sync initialisé');
     
     this.debug = options.debug || false;
     this.gameStates = options.gameStates || {};
@@ -352,6 +352,60 @@ export class UIManager {
     };
   }
 
+  // === 🔄 FIX FINAL : SYNCHRONISATION RÉFÉRENCES ÉLÉMENTS ===
+  
+  /**
+   * ✅ FIX CRITIQUE : Synchroniser les références d'éléments avec le DOM réel
+   * Résout le problème de références obsolètes qui empêchent le positionnement
+   */
+  synchronizeElementReferences() {
+    if (this.debug) {
+      console.log('🔄 [UIManager] Synchronisation références éléments...');
+    }
+    
+    this.registeredIcons.forEach((iconConfig, moduleId) => {
+      // Trouver l'élément réel dans le DOM
+      const realElement = document.querySelector(`#${moduleId}-icon`);
+      
+      if (realElement && iconConfig.element !== realElement) {
+        if (this.debug) {
+          console.log(`🔄 [UIManager] Synchronisation ${moduleId}: référence obsolète détectée`);
+        }
+        
+        // Supprimer les éléments fantômes s'ils existent
+        const allElements = document.querySelectorAll(`[id="${moduleId}-icon"]`);
+        if (allElements.length > 1) {
+          console.log(`🧹 [UIManager] ${allElements.length} éléments ${moduleId} trouvés, nettoyage...`);
+          
+          allElements.forEach((element, index) => {
+            const rect = element.getBoundingClientRect();
+            
+            // Supprimer les éléments invisibles (fantômes)
+            if (rect.width === 0 || rect.height === 0 || rect.left === 0) {
+              console.log(`🗑️ [UIManager] Suppression élément fantôme ${moduleId}[${index}]`);
+              element.remove();
+            }
+          });
+        }
+        
+        // Mettre à jour la référence UIManager
+        iconConfig.element = realElement;
+        
+        // Nettoyer l'élément réel
+        realElement.classList.remove('hidden', 'ui-hidden');
+        if (realElement.style.right || realElement.style.bottom) {
+          realElement.style.right = '';
+          realElement.style.bottom = '';
+          realElement.style.inset = '';
+        }
+        
+        if (this.debug) {
+          console.log(`✅ [UIManager] ${moduleId} référence synchronisée`);
+        }
+      }
+    });
+  }
+
   // === MÉTHODES IDENTIQUES (pas de changement) ===
   
   getCurrentBreakpoint() {
@@ -589,8 +643,11 @@ export class UIManager {
     console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
-  // ✅ FIX CRITIQUE: Correction positionIcon pour utiliser order au lieu de memberIndex
+  // ✅ FIX CRITIQUE : Position avec synchronisation et calcul corrigé
   positionIcon(moduleId) {
+    // ✅ AJOUT : Synchroniser avant positionnement
+    this.synchronizeElementReferences();
+    
     const iconConfig = this.registeredIcons.get(moduleId);
     if (!iconConfig || !iconConfig.element) {
       console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
@@ -633,7 +690,7 @@ export class UIManager {
     const spacing = this.iconConfig.spacing;
     const iconWidth = iconConfig.size.width;
     
-    // ✅ CORRECTION CRITIQUE: Utiliser ORDER au lieu de memberIndex
+    // ✅ FIX CRITIQUE: Utiliser ORDER au lieu de memberIndex
     const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
     
     let offsetX = 0;
@@ -662,13 +719,17 @@ export class UIManager {
     }
   }
 
+  // ✅ FIX : Repositionner avec synchronisation
   repositionAllIcons() {
+    // ✅ AJOUT : Synchroniser toutes les références avant repositionnement
+    this.synchronizeElementReferences();
+    
     this.registeredIcons.forEach((iconConfig, moduleId) => {
       this.positionIcon(moduleId);
     });
     
     if (this.debug) {
-      console.log('🔄 [UIManager] Toutes les icônes repositionnées PROTÉGÉES');
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec synchronisation PROTÉGÉES');
     }
   }
 
@@ -843,7 +904,7 @@ export class UIManager {
     const diagnosis = this.diagnoseInitializationIssues();
     
     const info = {
-      mode: 'uimanager-with-anti-duplication-protection',
+      mode: 'uimanager-with-anti-duplication-protection-and-sync',
       currentGameState: this.globalState.currentGameState,
       totalModules: this.modules.size,
       totalIcons: this.registeredIcons.size,
@@ -878,7 +939,8 @@ export class UIManager {
             size: config.size,
             hasElement: !!config.element,
             visible: config.element ? config.element.style.display !== 'none' : false,
-            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false
+            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false,
+            positionedBy: config.element ? config.element.getAttribute('data-positioned-by') : null
           }
         ])
       ),
@@ -886,7 +948,7 @@ export class UIManager {
       interactionRules: this.interactionRules
     };
     
-    console.group('🎛️ UIManager Debug Info (avec protection anti-duplication)');
+    console.group('🎛️ UIManager Debug Info (avec protection anti-duplication + sync)');
     console.table(info.moduleStates);
     console.log('🛡️ Protection anti-duplication:', info.protection);
     console.log('📏 Configuration icônes:', iconConfig);
