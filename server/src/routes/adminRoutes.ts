@@ -148,7 +148,7 @@ const requireMacAndDev = async (req: any, res: any, next: any) => {
                        clientIP.includes('90.126.88.90') ||
                        clientIP.includes('172.226.148.60') || // GREG
                        clientIP.includes('90.11.142.68') || // LOGAN
-clientIP.includes('80.15.105.181')
+                       clientIP.includes('80.15.105.181') ||
                        clientIP.includes('5.51.41.59'); // Bryan
                         
 
