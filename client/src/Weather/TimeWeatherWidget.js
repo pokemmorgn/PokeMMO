@@ -111,6 +111,37 @@ export class TimeWeatherWidget {
     console.log('🎮 [WeatherWidget] Instance créée - PALETTE UNIFIÉE avec ACCENTS MÉTÉO PRONONCÉS');
   }
 
+  // === 🛡️ PROTECTION CONTRE UIMANAGER ===
+  protectFromUIManagerInterference() {
+    if (!this.element) return;
+    
+    console.log('🛡️ [WeatherWidget] Protection contre UIManager...');
+    
+    // Supprimer toute classe UIManager
+    this.element.classList.remove('ui-icon');
+    this.element.classList.add('ui-standalone-widget');
+    
+    // Protéger nos dimensions
+    this.element.style.width = '300px !important';
+    this.element.style.height = '100px !important';
+    this.element.style.minWidth = '300px !important';
+    this.element.style.maxWidth = '300px !important';
+    this.element.style.minHeight = '100px !important';
+    this.element.style.maxHeight = '100px !important';
+    
+    // Position autonome
+    this.element.style.position = 'fixed';
+    this.element.style.top = '20px';
+    this.element.style.right = '20px';
+    this.element.style.zIndex = '1000';
+    
+    // Marquer comme widget autonome
+    this.element.setAttribute('data-positioned-by', 'standalone-widget');
+    this.element.setAttribute('data-uimanager-exempt', 'true');
+    
+    console.log('✅ [WeatherWidget] Protection appliquée - dimensions: 300x100px');
+  }
+
   // === 🎨 CRÉATION DU WIDGET ===
   createIcon() {
     console.log('🎮 [WeatherWidget] Création widget style unifié');
@@ -122,7 +153,9 @@ export class TimeWeatherWidget {
     // Création de l'élément principal
     const el = document.createElement('div');
     el.id = this.id;
-    el.className = 'pokemon-weather-widget ui-icon';
+    el.className = 'pokemon-weather-widget ui-standalone-widget'; // ← PAS ui-icon !
+    el.setAttribute('data-widget-type', 'standalone');
+    el.setAttribute('data-custom-size', 'true');
     el.innerHTML = this.generateWidgetHTML();
     
     document.body.appendChild(el);
@@ -130,6 +163,7 @@ export class TimeWeatherWidget {
     
     // Initialisation
     this.injectStyles();
+    this.protectFromUIManagerInterference(); // ← NOUVEAU: Protection !
     this.initializeConnections();
     this.updateInitialContent();
     this.startAllAnimations();
@@ -781,13 +815,14 @@ export class TimeWeatherWidget {
 
   onPositioned(position) {
     if (this.element) {
-      this.element.setAttribute('data-positioned-by', 'uimanager');
+      this.element.setAttribute('data-positioned-by', 'standalone-widget');
       this.element.setAttribute('data-position', JSON.stringify(position));
+      console.log('📍 [WeatherWidget] Position autonome enregistrée:', position);
     }
   }
 
   isPositionedByUIManager() {
-    return this.element?.getAttribute('data-positioned-by') === 'uimanager';
+    return false; // ← Widget autonome, pas géré par UIManager !
   }
 
   getCurrentPosition() {
@@ -803,7 +838,12 @@ export class TimeWeatherWidget {
     }
     
     const computed = window.getComputedStyle(this.element);
-    return { left: computed.left, top: computed.top, source: 'computed' };
+    return { 
+      left: computed.left, 
+      top: computed.top, 
+      source: 'standalone-computed',
+      type: 'autonomous-widget'
+    };
   }
 
   // === 🎨 INJECTION DES STYLES ===
@@ -862,9 +902,9 @@ export class TimeWeatherWidget {
       isAnimating: this.isAnimating,
       hasElement: !!this.element,
       elementInDOM: this.element ? document.contains(this.element) : false,
-      positioningMode: this.positioningMode,
-      uiManagerControlled: this.uiManagerControlled,
-      isPositionedByUIManager: this.isPositionedByUIManager(),
+      positioningMode: 'standalone',
+      uiManagerControlled: false,
+      isPositionedByUIManager: false, // ← Plus géré par UIManager
       currentPosition: this.getCurrentPosition(),
       currentTime: `${this.currentHour}:00 ${this.isDayTime ? 'Day' : 'Night'}`,
       currentWeather: this.weather,
@@ -878,6 +918,8 @@ export class TimeWeatherWidget {
       weatherAccents: true, // 🎨 Nouveau flag pour accents météo
       styleVersion: 'unified-with-accents-2024',
       truncationFixed: true, // 🔧 Nouveau flag pour correction troncature
+      standaloneWidget: true, // 🛡️ Nouveau flag pour widget autonome
+      uiManagerExempt: true, // 🛡️ Exempt du système d'icônes UIManager
       animationFrames: {
         main: !!this.animationFrame,
         particles: !!this.particleAnimationFrame
