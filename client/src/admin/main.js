@@ -15,6 +15,7 @@ import { QuestGeneratorModule } from './js/quest-generator.js'
 import { MapEditorModule } from './js/map-editor.js' // ← NOUVEAU MODULE
 import { NPCEditorModule } from './js/npc-editor.js'
 import { MongoDBModule } from './js/mongodb-module.js'
+import { ShopEditorModule } from './js/shop-editor.js'
 
 // Global admin panel instance
 let adminPanel
@@ -37,7 +38,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             QuestGeneratorModule,
             MapEditorModule,
             NPCEditorModule,// ← AJOUT du nouveau module
-            MongoDBModule  // ← AJOUTER CETTE LIGNE
+            MongoDBModule,  // ← AJOUTER CETTE LIGNE
+            ShopEditorModule  // ← NOUVEAU MODULE
+
 
         ])
         
@@ -490,6 +493,62 @@ window.editNPCFromMap = (npcData) => {
     adminPanel.npcEditor.loadNPCFromMapEditor(npcData)
 }
 
+// Shop Editor functions
+window.selectShop = (shopId) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.selectShop(shopId)
+}
+
+window.createNewShop = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.createNewShop()
+}
+
+window.saveShop = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.saveShop()
+}
+
+window.deleteShop = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.deleteShop()
+}
+
+window.duplicateShop = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.duplicateShop()
+}
+
+window.exportShops = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.exportShops()
+}
+
+window.importShops = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.importShops()
+}
 
 // Helper function to show error messages
 function showErrorMessage(message) {
