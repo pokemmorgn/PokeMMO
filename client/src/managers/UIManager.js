@@ -1,9 +1,9 @@
-// managers/UIManager.js - VERSION FINALE CORRIGÉE avec synchronisation
-// 🚨 PRÉVENTION COMPLÈTE de la double initialisation des modules + Fix positionnement
+// managers/UIManager.js - VERSION FINALE CORRIGÉE avec synchronisation + décalage global
+// 🚨 PRÉVENTION COMPLÈTE de la double initialisation + Fix positionnement + Décalage global
 
 export class UIManager {
   constructor(options = {}) {
-    console.log('🎛️ UIManager avec protection anti-duplication + sync initialisé');
+    console.log('🎛️ UIManager avec protection anti-duplication + sync + décalage global initialisé');
     
     this.debug = options.debug || false;
     this.gameStates = options.gameStates || {};
@@ -27,7 +27,7 @@ export class UIManager {
       currentGameState: 'exploration'
     };
     
-    // Configuration icônes (identique)
+    // Configuration icônes avec décalage global
     this.iconConfig = {
       defaultSize: { width: 70, height: 80 },
       responsiveSizes: {
@@ -37,6 +37,7 @@ export class UIManager {
       },
       spacing: 10,
       padding: 20,
+      globalOffset: 15, // ✅ Décalage global vers la gauche (en pixels)
       zIndex: 500
     };
     
@@ -546,7 +547,7 @@ export class UIManager {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [UIManager] CSS global icônes injecté avec protection');
+    console.log('🎨 [UIManager] CSS global icônes injecté avec protection et décalage');
   }
 
   applyStandardizedSize(iconElement) {
@@ -664,26 +665,27 @@ export class UIManager {
 
     let baseX, baseY;
     const padding = this.iconConfig.padding;
+    const globalOffset = this.iconConfig.globalOffset || 0; // Décalage global
     
     switch (iconConfig.anchor) {
       case 'bottom-right':
-        baseX = window.innerWidth - padding;
+        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
         baseY = window.innerHeight - padding;
         break;
       case 'bottom-left':
-        baseX = padding;
+        baseX = padding + globalOffset; // ✅ Décalage inverse pour left
         baseY = window.innerHeight - padding;
         break;
       case 'top-right':
-        baseX = window.innerWidth - padding;
+        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
         baseY = padding + 60;
         break;
       case 'top-left':
-        baseX = padding;
+        baseX = padding + globalOffset; // ✅ Décalage inverse pour left
         baseY = padding;
         break;
       default:
-        baseX = window.innerWidth - padding;
+        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
         baseY = window.innerHeight - padding;
     }
 
@@ -729,7 +731,7 @@ export class UIManager {
     });
     
     if (this.debug) {
-      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec synchronisation PROTÉGÉES');
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec synchronisation et décalage global PROTÉGÉES');
     }
   }
 
@@ -904,11 +906,12 @@ export class UIManager {
     const diagnosis = this.diagnoseInitializationIssues();
     
     const info = {
-      mode: 'uimanager-with-anti-duplication-protection-and-sync',
+      mode: 'uimanager-with-anti-duplication-protection-and-sync-and-global-offset',
       currentGameState: this.globalState.currentGameState,
       totalModules: this.modules.size,
       totalIcons: this.registeredIcons.size,
       iconConfiguration: iconConfig,
+      globalOffset: this.iconConfig.globalOffset || 0,
       initializedModules: Array.from(this.moduleStates.entries())
         .filter(([id, state]) => state.initialized).length,
       openModules: Array.from(this.openModules),
@@ -948,10 +951,11 @@ export class UIManager {
       interactionRules: this.interactionRules
     };
     
-    console.group('🎛️ UIManager Debug Info (avec protection anti-duplication + sync)');
+    console.group('🎛️ UIManager Debug Info (avec protection anti-duplication + sync + décalage global)');
     console.table(info.moduleStates);
     console.log('🛡️ Protection anti-duplication:', info.protection);
     console.log('📏 Configuration icônes:', iconConfig);
+    console.log('📍 Décalage global:', `${info.globalOffset}px vers la gauche`);
     console.log('📍 Icônes créées:', info.registeredIcons);
     console.log('⚠️ Issues détectées:', diagnosis.issues);
     console.groupEnd();
@@ -1225,11 +1229,17 @@ export class UIManager {
     this.updateIconConfig({ padding });
   }
   
+  setGlobalOffset(offset) {
+    console.log(`📏 [UIManager] Changement décalage global icônes: ${offset}px vers la gauche`);
+    this.updateIconConfig({ globalOffset: offset });
+  }
+  
   getIconConfiguration() {
     return {
       ...this.iconConfig,
       currentSize: this.getCurrentIconSize(),
-      currentBreakpoint: this.currentBreakpoint
+      currentBreakpoint: this.currentBreakpoint,
+      globalOffset: this.iconConfig.globalOffset || 0
     };
   }
 
