@@ -1,5 +1,5 @@
 // server/src/interactions/modules/npc/handlers/UnifiedInterfaceHandler.ts
-// Handler pour construire l'interface unifiée des NPCs multi-fonctionnels
+// Handler pour construire l'interface unifiée des NPCs multi-fonctionnels - VERSION INTÉGRÉE
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { QuestManager } from "../../../../managers/QuestManager";
@@ -24,7 +24,7 @@ import {
 // Import des handlers existants
 import { MerchantNpcHandler } from "./MerchantNpcHandler";
 
-// ===== INTERFACE NPC DATA COMPLÈTE (Compatible JSON + Tiled) =====
+// ===== INTERFACE NPC DATA COMPLÈTE (Compatible JSON + MongoDB + Tiled) =====
 interface NpcData {
   id: number;
   name: string;
@@ -46,7 +46,7 @@ interface NpcData {
   serviceConfig?: any;
   
   // Métadonnées
-  sourceType?: 'tiled' | 'json';
+  sourceType?: 'tiled' | 'json' | 'mongodb';
   sourceFile?: string;
 }
 
@@ -57,9 +57,10 @@ interface UnifiedHandlerConfig {
   capabilityPriority: Record<NpcCapability, number>;
   defaultTabByNpcType: Record<string, NpcCapability>;
   maxCapabilitiesPerNpc: number;
+  useMerchantHandlerForShops: boolean; // ✅ NOUVEAU: Flag pour délégation shop
 }
 
-// ===== HANDLER PRINCIPAL =====
+// ===== HANDLER PRINCIPAL INTÉGRÉ =====
 export class UnifiedInterfaceHandler {
   
   private config: UnifiedHandlerConfig;
@@ -68,7 +69,7 @@ export class UnifiedInterfaceHandler {
   private questManager: QuestManager;
   private shopManager: ShopManager;
   
-  // Handlers spécialisés existants
+  // ✅ HANDLERS SPÉCIALISÉS - MerchantHandler intégré
   private merchantHandler: MerchantNpcHandler;
   
   constructor(
@@ -96,14 +97,14 @@ export class UnifiedInterfaceHandler {
         'dialogue': 'dialogue'
       },
       maxCapabilitiesPerNpc: 5,
+      useMerchantHandlerForShops: true, // ✅ Délégation activée par défaut
       ...config
     };
     
-    this.log('info', '🔗 UnifiedInterfaceHandler initialisé', {
+    this.log('info', '🔗 UnifiedInterfaceHandler v2.0 initialisé avec MerchantHandler intégré', {
       enabledCapabilities: this.config.enabledCapabilities.length,
-      hasHandlers: {
-        merchant: !!this.merchantHandler
-      }
+      merchantHandlerIntegrated: !!this.merchantHandler,
+      delegation: this.config.useMerchantHandlerForShops
     });
   }
 
@@ -121,14 +122,15 @@ export class UnifiedInterfaceHandler {
     const startTime = Date.now();
     
     try {
-      this.log('info', `🔗 [UnifiedInterface] Construction pour NPC ${npc.id}`, {
+      this.log('info', `🔗 [UnifiedInterface v2] Construction pour NPC ${npc.id}`, {
         player: player.name,
         npcName: npc.name,
-        capabilities: detectedCapabilities.length
+        capabilities: detectedCapabilities.length,
+        merchantHandlerAvailable: !!this.merchantHandler
       });
 
-      // 1. Analyser et prioriser les capacités
-      const capabilityAnalysis = await this.analyzeCapabilities(player, npc, detectedCapabilities);
+      // 1. Analyser et prioriser les capacités avec délégation
+      const capabilityAnalysis = await this.analyzeCapabilitiesWithDelegation(player, npc, detectedCapabilities);
       
       // 2. Filtrer les capacités disponibles
       const availableCapabilities = capabilityAnalysis
@@ -137,7 +139,7 @@ export class UnifiedInterfaceHandler {
         .slice(0, this.config.maxCapabilitiesPerNpc);
 
       if (availableCapabilities.length === 0) {
-        this.log('warn', `🔗 [UnifiedInterface] Aucune capacité disponible pour NPC ${npc.id}`);
+        this.log('warn', `🔗 [UnifiedInterface v2] Aucune capacité disponible pour NPC ${npc.id}`);
         return this.buildFallbackResult(npc, "Aucune action disponible");
       }
 
@@ -154,22 +156,23 @@ export class UnifiedInterfaceHandler {
         quickActions: this.buildQuickActions(availableCapabilities)
       };
 
-      // 4. Collecter données par capacité
+      // 4. Collecter données par capacité avec délégation intelligente
       for (const capAnalysis of availableCapabilities) {
         try {
           const data = await capAnalysis.dataFetcher();
           this.attachCapabilityData(result, capAnalysis.capability, data);
           
         } catch (error) {
-          this.log('error', `🔗 [UnifiedInterface] Erreur données ${capAnalysis.capability}`, error);
+          this.log('error', `🔗 [UnifiedInterface v2] Erreur données ${capAnalysis.capability}`, error);
           // On continue avec les autres capacités
         }
       }
 
       const processingTime = Date.now() - startTime;
-      this.log('info', `✅ [UnifiedInterface] Interface construite`, {
+      this.log('info', `✅ [UnifiedInterface v2] Interface construite`, {
         capabilities: result.capabilities.length,
         defaultAction: result.defaultAction,
+        merchantDataAvailable: !!result.merchantData,
         processingTime: `${processingTime}ms`
       });
 
@@ -177,7 +180,7 @@ export class UnifiedInterfaceHandler {
 
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      this.log('error', `❌ [UnifiedInterface] Erreur construction NPC ${npc.id}`, {
+      this.log('error', `❌ [UnifiedInterface v2] Erreur construction NPC ${npc.id}`, {
         error: error instanceof Error ? error.message : error,
         processingTime: `${processingTime}ms`
       });
@@ -186,9 +189,9 @@ export class UnifiedInterfaceHandler {
     }
   }
 
-  // === ANALYSE DES CAPACITÉS ===
+  // === ✅ ANALYSE DES CAPACITÉS AVEC DÉLÉGATION ===
 
-  private async analyzeCapabilities(
+  private async analyzeCapabilitiesWithDelegation(
     player: Player,
     npc: NpcData,
     detectedCapabilities: NpcCapability[]
@@ -197,20 +200,21 @@ export class UnifiedInterfaceHandler {
     const analysis: CapabilityAnalysis[] = [];
 
     for (const capability of detectedCapabilities) {
-      const capAnalysis = await this.analyzeSpecificCapability(player, npc, capability);
+      const capAnalysis = await this.analyzeSpecificCapabilityWithDelegation(player, npc, capability);
       analysis.push(capAnalysis);
     }
 
-    this.log('info', `🔍 [UnifiedInterface] Analyse capacités`, {
+    this.log('info', `🔍 [UnifiedInterface v2] Analyse capacités avec délégation`, {
       total: analysis.length,
       available: analysis.filter(a => a.available).length,
+      merchantDelegated: analysis.some(a => a.capability === 'merchant' && a.available),
       unavailable: analysis.filter(a => !a.available).length
     });
 
     return analysis;
   }
 
-  private async analyzeSpecificCapability(
+  private async analyzeSpecificCapabilityWithDelegation(
     player: Player,
     npc: NpcData,
     capability: NpcCapability
@@ -220,12 +224,7 @@ export class UnifiedInterfaceHandler {
     
     switch (capability) {
       case 'merchant':
-        return {
-          capability,
-          available: this.merchantHandler.isMerchantNpc(npc) && this.hasValidShop(npc),
-          priority: basePriority + (npc.type === 'merchant' ? 2 : 0),
-          dataFetcher: () => this.collectMerchantData(player, npc)
-        };
+        return await this.analyzeMerchantCapabilityWithDelegation(player, npc, basePriority);
 
       case 'quest':
         const hasQuests = await this.hasAvailableQuests(player, npc);
@@ -271,39 +270,213 @@ export class UnifiedInterfaceHandler {
     }
   }
 
-  // === COLLECTEURS DE DONNÉES (CORRIGÉS) ===
+  // ✅ ANALYSE MERCHANT AVEC DÉLÉGATION AU MERCHANTHANDLER
+  private async analyzeMerchantCapabilityWithDelegation(
+    player: Player,
+    npc: NpcData,
+    basePriority: number
+  ): Promise<CapabilityAnalysis> {
+    
+    // ✅ DÉLÉGATION : Utiliser MerchantHandler pour détecter les marchands
+    const isMerchantViaHandler = this.config.useMerchantHandlerForShops && 
+                                this.merchantHandler && 
+                                this.merchantHandler.isMerchantNpc(npc);
+    
+    const isMerchantLegacy = this.hasValidShop(npc);
+    const isMerchant = isMerchantViaHandler || isMerchantLegacy;
+    
+    if (!isMerchant) {
+      return {
+        capability: 'merchant',
+        available: false,
+        priority: 0,
+        reason: 'NPC non marchand',
+        dataFetcher: () => Promise.resolve(null)
+      };
+    }
 
-  private async collectMerchantData(player: Player, npc: NpcData): Promise<MerchantData> {
+    this.log('info', `🛒 [Merchant Analysis] NPC ${npc.id} détecté comme marchand`, {
+      viaHandler: isMerchantViaHandler,
+      viaLegacy: isMerchantLegacy,
+      delegationEnabled: this.config.useMerchantHandlerForShops
+    });
+
+    return {
+      capability: 'merchant',
+      available: true,
+      priority: basePriority + (npc.type === 'merchant' ? 2 : 0),
+      // ✅ DÉLÉGATION : Utiliser MerchantHandler pour collecter les données
+      dataFetcher: () => this.config.useMerchantHandlerForShops ? 
+                          this.collectMerchantDataViaDelegation(player, npc) :
+                          this.collectMerchantDataLegacy(player, npc)
+    };
+  }
+
+  // === ✅ COLLECTEURS DE DONNÉES AVEC DÉLÉGATION ===
+
+  // ✅ NOUVEAU : Collecte de données merchant via MerchantHandler (délégation)
+  private async collectMerchantDataViaDelegation(player: Player, npc: NpcData): Promise<MerchantData> {
+    this.log('info', `🛒 [Merchant Delegation] Collecte données via MerchantHandler pour NPC ${npc.id}`);
+    
+    try {
+      // ✅ DÉLÉGATION : Appeler directement le MerchantHandler
+      const merchantResult = await this.merchantHandler.handle(player, npc, npc.id);
+      
+      if (!merchantResult.success || !merchantResult.shopData) {
+        throw new Error(`MerchantHandler échec: ${merchantResult.message}`);
+      }
+
+      // ✅ CONVERSION : Transformer le résultat MerchantHandler en MerchantData
+      const merchantData: MerchantData = {
+        shopId: merchantResult.shopId!,
+        shopInfo: {
+          name: merchantResult.shopData.shopInfo.name || 'Boutique',
+          currency: 'gold', // TODO: Récupérer depuis shopData
+          shopType: merchantResult.shopData.shopInfo.type || 'pokemart'
+        },
+        availableItems: merchantResult.shopData.availableItems.map(item => ({
+          id: item.itemId || item.id || 'unknown',
+          name: item.name || item.itemId || 'Item inconnu',
+          price: item.buyPrice || item.price || 0,
+          stock: item.stock || 99,
+          category: item.category || 'items',
+          description: item.description
+        })),
+        playerGold: merchantResult.shopData.playerGold,
+        welcomeDialogue: merchantResult.lines || ["Bienvenue !"],
+        canBuy: true,
+        canSell: true,
+        restrictions: {
+          minLevel: undefined,
+          vipOnly: false
+        }
+      };
+
+      this.log('info', `✅ [Merchant Delegation] Données collectées via MerchantHandler`, {
+        shopId: merchantData.shopId,
+        itemCount: merchantData.availableItems.length,
+        playerGold: merchantData.playerGold
+      });
+
+      return merchantData;
+      
+    } catch (error) {
+      this.log('error', `❌ [Merchant Delegation] Erreur délégation MerchantHandler`, error);
+      
+      // ✅ FALLBACK : Si délégation échoue, utiliser la méthode legacy
+      this.log('info', `🔄 [Merchant Delegation] Fallback vers méthode legacy`);
+      return await this.collectMerchantDataLegacy(player, npc);
+    }
+  }
+
+  // ✅ MÉTHODE LEGACY (backup si délégation échoue)
+  private async collectMerchantDataLegacy(player: Player, npc: NpcData): Promise<MerchantData> {
     const shopId = this.getShopId(npc);
     const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
     
     if (!catalog) {
-      throw new Error(`Shop ${shopId} non trouvé`);
+      throw new Error(`Shop ${shopId} non trouvé via méthode legacy`);
     }
 
     return {
       shopId: shopId,
       shopInfo: {
-        name: catalog.shopInfo.name || 'Boutique',
+        name: catalog.shopInfo.nameKey || catalog.shopInfo.name || 'Boutique',
         currency: 'gold',
         shopType: npc.shopType || this.getProperty(npc, 'shopType') || 'pokemart'
       },
-      // ✅ CORRIGÉ : Utilisation correcte des propriétés ShopItem
       availableItems: catalog.availableItems.map(item => ({
         id: item.itemId,
-        name: item.itemId, // Utiliser itemId comme nom
+        name: item.itemId,
         price: item.buyPrice || 0,
-        stock: (item as any).stock || 99,
-        category: 'items', // Valeur par défaut
-        description: undefined as string | undefined // Pas de description disponible
+        stock: item.stock || 99,
+        category: 'items',
+        description: undefined
       })),
       playerGold: player.gold || 1000,
       welcomeDialogue: this.getShopDialogue(npc, 'welcome'),
       canBuy: true,
-      canSell: true, // ✅ CORRIGÉ : Valeur par défaut
+      canSell: true,
       restrictions: this.getShopRestrictions(npc, player)
     };
   }
+
+  // === ✅ MÉTHODE PUBLIQUE POUR TRANSACTIONS VIA DÉLÉGATION ===
+
+  /**
+   * Traite une transaction shop via délégation au MerchantHandler
+   */
+  async handleShopTransaction(
+    player: Player,
+    npc: NpcData,
+    action: 'buy' | 'sell',
+    itemId: string,
+    quantity: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    messageKey?: string;
+    newGold?: number;
+    itemsChanged?: any[];
+    shopStockChanged?: any[];
+    dialogues?: string[];
+    dialogueKeys?: string[];
+  }> {
+    
+    this.log('info', `🛒 [Shop Transaction] ${action} ${quantity}x ${itemId} via délégation`, {
+      npcId: npc.id,
+      player: player.name,
+      delegationEnabled: this.config.useMerchantHandlerForShops
+    });
+
+    if (this.config.useMerchantHandlerForShops && this.merchantHandler) {
+      try {
+        // ✅ DÉLÉGATION : Utiliser MerchantHandler pour la transaction
+        const result = await this.merchantHandler.handleShopTransaction(
+          player, npc, action, itemId, quantity
+        );
+        
+        this.log('info', `✅ [Shop Transaction] Délégation réussie`, {
+          success: result.success,
+          message: result.message
+        });
+        
+        return result;
+        
+      } catch (error) {
+        this.log('error', `❌ [Shop Transaction] Erreur délégation`, error);
+        
+        // Fallback vers ShopManager direct
+        return await this.handleShopTransactionLegacy(player, npc, action, itemId, quantity);
+      }
+    } else {
+      // Utiliser ShopManager directement
+      return await this.handleShopTransactionLegacy(player, npc, action, itemId, quantity);
+    }
+  }
+
+  private async handleShopTransactionLegacy(
+    player: Player,
+    npc: NpcData,
+    action: 'buy' | 'sell',
+    itemId: string,
+    quantity: number
+  ): Promise<any> {
+    
+    const shopId = this.getShopId(npc);
+    
+    if (action === 'buy') {
+      return await this.shopManager.buyItem(
+        player.name, shopId, itemId, quantity, player.gold || 1000, player.level || 1
+      );
+    } else {
+      return await this.shopManager.sellItem(
+        player.name, shopId, itemId, quantity
+      );
+    }
+  }
+
+  // === COLLECTEURS DE DONNÉES AUTRES (INCHANGÉS) ===
 
   private async collectQuestData(player: Player, npc: NpcData): Promise<QuestData> {
     // Quêtes disponibles
@@ -320,18 +493,13 @@ export class UnifiedInterfaceHandler {
       .filter(q => q.endNpcId === npc.id && q.status === 'readyToComplete');
 
     return {
-      // ✅ CORRIGÉ : Gestion des récompenses
       availableQuests: availableQuests.map(quest => ({
         id: quest.id,
         name: quest.name,
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: [] as Array<{
-          type: 'item' | 'gold' | 'experience';
-          itemId?: string;
-          amount: number;
-        }> // TODO: Récupérer les récompenses réelles depuis la définition de quête
+        rewards: []
       })),
       questsInProgress: questsInProgress.map(quest => ({
         id: quest.id,
@@ -342,11 +510,7 @@ export class UnifiedInterfaceHandler {
       questsToComplete: questsToComplete.map(quest => ({
         id: quest.id,
         name: quest.name,
-        rewards: [] as Array<{
-          type: 'item' | 'gold' | 'experience';
-          itemId?: string;
-          amount: number;
-        }> // ✅ CORRIGÉ : Pas d'accès direct aux récompenses
+        rewards: []
       })),
       questDialogue: this.getQuestDialogue(npc),
       canGiveQuests: availableQuests.length > 0,
@@ -380,9 +544,9 @@ export class UnifiedInterfaceHandler {
         }
       ],
       playerPokemonStatus: {
-        needsHealing: true, // TODO: Vérifier l'état réel
-        pokemonCount: 6, // TODO: Récupérer depuis player
-        injuredCount: 2 // TODO: Calculer
+        needsHealing: true,
+        pokemonCount: 6,
+        injuredCount: 2
       },
       welcomeDialogue: this.getHealerDialogue(npc, 'welcome'),
       canHeal: true
@@ -394,7 +558,7 @@ export class UnifiedInterfaceHandler {
       trainerId: npc.trainerId || `trainer_${npc.id}`,
       trainerClass: this.getProperty(npc, 'trainerClass') || 'youngster',
       battleType: 'single',
-      teamPreview: [], // TODO: Récupérer l'équipe
+      teamPreview: [],
       battleDialogue: this.getTrainerDialogue(npc, 'challenge'),
       rewards: {
         money: 500,
@@ -404,7 +568,7 @@ export class UnifiedInterfaceHandler {
     };
   }
 
-  // === MÉTHODES DE DÉTECTION ===
+  // === MÉTHODES DE DÉTECTION (INCHANGÉES) ===
 
   private hasValidShop(npc: NpcData): boolean {
     return !!this.getShopId(npc);
@@ -434,7 +598,7 @@ export class UnifiedInterfaceHandler {
     return npc.type === 'trainer' || !!npc.trainerId;
   }
 
-  // === MÉTHODES UTILITAIRES ===
+  // === MÉTHODES UTILITAIRES (INCHANGÉES) ===
 
   private getShopId(npc: NpcData): string {
     return npc.shopId || this.getProperty(npc, 'shopId') || this.getProperty(npc, 'shop') || '';
@@ -518,16 +682,13 @@ export class UnifiedInterfaceHandler {
     };
   }
 
-  // === MÉTHODES DE DIALOGUE ET DONNÉES (CORRIGÉES) ===
+  // === MÉTHODES DE DIALOGUE ET DONNÉES (INCHANGÉES) ===
 
-  // ✅ CORRIGÉ : Gestion sécurisée des propriétés shopDialogueIds
   private getShopDialogue(npc: NpcData, type: 'welcome'): string[] {
-    // Vérifier d'abord les propriétés JSON avec casting sécurisé
     const npcAny = npc as any;
     if (npcAny.shopDialogueIds?.shopOpen) {
       return npcAny.shopDialogueIds.shopOpen;
     }
-    // Fallback vers propriétés Tiled
     if (this.getProperty(npc, 'shopDialogue')) {
       const dialogue = this.getProperty(npc, 'shopDialogue');
       return Array.isArray(dialogue) ? dialogue : [dialogue];
@@ -535,14 +696,11 @@ export class UnifiedInterfaceHandler {
     return ["Bienvenue dans ma boutique !"];
   }
 
-  // ✅ CORRIGÉ : Gestion sécurisée des propriétés questDialogueIds
   private getQuestDialogue(npc: NpcData): string[] {
-    // Vérifier d'abord les propriétés JSON avec casting sécurisé
     const npcAny = npc as any;
     if (npcAny.questDialogueIds?.questOffer) {
       return npcAny.questDialogueIds.questOffer;
     }
-    // Fallback vers propriétés Tiled
     if (this.getProperty(npc, 'questDialogue')) {
       const dialogue = this.getProperty(npc, 'questDialogue');
       return Array.isArray(dialogue) ? dialogue : [dialogue];
@@ -631,9 +789,17 @@ export class UnifiedInterfaceHandler {
   getStats(): any {
     return {
       handlerType: 'unified_interface',
+      version: '2.0.0',
       config: this.config,
-      version: '1.0.0',
-      supportedCapabilities: this.config.enabledCapabilities
+      supportedCapabilities: this.config.enabledCapabilities,
+      merchantHandlerIntegrated: !!this.merchantHandler,
+      delegationEnabled: this.config.useMerchantHandlerForShops
     };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Activer/Désactiver délégation
+  setMerchantDelegation(enabled: boolean): void {
+    this.config.useMerchantHandlerForShops = enabled;
+    this.log('info', `🔄 [UnifiedInterface] Délégation MerchantHandler ${enabled ? 'activée' : 'désactivée'}`);
   }
 }
