@@ -1,19 +1,30 @@
-// styles/PokemonWeatherStyles.js - Style UNIFIÉ avec dimensions corrigées
-// 🎯 Palette cohérente avec Pokedex/Quest/Team + effets météo subtils
+// styles/PokemonWeatherStyles.js - Style UNIFIÉ avec dimensions correctes
+// 🎯 Palette cohérente avec Pokedex/Quest/Team + effets météo subtils + STANDALONE WIDGET
 
 export const POKEMON_WEATHER_STYLES = `
-  /* === 🎮 BASE WIDGET CONTAINER - ULTRA COMPACT === */
-  .pokemon-weather-widget.ui-icon {
+  /* === 🛡️ PROTECTION CONTRE UIMANAGER === */
+  .ui-standalone-widget {
+    /* FORCER nos dimensions contre UIManager - AUGMENTÉES */
+    width: 340px !important;
+    height: 140px !important;
+    min-width: 340px !important;
+    max-width: 340px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
+  }
+  
+  /* === 🎮 BASE WIDGET CONTAINER - DIMENSIONS CORRIGÉES === */
+  .pokemon-weather-widget.ui-standalone-widget {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 300px !important;         /* Ultra réduit à 300px */
-    height: 100px !important;        /* Ultra réduit à 100px */
-    min-width: 300px !important;
-    max-width: 300px !important;
-    min-height: 100px !important;
-    max-height: 100px !important;
+    width: 340px !important;         /* Augmenté de 300px à 340px */
+    height: 140px !important;        /* Augmenté de 100px à 140px */
+    min-width: 340px !important;
+    max-width: 340px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
     background: transparent;
     border: none;
     border-radius: 0;
@@ -23,7 +34,7 @@ export const POKEMON_WEATHER_STYLES = `
     z-index: 1000;
     margin-top: 20px;
     margin-right: 220px;
-    overflow: hidden;
+    overflow: visible !important;    /* CRUCIAL: Pas de troncature */
   }
   
   /* === 🌟 GLASSMORPHISM UNIFIÉ - BASE BLEU COMME LES AUTRES INTERFACES === */
@@ -124,14 +135,14 @@ export const POKEMON_WEATHER_STYLES = `
     }
   }
   
-  /* === 📍 COMPOSANTS UNIFIÉS - ULTRA COMPACT === */
+  /* === 📍 COMPOSANTS UNIFIÉS - ESPACEMENT NORMAL === */
   .pokemon-weather-widget .widget-content {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
-    padding: 8px;                    /* Ultra réduit à 8px */
-    gap: 4px;                        /* Ultra réduit à 4px */
+    padding: 16px;                    /* Restauré à 16px pour plus d'espace */
+    gap: 12px;                        /* Restauré à 12px pour plus d'espace */
     z-index: 4;
     color: #ffffff; /* Blanc unifié */
   }
@@ -142,8 +153,8 @@ export const POKEMON_WEATHER_STYLES = `
     background: rgba(255, 255, 255, 0.05) !important; /* Même transparence que Pokedex */
     backdrop-filter: blur(10px);
     border: 1px solid rgba(74, 144, 226, 0.3) !important; /* Bordures bleu unifiées */
-    border-radius: 8px;              /* Réduit à 8px */
-    padding: 2px 6px;               /* Ultra réduit à 2px 6px */
+    border-radius: 12px;              /* Restauré à 12px */
+    padding: 6px 12px;               /* Restauré à padding normal */
     transition: all 0.3s ease;
   }
   
@@ -155,20 +166,20 @@ export const POKEMON_WEATHER_STYLES = `
     transform: translateY(-1px);
   }
   
-  /* === ⏰ SECTIONS PRINCIPALES - ULTRA COMPACT === */
+  /* === ⏰ SECTIONS PRINCIPALES - ESPACEMENT NORMAL === */
   .pokemon-weather-widget .header-section {
     display: flex;
     justify-content: center;
-    margin-bottom: 0px;              /* Supprimé complètement */
+    margin-bottom: 4px;              /* Restauré à 4px */
   }
   
   .pokemon-weather-widget .zone-icon {
-    font-size: 8px;                 /* Ultra réduit à 8px */
+    font-size: 12px;                 /* Restauré à 12px */
     color: #87ceeb; /* Même cyan que les titres des autres interfaces */
   }
   
   .pokemon-weather-widget .zone-text {
-    font-size: 8px;                 /* Ultra réduit à 8px */
+    font-size: 12px;                 /* Restauré à 12px */
     font-weight: 600;
     color: #87ceeb; /* Cyan unifié */
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
@@ -179,7 +190,7 @@ export const POKEMON_WEATHER_STYLES = `
     justify-content: space-between;
     align-items: center;
     flex: 1;
-    gap: 6px;                        /* Réduit à 6px */
+    gap: 12px;                        /* Restauré à 12px */
   }
   
   .pokemon-weather-widget .time-section,
@@ -192,17 +203,17 @@ export const POKEMON_WEATHER_STYLES = `
   .pokemon-weather-widget .weather-display {
     display: flex;
     align-items: center;
-    gap: 6px;                        /* Ultra réduit à 6px */
+    gap: 12px;                        /* Restauré à 12px */
   }
   
   .pokemon-weather-widget .weather-display {
     justify-content: flex-end;
   }
   
-  /* === 🌟 ICÔNES MÉTÉO AVEC ACCENTS SUBTILS - ULTRA COMPACT === */
+  /* === 🌟 ICÔNES MÉTÉO AVEC ACCENTS SUBTILS - TAILLE NORMALE === */
   .pokemon-weather-widget .time-icon,
   .pokemon-weather-widget .weather-icon {
-    font-size: 20px;                 /* Ultra réduit à 20px */
+    font-size: 28px;                 /* Restauré à 28px */
     transition: all 0.3s ease;
     filter: drop-shadow(0 0 8px rgba(135, 206, 235, 0.4)); /* Glow cyan subtil */
   }
@@ -243,28 +254,28 @@ export const POKEMON_WEATHER_STYLES = `
   
   .pokemon-weather-widget .pokemon-type-icon {
     position: absolute;
-    bottom: -2px;                    /* Ultra réduit à -2px */
-    right: -2px;                     /* Ultra réduit à -2px */
-    font-size: 12px;                 /* Réduit à 12px */
+    bottom: -5px;                    /* Restauré à -5px */
+    right: -5px;                     /* Restauré à -5px */
+    font-size: 16px;                 /* Restauré à 16px */
     background: rgba(42, 63, 95, 0.9); /* Background unifié */
     border-radius: 50%;
-    padding: 1px;                    /* Réduit à 1px */
+    padding: 2px;                    /* Restauré à 2px */
     border: 1px solid rgba(74, 144, 226, 0.5); /* Bordure bleu */
     animation: pokemon-bounce 2s ease-in-out infinite;
   }
   
-  /* === 💬 TEXTES UNIFIÉS - ULTRA COMPACT === */
+  /* === 💬 TEXTES UNIFIÉS - TAILLE NORMALE === */
   .pokemon-weather-widget .time-text,
   .pokemon-weather-widget .weather-text {
     display: flex;
     flex-direction: column;
-    gap: 0px;                        /* Supprimé complètement */
+    gap: 2px;                        /* Restauré à 2px */
     min-width: 0;                    /* Permet la compression */
   }
   
   .pokemon-weather-widget .time-main,
   .pokemon-weather-widget .weather-main {
-    font-size: 12px;                 /* Ultra réduit à 12px */
+    font-size: 16px;                 /* Restauré à 16px */
     font-weight: 700;
     color: #ffffff; /* Blanc unifié */
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -276,7 +287,7 @@ export const POKEMON_WEATHER_STYLES = `
   
   .pokemon-weather-widget .time-period,
   .pokemon-weather-widget .weather-temp {
-    font-size: 8px;                 /* Ultra réduit à 8px */
+    font-size: 11px;                 /* Restauré à 11px */
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -319,16 +330,16 @@ export const POKEMON_WEATHER_STYLES = `
     text-align: right;
   }
   
-  /* === 🎮 BONUS SECTION UNIFIÉE - ULTRA COMPACT === */
+  /* === 🎮 BONUS SECTION UNIFIÉE - TAILLE NORMALE === */
   .pokemon-weather-widget .bonus-icon {
-    font-size: 10px;                 /* Ultra réduit à 10px */
+    font-size: 14px;                 /* Restauré à 14px */
     color: #87ceeb; /* Cyan unifié */
     animation: bonus-spin 4s linear infinite;
   }
   
   .pokemon-weather-widget .bonus-text {
     flex: 1;
-    font-size: 8px;                 /* Ultra réduit à 8px */
+    font-size: 11px;                 /* Restauré à 11px */
     font-weight: 600;
     color: #ffffff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
@@ -338,7 +349,7 @@ export const POKEMON_WEATHER_STYLES = `
   }
   
   .pokemon-weather-widget .bonus-type-icon {
-    font-size: 10px;                 /* Ultra réduit à 10px */
+    font-size: 14px;                 /* Restauré à 14px */
     animation: type-pulse 2s ease-in-out infinite;
   }
   
@@ -386,7 +397,7 @@ export const POKEMON_WEATHER_STYLES = `
   
   .pokemon-weather-widget .particle {
     position: absolute;
-    font-size: 8px;                 /* Ultra réduit à 8px */
+    font-size: 12px;                 /* Restauré à 12px */
     opacity: 0.3; /* Plus subtiles */
     animation: particle-float 3s ease-in-out infinite;
   }
@@ -562,35 +573,53 @@ export const POKEMON_WEATHER_STYLES = `
     animation-duration: 2s;
   }
   
-  /* === 📱 RESPONSIVE ULTRA COMPACT === */
+  /* === 📱 RESPONSIVE DIMENSIONS NORMALES === */
   @media (max-width: 800px) {
-    .pokemon-weather-widget.ui-icon {
-      width: 260px !important;        /* Ultra compact mobile */
-      height: 80px !important;        /* Ultra compact mobile */
-      min-width: 260px !important;
-      max-width: 260px !important;
-      min-height: 80px !important;
-      max-height: 80px !important;
+    .pokemon-weather-widget.ui-standalone-widget {
+      width: 320px !important;        /* Réduit proportionnellement */
+      height: 120px !important;       /* Réduit proportionnellement */
+      min-width: 320px !important;
+      max-width: 320px !important;
+      min-height: 120px !important;
+      max-height: 120px !important;
+    }
+    
+    .ui-standalone-widget {
+      width: 320px !important;
+      height: 120px !important;
+      min-width: 320px !important;
+      max-width: 320px !important;
+      min-height: 120px !important;
+      max-height: 120px !important;
+    }
+    
+    .pokemon-weather-widget.ui-standalone-widget:not(.ui-icon) {
+      width: 320px !important;
+      height: 120px !important;
+      min-width: 320px !important;
+      max-width: 320px !important;
+      min-height: 120px !important;
+      max-height: 120px !important;
     }
     
     .pokemon-weather-widget .widget-content {
-      padding: 6px;                  /* Ultra réduit sur mobile */
-      gap: 2px;                      /* Ultra réduit sur mobile */
+      padding: 12px;                  /* Réduit sur mobile */
+      gap: 8px;                      /* Réduit sur mobile */
     }
     
     .pokemon-weather-widget .time-icon,
     .pokemon-weather-widget .weather-icon {
-      font-size: 16px;               /* Ultra réduit sur mobile */
+      font-size: 24px;               /* Réduit sur mobile */
     }
     
     .pokemon-weather-widget .time-main,
     .pokemon-weather-widget .weather-main {
-      font-size: 10px;               /* Ultra réduit sur mobile */
+      font-size: 14px;               /* Réduit sur mobile */
     }
     
     .pokemon-weather-widget .zone-text,
     .pokemon-weather-widget .bonus-text {
-      font-size: 7px;                /* Ultra petit sur mobile */
+      font-size: 10px;                /* Réduit sur mobile */
     }
   }
   
@@ -644,6 +673,32 @@ export const POKEMON_WEATHER_STYLES = `
       filter: hue-rotate(30deg) brightness(1.1);
       border-color: #87ceeb;
     }
+  }
+  
+  /* === 🛡️ PROTECTION CONTRE CSS UIMANAGER === */
+  .pokemon-weather-widget.ui-standalone-widget:not(.ui-icon) {
+    /* S'assurer qu'aucune règle UIManager ne s'applique */
+    width: 340px !important;
+    height: 140px !important;
+    min-width: 340px !important;
+    max-width: 340px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 1000 !important;
+    overflow: visible !important;    /* CRUCIAL: Permettre débordement */
+  }
+  
+  /* Annuler toute règle .ui-icon si appliquée par erreur */
+  .pokemon-weather-widget.ui-standalone-widget.ui-icon {
+    width: 340px !important;
+    height: 140px !important;
+    min-width: 340px !important;
+    max-width: 340px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
   }
   
   /* === 🌈 OPTIMIZATIONS PERFORMANCE === */
