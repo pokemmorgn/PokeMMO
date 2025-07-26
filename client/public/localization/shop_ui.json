@@ -1,0 +1,260 @@
+{
+  "fr": {
+    "header": {
+      "shop_name_default": "PokéMart",
+      "shop_name_with_npc": "Boutique de {npcName}",
+      "subtitle_merchant": "Marchand Pokémon",
+      "subtitle_unified": "Services Multiples",
+      "subtitle_quest": "Donneur de Quêtes", 
+      "subtitle_dialogue": "Informateur",
+      "npc_info": "NPC: {npcName}",
+      "npc_info_unified": "NPC: {npcName} (Interface Unifiée)",
+      "npc_info_capabilities": "NPC: {npcName} • {count} capacités",
+      "gold_currency": "₽"
+    },
+    "tabs": {
+      "buy": "Acheter",
+      "sell": "Vendre"
+    },
+    "sections": {
+      "available_items": "Objets Disponibles",
+      "item_details": "Détails de l'Objet",
+      "items_count": "{count} objets",
+      "items_count_singular": "{count} objet"
+    },
+    "actions": {
+      "buy": "Acheter",
+      "sell": "Vendre", 
+      "refresh": "Actualiser",
+      "close": "Fermer",
+      "confirm": "Confirmer",
+      "cancel": "Annuler"
+    },
+    "messages": {
+      "welcome_default": "Bienvenue dans notre boutique !",
+      "welcome_npc": "Bienvenue chez {npcName} !",
+      "tip_default": "💡 Conseil: Les objets rares apparaissent selon votre niveau",
+      "tip_unified": "💡 Conseil: Ce NPC offre plusieurs services - utilisez les onglets pour naviguer",
+      "select_item": "Sélectionnez un objet pour voir ses détails",
+      "loading": "Chargement du catalogue...",
+      "no_items_buy": "Aucun objet disponible à l'achat",
+      "no_items_sell": "Aucun objet ne peut être vendu ici",
+      "no_shop_data": "Aucune donnée de boutique disponible",
+      "empty_comeback": "Revenez plus tard !",
+      "catalog_loaded": "Catalogue chargé !",
+      "shop_closed": "À bientôt !",
+      "transaction_success": "Transaction réussie !",
+      "transaction_failed": "Transaction échouée",
+      "shop_restocked": "Boutique réapprovisionnée !",
+      "no_restock_needed": "Aucun réapprovisionnement nécessaire",
+      "refresh_error": "Erreur lors du rafraîchissement",
+      "sell_not_implemented": "Fonction de vente pas encore implémentée",
+      "catalog_load_error": "Impossible de charger le catalogue",
+      "technical_error": "Erreur technique: {error}"
+    },
+    "modal": {
+      "title_buy": "Confirmation d'Achat",
+      "title_sell": "Confirmation de Vente",
+      "unit_price": "Prix unitaire: {price}₽",
+      "quantity_label": "Quantité:",
+      "total_label": "Total: ",
+      "item_name_placeholder": "Nom de l'Objet",
+      "price_placeholder": "Prix: 100₽"
+    },
+    "item_details": {
+      "price_buy": "Prix d'Achat",
+      "price_sell": "Prix de Vente",
+      "stock": "Stock",
+      "required_level": "Niveau Requis",
+      "availability": "Disponibilité",
+      "affordable": "Abordable",
+      "too_expensive": "Trop Cher",
+      "unlimited": "∞",
+      "item_type_default": "Objet"
+    },
+    "stock": {
+      "empty": "Vide",
+      "no_items": "Aucun Objet",
+      "out_of_stock": "Rupture",
+      "low_stock": "Stock Faible"
+    },
+    "notifications": {
+      "gold_gained": "+{amount}₽ gagné !",
+      "gold_spent": "{amount}₽ dépensé",
+      "item_bought": "{quantity}x {itemName} acheté pour {total}₽",
+      "item_sold": "{quantity}x {itemName} vendu pour {total}₽",
+      "insufficient_gold": "Or insuffisant",
+      "out_of_stock": "Objet en rupture de stock",
+      "level_required": "Niveau {level} requis",
+      "max_quantity_reached": "Quantité maximale atteinte"
+    },
+    "loading_states": {
+      "loading_catalog": "Chargement du catalogue...",
+      "processing_transaction": "Traitement de la transaction...",
+      "refreshing_shop": "Actualisation de la boutique...",
+      "loading_items": "Chargement des objets..."
+    },
+    "empty_states": {
+      "no_merchant_nearby": "Aucun marchand à proximité",
+      "approach_and_press": "Approchez-vous et appuyez sur L",
+      "not_a_merchant": "Ce NPC n'est pas un marchand",
+      "game_system_unavailable": "Système de jeu non disponible",
+      "player_not_found": "Joueur introuvable",
+      "network_unavailable": "Connexion réseau indisponible"
+    },
+    "shortcuts": {
+      "close_esc": "Appuyez sur Échap pour fermer",
+      "switch_tab": "Appuyez sur Tab pour changer d'onglet", 
+      "refresh_r": "Appuyez sur R pour actualiser",
+      "buy_enter": "Appuyez sur Entrée pour acheter",
+      "navigate_arrows": "Utilisez les flèches pour naviguer"
+    },
+    "accessibility": {
+      "shop_overlay": "Interface de boutique",
+      "item_grid": "Grille d'objets",
+      "item_details": "Détails de l'objet sélectionné",
+      "quantity_input": "Champ de quantité",
+      "close_button": "Bouton fermer",
+      "tab_buy": "Onglet Acheter",
+      "tab_sell": "Onglet Vendre"
+    },
+    "debug": {
+      "localization_not_loaded": "Localisations non chargées, retour brut pour {itemId}",
+      "missing_localization": "Localisation manquante pour {key} (langue: {lang})",
+      "catalog_processing": "Traitement du catalogue...",
+      "npc_data_extracted": "Données NPC extraites: {npcName}",
+      "unified_interface_detected": "Interface unifiée détectée",
+      "legacy_mode": "Mode legacy activé",
+      "preloaded_data": "Données pré-chargées traitées"
+    }
+  },
+  "en": {
+    "header": {
+      "shop_name_default": "PokéMart",
+      "shop_name_with_npc": "{npcName}'s Shop",
+      "subtitle_merchant": "Pokémon Merchant",
+      "subtitle_unified": "Multiple Services",
+      "subtitle_quest": "Quest Giver",
+      "subtitle_dialogue": "Informant", 
+      "npc_info": "NPC: {npcName}",
+      "npc_info_unified": "NPC: {npcName} (Unified Interface)",
+      "npc_info_capabilities": "NPC: {npcName} • {count} capabilities",
+      "gold_currency": "₽"
+    },
+    "tabs": {
+      "buy": "Buy",
+      "sell": "Sell"
+    },
+    "sections": {
+      "available_items": "Available Items",
+      "item_details": "Item Details",
+      "items_count": "{count} items",
+      "items_count_singular": "{count} item"
+    },
+    "actions": {
+      "buy": "Buy",
+      "sell": "Sell",
+      "refresh": "Refresh", 
+      "close": "Close",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "messages": {
+      "welcome_default": "Welcome to our shop!",
+      "welcome_npc": "Welcome to {npcName}'s shop!",
+      "tip_default": "💡 Tip: Rare items appear based on your level",
+      "tip_unified": "💡 Tip: This NPC offers multiple services - use tabs to navigate",
+      "select_item": "Select an item to see its details",
+      "loading": "Loading catalog...",
+      "no_items_buy": "No items available for purchase",
+      "no_items_sell": "No items can be sold here",
+      "no_shop_data": "No shop data available",
+      "empty_comeback": "Come back later!",
+      "catalog_loaded": "Catalog loaded!",
+      "shop_closed": "See you later!",
+      "transaction_success": "Transaction successful!",
+      "transaction_failed": "Transaction failed",
+      "shop_restocked": "Shop restocked!",
+      "no_restock_needed": "No restock needed",
+      "refresh_error": "Error during refresh",
+      "sell_not_implemented": "Sell function not yet implemented",
+      "catalog_load_error": "Unable to load catalog",
+      "technical_error": "Technical error: {error}"
+    },
+    "modal": {
+      "title_buy": "Purchase Confirmation",
+      "title_sell": "Sell Confirmation",
+      "unit_price": "Unit price: {price}₽",
+      "quantity_label": "Quantity:",
+      "total_label": "Total: ",
+      "item_name_placeholder": "Item Name",
+      "price_placeholder": "Price: 100₽"
+    },
+    "item_details": {
+      "price_buy": "Purchase Price",
+      "price_sell": "Sell Price",
+      "stock": "Stock",
+      "required_level": "Required Level",
+      "availability": "Availability",
+      "affordable": "Affordable",
+      "too_expensive": "Too Expensive",
+      "unlimited": "∞",
+      "item_type_default": "Item"
+    },
+    "stock": {
+      "empty": "Empty",
+      "no_items": "No Items",
+      "out_of_stock": "Out of Stock",
+      "low_stock": "Low Stock"
+    },
+    "notifications": {
+      "gold_gained": "+{amount}₽ gained!",
+      "gold_spent": "{amount}₽ spent",
+      "item_bought": "{quantity}x {itemName} bought for {total}₽",
+      "item_sold": "{quantity}x {itemName} sold for {total}₽",
+      "insufficient_gold": "Insufficient gold",
+      "out_of_stock": "Item out of stock",
+      "level_required": "Level {level} required",
+      "max_quantity_reached": "Maximum quantity reached"
+    },
+    "loading_states": {
+      "loading_catalog": "Loading catalog...",
+      "processing_transaction": "Processing transaction...",
+      "refreshing_shop": "Refreshing shop...",
+      "loading_items": "Loading items..."
+    },
+    "empty_states": {
+      "no_merchant_nearby": "No merchant nearby",
+      "approach_and_press": "Get closer and press L",
+      "not_a_merchant": "This NPC is not a merchant",
+      "game_system_unavailable": "Game system unavailable",
+      "player_not_found": "Player not found",
+      "network_unavailable": "Network connection unavailable"
+    },
+    "shortcuts": {
+      "close_esc": "Press Escape to close",
+      "switch_tab": "Press Tab to switch tabs",
+      "refresh_r": "Press R to refresh",
+      "buy_enter": "Press Enter to buy",
+      "navigate_arrows": "Use arrows to navigate"
+    },
+    "accessibility": {
+      "shop_overlay": "Shop interface",
+      "item_grid": "Item grid",
+      "item_details": "Selected item details",
+      "quantity_input": "Quantity input field",
+      "close_button": "Close button",
+      "tab_buy": "Buy tab",
+      "tab_sell": "Sell tab"
+    },
+    "debug": {
+      "localization_not_loaded": "Localizations not loaded, raw fallback for {itemId}",
+      "missing_localization": "Missing localization for {key} (language: {lang})",
+      "catalog_processing": "Processing catalog...",
+      "npc_data_extracted": "NPC data extracted: {npcName}",
+      "unified_interface_detected": "Unified interface detected",
+      "legacy_mode": "Legacy mode activated",
+      "preloaded_data": "Preloaded data processed"
+    }
+  }
+}
