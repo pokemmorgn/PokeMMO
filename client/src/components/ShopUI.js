@@ -165,29 +165,47 @@ export class ShopUI {
     return fallback;
   }
 
-  // ✅ ADAPTÉ: Obtenir nom d'item localisé
+  // ✅ ADAPTÉ: Obtenir nom d'item localisé (avec debug)
   getItemName(itemId) {
+    console.log(`🏷️ [ShopUI] getItemName appelé avec itemId: "${itemId}" (type: ${typeof itemId})`);
+    
+    if (!itemId) {
+      console.warn(`❌ [ShopUI] getItemName: itemId est undefined/null/empty`);
+      return 'ITEM_ID_MISSING';
+    }
+
     // Essayer localisation étendue d'abord
     const localizedKey = `item.${itemId}.name`;
     const localized = this.getLocalizedText(localizedKey);
     if (localized && localized !== localizedKey) {
+      console.log(`✅ [ShopUI] getItemName: Trouvé via localisation étendue: "${localized}"`);
       return localized;
     }
     
     // Fallback système existant
     if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-      console.warn(`[ShopUI] ${this.t('debug.localization_not_loaded', { itemId })}`);
-      return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      console.warn(`⚠️ [ShopUI] ${this.t('debug.localization_not_loaded', { itemId })}`);
+      const fallback = itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      console.log(`🔧 [ShopUI] getItemName: Fallback généré: "${fallback}"`);
+      return fallback;
     }
     
     const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
+    console.log(`🔍 [ShopUI] getItemName: Recherche normalized ID: "${normalizedId}"`);
+    
     const loca = this.itemLocalizations[normalizedId];
+    console.log(`🔍 [ShopUI] getItemName: Localisation trouvée:`, loca);
+    
     if (loca && loca[this.currentLanguage]) {
-      return loca[this.currentLanguage].name;
+      const result = loca[this.currentLanguage].name;
+      console.log(`✅ [ShopUI] getItemName: Nom trouvé: "${result}"`);
+      return result;
     }
     
     console.warn(`⚠️ [ShopUI] ${this.t('debug.missing_localization', { key: normalizedId, lang: this.currentLanguage })}`);
-    return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const fallback = normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    console.log(`🔧 [ShopUI] getItemName: Fallback final: "${fallback}"`);
+    return fallback;
   }
 
   // ✅ ADAPTÉ: Obtenir description d'item localisée
@@ -1794,9 +1812,10 @@ export class ShopUI {
     if (refreshBtn) refreshBtn.textContent = this.t('actions.refresh');
   }
 
-  // ✅ HANDLE SHOP CATALOG - VERSION AVEC MESSAGES LOCALISÉS
+  // ✅ HANDLE SHOP CATALOG - VERSION AVEC DEBUG DÉTAILLÉ
   handleShopCatalog(data) {
-    console.log(`🏪 [ShopUI] ${this.t('debug.catalog_processing')}`);
+    console.log(`🏪 [ShopUI] === ${this.t('debug.catalog_processing')} ===`);
+    console.log(`📊 [ShopUI] DATA COMPLÈTE REÇUE:`, data);
 
     const now = Date.now();
     if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
@@ -1813,6 +1832,18 @@ export class ShopUI {
         this.showNotification(data.message || this.t('messages.catalog_load_error'), "error");
         return;
       }
+
+      // ✅ DEBUG: Structure du catalogue reçu
+      console.log(`🔍 [ShopUI] CATALOG STRUCTURE:`, {
+        hasShopData: !!data.catalog,
+        shopDataKeys: data.catalog ? Object.keys(data.catalog) : [],
+        hasBuyItems: !!(data.catalog?.buyItems),
+        buyItemsLength: data.catalog?.buyItems?.length || 0,
+        hasSellItems: !!(data.catalog?.sellItems),
+        sellItemsLength: data.catalog?.sellItems?.length || 0,
+        hasAvailableItems: !!(data.catalog?.availableItems),
+        availableItemsLength: data.catalog?.availableItems?.length || 0
+      });
 
       this.shopData = data.catalog;
       this.playerGold = data.playerGold || 0;
@@ -1872,9 +1903,6 @@ export class ShopUI {
       this.refreshCurrentTab();
       
       console.log(`✅ [ShopUI] ${this.t('debug.catalog_processed')} ${this.shopData.availableItems.length} ${this.t('debug.objects_for')} ${this.currentNpcData?.name}`);
-      
-      // ✅ DEBUG COMPLET DES DONNÉES
-      this.debugShopCatalogData();
       
       this.showNotification(this.t('messages.catalog_loaded'), 'success');
       
@@ -2064,21 +2092,22 @@ export class ShopUI {
     return itemElement;
   }
 
-  // ✅ CREATE SELL ITEM - ADAPTÉ POUR NOUVELLE STRUCTURE (avec debugging)
+  // ✅ CREATE SELL ITEM - ADAPTÉ POUR NOUVELLE STRUCTURE (avec debug itemId)
   createSellItemElement(item, index) {
+    // ✅ DEBUG CRITIQUE: Vérifier les données de l'item
+    console.log(`🔍 [ShopUI] createSellItemElement ${index}:`, {
+      itemId: item.itemId,
+      quantity: item.quantity,
+      sellPrice: item.sellPrice,
+      pocket: item.pocket,
+      fullItem: item
+    });
+
     const itemElement = document.createElement('div');
     itemElement.className = 'shop-item sell-item';
     itemElement.dataset.itemId = item.itemId;
     itemElement.dataset.index = index;
     itemElement.dataset.pocket = item.pocket || 'items';
-
-    // ✅ DEBUGGING: Log des données item
-    console.log(`🔍 [ShopUI] Creating sell item ${index}:`, {
-      itemId: item.itemId,
-      quantity: item.quantity,
-      sellPrice: item.sellPrice,
-      pocket: item.pocket
-    });
 
     // ✅ Vérifier si on a assez d'items à vendre
     const hasQuantity = item.quantity > 0;
@@ -2086,11 +2115,11 @@ export class ShopUI {
       itemElement.classList.add('unavailable');
     }
 
+    // ✅ DEBUG: Traitement des icônes et noms
     const itemIcon = this.getItemIcon(item.itemId);
     const itemName = this.getItemName(item.itemId);
     
-    // ✅ DEBUGGING: Log des données récupérées
-    console.log(`🎯 [ShopUI] Item ${item.itemId} -> Icon: "${itemIcon}", Name: "${itemName}"`);
+    console.log(`🎨 [ShopUI] Item ${item.itemId} -> Icon: "${itemIcon}", Name: "${itemName}"`);
 
     itemElement.innerHTML = `
       <div class="shop-item-icon">${itemIcon}</div>
@@ -2147,100 +2176,43 @@ export class ShopUI {
     return `<div class="shop-item-stock ${stockClass}">${stockText}</div>`;
   }
 
-  // ✅ GET ITEM ICON - VERSION ÉTENDUE AVEC DEBUGGING
   getItemIcon(itemId) {
-    console.log(`🎨 [ShopUI] Getting icon for itemId: "${itemId}"`);
+    console.log(`🎨 [ShopUI] getItemIcon appelé avec itemId: "${itemId}" (type: ${typeof itemId})`);
     
+    if (!itemId) {
+      console.warn(`❌ [ShopUI] getItemIcon: itemId est undefined/null/empty`);
+      return '❓';
+    }
+
     const iconMap = {
-      // Pokéballs
       'poke_ball': '⚪',
-      'pokeball': '⚪',
-      'great_ball': '🟡', 
-      'greatball': '🟡',
+      'great_ball': '🟡',
       'ultra_ball': '🟠',
-      'ultraball': '🟠',
       'master_ball': '🟣',
-      'masterball': '🟣',
       'safari_ball': '🟢',
-      'safariball': '🟢',
-      
-      // Potions/Médecine
       'potion': '💊',
       'super_potion': '💉',
-      'superpotion': '💉',
       'hyper_potion': '🧪',
-      'hyperpotion': '🧪',
       'max_potion': '🍼',
-      'maxpotion': '🍼',
       'full_restore': '✨',
-      'fullrestore': '✨',
       'revive': '💎',
       'max_revive': '💠',
-      'maxrevive': '💠',
-      
-      // Status heal
       'antidote': '🟢',
       'parlyz_heal': '🟡',
-      'parlyzheal': '🟡',
       'awakening': '🔵',
       'burn_heal': '🔴',
-      'burnheal': '🔴',
       'ice_heal': '❄️',
-      'iceheal': '❄️',
       'full_heal': '⭐',
-      'fullheal': '⭐',
-      
-      // Outils
       'escape_rope': '🪢',
-      'escaperope': '🪢',
       'repel': '🚫',
       'super_repel': '⛔',
-      'superrepel': '⛔',
-      'max_repel': '🔒',
-      'maxrepel': '🔒',
-      
-      // Items communs
-      'rare_candy': '🍬',
-      'rarecandy': '🍬',
-      'tm': '💿',
-      'hm': '💽',
-      'stone': '💎',
-      'berry': '🫐',
-      'fossil': '🦕',
-      
-      // Fallbacks par type
-      'ball': '⚽',
-      'medicine': '💊',
-      'tool': '🔧',
-      'key': '🗝️'
+      'max_repel': '🔒'
     };
 
-    // Essayer avec l'ID exact
-    if (iconMap[itemId]) {
-      console.log(`✅ [ShopUI] Icon trouvée pour "${itemId}": ${iconMap[itemId]}`);
-      return iconMap[itemId];
-    }
+    const icon = iconMap[itemId] || '📦';
+    console.log(`🎨 [ShopUI] getItemIcon: "${itemId}" -> "${icon}" ${icon === '📦' ? '(fallback)' : '(trouvé)'}`);
     
-    // Essayer avec l'ID en lowercase et sans underscore
-    const normalizedId = itemId.toLowerCase().replace(/_/g, '').replace(/\s/g, '');
-    if (iconMap[normalizedId]) {
-      console.log(`✅ [ShopUI] Icon trouvée (normalisé) pour "${itemId}" -> "${normalizedId}": ${iconMap[normalizedId]}`);
-      return iconMap[normalizedId];
-    }
-    
-    // Essayer de deviner par mot-clé
-    const lowerItemId = itemId.toLowerCase();
-    if (lowerItemId.includes('ball')) return '⚽';
-    if (lowerItemId.includes('potion')) return '💊';
-    if (lowerItemId.includes('heal')) return '💚';
-    if (lowerItemId.includes('berry')) return '🫐';
-    if (lowerItemId.includes('tm') || lowerItemId.includes('hm')) return '💿';
-    if (lowerItemId.includes('stone')) return '💎';
-    if (lowerItemId.includes('fossil')) return '🦕';
-    if (lowerItemId.includes('candy')) return '🍬';
-    
-    console.warn(`⚠️ [ShopUI] Aucune icône trouvée pour "${itemId}", utilisation par défaut`);
-    return '📦';
+    return icon;
   }
 
   selectItem(item, element) {
@@ -2772,44 +2744,6 @@ export class ShopUI {
       npcData: this.currentNpcData,
       isUnifiedInterface: this.isUnifiedInterface
     };
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Debug complet des données catalogue
-  debugShopCatalogData() {
-    console.log(`🔍 [ShopUI] === DEBUG CATALOGUE SHOP ===`);
-    console.log(`📊 Structure shopData:`, {
-      hasShopInfo: !!this.shopData.shopInfo,
-      hasBuyItems: !!this.shopData.buyItems,
-      hasSellItems: !!this.shopData.sellItems,
-      hasAvailableItems: !!this.shopData.availableItems,
-      buyItemsCount: this.shopData.buyItems?.length || 0,
-      sellItemsCount: this.shopData.sellItems?.length || 0
-    });
-    
-    if (this.shopData.buyItems?.length > 0) {
-      console.log(`🛒 Premiers buyItems:`, this.shopData.buyItems.slice(0, 2));
-    }
-    
-    if (this.shopData.sellItems?.length > 0) {
-      console.log(`💰 Premiers sellItems:`, this.shopData.sellItems.slice(0, 2));
-      
-      // Test des méthodes sur le premier item
-      const firstSellItem = this.shopData.sellItems[0];
-      if (firstSellItem) {
-        console.log(`🧪 Test item "${firstSellItem.itemId}":`);
-        console.log(`  - Icon: ${this.getItemIcon(firstSellItem.itemId)}`);
-        console.log(`  - Name: ${this.getItemName(firstSellItem.itemId)}`);
-      }
-    }
-    
-    console.log(`🌐 Localisations disponibles:`, {
-      shopUI: Object.keys(this.shopUILocalizations).length > 0,
-      items: Object.keys(this.itemLocalizations).length,
-      dialogue: Object.keys(this.dialogueLocalizations).length,
-      currentLang: this.currentLanguage
-    });
-    
-    console.log(`🔍 [ShopUI] === FIN DEBUG CATALOGUE ===`);
   }
 
   destroy() {
