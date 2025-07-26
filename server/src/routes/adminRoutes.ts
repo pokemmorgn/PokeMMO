@@ -4416,4 +4416,198 @@ router.get('/shops/stats', requireMacAndDev, async (req: any, res) => {
     }
 })
 
+// ✅ ROUTE: Récupérer un NPC spécifique pour édition depuis Map Editor
+router.get('/zones/:zoneId/npcs/:npcId/edit', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId, npcId } = req.params;
+    
+    console.log(`✏️ [NPCs API] Loading NPC ${npcId} from zone ${zoneId} for map editor`);
+    
+    // Trouver le NPC dans MongoDB
+    const npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
+    if (!npc) {
+      return res.status(404).json({
+        success: false,
+        error: 'NPC non trouvé'
+      });
+    }
+    
+    // Convertir au format éditeur
+    const npcForEditor = npc.toNpcFormat();
+    
+    console.log(`✅ [NPCs API] NPC ${npcId} loaded for editing from map`);
+    
+    res.json({
+      success: true,
+      npc: npcForEditor,
+      source: 'mongodb'
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error loading NPC for map editor:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors du chargement du NPC pour édition'
+    });
+  }
+});
+
+// ✅ ROUTE: Mettre à jour un NPC depuis Map Editor
+router.put('/zones/:zoneId/npcs/:npcId/update-from-map', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId, npcId } = req.params;
+    const { npcData, mapPosition } = req.body;
+    
+    console.log(`🗺️ [NPCs API] Updating NPC ${npcId} from map editor`);
+    
+    // Trouver le NPC
+    const npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
+    if (!npc) {
+      return res.status(404).json({
+        success: false,
+        error: 'NPC non trouvé'
+      });
+    }
+    
+    // Mettre à jour les données
+    await npc.updateFromJson(npcData);
+    
+    // Si position de la carte fournie, mettre à jour
+    if (mapPosition) {
+      npc.position = {
+        x: mapPosition.x,
+        y: mapPosition.y
+      };
+      await npc.save();
+    }
+    
+    console.log(`✅ [NPCs API] NPC ${npcId} updated from map editor by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: 'NPC mis à jour depuis l\'éditeur de carte',
+      npc: npc.toNpcFormat(),
+      updatedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error updating NPC from map editor:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la mise à jour du NPC depuis la carte'
+    });
+  }
+});
+
+// ✅ ROUTE: Supprimer un NPC depuis Map Editor
+router.delete('/zones/:zoneId/npcs/:npcId/delete-from-map', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId, npcId } = req.params;
+    
+    console.log(`🗑️ [NPCs API] Deleting NPC ${npcId} from zone ${zoneId} via map editor`);
+    
+    const deletedNpc = await NpcData.findOneAndDelete({ 
+      zone: zoneId, 
+      npcId: parseInt(npcId) 
+    });
+    
+    if (!deletedNpc) {
+      return res.status(404).json({
+        success: false,
+        error: 'NPC non trouvé'
+      });
+    }
+    
+    console.log(`✅ [NPCs API] NPC "${deletedNpc.name}" deleted from map by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: `NPC "${deletedNpc.name}" supprimé depuis l\'éditeur de carte`,
+      deletedNPC: deletedNpc.toNpcFormat(),
+      deletedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error deleting NPC from map editor:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la suppression du NPC depuis la carte'
+    });
+  }
+});
+
+// ✅ ROUTE: Synchroniser les NPCs entre Map Editor et NPC Editor
+router.post('/zones/:zoneId/npcs/sync-with-map', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId } = req.params;
+    const { mapNPCs } = req.body; // NPCs provenant de l'éditeur de carte
+    
+    console.log(`🔄 [NPCs API] Synchronizing NPCs between map and NPC editor for zone: ${zoneId}`);
+    
+    if (!Array.isArray(mapNPCs)) {
+      return res.status(400).json({
+        success: false,
+        error: 'mapNPCs doit être un tableau'
+      });
+    }
+    
+    // Récupérer les NPCs actuels en base
+    const dbNPCs = await NpcData.findByZone(zoneId);
+    
+    const syncResults = {
+      updated: 0,
+      created: 0,
+      deleted: 0,
+      errors: []
+    };
+    
+    // Mettre à jour ou créer les NPCs de la carte
+    for (const mapNPC of mapNPCs) {
+      try {
+        if (mapNPC.type !== 'npc') continue;
+        
+        const existingNPC = dbNPCs.find(npc => npc.npcId === mapNPC.id);
+        
+        if (existingNPC) {
+          // Mettre à jour position si différente
+          if (existingNPC.position.x !== mapNPC.x || existingNPC.position.y !== mapNPC.y) {
+            existingNPC.position = { x: mapNPC.x, y: mapNPC.y };
+            await existingNPC.save();
+            syncResults.updated++;
+          }
+        } else {
+          // Créer nouveau NPC
+          const npcData = {
+            id: mapNPC.id,
+            name: mapNPC.name || `NPC_${mapNPC.id}`,
+            type: mapNPC.npcType || 'dialogue',
+            position: { x: mapNPC.x, y: mapNPC.y },
+            sprite: mapNPC.sprite || 'npc_default',
+            direction: mapNPC.direction || 'south'
+          };
+          
+          await NpcData.createFromJson(npcData, zoneId);
+          syncResults.created++;
+        }
+      } catch (error) {
+        syncResults.errors.push(`NPC ${mapNPC.id}: ${error.message}`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Synchronisation terminée',
+      results: syncResults,
+      syncedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error syncing NPCs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la synchronisation'
+    });
+  }
+});
+
 export default router;
