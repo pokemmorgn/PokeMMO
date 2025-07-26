@@ -1165,18 +1165,20 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
         console.log(`🔍 [DEBUG] Structure playerInventory pour ${player.name}:`, JSON.stringify(playerInventory, null, 2));
         const sellableItems: any[] = [];
 
-// ✅  Convertir l'inventaire en format vendable
+// ✅ CORRIGÉ : Convertir l'inventaire (items = TABLEAU)
         for (const [pocket, items] of Object.entries(playerInventory)) {
-          for (const [realItemId, itemData] of Object.entries(items as any)) {
-            const sellPrice = this.shopManager.getItemSellPrice(data.shopId, realItemId);
-            if (sellPrice > 0 && (itemData as any).quantity > 0) {
-              sellableItems.push({
-                itemId: realItemId,  // ✅ CORRIGÉ : utiliser realItemId
-                quantity: (itemData as any).quantity,
-                sellPrice: sellPrice,
-                canSell: true,
-                pocket: pocket
-              });
+          if (Array.isArray(items)) {
+            for (const item of items) {  // ✅ BOUCLE FOR...OF sur le tableau
+              const sellPrice = this.shopManager.getItemSellPrice(data.shopId, item.itemId);
+              if (sellPrice > 0 && item.quantity > 0) {
+                sellableItems.push({
+                  itemId: item.itemId,  // ✅ MAINTENANT c'est "potion", "poke_ball"
+                  quantity: item.quantity,
+                  sellPrice: sellPrice,
+                  canSell: true,
+                  pocket: pocket
+                });
+              }
             }
           }
         }
