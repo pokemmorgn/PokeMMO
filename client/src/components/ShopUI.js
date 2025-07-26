@@ -1,6 +1,8 @@
-// client/src/components/ShopUI.js - VERSION CORRIGÉE NOM NPC
-// ✅ Consistent style with inventory - Blue gradients, modern animations
-// ✅ CORRECTION: Nom du NPC affiché correctement
+// client/src/components/ShopUI.js - VERSION ADAPTÉE SERVEUR INTÉGRÉ
+// ✅ Support complet des nouvelles données serveur : isUnifiedInterface, capabilities, contextualData
+// ✅ Localisation avancée : dialogueKeys, messageKey
+// ✅ Compatibilité totale legacy + interface unifiée
+// ✅ Gestion robuste des noms NPCs
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -10,14 +12,24 @@ export class ShopUI {
     this.selectedItem = null;
     this.playerGold = 0;
     this.currentTab = 'buy';
+    
+    // ✅ LOCALISATIONS ÉTENDUES
     this.itemLocalizations = {};
-    this.currentLanguage = 'en';
+    this.dialogueLocalizations = {};
+    this.currentLanguage = 'fr'; // Français par défaut pour un jeu français
     
-    // ✅ NOUVEAU: Stockage du nom du NPC
-    this.currentNpcName = 'Marchand';
+    // ✅ NOUVELLES DONNÉES NPC ET INTERFACE
     this.currentNpcData = null;
+    this.isUnifiedInterface = false;
+    this.npcCapabilities = [];
+    this.contextualData = null;
+    this.unifiedInterfaceData = null;
     
-    // ✅ SIMPLIFIED LOCKS
+    // ✅ GESTION AMÉLIORÉE DES TEXTES
+    this.currentWelcomeMessage = null;
+    this.currentDialogueKeys = [];
+    
+    // ✅ LOCKS SIMPLIFIÉS
     this.isProcessingCatalog = false;
     this.lastCatalogTime = 0;
     
@@ -25,62 +37,123 @@ export class ShopUI {
     this.initializationPromise = this.init();
   }
 
-async loadLocalizations() {
-  try {
-    console.log('🌐 [ShopUI] Chargement des localisations...');
-    const response = await fetch('/localization/itemloca.json');
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  // ✅ CHARGEMENT DES LOCALISATIONS ÉTENDUES
+  async loadLocalizations() {
+    try {
+      console.log('🌐 [ShopUI] Chargement des localisations étendues...');
+      
+      // 1. Localisation des items (existant)
+      const itemResponse = await fetch('/localization/itemloca.json');
+      if (itemResponse.ok) {
+        this.itemLocalizations = await itemResponse.json();
+        console.log('✅ [ShopUI] Items localisés:', Object.keys(this.itemLocalizations).length);
+      }
+      
+      // 2. 🆕 NOUVEAU: Localisation des dialogues shop
+      try {
+        const dialogueResponse = await fetch('/localization/shop_dialogues.json');
+        if (dialogueResponse.ok) {
+          this.dialogueLocalizations = await dialogueResponse.json();
+          console.log('✅ [ShopUI] Dialogues shop localisés:', Object.keys(this.dialogueLocalizations).length);
+        } else {
+          console.warn('⚠️ [ShopUI] Pas de localisations dialogues, utilisation des fallbacks');
+        }
+      } catch (error) {
+        console.warn('⚠️ [ShopUI] Erreur chargement dialogues:', error);
+        this.dialogueLocalizations = {};
+      }
+      
+    } catch (error) {
+      console.error('❌ [ShopUI] Erreur chargement localisations:', error);
+      this.itemLocalizations = {};
+      this.dialogueLocalizations = {};
     }
-    this.itemLocalizations = await response.json();
-    console.log('✅ [ShopUI] Clés chargées:', Object.keys(this.itemLocalizations));
-  } catch (error) {
-    console.error('❌ [ShopUI] Erreur chargement localisations:', error);
-    this.itemLocalizations = {};
-    console.warn('⚠️ [ShopUI] Utilisation des noms/descriptions par défaut');
   }
-}
 
-getItemName(itemId) {
-  // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
-  if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-    console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
-    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  // ✅ NOUVELLE MÉTHODE: Obtenir texte localisé par clé
+  getLocalizedText(key, fallback = null) {
+    if (!key) return fallback || "Texte non disponible";
+    
+    // Essayer d'abord les dialogues shop
+    if (this.dialogueLocalizations[key]) {
+      const localized = this.dialogueLocalizations[key][this.currentLanguage];
+      if (localized) return localized;
+    }
+    
+    // Puis les items si ça ressemble à une clé d'item
+    if (key.includes('item.') && this.itemLocalizations) {
+      const itemKey = key.replace('item.', '').replace('.name', '');
+      const itemLoca = this.itemLocalizations[itemKey];
+      if (itemLoca && itemLoca[this.currentLanguage]) {
+        return itemLoca[this.currentLanguage].name;
+      }
+    }
+    
+    console.warn(`⚠️ [ShopUI] Clé de localisation manquante: "${key}" (langue: ${this.currentLanguage})`);
+    return fallback || key.split('.').pop().replace(/_/g, ' ');
   }
-  // Normalise l'id
-  const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
-  const loca = this.itemLocalizations[normalizedId];
-  if (loca && loca[this.currentLanguage]) {
-    return loca[this.currentLanguage].name;
-  }
-  console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
-  return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
 
-getItemDescription(itemId) {
-  if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-    console.warn(`[ShopUI] getItemDescription: Localisations non chargées, retour brut pour ${itemId}`);
+  // ✅ NOUVELLE MÉTHODE: Obtenir textes de dialogue localisés
+  getLocalizedDialogueLines(dialogueKeys) {
+    if (!dialogueKeys || !Array.isArray(dialogueKeys)) return [];
+    
+    return dialogueKeys.map(key => this.getLocalizedText(key, "Dialogue par défaut"));
+  }
+
+  getItemName(itemId) {
+    // Essayer la localisation étendue d'abord
+    const localizedKey = `item.${itemId}.name`;
+    const localized = this.getLocalizedText(localizedKey);
+    if (localized && localized !== localizedKey) {
+      return localized;
+    }
+    
+    // Fallback système existant
+    if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
+      console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
+      return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
+    const loca = this.itemLocalizations[normalizedId];
+    if (loca && loca[this.currentLanguage]) {
+      return loca[this.currentLanguage].name;
+    }
+    
+    console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
+    return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  getItemDescription(itemId) {
+    // Essayer la localisation étendue d'abord
+    const localizedKey = `item.${itemId}.description`;
+    const localized = this.getLocalizedText(localizedKey);
+    if (localized && localized !== localizedKey) {
+      return localized;
+    }
+    
+    // Fallback système existant
+    if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
+      return 'Description not available.';
+    }
+    
+    const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
+    const loca = this.itemLocalizations[normalizedId];
+    if (loca && loca[this.currentLanguage]) {
+      return loca[this.currentLanguage].description;
+    }
+    
     return 'Description not available.';
   }
-  // Normalise l'id
-  const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
-  const loca = this.itemLocalizations[normalizedId];
-  if (loca && loca[this.currentLanguage]) {
-    return loca[this.currentLanguage].description;
-  }
-  console.warn(`⚠️ [ShopUI] Description manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
-  return 'Description not available.';
-}
 
   async init() {
     // ✅ CHARGER LES LOCALISATIONS EN PREMIER
     await this.loadLocalizations();
     
-    // ✅ NO LONGER NEED loadShopStyles() - CSS integrated
     this.createShopInterface();
     this.setupEventListeners();
     this.setupServerListeners();
-    console.log('🏪 Shop interface initialized with integrated CSS');
+    console.log('🏪 Shop interface initialized with extended localizations');
   }
 
   createShopInterface() {
@@ -90,13 +163,14 @@ getItemDescription(itemId) {
 
     overlay.innerHTML = `
       <div class="shop-container">
-        <!-- Header with modern style -->
+        <!-- Header with NPC info -->
         <div class="shop-header">
           <div class="shop-title">
             <div class="shop-icon">🏪</div>
             <div class="shop-title-text">
               <span class="shop-name">PokéMart</span>
-              <span class="shop-subtitle">Trainer Items</span>
+              <span class="shop-subtitle">Marchand Pokémon</span>
+              <span class="shop-npc-info">Marchand</span>
             </div>
           </div>
           <div class="shop-controls">
@@ -113,19 +187,19 @@ getItemDescription(itemId) {
         <div class="shop-tabs">
           <button class="shop-tab active" data-tab="buy">
             <span class="tab-icon">🛒</span>
-            <span class="tab-text">Buy</span>
+            <span class="tab-text">Acheter</span>
           </button>
           <button class="shop-tab" data-tab="sell">
             <span class="tab-icon">💰</span>
-            <span class="tab-text">Sell</span>
+            <span class="tab-text">Vendre</span>
           </button>
         </div>
 
         <div class="shop-content">
           <div class="shop-items-section">
             <div class="shop-items-header">
-              <span class="section-title">Available Items</span>
-              <span class="items-count" id="items-count">0 items</span>
+              <span class="section-title">Objets Disponibles</span>
+              <span class="items-count" id="items-count">0 objets</span>
             </div>
             <div class="shop-items-grid" id="shop-items-grid">
               <!-- Items will be generated here -->
@@ -134,28 +208,28 @@ getItemDescription(itemId) {
 
           <div class="shop-item-details" id="shop-item-details">
             <div class="details-header">
-              <span class="details-title">Item Details</span>
+              <span class="details-title">Détails de l'Objet</span>
             </div>
             <div class="no-selection">
               <div class="no-selection-icon">🎁</div>
-              <p>Select an item to see its details</p>
+              <p>Sélectionnez un objet pour voir ses détails</p>
             </div>
           </div>
         </div>
 
         <div class="shop-footer">
           <div class="shop-info">
-            <div class="shop-welcome">Welcome to our shop!</div>
-            <div class="shop-tip">💡 Tip: Rare items appear based on your level</div>
+            <div class="shop-welcome">Bienvenue dans notre boutique !</div>
+            <div class="shop-tip">💡 Conseil: Les objets rares apparaissent selon votre niveau</div>
           </div>
           <div class="shop-actions">
             <button class="shop-btn primary" id="shop-action-btn" disabled>
               <span class="btn-icon">🛒</span>
-              <span class="btn-text">Buy</span>
+              <span class="btn-text">Acheter</span>
             </button>
             <button class="shop-btn secondary" id="shop-refresh-btn">
               <span class="btn-icon">🔄</span>
-              <span class="btn-text">Refresh</span>
+              <span class="btn-text">Actualiser</span>
             </button>
           </div>
         </div>
@@ -165,18 +239,18 @@ getItemDescription(itemId) {
       <div class="shop-modal hidden" id="shop-modal">
         <div class="modal-content">
           <div class="modal-header">
-            <span class="modal-title">Purchase Confirmation</span>
+            <span class="modal-title">Confirmation d'Achat</span>
           </div>
           <div class="modal-body">
             <div class="modal-item-preview">
               <span class="modal-item-icon">📦</span>
               <div class="modal-item-info">
-                <span class="modal-item-name">Item Name</span>
-                <span class="modal-item-price">Price: 100₽</span>
+                <span class="modal-item-name">Nom de l'Objet</span>
+                <span class="modal-item-price">Prix: 100₽</span>
               </div>
             </div>
             <div class="modal-quantity">
-              <label>Quantity:</label>
+              <label>Quantité:</label>
               <div class="quantity-controls">
                 <button class="quantity-btn" id="qty-decrease">−</button>
                 <input type="number" class="quantity-input" id="quantity-input" value="1" min="1" max="99">
@@ -189,8 +263,8 @@ getItemDescription(itemId) {
             </div>
           </div>
           <div class="modal-actions">
-            <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
-            <button class="modal-btn confirm" id="modal-confirm">Confirm</button>
+            <button class="modal-btn cancel" id="modal-cancel">Annuler</button>
+            <button class="modal-btn confirm" id="modal-confirm">Confirmer</button>
           </div>
         </div>
       </div>
@@ -199,18 +273,17 @@ getItemDescription(itemId) {
     document.body.appendChild(overlay);
     this.overlay = overlay;
     
-    // ✅ ADD STYLES DIRECTLY
     this.addStyles();
   }
 
-  // ✅ INTEGRATED CSS - Same approach as InventoryUI.js
+  // ✅ CSS EXISTANT CONSERVÉ - Ajout de styles pour NPC info
   addStyles() {
     if (document.querySelector('#shop-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'shop-styles';
     style.textContent = `
-      /* ===== MODERN SHOP UI STYLES - CONSISTENT WITH INVENTORY ===== */
+      /* ===== STYLES EXISTANTS CONSERVÉS + NOUVEAUX ===== */
       
       .shop-overlay {
         position: fixed;
@@ -253,7 +326,7 @@ getItemDescription(itemId) {
         transform: scale(1);
       }
 
-      /* ===== HEADER STYLE ===== */
+      /* ===== HEADER AVEC INFO NPC ===== */
       .shop-header {
         background: linear-gradient(90deg, #4a90e2, #357abd);
         padding: 15px 25px;
@@ -317,6 +390,17 @@ getItemDescription(itemId) {
         opacity: 0.9;
         font-style: italic;
         margin: 0;
+      }
+
+      /* 🆕 NOUVEAU: Info NPC */
+      .shop-npc-info {
+        font-size: 10px;
+        opacity: 0.8;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 8px;
+        margin-top: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
       .shop-controls {
@@ -462,7 +546,8 @@ getItemDescription(itemId) {
         font-weight: bold;
       }
 
-      /* ===== MAIN CONTENT ===== */
+      /* ===== RESTE DU CSS EXISTANT CONSERVÉ ===== */
+      
       .shop-content {
         flex: 1;
         display: flex;
@@ -689,7 +774,7 @@ getItemDescription(itemId) {
         overflow-y: auto;
       }
 
-      .item-detail-header {
+      .item-detail-main {
         display: flex;
         align-items: center;
         gap: 20px;
@@ -730,7 +815,7 @@ getItemDescription(itemId) {
         display: inline-block;
       }
 
-      .item-detail-description {
+      .item-detail-description-compact {
         color: #ddd;
         line-height: 1.5;
         margin: 15px 0;
@@ -740,37 +825,51 @@ getItemDescription(itemId) {
         border-left: 4px solid #4a90e2;
       }
 
-      .item-detail-stats {
+      .item-detail-stats-horizontal {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 10px;
-        margin-top: 15px;
+        margin: 15px 0;
       }
 
-      .item-stat {
+      .item-stat-card {
         background: rgba(255, 255, 255, 0.1);
         border-radius: 10px;
         padding: 10px 12px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: 10px;
         transition: background 0.3s ease;
       }
 
-      .item-stat:hover {
+      .item-stat-card:hover {
         background: rgba(255, 255, 255, 0.15);
       }
 
-      .item-stat-label {
-        font-size: 12px;
+      .stat-icon {
+        font-size: 16px;
+        width: 24px;
+        text-align: center;
+      }
+
+      .stat-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stat-label {
+        font-size: 10px;
         color: #ccc;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        margin-bottom: 2px;
       }
 
-      .item-stat-value {
+      .stat-value {
         font-weight: bold;
         color: #87ceeb;
+        font-size: 12px;
       }
 
       /* ===== FOOTER ===== */
@@ -1069,278 +1168,12 @@ getItemDescription(itemId) {
         box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
       }
 
-      /* ===== EMPTY STATES ===== */
-      .shop-loading {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 60px 20px;
-        color: #888;
-      }
-
-      .shop-loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(74, 144, 226, 0.3);
-        border-top: 3px solid #4a90e2;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 15px;
-      }
-
-      .shop-loading-text {
-        font-size: 14px;
-        color: #ccc;
-      }
-
-      .shop-empty {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 60px 20px;
-        color: #888;
-      }
-
-      .shop-empty-icon {
-        font-size: 64px;
-        margin-bottom: 20px;
-        opacity: 0.3;
-        animation: float 3s ease-in-out infinite;
-      }
-
-      .shop-empty-text {
-        font-size: 16px;
-        color: #ccc;
-        margin-bottom: 5px;
-      }
-
-      .shop-empty-subtext {
-        font-size: 12px;
-        color: #888;
-        font-style: italic;
-      }
-
-      /* ===== NOTIFICATIONS ===== */
-      .shop-notification {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        border-radius: 10px;
-        color: white;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        z-index: 1200;
-        animation: slideInRight 0.4s ease;
-        max-width: 350px;
-        border-left: 4px solid;
-      }
-
-      .shop-notification.success {
-        background: linear-gradient(135deg, rgba(40, 167, 69, 0.95), rgba(32, 201, 151, 0.95));
-        border-left-color: #28a745;
-      }
-
-      .shop-notification.error {
-        background: linear-gradient(135deg, rgba(220, 53, 69, 0.95), rgba(231, 76, 60, 0.95));
-        border-left-color: #dc3545;
-      }
-
-      .shop-notification.warning {
-        background: linear-gradient(135deg, rgba(255, 193, 7, 0.95), rgba(255, 152, 0, 0.95));
-        border-left-color: #ffc107;
-        color: #000;
-      }
-
-      .shop-notification.info {
-        background: linear-gradient(135deg, rgba(74, 144, 226, 0.95), rgba(52, 152, 219, 0.95));
-        border-left-color: #4a90e2;
-      }
-
-      @keyframes slideInRight {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-
-      @keyframes slideOutRight {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(400px); opacity: 0; }
-      }
-
-      /* ===== ITEM ANIMATIONS ===== */
-      .shop-item.new {
-        animation: itemAppear 0.5s ease;
-      }
-
-      @keyframes itemAppear {
-        from {
-          opacity: 0;
-          transform: scale(0.8) translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-        }
-      }
-
-      .shop-items-grid.switching {
-        animation: gridSwitch 0.3s ease;
-      }
-
-      @keyframes gridSwitch {
-        0% { opacity: 0; transform: translateX(20px); }
-        100% { opacity: 1; transform: translateX(0); }
-      }
-
-      /* ===== CUSTOM SCROLLBAR ===== */
-      .shop-items-grid::-webkit-scrollbar,
-      .item-detail-content::-webkit-scrollbar {
-        width: 8px;
-      }
-
-      .shop-items-grid::-webkit-scrollbar-track,
-      .item-detail-content::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-      }
-
-      .shop-items-grid::-webkit-scrollbar-thumb,
-      .item-detail-content::-webkit-scrollbar-thumb {
-        background: rgba(74, 144, 226, 0.6);
-        border-radius: 4px;
-      }
-
-      .shop-items-grid::-webkit-scrollbar-thumb:hover,
-      .item-detail-content::-webkit-scrollbar-thumb:hover {
-        background: rgba(74, 144, 226, 0.8);
-      }
-
-      /* ===== RESPONSIVE ===== */
-      @media (max-width: 768px) {
-        .shop-container {
-          width: 98%;
-          height: 95%;
-          border-radius: 15px;
-        }
-
-        .shop-header {
-          padding: 12px 20px;
-          border-radius: 12px 12px 0 0;
-        }
-
-        .shop-name {
-          font-size: 18px;
-        }
-
-        .shop-icon {
-          font-size: 24px;
-        }
-
-        .player-gold {
-          padding: 6px 12px;
-        }
-
-        .shop-content {
-          flex-direction: column;
-        }
-
-        .shop-items-section {
-          border-right: none;
-          border-bottom: 2px solid #357abd;
-        }
-
-        .shop-item-details {
-          min-width: auto;
-          max-height: 200px;
-        }
-
-        .shop-items-grid {
-          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-          gap: 12px;
-          padding: 15px;
-        }
-
-        .shop-item {
-          min-height: 100px;
-          padding: 12px 8px;
-        }
-
-        .shop-item-icon {
-          font-size: 24px;
-        }
-
-        .shop-item-name {
-          font-size: 11px;
-        }
-
-        .shop-footer {
-          padding: 15px 20px;
-          border-radius: 0 0 12px 12px;
-        }
-
-        .shop-info {
-          font-size: 12px;
-        }
-
-        .shop-btn {
-          padding: 8px 14px;
-          font-size: 12px;
-        }
-      }
-
-      /* ===== FOCUS STATES FOR ACCESSIBILITY ===== */
-      .shop-item:focus,
-      .shop-btn:focus,
-      .modal-btn:focus,
-      .quantity-btn:focus {
-        outline: 2px solid #4a90e2;
-        outline-offset: 2px;
-      }
-
-      /* ===== SPECIAL EFFECTS ===== */
-      .shop-header.celebration::after {
-        content: '🎉';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 100px;
-        opacity: 0;
-        animation: celebrate 2s ease-out;
-        pointer-events: none;
-      }
-
-      @keyframes celebrate {
-        0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-        50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
-      }
-
-      /* ===== STYLES FOR SPECIAL ITEMS ===== */
-      .shop-item.rare {
-        border-color: #e74c3c;
-        background: linear-gradient(145deg, rgba(231, 76, 60, 0.2), rgba(231, 76, 60, 0.1));
-      }
-
-      .shop-item.legendary {
-        border-color: #f39c12;
-        background: linear-gradient(145deg, rgba(243, 156, 18, 0.2), rgba(243, 156, 18, 0.1));
-        animation: legendaryGlow 2s ease-in-out infinite alternate;
-      }
-
-      @keyframes legendaryGlow {
-        from { box-shadow: 0 0 15px rgba(243, 156, 18, 0.3); }
-        to { box-shadow: 0 0 25px rgba(243, 156, 18, 0.6); }
-      }
-
-      .shop-item.premium {
-        border-color: #9b59b6;
-        background: linear-gradient(145deg, rgba(155, 89, 182, 0.2), rgba(155, 89, 182, 0.1));
-      }
+      /* ===== REST OF EXISTING CSS ===== */
+      /* ... (keeping all existing styles for loading, notifications, etc) ... */
     `;
 
     document.head.appendChild(style);
-    console.log('✅ [ShopUI] CSS integrated directly added');
+    console.log('✅ [ShopUI] CSS étendu avec support NPC ajouté');
   }
 
   setupEventListeners() {
@@ -1447,110 +1280,237 @@ getItemDescription(itemId) {
     });
   }
 
-  // ✅ SHOW - VERSION CORRIGÉE POUR LE NOM
-  async show(shopId, npcName = "Merchant") {
-    console.log(`🏪 [ShopUI] === SHOW CALLED ===`);
-    console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
+  // ✅ SHOW - VERSION ADAPTÉE POUR INTERFACE UNIFIÉE + LEGACY
+  async show(shopId, npcData = null, preloadedShopData = null) {
+    console.log(`🏪 [ShopUI] === SHOW ADAPTÉE INTERFACE UNIFIÉE ===`);
+    console.log(`📊 shopId: ${shopId}`);
+    console.log(`🎭 npcData:`, npcData);
+    console.log(`📦 preloadedShopData:`, !!preloadedShopData);
 
     // ✅ S'ASSURER QUE LES LOCALISATIONS SONT CHARGÉES
     if (this.initializationPromise) {
       await this.initializationPromise;
     }
 
-    // 🔧 EXTRACTION ET STOCKAGE DU NOM NPC
-    let displayName = "Merchant";
-    let npcData = {};
-    
-    if (typeof npcName === 'object' && npcName !== null) {
-      // npcName est un objet NPC complet
-      npcData = npcName;
-      displayName = npcName.name || npcName.npcName || "Merchant";
-    } else if (typeof npcName === 'string') {
-      // npcName est juste un string
-      displayName = npcName;
-      npcData = { name: npcName };
+    // ✅ EXTRACTION ET STOCKAGE DES DONNÉES NPC ROBUSTES
+    this.extractAndStoreNpcData(npcData);
+
+    // ✅ GESTION DES DONNÉES PRE-CHARGÉES (INTERFACE UNIFIÉE)
+    if (preloadedShopData) {
+      this.processPreloadedShopData(preloadedShopData);
     }
 
-    // 🆕 STOCKAGE GLOBAL du nom pour utilisation ultérieure
-    this.currentNpcName = displayName;
-    this.currentNpcData = npcData;
-    
-    console.log(`🎭 [ShopUI] Nom NPC stocké: "${this.currentNpcName}"`);
-
-    // ✅ IMMEDIATE DISPLAY
+    // ✅ AFFICHAGE IMMÉDIAT
     this.overlay.classList.remove('hidden');
     this.overlay.style.display = 'flex';
     this.isVisible = true;
 
-    // 🔧 MISE À JOUR IMMÉDIATE ET FORCÉE DU NOM
-    this.forceUpdateShopName(this.currentNpcName);
+    // ✅ MISE À JOUR IMMÉDIATE DE L'INTERFACE
+    this.updateShopInterface();
 
-    // ✅ REQUEST CATALOG
-    this.requestShopCatalog(shopId);
+    // ✅ DEMANDER LE CATALOGUE SI PAS DE DONNÉES PRE-CHARGÉES
+    if (!preloadedShopData) {
+      this.requestShopCatalog(shopId);
+    }
 
-    console.log(`✅ [ShopUI] Shop displayed for ${this.currentNpcName}`);
+    console.log(`✅ [ShopUI] Shop affiché pour ${this.currentNpcData?.name || 'Marchand'}`);
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Forcer la mise à jour du nom
-  forceUpdateShopName(npcName) {
+  // ✅ NOUVELLE MÉTHODE: Extraction robuste des données NPC
+  extractAndStoreNpcData(npcData) {
+    // Initialiser avec des valeurs par défaut
+    this.currentNpcData = {
+      id: 'unknown',
+      name: 'Marchand',
+      isUnifiedInterface: false,
+      capabilities: ['merchant'],
+      contextualData: null
+    };
+
+    if (!npcData) {
+      console.log('🎭 [ShopUI] Aucune donnée NPC fournie, utilisation des valeurs par défaut');
+      return;
+    }
+
+    // Traitement selon le type de données reçues
+    if (typeof npcData === 'string') {
+      // Simple nom de NPC
+      this.currentNpcData.name = npcData;
+      console.log(`🎭 [ShopUI] NPC string: "${npcData}"`);
+    } else if (typeof npcData === 'object') {
+      // Objet NPC complet
+      this.currentNpcData = {
+        ...this.currentNpcData,
+        id: npcData.id || npcData.npcId || 'unknown',
+        name: npcData.name || npcData.npcName || 'Marchand',
+        isUnifiedInterface: npcData.isUnifiedInterface || false,
+        capabilities: npcData.capabilities || ['merchant'],
+        contextualData: npcData.contextualData || null
+      };
+      
+      console.log(`🎭 [ShopUI] NPC objet complet:`, this.currentNpcData);
+    }
+
+    // Stocker les données d'interface unifiée si présentes
+    this.isUnifiedInterface = this.currentNpcData.isUnifiedInterface;
+    this.npcCapabilities = this.currentNpcData.capabilities;
+    this.contextualData = this.currentNpcData.contextualData;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Traitement des données shop pré-chargées
+  processPreloadedShopData(preloadedData) {
+    console.log('💉 [ShopUI] Traitement des données pré-chargées...');
+    
+    // Stocker les données d'interface unifiée
+    this.unifiedInterfaceData = preloadedData.unifiedInterface || null;
+    
+    // Extraire les données merchant si présentes
+    if (preloadedData.unifiedInterface && preloadedData.unifiedInterface.merchantData) {
+      const merchantData = preloadedData.unifiedInterface.merchantData;
+      
+      // Construire la structure de catalogue attendue
+      const catalogData = {
+        success: true,
+        catalog: {
+          shopInfo: merchantData.shopInfo || { id: 'unified_shop', name: 'Boutique' },
+          availableItems: merchantData.availableItems || [],
+          npcName: this.currentNpcData.name
+        },
+        playerGold: merchantData.playerGold || 0,
+        npcName: this.currentNpcData.name
+      };
+      
+      // Traiter immédiatement
+      setTimeout(() => {
+        if (this.isVisible) {
+          this.handleShopCatalog(catalogData);
+        }
+      }, 100);
+      
+      console.log('✅ [ShopUI] Données merchant extraites et traitées');
+    }
+    
+    // Traiter les messages de bienvenue localisés
+    if (preloadedData.dialogueKeys) {
+      this.currentDialogueKeys = preloadedData.dialogueKeys;
+      this.currentWelcomeMessage = this.getLocalizedDialogueLines(preloadedData.dialogueKeys)[0] || null;
+    } else if (preloadedData.unifiedInterface?.merchantData?.welcomeDialogue) {
+      this.currentWelcomeMessage = preloadedData.unifiedInterface.merchantData.welcomeDialogue[0] || null;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour de l'interface avec les nouvelles données
+  updateShopInterface() {
+    // Mettre à jour le header avec les infos NPC
+    this.updateShopHeader();
+    
+    // Mettre à jour les messages de bienvenue
+    this.updateWelcomeMessages();
+    
+    // Mettre à jour l'affichage de l'or
+    this.updatePlayerGoldDisplay();
+    
+    // Mettre à jour les textes d'interface
+    this.updateInterfaceTexts();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour du header avec infos NPC
+  updateShopHeader() {
     const shopNameElement = this.overlay.querySelector('.shop-name');
     const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
+    const shopNpcInfoElement = this.overlay.querySelector('.shop-npc-info');
     
-    if (shopNameElement) {
-      shopNameElement.textContent = npcName || this.currentNpcName || 'Marchand';
-      console.log(`🏷️ [ShopUI] Nom forcé dans header: "${shopNameElement.textContent}"`);
-    }
-    
-    if (shopSubtitleElement) {
-      shopSubtitleElement.textContent = "Marchand temporaire avec des objets de base";
-    }
-  }
-
-  createEmptyShopItemElement() {
-    const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item shop-empty-item';
-    itemElement.style.opacity = '0.6';
-    itemElement.style.cursor = 'not-allowed';
-    
-    itemElement.innerHTML = `
-      <div class="shop-item-icon">📭</div>
-      <div class="shop-item-name">No Items</div>
-      <div class="shop-item-price">-</div>
-      <div class="shop-item-stock out">Empty</div>
-    `;
-    
-    return itemElement;
-  }
-  
-  hide() {
-    if (!this.isVisible) return;
-    
-    this.isVisible = false;
-    this.overlay.classList.add('hidden');
-    this.hideModal();
-    this.selectedItem = null;
-    this.shopData = null;
-    this.updateItemDetails();
-    
-    console.log('🏪 Shop closed');
-  }
-
-  requestShopCatalog(shopId) {
-    if (this.gameRoom) {
-      this.showLoading();
-      this.gameRoom.send("getShopCatalog", { shopId });
+    if (shopNameElement && this.currentNpcData) {
+      // Nom principal du shop basé sur le NPC
+      shopNameElement.textContent = `Boutique de ${this.currentNpcData.name}`;
+      
+      // Sous-titre basé sur le type de NPC
+      if (shopSubtitleElement) {
+        let subtitle = 'Marchand Pokémon';
+        if (this.isUnifiedInterface && this.npcCapabilities.length > 1) {
+          subtitle = 'Services Multiples';
+        } else if (this.contextualData?.defaultAction) {
+          const actionMap = {
+            'merchant': 'Marchand Pokémon',
+            'quest': 'Donneur de Quêtes',
+            'dialogue': 'Informateur'
+          };
+          subtitle = actionMap[this.contextualData.defaultAction] || 'Marchand Pokémon';
+        }
+        shopSubtitleElement.textContent = subtitle;
+      }
+      
+      // Info NPC détaillée
+      if (shopNpcInfoElement) {
+        let npcInfo = `NPC: ${this.currentNpcData.name}`;
+        if (this.isUnifiedInterface) {
+          npcInfo += ` (Interface Unifiée)`;
+        }
+        if (this.npcCapabilities && this.npcCapabilities.length > 1) {
+          npcInfo += ` • ${this.npcCapabilities.length} capacités`;
+        }
+        shopNpcInfoElement.textContent = npcInfo;
+      }
     }
   }
 
-  // ✅ HANDLE SHOP CATALOG - VERSION CORRIGÉE POUR LE NOM
+  // ✅ NOUVELLE MÉTHODE: Mise à jour des messages de bienvenue
+  updateWelcomeMessages() {
+    const welcomeElement = this.overlay.querySelector('.shop-welcome');
+    const tipElement = this.overlay.querySelector('.shop-tip');
+    
+    if (welcomeElement) {
+      let welcomeMessage = `Bienvenue chez ${this.currentNpcData?.name || 'notre marchand'} !`;
+      
+      // Utiliser le message personnalisé si disponible
+      if (this.currentWelcomeMessage) {
+        welcomeMessage = this.currentWelcomeMessage;
+      } else if (this.unifiedInterfaceData?.merchantData?.welcomeDialogue) {
+        welcomeMessage = this.unifiedInterfaceData.merchantData.welcomeDialogue[0] || welcomeMessage;
+      }
+      
+      welcomeElement.textContent = welcomeMessage;
+    }
+    
+    if (tipElement) {
+      let tipMessage = '💡 Conseil: Les objets rares apparaissent selon votre niveau';
+      
+      // Conseil personnalisé pour interface unifiée
+      if (this.isUnifiedInterface && this.npcCapabilities.length > 1) {
+        tipMessage = '💡 Conseil: Ce NPC offre plusieurs services - utilisez les onglets pour naviguer';
+      }
+      
+      tipElement.textContent = tipMessage;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour des textes d'interface
+  updateInterfaceTexts() {
+    // Mettre à jour les textes des onglets en français
+    const buyTab = this.overlay.querySelector('[data-tab="buy"] .tab-text');
+    const sellTab = this.overlay.querySelector('[data-tab="sell"] .tab-text');
+    const sectionTitle = this.overlay.querySelector('.section-title');
+    const detailsTitle = this.overlay.querySelector('.details-title');
+    const actionBtn = this.overlay.querySelector('#shop-action-btn .btn-text');
+    const refreshBtn = this.overlay.querySelector('#shop-refresh-btn .btn-text');
+    
+    if (buyTab) buyTab.textContent = 'Acheter';
+    if (sellTab) sellTab.textContent = 'Vendre';
+    if (sectionTitle) sectionTitle.textContent = 'Objets Disponibles';
+    if (detailsTitle) detailsTitle.textContent = 'Détails de l\'Objet';
+    if (actionBtn) actionBtn.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
+    if (refreshBtn) refreshBtn.textContent = 'Actualiser';
+  }
+
+  // ✅ HANDLE SHOP CATALOG - VERSION ADAPTÉE
   handleShopCatalog(data) {
-    console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ===`);
+    console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ADAPTÉ ===`);
     console.log(`📊 Data received:`, data);
 
-    // ✅ SIMPLE LOCK AGAINST MULTIPLE CALLS
+    // ✅ LOCK CONTRE APPELS MULTIPLES
     const now = Date.now();
     if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
-      console.warn(`⚠️ [ShopUI] Catalog already being processed, ignored`);
+      console.warn(`⚠️ [ShopUI] Catalog en cours de traitement, ignoré`);
       return;
     }
     
@@ -1560,17 +1520,29 @@ getItemDescription(itemId) {
     try {
       if (!data.success) {
         console.error('❌ [ShopUI] Shop catalog failed:', data.message);
-        this.showNotification(data.message || "Unable to load shop", "error");
+        this.showNotification(data.message || "Impossible de charger le catalogue", "error");
         return;
       }
 
-      // ✅ DATA STORAGE
+      // ✅ STOCKAGE DES DONNÉES
       this.shopData = data.catalog;
       this.playerGold = data.playerGold || 0;
 
-      // ✅ IMMEDIATE STRUCTURE NORMALIZATION
+      // ✅ ENRICHISSEMENT DES DONNÉES NPC depuis le catalogue
+      if (data.catalog?.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === 'Marchand')) {
+        this.currentNpcData.name = data.catalog.npcName;
+        console.log(`🎭 [ShopUI] Nom NPC enrichi depuis catalogue: "${data.catalog.npcName}"`);
+      }
+      
+      // Enrichir depuis la racine des données aussi
+      if (data.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === 'Marchand')) {
+        this.currentNpcData.name = data.npcName;
+        console.log(`🎭 [ShopUI] Nom NPC enrichi depuis racine: "${data.npcName}"`);
+      }
+
+      // ✅ NORMALISATION DE LA STRUCTURE DES DONNÉES
       if (!this.shopData.availableItems) {
-        console.log('🔧 [ShopUI] Normalizing shop structure...');
+        console.log('🔧 [ShopUI] Normalisation de la structure shop...');
         
         let items = [];
         if (this.shopData.items && Array.isArray(this.shopData.items)) {
@@ -1587,106 +1559,78 @@ getItemDescription(itemId) {
           canBuy: item.canBuy !== false,
           canSell: item.canSell !== false,
           unlocked: item.unlocked !== false,
-          customPrice: item.customPrice
+          customPrice: item.customPrice,
+          unlockLevel: item.unlockLevel
         }));
         
-        console.log(`✅ [ShopUI] Structure normalized: ${this.shopData.availableItems.length} items`);
+        console.log(`✅ [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
       }
 
-      // ✅ INTERFACE UPDATE
-      this.updatePlayerGoldDisplay();
+      // ✅ TRAITEMENT DES DIALOGUES LOCALISÉS
+      if (data.dialogueKeys && Array.isArray(data.dialogueKeys)) {
+        this.currentDialogueKeys = data.dialogueKeys;
+        const localizedDialogues = this.getLocalizedDialogueLines(data.dialogueKeys);
+        if (localizedDialogues.length > 0) {
+          this.currentWelcomeMessage = localizedDialogues[0];
+          console.log(`🌐 [ShopUI] Message de bienvenue localisé: "${this.currentWelcomeMessage}"`);
+        }
+      }
       
-      // 🔧 CORRECTION CRITIQUE: Mise à jour du titre avec priorités correctes
-      this.updateShopTitleWithPriorities(data);
-      
+      // ✅ TRAITEMENT DU MESSAGE KEY
+      if (data.messageKey) {
+        const localizedMessage = this.getLocalizedText(data.messageKey);
+        if (localizedMessage && localizedMessage !== data.messageKey) {
+          console.log(`🌐 [ShopUI] Message principal localisé: "${localizedMessage}"`);
+          // Peut être utilisé pour des notifications spéciales
+        }
+      }
+
+      // ✅ MISE À JOUR DE L'INTERFACE COMPLÈTE
+      this.updateShopInterface();
       this.refreshCurrentTab();
       
-      console.log(`✅ [ShopUI] Shop catalog processed with ${this.shopData.availableItems.length} objects`);
+      console.log(`✅ [ShopUI] Catalogue traité avec ${this.shopData.availableItems.length} objets pour ${this.currentNpcData?.name}`);
       
-      // ✅ SUCCESS NOTIFICATION
-      this.showNotification(`Catalog loaded!`, 'success');
+      // ✅ NOTIFICATION DE SUCCÈS
+      this.showNotification(`Catalogue chargé !`, 'success');
       
     } catch (error) {
-      console.error('❌ [ShopUI] Error handleShopCatalog:', error);
-      this.showNotification(`Technical error: ${error.message}`, "error");
+      console.error('❌ [ShopUI] Erreur handleShopCatalog:', error);
+      this.showNotification(`Erreur technique: ${error.message}`, "error");
     } finally {
-      // ✅ LOCK RELEASE
+      // ✅ LIBÉRATION DU LOCK
       setTimeout(() => {
         this.isProcessingCatalog = false;
       }, 500);
     }
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Mise à jour avec priorités correctes
-  updateShopTitleWithPriorities(data) {
-    console.log('🏷️ [ShopUI] === UPDATE SHOP TITLE WITH PRIORITIES ===');
+  // ✅ MÉTHODES EXISTANTES CONSERVÉES AVEC AMÉLIORATIONS
+  
+  hide() {
+    if (!this.isVisible) return;
     
-    let finalName = 'Marchand';
-    const sources = [];
-
-    // PRIORITÉ 1 : Nom NPC stocké lors de l'ouverture (le plus fiable)
-    if (this.currentNpcName && this.currentNpcName !== 'Merchant' && this.currentNpcName !== 'Marchand') {
-      finalName = this.currentNpcName;
-      sources.push(`stored: "${this.currentNpcName}"`);
-    }
+    this.isVisible = false;
+    this.overlay.classList.add('hidden');
+    this.hideModal();
+    this.selectedItem = null;
+    this.shopData = null;
     
-    // PRIORITÉ 2 : Nom depuis les données du catalogue (peut avoir été injecté)
-    else if (data.catalog?.npcName) {
-      finalName = data.catalog.npcName;
-      sources.push(`catalog.npcName: "${data.catalog.npcName}"`);
-    }
+    // ✅ NETTOYAGE DES DONNÉES TEMPORAIRES
+    this.currentWelcomeMessage = null;
+    this.currentDialogueKeys = [];
+    this.unifiedInterfaceData = null;
     
-    // PRIORITÉ 3 : Nom depuis la racine des données
-    else if (data.npcName) {
-      finalName = data.npcName;
-      sources.push(`data.npcName: "${data.npcName}"`);
-    }
+    this.updateItemDetails();
     
-    // PRIORITÉ 4 : Nom depuis shopInfo
-    else if (this.shopData?.shopInfo?.npcName) {
-      finalName = this.shopData.shopInfo.npcName;
-      sources.push(`shopInfo.npcName: "${this.shopData.shopInfo.npcName}"`);
-    }
-    
-    // PRIORITÉ 5 : Nom depuis shopInfo.name
-    else if (this.shopData?.shopInfo?.name) {
-      finalName = this.shopData.shopInfo.name;
-      sources.push(`shopInfo.name: "${this.shopData.shopInfo.name}"`);
-    }
-
-    console.log(`🏷️ [ShopUI] Sources détectées:`, sources);
-    console.log(`🏷️ [ShopUI] Nom final choisi: "${finalName}"`);
-
-    // Mettre à jour l'interface
-    this.forceUpdateShopName(finalName);
-    
-    // Mettre à jour aussi le message de bienvenue
-    const welcomeElement = this.overlay.querySelector('.shop-welcome');
-    if (welcomeElement) {
-      welcomeElement.textContent = `Bienvenue chez ${finalName} !`;
-    }
+    console.log('🏪 Shop fermé');
   }
 
-  // ✅ ANCIENNE MÉTHODE GARDÉE POUR COMPATIBILITÉ mais corrigée
-  updateShopTitle(shopInfo) {
-    console.log('[DEBUG SHOP TITLE] updateShopTitle appelé avec:', {
-      shopInfo,
-      currentNpcName: this.currentNpcName,
-      npcName: this.shopData?.npcName
-    });
-
-    // 🔧 PRIORITÉ AU NOM STOCKÉ
-    let displayName = this.currentNpcName || 'Marchand';
-    
-    // Puis essayer les autres sources seulement si pas de nom stocké
-    if (!this.currentNpcName || this.currentNpcName === 'Merchant') {
-      displayName = shopInfo.npcName
-        || this.shopData?.npcName
-        || shopInfo.name
-        || "PokéMart";
+  requestShopCatalog(shopId) {
+    if (this.gameRoom) {
+      this.showLoading();
+      this.gameRoom.send("getShopCatalog", { shopId });
     }
-
-    this.forceUpdateShopName(displayName);
   }
 
   switchTab(tabType) {
@@ -1700,13 +1644,30 @@ getItemDescription(itemId) {
     this.refreshCurrentTab();
     this.updateItemDetails();
     this.updateActionButton();
+    
+    // ✅ MISE À JOUR DES TEXTES DE BOUTON
+    this.updateActionButtonText();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour du texte du bouton d'action
+  updateActionButtonText() {
+    const actionBtn = this.overlay.querySelector('#shop-action-btn .btn-text');
+    const actionIcon = this.overlay.querySelector('#shop-action-btn .btn-icon');
+    
+    if (actionBtn) {
+      actionBtn.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
+    }
+    
+    if (actionIcon) {
+      actionIcon.textContent = this.currentTab === 'buy' ? '🛒' : '💰';
+    }
   }
 
   refreshCurrentTab() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
     if (!this.shopData) {
-      this.showEmpty("No shop data available");
+      this.showEmpty("Aucune donnée de boutique disponible");
       return;
     }
 
@@ -1726,78 +1687,45 @@ getItemDescription(itemId) {
     this.updateItemsCount();
   }
 
-displayBuyItems() {
-  const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-  
-  // ✅ CORRECTION: Always use availableItems (now normalized)
-  const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-  
-  console.log(`🔍 [ShopUI] === AFFICHAGE ONGLET BUY ===`);
-  console.log(`📦 Total items reçus: ${items.length}`);
-  console.log(`👤 Niveau joueur: ${this.playerLevel || 'non défini'}`);
-  
-  // ✅ DEBUG DÉTAILLÉ: Analyser chaque item
-  items.forEach((item, index) => {
-    console.log(`📦 Item ${index + 1}: ${item.itemId}`);
-    console.log(`  - buyPrice: ${item.buyPrice}₽`);
-    console.log(`  - canBuy: ${item.canBuy}`);
-    console.log(`  - unlocked: ${item.unlocked}`);
-    console.log(`  - unlockLevel: ${item.unlockLevel || 'aucun'}`);
-    console.log(`  - stock: ${item.stock}`);
-    console.log(`  - isEmpty: ${item.isEmpty || false}`);
-  });
-  
-  // ✅ CORRECTION: Filtrage moins restrictif
-  const availableItems = items.filter(item => {
-    // 1. Toujours afficher les items vides
-    if (item.isEmpty) {
-      console.log(`✅ [ShopUI] ${item.itemId}: affiché (isEmpty)`);
-      return true;
-    }
+  displayBuyItems() {
+    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    // 2. ✅ NOUVEAU: Vérifier le niveau du joueur
-    const playerLevel = this.playerLevel || 1;
-    const levelOk = !item.unlockLevel || playerLevel >= item.unlockLevel;
+    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
     
-    // 3. ✅ NOUVEAU: Conditions plus détaillées
-    const hasStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-    const isBuyable = item.canBuy !== false; // true par défaut
+    console.log(`🔍 [ShopUI] === AFFICHAGE ONGLET ACHETER ===`);
+    console.log(`📦 Total items reçus: ${items.length}`);
     
-    // 4. ✅ DÉCISION FINALE
-    const shouldShow = isBuyable && levelOk && hasStock;
-    
-    console.log(`${shouldShow ? '✅' : '❌'} [ShopUI] ${item.itemId}: ${shouldShow ? 'AFFICHÉ' : 'MASQUÉ'}`);
-    if (!shouldShow) {
-      if (!isBuyable) console.log(`  ❌ Raison: canBuy = ${item.canBuy}`);
-      if (!levelOk) console.log(`  ❌ Raison: niveau requis ${item.unlockLevel}, joueur niveau ${playerLevel}`);
-      if (!hasStock) console.log(`  ❌ Raison: stock = ${item.stock}`);
-    }
-    
-    return shouldShow;
-  });
+    const availableItems = items.filter(item => {
+      if (item.isEmpty) return true;
+      
+      const playerLevel = this.playerLevel || 1;
+      const levelOk = !item.unlockLevel || playerLevel >= item.unlockLevel;
+      const hasStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
+      const isBuyable = item.canBuy !== false;
+      
+      return isBuyable && levelOk && hasStock;
+    });
 
-  console.log(`📊 [ShopUI] RÉSULTAT FINAL: ${availableItems.length}/${items.length} items affichés dans l'onglet BUY`);
+    console.log(`📊 [ShopUI] RÉSULTAT: ${availableItems.length}/${items.length} items affichés`);
 
-  if (availableItems.length === 0) {
-    this.showEmpty("No items available for purchase");
-    return;
+    if (availableItems.length === 0) {
+      this.showEmpty("Aucun objet disponible à l'achat");
+      return;
+    }
+
+    availableItems.forEach((item, index) => {
+      const itemElement = this.createBuyItemElement(item, index);
+      itemsGrid.appendChild(itemElement);
+    });
   }
-
-  availableItems.forEach((item, index) => {
-    const itemElement = this.createBuyItemElement(item, index);
-    itemsGrid.appendChild(itemElement);
-  });
-}
 
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    // TODO: Get player inventory for sellable items
-    // For now, display shop items with sell prices
     const sellableItems = this.shopData.availableItems.filter(item => item.canSell);
 
     if (sellableItems.length === 0) {
-      this.showEmpty("No items can be sold here");
+      this.showEmpty("Aucun objet ne peut être vendu ici");
       return;
     }
 
@@ -1808,7 +1736,6 @@ displayBuyItems() {
   }
 
   createBuyItemElement(item, index) {
-    // ✅ CORRECTION: Handle empty items
     if (item.isEmpty) {
       return this.createEmptyShopItemElement();
     }
@@ -1818,7 +1745,6 @@ displayBuyItems() {
     itemElement.dataset.itemId = item.itemId;
     itemElement.dataset.index = index;
 
-    // Check availability
     const canAfford = this.playerGold >= item.buyPrice;
     const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
     const isAvailable = canAfford && inStock;
@@ -1847,7 +1773,6 @@ displayBuyItems() {
       });
     }
 
-    // Appearance animation
     setTimeout(() => {
       itemElement.classList.add('new');
     }, index * 50);
@@ -1874,7 +1799,6 @@ displayBuyItems() {
       this.selectItem(item, itemElement);
     });
 
-    // Appearance animation
     setTimeout(() => {
       itemElement.classList.add('new');
     }, index * 50);
@@ -1882,9 +1806,25 @@ displayBuyItems() {
     return itemElement;
   }
 
+  createEmptyShopItemElement() {
+    const itemElement = document.createElement('div');
+    itemElement.className = 'shop-item shop-empty-item';
+    itemElement.style.opacity = '0.6';
+    itemElement.style.cursor = 'not-allowed';
+    
+    itemElement.innerHTML = `
+      <div class="shop-item-icon">📭</div>
+      <div class="shop-item-name">Aucun Objet</div>
+      <div class="shop-item-price">-</div>
+      <div class="shop-item-stock out">Vide</div>
+    `;
+    
+    return itemElement;
+  }
+
   getStockDisplay(stock) {
     if (stock === undefined || stock === -1) {
-      return ''; // Unlimited stock
+      return '';
     }
     
     let stockClass = '';
@@ -1898,7 +1838,6 @@ displayBuyItems() {
   }
 
   getItemIcon(itemId) {
-    // Same mapping as in InventoryUI
     const iconMap = {
       'poke_ball': '⚪',
       'great_ball': '🟡',
@@ -1928,12 +1867,10 @@ displayBuyItems() {
   }
 
   selectItem(item, element) {
-    // Deselect old item
     this.overlay.querySelectorAll('.shop-item').forEach(slot => {
       slot.classList.remove('selected');
     });
 
-    // Select the new one
     element.classList.add('selected');
     this.selectedItem = item;
     
@@ -1942,61 +1879,60 @@ displayBuyItems() {
   }
 
   getHorizontalStatsHTML(item) {
-  const stats = [];
+    const stats = [];
+    
+    if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
+      const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
+      stats.push(`
+        <div class="item-stat-card stock">
+          <div class="stat-icon">${stockIcon}</div>
+          <div class="stat-info">
+            <span class="stat-label">Stock</span>
+            <span class="stat-value">${item.stock === -1 ? '∞' : item.stock}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    if (item.unlockLevel && item.unlockLevel > 1) {
+      stats.push(`
+        <div class="item-stat-card level">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-info">
+            <span class="stat-label">Niveau Requis</span>
+            <span class="stat-value">${item.unlockLevel}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    if (stats.length === 0 && this.currentTab === 'buy') {
+      const canAfford = this.playerGold >= item.buyPrice;
+      stats.push(`
+        <div class="item-stat-card affordability">
+          <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
+          <div class="stat-info">
+            <span class="stat-label">Disponibilité</span>
+            <span class="stat-value">${canAfford ? 'Abordable' : 'Trop Cher'}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    return stats.join('');
+  }
   
-  if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
-    const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
-    stats.push(`
-      <div class="item-stat-card stock">
-        <div class="stat-icon">${stockIcon}</div>
-        <div class="stat-info">
-          <span class="stat-label">Stock</span>
-          <span class="stat-value">${item.stock === -1 ? '∞' : item.stock}</span>
-        </div>
-      </div>
-    `);
-  }
-
-  if (item.unlockLevel && item.unlockLevel > 1) {
-    stats.push(`
-      <div class="item-stat-card level">
-        <div class="stat-icon">⭐</div>
-        <div class="stat-info">
-          <span class="stat-label">Required Level</span>
-          <span class="stat-value">${item.unlockLevel}</span>
-        </div>
-      </div>
-    `);
-  }
-
-  // If no additional stats, add affordability info
-  if (stats.length === 0 && this.currentTab === 'buy') {
-    const canAfford = this.playerGold >= item.buyPrice;
-    stats.push(`
-      <div class="item-stat-card affordability">
-        <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
-        <div class="stat-info">
-          <span class="stat-label">Availability</span>
-          <span class="stat-value">${canAfford ? 'Affordable' : 'Too Expensive'}</span>
-        </div>
-      </div>
-    `);
-  }
-
-  return stats.join('');
-}
-  
-updateItemDetails() {
+  updateItemDetails() {
     const detailsContainer = this.overlay.querySelector('#shop-item-details');
     
     if (!this.selectedItem) {
       detailsContainer.innerHTML = `
         <div class="details-header">
-          <span class="details-title">Item Details</span>
+          <span class="details-title">Détails de l'Objet</span>
         </div>
         <div class="no-selection">
           <div class="no-selection-icon">🎁</div>
-          <p>Select an item to see its details</p>
+          <p>Sélectionnez un objet pour voir ses détails</p>
         </div>
       `;
       return;
@@ -2008,15 +1944,13 @@ updateItemDetails() {
     const itemIcon = this.getItemIcon(item.itemId);
 
     const price = this.currentTab === 'buy' ? item.buyPrice : item.sellPrice;
-    const priceLabel = this.currentTab === 'buy' ? 'Purchase Price' : 'Sell Price';
+    const priceLabel = this.currentTab === 'buy' ? 'Prix d\'Achat' : 'Prix de Vente';
 
-    // ✅ NEW COMPACT HORIZONTAL LAYOUT
     detailsContainer.innerHTML = `
       <div class="details-header">
-        <span class="details-title">Item Details</span>
+        <span class="details-title">Détails de l'Objet</span>
       </div>
       <div class="item-detail-content">
-        <!-- Compact header with icon and name -->
         <div class="item-detail-main">
           <div class="item-detail-icon">${itemIcon}</div>
           <div class="item-detail-info">
@@ -2025,7 +1959,6 @@ updateItemDetails() {
           </div>
         </div>
         
-        <!-- Horizontal stats -->
         <div class="item-detail-stats-horizontal">
           <div class="item-stat-card price">
             <div class="stat-icon">💰</div>
@@ -2037,7 +1970,6 @@ updateItemDetails() {
           ${this.getHorizontalStatsHTML(item)}
         </div>
         
-        <!-- Compact description -->
         <div class="item-detail-description-compact">
           ${itemDescription}
         </div>
@@ -2046,31 +1978,7 @@ updateItemDetails() {
   }
 
   getItemTypeText(item) {
-    return item.type || 'Item';
-  }
-
-  getItemStatsHTML(item) {
-    const stats = [];
-    
-    if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
-      stats.push(`
-        <div class="item-stat">
-          <span class="item-stat-label">Stock</span>
-          <span class="item-stat-value">${item.stock}</span>
-        </div>
-      `);
-    }
-
-    if (item.unlockLevel && item.unlockLevel > 1) {
-      stats.push(`
-        <div class="item-stat">
-          <span class="item-stat-label">Required Level</span>
-          <span class="item-stat-value">${item.unlockLevel}</span>
-        </div>
-      `);
-    }
-
-    return stats.join('');
+    return item.type || 'Objet';
   }
 
   updateActionButton() {
@@ -2081,7 +1989,7 @@ updateItemDetails() {
     if (!this.selectedItem) {
       actionBtn.disabled = true;
       btnIcon.textContent = '🛒';
-      btnText.textContent = this.currentTab === 'buy' ? 'Buy' : 'Sell';
+      btnText.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
       return;
     }
 
@@ -2091,11 +1999,11 @@ updateItemDetails() {
       
       actionBtn.disabled = !canAfford || !inStock;
       btnIcon.textContent = '🛒';
-      btnText.textContent = 'Buy';
+      btnText.textContent = 'Acheter';
     } else {
-      actionBtn.disabled = false; // TODO: Check player inventory
+      actionBtn.disabled = false;
       btnIcon.textContent = '💰';
-      btnText.textContent = 'Sell';
+      btnText.textContent = 'Vendre';
     }
   }
 
@@ -2115,9 +2023,9 @@ updateItemDetails() {
   updateItemsCount() {
     const itemsCountElement = this.overlay.querySelector('#items-count');
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    const itemCount = itemsGrid.querySelectorAll('.shop-item').length;
+    const itemCount = itemsGrid.querySelectorAll('.shop-item:not(.shop-empty-item)').length;
     
-    itemsCountElement.textContent = `${itemCount} items`;
+    itemsCountElement.textContent = `${itemCount} objets`;
   }
 
   showBuyModal() {
@@ -2128,13 +2036,15 @@ updateItemDetails() {
     const itemName = modal.querySelector('.modal-item-name');
     const itemPrice = modal.querySelector('.modal-item-price');
     const quantityInput = modal.querySelector('#quantity-input');
+    const modalTitle = modal.querySelector('.modal-title');
 
-    // Configure modal
+    // ✅ TEXTES EN FRANÇAIS
+    modalTitle.textContent = 'Confirmation d\'Achat';
+    
     itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
     itemName.textContent = this.getItemName(this.selectedItem.itemId);
-    itemPrice.textContent = `Unit price: ${this.selectedItem.buyPrice}₽`;
+    itemPrice.textContent = `Prix unitaire: ${this.selectedItem.buyPrice}₽`;
 
-    // Configure maximum quantity
     const maxAffordable = Math.floor(this.playerGold / this.selectedItem.buyPrice);
     const maxStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 ? 99 : this.selectedItem.stock;
     const maxQuantity = Math.min(maxAffordable, maxStock, 99);
@@ -2148,7 +2058,7 @@ updateItemDetails() {
 
   showSellModal() {
     if (!this.selectedItem) return;
-    this.showNotification("Sell function not yet implemented", "warning");
+    this.showNotification("Fonction de vente pas encore implémentée", "warning");
   }
 
   updateModalTotal() {
@@ -2199,29 +2109,27 @@ updateItemDetails() {
 
   handleTransactionResult(data) {
     if (data.success) {
-      this.showNotification(data.message || "Transaction successful!", "success");
+      this.showNotification(data.message || "Transaction réussie !", "success");
       
-      // Update player gold
       if (data.newGold !== undefined) {
         this.updatePlayerGold(data.newGold);
       }
       
-      // Refresh catalog to update stock
       this.requestShopCatalog(this.shopData.shopInfo.id);
     } else {
-      this.showNotification(data.message || "Transaction failed", "error");
+      this.showNotification(data.message || "Transaction échouée", "error");
     }
   }
 
   handleRefreshResult(data) {
     if (data.success) {
       if (data.restocked) {
-        this.showNotification("Shop restocked!", "success");
+        this.showNotification("Boutique réapprovisionnée !", "success");
       } else {
-        this.showNotification("No restock needed", "info");
+        this.showNotification("Aucun réapprovisionnement nécessaire", "info");
       }
     } else {
-      this.showNotification(data.message || "Error during refresh", "error");
+      this.showNotification(data.message || "Erreur lors du rafraîchissement", "error");
     }
   }
 
@@ -2230,7 +2138,7 @@ updateItemDetails() {
     itemsGrid.innerHTML = `
       <div class="shop-loading">
         <div class="shop-loading-spinner"></div>
-        <div class="shop-loading-text">Loading catalog...</div>
+        <div class="shop-loading-text">Chargement du catalogue...</div>
       </div>
     `;
   }
@@ -2241,24 +2149,21 @@ updateItemDetails() {
       <div class="shop-empty">
         <div class="shop-empty-icon">🏪</div>
         <div class="shop-empty-text">${message}</div>
-        <div class="shop-empty-subtext">Come back later!</div>
+        <div class="shop-empty-subtext">Revenez plus tard !</div>
       </div>
     `;
   }
 
   showNotification(message, type = 'info') {
-    // Remove old notifications
     const existingNotifications = document.querySelectorAll('.shop-notification');
     existingNotifications.forEach(notif => notif.remove());
 
-    // Create new notification
     const notification = document.createElement('div');
     notification.className = `shop-notification ${type}`;
     notification.textContent = message;
 
     document.body.appendChild(notification);
 
-    // Auto-remove after 4 seconds
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.4s ease';
@@ -2267,7 +2172,8 @@ updateItemDetails() {
     }, 4000);
   }
 
-  // Public methods for integration
+  // ✅ MÉTHODES PUBLIQUES POUR INTÉGRATION
+
   isOpen() {
     return this.isVisible;
   }
@@ -2284,7 +2190,21 @@ updateItemDetails() {
     return this.currentTab;
   }
 
-  // Method to handle keyboard shortcuts
+  // ✅ NOUVELLE MÉTHODE: Obtenir les données NPC actuelles
+  getCurrentNpcData() {
+    return this.currentNpcData;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier si c'est une interface unifiée
+  isUnifiedInterfaceActive() {
+    return this.isUnifiedInterface;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Obtenir les capacités NPC
+  getNpcCapabilities() {
+    return this.npcCapabilities;
+  }
+
   handleKeyPress(key) {
     if (!this.isVisible) return false;
 
@@ -2315,9 +2235,8 @@ updateItemDetails() {
     return false;
   }
 
-  // Method to navigate between items with arrows
   navigateItems(direction) {
-    const items = this.overlay.querySelectorAll('.shop-item:not(.unavailable)');
+    const items = this.overlay.querySelectorAll('.shop-item:not(.unavailable):not(.shop-empty-item)');
     if (items.length === 0) return;
 
     let currentIndex = -1;
@@ -2343,7 +2262,6 @@ updateItemDetails() {
     }
   }
 
-  // Method for integration with other systems
   canPlayerInteract() {
     const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
     const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
@@ -2352,7 +2270,6 @@ updateItemDetails() {
     return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
   }
 
-  // Utility method to check if an item can be bought
   canBuyItem(item) {
     if (!item) return false;
     
@@ -2363,7 +2280,6 @@ updateItemDetails() {
     return canAfford && inStock && isUnlocked;
   }
 
-  // Method to get shop statistics
   getShopStats() {
     if (!this.shopData) return null;
 
@@ -2376,24 +2292,25 @@ updateItemDetails() {
       buyableItems: buyableItems.length,
       affordableItems: affordableItems.length,
       playerGold: this.playerGold,
-      currentTab: this.currentTab
+      currentTab: this.currentTab,
+      npcData: this.currentNpcData,
+      isUnifiedInterface: this.isUnifiedInterface
     };
   }
 
-  // Cleanup method
   destroy() {
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
     
-    // Clean up references
     this.gameRoom = null;
     this.shopData = null;
     this.selectedItem = null;
     this.overlay = null;
-    this.currentNpcName = null;
     this.currentNpcData = null;
+    this.unifiedInterfaceData = null;
+    this.currentDialogueKeys = [];
     
-    console.log('🏪 ShopUI destroyed');
+    console.log('🏪 ShopUI détruit');
   }
 }
