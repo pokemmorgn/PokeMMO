@@ -1,5 +1,5 @@
 // ui/TimeWeatherWidget.js - Style UNIFIÉ avec le reste de l'interface
-// 🎯 Palette cohérente + effets météo subtils
+// 🎯 Palette cohérente + effets météo subtils - TRONCATURE CORRIGÉE
 import { POKEMON_WEATHER_STYLES } from './PokemonWeatherStyles.js';
 
 export class TimeWeatherWidget {
@@ -152,19 +152,19 @@ export class TimeWeatherWidget {
         ${this.generateParticlesHTML()}
       </div>
       
-      <!-- Main Widget Content - Style unifié avec largeur corrigée -->
+      <!-- Main Widget Content - TRONCATURE CORRIGÉE -->
       <div class="widget-glass-container">
         <div class="widget-content">
-          <!-- Header avec Zone - Débordement autorisé -->
-          <div class="header-section" style="margin-top: -22px; position: relative; top: -22px;">
+          <!-- Header avec Zone - Espacement corrigé -->
+          <div class="header-section">
             <div class="zone-badge" id="${this.id}-zone">
               <span class="zone-icon">📍</span>
               <span class="zone-text">Village</span>
             </div>
           </div>
           
-          <!-- Section Temps et Météo - Espacement amélioré -->
-          <div class="main-section" style="margin-top: -22px; position: relative; top: -22px;">
+          <!-- Section Temps et Météo - Espacement normal -->
+          <div class="main-section">
             <div class="time-section">
               <div class="time-display">
                 <div class="time-icon" id="${this.id}-time-icon">🕐</div>
@@ -189,8 +189,8 @@ export class TimeWeatherWidget {
             </div>
           </div>
           
-          <!-- Section Bonus Gameplay - Débordement autorisé -->
-          <div class="bonus-section" id="${this.id}-bonus" style="margin-top: -22px; position: relative; top: -22px;">
+          <!-- Section Bonus Gameplay - Espacement normal -->
+          <div class="bonus-section" id="${this.id}-bonus">
             <div class="bonus-icon">🎮</div>
             <div class="bonus-text">+15% XP Pokémon Eau</div>
             <div class="bonus-type-icon type-water">💧</div>
@@ -877,6 +877,7 @@ export class TimeWeatherWidget {
       unifiedStyle: true,
       weatherAccents: true, // 🎨 Nouveau flag pour accents météo
       styleVersion: 'unified-with-accents-2024',
+      truncationFixed: true, // 🔧 Nouveau flag pour correction troncature
       animationFrames: {
         main: !!this.animationFrame,
         particles: !!this.particleAnimationFrame
