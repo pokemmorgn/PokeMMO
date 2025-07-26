@@ -291,6 +291,183 @@ if (existingIndex !== -1) {
     this.renderMap()
 }
 
+    // ✅ NOUVELLE MÉTHODE: Ouvrir le menu d'édition NPC
+openNPCEditMenu(npc, x, y) {
+    this.selectedNPC = npc
+    
+    // Créer le menu contextuel
+    this.createNPCContextMenu(x, y)
+    
+    console.log('👤 [MapEditor] NPC context menu opened for:', npc.name)
+}
+
+// ✅ NOUVELLE MÉTHODE: Créer le menu contextuel
+createNPCContextMenu(x, y) {
+    // Supprimer le menu existant s'il y en a un
+    this.closeNPCContextMenu()
+    
+    const menu = document.createElement('div')
+    menu.className = 'npc-context-menu'
+    menu.style.cssText = `
+        position: fixed;
+        left: ${x}px;
+        top: ${y}px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 1000;
+        min-width: 180px;
+    `
+    
+    menu.innerHTML = `
+        <div class="npc-menu-header" style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">
+            👤 ${this.selectedNPC.name}
+        </div>
+        <div class="npc-menu-actions" style="padding: 8px;">
+            <button class="npc-menu-btn edit-npc" style="width: 100%; margin-bottom: 8px; padding: 8px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">
+                ✏️ Éditer le NPC
+            </button>
+            <button class="npc-menu-btn delete-npc" style="width: 100%; padding: 8px; border: none; background: #dc3545; color: white; border-radius: 4px; cursor: pointer;">
+                🗑️ Supprimer le NPC
+            </button>
+        </div>
+    `
+    
+    // Ajouter les event listeners
+    menu.querySelector('.edit-npc').addEventListener('click', () => {
+        this.editNPC()
+        this.closeNPCContextMenu()
+    })
+    
+    menu.querySelector('.delete-npc').addEventListener('click', () => {
+        this.deleteNPC()
+        this.closeNPCContextMenu()
+    })
+    
+    document.body.appendChild(menu)
+    this.npcContextMenu = menu
+    
+    // Fermer le menu si on clique ailleurs
+    setTimeout(() => {
+        document.addEventListener('click', this.handleClickOutside.bind(this), { once: true })
+    }, 100)
+}
+
+// ✅ NOUVELLE MÉTHODE: Fermer le menu contextuel
+closeNPCContextMenu() {
+    if (this.npcContextMenu) {
+        this.npcContextMenu.remove()
+        this.npcContextMenu = null
+    }
+}
+
+// ✅ NOUVELLE MÉTHODE: Gestion des clics à l'extérieur
+handleClickOutside(event) {
+    if (this.npcContextMenu && !this.npcContextMenu.contains(event.target)) {
+        this.closeNPCContextMenu()
+    }
+}
+
+// ✅ NOUVELLE MÉTHODE: Éditer le NPC
+editNPC() {
+    if (!this.selectedNPC) return
+    
+    console.log('✏️ [MapEditor] Editing NPC:', this.selectedNPC)
+    
+    // Convertir au format attendu par l'éditeur NPC
+    const npcForEditor = this.convertToNPCEditorFormat(this.selectedNPC)
+    
+    // Naviguer vers l'onglet NPCs
+    this.adminPanel.switchTab('npcs')
+    
+    // Attendre que l'onglet soit chargé puis sélectionner le NPC
+    setTimeout(() => {
+        if (this.adminPanel.npcEditor) {
+            this.adminPanel.npcEditor.loadNPCFromMapEditor(npcForEditor)
+        }
+    }, 500)
+    
+    this.adminPanel.showNotification(`Édition du NPC "${this.selectedNPC.name}"`, 'info')
+}
+
+// ✅ NOUVELLE MÉTHODE: Supprimer le NPC
+deleteNPC() {
+    if (!this.selectedNPC) return
+    
+    if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" ?`)) return
+    
+    // Trouver et supprimer le NPC
+    const index = this.placedObjects.findIndex(obj => 
+        obj.id === this.selectedNPC.id && obj.type === 'npc'
+    )
+    
+    if (index !== -1) {
+        this.placedObjects.splice(index, 1)
+        this.renderMap()
+        this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé`, 'success')
+    }
+    
+    this.selectedNPC = null
+}
+
+// ✅ NOUVELLE MÉTHODE: Convertir au format éditeur NPC
+convertToNPCEditorFormat(mapNPC) {
+    return {
+        id: mapNPC.id,
+        name: mapNPC.name,
+        type: mapNPC.npcType || mapNPC.type,
+        position: {
+            x: mapNPC.x * this.currentMapData.tilewidth,
+            y: mapNPC.y * this.currentMapData.tileheight
+        },
+        sprite: mapNPC.sprite,
+        direction: mapNPC.direction || 'south',
+        interactionRadius: mapNPC.interactionRadius || 32,
+        canWalkAway: mapNPC.canWalkAway !== false,
+        autoFacePlayer: mapNPC.autoFacePlayer !== false,
+        repeatable: mapNPC.repeatable !== false,
+        cooldownSeconds: mapNPC.cooldownSeconds || 0,
+        // Copier toutes les autres propriétés
+        ...mapNPC.customProperties,
+        // Marquer comme venant de l'éditeur de carte
+        fromMapEditor: true,
+        originalMapPosition: { x: mapNPC.x, y: mapNPC.y }
+    }
+}
+
+    // ✅ NOUVELLE MÉTHODE: Charger un NPC depuis l'éditeur de carte
+loadNPCFromMapEditor(npcData) {
+    console.log('🗺️ [NPCEditor] Loading NPC from Map Editor:', npcData)
+    
+    // S'assurer qu'on est sur la bonne zone
+    if (this.adminPanel.mapEditor && this.adminPanel.mapEditor.currentMapData) {
+        const mapId = this.getMapIdFromMapEditor()
+        if (mapId && mapId !== this.currentZone) {
+            this.selectZone(mapId)
+        }
+    }
+    
+    // Charger le NPC dans l'éditeur
+    this.selectedNPC = npcData
+    this.updateEditorState()
+    
+    if (this.formBuilder) {
+        this.formBuilder.loadNPC(npcData)
+    }
+    
+    // Marquer comme modifié
+    this.unsavedChanges = true
+    
+    this.adminPanel.showNotification(`NPC "${npcData.name}" chargé pour édition`, 'success')
+}
+
+// ✅ NOUVELLE MÉTHODE: Obtenir l'ID de carte depuis l'éditeur
+getMapIdFromMapEditor() {
+    const mapSelect = document.getElementById('mapSelect')
+    return mapSelect ? mapSelect.value : null
+}
+    
     placeItemObject(tileX, tileY) {
         if (!this.selectedItem) {
             this.adminPanel.showNotification('Aucun item sélectionné !', 'warning')
