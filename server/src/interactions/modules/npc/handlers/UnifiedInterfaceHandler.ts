@@ -24,7 +24,17 @@ import {
 // Import des handlers existants
 import { MerchantNpcHandler } from "./MerchantNpcHandler";
 
-// ===== INTERFACE NPC DATA COMPLÈTE (Compatible JSON + MongoDB + Tiled) =====
+// ===== TYPES UTILITAIRES POUR ÉVITER LES ERREURS =====
+type QuestReward = {
+  type: 'item' | 'gold' | 'experience';
+  itemId?: string;
+  amount: number;
+};
+
+type TrainerRewards = {
+  money: number;
+  items: any[];
+};
 interface NpcData {
   id: number;
   name: string;
@@ -499,11 +509,7 @@ export class UnifiedInterfaceHandler {
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: [] as Array<{
-          type: 'item' | 'gold' | 'experience';
-          itemId?: string;
-          amount: number;
-        }> as Array<{
+        rewards: [] as QuestReward[] as Array<{
           type: 'item' | 'gold' | 'experience';
           itemId?: string;
           amount: number;
@@ -571,7 +577,7 @@ export class UnifiedInterfaceHandler {
       rewards: {
         money: 500,
         items: []
-      },
+      } as TrainerRewards,
       canBattle: true
     };
   }
