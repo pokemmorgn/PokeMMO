@@ -9,6 +9,9 @@ import { PokedexStats } from '../models/PokedexStats';
 import { QuestData } from '../models/QuestData'; // ✅ AJOUT: Import du modèle QuestData
 import { GameObjectData } from '../models/GameObjectData';
 import { NpcData } from '../models/NpcData'; // ✅ Correct
+import { ShopData } from '../models/ShopData.js'
+
+
 import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -4081,5 +4084,336 @@ router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
         });
     }
 });
+
+// À ajouter dans server/src/routes/admin.ts - Section Shops API
+
+/**
+ * GET /api/admin/shops/list
+ * Récupérer la liste de toutes les boutiques pour le sélecteur NPC
+ */
+router.get('/shops/list', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        console.log('📋 [Admin] Loading shops list for NPC selector...')
+        
+        // Récupérer toutes les boutiques actives depuis MongoDB
+        const shops = await ShopData.find({ isActive: true })
+            .select('shopId nameKey type location currency items isTemporary isActive')
+            .sort({ 'location.zone': 1, shopId: 1 })
+            .lean()
+        
+        if (!shops || shops.length === 0) {
+            console.log('📋 [Admin] No shops found in database')
+            return res.json({
+                success: true,
+                shops: [],
+                message: 'No shops found'
+            })
+        }
+        
+        // Formater les données pour le frontend
+        const formattedShops = shops.map(shop => ({
+            shopId: shop.shopId,
+            nameKey: shop.nameKey,
+            name: shop.nameKey || shop.shopId, // Fallback pour compatibilité
+            type: shop.type,
+            location: {
+                zone: shop.location?.zone || 'unknown',
+                cityKey: shop.location?.cityKey,
+                buildingKey: shop.location?.buildingKey
+            },
+            currency: shop.currency || 'gold',
+            itemCount: shop.items?.length || 0,
+            isTemporary: shop.isTemporary || false,
+            isActive: shop.isActive !== false
+        }))
+        
+        console.log(`✅ [Admin] Successfully loaded ${formattedShops.length} shops for NPC selector`)
+        
+        res.json({
+            success: true,
+            shops: formattedShops,
+            total: formattedShops.length
+        })
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error loading shops list:', error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du chargement des boutiques',
+            details: error.message
+        })
+    }
+})
+
+/**
+ * GET /api/admin/shops/search
+ * Rechercher des boutiques par terme
+ */
+router.post('/shops/search', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        const { query, limit = 50, type = null, zone = null } = req.body
+        
+        console.log(`🔍 [Admin] Searching shops with query: "${query}"`)
+        
+        // Construire le filtre de recherche
+        const searchFilter: any = { isActive: true }
+        
+        // Filtre par zone si spécifié
+        if (zone) {
+            searchFilter['location.zone'] = zone
+        }
+        
+        // Filtre par type si spécifié
+        if (type) {
+            searchFilter.type = type
+        }
+        
+        // Recherche textuelle
+        if (query && query.length >= 2) {
+            searchFilter.$or = [
+                { shopId: { $regex: query, $options: 'i' } },
+                { nameKey: { $regex: query, $options: 'i' } },
+                { 'location.zone': { $regex: query, $options: 'i' } },
+                { type: { $regex: query, $options: 'i' } }
+            ]
+        }
+        
+        const shops = await ShopData.find(searchFilter)
+            .select('shopId nameKey type location currency items isTemporary')
+            .sort({ 'location.zone': 1, shopId: 1 })
+            .limit(limit)
+            .lean()
+        
+        const results = shops.map(shop => ({
+            shopId: shop.shopId,
+            name: shop.nameKey || shop.shopId,
+            nameKey: shop.nameKey,
+            type: shop.type,
+            zone: shop.location?.zone || 'unknown',
+            location: shop.location,
+            currency: shop.currency,
+            itemCount: shop.items?.length || 0,
+            isTemporary: shop.isTemporary
+        }))
+        
+        console.log(`✅ [Admin] Found ${results.length} shops matching search`)
+        
+        res.json({
+            success: true,
+            results,
+            query,
+            total: results.length
+        })
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error searching shops:', error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la recherche de boutiques'
+        })
+    }
+})
+
+/**
+ * GET /api/admin/shops/by-zone/:zone
+ * Récupérer les boutiques d'une zone spécifique
+ */
+router.get('/shops/by-zone/:zone', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        const { zone } = req.params
+        
+        console.log(`🗺️ [Admin] Loading shops for zone: ${zone}`)
+        
+        const shops = await ShopData.findByZone(zone)
+        
+        const formattedShops = shops.map(shop => ({
+            shopId: shop.shopId,
+            name: shop.nameKey || shop.shopId,
+            nameKey: shop.nameKey,
+            type: shop.type,
+            location: shop.location,
+            currency: shop.currency,
+            items: shop.items,
+            shopKeeper: shop.shopKeeper,
+            dialogues: shop.dialogues,
+            isTemporary: shop.isTemporary,
+            isActive: shop.isActive
+        }))
+        
+        res.json({
+            success: true,
+            shops: formattedShops,
+            zone,
+            total: formattedShops.length
+        })
+        
+    } catch (error) {
+        console.error(`❌ [Admin] Error loading shops for zone ${req.params.zone}:`, error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du chargement des boutiques de la zone'
+        })
+    }
+})
+
+/**
+ * GET /api/admin/shops/by-type/:type
+ * Récupérer les boutiques d'un type spécifique
+ */
+router.get('/shops/by-type/:type', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        const { type } = req.params
+        
+        console.log(`🏪 [Admin] Loading shops of type: ${type}`)
+        
+        const shops = await ShopData.findByType(type as any)
+        
+        const formattedShops = shops.map(shop => ({
+            shopId: shop.shopId,
+            name: shop.nameKey || shop.shopId,
+            nameKey: shop.nameKey,
+            type: shop.type,
+            location: shop.location,
+            currency: shop.currency,
+            itemCount: shop.items?.length || 0,
+            isTemporary: shop.isTemporary
+        }))
+        
+        res.json({
+            success: true,
+            shops: formattedShops,
+            type,
+            total: formattedShops.length
+        })
+        
+    } catch (error) {
+        console.error(`❌ [Admin] Error loading shops of type ${req.params.type}:`, error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du chargement des boutiques par type'
+        })
+    }
+})
+
+/**
+ * GET /api/admin/shops/details/:shopId
+ * Récupérer les détails complets d'une boutique
+ */
+router.get('/shops/details/:shopId', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        const { shopId } = req.params
+        
+        console.log(`🔍 [Admin] Loading details for shop: ${shopId}`)
+        
+        const shop = await ShopData.findOne({ shopId }).lean()
+        
+        if (!shop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique non trouvée'
+            })
+        }
+        
+        // Formater les détails complets
+        const shopDetails = {
+            shopId: shop.shopId,
+            nameKey: shop.nameKey,
+            name: shop.nameKey || shop.shopId,
+            type: shop.type,
+            location: shop.location,
+            currency: shop.currency,
+            buyMultiplier: shop.buyMultiplier,
+            sellMultiplier: shop.sellMultiplier,
+            items: shop.items.map(item => ({
+                itemId: item.itemId,
+                category: item.category,
+                basePrice: item.basePrice,
+                stock: item.stock,
+                unlockLevel: item.unlockLevel,
+                requiredBadges: item.requiredBadges,
+                featured: item.featured
+            })),
+            shopKeeper: shop.shopKeeper,
+            dialogues: shop.dialogues,
+            accessRequirements: shop.accessRequirements,
+            restockInfo: shop.restockInfo,
+            isTemporary: shop.isTemporary,
+            isActive: shop.isActive,
+            lastUpdated: shop.lastUpdated
+        }
+        
+        res.json({
+            success: true,
+            shop: shopDetails
+        })
+        
+    } catch (error) {
+        console.error(`❌ [Admin] Error loading shop details for ${req.params.shopId}:`, error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du chargement des détails de la boutique'
+        })
+    }
+})
+
+/**
+ * GET /api/admin/shops/stats
+ * Statistiques générales des boutiques
+ */
+router.get('/shops/stats', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+    try {
+        console.log('📊 [Admin] Generating shops statistics...')
+        
+        const [
+            totalShops,
+            activeShops,
+            temporaryShops,
+            shopsByType,
+            shopsByZone
+        ] = await Promise.all([
+            ShopData.countDocuments({}),
+            ShopData.countDocuments({ isActive: true }),
+            ShopData.countDocuments({ isTemporary: true }),
+            ShopData.aggregate([
+                { $group: { _id: '$type', count: { $sum: 1 } } },
+                { $sort: { count: -1 } }
+            ]),
+            ShopData.aggregate([
+                { $group: { _id: '$location.zone', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 10 }
+            ])
+        ])
+        
+        const stats = {
+            total: totalShops,
+            active: activeShops,
+            inactive: totalShops - activeShops,
+            temporary: temporaryShops,
+            byType: shopsByType.reduce((acc, item) => {
+                acc[item._id] = item.count
+                return acc
+            }, {}),
+            topZones: shopsByZone.map(item => ({
+                zone: item._id,
+                count: item.count
+            }))
+        }
+        
+        console.log('✅ [Admin] Shop statistics generated successfully')
+        
+        res.json({
+            success: true,
+            stats
+        })
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error generating shop statistics:', error)
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la génération des statistiques'
+        })
+    }
+})
 
 export default router;
