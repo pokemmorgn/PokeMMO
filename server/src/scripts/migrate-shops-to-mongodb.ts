@@ -466,7 +466,7 @@ class ShopMigrator {
           timeRestrictions: {
             openHour: 9,
             closeHour: 21,
-            closedDays: []
+            closedDays: new Array<number>()
           }
         }
       };
