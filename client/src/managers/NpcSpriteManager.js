@@ -15,7 +15,7 @@ export class NpcSpriteManager {
     this.config = {
       spritePath: '/assets/npc/',
       spriteExtension: '.png',
-      fallbackSprite: 'default_npc',
+      fallbackSprite: 'npc_default', // ✅ CHANGÉ : utiliser npc_default au lieu de default_npc
       enableDebugLogs: true,
       maxRetries: 2,
       retryDelay: 1000
@@ -182,7 +182,11 @@ export class NpcSpriteManager {
   // ✅ PERFORMER LE CHARGEMENT RÉEL DU SPRITE
   async performSpriteLoad(spriteKey) {
     return new Promise((resolve, reject) => {
-      const spritePath = `${this.config.spritePath}${spriteKey}${this.config.spriteExtension}`;
+      // ✅ FIX : Éviter la double extension si le sprite a déjà .png
+      const hasExtension = spriteKey.endsWith('.png') || spriteKey.endsWith('.jpg') || spriteKey.endsWith('.jpeg');
+      const spritePath = hasExtension 
+        ? `${this.config.spritePath}${spriteKey}`
+        : `${this.config.spritePath}${spriteKey}${this.config.spriteExtension}`;
       
       console.log(`[NpcSpriteManager] 🔄 Chargement: ${spritePath}`);
       
