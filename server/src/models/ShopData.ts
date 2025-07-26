@@ -156,6 +156,7 @@ export interface IShopData extends Document {
   canPlayerBuy(itemId: string, quantity: number, playerLevel: number, playerBadges: string[]): boolean;
   restockShop(): Promise<void>;
   categorizeItem(itemId: string): ShopCategory;
+  generateDefaultDialogues(): any;
 }
 
 // Interface pour les méthodes statiques
