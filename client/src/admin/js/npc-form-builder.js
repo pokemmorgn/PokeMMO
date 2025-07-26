@@ -1790,6 +1790,401 @@ async refreshQuestDetails(fieldName, index) {
     }
 }
 
+    // MÉTHODE À AJOUTER : Créer un champ de sélection de boutiques
+createShopSelectorField(fieldName, currentValue, isRequired) {
+    const shopId = currentValue || '';
+    
+    return `
+        <div class="shop-selector-field" data-field-name="${fieldName}">
+            <div class="shop-input-group">
+                <input type="text" class="form-input shop-id" 
+                       name="${fieldName}" 
+                       value="${shopId}" 
+                       placeholder="shop_id">
+                <div class="shop-details" id="${fieldName}_details">
+                    ${this.getShopDetails(shopId)}
+                </div>
+            </div>
+            <div class="shop-controls">
+                <button type="button" class="btn btn-sm btn-primary set-shop-manual" 
+                        onclick="window.npcFormBuilder.setShopManual('${fieldName}')">
+                    ✏️ Saisir ID manuel
+                </button>
+                <button type="button" class="btn btn-sm btn-success choose-shop-from-db" 
+                        onclick="window.npcFormBuilder.openShopSelector('${fieldName}')">
+                    🏪 Choisir de la DB
+                </button>
+                <button type="button" class="btn btn-sm btn-info refresh-shop" 
+                        onclick="window.npcFormBuilder.refreshShopDetails('${fieldName}')">
+                    🔄 Actualiser
+                </button>
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Obtenir les détails d'une boutique
+getShopDetails(shopId) {
+    if (!shopId) {
+        return '<div class="shop-details unknown"><span class="shop-name">Aucune boutique sélectionnée</span></div>'
+    }
+    
+    // Récupérer depuis le cache local si disponible
+    if (this.shopsCache && this.shopsCache[shopId]) {
+        const shop = this.shopsCache[shopId]
+        return `
+            <div class="shop-details known">
+                <span class="shop-name">${shop.nameKey || shop.name || shopId}</span>
+                <span class="shop-type">${shop.type}</span>
+                <span class="shop-location">${shop.location?.zone || 'Zone inconnue'}</span>
+            </div>
+        `
+    }
+    
+    return `
+        <div class="shop-details unknown">
+            <span class="shop-name">Boutique: ${shopId}</span>
+            <span class="shop-status">Détails non chargés</span>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Saisir un shop ID manuellement
+setShopManual(fieldName) {
+    const currentValue = this.getFieldValue(fieldName) || ''
+    const shopId = prompt('Entrez l\'ID de la boutique:', currentValue)
+    
+    if (shopId === null) return // Annulé
+    
+    // Mettre à jour le champ
+    const input = document.querySelector(`input[name="${fieldName}"]`)
+    if (input) {
+        input.value = shopId
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    
+    this.setFieldValue(fieldName, shopId)
+    this.updateShopDetails(fieldName, shopId)
+    this.updateJsonPreview()
+}
+
+// MÉTHODE À AJOUTER : Ouvrir le sélecteur de boutiques
+async openShopSelector(fieldName) {
+    try {
+        // Charger les boutiques depuis la DB
+        const shops = await this.loadShopsFromDB()
+        
+        if (!shops || shops.length === 0) {
+            alert('Aucune boutique trouvée dans la base de données')
+            return
+        }
+        
+        // Créer et afficher la modal de sélection
+        this.showShopSelectorModal(fieldName, shops)
+        
+    } catch (error) {
+        console.error('Erreur chargement boutiques:', error)
+        alert('Erreur lors du chargement des boutiques: ' + error.message)
+    }
+}
+
+// MÉTHODE À AJOUTER : Charger les boutiques depuis MongoDB
+async loadShopsFromDB() {
+    // Vérification avant utilisation
+    if (!this.adminPanel) {
+        throw new Error('AdminPanel non initialisé')
+    }
+    
+    try {
+        console.log('🏪 [FormBuilder] Chargement boutiques depuis MongoDB via adminPanel.apiCall...')
+        
+        // Utiliser la même méthode que pour les quêtes
+        const response = await this.adminPanel.apiCall('/shops/list')
+        
+        console.log('🏪 [FormBuilder] Response API boutiques reçue:', response)
+        
+        // Vérifier le format de réponse
+        if (!response || typeof response !== 'object') {
+            throw new Error('Réponse API invalide')
+        }
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Erreur serveur inconnue')
+        }
+        
+        // Vérifier que les boutiques sont présentes
+        if (!response.shops || !Array.isArray(response.shops)) {
+            console.warn('⚠️ [FormBuilder] Pas de boutiques dans la réponse, utiliser tableau vide')
+            return []
+        }
+        
+        // Mettre en cache pour usage ultérieur
+        this.shopsCache = {}
+        response.shops.forEach(shop => {
+            if (shop && shop.shopId) {
+                this.shopsCache[shop.shopId] = shop
+            }
+        })
+        
+        console.log(`✅ [FormBuilder] ${response.shops.length} boutiques chargées depuis MongoDB`)
+        console.log('🏪 [FormBuilder] Première boutique exemple:', response.shops[0])
+        
+        return response.shops
+        
+    } catch (error) {
+        console.error('❌ [FormBuilder] Erreur chargement boutiques depuis MongoDB:', error)
+        
+        // Diagnostic détaillé pour débugger
+        console.log('🔍 [FormBuilder] Diagnostic détaillé boutiques:')
+        console.log('  - this.adminPanel existe:', !!this.adminPanel)
+        console.log('  - this.adminPanel.apiCall existe:', !!this.adminPanel?.apiCall)
+        
+        // Afficher l'erreur à l'utilisateur pour information
+        if (this.adminPanel && this.adminPanel.showNotification) {
+            this.adminPanel.showNotification('Erreur chargement boutiques: ' + error.message, 'error')
+        }
+        
+        // Retourner tableau vide en cas d'erreur pour éviter les crashes
+        return []
+    }
+}
+
+// MÉTHODE À AJOUTER : Afficher la modal de sélection de boutiques
+showShopSelectorModal(fieldName, shops) {
+    const currentShop = this.getFieldValue(fieldName) || ''
+    
+    const modalHTML = `
+        <div class="shop-selector-modal" id="shopSelectorModal">
+            <div class="modal-backdrop" onclick="window.npcFormBuilder.closeShopSelector()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🏪 Sélectionner une Boutique</h3>
+                    <button type="button" class="btn-close" onclick="window.npcFormBuilder.closeShopSelector()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="🔍 Rechercher une boutique..." 
+                               onkeyup="window.npcFormBuilder.filterShops(this.value)">
+                    </div>
+                    <div class="shops-filter-tabs">
+                        <button class="filter-tab active" onclick="window.npcFormBuilder.filterShopsByType('all')">
+                            Toutes (${shops.length})
+                        </button>
+                        ${this.getShopTypeFilters(shops)}
+                    </div>
+                    <div class="shops-list" id="shopsList">
+                        ${shops.map(shop => this.createShopOption(shop, currentShop)).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.npcFormBuilder.closeShopSelector()">
+                        Annuler
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="window.npcFormBuilder.applyShopSelection('${fieldName}')">
+                        Sélectionner
+                    </button>
+                </div>
+            </div>
+        </div>
+    `
+    
+    // Ajouter la modal au DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML)
+    
+    // Stocker la sélection temporaire
+    this.tempShopSelection = currentShop
+}
+
+// MÉTHODE À AJOUTER : Créer les filtres par type de boutique
+getShopTypeFilters(shops) {
+    const typeCount = {}
+    shops.forEach(shop => {
+        const type = shop.type || 'unknown'
+        typeCount[type] = (typeCount[type] || 0) + 1
+    })
+    
+    const typeNames = {
+        'pokemart': 'PokéMart',
+        'department': 'Grand Magasin',
+        'specialist': 'Spécialisé',
+        'gym_shop': 'Arène',
+        'contest_shop': 'Concours',
+        'game_corner': 'Casino',
+        'black_market': 'Marché Noir',
+        'trainer_shop': 'Dresseur',
+        'temporary': 'Temporaire',
+        'vending_machine': 'Distributeur',
+        'online_shop': 'En Ligne'
+    }
+    
+    return Object.entries(typeCount).map(([type, count]) => `
+        <button class="filter-tab" onclick="window.npcFormBuilder.filterShopsByType('${type}')">
+            ${typeNames[type] || type} (${count})
+        </button>
+    `).join('')
+}
+
+// MÉTHODE À AJOUTER : Créer une option de boutique
+createShopOption(shop, currentShop) {
+    const isSelected = shop.shopId === currentShop
+    const shopName = shop.nameKey || shop.name || shop.shopId
+    const shopType = shop.type || 'unknown'
+    const shopZone = shop.location?.zone || 'Zone inconnue'
+    const currency = shop.currency || 'gold'
+    const itemCount = shop.items?.length || 0
+    
+    const typeIcons = {
+        'pokemart': '🏪',
+        'department': '🏬',
+        'specialist': '🎯',
+        'gym_shop': '🏆',
+        'contest_shop': '🎭',
+        'game_corner': '🎰',
+        'black_market': '🕵️',
+        'trainer_shop': '⚔️',
+        'temporary': '⏰',
+        'vending_machine': '🤖',
+        'online_shop': '💻'
+    }
+    
+    return `
+        <div class="shop-option ${isSelected ? 'selected' : ''}" 
+             data-shop-id="${shop.shopId}" 
+             data-shop-type="${shopType}"
+             onclick="window.npcFormBuilder.selectShop('${shop.shopId}')">
+            <div class="shop-icon">${typeIcons[shopType] || '🏪'}</div>
+            <div class="shop-info">
+                <div class="shop-name">${shopName}</div>
+                <div class="shop-meta">
+                    <span class="shop-id">ID: ${shop.shopId}</span>
+                    <span class="shop-type-label">${shopType}</span>
+                    <span class="shop-zone">📍 ${shopZone}</span>
+                </div>
+                <div class="shop-details-row">
+                    <span class="shop-currency">💰 ${currency}</span>
+                    <span class="shop-items">📦 ${itemCount} objets</span>
+                    ${shop.isTemporary ? '<span class="shop-temp">⏰ Temporaire</span>' : ''}
+                    ${!shop.isActive ? '<span class="shop-inactive">❌ Inactive</span>' : ''}
+                </div>
+            </div>
+            <div class="shop-status">
+                ${isSelected ? '✅' : ''}
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Sélectionner une boutique
+selectShop(shopId) {
+    // Mettre à jour l'affichage
+    document.querySelectorAll('.shop-option').forEach(option => {
+        option.classList.toggle('selected', option.dataset.shopId === shopId)
+    })
+    
+    // Stocker la sélection temporaire
+    this.tempShopSelection = shopId
+}
+
+// MÉTHODE À AJOUTER : Filtrer les boutiques par recherche
+filterShops(searchTerm) {
+    const shopItems = document.querySelectorAll('.shop-option')
+    const term = searchTerm.toLowerCase()
+    
+    shopItems.forEach(item => {
+        const shopName = item.querySelector('.shop-name').textContent.toLowerCase()
+        const shopId = item.querySelector('.shop-id').textContent.toLowerCase()
+        const shopZone = item.querySelector('.shop-zone').textContent.toLowerCase()
+        const shopType = item.querySelector('.shop-type-label').textContent.toLowerCase()
+        
+        const matches = shopName.includes(term) || 
+                       shopId.includes(term) || 
+                       shopZone.includes(term) || 
+                       shopType.includes(term)
+        
+        item.style.display = matches ? 'block' : 'none'
+    })
+}
+
+// MÉTHODE À AJOUTER : Filtrer les boutiques par type
+filterShopsByType(type) {
+    // Mettre à jour les onglets
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active')
+    })
+    event.target.classList.add('active')
+    
+    // Filtrer les boutiques
+    const shopItems = document.querySelectorAll('.shop-option')
+    
+    shopItems.forEach(item => {
+        const shopType = item.dataset.shopType
+        const matches = type === 'all' || shopType === type
+        item.style.display = matches ? 'block' : 'none'
+    })
+}
+
+// MÉTHODE À AJOUTER : Appliquer la sélection de boutique
+applyShopSelection(fieldName) {
+    if (this.tempShopSelection) {
+        // Mettre à jour le champ
+        const input = document.querySelector(`input[name="${fieldName}"]`)
+        if (input) {
+            input.value = this.tempShopSelection
+            input.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+        
+        this.setFieldValue(fieldName, this.tempShopSelection)
+        this.updateShopDetails(fieldName, this.tempShopSelection)
+        this.updateJsonPreview()
+    }
+    
+    this.closeShopSelector()
+}
+
+// MÉTHODE À AJOUTER : Fermer la modal de sélection
+closeShopSelector() {
+    const modal = document.getElementById('shopSelectorModal')
+    if (modal) {
+        modal.remove()
+    }
+    this.tempShopSelection = null
+}
+
+// MÉTHODE À AJOUTER : Mettre à jour les détails d'une boutique
+updateShopDetails(fieldName, shopId) {
+    const detailsDiv = document.getElementById(`${fieldName}_details`)
+    if (detailsDiv) {
+        detailsDiv.innerHTML = this.getShopDetails(shopId)
+    }
+}
+
+// MÉTHODE À AJOUTER : Actualiser les détails d'une boutique
+async refreshShopDetails(fieldName) {
+    const input = document.querySelector(`input[name="${fieldName}"]`)
+    if (!input) return
+    
+    const shopId = input.value
+    if (!shopId) return
+    
+    try {
+        // Recharger les détails depuis la DB
+        await this.loadShopsFromDB()
+        
+        // Mettre à jour l'affichage
+        this.updateShopDetails(fieldName, shopId)
+        
+        if (this.adminPanel) {
+            this.adminPanel.showNotification('Détails de la boutique actualisés', 'success')
+        }
+        
+    } catch (error) {
+        console.error('Erreur actualisation boutique:', error)
+        if (this.adminPanel) {
+            this.adminPanel.showNotification('Erreur actualisation: ' + error.message, 'error')
+        }
+    }
+}
+    
     // API publique
     getNPC() {
         return this.currentNPC ? { ...this.currentNPC } : null
@@ -1826,5 +2221,6 @@ async refreshQuestDetails(fieldName, index) {
         this.currentType = null
     }
 }
+
 
 export default NPCFormBuilder
