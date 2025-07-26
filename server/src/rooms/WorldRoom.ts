@@ -1134,12 +1134,42 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
         });
       }
     });
-    // Récupérer le catalogue d'un shop
+// Récupérer le catalogue d'un shop via système intégré
     this.onMessage("getShopCatalog", (client, data) => {
-      console.log(`🏪 [WorldRoom] Demande de catalogue shop: ${data.shopId}`);
-      this.handleGetShopCatalog(client, data.shopId);
-    });
+      console.log(`🏪 [WorldRoom] Demande catalogue shop via système intégré: ${data.shopId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("shopCatalogResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
 
+      // ✅ UTILISER DIRECTEMENT SHOPMANAGER (déjà intégré)
+      const catalog = this.shopManager.getShopCatalog(data.shopId, player.level || 1);
+
+      if (catalog) {
+        const response = {
+          success: true,
+          shopId: data.shopId,
+          catalog: {
+            shopInfo: catalog.shopInfo,
+            availableItems: catalog.availableItems
+          },
+          playerGold: player.gold || 1000
+        };
+
+        client.send("shopCatalogResult", response);
+        console.log(`✅ Catalogue shop ${data.shopId} envoyé via système intégré`);
+      } else {
+        client.send("shopCatalogResult", {
+          success: false,
+          message: "Shop introuvable"
+        });
+      }
+    });
     // Rafraîchir un shop (restock)
     this.onMessage("refreshShop", (client, data) => {
       console.log(`🔄 [WorldRoom] Rafraîchissement shop: ${data.shopId}`);
