@@ -22,7 +22,7 @@ import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
 import ObjectManager from "../../managers/ObjectManager.js";
-
+import { NpcSpriteManager } from '../managers/NpcSpriteManager.js';
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -2180,7 +2180,7 @@ onPlayerPositioned(player, initData) {
   setupManagers() {
     this.playerManager = new PlayerManager(this);
     this.npcManager = new NpcManager(this);
-    
+    this.npcSpriteManager = this.npcManager.npcSpriteManager;
     // AJOUTER
     this.pokemonFollowerManager = new PokemonFollowerManager(this);
     console.log("✅ PokemonFollowerManager initialisé");
@@ -2671,6 +2671,17 @@ onPlayerPositioned(player, initData) {
     };
   }
 
+    // ✅ NOUVELLE MÉTHODE : Ajouter après getEncounterSystemStatus()
+  getNpcSpriteSystemStatus() {
+    return {
+      initialized: !!this.npcSpriteManager,
+      managerExists: !!this.npcManager?.npcSpriteManager,
+      stats: this.npcSpriteManager?.stats || null,
+      loadedSprites: this.npcSpriteManager?.loadedSprites?.size || 0,
+      failedSprites: this.npcSpriteManager?.failedSprites?.size || 0,
+      isReady: this.npcSpriteManager?.isInitialized || false
+    };
+  }
   // 🔒 NOUVELLES MÉTHODES: Gestion du système MovementBlock
   getMovementBlockSystemStatus() {
     return {
@@ -2811,7 +2822,7 @@ onPlayerPositioned(player, initData) {
     
     // 🆕 NOUVEAU: Debug encounter system
     console.log(`🎲 Encounter System:`, this.getEncounterSystemStatus());
-    
+    console.log(`🎭 NPC Sprite System:`, this.getNpcSpriteSystemStatus());
     // 🔒 NOUVEAU: Debug movement block system
     console.log(`🔒 MovementBlock System:`, this.getMovementBlockSystemStatus());
     
@@ -3143,6 +3154,13 @@ debugMusicSystem() {
       simulateSteps: (count) => this.simulateEncounterSteps(count),
       getEncounterInfo: () => this.getCurrentEncounterInfo(),
       getEncounterStatus: () => this.getEncounterSystemStatus(),
+          // ✅ NOUVELLES FONCTIONS NPC SPRITES
+      debugNpcSprites: () => this.npcManager?.debugFullState(),
+      debugSpriteManager: () => this.npcSpriteManager?.debugStats(),
+      getSpriteManagerInfo: () => this.npcSpriteManager?.getDebugInfo(),
+      cleanupSprites: () => this.npcManager?.cleanupUnusedSprites(),
+      reloadNpcSprite: (npcId, newSprite) => this.npcManager?.reloadNpcSprite(npcId, newSprite),
+      getNpcSpriteInfo: (npcId) => this.npcManager?.getNpcSpriteInfo(npcId),
       // 🔒 NOUVELLES FONCTIONS MOVEMENTBLOCK
       debugMovementBlock: () => this.debugMovementBlockHandler(),
       debugInputManager: () => this.debugInputManager(),
