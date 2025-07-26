@@ -1,4 +1,4 @@
-// managers/UIManager.js - FIXÉ avec protection anti-duplication STRICTE
+// managers/UIManager.js - FIXÉ avec protection anti-duplication STRICTE + correction positionnement
 // 🚨 PRÉVENTION COMPLÈTE de la double initialisation des modules
 
 export class UIManager {
@@ -589,78 +589,78 @@ export class UIManager {
     console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
-positionIcon(moduleId) {
-  const iconConfig = this.registeredIcons.get(moduleId);
-  if (!iconConfig || !iconConfig.element) {
-    console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
-    return;
-  }
+  // ✅ FIX CRITIQUE: Correction positionIcon pour utiliser order au lieu de memberIndex
+  positionIcon(moduleId) {
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (!iconConfig || !iconConfig.element) {
+      console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
+      return;
+    }
 
-  const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-  const memberIndex = group.members.indexOf(moduleId);
-  const iconOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
-  
-  if (memberIndex === -1) {
-    console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
-    return;
-  }
+    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+    const memberIndex = group.members.indexOf(moduleId);
+    
+    if (memberIndex === -1) {
+      console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
+      return;
+    }
 
-  let baseX, baseY;
-  const padding = this.iconConfig.padding;
-  
-  switch (iconConfig.anchor) {
-    case 'bottom-right':
-      baseX = window.innerWidth - padding;
-      baseY = window.innerHeight - padding;
-      break;
-    case 'bottom-left':
-      baseX = padding;
-      baseY = window.innerHeight - padding;
-      break;
-    case 'top-right':
-      baseX = window.innerWidth - padding;
-      baseY = padding + 60;
-      break;
-    case 'top-left':
-      baseX = padding;
-      baseY = padding;
-      break;
-    default:
-      baseX = window.innerWidth - padding;
-      baseY = window.innerHeight - padding;
-  }
+    let baseX, baseY;
+    const padding = this.iconConfig.padding;
+    
+    switch (iconConfig.anchor) {
+      case 'bottom-right':
+        baseX = window.innerWidth - padding;
+        baseY = window.innerHeight - padding;
+        break;
+      case 'bottom-left':
+        baseX = padding;
+        baseY = window.innerHeight - padding;
+        break;
+      case 'top-right':
+        baseX = window.innerWidth - padding;
+        baseY = padding + 60;
+        break;
+      case 'top-left':
+        baseX = padding;
+        baseY = padding;
+        break;
+      default:
+        baseX = window.innerWidth - padding;
+        baseY = window.innerHeight - padding;
+    }
 
-  const spacing = this.iconConfig.spacing;
-  const iconWidth = iconConfig.size.width;
-  
-  // ✅ CORRECTION CRITIQUE: Utiliser ORDER au lieu de memberIndex
-  const iconOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
-  
-  let offsetX = 0;
-  if (iconConfig.anchor.includes('right')) {
-    // Pour bottom-right: chaque icône d'ordre supérieur va plus à gauche
-    offsetX = -iconOrder * (iconWidth + spacing) - iconWidth;
-  } else {
-    // Pour bottom-left: chaque icône d'ordre supérieur va plus à droite  
-    offsetX = iconOrder * (iconWidth + spacing);
-  }
+    const spacing = this.iconConfig.spacing;
+    const iconWidth = iconConfig.size.width;
+    
+    // ✅ CORRECTION CRITIQUE: Utiliser ORDER au lieu de memberIndex
+    const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
+    
+    let offsetX = 0;
+    if (iconConfig.anchor.includes('right')) {
+      // Pour bottom-right: chaque icône d'ordre supérieur va plus à gauche
+      offsetX = -calculatedOrder * (iconWidth + spacing) - iconWidth;
+    } else {
+      // Pour bottom-left: chaque icône d'ordre supérieur va plus à droite  
+      offsetX = calculatedOrder * (iconWidth + spacing);
+    }
 
-  const element = iconConfig.element;
-  const finalX = baseX + offsetX;
-  const finalY = baseY - iconConfig.size.height;
-  
-  element.style.position = 'fixed';
-  element.style.left = `${finalX}px`;
-  element.style.top = `${finalY}px`;
-  element.style.zIndex = this.iconConfig.zIndex;
+    const element = iconConfig.element;
+    const finalX = baseX + offsetX;
+    const finalY = baseY - iconConfig.size.height;
+    
+    element.style.position = 'fixed';
+    element.style.left = `${finalX}px`;
+    element.style.top = `${finalY}px`;
+    element.style.zIndex = this.iconConfig.zIndex;
 
-  // ✅ Marquer comme positionné
-  element.setAttribute('data-positioned-by', 'uimanager');
-  
-  if (this.debug) {
-    console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${iconOrder} (était memberIndex: ${memberIndex})`);
+    // ✅ Marquer comme positionné
+    element.setAttribute('data-positioned-by', 'uimanager');
+    
+    if (this.debug) {
+      console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${calculatedOrder} (memberIndex: ${memberIndex})`);
+    }
   }
-}
 
   repositionAllIcons() {
     this.registeredIcons.forEach((iconConfig, moduleId) => {
@@ -704,52 +704,52 @@ positionIcon(moduleId) {
     return this;
   }
 
-showModule(moduleId, options = {}) {
-  console.log(`👁️ [UIManager] Affichage module ${moduleId}...`);
-  
-  if (!this.canShowModule(moduleId)) {
-    console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
-    return false;
-  }
-  
-  const success = this.setModuleState(moduleId, { visible: true });
-  
-  if (success) {
-    this.openModules.add(moduleId);
+  showModule(moduleId, options = {}) {
+    console.log(`👁️ [UIManager] Affichage module ${moduleId}...`);
     
-    // ✅ Synchroniser l'état avec l'instance
-    const instance = this.getModuleInstance(moduleId);
-    if (instance) {
-      instance.isEnabled = true;
-      instance.initialized = true;
+    if (!this.canShowModule(moduleId)) {
+      console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
+      return false;
     }
     
-    const iconConfig = this.registeredIcons.get(moduleId);
-    if (iconConfig && iconConfig.element) {
-      const element = iconConfig.element;
+    const success = this.setModuleState(moduleId, { visible: true });
+    
+    if (success) {
+      this.openModules.add(moduleId);
       
-      // ✅ CORRECTION SPÉCIFIQUE : Nettoyer tous les états de masquage
-      element.style.display = 'block';
-      element.style.visibility = 'visible';
-      element.style.opacity = '1';
-      element.style.pointerEvents = 'auto';
-      element.style.transform = ''; // Reset transform
-      element.style.transition = ''; // Reset transition
+      // ✅ Synchroniser l'état avec l'instance
+      const instance = this.getModuleInstance(moduleId);
+      if (instance) {
+        instance.isEnabled = true;
+        instance.initialized = true;
+      }
       
-      // ✅ CORRECTION CRITIQUE : Supprimer toutes les classes de masquage
-      element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        const element = iconConfig.element;
+        
+        // ✅ CORRECTION SPÉCIFIQUE : Nettoyer tous les états de masquage
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'auto';
+        element.style.transform = ''; // Reset transform
+        element.style.transition = ''; // Reset transition
+        
+        // ✅ CORRECTION CRITIQUE : Supprimer toutes les classes de masquage
+        element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+        
+        console.log(`🧹 [UIManager] ${moduleId} - classes supprimées:`, element.classList.contains('ui-hidden') ? 'ÉCHEC' : 'OK');
+        
+        // Repositionner
+        this.positionIcon(moduleId);
+      }
       
-      console.log(`🧹 [UIManager] ${moduleId} - classes supprimées:`, element.classList.contains('ui-hidden') ? 'ÉCHEC' : 'OK');
-      
-      // Repositionner
-      this.positionIcon(moduleId);
+      console.log(`✅ [UIManager] Module ${moduleId} affiché avec nettoyage complet`);
     }
     
-    console.log(`✅ [UIManager] Module ${moduleId} affiché avec nettoyage complet`);
+    return success;
   }
-  
-  return success;
-}
   
   hideModule(moduleId, options = {}) {
     const success = this.setModuleState(moduleId, { visible: false });
@@ -918,65 +918,65 @@ showModule(moduleId, options = {}) {
     return true;
   }
 
-applyGameState(stateConfig, animated = true) {
-  console.log(`🎮 [UIManager] Application état avec reset complet:`, stateConfig);
-  
-  const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
-  
-  // ✅ ÉTAPE 1: RESET COMPLET - tous les modules dans un état neutre
-  const allModuleIds = Array.from(this.modules.keys());
-  
-  // D'abord, remettre tous les modules visibles et activés
-  allModuleIds.forEach(moduleId => {
-    const iconConfig = this.registeredIcons.get(moduleId);
-    if (iconConfig && iconConfig.element) {
-      // Reset styles
-      iconConfig.element.style.display = 'block';
-      iconConfig.element.style.visibility = 'visible';
-      iconConfig.element.style.opacity = '1';
-      iconConfig.element.style.pointerEvents = 'auto';
-      iconConfig.element.style.filter = '';
-      iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
-    }
-  });
-  
-  console.log(`🔄 [UIManager] Reset ${allModuleIds.length} modules en état neutre`);
-  
-  // ✅ ÉTAPE 2: Appliquer les restrictions (hide/disable)
-  
-  // D'abord désactiver
-  disabledModules.forEach(moduleId => {
-    this.disableModule(moduleId);
-    console.log(`🔒 [UIManager] Module ${moduleId} désactivé`);
-  });
-  
-  // Puis cacher (plus restrictif que désactiver)
-  hiddenModules.forEach(moduleId => {
-    this.hideModule(moduleId, { animated });
-    console.log(`👻 [UIManager] Module ${moduleId} caché`);
-  });
-  
-  // ✅ ÉTAPE 3: Appliquer les permissions (show/enable) avec délai
-  setTimeout(() => {
-    // D'abord montrer
-    visibleModules.forEach(moduleId => {
-      this.showModule(moduleId, { animated });
-      console.log(`👁️ [UIManager] Module ${moduleId} affiché`);
+  applyGameState(stateConfig, animated = true) {
+    console.log(`🎮 [UIManager] Application état avec reset complet:`, stateConfig);
+    
+    const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
+    
+    // ✅ ÉTAPE 1: RESET COMPLET - tous les modules dans un état neutre
+    const allModuleIds = Array.from(this.modules.keys());
+    
+    // D'abord, remettre tous les modules visibles et activés
+    allModuleIds.forEach(moduleId => {
+      const iconConfig = this.registeredIcons.get(moduleId);
+      if (iconConfig && iconConfig.element) {
+        // Reset styles
+        iconConfig.element.style.display = 'block';
+        iconConfig.element.style.visibility = 'visible';
+        iconConfig.element.style.opacity = '1';
+        iconConfig.element.style.pointerEvents = 'auto';
+        iconConfig.element.style.filter = '';
+        iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+      }
     });
     
-    // Puis activer
-    enabledModules.forEach(moduleId => {
-      this.enableModule(moduleId);
-      console.log(`🔧 [UIManager] Module ${moduleId} activé`);
+    console.log(`🔄 [UIManager] Reset ${allModuleIds.length} modules en état neutre`);
+    
+    // ✅ ÉTAPE 2: Appliquer les restrictions (hide/disable)
+    
+    // D'abord désactiver
+    disabledModules.forEach(moduleId => {
+      this.disableModule(moduleId);
+      console.log(`🔒 [UIManager] Module ${moduleId} désactivé`);
     });
     
-    // ✅ ÉTAPE 4: Repositionner toutes les icônes
-    this.repositionAllIcons();
+    // Puis cacher (plus restrictif que désactiver)
+    hiddenModules.forEach(moduleId => {
+      this.hideModule(moduleId, { animated });
+      console.log(`👻 [UIManager] Module ${moduleId} caché`);
+    });
     
-    console.log(`✅ [UIManager] État appliqué avec repositionnement`);
-    
-  }, animated ? 150 : 0);
-}
+    // ✅ ÉTAPE 3: Appliquer les permissions (show/enable) avec délai
+    setTimeout(() => {
+      // D'abord montrer
+      visibleModules.forEach(moduleId => {
+        this.showModule(moduleId, { animated });
+        console.log(`👁️ [UIManager] Module ${moduleId} affiché`);
+      });
+      
+      // Puis activer
+      enabledModules.forEach(moduleId => {
+        this.enableModule(moduleId);
+        console.log(`🔧 [UIManager] Module ${moduleId} activé`);
+      });
+      
+      // ✅ ÉTAPE 4: Repositionner toutes les icônes
+      this.repositionAllIcons();
+      
+      console.log(`✅ [UIManager] État appliqué avec repositionnement`);
+      
+    }, animated ? 150 : 0);
+  }
   
   toggleModule(moduleId, options = {}) {
     const state = this.moduleStates.get(moduleId);
@@ -1041,36 +1041,36 @@ applyGameState(stateConfig, animated = true) {
     return true;
   }
 
-isRuleActive(rule) {
-  switch (rule) {
-    case 'inventory_open':
-      // ✅ CORRECTION: Vérifier si l'interface inventaire est vraiment ouverte
-      const inventoryOverlay = document.querySelector('#inventory-overlay');
-      const inventoryVisible = inventoryOverlay && 
-        inventoryOverlay.style.display !== 'none' && 
-        !inventoryOverlay.classList.contains('hidden') &&
-        window.getComputedStyle(inventoryOverlay).opacity > 0.1;
-      return inventoryVisible;
-      
-    case 'team_open':
-      // ✅ CORRECTION: Vérifier si l'interface team est vraiment ouverte
-      const teamOverlay = document.querySelector('#team-overlay');
-      const teamVisible = teamOverlay && 
-        teamOverlay.style.display !== 'none' && 
-        !teamOverlay.classList.contains('hidden') &&
-        window.getComputedStyle(teamOverlay).opacity > 0.1;
-      return teamVisible;
-      
-    case 'dialogue_active':
-      return this.globalState.currentGameState === 'dialogue';
-      
-    case 'battle_active':
-      return this.globalState.currentGameState === 'battle';
-      
-    default:
-      return false;
+  isRuleActive(rule) {
+    switch (rule) {
+      case 'inventory_open':
+        // ✅ CORRECTION: Vérifier si l'interface inventaire est vraiment ouverte
+        const inventoryOverlay = document.querySelector('#inventory-overlay');
+        const inventoryVisible = inventoryOverlay && 
+          inventoryOverlay.style.display !== 'none' && 
+          !inventoryOverlay.classList.contains('hidden') &&
+          window.getComputedStyle(inventoryOverlay).opacity > 0.1;
+        return inventoryVisible;
+        
+      case 'team_open':
+        // ✅ CORRECTION: Vérifier si l'interface team est vraiment ouverte
+        const teamOverlay = document.querySelector('#team-overlay');
+        const teamVisible = teamOverlay && 
+          teamOverlay.style.display !== 'none' && 
+          !teamOverlay.classList.contains('hidden') &&
+          window.getComputedStyle(teamOverlay).opacity > 0.1;
+        return teamVisible;
+        
+      case 'dialogue_active':
+        return this.globalState.currentGameState === 'dialogue';
+        
+      case 'battle_active':
+        return this.globalState.currentGameState === 'battle';
+        
+      default:
+        return false;
+    }
   }
-}
 
   getModule(moduleId) {
     return this.modules.get(moduleId) || null;
