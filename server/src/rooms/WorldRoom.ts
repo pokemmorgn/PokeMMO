@@ -1163,13 +1163,13 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
         const playerInventory = await InventoryManager.getAllItemsGroupedByPocket(player.name);
         const sellableItems: any[] = [];
 
-        // Convertir l'inventaire en format vendable
+// ✅  Convertir l'inventaire en format vendable
         for (const [pocket, items] of Object.entries(playerInventory)) {
-          for (const [itemId, itemData] of Object.entries(items as any)) {
-            const sellPrice = this.shopManager.getItemSellPrice(data.shopId, itemId);
+          for (const [realItemId, itemData] of Object.entries(items as any)) {
+            const sellPrice = this.shopManager.getItemSellPrice(data.shopId, realItemId);
             if (sellPrice > 0 && (itemData as any).quantity > 0) {
               sellableItems.push({
-                itemId: itemId,
+                itemId: realItemId,  // ✅ CORRIGÉ : utiliser realItemId
                 quantity: (itemData as any).quantity,
                 sellPrice: sellPrice,
                 canSell: true,
