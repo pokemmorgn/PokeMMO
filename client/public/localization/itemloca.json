@@ -49,6 +49,16 @@
     "kr": { "name": "사파리볼", "description": "사파리존에서만 사용가능." },
     "zh": { "name": "狩猎球", "description": "仅限狩猎区使用的宝可梦球。" }
   },
+  "love_ball": {
+    "en": { "name": "Love Ball", "description": "Works well on Pokémon of the opposite gender." },
+    "fr": { "name": "Love Ball", "description": "Efficace sur les Pokémon de sexe opposé." },
+    "de": { "name": "Liebesball", "description": "Wirkt gut gegen Pokémon anderen Geschlechts." },
+    "es": { "name": "Amor Ball", "description": "Efectiva contra Pokémon del sexo opuesto." },
+    "it": { "name": "Love Ball", "description": "Efficace sui Pokémon di sesso opposto." },
+    "jp": { "name": "ラブラブボール", "description": "異性のポケモンに効果的。" },
+    "kr": { "name": "러브볼", "description": "이성 포켓몬에게 효과적." },
+    "zh": { "name": "爱心球", "description": "对异性宝可梦有效。" }
+  },
   "potion": {
     "en": { "name": "Potion", "description": "Restores 20 HP." },
     "fr": { "name": "Potion", "description": "Rend 20 PV." },
@@ -88,6 +98,26 @@
     "jp": { "name": "まんたんのくすり", "description": "HPをすべて回復する。" },
     "kr": { "name": "만병통치약", "description": "HP를 모두 회복한다." },
     "zh": { "name": "全满药", "description": "回复全部HP。" }
+  },
+  "revive": {
+    "en": { "name": "Revive", "description": "Revives a fainted Pokémon with half HP." },
+    "fr": { "name": "Rappel", "description": "Ranime un Pokémon K.O. avec la moitié de ses PV." },
+    "de": { "name": "Beleber", "description": "Belebt ein kampfunfähiges Pokémon mit halben KP." },
+    "es": { "name": "Revivir", "description": "Reanima a un Pokémon debilitado con la mitad de PS." },
+    "it": { "name": "Revitalizzante", "description": "Risveglia un Pokémon esausto con metà PS." },
+    "jp": { "name": "げんきのかけら", "description": "ひんしのポケモンをHP半分で回復。" },
+    "kr": { "name": "기력의조각", "description": "기절한 포켓몬을 HP 절반으로 회복." },
+    "zh": { "name": "活力碎片", "description": "复活濒死宝可梦，回复一半HP。" }
+  },
+  "max_revive": {
+    "en": { "name": "Max Revive", "description": "Revives a fainted Pokémon with full HP." },
+    "fr": { "name": "Rappel Max", "description": "Ranime un Pokémon K.O. avec tous ses PV." },
+    "de": { "name": "Top-Beleber", "description": "Belebt ein kampfunfähiges Pokémon mit vollen KP." },
+    "es": { "name": "Máximo Revivir", "description": "Reanima a un Pokémon con todos los PS." },
+    "it": { "name": "Revitalizzante Max", "description": "Risveglia un Pokémon con tutti i PS." },
+    "jp": { "name": "げんきのかたまり", "description": "ひんしのポケモンをHP満タンで回復。" },
+    "kr": { "name": "기력덩어리", "description": "기절한 포켓몬을 HP 최대로 회복." },
+    "zh": { "name": "活力块", "description": "复活濒死宝可梦，回复全部HP。" }
   },
   "antidote": {
     "en": { "name": "Antidote", "description": "Cures poison." },
@@ -148,5 +178,55 @@
     "jp": { "name": "かいふくのくすり", "description": "HPと状態異常を全て回復する。" },
     "kr": { "name": "풀회복약", "description": "HP와 상태이상을 모두 회복한다." },
     "zh": { "name": "全满药剂", "description": "回复全部HP并治愈异常状态。" }
+  },
+  "town_map": {
+    "en": { "name": "Town Map", "description": "A map showing your current location." },
+    "fr": { "name": "Carte", "description": "Une carte montrant votre position actuelle." },
+    "de": { "name": "Karte", "description": "Zeigt Ihren aktuellen Standort." },
+    "es": { "name": "Mapa del Pueblo", "description": "Mapa que muestra tu ubicación actual." },
+    "it": { "name": "Mappa della Città", "description": "Mappa che mostra la tua posizione." },
+    "jp": { "name": "タウンマップ", "description": "現在地を示すマップ。" },
+    "kr": { "name": "타운맵", "description": "현재 위치를 보여주는 지도." },
+    "zh": { "name": "城镇地图", "description": "显示当前位置的地图。" }
+  },
+  "repel": {
+    "en": { "name": "Repel", "description": "Repels weak wild Pokémon for 100 steps." },
+    "fr": { "name": "Repousse", "description": "Repousse les Pokémon faibles pendant 100 pas." },
+    "de": { "name": "Schutz", "description": "Hält schwache Pokémon für 100 Schritte fern." },
+    "es": { "name": "Repelente", "description": "Repele Pokémon débiles por 100 pasos." },
+    "it": { "name": "Repellente", "description": "Respinge Pokémon deboli per 100 passi." },
+    "jp": { "name": "むしよけスプレー", "description": "弱いポケモンを100歩の間寄せ付けない。" },
+    "kr": { "name": "벌레회피스프레이", "description": "약한 포켓몬을 100보 동안 쫓아낸다." },
+    "zh": { "name": "除虫喷雾", "description": "100步内驱赶弱小的野生宝可梦。" }
+  },
+  "super_repel": {
+    "en": { "name": "Super Repel", "description": "Repels weak wild Pokémon for 200 steps." },
+    "fr": { "name": "Super Repousse", "description": "Repousse les Pokémon faibles pendant 200 pas." },
+    "de": { "name": "Superschutz", "description": "Hält schwache Pokémon für 200 Schritte fern." },
+    "es": { "name": "Súper Repelente", "description": "Repele Pokémon débiles por 200 pasos." },
+    "it": { "name": "Super Repellente", "description": "Respinge Pokémon deboli per 200 passi." },
+    "jp": { "name": "シルバースプレー", "description": "弱いポケモンを200歩の間寄せ付けない。" },
+    "kr": { "name": "실버스프레이", "description": "약한 포켓몬을 200보 동안 쫓아낸다." },
+    "zh": { "name": "银色喷雾", "description": "200步内驱赶弱小的野生宝可梦。" }
+  },
+  "max_repel": {
+    "en": { "name": "Max Repel", "description": "Repels weak wild Pokémon for 250 steps." },
+    "fr": { "name": "Max Repousse", "description": "Repousse les Pokémon faibles pendant 250 pas." },
+    "de": { "name": "Top-Schutz", "description": "Hält schwache Pokémon für 250 Schritte fern." },
+    "es": { "name": "Máximo Repelente", "description": "Repele Pokémon débiles por 250 pasos." },
+    "it": { "name": "Repellente Max", "description": "Respinge Pokémon deboli per 250 passi." },
+    "jp": { "name": "ゴールドスプレー", "description": "弱いポケモンを250歩の間寄せ付けない。" },
+    "kr": { "name": "골드스프레이", "description": "약한 포켓몬을 250보 동안 쫓아낸다." },
+    "zh": { "name": "金色喷雾", "description": "250步内驱赶弱小的野生宝可梦。" }
+  },
+  "escape_rope": {
+    "en": { "name": "Escape Rope", "description": "Use to escape from caves or dungeons." },
+    "fr": { "name": "Corde Sortie", "description": "Permet de sortir des grottes ou donjons." },
+    "de": { "name": "Fluchtseil", "description": "Verlassen von Höhlen oder Dungeons." },
+    "es": { "name": "Cuerda Huida", "description": "Para escapar de cuevas o mazmorras." },
+    "it": { "name": "Corda di Fuga", "description": "Per fuggire da grotte o dungeon." },
+    "jp": { "name": "あなぬけのヒモ", "description": "洞窟やダンジョンから脱出できる。" },
+    "kr": { "name": "구멍빠져나가는끈", "description": "동굴이나 던전에서 탈출한다." },
+    "zh": { "name": "洞穴绳", "description": "用于逃离洞穴或地牢。" }
   }
 }
