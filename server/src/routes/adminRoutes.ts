@@ -4091,7 +4091,7 @@ router.get('/sprites/list', requireMacAndDev, (req: any, res: any) => {
  * GET /api/admin/shops/list
  * Récupérer la liste de toutes les boutiques pour le sélecteur NPC
  */
-router.get('/shops/list', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.get('/shops/list', requireMacAndDev, async (req: any, res) => {
     try {
         console.log('📋 [Admin] Loading shops list for NPC selector...')
         
@@ -4140,7 +4140,7 @@ router.get('/shops/list', requireMacAndDev, async (req: AuthenticatedRequest, re
         res.status(500).json({
             success: false,
             error: 'Erreur lors du chargement des boutiques',
-            details: error.message
+            details: error instanceof Error ? error.message : 'Unknown error'
         })
     }
 })
@@ -4149,7 +4149,7 @@ router.get('/shops/list', requireMacAndDev, async (req: AuthenticatedRequest, re
  * GET /api/admin/shops/search
  * Rechercher des boutiques par terme
  */
-router.post('/shops/search', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.post('/shops/search', requireMacAndDev, async (req: any, res) => {
     try {
         const { query, limit = 50, type = null, zone = null } = req.body
         
@@ -4218,7 +4218,7 @@ router.post('/shops/search', requireMacAndDev, async (req: AuthenticatedRequest,
  * GET /api/admin/shops/by-zone/:zone
  * Récupérer les boutiques d'une zone spécifique
  */
-router.get('/shops/by-zone/:zone', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.get('/shops/by-zone/:zone', requireMacAndDev, async (req: any, res) => {
     try {
         const { zone } = req.params
         
@@ -4260,7 +4260,7 @@ router.get('/shops/by-zone/:zone', requireMacAndDev, async (req: AuthenticatedRe
  * GET /api/admin/shops/by-type/:type
  * Récupérer les boutiques d'un type spécifique
  */
-router.get('/shops/by-type/:type', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.get('/shops/by-type/:type', requireMacAndDev, async (req: any, res) => {
     try {
         const { type } = req.params
         
@@ -4299,7 +4299,7 @@ router.get('/shops/by-type/:type', requireMacAndDev, async (req: AuthenticatedRe
  * GET /api/admin/shops/details/:shopId
  * Récupérer les détails complets d'une boutique
  */
-router.get('/shops/details/:shopId', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.get('/shops/details/:shopId', requireMacAndDev, async (req: any, res) => {
     try {
         const { shopId } = req.params
         
@@ -4360,7 +4360,7 @@ router.get('/shops/details/:shopId', requireMacAndDev, async (req: Authenticated
  * GET /api/admin/shops/stats
  * Statistiques générales des boutiques
  */
-router.get('/shops/stats', requireMacAndDev, async (req: AuthenticatedRequest, res) => {
+router.get('/shops/stats', requireMacAndDev, async (req: any, res) => {
     try {
         console.log('📊 [Admin] Generating shops statistics...')
         
