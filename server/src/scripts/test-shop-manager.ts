@@ -8,86 +8,110 @@ import fs from 'fs';
 
 // ===== DÉTECTION AUTOMATIQUE DES CHEMINS =====
 function findModulePath(targetFile: string): string {
-  const possibleBasePaths = [
-    process.cwd(),                          // Racine du projet
-    path.join(process.cwd(), 'src'),        // src/
-    path.join(process.cwd(), 'server'),     // server/
-    path.join(process.cwd(), '..'),         // Dossier parent
-    path.dirname(__dirname),                // Dossier du script
-    path.join(path.dirname(__dirname), '..') // Deux niveaux au dessus
-  ];
-
+  // Chemin depuis server/src/scripts/ vers server/src/
+  const scriptDir = __dirname; // server/src/scripts/
+  const srcDir = path.dirname(scriptDir); // server/src/
+  
   const possiblePaths = [
-    `server/src/${targetFile}`,
-    `src/${targetFile}`,
-    targetFile,
-    `dist/server/src/${targetFile}`,
-    `dist/src/${targetFile}`
+    path.join(srcDir, targetFile),                    // ../targetFile
+    path.join(srcDir, targetFile.replace('.ts', '')), // Sans extension
+    path.join(process.cwd(), 'server/src', targetFile), // Depuis racine
+    path.join(process.cwd(), targetFile)              // Fallback
   ];
 
-  for (const basePath of possibleBasePaths) {
-    for (const relativePath of possiblePaths) {
-      const fullPath = path.join(basePath, relativePath);
-      
-      // Pour les fichiers TypeScript, vérifier aussi les .js compilés
-      const extensions = ['.ts', '.js'];
-      for (const ext of extensions) {
-        const testPath = fullPath.replace('.ts', ext);
-        if (fs.existsSync(testPath)) {
-          console.log(`🎯 [PathFinder] ${targetFile} trouvé: ${testPath}`);
-          return testPath;
-        }
+  console.log(`🔍 [PathFinder] Recherche ${targetFile}...`);
+  console.log(`📁 Script dir: ${scriptDir}`);
+  console.log(`📁 Src dir: ${srcDir}`);
+
+  for (const testPath of possiblePaths) {
+    console.log(`🔍 Test: ${testPath}`);
+    
+    // Pour les fichiers TypeScript, vérifier aussi les .js compilés
+    const extensions = ['.ts', '.js'];
+    for (const ext of extensions) {
+      const fullPath = testPath.endsWith(ext) ? testPath : testPath + ext;
+      if (fs.existsSync(fullPath)) {
+        console.log(`🎯 [PathFinder] ${targetFile} trouvé: ${fullPath}`);
+        return fullPath;
       }
     }
   }
 
-  throw new Error(`❌ [PathFinder] Impossible de trouver ${targetFile}. Vérifiez la structure du projet.`);
+  throw new Error(`❌ [PathFinder] Impossible de trouver ${targetFile}. Chemins testés: ${possiblePaths.join(', ')}`);
 }
 
 // Fonction pour charger dynamiquement les modules
 async function loadModules() {
   try {
-    console.log('🔍 [PathFinder] Recherche des modules...');
+    console.log('🔍 [PathFinder] Recherche des modules depuis server/src/scripts/...');
     
-    const shopManagerPath = findModulePath('managers/ShopManager');
-    const shopDataPath = findModulePath('models/ShopData');
-    const merchantHandlerPath = findModulePath('interactions/modules/npc/handlers/MerchantNpcHandler');
+    // Chemins relatifs depuis server/src/scripts/ vers server/src/
+    const shopManagerPath = '../managers/ShopManager';
+    const shopDataPath = '../models/ShopData';
+    const merchantHandlerPath = '../interactions/modules/npc/handlers/MerchantNpcHandler';
     
-    console.log('📦 [PathFinder] Chargement des modules...');
+    console.log('📦 [PathFinder] Tentative de chargement direct...');
+    console.log(`- ShopManager: ${shopManagerPath}`);
+    console.log(`- ShopData: ${shopDataPath}`);
+    console.log(`- MerchantNpcHandler: ${merchantHandlerPath}`);
     
-    const { ShopManager, ShopDataSource } = await import(shopManagerPath);
-    const { ShopData } = await import(shopDataPath);
-    const { MerchantNpcHandler } = await import(merchantHandlerPath);
-    
-    console.log('✅ [PathFinder] Tous les modules chargés avec succès !');
-    
-    return { ShopManager, ShopDataSource, ShopData, MerchantNpcHandler };
+    try {
+      const { ShopManager, ShopDataSource } = await import(shopManagerPath);
+      const { ShopData } = await import(shopDataPath);
+      const { MerchantNpcHandler } = await import(merchantHandlerPath);
+      
+      console.log('✅ [PathFinder] Tous les modules chargés avec succès !');
+      return { ShopManager, ShopDataSource, ShopData, MerchantNpcHandler };
+      
+    } catch (directError) {
+      console.log('⚠️ [PathFinder] Chargement direct échoué, recherche dynamique...');
+      console.log(`Erreur: ${directError.message}`);
+      
+      // Fallback avec recherche automatique
+      const shopManagerPath = findModulePath('managers/ShopManager');
+      const shopDataPath = findModulePath('models/ShopData');
+      const merchantHandlerPath = findModulePath('interactions/modules/npc/handlers/MerchantNpcHandler');
+      
+      console.log('📦 [PathFinder] Chargement via chemins détectés...');
+      
+      const { ShopManager, ShopDataSource } = await import(shopManagerPath);
+      const { ShopData } = await import(shopDataPath);
+      const { MerchantNpcHandler } = await import(merchantHandlerPath);
+      
+      console.log('✅ [PathFinder] Modules chargés via détection automatique !');
+      return { ShopManager, ShopDataSource, ShopData, MerchantNpcHandler };
+    }
     
   } catch (error) {
     console.error('❌ [PathFinder] Erreur lors du chargement des modules:', error);
     
     console.log('\n🔍 [DEBUG] Structure du projet détectée:');
-    console.log(`- Dossier courant: ${process.cwd()}`);
     console.log(`- Dossier du script: ${__dirname}`);
+    console.log(`- Dossier parent: ${path.dirname(__dirname)}`);
+    console.log(`- Process CWD: ${process.cwd()}`);
     
-    // Lister les dossiers disponibles
-    const currentDir = process.cwd();
-    const items = fs.readdirSync(currentDir);
-    console.log(`- Contenu racine: ${items.join(', ')}`);
+    // Lister les dossiers disponibles depuis le script
+    const scriptDir = __dirname;
+    const srcDir = path.dirname(scriptDir);
     
-    if (items.includes('server')) {
-      const serverItems = fs.readdirSync(path.join(currentDir, 'server'));
-      console.log(`- Contenu server/: ${serverItems.join(', ')}`);
+    if (fs.existsSync(srcDir)) {
+      const srcItems = fs.readdirSync(srcDir);
+      console.log(`- Contenu server/src/: ${srcItems.join(', ')}`);
       
-      if (serverItems.includes('src')) {
-        const serverSrcItems = fs.readdirSync(path.join(currentDir, 'server', 'src'));
-        console.log(`- Contenu server/src/: ${serverSrcItems.join(', ')}`);
+      if (srcItems.includes('managers')) {
+        const managersItems = fs.readdirSync(path.join(srcDir, 'managers'));
+        console.log(`- Contenu managers/: ${managersItems.join(', ')}`);
       }
-    }
-    
-    if (items.includes('src')) {
-      const srcItems = fs.readdirSync(path.join(currentDir, 'src'));
-      console.log(`- Contenu src/: ${srcItems.join(', ')}`);
+      
+      if (srcItems.includes('models')) {
+        const modelsItems = fs.readdirSync(path.join(srcDir, 'models'));
+        console.log(`- Contenu models/: ${modelsItems.join(', ')}`);
+      }
+      
+      if (srcItems.includes('interactions')) {
+        const interactionsItems = fs.readdirSync(path.join(srcDir, 'interactions'));
+        console.log(`- Contenu interactions/: ${interactionsItems.join(', ')}`);
+      }
     }
     
     throw error;
