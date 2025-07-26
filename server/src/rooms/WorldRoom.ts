@@ -39,7 +39,7 @@ import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
 // ✅ NOUVEAU : Imports pour le système shops intégré
 import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
-import { InteractionManager } from "../interactions/InteractionManager";
+import { InteractionManager } from "../managers/InteractionManager";
 import { 
   InteractionRequest, 
   InteractionContext,
