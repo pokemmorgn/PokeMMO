@@ -4554,7 +4554,13 @@ router.post('/zones/:zoneId/npcs/sync-with-map', requireMacAndDev, async (req: a
     // Récupérer les NPCs actuels en base
     const dbNPCs = await NpcData.findByZone(zoneId);
     
-    const syncResults = {
+    // ✅ CORRECTION: Typer explicitement syncResults
+    const syncResults: {
+      updated: number;
+      created: number;
+      deleted: number;
+      errors: string[];
+    } = {
       updated: 0,
       created: 0,
       deleted: 0,
@@ -4590,7 +4596,9 @@ router.post('/zones/:zoneId/npcs/sync-with-map', requireMacAndDev, async (req: a
           syncResults.created++;
         }
       } catch (error) {
-        syncResults.errors.push(`NPC ${mapNPC.id}: ${error.message}`);
+        // ✅ CORRECTION: Gérer le type unknown de error
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        syncResults.errors.push(`NPC ${mapNPC.id}: ${errorMessage}`);
       }
     }
     
