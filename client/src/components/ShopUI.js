@@ -775,6 +775,24 @@ export class ShopUI {
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
 
+      .shop-item-quantity {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(74, 144, 226, 0.9);
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 16px;
+        text-align: center;
+      }
+
+      .sell-item .shop-item-quantity {
+        background: rgba(156, 39, 176, 0.9);
+      }
+
       .shop-item-stock {
         position: absolute;
         top: 8px;
@@ -1943,11 +1961,12 @@ export class ShopUI {
     this.updateItemsCount();
   }
 
-  // ✅ DISPLAY BUY ITEMS - VERSION AVEC MESSAGES LOCALISÉS
+  // ✅ DISPLAY BUY ITEMS - ADAPTÉ POUR NOUVELLE STRUCTURE SERVEUR
   displayBuyItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+    // ✅ UTILISER buyItems du serveur
+    const items = Array.isArray(this.shopData?.buyItems) ? this.shopData.buyItems : [];
     
     console.log(`🔍 [ShopUI] ${this.t('debug.displaying_buy_tab')}`);
     console.log(`📦 ${this.t('debug.total_items_received')}: ${items.length}`);
@@ -1976,11 +1995,15 @@ export class ShopUI {
     });
   }
 
-  // ✅ DISPLAY SELL ITEMS - VERSION AVEC MESSAGES LOCALISÉS
+  // ✅ DISPLAY SELL ITEMS - ADAPTÉ POUR NOUVELLE STRUCTURE SERVEUR
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    const sellableItems = this.shopData.availableItems.filter(item => item.canSell);
+    // ✅ UTILISER sellItems du serveur (inventaire joueur)
+    const sellableItems = Array.isArray(this.shopData?.sellItems) ? this.shopData.sellItems : [];
+    
+    console.log(`🔍 [ShopUI] ${this.t('debug.displaying_sell_tab')}`);
+    console.log(`📦 ${this.t('debug.total_sellable_items')}: ${sellableItems.length}`);
 
     if (sellableItems.length === 0) {
       this.showEmpty(this.t('messages.no_items_sell'));
@@ -2038,11 +2061,19 @@ export class ShopUI {
     return itemElement;
   }
 
+  // ✅ CREATE SELL ITEM - ADAPTÉ POUR NOUVELLE STRUCTURE (avec quantité inventaire)
   createSellItemElement(item, index) {
     const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item';
+    itemElement.className = 'shop-item sell-item';
     itemElement.dataset.itemId = item.itemId;
     itemElement.dataset.index = index;
+    itemElement.dataset.pocket = item.pocket || 'items';
+
+    // ✅ Vérifier si on a assez d'items à vendre
+    const hasQuantity = item.quantity > 0;
+    if (!hasQuantity) {
+      itemElement.classList.add('unavailable');
+    }
 
     const itemIcon = this.getItemIcon(item.itemId);
     const itemName = this.getItemName(item.itemId);
@@ -2051,11 +2082,14 @@ export class ShopUI {
       <div class="shop-item-icon">${itemIcon}</div>
       <div class="shop-item-name">${itemName}</div>
       <div class="shop-item-price">${item.sellPrice}${this.t('header.gold_currency')}</div>
+      <div class="shop-item-quantity">×${item.quantity}</div>
     `;
 
-    itemElement.addEventListener('click', () => {
-      this.selectItem(item, itemElement);
-    });
+    if (hasQuantity) {
+      itemElement.addEventListener('click', () => {
+        this.selectItem(item, itemElement);
+      });
+    }
 
     setTimeout(() => {
       itemElement.classList.add('new');
@@ -2140,46 +2174,72 @@ export class ShopUI {
     this.updateActionButton();
   }
 
-  // ✅ GET HORIZONTAL STATS HTML - VERSION ENTIÈREMENT LOCALISÉE
+  // ✅ GET HORIZONTAL STATS HTML - ADAPTÉ POUR BUY/SELL
   getHorizontalStatsHTML(item) {
     const stats = [];
     
-    if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
-      const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
-      stats.push(`
-        <div class="item-stat-card stock">
-          <div class="stat-icon">${stockIcon}</div>
-          <div class="stat-info">
-            <span class="stat-label">${this.t('item_details.stock')}</span>
-            <span class="stat-value">${item.stock === -1 ? this.t('item_details.unlimited') : item.stock}</span>
+    if (this.currentTab === 'buy') {
+      // ✅ STATS POUR ONGLET ACHAT
+      if (item.stock !== undefined && item.stock !== -1) {
+        const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
+        stats.push(`
+          <div class="item-stat-card stock">
+            <div class="stat-icon">${stockIcon}</div>
+            <div class="stat-info">
+              <span class="stat-label">${this.t('item_details.stock')}</span>
+              <span class="stat-value">${item.stock === -1 ? this.t('item_details.unlimited') : item.stock}</span>
+            </div>
           </div>
-        </div>
-      `);
-    }
+        `);
+      }
 
-    if (item.unlockLevel && item.unlockLevel > 1) {
-      stats.push(`
-        <div class="item-stat-card level">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-info">
-            <span class="stat-label">${this.t('item_details.required_level')}</span>
-            <span class="stat-value">${item.unlockLevel}</span>
+      if (item.unlockLevel && item.unlockLevel > 1) {
+        stats.push(`
+          <div class="item-stat-card level">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-info">
+              <span class="stat-label">${this.t('item_details.required_level')}</span>
+              <span class="stat-value">${item.unlockLevel}</span>
+            </div>
           </div>
-        </div>
-      `);
-    }
+        `);
+      }
 
-    if (stats.length === 0 && this.currentTab === 'buy') {
-      const canAfford = this.playerGold >= item.buyPrice;
+      if (stats.length === 0) {
+        const canAfford = this.playerGold >= item.buyPrice;
+        stats.push(`
+          <div class="item-stat-card affordability">
+            <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
+            <div class="stat-info">
+              <span class="stat-label">${this.t('item_details.availability')}</span>
+              <span class="stat-value">${this.t(canAfford ? 'item_details.affordable' : 'item_details.too_expensive')}</span>
+            </div>
+          </div>
+        `);
+      }
+    } else {
+      // ✅ STATS POUR ONGLET VENTE
       stats.push(`
-        <div class="item-stat-card affordability">
-          <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
+        <div class="item-stat-card quantity">
+          <div class="stat-icon">📦</div>
           <div class="stat-info">
-            <span class="stat-label">${this.t('item_details.availability')}</span>
-            <span class="stat-value">${this.t(canAfford ? 'item_details.affordable' : 'item_details.too_expensive')}</span>
+            <span class="stat-label">${this.t('item_details.owned_quantity')}</span>
+            <span class="stat-value">×${item.quantity}</span>
           </div>
         </div>
       `);
+
+      if (item.pocket) {
+        stats.push(`
+          <div class="item-stat-card pocket">
+            <div class="stat-icon">🎒</div>
+            <div class="stat-info">
+              <span class="stat-label">${this.t('item_details.pocket')}</span>
+              <span class="stat-value">${this.t(`item_details.pocket_${item.pocket}`)}</span>
+            </div>
+          </div>
+        `);
+      }
     }
 
     return stats.join('');
@@ -2245,7 +2305,7 @@ export class ShopUI {
     return item.type || this.t('item_details.item_type_default');
   }
 
-  // ✅ UPDATE ACTION BUTTON - VERSION ENTIÈREMENT LOCALISÉE
+  // ✅ UPDATE ACTION BUTTON - ADAPTÉ POUR BUY/SELL
   updateActionButton() {
     const actionBtn = this.overlay.querySelector('#shop-action-btn');
     const btnIcon = actionBtn.querySelector('.btn-icon');
@@ -2253,20 +2313,19 @@ export class ShopUI {
 
     if (!this.selectedItem) {
       actionBtn.disabled = true;
-      btnIcon.textContent = '🛒';
+      btnIcon.textContent = this.currentTab === 'buy' ? '🛒' : '💰';
       btnText.textContent = this.t(`actions.${this.currentTab}`);
       return;
     }
 
     if (this.currentTab === 'buy') {
-      const canAfford = this.playerGold >= this.selectedItem.buyPrice;
-      const inStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 || this.selectedItem.stock > 0;
-      
-      actionBtn.disabled = !canAfford || !inStock;
+      const canPerformAction = this.canBuyItem(this.selectedItem);
+      actionBtn.disabled = !canPerformAction;
       btnIcon.textContent = '🛒';
       btnText.textContent = this.t('actions.buy');
     } else {
-      actionBtn.disabled = false;
+      const canPerformAction = this.canSellItem(this.selectedItem);
+      actionBtn.disabled = !canPerformAction;
       btnIcon.textContent = '💰';
       btnText.textContent = this.t('actions.sell');
     }
@@ -2285,14 +2344,21 @@ export class ShopUI {
     this.updateActionButton();
   }
 
-  // ✅ UPDATE ITEMS COUNT - VERSION ENTIÈREMENT LOCALISÉE
+  // ✅ UPDATE ITEMS COUNT - ADAPTÉ POUR NOUVELLE STRUCTURE BUY/SELL
   updateItemsCount() {
     const itemsCountElement = this.overlay.querySelector('#items-count');
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     const itemCount = itemsGrid.querySelectorAll('.shop-item:not(.shop-empty-item)').length;
     
+    let totalAvailableText = '';
+    if (this.currentTab === 'buy' && this.shopData?.buyItems) {
+      totalAvailableText = ` (${this.shopData.buyItems.length} ${this.t('debug.total_in_shop')})`;
+    } else if (this.currentTab === 'sell' && this.shopData?.sellItems) {
+      totalAvailableText = ` (${this.shopData.sellItems.length} ${this.t('debug.total_in_inventory')})`;
+    }
+    
     const countKey = itemCount === 1 ? 'sections.items_count_singular' : 'sections.items_count';
-    itemsCountElement.textContent = this.t(countKey, { count: itemCount });
+    itemsCountElement.textContent = this.t(countKey, { count: itemCount }) + totalAvailableText;
   }
 
   // ✅ SHOW BUY MODAL - VERSION ENTIÈREMENT LOCALISÉE
@@ -2326,9 +2392,34 @@ export class ShopUI {
     modal.classList.remove('hidden');
   }
 
+  // ✅ SHOW SELL MODAL - VERSION FONCTIONNELLE
   showSellModal() {
     if (!this.selectedItem) return;
-    this.showNotification(this.t('messages.sell_not_implemented'), "warning");
+
+    const modal = this.overlay.querySelector('#shop-modal');
+    const itemIcon = modal.querySelector('.modal-item-icon');
+    const itemName = modal.querySelector('.modal-item-name');
+    const itemPrice = modal.querySelector('.modal-item-price');
+    const quantityInput = modal.querySelector('#quantity-input');
+    const modalTitle = modal.querySelector('.modal-title');
+
+    modalTitle.textContent = this.t('modal.title_sell');
+    
+    itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
+    itemName.textContent = this.getItemName(this.selectedItem.itemId);
+    itemPrice.textContent = this.t('modal.unit_price', { 
+      price: this.selectedItem.sellPrice,
+      currency: this.t('header.gold_currency')
+    });
+
+    // ✅ QUANTITÉ MAX = quantité possédée par le joueur
+    const maxQuantity = this.selectedItem.quantity || 1;
+
+    quantityInput.value = 1;
+    quantityInput.setAttribute('max', maxQuantity);
+
+    this.updateModalTotal();
+    modal.classList.remove('hidden');
   }
 
   updateModalTotal() {
@@ -2343,6 +2434,7 @@ export class ShopUI {
     totalAmount.textContent = `${total}${this.t('header.gold_currency')}`;
   }
 
+  // ✅ CONFIRM TRANSACTION - ADAPTÉ POUR BUY/SELL
   confirmTransaction() {
     if (!this.selectedItem) return;
 
@@ -2351,12 +2443,21 @@ export class ShopUI {
     const quantity = parseInt(quantityInput.value) || 1;
 
     if (this.gameRoom) {
-      this.gameRoom.send("shopTransaction", {
+      // ✅ DONNÉES DIFFÉRENTES SELON BUY/SELL
+      const transactionData = {
         shopId: this.shopData.shopInfo.id,
         action: this.currentTab,
         itemId: this.selectedItem.itemId,
         quantity: quantity
-      });
+      };
+      
+      // ✅ POUR LA VENTE : ajouter le pocket
+      if (this.currentTab === 'sell' && this.selectedItem.pocket) {
+        transactionData.pocket = this.selectedItem.pocket;
+      }
+      
+      this.gameRoom.send("shopTransaction", transactionData);
+      console.log(`💰 [ShopUI] Transaction ${this.currentTab}:`, transactionData);
     }
 
     this.hideModal();
@@ -2540,6 +2641,7 @@ export class ShopUI {
     return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
   }
 
+  // ✅ CAN BUY ITEM - Méthode conservée
   canBuyItem(item) {
     if (!item) return false;
     
@@ -2550,17 +2652,40 @@ export class ShopUI {
     return canAfford && inStock && isUnlocked;
   }
 
+  // ✅ NOUVEAU: CAN SELL ITEM - Pour les items de l'inventaire
+  canSellItem(item) {
+    if (!item) return false;
+    
+    const hasQuantity = item.quantity > 0;
+    const canSell = item.canSell !== false;
+    const hasPrice = item.sellPrice > 0;
+    
+    return hasQuantity && canSell && hasPrice;
+  }
+
+  // ✅ GET SHOP STATS - ADAPTÉ POUR NOUVELLE STRUCTURE BUY/SELL
   getShopStats() {
     if (!this.shopData) return null;
 
-    const items = this.shopData.availableItems;
-    const buyableItems = items.filter(item => item.canBuy && item.unlocked);
+    // ✅ STATISTIQUES SÉPARÉES BUY/SELL
+    const buyItems = this.shopData.buyItems || [];
+    const sellItems = this.shopData.sellItems || [];
+    
+    const buyableItems = buyItems.filter(item => item.canBuy && item.unlocked);
     const affordableItems = buyableItems.filter(item => this.canBuyItem(item));
+    const sellableItems = sellItems.filter(item => item.canSell && item.quantity > 0);
     
     return {
-      totalItems: items.length,
+      // ✅ NOUVELLES STATS
+      totalBuyItems: buyItems.length,
+      totalSellItems: sellItems.length,
       buyableItems: buyableItems.length,
       affordableItems: affordableItems.length,
+      sellableItems: sellableItems.length,
+      
+      // ✅ COMPATIBILITÉ (deprecated)
+      totalItems: buyItems.length + sellItems.length,
+      
       playerGold: this.playerGold,
       currentTab: this.currentTab,
       npcData: this.currentNpcData,
