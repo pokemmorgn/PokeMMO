@@ -1096,11 +1096,44 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     // === HANDLERS POUR LES SHOPS ===
 
     // Transaction shop (achat/vente)
+// ✅ MODIFIÉ : Transaction shop via système intégré
     this.onMessage("shopTransaction", async (client, data) => {
-      console.log(`🛒 [WorldRoom] Transaction shop reçue:`, data);
-      await this.handleShopTransaction(client, data);
-    });
+      console.log(`🛒 [WorldRoom] Transaction shop via système intégré:`, data);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("shopTransactionResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
 
+      try {
+        // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
+        const result = await this.interactionManager.handleShopTransaction(
+          player,
+          data.shopId,
+          data.action,
+          data.itemId,
+          data.quantity
+        );
+
+        // Mettre à jour l'or du joueur si transaction réussie
+        if (result.success && result.newGold !== undefined) {
+          player.gold = result.newGold;
+        }
+
+        client.send("shopTransactionResult", result);
+        
+      } catch (error) {
+        console.error(`❌ Erreur transaction shop intégrée:`, error);
+        client.send("shopTransactionResult", {
+          success: false,
+          message: "Erreur lors de la transaction"
+        });
+      }
+    });
     // Récupérer le catalogue d'un shop
     this.onMessage("getShopCatalog", (client, data) => {
       console.log(`🏪 [WorldRoom] Demande de catalogue shop: ${data.shopId}`);
