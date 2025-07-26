@@ -762,17 +762,34 @@ export class UIManager {
     const padding = this.iconConfig.padding;
     const globalOffset = this.iconConfig.globalOffset || 0;
     
-    // Obtenir la taille réelle de l'élément
+    // Obtenir la taille réelle de l'élément avec délai de rendu
     const element = iconConfig.element;
     const rect = element.getBoundingClientRect();
-    const elementWidth = rect.width || iconConfig.size.width || 70;
-    const elementHeight = rect.height || iconConfig.size.height || 80;
+    let elementWidth = rect.width || iconConfig.size.width || 70;
+    let elementHeight = rect.height || iconConfig.size.height || 80;
     
-    // Calculer offset intelligent basé sur la taille + espacement confortable
-    const comfortableSpacing = 20; // Espacement confortable
-    const calculatedOffset = elementWidth + comfortableSpacing;
+    // ✅ FIX : Si l'élément n'est pas encore rendu, utiliser des estimations sécurisées
+    if (elementWidth < 50) {
+      // Estimations par module
+      if (moduleId.includes('timeWeather') || moduleId.includes('Weather')) {
+        elementWidth = 350; // Estimation sécurisée pour weather widget
+        elementHeight = 120;
+      } else {
+        elementWidth = 200; // Estimation par défaut pour modules larges
+        elementHeight = 100;
+      }
+      
+      if (this.debug) {
+        console.log(`🔍 [UIManager] Taille estimée pour ${moduleId}: ${elementWidth}x${elementHeight} (élément pas encore rendu)`);
+      }
+    }
     
-    // Position selon anchor avec offset intelligent
+    // ✅ FIX : Espacement sécurisé plus important + marge de sécurité
+    const safetyMargin = 50; // Marge de sécurité supplémentaire
+    const comfortableSpacing = 30; // Espacement confortable augmenté
+    const calculatedOffset = elementWidth + comfortableSpacing + safetyMargin;
+    
+    // Position selon anchor avec offset sécurisé
     let x, y;
     
     switch (iconConfig.anchor) {
@@ -797,19 +814,21 @@ export class UIManager {
         break;
         
       default:
-        // Par défaut: top-right avec offset
+        // Par défaut: top-right avec offset sécurisé
         x = window.innerWidth - padding - globalOffset - calculatedOffset;
         y = padding;
     }
     
-    // S'assurer que l'élément reste visible à l'écran
-    x = Math.max(10, Math.min(x, window.innerWidth - elementWidth - 10));
-    y = Math.max(10, Math.min(y, window.innerHeight - elementHeight - 10));
+    // ✅ FIX : S'assurer que l'élément reste visible avec marge plus importante
+    const minMargin = 20;
+    x = Math.max(minMargin, Math.min(x, window.innerWidth - elementWidth - minMargin));
+    y = Math.max(minMargin, Math.min(y, window.innerHeight - elementHeight - minMargin));
     
     if (this.debug) {
-      console.log(`🧠 [UIManager] Position intelligente calculée pour ${moduleId}:`, {
+      console.log(`🧠 [UIManager] Position intelligente SÉCURISÉE pour ${moduleId}:`, {
         elementSize: `${elementWidth}x${elementHeight}`,
         calculatedOffset: calculatedOffset,
+        safetyMargin: safetyMargin,
         finalPosition: `${x}, ${y}`,
         anchor: iconConfig.anchor
       });
@@ -1333,6 +1352,23 @@ export class UIManager {
   setGlobalOffset(offset) {
     console.log(`📏 [UIManager] Changement décalage global icônes: ${offset}px vers la gauche`);
     this.updateIconConfig({ globalOffset: offset });
+  }
+  
+  setWeatherOffset(offset) {
+    console.log(`🌤️ [UIManager] Changement décalage weather widget: ${offset}px`);
+    this.iconConfig.weatherOffset = offset;
+    // Repositionner immédiatement le weather
+    setTimeout(() => {
+      this.positionIcon('timeWeather');
+    }, 100);
+  }
+  
+  forceRepositionWeather() {
+    console.log('🔄 [UIManager] Force repositionnement weather widget...');
+    // Attendre que l'élément soit complètement rendu
+    setTimeout(() => {
+      this.positionIcon('timeWeather');
+    }, 500);
   }
   
   getIconConfiguration() {
