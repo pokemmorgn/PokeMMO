@@ -225,6 +225,16 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
     
+// ✅ NOUVEAU ÉTAPE 9.5: Initialiser NpcInteractionModule
+    this.npcInteractionModule = new NpcInteractionModule(
+      (zoneName: string) => this.getNpcManager(zoneName),
+      this.zoneManager.getQuestManager(),
+      this.shopManager,
+      this.starterHandlers,
+      this.spectatorManager
+    );
+    console.log(`✅ NpcInteractionModule initialisé`);    
+    
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
       this.autoSaveAllPositions();
