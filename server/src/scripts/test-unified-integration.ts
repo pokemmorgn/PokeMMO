@@ -164,10 +164,10 @@ class IntegrationTester {
     
     // 2. QuestManager (mock simplifié)
     this.questManager = {
-      getAvailableQuests: async () => [],
-      getActiveQuests: async () => [],
-      getQuestsForNpc: () => [],
-      getQuestDefinition: () => null
+      getAvailableQuests: async (): Promise<any[]> => [],
+      getActiveQuests: async (): Promise<any[]> => [],
+      getQuestsForNpc: (): any[] => [],
+      getQuestDefinition: (): any => null
     };
     console.log('✅ [Setup] QuestManager (mock) initialisé');
     
@@ -345,7 +345,7 @@ class IntegrationTester {
       console.log(`📊 Items MongoDB → Interface: ${unifiedResult.merchantData.availableItems.length}`);
       
       // Vérifier qu'on a des items réalistes (de la migration)
-      const pokeBallItem = unifiedResult.merchantData.availableItems.find(item => 
+      const pokeBallItem = unifiedResult.merchantData.availableItems.find((item: any) => 
         item.id === 'poke_ball' || item.id.includes('poke_ball')
       );
       
