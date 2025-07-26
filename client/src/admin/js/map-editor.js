@@ -958,23 +958,68 @@ placeGenericObject(tileX, tileY) {
         return ctx
     }
 
-    async loadAvailableMaps() {
+async loadAvailableMaps() {
         console.log('🗺️ [MapEditor] Loading all available maps...')
         
         this.availableMaps = [
-            { id: 'beach', name: '🏖️ Beach', file: 'beach.tmj' },
-            { id: 'village', name: '🏘️ Village', file: 'village.tmj' },
-            { id: 'lavandia', name: '🏙️ Lavandia', file: 'lavandia.tmj' },
-            { id: 'road1', name: '🛤️ Route 1', file: 'road1.tmj' },
-            { id: 'road2', name: '🛤️ Route 2', file: 'road2.tmj' },
-            { id: 'road3', name: '🛤️ Route 3', file: 'road3.tmj' },
+            // === ZONES PRINCIPALES ===
+            { id: 'beach', name: '🏖️ Beach', file: 'beach.tmj', category: 'main' },
+            { id: 'village', name: '🏘️ Village', file: 'village.tmj', category: 'main' },
+            { id: 'lavandia', name: '🏙️ Lavandia', file: 'lavandia.tmj', category: 'main' },
+            
+            // === ROUTES ===
+            { id: 'road1', name: '🛤️ Route 1', file: 'road1.tmj', category: 'route' },
+            { id: 'road2', name: '🛤️ Route 2', file: 'road2.tmj', category: 'route' },
+            { id: 'road3', name: '🛤️ Route 3', file: 'road3.tmj', category: 'route' },
+            
+            // === VILLAGE - INTÉRIEURS ===
+            { id: 'villagelab', name: '🧪 Laboratoire du Village', file: 'villagelab.tmj', category: 'village_interior' },
+            { id: 'villagehouse1', name: '🏠 Maison Village 1', file: 'villagehouse1.tmj', category: 'village_interior' },
+            { id: 'villagehouse2', name: '🏠 Maison Village 2', file: 'villagehouse2.tmj', category: 'village_interior' },
+            { id: 'villageflorist', name: '🌸 Fleuriste du Village', file: 'villageflorist.tmj', category: 'village_interior' },
+            { id: 'villagewindmill', name: '🌾 Moulin du Village', file: 'villagewindmill.tmj', category: 'village_interior' },
+            
+            // === ROUTES - INTÉRIEURS ===
+            { id: 'road1house', name: '🏠 Maison Route 1', file: 'road1house.tmj', category: 'route_interior' },
+            { id: 'road1hidden', name: '🔍 Passage Caché Route 1', file: 'road1hidden.tmj', category: 'route_secret' },
+            
+            // === LAVANDIA - INTÉRIEURS ===
+            { id: 'lavandiaanalysis', name: '🔬 Centre d\'Analyse', file: 'lavandiaanalysis.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiabossroom', name: '👑 Salle du Boss', file: 'lavandiabossroom.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiacelebitemple', name: '🍃 Temple de Celebi', file: 'lavandiacelebitemple.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiaequipment', name: '⚔️ Magasin d\'Équipement', file: 'lavandiaequipment.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiafurniture', name: '🪑 Magasin de Meubles', file: 'lavandiafurniture.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiahealingcenter', name: '❤️ Centre Pokémon', file: 'lavandiahealingcenter.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiaresearchlab', name: '🧬 Laboratoire de Recherche', file: 'lavandiaresearchlab.tmj', category: 'lavandia_interior' },
+            { id: 'lavandiashop', name: '🛒 Magasin Lavandia', file: 'lavandiashop.tmj', category: 'lavandia_interior' },
+            
+            // === MAISONS LAVANDIA (1-9) ===
+            { id: 'lavandiahouse1', name: '🏠 Maison Lavandia 1', file: 'lavandiahouse1.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse2', name: '🏠 Maison Lavandia 2', file: 'lavandiahouse2.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse3', name: '🏠 Maison Lavandia 3', file: 'lavandiahouse3.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse4', name: '🏠 Maison Lavandia 4', file: 'lavandiahouse4.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse5', name: '🏠 Maison Lavandia 5', file: 'lavandiahouse5.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse6', name: '🏠 Maison Lavandia 6', file: 'lavandiahouse6.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse7', name: '🏠 Maison Lavandia 7', file: 'lavandiahouse7.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse8', name: '🏠 Maison Lavandia 8', file: 'lavandiahouse8.tmj', category: 'lavandia_house' },
+            { id: 'lavandiahouse9', name: '🏠 Maison Lavandia 9', file: 'lavandiahouse9.tmj', category: 'lavandia_house' },
+            
+            // === GROTTES ===
+            { id: 'noctherbcave1', name: '🕳️ Grotte de Noctherb 1', file: 'noctherbcave1.tmj', category: 'cave' },
+            { id: 'noctherbcave2', name: '🕳️ Grotte de Noctherb 2', file: 'noctherbcave2.tmj', category: 'cave' },
+            { id: 'noctherbcave2bis', name: '🕳️ Grotte de Noctherb 2bis', file: 'noctherbcave2bis.tmj', category: 'cave' },
+            
+            // === WRAITHMOOR ===
+            { id: 'wraithmoor', name: '👻 Lande Spectrale', file: 'wraithmoor.tmj', category: 'wraithmoor' },
+            { id: 'wraithmoorcimetery', name: '⚰️ Cimetière de la Lande', file: 'wraithmoorcimetery.tmj', category: 'wraithmoor' },
+            { id: 'wraithmoormanor1', name: '🏚️ Manoir de la Lande 1', file: 'wraithmoormanor1.tmj', category: 'wraithmoor' }
         ]
 
         const mapSelect = document.getElementById('mapSelect')
         if (mapSelect) {
             mapSelect.innerHTML = `
                 <option value="">Sélectionner une carte...</option>
-                <optgroup label="🌍 Zones principales">
+                <optgroup label="🌍 Zones Principales">
                     <option value="beach">🏖️ Beach</option>
                     <option value="village">🏘️ Village</option>
                     <option value="lavandia">🏙️ Lavandia</option>
@@ -983,6 +1028,48 @@ placeGenericObject(tileX, tileY) {
                     <option value="road1">🛤️ Route 1</option>
                     <option value="road2">🛤️ Route 2</option>
                     <option value="road3">🛤️ Route 3</option>
+                </optgroup>
+                <optgroup label="🏠 Village - Intérieurs">
+                    <option value="villagelab">🧪 Laboratoire du Village</option>
+                    <option value="villagehouse1">🏠 Maison Village 1</option>
+                    <option value="villagehouse2">🏠 Maison Village 2</option>
+                    <option value="villageflorist">🌸 Fleuriste du Village</option>
+                    <option value="villagewindmill">🌾 Moulin du Village</option>
+                </optgroup>
+                <optgroup label="🛤️ Routes - Intérieurs">
+                    <option value="road1house">🏠 Maison Route 1</option>
+                    <option value="road1hidden">🔍 Passage Caché Route 1</option>
+                </optgroup>
+                <optgroup label="🏙️ Lavandia - Commerces">
+                    <option value="lavandiaanalysis">🔬 Centre d'Analyse</option>
+                    <option value="lavandiabossroom">👑 Salle du Boss</option>
+                    <option value="lavandiacelebitemple">🍃 Temple de Celebi</option>
+                    <option value="lavandiaequipment">⚔️ Magasin d'Équipement</option>
+                    <option value="lavandiafurniture">🪑 Magasin de Meubles</option>
+                    <option value="lavandiahealingcenter">❤️ Centre Pokémon</option>
+                    <option value="lavandiaresearchlab">🧬 Laboratoire de Recherche</option>
+                    <option value="lavandiashop">🛒 Magasin Lavandia</option>
+                </optgroup>
+                <optgroup label="🏠 Lavandia - Maisons">
+                    <option value="lavandiahouse1">🏠 Maison Lavandia 1</option>
+                    <option value="lavandiahouse2">🏠 Maison Lavandia 2</option>
+                    <option value="lavandiahouse3">🏠 Maison Lavandia 3</option>
+                    <option value="lavandiahouse4">🏠 Maison Lavandia 4</option>
+                    <option value="lavandiahouse5">🏠 Maison Lavandia 5</option>
+                    <option value="lavandiahouse6">🏠 Maison Lavandia 6</option>
+                    <option value="lavandiahouse7">🏠 Maison Lavandia 7</option>
+                    <option value="lavandiahouse8">🏠 Maison Lavandia 8</option>
+                    <option value="lavandiahouse9">🏠 Maison Lavandia 9</option>
+                </optgroup>
+                <optgroup label="🕳️ Grottes">
+                    <option value="noctherbcave1">🕳️ Grotte de Noctherb 1</option>
+                    <option value="noctherbcave2">🕳️ Grotte de Noctherb 2</option>
+                    <option value="noctherbcave2bis">🕳️ Grotte de Noctherb 2bis</option>
+                </optgroup>
+                <optgroup label="👻 Wraithmoor">
+                    <option value="wraithmoor">👻 Lande Spectrale</option>
+                    <option value="wraithmoorcimetery">⚰️ Cimetière de la Lande</option>
+                    <option value="wraithmoormanor1">🏚️ Manoir de la Lande 1</option>
                 </optgroup>
             `
         }
