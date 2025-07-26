@@ -406,20 +406,68 @@ async editNPC() {
     }
 }
 
-// ✅ MÉTHODE MODIFIÉE: Supprimer le NPC avec appel API
+// ✅ MÉTHODE CORRIGÉE: Supprimer le NPC (gérer les cas non sauvegardés)
 async deleteNPC() {
     if (!this.selectedNPC) return
     
-    if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" définitivement ?`)) return
+    if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" ?`)) return
     
     try {
+        // ✅ NOUVEAU: Vérifier si le NPC vient de MongoDB ou est juste local
+        const isLocalNPC = this.selectedNPC.isFromMap === false || 
+                          typeof this.selectedNPC.id === 'string' && this.selectedNPC.id.startsWith('npc_')
+        
+        if (isLocalNPC) {
+            // NPC créé localement, pas encore en base - suppression locale uniquement
+            console.log(`🔄 [MapEditor] Deleting local NPC: ${this.selectedNPC.name}`)
+            
+            const index = this.placedObjects.findIndex(obj => 
+                obj.id === this.selectedNPC.id && obj.type === 'npc'
+            )
+            
+            if (index !== -1) {
+                this.placedObjects.splice(index, 1)
+                this.renderMap()
+                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local)`, 'success')
+            }
+            
+            this.selectedNPC = null
+            return
+        }
+        
+        // NPC en base de données - suppression via API
         const currentZone = this.getCurrentZone()
         if (!currentZone) {
             this.adminPanel.showNotification('Zone non définie', 'error')
             return
         }
         
-        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${this.selectedNPC.id}/delete-from-map`, {
+        let npcId = this.selectedNPC.id || this.selectedNPC.npcId
+        
+        // Nettoyer l'ID
+        if (typeof npcId === 'string' && npcId.startsWith('npc_')) {
+            npcId = npcId.replace('npc_', '')
+        }
+        
+        // Vérifier que l'ID est valide pour MongoDB
+        if (!npcId || (typeof npcId === 'string' && isNaN(parseInt(npcId)))) {
+            console.error(`❌ [MapEditor] Invalid NPC ID for MongoDB: ${npcId}`)
+            // Fallback: suppression locale
+            const index = this.placedObjects.findIndex(obj => 
+                obj.id === this.selectedNPC.id && obj.type === 'npc'
+            )
+            if (index !== -1) {
+                this.placedObjects.splice(index, 1)
+                this.renderMap()
+                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local)`, 'success')
+            }
+            this.selectedNPC = null
+            return
+        }
+        
+        console.log(`🗑️ [MapEditor] Deleting MongoDB NPC with ID: ${npcId} in zone: ${currentZone}`)
+        
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${npcId}/delete-from-map`, {
             method: 'DELETE'
         })
         
@@ -434,14 +482,26 @@ async deleteNPC() {
                 this.renderMap()
             }
             
-            this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé`, 'success')
+            this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (MongoDB)`, 'success')
         } else {
             throw new Error(response.error)
         }
         
     } catch (error) {
         console.error('❌ [MapEditor] Error deleting NPC:', error)
-        this.adminPanel.showNotification('Erreur suppression NPC: ' + error.message, 'error')
+        
+        // ✅ FALLBACK: En cas d'erreur API, proposer une suppression locale
+        if (confirm(`Erreur API: ${error.message}\n\nSupprimer le NPC localement ?`)) {
+            const index = this.placedObjects.findIndex(obj => 
+                obj.id === this.selectedNPC.id && obj.type === 'npc'
+            )
+            
+            if (index !== -1) {
+                this.placedObjects.splice(index, 1)
+                this.renderMap()
+                this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé (local)`, 'info')
+            }
+        }
     }
     
     this.selectedNPC = null
