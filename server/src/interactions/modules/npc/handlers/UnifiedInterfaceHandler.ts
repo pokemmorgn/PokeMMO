@@ -35,6 +35,11 @@ type TrainerRewards = {
   money: number;
   items: any[];
 };
+
+// Fonction utilitaire pour créer des arrays typés vides
+const createEmptyRewards = (): QuestReward[] => [];
+
+// ===== INTERFACE NPC DATA COMPLÈTE (Compatible JSON + MongoDB + Tiled) =====
 interface NpcData {
   id: number;
   name: string;
@@ -509,7 +514,7 @@ export class UnifiedInterfaceHandler {
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: [] as QuestReward[] as Array<{
+        rewards: createEmptyRewards() as Array<{
           type: 'item' | 'gold' | 'experience';
           itemId?: string;
           amount: number;
@@ -524,7 +529,7 @@ export class UnifiedInterfaceHandler {
       questsToComplete: questsToComplete.map(quest => ({
         id: quest.id,
         name: quest.name,
-        rewards: []
+        rewards: createEmptyRewards()
       })),
       questDialogue: this.getQuestDialogue(npc),
       canGiveQuests: availableQuests.length > 0,
