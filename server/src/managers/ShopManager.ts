@@ -1026,13 +1026,15 @@ export class ShopManager {
       
       for (const shop of jsonShops) {
         try {
-          let mongoShop = await ShopData.findOne({ shopId: shop.id });
+          // ✅ CORRIGÉ : Typage correct pour Mongoose
+          let mongoShop: IShopData | null = await ShopData.findOne({ shopId: shop.id });
           
           if (mongoShop) {
             await mongoShop.updateFromJson(shop);
             results.success++;
           } else {
-            mongoShop = await ShopData.createFromJson(shop);
+            // ✅ CORRIGÉ : Pas besoin de réassigner mongoShop
+            await ShopData.createFromJson(shop);
             results.success++;
           }
           
@@ -1085,6 +1087,139 @@ export class ShopManager {
       ...Array.from(this.shopDefinitions.values()),
       ...Array.from(this.temporaryShops.values())
     ];
+  }
+
+  // ✅ AJOUTÉ : Méthode restockShop manquante
+  restockShop(shopId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop || !shop.restockInterval || shop.restockInterval === 0) {
+      this.log('info', `🔄 Shop ${shopId} - pas de restock configuré`);
+      return false;
+    }
+
+    if (shop.isTemporary) {
+      this.log('info', `🔄 Shop temporaire ${shopId} - pas de restock nécessaire`);
+      return false;
+    }
+
+    const now = Date.now();
+    const lastRestock = shop.lastRestock || 0;
+    const timeSinceRestock = now - lastRestock;
+    const restockIntervalMs = shop.restockInterval * 60 * 1000;
+
+    if (timeSinceRestock >= restockIntervalMs) {
+      // Restock des items
+      shop.items.forEach(item => {
+        if (item.stock !== undefined && item.stock !== -1) {
+          // Règles de restock selon le type d'item
+          if (item.itemId.includes('ball')) {
+            item.stock = Math.min(item.stock + 25, 50);
+          } else if (item.itemId.includes('potion')) {
+            item.stock = Math.min(item.stock + 15, 30);
+          } else {
+            item.stock = Math.min(item.stock + 10, 20);
+          }
+        }
+      });
+
+      shop.lastRestock = now;
+      this.log('info', `🔄 Shop ${shopId} restocké avec succès`);
+      return true;
+    }
+
+    this.log('info', `🔄 Shop ${shopId} - restock pas encore nécessaire (${Math.round(timeSinceRestock / 1000)}s depuis le dernier)`);
+    return false;
+  }
+
+  // ✅ AJOUTÉ : Méthodes utilitaires pour shops temporaires
+  createCustomTemporaryShop(
+    shopId: string, 
+    nameKey: string, 
+    items: ShopItem[]
+  ): ShopDefinition {
+    const temporaryShop: ShopDefinition = {
+      id: shopId,
+      nameKey: this.config.enableLocalization ? nameKey : undefined,
+      name: this.config.enableLocalization ? undefined : nameKey,
+      type: "temporary",
+      descriptionKey: this.config.enableLocalization ? `shop.description.${shopId}` : undefined,
+      description: this.config.enableLocalization ? undefined : "Un marchand temporaire personnalisé.",
+      buyMultiplier: 1.0,
+      sellMultiplier: 0.5,
+      currency: "gold",
+      restockInterval: 0,
+      isTemporary: true,
+      items: items,
+      sourceType: 'json'
+    };
+
+    this.temporaryShops.set(shopId, temporaryShop);
+    this.log('info', `✅ Shop temporaire personnalisé créé: ${nameKey} avec ${items.length} objets`);
+    
+    return temporaryShop;
+  }
+
+  removeTemporaryShop(shopId: string): boolean {
+    const removed = this.temporaryShops.delete(shopId);
+    if (removed) {
+      this.log('info', `🗑️ Shop temporaire ${shopId} supprimé`);
+    }
+    return removed;
+  }
+
+  isTemporaryShop(shopId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    return shop?.isTemporary || false;
+  }
+
+  clearTemporaryShops(): number {
+    const count = this.temporaryShops.size;
+    this.temporaryShops.clear();
+    this.log('info', `🧹 ${count} shops temporaires supprimés`);
+    return count;
+  }
+
+  addItemToShop(shopId: string, item: ShopItem): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const existingIndex = shop.items.findIndex(i => i.itemId === item.itemId);
+    if (existingIndex >= 0) {
+      shop.items[existingIndex] = item;
+    } else {
+      shop.items.push(item);
+    }
+
+    this.log('info', `➕ Item ${item.itemId} ajouté au shop ${shopId}`);
+    return true;
+  }
+
+  removeItemFromShop(shopId: string, itemId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const itemIndex = shop.items.findIndex(i => i.itemId === itemId);
+    if (itemIndex >= 0) {
+      shop.items.splice(itemIndex, 1);
+      this.log('info', `➖ Item ${itemId} retiré du shop ${shopId}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  updateItemStock(shopId: string, itemId: string, newStock: number): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const item = shop.items.find(i => i.itemId === itemId);
+    if (item) {
+      item.stock = newStock;
+      this.log('info', `📦 Stock ${itemId} mis à jour dans ${shopId}: ${newStock}`);
+      return true;
+    }
+
+    return false;
   }
 
   // ===== ADMINISTRATION =====
