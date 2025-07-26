@@ -210,6 +210,11 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ Message handlers configurés`);
     
     // Initialiser InteractionManager
+// ✅ ÉTAPE 8.5: Initialiser ShopManager D'ABORD
+    this.shopManager = new ShopManager();
+    console.log(`✅ ShopManager initialisé`);
+    
+    // ✅ ÉTAPE 8.6: Maintenant InteractionManager (avec ShopManager prêt)
     this.interactionManager = new InteractionManager(
       (zoneName: string) => this.getNpcManager(zoneName),
       this.zoneManager.getQuestManager(),
@@ -217,15 +222,9 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.starterHandlers,
       this.spectatorManager
     );
-    console.log(`✅ InteractionManager initialisé`);    
+    console.log(`✅ InteractionManager initialisé`);
     
-    // ✅ ÉTAPE 9: Initialiser ShopManager
-    this.shopManager = new ShopManager();
-    console.log(`✅ ShopManager initialisé`);
-
-    console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
-    
-// ✅ NOUVEAU ÉTAPE 9.5: Initialiser NpcInteractionModule
+    // ✅ ÉTAPE 8.7: NpcInteractionModule (avec ShopManager prêt)
     this.npcInteractionModule = new NpcInteractionModule(
       (zoneName: string) => this.getNpcManager(zoneName),
       this.zoneManager.getQuestManager(),
@@ -233,7 +232,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.starterHandlers,
       this.spectatorManager
     );
-    console.log(`✅ NpcInteractionModule initialisé`);    
+    console.log(`✅ NpcInteractionModule initialisé`);
     
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
