@@ -22,7 +22,7 @@ import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 import { WeatherIcon } from '../../ui/WeatherIcon.js';
 import { globalWeatherManager } from '../../managers/GlobalWeatherManager.js';
 import ObjectManager from "../../managers/ObjectManager.js";
-import { NpcSpriteManager } from '../managers/NpcSpriteManager.js';
+import { NpcSpriteManager } from '../../managers/NpcSpriteManager.js';
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
