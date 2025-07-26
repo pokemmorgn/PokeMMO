@@ -37,6 +37,7 @@ import { MovementHandlers } from "../handlers/MovementHandlers";
 // Après tes imports existants, ajoute :
 import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers";
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
+import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 // ✅ NOUVEAU : Imports pour le système shops intégré
 import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
 import { InteractionManager } from "../managers/InteractionManager";
@@ -78,6 +79,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private movementHandlers!: MovementHandlers;
   private objectInteractionHandlers!: ObjectInteractionHandlers;
   private objectInteractionModule!: ObjectInteractionModule;
+  private spectatorManager = new SpectatorManager();
   private jwtManager = JWTManager.getInstance();
   private npcInteractionModule!: NpcInteractionModule;
   private interactionManager!: InteractionManager;
@@ -208,7 +210,13 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ Message handlers configurés`);
     
     // Initialiser InteractionManager
-    this.interactionManager = new InteractionManager();
+    this.interactionManager = new InteractionManager(
+      (zoneName: string) => this.getNpcManager(zoneName),
+      this.zoneManager.getQuestManager(),
+      this.shopManager,
+      this.starterHandlers,
+      this.spectatorManager
+    );
     console.log(`✅ InteractionManager initialisé`);    
     
     // ✅ ÉTAPE 9: Initialiser ShopManager
