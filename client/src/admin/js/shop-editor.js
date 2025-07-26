@@ -7,6 +7,8 @@ export class ShopEditorModule {
         this.currentShop = null;
         this.selectedZone = null;
         this.allShops = [];
+        this.displayedShops = []; // Boutiques actuellement affichées après filtrage
+        this.zones = [];
         this.allItems = {};
         this.isEditMode = false;
         
@@ -54,12 +56,56 @@ export class ShopEditorModule {
 
     async loadZonesList() {
         try {
-            // Récupérer la liste des zones depuis les cartes disponibles
-            const response = await this.adminPanel.apiCall('/maps/list');
-            this.zones = response.maps.map(map => map.id);
+            console.log('🗺️ [ShopEditor] Loading zones list...');
+            
+            // Essayer d'abord la route maps/list existante
+            try {
+                const response = await this.adminPanel.apiCall('/maps/list');
+                if (response.success && response.maps) {
+                    this.zones = response.maps.map(map => map.id);
+                    console.log(`✅ [ShopEditor] ${this.zones.length} zones loaded from maps`);
+                    return;
+                }
+            } catch (error) {
+                console.warn('⚠️ [ShopEditor] Maps list route failed, trying alternatives...', error.message);
+            }
+            
+            // Alternative 1: Essayer de récupérer depuis les NPCs existants
+            try {
+                const npcsStats = await this.adminPanel.apiCall('/npcs/stats');
+                if (npcsStats.success && npcsStats.stats.zoneStats) {
+                    this.zones = npcsStats.stats.zoneStats.map(stat => stat.zone).filter(zone => zone);
+                    console.log(`✅ [ShopEditor] ${this.zones.length} zones loaded from NPCs stats`);
+                    return;
+                }
+            } catch (error) {
+                console.warn('⚠️ [ShopEditor] NPCs stats route failed...', error.message);
+            }
+            
+            // Alternative 2: Essayer de récupérer depuis les gameobjects
+            try {
+                const objectsStats = await this.adminPanel.apiCall('/maps/gameobjects/stats');
+                if (objectsStats.success && objectsStats.stats.zones) {
+                    this.zones = Object.keys(objectsStats.stats.zones);
+                    console.log(`✅ [ShopEditor] ${this.zones.length} zones loaded from gameobjects stats`);
+                    return;
+                }
+            } catch (error) {
+                console.warn('⚠️ [ShopEditor] Gameobjects stats route failed...', error.message);
+            }
+            
+            // Alternative 3: Zones par défaut basées sur votre jeu
+            console.warn('⚠️ [ShopEditor] Using default zones list');
+            this.zones = [
+                'beach', 'village', 'forest', 'cave', 'city', 
+                'route1', 'route2', 'route3', 'gym1', 'gym2',
+                'pokecenter', 'pokemart', 'lab', 'tower', 'safari'
+            ];
+            
         } catch (error) {
             console.error('❌ [ShopEditor] Error loading zones:', error);
-            this.zones = [];
+            // Utiliser une liste minimale en cas d'échec total
+            this.zones = ['beach', 'village', 'forest', 'cave', 'city'];
         }
     }
 
@@ -262,12 +308,19 @@ export class ShopEditorModule {
         const shopsList = document.getElementById('shopsListContainer');
         if (!shopsList) return;
 
-        if (this.allShops.length === 0) {
+        // Utiliser displayedShops si défini, sinon allShops
+        const shopsToShow = this.displayedShops || this.allShops;
+
+        if (shopsToShow.length === 0) {
+            const message = this.selectedZone ? 
+                `Aucune boutique trouvée dans la zone "${this.formatZoneName(this.selectedZone)}"` :
+                'Aucune boutique trouvée';
+                
             shopsList.innerHTML = `
                 <div class="shops-empty-list">
                     <div style="text-align: center; padding: 40px; color: #6c757d;">
                         <i class="fas fa-store" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p>Aucune boutique trouvée</p>
+                        <p>${message}</p>
                         <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.createNewShop()">
                             Créer une boutique
                         </button>
@@ -277,7 +330,7 @@ export class ShopEditorModule {
             return;
         }
 
-        const shopsHtml = this.allShops.map(shop => this.renderShopItem(shop)).join('');
+        const shopsHtml = shopsToShow.map(shop => this.renderShopItem(shop)).join('');
         shopsList.innerHTML = shopsHtml;
     }
 
@@ -1187,6 +1240,12 @@ export class ShopEditorModule {
 
     async refreshShops() {
         await this.loadShops();
+        await this.loadShopsStats();
+        this.adminPanel.showNotification('Liste des boutiques actualisée', 'success');
+    }
+
+    async refreshShops() {
+        await this.loadAllShops();
         await this.loadShopsStats();
         this.adminPanel.showNotification('Liste des boutiques actualisée', 'success');
     }
