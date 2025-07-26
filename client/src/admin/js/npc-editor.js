@@ -1060,6 +1060,47 @@ selectNPC(index) {
         })
     }
 
+    // ✅ NOUVELLE MÉTHODE À AJOUTER dans la classe NPCEditorModule
+loadNPCFromMapEditor(npcData, zoneId) {
+    console.log('🗺️ [NPCEditor] Loading NPC from Map Editor:', npcData)
+    
+    // S'assurer qu'on est sur la bonne zone
+    if (zoneId && zoneId !== this.currentZone) {
+        console.log(`🔄 [NPCEditor] Switching to zone: ${zoneId}`)
+        this.selectZone(zoneId)
+        
+        // Attendre que la zone soit chargée puis réessayer
+        setTimeout(() => {
+            this.loadNPCFromMapEditor(npcData, zoneId)
+        }, 1000)
+        return
+    }
+    
+    // Vérifier que le module est bien initialisé
+    if (!this.formBuilder) {
+        console.error('❌ [NPCEditor] FormBuilder not initialized')
+        this.adminPanel.showNotification('Éditeur NPC non initialisé', 'error')
+        return
+    }
+    
+    // Charger le NPC dans l'éditeur
+    this.selectedNPC = { ...npcData } // Clone pour éviter les mutations
+    this.updateEditorState()
+    
+    // Charger dans le formulaire
+    this.formBuilder.loadNPC(this.selectedNPC)
+    
+    // Marquer comme venant de l'éditeur de carte
+    this.selectedNPC.fromMapEditor = true
+    this.unsavedChanges = true
+    
+    this.adminPanel.showNotification(
+        `NPC "${npcData.name}" chargé pour édition depuis la carte`, 
+        'success'
+    )
+    
+    console.log('✅ [NPCEditor] NPC loaded successfully from map editor')
+}
     // ==============================
     // UTILITAIRES
     // ==============================
