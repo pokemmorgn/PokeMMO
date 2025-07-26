@@ -1,4 +1,4 @@
-// server/src/models/ShopData.ts
+// server/src/models/ShopData.ts - Version corrigée avec IDs de localisation
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 // ===== TYPES POUR L'UNIVERS POKÉMON =====
@@ -49,19 +49,19 @@ export interface IShopItem {
   // Métadonnées
   featured?: boolean;          // Objet mis en avant
   limitedTime?: Date;          // Date d'expiration
-  description?: string;        // Description spéciale
+  descriptionKey?: string;     // ✅ ID de localisation pour description spéciale
 }
 
 export interface IShopData extends Document {
   // === IDENTIFICATION ===
   shopId: string;              // ID unique du shop
-  name: string;                // Nom affiché
+  nameKey: string;             // ✅ ID de localisation pour le nom
   type: ShopType;              // Type de boutique
   region?: string;             // Région (Kanto, Johto, etc.)
   location: {                  // Localisation
     zone: string;              // Zone/carte
-    city?: string;             // Ville
-    building?: string;         // Bâtiment spécifique
+    cityKey?: string;          // ✅ ID de localisation pour la ville
+    buildingKey?: string;      // ✅ ID de localisation pour le bâtiment
   };
   
   // === CONFIGURATION COMMERCE ===
@@ -98,26 +98,27 @@ export interface IShopData extends Document {
   // === EXPÉRIENCE BOUTIQUE ===
   shopKeeper?: {
     npcId?: number;            // ID du NPC marchand (optionnel)
-    name: string;              // Nom du marchand
-    personality: string;       // Personnalité (friendly, stern, etc.)
-    specialization?: string;   // Spécialisation
+    nameKey: string;           // ✅ ID de localisation pour le nom du marchand
+    personalityKey: string;    // ✅ ID de localisation pour la personnalité
+    specializationKey?: string; // ✅ ID de localisation pour la spécialisation
   };
   
+  // ✅ DIALOGUES AVEC IDs DE LOCALISATION
   dialogues?: {
-    welcome: string[];         // Messages d'accueil
-    purchase: string[];        // Messages d'achat
-    sale: string[];           // Messages de vente
-    notEnoughMoney: string[]; // Pas assez d'argent
-    comeBackLater: string[];  // À bientôt
-    closed: string[];         // Boutique fermée
-    restricted: string[];     // Accès refusé
+    welcomeKeys: string[];         // IDs de messages d'accueil
+    purchaseKeys: string[];        // IDs de messages d'achat
+    saleKeys: string[];           // IDs de messages de vente
+    notEnoughMoneyKeys: string[]; // IDs pas assez d'argent
+    comeBackLaterKeys: string[];  // IDs à bientôt
+    closedKeys: string[];         // IDs boutique fermée
+    restrictedKeys: string[];     // IDs accès refusé
   };
   
   // === ÉVÉNEMENTS ET PROMOTIONS ===
   events?: {
     eventId: string;
-    name: string;
-    description: string;
+    nameKey: string;           // ✅ ID de localisation pour le nom
+    descriptionKey: string;    // ✅ ID de localisation pour la description
     startDate: Date;
     endDate: Date;
     discountPercent?: number;
@@ -130,7 +131,7 @@ export interface IShopData extends Document {
     enabled: boolean;
     pointsPerGold: number;     // Points par or dépensé
     membershipTiers: {
-      name: string;
+      nameKey: string;         // ✅ ID de localisation pour le nom du tier
       requiredPoints: number;
       discountPercent: number;
       specialAccess?: string[];
@@ -154,6 +155,7 @@ export interface IShopData extends Document {
   getItemPrice(itemId: string, playerMembership?: string): number;
   canPlayerBuy(itemId: string, quantity: number, playerLevel: number, playerBadges: string[]): boolean;
   restockShop(): Promise<void>;
+  categorizeItem(itemId: string): ShopCategory;
 }
 
 // Interface pour les méthodes statiques
@@ -228,13 +230,13 @@ const ShopItemSchema = new Schema<IShopItem>({
   // Métadonnées
   featured: { type: Boolean, default: false },
   limitedTime: { type: Date },
-  description: { type: String, trim: true, maxlength: 500 }
+  descriptionKey: { type: String, trim: true, maxlength: 100 } // ✅ ID de localisation
 }, { _id: false });
 
 const LocationSchema = new Schema({
   zone: { type: String, required: true, trim: true, index: true },
-  city: { type: String, trim: true },
-  building: { type: String, trim: true }
+  cityKey: { type: String, trim: true },     // ✅ ID de localisation
+  buildingKey: { type: String, trim: true } // ✅ ID de localisation
 }, { _id: false });
 
 const RestockInfoSchema = new Schema({
@@ -258,23 +260,24 @@ const AccessRequirementsSchema = new Schema({
 
 const ShopKeeperSchema = new Schema({
   npcId: { type: Number },
-  name: { type: String, required: true, trim: true },
-  personality: { 
+  nameKey: { type: String, required: true, trim: true },        // ✅ ID de localisation
+  personalityKey: { 
     type: String, 
     enum: ['friendly', 'stern', 'cheerful', 'mysterious', 'grumpy', 'professional'],
     default: 'friendly'
   },
-  specialization: { type: String, trim: true }
+  specializationKey: { type: String, trim: true }              // ✅ ID de localisation
 }, { _id: false });
 
+// ✅ SCHÉMA DIALOGUES AVEC IDs DE LOCALISATION
 const DialoguesSchema = new Schema({
-  welcome: [{ type: String, trim: true }],
-  purchase: [{ type: String, trim: true }],
-  sale: [{ type: String, trim: true }],
-  notEnoughMoney: [{ type: String, trim: true }],
-  comeBackLater: [{ type: String, trim: true }],
-  closed: [{ type: String, trim: true }],
-  restricted: [{ type: String, trim: true }]
+  welcomeKeys: [{ type: String, trim: true }],         // shop.dialogue.welcome.xxx
+  purchaseKeys: [{ type: String, trim: true }],        // shop.dialogue.purchase.xxx
+  saleKeys: [{ type: String, trim: true }],           // shop.dialogue.sale.xxx
+  notEnoughMoneyKeys: [{ type: String, trim: true }], // shop.dialogue.no_money.xxx
+  comeBackLaterKeys: [{ type: String, trim: true }],  // shop.dialogue.goodbye.xxx
+  closedKeys: [{ type: String, trim: true }],         // shop.dialogue.closed.xxx
+  restrictedKeys: [{ type: String, trim: true }]      // shop.dialogue.restricted.xxx
 }, { _id: false });
 
 // ===== SCHÉMA PRINCIPAL =====
@@ -288,11 +291,11 @@ const ShopDataSchema = new Schema<IShopData>({
     trim: true,
     index: true
   },
-  name: { 
+  nameKey: { 
     type: String, 
     required: true,
     trim: true,
-    maxlength: [100, 'Shop name too long']
+    maxlength: [100, 'Shop name key too long']
   },
   type: { 
     type: String, 
@@ -470,14 +473,14 @@ ShopDataSchema.pre('save', function(next) {
 // ===== MÉTHODES D'INSTANCE =====
 
 /**
- * Convertit vers le format attendu par ShopManager
+ * Convertit vers le format attendu par ShopManager (legacy)
  */
 ShopDataSchema.methods.toShopFormat = function(this: IShopData): any {
   return {
     id: this.shopId,
-    name: this.name,
+    nameKey: this.nameKey,        // ✅ Retourner la clé de localisation
     type: this.type,
-    description: `${this.shopKeeper?.name ? `Tenu par ${this.shopKeeper.name}. ` : ''}${this.location.city ? `Situé à ${this.location.city}. ` : ''}`,
+    descriptionKey: `shop.description.${this.shopId}`, // ✅ ID de description
     items: this.items.map(item => ({
       itemId: item.itemId,
       customPrice: item.basePrice,
@@ -490,18 +493,36 @@ ShopDataSchema.methods.toShopFormat = function(this: IShopData): any {
     currency: this.currency,
     restockInterval: this.restockInfo?.interval || 0,
     lastRestock: this.restockInfo?.lastRestock?.getTime(),
-    isTemporary: this.isTemporary
+    isTemporary: this.isTemporary,
+    
+    // ✅ Données localisées
+    location: {
+      zone: this.location.zone,
+      cityKey: this.location.cityKey,
+      buildingKey: this.location.buildingKey
+    },
+    shopKeeper: this.shopKeeper ? {
+      npcId: this.shopKeeper.npcId,
+      nameKey: this.shopKeeper.nameKey,
+      personalityKey: this.shopKeeper.personalityKey,
+      specializationKey: this.shopKeeper.specializationKey
+    } : undefined,
+    dialogues: this.dialogues
   };
 };
 
 /**
- * Met à jour depuis JSON legacy
+ * ✅ Met à jour depuis JSON legacy (convertit textes en IDs)
  */
 ShopDataSchema.methods.updateFromJson = async function(
   this: IShopData,
   jsonData: any
 ): Promise<void> {
-  if (jsonData.name) this.name = jsonData.name;
+  // Conversion nom legacy vers ID
+  if (jsonData.name) {
+    this.nameKey = `shop.name.${this.shopId}`;
+  }
+  
   if (jsonData.type) this.type = jsonData.type;
   if (jsonData.buyMultiplier) this.buyMultiplier = jsonData.buyMultiplier;
   if (jsonData.sellMultiplier) this.sellMultiplier = jsonData.sellMultiplier;
@@ -529,8 +550,51 @@ ShopDataSchema.methods.updateFromJson = async function(
     };
   }
   
+  // ✅ Générer dialogues par défaut selon le type
+  this.dialogues = this.generateDefaultDialogues();
+  
   this.migratedFrom = 'json';
   await this.save();
+};
+
+/**
+ * ✅ Génère les IDs de dialogues par défaut selon le type de shop
+ */
+ShopDataSchema.methods.generateDefaultDialogues = function(this: IShopData): any {
+  const shopType = this.type;
+  const shopId = this.shopId;
+  
+  return {
+    welcomeKeys: [
+      `shop.dialogue.${shopType}.welcome.1`,
+      `shop.dialogue.${shopType}.welcome.2`,
+      `shop.dialogue.generic.welcome.1`
+    ],
+    purchaseKeys: [
+      `shop.dialogue.${shopType}.purchase.1`,
+      `shop.dialogue.generic.purchase.1`
+    ],
+    saleKeys: [
+      `shop.dialogue.${shopType}.sale.1`,
+      `shop.dialogue.generic.sale.1`
+    ],
+    notEnoughMoneyKeys: [
+      `shop.dialogue.${shopType}.no_money.1`,
+      `shop.dialogue.generic.no_money.1`
+    ],
+    comeBackLaterKeys: [
+      `shop.dialogue.${shopType}.goodbye.1`,
+      `shop.dialogue.generic.goodbye.1`
+    ],
+    closedKeys: [
+      `shop.dialogue.${shopType}.closed.1`,
+      `shop.dialogue.generic.closed.1`
+    ],
+    restrictedKeys: [
+      `shop.dialogue.${shopType}.restricted.1`,
+      `shop.dialogue.generic.restricted.1`
+    ]
+  };
 };
 
 /**
@@ -560,15 +624,23 @@ ShopDataSchema.methods.isAccessibleToPlayer = function(
 };
 
 /**
- * Catégoriser automatiquement un item
+ * ✅ Catégoriser automatiquement un item (corrigée)
  */
-ShopDataSchema.methods.categorizeItem = function(itemId: string): ShopCategory {
-  if (itemId.includes('ball')) return 'pokeballs';
+ShopDataSchema.methods.categorizeItem = function(this: IShopData, itemId: string): ShopCategory {
+  // ✅ Mapping intelligent selon les conventions Pokémon
+  if (itemId.includes('ball') || itemId.endsWith('_ball')) return 'pokeballs';
   if (itemId.includes('potion') || itemId.includes('heal') || itemId.includes('revive')) return 'medicine';
-  if (itemId.includes('berry')) return 'berries';
-  if (itemId.includes('tm') || itemId.includes('hm')) return 'tms_hms';
-  if (itemId.includes('x_') || itemId.includes('guard_spec')) return 'battle_items';
-  return 'rare_items';
+  if (itemId.includes('berry') || itemId.endsWith('_berry')) return 'berries';
+  if (itemId.startsWith('tm') || itemId.startsWith('hm') || itemId.includes('_tm') || itemId.includes('_hm')) return 'tms_hms';
+  if (itemId.startsWith('x_') || itemId.includes('guard_') || itemId.includes('stat_')) return 'battle_items';
+  if (itemId.includes('incense') || itemId.includes('orb') || itemId.includes('plate')) return 'held_items';
+  if (itemId.includes('key_') || itemId.includes('card_') || itemId.includes('pass_')) return 'key_items';
+  if (itemId.includes('decor_') || itemId.includes('furniture_')) return 'decorations';
+  if (itemId.includes('cloth_') || itemId.includes('hat_') || itemId.includes('shirt_')) return 'clothes';
+  if (itemId.includes('accessory_') || itemId.includes('ribbon_')) return 'accessories';
+  if (itemId.includes('contest_') || itemId.includes('poffin_') || itemId.includes('pokeblock_')) return 'contest_items';
+  
+  return 'rare_items'; // Défaut
 };
 
 // ===== MÉTHODES STATIQUES =====
@@ -596,15 +668,18 @@ ShopDataSchema.statics.findShopsSellingItem = function(itemId: string): Promise<
   }).sort({ 'location.zone': 1 });
 };
 
+/**
+ * ✅ Créer shop depuis JSON legacy avec conversion auto des textes
+ */
 ShopDataSchema.statics.createFromJson = async function(jsonShop: any): Promise<IShopData> {
   const shopData = new this({
     shopId: jsonShop.id,
-    name: jsonShop.name,
+    nameKey: `shop.name.${jsonShop.id}`,  // ✅ Convertir en ID
     type: jsonShop.type || 'pokemart',
     location: {
       zone: 'unknown', // À déterminer lors de l'import
-      city: jsonShop.location?.city,
-      building: jsonShop.location?.building
+      cityKey: jsonShop.location?.city ? `location.city.${jsonShop.location.city}` : undefined,
+      buildingKey: jsonShop.location?.building ? `location.building.${jsonShop.location.building}` : undefined
     },
     currency: jsonShop.currency || 'gold',
     buyMultiplier: jsonShop.buyMultiplier || 1.0,
@@ -624,5 +699,35 @@ export const ShopData = mongoose.model<IShopData, IShopDataModel>('ShopData', Sh
 
 export type ShopDataDocument = IShopData;
 export type CreateShopData = Partial<Pick<IShopData, 
-  'shopId' | 'name' | 'type' | 'location' | 'items'
+  'shopId' | 'nameKey' | 'type' | 'location' | 'items'
 >>;
+
+// ===== CONSTANTES POUR LA LOCALISATION =====
+
+/**
+ * ✅ Mapping des types de shops vers leurs IDs de localisation
+ */
+export const SHOP_TYPE_LOCALIZATION_MAP: Record<ShopType, string> = {
+  'pokemart': 'shop.type.pokemart',
+  'department': 'shop.type.department',
+  'specialist': 'shop.type.specialist',
+  'gym_shop': 'shop.type.gym_shop',
+  'contest_shop': 'shop.type.contest_shop',
+  'game_corner': 'shop.type.game_corner',
+  'black_market': 'shop.type.black_market',
+  'trainer_shop': 'shop.type.trainer_shop',
+  'temporary': 'shop.type.temporary',
+  'vending_machine': 'shop.type.vending_machine',
+  'online_shop': 'shop.type.online_shop'
+};
+
+/**
+ * ✅ Mapping des devises vers leurs IDs de localisation
+ */
+export const CURRENCY_LOCALIZATION_MAP: Record<Currency, string> = {
+  'gold': 'currency.gold',
+  'battle_points': 'currency.battle_points',
+  'contest_points': 'currency.contest_points',
+  'game_tokens': 'currency.game_tokens',
+  'rare_candy': 'currency.rare_candy'
+};
