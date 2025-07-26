@@ -480,6 +480,17 @@ window.applyShopSelection = (fieldName) => {
     }
     window.npcFormBuilder.applyShopSelection(fieldName)
 }
+
+// Fonctions pour l'interaction NPCs depuis Map Editor
+window.editNPCFromMap = (npcData) => {
+    if (!adminPanel?.npcEditor) {
+        console.error('NPCEditor module not loaded')
+        return
+    }
+    adminPanel.npcEditor.loadNPCFromMapEditor(npcData)
+}
+
+
 // Helper function to show error messages
 function showErrorMessage(message) {
     const notification = document.createElement('div')
