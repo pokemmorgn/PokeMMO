@@ -152,10 +152,10 @@ export class TimeWeatherWidget {
         ${this.generateParticlesHTML()}
       </div>
       
-      <!-- Main Widget Content - Style unifié -->
+      <!-- Main Widget Content - Style unifié avec largeur corrigée -->
       <div class="widget-glass-container">
         <div class="widget-content">
-          <!-- Header avec Zone - Style Pokedex/Quest/Team -->
+          <!-- Header avec Zone - Débordement autorisé -->
           <div class="header-section" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="zone-badge" id="${this.id}-zone">
               <span class="zone-icon">📍</span>
@@ -163,7 +163,7 @@ export class TimeWeatherWidget {
             </div>
           </div>
           
-          <!-- Section Temps et Météo -->
+          <!-- Section Temps et Météo - Espacement amélioré -->
           <div class="main-section" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="time-section">
               <div class="time-display">
@@ -189,7 +189,7 @@ export class TimeWeatherWidget {
             </div>
           </div>
           
-          <!-- Section Bonus Gameplay - Style unifié -->
+          <!-- Section Bonus Gameplay - Débordement autorisé -->
           <div class="bonus-section" id="${this.id}-bonus" style="margin-top: -22px; position: relative; top: -22px;">
             <div class="bonus-icon">🎮</div>
             <div class="bonus-text">+15% XP Pokémon Eau</div>
