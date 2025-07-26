@@ -3,6 +3,7 @@
     "header": {
       "shop_name_default": "PokéMart",
       "shop_name_with_npc": "Boutique de {npcName}",
+      "npc_default": "Marchand",
       "subtitle_merchant": "Marchand Pokémon",
       "subtitle_unified": "Services Multiples",
       "subtitle_quest": "Donneur de Quêtes", 
@@ -10,17 +11,28 @@
       "npc_info": "NPC: {npcName}",
       "npc_info_unified": "NPC: {npcName} (Interface Unifiée)",
       "npc_info_capabilities": "NPC: {npcName} • {count} capacités",
-      "gold_currency": "₽"
+      "gold_currency": "₽",
+      "dollar_currency": "$",
+      "euro_currency": "€"
     },
     "tabs": {
       "buy": "Acheter",
-      "sell": "Vendre"
+      "sell": "Vendre",
+      "favorites": "Favoris",
+      "history": "Historique"
     },
     "sections": {
       "available_items": "Objets Disponibles",
       "item_details": "Détails de l'Objet",
       "items_count": "{count} objets",
-      "items_count_singular": "{count} objet"
+      "items_count_singular": "{count} objet",
+      "search_placeholder": "Rechercher un objet...",
+      "filter_by_type": "Filtrer par type",
+      "sort_by": "Trier par",
+      "sort_price_asc": "Prix croissant",
+      "sort_price_desc": "Prix décroissant",
+      "sort_name": "Nom",
+      "sort_level": "Niveau requis"
     },
     "actions": {
       "buy": "Acheter",
@@ -28,18 +40,26 @@
       "refresh": "Actualiser",
       "close": "Fermer",
       "confirm": "Confirmer",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "add_to_favorites": "Ajouter aux favoris",
+      "remove_from_favorites": "Retirer des favoris",
+      "buy_max": "Acheter tout",
+      "sell_all": "Vendre tout",
+      "quick_buy": "Achat rapide"
     },
     "messages": {
       "welcome_default": "Bienvenue dans notre boutique !",
       "welcome_npc": "Bienvenue chez {npcName} !",
       "tip_default": "💡 Conseil: Les objets rares apparaissent selon votre niveau",
       "tip_unified": "💡 Conseil: Ce NPC offre plusieurs services - utilisez les onglets pour naviguer",
+      "tip_favorites": "💡 Conseil: Ajoutez vos objets préférés pour un accès rapide",
       "select_item": "Sélectionnez un objet pour voir ses détails",
       "loading": "Chargement du catalogue...",
       "no_items_buy": "Aucun objet disponible à l'achat",
       "no_items_sell": "Aucun objet ne peut être vendu ici",
       "no_shop_data": "Aucune donnée de boutique disponible",
+      "no_favorites": "Aucun objet en favori",
+      "no_history": "Aucun historique de transaction",
       "empty_comeback": "Revenez plus tard !",
       "catalog_loaded": "Catalogue chargé !",
       "shop_closed": "À bientôt !",
@@ -50,16 +70,25 @@
       "refresh_error": "Erreur lors du rafraîchissement",
       "sell_not_implemented": "Fonction de vente pas encore implémentée",
       "catalog_load_error": "Impossible de charger le catalogue",
-      "technical_error": "Erreur technique: {error}"
+      "technical_error": "Erreur technique: {error}",
+      "connection_lost": "Connexion perdue - tentative de reconnexion...",
+      "reconnected": "Connexion rétablie !",
+      "search_no_results": "Aucun résultat pour '{query}'",
+      "filter_no_results": "Aucun objet correspond aux filtres"
     },
     "modal": {
       "title_buy": "Confirmation d'Achat",
       "title_sell": "Confirmation de Vente",
+      "title_bulk_buy": "Achat en Masse",
+      "title_bulk_sell": "Vente en Masse",
       "unit_price": "Prix unitaire: {price}₽",
       "quantity_label": "Quantité:",
       "total_label": "Total: ",
       "item_name_placeholder": "Nom de l'Objet",
-      "price_placeholder": "Prix: 100₽"
+      "price_placeholder": "Prix: 100₽",
+      "discount_applied": "Remise appliquée: -{discount}%",
+      "bulk_discount": "Remise quantité: -{discount}%",
+      "final_price": "Prix final: {price}₽"
     },
     "item_details": {
       "price_buy": "Prix d'Achat",
@@ -70,29 +99,57 @@
       "affordable": "Abordable",
       "too_expensive": "Trop Cher",
       "unlimited": "∞",
-      "item_type_default": "Objet"
+      "item_type_default": "Objet",
+      "owned_quantity": "Possédé: {quantity}",
+      "pocket": "Sac: {pocket}",
+      "pocket_medicine": "Médicaments",
+      "pocket_items": "Objets",
+      "pocket_pokeballs": "Poké Balls",
+      "pocket_tms": "CTs & CSs",
+      "pocket_berries": "Baies",
+      "pocket_keyitems": "Objets Clés",
+      "description": "Description",
+      "effects": "Effets",
+      "category": "Catégorie",
+      "rarity": "Rareté",
+      "weight": "Poids: {weight}g",
+      "tradeable": "Échangeable",
+      "consumable": "Consommable"
     },
     "stock": {
       "empty": "Vide",
       "no_items": "Aucun Objet",
       "out_of_stock": "Rupture",
-      "low_stock": "Stock Faible"
+      "low_stock": "Stock Faible",
+      "medium_stock": "Stock Moyen",
+      "high_stock": "Stock Élevé",
+      "restocking": "Réapprovisionnement en cours..."
     },
     "notifications": {
       "gold_gained": "+{amount}₽ gagné !",
       "gold_spent": "{amount}₽ dépensé",
       "item_bought": "{quantity}x {itemName} acheté pour {total}₽",
       "item_sold": "{quantity}x {itemName} vendu pour {total}₽",
-      "insufficient_gold": "Or insuffisant",
+      "insufficient_gold": "Or insuffisant (besoin de {needed}₽)",
       "out_of_stock": "Objet en rupture de stock",
       "level_required": "Niveau {level} requis",
-      "max_quantity_reached": "Quantité maximale atteinte"
+      "max_quantity_reached": "Quantité maximale atteinte",
+      "added_to_favorites": "{itemName} ajouté aux favoris",
+      "removed_from_favorites": "{itemName} retiré des favoris",
+      "discount_earned": "Remise de {percent}% appliquée !",
+      "bulk_purchase": "Achat groupé de {count} objets différents",
+      "transaction_pending": "Transaction en cours...",
+      "server_busy": "Serveur occupé - veuillez patienter"
     },
     "loading_states": {
       "loading_catalog": "Chargement du catalogue...",
       "processing_transaction": "Traitement de la transaction...",
       "refreshing_shop": "Actualisation de la boutique...",
-      "loading_items": "Chargement des objets..."
+      "loading_items": "Chargement des objets...",
+      "connecting": "Connexion au serveur...",
+      "syncing": "Synchronisation des données...",
+      "loading_favorites": "Chargement des favoris...",
+      "loading_history": "Chargement de l'historique..."
     },
     "empty_states": {
       "no_merchant_nearby": "Aucun marchand à proximité",
@@ -100,14 +157,19 @@
       "not_a_merchant": "Ce NPC n'est pas un marchand",
       "game_system_unavailable": "Système de jeu non disponible",
       "player_not_found": "Joueur introuvable",
-      "network_unavailable": "Connexion réseau indisponible"
+      "network_unavailable": "Connexion réseau indisponible",
+      "maintenance_mode": "Boutique en maintenance",
+      "closed_temporarily": "Temporairement fermé"
     },
     "shortcuts": {
       "close_esc": "Appuyez sur Échap pour fermer",
       "switch_tab": "Appuyez sur Tab pour changer d'onglet", 
       "refresh_r": "Appuyez sur R pour actualiser",
       "buy_enter": "Appuyez sur Entrée pour acheter",
-      "navigate_arrows": "Utilisez les flèches pour naviguer"
+      "navigate_arrows": "Utilisez les flèches pour naviguer",
+      "search_ctrl_f": "Ctrl+F pour rechercher",
+      "favorites_f": "F pour ajouter/retirer des favoris",
+      "quick_buy_space": "Espace pour achat rapide"
     },
     "accessibility": {
       "shop_overlay": "Interface de boutique",
@@ -116,22 +178,72 @@
       "quantity_input": "Champ de quantité",
       "close_button": "Bouton fermer",
       "tab_buy": "Onglet Acheter",
-      "tab_sell": "Onglet Vendre"
+      "tab_sell": "Onglet Vendre",
+      "search_field": "Champ de recherche",
+      "filter_dropdown": "Menu déroulant de filtres",
+      "sort_dropdown": "Menu déroulant de tri"
     },
     "debug": {
       "localization_not_loaded": "Localisations non chargées, retour brut pour {itemId}",
       "missing_localization": "Localisation manquante pour {key} (langue: {lang})",
       "catalog_processing": "Traitement du catalogue...",
       "npc_data_extracted": "Données NPC extraites: {npcName}",
+      "npc_object_processed": "Objet NPC traité: {npcId}",
       "unified_interface_detected": "Interface unifiée détectée",
       "legacy_mode": "Mode legacy activé",
-      "preloaded_data": "Données pré-chargées traitées"
+      "preloaded_data": "Données pré-chargées traitées",
+      "normalizing_structure": "Normalisation de la structure des données...",
+      "structure_normalized": "Structure normalisée avec succès",
+      "displaying_buy_tab": "Affichage de l'onglet Acheter",
+      "displaying_sell_tab": "Affichage de l'onglet Vendre",
+      "total_items_received": "Total d'objets reçus: {count}",
+      "total_sellable_items": "Total d'objets vendables: {count}",
+      "final_result": "Résultat final: {status}",
+      "displayed": "Affiché: {type} avec {count} éléments",
+      "catalog_already_processing": "Catalogue déjà en cours de traitement",
+      "total_in_shop": "Total en boutique: {count}",
+      "total_in_inventory": "Total en inventaire: {count}",
+      "catalog_processed": "Catalogue traité en {time}ms",
+      "objects_for": "Objets pour {context}: {count}",
+      "api_call_started": "Appel API démarré: {endpoint}",
+      "api_call_completed": "Appel API terminé: {status}",
+      "cache_hit": "Cache utilisé pour {key}",
+      "cache_miss": "Cache manqué pour {key}"
+    },
+    "history": {
+      "title": "Historique des Transactions",
+      "recent": "Récent",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "this_week": "Cette semaine",
+      "older": "Plus ancien",
+      "transaction_buy": "Achat: {quantity}x {itemName}",
+      "transaction_sell": "Vente: {quantity}x {itemName}",
+      "clear_history": "Effacer l'historique",
+      "export_history": "Exporter l'historique"
+    },
+    "favorites": {
+      "title": "Objets Favoris",
+      "add_tooltip": "Ajouter aux favoris",
+      "remove_tooltip": "Retirer des favoris",
+      "quick_access": "Accès rapide",
+      "manage": "Gérer les favoris"
+    },
+    "tooltips": {
+      "item_hover": "Cliquez pour voir les détails",
+      "price_info": "Prix peut varier selon le niveau",
+      "stock_info": "Stock se renouvelle périodiquement",
+      "level_warning": "Niveau {level} requis pour acheter",
+      "bulk_discount": "Remise possible pour achats groupés",
+      "tradeable_info": "Cet objet peut être échangé",
+      "consumable_info": "Objet à usage unique"
     }
   },
   "en": {
     "header": {
       "shop_name_default": "PokéMart",
       "shop_name_with_npc": "{npcName}'s Shop",
+      "npc_default": "Merchant",
       "subtitle_merchant": "Pokémon Merchant",
       "subtitle_unified": "Multiple Services",
       "subtitle_quest": "Quest Giver",
@@ -139,17 +251,28 @@
       "npc_info": "NPC: {npcName}",
       "npc_info_unified": "NPC: {npcName} (Unified Interface)",
       "npc_info_capabilities": "NPC: {npcName} • {count} capabilities",
-      "gold_currency": "₽"
+      "gold_currency": "₽",
+      "dollar_currency": "$",
+      "euro_currency": "€"
     },
     "tabs": {
       "buy": "Buy",
-      "sell": "Sell"
+      "sell": "Sell",
+      "favorites": "Favorites",
+      "history": "History"
     },
     "sections": {
       "available_items": "Available Items",
       "item_details": "Item Details",
       "items_count": "{count} items",
-      "items_count_singular": "{count} item"
+      "items_count_singular": "{count} item",
+      "search_placeholder": "Search for an item...",
+      "filter_by_type": "Filter by type",
+      "sort_by": "Sort by",
+      "sort_price_asc": "Price ascending",
+      "sort_price_desc": "Price descending",
+      "sort_name": "Name",
+      "sort_level": "Required level"
     },
     "actions": {
       "buy": "Buy",
@@ -157,18 +280,26 @@
       "refresh": "Refresh", 
       "close": "Close",
       "confirm": "Confirm",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "add_to_favorites": "Add to favorites",
+      "remove_from_favorites": "Remove from favorites",
+      "buy_max": "Buy all",
+      "sell_all": "Sell all",
+      "quick_buy": "Quick buy"
     },
     "messages": {
       "welcome_default": "Welcome to our shop!",
       "welcome_npc": "Welcome to {npcName}'s shop!",
       "tip_default": "💡 Tip: Rare items appear based on your level",
       "tip_unified": "💡 Tip: This NPC offers multiple services - use tabs to navigate",
+      "tip_favorites": "💡 Tip: Add your favorite items for quick access",
       "select_item": "Select an item to see its details",
       "loading": "Loading catalog...",
       "no_items_buy": "No items available for purchase",
       "no_items_sell": "No items can be sold here",
       "no_shop_data": "No shop data available",
+      "no_favorites": "No favorite items",
+      "no_history": "No transaction history",
       "empty_comeback": "Come back later!",
       "catalog_loaded": "Catalog loaded!",
       "shop_closed": "See you later!",
@@ -179,16 +310,25 @@
       "refresh_error": "Error during refresh",
       "sell_not_implemented": "Sell function not yet implemented",
       "catalog_load_error": "Unable to load catalog",
-      "technical_error": "Technical error: {error}"
+      "technical_error": "Technical error: {error}",
+      "connection_lost": "Connection lost - attempting to reconnect...",
+      "reconnected": "Connection restored!",
+      "search_no_results": "No results for '{query}'",
+      "filter_no_results": "No items match the filters"
     },
     "modal": {
       "title_buy": "Purchase Confirmation",
       "title_sell": "Sell Confirmation",
+      "title_bulk_buy": "Bulk Purchase",
+      "title_bulk_sell": "Bulk Sell",
       "unit_price": "Unit price: {price}₽",
       "quantity_label": "Quantity:",
       "total_label": "Total: ",
       "item_name_placeholder": "Item Name",
-      "price_placeholder": "Price: 100₽"
+      "price_placeholder": "Price: 100₽",
+      "discount_applied": "Discount applied: -{discount}%",
+      "bulk_discount": "Quantity discount: -{discount}%",
+      "final_price": "Final price: {price}₽"
     },
     "item_details": {
       "price_buy": "Purchase Price",
@@ -199,29 +339,57 @@
       "affordable": "Affordable",
       "too_expensive": "Too Expensive",
       "unlimited": "∞",
-      "item_type_default": "Item"
+      "item_type_default": "Item",
+      "owned_quantity": "Owned: {quantity}",
+      "pocket": "Bag: {pocket}",
+      "pocket_medicine": "Medicine",
+      "pocket_items": "Items",
+      "pocket_pokeballs": "Poké Balls",
+      "pocket_tms": "TMs & HMs",
+      "pocket_berries": "Berries",
+      "pocket_keyitems": "Key Items",
+      "description": "Description",
+      "effects": "Effects",
+      "category": "Category",
+      "rarity": "Rarity",
+      "weight": "Weight: {weight}g",
+      "tradeable": "Tradeable",
+      "consumable": "Consumable"
     },
     "stock": {
       "empty": "Empty",
       "no_items": "No Items",
       "out_of_stock": "Out of Stock",
-      "low_stock": "Low Stock"
+      "low_stock": "Low Stock",
+      "medium_stock": "Medium Stock",
+      "high_stock": "High Stock",
+      "restocking": "Restocking in progress..."
     },
     "notifications": {
       "gold_gained": "+{amount}₽ gained!",
       "gold_spent": "{amount}₽ spent",
       "item_bought": "{quantity}x {itemName} bought for {total}₽",
       "item_sold": "{quantity}x {itemName} sold for {total}₽",
-      "insufficient_gold": "Insufficient gold",
+      "insufficient_gold": "Insufficient gold (need {needed}₽)",
       "out_of_stock": "Item out of stock",
       "level_required": "Level {level} required",
-      "max_quantity_reached": "Maximum quantity reached"
+      "max_quantity_reached": "Maximum quantity reached",
+      "added_to_favorites": "{itemName} added to favorites",
+      "removed_from_favorites": "{itemName} removed from favorites",
+      "discount_earned": "{percent}% discount applied!",
+      "bulk_purchase": "Bulk purchase of {count} different items",
+      "transaction_pending": "Transaction in progress...",
+      "server_busy": "Server busy - please wait"
     },
     "loading_states": {
       "loading_catalog": "Loading catalog...",
       "processing_transaction": "Processing transaction...",
       "refreshing_shop": "Refreshing shop...",
-      "loading_items": "Loading items..."
+      "loading_items": "Loading items...",
+      "connecting": "Connecting to server...",
+      "syncing": "Syncing data...",
+      "loading_favorites": "Loading favorites...",
+      "loading_history": "Loading history..."
     },
     "empty_states": {
       "no_merchant_nearby": "No merchant nearby",
@@ -229,14 +397,19 @@
       "not_a_merchant": "This NPC is not a merchant",
       "game_system_unavailable": "Game system unavailable",
       "player_not_found": "Player not found",
-      "network_unavailable": "Network connection unavailable"
+      "network_unavailable": "Network connection unavailable",
+      "maintenance_mode": "Shop under maintenance",
+      "closed_temporarily": "Temporarily closed"
     },
     "shortcuts": {
       "close_esc": "Press Escape to close",
       "switch_tab": "Press Tab to switch tabs",
       "refresh_r": "Press R to refresh",
       "buy_enter": "Press Enter to buy",
-      "navigate_arrows": "Use arrows to navigate"
+      "navigate_arrows": "Use arrows to navigate",
+      "search_ctrl_f": "Ctrl+F to search",
+      "favorites_f": "F to add/remove favorites",
+      "quick_buy_space": "Space for quick buy"
     },
     "accessibility": {
       "shop_overlay": "Shop interface",
@@ -245,16 +418,65 @@
       "quantity_input": "Quantity input field",
       "close_button": "Close button",
       "tab_buy": "Buy tab",
-      "tab_sell": "Sell tab"
+      "tab_sell": "Sell tab",
+      "search_field": "Search field",
+      "filter_dropdown": "Filter dropdown",
+      "sort_dropdown": "Sort dropdown"
     },
     "debug": {
       "localization_not_loaded": "Localizations not loaded, raw fallback for {itemId}",
       "missing_localization": "Missing localization for {key} (language: {lang})",
       "catalog_processing": "Processing catalog...",
       "npc_data_extracted": "NPC data extracted: {npcName}",
+      "npc_object_processed": "NPC object processed: {npcId}",
       "unified_interface_detected": "Unified interface detected",
       "legacy_mode": "Legacy mode activated",
-      "preloaded_data": "Preloaded data processed"
+      "preloaded_data": "Preloaded data processed",
+      "normalizing_structure": "Normalizing data structure...",
+      "structure_normalized": "Structure normalized successfully",
+      "displaying_buy_tab": "Displaying buy tab",
+      "displaying_sell_tab": "Displaying sell tab",
+      "total_items_received": "Total items received: {count}",
+      "total_sellable_items": "Total sellable items: {count}",
+      "final_result": "Final result: {status}",
+      "displayed": "Displayed: {type} with {count} elements",
+      "catalog_already_processing": "Catalog already processing",
+      "total_in_shop": "Total in shop: {count}",
+      "total_in_inventory": "Total in inventory: {count}",
+      "catalog_processed": "Catalog processed in {time}ms",
+      "objects_for": "Objects for {context}: {count}",
+      "api_call_started": "API call started: {endpoint}",
+      "api_call_completed": "API call completed: {status}",
+      "cache_hit": "Cache hit for {key}",
+      "cache_miss": "Cache miss for {key}"
+    },
+    "history": {
+      "title": "Transaction History",
+      "recent": "Recent",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "this_week": "This week",
+      "older": "Older",
+      "transaction_buy": "Purchase: {quantity}x {itemName}",
+      "transaction_sell": "Sale: {quantity}x {itemName}",
+      "clear_history": "Clear history",
+      "export_history": "Export history"
+    },
+    "favorites": {
+      "title": "Favorite Items",
+      "add_tooltip": "Add to favorites",
+      "remove_tooltip": "Remove from favorites",
+      "quick_access": "Quick access",
+      "manage": "Manage favorites"
+    },
+    "tooltips": {
+      "item_hover": "Click to see details",
+      "price_info": "Price may vary based on level",
+      "stock_info": "Stock refreshes periodically",
+      "level_warning": "Level {level} required to purchase",
+      "bulk_discount": "Possible discount for bulk purchases",
+      "tradeable_info": "This item can be traded",
+      "consumable_info": "Single-use item"
     }
   }
 }
