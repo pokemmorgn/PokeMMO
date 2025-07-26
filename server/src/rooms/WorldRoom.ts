@@ -37,7 +37,14 @@ import { MovementHandlers } from "../handlers/MovementHandlers";
 // Après tes imports existants, ajoute :
 import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers";
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
-
+// ✅ NOUVEAU : Imports pour le système shops intégré
+import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
+import { InteractionManager } from "../interactions/InteractionManager";
+import { 
+  InteractionRequest, 
+  InteractionContext,
+  InteractionResult 
+} from "../interactions/types/BaseInteractionTypes";
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
   success: boolean;
