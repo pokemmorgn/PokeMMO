@@ -1134,7 +1134,8 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
       }
     });
 // Récupérer le catalogue d'un shop via système intégré
-    this.onMessage("getShopCatalog", (client, data) => {
+ // ✅ MODIFIÉ : Récupérer le catalogue d'un shop avec logique Buy/Sell correcte
+    this.onMessage("getShopCatalog", async (client, data) => {
       console.log(`🏪 [WorldRoom] Demande catalogue shop via système intégré: ${data.shopId}`);
       
       const player = this.state.players.get(client.sessionId);
@@ -1146,29 +1147,62 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
         return;
       }
 
-      // ✅ UTILISER DIRECTEMENT SHOPMANAGER (déjà intégré)
-      const catalog = this.shopManager.getShopCatalog(data.shopId, player.level || 1);
+      try {
+        // ✅ ITEMS À ACHETER (du shop)
+        const catalog = this.shopManager.getShopCatalog(data.shopId, player.level || 1);
+        
+        if (!catalog) {
+          client.send("shopCatalogResult", {
+            success: false,
+            message: "Shop introuvable"
+          });
+          return;
+        }
 
-      if (catalog) {
+        // ✅ ITEMS À VENDRE (de l'inventaire du joueur)
+        const playerInventory = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+        const sellableItems: any[] = [];
+
+        // Convertir l'inventaire en format vendable
+        for (const [pocket, items] of Object.entries(playerInventory)) {
+          for (const [itemId, itemData] of Object.entries(items as any)) {
+            const sellPrice = this.shopManager.getItemSellPrice(data.shopId, itemId);
+            if (sellPrice > 0 && (itemData as any).quantity > 0) {
+              sellableItems.push({
+                itemId: itemId,
+                quantity: (itemData as any).quantity,
+                sellPrice: sellPrice,
+                canSell: true,
+                pocket: pocket
+              });
+            }
+          }
+        }
+
         const response = {
           success: true,
           shopId: data.shopId,
           catalog: {
             shopInfo: catalog.shopInfo,
-            availableItems: catalog.availableItems
+            // ✅ SÉPARATION BUY/SELL
+            buyItems: catalog.availableItems,  // Items du shop
+            sellItems: sellableItems           // Items du joueur
           },
           playerGold: player.gold || 1000
         };
 
         client.send("shopCatalogResult", response);
-        console.log(`✅ Catalogue shop ${data.shopId} envoyé via système intégré`);
-      } else {
+        console.log(`✅ Catalogue shop ${data.shopId} envoyé avec ${catalog.availableItems.length} buy items et ${sellableItems.length} sell items`);
+
+      } catch (error) {
+        console.error(`❌ Erreur catalogue shop:`, error);
         client.send("shopCatalogResult", {
           success: false,
-          message: "Shop introuvable"
+          message: "Erreur lors de la récupération du catalogue"
         });
       }
     });
+    
     // Rafraîchir un shop (restock)
     this.onMessage("refreshShop", (client, data) => {
       console.log(`🔄 [WorldRoom] Rafraîchissement shop: ${data.shopId}`);
