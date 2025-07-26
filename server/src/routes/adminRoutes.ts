@@ -4417,25 +4417,58 @@ router.get('/shops/stats', requireMacAndDev, async (req: any, res) => {
 })
 
 // ✅ ROUTE: Récupérer un NPC spécifique pour édition depuis Map Editor
+// ✅ ROUTE CORRIGÉE: Récupérer un NPC spécifique pour édition depuis Map Editor
 router.get('/zones/:zoneId/npcs/:npcId/edit', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId, npcId } = req.params;
     
     console.log(`✏️ [NPCs API] Loading NPC ${npcId} from zone ${zoneId} for map editor`);
     
-    // Trouver le NPC dans MongoDB
-    const npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
+    let npc = null;
+    
+    // ✅ CORRECTION: Essayer d'abord avec l'ID numérique
+    if (!isNaN(parseInt(npcId))) {
+      // Si c'est un nombre, chercher par npcId
+      npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
+    }
+    
+    // ✅ Si pas trouvé et que l'ID commence par "npc_", extraire le nombre
+    if (!npc && npcId.startsWith('npc_')) {
+      const numericId = npcId.replace('npc_', '');
+      if (!isNaN(parseInt(numericId))) {
+        npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(numericId) });
+      }
+    }
+    
+    // ✅ Dernier recours: chercher par ObjectId si c'est un ID MongoDB valide
+    if (!npc && npcId.length === 24) {
+      try {
+        npc = await NpcData.findOne({ zone: zoneId, _id: npcId });
+      } catch (error) {
+        // Ignore si ce n'est pas un ObjectId valide
+      }
+    }
+    
     if (!npc) {
+      console.error(`❌ [NPCs API] NPC not found: ${npcId} in zone ${zoneId}`);
+      
+      // Debug: lister tous les NPCs de la zone
+      const allNpcs = await NpcData.find({ zone: zoneId }).select('npcId name _id');
+      console.log(`🔍 [NPCs API] Available NPCs in ${zoneId}:`, 
+        allNpcs.map(n => ({ npcId: n.npcId, name: n.name, _id: n._id.toString() }))
+      );
+      
       return res.status(404).json({
         success: false,
-        error: 'NPC non trouvé'
+        error: `NPC non trouvé: ${npcId} dans la zone ${zoneId}`,
+        availableNPCs: allNpcs.map(n => ({ npcId: n.npcId, name: n.name }))
       });
     }
     
     // Convertir au format éditeur
     const npcForEditor = npc.toNpcFormat();
     
-    console.log(`✅ [NPCs API] NPC ${npcId} loaded for editing from map`);
+    console.log(`✅ [NPCs API] NPC ${npc.npcId} (${npc.name}) loaded for editing from map`);
     
     res.json({
       success: true,
@@ -4447,7 +4480,7 @@ router.get('/zones/:zoneId/npcs/:npcId/edit', requireMacAndDev, async (req: any,
     console.error('❌ [NPCs API] Error loading NPC for map editor:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors du chargement du NPC pour édition'
+      error: `Erreur serveur: ${error instanceof Error ? error.message : 'Unknown error'}`
     });
   }
 });
