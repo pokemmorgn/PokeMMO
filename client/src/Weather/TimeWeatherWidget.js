@@ -14,19 +14,19 @@ export class TimeWeatherWidget {
     this.gameplayBonus = { active: true, text: '+15% XP Pokémon Eau', type: 'water' };
     this.lastWeatherSent = null;
 
-    // 🎨 CONFIGURATION MÉTÉO UNIFIÉE - Palette cohérente avec les autres interfaces
+    // 🎨 CONFIGURATION MÉTÉO UNIFIÉE AVEC ACCENTS PRONONCÉS
     this.pokemonWeatherConfig = {
       clear: { 
         icon: '☀️', 
         pokemon: '🔥', 
-        // ✨ Base uniforme + accent doré subtil (plus de gradient coloré)
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '✨',
         bonus: 'Feu',
-        color: '#ffb347', // Doré adouci au lieu de orange vif
+        color: '#ffd700', // Doré vif (au lieu de adouci)
         particleCount: 6,
-        accentColor: '#ffd700', // Pour les effets subtils
-        glowColor: 'rgba(255, 215, 0, 0.4)' // Glow doré subtil
+        accentColor: '#ffb347', // Pour effets secondaires
+        glowColor: 'rgba(255, 215, 0, 0.8)', // Glow doré prononcé
+        borderColor: '#ffd700' // Bordure dorée
       },
       rain: { 
         icon: '🌧️', 
@@ -34,10 +34,11 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '💧',
         bonus: 'Eau',
-        color: '#87ceeb', // Cyan unifié
+        color: '#3b82f6', // Bleu vif (au lieu de cyan unifié)
         particleCount: 8,
-        accentColor: '#4a90e2',
-        glowColor: 'rgba(59, 130, 246, 0.5)'
+        accentColor: '#60a5fa',
+        glowColor: 'rgba(59, 130, 246, 0.8)', // Glow bleu prononcé
+        borderColor: '#3b82f6' // Bordure bleu vif
       },
       storm: { 
         icon: '⚡', 
@@ -45,10 +46,11 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '⚡',
         bonus: 'Électrik',
-        color: '#b39ddb', // Violet adouci
+        color: '#8b5cf6', // Violet vif (au lieu de adouci)
         particleCount: 10,
-        accentColor: '#8b5cf6',
-        glowColor: 'rgba(139, 92, 246, 0.4)'
+        accentColor: '#a78bfa',
+        glowColor: 'rgba(139, 92, 246, 1)', // Glow violet très prononcé
+        borderColor: '#8b5cf6' // Bordure violette
       },
       snow: { 
         icon: '❄️', 
@@ -56,10 +58,11 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '❄️',
         bonus: 'Glace',
-        color: '#b3e5fc', // Bleu glacé adouci
+        color: '#60a5fa', // Cyan glacé vif (au lieu de adouci)
         particleCount: 12,
-        accentColor: '#60a5fa',
-        glowColor: 'rgba(96, 165, 250, 0.4)'
+        accentColor: '#93c5fd',
+        glowColor: 'rgba(96, 165, 250, 0.8)', // Glow cyan prononcé
+        borderColor: '#60a5fa' // Bordure cyan glacé
       },
       fog: { 
         icon: '🌫️', 
@@ -67,10 +70,11 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '🌫️',
         bonus: 'Spectre',
-        color: '#e0e0e0', // Gris adouci
+        color: '#9ca3af', // Gris (maintenu)
         particleCount: 5,
-        accentColor: '#9ca3af',
-        glowColor: 'rgba(156, 163, 175, 0.3)'
+        accentColor: '#d1d5db',
+        glowColor: 'rgba(156, 163, 175, 0.5)', // Glow gris modéré
+        borderColor: '#9ca3af' // Bordure grise
       },
       cloudy: { 
         icon: '☁️', 
@@ -78,10 +82,11 @@ export class TimeWeatherWidget {
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '☁️',
         bonus: 'Vol',
-        color: '#cfd8dc', // Gris-bleu adouci
+        color: '#6b7280', // Gris-bleu
         particleCount: 4,
-        accentColor: '#6b7280',
-        glowColor: 'rgba(107, 114, 128, 0.3)'
+        accentColor: '#9ca3af',
+        glowColor: 'rgba(107, 114, 128, 0.5)', // Glow gris-bleu modéré
+        borderColor: '#6b7280' // Bordure gris-bleu
       }
     };
     
@@ -103,7 +108,7 @@ export class TimeWeatherWidget {
     this.uiManagerControlled = true;
     this.onPositioned = this.onPositioned.bind(this);
     
-    console.log('🎮 [WeatherWidget] Instance créée avec palette UNIFIÉE');
+    console.log('🎮 [WeatherWidget] Instance créée - PALETTE UNIFIÉE avec ACCENTS MÉTÉO PRONONCÉS');
   }
 
   // === 🎨 CRÉATION DU WIDGET ===
@@ -136,7 +141,7 @@ export class TimeWeatherWidget {
     }, 100);
     
     this.initialized = true;
-    console.log('✅ [WeatherWidget] Widget unifié créé avec succès');
+    console.log('✅ [WeatherWidget] Widget unifié avec accents météo créé avec succès');
     return el;
   }
 
@@ -498,7 +503,7 @@ export class TimeWeatherWidget {
       type: weather
     });
     
-    console.log(`🌤️ Météo unifiée: ${displayName} avec ${config.particleCount} particules subtiles`);
+    console.log(`🌤️ Météo unifiée avec accents prononcés: ${displayName} avec ${config.particleCount} particules colorées`);
   }
 
   // 🎨 NOUVELLE MÉTHODE: Mise à jour classe météo
@@ -533,7 +538,7 @@ export class TimeWeatherWidget {
       particleContainer.appendChild(particle);
     }
     
-    console.log(`✨ ${config.particleCount} particules ${config.particles} générées (style unifié)`);
+    console.log(`✨ ${config.particleCount} particules ${config.particles} générées (accents prononcés)`);
   }
 
   updateZone(zoneName) {
@@ -809,7 +814,7 @@ export class TimeWeatherWidget {
     style.id = 'pokemon-weather-widget-css';
     style.textContent = POKEMON_WEATHER_STYLES;
     document.head.appendChild(style);
-    console.log('🎨 [WeatherWidget] Styles unifiés injectés');
+    console.log('🎨 [WeatherWidget] Styles unifiés avec accents météo injectés');
   }
 
   // === 🧹 DESTRUCTION (inchangée) ===
@@ -844,7 +849,7 @@ export class TimeWeatherWidget {
     this.isEnabled = false;
     this.initialized = false;
     
-    console.log('🧹 [WeatherWidget] Widget unifié détruit');
+    console.log('🧹 [WeatherWidget] Widget unifié avec accents détruit');
   }
 
   // === 🐛 DEBUG ===
@@ -869,8 +874,9 @@ export class TimeWeatherWidget {
       weatherConfig: this.pokemonWeatherConfig[this.weather.weather],
       particleCount: this.pokemonWeatherConfig[this.weather.weather]?.particleCount || 0,
       weatherClass: `weather-${this.weather.weather}`,
-      unifiedStyle: true, // 🎨 Nouveau flag
-      styleVersion: 'unified-2024',
+      unifiedStyle: true,
+      weatherAccents: true, // 🎨 Nouveau flag pour accents météo
+      styleVersion: 'unified-with-accents-2024',
       animationFrames: {
         main: !!this.animationFrame,
         particles: !!this.particleAnimationFrame
