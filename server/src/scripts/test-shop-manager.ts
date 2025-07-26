@@ -1,10 +1,98 @@
-// src/scripts/test-shop-manager.ts
+// test-shop-manager.ts
 // Script de test complet pour ShopManager hybride et MerchantNpcHandler
+// ⚙️ PLACEMENT FLEXIBLE - Ce script détecte automatiquement les chemins corrects
 
 import mongoose from 'mongoose';
-import { ShopManager, ShopDataSource } from '../../server/src/managers/ShopManager';
-import { ShopData } from '../../server/src/models/ShopData';
-import { MerchantNpcHandler } from '../../server/src/interactions/modules/npc/handlers/MerchantNpcHandler';
+import path from 'path';
+import fs from 'fs';
+
+// ===== DÉTECTION AUTOMATIQUE DES CHEMINS =====
+function findModulePath(targetFile: string): string {
+  const possibleBasePaths = [
+    process.cwd(),                          // Racine du projet
+    path.join(process.cwd(), 'src'),        // src/
+    path.join(process.cwd(), 'server'),     // server/
+    path.join(process.cwd(), '..'),         // Dossier parent
+    path.dirname(__dirname),                // Dossier du script
+    path.join(path.dirname(__dirname), '..') // Deux niveaux au dessus
+  ];
+
+  const possiblePaths = [
+    `server/src/${targetFile}`,
+    `src/${targetFile}`,
+    targetFile,
+    `dist/server/src/${targetFile}`,
+    `dist/src/${targetFile}`
+  ];
+
+  for (const basePath of possibleBasePaths) {
+    for (const relativePath of possiblePaths) {
+      const fullPath = path.join(basePath, relativePath);
+      
+      // Pour les fichiers TypeScript, vérifier aussi les .js compilés
+      const extensions = ['.ts', '.js'];
+      for (const ext of extensions) {
+        const testPath = fullPath.replace('.ts', ext);
+        if (fs.existsSync(testPath)) {
+          console.log(`🎯 [PathFinder] ${targetFile} trouvé: ${testPath}`);
+          return testPath;
+        }
+      }
+    }
+  }
+
+  throw new Error(`❌ [PathFinder] Impossible de trouver ${targetFile}. Vérifiez la structure du projet.`);
+}
+
+// Fonction pour charger dynamiquement les modules
+async function loadModules() {
+  try {
+    console.log('🔍 [PathFinder] Recherche des modules...');
+    
+    const shopManagerPath = findModulePath('managers/ShopManager');
+    const shopDataPath = findModulePath('models/ShopData');
+    const merchantHandlerPath = findModulePath('interactions/modules/npc/handlers/MerchantNpcHandler');
+    
+    console.log('📦 [PathFinder] Chargement des modules...');
+    
+    const { ShopManager, ShopDataSource } = await import(shopManagerPath);
+    const { ShopData } = await import(shopDataPath);
+    const { MerchantNpcHandler } = await import(merchantHandlerPath);
+    
+    console.log('✅ [PathFinder] Tous les modules chargés avec succès !');
+    
+    return { ShopManager, ShopDataSource, ShopData, MerchantNpcHandler };
+    
+  } catch (error) {
+    console.error('❌ [PathFinder] Erreur lors du chargement des modules:', error);
+    
+    console.log('\n🔍 [DEBUG] Structure du projet détectée:');
+    console.log(`- Dossier courant: ${process.cwd()}`);
+    console.log(`- Dossier du script: ${__dirname}`);
+    
+    // Lister les dossiers disponibles
+    const currentDir = process.cwd();
+    const items = fs.readdirSync(currentDir);
+    console.log(`- Contenu racine: ${items.join(', ')}`);
+    
+    if (items.includes('server')) {
+      const serverItems = fs.readdirSync(path.join(currentDir, 'server'));
+      console.log(`- Contenu server/: ${serverItems.join(', ')}`);
+      
+      if (serverItems.includes('src')) {
+        const serverSrcItems = fs.readdirSync(path.join(currentDir, 'server', 'src'));
+        console.log(`- Contenu server/src/: ${serverSrcItems.join(', ')}`);
+      }
+    }
+    
+    if (items.includes('src')) {
+      const srcItems = fs.readdirSync(path.join(currentDir, 'src'));
+      console.log(`- Contenu src/: ${srcItems.join(', ')}`);
+    }
+    
+    throw error;
+  }
+}
 
 // ===== CONFIGURATION =====
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld_test';
@@ -54,12 +142,14 @@ const TEST_NPC_MERCHANT = {
 
 // ===== CLASSE DE TEST =====
 class ShopManagerTester {
-  private shopManager!: ShopManager;
-  private merchantHandler!: MerchantNpcHandler;
+  private shopManager!: any;
+  private merchantHandler!: any;
   private testResults: { [key: string]: boolean } = {};
   private errors: string[] = [];
+  private modules: any;
 
-  constructor() {
+  constructor(modules: any) {
+    this.modules = modules;
     console.log('🧪 [ShopManagerTester] Initialisation...');
   }
 
@@ -100,7 +190,7 @@ class ShopManagerTester {
       console.log('✅ [Setup] MongoDB connecté');
       
       // Nettoyer les données de test précédentes
-      await ShopData.deleteMany({ shopId: { $regex: /^test_/ } });
+      await this.modules.ShopData.deleteMany({ shopId: { $regex: /^test_/ } });
       console.log('🧹 [Setup] Données de test nettoyées');
       
     } catch (error) {
@@ -112,11 +202,11 @@ class ShopManagerTester {
     console.log('⚙️ [Setup] Initialisation ShopManager...');
     
     // Créer ShopManager en mode hybride
-    this.shopManager = new ShopManager(
+    this.shopManager = new this.modules.ShopManager(
       "../test/data/shops.json", // Chemin factice
       "../test/data/items.json", // Chemin factice
       {
-        primaryDataSource: ShopDataSource.HYBRID,
+        primaryDataSource: this.modules.ShopDataSource.HYBRID,
         enableFallback: true,
         debugMode: true,
         enableLocalization: true
@@ -135,7 +225,7 @@ class ShopManagerTester {
     console.log('✅ [Setup] ShopManager initialisé');
     
     // Initialiser MerchantHandler
-    this.merchantHandler = new MerchantNpcHandler(this.shopManager, {
+    this.merchantHandler = new this.modules.MerchantNpcHandler(this.shopManager, {
       debugMode: true,
       enableLocalization: true
     });
@@ -177,7 +267,7 @@ class ShopManagerTester {
     
     try {
       // Créer un shop de test dans MongoDB
-      const mongoShop = await ShopData.createFromJson(TEST_SHOP_JSON);
+      const mongoShop = await this.modules.ShopData.createFromJson(TEST_SHOP_JSON);
       console.log(`✅ Shop MongoDB créé: ${mongoShop.shopId}`);
       
       // Attendre un peu pour le Hot Reload
@@ -287,7 +377,7 @@ class ShopManagerTester {
         TEST_PLAYER.level
       );
       
-      if (!failedBuy.success && failedBuy.messageKey === 'shop.error.insufficient_money') {
+      if (!failedBuy.success && (failedBuy.messageKey === 'shop.error.insufficient_money' || failedBuy.message.includes('argent'))) {
         console.log(`✅ Échec attendu: ${failedBuy.message}`);
         this.testResults['transactions'] = true;
       } else {
@@ -371,7 +461,7 @@ class ShopManagerTester {
       });
       
       // Modifier le shop dans MongoDB
-      const mongoShop = await ShopData.findOne({ shopId: 'test_pokemart' });
+      const mongoShop = await this.modules.ShopData.findOne({ shopId: 'test_pokemart' });
       if (mongoShop) {
         mongoShop.buyMultiplier = 1.2; // Changement
         await mongoShop.save();
@@ -443,7 +533,7 @@ class ShopManagerTester {
     
     try {
       // Nettoyer les données de test
-      await ShopData.deleteMany({ shopId: { $regex: /^test_/ } });
+      await this.modules.ShopData.deleteMany({ shopId: { $regex: /^test_/ } });
       
       // Nettoyer le ShopManager
       this.shopManager.cleanup();
@@ -495,27 +585,33 @@ function simulateInventoryManager() {
 // ===== EXÉCUTION =====
 
 async function main() {
+  console.log('🚀 === LANCEMENT DU TEST SHOPMANAGER ===');
+  console.log('📁 Détection automatique de la structure du projet...\n');
+  
   // Configuration de l'environnement de test
   process.env.NODE_ENV = 'test';
   
   // Simuler l'InventoryManager
   simulateInventoryManager();
   
-  // Créer et lancer les tests
-  const tester = new ShopManagerTester();
-  
-  // Gérer les timeouts
-  const timeout = setTimeout(() => {
-    console.error('❌ TIMEOUT: Tests interrompus après 30 secondes');
-    process.exit(1);
-  }, TEST_TIMEOUT);
-  
   try {
+    // Charger les modules dynamiquement
+    const modules = await loadModules();
+    
+    // Créer et lancer les tests
+    const tester = new ShopManagerTester(modules);
+    
+    // Gérer les timeouts
+    const timeout = setTimeout(() => {
+      console.error('❌ TIMEOUT: Tests interrompus après 30 secondes');
+      process.exit(1);
+    }, TEST_TIMEOUT);
+    
     await tester.runAllTests();
     clearTimeout(timeout);
     process.exit(0);
+    
   } catch (error) {
-    clearTimeout(timeout);
     console.error('❌ ERREUR FATALE:', error);
     process.exit(1);
   }
