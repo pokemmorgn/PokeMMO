@@ -415,6 +415,71 @@ window.loadMongoDB = () => {
     }
     adminPanel.mongodb.onTabActivated()
 }
+
+// ✅ NOUVEAU: Shop Selector functions
+window.setShopManual = (fieldName) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.setShopManual(fieldName)
+}
+
+window.openShopSelector = (fieldName) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.openShopSelector(fieldName)
+}
+
+window.refreshShopDetails = (fieldName) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.refreshShopDetails(fieldName)
+}
+
+window.closeShopSelector = () => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.closeShopSelector()
+}
+
+window.selectShop = (shopId) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.selectShop(shopId)
+}
+
+window.filterShops = (searchTerm) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.filterShops(searchTerm)
+}
+
+window.filterShopsByType = (type) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.filterShopsByType(type)
+}
+
+window.applyShopSelection = (fieldName) => {
+    if (!window.npcFormBuilder) {
+        console.error('NPCFormBuilder not loaded')
+        return
+    }
+    window.npcFormBuilder.applyShopSelection(fieldName)
+}
 // Helper function to show error messages
 function showErrorMessage(message) {
     const notification = document.createElement('div')
