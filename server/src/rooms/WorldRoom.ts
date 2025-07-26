@@ -1120,7 +1120,11 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
 
         // Mettre à jour l'or du joueur si transaction réussie
         if (result.success && result.newGold !== undefined) {
-          player.gold = result.newGold;
+          if (data.action === 'buy') {
+            player.gold = result.newGold;  // Pour achat : newGold = nouvel or total
+          } else if (data.action === 'sell') {
+            player.gold += result.newGold; // ✅ Pour vente : newGold = montant gagné à AJOUTER
+          }
         }
 
         client.send("shopTransactionResult", result);
