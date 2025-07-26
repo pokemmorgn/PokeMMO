@@ -644,7 +644,7 @@ export class UIManager {
     console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order})`);
   }
 
-  // ✅ FIX CRITIQUE : Position avec synchronisation et calcul corrigé
+  // ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
   positionIcon(moduleId) {
     // ✅ AJOUT : Synchroniser avant positionnement
     this.synchronizeElementReferences();
@@ -665,27 +665,49 @@ export class UIManager {
 
     let baseX, baseY;
     const padding = this.iconConfig.padding;
-    const globalOffset = this.iconConfig.globalOffset || 0; // Décalage global
+    const globalOffset = this.iconConfig.globalOffset || 0;
     
+    // ✅ NOUVEAU : Gestion intelligente des modules isolés (weather, etc.)
+    const isIsolatedModule = this.isIsolatedModule(moduleId, iconConfig);
+    
+    if (isIsolatedModule) {
+      // ✅ Position intelligente pour modules isolés
+      const intelligentPosition = this.calculateIntelligentPosition(moduleId, iconConfig);
+      
+      iconConfig.element.style.position = 'fixed';
+      iconConfig.element.style.left = `${intelligentPosition.x}px`;
+      iconConfig.element.style.top = `${intelligentPosition.y}px`;
+      iconConfig.element.style.right = '';
+      iconConfig.element.style.bottom = '';
+      iconConfig.element.style.zIndex = this.iconConfig.zIndex;
+      iconConfig.element.setAttribute('data-positioned-by', 'uimanager-intelligent');
+      
+      if (this.debug) {
+        console.log(`🧠 [UIManager] ${moduleId} positionné intelligemment à (${intelligentPosition.x}, ${intelligentPosition.y}) - offset: ${intelligentPosition.offset}px`);
+      }
+      return;
+    }
+    
+    // ✅ Position normale pour modules groupés
     switch (iconConfig.anchor) {
       case 'bottom-right':
-        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
+        baseX = window.innerWidth - padding - globalOffset;
         baseY = window.innerHeight - padding;
         break;
       case 'bottom-left':
-        baseX = padding + globalOffset; // ✅ Décalage inverse pour left
+        baseX = padding + globalOffset;
         baseY = window.innerHeight - padding;
         break;
       case 'top-right':
-        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
+        baseX = window.innerWidth - padding - globalOffset;
         baseY = padding + 60;
         break;
       case 'top-left':
-        baseX = padding + globalOffset; // ✅ Décalage inverse pour left
+        baseX = padding + globalOffset;
         baseY = padding;
         break;
       default:
-        baseX = window.innerWidth - padding - globalOffset; // ✅ Application du décalage
+        baseX = window.innerWidth - padding - globalOffset;
         baseY = window.innerHeight - padding;
     }
 
@@ -719,6 +741,85 @@ export class UIManager {
     if (this.debug) {
       console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${calculatedOrder} (memberIndex: ${memberIndex})`);
     }
+  }
+  
+  // ✅ NOUVEAU : Déterminer si un module doit être positionné de façon isolée
+  isIsolatedModule(moduleId, iconConfig) {
+    // Modules avec ordre très élevé (50+) ou groupes spéciaux
+    const highOrderThreshold = 10;
+    const specialGroups = ['weather', 'standalone', 'overlay'];
+    
+    return (
+      iconConfig.order >= highOrderThreshold ||
+      specialGroups.includes(iconConfig.group) ||
+      moduleId.includes('Weather') ||
+      moduleId.includes('Time')
+    );
+  }
+  
+  // ✅ NOUVEAU : Calcul de position intelligente pour modules isolés
+  calculateIntelligentPosition(moduleId, iconConfig) {
+    const padding = this.iconConfig.padding;
+    const globalOffset = this.iconConfig.globalOffset || 0;
+    
+    // Obtenir la taille réelle de l'élément
+    const element = iconConfig.element;
+    const rect = element.getBoundingClientRect();
+    const elementWidth = rect.width || iconConfig.size.width || 70;
+    const elementHeight = rect.height || iconConfig.size.height || 80;
+    
+    // Calculer offset intelligent basé sur la taille + espacement confortable
+    const comfortableSpacing = 20; // Espacement confortable
+    const calculatedOffset = elementWidth + comfortableSpacing;
+    
+    // Position selon anchor avec offset intelligent
+    let x, y;
+    
+    switch (iconConfig.anchor) {
+      case 'top-right':
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = padding;
+        break;
+        
+      case 'top-left':
+        x = padding + globalOffset + calculatedOffset;
+        y = padding;
+        break;
+        
+      case 'bottom-right':
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = window.innerHeight - padding - elementHeight;
+        break;
+        
+      case 'bottom-left':
+        x = padding + globalOffset + calculatedOffset;
+        y = window.innerHeight - padding - elementHeight;
+        break;
+        
+      default:
+        // Par défaut: top-right avec offset
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = padding;
+    }
+    
+    // S'assurer que l'élément reste visible à l'écran
+    x = Math.max(10, Math.min(x, window.innerWidth - elementWidth - 10));
+    y = Math.max(10, Math.min(y, window.innerHeight - elementHeight - 10));
+    
+    if (this.debug) {
+      console.log(`🧠 [UIManager] Position intelligente calculée pour ${moduleId}:`, {
+        elementSize: `${elementWidth}x${elementHeight}`,
+        calculatedOffset: calculatedOffset,
+        finalPosition: `${x}, ${y}`,
+        anchor: iconConfig.anchor
+      });
+    }
+    
+    return {
+      x: Math.round(x),
+      y: Math.round(y),
+      offset: calculatedOffset
+    };
   }
 
   // ✅ FIX : Repositionner avec synchronisation
