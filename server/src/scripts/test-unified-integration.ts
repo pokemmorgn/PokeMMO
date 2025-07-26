@@ -38,39 +38,39 @@ const TEST_PLAYER = {
   currentZone: 'celadon_city'
 };
 
-// NPC marchand de test (simulant un NPC MongoDB avec interface unifiée)
+// NPC marchand de test (utilisant un shop existant en base)
 const TEST_MERCHANT_NPC = {
   id: 2001,
-  name: "Marchand Celadon",
-  sprite: "merchant_celadon.png",
+  name: "Marchand Lavandia",
+  sprite: "merchant_lavandia.png",
   x: 150,
   y: 200,
   type: "merchant",
-  shopId: "pokemart_celadon_city", // Shop créé par la migration
+  shopId: "lavandiashop", // ✅ Shop existant en base
   properties: {
-    shopId: "pokemart_celadon_city",
-    dialogue: ["Bienvenue au Poké Mart de Celadon !"]
+    shopId: "lavandiashop",
+    dialogue: ["Bienvenue au Poké Mart de Lavandia !"]
   },
   sourceType: "mongodb" as const
 };
 
-// NPC multi-capacités (marchand + dialogue + quêtes potentielles)
+// NPC multi-capacités (utilisant un autre shop existant)
 const TEST_MULTI_NPC = {
   id: 2002,
-  name: "Marchand Expert",
-  sprite: "expert_merchant.png",
+  name: "Marchand Pêcheur",
+  sprite: "fishing_merchant.png",
   x: 200,
   y: 250,
   type: "merchant",
-  shopId: "department_celadon_city", // Grand magasin créé par la migration
+  shopId: "beach_fishing_shop", // ✅ Shop existant en base
   dialogueIds: [
-    "Bonjour ! Je suis un marchand expert.",
-    "Je peux vous aider avec mes articles premium.",
-    "N'hésitez pas à revenir !"
+    "Bonjour ! Je suis spécialisé dans la pêche.",
+    "J'ai tout l'équipement nécessaire.",
+    "Bonne pêche !"
   ],
   properties: {
-    shopId: "department_celadon_city",
-    dialogue: ["Interface multi-capacités activée !"]
+    shopId: "beach_fishing_shop",
+    dialogue: ["Équipement de pêche de qualité !"]
   },
   sourceType: "mongodb" as const
 };
@@ -315,16 +315,16 @@ class IntegrationTester {
     try {
       // Vérifier que le shop MongoDB est bien accessible
       const shopFromMongoDB = await this.modules.ShopData.findOne({ 
-        shopId: 'pokemart_celadon_city' 
+        shopId: 'lavandiashop' // ✅ Shop existant en base
       });
       
       if (!shopFromMongoDB) {
         throw new Error('Shop MongoDB non trouvé (migration pas complète ?)');
       }
-      console.log(`✅ Shop MongoDB trouvé: ${shopFromMongoDB.nameKey}`);
+      console.log(`✅ Shop MongoDB trouvé: ${shopFromMongoDB.nameKey || shopFromMongoDB.shopId}`);
       
       // Via ShopManager
-      const shopCatalog = this.shopManager.getShopCatalog('pokemart_celadon_city', TEST_PLAYER.level);
+      const shopCatalog = this.shopManager.getShopCatalog('lavandiashop', TEST_PLAYER.level);
       if (!shopCatalog) {
         throw new Error('Shop non accessible via ShopManager');
       }
@@ -337,7 +337,7 @@ class IntegrationTester {
         ['merchant']
       );
       
-      if (!unifiedResult.merchantData || unifiedResult.merchantData.shopId !== 'pokemart_celadon_city') {
+      if (!unifiedResult.merchantData || unifiedResult.merchantData.shopId !== 'lavandiashop') {
         throw new Error('Shop MongoDB non accessible via Interface Unifiée');
       }
       
