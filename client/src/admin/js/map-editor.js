@@ -369,46 +369,88 @@ handleClickOutside(event) {
     }
 }
 
-// ✅ NOUVELLE MÉTHODE: Éditer le NPC
-editNPC() {
+// ✅ MÉTHODE MODIFIÉE: Éditer le NPC avec appel API
+async editNPC() {
     if (!this.selectedNPC) return
     
-    console.log('✏️ [MapEditor] Editing NPC:', this.selectedNPC)
+    console.log('✏️ [MapEditor] Editing NPC via API:', this.selectedNPC)
     
-    // Convertir au format attendu par l'éditeur NPC
-    const npcForEditor = this.convertToNPCEditorFormat(this.selectedNPC)
-    
-    // Naviguer vers l'onglet NPCs
-    this.adminPanel.switchTab('npcs')
-    
-    // Attendre que l'onglet soit chargé puis sélectionner le NPC
-    setTimeout(() => {
-        if (this.adminPanel.npcEditor) {
-            this.adminPanel.npcEditor.loadNPCFromMapEditor(npcForEditor)
+    try {
+        // Récupérer les données complètes du NPC depuis la base
+        const currentZone = this.getCurrentZone()
+        if (!currentZone) {
+            this.adminPanel.showNotification('Zone non définie', 'error')
+            return
         }
-    }, 500)
-    
-    this.adminPanel.showNotification(`Édition du NPC "${this.selectedNPC.name}"`, 'info')
+        
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${this.selectedNPC.id}/edit`)
+        
+        if (response.success) {
+            // Naviguer vers l'éditeur NPC avec les données complètes
+            this.adminPanel.switchTab('npcs')
+            
+            setTimeout(() => {
+                if (this.adminPanel.npcEditor) {
+                    this.adminPanel.npcEditor.loadNPCFromMapEditor(response.npc, currentZone)
+                }
+            }, 500)
+            
+            this.adminPanel.showNotification(`Édition du NPC "${this.selectedNPC.name}"`, 'info')
+        } else {
+            throw new Error(response.error)
+        }
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error loading NPC for edit:', error)
+        this.adminPanel.showNotification('Erreur chargement NPC: ' + error.message, 'error')
+    }
 }
 
-// ✅ NOUVELLE MÉTHODE: Supprimer le NPC
-deleteNPC() {
+// ✅ MÉTHODE MODIFIÉE: Supprimer le NPC avec appel API
+async deleteNPC() {
     if (!this.selectedNPC) return
     
-    if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" ?`)) return
+    if (!confirm(`Supprimer le NPC "${this.selectedNPC.name}" définitivement ?`)) return
     
-    // Trouver et supprimer le NPC
-    const index = this.placedObjects.findIndex(obj => 
-        obj.id === this.selectedNPC.id && obj.type === 'npc'
-    )
-    
-    if (index !== -1) {
-        this.placedObjects.splice(index, 1)
-        this.renderMap()
-        this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé`, 'success')
+    try {
+        const currentZone = this.getCurrentZone()
+        if (!currentZone) {
+            this.adminPanel.showNotification('Zone non définie', 'error')
+            return
+        }
+        
+        const response = await this.adminPanel.apiCall(`/zones/${currentZone}/npcs/${this.selectedNPC.id}/delete-from-map`, {
+            method: 'DELETE'
+        })
+        
+        if (response.success) {
+            // Supprimer de la carte
+            const index = this.placedObjects.findIndex(obj => 
+                obj.id === this.selectedNPC.id && obj.type === 'npc'
+            )
+            
+            if (index !== -1) {
+                this.placedObjects.splice(index, 1)
+                this.renderMap()
+            }
+            
+            this.adminPanel.showNotification(`NPC "${this.selectedNPC.name}" supprimé`, 'success')
+        } else {
+            throw new Error(response.error)
+        }
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error deleting NPC:', error)
+        this.adminPanel.showNotification('Erreur suppression NPC: ' + error.message, 'error')
     }
     
     this.selectedNPC = null
+}
+
+// ✅ NOUVELLE MÉTHODE: Obtenir la zone actuelle
+getCurrentZone() {
+    const mapSelect = document.getElementById('mapSelect')
+    return mapSelect ? mapSelect.value : null
 }
 
 // ✅ NOUVELLE MÉTHODE: Convertir au format éditeur NPC
@@ -436,16 +478,19 @@ convertToNPCEditorFormat(mapNPC) {
     }
 }
 
-    // ✅ NOUVELLE MÉTHODE: Charger un NPC depuis l'éditeur de carte
-loadNPCFromMapEditor(npcData) {
+ // ✅ MÉTHODE MODIFIÉE: Charger un NPC depuis l'éditeur de carte
+loadNPCFromMapEditor(npcData, zoneId) {
     console.log('🗺️ [NPCEditor] Loading NPC from Map Editor:', npcData)
     
     // S'assurer qu'on est sur la bonne zone
-    if (this.adminPanel.mapEditor && this.adminPanel.mapEditor.currentMapData) {
-        const mapId = this.getMapIdFromMapEditor()
-        if (mapId && mapId !== this.currentZone) {
-            this.selectZone(mapId)
-        }
+    if (zoneId && zoneId !== this.currentZone) {
+        this.selectZone(zoneId)
+        
+        // Attendre que la zone soit chargée
+        setTimeout(() => {
+            this.loadNPCFromMapEditor(npcData, zoneId)
+        }, 1000)
+        return
     }
     
     // Charger le NPC dans l'éditeur
@@ -456,10 +501,11 @@ loadNPCFromMapEditor(npcData) {
         this.formBuilder.loadNPC(npcData)
     }
     
-    // Marquer comme modifié
+    // Marquer comme venant de l'éditeur de carte
+    this.selectedNPC.fromMapEditor = true
     this.unsavedChanges = true
     
-    this.adminPanel.showNotification(`NPC "${npcData.name}" chargé pour édition`, 'success')
+    this.adminPanel.showNotification(`NPC "${npcData.name}" chargé pour édition depuis la carte`, 'success')
 }
 
 // ✅ NOUVELLE MÉTHODE: Obtenir l'ID de carte depuis l'éditeur
