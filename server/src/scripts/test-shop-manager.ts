@@ -1,10 +1,10 @@
-// scripts/test-shop-manager.ts
+// src/scripts/test-shop-manager.ts
 // Script de test complet pour ShopManager hybride et MerchantNpcHandler
 
 import mongoose from 'mongoose';
-import { ShopManager, ShopDataSource } from '../server/src/managers/ShopManager';
-import { ShopData } from '../server/src/models/ShopData';
-import { MerchantNpcHandler } from '../server/src/interactions/modules/npc/handlers/MerchantNpcHandler';
+import { ShopManager, ShopDataSource } from '../../server/src/managers/ShopManager';
+import { ShopData } from '../../server/src/models/ShopData';
+import { MerchantNpcHandler } from '../../server/src/interactions/modules/npc/handlers/MerchantNpcHandler';
 
 // ===== CONFIGURATION =====
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld_test';
@@ -217,14 +217,14 @@ class ShopManagerTester {
       console.log(`✅ Catalogue généré avec ${catalog.availableItems.length} items`);
       
       // Vérifier les items par niveau
-      const unlockItems = catalog.availableItems.filter(item => !item.unlocked);
-      const availableItems = catalog.availableItems.filter(item => item.canBuy);
+      const unlockItems = catalog.availableItems.filter((item: any) => !item.unlocked);
+      const availableItems = catalog.availableItems.filter((item: any) => item.canBuy);
       
       console.log(`📊 Items débloqués: ${catalog.availableItems.length - unlockItems.length}/${catalog.availableItems.length}`);
       console.log(`🛒 Items achetables: ${availableItems.length}`);
       
       // Vérifier les prix
-      const pokeBallItem = catalog.availableItems.find(item => item.itemId === 'poke_ball');
+      const pokeBallItem = catalog.availableItems.find((item: any) => item.itemId === 'poke_ball');
       if (pokeBallItem && pokeBallItem.buyPrice > 0) {
         console.log(`💰 Prix Poké Ball: ${pokeBallItem.buyPrice}₽ (achat), ${pokeBallItem.sellPrice}₽ (vente)`);
         this.testResults['shop_catalog'] = true;
@@ -365,7 +365,7 @@ class ShopManagerTester {
       let reloadDetected = false;
       
       // S'abonner aux changements
-      this.shopManager.onShopChange((event, shopData) => {
+      this.shopManager.onShopChange((event: string, shopData?: any) => {
         console.log(`🔥 Hot Reload détecté: ${event} - ${shopData?.nameKey || shopData?.name || 'Unknown'}`);
         reloadDetected = true;
       });
