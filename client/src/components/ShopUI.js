@@ -1,8 +1,8 @@
-// client/src/components/ShopUI.js - VERSION ADAPTÉE SERVEUR INTÉGRÉ
-// ✅ Support complet des nouvelles données serveur : isUnifiedInterface, capabilities, contextualData
-// ✅ Localisation avancée : dialogueKeys, messageKey
-// ✅ Compatibilité totale legacy + interface unifiée
-// ✅ Gestion robuste des noms NPCs
+// client/src/components/ShopUI.js - VERSION 100% LOCALISÉE
+// ✅ AUCUN texte hardcodé - Tout utilise des clés de localisation
+// ✅ Support complet interface unifiée + legacy
+// ✅ Interpolation de paramètres {npcName}, {count}, etc.
+// ✅ Fallbacks propres et debugs
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -13,19 +13,20 @@ export class ShopUI {
     this.playerGold = 0;
     this.currentTab = 'buy';
     
-    // ✅ LOCALISATIONS ÉTENDUES
+    // ✅ LOCALISATIONS COMPLÈTES
     this.itemLocalizations = {};
+    this.shopUILocalizations = {}; // ✅ NOUVEAU: Localisations de l'interface
     this.dialogueLocalizations = {};
-    this.currentLanguage = 'fr'; // Français par défaut pour un jeu français
+    this.currentLanguage = 'fr'; // Français par défaut
     
-    // ✅ NOUVELLES DONNÉES NPC ET INTERFACE
+    // ✅ DONNÉES NPC ET INTERFACE
     this.currentNpcData = null;
     this.isUnifiedInterface = false;
     this.npcCapabilities = [];
     this.contextualData = null;
     this.unifiedInterfaceData = null;
     
-    // ✅ GESTION AMÉLIORÉE DES TEXTES
+    // ✅ GESTION DES TEXTES
     this.currentWelcomeMessage = null;
     this.currentDialogueKeys = [];
     
@@ -37,71 +38,136 @@ export class ShopUI {
     this.initializationPromise = this.init();
   }
 
-  // ✅ CHARGEMENT DES LOCALISATIONS ÉTENDUES
+  // ✅ NOUVEAU: CHARGEMENT DES LOCALISATIONS COMPLÈTES
   async loadLocalizations() {
     try {
-      console.log('🌐 [ShopUI] Chargement des localisations étendues...');
+      console.log('🌐 [ShopUI] Chargement des localisations complètes...');
       
-      // 1. Localisation des items (existant)
-      const itemResponse = await fetch('/localization/itemloca.json');
-      if (itemResponse.ok) {
-        this.itemLocalizations = await itemResponse.json();
-        console.log('✅ [ShopUI] Items localisés:', Object.keys(this.itemLocalizations).length);
+      // 1. ✅ NOUVEAU: Localisation de l'interface shop (PRIORITAIRE)
+      try {
+        const shopUIResponse = await fetch('/localization/shop_ui.json');
+        if (shopUIResponse.ok) {
+          this.shopUILocalizations = await shopUIResponse.json();
+          console.log('✅ [ShopUI] Interface localisée:', Object.keys(this.shopUILocalizations).length, 'langues');
+        } else {
+          throw new Error(`HTTP ${shopUIResponse.status}`);
+        }
+      } catch (error) {
+        console.error('❌ [ShopUI] ERREUR CRITIQUE: Impossible de charger shop_ui.json:', error);
+        this.shopUILocalizations = { [this.currentLanguage]: {} }; // Fallback vide
       }
       
-      // 2. 🆕 NOUVEAU: Localisation des dialogues shop
+      // 2. Localisation des items (existant)
+      try {
+        const itemResponse = await fetch('/localization/itemloca.json');
+        if (itemResponse.ok) {
+          this.itemLocalizations = await itemResponse.json();
+          console.log('✅ [ShopUI] Items localisés:', Object.keys(this.itemLocalizations).length, 'items');
+        }
+      } catch (error) {
+        console.warn('⚠️ [ShopUI] Items non localisés:', error);
+        this.itemLocalizations = {};
+      }
+      
+      // 3. Localisation des dialogues shop (optionnel)
       try {
         const dialogueResponse = await fetch('/localization/shop_dialogues.json');
         if (dialogueResponse.ok) {
           this.dialogueLocalizations = await dialogueResponse.json();
-          console.log('✅ [ShopUI] Dialogues shop localisés:', Object.keys(this.dialogueLocalizations).length);
-        } else {
-          console.warn('⚠️ [ShopUI] Pas de localisations dialogues, utilisation des fallbacks');
+          console.log('✅ [ShopUI] Dialogues shop localisés:', Object.keys(this.dialogueLocalizations).length, 'clés');
         }
       } catch (error) {
-        console.warn('⚠️ [ShopUI] Erreur chargement dialogues:', error);
+        console.warn('⚠️ [ShopUI] Dialogues shop non localisés:', error);
         this.dialogueLocalizations = {};
       }
       
     } catch (error) {
-      console.error('❌ [ShopUI] Erreur chargement localisations:', error);
+      console.error('❌ [ShopUI] Erreur générale chargement localisations:', error);
+      this.shopUILocalizations = { [this.currentLanguage]: {} };
       this.itemLocalizations = {};
       this.dialogueLocalizations = {};
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Obtenir texte localisé par clé
-  getLocalizedText(key, fallback = null) {
-    if (!key) return fallback || "Texte non disponible";
+  // ✅ NOUVEAU: MÉTHODE DE TRADUCTION PRINCIPALE avec interpolation
+  t(key, params = {}) {
+    if (!key) {
+      console.warn('⚠️ [ShopUI] t() appelé sans clé');
+      return 'MISSING_KEY';
+    }
+
+    // Naviguer dans l'objet de localisation avec la notation point
+    const keys = key.split('.');
+    let value = this.shopUILocalizations[this.currentLanguage];
     
-    // Essayer d'abord les dialogues shop
-    if (this.dialogueLocalizations[key]) {
-      const localized = this.dialogueLocalizations[key][this.currentLanguage];
-      if (localized) return localized;
+    if (!value) {
+      console.warn(`⚠️ [ShopUI] Langue "${this.currentLanguage}" non trouvée`);
+      return this.getFallbackText(key, params);
     }
     
-    // Puis les items si ça ressemble à une clé d'item
-    if (key.includes('item.') && this.itemLocalizations) {
-      const itemKey = key.replace('item.', '').replace('.name', '');
-      const itemLoca = this.itemLocalizations[itemKey];
-      if (itemLoca && itemLoca[this.currentLanguage]) {
-        return itemLoca[this.currentLanguage].name;
+    for (const k of keys) {
+      value = value[k];
+      if (value === undefined) {
+        console.warn(`⚠️ [ShopUI] Clé "${key}" non trouvée (arrêt à "${k}")`);
+        return this.getFallbackText(key, params);
       }
     }
     
-    console.warn(`⚠️ [ShopUI] Clé de localisation manquante: "${key}" (langue: ${this.currentLanguage})`);
-    return fallback || key.split('.').pop().replace(/_/g, ' ');
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Obtenir textes de dialogue localisés
-  getLocalizedDialogueLines(dialogueKeys) {
-    if (!dialogueKeys || !Array.isArray(dialogueKeys)) return [];
+    // Interpolation des paramètres
+    if (typeof value === 'string' && Object.keys(params).length > 0) {
+      return this.interpolateText(value, params);
+    }
     
-    return dialogueKeys.map(key => this.getLocalizedText(key, "Dialogue par défaut"));
+    return value;
   }
 
+  // ✅ NOUVEAU: Interpolation de texte avec paramètres {param}
+  interpolateText(text, params) {
+    let result = text;
+    
+    for (const [key, value] of Object.entries(params)) {
+      const placeholder = `{${key}}`;
+      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+    }
+    
+    return result;
+  }
+
+  // ✅ NOUVEAU: Fallback intelligent pour clés manquantes
+  getFallbackText(key, params) {
+    // Essayer avec l'anglais si français non disponible
+    if (this.currentLanguage !== 'en' && this.shopUILocalizations.en) {
+      const keys = key.split('.');
+      let value = this.shopUILocalizations.en;
+      
+      for (const k of keys) {
+        value = value[k];
+        if (value === undefined) break;
+      }
+      
+      if (value && typeof value === 'string') {
+        console.log(`🔄 [ShopUI] Fallback EN pour "${key}": "${value}"`);
+        return this.interpolateText(value, params);
+      }
+    }
+    
+    // Fallback ultime : transformer la clé en texte lisible
+    const lastKey = key.split('.').pop();
+    let fallback = lastKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    // Ajouter les paramètres si présents
+    if (Object.keys(params).length > 0) {
+      const paramStr = Object.entries(params).map(([k, v]) => `${k}=${v}`).join(', ');
+      fallback += ` (${paramStr})`;
+    }
+    
+    console.warn(`🔧 [ShopUI] Fallback généré pour "${key}": "${fallback}"`);
+    return fallback;
+  }
+
+  // ✅ ADAPTÉ: Obtenir nom d'item localisé
   getItemName(itemId) {
-    // Essayer la localisation étendue d'abord
+    // Essayer localisation étendue d'abord
     const localizedKey = `item.${itemId}.name`;
     const localized = this.getLocalizedText(localizedKey);
     if (localized && localized !== localizedKey) {
@@ -110,7 +176,7 @@ export class ShopUI {
     
     // Fallback système existant
     if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-      console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
+      console.warn(`[ShopUI] ${this.t('debug.localization_not_loaded', { itemId })}`);
       return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
     
@@ -120,21 +186,20 @@ export class ShopUI {
       return loca[this.currentLanguage].name;
     }
     
-    console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
+    console.warn(`⚠️ [ShopUI] ${this.t('debug.missing_localization', { key: normalizedId, lang: this.currentLanguage })}`);
     return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
+  // ✅ ADAPTÉ: Obtenir description d'item localisée
   getItemDescription(itemId) {
-    // Essayer la localisation étendue d'abord
     const localizedKey = `item.${itemId}.description`;
     const localized = this.getLocalizedText(localizedKey);
     if (localized && localized !== localizedKey) {
       return localized;
     }
     
-    // Fallback système existant
     if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-      return 'Description not available.';
+      return this.t('item_details.description_not_available') || 'Description not available.';
     }
     
     const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
@@ -143,19 +208,46 @@ export class ShopUI {
       return loca[this.currentLanguage].description;
     }
     
-    return 'Description not available.';
+    return this.t('item_details.description_not_available') || 'Description not available.';
+  }
+
+  // ✅ EXISTANT: Obtenir texte localisé par clé (pour dialogues serveur)
+  getLocalizedText(key, fallback = null) {
+    if (!key) return fallback || this.t('messages.text_not_available');
+    
+    if (this.dialogueLocalizations[key]) {
+      const localized = this.dialogueLocalizations[key][this.currentLanguage];
+      if (localized) return localized;
+    }
+    
+    if (key.includes('item.') && this.itemLocalizations) {
+      const itemKey = key.replace('item.', '').replace('.name', '');
+      const itemLoca = this.itemLocalizations[itemKey];
+      if (itemLoca && itemLoca[this.currentLanguage]) {
+        return itemLoca[this.currentLanguage].name;
+      }
+    }
+    
+    console.warn(`⚠️ [ShopUI] Clé de localisation externe manquante: "${key}"`);
+    return fallback || key.split('.').pop().replace(/_/g, ' ');
+  }
+
+  // ✅ ADAPTÉ: Obtenir lignes de dialogue localisées
+  getLocalizedDialogueLines(dialogueKeys) {
+    if (!dialogueKeys || !Array.isArray(dialogueKeys)) return [];
+    
+    return dialogueKeys.map(key => this.getLocalizedText(key, this.t('messages.default_dialogue')));
   }
 
   async init() {
-    // ✅ CHARGER LES LOCALISATIONS EN PREMIER
     await this.loadLocalizations();
-    
     this.createShopInterface();
     this.setupEventListeners();
     this.setupServerListeners();
-    console.log('🏪 Shop interface initialized with extended localizations');
+    console.log('🏪 Shop interface initialized with complete localization');
   }
 
+  // ✅ ADAPTÉ: Interface avec textes localisés
   createShopInterface() {
     const overlay = document.createElement('div');
     overlay.id = 'shop-overlay';
@@ -168,68 +260,68 @@ export class ShopUI {
           <div class="shop-title">
             <div class="shop-icon">🏪</div>
             <div class="shop-title-text">
-              <span class="shop-name">PokéMart</span>
-              <span class="shop-subtitle">Marchand Pokémon</span>
-              <span class="shop-npc-info">Marchand</span>
+              <span class="shop-name">${this.t('header.shop_name_default')}</span>
+              <span class="shop-subtitle">${this.t('header.subtitle_merchant')}</span>
+              <span class="shop-npc-info">${this.t('header.npc_info', { npcName: 'NPC' })}</span>
             </div>
           </div>
           <div class="shop-controls">
             <div class="player-gold">
               <span class="gold-icon">💰</span>
               <span class="gold-amount">${this.playerGold}</span>
-              <span class="gold-currency">₽</span>
+              <span class="gold-currency">${this.t('header.gold_currency')}</span>
             </div>
-            <button class="shop-close-btn">✕</button>
+            <button class="shop-close-btn" title="${this.t('actions.close')}">✕</button>
           </div>
         </div>
 
         <!-- Tab navigation -->
         <div class="shop-tabs">
-          <button class="shop-tab active" data-tab="buy">
+          <button class="shop-tab active" data-tab="buy" title="${this.t('accessibility.tab_buy')}">
             <span class="tab-icon">🛒</span>
-            <span class="tab-text">Acheter</span>
+            <span class="tab-text">${this.t('tabs.buy')}</span>
           </button>
-          <button class="shop-tab" data-tab="sell">
+          <button class="shop-tab" data-tab="sell" title="${this.t('accessibility.tab_sell')}">
             <span class="tab-icon">💰</span>
-            <span class="tab-text">Vendre</span>
+            <span class="tab-text">${this.t('tabs.sell')}</span>
           </button>
         </div>
 
         <div class="shop-content">
           <div class="shop-items-section">
             <div class="shop-items-header">
-              <span class="section-title">Objets Disponibles</span>
-              <span class="items-count" id="items-count">0 objets</span>
+              <span class="section-title">${this.t('sections.available_items')}</span>
+              <span class="items-count" id="items-count">${this.t('sections.items_count', { count: 0 })}</span>
             </div>
-            <div class="shop-items-grid" id="shop-items-grid">
+            <div class="shop-items-grid" id="shop-items-grid" aria-label="${this.t('accessibility.item_grid')}">
               <!-- Items will be generated here -->
             </div>
           </div>
 
           <div class="shop-item-details" id="shop-item-details">
             <div class="details-header">
-              <span class="details-title">Détails de l'Objet</span>
+              <span class="details-title">${this.t('sections.item_details')}</span>
             </div>
             <div class="no-selection">
               <div class="no-selection-icon">🎁</div>
-              <p>Sélectionnez un objet pour voir ses détails</p>
+              <p>${this.t('messages.select_item')}</p>
             </div>
           </div>
         </div>
 
         <div class="shop-footer">
           <div class="shop-info">
-            <div class="shop-welcome">Bienvenue dans notre boutique !</div>
-            <div class="shop-tip">💡 Conseil: Les objets rares apparaissent selon votre niveau</div>
+            <div class="shop-welcome">${this.t('messages.welcome_default')}</div>
+            <div class="shop-tip">${this.t('messages.tip_default')}</div>
           </div>
           <div class="shop-actions">
             <button class="shop-btn primary" id="shop-action-btn" disabled>
               <span class="btn-icon">🛒</span>
-              <span class="btn-text">Acheter</span>
+              <span class="btn-text">${this.t('actions.buy')}</span>
             </button>
             <button class="shop-btn secondary" id="shop-refresh-btn">
               <span class="btn-icon">🔄</span>
-              <span class="btn-text">Actualiser</span>
+              <span class="btn-text">${this.t('actions.refresh')}</span>
             </button>
           </div>
         </div>
@@ -239,32 +331,32 @@ export class ShopUI {
       <div class="shop-modal hidden" id="shop-modal">
         <div class="modal-content">
           <div class="modal-header">
-            <span class="modal-title">Confirmation d'Achat</span>
+            <span class="modal-title">${this.t('modal.title_buy')}</span>
           </div>
           <div class="modal-body">
             <div class="modal-item-preview">
               <span class="modal-item-icon">📦</span>
               <div class="modal-item-info">
-                <span class="modal-item-name">Nom de l'Objet</span>
-                <span class="modal-item-price">Prix: 100₽</span>
+                <span class="modal-item-name">${this.t('modal.item_name_placeholder')}</span>
+                <span class="modal-item-price">${this.t('modal.price_placeholder')}</span>
               </div>
             </div>
             <div class="modal-quantity">
-              <label>Quantité:</label>
+              <label>${this.t('modal.quantity_label')}</label>
               <div class="quantity-controls">
                 <button class="quantity-btn" id="qty-decrease">−</button>
-                <input type="number" class="quantity-input" id="quantity-input" value="1" min="1" max="99">
+                <input type="number" class="quantity-input" id="quantity-input" value="1" min="1" max="99" aria-label="${this.t('accessibility.quantity_input')}">
                 <button class="quantity-btn" id="qty-increase">+</button>
               </div>
             </div>
             <div class="modal-total">
-              <span class="total-label">Total: </span>
-              <span class="total-amount" id="modal-total">100₽</span>
+              <span class="total-label">${this.t('modal.total_label')}</span>
+              <span class="total-amount" id="modal-total">100${this.t('header.gold_currency')}</span>
             </div>
           </div>
           <div class="modal-actions">
-            <button class="modal-btn cancel" id="modal-cancel">Annuler</button>
-            <button class="modal-btn confirm" id="modal-confirm">Confirmer</button>
+            <button class="modal-btn cancel" id="modal-cancel">${this.t('actions.cancel')}</button>
+            <button class="modal-btn confirm" id="modal-confirm">${this.t('actions.confirm')}</button>
           </div>
         </div>
       </div>
@@ -276,14 +368,14 @@ export class ShopUI {
     this.addStyles();
   }
 
-  // ✅ CSS EXISTANT CONSERVÉ - Ajout de styles pour NPC info
+  // ✅ CSS CONSERVÉ (pas de changement)
   addStyles() {
     if (document.querySelector('#shop-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'shop-styles';
     style.textContent = `
-      /* ===== STYLES EXISTANTS CONSERVÉS + NOUVEAUX ===== */
+      /* ===== STYLES EXISTANTS CONSERVÉS ===== */
       
       .shop-overlay {
         position: fixed;
@@ -326,7 +418,6 @@ export class ShopUI {
         transform: scale(1);
       }
 
-      /* ===== HEADER AVEC INFO NPC ===== */
       .shop-header {
         background: linear-gradient(90deg, #4a90e2, #357abd);
         padding: 15px 25px;
@@ -392,7 +483,6 @@ export class ShopUI {
         margin: 0;
       }
 
-      /* 🆕 NOUVEAU: Info NPC */
       .shop-npc-info {
         font-size: 10px;
         opacity: 0.8;
@@ -476,7 +566,6 @@ export class ShopUI {
         transform: scale(0.95);
       }
 
-      /* ===== TAB STYLE ===== */
       .shop-tabs {
         background: rgba(0, 0, 0, 0.2);
         display: flex;
@@ -546,8 +635,6 @@ export class ShopUI {
         font-weight: bold;
       }
 
-      /* ===== RESTE DU CSS EXISTANT CONSERVÉ ===== */
-      
       .shop-content {
         flex: 1;
         display: flex;
@@ -724,7 +811,6 @@ export class ShopUI {
         50% { opacity: 0.8; transform: scale(1.05); }
       }
 
-      /* ===== DETAILS ZONE ===== */
       .shop-item-details {
         flex: 1;
         background: rgba(0, 0, 0, 0.2);
@@ -872,7 +958,6 @@ export class ShopUI {
         font-size: 12px;
       }
 
-      /* ===== FOOTER ===== */
       .shop-footer {
         background: rgba(0, 0, 0, 0.3);
         padding: 20px 25px;
@@ -967,7 +1052,6 @@ export class ShopUI {
         font-weight: bold;
       }
 
-      /* ===== MODAL STYLES ===== */
       .shop-modal {
         position: fixed;
         top: 0;
@@ -1168,28 +1252,246 @@ export class ShopUI {
         box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
       }
 
-      /* ===== REST OF EXISTING CSS ===== */
-      /* ... (keeping all existing styles for loading, notifications, etc) ... */
+      /* ===== LOADING, EMPTY STATES, NOTIFICATIONS (conservés) ===== */
+      .shop-loading {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+
+      .shop-loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(74, 144, 226, 0.3);
+        border-top: 3px solid #4a90e2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      .shop-loading-text {
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      .shop-empty {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+
+      .shop-empty-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      .shop-empty-text {
+        font-size: 16px;
+        color: #ccc;
+        margin-bottom: 5px;
+      }
+
+      .shop-empty-subtext {
+        font-size: 12px;
+        color: #888;
+        font-style: italic;
+      }
+
+      .shop-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        z-index: 1200;
+        animation: slideInRight 0.4s ease;
+        max-width: 350px;
+        border-left: 4px solid;
+      }
+
+      .shop-notification.success {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.95), rgba(32, 201, 151, 0.95));
+        border-left-color: #28a745;
+      }
+
+      .shop-notification.error {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.95), rgba(231, 76, 60, 0.95));
+        border-left-color: #dc3545;
+      }
+
+      .shop-notification.warning {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.95), rgba(255, 152, 0, 0.95));
+        border-left-color: #ffc107;
+        color: #000;
+      }
+
+      .shop-notification.info {
+        background: linear-gradient(135deg, rgba(74, 144, 226, 0.95), rgba(52, 152, 219, 0.95));
+        border-left-color: #4a90e2;
+      }
+
+      @keyframes slideInRight {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+      }
+
+      .shop-item.new {
+        animation: itemAppear 0.5s ease;
+      }
+
+      @keyframes itemAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .shop-items-grid.switching {
+        animation: gridSwitch 0.3s ease;
+      }
+
+      @keyframes gridSwitch {
+        0% { opacity: 0; transform: translateX(20px); }
+        100% { opacity: 1; transform: translateX(0); }
+      }
+
+      .shop-items-grid::-webkit-scrollbar,
+      .item-detail-content::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-track,
+      .item-detail-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-thumb,
+      .item-detail-content::-webkit-scrollbar-thumb {
+        background: rgba(74, 144, 226, 0.6);
+        border-radius: 4px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-thumb:hover,
+      .item-detail-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 144, 226, 0.8);
+      }
+
+      @media (max-width: 768px) {
+        .shop-container {
+          width: 98%;
+          height: 95%;
+          border-radius: 15px;
+        }
+
+        .shop-header {
+          padding: 12px 20px;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .shop-name {
+          font-size: 18px;
+        }
+
+        .shop-icon {
+          font-size: 24px;
+        }
+
+        .player-gold {
+          padding: 6px 12px;
+        }
+
+        .shop-content {
+          flex-direction: column;
+        }
+
+        .shop-items-section {
+          border-right: none;
+          border-bottom: 2px solid #357abd;
+        }
+
+        .shop-item-details {
+          min-width: auto;
+          max-height: 200px;
+        }
+
+        .shop-items-grid {
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+          padding: 15px;
+        }
+
+        .shop-item {
+          min-height: 100px;
+          padding: 12px 8px;
+        }
+
+        .shop-item-icon {
+          font-size: 24px;
+        }
+
+        .shop-item-name {
+          font-size: 11px;
+        }
+
+        .shop-footer {
+          padding: 15px 20px;
+          border-radius: 0 0 12px 12px;
+        }
+
+        .shop-info {
+          font-size: 12px;
+        }
+
+        .shop-btn {
+          padding: 8px 14px;
+          font-size: 12px;
+        }
+      }
+
+      .shop-item:focus,
+      .shop-btn:focus,
+      .modal-btn:focus,
+      .quantity-btn:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: 2px;
+      }
     `;
 
     document.head.appendChild(style);
-    console.log('✅ [ShopUI] CSS étendu avec support NPC ajouté');
+    console.log('✅ [ShopUI] CSS avec support localisation ajouté');
   }
 
+  // ✅ LISTENERS CONSERVÉS (pas de changement)
   setupEventListeners() {
-    // Close shop
     this.overlay.querySelector('.shop-close-btn').addEventListener('click', () => {
       this.hide();
     });
 
-    // Close with ESC
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         this.hide();
       }
     });
 
-    // Tab switching
     this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const tabType = tab.dataset.tab;
@@ -1197,7 +1499,6 @@ export class ShopUI {
       });
     });
 
-    // Action buttons
     this.overlay.querySelector('#shop-action-btn').addEventListener('click', () => {
       if (this.currentTab === 'buy') {
         this.showBuyModal();
@@ -1210,10 +1511,8 @@ export class ShopUI {
       this.refreshShop();
     });
 
-    // Confirmation modal
     this.setupModalListeners();
 
-    // Close by clicking outside
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) {
         this.hide();
@@ -1229,7 +1528,6 @@ export class ShopUI {
     const cancelBtn = modal.querySelector('#modal-cancel');
     const confirmBtn = modal.querySelector('#modal-confirm');
 
-    // Quantity controls
     decreaseBtn.addEventListener('click', () => {
       const currentValue = parseInt(quantityInput.value);
       if (currentValue > 1) {
@@ -1251,7 +1549,6 @@ export class ShopUI {
       this.updateModalTotal();
     });
 
-    // Modal buttons
     cancelBtn.addEventListener('click', () => {
       this.hideModal();
     });
@@ -1264,115 +1561,102 @@ export class ShopUI {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
-    // Transaction result
     this.gameRoom.onMessage("shopTransactionResult", (data) => {
       this.handleTransactionResult(data);
     });
 
-    // Player gold update
     this.gameRoom.onMessage("goldUpdate", (data) => {
       this.updatePlayerGold(data.newGold);
     });
 
-    // Shop refresh
     this.gameRoom.onMessage("shopRefreshResult", (data) => {
       this.handleRefreshResult(data);
     });
   }
 
-  // ✅ SHOW - VERSION ADAPTÉE POUR INTERFACE UNIFIÉE + LEGACY
+  // ✅ SHOW - VERSION AVEC TEXTES LOCALISÉS
   async show(shopId, npcData = null, preloadedShopData = null) {
-    console.log(`🏪 [ShopUI] === SHOW ADAPTÉE INTERFACE UNIFIÉE ===`);
+    console.log(`🏪 [ShopUI] === ${this.t('debug.localization_not_loaded')} ===`);
     console.log(`📊 shopId: ${shopId}`);
     console.log(`🎭 npcData:`, npcData);
     console.log(`📦 preloadedShopData:`, !!preloadedShopData);
 
-    // ✅ S'ASSURER QUE LES LOCALISATIONS SONT CHARGÉES
     if (this.initializationPromise) {
       await this.initializationPromise;
     }
 
-    // ✅ EXTRACTION ET STOCKAGE DES DONNÉES NPC ROBUSTES
     this.extractAndStoreNpcData(npcData);
 
-    // ✅ GESTION DES DONNÉES PRE-CHARGÉES (INTERFACE UNIFIÉE)
     if (preloadedShopData) {
       this.processPreloadedShopData(preloadedShopData);
     }
 
-    // ✅ AFFICHAGE IMMÉDIAT
     this.overlay.classList.remove('hidden');
     this.overlay.style.display = 'flex';
     this.isVisible = true;
 
-    // ✅ MISE À JOUR IMMÉDIATE DE L'INTERFACE
     this.updateShopInterface();
 
-    // ✅ DEMANDER LE CATALOGUE SI PAS DE DONNÉES PRE-CHARGÉES
     if (!preloadedShopData) {
       this.requestShopCatalog(shopId);
     }
 
-    console.log(`✅ [ShopUI] Shop affiché pour ${this.currentNpcData?.name || 'Marchand'}`);
+    console.log(`✅ [ShopUI] ${this.t('debug.npc_data_extracted', { npcName: this.currentNpcData?.name || 'Marchand' })}`);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Extraction robuste des données NPC
+  // ✅ EXTRACTION NPC - VERSION AVEC DEBUG LOCALISÉ
   extractAndStoreNpcData(npcData) {
-    // Initialiser avec des valeurs par défaut
     this.currentNpcData = {
       id: 'unknown',
-      name: 'Marchand',
+      name: this.t('header.npc_default') || 'Marchand',
       isUnifiedInterface: false,
       capabilities: ['merchant'],
       contextualData: null
     };
 
     if (!npcData) {
-      console.log('🎭 [ShopUI] Aucune donnée NPC fournie, utilisation des valeurs par défaut');
+      console.log(`🎭 [ShopUI] ${this.t('debug.no_npc_data')}`);
       return;
     }
 
-    // Traitement selon le type de données reçues
     if (typeof npcData === 'string') {
-      // Simple nom de NPC
       this.currentNpcData.name = npcData;
-      console.log(`🎭 [ShopUI] NPC string: "${npcData}"`);
+      console.log(`🎭 [ShopUI] ${this.t('debug.npc_string_received', { name: npcData })}`);
     } else if (typeof npcData === 'object') {
-      // Objet NPC complet
       this.currentNpcData = {
         ...this.currentNpcData,
         id: npcData.id || npcData.npcId || 'unknown',
-        name: npcData.name || npcData.npcName || 'Marchand',
+        name: npcData.name || npcData.npcName || this.t('header.npc_default') || 'Marchand',
         isUnifiedInterface: npcData.isUnifiedInterface || false,
         capabilities: npcData.capabilities || ['merchant'],
         contextualData: npcData.contextualData || null
       };
       
-      console.log(`🎭 [ShopUI] NPC objet complet:`, this.currentNpcData);
+      console.log(`🎭 [ShopUI] ${this.t('debug.npc_object_processed')}:`, this.currentNpcData);
     }
 
-    // Stocker les données d'interface unifiée si présentes
     this.isUnifiedInterface = this.currentNpcData.isUnifiedInterface;
     this.npcCapabilities = this.currentNpcData.capabilities;
     this.contextualData = this.currentNpcData.contextualData;
+
+    if (this.isUnifiedInterface) {
+      console.log(`🔗 [ShopUI] ${this.t('debug.unified_interface_detected')}`);
+    }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Traitement des données shop pré-chargées
+  // ✅ PROCESSING PRELOADED - VERSION AVEC DEBUG LOCALISÉ
   processPreloadedShopData(preloadedData) {
-    console.log('💉 [ShopUI] Traitement des données pré-chargées...');
+    console.log(`💉 [ShopUI] ${this.t('debug.preloaded_data')}`);
     
-    // Stocker les données d'interface unifiée
     this.unifiedInterfaceData = preloadedData.unifiedInterface || null;
     
-    // Extraire les données merchant si présentes
     if (preloadedData.unifiedInterface && preloadedData.unifiedInterface.merchantData) {
       const merchantData = preloadedData.unifiedInterface.merchantData;
       
-      // Construire la structure de catalogue attendue
       const catalogData = {
         success: true,
         catalog: {
-          shopInfo: merchantData.shopInfo || { id: 'unified_shop', name: 'Boutique' },
+          shopInfo: merchantData.shopInfo || { id: 'unified_shop', name: this.t('header.shop_name_default') },
           availableItems: merchantData.availableItems || [],
           npcName: this.currentNpcData.name
         },
@@ -1380,17 +1664,15 @@ export class ShopUI {
         npcName: this.currentNpcData.name
       };
       
-      // Traiter immédiatement
       setTimeout(() => {
         if (this.isVisible) {
           this.handleShopCatalog(catalogData);
         }
       }, 100);
       
-      console.log('✅ [ShopUI] Données merchant extraites et traitées');
+      console.log(`✅ [ShopUI] ${this.t('debug.merchant_data_extracted')}`);
     }
     
-    // Traiter les messages de bienvenue localisés
     if (preloadedData.dialogueKeys) {
       this.currentDialogueKeys = preloadedData.dialogueKeys;
       this.currentWelcomeMessage = this.getLocalizedDialogueLines(preloadedData.dialogueKeys)[0] || null;
@@ -1399,94 +1681,86 @@ export class ShopUI {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour de l'interface avec les nouvelles données
+  // ✅ UPDATE SHOP INTERFACE - VERSION ENTIÈREMENT LOCALISÉE
   updateShopInterface() {
-    // Mettre à jour le header avec les infos NPC
     this.updateShopHeader();
-    
-    // Mettre à jour les messages de bienvenue
     this.updateWelcomeMessages();
-    
-    // Mettre à jour l'affichage de l'or
     this.updatePlayerGoldDisplay();
-    
-    // Mettre à jour les textes d'interface
     this.updateInterfaceTexts();
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour du header avec infos NPC
+  // ✅ UPDATE SHOP HEADER - VERSION ENTIÈREMENT LOCALISÉE
   updateShopHeader() {
     const shopNameElement = this.overlay.querySelector('.shop-name');
     const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
     const shopNpcInfoElement = this.overlay.querySelector('.shop-npc-info');
     
     if (shopNameElement && this.currentNpcData) {
-      // Nom principal du shop basé sur le NPC
-      shopNameElement.textContent = `Boutique de ${this.currentNpcData.name}`;
+      shopNameElement.textContent = this.t('header.shop_name_with_npc', { npcName: this.currentNpcData.name });
       
-      // Sous-titre basé sur le type de NPC
       if (shopSubtitleElement) {
-        let subtitle = 'Marchand Pokémon';
+        let subtitleKey = 'header.subtitle_merchant';
         if (this.isUnifiedInterface && this.npcCapabilities.length > 1) {
-          subtitle = 'Services Multiples';
+          subtitleKey = 'header.subtitle_unified';
         } else if (this.contextualData?.defaultAction) {
           const actionMap = {
-            'merchant': 'Marchand Pokémon',
-            'quest': 'Donneur de Quêtes',
-            'dialogue': 'Informateur'
+            'merchant': 'header.subtitle_merchant',
+            'quest': 'header.subtitle_quest',
+            'dialogue': 'header.subtitle_dialogue'
           };
-          subtitle = actionMap[this.contextualData.defaultAction] || 'Marchand Pokémon';
+          subtitleKey = actionMap[this.contextualData.defaultAction] || 'header.subtitle_merchant';
         }
-        shopSubtitleElement.textContent = subtitle;
+        shopSubtitleElement.textContent = this.t(subtitleKey);
       }
       
-      // Info NPC détaillée
       if (shopNpcInfoElement) {
-        let npcInfo = `NPC: ${this.currentNpcData.name}`;
+        let npcInfoKey = 'header.npc_info';
+        let params = { npcName: this.currentNpcData.name };
+        
         if (this.isUnifiedInterface) {
-          npcInfo += ` (Interface Unifiée)`;
+          if (this.npcCapabilities && this.npcCapabilities.length > 1) {
+            npcInfoKey = 'header.npc_info_capabilities';
+            params.count = this.npcCapabilities.length;
+          } else {
+            npcInfoKey = 'header.npc_info_unified';
+          }
         }
-        if (this.npcCapabilities && this.npcCapabilities.length > 1) {
-          npcInfo += ` • ${this.npcCapabilities.length} capacités`;
-        }
-        shopNpcInfoElement.textContent = npcInfo;
+        
+        shopNpcInfoElement.textContent = this.t(npcInfoKey, params);
       }
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour des messages de bienvenue
+  // ✅ UPDATE WELCOME MESSAGES - VERSION ENTIÈREMENT LOCALISÉE
   updateWelcomeMessages() {
     const welcomeElement = this.overlay.querySelector('.shop-welcome');
     const tipElement = this.overlay.querySelector('.shop-tip');
     
     if (welcomeElement) {
-      let welcomeMessage = `Bienvenue chez ${this.currentNpcData?.name || 'notre marchand'} !`;
+      let welcomeText = this.t('messages.welcome_npc', { npcName: this.currentNpcData?.name || 'notre marchand' });
       
-      // Utiliser le message personnalisé si disponible
       if (this.currentWelcomeMessage) {
-        welcomeMessage = this.currentWelcomeMessage;
+        welcomeText = this.currentWelcomeMessage;
       } else if (this.unifiedInterfaceData?.merchantData?.welcomeDialogue) {
-        welcomeMessage = this.unifiedInterfaceData.merchantData.welcomeDialogue[0] || welcomeMessage;
+        welcomeText = this.unifiedInterfaceData.merchantData.welcomeDialogue[0] || welcomeText;
       }
       
-      welcomeElement.textContent = welcomeMessage;
+      welcomeElement.textContent = welcomeText;
     }
     
     if (tipElement) {
-      let tipMessage = '💡 Conseil: Les objets rares apparaissent selon votre niveau';
+      let tipKey = 'messages.tip_default';
       
-      // Conseil personnalisé pour interface unifiée
       if (this.isUnifiedInterface && this.npcCapabilities.length > 1) {
-        tipMessage = '💡 Conseil: Ce NPC offre plusieurs services - utilisez les onglets pour naviguer';
+        tipKey = 'messages.tip_unified';
       }
       
-      tipElement.textContent = tipMessage;
+      tipElement.textContent = this.t(tipKey);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour des textes d'interface
+  // ✅ UPDATE INTERFACE TEXTS - VERSION ENTIÈREMENT LOCALISÉE
   updateInterfaceTexts() {
-    // Mettre à jour les textes des onglets en français
     const buyTab = this.overlay.querySelector('[data-tab="buy"] .tab-text');
     const sellTab = this.overlay.querySelector('[data-tab="sell"] .tab-text');
     const sectionTitle = this.overlay.querySelector('.section-title');
@@ -1494,23 +1768,21 @@ export class ShopUI {
     const actionBtn = this.overlay.querySelector('#shop-action-btn .btn-text');
     const refreshBtn = this.overlay.querySelector('#shop-refresh-btn .btn-text');
     
-    if (buyTab) buyTab.textContent = 'Acheter';
-    if (sellTab) sellTab.textContent = 'Vendre';
-    if (sectionTitle) sectionTitle.textContent = 'Objets Disponibles';
-    if (detailsTitle) detailsTitle.textContent = 'Détails de l\'Objet';
-    if (actionBtn) actionBtn.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
-    if (refreshBtn) refreshBtn.textContent = 'Actualiser';
+    if (buyTab) buyTab.textContent = this.t('tabs.buy');
+    if (sellTab) sellTab.textContent = this.t('tabs.sell');
+    if (sectionTitle) sectionTitle.textContent = this.t('sections.available_items');
+    if (detailsTitle) detailsTitle.textContent = this.t('sections.item_details');
+    if (actionBtn) actionBtn.textContent = this.t(`actions.${this.currentTab}`);
+    if (refreshBtn) refreshBtn.textContent = this.t('actions.refresh');
   }
 
-  // ✅ HANDLE SHOP CATALOG - VERSION ADAPTÉE
+  // ✅ HANDLE SHOP CATALOG - VERSION AVEC MESSAGES LOCALISÉS
   handleShopCatalog(data) {
-    console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ADAPTÉ ===`);
-    console.log(`📊 Data received:`, data);
+    console.log(`🏪 [ShopUI] ${this.t('debug.catalog_processing')}`);
 
-    // ✅ LOCK CONTRE APPELS MULTIPLES
     const now = Date.now();
     if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
-      console.warn(`⚠️ [ShopUI] Catalog en cours de traitement, ignoré`);
+      console.warn(`⚠️ [ShopUI] ${this.t('debug.catalog_already_processing')}`);
       return;
     }
     
@@ -1519,30 +1791,26 @@ export class ShopUI {
 
     try {
       if (!data.success) {
-        console.error('❌ [ShopUI] Shop catalog failed:', data.message);
-        this.showNotification(data.message || "Impossible de charger le catalogue", "error");
+        console.error(`❌ [ShopUI] ${this.t('messages.catalog_load_error')}:`, data.message);
+        this.showNotification(data.message || this.t('messages.catalog_load_error'), "error");
         return;
       }
 
-      // ✅ STOCKAGE DES DONNÉES
       this.shopData = data.catalog;
       this.playerGold = data.playerGold || 0;
 
-      // ✅ ENRICHISSEMENT DES DONNÉES NPC depuis le catalogue
-      if (data.catalog?.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === 'Marchand')) {
+      if (data.catalog?.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === this.t('header.npc_default'))) {
         this.currentNpcData.name = data.catalog.npcName;
-        console.log(`🎭 [ShopUI] Nom NPC enrichi depuis catalogue: "${data.catalog.npcName}"`);
+        console.log(`🎭 [ShopUI] ${this.t('debug.npc_name_enriched')}: "${data.catalog.npcName}"`);
       }
       
-      // Enrichir depuis la racine des données aussi
-      if (data.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === 'Marchand')) {
+      if (data.npcName && (!this.currentNpcData?.name || this.currentNpcData.name === this.t('header.npc_default'))) {
         this.currentNpcData.name = data.npcName;
-        console.log(`🎭 [ShopUI] Nom NPC enrichi depuis racine: "${data.npcName}"`);
+        console.log(`🎭 [ShopUI] ${this.t('debug.npc_name_enriched_root')}: "${data.npcName}"`);
       }
 
-      // ✅ NORMALISATION DE LA STRUCTURE DES DONNÉES
       if (!this.shopData.availableItems) {
-        console.log('🔧 [ShopUI] Normalisation de la structure shop...');
+        console.log(`🔧 [ShopUI] ${this.t('debug.normalizing_structure')}`);
         
         let items = [];
         if (this.shopData.items && Array.isArray(this.shopData.items)) {
@@ -1563,50 +1831,43 @@ export class ShopUI {
           unlockLevel: item.unlockLevel
         }));
         
-        console.log(`✅ [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
+        console.log(`✅ [ShopUI] ${this.t('debug.structure_normalized')}: ${this.shopData.availableItems.length} items`);
       }
 
-      // ✅ TRAITEMENT DES DIALOGUES LOCALISÉS
       if (data.dialogueKeys && Array.isArray(data.dialogueKeys)) {
         this.currentDialogueKeys = data.dialogueKeys;
         const localizedDialogues = this.getLocalizedDialogueLines(data.dialogueKeys);
         if (localizedDialogues.length > 0) {
           this.currentWelcomeMessage = localizedDialogues[0];
-          console.log(`🌐 [ShopUI] Message de bienvenue localisé: "${this.currentWelcomeMessage}"`);
+          console.log(`🌐 [ShopUI] ${this.t('debug.welcome_localized')}: "${this.currentWelcomeMessage}"`);
         }
       }
       
-      // ✅ TRAITEMENT DU MESSAGE KEY
       if (data.messageKey) {
         const localizedMessage = this.getLocalizedText(data.messageKey);
         if (localizedMessage && localizedMessage !== data.messageKey) {
-          console.log(`🌐 [ShopUI] Message principal localisé: "${localizedMessage}"`);
-          // Peut être utilisé pour des notifications spéciales
+          console.log(`🌐 [ShopUI] ${this.t('debug.main_message_localized')}: "${localizedMessage}"`);
         }
       }
 
-      // ✅ MISE À JOUR DE L'INTERFACE COMPLÈTE
       this.updateShopInterface();
       this.refreshCurrentTab();
       
-      console.log(`✅ [ShopUI] Catalogue traité avec ${this.shopData.availableItems.length} objets pour ${this.currentNpcData?.name}`);
+      console.log(`✅ [ShopUI] ${this.t('debug.catalog_processed')} ${this.shopData.availableItems.length} ${this.t('debug.objects_for')} ${this.currentNpcData?.name}`);
       
-      // ✅ NOTIFICATION DE SUCCÈS
-      this.showNotification(`Catalogue chargé !`, 'success');
+      this.showNotification(this.t('messages.catalog_loaded'), 'success');
       
     } catch (error) {
-      console.error('❌ [ShopUI] Erreur handleShopCatalog:', error);
-      this.showNotification(`Erreur technique: ${error.message}`, "error");
+      console.error(`❌ [ShopUI] ${this.t('messages.technical_error', { error: error.message })}`);
+      this.showNotification(this.t('messages.technical_error', { error: error.message }), "error");
     } finally {
-      // ✅ LIBÉRATION DU LOCK
       setTimeout(() => {
         this.isProcessingCatalog = false;
       }, 500);
     }
   }
 
-  // ✅ MÉTHODES EXISTANTES CONSERVÉES AVEC AMÉLIORATIONS
-  
+  // ✅ HIDE - VERSION AVEC MESSAGE LOCALISÉ
   hide() {
     if (!this.isVisible) return;
     
@@ -1616,14 +1877,13 @@ export class ShopUI {
     this.selectedItem = null;
     this.shopData = null;
     
-    // ✅ NETTOYAGE DES DONNÉES TEMPORAIRES
     this.currentWelcomeMessage = null;
     this.currentDialogueKeys = [];
     this.unifiedInterfaceData = null;
     
     this.updateItemDetails();
     
-    console.log('🏪 Shop fermé');
+    console.log(`🏪 ${this.t('messages.shop_closed')}`);
   }
 
   requestShopCatalog(shopId) {
@@ -1633,8 +1893,8 @@ export class ShopUI {
     }
   }
 
+  // ✅ SWITCH TAB - VERSION AVEC TEXTES LOCALISÉS
   switchTab(tabType) {
-    // Update visual tabs
     this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.tab === tabType);
     });
@@ -1644,18 +1904,16 @@ export class ShopUI {
     this.refreshCurrentTab();
     this.updateItemDetails();
     this.updateActionButton();
-    
-    // ✅ MISE À JOUR DES TEXTES DE BOUTON
     this.updateActionButtonText();
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour du texte du bouton d'action
+  // ✅ UPDATE ACTION BUTTON TEXT - VERSION ENTIÈREMENT LOCALISÉE
   updateActionButtonText() {
     const actionBtn = this.overlay.querySelector('#shop-action-btn .btn-text');
     const actionIcon = this.overlay.querySelector('#shop-action-btn .btn-icon');
     
     if (actionBtn) {
-      actionBtn.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
+      actionBtn.textContent = this.t(`actions.${this.currentTab}`);
     }
     
     if (actionIcon) {
@@ -1667,15 +1925,13 @@ export class ShopUI {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
     if (!this.shopData) {
-      this.showEmpty("Aucune donnée de boutique disponible");
+      this.showEmpty(this.t('messages.no_shop_data'));
       return;
     }
 
-    // Transition animation
     itemsGrid.classList.add('switching');
     setTimeout(() => itemsGrid.classList.remove('switching'), 300);
 
-    // Clear grid
     itemsGrid.innerHTML = '';
 
     if (this.currentTab === 'buy') {
@@ -1687,13 +1943,14 @@ export class ShopUI {
     this.updateItemsCount();
   }
 
+  // ✅ DISPLAY BUY ITEMS - VERSION AVEC MESSAGES LOCALISÉS
   displayBuyItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
     const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
     
-    console.log(`🔍 [ShopUI] === AFFICHAGE ONGLET ACHETER ===`);
-    console.log(`📦 Total items reçus: ${items.length}`);
+    console.log(`🔍 [ShopUI] ${this.t('debug.displaying_buy_tab')}`);
+    console.log(`📦 ${this.t('debug.total_items_received')}: ${items.length}`);
     
     const availableItems = items.filter(item => {
       if (item.isEmpty) return true;
@@ -1706,10 +1963,10 @@ export class ShopUI {
       return isBuyable && levelOk && hasStock;
     });
 
-    console.log(`📊 [ShopUI] RÉSULTAT: ${availableItems.length}/${items.length} items affichés`);
+    console.log(`📊 [ShopUI] ${this.t('debug.final_result')}: ${availableItems.length}/${items.length} items ${this.t('debug.displayed')}`);
 
     if (availableItems.length === 0) {
-      this.showEmpty("Aucun objet disponible à l'achat");
+      this.showEmpty(this.t('messages.no_items_buy'));
       return;
     }
 
@@ -1719,13 +1976,14 @@ export class ShopUI {
     });
   }
 
+  // ✅ DISPLAY SELL ITEMS - VERSION AVEC MESSAGES LOCALISÉS
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
     const sellableItems = this.shopData.availableItems.filter(item => item.canSell);
 
     if (sellableItems.length === 0) {
-      this.showEmpty("Aucun objet ne peut être vendu ici");
+      this.showEmpty(this.t('messages.no_items_sell'));
       return;
     }
 
@@ -1763,7 +2021,7 @@ export class ShopUI {
     itemElement.innerHTML = `
       <div class="shop-item-icon">${itemIcon}</div>
       <div class="shop-item-name">${itemName}</div>
-      <div class="shop-item-price">${item.buyPrice}₽</div>
+      <div class="shop-item-price">${item.buyPrice}${this.t('header.gold_currency')}</div>
       ${this.getStockDisplay(item.stock)}
     `;
 
@@ -1792,7 +2050,7 @@ export class ShopUI {
     itemElement.innerHTML = `
       <div class="shop-item-icon">${itemIcon}</div>
       <div class="shop-item-name">${itemName}</div>
-      <div class="shop-item-price">${item.sellPrice}₽</div>
+      <div class="shop-item-price">${item.sellPrice}${this.t('header.gold_currency')}</div>
     `;
 
     itemElement.addEventListener('click', () => {
@@ -1806,6 +2064,7 @@ export class ShopUI {
     return itemElement;
   }
 
+  // ✅ CREATE EMPTY SHOP ITEM - VERSION ENTIÈREMENT LOCALISÉE
   createEmptyShopItemElement() {
     const itemElement = document.createElement('div');
     itemElement.className = 'shop-item shop-empty-item';
@@ -1814,9 +2073,9 @@ export class ShopUI {
     
     itemElement.innerHTML = `
       <div class="shop-item-icon">📭</div>
-      <div class="shop-item-name">Aucun Objet</div>
+      <div class="shop-item-name">${this.t('stock.no_items')}</div>
       <div class="shop-item-price">-</div>
-      <div class="shop-item-stock out">Vide</div>
+      <div class="shop-item-stock out">${this.t('stock.empty')}</div>
     `;
     
     return itemElement;
@@ -1828,13 +2087,16 @@ export class ShopUI {
     }
     
     let stockClass = '';
+    let stockText = stock;
+    
     if (stock === 0) {
       stockClass = 'out';
+      stockText = this.t('stock.out_of_stock');
     } else if (stock <= 3) {
       stockClass = 'low';
     }
     
-    return `<div class="shop-item-stock ${stockClass}">${stock}</div>`;
+    return `<div class="shop-item-stock ${stockClass}">${stockText}</div>`;
   }
 
   getItemIcon(itemId) {
@@ -1878,6 +2140,7 @@ export class ShopUI {
     this.updateActionButton();
   }
 
+  // ✅ GET HORIZONTAL STATS HTML - VERSION ENTIÈREMENT LOCALISÉE
   getHorizontalStatsHTML(item) {
     const stats = [];
     
@@ -1887,8 +2150,8 @@ export class ShopUI {
         <div class="item-stat-card stock">
           <div class="stat-icon">${stockIcon}</div>
           <div class="stat-info">
-            <span class="stat-label">Stock</span>
-            <span class="stat-value">${item.stock === -1 ? '∞' : item.stock}</span>
+            <span class="stat-label">${this.t('item_details.stock')}</span>
+            <span class="stat-value">${item.stock === -1 ? this.t('item_details.unlimited') : item.stock}</span>
           </div>
         </div>
       `);
@@ -1899,7 +2162,7 @@ export class ShopUI {
         <div class="item-stat-card level">
           <div class="stat-icon">⭐</div>
           <div class="stat-info">
-            <span class="stat-label">Niveau Requis</span>
+            <span class="stat-label">${this.t('item_details.required_level')}</span>
             <span class="stat-value">${item.unlockLevel}</span>
           </div>
         </div>
@@ -1912,8 +2175,8 @@ export class ShopUI {
         <div class="item-stat-card affordability">
           <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
           <div class="stat-info">
-            <span class="stat-label">Disponibilité</span>
-            <span class="stat-value">${canAfford ? 'Abordable' : 'Trop Cher'}</span>
+            <span class="stat-label">${this.t('item_details.availability')}</span>
+            <span class="stat-value">${this.t(canAfford ? 'item_details.affordable' : 'item_details.too_expensive')}</span>
           </div>
         </div>
       `);
@@ -1922,17 +2185,18 @@ export class ShopUI {
     return stats.join('');
   }
   
+  // ✅ UPDATE ITEM DETAILS - VERSION ENTIÈREMENT LOCALISÉE
   updateItemDetails() {
     const detailsContainer = this.overlay.querySelector('#shop-item-details');
     
     if (!this.selectedItem) {
       detailsContainer.innerHTML = `
         <div class="details-header">
-          <span class="details-title">Détails de l'Objet</span>
+          <span class="details-title">${this.t('sections.item_details')}</span>
         </div>
         <div class="no-selection">
           <div class="no-selection-icon">🎁</div>
-          <p>Sélectionnez un objet pour voir ses détails</p>
+          <p>${this.t('messages.select_item')}</p>
         </div>
       `;
       return;
@@ -1944,11 +2208,11 @@ export class ShopUI {
     const itemIcon = this.getItemIcon(item.itemId);
 
     const price = this.currentTab === 'buy' ? item.buyPrice : item.sellPrice;
-    const priceLabel = this.currentTab === 'buy' ? 'Prix d\'Achat' : 'Prix de Vente';
+    const priceLabel = this.t(`item_details.price_${this.currentTab}`);
 
     detailsContainer.innerHTML = `
       <div class="details-header">
-        <span class="details-title">Détails de l'Objet</span>
+        <span class="details-title">${this.t('sections.item_details')}</span>
       </div>
       <div class="item-detail-content">
         <div class="item-detail-main">
@@ -1964,7 +2228,7 @@ export class ShopUI {
             <div class="stat-icon">💰</div>
             <div class="stat-info">
               <span class="stat-label">${priceLabel}</span>
-              <span class="stat-value">${price}₽</span>
+              <span class="stat-value">${price}${this.t('header.gold_currency')}</span>
             </div>
           </div>
           ${this.getHorizontalStatsHTML(item)}
@@ -1978,9 +2242,10 @@ export class ShopUI {
   }
 
   getItemTypeText(item) {
-    return item.type || 'Objet';
+    return item.type || this.t('item_details.item_type_default');
   }
 
+  // ✅ UPDATE ACTION BUTTON - VERSION ENTIÈREMENT LOCALISÉE
   updateActionButton() {
     const actionBtn = this.overlay.querySelector('#shop-action-btn');
     const btnIcon = actionBtn.querySelector('.btn-icon');
@@ -1989,7 +2254,7 @@ export class ShopUI {
     if (!this.selectedItem) {
       actionBtn.disabled = true;
       btnIcon.textContent = '🛒';
-      btnText.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
+      btnText.textContent = this.t(`actions.${this.currentTab}`);
       return;
     }
 
@@ -1999,11 +2264,11 @@ export class ShopUI {
       
       actionBtn.disabled = !canAfford || !inStock;
       btnIcon.textContent = '🛒';
-      btnText.textContent = 'Acheter';
+      btnText.textContent = this.t('actions.buy');
     } else {
       actionBtn.disabled = false;
       btnIcon.textContent = '💰';
-      btnText.textContent = 'Vendre';
+      btnText.textContent = this.t('actions.sell');
     }
   }
 
@@ -2020,14 +2285,17 @@ export class ShopUI {
     this.updateActionButton();
   }
 
+  // ✅ UPDATE ITEMS COUNT - VERSION ENTIÈREMENT LOCALISÉE
   updateItemsCount() {
     const itemsCountElement = this.overlay.querySelector('#items-count');
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     const itemCount = itemsGrid.querySelectorAll('.shop-item:not(.shop-empty-item)').length;
     
-    itemsCountElement.textContent = `${itemCount} objets`;
+    const countKey = itemCount === 1 ? 'sections.items_count_singular' : 'sections.items_count';
+    itemsCountElement.textContent = this.t(countKey, { count: itemCount });
   }
 
+  // ✅ SHOW BUY MODAL - VERSION ENTIÈREMENT LOCALISÉE
   showBuyModal() {
     if (!this.selectedItem) return;
 
@@ -2038,12 +2306,14 @@ export class ShopUI {
     const quantityInput = modal.querySelector('#quantity-input');
     const modalTitle = modal.querySelector('.modal-title');
 
-    // ✅ TEXTES EN FRANÇAIS
-    modalTitle.textContent = 'Confirmation d\'Achat';
+    modalTitle.textContent = this.t('modal.title_buy');
     
     itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
     itemName.textContent = this.getItemName(this.selectedItem.itemId);
-    itemPrice.textContent = `Prix unitaire: ${this.selectedItem.buyPrice}₽`;
+    itemPrice.textContent = this.t('modal.unit_price', { 
+      price: this.selectedItem.buyPrice,
+      currency: this.t('header.gold_currency')
+    });
 
     const maxAffordable = Math.floor(this.playerGold / this.selectedItem.buyPrice);
     const maxStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 ? 99 : this.selectedItem.stock;
@@ -2058,7 +2328,7 @@ export class ShopUI {
 
   showSellModal() {
     if (!this.selectedItem) return;
-    this.showNotification("Fonction de vente pas encore implémentée", "warning");
+    this.showNotification(this.t('messages.sell_not_implemented'), "warning");
   }
 
   updateModalTotal() {
@@ -2070,7 +2340,7 @@ export class ShopUI {
     const unitPrice = this.currentTab === 'buy' ? this.selectedItem.buyPrice : this.selectedItem.sellPrice;
     const total = quantity * unitPrice;
 
-    totalAmount.textContent = `${total}₽`;
+    totalAmount.textContent = `${total}${this.t('header.gold_currency')}`;
   }
 
   confirmTransaction() {
@@ -2107,9 +2377,10 @@ export class ShopUI {
     }
   }
 
+  // ✅ HANDLE TRANSACTION RESULT - VERSION AVEC MESSAGES LOCALISÉS
   handleTransactionResult(data) {
     if (data.success) {
-      this.showNotification(data.message || "Transaction réussie !", "success");
+      this.showNotification(data.message || this.t('messages.transaction_success'), "success");
       
       if (data.newGold !== undefined) {
         this.updatePlayerGold(data.newGold);
@@ -2117,39 +2388,42 @@ export class ShopUI {
       
       this.requestShopCatalog(this.shopData.shopInfo.id);
     } else {
-      this.showNotification(data.message || "Transaction échouée", "error");
+      this.showNotification(data.message || this.t('messages.transaction_failed'), "error");
     }
   }
 
+  // ✅ HANDLE REFRESH RESULT - VERSION AVEC MESSAGES LOCALISÉS
   handleRefreshResult(data) {
     if (data.success) {
       if (data.restocked) {
-        this.showNotification("Boutique réapprovisionnée !", "success");
+        this.showNotification(this.t('messages.shop_restocked'), "success");
       } else {
-        this.showNotification("Aucun réapprovisionnement nécessaire", "info");
+        this.showNotification(this.t('messages.no_restock_needed'), "info");
       }
     } else {
-      this.showNotification(data.message || "Erreur lors du rafraîchissement", "error");
+      this.showNotification(data.message || this.t('messages.refresh_error'), "error");
     }
   }
 
+  // ✅ SHOW LOADING - VERSION ENTIÈREMENT LOCALISÉE
   showLoading() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     itemsGrid.innerHTML = `
       <div class="shop-loading">
         <div class="shop-loading-spinner"></div>
-        <div class="shop-loading-text">Chargement du catalogue...</div>
+        <div class="shop-loading-text">${this.t('loading_states.loading_catalog')}</div>
       </div>
     `;
   }
 
+  // ✅ SHOW EMPTY - VERSION ENTIÈREMENT LOCALISÉE
   showEmpty(message) {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     itemsGrid.innerHTML = `
       <div class="shop-empty">
         <div class="shop-empty-icon">🏪</div>
         <div class="shop-empty-text">${message}</div>
-        <div class="shop-empty-subtext">Revenez plus tard !</div>
+        <div class="shop-empty-subtext">${this.t('messages.empty_comeback')}</div>
       </div>
     `;
   }
@@ -2172,8 +2446,7 @@ export class ShopUI {
     }, 4000);
   }
 
-  // ✅ MÉTHODES PUBLIQUES POUR INTÉGRATION
-
+  // ✅ MÉTHODES PUBLIQUES CONSERVÉES
   isOpen() {
     return this.isVisible;
   }
@@ -2190,17 +2463,14 @@ export class ShopUI {
     return this.currentTab;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Obtenir les données NPC actuelles
   getCurrentNpcData() {
     return this.currentNpcData;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier si c'est une interface unifiée
   isUnifiedInterfaceActive() {
     return this.isUnifiedInterface;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Obtenir les capacités NPC
   getNpcCapabilities() {
     return this.npcCapabilities;
   }
@@ -2310,7 +2580,8 @@ export class ShopUI {
     this.currentNpcData = null;
     this.unifiedInterfaceData = null;
     this.currentDialogueKeys = [];
+    this.shopUILocalizations = {};
     
-    console.log('🏪 ShopUI détruit');
+    console.log(`🏪 ${this.t('debug.shop_destroyed') || 'ShopUI détruit'}`);
   }
 }
