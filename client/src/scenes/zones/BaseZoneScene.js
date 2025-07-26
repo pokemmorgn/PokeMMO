@@ -1423,23 +1423,29 @@ shouldShowPlayerFallback(sessionId, playerState) {
       this.handleZoneData(data);
     });
 
-    this.networkManager.onNpcList((npcs) => {
-      console.log(`🤖 [${this.scene.key}] === HANDLER NPCS APPELÉ ===`);
-      console.log(`📊 NPCs reçus: ${npcs.length}`);
-      
-      if (!this.npcManager) {
-        console.error(`❌ [${this.scene.key}] NpcManager MANQUANT !`);
-        return;
-      }
-      
-      if (!npcs || npcs.length === 0) {
-        console.log(`ℹ️ [${this.scene.key}] Aucun NPC à spawner`);
-        return;
-      }
-      
-      console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
-      this.npcManager.spawnNpcs(npcs);
-    });
+this.networkManager.onNpcList(async (npcs) => { // ← async ajouté
+  console.log(`🤖 [${this.scene.key}] === HANDLER NPCS APPELÉ ===`);
+  console.log(`📊 NPCs reçus: ${npcs.length}`);
+  
+  if (!this.npcManager) {
+    console.error(`❌ [${this.scene.key}] NpcManager MANQUANT !`);
+    return;
+  }
+  
+  if (!npcs || npcs.length === 0) {
+    console.log(`ℹ️ [${this.scene.key}] Aucun NPC à spawner`);
+    return;
+  }
+  
+  console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
+  
+  try {
+    await this.npcManager.spawnNpcs(npcs); // ← await ajouté !
+    console.log(`🎉 [${this.scene.key}] Tous les NPCs spawnés avec succès`);
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur spawn NPCs:`, error);
+  }
+});
 
     this.networkManager.onTransitionSuccess((result) => {
       console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
