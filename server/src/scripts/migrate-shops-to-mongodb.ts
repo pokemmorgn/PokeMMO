@@ -552,7 +552,7 @@ class ShopMigrator {
         timeRestrictions: {
           openHour: 22,
           closeHour: 4,
-          closedDays: [0] // Fermé le dimanche
+          closedDays: [0] as number[] // Fermé le dimanche
         }
       },
       isTemporary: false
@@ -626,12 +626,12 @@ class ShopMigrator {
     console.log(`📊 [Validation] Shops actifs: ${activeShops}`);
     
     console.log(`📊 [Validation] Répartition par type:`);
-    shopsByType.forEach(({ _id, count }) => {
+    shopsByType.forEach(({ _id, count }: { _id: string; count: number }) => {
       console.log(`  - ${_id}: ${count} shops`);
     });
     
     console.log(`📊 [Validation] Répartition par région:`);
-    shopsByRegion.forEach(({ _id, count }) => {
+    shopsByRegion.forEach(({ _id, count }: { _id: string; count: number }) => {
       console.log(`  - ${_id || 'Non défini'}: ${count} shops`);
     });
 
