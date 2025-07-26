@@ -4401,3 +4401,891 @@ details[open] summary {
     margin: 0;
     font-size: 0.9rem;
 }
+
+/* ========================================
+   SHOP EDITOR - CSS AVEC NOMS UNIQUES
+   ======================================== */
+
+/* Container principal de l'éditeur de boutiques */
+.shops-editor-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Header avec sélection zone et stats boutiques */
+.shops-editor-header {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.shops-header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.shops-zone-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 250px;
+}
+
+.shops-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.shops-zone-stats {
+    border-top: 1px solid #e9ecef;
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.shops-stats-row {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.shops-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.shops-stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.shops-stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+/* Zone principale de l'éditeur */
+.shops-main-area {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    min-height: 0;
+}
+
+/* Panel liste des boutiques */
+.shops-list-panel {
+    width: 350px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.shops-list-header {
+    padding: 20px;
+    border-bottom: 2px solid #e9ecef;
+    background: #f8f9fa;
+}
+
+.shops-list-header h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.shops-list-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shops-search-input {
+    padding: 8px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.shops-search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.shops-type-filter {
+    padding: 8px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.shops-type-filter:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.shops-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.shops-empty-list {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.shops-empty-list p {
+    margin-bottom: 15px;
+}
+
+/* Items individuels de boutiques */
+.shops-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    background: white;
+}
+
+.shops-list-item:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.shops-list-item.shops-item-selected {
+    background: #e3f2fd;
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+.shops-item-icon {
+    font-size: 2rem;
+    margin-right: 12px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.shops-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.shops-item-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shops-item-details {
+    font-size: 0.8rem;
+    color: #6c757d;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.shops-item-type {
+    background: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.shops-item-zone {
+    font-family: monospace;
+    background: #f3e5f5;
+    color: #7b1fa2;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.shops-item-currency {
+    background: #fff3e0;
+    color: #f57c00;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.shops-item-temp {
+    background: #ffebee;
+    color: #d32f2f;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.7rem;
+}
+
+.shops-item-inactive {
+    background: #f5f5f5;
+    color: #9e9e9e;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.7rem;
+}
+
+.shops-item-stats {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+.shops-item-status {
+    margin-left: 8px;
+    font-size: 1rem;
+}
+
+/* Panel éditeur de boutique */
+.shops-editor-panel {
+    flex: 1;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.shops-editor-header-panel {
+    padding: 20px;
+    border-bottom: 2px solid #e9ecef;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.shops-editor-title {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.shops-editor-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.shops-editor-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.shops-no-selection {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    color: #95a5a6;
+}
+
+.shops-no-selection i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+.shops-no-selection h3 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+/* Form Builder pour boutiques */
+.shops-form-builder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.shops-form-sections {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.shops-form-section {
+    margin-bottom: 25px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.shops-section-header {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+    user-select: none;
+}
+
+.shops-section-header:hover {
+    background: #e9ecef;
+}
+
+.shops-section-title {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.shops-section-toggle {
+    font-size: 0.8rem;
+    color: #6c757d;
+    transition: transform 0.3s ease;
+}
+
+.shops-section-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.shops-section-content.shops-section-active {
+    padding: 20px;
+    max-height: 2000px;
+}
+
+.shops-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.shops-form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.shops-field-label {
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.shops-field-required {
+    color: #dc3545;
+    margin-left: 3px;
+}
+
+.shops-form-input,
+.shops-form-select,
+.shops-form-textarea {
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease;
+    background: white;
+}
+
+.shops-form-input:focus,
+.shops-form-select:focus,
+.shops-form-textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.shops-form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.shops-field-help {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.shops-boolean-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+}
+
+.shops-form-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.shops-checkbox-label {
+    cursor: pointer;
+    user-select: none;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+/* Articles de boutique */
+.shops-items-section {
+    margin-top: 20px;
+}
+
+.shops-items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.shops-items-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.shops-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.shops-item-editor {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.shops-item-editor:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.shops-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.shops-item-info-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shops-item-name-display {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.shops-item-category-badge {
+    background: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.shops-item-remove-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background-color 0.3s ease;
+}
+
+.shops-item-remove-btn:hover {
+    background: #c82333;
+}
+
+.shops-item-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.shops-item-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.shops-item-field-label {
+    margin-bottom: 4px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 0.85rem;
+}
+
+.shops-item-field-input,
+.shops-item-field-select {
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background: white;
+}
+
+.shops-item-field-input:focus,
+.shops-item-field-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.shops-item-featured-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.shops-item-featured-checkbox {
+    width: 16px;
+    height: 16px;
+}
+
+.shops-item-featured-label {
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+/* Zone vide pour les articles */
+.shops-items-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: #6c757d;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.shops-items-empty i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+/* Boutons spécialisés pour boutiques */
+.shops-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.shops-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.shops-btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.shops-btn-primary:hover {
+    background: #0056b3;
+}
+
+.shops-btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.shops-btn-success:hover {
+    background: #1e7e34;
+}
+
+.shops-btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.shops-btn-warning:hover {
+    background: #e0a800;
+}
+
+.shops-btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.shops-btn-danger:hover {
+    background: #c82333;
+}
+
+.shops-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.shops-btn-secondary:hover {
+    background: #545b62;
+}
+
+.shops-btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.shops-btn-info:hover {
+    background: #138496;
+}
+
+.shops-btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+/* Time Restrictions Section */
+.shops-time-restrictions {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.shops-time-title {
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.shops-time-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.shops-closed-days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.shops-day-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.shops-day-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.shops-day-checkbox label {
+    font-size: 0.85rem;
+    color: #495057;
+    cursor: pointer;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .shops-main-area {
+        flex-direction: column;
+    }
+    
+    .shops-list-panel {
+        width: 100%;
+        max-height: 300px;
+    }
+    
+    .shops-header-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .shops-zone-selector {
+        min-width: auto;
+    }
+    
+    .shops-header-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .shops-fields-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .shops-stats-row {
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .shops-editor-header-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .shops-editor-actions {
+        justify-content: center;
+    }
+    
+    .shops-item-fields {
+        grid-template-columns: 1fr;
+    }
+    
+    .shops-time-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .shops-closed-days {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .shops-editor-container {
+        padding: 10px;
+    }
+    
+    .shops-editor-header,
+    .shops-list-header,
+    .shops-editor-header-panel {
+        padding: 15px;
+    }
+    
+    .shops-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .shops-editor-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .shops-header-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* Animations */
+@keyframes shops-item-added {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.shops-item-editor.shops-newly-added {
+    animation: shops-item-added 0.3s ease;
+}
+
+@keyframes shops-section-expand {
+    from {
+        max-height: 0;
+        padding: 0 20px;
+    }
+    to {
+        max-height: 2000px;
+        padding: 20px;
+    }
+}
+
+.shops-section-content.shops-section-expanding {
+    animation: shops-section-expand 0.3s ease;
+}
+
+/* Loading states */
+.shops-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+.shops-loading i {
+    margin-right: 10px;
+    animation: fa-spin 1s linear infinite;
+}
+
+/* Success states */
+.shops-success-message {
+    background: #d4edda;
+    color: #155724;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #c3e6cb;
+}
+
+.shops-error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #f5c6cb;
+}
+
+.shops-warning-message {
+    background: #fff3cd;
+    color: #856404;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #ffeaa7;
+}
