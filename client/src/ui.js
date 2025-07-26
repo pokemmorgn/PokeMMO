@@ -544,77 +544,156 @@ export class PokemonUISystem {
   }
 
   // ✅ QUEST MODULE - VERSION MINIMALE AVEC FIX POSITION SEULEMENT
-  async createQuestModule() {
-    try {
-      console.log('🚀 [PokemonUI] Création QuestSystem avec fix minimal...');
-      
-      // ✅ Import et création normale
-      const { createQuestSystem } = await import('./Quest/QuestSystem.js');
-      
-      const questSystem = await createQuestSystem(
-        window.currentGameRoom,
-        window.globalNetworkManager || window.networkManager
-      );
-      
-      if (!questSystem) {
-        throw new Error('Échec création QuestSystem');
-      }
-      
-      console.log('✅ [PokemonUI] QuestSystem créé avec succès');
-      
-      // ✅ PATCH MINIMAL: Seulement empêcher écrasement position UIManager
-      if (questSystem.icon && questSystem.icon.forceDisplay) {
-        const originalForceDisplay = questSystem.icon.forceDisplay.bind(questSystem.icon);
-        
-        questSystem.icon.forceDisplay = function() {
-          if (!this.iconElement) return;
-          
-          // Styles de visibilité seulement
-          this.iconElement.style.display = 'block';
-          this.iconElement.style.visibility = 'visible';
-          this.iconElement.style.opacity = '1';
-          this.iconElement.style.pointerEvents = 'auto';
-          this.iconElement.style.zIndex = '1000';
-          this.iconElement.classList.remove('hidden', 'ui-hidden');
-          
-          // 🔥 FIX MINIMAL: Respecter position UIManager
-          const positionedBy = this.iconElement.getAttribute('data-positioned-by');
-          if (positionedBy && positionedBy.includes('uimanager')) {
-            console.log('🛡️ [QuestIcon] Position UIManager respectée');
-            return; // Pas de position de secours
-          }
-          
-          // Position de secours normale
-          if (!this.iconElement.style.left && !this.iconElement.style.right) {
-            this.iconElement.style.position = 'fixed';
-            this.iconElement.style.right = '20px';
-            this.iconElement.style.bottom = '20px';
-          }
-        };
-        
-        console.log('✅ [PokemonUI] Patch minimal appliqué à QuestIcon.forceDisplay()');
-      }
-      
-      // ✅ Connexion UIManager normale
-      if (this.uiManager && questSystem.connectUIManager) {
-        const connected = questSystem.connectUIManager(this.uiManager);
-        console.log(`🔗 [PokemonUI] UIManager connexion: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
-      }
-      
-      // ✅ Exposer globalement
-      window.questSystem = questSystem;
-      window.questSystemGlobal = questSystem;
-      window.toggleQuest = () => questSystem.toggle();
-      window.openQuest = () => questSystem.show();
-      window.closeQuest = () => questSystem.hide();
-      
-      return questSystem;
-      
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création QuestSystem:', error);
-      return this.createEmptyWrapper('quest');
+async createQuestModule() {
+  try {
+    console.log('🚀 [PokemonUI] Création QuestSystem avec protection intégrée...');
+    
+    // ✅ Import et création normale
+    const { createQuestSystem } = await import('./Quest/QuestSystem.js');
+    
+    const questSystem = await createQuestSystem(
+      window.currentGameRoom,
+      window.globalNetworkManager || window.networkManager
+    );
+    
+    if (!questSystem) {
+      throw new Error('Échec création QuestSystem');
     }
+    
+    console.log('✅ [PokemonUI] QuestSystem créé avec succès');
+    
+    // ✅ PROTECTION INTÉGRÉE: Patch forceDisplay() avec protection anti-chevauchement
+    if (questSystem.icon && questSystem.icon.forceDisplay) {
+      console.log('🛡️ [PokemonUI] Application protection anti-chevauchement...');
+      
+      // Sauvegarder la méthode originale
+      if (!questSystem.icon._originalForceDisplay) {
+        questSystem.icon._originalForceDisplay = questSystem.icon.forceDisplay.bind(questSystem.icon);
+      }
+      
+      // Patch avec protection complète
+      questSystem.icon.forceDisplay = function() {
+        if (!this.iconElement) return;
+        
+        // Styles de visibilité seulement
+        this.iconElement.style.display = 'block';
+        this.iconElement.style.visibility = 'visible';
+        this.iconElement.style.opacity = '1';
+        this.iconElement.style.pointerEvents = 'auto';
+        this.iconElement.style.zIndex = '1000';
+        this.iconElement.classList.remove('hidden', 'ui-hidden');
+        
+        // Protection anti-chevauchement
+        const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+        const currentLeft = this.iconElement.getBoundingClientRect().left;
+        
+        // Respecter position UIManager
+        if (positionedBy && (
+          positionedBy.includes('uimanager') || 
+          positionedBy.includes('manual') || 
+          positionedBy.includes('ultimate') ||
+          positionedBy.includes('runtime')
+        )) {
+          console.log('🛡️ [QuestIcon-PROTECTED] Position UIManager respectée');
+          return;
+        }
+        
+        // Protéger position correcte (1603px)
+        if (Math.abs(currentLeft - 1603) < 20) {
+          console.log('✅ [QuestIcon-PROTECTED] Position correcte protégée');
+          this.iconElement.setAttribute('data-positioned-by', 'protected-correct');
+          return;
+        }
+        
+        // Corriger position incorrecte (1683px = inventory)
+        if (Math.abs(currentLeft - 1683) < 20) {
+          console.warn('🚨 [QuestIcon-PROTECTED] Correction position inventory');
+          this.iconElement.style.position = 'fixed';
+          this.iconElement.style.left = '1603px';
+          this.iconElement.style.top = '1021px';
+          this.iconElement.style.right = '';
+          this.iconElement.style.bottom = '';
+          this.iconElement.setAttribute('data-positioned-by', 'protected-autocorrect');
+          return;
+        }
+        
+        // Position de secours avec position correcte
+        if (!this.iconElement.style.left && !this.iconElement.style.right) {
+          console.log('⚠️ [QuestIcon-PROTECTED] Position de secours (1603px)');
+          this.iconElement.style.position = 'fixed';
+          this.iconElement.style.left = '1603px';
+          this.iconElement.style.top = '1021px';
+          this.iconElement.setAttribute('data-positioned-by', 'protected-fallback');
+        }
+        
+        console.log('✅ [QuestIcon-PROTECTED] Protection anti-chevauchement active');
+      };
+      
+      console.log('✅ [PokemonUI] Protection anti-chevauchement appliquée');
+    }
+    
+    // ✅ Attendre un peu pour que l'icône soit créée
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // ✅ Connexion UIManager normale
+    if (this.uiManager && questSystem.connectUIManager) {
+      const connected = questSystem.connectUIManager(this.uiManager);
+      console.log(`🔗 [PokemonUI] UIManager connexion: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
+      
+      // Force repositioning après connexion
+      if (connected) {
+        setTimeout(() => {
+          if (this.uiManager.positionIcon) {
+            this.uiManager.positionIcon('quest');
+            console.log('📍 [PokemonUI] Force repositioning Quest');
+          }
+        }, 200);
+      }
+    }
+    
+    // ✅ Surveillance de sécurité (plus légère que ultimate)
+    let securityWatchCount = 0;
+    const maxSecurityWatch = 20; // 20 vérifications = 1 minute
+    
+    const securityWatch = setInterval(() => {
+      securityWatchCount++;
+      
+      if (securityWatchCount > maxSecurityWatch) {
+        clearInterval(securityWatch);
+        console.log('⏹️ [PokemonUI] Surveillance sécurité Quest terminée');
+        return;
+      }
+      
+      const questElement = document.querySelector('#quest-icon');
+      if (questElement) {
+        const rect = questElement.getBoundingClientRect();
+        const currentLeft = Math.round(rect.left);
+        
+        // Correction si chevauchement détecté
+        if (Math.abs(currentLeft - 1683) < 10) {
+          console.warn(`🚨 [PokemonUI-SECURITY] Chevauchement détecté - correction ${securityWatchCount}`);
+          questElement.style.left = '1603px';
+          questElement.setAttribute('data-positioned-by', `security-${securityWatchCount}`);
+        }
+      }
+    }, 3000); // Toutes les 3 secondes
+    
+    console.log('👁️ [PokemonUI] Surveillance sécurité démarrée (3s x 20 = 1 minute)');
+    
+    // ✅ Exposer globalement
+    window.questSystem = questSystem;
+    window.questSystemGlobal = questSystem;
+    window.toggleQuest = () => questSystem.toggle();
+    window.openQuest = () => questSystem.show();
+    window.closeQuest = () => questSystem.hide();
+    
+    return questSystem;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création QuestSystem:', error);
+    return this.createEmptyWrapper('quest');
   }
+}
 
   async createQuestTrackerModule() {
     if (window.questSystemGlobal?.questTracker) {
