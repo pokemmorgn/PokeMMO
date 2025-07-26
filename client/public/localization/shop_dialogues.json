@@ -1,0 +1,66 @@
+{
+  "fr": {
+    "welcome": {
+      "default": "Bienvenue dans ma boutique ! Que puis-je faire pour vous ?",
+      "returning": "Content de vous revoir ! Besoin de quelque chose ?",
+      "first_time": "Ah, un nouveau client ! Regardez donc mes articles.",
+      "vip": "Bienvenue, client VIP ! J'ai des articles spéciaux pour vous."
+    },
+    "farewell": {
+      "default": "Merci de votre visite ! À bientôt !",
+      "purchase": "Merci pour votre achat ! Revenez quand vous voulez !",
+      "browse": "Pas d'achat cette fois ? Ce n'est pas grave, revenez bientôt !",
+      "empty_handed": "Vous partez les mains vides ? J'aurai peut-être de nouveaux articles la prochaine fois !"
+    },
+    "stock": {
+      "new_arrivals": "J'ai reçu de nouveaux articles ! Jetez-y un œil !",
+      "limited": "Stock limité sur certains articles ! Dépêchez-vous !",
+      "restocked": "J'ai refait le plein ! De nombreux articles sont à nouveau disponibles !",
+      "sold_out": "Désolé, cet article est épuisé. Revenez plus tard !"
+    },
+    "pricing": {
+      "good_deal": "C'est une excellente affaire à ce prix !",
+      "discount": "Prix spécial aujourd'hui ! Ne ratez pas cette occasion !",
+      "premium": "Article de qualité supérieure, le prix en vaut la peine !",
+      "negotiation": "Le prix est fixe, mais la qualité est garantie !"
+    },
+    "recommendations": {
+      "beginner": "Pour un débutant comme vous, je recommande ces articles de base.",
+      "experienced": "Vous semblez expérimenté ! Ces articles avancés pourraient vous intéresser.",
+      "based_on_level": "D'après votre niveau, ces articles seraient parfaits pour vous.",
+      "popular": "Ces articles sont très populaires en ce moment !"
+    }
+  },
+  "en": {
+    "welcome": {
+      "default": "Welcome to my shop! What can I do for you?",
+      "returning": "Good to see you again! Need something?",
+      "first_time": "Ah, a new customer! Take a look at my wares.",
+      "vip": "Welcome, VIP customer! I have special items for you."
+    },
+    "farewell": {
+      "default": "Thanks for visiting! See you later!",
+      "purchase": "Thank you for your purchase! Come back anytime!",
+      "browse": "No purchase this time? That's fine, come back soon!",
+      "empty_handed": "Leaving empty-handed? I might have new items next time!"
+    },
+    "stock": {
+      "new_arrivals": "I've got new items in! Take a look!",
+      "limited": "Limited stock on some items! Hurry up!",
+      "restocked": "I've restocked! Many items are available again!",
+      "sold_out": "Sorry, that item is sold out. Come back later!"
+    },
+    "pricing": {
+      "good_deal": "That's an excellent deal at this price!",
+      "discount": "Special price today! Don't miss this opportunity!",
+      "premium": "Premium quality item, worth every penny!",
+      "negotiation": "The price is fixed, but quality is guaranteed!"
+    },
+    "recommendations": {
+      "beginner": "For a beginner like you, I recommend these basic items.",
+      "experienced": "You look experienced! These advanced items might interest you.",
+      "based_on_level": "Based on your level, these items would be perfect for you.",
+      "popular": "These items are very popular right now!"
+    }
+  }
+}
