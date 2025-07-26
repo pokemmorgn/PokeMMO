@@ -65,7 +65,7 @@ async function loadModules() {
       
     } catch (directError) {
       console.log('⚠️ [PathFinder] Chargement direct échoué, recherche dynamique...');
-      console.log(`Erreur: ${directError.message}`);
+      console.log(`Erreur: ${directError instanceof Error ? directError.message : String(directError)}`);
       
       // Fallback avec recherche automatique
       const shopManagerPath = findModulePath('managers/ShopManager');
