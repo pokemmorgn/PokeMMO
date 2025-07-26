@@ -4686,4 +4686,696 @@ router.post('/zones/:zoneId/npcs/sync-with-map', requireMacAndDev, async (req: a
   }
 });
 
+// À ajouter dans server/src/routes/adminRoutes.ts - Routes pour l'éditeur de boutiques
+
+/**
+ * POST /api/admin/shops
+ * Créer une nouvelle boutique
+ */
+router.post('/shops', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log('🏪 [Admin] Creating new shop...');
+        
+        const shopData = req.body;
+        
+        // Validation des données de base
+        if (!shopData.shopId || !shopData.name || !shopData.type) {
+            return res.status(400).json({
+                success: false,
+                error: 'shopId, name et type sont requis'
+            });
+        }
+        
+        // Vérifier que l'ID n'existe pas déjà
+        const existingShop = await ShopData.findOne({ shopId: shopData.shopId });
+        if (existingShop) {
+            return res.status(400).json({
+                success: false,
+                error: 'Une boutique avec cet ID existe déjà'
+            });
+        }
+        
+        // Créer la nouvelle boutique
+        const newShop = await ShopData.create({
+            shopId: shopData.shopId,
+            nameKey: `shop.name.${shopData.shopId}`, // Clé de localisation
+            type: shopData.type,
+            region: shopData.region,
+            location: {
+                zone: shopData.location?.zone || '',
+                cityKey: shopData.location?.city ? `location.city.${shopData.location.city}` : undefined,
+                buildingKey: shopData.location?.building ? `location.building.${shopData.location.building}` : undefined
+            },
+            currency: shopData.currency || 'gold',
+            buyMultiplier: shopData.buyMultiplier || 1.0,
+            sellMultiplier: shopData.sellMultiplier || 0.5,
+            taxRate: shopData.taxRate || 0,
+            items: shopData.items || [],
+            categories: [], // Auto-généré par le pre-save hook
+            shopKeeper: shopData.shopKeeper,
+            accessRequirements: shopData.accessRequirements,
+            restockInfo: shopData.restockInfo,
+            isActive: shopData.isActive !== false,
+            isTemporary: shopData.isTemporary || false,
+            version: '1.0.0',
+            sourceFile: `admin_editor_${req.user.username}`
+        });
+        
+        console.log(`✅ [Admin] Shop "${newShop.shopId}" created by ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Boutique créée avec succès',
+            shop: newShop.toShopFormat(),
+            createdBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error creating shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la création de la boutique',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+/**
+ * PUT /api/admin/shops/:shopId
+ * Mettre à jour une boutique existante
+ */
+router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { shopId } = req.params;
+        const shopData = req.body;
+        
+        console.log(`🏪 [Admin] Updating shop: ${shopId}`);
+        
+        // Trouver la boutique existante
+        const existingShop = await ShopData.findOne({ shopId });
+        if (!existingShop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique non trouvée'
+            });
+        }
+        
+        // Mettre à jour les champs
+        Object.assign(existingShop, {
+            nameKey: shopData.name ? `shop.name.${shopId}` : existingShop.nameKey,
+            type: shopData.type || existingShop.type,
+            region: shopData.region,
+            location: {
+                zone: shopData.location?.zone || existingShop.location.zone,
+                cityKey: shopData.location?.city ? `location.city.${shopData.location.city}` : undefined,
+                buildingKey: shopData.location?.building ? `location.building.${shopData.location.building}` : undefined
+            },
+            currency: shopData.currency || existingShop.currency,
+            buyMultiplier: shopData.buyMultiplier ?? existingShop.buyMultiplier,
+            sellMultiplier: shopData.sellMultiplier ?? existingShop.sellMultiplier,
+            taxRate: shopData.taxRate ?? existingShop.taxRate,
+            items: shopData.items || existingShop.items,
+            shopKeeper: shopData.shopKeeper || existingShop.shopKeeper,
+            accessRequirements: shopData.accessRequirements || existingShop.accessRequirements,
+            restockInfo: shopData.restockInfo || existingShop.restockInfo,
+            isActive: shopData.isActive ?? existingShop.isActive,
+            isTemporary: shopData.isTemporary ?? existingShop.isTemporary,
+            lastUpdated: new Date()
+        });
+        
+        await existingShop.save();
+        
+        console.log(`✅ [Admin] Shop "${shopId}" updated by ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Boutique mise à jour avec succès',
+            shop: existingShop.toShopFormat(),
+            updatedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error updating shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la mise à jour de la boutique'
+        });
+    }
+});
+
+/**
+ * DELETE /api/admin/shops/:shopId
+ * Supprimer une boutique
+ */
+router.delete('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { shopId } = req.params;
+        
+        console.log(`🗑️ [Admin] Deleting shop: ${shopId}`);
+        
+        const deletedShop = await ShopData.findOneAndDelete({ shopId });
+        if (!deletedShop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique non trouvée'
+            });
+        }
+        
+        console.log(`✅ [Admin] Shop "${shopId}" deleted by ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Boutique supprimée avec succès',
+            deletedShop: {
+                shopId: deletedShop.shopId,
+                name: deletedShop.nameKey
+            },
+            deletedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error deleting shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la suppression de la boutique'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/shops/:shopId/duplicate
+ * Dupliquer une boutique
+ */
+router.post('/shops/:shopId/duplicate', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { shopId } = req.params;
+        
+        console.log(`📋 [Admin] Duplicating shop: ${shopId}`);
+        
+        // Trouver la boutique originale
+        const originalShop = await ShopData.findOne({ shopId });
+        if (!originalShop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique originale non trouvée'
+            });
+        }
+        
+        // Générer un nouvel ID unique
+        const newShopId = `${shopId}_copy_${Date.now()}`;
+        
+        // Créer la copie
+        const duplicateShop = await ShopData.create({
+            ...originalShop.toObject(),
+            _id: undefined, // Nouveau document
+            shopId: newShopId,
+            nameKey: `shop.name.${newShopId}`,
+            sourceFile: `duplicated_from_${shopId}_by_${req.user.username}`,
+            lastUpdated: new Date()
+        });
+        
+        console.log(`✅ [Admin] Shop duplicated: ${shopId} -> ${newShopId} by ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Boutique dupliquée avec succès',
+            originalShopId: shopId,
+            newShopId: newShopId,
+            shop: duplicateShop.toShopFormat(),
+            duplicatedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error duplicating shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la duplication de la boutique'
+        });
+    }
+});
+
+/**
+ * GET /api/admin/shops/export/all
+ * Exporter toutes les boutiques
+ */
+router.get('/shops/export/all', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log(`📤 [Admin] Exporting all shops by ${req.user.username}`);
+        
+        // Récupérer toutes les boutiques
+        const allShops = await ShopData.find({ isActive: true }).sort({ 'location.zone': 1, shopId: 1 });
+        
+        // Grouper par zone
+        const shopsByZone: Record<string, any> = {};
+        
+        allShops.forEach(shop => {
+            const zone = shop.location.zone || 'unknown';
+            if (!shopsByZone[zone]) {
+                shopsByZone[zone] = {
+                    zone: zone,
+                    version: '1.0.0',
+                    lastUpdated: new Date().toISOString(),
+                    description: `Shops for zone ${zone} - Exported from Admin Panel`,
+                    shops: []
+                };
+            }
+            shopsByZone[zone].shops.push(shop.toShopFormat());
+        });
+        
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            exportedBy: req.user.username,
+            source: 'admin_panel',
+            totalZones: Object.keys(shopsByZone).length,
+            totalShops: allShops.length,
+            zones: shopsByZone
+        };
+        
+        res.json({
+            success: true,
+            data: exportData
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error exporting shops:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'export des boutiques'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/shops/import
+ * Importer des boutiques depuis JSON
+ */
+router.post('/shops/import', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { data } = req.body;
+        
+        console.log(`📥 [Admin] Importing shops by ${req.user.username}`);
+        
+        if (!data || !data.zones) {
+            return res.status(400).json({
+                success: false,
+                error: 'Format de données invalide - zones requis'
+            });
+        }
+        
+        let totalImported = 0;
+        let totalErrors = 0;
+        const importResults: any[] = [];
+        
+        // Importer chaque zone
+        for (const [zoneId, zoneData] of Object.entries(data.zones) as [string, any][]) {
+            try {
+                console.log(`📥 [Admin] Importing zone: ${zoneId}`);
+                
+                const result = await ShopData.bulkImportFromJson(zoneData);
+                
+                totalImported += result.success;
+                totalErrors += result.errors.length;
+                
+                importResults.push({
+                    zone: zoneId,
+                    imported: result.success,
+                    errors: result.errors
+                });
+                
+            } catch (error) {
+                console.error(`❌ [Admin] Error importing zone ${zoneId}:`, error);
+                totalErrors++;
+                importResults.push({
+                    zone: zoneId,
+                    imported: 0,
+                    errors: [`Zone import failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
+                });
+            }
+        }
+        
+        console.log(`✅ [Admin] Import completed: ${totalImported} shops imported, ${totalErrors} errors`);
+        
+        res.json({
+            success: true,
+            message: `Import terminé: ${totalImported} boutiques importées`,
+            totalImported,
+            totalErrors,
+            importResults,
+            importedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error importing shops:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'import des boutiques'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/shops/search
+ * Rechercher des boutiques avec filtres avancés
+ */
+router.post('/shops/search-advanced', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { 
+            query, 
+            type, 
+            zone, 
+            currency, 
+            isActive, 
+            isTemporary, 
+            hasItems,
+            limit = 50,
+            page = 0 
+        } = req.body;
+        
+        console.log(`🔍 [Admin] Advanced shop search: "${query}"`);
+        
+        // Construire le filtre de recherche
+        const searchFilter: any = {};
+        
+        // Filtre par type
+        if (type) searchFilter.type = type;
+        
+        // Filtre par zone
+        if (zone) searchFilter['location.zone'] = zone;
+        
+        // Filtre par devise
+        if (currency) searchFilter.currency = currency;
+        
+        // Filtre par statut
+        if (isActive !== undefined) searchFilter.isActive = isActive;
+        if (isTemporary !== undefined) searchFilter.isTemporary = isTemporary;
+        
+        // Filtre par présence d'items
+        if (hasItems !== undefined) {
+            if (hasItems) {
+                searchFilter['items.0'] = { $exists: true };
+            } else {
+                searchFilter.items = { $size: 0 };
+            }
+        }
+        
+        // Recherche textuelle
+        if (query && query.length >= 2) {
+            searchFilter.$or = [
+                { shopId: { $regex: query, $options: 'i' } },
+                { nameKey: { $regex: query, $options: 'i' } },
+                { 'location.zone': { $regex: query, $options: 'i' } },
+                { region: { $regex: query, $options: 'i' } }
+            ];
+        }
+        
+        // Exécuter la recherche avec pagination
+        const [shops, total] = await Promise.all([
+            ShopData.find(searchFilter)
+                .sort({ 'location.zone': 1, shopId: 1 })
+                .skip(page * limit)
+                .limit(limit)
+                .lean(),
+            ShopData.countDocuments(searchFilter)
+        ]);
+        
+        const results = shops.map(shop => ({
+            shopId: shop.shopId,
+            name: shop.nameKey || shop.shopId,
+            nameKey: shop.nameKey,
+            type: shop.type,
+            zone: shop.location?.zone || 'unknown',
+            region: shop.region,
+            currency: shop.currency,
+            itemCount: shop.items?.length || 0,
+            isActive: shop.isActive,
+            isTemporary: shop.isTemporary,
+            lastUpdated: shop.lastUpdated
+        }));
+        
+        console.log(`✅ [Admin] Found ${results.length}/${total} shops matching search`);
+        
+        res.json({
+            success: true,
+            results,
+            total,
+            page,
+            limit,
+            query,
+            filters: { type, zone, currency, isActive, isTemporary, hasItems }
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error in advanced shop search:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la recherche avancée'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/shops/:shopId/restock
+ * Forcer le restock d'une boutique
+ */
+router.post('/shops/:shopId/restock', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { shopId } = req.params;
+        
+        console.log(`🔄 [Admin] Forcing restock for shop: ${shopId}`);
+        
+        const shop = await ShopData.findOne({ shopId });
+        if (!shop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique non trouvée'
+            });
+        }
+        
+        // Utiliser la méthode de restock du modèle
+        await shop.restockShop();
+        
+        console.log(`✅ [Admin] Shop "${shopId}" restocked by ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Restock effectué avec succès',
+            shop: shop.toShopFormat(),
+            restockedBy: req.user.username,
+            restockedAt: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error restocking shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du restock de la boutique'
+        });
+    }
+});
+
+/**
+ * GET /api/admin/shops/validate/:shopId
+ * Valider l'intégrité d'une boutique
+ */
+router.get('/shops/validate/:shopId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { shopId } = req.params;
+        
+        console.log(`🔍 [Admin] Validating shop: ${shopId}`);
+        
+        const shop = await ShopData.findOne({ shopId });
+        if (!shop) {
+            return res.status(404).json({
+                success: false,
+                error: 'Boutique non trouvée'
+            });
+        }
+        
+        const validationResults = {
+            shopId: shop.shopId,
+            valid: true,
+            warnings: [] as string[],
+            errors: [] as string[],
+            suggestions: [] as string[]
+        };
+        
+        // Validation des champs requis
+        if (!shop.nameKey || shop.nameKey.trim().length === 0) {
+            validationResults.errors.push('Nom de boutique manquant');
+            validationResults.valid = false;
+        }
+        
+        if (!shop.location.zone || shop.location.zone.trim().length === 0) {
+            validationResults.errors.push('Zone non définie');
+            validationResults.valid = false;
+        }
+        
+        // Validation des multiplicateurs
+        if (shop.buyMultiplier <= shop.sellMultiplier) {
+            validationResults.warnings.push('Le multiplicateur d\'achat devrait être supérieur au multiplicateur de vente');
+        }
+        
+        // Validation des items
+        if (shop.items.length === 0) {
+            validationResults.warnings.push('Aucun article en vente');
+        } else {
+            // Vérifier les doublons d'items
+            const itemIds = shop.items.map(item => item.itemId);
+            const duplicates = itemIds.filter((item, index) => itemIds.indexOf(item) !== index);
+            if (duplicates.length > 0) {
+                validationResults.warnings.push(`Articles en double: ${duplicates.join(', ')}`);
+            }
+            
+            // Vérifier les items sans prix
+            const itemsWithoutPrice = shop.items.filter(item => !item.basePrice);
+            if (itemsWithoutPrice.length > 0) {
+                validationResults.suggestions.push(`${itemsWithoutPrice.length} articles utilisent le prix par défaut`);
+            }
+        }
+        
+        // Validation des conditions d'accès
+        if (shop.accessRequirements?.timeRestrictions) {
+            const { openHour, closeHour } = shop.accessRequirements.timeRestrictions;
+            if (openHour !== undefined && closeHour !== undefined && openHour >= closeHour) {
+                validationResults.errors.push('Horaires d\'ouverture incohérents');
+                validationResults.valid = false;
+            }
+        }
+        
+        console.log(`✅ [Admin] Validation completed for ${shopId}: ${validationResults.valid ? 'VALID' : 'INVALID'}`);
+        
+        res.json({
+            success: true,
+            validation: validationResults
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error validating shop:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la validation de la boutique'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/shops/bulk-actions
+ * Actions en lot sur les boutiques
+ */
+router.post('/shops/bulk-actions', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { action, shopIds, actionData } = req.body;
+        
+        console.log(`⚡ [Admin] Bulk action "${action}" on ${shopIds?.length || 0} shops by ${req.user.username}`);
+        
+        if (!action || !Array.isArray(shopIds) || shopIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Action et liste de shopIds requis'
+            });
+        }
+        
+        let updateOperation: any = {};
+        let results = { success: 0, failed: 0, details: [] as any[] };
+        
+        switch (action) {
+            case 'activate':
+                updateOperation = { isActive: true };
+                break;
+            case 'deactivate':
+                updateOperation = { isActive: false };
+                break;
+            case 'make_temporary':
+                updateOperation = { isTemporary: true };
+                break;
+            case 'make_permanent':
+                updateOperation = { isTemporary: false };
+                break;
+            case 'change_currency':
+                if (!actionData?.currency) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Devise requise pour cette action'
+                    });
+                }
+                updateOperation = { currency: actionData.currency };
+                break;
+            case 'restock_all':
+                // Action spéciale pour le restock
+                for (const shopId of shopIds) {
+                    try {
+                        const shop = await ShopData.findOne({ shopId });
+                        if (shop) {
+                            await shop.restockShop();
+                            results.success++;
+                            results.details.push({ shopId, status: 'restocked' });
+                        } else {
+                            results.failed++;
+                            results.details.push({ shopId, status: 'not_found' });
+                        }
+                    } catch (error) {
+                        results.failed++;
+                        results.details.push({ 
+                            shopId, 
+                            status: 'error', 
+                            error: error instanceof Error ? error.message : 'Unknown error' 
+                        });
+                    }
+                }
+                
+                console.log(`✅ [Admin] Bulk restock completed: ${results.success} success, ${results.failed} failed`);
+                
+                return res.json({
+                    success: true,
+                    message: `Restock en lot terminé: ${results.success} boutiques restockées`,
+                    results,
+                    executedBy: req.user.username
+                });
+                
+            default:
+                return res.status(400).json({
+                    success: false,
+                    error: 'Action non supportée'
+                });
+        }
+        
+        // Exécuter l'action de mise à jour classique
+        for (const shopId of shopIds) {
+            try {
+                const result = await ShopData.updateOne({ shopId }, updateOperation);
+                if (result.matchedCount > 0) {
+                    results.success++;
+                    results.details.push({ shopId, status: 'updated' });
+                } else {
+                    results.failed++;
+                    results.details.push({ shopId, status: 'not_found' });
+                }
+            } catch (error) {
+                results.failed++;
+                results.details.push({ 
+                    shopId, 
+                    status: 'error', 
+                    error: error instanceof Error ? error.message : 'Unknown error' 
+                });
+            }
+        }
+        
+        console.log(`✅ [Admin] Bulk action "${action}" completed: ${results.success} success, ${results.failed} failed`);
+        
+        res.json({
+            success: true,
+            message: `Action "${action}" terminée: ${results.success} boutiques mises à jour`,
+            results,
+            executedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Admin] Error in bulk action:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'action en lot'
+        });
+    }
+});
+
 export default router;
