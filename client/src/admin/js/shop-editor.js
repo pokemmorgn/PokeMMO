@@ -68,66 +68,66 @@ export class ShopEditorModule {
         if (!container) return;
 
         container.innerHTML = `
-            <div class="shop-editor-container">
+            <div class="shops-editor-container">
                 <!-- Header avec stats et contrôles -->
-                <div class="shop-header">
-                    <div class="header-controls">
-                        <div class="zone-selector">
-                            <label for="zoneSelect" class="form-label">🗺️ Zone:</label>
-                            <select id="zoneSelect" class="form-select" onchange="adminPanel.shopEditor.selectZone(this.value)">
+                <div class="shops-editor-header">
+                    <div class="shops-header-controls">
+                        <div class="shops-zone-selector">
+                            <label for="shopsZoneSelect" class="shops-field-label">🗺️ Zone:</label>
+                            <select id="shopsZoneSelect" class="shops-form-select" onchange="adminPanel.shopEditor.selectZone(this.value)">
                                 <option value="">Toutes les zones</option>
                             </select>
                         </div>
                         
-                        <div class="header-actions">
-                            <button class="btn btn-success" onclick="adminPanel.shopEditor.createNewShop()">
+                        <div class="shops-header-actions">
+                            <button class="shops-btn shops-btn-success" onclick="adminPanel.shopEditor.createNewShop()">
                                 <i class="fas fa-plus"></i> Nouvelle Boutique
                             </button>
-                            <button class="btn btn-info" onclick="adminPanel.shopEditor.refreshShops()">
+                            <button class="shops-btn shops-btn-info" onclick="adminPanel.shopEditor.refreshShops()">
                                 <i class="fas fa-sync-alt"></i> Actualiser
                             </button>
-                            <button class="btn btn-warning" onclick="adminPanel.shopEditor.importShops()">
+                            <button class="shops-btn shops-btn-warning" onclick="adminPanel.shopEditor.importShops()">
                                 <i class="fas fa-upload"></i> Importer
                             </button>
-                            <button class="btn btn-secondary" onclick="adminPanel.shopEditor.exportShops()">
+                            <button class="shops-btn shops-btn-secondary" onclick="adminPanel.shopEditor.exportShops()">
                                 <i class="fas fa-download"></i> Exporter
                             </button>
                         </div>
                     </div>
 
-                    <div class="zone-stats" id="shopStats">
-                        <div class="stats-row">
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalShops">0</div>
-                                <div class="stat-label">Total</div>
+                    <div class="shops-zone-stats" id="shopsStats">
+                        <div class="shops-stats-row">
+                            <div class="shops-stat-item">
+                                <div class="shops-stat-value" id="shopsTotalShops">0</div>
+                                <div class="shops-stat-label">Total</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="activeShops">0</div>
-                                <div class="stat-label">Actives</div>
+                            <div class="shops-stat-item">
+                                <div class="shops-stat-value" id="shopsActiveShops">0</div>
+                                <div class="shops-stat-label">Actives</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="temporaryShops">0</div>
-                                <div class="stat-label">Temporaires</div>
+                            <div class="shops-stat-item">
+                                <div class="shops-stat-value" id="shopsTemporaryShops">0</div>
+                                <div class="shops-stat-label">Temporaires</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="shopTypes">0</div>
-                                <div class="stat-label">Types</div>
+                            <div class="shops-stat-item">
+                                <div class="shops-stat-value" id="shopsShopTypes">0</div>
+                                <div class="shops-stat-label">Types</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Zone principale -->
-                <div class="shop-main-area">
+                <div class="shops-main-area">
                     <!-- Panel liste des boutiques -->
                     <div class="shops-list-panel">
-                        <div class="list-header">
+                        <div class="shops-list-header">
                             <h3>Boutiques</h3>
-                            <div class="list-filters">
-                                <input type="text" class="search-input" id="shopSearch" 
+                            <div class="shops-list-filters">
+                                <input type="text" class="shops-search-input" id="shopsSearchInput" 
                                        placeholder="Rechercher boutiques..." 
                                        oninput="adminPanel.shopEditor.filterShops(this.value)">
-                                <select class="form-select" id="typeFilter" onchange="adminPanel.shopEditor.filterByType(this.value)">
+                                <select class="shops-type-filter" id="shopsTypeFilter" onchange="adminPanel.shopEditor.filterByType(this.value)">
                                     <option value="">Tous les types</option>
                                     <option value="pokemart">Poké Mart</option>
                                     <option value="department">Grand Magasin</option>
@@ -139,12 +139,12 @@ export class ShopEditorModule {
                             </div>
                         </div>
                         
-                        <div class="shops-list" id="shopsList">
-                            <div class="empty-list">
+                        <div class="shops-list-container" id="shopsListContainer">
+                            <div class="shops-empty-list">
                                 <div style="text-align: center; padding: 40px; color: #6c757d;">
                                     <i class="fas fa-store" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
                                     <p>Aucune boutique trouvée</p>
-                                    <button class="btn btn-primary" onclick="adminPanel.shopEditor.createNewShop()">
+                                    <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.createNewShop()">
                                         Créer la première boutique
                                     </button>
                                 </div>
@@ -153,32 +153,30 @@ export class ShopEditorModule {
                     </div>
 
                     <!-- Panel éditeur -->
-                    <div class="shop-editor-panel">
-                        <div class="editor-header">
-                            <h3 id="editorTitle">Éditeur de Boutique</h3>
-                            <div class="editor-actions" id="editorActions" style="display: none;">
-                                <button class="btn btn-success" onclick="adminPanel.shopEditor.saveShop()">
+                    <div class="shops-editor-panel">
+                        <div class="shops-editor-header-panel">
+                            <h3 class="shops-editor-title" id="shopsEditorTitle">Éditeur de Boutique</h3>
+                            <div class="shops-editor-actions" id="shopsEditorActions" style="display: none;">
+                                <button class="shops-btn shops-btn-success" onclick="adminPanel.shopEditor.saveShop()">
                                     <i class="fas fa-save"></i> Sauvegarder
                                 </button>
-                                <button class="btn btn-warning" onclick="adminPanel.shopEditor.duplicateShop()">
+                                <button class="shops-btn shops-btn-warning" onclick="adminPanel.shopEditor.duplicateShop()">
                                     <i class="fas fa-copy"></i> Dupliquer
                                 </button>
-                                <button class="btn btn-danger" onclick="adminPanel.shopEditor.deleteShop()">
+                                <button class="shops-btn shops-btn-danger" onclick="adminPanel.shopEditor.deleteShop()">
                                     <i class="fas fa-trash"></i> Supprimer
                                 </button>
-                                <button class="btn btn-secondary" onclick="adminPanel.shopEditor.cancelEdit()">
+                                <button class="shops-btn shops-btn-secondary" onclick="adminPanel.shopEditor.cancelEdit()">
                                     <i class="fas fa-times"></i> Annuler
                                 </button>
                             </div>
                         </div>
                         
-                        <div class="editor-content" id="editorContent">
-                            <div class="no-selection">
-                                <div style="text-align: center; padding: 60px; color: #95a5a6;">
-                                    <i class="fas fa-store" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                                    <h3>Aucune boutique sélectionnée</h3>
-                                    <p>Choisissez une boutique dans la liste ou créez-en une nouvelle</p>
-                                </div>
+                        <div class="shops-editor-content" id="shopsEditorContent">
+                            <div class="shops-no-selection">
+                                <i class="fas fa-store"></i>
+                                <h3>Aucune boutique sélectionnée</h3>
+                                <p>Choisissez une boutique dans la liste ou créez-en une nouvelle</p>
                             </div>
                         </div>
                     </div>
@@ -187,6 +185,24 @@ export class ShopEditorModule {
         `;
 
         this.populateZoneSelect();
+    }
+
+    populateZoneSelect() {
+        const zoneSelect = document.getElementById('shopsZoneSelect');
+        if (!zoneSelect || !this.zones) return;
+
+        // Garder l'option "Toutes les zones"
+        const currentValue = zoneSelect.value;
+        zoneSelect.innerHTML = '<option value="">Toutes les zones</option>';
+        
+        this.zones.forEach(zone => {
+            const option = document.createElement('option');
+            option.value = zone;
+            option.textContent = this.formatZoneName(zone);
+            zoneSelect.appendChild(option);
+        });
+
+        zoneSelect.value = currentValue;
     }
 
     populateZoneSelect() {
@@ -243,16 +259,16 @@ export class ShopEditorModule {
     }
 
     renderShopsList() {
-        const shopsList = document.getElementById('shopsList');
+        const shopsList = document.getElementById('shopsListContainer');
         if (!shopsList) return;
 
         if (this.allShops.length === 0) {
             shopsList.innerHTML = `
-                <div class="empty-list">
+                <div class="shops-empty-list">
                     <div style="text-align: center; padding: 40px; color: #6c757d;">
                         <i class="fas fa-store" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
                         <p>Aucune boutique trouvée</p>
-                        <button class="btn btn-primary" onclick="adminPanel.shopEditor.createNewShop()">
+                        <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.createNewShop()">
                             Créer une boutique
                         </button>
                     </div>
@@ -269,28 +285,28 @@ export class ShopEditorModule {
         const isSelected = this.currentShop && this.currentShop.shopId === shop.shopId;
         
         return `
-            <div class="shop-item ${isSelected ? 'selected' : ''}" 
+            <div class="shops-list-item ${isSelected ? 'shops-item-selected' : ''}" 
                  onclick="adminPanel.shopEditor.selectShop('${shop.shopId}')">
                 
-                <div class="shop-icon">
+                <div class="shops-item-icon">
                     ${this.getShopTypeIcon(shop.type)}
                 </div>
                 
-                <div class="shop-info">
-                    <div class="shop-name">${shop.name || shop.shopId}</div>
-                    <div class="shop-details">
-                        <span class="shop-type">${this.formatShopType(shop.type)}</span>
-                        <span class="shop-zone">${shop.location?.zone || 'Zone inconnue'}</span>
-                        <span class="shop-currency">${this.formatCurrency(shop.currency)}</span>
-                        ${shop.isTemporary ? '<span class="shop-temp">TEMP</span>' : ''}
-                        ${!shop.isActive ? '<span class="shop-inactive">INACTIF</span>' : ''}
+                <div class="shops-item-info">
+                    <div class="shops-item-name">${shop.name || shop.shopId}</div>
+                    <div class="shops-item-details">
+                        <span class="shops-item-type">${this.formatShopType(shop.type)}</span>
+                        <span class="shops-item-zone">${shop.location?.zone || 'Zone inconnue'}</span>
+                        <span class="shops-item-currency">${this.formatCurrency(shop.currency)}</span>
+                        ${shop.isTemporary ? '<span class="shops-item-temp">TEMP</span>' : ''}
+                        ${!shop.isActive ? '<span class="shops-item-inactive">INACTIF</span>' : ''}
                     </div>
-                    <div class="shop-stats">
+                    <div class="shops-item-stats">
                         <span>${shop.itemCount || 0} articles</span>
                     </div>
                 </div>
                 
-                <div class="shop-status">
+                <div class="shops-item-status">
                     ${shop.isActive ? '✅' : '❌'}
                 </div>
             </div>
@@ -361,20 +377,18 @@ export class ShopEditorModule {
     }
 
     renderShopEditor() {
-        const editorContent = document.getElementById('editorContent');
-        const editorTitle = document.getElementById('editorTitle');
-        const editorActions = document.getElementById('editorActions');
+        const editorContent = document.getElementById('shopsEditorContent');
+        const editorTitle = document.getElementById('shopsEditorTitle');
+        const editorActions = document.getElementById('shopsEditorActions');
         
         if (!editorContent) return;
 
         if (!this.currentShop) {
             editorContent.innerHTML = `
-                <div class="no-selection">
-                    <div style="text-align: center; padding: 60px; color: #95a5a6;">
-                        <i class="fas fa-store" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                        <h3>Aucune boutique sélectionnée</h3>
-                        <p>Choisissez une boutique dans la liste ou créez-en une nouvelle</p>
-                    </div>
+                <div class="shops-no-selection">
+                    <i class="fas fa-store"></i>
+                    <h3>Aucune boutique sélectionnée</h3>
+                    <p>Choisissez une boutique dans la liste ou créez-en une nouvelle</p>
                 </div>
             `;
             editorTitle.textContent = 'Éditeur de Boutique';
@@ -386,14 +400,16 @@ export class ShopEditorModule {
         editorActions.style.display = 'flex';
 
         editorContent.innerHTML = `
-            <div class="shop-form-builder">
-                ${this.renderBasicInfoSection()}
-                ${this.renderLocationSection()}
-                ${this.renderCommercialSection()}
-                ${this.renderItemsSection()}
-                ${this.renderShopKeeperSection()}
-                ${this.renderAccessSection()}
-                ${this.renderAdvancedSection()}
+            <div class="shops-form-builder">
+                <div class="shops-form-sections">
+                    ${this.renderBasicInfoSection()}
+                    ${this.renderLocationSection()}
+                    ${this.renderCommercialSection()}
+                    ${this.renderItemsSection()}
+                    ${this.renderShopKeeperSection()}
+                    ${this.renderAccessSection()}
+                    ${this.renderAdvancedSection()}
+                </div>
             </div>
         `;
     }
@@ -402,52 +418,52 @@ export class ShopEditorModule {
         const shop = this.currentShop;
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>📋 Informations de Base</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">📋 Informations de Base</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content active">
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">ID de la Boutique <span class="required">*</span></label>
-                            <input type="text" class="form-input" id="shopId" value="${shop.shopId || ''}" 
+                <div class="shops-section-content shops-section-active">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">ID de la Boutique <span class="shops-field-required">*</span></label>
+                            <input type="text" class="shops-form-input" id="shopsShopId" value="${shop.shopId || ''}" 
                                    ${this.isEditMode ? 'readonly' : ''}>
-                            <div class="field-help">Identifiant unique de la boutique</div>
+                            <div class="shops-field-help">Identifiant unique de la boutique</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Nom <span class="required">*</span></label>
-                            <input type="text" class="form-input" id="shopName" value="${shop.name || ''}">
-                            <div class="field-help">Nom affiché de la boutique</div>
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Nom <span class="shops-field-required">*</span></label>
+                            <input type="text" class="shops-form-input" id="shopsShopName" value="${shop.name || ''}">
+                            <div class="shops-field-help">Nom affiché de la boutique</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Type <span class="required">*</span></label>
-                            <select class="form-select" id="shopType">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Type <span class="shops-field-required">*</span></label>
+                            <select class="shops-form-select" id="shopsShopType">
                                 ${this.renderShopTypeOptions(shop.type)}
                             </select>
-                            <div class="field-help">Type de boutique</div>
+                            <div class="shops-field-help">Type de boutique</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Région</label>
-                            <input type="text" class="form-input" id="shopRegion" value="${shop.region || ''}">
-                            <div class="field-help">Région Pokémon (ex: Kanto, Johto)</div>
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Région</label>
+                            <input type="text" class="shops-form-input" id="shopsShopRegion" value="${shop.region || ''}">
+                            <div class="shops-field-help">Région Pokémon (ex: Kanto, Johto)</div>
                         </div>
                     </div>
                     
-                    <div class="fields-grid">
-                        <div class="boolean-field">
-                            <input type="checkbox" class="form-checkbox" id="shopIsActive" 
+                    <div class="shops-fields-grid">
+                        <div class="shops-boolean-field">
+                            <input type="checkbox" class="shops-form-checkbox" id="shopsShopIsActive" 
                                    ${shop.isActive !== false ? 'checked' : ''}>
-                            <label class="checkbox-label" for="shopIsActive">Boutique active</label>
+                            <label class="shops-checkbox-label" for="shopsShopIsActive">Boutique active</label>
                         </div>
                         
-                        <div class="boolean-field">
-                            <input type="checkbox" class="form-checkbox" id="shopIsTemporary" 
+                        <div class="shops-boolean-field">
+                            <input type="checkbox" class="shops-form-checkbox" id="shopsShopIsTemporary" 
                                    ${shop.isTemporary ? 'checked' : ''}>
-                            <label class="checkbox-label" for="shopIsTemporary">Boutique temporaire</label>
+                            <label class="shops-checkbox-label" for="shopsShopIsTemporary">Boutique temporaire</label>
                         </div>
                     </div>
                 </div>
@@ -1032,29 +1048,29 @@ export class ShopEditorModule {
 
     collectFormData() {
         const data = {
-            shopId: document.getElementById('shopId')?.value || '',
-            name: document.getElementById('shopName')?.value || '',
-            type: document.getElementById('shopType')?.value || 'pokemart',
-            region: document.getElementById('shopRegion')?.value || '',
+            shopId: document.getElementById('shopsShopId')?.value || '',
+            name: document.getElementById('shopsShopName')?.value || '',
+            type: document.getElementById('shopsShopType')?.value || 'pokemart',
+            region: document.getElementById('shopsShopRegion')?.value || '',
             location: {
-                zone: document.getElementById('shopZone')?.value || '',
-                city: document.getElementById('shopCity')?.value || '',
-                building: document.getElementById('shopBuilding')?.value || ''
+                zone: document.getElementById('shopsShopZone')?.value || '',
+                city: document.getElementById('shopsShopCity')?.value || '',
+                building: document.getElementById('shopsShopBuilding')?.value || ''
             },
-            currency: document.getElementById('shopCurrency')?.value || 'gold',
-            buyMultiplier: parseFloat(document.getElementById('shopBuyMultiplier')?.value) || 1.0,
-            sellMultiplier: parseFloat(document.getElementById('shopSellMultiplier')?.value) || 0.5,
-            taxRate: parseFloat(document.getElementById('shopTaxRate')?.value) || 0,
-            isActive: document.getElementById('shopIsActive')?.checked !== false,
-            isTemporary: document.getElementById('shopIsTemporary')?.checked || false,
+            currency: document.getElementById('shopsShopCurrency')?.value || 'gold',
+            buyMultiplier: parseFloat(document.getElementById('shopsShopBuyMultiplier')?.value) || 1.0,
+            sellMultiplier: parseFloat(document.getElementById('shopsShopSellMultiplier')?.value) || 0.5,
+            taxRate: parseFloat(document.getElementById('shopsShopTaxRate')?.value) || 0,
+            isActive: document.getElementById('shopsShopIsActive')?.checked !== false,
+            isTemporary: document.getElementById('shopsShopIsTemporary')?.checked || false,
             items: this.currentShop?.items || []
         };
         
         // Marchand
-        const keeperNpcId = document.getElementById('keeperNpcId')?.value;
-        const keeperName = document.getElementById('keeperName')?.value;
-        const keeperPersonality = document.getElementById('keeperPersonality')?.value;
-        const keeperSpecialization = document.getElementById('keeperSpecialization')?.value;
+        const keeperNpcId = document.getElementById('shopsKeeperNpcId')?.value;
+        const keeperName = document.getElementById('shopsKeeperName')?.value;
+        const keeperPersonality = document.getElementById('shopsKeeperPersonality')?.value;
+        const keeperSpecialization = document.getElementById('shopsKeeperSpecialization')?.value;
         
         if (keeperNpcId || keeperName || keeperPersonality || keeperSpecialization) {
             data.shopKeeper = {
@@ -1066,10 +1082,10 @@ export class ShopEditorModule {
         }
         
         // Conditions d'accès
-        const minLevel = document.getElementById('accessMinLevel')?.value;
-        const badges = document.getElementById('accessBadges')?.value;
-        const quests = document.getElementById('accessQuests')?.value;
-        const membership = document.getElementById('accessMembership')?.value;
+        const minLevel = document.getElementById('shopsAccessMinLevel')?.value;
+        const badges = document.getElementById('shopsAccessBadges')?.value;
+        const quests = document.getElementById('shopsAccessQuests')?.value;
+        const membership = document.getElementById('shopsAccessMembership')?.value;
         
         if (minLevel || badges || quests || membership) {
             data.accessRequirements = {
@@ -1081,9 +1097,9 @@ export class ShopEditorModule {
         }
         
         // Restock
-        const restockInterval = document.getElementById('restockInterval')?.value;
-        const restockVariation = document.getElementById('restockVariation')?.value;
-        const restockAuto = document.getElementById('restockAuto')?.checked;
+        const restockInterval = document.getElementById('shopsRestockInterval')?.value;
+        const restockVariation = document.getElementById('shopsRestockVariation')?.value;
+        const restockAuto = document.getElementById('shopsRestockAuto')?.checked;
         
         if (restockInterval) {
             data.restockInfo = {
@@ -1177,13 +1193,13 @@ export class ShopEditorModule {
 
     filterShops(searchTerm) {
         // Implémentation de filtrage côté client
-        const shopItems = document.querySelectorAll('.shop-item');
+        const shopItems = document.querySelectorAll('.shops-list-item');
         searchTerm = searchTerm.toLowerCase();
         
         shopItems.forEach(item => {
-            const shopName = item.querySelector('.shop-name').textContent.toLowerCase();
-            const shopType = item.querySelector('.shop-type').textContent.toLowerCase();
-            const shopZone = item.querySelector('.shop-zone').textContent.toLowerCase();
+            const shopName = item.querySelector('.shops-item-name').textContent.toLowerCase();
+            const shopType = item.querySelector('.shops-item-type').textContent.toLowerCase();
+            const shopZone = item.querySelector('.shops-item-zone').textContent.toLowerCase();
             
             const matches = shopName.includes(searchTerm) || 
                           shopType.includes(searchTerm) || 
@@ -1194,7 +1210,7 @@ export class ShopEditorModule {
     }
 
     filterByType(type) {
-        const shopItems = document.querySelectorAll('.shop-item');
+        const shopItems = document.querySelectorAll('.shops-list-item');
         
         shopItems.forEach(item => {
             if (!type) {
@@ -1202,7 +1218,7 @@ export class ShopEditorModule {
                 return;
             }
             
-            const shopTypeSpan = item.querySelector('.shop-type');
+            const shopTypeSpan = item.querySelector('.shops-item-type');
             const shopType = shopTypeSpan.textContent;
             const matches = this.formatShopType(type) === shopType;
             
@@ -1213,10 +1229,376 @@ export class ShopEditorModule {
     updateStatsDisplay(stats) {
         if (!stats) return;
         
-        document.getElementById('totalShops').textContent = stats.total || 0;
-        document.getElementById('activeShops').textContent = stats.active || 0;
-        document.getElementById('temporaryShops').textContent = stats.temporary || 0;
-        document.getElementById('shopTypes').textContent = Object.keys(stats.byType || {}).length;
+        document.getElementById('shopsTotalShops').textContent = stats.total || 0;
+        document.getElementById('shopsActiveShops').textContent = stats.active || 0;
+        document.getElementById('shopsTemporaryShops').textContent = stats.temporary || 0;
+        document.getElementById('shopsShopTypes').textContent = Object.keys(stats.byType || {}).length;
+    }
+    renderLocationSection() {
+        const shop = this.currentShop;
+        const location = shop.location || {};
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">📍 Localisation</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Zone <span class="shops-field-required">*</span></label>
+                            <select class="shops-form-select" id="shopsShopZone">
+                                <option value="">Sélectionner une zone</option>
+                                ${this.zones.map(zone => 
+                                    `<option value="${zone}" ${location.zone === zone ? 'selected' : ''}>${this.formatZoneName(zone)}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="shops-field-help">Zone/carte où se trouve la boutique</div>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Ville</label>
+                            <input type="text" class="shops-form-input" id="shopsShopCity" value="${location.city || ''}">
+                            <div class="shops-field-help">Nom de la ville</div>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Bâtiment</label>
+                            <input type="text" class="shops-form-input" id="shopsShopBuilding" value="${location.building || ''}">
+                            <div class="shops-field-help">Nom du bâtiment</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderCommercialSection() {
+        const shop = this.currentShop;
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">💰 Configuration Commerciale</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Devise <span class="shops-field-required">*</span></label>
+                            <select class="shops-form-select" id="shopsShopCurrency">
+                                <option value="gold" ${shop.currency === 'gold' ? 'selected' : ''}>Gold</option>
+                                <option value="battle_points" ${shop.currency === 'battle_points' ? 'selected' : ''}>Points de Combat</option>
+                                <option value="contest_points" ${shop.currency === 'contest_points' ? 'selected' : ''}>Points de Concours</option>
+                                <option value="game_tokens" ${shop.currency === 'game_tokens' ? 'selected' : ''}>Jetons</option>
+                                <option value="rare_candy" ${shop.currency === 'rare_candy' ? 'selected' : ''}>Bonbons Rares</option>
+                            </select>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Multiplicateur d'Achat</label>
+                            <input type="number" class="shops-form-input" id="shopsShopBuyMultiplier" 
+                                   value="${shop.buyMultiplier || 1.0}" min="0.1" max="10" step="0.1">
+                            <div class="shops-field-help">Multiplicateur pour les prix d'achat (défaut: 1.0)</div>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Multiplicateur de Vente</label>
+                            <input type="number" class="shops-form-input" id="shopsShopSellMultiplier" 
+                                   value="${shop.sellMultiplier || 0.5}" min="0.1" max="1" step="0.1">
+                            <div class="shops-field-help">Multiplicateur pour les prix de vente (défaut: 0.5)</div>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Taux de Taxe (%)</label>
+                            <input type="number" class="shops-form-input" id="shopsShopTaxRate" 
+                                   value="${shop.taxRate || 0}" min="0" max="50" step="0.5">
+                            <div class="shops-field-help">Taxe régionale en pourcentage</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderItemsSection() {
+        const shop = this.currentShop;
+        const items = shop.items || [];
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">📦 Articles en Vente (${items.length})</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <div class="shops-items-header">
+                        <div class="shops-items-actions">
+                            <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.addItem()">
+                                <i class="fas fa-plus"></i> Ajouter Article
+                            </button>
+                            <button class="shops-btn shops-btn-secondary" onclick="adminPanel.shopEditor.importItemsFromTemplate()">
+                                <i class="fas fa-copy"></i> Modèle
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="shopsItemsList" class="shops-items-list">
+                        ${items.length === 0 ? 
+                            '<div class="shops-items-empty"><i class="fas fa-box-open"></i><div>Aucun article configuré</div></div>' :
+                            items.map((item, index) => this.renderShopItemEditor(item, index)).join('')
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderShopItemEditor(item, index) {
+        const itemData = this.allItems[item.itemId] || {};
+        
+        return `
+            <div class="shops-item-editor" data-index="${index}">
+                <div class="shops-item-header">
+                    <div class="shops-item-info-header">
+                        <span class="shops-item-name-display">${itemData.name || item.itemId}</span>
+                        <span class="shops-item-category-badge">${this.formatCategory(item.category)}</span>
+                    </div>
+                    <button class="shops-item-remove-btn" onclick="adminPanel.shopEditor.removeItem(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                
+                <div class="shops-item-fields">
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">ID Article</label>
+                        <select class="shops-item-field-select" onchange="adminPanel.shopEditor.updateItemId(${index}, this.value)">
+                            ${this.renderItemOptions(item.itemId)}
+                        </select>
+                    </div>
+                    
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Prix Personnalisé</label>
+                        <input type="number" class="shops-item-field-input" value="${item.basePrice || ''}" 
+                               placeholder="Prix par défaut" min="0"
+                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'basePrice', this.value)">
+                    </div>
+                    
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Stock</label>
+                        <input type="number" class="shops-item-field-input" value="${item.stock || -1}" 
+                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'stock', this.value)">
+                        <div class="shops-field-help">-1 = illimité</div>
+                    </div>
+                    
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Niveau Requis</label>
+                        <input type="number" class="shops-item-field-input" value="${item.unlockLevel || ''}" 
+                               min="1" max="100" placeholder="Optionnel"
+                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'unlockLevel', this.value)">
+                    </div>
+                </div>
+                
+                <div class="shops-item-featured-field">
+                    <input type="checkbox" class="shops-item-featured-checkbox" id="shopsFeatured_${index}" 
+                           ${item.featured ? 'checked' : ''}
+                           onchange="adminPanel.shopEditor.updateItemField(${index}, 'featured', this.checked)">
+                    <label class="shops-item-featured-label" for="shopsFeatured_${index}">Article mis en avant</label>
+                </div>
+            </div>
+        `;
+    }
+
+    renderShopKeeperSection() {
+        const shop = this.currentShop;
+        const keeper = shop.shopKeeper || {};
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">👤 Marchand</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">ID NPC (Optionnel)</label>
+                            <input type="number" class="shops-form-input" id="shopsKeeperNpcId" 
+                                   value="${keeper.npcId || ''}" placeholder="ID du NPC existant">
+                            <div class="shops-field-help">Référence vers un NPC existant</div>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Nom du Marchand</label>
+                            <input type="text" class="shops-form-input" id="shopsKeeperName" 
+                                   value="${keeper.name || ''}" placeholder="Nom du marchand">
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Personnalité</label>
+                            <select class="shops-form-select" id="shopsKeeperPersonality">
+                                <option value="">Sélectionner</option>
+                                <option value="friendly" ${keeper.personality === 'friendly' ? 'selected' : ''}>Amical</option>
+                                <option value="stern" ${keeper.personality === 'stern' ? 'selected' : ''}>Sévère</option>
+                                <option value="cheerful" ${keeper.personality === 'cheerful' ? 'selected' : ''}>Joyeux</option>
+                                <option value="mysterious" ${keeper.personality === 'mysterious' ? 'selected' : ''}>Mystérieux</option>
+                                <option value="grumpy" ${keeper.personality === 'grumpy' ? 'selected' : ''}>Grincheux</option>
+                                <option value="professional" ${keeper.personality === 'professional' ? 'selected' : ''}>Professionnel</option>
+                            </select>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Spécialisation</label>
+                            <input type="text" class="shops-form-input" id="shopsKeeperSpecialization" 
+                                   value="${keeper.specialization || ''}" placeholder="Ex: Expert en Poké Balls">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderAccessSection() {
+        const shop = this.currentShop;
+        const access = shop.accessRequirements || {};
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">🔒 Conditions d'Accès</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Niveau Minimum</label>
+                            <input type="number" class="shops-form-input" id="shopsAccessMinLevel" 
+                                   value="${access.minLevel || ''}" min="1" max="100" placeholder="Optionnel">
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Badges Requis</label>
+                            <textarea class="shops-form-textarea" id="shopsAccessBadges" rows="3" 
+                                      placeholder="Un badge par ligne">${(access.requiredBadges || []).join('\n')}</textarea>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Quêtes Requises</label>
+                            <textarea class="shops-form-textarea" id="shopsAccessQuests" rows="3" 
+                                      placeholder="Une quête par ligne">${(access.requiredQuests || []).join('\n')}</textarea>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Membership Requis</label>
+                            <select class="shops-form-select" id="shopsAccessMembership">
+                                <option value="">Aucun</option>
+                                <option value="bronze" ${access.membershipRequired === 'bronze' ? 'selected' : ''}>Bronze</option>
+                                <option value="silver" ${access.membershipRequired === 'silver' ? 'selected' : ''}>Argent</option>
+                                <option value="gold" ${access.membershipRequired === 'gold' ? 'selected' : ''}>Or</option>
+                                <option value="platinum" ${access.membershipRequired === 'platinum' ? 'selected' : ''}>Platine</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    ${this.renderTimeRestrictionsSection(access.timeRestrictions)}
+                </div>
+            </div>
+        `;
+    }
+
+    renderTimeRestrictionsSection(timeRestrictions = {}) {
+        return `
+            <div class="shops-time-restrictions">
+                <h5 class="shops-time-title">⏰ Horaires d'Ouverture</h5>
+                
+                <div class="shops-time-grid">
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Heure d'Ouverture</label>
+                        <input type="number" class="shops-form-input" id="shopsTimeOpenHour" 
+                               value="${timeRestrictions.openHour || ''}" min="0" max="23" placeholder="0-23">
+                    </div>
+                    
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Heure de Fermeture</label>
+                        <input type="number" class="shops-form-input" id="shopsTimeCloseHour" 
+                               value="${timeRestrictions.closeHour || ''}" min="0" max="23" placeholder="0-23">
+                    </div>
+                </div>
+                
+                <div class="shops-form-field">
+                    <label class="shops-field-label">Jours Fermés</label>
+                    <div class="shops-closed-days">
+                        ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, index) => `
+                            <div class="shops-day-checkbox">
+                                <input type="checkbox" ${(timeRestrictions.closedDays || []).includes(index) ? 'checked' : ''} 
+                                       onchange="adminPanel.shopEditor.updateClosedDay(${index}, this.checked)">
+                                <label>${day}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderAdvancedSection() {
+        const shop = this.currentShop;
+        const restock = shop.restockInfo || {};
+        
+        return `
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">⚙️ Configuration Avancée</h4>
+                    <span class="shops-section-toggle">▼</span>
+                </div>
+                <div class="shops-section-content">
+                    <h5 class="shops-time-title">🔄 Restock Automatique</h5>
+                    
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Intervalle (minutes)</label>
+                            <input type="number" class="shops-form-input" id="shopsRestockInterval" 
+                                   value="${restock.interval || ''}" min="0" placeholder="0 = désactivé">
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Variation Stock (%)</label>
+                            <input type="number" class="shops-form-input" id="shopsRestockVariation" 
+                                   value="${restock.stockVariation || 10}" min="0" max="100">
+                        </div>
+                        
+                        <div class="shops-boolean-field">
+                            <input type="checkbox" class="shops-form-checkbox" id="shopsRestockAuto" 
+                                   ${restock.autoRestock !== false ? 'checked' : ''}>
+                            <label class="shops-checkbox-label" for="shopsRestockAuto">Restock automatique</label>
+                        </div>
+                    </div>
+                    
+                    <h5 class="shops-time-title" style="margin-top: 20px;">💬 Dialogues Personnalisés</h5>
+                    
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Messages d'Accueil</label>
+                        <textarea class="shops-form-textarea" id="shopsDialoguesWelcome" rows="3" 
+                                  placeholder="Un message par ligne">${(shop.dialogues?.welcome || []).join('\n')}</textarea>
+                    </div>
+                    
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Messages d'Achat</label>
+                            <textarea class="shops-form-textarea" id="shopsDialoguesPurchase" rows="2" 
+                                      placeholder="Un message par ligne">${(shop.dialogues?.purchase || []).join('\n')}</textarea>
+                        </div>
+                        
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Messages d'Au Revoir</label>
+                            <textarea class="shops-form-textarea" id="shopsDialoguesGoodbye" rows="2" 
+                                      placeholder="Un message par ligne">${(shop.dialogues?.farewell || []).join('\n')}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     async importShops() {
