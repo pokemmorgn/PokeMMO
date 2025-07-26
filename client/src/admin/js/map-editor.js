@@ -16,6 +16,9 @@ export class MapEditorModule {
         this.dpi = window.devicePixelRatio || 1
         this.tilesets = new Map()
         this.tilesetImages = new Map()
+        this.selectedNPC = null
+        this.npcContextMenu = null
+        this.contextMenuVisible = false
         
         console.log('🗺️ [MapEditor] Module initialized with items support')
         this.init()
@@ -256,20 +259,27 @@ handleCanvasClick(event) {
     }
     
     // Vérifier si on clique sur un objet existant
-    const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
+// Vérifier si on clique sur un objet existant
+const existingIndex = this.placedObjects.findIndex(obj => obj.x === tileX && obj.y === tileY)
+
+if (existingIndex !== -1) {
+    const existingObj = this.placedObjects[existingIndex]
     
-    if (existingIndex !== -1) {
-        const existingObj = this.placedObjects[existingIndex]
-        
-        if (existingObj.isFromMap) {
-            this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
-            return
-        }
-        
-        // Supprimer l'objet ajouté manuellement
-        this.placedObjects.splice(existingIndex, 1)
-        this.adminPanel.showNotification('Objet supprimé', 'info')
-    } else {
+    if (existingObj.isFromMap) {
+        this.adminPanel.showNotification('Objet de la carte (lecture seule)', 'warning')
+        return
+    }
+    
+    // ✅ NOUVEAU: Si c'est un NPC, ouvrir le menu d'édition
+    if (existingObj.type === 'npc') {
+        this.openNPCEditMenu(existingObj, event.clientX, event.clientY)
+        return
+    }
+    
+    // Pour les autres objets, supprimer directement
+    this.placedObjects.splice(existingIndex, 1)
+    this.adminPanel.showNotification('Objet supprimé', 'info')
+} else {
         // Ajouter un nouvel objet selon le mode
         if (this.selectedTool === 'object' && this.selectedItem) {
             this.placeItemObject(tileX, tileY)
@@ -1304,7 +1314,9 @@ renderMap() {
         this.selectedItem = null
         this.tilesets.clear()
         this.tilesetImages.clear()
-        
+            this.selectedNPC = null
+    this.closeNPCContextMenu() // Fermer le menu s'il est ouvert
+    this.contextMenuVisible = false
         console.log('🧹 [MapEditor] Module cleanup completed')
     }
 }
