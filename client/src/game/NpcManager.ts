@@ -10,6 +10,9 @@ export class NpcManager {
     this.npcData = new Map();
     this.isDestroyed = false;
     
+    // ✅ NOUVEAU : Protection contre spawn multiple
+    this.isSpawning = false;
+    
     // ✅ NOUVEAU : NpcSpriteManager pour sprites dynamiques
     this.npcSpriteManager = new NpcSpriteManager(scene);
     this.npcSpriteManager.initialize();
@@ -17,70 +20,86 @@ export class NpcManager {
     console.log("📋 NpcManager initialisé avec NpcSpriteManager");
   }
 
-  // ✅ AMÉLIORATION: Spawn avec sprites dynamiques
+  // ✅ AMÉLIORATION: Spawn avec sprites dynamiques + PROTECTION BOUCLE
   async spawnNpcs(npcList) {
-    console.log("👥 === SPAWN NPCs AVEC SPRITES DYNAMIQUES ===");
-    console.log(`📊 Zone: ${this.scene.scene.key}`);
-    console.log(`📊 NPCs à spawner: ${npcList.length}`);
-    
-    // ✅ Debug détaillé de chaque NPC reçu (incluant sprites)
-    npcList.forEach((npc, index) => {
-      console.log(`🎭 NPC ${index + 1}:`, {
-        id: npc.id,
-        name: npc.name,
-        sprite: npc.sprite, // ✅ SPRITE MONGODB
-        x: npc.x,
-        y: npc.y,
-        properties: npc.properties
-      });
-    });
-    
-    // ✅ Vérification de scène
-    if (!this.scene) {
-      console.warn("⚠️ Pas de scène pour spawner les NPCs");
+    // ✅ PROTECTION CONTRE LES APPELS MULTIPLES
+    if (this.isSpawning) {
+      console.warn("⚠️ Spawn NPCs déjà en cours, ignoré");
       return;
     }
     
-    // ✅ NOUVEAU : Pré-charger tous les sprites nécessaires
-    const spritesToPreload = npcList
-      .map(npc => npc.sprite)
-      .filter(sprite => sprite && sprite !== '') // Filtrer les sprites vides
-      .filter((sprite, index, array) => array.indexOf(sprite) === index); // Dédupliquer
+    this.isSpawning = true;
     
-    if (spritesToPreload.length > 0) {
-      console.log(`🎨 Pré-chargement de ${spritesToPreload.length} sprites uniques:`, spritesToPreload);
+    try {
+      console.log("👥 === SPAWN NPCs AVEC SPRITES DYNAMIQUES ===");
+      console.log(`📊 Zone: ${this.scene.scene.key}`);
+      console.log(`📊 NPCs à spawner: ${npcList.length}`);
       
-      const preloadResult = await this.npcSpriteManager.preloadSprites(spritesToPreload);
-      console.log(`🎨 Pré-chargement terminé:`, preloadResult);
-    }
-    
-    // ✅ Nettoyer les NPCs existants si nécessaire
-    if (this.npcVisuals.size > 0) {
-      console.log(`🧹 Nettoyage préventif (${this.npcVisuals.size} NPCs existants)`);
-      this.clearAllNpcs();
-    }
-    
-    // ✅ Spawner chaque NPC avec gestion async
-    const spawnPromises = npcList.map(npc => this.spawnNpc(npc));
-    const spawnResults = await Promise.allSettled(spawnPromises);
-    
-    // ✅ Analyser les résultats
-    const successful = spawnResults.filter(r => r.status === 'fulfilled').length;
-    const failed = spawnResults.filter(r => r.status === 'rejected').length;
-    
-    console.log(`✅ Spawn terminé: ${successful} succès, ${failed} échecs sur ${npcList.length} NPCs`);
-    
-    if (failed > 0) {
-      console.warn(`⚠️ ${failed} NPCs n'ont pas pu être spawnés`);
-      spawnResults.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`❌ NPC ${npcList[index].id} (${npcList[index].name}):`, result.reason);
-        }
+      // ✅ Debug détaillé de chaque NPC reçu (incluant sprites)
+      npcList.forEach((npc, index) => {
+        console.log(`🎭 NPC ${index + 1}:`, {
+          id: npc.id,
+          name: npc.name,
+          sprite: npc.sprite, // ✅ SPRITE MONGODB
+          x: npc.x,
+          y: npc.y,
+          properties: npc.properties
+        });
       });
+      
+      // ✅ Vérification de scène
+      if (!this.scene) {
+        console.warn("⚠️ Pas de scène pour spawner les NPCs");
+        return;
+      }
+      
+      // ✅ NOUVEAU : Pré-charger tous les sprites nécessaires
+      const spritesToPreload = npcList
+        .map(npc => npc.sprite)
+        .filter(sprite => sprite && sprite !== '') // Filtrer les sprites vides
+        .filter((sprite, index, array) => array.indexOf(sprite) === index); // Dédupliquer
+      
+      if (spritesToPreload.length > 0) {
+        console.log(`🎨 Pré-chargement de ${spritesToPreload.length} sprites uniques:`, spritesToPreload);
+        
+        const preloadResult = await this.npcSpriteManager.preloadSprites(spritesToPreload);
+        console.log(`🎨 Pré-chargement terminé:`, preloadResult);
+      }
+      
+      // ✅ Nettoyer les NPCs existants si nécessaire
+      if (this.npcVisuals.size > 0) {
+        console.log(`🧹 Nettoyage préventif (${this.npcVisuals.size} NPCs existants)`);
+        this.clearAllNpcs();
+      }
+      
+      // ✅ Spawner chaque NPC avec gestion async
+      const spawnPromises = npcList.map(npc => this.spawnNpc(npc));
+      const spawnResults = await Promise.allSettled(spawnPromises);
+      
+      // ✅ Analyser les résultats
+      const successful = spawnResults.filter(r => r.status === 'fulfilled').length;
+      const failed = spawnResults.filter(r => r.status === 'rejected').length;
+      
+      console.log(`✅ Spawn terminé: ${successful} succès, ${failed} échecs sur ${npcList.length} NPCs`);
+      
+      if (failed > 0) {
+        console.warn(`⚠️ ${failed} NPCs n'ont pas pu être spawnés`);
+        spawnResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`❌ NPC ${npcList[index].id} (${npcList[index].name}):`, result.reason);
+          }
+        });
+      }
+      
+      // ✅ Debug final des NPCs créés
+      this.debugSpawnedNpcs();
+      
+    } catch (error) {
+      console.error("❌ Erreur critique dans spawnNpcs:", error);
+    } finally {
+      // ✅ TOUJOURS LIBÉRER LE FLAG
+      this.isSpawning = false;
     }
-    
-    // ✅ Debug final des NPCs créés
-    this.debugSpawnedNpcs();
   }
 
   // ✅ AMÉLIORATION: Spawn NPC individuel avec sprite dynamique
@@ -374,6 +393,9 @@ export class NpcManager {
 
     console.log("🧹 === NETTOYAGE NPCs AVEC SPRITES ===");
     console.log(`🧹 NPCs à nettoyer: ${this.npcVisuals.size}`);
+    
+    // ✅ RESET DU FLAG DE SPAWN
+    this.isSpawning = false;
     
     this.npcVisuals.forEach(({ sprite, nameContainer }, id) => {
       console.log(`🗑️ Suppression NPC ID ${id}`);
