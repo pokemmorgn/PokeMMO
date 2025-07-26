@@ -1161,6 +1161,8 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
 
         // ✅ ITEMS À VENDRE (de l'inventaire du joueur)
         const playerInventory = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+        // ✅ DEBUG : Voir la structure exacte
+        console.log(`🔍 [DEBUG] Structure playerInventory pour ${player.name}:`, JSON.stringify(playerInventory, null, 2));
         const sellableItems: any[] = [];
 
 // ✅  Convertir l'inventaire en format vendable
