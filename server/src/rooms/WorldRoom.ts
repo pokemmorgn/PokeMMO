@@ -207,6 +207,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
     
+    // Initialiser InteractionManager
+    this.interactionManager = new InteractionManager();
+    console.log(`✅ InteractionManager initialisé`);    
+    
     // ✅ ÉTAPE 9: Initialiser ShopManager
     this.shopManager = new ShopManager();
     console.log(`✅ ShopManager initialisé`);
