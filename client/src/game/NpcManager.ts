@@ -158,13 +158,39 @@ export class NpcManager {
       }
 
       // ✅ ÉTAPE 4: Créer le sprite avec la clé finale
-      console.log(`🎨 Création sprite NPC avec: ${spriteKeyToUse}`);
+      console.log(`🎨 Création sprite NPC avec support sprite sheets: ${spriteKeyToUse}`);
+      
+      // ✅ NOUVEAU : Obtenir les informations de sprite sheet
+      const spriteSheetInfo = this.npcSpriteManager.getSpriteSheetInfo(spriteKeyToUse);
       
       let sprite;
-      if (npc.frameIndex !== undefined) {
-        sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse, npc.frameIndex);
+      
+      if (spriteSheetInfo.isSpriteSheet) {
+        // ✅ Sprite Sheet : utiliser le frame par défaut
+        console.log(`🎞️ Création sprite sheet: ${spriteSheetInfo.structure.name} (frame ${spriteSheetInfo.defaultFrame})`);
+        
+        if (npc.frameIndex !== undefined) {
+          // Utiliser le frame spécifié par le serveur
+          sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse, npc.frameIndex);
+          console.log(`🎯 Frame spécifiée par serveur: ${npc.frameIndex}`);
+        } else {
+          // Utiliser le frame par défaut (généralement 0 = idle down)
+          sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse, spriteSheetInfo.defaultFrame);
+          console.log(`🎯 Frame par défaut utilisée: ${spriteSheetInfo.defaultFrame}`);
+        }
+        
+        // ✅ Stocker les infos de sprite sheet sur le sprite
+        sprite.spriteSheetInfo = spriteSheetInfo;
+        
       } else {
-        sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse);
+        // ✅ Image Simple : création normale
+        console.log(`🖼️ Création image simple`);
+        
+        if (npc.frameIndex !== undefined) {
+          sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse, npc.frameIndex);
+        } else {
+          sprite = this.scene.add.sprite(npc.x, npc.y, spriteKeyToUse);
+        }
       }
 
       // ✅ ÉTAPE 5: Configuration plus robuste du sprite
