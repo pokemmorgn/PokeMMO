@@ -6,8 +6,28 @@ export class QuestsModule {
         this.name = 'quests'
         this.currentQuest = null
         this.questSteps = []
+        this.pokemonList = []
+        this.itemsList = []
         
         console.log('📜 [Quests] Enhanced Module initialized')
+        this.loadGameData()
+    }
+
+    async loadGameData() {
+        try {
+            // Charger les Pokémon disponibles
+            const pokemonData = await this.adminPanel.apiCall('/game-data/pokemon')
+            this.pokemonList = pokemonData.pokemon || []
+            
+            // Charger les items disponibles
+            const itemsData = await this.adminPanel.apiCall('/game-data/items')
+            this.itemsList = itemsData.items || []
+            
+            console.log(`📜 [Quests] Loaded ${this.pokemonList.length} Pokémon and ${this.itemsList.length} items`)
+        } catch (error) {
+            console.error('📜 [Quests] Error loading game data:', error)
+            this.adminPanel.showNotification('Erreur chargement données jeu: ' + error.message, 'warning')
+        }
     }
 
     async loadQuests() {
@@ -305,67 +325,258 @@ export class QuestsModule {
                         </select>
                     </div>
                     <div>
-                        <label class="form-label" style="font-size: 0.9rem;">Cible</label>
-                        <input type="text" class="form-input" placeholder="ID ou nom de la cible" 
-                               value="${objective.target || ''}" 
-                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
-                    </div>
-                    <div>
                         <label class="form-label" style="font-size: 0.9rem;">Quantité</label>
                         <input type="number" class="form-input" placeholder="1" min="1"
                                value="${objective.requiredAmount || 1}" 
                                onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'requiredAmount', parseInt(this.value))">
                     </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                     <div>
-                        <label class="form-label" style="font-size: 0.9rem;">Nom affiché</label>
-                        <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
-                               value="${objective.targetName || ''}" 
-                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
-                    </div>
-                    <div>
-                        <label class="form-label" style="font-size: 0.9rem;">Item (pour livraison/échange)</label>
-                        <input type="text" class="form-input" placeholder="ID de l'item" 
-                               value="${objective.itemId || ''}" 
-                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'itemId', this.value)">
+                        <label class="form-label" style="font-size: 0.9rem;">Description</label>
+                        <input type="text" class="form-input" placeholder="Description de l'objectif" 
+                               value="${objective.description || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'description', this.value)">
                     </div>
                 </div>
                 
-                <div style="margin-bottom: 10px;">
-                    <label class="form-label" style="font-size: 0.9rem;">Description</label>
-                    <input type="text" class="form-input" placeholder="Description de l'objectif" 
-                           value="${objective.description || ''}" 
-                           onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'description', this.value)">
-                </div>
+                ${this.renderObjectiveSpecificFields(stepIndex, objIndex, objective)}
                 
-                ${objective.type === 'talk' || objective.type === 'deliver' ? `
-                    <div>
+                ${(objective.type === 'talk' || objective.type === 'deliver') ? `
+                    <div style="margin-top: 10px;">
                         <label class="form-label" style="font-size: 0.9rem;">Dialogue de validation (une ligne par dialogue)</label>
                         <textarea class="form-input" rows="3" placeholder="Dialogue après accomplissement..."
                                   onchange="adminPanel.quests.updateObjectiveValidation(${stepIndex}, ${objIndex}, this.value)">${(objective.validationDialogue || []).join('\n')}</textarea>
                     </div>
                 ` : ''}
-                
-                ${objective.type === 'trade' ? `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            </div>
+        `
+    }
+
+    renderObjectiveSpecificFields(stepIndex, objIndex, objective) {
+        const type = objective.type;
+        
+        switch (type) {
+            case 'collect':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Item à collecter</label>
+                            ${this.renderItemSelector(stepIndex, objIndex, 'itemId', objective.itemId || '')}
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Nom affiché (optionnel)</label>
+                            <input type="text" class="form-input" placeholder="Nom personnalisé" 
+                                   value="${objective.targetName || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                        </div>
+                    </div>
+                `;
+            
+            case 'defeat':
+            case 'catch':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">${type === 'defeat' ? 'Pokémon à vaincre' : 'Pokémon à capturer'}</label>
+                            ${this.renderPokemonSelector(stepIndex, objIndex, 'target', objective.target || '')}
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Nom affiché (optionnel)</label>
+                            <input type="text" class="form-input" placeholder="Nom personnalisé" 
+                                   value="${objective.targetName || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                        </div>
+                    </div>
+                `;
+            
+            case 'defeat_trainers':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Type de dresseur (optionnel)</label>
+                            <input type="text" class="form-input" placeholder="ex: gym_leader, elite_four, etc." 
+                                   value="${objective.target || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Nom affiché</label>
+                            <input type="text" class="form-input" placeholder="ex: Dresseurs Rocket" 
+                                   value="${objective.targetName || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                        </div>
+                    </div>
+                `;
+            
+            case 'talk':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">ID du NPC</label>
+                            <input type="number" class="form-input" placeholder="ID du NPC" min="1"
+                                   value="${objective.target || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Nom du NPC</label>
+                            <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
+                                   value="${objective.targetName || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                        </div>
+                    </div>
+                `;
+            
+            case 'deliver':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Item à livrer</label>
+                            ${this.renderItemSelector(stepIndex, objIndex, 'itemId', objective.itemId || '')}
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">ID du NPC destinataire</label>
+                            <input type="number" class="form-input" placeholder="ID du NPC" min="1"
+                                   value="${objective.target || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label class="form-label" style="font-size: 0.9rem;">Nom du destinataire</label>
+                        <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
+                               value="${objective.targetName || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                    </div>
+                `;
+            
+            case 'reach':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Coordonnée X</label>
+                            <input type="number" class="form-input" placeholder="Position X" 
+                                   value="${this.extractCoordinate(objective.target, 'x')}" 
+                                   onchange="adminPanel.quests.updateObjectiveCoordinate(${stepIndex}, ${objIndex}, 'x', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Coordonnée Y</label>
+                            <input type="number" class="form-input" placeholder="Position Y" 
+                                   value="${this.extractCoordinate(objective.target, 'y')}" 
+                                   onchange="adminPanel.quests.updateObjectiveCoordinate(${stepIndex}, ${objIndex}, 'y', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Carte</label>
+                            <input type="text" class="form-input" placeholder="ID de la carte" 
+                                   value="${this.extractCoordinate(objective.target, 'map')}" 
+                                   onchange="adminPanel.quests.updateObjectiveCoordinate(${stepIndex}, ${objIndex}, 'map', this.value)">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label class="form-label" style="font-size: 0.9rem;">Nom du lieu</label>
+                        <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
+                               value="${objective.targetName || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                    </div>
+                `;
+            
+            case 'trade':
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                         <div>
                             <label class="form-label" style="font-size: 0.9rem;">Pokémon à donner</label>
-                            <input type="text" class="form-input" placeholder="Nom du Pokémon" 
-                                   value="${objective.tradePokemon || ''}" 
-                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'tradePokemon', this.value)">
+                            ${this.renderPokemonSelector(stepIndex, objIndex, 'tradePokemon', objective.tradePokemon || '')}
                         </div>
                         <div>
                             <label class="form-label" style="font-size: 0.9rem;">Pokémon à recevoir</label>
-                            <input type="text" class="form-input" placeholder="Nom du Pokémon" 
-                                   value="${objective.receivePokemon || ''}" 
-                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'receivePokemon', this.value)">
+                            ${this.renderPokemonSelector(stepIndex, objIndex, 'receivePokemon', objective.receivePokemon || '')}
                         </div>
                     </div>
-                ` : ''}
-            </div>
-        `
+                    <div style="margin-bottom: 10px;">
+                        <label class="form-label" style="font-size: 0.9rem;">ID du NPC échangeur</label>
+                        <input type="number" class="form-input" placeholder="ID du NPC" min="1"
+                               value="${objective.target || ''}" 
+                               onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                    </div>
+                `;
+            
+            default:
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Cible</label>
+                            <input type="text" class="form-input" placeholder="ID ou nom de la cible" 
+                                   value="${objective.target || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'target', this.value)">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 0.9rem;">Nom affiché</label>
+                            <input type="text" class="form-input" placeholder="Nom pour l'affichage" 
+                                   value="${objective.targetName || ''}" 
+                                   onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, 'targetName', this.value)">
+                        </div>
+                    </div>
+                `;
+        }
+    }
+
+    renderPokemonSelector(stepIndex, objIndex, field, currentValue) {
+        if (this.pokemonList.length === 0) {
+            return `
+                <input type="text" class="form-input" placeholder="Chargement des Pokémon..." 
+                       value="${currentValue}" disabled>
+            `;
+        }
+
+        return `
+            <select class="form-select" onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, '${field}', this.value)">
+                <option value="">-- Sélectionner un Pokémon --</option>
+                ${this.pokemonList.map(pokemon => `
+                    <option value="${pokemon.name}" ${currentValue === pokemon.name ? 'selected' : ''}>
+                        #${pokemon.id.toString().padStart(3, '0')} ${pokemon.name}
+                    </option>
+                `).join('')}
+            </select>
+        `;
+    }
+
+    renderItemSelector(stepIndex, objIndex, field, currentValue) {
+        if (this.itemsList.length === 0) {
+            return `
+                <input type="text" class="form-input" placeholder="Chargement des items..." 
+                       value="${currentValue}" disabled>
+            `;
+        }
+
+        return `
+            <select class="form-select" onchange="adminPanel.quests.updateObjectiveField(${stepIndex}, ${objIndex}, '${field}', this.value)">
+                <option value="">-- Sélectionner un item --</option>
+                ${this.itemsList.map(item => `
+                    <option value="${item.id}" ${currentValue === item.id ? 'selected' : ''}>
+                        ${this.getItemDisplayName(item.id)} ${item.type ? `(${item.type})` : ''}
+                    </option>
+                `).join('')}
+            </select>
+        `;
+    }
+
+    getItemDisplayName(itemId) {
+        return itemId.split('_').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')
+    }
+
+    extractCoordinate(target, coord) {
+        if (!target) return ''
+        
+        try {
+            if (target.includes(':')) {
+                const parts = target.split(':')
+                if (coord === 'x' && parts[0]) return parts[0]
+                if (coord === 'y' && parts[1]) return parts[1]
+                if (coord === 'map' && parts[2]) return parts[2]
+            }
+        } catch (e) {
+            console.warn('Error extracting coordinate:', e)
+        }
+        
+        return ''
     }
 
     renderRewardEditor(stepIndex, rewardIndex, reward) {
@@ -388,10 +599,8 @@ export class QuestsModule {
                         </select>
                     </div>
                     <div>
-                        <label class="form-label" style="font-size: 0.9rem;">${reward.type === 'item' ? 'Item ID' : reward.type === 'pokemon' ? 'Pokémon' : 'Quantité'}</label>
-                        <input type="text" class="form-input" 
-                               value="${reward.type === 'item' ? (reward.itemId || '') : reward.type === 'pokemon' ? (reward.pokemonId || '') : (reward.amount || 0)}" 
-                               onchange="adminPanel.quests.updateRewardField(${stepIndex}, ${rewardIndex}, '${reward.type === 'item' ? 'itemId' : reward.type === 'pokemon' ? 'pokemonId' : 'amount'}', this.value)">
+                        <label class="form-label" style="font-size: 0.9rem;">${reward.type === 'item' ? 'Item' : reward.type === 'pokemon' ? 'Pokémon' : 'Quantité'}</label>
+                        ${this.renderRewardValueField(stepIndex, rewardIndex, reward)}
                     </div>
                     ${reward.type === 'item' || reward.type === 'pokemon' ? `
                         <div>
@@ -404,6 +613,21 @@ export class QuestsModule {
                 </div>
             </div>
         `
+    }
+
+    renderRewardValueField(stepIndex, rewardIndex, reward) {
+        switch (reward.type) {
+            case 'item':
+                return this.renderItemSelector(stepIndex, rewardIndex, 'itemId', reward.itemId || '', true)
+            case 'pokemon':
+                return this.renderPokemonSelector(stepIndex, rewardIndex, 'pokemonId', reward.pokemonId || '', true)
+            default:
+                return `
+                    <input type="number" class="form-input" min="0"
+                           value="${reward.amount || 0}" 
+                           onchange="adminPanel.quests.updateRewardField(${stepIndex}, ${rewardIndex}, 'amount', parseInt(this.value))">
+                `
+        }
     }
 
     addQuestStep() {
@@ -484,6 +708,25 @@ export class QuestsModule {
         }
     }
 
+    updateObjectiveCoordinate(stepIndex, objIndex, coord, value) {
+        if (!this.questSteps[stepIndex] || !this.questSteps[stepIndex].objectives[objIndex]) return
+        
+        const objective = this.questSteps[stepIndex].objectives[objIndex]
+        const currentTarget = objective.target || ''
+        const parts = currentTarget.split(':')
+        
+        // Ensure we have 3 parts [x, y, map]
+        while (parts.length < 3) {
+            parts.push('')
+        }
+        
+        if (coord === 'x') parts[0] = value
+        if (coord === 'y') parts[1] = value
+        if (coord === 'map') parts[2] = value
+        
+        objective.target = parts.join(':')
+    }
+
     updateObjectiveValidation(stepIndex, objIndex, value) {
         if (this.questSteps[stepIndex] && this.questSteps[stepIndex].objectives[objIndex]) {
             this.questSteps[stepIndex].objectives[objIndex].validationDialogue = 
@@ -517,6 +760,11 @@ export class QuestsModule {
     updateRewardField(stepIndex, rewardIndex, field, value) {
         if (this.questSteps[stepIndex] && this.questSteps[stepIndex].rewards[rewardIndex]) {
             this.questSteps[stepIndex].rewards[rewardIndex][field] = value
+            
+            // Re-render if type changed to update the UI
+            if (field === 'type') {
+                this.renderQuestSteps(this.questSteps)
+            }
         }
     }
 
@@ -586,6 +834,18 @@ export class QuestsModule {
         if (!/^[a-zA-Z0-9_-]+$/.test(questData.id)) {
             this.adminPanel.showNotification('ID invalide (lettres, chiffres, - et _ seulement)', 'error')
             return false
+        }
+        
+        if (questData.steps.length === 0) {
+            this.adminPanel.showNotification('Au moins une étape requise', 'error')
+            return false
+        }
+        
+        for (const step of questData.steps) {
+            if (!step.objectives || step.objectives.length === 0) {
+                this.adminPanel.showNotification(`L'étape "${step.name}" doit avoir au moins un objectif`, 'error')
+                return false
+            }
         }
         
         return true
@@ -706,6 +966,8 @@ Dialogues:
     cleanup() {
         this.currentQuest = null
         this.questSteps = []
+        this.pokemonList = []
+        this.itemsList = []
         console.log('🧹 [Quests] Enhanced module cleanup completed')
     }
 }
