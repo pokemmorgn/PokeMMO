@@ -2078,11 +2078,6 @@ async function ensureMapObjectsDir() {
   }
 }
 
-// ✅ ROUTE: Liste des cartes disponibles
-// Dans server/src/routes/adminRoutes.ts
-// Remplacer complètement la route GET /maps/list par cette version simple :
-
-// ✅ ROUTE SIMPLE: Liste des zones depuis MongoDB (comme Map Editor)
 // Dans server/src/routes/adminRoutes.ts
 // Version nettoyée sans fonction dupliquée :
 
@@ -2105,10 +2100,10 @@ router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
       ...shopZones,
       // Zones par défaut si DB vide
       'village', 'city', 'forest', 'cave', 'beach'
-    ])).filter(zone => zone && zone.trim().length > 0);
+    ])).filter((zone): zone is string => typeof zone === 'string' && zone.trim().length > 0);
     
-    // Formater comme attendu par le frontend (utilise la fonction existante si elle existe)
-    const maps = allZones.map(zone => ({
+    // Formater comme attendu par le frontend
+    const maps = allZones.map((zone: string) => ({
       id: zone,
       name: zone.charAt(0).toUpperCase() + zone.slice(1), // Simple capitalisation
       file: `${zone}.tmj` // Simulé pour compatibilité
@@ -2142,6 +2137,7 @@ router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
   }
 });
 
+// ✅ PAS de fonction formatMapName ici - utilise celle qui existe déjà ou supprime-la
 // ✅ PAS de fonction formatMapName ici - utilise celle qui existe déjà ou supprime-la
 
 // ✅ ROUTE: Charger une carte TMJ
