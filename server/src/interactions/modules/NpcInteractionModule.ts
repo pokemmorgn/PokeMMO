@@ -459,7 +459,7 @@ private async handleNpcInteractionWithAI(
     // === FALLBACK LEGACY ===
     this.log('info', `🔧 [Legacy] Utilisation logique traditionnelle pour NPC ${safeNpcId}`);
     
-    const legacyResult = await this.handleLegacyNpcInteractionLogic(player, npc, safeNpcId);
+    const legacyResult = await this.handleLegacyNpcInteractionLogic(player, npc, safeNpcId, playerLanguage);
     
     // Enrichir le résultat legacy avec les champs IA (pour compatibilité)
     const enrichedResult: NpcInteractionResult = {
@@ -626,7 +626,7 @@ private async handleNpcInteractionWithAI(
 
   // ✅ MÉTHODES EXISTANTES AVEC TOUTES LES IMPLÉMENTATIONS COMPLÈTES
 
-  private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+  private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
     // === LOGIQUE DE PRIORITÉ EXISTANTE INCHANGÉE ===
 
     // 1. Vérifier si c'est une table starter
@@ -679,7 +679,7 @@ private async handleNpcInteractionWithAI(
       
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player);
+      const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player, playerLanguage);
       
       // Compléter automatiquement toutes les quêtes prêtes
       const completionResults = [];
@@ -738,7 +738,7 @@ private async handleNpcInteractionWithAI(
       this.log('info', `${availableQuests.length} quêtes disponibles`);
       
       const firstQuest = availableQuests[0];
-      const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player);
+      const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
       
       const serializedQuests = availableQuests.map(quest => ({
         id: quest.id,
@@ -786,7 +786,7 @@ private async handleNpcInteractionWithAI(
       
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player);
+     const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
       
       return {
         success: true,
@@ -814,7 +814,7 @@ private async handleNpcInteractionWithAI(
       const shopId = npc.shopId || npc.properties.shop;
       
       // ✅ ÉTAPE 2 : REMPLACER DIALOGUE SHOP PAR DIALOGSTRING
-      const shopGreeting = await this.getShopGreeting(player, npc);
+      const shopGreeting = await this.getShopGreeting(player, npc, playerLanguage);
       
       return { 
         success: true,
@@ -838,7 +838,7 @@ private async handleNpcInteractionWithAI(
     } else if (npc.properties?.healer || npc.type === 'healer') {
       
       // ✅ ÉTAPE 2 : REMPLACER DIALOGUE HEALER PAR DIALOGSTRING
-      const healerGreeting = await this.getHealerGreeting(player, npc);
+      const healerGreeting = await this.getHealerGreeting(player, npc, playerLanguage);
       
       return { 
         success: true,
@@ -859,7 +859,7 @@ private async handleNpcInteractionWithAI(
         lines: [healerGreeting] // ✅ NOUVEAU : Dialogue personnalisé
       };
     } else if (npc.properties?.dialogue || npc.dialogueIds) {
-      const lines = await this.getDialogueLines(npc, player);
+      const lines = await this.getDialogueLines(npc, player, playerLanguage);
       return { 
         success: true,
         type: "dialogue", 
@@ -878,7 +878,7 @@ private async handleNpcInteractionWithAI(
         }
       };
     } else {
-      const defaultDialogue = await this.getDefaultDialogueForNpc(npc, player);
+      const defaultDialogue = await this.getDefaultDialogueForNpc(npc, player, playerLanguage);
       return { 
         success: true,
         type: "dialogue", 
