@@ -2214,31 +2214,6 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
-    // ✅ TRACKING IA: Connexion du joueur
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      ActionType.SESSION_START,
-      {
-        playerName: player.name,
-        level: player.level,
-        gold: player.gold,
-        spawnZone: player.currentZone,
-        isReturningPlayer: !!savedData
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
-    console.log(`🎉 ${player.name} a rejoint le monde !`);
-  } catch (error) {
-    console.error(`❌ Erreur lors du join:`, error);
-    client.leave(1000, "Erreur lors de la connexion");
-  }
-}
 
 async onLeave(client: Client, consented: boolean) {
   console.log(`👋 === PLAYER LEAVE ===`);
@@ -2253,7 +2228,32 @@ async onLeave(client: Client, consented: boolean) {
     // ✅ NOUVEAU: Vérifier combat actif AVANT nettoyage JWT
     const userId = this.jwtManager.getUserId(client.sessionId);
     const hasActiveBattle = userId ? this.jwtManager.hasActiveBattle(userId) : false;
-    
+
+          // ✅ TRACKING IA: Connexion du joueur
+      this.trackPlayerActionWithAI(
+        client.sessionId,
+        ActionType.SESSION_START,
+        {
+          playerName: player.name,
+          level: player.level,
+          gold: player.gold,
+          spawnZone: player.currentZone,
+          isReturningPlayer: !!savedData
+        },
+        {
+          location: { 
+            map: player.currentZone, 
+            x: player.x, 
+            y: player.y 
+          }
+        }
+      );
+      console.log(`🎉 ${player.name} a rejoint le monde !`);
+    } catch (error) {
+      console.error(`❌ Erreur lors du join:`, error);
+      client.leave(1000, "Erreur lors de la connexion");
+    }
+  }
     if (hasActiveBattle) {
       console.log(`⚔️ [WorldRoom] Combat actif détecté, préservation JWT pour ${player.name}`);
     } else {
