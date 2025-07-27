@@ -40,7 +40,15 @@ export class UIManager {
       globalOffset: 15, // ✅ Décalage global vers la gauche (en pixels)
       zIndex: 500
     };
-    
+        // Configuration spéciale pour Options (toujours accessible)
+    this.optionsConfig = {
+      moduleId: 'options',
+      anchor: 'top-right',
+      order: 100, // Ordre très élevé = position isolée
+      priority: 999, // Priorité maximale
+      critical: false,
+      alwaysVisible: true
+    };
     this.registeredIcons = new Map();
     this.iconGroups = new Map();
     this.currentBreakpoint = this.getCurrentBreakpoint();
@@ -53,7 +61,8 @@ export class UIManager {
       inventory_open: ['team'],
       team_open: ['inventory'],
       dialogue_active: ['inventory', 'team', 'quest'],
-      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat']
+      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+      options_open: [] // Options peut s'ouvrir même si autres modules ouverts
     };
     
     this.openModules = new Set();
