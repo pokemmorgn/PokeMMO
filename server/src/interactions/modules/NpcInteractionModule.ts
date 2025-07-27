@@ -299,114 +299,120 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID + LANGUE
-  async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
-    const startTime = Date.now();
-    
-    try {
-      const { player, request } = context;
-      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
-      const npcId = request.data?.npcId;
+async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
+  const startTime = Date.now();
+  
+  try {
+    const { player, request } = context;
+    const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
+    const npcId = request.data?.npcId;
 
-          // 🔍 DEBUG COMPLET REQUÊTE
+    // 🔍 DEBUG COMPLET REQUÊTE
     console.log("🔍 [DEBUG] === ANALYSE COMPLÈTE REQUÊTE ===");
     console.log("🔍 [DEBUG] request.data COMPLET:", JSON.stringify(request.data, null, 2));
     console.log("🔍 [DEBUG] Toutes les clés de request.data:", Object.keys(request.data || {}));
     console.log("🔍 [DEBUG] request.data?.playerLanguage DIRECT:", request.data?.playerLanguage);
     console.log("🔍 [DEBUG] Type:", typeof request.data?.playerLanguage);
+    
+    // 🔍 DEBUG REQUEST COMPLET
+    console.log("🔍 [DEBUG] === ANALYSE REQUEST COMPLET ===");
+    console.log("🔍 [DEBUG] typeof request:", typeof request);
+    console.log("🔍 [DEBUG] Object.keys(request):", Object.keys(request));
+    console.log("🔍 [DEBUG] request COMPLET:", JSON.stringify(request, null, 2));
     console.log("🔍 [DEBUG] =====================================");
-      
-      if (!npcId) {
-        return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
-      }
-
-      // ✅ ÉTAPE 2 : Extraire la langue du joueur depuis la requête
-      const playerLanguage = request.data?.playerLanguage || 
-                            request.playerLanguage || 
-                            (request as any).playerLanguage || 
-                            'fr';
-      
-      // 🔍 DEBUG AMÉLIORE :
-      console.log("🔍 [DEBUG] === EXTRACTION LANGUE AMÉLIORÉE ===");
-      console.log("🔍 [DEBUG] request.data?.playerLanguage:", request.data?.playerLanguage);
-      console.log("🔍 [DEBUG] request.playerLanguage:", (request as any).playerLanguage);
-      console.log("🔍 [DEBUG] request COMPLET:", JSON.stringify(request, null, 2));
-      console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
-      console.log("🔍 [DEBUG] ========================================");
-      
-      this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
-
-      // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
-      if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
-        try {
-          const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
-          
-          await trackPlayerAction(
-            enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
-            ActionType.NPC_TALK,
-            {
-              npcId,
-              playerLevel: player.level,
-              playerGold: player.gold,
-              zone: player.currentZone,
-              playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
-            },
-            {
-              location: { 
-                map: player.currentZone, 
-                x: player.x, 
-                y: player.y 
-              }
-            }
-          );
-          
-          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
-          
-          // ✅ DEBUG: Vérifier la queue
-          const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
-          const tracker = getActionTracker();
-          
-          const stats = tracker.getStats();
-          console.log(`📋 [AI] État queue après tracking:`, {
-            actionsInQueue: stats.actionsInQueue,
-            playersTracked: stats.playersTracked,
-            isEnabled: stats.isEnabled
-          });
-        
-        } catch (error) {
-          console.warn(`⚠️ [AI] Erreur tracking:`, error);
-        }
-      } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
-        console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
-      }
-      
-      this.log('info', `🎮 Interaction NPC ${npcId}`, { 
-        player: player.name,
-        userId: enhancedContext.userId || 'N/A',
-        language: playerLanguage,
-        intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
-        dialogServiceReady: !!this.dialogService
-      });
-
-      // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue
-      const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
-
-      // Mise à jour des stats
-      const processingTime = Date.now() - startTime;
-      this.updateStats(result.success, processingTime);
-
-      return result;
-
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-      this.updateStats(false, processingTime);
-      
-      this.log('error', 'Erreur traitement NPC', error);
-      return this.createErrorResult(
-        error instanceof Error ? error.message : 'Erreur inconnue',
-        "PROCESSING_FAILED"
-      );
+    
+    if (!npcId) {
+      return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
     }
+
+    // ✅ EXTRACTION LANGUE AVEC CASTING TYPESCRIPT
+    const requestAny = request as any;
+    const playerLanguage = request.data?.playerLanguage || 
+                          requestAny.playerLanguage || 
+                          'fr';
+    
+    // 🔍 DEBUG EXTRACTION LANGUE
+    console.log("🔍 [DEBUG] === EXTRACTION LANGUE AMÉLIORÉE ===");
+    console.log("🔍 [DEBUG] request.data?.playerLanguage:", request.data?.playerLanguage);
+    console.log("🔍 [DEBUG] requestAny.playerLanguage:", requestAny.playerLanguage);
+    console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
+    console.log("🔍 [DEBUG] Type playerLanguage FINAL:", typeof playerLanguage);
+    console.log("🔍 [DEBUG] ========================================");
+    
+    this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
+
+    // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
+    if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
+      try {
+        const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
+        
+        await trackPlayerAction(
+          enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
+          ActionType.NPC_TALK,
+          {
+            npcId,
+            playerLevel: player.level,
+            playerGold: player.gold,
+            zone: player.currentZone,
+            playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
+          },
+          {
+            location: { 
+              map: player.currentZone, 
+              x: player.x, 
+              y: player.y 
+            }
+          }
+        );
+        
+        console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
+        
+        // ✅ DEBUG: Vérifier la queue
+        const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+        const tracker = getActionTracker();
+        
+        const stats = tracker.getStats();
+        console.log(`📋 [AI] État queue après tracking:`, {
+          actionsInQueue: stats.actionsInQueue,
+          playersTracked: stats.playersTracked,
+          isEnabled: stats.isEnabled
+        });
+      
+      } catch (error) {
+        console.warn(`⚠️ [AI] Erreur tracking:`, error);
+      }
+    } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
+      console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
+    }
+    
+    this.log('info', `🎮 Interaction NPC ${npcId}`, { 
+      player: player.name,
+      userId: enhancedContext.userId || 'N/A',
+      language: playerLanguage,
+      intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
+      dialogServiceReady: !!this.dialogService
+    });
+
+    // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue
+    const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
+
+    // Mise à jour des stats
+    const processingTime = Date.now() - startTime;
+    this.updateStats(result.success, processingTime);
+
+    return result;
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    this.updateStats(false, processingTime);
+    
+    this.log('error', 'Erreur traitement NPC', error);
+    return this.createErrorResult(
+      error instanceof Error ? error.message : 'Erreur inconnue',
+      "PROCESSING_FAILED"
+    );
   }
+}
 
   // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE + LANGUE ===
 
