@@ -235,7 +235,7 @@ export class PlayerHistoryReader {
         actionType: doc.actionType as ActionType,
         category: doc.category as ActionCategory,
         timestamp: doc.timestamp,
-        data: doc.data,
+        data: doc.data as any, // Type assertion pour éviter les conflits TypeScript
         metadata: doc.metadata
       }));
 
@@ -768,7 +768,7 @@ export class PlayerHistoryReader {
         actionType: doc.actionType as ActionType,
         category: doc.category as ActionCategory,
         timestamp: doc.timestamp,
-        data: doc.data,
+        data: doc.data as any, // Type assertion pour éviter les conflits TypeScript
         metadata: doc.metadata
       }));
 
