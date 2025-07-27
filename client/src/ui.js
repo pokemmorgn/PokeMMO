@@ -1345,6 +1345,26 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('dialogueEnded', () => {
     pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
+
+  // Écouter la touche Échap pour Options
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && 
+        !e.target.matches('input, textarea, [contenteditable]') &&
+        !e.ctrlKey && !e.altKey && !e.metaKey) {
+      
+      // Vérifier si pas dans un dialogue ou autre UI critique
+      const dialogueBox = document.querySelector('#dialogue-box');
+      const dialogueVisible = dialogueBox && 
+        dialogueBox.style.display !== 'none' && 
+        !dialogueBox.hidden;
+      
+      if (!dialogueVisible) {
+        e.preventDefault();
+        window.toggleOptions();
+      }
+    }
+  });
+  
 });
 
 console.log('✅ [PokemonUI] Système UI Pokémon CONSERVATEUR avec fix minimal Quest chargé');
