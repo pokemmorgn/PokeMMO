@@ -443,19 +443,24 @@ export class NpcInteractionManager {
     }
   }
 
-  async sendNpcInteraction(npc, options = {}) {
-    console.log('[NpcInteractionManager] 📤 Envoi interaction réseau...');
+async sendNpcInteraction(npc, options = {}) {
+  console.log('[NpcInteractionManager] 📤 Envoi interaction réseau...');
+  
+  if (!this.networkHandler) {
+    console.error('[NpcInteractionManager] ❌ Pas de NetworkHandler');
+    return false;
+  }
+  
+  try {
+    const npcId = npc.id;
     
-    if (!this.networkHandler) {
-      console.error('[NpcInteractionManager] ❌ Pas de NetworkHandler');
-      return false;
-    }
-    
-    try {
-      const npcId = npc.id;
-      
     // ✅ Créer données d'interaction avec types corrects + langue
     const playerPosition = this.getPlayerPosition();
+    
+    // 🔍 DEBUG: Vérifier GetPlayerCurrentLanguage au moment de l'appel
+    const currentLang = GetPlayerCurrentLanguage();
+    console.log("🔍 [DEBUG] GetPlayerCurrentLanguage() au moment envoi:", currentLang);
+    
     const interactionData = InteractionHelpers.createNpcInteraction(
       npcId,
       this.networkHandler.networkManager.sessionId,
@@ -464,14 +469,12 @@ export class NpcInteractionManager {
       {
         npcName: npc.name,
         interactionType: this.state.currentInteractionType,
-        playerLanguage: GetPlayerCurrentLanguage(), // ✅ NOUVEAU : Langue directement
+        playerLanguage: currentLang, // ✅ NOUVEAU : Langue directement
         ...options
       }
     );
-          // 🔍 DEBUG: Vérifier les données finales
-    console.log("🔍 [DEBUG] interactionData FINAL:", JSON.stringify(interactionData, null, 2));
-    console.log("🔍 [DEBUG] playerLanguage dans interactionData:", interactionData.playerLanguage);
-        // Dans sendNpcInteraction(), après votre debug
+    
+    // 🔍 DEBUG: Vérifier les données finales
     console.log("🔍 [DEBUG] interactionData FINAL:", JSON.stringify(interactionData, null, 2));
     console.log("🔍 [DEBUG] playerLanguage dans interactionData:", interactionData.playerLanguage);
     
@@ -491,34 +494,23 @@ export class NpcInteractionManager {
       console.log('[NpcInteractionManager] ✅ Validation client réussie');
     }
     
-    // ✅ Envoyer l'interaction
-    const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
-    
     // 🔍 NOUVEAU DEBUG: Tracer l'appel au NetworkHandler
     console.log("🔍 [DEBUG] === APPEL NETWORKHANDLER ===");
     console.log("🔍 [DEBUG] npcId passé:", npcId);
     console.log("🔍 [DEBUG] interactionData passé au NetworkHandler:", JSON.stringify(interactionData, null, 2));
     console.log("🔍 [DEBUG] ================================");
-      // ✅ Validation côté client
-      const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
-      if (!validation.isValid) {
-        console.warn('[NpcInteractionManager] ⚠️ Validation échouée:', validation.errors);
-      } else {
-        console.log('[NpcInteractionManager] ✅ Validation client réussie');
-      }
-      
-      // ✅ Envoyer l'interaction
-      const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
-      
-      console.log(`[NpcInteractionManager] Résultat envoi: ${result}`);
-      return result;
-      
-    } catch (error) {
-      console.error('[NpcInteractionManager] ❌ Erreur envoi:', error);
-      return false;
-    }
+    
+    // ✅ Envoyer l'interaction
+    const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
+    
+    console.log(`[NpcInteractionManager] Résultat envoi: ${result}`);
+    return result;
+    
+  } catch (error) {
+    console.error('[NpcInteractionManager] ❌ Erreur envoi:', error);
+    return false;
   }
-
+}
   // === GESTION DES RÉSULTATS RÉSEAU ===
 
 handleNetworkInteractionResult(data) {
