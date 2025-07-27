@@ -1054,56 +1054,53 @@ const rewards = this.generateAdvancedRewards(progression, i + 1, stepCount, pref
         return names[Math.min(stepNumber - 1, names.length - 1)]
     }
 
-generateAdvancedStepDescription(questType, stepNumber, totalSteps, progression) {        const intensity = {
-            easy: 'straightforward',
-            medium: 'challenging',
-            hard: 'demanding',
-            legendary: 'epic'
-        }
+generateAdvancedStepDescription(questType, stepNumber, totalSteps, progression) {
+    const gymInfo = this.questData.gymProgression[progression]
+    const intensity = gymInfo ? `de niveau ${gymInfo.name}` : 'approprié'
 
-        if (stepNumber === 1) {
-            return `Begin this ${intensity[difficulty]} ${questType.replace('_', ' ')} mission with careful preparation.`
-        } else if (stepNumber === totalSteps) {
-            return `Complete the final ${intensity[difficulty]} phase of your quest and claim victory.`
-        } else {
-            return `Continue with step ${stepNumber} of this ${intensity[difficulty]} mission, staying focused on your goals.`
-        }
+    if (stepNumber === 1) {
+        return `Commencez cette mission ${intensity} avec une préparation minutieuse.`
+    } else if (stepNumber === totalSteps) {
+        return `Terminez la phase finale de votre quête ${intensity} et réclamez la victoire.`
+    } else {
+        return `Continuez avec l'étape ${stepNumber} de cette mission ${intensity}, restez concentré sur vos objectifs.`
     }
+}
 
 generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) {
     const objectiveId = `obj_${Math.random().toString(36).substring(2, 8)}`
         
         switch (questType) {
             case 'collect':
-                return this.generateCollectionObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateCollectionObjective(objectiveId, progression, stepNumber, totalSteps)
             
             case 'defeat_pokemon':
-                return this.generateDefeatPokemonObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateDefeatPokemonObjective(objectiveId, progression, stepNumber, totalSteps)
             
             case 'defeat_trainers':
-                return this.generateDefeatTrainersObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateDefeatTrainersObjective(objectiveId, progression, stepNumber, totalSteps)
             
             case 'talk':
                 return this.generateTalkObjective(objectiveId, npc, stepNumber, totalSteps)
             
             case 'deliver':
-                return this.generateDeliveryObjective(objectiveId, npc, difficulty, stepNumber, totalSteps)
+                return this.generateDeliveryObjective(objectiveId, npc, progression, stepNumber, totalSteps)
             
             case 'explore':
-                return this.generateExplorationObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateExplorationObjective(objectiveId, progression, stepNumber, totalSteps)
             
             case 'trade':
-                return this.generateTradeObjective(objectiveId, npc, difficulty, stepNumber, totalSteps)
+                return this.generateTradeObjective(objectiveId, npc, progression, stepNumber, totalSteps)
             
             case 'catch':
-                return this.generateCatchObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateCatchObjective(objectiveId, progression, stepNumber, totalSteps)
             
             default:
-                return this.generateCollectionObjective(objectiveId, difficulty, stepNumber, totalSteps)
+                return this.generateCollectionObjective(objectiveId, progression, stepNumber, totalSteps)
         }
     }
 
-    generateCollectionObjective(objectiveId, difficulty, stepNumber, totalSteps) {
+    generateCollectionObjective(objectiveId, progression, stepNumber, totalSteps) {
         const difficultyMultipliers = { easy: 1, medium: 1.5, hard: 2, legendary: 3 }
         const multiplier = difficultyMultipliers[difficulty] || 1
         
@@ -1130,7 +1127,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateDefeatPokemonObjective(objectiveId, difficulty, stepNumber, totalSteps) {
+    generateDefeatPokemonObjective(objectiveId, progression, stepNumber, totalSteps) {
         const difficultyMultipliers = { easy: 2, medium: 4, hard: 6, legendary: 10 }
         const multiplier = difficultyMultipliers[difficulty] || 3
         
@@ -1153,7 +1150,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateDefeatTrainersObjective(objectiveId, difficulty, stepNumber, totalSteps) {
+    generateDefeatTrainersObjective(objectiveId, progression, stepNumber, totalSteps) {
         const trainerAmounts = { easy: 1, medium: 2, hard: 3, legendary: 5 }
         const amount = trainerAmounts[difficulty] || 2
         
@@ -1183,7 +1180,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateDeliveryObjective(objectiveId, npc, difficulty, stepNumber, totalSteps) {
+    generateDeliveryObjective(objectiveId, npc, progression, stepNumber, totalSteps) {
         const itemPool = difficulty === 'legendary' ? this.questData.items.rare : 
                         difficulty === 'hard' ? this.questData.items.enhancement :
                         this.questData.items.healing
@@ -1206,7 +1203,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateExplorationObjective(objectiveId, difficulty, stepNumber, totalSteps) {
+    generateExplorationObjective(objectiveId, progression, stepNumber, totalSteps) {
         const locationTypes = {
             easy: this.questData.locations.outdoor,
             medium: this.questData.locations.indoor.concat(this.questData.locations.outdoor),
@@ -1227,7 +1224,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateTradeObjective(objectiveId, npc, difficulty, stepNumber, totalSteps) {
+    generateTradeObjective(objectiveId, npc, progression, stepNumber, totalSteps) {
         const pokemonPools = {
             easy: this.questData.pokemon.common,
             medium: this.questData.pokemon.uncommon,
@@ -1251,7 +1248,7 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateCatchObjective(objectiveId, difficulty, stepNumber, totalSteps) {
+    generateCatchObjective(objectiveId, progression, stepNumber, totalSteps) {
         const catchAmounts = { easy: 1, medium: 2, hard: 3, legendary: 5 }
         const amount = catchAmounts[difficulty] || 2
         
@@ -1275,9 +1272,9 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateAdvancedRewards(difficulty, stepNumber, totalSteps, enhancedRewards) {
+generateAdvancedRewards(progression, stepNumber, totalSteps, enhancedRewards) {
         const rewards = []
-        const rewardData = this.questData.rewards[difficulty]
+const rewardData = this.questData.rewards[progression]
         
         // Base gold reward
         const goldAmount = this.getRandomInt(rewardData.gold.min, rewardData.gold.max)
