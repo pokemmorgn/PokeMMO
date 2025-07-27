@@ -10,7 +10,14 @@
  */
 
 import { PlayerHistoryReader, getPlayerHistoryReader } from '../DataCollection/PlayerHistoryReader';
+import type { 
+  PlayerActivitySummary,
+  DetailedSessionData 
+} from '../DataCollection/PlayerHistoryReader';
+
 import { BasicStatsCalculator, getBasicStatsCalculator } from './BasicStatsCalculator';
+import type { BasicPlayerStats } from './BasicStatsCalculator';
+
 import { 
   ActionType, 
   ActionCategory,
@@ -18,12 +25,7 @@ import {
   FRUSTRATION_INDICATORS
 } from '../Core/ActionTypes';
 
-import type { 
-  PlayerAction,
-  BasicPlayerStats,
-  PlayerActivitySummary,
-  DetailedSessionData 
-} from '../Core/ActionTypes';
+import type { PlayerAction } from '../Core/ActionTypes';
 
 // ===================================================================
 // 📄 INTERFACES DES RÉSUMÉS
@@ -336,7 +338,7 @@ export class ActionSummary {
 
       // Analyser les tendances
       const playerActivity = this.analyzeTrend('activity', globalStats, period);
-      const engagement = this.analyzeTrend('engagement', globalStats, period);
+      const engagement = this.analyzeEngagementTrend('engagement', globalStats, period);
       const contentUsage = this.analyzeContentUsage(recentActions);
       const communityHealth = this.assessCommunityHealth(globalStats, recentActions);
 
@@ -388,22 +390,26 @@ export class ActionSummary {
 
   private generateHeadline(stats: BasicPlayerStats, summary: PlayerActivitySummary): string {
     const { activityPattern } = summary;
-    const { skillLevel } = stats.health.skillProgression > 0.7 ? { skillLevel: 'expert' } : 
-                         stats.health.skillProgression > 0.5 ? { skillLevel: 'advanced' } :
-                         stats.health.skillProgression > 0.3 ? { skillLevel: 'intermediate' } :
-                         { skillLevel: 'beginner' };
+    const skillLevel = stats.health.skillProgression > 0.7 ? 'expert' : 
+                      stats.health.skillProgression > 0.5 ? 'advanced' :
+                      stats.health.skillProgression > 0.3 ? 'intermediate' :
+                      'beginner';
 
-    const primaryActivity = Object.entries(summary.actionsByCategory)
-      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'exploration';
+    // Corriger le tri des catégories d'actions
+    const categoryCounts = Object.entries(summary.actionsByCategory)
+      .map(([category, count]) => ({ category, count: Number(count) }))
+      .sort((a, b) => b.count - a.count);
+    
+    const primaryActivity = categoryCounts[0]?.category || 'exploration';
 
-    const adjectives = {
+    const adjectives: Record<string, string[]> = {
       hardcore: ['dedicated', 'passionate', 'intense'],
       regular: ['committed', 'active', 'engaged'],
       casual: ['relaxed', 'casual', 'easygoing'],
       inactive: ['quiet', 'absent', 'taking a break']
     };
 
-    const activities = {
+    const activities: Record<string, string> = {
       [ActionCategory.COMBAT]: 'battles',
       [ActionCategory.POKEMON]: 'collecting Pokémon',
       [ActionCategory.EXPLORATION]: 'exploring',
@@ -411,8 +417,9 @@ export class ActionSummary {
       [ActionCategory.QUEST]: 'completing quests'
     };
 
-    const adjective = adjectives[activityPattern][Math.floor(Math.random() * adjectives[activityPattern].length)];
-    const activity = activities[primaryActivity as ActionCategory] || 'playing';
+    const activityAdjs = adjectives[activityPattern] || adjectives.casual;
+    const adjective = activityAdjs[Math.floor(Math.random() * activityAdjs.length)];
+    const activity = activities[primaryActivity] || 'playing';
 
     if (stats.health.churnRisk > 0.7) {
       return `${stats.playerName} seems to be losing interest and might need encouragement`;
@@ -758,8 +765,12 @@ export class ActionSummary {
     return ["Player prefers solo play"];
   }
 
-  // Méthodes d'analyse serveur simplifiées
+  // Méthodes d'analyse serveur corrigées
   private analyzeTrend(type: string, stats: any, period: string): 'increasing' | 'stable' | 'decreasing' {
+    return 'stable'; // TODO: Implémenter vraie comparaison temporelle
+  }
+
+  private analyzeEngagementTrend(type: string, stats: any, period: string): 'improving' | 'stable' | 'declining' {
     return 'stable'; // TODO: Implémenter vraie comparaison temporelle
   }
 
