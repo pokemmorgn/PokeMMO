@@ -131,6 +131,9 @@ export enum ActionType {
   MILESTONE_REACH = "milestone_reach",           // Atteinte palier
   LEVEL_UP = "level_up",                        // Montée de niveau
   
+  // NPC
+  NPC_INTERACTION = 'npc_interaction',          // Interaction avec NPC
+  
   // ❌ ERROR ACTIONS
   ERROR_OCCURRED = "error_occurred",             // Erreur rencontrée
   BUG_REPORT = "bug_report",                    // Rapport de bug
