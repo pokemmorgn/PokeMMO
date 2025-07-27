@@ -606,93 +606,34 @@ private async applyAIRecommendations(playerId: string, analysis: CompletePlayerA
   /**
  * Helper pour tracker une action de joueur avec l'IA
  */
-private trackPlayerActionWithAI(
-  sessionId: string,               // ✅ Clarifier : sessionId en paramètre
-  actionType: ActionType,
-  actionData: any = {},
-  context?: { location?: { map: string; x: number; y: number } }
-): void {
-  if (!this.aiSystemInitialized) {
-    console.log(`⚠️ [AI] Système IA non initialisé, skip tracking ${actionType}`);
-    return;
-  }
-  
-  try {
-    // ✅ NOUVEAU : Récupérer userId depuis JWT
-    const userId = this.jwtManager.getUserId(sessionId);
-    if (!userId) {
-      console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : userId introuvable pour session ${sessionId}`);
-      return;
-    }
-    
-    console.log(`📊 [AI] Tracking action ${actionType} pour userId: ${userId} (session: ${sessionId})`);
-    
-    // ✅ Utiliser l'API de tracking avec userId
-    trackPlayerAction(userId, actionType, actionData, context);
-    this.aiStats.actionsTracked++;
-    
-    // ✅ DEBUG IMMÉDIAT: Vérifier que l'action est bien ajoutée à la queue
-    setTimeout(() => {
-      const tracker = this.actionTracker;
-      const stats = tracker.getStats();
-      console.log(`📋 [AI] État queue après tracking ${actionType}:`, {
-        actionsInQueue: stats.actionsInQueue,
-        playersTracked: stats.playersTracked,
-        isEnabled: stats.isEnabled,
-        actionType: actionType,
-        userId: userId
-      });
+    private trackPlayerActionWithAI(
+      sessionId: string,               // ✅ Clarifier : sessionId en paramètre
+      actionType: ActionType,
+      actionData: any = {},
+      context?: { location?: { map: string; x: number; y: number } }
+    ): void {
+      if (!this.aiSystemInitialized) return;
       
-      // ✅ Si la queue est toujours à 0, il y a un problème
-      if (stats.actionsInQueue === 0) {
-        console.error(`❌ [AI] PROBLÈME: Action ${actionType} non ajoutée à la queue pour userId ${userId}`);
-        console.error(`❌ [AI] Debug - Le joueur est-il bien enregistré dans le tracker ?`);
-        
-        // ✅ Essayer de re-enregistrer le joueur en urgence
-        const player = this.state.players.get(sessionId);
-        if (player) {
-          console.log(`🔄 [AI] Tentative re-enregistrement userId ${userId}`);
-          try {
-            this.actionTracker.registerPlayer(
-              userId,
-              player.name,
-              `emergency_session_${Date.now()}`,
-              { map: player.currentZone, x: player.x, y: player.y },
-              player.level
-            );
-            console.log(`✅ [AI] Re-enregistrement réussi pour userId ${userId}`);
-          } catch (reregError) {
-            console.error(`❌ [AI] Échec re-enregistrement:`, reregError);
-          }
+      try {
+        // ✅ NOUVEAU : Récupérer userId depuis JWT
+        const userId = this.jwtManager.getUserId(sessionId);
+        if (!userId) {
+          console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : userId introuvable pour session ${sessionId}`);
+          return;
         }
-      } else {
-        console.log(`✅ [AI] Action ${actionType} correctement ajoutée à la queue (${stats.actionsInQueue} actions en attente)`);
+        
+        // ✅ Utiliser l'API de tracking avec userId
+        trackPlayerAction(userId, actionType, actionData, context);
+        this.aiStats.actionsTracked++;
+        
+        // Log occasionnel pour debug
+        if (this.aiStats.actionsTracked % 50 === 0) {
+          console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées`);
+        }
+      } catch (error) {
+        console.error(`❌ [AI] Erreur tracking action:`, error);
       }
-    }, 100); // Vérifier 100ms après
-    
-    // Log occasionnel pour debug
-    if (this.aiStats.actionsTracked % 10 === 0) {
-      console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées au total`);
     }
-    
-  } catch (error) {
-    console.error(`❌ [AI] Erreur tracking action ${actionType}:`, error);
-    console.error(`❌ [AI] Stack trace:`, error instanceof Error ? error.stack : 'Pas de stack trace disponible');
-    
-    // ✅ NOUVEAU : Debug approfondi en cas d'erreur
-    const userId = this.jwtManager.getUserId(sessionId);
-    const player = this.state.players.get(sessionId);
-    console.error(`❌ [AI] Debug contexte erreur:`, {
-      sessionId: sessionId,
-      userId: userId,
-      hasPlayer: !!player,
-      playerName: player?.name,
-      actionType: actionType,
-      aiSystemInitialized: this.aiSystemInitialized,
-      trackerStats: this.actionTracker ? this.actionTracker.getStats() : 'tracker undefined'
-    });
-  }
-}
   
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
@@ -1258,7 +1199,7 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Interaction avec NPC
-// ✅ HANDLER npcInteract COMPLET ET CORRIGÉ
+// ✅ NOUVEAU : Interaction avec NPC INTELLIGENTE via IA
 this.onMessage("npcInteract", async (client, data) => {
   console.log(`🤖 === NPC INTERACTION INTELLIGENTE ===`);
   console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
@@ -1274,30 +1215,15 @@ this.onMessage("npcInteract", async (client, data) => {
     return;
   }
 
-  // ✅ NOUVEAU : Récupérer userId via JWTManager AVANT tout
-  const userId = this.jwtManager.getUserId(client.sessionId);
-  if (!userId) {
-    console.error(`❌ UserId introuvable pour session ${client.sessionId}`);
-    client.send("npcInteractionResult", {
-      success: false,
-      type: "error",
-      message: "Session invalide - reconnexion requise"
-    });
-    return;
-  }
-
-  console.log(`🔗 [NPC Interact] UserId récupéré: ${userId} pour ${player.name}`);
-
   try {
-    // ✅ TRACKING IA CORRIGÉ: Interaction avec NPC avec userId
+    // ✅ TRACKING IA: Interaction avec NPC
     this.trackPlayerActionWithAI(
-      client.sessionId,  // sessionId pour la méthode trackPlayerActionWithAI
+      client.sessionId,
       ActionType.NPC_TALK,
       {
         npcId: data.npcId,
         playerLevel: player.level,
-        playerGold: player.gold,
-        userId: userId  // ✅ NOUVEAU : Ajouter userId aux données pour debug
+        playerGold: player.gold
       },
       {
         location: { 
@@ -1308,13 +1234,11 @@ this.onMessage("npcInteract", async (client, data) => {
       }
     );
 
-    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE avec userId
+    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE
     if (this.aiSystemInitialized) {
       try {
-        console.log(`🧠 [AI] Tentative interaction intelligente avec NPC ${data.npcId} pour userId ${userId}`);
-        
         const smartResponse = await handleSmartNPCInteraction(
-          userId,  // ✅ CORRIGÉ : userId au lieu de client.sessionId
+          client.sessionId,
           data.npcId,
           'dialogue',
           {
@@ -1325,7 +1249,7 @@ this.onMessage("npcInteract", async (client, data) => {
         );
 
         if (smartResponse.success) {
-          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId} pour userId ${userId}`);
+          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId}`);
           this.aiStats.intelligentInteractions++;
           
           client.send("npcInteractionResult", {
@@ -1336,40 +1260,26 @@ this.onMessage("npcInteract", async (client, data) => {
             actions: smartResponse.actions,
             followUpQuestions: smartResponse.followUpQuestions,
             metadata: smartResponse.metadata,
-            isAI: true,
-            userId: userId  // ✅ NOUVEAU : Inclure userId dans la réponse pour debug
+            isAI: true
           });
           return;
-        } else {
-          console.log(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, passage au système classique`);
         }
       } catch (aiError) {
         console.warn(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, fallback système classique:`, aiError);
       }
-    } else {
-      console.log(`⚠️ [AI] Système IA non initialisé, utilisation système classique`);
     }
 
-    // ✅ FALLBACK: Système classique si IA échoue - TEMPORAIRE avec 2 paramètres
-    console.log(`🔧 [Legacy] Utilisation système classique pour NPC ${data.npcId}`);
-    
-    // ✅ TEMPORAIRE : Appel avec 2 paramètres (on modifiera InteractionManager après)
+    // ✅ FALLBACK: Système classique si IA échoue
     const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
-    
-    console.log(`📤 Envoi résultat classique: ${result.type} pour userId ${userId}`);
-    client.send("npcInteractionResult", { 
-      ...result, 
-      isAI: false, 
-      userId: userId  // ✅ NOUVEAU : Inclure userId dans la réponse
-    });
+    console.log(`📤 Envoi résultat classique: ${result.type}`);
+    client.send("npcInteractionResult", { ...result, isAI: false });
     
   } catch (error) {
-    console.error(`❌ Erreur interaction NPC pour userId ${userId}:`, error);
+    console.error(`❌ Erreur interaction NPC:`, error);
     client.send("npcInteractionResult", {
       success: false,
       type: "error",
-      message: "Erreur lors de l'interaction",
-      userId: userId
+      message: "Erreur lors de l'interaction"
     });
   }
 });
@@ -2319,11 +2229,9 @@ async onJoin(client: Client, options: any = {}) {
         client.leave(4000, "Token/username mismatch");
         return;
       }
-
-      // Dans WorldRoom.ts, après la vérification JWT
-      console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
-      console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
-      
+// Dans WorldRoom.ts, après la vérification JWT
+console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
+console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
       // Permissions obligatoires
       if (!decodedToken.permissions || !decodedToken.permissions.includes('play')) {
         console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decodedToken.permissions);
@@ -2344,15 +2252,6 @@ async onJoin(client: Client, options: any = {}) {
   }
 
   try {
-    // ✅ RÉCUPÉRER USERID DÈS LE DÉBUT
-    const userId = this.jwtManager.getUserId(client.sessionId);
-    if (!userId) {
-      console.error(`❌ [WorldRoom] UserId introuvable après enregistrement JWT pour ${client.sessionId}`);
-      client.leave(4000, "JWT registration failed");
-      return;
-    }
-    console.log(`🔗 [WorldRoom] UserId récupéré: ${userId} pour session ${client.sessionId}`);
-
     // Créer le joueur
     const player = new Player();
 
@@ -2360,14 +2259,13 @@ async onJoin(client: Client, options: any = {}) {
     player.id = client.sessionId;
     player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
     player.isDev = decodedToken?.isDev || false;
-    console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
+console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
 
     // Debug d'abord
     await this.positionSaver.debugPlayerPosition(player.name);
 
     console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
     console.log(`👤 Joueur: ${player.name}`);
-    console.log(`🆔 UserId: ${userId}`);
     console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
 
     // Étape 1: Toujours chercher en DB d'abord
@@ -2444,37 +2342,30 @@ async onJoin(client: Client, options: any = {}) {
 
     // Étape 1: Ajouter au state immédiatement
     this.state.players.set(client.sessionId, player);
-    
-    // ✅ ENREGISTREMENT IA CORRIGÉ : Utiliser userId
+    // ✅ AJOUT : Enregistrer le joueur dans le système de tracking IA
     if (this.aiSystemInitialized) {
       try {
-        this.actionTracker.registerPlayer(
-          userId,                      // ✅ userId stable du JWT (CORRIGÉ)
-          player.name,
-          `session_${Date.now()}`,
-          { map: player.currentZone, x: player.x, y: player.y },
-          player.level
-        );
-        console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
-        
-        // ✅ DEBUG: Vérifier immédiatement l'enregistrement
-        const tracker = this.actionTracker;
-        const stats = tracker.getStats();
-        console.log(`📋 [AI] État tracker après enregistrement:`, {
-          playersTracked: stats.playersTracked,
-          actionsInQueue: stats.actionsInQueue,
-          isEnabled: stats.isEnabled
-        });
-        
+        const userId = this.jwtManager.getUserId(client.sessionId);
+        if (userId) {
+          this.actionTracker.registerPlayer(
+            userId,                      // ✅ userId stable du JWT
+            player.name,
+            `session_${Date.now()}`,
+            { map: player.currentZone, x: player.x, y: player.y },
+            player.level
+          );
+          console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
+        } else {
+          console.warn(`⚠️ [AI] Impossible d'enregistrer ${player.name} : userId introuvable`);
+        }
+        console.log(`📝 [AI] Joueur ${player.name} enregistré dans ActionTracker`);
       } catch (error) {
         console.error(`❌ [AI] Erreur enregistrement joueur:`, error);
       }
     } else {
       console.warn(`⚠️ [AI] Système IA pas encore initialisé, enregistrement différé`);
     }
-    
     console.log("🧪 onJoin - client.sessionId =", client.sessionId);
-    console.log("🧪 onJoin - userId =", userId);
     console.log(`✅ Joueur ${player.name} ajouté au state`);
     console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
@@ -2556,19 +2447,16 @@ async onJoin(client: Client, options: any = {}) {
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
-    
-    // ✅ TRACKING IA CORRIGÉ: Connexion du joueur avec userId
-    console.log(`📊 [AI] Préparation tracking connexion pour userId: ${userId}`);
+    // ✅ TRACKING IA: Connexion du joueur
     this.trackPlayerActionWithAI(
-      client.sessionId,  // sessionId pour récupérer userId dans trackPlayerActionWithAI
+      client.sessionId,
       ActionType.SESSION_START,
       {
         playerName: player.name,
         level: player.level,
         gold: player.gold,
         spawnZone: player.currentZone,
-        isReturningPlayer: !!savedData,
-        userId: userId // ✅ Ajouter userId aux données pour debug
+        isReturningPlayer: !!savedData
       },
       {
         location: { 
@@ -2578,9 +2466,7 @@ async onJoin(client: Client, options: any = {}) {
         }
       }
     );
-    
-    console.log(`🎉 ${player.name} a rejoint le monde ! (userId: ${userId})`);
-    
+    console.log(`🎉 ${player.name} a rejoint le monde !`);
   } catch (error) {
     console.error(`❌ Erreur lors du join:`, error);
     client.leave(1000, "Erreur lors de la connexion");
