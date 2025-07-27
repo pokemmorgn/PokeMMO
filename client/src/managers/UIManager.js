@@ -576,15 +576,24 @@ export class UIManager {
     console.log(`📏 [UIManager] Taille appliquée PROTÉGÉE: ${currentSize.width}x${currentSize.height}`);
   }
 
-  setupDefaultGroups() {
-    this.iconGroups.set('ui-icons', {
-      anchor: 'bottom-right',
-      spacing: this.iconConfig.spacing,
-      padding: this.iconConfig.padding,
-      members: [],
-      expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
-    });
-  }
+setupDefaultGroups() {
+  this.iconGroups.set('ui-icons', {
+    anchor: 'bottom-right',
+    spacing: this.iconConfig.spacing,
+    padding: this.iconConfig.padding,
+    members: [],
+    expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
+  });
+  
+  // Groupe spécial pour Options (position isolée)
+  this.iconGroups.set('options-group', {
+    anchor: 'top-right',
+    spacing: this.iconConfig.spacing,
+    padding: this.iconConfig.padding,
+    members: [],
+    expectedOrder: ['options']
+  });
+}
   
   setupResizeListener() {
     let resizeTimeout;
@@ -1226,15 +1235,20 @@ export class UIManager {
     }
   }
 
-  canShowModule(moduleId) {
-    for (const [rule, blockedModules] of Object.entries(this.interactionRules)) {
-      if (this.isRuleActive(rule) && blockedModules.includes(moduleId)) {
-        return false;
-      }
-    }
-    
+canShowModule(moduleId) {
+  // Options peut toujours s'ouvrir (accès universel)
+  if (moduleId === 'options') {
     return true;
   }
+  
+  for (const [rule, blockedModules] of Object.entries(this.interactionRules)) {
+    if (this.isRuleActive(rule) && blockedModules.includes(moduleId)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
 
   isRuleActive(rule) {
     switch (rule) {
@@ -1284,7 +1298,39 @@ export class UIManager {
     const state = this.moduleStates.get(moduleId);
     return state?.initialized || false;
   }
-
+  // === 🎛️ MÉTHODE SPÉCIALE POUR OPTIONS ===
+  
+  async createOptionsModule(gameRoom, scene) {
+    try {
+      console.log('🎛️ [UIManager] Création module Options...');
+      
+      // Import dynamique pour éviter les imports classiques
+      const { OptionsModule } = await import('../Options/OptionsModule.js');
+      
+      // Créer avec configuration spéciale
+      const optionsModule = new OptionsModule(gameRoom, scene, {
+        singleton: true,
+        autoCloseUI: true,
+        keyboardShortcut: 'Escape',
+        uiManagerConfig: {
+          anchor: 'top-right',
+          order: 100,
+          group: 'options-group',
+          spacing: 10
+        }
+      });
+      
+      // Initialiser le module
+      await optionsModule.initializeModule();
+      
+      console.log('✅ [UIManager] Module Options créé avec succès');
+      return optionsModule;
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur création Options:', error);
+      throw error;
+    }
+  }
   getGlobalState() {
     return {
       ...this.globalState,
