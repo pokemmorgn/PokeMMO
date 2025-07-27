@@ -15,7 +15,7 @@ export class QuestsModule {
 
     async loadGameData() {
         try {
-            // Charger les Pokémon disponibles
+            // Charger les Pokémon disponibles depuis le fichier pokemon-index.json
             const pokemonData = await this.adminPanel.apiCall('/pokemon/list')
             this.pokemonList = pokemonData.pokemon || []
             
