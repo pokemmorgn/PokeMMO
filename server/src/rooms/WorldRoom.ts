@@ -800,6 +800,7 @@ private trackPlayerActionWithAI(
 // ✅ DANS WorldRoom.ts - Remplacez le handler battleFinished existant
 
     // ✅ HANDLER DEBUG: Forcer la sauvegarde et vérifier la DB
+// ✅ HANDLER DEBUG: Forcer la sauvegarde et vérifier la DB
 this.onMessage("debugAIDatabase", async (client) => {
   console.log(`🔍 [DEBUG AI] Test base de données demandé par ${client.sessionId}`);
   
@@ -812,14 +813,31 @@ this.onMessage("debugAIDatabase", async (client) => {
     const trackerStats = tracker.getStats();
     console.log(`📊 [DEBUG] Tracker stats:`, trackerStats);
     
-    // Test de sauvegarde directe
-    const testAction = {
+    const player = this.state.players.get(client.sessionId);
+    
+    // Test de sauvegarde directe avec la bonne structure
+    const testAction: any = {
       id: `test_${Date.now()}`,
       playerId: client.sessionId,
-      actionType: 'TEST_ACTION' as any,
-      category: 'UI' as any,
+      actionType: ActionType.NPC_TALK, // ✅ Type valide
+      category: 'social' as any, // ✅ Catégorie valide
       timestamp: Date.now(),
-      data: { test: true },
+      data: { // ✅ Structure BaseActionData
+        timestamp: Date.now(),
+        sessionId: client.sessionId,
+        playerId: client.sessionId,
+        playerName: player?.name || 'TestPlayer',
+        location: {
+          map: player?.currentZone || 'test_zone',
+          x: player?.x || 0,
+          y: player?.y || 0
+        },
+        context: {
+          playerLevel: player?.level || 1,
+          sessionDuration: 60000,
+          timeOfDay: 'day'
+        }
+      },
       metadata: { version: '1.0.0', source: 'debug', processed: false }
     };
     
