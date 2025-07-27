@@ -518,6 +518,44 @@ private async registerNPCsWithAI(): Promise<void> {
   }
 }
   /**
+ * Analyse complète d'un joueur via l'IA
+ */
+public async analyzePlayerWithAI(playerId: string): Promise<CompletePlayerAnalysis | null> {
+  if (!this.aiSystemInitialized) {
+    console.warn(`⚠️ [AI] Système non initialisé pour analyse de ${playerId}`);
+    return null;
+  }
+  
+  try {
+    const analysis = await this.intelligenceOrchestrator.analyzePlayer(playerId);
+    if (analysis) {
+      this.aiStats.lastAnalysisTime = Date.now();
+      console.log(`🧠 [AI] Analyse complète de ${playerId}: confiance ${analysis.analysisConfidence.toFixed(2)}`);
+    }
+    return analysis;
+  } catch (error) {
+    console.error(`❌ [AI] Erreur analyse joueur ${playerId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Obtenir les statistiques du système d'IA
+ */
+public getAIStats(): any {
+  const orchestratorStats = this.aiSystemInitialized ? this.intelligenceOrchestrator.getStats() : {};
+  const connectorStats = this.npcIntelligenceConnector.getStats();
+  
+  return {
+    initialized: this.aiSystemInitialized,
+    localStats: this.aiStats,
+    orchestrator: orchestratorStats,
+    npcConnector: connectorStats,
+    health: this.intelligenceOrchestrator.getHealthStatus()
+  };
+}
+  
+  /**
  * Helper pour tracker une action de joueur avec l'IA
  */
 private trackPlayerActionWithAI(
