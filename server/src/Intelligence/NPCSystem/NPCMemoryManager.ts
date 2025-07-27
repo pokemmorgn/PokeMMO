@@ -684,7 +684,7 @@ export class NPCMemoryManager {
         interaction.npcId,
         interaction.playerId,
         interaction
-      ).catch(error => {
+      ).catch((error: Error): NPCMemory | null => {
         console.error(`❌ Erreur traitement interaction:`, error);
         return null;
       })
@@ -729,12 +729,12 @@ export class NPCMemoryManager {
           },
           playerHistory: {
             achievements: memory.knownFacts.achievements,
-            failures: [], // TODO: Tracker les échecs
+            failures: [] as string[], // TODO: Tracker les échecs
             patterns: memory.knownFacts.personalityTraits
           },
           personalInfo: {
             notes: memory.knownFacts.helpHistory,
-            friendsList: [] // TODO: Intégrer avec système d'amis
+            friendsList: [] as string[] // TODO: Intégrer avec système d'amis
           }
         }
       };
