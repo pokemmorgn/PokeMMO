@@ -1258,7 +1258,6 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Interaction avec NPC
-// ✅ NOUVEAU : Interaction avec NPC INTELLIGENTE via IA
 // ✅ HANDLER npcInteract COMPLET ET CORRIGÉ
 this.onMessage("npcInteract", async (client, data) => {
   console.log(`🤖 === NPC INTERACTION INTELLIGENTE ===`);
@@ -1351,18 +1350,11 @@ this.onMessage("npcInteract", async (client, data) => {
       console.log(`⚠️ [AI] Système IA non initialisé, utilisation système classique`);
     }
 
-    // ✅ FALLBACK: Système classique si IA échoue - SIMPLIFIÉ avec InteractionManager
+    // ✅ FALLBACK: Système classique si IA échoue - TEMPORAIRE avec 2 paramètres
     console.log(`🔧 [Legacy] Utilisation système classique pour NPC ${data.npcId}`);
     
-    // ✅ UTILISER L'INTERACTIONMANAGER EXISTANT qui gère déjà les contextes
-    const result = await this.interactionManager.handleNpcInteraction(
-      player, 
-      data.npcId,
-      {
-        userId: userId,           // ✅ NOUVEAU : passer userId pour tracking
-        sessionId: client.sessionId
-      }
-    );
+    // ✅ TEMPORAIRE : Appel avec 2 paramètres (on modifiera InteractionManager après)
+    const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
     
     console.log(`📤 Envoi résultat classique: ${result.type} pour userId ${userId}`);
     client.send("npcInteractionResult", { 
