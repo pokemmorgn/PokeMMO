@@ -253,10 +253,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🤖 [WorldRoom] Initialisation système d'IA...`);
     this.initializeAISystem().then(() => {
       console.log(`✅ [WorldRoom] Système d'IA initialisé avec succès !`);
-    }).catch((error) => {
+    }).catch((error: Error) => {
       console.error(`❌ [WorldRoom] Erreur initialisation IA:`, error);
       console.warn(`⚠️ [WorldRoom] Système d'IA en mode dégradé`);
-    });    
+    });  
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
       this.autoSaveAllPositions();
