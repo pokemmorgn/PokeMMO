@@ -484,7 +484,39 @@ private async initializeAISystem(): Promise<void> {
     throw error;
   }
 }
-  
+
+  /**
+ * Enregistre les NPCs existants dans le système d'IA (en arrière-plan)
+ */
+private async registerNPCsWithAI(): Promise<void> {
+  try {
+    console.log(`📋 [AI] Enregistrement des NPCs dans le système d'IA...`);
+    
+    // Récupérer tous les NPCs du manager global
+    const globalNpcManager = this.npcManagers.get('global');
+    if (!globalNpcManager) {
+      console.warn(`⚠️ [AI] Aucun NPCManager global trouvé, skip enregistrement IA`);
+      return;
+    }
+    
+    const allNpcs = globalNpcManager.getAllNpcs();
+    console.log(`🔍 [AI] ${allNpcs.length} NPCs trouvés pour enregistrement IA`);
+    
+    if (allNpcs.length > 0) {
+      const results = await this.npcIntelligenceConnector.registerNPCsBulk(allNpcs);
+      console.log(`✅ [AI] NPCs enregistrés: ${results.registered} réussis, ${results.skipped} ignorés`);
+      
+      if (results.errors.length > 0) {
+        console.warn(`⚠️ [AI] Erreurs d'enregistrement:`, results.errors.slice(0, 3)); // Log que les 3 premières
+      }
+    } else {
+      console.log(`ℹ️ [AI] Aucun NPC à enregistrer pour l'IA`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur enregistrement NPCs:`, error);
+  }
+}
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
     console.log(`👤 Client: ${client.sessionId}`);
