@@ -691,6 +691,10 @@ export class NpcManager {
       totalNpcs: this.npcs.length,
       initialized: this.isInitialized,
       initializing: this.isInitializing,
+      sources: {
+        mongodb: this.npcs.length, // Tous les NPCs viennent de MongoDB maintenant
+        json: 0 // Plus de support JSON
+      },
       zones: {
         loaded: Array.from(this.loadedZones),
         count: this.loadedZones.size
