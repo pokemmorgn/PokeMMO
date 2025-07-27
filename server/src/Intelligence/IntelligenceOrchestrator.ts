@@ -339,7 +339,7 @@ export class IntelligenceOrchestrator {
     
     for (const chunk of chunks) {
       const promises = chunk.map(playerId => 
-        this.analyzePlayer(playerId).catch(error => {
+        this.analyzePlayer(playerId).catch((error: Error) => {
           console.error(`❌ Erreur analyse ${playerId}:`, error);
           return null;
         })
@@ -437,7 +437,7 @@ export class IntelligenceOrchestrator {
     if (event.data.sessionId) {
       const sessionReport = await this.actionSummary.generateSessionReport(event.data.sessionId);
       
-      if (sessionReport?.analysis.mood === 'frustrated') {
+      if (sessionReport?.mood === 'frustrated') {
         console.log(`😤 Session frustrante détectée pour ${event.playerId}`);
         this.eventQueue.push(event);
       }
@@ -507,7 +507,7 @@ export class IntelligenceOrchestrator {
         forGameDesign.push("Offrir plus de contenu solo");
       }
       
-      if (profile.predictions.helpNeeded) {
+      if (profile.currentState.needsHelp) {
         forNPCs.push("Offrir aide proactive");
         forPlayer.push("Consulter les guides et tutoriels");
       }
