@@ -2083,15 +2083,19 @@ async function ensureMapObjectsDir() {
 // Remplacer complètement la route GET /maps/list par cette version simple :
 
 // ✅ ROUTE SIMPLE: Liste des zones depuis MongoDB (comme Map Editor)
+// Dans server/src/routes/adminRoutes.ts
+// Version nettoyée sans fonction dupliquée :
+
+// ✅ ROUTE SIMPLE: Liste des zones depuis MongoDB
 router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
   try {
     console.log('🗺️ [Maps API] Getting zones from MongoDB...');
     
     // Récupérer toutes les zones distinctes depuis MongoDB
     const [gameObjectZones, npcZones, shopZones] = await Promise.all([
-      GameObjectData.distinct('zone').catch(() => []),
-      NpcData.distinct('zone').catch(() => []), 
-      ShopData.distinct('zone').catch(() => [])
+      GameObjectData.distinct('zone').catch((): string[] => []),
+      NpcData.distinct('zone').catch((): string[] => []), 
+      ShopData.distinct('zone').catch((): string[] => [])
     ]);
     
     // Combiner toutes les zones et éliminer les doublons
@@ -2103,10 +2107,10 @@ router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
       'village', 'city', 'forest', 'cave', 'beach'
     ])).filter(zone => zone && zone.trim().length > 0);
     
-    // Formater comme attendu par le frontend
+    // Formater comme attendu par le frontend (utilise la fonction existante si elle existe)
     const maps = allZones.map(zone => ({
       id: zone,
-      name: formatMapName(zone),
+      name: zone.charAt(0).toUpperCase() + zone.slice(1), // Simple capitalisation
       file: `${zone}.tmj` // Simulé pour compatibilité
     }));
     
@@ -2138,13 +2142,7 @@ router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
   }
 });
 
-// ✅ Fonction utilitaire simple
-function formatMapName(mapId: string): string {
-  return mapId
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+// ✅ PAS de fonction formatMapName ici - utilise celle qui existe déjà ou supprime-la
 
 // ✅ ROUTE: Charger une carte TMJ
 router.get('/maps/:mapId', requireMacAndDev, async (req: any, res) => {
