@@ -1341,7 +1341,7 @@ this.onMessage("npcInteract", async (client, data) => {
           });
           return;
         } else {
-          console.log(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, raison: ${smartResponse.message || 'Inconnue'}`);
+          console.log(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, passage au système classique`);
         }
       } catch (aiError) {
         console.warn(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, fallback système classique:`, aiError);
@@ -1361,7 +1361,18 @@ this.onMessage("npcInteract", async (client, data) => {
         data: { npcId: data.npcId }
       },
       userId: userId,        // ✅ NOUVEAU : userId pour tracking cohérent
-      sessionId: client.sessionId  // ✅ NOUVEAU : sessionId pour mapping
+      sessionId: client.sessionId,  // ✅ NOUVEAU : sessionId pour mapping
+      // ✅ AJOUT : Propriétés requises par InteractionContext
+      validations: {
+        proximity: true,
+        items: {},
+        quests: {},
+        level: player.level || 1
+      },
+      metadata: {
+        timestamp: Date.now(),
+        source: 'npc_interact_handler'
+      }
     };
 
     // ✅ APPEL DIRECT AU MODULE NPC avec contexte enrichi
