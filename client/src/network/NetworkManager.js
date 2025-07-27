@@ -1,5 +1,6 @@
-// client/src/network/NetworkManager.js - VERSION AVEC CONNECTIONMANAGER INTÉGRÉ
-// ✅ Support reconnexion automatique + monitoring robuste
+// client/src/network/NetworkManager.js - VERSION NETTOYÉE (ARCHITECTURE CLARIFIÉE)
+// ✅ Responsabilités clarifiées : CONNEXION uniquement
+// ✅ Interactions déléguées au NetworkInteractionHandler
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { BattleNetworkHandler } from "./BattleNetworkHandler.js";
@@ -25,21 +26,21 @@ export class NetworkManager {
     this.lastReceivedZoneData = null;
     this.onTransitionValidation = null;
 
-    // ✅ NOUVEAU: Handler de combat spécialisé
+    // ✅ Handler de combat spécialisé
     this.battleNetworkHandler = null;
-    // ✅ NOUVEAU: Handler d'interactions spécialisé
+    // ✅ Handler d'interactions spécialisé (responsable de TOUTES les interactions)
     this.interactionHandler = null;
-    // ✅ NOUVEAU: Données de mon joueur
+    // ✅ Données de mon joueur
     this.myPlayerData = null;
     this.myPlayerConfirmed = false;
 
-    // ✅ NOUVEAU: Stockage des NPCs pour replay
+    // ✅ Stockage des NPCs pour replay
     this.lastReceivedNpcs = null;
 
-    // ✅ NOUVEAU: Support interactions modernes
+    // ✅ Historique pour debug uniquement
     this.interactionHistory = [];
     
-    // ✅ INTÉGRATION CONNECTIONMANAGER - Remplace l'ancien connectionHealth
+    // ✅ INTÉGRATION CONNECTIONMANAGER - Gestion connexion/reconnexion
     this.connectionManager = new ConnectionManager(this);
     
     // ✅ ANCIEN connectionHealth maintenu pour compatibilité (délègue au ConnectionManager)
@@ -71,7 +72,7 @@ export class NetworkManager {
       onNpcInteraction: null,
       onSnap: null,
       onTransitionValidation: null,
-      // ✅ NOUVEAUX CALLBACKS POUR PREMIER JOUEUR
+      // ✅ CALLBACKS POUR PREMIER JOUEUR
       onMyPlayerConfirmed: null,
       onMyPlayerMissing: null,
     };
@@ -79,14 +80,13 @@ export class NetworkManager {
     // ✅ CONFIGURATION CALLBACKS CONNECTIONMANAGER
     this.setupConnectionManagerCallbacks();
     
-    console.log('🔧 [NetworkManager] Initialisé avec ConnectionManager intégré');
+    console.log('🔧 [NetworkManager] Initialisé - Architecture clarifiée (Connexion uniquement)');
   }
 
   // ✅ CONFIGURATION DES CALLBACKS CONNECTIONMANAGER
   setupConnectionManagerCallbacks() {
     this.connectionManager.onReconnecting((attempt, maxAttempts) => {
       console.log(`🔄 [NetworkManager] Reconnexion ${attempt}/${maxAttempts}`);
-      // Notifier l'UI via le système de notifications global
       if (window.showGameNotification) {
         window.showGameNotification(
           `Reconnexion automatique... (${attempt}/${maxAttempts})`,
@@ -98,14 +98,8 @@ export class NetworkManager {
 
     this.connectionManager.onReconnected((stats) => {
       console.log('🎉 [NetworkManager] Reconnexion réussie:', stats);
-      
-      // Restaurer les callbacks personnalisés
       this.restoreCustomCallbacks();
-      
-      // Re-setup des listeners spécifiques
       this.setupRoomListeners();
-      
-      // Notifier l'UI
       if (window.showGameNotification) {
         window.showGameNotification(
           'Connexion rétablie !',
@@ -118,55 +112,47 @@ export class NetworkManager {
     this.connectionManager.onConnectionLost((stats) => {
       console.warn('🚨 [NetworkManager] Connexion perdue:', stats);
       this.isConnected = false;
-      
-      // Appeler le callback de déconnexion si pas en transition
       if (!this.transitionState.isActive && this.callbacks.onDisconnect) {
         this.callbacks.onDisconnect();
       }
     });
 
     this.connectionManager.onMaxReconnectReached((attempts) => {
- console.error('💀 [NetworkManager] Reconnexion impossible après', attempts, 'tentatives');
- 
- if (window.showGameNotification) {
-   window.showGameNotification(
-     'Connexion perdue définitivement. Rechargez la page (F5).',
-     'error',
-     { duration: 10000, position: 'top-center' }
-   );
- }
- 
- // Proposer de recharger la page après un délai
- setTimeout(() => {
-   if (confirm('Impossible de rétablir la connexion. Recharger la page ?')) {
-     window.location.reload();
-   }
- }, 5000);
-});
+     console.error('💀 [NetworkManager] Reconnexion impossible après', attempts, 'tentatives');
+     
+     if (window.showGameNotification) {
+       window.showGameNotification(
+         'Connexion perdue définitivement. Rechargez la page (F5).',
+         'error',
+         { duration: 10000, position: 'top-center' }
+       );
+     }
+     
+     setTimeout(() => {
+       if (confirm('Impossible de rétablir la connexion. Recharger la page ?')) {
+         window.location.reload();
+       }
+     }, 5000);
+    });
 
-// ✅ NOUVEAU: Redémarrage serveur détecté
-this.connectionManager.onServerRestartDetected((data) => {
- console.error('🚨 [NetworkManager] Server restart detected:', data);
- if (window.showGameNotification) {
-   window.showGameNotification('Server restarting...', 'warning', { duration: 5000 });
- }
-});
+    this.connectionManager.onServerRestartDetected((data) => {
+     console.error('🚨 [NetworkManager] Server restart detected:', data);
+     if (window.showGameNotification) {
+       window.showGameNotification('Server restarting...', 'warning', { duration: 5000 });
+     }
+    });
 
-// ✅ NOUVEAU: Erreur d'authentification
-this.connectionManager.onAuthFailure((errorCode, message) => {
- console.error(`🔐 [NetworkManager] Auth error: ${errorCode} - ${message}`);
- if (window.showGameNotification) {
-   window.showGameNotification('Authentication expired...', 'error', { duration: 3000 });
- }
-});
+    this.connectionManager.onAuthFailure((errorCode, message) => {
+     console.error(`🔐 [NetworkManager] Auth error: ${errorCode} - ${message}`);
+     if (window.showGameNotification) {
+       window.showGameNotification('Authentication expired...', 'error', { duration: 3000 });
+     }
+    });
 
-// ✅ NOUVEAU: Déconnexion forcée (popup automatique)
-this.connectionManager.onForceLogout((data) => {
- console.error('🚪 [NetworkManager] Forced logout:', data);
- // Le ConnectionManager s'occupe automatiquement de la popup et redirect
-});
-
-} // ← Fermeture de setupConnectionManagerCallbacks()
+    this.connectionManager.onForceLogout((data) => {
+     console.error('🚪 [NetworkManager] Forced logout:', data);
+    });
+  }
 
   async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
     try {
@@ -185,7 +171,6 @@ this.connectionManager.onForceLogout((data) => {
         spawnZone: spawnZone,
         spawnX: spawnData.spawnX || 360,
         spawnY: spawnData.spawnY || 120,
-        // ✅ AJOUTER LE TOKEN JWT
         sessionToken: userSession?.sessionToken,
         permissions: userSession?.permissions || ['play'],
         ...spawnData
@@ -215,8 +200,6 @@ this.connectionManager.onForceLogout((data) => {
       }
 
       this.setupRoomListeners();
-      
-      // ✅ DÉMARRER LE CONNECTIONMANAGER AU LIEU DE L'ANCIEN HEALTH MONITORING
       this.connectionManager.startMonitoring();
       
       await this.initializeBattleSystem();
@@ -229,45 +212,40 @@ this.connectionManager.onForceLogout((data) => {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE pour récupérer la session utilisateur
- getUserSession() {
-const token = sessionStorage.getItem('sessionToken');
-  
-  if (!token) {
-    console.warn('[NetworkManager] ❌ Aucun token JWT trouvé');
-    return null;
-  }
+  getUserSession() {
+    const token = sessionStorage.getItem('sessionToken');
+    
+    if (!token) {
+      console.warn('[NetworkManager] ❌ Aucun token JWT trouvé');
+      return null;
+    }
 
-  try {
-    const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
-    
-    // Vérifier expiration
-if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-  console.warn('[NetworkManager] ❌ Token JWT expiré');
-  sessionStorage.removeItem('sessionToken'); // ✅ COHÉRENT
-  return null;
-}
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      
+      if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+        console.warn('[NetworkManager] ❌ Token JWT expiré');
+        sessionStorage.removeItem('sessionToken');
+        return null;
+      }
 
-    console.log('[NetworkManager] ✅ JWT valide pour:', decoded.username);
-    
-    return {
-      username: decoded.username,
-      sessionToken: token,
-      userId: decoded.userId,
-      isDev: decoded.isDev || false,
-      permissions: decoded.permissions || ['play']
-    };
-    
-  } catch (error) {
-    console.error('[NetworkManager] ❌ Erreur JWT:', error);
-sessionStorage.removeItem('sessionToken');
-    return null;
+      console.log('[NetworkManager] ✅ JWT valide pour:', decoded.username);
+      
+      return {
+        username: decoded.username,
+        sessionToken: token,
+        userId: decoded.userId,
+        isDev: decoded.isDev || false,
+        permissions: decoded.permissions || ['play']
+      };
+      
+    } catch (error) {
+      console.error('[NetworkManager] ❌ Erreur JWT:', error);
+      sessionStorage.removeItem('sessionToken');
+      return null;
+    }
   }
-}
-  // ✅ SUPPRIMÉ: L'ancien startHealthMonitoring() - Remplacé par ConnectionManager
-  
-  // ✅ SUPPRIMÉ: L'ancien sendPing() - Géré par ConnectionManager
 
   async initializeBattleSystem() {
     console.log('⚔️ [NetworkManager] Initialisation système de combat...');
@@ -278,10 +256,7 @@ sessionStorage.removeItem('sessionToken');
     }
     
     try {
-      // Créer le BattleNetworkHandler
       this.battleNetworkHandler = new BattleNetworkHandler(this);
-      
-      // L'initialiser avec les connexions existantes
       const success = this.battleNetworkHandler.initialize(this.room, this.client);
       
       if (success) {
@@ -298,59 +273,53 @@ sessionStorage.removeItem('sessionToken');
     }
   }
 
-    async initializeInteractionHandler() {
-      console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
-      
-      if (!this.room || !this.sessionId) {
-        console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
-        return false;
-      }
-      
-      try {
-        // Créer le NetworkInteractionHandler
-        this.interactionHandler = new NetworkInteractionHandler(this);
-        
-        // L'initialiser avec la room actuelle
-        const success = this.interactionHandler.initialize();
-        
-        if (success) {
-          // ✅ NOUVEAU : Connecter NetworkManager → NetworkInteractionHandler
-          this.onNpcInteraction((result) => {
-            console.log('🔗 [NetworkManager] Routage vers NetworkInteractionHandler:', result);
-            if (this.interactionHandler?.callbacks?.onNpcInteraction) {
-              this.interactionHandler.callbacks.onNpcInteraction(result);
-            }
-          });
-          
-          console.log('✅ [NetworkManager] Système d\'interactions initialisé');
-          return true;
-        } else {
-          console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
-          return false;
-        }
-        
-      } catch (error) {
-        console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
-        return false;
-      }
+  async initializeInteractionHandler() {
+    console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
+    
+    if (!this.room || !this.sessionId) {
+      console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
+      return false;
     }
+    
+    try {
+      // ✅ NetworkInteractionHandler = RESPONSABLE DE TOUTES LES INTERACTIONS
+      this.interactionHandler = new NetworkInteractionHandler(this);
+      const success = this.interactionHandler.initialize();
+      
+      if (success) {
+        // ✅ Connecter NetworkManager → NetworkInteractionHandler
+        this.onNpcInteraction((result) => {
+          console.log('🔗 [NetworkManager] Routage vers NetworkInteractionHandler:', result);
+          if (this.interactionHandler?.callbacks?.onNpcInteraction) {
+            this.interactionHandler.callbacks.onNpcInteraction(result);
+          }
+        });
+        
+        console.log('✅ [NetworkManager] Système d\'interactions initialisé');
+        return true;
+      } else {
+        console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
+      return false;
+    }
+  }
       
   setupRoomListeners() {
     if (!this.room) return;
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-    // ✅ PAS DE HANDLER PONG ICI - C'est le ConnectionManager qui s'en charge
-    // Le ConnectionManager configurera automatiquement son propre handler pong
-
-    // ✅ NOUVEAU: Handler pour confirmation de spawn
+    // ✅ Handler pour confirmation de spawn
     this.room.onMessage("playerSpawned", (data) => {
       console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
       
       if (data.isMyPlayer) {
         console.log(`✅ [NetworkManager] Confirmation: MON joueur spawné !`);
         
-        // Stocker les infos de mon joueur
         this.myPlayerData = {
           id: data.id,
           name: data.name,
@@ -363,53 +332,47 @@ sessionStorage.removeItem('sessionToken');
         
         this.myPlayerConfirmed = true;
         
-        // ✅ DÉCLENCHER la création immédiate du PlayerManager
         if (this.callbacks.onMyPlayerConfirmed) {
           this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
         }
         
-        // ✅ PROGRAMMER une vérification de sécurité
         setTimeout(() => {
           this.ensureMyPlayerExists();
         }, 1000);
       }
     });
 
-    // ✅ NOUVEAU: Handler spécialisé pour les blocages
+    // ✅ Handler pour blocages de mouvement
     this.room.onMessage("movementBlocked", (data) => {
       console.log('🚫 [NetworkManager] Mouvement bloqué:', data);
-      // Le MovementBlockHandler gérera automatiquement via ses listeners
     });
 
-    // Dans setupRoomListeners(), après les autres handlers :
-
-// ✅ Handler pour pong - délègue au ConnectionManager
-this.room.onMessage("pong", (data) => {
-  console.log(`🏓 [NetworkManager] Pong reçu, délégation au ConnectionManager`);
-  this.connectionManager.handlePongFromServer(data);
-});
-
-// ✅ Handler pour erreurs - délègue au ConnectionManager  
-this.room.onError((error) => {
-  console.error(`🚨 [NetworkManager] Erreur room, délégation au ConnectionManager`);
-  this.connectionManager.handleErrorFromServer(error);
-});
-
-// ✅ Handler pour déconnexions - délègue au ConnectionManager
-this.room.onLeave((code) => {
-  console.warn(`📤 [NetworkManager] Déconnexion room, délégation au ConnectionManager`);
-  this.connectionManager.handleLeaveFromServer(code);
-});
     this.room.onMessage("movementUnblocked", (data) => {
       console.log('🔓 [NetworkManager] Mouvement débloqué:', data);
-      // Le MovementBlockHandler gérera automatiquement via ses listeners
+    });
+
+    // ✅ Handler pour pong - délègue au ConnectionManager
+    this.room.onMessage("pong", (data) => {
+      console.log(`🏓 [NetworkManager] Pong reçu, délégation au ConnectionManager`);
+      this.connectionManager.handlePongFromServer(data);
+    });
+
+    // ✅ Handler pour erreurs - délègue au ConnectionManager  
+    this.room.onError((error) => {
+      console.error(`🚨 [NetworkManager] Erreur room, délégation au ConnectionManager`);
+      this.connectionManager.handleErrorFromServer(error);
+    });
+
+    // ✅ Handler pour déconnexions - délègue au ConnectionManager
+    this.room.onLeave((code) => {
+      console.warn(`📤 [NetworkManager] Déconnexion room, délégation au ConnectionManager`);
+      this.connectionManager.handleLeaveFromServer(code);
     });
       
-    // ✅ NOUVEAU: Handler pour state forcé
+    // ✅ Handler pour state forcé
     this.room.onMessage("forcedStateSync", (data) => {
       console.log(`🔄 [NetworkManager] === STATE FORCÉ REÇU ===`, data);
       
-      // Convertir l'object en Map si nécessaire pour compatibilité
       const playersMap = new Map();
       
       if (data.players) {
@@ -430,7 +393,7 @@ this.room.onLeave((code) => {
       }
     });
 
-    // ✅ NOUVEAU: Handler pour réponse de state
+    // ✅ Handler pour réponse de state
     this.room.onMessage("playerStateResponse", (data) => {
       console.log(`📋 [NetworkManager] === RÉPONSE PLAYER STATE ===`, data);
       
@@ -446,22 +409,19 @@ this.room.onLeave((code) => {
         console.error(`❌ [NetworkManager] Mon joueur n'existe pas sur le serveur !`);
         this.myPlayerConfirmed = false;
         
-        // Essayer de se reconnecter ou gérer l'erreur
         if (this.callbacks.onMyPlayerMissing) {
           this.callbacks.onMyPlayerMissing(data);
         }
       }
     });
 
-    // ✅ NOUVEAU: Handler pour vérification de présence
+    // ✅ Handler pour vérification de présence
     this.room.onMessage("presenceCheck", (data) => {
       console.log(`👻 [NetworkManager] === VÉRIFICATION PRÉSENCE ===`, data);
       
       if (!data.exists) {
         console.error(`❌ [NetworkManager] JE NE SUIS PAS DANS LE STATE !`);
         this.myPlayerConfirmed = false;
-        
-        // Demander une resync ou se reconnecter
         this.requestPlayerState();
       } else {
         console.log(`✅ [NetworkManager] Ma présence confirmée`);
@@ -478,23 +438,19 @@ this.room.onLeave((code) => {
     });
 
     this.room.onMessage("forcePlayerPosition", (data) => {
-      //console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
-      // Ici tu fais le rollback de la position sur le client :
       if (window.playerManager && typeof window.playerManager.forcePosition === "function") {
         window.playerManager.forcePosition(data.x, data.y, data.direction, data.currentZone);
       } else {
-        // Fallback : applique la position si tu stockes localement les coordonnées
         if (this.myPlayerData) {
           this.myPlayerData.x = data.x;
           this.myPlayerData.y = data.y;
           this.myPlayerData.direction = data.direction;
           this.myPlayerData.currentZone = data.currentZone;
         }
-        // Tu peux aussi forcer le redraw ici selon ta structure
       }
     });
 
-    // ✅ AMÉLIORATION: onStateChange.once pour état initial
+    // ✅ onStateChange.once pour état initial
     this.room.onStateChange.once((state) => {
       console.log(`🎯 [NetworkManager] === ÉTAT INITIAL REÇU ===`, {
         playersCount: state.players?.size || 0,
@@ -502,7 +458,6 @@ this.room.onLeave((code) => {
         hasMyPlayer: state.players?.has && state.players.has(this.sessionId)
       });
       
-      // Vérifier si mon joueur est présent
       if (state.players?.has && state.players.has(this.sessionId)) {
         console.log(`✅ [NetworkManager] Mon joueur trouvé dans l'état initial`);
         this.myPlayerConfirmed = true;
@@ -527,7 +482,6 @@ this.room.onLeave((code) => {
         console.warn(`⚠️ [NetworkManager] Mon joueur absent de l'état initial`);
         this.myPlayerConfirmed = false;
         
-        // Programmer une vérification
         setTimeout(() => {
           this.ensureMyPlayerExists();
         }, 500);
@@ -538,11 +492,10 @@ this.room.onLeave((code) => {
       }
     });
 
-    // ✅ AMÉLIORATION: onJoin avec vérification
+    // ✅ onJoin avec vérification
     this.room.onJoin(() => {
       console.log(`📡 [NetworkManager] === REJOINT LA ROOM ===`);
       
-      // Attendre un peu puis vérifier si on existe
       setTimeout(() => {
         if (!this.myPlayerConfirmed) {
           console.log(`🔍 [NetworkManager] Vérification présence après join`);
@@ -550,7 +503,6 @@ this.room.onLeave((code) => {
         }
       }, 1000);
       
-      // Demander l'état initial
       this.room.send("requestInitialState", { zone: this.currentZone });
     });
 
@@ -563,15 +515,13 @@ this.room.onLeave((code) => {
       }
     });
 
-    // ✅ HANDLER NPCs CORRIGÉ AVEC REPLAY
+    // ✅ HANDLER NPCs AVEC REPLAY
     this.room.onMessage("npcList", (npcs) => {
       console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
       console.log(`📊 NPCs: ${npcs.length}`);
       console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
       
-      // ✅ STOCKER LES NPCs REÇUS
       this.lastReceivedNpcs = npcs;
-      
       console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
       
       if (this.callbacks.onNpcList) {
@@ -585,18 +535,15 @@ this.room.onLeave((code) => {
     this.room.onMessage("transitionResult", (result) => {
       console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
 
-      // Sync la zone côté client (important)
       if (result.success && result.currentZone) {
         console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
         this.currentZone = result.currentZone;
       }
 
-      // ✅ DÉLÈGUE à la propriété dynamique: utilisé par le TransitionManager !
       if (this.onTransitionValidation) {
         this.onTransitionValidation(result);
       }
 
-      // Callbacks secondaires (optionnels)
       if (result.success && this.callbacks.onTransitionSuccess) {
         this.callbacks.onTransitionSuccess(result);
       } else if (!result.success && this.callbacks.onTransitionError) {
@@ -604,44 +551,42 @@ this.room.onLeave((code) => {
       }
     });
 
-    // ✅ HANDLERS D'INTERACTION NPC MODERNISÉS - SUPPORT DOUBLE FORMAT
+    // ✅ HANDLERS D'INTERACTION NPC - SUPPORT DOUBLE FORMAT
     this.room.onMessage("npcInteractionResult", (result) => {
-console.log('💬 [NetworkManager] === NPC INTERACTION RESULT ===', result);
-console.log('💬 [NetworkManager] === DEBUG COMPLET ===', JSON.stringify(result, null, 2));
-console.log('💬 [NetworkManager] === CLÉS DISPONIBLES ===', Object.keys(result));
-console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
-  type: result.type,
-  npcId: result.npcId,
-  npcName: result.npcName,
-  isUnifiedInterface: result.isUnifiedInterface,
-  capabilities: result.capabilities,
-  contextualData: result.contextualData
-});
-      this.logInteraction('npc_interaction_result', result);
+      console.log('💬 [NetworkManager] === NPC INTERACTION RESULT ===', result);
+      console.log('💬 [NetworkManager] === DEBUG COMPLET ===', JSON.stringify(result, null, 2));
+      console.log('💬 [NetworkManager] === CLÉS DISPONIBLES ===', Object.keys(result));
+      console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
+        type: result.type,
+        npcId: result.npcId,
+        npcName: result.npcName,
+        isUnifiedInterface: result.isUnifiedInterface,
+        capabilities: result.capabilities,
+        contextualData: result.contextualData
+      });
       
+      this.logInteraction('npc_interaction_result', result);
       
       if (this.callbacks.onNpcInteraction) {
         this.callbacks.onNpcInteraction(result);
       }
     });
 
-    // ✅ NOUVEAU: Support messages d'interaction étendus
+    // ✅ Support messages d'interaction étendus
     this.room.onMessage("interactionResult", (result) => {
       console.log(`🎭 [NetworkManager] === INTERACTION RESULT ÉTENDU ===`, result);
       this.logInteraction('interaction_result_extended', result);
       
-      // Déléguer au même callback que npcInteractionResult pour compatibilité
       if (this.callbacks.onNpcInteraction) {
         this.callbacks.onNpcInteraction(result);
       }
     });
 
-    // ✅ NOUVEAU: Gestion des erreurs d'interaction
+    // ✅ Gestion des erreurs d'interaction
     this.room.onMessage("interactionError", (error) => {
       console.error(`❌ [NetworkManager] Erreur interaction:`, error);
       this.logInteraction('interaction_error', error);
       
-      // Afficher l'erreur via le callback si disponible
       if (this.callbacks.onNpcInteraction) {
         this.callbacks.onNpcInteraction({
           success: false,
@@ -663,7 +608,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
         zone: this.currentZone
       });
       
-      // Convertir l'object en Map pour compatibilité
       const playersMap = new Map();
       if (state.players) {
         Object.entries(state.players).forEach(([sessionId, playerData]) => {
@@ -692,20 +636,17 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
       }
     });
 
-    // ✅ NOUVEAUX HANDLERS POUR SHOP ET INVENTAIRE
+    // ✅ HANDLERS POUR SHOP ET INVENTAIRE
     this.room.onMessage("shopCatalogResult", (data) => {
       console.log(`🏪 [NetworkManager] Catalogue shop reçu:`, data);
-      // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
     this.room.onMessage("shopTransactionResult", (data) => {
       console.log(`💰 [NetworkManager] Transaction shop:`, data);
-      // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
     this.room.onMessage("inventoryUpdate", (data) => {
       console.log(`🎒 [NetworkManager] Update inventaire:`, data);
-      // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
     this.room.onMessage("zoneObjects", (data) => {
@@ -717,26 +658,19 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     
     this.room.onMessage("goldUpdate", (data) => {
       console.log(`💰 [NetworkManager] Update or:`, data);
-      // Ces messages sont gérés directement par les systèmes shop/inventaire
     });
 
-    // ✅ MODIFIÉ: onLeave délègue au ConnectionManager
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
         this.isConnected = false;
         this.myPlayerConfirmed = false;
         this.myPlayerData = null;
-        
-        // Le ConnectionManager gère automatiquement la reconnexion
-        // Ne pas appeler onDisconnect ici - le ConnectionManager s'en charge
       }
     });
 
-    // ✅ MODIFIÉ: onError délègue au ConnectionManager  
     this.room.onError((error) => {
       console.error(`❌ [NetworkManager] Erreur room:`, error);
-      // Le ConnectionManager détectera automatiquement l'erreur et gèrera la reconnexion
     });
 
     if (this.callbacks.onConnect) {
@@ -745,7 +679,7 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     }
   }
 
-  // ✅ NOUVEAU: Log des interactions pour debug
+  // ✅ Log des interactions pour debug uniquement
   logInteraction(type, data) {
     const logEntry = {
       timestamp: new Date(),
@@ -757,13 +691,12 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     
     this.interactionHistory.push(logEntry);
     
-    // Garder seulement les 20 dernières
     if (this.interactionHistory.length > 20) {
       this.interactionHistory = this.interactionHistory.slice(-20);
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES POUR PREMIER JOUEUR
+  // === MÉTHODES POUR PREMIER JOUEUR ===
 
   ensureMyPlayerExists() {
     console.log(`🔍 [NetworkManager] === VÉRIFICATION MON JOUEUR ===`);
@@ -774,7 +707,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
       return;
     }
     
-    // Vérifier dans le state local
     const hasInState = this.room.state?.players?.has && this.room.state.players.has(this.sessionId);
     
     if (!hasInState || !this.myPlayerConfirmed) {
@@ -782,10 +714,8 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
       console.warn(`   Dans state: ${hasInState}`);
       console.warn(`   Confirmé: ${this.myPlayerConfirmed}`);
       
-      // Demander au serveur
       this.requestPlayerState();
       
-      // Programmer une nouvelle vérification
       setTimeout(() => {
         this.checkMyPresence();
       }, 2000);
@@ -814,7 +744,7 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
   onMyPlayerConfirmed(callback) { this.callbacks.onMyPlayerConfirmed = callback; }
   onMyPlayerMissing(callback) { this.callbacks.onMyPlayerMissing = callback; }
 
-  // ✅ GETTER POUR VÉRIFIER L'ÉTAT
+  // ✅ GETTERS POUR VÉRIFIER L'ÉTAT
   isMyPlayerReady() {
     return this.myPlayerConfirmed && this.myPlayerData !== null;
   }
@@ -823,89 +753,34 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     return this.myPlayerData;
   }
 
-  // === MÉTHODES D'INTERACTION NPC MODERNISÉES ===
+  // === MÉTHODES D'INTERACTION - DÉLÉGATION VERS INTERACTIONHANDLER ===
 
-  // ✅ MÉTHODE ORIGINALE - Maintenue pour compatibilité
-  sendNpcInteract(npcId) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
-      console.log(`📤 [NetworkManager] Interaction NPC simple: ${npcId}`);
-      this.room.send("npcInteract", { npcId });
-      this.logInteraction('npc_interact_simple', { npcId });
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE - Support format étendu
-  sendNpcInteraction(npcId, additionalData = {}) {
-    if (!this.isConnected || !this.room || this.isTransitioning) {
-      console.warn(`⚠️ [NetworkManager] Cannot send interaction - not ready`);
+  // ✅ DÉLÉGATION - Les interactions sont gérées par NetworkInteractionHandler
+  sendNpcInteract(npcId, additionalData = {}) {
+    if (this.interactionHandler) {
+      return this.interactionHandler.sendNpcInteract(npcId, additionalData);
+    } else {
+      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible');
       return false;
     }
-
-    console.log(`📤 [NetworkManager] === INTERACTION NPC ÉTENDUE ===`);
-    console.log(`🎭 NPC ID: ${npcId}`);
-    console.log(`📊 Données supplémentaires:`, additionalData);
-
-    try {
-      // ✅ Construire les données d'interaction
-      const interactionData = {
-        npcId: npcId,
-        timestamp: Date.now(),
-        zone: this.currentZone,
-        sessionId: this.sessionId,
-        ...additionalData
-      };
-
-      // ✅ Ajouter position du joueur si disponible
-      if (this.myPlayerData) {
-        interactionData.playerPosition = {
-          x: this.myPlayerData.x,
-          y: this.myPlayerData.y
-        };
-      }
-
-      console.log(`📤 Données d'interaction envoyées:`, interactionData);
-
-      // ✅ Essayer les deux formats pour compatibilité maximale
-      this.room.send("interactWithNpc", interactionData);
-      
-      // ✅ Log pour debugging
-      this.logInteraction('npc_interact_extended', interactionData);
-      
-      console.log(`✅ [NetworkManager] Interaction envoyée avec succès`);
-      return true;
-
-    } catch (error) {
-      console.error(`❌ [NetworkManager] Erreur envoi interaction:`, error);
-      
-      // ✅ Fallback vers format simple
-      try {
-        console.log(`🔄 [NetworkManager] Fallback vers format simple...`);
-        this.room.send("npcInteract", { npcId });
-        this.logInteraction('npc_interact_fallback', { npcId, error: error.message });
-        return true;
-      } catch (fallbackError) {
-        console.error(`❌ [NetworkManager] Fallback échoué aussi:`, fallbackError);
-        return false;
-      }
-    }
   }
 
-  // ✅ MÉTHODE UNIVERSELLE - Auto-détection du format
-  interactWithNpc(npcId, options = {}) {
-    console.log(`🎯 [NetworkManager] === INTERACTION UNIVERSELLE ===`);
-    console.log(`🎭 NPC: ${npcId}`);
-    console.log(`⚙️ Options:`, options);
-
-    // ✅ Déterminer le format selon les options
-    if (options.useExtended !== false && (options.includePosition || options.includeTimestamp || Object.keys(options).length > 1)) {
-      // Format étendu
-      console.log(`📈 Utilisation format étendu`);
-      return this.sendNpcInteraction(npcId, options);
+  // ✅ DÉLÉGATION - Méthodes d'interaction objets gérées par InteractionHandler
+  sendObjectInteract(objectId, additionalData = {}) {
+    if (this.interactionHandler) {
+      return this.interactionHandler.sendObjectInteract(objectId, additionalData);
     } else {
-      // Format simple
-      console.log(`📊 Utilisation format simple`);
-      this.sendNpcInteract(npcId);
-      return true;
+      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible pour objets');
+      return false;
+    }
+  }
+  
+  sendSearchHiddenItem(position, searchRadius = 32, additionalData = {}) {
+    if (this.interactionHandler) {
+      return this.interactionHandler.sendSearchHiddenItem(position, searchRadius, additionalData);
+    } else {
+      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible pour fouille');
+      return false;
     }
   }
 
@@ -978,7 +853,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
         this.room.send("playerMove", { x, y, direction, isMoving });
         this.lastSendTime = now;
         
-        // ✅ Mettre à jour les données locales
         if (this.myPlayerData) {
           this.myPlayerData.x = x;
           this.myPlayerData.y = y;
@@ -999,7 +873,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
       console.log(`📤 [NetworkManager] Envoi message: ${type}`, data);
       this.room.send(type, data);
       
-      // ✅ Log pour certains types importants
       if (['shopTransaction', 'getShopCatalog', 'getInventory'].includes(type)) {
         this.logInteraction(`message_${type}`, data);
       }
@@ -1041,7 +914,7 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
   onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
   onZoneData(callback) { this.callbacks.onZoneData = callback; }
   
-  // ✅ MÉTHODE CORRIGÉE AVEC REPLAY AUTOMATIQUE
+  // ✅ MÉTHODE AVEC REPLAY AUTOMATIQUE
   onNpcList(callback) { 
     console.log(`🔧 [NetworkManager] Configuration callback onNpcList`);
     console.log(`⏰ Timestamp configuration: ${Date.now()}`);
@@ -1049,11 +922,9 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     
     this.callbacks.onNpcList = callback; 
     
-    // ✅ REPLAY AUTOMATIQUE des NPCs déjà reçus
     if (this.lastReceivedNpcs && this.lastReceivedNpcs.length > 0) {
       console.log(`🔄 [NetworkManager] REPLAY automatique de ${this.lastReceivedNpcs.length} NPCs`);
       
-      // Délai court pour que la scène soit prête
       setTimeout(() => {
         if (this.callbacks.onNpcList && this.lastReceivedNpcs) {
           console.log(`📤 [NetworkManager] Envoi des NPCs en replay`);
@@ -1096,7 +967,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     this.resetTransitionState();
     
-    // ✅ ARRÊTER LE CONNECTIONMANAGER
     this.connectionManager.stopMonitoring();
     
     if (this.battleNetworkHandler) {
@@ -1104,8 +974,8 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
       this.battleNetworkHandler = null;
     }
     if (this.interactionHandler) {
-  this.interactionHandler.destroy();
-  this.interactionHandler = null;
+      this.interactionHandler.destroy();
+      this.interactionHandler = null;
     }
     this.myPlayerConfirmed = false;
     this.myPlayerData = null;
@@ -1167,7 +1037,7 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     }
   }
 
-  // ✅ MODIFIÉ: Restaurer les callbacks après reconnexion
+  // ✅ Restaurer les callbacks après reconnexion
   restoreCustomCallbacks() {
     if (!this.room) return;
     
@@ -1197,49 +1067,28 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     return this.battleNetworkHandler;
   }
 
-  // === MÉTHODES D'INTERACTION PUBLIQUES ===
+  // === ACCÈS AU SYSTÈME D'INTERACTIONS ===
 
   getInteractionHandler() {
     return this.interactionHandler;
   }
   
-  // ✅ Méthodes de convenance pour interactions objets
-  sendObjectInteract(objectId, objectType = null, position = null, additionalData = {}) {
-    if (this.interactionHandler) {
-      return this.interactionHandler.sendObjectInteract(objectId, objectType, position, additionalData);
-    } else {
-      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible');
-      return false;
-    }
-  }
+  // ✅ MÉTHODES GESTION CONNECTIONMANAGER
   
-  sendSearchHiddenItem(position, searchRadius = 32, additionalData = {}) {
-    if (this.interactionHandler) {
-      return this.interactionHandler.sendSearchHiddenItem(position, searchRadius, additionalData);
-    } else {
-      console.warn('[NetworkManager] ⚠️ InteractionHandler non disponible');
-      return false;
-    }
-  }
-  // ✅ NOUVEAU: Méthodes de gestion du ConnectionManager
-  
-  // Forcer une reconnexion manuelle
   forceReconnection() {
     console.log('🔧 [NetworkManager] Reconnexion forcée demandée');
     this.connectionManager.forceReconnection();
   }
   
-  // Obtenir les stats de connexion
   getConnectionStats() {
     return this.connectionManager.getConnectionStats();
   }
   
-  // Tester la connexion
   testConnection() {
     return this.connectionManager.testConnection();
   }
   
-  // ✅ DEBUG ET MONITORING AMÉLIORÉS
+  // === DEBUG ET MONITORING ===
   
   debugState() {
     console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG COMPLET ===`);
@@ -1253,17 +1102,14 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     console.log(`📡 Room connectée: ${this.room?.connection?.isOpen || false}`);
     console.log(`📊 Joueurs dans room: ${this.room?.state?.players?.size || 0}`);
     
-    // ✅ NOUVEAU: Debug de mon joueur
     console.log(`👤 === MON JOUEUR ===`);
     console.log(`✅ Confirmé: ${this.myPlayerConfirmed}`);
     console.log(`📊 Data:`, this.myPlayerData);
     
-    // ✅ NOUVEAU: Debug ConnectionManager
     console.log(`🔌 === CONNECTION MANAGER ===`);
     const connectionStats = this.getConnectionStats();
     console.log(`📡 Stats connexion:`, connectionStats);
     
-    // ✅ NOUVEAU: Debug interactions
     console.log(`🎭 === HISTORIQUE INTERACTIONS ===`);
     console.log(`📝 Total: ${this.interactionHistory.length}`);
     if (this.interactionHistory.length > 0) {
@@ -1284,7 +1130,6 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
     console.log(`================================`);
   }
 
-  // ✅ NOUVEAU: Statistiques réseau (délègue au ConnectionManager)
   getNetworkStats() {
     const connectionStats = this.getConnectionStats();
     return {
@@ -1299,7 +1144,7 @@ console.log('💬 [NetworkManager] === CHAMPS CRITIQUES ===', {
   }
 }
 
-// ✅ Fonctions de debug globales mises à jour
+// ✅ Fonctions de debug globales
 window.debugNetworkManager = function() {
   if (window.globalNetworkManager) {
     return window.globalNetworkManager.debugState();
@@ -1318,7 +1163,6 @@ window.testNetworkConnection = function() {
   }
 };
 
-// ✅ NOUVELLES FONCTIONS DE DEBUG CONNECTIONMANAGER
 window.debugConnectionManager = function() {
   if (window.globalNetworkManager?.connectionManager) {
     const stats = window.globalNetworkManager.connectionManager.getConnectionStats();
@@ -1359,9 +1203,7 @@ window.debugInteractionHandler = function() {
   }
 };
 
-console.log('✅ NetworkManager avec ConnectionManager intégré chargé!');
+console.log('✅ NetworkManager NETTOYÉ chargé ! Architecture clarifiée : Connexion uniquement');
+console.log('🎭 Toutes les interactions sont gérées par NetworkInteractionHandler');
 console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
-console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
-console.log('🔄 Utilisez window.forceReconnection() pour forcer une reconnexion');
 console.log('📊 Utilisez window.getConnectionStats() pour les stats complètes');
-console.log('🎭 Utilisez window.debugInteractionHandler() pour debug interactions');
