@@ -279,6 +279,36 @@ export class NpcInteractionModule extends BaseInteractionModule {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
 
+      // ✅ TRACKING IA: Interaction avec NPC
+if (this.intelligenceConfig.enableIntelligence) {
+  try {
+    // Importer le tracking (ajoute en haut du fichier si pas déjà fait)
+    const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
+    const { ActionType } = await import("../../Intelligence/Core/ActionTypes");
+    
+    await trackPlayerAction(
+      player.name, // Utiliser le nom au lieu du sessionId
+      ActionType.NPC_TALK,
+      {
+        npcId,
+        playerLevel: player.level,
+        playerGold: player.gold,
+        zone: player.currentZone
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+    
+    console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
+  } catch (error) {
+    console.warn(`⚠️ [AI] Erreur tracking:`, error);
+  }
+}
       this.log('info', `🎮 Interaction NPC ${npcId}`, { 
         player: player.name,
         intelligenceEnabled: this.intelligenceConfig.enableIntelligence
