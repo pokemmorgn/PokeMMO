@@ -303,8 +303,23 @@ if (this.intelligenceConfig.enableIntelligence) {
         }
       }
     );
-    
+    console.log(`🚀 [AI] Action trackée pour ${player.name}, forçage sauvegarde...`);
     console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
+    // ✅ DEBUG: Forcer sauvegarde immédiate pour voir les logs
+try {
+  console.log(`🚀 [AI] Force sauvegarde immédiate...`);
+  
+  // Importer et utiliser directement l'ActionTracker
+  const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+  const tracker = getActionTracker();
+  
+  // Forcer le traitement du batch pour voir les logs
+  (tracker as any).processBatch?.();
+  
+  console.log(`✅ [AI] Sauvegarde forcée déclenchée !`);
+} catch (error) {
+  console.warn(`⚠️ [AI] Erreur force sauvegarde:`, error);
+}
   } catch (error) {
     console.warn(`⚠️ [AI] Erreur tracking:`, error);
   }
