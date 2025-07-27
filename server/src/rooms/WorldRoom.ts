@@ -2214,7 +2214,25 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
-
+    // ✅ TRACKING IA: Connexion du joueur
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.SESSION_START,
+      {
+        playerName: player.name,
+        level: player.level,
+        gold: player.gold,
+        spawnZone: player.currentZone,
+        isReturningPlayer: !!savedData
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
     console.log(`🎉 ${player.name} a rejoint le monde !`);
   } catch (error) {
     console.error(`❌ Erreur lors du join:`, error);
