@@ -359,10 +359,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
         
         // Si l'IA n'a pas pu traiter, passer au fallback
         this.log('info', `🔄 [AI] IA non applicable, fallback legacy pour NPC ${safeNpcId}`);
-        // Vérifier si l'IA a vraiment échoué
-        if (!intelligentResult.success && (intelligentResult as any).requiresLegacy) {
-          this.log('info', `🔄 [AI] IA explicitement échouée, passage au legacy pour NPC ${safeNpcId}`);
-        }
       } catch (error) {
         this.log('error', `❌ [AI] Erreur IA pour NPC ${safeNpcId}, fallback legacy:`, error);
         
@@ -430,29 +426,11 @@ export class NpcInteractionModule extends BaseInteractionModule {
       );
 
       if (!smartResponse.success) {
-        // Si l'IA échoue, retourner vers le système legacy au lieu de fallback
-        console.log(`⚠️ [AI] IA échouée pour NPC ${npcId}, retour au système legacy`);
+        // Si l'IA échoue, on laisse le système passer au fallback legacy automatiquement
+        console.log(`⚠️ [AI] IA échouée pour NPC ${npcId}, laissant le fallback legacy se déclencher`);
         
-        // Retourner un résultat qui indique qu'il faut utiliser le legacy
-        return {
-          success: false,
-          type: "error",  // ✅ Type existant
-          message: "IA non applicable - legacy requis",
-          npcId: npcId,
-          npcName: npcName,
-          isUnifiedInterface: false,
-          capabilities: [],
-          contextualData: {
-            hasShop: false,
-            hasQuests: false,
-            hasHealing: false,
-            defaultAction: 'dialogue',
-            quickActions: []
-          },
-          intelligenceUsed: false,
-          isIntelligentResponse: false,
-          requiresLegacy: true  // ✅ Flag personnalisé
-        };
+        // Ne pas retourner de résultat, laisser le code continuer vers le legacy
+        throw new Error(`IA non applicable pour NPC ${npcId} - fallback legacy requis`);
       }
 
       // ✅ ENREGISTRER L'ACTION POUR L'APPRENTISSAGE
