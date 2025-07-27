@@ -236,8 +236,6 @@ export type ActionData =
   | SessionActionData 
   | BaseActionData;
 
-export type { ActionContext, PlayerAction };
-
 // Helper types pour TypeScript
 export type ActionTypeString = keyof typeof ActionType;
 export type ActionDataByType<T extends ActionType> = 
