@@ -564,58 +564,72 @@ async createNpcWithUltimateFallback(npc) {
     };
   }
 
-  async reloadNpcSprite(npcId, newSpriteKey = null) {
-    console.log(`🔄 === RECHARGEMENT SPRITE NPC ${npcId} ===`);
-    
-    const visual = this.npcVisuals.get(npcId);
-    const data = this.npcData.get(npcId);
-    
-    if (!visual || !data) {
-      console.error(`❌ NPC ${npcId} non trouvé pour rechargement sprite`);
-      return false;
-    }
-    
-    try {
-      // ✅ Utiliser le nouveau sprite ou celui d'origine
-      const spriteToLoad = newSpriteKey || data.sprite;
-      console.log(`🎨 Rechargement avec sprite: ${spriteToLoad}`);
-      
-      // ✅ Charger le nouveau sprite
-      const spriteKeyToUse = await this.npcSpriteManager.getSpriteKeyToUse(spriteToLoad);
-      
-      // ✅ Attendre que le sprite soit disponible
-      const spriteReady = await this.waitForSpriteAvailability(spriteKeyToUse, 2000);
-      
-      if (!spriteReady) {
-        console.error(`❌ Impossible de charger nouveau sprite ${spriteKeyToUse} pour NPC ${npcId}`);
-        return false;
-      }
-      
-      // ✅ Mettre à jour le sprite existant
-      if (visual.sprite) {
-        visual.sprite.setTexture(spriteKeyToUse);
-        
-        // ✅ Mettre à jour les infos de sprite
-        visual.spriteInfo = {
-          originalSprite: spriteToLoad,
-          finalSprite: spriteKeyToUse,
-          isFromMongoDB: !!spriteToLoad,
-          isFallback: spriteKeyToUse !== spriteToLoad,
-          reloaded: true,
-          reloadedAt: Date.now()
-        };
-        
-        visual.sprite.npcSpriteInfo = visual.spriteInfo;
-        
-        console.log(`✅ Sprite NPC ${npcId} rechargé: ${spriteKeyToUse}`);
-        return true;
-      }
-      
-    } catch (error) {
-      console.error(`❌ Erreur rechargement sprite NPC ${npcId}:`, error);
-      return false;
-    }
+async reloadNpcSprite(npcId, newSpriteKey = null) {
+  console.log(`🔄 === RECHARGEMENT SPRITE NPC ${npcId} ===`);
+  
+  const visual = this.npcVisuals.get(npcId);
+  const data = this.npcData.get(npcId);
+  
+  if (!visual || !data) {
+    console.error(`❌ NPC ${npcId} non trouvé pour rechargement sprite`);
+    return false;
   }
+  
+  try {
+    // ✅ Utiliser le nouveau sprite ou celui d'origine
+    const spriteToLoad = newSpriteKey || data.sprite;
+    console.log(`🎨 Rechargement avec sprite: ${spriteToLoad}`);
+    
+    // ✅ Charger le nouveau sprite
+    const spriteKeyToUse = await this.npcSpriteManager.getSpriteKeyToUse(spriteToLoad);
+    
+    // ✅ Attendre que le sprite soit disponible
+    const spriteReady = await this.waitForSpriteAvailability(spriteKeyToUse, 2000);
+    
+    if (!spriteReady) {
+      console.error(`❌ Impossible de charger nouveau sprite ${spriteKeyToUse} pour NPC ${npcId}`);
+      return false;
+    }
+    
+    // ✅ NOUVEAU : Obtenir les infos sprite sheet du nouveau sprite
+    const spriteSheetInfo = this.npcSpriteManager.getSpriteSheetInfo(spriteKeyToUse);
+    
+    // ✅ Mettre à jour le sprite existant avec le bon frame
+    if (visual.sprite) {
+      if (spriteSheetInfo.isSpriteSheet) {
+        const frameToUse = data.frameIndex !== undefined ? data.frameIndex : spriteSheetInfo.defaultFrame;
+        visual.sprite.setTexture(spriteKeyToUse, frameToUse);
+        console.log(`🎞️ Sprite sheet rechargé avec frame: ${frameToUse}`);
+      } else {
+        visual.sprite.setTexture(spriteKeyToUse);
+        console.log(`🖼️ Image simple rechargée`);
+      }
+      
+      // ✅ Mettre à jour les infos de sprite
+      visual.spriteInfo = {
+        originalSprite: spriteToLoad,
+        finalSprite: spriteKeyToUse,
+        isFromMongoDB: !!spriteToLoad,
+        isFallback: spriteKeyToUse !== spriteToLoad,
+        isSpriteSheet: spriteSheetInfo.isSpriteSheet,
+        frameUsed: spriteSheetInfo.isSpriteSheet ? 
+          (data.frameIndex !== undefined ? data.frameIndex : spriteSheetInfo.defaultFrame) : 
+          null,
+        reloaded: true,
+        reloadedAt: Date.now()
+      };
+      
+      visual.sprite.npcSpriteInfo = visual.spriteInfo;
+      
+      console.log(`✅ Sprite NPC ${npcId} rechargé: ${spriteKeyToUse} (frame: ${visual.spriteInfo.frameUsed || 'N/A'})`);
+      return true;
+    }
+    
+  } catch (error) {
+    console.error(`❌ Erreur rechargement sprite NPC ${npcId}:`, error);
+    return false;
+  }
+}
 
   cleanupUnusedSprites() {
     console.log("🧹 === NETTOYAGE SPRITES INUTILISÉS ===");
