@@ -2338,13 +2338,19 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
     // ✅ AJOUT : Enregistrer le joueur dans le système de tracking IA
     if (this.aiSystemInitialized) {
       try {
-        this.actionTracker.registerPlayer(
-          client.sessionId,
-          player.name,
-          `session_${Date.now()}`,
-          { map: player.currentZone, x: player.x, y: player.y },
-          player.level
-        );
+        const userId = this.jwtManager.getUserId(client.sessionId);
+        if (userId) {
+          this.actionTracker.registerPlayer(
+            userId,                      // ✅ userId stable du JWT
+            player.name,
+            `session_${Date.now()}`,
+            { map: player.currentZone, x: player.x, y: player.y },
+            player.level
+          );
+          console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
+        } else {
+          console.warn(`⚠️ [AI] Impossible d'enregistrer ${player.name} : userId introuvable`);
+        }
         console.log(`📝 [AI] Joueur ${player.name} enregistré dans ActionTracker`);
       } catch (error) {
         console.error(`❌ [AI] Erreur enregistrement joueur:`, error);
