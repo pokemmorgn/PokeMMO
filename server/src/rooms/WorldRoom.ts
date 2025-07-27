@@ -1705,7 +1705,24 @@ private getPlayerNameBySession(sessionId: string): string | null {
         
         if (quest) {
           console.log(`✅ [WorldRoom] Quête ${data.questId} démarrée pour ${player.name}`);
-          
+         // ✅ TRACKING IA: Démarrage de quête
+        this.trackPlayerActionWithAI(
+          client.sessionId,
+          ActionType.QUEST_ACCEPT,
+          {
+            questId: data.questId,
+            questName: quest.name,
+            playerLevel: player.level,
+            currentZone: player.currentZone
+          },
+          {
+            location: { 
+              map: player.currentZone, 
+              x: player.x, 
+              y: player.y 
+            }
+          }
+        ); 
           const result = {
             success: true,
             quest: quest,
