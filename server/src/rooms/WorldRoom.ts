@@ -554,7 +554,45 @@ public getAIStats(): any {
     health: this.intelligenceOrchestrator.getHealthStatus()
   };
 }
+ /**
+ * Appliquer les recommandations de l'IA pour un joueur
+ */
+private async applyAIRecommendations(playerId: string, analysis: CompletePlayerAnalysis): Promise<void> {
+  if (!analysis.recommendations) return;
   
+  const player = this.state.players.get(playerId);
+  if (!player) return;
+  
+  try {
+    // Recommandations pour les NPCs (réactions proactives)
+    if (analysis.recommendations.forNPCs.length > 0) {
+      console.log(`🎭 [AI] Application de ${analysis.recommendations.forNPCs.length} recommandations NPCs pour ${player.name}`);
+      
+      // Déclencher des interactions proactives si nécessaire
+      if (analysis.behaviorProfile?.currentState.needsHelp) {
+        console.log(`🆘 [AI] Joueur ${player.name} a besoin d'aide - activation NPCs proactifs`);
+        // Les NPCs proactifs seront gérés automatiquement par le système
+      }
+    }
+    
+    // Recommandations pour le joueur (notifications)
+    if (analysis.recommendations.forPlayer.length > 0) {
+      const client = this.clients.find(c => c.sessionId === playerId);
+      if (client) {
+        client.send("aiRecommendations", {
+          recommendations: analysis.recommendations.forPlayer.slice(0, 3), // Max 3 pour ne pas spam
+          source: "AI_analysis",
+          confidence: analysis.analysisConfidence,
+          timestamp: Date.now()
+        });
+        console.log(`💡 [AI] ${analysis.recommendations.forPlayer.length} recommandations envoyées à ${player.name}`);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur application recommandations:`, error);
+  }
+} 
   /**
  * Helper pour tracker une action de joueur avec l'IA
  */
