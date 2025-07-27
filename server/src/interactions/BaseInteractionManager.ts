@@ -51,6 +51,16 @@ interface ExtendedInteractionConfig extends InteractionConfig {
   };
 }
 
+// ✅ TYPE ÉTENDU POUR CORRIGER L'ERREUR TYPESCRIPT
+interface ExtendedGlobalModuleStats extends GlobalModuleStats {
+  aiSystem: {
+    initialized: boolean;
+    enabled: boolean;
+    autoRegistrationCompleted: boolean;
+    config?: any;
+  };
+}
+
 // ✅ REGISTRY AMÉLIORÉ AVEC IA
 class AIEnhancedModuleRegistry implements IModuleRegistry {
   private modules: Map<string, IInteractionModule> = new Map();
@@ -224,7 +234,7 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
       }
     }
 
-    // ✅ NOUVEAU : Ajouter stats IA
+    // ✅ NOUVEAU : Ajouter stats IA dans moduleStats (pas directement dans le retour)
     if (this.intelligenceConnector) {
       moduleStats.AISystem = this.intelligenceConnector.getStats();
     }
@@ -710,15 +720,15 @@ export class BaseInteractionManager {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES D'INFORMATION ===
+  // === ✅ NOUVELLES MÉTHODES D'INFORMATION (CORRIGÉES) ===
 
   /**
    * Obtenir les statistiques globales + IA
    */
-  getStats(): GlobalModuleStats {
+  getStats(): ExtendedGlobalModuleStats {
     const stats = this.registry.getGlobalStats();
     
-    // Ajouter informations IA
+    // ✅ CORRECTION : Retourner le type étendu avec aiSystem
     return {
       ...stats,
       aiSystem: {
