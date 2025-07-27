@@ -1,73 +1,58 @@
 // Options/OptionsManager.js - Business Logic Options
 // 🎯 Gère UNIQUEMENT la logique métier des options, pas l'UI
-// 🔊 Volume, langue, préférences utilisateur
+// 🌐 Détection langue + Volume + Sauvegarde localStorage
 
 export class OptionsManager {
-  constructor(gameRoom) {
+  constructor(gameRoom = null) {
     this.gameRoom = gameRoom;
     
-    // === ÉTAT OPTIONS ===
+    // === DONNÉES OPTIONS ===
     this.options = {
-      // Audio
-      masterVolume: 50,        // 0-100
-      musicVolume: 50,         // 0-100
-      sfxVolume: 50,           // 0-100
-      isMuted: false,
-      
-      // Langue
-      language: 'auto',        // 'auto' ou code langue (fr, en, es, etc.)
-      detectedLanguage: 'en',  // Langue détectée du navigateur
-      availableLanguages: ['en', 'fr', 'es', 'de', 'it'],
-      
-      // Interface
-      uiScale: 100,           // 50-150%
-      showFPS: false,
-      autoCloseMenus: true,
-      
-      // Gameplay  
-      autoRun: false,
-      battleAnimations: true,
-      fastText: false,
-      
-      // Accessibility
-      highContrast: false,
-      screenReader: false
+      volume: 50,              // Volume 1-100
+      isMuted: false,          // Sourdine
+      language: 'auto',        // Code langue ou 'auto'
+      detectedLanguage: 'en'   // Langue détectée du navigateur
+    };
+    
+    // === LANGUES SUPPORTÉES ===
+    this.supportedLanguages = {
+      'en': { name: 'English', flag: '🇺🇸' },
+      'fr': { name: 'Français', flag: '🇫🇷' },
+      'es': { name: 'Español', flag: '🇪🇸' },
+      'de': { name: 'Deutsch', flag: '🇩🇪' },
+      'it': { name: 'Italiano', flag: '🇮🇹' },
+      'pt': { name: 'Português', flag: '🇵🇹' },
+      'ja': { name: '日本語', flag: '🇯🇵' },
+      'ko': { name: '한국어', flag: '🇰🇷' }
     };
     
     // === CALLBACKS ===
-    this.onOptionsUpdate = null;      // Appelé quand options changent
-    this.onVolumeChange = null;       // Appelé quand volume change
-    this.onLanguageChange = null;     // Appelé quand langue change
+    this.onVolumeChange = null;      // Appelé quand volume change
+    this.onLanguageChange = null;    // Appelé quand langue change
+    this.onOptionsUpdate = null;     // Appelé quand options changent
     
     // === ÉTAT ===
     this.initialized = false;
-    this.lastSaveTime = 0;
-    this.autoSaveInterval = null;
+    this.saveTimeout = null;
     
     console.log('⚙️ [OptionsManager] Instance créée');
   }
   
   // === 🚀 INITIALISATION ===
   
-  async init() {
+  init() {
     try {
       console.log('🚀 [OptionsManager] Initialisation...');
       
-      // Détecter langue navigateur
       this.detectBrowserLanguage();
-      
-      // Charger options sauvegardées
-      this.loadOptions();
-      
-      // Appliquer options
-      this.applyAllOptions();
-      
-      // Démarrer sauvegarde automatique
-      this.startAutoSave();
+      this.loadSavedOptions();
+      this.applyOptions();
       
       this.initialized = true;
       
       console.log('✅ [OptionsManager] Initialisé');
+      console.log('📊 [OptionsManager] Options:', this.options);
+      
       return this;
       
     } catch (error) {
@@ -76,27 +61,46 @@ export class OptionsManager {
     }
   }
   
-  // === 🌐 GESTION LANGUE ===
+  // === 🌐 DÉTECTION LANGUE ===
   
   detectBrowserLanguage() {
     try {
-      // Récupérer langue navigateur
-      const browserLang = navigator.language || navigator.userLanguage || 'en';
-      const langCode = browserLang.split('-')[0].toLowerCase();
+      // Méthodes de détection par ordre de priorité
+      const detectionMethods = [
+        () => navigator.language,
+        () => navigator.languages?.[0],
+        () => navigator.userLanguage,
+        () => navigator.browserLanguage,
+        () => navigator.systemLanguage
+      ];
       
-      // Vérifier si supportée
-      if (this.options.availableLanguages.includes(langCode)) {
-        this.options.detectedLanguage = langCode;
-        console.log(`🌐 [OptionsManager] Langue détectée: ${langCode}`);
-      } else {
-        this.options.detectedLanguage = 'en';
-        console.log(`🌐 [OptionsManager] Langue non supportée (${langCode}), fallback EN`);
+      let detectedLang = 'en'; // Fallback par défaut
+      
+      for (const method of detectionMethods) {
+        try {
+          const lang = method();
+          if (lang) {
+            // Extraire le code langue (ex: 'fr-FR' -> 'fr')
+            const langCode = lang.toLowerCase().split('-')[0];
+            
+            // Vérifier si supporté
+            if (this.supportedLanguages[langCode]) {
+              detectedLang = langCode;
+              break;
+            }
+          }
+        } catch (e) {
+          continue; // Essayer la méthode suivante
+        }
       }
       
-      // Si auto, utiliser langue détectée
-      if (this.options.language === 'auto') {
-        this.setLanguage('auto');
-      }
+      this.options.detectedLanguage = detectedLang;
+      
+      console.log('🌐 [OptionsManager] Langue détectée:', {
+        detected: detectedLang,
+        original: navigator.language,
+        supported: !!this.supportedLanguages[detectedLang]
+      });
       
     } catch (error) {
       console.error('❌ [OptionsManager] Erreur détection langue:', error);
@@ -104,490 +108,356 @@ export class OptionsManager {
     }
   }
   
-  setLanguage(langCode) {
-    const oldLanguage = this.getCurrentLanguage();
-    
-    this.options.language = langCode;
-    const newLanguage = this.getCurrentLanguage();
-    
-    console.log(`🌐 [OptionsManager] Changement langue: ${oldLanguage} → ${newLanguage}`);
-    
-    // Appliquer changement
-    this.applyLanguageChange(newLanguage);
-    
-    // Notifier changement
-    if (this.onLanguageChange) {
-      this.onLanguageChange(newLanguage, oldLanguage);
-    }
-    
-    // Déclencher sauvegarde
-    this.saveOptions();
-    
-    return true;
-  }
+  // === 💾 SAUVEGARDE ET CHARGEMENT ===
   
-  getCurrentLanguage() {
-    return this.options.language === 'auto' ? 
-           this.options.detectedLanguage : 
-           this.options.language;
-  }
-  
-  getLanguageName(langCode) {
-    const names = {
-      'auto': `Auto (${this.getLanguageName(this.options.detectedLanguage)})`,
-      'en': 'English',
-      'fr': 'Français', 
-      'es': 'Español',
-      'de': 'Deutsch',
-      'it': 'Italiano'
-    };
-    
-    return names[langCode] || langCode.toUpperCase();
-  }
-  
-  // === 🔊 GESTION AUDIO ===
-  
-  setMasterVolume(volume) {
-    volume = Math.max(0, Math.min(100, parseInt(volume)));
-    const oldVolume = this.options.masterVolume;
-    
-    this.options.masterVolume = volume;
-    this.options.isMuted = false; // Unmute si changement volume
-    
-    console.log(`🔊 [OptionsManager] Volume principal: ${oldVolume} → ${volume}`);
-    
-    this.applyVolumeChanges();
-    this.notifyVolumeChange();
-    this.saveOptions();
-    
-    return true;
-  }
-  
-  setMusicVolume(volume) {
-    volume = Math.max(0, Math.min(100, parseInt(volume)));
-    this.options.musicVolume = volume;
-    
-    console.log(`🎵 [OptionsManager] Volume musique: ${volume}`);
-    
-    this.applyVolumeChanges();
-    this.notifyVolumeChange();
-    this.saveOptions();
-    
-    return true;
-  }
-  
-  setSfxVolume(volume) {
-    volume = Math.max(0, Math.min(100, parseInt(volume)));
-    this.options.sfxVolume = volume;
-    
-    console.log(`🔊 [OptionsManager] Volume SFX: ${volume}`);
-    
-    this.applyVolumeChanges();
-    this.notifyVolumeChange();
-    this.saveOptions();
-    
-    return true;
-  }
-  
-  toggleMute() {
-    this.options.isMuted = !this.options.isMuted;
-    
-    console.log(`🔇 [OptionsManager] Mute: ${this.options.isMuted ? 'ON' : 'OFF'}`);
-    
-    this.applyVolumeChanges();
-    this.notifyVolumeChange();
-    this.saveOptions();
-    
-    return this.options.isMuted;
-  }
-  
-  setMute(muted) {
-    this.options.isMuted = Boolean(muted);
-    
-    this.applyVolumeChanges();
-    this.notifyVolumeChange();
-    this.saveOptions();
-    
-    return this.options.isMuted;
-  }
-  
-  // === 🎮 AUTRES OPTIONS ===
-  
-  setUIScale(scale) {
-    scale = Math.max(50, Math.min(150, parseInt(scale)));
-    this.options.uiScale = scale;
-    
-    console.log(`📏 [OptionsManager] Échelle UI: ${scale}%`);
-    
-    this.applyUIScale();
-    this.notifyOptionsUpdate();
-    this.saveOptions();
-    
-    return true;
-  }
-  
-  toggleOption(optionKey) {
-    if (this.options.hasOwnProperty(optionKey) && typeof this.options[optionKey] === 'boolean') {
-      this.options[optionKey] = !this.options[optionKey];
-      
-      console.log(`🔄 [OptionsManager] ${optionKey}: ${this.options[optionKey] ? 'ON' : 'OFF'}`);
-      
-      this.applySpecificOption(optionKey);
-      this.notifyOptionsUpdate();
-      this.saveOptions();
-      
-      return this.options[optionKey];
-    }
-    
-    console.warn(`⚠️ [OptionsManager] Option invalide: ${optionKey}`);
-    return false;
-  }
-  
-  setOption(optionKey, value) {
-    if (this.options.hasOwnProperty(optionKey)) {
-      const oldValue = this.options[optionKey];
-      this.options[optionKey] = value;
-      
-      console.log(`⚙️ [OptionsManager] ${optionKey}: ${oldValue} → ${value}`);
-      
-      this.applySpecificOption(optionKey);
-      this.notifyOptionsUpdate();
-      this.saveOptions();
-      
-      return true;
-    }
-    
-    console.warn(`⚠️ [OptionsManager] Option inconnue: ${optionKey}`);
-    return false;
-  }
-  
-  // === 📤 APPLICATION DES OPTIONS ===
-  
-  applyAllOptions() {
-    console.log('📤 [OptionsManager] Application de toutes les options...');
-    
-    this.applyVolumeChanges();
-    this.applyLanguageChange(this.getCurrentLanguage());
-    this.applyUIScale();
-    this.applyGameplayOptions();
-    this.applyAccessibilityOptions();
-    
-    console.log('✅ [OptionsManager] Options appliquées');
-  }
-  
-  applyVolumeChanges() {
+  loadSavedOptions() {
     try {
-      const effectiveVolume = this.options.isMuted ? 0 : this.options.masterVolume / 100;
-      const musicVolume = (this.options.musicVolume / 100) * effectiveVolume;
-      const sfxVolume = (this.options.sfxVolume / 100) * effectiveVolume;
+      const saved = localStorage.getItem('pokemmo_options');
       
-      // Appliquer aux systèmes audio du jeu
-      if (window.game?.sound) {
-        window.game.sound.volume = effectiveVolume;
-      }
-      
-      // Audio HTML5
-      document.querySelectorAll('audio').forEach(audio => {
-        if (audio.classList.contains('music')) {
-          audio.volume = musicVolume;
-        } else {
-          audio.volume = sfxVolume;
-        }
-      });
-      
-      console.log(`🔊 [OptionsManager] Volumes appliqués - Master: ${Math.round(effectiveVolume * 100)}%`);
-      
-    } catch (error) {
-      console.error('❌ [OptionsManager] Erreur application volume:', error);
-    }
-  }
-  
-  applyLanguageChange(newLanguage) {
-    try {
-      // Déclencher rechargement des textes
-      if (typeof window.loadLanguage === 'function') {
-        window.loadLanguage(newLanguage);
-      }
-      
-      // Événement global pour les autres systèmes
-      window.dispatchEvent(new CustomEvent('languageChanged', {
-        detail: { language: newLanguage }
-      }));
-      
-      console.log(`🌐 [OptionsManager] Langue ${newLanguage} appliquée`);
-      
-    } catch (error) {
-      console.error('❌ [OptionsManager] Erreur application langue:', error);
-    }
-  }
-  
-  applyUIScale() {
-    try {
-      const scale = this.options.uiScale / 100;
-      document.documentElement.style.setProperty('--ui-scale', scale);
-      
-      console.log(`📏 [OptionsManager] Échelle UI ${this.options.uiScale}% appliquée`);
-      
-    } catch (error) {
-      console.error('❌ [OptionsManager] Erreur application échelle UI:', error);
-    }
-  }
-  
-  applyGameplayOptions() {
-    // Appliquer options gameplay
-    Object.entries(this.options).forEach(([key, value]) => {
-      if (['autoRun', 'battleAnimations', 'fastText'].includes(key)) {
-        this.applySpecificOption(key);
-      }
-    });
-  }
-  
-  applyAccessibilityOptions() {
-    try {
-      if (this.options.highContrast) {
-        document.body.classList.add('high-contrast');
+      if (saved) {
+        const parsedOptions = JSON.parse(saved);
+        
+        // Validation et merge avec les options par défaut
+        this.options = {
+          ...this.options,
+          volume: this.validateVolume(parsedOptions.volume),
+          isMuted: !!parsedOptions.isMuted,
+          language: this.validateLanguage(parsedOptions.language)
+        };
+        
+        console.log('💾 [OptionsManager] Options chargées depuis localStorage');
       } else {
-        document.body.classList.remove('high-contrast');
-      }
-      
-      if (this.options.screenReader) {
-        document.body.setAttribute('aria-live', 'polite');
-      } else {
-        document.body.removeAttribute('aria-live');
+        console.log('💾 [OptionsManager] Aucune sauvegarde - options par défaut');
       }
       
     } catch (error) {
-      console.error('❌ [OptionsManager] Erreur application accessibilité:', error);
+      console.error('❌ [OptionsManager] Erreur chargement options:', error);
+      console.log('🔄 [OptionsManager] Utilisation options par défaut');
     }
   }
-  
-  applySpecificOption(optionKey) {
-    const value = this.options[optionKey];
-    
-    try {
-      switch (optionKey) {
-        case 'showFPS':
-          this.toggleFPSDisplay(value);
-          break;
-          
-        case 'autoRun':
-          window.dispatchEvent(new CustomEvent('autoRunChanged', { detail: value }));
-          break;
-          
-        case 'battleAnimations':
-          window.dispatchEvent(new CustomEvent('battleAnimationsChanged', { detail: value }));
-          break;
-          
-        case 'fastText':
-          window.dispatchEvent(new CustomEvent('fastTextChanged', { detail: value }));
-          break;
-          
-        default:
-          console.log(`⚙️ [OptionsManager] Option ${optionKey} = ${value} (pas d'action spécifique)`);
-      }
-      
-    } catch (error) {
-      console.error(`❌ [OptionsManager] Erreur application option ${optionKey}:`, error);
-    }
-  }
-  
-  toggleFPSDisplay(show) {
-    try {
-      if (show && window.game?.debug) {
-        // Activer affichage FPS si disponible
-        if (window.game.debug.showFPS) {
-          window.game.debug.showFPS();
-        }
-      } else if (window.game?.debug?.hideFPS) {
-        window.game.debug.hideFPS();
-      }
-      
-    } catch (error) {
-      console.error('❌ [OptionsManager] Erreur affichage FPS:', error);
-    }
-  }
-  
-  // === 💾 SAUVEGARDE/CHARGEMENT ===
   
   saveOptions() {
     try {
-      const dataToSave = {
-        ...this.options,
-        lastSaved: Date.now(),
-        version: '1.0'
-      };
+      // Debounce pour éviter trop de sauvegardes
+      if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout);
+      }
       
-      localStorage.setItem('pokemmo_options', JSON.stringify(dataToSave));
-      this.lastSaveTime = Date.now();
-      
-      console.log('💾 [OptionsManager] Options sauvegardées');
+      this.saveTimeout = setTimeout(() => {
+        const toSave = {
+          volume: this.options.volume,
+          isMuted: this.options.isMuted,
+          language: this.options.language,
+          savedAt: Date.now()
+        };
+        
+        localStorage.setItem('pokemmo_options', JSON.stringify(toSave));
+        console.log('💾 [OptionsManager] Options sauvegardées');
+        
+      }, 300); // Attendre 300ms avant de sauvegarder
       
     } catch (error) {
       console.error('❌ [OptionsManager] Erreur sauvegarde:', error);
     }
   }
   
-  loadOptions() {
-    try {
-      const saved = localStorage.getItem('pokemmo_options');
+  // === ✅ VALIDATION ===
+  
+  validateVolume(volume) {
+    const parsed = parseInt(volume);
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      return 50; // Valeur par défaut
+    }
+    return parsed;
+  }
+  
+  validateLanguage(language) {
+    if (language === 'auto') return 'auto';
+    if (this.supportedLanguages[language]) return language;
+    return 'auto'; // Fallback sur auto-détection
+  }
+  
+  // === 🔊 GESTION VOLUME ===
+  
+  setVolume(volume) {
+    const validVolume = this.validateVolume(volume);
+    
+    if (validVolume !== this.options.volume) {
+      this.options.volume = validVolume;
       
-      if (saved) {
-        const data = JSON.parse(saved);
-        
-        // Merge avec options par défaut (pour nouvelles options)
-        this.options = {
-          ...this.options,
-          ...data
-        };
-        
-        console.log('📂 [OptionsManager] Options chargées');
-      } else {
-        console.log('📂 [OptionsManager] Aucune sauvegarde trouvée, options par défaut');
+      console.log(`🔊 [OptionsManager] Volume: ${validVolume}%`);
+      
+      // Appliquer le volume
+      this.applyVolumeSettings();
+      
+      // Notifier changement
+      this.notifyVolumeChange();
+      
+      // Sauvegarder
+      this.saveOptions();
+    }
+    
+    return validVolume;
+  }
+  
+  getVolume() {
+    return this.options.volume;
+  }
+  
+  setMuted(muted) {
+    const isMuted = !!muted;
+    
+    if (isMuted !== this.options.isMuted) {
+      this.options.isMuted = isMuted;
+      
+      console.log(`🔇 [OptionsManager] Mute: ${isMuted}`);
+      
+      // Appliquer les paramètres audio
+      this.applyVolumeSettings();
+      
+      // Notifier changement
+      this.notifyVolumeChange();
+      
+      // Sauvegarder
+      this.saveOptions();
+    }
+    
+    return isMuted;
+  }
+  
+  isMuted() {
+    return this.options.isMuted;
+  }
+  
+  toggleMute() {
+    return this.setMuted(!this.options.isMuted);
+  }
+  
+  getEffectiveVolume() {
+    return this.options.isMuted ? 0 : this.options.volume;
+  }
+  
+  // === 🌐 GESTION LANGUE ===
+  
+  setLanguage(languageCode) {
+    let validLanguage = languageCode;
+    
+    // Validation
+    if (languageCode !== 'auto' && !this.supportedLanguages[languageCode]) {
+      console.warn(`⚠️ [OptionsManager] Langue non supportée: ${languageCode}`);
+      validLanguage = 'auto';
+    }
+    
+    if (validLanguage !== this.options.language) {
+      this.options.language = validLanguage;
+      
+      console.log(`🌐 [OptionsManager] Langue: ${validLanguage}`);
+      
+      // Notifier changement
+      this.notifyLanguageChange();
+      
+      // Sauvegarder
+      this.saveOptions();
+    }
+    
+    return validLanguage;
+  }
+  
+  getLanguage() {
+    return this.options.language;
+  }
+  
+  getCurrentLanguage() {
+    // Méthode principale pour obtenir la langue courante
+    if (this.options.language === 'auto') {
+      return this.options.detectedLanguage;
+    }
+    return this.options.language;
+  }
+  
+  getLanguageInfo(languageCode = null) {
+    const code = languageCode || this.getCurrentLanguage();
+    return this.supportedLanguages[code] || this.supportedLanguages['en'];
+  }
+  
+  getSupportedLanguages() {
+    return { ...this.supportedLanguages };
+  }
+  
+  isLanguageSupported(languageCode) {
+    return !!this.supportedLanguages[languageCode];
+  }
+  
+  // === ⚡ APPLICATION DES PARAMÈTRES ===
+  
+  applyOptions() {
+    console.log('⚡ [OptionsManager] Application des paramètres...');
+    
+    this.applyVolumeSettings();
+    this.applyLanguageSettings();
+    
+    console.log('✅ [OptionsManager] Paramètres appliqués');
+  }
+  
+  applyVolumeSettings() {
+    try {
+      const effectiveVolume = this.getEffectiveVolume() / 100; // 0-1
+      
+      // Appliquer aux éléments audio HTML
+      document.querySelectorAll('audio, video').forEach(element => {
+        element.volume = effectiveVolume;
+      });
+      
+      // Intégration Phaser (si disponible)
+      if (window.game && window.game.sound) {
+        window.game.sound.volume = effectiveVolume;
       }
       
+      // Howler.js (si utilisé)
+      if (window.Howler) {
+        window.Howler.volume(effectiveVolume);
+      }
+      
+      console.log(`🔊 [OptionsManager] Volume appliqué: ${effectiveVolume * 100}%`);
+      
     } catch (error) {
-      console.error('❌ [OptionsManager] Erreur chargement, reset options:', error);
-      this.resetToDefaults();
+      console.error('❌ [OptionsManager] Erreur application volume:', error);
     }
   }
   
-  resetToDefaults() {
-    console.log('🔄 [OptionsManager] Reset options par défaut...');
-    
-    const language = this.options.language;
-    const detectedLanguage = this.options.detectedLanguage;
-    
-    this.options = {
-      masterVolume: 50,
-      musicVolume: 50,
-      sfxVolume: 50,
-      isMuted: false,
-      language: language,
-      detectedLanguage: detectedLanguage,
-      availableLanguages: ['en', 'fr', 'es', 'de', 'it'],
-      uiScale: 100,
-      showFPS: false,
-      autoCloseMenus: true,
-      autoRun: false,
-      battleAnimations: true,
-      fastText: false,
-      highContrast: false,
-      screenReader: false
+  applyLanguageSettings() {
+    try {
+      const currentLang = this.getCurrentLanguage();
+      
+      // Mettre à jour l'attribut lang du document
+      document.documentElement.lang = currentLang;
+      
+      // Stocker globalement pour accès facile
+      window.currentLanguage = currentLang;
+      
+      console.log(`🌐 [OptionsManager] Langue appliquée: ${currentLang}`);
+      
+    } catch (error) {
+      console.error('❌ [OptionsManager] Erreur application langue:', error);
+    }
+  }
+  
+  // === 📢 NOTIFICATIONS ===
+  
+  notifyVolumeChange() {
+    const data = {
+      volume: this.options.volume,
+      isMuted: this.options.isMuted,
+      effectiveVolume: this.getEffectiveVolume()
     };
     
-    this.applyAllOptions();
+    this.triggerCallback('onVolumeChange', data);
+    this.triggerCallback('onOptionsUpdate', { type: 'volume', data });
+  }
+  
+  notifyLanguageChange() {
+    const data = {
+      language: this.options.language,
+      currentLanguage: this.getCurrentLanguage(),
+      languageInfo: this.getLanguageInfo()
+    };
+    
+    this.triggerCallback('onLanguageChange', data);
+    this.triggerCallback('onOptionsUpdate', { type: 'language', data });
+  }
+  
+  triggerCallback(callbackName, data) {
+    const callback = this[callbackName];
+    if (typeof callback === 'function') {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`❌ [OptionsManager] Erreur callback ${callbackName}:`, error);
+      }
+    }
+  }
+  
+  // === 📊 API PUBLIQUE ===
+  
+  getAllOptions() {
+    return {
+      ...this.options,
+      currentLanguage: this.getCurrentLanguage(),
+      effectiveVolume: this.getEffectiveVolume(),
+      languageInfo: this.getLanguageInfo(),
+      supportedLanguages: this.getSupportedLanguages()
+    };
+  }
+  
+  resetToDefaults() {
+    console.log('🔄 [OptionsManager] Reset vers défauts...');
+    
+    this.options = {
+      volume: 50,
+      isMuted: false,
+      language: 'auto',
+      detectedLanguage: this.options.detectedLanguage // Garder la détection
+    };
+    
+    this.applyOptions();
     this.saveOptions();
-    this.notifyOptionsUpdate();
+    
+    // Notifier tous les changements
+    this.notifyVolumeChange();
+    this.notifyLanguageChange();
     
     console.log('✅ [OptionsManager] Reset terminé');
   }
   
-  startAutoSave() {
-    // Sauvegarde automatique toutes les 30 secondes
-    this.autoSaveInterval = setInterval(() => {
-      if (Date.now() - this.lastSaveTime > 30000) { // Si pas sauvé depuis 30s
-        this.saveOptions();
-      }
-    }, 30000);
-    
-    console.log('⏰ [OptionsManager] Auto-save démarré');
-  }
-  
-  // === 📞 NOTIFICATIONS ===
-  
-  notifyVolumeChange() {
-    if (this.onVolumeChange) {
-      this.onVolumeChange({
-        masterVolume: this.options.masterVolume,
-        musicVolume: this.options.musicVolume,
-        sfxVolume: this.options.sfxVolume,
-        isMuted: this.options.isMuted
-      });
-    }
-  }
-  
-  notifyOptionsUpdate() {
-    if (this.onOptionsUpdate) {
-      this.onOptionsUpdate({ ...this.options });
-    }
-  }
-  
-  // === 📖 GETTERS (LECTURE SEULE) ===
-  
-  getAllOptions() {
-    return { ...this.options }; // Copie pour éviter mutations
-  }
-  
-  getOption(key) {
-    return this.options[key];
-  }
-  
-  getVolumeSettings() {
-    return {
-      masterVolume: this.options.masterVolume,
-      musicVolume: this.options.musicVolume,
-      sfxVolume: this.options.sfxVolume,
-      isMuted: this.options.isMuted
-    };
-  }
-  
-  getLanguageSettings() {
-    return {
-      current: this.getCurrentLanguage(),
-      selected: this.options.language,
-      detected: this.options.detectedLanguage,
-      available: [...this.options.availableLanguages]
-    };
-  }
-  
-  getUISettings() {
-    return {
-      scale: this.options.uiScale,
-      showFPS: this.options.showFPS,
-      autoCloseMenus: this.options.autoCloseMenus,
-      highContrast: this.options.highContrast
-    };
-  }
-  
-  getGameplaySettings() {
-    return {
-      autoRun: this.options.autoRun,
-      battleAnimations: this.options.battleAnimations,
-      fastText: this.options.fastText
-    };
-  }
-  
-  // === 🎯 MÉTHODES UTILITAIRES ===
-  
   exportOptions() {
     return {
-      ...this.options,
-      exportedAt: new Date().toISOString(),
-      version: '1.0'
+      version: '1.0',
+      timestamp: Date.now(),
+      options: this.getAllOptions()
     };
   }
   
-  importOptions(optionsData) {
+  importOptions(exportedData) {
     try {
-      if (optionsData && typeof optionsData === 'object') {
-        this.options = {
-          ...this.options,
-          ...optionsData
-        };
-        
-        this.applyAllOptions();
-        this.saveOptions();
-        this.notifyOptionsUpdate();
-        
-        console.log('📥 [OptionsManager] Options importées');
-        return true;
+      if (!exportedData || !exportedData.options) {
+        throw new Error('Données d\'importation invalides');
       }
       
-      return false;
+      const imported = exportedData.options;
+      
+      // Importer avec validation
+      this.setVolume(imported.volume);
+      this.setMuted(imported.isMuted);
+      this.setLanguage(imported.language);
+      
+      console.log('📥 [OptionsManager] Options importées avec succès');
+      return true;
+      
     } catch (error) {
-      console.error('❌ [OptionsManager] Erreur import:', error);
+      console.error('❌ [OptionsManager] Erreur importation:', error);
       return false;
     }
+  }
+  
+  // === 🔧 UTILITAIRES ===
+  
+  getVolumeIcon() {
+    if (this.options.isMuted) return '🔇';
+    
+    const vol = this.options.volume;
+    if (vol === 0) return '🔇';
+    if (vol < 30) return '🔈';
+    if (vol < 70) return '🔉';
+    return '🔊';
+  }
+  
+  getLanguageDisplayName(languageCode = null) {
+    const info = this.getLanguageInfo(languageCode);
+    return `${info.flag} ${info.name}`;
+  }
+  
+  isUsingAutoLanguage() {
+    return this.options.language === 'auto';
   }
   
   // === 🧹 NETTOYAGE ===
@@ -595,19 +465,16 @@ export class OptionsManager {
   destroy() {
     console.log('🧹 [OptionsManager] Destruction...');
     
-    // Arrêter auto-save
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval);
-      this.autoSaveInterval = null;
+    // Sauvegarder avant destruction
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveOptions();
     }
     
-    // Sauvegarder une dernière fois
-    this.saveOptions();
-    
     // Reset callbacks
-    this.onOptionsUpdate = null;
     this.onVolumeChange = null;
     this.onLanguageChange = null;
+    this.onOptionsUpdate = null;
     
     // Reset état
     this.initialized = false;
@@ -621,24 +488,81 @@ export class OptionsManager {
   debugInfo() {
     return {
       initialized: this.initialized,
+      options: this.options,
       currentLanguage: this.getCurrentLanguage(),
-      detectedLanguage: this.options.detectedLanguage,
-      volumeSettings: this.getVolumeSettings(),
-      hasCallbacks: {
-        onOptionsUpdate: !!this.onOptionsUpdate,
-        onVolumeChange: !!this.onVolumeChange,
-        onLanguageChange: !!this.onLanguageChange
+      effectiveVolume: this.getEffectiveVolume(),
+      supportedLanguages: Object.keys(this.supportedLanguages),
+      browserInfo: {
+        language: navigator.language,
+        languages: navigator.languages,
+        userLanguage: navigator.userLanguage
       },
-      lastSaveTime: this.lastSaveTime,
-      autoSaveActive: !!this.autoSaveInterval,
-      optionsSummary: {
-        masterVolume: this.options.masterVolume,
-        language: this.options.language,
-        uiScale: this.options.uiScale,
-        totalOptions: Object.keys(this.options).length
+      callbacks: {
+        onVolumeChange: !!this.onVolumeChange,
+        onLanguageChange: !!this.onLanguageChange,
+        onOptionsUpdate: !!this.onOptionsUpdate
       }
     };
   }
+}
+
+// === 🌐 API GLOBALE SIMPLE ===
+
+// Variables globales pour accès rapide
+let globalOptionsManager = null;
+
+/**
+ * Fonction principale pour obtenir la langue courante
+ * @returns {string} Code langue (ex: 'fr', 'en')
+ */
+export function GetPlayerCurrentLanguage() {
+  if (globalOptionsManager) {
+    return globalOptionsManager.getCurrentLanguage();
+  }
+  
+  // Fallback si pas encore initialisé
+  try {
+    const lang = navigator.language.toLowerCase().split('-')[0];
+    return ['en', 'fr', 'es', 'de', 'it', 'pt', 'ja', 'ko'].includes(lang) ? lang : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+/**
+ * Fonction pour obtenir le volume courant
+ * @returns {number} Volume effectif (0-100)
+ */
+export function GetPlayerCurrentVolume() {
+  if (globalOptionsManager) {
+    return globalOptionsManager.getEffectiveVolume();
+  }
+  return 50; // Fallback
+}
+
+/**
+ * Fonction pour vérifier si audio muté
+ * @returns {boolean}
+ */
+export function IsPlayerAudioMuted() {
+  if (globalOptionsManager) {
+    return globalOptionsManager.isMuted();
+  }
+  return false; // Fallback
+}
+
+/**
+ * Initialiser l'accès global (appelé par le module)
+ */
+export function initializeGlobalOptionsAPI(optionsManager) {
+  globalOptionsManager = optionsManager;
+  
+  // Exposer globalement pour compatibilité
+  window.GetPlayerCurrentLanguage = GetPlayerCurrentLanguage;
+  window.GetPlayerCurrentVolume = GetPlayerCurrentVolume;
+  window.IsPlayerAudioMuted = IsPlayerAudioMuted;
+  
+  console.log('🌐 [OptionsAPI] API globale initialisée');
 }
 
 export default OptionsManager;
@@ -647,37 +571,32 @@ console.log(`
 ⚙️ === OPTIONS MANAGER ===
 
 ✅ FONCTIONNALITÉS:
-• Volume Master/Music/SFX (0-100)
-• Mute/Unmute avec sauvegarde
-• Détection automatique langue navigateur
-• Choix manuel de langue
-• Échelle UI (50-150%)
-• Options gameplay (autoRun, animations, etc.)
-• Options accessibilité (contraste, lecteur d'écran)
+• Volume 1-100 + mute avec validation
+• Détection langue navigateur automatique
+• Sauvegarde localStorage avec debounce
+• Support 8 langues avec drapeaux
+• Application temps réel (Phaser, HTML audio)
 
-🔊 GESTION AUDIO:
-• setMasterVolume(volume) → 0-100
-• setMusicVolume(volume) → 0-100  
-• setSfxVolume(volume) → 0-100
-• toggleMute() → true/false
-• Application automatique aux éléments audio
+🌐 API SIMPLE:
+• GetPlayerCurrentLanguage() → 'fr', 'en', etc.
+• GetPlayerCurrentVolume() → 0-100
+• IsPlayerAudioMuted() → true/false
 
-🌐 GESTION LANGUE:
-• Détection navigateur automatique
-• Mode 'auto' ou choix manuel
-• Support EN/FR/ES/DE/IT
-• Événements changement langue
+📊 MÉTHODES PRINCIPALES:
+• setVolume(50) / getVolume()
+• setMuted(true) / toggleMute()
+• setLanguage('fr') / getCurrentLanguage()
+• resetToDefaults() / exportOptions()
+
+🔊 INTÉGRATIONS:
+• Phaser: game.sound.volume
+• HTML: audio/video elements
+• Howler.js si disponible
 
 💾 PERSISTANCE:
-• Sauvegarde localStorage automatique
-• Chargement au démarrage
-• Auto-save toutes les 30s
-• Export/Import options
+• localStorage 'pokemmo_options'
+• Validation + fallbacks
+• Debounce 300ms
 
-🔗 CALLBACKS:
-• onOptionsUpdate(options) → toutes options
-• onVolumeChange(volumes) → changements audio
-• onLanguageChange(new, old) → changements langue
-
-🎯 PRÊT POUR OPTIONSICON !
+🎯 PRÊT POUR LES AUTRES COMPOSANTS !
 `);
