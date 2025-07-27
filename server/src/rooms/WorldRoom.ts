@@ -149,37 +149,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       registry.registerQuestManager(questManager);
       console.log(`✅ Services enregistrés dans ServiceRegistry`);
     }
-
-    // ✅ TEST IMMÉDIAT: Se déclenche 10 secondes après le démarrage
-setTimeout(async () => {
-  console.log(`🧪 [AUTO-TEST] Test automatique de la base de données IA...`);
-  
-  // Simuler le debug manuellement
-  try {
-    const trackerStats = this.actionTracker.getStats();
-    console.log(`📊 [AUTO-DEBUG] Tracker stats:`, trackerStats);
     
-    const saveResult = await this.actionLogger.saveAction({
-      id: `auto_test_${Date.now()}`,
-      playerId: 'test_player',
-      actionType: ActionType.NPC_TALK,
-      category: 'social' as any,
-      timestamp: Date.now(),
-      data: {
-        timestamp: Date.now(),
-        sessionId: 'test_session',
-        playerId: 'test_player',
-        playerName: 'TestPlayer',
-        location: { map: 'test_zone', x: 0, y: 0 }
-      },
-      metadata: { version: '1.0.0', source: 'auto-test', processed: false }
-    } as any);
-    
-    console.log(`💾 [AUTO-DEBUG] Sauvegarde automatique:`, saveResult);
-  } catch (error) {
-    console.error(`❌ [AUTO-DEBUG] Erreur:`, error);
-  }
-}, 10000);
       
       // ✅ ÉTAPE 1: Initialiser NPCManagers en ARRIÈRE-PLAN (non-bloquant)
       console.log(`🔄 [WorldRoom] Lancement NPCManager en arrière-plan...`);
@@ -829,63 +799,6 @@ private trackPlayerActionWithAI(
     
 // ✅ DANS WorldRoom.ts - Remplacez le handler battleFinished existant
 
-    // ✅ HANDLER DEBUG: Forcer la sauvegarde et vérifier la DB
-// ✅ HANDLER DEBUG: Forcer la sauvegarde et vérifier la DB
-this.onMessage("debugAIDatabase", async (client) => {
-  console.log(`🔍 [DEBUG AI] Test base de données demandé par ${client.sessionId}`);
-  
-  try {
-    // Forcer le traitement des actions en attente
-    const tracker = this.actionTracker;
-    const logger = this.actionLogger;
-    
-    // Stats du tracker
-    const trackerStats = tracker.getStats();
-    console.log(`📊 [DEBUG] Tracker stats:`, trackerStats);
-    
-    const player = this.state.players.get(client.sessionId);
-    
-    // Test de sauvegarde directe avec la bonne structure
-    const testAction: any = {
-      id: `test_${Date.now()}`,
-      playerId: client.sessionId,
-      actionType: ActionType.NPC_TALK, // ✅ Type valide
-      category: 'social' as any, // ✅ Catégorie valide
-      timestamp: Date.now(),
-      data: { // ✅ Structure BaseActionData
-        timestamp: Date.now(),
-        sessionId: client.sessionId,
-        playerId: client.sessionId,
-        playerName: player?.name || 'TestPlayer',
-        location: {
-          map: player?.currentZone || 'test_zone',
-          x: player?.x || 0,
-          y: player?.y || 0
-        },
-        context: {
-          playerLevel: player?.level || 1,
-          sessionDuration: 60000,
-          timeOfDay: 'day'
-        }
-      },
-      metadata: { version: '1.0.0', source: 'debug', processed: false }
-    };
-    
-    const saveResult = await logger.saveAction(testAction);
-    console.log(`💾 [DEBUG] Sauvegarde test:`, saveResult);
-    
-    client.send("debugAIResult", {
-      trackerStats,
-      testSave: saveResult,
-      timestamp: Date.now()
-    });
-    
-  } catch (error) {
-    console.error(`❌ [DEBUG] Erreur:`, error);
-    client.send("debugAIResult", { error: error instanceof Error ? error.message : 'Erreur inconnue' });
-  }
-});
-    
 this.onMessage("battleFinished", async (client, data) => {
   console.log(`🏁 [WorldRoom] battleFinished reçu de ${client.sessionId}`);
   
