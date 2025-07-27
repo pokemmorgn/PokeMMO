@@ -295,12 +295,27 @@ if (this.intelligenceConfig.enableIntelligence) {
         playerGold: player.gold,
         zone: player.currentZone
       },
-      { // ✅ Structure directe sans "location:"
-        map: player.currentZone, 
-        x: player.x, 
-        y: player.y 
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
       }
     );
+          // ✅ DEBUG: Test direct tracker pour comparer
+      const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+      const tracker = getActionTracker();
+      
+      tracker.trackAction(
+        player.name,
+        ActionType.NPC_TALK,
+        { npcId, playerLevel: player.level },
+        { map: player.currentZone, x: player.x, y: player.y }
+      );
+      
+      const statsAfter = tracker.getStats();
+      console.log(`📋 [AI] Queue après test direct:`, statsAfter.actionsInQueue);
       console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
       
       // ✅ DEBUG: Vérifier juste la queue
