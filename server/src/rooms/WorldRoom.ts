@@ -39,6 +39,13 @@ import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
 import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 // ✅ NOUVEAU : Imports pour le système shops intégré
+import { getIntelligenceOrchestrator, trackPlayerAction, processGameEvent } from "../Intelligence/IntelligenceOrchestrator";
+import type { CompletePlayerAnalysis, GameEvent } from "../Intelligence/IntelligenceOrchestrator";
+import { getActionTracker } from "../Intelligence/Core/PlayerActionTracker";
+import { getActionLogger } from "../Intelligence/DataCollection/ActionLogger";
+import { getNPCIntelligenceConnector, registerNPCsWithAI, handleSmartNPCInteraction } from "../Intelligence/NPCSystem/NPCIntelligenceConnector";
+import type { SmartNPCResponse } from "../Intelligence/NPCSystem/NPCIntelligenceConnector";
+import { ActionType } from "../Intelligence/Core/ActionTypes";
 import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
 import { InteractionManager } from "../managers/InteractionManager";
 import { 
