@@ -2530,6 +2530,17 @@ async onLeave(client: Client, consented: boolean) {
       console.log(`🧹 ObjectInteractionHandlers nettoyés`);
     }
     console.log(`✅ WorldRoom fermée`);
+        // ✅ NOUVEAU: Nettoyer le système d'IA
+    if (this.aiSystemInitialized) {
+      try {
+        // Pas de méthodes de nettoyage spécifiques nécessaires pour l'instant
+        // Les singletons se nettoient automatiquement
+        this.aiSystemInitialized = false;
+        console.log(`🧹 [AI] Système d'IA marqué comme non initialisé`);
+      } catch (error) {
+        console.error(`❌ [AI] Erreur nettoyage système IA:`, error);
+      }
+    }
   }
 
   // ✅ MÉTHODE DE MOUVEMENT AVEC MovementBlockManager
