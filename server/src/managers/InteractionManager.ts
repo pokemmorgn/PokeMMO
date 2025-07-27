@@ -1,5 +1,5 @@
-// server/src/managers/InteractionManager.ts - VERSION MODULAIRE CORRIGÉE
-// ✅ Interface Unifiée : Champs correctement copiés depuis result vers npcResult
+// server/src/managers/InteractionManager.ts - VERSION MODULAIRE CORRIGÉE AVEC IA
+// ✅ Interface Unifiée : Support userId/sessionId et champs IA complets
 
 import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager";
@@ -14,10 +14,12 @@ import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModu
 import { 
   InteractionRequest,
   InteractionResult,
-  InteractionContext
+  InteractionContext,
+  EnhancedProcessInteractionOptions,
+  createEnhancedOptions
 } from "../interactions/types/BaseInteractionTypes";
 
-// ✅ INTERFACE CORRIGÉE POUR COMPATIBILITÉ avec Interface Unifiée
+// ✅ INTERFACE CORRIGÉE ET ÉTENDUE POUR L'IA
 export interface NpcInteractionResult {
   type: string;
   message?: string;
@@ -35,7 +37,7 @@ export interface NpcInteractionResult {
   starterEligible?: boolean;
   starterReason?: string;
 
-  // ✅ NOUVEAUX CHAMPS : Interface Unifiée (ajoutés)
+  // Champs Interface Unifiée existants
   isUnifiedInterface?: boolean;
   capabilities?: string[];
   contextualData?: {
@@ -60,6 +62,27 @@ export interface NpcInteractionResult {
     canWatch: boolean;
     reason?: string;
   };
+
+  // ✅ NOUVEAUX CHAMPS IA COMPLETS
+  isIntelligentResponse?: boolean;
+  intelligenceUsed?: boolean;
+  aiAnalysisConfidence?: number;
+  personalizedLevel?: number;
+  relationshipLevel?: number;
+  proactiveHelp?: string[];
+  followUpQuestions?: string[];
+  tracking?: {
+    actionTracked: boolean;
+    analysisTriggered: boolean;
+    dataCollected: any;
+  };
+  
+  // ✅ MÉTADONNÉES DE SESSION
+  userId?: string;
+  sessionId?: string;
+  aiSystemEnabled?: boolean;
+  processingTime?: number;
+  moduleUsed?: string;
 }
 
 export class InteractionManager {
@@ -82,7 +105,7 @@ export class InteractionManager {
     starterHandlers: StarterHandlers,
     spectatorManager: SpectatorManager
   ) {
-    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire`);
+    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire et IA`);
     
     // ✅ CONSERVATION DES DÉPENDANCES EXISTANTES
     this.getNpcManager = getNpcManager;
@@ -97,9 +120,9 @@ export class InteractionManager {
 
   private async initializeModularSystem(): Promise<void> {
     try {
-      console.log(`🚀 [InteractionManager] Configuration système modulaire...`);
+      console.log(`🚀 [InteractionManager] Configuration système modulaire avec IA...`);
 
-      // 1. Créer BaseInteractionManager avec configuration
+      // 1. Créer BaseInteractionManager avec configuration IA
       this.baseInteractionManager = new BaseInteractionManager({
         maxDistance: 64,
         cooldowns: {
@@ -110,10 +133,18 @@ export class InteractionManager {
           puzzle: 0
         },
         debug: process.env.NODE_ENV === 'development',
-        logLevel: 'info'
+        logLevel: 'info',
+        // ✅ CONFIGURATION IA ACTIVÉE
+        ai: {
+          enabled: true,
+          enabledTypes: ['npc', 'object'],
+          fallbackToBasic: true,
+          trackingEnabled: true,
+          analysisTimeout: 5000
+        }
       });
 
-      // 2. Créer et enregistrer le module NPC
+      // 2. Créer et enregistrer le module NPC avec support IA
       this.npcModule = new NpcInteractionModule(
         this.getNpcManager,
         this.questManager,
@@ -124,182 +155,191 @@ export class InteractionManager {
 
       this.baseInteractionManager.registerModule(this.npcModule);
 
-      // 3. Initialiser le système
+      // 3. Initialiser le système complet (modules + IA)
       await this.baseInteractionManager.initialize();
 
       this.isInitialized = true;
-      console.log(`✅ [InteractionManager] Système modulaire initialisé avec succès`);
+      console.log(`✅ [InteractionManager] Système modulaire + IA initialisé avec succès`);
       console.log(`📦 [InteractionManager] Modules enregistrés: ${this.baseInteractionManager.listModules().join(', ')}`);
 
     } catch (error) {
       console.error(`❌ [InteractionManager] Erreur initialisation modulaire:`, error);
       this.isInitialized = false;
-      
-      // En cas d'erreur, on pourrait fallback sur l'ancien système
-      // Mais pour l'instant on log juste l'erreur
     }
   }
 
-  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - Copie correcte des champs Interface Unifiée
-async handleNpcInteraction(
-  player: Player, 
-  npcId: number,
-  options?: { userId?: string; sessionId?: string }  // ✅ NOUVEAU : support userId/sessionId
-): Promise<NpcInteractionResult> {
-  console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
-  console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
-  console.log(`🆔 UserId: ${options?.userId || 'N/A'}, SessionId: ${options?.sessionId || 'N/A'}`);
+  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - Support complet userId/sessionId + IA
+  async handleNpcInteraction(
+    player: Player, 
+    npcId: number,
+    options?: { userId?: string; sessionId?: string }  // ✅ NOUVEAU : support userId/sessionId
+  ): Promise<NpcInteractionResult> {
+    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} AVEC IA ===`);
+    console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
+    console.log(`🆔 UserId: ${options?.userId || 'N/A'}, SessionId: ${options?.sessionId || 'N/A'}`);
 
-  // Vérification que le système modulaire est prêt
-  if (!this.isInitialized) {
-    console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
-    await this.initializeModularSystem();
-    
+    // Vérification que le système modulaire est prêt
     if (!this.isInitialized) {
-      return { 
-        type: "error", 
-        message: "Système d'interaction temporairement indisponible.",
-        // ✅ NOUVEAU : Champs requis pour NpcInteractionResult
-        npcId: npcId,
-        npcName: `NPC #${npcId}`,
-        isUnifiedInterface: false,
-        capabilities: [],
-        contextualData: {
+      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
+      await this.initializeModularSystem();
+      
+      if (!this.isInitialized) {
+        return this.createErrorNpcResult(npcId, "Système d'interaction temporairement indisponible.", options);
+      }
+    }
+
+    try {
+      // ✅ CONSTRUIRE LA REQUÊTE ENRICHIE pour le nouveau système
+      const request: InteractionRequest = {
+        type: 'npc',
+        targetId: npcId,
+        position: {
+          x: player.x,
+          y: player.y,
+          mapId: player.currentZone
+        },
+        data: {
+          npcId: npcId,
+          // ✅ NOUVEAU : userId/sessionId dans les données de la requête
+          userId: options?.userId,
+          sessionId: options?.sessionId
+        },
+        timestamp: Date.now()
+      };
+
+      // ✅ NOUVEAU : Créer options enrichies pour le système IA
+      const enhancedOptions = createEnhancedOptions(
+        options?.userId,
+        options?.sessionId,
+        'interaction_manager'
+      );
+
+      console.log(`🔗 [InteractionManager] Passage userId ${options?.userId} au système modulaire avec IA`);
+
+      // ✅ TRAITER VIA LE NOUVEAU SYSTÈME avec métadonnées enrichies
+      const result = await this.baseInteractionManager.processInteraction(
+        player, 
+        request,
+        enhancedOptions  // ✅ NOUVEAU : Passer les métadonnées enrichies
+      );
+
+      // ✅ CASTING SÉCURISÉ vers le type NPC du module avec support IA
+      const npcModuleResult = result as any;
+      const resultData = result.data as any;
+
+      // ✅ DEBUG AVANT CONVERSION AVEC DONNÉES IA
+      console.log(`🔧 [InteractionManager] Résultat brut du module avec IA:`, {
+        type: result.type,
+        npcId: npcModuleResult.npcId,
+        npcName: npcModuleResult.npcName,
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+        capabilities: npcModuleResult.capabilities?.length || 0,
+        // ✅ NOUVEAUX LOGS IA
+        isIntelligentResponse: npcModuleResult.isIntelligentResponse,
+        intelligenceUsed: npcModuleResult.intelligenceUsed,
+        aiAnalysisConfidence: npcModuleResult.aiAnalysisConfidence,
+        userId: options?.userId,
+        sessionId: options?.sessionId
+      });
+
+      // ✅ CONVERSION CORRIGÉE AVEC TOUS LES CHAMPS IA
+      const npcResult: NpcInteractionResult = {
+        type: result.type,
+        message: result.message,
+        
+        // Champs NPC de base (avec casting corrigé)
+        npcId: npcModuleResult.npcId ?? resultData?.npcId ?? npcId,
+        npcName: npcModuleResult.npcName ?? resultData?.npcName ?? `NPC #${npcId}`,
+        
+        // ✅ CHAMPS INTERFACE UNIFIÉE (depuis casting) avec fallbacks
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface ?? false,
+        capabilities: npcModuleResult.capabilities ?? ['dialogue'],
+        contextualData: npcModuleResult.contextualData ?? {
           hasShop: false,
           hasQuests: false,
           hasHealing: false,
           defaultAction: 'dialogue',
           quickActions: []
-        }
+        },
+        unifiedInterface: npcModuleResult.unifiedInterface,
+        unifiedMode: npcModuleResult.unifiedMode,
+        
+        // Données spécifiques NPCs (depuis casting avec fallback)
+        shopId: npcModuleResult.shopId ?? resultData?.shopId,
+        shopData: npcModuleResult.shopData ?? resultData?.shopData,
+        lines: npcModuleResult.lines ?? resultData?.lines,
+        availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
+        questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
+        questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
+        questId: npcModuleResult.questId ?? resultData?.questId,
+        questName: npcModuleResult.questName ?? resultData?.questName,
+        starterData: npcModuleResult.starterData ?? resultData?.starterData,
+        starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
+        starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
+        battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate,
+        
+        // ✅ NOUVEAUX CHAMPS IA COMPLETS
+        isIntelligentResponse: npcModuleResult.isIntelligentResponse ?? false,
+        intelligenceUsed: npcModuleResult.intelligenceUsed ?? false,
+        aiAnalysisConfidence: npcModuleResult.aiAnalysisConfidence,
+        personalizedLevel: npcModuleResult.personalizedLevel,
+        relationshipLevel: npcModuleResult.relationshipLevel,
+        proactiveHelp: npcModuleResult.proactiveHelp,
+        followUpQuestions: npcModuleResult.followUpQuestions,
+        tracking: npcModuleResult.tracking ?? {
+          actionTracked: false,
+          analysisTriggered: false,
+          dataCollected: null
+        },
+        
+        // ✅ MÉTADONNÉES DE SESSION
+        userId: options?.userId,
+        sessionId: options?.sessionId,
+        aiSystemEnabled: true,
+        processingTime: result.processingTime,
+        moduleUsed: result.moduleUsed
       };
+
+      // ✅ DEBUG APRÈS CONVERSION AVEC DONNÉES IA
+      console.log(`🔧 [InteractionManager] Résultat final pour envoi avec IA:`, {
+        type: npcResult.type,
+        npcId: npcResult.npcId,
+        npcName: npcResult.npcName,
+        isUnifiedInterface: npcResult.isUnifiedInterface,
+        isIntelligentResponse: npcResult.isIntelligentResponse,
+        intelligenceUsed: npcResult.intelligenceUsed,
+        aiAnalysisConfidence: npcResult.aiAnalysisConfidence,
+        userId: npcResult.userId,
+        sessionId: npcResult.sessionId,
+        processingTime: npcResult.processingTime
+      });
+
+      console.log(`✅ [InteractionManager] Interaction IA traitée pour userId ${options?.userId}`);
+      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
+      console.log(`🤖 [InteractionManager] IA utilisée: ${npcResult.intelligenceUsed}, Confiance: ${npcResult.aiAnalysisConfidence}`);
+
+      return npcResult;
+
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur système modulaire avec IA:`, error);
+      
+      // Retour d'erreur au format existant avec champs IA
+      return this.createErrorNpcResult(npcId, 
+        error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction",
+        options
+      );
     }
   }
 
-  try {
-    // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME avec userId/sessionId
-    const request: InteractionRequest = {
-      type: 'npc',
-      targetId: npcId,
-      position: {
-        x: player.x,
-        y: player.y,
-        mapId: player.currentZone
-      },
-      data: {
-        npcId: npcId,
-        // ✅ NOUVEAU : Ajouter userId/sessionId dans les données de la requête
-        userId: options?.userId,
-        sessionId: options?.sessionId
-      },
-      timestamp: Date.now()
-    };
-
-    // ✅ NOUVEAU : Créer un contexte enrichi avec userId/sessionId pour le module
-    const contextMetadata = {
-      userId: options?.userId,
-      sessionId: options?.sessionId,
-      source: 'interaction_manager',
-      timestamp: Date.now()
-    };
-
-    console.log(`🔗 [InteractionManager] Passage userId ${options?.userId} au système modulaire`);
-
-    // ✅ TRAITER VIA LE NOUVEAU SYSTÈME avec métadonnées enrichies
-    const result = await this.baseInteractionManager.processInteraction(
-      player, 
-      request,
-      contextMetadata  // ✅ NOUVEAU : Passer les métadonnées (userId, sessionId)
-    );
-
-    // ✅ CASTING SÉCURISÉ vers le type NPC du module
-    const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
-    const resultData = result.data as any; // Casting pour result.data aussi
-
-    // ✅ DEBUG AVANT CONVERSION
-    console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
-      type: result.type,
-      npcId: npcModuleResult.npcId,
-      npcIdType: typeof npcModuleResult.npcId,
-      npcName: npcModuleResult.npcName,
-      isUnifiedInterface: npcModuleResult.isUnifiedInterface,
-      capabilities: npcModuleResult.capabilities?.length || 0,
-      contextualData: !!npcModuleResult.contextualData,
-      userId: options?.userId
-    });
-
-    // ✅ CONVERSION CORRIGÉE - Utiliser le casting pour accéder aux propriétés étendues
-    const npcResult: NpcInteractionResult = {
-      type: result.type,
-      message: result.message,
-      
-      // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
-      npcId: npcModuleResult.npcId ?? resultData?.npcId ?? npcId,
-      npcName: npcModuleResult.npcName ?? resultData?.npcName ?? `NPC #${npcId}`,
-      
-      // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting) avec fallbacks
-      isUnifiedInterface: npcModuleResult.isUnifiedInterface ?? false,
-      capabilities: npcModuleResult.capabilities ?? ['dialogue'],
-      contextualData: npcModuleResult.contextualData ?? {
-        hasShop: false,
-        hasQuests: false,
-        hasHealing: false,
-        defaultAction: 'dialogue',
-        quickActions: []
-      },
-      unifiedInterface: npcModuleResult.unifiedInterface,
-      unifiedMode: npcModuleResult.unifiedMode,
-      
-      // Données spécifiques NPCs (depuis casting avec fallback)
-      shopId: npcModuleResult.shopId ?? resultData?.shopId,
-      shopData: npcModuleResult.shopData ?? resultData?.shopData,
-      lines: npcModuleResult.lines ?? resultData?.lines,
-      availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
-      questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
-      questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
-      questId: npcModuleResult.questId ?? resultData?.questId,
-      questName: npcModuleResult.questName ?? resultData?.questName,
-      starterData: npcModuleResult.starterData ?? resultData?.starterData,
-      starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
-      starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
-      battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate,
-      
-      // ✅ NOUVEAU : Données IA si présentes
-      isIntelligentResponse: npcModuleResult.isIntelligentResponse,
-      intelligenceUsed: npcModuleResult.intelligenceUsed,
-      aiAnalysisConfidence: npcModuleResult.aiAnalysisConfidence,
-      personalizedLevel: npcModuleResult.personalizedLevel,
-      relationshipLevel: npcModuleResult.relationshipLevel,
-      proactiveHelp: npcModuleResult.proactiveHelp,
-      followUpQuestions: npcModuleResult.followUpQuestions,
-      tracking: npcModuleResult.tracking
-    };
-
-    // ✅ DEBUG APRÈS CONVERSION
-    console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
-      type: npcResult.type,
-      npcId: npcResult.npcId,
-      npcName: npcResult.npcName,
-      isUnifiedInterface: npcResult.isUnifiedInterface,
-      capabilities: npcResult.capabilities?.length || 0,
-      contextualData: !!npcResult.contextualData,
-      intelligenceUsed: npcResult.intelligenceUsed,
-      userId: options?.userId
-    });
-
-    console.log(`✅ [InteractionManager] Interaction traitée via système modulaire avec userId ${options?.userId}`);
-    console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
-    console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
-
-    return npcResult;
-
-  } catch (error) {
-    console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
-    
-    // Retour d'erreur au format existant avec champs requis
+  // ✅ NOUVELLE MÉTHODE : Créer un résultat d'erreur enrichi
+  private createErrorNpcResult(
+    npcId: number, 
+    message: string, 
+    options?: { userId?: string; sessionId?: string }
+  ): NpcInteractionResult {
     return {
       type: "error",
-      message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction",
-      // ✅ NOUVEAU : Champs requis même en cas d'erreur
+      message: message,
       npcId: npcId,
       npcName: `NPC #${npcId}`,
       isUnifiedInterface: false,
@@ -310,10 +350,23 @@ async handleNpcInteraction(
         hasHealing: false,
         defaultAction: 'dialogue',
         quickActions: []
-      }
+      },
+      // ✅ CHAMPS IA POUR ERREURS
+      isIntelligentResponse: false,
+      intelligenceUsed: false,
+      aiAnalysisConfidence: 0,
+      tracking: {
+        actionTracked: false,
+        analysisTriggered: false,
+        dataCollected: { error: message }
+      },
+      // ✅ MÉTADONNÉES DE SESSION
+      userId: options?.userId,
+      sessionId: options?.sessionId,
+      aiSystemEnabled: false,
+      processingTime: 0
     };
   }
-}
 
   // ✅ MÉTHODES EXISTANTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
 
@@ -330,7 +383,7 @@ async handleNpcInteraction(
     itemsChanged?: any[];
     shopStockChanged?: any[];
   }> {
-    console.log(`💰 [InteractionManager] Transaction shop via module`);
+    console.log(`💰 [InteractionManager] Transaction shop via module avec IA`);
     
     if (!this.isInitialized || !this.npcModule) {
       return {
@@ -347,13 +400,10 @@ async handleNpcInteraction(
     targetPlayerId: string,
     targetPlayerPosition: { x: number; y: number; mapId: string }
   ): Promise<NpcInteractionResult> {
-    console.log(`👁️ [InteractionManager] Interaction joueur via module`);
+    console.log(`👁️ [InteractionManager] Interaction joueur via module avec IA`);
     
     if (!this.isInitialized || !this.npcModule) {
-      return {
-        type: "error",
-        message: "Système d'interaction temporairement indisponible"
-      };
+      return this.createErrorNpcResult(0, "Système d'interaction temporairement indisponible");
     }
 
     return this.npcModule.handlePlayerInteraction(spectatorPlayer, targetPlayerId, targetPlayerPosition);
@@ -395,7 +445,7 @@ async handleNpcInteraction(
   // ✅ MÉTHODES QUÊTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
 
   async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-    console.log(`🎯 [InteractionManager] Démarrage quête via module`);
+    console.log(`🎯 [InteractionManager] Démarrage quête via module avec IA`);
     
     if (!this.isInitialized || !this.npcModule) {
       return {
@@ -552,10 +602,10 @@ async handleNpcInteraction(
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING
+  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING AVEC IA
 
   /**
-   * Obtenir les statistiques du système modulaire
+   * Obtenir les statistiques du système modulaire + IA
    */
   getModularSystemStats(): any {
     if (!this.isInitialized || !this.baseInteractionManager) {
@@ -572,7 +622,39 @@ async handleNpcInteraction(
       initialized: true,
       stats: stats,
       config: config,
-      modules: this.baseInteractionManager.listModules()
+      modules: this.baseInteractionManager.listModules(),
+      // ✅ NOUVEAUX STATS IA
+      aiSystem: stats.aiSystem || {
+        initialized: false,
+        enabled: false,
+        autoRegistrationCompleted: false
+      }
+    };
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Obtenir les statistiques IA spécifiques
+   */
+  getAISystemStats(): any {
+    if (!this.isInitialized || !this.baseInteractionManager) {
+      return {
+        aiAvailable: false,
+        error: "Système modulaire non initialisé"
+      };
+    }
+
+    const intelligenceConnector = this.baseInteractionManager.getIntelligenceConnector();
+    if (!intelligenceConnector) {
+      return {
+        aiAvailable: false,
+        error: "Système d'IA non disponible"
+      };
+    }
+
+    return {
+      aiAvailable: true,
+      stats: intelligenceConnector.getStats(),
+      systemHealth: this.baseInteractionManager.getSystemHealth()
     };
   }
 
@@ -581,7 +663,7 @@ async handleNpcInteraction(
    */
   async reinitializeModularSystem(): Promise<boolean> {
     try {
-      console.log(`🔄 [InteractionManager] Réinitialisation système modulaire...`);
+      console.log(`🔄 [InteractionManager] Réinitialisation système modulaire avec IA...`);
       
       if (this.baseInteractionManager) {
         await this.baseInteractionManager.cleanup();
@@ -607,9 +689,31 @@ async handleNpcInteraction(
     }
   }
 
+  /**
+   * ✅ NOUVELLE MÉTHODE : Configurer les paramètres IA
+   */
+  updateAIConfiguration(aiConfig: {
+    enabled?: boolean;
+    enabledTypes?: string[];
+    fallbackToBasic?: boolean;
+    trackingEnabled?: boolean;
+    analysisTimeout?: number;
+  }): void {
+    if (this.baseInteractionManager) {
+      const currentConfig = this.baseInteractionManager.getConfig();
+      this.baseInteractionManager.updateConfig({
+        ai: {
+          ...currentConfig.ai,
+          ...aiConfig
+        }
+      });
+      console.log(`🤖 [InteractionManager] Configuration IA mise à jour:`, aiConfig);
+    }
+  }
+
   // ✅ NETTOYAGE LORS DE LA DESTRUCTION
   async cleanup(): Promise<void> {
-    console.log(`🧹 [InteractionManager] Nettoyage du système modulaire...`);
+    console.log(`🧹 [InteractionManager] Nettoyage du système modulaire avec IA...`);
     
     if (this.baseInteractionManager) {
       await this.baseInteractionManager.cleanup();
