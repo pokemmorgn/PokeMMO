@@ -738,8 +738,7 @@ this.onMessage("battleFinished", async (client, data) => {
   const { userId } = sessionValidation;
   console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
 
-    // ✅ TRACKING IA: Fin de combat
-  const player = this.state.players.get(client.sessionId);
+  // ✅ TRACKING IA: Fin de combat
   if (player) {
     this.trackPlayerActionWithAI(
       client.sessionId,
