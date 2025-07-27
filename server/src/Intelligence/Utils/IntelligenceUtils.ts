@@ -11,7 +11,8 @@
  * - Constantes et configurations partagées
  */
 
-import type { PlayerAction, ActionType, ActionCategory } from '../Core/ActionTypes';
+import type { PlayerAction, ActionType } from '../Core/ActionTypes';
+import { ActionCategory } from '../Core/ActionTypes';
 import type { DetectedPattern } from '../Analysis/SimplePatternMatcher';
 import type { BehaviorProfile } from '../Analysis/PlayerBehaviorAnalyzer';
 import type { NPCReaction } from '../NPCSystem/NPCReactionSystem';
