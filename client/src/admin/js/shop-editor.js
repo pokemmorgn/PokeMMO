@@ -994,25 +994,74 @@ renderDialoguesSection() {
     }
 
     collectFormData() {
-        const data = {
-            shopId: document.getElementById('shopsShopId')?.value || '',
-            name: document.getElementById('shopsShopName')?.value || '',
-            type: document.getElementById('shopsShopType')?.value || 'pokemart',
-            location: {
-                zone: document.getElementById('shopsShopZone')?.value || '',
-                city: document.getElementById('shopsShopCity')?.value || '',
-                building: document.getElementById('shopsShopBuilding')?.value || ''
-            },
-            currency: document.getElementById('shopsShopCurrency')?.value || 'gold',
-            buyMultiplier: parseFloat(document.getElementById('shopsShopBuyMultiplier')?.value) || 1.0,
-            sellMultiplier: parseFloat(document.getElementById('shopsShopSellMultiplier')?.value) || 0.5,
-            isActive: document.getElementById('shopsShopIsActive')?.checked !== false,
-            isTemporary: document.getElementById('shopsShopIsTemporary')?.checked || false,
-            items: this.currentShop?.items || []
-        };
+    const data = {
+        shopId: document.getElementById('shopsShopId')?.value || '',
+        nameKey: document.getElementById('shopsShopNameKey')?.value || '',
+        type: document.getElementById('shopsShopType')?.value || 'pokemart',
+        region: document.getElementById('shopsShopRegion')?.value || '',
+        location: {
+            zone: document.getElementById('shopsShopZone')?.value || '',
+            cityKey: document.getElementById('shopsShopCityKey')?.value || '',
+            buildingKey: document.getElementById('shopsShopBuildingKey')?.value || ''
+        },
+        currency: document.getElementById('shopsShopCurrency')?.value || 'gold',
+        buyMultiplier: parseFloat(document.getElementById('shopsShopBuyMultiplier')?.value) || 1.0,
+        sellMultiplier: parseFloat(document.getElementById('shopsShopSellMultiplier')?.value) || 0.5,
+        taxRate: parseFloat(document.getElementById('shopsShopTaxRate')?.value) || 0,
+        version: document.getElementById('shopsShopVersion')?.value || '1.0.0',
+        isActive: document.getElementById('shopsShopIsActive')?.checked !== false,
+        isTemporary: document.getElementById('shopsShopIsTemporary')?.checked || false,
         
-        return data;
-    }
+        // Système de stock
+        restockInfo: {
+            autoRestock: document.getElementById('shopsStockAutoRestock')?.checked !== false,
+            interval: parseInt(document.getElementById('shopsStockInterval')?.value) || 60,
+            stockVariation: parseInt(document.getElementById('shopsStockVariation')?.value) || 10,
+            lastRestock: document.getElementById('shopsStockLastRestock')?.value ? 
+                new Date(document.getElementById('shopsStockLastRestock').value) : new Date()
+        },
+        
+        // Conditions d'accès
+        accessRequirements: {
+            minLevel: document.getElementById('shopsAccessMinLevel')?.value ? 
+                parseInt(document.getElementById('shopsAccessMinLevel').value) : null,
+            requiredBadges: this.parseCommaSeparatedString(document.getElementById('shopsAccessRequiredBadges')?.value),
+            requiredQuests: this.parseCommaSeparatedString(document.getElementById('shopsAccessRequiredQuests')?.value),
+            membershipRequired: document.getElementById('shopsAccessMembershipRequired')?.value || '',
+            timeRestrictions: {
+                openHour: document.getElementById('shopsTimeOpenHour')?.value ? 
+                    parseInt(document.getElementById('shopsTimeOpenHour').value) : null,
+                closeHour: document.getElementById('shopsTimeCloseHour')?.value ? 
+                    parseInt(document.getElementById('shopsTimeCloseHour').value) : null,
+                closedDays: this.parseCommaSeparatedNumbers(document.getElementById('shopsTimeClosedDays')?.value)
+            }
+        },
+        
+        // Marchand
+        shopKeeper: {
+            npcId: document.getElementById('shopsKeeperNpcId')?.value ? 
+                parseInt(document.getElementById('shopsKeeperNpcId').value) : null,
+            nameKey: document.getElementById('shopsKeeperNameKey')?.value || '',
+            personalityKey: document.getElementById('shopsKeeperPersonality')?.value || 'friendly',
+            specializationKey: document.getElementById('shopsKeeperSpecialization')?.value || ''
+        },
+        
+        // Dialogues
+        dialogues: {
+            welcomeKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesWelcome')?.value),
+            purchaseKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesPurchase')?.value),
+            saleKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesSale')?.value),
+            notEnoughMoneyKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesNoMoney')?.value),
+            comeBackLaterKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesGoodbye')?.value),
+            closedKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesClosed')?.value),
+            restrictedKeys: this.parseTextareaLines(document.getElementById('shopsDialoguesRestricted')?.value)
+        },
+        
+        items: this.currentShop?.items || []
+    };
+    
+    return data;
+}
 
     validateShopData(data) {
         const errors = [];
