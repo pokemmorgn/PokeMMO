@@ -2335,6 +2335,23 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
 
     // Étape 1: Ajouter au state immédiatement
     this.state.players.set(client.sessionId, player);
+    // ✅ AJOUT : Enregistrer le joueur dans le système de tracking IA
+    if (this.aiSystemInitialized) {
+      try {
+        this.actionTracker.registerPlayer(
+          client.sessionId,
+          player.name,
+          `session_${Date.now()}`,
+          { map: player.currentZone, x: player.x, y: player.y },
+          player.level
+        );
+        console.log(`📝 [AI] Joueur ${player.name} enregistré dans ActionTracker`);
+      } catch (error) {
+        console.error(`❌ [AI] Erreur enregistrement joueur:`, error);
+      }
+    } else {
+      console.warn(`⚠️ [AI] Système IA pas encore initialisé, enregistrement différé`);
+    }
     console.log("🧪 onJoin - client.sessionId =", client.sessionId);
     console.log(`✅ Joueur ${player.name} ajouté au state`);
     console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
