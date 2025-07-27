@@ -4946,6 +4946,10 @@ router.post('/shops', requireMacAndDev, async (req: any, res) => {
  * PUT /api/admin/shops/:shopId
  * Mettre à jour une boutique existante
  */
+/**
+ * PUT /api/admin/shops/:shopId
+ * Mettre à jour une boutique existante - VERSION CORRIGÉE
+ */
 router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
     try {
         const { shopId } = req.params;
@@ -4962,14 +4966,17 @@ router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
             });
         }
         
+        // ✅ CORRECTION: Gestion sécurisée de la location
+        const currentLocation = existingShop.location || {};
+        
         // Mettre à jour les champs
         Object.assign(existingShop, {
             nameKey: shopData.name ? `shop.name.${shopId}` : existingShop.nameKey,
             type: shopData.type || existingShop.type,
             location: {
-                zone: shopData.location?.zone || existingShop.location.zone,
-                cityKey: shopData.location?.city ? `location.city.${shopData.location.city}` : existingShop.location.cityKey,
-                buildingKey: shopData.location?.building ? `location.building.${shopData.location.building}` : existingShop.location.buildingKey
+                zone: shopData.location?.zone || currentLocation.zone || '',
+                cityKey: shopData.location?.city ? `location.city.${shopData.location.city}` : currentLocation.cityKey,
+                buildingKey: shopData.location?.building ? `location.building.${shopData.location.building}` : currentLocation.buildingKey
             },
             currency: shopData.currency || existingShop.currency,
             buyMultiplier: shopData.buyMultiplier ?? existingShop.buyMultiplier,
@@ -4994,7 +5001,11 @@ router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
                 type: existingShop.type,
                 location: existingShop.location,
                 currency: existingShop.currency,
-                isActive: existingShop.isActive
+                buyMultiplier: existingShop.buyMultiplier,
+                sellMultiplier: existingShop.sellMultiplier,
+                items: existingShop.items,
+                isActive: existingShop.isActive,
+                isTemporary: existingShop.isTemporary
             },
             updatedBy: req.user.username
         });
@@ -5003,7 +5014,8 @@ router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
         console.error('❌ [Admin] Error updating shop:', error);
         res.status(500).json({
             success: false,
-            error: 'Erreur lors de la mise à jour de la boutique'
+            error: 'Erreur lors de la mise à jour de la boutique',
+            details: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 });
