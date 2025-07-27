@@ -390,7 +390,17 @@ export class WorldRoom extends Room<PokeWorldState> {
       zones: stats.zones,
       hotReload: stats.hotReload
     });
-    
+        // ✅ NOUVEAU: Enregistrer les NPCs dans l'IA maintenant qu'ils sont chargés
+    if (this.aiSystemInitialized) {
+      console.log(`🤖 [AI] NPCs chargés, enregistrement dans l'IA...`);
+      this.registerNPCsWithAI().then(() => {
+        console.log(`✅ [AI] NPCs enregistrés avec succès dans l'IA !`);
+      }).catch((error) => {
+        console.error(`❌ [AI] Erreur enregistrement NPCs:`, error);
+      });
+    } else {
+      console.log(`⏳ [AI] Système IA pas encore prêt, enregistrement NPCs différé`);
+    }
     // Debug système pour validation
     globalNpcManager.debugSystem();
     
@@ -474,7 +484,7 @@ private async initializeAISystem(): Promise<void> {
     console.log(`✅ [AI] NPCIntelligenceConnector configuré`);
     
     // Étape 3: Enregistrer les NPCs existants (en arrière-plan)
-    this.registerNPCsWithAI();
+    // this.registerNPCsWithAI();
     
     this.aiSystemInitialized = true;
     console.log(`🎉 [AI] Système d'IA complètement initialisé !`);
