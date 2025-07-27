@@ -1,5 +1,6 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString - ÉTAPE 1
+// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString - ÉTAPE 2
+// ✅ ÉTAPE 2 : Remplacement dialogues par DialogString
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -113,7 +114,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "4.2.0"; // ✅ Version avec DialogString intégré
+  readonly version = "4.2.1"; // ✅ Version avec DialogString ÉTAPE 2
 
   // === DÉPENDANCES EXISTANTES ===
   private getNpcManager: (zoneName: string) => any;
@@ -167,13 +168,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Initialisation handlers existants
     this.initializeHandlers();
 
-    this.log('info', '🤖 Module NPC v4.2 avec DialogString intégré', {
+    this.log('info', '🤖 Module NPC v4.2.1 avec DialogString ÉTAPE 2', {
       version: this.version,
       intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
       enabledTypes: this.intelligenceConfig.enabledNPCTypes,
       handlersLoaded: ['merchant', 'unifiedInterface', 'intelligence', 'dialogString'],
       questIntegration: 'Phase 3 - Triggers automatiques + IA',
-      dialogService: 'Intégré et prêt'
+      dialogService: 'Intégré et prêt - ÉTAPE 2'
     });
 
     // ✅ ENREGISTREMENT DIFFÉRÉ DES NPCs DANS L'IA
@@ -672,7 +673,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const completionDialogue = this.getQuestDialogue(questDefinition, 'questComplete');
+      const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player);
       
       // Compléter automatiquement toutes les quêtes prêtes
       const completionResults = [];
@@ -731,7 +732,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       this.log('info', `${availableQuests.length} quêtes disponibles`);
       
       const firstQuest = availableQuests[0];
-      const questOfferDialogue = this.getQuestDialogue(firstQuest, 'questOffer');
+      const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player);
       
       const serializedQuests = availableQuests.map(quest => ({
         id: quest.id,
@@ -779,7 +780,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-      const progressDialogue = this.getQuestDialogue(questDefinition, 'questInProgress');
+      const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player);
       
       return {
         success: true,
@@ -805,6 +806,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
     if (npc.properties?.shop || npc.shopId) {
       const shopId = npc.shopId || npc.properties.shop;
+      
+      // ✅ ÉTAPE 2 : REMPLACER DIALOGUE SHOP PAR DIALOGSTRING
+      const shopGreeting = await this.getShopGreeting(player, npc);
+      
       return { 
         success: true,
         type: "shop", 
@@ -820,13 +825,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
           hasHealing: false,
           defaultAction: 'merchant',
           quickActions: []
-        }
+        },
+        lines: [shopGreeting], // ✅ NOUVEAU : Dialogue personnalisé
+        message: shopGreeting   // ✅ NOUVEAU : Dialogue personnalisé
       };
     } else if (npc.properties?.healer || npc.type === 'healer') {
+      
+      // ✅ ÉTAPE 2 : REMPLACER DIALOGUE HEALER PAR DIALOGSTRING
+      const healerGreeting = await this.getHealerGreeting(player, npc);
+      
       return { 
         success: true,
         type: "heal", 
-        message: "Vos Pokémon sont soignés !",
+        message: healerGreeting,
         questProgress: questProgress,
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
@@ -838,10 +849,11 @@ export class NpcInteractionModule extends BaseInteractionModule {
           hasHealing: true,
           defaultAction: 'healer',
           quickActions: []
-        }
+        },
+        lines: [healerGreeting] // ✅ NOUVEAU : Dialogue personnalisé
       };
     } else if (npc.properties?.dialogue || npc.dialogueIds) {
-      const lines = this.getDialogueLines(npc);
+      const lines = await this.getDialogueLines(npc, player);
       return { 
         success: true,
         type: "dialogue", 
@@ -860,7 +872,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
         }
       };
     } else {
-      const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
+      const defaultDialogue = await this.getDefaultDialogueForNpc(npc, player);
       return { 
         success: true,
         type: "dialogue", 
@@ -879,6 +891,107 @@ export class NpcInteractionModule extends BaseInteractionModule {
         }
       };
     }
+  }
+
+  // === ✅ ÉTAPE 2 : NOUVELLES MÉTHODES DIALOGSTRING ===
+
+  /**
+   * ✅ ÉTAPE 2 : Obtenir dialogue de boutique via DialogString
+   */
+  private async getShopGreeting(player: Player, npc: any): Promise<string> {
+    try {
+      const npcId = this.extractNpcIdentifier(npc);
+      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      
+      // Essayer un dialogue spécifique au NPC d'abord
+      let greeting = await this.dialogService.getText(
+        `${npcId}.shop.greeting`,
+        'fr', // TODO: Récupérer langue du joueur
+        dialogVars
+      );
+      
+      // Si pas trouvé, utiliser un dialogue générique
+      if (greeting.includes('[MISSING:')) {
+        greeting = await this.dialogService.getText(
+          'generic.shop.welcome',
+          'fr',
+          dialogVars
+        );
+      }
+      
+      // Si toujours pas trouvé, fallback
+      if (greeting.includes('[MISSING:')) {
+        greeting = `Bienvenue dans ma boutique, %s ! Que puis-je vous vendre ?`;
+        greeting = greeting.replace('%s', player.name);
+      }
+      
+      this.log('info', `🛒 [DialogString] Dialogue shop récupéré pour ${npcId}`, {
+        dialogId: `${npcId}.shop.greeting`,
+        playerName: player.name,
+        result: greeting.substring(0, 50) + '...'
+      });
+      
+      return greeting;
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogue shop', error);
+      return `Bienvenue dans ma boutique, ${player.name} !`;
+    }
+  }
+
+  /**
+   * ✅ ÉTAPE 2 : Obtenir dialogue de soigneur via DialogString
+   */
+  private async getHealerGreeting(player: Player, npc: any): Promise<string> {
+    try {
+      const npcId = this.extractNpcIdentifier(npc);
+      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      
+      // Essayer un dialogue spécifique au NPC d'abord
+      let greeting = await this.dialogService.getText(
+        `${npcId}.healer.greeting`,
+        'fr', // TODO: Récupérer langue du joueur
+        dialogVars
+      );
+      
+      // Si pas trouvé, utiliser un dialogue générique
+      if (greeting.includes('[MISSING:')) {
+        greeting = await this.dialogService.getText(
+          'generic.healer.welcome',
+          'fr',
+          dialogVars
+        );
+      }
+      
+      // Si toujours pas trouvé, fallback
+      if (greeting.includes('[MISSING:')) {
+        greeting = `Vos Pokémon sont soignés, %s ! Ils sont maintenant en pleine forme.`;
+        greeting = greeting.replace('%s', player.name);
+      }
+      
+      this.log('info', `🏥 [DialogString] Dialogue healer récupéré pour ${npcId}`, {
+        dialogId: `${npcId}.healer.greeting`,
+        playerName: player.name,
+        result: greeting.substring(0, 50) + '...'
+      });
+      
+      return greeting;
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogue healer', error);
+      return `Vos Pokémon sont soignés !`;
+    }
+  }
+
+  /**
+   * ✅ ÉTAPE 2 : Extraire identifiant NPC pour DialogString
+   */
+  private extractNpcIdentifier(npc: any): string {
+    // Essayer plusieurs sources pour l'identifiant
+    if (npc.dialogId) return npc.dialogId;
+    if (npc.name) return npc.name.toLowerCase().replace(/\s+/g, '_');
+    if (npc.id) return `npc_${npc.id}`;
+    return 'unknown_npc';
   }
 
   // === MÉTHODES PUBLIQUES EXISTANTES INCHANGÉES ===
@@ -939,10 +1052,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
         this.log('info', 'Achat réussi', { itemId, quantity, newGold: result.newGold });
       }
       
-      return {
-        ...result,
-        dialogues: undefined
-      };
+      return result;
       
     } else if (action === 'sell') {
       const result = await this.shopManager.sellItem(
@@ -956,16 +1066,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
         this.log('info', 'Vente réussie', { itemId, quantity, goldGained: result.newGold });
       }
       
-      return {
-        ...result,
-        dialogues: undefined
-      };
+      return result;
     }
 
     return {
       success: false,
-      message: "Action non reconnue",
-      dialogues: undefined
+      message: "Action non reconnue"
     };
   }
 
@@ -1191,7 +1297,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
     };
   }
 
-  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+  // ✅ CORRIGÉ : Méthode log en protected au lieu de private
+  protected log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [NpcInteractionModule] ${message}`;
     
@@ -1280,8 +1387,38 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return null;
   }
 
-  private getQuestDialogue(questDefinition: any, dialogueType: string): string[] {
-    return ["Dialogue par défaut"];
+  // ✅ ÉTAPE 2 : Méthode getQuestDialogue modifiée pour utiliser DialogString
+  private async getQuestDialogue(questDefinition: any, dialogueType: string, player: Player): Promise<string[]> {
+    try {
+      if (!questDefinition) return ["Dialogue par défaut"];
+      
+      const questId = questDefinition.id || 'unknown_quest';
+      const dialogVars = this.createPlayerDialogVars(player, undefined, questDefinition.name);
+      
+      // Essayer de récupérer via DialogString
+      const dialogId = `quest.${questId}.${dialogueType}`;
+      const dialogue = await this.dialogService.getText(dialogId, 'fr', dialogVars);
+      
+      if (!dialogue.includes('[MISSING:')) {
+        this.log('info', `🎯 [DialogString] Dialogue quête récupéré: ${dialogId}`);
+        return [dialogue];
+      }
+      
+      // Fallback vers dialogue générique
+      const genericDialogId = `generic.quest.${dialogueType}`;
+      const genericDialogue = await this.dialogService.getText(genericDialogId, 'fr', dialogVars);
+      
+      if (!genericDialogue.includes('[MISSING:')) {
+        return [genericDialogue];
+      }
+      
+      // Dernier fallback
+      return ["Dialogue par défaut"];
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogue quête', error);
+      return ["Dialogue par défaut"];
+    }
   }
 
   private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
@@ -1292,19 +1429,95 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return [];
   }
 
-  private getDialogueLines(npc: any): string[] {
-    if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
-      return npc.dialogueIds;
+  // ✅ ÉTAPE 2 : Méthode getDialogueLines modifiée pour utiliser DialogString
+  private async getDialogueLines(npc: any, player: Player): Promise<string[]> {
+    try {
+      const npcId = this.extractNpcIdentifier(npc);
+      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      
+      // Si le NPC a des dialogueIds spécifiques, les traiter via DialogString
+      if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
+        const processedLines = [];
+        
+        for (const dialogId of npc.dialogueIds) {
+          const dialogue = await this.dialogService.getText(dialogId, 'fr', dialogVars);
+          processedLines.push(dialogue.includes('[MISSING:') ? dialogId : dialogue);
+        }
+        
+        return processedLines;
+      }
+      
+      // Sinon essayer un dialogue générique
+      const genericDialogue = await this.dialogService.getText(
+        `${npcId}.greeting.default`,
+        'fr',
+        dialogVars
+      );
+      
+      if (!genericDialogue.includes('[MISSING:')) {
+        return [genericDialogue];
+      }
+      
+      // Fallback legacy
+      if (npc.properties?.dialogue) {
+        const dialogue = npc.properties.dialogue;
+        const lines = Array.isArray(dialogue) ? dialogue : [dialogue];
+        
+        // Traiter les variables dans les dialogues legacy
+        return lines.map(line => {
+          return line.replace('%s', player.name);
+        });
+      }
+      
+      return ["Bonjour !"];
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogues NPC', error);
+      return ["Bonjour !"];
     }
-    if (npc.properties?.dialogue) {
-      const dialogue = npc.properties.dialogue;
-      return Array.isArray(dialogue) ? dialogue : [dialogue];
-    }
-    return ["Bonjour !"];
   }
 
-  private async getDefaultDialogueForNpc(npc: any): Promise<string[]> {
-    return [`Bonjour ! Je suis ${npc.name || 'un NPC'}.`];
+  // ✅ ÉTAPE 2 : Méthode getDefaultDialogueForNpc modifiée pour utiliser DialogString
+  private async getDefaultDialogueForNpc(npc: any, player: Player): Promise<string[]> {
+    try {
+      const npcId = this.extractNpcIdentifier(npc);
+      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      
+      // Essayer dialogue spécifique NPC
+      let dialogue = await this.dialogService.getText(
+        `${npcId}.greeting.default`,
+        'fr', // TODO: Récupérer langue du joueur
+        dialogVars
+      );
+      
+      // Si pas trouvé, essayer dialogue générique
+      if (dialogue.includes('[MISSING:')) {
+        dialogue = await this.dialogService.getText(
+          'generic.greeting.default',
+          'fr',
+          dialogVars
+        );
+      }
+      
+      // Si toujours pas trouvé, fallback avec variables
+      if (dialogue.includes('[MISSING:')) {
+        dialogue = `Bonjour %s ! Je suis %n.`;
+        dialogue = dialogue.replace('%s', player.name);
+        dialogue = dialogue.replace('%n', npc.name || 'un NPC');
+      }
+      
+      this.log('info', `💬 [DialogString] Dialogue par défaut récupéré pour ${npcId}`, {
+        playerName: player.name,
+        npcName: npc.name,
+        result: dialogue.substring(0, 50) + '...'
+      });
+      
+      return [dialogue];
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogue par défaut', error);
+      return [`Bonjour ! Je suis ${npc.name || 'un NPC'}.`];
+    }
   }
 
   private async handleMerchantSpecificAction(player: Player, npc: any, request: SpecificActionRequest): Promise<SpecificActionResult> {
@@ -1328,7 +1541,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   private async handleDialogueSpecificAction(player: Player, npc: any, request: SpecificActionRequest): Promise<SpecificActionResult> {
-    const lines = this.getDialogueLines(npc);
+    const lines = await this.getDialogueLines(npc, player);
     return {
       success: true,
       type: "dialogue",
