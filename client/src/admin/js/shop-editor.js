@@ -53,15 +53,19 @@ export class ShopEditorModule {
     }
 
     async loadZonesList() {
-        try {
-            // Récupérer la liste des zones depuis les cartes disponibles
-            const response = await this.adminPanel.apiCall('/maps/list');
+    try {
+        const response = await this.adminPanel.apiCall('/maps/list');
+        // ✅ CORRECTION ICI :
+        if (response && response.success && response.maps) {
             this.zones = response.maps.map(map => map.id);
-        } catch (error) {
-            console.error('❌ [ShopEditor] Error loading zones:', error);
-            this.zones = [];
+        } else {
+            this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
         }
+    } catch (error) {
+        console.error('❌ [ShopEditor] Error loading zones:', error);
+        this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
     }
+}
 
     render() {
         const container = document.getElementById('shops');
