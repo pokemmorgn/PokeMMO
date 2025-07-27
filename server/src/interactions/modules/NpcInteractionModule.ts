@@ -303,13 +303,18 @@ if (this.intelligenceConfig.enableIntelligence) {
         }
       }
     );
-    console.log(`🚀 [AI] Action trackée pour ${player.name}, forçage sauvegarde...`);
-    console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
-
-    const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
-    const tracker = getActionTracker();
-    await tracker.forceProcessBatch();
-    console.log(`✅ [AI] Batch forcé - actions sauvées !`);
+      console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
+      
+      // ✅ DEBUG: Vérifier juste la queue
+      const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+      const tracker = getActionTracker();
+      
+      const stats = tracker.getStats();
+      console.log(`📋 [AI] État queue:`, {
+        actionsInQueue: stats.actionsInQueue,
+        playersTracked: stats.playersTracked,
+        isEnabled: stats.isEnabled
+      });
     
   } catch (error) {
     console.warn(`⚠️ [AI] Erreur tracking:`, error);
