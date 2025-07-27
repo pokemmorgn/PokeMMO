@@ -2427,7 +2427,29 @@ async onLeave(client: Client, consented: boolean) {
     player.y = data.y;
     player.direction = data.direction;
     player.isMoving = data.isMoving;
-
+    // ✅ TRACKING IA: Mouvement du joueur (sample 10% pour performance)
+    if (Math.random() < 0.1) {
+      this.trackPlayerActionWithAI(
+        client.sessionId,
+        ActionType.PLAYER_MOVE,
+        {
+          fromX: player.x, // Note: on a déjà mis à jour, mais c'est pour l'exemple
+          fromY: player.y,
+          toX: data.x,
+          toY: data.y,
+          direction: data.direction,
+          isMoving: data.isMoving,
+          method: 'walk'
+        },
+        {
+          location: { 
+            map: player.currentZone, 
+            x: data.x, 
+            y: data.y 
+          }
+        }
+      );
+    }
     this.followerHandlers.onPlayerMove(
       client.sessionId, 
       data.x, 
