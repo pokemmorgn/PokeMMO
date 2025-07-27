@@ -502,6 +502,20 @@ export class PlayerActionTracker {
     }
   }
 
+  /**
+ * Force le traitement immédiat de la queue (pour debug)
+ */
+public forceProcessBatch(): Promise<void> {
+  return this.processBatch();
+}
+
+/**
+ * Ajoute une action manuellement à la queue (pour debug)
+ */
+public addActionToQueue(action: PlayerAction): void {
+  this.addToQueue(action);
+}
+  
   // ===================================================================
   // 🛠️ UTILITAIRES
   // ===================================================================
