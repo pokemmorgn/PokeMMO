@@ -517,6 +517,31 @@ private async registerNPCsWithAI(): Promise<void> {
     console.error(`❌ [AI] Erreur enregistrement NPCs:`, error);
   }
 }
+  /**
+ * Helper pour tracker une action de joueur avec l'IA
+ */
+private trackPlayerActionWithAI(
+  playerId: string,
+  actionType: ActionType,
+  actionData: any = {},
+  context?: { location?: { map: string; x: number; y: number } }
+): void {
+  if (!this.aiSystemInitialized) return;
+  
+  try {
+    // Utiliser l'API de tracking de l'orchestrateur
+    trackPlayerAction(playerId, actionType, actionData, context);
+    this.aiStats.actionsTracked++;
+    
+    // Log occasionnel pour debug
+    if (this.aiStats.actionsTracked % 50 === 0) {
+      console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées`);
+    }
+  } catch (error) {
+    console.error(`❌ [AI] Erreur tracking action:`, error);
+  }
+}
+  
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
     console.log(`👤 Client: ${client.sessionId}`);
