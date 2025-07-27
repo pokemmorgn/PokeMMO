@@ -1,5 +1,5 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE
+// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE - CORRIGÉ USERID
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -100,11 +100,17 @@ interface NPCIntelligenceConfig {
   debugMode: boolean;
 }
 
+// ✅ NOUVEAU : Interface étendue pour contexte avec userId
+export interface EnhancedInteractionContext extends InteractionContext {
+  userId?: string;        // ✅ NOUVEAU : userId JWT pour tracking IA cohérent
+  sessionId?: string;     // ✅ NOUVEAU : sessionId pour mapping
+}
+
 export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "4.0.0"; // ✅ Version avec IA intégrée
+  readonly version = "4.1.0"; // ✅ Version avec tracking userId corrigé
 
   // === DÉPENDANCES EXISTANTES ===
   private getNpcManager: (zoneName: string) => any;
@@ -155,7 +161,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Initialisation handlers existants
     this.initializeHandlers();
 
-    this.log('info', '🤖 Module NPC v4.0 avec IA intégrée initialisé', {
+    this.log('info', '🤖 Module NPC v4.1 avec tracking userId corrigé', {
       version: this.version,
       intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
       enabledTypes: this.intelligenceConfig.enabledNPCTypes,
@@ -268,63 +274,70 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return request.type === 'npc' && request.data?.npcId !== undefined;
   }
 
-  async handle(context: InteractionContext): Promise<InteractionResult> {
+  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID
+  async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
     const startTime = Date.now();
     
     try {
       const { player, request } = context;
+      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
       const npcId = request.data?.npcId;
 
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
 
-      // ✅ TRACKING IA: Interaction avec NPC
-if (this.intelligenceConfig.enableIntelligence) {
-  try {
-    // Importer le tracking (ajoute en haut du fichier si pas déjà fait)
-    const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
-    const { ActionType } = await import("../../Intelligence/Core/ActionTypes");
-    
-    await trackPlayerAction(
-      player.name,
-      ActionType.NPC_TALK,
-      {
-        npcId,
-        playerLevel: player.level,
-        playerGold: player.gold,
-        zone: player.currentZone
-      },
-      { // ✅ Structure directe sans "location:"
-        map: player.currentZone, 
-        x: player.x, 
-        y: player.y 
+      // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
+      if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
+        try {
+          const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
+          
+          await trackPlayerAction(
+            enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
+            ActionType.NPC_TALK,
+            {
+              npcId,
+              playerLevel: player.level,
+              playerGold: player.gold,
+              zone: player.currentZone
+            },
+            {
+              location: { 
+                map: player.currentZone, 
+                x: player.x, 
+                y: player.y 
+              }
+            }
+          );
+          
+          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId}`);
+          
+          // ✅ DEBUG: Vérifier la queue
+          const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+          const tracker = getActionTracker();
+          
+          const stats = tracker.getStats();
+          console.log(`📋 [AI] État queue après tracking:`, {
+            actionsInQueue: stats.actionsInQueue,
+            playersTracked: stats.playersTracked,
+            isEnabled: stats.isEnabled
+          });
+        
+        } catch (error) {
+          console.warn(`⚠️ [AI] Erreur tracking:`, error);
+        }
+      } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
+        console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
       }
-    );
-      console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
       
-      // ✅ DEBUG: Vérifier juste la queue
-      const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
-      const tracker = getActionTracker();
-      
-      const stats = tracker.getStats();
-      console.log(`📋 [AI] État queue:`, {
-        actionsInQueue: stats.actionsInQueue,
-        playersTracked: stats.playersTracked,
-        isEnabled: stats.isEnabled
-      });
-    
-  } catch (error) {
-    console.warn(`⚠️ [AI] Erreur tracking:`, error);
-  }
-}
       this.log('info', `🎮 Interaction NPC ${npcId}`, { 
         player: player.name,
+        userId: enhancedContext.userId || 'N/A',
         intelligenceEnabled: this.intelligenceConfig.enableIntelligence
       });
 
       // ✅ NOUVEAU : Logique avec IA intégrée
-      const result = await this.handleNpcInteractionWithAI(player, npcId, request);
+      const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId);
 
       // Mise à jour des stats
       const processingTime = Date.now() - startTime;
@@ -344,15 +357,16 @@ if (this.intelligenceConfig.enableIntelligence) {
     }
   }
 
-  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE ===
+  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE (MODIFIÉE POUR USERID) ===
 
   private async handleNpcInteractionWithAI(
     player: Player, 
     npcId: number, 
-    request: InteractionRequest
+    request: InteractionRequest,
+    userId?: string  // ✅ NOUVEAU : userId pour tracking intelligent
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name}`);
+    this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'})`);
     
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
@@ -372,17 +386,18 @@ if (this.intelligenceConfig.enableIntelligence) {
     this.log('info', `✅ NPC trouvé: ${safeNpcName} (ID: ${safeNpcId})`, { 
       type: npc.type || 'legacy',
       sourceType: npc.sourceType || 'tiled',
-      intelligenceAvailable: this.shouldUseIntelligentInteraction(npc)
+      intelligenceAvailable: this.shouldUseIntelligentInteraction(npc),
+      hasUserId: !!userId
     });
 
     // ✅ DÉCISION PRINCIPALE : IA ou Legacy ?
-    if (this.shouldUseIntelligentInteraction(npc)) {
+    if (this.shouldUseIntelligentInteraction(npc) && userId) {
       // === TENTATIVE IA ===
       try {
-        this.log('info', `🎭 [AI] Tentative interaction intelligente NPC ${safeNpcId}`);
+        this.log('info', `🎭 [AI] Tentative interaction intelligente NPC ${safeNpcId} pour userId ${userId}`);
         
         const intelligentResult = await this.handleIntelligentNPCInteraction(
-          player, npc, safeNpcId, safeNpcName, request
+          player, npc, safeNpcId, safeNpcName, request, userId
         );
         
         // Si l'IA a réussi, retourner le résultat enrichi
@@ -390,7 +405,8 @@ if (this.intelligenceConfig.enableIntelligence) {
           this.log('info', `✅ [AI] Interaction intelligente réussie pour NPC ${safeNpcId}`, {
             confidence: intelligentResult.aiAnalysisConfidence,
             personalized: intelligentResult.personalizedLevel,
-            proactive: intelligentResult.proactiveHelp
+            proactive: intelligentResult.proactiveHelp,
+            userId: userId
           });
           
           return intelligentResult;
@@ -405,6 +421,8 @@ if (this.intelligenceConfig.enableIntelligence) {
           return this.createSafeErrorResult(safeNpcId, "Erreur système d'intelligence");
         }
       }
+    } else if (this.shouldUseIntelligentInteraction(npc) && !userId) {
+      this.log('warn', `⚠️ [AI] IA disponible mais userId manquant pour NPC ${safeNpcId}`);
     }
 
     // === FALLBACK LEGACY ===
@@ -430,16 +448,17 @@ if (this.intelligenceConfig.enableIntelligence) {
     return enrichedResult;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA
+  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA (MODIFIÉE POUR USERID)
   private async handleIntelligentNPCInteraction(
     player: Player,
     npc: any,
     npcId: number,
     npcName: string,
-    request: InteractionRequest
+    request: InteractionRequest,
+    userId: string  // ✅ NOUVEAU : userId obligatoire pour IA
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🎭 [Intelligent] Démarrage interaction IA pour NPC ${npcId}`);
+    this.log('info', `🎭 [Intelligent] Démarrage interaction IA pour NPC ${npcId} (userId: ${userId})`);
     
     // Préparer le contexte pour l'IA
     const context = {
@@ -456,9 +475,9 @@ if (this.intelligenceConfig.enableIntelligence) {
     };
 
     try {
-      // ✅ APPEL AU CONNECTEUR IA
+      // ✅ APPEL AU CONNECTEUR IA AVEC USERID
       const smartResponse: SmartNPCResponse = await handleSmartNPCInteraction(
-        player.name,
+        userId,  // ✅ CORRIGÉ : userId au lieu de player.name
         npcId.toString(),
         'dialogue',
         context
@@ -494,7 +513,8 @@ if (this.intelligenceConfig.enableIntelligence) {
         npcName,
         interactionType: 'dialogue',
         analysisUsed: true,
-        smartResponse: smartResponse.dialogue.message
+        smartResponse: smartResponse.dialogue.message,
+        userId: userId
       });
 
       // ✅ CONVERSION : SmartNPCResponse → NpcInteractionResult
@@ -542,7 +562,8 @@ if (this.intelligenceConfig.enableIntelligence) {
         confidence: result.aiAnalysisConfidence,
         personalized: result.personalizedLevel,
         hasActions: smartResponse.actions.length,
-        hasFollowUp: smartResponse.followUpQuestions.length
+        hasFollowUp: smartResponse.followUpQuestions.length,
+        userId: userId
       });
 
       return result;
@@ -572,7 +593,7 @@ if (this.intelligenceConfig.enableIntelligence) {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Enregistrement pour apprentissage IA
+  // ✅ NOUVELLE MÉTHODE : Enregistrement pour apprentissage IA (MODIFIÉE POUR USERID)
   private async recordActionForAILearning(
     player: Player,
     npcId: number,
@@ -594,6 +615,7 @@ if (this.intelligenceConfig.enableIntelligence) {
       // Dans une version future, on pourrait appeler trackPlayerAction
       this.log('info', `📊 [AI Learning] Action enregistrée`, {
         player: player.name,
+        userId: data.userId || 'N/A',
         npcId,
         actionType,
         dataKeys: Object.keys(data)
@@ -605,7 +627,7 @@ if (this.intelligenceConfig.enableIntelligence) {
     }
   }
 
-  // ✅ MÉTHODES UTILITAIRES POUR CONVERSION IA (CORRIGÉES)
+  // ✅ MÉTHODES UTILITAIRES POUR CONVERSION IA (INCHANGÉES)
   private mapAIResponseTypeToNpcType(smartResponse: SmartNPCResponse): string {
     if (this.hasShopActions(smartResponse.actions)) return 'shop';
     if (this.hasQuestActions(smartResponse.actions)) return 'questGiver';
@@ -688,7 +710,7 @@ if (this.intelligenceConfig.enableIntelligence) {
     return questActions.map(action => action.data);
   }
 
-  // ✅ MÉTHODES DE DÉCISION IA
+  // ✅ MÉTHODES DE DÉCISION IA (INCHANGÉES)
   private shouldUseIntelligentInteraction(npc: any): boolean {
     if (!this.intelligenceConfig.enableIntelligence) {
       return false;
@@ -722,7 +744,7 @@ if (this.intelligenceConfig.enableIntelligence) {
     return true;
   }
 
-  // === ✅ MÉTHODES PUBLIQUES POUR GESTION IA ===
+  // === ✅ MÉTHODES PUBLIQUES POUR GESTION IA (INCHANGÉES) ===
 
   /**
    * Active/désactive l'IA pour ce module
@@ -1074,9 +1096,8 @@ if (this.intelligenceConfig.enableIntelligence) {
     };
   }
 
-  // Toutes les autres méthodes existantes restent INCHANGÉES
-  // (handleStarterTableInteraction, getDialogueLines, checkTalkObjectiveValidation, etc.)
-  // Je garde le code existant pour éviter de surcharger la réponse...
+  // === TOUTES LES AUTRES MÉTHODES LEGACY INCHANGÉES ===
+  // (handleStarterTableInteraction, getDialogueLines, etc... restent identiques)
 
   private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     this.log('info', 'Traitement interaction table starter');
