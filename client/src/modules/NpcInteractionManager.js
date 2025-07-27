@@ -468,9 +468,6 @@ export class NpcInteractionManager {
         ...options
       }
     );
-          // 🔍 DEBUG: Vérifier les données finales
-    console.log("🔍 [DEBUG] interactionData FINAL:", JSON.stringify(interactionData, null, 2));
-    console.log("🔍 [DEBUG] playerLanguage dans interactionData:", interactionData.playerLanguage);
       
       // ✅ Validation côté client
       const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
