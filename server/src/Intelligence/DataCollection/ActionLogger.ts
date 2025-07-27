@@ -173,15 +173,19 @@ export class ActionLogger implements ActionDatabase {
    * Génère du texte de recherche pour l'indexation
    */
   private generateSearchText(action: PlayerAction): string {
+    const data = action.data as any; // Type assertion pour accéder aux propriétés spécifiques
+    
     const parts = [
       action.actionType,
       action.category,
-      action.data.playerName,
-      action.data.location?.map,
-      action.data.pokemon?.species,
-      action.data.opponent,
-      action.data.itemName,
-      action.data.questName
+      data.playerName,
+      data.location?.map,
+      data.pokemon?.species,
+      data.opponent,
+      data.itemName,
+      data.questName,
+      data.itemId,
+      data.questId
     ].filter(Boolean);
 
     return parts.join(' ').toLowerCase();
