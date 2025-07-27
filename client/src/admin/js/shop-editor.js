@@ -9,23 +9,94 @@ export class ShopEditorModule {
         this.allShops = [];
         this.allItems = {};
         this.isEditMode = false;
+        this.availableZones = []; // ✅ Comme dans NPC Editor
         
         console.log('🏪 [ShopEditor] Module initialized');
+        this.init();
+    }
+
+    // ✅ NOUVEAU: Méthode d'initialisation comme NPC Editor
+    async init() {
+        try {
+            console.log('🏪 [ShopEditor] Starting initialization...');
+            
+            // Initialiser les zones par défaut immédiatement
+            this.availableZones = [
+                { id: 'beach', name: '🏖️ Beach', description: 'Zone de plage avec boutiques touristiques' },
+                { id: 'village', name: '🏘️ Village', description: 'Village principal avec commerces de base' },
+                { id: 'lavandia', name: '🏙️ Lavandia', description: 'Grande ville avec centres commerciaux' },
+                { id: 'road1', name: '🛤️ Route 1', description: 'Route avec magasins de voyage' },
+                { id: 'road2', name: '🛤️ Route 2', description: 'Route intermédiaire' },
+                { id: 'road3', name: '🛤️ Route 3', description: 'Route avancée avec équipements' },
+                { id: 'forest', name: '🌲 Forêt', description: 'Forêt avec boutiques d\'herboriste' },
+                { id: 'cave', name: '🕳️ Grotte', description: 'Système de grottes avec marchands' },
+                { id: 'city', name: '🏙️ Ville', description: 'Centre urbain avec grands magasins' }
+            ];
+            
+            console.log('✅ [ShopEditor] Initialization completed - Shop editor ready');
+        } catch (error) {
+            console.error('❌ [ShopEditor] Initialization failed:', error);
+        }
+    }
+
+    // ✅ NOUVEAU: Chargement des zones depuis l'API comme NPC Editor
+    async loadAvailableZones() {
+        try {
+            console.log('🗺️ [ShopEditor] Loading zones from API...');
+            
+            const response = await this.adminPanel.apiCall('/maps/list');
+            
+            if (response && response.success && response.maps) {
+                // Convertir la réponse API au format zones
+                this.availableZones = response.maps.map(map => ({
+                    id: map.id,
+                    name: this.formatZoneName(map.id),
+                    description: `Zone ${map.name || map.id}`
+                }));
+                
+                console.log('✅ [ShopEditor] Zones loaded from API:', this.availableZones.length);
+            } else {
+                console.warn('⚠️ [ShopEditor] API response invalid, keeping default zones');
+            }
+            
+        } catch (error) {
+            console.error('❌ [ShopEditor] Error loading zones from API:', error);
+            // Garder les zones par défaut en cas d'erreur
+        }
     }
 
     onTabActivated() {
         console.log('🏪 [ShopEditor] Tab activated');
-        this.render();
-        this.loadInitialData();
+        
+        try {
+            // Rendre l'interface immédiatement
+            this.render();
+            
+            // Charger les données en arrière-plan
+            this.loadInitialData();
+            
+        } catch (error) {
+            console.error('❌ [ShopEditor] Error in onTabActivated:', error);
+        }
     }
 
     async loadInitialData() {
         try {
+            console.log('🏪 [ShopEditor] Loading initial data...');
+            
+            // Charger les zones depuis l'API en arrière-plan
+            await this.loadAvailableZones();
+            
+            // Re-render le sélecteur de zones avec les nouvelles données
+            this.populateZoneSelect();
+            
+            // Charger le reste des données en parallèle
             await Promise.all([
                 this.loadAllItems(),
-                this.loadShopsStats(),
-                this.loadZonesList()
+                this.loadShopsStats()
             ]);
+            
+            console.log('✅ [ShopEditor] All initial data loaded successfully');
         } catch (error) {
             console.error('❌ [ShopEditor] Error loading initial data:', error);
             this.adminPanel.showNotification('Erreur lors du chargement initial', 'error');
@@ -52,21 +123,6 @@ export class ShopEditorModule {
         }
     }
 
-    async loadZonesList() {
-    try {
-        const response = await this.adminPanel.apiCall('/maps/list');
-        // ✅ CORRECTION ICI :
-        if (response && response.success && response.maps) {
-            this.zones = response.maps.map(map => map.id);
-        } else {
-            this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
-        }
-    } catch (error) {
-        console.error('❌ [ShopEditor] Error loading zones:', error);
-        this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
-    }
-}
-
     render() {
         const container = document.getElementById('shops');
         if (!container) return;
@@ -80,6 +136,7 @@ export class ShopEditorModule {
                             <label for="shopsZoneSelect" class="shops-field-label">🗺️ Zone:</label>
                             <select id="shopsZoneSelect" class="shops-form-select" onchange="adminPanel.shopEditor.selectZone(this.value)">
                                 <option value="">Toutes les zones</option>
+                                <!-- Options peuplées par populateZoneSelect() -->
                             </select>
                         </div>
                         
@@ -188,49 +245,72 @@ export class ShopEditorModule {
             </div>
         `;
 
+        // Peupler le sélecteur de zones après le rendu
         this.populateZoneSelect();
     }
 
+    // ✅ CORRIGÉ: Utilise availableZones comme NPC Editor
     populateZoneSelect() {
         const zoneSelect = document.getElementById('shopsZoneSelect');
-        if (!zoneSelect || !this.zones) return;
+        if (!zoneSelect) return;
 
         // Garder l'option "Toutes les zones"
         const currentValue = zoneSelect.value;
         zoneSelect.innerHTML = '<option value="">Toutes les zones</option>';
         
-        this.zones.forEach(zone => {
+        // Utiliser availableZones au lieu de this.zones
+        this.availableZones.forEach(zone => {
             const option = document.createElement('option');
-            option.value = zone;
-            option.textContent = this.formatZoneName(zone);
+            option.value = zone.id;
+            option.textContent = zone.name;
+            option.title = zone.description; // Tooltip avec description
             zoneSelect.appendChild(option);
         });
 
         zoneSelect.value = currentValue;
-    }
-
-    populateZoneSelect() {
-        const zoneSelect = document.getElementById('zoneSelect');
-        if (!zoneSelect || !this.zones) return;
-
-        // Garder l'option "Toutes les zones"
-        const currentValue = zoneSelect.value;
-        zoneSelect.innerHTML = '<option value="">Toutes les zones</option>';
         
-        this.zones.forEach(zone => {
-            const option = document.createElement('option');
-            option.value = zone;
-            option.textContent = this.formatZoneName(zone);
-            zoneSelect.appendChild(option);
-        });
-
-        zoneSelect.value = currentValue;
+        console.log(`✅ [ShopEditor] Zone select populated with ${this.availableZones.length} zones`);
     }
 
     formatZoneName(zone) {
-        return zone.replace(/([A-Z])/g, ' $1')
-                  .replace(/^./, str => str.toUpperCase())
-                  .replace(/_/g, ' ');
+        if (!zone) return 'Zone inconnue';
+        
+        // Conversion des noms de zones avec emojis
+        const zoneNames = {
+            'village': '🏘️ Village',
+            'city': '🏙️ Ville',
+            'lavandia': '🏙️ Lavandia',
+            'forest': '🌲 Forêt',
+            'cave': '🕳️ Grotte',
+            'beach': '🏖️ Plage',
+            'mountain': '⛰️ Montagne',
+            'desert': '🏜️ Désert',
+            'lake': '🏞️ Lac',
+            'volcano': '🌋 Volcan',
+            'ice_cave': '❄️ Grotte de Glace',
+            'power_plant': '⚡ Centrale Électrique',
+            'safari_zone': '🦁 Parc Safari',
+            'victory_road': '🏆 Route Victoire',
+            'elite_four': '👑 Conseil des 4',
+            'pokemon_league': '🏟️ Ligue Pokémon',
+            'road1': '🛤️ Route 1',
+            'road2': '🛤️ Route 2',
+            'road3': '🛤️ Route 3'
+        };
+        
+        // Retourner le nom avec emoji si disponible
+        if (zoneNames[zone]) {
+            return zoneNames[zone];
+        }
+        
+        // Sinon, formater automatiquement avec emoji par défaut
+        const formatted = zone
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/_/g, ' ')
+            .trim();
+        
+        return `🗺️ ${formatted}`;
     }
 
     async selectZone(zoneId) {
@@ -500,34 +580,34 @@ export class ShopEditorModule {
         const location = shop.location || {};
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>📍 Localisation</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">📍 Localisation</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">Zone <span class="required">*</span></label>
-                            <select class="form-select" id="shopZone">
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Zone <span class="shops-field-required">*</span></label>
+                            <select class="shops-form-select" id="shopsShopZone">
                                 <option value="">Sélectionner une zone</option>
-                                ${this.zones.map(zone => 
-                                    `<option value="${zone}" ${location.zone === zone ? 'selected' : ''}>${this.formatZoneName(zone)}</option>`
+                                ${this.availableZones.map(zone => 
+                                    `<option value="${zone.id}" ${location.zone === zone.id ? 'selected' : ''}>${zone.name}</option>`
                                 ).join('')}
                             </select>
-                            <div class="field-help">Zone/carte où se trouve la boutique</div>
+                            <div class="shops-field-help">Zone/carte où se trouve la boutique</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Ville</label>
-                            <input type="text" class="form-input" id="shopCity" value="${location.city || ''}">
-                            <div class="field-help">Nom de la ville</div>
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Ville</label>
+                            <input type="text" class="shops-form-input" id="shopsShopCity" value="${location.city || ''}">
+                            <div class="shops-field-help">Nom de la ville</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Bâtiment</label>
-                            <input type="text" class="form-input" id="shopBuilding" value="${location.building || ''}">
-                            <div class="field-help">Nom du bâtiment</div>
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Bâtiment</label>
+                            <input type="text" class="shops-form-input" id="shopsShopBuilding" value="${location.building || ''}">
+                            <div class="shops-field-help">Nom du bâtiment</div>
                         </div>
                     </div>
                 </div>
@@ -539,16 +619,16 @@ export class ShopEditorModule {
         const shop = this.currentShop;
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>💰 Configuration Commerciale</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">💰 Configuration Commerciale</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">Devise <span class="required">*</span></label>
-                            <select class="form-select" id="shopCurrency">
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Devise <span class="shops-field-required">*</span></label>
+                            <select class="shops-form-select" id="shopsShopCurrency">
                                 <option value="gold" ${shop.currency === 'gold' ? 'selected' : ''}>Gold</option>
                                 <option value="battle_points" ${shop.currency === 'battle_points' ? 'selected' : ''}>Points de Combat</option>
                                 <option value="contest_points" ${shop.currency === 'contest_points' ? 'selected' : ''}>Points de Concours</option>
@@ -557,25 +637,25 @@ export class ShopEditorModule {
                             </select>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Multiplicateur d'Achat</label>
-                            <input type="number" class="form-input" id="shopBuyMultiplier" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Multiplicateur d'Achat</label>
+                            <input type="number" class="shops-form-input" id="shopsShopBuyMultiplier" 
                                    value="${shop.buyMultiplier || 1.0}" min="0.1" max="10" step="0.1">
-                            <div class="field-help">Multiplicateur pour les prix d'achat (défaut: 1.0)</div>
+                            <div class="shops-field-help">Multiplicateur pour les prix d'achat (défaut: 1.0)</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Multiplicateur de Vente</label>
-                            <input type="number" class="form-input" id="shopSellMultiplier" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Multiplicateur de Vente</label>
+                            <input type="number" class="shops-form-input" id="shopsShopSellMultiplier" 
                                    value="${shop.sellMultiplier || 0.5}" min="0.1" max="1" step="0.1">
-                            <div class="field-help">Multiplicateur pour les prix de vente (défaut: 0.5)</div>
+                            <div class="shops-field-help">Multiplicateur pour les prix de vente (défaut: 0.5)</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Taux de Taxe (%)</label>
-                            <input type="number" class="form-input" id="shopTaxRate" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Taux de Taxe (%)</label>
+                            <input type="number" class="shops-form-input" id="shopsShopTaxRate" 
                                    value="${shop.taxRate || 0}" min="0" max="50" step="0.5">
-                            <div class="field-help">Taxe régionale en pourcentage</div>
+                            <div class="shops-field-help">Taxe régionale en pourcentage</div>
                         </div>
                     </div>
                 </div>
@@ -588,25 +668,27 @@ export class ShopEditorModule {
         const items = shop.items || [];
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>📦 Articles en Vente (${items.length})</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">📦 Articles en Vente (${items.length})</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <div style="margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="adminPanel.shopEditor.addItem()">
-                            <i class="fas fa-plus"></i> Ajouter Article
-                        </button>
-                        <button class="btn btn-secondary" onclick="adminPanel.shopEditor.importItemsFromTemplate()">
-                            <i class="fas fa-copy"></i> Modèle
-                        </button>
+                <div class="shops-section-content">
+                    <div class="shops-items-header">
+                        <div class="shops-items-actions">
+                            <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.addItem()">
+                                <i class="fas fa-plus"></i> Ajouter Article
+                            </button>
+                            <button class="shops-btn shops-btn-secondary" onclick="adminPanel.shopEditor.importItemsFromTemplate()">
+                                <i class="fas fa-copy"></i> Modèle
+                            </button>
+                        </div>
                     </div>
                     
-                    <div id="shopItemsList">
+                    <div id="shopsItemsList" class="shops-items-list">
                         ${items.length === 0 ? 
-                            '<div style="text-align: center; padding: 20px; color: #6c757d; border: 2px dashed #dee2e6; border-radius: 8px;">Aucun article configuré</div>' :
-                            items.map((item, index) => this.renderShopItem(item, index)).join('')
+                            '<div class="shops-items-empty"><i class="fas fa-box-open"></i><div>Aucun article configuré</div></div>' :
+                            items.map((item, index) => this.renderShopItemEditor(item, index)).join('')
                         }
                     </div>
                 </div>
@@ -614,56 +696,56 @@ export class ShopEditorModule {
         `;
     }
 
-    renderShopItem(item, index) {
+    renderShopItemEditor(item, index) {
         const itemData = this.allItems[item.itemId] || {};
         
         return `
-            <div class="shop-item-editor" data-index="${index}">
-                <div class="item-header">
-                    <div class="item-info">
-                        <strong>${itemData.name || item.itemId}</strong>
-                        <span class="item-category">${this.formatCategory(item.category)}</span>
+            <div class="shops-item-editor" data-index="${index}">
+                <div class="shops-item-header">
+                    <div class="shops-item-info-header">
+                        <span class="shops-item-name-display">${itemData.name || item.itemId}</span>
+                        <span class="shops-item-category-badge">${this.formatCategory(item.category)}</span>
                     </div>
-                    <button class="btn btn-danger btn-sm" onclick="adminPanel.shopEditor.removeItem(${index})">
+                    <button class="shops-item-remove-btn" onclick="adminPanel.shopEditor.removeItem(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
                 
-                <div class="fields-grid" style="margin-top: 10px;">
-                    <div class="form-field">
-                        <label class="field-label">ID Article</label>
-                        <select class="form-select" onchange="adminPanel.shopEditor.updateItemId(${index}, this.value)">
+                <div class="shops-item-fields">
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">ID Article</label>
+                        <select class="shops-item-field-select" onchange="adminPanel.shopEditor.updateItemId(${index}, this.value)">
                             ${this.renderItemOptions(item.itemId)}
                         </select>
                     </div>
                     
-                    <div class="form-field">
-                        <label class="field-label">Prix Personnalisé</label>
-                        <input type="number" class="form-input" value="${item.basePrice || ''}" 
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Prix Personnalisé</label>
+                        <input type="number" class="shops-item-field-input" value="${item.basePrice || ''}" 
                                placeholder="Prix par défaut" min="0"
                                onchange="adminPanel.shopEditor.updateItemField(${index}, 'basePrice', this.value)">
                     </div>
                     
-                    <div class="form-field">
-                        <label class="field-label">Stock</label>
-                        <input type="number" class="form-input" value="${item.stock || -1}" 
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Stock</label>
+                        <input type="number" class="shops-item-field-input" value="${item.stock || -1}" 
                                onchange="adminPanel.shopEditor.updateItemField(${index}, 'stock', this.value)">
-                        <div class="field-help">-1 = illimité</div>
+                        <div class="shops-field-help">-1 = illimité</div>
                     </div>
                     
-                    <div class="form-field">
-                        <label class="field-label">Niveau Requis</label>
-                        <input type="number" class="form-input" value="${item.unlockLevel || ''}" 
+                    <div class="shops-item-field">
+                        <label class="shops-item-field-label">Niveau Requis</label>
+                        <input type="number" class="shops-item-field-input" value="${item.unlockLevel || ''}" 
                                min="1" max="100" placeholder="Optionnel"
                                onchange="adminPanel.shopEditor.updateItemField(${index}, 'unlockLevel', this.value)">
                     </div>
                 </div>
                 
-                <div class="boolean-field" style="margin-top: 10px;">
-                    <input type="checkbox" class="form-checkbox" id="featured_${index}" 
+                <div class="shops-item-featured-field">
+                    <input type="checkbox" class="shops-item-featured-checkbox" id="shopsFeatured_${index}" 
                            ${item.featured ? 'checked' : ''}
                            onchange="adminPanel.shopEditor.updateItemField(${index}, 'featured', this.checked)">
-                    <label class="checkbox-label" for="featured_${index}">Article mis en avant</label>
+                    <label class="shops-item-featured-label" for="shopsFeatured_${index}">Article mis en avant</label>
                 </div>
             </div>
         `;
@@ -722,29 +804,29 @@ export class ShopEditorModule {
         const keeper = shop.shopKeeper || {};
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>👤 Marchand</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">👤 Marchand</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">ID NPC (Optionnel)</label>
-                            <input type="number" class="form-input" id="keeperNpcId" 
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">ID NPC (Optionnel)</label>
+                            <input type="number" class="shops-form-input" id="shopsKeeperNpcId" 
                                    value="${keeper.npcId || ''}" placeholder="ID du NPC existant">
-                            <div class="field-help">Référence vers un NPC existant</div>
+                            <div class="shops-field-help">Référence vers un NPC existant</div>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Nom du Marchand</label>
-                            <input type="text" class="form-input" id="keeperName" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Nom du Marchand</label>
+                            <input type="text" class="shops-form-input" id="shopsKeeperName" 
                                    value="${keeper.name || ''}" placeholder="Nom du marchand">
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Personnalité</label>
-                            <select class="form-select" id="keeperPersonality">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Personnalité</label>
+                            <select class="shops-form-select" id="shopsKeeperPersonality">
                                 <option value="">Sélectionner</option>
                                 <option value="friendly" ${keeper.personality === 'friendly' ? 'selected' : ''}>Amical</option>
                                 <option value="stern" ${keeper.personality === 'stern' ? 'selected' : ''}>Sévère</option>
@@ -755,9 +837,9 @@ export class ShopEditorModule {
                             </select>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Spécialisation</label>
-                            <input type="text" class="form-input" id="keeperSpecialization" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Spécialisation</label>
+                            <input type="text" class="shops-form-input" id="shopsKeeperSpecialization" 
                                    value="${keeper.specialization || ''}" placeholder="Ex: Expert en Poké Balls">
                         </div>
                     </div>
@@ -771,34 +853,34 @@ export class ShopEditorModule {
         const access = shop.accessRequirements || {};
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>🔒 Conditions d'Accès</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">🔒 Conditions d'Accès</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">Niveau Minimum</label>
-                            <input type="number" class="form-input" id="accessMinLevel" 
+                <div class="shops-section-content">
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Niveau Minimum</label>
+                            <input type="number" class="shops-form-input" id="shopsAccessMinLevel" 
                                    value="${access.minLevel || ''}" min="1" max="100" placeholder="Optionnel">
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Badges Requis</label>
-                            <textarea class="form-input" id="accessBadges" rows="3" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Badges Requis</label>
+                            <textarea class="shops-form-textarea" id="shopsAccessBadges" rows="3" 
                                       placeholder="Un badge par ligne">${(access.requiredBadges || []).join('\n')}</textarea>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Quêtes Requises</label>
-                            <textarea class="form-input" id="accessQuests" rows="3" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Quêtes Requises</label>
+                            <textarea class="shops-form-textarea" id="shopsAccessQuests" rows="3" 
                                       placeholder="Une quête par ligne">${(access.requiredQuests || []).join('\n')}</textarea>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Membership Requis</label>
-                            <select class="form-select" id="accessMembership">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Membership Requis</label>
+                            <select class="shops-form-select" id="shopsAccessMembership">
                                 <option value="">Aucun</option>
                                 <option value="bronze" ${access.membershipRequired === 'bronze' ? 'selected' : ''}>Bronze</option>
                                 <option value="silver" ${access.membershipRequired === 'silver' ? 'selected' : ''}>Argent</option>
@@ -816,32 +898,32 @@ export class ShopEditorModule {
 
     renderTimeRestrictionsSection(timeRestrictions = {}) {
         return `
-            <div style="margin-top: 20px; padding: 15px; border: 1px solid #e9ecef; border-radius: 8px;">
-                <h5 style="margin-bottom: 15px;">⏰ Horaires d'Ouverture</h5>
+            <div class="shops-time-restrictions">
+                <h5 class="shops-time-title">⏰ Horaires d'Ouverture</h5>
                 
-                <div class="fields-grid">
-                    <div class="form-field">
-                        <label class="field-label">Heure d'Ouverture</label>
-                        <input type="number" class="form-input" id="timeOpenHour" 
+                <div class="shops-time-grid">
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Heure d'Ouverture</label>
+                        <input type="number" class="shops-form-input" id="shopsTimeOpenHour" 
                                value="${timeRestrictions.openHour || ''}" min="0" max="23" placeholder="0-23">
                     </div>
                     
-                    <div class="form-field">
-                        <label class="field-label">Heure de Fermeture</label>
-                        <input type="number" class="form-input" id="timeCloseHour" 
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Heure de Fermeture</label>
+                        <input type="number" class="shops-form-input" id="shopsTimeCloseHour" 
                                value="${timeRestrictions.closeHour || ''}" min="0" max="23" placeholder="0-23">
                     </div>
                 </div>
                 
-                <div class="form-field">
-                    <label class="field-label">Jours Fermés</label>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
+                <div class="shops-form-field">
+                    <label class="shops-field-label">Jours Fermés</label>
+                    <div class="shops-closed-days">
                         ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, index) => `
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <div class="shops-day-checkbox">
                                 <input type="checkbox" ${(timeRestrictions.closedDays || []).includes(index) ? 'checked' : ''} 
                                        onchange="adminPanel.shopEditor.updateClosedDay(${index}, this.checked)">
-                                <span>${day}</span>
-                            </label>
+                                <label>${day}</label>
+                            </div>
                         `).join('')}
                     </div>
                 </div>
@@ -854,52 +936,52 @@ export class ShopEditorModule {
         const restock = shop.restockInfo || {};
         
         return `
-            <div class="form-section">
-                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
-                    <h4>⚙️ Configuration Avancée</h4>
-                    <span class="section-toggle">▼</span>
+            <div class="shops-form-section">
+                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
+                    <h4 class="shops-section-title">⚙️ Configuration Avancée</h4>
+                    <span class="shops-section-toggle">▼</span>
                 </div>
-                <div class="section-content">
-                    <h5 style="margin-bottom: 15px;">🔄 Restock Automatique</h5>
+                <div class="shops-section-content">
+                    <h5 class="shops-time-title">🔄 Restock Automatique</h5>
                     
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">Intervalle (minutes)</label>
-                            <input type="number" class="form-input" id="restockInterval" 
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Intervalle (minutes)</label>
+                            <input type="number" class="shops-form-input" id="shopsRestockInterval" 
                                    value="${restock.interval || ''}" min="0" placeholder="0 = désactivé">
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Variation Stock (%)</label>
-                            <input type="number" class="form-input" id="restockVariation" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Variation Stock (%)</label>
+                            <input type="number" class="shops-form-input" id="shopsRestockVariation" 
                                    value="${restock.stockVariation || 10}" min="0" max="100">
                         </div>
                         
-                        <div class="boolean-field">
-                            <input type="checkbox" class="form-checkbox" id="restockAuto" 
+                        <div class="shops-boolean-field">
+                            <input type="checkbox" class="shops-form-checkbox" id="shopsRestockAuto" 
                                    ${restock.autoRestock !== false ? 'checked' : ''}>
-                            <label class="checkbox-label" for="restockAuto">Restock automatique</label>
+                            <label class="shops-checkbox-label" for="shopsRestockAuto">Restock automatique</label>
                         </div>
                     </div>
                     
-                    <h5 style="margin: 20px 0 15px 0;">💬 Dialogues Personnalisés</h5>
+                    <h5 class="shops-time-title" style="margin-top: 20px;">💬 Dialogues Personnalisés</h5>
                     
-                    <div class="form-field">
-                        <label class="field-label">Messages d'Accueil</label>
-                        <textarea class="form-input" id="dialoguesWelcome" rows="3" 
+                    <div class="shops-form-field">
+                        <label class="shops-field-label">Messages d'Accueil</label>
+                        <textarea class="shops-form-textarea" id="shopsDialoguesWelcome" rows="3" 
                                   placeholder="Un message par ligne">${(shop.dialogues?.welcome || []).join('\n')}</textarea>
                     </div>
                     
-                    <div class="fields-grid">
-                        <div class="form-field">
-                            <label class="field-label">Messages d'Achat</label>
-                            <textarea class="form-input" id="dialoguesPurchase" rows="2" 
+                    <div class="shops-fields-grid">
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Messages d'Achat</label>
+                            <textarea class="shops-form-textarea" id="shopsDialoguesPurchase" rows="2" 
                                       placeholder="Un message par ligne">${(shop.dialogues?.purchase || []).join('\n')}</textarea>
                         </div>
                         
-                        <div class="form-field">
-                            <label class="field-label">Messages d'Au Revoir</label>
-                            <textarea class="form-input" id="dialoguesGoodbye" rows="2" 
+                        <div class="shops-form-field">
+                            <label class="shops-field-label">Messages d'Au Revoir</label>
+                            <textarea class="shops-form-textarea" id="shopsDialoguesGoodbye" rows="2" 
                                       placeholder="Un message par ligne">${(shop.dialogues?.farewell || []).join('\n')}</textarea>
                         </div>
                     </div>
@@ -1003,7 +1085,10 @@ export class ShopEditorModule {
         this.renderShopEditor();
         
         // Scroll vers l'éditeur
-        document.getElementById('editorContent').scrollIntoView({ behavior: 'smooth' });
+        const editorContent = document.getElementById('shopsEditorContent');
+        if (editorContent) {
+            editorContent.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     async saveShop() {
@@ -1216,7 +1301,7 @@ export class ShopEditorModule {
     filterByType(type) {
         const shopItems = document.querySelectorAll('.shops-list-item');
         
-        shopItems.forEach(item => {
+        shopItems.forEach((item, index) => {
             if (!type) {
                 item.style.display = 'flex';
                 return;
@@ -1237,372 +1322,6 @@ export class ShopEditorModule {
         document.getElementById('shopsActiveShops').textContent = stats.active || 0;
         document.getElementById('shopsTemporaryShops').textContent = stats.temporary || 0;
         document.getElementById('shopsShopTypes').textContent = Object.keys(stats.byType || {}).length;
-    }
-    renderLocationSection() {
-        const shop = this.currentShop;
-        const location = shop.location || {};
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">📍 Localisation</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Zone <span class="shops-field-required">*</span></label>
-                            <select class="shops-form-select" id="shopsShopZone">
-                                <option value="">Sélectionner une zone</option>
-                                ${this.zones.map(zone => 
-                                    `<option value="${zone}" ${location.zone === zone ? 'selected' : ''}>${this.formatZoneName(zone)}</option>`
-                                ).join('')}
-                            </select>
-                            <div class="shops-field-help">Zone/carte où se trouve la boutique</div>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Ville</label>
-                            <input type="text" class="shops-form-input" id="shopsShopCity" value="${location.city || ''}">
-                            <div class="shops-field-help">Nom de la ville</div>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Bâtiment</label>
-                            <input type="text" class="shops-form-input" id="shopsShopBuilding" value="${location.building || ''}">
-                            <div class="shops-field-help">Nom du bâtiment</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderCommercialSection() {
-        const shop = this.currentShop;
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">💰 Configuration Commerciale</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Devise <span class="shops-field-required">*</span></label>
-                            <select class="shops-form-select" id="shopsShopCurrency">
-                                <option value="gold" ${shop.currency === 'gold' ? 'selected' : ''}>Gold</option>
-                                <option value="battle_points" ${shop.currency === 'battle_points' ? 'selected' : ''}>Points de Combat</option>
-                                <option value="contest_points" ${shop.currency === 'contest_points' ? 'selected' : ''}>Points de Concours</option>
-                                <option value="game_tokens" ${shop.currency === 'game_tokens' ? 'selected' : ''}>Jetons</option>
-                                <option value="rare_candy" ${shop.currency === 'rare_candy' ? 'selected' : ''}>Bonbons Rares</option>
-                            </select>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Multiplicateur d'Achat</label>
-                            <input type="number" class="shops-form-input" id="shopsShopBuyMultiplier" 
-                                   value="${shop.buyMultiplier || 1.0}" min="0.1" max="10" step="0.1">
-                            <div class="shops-field-help">Multiplicateur pour les prix d'achat (défaut: 1.0)</div>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Multiplicateur de Vente</label>
-                            <input type="number" class="shops-form-input" id="shopsShopSellMultiplier" 
-                                   value="${shop.sellMultiplier || 0.5}" min="0.1" max="1" step="0.1">
-                            <div class="shops-field-help">Multiplicateur pour les prix de vente (défaut: 0.5)</div>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Taux de Taxe (%)</label>
-                            <input type="number" class="shops-form-input" id="shopsShopTaxRate" 
-                                   value="${shop.taxRate || 0}" min="0" max="50" step="0.5">
-                            <div class="shops-field-help">Taxe régionale en pourcentage</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderItemsSection() {
-        const shop = this.currentShop;
-        const items = shop.items || [];
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">📦 Articles en Vente (${items.length})</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <div class="shops-items-header">
-                        <div class="shops-items-actions">
-                            <button class="shops-btn shops-btn-primary" onclick="adminPanel.shopEditor.addItem()">
-                                <i class="fas fa-plus"></i> Ajouter Article
-                            </button>
-                            <button class="shops-btn shops-btn-secondary" onclick="adminPanel.shopEditor.importItemsFromTemplate()">
-                                <i class="fas fa-copy"></i> Modèle
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="shopsItemsList" class="shops-items-list">
-                        ${items.length === 0 ? 
-                            '<div class="shops-items-empty"><i class="fas fa-box-open"></i><div>Aucun article configuré</div></div>' :
-                            items.map((item, index) => this.renderShopItemEditor(item, index)).join('')
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderShopItemEditor(item, index) {
-        const itemData = this.allItems[item.itemId] || {};
-        
-        return `
-            <div class="shops-item-editor" data-index="${index}">
-                <div class="shops-item-header">
-                    <div class="shops-item-info-header">
-                        <span class="shops-item-name-display">${itemData.name || item.itemId}</span>
-                        <span class="shops-item-category-badge">${this.formatCategory(item.category)}</span>
-                    </div>
-                    <button class="shops-item-remove-btn" onclick="adminPanel.shopEditor.removeItem(${index})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-                
-                <div class="shops-item-fields">
-                    <div class="shops-item-field">
-                        <label class="shops-item-field-label">ID Article</label>
-                        <select class="shops-item-field-select" onchange="adminPanel.shopEditor.updateItemId(${index}, this.value)">
-                            ${this.renderItemOptions(item.itemId)}
-                        </select>
-                    </div>
-                    
-                    <div class="shops-item-field">
-                        <label class="shops-item-field-label">Prix Personnalisé</label>
-                        <input type="number" class="shops-item-field-input" value="${item.basePrice || ''}" 
-                               placeholder="Prix par défaut" min="0"
-                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'basePrice', this.value)">
-                    </div>
-                    
-                    <div class="shops-item-field">
-                        <label class="shops-item-field-label">Stock</label>
-                        <input type="number" class="shops-item-field-input" value="${item.stock || -1}" 
-                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'stock', this.value)">
-                        <div class="shops-field-help">-1 = illimité</div>
-                    </div>
-                    
-                    <div class="shops-item-field">
-                        <label class="shops-item-field-label">Niveau Requis</label>
-                        <input type="number" class="shops-item-field-input" value="${item.unlockLevel || ''}" 
-                               min="1" max="100" placeholder="Optionnel"
-                               onchange="adminPanel.shopEditor.updateItemField(${index}, 'unlockLevel', this.value)">
-                    </div>
-                </div>
-                
-                <div class="shops-item-featured-field">
-                    <input type="checkbox" class="shops-item-featured-checkbox" id="shopsFeatured_${index}" 
-                           ${item.featured ? 'checked' : ''}
-                           onchange="adminPanel.shopEditor.updateItemField(${index}, 'featured', this.checked)">
-                    <label class="shops-item-featured-label" for="shopsFeatured_${index}">Article mis en avant</label>
-                </div>
-            </div>
-        `;
-    }
-
-    renderShopKeeperSection() {
-        const shop = this.currentShop;
-        const keeper = shop.shopKeeper || {};
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">👤 Marchand</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">ID NPC (Optionnel)</label>
-                            <input type="number" class="shops-form-input" id="shopsKeeperNpcId" 
-                                   value="${keeper.npcId || ''}" placeholder="ID du NPC existant">
-                            <div class="shops-field-help">Référence vers un NPC existant</div>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Nom du Marchand</label>
-                            <input type="text" class="shops-form-input" id="shopsKeeperName" 
-                                   value="${keeper.name || ''}" placeholder="Nom du marchand">
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Personnalité</label>
-                            <select class="shops-form-select" id="shopsKeeperPersonality">
-                                <option value="">Sélectionner</option>
-                                <option value="friendly" ${keeper.personality === 'friendly' ? 'selected' : ''}>Amical</option>
-                                <option value="stern" ${keeper.personality === 'stern' ? 'selected' : ''}>Sévère</option>
-                                <option value="cheerful" ${keeper.personality === 'cheerful' ? 'selected' : ''}>Joyeux</option>
-                                <option value="mysterious" ${keeper.personality === 'mysterious' ? 'selected' : ''}>Mystérieux</option>
-                                <option value="grumpy" ${keeper.personality === 'grumpy' ? 'selected' : ''}>Grincheux</option>
-                                <option value="professional" ${keeper.personality === 'professional' ? 'selected' : ''}>Professionnel</option>
-                            </select>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Spécialisation</label>
-                            <input type="text" class="shops-form-input" id="shopsKeeperSpecialization" 
-                                   value="${keeper.specialization || ''}" placeholder="Ex: Expert en Poké Balls">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderAccessSection() {
-        const shop = this.currentShop;
-        const access = shop.accessRequirements || {};
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">🔒 Conditions d'Accès</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Niveau Minimum</label>
-                            <input type="number" class="shops-form-input" id="shopsAccessMinLevel" 
-                                   value="${access.minLevel || ''}" min="1" max="100" placeholder="Optionnel">
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Badges Requis</label>
-                            <textarea class="shops-form-textarea" id="shopsAccessBadges" rows="3" 
-                                      placeholder="Un badge par ligne">${(access.requiredBadges || []).join('\n')}</textarea>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Quêtes Requises</label>
-                            <textarea class="shops-form-textarea" id="shopsAccessQuests" rows="3" 
-                                      placeholder="Une quête par ligne">${(access.requiredQuests || []).join('\n')}</textarea>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Membership Requis</label>
-                            <select class="shops-form-select" id="shopsAccessMembership">
-                                <option value="">Aucun</option>
-                                <option value="bronze" ${access.membershipRequired === 'bronze' ? 'selected' : ''}>Bronze</option>
-                                <option value="silver" ${access.membershipRequired === 'silver' ? 'selected' : ''}>Argent</option>
-                                <option value="gold" ${access.membershipRequired === 'gold' ? 'selected' : ''}>Or</option>
-                                <option value="platinum" ${access.membershipRequired === 'platinum' ? 'selected' : ''}>Platine</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    ${this.renderTimeRestrictionsSection(access.timeRestrictions)}
-                </div>
-            </div>
-        `;
-    }
-
-    renderTimeRestrictionsSection(timeRestrictions = {}) {
-        return `
-            <div class="shops-time-restrictions">
-                <h5 class="shops-time-title">⏰ Horaires d'Ouverture</h5>
-                
-                <div class="shops-time-grid">
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Heure d'Ouverture</label>
-                        <input type="number" class="shops-form-input" id="shopsTimeOpenHour" 
-                               value="${timeRestrictions.openHour || ''}" min="0" max="23" placeholder="0-23">
-                    </div>
-                    
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Heure de Fermeture</label>
-                        <input type="number" class="shops-form-input" id="shopsTimeCloseHour" 
-                               value="${timeRestrictions.closeHour || ''}" min="0" max="23" placeholder="0-23">
-                    </div>
-                </div>
-                
-                <div class="shops-form-field">
-                    <label class="shops-field-label">Jours Fermés</label>
-                    <div class="shops-closed-days">
-                        ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, index) => `
-                            <div class="shops-day-checkbox">
-                                <input type="checkbox" ${(timeRestrictions.closedDays || []).includes(index) ? 'checked' : ''} 
-                                       onchange="adminPanel.shopEditor.updateClosedDay(${index}, this.checked)">
-                                <label>${day}</label>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderAdvancedSection() {
-        const shop = this.currentShop;
-        const restock = shop.restockInfo || {};
-        
-        return `
-            <div class="shops-form-section">
-                <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                    <h4 class="shops-section-title">⚙️ Configuration Avancée</h4>
-                    <span class="shops-section-toggle">▼</span>
-                </div>
-                <div class="shops-section-content">
-                    <h5 class="shops-time-title">🔄 Restock Automatique</h5>
-                    
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Intervalle (minutes)</label>
-                            <input type="number" class="shops-form-input" id="shopsRestockInterval" 
-                                   value="${restock.interval || ''}" min="0" placeholder="0 = désactivé">
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Variation Stock (%)</label>
-                            <input type="number" class="shops-form-input" id="shopsRestockVariation" 
-                                   value="${restock.stockVariation || 10}" min="0" max="100">
-                        </div>
-                        
-                        <div class="shops-boolean-field">
-                            <input type="checkbox" class="shops-form-checkbox" id="shopsRestockAuto" 
-                                   ${restock.autoRestock !== false ? 'checked' : ''}>
-                            <label class="shops-checkbox-label" for="shopsRestockAuto">Restock automatique</label>
-                        </div>
-                    </div>
-                    
-                    <h5 class="shops-time-title" style="margin-top: 20px;">💬 Dialogues Personnalisés</h5>
-                    
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Messages d'Accueil</label>
-                        <textarea class="shops-form-textarea" id="shopsDialoguesWelcome" rows="3" 
-                                  placeholder="Un message par ligne">${(shop.dialogues?.welcome || []).join('\n')}</textarea>
-                    </div>
-                    
-                    <div class="shops-fields-grid">
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Messages d'Achat</label>
-                            <textarea class="shops-form-textarea" id="shopsDialoguesPurchase" rows="2" 
-                                      placeholder="Un message par ligne">${(shop.dialogues?.purchase || []).join('\n')}</textarea>
-                        </div>
-                        
-                        <div class="shops-form-field">
-                            <label class="shops-field-label">Messages d'Au Revoir</label>
-                            <textarea class="shops-form-textarea" id="shopsDialoguesGoodbye" rows="2" 
-                                      placeholder="Un message par ligne">${(shop.dialogues?.farewell || []).join('\n')}</textarea>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
     }
 
     async importShops() {
@@ -1669,10 +1388,32 @@ export class ShopEditorModule {
         }
     }
 
+    // ✅ NOUVELLES MÉTHODES PUBLIQUES comme NPC Editor
+    getCurrentZone() {
+        return this.selectedZone;
+    }
+
+    getCurrentShops() {
+        return [...this.allShops];
+    }
+
+    getAvailableZones() {
+        return [...this.availableZones];
+    }
+
+    isShopEditorReady() {
+        return this.availableZones.length > 0;
+    }
+
+    // ✅ MÉTHODE DE NETTOYAGE comme NPC Editor
     cleanup() {
-        // Nettoyage lors de la fermeture du module
         this.currentShop = null;
         this.selectedZone = null;
         this.allShops = [];
+        this.allItems = {};
+        this.isEditMode = false;
+        this.availableZones = [];
+        
+        console.log('🧹 [ShopEditor] Module cleanup completed');
     }
 }
