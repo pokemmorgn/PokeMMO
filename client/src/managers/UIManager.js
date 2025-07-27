@@ -11,7 +11,7 @@ export class UIManager {
     this.modules = new Map();
     this.moduleStates = new Map();
     this.moduleInstances = new Map();
-    this.setupGlobalKeyboardShortcuts();
+    
     // ✅ FIX 1: Tracking strict des initialisations
     this.initializationTracker = {
       inProgress: new Set(),
@@ -40,30 +40,20 @@ export class UIManager {
       globalOffset: 15, // ✅ Décalage global vers la gauche (en pixels)
       zIndex: 500
     };
-        // Configuration spéciale pour Options (toujours accessible)
-    this.optionsConfig = {
-      moduleId: 'options',
-      anchor: 'top-right',
-      order: 100, // Ordre très élevé = position isolée
-      priority: 999, // Priorité maximale
-      critical: false,
-      alwaysVisible: true
-    };
+    
     this.registeredIcons = new Map();
     this.iconGroups = new Map();
     this.currentBreakpoint = this.getCurrentBreakpoint();
     
     this.setupDefaultGroups();
     this.setupResizeListener();
-    this.setupGlobalKeyboardShortcuts();
     this.injectGlobalIconCSS();
     
     this.interactionRules = {
       inventory_open: ['team'],
       team_open: ['inventory'],
       dialogue_active: ['inventory', 'team', 'quest'],
-      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-      options_open: [] // Options peut s'ouvrir même si autres modules ouverts
+      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat']
     };
     
     this.openModules = new Set();
@@ -577,24 +567,15 @@ export class UIManager {
     console.log(`📏 [UIManager] Taille appliquée PROTÉGÉE: ${currentSize.width}x${currentSize.height}`);
   }
 
-setupDefaultGroups() {
-  this.iconGroups.set('ui-icons', {
-    anchor: 'bottom-right',
-    spacing: this.iconConfig.spacing,
-    padding: this.iconConfig.padding,
-    members: [],
-    expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
-  });
-  
-  // Groupe spécial pour Options (position isolée)
-  this.iconGroups.set('options-group', {
-    anchor: 'top-right',
-    spacing: this.iconConfig.spacing,
-    padding: this.iconConfig.padding,
-    members: [],
-    expectedOrder: ['options']
-  });
-}
+  setupDefaultGroups() {
+    this.iconGroups.set('ui-icons', {
+      anchor: 'bottom-right',
+      spacing: this.iconConfig.spacing,
+      padding: this.iconConfig.padding,
+      members: [],
+      expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
+    });
+  }
   
   setupResizeListener() {
     let resizeTimeout;
@@ -613,32 +594,7 @@ setupDefaultGroups() {
       }, 200);
     });
   }
-
-setupGlobalKeyboardShortcuts() {
-  // Gestion globale de la touche Échap pour Options
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && 
-        !e.target.matches('input, textarea, [contenteditable]') &&
-        !e.ctrlKey && !e.altKey && !e.metaKey) {
-      
-      const optionsModule = this.getModuleInstance('options');
-      if (optionsModule && optionsModule.canOpenUI && optionsModule.canOpenUI()) {
-        e.preventDefault();
-        
-        if (optionsModule.ui && optionsModule.ui.isVisible) {
-          optionsModule.ui.hide();
-        } else {
-          optionsModule.ui.show();
-        }
-      }
-    }
-  });
   
-  console.log('⌨️ [UIManager] Raccourcis clavier globaux configurés');
-}
-  
-  console.log('⌨️ [UIManager] Raccourcis clavier globaux configurés');
-}
   applyNewSizesToAllIcons() {
     const currentSize = this.getCurrentIconSize();
     console.log(`📏 [UIManager] Application nouvelle taille PROTÉGÉE: ${currentSize.width}x${currentSize.height}`);
@@ -1261,20 +1217,15 @@ setupGlobalKeyboardShortcuts() {
     }
   }
 
-canShowModule(moduleId) {
-  // Options peut toujours s'ouvrir (accès universel)
-  if (moduleId === 'options') {
+  canShowModule(moduleId) {
+    for (const [rule, blockedModules] of Object.entries(this.interactionRules)) {
+      if (this.isRuleActive(rule) && blockedModules.includes(moduleId)) {
+        return false;
+      }
+    }
+    
     return true;
   }
-  
-  for (const [rule, blockedModules] of Object.entries(this.interactionRules)) {
-    if (this.isRuleActive(rule) && blockedModules.includes(moduleId)) {
-      return false;
-    }
-  }
-  
-  return true;
-}
 
   isRuleActive(rule) {
     switch (rule) {
@@ -1295,13 +1246,6 @@ canShowModule(moduleId) {
           !teamOverlay.classList.contains('hidden') &&
           window.getComputedStyle(teamOverlay).opacity > 0.1;
         return teamVisible;
-        
-      case 'options_open':
-        // Vérifier si le menu options est ouvert
-        const optionsOverlay = document.querySelector('#options-overlay');
-        const optionsVisible = optionsOverlay && 
-          optionsOverlay.classList.contains('visible');
-        return optionsVisible;
         
       case 'dialogue_active':
         return this.globalState.currentGameState === 'dialogue';
@@ -1444,62 +1388,6 @@ canShowModule(moduleId) {
   handleError(error, context) {
     console.error(`❌ [UIManager:${context}]`, error);
   }
-// === 🎛️ HELPER POUR ENREGISTREMENT OPTIONS ===
-
-async registerOptionsModule() {
-  console.log('🎛️ [UIManager] Enregistrement module Options...');
-  
-  try {
-    // Configuration du module Options
-    const optionsConfig = {
-      // ✅ FIX: Ne pas définir factory ici - définie dans ui.js
-      factory: null, // Sera définie par ui.js
-      
-      defaultState: {
-        visible: true,
-        enabled: true,
-        initialized: false
-      },
-      
-      priority: 999, // Priorité maximale
-      critical: false, // Pas critique pour le jeu
-      
-      layout: {
-        type: 'icon',
-        anchor: 'top-right',
-        order: 100, // Position isolée
-        spacing: 10,
-        group: 'options-group'
-      },
-      
-      responsive: {
-        mobile: { scale: 0.8 },
-        tablet: { scale: 0.9 },
-        desktop: { scale: 1.0 }
-      },
-      
-      groups: ['options-group'],
-      
-      metadata: {
-        name: 'Options System',
-        description: 'Game settings and preferences',
-        version: '1.0.0',
-        category: 'System',
-        singleton: true
-      }
-    };
-    
-    // ✅ FIX: Utiliser registerModule standard
-    this.registerModule('options', optionsConfig);
-    
-    console.log('✅ [UIManager] Module Options enregistré avec succès');
-    return true;
-    
-  } catch (error) {
-    console.error('❌ [UIManager] Erreur enregistrement Options:', error);
-    return false;
-  }
-}
 
   destroy() {
     console.log('🧹 [UIManager] Destruction PROTÉGÉE...');
