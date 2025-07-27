@@ -368,15 +368,16 @@ export class PokemonUISystem {
           category: 'Environment'
         }
       },
-      {
+{
         id: 'options',
         critical: false,
+        // ✅ FIX: Utiliser factory function bind comme Team
         factory: this.createOptionsModule.bind(this),
         groups: ['options'],
         layout: {
           type: 'icon',
           anchor: 'top-right',
-          order: 100, // Position isolée
+          order: 100, // Position isolée comme Team ordre 3
           spacing: 10
         },
         priority: 999, // Priorité maximale
@@ -389,7 +390,8 @@ export class PokemonUISystem {
           name: 'Options System',
           description: 'Game settings and preferences management',
           version: '1.0.0',
-          category: 'System'
+          category: 'System',
+          singleton: true
         }
       },
       {
@@ -743,58 +745,46 @@ async createQuestModule() {
     }
   }
 
-  async createOptionsModule() {
-    try {
-      console.log('🎛️ [PokemonUI] Création module Options...');
-      
-      // Import du module Options
-      const { OptionsModule } = await import('./Options/OptionsModule.js');
-      
-      const optionsModule = new OptionsModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0],
-        {
-          singleton: true,
-          autoCloseUI: true,
-          keyboardShortcut: 'Escape',
-          uiManagerConfig: {
-            anchor: 'top-right',
-            order: 100,
-            group: 'options',
-            spacing: 10
-          }
-        }
-      );
-      
-      if (!optionsModule) {
-        throw new Error('Échec création OptionsModule');
-      }
-      
-      // Initialiser le module
-      await optionsModule.initializeModule();
-      
-      console.log('✅ [PokemonUI] OptionsModule créé avec succès');
-      
-      // Connexion UIManager si disponible
-      if (this.uiManager && optionsModule.connectUIManager) {
-        const connected = optionsModule.connectUIManager(this.uiManager);
-        console.log(`🔗 [PokemonUI] Options UIManager connexion: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
-      }
-      
-      // Exposer globalement
-      window.optionsSystem = optionsModule;
-      window.optionsSystemGlobal = optionsModule;
-      window.toggleOptions = () => optionsModule.toggleUI?.() || optionsModule.toggle?.();
-      window.openOptions = () => optionsModule.open?.();
-      window.closeOptions = () => optionsModule.close?.();
-      
-      return optionsModule;
-      
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création Options:', error);
-      return this.createEmptyWrapper('options');
+async createOptionsModule() {
+  try {
+    console.log('🎛️ [PokemonUI] Création module Options...');
+    
+    // ✅ FIX: Import depuis index.js comme Team/Quest
+    const { createOptionsModule } = await import('./Options/index.js');
+    
+    // ✅ FIX: Utiliser factory function comme Team/Quest
+    const optionsModule = await createOptionsModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0]
+    );
+    
+    if (!optionsModule) {
+      throw new Error('Échec création OptionsModule');
     }
+    
+    console.log('✅ [PokemonUI] OptionsModule créé avec succès');
+    
+    // ✅ FIX: Connexion UIManager cohérente
+    if (this.uiManager && optionsModule.connectUIManager) {
+      const connected = optionsModule.connectUIManager(this.uiManager);
+      console.log(`🔗 [PokemonUI] Options UIManager connexion: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
+    }
+    
+    // ✅ FIX: Exposer globalement comme Team
+    window.optionsSystem = optionsModule;
+    window.optionsSystemGlobal = optionsModule;
+    window.toggleOptions = () => optionsModule.toggleUI?.() || optionsModule.toggle?.();
+    window.openOptions = () => optionsModule.open?.();
+    window.closeOptions = () => optionsModule.close?.();
+    window.forceCloseOptions = () => optionsModule.forceCloseUI?.() || optionsModule.close?.();
+    
+    return optionsModule;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création Options:', error);
+    return this.createEmptyWrapper('options');
   }
+}
   
   // === WRAPPER POUR MODULES EXISTANTS ===
   wrapExistingModule(existingModule, moduleType) {
