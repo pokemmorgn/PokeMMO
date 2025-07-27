@@ -1275,7 +1275,25 @@ this.onMessage("npcInteract", async (client, data) => {
         });
         return;
       }
-
+    // ✅ TRACKING IA: Transaction shop
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      data.action === 'buy' ? ActionType.ITEM_BUY : ActionType.ITEM_SELL,
+      {
+        shopId: data.shopId,
+        itemId: data.itemId,
+        quantity: data.quantity,
+        playerGold: player.gold,
+        playerLevel: player.level
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
       try {
         // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
         const result = await this.interactionManager.handleShopTransaction(
