@@ -2229,9 +2229,11 @@ async onJoin(client: Client, options: any = {}) {
         client.leave(4000, "Token/username mismatch");
         return;
       }
-// Dans WorldRoom.ts, après la vérification JWT
-console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
-console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
+
+      // Dans WorldRoom.ts, après la vérification JWT
+      console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
+      console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
+      
       // Permissions obligatoires
       if (!decodedToken.permissions || !decodedToken.permissions.includes('play')) {
         console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decodedToken.permissions);
@@ -2252,6 +2254,15 @@ console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
   }
 
   try {
+    // ✅ RÉCUPÉRER USERID DÈS LE DÉBUT
+    const userId = this.jwtManager.getUserId(client.sessionId);
+    if (!userId) {
+      console.error(`❌ [WorldRoom] UserId introuvable après enregistrement JWT pour ${client.sessionId}`);
+      client.leave(4000, "JWT registration failed");
+      return;
+    }
+    console.log(`🔗 [WorldRoom] UserId récupéré: ${userId} pour session ${client.sessionId}`);
+
     // Créer le joueur
     const player = new Player();
 
@@ -2259,13 +2270,14 @@ console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
     player.id = client.sessionId;
     player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
     player.isDev = decodedToken?.isDev || false;
-console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
+    console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
 
     // Debug d'abord
     await this.positionSaver.debugPlayerPosition(player.name);
 
     console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
     console.log(`👤 Joueur: ${player.name}`);
+    console.log(`🆔 UserId: ${userId}`);
     console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
 
     // Étape 1: Toujours chercher en DB d'abord
@@ -2342,30 +2354,37 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
 
     // Étape 1: Ajouter au state immédiatement
     this.state.players.set(client.sessionId, player);
-    // ✅ AJOUT : Enregistrer le joueur dans le système de tracking IA
+    
+    // ✅ ENREGISTREMENT IA CORRIGÉ : Utiliser userId
     if (this.aiSystemInitialized) {
       try {
-        const userId = this.jwtManager.getUserId(client.sessionId);
-        if (userId) {
-          this.actionTracker.registerPlayer(
-            userId,                      // ✅ userId stable du JWT
-            player.name,
-            `session_${Date.now()}`,
-            { map: player.currentZone, x: player.x, y: player.y },
-            player.level
-          );
-          console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
-        } else {
-          console.warn(`⚠️ [AI] Impossible d'enregistrer ${player.name} : userId introuvable`);
-        }
-        console.log(`📝 [AI] Joueur ${player.name} enregistré dans ActionTracker`);
+        this.actionTracker.registerPlayer(
+          userId,                      // ✅ userId stable du JWT (CORRIGÉ)
+          player.name,
+          `session_${Date.now()}`,
+          { map: player.currentZone, x: player.x, y: player.y },
+          player.level
+        );
+        console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
+        
+        // ✅ DEBUG: Vérifier immédiatement l'enregistrement
+        const tracker = this.actionTracker;
+        const stats = tracker.getStats();
+        console.log(`📋 [AI] État tracker après enregistrement:`, {
+          playersTracked: stats.playersTracked,
+          actionsInQueue: stats.actionsInQueue,
+          isEnabled: stats.isEnabled
+        });
+        
       } catch (error) {
         console.error(`❌ [AI] Erreur enregistrement joueur:`, error);
       }
     } else {
       console.warn(`⚠️ [AI] Système IA pas encore initialisé, enregistrement différé`);
     }
+    
     console.log("🧪 onJoin - client.sessionId =", client.sessionId);
+    console.log("🧪 onJoin - userId =", userId);
     console.log(`✅ Joueur ${player.name} ajouté au state`);
     console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
@@ -2447,16 +2466,19 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
-    // ✅ TRACKING IA: Connexion du joueur
+    
+    // ✅ TRACKING IA CORRIGÉ: Connexion du joueur avec userId
+    console.log(`📊 [AI] Préparation tracking connexion pour userId: ${userId}`);
     this.trackPlayerActionWithAI(
-      client.sessionId,
+      client.sessionId,  // sessionId pour récupérer userId dans trackPlayerActionWithAI
       ActionType.SESSION_START,
       {
         playerName: player.name,
         level: player.level,
         gold: player.gold,
         spawnZone: player.currentZone,
-        isReturningPlayer: !!savedData
+        isReturningPlayer: !!savedData,
+        userId: userId // ✅ Ajouter userId aux données pour debug
       },
       {
         location: { 
@@ -2466,7 +2488,9 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
         }
       }
     );
-    console.log(`🎉 ${player.name} a rejoint le monde !`);
+    
+    console.log(`🎉 ${player.name} a rejoint le monde ! (userId: ${userId})`);
+    
   } catch (error) {
     console.error(`❌ Erreur lors du join:`, error);
     client.leave(1000, "Erreur lors de la connexion");
