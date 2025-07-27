@@ -63,6 +63,8 @@ export class ShopEditorModule {
             await Promise.all([
                 this.loadAllItems(),
                 this.loadShopsStats()
+                this.loadShops()  // ✅ Ajouter cette ligne
+
             ]);
             
             console.log('✅ [ShopEditor] All initial data loaded successfully');
