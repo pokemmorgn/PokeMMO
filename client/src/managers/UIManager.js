@@ -11,7 +11,7 @@ export class UIManager {
     this.modules = new Map();
     this.moduleStates = new Map();
     this.moduleInstances = new Map();
-    
+    this.setupGlobalKeyboardShortcuts();
     // ✅ FIX 1: Tracking strict des initialisations
     this.initializationTracker = {
       inProgress: new Set(),
@@ -614,7 +614,7 @@ setupDefaultGroups() {
     });
   }
 
-  setupGlobalKeyboardShortcuts() {
+setupGlobalKeyboardShortcuts() {
   // Gestion globale de la touche Échap pour Options
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && 
@@ -633,6 +633,9 @@ setupDefaultGroups() {
       }
     }
   });
+  
+  console.log('⌨️ [UIManager] Raccourcis clavier globaux configurés');
+}
   
   console.log('⌨️ [UIManager] Raccourcis clavier globaux configurés');
 }
@@ -1328,39 +1331,7 @@ canShowModule(moduleId) {
     const state = this.moduleStates.get(moduleId);
     return state?.initialized || false;
   }
-  // === 🎛️ MÉTHODE SPÉCIALE POUR OPTIONS ===
-  
-  async createOptionsModule(gameRoom, scene) {
-    try {
-      console.log('🎛️ [UIManager] Création module Options...');
-      
-      // Import dynamique pour éviter les imports classiques
-      const { OptionsModule } = await import('../Options/OptionsModule.js');
-      
-      // Créer avec configuration spéciale
-      const optionsModule = new OptionsModule(gameRoom, scene, {
-        singleton: true,
-        autoCloseUI: true,
-        keyboardShortcut: 'Escape',
-        uiManagerConfig: {
-          anchor: 'top-right',
-          order: 100,
-          group: 'options-group',
-          spacing: 10
-        }
-      });
-      
-      // Initialiser le module
-      await optionsModule.initializeModule();
-      
-      console.log('✅ [UIManager] Module Options créé avec succès');
-      return optionsModule;
-      
-    } catch (error) {
-      console.error('❌ [UIManager] Erreur création Options:', error);
-      throw error;
-    }
-  }
+
   getGlobalState() {
     return {
       ...this.globalState,
@@ -1481,7 +1452,8 @@ async registerOptionsModule() {
   try {
     // Configuration du module Options
     const optionsConfig = {
-      factory: (...args) => this.createOptionsModule(...args),
+      // ✅ FIX: Ne pas définir factory ici - définie dans ui.js
+      factory: null, // Sera définie par ui.js
       
       defaultState: {
         visible: true,
@@ -1517,7 +1489,7 @@ async registerOptionsModule() {
       }
     };
     
-    // Enregistrer le module
+    // ✅ FIX: Utiliser registerModule standard
     this.registerModule('options', optionsConfig);
     
     console.log('✅ [UIManager] Module Options enregistré avec succès');
@@ -1528,6 +1500,7 @@ async registerOptionsModule() {
     return false;
   }
 }
+
   destroy() {
     console.log('🧹 [UIManager] Destruction PROTÉGÉE...');
     
