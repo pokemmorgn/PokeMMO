@@ -303,8 +303,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
     
     try {
       const { player, request } = context;
-      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
+      const enhancedContext = context as EnhancedInteractionContext;
       const npcId = request.data?.npcId;
+      
+      // ✅ NOUVEAU : Extraire la langue du joueur depuis la requête
+      const playerLanguage = request.data?.playerLanguage || 'fr'; // Fallback français
+      
+      console.log(`🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
 
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
@@ -361,7 +366,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       });
 
       // ✅ NOUVEAU : Logique avec IA intégrée
-      const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId);
+    const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
 
       // Mise à jour des stats
       const processingTime = Date.now() - startTime;
@@ -383,12 +388,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE (MODIFIÉE POUR USERID) ===
 
-  private async handleNpcInteractionWithAI(
-    player: Player, 
-    npcId: number, 
-    request: InteractionRequest,
-    userId?: string  // ✅ NOUVEAU : userId pour tracking intelligent
-  ): Promise<NpcInteractionResult> {
+private async handleNpcInteractionWithAI(
+  player: Player, 
+  npcId: number, 
+  request: InteractionRequest,
+  userId?: string,
+  playerLanguage: string = 'fr'  // ✅ NOUVEAU : Paramètre langue
+): Promise<NpcInteractionResult> {
     
     this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'})`);
     
