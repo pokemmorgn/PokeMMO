@@ -28,6 +28,82 @@ export class QuestGeneratorModule {
                 { id: 'daily', name: 'Daily Task', weight: 25, storyImpact: 'low' },
                 { id: 'event', name: 'Special Event', weight: 5, storyImpact: 'high' }
             ],
+
+            // Progression basée sur les arènes de Kanto
+gymProgression: {
+    pre_gym: { 
+        name: 'Avant première arène', 
+        levels: [3, 8], 
+        badge: null,
+        description: 'Début de l\'aventure à Bourg Palette'
+    },
+    gym_1: { 
+        name: 'Arène de Pierre (Argenta)', 
+        levels: [10, 14], 
+        badge: 'Boulder Badge',
+        leader: 'Brock',
+        type: 'Roche'
+    },
+    gym_2: { 
+        name: 'Arène d\'Ondine (Azuria)', 
+        levels: [18, 21], 
+        badge: 'Cascade Badge',
+        leader: 'Misty',
+        type: 'Eau'
+    },
+    gym_3: { 
+        name: 'Arène du Major Bob', 
+        levels: [24, 26], 
+        badge: 'Thunder Badge',
+        leader: 'Lt. Surge',
+        type: 'Électrik'
+    },
+    gym_4: { 
+        name: 'Arène d\'Erika', 
+        levels: [29, 32], 
+        badge: 'Rainbow Badge',
+        leader: 'Erika',
+        type: 'Plante'
+    },
+    gym_5: { 
+        name: 'Arène de Koga', 
+        levels: [37, 43], 
+        badge: 'Soul Badge',
+        leader: 'Koga',
+        type: 'Poison'
+    },
+    gym_6: { 
+        name: 'Arène de Sabrina', 
+        levels: [43, 50], 
+        badge: 'Marsh Badge',
+        leader: 'Sabrina',
+        type: 'Psy'
+    },
+    gym_7: { 
+        name: 'Arène d\'Auguste', 
+        levels: [47, 50], 
+        badge: 'Volcano Badge',
+        leader: 'Blaine',
+        type: 'Feu'
+    },
+    gym_8: { 
+        name: 'Arène de Giovanni', 
+        levels: [50, 55], 
+        badge: 'Earth Badge',
+        leader: 'Giovanni',
+        type: 'Sol'
+    },
+    elite_four: { 
+        name: 'Conseil des 4 & Champion', 
+        levels: [54, 65], 
+        badge: 'Champion'
+    },
+    post_game: { 
+        name: 'Après la Ligue', 
+        levels: [65, 100], 
+        badge: 'Master'
+    }
+},
             
             // NPCs with personalities and locations
             npcs: [
@@ -49,28 +125,34 @@ export class QuestGeneratorModule {
             ],
             
             // Expanded item categories
-            items: {
-                healing: ['potion', 'super_potion', 'hyper_potion', 'max_potion', 'full_heal', 'revive', 'max_revive'],
-                pokeballs: ['poke_ball', 'great_ball', 'ultra_ball', 'master_ball', 'timer_ball', 'repeat_ball', 'luxury_ball'],
-                medicine: ['antidote', 'burn_heal', 'ice_heal', 'paralyz_heal', 'awakening'],
-                enhancement: ['rare_candy', 'pp_up', 'pp_max', 'calcium', 'iron', 'protein', 'zinc', 'carbos', 'hp_up'],
-                tools: ['escape_rope', 'repel', 'super_repel', 'max_repel', 'fishing_rod_basic', 'fishing_rod_super'],
-                berries: ['berry_oran', 'berry_pecha', 'berry_cheri', 'berry_rawst'],
-                stones: ['moon_stone', 'fire_stone', 'water_stone', 'thunder_stone', 'leaf_stone'],
-                fossils: ['fossil_amber', 'fossil_helix', 'fossil_dome'],
-                rare: ['master_ball', 'rare_candy', 'pp_max', 'max_revive']
-            },
+items: {
+    basic: ['potion', 'poke_ball', 'antidote', 'paralyz_heal', 'awakening'],
+    intermediate: ['super_potion', 'great_ball', 'burn_heal', 'ice_heal', 'escape_rope', 'repel'],
+    advanced: ['hyper_potion', 'ultra_ball', 'super_repel', 'full_heal', 'revive', 'rare_candy'],
+    rare: ['max_potion', 'max_revive', 'master_ball', 'pp_up', 'pp_max', 'max_repel'],
+    legendary: ['master_ball', 'rare_candy', 'pp_max', 'max_revive'],
+    stones: {
+        early: ['moon_stone'],
+        mid: ['fire_stone', 'water_stone', 'thunder_stone'],
+        late: ['leaf_stone']
+    }
+},
             
             // Pokemon organized by regions and difficulty
-            pokemon: {
-                common: ['Pidgey', 'Rattata', 'Spearow', 'Caterpie', 'Weedle', 'Magikarp'],
-                uncommon: ['Pikachu', 'Sandshrew', 'Nidoran♀', 'Nidoran♂', 'Clefairy', 'Vulpix', 'Jigglypuff'],
-                rare: ['Abra', 'Machop', 'Gastly', 'Onix', 'Scyther', 'Electabuzz', 'Magmar'],
-                legendary: ['Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 'Mew'],
-                cave: ['Zubat', 'Geodude', 'Graveler', 'Onix', 'Machop', 'Gastly'],
-                water: ['Magikarp', 'Goldeen', 'Psyduck', 'Poliwag', 'Tentacool', 'Staryu'],
-                forest: ['Caterpie', 'Weedle', 'Pidgey', 'Oddish', 'Bellsprout', 'Scyther']
-            },
+pokemon: {
+    pre_gym_1: ['Rattata', 'Pidgey', 'Spearow', 'Caterpie', 'Weedle', 'Pikachu'],
+    gym_1_2: ['Nidoran♀', 'Nidoran♂', 'Clefairy', 'Jigglypuff', 'Zubat', 'Oddish', 'Paras'],
+    gym_2_3: ['Pikachu', 'Sandshrew', 'Vulpix', 'Meowth', 'Psyduck', 'Mankey', 'Growlithe'],
+    gym_3_4: ['Abra', 'Machop', 'Bellsprout', 'Tentacool', 'Geodude', 'Ponyta', 'Magnemite'],
+    gym_4_5: ['Gastly', 'Onix', 'Drowzee', 'Krabby', 'Voltorb', 'Exeggcute', 'Cubone'],
+    gym_5_6: ['Rhyhorn', 'Chansey', 'Tangela', 'Kangaskhan', 'Horsea', 'Goldeen', 'Staryu'],
+    gym_6_7: ['Scyther', 'Jynx', 'Electabuzz', 'Magmar', 'Pinsir', 'Tauros', 'Gyarados'],
+    gym_7_8: ['Lapras', 'Ditto', 'Eevee', 'Porygon', 'Omanyte', 'Kabuto', 'Aerodactyl'],
+    post_game: ['Snorlax', 'Articuno', 'Zapdos', 'Moltres', 'Dragonite', 'Mewtwo', 'Mew'],
+    cave: ['Zubat', 'Geodude', 'Graveler', 'Onix', 'Machop', 'Gastly'],
+    water: ['Magikarp', 'Goldeen', 'Psyduck', 'Poliwag', 'Tentacool', 'Staryu', 'Horsea'],
+    forest: ['Caterpie', 'Weedle', 'Pidgey', 'Oddish', 'Bellsprout', 'Scyther']
+},
             
             // All available locations from ZoneMapping
             locations: {
@@ -309,42 +391,79 @@ export class QuestGeneratorModule {
             },
             
             // Advanced rewards system
-            rewards: {
-                easy: {
-                    gold: { min: 75, max: 200 },
-                    items: [
-                        { category: 'healing', amount: { min: 2, max: 4 }, rarity: 'common' },
-                        { category: 'pokeballs', amount: { min: 3, max: 6 }, rarity: 'common' },
-                        { category: 'medicine', amount: { min: 1, max: 3 }, rarity: 'common' }
-                    ]
-                },
-                medium: {
-                    gold: { min: 250, max: 500 },
-                    items: [
-                        { category: 'healing', amount: { min: 2, max: 4 }, rarity: 'uncommon' },
-                        { category: 'pokeballs', amount: { min: 3, max: 5 }, rarity: 'uncommon' },
-                        { category: 'enhancement', amount: { min: 1, max: 2 }, rarity: 'common' },
-                        { category: 'tools', amount: { min: 1, max: 2 }, rarity: 'common' }
-                    ]
-                },
-                hard: {
-                    gold: { min: 600, max: 1000 },
-                    items: [
-                        { category: 'healing', amount: { min: 2, max: 3 }, rarity: 'rare' },
-                        { category: 'pokeballs', amount: { min: 2, max: 4 }, rarity: 'rare' },
-                        { category: 'enhancement', amount: { min: 1, max: 3 }, rarity: 'uncommon' },
-                        { category: 'stones', amount: { min: 1, max: 1 }, rarity: 'rare' }
-                    ]
-                },
-                legendary: {
-                    gold: { min: 1500, max: 3000 },
-                    items: [
-                        { category: 'rare', amount: { min: 1, max: 2 }, rarity: 'legendary' },
-                        { category: 'enhancement', amount: { min: 2, max: 4 }, rarity: 'rare' },
-                        { category: 'stones', amount: { min: 1, max: 2 }, rarity: 'rare' }
-                    ]
-                }
-            }
+rewards: {
+    pre_gym: {
+        gold: { min: 50, max: 150 },
+        items: [{ category: 'basic', amount: { min: 2, max: 4 }, rarity: 'common' }]
+    },
+    gym_1: {
+        gold: { min: 200, max: 350 },
+        items: [
+            { category: 'basic', amount: { min: 3, max: 5 }, rarity: 'common' },
+            { category: 'intermediate', amount: { min: 1, max: 2 }, rarity: 'uncommon' }
+        ]
+    },
+    gym_2: {
+        gold: { min: 400, max: 650 },
+        items: [
+            { category: 'intermediate', amount: { min: 2, max: 4 }, rarity: 'common' },
+            { category: 'stones', amount: { min: 1, max: 1 }, rarity: 'rare' }
+        ]
+    },
+    gym_3: {
+        gold: { min: 700, max: 1000 },
+        items: [
+            { category: 'intermediate', amount: { min: 3, max: 5 }, rarity: 'common' },
+            { category: 'advanced', amount: { min: 1, max: 2 }, rarity: 'uncommon' }
+        ]
+    },
+    gym_4: {
+        gold: { min: 1200, max: 1800 },
+        items: [
+            { category: 'advanced', amount: { min: 2, max: 4 }, rarity: 'common' },
+            { category: 'stones', amount: { min: 1, max: 2 }, rarity: 'rare' }
+        ]
+    },
+    gym_5: {
+        gold: { min: 2000, max: 3000 },
+        items: [
+            { category: 'advanced', amount: { min: 3, max: 5 }, rarity: 'common' },
+            { category: 'rare', amount: { min: 1, max: 2 }, rarity: 'rare' }
+        ]
+    },
+    gym_6: {
+        gold: { min: 3500, max: 5000 },
+        items: [
+            { category: 'rare', amount: { min: 2, max: 4 }, rarity: 'common' },
+            { category: 'stones', amount: { min: 2, max: 3 }, rarity: 'rare' }
+        ]
+    },
+    gym_7: {
+        gold: { min: 5500, max: 8000 },
+        items: [
+            { category: 'rare', amount: { min: 3, max: 5 }, rarity: 'common' },
+            { category: 'legendary', amount: { min: 1, max: 2 }, rarity: 'legendary' }
+        ]
+    },
+    gym_8: {
+        gold: { min: 8500, max: 12000 },
+        items: [
+            { category: 'rare', amount: { min: 4, max: 6 }, rarity: 'common' },
+            { category: 'legendary', amount: { min: 2, max: 3 }, rarity: 'legendary' }
+        ]
+    },
+    elite_four: {
+        gold: { min: 15000, max: 25000 },
+        items: [
+            { category: 'legendary', amount: { min: 3, max: 5 }, rarity: 'legendary' },
+            { category: 'rare', amount: { min: 5, max: 8 }, rarity: 'rare' }
+        ]
+    },
+    post_game: {
+        gold: { min: 30000, max: 50000 },
+        items: [{ category: 'legendary', amount: { min: 5, max: 10 }, rarity: 'legendary' }]
+    }
+}
         }
         
         this.init()
@@ -434,15 +553,22 @@ export class QuestGeneratorModule {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Difficulty</label>
-                        <select class="form-select" id="genDifficulty">
-                            <option value="random">🎲 Random</option>
-                            <option value="easy">🟢 Easy</option>
-                            <option value="medium">🟡 Medium</option>
-                            <option value="hard">🔴 Hard</option>
-                            <option value="legendary">💜 Legendary</option>
-                        </select>
-                    </div>
+    <label class="form-label">Progression</label>
+    <select class="form-select" id="genProgression">
+        <option value="random">🎲 Aléatoire</option>
+        <option value="pre_gym">🌱 Avant 1ère Arène</option>
+        <option value="gym_1">🗿 Après Arène Pierre</option>
+        <option value="gym_2">💧 Après Arène Ondine</option>
+        <option value="gym_3">⚡ Après Arène Major Bob</option>
+        <option value="gym_4">🌿 Après Arène Erika</option>
+        <option value="gym_5">☠️ Après Arène Koga</option>
+        <option value="gym_6">🔮 Après Arène Sabrina</option>
+        <option value="gym_7">🔥 Après Arène Auguste</option>
+        <option value="gym_8">🌍 Après Arène Giovanni</option>
+        <option value="elite_four">👑 Conseil des 4</option>
+        <option value="post_game">🌟 Post-Ligue</option>
+    </select>
+</div>
                     
                     <div class="form-group">
                         <label class="form-label">Number of Steps</label>
@@ -554,7 +680,7 @@ export class QuestGeneratorModule {
         return {
             questType: document.getElementById('genQuestType')?.value || 'random',
             category: document.getElementById('genCategory')?.value || 'random',
-            difficulty: document.getElementById('genDifficulty')?.value || 'random',
+progression: document.getElementById('genProgression')?.value || 'random',
             steps: document.getElementById('genSteps')?.value || 'random',
             repeatable: document.getElementById('genRepeatable')?.checked || false,
             autoComplete: document.getElementById('genAutoComplete')?.checked || true,
