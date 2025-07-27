@@ -845,6 +845,13 @@ this.onMessage("battleFinished", async (client, data) => {
         }
       }
     );
+    // ✅ DEBUG: Vérifier si le tracking fonctionne
+console.log(`🔍 [DEBUG] Tracking IA appelé pour NPC ${data.npcId}:`, {
+  aiInitialized: this.aiSystemInitialized,
+  sessionId: client.sessionId,
+  playerName: player.name,
+  actionType: 'NPC_TALK'
+});
   }
   
   // ✅ RESTE DU CODE IDENTIQUE
