@@ -1,6 +1,6 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString - ÉTAPE 2
-// ✅ ÉTAPE 2 : Remplacement dialogues par DialogString
+// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString + LANGUE JOUEUR
+// ✅ ÉTAPE 4 COMPLÈTE : Intégration langue joueur dans tous les appels DialogString
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -114,7 +114,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "4.2.1"; // ✅ Version avec DialogString ÉTAPE 2
+  readonly version = "4.3.0"; // ✅ Version avec DialogString + Langue joueur intégrée
 
   // === DÉPENDANCES EXISTANTES ===
   private getNpcManager: (zoneName: string) => any;
@@ -168,13 +168,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Initialisation handlers existants
     this.initializeHandlers();
 
-    this.log('info', '🤖 Module NPC v4.2.1 avec DialogString ÉTAPE 2', {
+    this.log('info', '🤖 Module NPC v4.3.0 avec DialogString + Langue joueur', {
       version: this.version,
       intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
       enabledTypes: this.intelligenceConfig.enabledNPCTypes,
       handlersLoaded: ['merchant', 'unifiedInterface', 'intelligence', 'dialogString'],
       questIntegration: 'Phase 3 - Triggers automatiques + IA',
-      dialogService: 'Intégré et prêt - ÉTAPE 2'
+      dialogService: 'Intégré avec support multilingue',
+      languageSupport: 'Intégré - Client vers DialogString'
     });
 
     // ✅ ENREGISTREMENT DIFFÉRÉ DES NPCs DANS L'IA
@@ -291,29 +292,29 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === MÉTHODES PRINCIPALES (MODIFIÉES POUR IA) ===
+  // === MÉTHODES PRINCIPALES (MODIFIÉES POUR IA + LANGUE) ===
 
   canHandle(request: InteractionRequest): boolean {
     return request.type === 'npc' && request.data?.npcId !== undefined;
   }
 
-  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID
+  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID + LANGUE
   async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
     const startTime = Date.now();
     
     try {
       const { player, request } = context;
-      const enhancedContext = context as EnhancedInteractionContext;
+      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
       const npcId = request.data?.npcId;
-      
-      // ✅ NOUVEAU : Extraire la langue du joueur depuis la requête
-      const playerLanguage = request.data?.playerLanguage || 'fr'; // Fallback français
-      
-      console.log(`🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
 
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
+
+      // ✅ ÉTAPE 2 : Extraire la langue du joueur depuis la requête
+      const playerLanguage = request.data?.playerLanguage || 'fr'; // Fallback français
+      
+      this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
 
       // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
       if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
@@ -327,7 +328,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
               npcId,
               playerLevel: player.level,
               playerGold: player.gold,
-              zone: player.currentZone
+              zone: player.currentZone,
+              playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
             },
             {
               location: { 
@@ -338,7 +340,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
             }
           );
           
-          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId}`);
+          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
           
           // ✅ DEBUG: Vérifier la queue
           const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
@@ -361,12 +363,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
       this.log('info', `🎮 Interaction NPC ${npcId}`, { 
         player: player.name,
         userId: enhancedContext.userId || 'N/A',
+        language: playerLanguage,
         intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
         dialogServiceReady: !!this.dialogService
       });
 
-      // ✅ NOUVEAU : Logique avec IA intégrée
-    const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
+      // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue
+      const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
 
       // Mise à jour des stats
       const processingTime = Date.now() - startTime;
@@ -386,17 +389,18 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE (MODIFIÉE POUR USERID) ===
+  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE + LANGUE ===
 
-private async handleNpcInteractionWithAI(
-  player: Player, 
-  npcId: number, 
-  request: InteractionRequest,
-  userId?: string,
-  playerLanguage: string = 'fr'  // ✅ NOUVEAU : Paramètre langue
-): Promise<NpcInteractionResult> {
+  // ✅ ÉTAPE 2 : Signature modifiée avec playerLanguage
+  private async handleNpcInteractionWithAI(
+    player: Player, 
+    npcId: number, 
+    request: InteractionRequest,
+    userId?: string,
+    playerLanguage: string = 'fr'  // ✅ NOUVEAU : Paramètre langue
+  ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'})`);
+    this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'}, lang: ${playerLanguage})`);
     
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
@@ -418,6 +422,7 @@ private async handleNpcInteractionWithAI(
       sourceType: npc.sourceType || 'tiled',
       intelligenceAvailable: this.shouldUseIntelligentInteraction(npc),
       hasUserId: !!userId,
+      playerLanguage: playerLanguage,
       dialogServiceReady: !!this.dialogService
     });
 
@@ -425,10 +430,10 @@ private async handleNpcInteractionWithAI(
     if (this.shouldUseIntelligentInteraction(npc) && userId) {
       // === TENTATIVE IA ===
       try {
-        this.log('info', `🎭 [AI] Tentative interaction intelligente NPC ${safeNpcId} pour userId ${userId}`);
+        this.log('info', `🎭 [AI] Tentative interaction intelligente NPC ${safeNpcId} pour userId ${userId} (${playerLanguage})`);
         
         const intelligentResult = await this.handleIntelligentNPCInteraction(
-          player, npc, safeNpcId, safeNpcName, request, userId
+          player, npc, safeNpcId, safeNpcName, request, userId, playerLanguage
         );
         
         // Si l'IA a réussi, retourner le résultat enrichi
@@ -437,7 +442,8 @@ private async handleNpcInteractionWithAI(
             confidence: intelligentResult.aiAnalysisConfidence,
             personalized: intelligentResult.personalizedLevel,
             proactive: intelligentResult.proactiveHelp,
-            userId: userId
+            userId: userId,
+            language: playerLanguage
           });
           
           return intelligentResult;
@@ -457,8 +463,9 @@ private async handleNpcInteractionWithAI(
     }
 
     // === FALLBACK LEGACY ===
-    this.log('info', `🔧 [Legacy] Utilisation logique traditionnelle pour NPC ${safeNpcId}`);
+    this.log('info', `🔧 [Legacy] Utilisation logique traditionnelle pour NPC ${safeNpcId} (${playerLanguage})`);
     
+    // ✅ ÉTAPE 3 : Passer la langue au legacy
     const legacyResult = await this.handleLegacyNpcInteractionLogic(player, npc, safeNpcId, playerLanguage);
     
     // Enrichir le résultat legacy avec les champs IA (pour compatibilité)
@@ -473,23 +480,25 @@ private async handleNpcInteractionWithAI(
 
     this.log('info', `✅ [Legacy] Interaction traditionnelle terminée pour NPC ${safeNpcId}`, {
       type: enrichedResult.type,
+      language: playerLanguage,
       hasRequiredFields: !!(enrichedResult.npcId && enrichedResult.npcName)
     });
 
     return enrichedResult;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA (MODIFIÉE POUR USERID)
+  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA + LANGUE
   private async handleIntelligentNPCInteraction(
     player: Player,
     npc: any,
     npcId: number,
     npcName: string,
     request: InteractionRequest,
-    userId: string  // ✅ NOUVEAU : userId obligatoire pour IA
+    userId: string,
+    playerLanguage: string = 'fr'  // ✅ NOUVEAU : userId obligatoire pour IA + langue
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🎭 [Intelligent] Démarrage interaction IA pour NPC ${npcId} (userId: ${userId})`);
+    this.log('info', `🎭 [Intelligent] Démarrage interaction IA pour NPC ${npcId} (userId: ${userId}, lang: ${playerLanguage})`);
     
     // Préparer le contexte pour l'IA
     const context = {
@@ -502,11 +511,15 @@ private async handleNpcInteractionWithAI(
       sessionData: {
         sessionId: (request as any).sessionId,
         interactionCount: (request as any).interactionCount || 1
+      },
+      // ✅ NOUVEAU : Inclure la langue dans le contexte IA
+      playerPreferences: {
+        language: playerLanguage
       }
     };
 
     try {
-      // ✅ APPEL AU CONNECTEUR IA AVEC USERID
+      // ✅ APPEL AU CONNECTEUR IA AVEC USERID + LANGUE
       const smartResponse: SmartNPCResponse = await handleSmartNPCInteraction(
         userId,  // ✅ CORRIGÉ : userId au lieu de player.name
         npcId.toString(),
@@ -545,7 +558,8 @@ private async handleNpcInteractionWithAI(
         interactionType: 'dialogue',
         analysisUsed: true,
         smartResponse: smartResponse.dialogue.message,
-        userId: userId
+        userId: userId,
+        playerLanguage: playerLanguage // ✅ NOUVEAU : Inclure langue dans l'apprentissage
       });
 
       // ✅ CONVERSION : SmartNPCResponse → NpcInteractionResult
@@ -594,7 +608,8 @@ private async handleNpcInteractionWithAI(
         personalized: result.personalizedLevel,
         hasActions: smartResponse.actions.length,
         hasFollowUp: smartResponse.followUpQuestions.length,
-        userId: userId
+        userId: userId,
+        language: playerLanguage
       });
 
       return result;
@@ -624,8 +639,9 @@ private async handleNpcInteractionWithAI(
     }
   }
 
-  // ✅ MÉTHODES EXISTANTES AVEC TOUTES LES IMPLÉMENTATIONS COMPLÈTES
+  // ✅ MÉTHODES EXISTANTES AVEC SUPPORT LANGUE COMPLÈTE
 
+  // ✅ ÉTAPE 3 : Signature modifiée avec playerLanguage
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
     // === LOGIQUE DE PRIORITÉ EXISTANTE INCHANGÉE ===
 
@@ -786,7 +802,7 @@ private async handleNpcInteractionWithAI(
       
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
-     const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
+      const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
       
       return {
         success: true,
@@ -813,7 +829,7 @@ private async handleNpcInteractionWithAI(
     if (npc.properties?.shop || npc.shopId) {
       const shopId = npc.shopId || npc.properties.shop;
       
-      // ✅ ÉTAPE 2 : REMPLACER DIALOGUE SHOP PAR DIALOGSTRING
+      // ✅ ÉTAPE 3 : UTILISER LANGUE JOUEUR
       const shopGreeting = await this.getShopGreeting(player, npc, playerLanguage);
       
       return { 
@@ -837,7 +853,7 @@ private async handleNpcInteractionWithAI(
       };
     } else if (npc.properties?.healer || npc.type === 'healer') {
       
-      // ✅ ÉTAPE 2 : REMPLACER DIALOGUE HEALER PAR DIALOGSTRING
+      // ✅ ÉTAPE 3 : UTILISER LANGUE JOUEUR
       const healerGreeting = await this.getHealerGreeting(player, npc, playerLanguage);
       
       return { 
@@ -899,10 +915,10 @@ private async handleNpcInteractionWithAI(
     }
   }
 
-  // === ✅ ÉTAPE 2 : NOUVELLES MÉTHODES DIALOGSTRING ===
+  // === ✅ ÉTAPE 4 : NOUVELLES MÉTHODES DIALOGSTRING AVEC LANGUE ===
 
   /**
-   * ✅ ÉTAPE 2 : Obtenir dialogue de boutique via DialogString
+   * ✅ ÉTAPE 4 : Obtenir dialogue de boutique via DialogString avec langue
    */
   private async getShopGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
@@ -912,17 +928,17 @@ private async handleNpcInteractionWithAI(
       // Essayer un dialogue spécifique au NPC d'abord
       let greeting = await this.dialogService.getText(
         `${npcId}.shop.greeting`,
-        playerLanguage, // ✅ UTILISER LANGUE JOUEUR
+        playerLanguage as any, // Cast pour type SupportedLanguage
         dialogVars
       );
       
       // Si pas trouvé, utiliser un dialogue générique
       if (greeting.includes('[MISSING:')) {
-      greeting = await this.dialogService.getText(
-        'generic.shop.welcome',
-        playerLanguage,
-        dialogVars
-      );
+        greeting = await this.dialogService.getText(
+          'generic.shop.welcome',
+          playerLanguage as any,
+          dialogVars
+        );
       }
       
       // Si toujours pas trouvé, fallback
@@ -931,9 +947,10 @@ private async handleNpcInteractionWithAI(
         greeting = greeting.replace('%s', player.name);
       }
       
-      this.log('info', `🛒 [DialogString] Dialogue shop récupéré pour ${npcId}`, {
+      this.log('info', `🛒 [DialogString] Dialogue shop récupéré pour ${npcId} (${playerLanguage})`, {
         dialogId: `${npcId}.shop.greeting`,
         playerName: player.name,
+        language: playerLanguage,
         result: greeting.substring(0, 50) + '...'
       });
       
@@ -946,7 +963,7 @@ private async handleNpcInteractionWithAI(
   }
 
   /**
-   * ✅ ÉTAPE 2 : Obtenir dialogue de soigneur via DialogString
+   * ✅ ÉTAPE 4 : Obtenir dialogue de soigneur via DialogString avec langue
    */
   private async getHealerGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
@@ -956,7 +973,7 @@ private async handleNpcInteractionWithAI(
       // Essayer un dialogue spécifique au NPC d'abord
       let greeting = await this.dialogService.getText(
         `${npcId}.healer.greeting`,
-        'fr', // TODO: Récupérer langue du joueur
+        playerLanguage as any,
         dialogVars
       );
       
@@ -964,7 +981,7 @@ private async handleNpcInteractionWithAI(
       if (greeting.includes('[MISSING:')) {
         greeting = await this.dialogService.getText(
           'generic.healer.welcome',
-          'fr',
+          playerLanguage as any,
           dialogVars
         );
       }
@@ -975,9 +992,10 @@ private async handleNpcInteractionWithAI(
         greeting = greeting.replace('%s', player.name);
       }
       
-      this.log('info', `🏥 [DialogString] Dialogue healer récupéré pour ${npcId}`, {
+      this.log('info', `🏥 [DialogString] Dialogue healer récupéré pour ${npcId} (${playerLanguage})`, {
         dialogId: `${npcId}.healer.greeting`,
         playerName: player.name,
+        language: playerLanguage,
         result: greeting.substring(0, 50) + '...'
       });
       
@@ -990,7 +1008,7 @@ private async handleNpcInteractionWithAI(
   }
 
   /**
-   * ✅ ÉTAPE 2 : Extraire identifiant NPC pour DialogString
+   * ✅ ÉTAPE 4 : Extraire identifiant NPC pour DialogString
    */
   private extractNpcIdentifier(npc: any): string {
     // Essayer plusieurs sources pour l'identifiant
@@ -1354,6 +1372,7 @@ private async handleNpcInteractionWithAI(
         userId: data.userId || 'N/A',
         npcId,
         actionType,
+        language: data.playerLanguage || 'N/A',
         dataKeys: Object.keys(data)
       });
     } catch (error) {
@@ -1393,26 +1412,26 @@ private async handleNpcInteractionWithAI(
     return null;
   }
 
-  // ✅ ÉTAPE 2 : Méthode getQuestDialogue modifiée pour utiliser DialogString
-  private async getQuestDialogue(questDefinition: any, dialogueType: string, player: Player): Promise<string[]> {
+  // ✅ ÉTAPE 4 : Méthode getQuestDialogue modifiée pour utiliser langue
+  private async getQuestDialogue(questDefinition: any, dialogueType: string, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       if (!questDefinition) return ["Dialogue par défaut"];
       
       const questId = questDefinition.id || 'unknown_quest';
       const dialogVars = this.createPlayerDialogVars(player, undefined, questDefinition.name);
       
-      // Essayer de récupérer via DialogString
+      // Essayer de récupérer via DialogString avec langue
       const dialogId = `quest.${questId}.${dialogueType}`;
-      const dialogue = await this.dialogService.getText(dialogId, 'fr', dialogVars);
+      const dialogue = await this.dialogService.getText(dialogId, playerLanguage as any, dialogVars);
       
       if (!dialogue.includes('[MISSING:')) {
-        this.log('info', `🎯 [DialogString] Dialogue quête récupéré: ${dialogId}`);
+        this.log('info', `🎯 [DialogString] Dialogue quête récupéré: ${dialogId} (${playerLanguage})`);
         return [dialogue];
       }
       
       // Fallback vers dialogue générique
       const genericDialogId = `generic.quest.${dialogueType}`;
-      const genericDialogue = await this.dialogService.getText(genericDialogId, 'fr', dialogVars);
+      const genericDialogue = await this.dialogService.getText(genericDialogId, playerLanguage as any, dialogVars);
       
       if (!genericDialogue.includes('[MISSING:')) {
         return [genericDialogue];
@@ -1435,8 +1454,8 @@ private async handleNpcInteractionWithAI(
     return [];
   }
 
-  // ✅ ÉTAPE 2 : Méthode getDialogueLines modifiée pour utiliser DialogString
-  private async getDialogueLines(npc: any, player: Player): Promise<string[]> {
+  // ✅ ÉTAPE 4 : Méthode getDialogueLines modifiée pour utiliser langue
+  private async getDialogueLines(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
       const dialogVars = this.createPlayerDialogVars(player, npc.name);
@@ -1446,21 +1465,22 @@ private async handleNpcInteractionWithAI(
         const processedLines = [];
         
         for (const dialogId of npc.dialogueIds) {
-          const dialogue = await this.dialogService.getText(dialogId, 'fr', dialogVars);
+          const dialogue = await this.dialogService.getText(dialogId, playerLanguage as any, dialogVars);
           processedLines.push(dialogue.includes('[MISSING:') ? dialogId : dialogue);
         }
         
         return processedLines;
       }
       
-      // Sinon essayer un dialogue générique
+      // Sinon essayer un dialogue générique avec langue
       const genericDialogue = await this.dialogService.getText(
         `${npcId}.greeting.default`,
-        'fr',
+        playerLanguage as any,
         dialogVars
       );
       
       if (!genericDialogue.includes('[MISSING:')) {
+        this.log('info', `💬 [DialogString] Dialogue générique récupéré pour ${npcId} (${playerLanguage})`);
         return [genericDialogue];
       }
       
@@ -1483,24 +1503,24 @@ private async handleNpcInteractionWithAI(
     }
   }
 
-  // ✅ ÉTAPE 2 : Méthode getDefaultDialogueForNpc modifiée pour utiliser DialogString
-  private async getDefaultDialogueForNpc(npc: any, player: Player): Promise<string[]> {
+  // ✅ ÉTAPE 4 : Méthode getDefaultDialogueForNpc modifiée pour utiliser langue
+  private async getDefaultDialogueForNpc(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
       const dialogVars = this.createPlayerDialogVars(player, npc.name);
       
-      // Essayer dialogue spécifique NPC
+      // Essayer dialogue spécifique NPC avec langue
       let dialogue = await this.dialogService.getText(
         `${npcId}.greeting.default`,
-        'fr', // TODO: Récupérer langue du joueur
+        playerLanguage as any,
         dialogVars
       );
       
-      // Si pas trouvé, essayer dialogue générique
+      // Si pas trouvé, essayer dialogue générique avec langue
       if (dialogue.includes('[MISSING:')) {
         dialogue = await this.dialogService.getText(
           'generic.greeting.default',
-          'fr',
+          playerLanguage as any,
           dialogVars
         );
       }
@@ -1512,9 +1532,10 @@ private async handleNpcInteractionWithAI(
         dialogue = dialogue.replace('%n', npc.name || 'un NPC');
       }
       
-      this.log('info', `💬 [DialogString] Dialogue par défaut récupéré pour ${npcId}`, {
+      this.log('info', `💬 [DialogString] Dialogue par défaut récupéré pour ${npcId} (${playerLanguage})`, {
         playerName: player.name,
         npcName: npc.name,
+        language: playerLanguage,
         result: dialogue.substring(0, 50) + '...'
       });
       
@@ -1547,7 +1568,7 @@ private async handleNpcInteractionWithAI(
   }
 
   private async handleDialogueSpecificAction(player: Player, npc: any, request: SpecificActionRequest): Promise<SpecificActionResult> {
-    const lines = await this.getDialogueLines(npc, player);
+    const lines = await this.getDialogueLines(npc, player, 'fr'); // TODO: Récupérer langue du joueur
     return {
       success: true,
       type: "dialogue",
