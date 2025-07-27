@@ -1259,6 +1259,7 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
 
     // Interaction avec NPC
 // ✅ NOUVEAU : Interaction avec NPC INTELLIGENTE via IA
+// ✅ HANDLER npcInteract COMPLET ET CORRIGÉ
 this.onMessage("npcInteract", async (client, data) => {
   console.log(`🤖 === NPC INTERACTION INTELLIGENTE ===`);
   console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
@@ -1350,33 +1351,18 @@ this.onMessage("npcInteract", async (client, data) => {
       console.log(`⚠️ [AI] Système IA non initialisé, utilisation système classique`);
     }
 
-    // ✅ FALLBACK: Système classique si IA échoue - AVEC userId dans le contexte
+    // ✅ FALLBACK: Système classique si IA échoue - SIMPLIFIÉ avec InteractionManager
     console.log(`🔧 [Legacy] Utilisation système classique pour NPC ${data.npcId}`);
     
-    // ✅ NOUVEAU : Créer contexte enrichi avec userId pour le NpcInteractionModule
-    const enhancedContext = {
-      player: player,
-      request: {
-        type: "npc" as const,
-        data: { npcId: data.npcId }
-      },
-      userId: userId,        // ✅ NOUVEAU : userId pour tracking cohérent
-      sessionId: client.sessionId,  // ✅ NOUVEAU : sessionId pour mapping
-      // ✅ AJOUT : Propriétés requises par InteractionContext
-      validations: {
-        proximity: true,
-        items: {},
-        quests: {},
-        level: player.level || 1
-      },
-      metadata: {
-        timestamp: Date.now(),
-        source: 'npc_interact_handler'
+    // ✅ UTILISER L'INTERACTIONMANAGER EXISTANT qui gère déjà les contextes
+    const result = await this.interactionManager.handleNpcInteraction(
+      player, 
+      data.npcId,
+      {
+        userId: userId,           // ✅ NOUVEAU : passer userId pour tracking
+        sessionId: client.sessionId
       }
-    };
-
-    // ✅ APPEL DIRECT AU MODULE NPC avec contexte enrichi
-    const result = await this.npcInteractionModule.handle(enhancedContext);
+    );
     
     console.log(`📤 Envoi résultat classique: ${result.type} pour userId ${userId}`);
     client.send("npcInteractionResult", { 
