@@ -677,7 +677,7 @@ private trackPlayerActionWithAI(
     
   } catch (error) {
     console.error(`❌ [AI] Erreur tracking action ${actionType}:`, error);
-    console.error(`❌ [AI] Stack trace:`, error.stack);
+    console.error(`❌ [AI] Stack trace:`, error instanceof Error ? error.stack : 'Pas de stack trace disponible');
     
     // ✅ NOUVEAU : Debug approfondi en cas d'erreur
     const userId = this.jwtManager.getUserId(sessionId);
