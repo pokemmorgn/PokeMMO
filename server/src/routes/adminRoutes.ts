@@ -4954,6 +4954,10 @@ router.post('/shops', requireMacAndDev, async (req: any, res) => {
  * PUT /api/admin/shops/:shopId
  * Mettre à jour une boutique existante - VERSION CORRIGÉE
  */
+/**
+ * PUT /api/admin/shops/:shopId
+ * Mettre à jour une boutique existante - VERSION CORRIGÉE
+ */
 router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
     try {
         const { shopId } = req.params;
@@ -4970,37 +4974,38 @@ router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
             });
         }
         
-        // ✅ CORRECTION: Gestion sécurisée de la location avec type explicite
-        interface LocationData {
-            zone: string;
-            cityKey?: string;
-            buildingKey?: string;
+        // ✅ CORRECTION: Mise à jour directe des propriétés du modèle
+        if (shopData.name) {
+            existingShop.nameKey = `shop.name.${shopId}`;
         }
         
-        const currentLocation: LocationData = existingShop.location || { 
-            zone: '', 
-            cityKey: undefined, 
-            buildingKey: undefined 
-        };
+        if (shopData.type) {
+            existingShop.type = shopData.type;
+        }
         
-        // Mettre à jour les champs
-        Object.assign(existingShop, {
-            nameKey: shopData.name ? `shop.name.${shopId}` : existingShop.nameKey,
-            type: shopData.type || existingShop.type,
-            location: {
-                zone: shopData.location?.zone || currentLocation.zone || '',
-                cityKey: shopData.location?.city ? `location.city.${shopData.location.city}` : currentLocation.cityKey,
-                buildingKey: shopData.location?.building ? `location.building.${shopData.location.building}` : currentLocation.buildingKey
-            },
-            currency: shopData.currency || existingShop.currency,
-            buyMultiplier: shopData.buyMultiplier ?? existingShop.buyMultiplier,
-            sellMultiplier: shopData.sellMultiplier ?? existingShop.sellMultiplier,
-            taxRate: shopData.taxRate ?? existingShop.taxRate,
-            items: shopData.items || existingShop.items,
-            isActive: shopData.isActive ?? existingShop.isActive,
-            isTemporary: shopData.isTemporary ?? existingShop.isTemporary,
-            lastUpdated: new Date()
-        });
+        // Mise à jour de la location
+        if (shopData.location) {
+            if (shopData.location.zone) {
+                existingShop.location.zone = shopData.location.zone;
+            }
+            if (shopData.location.city) {
+                existingShop.location.cityKey = `location.city.${shopData.location.city}`;
+            }
+            if (shopData.location.building) {
+                existingShop.location.buildingKey = `location.building.${shopData.location.building}`;
+            }
+        }
+        
+        // Mise à jour des autres propriétés
+        if (shopData.currency) existingShop.currency = shopData.currency;
+        if (shopData.buyMultiplier !== undefined) existingShop.buyMultiplier = shopData.buyMultiplier;
+        if (shopData.sellMultiplier !== undefined) existingShop.sellMultiplier = shopData.sellMultiplier;
+        if (shopData.taxRate !== undefined) existingShop.taxRate = shopData.taxRate;
+        if (shopData.items) existingShop.items = shopData.items;
+        if (shopData.isActive !== undefined) existingShop.isActive = shopData.isActive;
+        if (shopData.isTemporary !== undefined) existingShop.isTemporary = shopData.isTemporary;
+        
+        existingShop.lastUpdated = new Date();
         
         await existingShop.save();
         
