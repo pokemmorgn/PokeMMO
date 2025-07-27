@@ -449,6 +449,42 @@ private extractZoneFromNpc(npc: any): string {
   return 'unknown';
 }
 
+// ===================================================================
+// 🤖 SYSTÈME D'INTELLIGENCE ARTIFICIELLE
+// ===================================================================
+
+/**
+ * Initialise le système d'IA en arrière-plan
+ */
+private async initializeAISystem(): Promise<void> {
+  try {
+    console.log(`🤖 [AI] === INITIALISATION SYSTÈME D'IA ===`);
+    
+    // Étape 1: Configurer l'ActionTracker avec notre ActionLogger
+    this.actionTracker.setDatabase(this.actionLogger);
+    console.log(`✅ [AI] ActionTracker configuré avec ActionLogger`);
+    
+    // Étape 2: Configuration de base du NPCIntelligenceConnector
+    this.npcIntelligenceConnector.updateConfig({
+      globallyEnabled: true,
+      enabledNPCTypes: ['dialogue', 'healer', 'merchant', 'trainer'],
+      debugMode: process.env.NODE_ENV === 'development',
+      trackAllInteractions: true
+    });
+    console.log(`✅ [AI] NPCIntelligenceConnector configuré`);
+    
+    // Étape 3: Enregistrer les NPCs existants (en arrière-plan)
+    this.registerNPCsWithAI();
+    
+    this.aiSystemInitialized = true;
+    console.log(`🎉 [AI] Système d'IA complètement initialisé !`);
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur initialisation:`, error);
+    throw error;
+  }
+}
+  
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
     console.log(`👤 Client: ${client.sessionId}`);
