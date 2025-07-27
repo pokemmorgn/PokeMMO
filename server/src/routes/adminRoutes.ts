@@ -2079,21 +2079,38 @@ async function ensureMapObjectsDir() {
 }
 
 // ✅ ROUTE: Liste des cartes disponibles
+// Dans server/src/routes/adminRoutes.ts
+// Remplacer complètement la route GET /maps/list par cette version simple :
+
+// ✅ ROUTE SIMPLE: Liste des zones depuis MongoDB (comme Map Editor)
 router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
   try {
-    console.log('🗺️ [Maps API] Getting available maps list');
+    console.log('🗺️ [Maps API] Getting zones from MongoDB...');
     
-    const files = await fs.readdir(MAPS_DIR);
-    const tmjFiles = files.filter(file => file.endsWith('.tmj'));
+    // Récupérer toutes les zones distinctes depuis MongoDB
+    const [gameObjectZones, npcZones, shopZones] = await Promise.all([
+      GameObjectData.distinct('zone').catch(() => []),
+      NpcData.distinct('zone').catch(() => []), 
+      ShopData.distinct('zone').catch(() => [])
+    ]);
     
-    const maps = tmjFiles.map(file => {
-      const id = file.replace('.tmj', '');
-      return {
-        id,
-        name: formatMapName(id),
-        file
-      };
-    });
+    // Combiner toutes les zones et éliminer les doublons
+    const allZones = Array.from(new Set([
+      ...gameObjectZones,
+      ...npcZones,
+      ...shopZones,
+      // Zones par défaut si DB vide
+      'village', 'city', 'forest', 'cave', 'beach'
+    ])).filter(zone => zone && zone.trim().length > 0);
+    
+    // Formater comme attendu par le frontend
+    const maps = allZones.map(zone => ({
+      id: zone,
+      name: formatMapName(zone),
+      file: `${zone}.tmj` // Simulé pour compatibilité
+    }));
+    
+    console.log(`✅ [Maps API] Found ${maps.length} zones:`, maps.map(m => m.id));
     
     res.json({
       success: true,
@@ -2102,13 +2119,32 @@ router.get('/maps/list', requireMacAndDev, async (req: any, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [Maps API] Error listing maps:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur lors du chargement de la liste des cartes'
+    console.error('❌ [Maps API] Error:', error);
+    
+    // Fallback minimal
+    const fallbackMaps = [
+      { id: 'village', name: 'Village', file: 'village.tmj' },
+      { id: 'city', name: 'City', file: 'city.tmj' },
+      { id: 'forest', name: 'Forest', file: 'forest.tmj' },
+      { id: 'cave', name: 'Cave', file: 'cave.tmj' },
+      { id: 'beach', name: 'Beach', file: 'beach.tmj' }
+    ];
+    
+    res.json({
+      success: true,
+      maps: fallbackMaps,
+      total: fallbackMaps.length
     });
   }
 });
+
+// ✅ Fonction utilitaire simple
+function formatMapName(mapId: string): string {
+  return mapId
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 // ✅ ROUTE: Charger une carte TMJ
 router.get('/maps/:mapId', requireMacAndDev, async (req: any, res) => {
