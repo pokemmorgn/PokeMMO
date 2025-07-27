@@ -2303,7 +2303,6 @@ async onLeave(client: Client, consented: boolean) {
       ActionType.SESSION_END,
       {
         playerName: player.name,
-        sessionDuration: Date.now() - (savedData?.currentSessionStart?.getTime() || Date.now()),
         finalLevel: player.level,
         finalGold: player.gold,
         finalZone: player.currentZone,
@@ -2317,7 +2316,7 @@ async onLeave(client: Client, consented: boolean) {
         }
       }
     );
-  }  
+  }
   console.log(`👋 Client ${client.sessionId} déconnecté`);
 }
 
