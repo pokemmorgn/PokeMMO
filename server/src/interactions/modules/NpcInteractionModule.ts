@@ -441,15 +441,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // ✅ CONVERSION : SmartNPCResponse → NpcInteractionResult
       const result: NpcInteractionResult = {
         success: true,
-        type: this.mapAIResponseTypeToNpcType(smartResponse),
+        type: this.mapAIResponseTypeToNpcType(smartResponse) as any, // Cast temporaire
         message: smartResponse.dialogue.message,
 
         // Champs requis
         npcId: npcId,
         npcName: npcName,
-        isUnifiedInterface: smartResponse.isUnifiedInterface,
-        capabilities: smartResponse.capabilities,
-        contextualData: smartResponse.contextualData,
+        isUnifiedInterface: false, // SmartNPCResponse ne gère pas encore l'interface unifiée
+        capabilities: this.extractCapabilitiesFromActions(smartResponse.actions),
+        contextualData: this.buildContextualDataFromResponse(smartResponse),
 
         // ✅ Données IA enrichies
         intelligenceUsed: true,
@@ -464,12 +464,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
         lines: [smartResponse.dialogue.message],
 
         // Données spécialisées si présentes
-        ...(smartResponse.contextualData.hasShop && {
+        ...(this.hasShopActions(smartResponse.actions) && {
           shopId: this.extractShopIdFromActions(smartResponse.actions),
           shopData: this.extractShopDataFromActions(smartResponse.actions)
         }),
 
-        ...(smartResponse.contextualData.hasQuests && {
+        ...(this.hasQuestActions(smartResponse.actions) && {
           availableQuests: this.extractQuestDataFromActions(smartResponse.actions),
           questProgress: [] // TODO: Récupérer depuis le contexte
         }),
@@ -546,13 +546,72 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // ✅ MÉTHODES UTILITAIRES POUR CONVERSION IA
+  // ✅ MÉTHODES UTILITAIRES POUR CONVERSION IA (CORRIGÉES)
   private mapAIResponseTypeToNpcType(smartResponse: SmartNPCResponse): string {
-    if (smartResponse.contextualData.hasShop) return 'shop';
-    if (smartResponse.contextualData.hasQuests) return 'questGiver';
-    if (smartResponse.contextualData.hasHealing) return 'heal';
+    if (this.hasShopActions(smartResponse.actions)) return 'shop';
+    if (this.hasQuestActions(smartResponse.actions)) return 'questGiver';
+    if (this.hasHealActions(smartResponse.actions)) return 'heal';
     if (smartResponse.metadata.isProactiveHelp) return 'helpOffer';
     return 'dialogue';
+  }
+
+  private extractCapabilitiesFromActions(actions: SmartNPCResponse['actions']): NpcCapability[] {
+    const capabilities: NpcCapability[] = [];
+    
+    for (const action of actions) {
+      switch (action.type) {
+        case 'trade':
+          if (!capabilities.includes('merchant')) capabilities.push('merchant');
+          break;
+        case 'quest':
+          if (!capabilities.includes('quest')) capabilities.push('quest');
+          break;
+        case 'heal':
+          if (!capabilities.includes('healer')) capabilities.push('healer');
+          break;
+        case 'dialogue':
+          if (!capabilities.includes('dialogue')) capabilities.push('dialogue');
+          break;
+      }
+    }
+
+    // Toujours avoir au moins dialogue
+    if (capabilities.length === 0) {
+      capabilities.push('dialogue');
+    }
+
+    return capabilities;
+  }
+
+  private buildContextualDataFromResponse(smartResponse: SmartNPCResponse): NpcInteractionResult['contextualData'] {
+    const hasShop = this.hasShopActions(smartResponse.actions);
+    const hasQuests = this.hasQuestActions(smartResponse.actions);
+    const hasHealing = this.hasHealActions(smartResponse.actions);
+
+    return {
+      hasShop,
+      hasQuests,
+      hasHealing,
+      defaultAction: hasShop ? 'merchant' : hasQuests ? 'quest' : hasHealing ? 'healer' : 'dialogue',
+      quickActions: smartResponse.actions.map(action => ({
+        id: action.id,
+        label: action.label,
+        action: action.type,
+        enabled: true
+      }))
+    };
+  }
+
+  private hasShopActions(actions: SmartNPCResponse['actions']): boolean {
+    return actions.some(action => action.type === 'trade');
+  }
+
+  private hasQuestActions(actions: SmartNPCResponse['actions']): boolean {
+    return actions.some(action => action.type === 'quest');
+  }
+
+  private hasHealActions(actions: SmartNPCResponse['actions']): boolean {
+    return actions.some(action => action.type === 'heal');
   }
 
   private extractShopIdFromActions(actions: SmartNPCResponse['actions']): string | undefined {
