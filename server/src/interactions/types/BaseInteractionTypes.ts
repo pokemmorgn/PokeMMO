@@ -1,5 +1,5 @@
 // src/interactions/types/BaseInteractionTypes.ts
-// Types de base pour le système d'interaction modulaire - VERSION CORRIGÉE
+// Types de base pour le système d'interaction modulaire - VERSION ÉTENDUE AVEC IA
 
 import { Player } from "../../schema/PokeWorldState";
 
@@ -11,7 +11,7 @@ export type InteractionType =
   | 'player'        // Autres joueurs (échange, combat, spectateur)
   | 'puzzle';       // Énigmes/séquences complexes
 
-// ✅ REQUÊTE D'INTERACTION STANDARDISÉE
+// ✅ REQUÊTE D'INTERACTION STANDARDISÉE - ÉTENDUE POUR IA
 export interface InteractionRequest {
   // Type d'interaction
   type: InteractionType;
@@ -48,6 +48,10 @@ export interface InteractionRequest {
     itemId?: string;
     direction?: 'north' | 'south' | 'east' | 'west';
     metadata?: Record<string, any>;
+    
+    // ✅ NOUVELLES PROPRIÉTÉS IA
+    userId?: string;
+    sessionId?: string;
   };
   
   // Timestamp pour debugging/analytics
@@ -95,7 +99,8 @@ export const INTERACTION_RESULT_TYPES = {
   VENDING_MACHINE: 'vendingMachine' as const,
   HIDDEN_ITEM_FOUND: 'hiddenItemFound' as const,
   ITEM_PICKUP: 'itemPickup' as const,
-  SEARCH_COMPLETE: 'searchComplete' as const
+  SEARCH_COMPLETE: 'searchComplete' as const,
+  UNIFIED_INTERFACE: 'unifiedInterface' as const
 } as const;
 
 // ✅ INTERFACE POUR OBJECT DATA ÉTENDUE
@@ -133,7 +138,7 @@ export interface ObjectInteractionData {
   [key: string]: any;
 }
 
-// ✅ RÉSULTAT D'INTERACTION STANDARDISÉ - VERSION CORRIGÉE
+// ✅ RÉSULTAT D'INTERACTION STANDARDISÉ - VERSION ÉTENDUE AVEC IA
 export interface InteractionResult {
   // Succès ou échec
   success: boolean;
@@ -187,8 +192,20 @@ export interface InteractionResult {
       imageUrl?: string;
     };
     
-    // Métadonnées pour extensions futures
-    metadata?: Record<string, any>;
+    // ✅ NOUVELLES MÉTADONNÉES IA
+    metadata?: {
+      timestamp?: number;
+      processingTime?: number;
+      moduleUsed?: string;
+      errorCode?: string;
+      // Métadonnées IA
+      aiAnalysisPerformed?: boolean;
+      intelligenceUsed?: boolean;
+      trackingData?: any;
+      userId?: string;
+      sessionId?: string;
+      [key: string]: any;
+    };
   };
   
   // Timing pour animations/effets
@@ -202,6 +219,11 @@ export interface InteractionResult {
   processingTime?: number;
   moduleUsed?: string;
   timestamp?: number;
+  
+  // ✅ NOUVELLES PROPRIÉTÉS IA (optionnelles pour compatibilité)
+  aiEnhanced?: boolean;
+  intelligenceScore?: number;
+  personalizedContent?: boolean;
 }
 
 // ✅ TYPE HELPER POUR LES RÉSULTATS D'OBJETS
@@ -240,7 +262,7 @@ export interface CooldownInfo {
   cooldownType?: string;
 }
 
-// ✅ CONTEXTE D'INTERACTION (pour modules)
+// ✅ CONTEXTE D'INTERACTION (pour modules) - ÉTENDU POUR IA
 export interface InteractionContext {
   player: Player;
   request: InteractionRequest;
@@ -249,57 +271,95 @@ export interface InteractionContext {
     conditions?: ConditionValidation[];
     cooldown?: CooldownInfo;
   };
-  metadata?: Record<string, any>;
+  metadata?: {
+    timestamp?: number;
+    sessionId?: string;
+    // ✅ NOUVELLES PROPRIÉTÉS IA
+    userId?: string;
+    source?: string;
+    enhancedTracking?: boolean;
+    aiSystemEnabled?: boolean;
+    [key: string]: any;
+  };
 }
 
-// ✅ CONFIGURATION D'INTERACTION
+// ✅ NOUVELLE INTERFACE : Options enrichies pour processInteraction
+export interface EnhancedProcessInteractionOptions {
+  userId?: string;
+  sessionId?: string;
+  source?: string;
+  timestamp?: number;
+  aiSystemEnabled?: boolean;
+}
+
+// ===== INTERFACES DE VALIDATION =====
+
+export interface ProximityValidation {
+  valid: boolean;
+  distance?: number;
+  maxDistance?: number;
+  reason?: string;
+}
+
+export interface CooldownInfo {
+  active: boolean;
+  remainingTime?: number;
+  nextAvailable?: Date;
+  cooldownType?: InteractionType;
+}
+
+export interface ConditionValidation {
+  valid: boolean;
+  reason?: string;
+  requiredItems?: string[];
+  requiredLevel?: number;
+  requiredQuests?: string[];
+  customConditions?: Record<string, any>;
+}
+
+// ===== CONFIGURATION =====
+
 export interface InteractionConfig {
-  // Distance maximale pour interaction
   maxDistance: number;
-  
-  // Cooldown global par type
   cooldowns?: {
-    [key in InteractionType]?: number; // en millisecondes
+    [K in InteractionType]?: number;
   };
-  
-  // Validations requises par type
   requiredValidations?: {
-    [key in InteractionType]?: ('proximity' | 'conditions' | 'cooldown')[];
+    [K in InteractionType]?: ('proximity' | 'cooldown' | 'conditions')[];
   };
-  
-  // Configuration debugging
   debug?: boolean;
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
+  logLevel?: 'info' | 'warn' | 'error';
+  
+  // ✅ NOUVELLE CONFIGURATION IA
+  ai?: {
+    enabled: boolean;
+    enabledTypes: InteractionType[];
+    fallbackToBasic: boolean;
+    trackingEnabled: boolean;
+    analysisTimeout?: number;
+  };
 }
 
-// ✅ ERREURS STANDARDISÉES
-export class InteractionError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'InteractionError';
-  }
+// ===== GESTION DES ERREURS =====
+
+export interface InteractionError {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp: number;
 }
 
-// Codes d'erreur standardisés
 export const INTERACTION_ERROR_CODES = {
-  // Erreurs de validation
-  TOO_FAR: 'TOO_FAR',
-  INVALID_TARGET: 'INVALID_TARGET',
-  CONDITIONS_NOT_MET: 'CONDITIONS_NOT_MET',
-  COOLDOWN_ACTIVE: 'COOLDOWN_ACTIVE',
-  
-  // Erreurs de traitement
-  MODULE_NOT_FOUND: 'MODULE_NOT_FOUND',
-  PROCESSING_FAILED: 'PROCESSING_FAILED',
   INVALID_REQUEST: 'INVALID_REQUEST',
-  
-  // Erreurs système
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  TIMEOUT: 'TIMEOUT'
+  MODULE_NOT_FOUND: 'MODULE_NOT_FOUND',
+  TOO_FAR: 'TOO_FAR',
+  COOLDOWN_ACTIVE: 'COOLDOWN_ACTIVE',
+  CONDITIONS_NOT_MET: 'CONDITIONS_NOT_MET',
+  PROCESSING_FAILED: 'PROCESSING_FAILED',
+  // ✅ NOUVEAUX CODES D'ERREUR IA
+  AI_SYSTEM_UNAVAILABLE: 'AI_SYSTEM_UNAVAILABLE',
+  AI_ANALYSIS_FAILED: 'AI_ANALYSIS_FAILED',
+  TRACKING_FAILED: 'TRACKING_FAILED'
 } as const;
 
 export type InteractionErrorCode = typeof INTERACTION_ERROR_CODES[keyof typeof INTERACTION_ERROR_CODES];
@@ -376,3 +436,98 @@ export const createInteractionResult = {
     timestamp: Date.now()
   })
 };
+
+// ✅ NOUVELLES FONCTIONS UTILITAIRES POUR L'IA
+
+/**
+ * Créer une requête enrichie pour l'IA
+ */
+export function createEnhancedInteractionRequest(
+  baseRequest: InteractionRequest,
+  userId?: string,
+  sessionId?: string
+): InteractionRequest {
+  return {
+    ...baseRequest,
+    data: {
+      ...baseRequest.data,
+      userId,
+      sessionId
+    },
+    timestamp: baseRequest.timestamp || Date.now()
+  };
+}
+
+/**
+ * Créer des options enrichies pour l'IA
+ */
+export function createEnhancedOptions(
+  userId?: string,
+  sessionId?: string,
+  source: string = 'interaction_manager'
+): EnhancedProcessInteractionOptions {
+  return {
+    userId,
+    sessionId,
+    source,
+    timestamp: Date.now(),
+    aiSystemEnabled: true
+  };
+}
+
+/**
+ * Créer un résultat d'erreur standardisé
+ */
+export function createErrorResult(
+  message: string,
+  code: InteractionErrorCode,
+  additionalData?: any
+): InteractionResult {
+  return {
+    success: false,
+    type: 'error' as InteractionResultType,
+    message,
+    data: {
+      metadata: {
+        errorCode: code,
+        timestamp: Date.now(),
+        ...additionalData
+      }
+    },
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Créer un résultat enrichi IA
+ */
+export function createAIEnhancedResult(
+  baseResult: InteractionResult,
+  aiData: {
+    intelligenceUsed?: boolean;
+    analysisPerformed?: boolean;
+    personalizedContent?: boolean;
+    intelligenceScore?: number;
+    trackingData?: any;
+    userId?: string;
+    sessionId?: string;
+  }
+): InteractionResult {
+  return {
+    ...baseResult,
+    aiEnhanced: true,
+    intelligenceScore: aiData.intelligenceScore,
+    personalizedContent: aiData.personalizedContent,
+    data: {
+      ...baseResult.data,
+      metadata: {
+        ...baseResult.data?.metadata,
+        aiAnalysisPerformed: aiData.analysisPerformed,
+        intelligenceUsed: aiData.intelligenceUsed,
+        trackingData: aiData.trackingData,
+        userId: aiData.userId,
+        sessionId: aiData.sessionId
+      }
+    }
+  };
+}
