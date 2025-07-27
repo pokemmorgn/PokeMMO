@@ -149,7 +149,37 @@ export class WorldRoom extends Room<PokeWorldState> {
       registry.registerQuestManager(questManager);
       console.log(`✅ Services enregistrés dans ServiceRegistry`);
     }
+
+    // ✅ TEST IMMÉDIAT: Se déclenche 10 secondes après le démarrage
+setTimeout(async () => {
+  console.log(`🧪 [AUTO-TEST] Test automatique de la base de données IA...`);
+  
+  // Simuler le debug manuellement
+  try {
+    const trackerStats = this.actionTracker.getStats();
+    console.log(`📊 [AUTO-DEBUG] Tracker stats:`, trackerStats);
     
+    const saveResult = await this.actionLogger.saveAction({
+      id: `auto_test_${Date.now()}`,
+      playerId: 'test_player',
+      actionType: ActionType.NPC_TALK,
+      category: 'social' as any,
+      timestamp: Date.now(),
+      data: {
+        timestamp: Date.now(),
+        sessionId: 'test_session',
+        playerId: 'test_player',
+        playerName: 'TestPlayer',
+        location: { map: 'test_zone', x: 0, y: 0 }
+      },
+      metadata: { version: '1.0.0', source: 'auto-test', processed: false }
+    } as any);
+    
+    console.log(`💾 [AUTO-DEBUG] Sauvegarde automatique:`, saveResult);
+  } catch (error) {
+    console.error(`❌ [AUTO-DEBUG] Erreur:`, error);
+  }
+}, 10000);
       
       // ✅ ÉTAPE 1: Initialiser NPCManagers en ARRIÈRE-PLAN (non-bloquant)
       console.log(`🔄 [WorldRoom] Lancement NPCManager en arrière-plan...`);
