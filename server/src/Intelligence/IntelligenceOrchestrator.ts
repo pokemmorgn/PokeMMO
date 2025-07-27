@@ -339,7 +339,7 @@ export class IntelligenceOrchestrator {
     
     for (const chunk of chunks) {
       const promises = chunk.map(playerId => 
-        this.analyzePlayer(playerId).catch((error: Error) => {
+        this.analyzePlayer(playerId).catch((error: Error): CompletePlayerAnalysis | null => {
           console.error(`❌ Erreur analyse ${playerId}:`, error);
           return null;
         })
@@ -437,7 +437,7 @@ export class IntelligenceOrchestrator {
     if (event.data.sessionId) {
       const sessionReport = await this.actionSummary.generateSessionReport(event.data.sessionId);
       
-      if (sessionReport?.mood === 'frustrated') {
+      if (sessionReport?.summary.mood.includes('frustrated')) {
         console.log(`😤 Session frustrante détectée pour ${event.playerId}`);
         this.eventQueue.push(event);
       }
