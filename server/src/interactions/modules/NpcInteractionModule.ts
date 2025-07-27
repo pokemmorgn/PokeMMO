@@ -320,7 +320,18 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
 
       // ✅ ÉTAPE 2 : Extraire la langue du joueur depuis la requête
-      const playerLanguage = request.data?.playerLanguage || 'fr'; // Fallback français
+      const playerLanguage = request.data?.playerLanguage || 
+                            request.playerLanguage || 
+                            (request as any).playerLanguage || 
+                            'fr';
+      
+      // 🔍 DEBUG AMÉLIORE :
+      console.log("🔍 [DEBUG] === EXTRACTION LANGUE AMÉLIORÉE ===");
+      console.log("🔍 [DEBUG] request.data?.playerLanguage:", request.data?.playerLanguage);
+      console.log("🔍 [DEBUG] request.playerLanguage:", (request as any).playerLanguage);
+      console.log("🔍 [DEBUG] request COMPLET:", JSON.stringify(request, null, 2));
+      console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
+      console.log("🔍 [DEBUG] ========================================");
       
       this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
 
