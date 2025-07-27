@@ -1101,31 +1101,19 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
     }
 
     generateCollectionObjective(objectiveId, progression, stepNumber, totalSteps) {
-        const difficultyMultipliers = { easy: 1, medium: 1.5, hard: 2, legendary: 3 }
-        const multiplier = difficultyMultipliers[difficulty] || 1
-        
-        // Select items by rarity based on difficulty
-        let itemPool = this.questData.items.healing.concat(this.questData.items.pokeballs)
-        if (difficulty === 'hard' || difficulty === 'legendary') {
-            itemPool = itemPool.concat(this.questData.items.enhancement, this.questData.items.stones)
-        }
-        if (difficulty === 'legendary') {
-            itemPool = itemPool.concat(this.questData.items.rare)
-        }
-        
-        const item = this.getRandomChoice(itemPool)
-        const baseAmount = stepNumber === totalSteps ? 3 : 2
-        const amount = Math.floor(baseAmount * multiplier)
-        
-        return [{
-            id: objectiveId,
-            type: 'collect',
-            description: `Collect ${amount} ${this.formatItemName(item)} for the mission`,
-            target: item,
-            targetName: this.formatItemName(item),
-            requiredAmount: amount
-        }]
-    }
+    const itemPool = this.getItemsForProgression(progression)
+    const item = this.getRandomChoice(itemPool)
+    const amount = this.getAmountForProgression(progression)
+    
+    return [{
+        id: objectiveId,
+        type: 'collect',
+        description: `Collecter ${amount} ${this.formatItemName(item)} pour la mission`,
+        target: item,
+        targetName: this.formatItemName(item),
+        requiredAmount: amount
+    }]
+}
 
     generateDefeatPokemonObjective(objectiveId, progression, stepNumber, totalSteps) {
     const progressionMultipliers = { 
@@ -1149,19 +1137,25 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         requiredAmount: amount
     }]
 }
+
+    
     generateDefeatTrainersObjective(objectiveId, progression, stepNumber, totalSteps) {
-        const trainerAmounts = { easy: 1, medium: 2, hard: 3, legendary: 5 }
-        const amount = trainerAmounts[difficulty] || 2
-        
-        return [{
-            id: objectiveId,
-            type: 'defeat_trainers',
-            description: `Battle and defeat ${amount} skilled trainers`,
-            target: 'trainer',
-            targetName: 'Trainers',
-            requiredAmount: amount
-        }]
+    const progressionTrainerMap = {
+        pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 2,
+        gym_5: 3, gym_6: 3, gym_7: 3, gym_8: 4, elite_four: 5, post_game: 6
     }
+    
+    const amount = progressionTrainerMap[progression] || 2
+    
+    return [{
+        id: objectiveId,
+        type: 'defeat_trainers',
+        description: `Combattre et vaincre ${amount} dresseurs habiles`,
+        target: 'trainer',
+        targetName: 'Dresseurs',
+        requiredAmount: amount
+    }]
+}
 
     generateTalkObjective(objectiveId, npc, stepNumber, totalSteps) {
         return [{
@@ -1179,97 +1173,90 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
         }]
     }
 
-    generateDeliveryObjective(objectiveId, npc, progression, stepNumber, totalSteps) {
-        const itemPool = difficulty === 'legendary' ? this.questData.items.rare : 
-                        difficulty === 'hard' ? this.questData.items.enhancement :
-                        this.questData.items.healing
-        
-        const deliveryItem = this.getRandomChoice(itemPool)
-        
-        return [{
-            id: objectiveId,
-            type: 'deliver',
-            description: `Safely deliver ${this.formatItemName(deliveryItem)} to ${npc.name}`,
-            target: npc.id.toString(),
-            targetName: npc.name,
-            itemId: deliveryItem,
-            requiredAmount: 1,
-            validationDialogue: [
-                `Excellent! This delivery is exactly what I was expecting.`,
-                `Perfect timing! Thank you for the safe transport.`,
-                `This package is in perfect condition - outstanding work!`
-            ]
-        }]
-    }
+   generateDeliveryObjective(objectiveId, npc, progression, stepNumber, totalSteps) {
+    const itemPool = this.getItemsForProgression(progression)
+    const deliveryItem = this.getRandomChoice(itemPool)
+    
+    return [{
+        id: objectiveId,
+        type: 'deliver',
+        description: `Livrer en sécurité ${this.formatItemName(deliveryItem)} à ${npc.name}`,
+        target: npc.id.toString(),
+        targetName: npc.name,
+        itemId: deliveryItem,
+        requiredAmount: 1,
+        validationDialogue: [
+            `Excellent ! Cette livraison est exactement ce que j'attendais.`,
+            `Timing parfait ! Merci pour le transport sécurisé.`,
+            `Ce colis est en parfait état - travail remarquable !`
+        ]
+    }]
+}
 
-    generateExplorationObjective(objectiveId, progression, stepNumber, totalSteps) {
-        const locationTypes = {
-            easy: this.questData.locations.outdoor,
-            medium: this.questData.locations.indoor.concat(this.questData.locations.outdoor),
-            hard: this.questData.locations.cave.concat(this.questData.locations.indoor),
-            legendary: this.questData.locations.special.concat(this.questData.locations.cave)
-        }
-        
-        const locationPool = locationTypes[difficulty] || this.questData.locations.outdoor
-        const location = this.getRandomChoice(locationPool)
-        
-        return [{
-            id: objectiveId,
-            type: 'reach',
-            description: `Explore and investigate ${this.formatLocationName(location)}`,
-            target: `${location}_explored`,
-            targetName: this.formatLocationName(location),
-            requiredAmount: 1
-        }]
+   generateExplorationObjective(objectiveId, progression, stepNumber, totalSteps) {
+    const locationTypes = {
+        pre_gym: this.questData.locations.outdoor,
+        gym_1: this.questData.locations.outdoor.concat(this.questData.locations.indoor),
+        gym_2: this.questData.locations.indoor.concat(this.questData.locations.outdoor),
+        gym_3: this.questData.locations.cave.concat(this.questData.locations.indoor),
+        gym_4: this.questData.locations.cave.concat(this.questData.locations.indoor),
+        gym_5: this.questData.locations.cave.concat(this.questData.locations.special),
+        gym_6: this.questData.locations.special.concat(this.questData.locations.cave),
+        gym_7: this.questData.locations.special.concat(this.questData.locations.cave),
+        gym_8: this.questData.locations.special,
+        elite_four: this.questData.locations.special,
+        post_game: this.questData.locations.special
     }
+    
+    const locationPool = locationTypes[progression] || this.questData.locations.outdoor
+    const location = this.getRandomChoice(locationPool)
+    
+    return [{
+        id: objectiveId,
+        type: 'reach',
+        description: `Explorer et enquêter sur ${this.formatLocationName(location)}`,
+        target: `${location}_explored`,
+        targetName: this.formatLocationName(location),
+        requiredAmount: 1
+    }]
+}
 
     generateTradeObjective(objectiveId, npc, progression, stepNumber, totalSteps) {
-        const pokemonPools = {
-            easy: this.questData.pokemon.common,
-            medium: this.questData.pokemon.uncommon,
-            hard: this.questData.pokemon.rare,
-            legendary: this.questData.pokemon.rare.concat(['Dragonite', 'Alakazam', 'Machamp'])
-        }
-        
-        const pool = pokemonPools[difficulty] || this.questData.pokemon.common
-        const pokemon1 = this.getRandomChoice(pool)
-        const pokemon2 = this.getRandomChoice(pool.filter(p => p !== pokemon1))
-        
-        return [{
-            id: objectiveId,
-            type: 'trade',
-            description: `Trade your ${pokemon1} for a ${pokemon2} with ${npc.name}`,
-            target: npc.id.toString(),
-            targetName: npc.name,
-            tradePokemon: pokemon1,
-            receivePokemon: pokemon2,
-            requiredAmount: 1
-        }]
-    }
+    const pokemonPool = this.getPokemonForProgression(progression)
+    const pokemon1 = this.getRandomChoice(pokemonPool)
+    const pokemon2 = this.getRandomChoice(pokemonPool.filter(p => p !== pokemon1))
+    
+    return [{
+        id: objectiveId,
+        type: 'trade',
+        description: `Échanger votre ${pokemon1} contre un ${pokemon2} avec ${npc.name}`,
+        target: npc.id.toString(),
+        targetName: npc.name,
+        tradePokemon: pokemon1,
+        receivePokemon: pokemon2,
+        requiredAmount: 1
+    }]
+}
 
     generateCatchObjective(objectiveId, progression, stepNumber, totalSteps) {
-        const catchAmounts = { easy: 1, medium: 2, hard: 3, legendary: 5 }
-        const amount = catchAmounts[difficulty] || 2
-        
-        const pokemonPools = {
-            easy: this.questData.pokemon.common,
-            medium: this.questData.pokemon.uncommon,
-            hard: this.questData.pokemon.rare,
-            legendary: this.questData.pokemon.rare
-        }
-        
-        const pool = pokemonPools[difficulty] || this.questData.pokemon.common
-        const catchPokemon = this.getRandomChoice(pool)
-        
-        return [{
-            id: objectiveId,
-            type: 'catch',
-            description: `Successfully catch ${amount} ${catchPokemon} to expand your team`,
-            target: catchPokemon.toLowerCase(),
-            targetName: catchPokemon,
-            requiredAmount: amount
-        }]
+    const progressionCatchMap = {
+        pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 3,
+        gym_5: 3, gym_6: 4, gym_7: 4, gym_8: 5, elite_four: 6, post_game: 8
     }
+    
+    const amount = progressionCatchMap[progression] || 2
+    const pokemonPool = this.getPokemonForProgression(progression)
+    const catchPokemon = this.getRandomChoice(pokemonPool)
+    
+    return [{
+        id: objectiveId,
+        type: 'catch',
+        description: `Capturer avec succès ${amount} ${catchPokemon} pour agrandir votre équipe`,
+        target: catchPokemon.toLowerCase(),
+        targetName: catchPokemon,
+        requiredAmount: amount
+    }]
+}
 
 generateAdvancedRewards(progression, stepNumber, totalSteps, enhancedRewards) {
         const rewards = []
@@ -1307,15 +1294,17 @@ const rewardData = this.questData.rewards[progression]
         return rewards
     }
 
-    generateQuestChainInfo(questType, difficulty) {
-        return {
-            isChainQuest: true,
-            chainPosition: 1,
-            totalChainLength: this.getRandomInt(2, 4),
-            nextQuestHint: `Continue the ${questType} saga...`,
-            chainTheme: `${questType.charAt(0).toUpperCase() + questType.slice(1)} Mastery`
-        }
+generateQuestChainInfo(questType, progression) {
+    const gymInfo = this.questData.gymProgression[progression]
+    
+    return {
+        isChainQuest: true,
+        chainPosition: 1,
+        totalChainLength: this.getRandomInt(2, 4),
+        nextQuestHint: `Continuer la saga ${questType} vers ${gymInfo.name}...`,
+        chainTheme: `Maîtrise ${questType.charAt(0).toUpperCase() + questType.slice(1)} - ${gymInfo.name}`
     }
+}
 
     showAdvancedQuestPreview(quest) {
         const previewDiv = document.getElementById('generatedQuestPreview')
@@ -1338,7 +1327,7 @@ const rewardData = this.questData.rewards[progression]
                     <strong>Steps:</strong> ${quest.steps.length}
                 </div>
                 <div style="background: rgba(255, 255, 255, 0.7); padding: 10px; border-radius: 8px;">
-                    <strong>Difficulty:</strong> ${quest.metadata.difficulty}
+<strong>Progression:</strong> ${quest.metadata.gymInfo ? quest.metadata.gymInfo.name : quest.metadata.progression}
                 </div>
                 <div style="background: rgba(255, 255, 255, 0.7); padding: 10px; border-radius: 8px;">
                     <strong>Type:</strong> ${quest.metadata.questType}
