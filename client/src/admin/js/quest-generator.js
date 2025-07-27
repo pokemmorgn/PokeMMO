@@ -1128,28 +1128,27 @@ generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) 
     }
 
     generateDefeatPokemonObjective(objectiveId, progression, stepNumber, totalSteps) {
-        const difficultyMultipliers = { easy: 2, medium: 4, hard: 6, legendary: 10 }
-        const multiplier = difficultyMultipliers[difficulty] || 3
-        
-        // Select Pokemon by difficulty
-        let pokemonPool = this.questData.pokemon.common
-        if (difficulty === 'medium') pokemonPool = pokemonPool.concat(this.questData.pokemon.uncommon)
-        if (difficulty === 'hard') pokemonPool = this.questData.pokemon.uncommon.concat(this.questData.pokemon.rare)
-        if (difficulty === 'legendary') pokemonPool = this.questData.pokemon.rare
-        
-        const pokemon = this.getRandomChoice(pokemonPool)
-        const amount = Math.floor(multiplier * (stepNumber === totalSteps ? 1.5 : 1))
-        
-        return [{
-            id: objectiveId,
-            type: 'defeat',
-            description: `Defeat ${amount} wild ${pokemon} in the area`,
-            target: pokemon.toLowerCase(),
-            targetName: pokemon,
-            requiredAmount: amount
-        }]
+    const progressionMultipliers = { 
+        pre_gym: 1, gym_1: 2, gym_2: 3, gym_3: 4, gym_4: 5, 
+        gym_5: 6, gym_6: 7, gym_7: 8, gym_8: 9, elite_four: 12, post_game: 15 
     }
-
+    const multiplier = progressionMultipliers[progression] || 3
+    
+    // Select Pokemon by progression
+    const pokemonPool = this.getPokemonForProgression(progression)
+    
+    const pokemon = this.getRandomChoice(pokemonPool)
+    const amount = Math.max(1, Math.floor(multiplier * (stepNumber === totalSteps ? 1.5 : 1)))
+    
+    return [{
+        id: objectiveId,
+        type: 'defeat',
+        description: `Vaincre ${amount} ${pokemon} sauvages dans la zone`,
+        target: pokemon.toLowerCase(),
+        targetName: pokemon,
+        requiredAmount: amount
+    }]
+}
     generateDefeatTrainersObjective(objectiveId, progression, stepNumber, totalSteps) {
         const trainerAmounts = { easy: 1, medium: 2, hard: 3, legendary: 5 }
         const amount = trainerAmounts[difficulty] || 2
