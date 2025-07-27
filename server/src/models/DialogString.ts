@@ -60,6 +60,7 @@ export type DialogCategory =
   | 'greeting'          // Salutations
   | 'ai'               // Réponses IA intelligentes
   | 'shop'             // Dialogues de boutique
+  | 'healer'           // Dialogues de soigneur/Centre Pokémon
   | 'quest'            // Dialogues de quête (si pas dans QuestManager)
   | 'battle'           // Dialogues de combat
   | 'help'             // Dialogues d'aide
@@ -172,7 +173,7 @@ const DialogStringSchema = new Schema<IDialogString>({
   category: {
     type: String,
     required: true,
-    enum: ['greeting', 'ai', 'shop', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'],
+    enum: ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'],
     index: true
   },
   context: {
@@ -504,7 +505,7 @@ export const DialogStringModel = model<IDialogString>('DialogString', DialogStri
 
 // Export des constantes utiles
 export const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'];
-export const DIALOG_CATEGORIES: DialogCategory[] = ['greeting', 'ai', 'shop', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
+export const DIALOG_CATEGORIES: DialogCategory[] = ['greeting', 'ai', 'shop', 'healer', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
 
 /**
  * Interface pour création simplifiée
