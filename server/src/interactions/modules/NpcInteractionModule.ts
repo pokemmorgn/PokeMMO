@@ -359,8 +359,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
         
         // Si l'IA n'a pas pu traiter, passer au fallback
         this.log('info', `🔄 [AI] IA non applicable, fallback legacy pour NPC ${safeNpcId}`);
-                // Vérifier si l'IA a vraiment échoué
-        if (!intelligentResult.success && intelligentResult.type === "ai_failed") {
+        // Vérifier si l'IA a vraiment échoué
+        if (!intelligentResult.success && (intelligentResult as any).requiresLegacy) {
           this.log('info', `🔄 [AI] IA explicitement échouée, passage au legacy pour NPC ${safeNpcId}`);
         }
       } catch (error) {
@@ -436,8 +436,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
         // Retourner un résultat qui indique qu'il faut utiliser le legacy
         return {
           success: false,
-          type: "ai_failed",
-          message: "IA non applicable",
+          type: "error",  // ✅ Type existant
+          message: "IA non applicable - legacy requis",
           npcId: npcId,
           npcName: npcName,
           isUnifiedInterface: false,
@@ -450,7 +450,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
             quickActions: []
           },
           intelligenceUsed: false,
-          isIntelligentResponse: false
+          isIntelligentResponse: false,
+          requiresLegacy: true  // ✅ Flag personnalisé
         };
       }
 
