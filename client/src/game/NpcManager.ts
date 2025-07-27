@@ -398,72 +398,95 @@ export class NpcManager {
   }
 
   // ✅ MÉTHODE AMÉLIORÉE : Fallback ultime avec validation
-  async createNpcWithUltimateFallback(npc) {
-    console.log(`🆘 Création NPC ${npc.id} avec fallback ultime amélioré...`);
+async createNpcWithUltimateFallback(npc) {
+  console.log(`🆘 Création NPC ${npc.id} avec fallback ultime amélioré...`);
+  
+  try {
+    // ✅ S'assurer que le fallback existe
+    const fallbackSprite = this.npcSpriteManager.config.fallbackSprite;
     
-    try {
-      // ✅ S'assurer que le fallback existe
-      const fallbackSprite = this.npcSpriteManager.config.fallbackSprite;
+    if (!this.scene.textures.exists(fallbackSprite)) {
+      console.log(`🎨 Création fallback graphique pour NPC ${npc.id}...`);
+      this.npcSpriteManager.createDefaultFallback();
+      
+      // ✅ Attendre que le fallback soit créé
+      await this.waitForSpriteAvailability(fallbackSprite, 1000);
       
       if (!this.scene.textures.exists(fallbackSprite)) {
-        console.log(`🎨 Création fallback graphique pour NPC ${npc.id}...`);
-        this.npcSpriteManager.createDefaultFallback();
-        
-        // ✅ Attendre que le fallback soit créé
-        await this.waitForSpriteAvailability(fallbackSprite, 1000);
-        
-        if (!this.scene.textures.exists(fallbackSprite)) {
-          throw new Error(`Impossible de créer fallback sprite pour NPC ${npc.id}`);
-        }
+        throw new Error(`Impossible de créer fallback sprite pour NPC ${npc.id}`);
       }
-      
-      // ✅ Créer le sprite avec fallback
-      const sprite = this.scene.add.sprite(npc.x, npc.y, fallbackSprite);
-      sprite.setOrigin(0.5, 1)
-        .setDepth(4)
-        .setScale(1)
-        .setVisible(true)
-        .setActive(true)
-        .setAlpha(1)
-        .setTint(0xff9999); // ✅ Teinte légèrement rouge pour indiquer le fallback
-      
-      // ✅ Valider la création
-      const isValid = this.validateSpriteCreation(sprite, npc.id);
-      if (!isValid) {
-        throw new Error(`Fallback sprite invalide pour NPC ${npc.id}`);
-      }
-      
-      // ✅ Marquer comme fallback ultime
-      sprite.npcSpriteInfo = {
-        originalSprite: npc.sprite,
-        finalSprite: fallbackSprite,
-        isFromMongoDB: !!npc.sprite,
-        isFallback: true,
-        isUltimateFallback: true,
-        createdAt: Date.now()
-      };
-      
-      const nameContainer = this.createNameContainer(npc);
-      
-      this.npcVisuals.set(npc.id, { 
-        sprite, 
-        nameContainer,
-        spriteInfo: sprite.npcSpriteInfo
-      });
-      this.npcData.set(npc.id, npc);
-      
-      console.log(`✅ NPC ${npc.name} créé avec fallback ultime`);
-      
-      // ✅ Test final de visibilité
-      this.scene.time.delayedCall(100, () => {
-        this.validateNpcVisibility(npc.id);
-      });
-      
-    } catch (error) {
-      console.error(`❌ Échec complet fallback ultime pour NPC ${npc.id}:`, error);
-      throw error;
     }
+    
+    // ✅ NOUVEAU : Vérifier si le fallback est un sprite sheet
+    const fallbackSpriteSheetInfo = this.npcSpriteManager.getSpriteSheetInfo(fallbackSprite);
+    
+    let sprite;
+    
+    if (fallbackSpriteSheetInfo.isSpriteSheet) {
+      console.log(`🎞️ Fallback est un sprite sheet, utilisation frame par défaut: ${fallbackSpriteSheetInfo.defaultFrame}`);
+      
+      if (npc.frameIndex !== undefined) {
+        sprite = this.scene.add.sprite(npc.x, npc.y, fallbackSprite, npc.frameIndex);
+        console.log(`🎯 Frame spécifiée pour fallback: ${npc.frameIndex}`);
+      } else {
+        sprite = this.scene.add.sprite(npc.x, npc.y, fallbackSprite, fallbackSpriteSheetInfo.defaultFrame);
+        console.log(`🎯 Frame par défaut pour fallback: ${fallbackSpriteSheetInfo.defaultFrame}`);
+      }
+    } else {
+      console.log(`🖼️ Fallback est une image simple`);
+      sprite = this.scene.add.sprite(npc.x, npc.y, fallbackSprite);
+    }
+    
+    // ✅ Configuration du sprite
+    sprite.setOrigin(0.5, 1)
+      .setDepth(4)
+      .setScale(1)
+      .setVisible(true)
+      .setActive(true)
+      .setAlpha(1)
+      .setTint(0xff9999); // ✅ Teinte légèrement rouge pour indiquer le fallback
+    
+    // ✅ Valider la création
+    const isValid = this.validateSpriteCreation(sprite, npc.id);
+    if (!isValid) {
+      throw new Error(`Fallback sprite invalide pour NPC ${npc.id}`);
+    }
+    
+    // ✅ Marquer comme fallback ultime avec info sprite sheet
+    sprite.npcSpriteInfo = {
+      originalSprite: npc.sprite,
+      finalSprite: fallbackSprite,
+      isFromMongoDB: !!npc.sprite,
+      isFallback: true,
+      isUltimateFallback: true,
+      isSpriteSheet: fallbackSpriteSheetInfo.isSpriteSheet,
+      frameUsed: fallbackSpriteSheetInfo.isSpriteSheet ? 
+        (npc.frameIndex !== undefined ? npc.frameIndex : fallbackSpriteSheetInfo.defaultFrame) : 
+        null,
+      createdAt: Date.now()
+    };
+    
+    const nameContainer = this.createNameContainer(npc);
+    
+    this.npcVisuals.set(npc.id, { 
+      sprite, 
+      nameContainer,
+      spriteInfo: sprite.npcSpriteInfo
+    });
+    this.npcData.set(npc.id, npc);
+    
+    console.log(`✅ NPC ${npc.name} créé avec fallback ultime (frame: ${sprite.npcSpriteInfo.frameUsed || 'N/A'})`);
+    
+    // ✅ Test final de visibilité
+    this.scene.time.delayedCall(100, () => {
+      this.validateNpcVisibility(npc.id);
+    });
+    
+  } catch (error) {
+    console.error(`❌ Échec complet fallback ultime pour NPC ${npc.id}:`, error);
+    throw error;
   }
+}
 
   // ✅ MÉTHODE AMÉLIORÉE : Debug avec informations sprites détaillées
   debugSpawnedNpcs() {
