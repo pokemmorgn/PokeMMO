@@ -1,10 +1,10 @@
-// managers/UIManager.js - VERSION FINALE avec Module Options intégré
-// 🚨 Support complet Options : top-right + Escape + API globale + groupe ui-options
-// ⚙️ NOUVEAU : Gestion intelligente Escape + positions multiples + API Options
+// managers/UIManager.js - VERSION AVEC SUPPORT MODULE OPTIONS
+// 🚨 INTÉGRATION COMPLÈTE du module Options avec position top-right + raccourci Escape intelligent
+// ⚙️ Support groupe ui-options + API globale + gestion intelligente Escape
 
 export class UIManager {
   constructor(options = {}) {
-    console.log('🎛️ UIManager avec support Module Options complet initialisé');
+    console.log('🎛️ UIManager avec support Options + protection anti-duplication + sync + décalage global initialisé');
     
     this.debug = options.debug || false;
     this.gameStates = options.gameStates || {};
@@ -28,7 +28,7 @@ export class UIManager {
       currentGameState: 'exploration'
     };
     
-    // ⚙️ NOUVEAU : Configuration étendue pour Options
+    // Configuration icônes avec décalage global
     this.iconConfig = {
       defaultSize: { width: 70, height: 80 },
       responsiveSizes: {
@@ -38,38 +38,189 @@ export class UIManager {
       },
       spacing: 10,
       padding: 20,
-      globalOffset: 15,
-      zIndex: 500,
-      // ⚙️ NOUVEAU : Offset spécial pour Options en top-right
-      optionsOffset: 20 // Décalage supplémentaire pour Options
+      globalOffset: 15, // ✅ Décalage global vers la gauche (en pixels)
+      zIndex: 500
     };
     
     this.registeredIcons = new Map();
     this.iconGroups = new Map();
     this.currentBreakpoint = this.getCurrentBreakpoint();
     
-    // ⚙️ NOUVEAU : Setup groupes avec support Options
-    this.setupDefaultGroupsWithOptions();
+    // ⚙️ NOUVEAU: Support raccourcis clavier pour modules
+    this.keyboardShortcuts = new Map();
+    this.escapeHandlers = new Map();
+    
+    this.setupDefaultGroups();
     this.setupResizeListener();
+    this.setupKeyboardListeners(); // ⚙️ NOUVEAU: Gestion clavier centralisée
     this.injectGlobalIconCSS();
     
-    // ⚙️ NOUVEAU : Règles d'interaction étendues pour Options
     this.interactionRules = {
       inventory_open: ['team'],
-      team_open: ['inventory'], 
+      team_open: ['inventory'],
       dialogue_active: ['inventory', 'team', 'quest'],
-      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-      // ⚙️ Options peut toujours être ouvert (pas de restrictions)
-      options_priority: [] // Options a priorité sur tout
+      battle_active: ['inventory', 'team', 'quest', 'questTracker', 'chat']
     };
     
     this.openModules = new Set();
+  }
+
+  // ⚙️ NOUVEAU: Configuration groupes avec support Options
+  setupDefaultGroups() {
+    // Groupe principal pour icônes bas-droite (Quest, Team, etc.)
+    this.iconGroups.set('ui-icons', {
+      anchor: 'bottom-right',
+      spacing: this.iconConfig.spacing,
+      padding: this.iconConfig.padding,
+      members: [],
+      expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
+    });
     
-    // ⚙️ NOUVEAU : Tracking Escape key pour Options
-    this.escapeHandling = {
-      optionsModuleId: null,
-      setupComplete: false
-    };
+    // ⚙️ NOUVEAU: Groupe spécial pour Options (haut-droite)
+    this.iconGroups.set('ui-options', {
+      anchor: 'top-right',
+      spacing: this.iconConfig.spacing,
+      padding: this.iconConfig.padding,
+      members: [],
+      expectedOrder: ['options'] // Options sera le premier (et probablement seul) en haut-droite
+    });
+    
+    // Groupes spéciaux pour modules isolés
+    this.iconGroups.set('weather', {
+      anchor: 'top-right',
+      spacing: 30,
+      padding: this.iconConfig.padding,
+      members: [],
+      isolated: true // Utilise la position intelligente
+    });
+    
+    this.iconGroups.set('standalone', {
+      anchor: 'top-left',
+      spacing: 20,
+      padding: this.iconConfig.padding,
+      members: [],
+      isolated: true
+    });
+    
+    console.log('📋 [UIManager] Groupes configurés:', {
+      'ui-icons': 'bottom-right (Quest, Team, etc.)',
+      'ui-options': 'top-right (Options)',
+      'weather': 'top-right isolé (Weather)',
+      'standalone': 'top-left isolé'
+    });
+  }
+  
+  // ⚙️ NOUVEAU: Gestion centralisée du clavier
+  setupKeyboardListeners() {
+    // Éviter la double configuration
+    if (this.keyboardListenersSetup) {
+      console.log('⌨️ [UIManager] Listeners clavier déjà configurés');
+      return;
+    }
+    
+    document.addEventListener('keydown', (event) => {
+      // ⚙️ GESTION SPÉCIALE ESCAPE pour Options
+      if (event.key === 'Escape') {
+        this.handleEscapeKey(event);
+        return;
+      }
+      
+      // Gestion autres raccourcis
+      const shortcutHandler = this.keyboardShortcuts.get(event.key.toLowerCase());
+      if (shortcutHandler && typeof shortcutHandler === 'function') {
+        event.preventDefault();
+        event.stopPropagation();
+        shortcutHandler(event);
+      }
+    });
+    
+    this.keyboardListenersSetup = true;
+    console.log('⌨️ [UIManager] Listeners clavier centralisés configurés');
+  }
+  
+  // ⚙️ NOUVEAU: Gestion intelligente de la touche Escape
+  handleEscapeKey(event) {
+    console.log('⌨️ [UIManager] Touche Escape pressée - gestion intelligente...');
+    
+    // PRIORITÉ 1: Vérifier si une UI est ouverte (fermer la plus prioritaire)
+    const openUIModules = this.getOpenUIModules();
+    
+    if (openUIModules.length > 0) {
+      // Fermer l'UI avec la priorité la plus haute
+      const highestPriorityModule = openUIModules.sort((a, b) => (b.priority || 0) - (a.priority || 0))[0];
+      
+      console.log(`🔒 [UIManager] Fermeture UI ouverte: ${highestPriorityModule.id}`);
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Demander au module de se fermer
+      const instance = this.getModuleInstance(highestPriorityModule.id);
+      if (instance && typeof instance.close === 'function') {
+        instance.close();
+      } else if (instance && typeof instance.hide === 'function') {
+        instance.hide();
+      }
+      
+      return;
+    }
+    
+    // PRIORITÉ 2: Si aucune UI ouverte, ouvrir Options
+    const optionsInstance = this.getModuleInstance('options');
+    if (optionsInstance) {
+      console.log('⚙️ [UIManager] Aucune UI ouverte - ouverture Options');
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (typeof optionsInstance.open === 'function') {
+        optionsInstance.open();
+      } else if (typeof optionsInstance.show === 'function') {
+        optionsInstance.show();
+      }
+      
+      return;
+    }
+    
+    // PRIORITÉ 3: Fallback - laisser l'événement se propager
+    console.log('⌨️ [UIManager] Pas de module Options trouvé - propagation Escape');
+  }
+  
+  // ⚙️ NOUVEAU: Obtenir les modules avec UI ouverte
+  getOpenUIModules() {
+    const openModules = [];
+    
+    // Vérifier les overlays principaux
+    const uiChecks = [
+      { id: 'inventory', selector: '#inventory-overlay', priority: 100 },
+      { id: 'team', selector: '#team-overlay', priority: 90 },
+      { id: 'quest', selector: '#quest-journal', priority: 80 },
+      { id: 'options', selector: '#options-overlay', priority: 70 }
+    ];
+    
+    uiChecks.forEach(check => {
+      const element = document.querySelector(check.selector);
+      const isVisible = element && 
+        element.style.display !== 'none' && 
+        !element.classList.contains('hidden') &&
+        window.getComputedStyle(element).opacity > 0.1;
+      
+      if (isVisible) {
+        openModules.push(check);
+      }
+    });
+    
+    return openModules;
+  }
+  
+  // ⚙️ NOUVEAU: Enregistrer raccourci clavier pour module
+  registerKeyboardShortcut(key, moduleId, handler) {
+    if (key === 'escape' || key === 'Escape') {
+      // Les handlers Escape sont spéciaux
+      this.escapeHandlers.set(moduleId, handler);
+      console.log(`⌨️ [UIManager] Handler Escape enregistré pour ${moduleId}`);
+    } else {
+      this.keyboardShortcuts.set(key.toLowerCase(), handler);
+      console.log(`⌨️ [UIManager] Raccourci ${key} enregistré pour ${moduleId}`);
+    }
   }
 
   // === 🛡️ INITIALISATION MODULE AVEC PROTECTION ANTI-DUPLICATION ===
@@ -130,11 +281,15 @@ export class UIManager {
       // ✅ FIX: Synchroniser les états UIManager → Module
       if (instance) {
         instance.initialized = true;
-        instance.isEnabled = state.enabled !== false;
+        instance.isEnabled = state.enabled !== false; // Utiliser l'état UIManager
         
-        // ⚙️ NOUVEAU : Setup spécial pour Options
-        if (moduleId === 'options' || config.isOptionsModule) {
-          this.setupOptionsSpecialHandling(moduleId, instance);
+        // ⚙️ NOUVEAU: Enregistrer raccourci clavier si défini
+        if (config.keyboardShortcut) {
+          this.registerKeyboardShortcut(config.keyboardShortcut, moduleId, () => {
+            if (instance.toggleUI && typeof instance.toggleUI === 'function') {
+              instance.toggleUI();
+            }
+          });
         }
         
         if (this.debug) {
@@ -143,7 +298,7 @@ export class UIManager {
             'Module.initialized': instance.initialized,
             'UIManager.enabled': state.enabled,
             'Module.isEnabled': instance.isEnabled,
-            'isOptions': moduleId === 'options'
+            'keyboardShortcut': config.keyboardShortcut || 'none'
           });
         }
       }
@@ -158,9 +313,9 @@ export class UIManager {
       // 4. Appliquer l'état initial
       this.applyModuleState(moduleId);
       
-      // ⚙️ NOUVEAU : Setup Escape key si c'est Options
+      // ⚙️ NOUVEAU: Configuration spéciale pour Options
       if (moduleId === 'options') {
-        this.setupOptionsEscapeHandling(instance);
+        await this.setupOptionsSpecialHandling(instance);
       }
       
       if (this.debug) {
@@ -179,169 +334,31 @@ export class UIManager {
     }
   }
   
-  // ⚙️ NOUVEAU : Setup spécial pour le module Options
-  setupOptionsSpecialHandling(moduleId, instance) {
-    console.log('⚙️ [UIManager] Configuration spéciale module Options...');
+  // ⚙️ NOUVEAU: Configuration spéciale pour module Options
+  async setupOptionsSpecialHandling(optionsInstance) {
+    console.log('⚙️ [UIManager] Configuration spéciale Options...');
     
-    // Marquer le module Options pour référence
-    this.escapeHandling.optionsModuleId = moduleId;
-    
-    // Exposer l'API globale Options immédiatement
-    if (instance.manager) {
-      this.exposeOptionsGlobalAPI(instance.manager);
-    }
-    
-    // Marquer la configuration comme spéciale
-    const config = this.modules.get(moduleId);
-    if (config) {
-      config.isOptionsModule = true;
-      config.specialHandling = {
-        escapeKey: true,
-        globalAPI: true,
-        topRightPosition: true
-      };
-    }
-    
-    console.log('✅ [UIManager] Configuration spéciale Options terminée');
-  }
-  
-  // ⚙️ NOUVEAU : Exposer l'API globale Options
-  exposeOptionsGlobalAPI(optionsManager) {
-    if (!optionsManager) return;
-    
-    console.log('🌐 [UIManager] Exposition API globale Options...');
-    
-    // API simple directement disponible
-    window.GetPlayerCurrentLanguage = () => {
-      try {
-        return optionsManager.getCurrentLanguage();
-      } catch (error) {
-        console.warn('⚠️ GetPlayerCurrentLanguage fallback:', error);
-        return 'en';
+    try {
+      // Vérifier que l'API globale est disponible
+      if (typeof window.GetPlayerCurrentLanguage === 'function') {
+        console.log('✅ [UIManager] API globale Options détectée:', {
+          language: window.GetPlayerCurrentLanguage(),
+          volume: window.GetPlayerCurrentVolume ? window.GetPlayerCurrentVolume() : 'N/A',
+          muted: window.IsPlayerAudioMuted ? window.IsPlayerAudioMuted() : 'N/A'
+        });
+      } else {
+        console.warn('⚠️ [UIManager] API globale Options non disponible');
       }
-    };
-    
-    window.GetPlayerCurrentVolume = () => {
-      try {
-        return optionsManager.getEffectiveVolume();
-      } catch (error) {
-        console.warn('⚠️ GetPlayerCurrentVolume fallback:', error);
-        return 50;
+      
+      // Configurer l'instance Options pour répondre aux événements UIManager
+      if (optionsInstance && typeof optionsInstance.connectUIManager === 'function') {
+        optionsInstance.connectUIManager(this);
       }
-    };
-    
-    window.IsPlayerAudioMuted = () => {
-      try {
-        return optionsManager.isMuted();
-      } catch (error) {
-        console.warn('⚠️ IsPlayerAudioMuted fallback:', error);
-        return false;
-      }
-    };
-    
-    // API de contrôle Options
-    window.openOptions = () => this.showModule('options');
-    window.closeOptions = () => this.hideModule('options');
-    window.toggleOptions = () => this.toggleModule('options');
-    
-    console.log('✅ [UIManager] API globale Options exposée');
-  }
-  
-  // ⚙️ NOUVEAU : Setup du handling intelligent Escape
-  setupOptionsEscapeHandling(optionsInstance) {
-    if (this.escapeHandling.setupComplete) {
-      console.log('ℹ️ [UIManager] Escape key déjà configuré pour Options');
-      return;
-    }
-    
-    console.log('⌨️ [UIManager] Configuration Escape key intelligent pour Options...');
-    
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        this.handleIntelligentEscape(event, optionsInstance);
-      }
-    });
-    
-    this.escapeHandling.setupComplete = true;
-    console.log('✅ [UIManager] Escape key intelligent configuré');
-  }
-  
-  // ⚙️ NOUVEAU : Gestion intelligente de la touche Escape
-  handleIntelligentEscape(event, optionsInstance) {
-    console.log('⌨️ [UIManager] Escape pressé - gestion intelligente...');
-    
-    // 1. Vérifier si une UI est ouverte (priorité haute)
-    const openUI = this.findOpenUI();
-    
-    if (openUI) {
-      console.log(`⌨️ [UIManager] Fermeture UI ouverte: ${openUI}`);
-      event.preventDefault();
-      event.stopPropagation();
-      this.closeSpecificUI(openUI);
-      return;
-    }
-    
-    // 2. Si aucune UI ouverte, toggle Options
-    console.log('⌨️ [UIManager] Aucune UI ouverte - toggle Options');
-    event.preventDefault();
-    event.stopPropagation();
-    
-    if (optionsInstance && optionsInstance.toggleUI) {
-      optionsInstance.toggleUI();
-    } else {
-      this.toggleModule('options');
-    }
-  }
-  
-  // ⚙️ NOUVEAU : Trouver l'UI ouverte avec priorité
-  findOpenUI() {
-    // Ordre de priorité pour fermeture (du plus spécifique au plus général)
-    const uiChecks = [
-      { id: 'options', selector: '#options-overlay:not(.hidden)', priority: 1 },
-      { id: 'inventory', selector: '#inventory-overlay:not(.hidden)', priority: 2 },
-      { id: 'team', selector: '#team-overlay:not(.hidden)', priority: 3 },
-      { id: 'quest', selector: '#quest-journal.visible', priority: 4 }
-    ];
-    
-    // Trier par priorité et trouver la première UI visible
-    uiChecks.sort((a, b) => a.priority - b.priority);
-    
-    for (const check of uiChecks) {
-      const element = document.querySelector(check.selector);
-      if (element) {
-        const computedStyle = window.getComputedStyle(element);
-        const isVisible = computedStyle.opacity > 0.1 && 
-                         computedStyle.visibility !== 'hidden' &&
-                         computedStyle.display !== 'none';
-        
-        if (isVisible) {
-          console.log(`🔍 [UIManager] UI ouverte détectée: ${check.id}`);
-          return check.id;
-        }
-      }
-    }
-    
-    return null;
-  }
-  
-  // ⚙️ NOUVEAU : Fermer une UI spécifique
-  closeSpecificUI(uiId) {
-    console.log(`🚪 [UIManager] Fermeture UI spécifique: ${uiId}`);
-    
-    const instance = this.getModuleInstance(uiId);
-    
-    if (instance) {
-      // Méthodes préférées
-      if (typeof instance.hide === 'function') {
-        instance.hide();
-      } else if (typeof instance.close === 'function') {
-        instance.close();
-      } else if (typeof instance.toggleUI === 'function') {
-        instance.toggleUI();
-      }
-    } else {
-      // Fallback via état UIManager
-      this.hideModule(uiId);
+      
+      console.log('✅ [UIManager] Configuration spéciale Options terminée');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur configuration spéciale Options:', error);
     }
   }
   
@@ -386,27 +403,23 @@ export class UIManager {
     
     try {
       // Vérifier si le module a besoin d'une icône
-      const layoutConfig = config.layout || config.uiManagerConfig;
-      if (!layoutConfig) {
-        console.log(`ℹ️ [UIManager] Module ${moduleId} n'a pas de configuration layout`);
-        return null;
-      }
-      
-      // ⚙️ NOUVEAU : Support direct pour modules avec icône
-      let iconElement = null;
-      
-      if (instance.icon && instance.icon.iconElement) {
-        // Le module a déjà créé son icône (pattern BaseModule)
-        iconElement = instance.icon.iconElement;
-        console.log(`🎨 [UIManager] Utilisation icône existante pour ${moduleId}`);
-      } else if (typeof instance.createIcon === 'function') {
-        // Le module peut créer une icône
-        iconElement = await instance.createIcon();
-        console.log(`🎨 [UIManager] Icône créée par ${moduleId}`);
-      } else {
+      const layoutConfig = config.layout;
+      if (!layoutConfig || layoutConfig.type !== 'icon') {
         console.log(`ℹ️ [UIManager] Module ${moduleId} n'a pas d'icône`);
         return null;
       }
+      
+      // Vérifier si le module peut créer une icône
+      if (typeof instance.createIcon !== 'function') {
+        console.warn(`⚠️ [UIManager] Module ${moduleId} ne peut pas créer d'icône`);
+        return null;
+      }
+      
+      // ✅ MARQUER COMME EN COURS DE CRÉATION
+      this.initializationTracker.iconCreated.add(moduleId);
+      
+      // Demander au module de créer son icône
+      const iconElement = await instance.createIcon();
       
       if (!iconElement) {
         console.warn(`⚠️ [UIManager] Module ${moduleId} n'a pas créé d'icône`);
@@ -414,17 +427,11 @@ export class UIManager {
         return null;
       }
       
-      // ✅ MARQUER COMME EN COURS DE CRÉATION
-      this.initializationTracker.iconCreated.add(moduleId);
-      
       // Appliquer la taille centralisée
       this.applyStandardizedSize(iconElement);
       
-      // ⚙️ NOUVEAU : Configuration spéciale pour Options
-      const finalLayoutConfig = this.adjustLayoutConfigForModule(moduleId, layoutConfig, config);
-      
       // Enregistrer et positionner l'icône
-      this.registerIconPosition(moduleId, iconElement, finalLayoutConfig);
+      this.registerIconPosition(moduleId, iconElement, layoutConfig);
       
       console.log(`✅ [UIManager] Icône créée PROTÉGÉE pour ${moduleId}`);
       return iconElement;
@@ -435,75 +442,138 @@ export class UIManager {
       return null;
     }
   }
-  
-  // ⚙️ NOUVEAU : Ajuster la configuration layout selon le module
-  adjustLayoutConfigForModule(moduleId, layoutConfig, moduleConfig) {
-    // Configuration par défaut
-    let finalConfig = { ...layoutConfig };
-    
-    // ⚙️ Spécial Options: force top-right
-    if (moduleId === 'options' || moduleConfig.isOptionsModule) {
-      finalConfig = {
-        ...finalConfig,
-        anchor: 'top-right',
-        order: 0, // Premier en top-right
-        group: 'ui-options',
-        type: 'icon'
-      };
-      console.log(`⚙️ [UIManager] Configuration Options appliquée pour ${moduleId}:`, finalConfig);
+
+  // ✅ FIX 10: Workflow d'initialisation complète avec protection
+  async initializeAllModules(...args) {
+    if (this.debug) {
+      console.log('🚀 [UIManager] Initialisation PROTÉGÉE de tous les modules...');
     }
     
-    return finalConfig;
+    // ✅ Vérifier si déjà en cours
+    if (this.globalState.initialized) {
+      console.log('ℹ️ [UIManager] Tous les modules déjà initialisés - SKIP');
+      return {
+        success: true,
+        results: Object.fromEntries(this.moduleInstances),
+        errors: [],
+        iconsCreated: this.registeredIcons.size,
+        iconSize: this.getCurrentIconSize()
+      };
+    }
+    
+    const results = {};
+    const errors = [];
+    
+    const sortedModules = Array.from(this.modules.entries())
+      .sort((a, b) => (b[1].priority || 100) - (a[1].priority || 100));
+    
+    // ✅ FIX 11: Initialisation séquentielle pour éviter les conflits
+    for (const [moduleId, config] of sortedModules) {
+      try {
+        console.log(`🔄 [UIManager] Initialisation séquentielle: ${moduleId}`);
+        const instance = await this.initializeModule(moduleId, ...args);
+        results[moduleId] = instance;
+        
+        // Petit délai pour éviter les conflits
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+      } catch (error) {
+        errors.push(`${moduleId}: ${error.message}`);
+        if (config.critical) {
+          console.error(`💥 [UIManager] Module critique ${moduleId} a échoué !`);
+        }
+      }
+    }
+    
+    // ✅ Marquer comme initialisé seulement à la fin
+    this.globalState.initialized = true;
+    
+    // Repositionner toutes les icônes créées
+    setTimeout(() => {
+      this.repositionAllIcons();
+      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées PROTÉGÉES`);
+    }, 100);
+    
+    if (this.debug) {
+      console.log(`✅ [UIManager] Initialisation PROTÉGÉE terminée. Succès: ${Object.keys(results).length}, Erreurs: ${errors.length}`);
+      console.log(`🛡️ Protection: ${this.initializationTracker.completed.size} modules protégés`);
+    }
+    
+    return {
+      success: errors.length === 0,
+      results,
+      errors,
+      iconsCreated: this.registeredIcons.size,
+      iconSize: this.getCurrentIconSize(),
+      protectedModules: this.initializationTracker.completed.size
+    };
   }
-
-  // === ⚙️ NOUVEAU : SETUP GROUPES AVEC SUPPORT OPTIONS ===
   
-  setupDefaultGroupsWithOptions() {
-    // Groupe principal bottom-right (Quest, Team, Inventory, etc.)
-    this.iconGroups.set('ui-icons', {
-      anchor: 'bottom-right',
-      spacing: this.iconConfig.spacing,
-      padding: this.iconConfig.padding,
-      members: [],
-      expectedOrder: ['inventory', 'quest', 'pokedex', 'team']
+  // ✅ FIX 12: Méthode pour forcer reset si nécessaire
+  resetInitializationTracker() {
+    console.log('🔄 [UIManager] Reset tracker initialisation...');
+    
+    this.initializationTracker.inProgress.clear();
+    this.initializationTracker.completed.clear();
+    this.initializationTracker.iconCreated.clear();
+    this.initializationTracker.attempts.clear();
+    
+    console.log('✅ [UIManager] Tracker reset');
+  }
+  
+  // ✅ FIX 13: Méthode pour diagnostiquer les doublons
+  diagnoseInitializationIssues() {
+    const issues = [];
+    
+    // Vérifier les modules avec tentatives multiples
+    this.initializationTracker.attempts.forEach((attempts, moduleId) => {
+      if (attempts > 1) {
+        issues.push(`Module ${moduleId}: ${attempts} tentatives d'initialisation`);
+      }
     });
     
-    // ⚙️ NOUVEAU : Groupe spécial top-right pour Options
-    this.iconGroups.set('ui-options', {
-      anchor: 'top-right',
-      spacing: this.iconConfig.spacing,
-      padding: this.iconConfig.padding + (this.iconConfig.optionsOffset || 0),
-      members: [],
-      expectedOrder: ['options'] // Options sera le seul pour l'instant
+    // Vérifier les modules en cours depuis trop longtemps
+    this.initializationTracker.inProgress.forEach(moduleId => {
+      issues.push(`Module ${moduleId}: initialisation bloquée en cours`);
     });
     
-    console.log('✅ [UIManager] Groupes configurés avec support Options (ui-options)');
+    // Vérifier les icônes multiples pour même module
+    const iconCounts = new Map();
+    this.registeredIcons.forEach((config, moduleId) => {
+      iconCounts.set(moduleId, (iconCounts.get(moduleId) || 0) + 1);
+    });
+    
+    iconCounts.forEach((count, moduleId) => {
+      if (count > 1) {
+        issues.push(`Module ${moduleId}: ${count} icônes enregistrées`);
+      }
+    });
+    
+    return {
+      issues,
+      tracker: {
+        inProgress: Array.from(this.initializationTracker.inProgress),
+        completed: Array.from(this.initializationTracker.completed),
+        iconCreated: Array.from(this.initializationTracker.iconCreated),
+        attempts: Object.fromEntries(this.initializationTracker.attempts)
+      }
+    };
   }
 
   // === 🔄 FIX FINAL : SYNCHRONISATION RÉFÉRENCES ÉLÉMENTS ===
   
+  /**
+   * ✅ FIX CRITIQUE : Synchroniser les références d'éléments avec le DOM réel
+   * Résout le problème de références obsolètes qui empêchent le positionnement
+   */
   synchronizeElementReferences() {
     if (this.debug) {
       console.log('🔄 [UIManager] Synchronisation références éléments...');
     }
     
     this.registeredIcons.forEach((iconConfig, moduleId) => {
-      // Patterns de recherche pour Options vs autres modules
-      const searchPatterns = [];
-      
-      if (moduleId === 'options') {
-        searchPatterns.push('#options-icon', '.options-icon');
-      } else {
-        searchPatterns.push(`#${moduleId}-icon`, `.${moduleId}-icon`);
-      }
-      
-      let realElement = null;
-      
-      // Chercher l'élément réel avec les patterns
-      for (const pattern of searchPatterns) {
-        realElement = document.querySelector(pattern);
-        if (realElement) break;
-      }
+      // Trouver l'élément réel dans le DOM
+      const realElement = document.querySelector(`#${moduleId}-icon`);
       
       if (realElement && iconConfig.element !== realElement) {
         if (this.debug) {
@@ -511,22 +581,20 @@ export class UIManager {
         }
         
         // Supprimer les éléments fantômes s'ils existent
-        searchPatterns.forEach(pattern => {
-          const allElements = document.querySelectorAll(pattern);
-          if (allElements.length > 1) {
-            console.log(`🧹 [UIManager] ${allElements.length} éléments ${pattern} trouvés, nettoyage...`);
+        const allElements = document.querySelectorAll(`[id="${moduleId}-icon"]`);
+        if (allElements.length > 1) {
+          console.log(`🧹 [UIManager] ${allElements.length} éléments ${moduleId} trouvés, nettoyage...`);
+          
+          allElements.forEach((element, index) => {
+            const rect = element.getBoundingClientRect();
             
-            allElements.forEach((element, index) => {
-              const rect = element.getBoundingClientRect();
-              
-              // Supprimer les éléments invisibles (fantômes)
-              if (rect.width === 0 || rect.height === 0 || rect.left === 0) {
-                console.log(`🗑️ [UIManager] Suppression élément fantôme ${pattern}[${index}]`);
-                element.remove();
-              }
-            });
-          }
-        });
+            // Supprimer les éléments invisibles (fantômes)
+            if (rect.width === 0 || rect.height === 0 || rect.left === 0) {
+              console.log(`🗑️ [UIManager] Suppression élément fantôme ${moduleId}[${index}]`);
+              element.remove();
+            }
+          });
+        }
         
         // Mettre à jour la référence UIManager
         iconConfig.element = realElement;
@@ -546,7 +614,7 @@ export class UIManager {
     });
   }
 
-  // === ⚙️ POSITIONNEMENT AMÉLIORÉ AVEC SUPPORT OPTIONS ===
+  // === MÉTHODES IDENTIQUES (pas de changement) ===
   
   getCurrentBreakpoint() {
     const width = window.innerWidth;
@@ -601,24 +669,14 @@ export class UIManager {
         box-sizing: border-box !important;
       }
       
-      /* ⚙️ NOUVEAU : Styles spécifiques Options */
-      #options-icon.ui-icon,
-      .options-icon.ui-icon {
-        width: ${defaultSize.width}px !important;
-        height: ${defaultSize.height}px !important;
-        min-width: ${defaultSize.width}px !important;
-        max-width: ${defaultSize.width}px !important;
-        min-height: ${defaultSize.height}px !important;
-        max-height: ${defaultSize.height}px !important;
-        z-index: ${zIndex + 10} !important; /* Un peu plus haut que les autres */
-      }
-      
       #inventory-icon.ui-icon,
       #team-icon.ui-icon,
       #quest-icon.ui-icon,
+      #options-icon.ui-icon,
       .inventory-icon.ui-icon,
       .team-icon.ui-icon,
-      .quest-icon.ui-icon {
+      .quest-icon.ui-icon,
+      .options-icon.ui-icon {
         width: ${defaultSize.width}px !important;
         height: ${defaultSize.height}px !important;
         min-width: ${defaultSize.width}px !important;
@@ -633,14 +691,14 @@ export class UIManager {
           height: ${responsiveSizes.tablet.height}px !important;
         }
         
-        #options-icon.ui-icon,
-        .options-icon.ui-icon,
         #inventory-icon.ui-icon,
         #team-icon.ui-icon,
         #quest-icon.ui-icon,
+        #options-icon.ui-icon,
         .inventory-icon.ui-icon,
         .team-icon.ui-icon,
-        .quest-icon.ui-icon {
+        .quest-icon.ui-icon,
+        .options-icon.ui-icon {
           width: ${responsiveSizes.tablet.width}px !important;
           height: ${responsiveSizes.tablet.height}px !important;
           min-width: ${responsiveSizes.tablet.width}px !important;
@@ -656,14 +714,14 @@ export class UIManager {
           height: ${responsiveSizes.mobile.height}px !important;
         }
         
-        #options-icon.ui-icon,
-        .options-icon.ui-icon,
         #inventory-icon.ui-icon,
         #team-icon.ui-icon,
         #quest-icon.ui-icon,
+        #options-icon.ui-icon,
         .inventory-icon.ui-icon,
         .team-icon.ui-icon,
-        .quest-icon.ui-icon {
+        .quest-icon.ui-icon,
+        .options-icon.ui-icon {
           width: ${responsiveSizes.mobile.width}px !important;
           height: ${responsiveSizes.mobile.height}px !important;
           min-width: ${responsiveSizes.mobile.width}px !important;
@@ -700,15 +758,20 @@ export class UIManager {
         pointer-events: none;
       }
       
-      /* ⚙️ NOUVEAU : Indicateur spécial Options */
-      #options-icon[data-positioned-by="uimanager"]::before {
-        content: "⚙️";
-        color: #4a90e2;
+      .ui-icon[data-positioned-by="uimanager-intelligent"]::before {
+        content: "🧠";
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        font-size: 10px;
+        opacity: 0.6;
+        z-index: 1000;
+        pointer-events: none;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [UIManager] CSS global icônes injecté avec support Options');
+    console.log('🎨 [UIManager] CSS global icônes injecté avec support Options + protection et décalage');
   }
 
   applyStandardizedSize(iconElement) {
@@ -792,10 +855,10 @@ export class UIManager {
 
     this.positionIcon(moduleId);
 
-    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order}, groupe: ${iconConfig.group})`);
+    console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, groupe: ${iconConfig.group}, ordre: ${iconConfig.order})`);
   }
 
-  // ⚙️ NOUVEAU : Position avec support complet Options top-right
+  // ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
   positionIcon(moduleId) {
     // ✅ AJOUT : Synchroniser avant positionnement
     this.synchronizeElementReferences();
@@ -814,35 +877,47 @@ export class UIManager {
       return;
     }
 
+    // ✅ NOUVEAU : Gestion spéciale pour groupes isolés (weather, etc.)
+    if (group.isolated || this.isIsolatedModule(moduleId, iconConfig)) {
+      const intelligentPosition = this.calculateIntelligentPosition(moduleId, iconConfig);
+      
+      iconConfig.element.style.position = 'fixed';
+      iconConfig.element.style.left = `${intelligentPosition.x}px`;
+      iconConfig.element.style.top = `${intelligentPosition.y}px`;
+      iconConfig.element.style.right = '';
+      iconConfig.element.style.bottom = '';
+      iconConfig.element.style.zIndex = this.iconConfig.zIndex;
+      iconConfig.element.setAttribute('data-positioned-by', 'uimanager-intelligent');
+      
+      if (this.debug) {
+        console.log(`🧠 [UIManager] ${moduleId} positionné intelligemment à (${intelligentPosition.x}, ${intelligentPosition.y}) - offset: ${intelligentPosition.offset}px`);
+      }
+      return;
+    }
+
+    // ⚙️ Position normale pour modules groupés (options, quest, team, etc.)
     let baseX, baseY;
-    const padding = group.padding || this.iconConfig.padding;
+    const padding = this.iconConfig.padding;
     const globalOffset = this.iconConfig.globalOffset || 0;
     
-    // ⚙️ NOUVEAU : Support complet des anchors y compris top-right pour Options
     switch (iconConfig.anchor) {
       case 'bottom-right':
         baseX = window.innerWidth - padding - globalOffset;
         baseY = window.innerHeight - padding;
         break;
-        
       case 'bottom-left':
         baseX = padding + globalOffset;
         baseY = window.innerHeight - padding;
         break;
-        
       case 'top-right':
-        // ⚙️ SPÉCIAL OPTIONS : Position top-right avec offset spécial
-        const optionsOffset = this.iconConfig.optionsOffset || 0;
-        baseX = window.innerWidth - padding - globalOffset - optionsOffset;
-        baseY = padding + 60; // Éviter la barre du navigateur
-        console.log(`⚙️ [UIManager] Position top-right pour ${moduleId} avec offset: ${optionsOffset}px`);
+        // ⚙️ SPÉCIAL pour Options - position haut-droite
+        baseX = window.innerWidth - padding - globalOffset;
+        baseY = padding + 60; // Légèrement plus bas que le top absolu
         break;
-        
       case 'top-left':
         baseX = padding + globalOffset;
         baseY = padding;
         break;
-        
       default:
         baseX = window.innerWidth - padding - globalOffset;
         baseY = window.innerHeight - padding;
@@ -855,27 +930,28 @@ export class UIManager {
     const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
     
     let offsetX = 0;
+    let offsetY = 0;
     
-    // ⚙️ NOUVEAU : Calcul offset selon anchor
     if (iconConfig.anchor.includes('right')) {
-      // Pour bottom-right et top-right: chaque icône d'ordre supérieur va plus à gauche
+      // Pour positions *-right: chaque icône d'ordre supérieur va plus à gauche
       offsetX = -calculatedOrder * (iconWidth + spacing) - iconWidth;
     } else {
-      // Pour bottom-left et top-left: chaque icône d'ordre supérieur va plus à droite  
+      // Pour positions *-left: chaque icône d'ordre supérieur va plus à droite  
       offsetX = calculatedOrder * (iconWidth + spacing);
+    }
+    
+    // ⚙️ NOUVEAU: Gestion verticale pour top-* vs bottom-*
+    if (iconConfig.anchor.includes('top')) {
+      // Pour top-*: position depuis le haut, pas besoin d'ajustement hauteur
+      offsetY = 0;
+    } else {
+      // Pour bottom-*: ajuster pour la hauteur de l'icône
+      offsetY = -iconConfig.size.height;
     }
 
     const element = iconConfig.element;
     const finalX = baseX + offsetX;
-    
-    // ⚙️ NOUVEAU : Calcul Y selon anchor
-    let finalY;
-    if (iconConfig.anchor.includes('bottom')) {
-      finalY = baseY - iconConfig.size.height;
-    } else {
-      // top-right, top-left
-      finalY = baseY;
-    }
+    const finalY = baseY + offsetY;
     
     element.style.position = 'fixed';
     element.style.left = `${finalX}px`;
@@ -886,8 +962,121 @@ export class UIManager {
     element.setAttribute('data-positioned-by', 'uimanager');
     
     if (this.debug) {
-      console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${calculatedOrder}, anchor: ${iconConfig.anchor}, groupe: ${iconConfig.group}`);
+      console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - anchor: ${iconConfig.anchor}, groupe: ${iconConfig.group}, ordre: ${calculatedOrder}`);
     }
+  }
+  
+  // ✅ NOUVEAU : Déterminer si un module doit être positionné de façon isolée
+  isIsolatedModule(moduleId, iconConfig) {
+    // Modules avec ordre très élevé (50+) ou groupes spéciaux
+    const highOrderThreshold = 50;
+    const specialGroups = ['weather', 'standalone'];
+    
+    return (
+      iconConfig.order >= highOrderThreshold ||
+      specialGroups.includes(iconConfig.group) ||
+      moduleId.includes('Weather') ||
+      moduleId.includes('Time')
+    );
+  }
+  
+  // ✅ NOUVEAU : Calcul de position intelligente pour modules isolés
+  calculateIntelligentPosition(moduleId, iconConfig) {
+    const padding = this.iconConfig.padding;
+    const globalOffset = this.iconConfig.globalOffset || 0;
+    
+    // Obtenir la taille réelle de l'élément avec délai de rendu
+    const element = iconConfig.element;
+    const rect = element.getBoundingClientRect();
+    let elementWidth = rect.width || iconConfig.size.width || 70;
+    let elementHeight = rect.height || iconConfig.size.height || 80;
+    
+    // ✅ FIX : Si l'élément n'est pas encore rendu, utiliser des estimations sécurisées
+    if (elementWidth < 50) {
+      // Estimations par module
+      if (moduleId.includes('timeWeather') || moduleId.includes('Weather')) {
+        elementWidth = 350; // Estimation sécurisée pour weather widget
+        elementHeight = 120;
+      } else {
+        elementWidth = 200; // Estimation par défaut pour modules larges
+        elementHeight = 100;
+      }
+      
+      if (this.debug) {
+        console.log(`🔍 [UIManager] Taille estimée pour ${moduleId}: ${elementWidth}x${elementHeight} (élément pas encore rendu)`);
+      }
+    }
+    
+    // ⚙️ NOUVEAU: Calculer offset par rapport aux icônes du même groupe
+    const group = this.iconGroups.get(iconConfig.group);
+    const sameGroupIcons = this.registeredIcons.size > 0 ? 
+      Array.from(this.registeredIcons.values()).filter(ic => ic.group === iconConfig.group && ic.moduleId !== moduleId) : 
+      [];
+    
+    // Base spacing + largeur des icônes du même groupe
+    let dynamicOffset = 30; // Base spacing
+    
+    if (sameGroupIcons.length > 0) {
+      const maxIconWidth = Math.max(...sameGroupIcons.map(ic => ic.size?.width || 70));
+      const totalGroupWidth = sameGroupIcons.length * (maxIconWidth + this.iconConfig.spacing);
+      dynamicOffset = totalGroupWidth + 50; // Marge confortable
+    }
+    
+    // ✅ FIX : Espacement sécurisé avec offset dynamique
+    const safetyMargin = 50;
+    const calculatedOffset = Math.max(elementWidth + dynamicOffset + safetyMargin, 300); // Minimum 300px
+    
+    // Position selon anchor avec offset sécurisé
+    let x, y;
+    
+    switch (iconConfig.anchor) {
+      case 'top-right':
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = padding;
+        break;
+        
+      case 'top-left':
+        x = padding + globalOffset + calculatedOffset;
+        y = padding;
+        break;
+        
+      case 'bottom-right':
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = window.innerHeight - padding - elementHeight;
+        break;
+        
+      case 'bottom-left':
+        x = padding + globalOffset + calculatedOffset;
+        y = window.innerHeight - padding - elementHeight;
+        break;
+        
+      default:
+        // Par défaut: top-right avec offset sécurisé
+        x = window.innerWidth - padding - globalOffset - calculatedOffset;
+        y = padding;
+    }
+    
+    // ✅ FIX : S'assurer que l'élément reste visible avec marge plus importante
+    const minMargin = 20;
+    x = Math.max(minMargin, Math.min(x, window.innerWidth - elementWidth - minMargin));
+    y = Math.max(minMargin, Math.min(y, window.innerHeight - elementHeight - minMargin));
+    
+    if (this.debug) {
+      console.log(`🧠 [UIManager] Position intelligente SÉCURISÉE pour ${moduleId}:`, {
+        elementSize: `${elementWidth}x${elementHeight}`,
+        calculatedOffset: calculatedOffset,
+        dynamicOffset: dynamicOffset,
+        sameGroupIconsCount: sameGroupIcons.length,
+        finalPosition: `${x}, ${y}`,
+        anchor: iconConfig.anchor
+      });
+    }
+    
+    return {
+      x: Math.round(x),
+      y: Math.round(y),
+      offset: calculatedOffset
+    };
   }
 
   // ✅ FIX : Repositionner avec synchronisation
@@ -900,11 +1089,11 @@ export class UIManager {
     });
     
     if (this.debug) {
-      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec synchronisation et support Options');
+      console.log('🔄 [UIManager] Toutes les icônes repositionnées avec synchronisation et décalage global PROTÉGÉES');
     }
   }
 
-  // === ⚙️ MÉTHODES PUBLIQUES AMÉLIORÉES POUR OPTIONS ===
+  // === MÉTHODES PUBLIQUES (identiques mais avec protection) ===
 
   async registerModule(moduleId, moduleConfig) {
     if (this.debug) {
@@ -922,9 +1111,8 @@ export class UIManager {
       priority: moduleConfig.priority || 100,
       critical: moduleConfig.critical || false,
       groups: moduleConfig.groups || [],
-      layout: moduleConfig.layout || moduleConfig.uiManagerConfig || {},
-      // ⚙️ NOUVEAU : Détecter si c'est le module Options
-      isOptionsModule: moduleId === 'options' || moduleConfig.name === 'Options & Settings',
+      layout: moduleConfig.layout || {},
+      keyboardShortcut: moduleConfig.keyboardShortcut || null, // ⚙️ NOUVEAU: Support raccourci
       ...moduleConfig
     };
     
@@ -932,7 +1120,11 @@ export class UIManager {
     this.moduleStates.set(moduleId, { ...config.defaultState });
     
     if (this.debug) {
-      console.log(`✅ [UIManager] Module ${moduleId} enregistré PROTÉGÉ${config.isOptionsModule ? ' (OPTIONS)' : ''}`);
+      console.log(`✅ [UIManager] Module ${moduleId} enregistré PROTÉGÉ`, {
+        keyboardShortcut: config.keyboardShortcut,
+        group: config.layout?.group || 'default',
+        anchor: config.layout?.anchor || 'default'
+      });
     }
     
     return this;
@@ -941,8 +1133,7 @@ export class UIManager {
   showModule(moduleId, options = {}) {
     console.log(`👁️ [UIManager] Affichage module ${moduleId}...`);
     
-    // ⚙️ NOUVEAU : Options peut toujours être affiché (pas de restrictions)
-    if (moduleId !== 'options' && !this.canShowModule(moduleId)) {
+    if (!this.canShowModule(moduleId)) {
       console.log(`🚫 [UIManager] Impossible d'afficher ${moduleId} (règles d'interaction)`);
       return false;
     }
@@ -968,8 +1159,8 @@ export class UIManager {
         element.style.visibility = 'visible';
         element.style.opacity = '1';
         element.style.pointerEvents = 'auto';
-        element.style.transform = '';
-        element.style.transition = '';
+        element.style.transform = ''; // Reset transform
+        element.style.transition = ''; // Reset transition
         
         // ✅ CORRECTION CRITIQUE : Supprimer toutes les classes de masquage
         element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
@@ -1071,183 +1262,177 @@ export class UIManager {
     return success;
   }
 
-  // === ⚙️ FIX WORKFLOW D'INITIALISATION AVEC OPTIONS ===
-  
-  async initializeAllModules(...args) {
-    if (this.debug) {
-      console.log('🚀 [UIManager] Initialisation PROTÉGÉE de tous les modules avec Options...');
-    }
-    
-    // ✅ Vérifier si déjà en cours
-    if (this.globalState.initialized) {
-      console.log('ℹ️ [UIManager] Tous les modules déjà initialisés - SKIP');
-      return {
-        success: true,
-        results: Object.fromEntries(this.moduleInstances),
-        errors: [],
-        iconsCreated: this.registeredIcons.size,
-        iconSize: this.getCurrentIconSize(),
-        optionsAPI: this.checkOptionsAPI()
-      };
-    }
-    
-    const results = {};
-    const errors = [];
-    
-    const sortedModules = Array.from(this.modules.entries())
-      .sort((a, b) => {
-        // ⚙️ NOUVEAU : Options en premier (priorité maximale)
-        if (a[0] === 'options') return -1;
-        if (b[0] === 'options') return 1;
-        return (b[1].priority || 100) - (a[1].priority || 100);
-      });
-    
-    // ✅ FIX 11: Initialisation séquentielle pour éviter les conflits
-    for (const [moduleId, config] of sortedModules) {
-      try {
-        console.log(`🔄 [UIManager] Initialisation séquentielle: ${moduleId}${moduleId === 'options' ? ' ⚙️' : ''}`);
-        const instance = await this.initializeModule(moduleId, ...args);
-        results[moduleId] = instance;
-        
-        // ⚙️ NOUVEAU : Délai plus long après Options pour s'assurer que l'API est prête
-        const delay = moduleId === 'options' ? 200 : 50;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-      } catch (error) {
-        errors.push(`${moduleId}: ${error.message}`);
-        if (config.critical) {
-          console.error(`💥 [UIManager] Module critique ${moduleId} a échoué !`);
-        }
-      }
-    }
-    
-    // ✅ Marquer comme initialisé seulement à la fin
-    this.globalState.initialized = true;
-    
-    // Repositionner toutes les icônes créées
-    setTimeout(() => {
-      this.repositionAllIcons();
-      console.log(`📍 [UIManager] ${this.registeredIcons.size} icônes repositionnées PROTÉGÉES avec Options`);
-    }, 100);
-    
-    // ⚙️ NOUVEAU : Vérifier que l'API Options est disponible
-    const optionsAPIStatus = this.checkOptionsAPI();
-    
-    if (this.debug) {
-      console.log(`✅ [UIManager] Initialisation PROTÉGÉE terminée. Succès: ${Object.keys(results).length}, Erreurs: ${errors.length}`);
-      console.log(`🛡️ Protection: ${this.initializationTracker.completed.size} modules protégés`);
-      console.log(`⚙️ API Options:`, optionsAPIStatus);
-    }
-    
-    return {
-      success: errors.length === 0,
-      results,
-      errors,
-      iconsCreated: this.registeredIcons.size,
-      iconSize: this.getCurrentIconSize(),
-      protectedModules: this.initializationTracker.completed.size,
-      optionsAPI: optionsAPIStatus
-    };
-  }
-  
-  // ⚙️ NOUVEAU : Vérifier le statut de l'API Options
-  checkOptionsAPI() {
-    return {
-      GetPlayerCurrentLanguage: typeof window.GetPlayerCurrentLanguage === 'function',
-      GetPlayerCurrentVolume: typeof window.GetPlayerCurrentVolume === 'function',
-      IsPlayerAudioMuted: typeof window.IsPlayerAudioMuted === 'function',
-      openOptions: typeof window.openOptions === 'function',
-      closeOptions: typeof window.closeOptions === 'function',
-      toggleOptions: typeof window.toggleOptions === 'function',
-      escapeHandling: this.escapeHandling.setupComplete,
-      currentLanguage: typeof window.GetPlayerCurrentLanguage === 'function' ? 
-        window.GetPlayerCurrentLanguage() : 'unknown',
-      currentVolume: typeof window.GetPlayerCurrentVolume === 'function' ? 
-        window.GetPlayerCurrentVolume() : 'unknown'
-    };
-  }
-
   // === ⚙️ MÉTHODES SPÉCIFIQUES OPTIONS ===
   
-  // Méthodes de compatibilité Options
-  openOptions() {
-    return this.showModule('options');
-  }
-  
-  closeOptions() {
-    return this.hideModule('options');
-  }
-  
-  toggleOptions() {
-    return this.toggleModule('options');
-  }
-  
-  getOptionsInstance() {
-    return this.getModuleInstance('options');
-  }
-  
-  isOptionsOpen() {
-    const state = this.getModuleState('options');
-    return state ? state.visible : false;
-  }
-  
-  // Forcer le repositionnement des Options
-  repositionOptions() {
-    this.positionIcon('options');
-  }
-
-  // === MÉTHODES RESTANTES (identiques) ===
-
-  // ✅ FIX 12: Méthode pour forcer reset si nécessaire
-  resetInitializationTracker() {
-    console.log('🔄 [UIManager] Reset tracker initialisation...');
+  /**
+   * Tester l'API globale Options
+   */
+  testOptionsAPI() {
+    console.log('🧪 [UIManager] Test API globale Options...');
     
-    this.initializationTracker.inProgress.clear();
-    this.initializationTracker.completed.clear();
-    this.initializationTracker.iconCreated.clear();
-    this.initializationTracker.attempts.clear();
+    const tests = [
+      {
+        name: 'GetPlayerCurrentLanguage',
+        test: () => typeof window.GetPlayerCurrentLanguage === 'function' ? window.GetPlayerCurrentLanguage() : 'N/A'
+      },
+      {
+        name: 'GetPlayerCurrentVolume', 
+        test: () => typeof window.GetPlayerCurrentVolume === 'function' ? window.GetPlayerCurrentVolume() : 'N/A'
+      },
+      {
+        name: 'IsPlayerAudioMuted',
+        test: () => typeof window.IsPlayerAudioMuted === 'function' ? window.IsPlayerAudioMuted() : 'N/A'
+      }
+    ];
     
-    console.log('✅ [UIManager] Tracker reset');
-  }
-  
-  // ✅ FIX 13: Méthode pour diagnostiquer les doublons
-  diagnoseInitializationIssues() {
-    const issues = [];
-    
-    // Vérifier les modules avec tentatives multiples
-    this.initializationTracker.attempts.forEach((attempts, moduleId) => {
-      if (attempts > 1) {
-        issues.push(`Module ${moduleId}: ${attempts} tentatives d'initialisation`);
+    const results = {};
+    tests.forEach(test => {
+      try {
+        results[test.name] = test.test();
+      } catch (error) {
+        results[test.name] = `ERREUR: ${error.message}`;
       }
     });
     
-    // Vérifier les modules en cours depuis trop longtemps
-    this.initializationTracker.inProgress.forEach(moduleId => {
-      issues.push(`Module ${moduleId}: initialisation bloquée en cours`);
-    });
+    console.log('🧪 [UIManager] Résultats test API Options:', results);
+    return results;
+  }
+  
+  /**
+   * Forcer ouverture Options
+   */
+  forceOpenOptions() {
+    console.log('⚙️ [UIManager] Force ouverture Options...');
     
-    // Vérifier les icônes multiples pour même module
-    const iconCounts = new Map();
-    this.registeredIcons.forEach((config, moduleId) => {
-      iconCounts.set(moduleId, (iconCounts.get(moduleId) || 0) + 1);
-    });
-    
-    iconCounts.forEach((count, moduleId) => {
-      if (count > 1) {
-        issues.push(`Module ${moduleId}: ${count} icônes enregistrées`);
+    const optionsInstance = this.getModuleInstance('options');
+    if (optionsInstance) {
+      if (typeof optionsInstance.open === 'function') {
+        optionsInstance.open();
+        return true;
+      } else if (typeof optionsInstance.show === 'function') {
+        optionsInstance.show();
+        return true;
       }
-    });
+    }
+    
+    console.warn('⚠️ [UIManager] Instance Options non trouvée pour force ouverture');
+    return false;
+  }
+  
+  /**
+   * Obtenir état complet Options
+   */
+  getOptionsState() {
+    const optionsInstance = this.getModuleInstance('options');
+    const moduleState = this.getModuleState('options');
+    const iconConfig = this.registeredIcons.get('options');
     
     return {
-      issues,
-      tracker: {
+      hasInstance: !!optionsInstance,
+      moduleState: moduleState,
+      hasIcon: !!iconConfig,
+      iconPosition: iconConfig ? {
+        anchor: iconConfig.anchor,
+        order: iconConfig.order,
+        group: iconConfig.group,
+        positioned: iconConfig.element ? !!(iconConfig.element.style.left && iconConfig.element.style.top) : false
+      } : null,
+      globalAPI: this.testOptionsAPI(),
+      keyboardShortcut: this.modules.get('options')?.keyboardShortcut || 'N/A'
+    };
+  }
+
+  // === DEBUG AMÉLIORÉ AVEC SUPPORT OPTIONS ===
+
+  debugInfo() {
+    const iconConfig = this.getIconConfiguration();
+    const diagnosis = this.diagnoseInitializationIssues();
+    const optionsState = this.getOptionsState();
+    
+    const info = {
+      mode: 'uimanager-with-options-support-anti-duplication-protection-and-sync-and-global-offset',
+      currentGameState: this.globalState.currentGameState,
+      totalModules: this.modules.size,
+      totalIcons: this.registeredIcons.size,
+      iconConfiguration: iconConfig,
+      globalOffset: this.iconConfig.globalOffset || 0,
+      initializedModules: Array.from(this.moduleStates.entries())
+        .filter(([id, state]) => state.initialized).length,
+      openModules: Array.from(this.openModules),
+      
+      // ⚙️ NOUVEAU: Info spécifique Options
+      optionsState: optionsState,
+      
+      // ✅ Info protection anti-duplication
+      protection: {
         inProgress: Array.from(this.initializationTracker.inProgress),
         completed: Array.from(this.initializationTracker.completed),
         iconCreated: Array.from(this.initializationTracker.iconCreated),
-        attempts: Object.fromEntries(this.initializationTracker.attempts)
-      }
+        attempts: Object.fromEntries(this.initializationTracker.attempts),
+        issues: diagnosis.issues
+      },
+      
+      // ⚙️ NOUVEAU: Info raccourcis clavier
+      keyboard: {
+        shortcuts: Object.fromEntries(this.keyboardShortcuts),
+        escapeHandlers: Array.from(this.escapeHandlers.keys()),
+        listenersSetup: this.keyboardListenersSetup || false
+      },
+      
+      moduleStates: Object.fromEntries(
+        Array.from(this.moduleStates.entries()).map(([id, state]) => [
+          id, 
+          { visible: state.visible, enabled: state.enabled, initialized: state.initialized }
+        ])
+      ),
+      
+      registeredIcons: Object.fromEntries(
+        Array.from(this.registeredIcons.entries()).map(([id, config]) => [
+          id,
+          { 
+            anchor: config.anchor,
+            order: config.order,
+            group: config.group,
+            size: config.size,
+            hasElement: !!config.element,
+            visible: config.element ? config.element.style.display !== 'none' : false,
+            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false,
+            positionedBy: config.element ? config.element.getAttribute('data-positioned-by') : null
+          }
+        ])
+      ),
+      
+      iconGroups: Object.fromEntries(
+        Array.from(this.iconGroups.entries()).map(([groupId, group]) => [
+          groupId,
+          {
+            anchor: group.anchor,
+            members: group.members,
+            memberCount: group.members.length,
+            isolated: group.isolated || false
+          }
+        ])
+      ),
+      
+      interactionRules: this.interactionRules
     };
+    
+    console.group('🎛️ UIManager Debug Info (avec support Options + protection anti-duplication + sync + décalage global)');
+    console.table(info.moduleStates);
+    console.log('⚙️ État Options:', optionsState);
+    console.log('⌨️ Clavier:', info.keyboard);
+    console.log('🛡️ Protection anti-duplication:', info.protection);
+    console.log('📏 Configuration icônes:', iconConfig);
+    console.log('📍 Décalage global:', `${info.globalOffset}px vers la gauche`);
+    console.log('📍 Groupes icônes:', info.iconGroups);
+    console.log('📍 Icônes créées:', info.registeredIcons);
+    console.log('⚠️ Issues détectées:', diagnosis.issues);
+    console.groupEnd();
+    
+    return info;
   }
+
+  // === MÉTHODES RESTANTES (identiques) ===
 
   setGameState(stateName, options = {}) {
     const previousState = this.globalState.currentGameState;
@@ -1296,20 +1481,14 @@ export class UIManager {
     
     // D'abord désactiver
     disabledModules.forEach(moduleId => {
-      // ⚙️ NOUVEAU : Ne jamais désactiver Options automatiquement
-      if (moduleId !== 'options') {
-        this.disableModule(moduleId);
-        console.log(`🔒 [UIManager] Module ${moduleId} désactivé`);
-      }
+      this.disableModule(moduleId);
+      console.log(`🔒 [UIManager] Module ${moduleId} désactivé`);
     });
     
     // Puis cacher (plus restrictif que désactiver)
     hiddenModules.forEach(moduleId => {
-      // ⚙️ NOUVEAU : Ne jamais cacher Options automatiquement
-      if (moduleId !== 'options') {
-        this.hideModule(moduleId, { animated });
-        console.log(`👻 [UIManager] Module ${moduleId} caché`);
-      }
+      this.hideModule(moduleId, { animated });
+      console.log(`👻 [UIManager] Module ${moduleId} caché`);
     });
     
     // ✅ ÉTAPE 3: Appliquer les permissions (show/enable) avec délai
@@ -1329,7 +1508,7 @@ export class UIManager {
       // ✅ ÉTAPE 4: Repositionner toutes les icônes
       this.repositionAllIcons();
       
-      console.log(`✅ [UIManager] État appliqué avec repositionnement et protection Options`);
+      console.log(`✅ [UIManager] État appliqué avec repositionnement`);
       
     }, animated ? 150 : 0);
   }
@@ -1388,11 +1567,6 @@ export class UIManager {
   }
 
   canShowModule(moduleId) {
-    // ⚙️ NOUVEAU : Options peut toujours être affiché
-    if (moduleId === 'options') {
-      return true;
-    }
-    
     for (const [rule, blockedModules] of Object.entries(this.interactionRules)) {
       if (this.isRuleActive(rule) && blockedModules.includes(moduleId)) {
         return false;
@@ -1466,19 +1640,13 @@ export class UIManager {
         completed: Array.from(this.initializationTracker.completed),
         iconCreated: Array.from(this.initializationTracker.iconCreated)
       },
-      optionsAPI: this.checkOptionsAPI()
+      optionsState: this.getOptionsState() // ⚙️ NOUVEAU: Inclure état Options
     };
   }
 
   hideAllModules(except = []) {
-    // ⚙️ NOUVEAU : Toujours exclure Options par défaut
-    const finalExcept = [...except];
-    if (!finalExcept.includes('options')) {
-      finalExcept.push('options');
-    }
-    
     this.modules.forEach((config, moduleId) => {
-      if (!finalExcept.includes(moduleId)) {
+      if (!except.includes(moduleId)) {
         this.hideModule(moduleId);
       }
     });
@@ -1501,14 +1669,8 @@ export class UIManager {
   }
 
   disableAllModules(except = []) {
-    // ⚙️ NOUVEAU : Toujours exclure Options par défaut
-    const finalExcept = [...except];
-    if (!finalExcept.includes('options')) {
-      finalExcept.push('options');
-    }
-    
     this.modules.forEach((config, moduleId) => {
-      if (!finalExcept.includes(moduleId)) {
+      if (!except.includes(moduleId)) {
         this.disableModule(moduleId);
       }
     });
@@ -1542,10 +1704,21 @@ export class UIManager {
     this.updateIconConfig({ globalOffset: offset });
   }
   
-  // ⚙️ NOUVEAU : Configuration spécifique Options
-  setOptionsOffset(offset) {
-    console.log(`⚙️ [UIManager] Changement décalage Options: ${offset}px`);
-    this.updateIconConfig({ optionsOffset: offset });
+  setWeatherOffset(offset) {
+    console.log(`🌤️ [UIManager] Changement décalage weather widget: ${offset}px`);
+    this.iconConfig.weatherOffset = offset;
+    // Repositionner immédiatement le weather
+    setTimeout(() => {
+      this.positionIcon('timeWeather');
+    }, 100);
+  }
+  
+  forceRepositionWeather() {
+    console.log('🔄 [UIManager] Force repositionnement weather widget...');
+    // Attendre que l'élément soit complètement rendu
+    setTimeout(() => {
+      this.positionIcon('timeWeather');
+    }, 500);
   }
   
   getIconConfiguration() {
@@ -1553,8 +1726,7 @@ export class UIManager {
       ...this.iconConfig,
       currentSize: this.getCurrentIconSize(),
       currentBreakpoint: this.currentBreakpoint,
-      globalOffset: this.iconConfig.globalOffset || 0,
-      optionsOffset: this.iconConfig.optionsOffset || 0
+      globalOffset: this.iconConfig.globalOffset || 0
     };
   }
 
@@ -1567,88 +1739,8 @@ export class UIManager {
     console.error(`❌ [UIManager:${context}]`, error);
   }
 
-  // === ⚙️ DEBUG AMÉLIORÉ AVEC OPTIONS ===
-
-  debugInfo() {
-    const iconConfig = this.getIconConfiguration();
-    const diagnosis = this.diagnoseInitializationIssues();
-    const optionsAPI = this.checkOptionsAPI();
-    
-    const info = {
-      mode: 'uimanager-with-options-support-top-right-escape-api',
-      currentGameState: this.globalState.currentGameState,
-      totalModules: this.modules.size,
-      totalIcons: this.registeredIcons.size,
-      iconConfiguration: iconConfig,
-      globalOffset: this.iconConfig.globalOffset || 0,
-      optionsOffset: this.iconConfig.optionsOffset || 0,
-      initializedModules: Array.from(this.moduleStates.entries())
-        .filter(([id, state]) => state.initialized).length,
-      openModules: Array.from(this.openModules),
-      
-      // ⚙️ NOUVEAU : Info Options spécifique
-      optionsInfo: {
-        registered: this.modules.has('options'),
-        initialized: this.isModuleInitialized('options'),
-        visible: this.isOptionsOpen(),
-        instance: !!this.getOptionsInstance(),
-        apiStatus: optionsAPI,
-        escapeHandling: this.escapeHandling,
-        group: this.registeredIcons.get('options')?.group,
-        anchor: this.registeredIcons.get('options')?.anchor,
-        order: this.registeredIcons.get('options')?.order
-      },
-      
-      // ✅ Info protection anti-duplication
-      protection: {
-        inProgress: Array.from(this.initializationTracker.inProgress),
-        completed: Array.from(this.initializationTracker.completed),
-        iconCreated: Array.from(this.initializationTracker.iconCreated),
-        attempts: Object.fromEntries(this.initializationTracker.attempts),
-        issues: diagnosis.issues
-      },
-      
-      moduleStates: Object.fromEntries(
-        Array.from(this.moduleStates.entries()).map(([id, state]) => [
-          id, 
-          { visible: state.visible, enabled: state.enabled, initialized: state.initialized }
-        ])
-      ),
-      
-      registeredIcons: Object.fromEntries(
-        Array.from(this.registeredIcons.entries()).map(([id, config]) => [
-          id,
-          { 
-            anchor: config.anchor,
-            order: config.order,
-            group: config.group,
-            size: config.size,
-            hasElement: !!config.element,
-            visible: config.element ? config.element.style.display !== 'none' : false,
-            positioned: config.element ? !!(config.element.style.left && config.element.style.top) : false,
-            positionedBy: config.element ? config.element.getAttribute('data-positioned-by') : null
-          }
-        ])
-      ),
-      
-      interactionRules: this.interactionRules
-    };
-    
-    console.group('🎛️ UIManager Debug Info (avec Module Options complet)');
-    console.table(info.moduleStates);
-    console.log('⚙️ Info Options:', info.optionsInfo);
-    console.log('🛡️ Protection anti-duplication:', info.protection);
-    console.log('📏 Configuration icônes:', iconConfig);
-    console.log('📍 Décalages:', `global: ${info.globalOffset}px, options: ${info.optionsOffset}px`);
-    console.log('📍 Icônes créées:', info.registeredIcons);
-    console.log('⚠️ Issues détectées:', diagnosis.issues);
-    console.groupEnd();
-    
-    return info;
-  }
-
   destroy() {
-    console.log('🧹 [UIManager] Destruction PROTÉGÉE avec Options...');
+    console.log('🧹 [UIManager] Destruction PROTÉGÉE...');
     
     try {
       const style = document.querySelector('#uimanager-global-icons');
@@ -1666,23 +1758,15 @@ export class UIManager {
       this.openModules.clear();
       this.registeredIcons.clear();
       this.iconGroups.clear();
+      this.keyboardShortcuts.clear(); // ⚙️ NOUVEAU: Clear raccourcis
+      this.escapeHandlers.clear(); // ⚙️ NOUVEAU: Clear handlers Escape
       
       // Reset tracker
       this.resetInitializationTracker();
       
-      // ⚙️ NOUVEAU : Nettoyer API Options
-      if (typeof window.GetPlayerCurrentLanguage !== 'undefined') {
-        delete window.GetPlayerCurrentLanguage;
-        delete window.GetPlayerCurrentVolume;
-        delete window.IsPlayerAudioMuted;
-        delete window.openOptions;
-        delete window.closeOptions;
-        delete window.toggleOptions;
-      }
-      
       this.globalState.initialized = false;
       
-      console.log('✅ [UIManager] Destruction PROTÉGÉE terminée avec nettoyage API Options');
+      console.log('✅ [UIManager] Destruction PROTÉGÉE terminée');
       
     } catch (error) {
       console.error('❌ [UIManager] Erreur destruction:', error);
