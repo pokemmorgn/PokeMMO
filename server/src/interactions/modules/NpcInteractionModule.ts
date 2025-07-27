@@ -305,62 +305,12 @@ if (this.intelligenceConfig.enableIntelligence) {
     );
     console.log(`🚀 [AI] Action trackée pour ${player.name}, forçage sauvegarde...`);
     console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
-    // ✅ DEBUG: Forcer sauvegarde immédiate pour voir les logs
-// ✅ DEBUG: Test MongoDB direct
-try {
-  console.log(`🗄️ [AI] Test connexion MongoDB directe...`);
-  
-  // Importer le modèle directement
-  const { PlayerActionModel } = await import("../../Intelligence/Core/DatabaseSchema");
-  
-  // Vérifier la connexion
-  const mongoose = require('mongoose');
-  console.log(`📡 [AI] État connexion MongoDB: ${mongoose.connection.readyState}`);
-  console.log(`📋 [AI] Nom BDD: ${mongoose.connection.name}`);
-  
-  if (mongoose.connection.readyState !== 1) {
-    console.error(`❌ [AI] MongoDB non connecté ! État: ${mongoose.connection.readyState}`);
-    return;
-  }
-  
-  // Créer et sauvegarder directement
-  const testDoc = new PlayerActionModel({
-    playerId: player.name,
-    actionType: ActionType.NPC_TALK,
-    category: 'social',
-    timestamp: Date.now(),
-    data: {
-      sessionId: 'test_session',
-      playerName: player.name,
-      location: {
-        map: player.currentZone,
-        x: player.x,
-        y: player.y
-      },
-      context: {
-        playerLevel: player.level || 1,
-        sessionDuration: 60000,
-        timeOfDay: 'day'
-      }
-    },
-    metadata: {
-      version: '1.0.0',
-      source: 'direct_test',
-      processed: false,
-      tags: []
-    }
-  });
-  
-  const savedDoc = await testDoc.save();
-  console.log(`✅ [AI] Sauvegarde DIRECTE réussie ! ID: ${savedDoc._id}`);
-  
-  // Compter les documents
-  const count = await PlayerActionModel.countDocuments();
-  console.log(`📊 [AI] Total actions en BDD: ${count}`);
-  
-} catch (error) {
-  console.error(`❌ [AI] Erreur test direct MongoDB:`, error);
-}
+
+    const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+    const tracker = getActionTracker();
+    await tracker.forceProcessBatch();
+    console.log(`✅ [AI] Batch forcé - actions sauvées !`);
+    
   } catch (error) {
     console.warn(`⚠️ [AI] Erreur tracking:`, error);
   }
