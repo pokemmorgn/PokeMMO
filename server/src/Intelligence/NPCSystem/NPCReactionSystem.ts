@@ -559,14 +559,14 @@ export class NPCReactionSystem {
   ): Promise<NPCReaction | null> {
     
     const playerName = profile.playerId;
-    const isVeryS social = profile.personality.socialness > 0.7;
+    const isVerySocial = profile.personality.socialness > 0.7;
     const isAntisocial = profile.personality.socialness < 0.3;
     
     let message = '';
     let emotion: NPCReaction['content']['emotion'] = 'friendly';
     let actions: string[] = [];
 
-    if (isVeryS ocial) {
+    if (isVerySocial) {
       // Encourager la socialité
       message = `${playerName}, I love how friendly you are with everyone! Have you considered joining some group activities?`;
       actions = ['Group Events', 'Social Challenges', 'Team Activities'];
