@@ -825,8 +825,6 @@ export class UIManager {
     console.log(`📍 [UIManager] Icône ${moduleId} enregistrée PROTÉGÉE (${currentSize.width}x${currentSize.height}, ordre: ${iconConfig.order}, groupe: ${iconConfig.group})`);
   }
 
-  // ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
-// ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
 positionIcon(moduleId) {
   // ✅ CONDITION SPÉCIALE WEATHER - AVANT tout le reste
   if (moduleId.includes('timeWeather') || moduleId.includes('Weather')) {
@@ -846,7 +844,46 @@ positionIcon(moduleId) {
     }
   }
 
-  // ✅ AJOUT : Synchroniser avant positionnement
+  // ✅ NOUVEAU : CONDITION SPÉCIALE OPTIONS - Réduire padding top seulement
+  if (moduleId === 'options') {
+    // ✅ AJOUT : Synchroniser avant positionnement
+    this.synchronizeElementReferences();
+    
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (iconConfig && iconConfig.element) {
+      const padding = this.iconConfig.padding;
+      const globalOffset = this.iconConfig.globalOffset || 0;
+      
+      // Position normale mais avec padding top réduit
+      const baseX = window.innerWidth - padding - globalOffset;
+      const reducedTopPadding = 5; // ✅ 5px au lieu de 20px + 60px
+      const baseY = reducedTopPadding;
+      
+      // Calcul ordre normal
+      const group = this.iconGroups.get('ui-options') || this.iconGroups.get('ui-icons');
+      const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : 0;
+      const spacing = this.iconConfig.spacing;
+      const iconWidth = iconConfig.size.width;
+      
+      const offsetX = -calculatedOrder * (iconWidth + spacing) - iconWidth;
+      const finalX = baseX + offsetX;
+      const finalY = baseY; // Top position avec padding réduit
+      
+      iconConfig.element.style.position = 'fixed';
+      iconConfig.element.style.left = `${finalX}px`;
+      iconConfig.element.style.top = `${finalY}px`;
+      iconConfig.element.style.zIndex = this.iconConfig.zIndex;
+      iconConfig.element.setAttribute('data-positioned-by', 'uimanager-options-top-reduced');
+      
+      if (this.debug) {
+        console.log(`⚙️ [UIManager] ${moduleId} positionné avec padding top réduit à (${finalX}, ${finalY})`);
+      }
+      
+      return; // ✅ SORTIR de la fonction
+    }
+  }
+
+  // ✅ AJOUT : Synchroniser avant positionnement pour les autres
   this.synchronizeElementReferences();
   
   const iconConfig = this.registeredIcons.get(moduleId);
