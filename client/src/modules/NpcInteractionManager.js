@@ -471,7 +471,34 @@ export class NpcInteractionManager {
           // 🔍 DEBUG: Vérifier les données finales
     console.log("🔍 [DEBUG] interactionData FINAL:", JSON.stringify(interactionData, null, 2));
     console.log("🔍 [DEBUG] playerLanguage dans interactionData:", interactionData.playerLanguage);
-      
+        // Dans sendNpcInteraction(), après votre debug
+    console.log("🔍 [DEBUG] interactionData FINAL:", JSON.stringify(interactionData, null, 2));
+    console.log("🔍 [DEBUG] playerLanguage dans interactionData:", interactionData.playerLanguage);
+    
+    // 🔍 NOUVEAU DEBUG: Vérifier ce qui est retourné par createNpcInteraction
+    console.log("🔍 [DEBUG] === ANALYSE createNpcInteraction ===");
+    console.log("🔍 [DEBUG] Type de interactionData:", typeof interactionData);
+    console.log("🔍 [DEBUG] Clés dans interactionData:", Object.keys(interactionData));
+    console.log("🔍 [DEBUG] interactionData.data?:", interactionData.data);
+    console.log("🔍 [DEBUG] interactionData.metadata?:", interactionData.metadata);
+    console.log("🔍 [DEBUG] =====================================");
+    
+    // ✅ Validation côté client
+    const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
+    if (!validation.isValid) {
+      console.warn('[NpcInteractionManager] ⚠️ Validation échouée:', validation.errors);
+    } else {
+      console.log('[NpcInteractionManager] ✅ Validation client réussie');
+    }
+    
+    // ✅ Envoyer l'interaction
+    const result = this.networkHandler.sendNpcInteract(npcId, interactionData);
+    
+    // 🔍 NOUVEAU DEBUG: Tracer l'appel au NetworkHandler
+    console.log("🔍 [DEBUG] === APPEL NETWORKHANDLER ===");
+    console.log("🔍 [DEBUG] npcId passé:", npcId);
+    console.log("🔍 [DEBUG] interactionData passé au NetworkHandler:", JSON.stringify(interactionData, null, 2));
+    console.log("🔍 [DEBUG] ================================");
       // ✅ Validation côté client
       const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
       if (!validation.isValid) {
