@@ -1274,15 +1274,30 @@ this.onMessage("npcInteract", async (client, data) => {
     return;
   }
 
+  // ✅ NOUVEAU : Récupérer userId via JWTManager AVANT tout
+  const userId = this.jwtManager.getUserId(client.sessionId);
+  if (!userId) {
+    console.error(`❌ UserId introuvable pour session ${client.sessionId}`);
+    client.send("npcInteractionResult", {
+      success: false,
+      type: "error",
+      message: "Session invalide - reconnexion requise"
+    });
+    return;
+  }
+
+  console.log(`🔗 [NPC Interact] UserId récupéré: ${userId} pour ${player.name}`);
+
   try {
-    // ✅ TRACKING IA: Interaction avec NPC
+    // ✅ TRACKING IA CORRIGÉ: Interaction avec NPC avec userId
     this.trackPlayerActionWithAI(
-      client.sessionId,
+      client.sessionId,  // sessionId pour la méthode trackPlayerActionWithAI
       ActionType.NPC_TALK,
       {
         npcId: data.npcId,
         playerLevel: player.level,
-        playerGold: player.gold
+        playerGold: player.gold,
+        userId: userId  // ✅ NOUVEAU : Ajouter userId aux données pour debug
       },
       {
         location: { 
@@ -1293,11 +1308,13 @@ this.onMessage("npcInteract", async (client, data) => {
       }
     );
 
-    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE
+    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE avec userId
     if (this.aiSystemInitialized) {
       try {
+        console.log(`🧠 [AI] Tentative interaction intelligente avec NPC ${data.npcId} pour userId ${userId}`);
+        
         const smartResponse = await handleSmartNPCInteraction(
-          client.sessionId,
+          userId,  // ✅ CORRIGÉ : userId au lieu de client.sessionId
           data.npcId,
           'dialogue',
           {
@@ -1308,7 +1325,7 @@ this.onMessage("npcInteract", async (client, data) => {
         );
 
         if (smartResponse.success) {
-          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId}`);
+          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId} pour userId ${userId}`);
           this.aiStats.intelligentInteractions++;
           
           client.send("npcInteractionResult", {
@@ -1319,26 +1336,51 @@ this.onMessage("npcInteract", async (client, data) => {
             actions: smartResponse.actions,
             followUpQuestions: smartResponse.followUpQuestions,
             metadata: smartResponse.metadata,
-            isAI: true
+            isAI: true,
+            userId: userId  // ✅ NOUVEAU : Inclure userId dans la réponse pour debug
           });
           return;
+        } else {
+          console.log(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, raison: ${smartResponse.message || 'Inconnue'}`);
         }
       } catch (aiError) {
         console.warn(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, fallback système classique:`, aiError);
       }
+    } else {
+      console.log(`⚠️ [AI] Système IA non initialisé, utilisation système classique`);
     }
 
-    // ✅ FALLBACK: Système classique si IA échoue
-    const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
-    console.log(`📤 Envoi résultat classique: ${result.type}`);
-    client.send("npcInteractionResult", { ...result, isAI: false });
+    // ✅ FALLBACK: Système classique si IA échoue - AVEC userId dans le contexte
+    console.log(`🔧 [Legacy] Utilisation système classique pour NPC ${data.npcId}`);
+    
+    // ✅ NOUVEAU : Créer contexte enrichi avec userId pour le NpcInteractionModule
+    const enhancedContext = {
+      player: player,
+      request: {
+        type: "npc" as const,
+        data: { npcId: data.npcId }
+      },
+      userId: userId,        // ✅ NOUVEAU : userId pour tracking cohérent
+      sessionId: client.sessionId  // ✅ NOUVEAU : sessionId pour mapping
+    };
+
+    // ✅ APPEL DIRECT AU MODULE NPC avec contexte enrichi
+    const result = await this.npcInteractionModule.handle(enhancedContext);
+    
+    console.log(`📤 Envoi résultat classique: ${result.type} pour userId ${userId}`);
+    client.send("npcInteractionResult", { 
+      ...result, 
+      isAI: false, 
+      userId: userId  // ✅ NOUVEAU : Inclure userId dans la réponse
+    });
     
   } catch (error) {
-    console.error(`❌ Erreur interaction NPC:`, error);
+    console.error(`❌ Erreur interaction NPC pour userId ${userId}:`, error);
     client.send("npcInteractionResult", {
       success: false,
       type: "error",
-      message: "Erreur lors de l'interaction"
+      message: "Erreur lors de l'interaction",
+      userId: userId
     });
   }
 });
