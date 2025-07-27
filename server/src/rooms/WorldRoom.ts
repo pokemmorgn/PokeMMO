@@ -737,6 +737,30 @@ this.onMessage("battleFinished", async (client, data) => {
   
   const { userId } = sessionValidation;
   console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
+
+    // ✅ TRACKING IA: Fin de combat
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      data.battleResult.victory ? ActionType.BATTLE_VICTORY : ActionType.BATTLE_DEFEAT,
+      {
+        battleType: data.battleResult.battleType || 'unknown',
+        opponent: data.battleResult.opponent,
+        duration: data.battleResult.duration,
+        turnsCount: data.battleResult.turns,
+        experience: data.battleResult.expGained,
+        playerLevel: player.level
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+  }
   
   // ✅ RESTE DU CODE IDENTIQUE
   this.battleHandlers.onBattleFinished(userId, data.battleResult);
