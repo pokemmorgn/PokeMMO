@@ -359,7 +359,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
         
         // Si l'IA n'a pas pu traiter, passer au fallback
         this.log('info', `🔄 [AI] IA non applicable, fallback legacy pour NPC ${safeNpcId}`);
-        
+                // Vérifier si l'IA a vraiment échoué
+        if (!intelligentResult.success && intelligentResult.type === "ai_failed") {
+          this.log('info', `🔄 [AI] IA explicitement échouée, passage au legacy pour NPC ${safeNpcId}`);
+        }
       } catch (error) {
         this.log('error', `❌ [AI] Erreur IA pour NPC ${safeNpcId}, fallback legacy:`, error);
         
