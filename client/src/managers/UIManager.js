@@ -832,7 +832,7 @@ positionIcon(moduleId) {
     if (iconConfig && iconConfig.element) {
       iconConfig.element.style.position = 'fixed';
       iconConfig.element.style.left = '10px';     // Gauche de la fenêtre
-      iconConfig.element.style.top = '20px';      // Haut de la fenêtre
+      iconConfig.element.style.top = '5px';      // Haut de la fenêtre
       iconConfig.element.style.zIndex = this.iconConfig.zIndex;
       iconConfig.element.setAttribute('data-positioned-by', 'uimanager-outside-left');
       
