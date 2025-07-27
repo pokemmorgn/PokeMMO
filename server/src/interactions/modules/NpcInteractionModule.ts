@@ -83,7 +83,7 @@ export interface NpcInteractionResult extends InteractionResult {
   relationshipLevel?: string;
   proactiveHelp?: boolean;
   followUpQuestions?: string[];
-  
+  tracking?: any; // Données de tracking de l'IA  
   // Données interface unifiée spécifiques (gardées optionnelles)
   unifiedInterface?: UnifiedInterfaceResult;
   unifiedMode?: boolean;
