@@ -39,13 +39,6 @@ import { ObjectInteractionHandlers } from "../handlers/ObjectInteractionHandlers
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
 import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 // ✅ NOUVEAU : Imports pour le système shops intégré
-import { getIntelligenceOrchestrator, trackPlayerAction, processGameEvent } from "../Intelligence/IntelligenceOrchestrator";
-import type { CompletePlayerAnalysis, GameEvent } from "../Intelligence/IntelligenceOrchestrator";
-import { getActionTracker } from "../Intelligence/Core/PlayerActionTracker";
-import { getActionLogger } from "../Intelligence/DataCollection/ActionLogger";
-import { getNPCIntelligenceConnector, registerNPCsWithAI, handleSmartNPCInteraction } from "../Intelligence/NPCSystem/NPCIntelligenceConnector";
-import type { SmartNPCResponse } from "../Intelligence/NPCSystem/NPCIntelligenceConnector";
-import { ActionType } from "../Intelligence/Core/ActionTypes";
 import { NpcInteractionModule } from "../interactions/modules/NpcInteractionModule";
 import { InteractionManager } from "../managers/InteractionManager";
 import { 
@@ -90,16 +83,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private jwtManager = JWTManager.getInstance();
   private npcInteractionModule!: NpcInteractionModule;
   private interactionManager!: InteractionManager;
-  private intelligenceOrchestrator = getIntelligenceOrchestrator();
-  private actionTracker = getActionTracker();
-  private actionLogger = getActionLogger();
-  private npcIntelligenceConnector = getNPCIntelligenceConnector();
-  private aiSystemInitialized = false;
-  private aiStats = {
-    actionsTracked: 0,
-    intelligentInteractions: 0,
-    lastAnalysisTime: 0
-  };
+  
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -249,14 +233,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.spectatorManager
     );
     console.log(`✅ NpcInteractionModule initialisé`);
-    // ✅ ÉTAPE 9: Initialiser le système d'Intelligence Artificielle
-    console.log(`🤖 [WorldRoom] Initialisation système d'IA...`);
-    this.initializeAISystem().then(() => {
-      console.log(`✅ [WorldRoom] Système d'IA initialisé avec succès !`);
-    }).catch((error: Error) => {
-      console.error(`❌ [WorldRoom] Erreur initialisation IA:`, error);
-      console.warn(`⚠️ [WorldRoom] Système d'IA en mode dégradé`);
-    });  
+    
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
       this.autoSaveAllPositions();
@@ -390,17 +367,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       zones: stats.zones,
       hotReload: stats.hotReload
     });
-        // ✅ NOUVEAU: Enregistrer les NPCs dans l'IA maintenant qu'ils sont chargés
-    if (this.aiSystemInitialized) {
-      console.log(`🤖 [AI] NPCs chargés, enregistrement dans l'IA...`);
-      this.registerNPCsWithAI().then(() => {
-        console.log(`✅ [AI] NPCs enregistrés avec succès dans l'IA !`);
-      }).catch((error) => {
-        console.error(`❌ [AI] Erreur enregistrement NPCs:`, error);
-      });
-    } else {
-      console.log(`⏳ [AI] Système IA pas encore prêt, enregistrement NPCs différé`);
-    }
+    
     // Debug système pour validation
     globalNpcManager.debugSystem();
     
@@ -459,176 +426,6 @@ private extractZoneFromNpc(npc: any): string {
   return 'unknown';
 }
 
-// ===================================================================
-// 🤖 SYSTÈME D'INTELLIGENCE ARTIFICIELLE
-// ===================================================================
-
-/**
- * Initialise le système d'IA en arrière-plan
- */
-private async initializeAISystem(): Promise<void> {
-  try {
-    console.log(`🤖 [AI] === INITIALISATION SYSTÈME D'IA ===`);
-    
-    // Étape 1: Configurer l'ActionTracker avec notre ActionLogger
-    this.actionTracker.setDatabase(this.actionLogger);
-    console.log(`✅ [AI] ActionTracker configuré avec ActionLogger`);
-    
-    // Étape 2: Configuration de base du NPCIntelligenceConnector
-    this.npcIntelligenceConnector.updateConfig({
-      globallyEnabled: true,
-      enabledNPCTypes: ['dialogue', 'healer', 'merchant', 'trainer'],
-      debugMode: process.env.NODE_ENV === 'development',
-      trackAllInteractions: true
-    });
-    console.log(`✅ [AI] NPCIntelligenceConnector configuré`);
-    
-    // Étape 3: Enregistrer les NPCs existants (en arrière-plan)
-    // this.registerNPCsWithAI();
-    
-    this.aiSystemInitialized = true;
-    console.log(`🎉 [AI] Système d'IA complètement initialisé !`);
-    
-  } catch (error) {
-    console.error(`❌ [AI] Erreur initialisation:`, error);
-    throw error;
-  }
-}
-
-  /**
- * Enregistre les NPCs existants dans le système d'IA (en arrière-plan)
- */
-private async registerNPCsWithAI(): Promise<void> {
-  try {
-    console.log(`📋 [AI] Enregistrement des NPCs dans le système d'IA...`);
-    
-    // Récupérer tous les NPCs du manager global
-    const globalNpcManager = this.npcManagers.get('global');
-    if (!globalNpcManager) {
-      console.warn(`⚠️ [AI] Aucun NPCManager global trouvé, skip enregistrement IA`);
-      return;
-    }
-    
-    const allNpcs = globalNpcManager.getAllNpcs();
-    console.log(`🔍 [AI] ${allNpcs.length} NPCs trouvés pour enregistrement IA`);
-    
-    if (allNpcs.length > 0) {
-      const results = await this.npcIntelligenceConnector.registerNPCsBulk(allNpcs);
-      console.log(`✅ [AI] NPCs enregistrés: ${results.registered} réussis, ${results.skipped} ignorés`);
-      
-      if (results.errors.length > 0) {
-        console.warn(`⚠️ [AI] Erreurs d'enregistrement:`, results.errors.slice(0, 3)); // Log que les 3 premières
-      }
-    } else {
-      console.log(`ℹ️ [AI] Aucun NPC à enregistrer pour l'IA`);
-    }
-    
-  } catch (error) {
-    console.error(`❌ [AI] Erreur enregistrement NPCs:`, error);
-  }
-}
-  /**
- * Analyse complète d'un joueur via l'IA
- */
-public async analyzePlayerWithAI(playerId: string): Promise<CompletePlayerAnalysis | null> {
-  if (!this.aiSystemInitialized) {
-    console.warn(`⚠️ [AI] Système non initialisé pour analyse de ${playerId}`);
-    return null;
-  }
-  
-  try {
-    const analysis = await this.intelligenceOrchestrator.analyzePlayer(playerId);
-    if (analysis) {
-      this.aiStats.lastAnalysisTime = Date.now();
-      console.log(`🧠 [AI] Analyse complète de ${playerId}: confiance ${analysis.analysisConfidence.toFixed(2)}`);
-    }
-    return analysis;
-  } catch (error) {
-    console.error(`❌ [AI] Erreur analyse joueur ${playerId}:`, error);
-    return null;
-  }
-}
-
-/**
- * Obtenir les statistiques du système d'IA
- */
-public getAIStats(): any {
-  const orchestratorStats = this.aiSystemInitialized ? this.intelligenceOrchestrator.getStats() : {};
-  const connectorStats = this.npcIntelligenceConnector.getStats();
-  
-  return {
-    initialized: this.aiSystemInitialized,
-    localStats: this.aiStats,
-    orchestrator: orchestratorStats,
-    npcConnector: connectorStats,
-    health: this.intelligenceOrchestrator.getHealthStatus()
-  };
-}
- /**
- * Appliquer les recommandations de l'IA pour un joueur
- */
-private async applyAIRecommendations(playerId: string, analysis: CompletePlayerAnalysis): Promise<void> {
-  if (!analysis.recommendations) return;
-  
-  const player = this.state.players.get(playerId);
-  if (!player) return;
-  
-  try {
-    // Recommandations pour les NPCs (réactions proactives)
-    if (analysis.recommendations.forNPCs.length > 0) {
-      console.log(`🎭 [AI] Application de ${analysis.recommendations.forNPCs.length} recommandations NPCs pour ${player.name}`);
-      
-      // Déclencher des interactions proactives si nécessaire
-      if (analysis.behaviorProfile?.currentState.needsHelp) {
-        console.log(`🆘 [AI] Joueur ${player.name} a besoin d'aide - activation NPCs proactifs`);
-        // Les NPCs proactifs seront gérés automatiquement par le système
-      }
-    }
-    
-    // Recommandations pour le joueur (notifications)
-    if (analysis.recommendations.forPlayer.length > 0) {
-      const client = this.clients.find(c => c.sessionId === playerId);
-      if (client) {
-        client.send("aiRecommendations", {
-          recommendations: analysis.recommendations.forPlayer.slice(0, 3), // Max 3 pour ne pas spam
-          source: "AI_analysis",
-          confidence: analysis.analysisConfidence,
-          timestamp: Date.now()
-        });
-        console.log(`💡 [AI] ${analysis.recommendations.forPlayer.length} recommandations envoyées à ${player.name}`);
-      }
-    }
-    
-  } catch (error) {
-    console.error(`❌ [AI] Erreur application recommandations:`, error);
-  }
-} 
-  /**
- * Helper pour tracker une action de joueur avec l'IA
- */
-private trackPlayerActionWithAI(
-  sessionId: string,
-  actionType: ActionType,
-  actionData: any = {},
-  context?: { location?: { map: string; x: number; y: number } }
-): void {
-  if (!this.aiSystemInitialized) return;
-  
-  try {
-    const player = this.state.players.get(sessionId);
-    if (!player || !player.name) {
-      console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : joueur introuvable pour session ${sessionId}`);
-      return;
-    }
-    
-    // ✅ UTILISER USERNAME comme identifiant stable
-    trackPlayerAction(player.name, actionType, actionData, context);
-    this.aiStats.actionsTracked++;
-  } catch (error) {
-    console.error(`❌ [AI] Erreur tracking action:`, error);
-  }
-}
-  
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
     console.log(`👤 Client: ${client.sessionId}`);
@@ -824,36 +621,6 @@ this.onMessage("battleFinished", async (client, data) => {
   
   const { userId } = sessionValidation;
   console.log(`✅ [WorldRoom] battleFinished validé pour userId: ${userId}`);
-
-  // ✅ TRACKING IA: Fin de combat
-  if (player) {
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      data.battleResult.victory ? ActionType.BATTLE_VICTORY : ActionType.BATTLE_DEFEAT,
-      {
-        battleType: data.battleResult.battleType || 'unknown',
-        opponent: data.battleResult.opponent,
-        duration: data.battleResult.duration,
-        turnsCount: data.battleResult.turns,
-        experience: data.battleResult.expGained,
-        playerLevel: player.level
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
-    // ✅ DEBUG: Vérifier si le tracking fonctionne
-console.log(`🔍 [DEBUG] Tracking IA appelé pour NPC ${data.npcId}:`, {
-  aiInitialized: this.aiSystemInitialized,
-  sessionId: client.sessionId,
-  playerName: player.name,
-  actionType: 'NPC_TALK'
-});
-  }
   
   // ✅ RESTE DU CODE IDENTIQUE
   this.battleHandlers.onBattleFinished(userId, data.battleResult);
@@ -1193,90 +960,38 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Interaction avec NPC
-// ✅ NOUVEAU : Interaction avec NPC INTELLIGENTE via IA
-this.onMessage("npcInteract", async (client, data) => {
-  console.log(`🤖 === NPC INTERACTION INTELLIGENTE ===`);
-  console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
-  
-  const player = this.state.players.get(client.sessionId);
-  if (!player) {
-    console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
-    client.send("npcInteractionResult", {
-      success: false,
-      type: "error",
-      message: "Joueur non trouvé"
-    });
-    return;
-  }
-
-  try {
-    // ✅ TRACKING IA: Interaction avec NPC
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      ActionType.NPC_TALK,
-      {
-        npcId: data.npcId,
-        playerLevel: player.level,
-        playerGold: player.gold
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
+// ✅ NOUVEAU : Interaction avec NPC via système intégré
+    this.onMessage("npcInteract", async (client, data) => {
+      console.log(`💬 === NPC INTERACTION REQUEST (SYSTÈME INTÉGRÉ) ===`);
+      console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
+        client.send("npcInteractionResult", {
+          success: false,
+          type: "error",
+          message: "Joueur non trouvé"
+        });
+        return;
       }
-    );
 
-    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE
-    if (this.aiSystemInitialized) {
       try {
-        const smartResponse = await handleSmartNPCInteraction(
-          client.sessionId,
-          data.npcId,
-          'dialogue',
-          {
-            playerAction: 'interact',
-            location: { map: player.currentZone, x: player.x, y: player.y },
-            sessionData: { level: player.level, gold: player.gold }
-          }
-        );
-
-        if (smartResponse.success) {
-          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId}`);
-          this.aiStats.intelligentInteractions++;
-          
-          client.send("npcInteractionResult", {
-            success: true,
-            type: "smart_dialogue",
-            message: smartResponse.dialogue.message,
-            dialogue: smartResponse.dialogue,
-            actions: smartResponse.actions,
-            followUpQuestions: smartResponse.followUpQuestions,
-            metadata: smartResponse.metadata,
-            isAI: true
-          });
-          return;
-        }
-      } catch (aiError) {
-        console.warn(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, fallback système classique:`, aiError);
+        // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
+        const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
+        
+        console.log(`📤 Envoi résultat: ${result.type}`);
+        client.send("npcInteractionResult", result);
+        
+      } catch (error) {
+        console.error(`❌ Erreur interaction NPC:`, error);
+        client.send("npcInteractionResult", {
+          success: false,
+          type: "error",
+          message: "Erreur lors de l'interaction"
+        });
       }
-    }
-
-    // ✅ FALLBACK: Système classique si IA échoue
-    const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
-    console.log(`📤 Envoi résultat classique: ${result.type}`);
-    client.send("npcInteractionResult", { ...result, isAI: false });
-    
-  } catch (error) {
-    console.error(`❌ Erreur interaction NPC:`, error);
-    client.send("npcInteractionResult", {
-      success: false,
-      type: "error",
-      message: "Erreur lors de l'interaction"
     });
-  }
-});
 
     this.onMessage("requestInitialState", (client, data: { zone: string }) => {
       console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
@@ -1392,25 +1107,7 @@ this.onMessage("npcInteract", async (client, data) => {
         });
         return;
       }
-    // ✅ TRACKING IA: Transaction shop
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      data.action === 'buy' ? ActionType.ITEM_BUY : ActionType.ITEM_SELL,
-      {
-        shopId: data.shopId,
-        itemId: data.itemId,
-        quantity: data.quantity,
-        playerGold: player.gold,
-        playerLevel: player.level
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
+
       try {
         // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
         const result = await this.interactionManager.handleShopTransaction(
@@ -1822,24 +1519,7 @@ private getPlayerNameBySession(sessionId: string): string | null {
         
         if (quest) {
           console.log(`✅ [WorldRoom] Quête ${data.questId} démarrée pour ${player.name}`);
-         // ✅ TRACKING IA: Démarrage de quête
-        this.trackPlayerActionWithAI(
-          client.sessionId,
-          ActionType.QUEST_ACCEPT,
-          {
-            questId: data.questId,
-            questName: quest.name,
-            playerLevel: player.level,
-            currentZone: player.currentZone
-          },
-          {
-            location: { 
-              map: player.currentZone, 
-              x: player.x, 
-              y: player.y 
-            }
-          }
-        ); 
+          
           const result = {
             success: true,
             quest: quest,
@@ -2336,29 +2016,6 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
 
     // Étape 1: Ajouter au state immédiatement
     this.state.players.set(client.sessionId, player);
-    // ✅ AJOUT : Enregistrer le joueur dans le système de tracking IA
-    if (this.aiSystemInitialized) {
-      try {
-        const userId = this.jwtManager.getUserId(client.sessionId);
-        if (userId) {
-          this.actionTracker.registerPlayer(
-            player.name,                    // ✅ userId stable du JWT
-            player.name,
-            `session_${Date.now()}`,
-            { map: player.currentZone, x: player.x, y: player.y },
-            player.level
-          );
-          console.log(`📝 [AI] Joueur ${player.name} enregistré avec userId: ${userId}`);
-        } else {
-          console.warn(`⚠️ [AI] Impossible d'enregistrer ${player.name} : userId introuvable`);
-        }
-        console.log(`📝 [AI] Joueur ${player.name} enregistré dans ActionTracker`);
-      } catch (error) {
-        console.error(`❌ [AI] Erreur enregistrement joueur:`, error);
-      }
-    } else {
-      console.warn(`⚠️ [AI] Système IA pas encore initialisé, enregistrement différé`);
-    }
     console.log("🧪 onJoin - client.sessionId =", client.sessionId);
     console.log(`✅ Joueur ${player.name} ajouté au state`);
     console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
@@ -2441,25 +2098,7 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
-    // ✅ TRACKING IA: Connexion du joueur
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      ActionType.SESSION_START,
-      {
-        playerName: player.name,
-        level: player.level,
-        gold: player.gold,
-        spawnZone: player.currentZone,
-        isReturningPlayer: !!savedData
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
+
     console.log(`🎉 ${player.name} a rejoint le monde !`);
   } catch (error) {
     console.error(`❌ Erreur lors du join:`, error);
@@ -2476,26 +2115,6 @@ async onLeave(client: Client, consented: boolean) {
   if (player) {
     console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
-    
-    // ✅ TRACKING IA: Déconnexion du joueur
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      ActionType.SESSION_END,
-      {
-        playerName: player.name,
-        level: player.level,
-        gold: player.gold,
-        finalZone: player.currentZone,
-        consented: consented
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
     
     // ✅ NOUVEAU: Vérifier combat actif AVANT nettoyage JWT
     const userId = this.jwtManager.getUserId(client.sessionId);
@@ -2609,17 +2228,6 @@ async onLeave(client: Client, consented: boolean) {
       console.log(`🧹 ObjectInteractionHandlers nettoyés`);
     }
     console.log(`✅ WorldRoom fermée`);
-        // ✅ NOUVEAU: Nettoyer le système d'IA
-    if (this.aiSystemInitialized) {
-      try {
-        // Pas de méthodes de nettoyage spécifiques nécessaires pour l'instant
-        // Les singletons se nettoient automatiquement
-        this.aiSystemInitialized = false;
-        console.log(`🧹 [AI] Système d'IA marqué comme non initialisé`);
-      } catch (error) {
-        console.error(`❌ [AI] Erreur nettoyage système IA:`, error);
-      }
-    }
   }
 
   // ✅ MÉTHODE DE MOUVEMENT AVEC MovementBlockManager
@@ -2665,29 +2273,7 @@ async onLeave(client: Client, consented: boolean) {
     player.y = data.y;
     player.direction = data.direction;
     player.isMoving = data.isMoving;
-    // ✅ TRACKING IA: Mouvement du joueur (sample 10% pour performance)
-    if (Math.random() < 0.1) {
-      this.trackPlayerActionWithAI(
-        client.sessionId,
-        ActionType.PLAYER_MOVE,
-        {
-          fromX: player.x, // Note: on a déjà mis à jour, mais c'est pour l'exemple
-          fromY: player.y,
-          toX: data.x,
-          toY: data.y,
-          direction: data.direction,
-          isMoving: data.isMoving,
-          method: 'walk'
-        },
-        {
-          location: { 
-            map: player.currentZone, 
-            x: data.x, 
-            y: data.y 
-          }
-        }
-      );
-    }
+
     this.followerHandlers.onPlayerMove(
       client.sessionId, 
       data.x, 
