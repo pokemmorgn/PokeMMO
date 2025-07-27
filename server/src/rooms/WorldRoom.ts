@@ -90,7 +90,16 @@ export class WorldRoom extends Room<PokeWorldState> {
   private jwtManager = JWTManager.getInstance();
   private npcInteractionModule!: NpcInteractionModule;
   private interactionManager!: InteractionManager;
-  
+  private intelligenceOrchestrator = getIntelligenceOrchestrator();
+  private actionTracker = getActionTracker();
+  private actionLogger = getActionLogger();
+  private npcIntelligenceConnector = getNPCIntelligenceConnector();
+  private aiSystemInitialized = false;
+  private aiStats = {
+    actionsTracked: 0,
+    intelligentInteractions: 0,
+    lastAnalysisTime: 0
+  };
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
