@@ -1,4 +1,3 @@
-
 // server/src/Intelligence/NPCSystem/NPCIntelligenceConnector.ts
 
 /**
@@ -140,7 +139,7 @@ export class NPCIntelligenceConnector {
   constructor(config?: Partial<NPCConnectorConfig>) {
     this.config = {
       // Activation progressive par défaut
-      enabledNPCTypes: ['dialogue', 'healer', 'guide', 'professor'],
+      enabledNPCTypes: ['dialogue', 'healer', 'quest_master', 'researcher'],
       enabledZones: [], // Vide = toutes les zones
       globallyEnabled: true,
       
@@ -592,7 +591,11 @@ export class NPCIntelligenceConnector {
       'dialogue': 'guide',
       'quest_master': 'guide',
       'researcher': 'professor',
-      'service': 'guide'
+      'service': 'guide',
+      'transport': 'guide',
+      'minigame': 'guide',
+      'guild': 'guide',
+      'event': 'guide'
     };
     
     return mapping[npcType || 'dialogue'] || 'guide';
@@ -920,7 +923,7 @@ export class NPCIntelligenceConnector {
       // Enregistrer l'action pour le système global
       await trackPlayerAction(
         playerId,
-        ActionType.NPC_INTERACTION,
+        ActionType.PLAYER_MESSAGE, // Interaction avec NPC
         {
           npcId,
           interactionType,
@@ -990,7 +993,7 @@ export class NPCIntelligenceConnector {
       
       const promises = batch.map(({ playerId, npcId, interactionType }) =>
         this.handleIntelligentInteraction(playerId, npcId, interactionType)
-          .catch(error => {
+          .catch((error: Error): SmartNPCResponse | null => {
             this.log('error', `❌ Erreur traitement queue ${npcId}:`, error);
             return null;
           })
