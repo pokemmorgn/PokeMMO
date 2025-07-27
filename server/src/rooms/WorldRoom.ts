@@ -799,6 +799,45 @@ private trackPlayerActionWithAI(
     
 // ✅ DANS WorldRoom.ts - Remplacez le handler battleFinished existant
 
+    // ✅ HANDLER DEBUG: Forcer la sauvegarde et vérifier la DB
+this.onMessage("debugAIDatabase", async (client) => {
+  console.log(`🔍 [DEBUG AI] Test base de données demandé par ${client.sessionId}`);
+  
+  try {
+    // Forcer le traitement des actions en attente
+    const tracker = this.actionTracker;
+    const logger = this.actionLogger;
+    
+    // Stats du tracker
+    const trackerStats = tracker.getStats();
+    console.log(`📊 [DEBUG] Tracker stats:`, trackerStats);
+    
+    // Test de sauvegarde directe
+    const testAction = {
+      id: `test_${Date.now()}`,
+      playerId: client.sessionId,
+      actionType: 'TEST_ACTION' as any,
+      category: 'UI' as any,
+      timestamp: Date.now(),
+      data: { test: true },
+      metadata: { version: '1.0.0', source: 'debug', processed: false }
+    };
+    
+    const saveResult = await logger.saveAction(testAction);
+    console.log(`💾 [DEBUG] Sauvegarde test:`, saveResult);
+    
+    client.send("debugAIResult", {
+      trackerStats,
+      testSave: saveResult,
+      timestamp: Date.now()
+    });
+    
+  } catch (error) {
+    console.error(`❌ [DEBUG] Erreur:`, error);
+    client.send("debugAIResult", { error: error instanceof Error ? error.message : 'Erreur inconnue' });
+  }
+});
+    
 this.onMessage("battleFinished", async (client, data) => {
   console.log(`🏁 [WorldRoom] battleFinished reçu de ${client.sessionId}`);
   
