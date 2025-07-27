@@ -419,79 +419,9 @@ window.loadMongoDB = () => {
     adminPanel.mongodb.onTabActivated()
 }
 
-// ✅ NOUVEAU: Shop Selector functions
-window.setShopManual = (fieldName) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.setShopManual(fieldName)
-}
+// Fonctions Shop à ajouter dans client/src/admin/main.js
 
-window.openShopSelector = (fieldName) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.openShopSelector(fieldName)
-}
-
-window.refreshShopDetails = (fieldName) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.refreshShopDetails(fieldName)
-}
-
-window.closeShopSelector = () => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.closeShopSelector()
-}
-
-window.selectShop = (shopId) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.selectShop(shopId)
-}
-
-window.filterShops = (searchTerm) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.filterShops(searchTerm)
-}
-
-window.filterShopsByType = (type) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.filterShopsByType(type)
-}
-
-window.applyShopSelection = (fieldName) => {
-    if (!window.npcFormBuilder) {
-        console.error('NPCFormBuilder not loaded')
-        return
-    }
-    window.npcFormBuilder.applyShopSelection(fieldName)
-}
-
-// Fonctions pour l'interaction NPCs depuis Map Editor
-window.editNPCFromMap = (npcData) => {
-    if (!adminPanel?.npcEditor) {
-        console.error('NPCEditor module not loaded')
-        return
-    }
-    adminPanel.npcEditor.loadNPCFromMapEditor(npcData)
-}
+// Dans la fonction setupGlobalFunctions(), ajouter ces fonctions :
 
 // Shop Editor functions
 window.selectShop = (shopId) => {
@@ -534,6 +464,22 @@ window.duplicateShop = () => {
     adminPanel.shopEditor.duplicateShop()
 }
 
+window.cancelEditShop = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.cancelEdit()
+}
+
+window.refreshShops = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.refreshShops()
+}
+
 window.exportShops = () => {
     if (!adminPanel?.shopEditor) {
         console.error('ShopEditor module not loaded')
@@ -542,12 +488,70 @@ window.exportShops = () => {
     adminPanel.shopEditor.exportShops()
 }
 
-window.importShops = () => {
+window.filterShops = (searchTerm) => {
     if (!adminPanel?.shopEditor) {
         console.error('ShopEditor module not loaded')
         return
     }
-    adminPanel.shopEditor.importShops()
+    adminPanel.shopEditor.filterShops(searchTerm)
+}
+
+window.filterShopsByType = (type) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.filterByType(type)
+}
+
+window.selectZoneShop = (zoneId) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.selectZone(zoneId)
+}
+
+// Shop Item management functions
+window.addShopItem = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.addItem()
+}
+
+window.removeShopItem = (index) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.removeItem(index)
+}
+
+window.updateShopItemId = (index, itemId) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.updateItemId(index, itemId)
+}
+
+window.updateShopItemField = (index, field, value) => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.updateItemField(index, field, value)
+}
+
+// Shop tab activation
+window.loadShopEditor = () => {
+    if (!adminPanel?.shopEditor) {
+        console.error('ShopEditor module not loaded')
+        return
+    }
+    adminPanel.shopEditor.onTabActivated()
 }
 
 // Helper function to show error messages
