@@ -16,18 +16,39 @@ export class QuestsModule {
     async loadGameData() {
         try {
             // Charger les Pokémon disponibles
-            const pokemonData = await this.adminPanel.apiCall('/game-data/pokemon')
+            const pokemonData = await this.adminPanel.apiCall('/pokemon/list')
             this.pokemonList = pokemonData.pokemon || []
             
-            // Charger les items disponibles
-            const itemsData = await this.adminPanel.apiCall('/game-data/items')
-            this.itemsList = itemsData.items || []
+            // Charger les items disponibles (utilise la route existante)
+            const itemsData = await this.adminPanel.apiCall('/items')
+            this.itemsList = this.formatItemsFromExistingAPI(itemsData) || []
             
             console.log(`📜 [Quests] Loaded ${this.pokemonList.length} Pokémon and ${this.itemsList.length} items`)
         } catch (error) {
             console.error('📜 [Quests] Error loading game data:', error)
             this.adminPanel.showNotification('Erreur chargement données jeu: ' + error.message, 'warning')
         }
+    }
+
+    formatItemsFromExistingAPI(itemsData) {
+        if (!itemsData || typeof itemsData !== 'object') return []
+        
+        // Convertir l'objet items.json en format array pour le sélecteur
+        return Object.entries(itemsData).map(([id, data]) => ({
+            id: id,
+            type: data.type || 'item',
+            pocket: data.pocket || 'items',
+            price: data.price,
+            usableInBattle: data.usable_in_battle,
+            usableInField: data.usable_in_field,
+            displayName: this.getItemDisplayName(id)
+        })).sort((a, b) => {
+            // Trier par type puis par nom
+            if (a.type !== b.type) {
+                return a.type.localeCompare(b.type)
+            }
+            return a.displayName.localeCompare(b.displayName)
+        })
     }
 
     async loadQuests() {
