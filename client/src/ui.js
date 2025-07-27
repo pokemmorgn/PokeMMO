@@ -120,7 +120,7 @@ const POKEMON_UI_GROUPS = {
     modules: ['timeWeather'],
     layout: {
       type: 'horizontal',
-      anchor: 'top-right',
+      anchor: 'top-left',
       spacing: 10,
       order: ['timeWeather']
     },
@@ -381,7 +381,7 @@ export class PokemonUISystem {
         groups: ['weather'],
         layout: {
           type: 'icon',
-          anchor: 'top-right',
+          anchor: 'top-left',
           order: 50,
           spacing: 10
         },
