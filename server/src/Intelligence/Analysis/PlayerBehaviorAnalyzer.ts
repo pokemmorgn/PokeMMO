@@ -512,16 +512,16 @@ export class PlayerBehaviorAnalyzer {
       );
     });
     
-    const riskRatio = riskActions.length / actions.length;
+    const riskRatio = riskyActions.length / actions.length;
     
     // Analyser les échecs dans des situations risquées
     const riskyFailures = actions.filter(a => 
       FRUSTRATION_INDICATORS.includes(a.actionType) && 
-      riskActions.some(r => Math.abs(r.timestamp - a.timestamp) < 60000) // Échec proche d'une action risquée
+      riskyActions.some((r: PlayerAction) => Math.abs(r.timestamp - a.timestamp) < 60000) // Échec proche d'une action risquée
     );
     
     const persistenceAfterRiskyFailure = riskyFailures.length > 0 ? 
-      riskActions.filter(r => r.timestamp > riskyFailures[0].timestamp).length / riskActions.length : 1;
+      riskyActions.filter((r: PlayerAction) => r.timestamp > riskyFailures[0].timestamp).length / riskyActions.length : 1;
     
     return Math.min(1, (riskRatio * 0.7 + persistenceAfterRiskyFailure * 0.3));
   }
