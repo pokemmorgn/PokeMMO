@@ -703,13 +703,13 @@ progression: document.getElementById('genProgression')?.value || 'random',
             preferences.category
 
         // Determine difficulty with complexity scaling
-        const difficulty = preferences.difficulty === 'random' ? 
-            this.getRandomChoice(['easy', 'medium', 'hard', 'legendary']) : 
-            preferences.difficulty
+const progression = preferences.progression === 'random' ? 
+    this.getRandomChoice(Object.keys(this.questData.gymProgression)) : 
+    preferences.progression
 
         // Determine number of steps based on complexity
         const stepCount = preferences.steps === 'random' ? 
-            this.calculateOptimalSteps(questType, difficulty) : 
+            this.calculateOptimalSteps(questType, progression) : 
             parseInt(preferences.steps)
 
         // Select appropriate NPCs based on quest type and expertise
@@ -718,15 +718,15 @@ progression: document.getElementById('genProgression')?.value || 'random',
         const endNpc = npcs[npcs.length - 1]
 
         // Generate contextual quest ID and name
-        const questId = this.generateContextualQuestId(questType, difficulty)
-        const questName = this.generateContextualQuestName(questType, difficulty, startNpc)
-        const questDescription = this.generateContextualDescription(questType, questName, difficulty, preferences.storyElements)
+const questId = this.generateContextualQuestId(questType, progression)
+const questName = this.generateContextualQuestName(questType, progression, startNpc)
+const questDescription = this.generateContextualDescription(questType, questName, progression, preferences.storyElements)
 
         // Generate personality-based dialogues
-        const dialogues = this.generateContextualDialogues(startNpc.personality, questType, difficulty)
+const dialogues = this.generateContextualDialogues(startNpc.personality, questType, progression)
 
         // Generate sophisticated multi-step objectives
-        const steps = this.generateAdvancedQuestSteps(questType, stepCount, npcs, difficulty, preferences)
+const steps = this.generateAdvancedQuestSteps(questType, stepCount, npcs, progression, preferences)
 
         // Create the complete advanced quest object
         const quest = {
@@ -742,9 +742,10 @@ progression: document.getElementById('genProgression')?.value || 'random',
             steps: steps,
             metadata: {
                 generatedAt: new Date().toISOString(),
-                questType: questType,
-                difficulty: difficulty,
-                stepCount: stepCount,
+questType: questType,
+progression: progression,
+gymInfo: this.questData.gymProgression[progression],
+stepCount: stepCount,
                 features: {
                     multipleNPCs: preferences.multipleNPCs,
                     storyElements: preferences.storyElements,
@@ -760,26 +761,50 @@ progression: document.getElementById('genProgression')?.value || 'random',
         }
 
         if (preferences.chainQuest) {
-            quest.chainInfo = this.generateQuestChainInfo(questType, difficulty)
+quest.chainInfo = this.generateQuestChainInfo(questType, progression)
         }
 
         return quest
     }
 
-    calculateOptimalSteps(questType, difficulty) {
-        const complexityMap = {
-            'collect': { easy: 1, medium: 2, hard: 3, legendary: 4 },
-            'defeat_pokemon': { easy: 1, medium: 2, hard: 3, legendary: 4 },
-            'defeat_trainers': { easy: 1, medium: 2, hard: 2, legendary: 3 },
-            'talk': { easy: 1, medium: 1, hard: 2, legendary: 3 },
-            'deliver': { easy: 2, medium: 3, hard: 3, legendary: 4 },
-            'explore': { easy: 1, medium: 2, hard: 3, legendary: 4 },
-            'trade': { easy: 1, medium: 2, hard: 2, legendary: 3 },
-            'catch': { easy: 1, medium: 2, hard: 3, legendary: 4 }
+calculateOptimalSteps(questType, progression) {
+    const complexityMap = {
+        'collect': { 
+            pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 2, 
+            gym_5: 3, gym_6: 3, gym_7: 3, gym_8: 4, elite_four: 4, post_game: 5 
+        },
+        'defeat_pokemon': { 
+            pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 3, 
+            gym_5: 3, gym_6: 3, gym_7: 4, gym_8: 4, elite_four: 5, post_game: 5 
+        },
+        'defeat_trainers': { 
+            pre_gym: 1, gym_1: 1, gym_2: 1, gym_3: 2, gym_4: 2, 
+            gym_5: 2, gym_6: 3, gym_7: 3, gym_8: 3, elite_four: 4, post_game: 4 
+        },
+        'talk': { 
+            pre_gym: 1, gym_1: 1, gym_2: 1, gym_3: 1, gym_4: 2, 
+            gym_5: 2, gym_6: 2, gym_7: 2, gym_8: 3, elite_four: 3, post_game: 3 
+        },
+        'deliver': { 
+            pre_gym: 1, gym_1: 2, gym_2: 2, gym_3: 2, gym_4: 3, 
+            gym_5: 3, gym_6: 3, gym_7: 3, gym_8: 4, elite_four: 4, post_game: 4 
+        },
+        'explore': { 
+            pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 2, 
+            gym_5: 3, gym_6: 3, gym_7: 3, gym_8: 4, elite_four: 4, post_game: 5 
+        },
+        'trade': { 
+            pre_gym: 1, gym_1: 1, gym_2: 1, gym_3: 2, gym_4: 2, 
+            gym_5: 2, gym_6: 2, gym_7: 3, gym_8: 3, elite_four: 3, post_game: 4 
+        },
+        'catch': { 
+            pre_gym: 1, gym_1: 1, gym_2: 2, gym_3: 2, gym_4: 3, 
+            gym_5: 3, gym_6: 3, gym_7: 4, gym_8: 4, elite_four: 4, post_game: 5 
         }
-        
-        return complexityMap[questType]?.[difficulty] || 2
     }
+    
+    return complexityMap[questType]?.[progression] || 2
+}
 
     selectContextualNPCs(questType, allowMultiple, stepCount) {
         // Filter NPCs by expertise relevant to quest type
@@ -821,7 +846,7 @@ progression: document.getElementById('genProgression')?.value || 'random',
         return npcs
     }
 
-    generateContextualQuestId(questType, difficulty) {
+    generateContextualQuestId(questType, progression) {
         const prefixes = {
             'collect': 'gather',
             'defeat_pokemon': 'hunt',
@@ -834,110 +859,156 @@ progression: document.getElementById('genProgression')?.value || 'random',
         }
         
         const prefix = prefixes[questType] || 'quest'
-        const difficultyCode = difficulty.substring(0, 1).toUpperCase()
+const progressionCode = progression.toUpperCase()
         const randomSuffix = Math.random().toString(36).substring(2, 8)
         
-        return `${prefix}_${difficultyCode}_${randomSuffix}`
+return `${prefix}_${progressionCode}_${randomSuffix}`
     }
 
-    generateContextualQuestName(questType, difficulty, npc) {
-        const templates = this.questData.questNames[questType] || this.questData.questNames.collect
-        let template = this.getRandomChoice(templates)
-        
-        // Replace placeholders with contextual data
-        const replacements = {
-            '{npc}': npc.name,
-            '{location}': this.formatLocationName(npc.location),
-            '{difficulty}': difficulty.charAt(0).toUpperCase() + difficulty.slice(1),
-            '{item}': this.getRandomChoice(Object.values(this.questData.items).flat()),
-            '{pokemon}': this.getRandomChoice(Object.values(this.questData.pokemon).flat()),
-            '{amount}': this.getRandomInt(2, 8)
-        }
-        
-        Object.entries(replacements).forEach(([placeholder, value]) => {
-            template = template.replace(new RegExp(placeholder, 'g'), value)
-        })
-        
-        return template
+    generateContextualQuestName(questType, progression, npc) {
+    const templates = this.questData.questNames[questType] || this.questData.questNames.collect
+    let template = this.getRandomChoice(templates)
+    
+    // Get appropriate items and Pokemon for this progression level
+    const itemPool = this.getItemsForProgression(progression)
+    const pokemonPool = this.getPokemonForProgression(progression)
+    
+    // Replace placeholders with contextual data
+    const replacements = {
+        '{npc}': npc.name,
+        '{location}': this.formatLocationName(npc.location),
+        '{difficulty}': this.questData.gymProgression[progression].name,
+        '{item}': this.getRandomChoice(itemPool),
+        '{pokemon}': this.getRandomChoice(pokemonPool),
+        '{amount}': this.getAmountForProgression(progression)
+    }
+    
+    Object.entries(replacements).forEach(([placeholder, value]) => {
+        template = template.replace(new RegExp(placeholder, 'g'), value)
+    })
+    
+    return template
+}
+
+generateContextualDescription(questType, questName, progression, includeStory) {
+    const gymInfo = this.questData.gymProgression[progression]
+    
+    const baseDescriptions = {
+        'collect': "Des ressources sont nécessaires pour un projet important.",
+        'defeat_pokemon': "Des Pokémon sauvages causent des problèmes dans la région.",
+        'defeat_trainers': "Vos compétences de combat doivent être testées et prouvées.",
+        'talk': "Des informations importantes doivent être partagées entre les personnes.",
+        'deliver': "Un colis critique nécessite un transport sécurisé.",
+        'explore': "Des territoires inconnus nécessitent une enquête minutieuse.",
+        'trade': "Un échange de Pokémon mutuellement bénéfique est nécessaire.",
+        'catch': "De nouveaux compagnons Pokémon sont requis pour l'équipe."
     }
 
-    generateContextualDescription(questType, questName, difficulty, includeStory) {
-        const baseDescriptions = {
-            'collect': "Resources are needed for an important project.",
-            'defeat_pokemon': "Wild Pokemon are causing problems in the area.",
-            'defeat_trainers': "Your battle skills need to be tested and proven.",
-            'talk': "Important information must be shared between people.",
-            'deliver': "A critical package needs safe transportation.",
-            'explore': "Unknown territories require careful investigation.",
-            'trade': "A mutually beneficial Pokemon exchange is needed.",
-            'catch': "New Pokemon companions are required for the team."
-        }
+    let description = baseDescriptions[questType] || "Une tâche mystérieuse attend d'être accomplie."
 
-        let description = baseDescriptions[questType] || "A mysterious task awaits completion."
-
-        if (includeStory) {
-            const storyElements = {
-                easy: "This simple task will help you get started on your journey.",
-                medium: "This challenging quest will test your skills and determination.",
-                hard: "This dangerous mission requires courage and expertise.",
-                legendary: "This epic undertaking will become the stuff of legends."
-            }
-            
-            description += " " + storyElements[difficulty]
-        }
-
-        return description
-    }
-
-    generateContextualDialogues(personality, questType, difficulty) {
-        const templates = this.questData.dialogueTemplates[personality] || this.questData.dialogueTemplates.curious
+    if (includeStory && gymInfo) {
+        description += ` Cette mission correspond au niveau ${gymInfo.name.toLowerCase()}.`
         
-        // Enhance dialogues with quest-specific context
-        const contextualOffers = [...templates.offer]
-        const contextualProgress = [...templates.progress]
-        const contextualComplete = [...templates.complete]
-
-        // Add quest-type specific dialogue variations
-        const questSpecificLines = {
-            'collect': {
-                offer: "I need someone reliable to gather some important items.",
-                progress: "The collection is going well, I hope?",
-                complete: "Perfect! These items are exactly what I needed!"
-            },
-            'defeat_pokemon': {
-                offer: "There's been trouble with wild Pokemon lately.",
-                progress: "How goes the battle against those troublesome Pokemon?",
-                complete: "Excellent! The Pokemon threat has been neutralized!"
-            },
-            'explore': {
-                offer: "There are unexplored areas that need investigation.",
-                progress: "What discoveries have you made in your exploration?",
-                complete: "Incredible! Your exploration has revealed valuable information!"
-            }
-        }
-
-        if (questSpecificLines[questType]) {
-            contextualOffers.push(questSpecificLines[questType].offer)
-            contextualProgress.push(questSpecificLines[questType].progress)
-            contextualComplete.push(questSpecificLines[questType].complete)
-        }
-
-        return {
-            questOffer: contextualOffers,
-            questInProgress: contextualProgress,
-            questComplete: contextualComplete
+        if (gymInfo.badge) {
+            description += ` Recommandé pour les dresseurs ayant obtenu le ${gymInfo.badge}.`
         }
     }
 
-    generateAdvancedQuestSteps(questType, stepCount, npcs, difficulty, preferences) {
+    return description
+}
+
+    getItemsForProgression(progression) {
+    const progressionItemMap = {
+        pre_gym: this.questData.items.basic,
+        gym_1: this.questData.items.basic.concat(this.questData.items.intermediate),
+        gym_2: this.questData.items.intermediate,
+        gym_3: this.questData.items.intermediate.concat(this.questData.items.advanced),
+        gym_4: this.questData.items.advanced,
+        gym_5: this.questData.items.advanced.concat(this.questData.items.rare),
+        gym_6: this.questData.items.rare,
+        gym_7: this.questData.items.rare,
+        gym_8: this.questData.items.rare.concat(this.questData.items.legendary),
+        elite_four: this.questData.items.legendary,
+        post_game: this.questData.items.legendary
+    }
+    
+    return progressionItemMap[progression] || this.questData.items.basic
+}
+
+getPokemonForProgression(progression) {
+    const progressionPokemonMap = {
+        pre_gym: this.questData.pokemon.pre_gym_1,
+        gym_1: this.questData.pokemon.gym_1_2,
+        gym_2: this.questData.pokemon.gym_1_2.concat(this.questData.pokemon.gym_2_3),
+        gym_3: this.questData.pokemon.gym_2_3.concat(this.questData.pokemon.gym_3_4),
+        gym_4: this.questData.pokemon.gym_3_4.concat(this.questData.pokemon.gym_4_5),
+        gym_5: this.questData.pokemon.gym_4_5.concat(this.questData.pokemon.gym_5_6),
+        gym_6: this.questData.pokemon.gym_5_6.concat(this.questData.pokemon.gym_6_7),
+        gym_7: this.questData.pokemon.gym_6_7.concat(this.questData.pokemon.gym_7_8),
+        gym_8: this.questData.pokemon.gym_7_8,
+        elite_four: this.questData.pokemon.post_game,
+        post_game: this.questData.pokemon.post_game
+    }
+    
+    return progressionPokemonMap[progression] || this.questData.pokemon.pre_gym_1
+}
+
+getAmountForProgression(progression) {
+    const progressionAmountMap = {
+        pre_gym: this.getRandomInt(2, 4),
+        gym_1: this.getRandomInt(3, 5),
+        gym_2: this.getRandomInt(4, 6),
+        gym_3: this.getRandomInt(5, 7),
+        gym_4: this.getRandomInt(6, 8),
+        gym_5: this.getRandomInt(7, 10),
+        gym_6: this.getRandomInt(8, 12),
+        gym_7: this.getRandomInt(10, 15),
+        gym_8: this.getRandomInt(12, 18),
+        elite_four: this.getRandomInt(15, 25),
+        post_game: this.getRandomInt(20, 30)
+    }
+    
+    return progressionAmountMap[progression] || this.getRandomInt(2, 5)
+}
+    
+   generateContextualDialogues(personality, questType, progression) {
+    const templates = this.questData.dialogueTemplates[personality] || this.questData.dialogueTemplates.scientist
+    
+    // Enhance dialogues with quest-specific context
+    const contextualOffers = [...templates.offer]
+    const contextualProgress = [...templates.progress]
+    const contextualComplete = [...templates.complete]
+
+    // Add progression-specific dialogue variations
+    const gymInfo = this.questData.gymProgression[progression]
+    if (gymInfo && gymInfo.leader) {
+        const progressionSpecificLines = {
+            offer: `Après avoir affronté ${gymInfo.leader}, cette tâche devrait être à votre niveau.`,
+            progress: `Votre expérience avec le type ${gymInfo.type} vous sera utile pour cette mission.`,
+            complete: `Excellent ! Vous avez prouvé que vous méritez votre ${gymInfo.badge} !`
+        }
+        
+        contextualOffers.push(progressionSpecificLines.offer)
+        contextualProgress.push(progressionSpecificLines.progress)
+        contextualComplete.push(progressionSpecificLines.complete)
+    }
+
+    return {
+        questOffer: contextualOffers,
+        questInProgress: contextualProgress,
+        questComplete: contextualComplete
+    }
+}
+
+generateAdvancedQuestSteps(questType, stepCount, npcs, progression, preferences) {
         const steps = []
         
         for (let i = 0; i < stepCount; i++) {
             const stepId = `step_${i + 1}`
             const stepName = this.generateAdvancedStepName(questType, i + 1, stepCount)
-            const stepDescription = this.generateAdvancedStepDescription(questType, i + 1, stepCount, difficulty)
-            const objectives = this.generateAdvancedObjectives(questType, npcs[Math.min(i, npcs.length - 1)], difficulty, i + 1, stepCount)
-            const rewards = this.generateAdvancedRewards(difficulty, i + 1, stepCount, preferences.randomRewards)
+const stepDescription = this.generateAdvancedStepDescription(questType, i + 1, stepCount, progression)
+const objectives = this.generateAdvancedObjectives(questType, npcs[Math.min(i, npcs.length - 1)], progression, i + 1, stepCount)
+const rewards = this.generateAdvancedRewards(progression, i + 1, stepCount, preferences.randomRewards)
 
             steps.push({
                 id: stepId,
@@ -983,8 +1054,7 @@ progression: document.getElementById('genProgression')?.value || 'random',
         return names[Math.min(stepNumber - 1, names.length - 1)]
     }
 
-    generateAdvancedStepDescription(questType, stepNumber, totalSteps, difficulty) {
-        const intensity = {
+generateAdvancedStepDescription(questType, stepNumber, totalSteps, progression) {        const intensity = {
             easy: 'straightforward',
             medium: 'challenging',
             hard: 'demanding',
@@ -1000,8 +1070,8 @@ progression: document.getElementById('genProgression')?.value || 'random',
         }
     }
 
-    generateAdvancedObjectives(questType, npc, difficulty, stepNumber, totalSteps) {
-        const objectiveId = `obj_${Math.random().toString(36).substring(2, 8)}`
+generateAdvancedObjectives(questType, npc, progression, stepNumber, totalSteps) {
+    const objectiveId = `obj_${Math.random().toString(36).substring(2, 8)}`
         
         switch (questType) {
             case 'collect':
