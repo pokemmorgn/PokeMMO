@@ -606,34 +606,28 @@ private async applyAIRecommendations(playerId: string, analysis: CompletePlayerA
   /**
  * Helper pour tracker une action de joueur avec l'IA
  */
-    private trackPlayerActionWithAI(
-      sessionId: string,               // ✅ Clarifier : sessionId en paramètre
-      actionType: ActionType,
-      actionData: any = {},
-      context?: { location?: { map: string; x: number; y: number } }
-    ): void {
-      if (!this.aiSystemInitialized) return;
-      
-      try {
-        // ✅ NOUVEAU : Récupérer userId depuis JWT
-        const userId = this.jwtManager.getUserId(sessionId);
-        if (!userId) {
-          console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : userId introuvable pour session ${sessionId}`);
-          return;
-        }
-        
-        // ✅ Utiliser l'API de tracking avec userId
-        trackPlayerAction(userId, actionType, actionData, context);
-        this.aiStats.actionsTracked++;
-        
-        // Log occasionnel pour debug
-        if (this.aiStats.actionsTracked % 50 === 0) {
-          console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées`);
-        }
-      } catch (error) {
-        console.error(`❌ [AI] Erreur tracking action:`, error);
-      }
+private trackPlayerActionWithAI(
+  sessionId: string,
+  actionType: ActionType,
+  actionData: any = {},
+  context?: { location?: { map: string; x: number; y: number } }
+): void {
+  if (!this.aiSystemInitialized) return;
+  
+  try {
+    const player = this.state.players.get(sessionId);
+    if (!player || !player.name) {
+      console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : joueur introuvable pour session ${sessionId}`);
+      return;
     }
+    
+    // ✅ UTILISER USERNAME comme identifiant stable
+    trackPlayerAction(player.name, actionType, actionData, context);
+    this.aiStats.actionsTracked++;
+  } catch (error) {
+    console.error(`❌ [AI] Erreur tracking action:`, error);
+  }
+}
   
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
@@ -2348,7 +2342,7 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
         const userId = this.jwtManager.getUserId(client.sessionId);
         if (userId) {
           this.actionTracker.registerPlayer(
-            userId,                      // ✅ userId stable du JWT
+            player.name,                    // ✅ userId stable du JWT
             player.name,
             `session_${Date.now()}`,
             { map: player.currentZone, x: player.x, y: player.y },
