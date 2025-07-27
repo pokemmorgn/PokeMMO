@@ -307,6 +307,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
       const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
       const npcId = request.data?.npcId;
 
+          // 🔍 DEBUG COMPLET REQUÊTE
+    console.log("🔍 [DEBUG] === ANALYSE COMPLÈTE REQUÊTE ===");
+    console.log("🔍 [DEBUG] request.data COMPLET:", JSON.stringify(request.data, null, 2));
+    console.log("🔍 [DEBUG] Toutes les clés de request.data:", Object.keys(request.data || {}));
+    console.log("🔍 [DEBUG] request.data?.playerLanguage DIRECT:", request.data?.playerLanguage);
+    console.log("🔍 [DEBUG] Type:", typeof request.data?.playerLanguage);
+    console.log("🔍 [DEBUG] =====================================");
+      
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
