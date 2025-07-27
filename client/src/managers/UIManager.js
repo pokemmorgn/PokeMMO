@@ -826,110 +826,129 @@ export class UIManager {
   }
 
   // ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
-  positionIcon(moduleId) {
-    // ✅ AJOUT : Synchroniser avant positionnement
-    this.synchronizeElementReferences();
-    
+// ✅ FIX CRITIQUE : Position avec synchronisation, calcul corrigé et offset intelligent
+positionIcon(moduleId) {
+  // ✅ CONDITION SPÉCIALE WEATHER - AVANT tout le reste
+  if (moduleId.includes('timeWeather') || moduleId.includes('Weather')) {
     const iconConfig = this.registeredIcons.get(moduleId);
-    if (!iconConfig || !iconConfig.element) {
-      console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
-      return;
-    }
-
-    const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
-    const memberIndex = group.members.indexOf(moduleId);
-    
-    if (memberIndex === -1) {
-      console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
-      return;
-    }
-
-    let baseX, baseY;
-    const padding = this.iconConfig.padding;
-    const globalOffset = this.iconConfig.globalOffset || 0;
-    
-    // ✅ NOUVEAU : Gestion intelligente des modules isolés (weather, etc.)
-    const isIsolatedModule = this.isIsolatedModule(moduleId, iconConfig);
-    
-    if (isIsolatedModule) {
-      // ✅ Position intelligente pour modules isolés
-      const intelligentPosition = this.calculateIntelligentPosition(moduleId, iconConfig);
-      
+    if (iconConfig && iconConfig.element) {
       iconConfig.element.style.position = 'fixed';
-      iconConfig.element.style.left = `${intelligentPosition.x}px`;
-      iconConfig.element.style.top = `${intelligentPosition.y}px`;
-      iconConfig.element.style.right = '';
-      iconConfig.element.style.bottom = '';
+      iconConfig.element.style.left = '10px';     // Gauche de la fenêtre
+      iconConfig.element.style.top = '20px';      // Haut de la fenêtre
       iconConfig.element.style.zIndex = this.iconConfig.zIndex;
-      iconConfig.element.setAttribute('data-positioned-by', 'uimanager-intelligent');
+      iconConfig.element.setAttribute('data-positioned-by', 'uimanager-outside-left');
       
       if (this.debug) {
-        console.log(`🧠 [UIManager] ${moduleId} positionné intelligemment à (${intelligentPosition.x}, ${intelligentPosition.y}) - offset: ${intelligentPosition.offset}px`);
+        console.log(`🌤️ [UIManager] ${moduleId} positionné EN DEHORS du canvas à gauche`);
       }
-      return;
-    }
-    
-    // ✅ Position normale pour modules groupés
-    switch (iconConfig.anchor) {
-      case 'bottom-right':
-        baseX = window.innerWidth - padding - globalOffset;
-        baseY = window.innerHeight - padding;
-        break;
-      case 'bottom-left':
-        baseX = padding + globalOffset;
-        baseY = window.innerHeight - padding;
-        break;
-      case 'top-right':
-        baseX = window.innerWidth - padding - globalOffset;
-        baseY = padding + 60; // ✅ Marge haute pour éviter les barres système
-        break;
-      case 'top-left':
-        baseX = padding + globalOffset;
-        baseY = padding;
-        break;
-      default:
-        baseX = window.innerWidth - padding - globalOffset;
-        baseY = window.innerHeight - padding;
-    }
-
-    const spacing = this.iconConfig.spacing;
-    const iconWidth = iconConfig.size.width;
-    
-    // ✅ FIX CRITIQUE: Utiliser ORDER au lieu de memberIndex
-    const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
-    
-    let offsetX = 0;
-    if (iconConfig.anchor.includes('right')) {
-      // Pour *-right: chaque icône d'ordre supérieur va plus à gauche
-      offsetX = -calculatedOrder * (iconWidth + spacing) - iconWidth;
-    } else {
-      // Pour *-left: chaque icône d'ordre supérieur va plus à droite  
-      offsetX = calculatedOrder * (iconWidth + spacing);
-    }
-
-    const element = iconConfig.element;
-    const finalX = baseX + offsetX;
-    let finalY = baseY;
-    
-    // ✅ NOUVEAU : Ajustement Y selon anchor
-    if (iconConfig.anchor.startsWith('bottom')) {
-      finalY = baseY - iconConfig.size.height;
-    } else if (iconConfig.anchor.startsWith('top')) {
-      finalY = baseY; // Position directe pour top
-    }
-    
-    element.style.position = 'fixed';
-    element.style.left = `${finalX}px`;
-    element.style.top = `${finalY}px`;
-    element.style.zIndex = this.iconConfig.zIndex;
-
-    // ✅ Marquer comme positionné
-    element.setAttribute('data-positioned-by', 'uimanager');
-    
-    if (this.debug) {
-      console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${calculatedOrder}, anchor: ${iconConfig.anchor}, groupe: ${iconConfig.group}`);
+      
+      return; // ✅ SORTIR de la fonction sans passer par le switch
     }
   }
+
+  // ✅ AJOUT : Synchroniser avant positionnement
+  this.synchronizeElementReferences();
+  
+  const iconConfig = this.registeredIcons.get(moduleId);
+  if (!iconConfig || !iconConfig.element) {
+    console.warn(`⚠️ [UIManager] Pas de config pour ${moduleId}`);
+    return;
+  }
+
+  const group = this.iconGroups.get(iconConfig.group) || this.iconGroups.get('ui-icons');
+  const memberIndex = group.members.indexOf(moduleId);
+  
+  if (memberIndex === -1) {
+    console.warn(`⚠️ [UIManager] ${moduleId} pas dans le groupe ${iconConfig.group}`);
+    return;
+  }
+
+  let baseX, baseY;
+  const padding = this.iconConfig.padding;
+  const globalOffset = this.iconConfig.globalOffset || 0;
+  
+  // ✅ NOUVEAU : Gestion intelligente des modules isolés (weather, etc.)
+  const isIsolatedModule = this.isIsolatedModule(moduleId, iconConfig);
+  
+  if (isIsolatedModule) {
+    // ✅ Position intelligente pour modules isolés
+    const intelligentPosition = this.calculateIntelligentPosition(moduleId, iconConfig);
+    
+    iconConfig.element.style.position = 'fixed';
+    iconConfig.element.style.left = `${intelligentPosition.x}px`;
+    iconConfig.element.style.top = `${intelligentPosition.y}px`;
+    iconConfig.element.style.right = '';
+    iconConfig.element.style.bottom = '';
+    iconConfig.element.style.zIndex = this.iconConfig.zIndex;
+    iconConfig.element.setAttribute('data-positioned-by', 'uimanager-intelligent');
+    
+    if (this.debug) {
+      console.log(`🧠 [UIManager] ${moduleId} positionné intelligemment à (${intelligentPosition.x}, ${intelligentPosition.y}) - offset: ${intelligentPosition.offset}px`);
+    }
+    return;
+  }
+  
+  // ✅ Position normale pour modules groupés
+  switch (iconConfig.anchor) {
+    case 'bottom-right':
+      baseX = window.innerWidth - padding - globalOffset;
+      baseY = window.innerHeight - padding;
+      break;
+    case 'bottom-left':
+      baseX = padding + globalOffset;
+      baseY = window.innerHeight - padding;
+      break;
+    case 'top-right':
+      baseX = window.innerWidth - padding - globalOffset;
+      baseY = padding + 60; // ✅ Marge haute pour éviter les barres système
+      break;
+    case 'top-left':
+      baseX = padding + globalOffset;
+      baseY = padding;
+      break;
+    default:
+      baseX = window.innerWidth - padding - globalOffset;
+      baseY = window.innerHeight - padding;
+  }
+
+  const spacing = this.iconConfig.spacing;
+  const iconWidth = iconConfig.size.width;
+  
+  // ✅ FIX CRITIQUE: Utiliser ORDER au lieu de memberIndex
+  const calculatedOrder = iconConfig.order !== undefined ? iconConfig.order : memberIndex;
+  
+  let offsetX = 0;
+  if (iconConfig.anchor.includes('right')) {
+    // Pour *-right: chaque icône d'ordre supérieur va plus à gauche
+    offsetX = -calculatedOrder * (iconWidth + spacing) - iconWidth;
+  } else {
+    // Pour *-left: chaque icône d'ordre supérieur va plus à droite  
+    offsetX = calculatedOrder * (iconWidth + spacing);
+  }
+
+  const element = iconConfig.element;
+  const finalX = baseX + offsetX;
+  let finalY = baseY;
+  
+  // ✅ NOUVEAU : Ajustement Y selon anchor
+  if (iconConfig.anchor.startsWith('bottom')) {
+    finalY = baseY - iconConfig.size.height;
+  } else if (iconConfig.anchor.startsWith('top')) {
+    finalY = baseY; // Position directe pour top
+  }
+  
+  element.style.position = 'fixed';
+  element.style.left = `${finalX}px`;
+  element.style.top = `${finalY}px`;
+  element.style.zIndex = this.iconConfig.zIndex;
+
+  // ✅ Marquer comme positionné
+  element.setAttribute('data-positioned-by', 'uimanager');
+  
+  if (this.debug) {
+    console.log(`📍 [UIManager] ${moduleId} positionné CORRECTEMENT à (${finalX}, ${finalY}) - ordre: ${calculatedOrder}, anchor: ${iconConfig.anchor}, groupe: ${iconConfig.group}`);
+  }
+}
   
   // ✅ NOUVEAU : Déterminer si un module doit être positionné de façon isolée
   isIsolatedModule(moduleId, iconConfig) {
