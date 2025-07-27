@@ -2250,6 +2250,26 @@ async onLeave(client: Client, consented: boolean) {
     console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
     
+    // ✅ TRACKING IA: Déconnexion du joueur
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.SESSION_END,
+      {
+        playerName: player.name,
+        level: player.level,
+        gold: player.gold,
+        finalZone: player.currentZone,
+        consented: consented
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+    
     // ✅ NOUVEAU: Vérifier combat actif AVANT nettoyage JWT
     const userId = this.jwtManager.getUserId(client.sessionId);
     const hasActiveBattle = userId ? this.jwtManager.hasActiveBattle(userId) : false;
