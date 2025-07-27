@@ -13,47 +13,24 @@ export class ShopEditorModule {
         console.log('🏪 [ShopEditor] Module initialized');
     }
 
-async onTabActivated() {
-    console.log('🏪 [ShopEditor] Tab activated');
-    this.render();
-    
-    try {
-        // ✅ IMPORTANT: Charger les zones en PREMIER
-        await this.loadZonesList();
-        
-        // Puis charger le reste des données
-        await Promise.all([
-            this.loadAllItems(),
-            this.loadShopsStats()
-        ]);
-        
-        console.log('✅ [ShopEditor] Initial data loading completed');
-    } catch (error) {
-        console.error('❌ [ShopEditor] Error in onTabActivated:', error);
-        this.adminPanel.showNotification('Erreur lors du chargement initial', 'error');
+    onTabActivated() {
+        console.log('🏪 [ShopEditor] Tab activated');
+        this.render();
+        this.loadInitialData();
     }
-}
 
-
-  async loadInitialData() {
-    try {
-        console.log('🏪 [ShopEditor] Loading initial data...');
-        
-        // Charger les zones en premier (obligatoire)
-        await this.loadZonesList();
-        
-        // Puis charger le reste en parallèle
-        await Promise.all([
-            this.loadAllItems(),
-            this.loadShopsStats()
-        ]);
-        
-        console.log('✅ [ShopEditor] All initial data loaded successfully');
-    } catch (error) {
-        console.error('❌ [ShopEditor] Error loading initial data:', error);
-        this.adminPanel.showNotification('Erreur lors du chargement initial', 'error');
+    async loadInitialData() {
+        try {
+            await Promise.all([
+                this.loadAllItems(),
+                this.loadShopsStats(),
+                this.loadZonesList()
+            ]);
+        } catch (error) {
+            console.error('❌ [ShopEditor] Error loading initial data:', error);
+            this.adminPanel.showNotification('Erreur lors du chargement initial', 'error');
+        }
     }
-}
 
     async loadAllItems() {
         try {
@@ -77,31 +54,18 @@ async onTabActivated() {
 
     async loadZonesList() {
     try {
-        console.log('🗺️ [ShopEditor] Loading zones list...');
-        
         const response = await this.adminPanel.apiCall('/maps/list');
-        console.log('🗺️ [ShopEditor] Zones response:', response);
-        
-        // ✅ CORRECTION: Vérifier la structure de réponse correcte
+        // ✅ CORRECTION ICI :
         if (response && response.success && response.maps) {
-            // Extraire les IDs des zones depuis la réponse
             this.zones = response.maps.map(map => map.id);
-            console.log('✅ [ShopEditor] Zones loaded from API:', this.zones);
         } else {
-            console.warn('⚠️ [ShopEditor] Invalid zones response, using fallback');
-            // Zones par défaut en cas d'échec
             this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
         }
-        
-        // Mettre à jour le sélecteur de zones après chargement
-        this.populateZoneSelect();
-        
     } catch (error) {
         console.error('❌ [ShopEditor] Error loading zones:', error);
-        // Zones par défaut en cas d'erreur
         this.zones = ['village', 'city', 'forest', 'cave', 'beach'];
-        this.populateZoneSelect();
     }
+}
 
     render() {
         const container = document.getElementById('shops');
@@ -245,30 +209,23 @@ async onTabActivated() {
         zoneSelect.value = currentValue;
     }
 
-   populateZoneSelect() {
-    const zoneSelect = document.getElementById('shopsZoneSelect'); // ✅ ID correct
-    if (!zoneSelect || !this.zones) {
-        console.warn('⚠️ [ShopEditor] Zone select element or zones not found');
-        return;
+    populateZoneSelect() {
+        const zoneSelect = document.getElementById('zoneSelect');
+        if (!zoneSelect || !this.zones) return;
+
+        // Garder l'option "Toutes les zones"
+        const currentValue = zoneSelect.value;
+        zoneSelect.innerHTML = '<option value="">Toutes les zones</option>';
+        
+        this.zones.forEach(zone => {
+            const option = document.createElement('option');
+            option.value = zone;
+            option.textContent = this.formatZoneName(zone);
+            zoneSelect.appendChild(option);
+        });
+
+        zoneSelect.value = currentValue;
     }
-
-    // Garder l'option "Toutes les zones"
-    const currentValue = zoneSelect.value;
-    zoneSelect.innerHTML = '<option value="">Toutes les zones</option>';
-    
-    this.zones.forEach(zone => {
-        const option = document.createElement('option');
-        option.value = zone;
-        option.textContent = this.formatZoneName(zone);
-        zoneSelect.appendChild(option);
-    });
-
-    // Restaurer la valeur sélectionnée
-    zoneSelect.value = currentValue;
-    
-    console.log(`✅ [ShopEditor] Zone select populated with ${this.zones.length} zones`);
-}
-
 
     formatZoneName(zone) {
         return zone.replace(/([A-Z])/g, ' $1')
@@ -538,45 +495,46 @@ async onTabActivated() {
         ).join('');
     }
 
-renderLocationSection() {
-    const shop = this.currentShop;
-    const location = shop.location || {};
-    
-    return `
-        <div class="shops-form-section">
-            <div class="shops-section-header" onclick="this.parentElement.querySelector('.shops-section-content').classList.toggle('shops-section-active')">
-                <h4 class="shops-section-title">📍 Localisation</h4>
-                <span class="shops-section-toggle">▼</span>
-            </div>
-            <div class="shops-section-content">
-                <div class="shops-fields-grid">
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Zone <span class="shops-field-required">*</span></label>
-                        <select class="shops-form-select" id="shopsShopZone">
-                            <option value="">Sélectionner une zone</option>
-                            ${this.zones ? this.zones.map(zone => 
-                                `<option value="${zone}" ${location.zone === zone ? 'selected' : ''}>${this.formatZoneName(zone)}</option>`
-                            ).join('') : '<option value="">Chargement des zones...</option>'}
-                        </select>
-                        <div class="shops-field-help">Zone/carte où se trouve la boutique</div>
-                    </div>
-                    
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Ville</label>
-                        <input type="text" class="shops-form-input" id="shopsShopCity" value="${location.city || ''}">
-                        <div class="shops-field-help">Nom de la ville</div>
-                    </div>
-                    
-                    <div class="shops-form-field">
-                        <label class="shops-field-label">Bâtiment</label>
-                        <input type="text" class="shops-form-input" id="shopsShopBuilding" value="${location.building || ''}">
-                        <div class="shops-field-help">Nom du bâtiment</div>
+    renderLocationSection() {
+        const shop = this.currentShop;
+        const location = shop.location || {};
+        
+        return `
+            <div class="form-section">
+                <div class="section-header" onclick="this.parentElement.querySelector('.section-content').classList.toggle('active')">
+                    <h4>📍 Localisation</h4>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="fields-grid">
+                        <div class="form-field">
+                            <label class="field-label">Zone <span class="required">*</span></label>
+                            <select class="form-select" id="shopZone">
+                                <option value="">Sélectionner une zone</option>
+                                ${this.zones.map(zone => 
+                                    `<option value="${zone}" ${location.zone === zone ? 'selected' : ''}>${this.formatZoneName(zone)}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="field-help">Zone/carte où se trouve la boutique</div>
+                        </div>
+                        
+                        <div class="form-field">
+                            <label class="field-label">Ville</label>
+                            <input type="text" class="form-input" id="shopCity" value="${location.city || ''}">
+                            <div class="field-help">Nom de la ville</div>
+                        </div>
+                        
+                        <div class="form-field">
+                            <label class="field-label">Bâtiment</label>
+                            <input type="text" class="form-input" id="shopBuilding" value="${location.building || ''}">
+                            <div class="field-help">Nom du bâtiment</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-}
+        `;
+    }
+
     renderCommercialSection() {
         const shop = this.currentShop;
         
@@ -1092,25 +1050,25 @@ renderLocationSection() {
         }
     }
 
-collectFormData() {
-    const data = {
-        shopId: document.getElementById('shopsShopId')?.value || '',
-        name: document.getElementById('shopsShopName')?.value || '',
-        type: document.getElementById('shopsShopType')?.value || 'pokemart',
-        region: document.getElementById('shopsShopRegion')?.value || '',
-        location: {
-            zone: document.getElementById('shopsShopZone')?.value || '', // ✅ ID correct
-            city: document.getElementById('shopsShopCity')?.value || '',
-            building: document.getElementById('shopsShopBuilding')?.value || ''
-        },
-        currency: document.getElementById('shopsShopCurrency')?.value || 'gold',
-        buyMultiplier: parseFloat(document.getElementById('shopsShopBuyMultiplier')?.value) || 1.0,
-        sellMultiplier: parseFloat(document.getElementById('shopsShopSellMultiplier')?.value) || 0.5,
-        taxRate: parseFloat(document.getElementById('shopsShopTaxRate')?.value) || 0,
-        isActive: document.getElementById('shopsShopIsActive')?.checked !== false,
-        isTemporary: document.getElementById('shopsShopIsTemporary')?.checked || false,
-        items: this.currentShop?.items || []
-    };
+    collectFormData() {
+        const data = {
+            shopId: document.getElementById('shopsShopId')?.value || '',
+            name: document.getElementById('shopsShopName')?.value || '',
+            type: document.getElementById('shopsShopType')?.value || 'pokemart',
+            region: document.getElementById('shopsShopRegion')?.value || '',
+            location: {
+                zone: document.getElementById('shopsShopZone')?.value || '',
+                city: document.getElementById('shopsShopCity')?.value || '',
+                building: document.getElementById('shopsShopBuilding')?.value || ''
+            },
+            currency: document.getElementById('shopsShopCurrency')?.value || 'gold',
+            buyMultiplier: parseFloat(document.getElementById('shopsShopBuyMultiplier')?.value) || 1.0,
+            sellMultiplier: parseFloat(document.getElementById('shopsShopSellMultiplier')?.value) || 0.5,
+            taxRate: parseFloat(document.getElementById('shopsShopTaxRate')?.value) || 0,
+            isActive: document.getElementById('shopsShopIsActive')?.checked !== false,
+            isTemporary: document.getElementById('shopsShopIsTemporary')?.checked || false,
+            items: this.currentShop?.items || []
+        };
         
         // Marchand
         const keeperNpcId = document.getElementById('shopsKeeperNpcId')?.value;
