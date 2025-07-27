@@ -1076,38 +1076,90 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Interaction avec NPC
-// ✅ NOUVEAU : Interaction avec NPC via système intégré
-    this.onMessage("npcInteract", async (client, data) => {
-      console.log(`💬 === NPC INTERACTION REQUEST (SYSTÈME INTÉGRÉ) ===`);
-      console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
-      
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
-        client.send("npcInteractionResult", {
-          success: false,
-          type: "error",
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      try {
-        // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
-        const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
-        
-        console.log(`📤 Envoi résultat: ${result.type}`);
-        client.send("npcInteractionResult", result);
-        
-      } catch (error) {
-        console.error(`❌ Erreur interaction NPC:`, error);
-        client.send("npcInteractionResult", {
-          success: false,
-          type: "error",
-          message: "Erreur lors de l'interaction"
-        });
-      }
+// ✅ NOUVEAU : Interaction avec NPC INTELLIGENTE via IA
+this.onMessage("npcInteract", async (client, data) => {
+  console.log(`🤖 === NPC INTERACTION INTELLIGENTE ===`);
+  console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
+    client.send("npcInteractionResult", {
+      success: false,
+      type: "error",
+      message: "Joueur non trouvé"
     });
+    return;
+  }
+
+  try {
+    // ✅ TRACKING IA: Interaction avec NPC
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.NPC_TALK,
+      {
+        npcId: data.npcId,
+        playerLevel: player.level,
+        playerGold: player.gold
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+
+    // ✅ ESSAYER D'ABORD L'INTERACTION INTELLIGENTE
+    if (this.aiSystemInitialized) {
+      try {
+        const smartResponse = await handleSmartNPCInteraction(
+          client.sessionId,
+          data.npcId,
+          'dialogue',
+          {
+            playerAction: 'interact',
+            location: { map: player.currentZone, x: player.x, y: player.y },
+            sessionData: { level: player.level, gold: player.gold }
+          }
+        );
+
+        if (smartResponse.success) {
+          console.log(`🧠 [AI] Interaction intelligente réussie avec NPC ${data.npcId}`);
+          this.aiStats.intelligentInteractions++;
+          
+          client.send("npcInteractionResult", {
+            success: true,
+            type: "smart_dialogue",
+            message: smartResponse.dialogue.message,
+            dialogue: smartResponse.dialogue,
+            actions: smartResponse.actions,
+            followUpQuestions: smartResponse.followUpQuestions,
+            metadata: smartResponse.metadata,
+            isAI: true
+          });
+          return;
+        }
+      } catch (aiError) {
+        console.warn(`⚠️ [AI] IA échouée pour NPC ${data.npcId}, fallback système classique:`, aiError);
+      }
+    }
+
+    // ✅ FALLBACK: Système classique si IA échoue
+    const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
+    console.log(`📤 Envoi résultat classique: ${result.type}`);
+    client.send("npcInteractionResult", { ...result, isAI: false });
+    
+  } catch (error) {
+    console.error(`❌ Erreur interaction NPC:`, error);
+    client.send("npcInteractionResult", {
+      success: false,
+      type: "error",
+      message: "Erreur lors de l'interaction"
+    });
+  }
+});
 
     this.onMessage("requestInitialState", (client, data: { zone: string }) => {
       console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
