@@ -287,7 +287,7 @@ if (this.intelligenceConfig.enableIntelligence) {
     const { ActionType } = await import("../../Intelligence/Core/ActionTypes");
     
     await trackPlayerAction(
-      player.name, // Utiliser le nom au lieu du sessionId
+      player.name,
       ActionType.NPC_TALK,
       {
         npcId,
@@ -295,12 +295,10 @@ if (this.intelligenceConfig.enableIntelligence) {
         playerGold: player.gold,
         zone: player.currentZone
       },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
+      { // ✅ Structure directe sans "location:"
+        map: player.currentZone, 
+        x: player.x, 
+        y: player.y 
       }
     );
       console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
