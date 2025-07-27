@@ -11,6 +11,8 @@ import {
   INTERACTION_CONFIG
 } from '../types/InteractionTypes.js';
 
+import { GetPlayerCurrentLanguage } from '../Options/OptionsManager.js';
+
 export class NpcInteractionManager {
   constructor(scene, networkInteractionHandler) {
     this.scene = scene;
@@ -452,19 +454,20 @@ export class NpcInteractionManager {
     try {
       const npcId = npc.id;
       
-      // ✅ Créer données d'interaction avec types corrects
-      const playerPosition = this.getPlayerPosition();
-      const interactionData = InteractionHelpers.createNpcInteraction(
-        npcId,
-        this.networkHandler.networkManager.sessionId,
-        this.networkHandler.networkManager.currentZone,
-        playerPosition,
-        {
-          npcName: npc.name,
-          interactionType: this.state.currentInteractionType,
-          ...options
-        }
-      );
+    // ✅ Créer données d'interaction avec types corrects + langue
+    const playerPosition = this.getPlayerPosition();
+    const interactionData = InteractionHelpers.createNpcInteraction(
+      npcId,
+      this.networkHandler.networkManager.sessionId,
+      this.networkHandler.networkManager.currentZone,
+      playerPosition,
+      {
+        npcName: npc.name,
+        interactionType: this.state.currentInteractionType,
+        playerLanguage: GetPlayerCurrentLanguage(), // ✅ NOUVEAU : Langue directement
+        ...options
+      }
+    );
       
       // ✅ Validation côté client
       const validation = InteractionValidator.validate(INTERACTION_TYPES.NPC, interactionData);
