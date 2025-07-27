@@ -1,7 +1,8 @@
 // server/src/intelligence/tracking/PlayerActionTracker.js
 
-import { ActionType, ANALYSIS_THRESHOLDS } from '../types/ActionTypes.js';
-import { PlayerData } from '../../models/PlayerData.js';
+import { ActionType, ANALYSIS_THRESHOLDS } from '../types/ActionTypes.ts';
+import { PlayerData } from '../../models/PlayerData.ts';
+import { PlayerAction } from '../../models/PlayerAction.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -119,6 +120,8 @@ export class PlayerActionTracker {
 
   // ===== CONSTRUCTION DU CONTEXTE =====
   async buildActionContext(playerId, worldRoom) {
+    const timestamp = Date.now(); // ✅ Défini ici pour éviter l'erreur
+    
     const context = {
       // Contexte temporel
       timeOfDay: this.getTimeOfDay(),
@@ -159,12 +162,17 @@ export class PlayerActionTracker {
         context.teamSize = playerData.team ? playerData.team.length : 0;
       }
       
-      // Analyser données de session pour patterns
+      // Analyser données de session pour patterns (cache + BDD)
       const sessionData = this.sessionData.get(playerId);
       if (sessionData) {
         context.recentFailures = this.countRecentFailures(sessionData.recentActions);
         context.consecutiveActions = this.countConsecutiveActions(sessionData.recentActions);
         context.idleTime = timestamp - (sessionData.lastActionTime || timestamp);
+      } else {
+        // Si pas de session active, lire depuis la BDD
+        context.recentFailures = await this.countRecentFailuresFromDB(playerId);
+        context.consecutiveActions = 1; // Par défaut
+        context.idleTime = 0;
       }
       
     } catch (error) {
@@ -326,30 +334,24 @@ export class PlayerActionTracker {
 
   async savePlayerActions(playerId, actions) {
     try {
-      // Pour l'instant, on utilise la collection PlayerData existante
-      // Plus tard, on créera une collection player_actions dédiée
+      // ✅ Utiliser le nouveau modèle PlayerAction dédié
+      const actionDocuments = actions.map(action => new PlayerAction({
+        playerId: action.playerId,
+        sessionId: action.sessionId,
+        actionType: action.actionType,
+        timestamp: action.timestamp,
+        data: action.data,
+        context: action.context,
+        metadata: action.metadata
+      }));
       
-      const playerData = await PlayerData.findOne({ username: playerId });
-      if (!playerData) {
-        console.warn(`⚠️ Joueur ${playerId} non trouvé pour sauvegarde actions`);
-        return false;
-      }
+      // Sauvegarde en batch pour optimiser les performances
+      await PlayerAction.insertMany(actionDocuments, { 
+        ordered: false, // Continue même si certaines échouent
+        lean: true      // Plus rapide
+      });
       
-      // Créer un champ temporaire pour stocker les actions
-      // (En attendant la création de la table player_actions dédiée)
-      if (!playerData.recentActions) {
-        playerData.recentActions = [];
-      }
-      
-      // Ajouter les nouvelles actions
-      playerData.recentActions.push(...actions);
-      
-      // Garder seulement les 100 dernières actions pour éviter de surcharger
-      if (playerData.recentActions.length > 100) {
-        playerData.recentActions = playerData.recentActions.slice(-100);
-      }
-      
-      await playerData.save();
+      console.log(`💾 ${actionDocuments.length} actions sauvées pour ${playerId}`);
       return true;
       
     } catch (error) {
@@ -358,7 +360,65 @@ export class PlayerActionTracker {
     }
   }
 
-  // ===== UTILITAIRES =====
+  // ===== LECTURE D'HISTORIQUE DEPUIS PlayerAction =====
+  
+  /**
+   * Récupérer les actions récentes d'un joueur depuis la BDD
+   */
+  async getRecentActions(playerId, limit = 20) {
+    try {
+      return await PlayerAction.getRecentActions(playerId, limit);
+    } catch (error) {
+      console.warn(`⚠️ Erreur lecture actions récentes pour ${playerId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Analyser les échecs récents d'un joueur
+   */
+  async countRecentFailuresFromDB(playerId) {
+    try {
+      const tenMinutesAgo = Date.now() - 600000; // 10 minutes
+      const recentActions = await PlayerAction.find({
+        playerId,
+        timestamp: { $gte: tenMinutesAgo },
+        'data.success': false
+      }).countDocuments();
+      
+      return recentActions;
+    } catch (error) {
+      console.warn(`⚠️ Erreur comptage échecs pour ${playerId}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Analyser les actions consécutives d'un joueur
+   */
+  async countConsecutiveActionsFromDB(playerId, actionType) {
+    try {
+      const recentActions = await PlayerAction.find({
+        playerId,
+        actionType
+      }).sort({ timestamp: -1 }).limit(10).lean();
+      
+      // Compter les actions consécutives du même type
+      let count = 0;
+      for (const action of recentActions) {
+        if (action.actionType === actionType) {
+          count++;
+        } else {
+          break;
+        }
+      }
+      
+      return count;
+    } catch (error) {
+      console.warn(`⚠️ Erreur analyse actions consécutives pour ${playerId}:`, error);
+      return 1;
+    }
+  }
   validateInput(playerId, actionType) {
     return playerId && 
            typeof playerId === 'string' && 
