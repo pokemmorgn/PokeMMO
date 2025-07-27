@@ -1,5 +1,5 @@
 // client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
-// ✅ Version CONSERVATRICE - Fix MINIMAL seulement pour Quest
+// ✅ Version CONSERVATRICE avec module Options intégré
 
 import { UIManager } from './managers/UIManager.js';
 
@@ -41,45 +41,45 @@ const UI_CONFIG = {
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
 exploration: {
-  visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
-  enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker'],
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker', 'options'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker', 'options'],
   hiddenModules: [],
   disabledModules: [],
   responsive: {
     mobile: { 
       hiddenModules: ['questTracker'], 
-      visibleModules: ['inventory', 'quest', 'pokedex', 'team']
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'options']
     },
     tablet: { 
-      visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker']
+      visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'questTracker', 'options']
     }
   }
 },
   
 battle: {
-  visibleModules: [],
-  enabledModules: [],
+  visibleModules: ['options'],
+  enabledModules: ['options'],
   hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'],
   disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex']
 },
   
 pokemonCenter: {
-  visibleModules: ['team', 'inventory', 'pokedex'],
-  enabledModules: ['team', 'inventory', 'pokedex'],
+  visibleModules: ['team', 'inventory', 'pokedex', 'options'],
+  enabledModules: ['team', 'inventory', 'pokedex', 'options'],
   hiddenModules: ['questTracker'],
   disabledModules: ['quest']
 },
   
   dialogue: {
-    visibleModules: ['inventory', 'team', 'quest'],
-    enabledModules: [],
+    visibleModules: ['inventory', 'team', 'quest', 'options'],
+    enabledModules: ['options'],
     hiddenModules: ['questTracker'],
     disabledModules: ['inventory', 'team', 'quest']
   },
   
 menu: {
-  visibleModules: ['inventory', 'quest', 'pokedex', 'team'],
-  enabledModules: ['inventory', 'quest', 'pokedex', 'team'],
+  visibleModules: ['inventory', 'quest', 'pokedex', 'team', 'options'],
+  enabledModules: ['inventory', 'quest', 'pokedex', 'team', 'options'],
   hiddenModules: ['questTracker'],
   disabledModules: []
 }
@@ -96,6 +96,16 @@ const POKEMON_UI_GROUPS = {
       order: ['inventory', 'quest', 'pokedex', 'team']
     },
     priority: 100
+  },
+  'ui-options': {
+    modules: ['options'],
+    layout: {
+      type: 'horizontal',
+      anchor: 'top-right',
+      spacing: 10,
+      order: ['options']
+    },
+    priority: 1000
   },
   'panels': {
     modules: ['questTracker'],
@@ -176,14 +186,16 @@ export class PokemonUISystem {
         this.currentGameState = stateName;
         
         const iconsSelectors = [
-          '#inventory-icon', '#team-icon', '#quest-icon', 
+          '#inventory-icon', '#team-icon', '#quest-icon', '#options-icon',
           '.ui-icon', '#questTracker'
         ];
         
         if (stateName === 'battle') {
           iconsSelectors.forEach(selector => {
             document.querySelectorAll(selector).forEach(el => {
-              el.style.display = 'none';
+              if (!el.id.includes('options')) { // Garder Options visible en battle
+                el.style.display = 'none';
+              }
             });
           });
         } else if (stateName === 'exploration') {
@@ -231,9 +243,38 @@ export class PokemonUISystem {
     }
   }
 
-  // === ENREGISTREMENT MODULES CORRIGÉ ===
+  // === ENREGISTREMENT MODULES AVEC OPTIONS ===
   async registerAllModules() {
     const moduleConfigs = [
+      // ✅ NOUVEAU : Module Options en premier (priorité maximale)
+      {
+        id: 'options',
+        critical: false,
+        factory: this.createOptionsModule.bind(this),
+        groups: ['ui-options'],
+        layout: {
+          type: 'icon',
+          anchor: 'top-right',
+          order: 0, // Premier en haut à droite
+          spacing: 10
+        },
+        priority: 1000, // Priorité maximale
+        defaultState: {
+          visible: true,  // Icône visible
+          enabled: true,
+          initialized: false
+        },
+        keyboardShortcut: 'Escape',
+        singleton: true,
+        metadata: {
+          name: 'Options & Settings',
+          description: 'Game options: volume, language, and settings management',
+          version: '1.0.0',
+          category: 'Settings'
+        }
+      },
+      
+      // Modules existants (ordre inchangé)
       {
         id: 'inventory',
         critical: true,
@@ -242,7 +283,7 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 0, // ✅ Position 1 (à gauche)
+          order: 0, // Position 1 (à gauche)
           spacing: 10
         },
         priority: 100,
@@ -266,13 +307,12 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 1, // ✅ Position 2
+          order: 1, // Position 2
           spacing: 10
         },
         priority: 90,
-        // ✅ FIX PRINCIPAL: Journal fermé par défaut !
         defaultState: {
-          visible: false, // ✅ CORRECTION JOURNAL FERMÉ
+          visible: false, // Journal fermé par défaut
           enabled: true,
           initialized: false
         },
@@ -291,7 +331,7 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 2, // ✅ Position 3
+          order: 2, // Position 3
           spacing: 10
         },
         priority: 85,
@@ -320,7 +360,7 @@ export class PokemonUISystem {
         layout: {
           type: 'icon',
           anchor: 'bottom-right',
-          order: 3, // ✅ FIX ORDRE: Position 4 (à droite)
+          order: 3, // Position 4 (à droite)
           spacing: 10
         },
         groups: ['ui-icons'],
@@ -375,7 +415,7 @@ export class PokemonUISystem {
         },
         priority: 80,
         defaultState: {
-          visible: false, // ✅ Masqué par défaut, géré par QuestUI
+          visible: false, // Masqué par défaut, géré par QuestUI
           enabled: true,
           initialized: false
         },
@@ -399,6 +439,63 @@ export class PokemonUISystem {
       } catch (error) {
         console.error(`❌ Erreur module '${config.id}':`, error);
       }
+    }
+  }
+
+  // === ✅ NOUVEAU : FACTORY MODULE OPTIONS ===
+  async createOptionsModule() {
+    try {
+      console.log('🚀 [PokemonUI] Création module Options...');
+      
+      // Import du module Options
+      const { createOptionsModule } = await import('./Options/index.js');
+      
+      const optionsModule = await createOptionsModule(
+        window.currentGameRoom,
+        window.game?.scene?.getScenes(true)[0]
+      );
+      
+      if (!optionsModule) {
+        throw new Error('Échec création OptionsModule');
+      }
+      
+      console.log('✅ [PokemonUI] OptionsModule créé avec succès');
+      
+      // Connexion UIManager si disponible
+      if (this.uiManager && optionsModule.connectUIManager) {
+        const connected = optionsModule.connectUIManager(this.uiManager);
+        console.log(`🔗 [PokemonUI] UIManager connexion Options: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
+      }
+      
+      // ✅ S'assurer que l'interface est fermée par défaut
+      if (optionsModule.forceCloseUI) {
+        optionsModule.forceCloseUI();
+      }
+      
+      // Exposer globalement
+      window.optionsSystem = optionsModule;
+      window.optionsSystemGlobal = optionsModule;
+      window.toggleOptions = () => optionsModule.toggleUI?.() || optionsModule.toggle?.();
+      window.openOptions = () => optionsModule.open?.();
+      window.closeOptions = () => optionsModule.close?.();
+      window.forceCloseOptions = () => optionsModule.forceCloseUI?.() || optionsModule.close?.();
+      
+      // Vérifier que l'API globale est disponible
+      if (typeof window.GetPlayerCurrentLanguage !== 'function') {
+        console.warn('⚠️ [PokemonUI] API globale Options non disponible');
+      } else {
+        console.log('✅ [PokemonUI] API globale Options disponible:', {
+          language: window.GetPlayerCurrentLanguage(),
+          volume: window.GetPlayerCurrentVolume(),
+          muted: window.IsPlayerAudioMuted()
+        });
+      }
+      
+      return optionsModule;
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur création Options:', error);
+      return this.createEmptyWrapper('options');
     }
   }
 
@@ -971,14 +1068,17 @@ export async function createMinimalPokemonUI() {
       uiManager: {
         setGameState: (stateName, options = {}) => {
           const iconsSelectors = [
-            '#inventory-icon', '#team-icon', '#quest-icon', 
+            '#inventory-icon', '#team-icon', '#quest-icon', '#options-icon',
             '.ui-icon', '.game-icon', '#questTracker'
           ];
           
           if (stateName === 'battle') {
             iconsSelectors.forEach(selector => {
               document.querySelectorAll(selector).forEach(el => {
-                el.style.display = 'none';
+                // Garder Options visible en battle
+                if (!el.id.includes('options')) {
+                  el.style.display = 'none';
+                }
               });
             });
           } else if (stateName === 'exploration') {
@@ -1029,7 +1129,7 @@ export async function createMinimalPokemonUI() {
           initialized: true,
           mode: 'minimal-pokemon-ui',
           currentGameState: this.currentGameState,
-          compatibility: 'Basic UI state management',
+          compatibility: 'Basic UI state management with Options support',
           uiManager: this.uiManager.debugInfo()
         };
       }
@@ -1062,6 +1162,54 @@ export async function createMinimalPokemonUI() {
 
 // === FONCTIONS DE COMPATIBILITÉ ===
 function setupCompatibilityFunctions() {
+  // ✅ NOUVEAU : Fonctions Options
+  window.toggleOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.toggleUI) {
+      module.toggleUI();
+    } else if (module && module.toggle) {
+      module.toggle();
+    } else if (window.optionsSystemGlobal) {
+      window.optionsSystemGlobal.toggleUI?.() || window.optionsSystemGlobal.toggle?.();
+    }
+  };
+  
+  window.openOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.open) {
+      module.open();
+    } else if (window.optionsSystemGlobal) {
+      window.optionsSystemGlobal.open?.();
+    }
+  };
+  
+  window.closeOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.close) {
+      module.close();
+    } else if (window.optionsSystemGlobal) {
+      window.optionsSystemGlobal.close?.();
+    }
+  };
+  
+  window.forceCloseOptions = () => {
+    if (window.optionsSystemGlobal && window.optionsSystemGlobal.ui) {
+      window.optionsSystemGlobal.ui.hide();
+    }
+    
+    const optionsOverlay = document.querySelector('#options-overlay');
+    if (optionsOverlay) {
+      optionsOverlay.style.display = 'none';
+    }
+    
+    const optionsModals = document.querySelectorAll('.options-overlay, .options-modal, [id*="options-"]');
+    optionsModals.forEach(modal => {
+      if (modal.style) {
+        modal.style.display = 'none';
+      }
+    });
+  };
+  
   // Fonctions Team
   window.toggleTeam = () => {
     const module = pokemonUISystem.getModule?.('team');
@@ -1175,6 +1323,28 @@ function setupCompatibilityFunctions() {
   window.debugPokemonUI = () => {
     return pokemonUISystem.debugInfo?.() || { error: 'Debug non disponible' };
   };
+  
+  // ✅ NOUVEAU : Fonctions de test Options
+  window.testOptionsAPI = () => {
+    const tests = {
+      getCurrentLanguage: typeof window.GetPlayerCurrentLanguage === 'function',
+      getCurrentVolume: typeof window.GetPlayerCurrentVolume === 'function',
+      isAudioMuted: typeof window.IsPlayerAudioMuted === 'function',
+      optionsModule: !!pokemonUISystem.getModule?.('options'),
+      optionsSystemGlobal: !!window.optionsSystemGlobal
+    };
+    
+    if (tests.getCurrentLanguage) {
+      tests.currentValues = {
+        language: window.GetPlayerCurrentLanguage(),
+        volume: window.GetPlayerCurrentVolume(),
+        muted: window.IsPlayerAudioMuted()
+      };
+    }
+    
+    console.log('🧪 [PokemonUI] Test API Options:', tests);
+    return tests;
+  };
 }
 
 // === ÉVÉNEMENTS GLOBAUX ===
@@ -1185,6 +1355,13 @@ document.addEventListener('DOMContentLoaded', () => {
       autoInitializePokemonUI().then(result => {
         if (!result.success) {
           console.warn('⚠️ [PokemonUI] Auto-initialisation échouée');
+        } else {
+          // Tester l'API Options après initialisation
+          setTimeout(() => {
+            if (typeof window.testOptionsAPI === 'function') {
+              window.testOptionsAPI();
+            }
+          }, 1000);
         }
       });
     }
@@ -1207,9 +1384,19 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('dialogueEnded', () => {
     pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
+  
+  // ✅ NOUVEAU : Écouter les événements Options
+  window.addEventListener('languageChanged', (event) => {
+    console.log('🌐 [PokemonUI] Langue changée:', event.detail);
+  });
+  
+  window.addEventListener('volumeChanged', (event) => {
+    console.log('🔊 [PokemonUI] Volume changé:', event.detail);
+  });
 });
 
-console.log('✅ [PokemonUI] Système UI Pokémon CONSERVATEUR avec fix minimal Quest chargé');
+console.log('✅ [PokemonUI] Système UI Pokémon avec module Options intégré chargé');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('🔍 Utilisez window.debugPokemonUI() pour diagnostiquer');
+console.log('⚙️ Utilisez window.testOptionsAPI() pour tester le module Options');
