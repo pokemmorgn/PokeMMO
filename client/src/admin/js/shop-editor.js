@@ -62,7 +62,7 @@ export class ShopEditorModule {
             
             await Promise.all([
                 this.loadAllItems(),
-                this.loadShopsStats()
+                this.loadShopsStats(),
                 this.loadShops()  // ✅ Ajouter cette ligne
 
             ]);
