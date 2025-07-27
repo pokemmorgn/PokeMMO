@@ -1,5 +1,5 @@
 // src/interactions/BaseInteractionManager.ts
-// Gestionnaire de base pour toutes les interactions - Orchestrateur principal
+// Gestionnaire de base pour toutes les interactions - Orchestrateur principal + IA
 
 import { Player } from "../schema/PokeWorldState";
 import { 
@@ -22,18 +22,134 @@ import {
   GlobalModuleStats
 } from "./interfaces/InteractionModule";
 
-// ✅ REGISTRY SIMPLE DES MODULES
-class ModuleRegistry implements IModuleRegistry {
+// ✅ NOUVEAUX IMPORTS : Système d'IA
+import { 
+  getNPCIntelligenceConnector, 
+  registerNPCsWithAI,
+  NPCIntelligenceConnector 
+} from "../Intelligence/NPCSystem/NPCIntelligenceConnector";
+
+// ✅ CONFIGURATION IA ÉTENDUE
+interface AIInteractionConfig {
+  enabled: boolean;
+  enabledNPCTypes: string[];
+  enabledZones: string[];
+  fallbackToBasic: boolean;
+  analysisTimeout: number;
+  debugMode: boolean;
+}
+
+interface ExtendedInteractionConfig extends InteractionConfig {
+  // Configuration IA
+  ai?: AIInteractionConfig;
+  
+  // NPCs auto-registration
+  autoRegisterNPCs?: boolean;
+  npcDataSources?: {
+    getNpcManager?: (zoneName: string) => any;
+    npcManagers?: Map<string, any>;
+  };
+}
+
+// ✅ REGISTRY AMÉLIORÉ AVEC IA
+class AIEnhancedModuleRegistry implements IModuleRegistry {
   private modules: Map<string, IInteractionModule> = new Map();
   private config: ModulesConfiguration = {};
+  
+  // ✅ NOUVEAU : Connecteur IA
+  private intelligenceConnector: NPCIntelligenceConnector | null = null;
 
   register(module: IInteractionModule): void {
     console.log(`📦 [Registry] Enregistrement module: ${module.moduleName} v${module.version}`);
     this.modules.set(module.moduleName, module);
+    
+    // ✅ NOUVEAU : Injecter le connecteur IA dans les modules compatibles
+    if (this.intelligenceConnector && this.isAICompatibleModule(module)) {
+      this.injectAIConnector(module);
+    }
   }
 
+  // ✅ NOUVEAU : Initialisation du système IA
+  async initializeAI(config: AIInteractionConfig): Promise<void> {
+    if (!config.enabled) {
+      console.log('🤖 [Registry] IA désactivée');
+      return;
+    }
+
+    try {
+      console.log('🚀 [Registry] Initialisation système IA...');
+      
+      // Récupérer l'instance du connecteur
+      this.intelligenceConnector = getNPCIntelligenceConnector();
+      
+      // Configurer le connecteur
+      this.intelligenceConnector.updateConfig({
+        enabledNPCTypes: config.enabledNPCTypes as any[],
+        enabledZones: config.enabledZones,
+        globallyEnabled: config.enabled,
+        fallbackToBasic: config.fallbackToBasic,
+        analysisTimeout: config.analysisTimeout,
+        debugMode: config.debugMode
+      });
+
+      // Injecter dans les modules déjà enregistrés
+      for (const module of this.modules.values()) {
+        if (this.isAICompatibleModule(module)) {
+          this.injectAIConnector(module);
+        }
+      }
+
+      console.log('✅ [Registry] Système IA initialisé');
+      
+    } catch (error) {
+      console.error('❌ [Registry] Erreur initialisation IA:', error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVEAU : Enregistrement NPCs dans l'IA
+  async registerNPCsWithAI(npcs: any[]): Promise<void> {
+    if (!this.intelligenceConnector || npcs.length === 0) return;
+
+    try {
+      console.log(`🎭 [Registry] Enregistrement ${npcs.length} NPCs dans l'IA...`);
+      
+      const result = await this.intelligenceConnector.registerNPCsBulk(npcs);
+      
+      console.log(`✅ [Registry] NPCs IA: ${result.registered} enregistrés, ${result.skipped} ignorés, ${result.errors.length} erreurs`);
+      
+      if (result.errors.length > 0) {
+        console.warn('⚠️ [Registry] Erreurs enregistrement NPCs:', result.errors.slice(0, 5));
+      }
+      
+    } catch (error) {
+      console.error('❌ [Registry] Erreur enregistrement NPCs IA:', error);
+    }
+  }
+
+  // ✅ NOUVEAU : Vérification compatibilité IA
+  private isAICompatibleModule(module: IInteractionModule): boolean {
+    return module.moduleName === 'NpcInteractionModule' && 
+           typeof (module as any).setIntelligenceConnector === 'function';
+  }
+
+  // ✅ NOUVEAU : Injection du connecteur IA
+  private injectAIConnector(module: IInteractionModule): void {
+    try {
+      (module as any).setIntelligenceConnector(this.intelligenceConnector);
+      console.log(`🤖 [Registry] IA injectée dans ${module.moduleName}`);
+    } catch (error) {
+      console.warn(`⚠️ [Registry] Impossible d'injecter IA dans ${module.moduleName}:`, error);
+    }
+  }
+
+  // ✅ ACCESSEUR IA
+  getIntelligenceConnector(): NPCIntelligenceConnector | null {
+    return this.intelligenceConnector;
+  }
+
+  // === MÉTHODES EXISTANTES (inchangées) ===
   findModule(request: InteractionRequest): IInteractionModule | null {
-    // Chercher le premier module qui peut gérer cette requête
     for (const module of this.modules.values()) {
       if (this.isModuleEnabled(module.moduleName) && module.canHandle(request)) {
         return module;
@@ -67,6 +183,7 @@ class ModuleRegistry implements IModuleRegistry {
   async cleanupAll(): Promise<void> {
     console.log(`🧹 [Registry] Nettoyage de ${this.modules.size} modules...`);
     
+    // Nettoyer les modules
     for (const module of this.modules.values()) {
       if (module.cleanup) {
         try {
@@ -74,6 +191,17 @@ class ModuleRegistry implements IModuleRegistry {
         } catch (error) {
           console.error(`❌ [Registry] Erreur nettoyage ${module.moduleName}:`, error);
         }
+      }
+    }
+    
+    // ✅ NOUVEAU : Nettoyer l'IA
+    if (this.intelligenceConnector) {
+      try {
+        this.intelligenceConnector.destroy();
+        this.intelligenceConnector = null;
+        console.log('🤖 [Registry] Système IA nettoyé');
+      } catch (error) {
+        console.error('❌ [Registry] Erreur nettoyage IA:', error);
       }
     }
   }
@@ -96,6 +224,11 @@ class ModuleRegistry implements IModuleRegistry {
       }
     }
 
+    // ✅ NOUVEAU : Ajouter stats IA
+    if (this.intelligenceConnector) {
+      moduleStats.AISystem = this.intelligenceConnector.getStats();
+    }
+
     return {
       totalModules: this.modules.size,
       activeModules: healthyModules,
@@ -115,23 +248,27 @@ class ModuleRegistry implements IModuleRegistry {
   }
 }
 
-// ✅ GESTIONNAIRE DE BASE PRINCIPAL
+// ✅ GESTIONNAIRE DE BASE AMÉLIORÉ AVEC IA
 export class BaseInteractionManager {
   
-  private registry: IModuleRegistry = new ModuleRegistry();
-  private config: InteractionConfig;
+  private registry: AIEnhancedModuleRegistry = new AIEnhancedModuleRegistry();
+  private config: ExtendedInteractionConfig;
   private playerCooldowns: Map<string, Map<string, number>> = new Map();
+  
+  // ✅ NOUVEAU : État du système IA
+  private aiInitialized: boolean = false;
+  private npcAutoRegistrationCompleted: boolean = false;
 
-  constructor(config?: Partial<InteractionConfig>) {
-    // Configuration par défaut
+  constructor(config?: Partial<ExtendedInteractionConfig>) {
+    // Configuration par défaut + IA
     this.config = {
       maxDistance: 64,
       cooldowns: {
-        npc: 500,           // 500ms entre interactions NPCs
-        object: 200,        // 200ms entre ramassages
-        environment: 1000,  // 1s entre fouilles
-        player: 2000,       // 2s entre interactions joueurs
-        puzzle: 0           // Pas de cooldown puzzles
+        npc: 500,
+        object: 200,
+        environment: 1000,
+        player: 2000,
+        puzzle: 0
       },
       requiredValidations: {
         npc: ['proximity', 'cooldown'],
@@ -142,16 +279,35 @@ export class BaseInteractionManager {
       },
       debug: false,
       logLevel: 'info',
+      
+      // ✅ NOUVEAU : Configuration IA par défaut
+      ai: {
+        enabled: process.env.NPC_AI_ENABLED !== 'false',
+        enabledNPCTypes: ['dialogue', 'healer', 'quest_master', 'researcher'],
+        enabledZones: [], // Vide = toutes les zones
+        fallbackToBasic: true,
+        analysisTimeout: 5000,
+        debugMode: process.env.NODE_ENV === 'development'
+      },
+      
+      // ✅ NOUVEAU : Auto-enregistrement NPCs
+      autoRegisterNPCs: process.env.NPC_AUTO_REGISTER !== 'false',
+      npcDataSources: {},
+      
       ...config
     };
 
-    console.log(`🎮 [BaseInteractionManager] Initialisé avec config:`, this.config);
+    console.log(`🎮 [BaseInteractionManager] Initialisé avec IA`, {
+      aiEnabled: this.config.ai?.enabled,
+      aiTypes: this.config.ai?.enabledNPCTypes?.length,
+      autoRegister: this.config.autoRegisterNPCs
+    });
   }
 
-  // === MÉTHODES PRINCIPALES ===
+  // === ✅ MÉTHODES PRINCIPALES AMÉLIORÉES ===
 
   /**
-   * Traite une interaction de manière complète
+   * Traite une interaction avec support IA automatique
    */
   async processInteraction(
     player: Player, 
@@ -163,16 +319,17 @@ export class BaseInteractionManager {
     try {
       this.debugLog('info', `Traitement interaction ${request.type}`, { 
         player: player.name, 
-        targetId: request.targetId 
+        targetId: request.targetId,
+        aiEnabled: this.aiInitialized
       });
 
-      // 1. Valider la requête de base
+      // 1. Valider la requête de base (inchangé)
       const requestValidation = this.validateRequest(request);
       if (!requestValidation.valid) {
         return this.createErrorResult(requestValidation.reason || 'Requête invalide', 'INVALID_REQUEST');
       }
 
-      // 2. Trouver le module approprié
+      // 2. Trouver le module approprié (inchangé)
       const module = this.registry.findModule(request);
       if (!module) {
         return this.createErrorResult(
@@ -181,7 +338,7 @@ export class BaseInteractionManager {
         );
       }
 
-      // 3. Effectuer les validations requises
+      // 3. Effectuer les validations requises (inchangé)
       const context = await this.buildInteractionContext(player, request);
       const validationResult = await this.performValidations(context, module);
       
@@ -189,10 +346,10 @@ export class BaseInteractionManager {
         return this.createErrorResult(validationResult.reason || 'Validation échouée', validationResult.code);
       }
 
-      // 4. Traiter l'interaction via le module
+      // 4. Traiter l'interaction via le module (le module peut maintenant utiliser l'IA)
       const result = await module.handle(context);
 
-      // 5. Post-traitement
+      // 5. Post-traitement (inchangé)
       if (result.success) {
         this.updateCooldown(player.name, request.type);
       }
@@ -205,7 +362,8 @@ export class BaseInteractionManager {
       this.debugLog('info', `Interaction terminée en ${processingTime}ms`, { 
         success: result.success, 
         type: result.type,
-        module: module.moduleName
+        module: module.moduleName,
+        aiUsed: !!(result as any).usedAI // Flag optionnel que les modules peuvent ajouter
       });
 
       return result;
@@ -223,7 +381,120 @@ export class BaseInteractionManager {
     }
   }
 
-  // === GESTION DES MODULES ===
+  // === ✅ NOUVELLES MÉTHODES IA ===
+
+  /**
+   * Initialise le système d'IA
+   */
+  async initializeAI(): Promise<void> {
+    if (!this.config.ai?.enabled) {
+      console.log('🤖 [BaseInteractionManager] IA désactivée');
+      return;
+    }
+
+    try {
+      console.log('🚀 [BaseInteractionManager] Initialisation IA...');
+      
+      await this.registry.initializeAI(this.config.ai);
+      this.aiInitialized = true;
+      
+      console.log('✅ [BaseInteractionManager] IA initialisée');
+      
+    } catch (error) {
+      console.error('❌ [BaseInteractionManager] Erreur initialisation IA:', error);
+      this.aiInitialized = false;
+      
+      if (!this.config.ai?.fallbackToBasic) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Enregistre des NPCs dans le système d'IA
+   */
+  async registerNPCsForAI(npcs: any[]): Promise<void> {
+    if (!this.aiInitialized || !this.config.ai?.enabled) {
+      this.debugLog('info', 'IA non disponible pour enregistrement NPCs');
+      return;
+    }
+
+    try {
+      await this.registry.registerNPCsWithAI(npcs);
+      this.debugLog('info', `🎭 ${npcs.length} NPCs enregistrés dans l'IA`);
+    } catch (error) {
+      console.error('❌ [BaseInteractionManager] Erreur enregistrement NPCs IA:', error);
+    }
+  }
+
+  /**
+   * Auto-enregistrement des NPCs depuis les managers disponibles
+   */
+  async autoRegisterNPCs(): Promise<void> {
+    if (!this.config.autoRegisterNPCs || this.npcAutoRegistrationCompleted) {
+      return;
+    }
+
+    try {
+      console.log('🔍 [BaseInteractionManager] Auto-enregistrement NPCs...');
+      
+      const allNpcs: any[] = [];
+      
+      // Méthode 1: getNpcManager fourni
+      if (this.config.npcDataSources?.getNpcManager) {
+        const zones = ['pallet_town', 'route_1', 'viridian_city']; // TODO: Récupérer dynamiquement
+        
+        for (const zone of zones) {
+          try {
+            const npcManager = this.config.npcDataSources.getNpcManager(zone);
+            if (npcManager) {
+              const npcs = npcManager.getAllNpcs();
+              allNpcs.push(...npcs);
+              this.debugLog('info', `📦 Zone ${zone}: ${npcs.length} NPCs trouvés`);
+            }
+          } catch (error) {
+            this.debugLog('warn', `⚠️ Erreur récupération NPCs zone ${zone}:`, error);
+          }
+        }
+      }
+      
+      // Méthode 2: npcManagers Map fournie
+      if (this.config.npcDataSources?.npcManagers) {
+        for (const [zone, npcManager] of this.config.npcDataSources.npcManagers) {
+          try {
+            const npcs = npcManager.getAllNpcs();
+            allNpcs.push(...npcs);
+            this.debugLog('info', `📦 Zone ${zone}: ${npcs.length} NPCs trouvés`);
+          } catch (error) {
+            this.debugLog('warn', `⚠️ Erreur récupération NPCs zone ${zone}:`, error);
+          }
+        }
+      }
+
+      if (allNpcs.length > 0) {
+        await this.registerNPCsForAI(allNpcs);
+        console.log(`✅ [BaseInteractionManager] Auto-enregistrement: ${allNpcs.length} NPCs traités`);
+      } else {
+        console.log('⚠️ [BaseInteractionManager] Aucun NPC trouvé pour auto-enregistrement');
+      }
+      
+      this.npcAutoRegistrationCompleted = true;
+      
+    } catch (error) {
+      console.error('❌ [BaseInteractionManager] Erreur auto-enregistrement NPCs:', error);
+    }
+  }
+
+  /**
+   * Configure les sources de données NPCs
+   */
+  setNPCDataSources(sources: ExtendedInteractionConfig['npcDataSources']): void {
+    this.config.npcDataSources = sources;
+    this.npcAutoRegistrationCompleted = false; // Reset pour permettre re-enregistrement
+    this.debugLog('info', '🔧 Sources de données NPCs configurées');
+  }
+
+  // === GESTION DES MODULES (améliorée) ===
 
   /**
    * Enregistrer un module d'interaction
@@ -233,26 +504,33 @@ export class BaseInteractionManager {
   }
 
   /**
-   * Initialiser tous les modules
+   * Initialiser tous les modules + IA
    */
   async initialize(): Promise<void> {
+    // 1. Initialiser les modules classiques
     await this.registry.initializeAll();
-    console.log(`✅ [BaseInteractionManager] Système d'interaction initialisé`);
+    
+    // 2. Initialiser l'IA
+    await this.initializeAI();
+    
+    // 3. Auto-enregistrement NPCs
+    await this.autoRegisterNPCs();
+    
+    console.log(`✅ [BaseInteractionManager] Système d'interaction + IA initialisé`);
   }
 
   /**
-   * Nettoyer tous les modules
+   * Nettoyer tous les modules + IA
    */
   async cleanup(): Promise<void> {
     await this.registry.cleanupAll();
-    console.log(`🧹 [BaseInteractionManager] Système d'interaction nettoyé`);
+    this.aiInitialized = false;
+    this.npcAutoRegistrationCompleted = false;
+    console.log(`🧹 [BaseInteractionManager] Système d'interaction + IA nettoyé`);
   }
 
-  // === VALIDATIONS ===
+  // === MÉTHODES EXISTANTES (inchangées) ===
 
-  /**
-   * Validation de base de la requête
-   */
   private validateRequest(request: InteractionRequest): { valid: boolean; reason?: string } {
     if (!request.type) {
       return { valid: false, reason: 'Type d\'interaction manquant' };
@@ -265,9 +543,6 @@ export class BaseInteractionManager {
     return { valid: true };
   }
 
-  /**
-   * Validation de proximité
-   */
   validateProximity(player: Player, targetPosition: { x: number; y: number }): ProximityValidation {
     const dx = Math.abs(player.x - targetPosition.x);
     const dy = Math.abs(player.y - targetPosition.y);
@@ -289,9 +564,6 @@ export class BaseInteractionManager {
     };
   }
 
-  /**
-   * Validation de cooldown
-   */
   validateCooldown(playerName: string, interactionType: InteractionType): CooldownInfo {
     const playerCooldowns = this.playerCooldowns.get(playerName);
     if (!playerCooldowns) {
@@ -322,11 +594,6 @@ export class BaseInteractionManager {
     return { active: false };
   }
 
-  // === MÉTHODES UTILITAIRES ===
-
-  /**
-   * Construit le contexte complet d'interaction
-   */
   private async buildInteractionContext(
     player: Player, 
     request: InteractionRequest
@@ -345,9 +612,6 @@ export class BaseInteractionManager {
     return context;
   }
 
-  /**
-   * Effectue toutes les validations requises
-   */
   private async performValidations(
     context: InteractionContext, 
     module: IInteractionModule
@@ -400,9 +664,6 @@ export class BaseInteractionManager {
     return { valid: true };
   }
 
-  /**
-   * Met à jour le cooldown du joueur
-   */
   private updateCooldown(playerName: string, interactionType: InteractionType): void {
     if (!this.playerCooldowns.has(playerName)) {
       this.playerCooldowns.set(playerName, new Map());
@@ -412,9 +673,6 @@ export class BaseInteractionManager {
     playerCooldowns.set(interactionType, Date.now());
   }
 
-  /**
-   * Crée un résultat d'erreur standardisé
-   */
   private createErrorResult(
     message: string, 
     code: string, 
@@ -434,9 +692,6 @@ export class BaseInteractionManager {
     };
   }
 
-  /**
-   * Logging avec niveau configurable
-   */
   private debugLog(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
     if (!this.config.debug && level === 'info') return;
     
@@ -455,40 +710,60 @@ export class BaseInteractionManager {
     }
   }
 
-  // === MÉTHODES D'INFORMATION ===
+  // === ✅ NOUVELLES MÉTHODES D'INFORMATION ===
 
   /**
-   * Obtenir les statistiques globales
+   * Obtenir les statistiques globales + IA
    */
   getStats(): GlobalModuleStats {
-    return this.registry.getGlobalStats();
+    const stats = this.registry.getGlobalStats();
+    
+    // Ajouter informations IA
+    return {
+      ...stats,
+      aiSystem: {
+        initialized: this.aiInitialized,
+        enabled: this.config.ai?.enabled || false,
+        autoRegistrationCompleted: this.npcAutoRegistrationCompleted,
+        config: this.config.ai
+      }
+    };
   }
 
   /**
-   * Obtenir la configuration actuelle
+   * État de santé du système incluant l'IA
    */
-  getConfig(): InteractionConfig {
+  getSystemHealth(): any {
+    const baseHealth = this.getStats();
+    
+    return {
+      ...baseHealth,
+      aiHealth: this.aiInitialized ? 'healthy' : 'disabled',
+      overallHealth: this.aiInitialized && baseHealth.systemHealth === 'healthy' ? 'healthy' : 'warning'
+    };
+  }
+
+  /**
+   * Accès au connecteur IA (pour debug/admin)
+   */
+  getIntelligenceConnector(): NPCIntelligenceConnector | null {
+    return this.registry.getIntelligenceConnector();
+  }
+
+  // Méthodes existantes inchangées
+  getConfig(): ExtendedInteractionConfig {
     return { ...this.config };
   }
 
-  /**
-   * Mettre à jour la configuration
-   */
-  updateConfig(newConfig: Partial<InteractionConfig>): void {
+  updateConfig(newConfig: Partial<ExtendedInteractionConfig>): void {
     this.config = { ...this.config, ...newConfig };
     console.log(`🔧 [BaseInteractionManager] Configuration mise à jour`);
   }
 
-  /**
-   * Obtenir un module par nom
-   */
   getModule(moduleName: string): IInteractionModule | null {
     return this.registry.getModule(moduleName);
   }
 
-  /**
-   * Lister tous les modules enregistrés
-   */
   listModules(): string[] {
     return this.registry.getAllModules().map(m => m.moduleName);
   }
