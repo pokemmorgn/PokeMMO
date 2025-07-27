@@ -286,23 +286,24 @@ if (this.intelligenceConfig.enableIntelligence) {
     const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
     const { ActionType } = await import("../../Intelligence/Core/ActionTypes");
     
-    await trackPlayerAction(
-      player.name, // Utiliser le nom au lieu du sessionId
-      ActionType.NPC_TALK,
-      {
-        npcId,
-        playerLevel: player.level,
-        playerGold: player.gold,
-        zone: player.currentZone
-      },
-      {
-        location: { 
+      const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
+      const tracker = getActionTracker();
+      
+      tracker.trackAction(
+        player.name, // playerId 
+        ActionType.NPC_TALK,
+        {
+          npcId,
+          playerLevel: player.level,
+          playerGold: player.gold,
+          zone: player.currentZone
+        },
+        {
           map: player.currentZone, 
           x: player.x, 
           y: player.y 
         }
-      }
-    );
+      );
       console.log(`📊 [AI] Action NPC trackée pour ${player.name} → NPC ${npcId}`);
       
       // ✅ DEBUG: Vérifier juste la queue
