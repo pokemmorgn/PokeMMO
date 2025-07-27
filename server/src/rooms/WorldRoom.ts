@@ -606,34 +606,93 @@ private async applyAIRecommendations(playerId: string, analysis: CompletePlayerA
   /**
  * Helper pour tracker une action de joueur avec l'IA
  */
-    private trackPlayerActionWithAI(
-      sessionId: string,               // ✅ Clarifier : sessionId en paramètre
-      actionType: ActionType,
-      actionData: any = {},
-      context?: { location?: { map: string; x: number; y: number } }
-    ): void {
-      if (!this.aiSystemInitialized) return;
-      
-      try {
-        // ✅ NOUVEAU : Récupérer userId depuis JWT
-        const userId = this.jwtManager.getUserId(sessionId);
-        if (!userId) {
-          console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : userId introuvable pour session ${sessionId}`);
-          return;
-        }
-        
-        // ✅ Utiliser l'API de tracking avec userId
-        trackPlayerAction(userId, actionType, actionData, context);
-        this.aiStats.actionsTracked++;
-        
-        // Log occasionnel pour debug
-        if (this.aiStats.actionsTracked % 50 === 0) {
-          console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées`);
-        }
-      } catch (error) {
-        console.error(`❌ [AI] Erreur tracking action:`, error);
-      }
+private trackPlayerActionWithAI(
+  sessionId: string,               // ✅ Clarifier : sessionId en paramètre
+  actionType: ActionType,
+  actionData: any = {},
+  context?: { location?: { map: string; x: number; y: number } }
+): void {
+  if (!this.aiSystemInitialized) {
+    console.log(`⚠️ [AI] Système IA non initialisé, skip tracking ${actionType}`);
+    return;
+  }
+  
+  try {
+    // ✅ NOUVEAU : Récupérer userId depuis JWT
+    const userId = this.jwtManager.getUserId(sessionId);
+    if (!userId) {
+      console.warn(`⚠️ [AI] Impossible de tracker ${actionType} : userId introuvable pour session ${sessionId}`);
+      return;
     }
+    
+    console.log(`📊 [AI] Tracking action ${actionType} pour userId: ${userId} (session: ${sessionId})`);
+    
+    // ✅ Utiliser l'API de tracking avec userId
+    trackPlayerAction(userId, actionType, actionData, context);
+    this.aiStats.actionsTracked++;
+    
+    // ✅ DEBUG IMMÉDIAT: Vérifier que l'action est bien ajoutée à la queue
+    setTimeout(() => {
+      const tracker = this.actionTracker;
+      const stats = tracker.getStats();
+      console.log(`📋 [AI] État queue après tracking ${actionType}:`, {
+        actionsInQueue: stats.actionsInQueue,
+        playersTracked: stats.playersTracked,
+        isEnabled: stats.isEnabled,
+        actionType: actionType,
+        userId: userId
+      });
+      
+      // ✅ Si la queue est toujours à 0, il y a un problème
+      if (stats.actionsInQueue === 0) {
+        console.error(`❌ [AI] PROBLÈME: Action ${actionType} non ajoutée à la queue pour userId ${userId}`);
+        console.error(`❌ [AI] Debug - Le joueur est-il bien enregistré dans le tracker ?`);
+        
+        // ✅ Essayer de re-enregistrer le joueur en urgence
+        const player = this.state.players.get(sessionId);
+        if (player) {
+          console.log(`🔄 [AI] Tentative re-enregistrement userId ${userId}`);
+          try {
+            this.actionTracker.registerPlayer(
+              userId,
+              player.name,
+              `emergency_session_${Date.now()}`,
+              { map: player.currentZone, x: player.x, y: player.y },
+              player.level
+            );
+            console.log(`✅ [AI] Re-enregistrement réussi pour userId ${userId}`);
+          } catch (reregError) {
+            console.error(`❌ [AI] Échec re-enregistrement:`, reregError);
+          }
+        }
+      } else {
+        console.log(`✅ [AI] Action ${actionType} correctement ajoutée à la queue (${stats.actionsInQueue} actions en attente)`);
+      }
+    }, 100); // Vérifier 100ms après
+    
+    // Log occasionnel pour debug
+    if (this.aiStats.actionsTracked % 10 === 0) {
+      console.log(`📊 [AI] ${this.aiStats.actionsTracked} actions trackées au total`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur tracking action ${actionType}:`, error);
+    console.error(`❌ [AI] Stack trace:`, error.stack);
+    
+    // ✅ NOUVEAU : Debug approfondi en cas d'erreur
+    const userId = this.jwtManager.getUserId(sessionId);
+    const player = this.state.players.get(sessionId);
+    console.error(`❌ [AI] Debug contexte erreur:`, {
+      sessionId: sessionId,
+      userId: userId,
+      hasPlayer: !!player,
+      playerName: player?.name,
+      actionType: actionType,
+      aiSystemInitialized: this.aiSystemInitialized,
+      trackerStats: this.actionTracker ? this.actionTracker.getStats() : 'tracker undefined'
+    });
+  }
+}
   
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
