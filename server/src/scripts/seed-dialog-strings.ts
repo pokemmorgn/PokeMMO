@@ -1,9 +1,9 @@
-// scripts/seed-dialog-strings.ts
+// server/src/scripts/seed-dialog-strings.ts
 // Script pour insérer des DialogStrings d'exemple dans MongoDB
-// Usage: npx ts-node scripts/seed-dialog-strings.ts
+// Usage: npx ts-node server/src/scripts/seed-dialog-strings.ts
 
 import mongoose from 'mongoose';
-import { DialogStringModel, CreateDialogStringData, DialogCategory } from '../server/src/models/DialogString';
+import { DialogStringModel, CreateDialogStringData, DialogCategory } from '../models/DialogString';
 
 // Configuration base de données
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
@@ -390,7 +390,7 @@ async function validateAndShowStats(): Promise<void> {
     ]);
     
     console.log('\n🏷️ Par catégorie:');
-    categories.forEach(cat => {
+    categories.forEach((cat: { _id: string; count: number }) => {
       console.log(`   ${cat._id}: ${cat.count}`);
     });
     
@@ -408,7 +408,7 @@ async function validateAndShowStats(): Promise<void> {
     ]);
     
     console.log('\n🔤 Variables les plus utilisées:');
-    variablesUsed.slice(0, 5).forEach(variable => {
+    variablesUsed.slice(0, 5).forEach((variable: { _id: string; count: number }) => {
       console.log(`   %${variable._id}: ${variable.count} fois`);
     });
     
@@ -483,15 +483,15 @@ if (process.argv.includes('--help')) {
 🎭 Seed Dialog Strings Script
 
 Usage:
-  npx ts-node scripts/seed-dialog-strings.ts [options]
+  npx ts-node server/src/scripts/seed-dialog-strings.ts [options]
 
 Options:
   --clear    Supprimer tous les DialogStrings existants avant insertion  
   --help     Afficher cette aide
 
 Exemples:
-  npx ts-node scripts/seed-dialog-strings.ts
-  npx ts-node scripts/seed-dialog-strings.ts --clear
+  npx ts-node server/src/scripts/seed-dialog-strings.ts
+  npx ts-node server/src/scripts/seed-dialog-strings.ts --clear
 
 Variables supportées dans les dialogues:
   %s = playerName (nom du joueur)
