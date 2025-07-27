@@ -231,7 +231,7 @@ export class AINPCManager {
       // ✅ COPIE EXACTE de l'interaction intelligente du WorldRoom
       const smartResponse = await handleSmartNPCInteraction(
         sessionId,  // ✅ Garder sessionId pour communication client
-        npcId,
+        npcId.toString(), // ✅ CORRIGÉ: Conversion number → string
         'dialogue',
         {
           playerAction: 'interact',
