@@ -904,7 +904,7 @@ private async handleNpcInteractionWithAI(
   /**
    * ✅ ÉTAPE 2 : Obtenir dialogue de boutique via DialogString
    */
-  private async getShopGreeting(player: Player, npc: any): Promise<string> {
+  private async getShopGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
       const dialogVars = this.createPlayerDialogVars(player, npc.name);
@@ -912,17 +912,17 @@ private async handleNpcInteractionWithAI(
       // Essayer un dialogue spécifique au NPC d'abord
       let greeting = await this.dialogService.getText(
         `${npcId}.shop.greeting`,
-        'fr', // TODO: Récupérer langue du joueur
+        playerLanguage, // ✅ UTILISER LANGUE JOUEUR
         dialogVars
       );
       
       // Si pas trouvé, utiliser un dialogue générique
       if (greeting.includes('[MISSING:')) {
-        greeting = await this.dialogService.getText(
-          'generic.shop.welcome',
-          'fr',
-          dialogVars
-        );
+      greeting = await this.dialogService.getText(
+        'generic.shop.welcome',
+        playerLanguage,
+        dialogVars
+      );
       }
       
       // Si toujours pas trouvé, fallback
@@ -948,7 +948,7 @@ private async handleNpcInteractionWithAI(
   /**
    * ✅ ÉTAPE 2 : Obtenir dialogue de soigneur via DialogString
    */
-  private async getHealerGreeting(player: Player, npc: any): Promise<string> {
+  private async getHealerGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
       const dialogVars = this.createPlayerDialogVars(player, npc.name);
