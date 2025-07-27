@@ -426,19 +426,30 @@ export class NpcInteractionModule extends BaseInteractionModule {
         context
       );
 
-    if (!smartResponse.success) {
-      // Au lieu de throw, retourner le fallback response
-      console.log(`⚠️ [AI] IA en fallback pour NPC ${npcId}, utilisation réponse de base`);
-      return {
-        success: true,
-        type: "fallback_dialogue", 
-        message: smartResponse.dialogue.message,
-        dialogue: smartResponse.dialogue,
-        actions: smartResponse.actions || [],
-        isAI: false,
-        isFallback: true
-      };
-    }
+      if (!smartResponse.success) {
+        // Si l'IA échoue, retourner vers le système legacy au lieu de fallback
+        console.log(`⚠️ [AI] IA échouée pour NPC ${npcId}, retour au système legacy`);
+        
+        // Retourner un résultat qui indique qu'il faut utiliser le legacy
+        return {
+          success: false,
+          type: "ai_failed",
+          message: "IA non applicable",
+          npcId: npcId,
+          npcName: npcName,
+          isUnifiedInterface: false,
+          capabilities: [],
+          contextualData: {
+            hasShop: false,
+            hasQuests: false,
+            hasHealing: false,
+            defaultAction: 'dialogue',
+            quickActions: []
+          },
+          intelligenceUsed: false,
+          isIntelligentResponse: false
+        };
+      }
 
       // ✅ ENREGISTRER L'ACTION POUR L'APPRENTISSAGE
       await this.recordActionForAILearning(player, npcId, 'npc_interaction', {
