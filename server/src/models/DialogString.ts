@@ -47,9 +47,10 @@ export interface IDialogString extends Document {
   // === MÉTHODES D'INSTANCE ===
   getLocalizedText(language: SupportedLanguage): string;
   hasTranslation(language: SupportedLanguage): boolean;
-  replaceVariables(language: SupportedLanguage, variables: Record<string, string>): string;
+  replaceVariables(language: SupportedLanguage, playerName?: string, targetName?: string, customVars?: Record<string, string>): string;
   getNPCId(): string;
   getDialogueContext(): { category: string; context: string; variant: string };
+  validateVariables(): void;
 }
 
 /**
@@ -299,14 +300,27 @@ DialogStringSchema.methods.hasTranslation = function(language: SupportedLanguage
  */
 DialogStringSchema.methods.replaceVariables = function(
   language: SupportedLanguage, 
-  variables: Record<string, string>
+  playerName?: string,
+  targetName?: string,
+  customVars?: Record<string, string>
 ): string {
   let text = this.getLocalizedText(language);
   
-  // Remplacer les variables au format {variableName}
-  for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`\\{${key}\\}`, 'g');
-    text = text.replace(regex, value);
+  // Système de placeholders courts
+  if (playerName) {
+    text = text.replace(/%s/g, playerName);
+  }
+  
+  if (targetName) {
+    text = text.replace(/%t/g, targetName);
+  }
+  
+  // Variables personnalisées optionnelles
+  if (customVars) {
+    for (const [key, value] of Object.entries(customVars)) {
+      const regex = new RegExp(`%${key}`, 'g');
+      text = text.replace(regex, value);
+    }
   }
   
   return text;
@@ -451,20 +465,20 @@ DialogStringSchema.pre('save', function(next) {
 });
 
 /**
- * Validation des variables
+ * Validation des variables avec placeholders courts
  */
 DialogStringSchema.methods.validateVariables = function() {
   const languages: SupportedLanguage[] = ['eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'];
   const foundVariables = new Set<string>();
   
-  // Extraire variables de tous les textes
+  // Extraire variables de tous les textes (format %x)
   for (const lang of languages) {
     const text = this[lang];
     if (text) {
-      const matches = text.match(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g);
+      const matches = text.match(/%[a-zA-Z]/g);
       if (matches) {
         matches.forEach((match: string) => {
-          const variable = match.slice(1, -1); // Enlever { }
+          const variable = match.slice(1); // Enlever %
           foundVariables.add(variable);
         });
       }
@@ -488,10 +502,7 @@ DialogStringSchema.post('save', function(doc) {
 
 export const DialogStringModel = model<IDialogString>('DialogString', DialogStringSchema);
 
-// Export des types pour utilisation dans d'autres fichiers
-export type { DialogCategory, SupportedLanguage, DialogCondition, DialogStringQuery };
-
-// Export de constantes utiles
+// Export des constantes utiles
 export const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'];
 export const DIALOG_CATEGORIES: DialogCategory[] = ['greeting', 'ai', 'shop', 'quest', 'battle', 'help', 'social', 'system', 'ui', 'error'];
 
