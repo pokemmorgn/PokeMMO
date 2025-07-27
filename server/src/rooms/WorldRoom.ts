@@ -2214,6 +2214,31 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
+    // ✅ TRACKING IA: Connexion du joueur
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.SESSION_START,
+      {
+        playerName: player.name,
+        level: player.level,
+        gold: player.gold,
+        spawnZone: player.currentZone,
+        isReturningPlayer: !!savedData
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+    console.log(`🎉 ${player.name} a rejoint le monde !`);
+  } catch (error) {
+    console.error(`❌ Erreur lors du join:`, error);
+    client.leave(1000, "Erreur lors de la connexion");
+  }
+}
 
 async onLeave(client: Client, consented: boolean) {
   console.log(`👋 === PLAYER LEAVE ===`);
@@ -2234,26 +2259,6 @@ async onLeave(client: Client, consented: boolean) {
     } else {
       console.log(`✅ [WorldRoom] Pas de combat actif, nettoyage JWT normal pour ${player.name}`);
     }
-    
-    // ✅ TRACKING IA: Déconnexion du joueur
-    this.trackPlayerActionWithAI(
-      client.sessionId,
-      ActionType.SESSION_END,
-      {
-        playerName: player.name,
-        finalLevel: player.level,
-        finalGold: player.gold,
-        finalZone: player.currentZone,
-        hadActiveBattle: hasActiveBattle
-      },
-      {
-        location: { 
-          map: player.currentZone, 
-          x: player.x, 
-          y: player.y 
-        }
-      }
-    );
     
     // Sauvegarder position
     const position = this.positionSaver.extractPosition(player);
@@ -2291,7 +2296,28 @@ async onLeave(client: Client, consented: boolean) {
     this.teamManagers.delete(player.name);
     console.log(`🗑️ [WorldRoom] TeamManager supprimé du cache pour ${player.name}`);
   }
-  
+  // ✅ TRACKING IA: Déconnexion du joueur
+  if (player) {
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.SESSION_END,
+      {
+        playerName: player.name,
+        sessionDuration: Date.now() - (savedData?.currentSessionStart?.getTime() || Date.now()),
+        finalLevel: player.level,
+        finalGold: player.gold,
+        finalZone: player.currentZone,
+        hadActiveBattle: hasActiveBattle
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+  }  
   console.log(`👋 Client ${client.sessionId} déconnecté`);
 }
 
