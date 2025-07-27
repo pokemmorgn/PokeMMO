@@ -1172,7 +1172,58 @@ function setupCompatibilityFunctions() {
       module.closeTeam();
     }
   };
+ // Fonctions Options
+  window.toggleOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.toggleUI) {
+      module.toggleUI();
+    } else if (module && module.toggle) {
+      module.toggle();
+    } else if (window.optionsSystemGlobal) {
+      if (window.optionsSystemGlobal.ui?.isVisible) {
+        window.optionsSystemGlobal.ui.hide();
+      } else {
+        window.optionsSystemGlobal.ui?.show();
+      }
+    }
+  };
   
+  window.openOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.open) {
+      module.open();
+    } else if (window.optionsSystemGlobal?.ui) {
+      window.optionsSystemGlobal.ui.show();
+    }
+  };
+  
+  window.closeOptions = () => {
+    const module = pokemonUISystem.getModule?.('options');
+    if (module && module.close) {
+      module.close();
+    } else if (window.optionsSystemGlobal?.ui) {
+      window.optionsSystemGlobal.ui.hide();
+    }
+  };
+  
+  window.forceCloseOptions = () => {
+    if (window.optionsSystemGlobal && window.optionsSystemGlobal.ui) {
+      window.optionsSystemGlobal.ui.hide();
+    }
+    
+    const optionsOverlay = document.querySelector('#options-overlay');
+    if (optionsOverlay) {
+      optionsOverlay.classList.remove('visible');
+      optionsOverlay.style.display = 'none';
+    }
+    
+    const optionsModals = document.querySelectorAll('.options-overlay, .options-modal, [id*="options-"]');
+    optionsModals.forEach(modal => {
+      if (modal.style) {
+        modal.style.display = 'none';
+      }
+    });
+  }; 
   window.forceCloseTeam = () => {
     if (window.teamSystemGlobal && window.teamSystemGlobal.ui) {
       window.teamSystemGlobal.ui.hide();
