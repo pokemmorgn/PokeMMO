@@ -424,36 +424,41 @@ export class NetworkInteractionHandler {
     }
   }
 
-  sendNpcInteract(npcId, additionalData = {}) {
-    this.debugCounters.npcInteractions++;
-    console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT #${this.debugCounters.npcInteractions} ===`);
-    console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
-    
-    try {
-      // ✅ BYPASSER l'ancienne méthode - utiliser directement room.send
-      if (this.networkManager.room) {
-        console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send (format minimal)');
-        
-        // ✅ Format EXACT qui fonctionne (testé en console)
-        this.networkManager.room.send("npcInteract", {
-          npcId: npcId // ← JUSTE ÇA !
-        });
-        
-        console.log('[NetworkInteractionHandler] ✅ Interaction NPC envoyée (format minimal)');
-        return true;
-      }
+sendNpcInteract(npcId, additionalData = {}) {
+  this.debugCounters.npcInteractions++;
+  console.log(`[NetworkInteractionHandler] 📤 === NPC INTERACT #${this.debugCounters.npcInteractions} ===`);
+  console.log('[NetworkInteractionHandler] NPC ID (number):', npcId);
+  console.log('[NetworkInteractionHandler] additionalData reçu:', JSON.stringify(additionalData, null, 2));
+  
+  try {
+    // ✅ CORRECTION : Inclure les données additionnelles !
+    if (this.networkManager.room) {
+      console.log('[NetworkInteractionHandler] 🔧 Envoi direct via room.send (avec données complètes)');
       
-      else {
-        console.error('[NetworkInteractionHandler] ❌ Room non disponible');
-        return false;
-      }
+      // ✅ NOUVEAU : Inclure playerLanguage et autres données
+      const dataToSend = {
+        npcId: npcId,
+        ...additionalData  // ✅ INCLURE LES DONNÉES ADDITIONNELLES !
+      };
       
-    } catch (error) {
-      console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
-      this.handleSendError('npcInteract', error);
+      console.log('[NetworkInteractionHandler] 📤 Données envoyées:', JSON.stringify(dataToSend, null, 2));
+      
+      this.networkManager.room.send("npcInteract", dataToSend);
+      
+      console.log('[NetworkInteractionHandler] ✅ Interaction NPC envoyée (avec données complètes)');
+      return true;
+    }
+    else {
+      console.error('[NetworkInteractionHandler] ❌ Room non disponible');
       return false;
     }
+    
+  } catch (error) {
+    console.error('[NetworkInteractionHandler] ❌ Erreur envoi npcInteract:', error);
+    this.handleSendError('npcInteract', error);
+    return false;
   }
+}
 
   // ✅ NOUVELLE MÉTHODE : S'assurer que les handlers sont prêts
 // ✅ CORRECTION : Vérification directe à chaque interaction
