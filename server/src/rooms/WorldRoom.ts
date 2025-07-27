@@ -2296,7 +2296,28 @@ async onLeave(client: Client, consented: boolean) {
     this.teamManagers.delete(player.name);
     console.log(`🗑️ [WorldRoom] TeamManager supprimé du cache pour ${player.name}`);
   }
-  
+  // ✅ TRACKING IA: Déconnexion du joueur
+  if (player) {
+    this.trackPlayerActionWithAI(
+      client.sessionId,
+      ActionType.SESSION_END,
+      {
+        playerName: player.name,
+        sessionDuration: Date.now() - (savedData?.currentSessionStart?.getTime() || Date.now()),
+        finalLevel: player.level,
+        finalGold: player.gold,
+        finalZone: player.currentZone,
+        hadActiveBattle: hasActiveBattle
+      },
+      {
+        location: { 
+          map: player.currentZone, 
+          x: player.x, 
+          y: player.y 
+        }
+      }
+    );
+  }  
   console.log(`👋 Client ${client.sessionId} déconnecté`);
 }
 
