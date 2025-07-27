@@ -426,9 +426,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
         context
       );
 
-      if (!smartResponse.success) {
-        throw new Error(smartResponse.dialogue.message || 'IA interaction failed');
-      }
+    if (!smartResponse.success) {
+      // Au lieu de throw, retourner le fallback response
+      console.log(`⚠️ [AI] IA en fallback pour NPC ${npcId}, utilisation réponse de base`);
+      return {
+        success: true,
+        type: "fallback_dialogue", 
+        message: smartResponse.dialogue.message,
+        dialogue: smartResponse.dialogue,
+        actions: smartResponse.actions || [],
+        isAI: false,
+        isFallback: true
+      };
+    }
 
       // ✅ ENREGISTRER L'ACTION POUR L'APPRENTISSAGE
       await this.recordActionForAILearning(player, npcId, 'npc_interaction', {
