@@ -4950,6 +4950,10 @@ router.post('/shops', requireMacAndDev, async (req: any, res) => {
  * PUT /api/admin/shops/:shopId
  * Mettre à jour une boutique existante - VERSION CORRIGÉE
  */
+/**
+ * PUT /api/admin/shops/:shopId
+ * Mettre à jour une boutique existante - VERSION CORRIGÉE
+ */
 router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
     try {
         const { shopId } = req.params;
@@ -4966,8 +4970,18 @@ router.put('/shops/:shopId', requireMacAndDev, async (req: any, res) => {
             });
         }
         
-        // ✅ CORRECTION: Gestion sécurisée de la location
-        const currentLocation = existingShop.location || {};
+        // ✅ CORRECTION: Gestion sécurisée de la location avec type explicite
+        interface LocationData {
+            zone: string;
+            cityKey?: string;
+            buildingKey?: string;
+        }
+        
+        const currentLocation: LocationData = existingShop.location || { 
+            zone: '', 
+            cityKey: undefined, 
+            buildingKey: undefined 
+        };
         
         // Mettre à jour les champs
         Object.assign(existingShop, {
