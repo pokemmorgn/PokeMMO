@@ -47,6 +47,7 @@ export interface InteractionRequest {
     // Données additionnelles
     itemId?: string;
     direction?: 'north' | 'south' | 'east' | 'west';
+    playerLanguage?: string;
     metadata?: Record<string, any>;
   };
   
