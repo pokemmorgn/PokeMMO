@@ -1,27 +1,26 @@
-// Team/index.js - TeamModule refactorisé avec BaseModule
-// 🎯 UTILISE BaseModule pour éviter duplication de code
-// 📍 INTÉGRÉ avec UIManager via BaseModule
-// 🆕 CODE SIMPLIFIÉ ET MAINTENABLE
+// Team/index.js - TeamModule avec support traductions
+// 🌐 Passe optionsManager aux composants pour traductions temps réel
+// 📍 Modification minimale de l'existant
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
+import { initLocalizationManager } from '../managers/LocalizationManager.js';
 
 /**
- * Module Team utilisant BaseModule
- * Hérite de toute la logique UIManager générique
+ * Module Team utilisant BaseModule avec support traductions
  */
 export class TeamModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
     // Configuration spécifique Team
     const teamOptions = {
-      singleton: true,           // Team est un singleton
-      autoCloseUI: true,         // Fermer UI par défaut
-      keyboardShortcut: 't',     // Touche T pour ouvrir/fermer
+      singleton: true,           
+      autoCloseUI: true,         
+      keyboardShortcut: 't',     
       uiManagerConfig: {
         anchor: 'bottom-right',
-        order: 2,                // Après inventory (0) et quest (1)
+        order: 2,                
         group: 'ui-icons'
       },
       ...options
@@ -29,16 +28,25 @@ export class TeamModule extends BaseModule {
     
     super(moduleId || 'team', gameRoom, scene, teamOptions);
     
-    console.log('⚔️ [TeamModule] Instance créée avec BaseModule');
+    // === 🌐 NOUVEAU: Support optionsManager ===
+    this.optionsManager = options.optionsManager || window.optionsSystem || null;
+    
+    console.log('⚔️ [TeamModule] Instance créée avec optionsManager:', !!this.optionsManager);
   }
   
-  // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
-  
   /**
-   * Initialisation spécifique Team
+   * Initialisation spécifique Team avec traductions
    */
   async init() {
-    console.log('🚀 [TeamModule] Initialisation métier Team...');
+    console.log('🚀 [TeamModule] Initialisation avec traductions...');
+    
+    // 🌐 Initialiser traductions si pas encore fait
+    try {
+      await initLocalizationManager();
+      console.log('✅ [TeamModule] Traductions initialisées');
+    } catch (error) {
+      console.warn('⚠️ [TeamModule] Erreur init traductions:', error);
+    }
     
     // Créer le manager (business logic)
     this.manager = new TeamManager(this.gameRoom);
@@ -48,24 +56,26 @@ export class TeamModule extends BaseModule {
   }
   
   /**
-   * Création des composants Team
+   * Création des composants avec optionsManager
    */
   createComponents() {
-    console.log('🔧 [TeamModule] Création composants Team...');
+    console.log('🔧 [TeamModule] Création composants avec traductions...');
     
-    // Créer l'icône si pas encore fait
+    // Créer l'icône avec optionsManager 🌐
     if (!this.icon) {
-      this.icon = new TeamIcon(this.manager);
+      this.icon = new TeamIcon(this.manager, this.optionsManager);
       this.icon.init();
+      console.log('🎨 [TeamModule] TeamIcon créée avec optionsManager');
     }
     
-    // Créer l'interface si pas encore fait
+    // Créer l'interface avec optionsManager 🌐
     if (!this.ui) {
-      this.ui = new TeamUI(this.manager, this.gameRoom);
-      // Note: L'init de TeamUI est async, on le fait dans connectComponents si nécessaire
+      this.ui = new TeamUI(this.manager, this.gameRoom, this.optionsManager);
+      // L'init de TeamUI est async, on le fait dans connectComponents
+      console.log('🖼️ [TeamModule] TeamUI créée avec optionsManager');
     }
     
-    console.log('✅ [TeamModule] Composants Team créés');
+    console.log('✅ [TeamModule] Composants Team créés avec traductions');
   }
   
   /**
@@ -74,7 +84,7 @@ export class TeamModule extends BaseModule {
   connectComponents() {
     console.log('🔗 [TeamModule] Connexion composants Team...');
     
-    // Initialiser UI de manière async si nécessaire
+    // Initialiser UI de manière async
     if (this.ui && !this.ui.initialized) {
       this.ui.init().catch(error => {
         console.error('❌ [TeamModule] Erreur init UI:', error);
@@ -128,11 +138,8 @@ export class TeamModule extends BaseModule {
     console.log('✅ [TeamModule] Composants Team connectés');
   }
   
-  // === 📊 MÉTHODES SPÉCIFIQUES TEAM ===
+  // === 📊 MÉTHODES SPÉCIFIQUES TEAM (inchangées) ===
   
-  /**
-   * Demander les données Team (override de la méthode générique)
-   */
   show() {
     const result = super.show();
     
@@ -146,39 +153,25 @@ export class TeamModule extends BaseModule {
     return result;
   }
   
-  /**
-   * Obtenir les données d'équipe
-   */
   getTeamData() {
     return this.manager ? this.manager.getTeamData() : [];
   }
   
-  /**
-   * Obtenir les statistiques d'équipe
-   */
   getTeamStats() {
     return this.manager ? this.manager.getTeamStats() : null;
   }
   
-  /**
-   * Vérifier si l'équipe peut combattre
-   */
   canBattle() {
     return this.manager ? this.manager.canBattle() : false;
   }
   
-  /**
-   * Soigner toute l'équipe
-   */
   healTeam() {
     if (this.manager) {
       this.manager.healTeam();
     }
   }
   
-  /**
-   * API legacy pour compatibilité
-   */
+  // API legacy pour compatibilité
   toggleTeamUI() {
     this.toggleUI();
   }
@@ -191,12 +184,9 @@ export class TeamModule extends BaseModule {
     this.close();
   }
   
-  // === 📋 OVERRIDE STATE POUR INFOS TEAM ===
-  
   getUIManagerState() {
     const baseState = super.getUIManagerState();
     
-    // Ajouter infos spécifiques Team
     return {
       ...baseState,
       teamCount: this.manager ? this.manager.getTeamCount() : 0,
@@ -206,24 +196,25 @@ export class TeamModule extends BaseModule {
   }
 }
 
-// === 🏭 FACTORY TEAM SIMPLIFIÉE ===
+// === 🏭 FACTORY TEAM AVEC OPTIONSMANAGER ===
 
 /**
- * Factory function pour créer le module Team
- * Utilise la factory générique de BaseModule
+ * Factory function pour créer le module Team avec optionsManager
  */
 export async function createTeamModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [TeamFactory] Création module Team avec BaseModule...');
+    console.log('🏭 [TeamFactory] Création module Team avec traductions...');
     
+    // 🌐 S'assurer qu'optionsManager est passé
     const teamOptions = {
       singleton: true,
+      optionsManager: options.optionsManager || window.optionsSystem || null,
       ...options
     };
     
     const teamInstance = await createModule(TeamModule, 'team', gameRoom, scene, teamOptions);
     
-    console.log('✅ [TeamFactory] Module Team créé avec succès');
+    console.log('✅ [TeamFactory] Module Team créé avec traductions');
     return teamInstance;
     
   } catch (error) {
@@ -232,7 +223,7 @@ export async function createTeamModule(gameRoom, scene, options = {}) {
   }
 }
 
-// === 📋 CONFIGURATION TEAM POUR UIMANAGER ===
+// === 📋 CONFIGURATION TEAM MISE À JOUR ===
 
 export const TEAM_MODULE_CONFIG = generateModuleConfig('team', {
   moduleClass: TeamModule,
@@ -240,34 +231,36 @@ export const TEAM_MODULE_CONFIG = generateModuleConfig('team', {
   
   options: {
     singleton: true,
-    keyboardShortcut: 't'
+    keyboardShortcut: 't',
+    // 🌐 optionsManager sera ajouté dynamiquement
   },
   
   groups: ['ui-icons', 'pokemon-management'],
   
   metadata: {
     name: 'Team Manager',
-    description: 'Complete Pokemon team management system',
-    version: '2.0.0',
+    description: 'Complete Pokemon team management system with multilingual support',
+    version: '2.1.0',
     category: 'Pokemon Management'
   },
   
-  factory: () => createTeamModule(
+  // 🌐 Factory mise à jour pour passer optionsManager
+  factory: (options = {}) => createTeamModule(
     window.currentGameRoom, 
-    window.game?.scene?.getScenes(true)[0]
+    window.game?.scene?.getScenes(true)[0],
+    {
+      optionsManager: window.optionsSystem,
+      ...options
+    }
   )
 });
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
+// === 🔗 INTÉGRATION AVEC UIMANAGER AMÉLIORÉE ===
 
-/**
- * Enregistrer le module Team dans UIManager
- */
 export async function registerTeamModule(uiManager) {
   try {
-    console.log('📝 [TeamIntegration] Enregistrement Team...');
+    console.log('📝 [TeamIntegration] Enregistrement Team avec traductions...');
     
-    // Vérifier si déjà enregistré
     if (uiManager.modules && uiManager.modules.has('team')) {
       console.log('ℹ️ [TeamIntegration] Module déjà enregistré');
       return true;
@@ -283,30 +276,24 @@ export async function registerTeamModule(uiManager) {
   }
 }
 
-/**
- * Initialiser et connecter le module Team
- */
 export async function initializeTeamModule(uiManager) {
   try {
-    console.log('🚀 [TeamIntegration] Initialisation Team...');
+    console.log('🚀 [TeamIntegration] Initialisation Team avec traductions...');
     
-    // Enregistrer le module
     await registerTeamModule(uiManager);
     
-    // Vérifier si déjà initialisé (singleton)
     let teamInstance = TeamModule.getInstance('team');
     
     if (!teamInstance || !teamInstance.uiManagerState.initialized) {
-      // Initialiser le module
-      teamInstance = await uiManager.initializeModule('team');
+      // 🌐 Passer optionsManager lors de l'initialisation
+      teamInstance = await uiManager.initializeModule('team', {
+        optionsManager: window.optionsSystem
+      });
     } else {
       console.log('ℹ️ [TeamIntegration] Instance déjà initialisée');
-      
-      // Connecter à UIManager si pas encore fait
       teamInstance.connectUIManager(uiManager);
     }
     
-    // Setup des événements globaux Team
     setupTeamGlobalEvents(teamInstance);
     
     console.log('✅ [TeamIntegration] Initialisation Team terminée');
@@ -318,33 +305,29 @@ export async function initializeTeamModule(uiManager) {
   }
 }
 
-// === 🌐 ÉVÉNEMENTS GLOBAUX TEAM ===
+// === 🌐 ÉVÉNEMENTS GLOBAUX TEAM (inchangés) ===
 
 function setupTeamGlobalEvents(teamInstance) {
-  // Éviter double setup
   if (window._teamEventsSetup) {
     console.log('ℹ️ [TeamEvents] Événements déjà configurés');
     return;
   }
   
-  // Événement: Pokémon capturé
   window.addEventListener('pokemonCaught', (event) => {
     if (teamInstance.manager) {
       teamInstance.manager.handlePokemonCaught(event.detail);
     }
   });
   
-  // Événement: Combat commencé
   window.addEventListener('battleStarted', () => {
     if (teamInstance.ui && teamInstance.ui.isVisible) {
       teamInstance.ui.hide();
     }
   });
   
-  // Événement: Centre Pokémon
   window.addEventListener('pokemonCenterEntered', () => {
     if (teamInstance.manager) {
-      teamInstance.manager.requestTeamData(); // Refresh data
+      teamInstance.manager.requestTeamData();
     }
   });
   
@@ -352,16 +335,15 @@ function setupTeamGlobalEvents(teamInstance) {
   console.log('🌐 [TeamEvents] Événements Team configurés');
 }
 
-// === 💡 UTILISATION SIMPLE ===
+// === 💡 UTILISATION SIMPLE MISE À JOUR ===
 
-/**
- * Fonction d'utilisation simple pour intégrer Team dans un projet
- */
 export async function setupTeamSystem(uiManager) {
   try {
-    console.log('🔧 [TeamSetup] Configuration système Team avec BaseModule...');
+    console.log('🔧 [TeamSetup] Configuration système Team avec traductions...');
     
-    // Initialiser le module
+    // 🌐 S'assurer que les traductions sont initialisées
+    await initLocalizationManager();
+    
     const teamInstance = await initializeTeamModule(uiManager);
     
     // Exposer globalement pour compatibilité
@@ -376,7 +358,7 @@ export async function setupTeamSystem(uiManager) {
       console.log('🌐 [TeamSetup] Fonctions globales Team exposées');
     }
     
-    console.log('✅ [TeamSetup] Système Team configuré avec BaseModule');
+    console.log('✅ [TeamSetup] Système Team configuré avec traductions');
     return teamInstance;
     
   } catch (error) {
@@ -385,7 +367,7 @@ export async function setupTeamSystem(uiManager) {
   }
 }
 
-// === 🔍 UTILITÉS DE DEBUG TEAM ===
+// === 🔍 UTILITÉS DE DEBUG TEAM (inchangées) ===
 
 export function debugTeamModule() {
   const { debugModule } = require('../core/BaseModule.js');
@@ -399,9 +381,7 @@ export function fixTeamModule() {
     const instance = TeamModule.getInstance('team');
     
     if (instance) {
-      // Force fermeture UI via BaseModule
       instance.forceCloseUI();
-      
       console.log('✅ [TeamFix] Module Team réparé');
       return true;
     } else {
@@ -415,36 +395,4 @@ export function fixTeamModule() {
   }
 }
 
-// === 📋 EXPORT PAR DÉFAUT ===
-
 export default TeamModule;
-
-console.log(`
-⚔️ === TEAM MODULE AVEC BASEMODULE ===
-
-🎯 NOUVELLES FONCTIONNALITÉS:
-• BaseModule - logique UIManager mutualisée
-• Code simplifié - moins de duplication
-• Patterns standards - consistent entre modules
-• Singleton intégré - via BaseModule
-
-📍 AVANTAGES BASEMODULE:
-• connectUIManager() générique
-• forceCloseUI() standardisé
-• Gestion état UIManager uniforme
-• Raccourcis clavier automatiques
-
-🔧 MÉTHODES HÉRITÉES:
-• show(), hide(), setEnabled() - standards
-• connectUIManager() - connexion sécurisée
-• getUIManagerState() - état complet
-• forceCloseUI() - fermeture forcée
-
-🎯 SPÉCIFICITÉS TEAM:
-• getTeamData() - données équipe
-• canBattle() - vérification combat
-• healTeam() - soin équipe
-• API legacy maintenue
-
-✅ TEAM REFACTORISÉ AVEC BASEMODULE !
-`);
