@@ -1,10 +1,13 @@
-// Team/TeamIcon.js - CORRIGÉ pour uniformité complète avec InventoryIcon et QuestIcon
-// 🎯 ALIGNÉ sur le même standard que les autres modules
-// 📍 Positionnement identique à InventoryIcon pour consistance
+// Team/TeamIcon.js - Version avec traductions temps réel
+// 🌐 Support complet des traductions selon le pattern QuestIcon
+// 🔄 Mise à jour automatique lors changement de langue
+
+import { t } from '../managers/LocalizationManager.js';
 
 export class TeamIcon {
-  constructor(teamManager) {
+  constructor(teamManager, optionsManager = null) {
     this.teamManager = teamManager;
+    this.optionsManager = optionsManager;
     
     // === ÉTAT ===
     this.isVisible = true;
@@ -21,25 +24,29 @@ export class TeamIcon {
       canBattle: false
     };
     
-    // === ✅ CORRECTION: MÊME CONFIGURATION QUE LES AUTRES ===
+    // === CONFIGURATION IDENTIQUE ===
     this.positioningMode = 'uimanager';
-    this.uiManagerControlled = true; // ✅ FLAG MANQUANT ajouté
+    this.uiManagerControlled = true;
     
-    console.log('⚔️ [TeamIcon] Instance créée - Configuration UIManager uniformisée');
+    // === 🌐 LOCALIZATION ===
+    this.cleanupLanguageListener = null;
+    this.currentTooltip = null;
+    
+    console.log('⚔️ [TeamIcon] Instance créée avec support traductions');
   }
   
-  // === 🚀 INITIALISATION IDENTIQUE ===
+  // === 🚀 INITIALISATION AVEC LOCALIZATION ===
   
   init() {
     try {
-      console.log('🚀 [TeamIcon] Initialisation SANS positionnement...');
+      console.log('🚀 [TeamIcon] Initialisation avec traductions...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
+      this.setupLanguageSupport();
       
-      // ✅ PAS de positionnement manuel - UIManager s'en charge
-      console.log('✅ [TeamIcon] Initialisé - UIManager gérera la position');
+      console.log('✅ [TeamIcon] Initialisé avec support multilingue');
       return this;
       
     } catch (error) {
@@ -48,7 +55,51 @@ export class TeamIcon {
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE UNIFORMISÉE ===
+  // === 🌐 CONFIGURATION SUPPORT LANGUE ===
+  
+  setupLanguageSupport() {
+    // S'abonner aux changements de langue si optionsManager disponible
+    if (this.optionsManager && typeof this.optionsManager.addLanguageListener === 'function') {
+      console.log('🌐 [TeamIcon] Configuration listener langue...');
+      
+      this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
+        console.log('🔄 [TeamIcon] Changement langue détecté');
+        this.updateLanguage();
+      });
+      
+      console.log('✅ [TeamIcon] Listener langue configuré');
+    } else {
+      console.warn('⚠️ [TeamIcon] OptionsManager non disponible - pas de mise à jour langue temps réel');
+    }
+    
+    // Mise à jour initiale
+    this.updateLanguage();
+  }
+  
+  /**
+   * Met à jour tous les textes selon la langue courante
+   */
+  updateLanguage() {
+    if (!this.iconElement) return;
+    
+    console.log('🔄 [TeamIcon] Mise à jour langue...');
+    
+    // Mettre à jour le label
+    const labelElement = this.iconElement.querySelector('.icon-label');
+    if (labelElement) {
+      labelElement.textContent = t('team.label');
+    }
+    
+    // Si tooltip visible, le recréer avec nouvelle langue
+    if (this.currentTooltip) {
+      this.hideTooltip();
+      // Le tooltip sera recréé avec la bonne langue lors du prochain survol
+    }
+    
+    console.log('✅ [TeamIcon] Langue mise à jour');
+  }
+  
+  // === 🎨 CRÉATION INTERFACE AVEC TEXTES TRADUITS ===
   
   createIcon() {
     // Supprimer l'ancien s'il existe
@@ -59,7 +110,7 @@ export class TeamIcon {
     
     const icon = document.createElement('div');
     icon.id = 'team-icon';
-    icon.className = 'team-icon ui-icon'; // ✅ MÊME CLASSE que les autres
+    icon.className = 'team-icon ui-icon';
     
     icon.innerHTML = `
       <div class="icon-background">
@@ -71,7 +122,7 @@ export class TeamIcon {
             <span class="team-max">6</span>
           </div>
         </div>
-        <div class="icon-label">Team</div>
+        <div class="icon-label">${t('team.label')}</div>
       </div>
       
       <div class="battle-status">
@@ -83,14 +134,13 @@ export class TeamIcon {
       </div>
     `;
     
-    // ✅ AUCUNE POSITION CSS - UIManager contrôle tout
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [TeamIcon] Icône créée SANS positionnement manuel');
+    console.log('🎨 [TeamIcon] Icône créée avec texte traduit');
   }
   
-  // === 🎨 STYLES CORRIGÉS SANS POSITION ===
+  // === 🎨 STYLES INCHANGÉS ===
   
   addStyles() {
     if (document.querySelector('#team-icon-styles')) {
@@ -100,9 +150,8 @@ export class TeamIcon {
     const style = document.createElement('style');
     style.id = 'team-icon-styles';
     style.textContent = `
-      /* ===== TEAM ICON - AUCUNE POSITION FIXE ===== */
+      /* ===== TEAM ICON - STYLES IDENTIQUES ===== */
       .team-icon {
-        /* ✅ AUCUNE POSITION CSS - UIManager contrôle tout */
         width: 70px !important;
         height: 80px !important;
         cursor: pointer;
@@ -111,8 +160,6 @@ export class TeamIcon {
         user-select: none;
         display: block;
         box-sizing: border-box;
-        
-        /* ✅ Position sera définie par UIManager uniquement */
       }
 
       .team-icon:hover {
@@ -327,7 +374,7 @@ export class TeamIcon {
         50% { background: linear-gradient(145deg, #9c27b0, #7b1fa2); }
       }
 
-      /* Responsive TAILLE seulement */
+      /* Responsive */
       @media (max-width: 768px) {
         .team-icon {
           width: 60px !important;
@@ -356,7 +403,7 @@ export class TeamIcon {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [TeamIcon] Styles sans position fixe appliqués');
+    console.log('🎨 [TeamIcon] Styles appliqués');
   }
   
   // === 🎛️ ÉVÉNEMENTS IDENTIQUES ===
@@ -403,8 +450,6 @@ export class TeamIcon {
   updateStats(stats) {
     if (!stats || !this.iconElement) return;
     
-    console.log('📊 [TeamIcon] Mise à jour stats:', stats);
-    
     this.displayStats = {
       teamCount: stats.totalPokemon || 0,
       aliveCount: stats.alivePokemon || 0,
@@ -443,27 +488,20 @@ export class TeamIcon {
         this.iconElement.classList.remove('team-full');
       }, 1000);
     }
-    
-    console.log('📊 [TeamIcon] Affichage mis à jour');
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER CORRIGÉ ===
+  // === 🎛️ CONTRÔLE UI MANAGER IDENTIQUE ===
   
   show() {
-    console.log('👁️ [TeamIcon] Affichage via UIManager');
-    
     this.isVisible = true;
     
     if (this.iconElement) {
       this.iconElement.classList.remove('ui-hidden', 'hidden');
       this.iconElement.classList.add('ui-fade-in');
       
-      // ✅ FORCER AFFICHAGE sans toucher à la position
       this.iconElement.style.display = 'block';
       this.iconElement.style.visibility = 'visible';
       this.iconElement.style.opacity = '1';
-      
-      // ✅ NE PAS TOUCHER À LA POSITION - UIManager s'en charge
       
       setTimeout(() => {
         this.iconElement.classList.remove('ui-fade-in');
@@ -474,8 +512,6 @@ export class TeamIcon {
   }
   
   hide() {
-    console.log('👻 [TeamIcon] Masquage');
-    
     this.isVisible = false;
     
     if (this.iconElement) {
@@ -491,8 +527,6 @@ export class TeamIcon {
   }
   
   setEnabled(enabled) {
-    console.log(`🔧 [TeamIcon] setEnabled(${enabled})`);
-    
     this.isEnabled = enabled;
     
     if (this.iconElement) {
@@ -509,12 +543,9 @@ export class TeamIcon {
   // === 📍 MÉTHODES UIMANAGER IDENTIQUES ===
   
   onPositioned(position) {
-    console.log('📍 [TeamIcon] Position reçue de UIManager:', position);
-    
     if (this.iconElement) {
       this.iconElement.setAttribute('data-positioned-by', 'uimanager');
       this.iconElement.setAttribute('data-position', JSON.stringify(position));
-      console.log('✅ [TeamIcon] Position UIManager confirmée');
     }
   }
   
@@ -542,7 +573,7 @@ export class TeamIcon {
     };
   }
   
-  // === 💬 TOOLTIP CORRIGÉ ===
+  // === 💬 TOOLTIP AVEC TRADUCTIONS ===
   
   showTooltip() {
     const { teamCount, aliveCount, canBattle } = this.displayStats;
@@ -550,7 +581,6 @@ export class TeamIcon {
     const tooltip = document.createElement('div');
     tooltip.className = 'team-tooltip';
     
-    // ✅ Position relative à l'icône actuelle
     const iconRect = this.iconElement.getBoundingClientRect();
     
     tooltip.style.cssText = `
@@ -569,16 +599,27 @@ export class TeamIcon {
       white-space: nowrap;
     `;
     
-    let statusText = canBattle ? 'Ready for battle' : 'Cannot battle';
-    if (aliveCount < teamCount && aliveCount > 0) {
-      statusText = 'Some Pokemon fainted';
+    // === 🌐 TEXTES TRADUITS DANS TOOLTIP ===
+    
+    let statusText;
+    if (!canBattle) {
+      statusText = t('team.tooltip_status_not_ready');
+    } else if (aliveCount < teamCount && aliveCount > 0) {
+      statusText = t('team.tooltip_status_warning');
+    } else {
+      statusText = t('team.tooltip_status_ready');
     }
     
+    // Utiliser les traductions avec interpolation simple
+    const teamCountText = t('team.tooltip_count').replace('{count}', teamCount);
+    const aliveCountText = t('team.tooltip_alive').replace('{count}', aliveCount);
+    
     tooltip.innerHTML = `
-      <div><strong>Team: ${teamCount}/6</strong></div>
-      <div>Alive: ${aliveCount}</div>
+      <div><strong>${t('team.tooltip_title')}</strong></div>
+      <div>${teamCountText}</div>
+      <div>${aliveCountText}</div>
       <div>${statusText}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">Click to manage</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${t('team.tooltip_action')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -601,14 +642,14 @@ export class TeamIcon {
   
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Team management disabled', 'warning', {
+      window.showGameNotification(t('team.disabled_message'), 'warning', {
         duration: 2000,
         position: 'bottom-center'
       });
     }
   }
   
-  // === 🎭 ANIMATIONS IDENTIQUES ===
+  // === 🎭 ANIMATIONS AVEC NOTIFICATIONS TRADUITES ===
   
   animatePokemonAdded() {
     if (!this.iconElement) return;
@@ -645,6 +686,14 @@ export class TeamIcon {
     setTimeout(() => {
       this.showNotification(false);
     }, 1500);
+    
+    // Notification traduite
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(t('team.ui.notifications.team_healed'), 'success', {
+        duration: 2000,
+        position: 'bottom-center'
+      });
+    }
   }
   
   showNotification(show = true, text = '!') {
@@ -659,10 +708,17 @@ export class TeamIcon {
     }
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE AVEC CLEANUP LANGUE ===
   
   destroy() {
     console.log('🧹 [TeamIcon] Destruction...');
+    
+    // Nettoyer le listener de langue
+    if (this.cleanupLanguageListener && typeof this.cleanupLanguageListener === 'function') {
+      console.log('🌐 [TeamIcon] Nettoyage listener langue...');
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     this.hideTooltip();
     
@@ -674,8 +730,40 @@ export class TeamIcon {
     this.onClick = null;
     this.isVisible = false;
     this.isEnabled = false;
+    this.optionsManager = null;
     
-    console.log('✅ [TeamIcon] Détruit');
+    console.log('✅ [TeamIcon] Détruit avec nettoyage langue');
+  }
+  
+  // === 🌐 MÉTHODES UTILITAIRES LANGUE ===
+  
+  /**
+   * Méthode utilitaire pour interpolation simple
+   */
+  interpolateText(key, values = {}) {
+    let text = t(key);
+    
+    for (const [placeholder, value] of Object.entries(values)) {
+      text = text.replace(`{${placeholder}}`, value);
+    }
+    
+    return text;
+  }
+  
+  /**
+   * Met à jour un tooltip Pokémon avec traductions
+   */
+  showPokemonAddedNotification(pokemonName) {
+    if (typeof window.showGameNotification === 'function') {
+      const message = this.interpolateText('team.ui.notifications.pokemon_added', {
+        name: pokemonName
+      });
+      
+      window.showGameNotification(message, 'success', {
+        duration: 3000,
+        position: 'bottom-center'
+      });
+    }
   }
   
   // === 🐛 DEBUG AMÉLIORÉ ===
@@ -692,50 +780,21 @@ export class TeamIcon {
       uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
-      elementStyles: this.iconElement ? {
-        position: this.iconElement.style.position,
-        left: this.iconElement.style.left,
-        top: this.iconElement.style.top,
-        right: this.iconElement.style.right,
-        bottom: this.iconElement.style.bottom,
-        zIndex: this.iconElement.style.zIndex,
-        display: this.iconElement.style.display,
-        visibility: this.iconElement.style.visibility,
-        opacity: this.iconElement.style.opacity
-      } : null,
-      boundingRect: this.iconElement ? this.iconElement.getBoundingClientRect() : null
+      
+      // === 🌐 DEBUG LOCALIZATION ===
+      localization: {
+        hasOptionsManager: !!this.optionsManager,
+        hasLanguageListener: !!this.cleanupLanguageListener,
+        currentLabel: this.iconElement?.querySelector('.icon-label')?.textContent,
+        sampleTranslations: {
+          teamLabel: t('team.label'),
+          tooltipTitle: t('team.tooltip_title'),
+          statusReady: t('team.tooltip_status_ready'),
+          statusNotReady: t('team.tooltip_status_not_ready')
+        }
+      }
     };
   }
 }
 
 export default TeamIcon;
-
-console.log(`
-⚔️ === TEAM ICON UNIFORMISÉ AVEC LES AUTRES ===
-
-✅ CORRECTIONS APPLIQUÉES:
-• Ajout du flag uiManagerControlled manquant
-• Tailles exactes (70px × 80px) comme Inventory
-• Méthodes show/hide identiques
-• onPositioned() standardisé
-• Classes CSS uniformisées
-• Responsive breakpoints alignés
-
-🔧 CONFIGURATION IDENTIQUE:
-• positioningMode: 'uimanager'
-• uiManagerControlled: true
-• Même structure de styles
-• Mêmes animations UIManager
-• Mêmes méthodes de positionnement
-
-📍 ORDRE UIMANAGER:
-• Inventory: order 0 (plus à droite)
-• Quest: order 1 (milieu)
-• Team: order 2 (plus à gauche)
-
-🎯 RÉSULTAT:
-Alignement parfait des 3 icônes:
-[📦] [📖] [⚔️]
-
-✅ TEAM ICON MAINTENANT 100% ALIGNÉ !
-`);
