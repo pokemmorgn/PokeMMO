@@ -552,43 +552,52 @@ export class PokemonUISystem {
     }
   }
 
-  async createTeamModule() {
-    try {
-      const { createTeamModule } = await import('./Team/index.js');
-      
-      const teamModule = await createTeamModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      if (!teamModule) {
-        throw new Error('Échec création TeamModule');
-      }
-      
-      if (this.uiManager && this.uiManager.registerIconPosition) {
-        if (teamModule.icon && teamModule.icon.iconElement) {
-          teamModule.connectUIManager(this.uiManager);
-        }
-      }
-      
-      if (teamModule.forceCloseUI) {
-        teamModule.forceCloseUI();
-      }
-      
-      window.teamSystem = teamModule;
-      window.teamSystemGlobal = teamModule;
-      window.toggleTeam = () => teamModule.toggleTeamUI();
-      window.openTeam = () => teamModule.openTeam();
-      window.closeTeam = () => teamModule.closeTeam();
-      window.forceCloseTeam = () => teamModule.forceCloseUI ? teamModule.forceCloseUI() : teamModule.closeTeam();
-      
-      return teamModule;
-      
-    } catch (error) {
-      console.error('❌ Erreur création Team:', error);
-      return this.createEmptyWrapper('team');
+async createTeamModule() {
+  try {
+    const { createTeamModule } = await import('./Team/index.js');
+    
+    // 🌐 CORRECTION: Récupérer le bon niveau optionsManager
+    const optionsManager = window.optionsSystem?.manager ||      // ← LE BON OBJET (.manager)
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    console.log('🌐 [PokemonUI] Création TeamModule avec optionsManager:', !!optionsManager);
+    
+    const teamModule = await createTeamModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0],
+      { optionsManager }  // ← PASSER OPTIONS MANAGER ICI
+    );
+    
+    if (!teamModule) {
+      throw new Error('Échec création TeamModule');
     }
+    
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      if (teamModule.icon && teamModule.icon.iconElement) {
+        teamModule.connectUIManager(this.uiManager);
+      }
+    }
+    
+    if (teamModule.forceCloseUI) {
+      teamModule.forceCloseUI();
+    }
+    
+    window.teamSystem = teamModule;
+    window.teamSystemGlobal = teamModule;
+    window.toggleTeam = () => teamModule.toggleTeamUI();
+    window.openTeam = () => teamModule.openTeam();
+    window.closeTeam = () => teamModule.closeTeam();
+    window.forceCloseTeam = () => teamModule.forceCloseUI ? teamModule.forceCloseUI() : teamModule.closeTeam();
+    
+    console.log('✅ [PokemonUI] TeamModule créé avec traductions');
+    return teamModule;
+    
+  } catch (error) {
+    console.error('❌ Erreur création Team:', error);
+    return this.createEmptyWrapper('team');
   }
+}
 
   async createPokedexModule() {
     try {
