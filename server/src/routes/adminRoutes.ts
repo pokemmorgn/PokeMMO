@@ -10,6 +10,7 @@ import { QuestData } from '../models/QuestData'; // ✅ AJOUT: Import du modèle
 import { GameObjectData } from '../models/GameObjectData';
 import { NpcData } from '../models/NpcData'; // ✅ Correct
 import { ShopData } from '../models/ShopData.js'
+import { DialogStringModel, IDialogString } from '../models/DialogString';
 
 
 import jwt from 'jsonwebtoken';
@@ -5659,5 +5660,620 @@ res.json({
 }
 });
 
+// ✅ ROUTE: Lister tous les dialogues
+router.get('/dialogues', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log('🗨️ [Dialogues API] Chargement des dialogues...');
+        
+        const { page = 1, limit = 100, category, npcId, search } = req.query;
+        
+        // Construire la requête de filtre
+        const filter: any = { isActive: true };
+        
+        if (category && category !== 'all') {
+            filter.category = category;
+        }
+        
+        if (npcId && npcId !== 'all') {
+            filter.npcId = npcId;
+        }
+        
+        if (search) {
+            filter.$or = [
+                { dialogId: { $regex: search, $options: 'i' } },
+                { eng: { $regex: search, $options: 'i' } },
+                { fr: { $regex: search, $options: 'i' } },
+                { npcId: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+        // Exécuter la requête
+        const dialogues = await DialogStringModel.find(filter)
+            .sort({ npcId: 1, category: 1, priority: -1, dialogId: 1 })
+            .limit(parseInt(limit as string))
+            .skip((parseInt(page as string) - 1) * parseInt(limit as string))
+            .lean();
+        
+        const total = await DialogStringModel.countDocuments(filter);
+        
+        console.log(`✅ [Dialogues API] ${dialogues.length}/${total} dialogues chargés`);
+        
+        res.json({
+            success: true,
+            dialogues: dialogues.map(d => ({
+                dialogId: d.dialogId,
+                npcId: d.npcId,
+                category: d.category,
+                context: d.context,
+                eng: d.eng,
+                fr: d.fr,
+                es: d.es,
+                de: d.de,
+                ja: d.ja,
+                it: d.it,
+                pt: d.pt,
+                ko: d.ko,
+                zh: d.zh,
+                variables: d.variables,
+                conditions: d.conditions,
+                priority: d.priority,
+                isActive: d.isActive,
+                version: d.version,
+                tags: d.tags,
+                createdAt: d.createdAt,
+                updatedAt: d.updatedAt
+            })),
+            total,
+            page: parseInt(page as string),
+            limit: parseInt(limit as string)
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur chargement:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors du chargement des dialogues',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// ✅ ROUTE: Créer un nouveau dialogue
+router.post('/dialogues', requireMacAndDev, async (req: any, res) => {
+    try {
+        const dialogueData = req.body;
+        
+        console.log(`🗨️ [Dialogues API] Création dialogue: ${dialogueData.dialogId}`);
+        
+        // Validation des champs requis
+        if (!dialogueData.dialogId || !dialogueData.eng || !dialogueData.fr) {
+            return res.status(400).json({
+                success: false,
+                error: 'Champs requis manquants (dialogId, eng, fr)'
+            });
+        }
+        
+        // Vérifier que l'ID n'existe pas déjà
+        const existing = await DialogStringModel.findOne({ dialogId: dialogueData.dialogId });
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                error: 'Un dialogue avec cet ID existe déjà'
+            });
+        }
+        
+        // Créer le nouveau dialogue
+        const newDialogue = new DialogStringModel({
+            dialogId: dialogueData.dialogId,
+            npcId: dialogueData.npcId,
+            category: dialogueData.category || 'greeting',
+            context: dialogueData.context,
+            eng: dialogueData.eng,
+            fr: dialogueData.fr,
+            es: dialogueData.es,
+            de: dialogueData.de,
+            ja: dialogueData.ja,
+            it: dialogueData.it,
+            pt: dialogueData.pt,
+            ko: dialogueData.ko,
+            zh: dialogueData.zh,
+            variables: dialogueData.variables || [],
+            conditions: dialogueData.conditions || [],
+            priority: dialogueData.priority || 5,
+            isActive: dialogueData.isActive !== false,
+            tags: dialogueData.tags || [],
+            version: dialogueData.version || '1.0.0'
+        });
+        
+        await newDialogue.save();
+        
+        console.log(`✅ [Dialogues API] Dialogue créé: ${dialogueData.dialogId} par ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Dialogue créé avec succès',
+            dialogue: {
+                dialogId: newDialogue.dialogId,
+                npcId: newDialogue.npcId,
+                category: newDialogue.category,
+                isActive: newDialogue.isActive
+            },
+            createdBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur création:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la création du dialogue',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// ✅ ROUTE: Mettre à jour un dialogue
+router.put('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { dialogueId } = req.params;
+        const updateData = req.body;
+        
+        console.log(`🗨️ [Dialogues API] Mise à jour dialogue: ${dialogueId}`);
+        
+        // Trouver le dialogue existant
+        const dialogue = await DialogStringModel.findOne({ dialogId: dialogueId });
+        if (!dialogue) {
+            return res.status(404).json({
+                success: false,
+                error: 'Dialogue non trouvé'
+            });
+        }
+        
+        // Mettre à jour les champs autorisés
+        const allowedFields = [
+            'npcId', 'category', 'context', 'eng', 'fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh',
+            'variables', 'conditions', 'priority', 'isActive', 'tags', 'version'
+        ];
+        
+        allowedFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                (dialogue as any)[field] = updateData[field];
+            }
+        });
+        
+        await dialogue.save();
+        
+        console.log(`✅ [Dialogues API] Dialogue mis à jour: ${dialogueId} par ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Dialogue mis à jour avec succès',
+            dialogue: {
+                dialogId: dialogue.dialogId,
+                npcId: dialogue.npcId,
+                category: dialogue.category,
+                updatedAt: dialogue.updatedAt
+            },
+            updatedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur mise à jour:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la mise à jour du dialogue',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// ✅ ROUTE: Supprimer un dialogue
+router.delete('/dialogues/:dialogueId', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { dialogueId } = req.params;
+        
+        console.log(`🗨️ [Dialogues API] Suppression dialogue: ${dialogueId}`);
+        
+        const deletedDialogue = await DialogStringModel.findOneAndDelete({ dialogId: dialogueId });
+        if (!deletedDialogue) {
+            return res.status(404).json({
+                success: false,
+                error: 'Dialogue non trouvé'
+            });
+        }
+        
+        console.log(`✅ [Dialogues API] Dialogue supprimé: ${dialogueId} par ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Dialogue supprimé avec succès',
+            deletedDialogue: {
+                dialogId: deletedDialogue.dialogId,
+                npcId: deletedDialogue.npcId,
+                category: deletedDialogue.category
+            },
+            deletedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur suppression:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la suppression du dialogue',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// ✅ ROUTE: Obtenir les statistiques des dialogues
+router.get('/dialogues/stats', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log('📊 [Dialogues API] Génération des statistiques...');
+        
+        const [
+            totalDialogues,
+            activeDialogues,
+            dialoguesByCategory,
+            dialoguesByNpc,
+            missingTranslations,
+            dialoguesWithConditions
+        ] = await Promise.all([
+            DialogStringModel.countDocuments({}),
+            DialogStringModel.countDocuments({ isActive: true }),
+            DialogStringModel.aggregate([
+                { $group: { _id: '$category', count: { $sum: 1 } } },
+                { $sort: { count: -1 } }
+            ]),
+            DialogStringModel.aggregate([
+                { $match: { npcId: { $exists: true, $ne: null } } },
+                { $group: { _id: '$npcId', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 10 }
+            ]),
+            DialogStringModel.countDocuments({
+                $or: [
+                    { fr: { $exists: false } },
+                    { fr: '' },
+                    { fr: null }
+                ]
+            }),
+            DialogStringModel.countDocuments({
+                conditions: { $exists: true, $not: { $size: 0 } }
+            })
+        ]);
+        
+        const stats = {
+            total: totalDialogues,
+            active: activeDialogues,
+            inactive: totalDialogues - activeDialogues,
+            missingTranslations,
+            withConditions: dialoguesWithConditions,
+            byCategory: dialoguesByCategory.reduce((acc: any, item: any) => {
+                acc[item._id] = item.count;
+                return acc;
+            }, {}),
+            topNpcs: dialoguesByNpc.map((item: any) => ({
+                npcId: item._id,
+                count: item.count
+            }))
+        };
+        
+        console.log('✅ [Dialogues API] Statistiques générées');
+        
+        res.json({
+            success: true,
+            stats
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur statistiques:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la génération des statistiques'
+        });
+    }
+});
+
+// ✅ ROUTE: Rechercher des dialogues
+router.post('/dialogues/search', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { query, category, npcId, language = 'fr', limit = 50 } = req.body;
+        
+        console.log(`🔍 [Dialogues API] Recherche: "${query}"`);
+        
+        if (!query || query.trim().length < 2) {
+            return res.json({
+                success: true,
+                results: [],
+                message: 'Requête trop courte (minimum 2 caractères)'
+            });
+        }
+        
+        // Construire les filtres
+        const filter: any = { isActive: true };
+        
+        if (category && category !== 'all') {
+            filter.category = category;
+        }
+        
+        if (npcId && npcId !== 'all') {
+            filter.npcId = npcId;
+        }
+        
+        // Recherche textuelle multi-champs
+        const searchRegex = { $regex: query, $options: 'i' };
+        filter.$or = [
+            { dialogId: searchRegex },
+            { npcId: searchRegex },
+            { eng: searchRegex },
+            { fr: searchRegex }
+        ];
+        
+        // Ajouter les autres langues si spécifiées
+        if (language !== 'fr' && language !== 'eng') {
+            filter.$or.push({ [language]: searchRegex });
+        }
+        
+        const results = await DialogStringModel.find(filter)
+            .select(`dialogId npcId category ${language} eng priority isActive`)
+            .sort({ priority: -1, dialogId: 1 })
+            .limit(parseInt(limit))
+            .lean();
+        
+        res.json({
+            success: true,
+            results: results.map(r => ({
+                dialogId: r.dialogId,
+                npcId: r.npcId,
+                category: r.category,
+                text: r[language as keyof typeof r] || r.eng,
+                priority: r.priority,
+                isActive: r.isActive
+            })),
+            query,
+            total: results.length
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur recherche:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la recherche'
+        });
+    }
+});
+
+// ✅ ROUTE: Dupliquer un dialogue
+router.post('/dialogues/:dialogueId/duplicate', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { dialogueId } = req.params;
+        
+        console.log(`📋 [Dialogues API] Duplication dialogue: ${dialogueId}`);
+        
+        // Trouver le dialogue original
+        const originalDialogue = await DialogStringModel.findOne({ dialogId: dialogueId });
+        if (!originalDialogue) {
+            return res.status(404).json({
+                success: false,
+                error: 'Dialogue original non trouvé'
+            });
+        }
+        
+        // Générer un nouvel ID unique
+        const newDialogueId = `${dialogueId}_copy_${Date.now()}`;
+        
+        // Créer la copie
+        const duplicateDialogue = new DialogStringModel({
+            ...originalDialogue.toObject(),
+            _id: undefined, // Nouveau document
+            dialogId: newDialogueId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+        
+        await duplicateDialogue.save();
+        
+        console.log(`✅ [Dialogues API] Dialogue dupliqué: ${dialogueId} -> ${newDialogueId} par ${req.user.username}`);
+        
+        res.json({
+            success: true,
+            message: 'Dialogue dupliqué avec succès',
+            originalDialogueId: dialogueId,
+            newDialogueId: newDialogueId,
+            dialogue: {
+                dialogId: duplicateDialogue.dialogId,
+                npcId: duplicateDialogue.npcId,
+                category: duplicateDialogue.category
+            },
+            duplicatedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur duplication:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la duplication du dialogue'
+        });
+    }
+});
+
+// ✅ ROUTE: Importer des dialogues depuis JSON
+router.post('/dialogues/import', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { dialogues, overwrite = false } = req.body;
+        
+        console.log(`📥 [Dialogues API] Import de ${dialogues?.length || 0} dialogues par ${req.user.username}`);
+        
+        if (!Array.isArray(dialogues) || dialogues.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Aucun dialogue à importer'
+            });
+        }
+        
+        let imported = 0;
+        let updated = 0;
+        let errors = 0;
+        const errorDetails: string[] = [];
+        
+        for (const dialogueData of dialogues) {
+            try {
+                // Validation de base
+                if (!dialogueData.dialogId || !dialogueData.eng || !dialogueData.fr) {
+                    errorDetails.push(`Dialogue ${dialogueData.dialogId || 'unknown'}: champs requis manquants`);
+                    errors++;
+                    continue;
+                }
+                
+                // Vérifier s'il existe déjà
+                const existing = await DialogStringModel.findOne({ dialogId: dialogueData.dialogId });
+                
+                if (existing && !overwrite) {
+                    errorDetails.push(`Dialogue ${dialogueData.dialogId}: existe déjà (utilisez overwrite=true)`);
+                    errors++;
+                    continue;
+                }
+                
+                if (existing && overwrite) {
+                    // Mettre à jour
+                    await DialogStringModel.updateOne(
+                        { dialogId: dialogueData.dialogId },
+                        { ...dialogueData, updatedAt: new Date() }
+                    );
+                    updated++;
+                } else {
+                    // Créer nouveau
+                    const newDialogue = new DialogStringModel({
+                        ...dialogueData,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    await newDialogue.save();
+                    imported++;
+                }
+                
+            } catch (error) {
+                errorDetails.push(`Dialogue ${dialogueData.dialogId}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+                errors++;
+            }
+        }
+        
+        console.log(`✅ [Dialogues API] Import terminé: ${imported} créés, ${updated} mis à jour, ${errors} erreurs`);
+        
+        res.json({
+            success: true,
+            message: `Import terminé: ${imported} créés, ${updated} mis à jour`,
+            imported,
+            updated,
+            errors,
+            errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+            importedBy: req.user.username
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur import:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'import des dialogues'
+        });
+    }
+});
+
+// ✅ ROUTE: Exporter tous les dialogues
+router.get('/dialogues/export/all', requireMacAndDev, async (req: any, res) => {
+    try {
+        console.log(`📤 [Dialogues API] Export de tous les dialogues par ${req.user.username}`);
+        
+        const dialogues = await DialogStringModel.find({ isActive: true })
+            .sort({ npcId: 1, category: 1, dialogId: 1 })
+            .lean();
+        
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            exportedBy: req.user.username,
+            version: '1.0.0',
+            totalDialogues: dialogues.length,
+            dialogues: dialogues.map(d => ({
+                dialogId: d.dialogId,
+                npcId: d.npcId,
+                category: d.category,
+                context: d.context,
+                eng: d.eng,
+                fr: d.fr,
+                es: d.es,
+                de: d.de,
+                ja: d.ja,
+                it: d.it,
+                pt: d.pt,
+                ko: d.ko,
+                zh: d.zh,
+                variables: d.variables,
+                conditions: d.conditions,
+                priority: d.priority,
+                isActive: d.isActive,
+                tags: d.tags,
+                version: d.version
+            }))
+        };
+        
+        res.json({
+            success: true,
+            data: exportData
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur export:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'export des dialogues'
+        });
+    }
+});
+
+// ✅ ROUTE: Obtenir les traductions manquantes
+router.get('/dialogues/missing-translations/:language', requireMacAndDev, async (req: any, res) => {
+    try {
+        const { language } = req.params;
+        
+        console.log(`🔍 [Dialogues API] Recherche traductions manquantes: ${language}`);
+        
+        if (!['fr', 'es', 'de', 'ja', 'it', 'pt', 'ko', 'zh'].includes(language)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Langue non supportée'
+            });
+        }
+        
+        const missingTranslations = await DialogStringModel.find({
+            isActive: true,
+            $or: [
+                { [language]: { $exists: false } },
+                { [language]: '' },
+                { [language]: null }
+            ]
+        })
+        .select('dialogId npcId category eng')
+        .sort({ npcId: 1, dialogId: 1 })
+        .lean();
+        
+        res.json({
+            success: true,
+            language,
+            missingCount: missingTranslations.length,
+            dialogues: missingTranslations.map(d => ({
+                dialogId: d.dialogId,
+                npcId: d.npcId,
+                category: d.category,
+                englishText: d.eng
+            }))
+        });
+        
+    } catch (error) {
+        console.error('❌ [Dialogues API] Erreur traductions manquantes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la recherche des traductions manquantes'
+        });
+    }
+});
 
 export default router;
