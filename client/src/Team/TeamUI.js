@@ -83,12 +83,48 @@ export class TeamUI {
       
       console.log('✅ [TeamUI] Interface initialisée avec succès');
       return this;
+
+      this.setupLanguageSupport();
       
     } catch (error) {
       console.error('❌ [TeamUI] Erreur initialisation:', error);
       throw error;
     }
   }
+
+  // === 🌐 CONFIGURATION SUPPORT LANGUE ===
+
+setupLanguageSupport() {
+  // S'abonner aux changements de langue si optionsManager disponible
+  if (this.optionsManager && typeof this.optionsManager.addLanguageListener === 'function') {
+    console.log('🌐 [TeamUI] Configuration listener langue...');
+    
+    this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
+      console.log('🔄 [TeamUI] Changement langue détecté');
+      this.updateLanguage();
+    });
+    
+    console.log('✅ [TeamUI] Listener langue configuré');
+  } else {
+    console.warn('⚠️ [TeamUI] OptionsManager non disponible - pas de mise à jour langue temps réel');
+  }
+  
+  // Mise à jour initiale
+  this.updateLanguage();
+}
+
+/**
+ * Met à jour tous les textes selon la langue courante
+ */
+updateLanguage() {
+  if (!this.overlayElement) return;
+  
+  console.log('🔄 [TeamUI] Mise à jour langue interface...');
+  
+  // TODO: Les mises à jour de textes seront ajoutées dans les prochaines étapes
+  
+  console.log('✅ [TeamUI] Langue interface mise à jour');
+}
   
   // === 🎨 CSS ROBUSTE ET SANS CONFLITS ===
   
@@ -994,8 +1030,8 @@ export class TeamUI {
           <div class="team-title">
             <div class="team-icon">⚔️</div>
             <div class="team-title-text">
-              <h2>Mon Équipe Pokémon</h2>
-              <p class="team-subtitle">Gestion complète de votre équipe de combat</p>
+              <h2>${t('team.ui.title')}</h2>
+              <p class="team-subtitle">${t('team.ui.subtitle')}</p>
             </div>
           </div>
           <div class="team-controls">
@@ -1003,7 +1039,7 @@ export class TeamUI {
               <div class="team-count">0/6</div>
               <div class="team-status">En attente</div>
             </div>
-            <button class="team-close-btn">✕</button>
+             <button class="team-close-btn" title="${t('team.ui.close')}">✕</button>
           </div>
         </div>
         
@@ -1011,11 +1047,11 @@ export class TeamUI {
         <div class="team-tabs">
           <button class="team-tab active" data-view="overview">
             <span class="tab-icon">👥</span>
-            <span class="tab-text">Vue d'ensemble</span>
+            <span class="tab-text">${t('team.ui.tabs.overview')}</span>
           </button>
           <button class="team-tab" data-view="details">
             <span class="tab-icon">📊</span>
-            <span class="tab-text">Détails</span>
+            <span class="tab-text">${t('team.ui.tabs.details')}</span>
           </button>
         </div>
         
