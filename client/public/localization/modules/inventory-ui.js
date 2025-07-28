@@ -1,0 +1,578 @@
+{
+  "en": {
+    "inventory": {
+      "label": "Bag",
+      "tooltip_title": "Inventory",
+      "tooltip_action": "Press I or click",
+      "disabled_message": "Inventory disabled",
+      
+      "ui": {
+        "title": "🎒 Bag",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Items",
+          "medicine": "Medicine", 
+          "balls": "Poké Balls",
+          "berries": "Berries",
+          "key_items": "Key Items",
+          "tms": "TMs/HMs"
+        },
+        
+        "details": {
+          "no_selection": "Select an item to see its details",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "items",
+          "max": "max",
+          "use": "Use",
+          "give": "Give", 
+          "sort": "Sort"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "No items in the {pocket} pocket"
+        },
+        
+        "item_types": {
+          "ball": "Poké Ball",
+          "medicine": "Medicine",
+          "item": "Item",
+          "key_item": "Key Item",
+          "tm": "Technical Machine",
+          "berry": "Berry"
+        },
+        
+        "stats": {
+          "quantity": "Quantity",
+          "price": "Price",
+          "heal": "Heal",
+          "duration": "Duration",
+          "steps": "steps",
+          "full": "Full",
+          "hp": "HP"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Give function not yet implemented",
+          "items_sorted": "Items sorted alphabetically",
+          "item_used_success": "Item used successfully",
+          "item_use_failed": "Cannot use this item",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "Cannot open inventory right now"
+        }
+      }
+    }
+  },
+  "fr": {
+    "inventory": {
+      "label": "Sac",
+      "tooltip_title": "Inventaire",
+      "tooltip_action": "Appuyez sur I ou cliquez",
+      "disabled_message": "Inventaire désactivé",
+      
+      "ui": {
+        "title": "🎒 Sac",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Objets",
+          "medicine": "Soins",
+          "balls": "Poké Balls", 
+          "berries": "Baies",
+          "key_items": "Objets Clés",
+          "tms": "CTs/CSs"
+        },
+        
+        "details": {
+          "no_selection": "Sélectionnez un objet pour voir ses détails",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "objets",
+          "max": "max",
+          "use": "Utiliser",
+          "give": "Donner",
+          "sort": "Trier"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "Aucun objet dans la poche {pocket}"
+        },
+        
+        "item_types": {
+          "ball": "Poké Ball",
+          "medicine": "Soin",
+          "item": "Objet",
+          "key_item": "Objet Clé",
+          "tm": "Capsule Technique",
+          "berry": "Baie"
+        },
+        
+        "stats": {
+          "quantity": "Quantité",
+          "price": "Prix",
+          "heal": "Soin",
+          "duration": "Durée",
+          "steps": "pas",
+          "full": "Complet",
+          "hp": "PV"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Fonction 'Donner' pas encore implémentée",
+          "items_sorted": "Objets triés par ordre alphabétique",
+          "item_used_success": "Objet utilisé avec succès",
+          "item_use_failed": "Impossible d'utiliser cet objet",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "Impossible d'ouvrir l'inventaire pour le moment"
+        }
+      }
+    }
+  },
+  "es": {
+    "inventory": {
+      "label": "Mochila",
+      "tooltip_title": "Inventario",
+      "tooltip_action": "Presiona I o haz clic",
+      "disabled_message": "Inventario deshabilitado",
+      
+      "ui": {
+        "title": "🎒 Mochila",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Objetos",
+          "medicine": "Medicina",
+          "balls": "Poké Balls",
+          "berries": "Bayas", 
+          "key_items": "Objetos Clave",
+          "tms": "MTs/MOs"
+        },
+        
+        "details": {
+          "no_selection": "Selecciona un objeto para ver sus detalles",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "objetos",
+          "max": "máx",
+          "use": "Usar",
+          "give": "Dar",
+          "sort": "Ordenar"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "No hay objetos en el bolsillo {pocket}"
+        },
+        
+        "item_types": {
+          "ball": "Poké Ball",
+          "medicine": "Medicina",
+          "item": "Objeto",
+          "key_item": "Objeto Clave",
+          "tm": "Máquina Técnica",
+          "berry": "Baya"
+        },
+        
+        "stats": {
+          "quantity": "Cantidad",
+          "price": "Precio",
+          "heal": "Curación",
+          "duration": "Duración",
+          "steps": "pasos",
+          "full": "Completa",
+          "hp": "PS"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Función 'Dar' no implementada aún",
+          "items_sorted": "Objetos ordenados alfabéticamente",
+          "item_used_success": "Objeto usado con éxito",
+          "item_use_failed": "No se puede usar este objeto",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "No se puede abrir el inventario ahora"
+        }
+      }
+    }
+  },
+  "de": {
+    "inventory": {
+      "label": "Tasche",
+      "tooltip_title": "Inventar",
+      "tooltip_action": "Drücke I oder klicke",
+      "disabled_message": "Inventar deaktiviert",
+      
+      "ui": {
+        "title": "🎒 Tasche",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Gegenstände",
+          "medicine": "Medizin",
+          "balls": "Pokébälle",
+          "berries": "Beeren",
+          "key_items": "Basis-Items",
+          "tms": "TMs/VMs"
+        },
+        
+        "details": {
+          "no_selection": "Wählen Sie einen Gegenstand aus, um Details zu sehen",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "Gegenstände",
+          "max": "max",
+          "use": "Benutzen",
+          "give": "Geben",
+          "sort": "Sortieren"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "Keine Gegenstände in der {pocket} Tasche"
+        },
+        
+        "item_types": {
+          "ball": "Pokéball",
+          "medicine": "Medizin",
+          "item": "Gegenstand",
+          "key_item": "Basis-Item",
+          "tm": "Technische Maschine",
+          "berry": "Beere"
+        },
+        
+        "stats": {
+          "quantity": "Anzahl",
+          "price": "Preis",
+          "heal": "Heilung",
+          "duration": "Dauer",
+          "steps": "Schritte",
+          "full": "Vollständig",
+          "hp": "KP"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Geben-Funktion noch nicht implementiert",
+          "items_sorted": "Gegenstände alphabetisch sortiert",
+          "item_used_success": "Gegenstand erfolgreich benutzt",
+          "item_use_failed": "Kann diesen Gegenstand nicht benutzen",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "Kann Inventar gerade nicht öffnen"
+        }
+      }
+    }
+  },
+  "it": {
+    "inventory": {
+      "label": "Zaino",
+      "tooltip_title": "Inventario",
+      "tooltip_action": "Premi I o clicca",
+      "disabled_message": "Inventario disabilitato",
+      
+      "ui": {
+        "title": "🎒 Zaino",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Oggetti",
+          "medicine": "Medicina",
+          "balls": "Poké Ball",
+          "berries": "Bacche",
+          "key_items": "Oggetti Chiave",
+          "tms": "MT/MN"
+        },
+        
+        "details": {
+          "no_selection": "Seleziona un oggetto per vederne i dettagli",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "oggetti",
+          "max": "max",
+          "use": "Usa",
+          "give": "Dai",
+          "sort": "Ordina"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "Nessun oggetto nella tasca {pocket}"
+        },
+        
+        "item_types": {
+          "ball": "Poké Ball",
+          "medicine": "Medicina",
+          "item": "Oggetto",
+          "key_item": "Oggetto Chiave",
+          "tm": "Macchina Tecnica",
+          "berry": "Bacca"
+        },
+        
+        "stats": {
+          "quantity": "Quantità",
+          "price": "Prezzo",
+          "heal": "Cura",
+          "duration": "Durata",
+          "steps": "passi",
+          "full": "Completa",
+          "hp": "PS"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Funzione 'Dai' non ancora implementata",
+          "items_sorted": "Oggetti ordinati alfabeticamente",
+          "item_used_success": "Oggetto usato con successo",
+          "item_use_failed": "Non posso usare questo oggetto",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "Non posso aprire l'inventario ora"
+        }
+      }
+    }
+  },
+  "pt": {
+    "inventory": {
+      "label": "Mochila",
+      "tooltip_title": "Inventário",
+      "tooltip_action": "Pressione I ou clique",
+      "disabled_message": "Inventário desabilitado",
+      
+      "ui": {
+        "title": "🎒 Mochila",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "Itens",
+          "medicine": "Medicina",
+          "balls": "Poké Bolas",
+          "berries": "Frutas",
+          "key_items": "Itens Chave",
+          "tms": "MTs/MSs"
+        },
+        
+        "details": {
+          "no_selection": "Selecione um item para ver seus detalhes",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "itens",
+          "max": "máx",
+          "use": "Usar",
+          "give": "Dar",
+          "sort": "Ordenar"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "Nenhum item no bolso {pocket}"
+        },
+        
+        "item_types": {
+          "ball": "Poké Bola",
+          "medicine": "Medicina",
+          "item": "Item",
+          "key_item": "Item Chave",
+          "tm": "Máquina Técnica",
+          "berry": "Fruta"
+        },
+        
+        "stats": {
+          "quantity": "Quantidade",
+          "price": "Preço",
+          "heal": "Cura",
+          "duration": "Duração",
+          "steps": "passos",
+          "full": "Completa",
+          "hp": "HP"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "Função 'Dar' ainda não implementada",
+          "items_sorted": "Itens ordenados alfabeticamente",
+          "item_used_success": "Item usado com sucesso",
+          "item_use_failed": "Não é possível usar este item",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "Não é possível abrir o inventário agora"
+        }
+      }
+    }
+  },
+  "ja": {
+    "inventory": {
+      "label": "バッグ",
+      "tooltip_title": "インベントリ",
+      "tooltip_action": "Iキーまたはクリック",
+      "disabled_message": "インベントリが無効",
+      
+      "ui": {
+        "title": "🎒 バッグ",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "アイテム",
+          "medicine": "回復",
+          "balls": "ボール",
+          "berries": "きのみ",
+          "key_items": "だいじなもの",
+          "tms": "わざマシン"
+        },
+        
+        "details": {
+          "no_selection": "アイテムを選択して詳細を表示",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "個",
+          "max": "最大",
+          "use": "つかう",
+          "give": "あげる",
+          "sort": "並び替え"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "{pocket}ポケットにアイテムがありません"
+        },
+        
+        "item_types": {
+          "ball": "ボール",
+          "medicine": "回復アイテム",
+          "item": "アイテム",
+          "key_item": "だいじなもの",
+          "tm": "わざマシン",
+          "berry": "きのみ"
+        },
+        
+        "stats": {
+          "quantity": "数量",
+          "price": "価格",
+          "heal": "回復",
+          "duration": "持続時間",
+          "steps": "歩",
+          "full": "全回復",
+          "hp": "HP"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "あげる機能は未実装です",
+          "items_sorted": "アイテムをアルファベット順に並び替えました",
+          "item_used_success": "アイテムを使用しました",
+          "item_use_failed": "このアイテムは使用できません",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "現在インベントリを開けません"
+        }
+      }
+    }
+  },
+  "ko": {
+    "inventory": {
+      "label": "가방",
+      "tooltip_title": "인벤토리",
+      "tooltip_action": "I키 또는 클릭",
+      "disabled_message": "인벤토리가 비활성화됨",
+      
+      "ui": {
+        "title": "🎒 가방",
+        "close": "✕",
+        
+        "pockets": {
+          "items": "아이템",
+          "medicine": "회복",
+          "balls": "볼",
+          "berries": "열매",
+          "key_items": "중요한 것",
+          "tms": "기술머신"
+        },
+        
+        "details": {
+          "no_selection": "아이템을 선택하여 세부사항 보기",
+          "no_selection_icon": "📋"
+        },
+        
+        "footer": {
+          "count": "개",
+          "max": "최대",
+          "use": "사용",
+          "give": "주기",
+          "sort": "정렬"
+        },
+        
+        "empty": {
+          "icon": "📭",
+          "message": "{pocket} 포켓에 아이템이 없습니다"
+        },
+        
+        "item_types": {
+          "ball": "볼",
+          "medicine": "회복아이템",
+          "item": "아이템",
+          "key_item": "중요한 것",
+          "tm": "기술머신",
+          "berry": "열매"
+        },
+        
+        "stats": {
+          "quantity": "수량",
+          "price": "가격",
+          "heal": "회복",
+          "duration": "지속시간",
+          "steps": "걸음",
+          "full": "완전회복",
+          "hp": "HP"
+        },
+        
+        "notifications": {
+          "give_not_implemented": "주기 기능이 아직 구현되지 않음",
+          "items_sorted": "아이템이 알파벳순으로 정렬됨",
+          "item_used_success": "아이템을 성공적으로 사용함",
+          "item_use_failed": "이 아이템을 사용할 수 없음",
+          "item_added": "+{quantity} {name}",
+          "item_removed": "-{quantity} {name}"
+        },
+        
+        "actions": {
+          "cannot_open": "현재 인벤토리를 열 수 없음"
+        }
+      }
+    }
+  }
+}
