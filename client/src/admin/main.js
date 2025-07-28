@@ -16,6 +16,7 @@ import { MapEditorModule } from './js/map-editor.js' // ← NOUVEAU MODULE
 import { NPCEditorModule } from './js/npc-editor.js'
 import { MongoDBModule } from './js/mongodb-module.js'
 import { ShopEditorModule } from './js/shop-editor.js'
+import { DialogueEditorModule } from './js/dialogue-editor.js'
 
 // Global admin panel instance
 let adminPanel
@@ -553,6 +554,111 @@ window.loadShopEditor = () => {
     }
     adminPanel.shopEditor.onTabActivated()
 }
+
+// Dialogue Editor functions
+window.createNewDialogue = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.createNewDialogue()
+}
+
+window.selectDialogue = (dialogueId) => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.selectDialogue(dialogueId)
+}
+
+window.saveDialogue = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.saveDialogue()
+}
+
+window.duplicateDialogue = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.duplicateDialogue()
+}
+
+window.deleteDialogue = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.deleteDialogue()
+}
+
+window.cancelEditDialogue = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.cancelEdit()
+}
+
+window.loadDialogues = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.loadDialogues()
+}
+
+window.exportDialogues = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.exportDialogues()
+}
+
+// Dialogue variable management
+window.addDialogueVariable = () => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.addVariable()
+}
+
+window.removeDialogueVariable = (index) => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.removeVariable(index)
+}
+
+window.updateDialogueVariable = (index, value) => {
+    if (!adminPanel?.dialogueEditor) {
+        console.error('DialogueEditor module not loaded')
+        return
+    }
+    adminPanel.dialogueEditor.updateVariable(index, value)
+}
+
+// 3. Dans adminPanel.loadModules(), ajoutez DialogueEditorModule :
+adminPanel.loadModules([
+    DashboardModule,
+    PlayersModule,
+    PlayersAdvancedModule,
+    QuestsModule,
+    LogsToolsModule,
+    QuestGeneratorModule,
+    MapEditorModule,
+    NPCEditorModule,
+    MongoDBModule,
+    ShopEditorModule,
+    DialogueEditorModule  // ← NOUVEAU MODULE
+])
 
 // Helper function to show error messages
 function showErrorMessage(message) {
