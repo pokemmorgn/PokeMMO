@@ -1,6 +1,6 @@
-// Inventory/index.js - InventoryModule NETTOYÉ avec BaseModule
-// 🎯 RESPONSABILITÉ: Délégation vers BaseModule + spécificités Inventory
-// 🔗 DÉLÉGATION: BaseModule.canOpenUI() → UIManager (architecture propre)
+// Inventory/index.js - InventoryModule avec support traductions
+// 🌐 MODIFICATION: Passe optionsManager aux composants
+// 📍 Changement minimal sur createComponents() selon pattern TeamModule
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { InventorySystem } from './InventorySystem.js';
@@ -28,10 +28,13 @@ export class InventoryModule extends BaseModule {
     
     super(moduleId || 'inventory', gameRoom, scene, inventoryOptions);
     
+    // === 🌐 NOUVEAU: Support optionsManager ===
+    this.optionsManager = options.optionsManager || null;
+    
     // === RÉFÉRENCE AU SYSTÈME PRINCIPAL ===
     this.system = null;  // InventorySystem (logique complète)
     
-    console.log('🎒 [InventoryModule] Instance créée avec BaseModule');
+    console.log('🎒 [InventoryModule] Instance créée avec BaseModule et optionsManager:', !!this.optionsManager);
   }
   
   // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
@@ -50,14 +53,40 @@ export class InventoryModule extends BaseModule {
   
   /**
    * Création des composants Inventory
+   * 🌐 MODIFIÉ: Passe optionsManager aux composants
    */
   createComponents() {
-    console.log('🔧 [InventoryModule] Création composants Inventory...');
+    console.log('🔧 [InventoryModule] Création composants Inventory avec optionsManager...');
     
-    // Le système a déjà créé l'UI et l'icône, on les récupère
+    // Le système a déjà créé l'UI et l'icône, on les récupère ET on les modifie
     if (this.system) {
       this.ui = this.system.inventoryUI;
-      this.icon = this.system.inventoryIcon;
+      
+      // 🌐 MODIFICATION: Recréer l'icône avec optionsManager
+      if (this.system.inventoryIcon) {
+        // Détruire l'ancienne icône
+        this.system.inventoryIcon.destroy();
+      }
+      
+      // Créer nouvelle icône avec optionsManager
+      this.icon = new InventoryIcon(this.ui, this.optionsManager);
+      this.icon.init();
+      
+      // Remplacer dans le système
+      this.system.inventoryIcon = this.icon;
+      
+      console.log('🎨 [InventoryModule] InventoryIcon recréé avec optionsManager:', !!this.optionsManager);
+      
+      // 🌐 MODIFICATION: Ajouter optionsManager à InventoryUI si possible
+      if (this.ui && !this.ui.optionsManager) {
+        this.ui.optionsManager = this.optionsManager;
+        
+        // Appeler setupLanguageSupport si la méthode existe
+        if (typeof this.ui.setupLanguageSupport === 'function') {
+          this.ui.setupLanguageSupport();
+          console.log('🌐 [InventoryModule] InventoryUI configuré avec optionsManager');
+        }
+      }
       
       // 🆕 ASSURER QUE L'ICÔNE EST INITIALISÉE
       if (this.icon && !this.icon.iconElement) {
@@ -83,7 +112,7 @@ export class InventoryModule extends BaseModule {
       }
     }
     
-    console.log('✅ [InventoryModule] Composants Inventory récupérés du système');
+    console.log('✅ [InventoryModule] Composants Inventory créés avec support traductions');
   }
   
   /**
@@ -113,7 +142,7 @@ export class InventoryModule extends BaseModule {
     console.log('✅ [InventoryModule] Composants Inventory connectés via BaseModule');
   }
   
-  // === 📊 MÉTHODES SPÉCIFIQUES INVENTORY ===
+  // === 📊 MÉTHODES SPÉCIFIQUES INVENTORY (INCHANGÉES) ===
   
   /**
    * Demander les données Inventory (override de la méthode générique)
@@ -206,15 +235,10 @@ export class InventoryModule extends BaseModule {
       ...baseState,
       hasItems: this.ui ? Object.keys(this.ui.inventoryData || {}).length > 0 : false,
       canOpen: this.canOpenUI(),
-      moduleType: 'inventory'
+      moduleType: 'inventory',
+      hasOptionsManager: !!this.optionsManager // 🌐 NOUVEAU: Info debug
     };
   }
-  
-  // ✅ SUPPRIMÉ canOpenUI() - utilise BaseModule.canOpenUI() qui délègue vers UIManager
-  // BaseModule.canOpenUI() fait :
-  // 1. Délégation vers UIManager.canShowModule('inventory')
-  // 2. Fallback vers this.uiManagerState.enabled
-  // Architecture propre : Icon → BaseModule → UIManager
   
   /**
    * Exposer le système globalement pour compatibilité
@@ -282,15 +306,15 @@ export class InventoryModule extends BaseModule {
   }
 }
 
-// === 🏭 FACTORY INVENTORY SIMPLIFIÉE ===
+// === 🏭 FACTORY INVENTORY AVEC SUPPORT OPTIONSMANAGER ===
 
 /**
  * Factory function pour créer le module Inventory
- * Utilise la factory générique de BaseModule
+ * 🌐 MODIFIÉ: Accepte optionsManager en paramètre
  */
 export async function createInventoryModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [InventoryFactory] Création module Inventory avec BaseModule...');
+    console.log('🏭 [InventoryFactory] Création module Inventory avec optionsManager...');
     
     const inventoryOptions = {
       singleton: true,
@@ -299,7 +323,7 @@ export async function createInventoryModule(gameRoom, scene, options = {}) {
     
     const inventoryInstance = await createModule(InventoryModule, 'inventory', gameRoom, scene, inventoryOptions);
     
-    console.log('✅ [InventoryFactory] Module Inventory créé avec succès');
+    console.log('✅ [InventoryFactory] Module Inventory créé avec support traductions');
     return inventoryInstance;
     
   } catch (error) {
@@ -308,7 +332,7 @@ export async function createInventoryModule(gameRoom, scene, options = {}) {
   }
 }
 
-// === 📋 CONFIGURATION INVENTORY POUR UIMANAGER ===
+// === 📋 CONFIGURATION INVENTORY POUR UIMANAGER (INCHANGÉE) ===
 
 export const INVENTORY_MODULE_CONFIG = generateModuleConfig('inventory', {
   moduleClass: InventoryModule,
@@ -334,7 +358,7 @@ export const INVENTORY_MODULE_CONFIG = generateModuleConfig('inventory', {
   )
 });
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
+// === 🔗 INTÉGRATION AVEC UIMANAGER ===
 
 /**
  * Enregistrer le module Inventory dans UIManager
@@ -361,10 +385,11 @@ export async function registerInventoryModule(uiManager) {
 
 /**
  * Initialiser et connecter le module Inventory
+ * 🌐 MODIFIÉ: Peut recevoir optionsManager
  */
-export async function initializeInventoryModule(uiManager) {
+export async function initializeInventoryModule(uiManager, optionsManager = null) {
   try {
-    console.log('🚀 [InventoryIntegration] Initialisation Inventory...');
+    console.log('🚀 [InventoryIntegration] Initialisation Inventory avec optionsManager...');
     
     // Enregistrer le module
     await registerInventoryModule(uiManager);
@@ -373,10 +398,32 @@ export async function initializeInventoryModule(uiManager) {
     let inventoryInstance = InventoryModule.getInstance('inventory');
     
     if (!inventoryInstance || !inventoryInstance.uiManagerState.initialized) {
-      // Initialiser le module
-      inventoryInstance = await uiManager.initializeModule('inventory');
+      // 🌐 MODIFICATION: Passer optionsManager dans les options
+      const initOptions = optionsManager ? { optionsManager } : {};
+      inventoryInstance = await uiManager.initializeModule('inventory', initOptions);
+      
+      console.log('🌐 [InventoryIntegration] Inventory initialisé avec optionsManager:', !!optionsManager);
     } else {
       console.log('ℹ️ [InventoryIntegration] Instance déjà initialisée');
+      
+      // 🌐 NOUVEAU: Injecter optionsManager si pas encore fait
+      if (optionsManager && !inventoryInstance.optionsManager) {
+        inventoryInstance.optionsManager = optionsManager;
+        console.log('🌐 [InventoryIntegration] OptionsManager injecté dans instance existante');
+        
+        // Recréer composants avec optionsManager si nécessaire
+        if (inventoryInstance.icon && !inventoryInstance.icon.optionsManager) {
+          console.log('🔄 [InventoryIntegration] Mise à jour InventoryIcon avec optionsManager...');
+          inventoryInstance.icon.optionsManager = optionsManager;
+          inventoryInstance.icon.setupLanguageSupport?.();
+        }
+        
+        if (inventoryInstance.ui && !inventoryInstance.ui.optionsManager) {
+          console.log('🔄 [InventoryIntegration] Mise à jour InventoryUI avec optionsManager...');
+          inventoryInstance.ui.optionsManager = optionsManager;
+          inventoryInstance.ui.setupLanguageSupport?.();
+        }
+      }
       
       // Connecter à UIManager si pas encore fait
       inventoryInstance.connectUIManager(uiManager);
@@ -385,7 +432,7 @@ export async function initializeInventoryModule(uiManager) {
     // Setup des événements globaux Inventory
     setupInventoryGlobalEvents(inventoryInstance);
     
-    console.log('✅ [InventoryIntegration] Initialisation Inventory terminée');
+    console.log('✅ [InventoryIntegration] Initialisation Inventory terminée avec traductions');
     return inventoryInstance;
     
   } catch (error) {
@@ -394,7 +441,7 @@ export async function initializeInventoryModule(uiManager) {
   }
 }
 
-// === 🌐 ÉVÉNEMENTS GLOBAUX INVENTORY ===
+// === 🌐 ÉVÉNEMENTS GLOBAUX INVENTORY (INCHANGÉS) ===
 
 function setupInventoryGlobalEvents(inventoryInstance) {
   // Éviter double setup
@@ -428,17 +475,18 @@ function setupInventoryGlobalEvents(inventoryInstance) {
   console.log('🌐 [InventoryEvents] Événements Inventory configurés');
 }
 
-// === 💡 UTILISATION SIMPLE ===
+// === 💡 UTILISATION SIMPLE AVEC OPTIONSMANAGER ===
 
 /**
  * Fonction d'utilisation simple pour intégrer Inventory dans un projet
+ * 🌐 MODIFIÉ: Accepte optionsManager
  */
-export async function setupInventorySystem(uiManager) {
+export async function setupInventorySystem(uiManager, optionsManager = null) {
   try {
-    console.log('🔧 [InventorySetup] Configuration système Inventory avec BaseModule...');
+    console.log('🔧 [InventorySetup] Configuration système Inventory avec traductions...');
     
-    // Initialiser le module
-    const inventoryInstance = await initializeInventoryModule(uiManager);
+    // Initialiser le module avec optionsManager
+    const inventoryInstance = await initializeInventoryModule(uiManager, optionsManager);
     
     // Exposer globalement pour compatibilité
     if (!window.inventorySystem) {
@@ -452,7 +500,7 @@ export async function setupInventorySystem(uiManager) {
       console.log('🌐 [InventorySetup] Fonctions globales Inventory exposées');
     }
     
-    console.log('✅ [InventorySetup] Système Inventory configuré avec BaseModule');
+    console.log('✅ [InventorySetup] Système Inventory configuré avec traductions');
     return inventoryInstance;
     
   } catch (error) {
@@ -461,7 +509,7 @@ export async function setupInventorySystem(uiManager) {
   }
 }
 
-// === 🔍 UTILITÉS DE DEBUG INVENTORY ===
+// === 🔍 UTILITÉS DE DEBUG INVENTORY (INCHANGÉES) ===
 
 export function debugInventoryModule() {
   const { debugModule } = require('../core/BaseModule.js');
@@ -494,28 +542,3 @@ export function fixInventoryModule() {
 // === 📋 EXPORT PAR DÉFAUT ===
 
 export default InventoryModule;
-
-console.log(`
-🎒 === INVENTORY MODULE NETTOYÉ AVEC BASEMODULE ===
-
-✅ RESPONSABILITÉ CLAIRE:
-• Délégation vers BaseModule pour autorisations
-• Spécificités métier Inventory seulement
-• Architecture propre respectée
-
-❌ SUPPRIMÉ:
-• canOpenUI() redondant avec vérifications DOM
-• Toutes vérifications d'autorisation locales
-• Fallbacks vers UIManager (BaseModule s'en charge)
-
-🔗 DÉLÉGATION SIMPLIFIÉE:
-Icon → BaseModule.canOpenUI() → UIManager.canShowModule()
-
-🎯 ARCHITECTURE PROPRE:
-• UIManager = source de vérité autorisations
-• BaseModule = logique commune modules
-• InventoryModule = spécificités métier uniquement
-• Icon/UI/System = composants spécialisés
-
-✅ INVENTORY MODULE NETTOYÉ !
-`);
