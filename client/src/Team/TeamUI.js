@@ -80,7 +80,7 @@ export class TeamUI {
       this.loadRobustCSS();
       this.createInterface();
       this.setupEventListeners();
-      
+      this.setupLanguageSupport();
       console.log('✅ [TeamUI] Interface initialisée avec succès');
       return this;
 
