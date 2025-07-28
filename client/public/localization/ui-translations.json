@@ -1,0 +1,306 @@
+{
+  "en": {
+    "quest": {
+      "label": "Quests",
+      "tooltip_title": "Quest Journal",
+      "tooltip_status_active": "Active quests",
+      "tooltip_status_none": "No active quests",
+      "tooltip_status_new": "new quest(s)",
+      "tooltip_status_ready": "ready to complete",
+      "tooltip_action": "Click to open",
+      "disabled_message": "Quest journal disabled"
+    },
+    "team": {
+      "label": "Team",
+      "tooltip_title": "Team Management",
+      "tooltip_action": "Click to manage team"
+    },
+    "inventory": {
+      "label": "Inventory",
+      "tooltip_title": "Inventory",
+      "tooltip_action": "Click to open inventory"
+    },
+    "options": {
+      "label": "Options",
+      "tooltip_title": "Options & Settings",
+      "tooltip_action": "Click to configure"
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "Error",
+      "success": "Success",
+      "warning": "Warning",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close",
+      "save": "Save",
+      "reset": "Reset"
+    }
+  },
+  "fr": {
+    "quest": {
+      "label": "Quêtes",
+      "tooltip_title": "Journal des Quêtes",
+      "tooltip_status_active": "Quêtes actives",
+      "tooltip_status_none": "Aucune quête active",
+      "tooltip_status_new": "nouvelle(s) quête(s)",
+      "tooltip_status_ready": "prête(s) à terminer",
+      "tooltip_action": "Clic pour ouvrir",
+      "disabled_message": "Journal des quêtes désactivé"
+    },
+    "team": {
+      "label": "Équipe",
+      "tooltip_title": "Gestion d'Équipe",
+      "tooltip_action": "Clic pour gérer l'équipe"
+    },
+    "inventory": {
+      "label": "Inventaire",
+      "tooltip_title": "Inventaire",
+      "tooltip_action": "Clic pour ouvrir l'inventaire"
+    },
+    "options": {
+      "label": "Options",
+      "tooltip_title": "Options & Paramètres",
+      "tooltip_action": "Clic pour configurer"
+    },
+    "common": {
+      "loading": "Chargement...",
+      "error": "Erreur",
+      "success": "Succès",
+      "warning": "Attention",
+      "cancel": "Annuler",
+      "confirm": "Confirmer",
+      "close": "Fermer",
+      "save": "Sauvegarder",
+      "reset": "Réinitialiser"
+    }
+  },
+  "es": {
+    "quest": {
+      "label": "Misiones",
+      "tooltip_title": "Diario de Misiones",
+      "tooltip_status_active": "Misiones activas",
+      "tooltip_status_none": "Sin misiones activas",
+      "tooltip_status_new": "nueva(s) misión(es)",
+      "tooltip_status_ready": "listo(s) para completar",
+      "tooltip_action": "Clic para abrir",
+      "disabled_message": "Diario de misiones deshabilitado"
+    },
+    "team": {
+      "label": "Equipo",
+      "tooltip_title": "Gestión de Equipo",
+      "tooltip_action": "Clic para gestionar equipo"
+    },
+    "inventory": {
+      "label": "Inventario",
+      "tooltip_title": "Inventario",
+      "tooltip_action": "Clic para abrir inventario"
+    },
+    "options": {
+      "label": "Opciones",
+      "tooltip_title": "Opciones & Configuración",
+      "tooltip_action": "Clic para configurar"
+    },
+    "common": {
+      "loading": "Cargando...",
+      "error": "Error",
+      "success": "Éxito",
+      "warning": "Advertencia",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "reset": "Restablecer"
+    }
+  },
+  "de": {
+    "quest": {
+      "label": "Quests",
+      "tooltip_title": "Quest-Tagebuch",
+      "tooltip_status_active": "Aktive Quests",
+      "tooltip_status_none": "Keine aktiven Quests",
+      "tooltip_status_new": "neue Quest(s)",
+      "tooltip_status_ready": "bereit zum Abschließen",
+      "tooltip_action": "Klicken zum Öffnen",
+      "disabled_message": "Quest-Tagebuch deaktiviert"
+    },
+    "team": {
+      "label": "Team",
+      "tooltip_title": "Team-Verwaltung",
+      "tooltip_action": "Klicken zur Team-Verwaltung"
+    },
+    "inventory": {
+      "label": "Inventar",
+      "tooltip_title": "Inventar",
+      "tooltip_action": "Klicken zum Öffnen des Inventars"
+    },
+    "options": {
+      "label": "Optionen",
+      "tooltip_title": "Optionen & Einstellungen",
+      "tooltip_action": "Klicken zum Konfigurieren"
+    },
+    "common": {
+      "loading": "Laden...",
+      "error": "Fehler",
+      "success": "Erfolg",
+      "warning": "Warnung",
+      "cancel": "Abbrechen",
+      "confirm": "Bestätigen",
+      "close": "Schließen",
+      "save": "Speichern",
+      "reset": "Zurücksetzen"
+    }
+  },
+  "it": {
+    "quest": {
+      "label": "Missioni",
+      "tooltip_title": "Diario delle Missioni",
+      "tooltip_status_active": "Missioni attive",
+      "tooltip_status_none": "Nessuna missione attiva",
+      "tooltip_status_new": "nuova/e missione/i",
+      "tooltip_status_ready": "pronto/i per il completamento",
+      "tooltip_action": "Clicca per aprire",
+      "disabled_message": "Diario delle missioni disabilitato"
+    },
+    "team": {
+      "label": "Squadra",
+      "tooltip_title": "Gestione Squadra",
+      "tooltip_action": "Clicca per gestire la squadra"
+    },
+    "inventory": {
+      "label": "Inventario",
+      "tooltip_title": "Inventario",
+      "tooltip_action": "Clicca per aprire l'inventario"
+    },
+    "options": {
+      "label": "Opzioni",
+      "tooltip_title": "Opzioni & Impostazioni",
+      "tooltip_action": "Clicca per configurare"
+    },
+    "common": {
+      "loading": "Caricamento...",
+      "error": "Errore",
+      "success": "Successo",
+      "warning": "Avviso",
+      "cancel": "Annulla",
+      "confirm": "Conferma",
+      "close": "Chiudi",
+      "save": "Salva",
+      "reset": "Ripristina"
+    }
+  },
+  "pt": {
+    "quest": {
+      "label": "Missões",
+      "tooltip_title": "Diário de Missões",
+      "tooltip_status_active": "Missões ativas",
+      "tooltip_status_none": "Nenhuma missão ativa",
+      "tooltip_status_new": "nova(s) missão(ões)",
+      "tooltip_status_ready": "pronto(s) para completar",
+      "tooltip_action": "Clique para abrir",
+      "disabled_message": "Diário de missões desabilitado"
+    },
+    "team": {
+      "label": "Equipe",
+      "tooltip_title": "Gestão de Equipe",
+      "tooltip_action": "Clique para gerenciar equipe"
+    },
+    "inventory": {
+      "label": "Inventário",
+      "tooltip_title": "Inventário",
+      "tooltip_action": "Clique para abrir inventário"
+    },
+    "options": {
+      "label": "Opções",
+      "tooltip_title": "Opções & Configurações",
+      "tooltip_action": "Clique para configurar"
+    },
+    "common": {
+      "loading": "Carregando...",
+      "error": "Erro",
+      "success": "Sucesso",
+      "warning": "Aviso",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "close": "Fechar",
+      "save": "Salvar",
+      "reset": "Redefinir"
+    }
+  },
+  "ja": {
+    "quest": {
+      "label": "クエスト",
+      "tooltip_title": "クエストジャーナル",
+      "tooltip_status_active": "アクティブクエスト",
+      "tooltip_status_none": "アクティブクエストなし",
+      "tooltip_status_new": "新しいクエスト",
+      "tooltip_status_ready": "完了可能",
+      "tooltip_action": "クリックで開く",
+      "disabled_message": "クエストジャーナルが無効です"
+    },
+    "team": {
+      "label": "チーム",
+      "tooltip_title": "チーム管理",
+      "tooltip_action": "クリックでチーム管理"
+    },
+    "inventory": {
+      "label": "インベントリ",
+      "tooltip_title": "インベントリ",
+      "tooltip_action": "クリックでインベントリを開く"
+    },
+    "options": {
+      "label": "オプション",
+      "tooltip_title": "オプション設定",
+      "tooltip_action": "クリックで設定"
+    },
+    "common": {
+      "loading": "読み込み中...",
+      "error": "エラー",
+      "success": "成功",
+      "warning": "警告",
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "close": "閉じる",
+      "save": "保存",
+      "reset": "リセット"
+    }
+  },
+  "ko": {
+    "quest": {
+      "label": "퀘스트",
+      "tooltip_title": "퀘스트 일지",
+      "tooltip_status_active": "활성 퀘스트",
+      "tooltip_status_none": "활성 퀘스트 없음",
+      "tooltip_status_new": "새로운 퀘스트",
+      "tooltip_status_ready": "완료 가능",
+      "tooltip_action": "클릭하여 열기",
+      "disabled_message": "퀘스트 일지가 비활성화됨"
+    },
+    "team": {
+      "label": "팀",
+      "tooltip_title": "팀 관리",
+      "tooltip_action": "클릭하여 팀 관리"
+    },
+    "inventory": {
+      "label": "인벤토리",
+      "tooltip_title": "인벤토리",
+      "tooltip_action": "클릭하여 인벤토리 열기"
+    },
+    "options": {
+      "label": "옵션",
+      "tooltip_title": "옵션 및 설정",
+      "tooltip_action": "클릭하여 설정"
+    },
+    "common": {
+      "loading": "로딩 중...",
+      "error": "오류",
+      "success": "성공",
+      "warning": "경고",
+      "cancel": "취소",
+      "confirm": "확인",
+      "close": "닫기",
+      "save": "저장",
+      "reset": "재설정"
+    }
+  }
+}
