@@ -1,6 +1,4 @@
-// Options/OptionsManager.js - Business Logic Options
-// 🎯 Gère UNIQUEMENT la logique métier des options, pas l'UI
-// 🌐 Détection langue + Volume + Sauvegarde localStorage
+// Options/OptionsManager.js - Business Logic Options avec Event Dispatcher
 
 export class OptionsManager {
   constructor(gameRoom = null) {
@@ -31,11 +29,15 @@ export class OptionsManager {
     this.onLanguageChange = null;    // Appelé quand langue change
     this.onOptionsUpdate = null;     // Appelé quand options changent
     
+    // === 🔥 EVENT DISPATCHER POUR LANGUE ===
+    this.languageListeners = [];     // Listeners pour changements langue
+    this.volumeListeners = [];       // Listeners pour changements volume
+    
     // === ÉTAT ===
     this.initialized = false;
     this.saveTimeout = null;
     
-    console.log('⚙️ [OptionsManager] Instance créée');
+    console.log('⚙️ [OptionsManager] Instance créée avec Event Dispatcher');
   }
   
   // === 🚀 INITIALISATION ===
@@ -59,6 +61,104 @@ export class OptionsManager {
       console.error('❌ [OptionsManager] Erreur initialisation:', error);
       throw error;
     }
+  }
+  
+  // === 🎯 EVENT DISPATCHER - LANGUE ===
+  
+  /**
+   * Ajouter un listener pour les changements de langue
+   * @param {function} callback - Fonction appelée avec (newLang, oldLang)
+   * @returns {function} Fonction de cleanup pour supprimer le listener
+   */
+  addLanguageListener(callback) {
+    if (typeof callback !== 'function') {
+      console.warn('⚠️ [OptionsManager] Language listener doit être une fonction');
+      return () => {};
+    }
+    
+    this.languageListeners.push(callback);
+    console.log(`📡 [OptionsManager] Language listener ajouté (total: ${this.languageListeners.length})`);
+    
+    // Retourner fonction cleanup (pattern React useEffect)
+    return () => {
+      const index = this.languageListeners.indexOf(callback);
+      if (index > -1) {
+        this.languageListeners.splice(index, 1);
+        console.log(`🧹 [OptionsManager] Language listener supprimé (restant: ${this.languageListeners.length})`);
+      }
+    };
+  }
+  
+  /**
+   * Supprimer un listener de langue spécifique
+   */
+  removeLanguageListener(callback) {
+    const index = this.languageListeners.indexOf(callback);
+    if (index > -1) {
+      this.languageListeners.splice(index, 1);
+      console.log(`🧹 [OptionsManager] Language listener supprimé`);
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Notifier tous les listeners de changement de langue
+   */
+  notifyLanguageListeners(newLang, oldLang) {
+    if (this.languageListeners.length === 0) return;
+    
+    console.log(`📢 [OptionsManager] Notification changement langue: ${oldLang} → ${newLang} (${this.languageListeners.length} listeners)`);
+    
+    this.languageListeners.forEach((listener, index) => {
+      try {
+        listener(newLang, oldLang);
+      } catch (error) {
+        console.error(`❌ [OptionsManager] Erreur listener langue #${index}:`, error);
+      }
+    });
+  }
+  
+  // === 🔊 EVENT DISPATCHER - VOLUME ===
+  
+  /**
+   * Ajouter un listener pour les changements de volume
+   * @param {function} callback - Fonction appelée avec (volume, isMuted)
+   * @returns {function} Fonction de cleanup
+   */
+  addVolumeListener(callback) {
+    if (typeof callback !== 'function') {
+      console.warn('⚠️ [OptionsManager] Volume listener doit être une fonction');
+      return () => {};
+    }
+    
+    this.volumeListeners.push(callback);
+    console.log(`📡 [OptionsManager] Volume listener ajouté (total: ${this.volumeListeners.length})`);
+    
+    return () => {
+      const index = this.volumeListeners.indexOf(callback);
+      if (index > -1) {
+        this.volumeListeners.splice(index, 1);
+        console.log(`🧹 [OptionsManager] Volume listener supprimé (restant: ${this.volumeListeners.length})`);
+      }
+    };
+  }
+  
+  /**
+   * Notifier tous les listeners de changement de volume
+   */
+  notifyVolumeListeners(volume, isMuted) {
+    if (this.volumeListeners.length === 0) return;
+    
+    console.log(`📢 [OptionsManager] Notification changement volume: ${volume}% (muted: ${isMuted}) (${this.volumeListeners.length} listeners)`);
+    
+    this.volumeListeners.forEach((listener, index) => {
+      try {
+        listener(volume, isMuted);
+      } catch (error) {
+        console.error(`❌ [OptionsManager] Erreur listener volume #${index}:`, error);
+      }
+    });
   }
   
   // === 🌐 DÉTECTION LANGUE ===
@@ -181,8 +281,9 @@ export class OptionsManager {
   
   setVolume(volume) {
     const validVolume = this.validateVolume(volume);
+    const oldVolume = this.options.volume;
     
-    if (validVolume !== this.options.volume) {
+    if (validVolume !== oldVolume) {
       this.options.volume = validVolume;
       
       console.log(`🔊 [OptionsManager] Volume: ${validVolume}%`);
@@ -190,7 +291,10 @@ export class OptionsManager {
       // Appliquer le volume
       this.applyVolumeSettings();
       
-      // Notifier changement
+      // 🔥 Notifier listeners AVANT callbacks legacy
+      this.notifyVolumeListeners(validVolume, this.options.isMuted);
+      
+      // Notifier changement (legacy)
       this.notifyVolumeChange();
       
       // Sauvegarder
@@ -206,8 +310,9 @@ export class OptionsManager {
   
   setMuted(muted) {
     const isMuted = !!muted;
+    const wasMuted = this.options.isMuted;
     
-    if (isMuted !== this.options.isMuted) {
+    if (isMuted !== wasMuted) {
       this.options.isMuted = isMuted;
       
       console.log(`🔇 [OptionsManager] Mute: ${isMuted}`);
@@ -215,7 +320,10 @@ export class OptionsManager {
       // Appliquer les paramètres audio
       this.applyVolumeSettings();
       
-      // Notifier changement
+      // 🔥 Notifier listeners AVANT callbacks legacy
+      this.notifyVolumeListeners(this.options.volume, isMuted);
+      
+      // Notifier changement (legacy)
       this.notifyVolumeChange();
       
       // Sauvegarder
@@ -248,12 +356,20 @@ export class OptionsManager {
       validLanguage = 'auto';
     }
     
-    if (validLanguage !== this.options.language) {
+    const oldLanguage = this.options.language;
+    const oldCurrentLanguage = this.getCurrentLanguage();
+    
+    if (validLanguage !== oldLanguage) {
       this.options.language = validLanguage;
       
-      console.log(`🌐 [OptionsManager] Langue: ${validLanguage}`);
+      const newCurrentLanguage = this.getCurrentLanguage();
       
-      // Notifier changement
+      console.log(`🌐 [OptionsManager] Langue: ${validLanguage} (effective: ${oldCurrentLanguage} → ${newCurrentLanguage})`);
+      
+      // 🔥 Notifier listeners AVANT callbacks legacy
+      this.notifyLanguageListeners(newCurrentLanguage, oldCurrentLanguage);
+      
+      // Notifier changement (legacy)
       this.notifyLanguageChange();
       
       // Sauvegarder
@@ -342,7 +458,7 @@ export class OptionsManager {
     }
   }
   
-  // === 📢 NOTIFICATIONS ===
+  // === 📢 NOTIFICATIONS (Legacy callbacks) ===
   
   notifyVolumeChange() {
     const data = {
@@ -392,6 +508,10 @@ export class OptionsManager {
   resetToDefaults() {
     console.log('🔄 [OptionsManager] Reset vers défauts...');
     
+    const oldLanguage = this.getCurrentLanguage();
+    const oldVolume = this.options.volume;
+    const oldMuted = this.options.isMuted;
+    
     this.options = {
       volume: 50,
       isMuted: false,
@@ -399,10 +519,21 @@ export class OptionsManager {
       detectedLanguage: this.options.detectedLanguage // Garder la détection
     };
     
+    const newLanguage = this.getCurrentLanguage();
+    
     this.applyOptions();
     this.saveOptions();
     
-    // Notifier tous les changements
+    // 🔥 Notifier les listeners des changements
+    if (newLanguage !== oldLanguage) {
+      this.notifyLanguageListeners(newLanguage, oldLanguage);
+    }
+    
+    if (this.options.volume !== oldVolume || this.options.isMuted !== oldMuted) {
+      this.notifyVolumeListeners(this.options.volume, this.options.isMuted);
+    }
+    
+    // Notifier tous les changements (legacy)
     this.notifyVolumeChange();
     this.notifyLanguageChange();
     
@@ -460,6 +591,16 @@ export class OptionsManager {
     return this.options.language === 'auto';
   }
   
+  // === 📊 INFO DEBUG EVENT DISPATCHER ===
+  
+  getListenersInfo() {
+    return {
+      languageListeners: this.languageListeners.length,
+      volumeListeners: this.volumeListeners.length,
+      totalListeners: this.languageListeners.length + this.volumeListeners.length
+    };
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
@@ -470,6 +611,13 @@ export class OptionsManager {
       clearTimeout(this.saveTimeout);
       this.saveOptions();
     }
+    
+    // 🔥 Nettoyer tous les listeners
+    console.log(`🧹 [OptionsManager] Nettoyage ${this.languageListeners.length} language listeners`);
+    console.log(`🧹 [OptionsManager] Nettoyage ${this.volumeListeners.length} volume listeners`);
+    
+    this.languageListeners = [];
+    this.volumeListeners = [];
     
     // Reset callbacks
     this.onVolumeChange = null;
@@ -501,7 +649,9 @@ export class OptionsManager {
         onVolumeChange: !!this.onVolumeChange,
         onLanguageChange: !!this.onLanguageChange,
         onOptionsUpdate: !!this.onOptionsUpdate
-      }
+      },
+      // 🔥 Info Event Dispatcher
+      eventDispatcher: this.getListenersInfo()
     };
   }
 }
@@ -566,37 +716,3 @@ export function initializeGlobalOptionsAPI(optionsManager) {
 }
 
 export default OptionsManager;
-
-console.log(`
-⚙️ === OPTIONS MANAGER ===
-
-✅ FONCTIONNALITÉS:
-• Volume 1-100 + mute avec validation
-• Détection langue navigateur automatique
-• Sauvegarde localStorage avec debounce
-• Support 8 langues avec drapeaux
-• Application temps réel (Phaser, HTML audio)
-
-🌐 API SIMPLE:
-• GetPlayerCurrentLanguage() → 'fr', 'en', etc.
-• GetPlayerCurrentVolume() → 0-100
-• IsPlayerAudioMuted() → true/false
-
-📊 MÉTHODES PRINCIPALES:
-• setVolume(50) / getVolume()
-• setMuted(true) / toggleMute()
-• setLanguage('fr') / getCurrentLanguage()
-• resetToDefaults() / exportOptions()
-
-🔊 INTÉGRATIONS:
-• Phaser: game.sound.volume
-• HTML: audio/video elements
-• Howler.js si disponible
-
-💾 PERSISTANCE:
-• localStorage 'pokemmo_options'
-• Validation + fallbacks
-• Debounce 300ms
-
-🎯 PRÊT POUR LES AUTRES COMPOSANTS !
-`);
