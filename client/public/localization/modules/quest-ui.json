@@ -1,0 +1,98 @@
+{
+  "en": {
+    "quest": {
+      "label": "Quests",
+      "tooltip_title": "Quest Journal",
+      "tooltip_status_active": "Active quests",
+      "tooltip_status_none": "No active quests",
+      "tooltip_status_new": "new quest(s)",
+      "tooltip_status_ready": "ready to complete",
+      "tooltip_action": "Click to open",
+      "disabled_message": "Quest journal disabled"
+    }
+  },
+  "fr": {
+    "quest": {
+      "label": "Quêtes",
+      "tooltip_title": "Journal des Quêtes",
+      "tooltip_status_active": "Quêtes actives",
+      "tooltip_status_none": "Aucune quête active",
+      "tooltip_status_new": "nouvelle(s) quête(s)",
+      "tooltip_status_ready": "prête(s) à terminer",
+      "tooltip_action": "Clic pour ouvrir",
+      "disabled_message": "Journal des quêtes désactivé"
+    }
+  },
+  "es": {
+    "quest": {
+      "label": "Misiones",
+      "tooltip_title": "Diario de Misiones",
+      "tooltip_status_active": "Misiones activas",
+      "tooltip_status_none": "Sin misiones activas",
+      "tooltip_status_new": "nueva(s) misión(es)",
+      "tooltip_status_ready": "listo(s) para completar",
+      "tooltip_action": "Clic para abrir",
+      "disabled_message": "Diario de misiones deshabilitado"
+    }
+  },
+  "de": {
+    "quest": {
+      "label": "Quests",
+      "tooltip_title": "Quest-Tagebuch",
+      "tooltip_status_active": "Aktive Quests",
+      "tooltip_status_none": "Keine aktiven Quests",
+      "tooltip_status_new": "neue Quest(s)",
+      "tooltip_status_ready": "bereit zum Abschließen",
+      "tooltip_action": "Klicken zum Öffnen",
+      "disabled_message": "Quest-Tagebuch deaktiviert"
+    }
+  },
+  "it": {
+    "quest": {
+      "label": "Missioni",
+      "tooltip_title": "Diario delle Missioni",
+      "tooltip_status_active": "Missioni attive",
+      "tooltip_status_none": "Nessuna missione attiva",
+      "tooltip_status_new": "nuova/e missione/i",
+      "tooltip_status_ready": "pronto/i per il completamento",
+      "tooltip_action": "Clicca per aprire",
+      "disabled_message": "Diario delle missioni disabilitato"
+    }
+  },
+  "pt": {
+    "quest": {
+      "label": "Missões",
+      "tooltip_title": "Diário de Missões",
+      "tooltip_status_active": "Missões ativas",
+      "tooltip_status_none": "Nenhuma missão ativa",
+      "tooltip_status_new": "nova(s) missão(ões)",
+      "tooltip_status_ready": "pronto(s) para completar",
+      "tooltip_action": "Clique para abrir",
+      "disabled_message": "Diário de missões desabilitado"
+    }
+  },
+  "ja": {
+    "quest": {
+      "label": "クエスト",
+      "tooltip_title": "クエストジャーナル",
+      "tooltip_status_active": "アクティブクエスト",
+      "tooltip_status_none": "アクティブクエストなし",
+      "tooltip_status_new": "新しいクエスト",
+      "tooltip_status_ready": "完了可能",
+      "tooltip_action": "クリックで開く",
+      "disabled_message": "クエストジャーナルが無効です"
+    }
+  },
+  "ko": {
+    "quest": {
+      "label": "퀘스트",
+      "tooltip_title": "퀘스트 일지",
+      "tooltip_status_active": "활성 퀘스트",
+      "tooltip_status_none": "활성 퀘스트 없음",
+      "tooltip_status_new": "새로운 퀘스트",
+      "tooltip_status_ready": "완료 가능",
+      "tooltip_action": "클릭하여 열기",
+      "disabled_message": "퀘스트 일지가 비활성화됨"
+    }
+  }
+}
