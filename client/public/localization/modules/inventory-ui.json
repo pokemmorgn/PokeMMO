@@ -3,11 +3,13 @@
     "inventory": {
       "label": "Bag",
       "tooltip_title": "Inventory",
+      "tooltip_items": "Items and tools",
       "tooltip_action": "Press I or click",
       "disabled_message": "Inventory disabled",
       
       "ui": {
         "title": "🎒 Bag",
+        "subtitle": "Items and equipment",
         "close": "✕",
         
         "pockets": {
@@ -75,11 +77,13 @@
     "inventory": {
       "label": "Sac",
       "tooltip_title": "Inventaire",
+      "tooltip_items": "Objets et outils",
       "tooltip_action": "Appuyez sur I ou cliquez",
       "disabled_message": "Inventaire désactivé",
       
       "ui": {
         "title": "🎒 Sac",
+        "subtitle": "Objets et équipement",
         "close": "✕",
         
         "pockets": {
@@ -147,11 +151,13 @@
     "inventory": {
       "label": "Mochila",
       "tooltip_title": "Inventario",
+      "tooltip_items": "Objetos y herramientas",
       "tooltip_action": "Presiona I o haz clic",
       "disabled_message": "Inventario deshabilitado",
       
       "ui": {
         "title": "🎒 Mochila",
+        "subtitle": "Objetos y equipo",
         "close": "✕",
         
         "pockets": {
@@ -219,11 +225,13 @@
     "inventory": {
       "label": "Tasche",
       "tooltip_title": "Inventar",
+      "tooltip_items": "Gegenstände und Werkzeuge",
       "tooltip_action": "Drücke I oder klicke",
       "disabled_message": "Inventar deaktiviert",
       
       "ui": {
         "title": "🎒 Tasche",
+        "subtitle": "Gegenstände und Ausrüstung",
         "close": "✕",
         
         "pockets": {
@@ -291,11 +299,13 @@
     "inventory": {
       "label": "Zaino",
       "tooltip_title": "Inventario",
+      "tooltip_items": "Oggetti e strumenti",
       "tooltip_action": "Premi I o clicca",
       "disabled_message": "Inventario disabilitato",
       
       "ui": {
         "title": "🎒 Zaino",
+        "subtitle": "Oggetti e equipaggiamento",
         "close": "✕",
         
         "pockets": {
@@ -363,11 +373,13 @@
     "inventory": {
       "label": "Mochila",
       "tooltip_title": "Inventário",
+      "tooltip_items": "Itens e ferramentas",
       "tooltip_action": "Pressione I ou clique",
       "disabled_message": "Inventário desabilitado",
       
       "ui": {
         "title": "🎒 Mochila",
+        "subtitle": "Itens e equipamentos",
         "close": "✕",
         
         "pockets": {
@@ -435,11 +447,13 @@
     "inventory": {
       "label": "バッグ",
       "tooltip_title": "インベントリ",
+      "tooltip_items": "アイテムとツール",
       "tooltip_action": "Iキーまたはクリック",
       "disabled_message": "インベントリが無効",
       
       "ui": {
         "title": "🎒 バッグ",
+        "subtitle": "アイテムと装備",
         "close": "✕",
         
         "pockets": {
@@ -507,11 +521,13 @@
     "inventory": {
       "label": "가방",
       "tooltip_title": "인벤토리",
+      "tooltip_items": "아이템과 도구",
       "tooltip_action": "I키 또는 클릭",
       "disabled_message": "인벤토리가 비활성화됨",
       
       "ui": {
         "title": "🎒 가방",
+        "subtitle": "아이템과 장비",
         "close": "✕",
         
         "pockets": {
