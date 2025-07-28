@@ -3,9 +3,10 @@
 // ✅ Fonctionnement normal garanti sans commandes manuelles
 
 import { SpriteUtils, getPokemonPortraitStyle } from '../utils/SpriteUtils.js';
+import { t } from '../managers/LocalizationManager.js';
 
 export class TeamUI {
-  constructor(teamManager, gameRoom) {
+  constructor(teamManager, gameRoom, optionsManager = null) {
     this.teamManager = teamManager;
     this.gameRoom = gameRoom;
     
@@ -29,8 +30,12 @@ export class TeamUI {
     // === CONTRÔLE ÉVÉNEMENTS ===
     this.escapeListenerAdded = false;
     this.currentTooltip = null;
+
+    // === 🌐 LOCALIZATION ===
+    this.optionsManager = optionsManager;
+    this.cleanupLanguageListener = null;
     
-    console.log('🎯 [TeamUI] Instance créée - Version réécrite fonctionnelle');
+    console.log('🎯 [TeamUI] Instance créée avec support traductions');
     
     // Charger la localization
     this.loadPokemonLocalization();
