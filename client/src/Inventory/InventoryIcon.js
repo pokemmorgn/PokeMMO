@@ -1,12 +1,15 @@
-// Inventory/InventoryIcon.js - VERSION NETTOYÉE
-// 🎯 RESPONSABILITÉ: Gestion de l'affichage de l'icône SEULEMENT
-// 🔗 DÉLÉGATION: Directe vers BaseModule (window.inventorySystemGlobal)
+// Inventory/InventoryIcon.js - Version avec traductions temps réel
+// 🌐 Support complet des traductions selon le pattern TeamIcon
+// 🔄 Mise à jour automatique lors changement de langue
+
+import { t } from '../managers/LocalizationManager.js';
 
 export class InventoryIcon {
-  constructor(inventoryUI) {
+  constructor(inventoryUI, optionsManager = null) {
     this.inventoryUI = inventoryUI;
+    this.optionsManager = optionsManager;
     
-    // === ÉTAT ICÔNE SEULEMENT ===
+    // === ÉTAT ===
     this.isVisible = true;
     this.isEnabled = true;
     this.iconElement = null;
@@ -20,24 +23,29 @@ export class InventoryIcon {
       notificationCount: 0
     };
     
-    // === UIManager contrôle le positionnement ===
+    // === CONFIGURATION IDENTIQUE ===
     this.positioningMode = 'uimanager';
     this.uiManagerControlled = true;
     
-    console.log('🎒 [InventoryIcon] Instance créée - UIManager contrôle');
+    // === 🌐 LOCALIZATION ===
+    this.cleanupLanguageListener = null;
+    this.currentTooltip = null;
+    
+    console.log('🎒 [InventoryIcon] Instance créée avec support traductions');
   }
   
-  // === 🚀 INITIALISATION ===
+  // === 🚀 INITIALISATION AVEC LOCALIZATION ===
   
   init() {
     try {
-      console.log('🚀 [InventoryIcon] Initialisation...');
+      console.log('🚀 [InventoryIcon] Initialisation avec traductions...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
+      this.setupLanguageSupport();
       
-      console.log('✅ [InventoryIcon] Initialisé - UIManager gérera la position');
+      console.log('✅ [InventoryIcon] Initialisé avec support multilingue');
       return this;
       
     } catch (error) {
@@ -46,9 +54,54 @@ export class InventoryIcon {
     }
   }
   
-  // === 🎨 CRÉATION INTERFACE ===
+  // === 🌐 CONFIGURATION SUPPORT LANGUE ===
+  
+  setupLanguageSupport() {
+    // S'abonner aux changements de langue si optionsManager disponible
+    if (this.optionsManager && typeof this.optionsManager.addLanguageListener === 'function') {
+      console.log('🌐 [InventoryIcon] Configuration listener langue...');
+      
+      this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
+        console.log('🔄 [InventoryIcon] Changement langue détecté');
+        this.updateLanguage();
+      });
+      
+      console.log('✅ [InventoryIcon] Listener langue configuré');
+    } else {
+      console.warn('⚠️ [InventoryIcon] OptionsManager non disponible - pas de mise à jour langue temps réel');
+    }
+    
+    // Mise à jour initiale
+    this.updateLanguage();
+  }
+  
+  /**
+   * Met à jour tous les textes selon la langue courante
+   */
+  updateLanguage() {
+    if (!this.iconElement) return;
+    
+    console.log('🔄 [InventoryIcon] Mise à jour langue...');
+    
+    // Mettre à jour le label
+    const labelElement = this.iconElement.querySelector('.icon-label');
+    if (labelElement) {
+      labelElement.textContent = t('inventory.label');
+    }
+    
+    // Si tooltip visible, le recréer avec nouvelle langue
+    if (this.currentTooltip) {
+      this.hideTooltip();
+      // Le tooltip sera recréé avec la bonne langue lors du prochain survol
+    }
+    
+    console.log('✅ [InventoryIcon] Langue mise à jour');
+  }
+  
+  // === 🎨 CRÉATION INTERFACE AVEC TEXTES TRADUITS ===
   
   createIcon() {
+    // Supprimer l'ancien s'il existe
     const existing = document.querySelector('#inventory-icon');
     if (existing) {
       existing.remove();
@@ -63,7 +116,7 @@ export class InventoryIcon {
         <div class="icon-content">
           <span class="icon-emoji">🎒</span>
         </div>
-        <div class="icon-label">Bag</div>
+        <div class="icon-label">${t('inventory.label')}</div>
       </div>
       
       <div class="icon-notification" style="display: none;">
@@ -75,10 +128,10 @@ export class InventoryIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [InventoryIcon] Icône créée sans positionnement');
+    console.log('🎨 [InventoryIcon] Icône créée avec texte traduit');
   }
   
-  // === 🎨 STYLES (IDENTIQUES - déjà corrects) ===
+  // === 🎨 STYLES INCHANGÉS ===
   
   addStyles() {
     if (document.querySelector('#inventory-icon-styles')) {
@@ -227,141 +280,7 @@ export class InventoryIcon {
     console.log('🎨 [InventoryIcon] Styles appliqués');
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER ===
-  
-  show() {
-    console.log('👁️ [InventoryIcon] Affichage');
-    
-    this.isVisible = true;
-    
-    if (this.iconElement) {
-      this.iconElement.classList.remove('ui-hidden', 'hidden');
-      this.iconElement.classList.add('ui-fade-in');
-      
-      this.iconElement.style.display = 'block';
-      this.iconElement.style.visibility = 'visible';
-      this.iconElement.style.opacity = '1';
-      
-      setTimeout(() => {
-        this.iconElement.classList.remove('ui-fade-in');
-      }, 300);
-    }
-    
-    return true;
-  }
-  
-  hide() {
-    console.log('👻 [InventoryIcon] Masquage');
-    
-    this.isVisible = false;
-    
-    if (this.iconElement) {
-      this.iconElement.classList.add('ui-fade-out');
-      
-      setTimeout(() => {
-        this.iconElement.classList.add('ui-hidden');
-        this.iconElement.classList.remove('ui-fade-out');
-      }, 200);
-    }
-    
-    return true;
-  }
-  
-  setEnabled(enabled) {
-    console.log(`🔧 [InventoryIcon] setEnabled(${enabled})`);
-    
-    this.isEnabled = enabled;
-    
-    if (this.iconElement) {
-      if (enabled) {
-        this.iconElement.classList.remove('ui-disabled', 'disabled');
-      } else {
-        this.iconElement.classList.add('ui-disabled');
-      }
-    }
-    
-    return true;
-  }
-  
-  // === 📍 MÉTHODES UIMANAGER ===
-  
-  onPositioned(position) {
-    console.log('📍 [InventoryIcon] Position reçue de UIManager:', position);
-    
-    if (this.iconElement) {
-      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
-      this.iconElement.setAttribute('data-position', JSON.stringify(position));
-    }
-  }
-  
-  isPositionedByUIManager() {
-    return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
-  }
-  
-  getCurrentPosition() {
-    if (!this.iconElement) return null;
-    
-    const positionData = this.iconElement.getAttribute('data-position');
-    if (positionData) {
-      try {
-        return JSON.parse(positionData);
-      } catch (error) {
-        console.warn('⚠️ [InventoryIcon] Position data invalide');
-      }
-    }
-    
-    const computed = window.getComputedStyle(this.iconElement);
-    return {
-      left: computed.left,
-      top: computed.top,
-      source: 'computed'
-    };
-  }
-  
-  // === 📊 MISE À JOUR DONNÉES ===
-  
-  updateNotification(show = true, count = 0) {
-    if (!this.iconElement) return;
-    
-    this.displayData.hasNotification = show;
-    this.displayData.notificationCount = count;
-    
-    const notification = this.iconElement.querySelector('.icon-notification');
-    const countElement = this.iconElement.querySelector('.notification-count');
-    
-    if (show && count > 0) {
-      notification.style.display = 'flex';
-      countElement.textContent = count > 9 ? '!' : count.toString();
-    } else if (show) {
-      notification.style.display = 'flex';
-      countElement.textContent = '!';
-    } else {
-      notification.style.display = 'none';
-    }
-  }
-  
-  // === 🔍 VÉRIFICATION OUVERTURE UI - DÉLÉGATION SIMPLE ===
-  
-  canOpenUI() {
-    // ✅ DÉLÉGATION DIRECTE vers BaseModule
-    if (window.inventorySystemGlobal && window.inventorySystemGlobal.canOpenUI) {
-      return window.inventorySystemGlobal.canOpenUI();
-    }
-    
-    // ✅ FALLBACK SIMPLE (état local seulement)
-    return this.isEnabled;
-  }
-  
-  showCannotOpenMessage() {
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Cannot open inventory right now', 'warning', {
-        duration: 2000,
-        position: 'bottom-center'
-      });
-    }
-  }
-  
-  // === 🎛️ ÉVÉNEMENTS ===
+  // === 🎛️ ÉVÉNEMENTS IDENTIQUES ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -407,10 +326,136 @@ export class InventoryIcon {
     console.log('🎛️ [InventoryIcon] Événements configurés');
   }
   
-  // === 💬 TOOLTIP ===
+  // === 📊 MISE À JOUR DONNÉES IDENTIQUE ===
+  
+  updateNotification(show = true, count = 0) {
+    if (!this.iconElement) return;
+    
+    this.displayData.hasNotification = show;
+    this.displayData.notificationCount = count;
+    
+    const notification = this.iconElement.querySelector('.icon-notification');
+    const countElement = this.iconElement.querySelector('.notification-count');
+    
+    if (show && count > 0) {
+      notification.style.display = 'flex';
+      countElement.textContent = count > 9 ? '!' : count.toString();
+    } else if (show) {
+      notification.style.display = 'flex';
+      countElement.textContent = '!';
+    } else {
+      notification.style.display = 'none';
+    }
+  }
+  
+  // === 🎛️ CONTRÔLE UI MANAGER IDENTIQUE ===
+  
+  show() {
+    this.isVisible = true;
+    
+    if (this.iconElement) {
+      this.iconElement.classList.remove('ui-hidden', 'hidden');
+      this.iconElement.classList.add('ui-fade-in');
+      
+      this.iconElement.style.display = 'block';
+      this.iconElement.style.visibility = 'visible';
+      this.iconElement.style.opacity = '1';
+      
+      setTimeout(() => {
+        this.iconElement.classList.remove('ui-fade-in');
+      }, 300);
+    }
+    
+    return true;
+  }
+  
+  hide() {
+    this.isVisible = false;
+    
+    if (this.iconElement) {
+      this.iconElement.classList.add('ui-fade-out');
+      
+      setTimeout(() => {
+        this.iconElement.classList.add('ui-hidden');
+        this.iconElement.classList.remove('ui-fade-out');
+      }, 200);
+    }
+    
+    return true;
+  }
+  
+  setEnabled(enabled) {
+    this.isEnabled = enabled;
+    
+    if (this.iconElement) {
+      if (enabled) {
+        this.iconElement.classList.remove('ui-disabled', 'disabled');
+      } else {
+        this.iconElement.classList.add('ui-disabled');
+      }
+    }
+    
+    return true;
+  }
+  
+  // === 📍 MÉTHODES UIMANAGER IDENTIQUES ===
+  
+  onPositioned(position) {
+    if (this.iconElement) {
+      this.iconElement.setAttribute('data-positioned-by', 'uimanager');
+      this.iconElement.setAttribute('data-position', JSON.stringify(position));
+    }
+  }
+  
+  isPositionedByUIManager() {
+    return this.iconElement?.getAttribute('data-positioned-by') === 'uimanager';
+  }
+  
+  getCurrentPosition() {
+    if (!this.iconElement) return null;
+    
+    const positionData = this.iconElement.getAttribute('data-position');
+    if (positionData) {
+      try {
+        return JSON.parse(positionData);
+      } catch (error) {
+        console.warn('⚠️ [InventoryIcon] Position data invalide');
+      }
+    }
+    
+    const computed = window.getComputedStyle(this.iconElement);
+    return {
+      left: computed.left,
+      top: computed.top,
+      source: 'computed'
+    };
+  }
+  
+  // === 🔍 VÉRIFICATION OUVERTURE UI - DÉLÉGATION SIMPLE ===
+  
+  canOpenUI() {
+    // ✅ DÉLÉGATION DIRECTE vers BaseModule
+    if (window.inventorySystemGlobal && window.inventorySystemGlobal.canOpenUI) {
+      return window.inventorySystemGlobal.canOpenUI();
+    }
+    
+    // ✅ FALLBACK SIMPLE (état local seulement)
+    return this.isEnabled;
+  }
+  
+  showCannotOpenMessage() {
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(t('inventory.actions.cannot_open'), 'warning', {
+        duration: 2000,
+        position: 'bottom-center'
+      });
+    }
+  }
+  
+  // === 💬 TOOLTIP AVEC TRADUCTIONS ===
   
   showTooltip() {
-    if (!this.iconElement) return;
+    if (this.currentTooltip) return; // Éviter doublons
     
     const tooltip = document.createElement('div');
     tooltip.className = 'inventory-tooltip';
@@ -433,10 +478,11 @@ export class InventoryIcon {
       white-space: nowrap;
     `;
     
+    // === 🌐 TEXTES TRADUITS DANS TOOLTIP ===
     tooltip.innerHTML = `
-      <div><strong>Inventory</strong></div>
-      <div>Items and tools</div>
-      <div style="opacity: 0.7; margin-top: 4px;">Press I or click</div>
+      <div><strong>${t('inventory.tooltip_title')}</strong></div>
+      <div>${t('inventory.tooltip_items')}</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${t('inventory.tooltip_action')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -459,14 +505,14 @@ export class InventoryIcon {
   
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Inventory disabled', 'warning', {
+      window.showGameNotification(t('inventory.disabled_message'), 'warning', {
         duration: 2000,
         position: 'bottom-center'
       });
     }
   }
   
-  // === 🎭 ANIMATIONS ===
+  // === 🎭 ANIMATIONS AVEC NOTIFICATIONS TRADUITES ===
   
   animateNewItem() {
     if (!this.iconElement) return;
@@ -482,10 +528,17 @@ export class InventoryIcon {
     }, 2000);
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE AVEC CLEANUP LANGUE ===
   
   destroy() {
     console.log('🧹 [InventoryIcon] Destruction...');
+    
+    // Nettoyer le listener de langue
+    if (this.cleanupLanguageListener && typeof this.cleanupLanguageListener === 'function') {
+      console.log('🌐 [InventoryIcon] Nettoyage listener langue...');
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     this.hideTooltip();
     
@@ -498,11 +551,12 @@ export class InventoryIcon {
     this.inventoryUI = null;
     this.isVisible = false;
     this.isEnabled = false;
+    this.optionsManager = null;
     
-    console.log('✅ [InventoryIcon] Détruit');
+    console.log('✅ [InventoryIcon] Détruit avec nettoyage langue');
   }
   
-  // === 🐛 DEBUG ===
+  // === 🐛 DEBUG AMÉLIORÉ ===
   
   debugInfo() {
     return {
@@ -516,28 +570,22 @@ export class InventoryIcon {
       uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
-      canOpenUI: this.canOpenUI()
+      canOpenUI: this.canOpenUI(),
+      
+      // === 🌐 DEBUG LOCALIZATION ===
+      localization: {
+        hasOptionsManager: !!this.optionsManager,
+        hasLanguageListener: !!this.cleanupLanguageListener,
+        currentLabel: this.iconElement?.querySelector('.icon-label')?.textContent,
+        sampleTranslations: {
+          inventoryLabel: t('inventory.label'),
+          tooltipTitle: t('inventory.tooltip_title'),
+          tooltipAction: t('inventory.tooltip_action'),
+          disabledMessage: t('inventory.disabled_message')
+        }
+      }
     };
   }
 }
 
 export default InventoryIcon;
-
-console.log(`
-🎒 === INVENTORY ICON NETTOYÉ ===
-
-✅ RESPONSABILITÉ CLAIRE:
-• Gestion affichage icône uniquement
-• Délégation simple vers BaseModule
-• Aucune vérification métier
-
-🔗 DÉLÉGATION SIMPLIFIÉE:
-• canOpenUI() → window.inventorySystemGlobal.canOpenUI()
-• Fallback → this.isEnabled
-• Plus de chaîne complexe
-
-🎯 SUPPRIMÉ:
-• Toutes les vérifications DOM
-• Fallbacks vers UIManager
-• Logique métier dans l'icône
-`);
