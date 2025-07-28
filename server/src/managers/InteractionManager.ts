@@ -141,114 +141,140 @@ export class InteractionManager {
   }
 
   // ✅ MÉTHODE PRINCIPALE CORRIGÉE - Copie correcte des champs Interface Unifiée
-  async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
-    console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
+// ✅ MÉTHODE PRINCIPALE MODIFIÉE - Accepte maintenant les données du client
+async handleNpcInteraction(
+  player: Player, 
+  npcId: number, 
+  additionalData?: any  // ✅ NOUVEAU : Données supplémentaires du client
+): Promise<NpcInteractionResult> {
+  console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
+  console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
+  
+  // ✅ DEBUG : Afficher les données supplémentaires reçues
+  if (additionalData) {
+    console.log(`🌐 [InteractionManager] Données supplémentaires:`, {
+      playerLanguage: additionalData.playerLanguage,
+      playerPosition: additionalData.playerPosition,
+      zone: additionalData.zone,
+      sessionId: additionalData.sessionId,
+      keys: Object.keys(additionalData)
+    });
+  }
 
-    // Vérification que le système modulaire est prêt
+  // Vérification que le système modulaire est prêt
+  if (!this.isInitialized) {
+    console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
+    await this.initializeModularSystem();
+    
     if (!this.isInitialized) {
-      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
-      await this.initializeModularSystem();
-      
-      if (!this.isInitialized) {
-        return { 
-          type: "error", 
-          message: "Système d'interaction temporairement indisponible." 
-        };
-      }
-    }
-
-    try {
-      // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME
-      const request: InteractionRequest = {
-        type: 'npc',
-        targetId: npcId,
-        position: {
-          x: player.x,
-          y: player.y,
-          mapId: player.currentZone
-        },
-        data: {
-          npcId: npcId
-        },
-        timestamp: Date.now()
-      };
-
-      // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
-      const result = await this.baseInteractionManager.processInteraction(player, request);
-
-      // ✅ CASTING SÉCURISÉ vers le type NPC du module
-      const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
-      const resultData = result.data as any; // Casting pour result.data aussi
-
-      // ✅ DEBUG AVANT CONVERSION
-      console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
-        type: result.type,
-        npcId: npcModuleResult.npcId,
-        npcIdType: typeof npcModuleResult.npcId,
-        npcName: npcModuleResult.npcName,
-        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
-        capabilities: npcModuleResult.capabilities?.length || 0,
-        contextualData: !!npcModuleResult.contextualData
-      });
-
-      // ✅ CONVERSION CORRIGÉE - Utiliser le casting pour accéder aux propriétés étendues
-      const npcResult: NpcInteractionResult = {
-        type: result.type,
-        message: result.message,
-        
-        // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
-        npcId: npcModuleResult.npcId ?? resultData?.npcId,
-        npcName: npcModuleResult.npcName ?? resultData?.npcName,
-        
-        // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting)
-        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
-        capabilities: npcModuleResult.capabilities,
-        contextualData: npcModuleResult.contextualData,
-        unifiedInterface: npcModuleResult.unifiedInterface,
-        unifiedMode: npcModuleResult.unifiedMode,
-        
-        // Données spécifiques NPCs (depuis casting avec fallback)
-        shopId: npcModuleResult.shopId ?? resultData?.shopId,
-        shopData: npcModuleResult.shopData ?? resultData?.shopData,
-        lines: npcModuleResult.lines ?? resultData?.lines,
-        availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
-        questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
-        questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
-        questId: npcModuleResult.questId ?? resultData?.questId,
-        questName: npcModuleResult.questName ?? resultData?.questName,
-        starterData: npcModuleResult.starterData ?? resultData?.starterData,
-        starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
-        starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
-        battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate
-      };
-
-      // ✅ DEBUG APRÈS CONVERSION
-      console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
-        type: npcResult.type,
-        npcId: npcResult.npcId,
-        npcName: npcResult.npcName,
-        isUnifiedInterface: npcResult.isUnifiedInterface,
-        capabilities: npcResult.capabilities?.length || 0,
-        contextualData: !!npcResult.contextualData
-      });
-
-      console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
-      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
-      console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
-
-      return npcResult;
-
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
-      
-      // Retour d'erreur au format existant
-      return {
-        type: "error",
-        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
+      return { 
+        type: "error", 
+        message: "Système d'interaction temporairement indisponible." 
       };
     }
   }
+
+  try {
+    // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME AVEC DONNÉES SUPPLÉMENTAIRES
+    const request: InteractionRequest = {
+      type: 'npc',
+      targetId: npcId,
+      position: {
+        x: player.x,
+        y: player.y,
+        mapId: player.currentZone
+      },
+      data: {
+        npcId: npcId,
+        // ✅ NOUVEAU : Inclure toutes les données supplémentaires
+        ...additionalData
+      },
+      timestamp: Date.now()
+    };
+
+    // ✅ DEBUG : Vérifier ce qui sera envoyé au module
+    console.log(`📤 [InteractionManager] Requête envoyée au module:`, {
+      type: request.type,
+      targetId: request.targetId,
+      dataKeys: Object.keys(request.data),
+      playerLanguage: request.data.playerLanguage
+    });
+
+    // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
+    const result = await this.baseInteractionManager.processInteraction(player, request);
+
+    // ✅ CASTING SÉCURISÉ vers le type NPC du module
+    const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
+    const resultData = result.data as any; // Casting pour result.data aussi
+
+    // ✅ DEBUG AVANT CONVERSION
+    console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
+      type: result.type,
+      npcId: npcModuleResult.npcId,
+      npcIdType: typeof npcModuleResult.npcId,
+      npcName: npcModuleResult.npcName,
+      isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+      capabilities: npcModuleResult.capabilities?.length || 0,
+      contextualData: !!npcModuleResult.contextualData
+    });
+
+    // ✅ CONVERSION CORRIGÉE - Utiliser le casting pour accéder aux propriétés étendues
+    const npcResult: NpcInteractionResult = {
+      type: result.type,
+      message: result.message,
+      
+      // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
+      npcId: npcModuleResult.npcId ?? resultData?.npcId,
+      npcName: npcModuleResult.npcName ?? resultData?.npcName,
+      
+      // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting)
+      isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+      capabilities: npcModuleResult.capabilities,
+      contextualData: npcModuleResult.contextualData,
+      unifiedInterface: npcModuleResult.unifiedInterface,
+      unifiedMode: npcModuleResult.unifiedMode,
+      
+      // Données spécifiques NPCs (depuis casting avec fallback)
+      shopId: npcModuleResult.shopId ?? resultData?.shopId,
+      shopData: npcModuleResult.shopData ?? resultData?.shopData,
+      lines: npcModuleResult.lines ?? resultData?.lines,
+      availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
+      questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
+      questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
+      questId: npcModuleResult.questId ?? resultData?.questId,
+      questName: npcModuleResult.questName ?? resultData?.questName,
+      starterData: npcModuleResult.starterData ?? resultData?.starterData,
+      starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
+      starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
+      battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate
+    };
+
+    // ✅ DEBUG APRÈS CONVERSION
+    console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
+      type: npcResult.type,
+      npcId: npcResult.npcId,
+      npcName: npcResult.npcName,
+      isUnifiedInterface: npcResult.isUnifiedInterface,
+      capabilities: npcResult.capabilities?.length || 0,
+      contextualData: !!npcResult.contextualData
+    });
+
+    console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
+    console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
+    console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
+
+    return npcResult;
+
+  } catch (error) {
+    console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
+    
+    // Retour d'erreur au format existant
+    return {
+      type: "error",
+      message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
+    };
+  }
+}
 
   // ✅ MÉTHODES EXISTANTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
 
