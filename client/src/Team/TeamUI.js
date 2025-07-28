@@ -121,7 +121,77 @@ updateLanguage() {
   
   console.log('🔄 [TeamUI] Mise à jour langue interface...');
   
-  // TODO: Les mises à jour de textes seront ajoutées dans les prochaines étapes
+  // Header
+  const titleElement = this.overlayElement.querySelector('.team-title-text h2');
+  if (titleElement) titleElement.textContent = t('team.ui.title');
+  
+  const subtitleElement = this.overlayElement.querySelector('.team-subtitle');
+  if (subtitleElement) subtitleElement.textContent = t('team.ui.subtitle');
+  
+  const closeBtn = this.overlayElement.querySelector('.team-close-btn');
+  if (closeBtn) closeBtn.title = t('team.ui.close');
+  
+  // Tabs
+  const overviewTab = this.overlayElement.querySelector('[data-view="overview"] .tab-text');
+  if (overviewTab) overviewTab.textContent = t('team.ui.tabs.overview');
+  
+  const detailsTab = this.overlayElement.querySelector('[data-view="details"] .tab-text');
+  if (detailsTab) detailsTab.textContent = t('team.ui.tabs.details');
+  
+  // Overview section
+  const teamTitle = this.overlayElement.querySelector('.slots-title span:last-child');
+  if (teamTitle) teamTitle.textContent = t('team.ui.overview.team_title');
+  
+  const healBtn = this.overlayElement.querySelector('#heal-team-btn');
+  if (healBtn) healBtn.innerHTML = `💊 ${t('team.ui.overview.heal_team')}`;
+  
+  const organizeBtn = this.overlayElement.querySelector('#organize-team-btn');
+  if (organizeBtn) organizeBtn.innerHTML = `🔄 ${t('team.ui.overview.organize')}`;
+  
+  // Stats labels
+  const statLabels = [
+    { selector: '#avg-level', parent: true, key: 'team.ui.stats.avg_level' },
+    { selector: '#total-hp', parent: true, key: 'team.ui.stats.total_hp' },
+    { selector: '#battle-ready', parent: true, key: 'team.ui.stats.battle_ready' },
+    { selector: '#alive-count', parent: true, key: 'team.ui.stats.alive_count' },
+    { selector: '#team-complete', parent: true, key: 'team.ui.stats.team_complete' }
+  ];
+  
+  statLabels.forEach(({ selector, parent, key }) => {
+    const element = this.overlayElement.querySelector(selector);
+    if (element && parent) {
+      const labelElement = element.parentElement.querySelector('.stat-label');
+      if (labelElement) labelElement.textContent = t(key);
+    }
+  });
+  
+  // Section titles
+  const statsTitle = this.overlayElement.querySelector('.stats-section .section-title');
+  if (statsTitle) statsTitle.textContent = t('team.ui.stats.title');
+  
+  const typesTitle = this.overlayElement.querySelectorAll('.stats-section .section-title')[1];
+  if (typesTitle) typesTitle.textContent = t('team.ui.types.title');
+  
+  const actionsTitle = this.overlayElement.querySelectorAll('.stats-section .section-title')[2];
+  if (actionsTitle) actionsTitle.textContent = t('team.ui.actions.title');
+  
+  const refreshBtn = this.overlayElement.querySelector('#refresh-team-btn .stat-label');
+  if (refreshBtn) refreshBtn.innerHTML = `🔄 ${t('team.ui.actions.refresh')}`;
+  
+  // Details section
+  const detailsTitle = this.overlayElement.querySelector('#team-details h3');
+  if (detailsTitle) detailsTitle.textContent = t('team.ui.details.title');
+  
+  const noSelectionText = this.overlayElement.querySelector('#team-details p');
+  if (noSelectionText) noSelectionText.textContent = t('team.ui.details.no_selection');
+  
+  // Mettre à jour les slots vides
+  this.overlayElement.querySelectorAll('.empty-text').forEach(emptyText => {
+    emptyText.textContent = t('team.ui.overview.slot_free');
+  });
+  
+  // Re-calculer les stats pour mettre à jour "Oui/Non"
+  this.updateStats();
   
   console.log('✅ [TeamUI] Langue interface mise à jour');
 }
@@ -1143,8 +1213,8 @@ updateLanguage() {
             <div class="team-details-content">
               <div class="no-selection">
                 <div class="no-selection-icon">📊</div>
-                <h3>Détails Pokémon</h3>
-                <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
+                <h3>${t('team.ui.details.title')}</h3>
+                <p>${t('team.ui.details.no_selection')}</p>
               </div>
             </div>
           </div>
@@ -1575,6 +1645,15 @@ updateLanguage() {
         } else if (selector === '#team-complete') {
           element.style.color = isComplete ? '#28a745' : '#ffc107';
         }
+         const battleReadyElement = this.overlayElement.querySelector('#battle-ready');
+        if (battleReadyElement) {
+          battleReadyElement.textContent = canBattle ? t('team.ui.stats.yes') : t('team.ui.stats.no');
+        }
+        
+        const teamCompleteElement = this.overlayElement.querySelector('#team-complete');
+        if (teamCompleteElement) {
+          teamCompleteElement.textContent = isComplete ? t('team.ui.stats.yes') : t('team.ui.stats.no');
+        }
       }
     });
     
@@ -1649,8 +1728,8 @@ updateLanguage() {
       detailsContent.innerHTML = `
         <div class="no-selection">
           <div class="no-selection-icon">📊</div>
-          <h3>Détails Pokémon</h3>
-          <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
+          <h3>${t('team.ui.details.title')}</h3>
+          <p>${t('team.ui.details.no_selection')}</p>
         </div>
       `;
       return;
@@ -1721,7 +1800,7 @@ updateLanguage() {
         
         <div style="margin-top: 20px; text-align: center;">
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
-            Double-cliquez sur un Pokémon dans la vue d'ensemble pour voir ses détails
+            ${t('team.ui.details.no_selection_hint')}
           </p>
         </div>
       </div>
@@ -2127,6 +2206,13 @@ updateLanguage() {
     
     // Nettoyer tooltip
     this.hideTooltip();
+
+    // Nettoyer le listener de langue
+    if (this.cleanupLanguageListener && typeof this.cleanupLanguageListener === 'function') {
+      console.log('🌐 [TeamUI] Nettoyage listener langue...');
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     // Supprimer élément DOM
     if (this.overlayElement && this.overlayElement.parentNode) {
