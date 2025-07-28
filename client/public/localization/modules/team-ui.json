@@ -1,0 +1,730 @@
+{
+  "en": {
+    "team": {
+      "label": "Team",
+      "tooltip_title": "Team Management",
+      "tooltip_action": "Click to manage team",
+      "tooltip_status_ready": "Ready for battle",
+      "tooltip_status_not_ready": "Cannot battle",
+      "tooltip_status_warning": "Some Pokémon fainted",
+      "tooltip_count": "Team: {count}/6",
+      "tooltip_alive": "Alive: {count}",
+      "disabled_message": "Team management disabled",
+      
+      "ui": {
+        "title": "My Pokémon Team",
+        "subtitle": "Complete management of your battle team",
+        "close": "Close",
+        
+        "tabs": {
+          "overview": "Overview",
+          "details": "Details"
+        },
+        
+        "overview": {
+          "team_title": "Battle Team",
+          "heal_team": "Heal Team",
+          "organize": "Organize",
+          "empty_slot": "Empty slot",
+          "slot_free": "Free slot"
+        },
+        
+        "stats": {
+          "title": "Statistics",
+          "avg_level": "Average Level",
+          "total_hp": "Total HP",
+          "battle_ready": "Battle Ready",
+          "alive_count": "Alive Pokémon",
+          "team_complete": "Complete Team",
+          "yes": "Yes",
+          "no": "No"
+        },
+        
+        "types": {
+          "title": "Type Coverage",
+          "no_types": "No types"
+        },
+        
+        "actions": {
+          "title": "Quick Actions",
+          "refresh": "Refresh"
+        },
+        
+        "details": {
+          "title": "Pokémon Details",
+          "no_selection": "Select a Pokémon to see its complete details",
+          "no_selection_hint": "Double-click on a Pokémon in the overview to see details",
+          
+          "info": {
+            "general": "General Information",
+            "status": "Status & Condition",
+            "hp": "Hit Points",
+            "level": "Level",
+            "experience": "Experience",
+            "nature": "Nature",
+            "condition": "Condition",
+            "can_battle": "Can Battle",
+            "position": "Position",
+            "slot": "Slot {number}",
+            "unknown": "Unknown",
+            "normal": "Normal",
+            "fainted": "Fainted"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Lv. {level}",
+          "hp_format": "{current}/{max} HP",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "Team healed!",
+          "healing_team": "Healing team...",
+          "organizing": "Organizing team...",
+          "refreshing": "Refreshing data...",
+          "pokemon_added": "{name} added to team!",
+          "interface_updated": "Team interface updated"
+        }
+      }
+    }
+  },
+  "fr": {
+    "team": {
+      "label": "Équipe",
+      "tooltip_title": "Gestion d'Équipe",
+      "tooltip_action": "Clic pour gérer l'équipe",
+      "tooltip_status_ready": "Prêt au combat",
+      "tooltip_status_not_ready": "Ne peut pas combattre",
+      "tooltip_status_warning": "Certains Pokémon K.O.",
+      "tooltip_count": "Équipe : {count}/6",
+      "tooltip_alive": "Vivants : {count}",
+      "disabled_message": "Gestion d'équipe désactivée",
+      
+      "ui": {
+        "title": "Mon Équipe Pokémon",
+        "subtitle": "Gestion complète de votre équipe de combat",
+        "close": "Fermer",
+        
+        "tabs": {
+          "overview": "Vue d'ensemble",
+          "details": "Détails"
+        },
+        
+        "overview": {
+          "team_title": "Équipe de Combat",
+          "heal_team": "Soigner l'équipe",
+          "organize": "Organiser",
+          "empty_slot": "Slot vide",
+          "slot_free": "Slot libre"
+        },
+        
+        "stats": {
+          "title": "Statistiques",
+          "avg_level": "Niveau Moyen",
+          "total_hp": "HP Total",
+          "battle_ready": "Prêt au Combat",
+          "alive_count": "Pokémon Vivants",
+          "team_complete": "Équipe Complète",
+          "yes": "Oui",
+          "no": "Non"
+        },
+        
+        "types": {
+          "title": "Couverture Types",
+          "no_types": "Aucun type"
+        },
+        
+        "actions": {
+          "title": "Actions Rapides",
+          "refresh": "Actualiser"
+        },
+        
+        "details": {
+          "title": "Détails Pokémon",
+          "no_selection": "Sélectionnez un Pokémon pour voir ses détails complets",
+          "no_selection_hint": "Double-cliquez sur un Pokémon dans la vue d'ensemble pour voir les détails",
+          
+          "info": {
+            "general": "Informations Générales",
+            "status": "État et Statut",
+            "hp": "Points de Vie",
+            "level": "Niveau",
+            "experience": "Expérience",
+            "nature": "Nature",
+            "condition": "État",
+            "can_battle": "Peut Combattre",
+            "position": "Position",
+            "slot": "Slot {number}",
+            "unknown": "Inconnu",
+            "normal": "Normal",
+            "fainted": "K.O."
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Niv. {level}",
+          "hp_format": "{current}/{max} PV",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "Équipe soignée !",
+          "healing_team": "Soin de l'équipe...",
+          "organizing": "Organisation de l'équipe...",
+          "refreshing": "Actualisation des données...",
+          "pokemon_added": "{name} ajouté à l'équipe !",
+          "interface_updated": "Interface équipe actualisée"
+        }
+      }
+    }
+  },
+  "es": {
+    "team": {
+      "label": "Equipo",
+      "tooltip_title": "Gestión de Equipo",
+      "tooltip_action": "Clic para gestionar equipo",
+      "tooltip_status_ready": "Listo para combatir",
+      "tooltip_status_not_ready": "No puede combatir",
+      "tooltip_status_warning": "Algunos Pokémon debilitados",
+      "tooltip_count": "Equipo: {count}/6",
+      "tooltip_alive": "Vivos: {count}",
+      "disabled_message": "Gestión de equipo deshabilitada",
+      
+      "ui": {
+        "title": "Mi Equipo Pokémon",
+        "subtitle": "Gestión completa de tu equipo de combate",
+        "close": "Cerrar",
+        
+        "tabs": {
+          "overview": "Resumen",
+          "details": "Detalles"
+        },
+        
+        "overview": {
+          "team_title": "Equipo de Combate",
+          "heal_team": "Curar Equipo",
+          "organize": "Organizar",
+          "empty_slot": "Slot vacío",
+          "slot_free": "Slot libre"
+        },
+        
+        "stats": {
+          "title": "Estadísticas",
+          "avg_level": "Nivel Promedio",
+          "total_hp": "PS Total",
+          "battle_ready": "Listo para Combatir",
+          "alive_count": "Pokémon Vivos",
+          "team_complete": "Equipo Completo",
+          "yes": "Sí",
+          "no": "No"
+        },
+        
+        "types": {
+          "title": "Cobertura de Tipos",
+          "no_types": "Sin tipos"
+        },
+        
+        "actions": {
+          "title": "Acciones Rápidas",
+          "refresh": "Actualizar"
+        },
+        
+        "details": {
+          "title": "Detalles Pokémon",
+          "no_selection": "Selecciona un Pokémon para ver sus detalles completos",
+          "no_selection_hint": "Haz doble clic en un Pokémon en el resumen para ver detalles",
+          
+          "info": {
+            "general": "Información General",
+            "status": "Estado y Condición",
+            "hp": "Puntos de Salud",
+            "level": "Nivel",
+            "experience": "Experiencia",
+            "nature": "Naturaleza",
+            "condition": "Condición",
+            "can_battle": "Puede Combatir",
+            "position": "Posición",
+            "slot": "Slot {number}",
+            "unknown": "Desconocido",
+            "normal": "Normal",
+            "fainted": "Debilitado"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Nv. {level}",
+          "hp_format": "{current}/{max} PS",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "¡Equipo curado!",
+          "healing_team": "Curando equipo...",
+          "organizing": "Organizando equipo...",
+          "refreshing": "Actualizando datos...",
+          "pokemon_added": "¡{name} añadido al equipo!",
+          "interface_updated": "Interfaz de equipo actualizada"
+        }
+      }
+    }
+  },
+  "de": {
+    "team": {
+      "label": "Team",
+      "tooltip_title": "Team-Verwaltung",
+      "tooltip_action": "Klicken zur Team-Verwaltung",
+      "tooltip_status_ready": "Kampfbereit",
+      "tooltip_status_not_ready": "Nicht kampfbereit",
+      "tooltip_status_warning": "Einige Pokémon kampfunfähig",
+      "tooltip_count": "Team: {count}/6",
+      "tooltip_alive": "Am Leben: {count}",
+      "disabled_message": "Team-Verwaltung deaktiviert",
+      
+      "ui": {
+        "title": "Mein Pokémon-Team",
+        "subtitle": "Vollständige Verwaltung Ihres Kampfteams",
+        "close": "Schließen",
+        
+        "tabs": {
+          "overview": "Übersicht",
+          "details": "Details"
+        },
+        
+        "overview": {
+          "team_title": "Kampfteam",
+          "heal_team": "Team heilen",
+          "organize": "Organisieren",
+          "empty_slot": "Leerer Slot",
+          "slot_free": "Freier Slot"
+        },
+        
+        "stats": {
+          "title": "Statistiken",
+          "avg_level": "Durchschnittliches Level",
+          "total_hp": "Gesamt-KP",
+          "battle_ready": "Kampfbereit",
+          "alive_count": "Lebende Pokémon",
+          "team_complete": "Vollständiges Team",
+          "yes": "Ja",
+          "no": "Nein"
+        },
+        
+        "types": {
+          "title": "Typ-Abdeckung",
+          "no_types": "Keine Typen"
+        },
+        
+        "actions": {
+          "title": "Schnellaktionen",
+          "refresh": "Aktualisieren"
+        },
+        
+        "details": {
+          "title": "Pokémon-Details",
+          "no_selection": "Wählen Sie ein Pokémon aus, um seine vollständigen Details zu sehen",
+          "no_selection_hint": "Doppelklicken Sie auf ein Pokémon in der Übersicht für Details",
+          
+          "info": {
+            "general": "Allgemeine Informationen",
+            "status": "Status & Zustand",
+            "hp": "Kraftpunkte",
+            "level": "Level",
+            "experience": "Erfahrung",
+            "nature": "Wesen",
+            "condition": "Zustand",
+            "can_battle": "Kann kämpfen",
+            "position": "Position",
+            "slot": "Slot {number}",
+            "unknown": "Unbekannt",
+            "normal": "Normal",
+            "fainted": "Kampfunfähig"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Lv. {level}",
+          "hp_format": "{current}/{max} KP",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "Team geheilt!",
+          "healing_team": "Team wird geheilt...",
+          "organizing": "Team wird organisiert...",
+          "refreshing": "Daten werden aktualisiert...",
+          "pokemon_added": "{name} zum Team hinzugefügt!",
+          "interface_updated": "Team-Interface aktualisiert"
+        }
+      }
+    }
+  },
+  "it": {
+    "team": {
+      "label": "Squadra",
+      "tooltip_title": "Gestione Squadra",
+      "tooltip_action": "Clicca per gestire la squadra",
+      "tooltip_status_ready": "Pronto per la battaglia",
+      "tooltip_status_not_ready": "Non può combattere",
+      "tooltip_status_warning": "Alcuni Pokémon sconfitti",
+      "tooltip_count": "Squadra: {count}/6",
+      "tooltip_alive": "Vivi: {count}",
+      "disabled_message": "Gestione squadra disabilitata",
+      
+      "ui": {
+        "title": "La Mia Squadra Pokémon",
+        "subtitle": "Gestione completa della tua squadra da battaglia",
+        "close": "Chiudi",
+        
+        "tabs": {
+          "overview": "Panoramica",
+          "details": "Dettagli"
+        },
+        
+        "overview": {
+          "team_title": "Squadra da Battaglia",
+          "heal_team": "Cura Squadra",
+          "organize": "Organizza",
+          "empty_slot": "Slot vuoto",
+          "slot_free": "Slot libero"
+        },
+        
+        "stats": {
+          "title": "Statistiche",
+          "avg_level": "Livello Medio",
+          "total_hp": "PS Totali",
+          "battle_ready": "Pronto per la Battaglia",
+          "alive_count": "Pokémon Vivi",
+          "team_complete": "Squadra Completa",
+          "yes": "Sì",
+          "no": "No"
+        },
+        
+        "types": {
+          "title": "Copertura Tipi",
+          "no_types": "Nessun tipo"
+        },
+        
+        "actions": {
+          "title": "Azioni Rapide",
+          "refresh": "Aggiorna"
+        },
+        
+        "details": {
+          "title": "Dettagli Pokémon",
+          "no_selection": "Seleziona un Pokémon per vedere i dettagli completi",
+          "no_selection_hint": "Fai doppio clic su un Pokémon nella panoramica per i dettagli",
+          
+          "info": {
+            "general": "Informazioni Generali",
+            "status": "Status e Condizione",
+            "hp": "Punti Salute",
+            "level": "Livello",
+            "experience": "Esperienza",
+            "nature": "Natura",
+            "condition": "Condizione",
+            "can_battle": "Può Combattere",
+            "position": "Posizione",
+            "slot": "Slot {number}",
+            "unknown": "Sconosciuto",
+            "normal": "Normale",
+            "fainted": "Sconfitto"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Lv. {level}",
+          "hp_format": "{current}/{max} PS",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "Squadra curata!",
+          "healing_team": "Curando squadra...",
+          "organizing": "Organizzando squadra...",
+          "refreshing": "Aggiornando dati...",
+          "pokemon_added": "{name} aggiunto alla squadra!",
+          "interface_updated": "Interfaccia squadra aggiornata"
+        }
+      }
+    }
+  },
+  "pt": {
+    "team": {
+      "label": "Equipe",
+      "tooltip_title": "Gestão de Equipe",
+      "tooltip_action": "Clique para gerenciar equipe",
+      "tooltip_status_ready": "Pronto para batalha",
+      "tooltip_status_not_ready": "Não pode batalhar",
+      "tooltip_status_warning": "Alguns Pokémon desmaiados",
+      "tooltip_count": "Equipe: {count}/6",
+      "tooltip_alive": "Vivos: {count}",
+      "disabled_message": "Gestão de equipe desabilitada",
+      
+      "ui": {
+        "title": "Minha Equipe Pokémon",
+        "subtitle": "Gestão completa da sua equipe de batalha",
+        "close": "Fechar",
+        
+        "tabs": {
+          "overview": "Visão Geral",
+          "details": "Detalhes"
+        },
+        
+        "overview": {
+          "team_title": "Equipe de Batalha",
+          "heal_team": "Curar Equipe",
+          "organize": "Organizar",
+          "empty_slot": "Slot vazio",
+          "slot_free": "Slot livre"
+        },
+        
+        "stats": {
+          "title": "Estatísticas",
+          "avg_level": "Nível Médio",
+          "total_hp": "HP Total",
+          "battle_ready": "Pronto para Batalha",
+          "alive_count": "Pokémon Vivos",
+          "team_complete": "Equipe Completa",
+          "yes": "Sim",
+          "no": "Não"
+        },
+        
+        "types": {
+          "title": "Cobertura de Tipos",
+          "no_types": "Nenhum tipo"
+        },
+        
+        "actions": {
+          "title": "Ações Rápidas",
+          "refresh": "Atualizar"
+        },
+        
+        "details": {
+          "title": "Detalhes Pokémon",
+          "no_selection": "Selecione um Pokémon para ver seus detalhes completos",
+          "no_selection_hint": "Clique duas vezes em um Pokémon na visão geral para ver detalhes",
+          
+          "info": {
+            "general": "Informações Gerais",
+            "status": "Status e Condição",
+            "hp": "Pontos de Vida",
+            "level": "Nível",
+            "experience": "Experiência",
+            "nature": "Natureza",
+            "condition": "Condição",
+            "can_battle": "Pode Batalhar",
+            "position": "Posição",
+            "slot": "Slot {number}",
+            "unknown": "Desconhecido",
+            "normal": "Normal",
+            "fainted": "Desmaiado"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Nv. {level}",
+          "hp_format": "{current}/{max} HP",
+          "hp_percent": "{percent}%",
+          "unknown_name": "Pokémon #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "Equipe curada!",
+          "healing_team": "Curando equipe...",
+          "organizing": "Organizando equipe...",
+          "refreshing": "Atualizando dados...",
+          "pokemon_added": "{name} adicionado à equipe!",
+          "interface_updated": "Interface da equipe atualizada"
+        }
+      }
+    }
+  },
+  "ja": {
+    "team": {
+      "label": "チーム",
+      "tooltip_title": "チーム管理",
+      "tooltip_action": "クリックでチーム管理",
+      "tooltip_status_ready": "バトル準備完了",
+      "tooltip_status_not_ready": "バトルできません",
+      "tooltip_status_warning": "一部のポケモンが瀕死",
+      "tooltip_count": "チーム: {count}/6",
+      "tooltip_alive": "生存: {count}",
+      "disabled_message": "チーム管理が無効",
+      
+      "ui": {
+        "title": "私のポケモンチーム",
+        "subtitle": "バトルチームの完全管理",
+        "close": "閉じる",
+        
+        "tabs": {
+          "overview": "概要",
+          "details": "詳細"
+        },
+        
+        "overview": {
+          "team_title": "バトルチーム",
+          "heal_team": "チーム回復",
+          "organize": "整理",
+          "empty_slot": "空きスロット",
+          "slot_free": "フリースロット"
+        },
+        
+        "stats": {
+          "title": "統計",
+          "avg_level": "平均レベル",
+          "total_hp": "総HP",
+          "battle_ready": "バトル準備",
+          "alive_count": "生存ポケモン",
+          "team_complete": "チーム完成",
+          "yes": "はい",
+          "no": "いいえ"
+        },
+        
+        "types": {
+          "title": "タイプカバー",
+          "no_types": "タイプなし"
+        },
+        
+        "actions": {
+          "title": "クイックアクション",
+          "refresh": "更新"
+        },
+        
+        "details": {
+          "title": "ポケモン詳細",
+          "no_selection": "ポケモンを選択して詳細を表示",
+          "no_selection_hint": "概要でポケモンをダブルクリックで詳細表示",
+          
+          "info": {
+            "general": "一般情報",
+            "status": "ステータスと状態",
+            "hp": "ヒットポイント",
+            "level": "レベル",
+            "experience": "経験値",
+            "nature": "性格",
+            "condition": "状態",
+            "can_battle": "バトル可能",
+            "position": "位置",
+            "slot": "スロット{number}",
+            "unknown": "不明",
+            "normal": "正常",
+            "fainted": "瀕死"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Lv.{level}",
+          "hp_format": "{current}/{max} HP",
+          "hp_percent": "{percent}%",
+          "unknown_name": "ポケモン#{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "チーム回復完了！",
+          "healing_team": "チーム回復中...",
+          "organizing": "チーム整理中...",
+          "refreshing": "データ更新中...",
+          "pokemon_added": "{name}をチームに追加！",
+          "interface_updated": "チームインターフェース更新"
+        }
+      }
+    }
+  },
+  "ko": {
+    "team": {
+      "label": "팀",
+      "tooltip_title": "팀 관리",
+      "tooltip_action": "클릭하여 팀 관리",
+      "tooltip_status_ready": "전투 준비 완료",
+      "tooltip_status_not_ready": "전투 불가",
+      "tooltip_status_warning": "일부 포켓몬 기절",
+      "tooltip_count": "팀: {count}/6",
+      "tooltip_alive": "생존: {count}",
+      "disabled_message": "팀 관리가 비활성화됨",
+      
+      "ui": {
+        "title": "내 포켓몬 팀",
+        "subtitle": "전투 팀의 완전한 관리",
+        "close": "닫기",
+        
+        "tabs": {
+          "overview": "개요",
+          "details": "세부사항"
+        },
+        
+        "overview": {
+          "team_title": "전투 팀",
+          "heal_team": "팀 회복",
+          "organize": "정리",
+          "empty_slot": "빈 슬롯",
+          "slot_free": "자유 슬롯"
+        },
+        
+        "stats": {
+          "title": "통계",
+          "avg_level": "평균 레벨",
+          "total_hp": "총 HP",
+          "battle_ready": "전투 준비",
+          "alive_count": "생존 포켓몬",
+          "team_complete": "팀 완성",
+          "yes": "예",
+          "no": "아니오"
+        },
+        
+        "types": {
+          "title": "타입 커버리지",
+          "no_types": "타입 없음"
+        },
+        
+        "actions": {
+          "title": "빠른 액션",
+          "refresh": "새로고침"
+        },
+        
+        "details": {
+          "title": "포켓몬 세부사항",
+          "no_selection": "포켓몬을 선택하여 완전한 세부사항을 보세요",
+          "no_selection_hint": "개요에서 포켓몬을 더블클릭하여 세부사항 보기",
+          
+          "info": {
+            "general": "일반 정보",
+            "status": "상태 및 컨디션",
+            "hp": "체력 포인트",
+            "level": "레벨",
+            "experience": "경험치",
+            "nature": "성격",
+            "condition": "상태",
+            "can_battle": "전투 가능",
+            "position": "위치",
+            "slot": "슬롯 {number}",
+            "unknown": "알 수 없음",
+            "normal": "정상",
+            "fainted": "기절"
+          }
+        },
+        
+        "pokemon": {
+          "level_short": "Lv.{level}",
+          "hp_format": "{current}/{max} HP",
+          "hp_percent": "{percent}%",
+          "unknown_name": "포켓몬 #{id}"
+        },
+        
+        "notifications": {
+          "team_healed": "팀 회복 완료!",
+          "healing_team": "팀 회복 중...",
+          "organizing": "팀 정리 중...",
+          "refreshing": "데이터 새로고침 중...",
+          "pokemon_added": "{name}이(가) 팀에 추가됨!",
+          "interface_updated": "팀 인터페이스 업데이트됨"
+        }
+      }
+    }
+  }
+}
