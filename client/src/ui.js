@@ -506,51 +506,62 @@ export class PokemonUISystem {
 
   // === FACTORIES DES MODULES (ORIGINALES - PAS MODIFIÉES) ===
 
-  async createInventoryModule() {
-    try {
-      const { createInventoryModule } = await import('./Inventory/index.js');
-      
-      const inventoryModule = await createInventoryModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      if (!inventoryModule) {
-        throw new Error('Échec création InventoryModule');
-      }
-      
-      if (this.uiManager && this.uiManager.registerIconPosition) {
-        if (!inventoryModule.connectUIManager) {
-          inventoryModule.connectUIManager = (uiManager) => {
-            if (inventoryModule.icon && inventoryModule.icon.iconElement) {
-              uiManager.registerIconPosition('inventory', inventoryModule.icon.iconElement, {
-                anchor: 'bottom-right',
-                order: 0,
-                spacing: 10,
-                size: { width: 70, height: 80 }
-              });
-              return true;
-            }
-            return false;
-          };
-        }
-        
-        inventoryModule.connectUIManager(this.uiManager);
-      }
-      
-      window.inventorySystem = inventoryModule.system;          
-      window.inventorySystemGlobal = inventoryModule;           
-      window.toggleInventory = () => inventoryModule.toggle();
-      window.openInventory = () => inventoryModule.openInventory();
-      window.closeInventory = () => inventoryModule.closeInventory();
-      
-      return inventoryModule;
-      
-    } catch (error) {
-      console.error('❌ Erreur création inventaire:', error);
-      return this.createEmptyWrapper('inventory');
+async createInventoryModule() {
+  try {
+    console.log('🚀 [PokemonUI] Création module Inventory avec optionsManager...');
+    
+    // 🌐 CORRECTION: Récupérer le bon niveau optionsManager
+    const optionsManager = window.optionsSystem?.manager ||      // ← LE BON OBJET (.manager)
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    console.log('🌐 [PokemonUI] Création InventoryModule avec optionsManager:', !!optionsManager);
+    
+    const { createInventoryModule } = await import('./Inventory/index.js');
+    
+    const inventoryModule = await createInventoryModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0],
+      { optionsManager }  // ← PASSER OPTIONS MANAGER ICI
+    );
+    
+    if (!inventoryModule) {
+      throw new Error('Échec création InventoryModule');
     }
+    
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      if (!inventoryModule.connectUIManager) {
+        inventoryModule.connectUIManager = (uiManager) => {
+          if (inventoryModule.icon && inventoryModule.icon.iconElement) {
+            uiManager.registerIconPosition('inventory', inventoryModule.icon.iconElement, {
+              anchor: 'bottom-right',
+              order: 0,
+              spacing: 10,
+              size: { width: 70, height: 80 }
+            });
+            return true;
+          }
+          return false;
+        };
+      }
+      
+      inventoryModule.connectUIManager(this.uiManager);
+    }
+    
+    window.inventorySystem = inventoryModule.system;          
+    window.inventorySystemGlobal = inventoryModule;           
+    window.toggleInventory = () => inventoryModule.toggle();
+    window.openInventory = () => inventoryModule.openInventory();
+    window.closeInventory = () => inventoryModule.closeInventory();
+    
+    console.log('✅ [PokemonUI] InventoryModule créé avec traductions');
+    return inventoryModule;
+    
+  } catch (error) {
+    console.error('❌ Erreur création inventaire:', error);
+    return this.createEmptyWrapper('inventory');
   }
+}
 
 async createTeamModule() {
   try {
