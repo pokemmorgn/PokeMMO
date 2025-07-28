@@ -2,6 +2,7 @@
 // ✅ Version CONSERVATRICE avec module Options intégré
 
 import { UIManager } from './managers/UIManager.js';
+import { initLocalizationManager } from './managers/LocalizationManager.js';
 
 // === CONFIGURATION UI MANAGER POKÉMON MMO ===
 const UI_CONFIG = {
@@ -141,6 +142,10 @@ export class PokemonUISystem {
   // === INITIALISATION ===
   async initialize() {
     try {
+      console.log('🌐 [PokemonUI] Chargement traductions...');
+      await initLocalizationManager();
+      console.log('✅ [PokemonUI] Traductions chargées');
+      
       const UIManagerClass = await this.loadUIManager();
       
       const config = {
