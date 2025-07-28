@@ -376,7 +376,13 @@ export class QuestSystem {
   
   async createIcon() {
     const { QuestIcon } = await import('./QuestIcon.js');
-    this.icon = new QuestIcon(this);
+    
+    // 🔥 Récupérer optionsManager depuis window
+    const optionsManager = window.optionsSystem?.manager || 
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    this.icon = new QuestIcon(this, optionsManager);  // ← Ajouter optionsManager
     await this.icon.init();
     
     this.icon.onClick = () => {
