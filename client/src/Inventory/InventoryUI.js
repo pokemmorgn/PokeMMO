@@ -1,12 +1,15 @@
-// Inventory/InventoryUI.js - VERSION NETTOYÉE
-// 🎯 RESPONSABILITÉ: Gestion de l'interface utilisateur SEULEMENT
-// 🔗 DÉLÉGATION: Aucune - se contente d'afficher/masquer
+// Inventory/InventoryUI.js - VERSION AVEC TRADUCTIONS TEMPS RÉEL
+// 🌐 Support complet des traductions selon le pattern TeamIcon/QuestIcon
+// 🔄 Mise à jour automatique lors changement de langue
 
 import { INVENTORY_UI_STYLES } from './InventoryUICSS.js';
+import { t } from '../managers/LocalizationManager.js';
 
 export class InventoryUI {
-  constructor(gameRoom) {
+  constructor(gameRoom, optionsManager = null) {
     this.gameRoom = gameRoom;
+    this.optionsManager = optionsManager;
+    
     this.isVisible = false;
     this.currentPocket = 'items';
     this.selectedItem = null;
@@ -15,6 +18,11 @@ export class InventoryUI {
     this.currentLanguage = 'fr';
     this.overlay = null;
     this._eventsAttached = false;
+    
+    // === 🌐 LOCALIZATION ===
+    this.cleanupLanguageListener = null;
+    
+    console.log('🎒 [InventoryUI] Instance créée avec support traductions');
     
     this.init();
   }
@@ -46,16 +54,168 @@ export class InventoryUI {
     return 'Description non disponible.';
   }
 
+  // === 🚀 INITIALISATION AVEC LOCALIZATION ===
+
   init() {
-    this.createInventoryInterface();
-    this.addStyles();
-    this.setupServerListeners();
-    
-    // ✅ FERMER PAR DÉFAUT
-    this.forceClose();
-    
-    console.log('🎒 Interface d\'inventaire initialisée et fermée par défaut');
+    try {
+      console.log('🚀 [InventoryUI] Initialisation avec traductions...');
+      
+      this.createInventoryInterface();
+      this.addStyles();
+      this.setupServerListeners();
+      this.setupLanguageSupport();
+      
+      // ✅ FERMER PAR DÉFAUT
+      this.forceClose();
+      
+      console.log('✅ [InventoryUI] Initialisé avec support multilingue et fermé par défaut');
+      
+    } catch (error) {
+      console.error('❌ [InventoryUI] Erreur initialisation:', error);
+      throw error;
+    }
   }
+
+  // === 🌐 CONFIGURATION SUPPORT LANGUE ===
+
+  setupLanguageSupport() {
+    // S'abonner aux changements de langue si optionsManager disponible
+    if (this.optionsManager && typeof this.optionsManager.addLanguageListener === 'function') {
+      console.log('🌐 [InventoryUI] Configuration listener langue...');
+      
+      this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
+        console.log('🔄 [InventoryUI] Changement langue détecté');
+        this.updateLanguage();
+      });
+      
+      console.log('✅ [InventoryUI] Listener langue configuré');
+    } else {
+      console.warn('⚠️ [InventoryUI] OptionsManager non disponible - pas de mise à jour langue temps réel');
+    }
+    
+    // Mise à jour initiale
+    this.updateLanguage();
+  }
+
+  /**
+   * Met à jour tous les textes selon la langue courante
+   */
+  updateLanguage() {
+    if (!this.overlay) {
+      console.log('ℹ️ [InventoryUI] Pas d\'overlay à mettre à jour');
+      return;
+    }
+    
+    console.log('🔄 [InventoryUI] Mise à jour langue...');
+    
+    try {
+      // === TITRE PRINCIPAL ===
+      const titleElement = this.overlay.querySelector('.inventory-title span');
+      if (titleElement) {
+        titleElement.textContent = t('inventory.ui.title');
+      }
+      
+      // === BOUTON FERMETURE (garde le X) ===
+      const closeBtn = this.overlay.querySelector('.inventory-close-btn');
+      if (closeBtn) {
+        closeBtn.textContent = t('inventory.ui.close');
+      }
+      
+      // === ONGLETS POCHES ===
+      this.updatePocketTabs();
+      
+      // === ZONE DÉTAILS ===
+      this.updateDetailsSection();
+      
+      // === FOOTER ===
+      this.updateFooterTexts();
+      
+      // === BOUTONS D'ACTION ===
+      this.updateActionButtons();
+      
+      // === CONTENU ACTUEL ===
+      this.refreshCurrentPocket();
+      
+      console.log('✅ [InventoryUI] Langue mise à jour');
+      
+    } catch (error) {
+      console.error('❌ [InventoryUI] Erreur mise à jour langue:', error);
+    }
+  }
+
+  /**
+   * Met à jour les onglets des poches
+   */
+  updatePocketTabs() {
+    const pocketMappings = {
+      'items': 'inventory.ui.pockets.items',
+      'medicine': 'inventory.ui.pockets.medicine',
+      'balls': 'inventory.ui.pockets.balls',
+      'berries': 'inventory.ui.pockets.berries',
+      'key_items': 'inventory.ui.pockets.key_items',
+      'tms': 'inventory.ui.pockets.tms'
+    };
+    
+    Object.entries(pocketMappings).forEach(([pocket, translationKey]) => {
+      const tabElement = this.overlay.querySelector(`[data-pocket="${pocket}"] span`);
+      if (tabElement) {
+        tabElement.textContent = t(translationKey);
+      }
+    });
+  }
+
+  /**
+   * Met à jour la section de détails
+   */
+  updateDetailsSection() {
+    const detailsContainer = this.overlay.querySelector('#item-details');
+    if (!detailsContainer) return;
+    
+    // Si aucun objet sélectionné, mettre à jour le message par défaut
+    if (!this.selectedItem) {
+      detailsContainer.innerHTML = `
+        <div class="no-selection">
+          <div class="no-selection-icon">${t('inventory.ui.details.no_selection_icon')}</div>
+          <p>${t('inventory.ui.details.no_selection')}</p>
+        </div>
+      `;
+    } else {
+      // Remettre à jour les détails de l'objet sélectionné
+      this.updateItemDetails();
+    }
+  }
+
+  /**
+   * Met à jour les textes du footer
+   */
+  updateFooterTexts() {
+    // Les boutons seront mis à jour dans updateActionButtons()
+    // Le compteur sera mis à jour dans updatePocketInfo()
+    this.updatePocketInfo();
+  }
+
+  /**
+   * Met à jour les boutons d'action avec traductions
+   */
+  updateActionButtons() {
+    const useBtn = this.overlay.querySelector('#use-item-btn');
+    const giveBtn = this.overlay.querySelector('#give-item-btn');
+    const sortBtn = this.overlay.querySelector('#sort-items-btn');
+
+    if (useBtn) {
+      useBtn.textContent = t('inventory.ui.footer.use');
+    }
+
+    if (giveBtn) {
+      giveBtn.textContent = t('inventory.ui.footer.give');
+    }
+
+    if (sortBtn) {
+      sortBtn.textContent = t('inventory.ui.footer.sort');
+    }
+  }
+
+  // === 🎨 CRÉATION INTERFACE AVEC TEXTES TRADUITS ===
 
   createInventoryInterface() {
     // Supprimer l'existant si présent
@@ -64,7 +224,7 @@ export class InventoryUI {
       existing.remove();
     }
 
-    // Créer le conteneur principal
+    // Créer le conteneur principal avec traductions
     const overlay = document.createElement('div');
     overlay.id = 'inventory-overlay';
     overlay.className = 'inventory-overlay hidden';
@@ -75,10 +235,10 @@ export class InventoryUI {
         <div class="inventory-header">
           <div class="inventory-title">
             <img src="/assets/ui/bag-icon.png" alt="Sac" class="bag-icon" onerror="this.style.display='none'">
-            <span>🎒 Sac</span>
+            <span>${t('inventory.ui.title')}</span>
           </div>
           <div class="inventory-controls">
-            <button class="inventory-close-btn">✕</button>
+            <button class="inventory-close-btn">${t('inventory.ui.close')}</button>
           </div>
         </div>
 
@@ -88,27 +248,27 @@ export class InventoryUI {
             <div class="pocket-tabs">
               <div class="pocket-tab active" data-pocket="items">
                 <div class="pocket-icon">📦</div>
-                <span>Objets</span>
+                <span>${t('inventory.ui.pockets.items')}</span>
               </div>
               <div class="pocket-tab" data-pocket="medicine">
                 <div class="pocket-icon">💊</div>
-                <span>Soins</span>
+                <span>${t('inventory.ui.pockets.medicine')}</span>
               </div>
               <div class="pocket-tab" data-pocket="balls">
                 <div class="pocket-icon">⚪</div>
-                <span>Poké Balls</span>
+                <span>${t('inventory.ui.pockets.balls')}</span>
               </div>
               <div class="pocket-tab" data-pocket="berries">
                 <div class="pocket-icon">🍇</div>
-                <span>Baies</span>
+                <span>${t('inventory.ui.pockets.berries')}</span>
               </div>
               <div class="pocket-tab" data-pocket="key_items">
                 <div class="pocket-icon">🗝️</div>
-                <span>Objets Clés</span>
+                <span>${t('inventory.ui.pockets.key_items')}</span>
               </div>
               <div class="pocket-tab" data-pocket="tms">
                 <div class="pocket-icon">💿</div>
-                <span>CTs/CSs</span>
+                <span>${t('inventory.ui.pockets.tms')}</span>
               </div>
             </div>
           </div>
@@ -123,8 +283,8 @@ export class InventoryUI {
             <!-- Zone de détails -->
             <div class="item-details" id="item-details">
               <div class="no-selection">
-                <div class="no-selection-icon">📋</div>
-                <p>Sélectionnez un objet pour voir ses détails</p>
+                <div class="no-selection-icon">${t('inventory.ui.details.no_selection_icon')}</div>
+                <p>${t('inventory.ui.details.no_selection')}</p>
               </div>
             </div>
           </div>
@@ -133,13 +293,13 @@ export class InventoryUI {
         <!-- Footer avec infos -->
         <div class="inventory-footer">
           <div class="pocket-info">
-            <span id="pocket-count">0 objets</span>
-            <span id="pocket-limit">/ 30 max</span>
+            <span id="pocket-count">0 ${t('inventory.ui.footer.count')}</span>
+            <span id="pocket-limit">/ 30 ${t('inventory.ui.footer.max')}</span>
           </div>
           <div class="inventory-actions">
-            <button class="inventory-btn" id="use-item-btn" disabled>Utiliser</button>
-            <button class="inventory-btn" id="give-item-btn" disabled>Donner</button>
-            <button class="inventory-btn secondary" id="sort-items-btn">Trier</button>
+            <button class="inventory-btn" id="use-item-btn" disabled>${t('inventory.ui.footer.use')}</button>
+            <button class="inventory-btn" id="give-item-btn" disabled>${t('inventory.ui.footer.give')}</button>
+            <button class="inventory-btn secondary" id="sort-items-btn">${t('inventory.ui.footer.sort')}</button>
           </div>
         </div>
       </div>
@@ -147,6 +307,8 @@ export class InventoryUI {
 
     document.body.appendChild(overlay);
     this.overlay = overlay;
+    
+    console.log('🎨 [InventoryUI] Interface créée avec textes traduits');
   }
 
   addStyles() {
@@ -160,7 +322,8 @@ export class InventoryUI {
     console.log('🎨 [InventoryUI] Styles modulaires appliqués');
   }
 
-  // ✅ FERMETURE FORCÉE PROPRE
+  // === ✅ MÉTHODES INCHANGÉES (LOGIQUE UI) ===
+
   forceClose() {
     console.log('🔒 [InventoryUI] Fermeture forcée...');
     
@@ -181,7 +344,6 @@ export class InventoryUI {
     console.log('✅ [InventoryUI] Fermé complètement');
   }
 
-  // ✅ MÉTHODE SHOW NETTOYÉE
   show() {
     if (this.isVisible) {
       console.log('ℹ️ [InventoryUI] Déjà ouvert');
@@ -206,13 +368,9 @@ export class InventoryUI {
       }, 300);
     }
     
-    // ✅ ATTACHER LES ÉVÉNEMENTS SEULEMENT À L'OUVERTURE
     this.ensureEventListeners();
-    
-    // Demander les données
     this.requestInventoryData();
     
-    // Afficher les données existantes si disponibles
     if (this.inventoryData && Object.keys(this.inventoryData).length > 0) {
       setTimeout(() => {
         this.refreshCurrentPocket();
@@ -222,7 +380,6 @@ export class InventoryUI {
     console.log('✅ [InventoryUI] Inventaire ouvert');
   }
 
-  // ✅ MÉTHODE HIDE NETTOYÉE
   hide() {
     if (!this.isVisible) {
       console.log('ℹ️ [InventoryUI] Déjà fermé');
@@ -252,7 +409,6 @@ export class InventoryUI {
     console.log('✅ [InventoryUI] Inventaire fermé');
   }
 
-  // ✅ MÉTHODE TOGGLE SIMPLE
   toggle() {
     if (this.isVisible) {
       this.hide();
@@ -261,7 +417,6 @@ export class InventoryUI {
     }
   }
 
-  // ✅ S'ASSURER QUE LES ÉVÉNEMENTS SONT ATTACHÉS
   ensureEventListeners() {
     if (this._eventsAttached) {
       console.log('ℹ️ [InventoryUI] Événements déjà attachés');
@@ -276,10 +431,10 @@ export class InventoryUI {
   setupEventListeners() {
     if (!this.overlay) return;
 
-    // ✅ ÉVÉNEMENTS ESC - global
+    // Événements ESC - global
     document.addEventListener('keydown', this.handleEscapeKey.bind(this));
 
-    // ✅ BOUTON FERMETURE
+    // Bouton fermeture
     const closeBtn = this.overlay.querySelector('.inventory-close-btn');
     if (closeBtn) {
       closeBtn.onclick = (e) => {
@@ -290,7 +445,7 @@ export class InventoryUI {
       };
     }
 
-    // ✅ ONGLETS POCHES
+    // Onglets poches
     this.overlay.querySelectorAll('.pocket-tab').forEach(tab => {
       tab.onclick = (e) => {
         e.preventDefault();
@@ -302,7 +457,7 @@ export class InventoryUI {
       };
     });
 
-    // ✅ BOUTONS D'ACTION
+    // Boutons d'action
     const useBtn = this.overlay.querySelector('#use-item-btn');
     const giveBtn = this.overlay.querySelector('#give-item-btn');
     const sortBtn = this.overlay.querySelector('#sort-items-btn');
@@ -319,7 +474,7 @@ export class InventoryUI {
       sortBtn.onclick = () => this.sortCurrentPocket();
     }
 
-    // ✅ FERMETURE EN CLIQUANT À L'EXTÉRIEUR
+    // Fermeture en cliquant à l'extérieur
     this.overlay.onclick = (e) => {
       if (e.target === this.overlay) {
         console.log('❌ [InventoryUI] Fermeture via clic extérieur');
@@ -340,17 +495,14 @@ export class InventoryUI {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
-    // Réception de l'inventaire
     this.gameRoom.onMessage("inventoryData", (data) => {
       this.updateInventoryData(data);
     });
 
-    // Réception des changements d'inventaire
     this.gameRoom.onMessage("inventoryUpdate", (data) => {
       this.handleInventoryUpdate(data);
     });
 
-    // Résultat d'utilisation d'objet
     this.gameRoom.onMessage("itemUseResult", (data) => {
       this.handleItemUseResult(data);
     });
@@ -368,7 +520,6 @@ export class InventoryUI {
     
     this.inventoryData = data;
     
-    // Si l'interface est visible, rafraîchir immédiatement
     if (this.isVisible) {
       this.refreshCurrentPocket();
       this.updatePocketInfo();
@@ -413,21 +564,19 @@ export class InventoryUI {
     this.updatePocketInfo();
   }
 
+  // === 🌐 MÉTHODES AVEC TRADUCTIONS ===
+
   showEmptyPocket() {
     const itemsGrid = this.overlay.querySelector('#items-grid');
-    const pocketNames = {
-      items: 'objets',
-      medicine: 'soins',
-      balls: 'Poké Balls',
-      berries: 'baies',
-      key_items: 'objets clés',
-      tms: 'CTs/CSs'
-    };
-
+    
+    // Obtenir le nom traduit de la poche
+    const pocketKey = `inventory.ui.pockets.${this.currentPocket}`;
+    const pocketName = t(pocketKey);
+    
     itemsGrid.innerHTML = `
       <div class="empty-pocket">
-        <div class="empty-pocket-icon">📭</div>
-        <p>Aucun objet dans la poche ${pocketNames[this.currentPocket] || this.currentPocket}</p>
+        <div class="empty-pocket-icon">${t('inventory.ui.empty.icon')}</div>
+        <p>${t('inventory.ui.empty.message').replace('{pocket}', pocketName)}</p>
       </div>
     `;
   }
@@ -469,7 +618,7 @@ export class InventoryUI {
   }
 
   getItemIcon(itemId, itemData) {
-    // Mapping des icônes selon le type d'objet
+    // Mapping des icônes selon le type d'objet (inchangé)
     const iconMap = {
       // Poké Balls
       'poke_ball': '⚪',
@@ -534,7 +683,7 @@ export class InventoryUI {
     this.selectedItem = item;
     
     this.updateItemDetails();
-    this.updateActionButtons();
+    this.updateActionButtonsState();
   }
 
   updateItemDetails() {
@@ -543,8 +692,8 @@ export class InventoryUI {
     if (!this.selectedItem) {
       detailsContainer.innerHTML = `
         <div class="no-selection">
-          <div class="no-selection-icon">📋</div>
-          <p>Sélectionnez un objet pour voir ses détails</p>
+          <div class="no-selection-icon">${t('inventory.ui.details.no_selection_icon')}</div>
+          <p>${t('inventory.ui.details.no_selection')}</p>
         </div>
       `;
       return;
@@ -571,44 +720,36 @@ export class InventoryUI {
   }
 
   getItemTypeText(itemData) {
-    if (!itemData) return 'Objet';
+    if (!itemData) return t('inventory.ui.item_types.item');
     
-    const typeMap = {
-      'ball': 'Poké Ball',
-      'medicine': 'Soin',
-      'item': 'Objet',
-      'key_item': 'Objet Clé',
-      'tm': 'Capsule Technique',
-      'berry': 'Baie'
-    };
-
-    return typeMap[itemData.type] || itemData.type || 'Objet';
+    const typeKey = `inventory.ui.item_types.${itemData.type || 'item'}`;
+    return t(typeKey);
   }
 
   getItemStats(item) {
     const stats = [];
     
     if (item.quantity > 1) {
-      stats.push(`<div class="item-stat">Quantité: ${item.quantity}</div>`);
+      stats.push(`<div class="item-stat">${t('inventory.ui.stats.quantity')}: ${item.quantity}</div>`);
     }
 
     if (item.data && item.data.price) {
-      stats.push(`<div class="item-stat">Prix: ${item.data.price}₽</div>`);
+      stats.push(`<div class="item-stat">${t('inventory.ui.stats.price')}: ${item.data.price}₽</div>`);
     }
 
     if (item.data && item.data.heal_amount) {
-      const healText = item.data.heal_amount === 'full' ? 'Complet' : `${item.data.heal_amount} PV`;
-      stats.push(`<div class="item-stat">Soin: ${healText}</div>`);
+      const healText = item.data.heal_amount === 'full' ? t('inventory.ui.stats.full') : `${item.data.heal_amount} ${t('inventory.ui.stats.hp')}`;
+      stats.push(`<div class="item-stat">${t('inventory.ui.stats.heal')}: ${healText}</div>`);
     }
 
     if (item.data && item.data.effect_steps) {
-      stats.push(`<div class="item-stat">Durée: ${item.data.effect_steps} pas</div>`);
+      stats.push(`<div class="item-stat">${t('inventory.ui.stats.duration')}: ${item.data.effect_steps} ${t('inventory.ui.stats.steps')}</div>`);
     }
 
     return stats.join('');
   }
 
-  updateActionButtons() {
+  updateActionButtonsState() {
     const useBtn = this.overlay.querySelector('#use-item-btn');
     const giveBtn = this.overlay.querySelector('#give-item-btn');
 
@@ -634,8 +775,13 @@ export class InventoryUI {
     const countElement = this.overlay.querySelector('#pocket-count');
     const limitElement = this.overlay.querySelector('#pocket-limit');
     
-    if (countElement) countElement.textContent = `${pocketData.length} objets`;
-    if (limitElement) limitElement.textContent = '/ 30 max';
+    if (countElement) {
+      countElement.textContent = `${pocketData.length} ${t('inventory.ui.footer.count')}`;
+    }
+    
+    if (limitElement) {
+      limitElement.textContent = `/ 30 ${t('inventory.ui.footer.max')}`;
+    }
   }
 
   useSelectedItem() {
@@ -653,7 +799,7 @@ export class InventoryUI {
     if (!this.selectedItem) return;
 
     // TODO: Implémenter l'interface pour donner un objet à un Pokémon
-    this.showNotification("Fonction 'Donner' pas encore implémentée", "info");
+    this.showNotification(t('inventory.ui.notifications.give_not_implemented'), "info");
   }
 
   sortCurrentPocket() {
@@ -668,7 +814,7 @@ export class InventoryUI {
     });
 
     this.refreshCurrentPocket();
-    this.showNotification("Objets triés par ordre alphabétique", "success");
+    this.showNotification(t('inventory.ui.notifications.items_sorted'), "success");
   }
 
   handleInventoryUpdate(data) {
@@ -684,12 +830,12 @@ export class InventoryUI {
       this.refreshCurrentPocket();
     }
 
-    // Notification
+    // Notification avec traduction
     const itemName = this.getItemName(data.itemId);
     if (data.type === 'add') {
-      this.showNotification(`+${data.quantity} ${itemName}`, "success");
+      this.showNotification(t('inventory.ui.notifications.item_added').replace('{quantity}', data.quantity).replace('{name}', itemName), "success");
     } else if (data.type === 'remove') {
-      this.showNotification(`-${data.quantity} ${itemName}`, "info");
+      this.showNotification(t('inventory.ui.notifications.item_removed').replace('{quantity}', data.quantity).replace('{name}', itemName), "info");
     }
   }
 
@@ -725,7 +871,7 @@ export class InventoryUI {
         if (this.selectedItem && this.selectedItem.itemId === itemId) {
           this.selectedItem = null;
           this.updateItemDetails();
-          this.updateActionButtons();
+          this.updateActionButtonsState();
         }
       }
     }
@@ -733,10 +879,10 @@ export class InventoryUI {
 
   handleItemUseResult(data) {
     if (data.success) {
-      this.showNotification(data.message || "Objet utilisé avec succès", "success");
+      this.showNotification(data.message || t('inventory.ui.notifications.item_used_success'), "success");
       this.requestInventoryData();
     } else {
-      this.showNotification(data.message || "Impossible d'utiliser cet objet", "error");
+      this.showNotification(data.message || t('inventory.ui.notifications.item_use_failed'), "error");
     }
   }
 
@@ -779,8 +925,6 @@ export class InventoryUI {
       }
     }
   }
-
-  // ✅ SUPPRIMÉ canPlayerInteract() - plus de vérifications redondantes
 
   handleKeyPress(key) {
     if (!this.isVisible) return false;
@@ -855,9 +999,17 @@ export class InventoryUI {
     }
   }
 
-  // ✅ MÉTHODE DE NETTOYAGE
+  // === 🧹 NETTOYAGE AVEC CLEANUP LANGUE ===
+
   destroy() {
     console.log('🧹 [InventoryUI] Destruction...');
+    
+    // Nettoyer le listener de langue
+    if (this.cleanupLanguageListener && typeof this.cleanupLanguageListener === 'function') {
+      console.log('🌐 [InventoryUI] Nettoyage listener langue...');
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     // Supprimer les événements globaux
     document.removeEventListener('keydown', this.handleEscapeKey.bind(this));
@@ -873,26 +1025,8 @@ export class InventoryUI {
     this.selectedItem = null;
     this.inventoryData = {};
     this._eventsAttached = false;
+    this.optionsManager = null;
     
-    console.log('✅ [InventoryUI] Détruit');
+    console.log('✅ [InventoryUI] Détruit avec nettoyage langue');
   }
 }
-
-console.log(`
-🎒 === INVENTORY UI NETTOYÉ ===
-
-✅ RESPONSABILITÉ CLAIRE:
-• Gestion interface utilisateur uniquement
-• Affichage/masquage des éléments
-• Aucune vérification d'autorisation
-
-❌ SUPPRIMÉ:
-• canPlayerInteract() avec vérifications DOM
-• Toutes les vérifications métier
-• Délégations vers autres modules
-
-🎯 FOCALISÉ SUR:
-• show(), hide(), toggle()
-• Gestion des poches et objets
-• Événements interface seulement
-`);
