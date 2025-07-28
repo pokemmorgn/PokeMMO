@@ -960,38 +960,40 @@ this.onMessage("overworldPokemonMoveResponse", (client, message) => {
     });
 
     // Interaction avec NPC
-// ✅ NOUVEAU : Interaction avec NPC via système intégré
-    this.onMessage("npcInteract", async (client, data) => {
-      console.log(`💬 === NPC INTERACTION REQUEST (SYSTÈME INTÉGRÉ) ===`);
-      console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
-      
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
-        client.send("npcInteractionResult", {
-          success: false,
-          type: "error",
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      try {
-        // ✅ UTILISER LE NOUVEAU SYSTÈME INTÉGRÉ
-        const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
-        
-        console.log(`📤 Envoi résultat: ${result.type}`);
-        client.send("npcInteractionResult", result);
-        
-      } catch (error) {
-        console.error(`❌ Erreur interaction NPC:`, error);
-        client.send("npcInteractionResult", {
-          success: false,
-          type: "error",
-          message: "Erreur lors de l'interaction"
-        });
-      }
+this.onMessage("npcInteract", async (client, data) => {
+  console.log(`💬 === NPC INTERACTION REQUEST (SYSTÈME INTÉGRÉ) ===`);
+  console.log(`👤 Client: ${client.sessionId}, NPC: ${data.npcId}`);
+  console.log(`🌐 Langue: ${data.playerLanguage}`); // ✅ Debug langue
+  
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    console.error(`❌ Joueur non trouvé: ${client.sessionId}`);
+    client.send("npcInteractionResult", {
+      success: false,
+      type: "error",
+      message: "Joueur non trouvé"
     });
+    return;
+  }
+
+  try {
+    // ✅ CORRECTION : Passer toutes les données, pas seulement npcId
+    const result = await this.interactionManager.handleNpcInteraction(player, data.npcId, data);
+    //                                                                                     ^^^^
+    //                                                                                     AJOUT !
+    
+    console.log(`📤 Envoi résultat: ${result.type}`);
+    client.send("npcInteractionResult", result);
+    
+  } catch (error) {
+    console.error(`❌ Erreur interaction NPC:`, error);
+    client.send("npcInteractionResult", {
+      success: false,
+      type: "error",
+      message: "Erreur lors de l'interaction"
+    });
+  }
+});
 
     this.onMessage("requestInitialState", (client, data: { zone: string }) => {
       console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
