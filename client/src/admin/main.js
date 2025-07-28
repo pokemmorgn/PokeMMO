@@ -40,7 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             MapEditorModule,
             NPCEditorModule,// ← AJOUT du nouveau module
             MongoDBModule,  // ← AJOUTER CETTE LIGNE
-            ShopEditorModule  // ← NOUVEAU MODULE
+            ShopEditorModule,  // ← NOUVEAU MODULE
+            DialogueEditorModule  // ← NOUVEAU MODULE
 
 
         ])
