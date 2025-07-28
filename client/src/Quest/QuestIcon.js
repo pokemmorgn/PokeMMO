@@ -1,9 +1,12 @@
-// Quest/QuestIcon.js - VERSION SIMPLIFIÉE ET NETTOYÉE
-// 🎯 Icône quest simple et efficace
+// Quest/QuestIcon.js - VERSION AVEC LOCALIZATIONMANAGER
+// 🎯 Icône quest simple et efficace + Traductions temps réel via LocalizationManager
+
+import { t } from '../managers/LocalizationManager.js';
 
 export class QuestIcon {
-  constructor(questManager) {
+  constructor(questManager, optionsManager = null) {
     this.questManager = questManager;
+    this.optionsManager = optionsManager; // 🔥 Pour écouter changements langue
     
     // === ÉTAT SIMPLE ===
     this.isVisible = true;
@@ -19,7 +22,10 @@ export class QuestIcon {
       hasActiveQuests: false
     };
     
-    console.log('📖 [QuestIcon] Instance créée - Version simplifiée');
+    // 🔥 Cleanup function pour event dispatcher
+    this.cleanupLanguageListener = null;
+    
+    console.log('📖 [QuestIcon] Instance créée avec LocalizationManager');
   }
   
   // === 🚀 INITIALISATION ===
@@ -31,14 +37,72 @@ export class QuestIcon {
       this.addStyles();
       this.createIcon();
       this.setupEventListeners();
+      
+      // 🔥 Setup Event Dispatcher pour langue
+      this.setupLanguageListener();
+      
+      // 🔥 Appliquer langue initiale
+      this.updateLanguageTexts();
+      
       this.forceDisplay();
       
-      console.log('✅ [QuestIcon] Initialisé');
+      console.log('✅ [QuestIcon] Initialisé avec support multilingue');
       return this;
       
     } catch (error) {
       console.error('❌ [QuestIcon] Erreur init:', error);
       throw error;
+    }
+  }
+  
+  // === 🌐 GESTION LANGUE ===
+  
+  /**
+   * Setup du listener pour changements de langue
+   */
+  setupLanguageListener() {
+    if (!this.optionsManager || typeof this.optionsManager.addLanguageListener !== 'function') {
+      console.warn('⚠️ [QuestIcon] OptionsManager non disponible pour traductions');
+      return;
+    }
+    
+    // 🔥 S'abonner aux changements de langue
+    this.cleanupLanguageListener = this.optionsManager.addLanguageListener((newLang, oldLang) => {
+      console.log(`🌐 [QuestIcon] Changement langue: ${oldLang} → ${newLang}`);
+      this.updateLanguageTexts();
+    });
+    
+    console.log('📡 [QuestIcon] Listener langue configuré');
+  }
+  
+  /**
+   * Mettre à jour tous les textes traduits
+   */
+  updateLanguageTexts() {
+    if (!this.iconElement) return;
+    
+    console.log(`🔄 [QuestIcon] Mise à jour textes`);
+    
+    try {
+      // 1. Label principal
+      const labelElement = this.iconElement.querySelector('.icon-label');
+      if (labelElement) {
+        labelElement.textContent = t('quest.label');
+        
+        // 🔥 Animation optionnelle lors du changement
+        labelElement.classList.add('language-updating');
+        setTimeout(() => {
+          labelElement.classList.remove('language-updating');
+        }, 400);
+      }
+      
+      // 2. Tooltip sera mis à jour lors du prochain hover
+      // (on ne peut pas mettre à jour un tooltip invisible)
+      
+      console.log(`✅ [QuestIcon] Textes mis à jour`);
+      
+    } catch (error) {
+      console.error('❌ [QuestIcon] Erreur mise à jour langue:', error);
     }
   }
   
@@ -61,7 +125,7 @@ export class QuestIcon {
             <span class="quest-count">0</span>
           </div>
         </div>
-        <div class="icon-label">Quests</div>
+        <div class="icon-label">${t('quest.label')}</div>
       </div>
       
       <div class="quest-status">
@@ -76,40 +140,40 @@ export class QuestIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [QuestIcon] Icône créée');
+    console.log('🎨 [QuestIcon] Icône créée avec textes traduits');
   }
   
-forceDisplay() {
-  if (!this.iconElement) return;
-  
-  // ✅ Styles essentiels pour visibilité (OK)
-  this.iconElement.style.display = 'block';
-  this.iconElement.style.visibility = 'visible';
-  this.iconElement.style.opacity = '1';
-  this.iconElement.style.pointerEvents = 'auto';
-  this.iconElement.style.zIndex = '1000';
-  
-  // 🔥 FIX PRINCIPAL: Respecter la position UIManager
-  const positionedBy = this.iconElement.getAttribute('data-positioned-by');
-  
-  if (positionedBy && (positionedBy.includes('uimanager') || positionedBy.includes('manual-fix'))) {
-    console.log('✅ [QuestIcon] Position UIManager respectée - pas d\'écrasement');
-    // Ne pas toucher à la position !
-    return;
+  forceDisplay() {
+    if (!this.iconElement) return;
+    
+    // ✅ Styles essentiels pour visibilité (OK)
+    this.iconElement.style.display = 'block';
+    this.iconElement.style.visibility = 'visible';
+    this.iconElement.style.opacity = '1';
+    this.iconElement.style.pointerEvents = 'auto';
+    this.iconElement.style.zIndex = '1000';
+    
+    // 🔥 FIX PRINCIPAL: Respecter la position UIManager
+    const positionedBy = this.iconElement.getAttribute('data-positioned-by');
+    
+    if (positionedBy && (positionedBy.includes('uimanager') || positionedBy.includes('manual-fix'))) {
+      console.log('✅ [QuestIcon] Position UIManager respectée - pas d\'écrasement');
+      // Ne pas toucher à la position !
+      return;
+    }
+    
+    // ✅ Position de secours UNIQUEMENT si aucune position n'existe
+    if (!this.iconElement.style.left && !this.iconElement.style.right) {
+      console.log('⚠️ [QuestIcon] Position de secours appliquée');
+      this.iconElement.style.position = 'fixed';
+      this.iconElement.style.right = '20px';
+      this.iconElement.style.bottom = '20px';
+    } else {
+      console.log('ℹ️ [QuestIcon] Position existante conservée');
+    }
+    
+    console.log('✅ [QuestIcon] forceDisplay() sans écrasement position');
   }
-  
-  // ✅ Position de secours UNIQUEMENT si aucune position n'existe
-  if (!this.iconElement.style.left && !this.iconElement.style.right) {
-    console.log('⚠️ [QuestIcon] Position de secours appliquée');
-    this.iconElement.style.position = 'fixed';
-    this.iconElement.style.right = '20px';
-    this.iconElement.style.bottom = '20px';
-  } else {
-    console.log('ℹ️ [QuestIcon] Position existante conservée');
-  }
-  
-  console.log('✅ [QuestIcon] forceDisplay() sans écrasement position');
-}
   
   // === 🎨 STYLES OPTIMISÉS ===
   
@@ -207,6 +271,18 @@ forceDisplay() {
         width: 100%;
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease; /* 🔥 Smooth transitions pour changements langue */
+      }
+      
+      /* 🔥 Animation changement langue */
+      #quest-icon .icon-label.language-updating {
+        animation: languageUpdate 0.4s ease;
+      }
+      
+      @keyframes languageUpdate {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
       }
       
       /* Statut */
@@ -455,7 +531,7 @@ forceDisplay() {
     return true;
   }
   
-  // === 💬 TOOLTIP ===
+  // === 💬 TOOLTIP TRADUIT ===
   
   showTooltip() {
     const { questCount, newQuests, readyToComplete, hasActiveQuests } = this.displayStats;
@@ -482,17 +558,18 @@ forceDisplay() {
       font-family: Arial, sans-serif;
     `;
     
-    let statusText = hasActiveQuests ? 'Quêtes actives' : 'Aucune quête active';
+    // 🔥 Textes traduits via LocalizationManager
+    let statusText = hasActiveQuests ? t('quest.tooltip_status_active') : t('quest.tooltip_status_none');
     if (newQuests > 0) {
-      statusText = `${newQuests} nouvelle(s) quête(s)`;
+      statusText = `${newQuests} ${t('quest.tooltip_status_new')}`;
     } else if (readyToComplete > 0) {
-      statusText = `${readyToComplete} prête(s) à terminer`;
+      statusText = `${readyToComplete} ${t('quest.tooltip_status_ready')}`;
     }
     
     tooltip.innerHTML = `
-      <div><strong>Quêtes: ${questCount}</strong></div>
+      <div><strong>${t('quest.tooltip_title')}: ${questCount}</strong></div>
       <div>${statusText}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">Clic pour ouvrir</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${t('quest.tooltip_action')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -516,7 +593,10 @@ forceDisplay() {
   
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Quest journal disabled', 'warning', {
+      // 🔥 Message traduit via LocalizationManager
+      const message = t('quest.disabled_message');
+      
+      window.showGameNotification(message, 'warning', {
         duration: 2000
       });
     }
@@ -629,10 +709,32 @@ forceDisplay() {
     });
   }
   
+  // === 🌐 DEBUG TRADUCTIONS ===
+  
+  debugTranslations() {
+    console.log('🌐 [QuestIcon] Debug traductions:', {
+      hasOptionsManager: !!this.optionsManager,
+      hasLanguageListener: !!this.cleanupLanguageListener,
+      sampleTexts: {
+        label: t('quest.label'),
+        tooltip_title: t('quest.tooltip_title'),
+        tooltip_action: t('quest.tooltip_action'),
+        disabled_message: t('quest.disabled_message')
+      }
+    });
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
     console.log('🧹 [QuestIcon] Destruction...');
+    
+    // 🔥 Cleanup Event Dispatcher
+    if (this.cleanupLanguageListener) {
+      console.log('🧹 [QuestIcon] Suppression listener langue');
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     this.hideTooltip();
     
@@ -640,12 +742,14 @@ forceDisplay() {
       this.iconElement.parentNode.removeChild(this.iconElement);
     }
     
+    // Reset références
     this.iconElement = null;
     this.onClick = null;
+    this.optionsManager = null;
     this.isVisible = false;
     this.isEnabled = false;
     
-    console.log('✅ [QuestIcon] Détruit');
+    console.log('✅ [QuestIcon] Détruit avec cleanup complet');
   }
 }
 
