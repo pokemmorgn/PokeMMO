@@ -59,6 +59,8 @@ export class AdminPanel {
     this.npcEditor = this.modules.npcEditor
     this.mongodb = this.modules.mongodb  // ← AJOUTER CETTE LIGNE
     this.shopEditor = this.modules.shopEditor  // ← AJOUTER CETTE LIGNE
+    this.dialogueEditor = this.modules.dialogueEditor  // ← AJOUTER CETTE LIGNE
+
 
     
     console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
@@ -187,6 +189,10 @@ export class AdminPanel {
     console.log('🗄️ [AdminPanel] Activating MongoDB tab')
     this.mongodb?.onTabActivated()
     break
+                        case 'dialogues':  // ← AJOUTER CE CASE
+            console.log('🗨️ [AdminPanel] Activating dialogues tab')
+            this.dialogueEditor?.onTabActivated()
+            break
         }
     }
 
