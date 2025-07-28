@@ -1,5 +1,6 @@
 // client/src/admin/js/dialogue-editor.js
 // Module d'édition des dialogues NPCs basé sur le modèle DialogString
+// Mis à jour avec les nouvelles classes CSS
 
 export class DialogueEditorModule {
     constructor(adminPanel) {
@@ -49,11 +50,11 @@ export class DialogueEditorModule {
             <div class="dialogue-editor-container">
                 <!-- Header avec filtres et actions -->
                 <div class="dialogue-header">
-                    <div class="header-controls">
-                        <div class="filters-group">
-                            <div class="filter-item">
+                    <div class="dialogue-header-controls">
+                        <div class="dialogue-filters-group">
+                            <div class="dialogue-filter-item">
                                 <label for="categoryFilter" class="form-label">📂 Catégorie:</label>
-                                <select id="categoryFilter" class="form-select">
+                                <select id="categoryFilter" class="dialogue-form-select">
                                     <option value="all">Toutes les catégories</option>
                                     ${this.categories.map(cat => 
                                         `<option value="${cat}">${this.getCategoryName(cat)}</option>`
@@ -61,22 +62,22 @@ export class DialogueEditorModule {
                                 </select>
                             </div>
                             
-                            <div class="filter-item">
+                            <div class="dialogue-filter-item">
                                 <label for="npcFilter" class="form-label">👤 NPC:</label>
-                                <select id="npcFilter" class="form-select">
+                                <select id="npcFilter" class="dialogue-form-select">
                                     <option value="all">Tous les NPCs</option>
                                     <!-- Sera rempli dynamiquement -->
                                 </select>
                             </div>
                             
-                            <div class="filter-item">
+                            <div class="dialogue-filter-item">
                                 <label for="dialogueSearch" class="form-label">🔍 Recherche:</label>
-                                <input type="text" id="dialogueSearch" class="form-input" 
+                                <input type="text" id="dialogueSearch" class="dialogue-form-input" 
                                        placeholder="Rechercher dans les dialogues...">
                             </div>
                         </div>
                         
-                        <div class="header-actions">
+                        <div class="dialogue-header-actions">
                             <button class="btn btn-success" onclick="adminPanel.dialogueEditor.createNewDialogue()">
                                 <i class="fas fa-plus"></i> Nouveau Dialogue
                             </button>
@@ -90,23 +91,23 @@ export class DialogueEditorModule {
                     </div>
                     
                     <!-- Stats -->
-                    <div class="dialogue-stats">
-                        <div class="stats-row">
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalDialogues">0</div>
-                                <div class="stat-label">Total Dialogues</div>
+                    <div class="dialogue-zone-stats">
+                        <div class="dialogue-stats-row">
+                            <div class="dialogue-stat-item">
+                                <div class="dialogue-stat-value" id="totalDialogues">0</div>
+                                <div class="dialogue-stat-label">Total Dialogues</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalNpcs">0</div>
-                                <div class="stat-label">NPCs Uniques</div>
+                            <div class="dialogue-stat-item">
+                                <div class="dialogue-stat-value" id="totalNpcs">0</div>
+                                <div class="dialogue-stat-label">NPCs Uniques</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalCategories">0</div>
-                                <div class="stat-label">Catégories</div>
+                            <div class="dialogue-stat-item">
+                                <div class="dialogue-stat-value" id="totalCategories">0</div>
+                                <div class="dialogue-stat-label">Catégories</div>
                             </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="missingTranslations">0</div>
-                                <div class="stat-label">Traductions Manquantes</div>
+                            <div class="dialogue-stat-item">
+                                <div class="dialogue-stat-value" id="missingTranslations">0</div>
+                                <div class="dialogue-stat-label">Traductions Manquantes</div>
                             </div>
                         </div>
                     </div>
@@ -115,32 +116,30 @@ export class DialogueEditorModule {
                 <!-- Zone principale -->
                 <div class="dialogue-main-area">
                     <!-- Panel liste des dialogues -->
-                    <div class="dialogues-list-panel">
-                        <div class="list-header">
+                    <div class="dialogue-list-panel">
+                        <div class="dialogue-list-header">
                             <h3>📝 Dialogues</h3>
-                            <div class="list-info">
+                            <div class="dialogue-list-info">
                                 <span id="dialoguesCount">0</span> dialogues trouvés
                             </div>
                         </div>
                         
-                        <div class="dialogues-list" id="dialoguesList">
-                            <div class="empty-list">
-                                <div style="text-align: center; padding: 40px 20px; color: #6c757d;">
-                                    <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                                    <p>Aucun dialogue trouvé</p>
-                                    <button class="btn btn-primary" onclick="adminPanel.dialogueEditor.createNewDialogue()">
-                                        <i class="fas fa-plus"></i> Créer le premier dialogue
-                                    </button>
-                                </div>
+                        <div class="dialogue-list-container" id="dialoguesList">
+                            <div class="dialogue-empty-list">
+                                <i class="fas fa-comments"></i>
+                                <p>Aucun dialogue trouvé</p>
+                                <button class="btn btn-primary" onclick="adminPanel.dialogueEditor.createNewDialogue()">
+                                    <i class="fas fa-plus"></i> Créer le premier dialogue
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Panel éditeur -->
                     <div class="dialogue-editor-panel">
-                        <div class="editor-header">
-                            <h3 id="editorTitle">✏️ Éditeur de Dialogue</h3>
-                            <div class="editor-actions" id="editorActions" style="display: none;">
+                        <div class="dialogue-editor-header">
+                            <h3 class="dialogue-editor-title" id="editorTitle">✏️ Éditeur de Dialogue</h3>
+                            <div class="dialogue-editor-actions" id="editorActions" style="display: none;">
                                 <button class="btn btn-success btn-sm" onclick="adminPanel.dialogueEditor.saveDialogue()">
                                     <i class="fas fa-save"></i> Sauvegarder
                                 </button>
@@ -156,13 +155,11 @@ export class DialogueEditorModule {
                             </div>
                         </div>
                         
-                        <div class="editor-content">
-                            <div class="no-selection" id="noDialogueSelected">
-                                <div style="text-align: center; color: #95a5a6;">
-                                    <i class="fas fa-comments" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                                    <h3>Aucun dialogue sélectionné</h3>
-                                    <p>Sélectionnez un dialogue dans la liste ou créez-en un nouveau</p>
-                                </div>
+                        <div class="dialogue-editor-content">
+                            <div class="dialogue-no-selection" id="noDialogueSelected">
+                                <i class="fas fa-comments"></i>
+                                <h3>Aucun dialogue sélectionné</h3>
+                                <p>Sélectionnez un dialogue dans la liste ou créez-en un nouveau</p>
                             </div>
                             
                             <div class="dialogue-form-builder" id="dialogueFormBuilder" style="display: none;">
@@ -327,44 +324,42 @@ export class DialogueEditorModule {
 
         if (dialogues.length === 0) {
             container.innerHTML = `
-                <div class="empty-list">
-                    <div style="text-align: center; padding: 40px 20px; color: #6c757d;">
-                        <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p>${this.searchTerm ? 'Aucun dialogue ne correspond à votre recherche' : 'Aucun dialogue trouvé'}</p>
-                        ${!this.searchTerm ? `
-                            <button class="btn btn-primary" onclick="adminPanel.dialogueEditor.createNewDialogue()">
-                                <i class="fas fa-plus"></i> Créer le premier dialogue
-                            </button>
-                        ` : ''}
-                    </div>
+                <div class="dialogue-empty-list">
+                    <i class="fas fa-search"></i>
+                    <p>${this.searchTerm ? 'Aucun dialogue ne correspond à votre recherche' : 'Aucun dialogue trouvé'}</p>
+                    ${!this.searchTerm ? `
+                        <button class="btn btn-primary" onclick="adminPanel.dialogueEditor.createNewDialogue()">
+                            <i class="fas fa-plus"></i> Créer le premier dialogue
+                        </button>
+                    ` : ''}
                 </div>
             `;
             return;
         }
 
         const dialoguesHTML = dialogues.map(dialogue => `
-            <div class="dialogue-item ${this.currentDialogue?.dialogId === dialogue.dialogId ? 'selected' : ''}" 
+            <div class="dialogue-list-item ${this.currentDialogue?.dialogId === dialogue.dialogId ? 'selected' : ''}" 
                  onclick="adminPanel.dialogueEditor.selectDialogue('${dialogue.dialogId}')">
-                <div class="dialogue-icon">
+                <div class="dialogue-item-icon">
                     ${this.getCategoryIcon(dialogue.category)}
                 </div>
-                <div class="dialogue-info">
-                    <div class="dialogue-id">${dialogue.dialogId}</div>
-                    <div class="dialogue-details">
-                        <span class="dialogue-category">${dialogue.category}</span>
-                        <span class="dialogue-npc">${dialogue.npcId || 'Global'}</span>
-                        <span class="dialogue-priority">P${dialogue.priority || 5}</span>
+                <div class="dialogue-item-info">
+                    <div class="dialogue-item-id">${dialogue.dialogId}</div>
+                    <div class="dialogue-item-details">
+                        <span class="dialogue-category-badge">${dialogue.category}</span>
+                        <span class="dialogue-npc-badge">${dialogue.npcId || 'Global'}</span>
+                        <span class="dialogue-priority-badge">P${dialogue.priority || 5}</span>
                     </div>
-                    <div class="dialogue-preview">
+                    <div class="dialogue-item-preview">
                         ${(dialogue.fr || dialogue.eng || '').substring(0, 60)}${(dialogue.fr || dialogue.eng || '').length > 60 ? '...' : ''}
                     </div>
-                    <div class="dialogue-status">
+                    <div class="dialogue-item-status">
                         ${dialogue.isActive ? 
-                            '<i class="fas fa-check-circle status-icon success" title="Actif"></i>' : 
-                            '<i class="fas fa-times-circle status-icon error" title="Inactif"></i>'
+                            '<i class="fas fa-check-circle dialogue-status-icon success" title="Actif"></i>' : 
+                            '<i class="fas fa-times-circle dialogue-status-icon error" title="Inactif"></i>'
                         }
-                        ${!dialogue.fr ? '<i class="fas fa-exclamation-triangle status-icon warning" title="Traduction FR manquante"></i>' : ''}
-                        ${dialogue.conditions && dialogue.conditions.length > 0 ? '<i class="fas fa-code-branch status-icon" title="Conditions"></i>' : ''}
+                        ${!dialogue.fr ? '<i class="fas fa-exclamation-triangle dialogue-status-icon warning" title="Traduction FR manquante"></i>' : ''}
+                        ${dialogue.conditions && dialogue.conditions.length > 0 ? '<i class="fas fa-code-branch dialogue-status-icon info" title="Conditions"></i>' : ''}
                     </div>
                 </div>
             </div>
@@ -406,44 +401,44 @@ export class DialogueEditorModule {
             <div class="dialogue-form-sections">
                 <!-- Section Informations de base -->
                 <div class="dialogue-form-section">
-                    <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4>📋 Informations de Base</h4>
-                        <span class="section-toggle">▼</span>
+                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <h4 class="dialogue-section-title">📋 Informations de Base</h4>
+                        <span class="dialogue-section-toggle">▼</span>
                     </div>
-                    <div class="section-content">
-                        <div class="fields-grid">
-                            <div class="form-field">
-                                <label class="field-label">ID du Dialogue <span class="required">*</span></label>
-                                <input type="text" class="form-input" id="dialogId" value="${dialogue.dialogId}" readonly>
-                                <div class="field-help">Format: npcId.category.context[.variant]</div>
+                    <div class="dialogue-section-content">
+                        <div class="dialogue-fields-grid">
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">ID du Dialogue <span class="dialogue-field-required">*</span></label>
+                                <input type="text" class="dialogue-form-input" id="dialogId" value="${dialogue.dialogId}" readonly>
+                                <div class="dialogue-field-help">Format: npcId.category.context[.variant]</div>
                             </div>
-                            <div class="form-field">
-                                <label class="field-label">NPC ID</label>
-                                <input type="text" class="form-input" id="npcId" value="${dialogue.npcId || ''}" 
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">NPC ID</label>
+                                <input type="text" class="dialogue-form-input" id="npcId" value="${dialogue.npcId || ''}" 
                                        placeholder="ex: professor_oak">
                             </div>
-                            <div class="form-field">
-                                <label class="field-label">Catégorie <span class="required">*</span></label>
-                                <select class="form-select" id="category">
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">Catégorie <span class="dialogue-field-required">*</span></label>
+                                <select class="dialogue-form-select" id="category">
                                     ${this.categories.map(cat => 
                                         `<option value="${cat}" ${dialogue.category === cat ? 'selected' : ''}>${this.getCategoryName(cat)}</option>`
                                     ).join('')}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="field-label">Contexte</label>
-                                <input type="text" class="form-input" id="context" value="${dialogue.context || ''}" 
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">Contexte</label>
+                                <input type="text" class="dialogue-form-input" id="context" value="${dialogue.context || ''}" 
                                        placeholder="ex: welcome, buy, help">
                             </div>
-                            <div class="form-field">
-                                <label class="field-label">Priorité</label>
-                                <input type="number" class="form-input" id="priority" value="${dialogue.priority || 5}" 
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">Priorité</label>
+                                <input type="number" class="dialogue-form-input" id="priority" value="${dialogue.priority || 5}" 
                                        min="1" max="10">
-                                <div class="field-help">1-10 (10 = priorité maximale)</div>
+                                <div class="dialogue-field-help">1-10 (10 = priorité maximale)</div>
                             </div>
-                            <div class="boolean-field">
-                                <input type="checkbox" class="form-checkbox" id="isActive" ${dialogue.isActive ? 'checked' : ''}>
-                                <label class="checkbox-label" for="isActive">Dialogue actif</label>
+                            <div class="dialogue-boolean-field">
+                                <input type="checkbox" class="dialogue-form-checkbox" id="isActive" ${dialogue.isActive ? 'checked' : ''}>
+                                <label class="dialogue-checkbox-label" for="isActive">Dialogue actif</label>
                             </div>
                         </div>
                     </div>
@@ -451,20 +446,20 @@ export class DialogueEditorModule {
 
                 <!-- Section Traductions -->
                 <div class="dialogue-form-section">
-                    <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4>🌍 Traductions</h4>
-                        <span class="section-toggle">▼</span>
+                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <h4 class="dialogue-section-title">🌍 Traductions</h4>
+                        <span class="dialogue-section-toggle">▼</span>
                     </div>
-                    <div class="section-content">
+                    <div class="dialogue-section-content">
                         ${Object.entries(this.languages).map(([code, name]) => `
-                            <div class="form-field">
-                                <label class="field-label">
+                            <div class="dialogue-form-field">
+                                <label class="dialogue-field-label">
                                     ${name} (${code.toUpperCase()}) 
-                                    ${code === 'eng' || code === 'fr' ? '<span class="required">*</span>' : ''}
+                                    ${code === 'eng' || code === 'fr' ? '<span class="dialogue-field-required">*</span>' : ''}
                                 </label>
-                                <textarea class="form-textarea" id="lang_${code}" rows="3" 
+                                <textarea class="dialogue-form-textarea" id="lang_${code}" rows="3" 
                                           placeholder="Texte en ${name}...">${dialogue[code] || ''}</textarea>
-                                <div class="field-help">
+                                <div class="dialogue-field-help">
                                     Variables: %s (joueur), %t (cible), %custom pour variables personnalisées
                                 </div>
                             </div>
@@ -474,49 +469,49 @@ export class DialogueEditorModule {
 
                 <!-- Section Variables -->
                 <div class="dialogue-form-section">
-                    <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')">
-                        <h4>🔧 Variables et Conditions</h4>
-                        <span class="section-toggle">▼</span>
+                    <div class="dialogue-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <h4 class="dialogue-section-title">🔧 Variables et Conditions</h4>
+                        <span class="dialogue-section-toggle">▼</span>
                     </div>
-                    <div class="section-content">
-                        <div class="form-field">
-                            <label class="field-label">Variables Utilisées</label>
-                            <div class="array-field" id="variablesContainer">
+                    <div class="dialogue-section-content">
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">Variables Utilisées</label>
+                            <div class="dialogue-array-field" id="variablesContainer">
                                 ${(dialogue.variables || []).map((variable, index) => `
-                                    <div class="array-item">
-                                        <input type="text" class="form-input" value="${variable}" 
+                                    <div class="dialogue-array-item">
+                                        <input type="text" class="dialogue-form-input" value="${variable}" 
                                                onchange="adminPanel.dialogueEditor.updateVariable(${index}, this.value)">
-                                        <button type="button" class="btn btn-danger btn-sm remove-array-item" 
+                                        <button type="button" class="btn btn-danger btn-sm dialogue-remove-array-item" 
                                                 onclick="adminPanel.dialogueEditor.removeVariable(${index})">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
                                 `).join('')}
-                                <button type="button" class="btn btn-primary btn-sm add-array-item" 
+                                <button type="button" class="btn btn-primary btn-sm dialogue-add-array-item" 
                                         onclick="adminPanel.dialogueEditor.addVariable()">
                                     <i class="fas fa-plus"></i> Ajouter Variable
                                 </button>
                             </div>
-                            <div class="field-help">
+                            <div class="dialogue-field-help">
                                 Variables utilisées dans le texte (ex: playerName, targetName)
                             </div>
                         </div>
 
-                        <div class="form-field">
-                            <label class="field-label">Conditions d'Affichage (JSON)</label>
-                            <textarea class="form-textarea json-editor" id="conditions" rows="4" 
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">Conditions d'Affichage (JSON)</label>
+                            <textarea class="dialogue-form-textarea dialogue-json-editor" id="conditions" rows="4" 
                                       placeholder='[{"type": "level", "operator": ">=", "value": 10}]'>${JSON.stringify(dialogue.conditions || [], null, 2)}</textarea>
-                            <div class="field-help">
+                            <div class="dialogue-field-help">
                                 Conditions pour afficher ce dialogue (format JSON)
                             </div>
                         </div>
 
-                        <div class="form-field">
-                            <label class="field-label">Tags</label>
-                            <input type="text" class="form-input" id="tags" 
+                        <div class="dialogue-form-field">
+                            <label class="dialogue-field-label">Tags</label>
+                            <input type="text" class="dialogue-form-input" id="tags" 
                                    value="${(dialogue.tags || []).join(', ')}" 
                                    placeholder="tag1, tag2, tag3">
-                            <div class="field-help">Tags séparés par des virgules</div>
+                            <div class="dialogue-field-help">Tags séparés par des virgules</div>
                         </div>
                     </div>
                 </div>
@@ -524,7 +519,7 @@ export class DialogueEditorModule {
         `;
 
         // Activer/désactiver les sections
-        container.querySelectorAll('.section-header').forEach(header => {
+        container.querySelectorAll('.dialogue-section-header').forEach(header => {
             header.style.cursor = 'pointer';
         });
     }
@@ -608,7 +603,7 @@ export class DialogueEditorModule {
         });
 
         // Récupérer les variables
-        document.querySelectorAll('#variablesContainer .array-item input').forEach(input => {
+        document.querySelectorAll('#variablesContainer .dialogue-array-item input').forEach(input => {
             if (input.value.trim()) {
                 formData.variables.push(input.value.trim());
             }
@@ -747,26 +742,26 @@ export class DialogueEditorModule {
     // Gestion des variables
     addVariable() {
         const container = document.getElementById('variablesContainer');
-        const items = container.querySelectorAll('.array-item');
+        const items = container.querySelectorAll('.dialogue-array-item');
         const index = items.length;
 
         const newItem = document.createElement('div');
-        newItem.className = 'array-item';
+        newItem.className = 'dialogue-array-item';
         newItem.innerHTML = `
-            <input type="text" class="form-input" placeholder="Nom de la variable" 
+            <input type="text" class="dialogue-form-input" placeholder="Nom de la variable" 
                    onchange="adminPanel.dialogueEditor.updateVariable(${index}, this.value)">
-            <button type="button" class="btn btn-danger btn-sm remove-array-item" 
+            <button type="button" class="btn btn-danger btn-sm dialogue-remove-array-item" 
                     onclick="adminPanel.dialogueEditor.removeVariable(${index})">
                 <i class="fas fa-trash"></i>
             </button>
         `;
 
-        container.insertBefore(newItem, container.querySelector('.add-array-item'));
+        container.insertBefore(newItem, container.querySelector('.dialogue-add-array-item'));
     }
 
     removeVariable(index) {
         const container = document.getElementById('variablesContainer');
-        const items = container.querySelectorAll('.array-item');
+        const items = container.querySelectorAll('.dialogue-array-item');
         if (items[index]) {
             items[index].remove();
             // Re-indexer les éléments restants
@@ -781,7 +776,7 @@ export class DialogueEditorModule {
 
     reindexVariables() {
         const container = document.getElementById('variablesContainer');
-        const items = container.querySelectorAll('.array-item');
+        const items = container.querySelectorAll('.dialogue-array-item');
         
         items.forEach((item, newIndex) => {
             const input = item.querySelector('input');
@@ -796,12 +791,27 @@ export class DialogueEditorModule {
         try {
             console.log('🗨️ [DialogueEditor] Export des dialogues...');
             
+            // Afficher le loading
+            const exportButton = document.querySelector('[onclick="adminPanel.dialogueEditor.exportDialogues()"]');
+            const originalHTML = exportButton.innerHTML;
+            exportButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Export...';
+            exportButton.disabled = true;
+            
             // Préparer les données d'export
             const exportData = {
                 exportedAt: new Date().toISOString(),
                 exportedBy: 'Admin Panel',
                 version: '1.0.0',
                 totalDialogues: this.dialogues.length,
+                categories: this.categories,
+                languages: Object.keys(this.languages),
+                statistics: {
+                    totalNpcs: new Set(this.dialogues.map(d => d.npcId).filter(Boolean)).size,
+                    totalCategories: new Set(this.dialogues.map(d => d.category)).size,
+                    missingTranslations: this.dialogues.filter(d => !d.fr || d.fr.trim() === '').length,
+                    activeDialogues: this.dialogues.filter(d => d.isActive).length,
+                    inactiveDialogues: this.dialogues.filter(d => !d.isActive).length
+                },
                 dialogues: this.dialogues
             };
 
@@ -818,12 +828,165 @@ export class DialogueEditorModule {
             
             URL.revokeObjectURL(url);
             
+            // Restaurer le bouton
+            exportButton.innerHTML = originalHTML;
+            exportButton.disabled = false;
+            
             this.adminPanel.showNotification(`${this.dialogues.length} dialogues exportés avec succès`, 'success');
             
         } catch (error) {
             console.error('❌ [DialogueEditor] Erreur export:', error);
             this.adminPanel.showNotification('Erreur lors de l\'export: ' + error.message, 'error');
+            
+            // Restaurer le bouton en cas d'erreur
+            const exportButton = document.querySelector('[onclick="adminPanel.dialogueEditor.exportDialogues()"]');
+            if (exportButton) {
+                exportButton.innerHTML = '<i class="fas fa-download"></i> Export';
+                exportButton.disabled = false;
+            }
         }
+    }
+
+    // Utilitaires pour l'affichage des messages
+    showMessage(message, type = 'info') {
+        const container = document.querySelector('.dialogue-editor-content');
+        if (!container) return;
+
+        // Supprimer les anciens messages
+        container.querySelectorAll('.dialogue-success-message, .dialogue-error-message, .dialogue-warning-message').forEach(msg => {
+            msg.remove();
+        });
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `dialogue-${type}-message`;
+        
+        const icon = type === 'success' ? 'check-circle' : 
+                    type === 'error' ? 'exclamation-circle' : 
+                    'info-circle';
+        
+        messageDiv.innerHTML = `
+            <i class="fas fa-${icon}"></i>
+            ${message}
+        `;
+
+        container.insertBefore(messageDiv, container.firstChild);
+
+        // Supprimer automatiquement après 5 secondes
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 5000);
+    }
+
+    // Validation en temps réel
+    setupFormValidation() {
+        const form = document.getElementById('dialogueFormBuilder');
+        if (!form) return;
+
+        // Validation des champs requis
+        ['dialogId', 'lang_eng', 'lang_fr', 'category'].forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('blur', () => this.validateField(fieldId));
+                field.addEventListener('input', () => this.clearFieldError(fieldId));
+            }
+        });
+
+        // Validation JSON pour les conditions
+        const conditionsField = document.getElementById('conditions');
+        if (conditionsField) {
+            conditionsField.addEventListener('blur', () => this.validateJSON('conditions'));
+        }
+    }
+
+    validateField(fieldId) {
+        const field = document.getElementById(fieldId);
+        const fieldContainer = field.closest('.dialogue-form-field');
+        
+        if (!field.value.trim()) {
+            fieldContainer.classList.add('field-error');
+            fieldContainer.classList.remove('field-success');
+            return false;
+        } else {
+            fieldContainer.classList.remove('field-error');
+            fieldContainer.classList.add('field-success');
+            return true;
+        }
+    }
+
+    clearFieldError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const fieldContainer = field.closest('.dialogue-form-field');
+        fieldContainer.classList.remove('field-error');
+    }
+
+    validateJSON(fieldId) {
+        const field = document.getElementById(fieldId);
+        const fieldContainer = field.closest('.dialogue-form-field');
+        
+        if (field.value.trim() === '') {
+            fieldContainer.classList.remove('field-error', 'field-success');
+            field.classList.remove('dialogue-json-error');
+            return true;
+        }
+
+        try {
+            JSON.parse(field.value);
+            fieldContainer.classList.remove('field-error');
+            fieldContainer.classList.add('field-success');
+            field.classList.remove('dialogue-json-error');
+            return true;
+        } catch (error) {
+            fieldContainer.classList.add('field-error');
+            fieldContainer.classList.remove('field-success');
+            field.classList.add('dialogue-json-error');
+            return false;
+        }
+    }
+
+    // Recherche avancée avec highlighting
+    highlightSearchResults() {
+        if (!this.searchTerm) return;
+
+        const items = document.querySelectorAll('.dialogue-list-item');
+        items.forEach(item => {
+            const searchTerm = this.searchTerm.toLowerCase();
+            const dialogId = item.querySelector('.dialogue-item-id').textContent.toLowerCase();
+            const preview = item.querySelector('.dialogue-item-preview').textContent.toLowerCase();
+            
+            if (dialogId.includes(searchTerm) || preview.includes(searchTerm)) {
+                item.classList.add('search-highlight');
+            } else {
+                item.classList.remove('search-highlight');
+            }
+        });
+    }
+
+    // Gestion des raccourcis clavier
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+S pour sauvegarder
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (this.currentDialogue) {
+                    this.saveDialogue();
+                }
+            }
+            
+            // Ctrl+N pour nouveau dialogue
+            if (e.ctrlKey && e.key === 'n') {
+                e.preventDefault();
+                this.createNewDialogue();
+            }
+            
+            // Escape pour annuler
+            if (e.key === 'Escape') {
+                if (this.currentDialogue) {
+                    this.cancelEdit();
+                }
+            }
+        });
     }
 
     // Utilitaires
@@ -861,10 +1024,76 @@ export class DialogueEditorModule {
         return icons[category] || '💬';
     }
 
+    // Amélioration: Auto-save
+    enableAutoSave() {
+        if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+        }
+
+        this.autoSaveInterval = setInterval(() => {
+            if (this.currentDialogue && this.hasUnsavedChanges()) {
+                this.autoSaveDialogue();
+            }
+        }, 30000); // Auto-save toutes les 30 secondes
+    }
+
+    hasUnsavedChanges() {
+        if (!this.currentDialogue) return false;
+        
+        const formData = this.getFormData();
+        return JSON.stringify(formData) !== JSON.stringify(this.currentDialogue);
+    }
+
+    async autoSaveDialogue() {
+        try {
+            const formData = this.getFormData();
+            if (this.validateDialogue(formData)) {
+                await this.saveDialogueToAPI(formData);
+                this.showMessage('Auto-sauvegarde effectuée', 'info');
+            }
+        } catch (error) {
+            console.warn('❌ [DialogueEditor] Erreur auto-save:', error);
+        }
+    }
+
     // Nettoyage
     cleanup() {
         console.log('🗨️ [DialogueEditor] Nettoyage du module');
+        
+        if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+            this.autoSaveInterval = null;
+        }
+        
+        // Supprimer les event listeners globaux
+        document.removeEventListener('keydown', this.handleKeydown);
+        
         this.currentDialogue = null;
         this.dialogues = [];
+    }
+
+    // Initialisation complète avec toutes les améliorations
+    initialize() {
+        this.setupKeyboardShortcuts();
+        this.enableAutoSave();
+        
+        // Ajouter des observers pour la validation en temps réel
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    const formBuilder = document.getElementById('dialogueFormBuilder');
+                    if (formBuilder && formBuilder.style.display !== 'none') {
+                        this.setupFormValidation();
+                    }
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        this.observer = observer;
     }
 }
