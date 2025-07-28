@@ -1065,14 +1065,14 @@ updateLanguage() {
                 <div class="slots-header">
                   <h3 class="slots-title">
                     <span>⚔️</span>
-                    <span>Équipe de Combat</span>
+                    <span>${t('team.ui.overview.team_title')}</span>
                   </h3>
                   <div class="team-actions">
                     <button class="action-btn heal" id="heal-team-btn">
-                      💊 Soigner l'équipe
+                      💊 ${t('team.ui.overview.heal_team')}
                     </button>
                     <button class="action-btn" id="organize-team-btn">
-                      🔄 Organiser
+                      🔄 ${t('team.ui.overview.organize')}
                     </button>
                   </div>
                 </div>
@@ -1166,7 +1166,7 @@ updateLanguage() {
           <div class="slot-number">${i + 1}</div>
           <div class="empty-slot">
             <div class="empty-icon">➕</div>
-            <div class="empty-text">Slot libre</div>
+            <div class="empty-text">${t('team.ui.overview.slot_free')}</div>
           </div>
         </div>
       `;
