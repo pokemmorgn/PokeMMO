@@ -1,0 +1,514 @@
+{
+  "en": {
+    "options": {
+      "label": "Options",
+      "tooltip_title": "Options & Settings",
+      "tooltip_volume": "Volume: {volume}%",
+      "tooltip_volume_muted": "Muted",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Click to configure",
+      "disabled_message": "Options disabled",
+      
+      "ui": {
+        "title": "Options & Settings",
+        "subtitle": "Game configuration and preferences",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Audio & Volume",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Mute",
+          "unmute": "Unmute",
+          "mute_button_text": "Mute sound",
+          "unmute_button_text": "Enable sound"
+        },
+        
+        "language": {
+          "section_title": "Language & Localization",
+          "section_icon": "🌐",
+          "current_language": "Current Language",
+          "auto_detection": "Auto detection",
+          "manual_selection": "Manual selection",
+          "auto_detection_with_lang": "Auto detection ({language})",
+          "auto_option": "Auto detection",
+          "change_language": "Change language"
+        },
+        
+        "actions": {
+          "reset": "Reset",
+          "save": "Save",
+          "unsaved_changes": "⚠️ Unsaved changes",
+          "reset_confirm": "Reset all settings to default?",
+          "save_success": "Settings saved successfully"
+        },
+        
+        "notifications": {
+          "volume_updated": "Volume updated",
+          "audio_toggled": "Audio toggled",
+          "language_changed": "Language changed",
+          "settings_reset": "Settings reset",
+          "settings_saved": "Settings saved",
+          "action_executed": "Action {action} executed"
+        },
+        
+        "status": {
+          "active": "Active",
+          "muted": "Muted", 
+          "warning": "Warning",
+          "ready": "Ready",
+          "loading": "Loading settings..."
+        }
+      }
+    }
+  },
+  "fr": {
+    "options": {
+      "label": "Options",
+      "tooltip_title": "Options & Paramètres",
+      "tooltip_volume": "Volume : {volume}%",
+      "tooltip_volume_muted": "Muet",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Cliquer pour configurer",
+      "disabled_message": "Options désactivées",
+      
+      "ui": {
+        "title": "Options & Paramètres",
+        "subtitle": "Configuration du jeu et préférences",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Audio & Volume",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Muet",
+          "unmute": "Son",
+          "mute_button_text": "Couper le son",
+          "unmute_button_text": "Activer le son"
+        },
+        
+        "language": {
+          "section_title": "Langue & Localisation",
+          "section_icon": "🌐",
+          "current_language": "Langue Actuelle",
+          "auto_detection": "Détection automatique",
+          "manual_selection": "Sélection manuelle",
+          "auto_detection_with_lang": "Détection automatique ({language})",
+          "auto_option": "Détection automatique",
+          "change_language": "Changer de langue"
+        },
+        
+        "actions": {
+          "reset": "Réinitialiser",
+          "save": "Sauvegarder",
+          "unsaved_changes": "⚠️ Modifications non sauvegardées",
+          "reset_confirm": "Réinitialiser tous les paramètres par défaut ?",
+          "save_success": "Paramètres sauvegardés avec succès"
+        },
+        
+        "notifications": {
+          "volume_updated": "Volume mis à jour",
+          "audio_toggled": "Audio basculé",
+          "language_changed": "Langue changée",
+          "settings_reset": "Options réinitialisées",
+          "settings_saved": "Options sauvegardées",
+          "action_executed": "Action {action} exécutée"
+        },
+        
+        "status": {
+          "active": "Actif",
+          "muted": "Muet",
+          "warning": "Attention",
+          "ready": "Prêt",
+          "loading": "Chargement des paramètres..."
+        }
+      }
+    }
+  },
+  "es": {
+    "options": {
+      "label": "Opciones",
+      "tooltip_title": "Opciones & Configuración",
+      "tooltip_volume": "Volumen: {volume}%",
+      "tooltip_volume_muted": "Silenciado",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Clic para configurar",
+      "disabled_message": "Opciones deshabilitadas",
+      
+      "ui": {
+        "title": "Opciones & Configuración",
+        "subtitle": "Configuración del juego y preferencias",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Audio & Volumen",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Silenciar",
+          "unmute": "Sonido",
+          "mute_button_text": "Silenciar sonido",
+          "unmute_button_text": "Activar sonido"
+        },
+        
+        "language": {
+          "section_title": "Idioma & Localización",
+          "section_icon": "🌐",
+          "current_language": "Idioma Actual",
+          "auto_detection": "Detección automática",
+          "manual_selection": "Selección manual",
+          "auto_detection_with_lang": "Detección automática ({language})",
+          "auto_option": "Detección automática",
+          "change_language": "Cambiar idioma"
+        },
+        
+        "actions": {
+          "reset": "Restablecer",
+          "save": "Guardar",
+          "unsaved_changes": "⚠️ Cambios no guardados",
+          "reset_confirm": "¿Restablecer toda la configuración por defecto?",
+          "save_success": "Configuración guardada con éxito"
+        },
+        
+        "notifications": {
+          "volume_updated": "Volumen actualizado",
+          "audio_toggled": "Audio cambiado",
+          "language_changed": "Idioma cambiado",
+          "settings_reset": "Configuración restablecida",
+          "settings_saved": "Configuración guardada",
+          "action_executed": "Acción {action} ejecutada"
+        },
+        
+        "status": {
+          "active": "Activo",
+          "muted": "Silenciado",
+          "warning": "Advertencia",
+          "ready": "Listo",
+          "loading": "Cargando configuración..."
+        }
+      }
+    }
+  },
+  "de": {
+    "options": {
+      "label": "Optionen",
+      "tooltip_title": "Optionen & Einstellungen",
+      "tooltip_volume": "Lautstärke: {volume}%",
+      "tooltip_volume_muted": "Stumm",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Klicken zum Konfigurieren",
+      "disabled_message": "Optionen deaktiviert",
+      
+      "ui": {
+        "title": "Optionen & Einstellungen",
+        "subtitle": "Spielkonfiguration und Einstellungen",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Audio & Lautstärke",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Stumm",
+          "unmute": "Ton",
+          "mute_button_text": "Ton ausschalten",
+          "unmute_button_text": "Ton einschalten"
+        },
+        
+        "language": {
+          "section_title": "Sprache & Lokalisierung",
+          "section_icon": "🌐",
+          "current_language": "Aktuelle Sprache",
+          "auto_detection": "Automatische Erkennung",
+          "manual_selection": "Manuelle Auswahl",
+          "auto_detection_with_lang": "Automatische Erkennung ({language})",
+          "auto_option": "Automatische Erkennung",
+          "change_language": "Sprache ändern"
+        },
+        
+        "actions": {
+          "reset": "Zurücksetzen",
+          "save": "Speichern",
+          "unsaved_changes": "⚠️ Nicht gespeicherte Änderungen",
+          "reset_confirm": "Alle Einstellungen auf Standard zurücksetzen?",
+          "save_success": "Einstellungen erfolgreich gespeichert"
+        },
+        
+        "notifications": {
+          "volume_updated": "Lautstärke aktualisiert",
+          "audio_toggled": "Audio umgeschaltet",
+          "language_changed": "Sprache geändert",
+          "settings_reset": "Einstellungen zurückgesetzt",
+          "settings_saved": "Einstellungen gespeichert",
+          "action_executed": "Aktion {action} ausgeführt"
+        },
+        
+        "status": {
+          "active": "Aktiv",
+          "muted": "Stumm",
+          "warning": "Warnung",
+          "ready": "Bereit",
+          "loading": "Lade Einstellungen..."
+        }
+      }
+    }
+  },
+  "it": {
+    "options": {
+      "label": "Opzioni",
+      "tooltip_title": "Opzioni & Impostazioni",
+      "tooltip_volume": "Volume: {volume}%",
+      "tooltip_volume_muted": "Muto",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Clicca per configurare",
+      "disabled_message": "Opzioni disabilitate",
+      
+      "ui": {
+        "title": "Opzioni & Impostazioni",
+        "subtitle": "Configurazione del gioco e preferenze",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Audio & Volume",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Muto",
+          "unmute": "Audio",
+          "mute_button_text": "Disattiva audio",
+          "unmute_button_text": "Attiva audio"
+        },
+        
+        "language": {
+          "section_title": "Lingua & Localizzazione",
+          "section_icon": "🌐",
+          "current_language": "Lingua Attuale",
+          "auto_detection": "Rilevamento automatico",
+          "manual_selection": "Selezione manuale",
+          "auto_detection_with_lang": "Rilevamento automatico ({language})",
+          "auto_option": "Rilevamento automatico",
+          "change_language": "Cambia lingua"
+        },
+        
+        "actions": {
+          "reset": "Ripristina",
+          "save": "Salva",
+          "unsaved_changes": "⚠️ Modifiche non salvate",
+          "reset_confirm": "Ripristinare tutte le impostazioni predefinite?",
+          "save_success": "Impostazioni salvate con successo"
+        },
+        
+        "notifications": {
+          "volume_updated": "Volume aggiornato",
+          "audio_toggled": "Audio commutato",
+          "language_changed": "Lingua cambiata",
+          "settings_reset": "Impostazioni ripristinate",
+          "settings_saved": "Impostazioni salvate",
+          "action_executed": "Azione {action} eseguita"
+        },
+        
+        "status": {
+          "active": "Attivo",
+          "muted": "Muto",
+          "warning": "Avviso",
+          "ready": "Pronto",
+          "loading": "Caricamento impostazioni..."
+        }
+      }
+    }
+  },
+  "pt": {
+    "options": {
+      "label": "Opções",
+      "tooltip_title": "Opções & Configurações",
+      "tooltip_volume": "Volume: {volume}%",
+      "tooltip_volume_muted": "Mudo",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "Clique para configurar",
+      "disabled_message": "Opções desabilitadas",
+      
+      "ui": {
+        "title": "Opções & Configurações",
+        "subtitle": "Configuração do jogo e preferências",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "Áudio & Volume",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "Mudo",
+          "unmute": "Som",
+          "mute_button_text": "Silenciar som",
+          "unmute_button_text": "Ativar som"
+        },
+        
+        "language": {
+          "section_title": "Idioma & Localização",
+          "section_icon": "🌐",
+          "current_language": "Idioma Atual",
+          "auto_detection": "Detecção automática",
+          "manual_selection": "Seleção manual",
+          "auto_detection_with_lang": "Detecção automática ({language})",
+          "auto_option": "Detecção automática",
+          "change_language": "Alterar idioma"
+        },
+        
+        "actions": {
+          "reset": "Redefinir",
+          "save": "Salvar",
+          "unsaved_changes": "⚠️ Alterações não salvas",
+          "reset_confirm": "Redefinir todas as configurações padrão?",
+          "save_success": "Configurações salvas com sucesso"
+        },
+        
+        "notifications": {
+          "volume_updated": "Volume atualizado",
+          "audio_toggled": "Áudio alternado",
+          "language_changed": "Idioma alterado",
+          "settings_reset": "Configurações redefinidas",
+          "settings_saved": "Configurações salvas",
+          "action_executed": "Ação {action} executada"
+        },
+        
+        "status": {
+          "active": "Ativo",
+          "muted": "Mudo",
+          "warning": "Aviso",
+          "ready": "Pronto",
+          "loading": "Carregando configurações..."
+        }
+      }
+    }
+  },
+  "ja": {
+    "options": {
+      "label": "オプション",
+      "tooltip_title": "オプション設定",
+      "tooltip_volume": "音量: {volume}%",
+      "tooltip_volume_muted": "ミュート",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "クリックで設定",
+      "disabled_message": "オプションが無効",
+      
+      "ui": {
+        "title": "オプション設定",
+        "subtitle": "ゲーム設定と環境設定",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "オーディオ・音量",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "ミュート",
+          "unmute": "音声",
+          "mute_button_text": "音声をミュート",
+          "unmute_button_text": "音声を有効化"
+        },
+        
+        "language": {
+          "section_title": "言語・地域設定",
+          "section_icon": "🌐",
+          "current_language": "現在の言語",
+          "auto_detection": "自動検出",
+          "manual_selection": "手動選択",
+          "auto_detection_with_lang": "自動検出 ({language})",
+          "auto_option": "自動検出",
+          "change_language": "言語を変更"
+        },
+        
+        "actions": {
+          "reset": "リセット",
+          "save": "保存",
+          "unsaved_changes": "⚠️ 未保存の変更",
+          "reset_confirm": "すべての設定をデフォルトにリセットしますか？",
+          "save_success": "設定を正常に保存しました"
+        },
+        
+        "notifications": {
+          "volume_updated": "音量を更新しました",
+          "audio_toggled": "オーディオを切り替えました",
+          "language_changed": "言語を変更しました",
+          "settings_reset": "設定をリセットしました",
+          "settings_saved": "設定を保存しました",
+          "action_executed": "アクション{action}を実行しました"
+        },
+        
+        "status": {
+          "active": "アクティブ",
+          "muted": "ミュート",
+          "warning": "警告",
+          "ready": "準備完了",
+          "loading": "設定を読み込み中..."
+        }
+      }
+    }
+  },
+  "ko": {
+    "options": {
+      "label": "옵션",
+      "tooltip_title": "옵션 및 설정",
+      "tooltip_volume": "볼륨: {volume}%",
+      "tooltip_volume_muted": "음소거",
+      "tooltip_language": "{flag} {name}",
+      "tooltip_action": "클릭하여 설정",
+      "disabled_message": "옵션이 비활성화됨",
+      
+      "ui": {
+        "title": "옵션 및 설정",
+        "subtitle": "게임 구성 및 환경설정",
+        "close": "✕",
+        
+        "volume": {
+          "section_title": "오디오 및 볼륨",
+          "section_icon": "🔊",
+          "volume_min": "0%",
+          "volume_max": "100%",
+          "mute": "음소거",
+          "unmute": "소리",
+          "mute_button_text": "소리 끄기",
+          "unmute_button_text": "소리 켜기"
+        },
+        
+        "language": {
+          "section_title": "언어 및 지역설정",
+          "section_icon": "🌐",
+          "current_language": "현재 언어",
+          "auto_detection": "자동 감지",
+          "manual_selection": "수동 선택",
+          "auto_detection_with_lang": "자동 감지 ({language})",
+          "auto_option": "자동 감지",
+          "change_language": "언어 변경"
+        },
+        
+        "actions": {
+          "reset": "재설정",
+          "save": "저장",
+          "unsaved_changes": "⚠️ 저장되지 않은 변경사항",
+          "reset_confirm": "모든 설정을 기본값으로 재설정하시겠습니까?",
+          "save_success": "설정이 성공적으로 저장되었습니다"
+        },
+        
+        "notifications": {
+          "volume_updated": "볼륨이 업데이트됨",
+          "audio_toggled": "오디오가 전환됨",
+          "language_changed": "언어가 변경됨",
+          "settings_reset": "설정이 재설정됨",
+          "settings_saved": "설정이 저장됨",
+          "action_executed": "작업 {action}이 실행됨"
+        },
+        
+        "status": {
+          "active": "활성",
+          "muted": "음소거",
+          "warning": "경고",
+          "ready": "준비",
+          "loading": "설정 로딩 중..."
+        }
+      }
+    }
+  }
+}
