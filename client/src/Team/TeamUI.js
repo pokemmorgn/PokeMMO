@@ -1086,28 +1086,28 @@ updateLanguage() {
                 <div class="stats-section">
                   <div class="section-header">
                     <span class="section-icon">📊</span>
-                    <h4 class="section-title">Statistiques</h4>
+                    <h4 class="section-title">${t('team.ui.stats.title')}</h4>
                   </div>
                   <div class="stat-list">
                     <div class="stat-item">
-                      <span class="stat-label">Niveau Moyen</span>
+                      <span class="stat-label">${t('team.ui.stats.avg_level')}</span>
                       <span class="stat-value" id="avg-level">0</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">HP Total</span>
+                      <span class="stat-label">${t('team.ui.stats.total_hp')}</span>
                       <span class="stat-value" id="total-hp">0/0</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">Prêt au Combat</span>
-                      <span class="stat-value" id="battle-ready">Non</span>
+                      <span class="stat-label">${t('team.ui.stats.battle_ready')}</span>
+                      <span class="stat-value" id="battle-ready">${t('team.ui.stats.no')}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">Pokémon Vivants</span>
+                      <span class="stat-label">${t('team.ui.stats.alive_count')}</span>
                       <span class="stat-value" id="alive-count">0</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">Équipe Complète</span>
-                      <span class="stat-value" id="team-complete">Non</span>
+                      <span class="stat-label">${t('team.ui.stats.team_complete')}</span>
+                      <span class="stat-value" id="team-complete">${t('team.ui.stats.no')}</span>
                     </div>
                   </div>
                 </div>
@@ -1115,7 +1115,7 @@ updateLanguage() {
                 <div class="stats-section">
                   <div class="section-header">
                     <span class="section-icon">🎯</span>
-                    <h4 class="section-title">Couverture Types</h4>
+                    <h4 class="section-title">${t('team.ui.types.title')}</h4>
                   </div>
                   <div class="type-coverage" id="type-coverage">
                     <!-- Types générés dynamiquement -->
@@ -1125,11 +1125,11 @@ updateLanguage() {
                 <div class="stats-section">
                   <div class="section-header">
                     <span class="section-icon">⚡</span>
-                    <h4 class="section-title">Actions Rapides</h4>
+                    <h4 class="section-title">${t('team.ui.actions.title')}</h4>
                   </div>
                   <div class="stat-list">
                     <button class="stat-item" style="cursor: pointer; border: none; background: inherit;" id="refresh-team-btn">
-                      <span class="stat-label">🔄 Actualiser</span>
+                      <span class="stat-label">🔄 ${t('team.ui.actions.refresh')}</span>
                       <span class="stat-value">→</span>
                     </button>
                   </div>
