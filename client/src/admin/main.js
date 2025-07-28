@@ -645,20 +645,6 @@ window.updateDialogueVariable = (index, value) => {
     adminPanel.dialogueEditor.updateVariable(index, value)
 }
 
-// 3. Dans adminPanel.loadModules(), ajoutez DialogueEditorModule :
-adminPanel.loadModules([
-    DashboardModule,
-    PlayersModule,
-    PlayersAdvancedModule,
-    QuestsModule,
-    LogsToolsModule,
-    QuestGeneratorModule,
-    MapEditorModule,
-    NPCEditorModule,
-    MongoDBModule,
-    ShopEditorModule,
-    DialogueEditorModule  // ← NOUVEAU MODULE
-])
 
 // Helper function to show error messages
 function showErrorMessage(message) {
