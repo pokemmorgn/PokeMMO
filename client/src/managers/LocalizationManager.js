@@ -1,6 +1,6 @@
-// managers/LocalizationManager.js - VERSION MODULAIRE
+// managers/LocalizationManager.js - VERSION MODULAIRE AVEC DÉTECTION PÉRIODIQUE
 // 🌐 Gestionnaire de traductions modulaire avec fichiers séparés
-// 🎯 Compatibilité totale avec l'API existante + chargement intelligent
+// 🔄 Détection automatique périodique des nouveaux modules
 
 export class LocalizationManager {
   constructor() {
@@ -33,13 +33,23 @@ export class LocalizationManager {
       }
     };
     
+    // === 🔄 NOUVEAU : DÉTECTION PÉRIODIQUE ===
+    this.periodicDetection = {
+      enabled: true,
+      interval: 3000,        // Vérifier toutes les 3 secondes
+      maxAttempts: 20,       // Maximum 20 tentatives = 1 minute
+      currentAttempts: 0,
+      timerId: null,
+      lastDetectedModules: new Set()
+    };
+    
     // === ÉTAT ===
     this.isReady = false;
     this.lastError = null;
     this.loadedModules = new Set();
     this.failedModules = new Set();
     
-    console.log('🌐 [LocalizationManager] Instance modulaire créée');
+    console.log('🌐 [LocalizationManager] Instance modulaire créée avec détection périodique');
   }
   
   // === 🚀 CHARGEMENT INTELLIGENT ===
@@ -53,6 +63,10 @@ export class LocalizationManager {
     // Si déjà chargé, retourner succès
     if (this.isReady && this.translations) {
       console.log('✅ [LocalizationManager] Traductions déjà chargées');
+      
+      // 🔄 NOUVEAU : Démarrer détection périodique même si déjà chargé
+      this.startPeriodicDetection();
+      
       return true;
     }
     
@@ -69,6 +83,11 @@ export class LocalizationManager {
     const result = await this.loadPromise;
     this.isLoading = false;
     this.loadPromise = null;
+    
+    // 🔄 NOUVEAU : Démarrer détection périodique après chargement initial
+    if (result) {
+      this.startPeriodicDetection();
+    }
     
     return result;
   }
@@ -102,7 +121,167 @@ export class LocalizationManager {
     }
   }
   
-  // === 📁 STRATÉGIES DE CHARGEMENT ===
+  // === 🔄 NOUVEAU : DÉTECTION PÉRIODIQUE ===
+  
+  /**
+   * Démarrer la détection périodique des nouveaux modules
+   */
+  startPeriodicDetection() {
+    if (!this.periodicDetection.enabled) {
+      console.log('ℹ️ [LocalizationManager] Détection périodique désactivée');
+      return;
+    }
+    
+    // Éviter double démarrage
+    if (this.periodicDetection.timerId) {
+      console.log('ℹ️ [LocalizationManager] Détection périodique déjà active');
+      return;
+    }
+    
+    console.log(`🔄 [LocalizationManager] Démarrage détection périodique (${this.periodicDetection.interval}ms)`);
+    
+    this.periodicDetection.timerId = setInterval(() => {
+      this.checkForNewModules();
+    }, this.periodicDetection.interval);
+    
+    // Première vérification immédiate
+    setTimeout(() => {
+      this.checkForNewModules();
+    }, 1000);
+  }
+  
+  /**
+   * Arrêter la détection périodique
+   */
+  stopPeriodicDetection() {
+    if (this.periodicDetection.timerId) {
+      clearInterval(this.periodicDetection.timerId);
+      this.periodicDetection.timerId = null;
+      console.log('⏹️ [LocalizationManager] Détection périodique arrêtée');
+    }
+  }
+  
+  /**
+   * Vérifier s'il y a de nouveaux modules à charger
+   */
+  async checkForNewModules() {
+    this.periodicDetection.currentAttempts++;
+    
+    // Arrêter après maxAttempts
+    if (this.periodicDetection.currentAttempts >= this.periodicDetection.maxAttempts) {
+      console.log(`⏹️ [LocalizationManager] Détection périodique terminée (${this.periodicDetection.maxAttempts} tentatives)`);
+      this.stopPeriodicDetection();
+      return;
+    }
+    
+    // Détecter modules actuels
+    const currentModules = new Set(this._detectUsedModules());
+    
+    // Comparer avec la dernière détection
+    const newModules = [...currentModules].filter(module => 
+      !this.periodicDetection.lastDetectedModules.has(module) && 
+      !this.loadedModules.has(module) &&
+      !this.failedModules.has(module)
+    );
+    
+    if (newModules.length > 0) {
+      console.log(`🆕 [LocalizationManager] Nouveaux modules détectés (tentative ${this.periodicDetection.currentAttempts}):`, newModules);
+      
+      // Charger les nouveaux modules
+      const results = await this._loadModules(newModules);
+      
+      if (results.some(r => r.success)) {
+        // Re-fusionner si au moins un module a été chargé
+        this._mergeAllTranslations();
+        
+        console.log(`✅ [LocalizationManager] Modules chargés dynamiquement: ${results.filter(r => r.success).map(r => r.module).join(', ')}`);
+        
+        // 🔄 NOUVEAU : Notifier tous les composants du changement
+        this.notifyModulesUpdated(newModules.filter(module => this.loadedModules.has(module)));
+      }
+    }
+    
+    // Mettre à jour la dernière détection
+    this.periodicDetection.lastDetectedModules = currentModules;
+    
+    // Arrêter si tous les modules optionnels sont chargés ou ont échoué
+    const allOptionalProcessed = this.moduleConfig.optional.every(module => 
+      this.loadedModules.has(module) || this.failedModules.has(module)
+    );
+    
+    if (allOptionalProcessed) {
+      console.log(`✅ [LocalizationManager] Tous les modules optionnels traités - arrêt détection périodique`);
+      this.stopPeriodicDetection();
+    }
+  }
+  
+  /**
+   * Notifier les composants qu'il y a de nouveaux modules
+   */
+  notifyModulesUpdated(newModules) {
+    console.log(`📢 [LocalizationManager] Notification nouveaux modules:`, newModules);
+    
+    // Déclencher événement global
+    window.dispatchEvent(new CustomEvent('localizationModulesUpdated', {
+      detail: { 
+        newModules, 
+        loadedModules: Array.from(this.loadedModules),
+        totalModules: this.moduleTranslations.size
+      }
+    }));
+    
+    // 🔄 NOUVEAU : Force mise à jour des icônes existantes
+    this.updateExistingComponents();
+  }
+  
+  /**
+   * Mettre à jour les composants existants avec nouvelles traductions
+   */
+  updateExistingComponents() {
+    const componentUpdaters = [
+      // Inventory
+      () => {
+        if (window.inventorySystemGlobal?.icon?.updateLanguage) {
+          window.inventorySystemGlobal.icon.updateLanguage();
+          console.log('🔄 [LocalizationManager] InventoryIcon mis à jour');
+        }
+      },
+      
+      // Team  
+      () => {
+        if (window.teamSystemGlobal?.icon?.updateLanguage) {
+          window.teamSystemGlobal.icon.updateLanguage();
+          console.log('🔄 [LocalizationManager] TeamIcon mis à jour');
+        }
+      },
+      
+      // Quest
+      () => {
+        if (window.questSystemGlobal?.icon?.updateLanguage) {
+          window.questSystemGlobal.icon.updateLanguage();
+          console.log('🔄 [LocalizationManager] QuestIcon mis à jour');
+        }
+      },
+      
+      // Options
+      () => {
+        if (window.optionsSystemGlobal?.icon?.updateLanguage) {
+          window.optionsSystemGlobal.icon.updateLanguage();
+          console.log('🔄 [LocalizationManager] OptionsIcon mis à jour');
+        }
+      }
+    ];
+    
+    componentUpdaters.forEach(updater => {
+      try {
+        updater();
+      } catch (error) {
+        console.warn('⚠️ [LocalizationManager] Erreur mise à jour composant:', error);
+      }
+    });
+  }
+  
+  // === 📁 STRATÉGIES DE CHARGEMENT (INCHANGÉES) ===
   
   /**
    * Stratégie SMART : Charger required + modules détectés
@@ -174,7 +353,7 @@ export class LocalizationManager {
     return success;
   }
   
-  // === 🔍 DÉTECTION AUTOMATIQUE ===
+  // === 🔍 DÉTECTION AUTOMATIQUE (AMÉLIORÉE) ===
   
   /**
    * Détecter automatiquement les modules utilisés sur la page
@@ -201,8 +380,8 @@ export class LocalizationManager {
     
     // Détecter par variables globales
     const globalIndicators = {
-      quest: ['questSystem', 'questSystemGlobal', 'window.toggleQuest'],
-      team: ['teamSystem', 'teamSystemGlobal', 'window.toggleTeam'],
+      quest: ['questSystem', 'questSystemGlobal'],
+      team: ['teamSystem', 'teamSystemGlobal'],
       inventory: ['inventorySystem', 'inventorySystemGlobal'],
       options: ['optionsSystem', 'optionsSystemGlobal'],
       pokedex: ['pokedexSystem', 'pokedexSystemGlobal']
@@ -210,13 +389,7 @@ export class LocalizationManager {
     
     Object.entries(globalIndicators).forEach(([module, globals]) => {
       const found = globals.some(globalVar => {
-        const parts = globalVar.split('.');
-        let obj = window;
-        for (const part of parts) {
-          obj = obj?.[part];
-          if (!obj) return false;
-        }
-        return true;
+        return window[globalVar] !== undefined;
       });
       
       if (found && !detectedModules.includes(module)) {
@@ -228,7 +401,7 @@ export class LocalizationManager {
     return detectedModules;
   }
   
-  // === 📦 CHARGEMENT MODULES ===
+  // === 📦 CHARGEMENT MODULES (INCHANGÉ) ===
   
   /**
    * Charger plusieurs modules en parallèle
@@ -303,7 +476,7 @@ export class LocalizationManager {
     return fileMapping[moduleName] || `modules/${moduleName}-ui.json`;
   }
   
-  // === 🔀 FUSION DES TRADUCTIONS ===
+  // === 🔀 FUSION DES TRADUCTIONS (INCHANGÉE) ===
   
   /**
    * Fusionner toutes les traductions chargées
@@ -357,7 +530,7 @@ export class LocalizationManager {
     return result;
   }
   
-  // === 🔄 FALLBACK HÉRITÉ ===
+  // === 🔄 FALLBACK HÉRITÉ (INCHANGÉ) ===
   
   /**
    * Fallback vers l'ancien système (ui-translations.json)
@@ -501,6 +674,9 @@ export class LocalizationManager {
         // Re-fusionner toutes les traductions
         this._mergeAllTranslations();
         
+        // 🔄 NOUVEAU : Notifier mise à jour
+        this.notifyModulesUpdated([moduleName]);
+        
         console.log(`✅ [LocalizationManager] Module "${moduleName}" chargé et fusionné`);
         return true;
       }
@@ -564,6 +740,9 @@ export class LocalizationManager {
   async reload() {
     console.log('🔄 [LocalizationManager] Rechargement complet...');
     
+    // 🔄 NOUVEAU : Arrêter détection périodique
+    this.stopPeriodicDetection();
+    
     this.translations = null;
     this.moduleTranslations.clear();
     this.loadedModules.clear();
@@ -573,7 +752,44 @@ export class LocalizationManager {
     this.loadPromise = null;
     this.lastError = null;
     
+    // Reset détection périodique
+    this.periodicDetection.currentAttempts = 0;
+    this.periodicDetection.lastDetectedModules.clear();
+    
     return await this.load();
+  }
+  
+  // === 🔧 NOUVEAU : CONTRÔLE DÉTECTION PÉRIODIQUE ===
+  
+  /**
+   * Configurer la détection périodique
+   */
+  configurePeriodicDetection(options = {}) {
+    this.periodicDetection = {
+      ...this.periodicDetection,
+      ...options
+    };
+    
+    console.log('🔧 [LocalizationManager] Détection périodique configurée:', this.periodicDetection);
+  }
+  
+  /**
+   * Désactiver complètement la détection périodique
+   */
+  disablePeriodicDetection() {
+    this.stopPeriodicDetection();
+    this.periodicDetection.enabled = false;
+    console.log('⏹️ [LocalizationManager] Détection périodique désactivée');
+  }
+  
+  /**
+   * Réactiver la détection périodique
+   */
+  enablePeriodicDetection() {
+    this.periodicDetection.enabled = true;
+    this.periodicDetection.currentAttempts = 0;
+    this.startPeriodicDetection();
+    console.log('🔄 [LocalizationManager] Détection périodique réactivée');
   }
   
   // === 🐛 DEBUG AMÉLIORÉ ===
@@ -582,7 +798,7 @@ export class LocalizationManager {
     return {
       isReady: this.isReady,
       isLoading: this.isLoading,
-      mode: 'modular',
+      mode: 'modular-with-periodic-detection',
       strategy: this.moduleConfig.loadingStrategy.mode,
       loadedModules: Array.from(this.loadedModules),
       failedModules: Array.from(this.failedModules),
@@ -592,6 +808,16 @@ export class LocalizationManager {
       fallbackLanguage: this.fallbackLanguage,
       lastError: this.lastError?.message || null,
       sampleTranslation: this.isReady ? this.t('quest.label') : null,
+      
+      // 🔄 NOUVEAU : Stats détection périodique
+      periodicDetection: {
+        enabled: this.periodicDetection.enabled,
+        active: !!this.periodicDetection.timerId,
+        attempts: this.periodicDetection.currentAttempts,
+        maxAttempts: this.periodicDetection.maxAttempts,
+        interval: this.periodicDetection.interval,
+        lastDetected: Array.from(this.periodicDetection.lastDetectedModules)
+      },
       
       // Stats détaillées
       detailedStats: {
@@ -630,6 +856,22 @@ export class LocalizationManager {
     
     return testResults;
   }
+  
+  // === 🧹 NETTOYAGE ===
+  
+  destroy() {
+    console.log('🧹 [LocalizationManager] Destruction...');
+    
+    this.stopPeriodicDetection();
+    
+    this.translations = null;
+    this.moduleTranslations.clear();
+    this.loadedModules.clear();
+    this.failedModules.clear();
+    this.isReady = false;
+    
+    console.log('✅ [LocalizationManager] Détruit');
+  }
 }
 
 // === 🌐 INSTANCE GLOBALE (INCHANGÉE) ===
@@ -664,40 +906,31 @@ export function t(path, lang = null) {
 export default LocalizationManager;
 
 console.log(`
-🌐 === LOCALIZATION MANAGER MODULAIRE ===
+🌐 === LOCALIZATION MANAGER AVEC DÉTECTION PÉRIODIQUE ===
 
-✅ NOUVELLES FONCTIONNALITÉS:
-• Fichiers séparés par module
-• Chargement intelligent (détection auto)
-• Cache modulaire avancé
-• Fallback système hérité
-• API 100% compatible
+🔄 NOUVELLES FONCTIONNALITÉS:
+• Détection périodique automatique (3s x 20 = 1 minute)
+• Chargement dynamique des modules détectés
+• Notification automatique des composants
+• Mise à jour en temps réel des icônes existantes
+• Arrêt intelligent quand tous modules traités
 
-🔧 STRATÉGIES DE CHARGEMENT:
-• SMART: Required + modules détectés (défaut)
-• ALL: Tous les modules disponibles
-• REQUIRED: Seulement common + obligatoires
+⚡ RÉSOLUTION PROBLÈME INVENTORY:
+• Détecte inventory-icon créé après initialisation
+• Charge inventory-ui.json automatiquement
+• Met à jour InventoryIcon avec nouvelles traductions
+• Plus besoin de reload manuel !
 
-📦 MODULES SUPPORTÉS:
-• common-ui.json (obligatoire)
-• quest-ui.json (optionnel)
-• team-ui.json (optionnel)
-• inventory-ui.json (optionnel)
-• options-ui.json (optionnel)
-• pokedex-ui.json (optionnel)
-
-🎯 UTILISATION (IDENTIQUE):
-• import { t, initLocalizationManager } from './managers/LocalizationManager.js'
-• await initLocalizationManager()
-• const text = t('quest.label') // Fonctionne comme avant !
+🔧 CONFIGURATION:
+• Interval: 3000ms (configurable)
+• Max tentatives: 20 (configurable)
+• Auto-arrêt si tous modules traités
+• Événements globaux 'localizationModulesUpdated'
 
 📊 DEBUG AMÉLIORÉ:
-• window.localizationManager.getDebugInfo()
-• window.localizationManager.loadModule('quest')
-• window.localizationManager.getLoadedModules()
+• window.localizationManager.getDebugInfo().periodicDetection
+• window.localizationManager.disablePeriodicDetection()
+• window.localizationManager.enablePeriodicDetection()
 
-🔄 MIGRATION ZÉRO:
-• Modules existants fonctionnent sans modification
-• Fallback automatique vers ui-translations.json
-• API t() identique
+✅ INVENTORY MAINTENANT DÉTECTÉ AUTOMATIQUEMENT !
 `);
