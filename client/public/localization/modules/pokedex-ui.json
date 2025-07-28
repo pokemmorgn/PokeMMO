@@ -1,0 +1,602 @@
+{
+  "en": {
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "National Pokédex",
+      "tooltip_status_active": "Discovery in progress",
+      "tooltip_status_none": "No Pokémon discovered yet",
+      "tooltip_status_new": "new discovery",
+      "tooltip_status_ready": "new captures available",
+      "tooltip_action": "Click to open",
+      "disabled_message": "Pokédex temporarily disabled",
+      "ui": {
+        "header": {
+          "title": "POKÉDEX",
+          "subtitle": "NATIONAL"
+        },
+        "tabs": {
+          "national": "National",
+          "search": "Search",
+          "favorites": "Favorites",
+          "stats": "Stats"
+        },
+        "progress": {
+          "seen": "SEEN",
+          "caught": "CAUGHT",
+          "completed": "COMPLETED"
+        },
+        "actions": {
+          "sort": "Sort",
+          "filter": "Filter",
+          "sync": "Sync",
+          "settings": "Settings",
+          "help": "Help"
+        },
+        "status": {
+          "caught": "Caught",
+          "seen": "Seen",
+          "unknown": "???",
+          "shiny": "Shiny",
+          "favorite": "Favorite"
+        },
+        "search": {
+          "placeholder": "Pokémon name or number...",
+          "no_results": "No results found",
+          "filters_title": "Search Filters",
+          "apply_filters": "Apply Filters",
+          "clear_filters": "Clear"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon seen",
+          "pokemon_caught": "Pokémon caught",
+          "shiny_count": "Shiny Pokémon",
+          "completion_rate": "Completion"
+        },
+        "pagination": {
+          "previous": "‹ Previous",
+          "next": "Next ›",
+          "page_info": "Page {current} of {total}"
+        },
+        "details": {
+          "first_seen": "First seen",
+          "first_caught": "First caught",
+          "encounters": "Encounters",
+          "description": "Description",
+          "evolution": "Evolution",
+          "add_favorite": "Add to favorites",
+          "remove_favorite": "Remove from favorites"
+        },
+        "notifications": {
+          "new_discovery": "New Pokémon discovered!",
+          "new_capture": "Pokémon caught!",
+          "milestone": "Milestone reached: {percent}%!"
+        }
+      }
+    }
+  },
+  "fr": {
+    "pokedex": {
+      "label": "Pokédx",
+      "tooltip_title": "Pokédx National",
+      "tooltip_status_active": "Découverte en cours",
+      "tooltip_status_none": "Aucun Pokémon découvert",
+      "tooltip_status_new": "nouvelle découverte",
+      "tooltip_status_ready": "nouvelles captures disponibles",
+      "tooltip_action": "Clic pour ouvrir",
+      "disabled_message": "Pokédx temporairement désactivé",
+      "ui": {
+        "header": {
+          "title": "POKÉDX",
+          "subtitle": "NATIONAL"
+        },
+        "tabs": {
+          "national": "National",
+          "search": "Recherche",
+          "favorites": "Favoris",
+          "stats": "Stats"
+        },
+        "progress": {
+          "seen": "VUS",
+          "caught": "CAPTURÉS",
+          "completed": "COMPLÉTÉ"
+        },
+        "actions": {
+          "sort": "Trier",
+          "filter": "Filtrer",
+          "sync": "Sync",
+          "settings": "Paramètres",
+          "help": "Aide"
+        },
+        "status": {
+          "caught": "Capturé",
+          "seen": "Vu",
+          "unknown": "???",
+          "shiny": "Chromatique",
+          "favorite": "Favori"
+        },
+        "search": {
+          "placeholder": "Nom ou numéro du Pokémon...",
+          "no_results": "Aucun résultat trouvé",
+          "filters_title": "Filtres de recherche",
+          "apply_filters": "Appliquer les filtres",
+          "clear_filters": "Effacer"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon vus",
+          "pokemon_caught": "Pokémon capturés",
+          "shiny_count": "Pokémon chromatiques",
+          "completion_rate": "Complétion"
+        },
+        "pagination": {
+          "previous": "‹ Précédent",
+          "next": "Suivant ›",
+          "page_info": "Page {current} sur {total}"
+        },
+        "details": {
+          "first_seen": "Première vue",
+          "first_caught": "Première capture",
+          "encounters": "Rencontres",
+          "description": "Description",
+          "evolution": "Évolution",
+          "add_favorite": "Ajouter aux favoris",
+          "remove_favorite": "Retirer des favoris"
+        },
+        "notifications": {
+          "new_discovery": "Nouveau Pokémon découvert !",
+          "new_capture": "Pokémon capturé !",
+          "milestone": "Objectif atteint : {percent}% !"
+        }
+      }
+    }
+  },
+  "es": {
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Pokédex Nacional",
+      "tooltip_status_active": "Descubrimiento en progreso",
+      "tooltip_status_none": "Ningún Pokémon descubierto",
+      "tooltip_status_new": "nuevo descubrimiento",
+      "tooltip_status_ready": "nuevas capturas disponibles",
+      "tooltip_action": "Clic para abrir",
+      "disabled_message": "Pokédex temporalmente deshabilitado",
+      "ui": {
+        "header": {
+          "title": "POKÉDEX",
+          "subtitle": "NACIONAL"
+        },
+        "tabs": {
+          "national": "Nacional",
+          "search": "Buscar",
+          "favorites": "Favoritos",
+          "stats": "Estadísticas"
+        },
+        "progress": {
+          "seen": "VISTOS",
+          "caught": "CAPTURADOS",
+          "completed": "COMPLETADO"
+        },
+        "actions": {
+          "sort": "Ordenar",
+          "filter": "Filtrar",
+          "sync": "Sincronizar",
+          "settings": "Configuración",
+          "help": "Ayuda"
+        },
+        "status": {
+          "caught": "Capturado",
+          "seen": "Visto",
+          "unknown": "???",
+          "shiny": "Variocolor",
+          "favorite": "Favorito"
+        },
+        "search": {
+          "placeholder": "Nombre o número del Pokémon...",
+          "no_results": "No se encontraron resultados",
+          "filters_title": "Filtros de búsqueda",
+          "apply_filters": "Aplicar filtros",
+          "clear_filters": "Limpiar"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon vistos",
+          "pokemon_caught": "Pokémon capturados",
+          "shiny_count": "Pokémon variocolor",
+          "completion_rate": "Finalización"
+        },
+        "pagination": {
+          "previous": "‹ Anterior",
+          "next": "Siguiente ›",
+          "page_info": "Página {current} de {total}"
+        },
+        "details": {
+          "first_seen": "Primera vista",
+          "first_caught": "Primera captura",
+          "encounters": "Encuentros",
+          "description": "Descripción",
+          "evolution": "Evolución",
+          "add_favorite": "Añadir a favoritos",
+          "remove_favorite": "Quitar de favoritos"
+        },
+        "notifications": {
+          "new_discovery": "¡Nuevo Pokémon descubierto!",
+          "new_capture": "¡Pokémon capturado!",
+          "milestone": "¡Hito alcanzado: {percent}%!"
+        }
+      }
+    }
+  },
+  "de": {
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Nationaler Pokédex",
+      "tooltip_status_active": "Entdeckung im Gange",
+      "tooltip_status_none": "Noch keine Pokémon entdeckt",
+      "tooltip_status_new": "neue Entdeckung",
+      "tooltip_status_ready": "neue Fänge verfügbar",
+      "tooltip_action": "Klicken zum Öffnen",
+      "disabled_message": "Pokédex vorübergehend deaktiviert",
+      "ui": {
+        "header": {
+          "title": "POKÉDEX",
+          "subtitle": "NATIONAL"
+        },
+        "tabs": {
+          "national": "National",
+          "search": "Suchen",
+          "favorites": "Favoriten",
+          "stats": "Statistiken"
+        },
+        "progress": {
+          "seen": "GESEHEN",
+          "caught": "GEFANGEN",
+          "completed": "VOLLENDET"
+        },
+        "actions": {
+          "sort": "Sortieren",
+          "filter": "Filtern",
+          "sync": "Synchronisieren",
+          "settings": "Einstellungen",
+          "help": "Hilfe"
+        },
+        "status": {
+          "caught": "Gefangen",
+          "seen": "Gesehen",
+          "unknown": "???",
+          "shiny": "Schillernd",
+          "favorite": "Favorit"
+        },
+        "search": {
+          "placeholder": "Pokémon Name oder Nummer...",
+          "no_results": "Keine Ergebnisse gefunden",
+          "filters_title": "Suchfilter",
+          "apply_filters": "Filter anwenden",
+          "clear_filters": "Löschen"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon gesehen",
+          "pokemon_caught": "Pokémon gefangen",
+          "shiny_count": "Schillernde Pokémon",
+          "completion_rate": "Vervollständigung"
+        },
+        "pagination": {
+          "previous": "‹ Vorherige",
+          "next": "Nächste ›",
+          "page_info": "Seite {current} von {total}"
+        },
+        "details": {
+          "first_seen": "Zuerst gesehen",
+          "first_caught": "Zuerst gefangen",
+          "encounters": "Begegnungen",
+          "description": "Beschreibung",
+          "evolution": "Entwicklung",
+          "add_favorite": "Zu Favoriten hinzufügen",
+          "remove_favorite": "Aus Favoriten entfernen"
+        },
+        "notifications": {
+          "new_discovery": "Neues Pokémon entdeckt!",
+          "new_capture": "Pokémon gefangen!",
+          "milestone": "Meilenstein erreicht: {percent}%!"
+        }
+      }
+    }
+  },
+  "it": {
+    "pokedx": {
+      "label": "Pokédex",
+      "tooltip_title": "Pokédex Nazionale",
+      "tooltip_status_active": "Scoperta in corso",
+      "tooltip_status_none": "Nessun Pokémon scoperto",
+      "tooltip_status_new": "nuova scoperta",
+      "tooltip_status_ready": "nuove catture disponibili",
+      "tooltip_action": "Clicca per aprire",
+      "disabled_message": "Pokédex temporaneamente disabilitato",
+      "ui": {
+        "header": {
+          "title": "POKÉDEX",
+          "subtitle": "NAZIONALE"
+        },
+        "tabs": {
+          "national": "Nazionale",
+          "search": "Cerca",
+          "favorites": "Preferiti",
+          "stats": "Statistiche"
+        },
+        "progress": {
+          "seen": "VISTI",
+          "caught": "CATTURATI",
+          "completed": "COMPLETATO"
+        },
+        "actions": {
+          "sort": "Ordina",
+          "filter": "Filtra",
+          "sync": "Sincronizza",
+          "settings": "Impostazioni",
+          "help": "Aiuto"
+        },
+        "status": {
+          "caught": "Catturato",
+          "seen": "Visto",
+          "unknown": "???",
+          "shiny": "Cromatico",
+          "favorite": "Preferito"
+        },
+        "search": {
+          "placeholder": "Nome o numero del Pokémon...",
+          "no_results": "Nessun risultato trovato",
+          "filters_title": "Filtri di ricerca",
+          "apply_filters": "Applica filtri",
+          "clear_filters": "Cancella"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon visti",
+          "pokemon_caught": "Pokémon catturati",
+          "shiny_count": "Pokémon cromatici",
+          "completion_rate": "Completamento"
+        },
+        "pagination": {
+          "previous": "‹ Precedente",
+          "next": "Successivo ›",
+          "page_info": "Pagina {current} di {total}"
+        },
+        "details": {
+          "first_seen": "Prima vista",
+          "first_caught": "Prima cattura",
+          "encounters": "Incontri",
+          "description": "Descrizione",
+          "evolution": "Evoluzione",
+          "add_favorite": "Aggiungi ai preferiti",
+          "remove_favorite": "Rimuovi dai preferiti"
+        },
+        "notifications": {
+          "new_discovery": "Nuovo Pokémon scoperto!",
+          "new_capture": "Pokémon catturato!",
+          "milestone": "Traguardo raggiunto: {percent}%!"
+        }
+      }
+    }
+  },
+  "pt": {
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Pokédx Nacional",
+      "tooltip_status_active": "Descoberta em andamento",
+      "tooltip_status_none": "Nenhum Pokémon descoberto",
+      "tooltip_status_new": "nova descoberta",
+      "tooltip_status_ready": "novas capturas disponíveis",
+      "tooltip_action": "Clique para abrir",
+      "disabled_message": "Pokédx temporariamente desabilitado",
+      "ui": {
+        "header": {
+          "title": "POKÉDX",
+          "subtitle": "NACIONAL"
+        },
+        "tabs": {
+          "national": "Nacional",
+          "search": "Buscar",
+          "favorites": "Favoritos",
+          "stats": "Estatísticas"
+        },
+        "progress": {
+          "seen": "VISTOS",
+          "caught": "CAPTURADOS",
+          "completed": "COMPLETO"
+        },
+        "actions": {
+          "sort": "Ordenar",
+          "filter": "Filtrar",
+          "sync": "Sincronizar",
+          "settings": "Configurações",
+          "help": "Ajuda"
+        },
+        "status": {
+          "caught": "Capturado",
+          "seen": "Visto",
+          "unknown": "???",
+          "shiny": "Brilhante",
+          "favorite": "Favorito"
+        },
+        "search": {
+          "placeholder": "Nome ou número do Pokémon...",
+          "no_results": "Nenhum resultado encontrado",
+          "filters_title": "Filtros de busca",
+          "apply_filters": "Aplicar filtros",
+          "clear_filters": "Limpar"
+        },
+        "stats": {
+          "pokemon_seen": "Pokémon vistos",
+          "pokemon_caught": "Pokémon capturados",
+          "shiny_count": "Pokémon brilhantes",
+          "completion_rate": "Conclusão"
+        },
+        "pagination": {
+          "previous": "‹ Anterior",
+          "next": "Próximo ›",
+          "page_info": "Página {current} de {total}"
+        },
+        "details": {
+          "first_seen": "Primeira vez visto",
+          "first_caught": "Primeira captura",
+          "encounters": "Encontros",
+          "description": "Descrição",
+          "evolution": "Evolução",
+          "add_favorite": "Adicionar aos favoritos",
+          "remove_favorite": "Remover dos favoritos"
+        },
+        "notifications": {
+          "new_discovery": "Novo Pokémon descoberto!",
+          "new_capture": "Pokémon capturado!",
+          "milestone": "Meta alcançada: {percent}%!"
+        }
+      }
+    }
+  },
+  "ja": {
+    "pokedex": {
+      "label": "ポケモン図鑑",
+      "tooltip_title": "全国ポケモン図鑑",
+      "tooltip_status_active": "発見進行中",
+      "tooltip_status_none": "まだポケモンが発見されていません",
+      "tooltip_status_new": "新しい発見",
+      "tooltip_status_ready": "新しい捕獲が利用可能",
+      "tooltip_action": "クリックで開く",
+      "disabled_message": "ポケモン図鑑が一時的に無効になっています",
+      "ui": {
+        "header": {
+          "title": "ポケモン図鑑",
+          "subtitle": "全国版"
+        },
+        "tabs": {
+          "national": "全国",
+          "search": "検索",
+          "favorites": "お気に入り",
+          "stats": "統計"
+        },
+        "progress": {
+          "seen": "見つけた数",
+          "caught": "捕まえた数",
+          "completed": "完成度"
+        },
+        "actions": {
+          "sort": "並び替え",
+          "filter": "フィルター",
+          "sync": "同期",
+          "settings": "設定",
+          "help": "ヘルプ"
+        },
+        "status": {
+          "caught": "捕獲済み",
+          "seen": "発見済み",
+          "unknown": "???",
+          "shiny": "色違い",
+          "favorite": "お気に入り"
+        },
+        "search": {
+          "placeholder": "ポケモンの名前または番号...",
+          "no_results": "結果が見つかりません",
+          "filters_title": "検索フィルター",
+          "apply_filters": "フィルターを適用",
+          "clear_filters": "クリア"
+        },
+        "stats": {
+          "pokemon_seen": "見つけたポケモン",
+          "pokemon_caught": "捕まえたポケモン",
+          "shiny_count": "色違いポケモン",
+          "completion_rate": "完成率"
+        },
+        "pagination": {
+          "previous": "‹ 前へ",
+          "next": "次へ ›",
+          "page_info": "ページ {current} / {total}"
+        },
+        "details": {
+          "first_seen": "初回発見",
+          "first_caught": "初回捕獲",
+          "encounters": "遭遇回数",
+          "description": "説明",
+          "evolution": "進化",
+          "add_favorite": "お気に入りに追加",
+          "remove_favorite": "お気に入りから削除"
+        },
+        "notifications": {
+          "new_discovery": "新しいポケモンを発見しました！",
+          "new_capture": "ポケモンを捕まえました！",
+          "milestone": "マイルストーン達成：{percent}%！"
+        }
+      }
+    }
+  },
+  "ko": {
+    "pokedex": {
+      "label": "포켓몬 도감",
+      "tooltip_title": "전국 포켓몬 도감",
+      "tooltip_status_active": "발견 진행 중",
+      "tooltip_status_none": "아직 포켓몬을 발견하지 못했습니다",
+      "tooltip_status_new": "새로운 발견",
+      "tooltip_status_ready": "새로운 포획 가능",
+      "tooltip_action": "클릭하여 열기",
+      "disabled_message": "포켓몬 도감이 일시적으로 비활성화됨",
+      "ui": {
+        "header": {
+          "title": "포켓몬 도감",
+          "subtitle": "전국판"
+        },
+        "tabs": {
+          "national": "전국",
+          "search": "검색",
+          "favorites": "즐겨찾기",
+          "stats": "통계"
+        },
+        "progress": {
+          "seen": "발견한 수",
+          "caught": "잡은 수",
+          "completed": "완성도"
+        },
+        "actions": {
+          "sort": "정렬",
+          "filter": "필터",
+          "sync": "동기화",
+          "settings": "설정",
+          "help": "도움말"
+        },
+        "status": {
+          "caught": "포획됨",
+          "seen": "발견됨",
+          "unknown": "???",
+          "shiny": "이색",
+          "favorite": "즐겨찾기"
+        },
+        "search": {
+          "placeholder": "포켓몬 이름 또는 번호...",
+          "no_results": "결과를 찾을 수 없습니다",
+          "filters_title": "검색 필터",
+          "apply_filters": "필터 적용",
+          "clear_filters": "지우기"
+        },
+        "stats": {
+          "pokemon_seen": "본 포켓몬",
+          "pokemon_caught": "잡은 포켓몬",
+          "shiny_count": "이색 포켓몬",
+          "completion_rate": "완성률"
+        },
+        "pagination": {
+          "previous": "‹ 이전",
+          "next": "다음 ›",
+          "page_info": "페이지 {current} / {total}"
+        },
+        "details": {
+          "first_seen": "처음 발견",
+          "first_caught": "처음 포획",
+          "encounters": "만난 횟수",
+          "description": "설명",
+          "evolution": "진화",
+          "add_favorite": "즐겨찾기에 추가",
+          "remove_favorite": "즐겨찾기에서 제거"
+        },
+        "notifications": {
+          "new_discovery": "새로운 포켓몬을 발견했습니다!",
+          "new_capture": "포켓몬을 잡았습니다!",
+          "milestone": "목표 달성: {percent}%!"
+        }
+      }
+    }
+  }
+}
