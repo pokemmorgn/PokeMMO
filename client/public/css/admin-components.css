@@ -6399,3 +6399,21 @@ details[open] summary {
     }
 }
 
+.dialogue-json-editor {
+    font-family: 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    border: 2px solid #ddd !important;
+    border-radius: 6px !important;
+    padding: 15px !important;
+    background: #f8f9fa !important;
+    color: #2c3e50 !important;
+    transition: all 0.3s ease !important;
+}
+
+.dialogue-json-editor:focus {
+    outline: none !important;
+    border-color: #3498db !important;
+    background: white !important;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1) !important;
+}
