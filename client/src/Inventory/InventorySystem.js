@@ -1,29 +1,34 @@
-// client/src/game/InventorySystem.js - VERSION NETTOYÉE
+// client/src/game/InventorySystem.js - VERSION AVEC SUPPORT OPTIONSMANAGER
 // 🎯 RESPONSABILITÉ: Logique métier inventaire SEULEMENT
-// 🔗 DÉLÉGATION: Aucune vérification d'autorisation (BaseModule s'en charge)
+// 🌐 MODIFICATION: Passe optionsManager à InventoryUI pour traductions temps réel
 
 import { InventoryUI } from './InventoryUI.js';
 import { InventoryIcon } from './InventoryIcon.js';
 
 export class InventorySystem {
-  constructor(scene, gameRoom) {
+  constructor(scene, gameRoom, optionsManager = null) {
     this.scene = scene;
     this.gameRoom = gameRoom;
+    this.optionsManager = optionsManager;  // 🌐 NOUVEAU
     this.inventoryUI = null;
     this.inventoryIcon = null;
     
     // ✅ Référence au NotificationManager
     this.notificationManager = window.NotificationManager;
     
+    console.log('🎒 [InventorySystem] Instance créée avec optionsManager:', !!optionsManager);
+    
     this.init();
   }
 
   init() {
-    // Créer l'interface d'inventaire
-    this.inventoryUI = new InventoryUI(this.gameRoom);
+    console.log('🚀 [InventorySystem] Initialisation avec support traductions...');
     
-    // Créer l'icône d'inventaire
-    this.inventoryIcon = new InventoryIcon(this.inventoryUI);
+    // 🌐 Créer l'interface d'inventaire avec optionsManager
+    this.inventoryUI = new InventoryUI(this.gameRoom, this.optionsManager);
+    
+    // 🌐 Créer l'icône d'inventaire avec optionsManager
+    this.inventoryIcon = new InventoryIcon(this.inventoryUI, this.optionsManager);
     
     // Configurer les interactions entre les composants
     this.setupInteractions();
@@ -31,7 +36,7 @@ export class InventorySystem {
     // Rendre le système accessible globalement
     window.inventorySystem = this;
     
-    console.log("🎒 Système d'inventaire initialisé avec NotificationManager");
+    console.log("✅ [InventorySystem] Système d'inventaire initialisé avec traductions temps réel");
   }
 
   setupInteractions() {
@@ -90,9 +95,24 @@ export class InventorySystem {
     });
   }
 
-  // ✅ Notifications d'inventaire intelligentes
+  // === 🌐 NOTIFICATIONS AVEC NOMS TRADUITS ===
+
+  /**
+   * Obtenir le nom traduit d'un objet
+   */
+  getTranslatedItemName(itemId) {
+    // Utiliser le système de traduction d'InventoryUI si disponible
+    if (this.inventoryUI && typeof this.inventoryUI.getItemName === 'function') {
+      return this.inventoryUI.getItemName(itemId);
+    }
+    
+    // Fallback: formatage simple
+    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  // ✅ Notifications d'inventaire intelligentes avec traductions
   showInventoryNotification(data) {
-    const itemName = this.inventoryUI.getItemName(data.itemId);
+    const itemName = this.getTranslatedItemName(data.itemId);  // 🌐 NOM TRADUIT
     const isAdd = data.type === "add";
     const isRemove = data.type === "remove";
     
@@ -140,9 +160,9 @@ export class InventorySystem {
     }
   }
 
-  // ✅ Notification de ramassage
+  // ✅ Notification de ramassage avec nom traduit
   showPickupNotification(data) {
-    const itemName = this.inventoryUI.getItemName(data.itemId);
+    const itemName = this.getTranslatedItemName(data.itemId);  // 🌐 NOM TRADUIT
     
     this.notificationManager.itemNotification(
       itemName,
@@ -194,7 +214,7 @@ export class InventorySystem {
 
   // ✅ Notification d'objet important obtenu
   onImportantItemObtained(itemId) {
-    const itemName = this.inventoryUI.getItemName(itemId);
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
     
     // ✅ Utiliser le système d'achievement
     this.notificationManager.achievement(
@@ -215,8 +235,13 @@ export class InventorySystem {
   // === NOTIFICATIONS POUR DIFFÉRENTS TYPES D'OBJETS ===
 
   notifyItemCombined(item1, item2, result) {
+    // 🌐 Traduire noms si possible
+    const item1Name = this.getTranslatedItemName(item1);
+    const item2Name = this.getTranslatedItemName(item2);
+    const resultName = this.getTranslatedItemName(result);
+    
     this.notificationManager.success(
-      `${item1} + ${item2} = ${result}`,
+      `${item1Name} + ${item2Name} = ${resultName}`,
       {
         duration: 4000,
         type: 'inventory'
@@ -224,7 +249,9 @@ export class InventorySystem {
     );
   }
 
-  notifyItemExpired(itemName) {
+  notifyItemExpired(itemId) {
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
+    
     this.notificationManager.warning(
       `${itemName} a expiré`,
       {
@@ -234,7 +261,9 @@ export class InventorySystem {
     );
   }
 
-  notifyLowItemCount(itemName, count) {
+  notifyLowItemCount(itemId, count) {
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
+    
     this.notificationManager.warning(
       `Stock faible: ${itemName} (${count} restant)`,
       {
@@ -244,7 +273,9 @@ export class InventorySystem {
     );
   }
 
-  notifyAutoUse(itemName, effect) {
+  notifyAutoUse(itemId, effect) {
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
+    
     this.notificationManager.info(
       `${itemName} utilisé automatiquement: ${effect}`,
       {
@@ -315,7 +346,9 @@ export class InventorySystem {
 
   // === NOTIFICATIONS OBJETS DE SOIN ===
 
-  notifyHealingItemUsed(itemName, pokemonName, effect) {
+  notifyHealingItemUsed(itemId, pokemonName, effect) {
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
+    
     this.notificationManager.success(
       `${pokemonName} soigné avec ${itemName}: ${effect}`,
       {
@@ -325,7 +358,9 @@ export class InventorySystem {
     );
   }
 
-  notifyStatusCured(pokemonName, status, itemName) {
+  notifyStatusCured(pokemonName, status, itemId) {
+    const itemName = this.getTranslatedItemName(itemId);  // 🌐 NOM TRADUIT
+    
     this.notificationManager.success(
       `${pokemonName}: ${status} guéri avec ${itemName}`,
       {
@@ -338,8 +373,6 @@ export class InventorySystem {
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // ✅ SUPPRIMÉ canPlayerInteract() - BaseModule s'en charge
-
       switch (e.key.toLowerCase()) {
         case 'i':
           e.preventDefault();
@@ -447,8 +480,6 @@ export class InventorySystem {
     }
   }
 
-  // ✅ SUPPRIMÉ canPlayerInteract() et canOpenMenus() - BaseModule s'en charge
-
   onItemPickup(itemId, quantity = 1) {
     this.showPickupNotification({ itemId, quantity });
     
@@ -466,9 +497,9 @@ export class InventorySystem {
   useItemAutomatically(itemId) {
     this.useItem(itemId, "field");
     
-    // ✅ Notification d'utilisation automatique
-    const itemName = this.inventoryUI.getItemName(itemId);
-    this.notifyAutoUse(itemName, "Utilisé automatiquement");
+    // ✅ Notification d'utilisation automatique avec nom traduit
+    const itemName = this.getTranslatedItemName(itemId);
+    this.notifyAutoUse(itemId, "Utilisé automatiquement");
     
     console.log(`🎒 Utilisation automatique: ${itemId}`);
   }
@@ -552,9 +583,10 @@ export class InventorySystem {
       if (healAmount >= missingHp) {
         this.useItem(item.itemId, "field");
         
-        // ✅ Notification d'auto-heal
+        // ✅ Notification d'auto-heal avec nom traduit
+        const itemName = this.getTranslatedItemName(item.itemId);
         this.notifyAutoUse(
-          this.inventoryUI.getItemName(item.itemId),
+          item.itemId,
           `${healAmount === pokemonMaxHp ? 'Soin complet' : healAmount + ' PV'}`
         );
         
@@ -566,10 +598,8 @@ export class InventorySystem {
     if (sortedItems.length > 0) {
       this.useItem(sortedItems[0].itemId, "field");
       
-      this.notifyAutoUse(
-        this.inventoryUI.getItemName(sortedItems[0].itemId),
-        "Meilleur soin disponible"
-      );
+      const itemName = this.getTranslatedItemName(sortedItems[0].itemId);
+      this.notifyAutoUse(sortedItems[0].itemId, "Meilleur soin disponible");
       
       return sortedItems[0].itemId;
     }
@@ -597,20 +627,53 @@ export class InventorySystem {
     if (this.hasKeyItem(keyItemId)) {
       this.useItem(keyItemId, "field");
       
-      // ✅ Notification d'utilisation d'objet clé
+      // ✅ Notification d'utilisation d'objet clé avec nom traduit
+      const itemName = this.getTranslatedItemName(keyItemId);
       this.notificationManager.info(
-        `Objet clé utilisé: ${this.inventoryUI.getItemName(keyItemId)}`,
+        `Objet clé utilisé: ${itemName}`,
         { duration: 4000 }
       );
       
       return true;
     } else {
+      const itemName = this.getTranslatedItemName(keyItemId);
       this.notificationManager.error(
-        `Objet clé manquant: ${this.inventoryUI.getItemName(keyItemId)}`,
+        `Objet clé manquant: ${itemName}`,
         { duration: 4000 }
       );
       return false;
     }
+  }
+
+  // === 🌐 MÉTHODE POUR INJECTER OPTIONSMANAGER APRÈS CRÉATION ===
+
+  /**
+   * Injecter optionsManager après création (pour compatibilité)
+   */
+  setOptionsManager(optionsManager) {
+    console.log('🌐 [InventorySystem] Injection optionsManager...');
+    
+    this.optionsManager = optionsManager;
+    
+    // Mettre à jour InventoryUI
+    if (this.inventoryUI) {
+      this.inventoryUI.optionsManager = optionsManager;
+      if (typeof this.inventoryUI.setupLanguageSupport === 'function') {
+        this.inventoryUI.setupLanguageSupport();
+        console.log('🔄 [InventorySystem] InventoryUI mis à jour avec optionsManager');
+      }
+    }
+    
+    // Mettre à jour InventoryIcon
+    if (this.inventoryIcon) {
+      this.inventoryIcon.optionsManager = optionsManager;
+      if (typeof this.inventoryIcon.setupLanguageSupport === 'function') {
+        this.inventoryIcon.setupLanguageSupport();
+        console.log('🔄 [InventorySystem] InventoryIcon mis à jour avec optionsManager');
+      }
+    }
+    
+    console.log('✅ [InventorySystem] OptionsManager injecté dans tous les composants');
   }
 
   // === NETTOYAGE ===
@@ -631,27 +694,8 @@ export class InventorySystem {
     this.gameRoom = null;
     this.scene = null;
     this.notificationManager = null;
+    this.optionsManager = null;  // 🌐 NOUVEAU
     
-    console.log('✅ [InventorySystem] Détruit');
+    console.log('✅ [InventorySystem] Détruit avec nettoyage optionsManager');
   }
 }
-
-console.log(`
-🎒 === INVENTORY SYSTEM NETTOYÉ ===
-
-✅ RESPONSABILITÉ CLAIRE:
-• Logique métier inventaire uniquement
-• Gestion des notifications
-• Intégration serveur et systèmes
-
-❌ SUPPRIMÉ:
-• canPlayerInteract() redondant
-• canOpenMenus() redondant
-• Toutes vérifications d'autorisation
-
-🎯 FOCALISÉ SUR:
-• useItem(), hasItem(), getItemCount()
-• Notifications intelligentes
-• Auto-heal, Poké Balls, objets clés
-• Intégration quêtes et chat
-`);
