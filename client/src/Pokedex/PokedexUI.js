@@ -1569,7 +1569,7 @@ setupServerListeners() {
                   id="toggle-favorite" 
                   title="${entry.favorited ? 
                     this.getTranslation('pokedex.ui.details.remove_favorite', 'Retirer des favoris') : 
-                    this.getTranslation('pokedx.ui.details.add_favorite', 'Ajouter aux favoris')}">
+                    this.getTranslation('pokedex.ui.details.add_favorite', 'Ajouter aux favoris')}">
             ${entry.favorited ? '⭐' : '☆'}
           </button>
         </div>
@@ -1577,7 +1577,7 @@ setupServerListeners() {
       
       <div class="pokemon-stats-summary">
         <div class="stat-item">
-          <span class="stat-label">${this.getTranslation('pokedx.ui.details.first_seen', 'Première vue')}</span>
+          <span class="stat-label">${this.getTranslation('pokedex.ui.details.first_seen', 'Première vue')}</span>
           <span class="stat-value">${entry.firstSeen ? new Date(entry.firstSeen).toLocaleDateString() : '--'}</span>
         </div>
         <div class="stat-item">
@@ -1585,7 +1585,7 @@ setupServerListeners() {
           <span class="stat-value">${entry.firstCaught ? new Date(entry.firstCaught).toLocaleDateString() : '--'}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">${this.getTranslation('pokedx.ui.details.encounters', 'Rencontres')}</span>
+          <span class="stat-label">${this.getTranslation('pokedex.ui.details.encounters', 'Rencontres')}</span>
           <span class="stat-value">${entry.timesEncountered || 0}</span>
         </div>
       </div>
@@ -1698,8 +1698,8 @@ setupServerListeners() {
       favoritesGrid.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">⭐</div>
-          <p>${this.getTranslation('pokedx.ui.favorites.no_favorites', 'Aucun Pokémon favori')}</p>
-          <p class="empty-subtitle">${this.getTranslation('pokedx.ui.favorites.add_hint', 'Cliquez sur l\'étoile des Pokémon pour les marquer comme favoris')}</p>
+          <p>${this.getTranslation('pokedex.ui.favorites.no_favorites', 'Aucun Pokémon favori')}</p>
+          <p class="empty-subtitle">${this.getTranslation('pokedex.ui.favorites.add_hint', 'Cliquez sur l\'étoile des Pokémon pour les marquer comme favoris')}</p>
         </div>
       `;
       return;
@@ -1789,14 +1789,14 @@ setupServerListeners() {
     
     if (prevBtn) {
       prevBtn.disabled = this.currentPage === 0;
-      prevBtn.textContent = this.getTranslation('pokedx.ui.pagination.previous', '‹ Précédent');
+      prevBtn.textContent = this.getTranslation('pokedex.ui.pagination.previous', '‹ Précédent');
     }
     
     if (nextBtn) {
       const totalEntries = this.dataManager ? this.dataManager.getAllPokemonEntries().length : 151;
       const totalPages = Math.ceil(totalEntries / this.itemsPerPage);
       nextBtn.disabled = this.currentPage >= totalPages - 1;
-      nextBtn.textContent = this.getTranslation('pokedx.ui.pagination.next', 'Suivant ›');
+      nextBtn.textContent = this.getTranslation('pokedex.ui.pagination.next', 'Suivant ›');
     }
   }
 
@@ -1878,7 +1878,7 @@ setupServerListeners() {
   }
 
   showUnknownPokemonMessage() {
-    const message = this.getTranslation('pokedx.ui.messages.unknown_pokemon', 'Ce Pokémon n\'a pas encore été découvert');
+    const message = this.getTranslation('pokedex.ui.messages.unknown_pokemon', 'Ce Pokémon n\'a pas encore été découvert');
     console.log('❓ [PokedexUI] Pokémon inconnu sélectionné');
     
     if (typeof window.showGameNotification === 'function') {
