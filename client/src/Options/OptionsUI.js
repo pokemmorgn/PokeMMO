@@ -1,11 +1,14 @@
-// Options/OptionsUI.js - Interface Options complète
-// 🎯 MÊME ARCHITECTURE que QuestUI/TeamUI
+// Options/OptionsUI.js - Interface Options complète avec traductions temps réel
+// 🌐 NOUVEAU : Traductions intégrées avec pattern PokedexUI
 // ⚙️ Interface complète: Volume + Langue + Réglages
 
+import { t } from '../managers/LocalizationManager.js';
+
 export class OptionsUI {
-  constructor(optionsManager, gameRoom) {
+  constructor(optionsManager, gameRoom, externalOptionsManager = null) {
     this.optionsManager = optionsManager;
     this.gameRoom = gameRoom;
+    this.externalOptionsManager = externalOptionsManager; // ✅ NOUVEAU : Pour traductions
     
     // === ÉTAT IDENTIQUE ===
     this.isVisible = false;
@@ -25,28 +28,234 @@ export class OptionsUI {
     this.escapeListenerAdded = false;
     this.volumeSliderListenerAdded = false;
     
-    console.log('⚙️ [OptionsUI] Instance créée - Version alignée sur les autres');
+    // 🌐 NOUVEAU : Support traductions
+    this.languageCleanup = null;
+    this.internalLanguageCleanup = null;
+    this.globalLanguageHandler = null;
+    this.translationsReady = false;
+    this.initialized = false; // Track init status
+    
+    console.log('⚙️ [OptionsUI] Instance créée avec traductions - Version alignée sur les autres');
   }
   
-  // === 🚀 INITIALISATION ===
+  // === 🚀 INITIALISATION AVEC TRADUCTIONS ===
   
   async init() {
     try {
-      console.log('🚀 [OptionsUI] Initialisation...');
+      console.log('🚀 [OptionsUI] Initialisation avec traductions...');
       
       this.loadRobustCSS();
       this.createInterface();
       this.setupEventListeners();
       
+      // 🌐 NOUVEAU : Setup traductions après création interface
+      this.setupLanguageSupport();
+      
       // ✅ S'assurer que l'interface est fermée par défaut
       this.isVisible = false;
+      this.initialized = true;
       
-      console.log('✅ [OptionsUI] Interface prête - Fermée par défaut');
+      console.log('✅ [OptionsUI] Interface prête avec traductions - Fermée par défaut');
       return this;
       
     } catch (error) {
       console.error('❌ [OptionsUI] Erreur init:', error);
       throw error;
+    }
+  }
+  
+  // 🌐 NOUVEAU : SETUP TRADUCTIONS (Pattern PokedexUI exact)
+  
+  setupLanguageSupport() {
+    if (!this.overlayElement) {
+      console.log('⏳ [OptionsUI] Setup traductions différé (pas d\'overlay)');
+      return;
+    }
+    
+    if (!this.checkTranslationsReady()) {
+      console.log('⏳ [OptionsUI] Traductions pas prêtes - Setup avec retry...');
+      
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const setupRetry = () => {
+        attempts++;
+        
+        if (this.checkTranslationsReady()) {
+          console.log(`✅ [OptionsUI] Traductions prêtes après ${attempts} tentatives`);
+          this.setupLanguageListeners();
+          this.updateLanguage();
+          return;
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(setupRetry, 500);
+        } else {
+          console.warn('⚠️ [OptionsUI] Timeout traductions - Mode fallback');
+          this.setupLanguageListeners();
+        }
+      };
+      
+      setTimeout(setupRetry, 100);
+      return;
+    }
+    
+    console.log('✅ [OptionsUI] Traductions disponibles - Setup immédiat');
+    this.setupLanguageListeners();
+    this.updateLanguage();
+  }
+  
+  checkTranslationsReady() {
+    try {
+      const testTranslation = t('options.ui.title');
+      
+      if (testTranslation && testTranslation !== 'options.ui.title') {
+        this.translationsReady = true;
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  setupLanguageListeners() {
+    console.log('🌐 [OptionsUI] Configuration listeners langue...');
+    
+    // ✅ Écouter les changements du manager externe (pour traductions cross-module)
+    if (this.externalOptionsManager && this.externalOptionsManager.addLanguageListener) {
+      try {
+        this.languageCleanup = this.externalOptionsManager.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [OptionsUI] Changement langue externe: ${oldLang} → ${newLang}`);
+          this.updateLanguage();
+        });
+        console.log('✅ [OptionsUI] Listener externe configuré');
+      } catch (error) {
+        console.warn('⚠️ [OptionsUI] Erreur listener externe:', error);
+      }
+    }
+    
+    // ✅ Écouter les changements du manager interne (pour Options → Options)
+    if (this.optionsManager && this.optionsManager.addLanguageListener) {
+      try {
+        this.internalLanguageCleanup = this.optionsManager.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [OptionsUI] Changement langue interne: ${oldLang} → ${newLang}`);
+          this.updateLanguage();
+        });
+        console.log('✅ [OptionsUI] Listener interne configuré');
+      } catch (error) {
+        console.warn('⚠️ [OptionsUI] Erreur listener interne:', error);
+      }
+    }
+    
+    // ✅ Écouter événements globaux (fallback)
+    this.globalLanguageHandler = (event) => {
+      console.log('🌐 [OptionsUI] Changement langue global:', event.detail);
+      this.updateLanguage();
+    };
+    
+    window.addEventListener('languageChanged', this.globalLanguageHandler);
+    window.addEventListener('localizationModulesUpdated', this.globalLanguageHandler);
+    
+    console.log('✅ [OptionsUI] Tous les listeners langue configurés');
+  }
+  
+  updateLanguage() {
+    if (!this.overlayElement || !this.initialized) {
+      console.log('⏳ [OptionsUI] Mise à jour langue différée (pas d\'overlay ou pas init)');
+      return;
+    }
+    
+    try {
+      console.log('🌐 [OptionsUI] Mise à jour langue interface...');
+      
+      // 1. Header
+      this.updateElement('.options-title-text h2', this.safeTranslate('options.ui.title', 'Options & Settings'));
+      this.updateElement('.options-subtitle', this.safeTranslate('options.ui.subtitle', 'Game configuration and preferences'));
+      
+      // 2. Sections
+      this.updateElement('.volume .section-title', this.safeTranslate('options.ui.volume.section_title', 'Audio & Volume'));
+      this.updateElement('.language .section-title', this.safeTranslate('options.ui.language.section_title', 'Language & Localization'));
+      
+      // 3. Volume controls
+      this.updateElement('.volume-info span:first-child', this.safeTranslate('options.ui.volume.volume_min', '0%'));
+      this.updateElement('.volume-info span:last-child', this.safeTranslate('options.ui.volume.volume_max', '100%'));
+      
+      // 4. Mute button (dynamique selon état)
+      this.updateMuteButton();
+      
+      // 5. Language section
+      this.updateElement('#current-mode', this.getCurrentLanguageMode());
+      
+      // 6. Actions
+      this.updateElement('#reset-btn span:last-child', this.safeTranslate('options.ui.actions.reset', 'Reset'));
+      this.updateElement('#save-btn span:last-child', this.safeTranslate('options.ui.actions.save', 'Save'));
+      this.updateElement('#changes-indicator', this.safeTranslate('options.ui.actions.unsaved_changes', '⚠️ Unsaved changes'));
+      
+      // 7. Language options (regénérer)
+      this.updateLanguageOptions();
+      
+      console.log('✅ [OptionsUI] Langue interface mise à jour');
+      
+    } catch (error) {
+      console.warn('⚠️ [OptionsUI] Erreur mise à jour langue:', error);
+    }
+  }
+  
+  updateElement(selector, text) {
+    if (!this.overlayElement || !text) return;
+    
+    const element = this.overlayElement.querySelector(selector);
+    if (element) {
+      element.textContent = text;
+    }
+  }
+  
+  updateMuteButton() {
+    const muteBtn = this.overlayElement?.querySelector('#mute-btn');
+    if (!muteBtn) return;
+    
+    const isMuted = muteBtn.classList.contains('muted');
+    const muteIcon = muteBtn.querySelector('.mute-icon');
+    const muteText = muteBtn.querySelector('.mute-text');
+    
+    if (isMuted) {
+      if (muteIcon) muteIcon.textContent = '🔊';
+      if (muteText) muteText.textContent = this.safeTranslate('options.ui.volume.unmute_button_text', 'Enable sound');
+    } else {
+      if (muteIcon) muteIcon.textContent = '🔇';
+      if (muteText) muteText.textContent = this.safeTranslate('options.ui.volume.mute_button_text', 'Mute sound');
+    }
+  }
+  
+  getCurrentLanguageMode() {
+    const currentOptions = this.currentOptions || {};
+    const isAuto = currentOptions.language === 'auto';
+    const languageInfo = currentOptions.languageInfo || {};
+    
+    if (isAuto) {
+      return this.safeTranslate('options.ui.language.auto_detection_with_lang', 'Auto detection ({language})')
+        .replace('{language}', languageInfo.name || 'Unknown');
+    } else {
+      return this.safeTranslate('options.ui.language.manual_selection', 'Manual selection');
+    }
+  }
+  
+  safeTranslate(key, fallback) {
+    try {
+      const translation = t(key);
+      
+      if (translation && translation !== key) {
+        return translation;
+      }
+      
+      console.warn(`⚠️ [OptionsUI] Traduction manquante: ${key}`);
+      return fallback;
+      
+    } catch (error) {
+      console.warn(`⚠️ [OptionsUI] Erreur traduction ${key}:`, error);
+      return fallback;
     }
   }
   
@@ -583,7 +792,7 @@ export class OptionsUI {
     console.log('🎨 [OptionsUI] CSS robuste chargé');
   }
   
-  // === 🏗️ CRÉATION INTERFACE ===
+  // === 🏗️ CRÉATION INTERFACE AVEC TRADUCTIONS ===
   
   createInterface() {
     // Supprimer l'ancienne interface
@@ -594,6 +803,7 @@ export class OptionsUI {
     overlay.id = 'options-overlay';
     overlay.className = 'options-overlay hidden';
     
+    // 🌐 NOUVEAU : HTML avec traductions par défaut (fallbacks)
     overlay.innerHTML = `
       <div class="options-container">
         <!-- Header -->
@@ -601,20 +811,20 @@ export class OptionsUI {
           <div class="options-title">
             <div class="options-icon">⚙️</div>
             <div class="options-title-text">
-              <h2>Options & Paramètres</h2>
-              <p class="options-subtitle">Configuration du jeu et préférences</p>
+              <h2>${this.safeTranslate('options.ui.title', 'Options & Settings')}</h2>
+              <p class="options-subtitle">${this.safeTranslate('options.ui.subtitle', 'Game configuration and preferences')}</p>
             </div>
           </div>
-          <button class="options-close-btn">✕</button>
+          <button class="options-close-btn">${this.safeTranslate('options.ui.close', '✕')}</button>
         </div>
         
         <!-- Contenu -->
         <div class="options-content">
           <!-- Section Volume -->
-          <div class="options-section">
+          <div class="options-section volume">
             <div class="section-header">
-              <span class="section-icon">🔊</span>
-              <h3 class="section-title">Audio & Volume</h3>
+              <span class="section-icon">${this.safeTranslate('options.ui.volume.section_icon', '🔊')}</span>
+              <h3 class="section-title">${this.safeTranslate('options.ui.volume.section_title', 'Audio & Volume')}</h3>
             </div>
             
             <div class="volume-controls">
@@ -624,9 +834,9 @@ export class OptionsUI {
                   <input type="range" class="volume-slider" id="volume-slider" 
                          min="0" max="100" value="50" step="1">
                   <div class="volume-info">
-                    <span>0%</span>
+                    <span>${this.safeTranslate('options.ui.volume.volume_min', '0%')}</span>
                     <span class="volume-value" id="volume-value">50%</span>
-                    <span>100%</span>
+                    <span>${this.safeTranslate('options.ui.volume.volume_max', '100%')}</span>
                   </div>
                 </div>
               </div>
@@ -634,17 +844,17 @@ export class OptionsUI {
               <div class="volume-actions">
                 <button class="mute-btn" id="mute-btn">
                   <span class="mute-icon">🔇</span>
-                  <span class="mute-text">Couper le son</span>
+                  <span class="mute-text">${this.safeTranslate('options.ui.volume.mute_button_text', 'Mute sound')}</span>
                 </button>
               </div>
             </div>
           </div>
           
           <!-- Section Langue -->
-          <div class="options-section">
+          <div class="options-section language">
             <div class="section-header">
-              <span class="section-icon">🌐</span>
-              <h3 class="section-title">Langue & Localisation</h3>
+              <span class="section-icon">${this.safeTranslate('options.ui.language.section_icon', '🌐')}</span>
+              <h3 class="section-title">${this.safeTranslate('options.ui.language.section_title', 'Language & Localization')}</h3>
             </div>
             
             <div class="language-controls">
@@ -652,7 +862,7 @@ export class OptionsUI {
                 <div class="current-language-flag" id="current-flag">🇺🇸</div>
                 <div class="current-language-info">
                   <h4 class="current-language-name" id="current-name">English</h4>
-                  <p class="current-language-mode" id="current-mode">Détection automatique</p>
+                  <p class="current-language-mode" id="current-mode">${this.safeTranslate('options.ui.language.auto_detection', 'Auto detection')}</p>
                 </div>
               </div>
               
@@ -670,17 +880,17 @@ export class OptionsUI {
           <div class="actions-left">
             <button class="options-btn reset" id="reset-btn">
               <span>🔄</span>
-              <span>Réinitialiser</span>
+              <span>${this.safeTranslate('options.ui.actions.reset', 'Reset')}</span>
             </button>
             <div class="changes-indicator" id="changes-indicator">
-              ⚠️ Modifications non sauvegardées
+              ${this.safeTranslate('options.ui.actions.unsaved_changes', '⚠️ Unsaved changes')}
             </div>
           </div>
           
           <div class="actions-right">
             <button class="options-btn save" id="save-btn" disabled>
               <span>💾</span>
-              <span>Sauvegarder</span>
+              <span>${this.safeTranslate('options.ui.actions.save', 'Save')}</span>
             </button>
           </div>
         </div>
@@ -690,7 +900,7 @@ export class OptionsUI {
     document.body.appendChild(overlay);
     this.overlayElement = overlay;
     
-    console.log('🎨 [OptionsUI] Interface créée');
+    console.log('🎨 [OptionsUI] Interface créée avec traductions');
   }
   
   // === 🎛️ ÉVÉNEMENTS ROBUSTES ===
@@ -788,9 +998,14 @@ export class OptionsUI {
     if (this.overlayElement) {
       this.overlayElement.className = 'options-overlay';
       this.requestOptionsData();
+      
+      // 🌐 NOUVEAU : Mettre à jour traductions à l'ouverture
+      if (this.translationsReady) {
+        this.updateLanguage();
+      }
     }
     
-    console.log('✅ [OptionsUI] Interface affichée');
+    console.log('✅ [OptionsUI] Interface affichée avec traductions');
     return true;
   }
   
@@ -833,7 +1048,7 @@ export class OptionsUI {
     return true;
   }
   
-  // === 📊 GESTION DONNÉES ===
+  // === 📊 GESTION DONNÉES AVEC TRADUCTIONS ===
   
   updateOptionsData(options) {
     console.log('📊 [OptionsUI] Mise à jour données options:', options);
@@ -845,7 +1060,12 @@ export class OptionsUI {
     this.updateLanguageDisplay(options);
     this.updateLanguageOptions();
     
-    console.log('✅ [OptionsUI] Données mises à jour');
+    // 🌐 NOUVEAU : Mettre à jour traductions si interface visible
+    if (this.isVisible && this.translationsReady) {
+      this.updateLanguage();
+    }
+    
+    console.log('✅ [OptionsUI] Données mises à jour avec traductions');
   }
   
   updateVolumeDisplay(volume = 50, isMuted = false) {
@@ -881,11 +1101,11 @@ export class OptionsUI {
       if (isMuted) {
         muteBtn.classList.add('muted');
         if (muteIcon) muteIcon.textContent = '🔊';
-        if (muteText) muteText.textContent = 'Activer le son';
+        if (muteText) muteText.textContent = this.safeTranslate('options.ui.volume.unmute_button_text', 'Enable sound');
       } else {
         muteBtn.classList.remove('muted');
         if (muteIcon) muteIcon.textContent = '🔇';
-        if (muteText) muteText.textContent = 'Couper le son';
+        if (muteText) muteText.textContent = this.safeTranslate('options.ui.volume.mute_button_text', 'Mute sound');
       }
     }
     
@@ -916,9 +1136,7 @@ export class OptionsUI {
     }
     
     if (currentMode) {
-      currentMode.textContent = isAuto ? 
-        `Détection automatique (${languageInfo.name || 'Unknown'})` : 
-        'Sélection manuelle';
+      currentMode.textContent = this.getCurrentLanguageMode();
     }
     
     // Animation
@@ -935,7 +1153,7 @@ export class OptionsUI {
     
     const currentLanguage = this.currentOptions.language || 'auto';
     
-    // Option Auto
+    // Option Auto avec traduction
     const autoOption = document.createElement('div');
     autoOption.className = 'language-option auto';
     if (currentLanguage === 'auto') {
@@ -943,7 +1161,7 @@ export class OptionsUI {
     }
     autoOption.innerHTML = `
       <div class="language-flag">🌐</div>
-      <div class="language-name">Détection automatique</div>
+      <div class="language-name">${this.safeTranslate('options.ui.language.auto_option', 'Auto detection')}</div>
     `;
     autoOption.addEventListener('click', () => {
       this.selectLanguage('auto');
@@ -972,7 +1190,7 @@ export class OptionsUI {
       container.appendChild(option);
     });
     
-    console.log('🌐 [OptionsUI] Options langue mises à jour');
+    console.log('🌐 [OptionsUI] Options langue mises à jour avec traductions');
   }
   
   selectLanguage(languageCode) {
@@ -1012,7 +1230,7 @@ export class OptionsUI {
     this.markAsChanged();
   }
   
-  // === 🎬 GESTION ACTIONS ===
+  // === 🎬 GESTION ACTIONS AVEC TRADUCTIONS ===
   
   handleAction(action, data = null) {
     console.log(`🎬 [OptionsUI] Action: ${action}`, data);
@@ -1025,15 +1243,34 @@ export class OptionsUI {
   }
   
   showActionFeedback(action) {
+    // 🌐 NOUVEAU : Messages traduits
     const messages = {
-      setVolume: { text: 'Volume mis à jour', type: 'success' },
-      setMuted: { text: 'Audio basculé', type: 'info' },
-      setLanguage: { text: 'Langue changée', type: 'success' },
-      resetToDefaults: { text: 'Options réinitialisées', type: 'warning' },
-      saveOptions: { text: 'Options sauvegardées', type: 'success' }
+      setVolume: { 
+        text: this.safeTranslate('options.ui.notifications.volume_updated', 'Volume updated'), 
+        type: 'success' 
+      },
+      setMuted: { 
+        text: this.safeTranslate('options.ui.notifications.audio_toggled', 'Audio toggled'), 
+        type: 'info' 
+      },
+      setLanguage: { 
+        text: this.safeTranslate('options.ui.notifications.language_changed', 'Language changed'), 
+        type: 'success' 
+      },
+      resetToDefaults: { 
+        text: this.safeTranslate('options.ui.notifications.settings_reset', 'Settings reset'), 
+        type: 'warning' 
+      },
+      saveOptions: { 
+        text: this.safeTranslate('options.ui.notifications.settings_saved', 'Settings saved'), 
+        type: 'success' 
+      }
     };
     
-    const message = messages[action] || { text: `Action ${action} exécutée`, type: 'info' };
+    const message = messages[action] || { 
+      text: this.safeTranslate('options.ui.notifications.action_executed', 'Action {action} executed').replace('{action}', action), 
+      type: 'info' 
+    };
     
     if (typeof window.showGameNotification === 'function') {
       window.showGameNotification(message.text, message.type, {
@@ -1051,6 +1288,8 @@ export class OptionsUI {
     
     if (indicator) {
       indicator.classList.add('visible');
+      // 🌐 NOUVEAU : Mettre à jour texte traduit
+      indicator.textContent = this.safeTranslate('options.ui.actions.unsaved_changes', '⚠️ Unsaved changes');
     }
     
     if (saveBtn) {
@@ -1077,10 +1316,35 @@ export class OptionsUI {
     this.handleAction('requestData');
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE AVEC TRADUCTIONS ===
   
   destroy() {
-    console.log('🧹 [OptionsUI] Destruction...');
+    console.log('🧹 [OptionsUI] Destruction avec traductions...');
+    
+    // 🌐 NOUVEAU : Nettoyer listeners langue
+    if (this.languageCleanup) {
+      try {
+        this.languageCleanup();
+        console.log('🌐 [OptionsUI] Listener externe nettoyé');
+      } catch (error) {
+        console.warn('⚠️ [OptionsUI] Erreur nettoyage listener externe:', error);
+      }
+    }
+    
+    if (this.internalLanguageCleanup) {
+      try {
+        this.internalLanguageCleanup();
+        console.log('🌐 [OptionsUI] Listener interne nettoyé');
+      } catch (error) {
+        console.warn('⚠️ [OptionsUI] Erreur nettoyage listener interne:', error);
+      }
+    }
+    
+    if (this.globalLanguageHandler) {
+      window.removeEventListener('languageChanged', this.globalLanguageHandler);
+      window.removeEventListener('localizationModulesUpdated', this.globalLanguageHandler);
+      console.log('🌐 [OptionsUI] Listeners globaux nettoyés');
+    }
     
     // Supprimer élément DOM
     if (this.overlayElement && this.overlayElement.parentNode) {
@@ -1099,11 +1363,16 @@ export class OptionsUI {
     this.onAction = null;
     this.escapeListenerAdded = false;
     this.volumeSliderListenerAdded = false;
+    this.languageCleanup = null;
+    this.internalLanguageCleanup = null;
+    this.globalLanguageHandler = null;
+    this.translationsReady = false;
+    this.initialized = false;
     
-    console.log('✅ [OptionsUI] Détruit');
+    console.log('✅ [OptionsUI] Détruit avec traductions');
   }
   
-  // === 🐛 DEBUG ===
+  // === 🐛 DEBUG AVEC TRADUCTIONS ===
   
   debugInfo() {
     return {
@@ -1120,7 +1389,17 @@ export class OptionsUI {
         volumeSlider: this.volumeSliderListenerAdded
       },
       overlayClasses: this.overlayElement ? this.overlayElement.className : null,
-      version: 'robust-options-ui-2024'
+      
+      // 🌐 NOUVEAU : Debug traductions
+      translationsReady: this.translationsReady,
+      initialized: this.initialized,
+      hasExternalOptionsManager: !!this.externalOptionsManager,
+      hasLanguageCleanup: !!this.languageCleanup,
+      hasInternalLanguageCleanup: !!this.internalLanguageCleanup,
+      hasGlobalLanguageHandler: !!this.globalLanguageHandler,
+      sampleTranslation: this.safeTranslate('options.ui.title', 'N/A'),
+      
+      version: 'robust-options-ui-with-translations-2024'
     };
   }
 }
@@ -1128,37 +1407,35 @@ export class OptionsUI {
 export default OptionsUI;
 
 console.log(`
-⚙️ === OPTIONS UI COMPLÈTE ===
+⚙️ === OPTIONS UI AVEC TRADUCTIONS COMPLÈTES ===
 
-✅ INTERFACE COMPLÈTE:
-• Overlay modal identique aux autres UI
-• Section Volume avec slider + mute
-• Section Langue avec sélection visuelle
-• Actions: Reset + Save + indicateur changements
+🌐 NOUVELLES FONCTIONNALITÉS TRADUCTIONS:
+• externalOptionsManager dans constructeur
+• setupLanguageSupport() avec retry automatique  
+• checkTranslationsReady() pour timing
+• setupLanguageListeners() triple (externe/interne/global)
+• updateLanguage() complet pour tous les textes
+• safeTranslate() avec fallbacks sécurisés
 
-🎨 DESIGN UNIFORME:
-• CSS robuste avec spécificité maximale
-• Même header/footer que les autres UI
-• Animations cohérentes
-• Responsive mobile
+✅ PATTERN POKEDEXUI EXACT:
+• Même retry logic (10 tentatives x 500ms)
+• Même structure listeners multiples
+• Même timing fix avec initialized flag
+• Même nettoyage complet dans destroy()
 
-🔊 SECTION VOLUME:
-• Slider 0-100 avec styles personnalisés
-• Icône dynamique (🔇🔈🔉🔊)
-• Bouton mute avec états visuels
-• Temps réel + debounce
+🔧 TEXTES TRADUITS:
+• Header: options.ui.title + subtitle
+• Sections: volume.section_title + language.section_title  
+• Boutons: mute/unmute + reset/save
+• Actions: unsaved_changes + notifications
+• Options langue: auto_option + mode détection
 
-🌐 SECTION LANGUE:
-• Affichage langue courante + mode
-• Grille options avec drapeaux
-• Auto-détection en premier
-• Sélection interactive
+⚡ TIMING & FALLBACKS:
+• createInterface() avec fallbacks immédiats
+• updateLanguage() complet si interface visible
+• markAsChanged() traduit le texte d'alerte
+• showActionFeedback() messages traduits
+• getCurrentLanguageMode() logique traduite
 
-⚡ FONCTIONNALITÉS:
-• Gestion changements non sauvés
-• Actions avec feedback
-• Escape pour fermer
-• Callbacks vers OptionsManager
-
-✅ OPTIONS UI 100% FONCTIONNELLE !
+✅ OPTIONS UI AVEC TRADUCTIONS TEMPS RÉEL COMPLÈTE !
 `);
