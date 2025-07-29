@@ -1076,17 +1076,47 @@ export class DialogueEditorModule {
     }
 
 
-    showJSONSelector() {
-    const currentJSON = {
-        version: "1.0.0",
-        lastUpdated: new Date().toISOString(),
-        totalDialogues: this.dialogues.length,
-        categories: this.categories,
-        languages: Object.keys(this.languages),
-        dialogues: this.dialogues
-    };
+showJSONSelector() {
+    let jsonData;
+    
+    if (this.currentDialogue) {
+        // JSON pour le dialogue sélectionné uniquement
+        jsonData = {
+            dialogue: this.currentDialogue,
+            metadata: {
+                dialogueId: this.currentDialogue.dialogId,
+                lastModified: new Date().toISOString(),
+                category: this.currentDialogue.category,
+                npcId: this.currentDialogue.npcId
+            }
+        };
+    } else {
+        // Dialogue de base si aucun sélectionné
+        jsonData = {
+            dialogue: {
+                dialogId: "new_dialogue",
+                npcId: "",
+                category: "greeting",
+                context: "default",
+                eng: "New dialogue text",
+                fr: "Nouveau texte de dialogue",
+                priority: 5,
+                isActive: true,
+                variables: [],
+                conditions: [],
+                tags: [],
+                version: "1.0.0"
+            },
+            metadata: {
+                dialogueId: "new_dialogue",
+                lastModified: new Date().toISOString(),
+                category: "greeting",
+                npcId: ""
+            }
+        };
+    }
 
-    const modal = this.createJSONModal(currentJSON);
+    const modal = this.createJSONModal(jsonData);
     document.body.appendChild(modal);
 }
 
@@ -1148,16 +1178,27 @@ async saveFromJSON() {
     try {
         const newData = JSON.parse(textarea.value);
         
-        if (newData.dialogues && Array.isArray(newData.dialogues)) {
-            this.dialogues = newData.dialogues;
+        if (newData.dialogue) {
+            // Remplacer ou ajouter le dialogue
+            const dialogueData = newData.dialogue;
+            const existingIndex = this.dialogues.findIndex(d => d.dialogId === dialogueData.dialogId);
+            
+            if (existingIndex >= 0) {
+                this.dialogues[existingIndex] = { ...dialogueData, updatedAt: new Date().toISOString() };
+            } else {
+                this.dialogues.push({ ...dialogueData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+            }
+
+            this.currentDialogue = dialogueData;
             this.updateNPCFilter();
             this.updateStats();
             this.renderDialoguesList();
+            this.loadDialogueEditor();
             
-            this.adminPanel.showNotification(`${this.dialogues.length} dialogues chargés depuis JSON`, 'success');
+            this.adminPanel.showNotification(`Dialogue "${dialogueData.dialogId}" sauvegardé depuis JSON`, 'success');
             document.querySelector('.dialogue-import-modal').remove();
         } else {
-            throw new Error('Format JSON invalide: propriété "dialogues" manquante ou invalide');
+            throw new Error('Format JSON invalide: propriété "dialogue" manquante');
         }
     } catch (error) {
         this.adminPanel.showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error');
