@@ -1,8 +1,9 @@
-// Pokedex/index.js - PokedexModule avec BaseModule et UIManager + TRADUCTIONS
+// Pokedex/index.js - PokedexModule avec BaseModule et UIManager + TRADUCTIONS + FIX OUVERTURE
 // 🎯 UTILISE BaseModule pour éviter duplication de code
 // 📍 INTÉGRÉ avec UIManager via BaseModule
 // 📱 SYSTÈME POKÉDX COMPLET
 // 🌐 TRADUCTIONS TEMPS RÉEL SUPPORTÉES
+// 🔧 FIX: canOpenUI() plus permissif pour corriger le blocage d'ouverture
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { PokedexSystem } from './PokedexSystem.js';
@@ -13,6 +14,7 @@ import { PokedexUI } from './PokedexUI.js';
  * Module Pokédx utilisant BaseModule
  * Hérite de toute la logique UIManager générique
  * 🌐 SUPPORTE TRADUCTIONS TEMPS RÉEL
+ * 🔧 FIX: Correction du problème d'ouverture
  */
 export class PokedexModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
@@ -326,57 +328,78 @@ export class PokedexModule extends BaseModule {
   }
   
   /**
-   * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
+   * 🔧 FIX: Méthode pour vérifier si on peut ouvrir l'interface (CORRIGÉE)
+   * Version plus permissive pour corriger le problème d'ouverture
    */
   canOpenUI() {
-    console.log('🔍 [PokedexModule] Vérification canOpenUI...');
+    console.log('🔍 [PokedexModule] Vérification canOpenUI (VERSION CORRIGÉE)...');
     
-    // ✅ CORRECTION: Vérification dialogue-box plus robuste
-    const dialogueBox = document.querySelector('#dialogue-box');
-    const dialogueVisible = dialogueBox && 
-      window.getComputedStyle(dialogueBox).display !== 'none' &&
-      window.getComputedStyle(dialogueBox).visibility !== 'hidden' &&
-      !dialogueBox.hidden;
+    // 🔧 FIX: Vérifications minimales comme QuestSystem (qui fonctionne)
     
-    console.log('  💬 Dialogue visible (corrigé):', dialogueVisible);
-    
-    // ✅ Vérifications autres overlays (gardées identiques)
-    const otherBlockers = [
-      document.querySelector('.quest-dialog-overlay'),
-      document.querySelector('#team-overlay:not(.hidden)'),
-      document.querySelector('#shop-overlay:not(.hidden)'),
-      document.querySelector('#inventory-overlay:not(.hidden)')
-    ].filter(el => el !== null);
-    
-    console.log('  🚫 Autres bloqueurs:', otherBlockers.length);
-    
-    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-    
-    console.log('  💭 Chat focusé:', chatFocused);
-    console.log('  🎮 Starter HUD:', starterHudOpen);
-    
-    // ✅ CORRECTION: Vérifier enabled de façon sécurisée
-    let isEnabled = true; // Par défaut
-    
-    if (this.uiManagerState && typeof this.uiManagerState.enabled !== 'undefined') {
-      isEnabled = this.uiManagerState.enabled;
-      console.log('  🔧 Enabled (uiManagerState):', isEnabled);
-    } else if (typeof this.isEnabled !== 'undefined') {
-      isEnabled = this.isEnabled;
-      console.log('  🔧 Enabled (isEnabled):', isEnabled);
-    } else {
-      console.log('  🔧 Enabled (défaut):', isEnabled);
+    // 1. Vérifier battle active (priorité absolue)
+    const battleActive = document.querySelector('.battle-ui') !== null;
+    if (battleActive) {
+      console.log('  🚫 Battle active - blocage');
+      return false;
     }
     
-    const result = !dialogueVisible && 
-                   otherBlockers.length === 0 && 
-                   !chatFocused && 
-                   !starterHudOpen && 
-                   isEnabled;
+    // 2. Vérifier dialogue quest (priorité haute)
+    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
+    if (questDialogOpen) {
+      console.log('  🚫 Dialogue quest ouvert - blocage');
+      return false;
+    }
     
-    console.log('  📊 Résultat final:', result);
-    return result;
+    // 🔧 FIX: Supprimer les vérifications trop strictes qui bloquaient
+    // - Dialogue-box : trop strict, peut bloquer à tort
+    // - Chat focusé : pas nécessaire pour Pokédx
+    // - Starter HUD : pas nécessaire
+    // - Autres overlays : peuvent coexister
+    
+    // 3. Vérifier enabled de façon sécurisée
+    if (this.isEnabled === false) {
+      console.log('  🚫 Module désactivé - blocage');
+      return false;
+    }
+    
+    console.log('  ✅ Ouverture autorisée (version corrigée)');
+    return true;
+  }
+  
+  /**
+   * 🔧 FIX: Message personnalisé quand impossible d'ouvrir
+   */
+  showCannotOpenMessage() {
+    const reason = this.getCannotOpenReason();
+    
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(
+        `Cannot open Pokédx: ${reason}`,
+        'warning',
+        { duration: 3000 }
+      );
+    }
+    
+    console.log(`🚫 [PokedexModule] Impossible d'ouvrir: ${reason}`);
+  }
+  
+  /**
+   * 🔧 FIX: Obtenir la raison du blocage
+   */
+  getCannotOpenReason() {
+    if (document.querySelector('.battle-ui')) {
+      return 'Battle in progress';
+    }
+    
+    if (document.querySelector('.quest-dialog-overlay')) {
+      return 'Quest dialog open';
+    }
+    
+    if (this.isEnabled === false) {
+      return 'Module disabled';
+    }
+    
+    return 'Unknown reason';
   }
   
   /**
@@ -399,7 +422,28 @@ export class PokedexModule extends BaseModule {
     // Exposer globalement après initialisation
     this.exposeGlobally();
     
+    // 🔧 FIX: Appliquer le fix d'ouverture après initialisation
+    this.applyOpeningFix();
+    
     return result;
+  }
+  
+  /**
+   * 🔧 FIX: Appliquer automatiquement le fix d'ouverture
+   */
+  applyOpeningFix() {
+    console.log('🔧 [PokedexModule] Application auto-fix ouverture...');
+    
+    // S'assurer que les états sont corrects
+    this.isEnabled = true;
+    this.initialized = true;
+    
+    if (this.uiManagerState) {
+      this.uiManagerState.enabled = true;
+      this.uiManagerState.initialized = true;
+    }
+    
+    console.log('✅ [PokedexModule] Auto-fix appliqué - canOpenUI() plus permissif');
   }
   
   /**
@@ -561,10 +605,11 @@ export class PokedexModule extends BaseModule {
  * Factory function pour créer le module Pokédx
  * Utilise la factory générique de BaseModule
  * 🌐 SUPPORTE TRADUCTIONS VIA OPTIONS
+ * 🔧 AVEC FIX D'OUVERTURE INTÉGRÉ
  */
 export async function createPokedexModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [PokedexFactory] Création module Pokédx avec BaseModule + traductions...');
+    console.log('🏭 [PokedexFactory] Création module Pokédx avec BaseModule + traductions + fix...');
     console.log('🌐 [PokedexFactory] OptionsManager reçu:', !!options.optionsManager);
     
     // ✅ S'ASSURER que les options sont passées
@@ -575,7 +620,7 @@ export async function createPokedexModule(gameRoom, scene, options = {}) {
     
     const pokedexInstance = await createModule(PokedexModule, 'pokedex', gameRoom, scene, pokedexOptions);
     
-    console.log('✅ [PokedexFactory] Module Pokédx créé avec traductions temps réel');
+    console.log('✅ [PokedexFactory] Module Pokédx créé avec traductions temps réel + fix ouverture');
     return pokedexInstance;
     
   } catch (error) {
@@ -599,10 +644,10 @@ export const POKEDEX_MODULE_CONFIG = generateModuleConfig('pokedex', {
   
   metadata: {
     name: 'Pokédx National',
-    description: 'Complete Pokédx system with discovery tracking + translations',
-    version: '1.0.0',
+    description: 'Complete Pokédx system with discovery tracking + translations + opening fix',
+    version: '1.0.1', // ← Version avec fix
     category: 'Data Management',
-    features: ['translations', 'real-time-language-switching']
+    features: ['translations', 'real-time-language-switching', 'opening-fix']
   },
   
   factory: () => createPokedexModule(
@@ -662,7 +707,7 @@ export async function initializePokedexModule(uiManager) {
     // Setup des événements globaux Pokédx
     setupPokedexGlobalEvents(pokedexInstance);
     
-    console.log('✅ [PokedexIntegration] Initialisation Pokédx terminée avec traductions');
+    console.log('✅ [PokedexIntegration] Initialisation Pokédx terminée avec traductions + fix');
     return pokedexInstance;
     
   } catch (error) {
@@ -738,7 +783,7 @@ function setupPokedexGlobalEvents(pokedexInstance) {
  */
 export async function setupPokedexSystem(uiManager) {
   try {
-    console.log('🔧 [PokedexSetup] Configuration système Pokédx avec BaseModule + traductions...');
+    console.log('🔧 [PokedexSetup] Configuration système Pokédx avec BaseModule + traductions + fix...');
     
     // Initialiser le module
     const pokedexInstance = await initializePokedexModule(uiManager);
@@ -764,10 +809,38 @@ export async function setupPokedexSystem(uiManager) {
       window.getPokedexCompletionRate = () => 
         pokedexInstance.getCompletionRate();
       
-      console.log('🌐 [PokedexSetup] Fonctions globales Pokédx exposées avec traductions');
+      // 🔧 FIX: Fonctions de debug et réparation
+      window.debugPokedexOpen = () => {
+        console.log('🔍 Debug Pokédx:', {
+          module: !!pokedexInstance,
+          enabled: pokedexInstance.isEnabled,
+          canOpen: pokedexInstance.canOpenUI(),
+          uiVisible: pokedexInstance.ui?.isVisible
+        });
+        return pokedexInstance.canOpenUI();
+      };
+      
+      window.fixPokedexOpen = () => {
+        console.log('🔧 Fix Pokédx ouverture...');
+        pokedexInstance.isEnabled = true;
+        pokedexInstance.initialized = true;
+        if (pokedexInstance.uiManagerState) {
+          pokedexInstance.uiManagerState.enabled = true;
+        }
+        console.log('✅ Fix appliqué');
+      };
+      
+      window.forceOpenPokedex = () => {
+        console.log('🚀 Force ouverture Pokédx...');
+        if (pokedexInstance.ui) {
+          pokedexInstance.ui.show();
+        }
+      };
+      
+      console.log('🌐 [PokedexSetup] Fonctions globales Pokédx exposées avec traductions + debug');
     }
     
-    console.log('✅ [PokedexSetup] Système Pokédx configuré avec BaseModule + traductions temps réel');
+    console.log('✅ [PokedexSetup] Système Pokédx configuré avec BaseModule + traductions + fix ouverture');
     return pokedexInstance;
     
   } catch (error) {
@@ -793,7 +866,10 @@ export function fixPokedexModule() {
       // Force fermeture UI via BaseModule
       instance.forceCloseUI();
       
-      console.log('✅ [PokedexFix] Module Pokédx réparé');
+      // 🔧 FIX: Appliquer le fix d'ouverture
+      instance.applyOpeningFix();
+      
+      console.log('✅ [PokedexFix] Module Pokédx réparé avec fix ouverture');
       return true;
     } else {
       console.log('ℹ️ [PokedexFix] Aucune instance à réparer');
@@ -806,14 +882,112 @@ export function fixPokedexModule() {
   }
 }
 
+// === 🔧 FONCTIONS DE DEBUG ET FIX EXPORTÉES ===
+
+/**
+ * 🔧 FIX: Diagnostic complet du problème d'ouverture
+ */
+export function debugPokedexOpenIssue() {
+  console.log('🔍 === DIAGNOSTIC POKÉDX OUVERTURE ===');
+  
+  const pokedexModule = window.pokedexSystemGlobal || window.pokedexSystem;
+  
+  if (!pokedexModule) {
+    console.error('❌ Aucun module Pokédx trouvé');
+    return false;
+  }
+  
+  console.log('📊 État module Pokédx:', {
+    hasModule: !!pokedexModule,
+    isEnabled: pokedexModule.isEnabled,
+    initialized: pokedexModule.initialized,
+    hasUI: !!pokedexModule.ui,
+    hasIcon: !!pokedexModule.icon,
+    uiVisible: pokedexModule.ui?.isVisible || false
+  });
+  
+  // Test méthode canOpenUI si elle existe
+  if (typeof pokedexModule.canOpenUI === 'function') {
+    console.log('🧪 Test canOpenUI()...');
+    
+    try {
+      const canOpen = pokedexModule.canOpenUI();
+      console.log('✅ canOpenUI() résultat:', canOpen);
+      
+      if (!canOpen) {
+        const reason = pokedexModule.getCannotOpenReason?.() || 'Raison inconnue';
+        console.log('🚫 Raison du blocage:', reason);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur test canOpenUI():', error);
+    }
+  } else {
+    console.log('ℹ️ Pas de méthode canOpenUI() - devrait fonctionner');
+  }
+  
+  console.log('🔍 === FIN DIAGNOSTIC ===');
+  return true;
+}
+
+/**
+ * 🔧 FIX: Correction rapide du problème d'ouverture
+ */
+export function quickFixPokedexOpen() {
+  console.log('🔧 Fix rapide Pokédx...');
+  
+  const pokedexModule = window.pokedexSystemGlobal || window.pokedexSystem;
+  
+  if (!pokedexModule) {
+    console.error('❌ Module Pokédx non trouvé');
+    return false;
+  }
+  
+  // Forcer états corrects
+  pokedexModule.isEnabled = true;
+  pokedexModule.initialized = true;
+  
+  if (pokedexModule.uiManagerState) {
+    pokedexModule.uiManagerState.enabled = true;
+  }
+  
+  // Override canOpenUI si nécessaire
+  if (typeof pokedexModule.canOpenUI === 'function') {
+    if (!pokedexModule._originalCanOpenUI) {
+      pokedexModule._originalCanOpenUI = pokedexModule.canOpenUI.bind(pokedexModule);
+    }
+    
+    pokedexModule.canOpenUI = function() {
+      const battleActive = document.querySelector('.battle-ui') !== null;
+      const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
+      return !battleActive && !questDialogOpen && this.isEnabled !== false;
+    };
+  }
+  
+  console.log('✅ Fix appliqué - essayez maintenant');
+  return true;
+}
+
+// Exposer les fonctions de debug globalement
+if (typeof window !== 'undefined') {
+  window.debugPokedexOpenIssue = debugPokedexOpenIssue;
+  window.quickFixPokedexOpen = quickFixPokedexOpen;
+}
+
 // === 📋 EXPORT PAR DÉFAUT ===
 
 export default PokedexModule;
 
 console.log(`
-📱 === POKÉDX MODULE AVEC BASEMODULE + TRADUCTIONS ===
+📱 === POKÉDX MODULE AVEC FIX OUVERTURE ===
 
-🎯 NOUVELLES FONCTIONNALITÉS:
+🔧 NOUVEAU - FIX OUVERTURE:
+• canOpenUI() plus permissif (comme QuestSystem)
+• Vérifications minimales (battle + quest dialog seulement)
+• Auto-fix appliqué à l'initialisation
+• Fonctions de debug intégrées
+
+🎯 FONCTIONNALITÉS MAINTENUES:
 • BaseModule - logique UIManager mutualisée
 • Code simplifié - moins de duplication
 • Patterns standards - consistent avec Team/Inventory
@@ -860,5 +1034,11 @@ console.log(`
 • battleStarted - fermer auto
 • languageChanged - mise à jour traductions
 
-✅ POKÉDX REFACTORISÉ AVEC BASEMODULE + TRADUCTIONS TEMPS RÉEL !
+🔧 DEBUG ET FIX:
+• debugPokedexOpenIssue() - diagnostic complet
+• quickFixPokedexOpen() - fix rapide
+• window.debugPokedexOpen() - debug global
+• window.fixPokedexOpen() - réparation globale
+
+✅ POKÉDX CORRIGÉ - OUVERTURE FONCTIONNELLE + TRADUCTIONS !
 `);
