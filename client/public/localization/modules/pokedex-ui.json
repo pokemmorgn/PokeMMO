@@ -1,17 +1,17 @@
 {
   "en": {
-    "pokedx": {
-      "label": "Pokédx",
-      "tooltip_title": "National Pokédx",
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "National Pokédex",
       "tooltip_status_active": "Discovery in progress",
       "tooltip_status_none": "No Pokémon discovered yet",
       "tooltip_status_new": "new discovery",
       "tooltip_status_ready": "new captures available",
       "tooltip_action": "Click to open",
-      "disabled_message": "Pokédx temporarily disabled",
+      "disabled_message": "Pokédex temporarily disabled",
       "ui": {
         "header": {
-          "title": "POKÉDX",
+          "title": "POKÉDEX",
           "subtitle": "NATIONAL"
         },
         "tabs": {
@@ -75,7 +75,7 @@
     }
   },
   "fr": {
-    "pokedx": {
+    "pokedex": {
       "label": "Pokédx",
       "tooltip_title": "Pokédx National",
       "tooltip_status_active": "Découverte en cours",
@@ -150,18 +150,18 @@
     }
   },
   "es": {
-    "pokedx": {
-      "label": "Pokédx",
-      "tooltip_title": "Pokédx Nacional",
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Pokédex Nacional",
       "tooltip_status_active": "Descubrimiento en progreso",
       "tooltip_status_none": "Ningún Pokémon descubierto",
       "tooltip_status_new": "nuevo descubrimiento",
       "tooltip_status_ready": "nuevas capturas disponibles",
       "tooltip_action": "Clic para abrir",
-      "disabled_message": "Pokédx temporalmente deshabilitado",
+      "disabled_message": "Pokédex temporalmente deshabilitado",
       "ui": {
         "header": {
-          "title": "POKÉDX",
+          "title": "POKÉDEX",
           "subtitle": "NACIONAL"
         },
         "tabs": {
@@ -225,18 +225,18 @@
     }
   },
   "de": {
-    "pokedx": {
-      "label": "Pokédx",
-      "tooltip_title": "Nationaler Pokédx",
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Nationaler Pokédex",
       "tooltip_status_active": "Entdeckung im Gange",
       "tooltip_status_none": "Noch keine Pokémon entdeckt",
       "tooltip_status_new": "neue Entdeckung",
       "tooltip_status_ready": "neue Fänge verfügbar",
       "tooltip_action": "Klicken zum Öffnen",
-      "disabled_message": "Pokédx vorübergehend deaktiviert",
+      "disabled_message": "Pokédex vorübergehend deaktiviert",
       "ui": {
         "header": {
-          "title": "POKÉDX",
+          "title": "POKÉDEX",
           "subtitle": "NATIONAL"
         },
         "tabs": {
@@ -300,18 +300,18 @@
     }
   },
   "it": {
-    "pokedx": {
-      "label": "Pokédx",
-      "tooltip_title": "Pokédx Nazionale",
+    "pokedex": {
+      "label": "Pokédex",
+      "tooltip_title": "Pokédex Nazionale",
       "tooltip_status_active": "Scoperta in corso",
       "tooltip_status_none": "Nessun Pokémon scoperto",
       "tooltip_status_new": "nuova scoperta",
       "tooltip_status_ready": "nuove catture disponibili",
       "tooltip_action": "Clicca per aprire",
-      "disabled_message": "Pokédx temporaneamente disabilitato",
+      "disabled_message": "Pokédex temporaneamente disabilitato",
       "ui": {
         "header": {
-          "title": "POKÉDX",
+          "title": "POKÉDEX",
           "subtitle": "NAZIONALE"
         },
         "tabs": {
@@ -375,8 +375,8 @@
     }
   },
   "pt": {
-    "pokedx": {
-      "label": "Pokédx",
+    "pokedex": {
+      "label": "Pokédex",
       "tooltip_title": "Pokédx Nacional",
       "tooltip_status_active": "Descoberta em andamento",
       "tooltip_status_none": "Nenhum Pokémon descoberto",
@@ -450,7 +450,7 @@
     }
   },
   "ja": {
-    "pokedx": {
+    "pokedex": {
       "label": "ポケモン図鑑",
       "tooltip_title": "全国ポケモン図鑑",
       "tooltip_status_active": "発見進行中",
@@ -525,7 +525,7 @@
     }
   },
   "ko": {
-    "pokedx": {
+    "pokedex": {
       "label": "포켓몬 도감",
       "tooltip_title": "전국 포켓몬 도감",
       "tooltip_status_active": "발견 진행 중",
