@@ -84,6 +84,9 @@ export class DialogueEditorModule {
                             <button class="btn btn-info" onclick="adminPanel.dialogueEditor.loadDialogues()">
                                 <i class="fas fa-sync-alt"></i> Actualiser
                             </button>
+                            <button class="btn btn-info" onclick="adminPanel.dialogueEditor.showJSONSelector()">
+                            <i class="fas fa-code"></i> JSON
+                            </button>
                             <button class="btn btn-secondary" onclick="adminPanel.dialogueEditor.exportDialogues()">
                                 <i class="fas fa-download"></i> Export
                             </button>
@@ -1072,6 +1075,96 @@ export class DialogueEditorModule {
         this.dialogues = [];
     }
 
+
+    showJSONSelector() {
+    const currentJSON = {
+        version: "1.0.0",
+        lastUpdated: new Date().toISOString(),
+        totalDialogues: this.dialogues.length,
+        categories: this.categories,
+        languages: Object.keys(this.languages),
+        dialogues: this.dialogues
+    };
+
+    const modal = this.createJSONModal(currentJSON);
+    document.body.appendChild(modal);
+}
+
+createJSONModal(jsonData) {
+    const modal = document.createElement('div');
+    modal.className = 'dialogue-import-modal';
+    modal.innerHTML = `
+        <div class="dialogue-import-modal-backdrop"></div>
+        <div class="dialogue-import-modal-content">
+            <div class="dialogue-import-modal-header">
+                <h3>📝 Éditeur JSON des Dialogues</h3>
+                <button class="btn-close" onclick="this.closest('.dialogue-import-modal').remove()">×</button>
+            </div>
+            <div class="dialogue-import-modal-body">
+                <div class="dialogue-import-step">
+                    <h4>Modifier le JSON des dialogues</h4>
+                    <textarea id="dialogueJSONEditor" class="dialogue-json-editor" rows="20" style="width: 100%; font-family: monospace; font-size: 12px;">${JSON.stringify(jsonData, null, 2)}</textarea>
+                    <div class="dialogue-field-help" style="margin-top: 10px;">
+                        ⚠️ Attention : Modifiez uniquement les données que vous maîtrisez. Une erreur JSON empêchera la sauvegarde.
+                    </div>
+                </div>
+            </div>
+            <div class="dialogue-import-actions">
+                <button class="btn btn-secondary" onclick="this.closest('.dialogue-import-modal').remove()">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button class="btn btn-warning" onclick="adminPanel.dialogueEditor.validateJSON()">
+                    <i class="fas fa-check"></i> Valider JSON
+                </button>
+                <button class="btn btn-success" onclick="adminPanel.dialogueEditor.saveFromJSON()">
+                    <i class="fas fa-save"></i> Sauvegarder
+                </button>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+validateJSON() {
+    const textarea = document.getElementById('dialogueJSONEditor');
+    try {
+        const parsed = JSON.parse(textarea.value);
+        textarea.style.borderColor = '#27ae60';
+        textarea.style.background = '#f8fff8';
+        this.adminPanel.showNotification('JSON valide ✅', 'success');
+        return true;
+    } catch (error) {
+        textarea.style.borderColor = '#e74c3c';
+        textarea.style.background = '#fff5f5';
+        this.adminPanel.showNotification('Erreur JSON: ' + error.message, 'error');
+        return false;
+    }
+}
+
+async saveFromJSON() {
+    if (!this.validateJSON()) return;
+
+    const textarea = document.getElementById('dialogueJSONEditor');
+    try {
+        const newData = JSON.parse(textarea.value);
+        
+        if (newData.dialogues && Array.isArray(newData.dialogues)) {
+            this.dialogues = newData.dialogues;
+            this.updateNPCFilter();
+            this.updateStats();
+            this.renderDialoguesList();
+            
+            this.adminPanel.showNotification(`${this.dialogues.length} dialogues chargés depuis JSON`, 'success');
+            document.querySelector('.dialogue-import-modal').remove();
+        } else {
+            throw new Error('Format JSON invalide: propriété "dialogues" manquante ou invalide');
+        }
+    } catch (error) {
+        this.adminPanel.showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error');
+    }
+}
+
+    
     // Initialisation complète avec toutes les améliorations
     initialize() {
         this.setupKeyboardShortcuts();
