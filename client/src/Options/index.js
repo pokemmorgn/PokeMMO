@@ -1,7 +1,8 @@
-// Options/index.js - OptionsModule avec BaseModule
+// Options/index.js - OptionsModule avec BaseModule + TRADUCTIONS INTÉGRÉES
 // 🎯 UTILISE BaseModule pour cohérence avec Team/Quest
 // 📍 INTÉGRÉ avec UIManager - Position haut-droite
 // ⚙️ MODULE COMPLET: Volume + Langue + API globale
+// 🌐 TRADUCTIONS TEMPS RÉEL pour l'interface Options elle-même
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { OptionsManager, initializeGlobalOptionsAPI } from './OptionsManager.js';
@@ -11,9 +12,13 @@ import { OptionsUI } from './OptionsUI.js';
 /**
  * Module Options utilisant BaseModule
  * Hérite de toute la logique UIManager générique
+ * 🌐 SUPPORTE TRADUCTIONS TEMPS RÉEL
  */
 export class OptionsModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
+    // ✅ EXTRAIRE optionsManager des options (pour éviter récursion)
+    const { optionsManager, ...baseOptions } = options;
+    
     // Configuration spécifique Options
     const optionsOptions = {
       singleton: true,           // Options est un singleton
@@ -24,12 +29,15 @@ export class OptionsModule extends BaseModule {
         order: 0,                // Premier en haut à droite
         group: 'ui-options'      // Groupe spécial pour options
       },
-      ...options
+      ...baseOptions
     };
     
     super(moduleId || 'options', gameRoom, scene, optionsOptions);
     
-    console.log('⚙️ [OptionsModule] Instance créée avec BaseModule');
+    // ✅ STOCKER optionsManager externe (pour éviter récursion avec soi-même)
+    this.externalOptionsManager = optionsManager;
+    
+    console.log('⚙️ [OptionsModule] Instance créée avec BaseModule + traductions');
   }
   
   // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
@@ -62,13 +70,14 @@ export class OptionsModule extends BaseModule {
       this.icon.init();
     }
     
-    // Créer l'interface si pas encore fait
+    // ✅ CRÉER L'INTERFACE AVEC TRADUCTIONS
     if (!this.ui) {
-      this.ui = new OptionsUI(this.manager, this.gameRoom);
+      // Passer le manager principal ET l'external pour traductions
+      this.ui = new OptionsUI(this.manager, this.gameRoom, this.externalOptionsManager);
       // Note: L'init de OptionsUI est async, on le fait dans connectComponents
     }
     
-    console.log('✅ [OptionsModule] Composants Options créés');
+    console.log('✅ [OptionsModule] Composants Options créés avec traductions');
   }
   
   /**
@@ -124,8 +133,9 @@ export class OptionsModule extends BaseModule {
           this.icon.animateLanguageChange();
         }
         
-        // Mise à jour UI si ouverte
+        // ✅ NOUVEAU : Mettre à jour traductions de l'UI Options
         if (this.ui && this.ui.isVisible) {
+          this.ui.updateLanguage();
           this.ui.updateOptionsData(this.manager.getAllOptions());
         }
       };
@@ -156,13 +166,55 @@ export class OptionsModule extends BaseModule {
       };
     }
     
+    // ✅ SETUP TRADUCTIONS pour l'UI Options
+    this.setupTranslationsSupport();
+    
     // ✅ MISE À JOUR INITIALE des stats
     this.updateInitialStats();
     
-    console.log('✅ [OptionsModule] Composants Options connectés');
+    console.log('✅ [OptionsModule] Composants Options connectés avec traductions');
   }
   
-  // === ⚙️ MÉTHODES SPÉCIFIQUES OPTIONS ===
+  // === 🌐 SETUP TRADUCTIONS POUR L'UI OPTIONS ===
+  
+  setupTranslationsSupport() {
+    console.log('🌐 [OptionsModule] Setup traductions pour UI Options...');
+    
+    // Si on a un optionsManager externe, écouter ses changements
+    if (this.externalOptionsManager && this.ui) {
+      // ✅ ÉCOUTER LES CHANGEMENTS DE LANGUE EXTERNE
+      const cleanup = this.externalOptionsManager.addLanguageListener((newLang, oldLang) => {
+        console.log('🌐 [OptionsModule] Langue externe changée:', oldLang, '→', newLang);
+        
+        if (this.ui && this.ui.updateLanguage) {
+          this.ui.updateLanguage();
+        }
+      });
+      
+      // Stocker cleanup pour destruction
+      this.cleanupExternalLanguageListener = cleanup;
+      
+      console.log('✅ [OptionsModule] Listener traductions externe configuré');
+    }
+    
+    // ✅ ÉCOUTER NOS PROPRES CHANGEMENTS de langue
+    if (this.manager && this.ui) {
+      const cleanup = this.manager.addLanguageListener((newLang, oldLang) => {
+        console.log('🌐 [OptionsModule] Langue interne changée:', oldLang, '→', newLang);
+        
+        if (this.ui && this.ui.updateLanguage) {
+          this.ui.updateLanguage();
+        }
+      });
+      
+      // Stocker cleanup pour destruction
+      this.cleanupInternalLanguageListener = cleanup;
+      
+      console.log('✅ [OptionsModule] Listener traductions interne configuré');
+    }
+  }
+  
+  // === ⚙️ MÉTHODES SPÉCIFIQUES OPTIONS (IDENTIQUES) ===
   
   /**
    * Gestion des actions de l'interface
@@ -226,7 +278,7 @@ export class OptionsModule extends BaseModule {
   }
   
   /**
-   * Override show pour charger les données
+   * Override show pour charger les données + traductions
    */
   show() {
     const result = super.show();
@@ -235,6 +287,8 @@ export class OptionsModule extends BaseModule {
     if (this.manager && this.ui) {
       setTimeout(() => {
         this.ui.updateOptionsData(this.manager.getAllOptions());
+        // ✅ FORCER MISE À JOUR TRADUCTIONS à l'ouverture
+        this.ui.updateLanguage();
       }, 100);
     }
     
@@ -253,32 +307,20 @@ export class OptionsModule extends BaseModule {
     }
   }
   
-  // === 🌐 API PUBLIQUE OPTIONS ===
+  // === 🌐 API PUBLIQUE OPTIONS (IDENTIQUES) ===
   
-  /**
-   * Obtenir la langue courante
-   */
   getCurrentLanguage() {
     return this.manager ? this.manager.getCurrentLanguage() : 'en';
   }
   
-  /**
-   * Obtenir le volume courant
-   */
   getCurrentVolume() {
     return this.manager ? this.manager.getEffectiveVolume() : 50;
   }
   
-  /**
-   * Vérifier si audio muté
-   */
   isAudioMuted() {
     return this.manager ? this.manager.isMuted() : false;
   }
   
-  /**
-   * Changer langue
-   */
   setLanguage(languageCode) {
     if (this.manager) {
       return this.manager.setLanguage(languageCode);
@@ -286,9 +328,6 @@ export class OptionsModule extends BaseModule {
     return false;
   }
   
-  /**
-   * Changer volume
-   */
   setVolume(volume) {
     if (this.manager) {
       return this.manager.setVolume(volume);
@@ -296,9 +335,6 @@ export class OptionsModule extends BaseModule {
     return false;
   }
   
-  /**
-   * Basculer mute
-   */
   toggleMute() {
     if (this.manager) {
       return this.manager.toggleMute();
@@ -306,16 +342,10 @@ export class OptionsModule extends BaseModule {
     return false;
   }
   
-  /**
-   * Obtenir toutes les options
-   */
   getAllOptions() {
     return this.manager ? this.manager.getAllOptions() : {};
   }
   
-  /**
-   * Réinitialiser aux défauts
-   */
   resetToDefaults() {
     if (this.manager) {
       this.manager.resetToDefaults();
@@ -324,9 +354,7 @@ export class OptionsModule extends BaseModule {
     return false;
   }
   
-  /**
-   * API legacy pour compatibilité
-   */
+  // API legacy pour compatibilité
   toggleOptionsUI() {
     this.toggleUI();
   }
@@ -350,26 +378,22 @@ export class OptionsModule extends BaseModule {
       currentLanguage: this.getCurrentLanguage(),
       currentVolume: this.getCurrentVolume(),
       isAudioMuted: this.isAudioMuted(),
-      moduleType: 'options'
+      moduleType: 'options',
+      hasTranslationsSupport: true, // ✅ NOUVEAU
+      hasExternalOptionsManager: !!this.externalOptionsManager // ✅ NOUVEAU
     };
   }
   
-  // === ⌨️ GESTION ESCAPE SPÉCIALE ===
+  // === ⌨️ GESTION ESCAPE SPÉCIALE (IDENTIQUE) ===
   
-  /**
-   * Override pour gestion spéciale de la touche Escape
-   */
   handleKeyboardShortcut(event) {
     if (event.key === 'Escape') {
-      // Si une UI est ouverte, fermer celle qui a la priorité la plus haute
       if (this.isUIVisible()) {
-        // Si options ouvert, le fermer
         this.close();
         event.preventDefault();
         event.stopPropagation();
         return true;
       } else {
-        // Si rien d'ouvert, ouvrir options
         this.open();
         event.preventDefault();
         event.stopPropagation();
@@ -380,14 +404,9 @@ export class OptionsModule extends BaseModule {
     return super.handleKeyboardShortcut(event);
   }
   
-  /**
-   * Vérifier si une UI quelconque est visible
-   */
   isUIVisible() {
-    // Vérifier nos UI
     if (this.ui && this.ui.isVisible) return true;
     
-    // Vérifier les autres modules via window
     const uiChecks = [
       () => window.questSystem?.ui?.isVisible,
       () => window.teamSystem?.ui?.isVisible,
@@ -402,26 +421,54 @@ export class OptionsModule extends BaseModule {
       }
     });
   }
+  
+  // === 🧹 NETTOYAGE AVEC TRADUCTIONS ===
+  
+  destroy() {
+    console.log('🧹 [OptionsModule] Destruction avec nettoyage traductions...');
+    
+    // ✅ NETTOYER LISTENERS TRADUCTIONS
+    if (this.cleanupExternalLanguageListener) {
+      this.cleanupExternalLanguageListener();
+      this.cleanupExternalLanguageListener = null;
+      console.log('🌐 [OptionsModule] Listener externe nettoyé');
+    }
+    
+    if (this.cleanupInternalLanguageListener) {
+      this.cleanupInternalLanguageListener();
+      this.cleanupInternalLanguageListener = null;
+      console.log('🌐 [OptionsModule] Listener interne nettoyé');
+    }
+    
+    // Nettoyage BaseModule standard
+    super.destroy();
+    
+    // Nettoyage spécifique Options
+    this.externalOptionsManager = null;
+    
+    console.log('✅ [OptionsModule] Détruit avec traductions');
+  }
 }
 
-// === 🏭 FACTORY OPTIONS ===
+// === 🏭 FACTORY OPTIONS AVEC TRADUCTIONS ===
 
 /**
  * Factory function pour créer le module Options
- * Utilise la factory générique de BaseModule
+ * ✅ SUPPORTE TRADUCTIONS via optionsManager externe
  */
 export async function createOptionsModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [OptionsFactory] Création module Options avec BaseModule...');
+    console.log('🏭 [OptionsFactory] Création module Options avec BaseModule + traductions...');
+    console.log('🌐 [OptionsFactory] Options reçues:', Object.keys(options));
     
     const optionsOptions = {
       singleton: true,
-      ...options
+      ...options // ✅ INCLUT optionsManager si présent
     };
     
     const optionsInstance = await createModule(OptionsModule, 'options', gameRoom, scene, optionsOptions);
     
-    console.log('✅ [OptionsFactory] Module Options créé avec succès');
+    console.log('✅ [OptionsFactory] Module Options créé avec traductions');
     return optionsInstance;
     
   } catch (error) {
@@ -430,11 +477,11 @@ export async function createOptionsModule(gameRoom, scene, options = {}) {
   }
 }
 
-// === 📋 CONFIGURATION OPTIONS POUR UIMANAGER ===
+// === 📋 CONFIGURATION OPTIONS POUR UIMANAGER (IDENTIQUE) ===
 
 export const OPTIONS_MODULE_CONFIG = generateModuleConfig('options', {
   moduleClass: OptionsModule,
-  order: 0, // Premier en haut-droite
+  order: 0,
   
   options: {
     singleton: true,
@@ -449,9 +496,10 @@ export const OPTIONS_MODULE_CONFIG = generateModuleConfig('options', {
   
   metadata: {
     name: 'Options & Settings',
-    description: 'Game options: volume, language, and settings management',
+    description: 'Game options: volume, language, and settings management with translations',
     version: '1.0.0',
-    category: 'Settings'
+    category: 'Settings',
+    features: ['translations', 'real-time-language-switching'] // ✅ NOUVEAU
   },
   
   factory: () => createOptionsModule(
@@ -460,16 +508,13 @@ export const OPTIONS_MODULE_CONFIG = generateModuleConfig('options', {
   )
 });
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER ===
+// === 🔗 RESTE DU CODE IDENTIQUE ===
+// (registerOptionsModule, initializeOptionsModule, setupOptionsGlobalEvents, etc.)
 
-/**
- * Enregistrer le module Options dans UIManager
- */
 export async function registerOptionsModule(uiManager) {
   try {
     console.log('📝 [OptionsIntegration] Enregistrement Options...');
     
-    // Vérifier si déjà enregistré
     if (uiManager.modules && uiManager.modules.has('options')) {
       console.log('ℹ️ [OptionsIntegration] Module déjà enregistré');
       return true;
@@ -485,33 +530,24 @@ export async function registerOptionsModule(uiManager) {
   }
 }
 
-/**
- * Initialiser et connecter le module Options
- */
 export async function initializeOptionsModule(uiManager) {
   try {
     console.log('🚀 [OptionsIntegration] Initialisation Options...');
     
-    // Enregistrer le module
     await registerOptionsModule(uiManager);
     
-    // Vérifier si déjà initialisé (singleton)
     let optionsInstance = OptionsModule.getInstance('options');
     
     if (!optionsInstance || !optionsInstance.uiManagerState.initialized) {
-      // Initialiser le module
       optionsInstance = await uiManager.initializeModule('options');
     } else {
       console.log('ℹ️ [OptionsIntegration] Instance déjà initialisée');
-      
-      // Connecter à UIManager si pas encore fait
       optionsInstance.connectUIManager(uiManager);
     }
     
-    // Setup des événements globaux Options
     setupOptionsGlobalEvents(optionsInstance);
     
-    console.log('✅ [OptionsIntegration] Initialisation Options terminée');
+    console.log('✅ [OptionsIntegration] Initialisation Options terminée avec traductions');
     return optionsInstance;
     
   } catch (error) {
@@ -520,41 +556,32 @@ export async function initializeOptionsModule(uiManager) {
   }
 }
 
-// === 🌐 ÉVÉNEMENTS GLOBAUX OPTIONS ===
-
 function setupOptionsGlobalEvents(optionsInstance) {
-  // Éviter double setup
   if (window._optionsEventsSetup) {
     console.log('ℹ️ [OptionsEvents] Événements déjà configurés');
     return;
   }
   
-  // Événement: Changement de langue
   window.addEventListener('languageChanged', (event) => {
     console.log('🌐 [OptionsEvents] Langue changée:', event.detail);
     
-    // Recharger les textes si nécessaire
     if (typeof window.updateGameTexts === 'function') {
       window.updateGameTexts(event.detail.language);
     }
   });
   
-  // Événement: Audio focus (pour auto-mute)
   window.addEventListener('blur', () => {
     if (optionsInstance.manager && !optionsInstance.manager.isMuted()) {
-      // Optionnel: mettre en sourdine quand fenêtre perd le focus
-      // optionsInstance.manager.setMuted(true);
+      // Optionnel: auto-mute
     }
   });
   
   window.addEventListener('focus', () => {
     if (optionsInstance.manager) {
-      // Appliquer les paramètres audio au retour de focus
       optionsInstance.manager.applyVolumeSettings();
     }
   });
   
-  // Événement: Détection changement langue navigateur
   window.addEventListener('languagechange', () => {
     if (optionsInstance.manager && optionsInstance.manager.isUsingAutoLanguage()) {
       optionsInstance.manager.detectBrowserLanguage();
@@ -563,22 +590,15 @@ function setupOptionsGlobalEvents(optionsInstance) {
   });
   
   window._optionsEventsSetup = true;
-  console.log('🌐 [OptionsEvents] Événements Options configurés');
+  console.log('🌐 [OptionsEvents] Événements Options configurés avec traductions');
 }
 
-// === 💡 UTILISATION SIMPLE ===
-
-/**
- * Fonction d'utilisation simple pour intégrer Options dans un projet
- */
 export async function setupOptionsSystem(uiManager) {
   try {
-    console.log('🔧 [OptionsSetup] Configuration système Options avec BaseModule...');
+    console.log('🔧 [OptionsSetup] Configuration système Options avec BaseModule + traductions...');
     
-    // Initialiser le module
     const optionsInstance = await initializeOptionsModule(uiManager);
     
-    // Exposer globalement pour compatibilité
     if (!window.optionsSystem) {
       window.optionsSystem = optionsInstance;
       window.optionsSystemGlobal = optionsInstance;
@@ -587,15 +607,10 @@ export async function setupOptionsSystem(uiManager) {
       window.closeOptions = () => optionsInstance.close();
       window.forceCloseOptions = () => optionsInstance.forceCloseUI();
       
-      // ✅ API SIMPLE déjà exposée par OptionsManager
-      // window.GetPlayerCurrentLanguage - déjà définie
-      // window.GetPlayerCurrentVolume - déjà définie
-      // window.IsPlayerAudioMuted - déjà définie
-      
-      console.log('🌐 [OptionsSetup] Fonctions globales Options exposées');
+      console.log('🌐 [OptionsSetup] Fonctions globales Options exposées avec traductions');
     }
     
-    console.log('✅ [OptionsSetup] Système Options configuré avec BaseModule');
+    console.log('✅ [OptionsSetup] Système Options configuré avec BaseModule + traductions');
     return optionsInstance;
     
   } catch (error) {
@@ -604,37 +619,25 @@ export async function setupOptionsSystem(uiManager) {
   }
 }
 
-// === 🎯 API SHORTCUTS GLOBALES ===
+// === 🎯 API SHORTCUTS GLOBALES (IDENTIQUES) ===
 
-/**
- * Raccourcis pour accès rapide aux options
- */
 export function getQuickOptionsAPI() {
   const instance = OptionsModule.getInstance('options');
   
   return {
-    // Langue
     getCurrentLanguage: () => instance?.getCurrentLanguage() || 'en',
     setLanguage: (lang) => instance?.setLanguage(lang) || false,
-    
-    // Volume
     getCurrentVolume: () => instance?.getCurrentVolume() || 50,
     setVolume: (vol) => instance?.setVolume(vol) || false,
     toggleMute: () => instance?.toggleMute() || false,
     isAudioMuted: () => instance?.isAudioMuted() || false,
-    
-    // Options
     getAllOptions: () => instance?.getAllOptions() || {},
     resetToDefaults: () => instance?.resetToDefaults() || false,
-    
-    // UI
     openOptions: () => instance?.open() || false,
     closeOptions: () => instance?.close() || false,
     toggleOptions: () => instance?.toggleUI() || false
   };
 }
-
-// === 🔍 UTILITÉS DE DEBUG OPTIONS ===
 
 export function debugOptionsModule() {
   const { debugModule } = require('../core/BaseModule.js');
@@ -648,10 +651,8 @@ export function fixOptionsModule() {
     const instance = OptionsModule.getInstance('options');
     
     if (instance) {
-      // Force fermeture UI via BaseModule
       instance.forceCloseUI();
       
-      // Réappliquer paramètres
       if (instance.manager) {
         instance.manager.applyOptions();
       }
@@ -669,22 +670,17 @@ export function fixOptionsModule() {
   }
 }
 
-// === 📋 EXPORT PAR DÉFAUT ===
-
 export default OptionsModule;
 
-// === 🌐 AUTO-SETUP SI DEMANDÉ ===
+// === 🌐 AUTO-SETUP API GLOBALE (IDENTIQUE) ===
 
-// Exposer API simple immédiatement si pas encore fait
 if (typeof window !== 'undefined' && !window.GetPlayerCurrentLanguage) {
-  // API de base disponible même avant init complète
   window.GetPlayerCurrentLanguage = () => {
     const instance = OptionsModule.getInstance('options');
     if (instance) {
       return instance.getCurrentLanguage();
     }
     
-    // Fallback basique
     try {
       const lang = navigator.language.toLowerCase().split('-')[0];
       return ['en', 'fr', 'es', 'de', 'it', 'pt', 'ja', 'ko'].includes(lang) ? lang : 'en';
@@ -707,42 +703,33 @@ if (typeof window !== 'undefined' && !window.GetPlayerCurrentLanguage) {
 }
 
 console.log(`
-⚙️ === OPTIONS MODULE COMPLET AVEC BASEMODULE ===
+⚙️ === OPTIONS MODULE AVEC TRADUCTIONS INTÉGRÉES ===
 
-🎯 ARCHITECTURE BASEMODULE:
-• Hérite logique UIManager complète
-• Patterns standards avec Team/Quest
-• Singleton intégré
-• Position haut-droite spéciale
+🌐 NOUVELLES FONCTIONNALITÉS TRADUCTIONS:
+• externalOptionsManager dans constructeur
+• setupTranslationsSupport() pour UI Options
+• Listeners double: externe + interne
+• updateLanguage() automatique sur changement
+• Nettoyage listeners dans destroy()
 
-📍 CONFIGURATION UIMANAGER:
-• anchor: 'top-right' (unique)
-• order: 0 (premier en haut)
-• group: 'ui-options'
-• shortcut: 'Escape'
+🔄 FLUX TRADUCTIONS:
+1. UI.js passe optionsManager → OptionsModule
+2. OptionsModule stocke comme externalOptionsManager
+3. OptionsModule crée son propre manager interne
+4. OptionsUI reçoit les DEUX managers
+5. Listeners sur les deux pour mise à jour UI
 
-🌐 API GLOBALE SIMPLE:
-• GetPlayerCurrentLanguage() → 'fr', 'en', etc.
-• GetPlayerCurrentVolume() → 0-100
-• IsPlayerAudioMuted() → true/false
-• Disponible IMMÉDIATEMENT depuis n'importe où
+✅ RÉSULTAT:
+• L'interface Options se traduit elle-même
+• Changement langue externe → UI Options traduite
+• Changement langue dans Options → tout se traduit
+• Pas de récursion infinie
+• Nettoyage automatique des listeners
 
-⚙️ FONCTIONNALITÉS COMPLÈTES:
-• Volume 1-100 + mute temps réel
-• 8 langues + auto-détection
-• Sauvegarde localStorage
-• UI complète avec feedback
+🎯 UTILISATION DANS UI.JS:
+• Passer { optionsManager } à createOptionsModule()
+• L'OptionsUI se traduira automatiquement
+• API globale toujours disponible
 
-🔧 MÉTHODES HÉRITÉES:
-• show(), hide(), toggle() - BaseModule
-• connectUIManager() - connexion auto
-• forceCloseUI() - fermeture forcée
-• getUIManagerState() - état complet
-
-⌨️ ESCAPE SPÉCIAL:
-• Si UI ouverte → ferme l'UI prioritaire
-• Si rien ouvert → ouvre Options
-• Gestion intelligente des conflits
-
-✅ OPTIONS MODULE 100% TERMINÉ !
+✅ OPTIONS MODULE AVEC TRADUCTIONS COMPLÈTES !
 `);
