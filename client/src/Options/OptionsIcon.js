@@ -1,10 +1,13 @@
-// Options/OptionsIcon.js - Icône Options alignée sur QuestIcon/TeamIcon
-// 🎯 MÊME ARCHITECTURE que les autres icônes
+// Options/OptionsIcon.js - Icône Options avec traductions temps réel
+// 🌐 NOUVEAU : Traductions intégrées avec pattern PokedexIcon
 // 📍 POSITION: Haut-droite (vs bas-droite pour les autres)
 
+import { t } from '../managers/LocalizationManager.js';
+
 export class OptionsIcon {
-  constructor(optionsManager) {
+  constructor(optionsManager, externalOptionsManager = null) {
     this.optionsManager = optionsManager;
+    this.externalOptionsManager = externalOptionsManager; // ✅ NOUVEAU : Pour traductions
     
     // === ÉTAT IDENTIQUE ===
     this.isVisible = true;
@@ -26,25 +29,173 @@ export class OptionsIcon {
     this.positioningMode = 'uimanager';
     this.uiManagerControlled = true;
     
-    console.log('⚙️ [OptionsIcon] Instance créée - Configuration UIManager uniforme');
+    // 🌐 NOUVEAU : Support traductions
+    this.languageCleanup = null;
+    this.translationsReady = false;
+    this.pendingUpdates = [];
+    
+    console.log('⚙️ [OptionsIcon] Instance créée avec traductions - Configuration UIManager uniforme');
   }
   
-  // === 🚀 INITIALISATION IDENTIQUE ===
+  // === 🚀 INITIALISATION IDENTIQUE AVEC TRADUCTIONS ===
   
   init() {
     try {
-      console.log('🚀 [OptionsIcon] Initialisation...');
+      console.log('🚀 [OptionsIcon] Initialisation avec traductions...');
       
       this.addStyles();
       this.createIcon();
       this.setupEventListeners();
       
-      console.log('✅ [OptionsIcon] Initialisé - UIManager gérera la position');
+      // 🌐 NOUVEAU : Setup traductions
+      this.setupLanguageSupport();
+      
+      console.log('✅ [OptionsIcon] Initialisé avec traductions - UIManager gérera la position');
       return this;
       
     } catch (error) {
       console.error('❌ [OptionsIcon] Erreur init:', error);
       throw error;
+    }
+  }
+  
+  // 🌐 NOUVEAU : SETUP TRADUCTIONS (Pattern PokedexIcon exact)
+  
+  setupLanguageSupport() {
+    if (!this.checkTranslationsReady()) {
+      console.log('⏳ [OptionsIcon] Traductions pas prêtes - Setup avec retry...');
+      
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const setupRetry = () => {
+        attempts++;
+        
+        if (this.checkTranslationsReady()) {
+          console.log(`✅ [OptionsIcon] Traductions prêtes après ${attempts} tentatives`);
+          this.setupLanguageListeners();
+          this.updateLanguage();
+          return;
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(setupRetry, 500);
+        } else {
+          console.warn('⚠️ [OptionsIcon] Timeout traductions - Mode fallback');
+          this.setupLanguageListeners();
+        }
+      };
+      
+      setTimeout(setupRetry, 100);
+      return;
+    }
+    
+    console.log('✅ [OptionsIcon] Traductions disponibles - Setup immédiat');
+    this.setupLanguageListeners();
+    this.updateLanguage();
+  }
+  
+  checkTranslationsReady() {
+    try {
+      const testTranslation = t('options.label');
+      
+      if (testTranslation && testTranslation !== 'options.label') {
+        this.translationsReady = true;
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  setupLanguageListeners() {
+    console.log('🌐 [OptionsIcon] Configuration listeners langue...');
+    
+    // ✅ Écouter les changements du manager externe (pour traductions cross-module)
+    if (this.externalOptionsManager && this.externalOptionsManager.addLanguageListener) {
+      try {
+        this.languageCleanup = this.externalOptionsManager.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [OptionsIcon] Changement langue externe: ${oldLang} → ${newLang}`);
+          this.updateLanguage();
+        });
+        console.log('✅ [OptionsIcon] Listener externe configuré');
+      } catch (error) {
+        console.warn('⚠️ [OptionsIcon] Erreur listener externe:', error);
+      }
+    }
+    
+    // ✅ Écouter les changements du manager interne (pour Options → Options)
+    if (this.optionsManager && this.optionsManager.addLanguageListener) {
+      try {
+        const internalCleanup = this.optionsManager.addLanguageListener((newLang, oldLang) => {
+          console.log(`🌐 [OptionsIcon] Changement langue interne: ${oldLang} → ${newLang}`);
+          this.updateLanguage();
+        });
+        
+        // Stocker cleanup interne séparément
+        this.internalLanguageCleanup = internalCleanup;
+        console.log('✅ [OptionsIcon] Listener interne configuré');
+      } catch (error) {
+        console.warn('⚠️ [OptionsIcon] Erreur listener interne:', error);
+      }
+    }
+    
+    // ✅ Écouter événements globaux (fallback)
+    const globalHandler = (event) => {
+      console.log('🌐 [OptionsIcon] Changement langue global:', event.detail);
+      this.updateLanguage();
+    };
+    
+    window.addEventListener('languageChanged', globalHandler);
+    window.addEventListener('localizationModulesUpdated', globalHandler);
+    
+    this.globalLanguageHandler = globalHandler; // Pour cleanup
+    
+    console.log('✅ [OptionsIcon] Tous les listeners langue configurés');
+  }
+  
+  updateLanguage() {
+    if (!this.iconElement) {
+      console.log('⏳ [OptionsIcon] Mise à jour langue différée (pas d\'élément)');
+      this.pendingUpdates.push('language');
+      return;
+    }
+    
+    try {
+      console.log('🌐 [OptionsIcon] Mise à jour langue...');
+      
+      // 1. Label icône
+      const labelElement = this.iconElement.querySelector('.icon-label');
+      if (labelElement) {
+        labelElement.textContent = this.safeTranslate('options.label', 'Options');
+      }
+      
+      // 2. Tooltip sera mis à jour à la prochaine apparition
+      this.hideTooltip(); // Masquer tooltip actuel pour force refresh
+      
+      console.log('✅ [OptionsIcon] Langue mise à jour');
+      
+    } catch (error) {
+      console.warn('⚠️ [OptionsIcon] Erreur mise à jour langue:', error);
+    }
+  }
+  
+  safeTranslate(key, fallback) {
+    try {
+      const translation = t(key);
+      
+      if (translation && translation !== key) {
+        return translation;
+      }
+      
+      console.warn(`⚠️ [OptionsIcon] Traduction manquante: ${key}`);
+      return fallback;
+      
+    } catch (error) {
+      console.warn(`⚠️ [OptionsIcon] Erreur traduction ${key}:`, error);
+      return fallback;
     }
   }
   
@@ -68,7 +219,7 @@ export class OptionsIcon {
             <span class="language-indicator">🇺🇸</span>
           </div>
         </div>
-        <div class="icon-label">Options</div>
+        <div class="icon-label">${this.safeTranslate('options.label', 'Options')}</div>
       </div>
       
       <div class="options-status">
@@ -84,7 +235,18 @@ export class OptionsIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [OptionsIcon] Icône créée SANS positionnement manuel');
+    // 🌐 NOUVEAU : Traiter les mises à jour en attente
+    if (this.pendingUpdates.length > 0) {
+      console.log(`🔄 [OptionsIcon] Traitement ${this.pendingUpdates.length} mises à jour en attente`);
+      
+      if (this.pendingUpdates.includes('language')) {
+        this.updateLanguage();
+      }
+      
+      this.pendingUpdates = [];
+    }
+    
+    console.log('🎨 [OptionsIcon] Icône créée avec traductions SANS positionnement manuel');
   }
   
   // === 🎨 STYLES ALIGNÉS AVEC LES AUTRES ===
@@ -557,7 +719,7 @@ export class OptionsIcon {
     };
   }
   
-  // === 💬 TOOLTIP ===
+  // === 💬 TOOLTIP AVEC TRADUCTIONS ===
   
   showTooltip() {
     const { volume, isMuted, currentLanguage } = this.displayStats;
@@ -584,17 +746,21 @@ export class OptionsIcon {
       font-family: Arial, sans-serif;
     `;
     
-    const volumeText = isMuted ? 'Muted' : `Volume: ${volume}%`;
+    // 🌐 NOUVEAU : Textes traduits
+    const volumeText = isMuted ? 
+      this.safeTranslate('options.tooltip_volume_muted', 'Muted') : 
+      this.safeTranslate('options.tooltip_volume', 'Volume: {volume}%').replace('{volume}', volume);
+    
     const languageInfo = this.optionsManager?.getLanguageInfo(currentLanguage);
-    const languageText = languageInfo ? 
-      `${languageInfo.flag} ${languageInfo.name}` : 
-      `Language: ${currentLanguage}`;
+    const languageText = this.safeTranslate('options.tooltip_language', '{flag} {name}')
+      .replace('{flag}', languageInfo?.flag || '🌐')
+      .replace('{name}', languageInfo?.name || currentLanguage);
     
     tooltip.innerHTML = `
-      <div><strong>Options & Settings</strong></div>
+      <div><strong>${this.safeTranslate('options.tooltip_title', 'Options & Settings')}</strong></div>
       <div>🔊 ${volumeText}</div>
       <div>🌐 ${languageText}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">Click to configure</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${this.safeTranslate('options.tooltip_action', 'Click to configure')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -617,10 +783,14 @@ export class OptionsIcon {
   
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Options disabled', 'warning', {
-        duration: 2000,
-        position: 'bottom-center'
-      });
+      window.showGameNotification(
+        this.safeTranslate('options.disabled_message', 'Options disabled'), 
+        'warning', 
+        {
+          duration: 2000,
+          position: 'bottom-center'
+        }
+      );
     }
   }
   
@@ -675,12 +845,37 @@ export class OptionsIcon {
     }
   }
   
-  // === 🧹 NETTOYAGE ===
+  // === 🧹 NETTOYAGE AVEC TRADUCTIONS ===
   
   destroy() {
-    console.log('🧹 [OptionsIcon] Destruction...');
+    console.log('🧹 [OptionsIcon] Destruction avec traductions...');
     
     this.hideTooltip();
+    
+    // 🌐 NOUVEAU : Nettoyer listeners langue
+    if (this.languageCleanup) {
+      try {
+        this.languageCleanup();
+        console.log('🌐 [OptionsIcon] Listener externe nettoyé');
+      } catch (error) {
+        console.warn('⚠️ [OptionsIcon] Erreur nettoyage listener externe:', error);
+      }
+    }
+    
+    if (this.internalLanguageCleanup) {
+      try {
+        this.internalLanguageCleanup();
+        console.log('🌐 [OptionsIcon] Listener interne nettoyé');
+      } catch (error) {
+        console.warn('⚠️ [OptionsIcon] Erreur nettoyage listener interne:', error);
+      }
+    }
+    
+    if (this.globalLanguageHandler) {
+      window.removeEventListener('languageChanged', this.globalLanguageHandler);
+      window.removeEventListener('localizationModulesUpdated', this.globalLanguageHandler);
+      console.log('🌐 [OptionsIcon] Listeners globaux nettoyés');
+    }
     
     if (this.iconElement && this.iconElement.parentNode) {
       this.iconElement.parentNode.removeChild(this.iconElement);
@@ -690,8 +885,13 @@ export class OptionsIcon {
     this.onClick = null;
     this.isVisible = false;
     this.isEnabled = false;
+    this.languageCleanup = null;
+    this.internalLanguageCleanup = null;
+    this.globalLanguageHandler = null;
+    this.translationsReady = false;
+    this.pendingUpdates = [];
     
-    console.log('✅ [OptionsIcon] Détruit');
+    console.log('✅ [OptionsIcon] Détruit avec traductions');
   }
   
   // === 🐛 DEBUG ===
@@ -708,6 +908,15 @@ export class OptionsIcon {
       uiManagerControlled: this.uiManagerControlled,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
+      
+      // 🌐 NOUVEAU : Debug traductions
+      translationsReady: this.translationsReady,
+      hasExternalOptionsManager: !!this.externalOptionsManager,
+      hasLanguageCleanup: !!this.languageCleanup,
+      hasInternalLanguageCleanup: !!this.internalLanguageCleanup,
+      pendingUpdates: this.pendingUpdates,
+      sampleTranslation: this.safeTranslate('options.label', 'N/A'),
+      
       elementStyles: this.iconElement ? {
         position: this.iconElement.style.position,
         left: this.iconElement.style.left,
@@ -727,36 +936,34 @@ export class OptionsIcon {
 export default OptionsIcon;
 
 console.log(`
-⚙️ === OPTIONS ICON - ALIGNÉ SUR LES AUTRES ===
+⚙️ === OPTIONS ICON AVEC TRADUCTIONS ===
 
-✅ ARCHITECTURE IDENTIQUE:
-• Même structure que QuestIcon/TeamIcon
-• UIManager: positioningMode + uiManagerControlled
-• Méthodes show/hide/setEnabled uniformes
-• onPositioned() pour UIManager
+🌐 NOUVELLES FONCTIONNALITÉS TRADUCTIONS:
+• externalOptionsManager dans constructeur
+• setupLanguageSupport() avec retry automatique
+• checkTranslationsReady() pour timing
+• setupLanguageListeners() double (externe + interne)
+• updateLanguage() avec safeTranslate()
+• Fallbacks sécurisés partout
 
-🎨 DESIGN COHÉRENT:
-• 70px × 80px (tailles identiques)
-• Style background + hover identiques
-• Status dot + notification badge
-• Animations harmonisées
+✅ PATTERN POKEDEXICON EXACT:
+• Même retry logic (10 tentatives x 500ms)
+• Même gestion pendingUpdates
+• Même structure listeners (externe/interne/global)
+• Même nettoyage dans destroy()
 
-⚙️ SPÉCIFICITÉS OPTIONS:
-• Icône ⚙️ avec rotation au hover
-• Indicateurs: 🔊 volume + 🇺🇸 langue
-• Status: active/muted/warning
-• Animations: volume/language change
+🔧 TEXTES TRADUITS:
+• Label icône : options.label
+• Tooltip titre : options.tooltip_title
+• Tooltip volume : options.tooltip_volume
+• Tooltip action : options.tooltip_action
+• Message désactivé : options.disabled_message
 
-📍 POSITION UIMANAGER:
-• Configuration anchor: 'top-right'
-• Sera dans le groupe 'ui-options'
-• UIManager contrôle 100% la position
+⚡ TIMING FIX:
+• checkTranslationsReady() avant setup
+• pendingUpdates si élément pas prêt
+• Retry automatique si traductions pas prêtes
+• Fallbacks sécurisés si timeout
 
-🎯 FONCTIONNALITÉS:
-• updateStats() avec volume + langue
-• Tooltip avec infos complètes
-• onClick pour ouvrir options UI
-• Animations spécifiques options
-
-✅ OPTIONS ICON 100% ALIGNÉ !
+✅ OPTIONS ICON AVEC TRADUCTIONS COMPLET !
 `);
