@@ -1,6 +1,7 @@
 // Pokedex/PokedexIcon.js - STYLE HARMONISÉ avec Team/Quest + TRADUCTIONS TEMPS RÉEL
 // 🎯 Design cohérent et moderne - même template que les autres icônes
 // 🌐 Support complet des traductions temps réel
+// ⏰ FIX TIMING: Attendre chargement traductions + fallback sécurisé
 
 import { t } from '../managers/LocalizationManager.js';
 
@@ -26,7 +27,11 @@ export class PokedexIcon {
     
     this.positioningMode = 'uimanager';
     
-    console.log('📱 [PokedexIcon] Instance créée (style harmonisé + traductions)');
+    // ⏰ NOUVEAU: Gestion timing traductions
+    this.translationsReady = false;
+    this.pendingLanguageUpdate = false;
+    
+    console.log('📱 [PokedexIcon] Instance créée (style harmonisé + traductions timing fix)');
   }
   
   // === 🚀 INITIALISATION ===
@@ -38,10 +43,13 @@ export class PokedexIcon {
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
-      this.setupLanguageSupport();  // ← NOUVEAU
+      
+      // ⏰ NOUVEAU: Setup langue avec vérification timing
+      this.setupLanguageSupportWithTiming();
+      
       this.show();
       
-      console.log('✅ [PokedexIcon] Initialisé avec style cohérent + traductions');
+      console.log('✅ [PokedexIcon] Initialisé avec style cohérent + traductions timing fix');
       return this;
       
     } catch (error) {
@@ -50,9 +58,15 @@ export class PokedexIcon {
     }
   }
   
-  // === 🌐 SUPPORT LANGUE ===
+  // === 🌐 SUPPORT LANGUE AVEC FIX TIMING ===
   
-  setupLanguageSupport() {
+  setupLanguageSupportWithTiming() {
+    console.log('🌐 [PokedexIcon] Setup langue avec timing fix...');
+    
+    // ⏰ VÉRIFIER SI LES TRADUCTIONS SONT PRÊTES
+    this.checkTranslationsReady();
+    
+    // Setup listener pour changements de langue
     if (this.optionsManager?.addLanguageListener) {
       this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
         console.log('🌐 [PokedexIcon] Changement de langue détecté');
@@ -61,26 +75,95 @@ export class PokedexIcon {
       console.log('🔗 [PokedexIcon] Listener langue configuré');
     } else {
       console.warn('⚠️ [PokedexIcon] OptionsManager non disponible pour les traductions');
+      
+      // ⏰ FALLBACK: Essayer de reconnecter plus tard
+      setTimeout(() => {
+        this.retryLanguageSetup();
+      }, 2000);
     }
+  }
+  
+  checkTranslationsReady() {
+    try {
+      // ⏰ TESTER SI LES TRADUCTIONS FONCTIONNENT
+      const testTranslation = t('pokedex.label');
+      
+      if (testTranslation && testTranslation !== 'pokedex.label' && !testTranslation.includes('Manquant:')) {
+        console.log('✅ [PokedexIcon] Traductions prêtes:', testTranslation);
+        this.translationsReady = true;
+        this.updateLanguage();
+      } else {
+        console.warn('⚠️ [PokedexIcon] Traductions pas encore prêtes, fallback...');
+        this.translationsReady = false;
+        
+        // ⏰ RETRY DANS 1 SECONDE
+        setTimeout(() => {
+          this.checkTranslationsReady();
+        }, 1000);
+      }
+    } catch (error) {
+      console.warn('⚠️ [PokedexIcon] Erreur test traductions:', error);
+      this.translationsReady = false;
+      
+      // ⏰ RETRY DANS 2 SECONDES
+      setTimeout(() => {
+        this.checkTranslationsReady();
+      }, 2000);
+    }
+  }
+  
+  retryLanguageSetup() {
+    console.log('🔄 [PokedexIcon] Retry setup langue...');
     
-    // Mise à jour initiale
-    this.updateLanguage();
+    // Vérifier si optionsManager est maintenant disponible
+    this.optionsManager = this.optionsManager || 
+                          window.optionsSystem?.manager || 
+                          window.optionsSystemGlobal?.manager;
+    
+    if (this.optionsManager && !this.cleanupLanguageListener) {
+      console.log('✅ [PokedexIcon] OptionsManager maintenant disponible');
+      this.setupLanguageSupportWithTiming();
+    } else {
+      console.log('⏰ [PokedexIcon] OptionsManager toujours indisponible, retry dans 3s...');
+      setTimeout(() => {
+        this.retryLanguageSetup();
+      }, 3000);
+    }
   }
   
   updateLanguage() {
-    if (!this.iconElement) return;
+    if (!this.iconElement) {
+      console.log('⏰ [PokedexIcon] Élément pas encore créé, reporter mise à jour');
+      this.pendingLanguageUpdate = true;
+      return;
+    }
     
     try {
+      // ⏰ FALLBACK SÉCURISÉ POUR LE LABEL
+      let labelText = 'Pokédx'; // Fallback par défaut
+      
+      if (this.translationsReady) {
+        try {
+          const translated = t('pokedex.label');
+          if (translated && !translated.includes('Manquant:') && translated !== 'pokedex.label') {
+            labelText = translated;
+          }
+        } catch (error) {
+          console.warn('⚠️ [PokedexIcon] Erreur traduction label:', error);
+        }
+      }
+      
       // Mettre à jour le label de l'icône
       const labelElement = this.iconElement.querySelector('.icon-label');
       if (labelElement) {
-        labelElement.textContent = t('pokedex.label');
+        labelElement.textContent = labelText;
+        console.log('🔄 [PokedexIcon] Label mis à jour:', labelText);
       }
       
-      // Mettre à jour le tooltip (sera actualisé au prochain hover)
-      // Le tooltip est généré dynamiquement dans showTooltip()
+      // Le tooltip sera actualisé au prochain hover (génération dynamique)
       
-      console.log('🔄 [PokedexIcon] Langue mise à jour');
+      this.pendingLanguageUpdate = false;
+      console.log('✅ [PokedexIcon] Langue mise à jour avec timing fix');
       
     } catch (error) {
       console.error('❌ [PokedexIcon] Erreur mise à jour langue:', error);
@@ -99,6 +182,20 @@ export class PokedexIcon {
     icon.id = 'pokedex-icon';
     icon.className = 'pokedex-icon ui-icon';
     
+    // ⏰ FALLBACK SÉCURISÉ POUR LE LABEL INITIAL
+    let initialLabel = 'Pokédx'; // Fallback sûr
+    
+    try {
+      if (this.translationsReady) {
+        const translated = t('pokedex.label');
+        if (translated && !translated.includes('Manquant:') && translated !== 'pokedex.label') {
+          initialLabel = translated;
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [PokedexIcon] Utilisation fallback pour label initial');
+    }
+    
     // === TEMPLATE COHÉRENT AVEC TEAM/QUEST ===
     icon.innerHTML = `
       <div class="icon-background">
@@ -108,7 +205,7 @@ export class PokedexIcon {
             <span class="completion-rate">0%</span>
           </div>
         </div>
-        <div class="icon-label">${t('pokedex.label')}</div>
+        <div class="icon-label">${initialLabel}</div>
       </div>
       
       <div class="completion-status">
@@ -123,7 +220,14 @@ export class PokedexIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [PokedexIcon] Icône créée avec template harmonisé + traductions');
+    // ⏰ SI MISE À JOUR EN ATTENTE, L'APPLIQUER MAINTENANT
+    if (this.pendingLanguageUpdate) {
+      setTimeout(() => {
+        this.updateLanguage();
+      }, 100);
+    }
+    
+    console.log('🎨 [PokedexIcon] Icône créée avec template harmonisé + timing fix');
   }
   
   addStyles() {
@@ -224,6 +328,7 @@ export class PokedexIcon {
         width: 100%;
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease; /* ⏰ NOUVEAU: Transition smooth */
       }
       
       /* === MÊME STATUT QUE TEAM/QUEST === */
@@ -436,10 +541,21 @@ export class PokedexIcon {
         z-index: 1000;
         pointer-events: none;
       }
+      
+      /* ⏰ NOUVEAU: États de chargement traductions */
+      .pokedex-icon.translations-loading .icon-label {
+        opacity: 0.7;
+        font-style: italic;
+      }
+      
+      .pokedex-icon.translations-ready .icon-label {
+        opacity: 1;
+        font-style: normal;
+      }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [PokedexIcon] Styles harmonisés appliqués');
+    console.log('🎨 [PokedexIcon] Styles harmonisés appliqués avec timing fix');
   }
   
   // === 🎛️ ÉVÉNEMENTS (IDENTIQUES) ===
@@ -478,7 +594,7 @@ export class PokedexIcon {
       this.hideTooltip();
     });
     
-          console.log('🎛️ [PokedexIcon] Événements configurés');
+    console.log('🎛️ [PokedexIcon] Événements configurés');
   }
   
   // === 📊 MISE À JOUR DONNÉES SIMPLIFIÉE ===
@@ -486,7 +602,7 @@ export class PokedexIcon {
   updateProgress(data) {
     if (!this.iconElement) return;
     
-    console.log('📊 [PokedxIcon] Mise à jour progression:', data);
+    console.log('📊 [PokedexIcon] Mise à jour progression:', data);
     
     const { totalSeen = 0, totalCaught = 0, caughtPercentage = 0 } = data;
     
@@ -599,13 +715,13 @@ export class PokedexIcon {
     return true;
   }
   
-  // === 💬 TOOLTIP COHÉRENT AVEC TRADUCTIONS ===
+  // === 💬 TOOLTIP COHÉRENT AVEC TRADUCTIONS + TIMING FIX ===
   
   showTooltip() {
     const { totalSeen, totalCaught, completionPercentage } = this.displayData;
     
     const tooltip = document.createElement('div');
-    tooltip.className = 'pokedx-tooltip';
+    tooltip.className = 'pokedex-tooltip';
     
     const iconRect = this.iconElement.getBoundingClientRect();
     
@@ -626,11 +742,32 @@ export class PokedexIcon {
       font-family: Arial, sans-serif;
     `;
     
-    // ✅ UTILISER LES TRADUCTIONS DANS LE TOOLTIP
+    // ⏰ TOOLTIP AVEC FALLBACK SÉCURISÉ
+    let tooltipTitle = 'Pokédx';
+    let seenLabel = 'Seen';
+    let caughtLabel = 'Caught';
+    let actionLabel = 'Click to open';
+    
+    try {
+      if (this.translationsReady) {
+        const titleTrans = t('pokedex.tooltip_title');
+        const seenTrans = t('pokedex.ui.progress.seen');
+        const caughtTrans = t('pokedex.ui.progress.caught');
+        const actionTrans = t('pokedex.tooltip_action');
+        
+        if (titleTrans && !titleTrans.includes('Manquant:')) tooltipTitle = titleTrans;
+        if (seenTrans && !seenTrans.includes('Manquant:')) seenLabel = seenTrans;
+        if (caughtTrans && !caughtTrans.includes('Manquant:')) caughtLabel = caughtTrans;
+        if (actionTrans && !actionTrans.includes('Manquant:')) actionLabel = actionTrans;
+      }
+    } catch (error) {
+      console.warn('⚠️ [PokedexIcon] Erreur traductions tooltip, utilisation fallback');
+    }
+    
     tooltip.innerHTML = `
-      <div><strong>${t('pokedex.tooltip_title')}: ${completionPercentage}%</strong></div>
-      <div>${t('pokedex.ui.progress.seen')}: ${totalSeen} | ${t('pokedex.ui.progress.caught')}: ${totalCaught}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">${t('pokedex.tooltip_action')}</div>
+      <div><strong>${tooltipTitle}: ${completionPercentage}%</strong></div>
+      <div>${seenLabel}: ${totalSeen} | ${caughtLabel}: ${totalCaught}</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${actionLabel}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -652,8 +789,22 @@ export class PokedexIcon {
   }
   
   showDisabledMessage() {
+    // ⏰ MESSAGE AVEC FALLBACK SÉCURISÉ
+    let disabledMessage = 'Pokédx is currently disabled';
+    
+    try {
+      if (this.translationsReady) {
+        const translated = t('pokedex.disabled_message');
+        if (translated && !translated.includes('Manquant:')) {
+          disabledMessage = translated;
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [PokedexIcon] Erreur traduction message désactivé, utilisation fallback');
+    }
+    
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(t('pokedex.disabled_message'), 'warning', {
+      window.showGameNotification(disabledMessage, 'warning', {
         duration: 2000,
         position: 'bottom-center'
       });
@@ -746,6 +897,44 @@ export class PokedexIcon {
     };
   }
   
+  // === 🌐 MÉTHODES PUBLIQUES TRADUCTIONS ===
+  
+  /**
+   * Forcer mise à jour langue (API publique)
+   */
+  forceLanguageUpdate() {
+    console.log('🔄 [PokedexIcon] Force mise à jour langue...');
+    this.translationsReady = true; // Forcer le statut
+    this.updateLanguage();
+  }
+  
+  /**
+   * Réinitialiser état traductions
+   */
+  resetTranslationsState() {
+    console.log('🔄 [PokedexIcon] Reset état traductions...');
+    this.translationsReady = false;
+    this.pendingLanguageUpdate = false;
+    this.checkTranslationsReady();
+  }
+  
+  /**
+   * Injecter optionsManager après création
+   */
+  setOptionsManager(optionsManager) {
+    console.log('🌐 [PokedexIcon] Injection optionsManager...');
+    this.optionsManager = optionsManager;
+    
+    // Nettoyer ancien listener si existe
+    if (this.cleanupLanguageListener) {
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
+    
+    // Setup nouveau listener
+    this.setupLanguageSupportWithTiming();
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
@@ -768,9 +957,11 @@ export class PokedexIcon {
     this.onClick = null;
     this.isVisible = false;
     this.isEnabled = false;
-    this.optionsManager = null;  // ← NOUVEAU
+    this.optionsManager = null;
+    this.translationsReady = false;
+    this.pendingLanguageUpdate = false;
     
-    console.log('✅ [PokedexIcon] Détruit avec nettoyage traductions');
+    console.log('✅ [PokedexIcon] Détruit avec nettoyage traductions + timing fix');
   }
   
   // === 🐛 DEBUG ===
@@ -787,14 +978,17 @@ export class PokedexIcon {
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
       styleHarmonized: true,
-      version: 'harmonized-2024',
-      // ✅ NOUVELLES INFOS DEBUG TRADUCTIONS
+      version: 'harmonized-2024-timing-fix',
+      // ✅ NOUVELLES INFOS DEBUG TRADUCTIONS + TIMING
       hasOptionsManager: !!this.optionsManager,
       hasLanguageListener: !!this.cleanupLanguageListener,
+      translationsReady: this.translationsReady,
+      pendingLanguageUpdate: this.pendingLanguageUpdate,
       currentLanguage: this.optionsManager ? 
         (typeof window.GetPlayerCurrentLanguage === 'function' ? window.GetPlayerCurrentLanguage() : 'unknown') : 
         'no-options-manager',
-      translationsSupported: true
+      translationsSupported: true,
+      timingFixApplied: true
     };
   }
 }
@@ -802,7 +996,7 @@ export class PokedexIcon {
 export default PokedexIcon;
 
 console.log(`
-📱 === POKÉDEX ICON HARMONISÉ + TRADUCTIONS ===
+📱 === POKÉDX ICON HARMONISÉ + TRADUCTIONS + TIMING FIX ===
 
 🎯 STYLE COHÉRENT:
 ✅ Même taille que Team/Quest (70x80)
@@ -819,19 +1013,26 @@ console.log(`
 ✅ Nettoyage automatique du listener
 ✅ Tooltip avec traductions
 
-🔄 CHANGEMENTS APPLIQUÉS:
-• Suppression écran LCD complexe
-• Suppression boutons colorés
-• Suppression anneau de progression
-• Suppression design "Game Boy"
-• Template uniforme avec autres icônes
-• Support complet traductions temps réel
+⏰ FIX TIMING APPLIQUÉ:
+✅ checkTranslationsReady() - vérification état traductions
+✅ Fallback sécurisé pour label initial
+✅ Retry automatique si traductions pas prêtes
+✅ pendingLanguageUpdate pour différer mise à jour
+✅ retryLanguageSetup() si optionsManager indisponible
+✅ Tooltip avec fallback sur toutes les traductions
+✅ États CSS pour chargement traductions
+
+🔄 MÉTHODES NOUVELLES:
+✅ forceLanguageUpdate() - API publique
+✅ resetTranslationsState() - réinitialisation
+✅ setOptionsManager() - injection tardive
+✅ checkTranslationsReady() - vérification timing
 
 📊 AFFICHAGE SIMPLIFIÉ:
 • Emoji 📱 (moderne et clair)
 • Pourcentage de complétion (0-100%)
 • Statut dot (inactive/discovering/active/completed)
-• Tooltip informatif cohérent AVEC TRADUCTIONS
+• Tooltip informatif cohérent AVEC TRADUCTIONS + FALLBACK
 
 🎨 MÊME DESIGN QUE TEAM/QUEST:
 • Background bleu dégradé identique
@@ -840,12 +1041,12 @@ console.log(`
 • États hover/disabled identiques
 • Responsive breakpoints identiques
 
-🌐 TRADUCTIONS SUPPORTÉES:
-• Label icône: t('pokedex.label')
-• Tooltip titre: t('pokedex.tooltip_title')
-• Progress labels: t('pokedex.ui.progress.seen/caught')
-• Action: t('pokedex.tooltip_action')
-• Message désactivé: t('pokedex.disabled_message')
+🌐 TRADUCTIONS SUPPORTÉES AVEC TIMING FIX:
+• Label icône: t('pokedex.label') + fallback 'Pokédx'
+• Tooltip titre: t('pokedex.tooltip_title') + fallback
+• Progress labels: t('pokedex.ui.progress.seen/caught') + fallback
+• Action: t('pokedex.tooltip_action') + fallback
+• Message désactivé: t('pokedex.disabled_message') + fallback
 
-✅ POKÉDEX MAINTENANT COHÉRENT + MULTILINGUE !
+✅ POKÉDX MAINTENANT COHÉRENT + MULTILINGUE + TIMING PARFAIT !
 `);
