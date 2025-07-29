@@ -1,0 +1,674 @@
+{
+  "en": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Sunny",
+          "sunny": "Sunny",
+          "rain": "Rainy",
+          "rainy": "Rainy",
+          "cloudy": "Cloudy",
+          "storm": "Stormy",
+          "stormy": "Stormy",
+          "snow": "Snowy",
+          "snowy": "Snowy",
+          "fog": "Foggy",
+          "foggy": "Foggy"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Morning",
+          "afternoon": "Afternoon",
+          "evening": "Evening",
+          "night": "Night",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Monday",
+          "tuesday": "Tuesday",
+          "wednesday": "Wednesday",
+          "thursday": "Thursday",
+          "friday": "Friday",
+          "saturday": "Saturday",
+          "sunday": "Sunday"
+        },
+        "months": {
+          "january": "January",
+          "february": "February",
+          "march": "March",
+          "april": "April",
+          "may": "May",
+          "june": "June",
+          "july": "July",
+          "august": "August",
+          "september": "September",
+          "october": "October",
+          "november": "November",
+          "december": "December"
+        }
+      },
+      "locations": {
+        "pallet_town": "Pallet Town",
+        "viridian_city": "Viridian City",
+        "pewter_city": "Pewter City",
+        "cerulean_city": "Cerulean City",
+        "vermilion_city": "Vermilion City",
+        "lavender_town": "Lavender Town",
+        "celadon_city": "Celadon City",
+        "fuchsia_city": "Fuchsia City",
+        "saffron_city": "Saffron City",
+        "cinnabar_island": "Cinnabar Island",
+        "indigo_plateau": "Indigo Plateau",
+        "village": "Village"
+      },
+      "tooltips": {
+        "current_weather": "Current weather",
+        "local_time": "Local time",
+        "temperature": "Temperature",
+        "weather_intensity": "Weather intensity",
+        "pokemon_bonus": "Pokémon type bonus"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% XP {1} Pokémon",
+        "types": {
+          "fire": "Fire",
+          "water": "Water",
+          "electric": "Electric",
+          "ice": "Ice",
+          "ghost": "Ghost",
+          "flying": "Flying"
+        }
+      }
+    }
+  },
+  "fr": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Ensoleillé",
+          "sunny": "Ensoleillé",
+          "rain": "Pluvieux",
+          "rainy": "Pluvieux",
+          "cloudy": "Nuageux",
+          "storm": "Orageux",
+          "stormy": "Orageux",
+          "snow": "Neigeux",
+          "snowy": "Neigeux",
+          "fog": "Brumeux",
+          "foggy": "Brumeux"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Matin",
+          "afternoon": "Après-midi",
+          "evening": "Soirée",
+          "night": "Nuit",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Lundi",
+          "tuesday": "Mardi",
+          "wednesday": "Mercredi",
+          "thursday": "Jeudi",
+          "friday": "Vendredi",
+          "saturday": "Samedi",
+          "sunday": "Dimanche"
+        },
+        "months": {
+          "january": "Janvier",
+          "february": "Février",
+          "march": "Mars",
+          "april": "Avril",
+          "may": "Mai",
+          "june": "Juin",
+          "july": "Juillet",
+          "august": "Août",
+          "september": "Septembre",
+          "october": "Octobre",
+          "november": "Novembre",
+          "december": "Décembre"
+        }
+      },
+      "locations": {
+        "pallet_town": "Bourg Palette",
+        "viridian_city": "Viridian City",
+        "pewter_city": "Argenta",
+        "cerulean_city": "Azuria",
+        "vermilion_city": "Carmin sur Mer",
+        "lavender_town": "Lavanville",
+        "celadon_city": "Celadopole",
+        "fuchsia_city": "Parmanie",
+        "saffron_city": "Safrania",
+        "cinnabar_island": "Cramois'Île",
+        "indigo_plateau": "Plateau Indigo",
+        "village": "Village"
+      },
+      "tooltips": {
+        "current_weather": "Météo actuelle",
+        "local_time": "Heure locale",
+        "temperature": "Température",
+        "weather_intensity": "Intensité météo",
+        "pokemon_bonus": "Bonus type Pokémon"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% XP Pokémon {1}",
+        "types": {
+          "fire": "Feu",
+          "water": "Eau",
+          "electric": "Électrik",
+          "ice": "Glace",
+          "ghost": "Spectre",
+          "flying": "Vol"
+        }
+      }
+    }
+  },
+  "es": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Soleado",
+          "sunny": "Soleado",
+          "rain": "Lluvioso",
+          "rainy": "Lluvioso",
+          "cloudy": "Nuboso",
+          "storm": "Tormentoso",
+          "stormy": "Tormentoso",
+          "snow": "Nevado",
+          "snowy": "Nevado",
+          "fog": "Neblinoso",
+          "foggy": "Neblinoso"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Mañana",
+          "afternoon": "Tarde",
+          "evening": "Noche",
+          "night": "Madrugada",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Lunes",
+          "tuesday": "Martes",
+          "wednesday": "Miércoles",
+          "thursday": "Jueves",
+          "friday": "Viernes",
+          "saturday": "Sábado",
+          "sunday": "Domingo"
+        },
+        "months": {
+          "january": "Enero",
+          "february": "Febrero",
+          "march": "Marzo",
+          "april": "Abril",
+          "may": "Mayo",
+          "june": "Junio",
+          "july": "Julio",
+          "august": "Agosto",
+          "september": "Septiembre",
+          "october": "Octubre",
+          "november": "Noviembre",
+          "december": "Diciembre"
+        }
+      },
+      "locations": {
+        "pallet_town": "Pueblo Paleta",
+        "viridian_city": "Ciudad Verde",
+        "pewter_city": "Ciudad Plateada",
+        "cerulean_city": "Ciudad Celeste",
+        "vermilion_city": "Ciudad Bermellón",
+        "lavender_town": "Pueblo Lavanda",
+        "celadon_city": "Ciudad Azulona",
+        "fuchsia_city": "Ciudad Fucsia",
+        "saffron_city": "Ciudad Azafrán",
+        "cinnabar_island": "Isla Canela",
+        "indigo_plateau": "Meseta Añil",
+        "village": "Pueblo"
+      },
+      "tooltips": {
+        "current_weather": "Clima actual",
+        "local_time": "Hora local",
+        "temperature": "Temperatura",
+        "weather_intensity": "Intensidad del clima",
+        "pokemon_bonus": "Bonificación tipo Pokémon"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% XP Pokémon {1}",
+        "types": {
+          "fire": "Fuego",
+          "water": "Agua",
+          "electric": "Eléctrico",
+          "ice": "Hielo",
+          "ghost": "Fantasma",
+          "flying": "Volador"
+        }
+      }
+    }
+  },
+  "de": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Sonnig",
+          "sunny": "Sonnig",
+          "rain": "Regnerisch",
+          "rainy": "Regnerisch",
+          "cloudy": "Bewölkt",
+          "storm": "Stürmisch",
+          "stormy": "Stürmisch",
+          "snow": "Verschneit",
+          "snowy": "Verschneit",
+          "fog": "Neblig",
+          "foggy": "Neblig"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Morgen",
+          "afternoon": "Nachmittag",
+          "evening": "Abend",
+          "night": "Nacht",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Montag",
+          "tuesday": "Dienstag",
+          "wednesday": "Mittwoch",
+          "thursday": "Donnerstag",
+          "friday": "Freitag",
+          "saturday": "Samstag",
+          "sunday": "Sonntag"
+        },
+        "months": {
+          "january": "Januar",
+          "february": "Februar",
+          "march": "März",
+          "april": "April",
+          "may": "Mai",
+          "june": "Juni",
+          "july": "Juli",
+          "august": "August",
+          "september": "September",
+          "october": "Oktober",
+          "november": "November",
+          "december": "Dezember"
+        }
+      },
+      "locations": {
+        "pallet_town": "Alabastia",
+        "viridian_city": "Vertania City",
+        "pewter_city": "Marmoria City",
+        "cerulean_city": "Azuria City",
+        "vermilion_city": "Orania City",
+        "lavender_town": "Lavandia",
+        "celadon_city": "Prismania City",
+        "fuchsia_city": "Fuchsania City",
+        "saffron_city": "Saffronia City",
+        "cinnabar_island": "Zinnoberinsel",
+        "indigo_plateau": "Indigo Plateau",
+        "village": "Dorf"
+      },
+      "tooltips": {
+        "current_weather": "Aktuelles Wetter",
+        "local_time": "Ortszeit",
+        "temperature": "Temperatur",
+        "weather_intensity": "Wetterintensität",
+        "pokemon_bonus": "Pokémon-Typ-Bonus"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% EP {1}-Pokémon",
+        "types": {
+          "fire": "Feuer",
+          "water": "Wasser",
+          "electric": "Elektro",
+          "ice": "Eis",
+          "ghost": "Geist",
+          "flying": "Flug"
+        }
+      }
+    }
+  },
+  "it": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Soleggiato",
+          "sunny": "Soleggiato",
+          "rain": "Piovoso",
+          "rainy": "Piovoso",
+          "cloudy": "Nuvoloso",
+          "storm": "Tempestoso",
+          "stormy": "Tempestoso",
+          "snow": "Nevoso",
+          "snowy": "Nevoso",
+          "fog": "Nebbioso",
+          "foggy": "Nebbioso"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Mattina",
+          "afternoon": "Pomeriggio",
+          "evening": "Sera",
+          "night": "Notte",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Lunedì",
+          "tuesday": "Martedì",
+          "wednesday": "Mercoledì",
+          "thursday": "Giovedì",
+          "friday": "Venerdì",
+          "saturday": "Sabato",
+          "sunday": "Domenica"
+        },
+        "months": {
+          "january": "Gennaio",
+          "february": "Febbraio",
+          "march": "Marzo",
+          "april": "Aprile",
+          "may": "Maggio",
+          "june": "Giugno",
+          "july": "Luglio",
+          "august": "Agosto",
+          "september": "Settembre",
+          "october": "Ottobre",
+          "november": "Novembre",
+          "december": "Dicembre"
+        }
+      },
+      "locations": {
+        "pallet_town": "Biancavilla",
+        "viridian_city": "Smeraldopoli",
+        "pewter_city": "Plumbeopoli",
+        "cerulean_city": "Celestopoli",
+        "vermilion_city": "Aranciopoli",
+        "lavender_town": "Lavandonia",
+        "celadon_city": "Azzurropoli",
+        "fuchsia_city": "Fucsiapoli",
+        "saffron_city": "Zafferanopoli",
+        "cinnabar_island": "Isola Cannella",
+        "indigo_plateau": "Altopiano Blu",
+        "village": "Villaggio"
+      },
+      "tooltips": {
+        "current_weather": "Tempo attuale",
+        "local_time": "Ora locale",
+        "temperature": "Temperatura",
+        "weather_intensity": "Intensità del tempo",
+        "pokemon_bonus": "Bonus tipo Pokémon"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% ESP Pokémon {1}",
+        "types": {
+          "fire": "Fuoco",
+          "water": "Acqua",
+          "electric": "Elettro",
+          "ice": "Ghiaccio",
+          "ghost": "Spettro",
+          "flying": "Volante"
+        }
+      }
+    }
+  },
+  "pt": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "Ensolarado",
+          "sunny": "Ensolarado",
+          "rain": "Chuvoso",
+          "rainy": "Chuvoso",
+          "cloudy": "Nublado",
+          "storm": "Tempestuoso",
+          "stormy": "Tempestuoso",
+          "snow": "Nevando",
+          "snowy": "Nevando",
+          "fog": "Nebuloso",
+          "foggy": "Nebuloso"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "Manhã",
+          "afternoon": "Tarde",
+          "evening": "Noite",
+          "night": "Madrugada",
+          "am": "AM",
+          "pm": "PM"
+        },
+        "days": {
+          "monday": "Segunda-feira",
+          "tuesday": "Terça-feira",
+          "wednesday": "Quarta-feira",
+          "thursday": "Quinta-feira",
+          "friday": "Sexta-feira",
+          "saturday": "Sábado",
+          "sunday": "Domingo"
+        },
+        "months": {
+          "january": "Janeiro",
+          "february": "Fevereiro",
+          "march": "Março",
+          "april": "Abril",
+          "may": "Maio",
+          "june": "Junho",
+          "july": "Julho",
+          "august": "Agosto",
+          "september": "Setembro",
+          "october": "Outubro",
+          "november": "Novembro",
+          "december": "Dezembro"
+        }
+      },
+      "locations": {
+        "pallet_town": "Cidade Paleta",
+        "viridian_city": "Cidade Verde",
+        "pewter_city": "Cidade Pewter",
+        "cerulean_city": "Cidade Cerúlea",
+        "vermilion_city": "Cidade Vermelho",
+        "lavender_town": "Cidade Lavanda",
+        "celadon_city": "Cidade Celadon",
+        "fuchsia_city": "Cidade Fúcsia",
+        "saffron_city": "Cidade Açafrão",
+        "cinnabar_island": "Ilha Canela",
+        "indigo_plateau": "Planalto Índigo",
+        "village": "Vila"
+      },
+      "tooltips": {
+        "current_weather": "Clima atual",
+        "local_time": "Hora local",
+        "temperature": "Temperatura",
+        "weather_intensity": "Intensidade do clima",
+        "pokemon_bonus": "Bônus tipo Pokémon"
+      },
+      "bonus": {
+        "xp_boost": "+{0}% EXP Pokémon {1}",
+        "types": {
+          "fire": "Fogo",
+          "water": "Água",
+          "electric": "Elétrico",
+          "ice": "Gelo",
+          "ghost": "Fantasma",
+          "flying": "Voador"
+        }
+      }
+    }
+  },
+  "ja": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "晴れ",
+          "sunny": "晴れ",
+          "rain": "雨",
+          "rainy": "雨",
+          "cloudy": "曇り",
+          "storm": "嵐",
+          "stormy": "嵐",
+          "snow": "雪",
+          "snowy": "雪",
+          "fog": "霧",
+          "foggy": "霧"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "朝",
+          "afternoon": "午後",
+          "evening": "夕方",
+          "night": "夜",
+          "am": "午前",
+          "pm": "午後"
+        },
+        "days": {
+          "monday": "月曜日",
+          "tuesday": "火曜日",
+          "wednesday": "水曜日",
+          "thursday": "木曜日",
+          "friday": "金曜日",
+          "saturday": "土曜日",
+          "sunday": "日曜日"
+        },
+        "months": {
+          "january": "1月",
+          "february": "2月",
+          "march": "3月",
+          "april": "4月",
+          "may": "5月",
+          "june": "6月",
+          "july": "7月",
+          "august": "8月",
+          "september": "9月",
+          "october": "10月",
+          "november": "11月",
+          "december": "12月"
+        }
+      },
+      "locations": {
+        "pallet_town": "マサラタウン",
+        "viridian_city": "トキワシティ",
+        "pewter_city": "ニビシティ",
+        "cerulean_city": "ハナダシティ",
+        "vermilion_city": "クチバシティ",
+        "lavender_town": "シオンタウン",
+        "celadon_city": "タマムシシティ",
+        "fuchsia_city": "セキチクシティ",
+        "saffron_city": "ヤマブキシティ",
+        "cinnabar_island": "グレンじま",
+        "indigo_plateau": "セキエイこうげん",
+        "village": "村"
+      },
+      "tooltips": {
+        "current_weather": "現在の天気",
+        "local_time": "現地時間",
+        "temperature": "気温",
+        "weather_intensity": "天気の強度",
+        "pokemon_bonus": "ポケモンタイプボーナス"
+      },
+      "bonus": {
+        "xp_boost": "{1}ポケモン+{0}%経験値",
+        "types": {
+          "fire": "ほのお",
+          "water": "みず",
+          "electric": "でんき",
+          "ice": "こおり",
+          "ghost": "ゴースト",
+          "flying": "ひこう"
+        }
+      }
+    }
+  },
+  "ko": {
+    "timeweather": {
+      "weather": {
+        "conditions": {
+          "clear": "맑음",
+          "sunny": "맑음",
+          "rain": "비",
+          "rainy": "비",
+          "cloudy": "흐림",
+          "storm": "폭풍",
+          "stormy": "폭풍",
+          "snow": "눈",
+          "snowy": "눈",
+          "fog": "안개",
+          "foggy": "안개"
+        }
+      },
+      "time": {
+        "periods": {
+          "morning": "아침",
+          "afternoon": "오후",
+          "evening": "저녁",
+          "night": "밤",
+          "am": "오전",
+          "pm": "오후"
+        },
+        "days": {
+          "monday": "월요일",
+          "tuesday": "화요일",
+          "wednesday": "수요일",
+          "thursday": "목요일",
+          "friday": "금요일",
+          "saturday": "토요일",
+          "sunday": "일요일"
+        },
+        "months": {
+          "january": "1월",
+          "february": "2월",
+          "march": "3월",
+          "april": "4월",
+          "may": "5월",
+          "june": "6월",
+          "july": "7월",
+          "august": "8월",
+          "september": "9월",
+          "october": "10월",
+          "november": "11월",
+          "december": "12월"
+        }
+      },
+      "locations": {
+        "pallet_town": "태초마을",
+        "viridian_city": "상록시티",
+        "pewter_city": "회색시티",
+        "cerulean_city": "하늘색시티",
+        "vermilion_city": "노랑시티",
+        "lavender_town": "보라타운",
+        "celadon_city": "무지개시티",
+        "fuchsia_city": "분홍시티",
+        "saffron_city": "금빛시티",
+        "cinnabar_island": "홍련섬",
+        "indigo_plateau": "남색고원",
+        "village": "마을"
+      },
+      "tooltips": {
+        "current_weather": "현재 날씨",
+        "local_time": "현지 시간",
+        "temperature": "온도",
+        "weather_intensity": "날씨 강도",
+        "pokemon_bonus": "포켓몬 타입 보너스"
+      },
+      "bonus": {
+        "xp_boost": "{1} 포켓몬 +{0}% 경험치",
+        "types": {
+          "fire": "불꽃",
+          "water": "물",
+          "electric": "전기",
+          "ice": "얼음",
+          "ghost": "고스트",
+          "flying": "비행"
+        }
+      }
+    }
+  }
+}
