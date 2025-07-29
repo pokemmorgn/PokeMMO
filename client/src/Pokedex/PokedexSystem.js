@@ -915,3 +915,47 @@ requestPokedxData(filters = {}) {
 
 // === 📋 EXPORT ===
 export default PokedxSystem;
+
+console.log(`
+📱 === POKÉDX SYSTEM AVEC TRADUCTIONS ===
+
+🌐 NOUVELLES FONCTIONNALITÉS:
+• optionsManager en paramètre constructeur
+• Passage aux composants UI et Icon
+• setOptionsManager() pour injection tardive
+• Support complet des traductions temps réel
+
+🎯 FONCTIONNALITÉS PRINCIPALES:
+• Gestion complète du Pokédx
+• Communication serveur optimisée
+• Cache local pour les performances
+• Notifications et achievements
+• Intégration avec autres systèmes
+
+📡 COMMUNICATION SERVEUR:
+• Toutes les requêtes du handler serveur
+• Gestion des réponses et erreurs
+• Cache intelligent
+• Synchronisation automatique
+
+🎮 ÉVÉNEMENTS SUPPORTÉS:
+• pokemonEncountered → auto mark seen
+• pokemonCaptured → auto mark caught
+• pokemonEvolved → gestion évolutions
+• Notifications temps réel
+
+📊 DONNÉES GÉRÉES:
+• Entrées Pokédx (vu/capturé/shiny)
+• Statistiques joueur
+• Favoris et tags
+• Notifications
+• Paramètres utilisateur
+
+🌐 TRADUCTIONS SUPPORTÉES:
+• Interface traduite automatiquement
+• Messages d'erreur multilingues
+• Notifications localisées
+• Switching langue temps réel
+
+✅ SYSTÈME POKÉDX PRÊT POUR L'AVENTURE MULTILINGUE !
+`);
