@@ -610,60 +610,75 @@ async createTeamModule() {
   }
 }
 
-  async createPokedexModule() {
-    try {
-      console.log('🚀 [PokemonUI] Création module Pokédex...');
-      
-      // Importer et créer le module Pokédex
-      const { createPokedexModule } = await import('./Pokedex/index.js');
-      
-      const pokedexModule = await createPokedexModule(
-        window.currentGameRoom,
-        window.game?.scene?.getScenes(true)[0]
-      );
-      
-      if (!pokedexModule) {
-        throw new Error('Échec création PokedexModule');
-      }
-      
-      console.log('✅ [PokemonUI] PokedexModule créé avec succès');
-      
-      // S'assurer que le module a les méthodes nécessaires pour UIManager
-      if (!pokedexModule.connectUIManager && pokedexModule.icon?.iconElement) {
-        pokedexModule.connectUIManager = (uiManager) => {
-          if (uiManager.registerIconPosition) {
-            uiManager.registerIconPosition('pokedex', pokedexModule.icon.iconElement, {
-              anchor: 'bottom-right',
-              order: 2,
-              spacing: 10,
-              size: { width: 70, height: 80 }
-            });
-            return true;
-          }
-          return false;
-        };
-      }
-      
-      // Connecter à UIManager si disponible
-      if (this.uiManager && pokedexModule.connectUIManager) {
-        pokedexModule.connectUIManager(this.uiManager);
-      }
-      
-      // Exposer globalement
-      window.pokedexSystem = pokedexModule.system;
-      window.pokedexSystemGlobal = pokedexModule;
-      window.togglePokedex = () => pokedexModule.toggleUI?.() || pokedexModule.toggle?.();
-      window.openPokedex = () => pokedexModule.open?.();
-      window.closePokedex = () => pokedexModule.close?.();
-      
-      return pokedexModule;
-      
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création Pokédx:', error);
-      // Fallback: wrapper vide
-      return this.createEmptyWrapper('pokedex');
+async createPokedexModule() {
+  try {
+    console.log('🚀 [PokemonUI] Création module Pokédx avec optionsManager...');
+    
+    // 🌐 CORRECTION: Récupérer le bon niveau optionsManager
+    const optionsManager = window.optionsSystem?.manager ||      // ← LE BON OBJET (.manager)
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    console.log('🌐 [PokemonUI] Création PokedexModule avec optionsManager:', !!optionsManager);
+    
+    // Importer et créer le module Pokédx AVEC optionsManager
+    const { createPokedexModule } = await import('./Pokedex/index.js');
+    
+    const pokedexModule = await createPokedexModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0],
+      { optionsManager }  // ← PASSER OPTIONS MANAGER ICI (NOUVEAU)
+    );
+    
+    if (!pokedexModule) {
+      throw new Error('Échec création PokedexModule');
     }
+    
+    console.log('✅ [PokemonUI] PokedexModule créé avec succès + traductions');
+    
+    // S'assurer que le module a les méthodes nécessaires pour UIManager
+    if (!pokedexModule.connectUIManager && pokedexModule.icon?.iconElement) {
+      pokedexModule.connectUIManager = (uiManager) => {
+        if (uiManager.registerIconPosition) {
+          uiManager.registerIconPosition('pokedex', pokedexModule.icon.iconElement, {
+            anchor: 'bottom-right',
+            order: 2,
+            spacing: 10,
+            size: { width: 70, height: 80 }
+          });
+          return true;
+        }
+        return false;
+      };
+    }
+    
+    // Connecter à UIManager si disponible
+    if (this.uiManager && pokedexModule.connectUIManager) {
+      const connected = pokedexModule.connectUIManager(this.uiManager);
+      console.log(`🔗 [PokemonUI] UIManager connexion Pokédx: ${connected ? 'SUCCÈS' : 'ÉCHEC'}`);
+    }
+    
+    // ✅ S'assurer que l'interface est fermée par défaut
+    if (pokedexModule.forceCloseUI) {
+      pokedexModule.forceCloseUI();
+    }
+    
+    // Exposer globalement
+    window.pokedexSystem = pokedexModule.system;
+    window.pokedexSystemGlobal = pokedexModule;
+    window.togglePokedex = () => pokedexModule.toggleUI?.() || pokedexModule.toggle?.();
+    window.openPokedex = () => pokedexModule.open?.();
+    window.closePokedex = () => pokedexModule.close?.();
+    
+    console.log('🌐 [PokemonUI] PokedexModule exposé avec traductions temps réel');
+    return pokedexModule;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création Pokédx:', error);
+    // Fallback: wrapper vide
+    return this.createEmptyWrapper('pokedex');
   }
+}
 
   // ✅ QUEST MODULE - VERSION MINIMALE AVEC FIX POSITION SEULEMENT
 async createQuestModule() {
