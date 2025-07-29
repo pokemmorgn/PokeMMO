@@ -380,8 +380,25 @@ export class PokemonUISystem {
         id: 'timeWeather',
         critical: false,
         factory: async () => {
+          console.log('🚀 [PokemonUI] Création module TimeWeather avec optionsManager...');
+          
+          // 🌐 NOUVEAU: Récupérer le bon niveau optionsManager
+          const optionsManager = window.optionsSystem?.manager ||      // ← LE BON OBJET (.manager)
+                                 window.optionsSystemGlobal?.manager ||
+                                 window.optionsSystem;
+          
+          console.log('🌐 [PokemonUI] Création TimeWeatherModule avec optionsManager:', !!optionsManager);
+          
           const { createTimeWeatherModule } = await import('./Weather/TimeWeatherModule.js');
-          return createTimeWeatherModule();
+          
+          const timeWeatherModule = createTimeWeatherModule(optionsManager);  // ← PASSER OPTIONS MANAGER ICI
+          
+          if (!timeWeatherModule) {
+            throw new Error('Échec création TimeWeatherModule');
+          }
+          
+          console.log('✅ [PokemonUI] TimeWeatherModule créé avec traductions temps réel');
+          return timeWeatherModule;
         },
         groups: ['weather'],
         layout: {
@@ -398,8 +415,8 @@ export class PokemonUISystem {
         },
         metadata: {
           name: 'Time & Weather',
-          description: 'Real-time weather and time tracking system',
-          version: '1.0.0',
+          description: 'Real-time weather and time tracking system with translations',  // ← Mis à jour
+          version: '1.1.0',  // ← Version mise à jour
           category: 'Environment'
         }
       },
