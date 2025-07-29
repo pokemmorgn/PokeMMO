@@ -125,14 +125,14 @@ export class PokedexIcon {
   }
   
   addStyles() {
-    if (document.querySelector('#pokedx-icon-harmonized-styles')) {
+    if (document.querySelector('#pokedex-icon-harmonized-styles')) {
       return;
     }
     
     const style = document.createElement('style');
-    style.id = 'pokedx-icon-harmonized-styles';
+    style.id = 'pokedex-icon-harmonized-styles';
     style.textContent = `
-      .pokedx-icon {
+      .pokedex-icon {
         width: 70px !important;
         height: 80px !important;
         cursor: pointer;
@@ -144,11 +144,11 @@ export class PokedexIcon {
         box-sizing: border-box;
       }
       
-      .pokedx-icon:hover {
+      .pokedex-icon:hover {
         transform: scale(1.1);
       }
       
-      .pokedx-icon .icon-background {
+      .pokedex-icon .icon-background {
         width: 100%;
         height: 70px;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42);
@@ -164,13 +164,13 @@ export class PokedexIcon {
         overflow: hidden;
       }
       
-      .pokedx-icon:hover .icon-background {
+      .pokedex-icon:hover .icon-background {
         background: linear-gradient(145deg, #3a4f6f, #2e3d52);
         border-color: #5aa0f2;
         box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
       
-      .pokedx-icon .icon-content {
+      .pokedex-icon .icon-content {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -179,17 +179,17 @@ export class PokedexIcon {
         gap: 2px;
       }
       
-      .pokedx-icon .icon-emoji {
+      .pokedex-icon .icon-emoji {
         font-size: 20px;
         transition: transform 0.3s ease;
         filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
       }
       
-      .pokedx-icon:hover .icon-emoji {
+      .pokedex-icon:hover .icon-emoji {
         transform: scale(1.2);
       }
       
-      .pokedx-counter {
+      .pokedex-counter {
         display: flex;
         align-items: center;
         font-size: 12px;
@@ -206,7 +206,7 @@ export class PokedexIcon {
         text-align: center;
       }
       
-      .pokedx-icon .icon-label {
+      .pokedex-icon .icon-label {
         font-size: 11px;
         color: #87ceeb;
         font-weight: 600;
@@ -297,7 +297,7 @@ export class PokedexIcon {
         50% { opacity: 0.7; }
       }
       
-      .pokedx-icon.pokemon-discovered .icon-emoji {
+      .pokedex-icon.pokemon-discovered .icon-emoji {
         animation: discoveryBounce 0.6s ease;
       }
       
@@ -308,7 +308,7 @@ export class PokedexIcon {
         75% { transform: scale(1.2) rotate(-2deg); }
       }
       
-      .pokedx-icon.pokemon-caught .icon-emoji {
+      .pokedex-icon.pokemon-caught .icon-emoji {
         animation: captureBounce 0.8s ease;
       }
       
@@ -319,7 +319,7 @@ export class PokedexIcon {
         75% { transform: scale(1.3) rotate(-5deg); }
       }
       
-      .pokedx-icon.milestone-reached {
+      .pokedex-icon.milestone-reached {
         animation: milestoneGlow 1s ease;
       }
       
@@ -334,23 +334,23 @@ export class PokedexIcon {
         }
       }
       
-      .pokedx-icon.hidden {
+      .pokedex-icon.hidden {
         opacity: 0;
         pointer-events: none;
         transform: translateY(20px);
       }
       
-      .pokedx-icon.disabled {
+      .pokedex-icon.disabled {
         opacity: 0.5;
         cursor: not-allowed;
         filter: grayscale(50%);
       }
       
-      .pokedx-icon.disabled:hover {
+      .pokedex-icon.disabled:hover {
         transform: none !important;
       }
       
-      .pokedx-icon.appearing {
+      .pokedex-icon.appearing {
         animation: iconAppear 0.5s ease;
       }
       
@@ -366,16 +366,16 @@ export class PokedexIcon {
       }
       
       @media (max-width: 768px) {
-        .pokedx-icon {
+        .pokedex-icon {
           width: 60px !important;
           height: 70px !important;
         }
         
-        .pokedx-icon .icon-background {
+        .pokedex-icon .icon-background {
           height: 60px;
         }
         
-        .pokedx-icon .icon-emoji {
+        .pokedex-icon .icon-emoji {
           font-size: 18px;
         }
         
@@ -383,22 +383,22 @@ export class PokedexIcon {
           font-size: 11px;
         }
         
-        .pokedx-icon .icon-label {
+        .pokedex-icon .icon-label {
           font-size: 10px;
         }
       }
       
       @media (min-width: 769px) and (max-width: 1024px) {
-        .pokedx-icon {
+        .pokedex-icon {
           width: 65px !important;
           height: 75px !important;
         }
         
-        .pokedx-icon .icon-background {
+        .pokedex-icon .icon-background {
           height: 65px;
         }
         
-        .pokedx-icon .icon-emoji {
+        .pokedex-icon .icon-emoji {
           font-size: 19px;
         }
         
@@ -407,11 +407,11 @@ export class PokedexIcon {
         }
       }
       
-      .pokedx-icon[data-positioned-by="uimanager"] {
+      .pokedex-icon[data-positioned-by="uimanager"] {
         border: 1px solid rgba(74, 144, 226, 0.3);
       }
       
-      .pokedx-icon[data-positioned-by="uimanager"]::before {
+      .pokedex-icon[data-positioned-by="uimanager"]::before {
         content: "📍";
         position: absolute;
         top: -2px;
@@ -587,7 +587,7 @@ export class PokedexIcon {
     const { totalSeen, totalCaught, completionPercentage } = this.displayData;
     
     const tooltip = document.createElement('div');
-    tooltip.className = 'pokedx-tooltip';
+    tooltip.className = 'pokedex-tooltip';
     
     const iconRect = this.iconElement.getBoundingClientRect();
     
@@ -609,9 +609,9 @@ export class PokedexIcon {
     `;
     
     tooltip.innerHTML = `
-      <div><strong>${t('pokedx.tooltip_title')}: ${completionPercentage}%</strong></div>
-      <div>${t('pokedx.ui.progress.seen')}: ${totalSeen} | ${t('pokedx.ui.progress.caught')}: ${totalCaught}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">${t('pokedx.tooltip_action')}</div>
+      <div><strong>${t('pokedex.tooltip_title')}: ${completionPercentage}%</strong></div>
+      <div>${t('pokedex.ui.progress.seen')}: ${totalSeen} | ${t('pokedex.ui.progress.caught')}: ${totalCaught}</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${t('pokedex.tooltip_action')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -635,7 +635,7 @@ export class PokedexIcon {
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
       window.showGameNotification(
-        t('pokedx.disabled_message'), 
+        t('pokedex.disabled_message'), 
         'warning', 
         {
           duration: 2000,
