@@ -569,7 +569,7 @@ export class PokedexUI {
 
     const style = document.createElement('style');
     style.id = 'pokedex-ui-styles';
-    style.textContent = pokedex_UI_STYLES;
+    style.textContent = POKEDEX_UI_STYLES;
     
     document.head.appendChild(style);
     console.log('🎨 [PokedexUI] Styles modulaires appliqués');
