@@ -622,7 +622,7 @@ async createPokedexModule() {
       console.log('🌐 [PokemonUI] Création PokedxModule avec optionsManager:', !!optionsManager);
       
       // Importer et créer le module Pokédx
-      const { createPokedxModule } = await import('./Pokedx/index.js');
+      const { createPokedxModule } = await import('./Pokedex/index.js');
       
       const pokedxModule = await createPokedxModule(
         window.currentGameRoom,
