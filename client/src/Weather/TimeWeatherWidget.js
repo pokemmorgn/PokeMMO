@@ -1,6 +1,7 @@
-// ui/TimeWeatherWidget.js - Style UNIFIÉ avec le reste de l'interface
-// 🎯 Palette cohérente + effets météo subtils - TRONCATURE CORRIGÉE
+// ui/TimeWeatherWidget.js - Style UNIFIÉ avec traductions temps réel
+// 🎯 Palette cohérente + effets météo subtils + 🌐 TRADUCTIONS AUTOMATIQUES
 import { POKEMON_WEATHER_STYLES } from './PokemonWeatherStyles.js';
+import { t } from '../managers/LocalizationManager.js';
 
 export class TimeWeatherWidget {
   constructor(options = {}) {
@@ -14,6 +15,11 @@ export class TimeWeatherWidget {
     this.gameplayBonus = { active: true, text: '+15% XP Pokémon Eau', type: 'water' };
     this.lastWeatherSent = null;
 
+    // 🌐 NOUVEAU: Support traductions
+    this.optionsManager = options.optionsManager || null;
+    this.languageListeners = [];
+    this.translationsReady = false;
+
     // 🎨 CONFIGURATION MÉTÉO UNIFIÉE AVEC ACCENTS PRONONCÉS
     this.pokemonWeatherConfig = {
       clear: { 
@@ -21,72 +27,72 @@ export class TimeWeatherWidget {
         pokemon: '🔥', 
         gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
         particles: '✨',
-        bonus: 'Feu',
-        color: '#ffd700', // Doré vif (au lieu de adouci)
+        bonus: 'fire', // ← Changé pour clé de traduction
+        color: '#ffd700', // Doré vif
         particleCount: 6,
-        accentColor: '#ffb347', // Pour effets secondaires
-        glowColor: 'rgba(255, 215, 0, 0.8)', // Glow doré prononcé
-        borderColor: '#ffd700' // Bordure dorée
+        accentColor: '#ffb347',
+        glowColor: 'rgba(255, 215, 0, 0.8)',
+        borderColor: '#ffd700'
       },
       rain: { 
         icon: '🌧️', 
         pokemon: '💧', 
-        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
+        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)',
         particles: '💧',
-        bonus: 'Eau',
-        color: '#3b82f6', // Bleu vif (au lieu de cyan unifié)
+        bonus: 'water', // ← Changé pour clé de traduction
+        color: '#3b82f6',
         particleCount: 8,
         accentColor: '#60a5fa',
-        glowColor: 'rgba(59, 130, 246, 0.8)', // Glow bleu prononcé
-        borderColor: '#3b82f6' // Bordure bleu vif
+        glowColor: 'rgba(59, 130, 246, 0.8)',
+        borderColor: '#3b82f6'
       },
       storm: { 
         icon: '⚡', 
         pokemon: '⚡', 
-        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
+        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)',
         particles: '⚡',
-        bonus: 'Électrik',
-        color: '#8b5cf6', // Violet vif (au lieu de adouci)
+        bonus: 'electric', // ← Changé pour clé de traduction
+        color: '#8b5cf6',
         particleCount: 10,
         accentColor: '#a78bfa',
-        glowColor: 'rgba(139, 92, 246, 1)', // Glow violet très prononcé
-        borderColor: '#8b5cf6' // Bordure violette
+        glowColor: 'rgba(139, 92, 246, 1)',
+        borderColor: '#8b5cf6'
       },
       snow: { 
         icon: '❄️', 
         pokemon: '🧊', 
-        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
+        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)',
         particles: '❄️',
-        bonus: 'Glace',
-        color: '#60a5fa', // Cyan glacé vif (au lieu de adouci)
+        bonus: 'ice', // ← Changé pour clé de traduction
+        color: '#60a5fa',
         particleCount: 12,
         accentColor: '#93c5fd',
-        glowColor: 'rgba(96, 165, 250, 0.8)', // Glow cyan prononcé
-        borderColor: '#60a5fa' // Bordure cyan glacé
+        glowColor: 'rgba(96, 165, 250, 0.8)',
+        borderColor: '#60a5fa'
       },
       fog: { 
         icon: '🌫️', 
         pokemon: '👻', 
-        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
+        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)',
         particles: '🌫️',
-        bonus: 'Spectre',
-        color: '#9ca3af', // Gris (maintenu)
+        bonus: 'ghost', // ← Changé pour clé de traduction
+        color: '#9ca3af',
         particleCount: 5,
         accentColor: '#d1d5db',
-        glowColor: 'rgba(156, 163, 175, 0.5)', // Glow gris modéré
-        borderColor: '#9ca3af' // Bordure grise
+        glowColor: 'rgba(156, 163, 175, 0.5)',
+        borderColor: '#9ca3af'
       },
       cloudy: { 
         icon: '☁️', 
         pokemon: '🌪️', 
-        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)', // Base uniforme
+        gradient: 'linear-gradient(145deg, #2a3f5f, #1e2d42)',
         particles: '☁️',
-        bonus: 'Vol',
-        color: '#6b7280', // Gris-bleu
+        bonus: 'flying', // ← Changé pour clé de traduction
+        color: '#6b7280',
         particleCount: 4,
         accentColor: '#9ca3af',
-        glowColor: 'rgba(107, 114, 128, 0.5)', // Glow gris-bleu modéré
-        borderColor: '#6b7280' // Bordure gris-bleu
+        glowColor: 'rgba(107, 114, 128, 0.5)',
+        borderColor: '#6b7280'
       }
     };
     
@@ -108,10 +114,318 @@ export class TimeWeatherWidget {
     this.uiManagerControlled = true;
     this.onPositioned = this.onPositioned.bind(this);
     
-    console.log('🎮 [WeatherWidget] Instance créée - PALETTE UNIFIÉE avec ACCENTS MÉTÉO PRONONCÉS');
+    console.log('🎮 [WeatherWidget] Instance créée avec support traductions');
   }
 
-  // === 🛡️ PROTECTION CONTRE UIMANAGER ===
+  // === 🌐 NOUVEAUX MÉTODES TRADUCTIONS ===
+  
+  /**
+   * Configurer le support des langues (appelé après création DOM)
+   */
+  setupLanguageSupport() {
+    console.log('🌐 [WeatherWidget] Setup support traductions...');
+    
+    if (!this.optionsManager) {
+      console.warn('⚠️ [WeatherWidget] OptionsManager manquant - pas de traductions');
+      return false;
+    }
+    
+    // Vérifier si les traductions sont prêtes
+    this.checkTranslationsReady();
+    
+    // Setup des listeners
+    this.setupLanguageListeners();
+    
+    return true;
+  }
+  
+  /**
+   * Vérifier si les traductions sont disponibles (avec retry)
+   */
+  checkTranslationsReady() {
+    const maxAttempts = 10;
+    let attempts = 0;
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      
+      // Test de base: clé timeweather
+      const testTranslation = this.safeTranslate('timeweather.weather.conditions.sunny', 'Sunny');
+      const isReady = testTranslation !== 'timeweather.weather.conditions.sunny';
+      
+      if (isReady) {
+        console.log(`✅ [WeatherWidget] Traductions prêtes (tentative ${attempts})`);
+        this.translationsReady = true;
+        clearInterval(checkInterval);
+        
+        // Mise à jour immédiate
+        this.updateLanguage();
+        return;
+      }
+      
+      if (attempts >= maxAttempts) {
+        console.warn(`⚠️ [WeatherWidget] Traductions non trouvées après ${maxAttempts} tentatives`);
+        clearInterval(checkInterval);
+        return;
+      }
+      
+      console.log(`🔄 [WeatherWidget] Attente traductions... (${attempts}/${maxAttempts})`);
+    }, 500);
+  }
+  
+  /**
+   * Écouter les changements de langue
+   */
+  setupLanguageListeners() {
+    console.log('👂 [WeatherWidget] Setup listeners traductions...');
+    
+    if (!this.optionsManager) return;
+    
+    // Listener 1: Changement de langue via Options
+    if (this.optionsManager.on) {
+      const languageListener = (event) => {
+        console.log('🌐 [WeatherWidget] Langue changée:', event.detail);
+        setTimeout(() => this.updateLanguage(), 100);
+      };
+      
+      this.optionsManager.on('languageChanged', languageListener);
+      this.languageListeners.push(() => {
+        this.optionsManager.off('languageChanged', languageListener);
+      });
+    }
+    
+    // Listener 2: Événement global window
+    const globalLanguageListener = (event) => {
+      console.log('🌐 [WeatherWidget] Langue globale changée:', event.detail);
+      setTimeout(() => this.updateLanguage(), 100);
+    };
+    
+    window.addEventListener('languageChanged', globalLanguageListener);
+    this.languageListeners.push(() => {
+      window.removeEventListener('languageChanged', globalLanguageListener);
+    });
+    
+    // Listener 3: Mise à jour modules LocalizationManager
+    const modulesUpdatedListener = (event) => {
+      if (event.detail.newModules?.includes('timeweather')) {
+        console.log('📦 [WeatherWidget] Module timeweather chargé dynamiquement');
+        setTimeout(() => {
+          this.translationsReady = true;
+          this.updateLanguage();
+        }, 200);
+      }
+    };
+    
+    window.addEventListener('localizationModulesUpdated', modulesUpdatedListener);
+    this.languageListeners.push(() => {
+      window.removeEventListener('localizationModulesUpdated', modulesUpdatedListener);
+    });
+    
+    console.log(`✅ [WeatherWidget] ${this.languageListeners.length} listeners configurés`);
+  }
+  
+  /**
+   * Traduction sécurisée avec fallback
+   */
+  safeTranslate(key, fallback = null) {
+    try {
+      const translation = t(key);
+      return (translation && translation !== key) ? translation : (fallback || key);
+    } catch (error) {
+      console.warn(`⚠️ [WeatherWidget] Erreur traduction "${key}":`, error);
+      return fallback || key;
+    }
+  }
+  
+  /**
+   * Mettre à jour toutes les traductions du widget
+   */
+  updateLanguage() {
+    if (!this.translationsReady) {
+      console.log('⏳ [WeatherWidget] Traductions pas encore prêtes');
+      return;
+    }
+    
+    if (!this.element) {
+      console.log('⏳ [WeatherWidget] Widget pas encore initialisé');
+      return;
+    }
+    
+    console.log('🔄 [WeatherWidget] Mise à jour traductions...');
+    
+    try {
+      // 1. Traduire condition météo actuelle
+      this.translateCurrentWeather();
+      
+      // 2. Traduire période de temps
+      this.translateTimePeriod();
+      
+      // 3. Traduire localisation
+      this.translateLocation();
+      
+      // 4. Traduire bonus gameplay
+      this.translateGameplayBonus();
+      
+      // 5. Mettre à jour tooltips si présents
+      this.translateTooltips();
+      
+      console.log('✅ [WeatherWidget] Traductions mises à jour');
+      
+    } catch (error) {
+      console.error('❌ [WeatherWidget] Erreur mise à jour traductions:', error);
+    }
+  }
+  
+  /**
+   * Traduire la condition météo actuelle
+   */
+  translateCurrentWeather() {
+    if (!this.weather || !this.weather.weather) return;
+    
+    const weatherCondition = this.weather.weather;
+    const translatedCondition = this.safeTranslate(
+      `timeweather.weather.conditions.${weatherCondition}`,
+      this.weather.displayName
+    );
+    
+    const weatherElement = this.element.querySelector('.weather-main');
+    if (weatherElement && weatherElement.textContent !== translatedCondition) {
+      weatherElement.textContent = translatedCondition;
+      console.log(`🌤️ [WeatherWidget] Météo traduite: ${weatherCondition} → ${translatedCondition}`);
+    }
+  }
+  
+  /**
+   * Traduire période de temps (AM/PM)
+   */
+  translateTimePeriod() {
+    const periodElement = this.element.querySelector('.time-period');
+    if (!periodElement) return;
+    
+    const currentPeriod = periodElement.textContent.toLowerCase();
+    if (currentPeriod === 'am' || currentPeriod === 'pm') {
+      const translatedPeriod = this.safeTranslate(
+        `timeweather.time.periods.${currentPeriod}`,
+        currentPeriod.toUpperCase()
+      );
+      
+      if (periodElement.textContent !== translatedPeriod) {
+        periodElement.textContent = translatedPeriod;
+        console.log(`⏰ [WeatherWidget] Période traduite: ${currentPeriod} → ${translatedPeriod}`);
+      }
+    }
+  }
+  
+  /**
+   * Traduire nom de localisation
+   */
+  translateLocation() {
+    const zoneElement = this.element.querySelector('.zone-text');
+    if (!zoneElement) return;
+    
+    const currentLocation = zoneElement.textContent;
+    
+    // Mapping des noms de lieux vers les clés de traduction
+    const locationMapping = {
+      'Village': 'village',
+      'Pallet Town': 'pallet_town',
+      'Viridian City': 'viridian_city',
+      'Pewter City': 'pewter_city',
+      'Cerulean City': 'cerulean_city',
+      'Vermilion City': 'vermilion_city',
+      'Lavender Town': 'lavender_town',
+      'Celadon City': 'celadon_city',
+      'Fuchsia City': 'fuchsia_city',
+      'Saffron City': 'saffron_city',
+      'Cinnabar Island': 'cinnabar_island',
+      'Indigo Plateau': 'indigo_plateau'
+    };
+    
+    const locationKey = locationMapping[currentLocation];
+    if (locationKey) {
+      const translatedLocation = this.safeTranslate(
+        `timeweather.locations.${locationKey}`,
+        currentLocation
+      );
+      
+      if (zoneElement.textContent !== translatedLocation) {
+        zoneElement.textContent = translatedLocation;
+        console.log(`📍 [WeatherWidget] Lieu traduit: ${currentLocation} → ${translatedLocation}`);
+      }
+    }
+  }
+  
+  /**
+   * Traduire bonus gameplay
+   */
+  translateGameplayBonus() {
+    const bonusElement = this.element.querySelector('.bonus-text');
+    if (!bonusElement) return;
+    
+    if (!this.gameplayBonus || !this.gameplayBonus.active) return;
+    
+    const bonusType = this.gameplayBonus.type;
+    if (!bonusType) return;
+    
+    // Traduire le type Pokémon
+    const translatedType = this.safeTranslate(
+      `timeweather.bonus.types.${bonusType}`,
+      bonusType
+    );
+    
+    // Formatter le message de bonus avec la traduction
+    const bonusTemplate = this.safeTranslate(
+      'timeweather.bonus.xp_boost',
+      '+{0}% XP {1} Pokémon'
+    );
+    
+    const bonusText = bonusTemplate
+      .replace('{0}', '15')
+      .replace('{1}', translatedType);
+    
+    if (bonusElement.textContent !== bonusText) {
+      bonusElement.textContent = bonusText;
+      console.log(`🎮 [WeatherWidget] Bonus traduit: ${translatedType}`);
+    }
+  }
+  
+  /**
+   * Traduire tooltips (si présents)
+   */
+  translateTooltips() {
+    const tooltipElements = this.element.querySelectorAll('[title], [data-tooltip]');
+    
+    tooltipElements.forEach(element => {
+      const currentTooltip = element.title || element.dataset.tooltip;
+      if (!currentTooltip) return;
+      
+      // Mapping des tooltips vers les clés de traduction
+      const tooltipMapping = {
+        'Current weather': 'current_weather',
+        'Local time': 'local_time',
+        'Temperature': 'temperature',
+        'Weather intensity': 'weather_intensity',
+        'Pokémon type bonus': 'pokemon_bonus'
+      };
+      
+      const tooltipKey = tooltipMapping[currentTooltip];
+      if (tooltipKey) {
+        const translatedTooltip = this.safeTranslate(
+          `timeweather.tooltips.${tooltipKey}`,
+          currentTooltip
+        );
+        
+        if (element.title) {
+          element.title = translatedTooltip;
+        }
+        if (element.dataset.tooltip) {
+          element.dataset.tooltip = translatedTooltip;
+        }
+      }
+    });
+  }
+
+  // === 🛡️ PROTECTION CONTRE UIMANAGER (INCHANGÉE) ===
   protectFromUIManagerInterference() {
     if (!this.element) return;
     
@@ -122,12 +436,12 @@ export class TimeWeatherWidget {
     this.element.classList.add('ui-standalone-widget');
     
     // Protéger nos dimensions
-    this.element.style.width = '300px !important';
-    this.element.style.height = '100px !important';
-    this.element.style.minWidth = '300px !important';
-    this.element.style.maxWidth = '300px !important';
-    this.element.style.minHeight = '100px !important';
-    this.element.style.maxHeight = '100px !important';
+    this.element.style.width = '360px !important';
+    this.element.style.height = '160px !important';
+    this.element.style.minWidth = '360px !important';
+    this.element.style.maxWidth = '360px !important';
+    this.element.style.minHeight = '160px !important';
+    this.element.style.maxHeight = '160px !important';
     
     // Position autonome
     this.element.style.position = 'fixed';
@@ -139,12 +453,12 @@ export class TimeWeatherWidget {
     this.element.setAttribute('data-positioned-by', 'standalone-widget');
     this.element.setAttribute('data-uimanager-exempt', 'true');
     
-    console.log('✅ [WeatherWidget] Protection appliquée - dimensions: 300x100px');
+    console.log('✅ [WeatherWidget] Protection appliquée - dimensions: 360x160px');
   }
 
-  // === 🎨 CRÉATION DU WIDGET ===
+  // === 🎨 CRÉATION DU WIDGET (MODIFIÉE POUR TRADUCTIONS) ===
   createIcon() {
-    console.log('🎮 [WeatherWidget] Création widget style unifié');
+    console.log('🎮 [WeatherWidget] Création widget avec traductions...');
     
     // Nettoyage
     const existing = document.getElementById(this.id);
@@ -153,7 +467,7 @@ export class TimeWeatherWidget {
     // Création de l'élément principal
     const el = document.createElement('div');
     el.id = this.id;
-    el.className = 'pokemon-weather-widget ui-standalone-widget'; // ← PAS ui-icon !
+    el.className = 'pokemon-weather-widget ui-standalone-widget';
     el.setAttribute('data-widget-type', 'standalone');
     el.setAttribute('data-custom-size', 'true');
     el.innerHTML = this.generateWidgetHTML();
@@ -163,10 +477,17 @@ export class TimeWeatherWidget {
     
     // Initialisation
     this.injectStyles();
-    this.protectFromUIManagerInterference(); // ← NOUVEAU: Protection !
+    this.protectFromUIManagerInterference();
     this.initializeConnections();
     this.updateInitialContent();
     this.startAllAnimations();
+    
+    // 🌐 NOUVEAU: Setup traductions après création DOM
+    if (this.optionsManager) {
+      setTimeout(() => {
+        this.setupLanguageSupport();
+      }, 500);
+    }
     
     // Synchronisation différée
     setTimeout(() => {
@@ -175,7 +496,7 @@ export class TimeWeatherWidget {
     }, 100);
     
     this.initialized = true;
-    console.log('✅ [WeatherWidget] Widget unifié avec accents météo créé avec succès');
+    console.log('✅ [WeatherWidget] Widget créé avec support traductions');
     return el;
   }
 
@@ -186,10 +507,10 @@ export class TimeWeatherWidget {
         ${this.generateParticlesHTML()}
       </div>
       
-      <!-- Main Widget Content - TRONCATURE CORRIGÉE -->
+      <!-- Main Widget Content -->
       <div class="widget-glass-container">
         <div class="widget-content">
-          <!-- Header avec Zone - Espacement corrigé -->
+          <!-- Header avec Zone -->
           <div class="header-section">
             <div class="zone-badge" id="${this.id}-zone">
               <span class="zone-icon">📍</span>
@@ -197,7 +518,7 @@ export class TimeWeatherWidget {
             </div>
           </div>
           
-          <!-- Section Temps et Météo - Espacement normal -->
+          <!-- Section Temps et Météo -->
           <div class="main-section">
             <div class="time-section">
               <div class="time-display">
@@ -216,17 +537,17 @@ export class TimeWeatherWidget {
                   <div class="pokemon-type-icon" id="${this.id}-pokemon-icon">🔥</div>
                 </div>
                 <div class="weather-text">
-                  <div class="weather-main" id="${this.id}-weather">Ciel dégagé</div>
+                  <div class="weather-main" id="${this.id}-weather">Clear</div>
                   <div class="weather-temp" id="${this.id}-temp">22°C</div>
                 </div>
               </div>
             </div>
           </div>
           
-          <!-- Section Bonus Gameplay - Espacement normal -->
+          <!-- Section Bonus Gameplay -->
           <div class="bonus-section" id="${this.id}-bonus">
             <div class="bonus-icon">🎮</div>
-            <div class="bonus-text">+15% XP Pokémon Eau</div>
+            <div class="bonus-text">+15% XP Water Pokémon</div>
             <div class="bonus-type-icon type-water">💧</div>
           </div>
         </div>
@@ -391,7 +712,7 @@ export class TimeWeatherWidget {
     }
   }
 
-  // === 📍 GESTION DES ZONES (inchangée) ===
+  // === 📍 GESTION DES ZONES ===
   updateCurrentZone() {
     let currentZone = 'Village';
     
@@ -443,18 +764,19 @@ export class TimeWeatherWidget {
   }
 
   getWeatherDisplayName(weatherName) {
+    // 🌐 NOUVEAU: Fonction qui sera utilisée mais les noms seront traduits par translateCurrentWeather()
     const weatherNames = {
-      'clear': 'Ciel dégagé',
-      'rain': 'Pluie',
-      'storm': 'Orage',
-      'snow': 'Neige',
-      'fog': 'Brouillard',
-      'cloudy': 'Nuageux'
+      'clear': 'Clear',
+      'rain': 'Rain',
+      'storm': 'Storm',
+      'snow': 'Snow',
+      'fog': 'Fog',
+      'cloudy': 'Cloudy'
     };
     return weatherNames[weatherName] || weatherName;
   }
 
-  // === 🎮 MÉTHODES DE MISE À JOUR ADAPTÉES ===
+  // === 🎮 MÉTHODES DE MISE À JOUR (MODIFIÉES POUR TRADUCTIONS) ===
   updateInitialContent() {
     this.updateTime(this.currentHour, this.isDayTime);
     this.updateWeather(this.weather.weather, this.weather.displayName, this.weather.temperature);
@@ -487,6 +809,11 @@ export class TimeWeatherWidget {
     });
     
     this.updateDayNightTheme(isDayTime);
+    
+    // 🌐 NOUVEAU: Re-traduire après mise à jour
+    if (this.translationsReady) {
+      setTimeout(() => this.translateTimePeriod(), 100);
+    }
   }
 
   updateWeather(weather, displayName, temperature = '22°C') {
@@ -497,7 +824,7 @@ export class TimeWeatherWidget {
     
     // Mise à jour DOM optimisée
     const updates = [
-      ['.weather-main', displayName],
+      ['.weather-main', displayName], // Sera traduit par translateCurrentWeather()
       ['.weather-temp', temperature],
       ['.weather-icon', config.icon],
       ['.pokemon-type-icon', config.pokemon]
@@ -510,7 +837,7 @@ export class TimeWeatherWidget {
       }
     });
     
-    // 🎨 NOUVEAU: Mise à jour de la classe météo pour les effets CSS
+    // Mise à jour de la classe météo pour les effets CSS
     this.updateWeatherClass(weather);
     
     // Forcer la mise à jour immédiate du weather system
@@ -529,18 +856,25 @@ export class TimeWeatherWidget {
       this.lastWeatherSent = weather;
     }
     
-    // Mise à jour des effets visuels du widget (PLUS SUBTILS)
+    // Mise à jour des effets visuels du widget
     this.updateWeatherParticles(config);
     this.updateGameplayBonus({
       active: true,
-      text: `+15% XP Pokémon ${config.bonus}`,
-      type: weather
+      text: `+15% XP ${config.bonus} Pokémon`, // Sera traduit par translateGameplayBonus()
+      type: config.bonus // ← Utilise maintenant les clés de traduction
     });
     
-    console.log(`🌤️ Météo unifiée avec accents prononcés: ${displayName} avec ${config.particleCount} particules colorées`);
+    // 🌐 NOUVEAU: Re-traduire après mise à jour
+    if (this.translationsReady) {
+      setTimeout(() => {
+        this.translateCurrentWeather();
+        this.translateGameplayBonus();
+      }, 100);
+    }
+    
+    console.log(`🌤️ Météo mise à jour avec traductions: ${displayName}`);
   }
 
-  // 🎨 NOUVELLE MÉTHODE: Mise à jour classe météo
   updateWeatherClass(weather) {
     if (!this.element) return;
     
@@ -572,7 +906,7 @@ export class TimeWeatherWidget {
       particleContainer.appendChild(particle);
     }
     
-    console.log(`✨ ${config.particleCount} particules ${config.particles} générées (accents prononcés)`);
+    console.log(`✨ ${config.particleCount} particules ${config.particles} générées`);
   }
 
   updateZone(zoneName) {
@@ -580,6 +914,11 @@ export class TimeWeatherWidget {
     const zoneElement = this.element?.querySelector('.zone-text');
     if (zoneElement && zoneElement.textContent !== zoneName) {
       zoneElement.textContent = zoneName;
+      
+      // 🌐 NOUVEAU: Re-traduire après mise à jour
+      if (this.translationsReady) {
+        setTimeout(() => this.translateLocation(), 100);
+      }
     }
   }
 
@@ -594,18 +933,20 @@ export class TimeWeatherWidget {
     }
     
     if (bonusText && bonusText.textContent !== bonus.text) {
-      bonusText.textContent = bonus.text;
+      bonusText.textContent = bonus.text; // Sera traduit par translateGameplayBonus()
     }
     
     if (bonusTypeIcon && bonus.type) {
-      const config = this.pokemonWeatherConfig[bonus.type];
+      const config = this.pokemonWeatherConfig[Object.keys(this.pokemonWeatherConfig).find(key => 
+        this.pokemonWeatherConfig[key].bonus === bonus.type
+      )];
       const typeIcon = config?.pokemon || '🎮';
       
       if (bonusTypeIcon.textContent !== typeIcon) {
         bonusTypeIcon.textContent = typeIcon;
       }
       
-      // 🎨 NOUVEAU: Ajouter classe de type pour les couleurs unifiées
+      // Ajouter classe de type pour les couleurs unifiées
       bonusTypeIcon.className = `bonus-type-icon type-${bonus.type}`;
     }
   }
@@ -647,15 +988,15 @@ export class TimeWeatherWidget {
     
     // Animations plus subtiles pour le style unifié
     if (elements.timeIcon) {
-      elements.timeIcon.style.transform = `rotate(${Math.sin(time) * 2}deg)`; // Plus subtil
+      elements.timeIcon.style.transform = `rotate(${Math.sin(time) * 2}deg)`;
     }
     
     if (elements.weatherIcon) {
-      elements.weatherIcon.style.transform = `scale(${1 + Math.sin(time * 1.5) * 0.03})`; // Plus subtil
+      elements.weatherIcon.style.transform = `scale(${1 + Math.sin(time * 1.5) * 0.03})`;
     }
     
     if (elements.pokemonIcon) {
-      const bounce = Math.sin(time * 2) * 0.02; // Plus subtil
+      const bounce = Math.sin(time * 2) * 0.02;
       elements.pokemonIcon.style.transform = `translateY(${bounce}px) scale(${1 + bounce})`;
     }
     
@@ -702,34 +1043,34 @@ export class TimeWeatherWidget {
     animateParticles();
   }
 
-  // Animations particules plus subtiles
+  // Animations particules plus subtiles (inchangées)
   animateRainParticle(particle, time, delay) {
-    const x = Math.sin(time + delay) * 3; // Plus subtil
+    const x = Math.sin(time + delay) * 3;
     const y = ((time * 50 + delay * 80) % 200) - 40;
     particle.style.transform = `translate(${x}px, ${y}px)`;
-    particle.style.opacity = y > 160 ? 0 : 0.4; // Plus subtil
+    particle.style.opacity = y > 160 ? 0 : 0.4;
   }
 
   animateStormParticle(particle, time, delay) {
-    const x = Math.sin(time * 2 + delay) * 20; // Plus subtil
+    const x = Math.sin(time * 2 + delay) * 20;
     const y = Math.cos(time * 1.5 + delay) * 15;
-    const flash = Math.sin(time * 6 + delay) > 0.7 ? 0.6 : 0.2; // Plus subtil
+    const flash = Math.sin(time * 6 + delay) > 0.7 ? 0.6 : 0.2;
     particle.style.transform = `translate(${x}px, ${y}px)`;
     particle.style.opacity = flash;
   }
 
   animateSnowParticle(particle, time, delay) {
-    const x = Math.sin(time * 0.4 + delay) * 20; // Plus subtil
+    const x = Math.sin(time * 0.4 + delay) * 20;
     const y = ((time * 20 + delay * 60) % 180) - 30;
     const rotation = (time * 30 + delay * 80) % 360;
     particle.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
-    particle.style.opacity = y > 140 ? 0 : 0.4; // Plus subtil
+    particle.style.opacity = y > 140 ? 0 : 0.4;
   }
 
   animateFogParticle(particle, time, delay) {
-    const x = Math.sin(time * 0.2 + delay) * 30; // Plus subtil
+    const x = Math.sin(time * 0.2 + delay) * 30;
     const y = Math.cos(time * 0.15 + delay) * 10;
-    const opacity = 0.1 + Math.sin(time + delay) * 0.15; // Plus subtil
+    const opacity = 0.1 + Math.sin(time + delay) * 0.15;
     particle.style.transform = `translate(${x}px, ${y}px)`;
     particle.style.opacity = Math.max(0.05, opacity);
   }
@@ -743,9 +1084,9 @@ export class TimeWeatherWidget {
   }
 
   animateDefaultParticle(particle, time, delay) {
-    const x = Math.sin(time + delay) * 15; // Plus subtil
+    const x = Math.sin(time + delay) * 15;
     const y = Math.cos(time * 0.6 + delay) * 10;
-    const opacity = 0.2 + Math.sin(time + delay) * 0.15; // Plus subtil
+    const opacity = 0.2 + Math.sin(time + delay) * 0.15;
     particle.style.transform = `translate(${x}px, ${y}px)`;
     particle.style.opacity = opacity;
   }
@@ -822,7 +1163,7 @@ export class TimeWeatherWidget {
   }
 
   isPositionedByUIManager() {
-    return false; // ← Widget autonome, pas géré par UIManager !
+    return false;
   }
 
   getCurrentPosition() {
@@ -846,7 +1187,7 @@ export class TimeWeatherWidget {
     };
   }
 
-  // === 🎨 INJECTION DES STYLES ===
+  // === 🎨 INJECTION DES STYLES (inchangée) ===
   injectStyles() {
     if (document.getElementById('pokemon-weather-widget-css')) return;
     
@@ -857,9 +1198,19 @@ export class TimeWeatherWidget {
     console.log('🎨 [WeatherWidget] Styles unifiés avec accents météo injectés');
   }
 
-  // === 🧹 DESTRUCTION (inchangée) ===
+  // === 🧹 DESTRUCTION (MODIFIÉE POUR CLEANUP TRADUCTIONS) ===
   destroy() {
     this.stopAnimations();
+    
+    // 🌐 NOUVEAU: Cleanup des listeners de langue
+    this.languageListeners.forEach(cleanup => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.warn('⚠️ [WeatherWidget] Erreur cleanup listener:', error);
+      }
+    });
+    this.languageListeners = [];
     
     // Nettoyage des intervalles
     if (this.syncInterval) {
@@ -888,12 +1239,22 @@ export class TimeWeatherWidget {
     this.isVisible = false;
     this.isEnabled = false;
     this.initialized = false;
+    this.optionsManager = null;
+    this.translationsReady = false;
     
-    console.log('🧹 [WeatherWidget] Widget unifié avec accents détruit');
+    console.log('🧹 [WeatherWidget] Widget détruit avec cleanup traductions');
   }
 
-  // === 🐛 DEBUG ===
+  // === 🐛 DEBUG (AMÉLIORÉ POUR TRADUCTIONS) ===
   debugInfo() {
+    // Test quelques traductions si prêtes
+    const translationTests = this.translationsReady ? {
+      sunny: this.safeTranslate('timeweather.weather.conditions.sunny', 'TEST'),
+      morning: this.safeTranslate('timeweather.time.periods.morning', 'TEST'),
+      village: this.safeTranslate('timeweather.locations.village', 'TEST'),
+      fire: this.safeTranslate('timeweather.bonus.types.fire', 'TEST')
+    } : {};
+    
     return {
       id: this.id,
       isVisible: this.isVisible,
@@ -904,7 +1265,7 @@ export class TimeWeatherWidget {
       elementInDOM: this.element ? document.contains(this.element) : false,
       positioningMode: 'standalone',
       uiManagerControlled: false,
-      isPositionedByUIManager: false, // ← Plus géré par UIManager
+      isPositionedByUIManager: false,
       currentPosition: this.getCurrentPosition(),
       currentTime: `${this.currentHour}:00 ${this.isDayTime ? 'Day' : 'Night'}`,
       currentWeather: this.weather,
@@ -914,12 +1275,23 @@ export class TimeWeatherWidget {
       weatherConfig: this.pokemonWeatherConfig[this.weather.weather],
       particleCount: this.pokemonWeatherConfig[this.weather.weather]?.particleCount || 0,
       weatherClass: `weather-${this.weather.weather}`,
+      
+      // 🌐 NOUVEAU: Infos traductions
+      translations: {
+        ready: this.translationsReady,
+        hasOptionsManager: !!this.optionsManager,
+        listenersCount: this.languageListeners.length,
+        currentLanguage: this.optionsManager?.getCurrentLanguage?.() || 'unknown',
+        tests: translationTests
+      },
+      
       unifiedStyle: true,
-      weatherAccents: true, // 🎨 Nouveau flag pour accents météo
-      styleVersion: 'unified-with-accents-2024',
-      truncationFixed: true, // 🔧 Nouveau flag pour correction troncature
-      standaloneWidget: true, // 🛡️ Nouveau flag pour widget autonome
-      uiManagerExempt: true, // 🛡️ Exempt du système d'icônes UIManager
+      weatherAccents: true,
+      truncationFixed: true,
+      standaloneWidget: true,
+      uiManagerExempt: true,
+      translationSupport: true, // 🌐 NOUVEAU
+      
       animationFrames: {
         main: !!this.animationFrame,
         particles: !!this.particleAnimationFrame
