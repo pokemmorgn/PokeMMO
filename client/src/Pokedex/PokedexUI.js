@@ -394,7 +394,7 @@ export class PokedexUI {
             <div class="pagination-controls">
               <button class="page-btn" id="prev-page" disabled>${t('pokedx.ui.pagination.previous')}</button>
               <span class="page-info">
-                Page <span id="current-page">1</span> ${t('pokedx.ui.pagination.page_info').split('{current}')[1].split('{total}')[0]} <span id="total-pages">1</span>
+                Page <span id="current-page">1</span> sur <span id="total-pages">1</span>
               </span>
               <button class="page-btn" id="next-page">${t('pokedx.ui.pagination.next')}</button>
             </div>
