@@ -1,8 +1,7 @@
 // Options/index.js - OptionsModule avec BaseModule + TRADUCTIONS INTÉGRÉES
-// 🎯 UTILISE BaseModule pour cohérence avec Team/Quest
+// 🌐 NOUVELLE VERSION : Transmission optionsManager aux composants pour traductions
 // 📍 INTÉGRÉ avec UIManager - Position haut-droite
-// ⚙️ MODULE COMPLET: Volume + Langue + API globale
-// 🌐 TRADUCTIONS TEMPS RÉEL pour l'interface Options elle-même
+// ⚙️ MODULE COMPLET: Volume + Langue + API globale + Traductions temps réel
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { OptionsManager, initializeGlobalOptionsAPI } from './OptionsManager.js';
@@ -10,9 +9,9 @@ import { OptionsIcon } from './OptionsIcon.js';
 import { OptionsUI } from './OptionsUI.js';
 
 /**
- * Module Options utilisant BaseModule
+ * Module Options utilisant BaseModule avec traductions temps réel
  * Hérite de toute la logique UIManager générique
- * 🌐 SUPPORTE TRADUCTIONS TEMPS RÉEL
+ * 🌐 SUPPORTE TRADUCTIONS TEMPS RÉEL pour ses propres composants
  */
 export class OptionsModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
@@ -37,7 +36,10 @@ export class OptionsModule extends BaseModule {
     // ✅ STOCKER optionsManager externe (pour éviter récursion avec soi-même)
     this.externalOptionsManager = optionsManager;
     
-    console.log('⚙️ [OptionsModule] Instance créée avec BaseModule + traductions');
+    // 🌐 NOUVEAU : Variables pour traductions
+    this.translationsInitialized = false;
+    
+    console.log('⚙️ [OptionsModule] Instance créée avec BaseModule + traductions intégrées');
   }
   
   // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
@@ -59,32 +61,38 @@ export class OptionsModule extends BaseModule {
   }
   
   /**
-   * Création des composants Options
+   * Création des composants Options avec traductions
    */
   createComponents() {
-    console.log('🔧 [OptionsModule] Création composants Options...');
+    console.log('🔧 [OptionsModule] Création composants Options avec traductions...');
     
-    // Créer l'icône si pas encore fait
+    // 🌐 NOUVEAU : Créer l'icône avec traductions
     if (!this.icon) {
-      this.icon = new OptionsIcon(this.manager);
+      this.icon = new OptionsIcon(
+        this.manager,                    // Manager interne pour données
+        this.externalOptionsManager      // ✅ NOUVEAU : Manager externe pour traductions
+      );
       this.icon.init();
     }
     
-    // ✅ CRÉER L'INTERFACE AVEC TRADUCTIONS
+    // 🌐 NOUVEAU : Créer l'interface avec traductions
     if (!this.ui) {
-      // Passer le manager principal ET l'external pour traductions
-      this.ui = new OptionsUI(this.manager, this.gameRoom, this.externalOptionsManager);
+      this.ui = new OptionsUI(
+        this.manager,                    // Manager interne pour données
+        this.gameRoom,                   // GameRoom
+        this.externalOptionsManager      // ✅ NOUVEAU : Manager externe pour traductions
+      );
       // Note: L'init de OptionsUI est async, on le fait dans connectComponents
     }
     
-    console.log('✅ [OptionsModule] Composants Options créés avec traductions');
+    console.log('✅ [OptionsModule] Composants Options créés avec support traductions');
   }
   
   /**
-   * Connexion des composants Options
+   * Connexion des composants Options avec setup traductions
    */
   connectComponents() {
-    console.log('🔗 [OptionsModule] Connexion composants Options...');
+    console.log('🔗 [OptionsModule] Connexion composants Options avec traductions...');
     
     // Initialiser UI de manière async si nécessaire
     if (this.ui && !this.ui.initialized) {
@@ -133,11 +141,9 @@ export class OptionsModule extends BaseModule {
           this.icon.animateLanguageChange();
         }
         
-        // ✅ NOUVEAU : Mettre à jour traductions de l'UI Options
-        if (this.ui && this.ui.isVisible) {
-          this.ui.updateLanguage();
-          this.ui.updateOptionsData(this.manager.getAllOptions());
-        }
+        // 🌐 NOUVEAU : Pas besoin de updateLanguage explicite - les listeners s'en chargent
+        // Les composants écoutent automatiquement les changements via leurs listeners
+        console.log('🌐 [OptionsModule] Changement langue détecté - les composants se mettront à jour automatiquement');
       };
       
       this.manager.onOptionsUpdate = (updateData) => {
@@ -166,52 +172,13 @@ export class OptionsModule extends BaseModule {
       };
     }
     
-    // ✅ SETUP TRADUCTIONS pour l'UI Options
-    this.setupTranslationsSupport();
-    
     // ✅ MISE À JOUR INITIALE des stats
     this.updateInitialStats();
     
-    console.log('✅ [OptionsModule] Composants Options connectés avec traductions');
-  }
-  
-  // === 🌐 SETUP TRADUCTIONS POUR L'UI OPTIONS ===
-  
-  setupTranslationsSupport() {
-    console.log('🌐 [OptionsModule] Setup traductions pour UI Options...');
+    // 🌐 NOUVEAU : Marquer traductions comme initialisées
+    this.translationsInitialized = true;
     
-    // Si on a un optionsManager externe, écouter ses changements
-    if (this.externalOptionsManager && this.ui) {
-      // ✅ ÉCOUTER LES CHANGEMENTS DE LANGUE EXTERNE
-      const cleanup = this.externalOptionsManager.addLanguageListener((newLang, oldLang) => {
-        console.log('🌐 [OptionsModule] Langue externe changée:', oldLang, '→', newLang);
-        
-        if (this.ui && this.ui.updateLanguage) {
-          this.ui.updateLanguage();
-        }
-      });
-      
-      // Stocker cleanup pour destruction
-      this.cleanupExternalLanguageListener = cleanup;
-      
-      console.log('✅ [OptionsModule] Listener traductions externe configuré');
-    }
-    
-    // ✅ ÉCOUTER NOS PROPRES CHANGEMENTS de langue
-    if (this.manager && this.ui) {
-      const cleanup = this.manager.addLanguageListener((newLang, oldLang) => {
-        console.log('🌐 [OptionsModule] Langue interne changée:', oldLang, '→', newLang);
-        
-        if (this.ui && this.ui.updateLanguage) {
-          this.ui.updateLanguage();
-        }
-      });
-      
-      // Stocker cleanup pour destruction
-      this.cleanupInternalLanguageListener = cleanup;
-      
-      console.log('✅ [OptionsModule] Listener traductions interne configuré');
-    }
+    console.log('✅ [OptionsModule] Composants Options connectés avec traductions automatiques');
   }
   
   // === ⚙️ MÉTHODES SPÉCIFIQUES OPTIONS (IDENTIQUES) ===
@@ -278,7 +245,7 @@ export class OptionsModule extends BaseModule {
   }
   
   /**
-   * Override show pour charger les données + traductions
+   * 🌐 Override show pour charger les données + traductions
    */
   show() {
     const result = super.show();
@@ -287,8 +254,10 @@ export class OptionsModule extends BaseModule {
     if (this.manager && this.ui) {
       setTimeout(() => {
         this.ui.updateOptionsData(this.manager.getAllOptions());
-        // ✅ FORCER MISE À JOUR TRADUCTIONS à l'ouverture
-        this.ui.updateLanguage();
+        
+        // 🌐 NOUVEAU : Les traductions se mettront à jour automatiquement
+        // grâce aux listeners configurés dans les composants
+        console.log('🌐 [OptionsModule] Interface ouverte - traductions automatiques actives');
       }, 100);
     }
     
@@ -379,8 +348,9 @@ export class OptionsModule extends BaseModule {
       currentVolume: this.getCurrentVolume(),
       isAudioMuted: this.isAudioMuted(),
       moduleType: 'options',
-      hasTranslationsSupport: true, // ✅ NOUVEAU
-      hasExternalOptionsManager: !!this.externalOptionsManager // ✅ NOUVEAU
+      hasTranslationsSupport: true, // ✅ CONFIRMÉ
+      hasExternalOptionsManager: !!this.externalOptionsManager, // ✅ CONFIRMÉ
+      translationsInitialized: this.translationsInitialized // 🌐 NOUVEAU
     };
   }
   
@@ -427,26 +397,17 @@ export class OptionsModule extends BaseModule {
   destroy() {
     console.log('🧹 [OptionsModule] Destruction avec nettoyage traductions...');
     
-    // ✅ NETTOYER LISTENERS TRADUCTIONS
-    if (this.cleanupExternalLanguageListener) {
-      this.cleanupExternalLanguageListener();
-      this.cleanupExternalLanguageListener = null;
-      console.log('🌐 [OptionsModule] Listener externe nettoyé');
-    }
-    
-    if (this.cleanupInternalLanguageListener) {
-      this.cleanupInternalLanguageListener();
-      this.cleanupInternalLanguageListener = null;
-      console.log('🌐 [OptionsModule] Listener interne nettoyé');
-    }
+    // ✅ Les composants nettoieront leurs propres listeners dans leur destroy()
+    // Plus besoin de cleanup manuel ici
     
     // Nettoyage BaseModule standard
     super.destroy();
     
     // Nettoyage spécifique Options
     this.externalOptionsManager = null;
+    this.translationsInitialized = false;
     
-    console.log('✅ [OptionsModule] Détruit avec traductions');
+    console.log('✅ [OptionsModule] Détruit avec traductions automatiques nettoyées');
   }
 }
 
@@ -468,7 +429,7 @@ export async function createOptionsModule(gameRoom, scene, options = {}) {
     
     const optionsInstance = await createModule(OptionsModule, 'options', gameRoom, scene, optionsOptions);
     
-    console.log('✅ [OptionsFactory] Module Options créé avec traductions');
+    console.log('✅ [OptionsFactory] Module Options créé avec traductions automatiques');
     return optionsInstance;
     
   } catch (error) {
@@ -496,10 +457,10 @@ export const OPTIONS_MODULE_CONFIG = generateModuleConfig('options', {
   
   metadata: {
     name: 'Options & Settings',
-    description: 'Game options: volume, language, and settings management with translations',
+    description: 'Game options: volume, language, and settings management with real-time translations',
     version: '1.0.0',
     category: 'Settings',
-    features: ['translations', 'real-time-language-switching'] // ✅ NOUVEAU
+    features: ['translations', 'real-time-language-switching', 'automatic-translation-updates'] // ✅ NOUVEAU
   },
   
   factory: () => createOptionsModule(
@@ -508,8 +469,7 @@ export const OPTIONS_MODULE_CONFIG = generateModuleConfig('options', {
   )
 });
 
-// === 🔗 RESTE DU CODE IDENTIQUE ===
-// (registerOptionsModule, initializeOptionsModule, setupOptionsGlobalEvents, etc.)
+// === 🔗 FONCTIONS D'INTÉGRATION (IDENTIQUES) ===
 
 export async function registerOptionsModule(uiManager) {
   try {
@@ -521,7 +481,7 @@ export async function registerOptionsModule(uiManager) {
     }
     
     await uiManager.registerModule('options', OPTIONS_MODULE_CONFIG);
-    console.log('✅ [OptionsIntegration] Module Options enregistré');
+    console.log('✅ [OptionsIntegration] Module Options enregistré avec traductions');
     
     return true;
   } catch (error) {
@@ -532,7 +492,7 @@ export async function registerOptionsModule(uiManager) {
 
 export async function initializeOptionsModule(uiManager) {
   try {
-    console.log('🚀 [OptionsIntegration] Initialisation Options...');
+    console.log('🚀 [OptionsIntegration] Initialisation Options avec traductions...');
     
     await registerOptionsModule(uiManager);
     
@@ -547,7 +507,7 @@ export async function initializeOptionsModule(uiManager) {
     
     setupOptionsGlobalEvents(optionsInstance);
     
-    console.log('✅ [OptionsIntegration] Initialisation Options terminée avec traductions');
+    console.log('✅ [OptionsIntegration] Initialisation Options terminée avec traductions automatiques');
     return optionsInstance;
     
   } catch (error) {
@@ -590,12 +550,12 @@ function setupOptionsGlobalEvents(optionsInstance) {
   });
   
   window._optionsEventsSetup = true;
-  console.log('🌐 [OptionsEvents] Événements Options configurés avec traductions');
+  console.log('🌐 [OptionsEvents] Événements Options configurés avec traductions automatiques');
 }
 
 export async function setupOptionsSystem(uiManager) {
   try {
-    console.log('🔧 [OptionsSetup] Configuration système Options avec BaseModule + traductions...');
+    console.log('🔧 [OptionsSetup] Configuration système Options avec BaseModule + traductions automatiques...');
     
     const optionsInstance = await initializeOptionsModule(uiManager);
     
@@ -607,10 +567,10 @@ export async function setupOptionsSystem(uiManager) {
       window.closeOptions = () => optionsInstance.close();
       window.forceCloseOptions = () => optionsInstance.forceCloseUI();
       
-      console.log('🌐 [OptionsSetup] Fonctions globales Options exposées avec traductions');
+      console.log('🌐 [OptionsSetup] Fonctions globales Options exposées avec traductions automatiques');
     }
     
-    console.log('✅ [OptionsSetup] Système Options configuré avec BaseModule + traductions');
+    console.log('✅ [OptionsSetup] Système Options configuré avec BaseModule + traductions automatiques');
     return optionsInstance;
     
   } catch (error) {
@@ -635,7 +595,16 @@ export function getQuickOptionsAPI() {
     resetToDefaults: () => instance?.resetToDefaults() || false,
     openOptions: () => instance?.open() || false,
     closeOptions: () => instance?.close() || false,
-    toggleOptions: () => instance?.toggleUI() || false
+    toggleOptions: () => instance?.toggleUI() || false,
+    
+    // 🌐 NOUVEAU : Info traductions
+    hasTranslationsSupport: () => instance?.translationsInitialized || false,
+    getTranslationsStatus: () => ({
+      initialized: instance?.translationsInitialized || false,
+      hasExternalManager: !!(instance?.externalOptionsManager),
+      iconReady: !!(instance?.icon?.translationsReady),
+      uiReady: !!(instance?.ui?.translationsReady)
+    })
   };
 }
 
@@ -703,33 +672,33 @@ if (typeof window !== 'undefined' && !window.GetPlayerCurrentLanguage) {
 }
 
 console.log(`
-⚙️ === OPTIONS MODULE AVEC TRADUCTIONS INTÉGRÉES ===
+⚙️ === OPTIONS MODULE AVEC TRADUCTIONS AUTOMATIQUES ===
 
 🌐 NOUVELLES FONCTIONNALITÉS TRADUCTIONS:
-• externalOptionsManager dans constructeur
-• setupTranslationsSupport() pour UI Options
-• Listeners double: externe + interne
-• updateLanguage() automatique sur changement
-• Nettoyage listeners dans destroy()
+• externalOptionsManager transmis aux composants OptionsIcon et OptionsUI
+• Les composants configurent automatiquement leurs listeners de traductions
+• Plus besoin de setupTranslationsSupport() dans le module
+• Cleanup automatique des listeners dans destroy() des composants
 
-🔄 FLUX TRADUCTIONS:
-1. UI.js passe optionsManager → OptionsModule
+🔄 FLUX TRADUCTIONS AUTOMATIQUE:
+1. UI.js passe optionsManager → createOptionsModule()
 2. OptionsModule stocke comme externalOptionsManager
-3. OptionsModule crée son propre manager interne
-4. OptionsUI reçoit les DEUX managers
-5. Listeners sur les deux pour mise à jour UI
+3. OptionsModule transmet externalOptionsManager aux constructeurs
+4. OptionsIcon et OptionsUI configurent leurs listeners automatiquement
+5. Changements de langue → composants se traduisent automatiquement
 
 ✅ RÉSULTAT:
-• L'interface Options se traduit elle-même
-• Changement langue externe → UI Options traduite
-• Changement langue dans Options → tout se traduit
-• Pas de récursion infinie
-• Nettoyage automatique des listeners
+• Interface Options se traduit elle-même instantanément
+• Changement langue externe → traduction automatique
+• Changement langue dans Options → traduction automatique
+• Aucune intervention manuelle requise
+• Nettoyage automatique garanti
 
-🎯 UTILISATION DANS UI.JS:
+🎯 UTILISATION:
 • Passer { optionsManager } à createOptionsModule()
-• L'OptionsUI se traduira automatiquement
+• Les traductions fonctionnent automatiquement
 • API globale toujours disponible
+• Debug avec getTranslationsStatus()
 
-✅ OPTIONS MODULE AVEC TRADUCTIONS COMPLÈTES !
+✅ OPTIONS MODULE AVEC TRADUCTIONS AUTOMATIQUES COMPLÈTES !
 `);
