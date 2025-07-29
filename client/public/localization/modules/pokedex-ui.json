@@ -44,7 +44,8 @@
           "no_results": "No results found",
           "filters_title": "Search Filters",
           "apply_filters": "Apply Filters",
-          "clear_filters": "Clear"
+          "clear_filters": "Clear",
+          "try_other_filters": "Try other filters or search terms"
         },
         "stats": {
           "pokemon_seen": "Pokémon seen",
@@ -70,6 +71,23 @@
           "new_discovery": "New Pokémon discovered!",
           "new_capture": "Pokémon caught!",
           "milestone": "Milestone reached: {percent}%!"
+        },
+        "loading": {
+          "message": "Loading National Pokédex..."
+        },
+        "favorites": {
+          "no_favorites": "No favorite Pokémon",
+          "add_hint": "Click on Pokémon stars to mark them as favorites"
+        },
+        "messages": {
+          "unknown_pokemon": "This Pokémon has not been discovered yet"
+        },
+        "footer": {
+          "system_connected": "SYSTEM CONNECTED"
+        },
+        "unknown_pokemon": "Unknown Pokémon",
+        "errors": {
+          "load_failed": "Failed to load Pokédex data"
         }
       }
     }
@@ -77,13 +95,13 @@
   "fr": {
     "pokedex": {
       "label": "Pokédex",
-      "tooltip_title": "Pokédx National",
+      "tooltip_title": "Pokédex National",
       "tooltip_status_active": "Découverte en cours",
       "tooltip_status_none": "Aucun Pokémon découvert",
       "tooltip_status_new": "nouvelle découverte",
       "tooltip_status_ready": "nouvelles captures disponibles",
       "tooltip_action": "Clic pour ouvrir",
-      "disabled_message": "Pokédx temporairement désactivé",
+      "disabled_message": "Pokédex temporairement désactivé",
       "ui": {
         "header": {
           "title": "POKÉDX",
@@ -119,7 +137,8 @@
           "no_results": "Aucun résultat trouvé",
           "filters_title": "Filtres de recherche",
           "apply_filters": "Appliquer les filtres",
-          "clear_filters": "Effacer"
+          "clear_filters": "Effacer",
+          "try_other_filters": "Essayez d'autres filtres ou termes de recherche"
         },
         "stats": {
           "pokemon_seen": "Pokémon vus",
@@ -145,6 +164,23 @@
           "new_discovery": "Nouveau Pokémon découvert !",
           "new_capture": "Pokémon capturé !",
           "milestone": "Objectif atteint : {percent}% !"
+        },
+        "loading": {
+          "message": "Chargement du Pokédex National..."
+        },
+        "favorites": {
+          "no_favorites": "Aucun Pokémon favori",
+          "add_hint": "Cliquez sur l'étoile des Pokémon pour les marquer comme favoris"
+        },
+        "messages": {
+          "unknown_pokemon": "Ce Pokémon n'a pas encore été découvert"
+        },
+        "footer": {
+          "system_connected": "SYSTÈME CONNECTÉ"
+        },
+        "unknown_pokemon": "Pokémon Inconnu",
+        "errors": {
+          "load_failed": "Impossible de charger les données du Pokédex"
         }
       }
     }
@@ -194,7 +230,8 @@
           "no_results": "No se encontraron resultados",
           "filters_title": "Filtros de búsqueda",
           "apply_filters": "Aplicar filtros",
-          "clear_filters": "Limpiar"
+          "clear_filters": "Limpiar",
+          "try_other_filters": "Prueba otros filtros o términos de búsqueda"
         },
         "stats": {
           "pokemon_seen": "Pokémon vistos",
@@ -220,6 +257,23 @@
           "new_discovery": "¡Nuevo Pokémon descubierto!",
           "new_capture": "¡Pokémon capturado!",
           "milestone": "¡Hito alcanzado: {percent}%!"
+        },
+        "loading": {
+          "message": "Cargando Pokédex Nacional..."
+        },
+        "favorites": {
+          "no_favorites": "No hay Pokémon favoritos",
+          "add_hint": "Haz clic en las estrellas de los Pokémon para marcarlos como favoritos"
+        },
+        "messages": {
+          "unknown_pokemon": "Este Pokémon aún no ha sido descubierto"
+        },
+        "footer": {
+          "system_connected": "SISTEMA CONECTADO"
+        },
+        "unknown_pokemon": "Pokémon Desconocido",
+        "errors": {
+          "load_failed": "Error al cargar los datos del Pokédex"
         }
       }
     }
@@ -269,7 +323,8 @@
           "no_results": "Keine Ergebnisse gefunden",
           "filters_title": "Suchfilter",
           "apply_filters": "Filter anwenden",
-          "clear_filters": "Löschen"
+          "clear_filters": "Löschen",
+          "try_other_filters": "Probieren Sie andere Filter oder Suchbegriffe"
         },
         "stats": {
           "pokemon_seen": "Pokémon gesehen",
@@ -295,6 +350,23 @@
           "new_discovery": "Neues Pokémon entdeckt!",
           "new_capture": "Pokémon gefangen!",
           "milestone": "Meilenstein erreicht: {percent}%!"
+        },
+        "loading": {
+          "message": "Lade Nationalen Pokédex..."
+        },
+        "favorites": {
+          "no_favorites": "Keine Lieblings-Pokémon",
+          "add_hint": "Klicken Sie auf die Sterne der Pokémon, um sie als Favoriten zu markieren"
+        },
+        "messages": {
+          "unknown_pokemon": "Dieses Pokémon wurde noch nicht entdeckt"
+        },
+        "footer": {
+          "system_connected": "SYSTEM VERBUNDEN"
+        },
+        "unknown_pokemon": "Unbekanntes Pokémon",
+        "errors": {
+          "load_failed": "Fehler beim Laden der Pokédex-Daten"
         }
       }
     }
@@ -308,10 +380,10 @@
       "tooltip_status_new": "nuova scoperta",
       "tooltip_status_ready": "nuove catture disponibili",
       "tooltip_action": "Clicca per aprire",
-      "disabled_message": "Pokédex temporaneamente disabilitato",
+      "disabled_message": "Pokédx temporaneamente disabilitato",
       "ui": {
         "header": {
-          "title": "POKÉDEX",
+          "title": "POKÉDX",
           "subtitle": "NAZIONALE"
         },
         "tabs": {
@@ -344,7 +416,8 @@
           "no_results": "Nessun risultato trovato",
           "filters_title": "Filtri di ricerca",
           "apply_filters": "Applica filtri",
-          "clear_filters": "Cancella"
+          "clear_filters": "Cancella",
+          "try_other_filters": "Prova altri filtri o termini di ricerca"
         },
         "stats": {
           "pokemon_seen": "Pokémon visti",
@@ -370,13 +443,30 @@
           "new_discovery": "Nuovo Pokémon scoperto!",
           "new_capture": "Pokémon catturato!",
           "milestone": "Traguardo raggiunto: {percent}%!"
+        },
+        "loading": {
+          "message": "Caricamento Pokédx Nazionale..."
+        },
+        "favorites": {
+          "no_favorites": "Nessun Pokémon preferito",
+          "add_hint": "Clicca sulle stelle dei Pokémon per aggiungerli ai preferiti"
+        },
+        "messages": {
+          "unknown_pokemon": "Questo Pokémon non è ancora stato scoperto"
+        },
+        "footer": {
+          "system_connected": "SISTEMA CONNESSO"
+        },
+        "unknown_pokemon": "Pokémon Sconosciuto",
+        "errors": {
+          "load_failed": "Errore nel caricamento dei dati del Pokédx"
         }
       }
     }
   },
   "pt": {
     "pokedex": {
-      "label": "Pokédex",
+      "label": "Pokédx",
       "tooltip_title": "Pokédx Nacional",
       "tooltip_status_active": "Descoberta em andamento",
       "tooltip_status_none": "Nenhum Pokémon descoberto",
@@ -419,7 +509,8 @@
           "no_results": "Nenhum resultado encontrado",
           "filters_title": "Filtros de busca",
           "apply_filters": "Aplicar filtros",
-          "clear_filters": "Limpar"
+          "clear_filters": "Limpar",
+          "try_other_filters": "Tente outros filtros ou termos de busca"
         },
         "stats": {
           "pokemon_seen": "Pokémon vistos",
@@ -445,6 +536,23 @@
           "new_discovery": "Novo Pokémon descoberto!",
           "new_capture": "Pokémon capturado!",
           "milestone": "Meta alcançada: {percent}%!"
+        },
+        "loading": {
+          "message": "Carregando Pokédx Nacional..."
+        },
+        "favorites": {
+          "no_favorites": "Nenhum Pokémon favorito",
+          "add_hint": "Clique nas estrelas dos Pokémon para marcá-los como favoritos"
+        },
+        "messages": {
+          "unknown_pokemon": "Este Pokémon ainda não foi descoberto"
+        },
+        "footer": {
+          "system_connected": "SISTEMA CONECTADO"
+        },
+        "unknown_pokemon": "Pokémon Desconhecido",
+        "errors": {
+          "load_failed": "Falha ao carregar os dados do Pokédx"
         }
       }
     }
@@ -494,7 +602,8 @@
           "no_results": "結果が見つかりません",
           "filters_title": "検索フィルター",
           "apply_filters": "フィルターを適用",
-          "clear_filters": "クリア"
+          "clear_filters": "クリア",
+          "try_other_filters": "他のフィルターや検索語句をお試しください"
         },
         "stats": {
           "pokemon_seen": "見つけたポケモン",
@@ -520,6 +629,23 @@
           "new_discovery": "新しいポケモンを発見しました！",
           "new_capture": "ポケモンを捕まえました！",
           "milestone": "マイルストーン達成：{percent}%！"
+        },
+        "loading": {
+          "message": "全国ポケモン図鑑を読み込み中..."
+        },
+        "favorites": {
+          "no_favorites": "お気に入りポケモンがありません",
+          "add_hint": "ポケモンの星をクリックしてお気に入りに追加してください"
+        },
+        "messages": {
+          "unknown_pokemon": "このポケモンはまだ発見されていません"
+        },
+        "footer": {
+          "system_connected": "システム接続中"
+        },
+        "unknown_pokemon": "未知のポケモン",
+        "errors": {
+          "load_failed": "ポケモン図鑑データの読み込みに失敗しました"
         }
       }
     }
@@ -569,7 +695,8 @@
           "no_results": "결과를 찾을 수 없습니다",
           "filters_title": "검색 필터",
           "apply_filters": "필터 적용",
-          "clear_filters": "지우기"
+          "clear_filters": "지우기",
+          "try_other_filters": "다른 필터나 검색어를 시도해보세요"
         },
         "stats": {
           "pokemon_seen": "본 포켓몬",
@@ -595,6 +722,23 @@
           "new_discovery": "새로운 포켓몬을 발견했습니다!",
           "new_capture": "포켓몬을 잡았습니다!",
           "milestone": "목표 달성: {percent}%!"
+        },
+        "loading": {
+          "message": "전국 포켓몬 도감 로딩 중..."
+        },
+        "favorites": {
+          "no_favorites": "즐겨찾기 포켓몬이 없습니다",
+          "add_hint": "포켓몬의 별표를 클릭하여 즐겨찾기에 추가하세요"
+        },
+        "messages": {
+          "unknown_pokemon": "이 포켓몬은 아직 발견되지 않았습니다"
+        },
+        "footer": {
+          "system_connected": "시스템 연결됨"
+        },
+        "unknown_pokemon": "알 수 없는 포켓몬",
+        "errors": {
+          "load_failed": "포켓몬 도감 데이터 로드 실패"
         }
       }
     }
