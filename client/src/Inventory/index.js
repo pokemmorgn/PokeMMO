@@ -46,7 +46,7 @@ export class InventoryModule extends BaseModule {
     console.log('🚀 [InventoryModule] Initialisation métier Inventory...');
     
     // Créer le système principal (qui inclut la logique métier)
-    this.system = new InventorySystem(this.scene, this.gameRoom);
+   this.system = new InventorySystem(this.scene, this.gameRoom, this.optionsManager);
     
     console.log('✅ [InventoryModule] Système Inventory initialisé');
   }
