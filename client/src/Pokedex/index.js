@@ -1,7 +1,6 @@
-// Pokedex/index.js - PokedexModule avec BaseModule et UIManager
-// 🎯 UTILISE BaseModule pour éviter duplication de code
-// 📍 INTÉGRÉ avec UIManager via BaseModule
-// 📱 SYSTÈME POKÉDX COMPLET
+// Pokedex/index.js - PokedexModule avec BaseModule et traductions temps réel
+// 🌐 SUPPORT COMPLET DES TRADUCTIONS + BaseModule + UIManager
+// 📱 SYSTÈME POKÉDX MULTILINGUE
 
 import { BaseModule, createModule, generateModuleConfig } from '../core/BaseModule.js';
 import { PokedexSystem } from './PokedexSystem.js';
@@ -9,19 +8,20 @@ import { PokedexIcon } from './PokedexIcon.js';
 import { PokedexUI } from './PokedexUI.js';
 
 /**
- * Module Pokédx utilisant BaseModule
- * Hérite de toute la logique UIManager générique
+ * Module Pokédx utilisant BaseModule avec traductions temps réel
+ * Hérite de toute la logique UIManager générique + support i18n
  */
 export class PokedexModule extends BaseModule {
   constructor(moduleId, gameRoom, scene, options = {}) {
-    // Configuration spécifique Pokédx
+    // Configuration spécifique Pokédx avec traductions
     const pokedexOptions = {
       singleton: true,           // Pokédx est un singleton
       autoCloseUI: true,         // Fermer UI par défaut
       keyboardShortcut: 'p',     // Touche P pour ouvrir/fermer
+      optionsManager: options.optionsManager || null,  // ← NOUVEAU
       uiManagerConfig: {
         anchor: 'bottom-right',
-        order: 1,                // Deuxième dans la liste (entre inventory et team)
+        order: 2,                // Troisième dans la liste (après inventory et quest)
         group: 'ui-icons'
       },
       ...options
@@ -37,30 +37,42 @@ export class PokedexModule extends BaseModule {
     this.playerStats = {};
     this.notifications = [];
     
-    console.log('📱 [PokedexModule] Instance créée avec BaseModule');
+    console.log('📱 [PokedexModule] Instance créée avec BaseModule et traductions');
   }
   
   // === 🎯 IMPLÉMENTATION DES MÉTHODES ABSTRAITES ===
   
   /**
-   * Initialisation spécifique Pokédx
+   * Initialisation spécifique Pokédx avec optionsManager
    */
   async init() {
-    console.log('🚀 [PokedexModule] Initialisation métier Pokédx...');
+    console.log('🚀 [PokedexModule] Initialisation métier Pokédx avec traductions...');
     
-    // Créer le système principal (qui inclut la logique métier)
-    this.system = new PokedexSystem(this.scene, this.gameRoom);
+    // ✅ RÉCUPÉRER OPTIONSMANAGER DEPUIS LES OPTIONS
+    const optionsManager = this.options.optionsManager || 
+                          window.optionsSystem?.manager || 
+                          window.optionsSystemGlobal?.manager ||
+                          null;
     
-    console.log('✅ [PokedexModule] Système Pokédx initialisé');
+    if (optionsManager) {
+      console.log('🌐 [PokedexModule] OptionsManager trouvé pour traductions');
+    } else {
+      console.warn('⚠️ [PokedexModule] OptionsManager non disponible - traductions limitées');
+    }
+    
+    // Créer le système principal avec optionsManager
+    this.system = new PokedexSystem(this.scene, this.gameRoom, optionsManager);
+    
+    console.log('✅ [PokedexModule] Système Pokédx initialisé avec traductions');
   }
   
   /**
-   * Création des composants Pokédx
+   * Création des composants Pokédx avec traductions
    */
   createComponents() {
-    console.log('🔧 [PokedexModule] Création composants Pokédx...');
+    console.log('🔧 [PokedexModule] Création composants Pokédx avec traductions...');
     
-    // Le système a déjà créé l'UI et l'icône, on les récupère
+    // Le système a déjà créé l'UI et l'icône avec optionsManager, on les récupère
     if (this.system) {
       this.ui = this.system.pokedexUI;
       this.icon = this.system.pokedexIcon;
@@ -69,6 +81,19 @@ export class PokedexModule extends BaseModule {
       if (this.icon && !this.icon.iconElement) {
         console.log('🔧 [PokedexModule] Initialisation icône manquante...');
         this.icon.init();
+      }
+      
+      // ✅ VÉRIFIER QUE LES TRADUCTIONS SONT CONFIGURÉES
+      if (this.icon && this.icon.optionsManager) {
+        console.log('🌐 [PokedexModule] Icône configurée avec traductions');
+      } else {
+        console.warn('⚠️ [PokedexModule] Icône sans traductions');
+      }
+      
+      if (this.ui && this.ui.optionsManager) {
+        console.log('🌐 [PokedexModule] UI configurée avec traductions');
+      } else {
+        console.warn('⚠️ [PokedexModule] UI sans traductions');
       }
       
       // Assurer que l'icône est dans le bon mode UIManager
@@ -89,11 +114,11 @@ export class PokedexModule extends BaseModule {
       }
     }
     
-    console.log('✅ [PokedexModule] Composants Pokédx récupérés du système');
+    console.log('✅ [PokedexModule] Composants Pokédx récupérés du système avec traductions');
   }
   
   /**
-   * Connexion des composants Pokédx
+   * Connexion des composants Pokédx avec support traductions
    */
   connectComponents() {
     console.log('🔗 [PokedexModule] Connexion composants Pokédx...');
@@ -116,6 +141,57 @@ export class PokedexModule extends BaseModule {
     this.ensureIconForUIManager();
     
     console.log('✅ [PokedexModule] Composants Pokédx connectés via BaseModule');
+  }
+  
+  // === 🌐 MÉTHODES SPÉCIFIQUES TRADUCTIONS ===
+  
+  /**
+   * Injection tardive d'optionsManager pour les traductions
+   */
+  setOptionsManager(optionsManager) {
+    console.log('🌐 [PokedexModule] Injection tardive optionsManager...');
+    
+    // Mettre à jour les options du module
+    this.options.optionsManager = optionsManager;
+    
+    // Passer au système si disponible
+    if (this.system && this.system.setOptionsManager) {
+      this.system.setOptionsManager(optionsManager);
+    }
+    
+    // Passer directement aux composants si le système n'est pas encore prêt
+    if (this.ui && this.ui.optionsManager !== optionsManager) {
+      this.ui.optionsManager = optionsManager;
+      if (this.ui.setupLanguageSupport) {
+        this.ui.setupLanguageSupport();
+      }
+    }
+    
+    if (this.icon && this.icon.optionsManager !== optionsManager) {
+      this.icon.optionsManager = optionsManager;
+      if (this.icon.setupLanguageSupport) {
+        this.icon.setupLanguageSupport();
+      }
+    }
+    
+    console.log('✅ [PokedexModule] OptionsManager injecté pour traductions');
+  }
+  
+  /**
+   * Forcer mise à jour des traductions
+   */
+  updateLanguage() {
+    console.log('🌐 [PokedexModule] Force mise à jour langue...');
+    
+    if (this.ui && this.ui.updateLanguage) {
+      this.ui.updateLanguage();
+    }
+    
+    if (this.icon && this.icon.updateLanguage) {
+      this.icon.updateLanguage();
+    }
+    
+    console.log('✅ [PokedexModule] Langue mise à jour');
   }
   
   // === 📊 MÉTHODES SPÉCIFIQUES POKÉDX ===
@@ -283,66 +359,65 @@ export class PokedexModule extends BaseModule {
       totalCaught: this.playerStats.totalCaught || 0,
       hasNotifications: this.notifications.length > 0,
       canOpen: this.canOpenUI(),
-      moduleType: 'pokedex'
+      moduleType: 'pokedex',
+      hasOptionsManager: !!(this.options.optionsManager || this.system?.optionsManager),  // ← NOUVEAU
+      i18nSupported: true                                                                  // ← NOUVEAU
     };
   }
   
   /**
    * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
    */
-/**
- * Méthode pour vérifier si on peut ouvrir l'interface (override BaseModule)
- */
-canOpenUI() {
-  console.log('🔍 [PokedexModule] Vérification canOpenUI...');
-  
-  // ✅ CORRECTION: Vérification dialogue-box plus robuste
-  const dialogueBox = document.querySelector('#dialogue-box');
-  const dialogueVisible = dialogueBox && 
-    window.getComputedStyle(dialogueBox).display !== 'none' &&
-    window.getComputedStyle(dialogueBox).visibility !== 'hidden' &&
-    !dialogueBox.hidden;
-  
-  console.log('  💬 Dialogue visible (corrigé):', dialogueVisible);
-  
-  // ✅ Vérifications autres overlays (gardées identiques)
-  const otherBlockers = [
-    document.querySelector('.quest-dialog-overlay'),
-    document.querySelector('#team-overlay:not(.hidden)'),
-    document.querySelector('#shop-overlay:not(.hidden)'),
-    document.querySelector('#inventory-overlay:not(.hidden)')
-  ].filter(el => el !== null);
-  
-  console.log('  🚫 Autres bloqueurs:', otherBlockers.length);
-  
-  const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-  const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
-  
-  console.log('  💭 Chat focusé:', chatFocused);
-  console.log('  🎮 Starter HUD:', starterHudOpen);
-  
-  // ✅ CORRECTION: Vérifier enabled de façon sécurisée
-  let isEnabled = true; // Par défaut
-  
-  if (this.uiManagerState && typeof this.uiManagerState.enabled !== 'undefined') {
-    isEnabled = this.uiManagerState.enabled;
-    console.log('  🔧 Enabled (uiManagerState):', isEnabled);
-  } else if (typeof this.isEnabled !== 'undefined') {
-    isEnabled = this.isEnabled;
-    console.log('  🔧 Enabled (isEnabled):', isEnabled);
-  } else {
-    console.log('  🔧 Enabled (défaut):', isEnabled);
+  canOpenUI() {
+    console.log('🔍 [PokedexModule] Vérification canOpenUI...');
+    
+    // ✅ CORRECTION: Vérification dialogue-box plus robuste
+    const dialogueBox = document.querySelector('#dialogue-box');
+    const dialogueVisible = dialogueBox && 
+      window.getComputedStyle(dialogueBox).display !== 'none' &&
+      window.getComputedStyle(dialogueBox).visibility !== 'hidden' &&
+      !dialogueBox.hidden;
+    
+    console.log('  💬 Dialogue visible (corrigé):', dialogueVisible);
+    
+    // ✅ Vérifications autres overlays (gardées identiques)
+    const otherBlockers = [
+      document.querySelector('.quest-dialog-overlay'),
+      document.querySelector('#team-overlay:not(.hidden)'),
+      document.querySelector('#shop-overlay:not(.hidden)'),
+      document.querySelector('#inventory-overlay:not(.hidden)')
+    ].filter(el => el !== null);
+    
+    console.log('  🚫 Autres bloqueurs:', otherBlockers.length);
+    
+    const chatFocused = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
+    
+    console.log('  💭 Chat focusé:', chatFocused);
+    console.log('  🎮 Starter HUD:', starterHudOpen);
+    
+    // ✅ CORRECTION: Vérifier enabled de façon sécurisée
+    let isEnabled = true; // Par défaut
+    
+    if (this.uiManagerState && typeof this.uiManagerState.enabled !== 'undefined') {
+      isEnabled = this.uiManagerState.enabled;
+      console.log('  🔧 Enabled (uiManagerState):', isEnabled);
+    } else if (typeof this.isEnabled !== 'undefined') {
+      isEnabled = this.isEnabled;
+      console.log('  🔧 Enabled (isEnabled):', isEnabled);
+    } else {
+      console.log('  🔧 Enabled (défaut):', isEnabled);
+    }
+    
+    const result = !dialogueVisible && 
+                   otherBlockers.length === 0 && 
+                   !chatFocused && 
+                   !starterHudOpen && 
+                   isEnabled;
+    
+    console.log('  📊 Résultat final:', result);
+    return result;
   }
-  
-  const result = !dialogueVisible && 
-                 otherBlockers.length === 0 && 
-                 !chatFocused && 
-                 !starterHudOpen && 
-                 isEnabled;
-  
-  console.log('  📊 Résultat final:', result);
-  return result;
-}
   
   /**
    * Exposer le système globalement pour compatibilité
@@ -520,24 +595,25 @@ canOpenUI() {
   }
 }
 
-// === 🏭 FACTORY POKÉDX SIMPLIFIÉE ===
+// === 🏭 FACTORY POKÉDX AVEC TRADUCTIONS ===
 
 /**
- * Factory function pour créer le module Pokédx
+ * Factory function pour créer le module Pokédx avec traductions
  * Utilise la factory générique de BaseModule
  */
 export async function createPokedexModule(gameRoom, scene, options = {}) {
   try {
-    console.log('🏭 [PokedexFactory] Création module Pokédx avec BaseModule...');
+    console.log('🏭 [PokedexFactory] Création module Pokédx avec BaseModule et traductions...');
     
     const pokedexOptions = {
       singleton: true,
+      optionsManager: options.optionsManager || null,  // ← NOUVEAU
       ...options
     };
     
     const pokedexInstance = await createModule(PokedexModule, 'pokedex', gameRoom, scene, pokedexOptions);
     
-    console.log('✅ [PokedexFactory] Module Pokédx créé avec succès');
+    console.log('✅ [PokedexFactory] Module Pokédx créé avec traductions');
     return pokedexInstance;
     
   } catch (error) {
@@ -546,40 +622,40 @@ export async function createPokedexModule(gameRoom, scene, options = {}) {
   }
 }
 
-// === 📋 CONFIGURATION POKÉDX POUR UIMANAGER ===
+// === 📋 CONFIGURATION POKÉDX POUR UIMANAGER AVEC TRADUCTIONS ===
 
 export const POKEDEX_MODULE_CONFIG = generateModuleConfig('pokedex', {
   moduleClass: PokedexModule,
-  order: 1,  // Deuxième = entre inventory et team
+  order: 2,  // Troisième = après inventory et quest
   
   options: {
     singleton: true,
-    keyboardShortcut: 'p'
+    keyboardShortcut: 'p',
+    optionsManager: null  // Sera injecté dynamiquement
   },
   
   groups: ['ui-icons', 'data-management'],
   
   metadata: {
     name: 'Pokédx National',
-    description: 'Complete Pokédx system with discovery tracking',
-    version: '1.0.0',
-    category: 'Data Management'
+    description: 'Complete Pokédx system with discovery tracking and real-time translations',
+    version: '1.1.0',
+    category: 'Data Management',
+    i18nSupported: true,  // ← NOUVEAU
+    supportedLanguages: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ja', 'ko']  // ← NOUVEAU
   },
   
-  factory: () => createPokedexModule(
-    window.currentGameRoom, 
-    window.game?.scene?.getScenes(true)[0]
-  )
+  factory: (gameRoom, scene, options = {}) => createPokedexModule(gameRoom, scene, options)
 });
 
-// === 🔗 INTÉGRATION AVEC UIMANAGER SIMPLIFIÉE ===
+// === 🔗 INTÉGRATION AVEC UIMANAGER AVEC TRADUCTIONS ===
 
 /**
- * Enregistrer le module Pokédx dans UIManager
+ * Enregistrer le module Pokédx dans UIManager avec support traductions
  */
 export async function registerPokedexModule(uiManager) {
   try {
-    console.log('📝 [PokedexIntegration] Enregistrement Pokédx...');
+    console.log('📝 [PokedexIntegration] Enregistrement Pokédx avec traductions...');
     
     // Vérifier si déjà enregistré
     if (uiManager.modules && uiManager.modules.has('pokedex')) {
@@ -587,8 +663,8 @@ export async function registerPokedexModule(uiManager) {
       return true;
     }
     
-    await uiManager.registerModule('pokedex', POKEDX_MODULE_CONFIG);
-    console.log('✅ [PokedexIntegration] Module Pokédx enregistré');
+    await uiManager.registerModule('pokedex', POKEDEX_MODULE_CONFIG);
+    console.log('✅ [PokedexIntegration] Module Pokédx enregistré avec traductions');
     
     return true;
   } catch (error) {
@@ -598,11 +674,11 @@ export async function registerPokedexModule(uiManager) {
 }
 
 /**
- * Initialiser et connecter le module Pokédx
+ * Initialiser et connecter le module Pokédx avec traductions
  */
-export async function initializePokedexModule(uiManager) {
+export async function initializePokedexModule(uiManager, optionsManager = null) {
   try {
-    console.log('🚀 [PokedexIntegration] Initialisation Pokédx...');
+    console.log('🚀 [PokedexIntegration] Initialisation Pokédx avec traductions...');
     
     // Enregistrer le module
     await registerPokedexModule(uiManager);
@@ -611,10 +687,18 @@ export async function initializePokedexModule(uiManager) {
     let pokedexInstance = PokedexModule.getInstance('pokedex');
     
     if (!pokedexInstance || !pokedexInstance.uiManagerState.initialized) {
-      // Initialiser le module
-      pokedexInstance = await uiManager.initializeModule('pokedex');
+      // ✅ PASSER OPTIONSMANAGER À L'INITIALISATION
+      const initOptions = optionsManager ? { optionsManager } : {};
+      
+      // Initialiser le module avec optionsManager
+      pokedexInstance = await uiManager.initializeModule('pokedex', initOptions);
     } else {
       console.log('ℹ️ [PokedexIntegration] Instance déjà initialisée');
+      
+      // ✅ INJECTION TARDIVE D'OPTIONSMANAGER SI NÉCESSAIRE
+      if (optionsManager && pokedexInstance.setOptionsManager) {
+        pokedexInstance.setOptionsManager(optionsManager);
+      }
       
       // Connecter à UIManager si pas encore fait
       pokedexInstance.connectUIManager(uiManager);
@@ -623,7 +707,7 @@ export async function initializePokedexModule(uiManager) {
     // Setup des événements globaux Pokédx
     setupPokedexGlobalEvents(pokedexInstance);
     
-    console.log('✅ [PokedexIntegration] Initialisation Pokédx terminée');
+    console.log('✅ [PokedexIntegration] Initialisation Pokédx avec traductions terminée');
     return pokedexInstance;
     
   } catch (error) {
@@ -676,21 +760,29 @@ function setupPokedexGlobalEvents(pokedexInstance) {
     }
   });
   
+  // ✅ NOUVEAU: Événements traductions
+  window.addEventListener('languageChanged', (event) => {
+    console.log('🌐 [PokedexEvents] Langue changée pour Pokédx:', event.detail);
+    if (pokedexInstance.updateLanguage) {
+      pokedexInstance.updateLanguage();
+    }
+  });
+  
   window._pokedexEventsSetup = true;
-  console.log('🌐 [PokedexEvents] Événements Pokédx configurés');
+  console.log('🌐 [PokedexEvents] Événements Pokédx configurés avec traductions');
 }
 
-// === 💡 UTILISATION SIMPLE ===
+// === 💡 UTILISATION SIMPLE AVEC TRADUCTIONS ===
 
 /**
- * Fonction d'utilisation simple pour intégrer Pokédx dans un projet
+ * Fonction d'utilisation simple pour intégrer Pokédx dans un projet avec traductions
  */
-export async function setupPokedexSystem(uiManager) {
+export async function setupPokedexSystem(uiManager, optionsManager = null) {
   try {
-    console.log('🔧 [PokedexSetup] Configuration système Pokédx avec BaseModule...');
+    console.log('🔧 [PokedexSetup] Configuration système Pokédx avec BaseModule et traductions...');
     
-    // Initialiser le module
-    const pokedexInstance = await initializePokedexModule(uiManager);
+    // Initialiser le module avec optionsManager
+    const pokedexInstance = await initializePokedexModule(uiManager, optionsManager);
     
     // Exposer globalement pour compatibilité
     if (!window.pokedexSystem) {
@@ -713,10 +805,23 @@ export async function setupPokedexSystem(uiManager) {
       window.getPokedexCompletionRate = () => 
         pokedexInstance.getCompletionRate();
       
-      console.log('🌐 [PokedexSetup] Fonctions globales Pokédx exposées');
+      // ✅ NOUVELLES FONCTIONS TRADUCTIONS
+      window.updatePokedexLanguage = () => {
+        if (pokedexInstance.updateLanguage) {
+          pokedexInstance.updateLanguage();
+        }
+      };
+      
+      window.setPokedexOptionsManager = (optionsManager) => {
+        if (pokedexInstance.setOptionsManager) {
+          pokedexInstance.setOptionsManager(optionsManager);
+        }
+      };
+      
+      console.log('🌐 [PokedexSetup] Fonctions globales Pokédx exposées avec traductions');
     }
     
-    console.log('✅ [PokedexSetup] Système Pokédx configuré avec BaseModule');
+    console.log('✅ [PokedexSetup] Système Pokédx configuré avec BaseModule et traductions');
     return pokedexInstance;
     
   } catch (error) {
@@ -760,25 +865,35 @@ export function fixPokedexModule() {
 export default PokedexModule;
 
 console.log(`
-📱 === POKÉDX MODULE AVEC BASEMODULE ===
+📱 === POKÉDX MODULE AVEC TRADUCTIONS TEMPS RÉEL ===
 
-🎯 NOUVELLES FONCTIONNALITÉS:
+🌐 NOUVELLES FONCTIONNALITÉS TRADUCTIONS:
+• optionsManager en paramètre constructeur
+• Passage automatique aux composants UI/Icon
+• setOptionsManager() pour injection tardive
+• updateLanguage() pour forcer mise à jour
+• Support complet traductions temps réel
+
+🎯 PATTERN RESPECTÉ:
 • BaseModule - logique UIManager mutualisée
 • Code simplifié - moins de duplication
 • Patterns standards - consistent avec Team/Inventory
 • Singleton intégré - via BaseModule
+• Traductions intégrées - même pattern
 
-📍 AVANTAGES BASEMODULE:
+📍 AVANTAGES BASEMODULE + I18N:
 • connectUIManager() générique
 • forceCloseUI() standardisé
 • Gestion état UIManager uniforme
 • Raccourcis clavier automatiques
+• Traductions temps réel automatiques
 
 🔧 MÉTHODES HÉRITÉES:
 • show(), hide(), setEnabled() - standards
 • connectUIManager() - connexion sécurisée
 • getUIManagerState() - état complet
 • forceCloseUI() - fermeture forcée
+• updateLanguage() - mise à jour i18n
 
 🎯 SPÉCIFICITÉS POKÉDX:
 • markPokemonSeen() - marquer comme vu
@@ -793,12 +908,21 @@ console.log(`
 • PokedexUI et PokedexIcon réutilisés
 • Compatibilité totale avec existant
 • Fonctions globales exposées
+• Support optionsManager complet
 
 🎮 ÉVÉNEMENTS AUTOMATIQUES:
 • pokemonEncountered - auto-marquer vu
 • pokemonCaptured - auto-marquer capturé  
 • pokemonEvolved - gérer évolutions
 • battleStarted - fermer auto
+• languageChanged - mise à jour i18n
 
-✅ POKÉDX REFACTORISÉ AVEC BASEMODULE !
+🌐 TRADUCTIONS SUPPORTÉES:
+• Interface traduite automatiquement
+• Icône avec label multilingue
+• Tooltip dans la bonne langue
+• Messages d'erreur localisés
+• Switching langue sans redémarrage
+
+✅ POKÉDX REFACTORISÉ AVEC BASEMODULE + TRADUCTIONS !
 `);
