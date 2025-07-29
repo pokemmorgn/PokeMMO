@@ -1,18 +1,17 @@
-// Pokedex/PokedexIcon.js - STYLE HARMONISÉ avec traductions temps réel
-// 🌐 Support complet des traductions + pattern cohérent avec Team/Quest
+// Pokedex/PokedexIcon.js - Icône Pokédx avec traductions temps réel
+// 🌐 Support complet des traductions à chaud selon le pattern établi
 
 import { t } from '../managers/LocalizationManager.js';
 
 export class PokedexIcon {
   constructor(pokedexUI, optionsManager = null) {
     this.pokedexUI = pokedexUI;
-    this.optionsManager = optionsManager;  // ← NOUVEAU
-    this.cleanupLanguageListener = null;   // ← NOUVEAU
+    this.optionsManager = optionsManager;
+    this.cleanupLanguageListener = null;
     
     this.isVisible = true;
     this.isEnabled = true;
     this.iconElement = null;
-    
     this.onClick = null;
     
     this.displayData = {
@@ -24,20 +23,21 @@ export class PokedexIcon {
     };
     
     this.positioningMode = 'uimanager';
+    this.currentTooltip = null;
     
-    console.log('📱 [PokedexIcon] Instance créée avec traductions');
+    console.log('📱 [PokedexIcon] Instance créée');
   }
   
   // === 🚀 INITIALISATION ===
   
   init() {
     try {
-      console.log('🚀 [PokedexIcon] Initialisation avec traductions...');
+      console.log('🚀 [PokedexIcon] Initialisation...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
-      this.setupLanguageSupport();  // ← NOUVEAU
+      this.setupLanguageSupport();
       this.show();
       
       console.log('✅ [PokedexIcon] Initialisé avec traductions');
@@ -50,41 +50,43 @@ export class PokedexIcon {
   }
   
   // === 🌐 SUPPORT LANGUE ===
+  
   setupLanguageSupport() {
+    console.log('🌐 [PokedexIcon] Configuration support langue...');
+    
     if (this.optionsManager?.addLanguageListener) {
       this.cleanupLanguageListener = this.optionsManager.addLanguageListener(() => {
+        console.log('🌐 [PokedexIcon] Changement de langue détecté');
         this.updateLanguage();
       });
-      console.log('🌐 [PokedexIcon] Listener langue ajouté');
+      console.log('✅ [PokedexIcon] Listener langue configuré');
     } else {
-      console.warn('⚠️ [PokedexIcon] OptionsManager non disponible');
+      console.warn('⚠️ [PokedexIcon] OptionsManager non disponible pour les traductions');
     }
     
-    // Mise à jour initiale
     this.updateLanguage();
   }
   
   updateLanguage() {
-    if (!this.iconElement) return;
-    
-    console.log('🌐 [PokedexIcon] Mise à jour langue...');
-    
-    // Mettre à jour le label
-    const labelElement = this.iconElement.querySelector('.icon-label');
-    if (labelElement) {
-      labelElement.textContent = t('pokedex.label');
+    if (!this.iconElement) {
+      console.warn('⚠️ [PokedexIcon] IconElement non disponible pour updateLanguage');
+      return;
     }
     
-    // Mettre à jour le tooltip si visible
-    if (this.currentTooltip && this.currentTooltip.parentNode) {
-      this.hideTooltip();
-      // Le tooltip sera recréé avec les bonnes traductions au prochain hover
+    try {
+      const iconLabel = this.iconElement.querySelector('.icon-label');
+      if (iconLabel) {
+        iconLabel.textContent = t('pokedex.label');
+      }
+      
+      console.log('✅ [PokedexIcon] Langue mise à jour');
+      
+    } catch (error) {
+      console.error('❌ [PokedexIcon] Erreur mise à jour langue:', error);
     }
-    
-    console.log('✅ [PokedexIcon] Langue mise à jour');
   }
   
-  // === 🎨 CRÉATION INTERFACE HARMONISÉE ===
+  // === 🎨 CRÉATION INTERFACE ===
   
   createIcon() {
     const existing = document.querySelector('#pokedex-icon');
@@ -96,7 +98,6 @@ export class PokedexIcon {
     icon.id = 'pokedex-icon';
     icon.className = 'pokedex-icon ui-icon';
     
-    // === TEMPLATE COHÉRENT AVEC TEAM/QUEST ===
     icon.innerHTML = `
       <div class="icon-background">
         <div class="icon-content">
@@ -105,7 +106,7 @@ export class PokedexIcon {
             <span class="completion-rate">0%</span>
           </div>
         </div>
-        <div class="icon-label">${t('pokedx.label')}</div>
+        <div class="icon-label">${t('pokedex.label')}</div>
       </div>
       
       <div class="completion-status">
@@ -120,20 +121,18 @@ export class PokedexIcon {
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [PokedexIcon] Icône créée avec traductions');
+    console.log('🎨 [PokedexIcon] Icône créée');
   }
   
   addStyles() {
-    if (document.querySelector('#pokedex-icon-harmonized-styles')) {
+    if (document.querySelector('#pokedx-icon-harmonized-styles')) {
       return;
     }
     
     const style = document.createElement('style');
-    style.id = 'pokedex-icon-harmonized-styles';
+    style.id = 'pokedx-icon-harmonized-styles';
     style.textContent = `
-      /* ===== POKÉDX ICON - STYLE HARMONISÉ ===== */
-      .pokedex-icon {
-        /* === MÊME TAILLE QUE TEAM/QUEST === */
+      .pokedx-icon {
         width: 70px !important;
         height: 80px !important;
         cursor: pointer;
@@ -149,8 +148,7 @@ export class PokedexIcon {
         transform: scale(1.1);
       }
       
-      /* === MÊME STYLE BACKGROUND QUE TEAM/QUEST === */
-      .pokedex-icon .icon-background {
+      .pokedx-icon .icon-background {
         width: 100%;
         height: 70px;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42);
@@ -166,14 +164,13 @@ export class PokedexIcon {
         overflow: hidden;
       }
       
-      .pokedex-icon:hover .icon-background {
+      .pokedx-icon:hover .icon-background {
         background: linear-gradient(145deg, #3a4f6f, #2e3d52);
         border-color: #5aa0f2;
         box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
       
-      /* === MÊME CONTENU QUE TEAM/QUEST === */
-      .pokedex-icon .icon-content {
+      .pokedx-icon .icon-content {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -182,18 +179,17 @@ export class PokedexIcon {
         gap: 2px;
       }
       
-      .pokedex-icon .icon-emoji {
+      .pokedx-icon .icon-emoji {
         font-size: 20px;
         transition: transform 0.3s ease;
         filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
       }
       
-      .pokedex-icon:hover .icon-emoji {
+      .pokedx-icon:hover .icon-emoji {
         transform: scale(1.2);
       }
       
-      /* === COMPTEUR COHÉRENT === */
-      .pokedex-counter {
+      .pokedx-counter {
         display: flex;
         align-items: center;
         font-size: 12px;
@@ -210,8 +206,7 @@ export class PokedexIcon {
         text-align: center;
       }
       
-      /* === MÊME LABEL QUE TEAM/QUEST === */
-      .pokedex-icon .icon-label {
+      .pokedx-icon .icon-label {
         font-size: 11px;
         color: #87ceeb;
         font-weight: 600;
@@ -223,7 +218,6 @@ export class PokedexIcon {
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
       
-      /* === MÊME STATUT QUE TEAM/QUEST === */
       .completion-status {
         position: absolute;
         top: -3px;
@@ -266,7 +260,6 @@ export class PokedexIcon {
         animation: completedBlink 1.5s infinite;
       }
       
-      /* === MÊME NOTIFICATION QUE TEAM/QUEST === */
       .notification-badge {
         position: absolute;
         top: -5px;
@@ -288,7 +281,6 @@ export class PokedexIcon {
         font-weight: bold;
       }
       
-      /* === MÊMES ANIMATIONS === */
       @keyframes pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
@@ -305,7 +297,6 @@ export class PokedexIcon {
         50% { opacity: 0.7; }
       }
       
-      /* === ANIMATIONS CONTEXTUELLES === */
       .pokedx-icon.pokemon-discovered .icon-emoji {
         animation: discoveryBounce 0.6s ease;
       }
@@ -317,7 +308,7 @@ export class PokedexIcon {
         75% { transform: scale(1.2) rotate(-2deg); }
       }
       
-      .pokedex-icon.pokemon-caught .icon-emoji {
+      .pokedx-icon.pokemon-caught .icon-emoji {
         animation: captureBounce 0.8s ease;
       }
       
@@ -328,7 +319,7 @@ export class PokedexIcon {
         75% { transform: scale(1.3) rotate(-5deg); }
       }
       
-      .pokedex-icon.milestone-reached {
+      .pokedx-icon.milestone-reached {
         animation: milestoneGlow 1s ease;
       }
       
@@ -343,24 +334,23 @@ export class PokedexIcon {
         }
       }
       
-      /* === MÊMES ÉTATS QUE TEAM/QUEST === */
-      .pokedex-icon.hidden {
+      .pokedx-icon.hidden {
         opacity: 0;
         pointer-events: none;
         transform: translateY(20px);
       }
       
-      .pokedex-icon.disabled {
+      .pokedx-icon.disabled {
         opacity: 0.5;
         cursor: not-allowed;
         filter: grayscale(50%);
       }
       
-      .pokedex-icon.disabled:hover {
+      .pokedx-icon.disabled:hover {
         transform: none !important;
       }
       
-      .pokedex-icon.appearing {
+      .pokedx-icon.appearing {
         animation: iconAppear 0.5s ease;
       }
       
@@ -375,9 +365,8 @@ export class PokedexIcon {
         }
       }
       
-      /* === RESPONSIVE COHÉRENT === */
       @media (max-width: 768px) {
-        .pokedex-icon {
+        .pokedx-icon {
           width: 60px !important;
           height: 70px !important;
         }
@@ -386,7 +375,7 @@ export class PokedexIcon {
           height: 60px;
         }
         
-        .pokedex-icon .icon-emoji {
+        .pokedx-icon .icon-emoji {
           font-size: 18px;
         }
         
@@ -400,16 +389,16 @@ export class PokedexIcon {
       }
       
       @media (min-width: 769px) and (max-width: 1024px) {
-        .pokedex-icon {
+        .pokedx-icon {
           width: 65px !important;
           height: 75px !important;
         }
         
-        .pokedex-icon .icon-background {
+        .pokedx-icon .icon-background {
           height: 65px;
         }
         
-        .pokedex-icon .icon-emoji {
+        .pokedx-icon .icon-emoji {
           font-size: 19px;
         }
         
@@ -418,8 +407,7 @@ export class PokedexIcon {
         }
       }
       
-      /* === INDICATEUR UIMANAGER === */
-      .pokedex-icon[data-positioned-by="uimanager"] {
+      .pokedx-icon[data-positioned-by="uimanager"] {
         border: 1px solid rgba(74, 144, 226, 0.3);
       }
       
@@ -436,10 +424,10 @@ export class PokedexIcon {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [PokedexIcon] Styles harmonisés appliqués');
+    console.log('🎨 [PokedexIcon] Styles appliqués');
   }
   
-  // === 🎛️ ÉVÉNEMENTS (IDENTIQUES) ===
+  // === 🎛️ ÉVÉNEMENTS ===
   
   setupEventListeners() {
     if (!this.iconElement) return;
@@ -462,7 +450,7 @@ export class PokedexIcon {
         this.onClick();
       }
       
-      console.log('📱 [PokedxIcon] Clic détecté');
+      console.log('📱 [PokedexIcon] Clic détecté');
     });
     
     this.iconElement.addEventListener('mouseenter', () => {
@@ -478,12 +466,12 @@ export class PokedexIcon {
     console.log('🎛️ [PokedexIcon] Événements configurés');
   }
   
-  // === 📊 MISE À JOUR DONNÉES SIMPLIFIÉE ===
+  // === 📊 MISE À JOUR DONNÉES ===
   
   updateProgress(data) {
     if (!this.iconElement) return;
     
-    console.log('📊 [PokedxIcon] Mise à jour progression:', data);
+    console.log('📊 [PokedexIcon] Mise à jour progression:', data);
     
     const { totalSeen = 0, totalCaught = 0, caughtPercentage = 0 } = data;
     
@@ -491,13 +479,11 @@ export class PokedexIcon {
     this.displayData.totalCaught = totalCaught;
     this.displayData.completionPercentage = Math.round(caughtPercentage);
     
-    // Mettre à jour l'affichage du pourcentage
     const completionRate = this.iconElement.querySelector('.completion-rate');
     if (completionRate) {
       completionRate.textContent = `${this.displayData.completionPercentage}%`;
     }
     
-    // Mettre à jour le statut
     const statusDot = this.iconElement.querySelector('.status-dot');
     if (statusDot) {
       statusDot.classList.remove('active', 'inactive', 'discovering', 'completed');
@@ -513,7 +499,6 @@ export class PokedexIcon {
       }
     }
     
-    // Animation de mise à jour
     this.iconElement.classList.add('pokemon-discovered');
     setTimeout(() => {
       this.iconElement.classList.remove('pokemon-discovered');
@@ -542,10 +527,10 @@ export class PokedexIcon {
     }
   }
   
-  // === 🎛️ CONTRÔLE UI MANAGER (IDENTIQUES) ===
+  // === 🎛️ CONTRÔLE UI MANAGER ===
   
   show() {
-    console.log('👁️ [PokedexIcon] Affichage (harmonisé)');
+    console.log('👁️ [PokedexIcon] Affichage');
     
     this.isVisible = true;
     
@@ -596,13 +581,13 @@ export class PokedexIcon {
     return true;
   }
   
-  // === 💬 TOOLTIP COHÉRENT AVEC TRADUCTIONS ===
+  // === 💬 TOOLTIP ===
   
   showTooltip() {
     const { totalSeen, totalCaught, completionPercentage } = this.displayData;
     
     const tooltip = document.createElement('div');
-    tooltip.className = 'pokedex-tooltip';
+    tooltip.className = 'pokedx-tooltip';
     
     const iconRect = this.iconElement.getBoundingClientRect();
     
@@ -623,11 +608,10 @@ export class PokedexIcon {
       font-family: Arial, sans-serif;
     `;
     
-    // ✅ TRADUCTIONS DANS LE TOOLTIP
     tooltip.innerHTML = `
-      <div><strong>${t('pokedex.tooltip_title')}: ${completionPercentage}%</strong></div>
-      <div>${t('pokedex.ui.progress.seen')}: ${totalSeen} | ${t('pokedex.ui.progress.caught')}: ${totalCaught}</div>
-      <div style="opacity: 0.7; margin-top: 4px;">${t('pokedex.tooltip_action')}</div>
+      <div><strong>${t('pokedx.tooltip_title')}: ${completionPercentage}%</strong></div>
+      <div>${t('pokedx.ui.progress.seen')}: ${totalSeen} | ${t('pokedx.ui.progress.caught')}: ${totalCaught}</div>
+      <div style="opacity: 0.7; margin-top: 4px;">${t('pokedx.tooltip_action')}</div>
     `;
     
     document.body.appendChild(tooltip);
@@ -650,14 +634,18 @@ export class PokedexIcon {
   
   showDisabledMessage() {
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(t('pokedex.disabled_message'), 'warning', {
-        duration: 2000,
-        position: 'bottom-center'
-      });
+      window.showGameNotification(
+        t('pokedx.disabled_message'), 
+        'warning', 
+        {
+          duration: 2000,
+          position: 'bottom-center'
+        }
+      );
     }
   }
   
-  // === 🎭 ANIMATIONS SIMPLIFIÉES ===
+  // === 🎭 ANIMATIONS ===
   
   animateNewDiscovery() {
     if (!this.iconElement) return;
@@ -748,11 +736,10 @@ export class PokedexIcon {
   destroy() {
     console.log('🧹 [PokedexIcon] Destruction...');
     
-    // ✅ NETTOYER LISTENER LANGUE
     if (this.cleanupLanguageListener) {
+      console.log('🌐 [PokedexIcon] Nettoyage listener langue...');
       this.cleanupLanguageListener();
       this.cleanupLanguageListener = null;
-      console.log('🌐 [PokedexIcon] Listener langue nettoyé');
     }
     
     this.hideTooltip();
@@ -765,7 +752,7 @@ export class PokedexIcon {
     this.onClick = null;
     this.isVisible = false;
     this.isEnabled = false;
-    this.optionsManager = null;  // ← NOUVEAU
+    this.optionsManager = null;
     
     console.log('✅ [PokedexIcon] Détruit avec nettoyage traductions');
   }
@@ -783,10 +770,8 @@ export class PokedexIcon {
       positioningMode: this.positioningMode,
       isPositionedByUIManager: this.isPositionedByUIManager(),
       currentPosition: this.getCurrentPosition(),
-      styleHarmonized: true,
-      hasOptionsManager: !!this.optionsManager,           // ← NOUVEAU
-      hasLanguageListener: !!this.cleanupLanguageListener, // ← NOUVEAU
-      version: 'harmonized-i18n-2024'
+      hasLanguageSupport: !!this.optionsManager,
+      version: 'localized-2024'
     };
   }
 }
