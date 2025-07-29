@@ -1,6 +1,6 @@
-// managers/LocalizationManager.js - VERSION MODULAIRE AVEC DÉTECTION TIMEWEATHER
+// managers/LocalizationManager.js - VERSION MODULAIRE AVEC DÉTECTION PÉRIODIQUE
 // 🌐 Gestionnaire de traductions modulaire avec fichiers séparés
-// 🔄 Détection automatique périodique des nouveaux modules + TIMEWEATHER
+// 🔄 Détection automatique périodique des nouveaux modules
 
 export class LocalizationManager {
   constructor() {
@@ -13,13 +13,13 @@ export class LocalizationManager {
     // === CONFIGURATION MODULAIRE ===
     this.fallbackLanguage = 'en';
     
-    // 🔥 NOUVEAU : Configuration des modules avec TIMEWEATHER
+    // 🔥 NOUVEAU : Configuration des modules
     this.moduleConfig = {
       // Modules obligatoires (toujours chargés)
       required: ['common'],
       
-      // 🌤️ NOUVEAU : Modules optionnels avec TIMEWEATHER
-      optional: ['quest', 'team', 'inventory', 'options', 'pokedex', 'timeweather'],
+      // Modules optionnels (chargés si demandés ou auto-détectés)
+      optional: ['quest', 'team', 'inventory', 'options', 'pokedex'],
       
       // Chemins des fichiers
       basePath: '/localization',
@@ -49,7 +49,7 @@ export class LocalizationManager {
     this.loadedModules = new Set();
     this.failedModules = new Set();
     
-    console.log('🌐 [LocalizationManager] Instance modulaire créée avec détection TimeWeather');
+    console.log('🌐 [LocalizationManager] Instance modulaire créée avec détection périodique');
   }
   
   // === 🚀 CHARGEMENT INTELLIGENT ===
@@ -230,7 +230,7 @@ export class LocalizationManager {
       }
     }));
     
-    // 🔄 NOUVEAU : Force mise à jour des composants existants
+    // 🔄 NOUVEAU : Force mise à jour des icônes existantes
     this.updateExistingComponents();
   }
   
@@ -268,14 +268,6 @@ export class LocalizationManager {
         if (window.optionsSystemGlobal?.icon?.updateLanguage) {
           window.optionsSystemGlobal.icon.updateLanguage();
           console.log('🔄 [LocalizationManager] OptionsIcon mis à jour');
-        }
-      },
-      
-      // 🌤️ NOUVEAU : TimeWeather
-      () => {
-        if (window.pokemonUISystem?.getModule?.('timeWeather')?.updateLanguage) {
-          window.pokemonUISystem.getModule('timeWeather').updateLanguage();
-          console.log('🔄 [LocalizationManager] TimeWeatherModule mis à jour');
         }
       }
     ];
@@ -361,7 +353,7 @@ export class LocalizationManager {
     return success;
   }
   
-  // === 🔍 DÉTECTION AUTOMATIQUE (AMÉLIORÉE AVEC TIMEWEATHER) ===
+  // === 🔍 DÉTECTION AUTOMATIQUE (AMÉLIORÉE) ===
   
   /**
    * Détecter automatiquement les modules utilisés sur la page
@@ -369,21 +361,13 @@ export class LocalizationManager {
   _detectUsedModules() {
     const detectedModules = [];
     
-    // 🌤️ NOUVEAU : Détecter par éléments DOM avec TIMEWEATHER
+    // Détecter par éléments DOM
     const domIndicators = {
       quest: ['#quest-icon', '.quest-journal', '[data-quest]', '#quest-tracker'],
       team: ['#team-icon', '.team-overlay', '[data-team]', '#team-manager'],
       inventory: ['#inventory-icon', '.inventory-overlay', '[data-inventory]'],
       options: ['#options-icon', '.options-overlay', '[data-options]'],
-      pokedex: ['#pokedex-icon', '.pokedex-overlay', '[data-pokedex]'],
-      // 🌤️ NOUVEAU : Indicateurs DOM TimeWeather
-      timeweather: [
-        '#time-weather-widget', 
-        '.pokemon-weather-widget', 
-        '.weather-widget',
-        '[data-widget-type="standalone"]',
-        '.time-weather-module'
-      ]
+      pokedex: ['#pokedex-icon', '.pokedex-overlay', '[data-pokedex]']
     };
     
     Object.entries(domIndicators).forEach(([module, selectors]) => {
@@ -394,22 +378,13 @@ export class LocalizationManager {
       }
     });
     
-    // 🌤️ NOUVEAU : Détecter par variables globales avec TIMEWEATHER
+    // Détecter par variables globales
     const globalIndicators = {
       quest: ['questSystem', 'questSystemGlobal'],
       team: ['teamSystem', 'teamSystemGlobal'],
       inventory: ['inventorySystem', 'inventorySystemGlobal'],
       options: ['optionsSystem', 'optionsSystemGlobal'],
-      pokedex: ['pokedexSystem', 'pokedexSystemGlobal'],
-      // 🌤️ NOUVEAU : Variables globales TimeWeather
-      timeweather: [
-        'globalWeatherManager',
-        'timeWeatherManager', 
-        'pokemonUISystem',
-        'weatherWidget',
-        'TimeWeatherWidget',
-        'TimeWeatherModule'
-      ]
+      pokedex: ['pokedexSystem', 'pokedexSystemGlobal']
     };
     
     Object.entries(globalIndicators).forEach(([module, globals]) => {
@@ -422,25 +397,6 @@ export class LocalizationManager {
         console.log(`🌐 [LocalizationManager] Module détecté (global): ${module}`);
       }
     });
-    
-    // 🌤️ NOUVEAU : Détection spéciale TimeWeather via pokemonUISystem
-    if (window.pokemonUISystem && !detectedModules.includes('timeweather')) {
-      try {
-        const timeWeatherModule = window.pokemonUISystem.getModule?.('timeWeather');
-        if (timeWeatherModule) {
-          detectedModules.push('timeweather');
-          console.log('🌤️ [LocalizationManager] TimeWeather détecté via pokemonUISystem');
-        }
-      } catch (error) {
-        // Silence, pas critique
-      }
-    }
-    
-    // 🌤️ NOUVEAU : Détection par classe CSS TimeWeather
-    if (document.querySelector('.pokemon-weather-widget') && !detectedModules.includes('timeweather')) {
-      detectedModules.push('timeweather');
-      console.log('🌤️ [LocalizationManager] TimeWeather détecté via CSS class');
-    }
     
     return detectedModules;
   }
@@ -507,16 +463,14 @@ export class LocalizationManager {
    * Obtenir le nom de fichier pour un module
    */
   _getModuleFilename(moduleName) {
-    // 🌤️ NOUVEAU : Mapping personnalisé avec TIMEWEATHER
+    // Mapping personnalisé ou format standard
     const fileMapping = {
       common: 'modules/common-ui.json',
       quest: 'modules/quest-ui.json',
       team: 'modules/team-ui.json',
       inventory: 'modules/inventory-ui.json',
       options: 'modules/options-ui.json',
-      pokedex: 'modules/pokedex-ui.json',
-      // 🌤️ NOUVEAU : Mapping TimeWeather
-      timeweather: 'modules/timeweather-ui.json'
+      pokedex: 'modules/pokedex-ui.json'
     };
     
     return fileMapping[moduleName] || `modules/${moduleName}-ui.json`;
@@ -613,7 +567,7 @@ export class LocalizationManager {
   
   /**
    * Obtenir une traduction (API inchangée)
-   * @param {string} path - Chemin (ex: "timeweather.weather.conditions.sunny")
+   * @param {string} path - Chemin (ex: "quest.label")
    * @param {string} lang - Langue (optionnel)
    * @returns {string}
    */
@@ -844,7 +798,7 @@ export class LocalizationManager {
     return {
       isReady: this.isReady,
       isLoading: this.isLoading,
-      mode: 'modular-with-timeweather-detection',
+      mode: 'modular-with-periodic-detection',
       strategy: this.moduleConfig.loadingStrategy.mode,
       loadedModules: Array.from(this.loadedModules),
       failedModules: Array.from(this.failedModules),
@@ -853,14 +807,7 @@ export class LocalizationManager {
       availableLanguages: this.getAvailableLanguages(),
       fallbackLanguage: this.fallbackLanguage,
       lastError: this.lastError?.message || null,
-      
-      // 🌤️ NOUVEAU : Test traductions TimeWeather
-      sampleTranslations: this.isReady ? {
-        quest: this.t('quest.label'),
-        timeweather_sunny: this.t('timeweather.weather.conditions.sunny'),
-        timeweather_morning: this.t('timeweather.time.periods.morning'),
-        timeweather_village: this.t('timeweather.locations.village')
-      } : null,
+      sampleTranslation: this.isReady ? this.t('quest.label') : null,
       
       // 🔄 NOUVEAU : Stats détection périodique
       periodicDetection: {
@@ -878,16 +825,7 @@ export class LocalizationManager {
         optionalModules: this.moduleConfig.optional,
         detectedModules: this._detectUsedModules(),
         cacheSize: this.moduleTranslations.size,
-        translationKeys: this.isReady ? Object.keys(this.translations[this.fallbackLanguage] || {}).length : 0,
-        
-        // 🌤️ NOUVEAU : Stats TimeWeather spécifiques
-        timeweatherSupport: {
-          moduleInOptional: this.moduleConfig.optional.includes('timeweather'),
-          loaded: this.loadedModules.has('timeweather'),
-          failed: this.failedModules.has('timeweather'),
-          domDetected: !!document.querySelector('#time-weather-widget'),
-          globalDetected: !!window.globalWeatherManager
-        }
+        translationKeys: this.isReady ? Object.keys(this.translations[this.fallbackLanguage] || {}).length : 0
       }
     };
   }
@@ -917,20 +855,6 @@ export class LocalizationManager {
     }
     
     return testResults;
-  }
-  
-  // 🌤️ NOUVEAU : Test spécifique TimeWeather
-  testTimeWeather(lang = null) {
-    console.log('🌤️ [LocalizationManager] Test traductions TimeWeather...');
-    
-    const timeweatherTests = {
-      conditions: this.testSection('timeweather.weather.conditions', lang),
-      periods: this.testSection('timeweather.time.periods', lang),
-      locations: this.testSection('timeweather.locations', lang),
-      bonusTypes: this.testSection('timeweather.bonus.types', lang)
-    };
-    
-    return timeweatherTests;
   }
   
   // === 🧹 NETTOYAGE ===
@@ -982,31 +906,31 @@ export function t(path, lang = null) {
 export default LocalizationManager;
 
 console.log(`
-🌐 === LOCALIZATION MANAGER AVEC SUPPORT TIMEWEATHER ===
+🌐 === LOCALIZATION MANAGER AVEC DÉTECTION PÉRIODIQUE ===
 
-🌤️ NOUVELLES FONCTIONNALITÉS TIMEWEATHER:
-• Détection automatique widget météo (#time-weather-widget)
-• Support variables globales (globalWeatherManager, pokemonUISystem)
-• Mapping fichier: timeweather → modules/timeweather-ui.json
-• Mise à jour automatique via pokemonUISystem.getModule('timeWeather')
-• Test spécifique: window.localizationManager.testTimeWeather()
+🔄 NOUVELLES FONCTIONNALITÉS:
+• Détection périodique automatique (3s x 20 = 1 minute)
+• Chargement dynamique des modules détectés
+• Notification automatique des composants
+• Mise à jour en temps réel des icônes existantes
+• Arrêt intelligent quand tous modules traités
 
-🔄 DÉTECTION PÉRIODIQUE AMÉLIORÉE:
-• Détecte DOM: .pokemon-weather-widget, #time-weather-widget
-• Détecte globals: globalWeatherManager, TimeWeatherWidget
-• Détecte via pokemonUISystem.getModule('timeWeather')
-• Détecte via classe CSS .pokemon-weather-widget
-• Charge timeweather-ui.json automatiquement
-• Met à jour TimeWeatherModule automatiquement
+⚡ RÉSOLUTION PROBLÈME INVENTORY:
+• Détecte inventory-icon créé après initialisation
+• Charge inventory-ui.json automatiquement
+• Met à jour InventoryIcon avec nouvelles traductions
+• Plus besoin de reload manuel !
 
-📦 MODULES SUPPORTÉS:
-• quest, team, inventory, options, pokedex
-• 🌤️ NOUVEAU: timeweather
+🔧 CONFIGURATION:
+• Interval: 3000ms (configurable)
+• Max tentatives: 20 (configurable)
+• Auto-arrêt si tous modules traités
+• Événements globaux 'localizationModulesUpdated'
 
-🧪 DEBUG TIMEWEATHER:
-• window.localizationManager.getDebugInfo().detailedStats.timeweatherSupport
-• window.localizationManager.testTimeWeather() 
-• window.localizationManager.t('timeweather.weather.conditions.sunny')
+📊 DEBUG AMÉLIORÉ:
+• window.localizationManager.getDebugInfo().periodicDetection
+• window.localizationManager.disablePeriodicDetection()
+• window.localizationManager.enablePeriodicDetection()
 
-✅ TIMEWEATHER DÉTECTÉ ET TRADUIT AUTOMATIQUEMENT !
-`);`
+✅ INVENTORY MAINTENANT DÉTECTÉ AUTOMATIQUEMENT !
+`);
