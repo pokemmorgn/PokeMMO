@@ -1,20 +1,21 @@
-// Pokedex/PokedexSystem.js - Système Pokédx avec gestion métier complète
-// 🎮 Logique principale du Pokédx + intégration serveur
+// Pokedex/PokedexSystem.js - Système Pokédex avec optionsManager + traductions temps réel
+// 🎮 Logique principale du Pokédex + intégration serveur + TRADUCTIONS
 
 import { PokedexUI } from './PokedexUI.js';
 import { PokedexIcon } from './PokedexIcon.js';
 
 export class PokedexSystem {
-  constructor(scene, gameRoom) {
+  constructor(scene, gameRoom, optionsManager = null) {  // ← NOUVEAU PARAMÈTRE
     this.scene = scene;
     this.gameRoom = gameRoom;
+    this.optionsManager = optionsManager;  // ← NOUVEAU
     this.pokedexUI = null;
     this.pokedexIcon = null;
     
-    // === DONNÉES POKÉDX ===
-    this.pokedexData = {};      // Entrées du Pokédx
+    // === DONNÉES POKÉDEX ===
+    this.pokedexData = {};      // Entrées du Pokédex
     this.playerStats = {};      // Statistiques du joueur
-    this.notifications = [];    // Notifications Pokédx
+    this.notifications = [];    // Notifications Pokédex
     this.settings = {};         // Paramètres utilisateur
     
     // === CACHE LOCAL ===
@@ -26,23 +27,25 @@ export class PokedexSystem {
     this.isInitialized = false;
     this.isSyncing = false;
 
-   // 🆕 PROTECTION CONTRE DEMANDES MULTIPLES
+    // 🆕 PROTECTION CONTRE DEMANDES MULTIPLES
     this._isRequestingData = false;
     this._lastRequestTime = null;
     this._requestCooldown = 2000; // 2 secondes entre les demandes
+    
     this.init();
   }
 
   // === 🚀 INITIALISATION ===
   
   init() {
-    console.log('🚀 [PokedexSystem] Initialisation système Pokédx...');
+    console.log('🚀 [PokedexSystem] Initialisation système Pokédex...');
+    console.log('🌐 [PokedexSystem] OptionsManager disponible:', !!this.optionsManager);
     
-    // Créer l'interface Pokédx
-    this.pokedexUI = new PokedexUI(this.gameRoom);
+    // Créer l'interface Pokédex AVEC optionsManager
+    this.pokedexUI = new PokedexUI(this.gameRoom, this.optionsManager);
     
-    // Créer l'icône Pokédx
-    this.pokedexIcon = new PokedexIcon(this.pokedexUI);
+    // ✅ CORRECTION : Créer l'icône Pokédex AVEC optionsManager
+    this.pokedexIcon = new PokedexIcon(this.pokedexUI, this.optionsManager);
     
     // Configurer les interactions entre les composants
     this.setupInteractions();
@@ -57,7 +60,7 @@ export class PokedexSystem {
     window.pokedexSystem = this;
     
     this.isInitialized = true;
-    console.log('✅ [PokedexSystem] Système Pokédx initialisé');
+    console.log('✅ [PokedexSystem] Système Pokédex initialisé avec traductions');
   }
   
   setupInteractions() {
@@ -158,96 +161,96 @@ export class PokedexSystem {
 
   // === 📡 COMMUNICATION SERVEUR ===
   
-setupServerListeners() {
-  if (!this.gameRoom) return;
+  setupServerListeners() {
+    if (!this.gameRoom) return;
 
-  // === RÉCEPTION DONNÉES POKÉDX ===
-  // ✅ RETIRER ":response" de tous les listeners de réponse
-  this.gameRoom.onMessage("pokedex:get", (response) => {
-    this.handlePokedexDataResponse(response);
-  });
+    // === RÉCEPTION DONNÉES POKÉDEX ===
+    // ✅ RETIRER ":response" de tous les listeners de réponse
+    this.gameRoom.onMessage("pokedex:get", (response) => {
+      this.handlePokedexDataResponse(response);
+    });
 
-  this.gameRoom.onMessage("pokedex:entry", (response) => {
-    this.handlePokemonEntryResponse(response);
-  });
+    this.gameRoom.onMessage("pokedex:entry", (response) => {
+      this.handlePokemonEntryResponse(response);
+    });
 
-  this.gameRoom.onMessage("pokedex:stats", (response) => {
-    this.handleStatsResponse(response);
-  });
+    this.gameRoom.onMessage("pokedex:stats", (response) => {
+      this.handleStatsResponse(response);
+    });
 
-  // === ÉVÉNEMENTS DE DÉCOUVERTE/CAPTURE ===
-  // ✅ GARDER sans ":response" (ce sont des broadcasts)
-  this.gameRoom.onMessage("pokedex:discovery", (data) => {
-    this.handleDiscoveryEvent(data);
-  });
+    // === ÉVÉNEMENTS DE DÉCOUVERTE/CAPTURE ===
+    // ✅ GARDER sans ":response" (ce sont des broadcasts)
+    this.gameRoom.onMessage("pokedex:discovery", (data) => {
+      this.handleDiscoveryEvent(data);
+    });
 
-  this.gameRoom.onMessage("pokedex:capture", (data) => {
-    this.handleCaptureEvent(data);
-  });
+    this.gameRoom.onMessage("pokedex:capture", (data) => {
+      this.handleCaptureEvent(data);
+    });
 
-  // === RÉPONSES D'ACTIONS ===
-  // ✅ RETIRER ":response"
-  this.gameRoom.onMessage("pokedex:mark_seen", (response) => {
-    this.handleMarkSeenResponse(response);
-  });
+    // === RÉPONSES D'ACTIONS ===
+    // ✅ RETIRER ":response"
+    this.gameRoom.onMessage("pokedex:mark_seen", (response) => {
+      this.handleMarkSeenResponse(response);
+    });
 
-  this.gameRoom.onMessage("pokedex:mark_caught", (response) => {
-    this.handleMarkCaughtResponse(response);
-  });
+    this.gameRoom.onMessage("pokedex:mark_caught", (response) => {
+      this.handleMarkCaughtResponse(response);
+    });
 
-  this.gameRoom.onMessage("pokedex:toggle_favorite", (response) => {
-    this.handleFavoriteResponse(response);
-  });
+    this.gameRoom.onMessage("pokedex:toggle_favorite", (response) => {
+      this.handleFavoriteResponse(response);
+    });
 
-  // === NOTIFICATIONS ===
-  this.gameRoom.onMessage("pokedex:notifications", (response) => {
-    this.handleNotificationsResponse(response);
-  });
+    // === NOTIFICATIONS ===
+    this.gameRoom.onMessage("pokedex:notifications", (response) => {
+      this.handleNotificationsResponse(response);
+    });
 
-  // === SYNCHRONISATION ===
-  this.gameRoom.onMessage("pokedex:quick_action", (response) => {
-    this.handleQuickActionResponse(response);
-  });
+    // === SYNCHRONISATION ===
+    this.gameRoom.onMessage("pokedex:quick_action", (response) => {
+      this.handleQuickActionResponse(response);
+    });
 
-  console.log('📡 [PokedexSystem] Listeners serveur configurés et corrigés');
-}
+    console.log('📡 [PokedexSystem] Listeners serveur configurés et corrigés');
+  }
 
   // === 📤 REQUÊTES SERVEUR ===
   
-requestPokedexData(filters = {}) {
-  if (!this.gameRoom) return;
-  
-  // 🛠️ PROTECTION CONTRE LES DEMANDES MULTIPLES
-  const now = Date.now();
-  if (this._isRequestingData) {
-    console.warn('⚠️ [PokedexSystem] Demande déjà en cours, ignorer');
-    return;
-  }
-  
-  if (this._lastRequestTime && (now - this._lastRequestTime) < this._requestCooldown) {
-    console.warn('⚠️ [PokedexSystem] Cooldown actif, ignorer demande');
-    return;
-  }
-  
-  this._isRequestingData = true;
-  this._lastRequestTime = now;
-  
-  console.log('📡 [PokedexSystem] Demande données Pokédx...', filters);
-  this.gameRoom.send("pokedex:get", {
-    filters: {
-      sortBy: 'id',
-      sortOrder: 'asc',
-      limit: 50,
-      offset: 0,
-      ...filters
+  requestPokedexData(filters = {}) {
+    if (!this.gameRoom) return;
+    
+    // 🛠️ PROTECTION CONTRE LES DEMANDES MULTIPLES
+    const now = Date.now();
+    if (this._isRequestingData) {
+      console.warn('⚠️ [PokedexSystem] Demande déjà en cours, ignorer');
+      return;
     }
-  });
-  
-  // Libérer le verrou après 3 secondes max
-  setTimeout(() => {
-    this._isRequestingData = false;
-  }, 3000);
-}
+    
+    if (this._lastRequestTime && (now - this._lastRequestTime) < this._requestCooldown) {
+      console.warn('⚠️ [PokedexSystem] Cooldown actif, ignorer demande');
+      return;
+    }
+    
+    this._isRequestingData = true;
+    this._lastRequestTime = now;
+    
+    console.log('📡 [PokedexSystem] Demande données Pokédex...', filters);
+    this.gameRoom.send("pokedex:get", {
+      filters: {
+        sortBy: 'id',
+        sortOrder: 'asc',
+        limit: 50,
+        offset: 0,
+        ...filters
+      }
+    });
+    
+    // Libérer le verrou après 3 secondes max
+    setTimeout(() => {
+      this._isRequestingData = false;
+    }, 3000);
+  }
   
   requestPokemonEntry(pokemonId) {
     if (!this.gameRoom) return;
@@ -264,14 +267,14 @@ requestPokedexData(filters = {}) {
     if (!this.gameRoom) return;
     
     console.log('📡 [PokedexSystem] Demande statistiques...');
-    this.gameRoom.send("pokedx:stats");
+    this.gameRoom.send("pokedex:stats");
   }
   
   markPokemonSeen(pokemonId, level, location, options = {}) {
     if (!this.gameRoom) return;
     
     console.log(`👁️ [PokedexSystem] Marquer #${pokemonId} comme vu...`);
-    this.gameRoom.send("pokedx:mark_seen", {
+    this.gameRoom.send("pokedex:mark_seen", {
       pokemonId: pokemonId,
       level: level,
       location: location,
@@ -310,7 +313,7 @@ requestPokedexData(filters = {}) {
     if (!this.gameRoom) return;
     
     console.log(`⭐ [PokedexSystem] Toggle favori #${pokemonId}...`);
-    this.gameRoom.send("pokedx:toggle_favorite", {
+    this.gameRoom.send("pokedex:toggle_favorite", {
       pokemonId: pokemonId
     });
   }
@@ -334,7 +337,7 @@ requestPokedexData(filters = {}) {
   syncPokedex() {
     if (!this.gameRoom || this.isSyncing) return;
     
-    console.log('🔄 [PokedexSystem] Synchronisation Pokédx...');
+    console.log('🔄 [PokedexSystem] Synchronisation Pokédex...');
     this.isSyncing = true;
     
     this.gameRoom.send("pokedex:quick_action", {
@@ -346,7 +349,7 @@ requestPokedexData(filters = {}) {
     if (!this.gameRoom) return;
     
     console.log(`📧 [PokedexSystem] Marquer notification lue: ${notificationId}`);
-    this.gameRoom.send("pokedx:notification_read", {
+    this.gameRoom.send("pokedex:notification_read", {
       notificationId: notificationId
     });
   }
@@ -364,15 +367,15 @@ requestPokedexData(filters = {}) {
   
   handlePokedexDataResponse(response) {
     if (!response.success) {
-      console.error('❌ [PokedexSystem] Erreur données Pokédx:', response.error);
-      this.showError('Impossible de charger les données du Pokédx');
+      console.error('❌ [PokedexSystem] Erreur données Pokédex:', response.error);
+      this.showError('Impossible de charger les données du Pokédex');
       return;
     }
     
-    console.log('📊 [PokedexSystem] Données Pokédx reçues:', response.data);
+    console.log('📊 [PokedexSystem] Données Pokédex reçues:', response.data);
     
     // Mettre à jour les données locales
-    this.pokedxData = response.data.entries || [];
+    this.pokedexData = response.data.entries || [];
     this.playerStats = { ...this.playerStats, ...response.data.summary };
     
     // Mettre à jour le cache
@@ -386,7 +389,7 @@ requestPokedexData(filters = {}) {
     this.updateIconProgress();
     this.lastSyncTime = new Date();
     
-    console.log('✅ [PokedexSystem] Données Pokédx traitées');
+    console.log('✅ [PokedexSystem] Données Pokédex traitées');
   }
   
   handlePokemonEntryResponse(response) {
@@ -653,7 +656,7 @@ requestPokedexData(filters = {}) {
     // Notification de jalon
     this.addNotification({
       type: 'milestone',
-      message: `Pokédx ${percentage}% complété !`,
+      message: `Pokédex ${percentage}% complété !`,
       timestamp: new Date(),
       priority: 'high',
       milestone: percentage
@@ -662,7 +665,7 @@ requestPokedexData(filters = {}) {
     // Achievement
     if (typeof window.showGameNotification === 'function') {
       window.showGameNotification(
-        `🏆 Pokédx ${percentage}% complété !`,
+        `🏆 Pokédex ${percentage}% complété !`,
         'achievement',
         { duration: 5000, sound: true }
       );
@@ -773,6 +776,28 @@ requestPokedexData(filters = {}) {
     return this.playerStats.totalShiny || 0;
   }
 
+  // === 🌐 MÉTHODES POUR TRADUCTIONS ===
+  
+  /**
+   * Méthode pour injection tardive de l'optionsManager
+   */
+  setOptionsManager(optionsManager) {
+    console.log('🌐 [PokedexSystem] Injection tardive optionsManager');
+    
+    this.optionsManager = optionsManager;
+    
+    // Propager aux composants
+    if (this.pokedexUI && this.pokedexUI.setOptionsManager) {
+      this.pokedexUI.setOptionsManager(optionsManager);
+    }
+    
+    if (this.pokedexIcon && this.pokedexIcon.optionsManager !== optionsManager) {
+      console.log('🔄 [PokedexSystem] Mise à jour optionsManager pour l\'icône');
+      this.pokedexIcon.optionsManager = optionsManager;
+      this.pokedexIcon.setupLanguageSupport?.();
+    }
+  }
+
   // === 🛠️ MÉTHODES UTILITAIRES ===
   
   canPlayerInteract() {
@@ -838,7 +863,8 @@ requestPokedexData(filters = {}) {
       searchCacheSize: this.searchCache.size,
       notificationCount: this.notifications.length,
       lastSyncTime: this.lastSyncTime,
-      playerStats: this.playerStats
+      playerStats: this.playerStats,
+      hasOptionsManager: !!this.optionsManager
     };
   }
 
@@ -872,6 +898,7 @@ requestPokedexData(filters = {}) {
     this.isInitialized = false;
     this.isSyncing = false;
     this.lastSyncTime = null;
+    this.optionsManager = null;  // ← NOUVEAU
     
     // Supprimer référence globale
     if (window.pokedexSystem === this) {
@@ -886,14 +913,15 @@ requestPokedexData(filters = {}) {
 export default PokedexSystem;
 
 console.log(`
-📱 === POKÉDX SYSTEM COMPLET ===
+📱 === POKÉDEX SYSTEM AVEC TRADUCTIONS ===
 
 🎯 FONCTIONNALITÉS PRINCIPALES:
-• Gestion complète du Pokédx
+• Gestion complète du Pokédex
 • Communication serveur optimisée
 • Cache local pour les performances
 • Notifications et achievements
 • Intégration avec autres systèmes
+• 🌐 SUPPORT TRADUCTIONS TEMPS RÉEL
 
 📡 COMMUNICATION SERVEUR:
 • Toutes les requêtes du handler serveur
@@ -908,7 +936,7 @@ console.log(`
 • Notifications temps réel
 
 📊 DONNÉES GÉRÉES:
-• Entrées Pokédx (vu/capturé/shiny)
+• Entrées Pokédex (vu/capturé/shiny)
 • Statistiques joueur
 • Favoris et tags
 • Notifications
@@ -920,5 +948,11 @@ console.log(`
 • Jalons avec celebrations
 • Notifications contextuelles
 
-✅ SYSTÈME POKÉDX PRÊT POUR L'AVENTURE !
+🌐 TRADUCTIONS SUPPORTÉES:
+• OptionsManager passé au constructeur
+• Injection tardive via setOptionsManager()
+• Propagation automatique aux composants
+• Support langue temps réel sur icône et UI
+
+✅ SYSTÈME POKÉDEX PRÊT POUR L'AVENTURE + MULTILINGUE !
 `);
