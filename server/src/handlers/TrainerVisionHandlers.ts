@@ -345,9 +345,12 @@ export class TrainerVisionHandlers {
         console.warn('JWTManager setBattleState non disponible:', error);
       }
 
-      // Tracking IA - utiliser l'AI Manager disponible
-      const aiManager = this.room.getAINPCManager?.() || null;
-      if (aiManager) {
+      // Tracking IA - utiliser l'AI Manager disponible via WorldRoom
+      try {
+        // Utiliser le système d'IA existant via l'AINPCManager importé
+        const { getAINPCManager } = await import('../Intelligence/AINPCManager');
+        const aiManager = getAINPCManager();
+        
         aiManager.trackPlayerAction(
           player.name,
           ActionType.BATTLE_START,
@@ -360,28 +363,23 @@ export class TrainerVisionHandlers {
             location: { map: player.currentZone, x: player.x, y: player.y }
           }
         );
+      } catch (error) {
+        console.warn('Tracking IA non disponible:', error);
       }
 
       // Déléguer au BattleSystem existant via BattleHandlers
       const battleHandlers = this.room.getBattleHandlers();
       
-      // Vérifier si la méthode existe, sinon utiliser une alternative
-      if (typeof battleHandlers.startTrainerBattle === 'function') {
-        await battleHandlers.startTrainerBattle(client, {
-          trainerId: data.trainerId,
-          battleConfig: data.battleConfig
-        });
-      } else {
-        // Alternative: utiliser les méthodes existantes du BattleHandlers
-        console.log('⚔️ Démarrage combat trainer via méthode alternative');
-        
-        // Envoyer config de combat au client pour qu'il lance le battle
-        client.send("trainerBattleReady", {
-          trainerId: data.trainerId,
-          battleConfig: data.battleConfig,
-          shouldStart: true
-        });
-      }
+      // Utiliser les méthodes existantes du BattleHandlers
+      console.log('⚔️ Préparation combat trainer');
+      
+      // Envoyer config de combat au client pour qu'il lance le battle
+      client.send("trainerBattleReady", {
+        trainerId: data.trainerId,
+        battleConfig: data.battleConfig,
+        shouldStart: true,
+        message: "Combat de dresseur prêt à démarrer"
+      });
 
       console.log(`✅ [TrainerBattle] Combat démarré avec succès`);
 
@@ -437,8 +435,11 @@ export class TrainerVisionHandlers {
       await this.updateTrainerPostBattle(data.trainerId, client.sessionId, data.battleResult);
 
       // Tracking IA
-      const aiManager = this.room.getAINPCManager?.() || null;
-      if (aiManager) {
+      try {
+        // Utiliser le système d'IA existant via l'AINPCManager importé
+        const { getAINPCManager } = await import('../Intelligence/AINPCManager');
+        const aiManager = getAINPCManager();
+        
         aiManager.trackPlayerAction(
           player.name,
           ActionType.BATTLE_END,
@@ -452,6 +453,8 @@ export class TrainerVisionHandlers {
             location: { map: player.currentZone, x: player.x, y: player.y }
           }
         );
+      } catch (error) {
+        console.warn('Tracking IA non disponible:', error);
       }
 
       // Notifier le client
