@@ -1654,45 +1654,33 @@ if (!this.adminPanel) {
     }
 }
 
-// MÉTHODE À AJOUTER : Afficher la modal de sélection de quêtes
 showQuestSelectorModal(fieldName, quests) {
     const currentQuests = this.getFieldValue(fieldName) || []
     
+    // ✅ COPIER EXACTEMENT la structure de showShopSelectorModal
     const modalHTML = `
-        <div class="npc-quest-selector-modal" id="questSelectorModal">
-            <div class="npc-modal-backdrop" onclick="window.npcFormBuilder.closeQuestSelector()"></div>
-            <div class="npc-modal-content">
-                <div class="npc-modal-header">
+        <div class="shop-selector-modal" id="questSelectorModal">
+            <div class="modal-backdrop" onclick="window.npcFormBuilder.closeQuestSelector()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
                     <h3>📋 Sélectionner des Quêtes</h3>
-                    <button type="button" class="npc-btn-close" onclick="window.npcFormBuilder.closeQuestSelector()">×</button>
+                    <button type="button" class="btn-close" onclick="window.npcFormBuilder.closeQuestSelector()">×</button>
                 </div>
-                <div class="npc-modal-body">
-                    <div class="npc-search-box">
-                        <input type="text" class="npc-search-input" placeholder="🔍 Rechercher une quête..." 
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="🔍 Rechercher une quête..." 
                                onkeyup="window.npcFormBuilder.filterQuests(this.value)">
                     </div>
-                    <div class="npc-quests-list" id="questsList">
-                        ${quests.map(quest => `
-                            <div class="npc-quest-option" data-quest-id="${quest.id}">
-                                <label class="npc-quest-label">
-                                    <input type="checkbox" 
-                                           value="${quest.id}" 
-                                           ${currentQuests.includes(quest.id) ? 'checked' : ''}
-                                           onchange="window.npcFormBuilder.toggleQuestSelection('${quest.id}')">
-                                    <div class="npc-quest-info">
-                                        <div class="npc-quest-name">${quest.name}</div>
-                                        <div class="npc-quest-meta">
-                                            <span class="npc-quest-id">ID: ${quest.id}</span>
-                                            <span class="npc-quest-category">${quest.category}</span>
-                                        </div>
-                                        <div class="npc-quest-description">${quest.description}</div>
-                                    </div>
-                                </label>
-                            </div>
-                        `).join('')}
+                    <div class="shops-filter-tabs">
+                        <button class="filter-tab active" onclick="window.npcFormBuilder.filterQuestsByType('all')">
+                            Toutes (${quests.length})
+                        </button>
+                    </div>
+                    <div class="shops-list" id="questsList">
+                        ${quests.map(quest => this.createQuestOption(quest, currentQuests)).join('')}
                     </div>
                 </div>
-                <div class="npc-modal-footer">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="window.npcFormBuilder.closeQuestSelector()">
                         Annuler
                     </button>
@@ -1704,25 +1692,74 @@ showQuestSelectorModal(fieldName, quests) {
         </div>
     `
     
+    // ✅ COPIER EXACTEMENT la méthode d'insertion
     document.body.insertAdjacentHTML('beforeend', modalHTML)
     this.tempQuestSelection = [...currentQuests]
 }
 
+// AJOUTEZ cette méthode (copiée de createShopOption) :
+createQuestOption(quest, currentQuests) {
+    const isSelected = currentQuests.includes(quest.id)
+    
+    return `
+        <div class="shop-option ${isSelected ? 'selected' : ''}" 
+             data-quest-id="${quest.id}"
+             onclick="window.npcFormBuilder.selectQuest('${quest.id}')">
+            <div class="shop-icon">📜</div>
+            <div class="shop-info">
+                <div class="shop-name">${quest.name}</div>
+                <div class="shop-meta">
+                    <span class="shop-id">ID: ${quest.id}</span>
+                    <span class="shop-type-label">${quest.category}</span>
+                </div>
+                <div class="shop-details-row">
+                    <span class="shop-description">${quest.description}</span>
+                </div>
+            </div>
+            <div class="shop-status">
+                ${isSelected ? '✅' : ''}
+            </div>
+        </div>
+    `
+}
+
+// AJOUTEZ cette méthode :
+selectQuest(questId) {
+    document.querySelectorAll('.shop-option').forEach(option => {
+        const isThisQuest = option.dataset.questId === questId
+        option.classList.toggle('selected', isThisQuest)
+    })
+    
+    // Toggle la sélection
+    if (!this.tempQuestSelection) this.tempQuestSelection = []
+    const index = this.tempQuestSelection.indexOf(questId)
+    
+    if (index === -1) {
+        this.tempQuestSelection.push(questId)
+    } else {
+        this.tempQuestSelection.splice(index, 1)
+    }
+    
+    // Mettre à jour le compteur
+    const footer = document.querySelector('.modal-footer .btn-primary')
+    if (footer) {
+        footer.textContent = `Appliquer (${this.tempQuestSelection.length} sélectionnées)`
+    }
+}
+
 // MÉTHODE À AJOUTER : Filtrer les quêtes dans la modal
 filterQuests(searchTerm) {
-    const questItems = document.querySelectorAll('.npc-quest-option')  // ← NOUVEAU NOM
+    const questItems = document.querySelectorAll('.shop-option') // ← UTILISER shop-option
     const term = searchTerm.toLowerCase()
     
     questItems.forEach(item => {
-        const questName = item.querySelector('.npc-quest-name').textContent.toLowerCase()     // ← NOUVEAU NOM
-        const questId = item.querySelector('.npc-quest-id').textContent.toLowerCase()         // ← NOUVEAU NOM
-        const questDesc = item.querySelector('.npc-quest-description').textContent.toLowerCase() // ← NOUVEAU NOM
+        const questName = item.querySelector('.shop-name').textContent.toLowerCase()
+        const questId = item.querySelector('.shop-id').textContent.toLowerCase()
         
-        const matches = questName.includes(term) || questId.includes(term) || questDesc.includes(term)
+        const matches = questName.includes(term) || questId.includes(term)
         item.style.display = matches ? 'block' : 'none'
     })
 }
-
 // MÉTHODE À AJOUTER : Gérer la sélection de quêtes
 toggleQuestSelection(questId) {
     if (!this.tempQuestSelection) this.tempQuestSelection = []
