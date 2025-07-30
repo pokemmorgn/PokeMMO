@@ -1659,40 +1659,40 @@ showQuestSelectorModal(fieldName, quests) {
     const currentQuests = this.getFieldValue(fieldName) || []
     
     const modalHTML = `
-        <div class="quest-selector-modal" id="questSelectorModal">
-            <div class="modal-backdrop" onclick="window.npcFormBuilder.closeQuestSelector()"></div>
-            <div class="modal-content">
-                <div class="modal-header">
+        <div class="npc-quest-selector-modal" id="questSelectorModal">
+            <div class="npc-modal-backdrop" onclick="window.npcFormBuilder.closeQuestSelector()"></div>
+            <div class="npc-modal-content">
+                <div class="npc-modal-header">
                     <h3>📋 Sélectionner des Quêtes</h3>
-                    <button type="button" class="btn-close" onclick="window.npcFormBuilder.closeQuestSelector()">×</button>
+                    <button type="button" class="npc-btn-close" onclick="window.npcFormBuilder.closeQuestSelector()">×</button>
                 </div>
-                <div class="modal-body">
-                    <div class="search-box">
-                        <input type="text" class="search-input" placeholder="🔍 Rechercher une quête..." 
+                <div class="npc-modal-body">
+                    <div class="npc-search-box">
+                        <input type="text" class="npc-search-input" placeholder="🔍 Rechercher une quête..." 
                                onkeyup="window.npcFormBuilder.filterQuests(this.value)">
                     </div>
-                    <div class="quests-list" id="questsList">
+                    <div class="npc-quests-list" id="questsList">
                         ${quests.map(quest => `
-                            <div class="quest-option" data-quest-id="${quest.id}">
-                                <label class="quest-label">
+                            <div class="npc-quest-option" data-quest-id="${quest.id}">
+                                <label class="npc-quest-label">
                                     <input type="checkbox" 
                                            value="${quest.id}" 
                                            ${currentQuests.includes(quest.id) ? 'checked' : ''}
                                            onchange="window.npcFormBuilder.toggleQuestSelection('${quest.id}')">
-                                    <div class="quest-info">
-                                        <div class="quest-name">${quest.name}</div>
-                                        <div class="quest-meta">
-                                            <span class="quest-id">ID: ${quest.id}</span>
-                                            <span class="quest-category">${quest.category}</span>
+                                    <div class="npc-quest-info">
+                                        <div class="npc-quest-name">${quest.name}</div>
+                                        <div class="npc-quest-meta">
+                                            <span class="npc-quest-id">ID: ${quest.id}</span>
+                                            <span class="npc-quest-category">${quest.category}</span>
                                         </div>
-                                        <div class="quest-description">${quest.description}</div>
+                                        <div class="npc-quest-description">${quest.description}</div>
                                     </div>
                                 </label>
                             </div>
                         `).join('')}
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="npc-modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="window.npcFormBuilder.closeQuestSelector()">
                         Annuler
                     </button>
@@ -1704,22 +1704,19 @@ showQuestSelectorModal(fieldName, quests) {
         </div>
     `
     
-    // Ajouter la modal au DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML)
-    
-    // Stocker la sélection temporaire
     this.tempQuestSelection = [...currentQuests]
 }
 
 // MÉTHODE À AJOUTER : Filtrer les quêtes dans la modal
 filterQuests(searchTerm) {
-    const questItems = document.querySelectorAll('.quest-option')
+    const questItems = document.querySelectorAll('.npc-quest-option')  // ← NOUVEAU NOM
     const term = searchTerm.toLowerCase()
     
     questItems.forEach(item => {
-        const questName = item.querySelector('.quest-name').textContent.toLowerCase()
-        const questId = item.querySelector('.quest-id').textContent.toLowerCase()
-        const questDesc = item.querySelector('.quest-description').textContent.toLowerCase()
+        const questName = item.querySelector('.npc-quest-name').textContent.toLowerCase()     // ← NOUVEAU NOM
+        const questId = item.querySelector('.npc-quest-id').textContent.toLowerCase()         // ← NOUVEAU NOM
+        const questDesc = item.querySelector('.npc-quest-description').textContent.toLowerCase() // ← NOUVEAU NOM
         
         const matches = questName.includes(term) || questId.includes(term) || questDesc.includes(term)
         item.style.display = matches ? 'block' : 'none'
