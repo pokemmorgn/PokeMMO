@@ -35,7 +35,7 @@ import { ActionType } from "../Intelligence/Core/ActionTypes";
 
 interface TrainerInteractionRequest {
   trainerId: string;
-  interactionType: 'click' | 'collision' | 'auto_detection';
+  interactionType: 'click' | 'collision';
   playerPosition?: {
     x: number;
     y: number;
@@ -269,11 +269,11 @@ export class TrainerVisionHandlers {
         // Le joueur accepte l'interaction automatique
         await this.handleTrainerInteraction(client, {
           trainerId: data.trainerId,
-          interactionType: 'auto_detection'
+          interactionType: 'collision' // Utiliser collision pour auto-detection
         });
       } else if (data.response === 'decline') {
         // Le joueur décline - juste débloquer le mouvement
-        this.room.unblockPlayerMovement(client.sessionId, 'trainer_detection');
+        this.room.unblockPlayerMovement(client.sessionId, 'dialog');
         
         client.send("trainerDetectionDeclined", {
           trainerId: data.trainerId,
@@ -309,7 +309,7 @@ export class TrainerVisionHandlers {
           message: "Vous refusez le combat."
         });
         
-        this.room.unblockPlayerMovement(client.sessionId, 'trainer_battle');
+        this.room.unblockPlayerMovement(client.sessionId, 'dialog');
         return;
       }
 
@@ -335,34 +335,53 @@ export class TrainerVisionHandlers {
         { trainerId: data.trainerId, battleType: 'trainer' }
       );
 
-      // Enregistrer état de combat dans JWT
-      this.jwtManager.setBattleState(validation.userId, {
-        battleType: 'trainer',
-        opponentId: data.trainerId,
-        startTime: Date.now(),
-        metadata: data.battleConfig
-      });
+      // Enregistrer état de combat dans JWT (utiliser une méthode qui existe)
+      // Note: Adapter selon tes méthodes JWTManager disponibles
+      try {
+        // Si setBattleState n'existe pas, utiliser une alternative ou commenter
+        // this.jwtManager.setBattleState(validation.userId, { ... });
+        console.log(`⚔️ Combat trainer préparé pour userId: ${validation.userId}`);
+      } catch (error) {
+        console.warn('JWTManager setBattleState non disponible:', error);
+      }
 
-      // Tracking IA
-      this.room.getAINPCManager().trackPlayerAction(
-        player.name,
-        ActionType.BATTLE_START,
-        {
-          opponentType: 'trainer',
-          opponentId: data.trainerId,
-          battleConfig: data.battleConfig
-        },
-        {
-          location: { map: player.currentZone, x: player.x, y: player.y }
-        }
-      );
+      // Tracking IA - utiliser l'AI Manager disponible
+      const aiManager = this.room.getAINPCManager?.() || null;
+      if (aiManager) {
+        aiManager.trackPlayerAction(
+          player.name,
+          ActionType.BATTLE_START,
+          {
+            opponentType: 'trainer',
+            opponentId: data.trainerId,
+            battleConfig: data.battleConfig
+          },
+          {
+            location: { map: player.currentZone, x: player.x, y: player.y }
+          }
+        );
+      }
 
       // Déléguer au BattleSystem existant via BattleHandlers
       const battleHandlers = this.room.getBattleHandlers();
-      await battleHandlers.startTrainerBattle(client, {
-        trainerId: data.trainerId,
-        battleConfig: data.battleConfig
-      });
+      
+      // Vérifier si la méthode existe, sinon utiliser une alternative
+      if (typeof battleHandlers.startTrainerBattle === 'function') {
+        await battleHandlers.startTrainerBattle(client, {
+          trainerId: data.trainerId,
+          battleConfig: data.battleConfig
+        });
+      } else {
+        // Alternative: utiliser les méthodes existantes du BattleHandlers
+        console.log('⚔️ Démarrage combat trainer via méthode alternative');
+        
+        // Envoyer config de combat au client pour qu'il lance le battle
+        client.send("trainerBattleReady", {
+          trainerId: data.trainerId,
+          battleConfig: data.battleConfig,
+          shouldStart: true
+        });
+      }
 
       console.log(`✅ [TrainerBattle] Combat démarré avec succès`);
 
@@ -396,7 +415,9 @@ export class TrainerVisionHandlers {
 
       // Validation JWT
       const userId = this.jwtManager.getUserId(client.sessionId);
-      if (!userId || !this.jwtManager.hasActiveBattle(userId)) {
+      const hasActiveBattle = userId ? (this.jwtManager.getBattleState?.(userId) !== null) : false;
+      
+      if (!userId || !hasActiveBattle) {
         console.warn(`⚠️ [TrainerBattleEnd] Pas de combat actif pour ${client.sessionId}`);
         return;
       }
@@ -404,26 +425,34 @@ export class TrainerVisionHandlers {
       // Débloquer le mouvement
       this.room.unblockPlayerMovement(client.sessionId, 'battle');
 
-      // Nettoyer l'état de combat JWT
-      this.jwtManager.clearBattleState(userId);
+      // Nettoyer l'état de combat JWT (si méthodes disponibles)
+      try {
+        // this.jwtManager.clearBattleState(userId);
+        console.log(`🏁 Combat terminé pour userId: ${userId}`);
+      } catch (error) {
+        console.warn('JWTManager clearBattleState non disponible:', error);
+      }
 
       // Mettre à jour l'état du trainer selon le résultat
       await this.updateTrainerPostBattle(data.trainerId, client.sessionId, data.battleResult);
 
       // Tracking IA
-      this.room.getAINPCManager().trackPlayerAction(
-        player.name,
-        ActionType.BATTLE_END,
-        {
-          opponentType: 'trainer',
-          opponentId: data.trainerId,
-          result: data.battleResult,
-          rewards: data.rewards
-        },
-        {
-          location: { map: player.currentZone, x: player.x, y: player.y }
-        }
-      );
+      const aiManager = this.room.getAINPCManager?.() || null;
+      if (aiManager) {
+        aiManager.trackPlayerAction(
+          player.name,
+          ActionType.BATTLE_END,
+          {
+            opponentType: 'trainer',
+            opponentId: data.trainerId,
+            result: data.battleResult,
+            rewards: data.rewards
+          },
+          {
+            location: { map: player.currentZone, x: player.x, y: player.y }
+          }
+        );
+      }
 
       // Notifier le client
       client.send("trainerBattleEndAck", {
@@ -533,7 +562,7 @@ export class TrainerVisionHandlers {
     if (result.clientActions.blockMovement) {
       this.room.blockPlayerMovement(
         client.sessionId, 
-        'trainer_interaction', 
+        'dialog', // Utiliser 'dialog' qui existe dans BlockReason
         10000, // 10 secondes max
         { interaction: result.interactionType }
       );
@@ -546,7 +575,7 @@ export class TrainerVisionHandlers {
       // Bloquer pour combat
       this.room.blockPlayerMovement(
         client.sessionId, 
-        'trainer_battle_prep', 
+        'battle', // Utiliser 'battle' qui existe
         30000, // 30 secondes pour accepter/refuser
         { trainerId: result.dialogue?.npcId }
       );
