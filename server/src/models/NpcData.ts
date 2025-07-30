@@ -172,7 +172,7 @@ export interface INpcDataModel extends Model<INpcData> {
 // Schéma pour la configuration de combat
 const BattleConfigSchema = new Schema({
   teamId: { type: String, trim: true },
-  canBattle: { type: Boolean, default: function() { return !!this.teamId; } },
+  canBattle: { type: Boolean, default: true },
   battleType: { 
     type: String, 
     enum: ['single', 'double', 'multi'],
@@ -812,9 +812,13 @@ NpcDataSchema.statics.findActiveTrainers = function(zone: string): Promise<INpcD
       { type: 'trainer' },
       { visionConfig: { $exists: true } }
     ],
-    $or: [
-      { 'trainerRuntime.currentState': { $in: ['idle', 'alerted'] } },
-      { 'trainerRuntime.currentState': { $exists: false } }
+    $and: [
+      {
+        $or: [
+          { 'trainerRuntime.currentState': { $in: ['idle', 'alerted'] } },
+          { 'trainerRuntime.currentState': { $exists: false } }
+        ]
+      }
     ]
   }).sort({ npcId: 1 });
 };
