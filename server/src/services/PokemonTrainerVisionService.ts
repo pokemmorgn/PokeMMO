@@ -156,7 +156,7 @@ export class PokemonTrainerVisionService {
           detectionType: 'none',
           distanceInTiles: lineOfSight.distance,
           blockedByObstacle: true,
-          obstacleType: obstacleCheck.obstacleType
+          obstacleType: obstacleCheck.obstacleType as 'wall' | 'tree' | 'water' | 'npc' | 'object'
         };
       }
     }
