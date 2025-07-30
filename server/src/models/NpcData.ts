@@ -2,16 +2,86 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { NpcType, Direction, AnyNpc } from "../types/NpcTypes";
 
-// ===== INTERFACES =====
+// ===== NOUVELLES INTERFACES ÉTENDUES =====
+
+// Configuration de combat pour tous les NPCs
+export interface BattleConfig {
+  teamId?: string;                    // ID de l'équipe (optionnel)
+  canBattle?: boolean;                // Peut se battre (défaut: !!teamId)
+  battleType?: 'single' | 'double' | 'multi';
+  allowItems?: boolean;               // Joueur peut utiliser objets
+  allowSwitching?: boolean;           // Joueur peut changer Pokémon
+  customRules?: string[];             // Règles spéciales
+  
+  // Récompenses
+  rewards?: {
+    money?: {
+      base: number;
+      perLevel?: number;              // Bonus par niveau du joueur
+      multiplier?: number;            // Multiplicateur global
+    };
+    experience?: {
+      enabled: boolean;
+      multiplier?: number;
+    };
+    items?: Array<{
+      itemId: string;
+      quantity: number;
+      chance: number;                 // 0-100
+    }>;
+  };
+  
+  // Conditions de combat
+  battleConditions?: {
+    minPlayerLevel?: number;
+    maxPlayerLevel?: number;
+    requiredBadges?: string[];
+    requiredFlags?: string[];
+    forbiddenFlags?: string[];
+    cooldownMinutes?: number;         // Temps avant nouveau combat
+  };
+}
+
+// Configuration de vision spécifique aux dresseurs
+export interface TrainerVisionConfig {
+  sightRange: number;                 // Distance de détection (pixels)
+  sightAngle: number;                 // Angle de vision (degrés, 0-360)
+  chaseRange: number;                 // Distance de poursuite
+  returnToPosition?: boolean;         // Retour position initiale après combat
+  blockMovement?: boolean;            // Bloque le joueur pendant poursuite
+  canSeeHiddenPlayers?: boolean;      // Peut voir joueurs cachés
+  detectionCooldown?: number;         // Secondes avant nouvelle détection
+  pursuitSpeed?: number;              // Vitesse de poursuite (multiplier)
+  
+  // États de détection
+  alertSound?: string;                // Son joué à la détection
+  pursuitSound?: string;              // Son pendant la poursuite
+  lostTargetSound?: string;           // Son quand perd le joueur
+}
+
+// États possibles d'un trainer
+export type TrainerState = 'idle' | 'alerted' | 'chasing' | 'battling' | 'defeated' | 'returning';
+
+// Métadonnées de runtime pour trainers
+export interface TrainerRuntimeData {
+  currentState: TrainerState;
+  lastDetectionTime?: number;
+  targetPlayerId?: string;
+  originalPosition: { x: number; y: number };
+  lastBattleTime?: number;
+  defeatedBy?: string[];              // Liste des joueurs qui l'ont battu
+}
+
+// ===== INTERFACE PRINCIPALE ÉTENDUE =====
 
 export interface INpcData extends Document {
-  // === IDENTIFICATION ===
-  npcId: number;                    // ID unique global du NPC
-  zone: string;                     // Zone où se trouve le NPC
-  name: string;                     // Nom du NPC
-  type: NpcType;                    // Type du NPC
+  // === IDENTIFICATION (existant) ===
+  npcId: number;
+  zone: string;
+  name: string;
+  type: NpcType;
   
-  // === POSITIONNEMENT ===
+  // === POSITIONNEMENT (existant) ===
   position: {
     x: number;
     y: number;
@@ -19,14 +89,14 @@ export interface INpcData extends Document {
   direction: Direction;
   sprite: string;
   
-  // === COMPORTEMENT ===
+  // === COMPORTEMENT (existant) ===
   interactionRadius: number;
   canWalkAway: boolean;
   autoFacePlayer: boolean;
   repeatable: boolean;
   cooldownSeconds: number;
   
-  // === CONDITIONS D'APPARITION ===
+  // === CONDITIONS D'APPARITION (existant) ===
   spawnConditions?: {
     timeOfDay?: string[];
     weather?: string[];
@@ -40,10 +110,10 @@ export interface INpcData extends Document {
     };
   };
   
-  // === DONNÉES SPÉCIFIQUES PAR TYPE (Schema flexible) ===
-  npcData: any; // Contient toutes les propriétés spécifiques selon le type
+  // === DONNÉES SPÉCIFIQUES PAR TYPE (existant) ===
+  npcData: any;
   
-  // === SYSTÈME QUÊTES ===
+  // === SYSTÈME QUÊTES (existant) ===
   questsToGive?: string[];
   questsToEnd?: string[];
   questRequirements?: any;
@@ -53,60 +123,147 @@ export interface INpcData extends Document {
     questComplete?: string[];
   };
   
-  // === MÉTADONNÉES ===
-  isActive: boolean;                // NPC actif ou désactivé
-  version: string;                  // Version des données
-  lastUpdated: Date;
-  sourceFile?: string;              // Fichier source original (pour migration)
+  // === 🆕 NOUVEAU : SYSTÈME DE COMBAT ===
+  battleConfig?: BattleConfig;
   
-  // === MÉTHODES D'INSTANCE ===
+  // === 🆕 NOUVEAU : VISION DRESSEURS (trainers uniquement) ===
+  visionConfig?: TrainerVisionConfig;
+  
+  // === 🆕 NOUVEAU : DONNÉES RUNTIME TRAINERS ===
+  trainerRuntime?: TrainerRuntimeData;
+  
+  // === MÉTADONNÉES (existant) ===
+  isActive: boolean;
+  version: string;
+  lastUpdated: Date;
+  sourceFile?: string;
+  
+  // === MÉTHODES D'INSTANCE EXISTANTES ===
   toNpcFormat(): AnyNpc;
   updateFromJson(jsonData: any): Promise<void>;
   isAvailableForPlayer(playerLevel: number, playerFlags: string[]): boolean;
+  
+  // === 🆕 NOUVELLES MÉTHODES D'INSTANCE ===
+  canBattlePlayer(playerLevel: number, playerFlags?: string[]): boolean;
+  isTrainerType(): boolean;
+  initializeTrainerRuntime(): void;
+  updateTrainerState(newState: TrainerState): void;
+  canDetectPlayer(playerPosition: { x: number; y: number }, playerLevel: number): boolean;
+  isInSight(playerPosition: { x: number; y: number }): boolean;
+  isInChaseRange(playerPosition: { x: number; y: number }): boolean;
 }
 
-// Interface pour les méthodes statiques
+// Interface pour les méthodes statiques étendues
 export interface INpcDataModel extends Model<INpcData> {
   findByZone(zone: string): Promise<INpcData[]>;
   findByType(type: NpcType, zone?: string): Promise<INpcData[]>;
   findActiveNpcs(zone: string): Promise<INpcData[]>;
   bulkImportFromJson(zoneData: any): Promise<{ success: number; errors: string[] }>;
   createFromJson(jsonNpc: any, zone: string): Promise<INpcData>;
+  
+  // 🆕 NOUVELLES MÉTHODES STATIQUES
+  findTrainersInZone(zone: string): Promise<INpcData[]>;
+  findNpcsWithTeams(zone: string): Promise<INpcData[]>;
+  findActiveTrainers(zone: string): Promise<INpcData[]>;
 }
 
-// ===== SCHÉMAS =====
+// ===== SCHÉMAS ÉTENDUS =====
 
-// Schéma pour la position
-const PositionSchema = new Schema({
-  x: { type: Number, required: true },
-  y: { type: Number, required: true }
-}, { _id: false });
-
-// Schéma pour les conditions de spawn
-const SpawnConditionsSchema = new Schema({
-  timeOfDay: [{ type: String }],
-  weather: [{ type: String }],
-  minPlayerLevel: { type: Number, min: 1, max: 100 },
-  maxPlayerLevel: { type: Number, min: 1, max: 100 },
-  requiredFlags: [{ type: String }],
-  forbiddenFlags: [{ type: String }],
-  dateRange: {
-    start: { type: String },
-    end: { type: String }
+// Schéma pour la configuration de combat
+const BattleConfigSchema = new Schema({
+  teamId: { type: String, trim: true },
+  canBattle: { type: Boolean, default: function() { return !!this.teamId; } },
+  battleType: { 
+    type: String, 
+    enum: ['single', 'double', 'multi'],
+    default: 'single' 
+  },
+  allowItems: { type: Boolean, default: true },
+  allowSwitching: { type: Boolean, default: true },
+  customRules: [{ type: String }],
+  
+  rewards: {
+    money: {
+      base: { type: Number, min: 0, default: 0 },
+      perLevel: { type: Number, min: 0, default: 0 },
+      multiplier: { type: Number, min: 0, default: 1 }
+    },
+    experience: {
+      enabled: { type: Boolean, default: true },
+      multiplier: { type: Number, min: 0, default: 1 }
+    },
+    items: [{
+      itemId: { type: String, required: true },
+      quantity: { type: Number, min: 1, default: 1 },
+      chance: { type: Number, min: 0, max: 100, default: 100 }
+    }]
+  },
+  
+  battleConditions: {
+    minPlayerLevel: { type: Number, min: 1, max: 100 },
+    maxPlayerLevel: { type: Number, min: 1, max: 100 },
+    requiredBadges: [{ type: String }],
+    requiredFlags: [{ type: String }],
+    forbiddenFlags: [{ type: String }],
+    cooldownMinutes: { type: Number, min: 0, default: 0 }
   }
 }, { _id: false });
 
-// Schéma pour les dialogues de quêtes
-const QuestDialogueSchema = new Schema({
-  questOffer: [{ type: String }],
-  questInProgress: [{ type: String }],
-  questComplete: [{ type: String }]
+// Schéma pour la configuration de vision des trainers
+const TrainerVisionConfigSchema = new Schema({
+  sightRange: { 
+    type: Number, 
+    required: true, 
+    min: [32, 'Sight range too small'],
+    max: [512, 'Sight range too large'],
+    default: 128 
+  },
+  sightAngle: { 
+    type: Number, 
+    required: true, 
+    min: [30, 'Sight angle too narrow'],
+    max: [360, 'Sight angle too wide'],
+    default: 90 
+  },
+  chaseRange: { 
+    type: Number, 
+    required: true,
+    min: [64, 'Chase range too small'],
+    max: [768, 'Chase range too large'],
+    default: 200 
+  },
+  returnToPosition: { type: Boolean, default: true },
+  blockMovement: { type: Boolean, default: false },
+  canSeeHiddenPlayers: { type: Boolean, default: false },
+  detectionCooldown: { type: Number, min: 0, default: 5 },
+  pursuitSpeed: { type: Number, min: 0.5, max: 3, default: 1.5 },
+  
+  alertSound: { type: String, maxlength: 50 },
+  pursuitSound: { type: String, maxlength: 50 },
+  lostTargetSound: { type: String, maxlength: 50 }
 }, { _id: false });
 
-// ===== SCHÉMA PRINCIPAL =====
+// Schéma pour les données runtime des trainers
+const TrainerRuntimeDataSchema = new Schema({
+  currentState: { 
+    type: String, 
+    enum: ['idle', 'alerted', 'chasing', 'battling', 'defeated', 'returning'],
+    default: 'idle' 
+  },
+  lastDetectionTime: { type: Number },
+  targetPlayerId: { type: String },
+  originalPosition: {
+    x: { type: Number, required: true },
+    y: { type: Number, required: true }
+  },
+  lastBattleTime: { type: Number },
+  defeatedBy: [{ type: String }]
+}, { _id: false });
+
+// ===== SCHÉMA PRINCIPAL ÉTENDU =====
 
 const NpcDataSchema = new Schema<INpcData>({
-  // === IDENTIFICATION ===
+  // === CHAMPS EXISTANTS (inchangés) ===
   npcId: { 
     type: Number, 
     required: true,
@@ -139,9 +296,11 @@ const NpcDataSchema = new Schema<INpcData>({
     index: true
   },
   
-  // === POSITIONNEMENT ===
   position: { 
-    type: PositionSchema, 
+    type: {
+      x: { type: Number, required: true },
+      y: { type: Number, required: true }
+    }, 
     required: true 
   },
   direction: { 
@@ -159,7 +318,6 @@ const NpcDataSchema = new Schema<INpcData>({
     maxlength: [100, 'Sprite name too long']
   },
   
-  // === COMPORTEMENT ===
   interactionRadius: { 
     type: Number, 
     default: 32,
@@ -173,22 +331,30 @@ const NpcDataSchema = new Schema<INpcData>({
     type: Number, 
     default: 0,
     min: [0, 'Cooldown cannot be negative'],
-    max: [86400, 'Cooldown too long'] // Max 24h
+    max: [86400, 'Cooldown too long']
   },
   
-  // === CONDITIONS D'APPARITION ===
   spawnConditions: { 
-    type: SpawnConditionsSchema,
+    type: {
+      timeOfDay: [{ type: String }],
+      weather: [{ type: String }],
+      minPlayerLevel: { type: Number, min: 1, max: 100 },
+      maxPlayerLevel: { type: Number, min: 1, max: 100 },
+      requiredFlags: [{ type: String }],
+      forbiddenFlags: [{ type: String }],
+      dateRange: {
+        start: { type: String },
+        end: { type: String }
+      }
+    },
     default: undefined
   },
   
-  // === DONNÉES SPÉCIFIQUES (Schema flexible) ===
   npcData: { 
     type: Schema.Types.Mixed, 
     default: {} 
   },
   
-  // === SYSTÈME QUÊTES ===
   questsToGive: [{ 
     type: String,
     trim: true 
@@ -202,11 +368,31 @@ const NpcDataSchema = new Schema<INpcData>({
     default: undefined
   },
   questDialogueIds: { 
-    type: QuestDialogueSchema,
+    type: {
+      questOffer: [{ type: String }],
+      questInProgress: [{ type: String }],
+      questComplete: [{ type: String }]
+    },
     default: undefined
   },
   
-  // === MÉTADONNÉES ===
+  // === 🆕 NOUVEAUX CHAMPS ===
+  battleConfig: { 
+    type: BattleConfigSchema,
+    default: undefined
+  },
+  
+  visionConfig: { 
+    type: TrainerVisionConfigSchema,
+    default: undefined
+  },
+  
+  trainerRuntime: { 
+    type: TrainerRuntimeDataSchema,
+    default: undefined
+  },
+  
+  // === MÉTADONNÉES (existantes) ===
   isActive: { 
     type: Boolean, 
     default: true,
@@ -214,7 +400,7 @@ const NpcDataSchema = new Schema<INpcData>({
   },
   version: { 
     type: String, 
-    default: '1.0.0',
+    default: '2.0.0',
     trim: true
   },
   lastUpdated: { 
@@ -230,55 +416,73 @@ const NpcDataSchema = new Schema<INpcData>({
 }, {
   timestamps: true,
   collection: 'npc_data',
-  minimize: false // Garder les objets vides
+  minimize: false
 });
 
-// ===== INDEX COMPOSITES =====
+// ===== INDEX COMPOSITES ÉTENDUS =====
 
-// Index principal unique par zone et ID
+// Index existants
 NpcDataSchema.index({ zone: 1, npcId: 1 }, { unique: true });
-
-// Index pour les requêtes fréquentes
 NpcDataSchema.index({ zone: 1, isActive: 1 });
 NpcDataSchema.index({ zone: 1, type: 1 });
 NpcDataSchema.index({ type: 1, isActive: 1 });
 
-// Index pour les quêtes
-NpcDataSchema.index({ questsToGive: 1 });
-NpcDataSchema.index({ questsToEnd: 1 });
+// 🆕 Nouveaux index pour combat/vision
+NpcDataSchema.index({ 'battleConfig.teamId': 1 });
+NpcDataSchema.index({ zone: 1, type: 1, 'battleConfig.canBattle': 1 });
+NpcDataSchema.index({ zone: 1, 'visionConfig.sightRange': 1 });
+NpcDataSchema.index({ 'trainerRuntime.currentState': 1 });
 
-// Index géospatial pour la position (optionnel, pour futures fonctionnalités)
-NpcDataSchema.index({ 'position.x': 1, 'position.y': 1 });
-
-// ===== VALIDATIONS PRE-SAVE =====
+// ===== VALIDATIONS PRE-SAVE ÉTENDUES =====
 
 NpcDataSchema.pre('save', function(next) {
-  // Validation de cohérence
+  // Validations existantes
   if (this.spawnConditions?.minPlayerLevel && this.spawnConditions?.maxPlayerLevel) {
     if (this.spawnConditions.minPlayerLevel > this.spawnConditions.maxPlayerLevel) {
       return next(new Error('Min player level cannot be greater than max player level'));
     }
   }
   
-  // Nettoyage des arrays
-  if (this.questsToGive) {
-    this.questsToGive = this.questsToGive.filter(q => q && q.trim().length > 0);
-  }
-  if (this.questsToEnd) {
-    this.questsToEnd = this.questsToEnd.filter(q => q && q.trim().length > 0);
+  // 🆕 Nouvelles validations
+  
+  // Si c'est un trainer, il doit avoir visionConfig
+  if (this.type === 'trainer' && !this.visionConfig) {
+    this.visionConfig = {
+      sightRange: 128,
+      sightAngle: 90,
+      chaseRange: 200,
+      returnToPosition: true,
+      detectionCooldown: 5,
+      pursuitSpeed: 1.5
+    };
   }
   
-  // Mise à jour timestamp
+  // Si visionConfig existe, initialiser trainerRuntime
+  if (this.visionConfig && !this.trainerRuntime) {
+    this.trainerRuntime = {
+      currentState: 'idle',
+      originalPosition: { x: this.position.x, y: this.position.y },
+      defeatedBy: []
+    };
+  }
+  
+  // Si battleConfig avec teamId, s'assurer que canBattle est true
+  if (this.battleConfig?.teamId && this.battleConfig.canBattle === undefined) {
+    this.battleConfig.canBattle = true;
+  }
+  
+  // Validation cohérence chase range >= sight range
+  if (this.visionConfig && this.visionConfig.chaseRange < this.visionConfig.sightRange) {
+    return next(new Error('Chase range must be >= sight range'));
+  }
+  
   this.lastUpdated = new Date();
-  
   next();
 });
 
-// ===== MÉTHODES D'INSTANCE =====
+// ===== MÉTHODES D'INSTANCE ÉTENDUES =====
 
-/**
- * Convertit le document MongoDB au format NPC attendu par le système
- */
+// Méthodes existantes (inchangées)
 NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
   const baseNpc = {
     id: this.npcId,
@@ -298,21 +502,22 @@ NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
     questRequirements: this.questRequirements,
     questDialogueIds: this.questDialogueIds,
     
-    // Fusionner les données spécifiques du type
+    // 🆕 Nouvelles données
+    battleConfig: this.battleConfig,
+    visionConfig: this.visionConfig,
+    trainerRuntime: this.trainerRuntime,
+    
     ...this.npcData
   } as AnyNpc;
   
   return baseNpc;
 };
 
-/**
- * Met à jour les données depuis un objet JSON
- */
 NpcDataSchema.methods.updateFromJson = async function(
   this: INpcData, 
   jsonData: any
 ): Promise<void> {
-  // Propriétés de base
+  // Logique existante (inchangée)
   if (jsonData.name) this.name = jsonData.name;
   if (jsonData.type) this.type = jsonData.type;
   if (jsonData.position) this.position = jsonData.position;
@@ -320,30 +525,34 @@ NpcDataSchema.methods.updateFromJson = async function(
   if (jsonData.sprite) this.sprite = jsonData.sprite;
   if (jsonData.interactionRadius) this.interactionRadius = jsonData.interactionRadius;
   
-  // Comportement
   if (typeof jsonData.canWalkAway === 'boolean') this.canWalkAway = jsonData.canWalkAway;
   if (typeof jsonData.autoFacePlayer === 'boolean') this.autoFacePlayer = jsonData.autoFacePlayer;
   if (typeof jsonData.repeatable === 'boolean') this.repeatable = jsonData.repeatable;
   if (jsonData.cooldownSeconds) this.cooldownSeconds = jsonData.cooldownSeconds;
   
-  // Conditions et quêtes
   if (jsonData.spawnConditions) this.spawnConditions = jsonData.spawnConditions;
   if (jsonData.questsToGive) this.questsToGive = jsonData.questsToGive;
   if (jsonData.questsToEnd) this.questsToEnd = jsonData.questsToEnd;
   if (jsonData.questRequirements) this.questRequirements = jsonData.questRequirements;
   if (jsonData.questDialogueIds) this.questDialogueIds = jsonData.questDialogueIds;
   
-  // Données spécifiques du type (tout le reste)
+  // 🆕 Nouvelles données
+  if (jsonData.battleConfig) this.battleConfig = jsonData.battleConfig;
+  if (jsonData.visionConfig) this.visionConfig = jsonData.visionConfig;
+  if (jsonData.trainerRuntime) this.trainerRuntime = jsonData.trainerRuntime;
+  
+  // Données spécifiques (existant)
   const baseFields = [
     'id', 'name', 'type', 'position', 'direction', 'sprite', 
     'interactionRadius', 'canWalkAway', 'autoFacePlayer', 
     'repeatable', 'cooldownSeconds', 'spawnConditions',
-    'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'
+    'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
+    'battleConfig', 'visionConfig', 'trainerRuntime' // 🆕 Ajoutés
   ];
   
   const specificData: any = {};
   for (const [key, value] of Object.entries(jsonData)) {
-    if (!baseFields.includes(key) && key !== 'id') { // 'id' devient 'npcId'
+    if (!baseFields.includes(key) && key !== 'id') {
       specificData[key] = value;
     }
   }
@@ -352,9 +561,6 @@ NpcDataSchema.methods.updateFromJson = async function(
   await this.save();
 };
 
-/**
- * Vérifie si le NPC est disponible pour un joueur donné
- */
 NpcDataSchema.methods.isAvailableForPlayer = function(
   this: INpcData,
   playerLevel: number,
@@ -365,11 +571,9 @@ NpcDataSchema.methods.isAvailableForPlayer = function(
   const conditions = this.spawnConditions;
   if (!conditions) return true;
   
-  // Vérification niveau
   if (conditions.minPlayerLevel && playerLevel < conditions.minPlayerLevel) return false;
   if (conditions.maxPlayerLevel && playerLevel > conditions.maxPlayerLevel) return false;
   
-  // Vérification flags requis
   if (conditions.requiredFlags?.length) {
     const hasAllRequired = conditions.requiredFlags.every(flag => 
       playerFlags.includes(flag)
@@ -377,7 +581,6 @@ NpcDataSchema.methods.isAvailableForPlayer = function(
     if (!hasAllRequired) return false;
   }
   
-  // Vérification flags interdits
   if (conditions.forbiddenFlags?.length) {
     const hasAnyForbidden = conditions.forbiddenFlags.some(flag => 
       playerFlags.includes(flag)
@@ -385,23 +588,174 @@ NpcDataSchema.methods.isAvailableForPlayer = function(
     if (hasAnyForbidden) return false;
   }
   
-  // TODO: Vérification date range et autres conditions
+  return true;
+};
+
+// 🆕 NOUVELLES MÉTHODES D'INSTANCE
+
+/**
+ * Vérifie si le NPC peut se battre contre un joueur
+ */
+NpcDataSchema.methods.canBattlePlayer = function(
+  this: INpcData,
+  playerLevel: number,
+  playerFlags: string[] = []
+): boolean {
+  // Doit avoir une config de combat et être activé pour combat
+  if (!this.battleConfig || !this.battleConfig.canBattle || !this.battleConfig.teamId) {
+    return false;
+  }
+  
+  // Vérifier les conditions de combat
+  const conditions = this.battleConfig.battleConditions;
+  if (!conditions) return true;
+  
+  if (conditions.minPlayerLevel && playerLevel < conditions.minPlayerLevel) return false;
+  if (conditions.maxPlayerLevel && playerLevel > conditions.maxPlayerLevel) return false;
+  
+  if (conditions.requiredFlags?.length) {
+    const hasAllRequired = conditions.requiredFlags.every(flag => 
+      playerFlags.includes(flag)
+    );
+    if (!hasAllRequired) return false;
+  }
+  
+  if (conditions.forbiddenFlags?.length) {
+    const hasAnyForbidden = conditions.forbiddenFlags.some(flag => 
+      playerFlags.includes(flag)
+    );
+    if (hasAnyForbidden) return false;
+  }
+  
+  // Vérifier cooldown si applicable
+  if (conditions.cooldownMinutes && this.trainerRuntime?.lastBattleTime) {
+    const cooldownMs = conditions.cooldownMinutes * 60 * 1000;
+    const timeSinceLastBattle = Date.now() - this.trainerRuntime.lastBattleTime;
+    if (timeSinceLastBattle < cooldownMs) return false;
+  }
   
   return true;
 };
 
-// ===== MÉTHODES STATIQUES =====
+/**
+ * Vérifie si c'est un trainer (type ou avec vision)
+ */
+NpcDataSchema.methods.isTrainerType = function(this: INpcData): boolean {
+  return this.type === 'trainer' || !!this.visionConfig;
+};
 
 /**
- * Trouve tous les NPCs d'une zone
+ * Initialise les données runtime du trainer
  */
+NpcDataSchema.methods.initializeTrainerRuntime = function(this: INpcData): void {
+  if (!this.trainerRuntime) {
+    this.trainerRuntime = {
+      currentState: 'idle',
+      originalPosition: { x: this.position.x, y: this.position.y },
+      defeatedBy: []
+    };
+  }
+};
+
+/**
+ * Met à jour l'état du trainer
+ */
+NpcDataSchema.methods.updateTrainerState = function(
+  this: INpcData, 
+  newState: TrainerState
+): void {
+  if (!this.trainerRuntime) {
+    this.initializeTrainerRuntime();
+  }
+  this.trainerRuntime!.currentState = newState;
+};
+
+/**
+ * Vérifie si le trainer peut détecter un joueur
+ */
+NpcDataSchema.methods.canDetectPlayer = function(
+  this: INpcData,
+  playerPosition: { x: number; y: number },
+  playerLevel: number
+): boolean {
+  if (!this.visionConfig || !this.isTrainerType()) return false;
+  
+  // Vérifier cooldown de détection
+  if (this.visionConfig.detectionCooldown && this.trainerRuntime?.lastDetectionTime) {
+    const cooldownMs = this.visionConfig.detectionCooldown * 1000;
+    const timeSinceLastDetection = Date.now() - this.trainerRuntime.lastDetectionTime;
+    if (timeSinceLastDetection < cooldownMs) return false;
+  }
+  
+  // Vérifier si dans le champ de vision
+  return this.isInSight(playerPosition);
+};
+
+/**
+ * Vérifie si un joueur est dans le champ de vision
+ */
+NpcDataSchema.methods.isInSight = function(
+  this: INpcData,
+  playerPosition: { x: number; y: number }
+): boolean {
+  if (!this.visionConfig) return false;
+  
+  const dx = playerPosition.x - this.position.x;
+  const dy = playerPosition.y - this.position.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  // Vérifier distance
+  if (distance > this.visionConfig.sightRange) return false;
+  
+  // Calculer angle vers le joueur
+  const angleToPlayer = Math.atan2(dy, dx) * (180 / Math.PI);
+  
+  // Angle de direction du NPC (conversion)
+  const directionAngles = {
+    'north': -90,
+    'east': 0,
+    'south': 90,
+    'west': 180
+  };
+  
+  const npcDirection = directionAngles[this.direction];
+  const halfSightAngle = this.visionConfig.sightAngle / 2;
+  
+  // Normaliser les angles (-180 à 180)
+  const normalizeAngle = (angle: number) => {
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    return angle;
+  };
+  
+  const angleDiff = Math.abs(normalizeAngle(angleToPlayer - npcDirection));
+  
+  return angleDiff <= halfSightAngle;
+};
+
+/**
+ * Vérifie si un joueur est dans la portée de poursuite
+ */
+NpcDataSchema.methods.isInChaseRange = function(
+  this: INpcData,
+  playerPosition: { x: number; y: number }
+): boolean {
+  if (!this.visionConfig) return false;
+  
+  const dx = playerPosition.x - this.position.x;
+  const dy = playerPosition.y - this.position.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  return distance <= this.visionConfig.chaseRange;
+};
+
+// ===== MÉTHODES STATIQUES ÉTENDUES =====
+
+// Méthodes existantes (inchangées)
 NpcDataSchema.statics.findByZone = function(zone: string): Promise<INpcData[]> {
   return this.find({ zone, isActive: true }).sort({ npcId: 1 });
 };
 
-/**
- * Trouve les NPCs par type
- */
 NpcDataSchema.statics.findByType = function(
   type: NpcType, 
   zone?: string
@@ -412,9 +766,6 @@ NpcDataSchema.statics.findByType = function(
   return this.find(query).sort({ zone: 1, npcId: 1 });
 };
 
-/**
- * Trouve tous les NPCs actifs d'une zone
- */
 NpcDataSchema.statics.findActiveNpcs = function(zone: string): Promise<INpcData[]> {
   return this.find({ 
     zone, 
@@ -422,85 +773,56 @@ NpcDataSchema.statics.findActiveNpcs = function(zone: string): Promise<INpcData[
   }).sort({ npcId: 1 });
 };
 
+// 🆕 NOUVELLES MÉTHODES STATIQUES
+
 /**
- * Import en masse depuis JSON
+ * Trouve tous les trainers d'une zone
  */
-NpcDataSchema.statics.bulkImportFromJson = async function(
-  zoneData: any
-): Promise<{ success: number; errors: string[] }> {
-  const results: { success: number; errors: string[] } = { success: 0, errors: [] };
-  
-  if (!zoneData.zone || !zoneData.npcs || !Array.isArray(zoneData.npcs)) {
-    results.errors.push('Invalid zone data format');
-    return results;
-  }
-  
-  for (const jsonNpc of zoneData.npcs) {
-    try {
-      await (this as INpcDataModel).createFromJson(jsonNpc, zoneData.zone);
-      results.success++;
-    } catch (error) {
-      results.errors.push(`NPC ${jsonNpc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-  
-  return results;
+NpcDataSchema.statics.findTrainersInZone = function(zone: string): Promise<INpcData[]> {
+  return this.find({ 
+    zone, 
+    isActive: true,
+    $or: [
+      { type: 'trainer' },
+      { visionConfig: { $exists: true } }
+    ]
+  }).sort({ npcId: 1 });
 };
 
 /**
- * Crée un NPC depuis des données JSON
+ * Trouve tous les NPCs avec équipes (peuvent se battre)
  */
-NpcDataSchema.statics.createFromJson = async function(
-  jsonNpc: any, 
-  zone: string
-): Promise<INpcData> {
-  // Validation de base
-  if (!jsonNpc.id || !jsonNpc.name || !jsonNpc.type) {
-    throw new Error('Missing required fields: id, name, type');
-  }
-  
-  // Vérifier si existe déjà
-  const existing = await this.findOne({ zone, npcId: jsonNpc.id });
-  if (existing) {
-    // Mettre à jour existant
-    await existing.updateFromJson(jsonNpc);
-    return existing;
-  }
-  
-  // Créer nouveau
-  const npcData = new this({
-    npcId: jsonNpc.id,
-    zone,
-    name: jsonNpc.name,
-    type: jsonNpc.type,
-    position: jsonNpc.position || { x: 0, y: 0 },
-    direction: jsonNpc.direction || 'south',
-    sprite: jsonNpc.sprite || 'npc_default',
-    interactionRadius: jsonNpc.interactionRadius || 32,
-    canWalkAway: jsonNpc.canWalkAway || false,
-    autoFacePlayer: jsonNpc.autoFacePlayer !== false,
-    repeatable: jsonNpc.repeatable !== false,
-    cooldownSeconds: jsonNpc.cooldownSeconds || 0,
-    spawnConditions: jsonNpc.spawnConditions,
-    questsToGive: jsonNpc.questsToGive || [],
-    questsToEnd: jsonNpc.questsToEnd || [],
-    questRequirements: jsonNpc.questRequirements,
-    questDialogueIds: jsonNpc.questDialogueIds,
-    version: '1.0.0',
-    sourceFile: `${zone}.json`
-  });
-  
-  // Ajouter données spécifiques
-  await npcData.updateFromJson(jsonNpc);
-  
-  return npcData;
+NpcDataSchema.statics.findNpcsWithTeams = function(zone: string): Promise<INpcData[]> {
+  return this.find({ 
+    zone, 
+    isActive: true,
+    'battleConfig.teamId': { $exists: true },
+    'battleConfig.canBattle': true
+  }).sort({ npcId: 1 });
+};
+
+/**
+ * Trouve tous les trainers actifs (pas en combat/vaincus récemment)
+ */
+NpcDataSchema.statics.findActiveTrainers = function(zone: string): Promise<INpcData[]> {
+  return this.find({ 
+    zone, 
+    isActive: true,
+    $or: [
+      { type: 'trainer' },
+      { visionConfig: { $exists: true } }
+    ],
+    $or: [
+      { 'trainerRuntime.currentState': { $in: ['idle', 'alerted'] } },
+      { 'trainerRuntime.currentState': { $exists: false } }
+    ]
+  }).sort({ npcId: 1 });
 };
 
 // ===== EXPORT =====
 export const NpcData = mongoose.model<INpcData, INpcDataModel>('NpcData', NpcDataSchema);
 
-// Types d'export
 export type NpcDataDocument = INpcData;
 export type CreateNpcData = Partial<Pick<INpcData, 
-  'npcId' | 'zone' | 'name' | 'type' | 'position' | 'sprite' | 'npcData'
+  'npcId' | 'zone' | 'name' | 'type' | 'position' | 'sprite' | 'npcData' | 'battleConfig' | 'visionConfig'
 >>;
