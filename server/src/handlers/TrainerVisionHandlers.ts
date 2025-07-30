@@ -1,843 +1,802 @@
 // server/src/handlers/TrainerVisionHandlers.ts
+
+/**
+ * 👁️ TRAINER VISION HANDLERS - GESTIONNAIRES COLYSEUS POUR VISION DES DRESSEURS
+ * 
+ * Intègre le PokemonTrainerVisionService dans WorldRoom :
+ * - Handlers pour messages client/serveur
+ * - Synchronisation avec le système de combat existant
+ * - Gestion des événements de détection automatique
+ * - Integration avec l'IA et le BattleSystem
+ * - Performance optimisée pour MMO
+ */
+
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { Player } from "../schema/PokeWorldState";
-import { PokemonTrainerVisionService } from "../services/PokemonTrainerVisionService";
+import { 
+  PokemonTrainerVisionService, 
+  TrainerDetectionEvent, 
+  TrainerInteractionResult,
+  PlayerPosition,
+  createTrainerVisionService,
+  TRAINER_VISION_PRESETS
+} from "../services/PokemonTrainerVisionService";
+
+// Import des systèmes existants
+import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
+import { JWTManager } from "../managers/JWTManager";
+import { NpcData } from "../models/NpcData";
 import { ActionType } from "../Intelligence/Core/ActionTypes";
-import { BlockReason } from "../managers/MovementBlockManager";
 
-// ===== INTERFACES =====
+// ===================================================================
+// 🎯 INTERFACES POUR HANDLERS
+// ===================================================================
 
-interface TrainerDetectionEvent {
+interface TrainerInteractionRequest {
   trainerId: string;
-  trainerName: string;
-  playerId: string;
-  playerName: string;
-  detectionType: 'sight' | 'collision';
-  distance: number;
-  trainerPosition: { x: number; y: number };
-  playerPosition: { x: number; y: number };
-  zone: string;
-  timestamp: number;
+  interactionType: 'click' | 'collision' | 'auto_detection';
+  playerPosition?: {
+    x: number;
+    y: number;
+  };
 }
 
-interface TrainerBattleRequest {
+interface TrainerStateChangeRequest {
   trainerId: string;
-  trainerName: string;
-  trainerClass: string;
-  teamId: string;
-  battleDialogue: string[];
-  canRefuse: boolean;
-  timeout: number;
+  newState: 'idle' | 'alerted' | 'chasing' | 'battling' | 'defeated' | 'returning';
+  adminToken?: string; // Pour actions admin
 }
 
-interface NpcTrainerData {
-  id: number;
-  name: string;
-  type: string;
-  x: number;
-  y: number;
-  // Propriétés étendues depuis vos modèles
-  visionConfig?: {
-    sightRange: number;
-    sightAngle: number;
-    chaseRange: number;
-    returnToPosition?: boolean;
-    blockMovement?: boolean;
-    canSeeHiddenPlayers?: boolean;
-    detectionCooldown?: number;
-    pursuitSpeed?: number;
-    alertSound?: string;
-    pursuitSound?: string;
-    lostTargetSound?: string;
-  };
-  battleConfig?: {
-    teamId?: string;
-    canBattle?: boolean;
-    battleType?: 'single' | 'double' | 'multi';
-    allowItems?: boolean;
-    allowSwitching?: boolean;
-    customRules?: string[];
-  };
-  trainerRuntime?: {
-    currentState: 'idle' | 'alerted' | 'chasing' | 'battling' | 'defeated' | 'returning';
-    lastDetectionTime?: number;
-    targetPlayerId?: string;
-    originalPosition: { x: number; y: number };
-    lastBattleTime?: number;
-    defeatedBy?: string[];
-  };
+interface TrainerVisionDebugRequest {
+  action: 'stats' | 'reload_trainers' | 'toggle_debug' | 'force_detection';
+  zoneName?: string;
+  trainerId?: string;
+  playerId?: string;
 }
 
-// ===== HANDLER PRINCIPAL =====
+// ===================================================================
+// 🔥 CLASSE PRINCIPALE - TRAINER VISION HANDLERS
+// ===================================================================
 
 export class TrainerVisionHandlers {
   private room: WorldRoom;
   private visionService: PokemonTrainerVisionService;
+  private jwtManager = JWTManager.getInstance();
   
-  // Cache des états de trainers pour optimisation
-  private activeDetections: Map<string, TrainerDetectionEvent> = new Map();
-  private trainerBattleRequests: Map<string, TrainerBattleRequest> = new Map();
+  // Tracking des interactions en cours
+  private activeInteractions: Map<string, { 
+    trainerId: string; 
+    playerId: string; 
+    startTime: number; 
+    type: string 
+  }> = new Map();
   
   // Configuration
   private config = {
-    maxSimultaneousBattles: 3,
-    detectionCooldown: 5000, // 5s entre détections
-    battleRequestTimeout: 15000, // 15s pour répondre
-    stateUpdateInterval: 1000, // 1s pour les updates
-    enableBatching: true,
-    maxDetectionDistance: 200 // pixels
+    maxConcurrentInteractions: 10,
+    interactionTimeoutMs: 30000, // 30 secondes max par interaction
+    enableAutoDetection: true,
+    enableAdminCommands: process.env.NODE_ENV === 'development'
   };
 
   constructor(room: WorldRoom) {
     this.room = room;
-    this.visionService = new PokemonTrainerVisionService(room);
     
-    console.log('🎯 TrainerVisionHandlers initialisé');
-  }
-
-  // ===== INITIALISATION =====
-
-  async setup(): Promise<void> {
-    try {
-      console.log('🔄 [TrainerVision] Setup...');
+    // Créer le service de vision avec preset selon l'environnement
+    const preset = process.env.NODE_ENV === 'production' ? 
+      TRAINER_VISION_PRESETS.production : 
+      TRAINER_VISION_PRESETS.development;
       
-      // Charger les trainers depuis la base de données
-      await this.loadZoneTrainers();
-      
-      // Démarrer les mises à jour périodiques
-      this.startPeriodicUpdates();
-      
-      console.log('✅ [TrainerVision] Setup terminé avec succès');
-      
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur setup:', error);
-      throw error;
-    }
-  }
-
-  private async loadZoneTrainers(): Promise<void> {
-    try {
-      // Récupérer toutes les zones actives avec des joueurs
-      const activeZones = new Set<string>();
-      this.room.state.players.forEach(player => {
-        activeZones.add(player.currentZone);
-      });
-
-      console.log(`📍 [TrainerVision] Chargement trainers pour ${activeZones.size} zones actives`);
-
-      for (const zone of activeZones) {
-        const npcManager = this.room.getNpcManager(zone);
-        if (!npcManager) continue;
-
-        const npcs = npcManager.getNpcsByZone(zone);
-        const trainers = npcs.filter(npc => 
-          npc.type === 'trainer' && (npc as any).visionConfig
-        );
-
-        console.log(`🎯 [TrainerVision] Zone ${zone}: ${trainers.length} trainers détectés`);
-
-        // Enregistrer chaque trainer dans le service
-        for (const trainer of trainers) {
-          await this.registerTrainerInService(trainer as any, zone);
-        }
-      }
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur chargement trainers:', error);
-    }
-  }
-
-  private async registerTrainerInService(trainer: NpcTrainerData, zone: string): Promise<void> {
-    try {
-      // Utiliser les méthodes disponibles du PokemonTrainerVisionService
-      const trainerId = trainer.id.toString();
-      
-      // Créer le trainer dans le service avec les données disponibles
-      const trainerConfig = {
-        id: trainerId,
-        name: trainer.name,
-        position: { x: trainer.x, y: trainer.y },
-        zone: zone,
-        visionRange: trainer.visionConfig?.sightRange || 128,
-        visionAngle: trainer.visionConfig?.sightAngle || 90,
-        teamId: trainer.battleConfig?.teamId || `team_${trainerId}`,
-        isActive: true
-      };
-
-      // Utiliser addTrainer du service
-      await this.visionService.addTrainer(trainerConfig);
-      
-      console.log(`✅ [TrainerVision] Trainer ${trainerId} enregistré`);
-
-    } catch (error) {
-      console.error(`❌ [TrainerVision] Erreur enregistrement trainer ${trainer.id}:`, error);
-    }
-  }
-
-  // ===== SETUP DES HANDLERS =====
-
-  setupHandlers(): void {
-    console.log('🔧 [TrainerVision] Configuration des handlers...');
-
-    // === HANDLERS DE MOUVEMENT ===
-    
-    // Détection automatique lors du mouvement
-    this.room.onMessage("playerMove", (client, data) => {
-      this.handlePlayerMovement(client, data);
+    this.visionService = createTrainerVisionService(room, {
+      ...preset,
+      enableSmartDialogues: true, // Utiliser l'IA existante
+      enableRematchSystem: true   // Activer les rematchs
     });
 
-    // === HANDLERS DE COMBAT TRAINER ===
-    
-    // Réponse à une demande de combat trainer
-    this.room.onMessage("trainerBattleResponse", (client, data: {
-      trainerId: string;
-      accept: boolean;
-    }) => {
-      this.handleTrainerBattleResponse(client, data);
-    });
-
-    // Échapper à la poursuite d'un trainer
-    this.room.onMessage("escapeTrainer", (client, data: {
-      trainerId: string;
-    }) => {
-      this.handleEscapeAttempt(client, data);
-    });
-
-    // === HANDLERS D'ADMINISTRATION ===
-    
-    // Debug d'un trainer spécifique
-    this.room.onMessage("debugTrainer", (client, data: {
-      trainerId: string;
-    }) => {
-      this.handleDebugTrainer(client, data);
-    });
-
-    // Reset d'un trainer
-    this.room.onMessage("resetTrainer", (client, data: {
-      trainerId: string;
-    }) => {
-      this.handleResetTrainer(client, data);
-    });
-
-    // Stats du système de vision
-    this.room.onMessage("getTrainerVisionStats", (client) => {
-      this.handleGetVisionStats(client);
-    });
-
-    console.log('✅ [TrainerVision] Handlers configurés');
-  }
-
-  // ===== HANDLERS DE MOUVEMENT ===
-
-  private async handlePlayerMovement(client: Client, data: {
-    x: number;
-    y: number;
-    currentZone: string;
-    direction?: string;
-  }): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    try {
-      // Mettre à jour la position du joueur dans le service
-      await this.visionService.updatePlayerPosition(client.sessionId, {
-        x: data.x,
-        y: data.y,
-        zone: data.currentZone
-      });
-
-      // Vérifier les détections manuellement
-      await this.checkTrainerDetections(client, data);
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur mouvement joueur:', error);
-    }
-  }
-
-  private async checkTrainerDetections(client: Client, data: {
-    x: number;
-    y: number;
-    currentZone: string;
-  }): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    // Récupérer les trainers de la zone
-    const npcManager = this.room.getNpcManager(data.currentZone);
-    if (!npcManager) return;
-
-    const npcs = npcManager.getNpcsByZone(data.currentZone);
-    const trainers = npcs.filter(npc => 
-      npc.type === 'trainer' && (npc as any).visionConfig
-    ) as NpcTrainerData[];
-
-    // Vérifier chaque trainer
-    for (const trainer of trainers) {
-      const detectionKey = `${trainer.id}_${client.sessionId}`;
-      
-      // Éviter les détections multiples trop rapides
-      if (this.activeDetections.has(detectionKey)) {
-        const lastDetection = this.activeDetections.get(detectionKey)!;
-        if (Date.now() - lastDetection.timestamp < this.config.detectionCooldown) {
-          continue;
-        }
-      }
-
-      // Vérifier si le trainer peut voir le joueur
-      if (this.canTrainerSeePlayer(trainer, data)) {
-        await this.processTrainerDetection(client, trainer, data);
-      }
-    }
-  }
-
-  private canTrainerSeePlayer(trainer: NpcTrainerData, playerData: {
-    x: number;
-    y: number;
-    currentZone: string;
-  }): boolean {
-    
-    if (!trainer.visionConfig || !trainer.trainerRuntime) {
-      return false;
-    }
-
-    // Vérifier si le trainer est dans un état où il peut détecter
-    const state = trainer.trainerRuntime.currentState;
-    if (state === 'battling' || state === 'defeated') {
-      return false;
-    }
-
-    // Calculer la distance
-    const dx = playerData.x - trainer.x;
-    const dy = playerData.y - trainer.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    // Vérifier la portée de vision
-    if (distance > trainer.visionConfig.sightRange) {
-      return false;
-    }
-
-    // Vérifier l'angle de vision (simplifiée)
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    const trainerDirection = this.getTrainerDirection(trainer);
-    const angleToPlayer = Math.abs(angle - trainerDirection);
-    
-    return angleToPlayer <= trainer.visionConfig.sightAngle / 2;
-  }
-
-  private getTrainerDirection(trainer: NpcTrainerData): number {
-    // Conversion direction → angle (approximative)
-    // TODO: Utiliser la vraie direction du trainer depuis ses données
-    return 0; // Face à l'est par défaut
-  }
-
-  private async processTrainerDetection(
-    client: Client, 
-    trainer: NpcTrainerData,
-    playerData: { x: number; y: number; currentZone: string }
-  ): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    const detectionKey = `${trainer.id}_${client.sessionId}`;
-    
-    console.log(`🎯 [TrainerVision] Détection: trainer ${trainer.id} → joueur ${player.name}`);
-
-    // Créer l'événement de détection
-    const detectionEvent: TrainerDetectionEvent = {
-      trainerId: trainer.id.toString(),
-      trainerName: trainer.name,
-      playerId: client.sessionId,
-      playerName: player.name,
-      detectionType: 'sight',
-      distance: Math.sqrt(
-        Math.pow(playerData.x - trainer.x, 2) + 
-        Math.pow(playerData.y - trainer.y, 2)
-      ),
-      trainerPosition: { x: trainer.x, y: trainer.y },
-      playerPosition: { x: playerData.x, y: playerData.y },
-      zone: playerData.currentZone,
-      timestamp: Date.now()
-    };
-
-    this.activeDetections.set(detectionKey, detectionEvent);
-
-    // Notifier le système d'IA
-    await this.notifyAISystem(detectionEvent);
-
-    // Bloquer le mouvement du joueur
-    this.room.blockPlayerMovement(
-      client.sessionId, 
-      'battle' as BlockReason, // Utiliser un BlockReason valide
-      this.config.battleRequestTimeout,
-      { trainerId: trainer.id.toString() }
-    );
-
-    // Déclencher la séquence de combat
-    await this.initiateTrainerBattle(client, trainer);
-  }
-
-  // ===== HANDLERS DE COMBAT ===
-
-  private async initiateTrainerBattle(
-    client: Client,
-    trainer: NpcTrainerData
-  ): Promise<void> {
-    
-    try {
-      console.log(`⚔️ [TrainerVision] Initiation combat trainer ${trainer.id}`);
-
-      // Construire la demande de combat
-      const battleRequest: TrainerBattleRequest = {
-        trainerId: trainer.id.toString(),
-        trainerName: trainer.name,
-        trainerClass: 'Dresseur', // TODO: Récupérer depuis les données
-        teamId: trainer.battleConfig?.teamId || `team_${trainer.id}`,
-        battleDialogue: [
-          `${trainer.name}: Hé ! Tu as croisé mon regard !`,
-          "Tu ne peux pas échapper à un combat de Dresseurs !"
-        ],
-        canRefuse: false, // Les trainers automatiques ne peuvent être refusés
-        timeout: this.config.battleRequestTimeout
-      };
-
-      // Stocker la demande
-      this.trainerBattleRequests.set(
-        `${trainer.id}_${client.sessionId}`, 
-        battleRequest
-      );
-
-      // Envoyer la demande au client
-      client.send("trainerBattleRequest", battleRequest);
-
-      // Programmer le timeout
-      this.room.clock.setTimeout(() => {
-        this.handleBattleTimeout(client, trainer.id.toString());
-      }, this.config.battleRequestTimeout);
-
-      console.log(`✅ [TrainerVision] Demande de combat envoyée à ${client.sessionId}`);
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur initiation combat:', error);
-      this.room.unblockPlayerMovement(client.sessionId, 'battle' as BlockReason);
-    }
-  }
-
-  private async handleTrainerBattleResponse(
-    client: Client,
-    data: { trainerId: string; accept: boolean }
-  ): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    console.log(`⚔️ [TrainerVision] Réponse combat: trainer ${data.trainerId}, accept: ${data.accept}`);
-
-    try {
-      if (data.accept || !data.accept) { // Force l'acceptation pour les trainers auto
-        await this.startTrainerBattle(client, data.trainerId);
-      }
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur réponse combat:', error);
-      this.room.unblockPlayerMovement(client.sessionId, 'battle' as BlockReason);
-    }
-  }
-
-  private async startTrainerBattle(
-    client: Client,
-    trainerId: string
-  ): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    try {
-      console.log(`🚀 [TrainerVision] Démarrage combat: ${player.name} vs trainer ${trainerId}`);
-
-      // Récupérer la demande de combat
-      const requestKey = `${trainerId}_${client.sessionId}`;
-      const battleRequest = this.trainerBattleRequests.get(requestKey);
-      
-      if (!battleRequest) {
-        throw new Error(`Demande de combat ${requestKey} introuvable`);
-      }
-
-      // Mettre à jour l'état du trainer dans le service
-      await this.visionService.setTrainerState(trainerId, 'battling');
-
-      // Utiliser le BattleSystem existant de la room
-      const battleHandlers = this.room.getBattleHandlers();
-      
-      // Préparer les données de combat - adapter à votre API BattleHandlers
-      const battleData = {
-        type: 'trainer',
-        trainerId: trainerId,
-        trainerName: battleRequest.trainerName,
-        teamId: battleRequest.teamId,
-        canRun: false // Impossible de fuir un combat trainer automatique
-      };
-
-      // Démarrer le combat via votre système existant
-      // Note: Vous devrez peut-être adapter cette partie selon votre API BattleHandlers
-      await battleHandlers.handleBattleRequest(client, battleData);
-
-      // Tracking IA si disponible
-      if ((this.room as any).trackPlayerAction) {
-        (this.room as any).trackPlayerAction(
-          player.name,
-          ActionType.BATTLE_START,
-          {
-            battleType: 'trainer_auto',
-            trainerId: trainerId,
-            trainerName: battleRequest.trainerName,
-            detectionType: 'automatic'
-          },
-          {
-            location: {
-              map: player.currentZone,
-              x: player.x,
-              y: player.y
-            }
-          }
-        );
-      }
-
-      // Nettoyer la demande
-      this.trainerBattleRequests.delete(requestKey);
-
-      console.log(`✅ [TrainerVision] Combat démarré avec succès`);
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur démarrage combat:', error);
-      
-      // Débloquer le joueur en cas d'erreur
-      this.room.unblockPlayerMovement(client.sessionId, 'battle' as BlockReason);
-      
-      // Notifier l'erreur au client
-      client.send("trainerBattleError", {
-        trainerId: trainerId,
-        message: "Impossible de démarrer le combat",
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      });
-    }
-  }
-
-  // ===== HANDLERS D'ÉVÉNEMENTS ===
-
-  private async handleBattleTimeout(
-    client: Client,
-    trainerId: string
-  ): Promise<void> {
-    
-    console.log(`⏰ [TrainerVision] Timeout combat trainer ${trainerId}`);
-    
-    // Forcer l'acceptation (combat automatique)
-    await this.startTrainerBattle(client, trainerId);
-  }
-
-  private async handleEscapeAttempt(
-    client: Client,
-    data: { trainerId: string }
-  ): Promise<void> {
-    
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    console.log(`🏃 [TrainerVision] Tentative d'échappement: ${player.name} vs trainer ${data.trainerId}`);
-
-    // Dans les vrais jeux Pokémon, on ne peut pas échapper à un trainer automatique
-    client.send("escapeTrainerResult", {
-      trainerId: data.trainerId,
-      success: false,
-      message: "Tu ne peux pas échapper à un combat de Dresseurs !"
+    console.log('👁️ [TrainerVisionHandlers] Initialisé pour WorldRoom', {
+      roomId: room.roomId,
+      preset: process.env.NODE_ENV === 'production' ? 'production' : 'development'
     });
   }
 
-  // ===== MÉTHODES DE NOTIFICATION ===
-
-  private async notifyAISystem(detection: TrainerDetectionEvent): Promise<void> {
-    try {
-      // Notifier le système d'IA si disponible
-      if ((this.room as any).trackPlayerAction) {
-        (this.room as any).trackPlayerAction(
-          detection.playerName,
-          ActionType.NPC_TALK, // On utilise NPC_TALK pour les interactions trainer
-          {
-            npcId: parseInt(detection.trainerId),
-            interactionType: 'trainer_detection',
-            detectionType: detection.detectionType,
-            distance: detection.distance,
-            automatic: true
-          },
-          {
-            location: {
-              map: detection.zone,
-              x: detection.playerPosition.x,
-              y: detection.playerPosition.y
-            }
-          }
-        );
-      }
-
-    } catch (error) {
-      console.error('❌ [TrainerVision] Erreur notification IA:', error);
-    }
-  }
-
-  // ===== CALLBACKS POUR LE BATTLESYSTEM ===
+  // ===================================================================
+  // 🎮 CONFIGURATION DES HANDLERS COLYSEUS
+  // ===================================================================
 
   /**
-   * Appelé quand un combat trainer se termine
+   * Configure tous les handlers de messages dans WorldRoom
    */
-  async onTrainerBattleEnd(
-    playerId: string,
-    trainerId: string,
-    result: 'victory' | 'defeat' | 'draw'
+  setupHandlers(): void {
+    console.log('📨 [TrainerVisionHandlers] Configuration des handlers...');
+
+    // === HANDLERS PRINCIPAUX ===
+    
+    // Interaction directe avec un trainer
+    this.room.onMessage("trainerInteract", this.handleTrainerInteraction.bind(this));
+    
+    // Réponse à une détection automatique
+    this.room.onMessage("trainerDetectionResponse", this.handleDetectionResponse.bind(this));
+    
+    // Démarrage de combat via trainer
+    this.room.onMessage("trainerBattleStart", this.handleTrainerBattleStart.bind(this));
+    
+    // Fin de combat avec trainer
+    this.room.onMessage("trainerBattleEnd", this.handleTrainerBattleEnd.bind(this));
+
+    // === HANDLERS DE SYNCHRONISATION ===
+    
+    // Mise à jour position pour vision
+    this.room.onMessage("updateVisionPosition", this.handleVisionPositionUpdate.bind(this));
+    
+    // Synchronisation des trainers d'une zone
+    this.room.onMessage("syncZoneTrainers", this.handleZoneTrainerSync.bind(this));
+
+    // === HANDLERS ADMIN/DEBUG ===
+    
+    if (this.config.enableAdminCommands) {
+      this.room.onMessage("trainerVisionDebug", this.handleVisionDebug.bind(this));
+      this.room.onMessage("setTrainerState", this.handleSetTrainerState.bind(this));
+    }
+
+    // === HOOKS SYSTÈME EXISTANT ===
+    
+    this.setupSystemHooks();
+    
+    console.log('✅ [TrainerVisionHandlers] Tous les handlers configurés');
+  }
+
+  /**
+   * Configure les hooks avec les systèmes existants de WorldRoom
+   */
+  private setupSystemHooks(): void {
+    console.log('🔗 [TrainerVisionHandlers] Configuration hooks système...');
+    
+    // Hook sur les mouvements de joueurs (via MovementHandlers existant)
+    // Le MovementHandlers existant appellera updatePlayerPosition
+    
+    // Hook sur les changements de zone
+    const originalOnPlayerJoinZone = this.room.onPlayerJoinZone.bind(this.room);
+    this.room.onPlayerJoinZone = async (client: Client, zoneName: string) => {
+      await originalOnPlayerJoinZone(client, zoneName);
+      await this.onPlayerZoneChange(client, zoneName);
+    };
+    
+    console.log('✅ [TrainerVisionHandlers] Hooks système configurés');
+  }
+
+  // ===================================================================
+  // 🎯 HANDLERS PRINCIPAUX
+  // ===================================================================
+
+  /**
+   * Handler pour interaction directe avec un trainer
+   */
+  private async handleTrainerInteraction(client: Client, data: TrainerInteractionRequest): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`👥 [TrainerInteraction] ${client.sessionId} -> Trainer ${data.trainerId}`, {
+        type: data.interactionType
+      });
+
+      // Validation de base
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("trainerInteractionError", { 
+          message: "Joueur non trouvé" 
+        });
+        return;
+      }
+
+      // Validation JWT pour sécurité
+      const validation = await this.jwtManager.validateSessionRobust(
+        client.sessionId,
+        player.name,
+        'trainerInteraction'
+      );
+
+      if (!validation.valid) {
+        client.send("trainerInteractionError", { 
+          message: "Session invalide",
+          reason: validation.reason 
+        });
+        return;
+      }
+
+      // Vérifier limite d'interactions simultanées
+      if (this.activeInteractions.size >= this.config.maxConcurrentInteractions) {
+        client.send("trainerInteractionError", { 
+          message: "Trop d'interactions en cours, réessayez plus tard" 
+        });
+        return;
+      }
+
+      // Enregistrer l'interaction
+      const interactionId = `${client.sessionId}_${data.trainerId}_${Date.now()}`;
+      this.activeInteractions.set(interactionId, {
+        trainerId: data.trainerId,
+        playerId: client.sessionId,
+        startTime: Date.now(),
+        type: data.interactionType
+      });
+
+      // Timeout automatique
+      setTimeout(() => {
+        this.activeInteractions.delete(interactionId);
+      }, this.config.interactionTimeoutMs);
+
+      // Déléguer au service de vision
+      const result = await this.visionService.handleDirectTrainerInteraction(
+        client.sessionId,
+        data.trainerId,
+        data.interactionType
+      );
+
+      // Traiter le résultat
+      await this.processInteractionResult(client, result);
+
+      // Nettoyer l'interaction
+      this.activeInteractions.delete(interactionId);
+
+      const processingTime = Date.now() - startTime;
+      console.log(`✅ [TrainerInteraction] Traité en ${processingTime}ms`);
+
+    } catch (error) {
+      console.error(`❌ [TrainerInteraction] Erreur:`, error);
+      client.send("trainerInteractionError", { 
+        message: "Erreur serveur lors de l'interaction" 
+      });
+    }
+  }
+
+  /**
+   * Handler pour réponse à une détection automatique
+   */
+  private async handleDetectionResponse(client: Client, data: {
+    detectionId: string;
+    response: 'accept' | 'decline' | 'ignore';
+    trainerId: string;
+  }): Promise<void> {
+    
+    try {
+      console.log(`🔍 [DetectionResponse] ${client.sessionId} répond: ${data.response}`);
+
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) return;
+
+      if (data.response === 'accept') {
+        // Le joueur accepte l'interaction automatique
+        await this.handleTrainerInteraction(client, {
+          trainerId: data.trainerId,
+          interactionType: 'auto_detection'
+        });
+      } else if (data.response === 'decline') {
+        // Le joueur décline - juste débloquer le mouvement
+        this.room.unblockPlayerMovement(client.sessionId, 'trainer_detection');
+        
+        client.send("trainerDetectionDeclined", {
+          trainerId: data.trainerId,
+          message: "Vous évitez le regard du dresseur."
+        });
+      }
+      // Si 'ignore', ne rien faire - le timeout s'occupera du déblocage
+
+    } catch (error) {
+      console.error(`❌ [DetectionResponse] Erreur:`, error);
+    }
+  }
+
+  /**
+   * Handler pour démarrage de combat avec trainer
+   */
+  private async handleTrainerBattleStart(client: Client, data: {
+    trainerId: string;
+    battleConfig: any;
+    acceptBattle: boolean;
+  }): Promise<void> {
+    
+    try {
+      console.log(`⚔️ [TrainerBattle] Démarrage combat: ${client.sessionId} vs ${data.trainerId}`);
+
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) return;
+
+      if (!data.acceptBattle) {
+        // Joueur refuse le combat
+        client.send("trainerBattleDeclined", {
+          trainerId: data.trainerId,
+          message: "Vous refusez le combat."
+        });
+        
+        this.room.unblockPlayerMovement(client.sessionId, 'trainer_battle');
+        return;
+      }
+
+      // Validation sécurité
+      const validation = await this.jwtManager.validateSessionRobust(
+        client.sessionId,
+        player.name,
+        'trainerBattle'
+      );
+
+      if (!validation.valid) {
+        client.send("trainerBattleError", { 
+          message: "Session invalide pour combat" 
+        });
+        return;
+      }
+
+      // Bloquer le mouvement pendant le combat
+      this.room.blockPlayerMovement(
+        client.sessionId, 
+        'battle', 
+        0, // Durée infinie jusqu'à fin de combat
+        { trainerId: data.trainerId, battleType: 'trainer' }
+      );
+
+      // Enregistrer état de combat dans JWT
+      this.jwtManager.setBattleState(validation.userId, {
+        battleType: 'trainer',
+        opponentId: data.trainerId,
+        startTime: Date.now(),
+        metadata: data.battleConfig
+      });
+
+      // Tracking IA
+      this.room.getAINPCManager().trackPlayerAction(
+        player.name,
+        ActionType.BATTLE_START,
+        {
+          opponentType: 'trainer',
+          opponentId: data.trainerId,
+          battleConfig: data.battleConfig
+        },
+        {
+          location: { map: player.currentZone, x: player.x, y: player.y }
+        }
+      );
+
+      // Déléguer au BattleSystem existant via BattleHandlers
+      const battleHandlers = this.room.getBattleHandlers();
+      await battleHandlers.startTrainerBattle(client, {
+        trainerId: data.trainerId,
+        battleConfig: data.battleConfig
+      });
+
+      console.log(`✅ [TrainerBattle] Combat démarré avec succès`);
+
+    } catch (error) {
+      console.error(`❌ [TrainerBattle] Erreur démarrage:`, error);
+      
+      // Nettoyer en cas d'erreur
+      this.room.unblockPlayerMovement(client.sessionId, 'battle');
+      client.send("trainerBattleError", { 
+        message: "Erreur lors du démarrage du combat" 
+      });
+    }
+  }
+
+  /**
+   * Handler pour fin de combat avec trainer
+   */
+  private async handleTrainerBattleEnd(client: Client, data: {
+    trainerId: string;
+    battleResult: 'victory' | 'defeat' | 'draw' | 'flee';
+    rewards?: any;
+  }): Promise<void> {
+    
+    try {
+      console.log(`🏁 [TrainerBattleEnd] Fin combat: ${client.sessionId} vs ${data.trainerId}`, {
+        result: data.battleResult
+      });
+
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) return;
+
+      // Validation JWT
+      const userId = this.jwtManager.getUserId(client.sessionId);
+      if (!userId || !this.jwtManager.hasActiveBattle(userId)) {
+        console.warn(`⚠️ [TrainerBattleEnd] Pas de combat actif pour ${client.sessionId}`);
+        return;
+      }
+
+      // Débloquer le mouvement
+      this.room.unblockPlayerMovement(client.sessionId, 'battle');
+
+      // Nettoyer l'état de combat JWT
+      this.jwtManager.clearBattleState(userId);
+
+      // Mettre à jour l'état du trainer selon le résultat
+      await this.updateTrainerPostBattle(data.trainerId, client.sessionId, data.battleResult);
+
+      // Tracking IA
+      this.room.getAINPCManager().trackPlayerAction(
+        player.name,
+        ActionType.BATTLE_END,
+        {
+          opponentType: 'trainer',
+          opponentId: data.trainerId,
+          result: data.battleResult,
+          rewards: data.rewards
+        },
+        {
+          location: { map: player.currentZone, x: player.x, y: player.y }
+        }
+      );
+
+      // Notifier le client
+      client.send("trainerBattleEndAck", {
+        trainerId: data.trainerId,
+        result: data.battleResult,
+        rewards: data.rewards,
+        success: true
+      });
+
+      console.log(`✅ [TrainerBattleEnd] Combat terminé avec succès`);
+
+    } catch (error) {
+      console.error(`❌ [TrainerBattleEnd] Erreur fin combat:`, error);
+      
+      // Nettoyer quand même
+      this.room.unblockPlayerMovement(client.sessionId, 'battle');
+    }
+  }
+
+  // ===================================================================
+  // 🔄 HANDLERS DE SYNCHRONISATION
+  // ===================================================================
+
+  /**
+   * Met à jour la position du joueur pour le système de vision
+   */
+  handleVisionPositionUpdate(client: Client, data: {
+    x: number;
+    y: number;
+    zone: string;
+    level?: number;
+    isHidden?: boolean;
+  }): void {
+    
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) return;
+
+    // Convertir les données player en PlayerPosition
+    const playerPosition: Omit<PlayerPosition, 'playerId'> = {
+      username: player.name,
+      x: data.x,
+      y: data.y,
+      level: data.level || player.level || 1,
+      isHidden: data.isHidden || false,
+      movementSpeed: 1, // TODO: Récupérer vraie vitesse
+      lastMovementTime: Date.now()
+    };
+
+    // Mettre à jour dans le service de vision
+    this.visionService.updatePlayerPosition(client.sessionId, playerPosition);
+  }
+
+  /**
+   * Synchronise les trainers d'une zone
+   */
+  private async handleZoneTrainerSync(client: Client, data: { zoneName: string }): Promise<void> {
+    try {
+      console.log(`🔄 [ZoneSync] Synchronisation trainers zone ${data.zoneName} pour ${client.sessionId}`);
+
+      // Recharger les trainers de la zone
+      await this.visionService.reloadTrainersForZone(data.zoneName);
+
+      // Confirmer au client
+      client.send("zoneTrainerSyncComplete", {
+        zoneName: data.zoneName,
+        timestamp: Date.now()
+      });
+
+    } catch (error) {
+      console.error(`❌ [ZoneSync] Erreur:`, error);
+      client.send("zoneTrainerSyncError", {
+        zoneName: data.zoneName,
+        message: "Erreur synchronisation trainers"
+      });
+    }
+  }
+
+  // ===================================================================
+  // 🛠️ MÉTHODES UTILITAIRES ET TRAITEMENT
+  // ===================================================================
+
+  /**
+   * Traite le résultat d'une interaction avec un trainer
+   */
+  private async processInteractionResult(
+    client: Client, 
+    result: TrainerInteractionResult
   ): Promise<void> {
     
-    console.log(`🏁 [TrainerVision] Fin combat: joueur ${playerId} vs trainer ${trainerId} → ${result}`);
+    if (!result.success) {
+      client.send("trainerInteractionError", { 
+        message: "Interaction échouée" 
+      });
+      return;
+    }
 
+    // Construire la réponse pour le client
+    const response: any = {
+      success: true,
+      interactionType: result.interactionType,
+      trainerId: result.dialogue?.npcId,
+      dialogue: result.dialogue,
+      metadata: result.metadata
+    };
+
+    // Actions client spécifiques
+    if (result.clientActions.blockMovement) {
+      this.room.blockPlayerMovement(
+        client.sessionId, 
+        'trainer_interaction', 
+        10000, // 10 secondes max
+        { interaction: result.interactionType }
+      );
+    }
+
+    if (result.clientActions.startBattle && result.battleConfig) {
+      response.battleConfig = result.battleConfig;
+      response.shouldStartBattle = true;
+      
+      // Bloquer pour combat
+      this.room.blockPlayerMovement(
+        client.sessionId, 
+        'trainer_battle_prep', 
+        30000, // 30 secondes pour accepter/refuser
+        { trainerId: result.dialogue?.npcId }
+      );
+    }
+
+    if (result.clientActions.playSound) {
+      response.soundEffect = result.clientActions.playSound;
+    }
+
+    if (result.clientActions.showEmote) {
+      response.emote = result.clientActions.showEmote;
+    }
+
+    // Envoyer la réponse
+    client.send("trainerInteractionResult", response);
+
+    // Si mouvement de trainer nécessaire
+    if (result.clientActions.moveTrainer) {
+      this.room.broadcast("trainerMoved", {
+        trainerId: result.dialogue?.npcId,
+        newPosition: result.clientActions.moveTrainer,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  /**
+   * Met à jour l'état d'un trainer après un combat
+   */
+  private async updateTrainerPostBattle(
+    trainerId: string, 
+    playerId: string, 
+    result: string
+  ): Promise<void> {
+    
     try {
-      // Mettre à jour l'état du trainer
+      // Récupérer le trainer depuis la DB
+      const trainer = await NpcData.findOne({ npcId: parseInt(trainerId) });
+      if (!trainer) return;
+
       if (result === 'victory') {
-        await this.visionService.setTrainerState(trainerId, 'defeated');
-      } else {
-        await this.visionService.setTrainerState(trainerId, 'idle');
-      }
-
-      // Débloquer le joueur
-      this.room.unblockPlayerMovement(playerId, 'battle' as BlockReason);
-
-      // Nettoyer les détections actives
-      const keysToDelete: string[] = [];
-      for (const [key, detection] of this.activeDetections) {
-        if (detection.trainerId === trainerId && detection.playerId === playerId) {
-          keysToDelete.push(key);
+        // Joueur a gagné - trainer vaincu
+        trainer.updateTrainerState('defeated');
+        
+        // Ajouter le joueur à la liste des vainqueurs
+        if (trainer.trainerRuntime && !trainer.trainerRuntime.defeatedBy.includes(playerId)) {
+          trainer.trainerRuntime.defeatedBy.push(playerId);
         }
-      }
-      
-      for (const key of keysToDelete) {
-        this.activeDetections.delete(key);
+        
+        // Mettre à jour timestamp de combat
+        if (trainer.trainerRuntime) {
+          trainer.trainerRuntime.lastBattleTime = Date.now();
+        }
+        
+        await trainer.save();
+        
+      } else if (result === 'defeat') {
+        // Trainer a gagné - retour à l'état idle
+        trainer.updateTrainerState('idle');
+        await trainer.save();
       }
 
-      // Nettoyer les demandes de combat
-      const requestKey = `${trainerId}_${playerId}`;
-      this.trainerBattleRequests.delete(requestKey);
-
-      console.log(`✅ [TrainerVision] Nettoyage post-combat terminé`);
+      console.log(`🏆 [TrainerState] Trainer ${trainerId} mis à jour: ${result}`);
 
     } catch (error) {
-      console.error('❌ [TrainerVision] Erreur fin combat:', error);
+      console.error(`❌ [TrainerState] Erreur mise à jour post-combat:`, error);
     }
   }
 
-  // ===== HANDLERS D'ADMINISTRATION ===
+  // ===================================================================
+  // 🔗 HOOKS SYSTÈME
+  // ===================================================================
 
-  private handleDebugTrainer(client: Client, data: { trainerId: string }): void {
-    console.log(`🔍 [TrainerVision] Debug trainer ${data.trainerId}`);
-    
-    // Récupérer les infos de debug disponibles
-    const debugInfo = {
-      trainerId: data.trainerId,
-      visionServiceStats: this.visionService.getStats(),
-      activeDetections: Array.from(this.activeDetections.entries())
-        .filter(([key]) => key.startsWith(data.trainerId))
-        .map(([key, detection]) => ({ key, detection })),
-      battleRequests: Array.from(this.trainerBattleRequests.entries())
-        .filter(([key]) => key.startsWith(data.trainerId))
-        .map(([key, request]) => ({ key, request }))
-    };
-
-    client.send("trainerDebugInfo", {
-      trainerId: data.trainerId,
-      debugInfo
-    });
-  }
-
-  private async handleResetTrainer(client: Client, data: { trainerId: string }): Promise<void> {
-    console.log(`🔄 [TrainerVision] Reset trainer ${data.trainerId}`);
-    
+  /**
+   * Appelé quand un joueur change de zone
+   */
+  private async onPlayerZoneChange(client: Client, zoneName: string): Promise<void> {
     try {
-      // Reset via le service
-      await this.visionService.setTrainerState(data.trainerId, 'idle');
-      
-      // Nettoyer les caches locaux
-      const keysToDelete: string[] = [];
-      for (const key of this.activeDetections.keys()) {
-        if (key.startsWith(data.trainerId)) {
-          keysToDelete.push(key);
-        }
-      }
-      
-      for (const key of keysToDelete) {
-        this.activeDetections.delete(key);
+      console.log(`🌍 [VisionHook] ${client.sessionId} change vers zone ${zoneName}`);
+
+      // Recharger les trainers de la nouvelle zone
+      await this.visionService.reloadTrainersForZone(zoneName);
+
+      // Mettre à jour la position du joueur
+      const player = this.room.state.players.get(client.sessionId);
+      if (player) {
+        this.handleVisionPositionUpdate(client, {
+          x: player.x,
+          y: player.y,
+          zone: zoneName,
+          level: player.level
+        });
       }
 
-      for (const key of this.trainerBattleRequests.keys()) {
-        if (key.startsWith(data.trainerId)) {
-          this.trainerBattleRequests.delete(key);
-        }
-      }
-      
-      client.send("trainerResetResult", {
-        trainerId: data.trainerId,
-        success: true,
-        message: "Trainer réinitialisé avec succès"
-      });
-      
     } catch (error) {
-      client.send("trainerResetResult", {
-        trainerId: data.trainerId,
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      });
+      console.error(`❌ [VisionHook] Erreur changement zone:`, error);
     }
   }
 
-  private handleGetVisionStats(client: Client): void {
-    const stats = this.getStats();
-    client.send("trainerVisionStats", stats);
+  /**
+   * Hook appelé lors des mouvements de joueur (à appeler depuis MovementHandlers)
+   */
+  onPlayerMove(client: Client, x: number, y: number, zone: string): void {
+    this.handleVisionPositionUpdate(client, { x, y, zone });
   }
 
-  // ===== MISES À JOUR PÉRIODIQUES ===
-
-  private startPeriodicUpdates(): void {
-    // Nettoyage des détections expirées toutes les 30s
-    this.room.clock.setInterval(() => {
-      this.cleanupExpiredDetections();
-    }, 30000);
-
-    // Mise à jour des états de trainers toutes les secondes
-    this.room.clock.setInterval(() => {
-      this.broadcastTrainerStates();
-    }, this.config.stateUpdateInterval);
-
-    console.log('⏰ [TrainerVision] Mises à jour périodiques démarrées');
+  /**
+   * Hook appelé quand un joueur quitte la room
+   */
+  onPlayerLeave(playerId: string): void {
+    this.visionService.removePlayer(playerId);
+    
+    // Nettoyer les interactions actives
+    for (const [interactionId, interaction] of this.activeInteractions) {
+      if (interaction.playerId === playerId) {
+        this.activeInteractions.delete(interactionId);
+      }
+    }
   }
 
-  private broadcastTrainerStates(): void {
+  // ===================================================================
+  // 🐛 HANDLERS DEBUG ET ADMIN
+  // ===================================================================
+
+  /**
+   * Handler pour commandes de debug
+   */
+  private async handleVisionDebug(client: Client, data: TrainerVisionDebugRequest): Promise<void> {
+    if (!this.config.enableAdminCommands) {
+      client.send("debugError", { message: "Commandes debug désactivées" });
+      return;
+    }
+
     try {
-      if (this.config.enableBatching && this.activeDetections.size > 0) {
-        // Envoyer les états actifs des trainers
-        const activeStates = Array.from(this.activeDetections.values()).map(detection => ({
-          trainerId: detection.trainerId,
-          state: 'alerted', // État basé sur la détection
-          targetPlayerId: detection.playerId,
-          timestamp: detection.timestamp
-        }));
+      let response: any = { action: data.action };
 
-        if (activeStates.length > 0) {
-          this.room.broadcast("trainerStatesUpdate", {
-            updates: activeStates,
-            timestamp: Date.now()
-          });
-        }
+      switch (data.action) {
+        case 'stats':
+          response.stats = {
+            vision: this.visionService.getStats(),
+            handlers: {
+              activeInteractions: this.activeInteractions.size,
+              config: this.config
+            }
+          };
+          break;
+
+        case 'reload_trainers':
+          if (data.zoneName) {
+            await this.visionService.reloadTrainersForZone(data.zoneName);
+            response.message = `Trainers rechargés pour zone ${data.zoneName}`;
+          }
+          break;
+
+        case 'force_detection':
+          if (data.trainerId && data.playerId) {
+            const result = await this.visionService.handleDirectTrainerInteraction(
+              data.playerId,
+              data.trainerId,
+              'collision'
+            );
+            response.detectionResult = result;
+          }
+          break;
+
+        default:
+          response.error = "Action debug non reconnue";
       }
+
+      client.send("visionDebugResult", response);
 
     } catch (error) {
-      // Log silencieux pour éviter le spam
-      if (Math.random() < 0.01) {
-        console.error('❌ [TrainerVision] Erreur broadcast états:', error);
-      }
+      console.error(`❌ [VisionDebug] Erreur:`, error);
+      client.send("debugError", { message: "Erreur commande debug" });
     }
   }
 
-  private cleanupExpiredDetections(): void {
-    const now = Date.now();
-    let cleanedCount = 0;
-
-    for (const [key, detection] of this.activeDetections) {
-      if (now - detection.timestamp > this.config.detectionCooldown * 2) {
-        this.activeDetections.delete(key);
-        cleanedCount++;
-      }
+  /**
+   * Handler pour changer l'état d'un trainer (admin)
+   */
+  private async handleSetTrainerState(client: Client, data: TrainerStateChangeRequest): Promise<void> {
+    if (!this.config.enableAdminCommands) {
+      client.send("adminError", { message: "Commandes admin désactivées" });
+      return;
     }
 
-    // Nettoyer aussi les demandes de combat expirées
-    for (const [key, request] of this.trainerBattleRequests) {
-      if (now - Date.now() > request.timeout * 2) { // Approximation
-        this.trainerBattleRequests.delete(key);
-        cleanedCount++;
-      }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`🧹 [TrainerVision] ${cleanedCount} éléments expirés nettoyés`);
-    }
-  }
-
-  // ===== MÉTHODES PUBLIQUES ===
-
-  async onPlayerJoinZone(playerId: string, zoneName: string): Promise<void> {
-    console.log(`📍 [TrainerVision] Joueur ${playerId} rejoint zone ${zoneName}`);
-    
-    // Mettre à jour la position dans le service
-    const player = this.room.state.players.get(playerId);
-    if (player) {
-      await this.visionService.updatePlayerPosition(playerId, {
-        x: player.x,
-        y: player.y,
-        zone: zoneName
+    try {
+      const success = await this.visionService.setTrainerState(data.trainerId, data.newState);
+      
+      client.send("trainerStateChanged", {
+        trainerId: data.trainerId,
+        newState: data.newState,
+        success
       });
-    }
-    
-    // Charger les trainers de la nouvelle zone si nécessaire
-    await this.loadZoneTrainers();
-  }
 
-  async onPlayerLeaveZone(playerId: string, zoneName: string): Promise<void> {
-    console.log(`📤 [TrainerVision] Joueur ${playerId} quitte zone ${zoneName}`);
-    
-    // Nettoyer les détections actives
-    const keysToDelete: string[] = [];
-    for (const [key, detection] of this.activeDetections) {
-      if (detection.playerId === playerId) {
-        keysToDelete.push(key);
-      }
-    }
-    
-    for (const key of keysToDelete) {
-      this.activeDetections.delete(key);
-    }
-
-    // Nettoyer les demandes de combat
-    for (const [key, request] of this.trainerBattleRequests) {
-      if (key.includes(playerId)) {
-        this.trainerBattleRequests.delete(key);
-      }
+    } catch (error) {
+      console.error(`❌ [SetTrainerState] Erreur:`, error);
+      client.send("adminError", { message: "Erreur changement état trainer" });
     }
   }
 
-  getStats(): any {
+  // ===================================================================
+  // 📊 MÉTHODES PUBLIQUES D'ACCÈS
+  // ===================================================================
+
+  /**
+   * Retourne le service de vision (pour intégrations)
+   */
+  getVisionService(): PokemonTrainerVisionService {
+    return this.visionService;
+  }
+
+  /**
+   * Retourne les statistiques des handlers
+   */
+  getStats() {
     return {
-      service: this.visionService.getStats(),
-      handlers: {
-        activeDetections: this.activeDetections.size,
-        battleRequests: this.trainerBattleRequests.size,
-        config: this.config
-      },
-      performance: {
-        maxSimultaneousBattles: this.config.maxSimultaneousBattles,
-        detectionCooldown: this.config.detectionCooldown,
-        batchingEnabled: this.config.enableBatching
-      }
+      handlersActive: true,
+      activeInteractions: this.activeInteractions.size,
+      config: this.config,
+      visionService: this.visionService.getStats()
     };
   }
 
-  // ===== NETTOYAGE =====
+  /**
+   * Active/désactive la détection automatique
+   */
+  setAutoDetection(enabled: boolean): void {
+    this.config.enableAutoDetection = enabled;
+    console.log(`🔄 [TrainerVisionHandlers] Détection automatique ${enabled ? 'activée' : 'désactivée'}`);
+  }
 
+  // ===================================================================
+  // 🧹 NETTOYAGE
+  // ===================================================================
+
+  /**
+   * Nettoie les ressources
+   */
   cleanup(): void {
-    console.log('🧹 [TrainerVision] Nettoyage...');
+    console.log('🧹 [TrainerVisionHandlers] Nettoyage...');
     
-    this.activeDetections.clear();
-    this.trainerBattleRequests.clear();
+    // Arrêter le service de vision
+    this.visionService.destroy();
     
-    // Le service se nettoie automatiquement avec la room
+    // Nettoyer les interactions actives
+    this.activeInteractions.clear();
     
-    console.log('✅ [TrainerVision] Nettoyé');
+    console.log('✅ [TrainerVisionHandlers] Nettoyé');
   }
 }
+
+export default TrainerVisionHandlers;
