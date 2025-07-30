@@ -327,8 +327,8 @@ TrainerTeamSchema.statics.findTeamsByLevelRange = function(
   minLevel: number, 
   maxLevel: number
 ): Promise<ITrainerTeam[]> {
-  return this.find({ isActive: true }).then(teams => {
-    return teams.filter(team => {
+  return this.find({ isActive: true }).then((teams: ITrainerTeam[]) => {
+    return teams.filter((team: ITrainerTeam) => {
       const avgLevel = team.getAverageLevel();
       return avgLevel >= minLevel && avgLevel <= maxLevel;
     });
@@ -342,7 +342,7 @@ TrainerTeamSchema.statics.createTeam = async function(
   teamData: CreateTrainerTeamData
 ): Promise<ITrainerTeam> {
   // Validation des données
-  const validation = this.validateTeamData(teamData);
+  const validation = (this as ITrainerTeamModel).validateTeamData(teamData);
   if (!validation.valid) {
     throw new Error(`Données d'équipe invalides: ${validation.errors.join(', ')}`);
   }
