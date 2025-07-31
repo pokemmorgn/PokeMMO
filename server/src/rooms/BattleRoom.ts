@@ -78,44 +78,73 @@ export class BattleRoom extends Room<BattleState> {
       });
     });
 
-    this.onMessage("attemptFlee", async (client, data) => {
-      console.log(`🏃 [BattleRoom] Tentative de fuite de ${client.sessionId}`);
+this.onMessage("attemptFlee", async (client, data) => {
+  console.log(`🏃 [BattleRoom] Tentative de fuite de ${client.sessionId}`);
+  
+  try {
+    // ✅ CORRECTION #1 : Utiliser userId au lieu de sessionId
+    let userId = this.jwtManager.getUserId(client.sessionId);
+    
+    if (!userId) {
+      const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+      userId = jwtData?.userId;
       
-      try {
-        const fleeAction: BattleAction = {
-          type: 'run',
-          playerId: client.sessionId,
-          actionId: `flee_${Date.now()}`,
-          timestamp: Date.now(),
-          data: { reason: 'player_flee' }
-        };
-        
-        // ✅ CORRECTION : Attendre que l'action soit loggée AVANT de fermer
-        console.log(`🧠 [BattleRoom] Logging action de fuite...`);
-        await this.battleEngine.submitAction(fleeAction);
-        console.log(`✅ [BattleRoom] Action de fuite loggée avec succès`);
-        
+      if (!userId) {
+        console.error(`❌ [BattleRoom] Session invalide pour fuite: ${client.sessionId}`);
         client.send("fleeResult", {
-          success: true,
+          success: true, // On laisse fuir même en cas d'erreur
           message: "Vous avez pris la fuite !",
           fled: true
         });
-        
-        // ✅ CORRECTION : Délai augmenté pour garantir la sauvegarde
         setTimeout(() => this.disconnect(), 2500);
-        
-      } catch (error) {
-        console.error(`❌ [BattleRoom] Erreur handler fuite:`, error);
-        
-        client.send("fleeResult", {
-          success: true,
-          message: "Vous avez pris la fuite !",
-          fled: true
-        });
-        
-        setTimeout(() => this.disconnect(), 2500);
+        return;
       }
+    }
+    
+    // ✅ CORRECTION #2 : Logger AVANT les validations de phase
+    console.log(`🧠 [BattleRoom] Logging action de fuite DIRECTEMENT...`);
+    
+    // Appel DIRECT à la méthode de logging IA
+    const fleeAction: BattleAction = {
+      type: 'run',
+      playerId: userId, // ✅ Utiliser userId
+      actionId: `flee_${Date.now()}`,
+      timestamp: Date.now(),
+      data: { reason: 'player_flee' }
+    };
+    
+    // ✅ NOUVEAU : Appel direct à logRunAttempt pour garantir le logging
+    if (this.battleEngine && typeof (this.battleEngine as any).logRunAttemptDirect === 'function') {
+      await (this.battleEngine as any).logRunAttemptDirect(fleeAction);
+    } else {
+      // Fallback : essayer submitAction quand même
+      await this.battleEngine.submitAction(fleeAction);
+    }
+    
+    console.log(`✅ [BattleRoom] Action de fuite loggée avec succès`);
+    
+    client.send("fleeResult", {
+      success: true,
+      message: "Vous avez pris la fuite !",
+      fled: true
     });
+    
+    // ✅ CORRECTION #3 : Délai augmenté pour garantir la sauvegarde IA
+    setTimeout(() => this.disconnect(), 3000);
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur handler fuite:`, error);
+    
+    // Même en cas d'erreur, on laisse le joueur fuir
+    client.send("fleeResult", {
+      success: true,
+      message: "Vous avez pris la fuite !",
+      fled: true
+    });
+    
+    setTimeout(() => this.disconnect(), 3000);
+  }
+});
 
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", this.getClientBattleState());
