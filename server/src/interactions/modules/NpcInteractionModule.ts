@@ -1,6 +1,6 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString + LANGUE JOUEUR
-// ✅ ÉTAPE 4 COMPLÈTE : Intégration langue joueur dans tous les appels DialogString
+// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString + LANGUE JOUEUR + POST-QUEST DIALOGUES
+// ✅ ÉTAPE 3 COMPLÈTE : Intégration dialogues post-quête dans système Legacy
 
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
@@ -39,7 +39,7 @@ import {
 } from "../types/UnifiedInterfaceTypes";
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ INTERFACE RESULT NPC ÉTENDUE POUR IA
+// ✅ INTERFACE RESULT NPC ÉTENDUE POUR IA + POST-QUEST
 export interface NpcInteractionResult extends InteractionResult {
   // Données NPCs existantes (gardées optionnelles pour rétro-compatibilité)
   shopId?: string;
@@ -87,7 +87,13 @@ export interface NpcInteractionResult extends InteractionResult {
   relationshipLevel?: string;
   proactiveHelp?: boolean;
   followUpQuestions?: string[];
-  tracking?: any; // Données de tracking de l'IA  
+  tracking?: any; // Données de tracking de l'IA
+  
+  // ✅ NOUVEAU : Données post-quête
+  isPostQuestDialogue?: boolean;
+  completedQuestName?: string;
+  completedAt?: Date;
+  
   // Données interface unifiée spécifiques (gardées optionnelles)
   unifiedInterface?: UnifiedInterfaceResult;
   unifiedMode?: boolean;
@@ -114,7 +120,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "4.3.0"; // ✅ Version avec DialogString + Langue joueur intégrée
+  readonly version = "4.4.0"; // ✅ Version avec DialogString + Langue joueur + Post-Quest
 
   // === DÉPENDANCES EXISTANTES ===
   private getNpcManager: (zoneName: string) => any;
@@ -168,14 +174,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // Initialisation handlers existants
     this.initializeHandlers();
 
-    this.log('info', '🤖 Module NPC v4.3.0 avec DialogString + Langue joueur', {
+    this.log('info', '🤖 Module NPC v4.4.0 avec DialogString + Langue joueur + Post-Quest', {
       version: this.version,
       intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
       enabledTypes: this.intelligenceConfig.enabledNPCTypes,
-      handlersLoaded: ['merchant', 'unifiedInterface', 'intelligence', 'dialogString'],
-      questIntegration: 'Phase 3 - Triggers automatiques + IA',
+      handlersLoaded: ['merchant', 'unifiedInterface', 'intelligence', 'dialogString', 'postQuest'],
+      questIntegration: 'Phase 4 - Post-Quest Dialogues',
       dialogService: 'Intégré avec support multilingue',
-      languageSupport: 'Intégré - Client vers DialogString'
+      languageSupport: 'Intégré - Client vers DialogString',
+      postQuestSupport: 'Legacy System - Dialogues spécifiques après completion'
     });
 
     // ✅ ENREGISTREMENT DIFFÉRÉ DES NPCs DANS L'IA
@@ -292,131 +299,103 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === MÉTHODES PRINCIPALES (MODIFIÉES POUR IA + LANGUE) ===
+  // === MÉTHODES PRINCIPALES (MODIFIÉES POUR IA + LANGUE + POST-QUEST) ===
 
   canHandle(request: InteractionRequest): boolean {
     return request.type === 'npc' && request.data?.npcId !== undefined;
   }
 
-  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID + LANGUE
-async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
-  const startTime = Date.now();
-  
-  try {
-    const { player, request } = context;
-    const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
-    const npcId = request.data?.npcId;
+  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID + LANGUE + POST-QUEST
+  async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
+    const startTime = Date.now();
+    
+    try {
+      const { player, request } = context;
+      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
+      const npcId = request.data?.npcId;
 
-    // 🔍 DEBUG COMPLET REQUÊTE
-    console.log("🔍 [DEBUG] === ANALYSE COMPLÈTE REQUÊTE ===");
-    console.log("🔍 [DEBUG] request.data COMPLET:", JSON.stringify(request.data, null, 2));
-    console.log("🔍 [DEBUG] Toutes les clés de request.data:", Object.keys(request.data || {}));
-    console.log("🔍 [DEBUG] request.data?.playerLanguage DIRECT:", request.data?.playerLanguage);
-    console.log("🔍 [DEBUG] Type:", typeof request.data?.playerLanguage);
-    
-    // 🔍 DEBUG REQUEST COMPLET
-    console.log("🔍 [DEBUG] === ANALYSE REQUEST COMPLET ===");
-    console.log("🔍 [DEBUG] typeof request:", typeof request);
-    console.log("🔍 [DEBUG] Object.keys(request):", Object.keys(request));
-    console.log("🔍 [DEBUG] request COMPLET:", JSON.stringify(request, null, 2));
-    console.log("🔍 [DEBUG] =====================================");
-    
-    if (!npcId) {
-      return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
-    }
-
-    // ✅ EXTRACTION LANGUE AVEC CASTING TYPESCRIPT
-    const requestAny = request as any;
-    const playerLanguage = request.data?.playerLanguage || 
-                          requestAny.playerLanguage || 
-                          'fr';
-    
-    // 🔍 DEBUG EXTRACTION LANGUE
-    console.log("🔍 [DEBUG] === EXTRACTION LANGUE AMÉLIORÉE ===");
-    console.log("🔍 [DEBUG] request.data?.playerLanguage:", request.data?.playerLanguage);
-    console.log("🔍 [DEBUG] requestAny.playerLanguage:", requestAny.playerLanguage);
-    console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
-    console.log("🔍 [DEBUG] Type playerLanguage FINAL:", typeof playerLanguage);
-    console.log("🔍 [DEBUG] ========================================");
-    
-    this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
-
-    // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
-    if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
-      try {
-        const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
-        
-        await trackPlayerAction(
-          enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
-          ActionType.NPC_TALK,
-          {
-            npcId,
-            playerLevel: player.level,
-            playerGold: player.gold,
-            zone: player.currentZone,
-            playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
-          },
-          {
-            location: { 
-              map: player.currentZone, 
-              x: player.x, 
-              y: player.y 
-            }
-          }
-        );
-        
-        console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
-        
-        // ✅ DEBUG: Vérifier la queue
-        const { getActionTracker } = await import("../../Intelligence/Core/PlayerActionTracker");
-        const tracker = getActionTracker();
-        
-        const stats = tracker.getStats();
-        console.log(`📋 [AI] État queue après tracking:`, {
-          actionsInQueue: stats.actionsInQueue,
-          playersTracked: stats.playersTracked,
-          isEnabled: stats.isEnabled
-        });
+      // 🔍 DEBUG LANGUE
+      console.log("🔍 [DEBUG] request.data:", JSON.stringify(request.data, null, 2));
       
-      } catch (error) {
-        console.warn(`⚠️ [AI] Erreur tracking:`, error);
+      if (!npcId) {
+        return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
-    } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
-      console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
+
+      // ✅ EXTRACTION LANGUE AVEC CASTING TYPESCRIPT
+      const requestAny = request as any;
+      const playerLanguage = request.data?.playerLanguage || 
+                            requestAny.playerLanguage || 
+                            'fr';
+      
+      console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
+      
+      this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
+
+      // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
+      if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
+        try {
+          const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
+          
+          await trackPlayerAction(
+            enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
+            ActionType.NPC_TALK,
+            {
+              npcId,
+              playerLevel: player.level,
+              playerGold: player.gold,
+              zone: player.currentZone,
+              playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
+            },
+            {
+              location: { 
+                map: player.currentZone, 
+                x: player.x, 
+                y: player.y 
+              }
+            }
+          );
+          
+          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
+          
+        } catch (error) {
+          console.warn(`⚠️ [AI] Erreur tracking:`, error);
+        }
+      } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
+        console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
+      }
+      
+      this.log('info', `🎮 Interaction NPC ${npcId}`, { 
+        player: player.name,
+        userId: enhancedContext.userId || 'N/A',
+        language: playerLanguage,
+        intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
+        dialogServiceReady: !!this.dialogService
+      });
+
+      // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue + POST-QUEST
+      const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
+
+      // Mise à jour des stats
+      const processingTime = Date.now() - startTime;
+      this.updateStats(result.success, processingTime);
+
+      return result;
+
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      this.updateStats(false, processingTime);
+      
+      this.log('error', 'Erreur traitement NPC', error);
+      return this.createErrorResult(
+        error instanceof Error ? error.message : 'Erreur inconnue',
+        "PROCESSING_FAILED"
+      );
     }
-    
-    this.log('info', `🎮 Interaction NPC ${npcId}`, { 
-      player: player.name,
-      userId: enhancedContext.userId || 'N/A',
-      language: playerLanguage,
-      intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
-      dialogServiceReady: !!this.dialogService
-    });
-
-    // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue
-    const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
-
-    // Mise à jour des stats
-    const processingTime = Date.now() - startTime;
-    this.updateStats(result.success, processingTime);
-
-    return result;
-
-  } catch (error) {
-    const processingTime = Date.now() - startTime;
-    this.updateStats(false, processingTime);
-    
-    this.log('error', 'Erreur traitement NPC', error);
-    return this.createErrorResult(
-      error instanceof Error ? error.message : 'Erreur inconnue',
-      "PROCESSING_FAILED"
-    );
   }
-}
 
-  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE + LANGUE ===
+  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE + LANGUE + POST-QUEST ===
 
-  // ✅ ÉTAPE 2 : Signature modifiée avec playerLanguage
+  // ✅ ÉTAPE 2 : Signature modifiée avec playerLanguage + POST-QUEST
   private async handleNpcInteractionWithAI(
     player: Player, 
     npcId: number, 
@@ -425,7 +404,7 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
     playerLanguage: string = 'fr'  // ✅ NOUVEAU : Paramètre langue
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🤖 [AI+Legacy] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'}, lang: ${playerLanguage})`);
+    this.log('info', `🤖 [AI+Legacy+PostQuest] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'}, lang: ${playerLanguage})`);
     
     // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
@@ -487,10 +466,10 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       this.log('warn', `⚠️ [AI] IA disponible mais userId manquant pour NPC ${safeNpcId}`);
     }
 
-    // === FALLBACK LEGACY ===
-    this.log('info', `🔧 [Legacy] Utilisation logique traditionnelle pour NPC ${safeNpcId} (${playerLanguage})`);
+    // === FALLBACK LEGACY AVEC POST-QUEST ===
+    this.log('info', `🔧 [Legacy+PostQuest] Utilisation logique traditionnelle pour NPC ${safeNpcId} (${playerLanguage})`);
     
-    // ✅ ÉTAPE 3 : Passer la langue au legacy
+    // ✅ ÉTAPE 3 : Passer la langue au legacy + vérifier post-quest
     const legacyResult = await this.handleLegacyNpcInteractionLogic(player, npc, safeNpcId, playerLanguage);
     
     // Enrichir le résultat legacy avec les champs IA (pour compatibilité)
@@ -503,16 +482,17 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       relationshipLevel: 'unknown'
     };
 
-    this.log('info', `✅ [Legacy] Interaction traditionnelle terminée pour NPC ${safeNpcId}`, {
+    this.log('info', `✅ [Legacy+PostQuest] Interaction traditionnelle terminée pour NPC ${safeNpcId}`, {
       type: enrichedResult.type,
       language: playerLanguage,
+      isPostQuest: enrichedResult.isPostQuestDialogue || false,
       hasRequiredFields: !!(enrichedResult.npcId && enrichedResult.npcName)
     });
 
     return enrichedResult;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA + LANGUE
+  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA + LANGUE (inchangée)
   private async handleIntelligentNPCInteraction(
     player: Player,
     npc: any,
@@ -664,11 +644,61 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
     }
   }
 
-  // ✅ MÉTHODES EXISTANTES AVEC SUPPORT LANGUE COMPLÈTE
+  // ✅ MÉTHODES EXISTANTES AVEC SUPPORT LANGUE + POST-QUEST
 
-  // ✅ ÉTAPE 3 : Signature modifiée avec playerLanguage
+  // ✅ ÉTAPE 3 : Signature modifiée avec playerLanguage + POST-QUEST LOGIC
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
-    // === LOGIQUE DE PRIORITÉ EXISTANTE INCHANGÉE ===
+    
+    // ============================================
+    // ✅ NOUVEAU : VÉRIFICATION POST-QUEST EN PRIORITÉ
+    // ============================================
+    
+    this.log('info', `🔍 [PostQuest] Vérification dialogue post-quête pour NPC ${npcId}...`);
+    
+    try {
+      const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(player.name, npcId, 24);
+      
+      if (recentQuest && recentQuest.questDefinition.dialogues?.postQuestDialogue) {
+        this.log('info', `🎉 [PostQuest] Dialogue post-quête trouvé pour "${recentQuest.questDefinition.name}"!`);
+        
+        // ✅ UTILISER DIALOGSTRING POUR POST-QUEST
+        const postQuestLines = await this.getPostQuestDialogue(recentQuest.questDefinition, player, playerLanguage);
+        
+        return {
+          success: true,
+          type: "dialogue",
+          message: postQuestLines[0] || "Félicitations pour votre quête terminée !",
+          lines: postQuestLines,
+          npcId: npcId,
+          npcName: npc.name || `NPC #${npcId}`,
+          isUnifiedInterface: false,
+          capabilities: ['dialogue'],
+          contextualData: {
+            hasShop: false,
+            hasQuests: false,
+            hasHealing: false,
+            defaultAction: 'dialogue',
+            quickActions: []
+          },
+          // ✅ NOUVEAU : Marquer comme dialogue post-quête
+          isPostQuestDialogue: true,
+          completedQuestName: recentQuest.questDefinition.name,
+          completedAt: recentQuest.completedAt
+        };
+      } else if (recentQuest) {
+        this.log('info', `ℹ️ [PostQuest] Quête récente trouvée ("${recentQuest.questDefinition.name}") mais pas de dialogue post-quête configuré`);
+      } else {
+        this.log('debug', `❌ [PostQuest] Aucune quête récemment terminée pour NPC ${npcId}`);
+      }
+      
+    } catch (error) {
+      this.log('error', `❌ [PostQuest] Erreur vérification post-quête:`, error);
+      // Continuer vers la logique normale en cas d'erreur
+    }
+
+    // ============================================
+    // ✅ LOGIQUE LEGACY NORMALE (inchangée)
+    // ============================================
 
     // 1. Vérifier si c'est une table starter
     if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
@@ -676,13 +706,6 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       return await this.handleStarterTableInteraction(player, npc, npcId);
     }
 
-    // ✅ NOUVEAU : 1.5. Vérifier dialogue post-quête
-    const postQuestResult = await this.checkPostQuestDialogue(player.name, npcId, playerLanguage);
-    if (postQuestResult) {
-      this.log('info', `🎉 Dialogue post-quête trouvé pour NPC ${npcId}`);
-      return postQuestResult;
-    }
-    
     // 2. Vérifier d'abord les objectifs talk
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
@@ -947,7 +970,60 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
     }
   }
 
-  // === ✅ ÉTAPE 4 : NOUVELLES MÉTHODES DIALOGSTRING AVEC LANGUE ===
+  // === ✅ NOUVELLES MÉTHODES DIALOGSTRING AVEC LANGUE + POST-QUEST ===
+
+  /**
+   * ✅ NOUVEAU : Obtenir dialogue post-quête via DialogString avec langue
+   */
+  private async getPostQuestDialogue(questDefinition: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
+    try {
+      const questId = questDefinition.id || 'unknown_quest';
+      const dialogVars = this.createPlayerDialogVars(player, undefined, questDefinition.name);
+      
+      // ✅ PRIORITÉ 1 : Dialogue post-quête via DialogString
+      const postQuestDialogId = `quest.${questId}.postQuestDialogue`;
+      let dialogue = await this.dialogService.getText(postQuestDialogId, playerLanguage as any, dialogVars);
+      
+      if (!dialogue.includes('[MISSING:')) {
+        this.log('info', `🎊 [DialogString] Dialogue post-quête récupéré: ${postQuestDialogId} (${playerLanguage})`);
+        return [dialogue];
+      }
+      
+      // ✅ PRIORITÉ 2 : Utiliser les dialogues post-quête du JSON (nouveauté)
+      if (questDefinition.dialogues?.postQuestDialogue && Array.isArray(questDefinition.dialogues.postQuestDialogue)) {
+        const postQuestLines = questDefinition.dialogues.postQuestDialogue.map((line: string) => {
+          // Remplacer variables simples
+          return line
+            .replace('%player%', player.name)
+            .replace('%quest%', questDefinition.name)
+            .replace('%level%', player.level.toString());
+        });
+        
+        this.log('info', `📜 [JSON] Dialogues post-quête utilisés depuis JSON (${postQuestLines.length} lignes)`);
+        return postQuestLines;
+      }
+      
+      // ✅ PRIORITÉ 3 : Dialogue générique post-quête
+      const genericPostDialogId = `generic.quest.postQuestDialogue`;
+      const genericDialogue = await this.dialogService.getText(genericPostDialogId, playerLanguage as any, dialogVars);
+      
+      if (!genericDialogue.includes('[MISSING:')) {
+        return [genericDialogue];
+      }
+      
+      // ✅ FALLBACK FINAL : Message par défaut
+      const fallbackMessage = playerLanguage === 'en' 
+        ? `Thank you for completing "${questDefinition.name}", ${player.name}! Feel free to talk to me anytime.`
+        : `Merci d'avoir terminé "${questDefinition.name}", ${player.name} ! N'hésitez pas à me reparler à tout moment.`;
+      
+      this.log('info', `🔧 [Fallback] Dialogue post-quête par défaut utilisé`);
+      return [fallbackMessage];
+      
+    } catch (error) {
+      this.log('error', '❌ [DialogString] Erreur récupération dialogue post-quête', error);
+      return [`Félicitations pour avoir terminé votre quête, ${player.name} !`];
+    }
+  }
 
   /**
    * ✅ ÉTAPE 4 : Obtenir dialogue de boutique via DialogString avec langue
@@ -1609,130 +1685,4 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       npcId: npc.id
     };
   }
-  private async checkPostQuestDialogue(
-  username: string, 
-  npcId: number, 
-  playerLanguage: string = 'fr'
-): Promise<NpcInteractionResult | null> {
-  
-  try {
-    this.log('debug', `🔍 Vérification dialogue post-quête pour NPC ${npcId} et joueur ${username}`);
-    
-    // Utiliser QuestManager pour chercher une quête récemment terminée
-    const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(username, npcId, 24);
-    
-    if (!recentQuest) {
-      this.log('debug', `❌ Aucune quête récente avec post-dialogue pour NPC ${npcId}`);
-      return null;
-    }
-    
-    const { questDefinition, completedAt } = recentQuest;
-    const postDialogues = (questDefinition.dialogues as any)?.postQuestDialogue;
-    
-    if (!postDialogues || !Array.isArray(postDialogues) || postDialogues.length === 0) {
-      this.log('debug', `❌ Pas de dialogue post-quête défini pour ${questDefinition.name}`);
-      return null;
-    }
-    
-    this.log('info', `🎉 Dialogue post-quête trouvé pour quête "${questDefinition.name}" (terminée ${this.formatTimeAgo(completedAt)})`);
-    
-    // Traiter les dialogues via DialogString avec langue du joueur
-    const processedDialogues = await this.processPostQuestDialogues(postDialogues, username, questDefinition.name, playerLanguage);
-    
-    // Retourner résultat formaté
-    return {
-      success: true,
-      type: "dialogue",
-      message: processedDialogues.join(' '),
-      lines: processedDialogues,
-      npcId: npcId,
-      npcName: `NPC #${npcId}`,
-      isUnifiedInterface: false,
-      capabilities: ['dialogue'],
-      contextualData: {
-        hasShop: false,
-        hasQuests: false,
-        hasHealing: false,
-        defaultAction: 'dialogue',
-        quickActions: []
-      },
-      // Métadonnées spéciales pour post-quête
-      questId: questDefinition.id,
-      questName: questDefinition.name,
-      intelligenceUsed: false,
-      isIntelligentResponse: false,
-      // Marquer comme dialogue post-quête
-      data: {
-        isPostQuestDialogue: true,
-        completedQuestId: questDefinition.id,
-        completedQuestName: questDefinition.name,
-        completedAt: completedAt.toISOString(),
-        timeAgo: this.formatTimeAgo(completedAt)
-      }
-    };
-    
-  } catch (error) {
-    this.log('error', `❌ Erreur vérification dialogue post-quête:`, error);
-    return null;
-  }
-}
-
-/**
- * ✅ NOUVEAU : Traiter les dialogues post-quête avec DialogString
- */
-private async processPostQuestDialogues(
-  dialogues: string[],
-  username: string,
-  questName: string,
-  playerLanguage: string = 'fr'
-): Promise<string[]> {
-  
-  try {
-    const processedDialogues: string[] = [];
-    
-    for (const dialogue of dialogues) {
-      // Remplacer variables basiques
-      let processedDialogue = dialogue
-        .replace(/%s/g, username)
-        .replace(/%q/g, questName)
-        .replace(/%player/g, username)
-        .replace(/%quest/g, questName);
-      
-      // TODO: Si besoin, utiliser DialogString pour traitement avancé
-      // const dialogVars = this.createPlayerDialogVars(player, undefined, questName);
-      // processedDialogue = await this.dialogService.processText(processedDialogue, playerLanguage as any, dialogVars);
-      
-      processedDialogues.push(processedDialogue);
-    }
-    
-    this.log('debug', `📝 ${processedDialogues.length} dialogues post-quête traités pour ${username}`);
-    return processedDialogues;
-    
-  } catch (error) {
-    this.log('error', `❌ Erreur traitement dialogues post-quête:`, error);
-    // Fallback : retourner dialogues bruts
-    return dialogues.map(d => d.replace(/%s/g, username).replace(/%q/g, questName));
-  }
-}
-
-/**
- * ✅ NOUVEAU : Formater temps écoulé
- */
-private formatTimeAgo(date: Date): string {
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMinutes / 60);
-  
-  if (diffMinutes < 1) {
-    return "à l'instant";
-  } else if (diffMinutes < 60) {
-    return `il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
-  } else if (diffHours < 24) {
-    return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
-  } else {
-    const diffDays = Math.floor(diffHours / 24);
-    return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
-  }
-}
 }
