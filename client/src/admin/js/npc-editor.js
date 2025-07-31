@@ -356,7 +356,7 @@ convertMongoNPCToEditorFormat(mongoNPC) {
     }
 
 
-    async saveCurrentNPCToMongoDB() {
+   async saveCurrentNPCToMongoDB() {
     if (!this.selectedNPC || !this.formBuilder) return
 
     const npc = this.formBuilder.getNPC()
@@ -382,11 +382,28 @@ convertMongoNPCToEditorFormat(mongoNPC) {
     this.renderNPCsList()
     this.renderZoneStats()
 
-    // ✅ NOUVEAU: Sauvegarder directement dans MongoDB
+    // ✅ NOUVEAU: Sauvegarder UN SEUL NPC dans MongoDB
     try {
-        await this.saveAllNPCs()
-        this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
+        const response = await this.adminPanel.apiCall(`/zones/${this.currentZone}/npcs/${npc.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                npc: npc,
+                zone: this.currentZone,
+                lastUpdated: new Date().toISOString()
+            })
+        })
+        
+        if (response.success) {
+            console.log('✅ [NPCEditor] Single NPC saved to MongoDB:', response)
+            this.unsavedChanges = false
+            this.renderZoneStats()
+            this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
+        } else {
+            throw new Error(response.error || 'Erreur sauvegarde MongoDB')
+        }
+        
     } catch (error) {
+        console.error('❌ [NPCEditor] Error saving single NPC:', error)
         this.adminPanel.showNotification('Erreur sauvegarde MongoDB: ' + error.message, 'error')
     }
 }
