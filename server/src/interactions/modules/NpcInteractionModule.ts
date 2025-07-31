@@ -688,7 +688,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       } else if (recentQuest) {
         this.log('info', `ℹ️ [PostQuest] Quête récente trouvée ("${recentQuest.questDefinition.name}") mais pas de dialogue post-quête configuré`);
       } else {
-        this.log('debug', `❌ [PostQuest] Aucune quête récemment terminée pour NPC ${npcId}`);
+        this.log('info', `❌ [PostQuest] Aucune quête récemment terminée pour NPC ${npcId}`);
       }
       
     } catch (error) {
