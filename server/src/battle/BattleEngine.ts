@@ -743,7 +743,7 @@ export class BattleEngine {
       // ✅ INTELLIGENCE IA : Logger la tentative de capture
       this.logCaptureAttempt(action, result);
       
-      if (result.success && result.captureData?.captured) {
+      if (result.success && result.data?.captured) {
         this.gameState.isEnded = true;
         this.gameState.winner = 'player1';
         this.transitionToPhase(InternalBattlePhase.ENDED, 'pokemon_captured');
@@ -768,7 +768,8 @@ export class BattleEngine {
       const playerName = this.getPlayerName(action.playerId);
       if (!playerName || playerName === action.playerId) return;
       
-      const success = result.success && result.captureData?.captured;
+      // ✅ CORRECTION : Vérifier le succès via result.success et result.data
+      const success = result.success && result.data?.captured;
       const actionType = success ? ActionType.POKEMON_CAPTURE_SUCCESS : ActionType.POKEMON_CAPTURE_FAILURE;
       
       console.log(`🧠 [BattleEngine-IA] Logging capture ${success ? 'réussie' : 'ratée'} pour ${playerName}`);
@@ -782,7 +783,7 @@ export class BattleEngine {
           pokemonLevel: this.gameState.player2.pokemon?.level,
           ballType: action.data?.ballType || 'poke_ball',
           captureSuccess: success,
-          captureRate: result.captureData?.captureRate,
+          captureRate: result.data?.captureRate || 0,
           attempts: 1, // TODO: Compter les tentatives multiples
           battleId: this.gameState.battleId,
           turnNumber: this.gameState.turnNumber
