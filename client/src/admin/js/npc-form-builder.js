@@ -675,19 +675,24 @@ populateField(fieldName, value) {
             return this.createPositionField(fieldName, currentValue)
         }
 
-        if (fieldName === 'shopId') {
+       if (fieldName === 'shopId') {
     return this.createShopSelectorField(fieldName, currentValue, isRequired)
 }
-        
-        if (fieldName.includes('dialogue') || fieldName.includes('Description')) {
-            return `<textarea 
-                class="form-textarea" 
-                name="${fieldName}" 
-                placeholder="${placeholder}"
-                rows="3"
-                ${isRequired ? 'required' : ''}
-            >${currentValue || ''}</textarea>`
-        }
+
+// ✅ NOUVEAU: Gestion spéciale pour les champs de dialogue
+if (fieldName === 'dialogueId' || fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
+    return this.createDialogueSelectorField(fieldName, currentValue, isRequired)
+}
+
+if (fieldName.includes('Description')) {
+    return `<textarea 
+        class="form-textarea" 
+        name="${fieldName}" 
+        placeholder="${placeholder}"
+        rows="3"
+        ${isRequired ? 'required' : ''}
+    >${currentValue || ''}</textarea>`
+}
         
         return `<input 
             type="text" 
