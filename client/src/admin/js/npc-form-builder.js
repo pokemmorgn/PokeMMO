@@ -19,7 +19,9 @@ constructor(container, adminPanel = null) {
     this.spritesLoaded = false
     this.shopsCache = {}
 this.tempShopSelection = null
-
+this.dialoguesCache = {}
+this.tempDialogueSelection = null
+    
         this.init()
     }
 
@@ -2257,6 +2259,467 @@ async refreshShopDetails(fieldName) {
         if (this.adminPanel) {
             this.adminPanel.showNotification('Erreur actualisation: ' + error.message, 'error')
         }
+    }
+}
+
+    // ✅ MÉTHODES DIALOGUES À AJOUTER APRÈS refreshShopDetails (ligne ~1200)
+
+// MÉTHODE À AJOUTER : Créer un champ de sélection de dialogues
+createDialogueSelectorField(fieldName, currentValue, isRequired) {
+    // Gérer les différents formats de dialogue
+    let items = []
+    
+    if (Array.isArray(currentValue)) {
+        // Si c'est déjà un array (dialogueIds)
+        items = currentValue
+    } else if (typeof currentValue === 'string' && currentValue) {
+        // Si c'est un string (dialogueId)
+        items = [currentValue]
+    } else if (typeof currentValue === 'object' && currentValue) {
+        // Si c'est un objet (conditionalDialogueIds, etc.)
+        items = Object.values(currentValue).flat().filter(Boolean)
+    }
+    
+    return `
+        <div class="dialogue-selector-field" data-field-name="${fieldName}">
+            <div class="dialogue-items" id="${fieldName}_items">
+                ${items.map((dialogueId, index) => this.createDialogueItem(fieldName, dialogueId, index)).join('')}
+            </div>
+            <div class="dialogue-controls">
+                <button type="button" class="btn btn-sm btn-primary add-dialogue-manual" 
+                        onclick="window.npcFormBuilder.addDialogueManual('${fieldName}')">
+                    ✏️ Ajouter ID manuel
+                </button>
+                <button type="button" class="btn btn-sm btn-success add-dialogue-from-db" 
+                        onclick="window.npcFormBuilder.openDialogueSelector('${fieldName}')">
+                    💬 Choisir de la DB
+                </button>
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Créer un élément de dialogue avec détails
+createDialogueItem(fieldName, dialogueId, index) {
+    // Récupérer les détails du dialogue si disponibles
+    const dialogueDetails = this.getDialogueDetails(dialogueId)
+    
+    return `
+        <div class="dialogue-item" data-index="${index}">
+            <div class="dialogue-info">
+                <input type="text" class="form-input dialogue-id" 
+                       name="${fieldName}[${index}]" 
+                       value="${dialogueId}" 
+                       placeholder="dialogue_id">
+                ${dialogueDetails ? `
+                    <div class="dialogue-details">
+                        <span class="dialogue-text">${dialogueDetails.text}</span>
+                        <span class="dialogue-category">${dialogueDetails.category}</span>
+                    </div>
+                ` : `
+                    <div class="dialogue-details unknown">
+                        <span class="dialogue-text">Dialogue inconnu</span>
+                    </div>
+                `}
+            </div>
+            <div class="dialogue-actions">
+                <button type="button" class="btn btn-sm btn-info" 
+                        onclick="window.npcFormBuilder.refreshDialogueDetails('${fieldName}', ${index})">
+                    🔄
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="window.npcFormBuilder.removeDialogueItem('${fieldName}', ${index})">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Obtenir les détails d'un dialogue
+getDialogueDetails(dialogueId) {
+    // Ici vous pouvez récupérer depuis un cache local ou faire un appel API
+    if (this.dialoguesCache && this.dialoguesCache[dialogueId]) {
+        return this.dialoguesCache[dialogueId]
+    }
+    return null
+}
+
+// MÉTHODE À AJOUTER : Ajouter un dialogue manuellement
+addDialogueManual(fieldName) {
+    const dialogueId = prompt('Entrez l\'ID du dialogue:')
+    if (!dialogueId) return
+    
+    let currentValue = this.getFieldValue(fieldName)
+    
+    // Gérer les différents formats
+    if (fieldName === 'dialogueId') {
+        // Champ simple string
+        this.setFieldValue(fieldName, dialogueId)
+    } else if (fieldName === 'dialogueIds' || fieldName.includes('DialogueIds')) {
+        // Champ array
+        if (!Array.isArray(currentValue)) currentValue = []
+        
+        // Vérifier les doublons
+        if (currentValue.includes(dialogueId)) {
+            alert('Ce dialogue est déjà dans la liste')
+            return
+        }
+        
+        currentValue.push(dialogueId)
+        this.setFieldValue(fieldName, currentValue)
+    }
+    
+    this.rebuildDialogueField(fieldName, this.getFieldValue(fieldName))
+    this.updateJsonPreview()
+}
+
+// MÉTHODE À AJOUTER : Ouvrir le sélecteur de dialogues
+async openDialogueSelector(fieldName) {
+    try {
+        // Charger les dialogues depuis la DB
+        const dialogues = await this.loadDialoguesFromDB()
+        
+        if (!dialogues || dialogues.length === 0) {
+            alert('Aucun dialogue trouvé dans la base de données')
+            return
+        }
+        
+        // Créer et afficher la modal de sélection
+        this.showDialogueSelectorModal(fieldName, dialogues)
+        
+    } catch (error) {
+        console.error('Erreur chargement dialogues:', error)
+        alert('Erreur lors du chargement des dialogues')
+    }
+}
+
+// MÉTHODE À AJOUTER : Charger les dialogues depuis MongoDB
+async loadDialoguesFromDB() {
+    // Vérification avant utilisation
+    if (!this.adminPanel) {
+        throw new Error('AdminPanel non initialisé')
+    }
+    
+    try {
+        console.log('💬 [FormBuilder] Chargement dialogues depuis MongoDB via adminPanel.apiCall...')
+        
+        // Utiliser la même méthode que pour les quêtes et boutiques
+        const response = await this.adminPanel.apiCall('/dialogues?limit=500')
+        
+        console.log('💬 [FormBuilder] Response API dialogues reçue:', response)
+        
+        // Vérifier le format de réponse
+        if (!response || typeof response !== 'object') {
+            throw new Error('Réponse API invalide')
+        }
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Erreur serveur inconnue')
+        }
+        
+        // Vérifier que les dialogues sont présents
+        if (!response.dialogues || !Array.isArray(response.dialogues)) {
+            console.warn('⚠️ [FormBuilder] Pas de dialogues dans la réponse, utiliser tableau vide')
+            return []
+        }
+        
+        // Mettre en cache pour usage ultérieur
+        this.dialoguesCache = {}
+        response.dialogues.forEach(dialogue => {
+            if (dialogue && dialogue.dialogId) {
+                this.dialoguesCache[dialogue.dialogId] = dialogue
+            }
+        })
+        
+        console.log(`✅ [FormBuilder] ${response.dialogues.length} dialogues chargés depuis MongoDB`)
+        console.log('💬 [FormBuilder] Premier dialogue exemple:', response.dialogues[0])
+        
+        return response.dialogues
+        
+    } catch (error) {
+        console.error('❌ [FormBuilder] Erreur chargement dialogues depuis MongoDB:', error)
+        
+        // Diagnostic détaillé pour débugger
+        console.log('🔍 [FormBuilder] Diagnostic détaillé dialogues:')
+        console.log('  - this.adminPanel existe:', !!this.adminPanel)
+        console.log('  - this.adminPanel.apiCall existe:', !!this.adminPanel?.apiCall)
+        
+        // Afficher l'erreur à l'utilisateur pour information
+        if (this.adminPanel && this.adminPanel.showNotification) {
+            this.adminPanel.showNotification('Erreur chargement dialogues: ' + error.message, 'error')
+        }
+        
+        // Retourner tableau vide en cas d'erreur pour éviter les crashes
+        return []
+    }
+}
+
+// MÉTHODE À AJOUTER : Afficher la modal de sélection de dialogues
+showDialogueSelectorModal(fieldName, dialogues) {
+    let currentDialogues = this.getFieldValue(fieldName)
+    
+    // Normaliser en array pour la sélection multiple
+    if (!Array.isArray(currentDialogues)) {
+        currentDialogues = currentDialogues ? [currentDialogues] : []
+    }
+    
+    const modalHTML = `
+        <div class="shop-selector-modal" id="dialogueSelectorModal">
+            <div class="modal-backdrop" onclick="window.npcFormBuilder.closeDialogueSelector()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>💬 Sélectionner des Dialogues</h3>
+                    <button type="button" class="btn-close" onclick="window.npcFormBuilder.closeDialogueSelector()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="🔍 Rechercher un dialogue..." 
+                               onkeyup="window.npcFormBuilder.filterDialogues(this.value)">
+                    </div>
+                    <div class="shops-filter-tabs">
+                        <button class="filter-tab active" onclick="window.npcFormBuilder.filterDialoguesByCategory('all')">
+                            Tous (${dialogues.length})
+                        </button>
+                        ${this.getDialogueCategoryFilters(dialogues)}
+                    </div>
+                    <div class="shops-list" id="dialoguesList">
+                        ${dialogues.map(dialogue => this.createDialogueOption(dialogue, currentDialogues)).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.npcFormBuilder.closeDialogueSelector()">
+                        Annuler
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="window.npcFormBuilder.applyDialogueSelection('${fieldName}')">
+                        Appliquer (${currentDialogues.length} sélectionnés)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `
+    
+    // Ajouter la modal au DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML)
+    this.tempDialogueSelection = [...currentDialogues]
+}
+
+// MÉTHODE À AJOUTER : Créer les filtres par catégorie de dialogue
+getDialogueCategoryFilters(dialogues) {
+    const categoryCount = {}
+    dialogues.forEach(dialogue => {
+        const category = dialogue.category || 'unknown'
+        categoryCount[category] = (categoryCount[category] || 0) + 1
+    })
+    
+    const categoryNames = {
+        'greeting': 'Salutations',
+        'ai': 'IA',
+        'shop': 'Boutique',
+        'healer': 'Soigneur',
+        'quest': 'Quête',
+        'battle': 'Combat',
+        'help': 'Aide',
+        'social': 'Social',
+        'system': 'Système',
+        'ui': 'Interface',
+        'error': 'Erreur'
+    }
+    
+    return Object.entries(categoryCount).map(([category, count]) => `
+        <button class="filter-tab" onclick="window.npcFormBuilder.filterDialoguesByCategory('${category}')">
+            ${categoryNames[category] || category} (${count})
+        </button>
+    `).join('')
+}
+
+// MÉTHODE À AJOUTER : Créer une option de dialogue
+createDialogueOption(dialogue, currentDialogues) {
+    const isSelected = currentDialogues.includes(dialogue.dialogId)
+    const dialogueText = dialogue.fr || dialogue.eng || dialogue.dialogId
+    const truncatedText = dialogueText.length > 100 ? dialogueText.substring(0, 100) + '...' : dialogueText
+    
+    const categoryIcons = {
+        'greeting': '👋',
+        'ai': '🤖',
+        'shop': '🏪',
+        'healer': '💊',
+        'quest': '📜',
+        'battle': '⚔️',
+        'help': '❓',
+        'social': '💬',
+        'system': '⚙️',
+        'ui': '🖥️',
+        'error': '❌'
+    }
+    
+    return `
+        <div class="shop-option ${isSelected ? 'selected' : ''}" 
+             data-dialogue-id="${dialogue.dialogId}" 
+             data-dialogue-category="${dialogue.category}"
+             onclick="window.npcFormBuilder.selectDialogue('${dialogue.dialogId}')">
+            <div class="shop-icon">${categoryIcons[dialogue.category] || '💬'}</div>
+            <div class="shop-info">
+                <div class="shop-name">${dialogue.dialogId}</div>
+                <div class="shop-meta">
+                    <span class="shop-id">NPC: ${dialogue.npcId || 'N/A'}</span>
+                    <span class="shop-type-label">${dialogue.category || 'unknown'}</span>
+                </div>
+                <div class="shop-details-row">
+                    <span class="shop-description">${truncatedText}</span>
+                </div>
+            </div>
+            <div class="shop-status">
+                ${isSelected ? '✅' : ''}
+            </div>
+        </div>
+    `
+}
+
+// MÉTHODE À AJOUTER : Sélectionner un dialogue
+selectDialogue(dialogueId) {
+    // Mettre à jour l'affichage
+    document.querySelectorAll('.shop-option').forEach(option => {
+        const isThisDialogue = option.dataset.dialogueId === dialogueId
+        option.classList.toggle('selected', isThisDialogue)
+    })
+    
+    // Toggle la sélection
+    if (!this.tempDialogueSelection) this.tempDialogueSelection = []
+    const index = this.tempDialogueSelection.indexOf(dialogueId)
+    
+    if (index === -1) {
+        this.tempDialogueSelection.push(dialogueId)
+    } else {
+        this.tempDialogueSelection.splice(index, 1)
+    }
+    
+    // Mettre à jour le compteur
+    const footer = document.querySelector('.modal-footer .btn-primary')
+    if (footer) {
+        footer.textContent = `Appliquer (${this.tempDialogueSelection.length} sélectionnés)`
+    }
+}
+
+// MÉTHODE À AJOUTER : Filtrer les dialogues dans la modal
+filterDialogues(searchTerm) {
+    const dialogueItems = document.querySelectorAll('.shop-option')
+    const term = searchTerm.toLowerCase()
+    
+    dialogueItems.forEach(item => {
+        const dialogueId = item.querySelector('.shop-name').textContent.toLowerCase()
+        const dialogueText = item.querySelector('.shop-description').textContent.toLowerCase()
+        const npcId = item.querySelector('.shop-id').textContent.toLowerCase()
+        
+        const matches = dialogueId.includes(term) || dialogueText.includes(term) || npcId.includes(term)
+        item.style.display = matches ? 'block' : 'none'
+    })
+}
+
+// MÉTHODE À AJOUTER : Filtrer les dialogues par catégorie
+filterDialoguesByCategory(category) {
+    // Mettre à jour les onglets
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active')
+    })
+    event.target.classList.add('active')
+    
+    // Filtrer les dialogues
+    const dialogueItems = document.querySelectorAll('.shop-option')
+    
+    dialogueItems.forEach(item => {
+        const dialogueCategory = item.dataset.dialogueCategory
+        const matches = category === 'all' || dialogueCategory === category
+        item.style.display = matches ? 'block' : 'none'
+    })
+}
+
+// MÉTHODE À AJOUTER : Appliquer la sélection de dialogues
+applyDialogueSelection(fieldName) {
+    if (this.tempDialogueSelection) {
+        let finalValue
+        
+        if (fieldName === 'dialogueId') {
+            // Champ simple - prendre le premier sélectionné
+            finalValue = this.tempDialogueSelection[0] || ''
+        } else {
+            // Champ array - prendre tous
+            finalValue = [...this.tempDialogueSelection]
+        }
+        
+        this.setFieldValue(fieldName, finalValue)
+        this.rebuildDialogueField(fieldName, finalValue)
+        this.updateJsonPreview()
+    }
+    
+    this.closeDialogueSelector()
+}
+
+// MÉTHODE À AJOUTER : Fermer la modal de sélection
+closeDialogueSelector() {
+    const modal = document.getElementById('dialogueSelectorModal')
+    if (modal) {
+        modal.remove()
+    }
+    this.tempDialogueSelection = null
+}
+
+// MÉTHODE À AJOUTER : Reconstruire un champ de dialogues
+rebuildDialogueField(fieldName, dialogues) {
+    const dialogueField = document.querySelector(`[data-field-name="${fieldName}"]`)
+    if (!dialogueField) return
+    
+    let items = []
+    
+    if (Array.isArray(dialogues)) {
+        items = dialogues
+    } else if (typeof dialogues === 'string' && dialogues) {
+        items = [dialogues]
+    }
+    
+    const itemsContainer = dialogueField.querySelector('.dialogue-items')
+    if (itemsContainer) {
+        itemsContainer.innerHTML = items.map((dialogueId, index) => 
+            this.createDialogueItem(fieldName, dialogueId, index)
+        ).join('')
+    }
+}
+
+// MÉTHODE À AJOUTER : Supprimer un élément de dialogue
+removeDialogueItem(fieldName, index) {
+    let currentValue = this.getFieldValue(fieldName)
+    
+    if (fieldName === 'dialogueId') {
+        // Champ simple - vider
+        this.setFieldValue(fieldName, '')
+    } else if (Array.isArray(currentValue)) {
+        // Champ array - supprimer l'élément
+        currentValue.splice(index, 1)
+        this.setFieldValue(fieldName, currentValue)
+    }
+    
+    this.rebuildDialogueField(fieldName, this.getFieldValue(fieldName))
+    this.updateJsonPreview()
+}
+
+// MÉTHODE À AJOUTER : Actualiser les détails d'un dialogue
+async refreshDialogueDetails(fieldName, index) {
+    const input = document.querySelector(`[name="${fieldName}[${index}]"]`)
+    if (!input) return
+    
+    const dialogueId = input.value
+    if (!dialogueId) return
+    
+    try {
+        // Recharger les détails depuis la DB
+        await this.loadDialoguesFromDB()
+        
+        // Reconstruire le champ
+        const currentValue = this.getFieldValue(fieldName)
+        this.rebuildDialogueField(fieldName, currentValue)
+        
+    } catch (error) {
+        console.error('Erreur actualisation dialogue:', error)
     }
 }
     
