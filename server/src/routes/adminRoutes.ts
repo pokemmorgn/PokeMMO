@@ -2441,15 +2441,154 @@ function formatMapName(mapId: string): string {
 router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId } = req.params;
-    console.log(`🧑‍🤝‍🧑 [NPCs API] Loading NPCs for zone: ${zoneId} from MongoDB`);
+    console.log(`🧑‍🤝‍🧑 [NPCs API] Loading ALL NPC data for zone: ${zoneId} from MongoDB`);
     
-    // Charger les NPCs depuis MongoDB
-    const npcs = await NpcData.findByZone(zoneId);
+    // ✅ CORRECTION: Récupérer TOUS les champs sans restriction
+    const npcs = await NpcData.find({ zone: zoneId, isActive: true })
+      .sort({ npcId: 1 })
+      .lean(); // Utiliser lean() pour récupérer les objets JS bruts
     
     console.log(`✅ [NPCs API] Found ${npcs.length} NPCs for ${zoneId} in MongoDB`);
+    console.log(`🔍 [NPCs API] First NPC raw data:`, npcs[0] ? Object.keys(npcs[0]) : 'No NPCs');
     
-    // Convertir au format attendu par l'éditeur
-    const formattedNPCs = npcs.map(npc => npc.toNpcFormat());
+    // ✅ CORRECTION: Conversion COMPLÈTE au format éditeur
+    const formattedNPCs = npcs.map(npc => {
+      console.log(`🔄 [NPCs API] Converting NPC ${npc.npcId} with ALL fields`);
+      
+      // Commencer par tous les champs de base
+      const convertedNPC = {
+        // Champs de base OBLIGATOIRES
+        id: npc.npcId,
+        name: npc.name,
+        type: npc.type,
+        sprite: npc.sprite,
+        direction: npc.direction,
+        
+        // Position STRICTE
+        position: {
+          x: Number(npc.position?.x) || 0,
+          y: Number(npc.position?.y) || 0
+        },
+        
+        // Comportement
+        interactionRadius: npc.interactionRadius || 32,
+        canWalkAway: npc.canWalkAway !== false,
+        autoFacePlayer: npc.autoFacePlayer !== false,
+        repeatable: npc.repeatable !== false,
+        cooldownSeconds: npc.cooldownSeconds || 0,
+        
+        // Système de quêtes
+        questsToGive: npc.questsToGive || [],
+        questsToEnd: npc.questsToEnd || [],
+        questRequirements: npc.questRequirements || {},
+        questDialogueIds: npc.questDialogueIds || {},
+        
+        // Conditions de spawn
+        spawnConditions: npc.spawnConditions || {},
+        
+        // ✅ NOUVELLE CORRECTION: Copier TOUS les champs spécifiques au type
+        // depuis les données MongoDB SANS restriction
+        
+        // Dialogues (tous types)
+        dialogueIds: npc.dialogueIds || npc.npcData?.dialogueIds || [],
+        dialogueId: npc.dialogueId || npc.npcData?.dialogueId,
+        conditionalDialogueIds: npc.conditionalDialogueIds || npc.npcData?.conditionalDialogueIds || {},
+        zoneInfo: npc.zoneInfo || npc.npcData?.zoneInfo || {},
+        
+        // Merchant
+        shopId: npc.shopId || npc.npcData?.shopId || '',
+        shopType: npc.shopType || npc.npcData?.shopType || '',
+        shopConfig: npc.shopConfig || npc.npcData?.shopConfig || {},
+        shopDialogueIds: npc.shopDialogueIds || npc.npcData?.shopDialogueIds || {},
+        businessHours: npc.businessHours || npc.npcData?.businessHours || {},
+        accessRestrictions: npc.accessRestrictions || npc.npcData?.accessRestrictions || {},
+        
+        // Trainer
+        trainerId: npc.trainerId || npc.npcData?.trainerId || '',
+        trainerClass: npc.trainerClass || npc.npcData?.trainerClass || '',
+        trainerRank: npc.trainerRank || npc.npcData?.trainerRank || 1,
+        trainerTitle: npc.trainerTitle || npc.npcData?.trainerTitle || '',
+        battleConfig: npc.battleConfig || npc.npcData?.battleConfig || {},
+        battleDialogueIds: npc.battleDialogueIds || npc.npcData?.battleDialogueIds || {},
+        rewards: npc.rewards || npc.npcData?.rewards || {},
+        rebattle: npc.rebattle || npc.npcData?.rebattle || {},
+        visionConfig: npc.visionConfig || npc.npcData?.visionConfig || {},
+        battleConditions: npc.battleConditions || npc.npcData?.battleConditions || {},
+        progressionFlags: npc.progressionFlags || npc.npcData?.progressionFlags || {},
+        
+        // Healer
+        healerConfig: npc.healerConfig || npc.npcData?.healerConfig || {},
+        healerDialogueIds: npc.healerDialogueIds || npc.npcData?.healerDialogueIds || {},
+        additionalServices: npc.additionalServices || npc.npcData?.additionalServices || {},
+        serviceRestrictions: npc.serviceRestrictions || npc.npcData?.serviceRestrictions || {},
+        
+        // Gym Leader
+        gymConfig: npc.gymConfig || npc.npcData?.gymConfig || {},
+        gymDialogueIds: npc.gymDialogueIds || npc.npcData?.gymDialogueIds || {},
+        challengeConditions: npc.challengeConditions || npc.npcData?.challengeConditions || {},
+        gymRewards: npc.gymRewards || npc.npcData?.gymRewards || {},
+        rematchConfig: npc.rematchConfig || npc.npcData?.rematchConfig || {},
+        
+        // Transport
+        transportConfig: npc.transportConfig || npc.npcData?.transportConfig || {},
+        destinations: npc.destinations || npc.npcData?.destinations || [],
+        schedules: npc.schedules || npc.npcData?.schedules || [],
+        transportDialogueIds: npc.transportDialogueIds || npc.npcData?.transportDialogueIds || {},
+        weatherRestrictions: npc.weatherRestrictions || npc.npcData?.weatherRestrictions || {},
+        
+        // Service
+        serviceConfig: npc.serviceConfig || npc.npcData?.serviceConfig || {},
+        availableServices: npc.availableServices || npc.npcData?.availableServices || [],
+        serviceDialogueIds: npc.serviceDialogueIds || npc.npcData?.serviceDialogueIds || {},
+        
+        // Minigame
+        minigameConfig: npc.minigameConfig || npc.npcData?.minigameConfig || {},
+        contestCategories: npc.contestCategories || npc.npcData?.contestCategories || [],
+        contestRewards: npc.contestRewards || npc.npcData?.contestRewards || {},
+        contestDialogueIds: npc.contestDialogueIds || npc.npcData?.contestDialogueIds || {},
+        contestSchedule: npc.contestSchedule || npc.npcData?.contestSchedule || {},
+        
+        // Researcher
+        researchConfig: npc.researchConfig || npc.npcData?.researchConfig || {},
+        researchServices: npc.researchServices || npc.npcData?.researchServices || [],
+        acceptedPokemon: npc.acceptedPokemon || npc.npcData?.acceptedPokemon || [],
+        researchDialogueIds: npc.researchDialogueIds || npc.npcData?.researchDialogueIds || {},
+        researchRewards: npc.researchRewards || npc.npcData?.researchRewards || {},
+        
+        // Guild
+        guildConfig: npc.guildConfig || npc.npcData?.guildConfig || {},
+        recruitmentRequirements: npc.recruitmentRequirements || npc.npcData?.recruitmentRequirements || {},
+        guildServices: npc.guildServices || npc.npcData?.guildServices || [],
+        guildDialogueIds: npc.guildDialogueIds || npc.npcData?.guildDialogueIds || {},
+        rankSystem: npc.rankSystem || npc.npcData?.rankSystem || {},
+        
+        // Event
+        eventConfig: npc.eventConfig || npc.npcData?.eventConfig || {},
+        eventPeriod: npc.eventPeriod || npc.npcData?.eventPeriod || {},
+        eventActivities: npc.eventActivities || npc.npcData?.eventActivities || [],
+        eventDialogueIds: npc.eventDialogueIds || npc.npcData?.eventDialogueIds || {},
+        globalProgress: npc.globalProgress || npc.npcData?.globalProgress || {},
+        
+        // Quest Master
+        questMasterConfig: npc.questMasterConfig || npc.npcData?.questMasterConfig || {},
+        questMasterDialogueIds: npc.questMasterDialogueIds || npc.npcData?.questMasterDialogueIds || {},
+        questRankSystem: npc.questRankSystem || npc.npcData?.questRankSystem || {},
+        epicRewards: npc.epicRewards || npc.npcData?.epicRewards || {},
+        specialConditions: npc.specialConditions || npc.npcData?.specialConditions || {}
+      };
+      
+      // ✅ CORRECTION CRITIQUE: Copier TOUS les champs restants depuis npcData
+      if (npc.npcData && typeof npc.npcData === 'object') {
+        Object.keys(npc.npcData).forEach(key => {
+          if (!(key in convertedNPC)) {
+            convertedNPC[key] = npc.npcData[key];
+          }
+        });
+      }
+      
+      console.log(`✅ [NPCs API] NPC ${npc.npcId} converted with ${Object.keys(convertedNPC).length} fields`);
+      return convertedNPC;
+    });
     
     res.json({
       success: true,
@@ -2457,7 +2596,7 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         zone: zoneId,
         version: "2.0.0",
         lastUpdated: new Date().toISOString(),
-        description: `NPCs for zone ${zoneId} - From MongoDB`,
+        description: `NPCs for zone ${zoneId} - Complete data from MongoDB`,
         npcs: formattedNPCs
       },
       zoneId,
@@ -2466,10 +2605,10 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error loading NPCs from MongoDB:', error);
+    console.error('❌ [NPCs API] Error loading complete NPCs from MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors du chargement des NPCs depuis MongoDB'
+      error: 'Erreur lors du chargement complet des NPCs depuis MongoDB'
     });
   }
 });
