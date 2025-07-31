@@ -109,118 +109,80 @@ export class NPCEditorModule {
 // NOUVELLE MÉTHODE À AJOUTER
 // ==============================
 
+// ✅ MÉTHODE CORRIGÉE: convertMongoNPCToEditorFormat
+// À remplacer dans client/src/admin/js/npc-editor.js
+
 convertMongoNPCToEditorFormat(mongoNPC) {
-    console.log('🔄 [NPCEditor] Converting MongoDB NPC to editor format:', mongoNPC)
+    console.log('🔄 [NPCEditor] Converting MongoDB NPC with ALL fields:', mongoNPC);
     
-    // S'assurer que tous les champs requis sont présents
+    // ✅ CORRECTION: D'ABORD copier tous les champs de MongoDB
     const editorNPC = {
-        // Champs de base obligatoires
-        id: mongoNPC.npcId || mongoNPC.id,
-        name: mongoNPC.name || 'NPC Sans Nom',
-        type: mongoNPC.type || 'dialogue',
-        sprite: mongoNPC.sprite || 'default.png',
-        direction: mongoNPC.direction || 'south',
-        
-        // Position avec validation STRICTE
-        position: {
-            x: Number(mongoNPC.position?.x) || 0,
-            y: Number(mongoNPC.position?.y) || 0
-        },
-        
-        // Champs comportementaux avec valeurs par défaut
-        interactionRadius: mongoNPC.interactionRadius || 32,
-        canWalkAway: mongoNPC.canWalkAway !== false,
-        autoFacePlayer: mongoNPC.autoFacePlayer !== false,
-        repeatable: mongoNPC.repeatable !== false,
-        cooldownSeconds: mongoNPC.cooldownSeconds || 0,
-        
-        // Système de quêtes
-        questsToGive: mongoNPC.questsToGive || [],
-        questsToEnd: mongoNPC.questsToEnd || [],
-        questRequirements: mongoNPC.questRequirements || {},
-        questDialogueIds: mongoNPC.questDialogueIds || {},
-        
-        // Conditions de spawn
-        spawnConditions: mongoNPC.spawnConditions || {}
-    }
+        ...mongoNPC, // ← Copier TOUT en premier
+    };
     
-    // Ajouter les données spécifiques selon le type depuis npcData
+    // ✅ PUIS forcer les champs critiques (qui vont override ce qui existe déjà)
+    editorNPC.id = mongoNPC.npcId || mongoNPC.id;
+    editorNPC.name = mongoNPC.name || 'NPC Sans Nom';
+    editorNPC.type = mongoNPC.type || 'dialogue';
+    editorNPC.sprite = mongoNPC.sprite || 'default.png';
+    editorNPC.direction = mongoNPC.direction || 'south';
+    
+    // ✅ Position avec validation STRICTE (toujours forcer)
+    editorNPC.position = {
+        x: Number(mongoNPC.position?.x) || 0,
+        y: Number(mongoNPC.position?.y) || 0
+    };
+    
+    // ✅ CORRECTION: Merger les données de npcData si elles existent
     if (mongoNPC.npcData && typeof mongoNPC.npcData === 'object') {
-        // Copier tous les champs de npcData
-        Object.assign(editorNPC, mongoNPC.npcData)
+        console.log('🔍 [NPCEditor] Merging npcData fields:', Object.keys(mongoNPC.npcData));
+        
+        // Copier tous les champs de npcData qui n'existent pas déjà au niveau racine
+        Object.entries(mongoNPC.npcData).forEach(([key, value]) => {
+            if (editorNPC[key] === undefined || editorNPC[key] === null) {
+                editorNPC[key] = value;
+                console.log(`📋 [NPCEditor] Merged from npcData: ${key}`);
+            }
+        });
     }
     
-    // Champs spécifiques selon le type avec fallbacks
-    switch (mongoNPC.type) {
-        case 'dialogue':
-            editorNPC.dialogueIds = editorNPC.dialogueIds || mongoNPC.npcData?.dialogueIds || []
-            editorNPC.dialogueId = editorNPC.dialogueId || mongoNPC.npcData?.dialogueId
-            editorNPC.conditionalDialogueIds = editorNPC.conditionalDialogueIds || mongoNPC.npcData?.conditionalDialogueIds || {}
-            editorNPC.zoneInfo = editorNPC.zoneInfo || mongoNPC.npcData?.zoneInfo || {}
-            break
-            
-        case 'merchant':
-            editorNPC.shopId = editorNPC.shopId || mongoNPC.npcData?.shopId || ''
-            editorNPC.shopType = editorNPC.shopType || mongoNPC.npcData?.shopType || 'pokemart'
-            editorNPC.shopConfig = editorNPC.shopConfig || mongoNPC.npcData?.shopConfig || {}
-            editorNPC.shopDialogueIds = editorNPC.shopDialogueIds || mongoNPC.npcData?.shopDialogueIds || {}
-            editorNPC.businessHours = editorNPC.businessHours || mongoNPC.npcData?.businessHours || {}
-            editorNPC.accessRestrictions = editorNPC.accessRestrictions || mongoNPC.npcData?.accessRestrictions || {}
-            break
-            
-        case 'trainer':
-            editorNPC.trainerId = editorNPC.trainerId || mongoNPC.npcData?.trainerId || ''
-            editorNPC.trainerClass = editorNPC.trainerClass || mongoNPC.npcData?.trainerClass || 'youngster'
-            editorNPC.trainerRank = editorNPC.trainerRank || mongoNPC.npcData?.trainerRank || 1
-            editorNPC.trainerTitle = editorNPC.trainerTitle || mongoNPC.npcData?.trainerTitle || ''
-            editorNPC.battleConfig = editorNPC.battleConfig || mongoNPC.npcData?.battleConfig || {}
-            editorNPC.battleDialogueIds = editorNPC.battleDialogueIds || mongoNPC.npcData?.battleDialogueIds || {}
-            editorNPC.rewards = editorNPC.rewards || mongoNPC.npcData?.rewards || {}
-            editorNPC.rebattle = editorNPC.rebattle || mongoNPC.npcData?.rebattle || {}
-            editorNPC.visionConfig = editorNPC.visionConfig || mongoNPC.npcData?.visionConfig || {}
-            editorNPC.battleConditions = editorNPC.battleConditions || mongoNPC.npcData?.battleConditions || {}
-            editorNPC.progressionFlags = editorNPC.progressionFlags || mongoNPC.npcData?.progressionFlags || {}
-            break
-            
-        case 'healer':
-            editorNPC.healerConfig = editorNPC.healerConfig || mongoNPC.npcData?.healerConfig || {}
-            editorNPC.healerDialogueIds = editorNPC.healerDialogueIds || mongoNPC.npcData?.healerDialogueIds || {}
-            editorNPC.additionalServices = editorNPC.additionalServices || mongoNPC.npcData?.additionalServices || {}
-            editorNPC.serviceRestrictions = editorNPC.serviceRestrictions || mongoNPC.npcData?.serviceRestrictions || {}
-            break
-            
-        case 'gym_leader':
-            editorNPC.trainerId = editorNPC.trainerId || mongoNPC.npcData?.trainerId || ''
-            editorNPC.trainerClass = editorNPC.trainerClass || mongoNPC.npcData?.trainerClass || 'gym_leader'
-            editorNPC.gymConfig = editorNPC.gymConfig || mongoNPC.npcData?.gymConfig || {}
-            editorNPC.battleConfig = editorNPC.battleConfig || mongoNPC.npcData?.battleConfig || {}
-            editorNPC.challengeConditions = editorNPC.challengeConditions || mongoNPC.npcData?.challengeConditions || {}
-            editorNPC.gymDialogueIds = editorNPC.gymDialogueIds || mongoNPC.npcData?.gymDialogueIds || {}
-            editorNPC.gymRewards = editorNPC.gymRewards || mongoNPC.npcData?.gymRewards || {}
-            editorNPC.rematchConfig = editorNPC.rematchConfig || mongoNPC.npcData?.rematchConfig || {}
-            break
-            
-        case 'transport':
-            editorNPC.transportConfig = editorNPC.transportConfig || mongoNPC.npcData?.transportConfig || {}
-            editorNPC.destinations = editorNPC.destinations || mongoNPC.npcData?.destinations || []
-            editorNPC.schedules = editorNPC.schedules || mongoNPC.npcData?.schedules || []
-            editorNPC.transportDialogueIds = editorNPC.transportDialogueIds || mongoNPC.npcData?.transportDialogueIds || {}
-            editorNPC.weatherRestrictions = editorNPC.weatherRestrictions || mongoNPC.npcData?.weatherRestrictions || {}
-            break
-            
-        case 'service':
-            editorNPC.serviceConfig = editorNPC.serviceConfig || mongoNPC.npcData?.serviceConfig || {}
-            editorNPC.availableServices = editorNPC.availableServices || mongoNPC.npcData?.availableServices || []
-            editorNPC.serviceDialogueIds = editorNPC.serviceDialogueIds || mongoNPC.npcData?.serviceDialogueIds || {}
-            editorNPC.serviceRestrictions = editorNPC.serviceRestrictions || mongoNPC.npcData?.serviceRestrictions || {}
-            break
-            
-        // Ajouter les autres types selon vos besoins...
+    // ✅ S'assurer que les champs obligatoires ont des valeurs par défaut
+    const defaults = {
+        interactionRadius: 32,
+        canWalkAway: true,
+        autoFacePlayer: true,
+        repeatable: true,
+        cooldownSeconds: 0,
+        questsToGive: [],
+        questsToEnd: [],
+        questRequirements: {},
+        questDialogueIds: {},
+        spawnConditions: {}
+    };
+    
+    // Appliquer les defaults seulement si la valeur n'existe pas
+    Object.entries(defaults).forEach(([key, defaultValue]) => {
+        if (editorNPC[key] === undefined || editorNPC[key] === null) {
+            editorNPC[key] = defaultValue;
+        }
+    });
+    
+    console.log('✅ [NPCEditor] NPC converted with ALL fields preserved');
+    console.log('📋 [NPCEditor] Final NPC keys:', Object.keys(editorNPC).length, 'fields');
+    console.log('📍 [NPCEditor] Position preserved:', editorNPC.position);
+    
+    // ✅ Debug spécifique pour les champs importants
+    if (mongoNPC.type === 'merchant') {
+        console.log('🏪 [NPCEditor] Merchant fields - shopId:', editorNPC.shopId, 'shopConfig:', !!editorNPC.shopConfig);
+    }
+    if (mongoNPC.type === 'trainer') {
+        console.log('⚔️ [NPCEditor] Trainer fields - trainerId:', editorNPC.trainerId, 'battleConfig:', !!editorNPC.battleConfig);
     }
     
-    console.log('✅ [NPCEditor] Converted NPC with position:', editorNPC.position)
-    return editorNPC
+    return editorNPC;
 }
+
+    
     // ==============================
     // SAUVEGARDE MONGODB
     // ==============================
