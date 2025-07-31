@@ -2633,40 +2633,177 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
 });
 
 // ✅ ROUTE: Modifier un NPC spécifique dans MongoDB
+// Dans server/src/routes/adminRoutes.ts
+// Remplacer complètement la route PUT /zones/:zoneId/npcs/:npcId par :
+
 router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId, npcId } = req.params;
-    const updates = req.body;
+    const { npc } = req.body;
     
-    console.log(`✏️ [NPCs API] Updating NPC ${npcId} in zone ${zoneId} in MongoDB`);
+    console.log(`✏️ [NPCs API] Complete MongoDB update NPC ${npcId} in zone ${zoneId}`);
     
-    // Trouver le NPC
-    const npc = await NpcData.findOne({ zone: zoneId, npcId: parseInt(npcId) });
     if (!npc) {
+      return res.status(400).json({
+        success: false,
+        error: 'Données NPC manquantes'
+      });
+    }
+    
+    // ✅ MISE À JOUR COMPLÈTE avec TOUS les champs possibles
+    const updateData: any = {
+      name: npc.name,
+      type: npc.type,
+      sprite: npc.sprite,
+      direction: npc.direction,
+      position: {
+        x: Number(npc.position?.x) || 0,
+        y: Number(npc.position?.y) || 0
+      },
+      interactionRadius: npc.interactionRadius || 32,
+      canWalkAway: npc.canWalkAway !== false,
+      autoFacePlayer: npc.autoFacePlayer !== false,
+      repeatable: npc.repeatable !== false,
+      cooldownSeconds: npc.cooldownSeconds || 0,
+      
+      // Système de quêtes
+      questsToGive: npc.questsToGive || [],
+      questsToEnd: npc.questsToEnd || [],
+      questRequirements: npc.questRequirements || {},
+      questDialogueIds: npc.questDialogueIds || {},
+      
+      // Conditions de spawn
+      spawnConditions: npc.spawnConditions || {},
+      
+      // Métadonnées
+      lastUpdated: new Date(),
+      version: '2.0.0'
+    };
+    
+    // ✅ TOUS LES CHAMPS SPÉCIFIQUES AU TYPE
+    // Dialogue NPCs
+    if (npc.dialogueIds !== undefined) updateData.dialogueIds = npc.dialogueIds;
+    if (npc.dialogueId !== undefined) updateData.dialogueId = npc.dialogueId;
+    if (npc.conditionalDialogueIds !== undefined) updateData.conditionalDialogueIds = npc.conditionalDialogueIds;
+    if (npc.zoneInfo !== undefined) updateData.zoneInfo = npc.zoneInfo;
+    
+    // Merchant NPCs
+    if (npc.shopId !== undefined) updateData.shopId = npc.shopId;
+    if (npc.shopType !== undefined) updateData.shopType = npc.shopType;
+    if (npc.shopConfig !== undefined) updateData.shopConfig = npc.shopConfig;
+    if (npc.shopDialogueIds !== undefined) updateData.shopDialogueIds = npc.shopDialogueIds;
+    if (npc.businessHours !== undefined) updateData.businessHours = npc.businessHours;
+    if (npc.accessRestrictions !== undefined) updateData.accessRestrictions = npc.accessRestrictions;
+    
+    // Trainer NPCs
+    if (npc.trainerId !== undefined) updateData.trainerId = npc.trainerId;
+    if (npc.trainerClass !== undefined) updateData.trainerClass = npc.trainerClass;
+    if (npc.trainerRank !== undefined) updateData.trainerRank = npc.trainerRank;
+    if (npc.trainerTitle !== undefined) updateData.trainerTitle = npc.trainerTitle;
+    if (npc.battleConfig !== undefined) updateData.battleConfig = npc.battleConfig;
+    if (npc.battleDialogueIds !== undefined) updateData.battleDialogueIds = npc.battleDialogueIds;
+    if (npc.rewards !== undefined) updateData.rewards = npc.rewards;
+    if (npc.rebattle !== undefined) updateData.rebattle = npc.rebattle;
+    if (npc.visionConfig !== undefined) updateData.visionConfig = npc.visionConfig;
+    if (npc.battleConditions !== undefined) updateData.battleConditions = npc.battleConditions;
+    if (npc.progressionFlags !== undefined) updateData.progressionFlags = npc.progressionFlags;
+    
+    // Healer NPCs
+    if (npc.healerConfig !== undefined) updateData.healerConfig = npc.healerConfig;
+    if (npc.healerDialogueIds !== undefined) updateData.healerDialogueIds = npc.healerDialogueIds;
+    if (npc.additionalServices !== undefined) updateData.additionalServices = npc.additionalServices;
+    if (npc.serviceRestrictions !== undefined) updateData.serviceRestrictions = npc.serviceRestrictions;
+    
+    // Gym Leader NPCs
+    if (npc.gymConfig !== undefined) updateData.gymConfig = npc.gymConfig;
+    if (npc.gymDialogueIds !== undefined) updateData.gymDialogueIds = npc.gymDialogueIds;
+    if (npc.challengeConditions !== undefined) updateData.challengeConditions = npc.challengeConditions;
+    if (npc.gymRewards !== undefined) updateData.gymRewards = npc.gymRewards;
+    if (npc.rematchConfig !== undefined) updateData.rematchConfig = npc.rematchConfig;
+    
+    // Transport NPCs
+    if (npc.transportConfig !== undefined) updateData.transportConfig = npc.transportConfig;
+    if (npc.destinations !== undefined) updateData.destinations = npc.destinations;
+    if (npc.schedules !== undefined) updateData.schedules = npc.schedules;
+    if (npc.transportDialogueIds !== undefined) updateData.transportDialogueIds = npc.transportDialogueIds;
+    if (npc.weatherRestrictions !== undefined) updateData.weatherRestrictions = npc.weatherRestrictions;
+    
+    // Service NPCs
+    if (npc.serviceConfig !== undefined) updateData.serviceConfig = npc.serviceConfig;
+    if (npc.availableServices !== undefined) updateData.availableServices = npc.availableServices;
+    if (npc.serviceDialogueIds !== undefined) updateData.serviceDialogueIds = npc.serviceDialogueIds;
+    
+    // Minigame NPCs
+    if (npc.minigameConfig !== undefined) updateData.minigameConfig = npc.minigameConfig;
+    if (npc.contestCategories !== undefined) updateData.contestCategories = npc.contestCategories;
+    if (npc.contestRewards !== undefined) updateData.contestRewards = npc.contestRewards;
+    if (npc.contestDialogueIds !== undefined) updateData.contestDialogueIds = npc.contestDialogueIds;
+    if (npc.contestSchedule !== undefined) updateData.contestSchedule = npc.contestSchedule;
+    
+    // Researcher NPCs
+    if (npc.researchConfig !== undefined) updateData.researchConfig = npc.researchConfig;
+    if (npc.researchServices !== undefined) updateData.researchServices = npc.researchServices;
+    if (npc.acceptedPokemon !== undefined) updateData.acceptedPokemon = npc.acceptedPokemon;
+    if (npc.researchDialogueIds !== undefined) updateData.researchDialogueIds = npc.researchDialogueIds;
+    if (npc.researchRewards !== undefined) updateData.researchRewards = npc.researchRewards;
+    
+    // Guild NPCs
+    if (npc.guildConfig !== undefined) updateData.guildConfig = npc.guildConfig;
+    if (npc.recruitmentRequirements !== undefined) updateData.recruitmentRequirements = npc.recruitmentRequirements;
+    if (npc.guildServices !== undefined) updateData.guildServices = npc.guildServices;
+    if (npc.guildDialogueIds !== undefined) updateData.guildDialogueIds = npc.guildDialogueIds;
+    if (npc.rankSystem !== undefined) updateData.rankSystem = npc.rankSystem;
+    
+    // Event NPCs
+    if (npc.eventConfig !== undefined) updateData.eventConfig = npc.eventConfig;
+    if (npc.eventPeriod !== undefined) updateData.eventPeriod = npc.eventPeriod;
+    if (npc.eventActivities !== undefined) updateData.eventActivities = npc.eventActivities;
+    if (npc.eventDialogueIds !== undefined) updateData.eventDialogueIds = npc.eventDialogueIds;
+    if (npc.globalProgress !== undefined) updateData.globalProgress = npc.globalProgress;
+    
+    // Quest Master NPCs
+    if (npc.questMasterConfig !== undefined) updateData.questMasterConfig = npc.questMasterConfig;
+    if (npc.questMasterDialogueIds !== undefined) updateData.questMasterDialogueIds = npc.questMasterDialogueIds;
+    if (npc.questRankSystem !== undefined) updateData.questRankSystem = npc.questRankSystem;
+    if (npc.epicRewards !== undefined) updateData.epicRewards = npc.epicRewards;
+    if (npc.specialConditions !== undefined) updateData.specialConditions = npc.specialConditions;
+    
+    // ✅ MISE À JOUR avec TOUS les champs
+    const updatedNpc = await NpcData.findOneAndUpdate(
+      { 
+        zone: zoneId, 
+        npcId: parseInt(npcId) 
+      },
+      { $set: updateData },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+    
+    if (!updatedNpc) {
       return res.status(404).json({
         success: false,
         error: 'NPC non trouvé'
       });
     }
     
-    // Appliquer les modifications via la méthode updateFromJson
-    await npc.updateFromJson(updates);
-    
-    console.log(`✅ [NPCs API] NPC ${npcId} updated in ${zoneId} by ${req.user.username}`);
+    console.log(`✅ [NPCs API] ALL fields updated for NPC ${npcId} by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: 'NPC modifié avec succès',
-      npc: npc.toNpcFormat(),
-      modifiedBy: req.user.username,
-      source: 'mongodb'
+      message: 'NPC mis à jour avec succès (tous champs)',
+      npc: updatedNpc.toNpcFormat(),
+      updatedBy: req.user.username,
+      fieldsUpdated: Object.keys(updateData).length
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error updating NPC in MongoDB:', error);
+    console.error('❌ [NPCs API] Error updating all NPC fields:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la modification du NPC dans MongoDB'
+      error: 'Erreur lors de la mise à jour complète du NPC',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
