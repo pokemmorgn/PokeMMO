@@ -90,7 +90,10 @@ export class BattleRoom extends Room<BattleState> {
           data: { reason: 'player_flee' }
         };
         
-        this.battleEngine.submitAction(fleeAction).catch(console.error);
+        // ✅ CORRECTION : Attendre que l'action soit loggée AVANT de fermer
+        console.log(`🧠 [BattleRoom] Logging action de fuite...`);
+        await this.battleEngine.submitAction(fleeAction);
+        console.log(`✅ [BattleRoom] Action de fuite loggée avec succès`);
         
         client.send("fleeResult", {
           success: true,
@@ -98,7 +101,8 @@ export class BattleRoom extends Room<BattleState> {
           fled: true
         });
         
-        setTimeout(() => this.disconnect(), 1500);
+        // ✅ CORRECTION : Délai augmenté pour garantir la sauvegarde
+        setTimeout(() => this.disconnect(), 2500);
         
       } catch (error) {
         console.error(`❌ [BattleRoom] Erreur handler fuite:`, error);
@@ -109,7 +113,7 @@ export class BattleRoom extends Room<BattleState> {
           fled: true
         });
         
-        setTimeout(() => this.disconnect(), 1500);
+        setTimeout(() => this.disconnect(), 2500);
       }
     });
 
