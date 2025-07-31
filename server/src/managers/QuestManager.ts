@@ -1193,6 +1193,72 @@ export class QuestManager {
   }
 
   /**
+ * ✅ NOUVEAU : Récupère la quête la plus récemment terminée pour un NPC donné
+ * @param username - Nom du joueur
+ * @param npcId - ID du NPC (startNpcId ou endNpcId)
+ * @param withinHours - Heures max depuis completion (défaut: 24h)
+ * @returns La quête récemment terminée avec ses dialogues post-quête, ou null
+ */
+public async getRecentlyCompletedQuestByNpc(
+  username: string, 
+  npcId: number, 
+  withinHours: number = 24
+): Promise<{ questDefinition: any; completedAt: Date } | null> {
+  try {
+    this.log('debug', `🔍 Recherche quête récemment terminée pour NPC ${npcId} par ${username}`);
+    
+    // 1. Récupérer l'historique récent du joueur
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - withinHours);
+    
+    const playerQuests = await this.playerQuestModel.find({
+      username,
+      status: 'completed',
+      completedAt: { $gte: cutoffTime }
+    }).sort({ completedAt: -1 }); // Trier par plus récent d'abord
+    
+    if (playerQuests.length === 0) {
+      this.log('debug', `❌ Aucune quête récemment terminée pour ${username}`);
+      return null;
+    }
+    
+    // 2. Chercher une quête terminée liée à ce NPC
+    for (const playerQuest of playerQuests) {
+      try {
+        const questDefinition = this.getQuestDefinition(playerQuest.questId);
+        
+        if (!questDefinition) {
+          this.log('warn', `⚠️ Définition manquante pour quête ${playerQuest.questId}`);
+          continue;
+        }
+        
+        // Vérifier si ce NPC est lié à cette quête (start ou end)
+        const isRelatedNpc = questDefinition.startNpcId === npcId || questDefinition.endNpcId === npcId;
+        
+        if (isRelatedNpc && questDefinition.dialogues?.postQuestDialogue) {
+          this.log('info', `✅ Quête post-dialogue trouvée: ${questDefinition.name} (terminée le ${playerQuest.completedAt})`);
+          
+          return {
+            questDefinition,
+            completedAt: playerQuest.completedAt
+          };
+        }
+        
+      } catch (error) {
+        this.log('warn', `⚠️ Erreur vérification quête ${playerQuest.questId}:`, error);
+        continue;
+      }
+    }
+    
+    this.log('debug', `❌ Aucune quête avec post-dialogue trouvée pour NPC ${npcId}`);
+    return null;
+    
+  } catch (error) {
+    this.log('error', `❌ Erreur recherche quête récente NPC ${npcId}:`, error);
+    return null;
+  }
+}
+  /**
    * ✅ CONSERVÉ : Construction quête depuis progression
    */
   private buildQuestFromProgress(definition: QuestDefinition, progress: any): Quest {
