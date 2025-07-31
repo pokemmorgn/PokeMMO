@@ -676,6 +676,13 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       return await this.handleStarterTableInteraction(player, npc, npcId);
     }
 
+    // ✅ NOUVEAU : 1.5. Vérifier dialogue post-quête
+    const postQuestResult = await this.checkPostQuestDialogue(player.name, npcId, playerLanguage);
+    if (postQuestResult) {
+      this.log('info', `🎉 Dialogue post-quête trouvé pour NPC ${npcId}`);
+      return postQuestResult;
+    }
+    
     // 2. Vérifier d'abord les objectifs talk
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
@@ -1602,4 +1609,130 @@ async handle(context: InteractionContext | EnhancedInteractionContext): Promise<
       npcId: npc.id
     };
   }
+  private async checkPostQuestDialogue(
+  username: string, 
+  npcId: number, 
+  playerLanguage: string = 'fr'
+): Promise<NpcInteractionResult | null> {
+  
+  try {
+    this.log('debug', `🔍 Vérification dialogue post-quête pour NPC ${npcId} et joueur ${username}`);
+    
+    // Utiliser QuestManager pour chercher une quête récemment terminée
+    const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(username, npcId, 24);
+    
+    if (!recentQuest) {
+      this.log('debug', `❌ Aucune quête récente avec post-dialogue pour NPC ${npcId}`);
+      return null;
+    }
+    
+    const { questDefinition, completedAt } = recentQuest;
+    const postDialogues = (questDefinition.dialogues as any)?.postQuestDialogue;
+    
+    if (!postDialogues || !Array.isArray(postDialogues) || postDialogues.length === 0) {
+      this.log('debug', `❌ Pas de dialogue post-quête défini pour ${questDefinition.name}`);
+      return null;
+    }
+    
+    this.log('info', `🎉 Dialogue post-quête trouvé pour quête "${questDefinition.name}" (terminée ${this.formatTimeAgo(completedAt)})`);
+    
+    // Traiter les dialogues via DialogString avec langue du joueur
+    const processedDialogues = await this.processPostQuestDialogues(postDialogues, username, questDefinition.name, playerLanguage);
+    
+    // Retourner résultat formaté
+    return {
+      success: true,
+      type: "dialogue",
+      message: processedDialogues.join(' '),
+      lines: processedDialogues,
+      npcId: npcId,
+      npcName: `NPC #${npcId}`,
+      isUnifiedInterface: false,
+      capabilities: ['dialogue'],
+      contextualData: {
+        hasShop: false,
+        hasQuests: false,
+        hasHealing: false,
+        defaultAction: 'dialogue',
+        quickActions: []
+      },
+      // Métadonnées spéciales pour post-quête
+      questId: questDefinition.id,
+      questName: questDefinition.name,
+      intelligenceUsed: false,
+      isIntelligentResponse: false,
+      // Marquer comme dialogue post-quête
+      data: {
+        isPostQuestDialogue: true,
+        completedQuestId: questDefinition.id,
+        completedQuestName: questDefinition.name,
+        completedAt: completedAt.toISOString(),
+        timeAgo: this.formatTimeAgo(completedAt)
+      }
+    };
+    
+  } catch (error) {
+    this.log('error', `❌ Erreur vérification dialogue post-quête:`, error);
+    return null;
+  }
+}
+
+/**
+ * ✅ NOUVEAU : Traiter les dialogues post-quête avec DialogString
+ */
+private async processPostQuestDialogues(
+  dialogues: string[],
+  username: string,
+  questName: string,
+  playerLanguage: string = 'fr'
+): Promise<string[]> {
+  
+  try {
+    const processedDialogues: string[] = [];
+    
+    for (const dialogue of dialogues) {
+      // Remplacer variables basiques
+      let processedDialogue = dialogue
+        .replace(/%s/g, username)
+        .replace(/%q/g, questName)
+        .replace(/%player/g, username)
+        .replace(/%quest/g, questName);
+      
+      // TODO: Si besoin, utiliser DialogString pour traitement avancé
+      // const dialogVars = this.createPlayerDialogVars(player, undefined, questName);
+      // processedDialogue = await this.dialogService.processText(processedDialogue, playerLanguage as any, dialogVars);
+      
+      processedDialogues.push(processedDialogue);
+    }
+    
+    this.log('debug', `📝 ${processedDialogues.length} dialogues post-quête traités pour ${username}`);
+    return processedDialogues;
+    
+  } catch (error) {
+    this.log('error', `❌ Erreur traitement dialogues post-quête:`, error);
+    // Fallback : retourner dialogues bruts
+    return dialogues.map(d => d.replace(/%s/g, username).replace(/%q/g, questName));
+  }
+}
+
+/**
+ * ✅ NOUVEAU : Formater temps écoulé
+ */
+private formatTimeAgo(date: Date): string {
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+  
+  if (diffMinutes < 1) {
+    return "à l'instant";
+  } else if (diffMinutes < 60) {
+    return `il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
+  } else if (diffHours < 24) {
+    return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+  } else {
+    const diffDays = Math.floor(diffHours / 24);
+    return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+  }
+}
 }
