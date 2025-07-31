@@ -28,6 +28,8 @@ export interface IQuestData extends Document {
     questOffer?: string[];         // Dialogues d'offre de quête
     questInProgress?: string[];    // Dialogues pendant la quête
     questComplete?: string[];      // Dialogues de completion
+
+    postQuestDialogue?: string[];  // Dialogues après completion (pour reparler au NPC)
     
     // 🆕 NOUVEAUX : Dialogues étendus
     questFailed?: string[];        // Dialogues d'échec
@@ -585,7 +587,12 @@ const DialoguesSchema = new Schema({
     trim: true,
     maxlength: [1000, 'Quest complete dialogue too long']
   }],
-  
+  postQuestDialogue: [{ 
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Post quest dialogue too long']
+  }],
+    
   // 🆕 NOUVEAUX : Dialogues étendus
   questFailed: [{ 
     type: String,
