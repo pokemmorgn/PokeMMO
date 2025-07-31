@@ -525,21 +525,31 @@ populateField(fieldName, value) {
                 fields = ['name', 'position', 'sprite', 'direction', 'interactionRadius']
                 break
                 
-            case 'dialogues':
-                if (type === 'dialogue') {
-                    fields = [...fields, 'dialogueIds', 'dialogueId', 'conditionalDialogueIds']
-                } else if (type === 'merchant') {
-                    fields = [...fields, 'dialogueIds', 'shopDialogueIds']
-                } else if (type === 'trainer' || type === 'gym_leader') {
-                    fields = [...fields, 'battleDialogueIds']
-                } else if (type === 'healer') {
-                    fields = [...fields, 'healerDialogueIds']
-                } else if (type === 'transport') {
-                    fields = [...fields, 'transportDialogueIds']
-                } else if (type === 'service') {
-                    fields = [...fields, 'serviceDialogueIds']
-                }
-                break
+// ✅ VERSION SIMPLIFIÉE ET OPTIMISÉE
+case 'dialogues':
+    if (type === 'dialogue') {
+        // NPC Dialogue simple : Un dialogue principal + conditionnels
+        fields = ['dialogueId', 'conditionalDialogueIds']
+    } else if (type === 'merchant') {
+        // Boutique : Dialogue principal + dialogues spécifiques boutique
+        fields = ['dialogueId', 'shopDialogueIds']
+    } else if (type === 'trainer' || type === 'gym_leader') {
+        // Combat : Dialogue principal + dialogues de combat
+        fields = ['dialogueId', 'battleDialogueIds']
+    } else if (type === 'healer') {
+        // Soigneur : Dialogue principal + dialogues de soin
+        fields = ['dialogueId', 'healerDialogueIds']
+    } else if (type === 'transport') {
+        // Transport : Dialogue principal + dialogues de transport
+        fields = ['dialogueId', 'transportDialogueIds']
+    } else if (type === 'service') {
+        // Service : Dialogue principal + dialogues de service
+        fields = ['dialogueId', 'serviceDialogueIds']
+    } else {
+        // Fallback pour autres types
+        fields = ['dialogueId']
+    }
+    break
                 
             case 'shop':
                 if (type === 'merchant') {
