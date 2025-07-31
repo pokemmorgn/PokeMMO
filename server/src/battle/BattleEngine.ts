@@ -493,6 +493,9 @@ private async executeFullAttackerAction(): Promise<void> {
     }
     
     try {
+      if (action.type === 'flee') {
+      return await this.handleFleeAction(action, playerRole);
+      }
       if (action.type === 'capture') {
         return await this.handleCaptureAction(action, teamManager);
       }
@@ -530,7 +533,163 @@ private async executeFullAttackerAction(): Promise<void> {
       );
     }
   }
+  private async handleFleeAction(action: BattleAction, playerRole: PlayerRole): Promise<BattleResult> {
+  console.log(`🏃 [BattleEngine] Tentative de fuite de ${playerRole}`);
   
+  // ✅ CALCUL DE LA RÉUSSITE DE FUITE (Pokémon authentique)
+  const playerPokemon = playerRole === 'player1' ? 
+    this.gameState.player1.pokemon! : 
+    this.gameState.player2.pokemon!;
+  const opponentPokemon = playerRole === 'player1' ? 
+    this.gameState.player2.pokemon! : 
+    this.gameState.player1.pokemon!;
+  
+  // Formule Pokémon Rouge/Bleu : basé sur la vitesse
+  const speedRatio = playerPokemon.stats.speed / opponentPokemon.stats.speed;
+  const fleeChance = Math.min(0.95, Math.max(0.25, speedRatio * 0.5 + 0.25));
+  const fleeSuccess = Math.random() < fleeChance;
+  
+  if (fleeSuccess) {
+    // ✅ FUITE RÉUSSIE - LOGGER POUR L'IA
+    await this.logPlayerActionForAI(action, playerRole, {
+      actionType: 'flee_success',
+      context: {
+        playerPokemonHp: playerPokemon.currentHp,
+        playerPokemonMaxHp: playerPokemon.maxHp,
+        playerPokemonLevel: playerPokemon.level,
+        opponentPokemon: opponentPokemon.name,
+        opponentLevel: opponentPokemon.level,
+        battleTurns: this.gameState.turnNumber,
+        fleeChance: fleeChance,
+        speedAdvantage: speedRatio > 1
+      },
+      outcome: 'successful_flee',
+      battleEndReason: 'player_fled'
+    });
+    
+    // Terminer le combat
+    this.gameState.isEnded = true;
+    this.gameState.winner = playerRole === 'player1' ? 'player2' : 'player1';
+    
+    this.emit('battleEnd', {
+      winner: this.gameState.winner,
+      reason: 'Fuite réussie !',
+      message: `${this.getPlayerName(action.playerId)} s'enfuit du combat !`,
+      gameState: this.gameState,
+      fleeSuccess: true
+    });
+    
+    this.transitionToPhase(InternalBattlePhase.ENDED, 'successful_flee');
+    
+    return {
+      success: true,
+      gameState: this.gameState,
+      events: [`Fuite réussie ! ${this.getPlayerName(action.playerId)} s'échappe !`],
+      fleeSuccess: true
+    };
+    
+  } else {
+    // ✅ FUITE ÉCHOUÉE - LOGGER POUR L'IA
+    await this.logPlayerActionForAI(action, playerRole, {
+      actionType: 'flee_failed',
+      context: {
+        playerPokemonHp: playerPokemon.currentHp,
+        playerPokemonMaxHp: playerPokemon.maxHp,
+        playerPokemonLevel: playerPokemon.level,
+        opponentPokemon: opponentPokemon.name,
+        battleTurns: this.gameState.turnNumber,
+        fleeChance: fleeChance,
+        speedAdvantage: speedRatio > 1
+      },
+      outcome: 'failed_flee',
+      frustrationLevel: 'medium' // Indication pour l'IA
+    });
+    
+    this.emit('fleeAttempt', {
+      playerRole,
+      success: false,
+      message: `${this.getPlayerName(action.playerId)} n'arrive pas à fuir !`,
+      fleeChance: Math.round(fleeChance * 100)
+    });
+    
+    // Le combat continue - passer le tour
+    return {
+      success: true,
+      gameState: this.gameState,
+      events: [`${this.getPlayerName(action.playerId)} n'arrive pas à fuir !`],
+      fleeSuccess: false,
+      skipToNextTurn: true
+    };
+  }
+}
+
+/**
+ * ✅ NOUVEAU : Logger une action joueur dans le système d'IA
+ */
+private async logPlayerActionForAI(
+  action: BattleAction, 
+  playerRole: PlayerRole, 
+  actionData: any
+): Promise<void> {
+  try {
+    // Seul le joueur humain (player1) est loggé pour l'IA
+    if (playerRole !== 'player1') return;
+    
+    const playerId = this.gameState.player1.name; // Username permanent pour l'IA
+    const sessionId = this.gameState.player1.sessionId;
+    
+    console.log(`🧠 [BattleEngine] Logging action IA pour ${playerId}: ${actionData.actionType}`);
+    
+    // ✅ IMPORT DYNAMIQUE POUR ÉVITER LES DÉPENDANCES CIRCULAIRES
+    const { trackPlayerAction, ActionType } = await import('../Intelligence/IntelligenceOrchestrator');
+    
+    // Mapper l'action vers le système d'IA
+    let aiActionType: any = ActionType.BATTLE_DEFEAT; // Default
+    
+    switch (actionData.actionType) {
+      case 'flee_success':
+        aiActionType = ActionType.BATTLE_DEFEAT; // Considéré comme une défaite
+        break;
+      case 'flee_failed':
+        aiActionType = ActionType.BATTLE_START; // Tentative ratée, combat continue
+        break;
+      default:
+        aiActionType = ActionType.BATTLE_START;
+    }
+    
+    // ✅ ENVOYER AU SYSTÈME D'IA
+    await trackPlayerAction(
+      playerId,
+      aiActionType,
+      {
+        battleType: this.gameState.type, // 'wild', 'trainer', 'pvp'
+        actionType: actionData.actionType,
+        outcome: actionData.outcome,
+        opponent: this.gameState.player2.pokemon?.name,
+        opponentLevel: this.gameState.player2.pokemon?.level,
+        playerPokemon: this.gameState.player1.pokemon?.name,
+        playerLevel: this.gameState.player1.pokemon?.level,
+        battleContext: actionData.context,
+        frustrationLevel: actionData.frustrationLevel,
+        battleEndReason: actionData.battleEndReason
+      },
+      {
+        location: { 
+          map: 'battle_area', 
+          x: 0, 
+          y: 0 
+        },
+        sessionId: sessionId,
+        playerLevel: this.gameState.player1.pokemon?.level
+      }
+    );
+    
+    console.log(`✅ [BattleEngine] Action ${actionData.actionType} loggée pour l'IA`);
+    
+  } catch (error) {
+    console.error('❌ [BattleEngine] Erreur logging IA:', error);
+  }
+}
   // === IA (INCHANGÉ) ===
   
   private scheduleAIAction(): void {
