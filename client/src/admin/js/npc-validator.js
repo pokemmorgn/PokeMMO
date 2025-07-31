@@ -167,9 +167,8 @@ export class NPCValidator {
 
     // Validations spécifiques par type
 validateDialogueNPC(npc) {
-    // Aucune validation pour les dialogues - tous optionnels
-}
-
+    // Pas de validation pour dialogueIds - complètement libre
+    
     // conditionalDialogueIds complètement optionnel
     if (npc.conditionalDialogueIds) {
         // Nettoyer automatiquement si c'est un tableau
