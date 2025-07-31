@@ -948,50 +948,56 @@ this.formBuilder = new NPCFormBuilder(editorContent, this.adminPanel)
 
     
 selectNPC(index) {
-    if (index < 0 || index >= this.npcs.length) return
+    if (index < 0 || index >= this.npcs.length) return;
+    
+    console.log(`👤 [NPCEditor] Selecting NPC at index ${index}`);
     
     if (this.unsavedChanges) {
         if (!confirm('Vous avez des modifications non sauvegardées. Continuer ?')) {
-            return
+            return;
         }
     }
 
-    // Sélection avec vérification des données
-    const originalNPC = this.npcs[index]
-    console.log('🔍 [NPCEditor] Original NPC data:', originalNPC)
+    // ✅ CORRECTION: Sélection avec vérification complète des données
+    const originalNPC = this.npcs[index];
+    console.log('🔍 [NPCEditor] Original NPC data keys:', Object.keys(originalNPC));
+    console.log('🔍 [NPCEditor] Original NPC position:', originalNPC.position);
+    console.log('🔍 [NPCEditor] Original NPC shopId:', originalNPC.shopId);
+    console.log('🔍 [NPCEditor] Original NPC dialogueIds:', originalNPC.dialogueIds);
     
-    // Validation de la position
-    if (!originalNPC.position || typeof originalNPC.position.x !== 'number' || typeof originalNPC.position.y !== 'number') {
-        console.warn('⚠️ [NPCEditor] Invalid position detected, fixing...', originalNPC.position)
-        originalNPC.position = { 
-            x: Number(originalNPC.position?.x) || 0, 
-            y: Number(originalNPC.position?.y) || 0 
-        }
-    }
+    // ✅ CORRECTION: Deep clone pour éviter les mutations + préservation complète
+    this.selectedNPC = JSON.parse(JSON.stringify(originalNPC));
+    this.unsavedChanges = false;
     
-    this.selectedNPC = JSON.parse(JSON.stringify(originalNPC)) // Deep clone
-    this.unsavedChanges = false
+    console.log('✅ [NPCEditor] Selected NPC with ALL data preserved');
+    console.log('📊 [NPCEditor] Selected NPC keys:', Object.keys(this.selectedNPC));
     
-    console.log('✅ [NPCEditor] Selected NPC with position:', this.selectedNPC.position)
-    
-    this.updateEditorState()
-    this.renderNPCsList()
+    this.updateEditorState();
+    this.renderNPCsList();
     
     if (this.formBuilder) {
-        console.log('📋 [NPCEditor] Loading NPC into form builder...')
+        console.log('📋 [NPCEditor] Loading NPC into form builder with complete data...');
         
-        // Délai pour s'assurer que l'UI est prête
+        // ✅ CORRECTION: Délai pour s'assurer que l'UI est complètement prête
         setTimeout(() => {
-            this.formBuilder.loadNPC(this.selectedNPC)
+            this.formBuilder.loadNPC(this.selectedNPC);
             
-            // Diagnostic supplémentaire après un délai
+            // ✅ CORRECTION: Diagnostic après chargement
             setTimeout(() => {
-                console.log('🔍 [NPCEditor] Final check - Form should show position:', this.selectedNPC.position)
-            }, 500)
-        }, 100)
+                console.log('🔍 [NPCEditor] Post-load diagnostic:');
+                console.log('  - FormBuilder currentNPC keys:', this.formBuilder.currentNPC ? Object.keys(this.formBuilder.currentNPC) : 'None');
+                console.log('  - Position in form:', this.formBuilder.currentNPC?.position);
+                console.log('  - ShopId in form:', this.formBuilder.currentNPC?.shopId);
+                
+                // Appeler la méthode de debug si disponible
+                if (this.formBuilder.debugNPCLoading) {
+                    this.formBuilder.debugNPCLoading();
+                }
+            }, 500);
+        }, 200);
     }
     
-    console.log('👤 [NPCEditor] Selected NPC from MongoDB:', this.selectedNPC.name, 'at position', this.selectedNPC.position)
+    console.log('👤 [NPCEditor] NPC selection completed with full data loading');
 }
 
     cancelEdit() {
@@ -1155,6 +1161,46 @@ loadNPCFromMapEditor(npcData, zoneId) {
         URL.revokeObjectURL(url)
     }
 
+    debugNPCLoading() {
+    console.log('🔍 [FormBuilder] === DEBUG NPC LOADING ===');
+    console.log('📋 Current NPC:', this.currentNPC);
+    console.log('📋 Current Type:', this.currentType);
+    
+    if (this.currentNPC) {
+        console.log('📊 NPC Fields Count:', Object.keys(this.currentNPC).length);
+        console.log('📊 NPC Fields:', Object.keys(this.currentNPC));
+        
+        // Vérifier les champs critiques
+        const criticalFields = ['position', 'shopId', 'dialogueIds', 'battleConfig'];
+        criticalFields.forEach(field => {
+            console.log(`🔍 ${field}:`, this.currentNPC[field]);
+        });
+        
+        // Vérifier les champs DOM
+        const formFields = document.querySelectorAll('input, textarea, select');
+        console.log('🔍 DOM Fields found:', formFields.length);
+        
+        formFields.forEach(field => {
+            if (field.name && this.currentNPC[field.name] !== undefined) {
+                console.log(`✅ Field ${field.name}: DOM=${field.value}, NPC=${this.currentNPC[field.name]}`);
+            }
+        });
+    }
+    
+    console.log('🔍 [FormBuilder] === END DEBUG ===');
+}
+
+// ✅ Exposer la méthode de debug
+window.debugNPCLoading = () => {
+    if (window.npcFormBuilder) {
+        window.npcFormBuilder.debugNPCLoading();
+    } else {
+        console.log('❌ NPC FormBuilder not available');
+    }
+};
+
+console.log('✅ [FormBuilder] Debug method exposed. Use debugNPCLoading() in console.');
+    
     cleanup() {
         this.currentZone = null
         this.npcs = []
