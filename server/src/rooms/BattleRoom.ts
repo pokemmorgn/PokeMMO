@@ -1,6 +1,4 @@
 // server/src/rooms/BattleRoom.ts
-// VERSION POKÉMON AUTHENTIQUE COMPLÈTE - Flow Rouge/Bleu AVEC TIMING
-
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon } from "../schema/BattleState";
 import { BattleEngine } from "../battle/BattleEngine";
@@ -11,8 +9,6 @@ import { PokemonMoveService } from "../services/PokemonMoveService";
 import { BattlePhase } from '../battle/types/BattleTypes';
 import { JWTManager } from "../managers/JWTManager";
 
-// === INTERFACES BATTLEROOM ===
-
 export interface BattleInitData {
   battleType: "wild" | "pvp";
   playerData: {
@@ -20,8 +16,8 @@ export interface BattleInitData {
     name: string;
     worldRoomId: string;
     activePokemonId?: string;
-    userId: string;         // ✅ AJOUT
-    jwtData: any;          // ✅ AJOUT
+    userId: string;
+    jwtData: any;
   };
   wildPokemon?: any;
   player2Data?: {
@@ -31,22 +27,15 @@ export interface BattleInitData {
   };
 }
 
-// === BATTLEROOM POKÉMON AUTHENTIQUE ===
-
 export class BattleRoom extends Room<BattleState> {
   
-  // === SYSTÈME DE COMBAT ===
   private battleEngine: BattleEngine;
   private battleGameState: BattleGameState | null = null;
-  
-  // === DONNÉES ROOM ===
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
   private jwtManager = JWTManager.getInstance();
 
   maxClients = 2;
-  
-  // === CRÉATION ROOM ===
   
   async onCreate(options: BattleInitData) {
     console.log(`⚔️ [BattleRoom] Création Pokémon authentique`);
@@ -55,12 +44,10 @@ export class BattleRoom extends Room<BattleState> {
     this.battleInitData = options;
     this.setState(new BattleState());
     
-    // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
     this.state.battleType = options.battleType;
     this.state.phase = "waiting";
     
-    // ✅ Initialiser BattleEngine Pokémon authentique
     this.battleEngine = new BattleEngine();
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
@@ -68,12 +55,9 @@ export class BattleRoom extends Room<BattleState> {
     console.log(`✅ [BattleRoom] ${this.roomId} créée avec flow Pokémon authentique`);
   }
   
-  // === GESTION MESSAGES ===
-  
   private setupMessageHandlers() {
     console.log('🎮 [BattleRoom] Configuration message handlers Pokémon authentique');
     
-    // Handler pour les actions de combat
     this.onMessage("battleAction", async (client, data: {
       actionType: "attack" | "item" | "switch" | "run" | "capture";
       moveId?: string;
@@ -84,7 +68,6 @@ export class BattleRoom extends Room<BattleState> {
       await this.handleBattleAction(client, data);
     });
 
-    // Handler spécifique pour la capture
     this.onMessage("attemptCapture", async (client, data: {
       ballType: string;
     }) => {
@@ -94,193 +77,184 @@ export class BattleRoom extends Room<BattleState> {
         ballType: data.ballType
       });
     });
+
     this.onMessage("attemptFlee", async (client, data) => {
-  console.log(`🏃 [BattleRoom] Tentative de fuite de ${client.sessionId}`);
-  
-  // Créer l'action de fuite
-  const fleeAction: BattleAction = {
-    type: 'run',
-    playerId: client.sessionId,
-    data: { reason: 'player_flee' }
-  };
-  
-  // ✅ IMPORTANT : Soumettre au BattleEngine pour le logging IA
-  const result = await this.battleEngine.submitAction(fleeAction);
-  console.log(`🧠 [BattleRoom] Action de fuite loggée`);
-  
-  // Fuite réussie (simplifiée)
-  client.send("fleeResult", {
-    success: true,
-    message: "Vous avez pris la fuite !",
-    fled: true
-  });
-  
-  // Terminer le combat
-  this.gameState.isEnded = true;
-  this.gameState.winner = 'opponent';
-  
-  setTimeout(() => {
-    this.disconnect();
-  }, 1500);
-});
-    // Handler pour obtenir l'état du combat
+      console.log(`🏃 [BattleRoom] Tentative de fuite de ${client.sessionId}`);
+      
+      try {
+        const fleeAction: BattleAction = {
+          type: 'run',
+          playerId: client.sessionId,
+          actionId: `flee_${Date.now()}`,
+          timestamp: Date.now(),
+          data: { reason: 'player_flee' }
+        };
+        
+        this.battleEngine.submitAction(fleeAction).catch(console.error);
+        
+        client.send("fleeResult", {
+          success: true,
+          message: "Vous avez pris la fuite !",
+          fled: true
+        });
+        
+        setTimeout(() => this.disconnect(), 1500);
+        
+      } catch (error) {
+        console.error(`❌ [BattleRoom] Erreur handler fuite:`, error);
+        
+        client.send("fleeResult", {
+          success: true,
+          message: "Vous avez pris la fuite !",
+          fled: true
+        });
+        
+        setTimeout(() => this.disconnect(), 1500);
+      }
+    });
+
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", this.getClientBattleState());
     });
+
     this.onMessage("requestMoves", async (client) => {
       await this.handleRequestMoves(client);
     });
   }
 
-  /**
- * Gère la demande d'attaques disponibles du joueur
- */
-private async handleRequestMoves(client: Client) {
-  console.log(`🎮 [BattleRoom] Demande d'attaques de ${client.sessionId}`);
-  
-  try {
-    // Vérifier que le combat est en cours et c'est le tour du joueur
-    if (!this.battleGameState) {
-      client.send("requestMovesResult", {
-        success: false,
-        error: "Aucun combat en cours",
-        moves: []
-      });
-      return;
-    }
+  private async handleRequestMoves(client: Client) {
+    console.log(`🎮 [BattleRoom] Demande d'attaques de ${client.sessionId}`);
     
-    // ✅ CORRECTION: Utiliser canSubmitAction() qui est plus sûr
-    if (!this.battleEngine.canSubmitAction()) {
-      client.send("requestMovesResult", {
-        success: false,
-        error: "Ce n'est pas le moment de choisir une attaque",
-        moves: []
-      });
-      return;
-    }
-    
-    // Vérifier que c'est bien le joueur actuel
-const userId = this.jwtManager.getUserId(client.sessionId);
-if (userId !== this.state.player1Id) {      client.send("requestMovesResult", {
-        success: false,
-        error: "Ce n'est pas votre tour",
-        moves: []
-      });
-      return;
-    }
-    
-    // Récupérer le TeamManager pour ce joueur
-    const teamManager = this.teamManagers.get(client.sessionId);
-    if (!teamManager) {
-      client.send("requestMovesResult", {
-        success: false,
-        error: "TeamManager non trouvé",
-        moves: []
-      });
-      return;
-    }
-    
-    // Récupérer le premier Pokémon vivant de l'équipe
-    const alivePokemon = await teamManager.getFirstAlivePokemon();
-    if (!alivePokemon) {
-      client.send("requestMovesResult", {
-        success: false,
-        error: "Aucun Pokémon disponible pour combattre",
-        moves: []
-      });
-      return;
-    }
-    
-    // Récupérer les attaques avec toutes leurs données
-    const movesWithData = await PokemonMoveService.getMovesWithData(alivePokemon);
-    
-    console.log(`✅ [BattleRoom] Envoi de ${movesWithData.length} attaques à ${client.sessionId}`);
-    console.log(`📋 [BattleRoom] Attaques: ${movesWithData.map(m => `${m.name}(${m.currentPp}/${m.maxPp})`).join(', ')}`);
-    
-    // Vérifier si le Pokémon doit utiliser Struggle
-    const shouldUseStruggle = PokemonMoveService.shouldUseStruggle(alivePokemon);
-    
-    if (shouldUseStruggle) {
-      console.log(`⚔️ [BattleRoom] ${alivePokemon.nickname || alivePokemon.pokemonId} doit utiliser Lutte !`);
-      
-      // Envoyer Struggle comme seule option
-      client.send("requestMovesResult", {
-        success: true,
-        moves: [{
-          moveId: "struggle",
-          name: "Lutte",
-          currentPp: 1,
-          maxPp: 1,
-          power: 50,
-          accuracy: 100,
-          type: "Normal",
-          category: "Physical",
-          description: "Une attaque désespérée utilisée quand toutes les autres sont épuisées.",
-          disabled: false
-        }],
-        pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
-        forceStruggle: true,
-        message: "Toutes les attaques sont épuisées ! Utilise Lutte !"
-      });
-      return;
-    }
-    
-    // Envoyer les attaques normales
-    client.send("requestMovesResult", {
-      success: true,
-      moves: movesWithData,
-      pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
-      forceStruggle: false,
-      message: "Choisis une attaque !"
-    });
-    
-  } catch (error) {
-    console.error(`❌ [BattleRoom] Erreur handleRequestMoves:`, error);
-    
-    client.send("requestMovesResult", {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-      moves: []
-    });
-  }
-}
-  
-private async handleBattleAction(client: Client, data: any) {
-  console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
-  
-  try {
-    // ✅ SOLUTION ROBUSTE: Essayer mapping puis fallback JWT
-    let userId = this.jwtManager.getUserId(client.sessionId);
-    
-    if (!userId) {
-      // Fallback: récupérer depuis JWT direct
-      const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
-      userId = jwtData?.userId;
-      
-      if (!userId) {
-        console.error(`❌ [BattleRoom] Session invalide: ${client.sessionId}`);
-        client.send("actionResult", { success: false, error: "Session invalide" });
+    try {
+      if (!this.battleGameState) {
+        client.send("requestMovesResult", {
+          success: false,
+          error: "Aucun combat en cours",
+          moves: []
+        });
         return;
       }
       
-      console.log(`🔄 [BattleRoom] Fallback JWT réussi: ${userId}`);
-    }
-    
-    // Créer l'action (code existant)
-    const action: BattleAction = {
-      actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      playerId: userId,
-      type: data.actionType,
-      data: {
-        moveId: data.moveId,
-        itemId: data.itemId,
-        targetPokemonId: data.targetPokemonId,
-        ballType: data.ballType
-      },
-      timestamp: Date.now()
-    };
+      if (!this.battleEngine.canSubmitAction()) {
+        client.send("requestMovesResult", {
+          success: false,
+          error: "Ce n'est pas le moment de choisir une attaque",
+          moves: []
+        });
+        return;
+      }
       
-      // Récupérer le TeamManager pour la capture
+      const userId = this.jwtManager.getUserId(client.sessionId);
+      if (userId !== this.state.player1Id) {
+        client.send("requestMovesResult", {
+          success: false,
+          error: "Ce n'est pas votre tour",
+          moves: []
+        });
+        return;
+      }
+      
+      const teamManager = this.teamManagers.get(client.sessionId);
+      if (!teamManager) {
+        client.send("requestMovesResult", {
+          success: false,
+          error: "TeamManager non trouvé",
+          moves: []
+        });
+        return;
+      }
+      
+      const alivePokemon = await teamManager.getFirstAlivePokemon();
+      if (!alivePokemon) {
+        client.send("requestMovesResult", {
+          success: false,
+          error: "Aucun Pokémon disponible pour combattre",
+          moves: []
+        });
+        return;
+      }
+      
+      const movesWithData = await PokemonMoveService.getMovesWithData(alivePokemon);
+      
+      console.log(`✅ [BattleRoom] Envoi de ${movesWithData.length} attaques à ${client.sessionId}`);
+      
+      const shouldUseStruggle = PokemonMoveService.shouldUseStruggle(alivePokemon);
+      
+      if (shouldUseStruggle) {
+        console.log(`⚔️ [BattleRoom] ${alivePokemon.nickname || alivePokemon.pokemonId} doit utiliser Lutte !`);
+        
+        client.send("requestMovesResult", {
+          success: true,
+          moves: [{
+            moveId: "struggle",
+            name: "Lutte",
+            currentPp: 1,
+            maxPp: 1,
+            power: 50,
+            accuracy: 100,
+            type: "Normal",
+            category: "Physical",
+            description: "Une attaque désespérée utilisée quand toutes les autres sont épuisées.",
+            disabled: false
+          }],
+          pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
+          forceStruggle: true,
+          message: "Toutes les attaques sont épuisées ! Utilise Lutte !"
+        });
+        return;
+      }
+      
+      client.send("requestMovesResult", {
+        success: true,
+        moves: movesWithData,
+        pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
+        forceStruggle: false,
+        message: "Choisis une attaque !"
+      });
+      
+    } catch (error) {
+      console.error(`❌ [BattleRoom] Erreur handleRequestMoves:`, error);
+      
+      client.send("requestMovesResult", {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        moves: []
+      });
+    }
+  }
+  
+  private async handleBattleAction(client: Client, data: any) {
+    console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
+    
+    try {
+      let userId = this.jwtManager.getUserId(client.sessionId);
+      
+      if (!userId) {
+        const jwtData = this.jwtManager.getJWTDataBySession(client.sessionId);
+        userId = jwtData?.userId;
+        
+        if (!userId) {
+          console.error(`❌ [BattleRoom] Session invalide: ${client.sessionId}`);
+          client.send("actionResult", { success: false, error: "Session invalide" });
+          return;
+        }
+        
+        console.log(`🔄 [BattleRoom] Fallback JWT réussi: ${userId}`);
+      }
+      
+      const action: BattleAction = {
+        actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        playerId: userId,
+        type: data.actionType,
+        data: {
+          moveId: data.moveId,
+          itemId: data.itemId,
+          targetPokemonId: data.targetPokemonId,
+          ballType: data.ballType
+        },
+        timestamp: Date.now()
+      };
+      
       let teamManager = null;
       if (data.actionType === 'capture') {
         teamManager = this.teamManagers.get(client.sessionId);
@@ -294,16 +268,13 @@ private async handleBattleAction(client: Client, data: any) {
         }
       }
       
-      // Traiter via BattleEngine
       const result = await this.battleEngine.processAction(action, teamManager);
       
       if (result.success) {
         console.log(`✅ [BattleRoom] Action traitée avec succès`);
         
-        // Synchroniser le state
         this.syncStateFromGameState();
         
-        // Notifier tous les clients
         this.broadcast("actionResult", {
           success: true,
           events: result.events,
@@ -315,7 +286,6 @@ private async handleBattleAction(client: Client, data: any) {
       } else {
         console.log(`❌ [BattleRoom] Échec action: ${result.error}`);
         
-        // Notifier seulement le client qui a échoué
         client.send("actionResult", {
           success: false,
           error: result.error,
@@ -334,12 +304,9 @@ private async handleBattleAction(client: Client, data: any) {
     }
   }
   
-  // === ✅ NOUVEAUX ÉVÉNEMENTS BATTLEENGINE POKÉMON AUTHENTIQUE ===
-  
   private setupBattleEngineEvents() {
     console.log('🎮 [BattleRoom] Configuration événements Pokémon authentique');
 
-    // === 📖 INTRO NARRATIF ===
     this.battleEngine.on('battleStart', (data: any) => {
       console.log(`📖 [BattleRoom] "${data.introMessage}"`);
       
@@ -348,7 +315,6 @@ private async handleBattleAction(client: Client, data: any) {
         this.syncStateFromGameState();
       }
       
-      // ✅ Message d'introduction Pokémon authentique
       this.broadcast("narrativeStart", {
         playerPokemon: this.battleGameState?.player1.pokemon,
         opponentPokemon: this.battleGameState?.player2.pokemon,
@@ -360,7 +326,6 @@ private async handleBattleAction(client: Client, data: any) {
       console.log(`📖 [BattleRoom] Narration Pokémon envoyée`);
     });
 
-    // === 🎭 CHANGEMENTS DE PHASE ===
     this.battleEngine.on('phaseChanged', (data: any) => {
       console.log(`🎭 [BattleRoom] Phase: ${data.phase} (${data.trigger})`);
       
@@ -374,16 +339,15 @@ private async handleBattleAction(client: Client, data: any) {
         gameState: this.getClientBattleState()
       });
       
-      // ✅ Gestion spécifique phases Pokémon
       switch (data.phase) {
         case 'action_selection':
           console.log(`🎮 [BattleRoom] "Que doit faire votre Pokémon ?"`);
           
-// ✅ NOUVEAU: Trouver client par userId
-const client = this.clients.find(c => {
-  const clientUserId = this.jwtManager.getUserId(c.sessionId);
-  return clientUserId === this.state.player1Id;
-});
+          const client = this.clients.find(c => {
+            const clientUserId = this.jwtManager.getUserId(c.sessionId);
+            return clientUserId === this.state.player1Id;
+          });
+          
           if (client) {
             client.send('yourTurn', { 
               phase: 'action_selection',
@@ -415,7 +379,6 @@ const client = this.clients.find(c => {
       }
     });
 
-    // === 🎮 SÉLECTION D'ACTIONS ===
     this.battleEngine.on('actionSelectionStart', (data: any) => {
       console.log(`🎮 [BattleRoom] Sélection d'actions - Tour ${data.turnNumber}`);
       
@@ -426,12 +389,11 @@ const client = this.clients.find(c => {
         gameState: this.getClientBattleState()
       });
       
-      // Notifier le joueur spécifiquement
-// ✅ NOUVEAU: Trouver client par userId
-const client = this.clients.find(c => {
-  const clientUserId = this.jwtManager.getUserId(c.sessionId);
-  return clientUserId === this.state.player1Id;
-});
+      const client = this.clients.find(c => {
+        const clientUserId = this.jwtManager.getUserId(c.sessionId);
+        return clientUserId === this.state.player1Id;
+      });
+      
       if (client) {
         client.send('yourTurn', { 
           turnNumber: data.turnNumber,
@@ -441,7 +403,6 @@ const client = this.clients.find(c => {
       }
     });
 
-    // === 📥 ACTION AJOUTÉE À LA QUEUE ===
     this.battleEngine.on('actionQueued', (data: any) => {
       console.log(`📥 [BattleRoom] Action en file: ${data.playerRole} → ${data.actionType}`);
       
@@ -452,7 +413,6 @@ const client = this.clients.find(c => {
       });
     });
 
-    // === ⚡ DÉBUT RÉSOLUTION ===
     this.battleEngine.on('resolutionStart', (data: any) => {
       console.log(`⚡ [BattleRoom] Début résolution - ${data.actionCount} actions par vitesse`);
       
@@ -463,7 +423,6 @@ const client = this.clients.find(c => {
       });
     });
 
-    // === ✅ NOUVEAU: TOUR D'ATTAQUANT ===
     this.battleEngine.on('attackerTurn', (data: any) => {
       console.log(`👊 [BattleRoom] Tour attaquant ${data.attackerNumber}/${data.totalAttackers}: ${data.playerRole}`);
       
@@ -477,7 +436,6 @@ const client = this.clients.find(c => {
       });
     });
 
-    // === ✅ FIN RÉSOLUTION ===
     this.battleEngine.on('resolutionComplete', (data: any) => {
       console.log(`✅ [BattleRoom] Résolution terminée - ${data.actionsExecuted} actions`);
       
@@ -489,113 +447,75 @@ const client = this.clients.find(c => {
       });
     });
 
-this.battleEngine.on('koMessage', (data: any) => {
-  console.log(`💀 [BattleRoom] K.O. Message reçu: ${data.message}`);
-  
-  // ✅ CRÉER UN ÉVÉNEMENT BATTLEEVENT POUR LE TIMING
-  const battleEvent = {
-    eventId: 'koMessage',
-    battleId: this.state.battleId,
-    timestamp: Date.now(),
-    data: {
-      pokemonName: data.pokemonName,
-      playerRole: data.playerRole,
-      message: data.message,
-      messageType: data.messageType || 'official_ko'
-    }
-  };
-  
-  // ✅ RETRANSMETTRE VIA LE SYSTÈME BATTLEEVENT (avec timing automatique)
-  this.broadcast('battleEvent', battleEvent);
-  
-  console.log(`✅ [BattleRoom] K.O. Message retransmis via battleEvent`);
-});
-
-this.battleEngine.on('winnerAnnounce', (data: any) => {
-  console.log(`🏆 [BattleRoom] Winner Announce reçu: ${data.message}`);
-  
-  // ✅ CRÉER UN ÉVÉNEMENT BATTLEEVENT POUR LE TIMING
-  const battleEvent = {
-    eventId: 'winnerAnnounce',
-    battleId: this.state.battleId,
-    timestamp: Date.now(),
-    data: {
-      winner: data.winner,
-      message: data.message,
-      battleEndType: data.battleEndType,
-      messageType: data.messageType || 'victory'
-    }
-  };
-  
-  // ✅ RETRANSMETTRE VIA LE SYSTÈME BATTLEEVENT (avec timing automatique)
-  this.broadcast('battleEvent', battleEvent);
-  
-  console.log(`✅ [BattleRoom] Winner Announce retransmis via battleEvent`);
-});
-
-    // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS AVEC TIMING ===
-    
-  // Attaque utilisée
-this.battleEngine.on('battleEvent', async (event: any) => {
-  console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
-  
-  // ✅ NOUVEAU: DEBUG COMPLET DES DONNÉES
-  console.log(`🔍 [DEBUG] Event Data:`, JSON.stringify(event.data, null, 2));
-  
-  // ✅ DEBUG SPÉCIFIQUE PAR TYPE D'ÉVÉNEMENT
-  if (event.eventId === 'damageDealt') {
-    console.log(`🔍 [DEBUG damageDealt] Détails:`);
-    console.log(`   - Target: ${event.data.targetName} (${event.data.targetRole})`);
-    console.log(`   - Damage: ${event.data.damage}`);
-    console.log(`   - HP: ${event.data.oldHp} → ${event.data.newHp}/${event.data.maxHp}`);
-    console.log(`   - Cible joueur: ${event.data.targetRole === 'player1' ? 'OUI' : 'NON'}`);
-  }
-  
-  if (event.eventId === 'moveUsed') {
-    console.log(`🔍 [DEBUG moveUsed] Détails:`);
-    console.log(`   - Attacker: ${event.data.attackerName} (${event.data.attackerRole})`);
-    console.log(`   - Move: ${event.data.moveName}`);
-    console.log(`   - SubPhase: ${event.data.subPhase}`);
-  }
-  
-  // Calculer le délai selon le type d'événement
-  const delay = this.getBattleEventDelay(event.eventId);
-  
-  if (delay > 0) {
-    console.log(`⏰ [BattleRoom] Attente ${delay}ms avant retransmission ${event.eventId}`);
-    await this.delay(delay);
-  }
-  
-  // ✅ DEBUG: Log avant envoi au client
-  console.log(`📤 [DEBUG] Envoi au client:`, {
-    eventId: event.eventId,
-    targetRole: event.data.targetRole,
-    damage: event.data.damage,
-    clientsConnected: this.clients.length
-  });
-  
-  // Retransmettre l'événement avec délai respecté
-  this.broadcast('battleEvent', event);
-  
-  // Messages spécifiques selon le type
-  switch (event.eventId) {
-    case 'moveUsed':
-      console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
-      break;
+    this.battleEngine.on('koMessage', (data: any) => {
+      console.log(`💀 [BattleRoom] K.O. Message reçu: ${data.message}`);
       
-    case 'damageDealt':
-      console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
-      break;
+      const battleEvent = {
+        eventId: 'koMessage',
+        battleId: this.state.battleId,
+        timestamp: Date.now(),
+        data: {
+          pokemonName: data.pokemonName,
+          playerRole: data.playerRole,
+          message: data.message,
+          messageType: data.messageType || 'official_ko'
+        }
+      };
       
-    case 'pokemonFainted':
-      console.log(`💀 ${event.data.pokemonName} est K.O. !`);
-      break;
-  }
-  
-  console.log(`✅ [BattleRoom] Événement ${event.eventId} retransmis avec délai`);
-});
+      this.broadcast('battleEvent', battleEvent);
+      
+      console.log(`✅ [BattleRoom] K.O. Message retransmis via battleEvent`);
+    });
 
-    // === 🏁 FIN DE COMBAT ===
+    this.battleEngine.on('winnerAnnounce', (data: any) => {
+      console.log(`🏆 [BattleRoom] Winner Announce reçu: ${data.message}`);
+      
+      const battleEvent = {
+        eventId: 'winnerAnnounce',
+        battleId: this.state.battleId,
+        timestamp: Date.now(),
+        data: {
+          winner: data.winner,
+          message: data.message,
+          battleEndType: data.battleEndType,
+          messageType: data.messageType || 'victory'
+        }
+      };
+      
+      this.broadcast('battleEvent', battleEvent);
+      
+      console.log(`✅ [BattleRoom] Winner Announce retransmis via battleEvent`);
+    });
+
+    this.battleEngine.on('battleEvent', async (event: any) => {
+      console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+      
+      const delay = this.getBattleEventDelay(event.eventId);
+      
+      if (delay > 0) {
+        console.log(`⏰ [BattleRoom] Attente ${delay}ms avant retransmission ${event.eventId}`);
+        await this.delay(delay);
+      }
+      
+      this.broadcast('battleEvent', event);
+      
+      switch (event.eventId) {
+        case 'moveUsed':
+          console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
+          break;
+          
+        case 'damageDealt':
+          console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
+          break;
+          
+        case 'pokemonFainted':
+          console.log(`💀 ${event.data.pokemonName} est K.O. !`);
+          break;
+      }
+      
+      console.log(`✅ [BattleRoom] Événement ${event.eventId} retransmis avec délai`);
+    });
+
     this.battleEngine.on('battleEnd', (data: any) => {
       console.log(`🏁 [BattleRoom] Fin de combat: ${data.winner || 'Match nul'}`);
       console.log(`📄 [BattleRoom] Raison: ${data.reason}`);
@@ -614,7 +534,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
         timestamp: Date.now()
       });
       
-      // Message de victoire/défaite
       let victoryMessage: string;
       if (data.captureSuccess) {
         victoryMessage = 'Pokémon capturé avec succès !';
@@ -632,7 +551,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
         timing: 3000
       });
       
-      // Programmer la fermeture
       console.log('⏰ [BattleRoom] Fermeture programmée dans 5 secondes...');
       this.clock.setTimeout(() => {
         console.log('🚪 [BattleRoom] Fermeture de la room');
@@ -640,7 +558,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       }, 5000);
     });
 
-    // === 💾 SAUVEGARDE POKÉMON ===
     this.battleEngine.on('pokemonSaved', (data: any) => {
       console.log(`💾 [BattleRoom] Pokémon sauvegardés`);
       
@@ -652,7 +569,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       });
     });
 
-    // === ❌ ERREURS ===
     this.battleEngine.on('saveError', (data: any) => {
       console.error(`❌ [BattleRoom] Erreur sauvegarde: ${data.error}`);
       
@@ -668,7 +584,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       console.log(`⚔️ [BattleRoom] Action traitée: ${data.action.type}`);
     });
 
-    // === 🎯 CAPTURE ===
     this.battleEngine.on('pokemonCaptured', (data: any) => {
       console.log(`🎯 [BattleRoom] Pokémon capturé: ${data.pokemon.name}`);
       
@@ -680,7 +595,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       });
     });
 
-    // === 🌟 EXPÉRIENCE (FUTUR) ===
     this.battleEngine.on('experienceGained', (data: any) => {
       console.log(`🌟 [BattleRoom] Expérience: ${data.amount} EXP`);
       
@@ -692,7 +606,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       });
     });
 
-    // === 🎁 RÉCOMPENSES (FUTUR) ===
     this.battleEngine.on('rewardsGained', (data: any) => {
       console.log(`🎁 [BattleRoom] Récompenses: ${data.rewards}`);
       
@@ -703,7 +616,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       });
     });
 
-    // === 🏃 FUITE ===
     this.battleEngine.on('battleFled', (data: any) => {
       console.log(`🏃 [BattleRoom] Fuite par ${data.player}`);
       
@@ -713,7 +625,6 @@ this.battleEngine.on('battleEvent', async (event: any) => {
       });
     });
 
-    // === ❌ ERREURS GÉNÉRALES ===
     this.battleEngine.on('error', (data: any) => {
       console.error(`❌ [BattleRoom] Erreur: ${data.error}`);
       
@@ -727,165 +638,132 @@ this.battleEngine.on('battleEvent', async (event: any) => {
     console.log('✅ [BattleRoom] Tous les événements Pokémon authentique configurés');
   }
   
-  // === MÉTHODES UTILITAIRES POUR TIMING ===
-  
-  /**
-   * Calcule le délai approprié pour chaque type d'événement
-   */
   private getBattleEventDelay(eventId: string): number {
-    // Timings Pokémon authentiques (copie de BroadcastManager)
     const BATTLE_TIMINGS: Record<string, number> = {
-      moveUsed: 500,           // Annonce attaque
-      damageDealt: 600,        // Application dégâts  
-      criticalHit: 800,         // "Coup critique !"
-      superEffective: 900,      // "C'est super efficace !"
-      notVeryEffective: 900,    // "Ce n'est pas très efficace..."
-      noEffect: 1000,           // "Ça n'a aucun effet !"
-      pokemonFainted: 2000,     // K.O. (pause importante)
-
-     // ✅ AJOUTER LES TIMINGS K.O.
-      koMessage: 1500,        // Message K.O. officiel
-      winnerAnnounce: 2200,   // Annonce vainqueur
-      
-      // Capture
-      captureAttempt: 1500,     // Lancer Ball
-      captureShake: 600,        // Chaque secousse
-      captureSuccess: 2000,     // "Pokémon capturé !"
-      captureFailure: 1500,     // "Il s'est échappé !"
-      
-      // Défaut
+      moveUsed: 500,
+      damageDealt: 600,
+      criticalHit: 800,
+      superEffective: 900,
+      notVeryEffective: 900,
+      noEffect: 1000,
+      pokemonFainted: 2000,
+      koMessage: 1500,
+      winnerAnnounce: 2200,
+      captureAttempt: 1500,
+      captureShake: 600,
+      captureSuccess: 2000,
+      captureFailure: 1500,
       default: 500
     };
     
     return BATTLE_TIMINGS[eventId] || BATTLE_TIMINGS.default;
   }
 
-  /**
-   * Délai utilitaire
-   */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  // === GESTION CLIENTS ===
-  
-// ✅ DANS BattleRoom.ts - Méthode onJoin()
-
-// ✅ CORRECTION BattleRoom.ts - Méthode onJoin()
-
-async onJoin(client: Client, options: any) {
-  console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom`);
-  console.log(`📋 [JOIN] Options reçues:`, JSON.stringify(options, null, 2));
-  
-  try {
-    // ✅ ÉTAPE 1: Récupérer worldSessionId
-    const worldSessionId = options.worldSessionId;
-    const playerName = options.playerName;
+  async onJoin(client: Client, options: any) {
+    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom`);
+    console.log(`📋 [JOIN] Options reçues:`, JSON.stringify(options, null, 2));
     
-    if (!worldSessionId) {
-      console.error(`❌ [BattleRoom] worldSessionId manquant dans options:`, options);
-      client.leave(1000, "worldSessionId manquant");
-      return;
-    }
-    
-    console.log(`🔍 [JOIN] Recherche JWT pour worldSession: ${worldSessionId}, player: ${playerName}`);
-    
-    // ✅ ÉTAPE 2: Validation session robuste avec auto-restauration
-    const validation = await this.jwtManager.validateSessionRobust(
-      worldSessionId, 
-      playerName, 
-      'battleRoom_join'
-    );
-    
-    if (!validation.valid) {
-      console.error(`❌ [BattleRoom] Validation échouée: ${validation.reason}`);
-      client.leave(1000, `Session invalide: ${validation.reason}`);
-      return;
-    }
-    
-    const { userId, jwtData } = validation;
-    console.log(`✅ [JOIN] Validation réussie: ${userId} (${jwtData.username})`);
-    
-    // ✅ ÉTAPE 3: Enregistrer le nouveau sessionId avec les données JWT existantes
     try {
-      await this.jwtManager.registerUser(client.sessionId, jwtData);
-      console.log(`✅ [JOIN] JWT enregistré pour BattleRoom: ${client.sessionId} → ${userId}`);
-    } catch (registrationError) {
-      console.error(`❌ [JOIN] Erreur registration JWT:`, registrationError);
+      const worldSessionId = options.worldSessionId;
+      const playerName = options.playerName;
       
-      // ✅ FALLBACK: Forcer le mapping manuel
-      this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
-      console.log(`🔄 [JOIN] Mapping forcé: ${client.sessionId} → ${userId}`);
+      if (!worldSessionId) {
+        console.error(`❌ [BattleRoom] worldSessionId manquant dans options:`, options);
+        client.leave(1000, "worldSessionId manquant");
+        return;
+      }
+      
+      console.log(`🔍 [JOIN] Recherche JWT pour worldSession: ${worldSessionId}, player: ${playerName}`);
+      
+      const validation = await this.jwtManager.validateSessionRobust(
+        worldSessionId, 
+        playerName, 
+        'battleRoom_join'
+      );
+      
+      if (!validation.valid) {
+        console.error(`❌ [BattleRoom] Validation échouée: ${validation.reason}`);
+        client.leave(1000, `Session invalide: ${validation.reason}`);
+        return;
+      }
+      
+      const { userId, jwtData } = validation;
+      console.log(`✅ [JOIN] Validation réussie: ${userId} (${jwtData.username})`);
+      
+      try {
+        await this.jwtManager.registerUser(client.sessionId, jwtData);
+        console.log(`✅ [JOIN] JWT enregistré pour BattleRoom: ${client.sessionId} → ${userId}`);
+      } catch (registrationError) {
+        console.error(`❌ [JOIN] Erreur registration JWT:`, registrationError);
+        
+        this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
+        console.log(`🔄 [JOIN] Mapping forcé: ${client.sessionId} → ${userId}`);
+      }
+      
+      const finalUserId = this.jwtManager.getUserId(client.sessionId);
+      if (!finalUserId || finalUserId !== userId) {
+        console.error(`❌ [JOIN] Mapping final échoué: attendu ${userId}, reçu ${finalUserId}`);
+        client.leave(1000, "Erreur mapping session");
+        return;
+      }
+      
+      console.log(`🎯 [JOIN] Session BattleRoom validée: ${client.sessionId} → ${finalUserId}`);
+      
+      this.state.player1Id = finalUserId;
+      this.state.player1Name = jwtData.username;
+      
+      console.log(`👥 [JOIN] Création TeamManager pour ${jwtData.username}`);
+      const teamManager = new TeamManager(jwtData.username);
+      
+      try {
+        await teamManager.load();
+        this.teamManagers.set(client.sessionId, teamManager);
+        console.log(`✅ [JOIN] TeamManager chargé pour ${jwtData.username}`);
+      } catch (teamError) {
+        console.error(`❌ [JOIN] Erreur TeamManager:`, teamError);
+        client.leave(1000, "Erreur chargement équipe");
+        return;
+      }
+      
+      client.send("battleJoined", {
+        battleId: this.state.battleId,
+        battleType: this.state.battleType,
+        yourRole: "player1",
+        playerId: finalUserId,
+        playerName: jwtData.username
+      });
+      
+      console.log(`✅ [JOIN] Client notifié du succès de la connexion`);
+      
+      this.clock.setTimeout(() => {
+        console.log(`🚀 [JOIN] Démarrage combat différé...`);
+        this.startBattleAuthentic();
+      }, 1000);
+      
+      console.log(`🎉 [JOIN] Connexion BattleRoom complète pour ${jwtData.username}`);
+      
+    } catch (error) {
+      console.error(`❌ [JOIN] Erreur critique:`, error);
+      console.error(`❌ [JOIN] Stack:`, error instanceof Error ? error.stack : 'Pas de stack');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      client.leave(1000, `Erreur: ${errorMessage}`);
     }
-    
-    // ✅ ÉTAPE 4: Vérification finale
-    const finalUserId = this.jwtManager.getUserId(client.sessionId);
-    if (!finalUserId || finalUserId !== userId) {
-      console.error(`❌ [JOIN] Mapping final échoué: attendu ${userId}, reçu ${finalUserId}`);
-      client.leave(1000, "Erreur mapping session");
-      return;
-    }
-    
-    console.log(`🎯 [JOIN] Session BattleRoom validée: ${client.sessionId} → ${finalUserId}`);
-    
-    // ✅ ÉTAPE 5: Configuration BattleRoom normale
-    this.state.player1Id = finalUserId;
-    this.state.player1Name = jwtData.username; // Utiliser le nom depuis JWT pour cohérence
-    
-    // ✅ ÉTAPE 6: Créer TeamManager
-    console.log(`👥 [JOIN] Création TeamManager pour ${jwtData.username}`);
-    const teamManager = new TeamManager(jwtData.username);
-    
-    try {
-      await teamManager.load();
-      this.teamManagers.set(client.sessionId, teamManager);
-      console.log(`✅ [JOIN] TeamManager chargé pour ${jwtData.username}`);
-    } catch (teamError) {
-      console.error(`❌ [JOIN] Erreur TeamManager:`, teamError);
-      client.leave(1000, "Erreur chargement équipe");
-      return;
-    }
-    
-    // ✅ ÉTAPE 7: Notifier le client
-    client.send("battleJoined", {
-      battleId: this.state.battleId,
-      battleType: this.state.battleType,
-      yourRole: "player1",
-      playerId: finalUserId,
-      playerName: jwtData.username
-    });
-    
-    console.log(`✅ [JOIN] Client notifié du succès de la connexion`);
-    
-    // ✅ ÉTAPE 8: Démarrer le combat avec délai
-    this.clock.setTimeout(() => {
-      console.log(`🚀 [JOIN] Démarrage combat différé...`);
-      this.startBattleAuthentic();
-    }, 1000);
-    
-    console.log(`🎉 [JOIN] Connexion BattleRoom complète pour ${jwtData.username}`);
-    
-  } catch (error) {
-    console.error(`❌ [JOIN] Erreur critique:`, error);
-    console.error(`❌ [JOIN] Stack:`, error instanceof Error ? error.stack : 'Pas de stack');
-    
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-    client.leave(1000, `Erreur: ${errorMessage}`);
   }
-}
   
   async onLeave(client: Client) {
     console.log(`👋 ${client.sessionId} quitte BattleRoom Pokémon authentique`);
     this.cleanupPlayer(client.sessionId);
   }
   
-  // === DÉMARRAGE COMBAT POKÉMON AUTHENTIQUE ===
-  
   private async startBattleAuthentic() {
     console.log(`🚀 [BattleRoom] Démarrage combat Pokémon authentique`);
     
     try {
-      // 1. Récupérer les données des Pokémon
       const playerClient = Array.from(this.clients)[0];
       if (!playerClient) throw new Error("Aucun client trouvé");
       
@@ -896,11 +774,9 @@ async onJoin(client: Client, options: any) {
       const firstPokemon = team.find(p => p.currentHp > 0 && p.moves?.length > 0);
       if (!firstPokemon) throw new Error("Aucun Pokémon disponible");
       
-      // 2. Convertir vers le format BattleEngine
       const player1Pokemon = await this.convertToBattleEnginePokemon(firstPokemon, false);
       const player2Pokemon = await this.convertToBattleEnginePokemon(this.battleInitData.wildPokemon, true);
       
-      // 3. Configurer le combat
       const battleConfig: BattleConfig = {
         type: this.state.battleType as any,
         player1: {
@@ -916,7 +792,6 @@ async onJoin(client: Client, options: any) {
         }
       };
       
-      // 4. Démarrer le combat via BattleEngine Pokémon authentique
       const result = this.battleEngine.startBattle(battleConfig);
       
       if (result.success) {
@@ -937,8 +812,6 @@ async onJoin(client: Client, options: any) {
       });
     }
   }
-  
-  // === CONVERSION DE DONNÉES ===
   
   private async convertToBattleEnginePokemon(pokemonData: any, isWild: boolean): Promise<Pokemon> {
     const baseData = await getPokemonById(pokemonData.pokemonId);
@@ -965,19 +838,15 @@ async onJoin(client: Client, options: any) {
     };
   }
   
-  // === SYNCHRONISATION STATE ===
-  
   private syncStateFromGameState() {
     if (!this.battleGameState) return;
     
     console.log(`🔄 [BattleRoom] Synchronisation state`);
     
-    // Phase
     this.state.phase = this.battleGameState.phase;
     this.state.turnNumber = this.battleGameState.turnNumber;
     this.state.currentTurn = this.battleGameState.currentTurn;
     
-    // Pokémon
     if (this.battleGameState.player1.pokemon) {
       this.state.player1Pokemon = this.convertToBattlePokemon(this.battleGameState.player1.pokemon);
     }
@@ -1008,18 +877,14 @@ async onJoin(client: Client, options: any) {
     battlePokemon.shiny = pokemon.shiny || false;
     battlePokemon.isWild = pokemon.isWild || false;
     
-    // Types
     battlePokemon.types.clear();
     pokemon.types.forEach(type => battlePokemon.types.push(type));
     
-    // Moves
     battlePokemon.moves.clear();
     pokemon.moves.forEach(move => battlePokemon.moves.push(move));
     
     return battlePokemon;
   }
-  
-  // === UTILITAIRES ===
   
   private calculateStat(baseStat: number, level: number): number {
     return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;
@@ -1058,8 +923,6 @@ async onJoin(client: Client, options: any) {
   private cleanupPlayer(sessionId: string) {
     this.teamManagers.delete(sessionId);
   }
-  
-  // === NETTOYAGE ===
   
   async onDispose() {
     console.log(`💀 [BattleRoom] Pokémon authentique ${this.roomId} en cours de destruction`);
