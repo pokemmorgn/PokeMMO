@@ -1211,7 +1211,7 @@ public async getRecentlyCompletedQuestByNpc(
     const cutoffTime = new Date();
     cutoffTime.setHours(cutoffTime.getHours() - withinHours);
     
-    const playerQuests = await this.playerQuestModel.find({
+    const playerQuests = await this.PlayerQuest.find({
       username,
       status: 'completed',
       completedAt: { $gte: cutoffTime }
@@ -1235,7 +1235,7 @@ public async getRecentlyCompletedQuestByNpc(
         // Vérifier si ce NPC est lié à cette quête (start ou end)
         const isRelatedNpc = questDefinition.startNpcId === npcId || questDefinition.endNpcId === npcId;
         
-        if (isRelatedNpc && questDefinition.dialogues?.postQuestDialogue) {
+        if (isRelatedNpc && (questDefinition.dialogues as any)?.postQuestDialogue) {
           this.log('info', `✅ Quête post-dialogue trouvée: ${questDefinition.name} (terminée le ${playerQuest.completedAt})`);
           
           return {
