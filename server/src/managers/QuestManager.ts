@@ -1207,28 +1207,37 @@ public async getRecentlyCompletedQuestByNpc(
   try {
     this.log('debug', `🔍 Recherche quête récemment terminée pour NPC ${npcId} par ${username}`);
     
-    // 1. Récupérer l'historique récent du joueur
-    const cutoffTime = new Date();
-    cutoffTime.setHours(cutoffTime.getHours() - withinHours);
+    // 1. Récupérer le document PlayerQuest du joueur
+    const playerQuests = await PlayerQuest.findOne({ username });
     
-    const playerQuests = await PlayerQuest.find({
-      username,
-      status: 'completed',
-      completedAt: { $gte: cutoffTime }
-    }).sort({ completedAt: -1 }); // Trier par plus récent d'abord
-    
-    if (playerQuests.length === 0) {
-      this.log('debug', `❌ Aucune quête récemment terminée pour ${username}`);
+    if (!playerQuests || !playerQuests.completedQuests || playerQuests.completedQuests.length === 0) {
+      this.log('debug', `❌ Aucune quête terminée pour ${username}`);
       return null;
     }
     
-    // 2. Chercher une quête terminée liée à ce NPC
-    for (const playerQuest of playerQuests) {
+    // 2. Filtrer les quêtes récemment terminées
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - withinHours);
+    
+    const recentlyCompleted = playerQuests.completedQuests
+      .filter(completedQuest => 
+        completedQuest.completedAt && 
+        new Date(completedQuest.completedAt) >= cutoffTime
+      )
+      .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()); // Plus récent d'abord
+    
+    if (recentlyCompleted.length === 0) {
+      this.log('debug', `❌ Aucune quête récemment terminée pour ${username} (dernières ${withinHours}h)`);
+      return null;
+    }
+    
+    // 3. Chercher une quête terminée liée à ce NPC
+    for (const completedQuest of recentlyCompleted) {
       try {
-        const questDefinition = this.getQuestDefinition(playerQuest.questId);
+        const questDefinition = this.getQuestDefinition(completedQuest.questId);
         
         if (!questDefinition) {
-          this.log('warn', `⚠️ Définition manquante pour quête ${playerQuest.questId}`);
+          this.log('warn', `⚠️ Définition manquante pour quête ${completedQuest.questId}`);
           continue;
         }
         
@@ -1236,16 +1245,16 @@ public async getRecentlyCompletedQuestByNpc(
         const isRelatedNpc = questDefinition.startNpcId === npcId || questDefinition.endNpcId === npcId;
         
         if (isRelatedNpc && (questDefinition.dialogues as any)?.postQuestDialogue) {
-          this.log('info', `✅ Quête post-dialogue trouvée: ${questDefinition.name} (terminée le ${playerQuest.completedAt})`);
+          this.log('info', `✅ Quête post-dialogue trouvée: ${questDefinition.name} (terminée le ${completedQuest.completedAt})`);
           
           return {
             questDefinition,
-            completedAt: playerQuest.completedAt
+            completedAt: new Date(completedQuest.completedAt)
           };
         }
         
       } catch (error) {
-        this.log('warn', `⚠️ Erreur vérification quête ${playerQuest.questId}:`, error);
+        this.log('warn', `⚠️ Erreur vérification quête ${completedQuest.questId}:`, error);
         continue;
       }
     }
