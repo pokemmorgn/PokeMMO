@@ -1190,16 +1190,6 @@ loadNPCFromMapEditor(npcData, zoneId) {
     console.log('🔍 [FormBuilder] === END DEBUG ===');
 }
 
-// ✅ Exposer la méthode de debug
-window.debugNPCLoading = () => {
-    if (window.npcFormBuilder) {
-        window.npcFormBuilder.debugNPCLoading();
-    } else {
-        console.log('❌ NPC FormBuilder not available');
-    }
-};
-
-console.log('✅ [FormBuilder] Debug method exposed. Use debugNPCLoading() in console.');
     
     cleanup() {
         this.currentZone = null
