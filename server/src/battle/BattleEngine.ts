@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER
+// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER + INTELLIGENCE IA
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -15,8 +15,14 @@ import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 import { BATTLE_TIMINGS } from './modules/BroadcastManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole, Pokemon } from './types/BattleTypes';
 import { pokedexIntegrationService } from '../services/PokedexIntegrationService';
+
+// ✅ IMPORTS INTELLIGENCE IA
+import { getAINPCManager } from '../Intelligence/AINPCManager';
+import { ActionType } from '../Intelligence/Core/ActionTypes';
+import type { AINPCManager } from '../Intelligence/AINPCManager';
+
 /**
- * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER
+ * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER + INTELLIGENCE IA
  * 
  * Flow EXACT des vrais jeux :
  * 1. INTRO → "Un Pokémon sauvage apparaît !"
@@ -28,6 +34,8 @@ import { pokedexIntegrationService } from '../services/PokedexIntegrationService
  * 4. Retour à ACTION_SELECTION (nouveau tour) OU fin si K.O.
  * 5. CAPTURE (optionnel)
  * 6. END
+ * 
+ * ✅ NOUVEAU : Intégration Intelligence IA pour logging des actions de combat
  */
 
 // === SOUS-PHASES POKÉMON AUTHENTIQUES ===
@@ -60,11 +68,14 @@ export class BattleEngine {
   private aiPlayer: AIPlayer;
   private battleEndManager: BattleEndManager;
   private captureManager: CaptureManager;
-  private koManager: KOManager; // ✅ NOUVEAU KO MANAGER
+  private koManager: KOManager;
   
   // === MODULES BROADCAST ===
   private broadcastManager: BroadcastManager | null = null;
   private spectatorManager: SpectatorManager | null = null;
+  
+  // ✅ INTELLIGENCE IA
+  private aiNPCManager: AINPCManager;
   
   // === SYSTÈME D'ÉVÉNEMENTS ===
   private eventListeners: Map<string, Function[]> = new Map();
@@ -86,6 +97,9 @@ export class BattleEngine {
     this.captureManager = new CaptureManager();
     this.koManager = new KOManager();
     
+    // ✅ INTELLIGENCE IA
+    this.aiNPCManager = getAINPCManager();
+    
     // État initial vide
     this.gameState = this.createEmptyState();
   }
@@ -95,80 +109,113 @@ export class BattleEngine {
   /**
    * Démarre un nouveau combat - Style Pokémon Rouge/Bleu AUTHENTIQUE
    */
-startBattle(config: BattleConfig): BattleResult {
-  try {
-    this.clearAllTimers();
-    this.validateConfig(config);
-    this.gameState = this.initializeGameState(config);
-    this.initializeAllModules();
-    this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
-    this.isInitialized = true;
-    
-    this.emit('battleStart', {
-      gameState: this.gameState,
-      phase: InternalBattlePhase.INTRO,
-      introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
-    });
-
-    // ✅ CORRECTION POKÉDX - Marquer le Pokémon adverse comme vu
-    if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
-      console.log(`👁️ [BattleEngine] Enregistrement Pokémon vu: #${this.gameState.player2.pokemon.id} pour ${this.gameState.player1.name}`);
+  startBattle(config: BattleConfig): BattleResult {
+    try {
+      this.clearAllTimers();
+      this.validateConfig(config);
+      this.gameState = this.initializeGameState(config);
+      this.initializeAllModules();
+      this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
+      this.isInitialized = true;
       
-      // ✅ UTILISER LA BONNE MÉTHODE (handlePokemonEncounter au lieu de onWildPokemonEncountered)
-      pokedexIntegrationService.handlePokemonEncounter({
-        playerId: this.gameState.player1.name, // ✅ Username du joueur (ID permanent)
-        pokemonId: this.gameState.player2.pokemon.id,
-        level: this.gameState.player2.pokemon.level,
-        location: 'Combat Sauvage', // ✅ Nom plus explicite
-        method: 'wild',
-        weather: undefined,
-        timeOfDay: undefined,
-        sessionId: this.gameState.player1.sessionId,
-        biome: 'battle_area',
-        difficulty: undefined,
-        isEvent: false
-      }).then(result => {
-        if (result.success) {
-          console.log(`✅ [BattleEngine] Pokémon #${this.gameState.player2.pokemon!.id} enregistré comme vu`);
-          if (result.isNewDiscovery) {
-            console.log(`🎉 [BattleEngine] NOUVELLE DÉCOUVERTE: ${this.gameState.player2.pokemon!.name}!`);
-            
-            // Optionnel: Émettre un événement pour notifier la découverte
-            this.emit('pokemonDiscovered', {
-              pokemonId: this.gameState.player2.pokemon.id,
-              pokemonName: this.gameState.player2.pokemon.name,
-              playerId: this.gameState.player1.name,
-              isNewDiscovery: true,
-              notifications: result.notifications
-            });
-          }
-        } else {
-          console.warn(`⚠️ [BattleEngine] Échec enregistrement Pokédx: ${result.error || 'Erreur inconnue'}`);
-        }
-      }).catch(error => {
-        console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
+      // ✅ INTELLIGENCE IA : Logger le début du combat
+      this.logBattleStart(config);
+      
+      this.emit('battleStart', {
+        gameState: this.gameState,
+        phase: InternalBattlePhase.INTRO,
+        introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
+
+      // ✅ CORRECTION POKÉDX - Marquer le Pokémon adverse comme vu
+      if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
+        console.log(`👁️ [BattleEngine] Enregistrement Pokémon vu: #${this.gameState.player2.pokemon.id} pour ${this.gameState.player1.name}`);
+        
+        pokedexIntegrationService.handlePokemonEncounter({
+          playerId: this.gameState.player1.name,
+          pokemonId: this.gameState.player2.pokemon.id,
+          level: this.gameState.player2.pokemon.level,
+          location: 'Combat Sauvage',
+          method: 'wild',
+          weather: undefined,
+          timeOfDay: undefined,
+          sessionId: this.gameState.player1.sessionId,
+          biome: 'battle_area',
+          difficulty: undefined,
+          isEvent: false
+        }).then(result => {
+          if (result.success) {
+            console.log(`✅ [BattleEngine] Pokémon #${this.gameState.player2.pokemon!.id} enregistré comme vu`);
+            if (result.isNewDiscovery) {
+              console.log(`🎉 [BattleEngine] NOUVELLE DÉCOUVERTE: ${this.gameState.player2.pokemon!.name}!`);
+              
+              this.emit('pokemonDiscovered', {
+                pokemonId: this.gameState.player2.pokemon.id,
+                pokemonName: this.gameState.player2.pokemon.name,
+                playerId: this.gameState.player1.name,
+                isNewDiscovery: true,
+                notifications: result.notifications
+              });
+            }
+          } else {
+            console.warn(`⚠️ [BattleEngine] Échec enregistrement Pokédx: ${result.error || 'Erreur inconnue'}`);
+          }
+        }).catch(error => {
+          console.error('❌ [BattleEngine] Erreur enregistrement Pokédx seen:', error);
+        });
+      }
+      
+      this.scheduleIntroTransition();
+      
+      return {
+        success: true,
+        gameState: this.gameState,
+        events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
+      };
+      
+    } catch (error) {
+      this.clearAllTimers();
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        gameState: this.gameState,
+        events: []
+      };
     }
-    
-    this.scheduleIntroTransition();
-    
-    return {
-      success: true,
-      gameState: this.gameState,
-      events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
-    };
-    
-  } catch (error) {
-    this.clearAllTimers();
-    
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-      gameState: this.gameState,
-      events: []
-    };
   }
-}
+  
+  // ✅ INTELLIGENCE IA : Logger le début du combat
+  private logBattleStart(config: BattleConfig): void {
+    try {
+      if (!config.player1?.name) return;
+      
+      console.log(`🧠 [BattleEngine-IA] Logging début combat pour ${config.player1.name}`);
+      
+      this.aiNPCManager.trackPlayerAction(
+        config.player1.name, // ✅ Username (ID permanent)
+        ActionType.BATTLE_START,
+        {
+          battleType: config.type,
+          playerPokemon: config.player1.pokemon?.name,
+          playerPokemonLevel: config.player1.pokemon?.level,
+          opponentPokemon: config.opponent.pokemon?.name,
+          opponentPokemonLevel: config.opponent.pokemon?.level,
+          battleId: this.gameState.battleId
+        },
+        {
+          location: {
+            map: 'battle_area',
+            x: 0,
+            y: 0
+          }
+        }
+      );
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine-IA] Erreur logging début combat:', error);
+    }
+  }
   
   // === GESTION DES PHASES POKÉMON ROUGE/BLEU AUTHENTIQUE ===
   
@@ -271,185 +318,228 @@ startBattle(config: BattleConfig): BattleResult {
   /**
    * ✅ POKÉMON ROUGE/BLEU: Démarre la phase d'un attaquant spécifique
    */
-private async startAttackerPhase(attackerIndex: number): Promise<void> {
-  if (attackerIndex >= this.orderedActions.length) {
-    console.log('💀 [BattleEngine] === PHASE K.O. CHECK ===');
-    await this.performKOCheckPhase();
-    return;
-  }
-  
-  this.currentAttackerData = this.orderedActions[attackerIndex];
-  
-  // ✅ VÉRIFICATION K.O. AVANT D'AGIR
-  const currentPokemon = this.getCurrentPokemonInGame(this.currentAttackerData.playerRole);
-  if (!currentPokemon || currentPokemon.currentHp <= 0) {
-    console.log(`💀 [BattleEngine] ${this.currentAttackerData.pokemon.name} est K.O., ne peut pas agir !`);
-    await this.startAttackerPhase(attackerIndex + 1);
-    return;
-  }
-  
-  this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
-  
-  this.emit('attackerPhaseStart', {
-    subPhase: this.currentSubPhase,
-    playerRole: this.currentAttackerData.playerRole,
-    actionType: this.currentAttackerData.action.type,
-    pokemon: this.currentAttackerData.pokemon.name,
-    message: `Phase d'attaque de ${this.currentAttackerData.pokemon.name}`
-  });
-  
-  await this.executeFullAttackerAction();
-  await this.delay(500);
-  await this.startAttackerPhase(attackerIndex + 1);
-}
-
-/**
- * ✅ NOUVELLE PHASE: K.O. CHECK après toutes les attaques
- */
-private async performKOCheckPhase(): Promise<void> {
-  this.currentSubPhase = SubPhase.KO_CHECK;
-  
-  const player1Pokemon = this.gameState.player1.pokemon;
-  const player2Pokemon = this.gameState.player2.pokemon;
-  
-  if (!player1Pokemon || !player2Pokemon) {
-    await this.completeActionResolution();
-    return;
-  }
-  
-  // Vérifier K.O. pour chaque Pokémon
-  const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
-  if (player1KO.isKO) {
-    await this.processKOSequence(player1KO);
-  }
-  
-  const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
-  if (player2KO.isKO) {
-    await this.processKOSequence(player2KO);
-  }
-  
-  // Vérification finale de fin de combat
-  const battleEndCheck = this.koManager.checkBattleEnd();
-  if (battleEndCheck.isEnded) {
-    this.gameState.isEnded = true;
-    this.gameState.winner = battleEndCheck.winner;
+  private async startAttackerPhase(attackerIndex: number): Promise<void> {
+    if (attackerIndex >= this.orderedActions.length) {
+      console.log('💀 [BattleEngine] === PHASE K.O. CHECK ===');
+      await this.performKOCheckPhase();
+      return;
+    }
     
-    await this.delay(1000);
+    this.currentAttackerData = this.orderedActions[attackerIndex];
     
-    this.emit('battleEnd', {
-      winner: battleEndCheck.winner,
-      reason: battleEndCheck.reason,
-      message: battleEndCheck.message,
-      gameState: this.gameState,
-      koVictory: true
+    // ✅ VÉRIFICATION K.O. AVANT D'AGIR
+    const currentPokemon = this.getCurrentPokemonInGame(this.currentAttackerData.playerRole);
+    if (!currentPokemon || currentPokemon.currentHp <= 0) {
+      console.log(`💀 [BattleEngine] ${this.currentAttackerData.pokemon.name} est K.O., ne peut pas agir !`);
+      await this.startAttackerPhase(attackerIndex + 1);
+      return;
+    }
+    
+    this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
+    
+    this.emit('attackerPhaseStart', {
+      subPhase: this.currentSubPhase,
+      playerRole: this.currentAttackerData.playerRole,
+      actionType: this.currentAttackerData.action.type,
+      pokemon: this.currentAttackerData.pokemon.name,
+      message: `Phase d'attaque de ${this.currentAttackerData.pokemon.name}`
     });
     
-    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-    return;
+    await this.executeFullAttackerAction();
+    await this.delay(500);
+    await this.startAttackerPhase(attackerIndex + 1);
   }
-  
-  await this.completeActionResolution();
-}
 
-/**
- * ✅ TRAITE LA SÉQUENCE K.O. AVEC TIMING
- */
-private async processKOSequence(koResult: any): Promise<void> {
-  // Exécuter chaque étape de la séquence avec timing
-  for (const step of koResult.sequence) {
-    switch (step.type) {
-      case 'faint_animation':
-        if (this.broadcastManager) {
-          await this.broadcastManager.emitTimed('pokemonFainted', {
-            pokemonName: koResult.pokemonName,
-            targetRole: koResult.playerRole,
-            playerId: koResult.playerRole === 'player1' ? 
-              this.gameState.player1.sessionId : 
-              this.gameState.player2.sessionId,
-            animationType: step.data?.animationType || 'faint_fall',
-            message: step.message
-          });
+  /**
+   * ✅ NOUVELLE PHASE: K.O. CHECK après toutes les attaques
+   */
+  private async performKOCheckPhase(): Promise<void> {
+    this.currentSubPhase = SubPhase.KO_CHECK;
+    
+    const player1Pokemon = this.gameState.player1.pokemon;
+    const player2Pokemon = this.gameState.player2.pokemon;
+    
+    if (!player1Pokemon || !player2Pokemon) {
+      await this.completeActionResolution();
+      return;
+    }
+    
+    // Vérifier K.O. pour chaque Pokémon
+    const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
+    if (player1KO.isKO) {
+      await this.processKOSequence(player1KO);
+    }
+    
+    const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
+    if (player2KO.isKO) {
+      await this.processKOSequence(player2KO);
+    }
+    
+    // Vérification finale de fin de combat
+    const battleEndCheck = this.koManager.checkBattleEnd();
+    if (battleEndCheck.isEnded) {
+      this.gameState.isEnded = true;
+      this.gameState.winner = battleEndCheck.winner;
+      
+      // ✅ INTELLIGENCE IA : Logger la fin du combat
+      this.logBattleEnd(battleEndCheck.winner, battleEndCheck.reason);
+      
+      await this.delay(1000);
+      
+      this.emit('battleEnd', {
+        winner: battleEndCheck.winner,
+        reason: battleEndCheck.reason,
+        message: battleEndCheck.message,
+        gameState: this.gameState,
+        koVictory: true
+      });
+      
+      this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+      return;
+    }
+    
+    await this.completeActionResolution();
+  }
+
+  /**
+   * ✅ INTELLIGENCE IA : Logger la fin du combat
+   */
+  private logBattleEnd(winner: PlayerRole | null, reason: string): void {
+    try {
+      const playerName = this.gameState.player1.name;
+      if (!playerName) return;
+      
+      console.log(`🧠 [BattleEngine-IA] Logging fin combat pour ${playerName}: ${winner} (${reason})`);
+      
+      const isPlayerWinner = winner === 'player1';
+      const actionType = isPlayerWinner ? ActionType.BATTLE_VICTORY : ActionType.BATTLE_DEFEAT;
+      
+      this.aiNPCManager.trackPlayerAction(
+        playerName,
+        actionType,
+        {
+          battleType: this.gameState.type,
+          battleResult: winner,
+          battleReason: reason,
+          battleId: this.gameState.battleId,
+          opponentPokemon: this.gameState.player2.pokemon?.name,
+          playerPokemon: this.gameState.player1.pokemon?.name,
+          turnCount: this.gameState.turnNumber,
+          battleDuration: Date.now() - this.getBattleStartTime() // Approximation
+        },
+        {
+          location: {
+            map: 'battle_area',
+            x: 0,
+            y: 0
+          }
         }
-        break;
-        
-      case 'ko_message':
-        this.emit('koMessage', {
-          pokemonName: koResult.pokemonName,
-          playerRole: koResult.playerRole,
-          message: step.message,
-          messageType: step.data?.messageType || 'official_ko'
-        });
-        await this.delay(step.timing);
-        break;
-        
-      case 'winner_announce':
-        this.emit('winnerAnnounce', {
-          winner: step.data?.winner,
-          message: step.message,
-          battleEndType: step.data?.battleEndType,
-          messageType: step.data?.messageType
-        });
-        await this.delay(step.timing);
-        break;
-        
-      default:
-        await this.delay(step.timing);
-        break;
+      );
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine-IA] Erreur logging fin combat:', error);
     }
   }
-}
+
+  /**
+   * ✅ TRAITE LA SÉQUENCE K.O. AVEC TIMING
+   */
+  private async processKOSequence(koResult: any): Promise<void> {
+    // Exécuter chaque étape de la séquence avec timing
+    for (const step of koResult.sequence) {
+      switch (step.type) {
+        case 'faint_animation':
+          if (this.broadcastManager) {
+            await this.broadcastManager.emitTimed('pokemonFainted', {
+              pokemonName: koResult.pokemonName,
+              targetRole: koResult.playerRole,
+              playerId: koResult.playerRole === 'player1' ? 
+                this.gameState.player1.sessionId : 
+                this.gameState.player2.sessionId,
+              animationType: step.data?.animationType || 'faint_fall',
+              message: step.message
+            });
+          }
+          break;
+          
+        case 'ko_message':
+          this.emit('koMessage', {
+            pokemonName: koResult.pokemonName,
+            playerRole: koResult.playerRole,
+            message: step.message,
+            messageType: step.data?.messageType || 'official_ko'
+          });
+          await this.delay(step.timing);
+          break;
+          
+        case 'winner_announce':
+          this.emit('winnerAnnounce', {
+            winner: step.data?.winner,
+            message: step.message,
+            battleEndType: step.data?.battleEndType,
+            messageType: step.data?.messageType
+          });
+          await this.delay(step.timing);
+          break;
+          
+        default:
+          await this.delay(step.timing);
+          break;
+      }
+    }
+  }
   
   /**
    * ✅ POKÉMON ROUGE/BLEU: Exécute l'action COMPLÈTE d'un attaquant (message + dégâts + efficacité + K.O.)
    */
-private async executeFullAttackerAction(): Promise<void> {
-  const { action, playerRole, pokemon } = this.currentAttackerData;
-  
-   const result = await this.actionProcessor.processAction(action);
-  
-  if (!result.success) return;
-  
-  if (action.type === 'attack' && result.data && this.broadcastManager) {
-    await this.broadcastManager.emitTimed('moveUsed', {
-      attackerName: pokemon.name,
-      attackerRole: playerRole,
-      moveName: this.getMoveDisplayName(action.data.moveId),
-      moveId: action.data.moveId,
-      subPhase: this.currentSubPhase,
-      message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
-    });
-        
-    if (result.data.damage > 0) {
-      await this.broadcastManager.emitTimed('damageDealt', {
-        targetName: result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.pokemon!.name : 
-          this.gameState.player2.pokemon!.name,
-        targetRole: result.data.defenderRole,
-        damage: result.data.damage,
-        oldHp: result.data.oldHp,
-        newHp: result.data.newHp,
-        maxHp: result.data.maxHp,
+  private async executeFullAttackerAction(): Promise<void> {
+    const { action, playerRole, pokemon } = this.currentAttackerData;
+   
+    const result = await this.actionProcessor.processAction(action);
+    
+    if (!result.success) return;
+    
+    if (action.type === 'attack' && result.data && this.broadcastManager) {
+      await this.broadcastManager.emitTimed('moveUsed', {
+        attackerName: pokemon.name,
+        attackerRole: playerRole,
+        moveName: this.getMoveDisplayName(action.data.moveId),
+        moveId: action.data.moveId,
         subPhase: this.currentSubPhase,
-        isKnockedOut: result.data.isKnockedOut
+        message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+      });
+          
+      if (result.data.damage > 0) {
+        await this.broadcastManager.emitTimed('damageDealt', {
+          targetName: result.data.defenderRole === 'player1' ? 
+            this.gameState.player1.pokemon!.name : 
+            this.gameState.player2.pokemon!.name,
+          targetRole: result.data.defenderRole,
+          damage: result.data.damage,
+          oldHp: result.data.oldHp,
+          newHp: result.data.newHp,
+          maxHp: result.data.maxHp,
+          subPhase: this.currentSubPhase,
+          isKnockedOut: result.data.isKnockedOut
+        });
+      }
+      
+      this.emit('attackerPhaseComplete', {
+        subPhase: this.currentSubPhase,
+        playerRole: playerRole,
+        pokemon: pokemon.name,
+        damageDealt: result.data.damage || 0,
+        targetRole: result.data.defenderRole
       });
     }
     
-    this.emit('attackerPhaseComplete', {
-      subPhase: this.currentSubPhase,
-      playerRole: playerRole,
-      pokemon: pokemon.name,
-      damageDealt: result.data.damage || 0,
-      targetRole: result.data.defenderRole
+    this.emit('actionProcessed', {
+      action,
+      result,
+      playerRole,
+      subPhase: this.currentSubPhase
     });
   }
-  
-  this.emit('actionProcessed', {
-    action,
-    result,
-    playerRole,
-    subPhase: this.currentSubPhase
-  });
-}
   
   /**
    * ✅ POKÉMON ROUGE/BLEU: Termine la phase de résolution (tous les attaquants ont agi + K.O. check terminé)
@@ -471,7 +561,7 @@ private async executeFullAttackerAction(): Promise<void> {
     this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
   }
   
-  // === SOUMISSION D'ACTIONS (INCHANGÉ) ===
+  // === SOUMISSION D'ACTIONS ===
   
   async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     if (!this.isInitialized) {
@@ -493,9 +583,11 @@ private async executeFullAttackerAction(): Promise<void> {
     }
     
     try {
-      if (action.type === 'flee') {
-      return await this.handleFleeAction(action, playerRole);
+      // ✅ INTELLIGENCE IA : Logger les actions de fuite spécifiquement
+      if (action.type === 'run') {
+        this.logRunAttempt(action);
       }
+      
       if (action.type === 'capture') {
         return await this.handleCaptureAction(action, teamManager);
       }
@@ -533,164 +625,45 @@ private async executeFullAttackerAction(): Promise<void> {
       );
     }
   }
-  private async handleFleeAction(action: BattleAction, playerRole: PlayerRole): Promise<BattleResult> {
-  console.log(`🏃 [BattleEngine] Tentative de fuite de ${playerRole}`);
   
-  // ✅ CALCUL DE LA RÉUSSITE DE FUITE (Pokémon authentique)
-  const playerPokemon = playerRole === 'player1' ? 
-    this.gameState.player1.pokemon! : 
-    this.gameState.player2.pokemon!;
-  const opponentPokemon = playerRole === 'player1' ? 
-    this.gameState.player2.pokemon! : 
-    this.gameState.player1.pokemon!;
-  
-  // Formule Pokémon Rouge/Bleu : basé sur la vitesse
-  const speedRatio = playerPokemon.stats.speed / opponentPokemon.stats.speed;
-  const fleeChance = Math.min(0.95, Math.max(0.25, speedRatio * 0.5 + 0.25));
-  const fleeSuccess = Math.random() < fleeChance;
-  
-  if (fleeSuccess) {
-    // ✅ FUITE RÉUSSIE - LOGGER POUR L'IA
-    await this.logPlayerActionForAI(action, playerRole, {
-      actionType: 'flee_success',
-      context: {
-        playerPokemonHp: playerPokemon.currentHp,
-        playerPokemonMaxHp: playerPokemon.maxHp,
-        playerPokemonLevel: playerPokemon.level,
-        opponentPokemon: opponentPokemon.name,
-        opponentLevel: opponentPokemon.level,
-        battleTurns: this.gameState.turnNumber,
-        fleeChance: fleeChance,
-        speedAdvantage: speedRatio > 1
-      },
-      outcome: 'successful_flee',
-      battleEndReason: 'player_fled'
-    });
-    
-    // Terminer le combat
-    this.gameState.isEnded = true;
-    this.gameState.winner = playerRole === 'player1' ? 'player2' : 'player1';
-    
-    this.emit('battleEnd', {
-      winner: this.gameState.winner,
-      reason: 'Fuite réussie !',
-      message: `${this.getPlayerName(action.playerId)} s'enfuit du combat !`,
-      gameState: this.gameState,
-      fleeSuccess: true
-    });
-    
-    this.transitionToPhase(InternalBattlePhase.ENDED, 'successful_flee');
-    
-    return {
-      success: true,
-      gameState: this.gameState,
-      events: [`Fuite réussie ! ${this.getPlayerName(action.playerId)} s'échappe !`],
-      fleeSuccess: true
-    };
-    
-  } else {
-    // ✅ FUITE ÉCHOUÉE - LOGGER POUR L'IA
-    await this.logPlayerActionForAI(action, playerRole, {
-      actionType: 'flee_failed',
-      context: {
-        playerPokemonHp: playerPokemon.currentHp,
-        playerPokemonMaxHp: playerPokemon.maxHp,
-        playerPokemonLevel: playerPokemon.level,
-        opponentPokemon: opponentPokemon.name,
-        battleTurns: this.gameState.turnNumber,
-        fleeChance: fleeChance,
-        speedAdvantage: speedRatio > 1
-      },
-      outcome: 'failed_flee',
-      frustrationLevel: 'medium' // Indication pour l'IA
-    });
-    
-    this.emit('fleeAttempt', {
-      playerRole,
-      success: false,
-      message: `${this.getPlayerName(action.playerId)} n'arrive pas à fuir !`,
-      fleeChance: Math.round(fleeChance * 100)
-    });
-    
-    // Le combat continue - passer le tour
-    return {
-      success: true,
-      gameState: this.gameState,
-      events: [`${this.getPlayerName(action.playerId)} n'arrive pas à fuir !`],
-      fleeSuccess: false,
-      skipToNextTurn: true
-    };
-  }
-}
-
-/**
- * ✅ NOUVEAU : Logger une action joueur dans le système d'IA
- */
-private async logPlayerActionForAI(
-  action: BattleAction, 
-  playerRole: PlayerRole, 
-  actionData: any
-): Promise<void> {
-  try {
-    // Seul le joueur humain (player1) est loggé pour l'IA
-    if (playerRole !== 'player1') return;
-    
-    const playerId = this.gameState.player1.name; // Username permanent pour l'IA
-    const sessionId = this.gameState.player1.sessionId;
-    
-    console.log(`🧠 [BattleEngine] Logging action IA pour ${playerId}: ${actionData.actionType}`);
-    
-    // ✅ IMPORT DYNAMIQUE POUR ÉVITER LES DÉPENDANCES CIRCULAIRES
-    const { trackPlayerAction, ActionType } = await import('../Intelligence/IntelligenceOrchestrator');
-    
-    // Mapper l'action vers le système d'IA
-    let aiActionType: any = ActionType.BATTLE_DEFEAT; // Default
-    
-    switch (actionData.actionType) {
-      case 'flee_success':
-        aiActionType = ActionType.BATTLE_DEFEAT; // Considéré comme une défaite
-        break;
-      case 'flee_failed':
-        aiActionType = ActionType.BATTLE_START; // Tentative ratée, combat continue
-        break;
-      default:
-        aiActionType = ActionType.BATTLE_START;
-    }
-    
-    // ✅ ENVOYER AU SYSTÈME D'IA
-    await trackPlayerAction(
-      playerId,
-      aiActionType,
-      {
-        battleType: this.gameState.type, // 'wild', 'trainer', 'pvp'
-        actionType: actionData.actionType,
-        outcome: actionData.outcome,
-        opponent: this.gameState.player2.pokemon?.name,
-        opponentLevel: this.gameState.player2.pokemon?.level,
-        playerPokemon: this.gameState.player1.pokemon?.name,
-        playerLevel: this.gameState.player1.pokemon?.level,
-        battleContext: actionData.context,
-        frustrationLevel: actionData.frustrationLevel,
-        battleEndReason: actionData.battleEndReason
-      },
-      {
-        location: { 
-          map: 'battle_area', 
-          x: 0, 
-          y: 0 
+  // ✅ INTELLIGENCE IA : Logger les tentatives de fuite
+  private logRunAttempt(action: BattleAction): void {
+    try {
+      const playerName = this.getPlayerName(action.playerId);
+      if (!playerName || playerName === action.playerId) return; // Éviter les IDs de session
+      
+      console.log(`🧠 [BattleEngine-IA] Logging tentative de fuite pour ${playerName}`);
+      
+      this.aiNPCManager.trackPlayerAction(
+        playerName,
+        ActionType.BATTLE_DEFEAT, // ✅ Fuite = défaite (pattern de frustration potentiel)
+        {
+          actionType: 'run_attempt',
+          battleType: this.gameState.type,
+          opponentPokemon: this.gameState.player2.pokemon?.name,
+          opponentLevel: this.gameState.player2.pokemon?.level,
+          playerPokemon: this.gameState.player1.pokemon?.name,
+          playerPokemonHp: this.gameState.player1.pokemon?.currentHp,
+          playerPokemonMaxHp: this.gameState.player1.pokemon?.maxHp,
+          turnNumber: this.gameState.turnNumber,
+          battleId: this.gameState.battleId,
+          runReason: 'player_initiated' // Le joueur a choisi de fuir
         },
-        sessionId: sessionId,
-        playerLevel: this.gameState.player1.pokemon?.level
-      }
-    );
-    
-    console.log(`✅ [BattleEngine] Action ${actionData.actionType} loggée pour l'IA`);
-    
-  } catch (error) {
-    console.error('❌ [BattleEngine] Erreur logging IA:', error);
+        {
+          location: {
+            map: 'battle_area',
+            x: 0,
+            y: 0
+          }
+        }
+      );
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine-IA] Erreur logging fuite:', error);
+    }
   }
-}
-  // === IA (INCHANGÉ) ===
+  
+  // === IA ===
   
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') {
@@ -750,7 +723,7 @@ private async logPlayerActionForAI(
     }
   }
   
-  // === CAPTURE (INCHANGÉ) ===
+  // === CAPTURE ===
   
   private handleCaptureAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     console.log('🎯 [BattleEngine] Gestion capture spéciale');
@@ -767,6 +740,9 @@ private async logPlayerActionForAI(
       action.data.ballType || 'poke_ball', 
       teamManager
     ).then(result => {
+      // ✅ INTELLIGENCE IA : Logger la tentative de capture
+      this.logCaptureAttempt(action, result);
+      
       if (result.success && result.captureData?.captured) {
         this.gameState.isEnded = true;
         this.gameState.winner = 'player1';
@@ -786,6 +762,45 @@ private async logPlayerActionForAI(
     });
   }
   
+  // ✅ INTELLIGENCE IA : Logger les tentatives de capture
+  private logCaptureAttempt(action: BattleAction, result: BattleResult): void {
+    try {
+      const playerName = this.getPlayerName(action.playerId);
+      if (!playerName || playerName === action.playerId) return;
+      
+      const success = result.success && result.captureData?.captured;
+      const actionType = success ? ActionType.POKEMON_CAPTURE_SUCCESS : ActionType.POKEMON_CAPTURE_FAILURE;
+      
+      console.log(`🧠 [BattleEngine-IA] Logging capture ${success ? 'réussie' : 'ratée'} pour ${playerName}`);
+      
+      this.aiNPCManager.trackPlayerAction(
+        playerName,
+        actionType,
+        {
+          pokemonId: this.gameState.player2.pokemon?.id,
+          pokemonName: this.gameState.player2.pokemon?.name,
+          pokemonLevel: this.gameState.player2.pokemon?.level,
+          ballType: action.data?.ballType || 'poke_ball',
+          captureSuccess: success,
+          captureRate: result.captureData?.captureRate,
+          attempts: 1, // TODO: Compter les tentatives multiples
+          battleId: this.gameState.battleId,
+          turnNumber: this.gameState.turnNumber
+        },
+        {
+          location: {
+            map: 'battle_area',
+            x: 0,
+            y: 0
+          }
+        }
+      );
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine-IA] Erreur logging capture:', error);
+    }
+  }
+  
   private handleEndedPhase(): void {
     console.log('🏁 [BattleEngine] Phase ENDED - Combat terminé');
     
@@ -794,7 +809,7 @@ private async logPlayerActionForAI(
     this.cleanupSpectators();
   }
   
-  // === INITIALISATION MODULES (MISE À JOUR) ===
+  // === INITIALISATION MODULES ===
   
   private initializeAllModules(): void {
     console.log('🔧 [BattleEngine] Initialisation de tous les modules...');
@@ -804,10 +819,10 @@ private async logPlayerActionForAI(
     this.aiPlayer.initialize(this.gameState);
     this.battleEndManager.initialize(this.gameState);
     this.captureManager.initialize(this.gameState);
-    this.koManager.initialize(this.gameState); // ✅ INITIALISER KO MANAGER
+    this.koManager.initialize(this.gameState);
     this.configureBroadcastSystem();
     
-    console.log('✅ [BattleEngine] Tous les modules initialisés (+ KOManager)');
+    console.log('✅ [BattleEngine] Tous les modules initialisés (+ KOManager + IA)');
   }
   
   private configureBroadcastSystem(): void {
@@ -957,7 +972,7 @@ private async logPlayerActionForAI(
   // === UTILITAIRES ===
   
   /**
-   * ✅ NOUVEAU: Récupère le Pokémon actuel dans le gameState (pas la copie de l'action)
+   * ✅ Récupère le Pokémon actuel dans le gameState (pas la copie de l'action)
    */
   private getCurrentPokemonInGame(playerRole: PlayerRole): Pokemon | null {
     if (!this.gameState) return null;
@@ -1010,7 +1025,7 @@ private async logPlayerActionForAI(
   
   private getAIDelay(): number {
     if (this.gameState.type === 'wild') {
-      return 0; // 1s pour sauvage
+      return 0;
     }
     return this.aiPlayer.getThinkingDelay();
   }
@@ -1026,6 +1041,23 @@ private async logPlayerActionForAI(
       gameState: this.gameState,
       events: []
     };
+  }
+  
+  /**
+   * ✅ INTELLIGENCE IA : Approximation du temps de début de combat
+   */
+  private getBattleStartTime(): number {
+    // Approximation basée sur l'ID du combat (contient timestamp)
+    const battleIdParts = this.gameState.battleId.split('_');
+    if (battleIdParts.length > 1) {
+      const timestamp = parseInt(battleIdParts[1]);
+      if (!isNaN(timestamp)) {
+        return timestamp;
+      }
+    }
+    
+    // Fallback: maintenant moins une estimation
+    return Date.now() - (this.gameState.turnNumber * 30000); // 30s par tour
   }
   
   // === SYSTÈME D'EXTENSION ===
@@ -1073,14 +1105,14 @@ private async logPlayerActionForAI(
     this.aiPlayer.reset();
     this.battleEndManager.reset();
     this.captureManager.reset();
-    this.koManager.reset(); // ✅ RESET KO MANAGER
+    this.koManager.reset();
     
     // Reset sous-phases
     this.currentSubPhase = SubPhase.NONE;
     this.orderedActions = [];
     this.currentAttackerData = null;
     
-    console.log('🧹 [BattleEngine] Nettoyage complet effectué (+ KOManager)');
+    console.log('🧹 [BattleEngine] Nettoyage complet effectué (+ KOManager + IA)');
   }
   
   // === MÉTHODES PRIVÉES ===
@@ -1139,8 +1171,8 @@ private async logPlayerActionForAI(
   
   getSystemState(): any {
     return {
-      version: 'pokemon_rouge_bleu_ABSOLUMENT_authentique_v2_KO',
-      architecture: 'sous_phases_pokemon_authentiques + ko_manager',
+      version: 'pokemon_rouge_bleu_ABSOLUMENT_authentique_v3_KO_IA',
+      architecture: 'sous_phases_pokemon_authentiques + ko_manager + intelligence_ia',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1148,7 +1180,8 @@ private async logPlayerActionForAI(
       
       phaseState: this.phaseManager.getPhaseState(),
       actionQueueState: this.actionQueue.getQueueState(),
-      koManagerStats: this.koManager.getStats(), // ✅ NOUVEAU
+      koManagerStats: this.koManager.getStats(),
+      aiManagerStats: this.aiNPCManager.getStats(), // ✅ NOUVEAU
       gameState: {
         battleId: this.gameState.battleId,
         type: this.gameState.type,
@@ -1168,8 +1201,11 @@ private async logPlayerActionForAI(
         'pokemon_rouge_bleu_ABSOLUMENT_authentique',
         'vraies_sous_phases_attaquants',
         'execution_complete_par_attaquant',
-        'ko_manager_integration', // ✅ NOUVEAU
-        'ko_check_phase_authentique', // ✅ NOUVEAU
+        'ko_manager_integration',
+        'ko_check_phase_authentique',
+        'intelligence_ai_integration', // ✅ NOUVEAU
+        'action_logging_system', // ✅ NOUVEAU
+        'npc_reaction_ready', // ✅ NOUVEAU
         'authentic_pokemon_classic',
         'zero_compromise_authenticity'
       ],
@@ -1177,8 +1213,11 @@ private async logPlayerActionForAI(
       corrections: [
         'sous_phases_attaquants_separees',
         'execution_complete_par_pokemon',
-        'ko_check_phase_ajoutee', // ✅ NOUVEAU
-        'gestion_ko_authentique', // ✅ NOUVEAU
+        'ko_check_phase_ajoutee',
+        'gestion_ko_authentique',
+        'intelligence_ai_battle_logging', // ✅ NOUVEAU
+        'run_attempt_tracking', // ✅ NOUVEAU
+        'capture_attempt_logging', // ✅ NOUVEAU
         'flow_pokemon_rouge_bleu_exact',
         'aucun_raccourci_aucun_compromise'
       ]
