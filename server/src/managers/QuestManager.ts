@@ -1211,7 +1211,7 @@ public async getRecentlyCompletedQuestByNpc(
     const cutoffTime = new Date();
     cutoffTime.setHours(cutoffTime.getHours() - withinHours);
     
-    const playerQuests = await this.PlayerQuest.find({
+    const playerQuests = await PlayerQuest.find({
       username,
       status: 'completed',
       completedAt: { $gte: cutoffTime }
