@@ -147,97 +147,116 @@ loadNPC(npc) {
 
 // MÉTHODE CORRIGÉE : populateAllFields
 populateAllFields() {
-    console.log('📝 [FormBuilder] Populating all fields for NPC:', this.currentNPC)
+    console.log('📝 [FormBuilder] Populating ALL fields for NPC:', this.currentNPC);
     
-    if (!this.currentNPC) return
+    if (!this.currentNPC) return;
     
-    // CORRECTION 1: Pré-remplir les champs de base
-    this.populateField('name', this.currentNPC.name)
-    this.populateField('sprite', this.currentNPC.sprite)
-    this.populateField('direction', this.currentNPC.direction)
-    
-    // CORRECTION 2: Position - gestion spéciale
-    if (this.currentNPC.position) {
-        console.log('📍 [FormBuilder] Setting position:', this.currentNPC.position)
+    // ✅ CORRECTION 1: Parcourir TOUS les champs du NPC, pas seulement une liste prédéfinie
+    Object.keys(this.currentNPC).forEach(fieldName => {
+        const value = this.currentNPC[fieldName];
         
-        // Méthode directe pour les champs de position
-        const xInput = document.querySelector('input[name="position.x"]')
-        const yInput = document.querySelector('input[name="position.y"]')
-        
-        if (xInput && this.currentNPC.position.x !== undefined) {
-            xInput.value = this.currentNPC.position.x
-            console.log('✅ [FormBuilder] X position set to:', this.currentNPC.position.x)
+        // Ignorer les champs système
+        if (['_id', '__v', 'createdAt', 'updatedAt', 'lastUpdated'].includes(fieldName)) {
+            return;
         }
         
-        if (yInput && this.currentNPC.position.y !== undefined) {
-            yInput.value = this.currentNPC.position.y
-            console.log('✅ [FormBuilder] Y position set to:', this.currentNPC.position.y)
-        }
+        console.log(`🔍 [FormBuilder] Processing field: ${fieldName} = ${typeof value === 'object' ? JSON.stringify(value) : value}`);
         
-        // Aussi mettre à jour dans l'objet NPC courant
-        this.setFieldValue('position.x', this.currentNPC.position.x)
-        this.setFieldValue('position.y', this.currentNPC.position.y)
-    }
+        // Gestion spéciale pour les objets complexes
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Si c'est un objet (comme position, config, etc.)
+            if (fieldName === 'position') {
+                this.populateField('position.x', value.x);
+                this.populateField('position.y', value.y);
+            } else {
+                // Pour les autres objets, essayer de peupler comme JSON
+                const textarea = document.querySelector(`textarea[name="${fieldName}"]`);
+                if (textarea) {
+                    textarea.value = JSON.stringify(value, null, 2);
+                    console.log(`📝 [FormBuilder] Object field ${fieldName} populated as JSON`);
+                } else {
+                    // Essayer de peupler les sous-champs si ils existent
+                    Object.keys(value).forEach(subKey => {
+                        const subFieldName = `${fieldName}.${subKey}`;
+                        this.populateField(subFieldName, value[subKey]);
+                    });
+                }
+            }
+        } else if (Array.isArray(value)) {
+            // Si c'est un array
+            this.rebuildArrayField(fieldName, value);
+            console.log(`📝 [FormBuilder] Array field ${fieldName} populated with ${value.length} items`);
+        } else {
+            // Champ simple
+            this.populateField(fieldName, value);
+        }
+    });
     
-    // Champs numériques communs
-    this.populateField('interactionRadius', this.currentNPC.interactionRadius)
-    this.populateField('cooldownSeconds', this.currentNPC.cooldownSeconds)
-    
-    // Champs booléens communs
-    this.populateField('canWalkAway', this.currentNPC.canWalkAway)
-    this.populateField('autoFacePlayer', this.currentNPC.autoFacePlayer)
-    this.populateField('repeatable', this.currentNPC.repeatable)
-    
-    // Champs spécifiques au type
-    this.populateTypeSpecificFields()
-    
-    // Arrays
-    this.populateArrayFields()
-    
-    // Objects JSON
-    this.populateObjectFields()
-    
-    console.log('✅ [FormBuilder] All fields populated successfully')
+    // ✅ CORRECTION 2: Forcer la mise à jour de l'aperçu JSON après population
+    setTimeout(() => {
+        this.updateJsonPreview();
+        this.validateForm();
+        console.log('✅ [FormBuilder] All fields populated and JSON preview updated');
+    }, 100);
 }
-
 // MÉTHODE CORRIGÉE : populateField pour mieux gérer les types
 populateField(fieldName, value) {
     if (value === undefined || value === null) {
-        console.log(`⚠️ [FormBuilder] Skipping field ${fieldName} - value is ${value}`)
-        return
+        console.log(`⚠️ [FormBuilder] Skipping field ${fieldName} - value is ${value}`);
+        return;
     }
     
     // Gestion spéciale pour les champs de position
     if (fieldName === 'position.x' || fieldName === 'position.y') {
-        const field = document.querySelector(`[name="${fieldName}"]`)
+        const field = document.querySelector(`[name="${fieldName}"]`);
         if (field) {
-            field.value = Number(value)
-            console.log(`📍 [FormBuilder] ${fieldName} set to:`, Number(value))
+            field.value = Number(value);
+            console.log(`📍 [FormBuilder] ${fieldName} set to:`, Number(value));
+            // Déclencher l'événement change
+            field.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        return
+        return;
     }
     
-    const field = document.querySelector(`[name="${fieldName}"]`)
+    // Chercher le champ dans le DOM
+    const field = document.querySelector(`[name="${fieldName}"]`);
     if (!field) {
-        console.log(`⚠️ [FormBuilder] Field not found: ${fieldName}`)
-        return
+        console.log(`⚠️ [FormBuilder] Field not found in DOM: ${fieldName}`);
+        return;
     }
     
-    if (field.type === 'checkbox') {
-        field.checked = Boolean(value)
-        console.log(`☑️ [FormBuilder] ${fieldName} checked:`, Boolean(value))
-    } else if (field.type === 'number') {
-        field.value = Number(value)
-        console.log(`🔢 [FormBuilder] ${fieldName} set to:`, Number(value))
-    } else {
-        field.value = String(value)
-        console.log(`📝 [FormBuilder] ${fieldName} set to:`, String(value))
+    // ✅ CORRECTION: Meilleure gestion des types de champs
+    try {
+        if (field.type === 'checkbox') {
+            field.checked = Boolean(value);
+            console.log(`☑️ [FormBuilder] ${fieldName} checked:`, Boolean(value));
+        } else if (field.type === 'number') {
+            field.value = Number(value);
+            console.log(`🔢 [FormBuilder] ${fieldName} set to:`, Number(value));
+        } else if (field.tagName.toLowerCase() === 'textarea') {
+            // Pour les textareas, gérer les objets et arrays
+            if (typeof value === 'object') {
+                field.value = JSON.stringify(value, null, 2);
+                console.log(`📝 [FormBuilder] ${fieldName} set as JSON object`);
+            } else {
+                field.value = String(value);
+                console.log(`📝 [FormBuilder] ${fieldName} set as text:`, String(value));
+            }
+        } else if (field.tagName.toLowerCase() === 'select') {
+            field.value = String(value);
+            console.log(`📋 [FormBuilder] ${fieldName} selected:`, String(value));
+        } else {
+            field.value = String(value);
+            console.log(`📝 [FormBuilder] ${fieldName} set to:`, String(value));
+        }
+        
+        // ✅ CORRECTION: Toujours déclencher l'événement change
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        
+    } catch (error) {
+        console.error(`❌ [FormBuilder] Error setting field ${fieldName}:`, error);
     }
-    
-    // Déclencher l'événement change pour mettre à jour l'état
-    field.dispatchEvent(new Event('change', { bubbles: true }))
 }
-
     // Pré-remplir les champs spécifiques au type
     populateTypeSpecificFields() {
         const typeConfig = NPC_TYPES[this.currentType]
