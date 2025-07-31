@@ -2443,7 +2443,7 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     const { zoneId } = req.params;
     console.log(`🧑‍🤝‍🧑 [NPCs API] Loading ALL NPC data for zone: ${zoneId} from MongoDB`);
     
-    // ✅ CORRECTION: Récupérer TOUS les champs sans restriction
+    // ✅ CORRECTION: Récupérer TOUS les champs sans restriction avec casting TypeScript
     const npcs = await NpcData.find({ zone: zoneId, isActive: true })
       .sort({ npcId: 1 })
       .lean(); // Utiliser lean() pour récupérer les objets JS bruts
@@ -2451,12 +2451,15 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     console.log(`✅ [NPCs API] Found ${npcs.length} NPCs for ${zoneId} in MongoDB`);
     console.log(`🔍 [NPCs API] First NPC raw data:`, npcs[0] ? Object.keys(npcs[0]) : 'No NPCs');
     
-    // ✅ CORRECTION: Conversion COMPLÈTE au format éditeur
-    const formattedNPCs = npcs.map(npc => {
-      console.log(`🔄 [NPCs API] Converting NPC ${npc.npcId} with ALL fields`);
+    // ✅ CORRECTION: Conversion COMPLÈTE au format éditeur avec casting TypeScript
+    const formattedNPCs = npcs.map((npcRaw: any) => {
+      console.log(`🔄 [NPCs API] Converting NPC ${npcRaw.npcId} with ALL fields`);
+      
+      // ✅ SOLUTION: Caster en 'any' pour éviter les erreurs TypeScript
+      const npc = npcRaw as any;
       
       // Commencer par tous les champs de base
-      const convertedNPC = {
+      const convertedNPC: any = {
         // Champs de base OBLIGATOIRES
         id: npc.npcId,
         name: npc.name,
@@ -2486,12 +2489,10 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         // Conditions de spawn
         spawnConditions: npc.spawnConditions || {},
         
-        // ✅ NOUVELLE CORRECTION: Copier TOUS les champs spécifiques au type
-        // depuis les données MongoDB SANS restriction
-        
+        // ✅ CORRECTION SIMPLE: Copier TOUS les champs depuis npcData avec casting
         // Dialogues (tous types)
         dialogueIds: npc.dialogueIds || npc.npcData?.dialogueIds || [],
-        dialogueId: npc.dialogueId || npc.npcData?.dialogueId,
+        dialogueId: npc.dialogueId || npc.npcData?.dialogueId || '',
         conditionalDialogueIds: npc.conditionalDialogueIds || npc.npcData?.conditionalDialogueIds || {},
         zoneInfo: npc.zoneInfo || npc.npcData?.zoneInfo || {},
         
@@ -2577,9 +2578,9 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         specialConditions: npc.specialConditions || npc.npcData?.specialConditions || {}
       };
       
-      // ✅ CORRECTION CRITIQUE: Copier TOUS les champs restants depuis npcData
+      // ✅ CORRECTION CRITIQUE: Copier TOUS les champs restants depuis npcData avec casting
       if (npc.npcData && typeof npc.npcData === 'object') {
-        Object.keys(npc.npcData).forEach(key => {
+        Object.keys(npc.npcData).forEach((key: string) => {
           if (!(key in convertedNPC)) {
             convertedNPC[key] = npc.npcData[key];
           }
