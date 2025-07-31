@@ -94,7 +94,35 @@ export class BattleRoom extends Room<BattleState> {
         ballType: data.ballType
       });
     });
-    
+    this.onMessage("attemptFlee", async (client, data) => {
+  console.log(`🏃 [BattleRoom] Tentative de fuite de ${client.sessionId}`);
+  
+  // Créer l'action de fuite
+  const fleeAction: BattleAction = {
+    type: 'run',
+    playerId: client.sessionId,
+    data: { reason: 'player_flee' }
+  };
+  
+  // ✅ IMPORTANT : Soumettre au BattleEngine pour le logging IA
+  const result = await this.battleEngine.submitAction(fleeAction);
+  console.log(`🧠 [BattleRoom] Action de fuite loggée`);
+  
+  // Fuite réussie (simplifiée)
+  client.send("fleeResult", {
+    success: true,
+    message: "Vous avez pris la fuite !",
+    fled: true
+  });
+  
+  // Terminer le combat
+  this.gameState.isEnded = true;
+  this.gameState.winner = 'opponent';
+  
+  setTimeout(() => {
+    this.disconnect();
+  }, 1500);
+});
     // Handler pour obtenir l'état du combat
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", this.getClientBattleState());
