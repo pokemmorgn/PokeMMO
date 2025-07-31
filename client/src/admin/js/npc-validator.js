@@ -166,11 +166,9 @@ export class NPCValidator {
     }
 
     // Validations spécifiques par type
-   validateDialogueNPC(npc) {
-    // dialogueIds maintenant optionnel
-    if (npc.dialogueIds && (!Array.isArray(npc.dialogueIds) || npc.dialogueIds.length === 0)) {
-        this.addError('dialogueIds', 'dialogueIds doit être un tableau non vide')
-    }
+validateDialogueNPC(npc) {
+    // Aucune validation pour les dialogues - tous optionnels
+}
 
     // conditionalDialogueIds complètement optionnel
     if (npc.conditionalDialogueIds) {
