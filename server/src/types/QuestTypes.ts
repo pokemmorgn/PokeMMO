@@ -82,6 +82,7 @@ export interface QuestDefinition {
     questOffer?: string[];
     questInProgress?: string[];
     questComplete?: string[];
+    postQuestDialogue?: string[];
   };
   steps: {
     id: string;
