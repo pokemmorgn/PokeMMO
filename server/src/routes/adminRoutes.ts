@@ -2929,7 +2929,11 @@ const updatedNpc = await NpcData.findOneAndUpdate(
         runValidators: true
       }
     );
-    
+
+      console.log('🔍 [NPCs API] MongoDB returned shopId:', updatedNpc?.shopId);
+console.log('🔍 [NPCs API] MongoDB returned shopType:', updatedNpc?.shopType);
+console.log('🔍 [NPCs API] MongoDB document keys:', Object.keys(updatedNpc?.toObject() || {}));
+      
     if (!updatedNpc) {
       return res.status(404).json({
         success: false,
