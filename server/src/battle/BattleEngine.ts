@@ -270,7 +270,7 @@ export class BattleEngine {
     });
 
     await this.executeFullAttackerAction();
-    await this.delay(200);
+    await this.delay(100); // Reduced delay
     await this.startAttackerPhase(attackerIndex + 1);
   }
 
@@ -293,9 +293,15 @@ export class BattleEngine {
   }
 
   private async handleAttackBroadcast(action: any, result: any, playerRole: PlayerRole, pokemon: Pokemon): Promise<void> {
-    // Safe broadcast with null checks
+    // Safe broadcast with null checks and no forced cleanup
     if (!this.broadcastManager) {
-      this.configureBroadcastSystem();
+      // Try to recreate but don't fail if it doesn't work
+      try {
+        this.configureBroadcastSystem();
+      } catch (error) {
+        // Continue without broadcast
+        return;
+      }
     }
 
     try {
@@ -324,9 +330,10 @@ export class BattleEngine {
         }
       }
     } catch (error) {
-      // Continue without broadcast on error
+      // Continue without broadcast on error - don't crash the battle
     }
 
+    // IMPORTANT: Don't call cleanup or reset here - this is mid-battle
     this.emit('attackerPhaseComplete', {
       subPhase: this.currentSubPhase,
       playerRole,
@@ -415,11 +422,7 @@ export class BattleEngine {
       return;
     }
 
-    if (!this.phaseManager.isReady()) {
-      this.forceBattleEnd('phase_manager_error', 'PhaseManager défaillant');
-      return;
-    }
-
+    // CRITICAL FIX: Don't check phase manager ready here - causes premature exits
     this.isProcessingActions = false;
     this.resetSubPhaseState();
     this.gameState.turnNumber++;
@@ -431,8 +434,10 @@ export class BattleEngine {
     });
 
     if (!this.gameState.isEnded) {
+      // CRITICAL FIX: Continue battle normally without extra checks
       const success = this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
       if (!success) {
+        // Only force end if transition truly failed, not for other reasons
         this.forceBattleEnd('transition_failed', 'Impossible de continuer');
       }
     } else {
