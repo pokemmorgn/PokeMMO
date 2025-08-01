@@ -353,7 +353,6 @@ export class BattleEngine {
         console.error(`❌ [BattleEngine-IA] Erreur initialisation IA asynchrone:`, error);
       });
       
-      this.phaseManager.setPhase(InternalBattlePhase.INTRO, 'battle_start');
       this.isInitialized = true;
       
       // ✅ Logger le début du combat
