@@ -160,12 +160,11 @@ export class NPCIntelligenceConnector {
       
       // Debug
       debugMode: process.env.NODE_ENV === 'development',
-      logDetailedInteractions: process.env.NODE_ENV === 'development',
+      logDetailedInteractions: false, // Désactivé par défaut
       
       ...config
     };
 
-    this.log('info', '🎭 NPCIntelligenceConnector initialisé', this.config);
     this.startBackgroundTasks();
   }
 
@@ -195,16 +194,10 @@ export class NPCIntelligenceConnector {
         return this.createFallbackResponse(npcId, 'Intelligence disabled for this NPC');
       }
 
-      this.log('info', `🤖 [${npcId}] Interaction intelligente avec ${playerId}`, {
-        type: interactionType,
-        context
-      });
-
       // Étape 1 : Analyser le joueur avec timeout
       const playerAnalysis = await this.analyzePlayerWithTimeout(playerId);
       
       if (!playerAnalysis || playerAnalysis.analysisConfidence < this.config.minAnalysisConfidence) {
-        this.log('warn', `⚠️ [${npcId}] Analyse joueur insuffisante, fallback`);
         return this.createFallbackResponse(npcId, 'Insufficient player analysis');
       }
 
@@ -224,18 +217,13 @@ export class NPCIntelligenceConnector {
       
       // Mise à jour statistiques
       this.stats.intelligentResponses++;
-      const processingTime = Date.now() - startTime;
-      
-      this.log('info', `✅ [${npcId}] Réponse intelligente générée en ${processingTime}ms`, {
-        personalizedLevel: response.metadata.personalizedLevel,
-        confidence: response.metadata.analysisConfidence,
-        proactive: response.metadata.isProactiveHelp
-      });
 
       return response;
 
     } catch (error) {
-      this.log('error', `❌ [${npcId}] Erreur interaction intelligente:`, error);
+      if (this.config.debugMode) {
+        console.error(`[NPCConnector] Error with NPC ${npcId}:`, error);
+      }
       return this.createFallbackResponse(npcId, 'Error during intelligent processing');
     }
   }
@@ -246,8 +234,6 @@ export class NPCIntelligenceConnector {
   async registerNPCsBulk(npcs: NpcData[]): Promise<{ registered: number; skipped: number; errors: string[] }> {
     const results = { registered: 0, skipped: 0, errors: [] as string[] };
     
-    this.log('info', `📋 Enregistrement de ${npcs.length} NPCs dans le système d'IA...`);
-
     for (const npc of npcs) {
       try {
         const success = await this.registerSingleNPC(npc);
@@ -259,11 +245,9 @@ export class NPCIntelligenceConnector {
       } catch (error) {
         const errorMsg = `NPC ${npc.id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
         results.errors.push(errorMsg);
-        this.log('error', `❌ Erreur enregistrement NPC ${npc.id}:`, error);
       }
     }
 
-    this.log('info', `✅ Enregistrement terminé: ${results.registered} réussis, ${results.skipped} ignorés, ${results.errors.length} erreurs`);
     return results;
   }
 
@@ -276,7 +260,6 @@ export class NPCIntelligenceConnector {
       
       // Vérifier si ce NPC doit être intelligent
       if (!this.shouldNPCBeIntelligent(npc)) {
-        this.log('debug', `⏭️ NPC ${npcId} ignoré (type/zone non activé)`);
         return false;
       }
 
@@ -291,17 +274,13 @@ export class NPCIntelligenceConnector {
       this.registeredNPCs.set(npcId, npcContext);
       
       this.stats.npcRegistrations++;
-      
-      this.log('debug', `🎭 NPC ${npcId} (${npc.name}) enregistré comme intelligent`, {
-        type: npc.type,
-        zone: npc.zone,
-        capabilities: npcContext.capabilities
-      });
 
       return true;
 
     } catch (error) {
-      this.log('error', `❌ Erreur enregistrement NPC ${npc.id}:`, error);
+      if (this.config.debugMode) {
+        console.error(`[NPCConnector] Error registering NPC ${npc.id}:`, error);
+      }
       return false;
     }
   }
@@ -327,9 +306,6 @@ export class NPCIntelligenceConnector {
     } catch (error) {
       if (error instanceof Error && error.message === 'Analysis timeout') {
         this.stats.analysisTimeouts++;
-        this.log('warn', `⏰ Timeout analyse joueur ${playerId}`);
-      } else {
-        this.log('error', `❌ Erreur analyse joueur ${playerId}:`, error);
       }
       return null;
     }
@@ -343,7 +319,6 @@ export class NPCIntelligenceConnector {
       const allReactions = await triggerNPCReactions(playerId);
       return allReactions.filter(reaction => reaction.npcId === npcId);
     } catch (error) {
-      this.log('error', `❌ Erreur récupération réactions NPC ${npcId}:`, error);
       return [];
     }
   }
@@ -934,7 +909,10 @@ export class NPCIntelligenceConnector {
       );
       
     } catch (error) {
-      this.log('error', `❌ Erreur enregistrement interaction:`, error);
+      // Erreur silencieuse sauf en mode debug
+      if (this.config.debugMode) {
+        console.error(`[NPCConnector] Error recording interaction:`, error);
+      }
     }
   }
 
@@ -955,8 +933,6 @@ export class NPCIntelligenceConnector {
     setInterval(() => {
       this.processInteractionQueue();
     }, 5000);
-
-    this.log('info', '🔄 Tâches de fond démarrées');
   }
 
   /**
@@ -974,10 +950,6 @@ export class NPCIntelligenceConnector {
         cleanedCount++;
       }
     }
-
-    if (cleanedCount > 0) {
-      this.log('debug', `🧹 ${cleanedCount} réponses expirées nettoyées du cache`);
-    }
   }
 
   /**
@@ -994,7 +966,9 @@ export class NPCIntelligenceConnector {
       const promises = batch.map(({ playerId, npcId, interactionType }) =>
         this.handleIntelligentInteraction(playerId, npcId, interactionType)
           .catch((error: Error): SmartNPCResponse | null => {
-            this.log('error', `❌ Erreur traitement queue ${npcId}:`, error);
+            if (this.config.debugMode) {
+              console.error(`[NPCConnector] Queue processing error for ${npcId}:`, error);
+            }
             return null;
           })
       );
@@ -1028,7 +1002,6 @@ export class NPCIntelligenceConnector {
    */
   updateConfig(newConfig: Partial<NPCConnectorConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.log('info', '⚙️ Configuration mise à jour', newConfig);
   }
 
   /**
@@ -1045,8 +1018,6 @@ export class NPCIntelligenceConnector {
         this.config.enabledNPCTypes.splice(index, 1);
       }
     }
-    
-    this.log('info', `🎭 Intelligence ${enabled ? 'activée' : 'désactivée'} pour type ${npcType}`);
   }
 
   /**
@@ -1064,57 +1035,33 @@ export class NPCIntelligenceConnector {
   }
 
   /**
-   * Debug d'un NPC spécifique
+   * Debug d'un NPC spécifique (seulement en mode debug)
    */
   debugNPC(npcId: string): void {
+    if (!this.config.debugMode) return;
+
     const npcData = this.npcDataMap.get(npcId);
     const npcContext = this.registeredNPCs.get(npcId);
     
-    console.log(`🔍 [NPCConnector] Debug NPC ${npcId}:`);
-    console.log(`  📋 Données:`, npcData ? {
+    console.log(`[NPCConnector] Debug NPC ${npcId}:`);
+    console.log(`  Data:`, npcData ? {
       name: npcData.name,
       type: npcData.type,
       zone: npcData.zone,
       position: { x: npcData.x, y: npcData.y }
-    } : 'Non trouvé');
+    } : 'Not found');
     
-    console.log(`  🎭 Contexte IA:`, npcContext ? {
+    console.log(`  AI Context:`, npcContext ? {
       type: npcContext.npcType,
       capabilities: npcContext.capabilities,
       personality: npcContext.personality
-    } : 'Non enregistré');
+    } : 'Not registered');
     
-    console.log(`  ⚙️ Intelligence:`, {
+    console.log(`  Intelligence:`, {
       shouldUseIA: this.shouldUseIntelligence(npcId),
       typeEnabled: this.config.enabledNPCTypes.includes(npcData?.type as NpcType),
       globalEnabled: this.config.globallyEnabled
     });
-  }
-
-  /**
-   * Logging conditionnel
-   */
-  private log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: any): void {
-    if (!this.config.debugMode && level === 'debug') return;
-    if (!this.config.logDetailedInteractions && level === 'info' && message.includes('Interaction')) return;
-    
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] [NPCConnector] ${message}`;
-    
-    switch (level) {
-      case 'info':
-        console.log(logMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(logMessage, data || '');
-        break;
-      case 'error':
-        console.error(logMessage, data || '');
-        break;
-      case 'debug':
-        console.log(`[DEBUG] ${logMessage}`, data || '');
-        break;
-    }
   }
 
   /**
@@ -1125,8 +1072,6 @@ export class NPCIntelligenceConnector {
     this.npcDataMap.clear();
     this.responseCache.clear();
     this.interactionQueue.length = 0;
-    
-    this.log('info', '🧹 NPCIntelligenceConnector détruit');
   }
 }
 
