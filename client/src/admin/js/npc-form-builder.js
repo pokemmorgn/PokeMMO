@@ -2733,61 +2733,57 @@ async refreshDialogueDetails(fieldName, index) {
     
 // ✅ MÉTHODE CORRIGÉE : getNPC() - Collecte TOUS les champs du formulaire
 getNPC() {
-    if (!this.currentNPC) return null
+    if (!this.currentNPC) return null;
     
-    console.log('📤 [FormBuilder] Collecting NPC data from form...')
+    console.log('📤 [FormBuilder] Collecting NPC data from form...');
     
     // Commencer avec les données actuelles du NPC
-    const npcData = { ...this.currentNPC }
+    const npcData = { ...this.currentNPC };
     
-    // ✅ CORRECTION : Parcourir TOUS les champs du formulaire
-    const formFields = document.querySelectorAll('input, textarea, select')
+    // Parcourir TOUS les champs du formulaire
+    const formFields = document.querySelectorAll('input, textarea, select');
     
     formFields.forEach(field => {
-        const fieldName = field.name
-        if (!fieldName) return
+        const fieldName = field.name;
+        if (!fieldName) return;
         
-        const value = this.getFieldInputValue(field)
+        let value = this.getFieldInputValue(field);
         
-        console.log(`📝 [FormBuilder] Collecting field: ${fieldName} = ${value}`)
+        console.log(`📝 [FormBuilder] Field: ${fieldName} = "${value}"`);
         
-        // Traitement spécial pour les champs de position
+        // Position spéciale
         if (fieldName === 'position.x' || fieldName === 'position.y') {
-            if (!npcData.position) npcData.position = {}
-            const coord = fieldName.split('.')[1]
-            npcData.position[coord] = Number(value) || 0
+            if (!npcData.position) npcData.position = {};
+            const coord = fieldName.split('.')[1];
+            npcData.position[coord] = Number(value) || 0;
         } 
-        // Traitement spécial pour les objets JSON
+        // JSON spécial
         else if (field.classList.contains('json-editor')) {
             try {
-                npcData[fieldName] = JSON.parse(value || '{}')
+                npcData[fieldName] = JSON.parse(value || '{}');
             } catch (error) {
-                console.warn(`Invalid JSON in ${fieldName}, using empty object`)
-                npcData[fieldName] = {}
+                npcData[fieldName] = {};
             }
         }
-        // Champs normaux
-        else if (value !== undefined && value !== '') {
-            npcData[fieldName] = value
+        // ✅ FIX : TOUJOURS sauvegarder les champs, même vides
+        else {
+            npcData[fieldName] = value !== undefined ? value : '';
         }
-    })
+    });
     
-    // ✅ CORRECTION : S'assurer que les champs critiques sont présents
-    const criticalFields = ['shopId', 'shopType', 'trainerId', 'dialogueId']
+    // ✅ FIX SPÉCIAL : Forcer la collecte des champs critiques
+    const criticalFields = ['shopId', 'shopType', 'trainerId', 'dialogueId'];
     criticalFields.forEach(field => {
-        const input = document.querySelector(`input[name="${field}"], select[name="${field}"], textarea[name="${field}"]`)
-        if (input && input.value) {
-            npcData[field] = input.value
-            console.log(`✅ [FormBuilder] Critical field ${field} forced: ${input.value}`)
+        const input = document.querySelector(`input[name="${field}"], select[name="${field}"]`);
+        if (input && input.value !== undefined) {
+            npcData[field] = input.value; // Même si vide !
+            console.log(`🔧 [FormBuilder] FORCED field ${field}: "${npcData[field]}"`);
         }
-    })
+    });
     
-    console.log('✅ [FormBuilder] Final NPC data:', npcData)
-    console.log('🔍 [FormBuilder] ShopId in final data:', npcData.shopId)
-    
-    return npcData
+    console.log('✅ [FormBuilder] Final NPC with shopId:', npcData.shopId);
+    return npcData;
 }
-
     clearForm() {
         this.currentNPC = null
         this.currentType = null
