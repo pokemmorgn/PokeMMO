@@ -45,6 +45,7 @@ class EnhancedBattleTester {
   private totalEvents = 0;
   private totalTurns = 0;
   private startMemory = 0;
+  private activeBattles: BattleEngine[] = []; // Track active battles
 
   async runAllTests(): Promise<void> {
     console.log('🧪 ENHANCED BATTLE SYSTEM TESTER v7.0 - AVEC COMBATS DRESSEURS');
@@ -90,16 +91,31 @@ class EnhancedBattleTester {
       this.printEnhancedResults();
     } finally {
       try {
+        // 🔧 Forcer l'arrêt de tous les combats actifs
+        console.log(`🛑 Arrêt forcé de ${this.activeBattles.length} combats en cours...`);
+        this.activeBattles.forEach(engine => {
+          try {
+            engine.cleanup();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        });
+        this.activeBattles = [];
+        
+        await this.delay(2000); // Laisser du temps aux combats de se terminer
+        
         await mongoose.disconnect();
         console.log('🔌 MongoDB déconnecté');
         
-        // Attendre un peu pour que tous les logs soient affichés
-        await this.delay(500);
+        // Attendre que tous les logs async se terminent
+        await this.delay(1000);
         console.log('\n🎉 Tests Enhanced terminés - Système MMO Certifié!');
-        process.exit(0);
+        
+        // Force exit pour éviter les processus zombie
+        setTimeout(() => process.exit(0), 500);
       } catch (disconnectError) {
         console.error('⚠️ Erreur déconnexion:', disconnectError);
-        process.exit(1);
+        setTimeout(() => process.exit(1), 500);
       }
     }
   }
@@ -492,6 +508,7 @@ class EnhancedBattleTester {
 
     try {
       const engine = new BattleEngine();
+      this.activeBattles.push(engine); // Track this battle
       const config = configFactory();
 
       // Event tracking
@@ -525,6 +542,11 @@ class EnhancedBattleTester {
       turns = simulationResult.turns || 0;
 
       engine.cleanup();
+      // Remove from active battles
+      const index = this.activeBattles.indexOf(engine);
+      if (index > -1) {
+        this.activeBattles.splice(index, 1);
+      }
 
     } catch (err) {
       error = err instanceof Error ? err.message : 'Unknown error';
@@ -562,6 +584,7 @@ class EnhancedBattleTester {
     
     return new Promise((resolve) => {
       const engine = new BattleEngine();
+      this.activeBattles.push(engine); // Track concurrent battles
       const config = this.createVariedWildConfig(`ConcurrentWild${index}`, `test-concurrent-wild-${index}`, index);
       
       let success = false;
@@ -573,6 +596,9 @@ class EnhancedBattleTester {
         success = true;
         clearTimeout(timeout);
         engine.cleanup();
+        // Remove from active battles
+        const idx = this.activeBattles.indexOf(engine);
+        if (idx > -1) this.activeBattles.splice(idx, 1);
         resolve({
           success: true,
           events,
@@ -588,10 +614,13 @@ class EnhancedBattleTester {
 
       let turns = 0;
       const actionInterval = setInterval(async () => {
-        if (success || turns > 25) {
+        if (!success || turns > 25) {
           clearInterval(actionInterval);
           if (!success) {
             engine.cleanup();
+            // Remove from active battles
+            const idx = this.activeBattles.indexOf(engine);
+            if (idx > -1) this.activeBattles.splice(idx, 1);
             resolve({
               success: turns >= 10,
               events,
@@ -623,6 +652,9 @@ class EnhancedBattleTester {
         clearInterval(actionInterval);
         if (!success) {
           engine.cleanup();
+          // Remove from active battles
+          const idx = this.activeBattles.indexOf(engine);
+          if (idx > -1) this.activeBattles.splice(idx, 1);
           resolve({
             success: turns >= 5,
             events,
