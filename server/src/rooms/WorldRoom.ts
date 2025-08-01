@@ -386,7 +386,8 @@ private async initializeNpcManagers() {
       
     } catch (dbError) {
       console.error(`❌ [CRITIQUE] Erreur test base de données:`, dbError);
-      throw new Error(`Database test failed: ${dbError.message}`);
+      const errorMsg = dbError instanceof Error ? dbError.message : String(dbError);
+      throw new Error(`Database test failed: ${errorMsg}`);
     }
     
     // ✅ ÉTAPE 3: Création du NPCManager
@@ -457,7 +458,7 @@ private async initializeNpcManagers() {
     
     if (allNpcs.length > 0) {
       // Grouper par zone pour debug
-      const npcsByZone = {};
+      const npcsByZone: { [key: string]: any[] } = {};
       allNpcs.forEach(npc => {
         if (!npcsByZone[npc.zone]) npcsByZone[npc.zone] = [];
         npcsByZone[npc.zone].push(npc);
@@ -466,7 +467,7 @@ private async initializeNpcManagers() {
       console.log(`🗺️ NPCs par zone:`, Object.keys(npcsByZone).map(zone => ({
         zone: zone,
         count: npcsByZone[zone].length,
-        examples: npcsByZone[zone].slice(0, 2).map(npc => ({ id: npc.id, name: npc.name }))
+        examples: npcsByZone[zone].slice(0, 2).map((npc: any) => ({ id: npc.id, name: npc.name }))
       })));
     } else {
       console.error(`❌ [CRITIQUE] Aucun NPC chargé en mémoire !`);
@@ -543,8 +544,8 @@ private async initializeNpcManagers() {
   } catch (error) {
     console.error(`❌ [CRITICAL ERROR] === ERREUR CRITIQUE INITIALISATION NPC MANAGERS ===`);
     console.error(`⏰ Timestamp erreur: ${new Date().toISOString()}`);
-    console.error(`📝 Message:`, error.message);
-    console.error(`📚 Stack:`, error.stack);
+    console.error(`📝 Message:`, error instanceof Error ? error.message : String(error));
+    console.error(`📚 Stack:`, error instanceof Error ? error.stack : 'N/A');
     
     // ✅ FALLBACK: Créer un manager vide pour éviter les crashes
     console.log(`🆘 [FALLBACK] Création manager de secours...`);
@@ -556,7 +557,8 @@ private async initializeNpcManagers() {
       console.warn(`📊 État fallback: Manager créé mais vide`);
     } catch (fallbackError) {
       console.error(`💀 [FATAL] Impossible de créer le manager fallback:`, fallbackError);
-      throw new Error(`NPC Manager initialization completely failed: ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`NPC Manager initialization completely failed: ${errorMsg}`);
     }
     
     // Re-throw l'erreur originale pour information
