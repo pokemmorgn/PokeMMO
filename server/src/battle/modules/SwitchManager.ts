@@ -217,13 +217,15 @@ export class SwitchManager {
       if (analysis.alivePokemon <= 0) {
         console.log(`💀 [SwitchManager] Aucun Pokémon vivant pour ${playerRole} - Équipe vaincue`);
         return {
-          success: true,
+          success: true, // ✅ Succès car traitement correct d'équipe vaincue
           gameState: this.gameState,
           events: [`${this.getPlayerName(playerRole)} n'a plus de Pokémon valides !`],
           data: {
             teamDefeated: true,
             playerRole: playerRole,
-            winner: playerRole === 'player1' ? 'player2' : 'player1'
+            winner: playerRole === 'player1' ? 'player2' : 'player1',
+            switchExecuted: false, // ✅ Pas de changement car équipe vaincue
+            reason: 'team_defeated'
           }
         };
       }
@@ -262,7 +264,8 @@ export class SwitchManager {
           playerRole: playerRole,
           toPokemon: newActivePokemon.name,
           wasForced: true,
-          reason: 'forced_after_ko'
+          reason: 'forced_after_ko',
+          teamDefeated: false // ✅ Équipe pas vaincue
         }
       };
       
