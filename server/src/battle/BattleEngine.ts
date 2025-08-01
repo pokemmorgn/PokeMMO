@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// 🔥 VERSION FINALE - CORRECTIONS STRESS TEST
+// 🚀 SESSION 3 FINALE - EXTENSION COMPLÈTE POUR COMBATS DRESSEURS
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -12,21 +12,39 @@ import { KOManager } from './modules/KOManager';
 import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
+import { SwitchManager } from './modules/SwitchManager';
+import { TrainerTeamManager } from './managers/TrainerTeamManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole, Pokemon } from './types/BattleTypes';
+import { 
+  TrainerBattleConfig, 
+  TrainerGameState, 
+  TrainerData, 
+  SwitchAction,
+  isTrainerBattleConfig,
+  createTrainerBattleConfig,
+  createTrainerPokemonTeam,
+  mapTrainerPhaseToInternal,
+  TRAINER_BATTLE_CONSTANTS
+} from './types/TrainerBattleTypes';
 import { pokedexIntegrationService } from '../services/PokedexIntegrationService';
 import { getAINPCManager } from '../Intelligence/AINPCManager';
 import { ActionType } from '../Intelligence/Core/ActionTypes';
 import type { AINPCManager } from '../Intelligence/AINPCManager';
 
+// 🆕 IMPORT NOUVEAUX MODULES SESSION 3
+import { TrainerAI } from './modules/TrainerAI';
+import { TrainerRewardManager } from './modules/TrainerRewardManager';
+
 enum SubPhase {
   NONE = 'none',
   ATTACKER_1 = 'attacker_1_phase',
   ATTACKER_2 = 'attacker_2_phase',
-  KO_CHECK = 'ko_check_phase'
+  KO_CHECK = 'ko_check_phase',
+  SWITCH_RESOLUTION = 'switch_resolution_phase' // 🆕 NOUVEAU
 }
 
 export class BattleEngine {
-  // Core modules
+  // Core modules existants
   private phaseManager = new PhaseManager();
   private actionQueue = new ActionQueue();
   private speedCalculator = new SpeedCalculator();
@@ -37,6 +55,13 @@ export class BattleEngine {
   private koManager = new KOManager();
   private aiNPCManager = getAINPCManager();
 
+  // 🆕 NOUVEAUX MODULES SESSION 3
+  private switchManager = new SwitchManager();
+  private trainerAI = new TrainerAI();
+  private trainerRewardManager = new TrainerRewardManager();
+  private playerTeamManager: TrainerTeamManager | null = null;
+  private trainerTeamManager: TrainerTeamManager | null = null;
+
   // State
   private gameState: BattleGameState = this.createEmptyState();
   private isInitialized = false;
@@ -45,40 +70,128 @@ export class BattleEngine {
   private orderedActions: any[] = [];
   private currentAttackerData: any = null;
 
+  // 🆕 ÉTAT DRESSEUR ÉTENDU
+  private isTrainerBattle = false;
+  private trainerData: TrainerData | null = null;
+  private pendingSwitches: Map<PlayerRole, SwitchAction> = new Map();
+
   // Broadcast & spectators
   private broadcastManager: BroadcastManager | null = null;
   private spectatorManager: SpectatorManager | null = null;
 
-  // Timers & timeouts
+  // Timers & timeouts - OPTIMISÉS
   private battleTimeoutId: NodeJS.Timeout | null = null;
   private turnTimeoutId: NodeJS.Timeout | null = null;
   private introTimer: NodeJS.Timeout | null = null;
   private aiActionTimer: NodeJS.Timeout | null = null;
 
-  // 🔥 CORRECTIONS STRESS TEST
+  // Configuration optimisée
   private turnCounter = 0;
   private transitionAttempts = 0;
   private readonly MAX_TURNS = 50;
-  private readonly MAX_TRANSITION_ATTEMPTS = 3; // 🔥 RÉDUIT de 5 à 3
-  private readonly BATTLE_TIMEOUT_MS = 30000;
-  private readonly TURN_TIMEOUT_MS = 8000; // 🔥 RÉDUIT de 10s à 8s
-  private readonly AI_ACTION_DELAY = 500; // 🔥 RÉDUIT délai IA
+  private readonly MAX_TRANSITION_ATTEMPTS = 3;
+  private readonly BATTLE_TIMEOUT_MS = 45000; // 🆕 Augmenté pour dresseurs
+  private readonly TURN_TIMEOUT_MS = 12000; // 🆕 Augmenté pour changements
+  private readonly AI_ACTION_DELAY = 800; // 🆕 Plus réaliste
 
   // Events
   private eventListeners = new Map<string, Function[]>();
   private modules = new Map<string, BattleModule>();
 
-  // CRITICAL: Flag to prevent premature cleanup
+  // Protection
   private isManualCleanup = false;
-  private battleEndHandled = false; // 🔥 NOUVEAU: Éviter double-end
+  private battleEndHandled = false;
 
-  // === PUBLIC API ===
+  // === 🆕 API PRINCIPALE ÉTENDUE ===
 
+  /**
+   * 🆕 NOUVELLE MÉTHODE : Combat dresseur complet
+   */
+  async startTrainerBattle(config: TrainerBattleConfig): Promise<BattleResult> {
+    try {
+      console.log('🎯 [BattleEngine] Démarrage combat dresseur...');
+      
+      this.clearAllTimers();
+      this.validateTrainerConfig(config);
+      
+      // 🆕 INITIALISATION SPÉCIFIQUE DRESSEUR
+      this.gameState = this.initializeTrainerGameState(config);
+      this.isTrainerBattle = true;
+      this.trainerData = config.trainer;
+      
+      // 🆕 INITIALISATION TEAM MANAGERS
+      await this.initializeTeamManagers(config);
+      
+      // 🆕 INITIALISATION MODULES ÉTENDUS
+      this.initializeExtendedModules();
+      this.initializeAllModules();
+      this.startBattleTimeout();
+      
+      // 🆕 SYSTÈME IA ÉTENDU
+      await this.initializeExtendedAISystem();
+      
+      this.isInitialized = true;
+      this.handlePokemonEncounter();
+      this.scheduleIntroTransition();
+
+      // 🆕 TRACKING IA POUR COMBAT DRESSEUR
+      this.trackTrainerBattleStart();
+
+      this.emit('battleStart', {
+        gameState: this.gameState,
+        phase: InternalBattlePhase.INTRO,
+        introMessage: `Le dresseur ${this.trainerData.name} vous défie !`,
+        isTrainerBattle: true,
+        trainerClass: this.trainerData.trainerClass
+      });
+
+      return {
+        success: true,
+        gameState: this.gameState,
+        events: [
+          `Le dresseur ${this.trainerData.name} vous défie !`,
+          `${this.trainerData.name} envoie ${this.trainerData.pokemon[0].name} !`
+        ]
+      };
+    } catch (error) {
+      this.clearAllTimers();
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        gameState: this.gameState,
+        events: []
+      };
+    }
+  }
+
+  /**
+   * 🔥 MÉTHODE EXISTANTE AMÉLIORÉE : Support auto-détection type
+   */
   startBattle(config: BattleConfig): BattleResult {
+    // 🆕 AUTO-DÉTECTION COMBAT DRESSEUR
+    if (isTrainerBattleConfig(config)) {
+      console.log('🎯 [BattleEngine] Combat dresseur détecté, redirection...');
+      // Méthode async, on doit gérer différemment
+      this.startTrainerBattle(config).then(result => {
+        if (!result.success) {
+          console.error('❌ [BattleEngine] Échec combat dresseur:', result.error);
+        }
+      });
+      
+      // Retour immédiat pour compatibilité
+      return {
+        success: true,
+        gameState: this.gameState,
+        events: ['Combat dresseur en cours d\'initialisation...']
+      };
+    }
+
+    // 🔥 COMBAT SAUVAGE EXISTANT (INCHANGÉ)
     try {
       this.clearAllTimers();
       this.validateConfig(config);
       this.gameState = this.initializeGameState(config);
+      this.isTrainerBattle = false;
       
       this.initializeAllModules();
       this.startBattleTimeout();
@@ -110,6 +223,9 @@ export class BattleEngine {
     }
   }
 
+  /**
+   * 🆕 MÉTHODE SOUMISSION ÉTENDUE : Support changements
+   */
   async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     if (!this.isInitialized || this.gameState.isEnded) {
       return this.createErrorResult('Combat non disponible');
@@ -126,10 +242,16 @@ export class BattleEngine {
     }
 
     try {
+      // 🆕 TRAITEMENT CHANGEMENT POKÉMON
+      if (action.type === 'switch' && this.isTrainerBattle) {
+        return await this.handleSwitchAction(action as SwitchAction, playerRole);
+      }
+
       if (action.type === 'capture') {
         return await this.handleCaptureAction(action, teamManager);
       }
 
+      // 🔥 TRAITEMENT ACTION NORMALE
       const pokemon = playerRole === 'player1' ? 
         this.gameState.player1.pokemon! : 
         this.gameState.player2.pokemon!;
@@ -139,22 +261,24 @@ export class BattleEngine {
         return this.createErrorResult('Erreur ajout action');
       }
 
+      // 🆕 TRACKING IA POUR ACTIONS
+      this.trackPlayerActionInBattle(action.playerId, action.type, action.data);
+
       this.emit('actionQueued', {
         playerRole,
         actionType: action.type,
-        queueState: this.actionQueue.getQueueState()
+        queueState: this.actionQueue.getQueueState(),
+        isTrainerBattle: this.isTrainerBattle
       });
 
-      // 🔥 CORRECTION CRITIQUE: Vérifier immédiatement si toutes les actions sont prêtes
+      // 🔥 VÉRIFICATION ACTIONS PRÊTES OPTIMISÉE
       if (this.actionQueue.areAllActionsReady()) {
         this.clearActionTimers();
         this.clearTurnTimeout();
         
-        // 🔥 TRANSITION IMMÉDIATE SANS DÉLAI
         const transitionSuccess = this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
         if (!transitionSuccess) {
           console.error('❌ [BattleEngine] Échec transition vers résolution');
-          // 🔥 FORCER LA RÉSOLUTION
           this.forceActionResolution();
         }
       }
@@ -170,21 +294,673 @@ export class BattleEngine {
     }
   }
 
-  // === 🔥 NOUVELLE MÉTHODE: FORCER RÉSOLUTION ===
+  // === 🆕 NOUVELLES MÉTHODES SPÉCIFIQUES DRESSEURS ===
+
+  /**
+   * 🆕 Traite les changements de Pokémon
+   */
+  private async handleSwitchAction(switchAction: SwitchAction, playerRole: PlayerRole): Promise<BattleResult> {
+    console.log(`🔄 [BattleEngine] Traitement changement: ${playerRole}`);
+    
+    if (!this.switchManager.isReady()) {
+      return this.createErrorResult('SwitchManager non initialisé');
+    }
+
+    try {
+      // Traiter via SwitchManager
+      const switchResult = await this.switchManager.processSwitchAction(switchAction);
+      
+      if (switchResult.success) {
+        // 🆕 MISE À JOUR GAMESTATE APRÈS CHANGEMENT
+        this.updateGameStateAfterSwitch(playerRole, switchResult);
+        
+        // 🆕 TRACKING IA CHANGEMENT
+        this.trackPlayerActionInBattle(switchAction.playerId, 'POKEMON_SWITCH', {
+          fromIndex: switchAction.data.fromPokemonIndex,
+          toIndex: switchAction.data.toPokemonIndex,
+          isForced: switchAction.data.isForced
+        });
+
+        return {
+          success: true,
+          gameState: this.gameState,
+          events: switchResult.events,
+          data: {
+            switchExecuted: true,
+            newActivePokemon: switchResult.data?.toPokemon
+          }
+        };
+      } else {
+        return this.createErrorResult(switchResult.error || 'Échec changement Pokémon');
+      }
+    } catch (error) {
+      return this.createErrorResult(`Erreur changement: ${error instanceof Error ? error.message : 'Inconnue'}`);
+    }
+  }
+
+  /**
+   * 🆕 Met à jour le GameState après changement
+   */
+  private updateGameStateAfterSwitch(playerRole: PlayerRole, switchResult: BattleResult): void {
+    if (!switchResult.data || !this.isTrainerBattle) return;
+
+    const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.trainerTeamManager;
+    if (!teamManager) return;
+
+    const newActivePokemon = teamManager.getActivePokemon();
+    if (newActivePokemon) {
+      if (playerRole === 'player1') {
+        this.gameState.player1.pokemon = newActivePokemon;
+      } else {
+        this.gameState.player2.pokemon = newActivePokemon;
+      }
+      
+      console.log(`✅ [BattleEngine] GameState mis à jour: ${playerRole} → ${newActivePokemon.name}`);
+    }
+  }
+
+  /**
+   * 🆕 Initialise les gestionnaires d'équipes
+   */
+  private async initializeTeamManagers(config: TrainerBattleConfig): Promise<void> {
+    console.log('🎮 [BattleEngine] Initialisation Team Managers...');
+    
+    try {
+      // Team Manager joueur
+      this.playerTeamManager = new TrainerTeamManager(config.player1.sessionId);
+      this.playerTeamManager.initializeWithPokemon(config.playerTeam);
+      
+      // Team Manager dresseur (IA)
+      this.trainerTeamManager = new TrainerTeamManager('ai');
+      this.trainerTeamManager.initializeWithPokemon(config.trainer.pokemon);
+      
+      console.log(`✅ [BattleEngine] Team Managers créés - Joueur: ${config.playerTeam.length} Pokémon, Dresseur: ${config.trainer.pokemon.length} Pokémon`);
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur Team Managers:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🆕 Initialise les modules étendus
+   */
+  private initializeExtendedModules(): void {
+    console.log('🔧 [BattleEngine] Initialisation modules étendus...');
+    
+    try {
+      // SwitchManager avec Team Managers
+      if (this.playerTeamManager && this.trainerTeamManager) {
+        this.switchManager.initialize(
+          this.gameState,
+          this.playerTeamManager,
+          this.trainerTeamManager,
+          this.trainerData?.specialRules
+        );
+        console.log('✅ [BattleEngine] SwitchManager initialisé');
+      }
+      
+      // TrainerAI avec données dresseur et AINPCManager
+      if (this.trainerData) {
+        this.trainerAI.initialize(
+          this.trainerData,
+          this.aiNPCManager,
+          this.trainerTeamManager
+        );
+        console.log('✅ [BattleEngine] TrainerAI initialisé');
+      }
+      
+      // TrainerRewardManager
+      this.trainerRewardManager.initialize(this.gameState);
+      console.log('✅ [BattleEngine] TrainerRewardManager initialisé');
+      
+      // Configuration ActionQueue pour changements
+      this.actionQueue.configureSwitchBehavior(true, 2, 'priority');
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur modules étendus:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🆕 Système IA étendu avec AINPCManager
+   */
+  private async initializeExtendedAISystem(): Promise<void> {
+    try {
+      // 🔥 IA SYSTÈME EXISTANT
+      await this.aiNPCManager.initialize();
+      this.registerPlayersInAI();
+      
+      // 🆕 ENREGISTRER DRESSEUR COMME NPC
+      if (this.trainerData) {
+        await this.registerTrainerAsNPC();
+      }
+      
+      console.log('✅ [BattleEngine] Système IA étendu initialisé');
+      
+    } catch (error) {
+      console.warn('⚠️ [BattleEngine] Erreur IA étendue (continue sans):', error);
+    }
+  }
+
+  /**
+   * 🆕 Enregistre le dresseur comme NPC intelligent
+   */
+  private async registerTrainerAsNPC(): Promise<void> {
+    if (!this.trainerData) return;
+    
+    try {
+      const trainerAsNPC = {
+        id: parseInt(this.trainerData.trainerId) || 999,
+        name: this.trainerData.name,
+        type: 'trainer',
+        dialogue: this.trainerData.dialogue?.prebattle?.[0] || `Je suis ${this.trainerData.name} !`,
+        class: this.trainerData.trainerClass,
+        level: this.trainerData.level,
+        pokemon: this.trainerData.pokemon.map(p => ({
+          id: p.id,
+          level: p.level,
+          name: p.name
+        }))
+      };
+      
+      await this.aiNPCManager.registerNPCs([trainerAsNPC]);
+      console.log(`✅ [BattleEngine] Dresseur ${this.trainerData.name} enregistré comme NPC intelligent`);
+      
+    } catch (error) {
+      console.warn('⚠️ [BattleEngine] Erreur enregistrement dresseur NPC:', error);
+    }
+  }
+
+  /**
+   * 🆕 Tracking spécifique combat dresseur
+   */
+  private trackTrainerBattleStart(): void {
+    if (!this.trainerData) return;
+    
+    try {
+      this.aiNPCManager.trackPlayerAction(
+        this.gameState.player1.name,
+        ActionType.TRAINER_BATTLE,
+        {
+          trainerId: this.trainerData.trainerId,
+          trainerName: this.trainerData.name,
+          trainerClass: this.trainerData.trainerClass,
+          trainerLevel: this.trainerData.level,
+          playerPokemonCount: this.playerTeamManager?.getAllPokemon().length || 1,
+          trainerPokemonCount: this.trainerData.pokemon.length
+        },
+        {
+          location: {
+            map: 'battle_area',
+            x: 0,
+            y: 0
+          }
+        }
+      );
+      
+      console.log(`📊 [BattleEngine] Combat dresseur tracké pour IA`);
+      
+    } catch (error) {
+      console.warn('⚠️ [BattleEngine] Erreur tracking combat:', error);
+    }
+  }
+
+  /**
+   * 🆕 Tracking actions en combat
+   */
+  private trackPlayerActionInBattle(playerId: string, actionType: string, actionData: any): void {
+    if (!this.isTrainerBattle) return;
+    
+    try {
+      const playerName = this.getPlayerName(playerId);
+      if (playerName === playerId) return; // Skip si pas de nom résolu
+      
+      this.aiNPCManager.trackPlayerAction(
+        playerName,
+        actionType as ActionType,
+        {
+          ...actionData,
+          battleId: this.gameState.battleId,
+          turnNumber: this.gameState.turnNumber,
+          opponent: this.trainerData?.name
+        }
+      );
+      
+    } catch (error) {
+      // Silencieux pour éviter spam
+    }
+  }
+
+  /**
+   * 🆕 Résout nom joueur depuis session ID
+   */
+  private getPlayerName(playerId: string): string {
+    if (playerId === this.gameState.player1.sessionId) {
+      return this.gameState.player1.name;
+    }
+    return playerId; // Fallback
+  }
+
+  // === 🔥 GESTION PHASES AMÉLIORÉE ===
+
+  private handleActionSelectionPhase(): void {
+    this.clearActionTimers();
+    this.clearTurnTimeout();
+    this.actionQueue.clear();
+    this.resetSubPhaseState();
+    this.startTurnTimeout();
+
+    // 🆕 RESET COMPTEURS SWITCH POUR NOUVEAU TOUR
+    if (this.isTrainerBattle && this.switchManager.isReady()) {
+      this.switchManager.resetTurnCounters(this.gameState.turnNumber);
+    }
+
+    this.emit('actionSelectionStart', {
+      canAct: true,
+      gameState: this.gameState,
+      turnNumber: this.gameState.turnNumber,
+      isTrainerBattle: this.isTrainerBattle
+    });
+
+    // 🆕 IA DRESSEUR AMÉLIORÉE
+    if (this.isTrainerBattle) {
+      this.scheduleTrainerAIAction();
+    } else {
+      this.scheduleAIAction();
+    }
+  }
+
+  /**
+   * 🆕 IA Dresseur intelligente
+   */
+  private scheduleTrainerAIAction(): void {
+    if (this.gameState.player2.sessionId !== 'ai') return;
+    
+    const delay = this.trainerAI.isReady() ? 
+      this.trainerAI.getThinkingDelay() : 
+      this.AI_ACTION_DELAY;
+    
+    this.aiActionTimer = setTimeout(() => {
+      if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
+        this.executeTrainerAIAction();
+      }
+    }, delay);
+  }
+
+  /**
+   * 🆕 Exécute action IA dresseur
+   */
+  private executeTrainerAIAction(): void {
+    try {
+      if (!this.trainerAI.isReady()) {
+        console.log('⚠️ [BattleEngine] TrainerAI pas prêt, fallback AIPlayer');
+        this.executeAIAction();
+        return;
+      }
+
+      // 🆕 DÉCISION IA INTELLIGENTE
+      const aiDecision = this.trainerAI.makeDecision(
+        this.gameState,
+        this.playerTeamManager?.getActivePokemon() || null,
+        this.gameState.turnNumber
+      );
+
+      if (aiDecision.success && aiDecision.action) {
+        console.log(`🧠 [BattleEngine] IA dresseur: ${aiDecision.action.type} (stratégie: ${aiDecision.strategy})`);
+        
+        // 🆕 TRACKING DÉCISION IA
+        this.trackAIDecision(aiDecision);
+        
+        this.submitAction(aiDecision.action);
+      } else {
+        console.log('⚠️ [BattleEngine] IA dresseur échec, fallback');
+        this.executeAIAction();
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur IA dresseur:', error);
+      this.executeAIAction(); // Fallback
+    }
+  }
+
+  /**
+   * 🆕 Tracking décisions IA pour apprentissage
+   */
+  private trackAIDecision(aiDecision: any): void {
+    try {
+      this.aiNPCManager.trackPlayerAction(
+        'AI_TRAINER',
+        ActionType.NPC_TALK, // Réutilise ce type pour les décisions IA
+        {
+          strategy: aiDecision.strategy,
+          actionType: aiDecision.action?.type,
+          reasoning: aiDecision.reasoning,
+          confidence: aiDecision.confidence,
+          battleContext: {
+            turnNumber: this.gameState.turnNumber,
+            playerPokemon: this.gameState.player1.pokemon?.name,
+            trainerPokemon: this.gameState.player2.pokemon?.name
+          }
+        }
+      );
+    } catch (error) {
+      // Silencieux
+    }
+  }
+
+  // === 🔥 GESTION KO AMÉLIORÉE POUR DRESSEURS ===
+
+  private async performKOCheckPhase(): Promise<void> {
+    this.currentSubPhase = SubPhase.KO_CHECK;
+    
+    const player1Pokemon = this.gameState.player1.pokemon;
+    const player2Pokemon = this.gameState.player2.pokemon;
+    
+    if (!player1Pokemon || !player2Pokemon) {
+      await this.completeActionResolution();
+      return;
+    }
+
+    const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
+    const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
+
+    if (player1KO.isKO || player2KO.isKO) {
+      console.log(`💀 [BattleEngine] KO détecté - P1: ${player1KO.isKO}, P2: ${player2KO.isKO}`);
+      
+      // 🆕 GESTION KO SPÉCIFIQUE DRESSEURS
+      if (this.isTrainerBattle) {
+        await this.handleTrainerBattleKO(player1KO, player2KO);
+        return;
+      }
+      
+      // 🔥 GESTION KO COMBAT SAUVAGE (EXISTANTE)
+      if (this.broadcastManager) {
+        if (player1KO.isKO) {
+          this.broadcastManager.emit('pokemonFainted', {
+            pokemonName: player1Pokemon.name,
+            targetRole: 'player1'
+          });
+        }
+        if (player2KO.isKO) {
+          this.broadcastManager.emit('pokemonFainted', {
+            pokemonName: player2Pokemon.name,
+            targetRole: 'player2'
+          });
+        }
+      }
+    }
+
+    const battleEndCheck = this.koManager.checkBattleEnd();
+    if (battleEndCheck.isEnded) {
+      await this.handleBattleEnd(battleEndCheck);
+      return;
+    }
+
+    await this.completeActionResolution();
+  }
+
+  /**
+   * 🆕 Gestion KO spécifique combats dresseurs
+   */
+  private async handleTrainerBattleKO(player1KO: any, player2KO: any): Promise<void> {
+    console.log('💀 [BattleEngine] Gestion KO combat dresseur...');
+    
+    try {
+      // Traiter KO joueur
+      if (player1KO.isKO && this.playerTeamManager) {
+        await this.handlePlayerKO('player1');
+      }
+      
+      // Traiter KO dresseur
+      if (player2KO.isKO && this.trainerTeamManager) {
+        await this.handleTrainerKO('player2');
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur gestion KO dresseur:', error);
+      await this.completeActionResolution();
+    }
+  }
+
+  /**
+   * 🆕 Gestion KO joueur avec changement forcé
+   */
+  private async handlePlayerKO(playerRole: PlayerRole): Promise<void> {
+    const teamManager = playerRole === 'player1' ? this.playerTeamManager : this.trainerTeamManager;
+    if (!teamManager) return;
+
+    const analysis = teamManager.analyzeTeam();
+    
+    if (!analysis.battleReady) {
+      // Équipe vaincue
+      console.log(`💀 [BattleEngine] Équipe ${playerRole} vaincue !`);
+      const winner = playerRole === 'player1' ? 'player2' : 'player1';
+      
+      await this.handleTrainerBattleEnd(winner, 'team_defeat');
+      return;
+    }
+
+    // Changement forcé nécessaire
+    console.log(`🔄 [BattleEngine] Changement forcé requis pour ${playerRole}`);
+    
+    const forcedSwitchResult = await this.switchManager.handleForcedSwitch(playerRole, 0);
+    
+    if (forcedSwitchResult.success && !forcedSwitchResult.data?.teamDefeated) {
+      // Changement réussi
+      this.updateGameStateAfterSwitch(playerRole, forcedSwitchResult);
+      
+      this.emit('pokemonSwitched', {
+        playerRole,
+        isForced: true,
+        newPokemon: forcedSwitchResult.data?.toPokemon,
+        reason: 'forced_after_ko'
+      });
+      
+      await this.completeActionResolution();
+    } else {
+      // Équipe vaincue ou erreur
+      const winner = playerRole === 'player1' ? 'player2' : 'player1';
+      await this.handleTrainerBattleEnd(winner, 'team_defeat');
+    }
+  }
+
+  /**
+   * 🆕 Gestion KO dresseur (identique logique)
+   */
+  private async handleTrainerKO(playerRole: PlayerRole): Promise<void> {
+    await this.handlePlayerKO(playerRole); // Même logique
+  }
+
+  /**
+   * 🆕 Fin spécifique combat dresseur
+   */
+  private async handleTrainerBattleEnd(winner: PlayerRole, reason: string): Promise<void> {
+    console.log(`🏆 [BattleEngine] Fin combat dresseur - Vainqueur: ${winner}`);
+    
+    this.gameState.isEnded = true;
+    this.gameState.winner = winner;
+    
+    try {
+      // 🆕 CALCUL ET ATTRIBUTION RÉCOMPENSES
+      if (winner === 'player1' && this.trainerData) {
+        const rewards = await this.trainerRewardManager.calculateAndGiveRewards(
+          this.gameState.player1.name,
+          this.trainerData,
+          this.gameState.turnNumber
+        );
+        
+        console.log(`🎁 [BattleEngine] Récompenses: ${rewards.money} pièces, ${rewards.totalExpGained} EXP`);
+        
+        this.emit('rewardsEarned', rewards);
+      }
+      
+      // 🆕 TRACKING FIN COMBAT POUR IA
+      this.trackTrainerBattleEnd(winner, reason);
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur fin combat dresseur:', error);
+    }
+    
+    this.emit('battleEnd', {
+      winner,
+      reason: `Combat dresseur terminé: ${reason}`,
+      gameState: this.gameState,
+      isTrainerBattle: true,
+      trainerDefeated: winner === 'player1'
+    });
+    
+    this.transitionToPhase(InternalBattlePhase.ENDED, reason);
+  }
+
+  /**
+   * 🆕 Tracking fin combat dresseur
+   */
+  private trackTrainerBattleEnd(winner: PlayerRole, reason: string): void {
+    try {
+      this.aiNPCManager.trackPlayerAction(
+        this.gameState.player1.name,
+        ActionType.COMBAT_END,
+        {
+          battleResult: winner === 'player1' ? 'victory' : 'defeat',
+          opponent: this.trainerData?.name,
+          reason,
+          turns: this.gameState.turnNumber,
+          battleDuration: Date.now() - (this.gameState as any).startTime || 0
+        }
+      );
+    } catch (error) {
+      // Silencieux
+    }
+  }
+
+  // === 🔥 MÉTHODES EXISTANTES PRÉSERVÉES ===
+
+  private async handleBattleEnd(battleEndCheck: any): Promise<void> {
+    console.log(`🏆 [BattleEngine] Combat terminé - Vainqueur: ${battleEndCheck.winner}`);
+    
+    this.gameState.isEnded = true;
+    this.gameState.winner = battleEndCheck.winner;
+    
+    this.emit('battleEnd', {
+      winner: battleEndCheck.winner,
+      reason: battleEndCheck.reason,
+      message: battleEndCheck.message,
+      gameState: this.gameState,
+      koVictory: true
+    });
+    
+    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+  }
+
+  // === UTILITAIRES ET COMPATIBILITÉ ===
+
+  private validateTrainerConfig(config: TrainerBattleConfig): void {
+    if (!config.player1?.name || !config.playerTeam?.length) {
+      throw new Error('Configuration joueur invalide');
+    }
+    if (!config.trainer?.name || !config.trainer.pokemon?.length) {
+      throw new Error('Configuration dresseur invalide');
+    }
+    if (config.type !== 'trainer') {
+      throw new Error('Type de combat doit être "trainer"');
+    }
+  }
+
+  private initializeTrainerGameState(config: TrainerBattleConfig): BattleGameState {
+    return {
+      battleId: `trainer_battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'trainer',
+      phase: 'battle',
+      turnNumber: 1,
+      currentTurn: 'player1',
+      player1: {
+        sessionId: config.player1.sessionId,
+        name: config.player1.name,
+        pokemon: config.playerTeam[0] // Premier Pokémon actif
+      },
+      player2: {
+        sessionId: 'ai',
+        name: config.trainer.name,
+        pokemon: config.trainer.pokemon[0], // Premier Pokémon du dresseur
+        isAI: true
+      },
+      isEnded: false,
+      winner: null
+    };
+  }
+
+  // === MÉTHODES PRÉSERVÉES SYSTÈME EXISTANT ===
   
+  async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+    return await this.submitAction(action, teamManager);
+  }
+
+  generateAIAction(): BattleAction | null {
+    if (!this.isInitialized || this.getCurrentPhase() !== InternalBattlePhase.ACTION_SELECTION) {
+      return null;
+    }
+    
+    // 🆕 UTILISER TRAINER AI SI DISPONIBLE
+    if (this.isTrainerBattle && this.trainerAI.isReady()) {
+      const decision = this.trainerAI.makeDecision(
+        this.gameState,
+        this.playerTeamManager?.getActivePokemon() || null,
+        this.gameState.turnNumber
+      );
+      return decision.action || null;
+    }
+    
+    return this.aiPlayer.generateAction();
+  }
+
+  getAIThinkingDelay(): number {
+    if (this.isTrainerBattle && this.trainerAI.isReady()) {
+      return this.trainerAI.getThinkingDelay();
+    }
+    
+    if (this.gameState?.type === 'wild') {
+      return 0;
+    }
+    
+    const delay = Math.min(1500 + Math.random() * 2000, 3500);
+    return delay;
+  }
+
+  getCurrentState(): BattleGameState {
+    return { ...this.gameState };
+  }
+
+  getCurrentPhase(): InternalBattlePhase {
+    return this.phaseManager.getCurrentPhase();
+  }
+
+  getCurrentSubPhase(): SubPhase {
+    return this.currentSubPhase;
+  }
+
+  canSubmitAction(): boolean {
+    return this.phaseManager.canSubmitAction();
+  }
+
+  getActionQueueState(): any {
+    return this.actionQueue.getQueueState();
+  }
+
+  getPhaseState(): any {
+    return this.phaseManager.getPhaseState();
+  }
+
+  // === PRÉSERVATION MÉTHODES CRITIQUES ===
+
   private forceActionResolution(): void {
     console.log('🚨 [BattleEngine] Force résolution des actions');
-    
-    // Forcer la phase vers résolution
     this.phaseManager.forceTransition(InternalBattlePhase.ACTION_RESOLUTION, 'force_resolution');
-    
-    // Traiter immédiatement
     setTimeout(() => {
       this.handleActionResolutionPhase();
     }, 100);
   }
-
-  // === PHASE MANAGEMENT AMÉLIORÉ ===
 
   private transitionToPhase(newPhase: InternalBattlePhase, trigger = 'manual'): boolean {
     if (!this.isInitialized) return false;
@@ -200,7 +976,6 @@ export class BattleEngine {
     if (!success) {
       console.error(`❌ [BattleEngine] Échec transition ${this.phaseManager.getCurrentPhase()} → ${newPhase}`);
       
-      // 🔥 AUTO-RECOVERY: Essayer force transition
       if (this.transitionAttempts <= 2) {
         console.log('🔧 [BattleEngine] Tentative force transition...');
         this.phaseManager.forceTransition(newPhase, `force_${trigger}`);
@@ -210,7 +985,7 @@ export class BattleEngine {
       return false;
     }
 
-    this.transitionAttempts = 0; // Reset on success
+    this.transitionAttempts = 0;
 
     switch (newPhase) {
       case InternalBattlePhase.ACTION_SELECTION:
@@ -228,27 +1003,11 @@ export class BattleEngine {
       phase: newPhase,
       gameState: this.gameState,
       canAct: this.phaseManager.canSubmitAction(),
-      trigger
+      trigger,
+      isTrainerBattle: this.isTrainerBattle
     });
 
     return true;
-  }
-
-  private handleActionSelectionPhase(): void {
-    this.clearActionTimers();
-    this.clearTurnTimeout();
-    this.actionQueue.clear();
-    this.resetSubPhaseState();
-    this.startTurnTimeout();
-
-    this.emit('actionSelectionStart', {
-      canAct: true,
-      gameState: this.gameState,
-      turnNumber: this.gameState.turnNumber
-    });
-
-    // 🔥 IA ACTION IMMÉDIATE POUR STRESS TEST
-    this.scheduleAIAction();
   }
 
   private async handleActionResolutionPhase(): Promise<void> {
@@ -268,7 +1027,6 @@ export class BattleEngine {
       this.orderedActions = this.actionQueue.getActionsBySpeed();
       this.emit('resolutionStart', { actionCount: this.orderedActions.length });
       
-      // 🔥 TRAITEMENT RAPIDE SANS DÉLAIS
       await this.processAllActionsRapidly();
       
     } catch (error) {
@@ -278,7 +1036,6 @@ export class BattleEngine {
     }
   }
 
-  // 🔥 NOUVELLE MÉTHODE: TRAITEMENT RAPIDE
   private async processAllActionsRapidly(): Promise<void> {
     for (let i = 0; i < this.orderedActions.length; i++) {
       const actionData = this.orderedActions[i];
@@ -300,7 +1057,6 @@ export class BattleEngine {
             playerRole: actionData.playerRole
           });
           
-          // 🔥 BROADCAST SIMPLIFIÉ
           if (this.broadcastManager && actionData.action.type === 'attack') {
             this.broadcastManager.emit('moveUsed', {
               attackerName: actionData.pokemon.name,
@@ -322,82 +1078,9 @@ export class BattleEngine {
         console.error(`❌ [BattleEngine] Erreur action ${i + 1}:`, error);
         continue;
       }
-      
-      // 🔥 PAS DE DÉLAI ENTRE ACTIONS
     }
 
-    // KO Check après toutes les actions
     await this.performKOCheckPhase();
-  }
-
-  private handleEndedPhase(): void {
-    if (this.battleEndHandled) {
-      console.log('⚠️ [BattleEngine] Battle end déjà traité');
-      return;
-    }
-    
-    this.battleEndHandled = true;
-    this.clearAllTimers();
-    this.savePokemonAfterBattle();
-    this.performFinalCleanup();
-  }
-
-  // === KO CHECK AMÉLIORÉ ===
-
-  private async performKOCheckPhase(): Promise<void> {
-    this.currentSubPhase = SubPhase.KO_CHECK;
-    
-    const player1Pokemon = this.gameState.player1.pokemon;
-    const player2Pokemon = this.gameState.player2.pokemon;
-    
-    if (!player1Pokemon || !player2Pokemon) {
-      await this.completeActionResolution();
-      return;
-    }
-
-    const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
-    const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
-
-    // 🔥 TRAITEMENT KO IMMÉDIAT
-    if (player1KO.isKO || player2KO.isKO) {
-      console.log(`💀 [BattleEngine] KO détecté - P1: ${player1KO.isKO}, P2: ${player2KO.isKO}`);
-      
-      if (this.broadcastManager) {
-        if (player1KO.isKO) {
-          this.broadcastManager.emit('pokemonFainted', {
-            pokemonName: player1Pokemon.name,
-            targetRole: 'player1'
-          });
-        }
-        if (player2KO.isKO) {
-          this.broadcastManager.emit('pokemonFainted', {
-            pokemonName: player2Pokemon.name,
-            targetRole: 'player2'
-          });
-        }
-      }
-    }
-
-    const battleEndCheck = this.koManager.checkBattleEnd();
-    if (battleEndCheck.isEnded) {
-      console.log(`🏆 [BattleEngine] Combat terminé - Vainqueur: ${battleEndCheck.winner}`);
-      
-      this.gameState.isEnded = true;
-      this.gameState.winner = battleEndCheck.winner;
-      
-      this.emit('battleEnd', {
-        winner: battleEndCheck.winner,
-        reason: battleEndCheck.reason,
-        message: battleEndCheck.message,
-        gameState: this.gameState,
-        koVictory: true
-      });
-      
-      this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-      return;
-    }
-
-    await this.completeActionResolution();
   }
 
   private async completeActionResolution(): Promise<void> {
@@ -405,7 +1088,6 @@ export class BattleEngine {
     
     this.turnCounter++;
     
-    // 🔥 CHECK MAX TURNS PLUS TÔT
     if (this.turnCounter > this.MAX_TURNS) {
       console.log(`⏰ [BattleEngine] Max turns atteint (${this.MAX_TURNS}), fin combat`);
       this.forceBattleEnd('max_turns_reached', 'Combat trop long');
@@ -423,7 +1105,6 @@ export class BattleEngine {
     });
 
     if (!this.gameState.isEnded) {
-      // 🔥 TRANSITION IMMÉDIATE VERS NOUVEAU TOUR
       const success = this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
       if (!success) {
         console.error('❌ [BattleEngine] Échec transition nouveau tour');
@@ -434,14 +1115,12 @@ export class BattleEngine {
     }
   }
 
-  // === AI MANAGEMENT OPTIMISÉ ===
+  // [Le reste des méthodes existantes reste identique...]
+  // Toutes les méthodes de gestion des timers, utilitaires, etc. sont préservées
 
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
-
-    // 🔥 DÉLAI RÉDUIT POUR STRESS TEST
     const delay = this.AI_ACTION_DELAY;
-    
     this.aiActionTimer = setTimeout(() => {
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
         this.executeAIAction();
@@ -478,8 +1157,6 @@ export class BattleEngine {
       this.submitAction(emergencyAction);
     }
   }
-
-  // === TIMEOUT MANAGEMENT OPTIMISÉ ===
 
   private startBattleTimeout(): void {
     this.clearBattleTimeout();
@@ -608,8 +1285,6 @@ export class BattleEngine {
     this.transitionToPhase(InternalBattlePhase.ENDED, reason);
   }
 
-  // === INITIALIZATION (INCHANGÉ) ===
-
   private initializeAllModules(): void {
     this.phaseManager.initialize(this.gameState);
     this.actionProcessor.initialize(this.gameState);
@@ -668,7 +1343,7 @@ export class BattleEngine {
   }
 
   private scheduleIntroTransition(): void {
-    const INTRO_DELAY = process.env.NODE_ENV === 'test' ? 50 : 500; // 🔥 RÉDUIT
+    const INTRO_DELAY = process.env.NODE_ENV === 'test' ? 50 : 800;
     this.clearIntroTimer();
     
     this.introTimer = setTimeout(() => {
@@ -686,8 +1361,6 @@ export class BattleEngine {
       }
     }, INTRO_DELAY);
   }
-
-  // === POKEMON ENCOUNTER (INCHANGÉ) ===
 
   private handlePokemonEncounter(): void {
     if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
@@ -713,8 +1386,6 @@ export class BattleEngine {
       }).catch(() => {});
     }
   }
-
-  // === CAPTURE HANDLING (INCHANGÉ) ===
 
   private async handleCaptureAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     this.transitionToPhase(InternalBattlePhase.CAPTURE, 'capture_attempt');
@@ -747,8 +1418,6 @@ export class BattleEngine {
 
     return result;
   }
-
-  // === TIMER MANAGEMENT (INCHANGÉ) ===
 
   private clearAllTimers(): void {
     this.clearIntroTimer();
@@ -784,8 +1453,6 @@ export class BattleEngine {
       this.turnTimeoutId = null;
     }
   }
-
-  // === UTILITIES (PLUS RAPIDES) ===
 
   private resetSubPhaseState(): void {
     this.currentSubPhase = SubPhase.NONE;
@@ -902,7 +1569,18 @@ export class BattleEngine {
     }
   }
 
-  // CRITICAL: Separated cleanup methods
+  private handleEndedPhase(): void {
+    if (this.battleEndHandled) {
+      console.log('⚠️ [BattleEngine] Battle end déjà traité');
+      return;
+    }
+    
+    this.battleEndHandled = true;
+    this.clearAllTimers();
+    this.savePokemonAfterBattle();
+    this.performFinalCleanup();
+  }
+
   private performFinalCleanup(): void {
     this.isManualCleanup = true;
     
@@ -914,47 +1592,6 @@ export class BattleEngine {
       this.broadcastManager.cleanup();
       this.broadcastManager = null;
     }
-  }
-
-  // === PUBLIC API COMPATIBILITY ===
-
-  async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-    return await this.submitAction(action, teamManager);
-  }
-
-  generateAIAction(): BattleAction | null {
-    if (!this.isInitialized || this.getCurrentPhase() !== InternalBattlePhase.ACTION_SELECTION) {
-      return null;
-    }
-    return this.aiPlayer.generateAction();
-  }
-
-  getAIThinkingDelay(): number {
-    return this.getAIDelay();
-  }
-
-  getCurrentState(): BattleGameState {
-    return { ...this.gameState };
-  }
-
-  getCurrentPhase(): InternalBattlePhase {
-    return this.phaseManager.getCurrentPhase();
-  }
-
-  getCurrentSubPhase(): SubPhase {
-    return this.currentSubPhase;
-  }
-
-  canSubmitAction(): boolean {
-    return this.phaseManager.canSubmitAction();
-  }
-
-  getActionQueueState(): any {
-    return this.actionQueue.getQueueState();
-  }
-
-  getPhaseState(): any {
-    return this.phaseManager.getPhaseState();
   }
 
   // === SPECTATOR MANAGEMENT ===
@@ -1017,9 +1654,8 @@ export class BattleEngine {
   // === CLEANUP ===
 
   cleanup(): void {
-    // CRITICAL: Only cleanup if manually requested or battle ended
     if (!this.isManualCleanup && !this.gameState.isEnded) {
-      return; // Don't cleanup mid-battle
+      return;
     }
 
     this.clearAllTimers();
@@ -1033,6 +1669,18 @@ export class BattleEngine {
       this.broadcastManager = null;
     }
 
+    // 🆕 NETTOYAGE MODULES ÉTENDUS
+    if (this.switchManager) {
+      this.switchManager.reset();
+    }
+    if (this.trainerAI) {
+      this.trainerAI.reset();
+    }
+    if (this.trainerRewardManager) {
+      this.trainerRewardManager.reset();
+    }
+
+    // 🔥 NETTOYAGE EXISTANT
     this.phaseManager.reset();
     this.actionQueue.reset();
     this.actionProcessor.reset();
@@ -1047,14 +1695,21 @@ export class BattleEngine {
     this.turnCounter = 0;
     this.transitionAttempts = 0;
     this.isManualCleanup = false;
-    this.battleEndHandled = false; // 🔥 RESET FLAG
+    this.battleEndHandled = false;
+
+    // 🆕 RESET ÉTAT DRESSEUR
+    this.isTrainerBattle = false;
+    this.trainerData = null;
+    this.playerTeamManager = null;
+    this.trainerTeamManager = null;
+    this.pendingSwitches.clear();
   }
 
   // === DIAGNOSTICS ===
 
   getSystemState(): any {
     return {
-      version: 'battle_engine_stress_test_optimized_v1',
+      version: 'battle_engine_session3_trainer_complete_v1',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1062,6 +1717,7 @@ export class BattleEngine {
       transitionAttempts: this.transitionAttempts,
       isManualCleanup: this.isManualCleanup,
       battleEndHandled: this.battleEndHandled,
+      isTrainerBattle: this.isTrainerBattle,
       timeouts: {
         battleTimeout: this.battleTimeoutId !== null,
         turnTimeout: this.turnTimeoutId !== null
@@ -1076,15 +1732,28 @@ export class BattleEngine {
         winner: this.gameState.winner,
         turnNumber: this.gameState.turnNumber
       },
-      optimizations: [
-        'reduced_ai_delay_500ms',
-        'reduced_turn_timeout_8s',
-        'reduced_max_transitions_3',
-        'immediate_action_processing',
-        'force_resolution_recovery',
-        'rapid_action_processing',
-        'battle_end_protection',
-        'simplified_broadcasts'
+      trainerBattleState: this.isTrainerBattle ? {
+        trainerId: this.trainerData?.trainerId,
+        trainerName: this.trainerData?.name,
+        trainerClass: this.trainerData?.trainerClass,
+        playerTeamSize: this.playerTeamManager?.getAllPokemon().length,
+        trainerTeamSize: this.trainerTeamManager?.getAllPokemon().length,
+        switchManagerReady: this.switchManager?.isReady(),
+        trainerAIReady: this.trainerAI?.isReady(),
+        rewardManagerReady: this.trainerRewardManager?.isReady(),
+        pendingSwitches: this.pendingSwitches.size
+      } : null,
+      newFeatures: [
+        'trainer_battle_support_complete',
+        'multi_pokemon_teams',
+        'intelligent_switch_management', 
+        'advanced_trainer_ai_integration',
+        'ainpc_manager_integration',
+        'reward_system_integration',
+        'forced_switch_handling',
+        'battle_memory_tracking',
+        'strategic_ai_decisions',
+        'seamless_wild_compatibility'
       ]
     };
   }
