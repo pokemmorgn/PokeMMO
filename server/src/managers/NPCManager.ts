@@ -261,44 +261,173 @@ export class NpcManager {
   }
 
   // ✅ CHARGEMENT MONGODB POUR UNE ZONE
-  private async loadNpcsFromMongoDB(zoneName: string): Promise<void> {
-    const startTime = Date.now();
-    
-    try {
-      // Vérifier le cache
-      if (this.config.useCache) {
-        const cached = this.getFromCache(zoneName);
-        if (cached) {
-          this.log('info', `💾 [MongoDB Cache] Zone ${zoneName} trouvée`);
-          this.addNpcsToCollection(cached);
-          return;
-        }
+// ✅ CHARGEMENT MONGODB POUR UNE ZONE AVEC DEBUG COMPLET
+private async loadNpcsFromMongoDB(zoneName: string): Promise<void> {
+  const startTime = Date.now();
+  
+  console.log(`🗄️ [MongoDB DEBUG] === CHARGEMENT ZONE ${zoneName} ===`);
+  console.log(`⏰ Début: ${new Date().toISOString()}`);
+  
+  try {
+    // ✅ ÉTAPE 1: Vérifier le cache
+    if (this.config.useCache) {
+      const cached = this.getFromCache(zoneName);
+      if (cached) {
+        console.log(`💾 [Cache HIT] Zone ${zoneName}: ${cached.length} NPCs depuis cache`);
+        this.addNpcsToCollection(cached);
+        return;
+      } else {
+        console.log(`💾 [Cache MISS] Zone ${zoneName}: pas en cache, requête MongoDB`);
       }
+    }
+    
+    // ✅ ÉTAPE 2: Requête MongoDB avec debug détaillé
+    console.log(`🔍 [MongoDB QUERY] Recherche NPCs pour zone: "${zoneName}"`);
+    console.log(`🔍 [MongoDB QUERY] Utilisation de: NpcData.findByZone("${zoneName}")`);
+    
+    const mongoNpcs = await NpcData.findByZone(zoneName);
+    
+    console.log(`📊 [MongoDB RESULT] Zone "${zoneName}": ${mongoNpcs.length} documents récupérés`);
+    
+    // ✅ ÉTAPE 3: Debug des documents récupérés
+    if (mongoNpcs.length === 0) {
+      console.warn(`⚠️ [MongoDB EMPTY] Aucun NPC trouvé pour zone "${zoneName}"`);
+      console.warn(`🔍 [MongoDB DEBUG] Vérification: est-ce que la zone existe dans la base ?`);
       
-      this.log('info', `🗄️ [MongoDB] Chargement zone ${zoneName}...`);
+      // Test: compter tous les NPCs avec cette zone
+      const directCount = await NpcData.countDocuments({ zone: zoneName });
+      console.warn(`🔍 [MongoDB COUNT] Count direct: ${directCount} NPCs pour zone "${zoneName}"`);
       
-      const mongoNpcs = await NpcData.findByZone(zoneName);
+      // Test: voir les zones similaires
+      const similarZones = await NpcData.distinct('zone', { 
+        zone: { $regex: zoneName.substring(0, 4), $options: 'i' } 
+      });
+      console.warn(`🔍 [MongoDB SIMILAR] Zones similaires à "${zoneName}":`, similarZones);
       
-      const npcsData: NpcData[] = mongoNpcs.map(mongoDoc => 
-        this.convertMongoDocToNpcData(mongoDoc, zoneName)
-      );
+      this.loadedZones.add(zoneName);
+      return;
+    }
+    
+    // ✅ ÉTAPE 4: Debug détaillé de chaque document
+    console.log(`🧪 [MongoDB DOCS] Analyse détaillée des ${mongoNpcs.length} documents...`);
+    
+    mongoNpcs.forEach((doc, index) => {
+      console.log(`📄 [DOC ${index + 1}/${mongoNpcs.length}] Structure:`, {
+        _id: doc._id,
+        npcId: doc.npcId,
+        name: doc.name,
+        zone: doc.zone,
+        sprite: doc.sprite,
+        position: doc.position,
+        hasToNpcFormat: typeof doc.toNpcFormat === 'function',
+        type: doc.type,
+        isActive: doc.isActive
+      });
+    });
+    
+    // ✅ ÉTAPE 5: Conversion avec gestion d'erreur individuelle
+    console.log(`🔄 [CONVERSION] Début conversion ${mongoNpcs.length} documents...`);
+    
+    const npcsData: NpcData[] = [];
+    const conversionErrors: Array<{ index: number, doc: any, error: any }> = [];
+    
+    for (let i = 0; i < mongoNpcs.length; i++) {
+      const mongoDoc = mongoNpcs[i];
+      
+      try {
+        console.log(`🔄 [CONVERT ${i + 1}/${mongoNpcs.length}] Traitement NPC: ${mongoDoc.name || 'SANS_NOM'} (ID: ${mongoDoc.npcId})`);
+        
+        const converted = this.convertMongoDocToNpcData(mongoDoc, zoneName);
+        
+        console.log(`✅ [CONVERT ${i + 1}] Succès: ${converted.name} → Position (${converted.x}, ${converted.y})`);
+        console.log(`✅ [CONVERT ${i + 1}] Détails:`, {
+          id: converted.id,
+          sprite: converted.sprite,
+          type: converted.type,
+          zone: converted.zone
+        });
+        
+        npcsData.push(converted);
+        
+      } catch (error) {
+        console.error(`❌ [CONVERT ERROR ${i + 1}] NPC: ${mongoDoc.name || 'SANS_NOM'}`);
+        console.error(`❌ [CONVERT ERROR ${i + 1}] Document:`, {
+          _id: mongoDoc._id,
+          npcId: mongoDoc.npcId,
+          name: mongoDoc.name,
+          zone: mongoDoc.zone,
+          position: mongoDoc.position,
+          sprite: mongoDoc.sprite
+        });
+        console.error(`❌ [CONVERT ERROR ${i + 1}] Erreur:`, error instanceof Error ? error.message : String(error));
+        console.error(`❌ [CONVERT ERROR ${i + 1}] Stack:`, error instanceof Error ? error.stack : 'N/A');
+        
+        conversionErrors.push({
+          index: i,
+          doc: mongoDoc,
+          error: error
+        });
+        
+        // ✅ CONTINUER au lieu de s'arrêter
+        console.warn(`⚠️ [CONVERT SKIP ${i + 1}] Passage au NPC suivant...`);
+      }
+    }
+    
+    // ✅ ÉTAPE 6: Rapport de conversion
+    console.log(`📊 [CONVERSION REPORT] Zone "${zoneName}"`);
+    console.log(`📊 Documents récupérés: ${mongoNpcs.length}`);
+    console.log(`📊 Conversions réussies: ${npcsData.length}`);
+    console.log(`📊 Erreurs de conversion: ${conversionErrors.length}`);
+    
+    if (conversionErrors.length > 0) {
+      console.error(`❌ [CONVERSION ERRORS] ${conversionErrors.length} NPCs n'ont pas pu être convertis:`);
+      conversionErrors.forEach(({ index, doc, error }) => {
+        console.error(`  - NPC ${index + 1}: ${doc.name || 'SANS_NOM'} (ID: ${doc.npcId}) → ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
+    
+    // ✅ ÉTAPE 7: Ajout à la collection finale
+    if (npcsData.length > 0) {
+      console.log(`📥 [COLLECTION] Ajout de ${npcsData.length} NPCs à la collection...`);
       
       this.addNpcsToCollection(npcsData);
       
-      if (this.config.useCache) {
-        this.setCache(zoneName, npcsData);
-      }
+      console.log(`✅ [COLLECTION] NPCs ajoutés avec succès`);
       
-      this.loadedZones.add(zoneName);
+      // Debug: vérifier qu'ils sont bien dans this.npcs
+      const totalInMemory = this.npcs.length;
+      const zoneInMemory = this.npcs.filter(npc => npc.zone === zoneName).length;
+      console.log(`📊 [MEMORY CHECK] Total NPCs en mémoire: ${totalInMemory}`);
+      console.log(`📊 [MEMORY CHECK] NPCs zone "${zoneName}" en mémoire: ${zoneInMemory}`);
       
-      const queryTime = Date.now() - startTime;
-      this.log('info', `✅ [MongoDB] Zone ${zoneName}: ${npcsData.length} NPCs en ${queryTime}ms`);
-      
-    } catch (error) {
-      this.log('error', `❌ [MongoDB] Erreur zone ${zoneName}:`, error);
-      throw error;
+    } else {
+      console.error(`❌ [COLLECTION] Aucun NPC valide à ajouter pour zone "${zoneName}"`);
     }
+    
+    // ✅ ÉTAPE 8: Cache
+    if (this.config.useCache && npcsData.length > 0) {
+      console.log(`💾 [CACHE SET] Mise en cache de ${npcsData.length} NPCs pour zone "${zoneName}"`);
+      this.setCache(zoneName, npcsData);
+    }
+    
+    // ✅ ÉTAPE 9: Marquer la zone comme chargée
+    this.loadedZones.add(zoneName);
+    
+    const queryTime = Date.now() - startTime;
+    console.log(`✅ [MongoDB COMPLETE] Zone "${zoneName}": ${npcsData.length}/${mongoNpcs.length} NPCs chargés en ${queryTime}ms`);
+    
+  } catch (error) {
+    console.error(`❌ [MongoDB CRITICAL] Erreur critique zone "${zoneName}":`, error);
+    console.error(`❌ [MongoDB CRITICAL] Type erreur:`, error instanceof Error ? error.constructor.name : typeof error);
+    console.error(`❌ [MongoDB CRITICAL] Message:`, error instanceof Error ? error.message : String(error));
+    console.error(`❌ [MongoDB CRITICAL] Stack:`, error instanceof Error ? error.stack : 'N/A');
+    
+    // ✅ Essayer de marquer la zone comme chargée même en cas d'erreur
+    this.loadedZones.add(zoneName);
+    
+    throw error;
   }
+}
 
   // ✅ AUTO-SCAN MONGODB
   private async autoLoadFromMongoDB(): Promise<void> {
