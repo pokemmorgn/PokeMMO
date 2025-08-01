@@ -639,6 +639,22 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
   
   // ✅ Récupération des NPCs avec zone mappée
   const npcs = npcManager.getNpcsByZone(mappedZoneName);
+  // ✅ DEBUG TEMPORAIRE - À ajouter dans WorldRoom.ts
+  console.log(`🔍 [DEBUG CRITIQUE] Analyse complète NPCs:`);
+  console.log(`📝 Zone reçue: "${zoneName}"`);
+  console.log(`📝 Zone mappée: "${mappedZoneName}"`);
+  console.log(`🤖 NPCs trouvés: ${npcs.length}`);
+  
+  if (npcs.length === 0) {
+      console.error(`❌ AUCUN NPC TROUVÉ !`);
+      console.error(`❌ Zone mappée testée: "${mappedZoneName}"`);
+      console.error(`❌ Zones disponibles dans npcManager:`, npcManager.getAllZones ? npcManager.getAllZones() : 'méthode manquante');
+      console.error(`❌ Total NPCs dans manager:`, npcManager.getAllNpcs().length);
+      
+      // Test direct
+      const testDirect = npcManager.getNpcsByZone('road1');
+      console.error(`❌ Test direct 'road1':`, testDirect.length, 'NPCs');
+  }
   console.log(`📊 [NPCs] ${npcs.length} NPCs trouvés pour zone "${mappedZoneName}"`);
   
   if (npcs.length === 0) {
