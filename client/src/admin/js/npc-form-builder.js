@@ -553,7 +553,7 @@ case 'dialogues':
                 
             case 'shop':
                 if (type === 'merchant') {
-                    fields = ['shopId', 'shopType'']
+                    fields = ['shopId', 'shopType']
                 }
                 break
                 
