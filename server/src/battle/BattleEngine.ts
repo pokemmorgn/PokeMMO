@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// BattleEngine Optimisé - Version Corrigée
+// BattleEngine Optimisé - SANS AUTO-CLEANUP BROADCAST
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -66,6 +66,9 @@ export class BattleEngine {
   // Events
   private eventListeners = new Map<string, Function[]>();
   private modules = new Map<string, BattleModule>();
+
+  // CRITICAL: Flag to prevent premature cleanup
+  private isManualCleanup = false;
 
   // === PUBLIC API ===
 
@@ -235,7 +238,8 @@ export class BattleEngine {
   private handleEndedPhase(): void {
     this.clearAllTimers();
     this.savePokemonAfterBattle();
-    this.cleanupSpectators();
+    // CRITICAL: Only cleanup when battle is truly ended
+    this.performFinalCleanup();
   }
 
   // === COMBAT RESOLUTION ===
@@ -270,7 +274,7 @@ export class BattleEngine {
     });
 
     await this.executeFullAttackerAction();
-    await this.delay(100); // Reduced delay
+    await this.delay(100);
     await this.startAttackerPhase(attackerIndex + 1);
   }
 
@@ -293,25 +297,27 @@ export class BattleEngine {
   }
 
   private async handleAttackBroadcast(action: any, result: any, playerRole: PlayerRole, pokemon: Pokemon): Promise<void> {
-    // Safe broadcast with null checks and no forced cleanup
+    // CRITICAL: Safe broadcast without triggering cleanup
     if (!this.broadcastManager) {
-      // Try to recreate but don't fail if it doesn't work
       try {
         this.configureBroadcastSystem();
       } catch (error) {
-        // Continue without broadcast
+        // Continue without broadcast if configuration fails
         return;
       }
     }
 
     try {
       if (this.broadcastManager) {
+        // Send broadcast but don't let it trigger cleanup
         await this.broadcastManager.emitTimed('moveUsed', {
           attackerName: pokemon.name,
           attackerRole: playerRole,
           moveName: this.getMoveDisplayName(action.data.moveId),
           moveId: action.data.moveId,
-          subPhase: this.currentSubPhase
+          subPhase: this.currentSubPhase,
+          // CRITICAL: Flag to prevent auto-cleanup
+          noAutoCleanup: true
         });
 
         if (result.data.damage > 0) {
@@ -325,15 +331,16 @@ export class BattleEngine {
             newHp: result.data.newHp,
             maxHp: result.data.maxHp,
             subPhase: this.currentSubPhase,
-            isKnockedOut: result.data.isKnockedOut
+            isKnockedOut: result.data.isKnockedOut,
+            // CRITICAL: Flag to prevent auto-cleanup
+            noAutoCleanup: true
           });
         }
       }
     } catch (error) {
-      // Continue without broadcast on error - don't crash the battle
+      // Continue without broadcast on error
     }
 
-    // IMPORTANT: Don't call cleanup or reset here - this is mid-battle
     this.emit('attackerPhaseComplete', {
       subPhase: this.currentSubPhase,
       playerRole,
@@ -392,7 +399,8 @@ export class BattleEngine {
                 this.gameState.player1.sessionId : 
                 this.gameState.player2.sessionId,
               animationType: step.data?.animationType || 'faint_fall',
-              message: step.message
+              message: step.message,
+              noAutoCleanup: true // CRITICAL: Prevent cleanup during KO sequence
             });
           }
           break;
@@ -413,7 +421,7 @@ export class BattleEngine {
   }
 
   private async completeActionResolution(): Promise<void> {
-    // Safety checks
+    // CRITICAL: Don't cleanup here, just continue the battle
     if (!this.isInitialized) return;
     
     this.turnCounter++;
@@ -422,7 +430,6 @@ export class BattleEngine {
       return;
     }
 
-    // CRITICAL FIX: Don't check phase manager ready here - causes premature exits
     this.isProcessingActions = false;
     this.resetSubPhaseState();
     this.gameState.turnNumber++;
@@ -434,10 +441,9 @@ export class BattleEngine {
     });
 
     if (!this.gameState.isEnded) {
-      // CRITICAL FIX: Continue battle normally without extra checks
+      // CRITICAL: Continue battle normally without cleanup
       const success = this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
       if (!success) {
-        // Only force end if transition truly failed, not for other reasons
         this.forceBattleEnd('transition_failed', 'Impossible de continuer');
       }
     } else {
@@ -621,7 +627,7 @@ export class BattleEngine {
 
       this.spectatorManager = new SpectatorManager();
     } catch (error) {
-      // Continue without broadcast on error
+      // Continue without broadcast on configuration error
     }
   }
 
@@ -693,9 +699,7 @@ export class BattleEngine {
             notifications: result.notifications
           });
         }
-      }).catch(() => {
-        // Continue on error
-      });
+      }).catch(() => {});
     }
   }
 
@@ -887,9 +891,17 @@ export class BattleEngine {
     }
   }
 
-  private cleanupSpectators(): void {
+  // CRITICAL: Separated cleanup methods
+  private performFinalCleanup(): void {
+    this.isManualCleanup = true;
+    
     if (this.spectatorManager) {
       this.spectatorManager.cleanupBattle(this.gameState.battleId);
+    }
+    
+    if (this.broadcastManager) {
+      this.broadcastManager.cleanup();
+      this.broadcastManager = null;
     }
   }
 
@@ -994,8 +1006,16 @@ export class BattleEngine {
   // === CLEANUP ===
 
   cleanup(): void {
+    // CRITICAL: Only cleanup if manually requested or battle ended
+    if (!this.isManualCleanup && !this.gameState.isEnded) {
+      return; // Don't cleanup mid-battle
+    }
+
     this.clearAllTimers();
-    this.cleanupSpectators();
+    
+    if (this.spectatorManager) {
+      this.spectatorManager.cleanupBattle(this.gameState.battleId);
+    }
 
     if (this.broadcastManager) {
       this.broadcastManager.cleanup();
@@ -1015,18 +1035,20 @@ export class BattleEngine {
     this.isProcessingActions = false;
     this.turnCounter = 0;
     this.transitionAttempts = 0;
+    this.isManualCleanup = false;
   }
 
   // === DIAGNOSTICS ===
 
   getSystemState(): any {
     return {
-      version: 'battle_engine_optimized_v1',
+      version: 'battle_engine_no_broadcast_cleanup_v1',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
       turnCounter: this.turnCounter,
       transitionAttempts: this.transitionAttempts,
+      isManualCleanup: this.isManualCleanup,
       timeouts: {
         battleTimeout: this.battleTimeoutId !== null,
         turnTimeout: this.turnTimeoutId !== null
