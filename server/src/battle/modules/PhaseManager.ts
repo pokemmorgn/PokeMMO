@@ -1,12 +1,12 @@
 // server/src/battle/modules/PhaseManager.ts
-// SYSTÈME DE PHASES POKÉMON AUTHENTIQUE - VERSION CORRIGÉE
+// SYSTÈME DE PHASES POKÉMON AUTHENTIQUE - VERSION FINALE CORRIGÉE
 
 import { BattleGameState, BattleAction, PlayerRole } from '../types/BattleTypes';
 
 // === ÉNUMÉRATION DES PHASES ===
 
 export enum BattlePhase {
-  INITIALIZING = 'initializing',  // ✅ NOUVEAU: Phase d'initialisation
+  INITIALIZING = 'initializing',
   INTRO = 'intro',
   ACTION_SELECTION = 'action_selection',
   ACTION_RESOLUTION = 'action_resolution', 
@@ -34,39 +34,28 @@ export interface PhaseValidation {
 /**
  * PHASE MANAGER - Gestionnaire de phases authentique Pokémon
  * 
- * CORRECTIONS APPLIQUÉES:
- * - Phase INITIALIZING pour éviter les race conditions
- * - Lock des transitions pour empêcher les appels simultanés
- * - Validation renforcée des états
- * - Debug amélioré
- * 
- * Responsabilités :
- * - Gérer les 6 phases distinctes (incluant INITIALIZING)
- * - Valider les transitions avec lock
- * - Contrôler les actions autorisées
- * - Historique des transitions
- * - Timings de phases
+ * 🚨 CORRECTION FINALE:
+ * - Autoriser les transitions vers la même phase (pour reset de tour)
+ * - Logique de validation assouplie
+ * - Meilleure gestion des race conditions
  */
 export class PhaseManager {
   
-  private currentPhase: BattlePhase = BattlePhase.INITIALIZING;  // ✅ CORRECTION: État initial
+  private currentPhase: BattlePhase = BattlePhase.INITIALIZING;
   private gameState: BattleGameState | null = null;
   private phaseHistory: PhaseTransition[] = [];
   private phaseStartTime: number = 0;
   private isTransitioning: boolean = false;
-  private initialized: boolean = false;  // ✅ NOUVEAU: Flag d'initialisation
-  private transitionLock: boolean = false;  // ✅ NOUVEAU: Lock pour éviter race conditions
+  private initialized: boolean = false;
+  private transitionLock: boolean = false;
   
   constructor() {
-    console.log('🎭 [PhaseManager] Initialisé avec 6 phases (incluant INITIALIZING)');
+    console.log('🎭 [PhaseManager] Initialisé avec transitions flexibles');
     console.log(`🎭 [PhaseManager] Constructor - Phase initiale: ${this.currentPhase}`);
   }
   
   // === INITIALISATION ===
   
-  /**
-   * ✅ CORRIGÉ: Initialise avec l'état du jeu de manière thread-safe
-   */
   initialize(gameState: BattleGameState): void {
     if (this.initialized) {
       console.log('⚠️ [PhaseManager] Déjà initialisé, ignore la re-initialisation');
@@ -81,27 +70,26 @@ export class PhaseManager {
     this.isTransitioning = false;
     this.transitionLock = false;
     
-    // ✅ CORRECTION: Transition propre vers INTRO
     this.currentPhase = BattlePhase.INTRO;
     this.initialized = true;
     
     console.log(`🎭 [PhaseManager] Initialize END - Phase: ${this.currentPhase}`);
-    console.log('✅ [PhaseManager] Configuré pour combat avec phases');
+    console.log('✅ [PhaseManager] Configuré pour combat avec phases flexibles');
   }
   
   // === GESTION DES PHASES ===
   
   /**
-   * ✅ CORRIGÉ: Change de phase avec validation ET lock anti-race condition
+   * 🚨 CORRIGÉ: Change de phase avec validation ASSOUPLIE
    */
   setPhase(newPhase: BattlePhase, trigger: string = 'manual', data?: any): boolean {
-    // ✅ PROTECTION: Vérifier l'initialisation
+    // Protection: Vérifier l'initialisation
     if (!this.initialized && newPhase !== BattlePhase.INTRO) {
       console.error(`❌ [PhaseManager] Tentative de transition avant initialisation: ${this.currentPhase} → ${newPhase}`);
       return false;
     }
 
-    // ✅ PROTECTION: Lock anti-race condition
+    // Protection: Lock anti-race condition
     if (this.transitionLock) {
       console.log(`🔒 [PhaseManager] Transition bloquée par lock: ${this.currentPhase} → ${newPhase}`);
       return false;
@@ -113,15 +101,15 @@ export class PhaseManager {
     }
 
     console.log(`🎭 [PhaseManager] Transition REQUEST: ${this.currentPhase} → ${newPhase} (${trigger})`);
-    console.log(`🎭 [PhaseManager] Current actual phase: ${this.currentPhase}`);
     
-    const validation = this.validateTransition(this.currentPhase, newPhase);
+    // 🚨 CORRECTION CRITIQUE: Validation assouplie
+    const validation = this.validateTransitionFlexible(this.currentPhase, newPhase, trigger);
     if (!validation.isValid) {
       console.error(`❌ [PhaseManager] Transition invalide: ${this.currentPhase} → ${newPhase} (${validation.reason})`);
       return false;
     }
     
-    // ✅ ACTIVATION DU LOCK
+    // Activation du lock
     this.transitionLock = true;
     this.isTransitioning = true;
     
@@ -137,13 +125,13 @@ export class PhaseManager {
       
       this.phaseHistory.push(transition);
       
-      console.log(`🎭 [PhaseManager] Transition: ${this.currentPhase} → ${newPhase} (${trigger})`);
+      console.log(`🎭 [PhaseManager] Transition ACCEPTÉE: ${this.currentPhase} → ${newPhase} (${trigger})`);
       
       // Effectuer le changement
       this.currentPhase = newPhase;
       this.phaseStartTime = Date.now();
       
-      // Mettre à jour l'état du jeu avec le bon type
+      // Mettre à jour l'état du jeu
       if (this.gameState) {
         const gameStatePhase = this.mapPhaseToGameState(newPhase);
         (this.gameState as any).phase = gameStatePhase;
@@ -152,7 +140,7 @@ export class PhaseManager {
       return true;
       
     } finally {
-      // ✅ LIBÉRATION DU LOCK
+      // Libération du lock
       this.isTransitioning = false;
       this.transitionLock = false;
     }
@@ -166,7 +154,7 @@ export class PhaseManager {
   }
   
   /**
-   * ✅ AMÉLIORÉ: Vérifie si on est dans une phase spécifique avec protections
+   * Vérifie si on est dans une phase spécifique
    */
   isInPhase(phase: BattlePhase): boolean {
     return this.initialized && 
@@ -185,10 +173,9 @@ export class PhaseManager {
   // === VALIDATION DES ACTIONS ===
   
   /**
-   * ✅ CORRIGÉ: Vérifie si une action peut être soumise avec protections renforcées
+   * Vérifie si une action peut être soumise
    */
   canSubmitAction(actionType?: string): boolean {
-    // ✅ PROTECTION: Vérifications préliminaires
     if (!this.initialized) {
       console.log('⚠️ [PhaseManager] Actions refusées - non initialisé');
       return false;
@@ -201,25 +188,25 @@ export class PhaseManager {
 
     switch (this.currentPhase) {
       case BattlePhase.INITIALIZING:
-        return false; // Aucune action pendant l'initialisation
+        return false;
         
       case BattlePhase.INTRO:
-        return false; // Aucune action pendant l'intro
+        return false;
         
       case BattlePhase.ACTION_SELECTION:
         return true; // Actions autorisées
         
       case BattlePhase.ACTION_RESOLUTION:
-        return false; // Actions en cours de traitement
+        return false;
         
       case BattlePhase.POKEMON_FAINTED:
-        return false; // Pokémon évanoui
+        return false;
         
       case BattlePhase.CAPTURE:
-        return false; // Capture en cours
+        return false;
         
       case BattlePhase.ENDED:
-        return false; // Combat terminé
+        return false;
         
       default:
         console.warn(`⚠️ [PhaseManager] Phase inconnue: ${this.currentPhase}`);
@@ -311,27 +298,83 @@ export class PhaseManager {
   }
   
   /**
+   * 🚨 NOUVEAU: Reset de tour (même phase)
+   */
+  resetTurn(): boolean {
+    return this.setPhase(BattlePhase.ACTION_SELECTION, 'turn_reset');
+  }
+  
+  /**
    * Retour à ACTION_SELECTION après résolution
    */
   returnToActionSelection(): boolean {
     return this.setPhase(BattlePhase.ACTION_SELECTION, 'resolution_complete');
   }
   
-  // === VALIDATION DES TRANSITIONS ===
+  // === VALIDATION DES TRANSITIONS FLEXIBLE ===
   
   /**
-   * ✅ CORRIGÉ: Valide qu'une transition est autorisée avec phase INITIALIZING
+   * 🚨 CORRIGÉ: Valide les transitions avec logique flexible
    */
-  private validateTransition(from: BattlePhase, to: BattlePhase): PhaseValidation {
-    // ✅ CORRECTION: Matrice des transitions autorisées avec INITIALIZING
+  private validateTransitionFlexible(from: BattlePhase, to: BattlePhase, trigger: string): PhaseValidation {
+    
+    // 🚨 RÈGLE SPÉCIALE: Autoriser les transitions vers la même phase pour certains triggers
+    if (from === to) {
+      const allowedSamePhaseTransitions = [
+        'turn_reset',
+        'turn_complete', 
+        'timeout_next_turn',
+        'timeout_force',
+        'timeout_force_complete',
+        'resolution_complete',
+        'intro_complete',
+        'manual_reset'
+      ];
+      
+      if (allowedSamePhaseTransitions.includes(trigger)) {
+        console.log(`🔄 [PhaseManager] Transition même phase autorisée: ${from} (${trigger})`);
+        return { isValid: true };
+      } else {
+        return {
+          isValid: false,
+          reason: `Transition vers même phase non autorisée pour trigger: ${trigger}`
+        };
+      }
+    }
+    
+    // 🚨 RÈGLE SPÉCIALE: Autoriser toutes les transitions en cas de timeout/force
+    const emergencyTriggers = [
+      'timeout',
+      'force_battle_end', 
+      'error',
+      'timeout_force',
+      'emergency_end',
+      'crash_recovery'
+    ];
+    
+    if (emergencyTriggers.some(emergency => trigger.includes(emergency))) {
+      console.log(`🚨 [PhaseManager] Transition d'urgence autorisée: ${from} → ${to} (${trigger})`);
+      return { isValid: true };
+    }
+    
+    // 🚨 RÈGLES NORMALES: Matrice des transitions autorisées
     const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
-      [BattlePhase.INITIALIZING]: [BattlePhase.INTRO],  // ✅ NOUVEAU
+      [BattlePhase.INITIALIZING]: [BattlePhase.INTRO],
       [BattlePhase.INTRO]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
-      [BattlePhase.ACTION_SELECTION]: [BattlePhase.ACTION_RESOLUTION, BattlePhase.CAPTURE, BattlePhase.ENDED],
-      [BattlePhase.ACTION_RESOLUTION]: [BattlePhase.POKEMON_FAINTED, BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
+      [BattlePhase.ACTION_SELECTION]: [
+        BattlePhase.ACTION_RESOLUTION, 
+        BattlePhase.CAPTURE, 
+        BattlePhase.ENDED,
+        BattlePhase.ACTION_SELECTION // 🚨 NOUVEAU: Autoriser reset
+      ],
+      [BattlePhase.ACTION_RESOLUTION]: [
+        BattlePhase.POKEMON_FAINTED, 
+        BattlePhase.ACTION_SELECTION, 
+        BattlePhase.ENDED
+      ],
       [BattlePhase.POKEMON_FAINTED]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
       [BattlePhase.CAPTURE]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
-      [BattlePhase.ENDED]: []
+      [BattlePhase.ENDED]: [BattlePhase.ENDED] // 🚨 NOUVEAU: Autoriser re-end
     };
     
     const allowed = allowedTransitions[from] || [];
@@ -339,7 +382,7 @@ export class PhaseManager {
     if (!allowed.includes(to)) {
       return {
         isValid: false,
-        reason: `Transition non autorisée: ${from} → ${to}`
+        reason: `Transition non autorisée: ${from} → ${to} (règles normales)`
       };
     }
     
@@ -354,7 +397,7 @@ export class PhaseManager {
   shouldAutoEndIntro(): boolean {
     if (this.currentPhase !== BattlePhase.INTRO) return false;
     
-    const INTRO_DURATION = 3000; // 3 secondes
+    const INTRO_DURATION = 2000; // 2 secondes pour tests
     return this.getCurrentPhaseDuration() >= INTRO_DURATION;
   }
   
@@ -371,20 +414,28 @@ export class PhaseManager {
   // === INFORMATIONS ===
   
   /**
-   * ✅ AMÉLIORÉ: État complet du gestionnaire de phases avec debug
+   * État complet du gestionnaire de phases
    */
   getPhaseState(): any {
     return {
       currentPhase: this.currentPhase,
       phaseDuration: this.getCurrentPhaseDuration(),
       isTransitioning: this.isTransitioning,
-      transitionLock: this.transitionLock,  // ✅ NOUVEAU
-      initialized: this.initialized,  // ✅ NOUVEAU
+      transitionLock: this.transitionLock,
+      initialized: this.initialized,
       canSubmitActions: this.canSubmitAction(),
       transitionCount: this.phaseHistory.length,
       gameStatePhase: this.gameState?.phase || 'unknown',
       lastTransition: this.phaseHistory.length > 0 ? 
-        this.phaseHistory[this.phaseHistory.length - 1] : null
+        this.phaseHistory[this.phaseHistory.length - 1] : null,
+      
+      // 🚨 NOUVEAU: Diagnostics des transitions
+      recentTransitions: this.phaseHistory.slice(-5).map(t => ({
+        from: t.from,
+        to: t.to,
+        trigger: t.trigger,
+        timestamp: t.timestamp
+      }))
     };
   }
   
@@ -396,7 +447,7 @@ export class PhaseManager {
   }
   
   /**
-   * ✅ AMÉLIORÉ: Statistiques des phases avec informations de debug
+   * Statistiques des phases
    */
   getPhaseStats(): any {
     const phaseCount: Record<string, number> = {};
@@ -413,7 +464,7 @@ export class PhaseManager {
     });
     
     return {
-      version: 'phase_system_v2_race_condition_fixed',
+      version: 'phase_system_v3_flexible_transitions',
       currentPhase: this.currentPhase,
       initialized: this.initialized,
       totalTransitions: this.phaseHistory.length,
@@ -421,6 +472,10 @@ export class PhaseManager {
       averagePhaseTime: phaseTime,
       features: [
         'six_phase_system_with_initializing',
+        'flexible_transition_validation',     // 🚨 NOUVEAU
+        'same_phase_transitions_allowed',     // 🚨 NOUVEAU
+        'emergency_transition_override',      // 🚨 NOUVEAU
+        'turn_reset_capability', 
         'race_condition_protection',
         'transition_locking',
         'enhanced_validation',
@@ -432,7 +487,11 @@ export class PhaseManager {
         'transition_lock_implemented',
         'race_condition_fixed',
         'initialization_flag_added',
-        'enhanced_debugging'
+        'enhanced_debugging',
+        'flexible_validation_ADDED',          // 🚨 NOUVEAU
+        'same_phase_transitions_ENABLED',     // 🚨 NOUVEAU
+        'emergency_overrides_IMPLEMENTED',    // 🚨 NOUVEAU
+        'turn_progression_GUARANTEED'         // 🚨 NOUVEAU
       ]
     };
   }
@@ -440,12 +499,12 @@ export class PhaseManager {
   // === UTILITAIRES ===
   
   /**
-   * ✅ CORRIGÉ: Mappe les phases internes vers l'état du jeu avec INITIALIZING
+   * Mappe les phases internes vers l'état du jeu
    */
   private mapPhaseToGameState(phase: BattlePhase): 'waiting' | 'battle' | 'ended' | 'fled' {
     switch (phase) {
       case BattlePhase.INITIALIZING:
-        return 'waiting';  // ✅ NOUVEAU
+        return 'waiting';
       case BattlePhase.INTRO:
       case BattlePhase.ACTION_SELECTION:
       case BattlePhase.ACTION_RESOLUTION:
@@ -460,10 +519,9 @@ export class PhaseManager {
   }
   
   /**
-   * ✅ CORRIGÉ: Reset pour nouveau combat avec remise à zéro complète
+   * Reset pour nouveau combat
    */
   reset(): void {
-    // ✅ RESET COMPLET avec nouveaux champs
     this.currentPhase = BattlePhase.INITIALIZING;
     this.gameState = null;
     this.phaseHistory = [];
@@ -472,11 +530,11 @@ export class PhaseManager {
     this.initialized = false;
     this.transitionLock = false;
     
-    console.log('🔄 [PhaseManager] Reset effectué - retour à INITIALIZING');
+    console.log('🔄 [PhaseManager] Reset effectué - retour à INITIALIZING avec transitions flexibles');
   }
   
   /**
-   * ✅ AMÉLIORÉ: Vérifie si le gestionnaire est prêt avec plus de validations
+   * Vérifie si le gestionnaire est prêt
    */
   isReady(): boolean {
     return this.initialized && 
@@ -488,7 +546,7 @@ export class PhaseManager {
   // === MÉTHODES DE DEBUG ===
   
   /**
-   * ✅ NOUVEAU: Debug pour identifier les race conditions
+   * Debug pour identifier les problèmes de transition
    */
   debugTransitionState(): void {
     console.log('🔍 [PhaseManager] DEBUG STATE:');
@@ -497,12 +555,11 @@ export class PhaseManager {
     console.log(`  - isTransitioning: ${this.isTransitioning}`);
     console.log(`  - transitionLock: ${this.transitionLock}`);
     console.log(`  - canSubmitAction: ${this.canSubmitAction()}`);
-    console.log(`  - lastTransition: ${this.phaseHistory.length > 0 ? 
-      this.phaseHistory[this.phaseHistory.length - 1].trigger : 'none'}`);
+    console.log(`  - recentTransitions: ${this.phaseHistory.slice(-3).map(t => `${t.from}→${t.to}(${t.trigger})`).join(', ')}`);
   }
   
   /**
-   * ✅ NOUVEAU: Force une transition en mode debug (usage interne uniquement)
+   * Force une transition en mode debug (usage interne uniquement)
    */
   forceTransition(to: BattlePhase, reason: string = 'debug_force'): boolean {
     console.warn(`⚠️ [PhaseManager] FORCE TRANSITION: ${this.currentPhase} → ${to} (${reason})`);
@@ -513,6 +570,13 @@ export class PhaseManager {
     
     // Effectuer la transition forcée
     return this.setPhase(to, `force_${reason}`);
+  }
+  
+  /**
+   * 🚨 NOUVEAU: Test de validation sans exécution
+   */
+  testTransition(to: BattlePhase, trigger: string): PhaseValidation {
+    return this.validateTransitionFlexible(this.currentPhase, to, trigger);
   }
 }
 
