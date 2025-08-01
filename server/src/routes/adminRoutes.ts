@@ -2930,8 +2930,8 @@ const updatedNpc = await NpcData.findOneAndUpdate(
       }
     );
 
-      console.log('🔍 [NPCs API] MongoDB returned shopId:', updatedNpc?.shopId);
-console.log('🔍 [NPCs API] MongoDB returned shopType:', updatedNpc?.shopType);
+console.log('🔍 [NPCs API] MongoDB returned shopId:', (updatedNpc as any)?.shopId);
+console.log('🔍 [NPCs API] MongoDB returned shopType:', (updatedNpc as any)?.shopType);
 console.log('🔍 [NPCs API] MongoDB document keys:', Object.keys(updatedNpc?.toObject() || {}));
       
     if (!updatedNpc) {
