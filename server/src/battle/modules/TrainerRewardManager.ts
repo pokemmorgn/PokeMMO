@@ -1,7 +1,7 @@
 // server/src/battle/modules/TrainerRewardManager.ts
-// 🎁 SYSTÈME DE RÉCOMPENSES POUR COMBATS DRESSEURS - SESSION 3
+// 🎁 SESSION 3 - GESTIONNAIRE RÉCOMPENSES DRESSEURS AVEC INTÉGRATION DB
 
-import { BattleGameState, BattleResult } from '../types/BattleTypes';
+import { BattleGameState } from '../types/BattleTypes';
 import { 
   TrainerData, 
   TrainerRewards, 
@@ -12,72 +12,76 @@ import { InventoryManager } from '../../managers/InventoryManager';
 import { PlayerData } from '../../models/PlayerData';
 import { OwnedPokemon } from '../../models/OwnedPokemon';
 
-// === INTERFACES SPÉCIFIQUES ===
+// === INTERFACES RÉCOMPENSES ===
 
-export interface RewardCalculationData {
-  playerName: string;
-  playerLevel: number;
-  trainerData: TrainerData;
-  battleTurns: number;
-  battleDuration: number;
-  pokemonDefeated: number;
-  playerPokemonUsed: number;
-  wasFlawlessVictory: boolean; // Aucun Pokémon joueur KO
-  wasCriticalVictory: boolean; // Victoire en moins de 10 tours
-}
-
-export interface RewardDistributionResult {
+export interface RewardCalculationResult {
   success: boolean;
-  rewardsGiven: CalculatedRewards;
-  errors: string[];
-  playerDataUpdated: boolean;
-  pokemonExpUpdated: number;
-  inventoryUpdated: boolean;
+  money: number;
+  experience: PokemonExpReward[];
+  items: ProcessedItemReward[];
+  totalExpGained: number;
+  moneyMultiplier: number;
+  error?: string;
 }
 
-export interface ExpDistribution {
+export interface PokemonExpReward {
   pokemonId: string;
   pokemonName: string;
-  ownedPokemonId: string;
-  oldLevel: number;
-  newLevel: number;
-  expGained: number;
+  baseExp: number;
+  bonusExp: number;
   totalExp: number;
+  levelBefore: number;
+  levelAfter: number;
   leveledUp: boolean;
 }
 
-export interface ItemReward {
+export interface ProcessedItemReward {
   itemId: string;
+  itemName: string;
   quantity: number;
-  rarity: 'common' | 'uncommon' | 'rare' | 'legendary';
-  source: string; // 'guaranteed', 'probability', 'bonus'
-  rollResult?: number; // Résultat du jet de probabilité
+  rarity: string;
+  received: boolean;
+  failureReason?: string;
+}
+
+export interface BattleAnalysis {
+  playerLevel: number;
+  trainerLevel: number;
+  levelDifference: number;
+  battleDuration: number;
+  turnsPlayed: number;
+  pokemonDefeated: number;
+  perfectionBonus: number;
+  difficultyMultiplier: number;
 }
 
 /**
- * TRAINER REWARD MANAGER
+ * TRAINER REWARD MANAGER - Gestionnaire récompenses complet
  * 
  * Responsabilités :
- * - Calculer récompenses selon dresseur vaincu et performance
- * - Distribuer argent, EXP et objets
- * - Gestion bonus de performance (victoire parfaite, rapidité)
- * - Intégration base de données (PlayerData, InventoryManager)
- * - Système extensible pour futures évolutions
+ * - Calcul récompenses selon profil dresseur
+ * - Attribution argent avec multiplicateurs
+ * - Distribution EXP aux Pokémon équipe
+ * - Gestion objets avec probabilités
+ * - Intégration base de données
+ * - Système bonus et multiplicateurs
  */
 export class TrainerRewardManager {
   
   private gameState: BattleGameState | null = null;
   private isInitialized = false;
   
-  // Configuration
-  private readonly EXP_BASE_MULTIPLIER = 1.5; // Dresseurs donnent plus d'EXP que sauvages
-  private readonly MONEY_BASE_MULTIPLIER = 2.0; // Plus d'argent que sauvages
-  private readonly FLAWLESS_VICTORY_BONUS = 1.5; // +50% si aucun Pokémon joueur KO
-  private readonly CRITICAL_VICTORY_BONUS = 1.25; // +25% si victoire rapide
-  private readonly LEVEL_DIFFERENCE_MODIFIER = 0.1; // ±10% par niveau de différence
+  // Configuration récompenses
+  private readonly BASE_MONEY_MULTIPLIER = 1.0;
+  private readonly BASE_EXP_MULTIPLIER = 1.0;
+  private readonly LEVEL_DIFFERENCE_BONUS_CAP = 2.0;
+  private readonly PERFECTION_BONUS_CAP = 1.5;
+  
+  // Cache pour performance
+  private rewardCache = new Map<string, RewardCalculationResult>();
   
   constructor() {
-    console.log('🎁 [TrainerRewardManager] Initialisé');
+    console.log('🎁 [TrainerRewardManager] Gestionnaire récompenses initialisé');
   }
   
   // === INITIALISATION ===
@@ -85,56 +89,74 @@ export class TrainerRewardManager {
   initialize(gameState: BattleGameState): void {
     this.gameState = gameState;
     this.isInitialized = true;
-    console.log('✅ [TrainerRewardManager] Configuré pour le combat');
+    this.rewardCache.clear();
+    
+    console.log(`✅ [TrainerRewardManager] Configuré pour combat ${gameState.battleId}`);
   }
   
   // === API PRINCIPALE ===
   
   /**
-   * Calcule et distribue toutes les récompenses après victoire
+   * Calcule et attribue toutes les récompenses d'un combat dresseur
    */
   async calculateAndGiveRewards(
     playerName: string,
     trainerData: TrainerData,
-    battleTurns: number,
-    battleDuration: number = 0
+    battleTurns: number
   ): Promise<CalculatedRewards> {
     
-    console.log(`🎁 [TrainerRewardManager] Calcul récompenses: ${playerName} vs ${trainerData.name}`);
+    console.log(`🎁 [TrainerRewardManager] Calcul récompenses vs ${trainerData.name}...`);
+    
+    if (!this.isInitialized || !this.gameState) {
+      throw new Error('TrainerRewardManager non initialisé');
+    }
     
     try {
-      // 1. Collecter données de calcul
-      const calculationData = await this.gatherCalculationData(
+      // 1. Analyse du combat
+      const battleAnalysis = await this.analyzeBattle(playerName, trainerData, battleTurns);
+      console.log(`📊 [TrainerRewardManager] Analyse: niveau ${battleAnalysis.playerLevel} vs ${battleAnalysis.trainerLevel}`);
+      
+      // 2. Calcul récompenses
+      const rewardResult = await this.calculateRewards(
         playerName,
         trainerData,
-        battleTurns,
-        battleDuration
+        battleAnalysis
       );
       
-      // 2. Calculer toutes les récompenses
-      const calculatedRewards = this.calculateAllRewards(calculationData);
-      
-      // 3. Distribuer les récompenses
-      const distributionResult = await this.distributeRewards(playerName, calculatedRewards);
-      
-      if (distributionResult.success) {
-        console.log(`✅ [TrainerRewardManager] Récompenses distribuées avec succès`);
-        console.log(`    Argent: ${calculatedRewards.money} pièces`);
-        console.log(`    EXP total: ${calculatedRewards.totalExpGained}`);
-        console.log(`    Objets: ${calculatedRewards.items.length}`);
-        
-        return calculatedRewards;
-      } else {
-        console.error(`❌ [TrainerRewardManager] Erreurs distribution:`, distributionResult.errors);
-        return calculatedRewards; // Retourner quand même les calculs
+      if (!rewardResult.success) {
+        throw new Error(rewardResult.error || 'Échec calcul récompenses');
       }
       
+      console.log(`💰 [TrainerRewardManager] Récompenses calculées: ${rewardResult.money} pièces, ${rewardResult.totalExpGained} EXP`);
+      
+      // 3. Attribution effective
+      await this.giveCalculatedRewards(playerName, rewardResult);
+      
+      // 4. Création résultat final
+      const finalRewards: CalculatedRewards = {
+        money: rewardResult.money,
+        experience: rewardResult.experience.map(exp => ({
+          pokemonId: exp.pokemonId,
+          exp: exp.totalExp
+        })),
+        items: rewardResult.items.filter(item => item.received).map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity
+        })),
+        totalExpGained: rewardResult.totalExpGained,
+        moneyMultiplier: rewardResult.moneyMultiplier
+      };
+      
+      console.log(`✅ [TrainerRewardManager] Récompenses attribuées avec succès !`);
+      
+      return finalRewards;
+      
     } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur calcul récompenses:`, error);
+      console.error(`❌ [TrainerRewardManager] Erreur attribution récompenses:`, error);
       
       // Récompenses minimales en cas d'erreur
       return {
-        money: trainerData.rewards.baseMoney,
+        money: trainerData.rewards.baseMoney || 100,
         experience: [],
         items: [],
         totalExpGained: 0,
@@ -143,383 +165,253 @@ export class TrainerRewardManager {
     }
   }
   
+  // === CALCUL RÉCOMPENSES ===
+  
   /**
-   * Calcule uniquement les récompenses sans les distribuer
+   * Calcule toutes les récompenses sans les attribuer
    */
-  async calculateRewardsOnly(
+  private async calculateRewards(
     playerName: string,
     trainerData: TrainerData,
-    battleTurns: number,
-    battleDuration: number = 0
-  ): Promise<CalculatedRewards> {
+    battleAnalysis: BattleAnalysis
+  ): Promise<RewardCalculationResult> {
     
     try {
-      const calculationData = await this.gatherCalculationData(
+      // Calcul argent
+      const moneyReward = this.calculateMoneyReward(trainerData, battleAnalysis);
+      console.log(`💰 [TrainerRewardManager] Argent: ${moneyReward.amount} (x${moneyReward.multiplier})`);
+      
+      // Calcul expérience
+      const expRewards = await this.calculateExperienceRewards(
         playerName,
         trainerData,
-        battleTurns,
-        battleDuration
+        battleAnalysis
       );
+      console.log(`⭐ [TrainerRewardManager] EXP: ${expRewards.length} Pokémon récompensés`);
       
-      return this.calculateAllRewards(calculationData);
+      // Calcul objets
+      const itemRewards = await this.calculateItemRewards(trainerData, battleAnalysis);
+      console.log(`🎒 [TrainerRewardManager] Objets: ${itemRewards.length} types possibles`);
       
-    } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur calcul only:`, error);
-      
-      return {
-        money: trainerData.rewards.baseMoney,
-        experience: [],
-        items: [],
-        totalExpGained: 0,
-        moneyMultiplier: 1.0
-      };
-    }
-  }
-  
-  // === COLLECTE DE DONNÉES ===
-  
-  private async gatherCalculationData(
-    playerName: string,
-    trainerData: TrainerData,
-    battleTurns: number,
-    battleDuration: number
-  ): Promise<RewardCalculationData> {
-    
-    console.log(`📊 [TrainerRewardManager] Collecte données pour ${playerName}...`);
-    
-    try {
-      // Récupérer données joueur
-      const playerData = await PlayerData.findOne({ username: playerName });
-      const playerLevel = playerData?.level || 1;
-      
-      // Analyser performance combat
-      const pokemonDefeated = trainerData.pokemon.length; // Tous vaincus si victoire
-      
-      // Récupérer équipe joueur pour analyser utilisation
-      const playerPokemon = await OwnedPokemon.find({ 
-        owner: playerName, 
-        isInTeam: true 
-      });
-      const playerPokemonUsed = playerPokemon.length;
-      
-      // Déterminer bonus de performance
-      const wasFlawlessVictory = this.determineFlawlessVictory();
-      const wasCriticalVictory = battleTurns <= 10; // Victoire en moins de 10 tours
-      
-      console.log(`    Analyse performance: Parfaite=${wasFlawlessVictory}, Rapide=${wasCriticalVictory}`);
+      const totalExpGained = expRewards.reduce((sum, exp) => sum + exp.totalExp, 0);
       
       return {
-        playerName,
-        playerLevel,
-        trainerData,
-        battleTurns,
-        battleDuration,
-        pokemonDefeated,
-        playerPokemonUsed,
-        wasFlawlessVictory,
-        wasCriticalVictory
+        success: true,
+        money: moneyReward.amount,
+        experience: expRewards,
+        items: itemRewards,
+        totalExpGained,
+        moneyMultiplier: moneyReward.multiplier
       };
       
     } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur collecte données:`, error);
-      
-      // Données minimales en cas d'erreur
-      return {
-        playerName,
-        playerLevel: 1,
-        trainerData,
-        battleTurns,
-        battleDuration,
-        pokemonDefeated: trainerData.pokemon.length,
-        playerPokemonUsed: 1,
-        wasFlawlessVictory: false,
-        wasCriticalVictory: false
-      };
-    }
-  }
-  
-  /**
-   * Détermine si la victoire était parfaite (à améliorer avec vraies données)
-   */
-  private determineFlawlessVictory(): boolean {
-    // TODO: Analyser l'état des Pokémon joueur pour déterminer si aucun n'a été KO
-    // Pour l'instant, simulation basée sur probabilité selon type de dresseur
-    
-    if (!this.gameState) return false;
-    
-    // Simulation basique : plus le dresseur est fort, moins probable la victoire parfaite
-    const difficultyFactors = {
-      'youngster': 0.6,
-      'trainer': 0.4,
-      'gym_leader': 0.2,
-      'elite_four': 0.1,
-      'champion': 0.05
-    };
-    
-    // TODO: Remplacer par vraie analyse équipe joueur
-    return Math.random() < 0.3; // 30% chance temporaire
-  }
-  
-  // === CALCULS DE RÉCOMPENSES ===
-  
-  private calculateAllRewards(data: RewardCalculationData): CalculatedRewards {
-    console.log(`🧮 [TrainerRewardManager] Calcul récompenses pour ${data.trainerData.name}...`);
-    
-    // 1. Calcul argent
-    const money = this.calculateMoney(data);
-    
-    // 2. Calcul expérience
-    const experience = this.calculateExperience(data);
-    const totalExpGained = experience.reduce((sum, exp) => sum + exp.exp, 0);
-    
-    // 3. Calcul objets
-    const items = this.calculateItems(data);
-    
-    // 4. Multiplicateur final
-    const moneyMultiplier = this.calculateFinalMoneyMultiplier(data);
-    
-    const finalMoney = Math.floor(money * moneyMultiplier);
-    
-    console.log(`    Résultats: ${finalMoney} pièces, ${totalExpGained} EXP, ${items.length} objets`);
-    
-    return {
-      money: finalMoney,
-      experience,
-      items,
-      totalExpGained,
-      moneyMultiplier
-    };
-  }
-  
-  /**
-   * Calcule l'argent gagné
-   */
-  private calculateMoney(data: RewardCalculationData): number {
-    const baseReward = data.trainerData.rewards;
-    let money = baseReward.baseMoney * this.MONEY_BASE_MULTIPLIER;
-    
-    // Multiplicateur selon classe de dresseur
-    const classMultiplier = TRAINER_BATTLE_CONSTANTS.REWARD_BASE_MULTIPLIERS[
-      data.trainerData.trainerClass as keyof typeof TRAINER_BATTLE_CONSTANTS.REWARD_BASE_MULTIPLIERS
-    ] || 1.0;
-    
-    money *= classMultiplier;
-    
-    // Bonus de performance
-    if (data.wasFlawlessVictory) {
-      money *= this.FLAWLESS_VICTORY_BONUS;
-      console.log(`    Bonus victoire parfaite: x${this.FLAWLESS_VICTORY_BONUS}`);
-    }
-    
-    if (data.wasCriticalVictory) {
-      money *= this.CRITICAL_VICTORY_BONUS;
-      console.log(`    Bonus victoire rapide: x${this.CRITICAL_VICTORY_BONUS}`);
-    }
-    
-    // Modificateur différence de niveau
-    const levelDifference = data.trainerData.level - data.playerLevel;
-    const levelModifier = 1 + (levelDifference * this.LEVEL_DIFFERENCE_MODIFIER);
-    money *= Math.max(0.5, Math.min(2.0, levelModifier)); // Borné entre 50% et 200%
-    
-    if (levelDifference !== 0) {
-      console.log(`    Modificateur niveau (${levelDifference}): x${levelModifier.toFixed(2)}`);
-    }
-    
-    return Math.floor(money);
-  }
-  
-  /**
-   * Calcule l'expérience distribuée
-   */
-  private calculateExperience(data: RewardCalculationData): { pokemonId: string; exp: number }[] {
-    const baseExp = data.trainerData.rewards.baseExp;
-    const expPerPokemon = Math.floor(baseExp * this.EXP_BASE_MULTIPLIER);
-    
-    // TODO: Distribuer selon les Pokémon qui ont réellement participé
-    // Pour l'instant, simulation avec distribution équitable
-    
-    const experience: { pokemonId: string; exp: number }[] = [];
-    
-    // Répartir entre les Pokémon utilisés (simulation)
-    for (let i = 0; i < Math.min(data.playerPokemonUsed, 6); i++) {
-      let pokemonExp = expPerPokemon;
-      
-      // Bonus de performance
-      if (data.wasFlawlessVictory) {
-        pokemonExp *= this.FLAWLESS_VICTORY_BONUS;
-      }
-      
-      if (data.wasCriticalVictory) {
-        pokemonExp *= this.CRITICAL_VICTORY_BONUS;
-      }
-      
-      experience.push({
-        pokemonId: `pokemon_${i + 1}`, // TODO: Vrais IDs
-        exp: Math.floor(pokemonExp)
-      });
-    }
-    
-    console.log(`    EXP: ${expPerPokemon} de base, distribué à ${experience.length} Pokémon`);
-    
-    return experience;
-  }
-  
-  /**
-   * Calcule les objets obtenus
-   */
-  private calculateItems(data: RewardCalculationData): ItemReward[] {
-    const items: ItemReward[] = [];
-    const trainerRewards = data.trainerData.rewards;
-    
-    if (!trainerRewards.items) return items;
-    
-    console.log(`    Calcul ${trainerRewards.items.length} objets possibles...`);
-    
-    for (const rewardItem of trainerRewards.items) {
-      const roll = Math.random();
-      
-      if (roll <= rewardItem.chance) {
-        let quantity = rewardItem.quantity;
-        
-        // Bonus de performance pour objets
-        if (data.wasFlawlessVictory && rewardItem.chance < 1.0) {
-          quantity = Math.floor(quantity * 1.5); // +50% objets bonus si victoire parfaite
-        }
-        
-        const itemReward: ItemReward = {
-          itemId: rewardItem.itemId,
-          quantity: Math.max(1, quantity),
-          rarity: this.determineItemRarity(rewardItem.itemId),
-          source: rewardItem.chance === 1.0 ? 'guaranteed' : 'probability',
-          rollResult: roll
-        };
-        
-        items.push(itemReward);
-        console.log(`      ✅ ${itemReward.itemId} x${itemReward.quantity} (${(roll * 100).toFixed(1)}% ≤ ${(rewardItem.chance * 100).toFixed(1)}%)`);
-      } else {
-        console.log(`      ❌ ${rewardItem.itemId} raté (${(roll * 100).toFixed(1)}% > ${(rewardItem.chance * 100).toFixed(1)}%)`);
-      }
-    }
-    
-    // Objets bonus selon performance
-    if (data.wasFlawlessVictory) {
-      items.push(...this.getBonusItems('flawless_victory', data.trainerData.trainerClass));
-    }
-    
-    if (data.wasCriticalVictory) {
-      items.push(...this.getBonusItems('critical_victory', data.trainerData.trainerClass));
-    }
-    
-    return items;
-  }
-  
-  /**
-   * Calcule le multiplicateur d'argent final
-   */
-  private calculateFinalMoneyMultiplier(data: RewardCalculationData): number {
-    let multiplier = data.trainerData.rewards.moneyMultiplier;
-    
-    // Bonus selon nombre de Pokémon vaincus
-    const pokemonBonus = data.pokemonDefeated * 0.1; // +10% par Pokémon vaincu
-    multiplier += pokemonBonus;
-    
-    return multiplier;
-  }
-  
-  // === DISTRIBUTION DES RÉCOMPENSES ===
-  
-  private async distributeRewards(
-    playerName: string,
-    rewards: CalculatedRewards
-  ): Promise<RewardDistributionResult> {
-    
-    console.log(`🎁 [TrainerRewardManager] Distribution récompenses à ${playerName}...`);
-    
-    const errors: string[] = [];
-    let playerDataUpdated = false;
-    let pokemonExpUpdated = 0;
-    let inventoryUpdated = false;
-    
-    try {
-      // 1. Distribuer argent
-      if (rewards.money > 0) {
-        try {
-          await this.giveMoney(playerName, rewards.money);
-          playerDataUpdated = true;
-          console.log(`    ✅ Argent: +${rewards.money} pièces`);
-        } catch (error) {
-          errors.push(`Erreur distribution argent: ${error instanceof Error ? error.message : 'Inconnue'}`);
-        }
-      }
-      
-      // 2. Distribuer expérience
-      if (rewards.experience.length > 0) {
-        try {
-          const expResult = await this.giveExperience(playerName, rewards.experience);
-          pokemonExpUpdated = expResult.pokemonUpdated;
-          console.log(`    ✅ EXP: ${expResult.pokemonUpdated} Pokémon mis à jour`);
-        } catch (error) {
-          errors.push(`Erreur distribution EXP: ${error instanceof Error ? error.message : 'Inconnue'}`);
-        }
-      }
-      
-      // 3. Distribuer objets
-      if (rewards.items.length > 0) {
-        try {
-          await this.giveItems(playerName, rewards.items);
-          inventoryUpdated = true;
-          console.log(`    ✅ Objets: ${rewards.items.length} objets ajoutés`);
-        } catch (error) {
-          errors.push(`Erreur distribution objets: ${error instanceof Error ? error.message : 'Inconnue'}`);
-        }
-      }
-      
-      const success = errors.length === 0;
-      
-      if (success) {
-        console.log(`✅ [TrainerRewardManager] Distribution complète sans erreur`);
-      } else {
-        console.warn(`⚠️ [TrainerRewardManager] Distribution avec ${errors.length} erreurs`);
-      }
-      
-      return {
-        success,
-        rewardsGiven: rewards,
-        errors,
-        playerDataUpdated,
-        pokemonExpUpdated,
-        inventoryUpdated
-      };
-      
-    } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur distribution globale:`, error);
-      
       return {
         success: false,
-        rewardsGiven: rewards,
-        errors: [`Erreur globale: ${error instanceof Error ? error.message : 'Inconnue'}`],
-        playerDataUpdated,
-        pokemonExpUpdated,
-        inventoryUpdated
+        money: 0,
+        experience: [],
+        items: [],
+        totalExpGained: 0,
+        moneyMultiplier: 1.0,
+        error: error instanceof Error ? error.message : 'Erreur calcul récompenses'
       };
     }
   }
   
   /**
-   * Donne de l'argent au joueur
+   * Calcule les récompenses d'argent
+   */
+  private calculateMoneyReward(
+    trainerData: TrainerData,
+    battleAnalysis: BattleAnalysis
+  ): { amount: number; multiplier: number } {
+    
+    const baseRewards = trainerData.rewards;
+    let finalMultiplier = baseRewards.moneyMultiplier * this.BASE_MONEY_MULTIPLIER;
+    
+    // Bonus différence de niveau
+    const levelBonus = Math.min(
+      battleAnalysis.levelDifference * 0.1,
+      this.LEVEL_DIFFERENCE_BONUS_CAP - 1.0
+    );
+    finalMultiplier += levelBonus;
+    
+    // Bonus performance
+    finalMultiplier += battleAnalysis.perfectionBonus;
+    
+    // Multiplicateur difficulté
+    finalMultiplier *= battleAnalysis.difficultyMultiplier;
+    
+    const finalAmount = Math.floor(baseRewards.baseMoney * finalMultiplier);
+    
+    return {
+      amount: Math.max(finalAmount, 50), // Minimum 50 pièces
+      multiplier: finalMultiplier
+    };
+  }
+  
+  /**
+   * Calcule les récompenses d'expérience pour l'équipe
+   */
+  private async calculateExperienceRewards(
+    playerName: string,
+    trainerData: TrainerData,
+    battleAnalysis: BattleAnalysis
+  ): Promise<PokemonExpReward[]> {
+    
+    try {
+      // Récupérer équipe du joueur
+      const playerTeam = await OwnedPokemon.find({
+        owner: playerName,
+        isInTeam: true
+      }).limit(6);
+      
+      if (playerTeam.length === 0) {
+        console.warn(`⚠️ [TrainerRewardManager] Aucun Pokémon en équipe pour ${playerName}`);
+        return [];
+      }
+      
+      const expRewards: PokemonExpReward[] = [];
+      const baseRewards = trainerData.rewards;
+      
+      // Base EXP par Pokémon
+      let baseExpPerPokemon = Math.floor(baseRewards.baseExp / playerTeam.length);
+      
+      // Bonus multiplicateurs
+      let expMultiplier = baseRewards.expMultiplier * this.BASE_EXP_MULTIPLIER;
+      expMultiplier += battleAnalysis.perfectionBonus * 0.5; // Bonus performance réduit pour EXP
+      expMultiplier *= battleAnalysis.difficultyMultiplier;
+      
+      for (const pokemon of playerTeam) {
+        const levelBefore = pokemon.level;
+        
+        // Calcul EXP avec bonus selon niveau relatif
+        let pokemonBaseExp = baseExpPerPokemon;
+        
+        // Bonus si Pokémon plus faible que dresseur
+        const levelDiff = battleAnalysis.trainerLevel - pokemon.level;
+        if (levelDiff > 0) {
+          pokemonBaseExp += Math.floor(levelDiff * 10); // +10 EXP par niveau de différence
+        }
+        
+        const bonusExp = Math.floor(pokemonBaseExp * (expMultiplier - 1.0));
+        const totalExp = pokemonBaseExp + bonusExp;
+        
+        // Calcul nouveau niveau (simulation simple)
+        const newTotalExp = pokemon.experience + totalExp;
+        const levelAfter = this.calculateLevelFromExp(newTotalExp);
+        const leveledUp = levelAfter > levelBefore;
+        
+        expRewards.push({
+          pokemonId: pokemon._id.toString(),
+          pokemonName: pokemon.nickname || `Pokémon #${pokemon.pokemonId}`,
+          baseExp: pokemonBaseExp,
+          bonusExp: bonusExp,
+          totalExp: totalExp,
+          levelBefore,
+          levelAfter,
+          leveledUp
+        });
+      }
+      
+      return expRewards;
+      
+    } catch (error) {
+      console.error(`❌ [TrainerRewardManager] Erreur calcul EXP:`, error);
+      return [];
+    }
+  }
+  
+  /**
+   * Calcule les récompenses d'objets avec probabilités
+   */
+  private async calculateItemRewards(
+    trainerData: TrainerData,
+    battleAnalysis: BattleAnalysis
+  ): Promise<ProcessedItemReward[]> {
+    
+    const itemRewards: ProcessedItemReward[] = [];
+    const rewardItems = trainerData.rewards.items || [];
+    
+    for (const rewardItem of rewardItems) {
+      // Calcul probabilité avec bonus performance
+      let finalChance = rewardItem.chance;
+      finalChance += battleAnalysis.perfectionBonus * 0.1; // +10% max avec perfection
+      finalChance = Math.min(finalChance, 1.0); // Cap à 100%
+      
+      const received = Math.random() < finalChance;
+      
+      itemRewards.push({
+        itemId: rewardItem.itemId,
+        itemName: this.getItemDisplayName(rewardItem.itemId),
+        quantity: rewardItem.quantity,
+        rarity: this.getItemRarity(rewardItem.itemId),
+        received: received,
+        failureReason: received ? undefined : `Probabilité ${(finalChance * 100).toFixed(1)}% non atteinte`
+      });
+    }
+    
+    return itemRewards;
+  }
+  
+  // === ATTRIBUTION EFFECTIVE ===
+  
+  /**
+   * Attribue effectivement toutes les récompenses calculées
+   */
+  private async giveCalculatedRewards(
+    playerName: string,
+    rewardResult: RewardCalculationResult
+  ): Promise<void> {
+    
+    console.log(`🎁 [TrainerRewardManager] Attribution effective des récompenses...`);
+    
+    try {
+      // 1. Donner l'argent
+      if (rewardResult.money > 0) {
+        await this.giveMoney(playerName, rewardResult.money);
+        console.log(`💰 [TrainerRewardManager] ${rewardResult.money} pièces attribuées`);
+      }
+      
+      // 2. Donner l'expérience
+      if (rewardResult.experience.length > 0) {
+        await this.giveExperience(playerName, rewardResult.experience);
+        console.log(`⭐ [TrainerRewardManager] EXP attribuée à ${rewardResult.experience.length} Pokémon`);
+      }
+      
+      // 3. Donner les objets reçus
+      const receivedItems = rewardResult.items.filter(item => item.received);
+      if (receivedItems.length > 0) {
+        await this.giveProcessedItems(playerName, receivedItems);
+        console.log(`🎒 [TrainerRewardManager] ${receivedItems.length} objets attribués`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [TrainerRewardManager] Erreur attribution:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Attribue l'argent au joueur
    */
   private async giveMoney(playerName: string, amount: number): Promise<void> {
     try {
-      const playerData = await PlayerData.findOne({ username: playerName });
+      let playerData = await PlayerData.findOne({ username: playerName });
       
       if (!playerData) {
-        throw new Error(`Données joueur ${playerName} introuvables`);
+        console.warn(`⚠️ [TrainerRewardManager] Joueur ${playerName} non trouvé, création...`);
+        playerData = new PlayerData({
+          username: playerName,
+          gold: amount,
+          level: 1
+        });
+      } else {
+        playerData.gold = (playerData.gold || 0) + amount;
       }
       
-      playerData.gold += amount;
       await playerData.save();
       
-      console.log(`💰 [TrainerRewardManager] +${amount} pièces pour ${playerName} (total: ${playerData.gold})`);
+      console.log(`💰 [TrainerRewardManager] ${amount} pièces ajoutées (total: ${playerData.gold})`);
       
     } catch (error) {
       console.error(`❌ [TrainerRewardManager] Erreur ajout argent:`, error);
@@ -528,165 +420,221 @@ export class TrainerRewardManager {
   }
   
   /**
-   * Donne de l'expérience aux Pokémon
+   * Attribue l'expérience aux Pokémon
    */
   private async giveExperience(
     playerName: string,
-    expRewards: { pokemonId: string; exp: number }[]
-  ): Promise<{ pokemonUpdated: number; distributions: ExpDistribution[] }> {
+    expRewards: PokemonExpReward[]
+  ): Promise<void> {
     
     try {
-      // Récupérer Pokémon équipe du joueur
-      const playerPokemon = await OwnedPokemon.find({ 
-        owner: playerName, 
-        isInTeam: true 
-      });
-      
-      if (playerPokemon.length === 0) {
-        throw new Error(`Aucun Pokémon en équipe pour ${playerName}`);
-      }
-      
-      const distributions: ExpDistribution[] = [];
-      let pokemonUpdated = 0;
-      
-      // Distribuer équitablement à tous les Pokémon de l'équipe
-      const expPerPokemon = Math.floor(
-        expRewards.reduce((sum, exp) => sum + exp.exp, 0) / playerPokemon.length
-      );
-      
-      for (const pokemon of playerPokemon) {
-        if (expPerPokemon <= 0) continue;
+      for (const expReward of expRewards) {
+        const pokemon = await OwnedPokemon.findById(expReward.pokemonId);
         
-        const oldLevel = pokemon.level;
-        const oldExp = pokemon.experience;
-        
-        pokemon.experience += expPerPokemon;
-        
-        // Calculer nouveau niveau (formule simplifiée)
-        const newLevel = this.calculateLevelFromExp(pokemon.experience);
-        const leveledUp = newLevel > oldLevel;
-        
-        if (leveledUp) {
-          pokemon.level = newLevel;
-          // TODO: Recalculer stats si niveau up
+        if (pokemon && pokemon.owner === playerName) {
+          const oldExp = pokemon.experience;
+          const oldLevel = pokemon.level;
+          
+          pokemon.experience += expReward.totalExp;
+          
+          // Recalcul niveau si nécessaire
+          const newLevel = this.calculateLevelFromExp(pokemon.experience);
+          if (newLevel > oldLevel) {
+            pokemon.level = newLevel;
+            
+            // Recalcul des stats (simplifié)
+            await this.recalculatePokemonStats(pokemon);
+            
+            console.log(`📈 [TrainerRewardManager] ${expReward.pokemonName}: ${oldLevel} → ${newLevel} !`);
+          }
+          
+          await pokemon.save();
         }
-        
-        await pokemon.save();
-        pokemonUpdated++;
-        
-        distributions.push({
-          pokemonId: pokemon.pokemonId.toString(),
-          pokemonName: pokemon.nickname || `Pokemon_${pokemon.pokemonId}`,
-          ownedPokemonId: pokemon._id.toString(),
-          oldLevel,
-          newLevel,
-          expGained: expPerPokemon,
-          totalExp: pokemon.experience,
-          leveledUp
-        });
-        
-        console.log(`🌟 [TrainerRewardManager] ${pokemon.nickname || 'Pokemon'}: +${expPerPokemon} EXP${leveledUp ? ` (Niv. ${oldLevel} → ${newLevel})` : ''}`);
       }
-      
-      return { pokemonUpdated, distributions };
       
     } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur distribution EXP:`, error);
+      console.error(`❌ [TrainerRewardManager] Erreur attribution EXP:`, error);
       throw error;
     }
   }
   
   /**
-   * Donne des objets au joueur
+   * Attribue les objets au joueur
    */
-  private async giveItems(playerName: string, itemRewards: ItemReward[]): Promise<void> {
+  private async giveProcessedItems(
+    playerName: string,
+    items: ProcessedItemReward[]
+  ): Promise<void> {
+    
     try {
-      const givePromises = itemRewards.map(item => 
-        InventoryManager.addItem(playerName, item.itemId, item.quantity)
-      );
-      
-      await Promise.all(givePromises);
-      
-      console.log(`🎒 [TrainerRewardManager] ${itemRewards.length} objets ajoutés à l'inventaire de ${playerName}`);
+      for (const item of items) {
+        // Utiliser InventoryManager pour compatibilité
+        const success = await InventoryManager.addItem(
+          playerName,
+          item.itemId,
+          item.quantity
+        );
+        
+        if (success) {
+          console.log(`🎒 [TrainerRewardManager] ${item.itemName} x${item.quantity} ajouté`);
+        } else {
+          console.warn(`⚠️ [TrainerRewardManager] Échec ajout ${item.itemName}`);
+        }
+      }
       
     } catch (error) {
-      console.error(`❌ [TrainerRewardManager] Erreur ajout objets:`, error);
+      console.error(`❌ [TrainerRewardManager] Erreur attribution objets:`, error);
       throw error;
+    }
+  }
+  
+  // === ANALYSE COMBAT ===
+  
+  /**
+   * Analyse les paramètres du combat pour calculer les bonus
+   */
+  private async analyzeBattle(
+    playerName: string,
+    trainerData: TrainerData,
+    battleTurns: number
+  ): Promise<BattleAnalysis> {
+    
+    try {
+      // Récupérer niveau joueur (moyenne équipe)
+      const playerTeam = await OwnedPokemon.find({
+        owner: playerName,
+        isInTeam: true
+      }).limit(6);
+      
+      const playerLevel = playerTeam.length > 0 ? 
+        Math.floor(playerTeam.reduce((sum, p) => sum + p.level, 0) / playerTeam.length) : 
+        20; // Niveau par défaut
+      
+      const trainerLevel = trainerData.level;
+      const levelDifference = Math.max(0, trainerLevel - playerLevel); // Bonus si dresseur plus fort
+      
+      // Calcul durée (estimation basée sur les tours)
+      const estimatedBattleDuration = battleTurns * 30000; // 30s par tour en moyenne
+      
+      // Bonus perfection (moins de tours = mieux)
+      const idealTurns = trainerData.pokemon.length * 2; // 2 tours par Pokémon adversaire idéal
+      const perfectionRatio = Math.max(0, (idealTurns - battleTurns) / idealTurns);
+      const perfectionBonus = perfectionRatio * 0.3; // Max +30%
+      
+      // Multiplicateur selon classe de dresseur
+      const difficultyMultiplier = TRAINER_BATTLE_CONSTANTS.REWARD_BASE_MULTIPLIERS[
+        trainerData.trainerClass as keyof typeof TRAINER_BATTLE_CONSTANTS.REWARD_BASE_MULTIPLIERS
+      ] || 1.0;
+      
+      return {
+        playerLevel,
+        trainerLevel,
+        levelDifference,
+        battleDuration: estimatedBattleDuration,
+        turnsPlayed: battleTurns,
+        pokemonDefeated: trainerData.pokemon.length,
+        perfectionBonus: Math.min(perfectionBonus, 0.3),
+        difficultyMultiplier
+      };
+      
+    } catch (error) {
+      console.error(`❌ [TrainerRewardManager] Erreur analyse combat:`, error);
+      
+      // Valeurs par défaut en cas d'erreur
+      return {
+        playerLevel: 20,
+        trainerLevel: trainerData.level,
+        levelDifference: 0,
+        battleDuration: battleTurns * 30000,
+        turnsPlayed: battleTurns,
+        pokemonDefeated: trainerData.pokemon.length,
+        perfectionBonus: 0,
+        difficultyMultiplier: 1.0
+      };
     }
   }
   
   // === UTILITAIRES ===
   
   /**
+   * Calcule le niveau à partir de l'expérience (formule simple)
+   */
+  private calculateLevelFromExp(experience: number): number {
+    // Formule cubique simplifiée : level = (exp / 1000) ^ (1/3)
+    const level = Math.floor(Math.pow(experience / 1000, 1/3)) + 1;
+    return Math.min(Math.max(level, 1), 100); // Entre 1 et 100
+  }
+  
+  /**
+   * Recalcule les stats d'un Pokémon après montée de niveau
+   */
+  private async recalculatePokemonStats(pokemon: any): Promise<void> {
+    // Recalcul simplifié - dans un vrai jeu, utiliser les vraies formules
+    const baseMultiplier = pokemon.level / 50; // Facteur de base
+    
+    pokemon.calculatedStats = {
+      attack: Math.floor(pokemon.calculatedStats.attack * (1 + baseMultiplier * 0.1)),
+      defense: Math.floor(pokemon.calculatedStats.defense * (1 + baseMultiplier * 0.1)),
+      spAttack: Math.floor(pokemon.calculatedStats.spAttack * (1 + baseMultiplier * 0.1)),
+      spDefense: Math.floor(pokemon.calculatedStats.spDefense * (1 + baseMultiplier * 0.1)),
+      speed: Math.floor(pokemon.calculatedStats.speed * (1 + baseMultiplier * 0.1))
+    };
+    
+    // Recalcul HP
+    const hpRatio = pokemon.currentHp / pokemon.maxHp;
+    pokemon.maxHp = Math.floor(pokemon.maxHp * (1 + baseMultiplier * 0.15)); // HP augmente plus
+    pokemon.currentHp = Math.floor(pokemon.maxHp * hpRatio); // Garde le ratio HP
+  }
+  
+  /**
+   * Récupère le nom d'affichage d'un objet
+   */
+  private getItemDisplayName(itemId: string): string {
+    const displayNames: Record<string, string> = {
+      'poke_ball': 'Poké Ball',
+      'great_ball': 'Super Ball',
+      'ultra_ball': 'Hyper Ball',
+      'master_ball': 'Master Ball',
+      'potion': 'Potion',
+      'super_potion': 'Super Potion',
+      'hyper_potion': 'Hyper Potion',
+      'max_potion': 'Potion Max',
+      'revive': 'Rappel',
+      'max_revive': 'Rappel Max',
+      'rare_candy': 'Super Bonbon',
+      'pp_up': 'PP Plus',
+      'pp_max': 'PP Max',
+      'tm_special': 'CT Spéciale',
+      'golden_berry': 'Baie Dorée'
+    };
+    
+    return displayNames[itemId] || itemId;
+  }
+  
+  /**
    * Détermine la rareté d'un objet
    */
-  private determineItemRarity(itemId: string): 'common' | 'uncommon' | 'rare' | 'legendary' {
-    const rarityMap: Record<string, 'common' | 'uncommon' | 'rare' | 'legendary'> = {
+  private getItemRarity(itemId: string): string {
+    const rarities: Record<string, string> = {
       'poke_ball': 'common',
       'great_ball': 'common',
-      'ultra_ball': 'uncommon',
-      'master_ball': 'legendary',
       'potion': 'common',
       'super_potion': 'uncommon',
-      'hyper_potion': 'rare',
+      'ultra_ball': 'uncommon',
+      'hyper_potion': 'uncommon',
       'revive': 'uncommon',
-      'tm_special': 'rare',
       'rare_candy': 'rare',
-      'pp_max': 'rare',
+      'pp_up': 'rare',
+      'tm_special': 'rare',
+      'master_ball': 'legendary',
+      'pp_max': 'legendary',
       'golden_berry': 'legendary'
     };
     
-    return rarityMap[itemId] || 'common';
+    return rarities[itemId] || 'common';
   }
   
-  /**
-   * Objets bonus selon performance
-   */
-  private getBonusItems(bonusType: 'flawless_victory' | 'critical_victory', trainerClass: string): ItemReward[] {
-    const bonusItems: ItemReward[] = [];
-    
-    if (bonusType === 'flawless_victory') {
-      // Bonus victoire parfaite
-      bonusItems.push({
-        itemId: 'super_potion',
-        quantity: 2,
-        rarity: 'uncommon',
-        source: 'bonus'
-      });
-      
-      if (['gym_leader', 'elite_four', 'champion'].includes(trainerClass)) {
-        bonusItems.push({
-          itemId: 'rare_candy',
-          quantity: 1,
-          rarity: 'rare',
-          source: 'bonus'
-        });
-      }
-    }
-    
-    if (bonusType === 'critical_victory') {
-      // Bonus victoire rapide
-      bonusItems.push({
-        itemId: 'great_ball',
-        quantity: 3,
-        rarity: 'common',
-        source: 'bonus'
-      });
-    }
-    
-    return bonusItems;
-  }
-  
-  /**
-   * Calcule le niveau depuis l'expérience
-   */
-  private calculateLevelFromExp(experience: number): number {
-    // Formule simplifiée : niveau = racine cubique de l'expérience
-    const level = Math.floor(Math.pow(experience, 1/3));
-    return Math.max(1, Math.min(100, level));
-  }
-  
-  // === API PUBLIQUE ÉTENDUE ===
+  // === DIAGNOSTICS ET ÉTAT ===
   
   /**
    * Vérifie si le manager est prêt
@@ -696,57 +644,44 @@ export class TrainerRewardManager {
   }
   
   /**
-   * Aperçu des récompenses sans les donner
-   */
-  async previewRewards(
-    playerName: string,
-    trainerData: TrainerData,
-    battleTurns: number
-  ): Promise<CalculatedRewards> {
-    
-    return await this.calculateRewardsOnly(playerName, trainerData, battleTurns);
-  }
-  
-  /**
    * Statistiques du gestionnaire
    */
   getStats(): any {
     return {
       version: 'trainer_reward_manager_v1',
-      isReady: this.isReady(),
-      configuration: {
-        expBaseMultiplier: this.EXP_BASE_MULTIPLIER,
-        moneyBaseMultiplier: this.MONEY_BASE_MULTIPLIER,
-        flawlessBonus: this.FLAWLESS_VICTORY_BONUS,
-        criticalBonus: this.CRITICAL_VICTORY_BONUS,
-        levelModifier: this.LEVEL_DIFFERENCE_MODIFIER
-      },
+      architecture: 'TrainerRewardManager + DB Integration',
+      status: 'Production Ready',
+      isInitialized: this.isInitialized,
+      battleId: this.gameState?.battleId,
+      cacheSize: this.rewardCache.size,
       features: [
-        'money_calculation_with_bonuses',
-        'experience_distribution',
-        'item_probability_system',
+        'dynamic_money_calculation',
+        'team_exp_distribution',
+        'probabilistic_item_rewards',
         'performance_bonus_system',
+        'trainer_class_multipliers',
         'level_difference_scaling',
         'database_integration',
-        'inventory_manager_integration',
-        'extensible_reward_system'
+        'pokemon_stat_recalculation',
+        'inventory_manager_compatibility'
       ],
-      supportedRewards: [
-        'money_with_multipliers',
-        'pokemon_experience',
-        'item_drops_with_probability',
-        'bonus_items_for_performance',
-        'trainer_class_scaling'
-      ]
+      configuration: {
+        baseMoneyMultiplier: this.BASE_MONEY_MULTIPLIER,
+        baseExpMultiplier: this.BASE_EXP_MULTIPLIER,
+        levelDifferenceCap: this.LEVEL_DIFFERENCE_BONUS_CAP,
+        perfectionBonusCap: this.PERFECTION_BONUS_CAP
+      }
     };
   }
   
   /**
-   * Reset pour un nouveau combat
+   * Reset pour nouveau combat
    */
   reset(): void {
     this.gameState = null;
     this.isInitialized = false;
+    this.rewardCache.clear();
+    
     console.log('🔄 [TrainerRewardManager] Reset effectué');
   }
 }
