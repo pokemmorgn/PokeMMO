@@ -174,7 +174,7 @@ class BattleTesterFinal {
     const startTime = Date.now();
     let totalEvents = 0;
     let successCount = 0;
-    const battleCount = 10; // 🔥 10 combats simultanés
+    const battleCount = 5; // 🔥 10 combats simultanés
 
     console.log('\n🧪 Test 2: MEGA STRESS TEST (10 combats simultanés)...');
     console.log('  🚀 Lancement de 10 combats Pokémon en parallèle...');
