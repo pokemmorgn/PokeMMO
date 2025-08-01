@@ -12,26 +12,24 @@ export type { BattleTeamState, SwitchValidation, TeamAnalysis } from '../manager
 
 // Helpers et utilities
 export { TrainerBattleHelpers } from '../helpers/TrainerBattleHelpers';
-export * from '../helpers/TrainerBattleHelpers';
 
 // === EXEMPLE D'UTILISATION COMPLÈTE ===
 
 import { TrainerTeamManager } from '../managers/TrainerTeamManager';
 import { 
-  createSimpleTrainer, 
-  createGymLeader,
-  createTrainerBattleConfig,
   TrainerData,
-  TrainerBattleConfig 
+  TrainerBattleConfig,
+  createTrainerBattleConfig
 } from '../types/TrainerBattleTypes';
+import { 
+  createSimpleTrainer, 
+  createGymLeader
+} from '../helpers/TrainerBattleHelpers';
 
 /**
  * 🎮 EXEMPLE COMPLET D'UTILISATION DU SYSTÈME DRESSEURS
- * 
- * Cette fonction montre comment utiliser tous les composants ensemble
- * pour créer un combat dresseur fonctionnel.
  */
-export async function exampleTrainerBattleSetup(): Promise<{
+async function exampleTrainerBattleSetup(): Promise<{
   playerTeamManager: TrainerTeamManager;
   trainerData: TrainerData;
   battleConfig: TrainerBattleConfig;
@@ -158,10 +156,8 @@ export async function exampleTrainerBattleSetup(): Promise<{
 
 /**
  * 🧪 EXEMPLE DE TEST RAPIDE
- * 
- * Fonction pour tester rapidement que tous les modules fonctionnent
  */
-export async function quickTrainerBattleTest(): Promise<boolean> {
+async function quickTrainerBattleTest(): Promise<boolean> {
   console.log('🧪 [Test] Test rapide des modules dresseurs...');
   
   try {
@@ -181,48 +177,6 @@ export async function quickTrainerBattleTest(): Promise<boolean> {
     return false;
   }
 }
-
-// === UTILISATION RECOMMANDÉE ===
-
-/**
- * 📖 GUIDE D'UTILISATION POUR DÉVELOPPEURS
- * 
- * Pour intégrer les combats dresseurs dans votre code :
- * 
- * 1. Import du module complet :
- *    ```typescript
- *    import { 
- *      TrainerTeamManager, 
- *      createGymLeader, 
- *      createTrainerBattleConfig,
- *      TrainerBattleHelpers 
- *    } from './battle/trainers';
- *    ```
- * 
- * 2. Configuration équipe joueur :
- *    ```typescript
- *    const playerTeam = new TrainerTeamManager(playerId);
- *    await playerTeam.initialize(); // Charge depuis DB via TeamManager
- *    ```
- * 
- * 3. Création dresseur :
- *    ```typescript
- *    const trainer = createGymLeader('gym_01', 'Pierre', 'rock', 3, 25);
- *    ```
- * 
- * 4. Configuration combat :
- *    ```typescript
- *    const config = createTrainerBattleConfig(
- *      sessionId, playerName, playerTeam.getAllPokemon(), trainer
- *    );
- *    ```
- * 
- * 5. Lancement avec BattleEngine (prochaine étape) :
- *    ```typescript
- *    const battleEngine = new BattleEngine();
- *    const result = battleEngine.startTrainerBattle(config); // À implémenter
- *    ```
- */
 
 console.log('📚 [Module] Système combats dresseurs chargé et prêt !');
 console.log('🎯 [Module] Prochaine étape: Intégration BattleEngine + SwitchManager');
