@@ -335,7 +335,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-  private async initializeNpcManagers() {
+private async initializeNpcManagers() {
   console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
   
   try {
@@ -370,6 +370,29 @@ export class WorldRoom extends Room<PokeWorldState> {
     
     // Debug système pour validation
     globalNpcManager.debugSystem();
+    
+    // ✅ NOUVEAU: Envoyer NPCs à TOUS les clients connectés (correction principale)
+    console.log(`📡 [WorldRoom] NPCs chargés! Notification des ${this.clients.length} clients connectés...`);
+    
+    if (this.clients.length > 0) {
+      for (const client of this.clients) {
+        const player = this.state.players.get(client.sessionId);
+        if (player) {
+          console.log(`📤 [WorldRoom] Envoi NPCs à ${player.name} dans ${player.currentZone}`);
+          
+          const npcs = globalNpcManager.getNpcsByZone(player.currentZone);
+          client.send("npcList", npcs);
+          
+          console.log(`✅ [WorldRoom] ${npcs.length} NPCs envoyés à ${player.name}`);
+        } else {
+          console.warn(`⚠️ [WorldRoom] Client ${client.sessionId} sans joueur dans le state`);
+        }
+      }
+      
+      console.log(`🎉 [WorldRoom] Tous les ${this.clients.length} clients notifiés des NPCs !`);
+    } else {
+      console.log(`ℹ️ [WorldRoom] Aucun client connecté pour l'instant, attente connexions futures`);
+    }
     
     // ✅ NOUVEAU: Connecter Hot Reload au broadcast client
     if (stats.hotReload && stats.hotReload.active) {
@@ -411,9 +434,23 @@ export class WorldRoom extends Room<PokeWorldState> {
     const fallbackManager = new NpcManager();
     this.npcManagers.set('global', fallbackManager);
     console.warn(`⚠️ [WorldRoom] Manager NPCs en mode fallback (0 NPCs)`);
+    
+    // ✅ NOUVEAU: Même en cas d'erreur, notifier les clients (avec liste vide)
+    if (this.clients.length > 0) {
+      console.log(`📡 [WorldRoom] Erreur NPCs - envoi listes vides aux ${this.clients.length} clients...`);
+      
+      for (const client of this.clients) {
+        const player = this.state.players.get(client.sessionId);
+        if (player) {
+          console.log(`📤 [WorldRoom] Envoi liste vide à ${player.name} (erreur fallback)`);
+          client.send("npcList", []);
+        }
+      }
+      
+      console.log(`⚠️ [WorldRoom] Listes NPCs vides envoyées (mode fallback)`);
+    }
   }
 }
-
 // ✅ MÉTHODE UTILITAIRE : Extraire zone depuis NPC (à ajouter dans WorldRoom)
 private extractZoneFromNpc(npc: any): string {
   if (npc.sourceFile) {
@@ -439,11 +476,16 @@ private extractZoneFromNpc(npc: any): string {
     }
 
     // Envoyer les NPCs immédiatement
-    const npcManager = this.npcManagers.get('global'); // Manager global
-    if (npcManager) {
-      const npcs = npcManager.getNpcsByZone(zoneName); // Juste cette zone !
+    const npcManager = this.npcManagers.get('global');
+    if (npcManager && npcManager.isInitialized) {
+      const npcs = npcManager.getNpcsByZone(zoneName);
+      console.log(`📤 [WorldRoom] NPCs immédiatement disponibles: ${npcs.length} pour zone ${zoneName}`);
       client.send("npcList", npcs);
-      console.log(`📤 ${npcs.length} NPCs envoyés pour zone ${zoneName}`);
+    } else {
+      console.log(`⏳ [WorldRoom] NPCs pas encore chargés, programmation envoi différé...`);
+      
+      // ✅ NOUVEAU: Attendre que les NPCs soient chargés
+      this.waitForNpcsAndSend(client, zoneName);
     }
       // ✅ NOUVEAU: Envoyer les objets visibles immédiatement
     this.objectInteractionHandlers.sendZoneObjectsToClient(client, zoneName);
@@ -1482,7 +1524,51 @@ this.onMessage("npcInteract", async (client, data) => {
 
     console.log(`✅ Tous les handlers configurés (y compris équipe et encounters)`);
   }
-
+private async waitForNpcsAndSend(client: Client, zoneName: string) {
+  console.log(`⏳ [WorldRoom] Attente NPCs pour ${client.sessionId} dans ${zoneName}...`);
+  
+  const maxWait = 10000; // 10 secondes max
+  const checkInterval = 500; // Vérifier toutes les 500ms
+  const startTime = Date.now();
+  
+  const checkNpcs = () => {
+    const npcManager = this.npcManagers.get('global');
+    
+    if (npcManager && npcManager.isInitialized) {
+      const npcs = npcManager.getNpcsByZone(zoneName);
+      console.log(`🎉 [WorldRoom] NPCs chargés! Envoi ${npcs.length} NPCs à ${client.sessionId}`);
+      
+      // Vérifier que le client est toujours connecté
+      const stillConnected = this.clients.find(c => c.sessionId === client.sessionId);
+      if (stillConnected) {
+        client.send("npcList", npcs);
+        console.log(`✅ [WorldRoom] NPCs envoyés avec succès à ${client.sessionId}`);
+      } else {
+        console.log(`⚠️ [WorldRoom] Client ${client.sessionId} déconnecté, envoi annulé`);
+      }
+      return;
+    }
+    
+    // Timeout dépassé
+    if (Date.now() - startTime >= maxWait) {
+      console.warn(`⏰ [WorldRoom] Timeout attente NPCs pour ${client.sessionId} après ${maxWait}ms`);
+      // Envoyer une liste vide plutôt que rien
+      const stillConnected = this.clients.find(c => c.sessionId === client.sessionId);
+      if (stillConnected) {
+        client.send("npcList", []);
+        console.log(`📤 [WorldRoom] Liste NPCs vide envoyée à ${client.sessionId} (timeout)`);
+      }
+      return;
+    }
+    
+    // Continuer à attendre
+    setTimeout(checkNpcs, checkInterval);
+  };
+  
+  // Démarrer la vérification
+  checkNpcs();
+}
+  
   // === HANDLERS POUR LES QUÊTES ===
 private getPlayerNameBySession(sessionId: string): string | null {
   const player = this.state.players.get(sessionId);
