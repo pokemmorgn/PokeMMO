@@ -1,5 +1,5 @@
 // server/src/battle/modules/SwitchManager.ts
-// 🔄 MODULE COMPLET DE GESTION DES CHANGEMENTS DE POKÉMON
+// 🔧 CORRECTIONS CHANGEMENT FORCÉ - SESSION 2 FINALISATION
 
 import { BattleGameState, BattleResult, BattleAction, PlayerRole, Pokemon } from '../types/BattleTypes';
 import { TrainerTeamManager, SwitchValidation, TeamAnalysis } from '../managers/TrainerTeamManager';
@@ -43,6 +43,7 @@ export interface SwitchExecutionResult {
   wasForced: boolean;
   message: string[];
   error?: string;
+  teamDefeated?: boolean; // 🔧 AJOUTÉ pour clarifier équipe vaincue
 }
 
 export interface SwitchManagerState {
@@ -55,14 +56,7 @@ export interface SwitchManagerState {
 }
 
 /**
- * SWITCH MANAGER - Gestion complète des changements de Pokémon
- * 
- * Responsabilités :
- * - Validation des changements selon les règles
- * - Gestion des changements forcés (KO)
- * - Intégration avec ActionQueue (priorité élevée)
- * - Support multi-équipes via TrainerTeamManager
- * - Compatible performance MMO
+ * SWITCH MANAGER - 🔧 CORRECTIONS POUR CHANGEMENT FORCÉ
  */
 export class SwitchManager {
   
@@ -91,9 +85,6 @@ export class SwitchManager {
   
   // === INITIALISATION ===
   
-  /**
-   * Initialise avec l'état du jeu et les gestionnaires d'équipes
-   */
   initialize(
     gameState: BattleGameState,
     player1TeamManager?: TrainerTeamManager,
@@ -120,14 +111,122 @@ export class SwitchManager {
     this.switchState.switchCounts.set('player1', 0);
     this.switchState.switchCounts.set('player2', 0);
     
-    console.log(`✅ [SwitchManager] Configuré - Règles: changements ${this.battleRules.allowSwitching ? 'autorisés' : 'interdits'}`);
+    console.log(`✅ [SwitchManager] Configuré - Équipes: ${this.teamManagers.size}, Règles: changements ${this.battleRules.allowSwitching ? 'autorisés' : 'interdits'}`);
   }
   
-  // === API PRINCIPALE ===
+  // === 🔧 CORRECTION PRINCIPALE - CHANGEMENT FORCÉ ===
   
   /**
-   * Traite une action de changement
+   * 🔧 CORRECTION: Gère les changements forcés après KO avec validation complète
    */
+  async handleForcedSwitch(playerRole: PlayerRole, faintedPokemonIndex: number): Promise<BattleResult> {
+    console.log(`💀 [SwitchManager] 🔧 DÉBUT changement forcé: ${playerRole} (Pokémon ${faintedPokemonIndex} KO)`);
+    
+    if (!this.gameState) {
+      console.error('❌ [SwitchManager] GameState manquant');
+      return this.createErrorResult('SwitchManager non initialisé');
+    }
+    
+    const teamManager = this.teamManagers.get(playerRole);
+    if (!teamManager) {
+      console.error(`❌ [SwitchManager] TeamManager manquant pour ${playerRole}`);
+      return this.createErrorResult(`Aucun gestionnaire d'équipe pour ${playerRole}`);
+    }
+    
+    try {
+      console.log(`🔍 [SwitchManager] 🔧 Analyse équipe ${playerRole}...`);
+      
+      // 1. 🔧 ANALYSE ÉQUIPE DÉTAILLÉE
+      const analysis = teamManager.analyzeTeam();
+      console.log(`📊 [SwitchManager] Analyse: ${analysis.alivePokemon}/${analysis.totalPokemon} vivants, Battle ready: ${analysis.battleReady}`);
+      
+      // 2. 🔧 VÉRIFICATION ÉQUIPE VAINCUE AVEC LOGS DÉTAILLÉS
+      if (analysis.alivePokemon <= 0 || !analysis.battleReady) {
+        console.log(`💀 [SwitchManager] 🔧 ÉQUIPE VAINCUE DÉTECTÉE:`);
+        console.log(`    - Pokémon vivants: ${analysis.alivePokemon}`);
+        console.log(`    - Pokémon total: ${analysis.totalPokemon}}`);
+        console.log(`    - Battle ready: ${analysis.battleReady}`);
+        console.log(`    - Gagnant: ${playerRole === 'player1' ? 'player2' : 'player1'}`);
+        
+        return {
+          success: true, // ✅ SUCCÈS car traitement correct d'équipe vaincue
+          gameState: this.gameState,
+          events: [`${this.getPlayerName(playerRole)} n'a plus de Pokémon valides !`],
+          data: {
+            teamDefeated: true,
+            playerRole: playerRole,
+            winner: playerRole === 'player1' ? 'player2' : 'player1',
+            switchExecuted: false, // ✅ Pas de changement car équipe vaincue
+            reason: 'team_defeated',
+            wasForced: true // 🔧 AJOUTÉ
+          }
+        };
+      }
+      
+      console.log(`✅ [SwitchManager] 🔧 Équipe ${playerRole} a encore ${analysis.alivePokemon} Pokémon vivants`);
+      
+      // 3. 🔧 CHANGEMENT AUTOMATIQUE AVEC VALIDATION
+      console.log(`🔄 [SwitchManager] 🔧 Tentative changement automatique...`);
+      const autoSwitchSuccess = teamManager.autoSwitchToFirstAlive();
+      
+      if (!autoSwitchSuccess) {
+        console.error('❌ [SwitchManager] 🔧 AutoSwitch échoué malgré Pokémon vivants');
+        return this.createErrorResult('Impossible de trouver un Pokémon de remplacement');
+      }
+      
+      console.log(`✅ [SwitchManager] 🔧 AutoSwitch réussi`);
+      
+      // 4. 🔧 RÉCUPÉRATION NOUVEAU POKÉMON ACTIF
+      const newActivePokemon = teamManager.getActivePokemon();
+      if (!newActivePokemon) {
+        console.error('❌ [SwitchManager] 🔧 Nouveau Pokémon actif introuvable');
+        return this.createErrorResult('Erreur récupération nouveau Pokémon actif');
+      }
+      
+      console.log(`✅ [SwitchManager] 🔧 Nouveau Pokémon actif: ${newActivePokemon.name} (${newActivePokemon.currentHp}/${newActivePokemon.maxHp} HP)`);
+      
+      // 5. 🔧 MISE À JOUR GAMESTATE AVEC VALIDATION
+      if (playerRole === 'player1') {
+        const oldPokemon = this.gameState.player1.pokemon?.name || 'N/A';
+        this.gameState.player1.pokemon = newActivePokemon;
+        console.log(`🔄 [SwitchManager] 🔧 GameState Player1: ${oldPokemon} → ${newActivePokemon.name}`);
+      } else {
+        const oldPokemon = this.gameState.player2.pokemon?.name || 'N/A';
+        this.gameState.player2.pokemon = newActivePokemon;
+        console.log(`🔄 [SwitchManager] 🔧 GameState Player2: ${oldPokemon} → ${newActivePokemon.name}`);
+      }
+      
+      console.log(`✅ [SwitchManager] 🔧 CHANGEMENT FORCÉ RÉUSSI COMPLÈTEMENT`);
+      
+      return {
+        success: true,
+        gameState: this.gameState,
+        events: [
+          `${this.getPlayerName(playerRole)} envoie ${newActivePokemon.name} !`,
+          `Allez-y ${newActivePokemon.name} !`
+        ],
+        data: {
+          switchExecuted: true,
+          playerRole: playerRole,
+          toPokemon: newActivePokemon.name,
+          wasForced: true,
+          reason: 'forced_after_ko',
+          teamDefeated: false, // ✅ Équipe pas vaincue
+          fromPokemonIndex: faintedPokemonIndex,
+          toPokemonIndex: teamManager.findPokemonIndex(newActivePokemon.combatId)
+        }
+      };
+      
+    } catch (error) {
+      console.error(`❌ [SwitchManager] 🔧 Erreur changement forcé:`, error);
+      return this.createErrorResult(
+        error instanceof Error ? error.message : 'Erreur changement forcé'
+      );
+    }
+  }
+  
+  // === API PRINCIPALE (INCHANGÉE) ===
+  
   async processSwitchAction(action: BattleAction): Promise<BattleResult> {
     console.log(`🔄 [SwitchManager] Traitement action changement par ${action.playerId}`);
     
@@ -196,90 +295,8 @@ export class SwitchManager {
     }
   }
   
-  /**
-   * Gère les changements forcés après KO
-   */
-  async handleForcedSwitch(playerRole: PlayerRole, faintedPokemonIndex: number): Promise<BattleResult> {
-    console.log(`💀 [SwitchManager] Changement forcé requis pour ${playerRole} (Pokémon ${faintedPokemonIndex} KO)`);
-    
-    if (!this.gameState) {
-      return this.createErrorResult('SwitchManager non initialisé');
-    }
-    
-    const teamManager = this.teamManagers.get(playerRole);
-    if (!teamManager) {
-      return this.createErrorResult(`Aucun gestionnaire d'équipe pour ${playerRole}`);
-    }
-    
-    try {
-      // 1. Vérifier s'il y a des Pokémon disponibles
-      const analysis = teamManager.analyzeTeam();
-      if (analysis.alivePokemon <= 0) {
-        console.log(`💀 [SwitchManager] Aucun Pokémon vivant pour ${playerRole} - Équipe vaincue`);
-        return {
-          success: true, // ✅ Succès car traitement correct d'équipe vaincue
-          gameState: this.gameState,
-          events: [`${this.getPlayerName(playerRole)} n'a plus de Pokémon valides !`],
-          data: {
-            teamDefeated: true,
-            playerRole: playerRole,
-            winner: playerRole === 'player1' ? 'player2' : 'player1',
-            switchExecuted: false, // ✅ Pas de changement car équipe vaincue
-            reason: 'team_defeated'
-          }
-        };
-      }
-      
-      // 2. Changement automatique vers premier Pokémon vivant
-      const autoSwitchSuccess = teamManager.autoSwitchToFirstAlive();
-      
-      if (!autoSwitchSuccess) {
-        return this.createErrorResult('Impossible de trouver un Pokémon de remplacement');
-      }
-      
-      // 3. Mettre à jour l'état de combat
-      const newActivePokemon = teamManager.getActivePokemon();
-      if (!newActivePokemon) {
-        return this.createErrorResult('Erreur récupération nouveau Pokémon actif');
-      }
-      
-      // Mettre à jour le gameState
-      if (playerRole === 'player1') {
-        this.gameState.player1.pokemon = newActivePokemon;
-      } else {
-        this.gameState.player2.pokemon = newActivePokemon;
-      }
-      
-      console.log(`✅ [SwitchManager] Changement forcé réussi: ${newActivePokemon.name} entre en combat`);
-      
-      return {
-        success: true,
-        gameState: this.gameState,
-        events: [
-          `${this.getPlayerName(playerRole)} envoie ${newActivePokemon.name} !`,
-          `Allez-y ${newActivePokemon.name} !`
-        ],
-        data: {
-          switchExecuted: true,
-          playerRole: playerRole,
-          toPokemon: newActivePokemon.name,
-          wasForced: true,
-          reason: 'forced_after_ko',
-          teamDefeated: false // ✅ Équipe pas vaincue
-        }
-      };
-      
-    } catch (error) {
-      console.error(`❌ [SwitchManager] Erreur changement forcé:`, error);
-      return this.createErrorResult(
-        error instanceof Error ? error.message : 'Erreur changement forcé'
-      );
-    }
-  }
+  // === VALIDATION ===
   
-  /**
-   * Valide si un changement est possible
-   */
   async validateSwitch(
     playerRole: PlayerRole,
     fromIndex: number,
@@ -351,9 +368,8 @@ export class SwitchManager {
     };
   }
   
-  /**
-   * Exécute un changement de Pokémon
-   */
+  // === EXÉCUTION CHANGEMENT ===
+  
   private async executeSwitch(
     playerRole: PlayerRole,
     fromIndex: number,
@@ -441,11 +457,8 @@ export class SwitchManager {
     };
   }
   
-  // === GESTION DES DEMANDES DE CHANGEMENT ===
+  // === AUTRES MÉTHODES (INCHANGÉES) ===
   
-  /**
-   * Crée une demande de changement (pour interface utilisateur)
-   */
   createSwitchRequest(
     playerRole: PlayerRole,
     fromIndex: number,
@@ -475,9 +488,6 @@ export class SwitchManager {
     return requestId;
   }
   
-  /**
-   * Traite une demande de changement par son ID
-   */
   async processSwitchRequest(requestId: string): Promise<BattleResult> {
     const request = this.switchState.pendingRequests.find(r => r.requestId === requestId);
     
@@ -520,18 +530,10 @@ export class SwitchManager {
     return await this.processSwitchAction(switchAction);
   }
   
-  // === INTEGRATION ACTIONQUEUE ===
-  
-  /**
-   * Récupère la priorité d'une action de changement pour ActionQueue
-   */
   getSwitchActionPriority(switchAction: SwitchAction): number {
     return TRAINER_BATTLE_CONSTANTS.SWITCH_PRIORITY; // 6 - Plus élevé que les attaques
   }
   
-  /**
-   * Vérifie si une action de changement peut être ajoutée à la queue
-   */
   canQueueSwitchAction(playerRole: PlayerRole): boolean {
     if (!this.battleRules?.allowSwitching) {
       return false;
@@ -546,45 +548,6 @@ export class SwitchManager {
     return analysis.alivePokemon > 1; // Au moins 2 Pokémon vivants pour changement
   }
   
-  // === MISE À JOUR ÉTAT COMBAT ===
-  
-  /**
-   * Met à jour l'état de combat après un changement
-   */
-  private updateBattleStateAfterSwitch(playerRole: PlayerRole, result: SwitchExecutionResult): void {
-    if (!this.gameState || !result.toPokemon) return;
-    
-    // Mettre à jour le Pokémon actif dans l'état de combat
-    if (playerRole === 'player1') {
-      this.gameState.player1.pokemon = result.toPokemon;
-    } else {
-      this.gameState.player2.pokemon = result.toPokemon;
-    }
-    
-    console.log(`🔄 [SwitchManager] État combat mis à jour - ${playerRole}: ${result.toPokemon.name} actif`);
-  }
-  
-  /**
-   * Réinitialise les compteurs de changement pour un nouveau tour
-   */
-  resetTurnCounters(newTurnNumber: number): void {
-    this.switchState.currentTurn = newTurnNumber;
-    this.switchState.switchCounts.set('player1', 0);
-    this.switchState.switchCounts.set('player2', 0);
-    
-    // Nettoyer les demandes anciennes
-    this.switchState.pendingRequests = this.switchState.pendingRequests.filter(
-      r => !r.processed && (Date.now() - r.timestamp) < 60000 // Garder 1 minute max
-    );
-    
-    console.log(`🔄 [SwitchManager] Compteurs réinitialisés pour tour ${newTurnNumber}`);
-  }
-  
-  // === ANALYSE ET INFORMATIONS ===
-  
-  /**
-   * Analyse les options de changement disponibles pour un joueur
-   */
   analyzeSwitchOptions(playerRole: PlayerRole): {
     canSwitch: boolean;
     availablePokemon: number[];
@@ -654,6 +617,34 @@ export class SwitchManager {
       recommendedSwitches,
       restrictions
     };
+  }
+  
+  // === MISE À JOUR ÉTAT COMBAT ===
+  
+  private updateBattleStateAfterSwitch(playerRole: PlayerRole, result: SwitchExecutionResult): void {
+    if (!this.gameState || !result.toPokemon) return;
+    
+    // Mettre à jour le Pokémon actif dans l'état de combat
+    if (playerRole === 'player1') {
+      this.gameState.player1.pokemon = result.toPokemon;
+    } else {
+      this.gameState.player2.pokemon = result.toPokemon;
+    }
+    
+    console.log(`🔄 [SwitchManager] État combat mis à jour - ${playerRole}: ${result.toPokemon.name} actif`);
+  }
+  
+  resetTurnCounters(newTurnNumber: number): void {
+    this.switchState.currentTurn = newTurnNumber;
+    this.switchState.switchCounts.set('player1', 0);
+    this.switchState.switchCounts.set('player2', 0);
+    
+    // Nettoyer les demandes anciennes
+    this.switchState.pendingRequests = this.switchState.pendingRequests.filter(
+      r => !r.processed && (Date.now() - r.timestamp) < 60000 // Garder 1 minute max
+    );
+    
+    console.log(`🔄 [SwitchManager] Compteurs réinitialisés pour tour ${newTurnNumber}`);
   }
   
   // === UTILITAIRES ===
@@ -730,12 +721,9 @@ export class SwitchManager {
   
   // === DIAGNOSTICS ===
   
-  /**
-   * État complet du SwitchManager pour debugging
-   */
   getDebugState(): any {
     return {
-      version: 'switch_manager_v1',
+      version: 'switch_manager_v1_corrected',
       isInitialized: this.gameState !== null,
       teamManagersCount: this.teamManagers.size,
       battleRules: this.battleRules,
@@ -751,51 +739,44 @@ export class SwitchManager {
         switchTimeLimit: this.SWITCH_TIME_LIMIT
       },
       features: [
-        'switch_validation',
-        'forced_switch_handling',
+        'switch_validation_corrected',
+        'forced_switch_handling_enhanced', // 🔧
         'team_manager_integration',
         'action_queue_priority',
         'turn_counter_management',
         'switch_request_system',
-        'mmo_performance_optimized'
+        'mmo_performance_optimized',  
+        'detailed_forced_switch_logging' // 🔧
       ]
     };
   }
   
-  /**
-   * Statistiques du gestionnaire
-   */
   getStats(): any {
     const totalSwitches = Array.from(this.switchState.switchCounts.values()).reduce((sum, count) => sum + count, 0);
     
     return {
-      architecture: 'SwitchManager + TrainerTeamManager Integration',
-      status: 'Production Ready',
+      architecture: 'SwitchManager + TrainerTeamManager Integration - Fixed',
+      status: 'Production Ready - Forced Switch Corrected', // 🔧
       totalSwitches,
       pendingRequests: this.switchState.pendingRequests.length,
       averageSwitchesPerPlayer: totalSwitches / Math.max(this.teamManagers.size, 1),
       supportedFeatures: [
         'voluntary_switches',
-        'forced_switches_on_ko',
+        'forced_switches_on_ko_corrected', // 🔧
         'multi_team_support',
         'rule_based_validation',
         'priority_integration',
         'timeout_handling',
-        'switch_recommendations'
+        'switch_recommendations',
+        'team_defeat_detection_enhanced' // 🔧
       ]
     };
   }
   
-  /**
-   * Vérifie si le manager est prêt
-   */
   isReady(): boolean {
     return this.gameState !== null && this.teamManagers.size > 0;
   }
   
-  /**
-   * Reset pour nouveau combat
-   */
   reset(): void {
     this.gameState = null;
     this.teamManagers.clear();
