@@ -335,54 +335,166 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-  private async initializeNpcManagers() {
-  console.log(`📂 [WorldRoom] Initialisation NPCManager avec auto-scan...`);
+private async initializeNpcManagers() {
+  console.log(`📂 [WorldRoom] === DÉBUT INITIALISATION NPC MANAGERS (DEBUG COMPLET) ===`);
+  console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+  console.log(`🏠 Room ID: ${this.roomId}`);
+  console.log(`👥 Clients connectés: ${this.clients.length}`);
   
   try {
-    // ✅ ÉTAPE 1: Créer l'instance (ne lance plus le chargement automatique)
-    const globalNpcManager = new NpcManager();
+    // ✅ ÉTAPE 1: Vérification de l'environnement
+    console.log(`🔍 [ÉTAPE 1] Vérification environnement...`);
     
-    // ✅ ÉTAPE 2: Lancer l'initialisation asynchrone
-    console.log(`🔄 [WorldRoom] Lancement initialisation asynchrone...`);
-    await globalNpcManager.initialize();
+    const mongoose = require('mongoose');
+    console.log(`🔗 État connexion MongoDB: ${mongoose.connection.readyState}`);
+    console.log(`🔗 Détail: ${mongoose.connection.readyState === 1 ? 'CONNECTÉ' : 'NON CONNECTÉ'}`);
     
-    // ✅ ÉTAPE 3: Attendre que le chargement soit complet
-    console.log(`⏳ [WorldRoom] Attente chargement complet...`);
-    const loaded = await globalNpcManager.waitForLoad(15000); // 15s timeout
-
-    if (!loaded) {
-      console.error(`❌ [WorldRoom] Timeout lors du chargement des NPCs !`);
-      // Continuer quand même, mais sans NPCs
+    if (mongoose.connection.readyState !== 1) {
+      console.error(`❌ [CRITIQUE] MongoDB non connecté ! ReadyState: ${mongoose.connection.readyState}`);
+      console.error(`📊 États possibles: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting`);
     }
     
-    // ✅ ÉTAPE 4: Stocker le manager validé
-    this.npcManagers.set('global', globalNpcManager);
+    // ✅ ÉTAPE 2: Test de la base de données
+    console.log(`🔍 [ÉTAPE 2] Test base de données...`);
     
-    // ✅ ÉTAPE 5: Vérification finale et debug
-    const stats = globalNpcManager.getSystemStats();
-    console.log(`✅ [WorldRoom] NPCManager initialisé avec succès:`, {
-      totalNpcs: stats.totalNpcs,
-      initialized: stats.initialized,
-      sources: stats.sources,
-      zones: stats.zones,
-      hotReload: stats.hotReload
+    try {
+      const { NpcData } = await import('../models/NpcData');
+      console.log(`✅ Import NpcData réussi`);
+      
+      const totalCount = await NpcData.countDocuments();
+      console.log(`📊 Total documents NPCs en base: ${totalCount}`);
+      
+      if (totalCount === 0) {
+        console.error(`❌ [CRITIQUE] Aucun NPC trouvé en base de données !`);
+      }
+      
+      const zones = await NpcData.distinct('zone');
+      console.log(`🗺️ Zones disponibles (${zones.length}):`, zones);
+      
+      // Test sur une zone spécifique
+      if (zones.length > 0) {
+        const testZone = zones[0];
+        const testNpcs = await NpcData.find({ zone: testZone }).limit(3);
+        console.log(`🧪 Test ${testZone}: ${testNpcs.length} NPCs trouvés`);
+        console.log(`🧪 Exemple NPCs:`, testNpcs.map(npc => ({
+          id: npc.npcId,
+          name: npc.name,
+          zone: npc.zone,
+          sprite: npc.sprite
+        })));
+      }
+      
+    } catch (dbError) {
+      console.error(`❌ [CRITIQUE] Erreur test base de données:`, dbError);
+      throw new Error(`Database test failed: ${dbError.message}`);
+    }
+    
+    // ✅ ÉTAPE 3: Création du NPCManager
+    console.log(`🔍 [ÉTAPE 3] Création NPCManager global...`);
+    console.log(`⏰ Début création: ${new Date().toISOString()}`);
+    
+    const globalNpcManager = new NpcManager();
+    console.log(`✅ NpcManager instance créée`);
+    console.log(`📊 Config manager:`, {
+      useCache: globalNpcManager['config']?.useCache,
+      debugMode: globalNpcManager['config']?.debugMode,
+      hotReloadEnabled: globalNpcManager['config']?.hotReloadEnabled
     });
     
-    // Debug système pour validation
-    globalNpcManager.debugSystem();
+    // ✅ ÉTAPE 4: Initialisation avec timeout personnalisé
+    console.log(`🔍 [ÉTAPE 4] Lancement initialisation asynchrone...`);
+    console.log(`⏰ Début init: ${new Date().toISOString()}`);
     
-    // ✅ NOUVEAU: Connecter Hot Reload au broadcast client
-    if (stats.hotReload && stats.hotReload.active) {
-      console.log(`📡 [WorldRoom] Configuration broadcast Hot Reload...`);
+    const initPromise = globalNpcManager.initialize();
+    const initTimeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout initialisation NPC Manager (10s)')), 10000);
+    });
+    
+    try {
+      await Promise.race([initPromise, initTimeout]);
+      console.log(`✅ Initialize() terminé avec succès`);
+      console.log(`⏰ Fin init: ${new Date().toISOString()}`);
+    } catch (initError) {
+      console.error(`❌ [CRITIQUE] Erreur lors de initialize():`, initError);
+      throw initError;
+    }
+    
+    // ✅ ÉTAPE 5: Attente du chargement complet
+    console.log(`🔍 [ÉTAPE 5] Attente chargement complet (timeout 20s)...`);
+    console.log(`⏰ Début waitForLoad: ${new Date().toISOString()}`);
+    
+    const loaded = await globalNpcManager.waitForLoad(20000); // 20s timeout
+    console.log(`📊 Résultat waitForLoad: ${loaded}`);
+    console.log(`⏰ Fin waitForLoad: ${new Date().toISOString()}`);
+
+    if (!loaded) {
+      console.error(`❌ [CRITIQUE] TIMEOUT lors du chargement des NPCs après 20s !`);
+      
+      // ✅ DIAGNOSTIC COMPLET EN CAS D'ÉCHEC
+      console.log(`🔍 [DIAGNOSTIC] Analyse de l'état du manager...`);
+      
+      const stats = globalNpcManager.getSystemStats();
+      console.log(`📊 [DIAGNOSTIC] Stats complètes:`, JSON.stringify(stats, null, 2));
+      
+      console.log(`📊 [DIAGNOSTIC] État détaillé:`, {
+        initialized: stats.initialized,
+        initializing: stats.initializing,
+        totalNpcs: stats.totalNpcs,
+        sources: stats.sources,
+        zones: stats.zones,
+        lastLoadTime: stats.lastLoadTime ? new Date(stats.lastLoadTime).toISOString() : 'jamais'
+      });
+      
+      // ✅ Continuer quand même mais avec un manager vide
+      console.warn(`⚠️ [FALLBACK] Utilisation du manager avec ${stats.totalNpcs} NPCs chargés`);
+    }
+    
+    // ✅ ÉTAPE 6: Validation du contenu chargé
+    console.log(`🔍 [ÉTAPE 6] Validation du contenu chargé...`);
+    
+    const allNpcs = globalNpcManager.getAllNpcs();
+    console.log(`📊 NPCs chargés en mémoire: ${allNpcs.length}`);
+    
+    if (allNpcs.length > 0) {
+      // Grouper par zone pour debug
+      const npcsByZone = {};
+      allNpcs.forEach(npc => {
+        if (!npcsByZone[npc.zone]) npcsByZone[npc.zone] = [];
+        npcsByZone[npc.zone].push(npc);
+      });
+      
+      console.log(`🗺️ NPCs par zone:`, Object.keys(npcsByZone).map(zone => ({
+        zone: zone,
+        count: npcsByZone[zone].length,
+        examples: npcsByZone[zone].slice(0, 2).map(npc => ({ id: npc.id, name: npc.name }))
+      })));
+    } else {
+      console.error(`❌ [CRITIQUE] Aucun NPC chargé en mémoire !`);
+    }
+    
+    // ✅ ÉTAPE 7: Stockage du manager validé
+    console.log(`🔍 [ÉTAPE 7] Stockage du manager...`);
+    this.npcManagers.set('global', globalNpcManager);
+    console.log(`✅ Manager stocké sous clé 'global'`);
+    console.log(`📊 Total managers: ${this.npcManagers.size}`);
+    
+    // ✅ ÉTAPE 8: Configuration Hot Reload
+    console.log(`🔍 [ÉTAPE 8] Configuration Hot Reload...`);
+    
+    const hotReloadStatus = globalNpcManager.getHotReloadStatus();
+    console.log(`🔥 Hot Reload Status:`, hotReloadStatus);
+    
+    if (hotReloadStatus && hotReloadStatus.active) {
+      console.log(`📡 [BROADCAST] Configuration du Hot Reload broadcast...`);
       
       globalNpcManager.onNpcChange((event, npcData) => {
-        console.log(`🔥 [WorldRoom] Changement NPC détecté: ${event}`, npcData ? {
+        console.log(`🔥 [HOT RELOAD] Changement détecté: ${event}`, npcData ? {
           id: npcData.id,
           name: npcData.name,
           zone: this.extractZoneFromNpc(npcData)
         } : 'Pas de données');
         
-        // ✅ BROADCAST à tous les clients connectés
+        // Broadcast aux clients
         this.broadcast("npcHotReload", {
           event: event,
           npcData: npcData ? {
@@ -396,21 +508,59 @@ export class WorldRoom extends Room<PokeWorldState> {
           timestamp: Date.now()
         });
         
-        console.log(`📡 [WorldRoom] Hot Reload broadcasté à ${this.clients.length} clients`);
+        console.log(`📡 [HOT RELOAD] Broadcasté à ${this.clients.length} clients`);
       });
       
-      console.log(`✅ [WorldRoom] Hot Reload broadcast configuré !`);
+      console.log(`✅ Hot Reload broadcast configuré !`);
     } else {
-      console.log(`⚠️ [WorldRoom] Hot Reload non actif - pas de broadcast configuré`);
+      console.log(`⚠️ Hot Reload non actif - pas de broadcast configuré`);
     }
     
+    // ✅ ÉTAPE 9: Test final et debug système
+    console.log(`🔍 [ÉTAPE 9] Test final et validation...`);
+    
+    // Debug système complet
+    globalNpcManager.debugSystem();
+    
+    const finalStats = globalNpcManager.getSystemStats();
+    console.log(`📊 [FINAL] Statistiques finales:`, {
+      success: true,
+      totalNpcs: finalStats.totalNpcs,
+      initialized: finalStats.initialized,
+      sources: finalStats.sources,
+      zones: finalStats.zones.loaded,
+      zoneCount: finalStats.zones.count,
+      hotReload: finalStats.hotReload,
+      duration: Date.now() - (finalStats.lastLoadTime || Date.now())
+    });
+    
+    // ✅ ÉTAPE 10: Notification de fin
+    console.log(`🎉 [SUCCESS] === INITIALISATION NPC MANAGERS TERMINÉE AVEC SUCCÈS ===`);
+    console.log(`📊 Résumé: ${finalStats.totalNpcs} NPCs chargés depuis MongoDB`);
+    console.log(`🗺️ Zones: ${finalStats.zones.loaded.join(', ')}`);
+    console.log(`⏰ Fin complète: ${new Date().toISOString()}`);
+    
   } catch (error) {
-    console.error(`❌ [WorldRoom] Erreur critique initialisation NPCManager:`, error);
+    console.error(`❌ [CRITICAL ERROR] === ERREUR CRITIQUE INITIALISATION NPC MANAGERS ===`);
+    console.error(`⏰ Timestamp erreur: ${new Date().toISOString()}`);
+    console.error(`📝 Message:`, error.message);
+    console.error(`📚 Stack:`, error.stack);
     
     // ✅ FALLBACK: Créer un manager vide pour éviter les crashes
-    const fallbackManager = new NpcManager();
-    this.npcManagers.set('global', fallbackManager);
-    console.warn(`⚠️ [WorldRoom] Manager NPCs en mode fallback (0 NPCs)`);
+    console.log(`🆘 [FALLBACK] Création manager de secours...`);
+    
+    try {
+      const fallbackManager = new NpcManager();
+      this.npcManagers.set('global', fallbackManager);
+      console.warn(`⚠️ Manager NPCs en mode fallback (0 NPCs) pour éviter les crashes`);
+      console.warn(`📊 État fallback: Manager créé mais vide`);
+    } catch (fallbackError) {
+      console.error(`💀 [FATAL] Impossible de créer le manager fallback:`, fallbackError);
+      throw new Error(`NPC Manager initialization completely failed: ${error.message}`);
+    }
+    
+    // Re-throw l'erreur originale pour information
+    throw error;
   }
 }
 
