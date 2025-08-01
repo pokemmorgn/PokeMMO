@@ -2912,8 +2912,13 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
     if (npc.epicRewards !== undefined) updateData.epicRewards = npc.epicRewards;
     if (npc.specialConditions !== undefined) updateData.specialConditions = npc.specialConditions;
     
-    // ✅ MISE À JOUR avec TOUS les champs
-    const updatedNpc = await NpcData.findOneAndUpdate(
+// ✅ AJOUTEZ CES LOGS JUSTE AVANT LA SAUVEGARDE :
+console.log('🔍 [NPCs API] updateData shopId:', updateData.shopId);
+console.log('🔍 [NPCs API] updateData shopType:', updateData.shopType);
+console.log('🔍 [NPCs API] updateData keys count:', Object.keys(updateData).length);
+
+// ✅ MISE À JOUR avec TOUS les champs
+const updatedNpc = await NpcData.findOneAndUpdate(
       { 
         zone: zoneId, 
         npcId: parseInt(npcId) 
