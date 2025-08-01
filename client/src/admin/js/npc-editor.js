@@ -173,7 +173,7 @@ convertMongoNPCToEditorFormat(mongoNPC) {
     
     // ✅ Debug spécifique pour les champs importants
     if (mongoNPC.type === 'merchant') {
-        console.log('🏪 [NPCEditor] Merchant fields - shopId:', editorNPC.shopId, 'shopConfig:', !!editorNPC.shopConfig);
+console.log('🏪 [NPCEditor] Merchant fields - shopId:', editorNPC.shopId, 'shopType:', editorNPC.shopType);
     }
     if (mongoNPC.type === 'trainer') {
         console.log('⚔️ [NPCEditor] Trainer fields - trainerId:', editorNPC.trainerId, 'battleConfig:', !!editorNPC.battleConfig);
