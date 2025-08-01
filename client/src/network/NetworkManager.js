@@ -552,21 +552,72 @@ this.room.onMessage("playerSpawned", (data) => {
     });
 
     // ✅ HANDLER NPCs AVEC REPLAY
-    this.room.onMessage("npcList", (npcs) => {
-      console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
-      console.log(`📊 NPCs: ${npcs.length}`);
-      console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
-      
-      this.lastReceivedNpcs = npcs;
-      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
-      
-      if (this.callbacks.onNpcList) {
-        console.log(`✅ [NetworkManager] Envoi immédiat au callback`);
-        this.callbacks.onNpcList(npcs);
-      } else {
-        console.log(`⏳ [NetworkManager] NPCs stockés en attente du callback`);
-      }
-    });
+this.room.onMessage("npcList", (npcs) => {
+  console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ (DEBUG COMPLET) ===`);
+  console.log(`⏰ Timestamp réception: ${new Date().toISOString()}`);
+  console.log(`📊 NPCs reçus: ${npcs ? npcs.length : 'NULL/UNDEFINED'}`);
+  console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
+  console.log(`🏠 Room ID: ${this.room?.id || 'UNKNOWN'}`);
+  console.log(`🔑 Session ID: ${this.sessionId}`);
+  
+  // ✅ VALIDATION DES DONNÉES
+  if (!npcs) {
+    console.error(`❌ [NetworkManager] NPCs NULL ou UNDEFINED reçus !`);
+    return;
+  }
+  
+  if (!Array.isArray(npcs)) {
+    console.error(`❌ [NetworkManager] NPCs n'est pas un tableau:`, typeof npcs);
+    console.error(`❌ [NetworkManager] Contenu NPCs:`, npcs);
+    return;
+  }
+  
+  if (npcs.length === 0) {
+    console.warn(`⚠️ [NetworkManager] Tableau NPCs vide reçu`);
+  }
+  
+  // ✅ DEBUG DÉTAILLÉ DES NPCS REÇUS
+  console.log(`🤖 [NetworkManager] === DÉTAIL DES ${npcs.length} NPCs REÇUS ===`);
+  npcs.forEach((npc, index) => {
+    console.log(`  ${index + 1}. ID:${npc?.id} "${npc?.name}" à (${npc?.x}, ${npc?.y}) zone:"${npc?.zone}" sprite:"${npc?.sprite}"`);
+    
+    // Validation structure NPC
+    const requiredFields = ['id', 'name', 'x', 'y', 'zone'];
+    const missingFields = requiredFields.filter(field => npc[field] === undefined || npc[field] === null);
+    
+    if (missingFields.length > 0) {
+      console.error(`❌ [NetworkManager] NPC ${index + 1} incomplet, champs manquants:`, missingFields);
+      console.error(`❌ [NetworkManager] NPC ${index + 1} data:`, npc);
+    }
+  });
+  
+  // ✅ STOCKAGE POUR REPLAY
+  console.log(`💾 [NetworkManager] Stockage NPCs pour replay...`);
+  this.lastReceivedNpcs = npcs;
+  console.log(`✅ [NetworkManager] ${npcs.length} NPCs stockés pour replay`);
+  
+  // ✅ ENVOI IMMÉDIAT AU CALLBACK
+  if (this.callbacks.onNpcList) {
+    console.log(`📤 [NetworkManager] === ENVOI IMMÉDIAT AU CALLBACK ===`);
+    console.log(`📤 [NetworkManager] Callback disponible: OUI`);
+    console.log(`📤 [NetworkManager] NPCs à envoyer: ${npcs.length}`);
+    
+    try {
+      console.log(`🔄 [NetworkManager] Appel du callback onNpcList...`);
+      this.callbacks.onNpcList(npcs);
+      console.log(`✅ [NetworkManager] Callback onNpcList appelé avec succès !`);
+    } catch (callbackError) {
+      console.error(`❌ [NetworkManager] Erreur dans le callback onNpcList:`, callbackError);
+      console.error(`❌ [NetworkManager] Stack trace:`, callbackError.stack);
+    }
+  } else {
+    console.log(`⏳ [NetworkManager] === CALLBACK PAS ENCORE CONFIGURÉ ===`);
+    console.log(`⏳ [NetworkManager] NPCs stockés en attente du callback`);
+    console.log(`⏳ [NetworkManager] Les NPCs seront envoyés dès que le callback sera configuré`);
+  }
+  
+  console.log(`🎉 [NetworkManager] === TRAITEMENT NPCLIST TERMINÉ ===`);
+});
 
     this.room.onMessage("transitionResult", (result) => {
       console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
