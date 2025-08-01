@@ -93,10 +93,10 @@ class EnhancedBattleTester {
         await mongoose.disconnect();
         console.log('🔌 MongoDB déconnecté');
         
-        setTimeout(() => {
-          console.log('\n🎉 Tests Enhanced terminés - Système MMO Certifié!');
-          process.exit(0);
-        }, 1000);
+        // Attendre un peu pour que tous les logs soient affichés
+        await this.delay(500);
+        console.log('\n🎉 Tests Enhanced terminés - Système MMO Certifié!');
+        process.exit(0);
       } catch (disconnectError) {
         console.error('⚠️ Erreur déconnexion:', disconnectError);
         process.exit(1);
