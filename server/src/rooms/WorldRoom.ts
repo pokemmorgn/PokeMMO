@@ -1905,9 +1905,9 @@ async onJoin(client: Client, options: any = {}) {
         client.leave(4000, "Token/username mismatch");
         return;
       }
-// Dans WorldRoom.ts, après la vérification JWT
-console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
-console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
+
+      console.log(`🔧 [WorldRoom] Token décodé isDev:`, decodedToken?.isDev);
+      
       // Permissions obligatoires
       if (!decodedToken.permissions || !decodedToken.permissions.includes('play')) {
         console.error(`❌ [WorldRoom] Permissions insuffisantes:`, decodedToken.permissions);
@@ -1935,16 +1935,15 @@ console.log(`🔧 [WorldRoom] Token décodé complet:`, decodedToken);
     player.id = client.sessionId;
     player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
     player.isDev = decodedToken?.isDev || false;
-console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
+    console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.isDev);
 
     // Debug d'abord
     await this.positionSaver.debugPlayerPosition(player.name);
 
-    console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
+    console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR (DB AUTHORITY ONLY) ===`);
     console.log(`👤 Joueur: ${player.name}`);
-    console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
 
-    // Étape 1: Toujours chercher en DB d'abord
+    // ✅ MODIFICATION CRITIQUE: DB = AUTORITÉ ABSOLUE
     const savedData = await PlayerData.findOne({ username: player.name });
     console.log(`💾 Données DB trouvées:`, savedData ? {
       lastX: savedData.lastX,
@@ -1957,14 +1956,14 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       }
     } : 'Aucune donnée');
 
-    // Étape 2: Priorité absolue à la DB si données complètes
+    // ✅ NOUVEAU: DB = AUTORITÉ ABSOLUE, PAS DE FALLBACK CLIENT
     if (
       savedData &&
       typeof savedData.lastX === 'number' &&
       typeof savedData.lastY === 'number' &&
       savedData.lastMap
     ) {
-      // Écrase tout avec les données DB
+      // DB COMPLÈTE = UTILISER SANS CONDITION
       player.x = Math.round(savedData.lastX);
       player.y = Math.round(savedData.lastY);
       player.currentZone = savedData.lastMap;
@@ -1975,17 +1974,20 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
         console.log(`📝 [WorldRoom] Nom utilisateur récupéré depuis DB: ${player.name}`);
       }
 
-      console.log(`💾 [PRIORITÉ DB] Position restaurée: ${player.name}`);
-      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-      console.log(`🔥 TOUTES les autres positions ignorées (options, défaut, teleport, etc.)`);
+      console.log(`💾 [AUTORITÉ DB] Position restaurée: ${player.name}`);
+      console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`🔥 TOUTES les options client IGNORÉES (comme il faut)`);
 
     } else {
-      // Étape 3: Fallback seulement si DB incomplète/manquante
-      console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
-      player.x = options.spawnX || 360;
-      player.y = options.spawnY || 120;
-      player.currentZone = options.spawnZone || "beach";
-      console.log(`🆕 Position fallback: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      // ✅ NOUVEAU: DB INCOMPLÈTE = VALEURS PAR DÉFAUT SERVEUR PURES
+      player.x = 360;
+      player.y = 120;
+      player.currentZone = "beach";
+      
+      console.log(`🆕 [NOUVEAU JOUEUR] ${player.name}: position par défaut SERVEUR`);
+      console.log(`📍 Position par défaut: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`🚫 Options client COMPLÈTEMENT IGNORÉES`);
+      
       if (savedData) {
         console.log(`🔍 Détail des données incomplètes:`, {
           hasLastX: savedData.lastX !== undefined && savedData.lastX !== null,
@@ -2002,8 +2004,8 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
 
     player.characterId = options.characterId || "brendan";
     console.log(`🎭 Personnage: ${player.characterId}`);
+    console.log(`🌍 Zone SERVEUR: ${player.currentZone}`);
 
-    console.log(`🌍 Zone de spawn: ${player.currentZone}`);
     // Ajouter le client au TimeWeatherService
     if (this.timeWeatherService) {
       this.timeWeatherService.addClient(client, player.currentZone);
@@ -2022,13 +2024,13 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
     console.log(`✅ Joueur ${player.name} ajouté au state`);
     console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
-    // Étape 2: Confirmer immédiatement au client avec ses données
+    // Étape 2: Confirmer immédiatement au client avec DONNÉES SERVEUR
     client.send("playerSpawned", {
       id: client.sessionId,
       name: player.name,
-      x: player.x,
-      y: player.y,
-      currentZone: player.currentZone,
+      x: player.x,                    // ✅ POSITION SERVEUR
+      y: player.y,                    // ✅ POSITION SERVEUR  
+      currentZone: player.currentZone, // ✅ ZONE SERVEUR
       characterId: player.characterId,
       level: player.level,
       gold: player.gold,
@@ -2037,9 +2039,9 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       totalPlayersInRoom: this.state.players.size
     });
 
-    console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    console.log(`📍 Position FINALE: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
-    console.log(`✅ Joueur ${player.name} créé et confirmé`);
+    console.log(`✅ Joueur ${player.name} créé et confirmé avec AUTORITÉ SERVEUR`);
 
     // Démarrer le système de Pokémon overworld si premier joueur
     if (this.state.players.size === 1) {
@@ -2101,7 +2103,7 @@ console.log(`🔧 [WorldRoom] Joueur ${player.name} créé avec isDev:`, player.
       await this.followerHandlers.onTeamChanged(client.sessionId);
     }, 4000);
 
-    console.log(`🎉 ${player.name} a rejoint le monde !`);
+    console.log(`🎉 ${player.name} a rejoint le monde avec AUTORITÉ SERVEUR !`);
   } catch (error) {
     console.error(`❌ Erreur lors du join:`, error);
     client.leave(1000, "Erreur lors de la connexion");
