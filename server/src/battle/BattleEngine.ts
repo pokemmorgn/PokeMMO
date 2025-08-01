@@ -192,7 +192,18 @@ export class BattleEngine {
       message: "Tour forcé terminé par timeout"
     });
     
-    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'timeout_force_complete');
+    // 🔥 CORRECTION CRITIQUE: Vérifier que le système est toujours actif avant transition
+    if (this.isInitialized && !this.gameState.isEnded) {
+      // Vérifier que le PhaseManager est toujours prêt
+      if (!this.phaseManager.isReady()) {
+        console.warn(`⚠️ [BattleEngine] PhaseManager non prêt lors du force completion, re-initialisation`);
+        this.phaseManager.initialize(this.gameState);
+      }
+      
+      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'timeout_force_complete');
+    } else {
+      console.warn(`⚠️ [BattleEngine] Impossible de continuer: isInitialized=${this.isInitialized}, isEnded=${this.gameState.isEnded}`);
+    }
   }
   
   private forceNextTurn(): void {
@@ -761,31 +772,45 @@ export class BattleEngine {
       return;
     }
     
-    if (action.type === 'attack' && result.data && this.broadcastManager) {
-      await this.broadcastManager.emitTimed('moveUsed', {
-        attackerName: pokemon.name,
-        attackerRole: playerRole,
-        moveName: this.getMoveDisplayName(action.data.moveId),
-        moveId: action.data.moveId,
-        subPhase: this.currentSubPhase,
-        message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
-      });
-          
-      if (result.data.damage > 0) {
-        await this.broadcastManager.emitTimed('damageDealt', {
-          targetName: result.data.defenderRole === 'player1' ? 
-            this.gameState.player1.pokemon!.name : 
-            this.gameState.player2.pokemon!.name,
-          targetRole: result.data.defenderRole,
-          damage: result.data.damage,
-          oldHp: result.data.oldHp,
-          newHp: result.data.newHp,
-          maxHp: result.data.maxHp,
-          subPhase: this.currentSubPhase,
-          isKnockedOut: result.data.isKnockedOut
-        });
-        
-        console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés`);
+    if (action.type === 'attack' && result.data) {
+      // 🔥 CORRECTION CRITIQUE: Vérifier que broadcastManager existe et n'est pas null
+      if (this.broadcastManager) {
+        try {
+          await this.broadcastManager.emitTimed('moveUsed', {
+            attackerName: pokemon.name,
+            attackerRole: playerRole,
+            moveName: this.getMoveDisplayName(action.data.moveId),
+            moveId: action.data.moveId,
+            subPhase: this.currentSubPhase,
+            message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+          });
+              
+          if (result.data.damage > 0) {
+            await this.broadcastManager.emitTimed('damageDealt', {
+              targetName: result.data.defenderRole === 'player1' ? 
+                this.gameState.player1.pokemon!.name : 
+                this.gameState.player2.pokemon!.name,
+              targetRole: result.data.defenderRole,
+              damage: result.data.damage,
+              oldHp: result.data.oldHp,
+              newHp: result.data.newHp,
+              maxHp: result.data.maxHp,
+              subPhase: this.currentSubPhase,
+              isKnockedOut: result.data.isKnockedOut
+            });
+            
+            console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés`);
+          }
+        } catch (error) {
+          console.error(`❌ [BattleEngine] Erreur broadcast:`, error);
+          // Continuer sans broadcast si erreur
+        }
+      } else {
+        console.warn(`⚠️ [BattleEngine] BroadcastManager null, skip broadcast`);
+        // Juste logger les dégâts sans broadcast
+        if (result.data.damage > 0) {
+          console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés`);
+        }
       }
       
       this.emit('attackerPhaseComplete', {
@@ -823,6 +848,13 @@ export class BattleEngine {
     
     if (!this.gameState.isEnded) {
       console.log(`🔄 [BattleEngine] Combat continue - Tour ${this.gameState.turnNumber}`);
+      
+      // 🔥 CORRECTION CRITIQUE: Vérifier que le PhaseManager est toujours initialisé
+      if (!this.phaseManager.isReady()) {
+        console.warn(`⚠️ [BattleEngine] PhaseManager non prêt, re-initialisation`);
+        this.phaseManager.initialize(this.gameState);
+      }
+      
       this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
     } else {
       console.log(`🏁 [BattleEngine] Combat terminé`);
