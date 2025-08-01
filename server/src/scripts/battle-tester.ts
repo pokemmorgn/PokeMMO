@@ -1,9 +1,9 @@
 // scripts/battle-tester.ts
 // BATTLE SYSTEM TESTER - Test du système de combat côté serveur
-// Lancement: npx ts-node scripts/battle-tester.ts
+// Lancement: cd server && npx ts-node scripts/battle-tester.ts
 
-import { BattleEngine } from '../src/battle/BattleEngine';
-import { BattleConfig, BattleAction } from '../src/battle/types/BattleTypes';
+import { BattleEngine } from '../battle/BattleEngine';
+import { BattleConfig, BattleAction } from '../battle/types/BattleTypes';
 
 // === MOCK CLIENT POUR CAPTURER LES EVENTS ===
 class MockBattleClient {
@@ -34,7 +34,7 @@ class MockBattleClient {
   getEventCount() { return this.events.length; }
   
   // Analyse simple des timings
-  analyzeTimings() {
+  analyzeTimings(): { issues: string[], avgInterval: number, totalDuration?: number } {
     if (this.events.length < 2) return { issues: [], avgInterval: 0 };
     
     const issues: string[] = [];
@@ -91,19 +91,19 @@ class BattleSystemTester {
     };
 
     // Connecter le mock client aux events
-    engine.on('battleEvent', (event) => {
+    engine.on('battleEvent', (event: any) => {
       mockClient.onBattleEvent(event.type || 'unknown', event);
     });
 
-    engine.on('battleStart', (data) => {
+    engine.on('battleStart', (data: any) => {
       mockClient.onBattleEvent('battleStart', data);
     });
 
-    engine.on('actionProcessed', (data) => {
+    engine.on('actionProcessed', (data: any) => {
       mockClient.onBattleEvent('actionProcessed', data);
     });
 
-    engine.on('battleEnd', (data) => {
+    engine.on('battleEnd', (data: any) => {
       mockClient.onBattleEvent('battleEnd', data);
     });
 
@@ -174,8 +174,8 @@ class BattleSystemTester {
     };
 
     // Connecter events
-    engine.on('battleEvent', (event) => mockClient.onBattleEvent('battleEvent', event));
-    engine.on('battleEnd', (data) => mockClient.onBattleEvent('battleEnd', data));
+    engine.on('battleEvent', (event: any) => mockClient.onBattleEvent('battleEvent', event));
+    engine.on('battleEnd', (data: any) => mockClient.onBattleEvent('battleEnd', data));
 
     mockClient.startCapture();
     
