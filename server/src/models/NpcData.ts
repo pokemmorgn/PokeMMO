@@ -985,7 +985,8 @@ NpcDataSchema.methods.isShopOpen = function(this: INpcData): boolean {
   
   const now = new Date();
   const currentTime = now.toTimeString().substr(0, 5); // HH:mm
-  const currentDay = now.toLocaleDateString('en-US', { weekday: 'lowercase' });
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const currentDay = dayNames[now.getDay()];
   
   // Vérifier si fermé aujourd'hui
   if (this.shopConfig.businessHours.closedDays?.includes(currentDay)) {
