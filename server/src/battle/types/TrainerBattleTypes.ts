@@ -110,11 +110,18 @@ export interface TrainerBattleRules {
 
 // === NOUVELLES CONFIGURATIONS ===
 
-export interface TrainerBattleConfig extends Omit<BattleConfig, 'type' | 'opponent'> {
+export interface TrainerBattleConfig extends Omit<BattleConfig, 'type'> {
   type: 'trainer';          // Type spécifique
   trainer: TrainerData;     // Données complètes du dresseur
   playerTeam: Pokemon[];    // Équipe complète du joueur (pas juste 1)
   rules: TrainerBattleRules; // Règles spécifiques
+  // ✅ GARDER opponent pour compatibilité (sera mappé depuis trainer)
+  opponent: {
+    sessionId?: string;
+    name?: string;
+    pokemon: Pokemon;
+    isAI?: boolean;
+  };
 }
 
 export interface TrainerGameState extends Omit<BattleGameState, 'player2'> {
@@ -125,11 +132,20 @@ export interface TrainerGameState extends Omit<BattleGameState, 'player2'> {
     team: TrainerPokemonTeam; // État de l'équipe
   };
   
-  // Extension joueur avec équipe
+  // Extension joueur avec équipe (garde pokemon pour compatibilité)
   player1: {
     sessionId: string;
     name: string;
-    team: TrainerPokemonTeam; // Équipe complète au lieu d'un seul Pokémon
+    pokemon: Pokemon | null; // ✅ OBLIGATOIRE pour compatibilité BattleGameState
+    team: TrainerPokemonTeam; // Équipe complète en plus
+  };
+  
+  // ✅ AJOUTER player2 pour compatibilité complète
+  player2: {
+    sessionId: string;
+    name: string;
+    pokemon: Pokemon | null; // Pokémon actif du dresseur
+    isAI?: boolean;
   };
   
   // Nouvelles propriétés spécifiques dresseurs
@@ -222,6 +238,13 @@ export function createTrainerBattleConfig(
       sessionId: playerSessionId,
       name: playerName,
       pokemon: playerPokemon[0] // Premier Pokémon pour compatibilité
+    },
+    // ✅ AJOUTER opponent pour compatibilité
+    opponent: {
+      sessionId: 'ai',
+      name: trainerData.name,
+      pokemon: trainerData.pokemon[0], // Premier Pokémon du dresseur
+      isAI: true
     },
     trainer: trainerData,
     playerTeam: playerPokemon,
@@ -364,14 +387,3 @@ export {
   BattleResult,
   InternalBattlePhase
 } from './BattleTypes';
-
-// Types principaux pour import externe
-export type {
-  TrainerData,
-  TrainerBattleConfig,
-  TrainerGameState,
-  TrainerBattleResult,
-  SwitchAction,
-  TrainerPokemonTeam,
-  CalculatedRewards
-};
