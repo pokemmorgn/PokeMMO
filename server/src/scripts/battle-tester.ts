@@ -31,16 +31,32 @@ class BattleTester {
       return;
     }
 
-    // Run tests
-    await this.testBasicBattle();
-    await this.testStressBattle();
-    await this.testTimeoutBattle();
-    await this.testComplexBattle();
+    try {
+      // Run tests
+      await this.testBasicBattle();
+      await this.testStressBattle();
+      await this.testTimeoutBattle();
+      await this.testComplexBattle();
 
-    // Results
-    this.printResults();
-    
-    await mongoose.disconnect();
+      // Results
+      this.printResults();
+    } finally {
+      // CRITICAL: Always cleanup connections
+      try {
+        await mongoose.disconnect();
+        console.log('🔌 MongoDB déconnecté');
+        
+        // Force close any remaining timers/connections
+        setTimeout(() => {
+          console.log('⏰ Fermeture forcée du script...');
+          process.exit(0);
+        }, 1000);
+        
+      } catch (disconnectError) {
+        console.error('⚠️ Erreur déconnexion MongoDB:', disconnectError);
+        process.exit(1);
+      }
+    }
   }
 
   private async testBasicBattle(): Promise<void> {
@@ -201,6 +217,10 @@ class BattleTester {
 
         totalEvents += battleEvents;
         engine.cleanup();
+        
+        // CRITICAL: Force cleanup and small delay
+        await this.delay(100);
+        
         await this.delay(50);
       }
     } catch (error) {
@@ -437,6 +457,14 @@ class BattleTester {
   }
 }
 
-// Run tests
+// Run tests with proper cleanup
 const tester = new BattleTester();
-tester.runAllTests().catch(console.error);
+tester.runAllTests()
+  .then(() => {
+    console.log('\n✅ Tests terminés - Fermeture du script...');
+    process.exit(0); // Force exit to return to console
+  })
+  .catch((error) => {
+    console.error('❌ Erreur durant les tests:', error);
+    process.exit(1); // Exit with error code
+  });
