@@ -639,23 +639,62 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
   
   // ✅ Récupération des NPCs avec zone mappée
   const npcs = npcManager.getNpcsByZone(mappedZoneName);
-  // ✅ DEBUG TEMPORAIRE - À ajouter dans WorldRoom.ts
+  console.log(`📊 [NPCs] ${npcs.length} NPCs trouvés pour zone "${mappedZoneName}"`);
+  
+  // ✅ ========== DEBUG CRITIQUE AJOUTÉ ==========
   console.log(`🔍 [DEBUG CRITIQUE] Analyse complète NPCs:`);
   console.log(`📝 Zone reçue: "${zoneName}"`);
   console.log(`📝 Zone mappée: "${mappedZoneName}"`);
   console.log(`🤖 NPCs trouvés: ${npcs.length}`);
-  
+
   if (npcs.length === 0) {
-      console.error(`❌ AUCUN NPC TROUVÉ !`);
-      console.error(`❌ Zone mappée testée: "${mappedZoneName}"`);
-      console.error(`❌ Zones disponibles dans npcManager:`, npcManager.getAllZones ? npcManager.getAllZones() : 'méthode manquante');
-      console.error(`❌ Total NPCs dans manager:`, npcManager.getAllNpcs().length);
+    console.error(`❌ AUCUN NPC TROUVÉ !`);
+    console.error(`❌ Zone mappée testée: "${mappedZoneName}"`);
+    
+    // Analyser toutes les zones disponibles via getAllNpcs()
+    const allNpcs = npcManager.getAllNpcs();
+    console.error(`❌ Total NPCs dans manager: ${allNpcs.length}`);
+    
+    if (allNpcs.length > 0) {
+      // Extraire les zones uniques
+      const zones = [...new Set(allNpcs.map(npc => npc.zone))];
+      console.error(`❌ Zones disponibles:`, zones);
       
-      // Test direct
-      const testDirect = npcManager.getNpcsByZone('road1');
-      console.error(`❌ Test direct 'road1':`, testDirect.length, 'NPCs');
+      // Exemple des premiers NPCs pour voir la structure
+      console.error(`❌ Exemples NPCs:`, allNpcs.slice(0, 3).map(npc => ({
+        id: npc.id,
+        name: npc.name,
+        zone: npc.zone,
+        x: npc.x,
+        y: npc.y
+      })));
+      
+      // Test avec les zones trouvées
+      zones.forEach(zone => {
+        const testNpcs = npcManager.getNpcsByZone(zone);
+        console.error(`🧪 Zone "${zone}": ${testNpcs.length} NPCs`);
+      });
+      
+      // Test spécifique pour road1
+      const road1Npcs = npcManager.getNpcsByZone('road1');
+      console.error(`🧪 Test spécifique 'road1': ${road1Npcs.length} NPCs`);
+      
+      // Test avec le nom exact reçu
+      const exactNpcs = npcManager.getNpcsByZone(zoneName);
+      console.error(`🧪 Test zone exacte "${zoneName}": ${exactNpcs.length} NPCs`);
+      
+    } else {
+      console.error(`💀 CRITIQUE: Le NpcManager ne contient AUCUN NPC !`);
+      console.error(`💀 Vérifiez l'initialisation du NpcManager`);
+    }
+  } else {
+    console.log(`✅ NPCs trouvés pour "${mappedZoneName}":`, npcs.map(npc => ({
+      id: npc.id,
+      name: npc.name,
+      zone: npc.zone
+    })));
   }
-  console.log(`📊 [NPCs] ${npcs.length} NPCs trouvés pour zone "${mappedZoneName}"`);
+  // ✅ ========== FIN DEBUG CRITIQUE ==========
   
   if (npcs.length === 0) {
     console.warn(`⚠️ Aucun NPC trouvé pour zone "${mappedZoneName}"`);
