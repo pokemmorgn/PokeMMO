@@ -344,7 +344,7 @@ export class ActionQueue {
   /**
    * 🆕 Catégorise une action
    */
-  private categorizeAction(action: BattleAction): ActionBreakdown['switches'] extends number ? 'switch' : 'attack' | 'item' | 'capture' | 'run' {
+  private categorizeAction(action: BattleAction): 'switch' | 'attack' | 'item' | 'capture' | 'run' {
     switch (action.type) {
       case 'switch': return 'switch';
       case 'attack': return 'attack';
