@@ -4,6 +4,7 @@
 
 import { BattleEngine } from '../battle/BattleEngine';
 import { BattleConfig, BattleAction } from '../battle/types/BattleTypes';
+import { connectDB } from '../db';
 
 // === MOCK CLIENT POUR CAPTURER LES EVENTS ===
 class MockBattleClient {
@@ -67,10 +68,21 @@ class MockBattleClient {
 
 // === TESTEUR PRINCIPAL ===
 class BattleSystemTester {
+  private verbose: boolean = false;
+
+  constructor(verbose: boolean = false) {
+    this.verbose = verbose;
+  }
+
+  private log(message: string) {
+    if (this.verbose) {
+      console.log(message);
+    }
+  }
   
   // Test de base : un combat simple
   async testBasicBattle(): Promise<TestResult> {
-    console.log("🔥 TEST: Combat Standard (Pikachu vs Rattata)");
+    this.log("🔥 TEST: Combat Standard (Pikachu vs Rattata)");
     
     const mockClient = new MockBattleClient();
     const engine = new BattleEngine();
@@ -115,6 +127,7 @@ class BattleSystemTester {
       
       if (!startResult.success) {
         return {
+          testName: 'Basic Battle',
           success: false,
           error: `Échec démarrage: ${startResult.error}`,
           duration: 0,
@@ -122,7 +135,7 @@ class BattleSystemTester {
         };
       }
 
-      console.log("  ✅ Combat démarré");
+      this.log("  ✅ Combat démarré");
 
       // Simuler le combat jusqu'à la fin
       const battleResult = await this.simulateBattleToEnd(engine);
@@ -130,6 +143,7 @@ class BattleSystemTester {
       const timingAnalysis = mockClient.analyzeTimings();
       
       return {
+        testName: 'Basic Battle',
         success: battleResult.completed,
         error: battleResult.error,
         duration: timingAnalysis.totalDuration || 0,
@@ -144,6 +158,7 @@ class BattleSystemTester {
 
     } catch (error) {
       return {
+        testName: 'Basic Battle',
         success: false,
         error: `Exception: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         duration: 0,
@@ -154,7 +169,7 @@ class BattleSystemTester {
 
   // Test des K.O. simultanés
   async testSimultaneousKO(): Promise<TestResult> {
-    console.log("💀 TEST: K.O. Simultané (1 HP chacun)");
+    this.log("💀 TEST: K.O. Simultané (1 HP chacun)");
     
     const mockClient = new MockBattleClient();
     const engine = new BattleEngine();
@@ -183,13 +198,20 @@ class BattleSystemTester {
       const startResult = engine.startBattle(config);
       
       if (!startResult.success) {
-        return { success: false, error: startResult.error || 'Échec démarrage', duration: 0, events: 0 };
+        return { 
+          testName: 'Simultaneous KO',
+          success: false, 
+          error: startResult.error || 'Échec démarrage', 
+          duration: 0, 
+          events: 0 
+        };
       }
 
       const battleResult = await this.simulateBattleToEnd(engine, 3);
       const timingAnalysis = mockClient.analyzeTimings();
       
       return {
+        testName: 'Simultaneous KO',
         success: battleResult.completed,
         error: battleResult.error,
         duration: timingAnalysis.totalDuration || 0,
@@ -204,6 +226,7 @@ class BattleSystemTester {
 
     } catch (error) {
       return {
+        testName: 'Simultaneous KO',
         success: false,
         error: `Exception: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         duration: 0,
@@ -214,7 +237,7 @@ class BattleSystemTester {
 
   // Test de stress : plusieurs combats rapides
   async testStress(): Promise<TestResult> {
-    console.log("⚡ TEST: Stress (5 combats rapides)");
+    this.log("⚡ TEST: Stress (5 combats rapides)");
     
     const results: boolean[] = [];
     const startTime = Date.now();
@@ -251,20 +274,53 @@ class BattleSystemTester {
       const duration = Date.now() - startTime;
       
       return {
+        testName: 'Stress Test',
         success: successCount === 5,
         error: successCount < 5 ? `Seulement ${successCount}/5 combats réussis` : undefined,
         duration,
         events: 0,
         analysis: {
           successRate: (successCount / 5) * 100,
-          avgTimePerBattle: duration / 5
+          avgTimePerBattle: duration / 5,
+          battlesCompleted: successCount
         }
       };
 
     } catch (error) {
       return {
+        testName: 'Stress Test',
         success: false,
         error: `Exception stress test: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        duration: Date.now() - startTime,
+        events: 0
+      };
+    }
+  }
+
+  // Test de connexion DB
+  async testDatabaseConnection(): Promise<TestResult> {
+    this.log("🗄️ TEST: Connexion Base de Données");
+    
+    const startTime = Date.now();
+    
+    try {
+      await connectDB();
+      const duration = Date.now() - startTime;
+      
+      return {
+        testName: 'Database Connection',
+        success: true,
+        duration,
+        events: 0,
+        analysis: {
+          connectionTime: duration
+        }
+      };
+    } catch (error) {
+      return {
+        testName: 'Database Connection',
+        success: false,
+        error: `DB Error: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         duration: Date.now() - startTime,
         events: 0
       };
@@ -352,6 +408,7 @@ class BattleSystemTester {
 
 // === TYPES ===
 interface TestResult {
+  testName: string;
   success: boolean;
   error?: string;
   duration: number;
@@ -366,112 +423,178 @@ interface BattleSimulationResult {
   turns: number;
 }
 
-// === MAIN EXECUTION ===
-async function main() {
-  console.log("🧪 BATTLE SYSTEM TESTER v1.0");
-  console.log("================================");
-  console.log();
+interface TestSummary {
+  totalTests: number;
+  passedTests: number;
+  failedTests: number;
+  successRate: number;
+  totalDuration: number;
+  avgDuration: number;
+  criticalIssues: string[];
+  recommendations: string[];
+}
 
-  const tester = new BattleSystemTester();
-  const results: TestResult[] = [];
-
-  // Test 1: Combat standard
-  try {
-    const result1 = await tester.testBasicBattle();
-    results.push(result1);
+// === GENERATEUR DE RAPPORT FINAL ===
+class TestReporter {
+  static generateSummary(results: TestResult[]): TestSummary {
+    const totalTests = results.length;
+    const passedTests = results.filter(r => r.success).length;
+    const failedTests = totalTests - passedTests;
+    const successRate = Math.round((passedTests / totalTests) * 100);
+    const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
+    const avgDuration = Math.round(totalDuration / totalTests);
     
-    if (result1.success) {
-      console.log(`  ✅ SUCCÈS - ${result1.duration}ms - ${result1.events} events`);
-      if (result1.analysis?.timingIssues?.length > 0) {
-        console.log(`  ⚠️  Issues: ${result1.analysis.timingIssues.length}`);
-        result1.analysis.timingIssues.forEach((issue: string) => console.log(`    - ${issue}`));
+    const criticalIssues: string[] = [];
+    const recommendations: string[] = [];
+    
+    // Analyser les échecs
+    results.forEach(result => {
+      if (!result.success && result.error) {
+        criticalIssues.push(`${result.testName}: ${result.error}`);
       }
-    } else {
-      console.log(`  ❌ ÉCHEC - ${result1.error}`);
-    }
-  } catch (error) {
-    console.log(`  💥 CRASH - ${error}`);
-    results.push({ success: false, error: `Crash: ${error}`, duration: 0, events: 0 });
-  }
-
-  console.log();
-
-  // Test 2: K.O. simultané
-  try {
-    const result2 = await tester.testSimultaneousKO();
-    results.push(result2);
-    
-    if (result2.success) {
-      console.log(`  ✅ SUCCÈS - ${result2.duration}ms - Winner: ${result2.analysis?.finalWinner || 'N/A'}`);
-    } else {
-      console.log(`  ❌ ÉCHEC - ${result2.error}`);
-    }
-  } catch (error) {
-    console.log(`  💥 CRASH - ${error}`);
-    results.push({ success: false, error: `Crash: ${error}`, duration: 0, events: 0 });
-  }
-
-  console.log();
-
-  // Test 3: Stress test
-  try {
-    const result3 = await tester.testStress();
-    results.push(result3);
-    
-    if (result3.success) {
-      console.log(`  ✅ SUCCÈS - ${result3.duration}ms total`);
-    } else {
-      console.log(`  ❌ ÉCHEC - ${result3.error}`);
-    }
-  } catch (error) {
-    console.log(`  💥 CRASH - ${error}`);
-    results.push({ success: false, error: `Crash: ${error}`, duration: 0, events: 0 });
-  }
-
-  // === RAPPORT FINAL ===
-  console.log();
-  console.log("📊 RAPPORT FINAL");
-  console.log("================");
-  
-  const successCount = results.filter(r => r.success).length;
-  const totalTests = results.length;
-  
-  console.log(`Tests réussis: ${successCount}/${totalTests} (${Math.round(successCount/totalTests*100)}%)`);
-  
-  if (successCount < totalTests) {
-    console.log();
-    console.log("❌ ÉCHECS DÉTECTÉS:");
-    results.forEach((result, index) => {
-      if (!result.success) {
-        console.log(`  Test ${index + 1}: ${result.error}`);
+      
+      // Recommandations basées sur l'analyse
+      if (result.analysis?.timingIssues?.length > 0) {
+        recommendations.push(`${result.testName}: Optimiser les timings (${result.analysis.timingIssues.length} issues)`);
+      }
+      
+      if (result.analysis?.successRate && result.analysis.successRate < 100) {
+        recommendations.push(`${result.testName}: Améliorer la stabilité (${result.analysis.successRate}% succès)`);
       }
     });
-  }
-
-  // Résumé pour analyse Claude
-  console.log();
-  console.log("=== ANALYSE POUR CLAUDE ===");
-  console.log(`Success Rate: ${Math.round(successCount/totalTests*100)}%`);
-  console.log(`Critical Issues: ${totalTests - successCount}`);
-  
-  if (successCount > 0) {
-    const avgDuration = results.filter(r => r.success).reduce((sum, r) => sum + r.duration, 0) / successCount;
-    console.log(`Avg Battle Duration: ${Math.round(avgDuration)}ms`);
-  }
-  
-  results.forEach((result, index) => {
-    if (result.analysis?.timingIssues?.length > 0) {
-      console.log(`Test ${index + 1} Timing Issues: ${result.analysis.timingIssues.join(', ')}`);
+    
+    // Recommandations générales
+    if (successRate < 100) {
+      recommendations.push("Corriger les échecs avant déploiement");
     }
-  });
-
-  console.log();
-  console.log("🎯 CONCLUSION:");
-  if (successCount === totalTests) {
-    console.log("Système de combat STABLE - Prêt pour intégration client");
-  } else {
-    console.log("Système de combat INSTABLE - Corrections nécessaires côté serveur");
+    
+    if (avgDuration > 5000) {
+      recommendations.push("Optimiser les performances (durée moyenne élevée)");
+    }
+    
+    return {
+      totalTests,
+      passedTests,
+      failedTests,
+      successRate,
+      totalDuration,
+      avgDuration,
+      criticalIssues,
+      recommendations
+    };
   }
+
+  static printSummary(summary: TestSummary) {
+    console.log("\n" + "=".repeat(50));
+    console.log("🧪 RAPPORT FINAL - BATTLE SYSTEM TESTS");
+    console.log("=".repeat(50));
+    
+    // Vue d'ensemble
+    console.log(`\n📊 RÉSULTATS GLOBAUX:`);
+    console.log(`   Tests exécutés: ${summary.totalTests}`);
+    console.log(`   ✅ Réussis: ${summary.passedTests}`);
+    console.log(`   ❌ Échoués: ${summary.failedTests}`);
+    console.log(`   📈 Taux de succès: ${summary.successRate}%`);
+    console.log(`   ⏱️  Durée totale: ${summary.totalDuration}ms`);
+    console.log(`   ⏱️  Durée moyenne: ${summary.avgDuration}ms`);
+    
+    // Issues critiques
+    if (summary.criticalIssues.length > 0) {
+      console.log(`\n🚨 ISSUES CRITIQUES (${summary.criticalIssues.length}):`);
+      summary.criticalIssues.forEach((issue, index) => {
+        console.log(`   ${index + 1}. ${issue}`);
+      });
+    }
+    
+    // Recommandations
+    if (summary.recommendations.length > 0) {
+      console.log(`\n💡 RECOMMANDATIONS (${summary.recommendations.length}):`);
+      summary.recommendations.forEach((rec, index) => {
+        console.log(`   ${index + 1}. ${rec}`);
+      });
+    }
+    
+    // Verdict final
+    console.log(`\n🎯 VERDICT:`);
+    if (summary.successRate === 100) {
+      console.log(`   ✅ SYSTÈME STABLE - Prêt pour la production`);
+    } else if (summary.successRate >= 80) {
+      console.log(`   ⚠️  SYSTÈME PARTIELLEMENT STABLE - Corrections mineures recommandées`);
+    } else {
+      console.log(`   ❌ SYSTÈME INSTABLE - Corrections majeures requises`);
+    }
+    
+    console.log("\n" + "=".repeat(50) + "\n");
+  }
+}
+
+// === MAIN EXECUTION ===
+async function main() {
+  const args = process.argv.slice(2);
+  const verbose = args.includes('--verbose') || args.includes('-v');
+  
+  console.log("🧪 BATTLE SYSTEM TESTER v2.0");
+  console.log("================================");
+  if (!verbose) {
+    console.log("(Utilise --verbose pour plus de détails)\n");
+  }
+
+  const tester = new BattleSystemTester(verbose);
+  const results: TestResult[] = [];
+
+  // Liste des tests à exécuter
+  const tests = [
+    { name: 'Database Connection', fn: () => tester.testDatabaseConnection() },
+    { name: 'Basic Battle', fn: () => tester.testBasicBattle() },
+    { name: 'Simultaneous KO', fn: () => tester.testSimultaneousKO() },
+    { name: 'Stress Test', fn: () => tester.testStress() }
+  ];
+
+  // Exécuter tous les tests
+  for (const test of tests) {
+    try {
+      if (verbose) console.log(`\n🔄 Exécution: ${test.name}`);
+      
+      const result = await test.fn();
+      results.push(result);
+      
+      // Affichage minimal en mode non-verbose
+      if (!verbose) {
+        if (result.success) {
+          console.log(`✅ ${result.testName} - ${result.duration}ms`);
+        } else {
+          console.log(`❌ ${result.testName} - ${result.error}`);
+        }
+      } else {
+        // Affichage détaillé en mode verbose
+        if (result.success) {
+          console.log(`  ✅ SUCCÈS - ${result.duration}ms - ${result.events} events`);
+          if (result.analysis?.timingIssues?.length > 0) {
+            console.log(`  ⚠️  Issues: ${result.analysis.timingIssues.length}`);
+            result.analysis.timingIssues.forEach((issue: string) => console.log(`    - ${issue}`));
+          }
+        } else {
+          console.log(`  ❌ ÉCHEC - ${result.error}`);
+        }
+      }
+    } catch (error) {
+      console.log(`💥 CRASH - ${test.name}: ${error}`);
+      results.push({ 
+        testName: test.name,
+        success: false, 
+        error: `Crash: ${error}`, 
+        duration: 0, 
+        events: 0 
+      });
+    }
+  }
+
+  // Générer et afficher le rapport final
+  const summary = TestReporter.generateSummary(results);
+  TestReporter.printSummary(summary);
+
+  // Code de sortie
+  process.exit(summary.successRate === 100 ? 0 : 1);
 }
 
 // Lancer les tests
