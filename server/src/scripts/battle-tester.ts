@@ -229,7 +229,7 @@ class BattleTester {
       const config = this.createTestConfig('TimeoutTest', 'test-player-timeout', 143); // Snorlax
 
       engine.on('battleEvent', () => events++);
-      engine.on('battleEnd', (data) => {
+      engine.on('battleEnd', (data: any) => {
         success = true;
       });
 
@@ -356,7 +356,6 @@ class BattleTester {
           speed: 90,
           moves: ['tackle', 'thundershock'],
           types: ['electric'],
-          abilities: ['static'],
           nature: 'hardy',
           gender: 'male',
           isShiny: false,
@@ -387,7 +386,6 @@ class BattleTester {
           speed: opponentId === 143 ? 30 : 72,
           moves: ['tackle'],
           types: opponentId === 143 ? ['normal'] : ['normal'],
-          abilities: opponentId === 143 ? ['thick-fat'] : ['run-away'],
           nature: 'hardy',
           gender: 'male',
           isShiny: false,
