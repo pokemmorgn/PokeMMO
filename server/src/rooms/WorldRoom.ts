@@ -579,169 +579,99 @@ private extractZoneFromNpc(npc: any): string {
 }
 
 async onPlayerJoinZone(client: Client, zoneName: string) {
-  console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (DEBUG COMPLET) ===`);
-  console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
-  console.log(`👤 Client: ${client.sessionId}`);
-  console.log(`🌍 Zone demandée: "${zoneName}"`);
-  console.log(`🏠 Room ID: ${this.roomId}`);
+  console.log(`📥 [onPlayerJoinZone] Client: ${client.sessionId}, Zone: "${zoneName}"`);
   
-  // ✅ ÉTAPE 1: Vérification du client
+  // ✅ Vérification du joueur
   const player = this.state.players.get(client.sessionId);
   if (!player) {
-    console.error(`❌ [CRITICAL] Joueur non trouvé pour session: ${client.sessionId}`);
-    console.error(`📊 Total joueurs dans state: ${this.state.players.size}`);
+    console.error(`❌ Joueur non trouvé pour session: ${client.sessionId}`);
     return;
   }
   
-  console.log(`✅ [PLAYER] Joueur trouvé: ${player.name}`);
-  console.log(`📍 [PLAYER] Position actuelle: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-  
-  // ✅ ÉTAPE 2: Sauvegarde position
-  console.log(`💾 [SAVE] Sauvegarde position lors de transition...`);
+  // ✅ Sauvegarde position
   try {
     const position = this.positionSaver.extractPosition(player);
     await this.positionSaver.savePosition(position, "transition");
-    console.log(`✅ [SAVE] Position sauvegardée: (${position.x}, ${position.y}) dans ${position.zone}`);
   } catch (saveError) {
-    console.error(`❌ [SAVE] Erreur sauvegarde:`, saveError);
+    console.error(`❌ Erreur sauvegarde position:`, saveError);
   }
 
-  // ✅ ÉTAPE 3: Récupération du NPC Manager
-  console.log(`📂 [NPC MANAGER] Récupération du manager global...`);
-  console.log(`📂 [NPC MANAGER] Managers disponibles: ${Array.from(this.npcManagers.keys())}`);
+  // ✅ CORRECTION CRITIQUE : Mapping des noms de zones
+  const zoneMapping: { [key: string]: string } = {
+    'Road1Scene': 'road1',
+    'BeachScene': 'beach', 
+    'VillageScene': 'village',
+    'Road3Scene': 'road3',
+    'VillageLabScene': 'villagelab',
+    'VillageHouse1Scene': 'villagehouse1',
+    'VillageFloristScene': 'villageflorist',
+    'Road1HouseScene': 'road1house',
+    'Road1HiddenScene': 'road1hidden',
+    'WraithmoorScene': 'wraithmoor',
+    'NoctherbCave1Scene': 'noctherbcave1',
+    'NoctherbCave2Scene': 'noctherbcave2',
+    'LavandiaAnalysisScene': 'lavandiaanalysis',
+    'LavandiaCelebitempleScene': 'lavandiacelebitemple',
+    'LavandiaEquipmentScene': 'lavandiaequipment',
+    'LavandiaFurnitureScene': 'lavandiafurniture',
+    'LavandiaHealingcenterScene': 'lavandiahealingcenter',
+    'LavandiaHouse1Scene': 'lavandiahouse1',
+    'LavandiaHouse2Scene': 'lavandiahouse2',
+    'LavandiaHouse3Scene': 'lavandiahouse3',
+    'LavandiaHouse4Scene': 'lavandiahouse4',
+    'LavandiaHouse5Scene': 'lavandiahouse5',
+    'LavandiaHouse6Scene': 'lavandiahouse6',
+    'LavandiaHouse7Scene': 'lavandiahouse7',
+    'LavandiaHouse8Scene': 'lavandiahouse8',
+    'LavandiaHouse9Scene': 'lavandiahouse9',
+    'LavandiaShopScene': 'lavandiashop'
+  };
   
+  const mappedZoneName = zoneMapping[zoneName] || zoneName.toLowerCase().replace('scene', '');
+  console.log(`🔄 [Zone Mapping] "${zoneName}" → "${mappedZoneName}"`);
+  
+  // ✅ Récupération du NPC Manager
   const npcManager = this.npcManagers.get('global');
-  
   if (!npcManager) {
-    console.error(`❌ [CRITICAL] Aucun NPC Manager global trouvé !`);
-    console.error(`📊 Managers dans cache: ${this.npcManagers.size}`);
-    console.error(`📋 Clés disponibles:`, Array.from(this.npcManagers.keys()));
+    console.error(`❌ NPC Manager global non trouvé !`);
     return;
   }
   
-  console.log(`✅ [NPC MANAGER] Manager global trouvé`);
-  
-  // ✅ ÉTAPE 4: Test de l'état du manager
-  console.log(`🔍 [NPC MANAGER] Test état du manager...`);
-  
-  const allNpcs = npcManager.getAllNpcs();
-  console.log(`📊 [NPC MANAGER] Total NPCs en mémoire: ${allNpcs.length}`);
-  
-  const zones = npcManager.getLoadedZones();
-  console.log(`🗺️ [NPC MANAGER] Zones chargées (${zones.length}):`, zones);
-  console.log(`🔍 [NPC MANAGER] Zone "${zoneName}" chargée: ${npcManager.isZoneLoaded(zoneName)}`);
-  
-  // ✅ ÉTAPE 5: Récupération des NPCs pour la zone
-  console.log(`🤖 [NPCS] Récupération NPCs pour zone "${zoneName}"...`);
-  
-  const npcs = npcManager.getNpcsByZone(zoneName);
-  console.log(`📊 [NPCS] NPCs trouvés pour zone "${zoneName}": ${npcs.length}`);
+  // ✅ Récupération des NPCs avec zone mappée
+  const npcs = npcManager.getNpcsByZone(mappedZoneName);
+  console.log(`📊 [NPCs] ${npcs.length} NPCs trouvés pour zone "${mappedZoneName}"`);
   
   if (npcs.length === 0) {
-    console.error(`❌ [NPCS] Aucun NPC trouvé pour zone "${zoneName}" !`);
-    console.error(`🔍 [NPCS] Debug: vérification autres zones...`);
-    
-    // Debug: voir les NPCs dans d'autres zones
-    const npcsByZone: { [key: string]: any[] } = {};
-    allNpcs.forEach(npc => {
-      if (!npcsByZone[npc.zone]) npcsByZone[npc.zone] = [];
-      npcsByZone[npc.zone].push(npc);
-    });
-    
-    console.error(`🔍 [DEBUG] NPCs par zone:`, Object.keys(npcsByZone).map(zone => ({
-      zone: zone,
-      count: npcsByZone[zone].length,
-      isRequestedZone: zone === zoneName
-    })));
-    
-    return;
+    console.warn(`⚠️ Aucun NPC trouvé pour zone "${mappedZoneName}"`);
   }
   
-  // ✅ ÉTAPE 6: Debug des NPCs trouvés
-  console.log(`🤖 [NPCS] Détail des ${npcs.length} NPCs trouvés:`);
-  npcs.forEach((npc, index) => {
-    console.log(`  ${index + 1}. ID:${npc.id} "${npc.name}" à (${npc.x}, ${npc.y}) sprite:"${npc.sprite}"`);
-  });
-  
-  // ✅ ÉTAPE 7: Vérification de la connexion client
-  console.log(`📡 [CLIENT] Vérification connexion client...`);
-  console.log(`📡 [CLIENT] Session ID: ${client.sessionId}`);
-  console.log(`📡 [CLIENT] Client connecté: ${!!client}`);
-  console.log(`📡 [CLIENT] Client dans room: ${this.clients.includes(client)}`);
-  
-  if (!this.clients.includes(client)) {
-    console.error(`❌ [CLIENT] Client non trouvé dans la room !`);
-    console.error(`📊 Clients actuels: ${this.clients.length}`);
-    return;
-  }
-  
-  // ✅ ÉTAPE 8: ENVOI CRITIQUE des NPCs
-  console.log(`📤 [SEND] === ENVOI DES NPCS AU CLIENT ===`);
-  console.log(`📤 [SEND] Destination: ${client.sessionId}`);
-  console.log(`📤 [SEND] Message: "npcList"`);
-  console.log(`📤 [SEND] Payload: ${npcs.length} NPCs`);
-  console.log(`📤 [SEND] Premier NPC:`, npcs[0] ? {
-    id: npcs[0].id,
-    name: npcs[0].name,
-    x: npcs[0].x,
-    y: npcs[0].y,
-    zone: npcs[0].zone,
-    sprite: npcs[0].sprite
-  } : 'AUCUN');
-  
+  // ✅ Envoi des NPCs au client
   try {
     client.send("npcList", npcs);
-    console.log(`✅ [SEND] Message "npcList" envoyé avec succès !`);
-    console.log(`✅ [SEND] ${npcs.length} NPCs envoyés à ${client.sessionId}`);
+    console.log(`✅ ${npcs.length} NPCs envoyés à ${client.sessionId}`);
   } catch (sendError) {
-    console.error(`❌ [SEND] Erreur lors de l'envoi:`, sendError);
+    console.error(`❌ Erreur envoi NPCs:`, sendError);
     return;
   }
   
-  // ✅ ÉTAPE 9: Envoi des objets de zone
-  console.log(`📦 [OBJECTS] Envoi des objets de zone...`);
-  try {
-    this.objectInteractionHandlers.sendZoneObjectsToClient(client, zoneName);
-    console.log(`✅ [OBJECTS] Objets de zone envoyés`);
-  } catch (objectError) {
-    console.error(`❌ [OBJECTS] Erreur envoi objets:`, objectError);
-  }
+  // ✅ Envoi des objets de zone
+  this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
   
-  // ✅ ÉTAPE 10: Mise à jour TimeWeatherService
-  console.log(`🌍 [TIME WEATHER] Mise à jour client zone...`);
+  // ✅ Mise à jour TimeWeatherService
   if (this.timeWeatherService) {
     this.timeWeatherService.updateClientZone(client, zoneName);
-    console.log(`✅ [TIME WEATHER] Client mis à jour pour zone: ${zoneName}`);
     
-    // Envoi immédiat état temps/météo
     setTimeout(() => {
       if (this.timeWeatherService) {
         this.timeWeatherService.sendCurrentStateToAllClients();
-        console.log(`✅ [TIME WEATHER] État temps/météo envoyé`);
       }
     }, 50);
-  } else {
-    console.warn(`⚠️ [TIME WEATHER] Service non disponible`);
   }
 
-  // ✅ ÉTAPE 11: Quest statuses
-  console.log(`🎯 [QUESTS] Programmation quest statuses...`);
-  if (player) {
-    console.log(`🎯 [QUESTS] Joueur: ${player.name}, délai: 500ms`);
-    
-    this.clock.setTimeout(async () => {
-      console.log(`⏰ [QUESTS] Exécution quest statuses pour ${player.name}`);
-      try {
-        await this.updateQuestStatusesFixed(player.name, client);
-        console.log(`✅ [QUESTS] Quest statuses traités pour ${player.name}`);
-      } catch (questError) {
-        console.error(`❌ [QUESTS] Erreur quest statuses:`, questError);
-      }
-    }, 500);
-  }
-  
-  console.log(`🎉 [SUCCESS] === PLAYER JOIN ZONE TERMINÉ ===`);
-  console.log(`📊 Résumé: ${npcs.length} NPCs envoyés à ${player.name} pour zone "${zoneName}"`);
+  // ✅ Quest statuses
+  this.clock.setTimeout(async () => {
+    await this.updateQuestStatusesFixed(player.name, client);
+  }, 500);
 }
 
   // Mise à jour quest statuses avec debug
