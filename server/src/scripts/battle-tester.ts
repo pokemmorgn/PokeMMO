@@ -249,7 +249,7 @@ class BattleTesterFinal {
       engine.on('actionQueued', eventHandler);
       
       // Success handler
-      engine.on('battleEnd', (data) => {
+      engine.on('battleEnd', (data: any) => {
         battleSuccess = true;
         clearTimeout(timeout);
         engine.cleanup();
@@ -427,7 +427,7 @@ class BattleTesterFinal {
 
       engine.on('battleEvent', () => events++);
       engine.on('phaseChanged', () => events++);
-      engine.on('battleEnd', (data) => {
+      engine.on('battleEnd', (data: any) => {
         success = true;
         console.log(`  ⚡ Combat ultra-rapide terminé: ${data.reason}`);
       });
