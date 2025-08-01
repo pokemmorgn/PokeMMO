@@ -1,4 +1,4 @@
-// server/src/managers/EncounterMapManager.ts
+// server/src/managers/EncounterMapManager.ts - FIX NOMS DE MAPS
 import fs from "fs";
 import path from "path";
 
@@ -25,37 +25,157 @@ export class EncounterMapManager {
   private tileHeight: number = 16;
   private mapData: any = null;
 
+  // ✅ NOUVELLE MAPPING TABLE SCENE -> FICHIER MAP
+  private static sceneToMapMapping: Record<string, string> = {
+    'Road1Scene': 'road1',
+    'Road2Scene': 'road2', 
+    'CityScene': 'city',
+    'ForestScene': 'forest',
+    'WildernessScene': 'wilderness',
+    'RouteScene': 'route',
+    'TownScene': 'town',
+    // Ajoute ici tes autres correspondances selon tes fichiers
+  };
+
   constructor(mapPath: string) {
     this.loadMapData(mapPath);
   }
 
-  private loadMapData(mapPath: string) {
-    const fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
-    const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
+  // ✅ NOUVELLE MÉTHODE : Résoudre le nom réel du fichier
+  private resolveMapFileName(inputName: string): string {
+    console.log(`🔍 [EncounterMap] Résolution nom : "${inputName}"`);
 
-    console.log(`🗺️ [EncounterMap] Chargement map : ${resolvedPath}`);
-
-    if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`EncounterMapManager: Le fichier map n'existe pas : ${resolvedPath}`);
+    // 1. Vérifier la mapping table
+    if (EncounterMapManager.sceneToMapMapping[inputName]) {
+      const mappedName = EncounterMapManager.sceneToMapMapping[inputName];
+      console.log(`✅ [EncounterMap] Trouvé dans mapping : ${inputName} -> ${mappedName}`);
+      return mappedName + '.tmj';
     }
 
-    this.mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-    this.tileWidth = this.mapData.tilewidth;
-    this.tileHeight = this.mapData.tileheight;
+    // 2. Essayer le nom tel quel (avec .tmj)
+    if (inputName.endsWith('.tmj')) {
+      return inputName;
+    }
 
-    // Charger les différents types de tiles
-    this.loadGrassTiles();
-    this.loadWaterTiles();
-    this.loadEncounterZones();
+    // 3. Essayer en minuscules
+    const lowerName = inputName.toLowerCase();
+    if (lowerName !== inputName) {
+      console.log(`🔄 [EncounterMap] Essai minuscules : ${lowerName}`);
+      return lowerName + '.tmj';
+    }
 
-    console.log(`✅ [EncounterMap] Map chargée :`);
-    console.log(`   🌿 Grass tiles: ${this.grassTiles.size}`);
-    console.log(`   🌊 Water tiles: ${this.waterTiles.size}`);
-    console.log(`   📍 Encounter zones: ${this.encounterZones.size}`);
+    // 4. Essayer en retirant "Scene" du nom
+    if (inputName.endsWith('Scene')) {
+      const withoutScene = inputName.replace(/Scene$/, '').toLowerCase();
+      console.log(`🔄 [EncounterMap] Essai sans "Scene" : ${withoutScene}`);
+      return withoutScene + '.tmj';
+    }
+
+    // 5. Fallback : nom + .tmj
+    return inputName + '.tmj';
   }
 
-  // ✅ CHARGEMENT DES TILES D'HERBE (même logique que client)
+  // ✅ NOUVELLE MÉTHODE : Trouver le fichier qui existe vraiment
+  private findExistingMapFile(baseName: string): string | null {
+    const baseDir = path.resolve(__dirname, "../../build/assets/maps");
+    
+    // Liste des noms possibles à tester
+    const possibleNames = [
+      this.resolveMapFileName(baseName),
+      baseName.toLowerCase() + '.tmj',
+      baseName.replace(/Scene$/, '').toLowerCase() + '.tmj',
+      baseName + '.tmj',
+      baseName.toLowerCase() + '.json',
+      baseName.replace(/Scene$/, '') + '.tmj'
+    ];
+
+    console.log(`🔍 [EncounterMap] Test fichiers pour "${baseName}" dans ${baseDir}`);
+
+    for (const fileName of possibleNames) {
+      const fullPath = path.join(baseDir, fileName);
+      console.log(`   🔎 Test : ${fileName}`);
+      
+      if (fs.existsSync(fullPath)) {
+        console.log(`   ✅ Trouvé : ${fileName}`);
+        return fullPath;
+      }
+    }
+
+    // ✅ BONUS : Lister les fichiers disponibles pour debug
+    try {
+      const availableFiles = fs.readdirSync(baseDir);
+      console.log(`📋 [EncounterMap] Fichiers disponibles dans ${baseDir}:`);
+      availableFiles.forEach(file => console.log(`   📄 ${file}`));
+    } catch (error) {
+      console.log(`❌ [EncounterMap] Impossible de lire ${baseDir}`);
+    }
+
+    return null;
+  }
+
+  private loadMapData(mapPath: string) {
+    console.log(`🗺️ [EncounterMap] === CHARGEMENT MAP ===`);
+    console.log(`📥 Input: "${mapPath}"`);
+
+    // ✅ UTILISER LA NOUVELLE RÉSOLUTION
+    const resolvedPath = this.findExistingMapFile(mapPath);
+    
+    if (!resolvedPath) {
+      console.error(`❌ [EncounterMap] Aucun fichier map trouvé pour "${mapPath}"`);
+      throw new Error(`EncounterMapManager: Aucun fichier map trouvé pour "${mapPath}"`);
+    }
+
+    console.log(`✅ [EncounterMap] Fichier résolu : ${resolvedPath}`);
+
+    // ✅ CHARGER AVEC GESTION D'ERREUR AMÉLIORÉE
+    try {
+      const fileContent = fs.readFileSync(resolvedPath, "utf-8");
+      this.mapData = JSON.parse(fileContent);
+      
+      // Validation basique
+      if (!this.mapData.tilewidth || !this.mapData.tileheight) {
+        throw new Error("Fichier map invalide : propriétés tilewidth/tileheight manquantes");
+      }
+      
+      this.tileWidth = this.mapData.tilewidth;
+      this.tileHeight = this.mapData.tileheight;
+
+      // Charger les différents types de tiles
+      this.loadGrassTiles();
+      this.loadWaterTiles();
+      this.loadEncounterZones();
+
+      console.log(`✅ [EncounterMap] Map chargée avec succès :`);
+      console.log(`   📏 Taille tiles: ${this.tileWidth}x${this.tileHeight}`);
+      console.log(`   🗺️ Taille map: ${this.mapData.width}x${this.mapData.height}`);
+      console.log(`   🌿 Grass tiles: ${this.grassTiles.size}`);
+      console.log(`   🌊 Water tiles: ${this.waterTiles.size}`);
+      console.log(`   📍 Encounter zones: ${this.encounterZones.size}`);
+      
+    } catch (parseError) {
+      console.error(`❌ [EncounterMap] Erreur lecture/parsing :`, parseError);
+      throw new Error(`Erreur chargement map "${mapPath}": ${parseError}`);
+    }
+  }
+
+  // ✅ MÉTHODE STATIQUE : Ajouter une correspondance scene->map
+  public static addSceneMapping(sceneName: string, mapFileName: string): void {
+    EncounterMapManager.sceneToMapMapping[sceneName] = mapFileName;
+    console.log(`➕ [EncounterMap] Mapping ajouté : ${sceneName} -> ${mapFileName}`);
+  }
+
+  // ✅ MÉTHODE STATIQUE : Voir toutes les correspondances
+  public static getSceneMappings(): Record<string, string> {
+    return { ...EncounterMapManager.sceneToMapMapping };
+  }
+
+  // ✅ TOUTES LES MÉTHODES EXISTANTES RESTENT IDENTIQUES
   private loadGrassTiles() {
+    if (!this.mapData?.tilesets) {
+      console.warn(`⚠️ [EncounterMap] Pas de tilesets dans la map`);
+      return;
+    }
+
     for (const tileset of this.mapData.tilesets) {
       if (!tileset.tiles) continue;
       
@@ -71,8 +191,12 @@ export class EncounterMapManager {
     }
   }
 
-  // ✅ CHARGEMENT DES TILES D'EAU (même logique que client)
   private loadWaterTiles() {
+    if (!this.mapData?.tilesets) {
+      console.warn(`⚠️ [EncounterMap] Pas de tilesets dans la map`);
+      return;
+    }
+
     for (const tileset of this.mapData.tilesets) {
       if (!tileset.tiles) continue;
       
@@ -88,8 +212,12 @@ export class EncounterMapManager {
     }
   }
 
-  // ✅ CHARGEMENT DES ZONES D'ENCOUNTER (même logique que client)
   private loadEncounterZones() {
+    if (!this.mapData?.layers) {
+      console.warn(`⚠️ [EncounterMap] Pas de layers dans la map`);
+      return;
+    }
+
     for (const layer of this.mapData.layers) {
       if (layer.type === 'objectgroup' && layer.objects) {
         for (const obj of layer.objects) {
@@ -129,12 +257,12 @@ export class EncounterMapManager {
     }
   }
 
-  // ✅ VÉRIFIER SI POSITION SUR HERBE (même logique que client)
   public isPositionOnGrass(x: number, y: number): boolean {
+    if (!this.mapData) return false;
+    
     const tileX = Math.floor(x / this.tileWidth);
     const tileY = Math.floor(y / this.tileHeight);
 
-    // Chercher le layer BelowPlayer2 (comme côté client)
     const belowPlayer2Layer = this.mapData.layers.find((layer: any) =>
       layer.name === 'BelowPlayer2' && layer.type === 'tilelayer'
     );
@@ -148,8 +276,9 @@ export class EncounterMapManager {
     return this.grassTiles.has(tileId);
   }
 
-  // ✅ VÉRIFIER SI POSITION SUR EAU (même logique que client)
   public isPositionOnWater(x: number, y: number): boolean {
+    if (!this.mapData) return false;
+    
     const tileX = Math.floor(x / this.tileWidth);
     const tileY = Math.floor(y / this.tileHeight);
 
@@ -167,7 +296,6 @@ export class EncounterMapManager {
     return false;
   }
 
-  // ✅ TROUVER LA ZONE D'ENCOUNTER À UNE POSITION (même logique que client)
   public getEncounterZoneAt(x: number, y: number): string | null {
     for (const [id, zone] of this.encounterZones.entries()) {
       const inside = (
@@ -184,7 +312,6 @@ export class EncounterMapManager {
     return null;
   }
 
-  // ✅ DÉTERMINER LE TYPE DE TERRAIN ET MÉTHODE D'ENCOUNTER
   public getTerrainInfo(x: number, y: number): {
     isOnGrass: boolean;
     isOnWater: boolean;
@@ -214,7 +341,6 @@ export class EncounterMapManager {
     };
   }
 
-  // ✅ VALIDATION SÉCURISÉE : Comparer avec info client
   public validateClientTerrain(
     x: number, 
     y: number, 
@@ -247,7 +373,6 @@ export class EncounterMapManager {
     };
   }
 
-  // ✅ DEBUG ET STATS
   public debugPosition(x: number, y: number): void {
     const terrain = this.getTerrainInfo(x, y);
     console.log(`🔍 [EncounterMap] Debug position (${x}, ${y}):`);
@@ -270,8 +395,8 @@ export class EncounterMapManager {
       waterTilesCount: this.waterTiles.size,
       encounterZonesCount: this.encounterZones.size,
       mapSize: {
-        width: this.mapData.width * this.tileWidth,
-        height: this.mapData.height * this.tileHeight
+        width: this.mapData?.width * this.tileWidth || 0,
+        height: this.mapData?.height * this.tileHeight || 0
       },
       tileSize: {
         width: this.tileWidth,
