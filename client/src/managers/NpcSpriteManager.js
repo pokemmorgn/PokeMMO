@@ -1,6 +1,5 @@
 // client/src/managers/NpcSpriteManager.js
-// ✅ Manager pour gérer les sprites NPCs dynamiques - VERSION SPRITE SHEETS COMPLÈTE
-// 🔧 CORRECTION: Fallback traité comme sprite sheet
+// ✅ CORRECTION: Fix de l'erreur generateTexture + amélioration fallback
 
 import { SpriteUtils } from '../utils/SpriteUtils.js';
 
@@ -31,7 +30,7 @@ export class NpcSpriteManager {
       // ✅ Configuration sprite sheets
       defaultFrame: 0, // Frame à utiliser par défaut (idle)
       detectSpriteSheets: true, // Activer la détection de sprite sheets
-      // ✅ NOUVEAU : Configuration fallback sprite sheet
+      // ✅ Configuration fallback sprite sheet
       createFallbackAsSheet: true, // Créer le fallback comme sprite sheet
       fallbackSheetStructure: {
         frameWidth: 32,
@@ -51,13 +50,13 @@ export class NpcSpriteManager {
       fallbacksUsed: 0,
       spriteSheetsDetected: 0,
       simpleImagesLoaded: 0,
-      fallbackCreated: 0 // ✅ NOUVEAU
+      fallbackCreated: 0
     };
     
     console.log('[NpcSpriteManager] 🎭 Créé pour scène avec support sprite sheets complet:', scene.scene.key);
   }
 
-  // ✅ INITIALISATION INCHANGÉE
+  // ✅ INITIALISATION
   initialize() {
     if (this.isInitialized) {
       console.log('[NpcSpriteManager] ⚠️ Déjà initialisé');
@@ -78,7 +77,7 @@ export class NpcSpriteManager {
     return this;
   }
 
-  // ✅ MÉTHODE CORRIGÉE : Pré-charger le fallback via le système de détection
+  // ✅ MÉTHODE CORRIGÉE : Pré-charger le fallback
   async preloadFallbackSprite() {
     console.log('[NpcSpriteManager] 🎯 === PRÉ-CHARGEMENT FALLBACK AVEC SPRITE SHEET ===');
     
@@ -91,7 +90,7 @@ export class NpcSpriteManager {
     }
     
     try {
-      // ✅ NOUVEAU : Essayer d'abord de charger le fallback comme un sprite normal
+      // ✅ Essayer d'abord de charger le fallback comme un sprite normal
       console.log('[NpcSpriteManager] 🔍 Tentative chargement fallback externe...');
       
       const fallbackResult = await this.loadNpcSprite(fallbackKey).catch(() => null);
@@ -102,7 +101,7 @@ export class NpcSpriteManager {
       }
       
       // ✅ Si échec, créer le fallback graphique
-      console.log('[NpcSpriteManager] 🎨 Création fallback graphique (sprite sheet)...');
+      console.log('[NpcSpriteManager] 🎨 Création fallback graphique...');
       await this.createDefaultFallback();
       
     } catch (error) {
@@ -111,7 +110,7 @@ export class NpcSpriteManager {
     }
   }
 
-  // ✅ MÉTHODE PRINCIPALE INCHANGÉE
+  // ✅ MÉTHODE PRINCIPALE (inchangée)
   async loadNpcSprite(spriteKey) {
     console.log(`[NpcSpriteManager] 📥 === CHARGEMENT SPRITE SHEET "${spriteKey}" ===`);
     
@@ -154,7 +153,7 @@ export class NpcSpriteManager {
     }
   }
 
-  // ✅ MÉTHODE CHARGEMENT SPRITE SHEET INCHANGÉE
+  // ✅ MÉTHODE CHARGEMENT SPRITE SHEET
   async performSpriteSheetLoad(spriteKey) {
     return new Promise(async (resolve, reject) => {
       console.log(`[NpcSpriteManager] 🔍 === DÉTECTION SPRITE SHEET: ${spriteKey} ===`);
@@ -207,7 +206,7 @@ export class NpcSpriteManager {
     });
   }
 
-  // ✅ MÉTHODES D'ANALYSE INCHANGÉES
+  // ✅ MÉTHODES D'ANALYSE (inchangées)
   async analyzeImageStructure(imagePath, spriteKey) {
     return new Promise((resolve, reject) => {
       const tempImage = new Image();
@@ -313,7 +312,7 @@ export class NpcSpriteManager {
     return best;
   }
 
-  // ✅ MÉTHODES DE CHARGEMENT INCHANGÉES
+  // ✅ MÉTHODES DE CHARGEMENT (inchangées)
   async loadAsSpriteSheet(spriteKey, spritePath, structure) {
     return new Promise((resolve, reject) => {
       console.log(`[NpcSpriteManager] 🎞️ Chargement sprite sheet: ${spriteKey}`);
@@ -406,7 +405,7 @@ export class NpcSpriteManager {
     });
   }
 
-  // ✅ MÉTHODES D'ACCÈS INCHANGÉES
+  // ✅ MÉTHODES D'ACCÈS
   async getSpriteKeyToUse(requestedSprite) {
     console.log(`[NpcSpriteManager] 🎯 === GET SPRITE KEY (SHEET): "${requestedSprite}" ===`);
     
@@ -459,7 +458,7 @@ export class NpcSpriteManager {
   getSpriteSheetInfo(spriteKey) {
     const structure = this.spriteStructures.get(spriteKey);
     
-    // ✅ NOUVEAU : Si c'est le fallback et qu'il n'a pas de structure, utiliser la config
+    // ✅ Si c'est le fallback et qu'il n'a pas de structure, utiliser la config
     if (!structure && spriteKey === this.config.fallbackSprite && this.config.createFallbackAsSheet) {
       const fallbackStructure = this.config.fallbackSheetStructure;
       return {
@@ -494,7 +493,7 @@ export class NpcSpriteManager {
     };
   }
 
-  // ✅ MÉTHODES UTILITAIRES INCHANGÉES
+  // ✅ MÉTHODES UTILITAIRES
   cleanupLoadHandlers(spriteKey) {
     if (this.activeLoadHandlers && this.activeLoadHandlers.has(spriteKey)) {
       const handlers = this.activeLoadHandlers.get(spriteKey);
@@ -592,9 +591,42 @@ export class NpcSpriteManager {
     }
   }
 
-  // ✅ MÉTHODE CORRIGÉE : Créer fallback comme sprite sheet
+  // ✅ MÉTHODE CORRIGÉE : Créer fallback avec méthode compatible
   async createDefaultFallback() {
-    console.log('[NpcSpriteManager] 🎨 === CRÉATION FALLBACK SPRITE SHEET ===');
+    console.log('[NpcSpriteManager] 🎨 === CRÉATION FALLBACK COMPATIBLE ===');
+    
+    try {
+      const key = this.config.fallbackSprite;
+      
+      if (this.scene.textures.exists(key)) {
+        this.scene.textures.remove(key);
+      }
+
+      // ✅ SOLUTION 1: Créer fallback simple en premier
+      console.log('[NpcSpriteManager] 🎨 Création fallback simple...');
+      await this.createSimpleFallback();
+      
+      // ✅ Si on veut vraiment un sprite sheet, essayer la méthode alternative
+      if (this.config.createFallbackAsSheet) {
+        console.log('[NpcSpriteManager] 🎞️ Tentative création sprite sheet fallback...');
+        try {
+          await this.createFallbackSpriteSheet();
+        } catch (sheetError) {
+          console.warn('[NpcSpriteManager] ⚠️ Échec sprite sheet, utilisation fallback simple:', sheetError.message);
+          // Le fallback simple est déjà créé
+        }
+      }
+      
+    } catch (error) {
+      console.error('[NpcSpriteManager] ❌ Erreur création fallback:', error);
+      // Essayer une méthode encore plus simple
+      this.createEmergencyFallback();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Fallback simple compatible
+  async createSimpleFallback() {
+    console.log('[NpcSpriteManager] 🎨 Création fallback simple compatible...');
     
     try {
       const key = this.config.fallbackSprite;
@@ -603,56 +635,146 @@ export class NpcSpriteManager {
         this.scene.textures.remove(key);
       }
       
+      // ✅ Utiliser la méthode Canvas HTML5 directement
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      
+      // ✅ Dessiner le sprite fallback
+      // Corps
+      ctx.fillStyle = '#4169E1';
+      ctx.fillRect(4, 8, 24, 16);
+      
+      // Tête
+      ctx.fillStyle = '#FFDBB0';
+      ctx.beginPath();
+      ctx.arc(16, 12, 8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Yeux
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(13, 10, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(19, 10, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Chapeau
+      ctx.fillStyle = '#FF4444';
+      ctx.fillRect(8, 4, 16, 3);
+      
+      // Jambes
+      ctx.fillStyle = '#2E8B57';
+      ctx.fillRect(12, 20, 8, 10);
+      
+      // Bordure
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, 30, 30);
+      
+      // Texte
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 8px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('NPC', 16, 28);
+      
+      // ✅ Créer la texture à partir du canvas
+      const dataURL = canvas.toDataURL();
+      
+      return new Promise((resolve, reject) => {
+        const onComplete = () => {
+          this.loadedSprites.add(key);
+          this.stats.fallbackCreated++;
+          console.log('[NpcSpriteManager] ✅ Fallback simple créé:', key);
+          resolve();
+        };
+        
+        const onError = (fileObj) => {
+          if (fileObj.key === key) {
+            console.error('[NpcSpriteManager] ❌ Erreur création fallback simple:', key);
+            reject(new Error(`Failed to create simple fallback: ${key}`));
+          }
+        };
+        
+        this.scene.load.once('filecomplete-image-' + key, onComplete);
+        this.scene.load.once('loaderror', onError);
+        
+        // ✅ Charger comme image normale
+        this.scene.load.image(key, dataURL);
+        
+        if (!this.scene.load.isLoading()) {
+          this.scene.load.start();
+        }
+      });
+      
+    } catch (error) {
+      console.error('[NpcSpriteManager] ❌ Erreur création fallback simple:', error);
+      throw error;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Sprite sheet fallback alternatif
+  async createFallbackSpriteSheet() {
+    console.log('[NpcSpriteManager] 🎞️ === CRÉATION FALLBACK SPRITE SHEET ALTERNATIF ===');
+    
+    try {
+      const key = this.config.fallbackSprite + '_sheet';
       const structure = this.config.fallbackSheetStructure;
+      
+      if (this.scene.textures.exists(key)) {
+        this.scene.textures.remove(key);
+      }
+      
+      // ✅ Créer canvas pour le sprite sheet
       const totalWidth = structure.frameWidth * structure.cols;
       const totalHeight = structure.frameHeight * structure.rows;
       
-      console.log(`[NpcSpriteManager] 📐 Création sprite sheet ${totalWidth}x${totalHeight} (${structure.cols}x${structure.rows})`);
+      const canvas = document.createElement('canvas');
+      canvas.width = totalWidth;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext('2d');
       
-      // ✅ Créer une texture sprite sheet
-      const renderTexture = this.scene.add.renderTexture(0, 0, totalWidth, totalHeight);
+      console.log(`[NpcSpriteManager] 📐 Canvas sprite sheet: ${totalWidth}x${totalHeight}`);
       
-      // ✅ Générer plusieurs frames avec des variations
+      // ✅ Générer plusieurs frames
       for (let row = 0; row < structure.rows; row++) {
         for (let col = 0; col < structure.cols; col++) {
           const frameIndex = row * structure.cols + col;
           const x = col * structure.frameWidth;
           const y = row * structure.frameHeight;
           
-          // ✅ Créer un frame unique pour chaque position
-          this.drawFallbackFrame(renderTexture, x, y, structure.frameWidth, structure.frameHeight, frameIndex);
+          this.drawFallbackFrameOnCanvas(ctx, x, y, structure.frameWidth, structure.frameHeight, frameIndex);
         }
       }
       
-      // ✅ IMPORTANT : Générer comme spritesheet avec configuration
-      renderTexture.generateTexture(key);
-      
-      // ✅ Remplacer par spritesheet
-      this.scene.textures.remove(key);
-      
-      // ✅ Charger la texture générée comme spritesheet
-      const canvas = renderTexture.canvas;
       const dataURL = canvas.toDataURL();
       
       return new Promise((resolve, reject) => {
         const onSheetComplete = () => {
-          // ✅ Stocker la structure du fallback
-          this.spriteStructures.set(key, structure);
-          this.loadedSprites.add(key);
-          this.stats.fallbackCreated++;
+          // ✅ Remplacer le fallback simple par le sprite sheet
+          if (this.scene.textures.exists(this.config.fallbackSprite)) {
+            this.scene.textures.remove(this.config.fallbackSprite);
+          }
           
-          console.log(`[NpcSpriteManager] ✅ Fallback sprite sheet créé: ${key} (${structure.frameWidth}x${structure.frameHeight})`);
+          // ✅ Copier le sprite sheet vers la clé fallback principale
+          const sheetTexture = this.scene.textures.get(key);
+          this.scene.textures.addSpriteSheet(this.config.fallbackSprite, sheetTexture.source[0], {
+            frameWidth: structure.frameWidth,
+            frameHeight: structure.frameHeight
+          });
           
-          // ✅ Nettoyer le render texture
-          renderTexture.destroy();
+          // ✅ Stocker la structure
+          this.spriteStructures.set(this.config.fallbackSprite, structure);
           
+          console.log('[NpcSpriteManager] ✅ Fallback sprite sheet créé avec succès');
           resolve();
         };
         
         const onSheetError = (fileObj) => {
           if (fileObj.key === key) {
-            console.error(`[NpcSpriteManager] ❌ Erreur création sprite sheet fallback: ${key}`);
-            renderTexture.destroy();
+            console.error('[NpcSpriteManager] ❌ Erreur création sprite sheet fallback');
             reject(new Error(`Failed to create fallback spritesheet: ${key}`));
           }
         };
@@ -673,111 +795,113 @@ export class NpcSpriteManager {
       
     } catch (error) {
       console.error('[NpcSpriteManager] ❌ Erreur création fallback sprite sheet:', error);
-      
-      // ✅ Fallback du fallback : créer une image simple
-      this.createSimpleFallback();
+      throw error;
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Dessiner un frame du fallback
-  drawFallbackFrame(renderTexture, x, y, width, height, frameIndex) {
-    const graphics = this.scene.add.graphics();
-    
+  // ✅ NOUVELLE MÉTHODE : Dessiner frame sur canvas
+  drawFallbackFrameOnCanvas(ctx, x, y, width, height, frameIndex) {
     // ✅ Couleurs variables selon le frame
     const hue = (frameIndex * 30) % 360;
-    const bodyColor = Phaser.Display.Color.HSVToRGB(hue / 360, 0.3, 0.8);
-    const headColor = 0xFFDBB0;
+    const hslColor = this.hslToRgb(hue / 360, 0.3, 0.8);
+    const bodyColor = `rgb(${Math.round(hslColor.r * 255)}, ${Math.round(hslColor.g * 255)}, ${Math.round(hslColor.b * 255)})`;
     
     // ✅ Corps
-    graphics.fillStyle(Phaser.Display.Color.GetColor(bodyColor.r, bodyColor.g, bodyColor.b), 1.0);
-    graphics.fillRoundedRect(x + 4, y + 8, width - 8, height - 16, 2);
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(x + 4, y + 8, width - 8, height - 16);
     
     // ✅ Tête
-    graphics.fillStyle(headColor, 1.0);
-    graphics.fillCircle(x + width/2, y + 6, width/4);
+    ctx.fillStyle = '#FFDBB0';
+    ctx.beginPath();
+    ctx.arc(x + width/2, y + 6, width/4, 0, Math.PI * 2);
+    ctx.fill();
     
     // ✅ Yeux
-    graphics.fillStyle(0x000000, 1.0);
-    graphics.fillCircle(x + width/2 - 3, y + 4, 1);
-    graphics.fillCircle(x + width/2 + 3, y + 4, 1);
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(x + width/2 - 3, y + 4, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + width/2 + 3, y + 4, 1, 0, Math.PI * 2);
+    ctx.fill();
     
-    // ✅ Numéro du frame (debug)
-    const text = this.scene.add.text(x + width/2, y + height - 4, frameIndex.toString(), {
-      fontSize: '6px',
-      fontFamily: 'Arial',
-      color: '#FFFFFF',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    
-    // ✅ Dessiner sur le render texture
-    renderTexture.draw(graphics, 0, 0);
-    renderTexture.draw(text, 0, 0);
-    
-    // ✅ Nettoyer
-    graphics.destroy();
-    text.destroy();
+    // ✅ Numéro du frame
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '6px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(frameIndex.toString(), x + width/2, y + height - 4);
   }
 
-  // ✅ NOUVELLE MÉTHODE : Fallback simple si sprite sheet échoue
-  createSimpleFallback() {
-    console.log('[NpcSpriteManager] 🎨 Création fallback simple...');
+  // ✅ MÉTHODE UTILITAIRE : Conversion HSL vers RGB
+  hslToRgb(h, s, l) {
+    let r, g, b;
+    
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    
+    return { r, g, b };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Fallback d'urgence
+  createEmergencyFallback() {
+    console.log('[NpcSpriteManager] 🚨 Création fallback d\'urgence...');
     
     try {
       const key = this.config.fallbackSprite;
       
+      // ✅ Créer une texture 1x1 pixel simple
       if (this.scene.textures.exists(key)) {
         this.scene.textures.remove(key);
       }
       
-      const graphics = this.scene.add.graphics();
+      // ✅ Méthode la plus simple possible
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
       
-      graphics.fillStyle(0x4169E1, 1.0);
-      graphics.fillRoundedRect(0, 0, 32, 32, 4);
+      // ✅ Rectangle simple
+      ctx.fillStyle = '#4169E1';
+      ctx.fillRect(0, 0, 32, 32);
       
-      graphics.fillStyle(0xFFDBB0, 1.0);
-      graphics.fillCircle(16, 12, 8);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', 16, 20);
       
-      graphics.fillStyle(0x000000, 1.0);
-      graphics.fillCircle(13, 10, 2);
-      graphics.fillCircle(19, 10, 2);
+      const dataURL = canvas.toDataURL();
       
-      graphics.fillStyle(0xFF4444, 1.0);
-      graphics.fillRect(8, 4, 16, 3);
-      
-      graphics.fillStyle(0x2E8B57, 1.0);
-      graphics.fillRoundedRect(12, 20, 8, 10, 2);
-      
-      graphics.lineStyle(2, 0xFFFFFF, 1.0);
-      graphics.strokeRoundedRect(1, 1, 30, 30, 4);
-      
-      const text = this.scene.add.text(16, 28, 'NPC', {
-        fontSize: '8px',
-        fontFamily: 'Arial',
-        color: '#FFFFFF',
-        fontStyle: 'bold'
-      }).setOrigin(0.5);
-      
-      const renderTexture = this.scene.add.renderTexture(0, 0, 32, 32);
-      renderTexture.draw(graphics);
-      renderTexture.draw(text);
-      renderTexture.generateTexture(key);
-      
-      graphics.destroy();
-      text.destroy();
-      renderTexture.destroy();
-      
+      // ✅ Créer texture directement
+      this.scene.textures.addBase64(key, dataURL);
       this.loadedSprites.add(key);
       this.stats.fallbackCreated++;
-      console.log('[NpcSpriteManager] ✅ Fallback simple créé:', key);
+      
+      console.log('[NpcSpriteManager] ✅ Fallback d\'urgence créé');
       
     } catch (error) {
-      console.error('[NpcSpriteManager] ❌ Erreur création fallback simple:', error);
+      console.error('[NpcSpriteManager] ❌ Impossible de créer fallback d\'urgence:', error);
     }
   }
 
-  // ✅ MÉTHODES INCHANGÉES
+  // ✅ MÉTHODES RESTANTES (inchangées)
   async preloadSprites(spriteList) {
-    console.log(`[NpcSpriteManager] 📦 Pré-chargement de ${spriteList.length} sprites (avec détection sheets)...`);
+    console.log(`[NpcSpriteManager] 📦 Pré-chargement de ${spriteList.length} sprites...`);
     
     const promises = spriteList.map(sprite => this.loadNpcSprite(sprite));
     const results = await Promise.allSettled(promises);
@@ -825,7 +949,7 @@ export class NpcSpriteManager {
   }
 
   debugStats() {
-    console.log('[NpcSpriteManager] 📊 === STATISTIQUES SPRITE SHEETS COMPLÈTES ===');
+    console.log('[NpcSpriteManager] 📊 === STATISTIQUES CORRIGÉES ===');
     console.table(this.stats);
     console.log('📦 Sprites chargés:', Array.from(this.loadedSprites));
     console.log('❌ Sprites en échec:', Array.from(this.failedSprites));
@@ -841,7 +965,7 @@ export class NpcSpriteManager {
   }
 
   cleanupUnusedSprites(activeSprites = []) {
-    console.log('[NpcSpriteManager] 🧹 Nettoyage sprites inutilisés (sheets)...');
+    console.log('[NpcSpriteManager] 🧹 Nettoyage sprites inutilisés...');
     
     let cleaned = 0;
     
@@ -865,7 +989,7 @@ export class NpcSpriteManager {
   }
 
   destroy() {
-    console.log('[NpcSpriteManager] 💀 Destruction avec sprite sheets...');
+    console.log('[NpcSpriteManager] 💀 Destruction...');
     
     if (this.activeLoadHandlers) {
       this.activeLoadHandlers.forEach((handlers, spriteKey) => {
@@ -896,7 +1020,7 @@ window.debugNpcSpriteManager = function() {
   
   if (manager) {
     const info = manager.getDebugInfo();
-    console.log('[NpcSpriteManager] === DEBUG INFO SPRITE SHEETS COMPLET ===');
+    console.log('[NpcSpriteManager] === DEBUG INFO CORRIGÉ ===');
     console.table(info.stats);
     console.log('[NpcSpriteManager] Info complète:', info);
     return info;
@@ -906,5 +1030,5 @@ window.debugNpcSpriteManager = function() {
   }
 };
 
-console.log('✅ NpcSpriteManager SPRITE SHEETS COMPLET chargé!');
+console.log('✅ NpcSpriteManager CORRIGÉ chargé!');
 console.log('🔍 Utilisez window.debugNpcSpriteManager() pour diagnostiquer');
