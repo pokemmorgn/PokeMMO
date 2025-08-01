@@ -2782,7 +2782,12 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
     const { npc } = req.body;
     
     console.log(`✏️ [NPCs API] Complete MongoDB update NPC ${npcId} in zone ${zoneId}`);
-    
+        // ✅ AJOUTEZ CES LOGS DE DEBUG ICI :
+    console.log('🔍 [NPCs API] Request body keys:', Object.keys(req.body));
+    console.log('🔍 [NPCs API] NPC data keys:', Object.keys(npc || {}));
+    console.log('🔍 [NPCs API] NPC shopId received:', npc?.shopId);
+    console.log('🔍 [NPCs API] NPC shopType received:', npc?.shopType);
+    console.log('🔍 [NPCs API] NPC type received:', npc?.type);
     if (!npc) {
       return res.status(400).json({
         success: false,
