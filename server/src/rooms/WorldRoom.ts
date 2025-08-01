@@ -2347,6 +2347,7 @@ async onJoin(client: Client, options: any = {}) {
 
     // Faire entrer le joueur dans sa zone initiale
     await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+    await this.onPlayerJoinZone(client, player.currentZone);
     this.scheduleFilteredStateUpdate();
 
     // Setup des quêtes avec délai
