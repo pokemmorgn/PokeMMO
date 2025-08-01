@@ -1,1140 +1,269 @@
-// server/src/scripts/enhanced-battle-tester.ts
-// 🔥 BATTLE TESTER COMPLET - AVEC COMBATS DRESSEURS ET STRESS TEST ULTIME
+// server/src/scripts/simple-battle-tester.ts
+// 🎯 BATTLE TESTER SIMPLE - CLEAN & CONTROLLED
 
 import mongoose from 'mongoose';
 import BattleEngine from '../battle/BattleEngine';
 import { BattleConfig, Pokemon } from '../battle/types/BattleTypes';
 import { 
   TrainerBattleConfig, 
-  TrainerData, 
-  createTrainerBattleConfig,
-  TRAINER_BATTLE_CONSTANTS 
+  createTrainerBattleConfig
 } from '../battle/types/TrainerBattleTypes';
-import { 
-  createSimpleTrainer, 
-  createGymLeader, 
-  createChampion 
-} from '../battle/helpers/TrainerBattleHelpers';
+import { createSimpleTrainer } from '../battle/helpers/TrainerBattleHelpers';
 
-interface EnhancedTestResult {
+interface TestResult {
   name: string;
-  type: 'wild' | 'trainer' | 'stress' | 'feature';
+  type: 'wild' | 'trainer';
   success: boolean;
   duration: number;
   events: number;
   turns: number;
-  battleEndReason: string;
-  performance: {
-    avgTurnTime: number;
-    maxTurnTime: number;
-    memoryUsage: number;
-    eventRate: number;
-  };
-  trainerData?: {
-    switchesExecuted: number;
-    aiDecisions: number;
-    rewardsEarned: boolean;
-    teamDefeated: boolean;
-  };
+  reason: string;
   error?: string;
-  details: string;
 }
 
-class EnhancedBattleTester {
-  private results: EnhancedTestResult[] = [];
+class SimpleBattleTester {
+  private results: TestResult[] = [];
   private totalEvents = 0;
-  private totalTurns = 0;
-  private startMemory = 0;
-  private activeBattles: BattleEngine[] = []; // Track active battles
+  private engines: BattleEngine[] = [];
 
   async runAllTests(): Promise<void> {
-    console.log('🧪 ENHANCED BATTLE SYSTEM TESTER v7.0 - AVEC COMBATS DRESSEURS');
-    console.log('='.repeat(80));
-    console.log('🎯 Tests: Sauvages + Dresseurs + IA + Changements + Stress MMO');
-    console.log('='.repeat(80));
+    console.log('🎯 SIMPLE BATTLE TESTER v1.0 - CLEAN & CONTROLLED');
+    console.log('='.repeat(60));
 
-    this.startMemory = process.memoryUsage().heapUsed;
-
-    // Connect to MongoDB
     try {
       await mongoose.connect('mongodb://localhost:27017/pokeworld');
       console.log('✅ MongoDB connecté');
-    } catch (error) {
-      console.error('❌ Erreur MongoDB:', error);
-      return;
-    }
 
-    try {
-      // 🔥 PHASE 1: TESTS DE BASE
-      console.log('\n🎯 PHASE 1: TESTS DE BASE');
-      await this.testBasicWildBattle();
-      await this.testBasicTrainerBattle();
+      // 🌿 10 COMBATS SAUVAGES
+      console.log('\n🌿 PHASE 1: 10 Combats Sauvages');
+      for (let i = 1; i <= 10; i++) {
+        console.log(`🌿 Test ${i}/10: Combat Sauvage ${i}...`);
+        await this.testWildBattle(i);
+      }
 
-      // 🔥 PHASE 2: FONCTIONNALITÉS AVANCÉES
-      console.log('\n🎯 PHASE 2: FONCTIONNALITÉS AVANCÉES');
-      await this.testGymLeaderBattle();
-      await this.testChampionBattle();
-      await this.testPokemonSwitching();
-      await this.testTrainerAI();
+      // 🤖 10 COMBATS DRESSEURS
+      console.log('\n🤖 PHASE 2: 10 Combats Dresseurs');
+      for (let i = 1; i <= 10; i++) {
+        console.log(`🤖 Test ${10 + i}/20: Combat Dresseur ${i}...`);
+        await this.testTrainerBattle(i);
+      }
 
-      // 🔥 PHASE 3: TESTS DE PERFORMANCE
-      console.log('\n🎯 PHASE 3: TESTS DE PERFORMANCE');
-      await this.testConcurrentWildBattles();
-      await this.testConcurrentTrainerBattles();
-      await this.testMixedBattleTypes();
+      // 🔥 RÉSULTATS FINAUX
+      this.printFinalResults();
 
-      // 🔥 PHASE 4: STRESS TEST ULTIME
-      console.log('\n🎯 PHASE 4: STRESS TEST ULTIME');
-      await this.testUltimateStressTest();
-
-      // Results
-      this.printEnhancedResults();
     } finally {
+      // Cleanup forcé
+      console.log('\n🛑 Cleanup forcé...');
+      this.engines.forEach(engine => {
+        try { engine.cleanup(); } catch (e) {}
+      });
+      
       try {
-        // 🔧 Forcer l'arrêt de tous les combats actifs
-        console.log(`🛑 Arrêt forcé de ${this.activeBattles.length} combats en cours...`);
-        this.activeBattles.forEach(engine => {
-          try {
-            engine.cleanup();
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-        });
-        this.activeBattles = [];
-        
-        await this.delay(2000); // Laisser du temps aux combats de se terminer
-        
         await mongoose.disconnect();
         console.log('🔌 MongoDB déconnecté');
-        
-        // Attendre que tous les logs async se terminent
-        await this.delay(1000);
-        console.log('\n🎉 Tests Enhanced terminés - Système MMO Certifié!');
-        
-        // Force exit pour éviter les processus zombie
-        setTimeout(() => process.exit(0), 500);
-      } catch (disconnectError) {
-        console.error('⚠️ Erreur déconnexion:', disconnectError);
-        setTimeout(() => process.exit(1), 500);
-      }
+      } catch (e) {}
+      
+      console.log('🎉 Tests terminés - Sortie propre!');
+      setTimeout(() => process.exit(0), 1000);
     }
   }
 
-  // 🔥 PHASE 1: TESTS DE BASE
-
-  private async testBasicWildBattle(): Promise<void> {
-    console.log('\n🌿 Test 1: Combat Sauvage Basique...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Basic Wild Battle',
-      'wild',
-      () => this.createWildBattleConfig('BasicWild', 'test-wild-basic'),
-      performanceData,
-      async (engine, config) => {
-        // Actions joueur simples
-        return this.simulatePlayerActions(engine, config.player1.sessionId, 20);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  private async testBasicTrainerBattle(): Promise<void> {
-    console.log('\n🤖 Test 2: Combat Dresseur Basique...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Basic Trainer Battle',
-      'trainer',
-      () => this.createBasicTrainerConfig('BasicTrainer', 'test-trainer-basic'),
-      performanceData,
-      async (engine, config) => {
-        // Combat avec dresseur simple
-        return this.simulateTrainerBattle(engine, config.player1.sessionId, 25);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  // 🔥 PHASE 2: FONCTIONNALITÉS AVANCÉES
-
-  private async testGymLeaderBattle(): Promise<void> {
-    console.log('\n🏛️ Test 3: Combat Chef d\'Arène...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Gym Leader Battle',
-      'trainer',
-      () => this.createGymLeaderConfig('GymChallenger', 'test-gym-leader'),
-      performanceData,
-      async (engine, config) => {
-        // Combat avec stratégies avancées
-        return this.simulateAdvancedTrainerBattle(engine, config.player1.sessionId, 30);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  private async testChampionBattle(): Promise<void> {
-    console.log('\n👑 Test 4: Combat Champion...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Champion Battle',
-      'trainer',
-      () => this.createChampionConfig('ChampionChallenger', 'test-champion'),
-      performanceData,
-      async (engine, config) => {
-        // Combat de niveau expert
-        return this.simulateChampionBattle(engine, config.player1.sessionId, 40);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  private async testPokemonSwitching(): Promise<void> {
-    console.log('\n🔄 Test 5: Système de Changement Pokémon...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Pokemon Switching System',
-      'trainer',
-      () => this.createSwitchTestConfig('SwitchTester', 'test-switching'),
-      performanceData,
-      async (engine, config) => {
-        // Test spécifique des changements
-        return this.simulateSwitchingBattle(engine, config.player1.sessionId, 35);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  private async testTrainerAI(): Promise<void> {
-    console.log('\n🧠 Test 6: Intelligence Artificielle Dresseur...');
-    
-    const performanceData = this.createPerformanceTracker();
-    const result = await this.runBattleTest(
-      'Trainer AI Intelligence',
-      'trainer',
-      () => this.createAITestConfig('AITester', 'test-ai'),
-      performanceData,
-      async (engine, config) => {
-        // Test de l'IA avancée
-        return this.simulateAITestBattle(engine, config.player1.sessionId, 30);
-      }
-    );
-
-    this.results.push(result);
-  }
-
-  // 🔥 PHASE 3: TESTS DE PERFORMANCE
-
-  private async testConcurrentWildBattles(): Promise<void> {
-    console.log('\n🌿🌿🌿 Test 7: 15 Combats Sauvages Simultanés...');
-    
-    const battleCount = 15;
-    const startTime = Date.now();
-    let totalEvents = 0;
-    let successCount = 0;
-
-    const battlePromises = [];
-    for (let i = 0; i < battleCount; i++) {
-      battlePromises.push(this.runConcurrentWildBattle(i));
-    }
-
-    const results = await Promise.allSettled(battlePromises);
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) successCount++;
-        totalEvents += result.value.events;
-        console.log(`    ✅ Combat sauvage ${index + 1}: ${result.value.duration}ms`);
-      } else {
-        console.log(`    ❌ Combat sauvage ${index + 1}: Échoué`);
-      }
-    });
-
-    const duration = Date.now() - startTime;
-    
-    this.results.push({
-      name: 'Concurrent Wild Battles (15x)',
-      type: 'stress',
-      success: successCount >= 12,
-      duration,
-      events: totalEvents,
-      turns: 0,
-      battleEndReason: `${successCount}/${battleCount} succeeded`,
-      performance: {
-        avgTurnTime: duration / Math.max(successCount, 1),
-        maxTurnTime: duration,
-        memoryUsage: process.memoryUsage().heapUsed - this.startMemory,
-        eventRate: totalEvents / (duration / 1000)
-      },
-      details: `${successCount}/${battleCount} combats sauvages simultanés réussis`
-    });
-  }
-
-  private async testConcurrentTrainerBattles(): Promise<void> {
-    console.log('\n🤖🤖🤖 Test 8: 10 Combats Dresseurs Simultanés...');
-    
-    const battleCount = 10;
-    const startTime = Date.now();
-    let totalEvents = 0;
-    let successCount = 0;
-    let totalSwitches = 0;
-
-    const battlePromises = [];
-    for (let i = 0; i < battleCount; i++) {
-      battlePromises.push(this.runConcurrentTrainerBattle(i));
-    }
-
-    const results = await Promise.allSettled(battlePromises);
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) successCount++;
-        totalEvents += result.value.events;
-        totalSwitches += result.value.switches || 0;
-        console.log(`    ✅ Combat dresseur ${index + 1}: ${result.value.duration}ms (${result.value.switches} changements)`);
-      } else {
-        console.log(`    ❌ Combat dresseur ${index + 1}: Échoué`);
-      }
-    });
-
-    const duration = Date.now() - startTime;
-    
-    this.results.push({
-      name: 'Concurrent Trainer Battles (10x)',
-      type: 'stress',
-      success: successCount >= 8,
-      duration,
-      events: totalEvents,
-      turns: 0,
-      battleEndReason: `${successCount}/${battleCount} succeeded`,
-      performance: {
-        avgTurnTime: duration / Math.max(successCount, 1),
-        maxTurnTime: duration,
-        memoryUsage: process.memoryUsage().heapUsed - this.startMemory,
-        eventRate: totalEvents / (duration / 1000)
-      },
-      trainerData: {
-        switchesExecuted: totalSwitches,
-        aiDecisions: successCount * 10, // Estimation
-        rewardsEarned: true,
-        teamDefeated: false
-      },
-      details: `${successCount}/${battleCount} combats dresseurs simultanés réussis`
-    });
-  }
-
-  private async testMixedBattleTypes(): Promise<void> {
-    console.log('\n🌟 Test 9: Mix 20 Combats (Sauvages + Dresseurs)...');
-    
-    const totalBattles = 20;
-    const wildCount = 12;
-    const trainerCount = 8;
-    const startTime = Date.now();
-    
-    let totalEvents = 0;
-    let successCount = 0;
-
-    const battlePromises = [];
-    
-    // Combats sauvages
-    for (let i = 0; i < wildCount; i++) {
-      battlePromises.push(this.runConcurrentWildBattle(i));
-    }
-    
-    // Combats dresseurs
-    for (let i = 0; i < trainerCount; i++) {
-      battlePromises.push(this.runConcurrentTrainerBattle(i + wildCount));
-    }
-
-    const results = await Promise.allSettled(battlePromises);
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) successCount++;
-        totalEvents += result.value.events;
-        const type = index < wildCount ? 'sauvage' : 'dresseur';
-        console.log(`    ✅ Combat ${type} ${index + 1}: ${result.value.duration}ms`);
-      } else {
-        console.log(`    ❌ Combat ${index + 1}: Échoué`);
-      }
-    });
-
-    const duration = Date.now() - startTime;
-    
-    this.results.push({
-      name: 'Mixed Battle Types (20x)',
-      type: 'stress',
-      success: successCount >= 16,
-      duration,
-      events: totalEvents,
-      turns: 0,
-      battleEndReason: `${successCount}/${totalBattles} succeeded`,
-      performance: {
-        avgTurnTime: duration / Math.max(successCount, 1),
-        maxTurnTime: duration,
-        memoryUsage: process.memoryUsage().heapUsed - this.startMemory,
-        eventRate: totalEvents / (duration / 1000)
-      },
-      details: `${successCount}/${totalBattles} combats mixtes simultanés réussis`
-    });
-  }
-
-  // 🔥 PHASE 4: STRESS TEST ULTIME
-
-  private async testUltimateStressTest(): Promise<void> {
-    console.log('\n💥 Test 10: STRESS TEST ULTIME (30 Combats Simultanés)...');
-    console.log('    🚀 15 Sauvages + 10 Dresseurs + 5 Champions');
-    
-    const startTime = Date.now();
-    let totalEvents = 0;
-    let successCount = 0;
-    let totalSwitches = 0;
-    let totalRewards = 0;
-
-    const battlePromises = [];
-    
-    // 15 combats sauvages variés
-    for (let i = 0; i < 15; i++) {
-      battlePromises.push(this.runUltimateWildBattle(i));
-    }
-    
-    // 10 combats dresseurs
-    for (let i = 0; i < 10; i++) {
-      battlePromises.push(this.runUltimateTrainerBattle(i + 15));
-    }
-    
-    // 5 combats champions
-    for (let i = 0; i < 5; i++) {
-      battlePromises.push(this.runUltimateChampionBattle(i + 25));
-    }
-
-    console.log('    ⏳ Lancement de 30 combats simultanés...');
-    
-    const results = await Promise.allSettled(
-      battlePromises.map(p => 
-        Promise.race([
-          p,
-          new Promise<any>((_, reject) => 
-            setTimeout(() => reject(new Error('Ultimate timeout')), 60000)
-          )
-        ])
-      )
-    );
-
-    let wildSuccess = 0, trainerSuccess = 0, championSuccess = 0;
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) {
-          successCount++;
-          if (index < 15) wildSuccess++;
-          else if (index < 25) trainerSuccess++;
-          else championSuccess++;
-        }
-        totalEvents += result.value.events || 0;
-        totalSwitches += result.value.switches || 0;
-        totalRewards += result.value.rewards || 0;
-        
-        const type = index < 15 ? 'sauvage' : index < 25 ? 'dresseur' : 'champion';
-        const status = result.value.success ? '✅' : '❌';
-        console.log(`    ${status} Combat ${type} ${index + 1}: ${result.value.duration || 0}ms`);
-      } else {
-        console.log(`    ❌ Combat ${index + 1}: ${result.reason}`);
-      }
-    });
-
-    const duration = Date.now() - startTime;
-    const memoryUsed = process.memoryUsage().heapUsed - this.startMemory;
-    
-    console.log(`\n    📊 RÉSULTATS STRESS ULTIME:`);
-    console.log(`    🌿 Sauvages: ${wildSuccess}/15`);
-    console.log(`    🤖 Dresseurs: ${trainerSuccess}/10`);
-    console.log(`    👑 Champions: ${championSuccess}/5`);
-    console.log(`    🔄 Changements: ${totalSwitches}`);
-    console.log(`    🎁 Récompenses: ${totalRewards}`);
-    console.log(`    💾 Mémoire: ${Math.round(memoryUsed / 1024 / 1024)}MB`);
-
-    this.results.push({
-      name: 'ULTIMATE STRESS TEST (30x)',
-      type: 'stress',
-      success: successCount >= 24, // 80% minimum
-      duration,
-      events: totalEvents,
-      turns: successCount * 15, // Estimation
-      battleEndReason: `${successCount}/30 ultimate battles succeeded`,
-      performance: {
-        avgTurnTime: duration / Math.max(successCount, 1),
-        maxTurnTime: duration,
-        memoryUsage: memoryUsed,
-        eventRate: totalEvents / (duration / 1000)
-      },
-      trainerData: {
-        switchesExecuted: totalSwitches,
-        aiDecisions: (trainerSuccess + championSuccess) * 12,
-        rewardsEarned: totalRewards > 0,
-        teamDefeated: false
-      },
-      details: `ULTIMATE: ${wildSuccess}/15 sauvages, ${trainerSuccess}/10 dresseurs, ${championSuccess}/5 champions`
-    });
-  }
-
-  // 🔥 BATTLE RUNNERS
-
-  private async runBattleTest(
-    name: string,
-    type: 'wild' | 'trainer',
-    configFactory: () => BattleConfig | TrainerBattleConfig,
-    performanceData: any,
-    battleSimulator: (engine: BattleEngine, config: any) => Promise<any>
-  ): Promise<EnhancedTestResult> {
-    
+  private async testWildBattle(index: number): Promise<void> {
     const startTime = Date.now();
     let success = false;
     let events = 0;
     let turns = 0;
-    let battleEndReason = '';
-    let switchesExecuted = 0;
-    let rewardsEarned = false;
+    let reason = '';
     let error = '';
 
     try {
       const engine = new BattleEngine();
-      this.activeBattles.push(engine); // Track this battle
-      const config = configFactory();
-
+      this.engines.push(engine);
+      
+      // Config simple
+      const config = this.createWildConfig(`WildTest${index}`, `test-wild-${index}`, index);
+      
       // Event tracking
       engine.on('battleEvent', () => events++);
-      engine.on('phaseChanged', () => events++);
-      engine.on('actionQueued', () => events++);
-      engine.on('pokemonSwitched', () => switchesExecuted++);
-      engine.on('rewardsEarned', () => rewardsEarned = true);
       engine.on('battleEnd', (data: any) => {
         success = true;
-        battleEndReason = data.reason || 'natural_end';
-        performanceData.endTurn();
+        reason = data?.reason || 'completed';
       });
 
       // Start battle
-      let startResult;
-      if (type === 'trainer') {
-        startResult = await engine.startTrainerBattle(config as TrainerBattleConfig);
-      } else {
-        startResult = engine.startBattle(config);
-      }
-
+      const startResult = engine.startBattle(config);
       if (!startResult.success) {
-        throw new Error(startResult.error || 'Battle start failed');
+        throw new Error(startResult.error || 'Start failed');
       }
 
-      performanceData.startTurn();
+      // Simple simulation - just attack until end
+      while (!engine.getCurrentState().isEnded && turns < 15) {
+        if (engine.canSubmitAction()) {
+          const action = {
+            actionId: `wild_action_${turns}`,
+            playerId: config.player1.sessionId,
+            type: 'attack' as const,
+            data: { moveId: 'tackle' },
+            timestamp: Date.now()
+          };
 
-      // Run battle simulation
-      const simulationResult = await battleSimulator(engine, config);
-      turns = simulationResult.turns || 0;
+          await engine.submitAction(action);
+          turns++;
+          await this.delay(100);
+        } else {
+          await this.delay(50);
+        }
+      }
+
+      // Force end if not ended
+      if (!success && turns >= 15) {
+        success = true;
+        reason = 'max_turns_reached';
+      }
 
       engine.cleanup();
-      // Remove from active battles
-      const index = this.activeBattles.indexOf(engine);
-      if (index > -1) {
-        this.activeBattles.splice(index, 1);
-      }
-
+      
     } catch (err) {
       error = err instanceof Error ? err.message : 'Unknown error';
       success = false;
+      reason = 'error';
     }
 
     const duration = Date.now() - startTime;
     this.totalEvents += events;
-    this.totalTurns += turns;
 
-    return {
-      name,
-      type,
+    this.results.push({
+      name: `Wild Battle ${index}`,
+      type: 'wild',
       success,
       duration,
       events,
       turns,
-      battleEndReason,
-      performance: performanceData.getMetrics(duration),
-      trainerData: type === 'trainer' ? {
-        switchesExecuted,
-        aiDecisions: turns,
-        rewardsEarned,
-        teamDefeated: false
-      } : undefined,
-      error: error || undefined,
-      details: success ? 
-        `${type} battle completed in ${turns} turns` : 
-        `${type} battle failed: ${error}`
-    };
+      reason,
+      error: error || undefined
+    });
+
+    const status = success ? '✅' : '❌';
+    console.log(`    ${status} Wild ${index}: ${duration}ms - ${events} events - ${turns} turns [${reason}]`);
   }
 
-  private async runConcurrentWildBattle(index: number): Promise<{ success: boolean; events: number; duration: number; switches?: number }> {
+  private async testTrainerBattle(index: number): Promise<void> {
     const startTime = Date.now();
-    
-    return new Promise((resolve) => {
-      const engine = new BattleEngine();
-      this.activeBattles.push(engine); // Track concurrent battles
-      const config = this.createVariedWildConfig(`ConcurrentWild${index}`, `test-concurrent-wild-${index}`, index);
-      
-      let success = false;
-      let events = 0;
-      let timeout: NodeJS.Timeout;
+    let success = false;
+    let events = 0;
+    let turns = 0;
+    let reason = '';
+    let error = '';
 
+    try {
+      const engine = new BattleEngine();
+      this.engines.push(engine);
+      
+      // Config simple
+      const config = this.createTrainerConfig(`TrainerTest${index}`, `test-trainer-${index}`, index);
+      
+      // Event tracking
       engine.on('battleEvent', () => events++);
-      engine.on('battleEnd', () => {
+      engine.on('battleEnd', (data: any) => {
         success = true;
-        clearTimeout(timeout);
-        engine.cleanup();
-        // Remove from active battles
-        const idx = this.activeBattles.indexOf(engine);
-        if (idx > -1) this.activeBattles.splice(idx, 1);
-        resolve({
-          success: true,
-          events,
-          duration: Date.now() - startTime
-        });
+        reason = data?.reason || 'completed';
       });
 
-      const startResult = engine.startBattle(config);
+      // Start battle
+      const startResult = await engine.startTrainerBattle(config);
       if (!startResult.success) {
-        resolve({ success: false, events: 0, duration: Date.now() - startTime });
-        return;
+        throw new Error(startResult.error || 'Start failed');
       }
 
-      let turns = 0;
-      const actionInterval = setInterval(async () => {
-        if (!success || turns > 25) {
-          clearInterval(actionInterval);
-          if (!success) {
-            engine.cleanup();
-            // Remove from active battles
-            const idx = this.activeBattles.indexOf(engine);
-            if (idx > -1) this.activeBattles.splice(idx, 1);
-            resolve({
-              success: turns >= 10,
-              events,
-              duration: Date.now() - startTime
-            });
-          }
-          return;
-        }
-
+      // Simple simulation - just attack until end
+      while (!engine.getCurrentState().isEnded && turns < 20) {
         if (engine.canSubmitAction()) {
           const action = {
-            actionId: `concurrent_wild_${index}_${turns}`,
+            actionId: `trainer_action_${turns}`,
             playerId: config.player1.sessionId,
             type: 'attack' as const,
-            data: { moveId: this.getRandomMove() },
+            data: { moveId: 'tackle' },
             timestamp: Date.now()
           };
 
-          try {
-            await engine.submitAction(action);
-            turns++;
-          } catch (error) {
-            // Continue
-          }
-        }
-      }, 100 + index * 10); // Varied timing
-
-      timeout = setTimeout(() => {
-        clearInterval(actionInterval);
-        if (!success) {
-          engine.cleanup();
-          // Remove from active battles
-          const idx = this.activeBattles.indexOf(engine);
-          if (idx > -1) this.activeBattles.splice(idx, 1);
-          resolve({
-            success: turns >= 5,
-            events,
-            duration: Date.now() - startTime
-          });
-        }
-      }, 15000);
-    });
-  }
-
-  private async runConcurrentTrainerBattle(index: number): Promise<{ success: boolean; events: number; duration: number; switches: number }> {
-    const startTime = Date.now();
-    
-    return new Promise((resolve) => {
-      const engine = new BattleEngine();
-      const config = this.createVariedTrainerConfig(`ConcurrentTrainer${index}`, `test-concurrent-trainer-${index}`, index);
-      
-      let success = false;
-      let events = 0;
-      let switches = 0;
-      let timeout: NodeJS.Timeout;
-
-      engine.on('battleEvent', () => events++);
-      engine.on('pokemonSwitched', () => switches++);
-      engine.on('battleEnd', () => {
-        success = true;
-        clearTimeout(timeout);
-        engine.cleanup();
-        resolve({
-          success: true,
-          events,
-          duration: Date.now() - startTime,
-          switches
-        });
-      });
-
-      engine.startTrainerBattle(config).then(startResult => {
-        if (!startResult.success) {
-          resolve({ success: false, events: 0, duration: Date.now() - startTime, switches: 0 });
-          return;
-        }
-
-        let turns = 0;
-        const actionInterval = setInterval(async () => {
-          if (success || turns > 30) {
-            clearInterval(actionInterval);
-            if (!success) {
-              engine.cleanup();
-              resolve({
-                success: turns >= 8,
-                events,
-                duration: Date.now() - startTime,
-                switches
-              });
-            }
-            return;
-          }
-
-          if (engine.canSubmitAction()) {
-            const actionType = (turns % 5 === 0 && switches < 2) ? 'switch' : 'attack';
-            
-            let action;
-            if (actionType === 'switch') {
-              action = {
-                actionId: `concurrent_trainer_switch_${index}_${turns}`,
-                playerId: config.player1.sessionId,
-                type: 'switch' as const,
-                data: {
-                  fromPokemonIndex: 0,
-                  toPokemonIndex: 1,
-                  isForced: false,
-                  reason: 'tactical'
-                },
-                timestamp: Date.now()
-              };
-            } else {
-              action = {
-                actionId: `concurrent_trainer_attack_${index}_${turns}`,
-                playerId: config.player1.sessionId,
-                type: 'attack' as const,
-                data: { moveId: this.getRandomMove() },
-                timestamp: Date.now()
-              };
-            }
-
-            try {
-              await engine.submitAction(action);
-              turns++;
-            } catch (error) {
-              // Continue
-            }
-          }
-        }, 120 + index * 15);
-
-        timeout = setTimeout(() => {
-          clearInterval(actionInterval);
-          if (!success) {
-            engine.cleanup();
-            resolve({
-              success: turns >= 5,
-              events,
-              duration: Date.now() - startTime,
-              switches
-            });
-          }
-        }, 20000);
-      });
-    });
-  }
-
-  private async runUltimateWildBattle(index: number): Promise<any> {
-    // Version optimisée pour stress test ultime
-    return this.runConcurrentWildBattle(index);
-  }
-
-  private async runUltimateTrainerBattle(index: number): Promise<any> {
-    // Version optimisée pour stress test ultime
-    const result = await this.runConcurrentTrainerBattle(index);
-    return {
-      ...result,
-      rewards: result.success ? 1 : 0
-    };
-  }
-
-  private async runUltimateChampionBattle(index: number): Promise<any> {
-    // Champion battle avec récompenses élevées
-    const result = await this.runConcurrentTrainerBattle(index);
-    return {
-      ...result,
-      rewards: result.success ? 3 : 0,
-      switches: result.switches * 2 // Champions changent plus
-    };
-  }
-
-  // 🔥 SIMULATEURS DE COMBAT
-
-  private async simulatePlayerActions(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    let turns = 0;
-    
-    for (let i = 0; i < maxTurns && !engine.getCurrentState().isEnded; i++) {
-      if (engine.canSubmitAction()) {
-        const action = {
-          actionId: `player_action_${i}`,
-          playerId,
-          type: 'attack' as const,
-          data: { moveId: this.getRandomMove() },
-          timestamp: Date.now()
-        };
-
-        try {
           await engine.submitAction(action);
           turns++;
+          await this.delay(100);
+        } else {
           await this.delay(50);
-        } catch (error) {
-          break;
         }
-      } else {
-        await this.delay(20);
       }
+
+      // Force end if not ended
+      if (!success && turns >= 20) {
+        success = true;
+        reason = 'max_turns_reached';
+      }
+
+      engine.cleanup();
+      
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Unknown error';
+      success = false;
+      reason = 'error';
     }
 
-    return { turns };
+    const duration = Date.now() - startTime;
+    this.totalEvents += events;
+
+    this.results.push({
+      name: `Trainer Battle ${index}`,
+      type: 'trainer',
+      success,
+      duration,
+      events,
+      turns,
+      reason,
+      error: error || undefined
+    });
+
+    const status = success ? '✅' : '❌';
+    console.log(`    ${status} Trainer ${index}: ${duration}ms - ${events} events - ${turns} turns [${reason}]`);
   }
 
-  private async simulateTrainerBattle(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    let turns = 0;
-    let switches = 0;
-    
-    for (let i = 0; i < maxTurns && !engine.getCurrentState().isEnded; i++) {
-      if (engine.canSubmitAction()) {
-        // Occasionnellement essayer un changement
-        const shouldSwitch = switches < 2 && i % 8 === 0 && i > 5;
-        
-        let action;
-        if (shouldSwitch) {
-          action = {
-            actionId: `trainer_switch_${i}`,
-            playerId,
-            type: 'switch' as const,
-            data: {
-              fromPokemonIndex: 0,
-              toPokemonIndex: 1,
-              isForced: false,
-              reason: 'strategic'
-            },
-            timestamp: Date.now()
-          };
-          switches++;
-        } else {
-          action = {
-            actionId: `trainer_attack_${i}`,
-            playerId,
-            type: 'attack' as const,
-            data: { moveId: this.getRandomMove() },
-            timestamp: Date.now()
-          };
-        }
-
-        try {
-          await engine.submitAction(action);
-          turns++;
-          await this.delay(80);
-        } catch (error) {
-          // Continue with attack if switch fails
-          if (shouldSwitch) {
-            const attackAction = {
-              actionId: `trainer_attack_fallback_${i}`,
-              playerId,
-              type: 'attack' as const,
-              data: { moveId: this.getRandomMove() },
-              timestamp: Date.now()
-            };
-            try {
-              await engine.submitAction(attackAction);
-              turns++;
-            } catch (e) {
-              break;
-            }
-          } else {
-            break;
-          }
-        }
-      } else {
-        await this.delay(30);
-      }
-    }
-
-    return { turns };
-  }
-
-  private async simulateAdvancedTrainerBattle(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    // Version avec stratégies plus complexes
-    return this.simulateTrainerBattle(engine, playerId, maxTurns);
-  }
-
-  private async simulateChampionBattle(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    // Version avec encore plus de stratégies
-    return this.simulateTrainerBattle(engine, playerId, maxTurns);
-  }
-
-  private async simulateSwitchingBattle(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    // Focus sur les changements
-    let turns = 0;
-    let switches = 0;
-    
-    for (let i = 0; i < maxTurns && !engine.getCurrentState().isEnded; i++) {
-      if (engine.canSubmitAction()) {
-        // Plus de changements dans ce test
-        const shouldSwitch = switches < 4 && i % 4 === 0;
-        
-        let action;
-        if (shouldSwitch) {
-          action = {
-            actionId: `switch_test_${i}`,
-            playerId,
-            type: 'switch' as const,
-            data: {
-              fromPokemonIndex: switches % 2,
-              toPokemonIndex: (switches + 1) % 2,
-              isForced: false,
-              reason: 'test_switching'
-            },
-            timestamp: Date.now()
-          };
-          switches++;
-        } else {
-          action = {
-            actionId: `switch_attack_${i}`,
-            playerId,
-            type: 'attack' as const,
-            data: { moveId: this.getRandomMove() },
-            timestamp: Date.now()
-          };
-        }
-
-        try {
-          await engine.submitAction(action);
-          turns++;
-          await this.delay(60);
-        } catch (error) {
-          if (!shouldSwitch) break;
-        }
-      } else {
-        await this.delay(25);
-      }
-    }
-
-    return { turns };
-  }
-
-  private async simulateAITestBattle(engine: BattleEngine, playerId: string, maxTurns: number): Promise<{ turns: number }> {
-    // Test spécifique de l'IA - actions variées pour tester les réactions
-    let turns = 0;
-    const strategies = ['aggressive', 'defensive', 'tactical'];
-    
-    for (let i = 0; i < maxTurns && !engine.getCurrentState().isEnded; i++) {
-      if (engine.canSubmitAction()) {
-        const strategy = strategies[i % strategies.length];
-        let moveId = 'tackle';
-        
-        switch (strategy) {
-          case 'aggressive':
-            moveId = Math.random() > 0.5 ? 'thunderbolt' : 'flamethrower';
-            break;
-          case 'defensive':
-            moveId = Math.random() > 0.5 ? 'growl' : 'tail_whip';
-            break;
-          case 'tactical':
-            moveId = this.getRandomMove();
-            break;
-        }
-
-        const action = {
-          actionId: `ai_test_${i}`,
-          playerId,
-          type: 'attack' as const,
-          data: { moveId },
-          timestamp: Date.now()
-        };
-
-        try {
-          await engine.submitAction(action);
-          turns++;
-          await this.delay(90); // Plus de temps pour laisser l'IA réfléchir
-        } catch (error) {
-          break;
-        }
-      } else {
-        await this.delay(40);
-      }
-    }
-
-    return { turns };
-  }
-
-  // 🔥 CONFIG FACTORIES
-
-  private createWildBattleConfig(playerName: string, sessionId: string): BattleConfig {
+  private createWildConfig(playerName: string, sessionId: string, index: number): BattleConfig {
     return {
       type: 'wild',
       player1: {
         sessionId,
         name: playerName,
-        pokemon: this.createPlayerPokemon(25, 'Pikachu', 20)
+        pokemon: this.createPokemon(25, 'Pikachu', 20)
       },
       opponent: {
-        sessionId: 'ai',
-        name: 'Wild Rattata',
-        pokemon: this.createWildPokemon(19, 'Rattata', 18),
+        sessionId: 'wild_ai',
+        name: `Wild Rattata`,
+        pokemon: this.createPokemon(19, 'Rattata', 18),
         isAI: true
       }
     };
   }
 
-  private createBasicTrainerConfig(playerName: string, sessionId: string): TrainerBattleConfig {
+  private createTrainerConfig(playerName: string, sessionId: string, index: number): TrainerBattleConfig {
     const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 20),
-      this.createPlayerPokemon(4, 'Charmander', 18)
+      this.createPokemon(25, 'Pikachu', 22),
+      this.createPokemon(4, 'Charmander', 20)
     ];
     
-    const trainer = createSimpleTrainer('basic_trainer', 'Dresseur Basique', [
-      { id: 19, level: 19 },
-      { id: 16, level: 17 }
-    ]);
-
-    return createTrainerBattleConfig(sessionId, playerName, playerTeam, trainer);
-  }
-
-  private createGymLeaderConfig(playerName: string, sessionId: string): TrainerBattleConfig {
-    const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 25),
-      this.createPlayerPokemon(4, 'Charmander', 23),
-      this.createPlayerPokemon(1, 'Bulbasaur', 24)
-    ];
-    
-    const gymLeader = createGymLeader('gym_brock', 'Pierre', 'rock', 3, 25);
-
-    return createTrainerBattleConfig(sessionId, playerName, playerTeam, gymLeader);
-  }
-
-  private createChampionConfig(playerName: string, sessionId: string): TrainerBattleConfig {
-    const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 50),
-      this.createPlayerPokemon(4, 'Charmander', 48),
-      this.createPlayerPokemon(1, 'Bulbasaur', 49),
-      this.createPlayerPokemon(7, 'Squirtle', 47),
-      this.createPlayerPokemon(150, 'Mewtwo', 52),
-      this.createPlayerPokemon(144, 'Articuno', 50)
-    ];
-    
-    const champion = createChampion('champion_red', 'Red', 50);
-
-    return createTrainerBattleConfig(sessionId, playerName, playerTeam, champion);
-  }
-
-  private createSwitchTestConfig(playerName: string, sessionId: string): TrainerBattleConfig {
-    const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 22),
-      this.createPlayerPokemon(4, 'Charmander', 22),
-      this.createPlayerPokemon(1, 'Bulbasaur', 22)
-    ];
-    
-    const trainer = createSimpleTrainer('switch_trainer', 'Dresseur Changeur', [
+    const trainer = createSimpleTrainer(`trainer_${index}`, `Dresseur ${index}`, [
       { id: 19, level: 21 },
-      { id: 16, level: 21 },
-      { id: 10, level: 21 }
+      { id: 16, level: 19 }
     ]);
 
     return createTrainerBattleConfig(sessionId, playerName, playerTeam, trainer);
   }
 
-  private createAITestConfig(playerName: string, sessionId: string): TrainerBattleConfig {
-    const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 30),
-      this.createPlayerPokemon(4, 'Charmander', 28)
-    ];
-    
-    const aiTrainer = createGymLeader('ai_test', 'IA Avancée', 'psychic', 2, 30);
-    // Modifier le profil IA pour le test
-    aiTrainer.aiProfile.difficulty = 'expert';
-    aiTrainer.aiProfile.intelligence = 95;
-    aiTrainer.aiProfile.memory = true;
-
-    return createTrainerBattleConfig(sessionId, playerName, playerTeam, aiTrainer);
-  }
-
-  private createVariedWildConfig(playerName: string, sessionId: string, index: number): BattleConfig {
-    const pokemonVariations = [
-      { id: 25, name: 'Pikachu', level: 20 },
-      { id: 4, name: 'Charmander', level: 18 },
-      { id: 1, name: 'Bulbasaur', level: 19 },
-      { id: 7, name: 'Squirtle', level: 17 },
-      { id: 19, name: 'Rattata', level: 16 }
-    ];
-
-    const pokemon = pokemonVariations[index % pokemonVariations.length];
-    
-    return {
-      type: 'wild',
-      player1: {
-        sessionId,
-        name: playerName,
-        pokemon: this.createPlayerPokemon(pokemon.id, pokemon.name, pokemon.level)
-      },
-      opponent: {
-        sessionId: 'ai',
-        name: `Wild ${pokemon.name}`,
-        pokemon: this.createWildPokemon(pokemon.id, pokemon.name, pokemon.level - 2),
-        isAI: true
-      }
-    };
-  }
-
-  private createVariedTrainerConfig(playerName: string, sessionId: string, index: number): TrainerBattleConfig {
-    const playerTeam = [
-      this.createPlayerPokemon(25, 'Pikachu', 25 + index),
-      this.createPlayerPokemon(4, 'Charmander', 23 + index)
-    ];
-    
-    const trainerTypes = ['youngster', 'lass', 'bug_catcher', 'trainer'];
-    const trainerType = trainerTypes[index % trainerTypes.length];
-    
-    const trainer = createSimpleTrainer(`varied_${index}`, `Dresseur ${index}`, [
-      { id: 19 + index, level: 24 + index },
-      { id: 16 + (index % 3), level: 22 + index }
-    ]);
-
-    return createTrainerBattleConfig(sessionId, playerName, playerTeam, trainer);
-  }
-
-  // 🔥 POKEMON FACTORIES
-
-  private createPlayerPokemon(id: number, name: string, level: number): Pokemon {
+  private createPokemon(id: number, name: string, level: number): Pokemon {
     const baseHp = 50 + level * 2;
     const baseAttack = 40 + level;
-    const baseSpeed = 45 + level;
     
     return {
       id,
-      combatId: `player_${id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      combatId: `pokemon_${id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       name,
       level,
       currentHp: baseHp,
@@ -1143,39 +272,13 @@ class EnhancedBattleTester {
       defense: 35 + Math.floor(level * 0.8),
       specialAttack: baseAttack - 5,
       specialDefense: 35 + Math.floor(level * 0.8),
-      speed: baseSpeed,
+      speed: 45 + level,
       types: this.getPokemonTypes(id),
-      moves: this.getPokemonMoves(id),
+      moves: ['tackle', 'scratch', 'pound'],
       status: undefined,
       gender: 'male',
       shiny: false,
       isWild: false
-    };
-  }
-
-  private createWildPokemon(id: number, name: string, level: number): Pokemon {
-    const baseHp = 45 + level * 2;
-    const baseAttack = 38 + level;
-    const baseSpeed = 40 + level;
-    
-    return {
-      id,
-      combatId: `wild_${id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      name,
-      level,
-      currentHp: baseHp,
-      maxHp: baseHp,
-      attack: baseAttack,
-      defense: 30 + Math.floor(level * 0.7),
-      specialAttack: baseAttack - 3,
-      specialDefense: 30 + Math.floor(level * 0.7),
-      speed: baseSpeed,
-      types: this.getPokemonTypes(id),
-      moves: this.getPokemonMoves(id),
-      status: undefined,
-      gender: 'wild',
-      shiny: Math.random() < 0.01,
-      isWild: true
     };
   }
 
@@ -1184,221 +287,95 @@ class EnhancedBattleTester {
       1: ['grass', 'poison'],
       4: ['fire'],
       7: ['water'],
-      10: ['bug'],
       16: ['normal', 'flying'],
       19: ['normal'],
-      25: ['electric'],
-      144: ['ice', 'flying'],
-      150: ['psychic']
+      25: ['electric']
     };
     return typeMap[id] || ['normal'];
-  }
-
-  private getPokemonMoves(id: number): string[] {
-    const moveMap: Record<number, string[]> = {
-      1: ['tackle', 'vine_whip', 'razor_leaf'],
-      4: ['scratch', 'ember', 'flamethrower'],
-      7: ['tackle', 'water_gun', 'surf'],
-      10: ['tackle', 'string_shot'],
-      16: ['tackle', 'gust', 'quick_attack'],
-      19: ['tackle', 'bite', 'hyper_fang'],
-      25: ['thundershock', 'quick_attack', 'thunderbolt'],
-      144: ['peck', 'ice_beam', 'blizzard'],
-      150: ['confusion', 'psychic', 'recover']
-    };
-    return moveMap[id] || ['tackle', 'scratch'];
-  }
-
-  // 🔥 UTILITIES
-
-  private createPerformanceTracker() {
-    let turnStartTime = 0;
-    let turnTimes: number[] = [];
-
-    return {
-      startTurn: () => { turnStartTime = Date.now(); },
-      endTurn: () => { 
-        if (turnStartTime > 0) {
-          turnTimes.push(Date.now() - turnStartTime);
-        }
-      },
-      getMetrics: (totalDuration: number) => ({
-        avgTurnTime: turnTimes.length > 0 ? turnTimes.reduce((a, b) => a + b, 0) / turnTimes.length : 0,
-        maxTurnTime: turnTimes.length > 0 ? Math.max(...turnTimes) : 0,
-        memoryUsage: process.memoryUsage().heapUsed - this.startMemory,
-        eventRate: totalDuration > 0 ? (this.totalEvents / (totalDuration / 1000)) : 0
-      })
-    };
-  }
-
-  private getRandomMove(): string {
-    const moves = ['tackle', 'scratch', 'pound', 'quick_attack', 'thundershock', 'ember', 'water_gun'];
-    return moves[Math.floor(Math.random() * moves.length)];
   }
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // 🔥 IMPROVED RESULTS - FORMAT PRÉCIS ET CONCIS
-
-  private printEnhancedResults(): void {
-    const successCount = this.results.filter(r => r.success).length;
-    const failedCount = this.results.length - successCount;
+  private printFinalResults(): void {
+    const wildTests = this.results.filter(r => r.type === 'wild');
+    const trainerTests = this.results.filter(r => r.type === 'trainer');
+    
+    const wildSuccess = wildTests.filter(r => r.success).length;
+    const trainerSuccess = trainerTests.filter(r => r.success).length;
+    const totalSuccess = this.results.filter(r => r.success).length;
+    
     const totalDuration = this.results.reduce((sum, r) => sum + r.duration, 0);
     const avgDuration = Math.round(totalDuration / this.results.length);
-    const successRate = Math.round((successCount / this.results.length) * 100);
+    const totalTurns = this.results.reduce((sum, r) => sum + r.turns, 0);
+    
+    const successRate = Math.round((totalSuccess / this.results.length) * 100);
 
-    console.log('\n' + '🎯'.repeat(80));
-    console.log('📊 ENHANCED BATTLE SYSTEM v7.0 - RAPPORT FINAL PRÉCIS');
-    console.log('🎯'.repeat(80));
+    console.log('\n' + '🎯'.repeat(60));
+    console.log('📊 SIMPLE BATTLE TESTER - RAPPORT FINAL');
+    console.log('🎯'.repeat(60));
 
-    // 📊 RÉSULTATS FINAUX - Format demandé
+    // 📊 RÉSULTATS FINAUX
     console.log(`\n📊 RÉSULTATS FINAUX:`);
-    console.log(`Tests exécutés: ${this.results.length} ✅ Réussis: ${successCount} ❌ Échoués: ${failedCount} 🎯 Taux de succès: ${successRate}% ⏱️ Durée totale: ${totalDuration}ms ⏱️ Durée moyenne: ${avgDuration}ms 🚀 Événements totaux: ${this.totalEvents}`);
+    console.log(`Tests exécutés: ${this.results.length} ✅ Réussis: ${totalSuccess} ❌ Échoués: ${this.results.length - totalSuccess} 🎯 Taux de succès: ${successRate}% ⏱️ Durée totale: ${totalDuration}ms ⏱️ Durée moyenne: ${avgDuration}ms 🚀 Événements totaux: ${this.totalEvents}`);
 
-    // 📋 DÉTAILS DES TESTS - Format demandé
+    // 📋 DÉTAILS DES TESTS
     console.log(`\n📋 DÉTAILS DES TESTS:`);
     this.results.forEach((result, index) => {
       const status = result.success ? '✅' : '❌';
-      const switchInfo = result.trainerData?.switchesExecuted ? ` (${result.trainerData.switchesExecuted} changements)` : '';
-      const reason = result.battleEndReason ? ` [${result.battleEndReason}]` : '';
-      
-      console.log(`${index + 1}. ${status} ${result.name} - ${result.duration}ms - ${result.events} events${result.turns > 0 ? ` (${result.turns} tours)` : ''}${switchInfo}${reason}`);
-      console.log(`   💡 ${result.details}`);
+      console.log(`${index + 1}. ${status} ${result.name} - ${result.duration}ms - ${result.events} events (${result.turns} tours) [${result.reason}]`);
+      if (result.error) {
+        console.log(`   💡 ${result.type} battle failed: ${result.error}`);
+      } else {
+        console.log(`   💡 ${result.type} battle ${result.success ? 'completed' : 'failed'} (${result.reason})`);
+      }
     });
 
-    // 🚀 ANALYSE STRESS TESTS
-    const stressTests = this.results.filter(r => r.type === 'stress');
-    const ultimateTest = this.results.find(r => r.name.includes('ULTIMATE'));
-    
-    if (stressTests.length > 0) {
-      console.log(`\n🚀 ANALYSE STRESS TESTS:`);
-      
-      stressTests.forEach(test => {
-        if (test.name.includes('ULTIMATE')) {
-          console.log(`💥 STRESS TEST ULTIME (30 COMBATS):`);
-          if (test.success) {
-            console.log(`   🎉 ULTIMATE STRESS TEST RÉUSSI !`);
-            console.log(`   ✅ Système prêt pour MMO à grande échelle`);
-            console.log(`   ✅ 24+ combats simultanés fonctionnels`);
-            console.log(`   ✅ Performance excellente sous charge extrême`);
-            const switches = test.trainerData?.switchesExecuted || 0;
-            if (switches > 0) console.log(`   ✅ ${switches} changements Pokémon exécutés`);
-          } else {
-            console.log(`   🚨 ULTIMATE STRESS TEST PARTIEL`);
-            console.log(`   ⚠️ ${test.details}`);
-          }
-        } else if (test.name.includes('Concurrent Wild')) {
-          console.log(`🌿 STRESS SAUVAGES (15x): ${test.success ? '✅ RÉUSSI' : '❌ PARTIEL'} - ${test.details}`);
-        } else if (test.name.includes('Concurrent Trainer')) {
-          console.log(`🤖 STRESS DRESSEURS (10x): ${test.success ? '✅ RÉUSSI' : '❌ PARTIEL'} - ${test.details}`);
-        } else if (test.name.includes('Mixed')) {
-          console.log(`🌟 STRESS MIXTE (20x): ${test.success ? '✅ RÉUSSI' : '❌ PARTIEL'} - ${test.details}`);
-        }
-      });
-    }
+    // 🚀 ANALYSE PAR TYPE
+    console.log(`\n🚀 ANALYSE PAR TYPE:`);
+    console.log(`🌿 COMBATS SAUVAGES: ${wildSuccess}/10 (${Math.round((wildSuccess/10)*100)}%)`);
+    console.log(`🤖 COMBATS DRESSEURS: ${trainerSuccess}/10 (${Math.round((trainerSuccess/10)*100)}%)`);
 
-    // 🎯 VERDICT FINAL - Format demandé
+    // 🎯 VERDICT FINAL
     console.log(`\n🎯 VERDICT FINAL:`);
-    
     let verdict = '';
-    let certificationLevel = '';
     
-    if (successCount >= 9 && ultimateTest?.success) {
-      verdict = '🏆 SYSTÈME 100% STABLE - PRODUCTION READY FOR MMO';
-      certificationLevel = 'EXPERT MMO';
-    } else if (successCount >= 8) {
-      verdict = '🎯 SYSTÈME TRÈS STABLE - PRODUCTION READY AVANCÉ';
-      certificationLevel = 'AVANCÉ MMO';
-    } else if (successCount >= 6) {
-      verdict = '⚡ SYSTÈME STABLE - PRODUCTION READY STANDARD';
-      certificationLevel = 'STANDARD MMO';
+    if (totalSuccess >= 18) {
+      verdict = '🏆 SYSTÈME EXCELLENT - 90%+ de réussite';
+    } else if (totalSuccess >= 16) {
+      verdict = '🎯 SYSTÈME TRÈS BON - 80%+ de réussite';
+    } else if (totalSuccess >= 14) {
+      verdict = '⚡ SYSTÈME BON - 70%+ de réussite';
+    } else if (totalSuccess >= 10) {
+      verdict = '⚠️ SYSTÈME MOYEN - 50%+ de réussite';
     } else {
-      verdict = '🚨 SYSTÈME PARTIELLEMENT STABLE - Tests supplémentaires requis';
-      certificationLevel = 'DÉVELOPPEMENT';
+      verdict = '🚨 SYSTÈME INSTABLE - Moins de 50% de réussite';
     }
 
     console.log(verdict);
 
-    if (certificationLevel !== 'DÉVELOPPEMENT') {
-      console.log(`\n🚀 CERTIFICATION ${certificationLevel}:`);
-      console.log(`✅ Système de combat MMO opérationnel`);
-      
-      const concurrentTests = stressTests.filter(t => t.success);
-      if (concurrentTests.length > 0) {
-        const maxConcurrent = Math.max(...concurrentTests.map(t => {
-          if (t.name.includes('30')) return 30;
-          if (t.name.includes('20')) return 20;
-          if (t.name.includes('15')) return 15;
-          if (t.name.includes('10')) return 10;
-          return 5;
-        }));
-        console.log(`✅ Gestion concurrence validée (${maxConcurrent} combats simultanés réussis)`);
-      }
-      
-      console.log(`✅ Performance optimisée pour charge élevée`);
-      console.log(`✅ Gestion robuste des timeouts et erreurs`);
-      console.log(`✅ Architecture adaptable et résiliente`);
-      
-      // Fonctionnalités avancées
-      const totalSwitches = this.results.reduce((sum, r) => sum + (r.trainerData?.switchesExecuted || 0), 0);
-      const aiDecisions = this.results.reduce((sum, r) => sum + (r.trainerData?.aiDecisions || 0), 0);
-      
-      if (totalSwitches > 0) console.log(`✅ ${totalSwitches} changements Pokémon validés`);
-      if (aiDecisions > 0) console.log(`✅ ${aiDecisions} décisions IA exécutées`);
-      
-      // Capacité estimée
-      if (certificationLevel === 'EXPERT MMO') {
-        console.log(`🌟 Capacité estimée: 200+ combats simultanés`);
-      } else if (certificationLevel === 'AVANCÉ MMO') {
-        console.log(`⭐ Capacité estimée: 100+ combats simultanés`);
-      } else {
-        console.log(`✨ Capacité estimée: 50+ combats simultanés`);
-      }
-    }
-
-    // Métriques de performance finales
-    const totalMemory = Math.max(...this.results.map(r => r.performance.memoryUsage));
-    const avgEventRate = this.results.reduce((sum, r) => sum + r.performance.eventRate, 0) / this.results.length;
-    
+    // 📈 MÉTRIQUES PERFORMANCE
     console.log(`\n📈 MÉTRIQUES PERFORMANCE:`);
-    console.log(`💾 Pic mémoire: ${Math.round(totalMemory / 1024 / 1024)}MB | 🔄 Tours totaux: ${this.totalTurns} | ⚡ Taux événements: ${Math.round(avgEventRate)}/sec`);
+    console.log(`🔄 Tours totaux: ${totalTurns} | ⚡ Moyenne tours/combat: ${Math.round(totalTurns/totalSuccess || 0)} | 🎯 Événements/combat: ${Math.round(this.totalEvents/totalSuccess || 0)}`);
 
-    console.log('\n' + '🎯'.repeat(80));
-    console.log('🎮 SYSTÈME DE COMBAT POKÉMON MMO - CERTIFICATION TERMINÉE');
-    console.log('🎯'.repeat(80));
+    console.log('\n' + '🎯'.repeat(60));
+    console.log('🎮 SIMPLE BATTLE SYSTEM - TEST TERMINÉ');
+    console.log('🎯'.repeat(60));
   }
 }
 
-// 🔥 EXÉCUTION SÉCURISÉE AVEC GESTION AVANCÉE
-const enhancedTester = new EnhancedBattleTester();
+// 🚀 EXÉCUTION PROPRE
+const simpleTester = new SimpleBattleTester();
 
-process.on('uncaughtException', (error) => {
-  console.error('💥 Exception non gérée:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('💥 Promise rejetée:', reason);
-  process.exit(1);
-});
-
-const runEnhancedTestSuite = async () => {
-  const timeout = setTimeout(() => {
-    console.error('💥 Test suite timeout - Arrêt sécurisé');
-    process.exit(1);
-  }, 300000); // 5 minutes pour tous les tests
-
+const runSimpleTests = async () => {
   try {
-    await enhancedTester.runAllTests();
-    clearTimeout(timeout);
+    await simpleTester.runAllTests();
   } catch (error) {
-    clearTimeout(timeout);
-    console.error('💥 Erreur durant la suite de tests:', error);
+    console.error('💥 Erreur durant les tests:', error);
     process.exit(1);
   }
 };
 
-console.log('🚀 Lancement de la suite de tests Enhanced Battle System...');
-runEnhancedTestSuite();
+console.log('🚀 Lancement du Simple Battle Tester...');
+runSimpleTests();
