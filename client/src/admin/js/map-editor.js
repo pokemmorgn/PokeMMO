@@ -609,21 +609,11 @@ placeGenericObject(tileX, tileY) {
     let newObject
     
     if (this.selectedTool === 'npc') {
-        // ✅ NOUVEAU : Placement spécifique pour NPCs
-        newObject = {
-            id: `npc_${Date.now()}`,
-            type: 'npc',
-            x: tileX,
-            y: tileY,
-            name: `NPC_${tileX}_${tileY}`,
-            sprite: 'npc_default',
-            direction: 'south',
-            npcType: 'dialogue',
-            isFromMap: false,
-            dialogues: ['Bonjour !'],
-            interactionRadius: 32,
-            customProperties: {}
-        }
+        // ✅ FIX : Créer un NPC COMPLET avec tous les champs selon le type
+        const npcType = 'dialogue' // Type par défaut, ou demander à l'utilisateur
+        
+        newObject = this.createCompleteNPC(tileX, tileY, npcType)
+        
     } else {
         // Placement générique pour autres objets
         newObject = {
@@ -644,6 +634,181 @@ placeGenericObject(tileX, tileY) {
     )
 }
 
+// ✅ NOUVELLE MÉTHODE : Créer un NPC complet selon son type
+createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
+    // Base NPC
+    const baseNPC = {
+        id: `npc_${Date.now()}`,
+        type: 'npc',
+        x: tileX,
+        y: tileY,
+        name: `NPC_${tileX}_${tileY}`,
+        sprite: 'npc_default.png',
+        direction: 'south',
+        npcType: npcType,
+        isFromMap: false,
+        
+        // Champs communs à tous les NPCs
+        interactionRadius: 32,
+        canWalkAway: true,
+        autoFacePlayer: true,
+        repeatable: true,
+        cooldownSeconds: 0,
+        
+        // Position au format attendu par l'éditeur
+        position: {
+            x: tileX * (this.currentMapData?.tilewidth || 32),
+            y: tileY * (this.currentMapData?.tileheight || 32)
+        }
+    }
+    
+    // ✅ Ajouter les champs spécifiques selon le type
+    switch (npcType) {
+        case 'dialogue':
+            Object.assign(baseNPC, {
+                dialogueId: '',
+                dialogueIds: [],
+                conditionalDialogueIds: {},
+                zoneInfo: {}
+            })
+            break
+            
+        case 'merchant':
+            Object.assign(baseNPC, {
+                shopId: '', // ✅ IMPORTANT : Créer le champ vide
+                shopType: 'pokemart',
+                shopConfig: {},
+                shopDialogueIds: {},
+                businessHours: {},
+                accessRestrictions: {}
+            })
+            break
+            
+        case 'trainer':
+            Object.assign(baseNPC, {
+                trainerId: '',
+                trainerClass: 'youngster',
+                trainerRank: 1,
+                trainerTitle: '',
+                battleConfig: {},
+                battleDialogueIds: {},
+                rewards: {},
+                rebattle: {},
+                visionConfig: {},
+                battleConditions: {},
+                progressionFlags: {}
+            })
+            break
+            
+        case 'healer':
+            Object.assign(baseNPC, {
+                healerConfig: {},
+                healerDialogueIds: {},
+                additionalServices: {},
+                serviceRestrictions: {}
+            })
+            break
+            
+        case 'gym_leader':
+            Object.assign(baseNPC, {
+                trainerId: '',
+                trainerClass: 'gym_leader',
+                gymConfig: {},
+                battleConfig: {},
+                challengeConditions: {},
+                gymDialogueIds: {},
+                gymRewards: {},
+                rematchConfig: {}
+            })
+            break
+            
+        case 'transport':
+            Object.assign(baseNPC, {
+                transportConfig: {},
+                destinations: [],
+                schedules: [],
+                transportDialogueIds: {},
+                weatherRestrictions: {}
+            })
+            break
+            
+        case 'service':
+            Object.assign(baseNPC, {
+                serviceConfig: {},
+                availableServices: [],
+                serviceDialogueIds: {},
+                serviceRestrictions: {}
+            })
+            break
+            
+        case 'minigame':
+            Object.assign(baseNPC, {
+                minigameConfig: {},
+                contestCategories: [],
+                contestRewards: {},
+                contestDialogueIds: {},
+                contestSchedule: {}
+            })
+            break
+            
+        case 'researcher':
+            Object.assign(baseNPC, {
+                researchConfig: {},
+                researchServices: [],
+                acceptedPokemon: {},
+                researchDialogueIds: {},
+                researchRewards: {}
+            })
+            break
+            
+        case 'guild':
+            Object.assign(baseNPC, {
+                guildConfig: {},
+                recruitmentRequirements: {},
+                guildServices: [],
+                guildDialogueIds: {},
+                rankSystem: {}
+            })
+            break
+            
+        case 'event':
+            Object.assign(baseNPC, {
+                eventConfig: {},
+                eventPeriod: {},
+                eventActivities: [],
+                eventDialogueIds: {},
+                globalProgress: {}
+            })
+            break
+            
+        case 'quest_master':
+            Object.assign(baseNPC, {
+                questMasterConfig: {},
+                questMasterDialogueIds: {},
+                questRankSystem: {},
+                epicRewards: {},
+                specialConditions: {}
+            })
+            break
+            
+        default:
+            // Type inconnu, juste les champs de base
+            break
+    }
+    
+    // Champs communs de quêtes pour tous
+    Object.assign(baseNPC, {
+        questsToGive: [],
+        questsToEnd: [],
+        questRequirements: {},
+        questDialogueIds: {},
+        spawnConditions: {}
+    })
+    
+    console.log(`🎯 [MapEditor] Created complete ${npcType} NPC with all fields:`, Object.keys(baseNPC))
+    
+    return baseNPC
+}
     // ==============================
     // PROPRIÉTÉS DES ITEMS
     // ==============================
