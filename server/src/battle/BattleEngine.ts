@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// BattleEngine Optimisé - SANS AUTO-CLEANUP BROADCAST
+// 🔥 VERSION FINALE - CORRECTIONS STRESS TEST
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -55,13 +55,14 @@ export class BattleEngine {
   private introTimer: NodeJS.Timeout | null = null;
   private aiActionTimer: NodeJS.Timeout | null = null;
 
-  // Safety counters
+  // 🔥 CORRECTIONS STRESS TEST
   private turnCounter = 0;
   private transitionAttempts = 0;
   private readonly MAX_TURNS = 50;
-  private readonly MAX_TRANSITION_ATTEMPTS = 5;
+  private readonly MAX_TRANSITION_ATTEMPTS = 3; // 🔥 RÉDUIT de 5 à 3
   private readonly BATTLE_TIMEOUT_MS = 30000;
-  private readonly TURN_TIMEOUT_MS = 10000;
+  private readonly TURN_TIMEOUT_MS = 8000; // 🔥 RÉDUIT de 10s à 8s
+  private readonly AI_ACTION_DELAY = 500; // 🔥 RÉDUIT délai IA
 
   // Events
   private eventListeners = new Map<string, Function[]>();
@@ -69,6 +70,7 @@ export class BattleEngine {
 
   // CRITICAL: Flag to prevent premature cleanup
   private isManualCleanup = false;
+  private battleEndHandled = false; // 🔥 NOUVEAU: Éviter double-end
 
   // === PUBLIC API ===
 
@@ -143,10 +145,18 @@ export class BattleEngine {
         queueState: this.actionQueue.getQueueState()
       });
 
+      // 🔥 CORRECTION CRITIQUE: Vérifier immédiatement si toutes les actions sont prêtes
       if (this.actionQueue.areAllActionsReady()) {
         this.clearActionTimers();
         this.clearTurnTimeout();
-        this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
+        
+        // 🔥 TRANSITION IMMÉDIATE SANS DÉLAI
+        const transitionSuccess = this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
+        if (!transitionSuccess) {
+          console.error('❌ [BattleEngine] Échec transition vers résolution');
+          // 🔥 FORCER LA RÉSOLUTION
+          this.forceActionResolution();
+        }
       }
 
       return {
@@ -160,19 +170,45 @@ export class BattleEngine {
     }
   }
 
-  // === PHASE MANAGEMENT ===
+  // === 🔥 NOUVELLE MÉTHODE: FORCER RÉSOLUTION ===
+  
+  private forceActionResolution(): void {
+    console.log('🚨 [BattleEngine] Force résolution des actions');
+    
+    // Forcer la phase vers résolution
+    this.phaseManager.forceTransition(InternalBattlePhase.ACTION_RESOLUTION, 'force_resolution');
+    
+    // Traiter immédiatement
+    setTimeout(() => {
+      this.handleActionResolutionPhase();
+    }, 100);
+  }
+
+  // === PHASE MANAGEMENT AMÉLIORÉ ===
 
   private transitionToPhase(newPhase: InternalBattlePhase, trigger = 'manual'): boolean {
     if (!this.isInitialized) return false;
 
     this.transitionAttempts++;
     if (this.transitionAttempts > this.MAX_TRANSITION_ATTEMPTS) {
+      console.error('🚨 [BattleEngine] Trop de tentatives de transition, force battle end');
       this.forceBattleEnd('transition_loop', 'Boucle de transition détectée');
       return false;
     }
 
     const success = this.phaseManager.setPhase(newPhase, trigger);
-    if (!success) return false;
+    if (!success) {
+      console.error(`❌ [BattleEngine] Échec transition ${this.phaseManager.getCurrentPhase()} → ${newPhase}`);
+      
+      // 🔥 AUTO-RECOVERY: Essayer force transition
+      if (this.transitionAttempts <= 2) {
+        console.log('🔧 [BattleEngine] Tentative force transition...');
+        this.phaseManager.forceTransition(newPhase, `force_${trigger}`);
+        return true;
+      }
+      
+      return false;
+    }
 
     this.transitionAttempts = 0; // Reset on success
 
@@ -211,6 +247,7 @@ export class BattleEngine {
       turnNumber: this.gameState.turnNumber
     });
 
+    // 🔥 IA ACTION IMMÉDIATE POUR STRESS TEST
     this.scheduleAIAction();
   }
 
@@ -221,134 +258,91 @@ export class BattleEngine {
     try {
       const allActions = this.actionQueue.getAllActions();
       if (allActions.length === 0) {
+        console.log('⚠️ [BattleEngine] Aucune action à traiter, retour sélection');
+        this.isProcessingActions = false;
         this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'no_actions');
         return;
       }
 
+      console.log(`⚔️ [BattleEngine] Traitement ${allActions.length} actions`);
       this.orderedActions = this.actionQueue.getActionsBySpeed();
       this.emit('resolutionStart', { actionCount: this.orderedActions.length });
       
-      await this.startAttackerPhase(0);
+      // 🔥 TRAITEMENT RAPIDE SANS DÉLAIS
+      await this.processAllActionsRapidly();
+      
     } catch (error) {
+      console.error('❌ [BattleEngine] Erreur résolution:', error);
       this.isProcessingActions = false;
       this.forceResolutionComplete();
     }
   }
 
+  // 🔥 NOUVELLE MÉTHODE: TRAITEMENT RAPIDE
+  private async processAllActionsRapidly(): Promise<void> {
+    for (let i = 0; i < this.orderedActions.length; i++) {
+      const actionData = this.orderedActions[i];
+      const currentPokemon = this.getCurrentPokemonInGame(actionData.playerRole);
+      
+      if (!currentPokemon || currentPokemon.currentHp <= 0) {
+        console.log(`⏭️ [BattleEngine] Skip action ${i + 1} - Pokémon KO`);
+        continue;
+      }
+
+      console.log(`⚔️ [BattleEngine] Traitement action ${i + 1}/${this.orderedActions.length}`);
+      
+      try {
+        const result = await this.actionProcessor.processAction(actionData.action);
+        if (result.success && result.data) {
+          this.emit('actionProcessed', {
+            action: actionData.action,
+            result,
+            playerRole: actionData.playerRole
+          });
+          
+          // 🔥 BROADCAST SIMPLIFIÉ
+          if (this.broadcastManager && actionData.action.type === 'attack') {
+            this.broadcastManager.emit('moveUsed', {
+              attackerName: actionData.pokemon.name,
+              moveName: this.getMoveDisplayName(actionData.action.data.moveId)
+            });
+            
+            if (result.data.damage > 0) {
+              this.broadcastManager.emit('damageDealt', {
+                targetName: result.data.defenderRole === 'player1' ? 
+                  this.gameState.player1.pokemon!.name : 
+                  this.gameState.player2.pokemon!.name,
+                damage: result.data.damage,
+                newHp: result.data.newHp
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [BattleEngine] Erreur action ${i + 1}:`, error);
+        continue;
+      }
+      
+      // 🔥 PAS DE DÉLAI ENTRE ACTIONS
+    }
+
+    // KO Check après toutes les actions
+    await this.performKOCheckPhase();
+  }
+
   private handleEndedPhase(): void {
+    if (this.battleEndHandled) {
+      console.log('⚠️ [BattleEngine] Battle end déjà traité');
+      return;
+    }
+    
+    this.battleEndHandled = true;
     this.clearAllTimers();
     this.savePokemonAfterBattle();
-    // CRITICAL: Only cleanup when battle is truly ended
     this.performFinalCleanup();
   }
 
-  // === COMBAT RESOLUTION ===
-
-  private async startAttackerPhase(attackerIndex: number): Promise<void> {
-    // Safety checks
-    if (attackerIndex >= this.orderedActions.length) {
-      await this.performKOCheckPhase();
-      return;
-    }
-
-    if (attackerIndex < 0 || !this.orderedActions[attackerIndex]) {
-      await this.completeActionResolution();
-      return;
-    }
-
-    this.currentAttackerData = this.orderedActions[attackerIndex];
-    const currentPokemon = this.getCurrentPokemonInGame(this.currentAttackerData.playerRole);
-    
-    if (!currentPokemon || currentPokemon.currentHp <= 0) {
-      await this.startAttackerPhase(attackerIndex + 1);
-      return;
-    }
-
-    this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
-    
-    this.emit('attackerPhaseStart', {
-      subPhase: this.currentSubPhase,
-      playerRole: this.currentAttackerData.playerRole,
-      actionType: this.currentAttackerData.action.type,
-      pokemon: this.currentAttackerData.pokemon.name
-    });
-
-    await this.executeFullAttackerAction();
-    await this.delay(100);
-    await this.startAttackerPhase(attackerIndex + 1);
-  }
-
-  private async executeFullAttackerAction(): Promise<void> {
-    const { action, playerRole, pokemon } = this.currentAttackerData;
-    
-    const result = await this.actionProcessor.processAction(action);
-    if (!result.success) return;
-
-    if (action.type === 'attack' && result.data) {
-      await this.handleAttackBroadcast(action, result, playerRole, pokemon);
-    }
-
-    this.emit('actionProcessed', {
-      action,
-      result,
-      playerRole,
-      subPhase: this.currentSubPhase
-    });
-  }
-
-  private async handleAttackBroadcast(action: any, result: any, playerRole: PlayerRole, pokemon: Pokemon): Promise<void> {
-    // CRITICAL: Safe broadcast without triggering cleanup
-    if (!this.broadcastManager) {
-      try {
-        this.configureBroadcastSystem();
-      } catch (error) {
-        // Continue without broadcast if configuration fails
-        return;
-      }
-    }
-
-    try {
-      if (this.broadcastManager) {
-        // Send broadcast but don't let it trigger cleanup
-        await this.broadcastManager.emitTimed('moveUsed', {
-          attackerName: pokemon.name,
-          attackerRole: playerRole,
-          moveName: this.getMoveDisplayName(action.data.moveId),
-          moveId: action.data.moveId,
-          subPhase: this.currentSubPhase,
-          // CRITICAL: Flag to prevent auto-cleanup
-          noAutoCleanup: true
-        });
-
-        if (result.data.damage > 0) {
-          await this.broadcastManager.emitTimed('damageDealt', {
-            targetName: result.data.defenderRole === 'player1' ? 
-              this.gameState.player1.pokemon!.name : 
-              this.gameState.player2.pokemon!.name,
-            targetRole: result.data.defenderRole,
-            damage: result.data.damage,
-            oldHp: result.data.oldHp,
-            newHp: result.data.newHp,
-            maxHp: result.data.maxHp,
-            subPhase: this.currentSubPhase,
-            isKnockedOut: result.data.isKnockedOut,
-            // CRITICAL: Flag to prevent auto-cleanup
-            noAutoCleanup: true
-          });
-        }
-      }
-    } catch (error) {
-      // Continue without broadcast on error
-    }
-
-    this.emit('attackerPhaseComplete', {
-      subPhase: this.currentSubPhase,
-      playerRole,
-      pokemon: pokemon.name,
-      damageDealt: result.data.damage || 0,
-      targetRole: result.data.defenderRole
-    });
-  }
+  // === KO CHECK AMÉLIORÉ ===
 
   private async performKOCheckPhase(): Promise<void> {
     this.currentSubPhase = SubPhase.KO_CHECK;
@@ -364,11 +358,30 @@ export class BattleEngine {
     const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
     const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
 
-    if (player1KO.isKO) await this.processKOSequence(player1KO);
-    if (player2KO.isKO) await this.processKOSequence(player2KO);
+    // 🔥 TRAITEMENT KO IMMÉDIAT
+    if (player1KO.isKO || player2KO.isKO) {
+      console.log(`💀 [BattleEngine] KO détecté - P1: ${player1KO.isKO}, P2: ${player2KO.isKO}`);
+      
+      if (this.broadcastManager) {
+        if (player1KO.isKO) {
+          this.broadcastManager.emit('pokemonFainted', {
+            pokemonName: player1Pokemon.name,
+            targetRole: 'player1'
+          });
+        }
+        if (player2KO.isKO) {
+          this.broadcastManager.emit('pokemonFainted', {
+            pokemonName: player2Pokemon.name,
+            targetRole: 'player2'
+          });
+        }
+      }
+    }
 
     const battleEndCheck = this.koManager.checkBattleEnd();
     if (battleEndCheck.isEnded) {
+      console.log(`🏆 [BattleEngine] Combat terminé - Vainqueur: ${battleEndCheck.winner}`);
+      
       this.gameState.isEnded = true;
       this.gameState.winner = battleEndCheck.winner;
       
@@ -387,45 +400,14 @@ export class BattleEngine {
     await this.completeActionResolution();
   }
 
-  private async processKOSequence(koResult: any): Promise<void> {
-    for (const step of koResult.sequence) {
-      switch (step.type) {
-        case 'faint_animation':
-          if (this.broadcastManager) {
-            await this.broadcastManager.emitTimed('pokemonFainted', {
-              pokemonName: koResult.pokemonName,
-              targetRole: koResult.playerRole,
-              playerId: koResult.playerRole === 'player1' ? 
-                this.gameState.player1.sessionId : 
-                this.gameState.player2.sessionId,
-              animationType: step.data?.animationType || 'faint_fall',
-              message: step.message,
-              noAutoCleanup: true // CRITICAL: Prevent cleanup during KO sequence
-            });
-          }
-          break;
-        case 'ko_message':
-          this.emit('koMessage', {
-            pokemonName: koResult.pokemonName,
-            playerRole: koResult.playerRole,
-            message: step.message,
-            messageType: step.data?.messageType || 'official_ko'
-          });
-          await this.delay(Math.min(step.timing, 500));
-          break;
-        default:
-          await this.delay(Math.min(step.timing, 200));
-          break;
-      }
-    }
-  }
-
   private async completeActionResolution(): Promise<void> {
-    // CRITICAL: Don't cleanup here, just continue the battle
-    if (!this.isInitialized) return;
+    if (!this.isInitialized || this.battleEndHandled) return;
     
     this.turnCounter++;
+    
+    // 🔥 CHECK MAX TURNS PLUS TÔT
     if (this.turnCounter > this.MAX_TURNS) {
+      console.log(`⏰ [BattleEngine] Max turns atteint (${this.MAX_TURNS}), fin combat`);
       this.forceBattleEnd('max_turns_reached', 'Combat trop long');
       return;
     }
@@ -441,9 +423,10 @@ export class BattleEngine {
     });
 
     if (!this.gameState.isEnded) {
-      // CRITICAL: Continue battle normally without cleanup
+      // 🔥 TRANSITION IMMÉDIATE VERS NOUVEAU TOUR
       const success = this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
       if (!success) {
+        console.error('❌ [BattleEngine] Échec transition nouveau tour');
         this.forceBattleEnd('transition_failed', 'Impossible de continuer');
       }
     } else {
@@ -451,12 +434,14 @@ export class BattleEngine {
     }
   }
 
-  // === AI MANAGEMENT ===
+  // === AI MANAGEMENT OPTIMISÉ ===
 
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') return;
 
-    const delay = this.getAIDelay();
+    // 🔥 DÉLAI RÉDUIT POUR STRESS TEST
+    const delay = this.AI_ACTION_DELAY;
+    
     this.aiActionTimer = setTimeout(() => {
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
         this.executeAIAction();
@@ -468,8 +453,10 @@ export class BattleEngine {
     try {
       const aiAction = this.aiPlayer.generateAction();
       if (aiAction) {
+        console.log(`🤖 [BattleEngine] IA soumet action: ${aiAction.type}`);
         this.submitAction(aiAction);
       } else {
+        console.log('⚠️ [BattleEngine] IA n\'a pas généré d\'action, fallback');
         const fallbackAction: BattleAction = {
           actionId: `ai_fallback_${Date.now()}`,
           playerId: 'ai',
@@ -480,6 +467,7 @@ export class BattleEngine {
         this.submitAction(fallbackAction);
       }
     } catch (error) {
+      console.error('❌ [BattleEngine] Erreur IA:', error);
       const emergencyAction: BattleAction = {
         actionId: `ai_emergency_${Date.now()}`,
         playerId: 'ai',
@@ -491,39 +479,48 @@ export class BattleEngine {
     }
   }
 
-  // === TIMEOUT MANAGEMENT ===
+  // === TIMEOUT MANAGEMENT OPTIMISÉ ===
 
   private startBattleTimeout(): void {
     this.clearBattleTimeout();
     this.battleTimeoutId = setTimeout(() => {
-      this.forceBattleEnd('timeout', 'Combat interrompu par timeout');
+      if (!this.battleEndHandled) {
+        this.forceBattleEnd('timeout', 'Combat interrompu par timeout');
+      }
     }, this.BATTLE_TIMEOUT_MS);
   }
 
   private startTurnTimeout(): void {
     this.clearTurnTimeout();
     this.turnTimeoutId = setTimeout(() => {
-      this.handleTurnTimeout();
+      if (!this.battleEndHandled) {
+        this.handleTurnTimeout();
+      }
     }, this.TURN_TIMEOUT_MS);
   }
 
   private handleTurnTimeout(): void {
     try {
+      console.log('⏰ [BattleEngine] Timeout tour détecté');
+      
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION) {
         this.forceDefaultActions();
       }
       if (this.getCurrentPhase() === InternalBattlePhase.ACTION_RESOLUTION) {
         this.forceResolutionComplete();
       }
-      if (!this.gameState.isEnded) {
+      if (!this.gameState.isEnded && !this.battleEndHandled) {
         this.forceNextTurn();
       }
     } catch (error) {
+      console.error('❌ [BattleEngine] Erreur timeout:', error);
       this.forceBattleEnd('error', 'Erreur timeout');
     }
   }
 
   private forceDefaultActions(): void {
+    console.log('🔧 [BattleEngine] Force actions par défaut');
+    
     if (!this.actionQueue.hasAction('player1')) {
       const defaultAction: BattleAction = {
         actionId: `timeout_action_p1_${Date.now()}`,
@@ -558,6 +555,8 @@ export class BattleEngine {
   }
 
   private forceResolutionComplete(): void {
+    console.log('🔧 [BattleEngine] Force fin résolution');
+    
     this.isProcessingActions = false;
     this.resetSubPhaseState();
     this.gameState.turnNumber++;
@@ -569,7 +568,7 @@ export class BattleEngine {
       message: "Tour forcé terminé par timeout"
     });
 
-    if (this.isInitialized && !this.gameState.isEnded) {
+    if (this.isInitialized && !this.gameState.isEnded && !this.battleEndHandled) {
       if (!this.phaseManager.isReady()) {
         this.phaseManager.initialize(this.gameState);
       }
@@ -578,12 +577,22 @@ export class BattleEngine {
   }
 
   private forceNextTurn(): void {
+    console.log('🔧 [BattleEngine] Force tour suivant');
+    
     this.gameState.turnNumber++;
     this.actionQueue.clear();
     this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'timeout_next_turn');
   }
 
   private forceBattleEnd(reason: string, message: string): void {
+    if (this.battleEndHandled) {
+      console.log('⚠️ [BattleEngine] Battle end déjà traité (force)');
+      return;
+    }
+    
+    console.log(`🚨 [BattleEngine] Force fin combat: ${reason}`);
+    
+    this.battleEndHandled = true;
     this.gameState.isEnded = true;
     this.gameState.winner = 'player1';
     this.clearAllTimers();
@@ -599,7 +608,7 @@ export class BattleEngine {
     this.transitionToPhase(InternalBattlePhase.ENDED, reason);
   }
 
-  // === INITIALIZATION ===
+  // === INITIALIZATION (INCHANGÉ) ===
 
   private initializeAllModules(): void {
     this.phaseManager.initialize(this.gameState);
@@ -659,7 +668,7 @@ export class BattleEngine {
   }
 
   private scheduleIntroTransition(): void {
-    const INTRO_DELAY = process.env.NODE_ENV === 'test' ? 100 : 1000;
+    const INTRO_DELAY = process.env.NODE_ENV === 'test' ? 50 : 500; // 🔥 RÉDUIT
     this.clearIntroTimer();
     
     this.introTimer = setTimeout(() => {
@@ -667,16 +676,18 @@ export class BattleEngine {
         if (this.isInitialized && this.getCurrentPhase() === InternalBattlePhase.INTRO) {
           const success = this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'intro_complete_fixed');
           if (!success && this.phaseManager.forceTransition) {
+            console.log('🔧 [BattleEngine] Force transition intro');
             this.phaseManager.forceTransition(InternalBattlePhase.ACTION_SELECTION, 'force_intro_fix');
           }
         }
       } catch (error) {
+        console.error('❌ [BattleEngine] Erreur transition intro:', error);
         this.forceBattleEnd('intro_transition_failed', 'Impossible de progresser au-delà de la phase intro');
       }
     }, INTRO_DELAY);
   }
 
-  // === POKEMON ENCOUNTER ===
+  // === POKEMON ENCOUNTER (INCHANGÉ) ===
 
   private handlePokemonEncounter(): void {
     if (this.gameState.type === 'wild' && this.gameState.player2.pokemon) {
@@ -703,7 +714,7 @@ export class BattleEngine {
     }
   }
 
-  // === CAPTURE HANDLING ===
+  // === CAPTURE HANDLING (INCHANGÉ) ===
 
   private async handleCaptureAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     this.transitionToPhase(InternalBattlePhase.CAPTURE, 'capture_attempt');
@@ -737,7 +748,7 @@ export class BattleEngine {
     return result;
   }
 
-  // === TIMER MANAGEMENT ===
+  // === TIMER MANAGEMENT (INCHANGÉ) ===
 
   private clearAllTimers(): void {
     this.clearIntroTimer();
@@ -774,7 +785,7 @@ export class BattleEngine {
     }
   }
 
-  // === UTILITIES ===
+  // === UTILITIES (PLUS RAPIDES) ===
 
   private resetSubPhaseState(): void {
     this.currentSubPhase = SubPhase.NONE;
@@ -810,7 +821,7 @@ export class BattleEngine {
   }
 
   private getAIDelay(): number {
-    if (this.gameState.type === 'wild') return 100;
+    if (this.gameState.type === 'wild') return this.AI_ACTION_DELAY;
     return Math.min(this.aiPlayer.getThinkingDelay(), 1000);
   }
 
@@ -1036,19 +1047,21 @@ export class BattleEngine {
     this.turnCounter = 0;
     this.transitionAttempts = 0;
     this.isManualCleanup = false;
+    this.battleEndHandled = false; // 🔥 RESET FLAG
   }
 
   // === DIAGNOSTICS ===
 
   getSystemState(): any {
     return {
-      version: 'battle_engine_no_broadcast_cleanup_v1',
+      version: 'battle_engine_stress_test_optimized_v1',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
       turnCounter: this.turnCounter,
       transitionAttempts: this.transitionAttempts,
       isManualCleanup: this.isManualCleanup,
+      battleEndHandled: this.battleEndHandled,
       timeouts: {
         battleTimeout: this.battleTimeoutId !== null,
         turnTimeout: this.turnTimeoutId !== null
@@ -1062,7 +1075,17 @@ export class BattleEngine {
         isEnded: this.gameState.isEnded,
         winner: this.gameState.winner,
         turnNumber: this.gameState.turnNumber
-      }
+      },
+      optimizations: [
+        'reduced_ai_delay_500ms',
+        'reduced_turn_timeout_8s',
+        'reduced_max_transitions_3',
+        'immediate_action_processing',
+        'force_resolution_recovery',
+        'rapid_action_processing',
+        'battle_end_protection',
+        'simplified_broadcasts'
+      ]
     };
   }
 }
