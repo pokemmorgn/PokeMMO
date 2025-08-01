@@ -368,18 +368,28 @@ export function sceneToZone(sceneName) {
 }
 
 /**
- * Convertit un nom de zone vers un nom de scène
- * @param {string} zoneName - Nom de la zone (ex: 'village')
- * @returns {string} - Nom de la scène (ex: 'VillageScene')
+ * ✅ CORRIGÉ: Convertit un nom de zone vers un nom de scène
+ * @param {string} zoneName - Nom de la zone (ex: 'village' ou 'Road1Scene')
+ * @returns {string} - Nom de la scène (ex: 'VillageScene' ou 'Road1Scene')
  */
 export function zoneToScene(zoneName) {
+  // ✅ NOUVEAU: Si zoneName finit déjà par "Scene", le retourner tel quel
+  if (zoneName.endsWith('Scene')) {
+    console.log(`🔧 [zoneToScene] "${zoneName}" finit déjà par "Scene" → retour tel quel`);
+    return zoneName;
+  }
+  
+  // ✅ ANCIEN CODE: Chercher dans la config
   const config = ZONE_CONFIG[zoneName.toLowerCase()];
   if (config) {
+    console.log(`🔧 [zoneToScene] "${zoneName}" trouvé in config → "${config.sceneClass}"`);
     return config.sceneClass;
   }
   
-  // Fallback : conversion basique
-  return zoneName.charAt(0).toUpperCase() + zoneName.slice(1) + 'Scene';
+  // ✅ ANCIEN CODE: Fallback : conversion basique
+  const fallbackScene = zoneName.charAt(0).toUpperCase() + zoneName.slice(1) + 'Scene';
+  console.log(`🔧 [zoneToScene] "${zoneName}" fallback → "${fallbackScene}"`);
+  return fallbackScene;
 }
 
 /**
@@ -623,6 +633,36 @@ export function debugZoneConfig() {
   };
 }
 
+// ✅ NOUVELLE FONCTION DE DEBUG pour le mapping spécifique
+export function debugZoneMapping(input) {
+  console.log('🔧 === DEBUG ZONE MAPPING ===');
+  console.log(`📝 Input: "${input}"`);
+  
+  // Test zoneToScene
+  const sceneResult = zoneToScene(input);
+  console.log(`🎯 zoneToScene("${input}") → "${sceneResult}"`);
+  
+  // Test sceneToZone
+  const zoneResult = sceneToZone(input);
+  console.log(`🎯 sceneToZone("${input}") → "${zoneResult}"`);
+  
+  // Vérifier si existe dans la config
+  const configExists = !!ZONE_CONFIG[input.toLowerCase()];
+  console.log(`📊 Existe dans config: ${configExists}`);
+  
+  if (configExists) {
+    const config = ZONE_CONFIG[input.toLowerCase()];
+    console.log(`⚙️ Config trouvée:`, config);
+  }
+  
+  return {
+    input,
+    sceneResult,
+    zoneResult,
+    configExists
+  };
+}
+
 // Exposition globale pour debug
 if (typeof window !== 'undefined') {
   window.ZoneMapping = {
@@ -635,6 +675,7 @@ if (typeof window !== 'undefined') {
     getAllZones,
     getAllScenes,
     validateZoneConfig,
-    debugZoneConfig
+    debugZoneConfig,
+    debugZoneMapping // ✅ NOUVEAU
   };
 }
