@@ -314,33 +314,69 @@ export class NetworkManager {
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
     // ✅ Handler pour confirmation de spawn
-    this.room.onMessage("playerSpawned", (data) => {
-      console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
+// ✅ Handler pour confirmation de spawn AVEC REDIRECTION AUTO
+this.room.onMessage("playerSpawned", (data) => {
+  console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
+  
+  if (data.isMyPlayer) {
+    console.log(`✅ [NetworkManager] Confirmation: MON joueur spawné !`);
+    console.log(`📍 Position serveur: (${data.x}, ${data.y}) dans ${data.currentZone}`);
+    
+    this.myPlayerData = {
+      id: data.id,
+      name: data.name,
+      x: data.x,
+      y: data.y,
+      currentZone: data.currentZone,
+      level: data.level,
+      gold: data.gold
+    };
+    
+    this.myPlayerConfirmed = true;
+    
+    // ✅ NOUVEAU: VÉRIFICATION ZONE ET REDIRECTION AUTO
+    const currentScene = this.room.scene?.scene?.key; // Scène actuelle du client
+    const expectedScene = this.mapZoneToScene(data.currentZone); // Scène que dit le serveur
+    
+    console.log(`🔍 [NetworkManager] Vérification zone:`);
+    console.log(`  Client dans: ${currentScene}`);
+    console.log(`  Serveur dit: ${data.currentZone} → ${expectedScene}`);
+    
+    if (currentScene !== expectedScene) {
+      console.warn(`🚨 [NetworkManager] DÉSYNC DÉTECTÉE ! CLIENT OBÉIT AU SERVEUR`);
+      console.warn(`  Redirection: ${currentScene} → ${expectedScene}`);
       
-      if (data.isMyPlayer) {
-        console.log(`✅ [NetworkManager] Confirmation: MON joueur spawné !`);
-        
-        this.myPlayerData = {
-          id: data.id,
-          name: data.name,
-          x: data.x,
-          y: data.y,
-          currentZone: data.currentZone,
-          level: data.level,
-          gold: data.gold
-        };
-        
-        this.myPlayerConfirmed = true;
-        
-        if (this.callbacks.onMyPlayerConfirmed) {
-          this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
+      // ✅ REDIRECTION IMMÉDIATE VERS LA BONNE SCÈNE
+      setTimeout(() => {
+        if (this.room.scene?.scene?.scene) {
+          console.log(`🔄 [NetworkManager] Lancement redirection vers ${expectedScene}`);
+          
+          this.room.scene.scene.scene.start(expectedScene, {
+            fromServerCorrection: true,
+            networkManager: this,
+            mySessionId: this.sessionId,
+            spawnX: data.x,           // ✅ POSITION SERVEUR
+            spawnY: data.y,           // ✅ POSITION SERVEUR  
+            serverForced: true,
+            preservePlayer: true
+          });
         }
-        
-        setTimeout(() => {
-          this.ensureMyPlayerExists();
-        }, 1000);
-      }
-    });
+      }, 100); // Délai minimal pour éviter les conflits
+      
+      return; // ✅ SORTIR - Ne pas continuer le traitement normal
+    }
+    
+    console.log(`✅ [NetworkManager] Zone correcte, pas de redirection nécessaire`);
+    
+    if (this.callbacks.onMyPlayerConfirmed) {
+      this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
+    }
+    
+    setTimeout(() => {
+      this.ensureMyPlayerExists();
+    }, 1000);
+  }
+});
 
     // ✅ Handler pour blocages de mouvement
     this.room.onMessage("movementBlocked", (data) => {
