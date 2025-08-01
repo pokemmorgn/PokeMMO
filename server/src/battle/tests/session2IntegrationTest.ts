@@ -1,5 +1,5 @@
 // server/src/battle/tests/session2IntegrationTest.ts
-// 🧪 TEST INTÉGRATION SESSION 2 - SWITCHMANAGER + PHASES ÉTENDUES + ACTIONQUEUE
+// 🔧 TEST INTÉGRATION SESSION 2 - CORRECTIONS CHANGEMENT FORCÉ
 
 import { TrainerTeamManager } from '../managers/TrainerTeamManager';
 import { SwitchManager } from '../modules/SwitchManager';
@@ -43,7 +43,7 @@ interface IntegrationTestSuite {
 }
 
 /**
- * 🧪 CLASSE DE TEST SESSION 2 - INTÉGRATION COMPLÈTE
+ * 🧪 CLASSE DE TEST SESSION 2 - 🔧 CORRECTIONS FINALES
  */
 class Session2IntegrationTestSuite {
   
@@ -57,15 +57,16 @@ class Session2IntegrationTestSuite {
   private gameState!: BattleGameState;
   
   constructor() {
-    console.log('🧪 [Session2Test] Suite de tests d\'intégration initialisée');
+    console.log('🧪 [Session2Test] Suite de tests d\'intégration initialisée - VERSION CORRIGÉE');
   }
   
   // === EXÉCUTION COMPLÈTE ===
   
   async runAllTests(): Promise<IntegrationTestSuite> {
-    console.log('\n🎯 DÉBUT TESTS SESSION 2 - INTÉGRATION MODULES ÉTENDUS');
+    console.log('\n🎯 DÉBUT TESTS SESSION 2 - INTÉGRATION MODULES ÉTENDUS (CORRIGÉS)');
     console.log('='.repeat(70));
     console.log('📦 Modules testés: SwitchManager + PhaseManager + ActionQueue');
+    console.log('🔧 Corrections: Changement forcé, timeout et récupération');
     console.log('='.repeat(70));
     
     this.startTime = Date.now();
@@ -78,7 +79,7 @@ class Session2IntegrationTestSuite {
       await this.testActionQueueExtensions();
       await this.testSwitchWorkflowIntegration();
       await this.testPrioritySystemIntegration();
-      await this.testForcedSwitchScenario();
+      await this.testForcedSwitchScenarioCorrected(); // 🔧 VERSION CORRIGÉE
       await this.testFullTrainerBattleSimulation();
       
     } catch (globalError) {
@@ -88,11 +89,8 @@ class Session2IntegrationTestSuite {
     return this.generateIntegrationReport();
   }
   
-  // === TESTS INDIVIDUELS ===
+  // === TESTS INDIVIDUELS (INCHANGÉS JUSQU'AU TEST 7) ===
   
-  /**
-   * Test 1: Initialisation des modules
-   */
   private async testModuleInitialization(): Promise<void> {
     const testStart = Date.now();
     
@@ -149,10 +147,7 @@ class Session2IntegrationTestSuite {
         ['SwitchManager', 'PhaseManager', 'ActionQueue']);
     }
   }
-  
-  /**
-   * Test 2: Fonctionnalités core SwitchManager
-   */
+
   private async testSwitchManagerCore(): Promise<void> {
     const testStart = Date.now();
     
@@ -198,9 +193,6 @@ class Session2IntegrationTestSuite {
     }
   }
   
-  /**
-   * Test 3: Extensions PhaseManager
-   */
   private async testPhaseManagerExtensions(): Promise<void> {
     const testStart = Date.now();
     
@@ -251,9 +243,6 @@ class Session2IntegrationTestSuite {
     }
   }
   
-  /**
-   * Test 4: Extensions ActionQueue
-   */
   private async testActionQueueExtensions(): Promise<void> {
     const testStart = Date.now();
     
@@ -317,9 +306,6 @@ class Session2IntegrationTestSuite {
     }
   }
   
-  /**
-   * Test 5: Workflow intégration changement
-   */
   private async testSwitchWorkflowIntegration(): Promise<void> {
     const testStart = Date.now();
     
@@ -374,9 +360,6 @@ class Session2IntegrationTestSuite {
     }
   }
   
-  /**
-   * Test 6: Système de priorité intégré
-   */
   private async testPrioritySystemIntegration(): Promise<void> {
     const testStart = Date.now();
     
@@ -456,67 +439,160 @@ class Session2IntegrationTestSuite {
     }
   }
   
+  // === 🔧 TEST 7 CORRIGÉ - CHANGEMENT FORCÉ ===
+  
   /**
-   * Test 7: Scénario changement forcé
+   * 🔧 Test 7: Scénario changement forcé - VERSION CORRIGÉE
    */
-  private async testForcedSwitchScenario(): Promise<void> {
+  private async testForcedSwitchScenarioCorrected(): Promise<void> {
     const testStart = Date.now();
     
     try {
-      console.log('\n💀 Test 7: Scénario Changement Forcé...');
+      console.log('\n💀 Test 7: Scénario Changement Forcé - 🔧 VERSION CORRIGÉE...');
       
-      // 1. Transition vers FORCED_SWITCH
+      // 🔧 ÉTAPE 1: Préparation équipe avec 1 Pokémon KO pour test réaliste
+      console.log(`    🔧 PRÉPARATION: Création équipe test avec Pokémon KO...`);
+      const testTeamWithKO = this.createTestTeamWithKO('player1');
+      
+      const teamManager = new TrainerTeamManager('forced_test_player');
+      teamManager.initializeWithPokemon(testTeamWithKO);
+      
+      // Réinitialiser SwitchManager avec la nouvelle équipe
+      this.switchManager = new SwitchManager();
+      this.switchManager.initialize(
+        this.gameState,
+        teamManager,
+        undefined, // Pas besoin de player2 pour ce test
+        { allowSwitching: true, forceSwitch: true, maxSwitchesPerTurn: 1, switchCooldown: 0, itemsAllowed: false, megaEvolution: false }
+      );
+      
+      const analysis = teamManager.analyzeTeam();
+      console.log(`    ✅ Équipe préparée: ${analysis.totalPokemon} total, ${analysis.alivePokemon} vivants`);
+      
+      // 🔧 ÉTAPE 2: Test transition phase FORCED_SWITCH avec validation
+      console.log(`    🔧 ÉTAPE 2: Transition vers FORCED_SWITCH...`);
+      
       const forcedTransition = this.phaseManager.transitionToSwitchPhase(
         'player1',
-        [1, 2],
-        true, // Forcé
-        'pokemon_fainted',
-        15000 // 15s timeout
+        [1, 2], // Options disponibles
+        true,   // 🔧 FORCÉ = true
+        'pokemon_fainted', // Raison KO
+        15000   // 15s timeout
       );
       
       console.log(`    ✅ Transition forcée: ${forcedTransition} → ${this.phaseManager.getCurrentPhase()}`);
       
-      // 2. SwitchManager gère changement forcé
+      // 🔧 VALIDATION: Vérifier que la transition a réussi
+      if (!forcedTransition) {
+        console.error(`    ❌ PROBLÈME: Transition vers FORCED_SWITCH échouée`);
+      }
+      
+      // 🔧 ÉTAPE 3: Test SwitchManager.handleForcedSwitch avec logs détaillés
+      console.log(`    🔧 ÉTAPE 3: SwitchManager gère changement forcé...`);
+      
       const forcedSwitchResult = await this.switchManager.handleForcedSwitch('player1', 0);
       console.log(`    ✅ Changement forcé traité: ${forcedSwitchResult.success}`);
       
+      // 🔧 VALIDATION DÉTAILLÉE DU RÉSULTAT
+      console.log(`    🔧 ANALYSE RÉSULTAT:`);
+      console.log(`        Success: ${forcedSwitchResult.success}`);
+      console.log(`        Events: ${forcedSwitchResult.events.length}`);
+      
       if (forcedSwitchResult.data) {
-        console.log(`        Type: ${forcedSwitchResult.data.reason || 'forced'}`);
+        console.log(`        Data présent: ${JSON.stringify(forcedSwitchResult.data, null, 2)}`);
+        console.log(`        Switch exécuté: ${forcedSwitchResult.data.switchExecuted}`);
+        console.log(`        Équipe vaincue: ${forcedSwitchResult.data.teamDefeated}`);
         console.log(`        Nouveau Pokémon: ${forcedSwitchResult.data.toPokemon || 'N/A'}`);
+        console.log(`        Gagnant: ${forcedSwitchResult.data.winner || 'N/A'}`);
       }
       
-      // 3. Vérifier que le système gère l'équipe vaincue
+      if (forcedSwitchResult.error) {
+        console.log(`        Erreur: ${forcedSwitchResult.error}`);
+      }
+      
+      // 🔧 ÉTAPE 4: Vérification spécifique équipe vaincue vs équipe viable
+      let teamDefeatedHandled = false;
+      let validSwitchHandled = false;
+      
       if (forcedSwitchResult.data?.teamDefeated) {
-        console.log(`    ✅ Équipe vaincue détectée: ${forcedSwitchResult.data.winner} gagne`);
+        console.log(`    ✅ CAS 1: Équipe vaincue détectée correctement`);
+        console.log(`        Gagnant: ${forcedSwitchResult.data.winner}`);
+        teamDefeatedHandled = true;
+      } else if (forcedSwitchResult.data?.switchExecuted) {
+        console.log(`    ✅ CAS 2: Changement forcé exécuté avec succès`);
+        console.log(`        Nouveau Pokémon: ${forcedSwitchResult.data.toPokemon}`);
+        validSwitchHandled = true;
+      } else {
+        console.error(`    ❌ CAS 3: Ni équipe vaincue ni changement réussi`);
       }
       
-      // 4. Test timeout (simulation)
+      // 🔧 ÉTAPE 5: Test données phase switch et timeout
+      console.log(`    🔧 ÉTAPE 5: Validation timeout et données phase...`);
+      
       const switchPhaseData = this.phaseManager.getSwitchPhaseData();
       if (switchPhaseData && switchPhaseData.timeLimit) {
         console.log(`    ✅ Timeout configuré: ${switchPhaseData.timeLimit}ms`);
+        console.log(`        Joueur concerné: ${switchPhaseData.playerRole}`);
+        console.log(`        Options disponibles: ${switchPhaseData.availablePokemon.length}`);
+      } else {
+        console.log(`    ⚠️  Données phase switch non trouvées (peut être normal après traitement)`);
       }
       
-      // 5. Test validation changement forcé
-      const forcedValidation = await this.switchManager.validateSwitch('player1', 0, 1, true);
-      console.log(`    ✅ Validation forcée: ${forcedValidation.isValid} (règles assouplies)`);
+      // 🔧 ÉTAPE 6: Test validation changement forcé
+      console.log(`    🔧 ÉTAPE 6: Validation règles changement forcé...`);
       
-      const forcedScenarioSuccess = forcedTransition && forcedSwitchResult.success;
+      const forcedValidation = await this.switchManager.validateSwitch('player1', 0, 1, true);
+      console.log(`    ✅ Validation forcée: ${forcedValidation.isValid}`);
+      if (!forcedValidation.isValid) {
+        console.log(`        Raison refus: ${forcedValidation.reason}`);
+        console.log(`        Options disponibles: ${forcedValidation.availableOptions?.length || 0}`);
+      }
+      
+      // 🔧 CRITÈRES DE SUCCÈS ÉTENDUS
+      const critères = {
+        transitionPhaseOK: forcedTransition,
+        switchManagerOK: forcedSwitchResult.success,
+        logiqueCasOK: teamDefeatedHandled || validSwitchHandled,
+        validationOK: forcedValidation.isValid // Changement forcé doit toujours être validé
+      };
+      
+      console.log(`    🔧 CRITÈRES DE SUCCÈS:`);
+      Object.entries(critères).forEach(([nom, valeur]) => {
+        console.log(`        ${nom}: ${valeur ? '✅' : '❌'}`);
+      });
+      
+      const forcedScenarioSuccess = Object.values(critères).every(c => c);
+      
+      // 🔧 RÉSULTAT FINAL AVEC DÉTAILS
+      if (forcedScenarioSuccess) {
+        console.log(`    🎉 CHANGEMENT FORCÉ: SUCCÈS COMPLET`);
+        console.log(`        ✅ Transition phase réussie`);
+        console.log(`        ✅ SwitchManager a traité correctement`);
+        console.log(`        ✅ Logique métier appropriée`);
+        console.log(`        ✅ Validation règles respectée`);
+      } else {
+        console.log(`    ❌ CHANGEMENT FORCÉ: ÉCHEC DÉTECTÉ`);
+        console.log(`        Problèmes identifiés:`);
+        Object.entries(critères).forEach(([nom, valeur]) => {
+          if (!valeur) console.log(`          - ${nom} échoué`);
+        });
+      }
       
       this.addTestResult('Changement Forcé', forcedScenarioSuccess, Date.now() - testStart,
-        `Gestion complète changement forcé après KO`, 
-        forcedScenarioSuccess ? undefined : 'Scénario forcé incomplet',
+        `Gestion complète changement forcé: ${teamDefeatedHandled ? 'équipe vaincue' : 'changement réussi'}`, 
+        forcedScenarioSuccess ? undefined : 'Un ou plusieurs critères échoués',
         ['SwitchManager', 'PhaseManager']);
       
     } catch (error) {
+      console.error(`    ❌ ERREUR INATTENDUE:`, error);
       this.addTestResult('Changement Forcé', false, Date.now() - testStart,
-        'Erreur changement forcé', error instanceof Error ? error.message : 'Erreur inconnue',
+        'Erreur durant test changement forcé', error instanceof Error ? error.message : 'Erreur inconnue',
         ['SwitchManager', 'PhaseManager']);
     }
   }
   
-  /**
-   * Test 8: Simulation combat dresseur complet
-   */
+  // === TEST 8 (INCHANGÉ) ===
+  
   private async testFullTrainerBattleSimulation(): Promise<void> {
     const testStart = Date.now();
     
@@ -634,6 +710,23 @@ class Session2IntegrationTestSuite {
     ];
   }
   
+  // 🔧 NOUVELLE MÉTHODE: Créer équipe avec Pokémon KO pour test réaliste
+  private createTestTeamWithKO(prefix: string): Pokemon[] {
+    return [
+      // Premier Pokémon KO (pour simuler changement forcé)
+      {
+        id: 1, combatId: `${prefix}_ko_mon`, name: `${prefix}_KOMon`, level: 25,
+        currentHp: 0, maxHp: 100, // 🔧 KO
+        attack: 50, defense: 50, specialAttack: 50, specialDefense: 50, speed: 80,
+        types: ['normal'], moves: ['tackle'], status: 'normal', gender: 'male', shiny: false, isWild: false
+      },
+      // Deuxième Pokémon vivant
+      this.createTestPokemon(`${prefix}_Alive1`, 23, 90),
+      // Troisième Pokémon vivant
+      this.createTestPokemon(`${prefix}_Alive2`, 27, 70)
+    ];
+  }
+  
   private createTestPokemon(name: string, level: number, speed: number = 75): Pokemon {
     return {
       id: Math.floor(Math.random() * 151) + 1,
@@ -699,7 +792,7 @@ class Session2IntegrationTestSuite {
     };
     
     const report: IntegrationTestSuite = {
-      suiteName: 'SESSION 2 - Intégration Modules Étendus',
+      suiteName: 'SESSION 2 - Intégration Modules Étendus (CORRIGÉ)',
       results: this.results,
       totalTests: this.results.length,
       passedTests,
@@ -708,7 +801,7 @@ class Session2IntegrationTestSuite {
     };
     
     console.log('\n' + '🎉'.repeat(70));
-    console.log('📊 RAPPORT FINAL - TESTS INTÉGRATION SESSION 2');
+    console.log('📊 RAPPORT FINAL - TESTS INTÉGRATION SESSION 2 (CORRIGÉ)');
     console.log('🎉'.repeat(70));
     
     console.log(`\n📈 RÉSULTATS GLOBAUX:`);
@@ -718,8 +811,8 @@ class Session2IntegrationTestSuite {
     console.log(`   🎯 Taux de succès: ${Math.round((report.passedTests / report.totalTests) * 100)}%`);
     console.log(`   ⏱️  Durée totale: ${report.totalDuration}ms`);
     
-    console.log(`\n📦 STATUS MODULES:`);
-    console.log(`   🔄 SwitchManager: ${modulesStatus.switchManager === 'OK' ? '✅' : '❌'} ${modulesStatus.switchManager}`);
+    console.log(`\n📦 STATUS MODULES (APRÈS CORRECTIONS):`);
+    console.log(`   🔄 SwitchManager: ${modulesStatus.switchManager === 'OK' ? '✅' : '❌'} ${modulesStatus.switchManager} ${modulesStatus.switchManager === 'OK' ? '(Changement forcé corrigé)' : ''}`);
     console.log(`   🎭 PhaseManager: ${modulesStatus.phaseManager === 'OK' ? '✅' : '❌'} ${modulesStatus.phaseManager}`);
     console.log(`   📋 ActionQueue: ${modulesStatus.actionQueue === 'OK' ? '✅' : '❌'} ${modulesStatus.actionQueue}`);
     console.log(`   🔗 Intégration: ${modulesStatus.integration === 'OK' ? '✅' : '❌'} ${modulesStatus.integration}`);
@@ -740,26 +833,28 @@ class Session2IntegrationTestSuite {
     const allModulesOK = Object.values(modulesStatus).every(status => status === 'OK');
     
     if (allModulesOK && report.passedTests === report.totalTests) {
-      verdict = '🏆 SESSION 2 COMPLÈTE - MODULES 100% INTÉGRÉS ET FONCTIONNELS';
+      verdict = '🏆 SESSION 2 COMPLÈTE - TOUS MODULES 100% INTÉGRÉS ET CORRIGÉS';
     } else if (modulesStatus.integration === 'OK' && report.passedTests >= report.totalTests * 0.8) {
-      verdict = '🎯 SESSION 2 MAJORITAIREMENT RÉUSSIE - Intégration fonctionnelle';
+      verdict = '🎯 SESSION 2 MAJORITAIREMENT RÉUSSIE - Intégration fonctionnelle avec corrections';
     } else {
-      verdict = '🚨 SESSION 2 NÉCESSITE CORRECTIONS - Problèmes d\'intégration';
+      verdict = '🚨 SESSION 2 NÉCESSITE CORRECTIONS SUPPLÉMENTAIRES';
     }
     
-    console.log(`\n🎯 VERDICT SESSION 2:`);
+    console.log(`\n🎯 VERDICT SESSION 2 (APRÈS CORRECTIONS):`);
     console.log(`   ${verdict}`);
     
     if (allModulesOK) {
       console.log(`\n🚀 SESSION 2 TERMINÉE AVEC SUCCÈS:`);
-      console.log(`   ✅ SwitchManager: Gestion changements complète`);
-      console.log(`   ✅ PhaseManager: 3 nouvelles phases dresseurs`);
-      console.log(`   ✅ ActionQueue: Priorité changements intégrée`);
-      console.log(`   ✅ Intégration: Workflow complet fonctionnel`);
-      console.log(`   ✅ Compatibilité: Système existant préservé`);
+      console.log(`   ✅ SwitchManager: Gestion changements complète + corrections forcés`);
+      console.log(`   ✅ PhaseManager: 3 nouvelles phases dresseurs fonctionnelles`);
+      console.log(`   ✅ ActionQueue: Priorité changements parfaitement intégrée`);
+      console.log(`   ✅ Intégration: Workflow complet validé avec tous scénarios`);
+      console.log(`   ✅ Compatibilité: Système existant 100% préservé`);
+      console.log(`   ✅ Corrections: Test 'Changement Forcé' résolu`);
       console.log(`\n   🎮 PRÊT POUR INTÉGRATION BATTLEENGINE !`);
-      console.log(`   🚀 Capacité: Combats dresseurs multi-Pokémon`);
-      console.log(`   🚀 Performance: Compatible charge MMO`);
+      console.log(`   🚀 Capacité: Combats dresseurs multi-Pokémon complets`);
+      console.log(`   🚀 Performance: Compatible charge MMO avec gestion changements`);
+      console.log(`   🚀 Robustesse: Gestion équipes vaincues + timeouts`);
     }
     
     console.log('\n' + '🎉'.repeat(70));
@@ -771,7 +866,7 @@ class Session2IntegrationTestSuite {
 // === FONCTION PRINCIPALE EXPORTÉE ===
 
 /**
- * 🚀 FONCTION PRINCIPALE DE TEST INTÉGRATION SESSION 2
+ * 🚀 FONCTION PRINCIPALE DE TEST INTÉGRATION SESSION 2 - VERSION CORRIGÉE
  */
 export async function session2IntegrationTest(): Promise<boolean> {
   const testSuite = new Session2IntegrationTestSuite();
@@ -793,7 +888,7 @@ export { Session2IntegrationTestSuite };
 // Auto-exécution si appelé directement
 if (require.main === module) {
   session2IntegrationTest().then(success => {
-    console.log(`\n🎯 Tests SESSION 2 ${success ? 'réussis' : 'échoués'} !`);
+    console.log(`\n🎯 Tests SESSION 2 (CORRIGÉS) ${success ? 'réussis' : 'échoués'} !`);
     process.exit(success ? 0 : 1);
   });
 }
