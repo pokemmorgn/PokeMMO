@@ -54,6 +54,8 @@ export enum ActionType {
   POKEMON_SWITCH_TEAM = "pokemon_switch_team",     // Changer équipe active
   
   // ⚔️ COMBAT ACTIONS
+  TRAINER_BATTLE = 'TRAINER_BATTLE',           // Début combat dresseur
+  COMBAT_END = 'TRAINER_BATTLE_END',   // Fin combat dresseur
   BATTLE_START = "battle_start",                   // Début combat
   BATTLE_END = "battle_end",                       // Fin combat
   BATTLE_ATTACK = "battle_attack",                 // Attaque lancée
