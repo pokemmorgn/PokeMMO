@@ -344,7 +344,7 @@ populateField(fieldName, value) {
     // Pré-remplir les champs de type object/JSON
     populateObjectFields() {
         const objectFields = [
-            'conditionalDialogueIds', 'zoneInfo', 'shopConfig', 'battleConfig',
+            'conditionalDialogueIds', 'zoneInfo', 'battleConfig',
             'healerConfig', 'gymConfig', 'transportConfig', 'serviceConfig',
             'spawnConditions', 'questRequirements', 'questDialogueIds'
         ]
@@ -553,7 +553,7 @@ case 'dialogues':
                 
             case 'shop':
                 if (type === 'merchant') {
-                    fields = ['shopId', 'shopType', 'shopConfig']
+                    fields = ['shopId', 'shopType'']
                 }
                 break
                 
@@ -1067,7 +1067,6 @@ createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
             direction: 'Direction',
             shopId: 'ID Boutique',
             shopType: 'Type Boutique',
-            shopConfig: 'Configuration Boutique',
             shopDialogueIds: 'Dialogues Boutique',
             businessHours: 'Horaires d\'ouverture',
             accessRestrictions: 'Restrictions d\'accès',
@@ -1089,7 +1088,6 @@ createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
             repeatable: 'Répétable',
             spawnConditions: 'Conditions d\'apparition',
             zoneInfo: 'Informations de Zone',
-            shopConfig: 'Configuration Boutique',
             shopDialogueIds: 'Dialogues Boutique',
             businessHours: 'Horaires d\'ouverture',
             accessRestrictions: 'Restrictions d\'accès',
