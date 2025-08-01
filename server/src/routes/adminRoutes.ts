@@ -2830,7 +2830,6 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
     // Merchant NPCs
     if (npc.shopId !== undefined) updateData.shopId = npc.shopId;
     if (npc.shopType !== undefined) updateData.shopType = npc.shopType;
-    if (npc.shopConfig !== undefined) updateData.shopConfig = npc.shopConfig;
     if (npc.shopDialogueIds !== undefined) updateData.shopDialogueIds = npc.shopDialogueIds;
     if (npc.businessHours !== undefined) updateData.businessHours = npc.businessHours;
     if (npc.accessRestrictions !== undefined) updateData.accessRestrictions = npc.accessRestrictions;
