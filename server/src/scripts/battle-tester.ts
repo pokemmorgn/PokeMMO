@@ -347,28 +347,22 @@ class BattleTester {
         name: playerName,
         pokemon: {
           id: 25,
+          combatId: `combat_${Date.now()}_player`,
           name: 'Pikachu',
           level: 25,
           currentHp: 100,
           maxHp: 100,
           attack: 55,
           defense: 40,
+          specialAttack: 50,
+          specialDefense: 50,
           speed: 90,
           moves: ['tackle', 'thundershock'],
           types: ['electric'],
+          status: undefined,
           gender: 'male',
-          isShiny: false,
-          experience: 15625,
-          friendship: 50,
-          status: null,
-          stats: {
-            hp: 100,
-            attack: 55,
-            defense: 40,
-            specialAttack: 50,
-            specialDefense: 50,
-            speed: 90
-          }
+          shiny: false,
+          isWild: false
         }
       },
       opponent: {
@@ -376,28 +370,22 @@ class BattleTester {
         name: 'Wild Pokemon',
         pokemon: {
           id: opponentId,
+          combatId: `combat_${Date.now()}_opponent`,
           name: opponentId === 143 ? 'Snorlax' : 'Rattata',
           level: 25,
           currentHp: opponentId === 143 ? 200 : 60,
           maxHp: opponentId === 143 ? 200 : 60,
           attack: opponentId === 143 ? 110 : 56,
           defense: opponentId === 143 ? 65 : 35,
+          specialAttack: opponentId === 143 ? 65 : 25,
+          specialDefense: opponentId === 143 ? 110 : 35,
           speed: opponentId === 143 ? 30 : 72,
           moves: ['tackle'],
           types: opponentId === 143 ? ['normal'] : ['normal'],
+          status: undefined,
           gender: 'male',
-          isShiny: false,
-          experience: 15625,
-          friendship: 50,
-          status: null,
-          stats: {
-            hp: opponentId === 143 ? 200 : 60,
-            attack: opponentId === 143 ? 110 : 56,
-            defense: opponentId === 143 ? 65 : 35,
-            specialAttack: opponentId === 143 ? 65 : 25,
-            specialDefense: opponentId === 143 ? 110 : 35,
-            speed: opponentId === 143 ? 30 : 72
-          }
+          shiny: false,
+          isWild: true
         }
       }
     };
