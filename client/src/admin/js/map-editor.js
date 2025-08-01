@@ -609,13 +609,12 @@ placeGenericObject(tileX, tileY) {
     let newObject
     
     if (this.selectedTool === 'npc') {
-        // ✅ FIX : Créer un NPC COMPLET avec tous les champs selon le type
-        const npcType = 'dialogue' // Type par défaut, ou demander à l'utilisateur
-        
-        newObject = this.createCompleteNPC(tileX, tileY, npcType)
+        // ✅ Ouvrir le sélecteur de type avant de créer
+        this.openNPCTypeSelector(tileX, tileY)
+        return // Sortir ici, la création se fait dans la modal
         
     } else {
-        // Placement générique pour autres objets
+        // Autres objets
         newObject = {
             id: `${this.selectedTool}_${Date.now()}`,
             type: this.selectedTool,
@@ -625,15 +624,110 @@ placeGenericObject(tileX, tileY) {
             isFromMap: false,
             properties: this.getDefaultProperties(this.selectedTool)
         }
+        
+        this.placedObjects.push(newObject)
+        this.adminPanel.showNotification(
+            `${this.selectedTool.toUpperCase()} placé en (${tileX}, ${tileY})`, 
+            'success'
+        )
     }
     
-    this.placedObjects.push(newObject)
-    this.adminPanel.showNotification(
-        `${this.selectedTool.toUpperCase()} placé en (${tileX}, ${tileY})`, 
-        'success'
-    )
+    this.renderMap()
 }
 
+    openNPCTypeSelector(tileX, tileY) {
+    const npcTypes = [
+        { id: 'dialogue', name: '💬 Guide/Info', desc: 'Donne des informations aux joueurs' },
+        { id: 'merchant', name: '🏪 Marchand', desc: 'Vend des objets dans sa boutique' },
+        { id: 'trainer', name: '⚔️ Dresseur', desc: 'Défie le joueur en combat Pokémon' },
+        { id: 'healer', name: '💊 Soigneur', desc: 'Soigne les Pokémon du joueur' },
+        { id: 'gym_leader', name: '🏆 Champion', desc: 'Leader d\'arène avec badge' },
+        { id: 'transport', name: '🚢 Transport', desc: 'Transporte vers d\'autres zones' },
+        { id: 'service', name: '🔧 Service', desc: 'Offre des services spécialisés' }
+    ]
+    
+    const modalHTML = `
+        <div class="npc-type-selector-modal" id="npcTypeModal" style="
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); z-index: 1000; display: flex; 
+            align-items: center; justify-content: center;
+        ">
+            <div class="modal-content" style="
+                background: white; border-radius: 8px; max-width: 600px; 
+                width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            ">
+                <div class="modal-header" style="
+                    padding: 20px; border-bottom: 1px solid #eee; display: flex; 
+                    justify-content: space-between; align-items: center;
+                ">
+                    <h3 style="margin: 0;">🎭 Choisissez le type de NPC</h3>
+                    <button type="button" class="btn-close" onclick="adminPanel.mapEditor.closeNPCTypeSelector()" 
+                            style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <p style="margin-bottom: 20px; color: #666;">
+                        Position: <strong>(${tileX}, ${tileY})</strong>
+                    </p>
+                    <div class="npc-types-grid" style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                        ${npcTypes.map(type => `
+                            <div class="npc-type-option" onclick="adminPanel.mapEditor.createNPCOfType('${type.id}', ${tileX}, ${tileY})" 
+                                 style="
+                                     padding: 16px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; 
+                                     display: flex; align-items: center; transition: all 0.2s;
+                                 " 
+                                 onmouseover="this.style.borderColor='#007bff'; this.style.backgroundColor='#f8f9ff';"
+                                 onmouseout="this.style.borderColor='#ddd'; this.style.backgroundColor='white';">
+                                <div class="npc-type-icon" style="font-size: 32px; margin-right: 16px;">
+                                    ${type.name.split(' ')[0]}
+                                </div>
+                                <div class="npc-type-info">
+                                    <div class="npc-type-name" style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">
+                                        ${type.name}
+                                    </div>
+                                    <div class="npc-type-desc" style="color: #666; font-size: 14px;">
+                                        ${type.desc}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px; border-top: 1px solid #eee; text-align: right;">
+                    <button type="button" class="btn btn-secondary" onclick="adminPanel.mapEditor.closeNPCTypeSelector()"
+                            style="padding: 8px 16px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer;">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    `
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML)
+}
+
+// ✅ Créer le NPC du type choisi
+createNPCOfType(npcType, tileX, tileY) {
+    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY})`)
+    
+    const newNPC = this.createCompleteNPC(tileX, tileY, npcType)
+    
+    this.placedObjects.push(newNPC)
+    this.adminPanel.showNotification(
+        `NPC ${npcType} créé en (${tileX}, ${tileY}) avec tous les champs requis`, 
+        'success'
+    )
+    
+    this.closeNPCTypeSelector()
+    this.renderMap()
+}
+
+// ✅ Fermer la modal
+closeNPCTypeSelector() {
+    const modal = document.getElementById('npcTypeModal')
+    if (modal) {
+        modal.remove()
+    }
+}
 // ✅ NOUVELLE MÉTHODE : Créer un NPC complet selon son type
 createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
     // Base NPC
