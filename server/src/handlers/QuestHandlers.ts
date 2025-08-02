@@ -8,40 +8,37 @@ export class QuestHandlers {
 
   constructor(room: WorldRoom) {
     this.room = room;
-    console.log(`🎯 === QUEST HANDLERS INIT ===`);
   }
 
   setupHandlers() {
-    console.log(`📨 Setup Quest handlers (COMPLET)...`);
-
-    // ✅ === HANDLERS PROGRESSION QUÊTES ===
+    // Handlers progression quêtes
     this.room.onMessage("progressIntroQuest", async (client: Client, data: { step: string }) => {
-      console.log(`📨 PROGRESS INTRO RECEIVED...`);
       await this.handleProgressIntroQuest(client, data.step);
     });
 
-    // ✅ === NOUVEAUX HANDLERS POUR LES MESSAGES INTRO ===
+    // Handlers messages intro
     this.room.onMessage("intro_started", async (client: Client) => {
-      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${client.sessionId}`);
       await this.handleProgressIntroQuest(client, "intro_started");
     });
 
     this.room.onMessage("dialogue_completed", async (client: Client) => {
-      console.log(`💬 [QuestHandlers] Dialogue terminé pour ${client.sessionId}`);
       await this.handleProgressIntroQuest(client, "dialogue_completed");
     });
 
     this.room.onMessage("intro_completed", async (client: Client) => {
-      console.log(`🎉 [QuestHandlers] Intro complétée pour ${client.sessionId}`);
       await this.handleProgressIntroQuest(client, "intro_completed");
     });
 
-    // ✅ === HANDLERS GESTION AUTOMATIQUE ===
+    // Handlers gestion automatique
     this.room.onMessage("checkAutoIntroQuest", async (client: Client) => {
       await this.handleCheckAutoIntroQuest(client);
     });
 
-    // ✅ === HANDLERS CLASSIQUES ===
+    this.room.onMessage("clientIntroReady", (client: Client) => {
+      this.handleCheckAutoIntroQuest(client);
+    });
+
+    // Handlers classiques
     this.room.onMessage("startQuest", async (client: Client, data: { questId: string }) => {
       await this.handleStartQuest(client, data);
     });
@@ -62,7 +59,11 @@ export class QuestHandlers {
       this.handleDebugQuests(client);
     });
 
-    // ✅ === HANDLERS ÉVÉNEMENTS AUTOMATIQUES ===
+    this.room.onMessage("debugPlayerQuests", async (client: Client) => {
+      await this.handleDebugPlayerQuests(client);
+    });
+
+    // Handlers événements automatiques
     this.room.onMessage("triggerQuestEvent", async (client: Client, data: { eventType: string, eventData: any }) => {
       await this.handleQuestEvent(client, data.eventType, data.eventData);
     });
@@ -71,54 +72,73 @@ export class QuestHandlers {
       await this.handleQuestConditions(client, data.conditions);
     });
 
-    // ✅ === HANDLER DEBUG DÉVELOPPEMENT ===
-    this.room.onMessage("debugPlayerQuests", async (client: Client) => {
-      await this.handleDebugPlayerQuests(client);
+    // ✅ NOUVEAU: Handler pour récupérer les détails d'une quête
+    this.room.onMessage("getQuestDetails", async (client: Client, data: { npcId: number, questId: string }) => {
+      await this.handleGetQuestDetails(client, data);
     });
-
-    // ✅ HANDLER CLIENT READY (le nouveau)
-    this.room.onMessage("clientIntroReady", (client: Client) => {
-      console.log(`📨 RECEIVED READY FROM PLAYER...`);
-      this.handleCheckAutoIntroQuest(client);
-    });
-
-    console.log(`✅ Quest handlers configurés (${this.getHandlerCount()} handlers)`);
   }
 
-  private getHandlerCount(): number {
-    return 13; // Nombre de handlers configurés (mis à jour)
-  }
+  // ✅ NOUVEAU: Handler pour récupérer les détails d'une quête
+  private async handleGetQuestDetails(client: Client, data: { npcId: number, questId: string }) {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("questDetailsResult", {
+        success: false,
+        error: "Joueur non trouvé"
+      });
+      return;
+    }
 
-  // ✅ === NOUVEAU HANDLER: VÉRIFICATION AUTO INTRO ===
-  private async handleCheckAutoIntroQuest(client: Client) {
     try {
-      console.log(`🎬 [QuestHandlers] Vérification intro quest pour ${client.sessionId}`);
-
-      const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
-        return;
-      }
-
       const questManager = ServiceRegistry.getInstance().getQuestManager();
       if (!questManager) {
-        console.error(`❌ [QuestHandlers] QuestManager non disponible`);
-        return;
+        throw new Error("QuestManager non disponible");
       }
+
+      const questDetails = await questManager.getQuestById(data.questId);
+      if (!questDetails) {
+        throw new Error(`Quête ${data.questId} non trouvée`);
+      }
+
+      const canAccept = await questManager.canPlayerStartQuest(player.name, data.questId);
+
+      client.send("questDetailsResult", {
+        success: true,
+        questId: data.questId,
+        npcId: data.npcId,
+        questData: {
+          id: questDetails.id,
+          name: questDetails.name,
+          description: questDetails.description,
+          rewards: questDetails.rewards || [],
+          requirements: questDetails.requirements || {},
+          canAccept: canAccept
+        }
+      });
+
+    } catch (error) {
+      client.send("questDetailsResult", {
+        success: false,
+        error: error.message || "Erreur lors de la récupération des détails"
+      });
+    }
+  }
+
+  private async handleCheckAutoIntroQuest(client: Client) {
+    try {
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const questManager = ServiceRegistry.getInstance().getQuestManager();
+      if (!questManager) return;
 
       const introQuestId = "beach_intro_quest";
       const questStatus = await questManager.checkQuestStatus(player.name, introQuestId);
 
-      console.log(`🔍 [QuestHandlers] Statut quête intro pour ${player.name}: ${questStatus}`);
-
       if (questStatus === 'available') {
-        // ✅ DONNER LA QUÊTE MAIS PAS ENCORE LA VALIDER
         const result = await questManager.giveQuest(player.name, introQuestId);
 
         if (result.success) {
-          console.log(`📋 [QuestHandlers] Quête intro donnée à ${player.name}`);
-          
-          // ✅ ENVOYER TRIGGER INTRO APRÈS UN DÉLAI
           setTimeout(() => {
             ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
               questId: introQuestId,
@@ -126,11 +146,9 @@ export class QuestHandlers {
               message: "Bienvenue dans votre aventure !",
               shouldStartIntro: true
             });
-            console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé avec délai`);
           }, 1000);
         }
       } else if (questStatus === 'active') {
-        // ✅ VÉRIFIER SI L'INTRO A ÉTÉ VUE
         const activeQuests = await questManager.getPlayerActiveQuests(player.name);
         const introQuest = activeQuests.find(q => q.id === introQuestId);
 
@@ -139,21 +157,14 @@ export class QuestHandlers {
           const hasSeenIntro = firstStep.objectives.some((obj: any) => obj.completed);
 
           if (!hasSeenIntro) {
-            console.log(`🔄 [QuestHandlers] Quête active mais intro pas vue pour ${player.name}`);
-            
             ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
               questId: introQuestId,
               questName: introQuest.name,
               message: "Continuons votre aventure !",
               shouldStartIntro: true
             });
-            console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé (quête existante)`);
-          } else {
-            console.log(`✅ [QuestHandlers] Intro déjà vue pour ${player.name}`);
           }
         }
-      } else if (questStatus === 'completed') {
-        console.log(`🎉 [QuestHandlers] Quête intro déjà terminée pour ${player.name}`);
       }
 
     } catch (error) {
@@ -161,50 +172,26 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER PROGRESSION INTRO (maintenant public) ===
   public async handleProgressIntroQuest(client: Client, step: string) {
     try {
-      console.log(`🎬 [QuestHandlers] Progression intro quest: ${step}`);
-      
       const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
-        return;
-      }
+      if (!player) return;
 
       const questManager = ServiceRegistry.getInstance().getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [QuestHandlers] QuestManager non disponible`);
-        return;
-      }
+      if (!questManager) return;
 
-      // ✅ GESTION SPÉCIALE POUR intro_started (pas de progression)
       if (step === 'intro_started') {
-        console.log(`🎬 [QuestHandlers] Intro démarrée pour ${player.name} - pas de progression encore`);
         return;
       }
 
-      // Conversion step → event de progression
       const progressEvent = this.convertStepToProgressEvent(step);
-      if (!progressEvent) {
-        console.warn(`⚠️ [QuestHandlers] Étape intro non-progressive: ${step}`);
-        return;
-      }
+      if (!progressEvent) return;
 
-      console.log(`📈 [QuestHandlers] Progression pour ${player.name}:`, progressEvent);
-
-      // Faire progresser via QuestManager
       const result = await questManager.progressQuest(player.name, progressEvent);
       
       if (result.success && result.results.length > 0) {
-        console.log(`✅ [QuestHandlers] Progression intro réussie pour ${player.name}`);
-        
-        // Vérifier si quête terminée
         for (const questResult of result.results) {
           if (questResult.questCompleted) {
-            console.log(`🎉 [QuestHandlers] Quête d'intro terminée pour ${player.name}!`);
-            
-            // Envoyer notification spéciale de completion
             client.send("introQuestCompleted", {
               message: "Félicitations ! Votre aventure commence vraiment maintenant !",
               reward: "Vous avez débloqué de nouvelles fonctionnalités !",
@@ -213,7 +200,6 @@ export class QuestHandlers {
           }
         }
 
-        // ✅ METTRE À JOUR LES STATUTS DE QUÊTE
         await this.updateQuestStatuses(player.name);
       }
       
@@ -222,11 +208,8 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER DÉMARRAGE QUÊTE ===
   private async handleStartQuest(client: Client, data: { questId: string }) {
     try {
-      console.log(`🎯 [QuestHandlers] Démarrage de quête ${data.questId} pour ${client.sessionId}`);
-      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) {
         client.send("questStartResult", {
@@ -236,7 +219,6 @@ export class QuestHandlers {
         return;
       }
 
-      // Bloquer mouvement pendant démarrage
       this.room.blockPlayerMovement(client.sessionId, 'dialog', 3000, { questId: data.questId });
 
       try {
@@ -252,17 +234,13 @@ export class QuestHandlers {
         const quest = await questManager.startQuest(player.name, data.questId);
         
         if (quest) {
-          console.log(`✅ [QuestHandlers] Quête ${data.questId} démarrée pour ${player.name}`);
-          
           client.send("questStartResult", {
             success: true,
             quest: quest,
             message: `Quête "${quest.name}" démarrée !`
           });
           
-          // Mettre à jour les statuts
           await this.updateQuestStatuses(player.name);
-          
         } else {
           client.send("questStartResult", {
             success: false,
@@ -278,7 +256,6 @@ export class QuestHandlers {
       }
       
     } catch (error) {
-      console.error("❌ [QuestHandlers] Erreur handleStartQuest:", error);
       client.send("questStartResult", {
         success: false,
         message: "Erreur serveur lors du démarrage de la quête"
@@ -286,11 +263,8 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER RÉCUPÉRATION QUÊTES ACTIVES ===
   private async handleGetActiveQuests(client: Client) {
     try {
-      console.log(`📋 [QuestHandlers] Récupération des quêtes actives pour ${client.sessionId}`);
-      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) {
         client.send("activeQuestsList", { quests: [] });
@@ -305,22 +279,17 @@ export class QuestHandlers {
 
       const activeQuests = await questManager.getPlayerActiveQuests(player.name);
       
-      console.log(`📤 [QuestHandlers] Envoi de ${activeQuests.length} quêtes actives`);
       client.send("activeQuestsList", {
         quests: activeQuests
       });
       
     } catch (error) {
-      console.error("❌ [QuestHandlers] Erreur handleGetActiveQuests:", error);
       client.send("activeQuestsList", { quests: [] });
     }
   }
 
-  // ✅ === HANDLER RÉCUPÉRATION QUÊTES DISPONIBLES ===
   private async handleGetAvailableQuests(client: Client) {
     try {
-      console.log(`📋 [QuestHandlers] Récupération des quêtes disponibles pour ${client.sessionId}`);
-      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) {
         client.send("availableQuestsList", { quests: [] });
@@ -335,39 +304,27 @@ export class QuestHandlers {
 
       const availableQuests = await questManager.getPlayerAvailableQuests(player.name);
       
-      console.log(`📤 [QuestHandlers] Envoi de ${availableQuests.length} quêtes disponibles`);
       client.send("availableQuestsList", {
         quests: availableQuests
       });
       
     } catch (error) {
-      console.error("❌ [QuestHandlers] Erreur handleGetAvailableQuests:", error);
       client.send("availableQuestsList", { quests: [] });
     }
   }
 
-  // ✅ === HANDLER PROGRESSION QUÊTE GÉNÉRALE ===
   private async handleQuestProgress(client: Client, data: any) {
     try {
-      console.log(`📈 [QuestHandlers] Progression de quête pour ${client.sessionId}:`, data);
-      
       const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        return;
-      }
+      if (!player) return;
 
       const questManager = ServiceRegistry.getInstance().getQuestManager();
-      if (!questManager) {
-        return;
-      }
+      if (!questManager) return;
 
       const result = await questManager.progressQuest(player.name, data);
       
       if (result.success && result.results.length > 0) {
-        console.log(`📤 [QuestHandlers] Envoi questProgressUpdate:`, result.results);
         client.send("questProgressUpdate", result.results);
-        
-        // Mettre à jour les statuts de quête
         await this.updateQuestStatuses(player.name);
       }
       
@@ -376,11 +333,8 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER ÉVÉNEMENTS DE QUÊTES ===
   private async handleQuestEvent(client: Client, eventType: string, eventData: any) {
     try {
-      console.log(`⚡ [QuestHandlers] Événement de quête: ${eventType}`, eventData);
-      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) return;
 
@@ -433,17 +387,12 @@ export class QuestHandlers {
           break;
 
         default:
-          console.warn(`⚠️ [QuestHandlers] Type d'événement inconnu: ${eventType}`);
           return;
       }
 
-      // Faire progresser toutes les quêtes concernées
       const result = await questManager.progressQuest(player.name, progressEvent);
       
       if (result.success && result.results.length > 0) {
-        console.log(`✅ [QuestHandlers] ${result.results.length} quête(s) progressée(s) pour ${player.name}`);
-        
-        // Envoyer les mises à jour au client
         client.send("questProgressUpdate", result.results);
       }
       
@@ -452,18 +401,14 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER CONDITIONS DE QUÊTES ===
   private async handleQuestConditions(client: Client, conditions: any) {
     try {
-      console.log(`🔍 [QuestHandlers] Vérification conditions:`, conditions);
-      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) return;
 
       const questManager = ServiceRegistry.getInstance().getQuestManager();
       if (!questManager) return;
 
-      // Vérifier les conditions (niveau, objets, quêtes complétées, etc.)
       const checks = [];
 
       if (conditions.level) {
@@ -500,7 +445,6 @@ export class QuestHandlers {
         }
       }
 
-      // Envoyer le résultat des vérifications
       client.send("questConditionsResult", {
         checks: checks,
         allMet: checks.every(check => check.met)
@@ -511,12 +455,9 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER DEBUG QUÊTES ===
   private async handleDebugQuests(client: Client) {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) return;
-    
-    console.log(`🐛 [QuestHandlers] Debug quêtes pour: ${player.name}`);
     
     try {
       const questManager = ServiceRegistry.getInstance().getQuestManager();
@@ -536,18 +477,14 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HANDLER DEBUG DÉVELOPPEMENT ===
   private async handleDebugPlayerQuests(client: Client) {
     try {
       const player = this.room.state.players.get(client.sessionId);
       if (!player) return;
 
-      console.log(`🐛 [QuestHandlers] Debug développement pour ${player.name}`);
-
       const questManager = ServiceRegistry.getInstance().getQuestManager();
       if (!questManager) return;
 
-      // Récupérer toutes les infos de quêtes
       const activeQuests = await questManager.getPlayerActiveQuests(player.name);
       const availableQuests = await questManager.getPlayerAvailableQuests(player.name);
 
@@ -571,9 +508,6 @@ export class QuestHandlers {
         }
       };
 
-      console.log(`🐛 [QuestHandlers] Debug info:`, debugInfo);
-
-      // Envoyer les infos de debug au client
       client.send("questDebugInfo", debugInfo);
       
     } catch (error) {
@@ -581,69 +515,81 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === MÉTHODE HELPER POUR MISE À JOUR STATUTS ===
   private async updateQuestStatuses(playerName: string, client?: Client) {
     try {
-      console.log(`📊 [QuestHandlers] === UPDATE QUEST STATUSES ===`);
-      console.log(`👤 Username: ${playerName}`);
-      
       const questManager = ServiceRegistry.getInstance().getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [QuestHandlers] QuestManager non accessible !`);
-        return;
-      }
-      
-      console.log(`✅ [QuestHandlers] QuestManager OK, récupération quest statuses...`);
+      if (!questManager) return;
       
       const availableQuests = await questManager.getPlayerAvailableQuests(playerName);
       const activeQuests = await questManager.getPlayerActiveQuests(playerName);
       
-      console.log(`📋 [QuestHandlers] Quêtes disponibles: ${availableQuests.length}`);
-      console.log(`📈 [QuestHandlers] Quêtes actives: ${activeQuests.length}`);
-      
-      const questStatuses: any[] = [];
-      
-      // Statuts pour les quêtes disponibles
+      // ✅ NOUVEAU FORMAT AVEC IDs
+      const npcQuestMap = new Map<number, any>();
+
       for (const quest of availableQuests) {
         if (quest.startNpcId) {
-          questStatuses.push({
-            npcId: quest.startNpcId,
-            type: 'questAvailable'
-          });
-          console.log(`➕ [QuestHandlers] Quête disponible: ${quest.name} pour NPC ${quest.startNpcId}`);
+          if (!npcQuestMap.has(quest.startNpcId)) {
+            npcQuestMap.set(quest.startNpcId, {
+              npcId: quest.startNpcId,
+              availableQuestIds: [],
+              inProgressQuestIds: [],
+              readyToCompleteQuestIds: []
+            });
+          }
+          
+          npcQuestMap.get(quest.startNpcId).availableQuestIds.push(quest.id);
         }
       }
-      
-      // Statuts pour les quêtes actives
+
       for (const quest of activeQuests) {
-        if (quest.status === 'readyToComplete' && quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questReadyToComplete'
-          });
-          console.log(`🎉 [QuestHandlers] Quête prête: ${quest.name} pour NPC ${quest.endNpcId}`);
-        } else if (quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questInProgress'
-          });
-          console.log(`📈 [QuestHandlers] Quête en cours: ${quest.name} pour NPC ${quest.endNpcId}`);
+        if (quest.endNpcId) {
+          if (!npcQuestMap.has(quest.endNpcId)) {
+            npcQuestMap.set(quest.endNpcId, {
+              npcId: quest.endNpcId,
+              availableQuestIds: [],
+              inProgressQuestIds: [],
+              readyToCompleteQuestIds: []
+            });
+          }
+          
+          if (quest.status === 'readyToComplete') {
+            npcQuestMap.get(quest.endNpcId).readyToCompleteQuestIds.push(quest.id);
+          } else {
+            npcQuestMap.get(quest.endNpcId).inProgressQuestIds.push(quest.id);
+          }
         }
       }
-      
-      console.log(`📊 [QuestHandlers] Total quest statuses: ${questStatuses.length}`, questStatuses);
+
+      const questStatuses: any[] = [];
+
+      npcQuestMap.forEach((npcData) => {
+        let finalType = null;
+        
+        if (npcData.readyToCompleteQuestIds.length > 0) {
+          finalType = 'questReadyToComplete';
+        } else if (npcData.availableQuestIds.length > 0) {
+          finalType = 'questAvailable';
+        } else if (npcData.inProgressQuestIds.length > 0) {
+          finalType = 'questInProgress';
+        }
+        
+        if (finalType) {
+          questStatuses.push({
+            npcId: npcData.npcId,
+            type: finalType,
+            availableQuestIds: npcData.availableQuestIds,
+            inProgressQuestIds: npcData.inProgressQuestIds,
+            readyToCompleteQuestIds: npcData.readyToCompleteQuestIds
+          });
+        }
+      });
       
       if (questStatuses.length > 0) {
-        // Envoyer à tous les clients ou juste celui spécifié
         if (client) {
           client.send("questStatuses", { questStatuses });
-          console.log(`📤 [QuestHandlers] Quest statuses envoyés à ${client.sessionId}`);
         } else {
           this.room.broadcast("questStatuses", { questStatuses });
-          console.log(`📡 [QuestHandlers] Quest statuses broadcastés`);
         }
-      } else {
-        console.log(`ℹ️ [QuestHandlers] Aucun quest status à envoyer pour ${playerName}`);
       }
       
     } catch (error) {
@@ -651,12 +597,10 @@ export class QuestHandlers {
     }
   }
 
-  // ✅ === HELPERS ===
-
   private convertStepToProgressEvent(step: string): any | null {
     switch (step) {
       case 'intro_started':
-        return null; // Pas de progression, juste tracking
+        return null;
 
       case 'dialogue_completed':
         return {
@@ -688,30 +632,21 @@ export class QuestHandlers {
           amount: 1
         };
 
-     case 'follow_psyduck':
+      case 'follow_psyduck':
         return {
           type: 'talk',
           npcId: 999,
           targetId: '999A',
           amount: 1
         };
-
         
       default:
         return null;
     }
   }
 
-  // ✅ === MÉTHODES PUBLIQUES POUR DÉCLENCHER DES ÉVÉNEMENTS ===
-
-  /**
-   * Déclenche un événement de quête depuis n'importe où dans le code
-   */
   public async triggerQuestEvent(playerName: string, eventType: string, eventData: any): Promise<void> {
     try {
-      console.log(`🎯 [QuestHandlers] Événement déclenché pour ${playerName}: ${eventType}`);
-
-      // Trouver le client du joueur
       for (const [sessionId, player] of this.room.state.players) {
         if (player.name === playerName) {
           const client = this.room.clients.find(c => c.sessionId === sessionId);
@@ -721,22 +656,16 @@ export class QuestHandlers {
           }
         }
       }
-
-      console.warn(`⚠️ [QuestHandlers] Client non trouvé pour ${playerName}`);
     } catch (error) {
       console.error(`❌ [QuestHandlers] Erreur triggerQuestEvent:`, error);
     }
   }
 
-  /**
-   * Vérifie les conditions de quêtes pour un joueur
-   */
   public async checkConditionsForPlayer(playerName: string, conditions: any): Promise<boolean> {
     try {
       const questManager = ServiceRegistry.getInstance().getQuestManager();
       if (!questManager) return false;
 
-      // Logique de vérification simplifiée
       if (conditions.completedQuests) {
         for (const questId of conditions.completedQuests) {
           const status = await questManager.checkQuestStatus(playerName, questId);
@@ -746,16 +675,11 @@ export class QuestHandlers {
 
       return true;
     } catch (error) {
-      console.error(`❌ [QuestHandlers] Erreur checkConditionsForPlayer:`, error);
       return false;
     }
   }
 
-  /**
-   * Nettoie les handlers
-   */
   cleanup() {
-    console.log(`🧹 [QuestHandlers] Nettoyage`);
     // Cleanup si nécessaire
   }
 }
