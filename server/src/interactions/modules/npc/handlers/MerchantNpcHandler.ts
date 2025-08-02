@@ -1,6 +1,6 @@
 // server/src/interactions/modules/npc/handlers/MerchantNpcHandler.ts
 import { Player } from "../../../../schema/PokeWorldState";
-import { ShopManager, ShopDefinition, ShopDataSource } from "../../../../managers/ShopManager";
+import { ShopManager } from "../../../../managers/ShopManager";
 import { ShopData, IShopData } from "../../../../models/ShopData";
 import { DialogStringModel, SupportedLanguage } from "../../../../models/DialogString";
 
@@ -47,18 +47,9 @@ interface MerchantHandlerConfig {
   shopManagerTimeout: number;
   cacheShopData: boolean;
   cacheTTL: number;
-  fallbackDialogues: {
-    welcome: string[];
-    welcomeKeys: string[];
-    error: string[];
-    errorKeys: string[];
-    closed: string[];
-    closedKeys: string[];
-  };
 }
 
 export class MerchantNpcHandler {
-  
   private shopManager: ShopManager;
   private config: MerchantHandlerConfig;
   private isShopManagerReady: boolean = false;
@@ -66,7 +57,6 @@ export class MerchantNpcHandler {
 
   constructor(shopManager: ShopManager, config?: Partial<MerchantHandlerConfig>) {
     this.shopManager = shopManager;
-    
     this.config = {
       debugMode: process.env.NODE_ENV === 'development',
       enableLocalization: process.env.SHOP_LOCALIZATION !== 'false',
@@ -74,14 +64,6 @@ export class MerchantNpcHandler {
       shopManagerTimeout: 10000,
       cacheShopData: process.env.SHOP_CACHE_ENABLED !== 'false',
       cacheTTL: parseInt(process.env.SHOP_CACHE_TTL || '300000'),
-      fallbackDialogues: {
-        welcome: ["shop.dialogue.generic.welcome.1"],
-        welcomeKeys: ["shop.dialogue.generic.welcome.1"],
-        error: ["shop.error.temporarily_closed"],
-        errorKeys: ["shop.error.temporarily_closed"],
-        closed: ["shop.error.closed"],
-        closedKeys: ["shop.error.closed"]
-      },
       ...config
     };
     
@@ -96,7 +78,6 @@ export class MerchantNpcHandler {
 
     try {
       const ready = await this.shopManager.waitForLoad(this.config.shopManagerTimeout);
-      
       if (ready) {
         this.isShopManagerReady = true;
         this.shopManager.onShopChange((event, shopData) => {
@@ -105,7 +86,6 @@ export class MerchantNpcHandler {
       } else {
         this.isShopManagerReady = false;
       }
-      
     } catch (error) {
       this.isShopManagerReady = false;
     }
@@ -189,8 +169,7 @@ export class MerchantNpcHandler {
         );
       }
       
-      const welcomeDialogues = await this.getWelcomeDialoguesFromShopData(shopDataDocument);
-      const welcomeKeys = this.getWelcomeDialogueKeysFromShopData(shopDataDocument);
+      const welcomeDialogues = await this.getWelcomeDialogues(shopDataDocument, player, 'fr');
       
       const result: MerchantInteractionResult = {
         success: true,
@@ -213,7 +192,6 @@ export class MerchantNpcHandler {
         npcName: npc.name,
         npcNameKey: npc.nameKey,
         lines: welcomeDialogues,
-        dialogueKeys: welcomeKeys,
         messageKey: "shop.dialogue.welcome.default"
       };
       
@@ -288,45 +266,30 @@ export class MerchantNpcHandler {
     };
   }
 
-  private async getWelcomeDialoguesFromShopData(shopData: IShopData): Promise<string[]> {
-    if (shopData.dialogues?.welcomeKeys && shopData.dialogues.welcomeKeys.length > 0) {
-      try {
-        const dialogStrings = await DialogStringModel.find({
-          dialogId: { $in: shopData.dialogues.welcomeKeys },
+  private async getWelcomeDialogues(shopData: IShopData, player: Player, language: SupportedLanguage = 'fr'): Promise<string[]> {
+    try {
+      const dialogPatterns = [
+        `${shopData.shopId}.shop.welcome`,
+        `${shopData.type}.shop.welcome`,
+        `generic.shop.welcome`
+      ];
+
+      for (const pattern of dialogPatterns) {
+        const dialogue = await DialogStringModel.findOne({
+          dialogId: pattern,
           isActive: true
         });
-        
-        if (dialogStrings.length > 0) {
-          return dialogStrings.map(d => d.getLocalizedText('fr'));
+
+        if (dialogue) {
+          const text = dialogue.replaceVariables(language, player.name);
+          return [text];
         }
-      } catch (error) {
-        // Fallback to keys
       }
-      return shopData.dialogues.welcomeKeys;
-    }
-    
-    return this.getDefaultDialogueByShopType(shopData.type);
-  }
 
-  private getWelcomeDialogueKeysFromShopData(shopData: IShopData): string[] {
-    if (!this.config.enableLocalization) {
-      return [];
+      return [`Bienvenue dans ma boutique, ${player.name} !`];
+    } catch (error) {
+      return [`Bienvenue dans ma boutique, ${player.name} !`];
     }
-
-    if (shopData.dialogues?.welcomeKeys) {
-      return shopData.dialogues.welcomeKeys;
-    }
-    
-    const shopType = shopData.type;
-    const shopId = shopData.shopId;
-    
-    return [
-      `shop.dialogue.${shopId}.welcome.1`,
-      `shop.dialogue.${shopType}.welcome.1`,
-      `shop.dialogue.generic.welcome.1`,
-      `shop.dialogue.${shopType}.welcome.2`,
-      `shop.dialogue.generic.welcome.2`
-    ];
   }
 
   isMerchantNpc(npc: NpcData): boolean {
@@ -342,23 +305,6 @@ export class MerchantNpcHandler {
     if (npc.properties?.shopId) return npc.properties.shopId;
     if (npc.properties?.shop) return npc.properties.shop;
     return null;
-  }
-
-  private getDefaultDialogueByShopType(shopType: string): string[] {
-    const dialoguesByType: Record<string, string[]> = {
-      'pokemart': ["shop.dialogue.pokemart.welcome.1"],
-      'department': ["shop.dialogue.department.welcome.1"],
-      'specialist': ["shop.dialogue.specialist.welcome.1"],
-      'gym_shop': ["shop.dialogue.gym_shop.welcome.1"],
-      'contest_shop': ["shop.dialogue.contest_shop.welcome.1"],
-      'game_corner': ["shop.dialogue.game_corner.welcome.1"],
-      'black_market': ["shop.dialogue.black_market.welcome.1"],
-      'trainer_shop': ["shop.dialogue.trainer_shop.welcome.1"],
-      'temporary': ["shop.dialogue.temporary.welcome.1"],
-      'vending_machine': ["shop.dialogue.vending_machine.welcome.1"]
-    };
-    
-    return dialoguesByType[shopType] || this.config.fallbackDialogues.welcome;
   }
 
   async handleShopTransaction(
@@ -377,12 +323,11 @@ export class MerchantNpcHandler {
     dialogues?: string[];
     dialogueKeys?: string[];
   }> {
-    
     const shopId = this.getShopId(npc);
     if (!shopId) {
       return {
         success: false,
-        message: "shop.error.not_configured",
+        message: "Boutique non configurée",
         messageKey: "shop.error.not_configured"
       };
     }
@@ -392,7 +337,7 @@ export class MerchantNpcHandler {
       if (!shopData) {
         return {
           success: false,
-          message: "shop.error.temporarily_unavailable",
+          message: "Boutique temporairement indisponible",
           messageKey: "shop.error.temporarily_unavailable"
         };
       }
@@ -419,151 +364,57 @@ export class MerchantNpcHandler {
         );
       }
       
-      const dialogues = result.success 
-        ? await this.getTransactionDialoguesFromShopData(shopData, action, 'success')
-        : await this.getTransactionDialoguesFromShopData(shopData, action, 'failure');
-
-      const dialogueKeys = result.success 
-        ? this.getTransactionDialogueKeysFromShopData(shopData, action, 'success')
-        : this.getTransactionDialogueKeysFromShopData(shopData, action, 'failure');
+      const dialogues = await this.getTransactionDialogues(shopData, action, result.success ? 'success' : 'failure', player);
 
       return {
         ...result,
-        dialogues,
-        dialogueKeys
+        dialogues
       };
       
     } catch (error) {
       return {
         success: false,
-        message: "shop.error.transaction_failed",
-        messageKey: "shop.error.transaction_failed",
-        dialogues: this.config.fallbackDialogues.error,
-        dialogueKeys: this.config.fallbackDialogues.errorKeys
+        message: "Erreur lors de la transaction",
+        messageKey: "shop.error.transaction_failed"
       };
     }
   }
 
-  private async getTransactionDialoguesFromShopData(shopData: IShopData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): Promise<string[]> {
-    const dialogues = shopData.dialogues;
-    if (!dialogues) {
-      return this.getDefaultTransactionDialogues(action, result);
-    }
+  private async getTransactionDialogues(shopData: IShopData, action: 'buy' | 'sell', result: 'success' | 'failure', player: Player, language: SupportedLanguage = 'fr'): Promise<string[]> {
+    try {
+      const dialogPatterns = [
+        `${shopData.shopId}.shop.${action}.${result}`,
+        `${shopData.type}.shop.${action}.${result}`,
+        `generic.shop.${action}.${result}`
+      ];
 
-    const dialogueMap: Record<string, Record<string, string[] | undefined>> = {
-      buy: {
-        success: dialogues.purchaseKeys,
-        failure: dialogues.notEnoughMoneyKeys,
-        error: dialogues.restrictedKeys
-      },
-      sell: {
-        success: dialogues.saleKeys,
-        failure: dialogues.restrictedKeys,
-        error: dialogues.restrictedKeys
-      }
-    };
-
-    const keys = dialogueMap[action]?.[result];
-    if (keys && keys.length > 0) {
-      try {
-        const dialogStrings = await DialogStringModel.find({
-          dialogId: { $in: keys },
+      for (const pattern of dialogPatterns) {
+        const dialogue = await DialogStringModel.findOne({
+          dialogId: pattern,
           isActive: true
         });
-        
-        if (dialogStrings.length > 0) {
-          return dialogStrings.map(d => d.getLocalizedText('fr'));
+
+        if (dialogue) {
+          const text = dialogue.replaceVariables(language, player.name);
+          return [text];
         }
-      } catch (error) {
-        // Fallback to keys
       }
-      return keys;
-    }
 
-    return this.getDefaultTransactionDialogues(action, result);
-  }
-
-  private getTransactionDialogueKeysFromShopData(shopData: IShopData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
-    if (!this.config.enableLocalization) {
-      return [];
-    }
-
-    const dialogues = shopData.dialogues;
-    if (dialogues) {
-      const keyMap: Record<string, Record<string, string[] | undefined>> = {
+      const defaultDialogues: Record<string, Record<string, string[]>> = {
         buy: {
-          success: dialogues.purchaseKeys,
-          failure: dialogues.notEnoughMoneyKeys,
-          error: dialogues.restrictedKeys
+          success: [`Merci pour votre achat, ${player.name} !`],
+          failure: [`Vous n'avez pas assez d'argent, ${player.name}.`]
         },
         sell: {
-          success: dialogues.saleKeys,
-          failure: dialogues.restrictedKeys,
-          error: dialogues.restrictedKeys
+          success: [`Merci, cet objet m'intéresse, ${player.name} !`],
+          failure: [`Je ne peux pas acheter cet objet, ${player.name}.`]
         }
       };
 
-      const keys = keyMap[action]?.[result];
-      if (keys && keys.length > 0) {
-        return keys;
-      }
+      return defaultDialogues[action]?.[result] || ["Hmm..."];
+    } catch (error) {
+      return [`Merci, ${player.name} !`];
     }
-
-    const shopType = shopData.type;
-    const shopId = shopData.shopId;
-    
-    const defaultKeyMappings: Record<string, Record<string, string[]>> = {
-      buy: {
-        success: [
-          `shop.dialogue.${shopId}.purchase.success.1`,
-          `shop.dialogue.${shopType}.purchase.success.1`,
-          `shop.dialogue.generic.purchase.success.1`
-        ],
-        failure: [
-          `shop.dialogue.${shopId}.no_money.1`,
-          `shop.dialogue.${shopType}.no_money.1`,
-          `shop.dialogue.generic.no_money.1`
-        ],
-        error: [
-          `shop.dialogue.${shopType}.error.1`,
-          `shop.dialogue.generic.error.1`
-        ]
-      },
-      sell: {
-        success: [
-          `shop.dialogue.${shopId}.sale.success.1`,
-          `shop.dialogue.${shopType}.sale.success.1`,
-          `shop.dialogue.generic.sale.success.1`
-        ],
-        failure: [
-          `shop.dialogue.${shopType}.sale.failure.1`,
-          `shop.dialogue.generic.sale.failure.1`
-        ],
-        error: [
-          `shop.dialogue.${shopType}.error.1`,
-          `shop.dialogue.generic.error.1`
-        ]
-      }
-    };
-    
-    return defaultKeyMappings[action]?.[result] || [];
-  }
-
-  private getDefaultTransactionDialogues(action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
-    const defaultDialogues: Record<string, Record<string, string[]>> = {
-      buy: {
-        success: ["shop.dialogue.generic.purchase.success.1"],
-        failure: ["shop.dialogue.generic.no_money.1"],
-        error: ["shop.dialogue.generic.error.1"]
-      },
-      sell: {
-        success: ["shop.dialogue.generic.sale.success.1"],
-        failure: ["shop.dialogue.generic.sale.failure.1"],
-        error: ["shop.dialogue.generic.error.1"]
-      }
-    };
-    
-    return defaultDialogues[action]?.[result] || ["shop.dialogue.generic.error.1"];
   }
 
   private createErrorResult(messageKey: string, npcId: number, npcName?: string): MerchantInteractionResult {
@@ -574,8 +425,8 @@ export class MerchantNpcHandler {
       npcId,
       npcName: npcName || `NPC #${npcId}`,
       npcNameKey: this.config.enableLocalization ? `npc.name.${npcId}` : undefined,
-      lines: this.config.fallbackDialogues.error,
-      dialogueKeys: this.config.enableLocalization ? this.config.fallbackDialogues.errorKeys : []
+      lines: [],
+      dialogueKeys: []
     };
   }
 
@@ -601,23 +452,19 @@ export class MerchantNpcHandler {
         'shopdata_integration',
         'mongodb_direct_access',
         'shopdata_cache',
+        'dialogstring_integration',
         'shop_transactions',
-        'contextual_dialogues',
-        'shop_type_detection',
         'localization_support',
-        'hot_reload_support',
-        'async_initialization'
+        'hot_reload_support'
       ]
     };
   }
 
   async waitForReady(timeoutMs: number = 5000): Promise<boolean> {
     const startTime = Date.now();
-    
     while (!this.isShopManagerReady && (Date.now() - startTime) < timeoutMs) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
     return this.isShopManagerReady;
   }
 
@@ -634,27 +481,3 @@ export class MerchantNpcHandler {
     }
   }
 }
- * - getTransactionDialoguesFromShopData() : Dialogues transaction depuis ShopData
- * - Cache local ShopData avec TTL configurable
- * - Support complet des IDs de localisation depuis ShopData
- * - Méthodes debug améliorées avec ShopData
- * - Hot reload avec invalidation cache
- * 
- * 🔄 MODIFIÉ :
- * - handle() : Utilise ShopData comme source principale
- * - handleShopTransaction() : Intègre règles depuis ShopData
- * - isMerchantNpc() : Détection basée sur shopId simple
- * - getShopId() : Priorité au nouveau format shopId
- * 
- * ❌ RETIRÉ :
- * - Toute logique ShopConfig complexe
- * - Dépendance aux propriétés shop dans NpcData
- * - Génération manuelle de configurations shop
- * 
- * 🎯 RÉSULTAT :
- * - ShopData devient la source unique pour TOUTES les données shop
- * - Performance améliorée avec cache intelligent
- * - Cohérence garantie des données shop
- * - Facilite la maintenance et les mises à jour
- * - Support complet des fonctionnalités ShopData (horaires, restrictions, etc.)
- */
