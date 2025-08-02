@@ -105,40 +105,57 @@ export class DialogueUI {
   setupQuestButtonInterceptor() {
     // Délégation d'événements pour intercepter tous les clics sur boutons quest
     document.addEventListener('click', (e) => {
-      // Vérifier si c'est un bouton de quête
-      const isQuestButton = e.target.matches('.action-btn[data-action-type="quest"], .action-btn.quest') ||
+      // Vérifier si c'est un bouton de quête (générique ou spécifique)
+      const isQuestButton = e.target.matches('.action-btn[data-action-type="quest"], .action-btn.quest, .action-btn[data-quest-id]') ||
                            (e.target.closest('.action-btn') && 
                             (e.target.closest('.action-btn').dataset.actionType === 'quest' ||
-                             e.target.closest('.action-btn').classList.contains('quest')));
+                             e.target.closest('.action-btn').classList.contains('quest') ||
+                             e.target.closest('.action-btn').dataset.questId));
       
       if (isQuestButton && this.isVisible) {
         console.log('🎯 Bouton quête intercepté par DialogueUI');
         e.stopImmediatePropagation();
         e.preventDefault();
         
+        const button = e.target.closest('.action-btn');
+        const questId = button?.dataset.questId;
+        
         // Utiliser l'ID stocké ou récupérer depuis DOM
         const npcId = this.currentNpcId || 
                      this.container?.getAttribute('data-current-npc-id') || 
                      2;
         
-        this.handleQuestAction(parseInt(npcId));
+        this.handleQuestAction(parseInt(npcId), questId);
         return false;
       }
     }, true); // true = phase de capture pour intercepter avant autres handlers
   }
 
-  // 🆕 NOUVEAU : Gestion action quête
-  handleQuestAction(npcId) {
-    console.log('🎯 Gestion action quête pour NPC:', npcId);
+  // 🆕 NOUVEAU : Gestion action quête (avec questId spécifique)
+  handleQuestAction(npcId, questId = null) {
+    console.log('🎯 Gestion action quête pour NPC:', npcId, 'Quest:', questId);
     
     // Récupérer QuestSystem
     const questSystem = this.getQuestSystem();
     
     if (questSystem) {
       try {
+        if (questId) {
+          // Quête spécifique sélectionnée - afficher directement ses détails
+          console.log('📋 Affichage direct de la quête:', questId);
+          const success = questSystem.showQuestDetailsForNpc(npcId, [questId]);
+          
+          if (success) {
+            this.hide();
+            return;
+          }
+        }
+        
+        // Fallback vers comportement original (toutes les quêtes)
         const success = questSystem.handleQuestActionFromDialogue({
           npcId: npcId,
-          actionType: 'quest'
+          actionType: 'quest',
+          questId: questId
         });
         
         console.log('✅ QuestSystem appelé, succès:', success);
@@ -469,15 +486,39 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
       }
 
-      .action-btn.quest {
+      .action-btn.quest,
+      .action-btn.quest-specific {
         background: linear-gradient(135deg, #ffc107, #e0a800);
         color: #333;
         text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
       }
 
-      .action-btn.quest:hover {
+      .action-btn.quest:hover,
+      .action-btn.quest-specific:hover {
         background: linear-gradient(135deg, #ffcd17, #ebb000);
         box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+      }
+
+      .action-btn.quest-specific {
+        border-left: 4px solid #ff9800;
+        position: relative;
+      }
+
+      .action-btn.quest-specific::before {
+        content: "📋";
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ff9800;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       }
 
       /* Autres styles... (reste identique) */
@@ -636,6 +677,13 @@ export class DialogueUI {
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
+    
+    // 🆕 NOUVEAU : Support questId pour quêtes spécifiques
+    if (action.questId) {
+      button.dataset.questId = action.questId;
+      button.classList.add('quest-specific');
+    }
+    
     button.innerHTML = `
       <span class="action-icon">${action.icon || '🔧'}</span>
       <span class="action-label">${action.label}</span>
