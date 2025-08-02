@@ -1,7 +1,4 @@
 // src/interactions/modules/NpcInteractionModule.ts
-// Module de gestion des interactions avec les NPCs - VERSION AVEC IA INTÉGRÉE + DialogString + LANGUE JOUEUR + POST-QUEST DIALOGUES
-// ✅ ÉTAPE 3 COMPLÈTE : Intégration dialogues post-quête dans système Legacy
-
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
@@ -15,11 +12,7 @@ import {
   InteractionType
 } from "../types/BaseInteractionTypes";
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
-
-// ✅ NOUVEAU : Import DialogString Service
-import { getDialogStringService, DialogVariables, createDialogVars } from "../../services/DialogStringService";
-
-// ✅ NOUVEAU : Imports IA
+import { DialogStringModel, SupportedLanguage } from "../../models/DialogString";
 import { 
   NPCIntelligenceConnector, 
   getNPCIntelligenceConnector,
@@ -28,8 +21,6 @@ import {
 } from "../../Intelligence/NPCSystem/NPCIntelligenceConnector";
 import type { SmartNPCResponse } from "../../Intelligence/NPCSystem/NPCIntelligenceConnector";
 import { ActionType } from "../../Intelligence/Core/ActionTypes";
-
-// Imports existants
 import { UnifiedInterfaceHandler } from "./npc/handlers/UnifiedInterfaceHandler";
 import { 
   UnifiedInterfaceResult, 
@@ -39,9 +30,7 @@ import {
 } from "../types/UnifiedInterfaceTypes";
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
-// ✅ INTERFACE RESULT NPC ÉTENDUE POUR IA + POST-QUEST
 export interface NpcInteractionResult extends InteractionResult {
-  // Données NPCs existantes (gardées optionnelles pour rétro-compatibilité)
   shopId?: string;
   shopData?: any;
   lines?: string[];
@@ -61,7 +50,6 @@ export interface NpcInteractionResult extends InteractionResult {
     reason?: string;
   };
   
-  // Champs interface unifiée requis
   npcId: number;
   npcName: string;
   isUnifiedInterface: boolean;
@@ -79,7 +67,6 @@ export interface NpcInteractionResult extends InteractionResult {
     }>;
   };
   
-  // ✅ NOUVEAU : Données IA
   isIntelligentResponse?: boolean;
   intelligenceUsed?: boolean;
   aiAnalysisConfidence?: number;
@@ -87,19 +74,16 @@ export interface NpcInteractionResult extends InteractionResult {
   relationshipLevel?: string;
   proactiveHelp?: boolean;
   followUpQuestions?: string[];
-  tracking?: any; // Données de tracking de l'IA
+  tracking?: any;
   
-  // ✅ NOUVEAU : Données post-quête
   isPostQuestDialogue?: boolean;
   completedQuestName?: string;
   completedAt?: Date;
   
-  // Données interface unifiée spécifiques (gardées optionnelles)
   unifiedInterface?: UnifiedInterfaceResult;
   unifiedMode?: boolean;
 }
 
-// ✅ NOUVELLE INTERFACE : Configuration IA
 interface NPCIntelligenceConfig {
   enableIntelligence: boolean;
   enabledNPCTypes: string[];
@@ -110,36 +94,29 @@ interface NPCIntelligenceConfig {
   debugMode: boolean;
 }
 
-// ✅ NOUVEAU : Interface étendue pour contexte avec userId
 export interface EnhancedInteractionContext extends InteractionContext {
-  userId?: string;        // ✅ NOUVEAU : userId JWT pour tracking IA cohérent
-  sessionId?: string;     // ✅ NOUVEAU : sessionId pour mapping
+  userId?: string;
+  sessionId?: string;
 }
 
 export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "4.4.0"; // ✅ Version avec DialogString + Langue joueur + Post-Quest
+  readonly version = "5.0.0";
 
-  // === DÉPENDANCES EXISTANTES ===
   private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
   private shopManager: ShopManager;
   private starterHandlers: StarterHandlers;
   private spectatorManager: SpectatorManager;
   
-  // Handlers modulaires existants
   private merchantHandler: MerchantNpcHandler;
   private unifiedInterfaceHandler: UnifiedInterfaceHandler;
 
-  // ✅ NOUVELLE DÉPENDANCE : Connecteur IA
   private intelligenceConnector: NPCIntelligenceConnector;
   private intelligenceConfig: NPCIntelligenceConfig;
   private npcsRegisteredWithAI: Set<number> = new Set();
-
-  // ✅ NOUVEAU : Service DialogString
-  private dialogService = getDialogStringService();
 
   constructor(
     getNpcManager: (zoneName: string) => any,
@@ -156,11 +133,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
     this.starterHandlers = starterHandlers;
     this.spectatorManager = spectatorManager;
 
-    // ✅ CONFIGURATION IA
     this.intelligenceConfig = {
       enableIntelligence: process.env.NPC_AI_ENABLED !== 'false',
       enabledNPCTypes: ['dialogue', 'healer', 'quest_master', 'researcher', 'merchant'],
-      enabledZones: [], // Vide = toutes les zones
+      enabledZones: [],
       fallbackToLegacy: true,
       analysisTimeout: 5000,
       minConfidenceThreshold: 0.3,
@@ -168,59 +144,36 @@ export class NpcInteractionModule extends BaseInteractionModule {
       ...intelligenceConfig
     };
 
-    // ✅ INITIALISATION IA
     this.intelligenceConnector = getNPCIntelligenceConnector();
     
-    // Initialisation handlers existants
     this.initializeHandlers();
 
-    this.log('info', '🤖 Module NPC v4.4.0 avec DialogString + Langue joueur + Post-Quest', {
-      version: this.version,
-      intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
-      enabledTypes: this.intelligenceConfig.enabledNPCTypes,
-      handlersLoaded: ['merchant', 'unifiedInterface', 'intelligence', 'dialogString', 'postQuest'],
-      questIntegration: 'Phase 4 - Post-Quest Dialogues',
-      dialogService: 'Intégré avec support multilingue',
-      languageSupport: 'Intégré - Client vers DialogString',
-      postQuestSupport: 'Legacy System - Dialogues spécifiques après completion'
-    });
-
-    // ✅ ENREGISTREMENT DIFFÉRÉ DES NPCs DANS L'IA
     if (this.intelligenceConfig.enableIntelligence) {
       this.scheduleNPCRegistrationWithAI();
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE UTILITAIRE : Créer variables de dialogue
-  private createPlayerDialogVars(player: Player, npcName?: string, targetName?: string): DialogVariables {
-    return createDialogVars({
-      player: {
-        name: player.name,
-        level: player.level,
-        gold: player.gold
-      },
-      npc: npcName,
-      target: targetName,
+  private async createPlayerDialogVars(player: Player, npcName?: string, targetName?: string): Promise<Record<string, string>> {
+    return {
+      player: player.name,
+      level: player.level.toString(),
+      gold: player.gold.toString(),
+      npc: npcName || '',
+      target: targetName || '',
       zone: player.currentZone
-    });
+    };
   }
 
-  // ✅ NOUVELLE MÉTHODE : Enregistrement différé des NPCs dans l'IA
   private scheduleNPCRegistrationWithAI(): void {
-    // Enregistrer les NPCs dans l'IA après un délai pour laisser le temps au système de s'initialiser
     setTimeout(async () => {
       await this.registerAllNPCsWithAI();
-    }, 2000); // 2 secondes de délai
+    }, 2000);
   }
 
-  // ✅ NOUVELLE MÉTHODE : Enregistrement de masse des NPCs
   private async registerAllNPCsWithAI(): Promise<void> {
     try {
-      this.log('info', '🎭 Enregistrement des NPCs dans le système d\'IA...');
-      
-      // Collecter tous les NPCs de toutes les zones
       const allNPCs: any[] = [];
-      const zones = ['pallet_town', 'route_1', 'viridian_city']; // TODO: Récupérer dynamiquement
+      const zones = ['pallet_town', 'route_1', 'viridian_city'];
       
       for (const zoneName of zones) {
         try {
@@ -230,51 +183,37 @@ export class NpcInteractionModule extends BaseInteractionModule {
             allNPCs.push(...zoneNPCs);
           }
         } catch (error) {
-          this.log('warn', `⚠️ Impossible de récupérer les NPCs de ${zoneName}:`, error);
+          console.warn(`⚠️ Impossible de récupérer les NPCs de ${zoneName}:`, error);
         }
       }
 
       if (allNPCs.length === 0) {
-        this.log('warn', '⚠️ Aucun NPC trouvé pour enregistrement IA');
         return;
       }
 
-      // Enregistrer dans l'IA
       const result = await registerNPCsWithAI(allNPCs);
       
-      // Marquer comme enregistrés
       for (const npc of allNPCs) {
         if (this.shouldNPCUseIntelligence(npc)) {
           this.npcsRegisteredWithAI.add(npc.id);
         }
       }
 
-      this.log('info', '✅ NPCs enregistrés dans l\'IA', {
-        total: allNPCs.length,
-        registered: result.registered,
-        skipped: result.skipped,
-        errors: result.errors.length,
-        intelligentNPCs: this.npcsRegisteredWithAI.size
-      });
-
       if (result.errors.length > 0) {
-        this.log('warn', '⚠️ Erreurs d\'enregistrement IA:', result.errors.slice(0, 5));
+        console.warn(`⚠️ Erreurs d'enregistrement IA:`, result.errors.slice(0, 5));
       }
 
     } catch (error) {
-      this.log('error', '❌ Erreur enregistrement NPCs dans l\'IA:', error);
+      console.error(`❌ Erreur enregistrement NPCs dans l'IA:`, error);
     }
   }
 
-  // ✅ MÉTHODE MODIFIÉE : Initialisation des handlers (inchangée)
   private initializeHandlers(): void {
     try {
-      // Handler Merchant (existant)
       this.merchantHandler = new MerchantNpcHandler(this.shopManager, {
         debugMode: process.env.NODE_ENV === 'development'
       });
       
-      // Handler Interface Unifiée (existant)
       this.unifiedInterfaceHandler = new UnifiedInterfaceHandler(
         this.questManager,
         this.shopManager,
@@ -286,65 +225,45 @@ export class NpcInteractionModule extends BaseInteractionModule {
         }
       );
       
-      this.log('info', '✅ Handlers modulaires initialisés', {
-        merchantHandler: !!this.merchantHandler,
-        unifiedInterfaceHandler: !!this.unifiedInterfaceHandler,
-        intelligenceConnector: !!this.intelligenceConnector,
-        dialogService: !!this.dialogService
-      });
-      
     } catch (error) {
-      this.log('error', '❌ Erreur initialisation handlers', error);
       throw new Error(`Impossible d'initialiser les handlers NPCs: ${error}`);
     }
   }
-
-  // === MÉTHODES PRINCIPALES (MODIFIÉES POUR IA + LANGUE + POST-QUEST) ===
 
   canHandle(request: InteractionRequest): boolean {
     return request.type === 'npc' && request.data?.npcId !== undefined;
   }
 
-  // ✅ HANDLE PRINCIPAL MODIFIÉ POUR SUPPORTER USERID + LANGUE + POST-QUEST
   async handle(context: InteractionContext | EnhancedInteractionContext): Promise<InteractionResult> {
     const startTime = Date.now();
     
     try {
       const { player, request } = context;
-      const enhancedContext = context as EnhancedInteractionContext; // Cast pour accéder userId
+      const enhancedContext = context as EnhancedInteractionContext;
       const npcId = request.data?.npcId;
 
-      // 🔍 DEBUG LANGUE
-      console.log("🔍 [DEBUG] request.data:", JSON.stringify(request.data, null, 2));
-      
       if (!npcId) {
         return this.createErrorResult("NPC ID manquant", "INVALID_REQUEST");
       }
 
-      // ✅ EXTRACTION LANGUE AVEC CASTING TYPESCRIPT
       const requestAny = request as any;
       const playerLanguage = request.data?.playerLanguage || 
                             requestAny.playerLanguage || 
                             'fr';
-      
-      console.log("🔍 [DEBUG] playerLanguage FINAL:", playerLanguage);
-      
-      this.log('info', `🌐 [NpcModule] Langue joueur reçue: ${playerLanguage}`);
 
-      // ✅ TRACKING IA CORRIGÉ : Utiliser userId si disponible
       if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
         try {
           const { trackPlayerAction } = await import("../../Intelligence/IntelligenceOrchestrator");
           
           await trackPlayerAction(
-            enhancedContext.userId,  // ✅ CORRIGÉ : userId au lieu de player.name
+            enhancedContext.userId,
             ActionType.NPC_TALK,
             {
               npcId,
               playerLevel: player.level,
               playerGold: player.gold,
               zone: player.currentZone,
-              playerLanguage // ✅ NOUVEAU : Inclure la langue dans le tracking
+              playerLanguage
             },
             {
               location: { 
@@ -355,27 +274,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
             }
           );
           
-          console.log(`📊 [AI] Action NPC trackée pour userId: ${enhancedContext.userId} → NPC ${npcId} (langue: ${playerLanguage})`);
-          
         } catch (error) {
           console.warn(`⚠️ [AI] Erreur tracking:`, error);
         }
-      } else if (this.intelligenceConfig.enableIntelligence && !enhancedContext.userId) {
-        console.warn(`⚠️ [AI] Tracking impossible : userId manquant pour ${player.name}`);
       }
       
-      this.log('info', `🎮 Interaction NPC ${npcId}`, { 
-        player: player.name,
-        userId: enhancedContext.userId || 'N/A',
-        language: playerLanguage,
-        intelligenceEnabled: this.intelligenceConfig.enableIntelligence,
-        dialogServiceReady: !!this.dialogService
-      });
-
-      // ✅ ÉTAPE 2 : Logique avec IA intégrée + langue + POST-QUEST
       const result = await this.handleNpcInteractionWithAI(player, npcId, request, enhancedContext.userId, playerLanguage);
 
-      // Mise à jour des stats
       const processingTime = Date.now() - startTime;
       this.updateStats(result.success, processingTime);
 
@@ -385,7 +290,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', 'Erreur traitement NPC', error);
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
         "PROCESSING_FAILED"
@@ -393,20 +297,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === ✅ NOUVELLE LOGIQUE MÉTIER AVEC IA INTÉGRÉE + LANGUE + POST-QUEST ===
-
-  // ✅ ÉTAPE 2 : Signature modifiée avec playerLanguage + POST-QUEST
   private async handleNpcInteractionWithAI(
     player: Player, 
     npcId: number, 
     request: InteractionRequest,
     userId?: string,
-    playerLanguage: string = 'fr'  // ✅ NOUVEAU : Paramètre langue
+    playerLanguage: string = 'fr'
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🤖 [AI+Legacy+PostQuest] Traitement NPC ${npcId} pour ${player.name} (userId: ${userId || 'N/A'}, lang: ${playerLanguage})`);
-    
-    // Récupérer le NPC
     const npcManager = this.getNpcManager(player.currentZone);
     if (!npcManager) {
       return this.createSafeErrorResult(npcId, "NPCs non disponibles dans cette zone.");
@@ -417,62 +315,28 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return this.createSafeErrorResult(npcId, "NPC inconnu.");
     }
 
-    // Sécurité : Valeurs par défaut
     const safeNpcId = npc.id ?? npcId;
     const safeNpcName = npc.name || `NPC #${npcId}`;
 
-    this.log('info', `✅ NPC trouvé: ${safeNpcName} (ID: ${safeNpcId})`, { 
-      type: npc.type || 'legacy',
-      sourceType: npc.sourceType || 'tiled',
-      intelligenceAvailable: this.shouldUseIntelligentInteraction(npc),
-      hasUserId: !!userId,
-      playerLanguage: playerLanguage,
-      dialogServiceReady: !!this.dialogService
-    });
-
-    // ✅ DÉCISION PRINCIPALE : IA ou Legacy ?
     if (this.shouldUseIntelligentInteraction(npc) && userId) {
-      // === TENTATIVE IA ===
       try {
-        this.log('info', `🎭 [AI] Tentative interaction intelligente NPC ${safeNpcId} pour userId ${userId} (${playerLanguage})`);
-        
         const intelligentResult = await this.handleIntelligentNPCInteraction(
           player, npc, safeNpcId, safeNpcName, request, userId, playerLanguage
         );
         
-        // Si l'IA a réussi, retourner le résultat enrichi
         if (intelligentResult.intelligenceUsed) {
-          this.log('info', `✅ [AI] Interaction intelligente réussie pour NPC ${safeNpcId}`, {
-            confidence: intelligentResult.aiAnalysisConfidence,
-            personalized: intelligentResult.personalizedLevel,
-            proactive: intelligentResult.proactiveHelp,
-            userId: userId,
-            language: playerLanguage
-          });
-          
           return intelligentResult;
         }
         
-        // Si l'IA n'a pas pu traiter, passer au fallback
-        this.log('info', `🔄 [AI] IA non applicable, fallback legacy pour NPC ${safeNpcId}`);
       } catch (error) {
-        this.log('error', `❌ [AI] Erreur IA pour NPC ${safeNpcId}, fallback legacy:`, error);
-        
         if (!this.intelligenceConfig.fallbackToLegacy) {
           return this.createSafeErrorResult(safeNpcId, "Erreur système d'intelligence");
         }
       }
-    } else if (this.shouldUseIntelligentInteraction(npc) && !userId) {
-      this.log('warn', `⚠️ [AI] IA disponible mais userId manquant pour NPC ${safeNpcId}`);
     }
 
-    // === FALLBACK LEGACY AVEC POST-QUEST ===
-    this.log('info', `🔧 [Legacy+PostQuest] Utilisation logique traditionnelle pour NPC ${safeNpcId} (${playerLanguage})`);
-    
-    // ✅ ÉTAPE 3 : Passer la langue au legacy + vérifier post-quest
     const legacyResult = await this.handleLegacyNpcInteractionLogic(player, npc, safeNpcId, playerLanguage);
     
-    // Enrichir le résultat legacy avec les champs IA (pour compatibilité)
     const enrichedResult: NpcInteractionResult = {
       ...legacyResult,
       intelligenceUsed: false,
@@ -482,17 +346,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
       relationshipLevel: 'unknown'
     };
 
-    this.log('info', `✅ [Legacy+PostQuest] Interaction traditionnelle terminée pour NPC ${safeNpcId}`, {
-      type: enrichedResult.type,
-      language: playerLanguage,
-      isPostQuest: enrichedResult.isPostQuestDialogue || false,
-      hasRequiredFields: !!(enrichedResult.npcId && enrichedResult.npcName)
-    });
-
     return enrichedResult;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Interaction intelligente via connecteur IA + LANGUE (inchangée)
   private async handleIntelligentNPCInteraction(
     player: Player,
     npc: any,
@@ -500,12 +356,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
     npcName: string,
     request: InteractionRequest,
     userId: string,
-    playerLanguage: string = 'fr'  // ✅ NOUVEAU : userId obligatoire pour IA + langue
+    playerLanguage: string = 'fr'
   ): Promise<NpcInteractionResult> {
     
-    this.log('info', `🎭 [Intelligent] Démarrage interaction IA pour NPC ${npcId} (userId: ${userId}, lang: ${playerLanguage})`);
-    
-    // Préparer le contexte pour l'IA
     const context = {
       playerAction: request.data?.action || 'dialogue',
       location: {
@@ -517,26 +370,20 @@ export class NpcInteractionModule extends BaseInteractionModule {
         sessionId: (request as any).sessionId,
         interactionCount: (request as any).interactionCount || 1
       },
-      // ✅ NOUVEAU : Inclure la langue dans le contexte IA
       playerPreferences: {
         language: playerLanguage
       }
     };
 
     try {
-      // ✅ APPEL AU CONNECTEUR IA AVEC USERID + LANGUE
       const smartResponse: SmartNPCResponse = await handleSmartNPCInteraction(
-        userId,  // ✅ CORRIGÉ : userId au lieu de player.name
+        userId,
         npcId.toString(),
         'dialogue',
         context
       );
 
       if (!smartResponse.success) {
-        // Si l'IA échoue, retourner un indicateur pour le legacy (sans erreur)
-        console.log(`⚠️ [AI] IA échouée pour NPC ${npcId}, passage automatique au legacy`);
-        
-        // Retourner un résultat spécial qui indique au parent d'utiliser legacy
         return {
           success: false,
           type: "error",
@@ -557,30 +404,26 @@ export class NpcInteractionModule extends BaseInteractionModule {
         };
       }
 
-      // ✅ ENREGISTRER L'ACTION POUR L'APPRENTISSAGE
       await this.recordActionForAILearning(player, npcId, 'npc_interaction', {
         npcName,
         interactionType: 'dialogue',
         analysisUsed: true,
         smartResponse: smartResponse.dialogue.message,
         userId: userId,
-        playerLanguage: playerLanguage // ✅ NOUVEAU : Inclure langue dans l'apprentissage
+        playerLanguage: playerLanguage
       });
 
-      // ✅ CONVERSION : SmartNPCResponse → NpcInteractionResult
       const result: NpcInteractionResult = {
         success: true,
-        type: this.mapAIResponseTypeToNpcType(smartResponse) as any, // Cast temporaire
+        type: this.mapAIResponseTypeToNpcType(smartResponse) as any,
         message: smartResponse.dialogue.message,
 
-        // Champs requis
         npcId: npcId,
         npcName: npcName,
-        isUnifiedInterface: false, // SmartNPCResponse ne gère pas encore l'interface unifiée
+        isUnifiedInterface: false,
         capabilities: this.extractCapabilitiesFromActions(smartResponse.actions),
         contextualData: this.buildContextualDataFromResponse(smartResponse),
 
-        // ✅ Données IA enrichies
         intelligenceUsed: true,
         isIntelligentResponse: true,
         aiAnalysisConfidence: smartResponse.metadata.analysisConfidence,
@@ -589,10 +432,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
         proactiveHelp: smartResponse.metadata.isProactiveHelp,
         followUpQuestions: smartResponse.followUpQuestions,
 
-        // Données de dialogue
         lines: [smartResponse.dialogue.message],
 
-        // Données spécialisées si présentes
         ...(this.hasShopActions(smartResponse.actions) && {
           shopId: this.extractShopIdFromActions(smartResponse.actions),
           shopData: this.extractShopDataFromActions(smartResponse.actions)
@@ -600,29 +441,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
         ...(this.hasQuestActions(smartResponse.actions) && {
           availableQuests: this.extractQuestDataFromActions(smartResponse.actions),
-          questProgress: [] // TODO: Récupérer depuis le contexte
+          questProgress: []
         }),
 
-        // Métadonnées tracking
         tracking: smartResponse.tracking
       };
-
-      this.log('info', `🎉 [Intelligent] Réponse IA convertie pour NPC ${npcId}`, {
-        type: result.type,
-        confidence: result.aiAnalysisConfidence,
-        personalized: result.personalizedLevel,
-        hasActions: smartResponse.actions.length,
-        hasFollowUp: smartResponse.followUpQuestions.length,
-        userId: userId,
-        language: playerLanguage
-      });
 
       return result;
 
     } catch (error) {
-      this.log('error', `❌ [Intelligent] Erreur interaction IA NPC ${npcId}:`, error);
-      
-      // Retourner un résultat indiquant que l'IA n'a pas pu traiter
       return {
         success: false,
         type: "error",
@@ -644,24 +471,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // ✅ MÉTHODES EXISTANTES AVEC SUPPORT LANGUE + POST-QUEST
-
-  // ✅ ÉTAPE 3 : Signature modifiée avec playerLanguage + POST-QUEST LOGIC
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
-    
-    // ============================================
-    // ✅ NOUVEAU : VÉRIFICATION POST-QUEST EN PRIORITÉ
-    // ============================================
-    
-    this.log('info', `🔍 [PostQuest] Vérification dialogue post-quête pour NPC ${npcId}...`);
     
     try {
       const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(player.name, npcId, 24);
       
       if (recentQuest && recentQuest.questDefinition.dialogues?.postQuestDialogue) {
-        this.log('info', `🎉 [PostQuest] Dialogue post-quête trouvé pour "${recentQuest.questDefinition.name}"!`);
-        
-        // ✅ UTILISER DIALOGSTRING POUR POST-QUEST
         const postQuestLines = await this.getPostQuestDialogue(recentQuest.questDefinition, player, playerLanguage);
         
         return {
@@ -680,42 +495,25 @@ export class NpcInteractionModule extends BaseInteractionModule {
             defaultAction: 'dialogue',
             quickActions: []
           },
-          // ✅ NOUVEAU : Marquer comme dialogue post-quête
           isPostQuestDialogue: true,
           completedQuestName: recentQuest.questDefinition.name,
           completedAt: recentQuest.completedAt
         };
-      } else if (recentQuest) {
-        this.log('info', `ℹ️ [PostQuest] Quête récente trouvée ("${recentQuest.questDefinition.name}") mais pas de dialogue post-quête configuré`);
-      } else {
-        this.log('info', `❌ [PostQuest] Aucune quête récemment terminée pour NPC ${npcId}`);
       }
       
     } catch (error) {
-      this.log('error', `❌ [PostQuest] Erreur vérification post-quête:`, error);
-      // Continuer vers la logique normale en cas d'erreur
+      // Continue vers la logique normale en cas d'erreur
     }
 
-    // ============================================
-    // ✅ LOGIQUE LEGACY NORMALE (inchangée)
-    // ============================================
-
-    // 1. Vérifier si c'est une table starter
     if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
-      this.log('info', 'Table starter détectée');
       return await this.handleStarterTableInteraction(player, npc, npcId);
     }
 
-    // 2. Vérifier d'abord les objectifs talk
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
-      this.log('info', `Objectif talk validé pour NPC ${npcId}`);
       return talkValidationResult;
     }
 
-    // 3. Progression optimisée des quêtes avec triggers
-    this.log('info', 'Déclenchement trigger talk pour quêtes');
-    
     let questProgress: any[] = [];
     try {
       const progressResult = await this.questManager.progressQuest(player.name, {
@@ -737,26 +535,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
       });
       
       questProgress = progressResult.results || [];
-      this.log('info', `✅ Trigger talk traité: ${questProgress.length} progression(s)`, questProgress);
     } catch (error) {
-      this.log('error', '❌ Erreur trigger talk:', error);
+      // Continue en cas d'erreur
     }
 
-    // 4. Vérifier les quêtes prêtes à compléter
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
     
     if (readyToCompleteQuests.length > 0) {
-      this.log('info', `${readyToCompleteQuests.length} quêtes prêtes à compléter`);
-      
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player, playerLanguage);
       
-      // Compléter automatiquement toutes les quêtes prêtes
       const completionResults = [];
       for (const quest of readyToCompleteQuests) {
-        this.log('info', `🏆 Tentative completion quête: ${quest.id}`);
-        
         const result = await this.questManager.completePlayerQuest(player.name, quest.id);
         if (result.success) {
           completionResults.push({
@@ -765,9 +556,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
             questRewards: result.rewards || [],
             message: result.message
           });
-          this.log('info', `✅ Quête complétée: ${quest.id}`);
-        } else {
-          this.log('warn', `⚠️ Échec completion: ${result.message}`);
         }
       }
       
@@ -802,12 +590,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     }
 
-    // 5. Vérifier les quêtes disponibles
     const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
     
     if (availableQuests.length > 0) {
-      this.log('info', `${availableQuests.length} quêtes disponibles`);
-      
       const firstQuest = availableQuests[0];
       const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
       
@@ -846,15 +631,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
 
-    // 6. Vérifier les quêtes en cours
     const activeQuests = await this.questManager.getActiveQuests(player.name);
     const questsForThisNpc = activeQuests.filter(q => 
       q.startNpcId === npcId || q.endNpcId === npcId
     );
 
     if (questsForThisNpc.length > 0) {
-      this.log('info', `${questsForThisNpc.length} quêtes en cours pour ce NPC`);
-      
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
@@ -878,13 +660,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
 
-    // 7. Comportement NPC normal (avec support JSON)
-    this.log('info', 'Aucune quête, dialogue normal');
-
-    if (npc.properties?.shop || npc.shopId) {
+    if (npc.shopId || npc.properties?.shop) {
       const shopId = npc.shopId || npc.properties.shop;
-      
-      // ✅ ÉTAPE 3 : UTILISER LANGUE JOUEUR
       const shopGreeting = await this.getShopGreeting(player, npc, playerLanguage);
       
       return { 
@@ -903,12 +680,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
           defaultAction: 'merchant',
           quickActions: []
         },
-        lines: [shopGreeting], // ✅ NOUVEAU : Dialogue personnalisé
-        message: shopGreeting   // ✅ NOUVEAU : Dialogue personnalisé
+        lines: [shopGreeting],
+        message: shopGreeting
       };
     } else if (npc.properties?.healer || npc.type === 'healer') {
-      
-      // ✅ ÉTAPE 3 : UTILISER LANGUE JOUEUR
       const healerGreeting = await this.getHealerGreeting(player, npc, playerLanguage);
       
       return { 
@@ -927,7 +702,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
           defaultAction: 'healer',
           quickActions: []
         },
-        lines: [healerGreeting] // ✅ NOUVEAU : Dialogue personnalisé
+        lines: [healerGreeting]
       };
     } else if (npc.properties?.dialogue || npc.dialogueIds) {
       const lines = await this.getDialogueLines(npc, player, playerLanguage);
@@ -970,163 +745,115 @@ export class NpcInteractionModule extends BaseInteractionModule {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES DIALOGSTRING AVEC LANGUE + POST-QUEST ===
-
-  /**
-   * ✅ NOUVEAU : Obtenir dialogue post-quête via DialogString avec langue
-   */
   private async getPostQuestDialogue(questDefinition: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       const questId = questDefinition.id || 'unknown_quest';
-      const dialogVars = this.createPlayerDialogVars(player, undefined, questDefinition.name);
+      const dialogVars = await this.createPlayerDialogVars(player, undefined, questDefinition.name);
       
-      // ✅ PRIORITÉ 1 : Dialogue post-quête via DialogString
       const postQuestDialogId = `quest.${questId}.postQuestDialogue`;
-      let dialogue = await this.dialogService.getText(postQuestDialogId, playerLanguage as any, dialogVars);
+      let dialogue = await DialogStringModel.findOne({
+        dialogId: postQuestDialogId,
+        isActive: true
+      });
       
-      if (!dialogue.includes('[MISSING:')) {
-        this.log('info', `🎊 [DialogString] Dialogue post-quête récupéré: ${postQuestDialogId} (${playerLanguage})`);
-        return [dialogue];
+      if (dialogue) {
+        const text = dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name, questDefinition.name);
+        return [text];
       }
       
-      // ✅ PRIORITÉ 2 : Utiliser les dialogues post-quête du JSON (nouveauté)
       if (questDefinition.dialogues?.postQuestDialogue && Array.isArray(questDefinition.dialogues.postQuestDialogue)) {
         const postQuestLines = questDefinition.dialogues.postQuestDialogue.map((line: string) => {
-          // Remplacer variables simples
           return line
             .replace('%player%', player.name)
             .replace('%quest%', questDefinition.name)
             .replace('%level%', player.level.toString());
         });
         
-        this.log('info', `📜 [JSON] Dialogues post-quête utilisés depuis JSON (${postQuestLines.length} lignes)`);
         return postQuestLines;
       }
       
-      // ✅ PRIORITÉ 3 : Dialogue générique post-quête
       const genericPostDialogId = `generic.quest.postQuestDialogue`;
-      const genericDialogue = await this.dialogService.getText(genericPostDialogId, playerLanguage as any, dialogVars);
+      const genericDialogue = await DialogStringModel.findOne({
+        dialogId: genericPostDialogId,
+        isActive: true
+      });
       
-      if (!genericDialogue.includes('[MISSING:')) {
-        return [genericDialogue];
+      if (genericDialogue) {
+        const text = genericDialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name, questDefinition.name);
+        return [text];
       }
       
-      // ✅ FALLBACK FINAL : Message par défaut
       const fallbackMessage = playerLanguage === 'en' 
         ? `Thank you for completing "${questDefinition.name}", ${player.name}! Feel free to talk to me anytime.`
         : `Merci d'avoir terminé "${questDefinition.name}", ${player.name} ! N'hésitez pas à me reparler à tout moment.`;
       
-      this.log('info', `🔧 [Fallback] Dialogue post-quête par défaut utilisé`);
       return [fallbackMessage];
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogue post-quête', error);
       return [`Félicitations pour avoir terminé votre quête, ${player.name} !`];
     }
   }
 
-  /**
-   * ✅ ÉTAPE 4 : Obtenir dialogue de boutique via DialogString avec langue
-   */
   private async getShopGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
-      const npcId = this.extractNpcIdentifier(npc);
-      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      const npcIdentifier = this.extractNpcIdentifier(npc);
       
-      // Essayer un dialogue spécifique au NPC d'abord
-      let greeting = await this.dialogService.getText(
-        `${npcId}.shop.greeting`,
-        playerLanguage as any, // Cast pour type SupportedLanguage
-        dialogVars
-      );
-      
-      // Si pas trouvé, utiliser un dialogue générique
-      if (greeting.includes('[MISSING:')) {
-        greeting = await this.dialogService.getText(
-          'generic.shop.welcome',
-          playerLanguage as any,
-          dialogVars
-        );
+      const dialogPatterns = [
+        `${npcIdentifier}.shop.greeting`,
+        `generic.shop.welcome`
+      ];
+
+      for (const pattern of dialogPatterns) {
+        const dialogue = await DialogStringModel.findOne({
+          dialogId: pattern,
+          isActive: true
+        });
+
+        if (dialogue) {
+          return dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name);
+        }
       }
       
-      // Si toujours pas trouvé, fallback
-      if (greeting.includes('[MISSING:')) {
-        greeting = `Bienvenue dans ma boutique, %s ! Que puis-je vous vendre ?`;
-        greeting = greeting.replace('%s', player.name);
-      }
-      
-      this.log('info', `🛒 [DialogString] Dialogue shop récupéré pour ${npcId} (${playerLanguage})`, {
-        dialogId: `${npcId}.shop.greeting`,
-        playerName: player.name,
-        language: playerLanguage,
-        result: greeting.substring(0, 50) + '...'
-      });
-      
-      return greeting;
+      return `Bienvenue dans ma boutique, ${player.name} !`;
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogue shop', error);
       return `Bienvenue dans ma boutique, ${player.name} !`;
     }
   }
 
-  /**
-   * ✅ ÉTAPE 4 : Obtenir dialogue de soigneur via DialogString avec langue
-   */
   private async getHealerGreeting(player: Player, npc: any, playerLanguage: string = 'fr'): Promise<string> {
     try {
-      const npcId = this.extractNpcIdentifier(npc);
-      const dialogVars = this.createPlayerDialogVars(player, npc.name);
+      const npcIdentifier = this.extractNpcIdentifier(npc);
       
-      // Essayer un dialogue spécifique au NPC d'abord
-      let greeting = await this.dialogService.getText(
-        `${npcId}.healer.greeting`,
-        playerLanguage as any,
-        dialogVars
-      );
-      
-      // Si pas trouvé, utiliser un dialogue générique
-      if (greeting.includes('[MISSING:')) {
-        greeting = await this.dialogService.getText(
-          'generic.healer.welcome',
-          playerLanguage as any,
-          dialogVars
-        );
+      const dialogPatterns = [
+        `${npcIdentifier}.healer.greeting`,
+        `generic.healer.welcome`
+      ];
+
+      for (const pattern of dialogPatterns) {
+        const dialogue = await DialogStringModel.findOne({
+          dialogId: pattern,
+          isActive: true
+        });
+
+        if (dialogue) {
+          return dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name);
+        }
       }
       
-      // Si toujours pas trouvé, fallback
-      if (greeting.includes('[MISSING:')) {
-        greeting = `Vos Pokémon sont soignés, %s ! Ils sont maintenant en pleine forme.`;
-        greeting = greeting.replace('%s', player.name);
-      }
-      
-      this.log('info', `🏥 [DialogString] Dialogue healer récupéré pour ${npcId} (${playerLanguage})`, {
-        dialogId: `${npcId}.healer.greeting`,
-        playerName: player.name,
-        language: playerLanguage,
-        result: greeting.substring(0, 50) + '...'
-      });
-      
-      return greeting;
+      return `Vos Pokémon sont soignés, ${player.name} ! Ils sont maintenant en pleine forme.`;
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogue healer', error);
       return `Vos Pokémon sont soignés !`;
     }
   }
 
-  /**
-   * ✅ ÉTAPE 4 : Extraire identifiant NPC pour DialogString
-   */
   private extractNpcIdentifier(npc: any): string {
-    // Essayer plusieurs sources pour l'identifiant
     if (npc.dialogId) return npc.dialogId;
     if (npc.name) return npc.name.toLowerCase().replace(/\s+/g, '_');
     if (npc.id) return `npc_${npc.id}`;
     return 'unknown_npc';
   }
-
-  // === MÉTHODES PUBLIQUES EXISTANTES INCHANGÉES ===
 
   async handleShopTransaction(
     player: Player, 
@@ -1141,14 +868,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     itemsChanged?: any[];
     shopStockChanged?: any[];
   }> {
-    this.log('info', 'Transaction shop', { 
-      player: player.name, 
-      shopId, 
-      action, 
-      itemId, 
-      quantity 
-    });
-
     try {
       const npcManager = this.getNpcManager(player.currentZone);
       if (npcManager) {
@@ -1159,12 +878,11 @@ export class NpcInteractionModule extends BaseInteractionModule {
         );
         
         if (merchantNpc) {
-          this.log('info', `🛒 Transaction déléguée au MerchantHandler (NPC ${merchantNpc.id})`);
           return await this.merchantHandler.handleShopTransaction(player, merchantNpc, action, itemId, quantity);
         }
       }
     } catch (error) {
-      this.log('warn', 'Erreur délégation MerchantHandler, fallback vers logique legacy', error);
+      console.warn('Erreur délégation MerchantHandler, fallback vers logique legacy', error);
     }
 
     const playerGold = player.gold || 1000;
@@ -1180,10 +898,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
         playerLevel
       );
       
-      if (result.success) {
-        this.log('info', 'Achat réussi', { itemId, quantity, newGold: result.newGold });
-      }
-      
       return result;
       
     } else if (action === 'sell') {
@@ -1193,10 +907,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
         itemId, 
         quantity
       );
-      
-      if (result.success) {
-        this.log('info', 'Vente réussie', { itemId, quantity, goldGained: result.newGold });
-      }
       
       return result;
     }
@@ -1209,19 +919,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     try {
-      this.log('info', '🎯 Démarrage quête via NPC', { username, questId });
-      
       const giveResult = await this.questManager.giveQuest(username, questId);
       
       if (giveResult.success) {
-        this.log('info', `✅ Quête donnée avec succès: ${giveResult.quest?.name || questId}`);
         return {
           success: true,
           message: giveResult.message,
           quest: giveResult.quest
         };
       } else {
-        this.log('warn', `⚠️ Impossible de donner la quête: ${giveResult.message}`);
         return {
           success: false,
           message: giveResult.message
@@ -1229,7 +935,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
       
     } catch (error) {
-      this.log('error', '❌ Erreur démarrage quête via NPC:', error);
       return {
         success: false,
         message: `Erreur lors du démarrage de la quête: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
@@ -1242,11 +947,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     targetPlayerId: string,
     targetPlayerPosition: { x: number; y: number; mapId: string }
   ): Promise<NpcInteractionResult> {
-    
-    this.log('info', 'Interaction joueur combat', { 
-      spectator: spectatorPlayer.name, 
-      target: targetPlayerId 
-    });
     
     const battleStatus = this.spectatorManager.getPlayerBattleStatus(targetPlayerId);
     
@@ -1331,11 +1031,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     request: SpecificActionRequest
   ): Promise<SpecificActionResult> {
     
-    this.log('info', `Action spécifique NPC ${request.npcId}`, {
-      player: player.name,
-      actionType: request.actionType
-    });
-
     try {
       const npcManager = this.getNpcManager(player.currentZone);
       if (!npcManager) {
@@ -1380,7 +1075,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
 
     } catch (error) {
-      this.log('error', 'Erreur action spécifique', error);
       return {
         success: false,
         type: "error",
@@ -1390,8 +1084,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
   }
-
-  // === MÉTHODES UTILITAIRES INCHANGÉES ===
 
   private createSafeErrorResult(npcId: number, message: string): NpcInteractionResult {
     return {
@@ -1414,7 +1106,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     };
   }
 
-  // ✅ CORRIGÉ : createErrorResult en protected au lieu de private
   protected createErrorResult(message: string, code: string): InteractionResult {
     return {
       success: false,
@@ -1428,26 +1119,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     };
   }
-
-  // ✅ CORRIGÉ : Méthode log en protected au lieu de private
-  protected log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] [NpcInteractionModule] ${message}`;
-    
-    switch (level) {
-      case 'info':
-        console.log(logMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(logMessage, data || '');
-        break;
-      case 'error':
-        console.error(logMessage, data || '');
-        break;
-    }
-  }
-
-  // === TOUTES LES AUTRES MÉTHODES UTILITAIRES (placeholders pour éviter les erreurs) ===
 
   private shouldUseIntelligentInteraction(npc: any): boolean {
     if (!this.intelligenceConfig.enableIntelligence) return false;
@@ -1475,16 +1146,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
         actionType: 'npc_interaction',
         ...data
       };
-      this.log('info', `📊 [AI Learning] Action enregistrée`, {
-        player: player.name,
-        userId: data.userId || 'N/A',
-        npcId,
-        actionType,
-        language: data.playerLanguage || 'N/A',
-        dataKeys: Object.keys(data)
-      });
     } catch (error) {
-      this.log('warn', `⚠️ [AI Learning] Erreur enregistrement action:`, error);
+      console.warn(`⚠️ [AI Learning] Erreur enregistrement action:`, error);
     }
   }
 
@@ -1520,36 +1183,37 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return null;
   }
 
-  // ✅ ÉTAPE 4 : Méthode getQuestDialogue modifiée pour utiliser langue
   private async getQuestDialogue(questDefinition: any, dialogueType: string, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       if (!questDefinition) return ["Dialogue par défaut"];
       
       const questId = questDefinition.id || 'unknown_quest';
-      const dialogVars = this.createPlayerDialogVars(player, undefined, questDefinition.name);
       
-      // Essayer de récupérer via DialogString avec langue
       const dialogId = `quest.${questId}.${dialogueType}`;
-      const dialogue = await this.dialogService.getText(dialogId, playerLanguage as any, dialogVars);
+      const dialogue = await DialogStringModel.findOne({
+        dialogId: dialogId,
+        isActive: true
+      });
       
-      if (!dialogue.includes('[MISSING:')) {
-        this.log('info', `🎯 [DialogString] Dialogue quête récupéré: ${dialogId} (${playerLanguage})`);
-        return [dialogue];
+      if (dialogue) {
+        const text = dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name, questDefinition.name);
+        return [text];
       }
       
-      // Fallback vers dialogue générique
       const genericDialogId = `generic.quest.${dialogueType}`;
-      const genericDialogue = await this.dialogService.getText(genericDialogId, playerLanguage as any, dialogVars);
+      const genericDialogue = await DialogStringModel.findOne({
+        dialogId: genericDialogId,
+        isActive: true
+      });
       
-      if (!genericDialogue.includes('[MISSING:')) {
-        return [genericDialogue];
+      if (genericDialogue) {
+        const text = genericDialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name, questDefinition.name);
+        return [text];
       }
       
-      // Dernier fallback
       return ["Dialogue par défaut"];
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogue quête', error);
       return ["Dialogue par défaut"];
     }
   }
@@ -1562,43 +1226,45 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return [];
   }
 
-  // ✅ ÉTAPE 4 : Méthode getDialogueLines modifiée pour utiliser langue
   private async getDialogueLines(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
-      const dialogVars = this.createPlayerDialogVars(player, npc.name);
       
-      // Si le NPC a des dialogueIds spécifiques, les traiter via DialogString
       if (npc.dialogueIds && Array.isArray(npc.dialogueIds)) {
         const processedLines = [];
         
         for (const dialogId of npc.dialogueIds) {
-          const dialogue = await this.dialogService.getText(dialogId, playerLanguage as any, dialogVars);
-          processedLines.push(dialogue.includes('[MISSING:') ? dialogId : dialogue);
+          const dialogue = await DialogStringModel.findOne({
+            dialogId: dialogId,
+            isActive: true
+          });
+          
+          if (dialogue) {
+            const text = dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name);
+            processedLines.push(text);
+          } else {
+            processedLines.push(dialogId);
+          }
         }
         
         return processedLines;
       }
       
-      // Sinon essayer un dialogue générique avec langue
-      const genericDialogue = await this.dialogService.getText(
-        `${npcId}.greeting.default`,
-        playerLanguage as any,
-        dialogVars
-      );
+      const genericDialogue = await DialogStringModel.findOne({
+        dialogId: `${npcId}.greeting.default`,
+        isActive: true
+      });
       
-      if (!genericDialogue.includes('[MISSING:')) {
-        this.log('info', `💬 [DialogString] Dialogue générique récupéré pour ${npcId} (${playerLanguage})`);
-        return [genericDialogue];
+      if (genericDialogue) {
+        const text = genericDialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name);
+        return [text];
       }
       
-      // Fallback legacy
       if (npc.properties?.dialogue) {
         const dialogue = npc.properties.dialogue;
         const lines = Array.isArray(dialogue) ? dialogue : [dialogue];
         
-        // Traiter les variables dans les dialogues legacy
-        return lines.map(line => {
+        return lines.map((line: string) => {
           return line.replace('%s', player.name);
         });
       }
@@ -1606,51 +1272,34 @@ export class NpcInteractionModule extends BaseInteractionModule {
       return ["Bonjour !"];
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogues NPC', error);
       return ["Bonjour !"];
     }
   }
 
-  // ✅ ÉTAPE 4 : Méthode getDefaultDialogueForNpc modifiée pour utiliser langue
   private async getDefaultDialogueForNpc(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
       const npcId = this.extractNpcIdentifier(npc);
-      const dialogVars = this.createPlayerDialogVars(player, npc.name);
       
-      // Essayer dialogue spécifique NPC avec langue
-      let dialogue = await this.dialogService.getText(
-        `${npcId}.greeting.default`,
-        playerLanguage as any,
-        dialogVars
-      );
-      
-      // Si pas trouvé, essayer dialogue générique avec langue
-      if (dialogue.includes('[MISSING:')) {
-        dialogue = await this.dialogService.getText(
-          'generic.greeting.default',
-          playerLanguage as any,
-          dialogVars
-        );
-      }
-      
-      // Si toujours pas trouvé, fallback avec variables
-      if (dialogue.includes('[MISSING:')) {
-        dialogue = `Bonjour %s ! Je suis %n.`;
-        dialogue = dialogue.replace('%s', player.name);
-        dialogue = dialogue.replace('%n', npc.name || 'un NPC');
-      }
-      
-      this.log('info', `💬 [DialogString] Dialogue par défaut récupéré pour ${npcId} (${playerLanguage})`, {
-        playerName: player.name,
-        npcName: npc.name,
-        language: playerLanguage,
-        result: dialogue.substring(0, 50) + '...'
+      let dialogue = await DialogStringModel.findOne({
+        dialogId: `${npcId}.greeting.default`,
+        isActive: true
       });
       
-      return [dialogue];
+      if (!dialogue) {
+        dialogue = await DialogStringModel.findOne({
+          dialogId: 'generic.greeting.default',
+          isActive: true
+        });
+      }
+      
+      if (dialogue) {
+        const text = dialogue.replaceVariables(playerLanguage as SupportedLanguage, player.name, npc.name);
+        return [text];
+      }
+      
+      return [`Bonjour ${player.name} ! Je suis ${npc.name || 'un NPC'}.`];
       
     } catch (error) {
-      this.log('error', '❌ [DialogString] Erreur récupération dialogue par défaut', error);
       return [`Bonjour ! Je suis ${npc.name || 'un NPC'}.`];
     }
   }
@@ -1676,7 +1325,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   private async handleDialogueSpecificAction(player: Player, npc: any, request: SpecificActionRequest): Promise<SpecificActionResult> {
-    const lines = await this.getDialogueLines(npc, player, 'fr'); // TODO: Récupérer langue du joueur
+    const lines = await this.getDialogueLines(npc, player, 'fr');
     return {
       success: true,
       type: "dialogue",
