@@ -84,7 +84,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private jwtManager = JWTManager.getInstance();
   private npcInteractionModule!: NpcInteractionModule;
   private interactionManager!: InteractionManager;
-  
+  private zoneSyncService!: ZoneSyncService; 
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -251,6 +251,17 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
+  private initializeZoneSyncService(): void {
+  this.zoneSyncService = new ZoneSyncService({
+    getNpcManager: (zoneName: string) => this.getNpcManager(zoneName),
+    getObjectInteractionHandlers: () => this.objectInteractionHandlers,
+    getQuestManager: () => this.zoneManager.getQuestManager(),
+    getTimeWeatherService: () => this.timeWeatherService,
+    getOverworldPokemonManager: () => this.overworldPokemonManager
+  });
+  
+  console.log(`✅ ZoneSyncService initialisé`);
+}
   private initializeTimeWeatherService() {
     console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
     
