@@ -1107,21 +1107,27 @@ export class DialogueUI {
   }
 
   // 🆕 NOUVELLE MÉTHODE: Handler pour les clics sur actions
-  handleActionClick(action) {
-    console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
+handleActionClick(action) {
+  console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
+  
+  // 🆕 NOUVEAU : Si action "quest", passer au QuestSystem
+  if (action.type === 'quest' && window.questSystem) {
+    const success = window.questSystem.handleQuestActionFromDialogue({
+      npcId: this.currentNpcId, // Il faut stocker l'ID du NPC
+      actionType: 'quest'
+    });
     
-    // Callback vers le DialogueManager
-    if (this.onActionClick && typeof this.onActionClick === 'function') {
-      this.onActionClick(action);
-    }
-    
-    // Animation feedback
-    const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
-    if (button) {
-      button.classList.add('clicked');
-      setTimeout(() => button.classList.remove('clicked'), 200);
+    if (success) {
+      this.hide(); // Fermer dialogue
+      return;
     }
   }
+  
+  // Callback vers le DialogueManager (existant)
+  if (this.onActionClick && typeof this.onActionClick === 'function') {
+    this.onActionClick(action);
+  }
+}
 
   showUnifiedInterface(data) {
     console.log('🎭 Affichage interface unifiée:', data);
