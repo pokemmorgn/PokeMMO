@@ -79,51 +79,80 @@ export class QuestHandlers {
   }
 
   // ✅ NOUVEAU: Handler pour récupérer les détails d'une quête
-  private async handleGetQuestDetails(client: Client, data: { npcId: number, questId: string }) {
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("questDetailsResult", {
-        success: false,
-        error: "Joueur non trouvé"
-      });
-      return;
+private async handleGetQuestDetails(client: Client, data: { npcId: number, questId: string }) {
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("questDetailsResult", {
+      success: false,
+      error: "Joueur non trouvé"
+    });
+    return;
+  }
+
+  try {
+    const questManager = ServiceRegistry.getInstance().getQuestManager();
+    if (!questManager) {
+      throw new Error("QuestManager non disponible");
     }
 
-    try {
-      const questManager = ServiceRegistry.getInstance().getQuestManager();
-      if (!questManager) {
-        throw new Error("QuestManager non disponible");
-      }
-
-      const questDetails = await questManager.getQuestById(data.questId);
-      if (!questDetails) {
+    // ✅ CORRIGÉ : Utiliser les méthodes qui existent vraiment
+    // Récupérer les quêtes disponibles pour voir si cette quête est dedans
+    const availableQuests = await questManager.getPlayerAvailableQuests(player.name);
+    const questDetails = availableQuests.find(q => q.id === data.questId);
+    
+    if (!questDetails) {
+      // Peut-être que c'est une quête active ?
+      const activeQuests = await questManager.getPlayerActiveQuests(player.name);
+      const activeQuest = activeQuests.find(q => q.id === data.questId);
+      
+      if (!activeQuest) {
         throw new Error(`Quête ${data.questId} non trouvée`);
       }
-
-      const canAccept = await questManager.canPlayerStartQuest(player.name, data.questId);
-
+      
+      // Si c'est une quête active, renvoyer ses infos
       client.send("questDetailsResult", {
         success: true,
         questId: data.questId,
         npcId: data.npcId,
         questData: {
-          id: questDetails.id,
-          name: questDetails.name,
-          description: questDetails.description,
-          rewards: questDetails.rewards || [],
-          requirements: questDetails.requirements || {},
-          canAccept: canAccept
+          id: activeQuest.id,
+          name: activeQuest.name,
+          description: activeQuest.description || "Quête en cours",
+          rewards: activeQuest.rewards || [],
+          requirements: activeQuest.requirements || {},
+          canAccept: false, // Déjà en cours
+          status: 'active'
         }
       });
-
-    } catch (error) {
-      client.send("questDetailsResult", {
-        success: false,
-        error: error.message || "Erreur lors de la récupération des détails"
-      });
+      return;
     }
-  }
 
+    // ✅ CORRIGÉ : Vérifier si le joueur peut accepter (logique simplifiée)
+    const questStatus = await questManager.checkQuestStatus(player.name, data.questId);
+    const canAccept = questStatus === 'available';
+
+    client.send("questDetailsResult", {
+      success: true,
+      questId: data.questId,
+      npcId: data.npcId,
+      questData: {
+        id: questDetails.id,
+        name: questDetails.name,
+        description: questDetails.description || "Nouvelle quête disponible",
+        rewards: questDetails.rewards || [],
+        requirements: questDetails.requirements || {},
+        canAccept: canAccept,
+        status: questStatus
+      }
+    });
+
+  } catch (error) {
+    client.send("questDetailsResult", {
+      success: false,
+      error: (error as Error).message || "Erreur lors de la récupération des détails"
+    });
+  }
+}
   private async handleCheckAutoIntroQuest(client: Client) {
     try {
       const player = this.room.state.players.get(client.sessionId);
