@@ -313,7 +313,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
     const serverZone = getDbZoneName(player.currentZone);
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
-    console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
     if (!npcManager) {
