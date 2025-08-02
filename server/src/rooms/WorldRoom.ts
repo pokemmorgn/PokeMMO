@@ -593,154 +593,51 @@ private extractZoneFromNpc(npc: any): string {
 }
 
 async onPlayerJoinZone(client: Client, zoneName: string) {
-  console.log(`📥 [onPlayerJoinZone] Client: ${client.sessionId}, Zone: "${zoneName}"`);
-  
-  // ✅ Vérification du joueur
-  const player = this.state.players.get(client.sessionId);
-  if (!player) {
-    console.error(`❌ Joueur non trouvé pour session: ${client.sessionId}`);
-    return;
-  }
-  
-  // ✅ Sauvegarde position
-  try {
-    const position = this.positionSaver.extractPosition(player);
-    await this.positionSaver.savePosition(position, "transition");
-  } catch (saveError) {
-    console.error(`❌ Erreur sauvegarde position:`, saveError);
-  }
+ console.log(`📥 [onPlayerJoinZone] Client: ${client.sessionId}, Zone: "${zoneName}"`);
+ 
+ const player = this.state.players.get(client.sessionId);
+ if (!player) {
+   console.error(`❌ Joueur non trouvé pour session: ${client.sessionId}`);
+   return;
+ }
+ 
+ // ✅ Sauvegarde position (existant)
+ try {
+   const position = this.positionSaver.extractPosition(player);
+   await this.positionSaver.savePosition(position, "transition");
+ } catch (saveError) {
+   console.error(`❌ Erreur sauvegarde position:`, saveError);
+ }
 
-  // ✅ CORRECTION CRITIQUE : Mapping des noms de zones
-  const zoneMapping: { [key: string]: string } = {
-    'Road1Scene': 'road1',
-    'BeachScene': 'beach', 
-    'VillageScene': 'village',
-    'Road3Scene': 'road3',
-    'VillageLabScene': 'villagelab',
-    'VillageHouse1Scene': 'villagehouse1',
-    'VillageFloristScene': 'villageflorist',
-    'Road1HouseScene': 'road1house',
-    'Road1HiddenScene': 'road1hidden',
-    'WraithmoorScene': 'wraithmoor',
-    'NoctherbCave1Scene': 'noctherbcave1',
-    'NoctherbCave2Scene': 'noctherbcave2',
-    'LavandiaAnalysisScene': 'lavandiaanalysis',
-    'LavandiaCelebitempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipmentScene': 'lavandiaequipment',
-    'LavandiaFurnitureScene': 'lavandiafurniture',
-    'LavandiaHealingcenterScene': 'lavandiahealingcenter',
-    'LavandiaHouse1Scene': 'lavandiahouse1',
-    'LavandiaHouse2Scene': 'lavandiahouse2',
-    'LavandiaHouse3Scene': 'lavandiahouse3',
-    'LavandiaHouse4Scene': 'lavandiahouse4',
-    'LavandiaHouse5Scene': 'lavandiahouse5',
-    'LavandiaHouse6Scene': 'lavandiahouse6',
-    'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavandiahouse8',
-    'LavandiaHouse9Scene': 'lavandiahouse9',
-    'LavandiaShopScene': 'lavandiashop'
-  };
-  
-  const mappedZoneName = zoneMapping[zoneName] || zoneName.toLowerCase().replace('scene', '');
-  console.log(`🔄 [Zone Mapping] "${zoneName}" → "${mappedZoneName}"`);
-  
-  // ✅ Récupération du NPC Manager
-  const npcManager = this.npcManagers.get('global');
-  if (!npcManager) {
-    console.error(`❌ NPC Manager global non trouvé !`);
-    return;
-  }
-  
-  // ✅ Récupération des NPCs avec zone mappée
-  const npcs = npcManager.getNpcsByZone(mappedZoneName);
-  console.log(`📊 [NPCs] ${npcs.length} NPCs trouvés pour zone "${mappedZoneName}"`);
-  
-  // ✅ ========== DEBUG CRITIQUE AJOUTÉ ==========
-  console.log(`🔍 [DEBUG CRITIQUE] Analyse complète NPCs:`);
-  console.log(`📝 Zone reçue: "${zoneName}"`);
-  console.log(`📝 Zone mappée: "${mappedZoneName}"`);
-  console.log(`🤖 NPCs trouvés: ${npcs.length}`);
+ // ✨ NOUVEAU : Une seule ligne pour tout synchroniser !
+ try {
+   const syncResult = await this.zoneSyncService.syncPlayerToZone(client, player, zoneName);
+   
+   if (syncResult.success) {
+     console.log(`✅ [onPlayerJoinZone] Synchronisation réussie:`, {
+       npcs: syncResult.npcs,
+       objects: syncResult.objects,
+       quests: syncResult.questStatuses
+     });
+   } else {
+     console.error(`❌ [onPlayerJoinZone] Erreurs de synchronisation:`, syncResult.errors);
+   }
+ } catch (error) {
+   console.error(`❌ [onPlayerJoinZone] Erreur critique:`, error);
+   
+   // ✅ Fallback : essayer sync partielle
+   try {
+     await this.zoneSyncService.syncNpcsOnly(client, zoneName);
+     await this.zoneSyncService.syncQuestsOnly(client, player.name);
+   } catch (fallbackError) {
+     console.error(`💀 [onPlayerJoinZone] Fallback échoué:`, fallbackError);
+   }
+ }
 
-  if (npcs.length === 0) {
-    console.error(`❌ AUCUN NPC TROUVÉ !`);
-    console.error(`❌ Zone mappée testée: "${mappedZoneName}"`);
-    
-    // Analyser toutes les zones disponibles via getAllNpcs()
-    const allNpcs = npcManager.getAllNpcs();
-    console.error(`❌ Total NPCs dans manager: ${allNpcs.length}`);
-    
-    if (allNpcs.length > 0) {
-      // Extraire les zones uniques
-      const zones = [...new Set(allNpcs.map(npc => npc.zone))];
-      console.error(`❌ Zones disponibles:`, zones);
-      
-      // Exemple des premiers NPCs pour voir la structure
-      console.error(`❌ Exemples NPCs:`, allNpcs.slice(0, 3).map(npc => ({
-        id: npc.id,
-        name: npc.name,
-        zone: npc.zone,
-        x: npc.x,
-        y: npc.y
-      })));
-      
-      // Test avec les zones trouvées
-      zones.forEach(zone => {
-        const testNpcs = npcManager.getNpcsByZone(zone);
-        console.error(`🧪 Zone "${zone}": ${testNpcs.length} NPCs`);
-      });
-      
-      // Test spécifique pour road1
-      const road1Npcs = npcManager.getNpcsByZone('road1');
-      console.error(`🧪 Test spécifique 'road1': ${road1Npcs.length} NPCs`);
-      
-      // Test avec le nom exact reçu
-      const exactNpcs = npcManager.getNpcsByZone(zoneName);
-      console.error(`🧪 Test zone exacte "${zoneName}": ${exactNpcs.length} NPCs`);
-      
-    } else {
-      console.error(`💀 CRITIQUE: Le NpcManager ne contient AUCUN NPC !`);
-      console.error(`💀 Vérifiez l'initialisation du NpcManager`);
-    }
-  } else {
-    console.log(`✅ NPCs trouvés pour "${mappedZoneName}":`, npcs.map(npc => ({
-      id: npc.id,
-      name: npc.name,
-      zone: npc.zone
-    })));
-  }
-  // ✅ ========== FIN DEBUG CRITIQUE ==========
-  
-  if (npcs.length === 0) {
-    console.warn(`⚠️ Aucun NPC trouvé pour zone "${mappedZoneName}"`);
-  }
-  
-  // ✅ Envoi des NPCs au client
-  try {
-    client.send("npcList", npcs);
-    console.log(`✅ ${npcs.length} NPCs envoyés à ${client.sessionId}`);
-  } catch (sendError) {
-    console.error(`❌ Erreur envoi NPCs:`, sendError);
-    return;
-  }
-  
-  // ✅ Envoi des objets de zone
-  this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
-  
-  // ✅ Mise à jour TimeWeatherService
-  if (this.timeWeatherService) {
-    this.timeWeatherService.updateClientZone(client, zoneName);
-    
-    setTimeout(() => {
-      if (this.timeWeatherService) {
-        this.timeWeatherService.sendCurrentStateToAllClients();
-      }
-    }, 50);
-  }
-
-  // ✅ Quest statuses
-  this.clock.setTimeout(async () => {
-    await this.updateQuestStatusesFixed(player.name, client);
-  }, 500);
+ // ✅ Quest statuses avec délai (comme l'ancien code)
+ this.clock.setTimeout(async () => {
+   await this.updateQuestStatusesFixed(player.name, client);
+ }, 500);
 }
 
   // Mise à jour quest statuses avec debug
