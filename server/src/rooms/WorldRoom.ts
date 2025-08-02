@@ -701,15 +701,23 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
   
   // ✅ Envoi des NPCs au client
   try {
-    client.send("npcList", npcs);
-    console.log(`✅ ${npcs.length} NPCs envoyés à ${client.sessionId}`);
-  } catch (sendError) {
-    console.error(`❌ Erreur envoi NPCs:`, sendError);
+    const updateResult = await entityUpdateService.updateNpcsForClient(client, {
+      zone: zoneName,
+      player: player
+    }, npcManager);
+    
+    if (updateResult.success) {
+      console.log(`✅ ${updateResult.entityCount} NPCs envoyés via service à ${client.sessionId}`);
+    } else {
+      console.error(`❌ Erreurs service NPCs:`, updateResult.errors);
+    }
+    
+    // Objets de zone
+    this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
+  } catch (error) {
+    console.error(`❌ Erreur EntityUpdateService:`, error);
     return;
   }
-  
-  // ✅ Envoi des objets de zone
-  this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
   
   // ✅ Mise à jour TimeWeatherService
   if (this.timeWeatherService) {
