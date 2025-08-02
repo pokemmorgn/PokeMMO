@@ -194,28 +194,21 @@ validateDialogueNPC(npc) {
 }
 
     validateMerchantNPC(npc) {
-        if (!npc.shopId || typeof npc.shopId !== 'string') {
-            this.addError('shopId', 'ID de boutique requis et doit être une chaîne')
+    if (!npc.shopId || typeof npc.shopId !== 'string') {
+        this.addError('shopId', 'ID de boutique requis et doit être une chaîne')
+    } else {
+        // Validation du format shopId
+        if (npc.shopId.trim().length === 0) {
+            this.addError('shopId', 'ID de boutique ne peut pas être vide')
         }
-
-        if (!npc.shopType) {
-            this.addError('shopType', 'Type de boutique requis')
+        if (npc.shopId.includes(' ')) {
+            this.addError('shopId', 'ID de boutique ne doit pas contenir d\'espaces')
         }
-
-        if (npc.shopConfig) {
-            if (npc.shopConfig.discountPercent !== undefined) {
-                if (npc.shopConfig.discountPercent < 0 || npc.shopConfig.discountPercent > 90) {
-                    this.addError('shopConfig', 'Remise doit être entre 0 et 90%')
-                }
-            }
-        }
-
-        if (npc.businessHours && npc.businessHours.enabled) {
-            if (!npc.businessHours.openTime || !npc.businessHours.closeTime) {
-                this.addError('businessHours', 'Horaires d\'ouverture et fermeture requis')
-            }
+        if (!npc.shopId.match(/^[a-zA-Z0-9_-]+$/)) {
+            this.addWarning('shopId', 'Format d\'ID recommandé: lettres, chiffres, _ et - uniquement')
         }
     }
+}
 
     validateTrainerNPC(npc) {
         if (!npc.trainerId || typeof npc.trainerId !== 'string') {
@@ -435,28 +428,28 @@ validateDialogueNPC(npc) {
     }
 
     // Générer des suggestions d'amélioration
-    generateSuggestions(npc) {
-        // Suggestion de dialogues conditionnels
-        if (npc.type === 'dialogue' && npc.dialogueIds && !npc.conditionalDialogueIds) {
-            this.addSuggestion('conditionalDialogueIds', 'Ajoutez des dialogues conditionnels pour plus d\'immersion')
-        }
-
-        // Suggestion de quêtes
-        if (['dialogue', 'merchant', 'service'].includes(npc.type) && 
-            (!npc.questsToGive || npc.questsToGive.length === 0)) {
-            this.addSuggestion('questsToGive', 'Considérez ajouter des quêtes pour plus d\'interactions')
-        }
-
-        // Suggestion de conditions de spawn
-        if (!npc.spawnConditions && npc.type !== 'healer') {
-            this.addSuggestion('spawnConditions', 'Ajoutez des conditions d\'apparition pour plus de dynamisme')
-        }
-
-        // Suggestion d'horaires pour les marchands
-        if (npc.type === 'merchant' && !npc.businessHours?.enabled) {
-            this.addSuggestion('businessHours', 'Ajoutez des horaires d\'ouverture pour plus de réalisme')
-        }
+generateSuggestions(npc) {
+    // Suggestion de dialogues conditionnels
+    if (npc.type === 'dialogue' && npc.dialogueIds && !npc.conditionalDialogueIds) {
+        this.addSuggestion('conditionalDialogueIds', 'Ajoutez des dialogues conditionnels pour plus d\'immersion')
     }
+    
+    // Suggestion de quêtes
+    if (['dialogue', 'merchant', 'service'].includes(npc.type) && 
+        (!npc.questsToGive || npc.questsToGive.length === 0)) {
+        this.addSuggestion('questsToGive', 'Considérez ajouter des quêtes pour plus d\'interactions')
+    }
+    
+    // Suggestion de conditions de spawn
+    if (!npc.spawnConditions && npc.type !== 'healer') {
+        this.addSuggestion('spawnConditions', 'Ajoutez des conditions d\'apparition pour plus de dynamisme')
+    }
+    
+    // Suggestion pour les marchands
+    if (npc.type === 'merchant' && npc.shopId) {
+        this.addSuggestion('shopId', 'Configurez les détails de la boutique dans le module ShopData')
+    }
+}
 
     // Méthodes utilitaires
     reset() {
