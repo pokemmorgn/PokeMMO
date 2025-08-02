@@ -273,40 +273,48 @@ export class NetworkManager {
     }
   }
 
-  async initializeInteractionHandler() {
-    console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
-    
-    if (!this.room || !this.sessionId) {
-      console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
-      return false;
-    }
-    
-    try {
-      // ✅ NetworkInteractionHandler = RESPONSABLE DE TOUTES LES INTERACTIONS
-      this.interactionHandler = new NetworkInteractionHandler(this);
-      const success = this.interactionHandler.initialize();
-      
-      if (success) {
-        // ✅ Connecter NetworkManager → NetworkInteractionHandler
-        this.onNpcInteraction((result) => {
-          console.log('🔗 [NetworkManager] Routage vers NetworkInteractionHandler:', result);
-          if (this.interactionHandler?.callbacks?.onNpcInteraction) {
-            this.interactionHandler.callbacks.onNpcInteraction(result);
-          }
-        });
-        
-        console.log('✅ [NetworkManager] Système d\'interactions initialisé');
-        return true;
-      } else {
-        console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
-        return false;
-      }
-      
-    } catch (error) {
-      console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
-      return false;
-    }
+async initializeInteractionHandler() {
+  console.log('🎭 [NetworkManager] Initialisation système d\'interactions...');
+  
+  if (!this.room || !this.sessionId) {
+    console.error('❌ [NetworkManager] Room ou SessionId manquant pour interactions');
+    return false;
   }
+  
+  try {
+    this.interactionHandler = new NetworkInteractionHandler(this);
+    
+    // ✅ ATTENDRE UN PEU QUE LA ROOM SOIT VRAIMENT PRÊTE
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const success = this.interactionHandler.initialize();
+    
+    if (success) {
+      // ✅ DOUBLE CHECK : Re-setup après un délai
+      setTimeout(() => {
+        console.log('🔄 [NetworkManager] Double-check handlers...');
+        this.interactionHandler.setupInteractionHandlers();
+      }, 1000);
+      
+      this.onNpcInteraction((result) => {
+        console.log('🔗 [NetworkManager] Routage vers NetworkInteractionHandler:', result);
+        if (this.interactionHandler?.callbacks?.onNpcInteraction) {
+          this.interactionHandler.callbacks.onNpcInteraction(result);
+        }
+      });
+      
+      console.log('✅ [NetworkManager] Système d\'interactions initialisé');
+      return true;
+    } else {
+      console.error('❌ [NetworkManager] Échec initialisation système d\'interactions');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [NetworkManager] Erreur initialisation interactions:', error);
+    return false;
+  }
+}
       
   setupRoomListeners() {
     if (!this.room) return;
