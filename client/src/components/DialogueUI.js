@@ -1,7 +1,5 @@
 // client/src/components/DialogueUI.js
-// 🎭 Interface utilisateur pour les dialogues NPCs - Version avec Actions Contextuelles
-// ✅ Support dialogue classique + zone d'actions + interface unifiée à onglets
-// ✅ Réutilise dialogue.css + styles intégrés pour onglets + nouveaux styles actions
+// 🎭 Interface utilisateur pour les dialogues NPCs avec intégration QuestSystem
 
 export class DialogueUI {
   constructor() {
@@ -11,14 +9,13 @@ export class DialogueUI {
     this.currentTab = null;
     this.tabs = [];
     this.quickActions = [];
+    this.currentNpcId = null; // 🆕 Stocker l'ID du NPC
     
-    // Callbacks
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
-    this.onActionClick = null; // 🆕 NOUVEAU: Callback pour actions dialogue
+    this.onActionClick = null;
     
-    console.log('🎭 DialogueUI créé avec support actions');
     this.init();
   }
 
@@ -26,22 +23,15 @@ export class DialogueUI {
     this.createDialogueContainer();
     this.addIntegratedStyles();
     this.setupEventListeners();
-    console.log('✅ DialogueUI initialisé avec actions');
   }
 
-  // ===== CRÉATION DE L'INTERFACE =====
-  
   createDialogueContainer() {
-    // Créer le conteneur principal
     this.container = document.createElement('div');
     this.container.id = 'dialogue-container';
     this.container.className = 'dialogue-container hidden';
     
-    // Structure HTML complète UNIFIÉE - CORRIGÉE
     this.container.innerHTML = `
-      <!-- Dialogue unifié avec actions intégrées -->
       <div id="dialogue-box" class="dialogue-box-unified" style="display:none;">
-        <!-- Partie haute: Portrait + Dialogue -->
         <div class="dialogue-main-content">
           <div id="npc-portrait" class="npc-portrait"></div>
           <div id="npc-dialogue" class="npc-dialogue">
@@ -54,19 +44,14 @@ export class DialogueUI {
           </div>
         </div>
         
-        <!-- Partie basse: Actions intégrées -->
         <div id="dialogue-actions" class="dialogue-actions-integrated" style="display:none;">
           <div class="actions-separator"></div>
           <div class="actions-header">Actions disponibles</div>
-          <div class="actions-buttons" id="actions-buttons">
-            <!-- Les boutons seront générés dynamiquement -->
-          </div>
+          <div class="actions-buttons" id="actions-buttons"></div>
         </div>
       </div>
 
-      <!-- Interface unifiée avec onglets -->
       <div id="unified-interface" class="unified-interface" style="display:none;">
-        <!-- Header avec portrait et nom NPC -->
         <div class="unified-header">
           <div class="unified-portrait">
             <img id="unified-npc-image" src="" alt="NPC" class="unified-npc-image">
@@ -82,21 +67,12 @@ export class DialogueUI {
           </div>
         </div>
 
-        <!-- Navigation par onglets -->
-        <div class="unified-tabs" id="unified-tabs">
-          <!-- Les onglets seront générés dynamiquement -->
-        </div>
+        <div class="unified-tabs" id="unified-tabs"></div>
 
-        <!-- Contenu des onglets -->
-        <div class="unified-content" id="unified-content">
-          <!-- Le contenu sera injecté selon l'onglet actif -->
-        </div>
+        <div class="unified-content" id="unified-content"></div>
 
-        <!-- Actions rapides (footer) -->
         <div class="unified-footer" id="unified-footer">
-          <div class="quick-actions" id="quick-actions">
-            <!-- Actions rapides générées dynamiquement -->
-          </div>
+          <div class="quick-actions" id="quick-actions"></div>
           <div class="unified-tips">
             <span class="tip-text">💡 Utilisez Tab pour changer d'onglet</span>
           </div>
@@ -104,19 +80,15 @@ export class DialogueUI {
       </div>
     `;
 
-    // Ajouter au DOM
     document.body.appendChild(this.container);
   }
 
-  // ===== STYLES INTÉGRÉS ÉTENDUS =====
-  
   addIntegratedStyles() {
     if (document.querySelector('#dialogue-ui-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'dialogue-ui-styles';
     style.textContent = `
-      /* ===== CONTENEUR PRINCIPAL ===== */
       .dialogue-container {
         position: fixed;
         top: 0;
@@ -138,7 +110,6 @@ export class DialogueUI {
         pointer-events: auto;
       }
 
-      /* ===== DIALOGUE UNIFIÉ - CORRIGÉ ===== */
       .dialogue-box-unified {
         position: absolute;
         bottom: 120px;
@@ -163,7 +134,6 @@ export class DialogueUI {
         width: auto;
       }
 
-      /* Partie haute du dialogue - CORRIGÉE */
       .dialogue-main-content {
         display: flex;
         flex-direction: row;
@@ -175,7 +145,6 @@ export class DialogueUI {
         box-sizing: border-box;
       }
 
-      /* Zone de dialogue */
       .npc-dialogue {
         flex: 1;
         display: flex;
@@ -185,7 +154,6 @@ export class DialogueUI {
         min-height: 60px;
       }
 
-      /* Indicateur de continuation - repositionné */
       .dialogue-continue-indicator {
         position: absolute;
         bottom: -5px;
@@ -219,7 +187,6 @@ export class DialogueUI {
         51%, 100% { opacity: 0.3; }
       }
 
-      /* Partie basse des actions - CORRIGÉE */
       .dialogue-actions-integrated {
         background: linear-gradient(135deg, rgba(20, 45, 75, 0.8), rgba(30, 60, 100, 0.8));
         padding: 15px 20px;
@@ -246,7 +213,6 @@ export class DialogueUI {
         font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
       }
 
-      /* Style simple sans actions */
       .dialogue-box-unified.simple {
         box-shadow: 
           0 8px 40px rgba(0, 0, 0, 0.6),
@@ -258,7 +224,6 @@ export class DialogueUI {
         display: none !important;
       }
 
-      /* Style avec actions */
       .dialogue-box-unified.with-actions {
         box-shadow: 
           0 12px 50px rgba(0, 0, 0, 0.7),
@@ -266,7 +231,6 @@ export class DialogueUI {
           inset 0 2px 0 rgba(255, 255, 255, 0.3);
       }
 
-      /* Animation d'apparition unifiée */
       .dialogue-box-unified.appear {
         animation: dialogueUnifiedAppear 0.4s ease;
       }
@@ -327,7 +291,6 @@ export class DialogueUI {
         animation: actionClick 0.2s ease;
       }
 
-      /* Styles par type d'action */
       .action-btn.shop {
         background: linear-gradient(135deg, #28a745, #20c997);
       }
@@ -402,7 +365,6 @@ export class DialogueUI {
         100% { transform: scale(1); }
       }
 
-      /* ===== INTERFACE UNIFIÉE ===== */
       .unified-interface {
         position: absolute;
         top: 50%;
@@ -430,7 +392,6 @@ export class DialogueUI {
         to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
       }
 
-      /* ===== HEADER UNIFIÉ ===== */
       .unified-header {
         background: linear-gradient(90deg, #4a90e2, #357abd);
         padding: 20px 25px;
@@ -552,7 +513,6 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
       }
 
-      /* ===== ONGLETS ===== */
       .unified-tabs {
         background: rgba(0, 0, 0, 0.2);
         display: flex;
@@ -636,7 +596,6 @@ export class DialogueUI {
         animation: badgePulse 1.5s infinite;
       }
 
-      /* ===== CONTENU ===== */
       .unified-content {
         flex: 1;
         padding: 25px;
@@ -644,7 +603,6 @@ export class DialogueUI {
         background: rgba(0, 0, 0, 0.1);
       }
 
-      /* Contenu de dialogue */
       .dialogue-content {
         text-align: center;
       }
@@ -706,14 +664,12 @@ export class DialogueUI {
         border-radius: 8px;
       }
 
-      /* Contenu intégré (shop, quêtes, etc.) */
       .embedded-content {
         width: 100%;
         height: 100%;
         min-height: 300px;
       }
 
-      /* ===== FOOTER ===== */
       .unified-footer {
         background: rgba(0, 0, 0, 0.3);
         padding: 15px 25px;
@@ -776,7 +732,6 @@ export class DialogueUI {
         border-radius: 6px;
       }
 
-      /* ===== RESPONSIVE ===== */
       @media (max-width: 768px) {
         .unified-interface {
           width: 95%;
@@ -811,7 +766,6 @@ export class DialogueUI {
         }
       }
 
-      /* ===== SCROLLBAR PERSONNALISÉE ===== */
       .unified-content::-webkit-scrollbar {
         width: 8px;
       }
@@ -830,7 +784,6 @@ export class DialogueUI {
         background: rgba(74, 144, 226, 0.8);
       }
 
-      /* ===== ANIMATIONS D'ENTRÉE/SORTIE ===== */
       .unified-interface.closing {
         animation: unifiedDisappear 0.3s ease forwards;
       }
@@ -839,38 +792,18 @@ export class DialogueUI {
         from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
       }
-
-      .dialogue-box-unified.appear {
-        animation: dialogueUnifiedAppear 0.4s ease;
-      }
-
-      @keyframes dialogueUnifiedAppear {
-        from { 
-          opacity: 0; 
-          transform: translateX(-50%) translateY(30px) scale(0.95); 
-        }
-        to { 
-          opacity: 1; 
-          transform: translateX(-50%) translateY(0) scale(1); 
-        }
-      }
     `;
 
     document.head.appendChild(style);
-    console.log('✅ Styles DialogueUI avec actions intégrés');
   }
 
-  // ===== GESTION DES ÉVÉNEMENTS =====
-  
   setupEventListeners() {
-    // Clic pour fermer (dialogue unifié - seulement sur la partie dialogue)
     this.container.addEventListener('click', (e) => {
       if (e.target.closest('.dialogue-main-content') && !e.target.closest('.dialogue-actions-integrated')) {
         this.handleDialogueClick();
       }
     });
 
-    // Bouton fermer (interface unifiée)
     const closeBtn = this.container.querySelector('#unified-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
@@ -878,14 +811,11 @@ export class DialogueUI {
       });
     }
 
-    // Événements clavier
     document.addEventListener('keydown', (e) => {
       if (this.isVisible) {
         this.handleKeyDown(e);
       }
     });
-
-    console.log('✅ Event listeners DialogueUI configurés');
   }
 
   handleDialogueClick() {
@@ -895,7 +825,6 @@ export class DialogueUI {
   }
 
   handleKeyDown(e) {
-    // Vérifier si une autre interface importante est ouverte
     if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
     if (window._questDialogActive) return;
 
@@ -939,10 +868,8 @@ export class DialogueUI {
     }
   }
 
-  // ===== AFFICHAGE DES DIALOGUES =====
-
   showClassicDialogue(data) {
-    console.log('🎭 Affichage dialogue simple SANS actions:', data);
+    this.currentNpcId = data.npcId; // 🆕 Stocker l'ID du NPC
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const portrait = this.container.querySelector('#npc-portrait');
@@ -951,12 +878,10 @@ export class DialogueUI {
     const actionsZone = this.container.querySelector('#dialogue-actions');
     const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
-    // Configuration du portrait
     portrait.innerHTML = data.portrait
       ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
       : '';
 
-    // Configuration du nom
     npcName.textContent = data.name || '';
     if (data.hideName) {
       npcName.style.display = 'none';
@@ -964,11 +889,9 @@ export class DialogueUI {
       npcName.style.display = '';
     }
 
-    // Configuration du texte
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
-    // 🆕 Afficher le compteur seulement si plusieurs pages
     if (lines.length > 1) {
       continueIndicator.style.display = 'block';
       const counter = continueIndicator.querySelector('.dialogue-counter');
@@ -979,46 +902,37 @@ export class DialogueUI {
       continueIndicator.style.display = 'none';
     }
 
-    // 🔧 CORRECTION CRITIQUE: Masquer COMPLÈTEMENT la zone d'actions pour dialogue simple
     actionsZone.style.display = 'none';
-    dialogueBox.className = 'dialogue-box-unified simple'; // Classe différente
+    dialogueBox.className = 'dialogue-box-unified simple';
 
-    // Stocker les données pour la pagination
     this.classicDialogueData = {
       lines: lines,
       currentPage: 0,
       onClose: data.onClose
     };
 
-    // Afficher
     this.container.classList.remove('hidden');
     dialogueBox.style.display = 'flex';
     dialogueBox.classList.add('appear');
     this.isVisible = true;
-
-    console.log('✅ Dialogue simple affiché SANS zone d\'actions');
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Afficher dialogue unifié avec actions
   showDialogueWithActions(data) {
-    console.log('🎭 Affichage dialogue unifié AVEC actions:', data);
+    this.currentNpcId = data.npcId; // 🆕 Stocker l'ID du NPC
 
     const dialogueBox = this.container.querySelector('#dialogue-box');
     const actionsZone = this.container.querySelector('#dialogue-actions');
     const actionsButtons = this.container.querySelector('#actions-buttons');
     const continueIndicator = this.container.querySelector('.dialogue-continue-indicator');
 
-    // 1. D'abord configurer la partie dialogue (sans les actions)
     const portrait = this.container.querySelector('#npc-portrait');
     const npcName = this.container.querySelector('#npc-name');
     const npcText = this.container.querySelector('#npc-text');
 
-    // Configuration du portrait
     portrait.innerHTML = data.portrait
       ? `<img src="${data.portrait}" alt="${data.name}" style="max-width:80px;max-height:80px;">`
       : '';
 
-    // Configuration du nom
     npcName.textContent = data.name || '';
     if (data.hideName) {
       npcName.style.display = 'none';
@@ -1026,30 +940,20 @@ export class DialogueUI {
       npcName.style.display = '';
     }
 
-    // Configuration du texte
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
-    // 2. Générer et afficher les actions si disponibles
     if (data.actions && data.actions.length > 0) {
-      console.log(`🎯 Génération de ${data.actions.length} actions`);
-      
-      // Nettoyer les boutons existants
       actionsButtons.innerHTML = '';
       
-      // Créer les boutons d'actions
       data.actions.forEach(action => {
         const actionBtn = this.createActionButton(action);
         actionsButtons.appendChild(actionBtn);
       });
       
-      // 🔧 CORRECTION: Forcer l'affichage de la zone d'actions
       actionsZone.style.display = 'block';
-      
-      // Changer de classe pour le style unifié avec actions
       dialogueBox.className = 'dialogue-box-unified with-actions';
       
-      // 🆕 Gérer le compteur avec actions
       if (lines.length > 1) {
         continueIndicator.style.display = 'block';
         const counter = continueIndicator.querySelector('.dialogue-counter');
@@ -1061,28 +965,22 @@ export class DialogueUI {
       }
       
     } else {
-      // 🔧 SÉCURITÉ: Pas d'actions = masquer complètement
       actionsZone.style.display = 'none';
       dialogueBox.className = 'dialogue-box-unified simple';
     }
 
-    // Stocker les données pour la pagination
     this.classicDialogueData = {
       lines: lines,
       currentPage: 0,
       onClose: data.onClose
     };
 
-    // Afficher
     this.container.classList.remove('hidden');
     dialogueBox.style.display = 'flex';
     dialogueBox.classList.add('appear');
     this.isVisible = true;
-
-    console.log('✅ Dialogue unifié avec actions affiché');
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Créer un bouton d'action
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
@@ -1092,11 +990,9 @@ export class DialogueUI {
       ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
     `;
     
-    // Ajouter les données d'action
     button.dataset.actionId = action.id;
     button.dataset.actionType = action.type;
     
-    // Handler de clic
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1106,60 +1002,55 @@ export class DialogueUI {
     return button;
   }
 
-  // 🆕 NOUVELLE MÉTHODE: Handler pour les clics sur actions
-handleActionClick(action) {
-  console.log(`🎯 Action cliquée: ${action.id} (${action.type})`);
-  
-  // 🆕 NOUVEAU : Si action "quest", passer au QuestSystem
-  if (action.type === 'quest' && window.questSystem) {
-    const success = window.questSystem.handleQuestActionFromDialogue({
-      npcId: this.currentNpcId, // Il faut stocker l'ID du NPC
-      actionType: 'quest'
-    });
+  handleActionClick(action) {
+    // 🆕 INTÉGRATION QUESTSYSTEM : Si action "quest", passer au QuestSystem
+    if (action.type === 'quest' && window.questSystem) {
+      const success = window.questSystem.handleQuestActionFromDialogue({
+        npcId: this.currentNpcId,
+        actionType: 'quest',
+        actionData: action
+      });
+      
+      if (success) {
+        this.hide();
+        return;
+      }
+    }
     
-    if (success) {
-      this.hide(); // Fermer dialogue
-      return;
+    // Callback vers le DialogueManager
+    if (this.onActionClick && typeof this.onActionClick === 'function') {
+      this.onActionClick(action);
+    }
+    
+    // Animation feedback
+    const button = this.container.querySelector(`[data-action-id="${action.id}"]`);
+    if (button) {
+      button.classList.add('clicked');
+      setTimeout(() => button.classList.remove('clicked'), 200);
     }
   }
-  
-  // Callback vers le DialogueManager (existant)
-  if (this.onActionClick && typeof this.onActionClick === 'function') {
-    this.onActionClick(action);
-  }
-}
 
   showUnifiedInterface(data) {
-    console.log('🎭 Affichage interface unifiée:', data);
+    this.currentNpcId = data.npcId; // 🆕 Stocker l'ID du NPC
 
     const unifiedInterface = this.container.querySelector('#unified-interface');
     
-    // Configuration du header
     this.setupUnifiedHeader(data);
-    
-    // Configuration des onglets
     this.setupUnifiedTabs(data.tabs);
-    
-    // Configuration des actions rapides
     this.setupQuickActions(data.quickActions);
     
-    // Stocker les callbacks
     this.onTabSwitch = data.onTabSwitch;
     this.onClose = data.onClose;
     this.tabData = data.tabData || {};
     
-    // Afficher le premier onglet
     if (this.tabs.length > 0) {
       this.switchToTab(this.tabs[0].id);
     }
     
-    // Afficher l'interface
     this.container.classList.remove('hidden');
     unifiedInterface.style.display = 'flex';
     this.isVisible = true;
     this.isUnifiedInterface = true;
-
-    console.log('✅ Interface unifiée affichée');
   }
 
   setupUnifiedHeader(data) {
@@ -1196,8 +1087,6 @@ handleActionClick(action) {
       
       tabsContainer.appendChild(tabElement);
     });
-
-    console.log(`✅ ${this.tabs.length} onglets configurés`);
   }
 
   setupQuickActions(actions) {
@@ -1225,26 +1114,17 @@ handleActionClick(action) {
       
       actionsContainer.appendChild(actionBtn);
     });
-
-    console.log(`✅ ${this.quickActions.length} actions rapides configurées`);
   }
 
-  // ===== GESTION DES ONGLETS =====
-
   switchToTab(tabId) {
-    console.log(`🎭 Changement vers onglet: ${tabId}`);
-
-    // Mettre à jour la navigation
     const tabs = this.container.querySelectorAll('.unified-tab');
     tabs.forEach(tab => {
       tab.classList.toggle('active', tab.dataset.tabId === tabId);
     });
 
-    // Mettre à jour le contenu
     this.currentTab = tabId;
     this.loadTabContent(tabId);
 
-    // Appeler le callback
     if (this.onTabSwitch && typeof this.onTabSwitch === 'function') {
       this.onTabSwitch(tabId);
     }
@@ -1261,7 +1141,6 @@ handleActionClick(action) {
   loadTabContent(tabId) {
     const contentContainer = this.container.querySelector('#unified-content');
     
-    // Afficher un état de chargement
     contentContainer.innerHTML = `
       <div class="unified-loading">
         <div class="unified-loading-spinner"></div>
@@ -1269,22 +1148,14 @@ handleActionClick(action) {
         <div class="unified-loading-subtext">Please wait...</div>
       </div>
     `;
-
-    // Le contenu réel sera injecté par le DialogueManager
-    console.log(`📄 Contenu de l'onglet ${tabId} demandé`);
   }
-
-  // ===== INJECTION DE CONTENU =====
 
   injectTabContent(tabId, htmlContent) {
     if (this.currentTab !== tabId) return;
 
     const contentContainer = this.container.querySelector('#unified-content');
     contentContainer.innerHTML = htmlContent;
-    console.log(`✅ Contenu injecté pour l'onglet ${tabId}`);
   }
-
-  // ===== DIALOGUE CLASSIQUE - PAGINATION =====
 
   advanceClassicDialogue() {
     if (!this.classicDialogueData) return;
@@ -1300,8 +1171,6 @@ handleActionClick(action) {
     npcText.textContent = this.classicDialogueData.lines[this.classicDialogueData.currentPage];
   }
 
-  // ===== AFFICHAGE/MASQUAGE =====
-
   show(data) {
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
@@ -1313,9 +1182,6 @@ handleActionClick(action) {
   }
 
   hide() {
-    console.log('🎭 Fermeture DialogueUI');
-
-    // Animation de fermeture
     if (this.isUnifiedInterface) {
       const unifiedInterface = this.container.querySelector('#unified-interface');
       unifiedInterface.classList.add('closing');
@@ -1340,17 +1206,13 @@ handleActionClick(action) {
     this.tabs = [];
     this.quickActions = [];
     this.classicDialogueData = null;
+    this.currentNpcId = null; // 🆕 Reset NPC ID
 
-    // Appeler le callback de fermeture
     if (this.onClose && typeof this.onClose === 'function') {
       this.onClose();
       this.onClose = null;
     }
-
-    console.log('✅ DialogueUI fermé');
   }
-
-  // ===== UTILITAIRES =====
 
   isOpen() {
     return this.isVisible;
@@ -1363,8 +1225,6 @@ handleActionClick(action) {
   getContentContainer() {
     return this.container.querySelector('#unified-content');
   }
-
-  // ===== NETTOYAGE =====
 
   destroy() {
     if (this.container && this.container.parentNode) {
@@ -1381,7 +1241,6 @@ handleActionClick(action) {
     this.onClose = null;
     this.onQuickAction = null;
     this.onActionClick = null;
-    
-    console.log('💀 DialogueUI détruit');
+    this.currentNpcId = null;
   }
 }
