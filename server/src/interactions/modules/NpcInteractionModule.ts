@@ -28,7 +28,6 @@ import {
   SpecificActionRequest,
   SpecificActionResult
 } from "../types/UnifiedInterfaceTypes";
-import { getDbZoneName } from '../../config/ZoneMapping';
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 
 export interface NpcInteractionResult extends InteractionResult {
@@ -494,10 +493,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
-    
-    // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
-    const serverZone = getDbZoneName(player.currentZone);
-    console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     try {
       const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(player.name, npcId, 24);
@@ -1309,6 +1304,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       
       for (const questId of npc.questsToGive) {
         try {
+          // Vérifier si le joueur peut recevoir cette quête
           console.log(`🔍 [Quest] Vérification quête "${questId}" pour ${username}...`);
           
           // D'abord, récupérer la définition de la quête
@@ -1318,15 +1314,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
             continue;
           }
           
-          // Vérifier le statut de la quête avec la méthode existante
-          const questStatus = await this.questManager.getQuestStatus(username, questId);
-          console.log(`🎯 [Quest] Quête "${questId}" - Statut: ${questStatus}`);
+          // Vérifier si le joueur peut recevoir cette quête
+          const canReceive = await this.questManager.canPlayerReceiveQuest(username, questId);
+          console.log(`🎯 [Quest] Quête "${questId}" - Peut recevoir: ${canReceive}`);
           
-          if (questStatus === 'available') {
+          if (canReceive) {
             availableQuests.push(questDefinition);
             console.log(`✅ [Quest] Quête "${questId}" disponible pour ${username}`);
           } else {
-            console.log(`❌ [Quest] Quête "${questId}" non disponible pour ${username} (statut: ${questStatus})`);
+            console.log(`❌ [Quest] Quête "${questId}" non disponible pour ${username}`);
           }
         } catch (error) {
           console.error(`❌ [Quest] Erreur vérification quête "${questId}":`, error);
