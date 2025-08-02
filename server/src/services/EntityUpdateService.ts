@@ -703,7 +703,7 @@ export class EntityUpdateService {
         entityCount: 0,
         executionTime: Date.now() - startTime,
         errors: [`Erreur batch: ${error instanceof Error ? error.message : 'Erreur inconnue'}`],
-        warnings: []
+        warnings: [] as string[]
       }));
     }
   }
