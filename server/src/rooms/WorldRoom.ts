@@ -706,11 +706,12 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
       player: player,
       includeNpcs: true,
       includeGameObjects: true,
-      includeQuests: false,
-      includeQuestStatuses: false
+      includeQuests: true,
+      includeQuestStatuses: true
     }, {
       npcManager: npcManager,
-      objectHandler: this.objectInteractionHandlers
+      objectHandler: this.objectInteractionHandlers,
+      questManager: this.zoneManager.getQuestManager()
     });
     
     if (updateResult.success) {
