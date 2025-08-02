@@ -165,34 +165,14 @@ export class PlayerSyncService {
     };
 
     try {
-      // Utiliser le NpcInteractionModule pour analyser
-      const mockContext = {
-        player: player,
-        request: {
-          type: 'npc' as const,
-          data: { npcId: npc.id }
-        },
-        validations: {
-          distance: true,
-          zoneMatch: true,
-          playerState: true
-        }
-      };
-
-      const result = await this.npcInteractionModule.handle(mockContext);
-      
-      if (result.success && 'capabilities' in result) {
-        capabilities = (result as any).capabilities || ['dialogue'];
-        contextualData = (result as any).contextualData || contextualData;
-      } else {
-        // Fallback vers analyse manuelle
-        capabilities = this.analyzeNpcCapabilitiesManual(npc);
-        contextualData = this.buildContextualData(capabilities);
-      }
+      // ✅ SIMPLIFICATION : Utiliser directement l'analyse manuelle
+      // Au lieu de passer par le module complet, on fait l'analyse nous-mêmes
+      capabilities = this.analyzeNpcCapabilitiesManual(npc);
+      contextualData = this.buildContextualData(capabilities);
 
     } catch (error) {
-      console.warn(`⚠️ [PlayerSync] Erreur analyse NPC ${npc.id}, fallback manuel`);
-      capabilities = this.analyzeNpcCapabilitiesManual(npc);
+      console.warn(`⚠️ [PlayerSync] Erreur analyse NPC ${npc.id}, fallback dialogue seul`);
+      capabilities = ['dialogue'];
       contextualData = this.buildContextualData(capabilities);
     }
 
@@ -204,27 +184,46 @@ export class PlayerSyncService {
   }
 
   /**
-   * Analyse manuelle des capacités (fallback)
+   * Analyse manuelle des capacités (méthode principale maintenant)
    */
-  private analyzeNpcCapabilitiesManual(npc: any): string[] {
+  private async analyzeNpcCapabilitiesManual(npc: any): Promise<string[]> {
     const capabilities = ['dialogue'];
 
-    // Vérifier quêtes
-    if (npc.questsToGive && Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0) {
-      capabilities.push('quest');
-    }
-    if (npc.questsToEnd && Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0) {
-      if (!capabilities.includes('quest')) capabilities.push('quest');
-    }
+    try {
+      // Vérifier quêtes - méthode asynchrone pour compatibilité future
+      if (npc.questsToGive && Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0) {
+        capabilities.push('quest');
+        console.log(`📜 [PlayerSync] NPC ${npc.id} a des quêtes à donner:`, npc.questsToGive);
+      }
+      if (npc.questsToEnd && Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0) {
+        if (!capabilities.includes('quest')) {
+          capabilities.push('quest');
+          console.log(`🏁 [PlayerSync] NPC ${npc.id} peut terminer des quêtes:`, npc.questsToEnd);
+        }
+      }
 
-    // Vérifier boutique
-    if (npc.shopId || (npc.properties && npc.properties.shop)) {
-      capabilities.push('merchant');
-    }
+      // Vérifier boutique
+      if (npc.shopId || (npc.properties && npc.properties.shop)) {
+        capabilities.push('merchant');
+        console.log(`🛒 [PlayerSync] NPC ${npc.id} a une boutique`);
+      }
 
-    // Vérifier soins
-    if (npc.type === 'healer' || (npc.properties && npc.properties.healer)) {
-      capabilities.push('healer');
+      // Vérifier soins
+      if (npc.type === 'healer' || (npc.properties && npc.properties.healer)) {
+        capabilities.push('healer');
+        console.log(`💊 [PlayerSync] NPC ${npc.id} peut soigner`);
+      }
+
+      // Vérifier type spécifique
+      if (npc.type === 'quest_master') {
+        if (!capabilities.includes('quest')) {
+          capabilities.push('quest');
+          console.log(`🎯 [PlayerSync] NPC ${npc.id} est un quest_master`);
+        }
+      }
+
+    } catch (error) {
+      console.warn(`⚠️ [PlayerSync] Erreur dans analyzeNpcCapabilitiesManual pour NPC ${npc.id}:`, error);
     }
 
     return capabilities;
@@ -253,12 +252,7 @@ export class PlayerSyncService {
         label: this.getCapabilityLabel(cap),
         action: cap,
         enabled: true
-      })) as Array<{
-        id: string;
-        label: string;
-        action: string;
-        enabled: boolean;
-      }>
+      }))
     };
   }
 
