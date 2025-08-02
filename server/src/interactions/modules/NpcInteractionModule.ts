@@ -946,7 +946,12 @@ export class NpcInteractionModule extends BaseInteractionModule {
       'healer': 'Soins',
       'trainer': 'Combat',
       'transport': 'Transport',
-      'service': 'Service'
+      'service': 'Service',
+      'minigame': 'Mini-jeu',
+      'researcher': 'Recherche',
+      'guild': 'Guilde',
+      'event': 'Événement',
+      'quest_master': 'Maître de quête'
     };
     
     return labels[capability] || capability;
