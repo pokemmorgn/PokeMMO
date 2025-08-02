@@ -4,6 +4,7 @@ import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
 import { StarterHandlers } from "../../handlers/StarterHandlers";
 import { InventoryManager } from "../../managers/InventoryManager";
+import { getDbZoneName } from '../../config/ZoneMapping';
 import { SpectatorManager } from "../../battle/modules/broadcast/SpectatorManager";
 import { 
   InteractionRequest, 
@@ -310,7 +311,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
   ): Promise<NpcInteractionResult> {
     
     // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
-    const serverZone = player.currentZone;
+    const serverZone = getDbZoneName(player.currentZone);
+    console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
