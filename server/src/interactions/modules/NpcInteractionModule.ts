@@ -4,6 +4,7 @@ import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
 import { StarterHandlers } from "../../handlers/StarterHandlers";
 import { InventoryManager } from "../../managers/InventoryManager";
+import { getDbZoneName } from '../../config/ZoneMapping';
 import { SpectatorManager } from "../../battle/modules/broadcast/SpectatorManager";
 import { 
   InteractionRequest, 
@@ -310,7 +311,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   ): Promise<NpcInteractionResult> {
     
     // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
-    const serverZone = player.currentZone;
+    const serverZone = getDbZoneName(player.currentZone);
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
@@ -494,10 +495,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
     
-    // ✅ ÉTAPE 1 : Analyser les quêtes du NPC (TOUJOURS en premier)
-    const questInfo = await this.analyzeNpcQuests(player, npc, npcId);
-    console.log('🔍 [QUEST] Analyse NPC:', questInfo);
-
     try {
       const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(player.name, npcId, 24);
       
@@ -512,19 +509,17 @@ export class NpcInteractionModule extends BaseInteractionModule {
           npcId: npcId,
           npcName: npc.name || `NPC #${npcId}`,
           isUnifiedInterface: false,
-          capabilities: questInfo.hasAnyQuests ? ['dialogue', 'quest'] : ['dialogue'],
+          capabilities: ['dialogue'],
           contextualData: {
             hasShop: false,
-            hasQuests: questInfo.hasAnyQuests,
+            hasQuests: false,
             hasHealing: false,
             defaultAction: 'dialogue',
-            quickActions: questInfo.hasAnyQuests ? this.createQuestQuickActions() : []
+            quickActions: []
           },
           isPostQuestDialogue: true,
           completedQuestName: recentQuest.questDefinition.name,
-          completedAt: recentQuest.completedAt,
-          // ✅ DONNÉES QUEST TOUJOURS INCLUSES
-          ...questInfo.questData
+          completedAt: recentQuest.completedAt
         };
       }
       
@@ -566,14 +561,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // Continue en cas d'erreur
     }
 
-    // ✅ ÉTAPE 2 : Vérifier quêtes prioritaires (completion d'abord)
-    if (questInfo.questsToComplete.length > 0) {
-      const firstQuest = questInfo.questsToComplete[0];
+    const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
+    
+    if (readyToCompleteQuests.length > 0) {
+      const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player, playerLanguage);
       
       const completionResults = [];
-      for (const quest of questInfo.questsToComplete) {
+      for (const quest of readyToCompleteQuests) {
         const result = await this.questManager.completePlayerQuest(player.name, quest.id);
         if (result.success) {
           completionResults.push({
@@ -608,26 +604,40 @@ export class NpcInteractionModule extends BaseInteractionModule {
             hasQuests: true,
             hasHealing: false,
             defaultAction: 'quest',
-            quickActions: this.createQuestQuickActions()
+            quickActions: []
           },
           lines: completionDialogue,
-          message: `Félicitations ! Vous avez terminé : ${questNames}`,
-          // ✅ DONNÉES QUEST COMPLÈTES
-          ...questInfo.questData
+          message: `Félicitations ! Vous avez terminé : ${questNames}`
         };
       }
     }
 
-    // ✅ ÉTAPE 3 : Vérifier nouvelles quêtes disponibles
-    if (questInfo.availableQuests.length > 0) {
-      const firstQuest = questInfo.availableQuests[0];
+    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+    
+    if (availableQuests.length > 0) {
+      const firstQuest = availableQuests[0];
       const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
       
+      const serializedQuests = availableQuests.map(quest => ({
+        id: quest.id,
+        name: quest.name,
+        description: quest.description,
+        category: quest.category,
+        steps: quest.steps.map((step: any) => ({
+          id: step.id,
+          name: step.name,
+          description: step.description,
+          objectives: step.objectives,
+          rewards: step.rewards
+        }))
+      }));
+
       return {
         success: true,
         type: "questGiver",
         message: questOfferDialogue.join(' '),
         lines: questOfferDialogue,
+        availableQuests: serializedQuests,
         questProgress: questProgress,
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
@@ -638,16 +648,41 @@ export class NpcInteractionModule extends BaseInteractionModule {
           hasQuests: true,
           hasHealing: false,
           defaultAction: 'quest',
-          quickActions: this.createQuestQuickActions()
-        },
-        // ✅ DONNÉES QUEST COMPLÈTES
-        ...questInfo.questData
+          quickActions: []
+        }
       };
     }
 
-    // ✅ ÉTAPE 4 : Type de NPC (avec quêtes intégrées)
-    
-    // 🔒 MARCHAND (+ quêtes optionnelles)
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questsForThisNpc = activeQuests.filter(q => 
+      q.startNpcId === npcId || q.endNpcId === npcId
+    );
+
+    if (questsForThisNpc.length > 0) {
+      const firstQuest = questsForThisNpc[0];
+      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
+      const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
+      
+      return {
+        success: true,
+        type: "dialogue",
+        lines: progressDialogue,
+        questProgress: questProgress,
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: ['quest', 'dialogue'],
+        contextualData: {
+          hasShop: false,
+          hasQuests: true,
+          hasHealing: false,
+          defaultAction: 'quest',
+          quickActions: []
+        }
+      };
+    }
+
+    // 🔒 SÉCURITÉ : Vérification shop avec validation zone
     if (npc.shopId || npc.properties?.shop) {
       const shopId = npc.shopId || npc.properties.shop;
       console.log('🛍️ [SECURITY] NPC marchand détecté, shopId:', shopId);
@@ -662,23 +697,18 @@ export class NpcInteractionModule extends BaseInteractionModule {
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: questInfo.hasAnyQuests ? ['merchant', 'quest'] : ['merchant'],
+        capabilities: ['merchant'],
         contextualData: {
           hasShop: true,
-          hasQuests: questInfo.hasAnyQuests,  // ✅ Flag quest
+          hasQuests: false,
           hasHealing: false,
           defaultAction: 'merchant',
-          quickActions: this.createShopQuickActions(questInfo.hasAnyQuests)
+          quickActions: []
         },
         lines: [shopGreeting],
-        message: shopGreeting,
-        // ✅ DONNÉES QUEST SI PRÉSENTES
-        ...questInfo.questData
+        message: shopGreeting
       };
-    } 
-    
-    // 🏥 SOIGNEUR (+ quêtes optionnelles)
-    else if (npc.properties?.healer || npc.type === 'healer') {
+    } else if (npc.properties?.healer || npc.type === 'healer') {
       const healerGreeting = await this.getHealerGreeting(player, npc, playerLanguage);
       
       return { 
@@ -689,320 +719,58 @@ export class NpcInteractionModule extends BaseInteractionModule {
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: questInfo.hasAnyQuests ? ['healer', 'quest'] : ['healer'],
+        capabilities: ['healer'],
         contextualData: {
           hasShop: false,
-          hasQuests: questInfo.hasAnyQuests,  // ✅ Flag quest
+          hasQuests: false,
           hasHealing: true,
           defaultAction: 'healer',
-          quickActions: this.createHealerQuickActions(questInfo.hasAnyQuests)
+          quickActions: []
         },
-        lines: [healerGreeting],
-        // ✅ DONNÉES QUEST SI PRÉSENTES
-        ...questInfo.questData
+        lines: [healerGreeting]
       };
-    } 
-    
-    // 💬 DIALOGUE avec dialogue spécifique (+ quêtes optionnelles)
-    else if (npc.properties?.dialogue || npc.dialogueIds) {
+    } else if (npc.properties?.dialogue || npc.dialogueIds) {
       const lines = await this.getDialogueLines(npc, player, playerLanguage);
       return { 
         success: true,
-        type: questInfo.hasAnyQuests ? "questGiver" : "dialogue",
+        type: "dialogue", 
         lines,
         questProgress: questProgress,
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: questInfo.hasAnyQuests ? ['dialogue', 'quest'] : ['dialogue'],
+        capabilities: ['dialogue'],
         contextualData: {
           hasShop: false,
-          hasQuests: questInfo.hasAnyQuests,  // ✅ Flag quest
+          hasQuests: false,
           hasHealing: false,
-          defaultAction: questInfo.hasAnyQuests ? 'quest' : 'dialogue',
-          quickActions: questInfo.hasAnyQuests ? this.createDialogueQuestQuickActions() : []
-        },
-        // ✅ DONNÉES QUEST SI PRÉSENTES
-        ...questInfo.questData
+          defaultAction: 'dialogue',
+          quickActions: []
+        }
       };
-    } 
-    
-    // 💬 DIALOGUE par défaut (+ quêtes optionnelles)
-    else {
+    } else {
       const defaultDialogue = await this.getDefaultDialogueForNpc(npc, player, playerLanguage);
       return { 
         success: true,
-        type: questInfo.hasAnyQuests ? "questGiver" : "dialogue",
+        type: "dialogue", 
         lines: defaultDialogue,
         questProgress: questProgress,
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: questInfo.hasAnyQuests ? ['dialogue', 'quest'] : ['dialogue'],
+        capabilities: ['dialogue'],
         contextualData: {
           hasShop: false,
-          hasQuests: questInfo.hasAnyQuests,  // ✅ Flag quest
+          hasQuests: false,
           hasHealing: false,
-          defaultAction: questInfo.hasAnyQuests ? 'quest' : 'dialogue',
-          quickActions: questInfo.hasAnyQuests ? this.createDialogueQuestQuickActions() : []
-        },
-        // ✅ DONNÉES QUEST SI PRÉSENTES
-        ...questInfo.questData
-      };
-    }
-  }
-
-  // === ✅ NOUVELLES MÉTHODES POUR ANALYSE QUÊTES ===
-
-  /**
-   * Analyse complète des quêtes d'un NPC
-   */
-  private async analyzeNpcQuests(player: Player, npc: any, npcId: number): Promise<{
-    hasAnyQuests: boolean;
-    hasQuestsToGive: boolean;
-    hasQuestsToEnd: boolean;
-    availableQuests: any[];
-    questsToComplete: any[];
-    questsInProgress: any[];
-    questData: any;
-  }> {
-    try {
-      // Vérifier configuration NPC
-      const hasQuestsToGive = !!(npc.questsToGive && npc.questsToGive.length > 0);
-      const hasQuestsToEnd = !!(npc.questsToEnd && npc.questsToEnd.length > 0);
-
-      console.log('🔍 [QUEST ANALYSIS] NPC config:', {
-        npcId,
-        questsToGive: npc.questsToGive || [],
-        questsToEnd: npc.questsToEnd || [],
-        hasQuestsToGive,
-        hasQuestsToEnd
-      });
-
-      // Récupérer quêtes disponibles
-      const availableQuests = hasQuestsToGive ? 
-        await this.getQuestsByIds(npc.questsToGive) : [];
-
-      // Récupérer quêtes à terminer
-      const questsToComplete = hasQuestsToEnd ? 
-        await this.getActiveQuestsForCompletion(player.name, npc.questsToEnd) : [];
-
-      // Récupérer quêtes en cours
-      const questsInProgress = await this.getQuestsInProgressForNpc(player.name, npcId);
-
-      const hasAnyQuests = hasQuestsToGive || hasQuestsToEnd || 
-                          availableQuests.length > 0 || 
-                          questsToComplete.length > 0 || 
-                          questsInProgress.length > 0;
-
-      console.log('🔍 [QUEST ANALYSIS] Résultats:', {
-        hasAnyQuests,
-        availableQuests: availableQuests.length,
-        questsToComplete: questsToComplete.length,
-        questsInProgress: questsInProgress.length
-      });
-
-      // Construire les données quest pour le client
-      const questData = hasAnyQuests ? {
-        availableQuests: this.serializeQuests(availableQuests),
-        questsToComplete: questsToComplete,
-        questsInProgress: questsInProgress,
-        hasQuestDialogue: availableQuests.length > 0,
-        questDialogue: availableQuests.length > 0 ? 
-          await this.getQuestOfferDialogue(availableQuests[0], player) : []
-      } : {};
-
-      return {
-        hasAnyQuests,
-        hasQuestsToGive,
-        hasQuestsToEnd,
-        availableQuests,
-        questsToComplete,
-        questsInProgress,
-        questData
-      };
-
-    } catch (error) {
-      console.error('❌ [QUEST ANALYSIS] Erreur:', error);
-      return {
-        hasAnyQuests: false,
-        hasQuestsToGive: false,
-        hasQuestsToEnd: false,
-        availableQuests: [],
-        questsToComplete: [],
-        questsInProgress: [],
-        questData: {}
-      };
-    }
-  }
-
-  /**
-   * Récupère les quêtes par IDs
-   */
-  private async getQuestsByIds(questIds: string[]): Promise<any[]> {
-    try {
-      const quests = [];
-      for (const questId of questIds) {
-        const quest = this.questManager.getQuestDefinition(questId);
-        if (quest) {
-          quests.push(quest);
+          defaultAction: 'dialogue',
+          quickActions: []
         }
-      }
-      return quests;
-    } catch (error) {
-      console.error('❌ [QUEST] Erreur récupération quêtes par IDs:', error);
-      return [];
+      };
     }
   }
 
-  /**
-   * Récupère les quêtes actives prêtes à être terminées
-   */
-  private async getActiveQuestsForCompletion(username: string, questIds: string[]): Promise<any[]> {
-    try {
-      const activeQuests = await this.questManager.getActiveQuests(username);
-      return activeQuests.filter(quest => 
-        questIds.includes(quest.id) && quest.status === 'readyToComplete'
-      );
-    } catch (error) {
-      console.error('❌ [QUEST] Erreur récupération quêtes completion:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Récupère les quêtes en cours pour un NPC
-   */
-  private async getQuestsInProgressForNpc(username: string, npcId: number): Promise<any[]> {
-    try {
-      const activeQuests = await this.questManager.getActiveQuests(username);
-      return activeQuests.filter(quest => 
-        (quest.startNpcId === npcId || quest.endNpcId === npcId) && 
-        quest.status !== 'readyToComplete'
-      );
-    } catch (error) {
-      console.error('❌ [QUEST] Erreur récupération quêtes en cours:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Sérialise les quêtes pour le client
-   */
-  private serializeQuests(quests: any[]): any[] {
-    return quests.map(quest => ({
-      id: quest.id,
-      name: quest.name,
-      description: quest.description,
-      category: quest.category || 'general',
-      difficulty: quest.difficulty || 'Moyen',
-      rewards: quest.rewards || [],
-      steps: quest.steps ? quest.steps.map((step: any) => ({
-        id: step.id,
-        name: step.name,
-        description: step.description,
-        objectives: step.objectives || [],
-        rewards: step.rewards || []
-      })) : []
-    }));
-  }
-
-  /**
-   * Récupère le dialogue d'offre de quête
-   */
-  private async getQuestOfferDialogue(quest: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
-    try {
-      return await this.getQuestDialogue(quest, 'questOffer', player, playerLanguage);
-    } catch (error) {
-      return [`J'ai une mission pour vous, ${player.name}...`];
-    }
-  }
-
-  // === ✅ MÉTHODES QUICK ACTIONS ===
-
-  /**
-   * Crée les actions rapides pour les quêtes uniquement
-   */
-  private createQuestQuickActions(): any[] {
-    return [
-      {
-        id: 'quest',
-        label: 'Quêtes',
-        action: 'quest',
-        enabled: true
-      }
-    ];
-  }
-
-  /**
-   * Crée les actions rapides pour marchand (+ quêtes optionnelles)
-   */
-  private createShopQuickActions(hasQuests: boolean): any[] {
-    const actions = [
-      {
-        id: 'merchant',
-        label: 'Boutique',
-        action: 'merchant',
-        enabled: true
-      }
-    ];
-
-    if (hasQuests) {
-      actions.push({
-        id: 'quest',
-        label: 'Quêtes',
-        action: 'quest',
-        enabled: true
-      });
-    }
-
-    return actions;
-  }
-
-  /**
-   * Crée les actions rapides pour soigneur (+ quêtes optionnelles)
-   */
-  private createHealerQuickActions(hasQuests: boolean): any[] {
-    const actions = [
-      {
-        id: 'healer',
-        label: 'Soins',
-        action: 'healer',
-        enabled: true
-      }
-    ];
-
-    if (hasQuests) {
-      actions.push({
-        id: 'quest',
-        label: 'Quêtes',
-        action: 'quest',
-        enabled: true
-      });
-    }
-
-    return actions;
-  }
-
-  /**
-   * Crée les actions rapides pour dialogue + quêtes
-   */
-  private createDialogueQuestQuickActions(): any[] {
-    return [
-      {
-        id: 'dialogue',
-        label: 'Parler',
-        action: 'dialogue',
-        enabled: true
-      },
-      {
-        id: 'quest',
-        label: 'Quêtes',
-        action: 'quest',
-        enabled: true
-      }
-    ];
-  }
+  // === MÉTHODES INCHANGÉES (reste du code identique) ===
   
   private async getPostQuestDialogue(questDefinition: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
     try {
