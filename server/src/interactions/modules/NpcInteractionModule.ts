@@ -160,7 +160,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       gold: player.gold.toString(),
       npc: npcName || '',
       target: targetName || '',
-      zone: player.lastMap // ✅ SÉCURISÉ : Utilise lastMap du serveur
+      zone: player.currentZone // ✅ SÉCURISÉ : Utilise currentZone du serveur
     };
   }
 
@@ -252,8 +252,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
                             'fr';
 
       // 🔒 SÉCURITÉ : Utiliser SEULEMENT les données serveur
-      console.log('🔒 [SECURITY] Zone serveur:', player.lastMap);
-      console.log('🔒 [SECURITY] Position serveur:', player.lastX, player.lastY);
+      console.log('🔒 [SECURITY] Zone serveur:', player.currentZone);
+      console.log('🔒 [SECURITY] Position serveur:', player.x, player.y);
 
       if (this.intelligenceConfig.enableIntelligence && enhancedContext.userId) {
         try {
@@ -266,14 +266,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
               npcId,
               playerLevel: player.level,
               playerGold: player.gold,
-              zone: player.lastMap, // ✅ SÉCURISÉ : Utilise lastMap du serveur
+              zone: player.currentZone, // ✅ SÉCURISÉ : Utilise currentZone du serveur
               playerLanguage
             },
             {
               location: { 
-                map: player.lastMap, // ✅ SÉCURISÉ : Utilise lastMap du serveur
-                x: player.lastX,     // ✅ SÉCURISÉ : Utilise lastX du serveur
-                y: player.lastY      // ✅ SÉCURISÉ : Utilise lastY du serveur
+                map: player.currentZone, // ✅ SÉCURISÉ : Utilise currentZone du serveur
+                x: player.x,     // ✅ SÉCURISÉ : Utilise x du serveur
+                y: player.y      // ✅ SÉCURISÉ : Utilise y du serveur
               }
             }
           );
@@ -309,8 +309,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
     playerLanguage: string = 'fr'
   ): Promise<NpcInteractionResult> {
     
-    // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.lastMap (données serveur)
-    const serverZone = player.lastMap;
+    // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
+    const serverZone = player.currentZone;
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
@@ -326,8 +326,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
     // 🔒 SÉCURITÉ : Vérifier la distance avec les coordonnées serveur
     const distance = Math.sqrt(
-      Math.pow(player.lastX - npc.x, 2) + 
-      Math.pow(player.lastY - npc.y, 2)
+      Math.pow(player.x - npc.x, 2) + 
+      Math.pow(player.y - npc.y, 2)
     );
 
     if (distance > 100) { // 100 pixels max
@@ -383,9 +383,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
     const context = {
       playerAction: request.data?.action || 'dialogue',
       location: {
-        map: player.lastMap, // ✅ SÉCURISÉ : Utilise lastMap du serveur
-        x: player.lastX,     // ✅ SÉCURISÉ : Utilise lastX du serveur
-        y: player.lastY      // ✅ SÉCURISÉ : Utilise lastY du serveur
+        map: player.currentZone, // ✅ SÉCURISÉ : Utilise currentZone du serveur
+        x: player.x,     // ✅ SÉCURISÉ : Utilise x du serveur
+        y: player.y      // ✅ SÉCURISÉ : Utilise y du serveur
       },
       sessionData: {
         sessionId: (request as any).sessionId,
@@ -548,9 +548,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
             type: npc.type || 'dialogue'
           },
           location: {
-            x: player.lastX,     // ✅ SÉCURISÉ : Utilise lastX du serveur
-            y: player.lastY,     // ✅ SÉCURISÉ : Utilise lastY du serveur
-            map: player.lastMap  // ✅ SÉCURISÉ : Utilise lastMap du serveur
+            x: player.x,     // ✅ SÉCURISÉ : Utilise x du serveur
+            y: player.y,     // ✅ SÉCURISÉ : Utilise y du serveur
+            map: player.currentZone  // ✅ SÉCURISÉ : Utilise currentZone du serveur
           }
         }
       });
@@ -895,7 +895,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
     shopStockChanged?: any[];
   }> {
     try {
-      const serverZone = player.lastMap; // ✅ SÉCURISÉ : Utilise lastMap du serveur
+      const serverZone = player.currentZone; // ✅ SÉCURISÉ : Utilise currentZone du serveur
       const npcManager = this.getNpcManager(serverZone);
       if (npcManager) {
         const allNpcs = npcManager.getAllNpcs();
@@ -1000,9 +1000,9 @@ export class NpcInteractionModule extends BaseInteractionModule {
       spectatorId: spectatorPlayer.name,
       targetPlayerId: targetPlayerId,
       spectatorPosition: {
-        x: spectatorPlayer.lastX,    // ✅ SÉCURISÉ : Utilise lastX du serveur
-        y: spectatorPlayer.lastY,    // ✅ SÉCURISÉ : Utilise lastY du serveur
-        mapId: spectatorPlayer.lastMap // ✅ SÉCURISÉ : Utilise lastMap du serveur
+        x: spectatorPlayer.x,    // ✅ SÉCURISÉ : Utilise x du serveur
+        y: spectatorPlayer.y,    // ✅ SÉCURISÉ : Utilise y du serveur
+        mapId: spectatorPlayer.currentZone // ✅ SÉCURISÉ : Utilise currentZone du serveur
       },
       targetPosition: targetPlayerPosition,
       interactionDistance: 100
@@ -1059,7 +1059,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   ): Promise<SpecificActionResult> {
     
     try {
-      const serverZone = player.lastMap; // ✅ SÉCURISÉ : Utilise lastMap du serveur
+      const serverZone = player.currentZone; // ✅ SÉCURISÉ : Utilise currentZone du serveur
       const npcManager = this.getNpcManager(serverZone);
       if (!npcManager) {
         return {
