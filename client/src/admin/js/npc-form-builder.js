@@ -260,74 +260,83 @@ populateField(fieldName, value) {
     }
 }
     // Pré-remplir les champs spécifiques au type
-    populateTypeSpecificFields() {
-        const typeConfig = NPC_TYPES[this.currentType]
-        if (!typeConfig) return
-        
-        // Parcourir tous les champs optionnels du type
-        typeConfig.fields.optional.forEach(fieldName => {
-            const value = this.getNestedValue(this.currentNPC, fieldName)
-            if (value !== undefined) {
-                this.populateField(fieldName, value)
-            }
-        })
-        
-        // CORRECTION 2: Champs spécifiques selon le type
-        switch (this.currentType) {
-            case 'dialogue':
-                this.populateField('dialogueId', this.currentNPC.dialogueId)
-                break
-                
-            case 'merchant':
-    this.populateField('shopId', this.currentNPC.shopId)
-    this.populateField('shopType', this.currentNPC.shopType)
+   populateTypeSpecificFields() {
+    const typeConfig = NPC_TYPES[this.currentType]
+    if (!typeConfig) return
     
-    // ✅ NOUVEAU: Mettre à jour les détails de la boutique si shopId existe
-    if (this.currentNPC.shopId) {
-        setTimeout(() => {
-            this.updateShopDetails('shopId', this.currentNPC.shopId)
-        }, 200)
-    }
-    break
-                
-            case 'trainer':
-                this.populateField('trainerId', this.currentNPC.trainerId)
-                this.populateField('trainerClass', this.currentNPC.trainerClass)
-                this.populateField('trainerRank', this.currentNPC.trainerRank)
-                this.populateField('trainerTitle', this.currentNPC.trainerTitle)
-                break
-                
-            case 'gym_leader':
-                if (this.currentNPC.gymConfig) {
-                    this.populateField('gymId', this.currentNPC.gymConfig.gymId)
-                    this.populateField('gymType', this.currentNPC.gymConfig.gymType)
-                    this.populateField('badgeId', this.currentNPC.gymConfig.badgeId)
-                    this.populateField('badgeName', this.currentNPC.gymConfig.badgeName)
-                }
-                break
-                
-            case 'transport':
-                if (this.currentNPC.transportConfig) {
-                    this.populateField('transportType', this.currentNPC.transportConfig.transportType)
-                    this.populateField('vehicleId', this.currentNPC.transportConfig.vehicleId)
-                }
-                break
-                
-            case 'service':
-                if (this.currentNPC.serviceConfig) {
-                    this.populateField('serviceType', this.currentNPC.serviceConfig.serviceType)
-                    this.populateField('serviceCost', this.currentNPC.serviceConfig.cost)
-                }
-                break
-                
-            case 'healer':
-                if (this.currentNPC.healerConfig) {
-                    this.populateField('healingType', this.currentNPC.healerConfig.healingType)
-                    this.populateField('healingCost', this.currentNPC.healerConfig.cost)
-                }
-                break
+    // Parcourir tous les champs optionnels du type
+    typeConfig.fields.optional.forEach(fieldName => {
+        const value = this.getNestedValue(this.currentNPC, fieldName)
+        if (value !== undefined) {
+            this.populateField(fieldName, value)
         }
+    })
+    
+    // Champs spécifiques selon le type
+    switch (this.currentType) {
+        case 'dialogue':
+            this.populateField('dialogueId', this.currentNPC.dialogueId)
+            break
+            
+        case 'merchant':
+            // ✅ NOUVEAU : Utiliser shopId simple au lieu de shopConfig
+            this.populateField('shopId', this.currentNPC.shopId)
+            this.populateField('shopType', this.currentNPC.shopType)
+            
+            console.log('🏪 [FormBuilder] Populating merchant with shopId:', this.currentNPC.shopId);
+            
+            // ✅ MIGRATION : Si ancien shopConfig existe, utiliser shopConfig.shopId
+            if (!this.currentNPC.shopId && this.currentNPC.shopConfig?.shopId) {
+                this.populateField('shopId', this.currentNPC.shopConfig.shopId)
+                console.log('🔄 [FormBuilder] Migrated from shopConfig.shopId:', this.currentNPC.shopConfig.shopId);
+            }
+            
+            // Mettre à jour les détails de la boutique si shopId existe
+            if (this.currentNPC.shopId) {
+                setTimeout(() => {
+                    this.updateShopDetails('shopId', this.currentNPC.shopId)
+                }, 200)
+            }
+            break
+            
+        case 'trainer':
+            this.populateField('trainerId', this.currentNPC.trainerId)
+            this.populateField('trainerClass', this.currentNPC.trainerClass)
+            this.populateField('trainerRank', this.currentNPC.trainerRank)
+            this.populateField('trainerTitle', this.currentNPC.trainerTitle)
+            break
+            
+        case 'gym_leader':
+            if (this.currentNPC.gymConfig) {
+                this.populateField('gymId', this.currentNPC.gymConfig.gymId)
+                this.populateField('gymType', this.currentNPC.gymConfig.gymType)
+                this.populateField('badgeId', this.currentNPC.gymConfig.badgeId)
+                this.populateField('badgeName', this.currentNPC.gymConfig.badgeName)
+            }
+            break
+            
+        case 'transport':
+            if (this.currentNPC.transportConfig) {
+                this.populateField('transportType', this.currentNPC.transportConfig.transportType)
+                this.populateField('vehicleId', this.currentNPC.transportConfig.vehicleId)
+            }
+            break
+            
+        case 'service':
+            if (this.currentNPC.serviceConfig) {
+                this.populateField('serviceType', this.currentNPC.serviceConfig.serviceType)
+                this.populateField('serviceCost', this.currentNPC.serviceConfig.cost)
+            }
+            break
+            
+        case 'healer':
+            if (this.currentNPC.healerConfig) {
+                this.populateField('healingType', this.currentNPC.healerConfig.healingType)
+                this.populateField('healingCost', this.currentNPC.healerConfig.cost)
+            }
+            break
     }
+}
 
     // Pré-remplir les champs de type array
     populateArrayFields() {
@@ -677,44 +686,52 @@ case 'dialogues':
     
     // MÉTHODES EXISTANTES (raccourcies pour l'espace, mais à garder intégralement)
     createStringField(fieldName, fieldConfig, currentValue, isRequired) {
-        const placeholder = fieldConfig.placeholder || `Entrez ${this.getFieldDisplayName(fieldName)}`
-        
-        if (fieldName === 'sprite') {
-            return this.createSpriteField(fieldName, currentValue, isRequired)
-        }
-        
-        if (fieldName === 'position') {
-            return this.createPositionField(fieldName, currentValue)
-        }
-
-       if (fieldName === 'shopId') {
-    return this.createShopSelectorField(fieldName, currentValue, isRequired)
-}
-
-// ✅ NOUVEAU: Gestion spéciale pour les champs de dialogue
-if (fieldName === 'dialogueId' || fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
-    return this.createDialogueSelectorField(fieldName, currentValue, isRequired)
-}
-
-if (fieldName.includes('Description')) {
-    return `<textarea 
-        class="form-textarea" 
-        name="${fieldName}" 
-        placeholder="${placeholder}"
-        rows="3"
-        ${isRequired ? 'required' : ''}
-    >${currentValue || ''}</textarea>`
-}
-        
-        return `<input 
-            type="text" 
-            class="form-input" 
-            name="${fieldName}" 
-            value="${currentValue || ''}" 
-            placeholder="${placeholder}"
-            ${isRequired ? 'required' : ''}
-        >`
+    const placeholder = fieldConfig.placeholder || `Entrez ${this.getFieldDisplayName(fieldName)}`
+    
+    if (fieldName === 'sprite') {
+        return this.createSpriteField(fieldName, currentValue, isRequired)
     }
+    
+    if (fieldName === 'position') {
+        return this.createPositionField(fieldName, currentValue)
+    }
+
+    // ✅ NOUVEAU : Gestion spéciale pour shopId (simple string)
+    if (fieldName === 'shopId') {
+        return this.createShopSelectorField(fieldName, currentValue, isRequired)
+    }
+    
+    // ✅ MIGRATION : Gérer l'ancien shopConfig.shopId
+    if (fieldName === 'shopConfig.shopId') {
+        console.warn('⚠️ [FormBuilder] shopConfig.shopId is deprecated, use shopId instead');
+        return this.createShopSelectorField('shopId', currentValue, isRequired)
+    }
+
+    // Gestion spéciale pour les champs de dialogue
+    if (fieldName === 'dialogueId' || fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
+        return this.createDialogueSelectorField(fieldName, currentValue, isRequired)
+    }
+
+    if (fieldName.includes('Description')) {
+        return `<textarea 
+            class="form-textarea" 
+            name="${fieldName}" 
+            placeholder="${placeholder}"
+            rows="3"
+            ${isRequired ? 'required' : ''}
+        >${currentValue || ''}</textarea>`
+    }
+    
+    return `<input 
+        type="text" 
+        class="form-input" 
+        name="${fieldName}" 
+        value="${currentValue || ''}" 
+        placeholder="${placeholder}"
+        ${isRequired ? 'required' : ''}
+    >`
+}
+
 
     createSpriteField(fieldName, currentValue, isRequired) {
     const suggestions = SUGGESTED_SPRITES[this.currentType] || []
@@ -1448,67 +1465,68 @@ setPosition(x, y) {
 
     // Méthodes utilitaires
     createEmptyNPCFromType(type) {
-        const baseNPC = {
-            id: null,
-            name: `Nouveau ${NPC_TYPES[type]?.name || type}`,
-            type: type,
-            position: { x: 0, y: 0 },
-            sprite: 'default.png',
-            direction: 'south',
-            interactionRadius: 32,
-            canWalkAway: true,
-            autoFacePlayer: true,
-            repeatable: true,
-            cooldownSeconds: 0
-        }
-        
-        // Ajouter des champs spécifiques selon le type
-        switch (type) {
-            case 'dialogue':
-                baseNPC.dialogueIds = []
-                break
-            case 'merchant':
-                baseNPC.shopId = ''
-                baseNPC.shopType = 'pokemart'
-                break
-            case 'trainer':
-                baseNPC.trainerId = ''
-                baseNPC.trainerClass = 'youngster'
-                break
-            case 'gym_leader':
-                baseNPC.trainerId = ''
-                baseNPC.trainerClass = 'gym_leader'
-                baseNPC.gymConfig = {
-                    gymId: '',
-                    gymType: '',
-                    badgeId: '',
-                    badgeName: ''
-                }
-                break
-            case 'healer':
-                baseNPC.healerConfig = {
-                    healingType: 'free',
-                    cost: 0
-                }
-                break
-            case 'transport':
-                baseNPC.transportConfig = {
-                    transportType: 'boat',
-                    vehicleId: ''
-                }
-                baseNPC.destinations = []
-                break
-            case 'service':
-                baseNPC.serviceConfig = {
-                    serviceType: 'name_rater',
-                    cost: 0
-                }
-                baseNPC.availableServices = []
-                break
-        }
-        
-        return baseNPC
+    const baseNPC = {
+        id: null,
+        name: `Nouveau ${NPC_TYPES[type]?.name || type}`,
+        type: type,
+        position: { x: 0, y: 0 },
+        sprite: 'default.png',
+        direction: 'south',
+        interactionRadius: 32,
+        canWalkAway: true,
+        autoFacePlayer: true,
+        repeatable: true,
+        cooldownSeconds: 0
     }
+    
+    // Ajouter des champs spécifiques selon le type
+    switch (type) {
+        case 'dialogue':
+            baseNPC.dialogueIds = []
+            break
+        case 'merchant':
+            // ✅ NOUVEAU : Utiliser shopId simple
+            baseNPC.shopId = ''
+            baseNPC.shopType = 'pokemart'
+            break
+        case 'trainer':
+            baseNPC.trainerId = ''
+            baseNPC.trainerClass = 'youngster'
+            break
+        case 'gym_leader':
+            baseNPC.trainerId = ''
+            baseNPC.trainerClass = 'gym_leader'
+            baseNPC.gymConfig = {
+                gymId: '',
+                gymType: '',
+                badgeId: '',
+                badgeName: ''
+            }
+            break
+        case 'healer':
+            baseNPC.healerConfig = {
+                healingType: 'free',
+                cost: 0
+            }
+            break
+        case 'transport':
+            baseNPC.transportConfig = {
+                transportType: 'boat',
+                vehicleId: ''
+            }
+            baseNPC.destinations = []
+            break
+        case 'service':
+            baseNPC.serviceConfig = {
+                serviceType: 'name_rater',
+                cost: 0
+            }
+            baseNPC.availableServices = []
+            break
+    }
+    
+    return baseNPC
+}
 
     // Ajout des méthodes pour la sélection de quêtes dans NPCFormBuilder
 
@@ -2765,25 +2783,30 @@ getNPC() {
                 npcData[fieldName] = {};
             }
         }
-        // ✅ FIX : TOUJOURS sauvegarder les champs, même vides
+        // ✅ NOUVEAU : Toujours sauvegarder les champs, même vides
         else {
             npcData[fieldName] = value !== undefined ? value : '';
         }
     });
     
-    // ✅ FIX SPÉCIAL : Forcer la collecte des champs critiques
-    const criticalFields = ['shopId', 'shopType', 'trainerId', 'dialogueId'];
-    criticalFields.forEach(field => {
-        const input = document.querySelector(`input[name="${field}"], select[name="${field}"]`);
-        if (input && input.value !== undefined) {
-            npcData[field] = input.value; // Même si vide !
-            console.log(`🔧 [FormBuilder] FORCED field ${field}: "${npcData[field]}"`);
-        }
-    });
+    // ✅ NOUVEAU : Forcer la collecte du shopId
+    const shopIdInput = document.querySelector('input[name="shopId"], select[name="shopId"]');
+    if (shopIdInput && shopIdInput.value !== undefined) {
+        npcData.shopId = shopIdInput.value; // Même si vide !
+        console.log(`🏪 [FormBuilder] FORCED shopId: "${npcData.shopId}"`);
+    }
+    
+    // ✅ MIGRATION : Nettoyer l'ancien shopConfig s'il existe
+    if (npcData.shopConfig) {
+        console.log('🔄 [FormBuilder] Removing deprecated shopConfig');
+        delete npcData.shopConfig;
+    }
     
     console.log('✅ [FormBuilder] Final NPC with shopId:', npcData.shopId);
     return npcData;
 }
+
+    
     clearForm() {
         this.currentNPC = null
         this.currentType = null
