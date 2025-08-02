@@ -557,14 +557,17 @@ export class NpcManager {
     return Array.from(this.npcsMap.values());
   }
 
-  getNpcById(id: number): NpcData | undefined {
-    for (const npc of this.npcsMap.values()) {
-      if (npc.id === id) {
-        return npc;
+getNpcById(id: number, serverZone?: string): NpcData | undefined {
+  for (const npc of this.npcsMap.values()) {
+    if (npc.id === id) {
+      if (serverZone && npc.zone !== serverZone) {
+        continue; // Skip si pas la bonne zone
       }
+      return npc;
     }
-    return undefined;
   }
+  return undefined;
+}
 
   getNpcsByZone(zoneName: string): NpcData[] {
     return this.npcsByZone.get(zoneName) || [];
