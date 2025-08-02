@@ -156,7 +156,12 @@ export class PlayerSyncService {
       hasQuests: false,
       hasHealing: false,
       defaultAction: 'dialogue',
-      quickActions: []
+      quickActions: [] as Array<{
+        id: string;
+        label: string;
+        action: string;
+        enabled: boolean;
+      }>
     };
 
     try {
@@ -166,6 +171,11 @@ export class PlayerSyncService {
         request: {
           type: 'npc' as const,
           data: { npcId: npc.id }
+        },
+        validations: {
+          distance: true,
+          zoneMatch: true,
+          playerState: true
         }
       };
 
@@ -243,7 +253,12 @@ export class PlayerSyncService {
         label: this.getCapabilityLabel(cap),
         action: cap,
         enabled: true
-      }))
+      })) as Array<{
+        id: string;
+        label: string;
+        action: string;
+        enabled: boolean;
+      }>
     };
   }
 
