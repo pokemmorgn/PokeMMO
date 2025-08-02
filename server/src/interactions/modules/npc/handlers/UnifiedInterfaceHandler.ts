@@ -367,7 +367,11 @@ export class UnifiedInterfaceHandler {
         description: quest.description,
         difficulty: this.getQuestDifficulty(quest),
         category: quest.category || 'general',
-        rewards: []
+        rewards: [] as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }>
       })),
       questsInProgress: questsInProgress.map(quest => ({
         id: quest.id,
@@ -378,7 +382,11 @@ export class UnifiedInterfaceHandler {
       questsToComplete: questsToComplete.map(quest => ({
         id: quest.id,
         name: quest.name,
-        rewards: []
+        rewards: [] as Array<{
+          type: 'item' | 'gold' | 'experience';
+          itemId?: string;
+          amount: number;
+        }>
       })),
       questDialogue: await this.getQuestDialogue(npc, player),
       canGiveQuests: availableQuests.length > 0,
