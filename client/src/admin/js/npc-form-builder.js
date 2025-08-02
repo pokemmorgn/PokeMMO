@@ -278,26 +278,14 @@ populateField(fieldName, value) {
             this.populateField('dialogueId', this.currentNPC.dialogueId)
             break
             
-        case 'merchant':
-            // ✅ NOUVEAU : Utiliser shopId simple au lieu de shopConfig
-            this.populateField('shopId', this.currentNPC.shopId)
-            this.populateField('shopType', this.currentNPC.shopType)
-            
-            console.log('🏪 [FormBuilder] Populating merchant with shopId:', this.currentNPC.shopId);
-            
-            // ✅ MIGRATION : Si ancien shopConfig existe, utiliser shopConfig.shopId
-            if (!this.currentNPC.shopId && this.currentNPC.shopConfig?.shopId) {
-                this.populateField('shopId', this.currentNPC.shopConfig.shopId)
-                console.log('🔄 [FormBuilder] Migrated from shopConfig.shopId:', this.currentNPC.shopConfig.shopId);
-            }
-            
-            // Mettre à jour les détails de la boutique si shopId existe
-            if (this.currentNPC.shopId) {
-                setTimeout(() => {
-                    this.updateShopDetails('shopId', this.currentNPC.shopId)
-                }, 200)
-            }
-            break
+       case 'merchant':
+    this.populateField('shopId', this.currentNPC.shopId || '')
+    
+    // Migration depuis ancien format
+    if (!this.currentNPC.shopId && this.currentNPC.shopConfig?.shopId) {
+        this.populateField('shopId', this.currentNPC.shopConfig.shopId)
+    }
+    break
             
         case 'trainer':
             this.populateField('trainerId', this.currentNPC.trainerId)
@@ -697,15 +685,9 @@ case 'dialogues':
     }
 
     // ✅ NOUVEAU : Gestion spéciale pour shopId (simple string)
-    if (fieldName === 'shopId') {
-        return this.createShopSelectorField(fieldName, currentValue, isRequired)
-    }
-    
-    // ✅ MIGRATION : Gérer l'ancien shopConfig.shopId
-    if (fieldName === 'shopConfig.shopId') {
-        console.warn('⚠️ [FormBuilder] shopConfig.shopId is deprecated, use shopId instead');
-        return this.createShopSelectorField('shopId', currentValue, isRequired)
-    }
+if (fieldName === 'shopId') {
+    return this.createShopSelectorField(fieldName, currentValue, isRequired)
+}
 
     // Gestion spéciale pour les champs de dialogue
     if (fieldName === 'dialogueId' || fieldName === 'dialogueIds' || fieldName.includes('DialogueIds') || fieldName.includes('dialogue')) {
@@ -1484,11 +1466,9 @@ setPosition(x, y) {
         case 'dialogue':
             baseNPC.dialogueIds = []
             break
-        case 'merchant':
-            // ✅ NOUVEAU : Utiliser shopId simple
-            baseNPC.shopId = ''
-            baseNPC.shopType = 'pokemart'
-            break
+case 'merchant':
+    baseNPC.shopId = ''
+    break
         case 'trainer':
             baseNPC.trainerId = ''
             baseNPC.trainerClass = 'youngster'
