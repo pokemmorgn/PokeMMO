@@ -148,40 +148,50 @@ export class NetworkInteractionHandler {
     }
   }
 
-  // ✅ NOUVEAU: Handler pour les indicateurs de quête
-  handleQuestStatuses(data) {
-    if (!data || !data.questStatuses || !Array.isArray(data.questStatuses)) {
-      console.warn('[NetworkInteractionHandler] ⚠️ Format questStatuses invalide:', data);
-      return;
-    }
+handleQuestStatuses(data) {
+  this.applyQuestStatusesWithRetry(data, 0);
+}
 
-    console.log(`[NetworkInteractionHandler] 📊 Mise à jour ${data.questStatuses.length} indicateurs de quête`);
-
-    // Obtenir la scène active
-    const activeScene = this.getActiveScene();
-    if (!activeScene || !activeScene.npcManager) {
-      console.warn('[NetworkInteractionHandler] ⚠️ Scène/NpcManager non disponible pour quest indicators');
-      return;
+applyQuestStatusesWithRetry(data, attempt = 0) {
+  const maxAttempts = 5;
+  const delay = 300 * (attempt + 1); // 300ms, 600ms, 900ms...
+  
+  console.log(`📋 Tentative ${attempt + 1}/${maxAttempts} d'application quest statuses`);
+  
+  const activeScene = this.getActiveScene();
+  if (!activeScene || !activeScene.npcManager) {
+    if (attempt < maxAttempts) {
+      console.log(`⏳ Retry dans ${delay}ms...`);
+      setTimeout(() => {
+        this.applyQuestStatusesWithRetry(data, attempt + 1);
+      }, delay);
+    } else {
+      console.error('❌ Impossible d\'appliquer quest statuses après', maxAttempts, 'tentatives');
     }
-
-    // Appliquer les indicateurs de quête
-    try {
-      activeScene.npcManager.updateQuestIndicators(data.questStatuses);
-      
-      // Debug des indicateurs appliqués
-      data.questStatuses.forEach(status => {
-        const indicator = status.type === 'questAvailable' ? '!' : '?';
-        const color = status.type === 'questAvailable' ? 'jaune' : 
-                     status.type === 'questReadyToComplete' ? 'jaune' : 'gris';
-        console.log(`[NetworkInteractionHandler]   NPC ${status.npcId}: ${indicator} ${color}`);
-      });
-      
-      console.log('[NetworkInteractionHandler] ✅ Indicateurs de quête mis à jour');
-      
-    } catch (error) {
-      console.error('[NetworkInteractionHandler] ❌ Erreur mise à jour quest indicators:', error);
-    }
+    return;
   }
+  
+  // Vérifier si les NPCs concernés existent
+  const missingNpcs = data.questStatuses.filter(status => {
+    const npcExists = activeScene.npcManager.npcVisuals.has(status.npcId);
+    if (!npcExists) {
+      console.log(`🔍 NPC ${status.npcId} pas encore créé`);
+    }
+    return !npcExists;
+  });
+  
+  if (missingNpcs.length > 0 && attempt < maxAttempts) {
+    console.log(`⏳ ${missingNpcs.length} NPCs manquants, retry dans ${delay}ms...`);
+    setTimeout(() => {
+      this.applyQuestStatusesWithRetry(data, attempt + 1);
+    }, delay);
+    return;
+  }
+  
+  // ✅ APPLIQUER
+  console.log(`✅ Application quest statuses (tentative ${attempt + 1})`);
+  activeScene.npcManager.updateQuestIndicators(data.questStatuses);
+}
 
   // Obtenir la scène active
   getActiveScene() {
