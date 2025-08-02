@@ -226,20 +226,42 @@ detectAvailableActions(data) {
   // 🔧 EXTRACTION QUEST DATA CORRIGÉE
   const unifiedQuestData = data.unifiedInterface?.questData;
   const legacyQuestData = data.questData;
-  const hasAvailableQuests = (unifiedQuestData?.availableQuests?.length > 0) || 
-                            (legacyQuestData?.availableQuests?.length > 0) ||
-                            !!data.questId;
+  
+  // 🆕 NOUVEAU : Récupérer les quêtes disponibles depuis plusieurs sources
+  let availableQuests = [];
+  
+  // Source 1 : data.availableQuests (le plus direct)
+  if (data.availableQuests && Array.isArray(data.availableQuests)) {
+    availableQuests = data.availableQuests;
+    console.log('📋 Quêtes trouvées dans data.availableQuests:', availableQuests.length);
+  }
+  // Source 2 : unifiedQuestData
+  else if (unifiedQuestData?.availableQuests?.length > 0) {
+    availableQuests = unifiedQuestData.availableQuests;
+    console.log('📋 Quêtes trouvées dans unifiedQuestData:', availableQuests.length);
+  }
+  // Source 3 : legacyQuestData
+  else if (legacyQuestData?.availableQuests?.length > 0) {
+    availableQuests = legacyQuestData.availableQuests;
+    console.log('📋 Quêtes trouvées dans legacyQuestData:', availableQuests.length);
+  }
+  // Source 4 : Quête unique (legacy)
+  else if (data.questId) {
+    availableQuests = [{ id: data.questId, name: data.questName || 'Quête' }];
+    console.log('📋 Quête unique trouvée:', data.questId);
+  }
+  
+  const hasAvailableQuests = availableQuests.length > 0;
   
   console.log('🔍 Détection actions pour:', { 
     name: data.npcName || data.name,
     capabilities, 
     npcType, 
     hasShopData: !!(data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData)),
-    hasQuestData: hasAvailableQuests, // 🔧 CORRIGÉ
-    hasHealerData: !!data.healerData,
-    // 🆕 DEBUG SUPPLÉMENTAIRE
-    unifiedQuestData: !!unifiedQuestData,
-    availableQuestsCount: unifiedQuestData?.availableQuests?.length || 0
+    hasQuestData: hasAvailableQuests,
+    availableQuestsCount: availableQuests.length,
+    questNames: availableQuests.map(q => q.name || q.id),
+    hasHealerData: !!data.healerData
   });
   
   // Action Boutique
@@ -255,23 +277,40 @@ detectAvailableActions(data) {
     });
   }
   
-  // 🔧 ACTION QUÊTES CORRIGÉE
+  // 🆕 ACTIONS QUÊTES : UN BOUTON PAR QUÊTE
   if (capabilities.includes('quest') || capabilities.includes('questGiver') || npcType === 'questGiver' || hasAvailableQuests) {
-    // 🔧 UTILISER LES BONNES DONNÉES
-    const questData = unifiedQuestData || legacyQuestData || {};
-    const questCount = questData.availableQuests?.length || (data.questId ? 1 : 0);
     
-    actions.push({
-      id: 'open_quests',
-      type: 'quest',
-      label: questCount > 1 ? 'Quêtes' : 'Quête',
-      icon: '📋',
-      badge: questCount > 0 ? questCount.toString() : null,
-      description: 'Missions disponibles',
-      data: questData
-    });
-    
-    console.log(`✅ Action quête ajoutée - ${questCount} quête(s) disponible(s)`);
+    if (availableQuests.length > 0) {
+      // 🎯 CRÉER UN BOUTON PAR QUÊTE
+      availableQuests.forEach(quest => {
+        const questName = quest.name || quest.title || `Quête ${quest.id}`;
+        const questId = quest.id;
+        
+        actions.push({
+          id: `accept_${questId}`,
+          type: 'quest',
+          questId: questId, // 🆕 ID spécifique de la quête
+          label: questName, // 🆕 Nom de la quête au lieu de "Quête"
+          icon: '📋',
+          description: quest.description || 'Mission disponible',
+          data: quest
+        });
+        
+        console.log(`✅ Action quête ajoutée: "${questName}" (${questId})`);
+      });
+    } else {
+      // 🔄 Fallback : bouton générique si capabilities mais pas de quêtes détectées
+      actions.push({
+        id: 'open_quests',
+        type: 'quest',
+        label: 'Quêtes',
+        icon: '📋',
+        description: 'Missions disponibles',
+        data: unifiedQuestData || legacyQuestData || {}
+      });
+      
+      console.log('✅ Action quête générique ajoutée (fallback)');
+    }
   }
   
   // Action Soins
@@ -302,7 +341,13 @@ detectAvailableActions(data) {
     console.log('✅ Aucune action détectée - NPC dialogue simple');
     return [];
   } else {
-    console.log(`✅ ${actions.length} actions détectées:`, actions.map(a => a.label));
+    const questActions = actions.filter(a => a.type === 'quest');
+    const otherActions = actions.filter(a => a.type !== 'quest');
+    
+    console.log(`✅ ${actions.length} actions détectées:`);
+    console.log(`   - ${questActions.length} quêtes:`, questActions.map(a => a.label));
+    console.log(`   - ${otherActions.length} autres:`, otherActions.map(a => a.label));
+    
     return actions;
   }
 }
