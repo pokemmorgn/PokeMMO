@@ -1,10 +1,129 @@
-// src/interactions/modules/NpcInteractionModule.ts - VERSION SÉCURISÉE
+// 1. Vérifier les quêtes à terminer
+    const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
+    
+    if (readyToCompleteQuests.length > 0) {
+      const firstQuest = readyToCompleteQuests[0];
+      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
+      const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player, playerLanguage);
+      
+      const completionResults = [];
+      for (const quest of readyToCompleteQuests) {
+        const result = await this.questManager.completePlayerQuest(player.name, quest.id);
+        if (result.success) {
+          completionResults.push({
+            questId: quest.id,
+            questName: questDefinition?.name || quest.id,
+            questRewards: result.rewards || [],
+            message: result.message
+          });
+        }
+      }
+      
+      if (completionResults.length > 0) {
+        const totalRewards = completionResults.reduce((acc, result) => {
+          return [...acc, ...(result.questRewards || [])];
+        }, []);
+        
+        const questNames = completionResults.map(r => r.questName).join(', ');
+        
+        return {
+          success: true,
+          type: "questComplete",
+          questId: completionResults[0].questId,
+          questName: questNames,
+          questRewards: totalRewards,
+          questProgress: questProgress,
+          npcId: npcId,
+          npcName: npc.name || `NPC #${npcId}`,
+          isUnifiedInterface: false,
+          capabilities: capabilities, // ✅ Toutes les capacités
+          contextualData: this.buildContextualDataFromCapabilities(capabilities),
+          lines: completionDialogue,
+          message: `Félicitations ! Vous avez terminé : ${questNames}`
+        };
+      }
+    }
+
+    // 2. Vérifier les quêtes à donner
+    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+    
+    if (availableQuests.length > 0) {
+      const firstQuest = availableQuests[0];
+      const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
+      
+      const serializedQuests = availableQuests.map(quest => ({
+        id: quest.id,
+        name: quest.name,
+        description: quest.description,
+        category: quest.category,
+        steps: quest.steps.map((step: any) => ({
+          id: step.id,
+          name: step.name,
+          description: step.description,
+          objectives: step.objectives,
+          rewards: step.rewards
+        }))
+      }));
+
+      return {
+        success: true,
+        type: "questGiver",
+        message: questOfferDialogue.join(' '),
+        lines: questOfferDialogue,
+        availableQuests: serializedQuests,
+        questProgress: questProgress,
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: capabilities, // ✅ Toutes les capacités
+        contextualData: this.buildContextualDataFromCapabilities(capabilities)
+      };
+    }
+
+    // 3. Vérifier les quêtes en cours
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questsForThisNpc = activeQuests.filter(q => 
+      q.startNpcId === npcId || q.endNpcId === npcId
+    );
+
+    if (questsForThisNpc.length > 0) {
+      const firstQuest = questsForThisNpc[0];
+      const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
+      const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
+      
+      return {
+        success: true,
+        type: "dialogue",
+        lines: progressDialogue,
+        questProgress: questProgress,
+        npcId: npcId,
+        npcName: npc.name || `NPC #${npcId}`,
+        isUnifiedInterface: false,
+        capabilities: capabilities, // ✅ Toutes les capacités
+        contextualData: this.buildContextualDataFromCapabilities(capabilities)
+      };
+    }
+    
+    // Fallback vers dialogue si pas de quêtes
+    return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Gère les actions de marchand
+   */
+  private async executeMerchantAction(
+    player: Player, 
+    npc: any, 
+    npcId: number, 
+    capabilities: NpcCapability[], 
+    questProgress: any[], 
+    playerLanguage: string
+  ): Promise<NpcInteractionResult> {// src/interactions/modules/NpcInteractionModule.ts - VERSION SÉCURISÉE
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
 import { StarterHandlers } from "../../handlers/StarterHandlers";
 import { InventoryManager } from "../../managers/InventoryManager";
-import { getDbZoneName } from '../../config/ZoneMapping';
 import { SpectatorManager } from "../../battle/modules/broadcast/SpectatorManager";
 import { 
   InteractionRequest, 
@@ -311,7 +430,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   ): Promise<NpcInteractionResult> {
     
     // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
-    const serverZone = getDbZoneName(player.currentZone);
+    const serverZone = player.currentZone;
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
@@ -495,6 +614,10 @@ export class NpcInteractionModule extends BaseInteractionModule {
 
   private async handleLegacyNpcInteractionLogic(player: Player, npc: any, npcId: number, playerLanguage: string = 'fr'): Promise<NpcInteractionResult> {
     
+    // ✅ ÉTAPE 1 : Analyser TOUTES les capacités du NPC d'abord
+    const npcCapabilities = await this.analyzeNpcCapabilities(player, npc, npcId);
+    console.log('🔍 [NPC CAPABILITIES] Capacités détectées:', npcCapabilities);
+    
     try {
       const recentQuest = await this.questManager.getRecentlyCompletedQuestByNpc(player.name, npcId, 24);
       
@@ -509,14 +632,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
           npcId: npcId,
           npcName: npc.name || `NPC #${npcId}`,
           isUnifiedInterface: false,
-          capabilities: ['dialogue'],
-          contextualData: {
-            hasShop: false,
-            hasQuests: false,
-            hasHealing: false,
-            defaultAction: 'dialogue',
-            quickActions: []
-          },
+          capabilities: npcCapabilities, // ✅ Utilise les capacités analysées
+          contextualData: this.buildContextualDataFromCapabilities(npcCapabilities),
           isPostQuestDialogue: true,
           completedQuestName: recentQuest.questDefinition.name,
           completedAt: recentQuest.completedAt
@@ -527,15 +644,111 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // Continue vers la logique normale en cas d'erreur
     }
 
-    if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
-      return await this.handleStarterTableInteraction(player, npc, npcId);
-    }
+    // ✅ ÉTAPE 2 : Déterminer l'action principale en fonction des capacités prioritaires
+    const primaryAction = this.determinePrimaryAction(npcCapabilities, npc);
+    console.log('🎯 [NPC ACTION] Action principale déterminée:', primaryAction);
+    
+    // ✅ ÉTAPE 3 : Exécuter l'action principale
+    return await this.executeNpcAction(player, npc, npcId, primaryAction, npcCapabilities, playerLanguage);
+  }
 
-    const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
-    if (talkValidationResult) {
-      return talkValidationResult;
+  /**
+   * ✅ NOUVELLE MÉTHODE : Analyse toutes les capacités d'un NPC
+   */
+  private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): Promise<NpcCapability[]> {
+    const capabilities: NpcCapability[] = [];
+    
+    // Capacité de base selon le type
+    if (npc.type) {
+      switch (npc.type) {
+        case 'merchant':
+          capabilities.push('merchant');
+          break;
+        case 'healer':
+          capabilities.push('healer');
+          break;
+        case 'trainer':
+          capabilities.push('trainer');
+          break;
+        case 'quest_master':
+          capabilities.push('quest');
+          break;
+        default:
+          capabilities.push('dialogue');
+      }
+    } else {
+      capabilities.push('dialogue');
     }
+    
+    // ✅ Vérifier si le NPC peut donner des quêtes
+    try {
+      const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+      const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
+      
+      if (availableQuests.length > 0 || readyToCompleteQuests.length > 0) {
+        if (!capabilities.includes('quest')) {
+          capabilities.push('quest');
+          console.log('✅ [QUEST CAPABILITY] NPC peut donner des quêtes, ajout de "quest"');
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [QUEST CAPABILITY] Erreur vérification quêtes:', error);
+    }
+    
+    // ✅ Vérifier si le NPC a une boutique
+    if (npc.shopId || npc.properties?.shop) {
+      if (!capabilities.includes('merchant')) {
+        capabilities.push('merchant');
+        console.log('✅ [SHOP CAPABILITY] NPC a une boutique, ajout de "merchant"');
+      }
+    }
+    
+    // ✅ Vérifier si le NPC peut soigner
+    if (npc.properties?.healer || npc.type === 'healer') {
+      if (!capabilities.includes('healer')) {
+        capabilities.push('healer');
+        console.log('✅ [HEALER CAPABILITY] NPC peut soigner, ajout de "healer"');
+      }
+    }
+    
+    return capabilities;
+  }
 
+  /**
+   * ✅ NOUVELLE MÉTHODE : Détermine l'action principale selon priorité
+   */
+  private determinePrimaryAction(capabilities: NpcCapability[], npc: any): NpcCapability {
+    // Ordre de priorité des actions
+    const priorityOrder: NpcCapability[] = [
+      'quest',      // Quêtes en priorité
+      'merchant',   // Puis boutique
+      'healer',     // Puis soins
+      'trainer',    // Puis combat
+      'dialogue'    // Enfin dialogue
+    ];
+    
+    for (const priority of priorityOrder) {
+      if (capabilities.includes(priority)) {
+        return priority;
+      }
+    }
+    
+    return 'dialogue'; // Fallback
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Exécute l'action principale avec toutes les capacités
+   */
+  private async executeNpcAction(
+    player: Player, 
+    npc: any, 
+    npcId: number, 
+    primaryAction: NpcCapability, 
+    allCapabilities: NpcCapability[], 
+    playerLanguage: string
+  ): Promise<NpcInteractionResult> {
+
+    // Progress quête (toujours faire ça)
     let questProgress: any[] = [];
     try {
       const progressResult = await this.questManager.progressQuest(player.name, {
@@ -560,6 +773,47 @@ export class NpcInteractionModule extends BaseInteractionModule {
     } catch (error) {
       // Continue en cas d'erreur
     }
+    
+    // Vérifications spéciales
+    if (npc.properties?.startertable === true || npc.properties?.startertable === 'true') {
+      return await this.handleStarterTableInteraction(player, npc, npcId);
+    }
+
+    const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
+    if (talkValidationResult) {
+      return talkValidationResult;
+    }
+    
+    // ✅ EXÉCUTION SELON L'ACTION PRINCIPALE
+    switch (primaryAction) {
+      case 'quest':
+        return await this.executeQuestAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+        
+      case 'merchant':
+        return await this.executeMerchantAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+        
+      case 'healer':
+        return await this.executeHealerAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+        
+      case 'trainer':
+        return await this.executeTrainerAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+        
+      default:
+        return await this.executeDialogueAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Gère les actions de quête
+   */
+  private async executeQuestAction(
+    player: Player, 
+    npc: any, 
+    npcId: number, 
+    capabilities: NpcCapability[], 
+    questProgress: any[], 
+    playerLanguage: string
+  ): Promise<NpcInteractionResult> {
 
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
     
