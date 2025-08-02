@@ -1,5 +1,5 @@
 // client/src/network/NetworkInteractionHandler.js
-// ✅ Handler spécialisé pour toutes les interactions réseau + Quest Indicators
+// ✅ Handler spécialisé pour toutes les interactions réseau + Quest Indicators + Quest Details
 
 export class NetworkInteractionHandler {
   constructor(networkManager) {
@@ -42,6 +42,9 @@ export class NetworkInteractionHandler {
       maxInitRetries: 5,
       initRetryDelay: 500
     };
+
+    // ✅ NOUVEAU : Stockage des quêtes par NPC
+    this.npcQuestData = new Map(); // npcId -> { availableQuestIds: [], inProgressQuestIds: [], readyToCompleteQuestIds: [] }
   }
 
   initialize() {
@@ -133,13 +136,19 @@ export class NetworkInteractionHandler {
         this.handleGenericInteractionResult(data);
       });
 
-      // ✅ NOUVEAU: Handler pour les indicateurs de quête
+      // ✅ Handler pour les indicateurs de quête (avec retry intelligent)
       room.onMessage("questStatuses", (data) => {
         console.log('[NetworkInteractionHandler] 🎯 Quest statuses reçus:', data);
         this.handleQuestStatuses(data);
       });
 
-      console.log('[NetworkInteractionHandler] ✅ Handlers configurés (+ quest indicators)');
+      // ✅ NOUVEAU : Handler pour les détails de quête
+      room.onMessage("questDetailsResult", (data) => {
+        console.log('[NetworkInteractionHandler] 📋 Quest details reçus:', data);
+        this.handleQuestDetailsResult(data);
+      });
+
+      console.log('[NetworkInteractionHandler] ✅ Handlers configurés (+ quest system)');
       return true;
       
     } catch (error) {
@@ -148,54 +157,136 @@ export class NetworkInteractionHandler {
     }
   }
 
-handleQuestStatuses(data) {
-  this.applyQuestStatusesWithRetry(data, 0);
-}
+  // ✅ Handler pour les indicateurs de quête (avec retry intelligent)
+  handleQuestStatuses(data) {
+    this.applyQuestStatusesWithRetry(data, 0);
+  }
 
-applyQuestStatusesWithRetry(data, attempt = 0) {
-  const maxAttempts = 5;
-  const delay = 300 * (attempt + 1); // 300ms, 600ms, 900ms...
-  
-  console.log(`📋 Tentative ${attempt + 1}/${maxAttempts} d'application quest statuses`);
-  
-  const activeScene = this.getActiveScene();
-  if (!activeScene || !activeScene.npcManager) {
-    if (attempt < maxAttempts) {
-      console.log(`⏳ Retry dans ${delay}ms...`);
+  applyQuestStatusesWithRetry(data, attempt = 0) {
+    const maxAttempts = 5;
+    const delay = 300 * (attempt + 1);
+    
+    console.log(`📋 Tentative ${attempt + 1}/${maxAttempts} d'application quest statuses`);
+    
+    const activeScene = this.getActiveScene();
+    if (!activeScene || !activeScene.npcManager) {
+      if (attempt < maxAttempts) {
+        console.log(`⏳ Retry dans ${delay}ms...`);
+        setTimeout(() => {
+          this.applyQuestStatusesWithRetry(data, attempt + 1);
+        }, delay);
+      } else {
+        console.error('❌ Impossible d\'appliquer quest statuses après', maxAttempts, 'tentatives');
+      }
+      return;
+    }
+    
+    // ✅ NOUVEAU : Stocker les données de quêtes par NPC
+    if (data.questStatuses && Array.isArray(data.questStatuses)) {
+      data.questStatuses.forEach(npcQuestStatus => {
+        this.npcQuestData.set(npcQuestStatus.npcId, {
+          availableQuestIds: npcQuestStatus.availableQuestIds || [],
+          inProgressQuestIds: npcQuestStatus.inProgressQuestIds || [],
+          readyToCompleteQuestIds: npcQuestStatus.readyToCompleteQuestIds || []
+        });
+        
+        console.log(`📋 NPC ${npcQuestStatus.npcId} stocké:`, {
+          available: npcQuestStatus.availableQuestIds?.length || 0,
+          inProgress: npcQuestStatus.inProgressQuestIds?.length || 0,
+          ready: npcQuestStatus.readyToCompleteQuestIds?.length || 0
+        });
+      });
+    }
+    
+    // Vérifier si les NPCs concernés existent
+    const missingNpcs = data.questStatuses.filter(status => {
+      const npcExists = activeScene.npcManager.npcVisuals.has(status.npcId);
+      if (!npcExists) {
+        console.log(`🔍 NPC ${status.npcId} pas encore créé`);
+      }
+      return !npcExists;
+    });
+    
+    if (missingNpcs.length > 0 && attempt < maxAttempts) {
+      console.log(`⏳ ${missingNpcs.length} NPCs manquants, retry dans ${delay}ms...`);
       setTimeout(() => {
         this.applyQuestStatusesWithRetry(data, attempt + 1);
       }, delay);
-    } else {
-      console.error('❌ Impossible d\'appliquer quest statuses après', maxAttempts, 'tentatives');
+      return;
     }
-    return;
+    
+    // ✅ APPLIQUER
+    console.log(`✅ Application quest statuses (tentative ${attempt + 1})`);
+    activeScene.npcManager.updateQuestIndicators(data.questStatuses);
   }
-  
-  // Vérifier si les NPCs concernés existent
-  const missingNpcs = data.questStatuses.filter(status => {
-    const npcExists = activeScene.npcManager.npcVisuals.has(status.npcId);
-    if (!npcExists) {
-      console.log(`🔍 NPC ${status.npcId} pas encore créé`);
+
+  // ✅ NOUVEAU : Handler pour les détails de quête
+  handleQuestDetailsResult(data) {
+    if (!data.success) {
+      console.error('[NetworkInteractionHandler] ❌ Erreur quest details:', data.error);
+      if (this.callbacks.onInteractionError) {
+        this.callbacks.onInteractionError('questDetails', data);
+      }
+      return;
     }
-    return !npcExists;
-  });
-  
-  if (missingNpcs.length > 0 && attempt < maxAttempts) {
-    console.log(`⏳ ${missingNpcs.length} NPCs manquants, retry dans ${delay}ms...`);
-    setTimeout(() => {
-      this.applyQuestStatusesWithRetry(data, attempt + 1);
-    }, delay);
-    return;
+
+    console.log('[NetworkInteractionHandler] ✅ Quest details reçus:', data.questData);
+    
+    // Déclencher le callback approprié pour afficher l'interface de quête
+    if (this.callbacks.onNpcInteraction) {
+      // Formatter comme une interaction NPC avec info de quête
+      const questInteractionData = {
+        success: true,
+        type: 'questDetails',
+        npcId: data.npcId,
+        questData: data.questData,
+        isUnifiedInterface: false // Pas besoin de l'interface unifiée pour les détails
+      };
+      
+      this.callbacks.onNpcInteraction(questInteractionData);
+    }
   }
-  
-  // ✅ APPLIQUER
-  console.log(`✅ Application quest statuses (tentative ${attempt + 1})`);
-  activeScene.npcManager.updateQuestIndicators(data.questStatuses);
-}
+
+  // ✅ NOUVEAU : Méthode pour demander les détails d'une quête
+  requestQuestDetails(npcId, questId) {
+    if (!this.networkManager?.room) {
+      console.error('[NetworkInteractionHandler] ❌ Pas de room pour demander quest details');
+      return false;
+    }
+
+    console.log(`[NetworkInteractionHandler] 📋 Demande détails quête ${questId} pour NPC ${npcId}`);
+    
+    try {
+      this.networkManager.room.send("getQuestDetails", {
+        npcId: npcId,
+        questId: questId
+      });
+      return true;
+    } catch (error) {
+      console.error('[NetworkInteractionHandler] ❌ Erreur demande quest details:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVEAU : Méthode pour récupérer les quêtes disponibles d'un NPC
+  getNpcQuestData(npcId) {
+    return this.npcQuestData.get(npcId) || {
+      availableQuestIds: [],
+      inProgressQuestIds: [],
+      readyToCompleteQuestIds: []
+    };
+  }
+
+  // ✅ NOUVEAU : Méthode pour vérifier si un NPC a des quêtes
+  npcHasQuests(npcId) {
+    const questData = this.getNpcQuestData(npcId);
+    return questData.availableQuestIds.length > 0 ||
+           questData.inProgressQuestIds.length > 0 ||
+           questData.readyToCompleteQuestIds.length > 0;
+  }
 
   // Obtenir la scène active
   getActiveScene() {
-    // Méthode 1: Via window.game
     if (window.game && window.game.scene) {
       const scenes = window.game.scene.getScenes(true);
       if (scenes && scenes.length > 0) {
@@ -203,12 +294,10 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
       }
     }
     
-    // Méthode 2: Via NetworkManager si il a une référence
     if (this.networkManager && this.networkManager.scene) {
       return this.networkManager.scene;
     }
     
-    // Méthode 3: Via globalNetworkManager
     if (window.globalNetworkManager && window.globalNetworkManager.scene) {
       return window.globalNetworkManager.scene;
     }
@@ -228,7 +317,8 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
       'interactionBlocked',
       'interactionCooldown',
       'interactionResult',
-      'questStatuses' // ✅ Inclure le nouveau handler
+      'questStatuses',
+      'questDetailsResult' // ✅ Nouveau
     ];
     
     let cleanedCount = 0;
@@ -255,7 +345,8 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
       'objectInteractionResult',
       'searchResult',
       'interactionError',
-      'questStatuses' // ✅ Vérifier le nouveau handler
+      'questStatuses',
+      'questDetailsResult' // ✅ Nouveau
     ];
     
     const missingHandlers = requiredHandlers.filter(handler => 
@@ -688,7 +779,7 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
     const room = this.networkManager?.room;
     const handlersCount = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).length : 0;
     const interactionHandlers = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).filter(key => 
-      key.includes('interaction') || key.includes('search') || key.includes('Result') || key.includes('questStatuses')
+      key.includes('interaction') || key.includes('search') || key.includes('Result') || key.includes('questStatuses') || key.includes('questDetails')
     ) : [];
 
     return {
@@ -704,7 +795,15 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
       handlersInfo: {
         totalHandlers: handlersCount,
         interactionHandlers: interactionHandlers,
-        hasQuestStatusHandler: interactionHandlers.includes('questStatuses') // ✅ Nouveau check
+        hasQuestStatusHandler: interactionHandlers.includes('questStatuses'),
+        hasQuestDetailsHandler: interactionHandlers.includes('questDetailsResult') // ✅ Nouveau
+      },
+      // ✅ NOUVEAU : Stats des quêtes
+      questData: {
+        npcsWithQuests: this.npcQuestData.size,
+        totalAvailableQuests: Array.from(this.npcQuestData.values()).reduce((sum, data) => sum + data.availableQuestIds.length, 0),
+        totalInProgressQuests: Array.from(this.npcQuestData.values()).reduce((sum, data) => sum + data.inProgressQuestIds.length, 0),
+        totalReadyQuests: Array.from(this.npcQuestData.values()).reduce((sum, data) => sum + data.readyToCompleteQuestIds.length, 0)
       }
     };
   }
@@ -717,6 +816,7 @@ applyQuestStatusesWithRetry(data, attempt = 0) {
     });
     
     this.state.pendingInteractions.clear();
+    this.npcQuestData.clear(); // ✅ Nouveau
     
     Object.keys(this.callbacks).forEach(key => {
       this.callbacks[key] = null;
@@ -733,6 +833,7 @@ window.debugInteractionHandler = function() {
   if (window.globalNetworkManager?.interactionHandler) {
     const info = window.globalNetworkManager.interactionHandler.getDebugInfo();
     console.table(info.counters);
+    console.table(info.questData);
     return info;
   }
   return null;
@@ -743,9 +844,20 @@ window.testQuestIndicators = function() {
   
   const mockQuestStatuses = {
     questStatuses: [
-      { npcId: 2, type: 'questAvailable' },
-      { npcId: 3, type: 'questInProgress' },
-      { npcId: 4, type: 'questReadyToComplete' }
+      { 
+        npcId: 2, 
+        type: 'questAvailable',
+        availableQuestIds: ['test_quest_1', 'test_quest_2'],
+        inProgressQuestIds: [],
+        readyToCompleteQuestIds: []
+      },
+      { 
+        npcId: 3, 
+        type: 'questInProgress',
+        availableQuestIds: [],
+        inProgressQuestIds: ['active_quest_1'],
+        readyToCompleteQuestIds: []
+      }
     ]
   };
   
@@ -763,5 +875,15 @@ window.testQuestIndicators = function() {
   }
 };
 
-console.log('✅ NetworkInteractionHandler avec Quest Indicators chargé!');
-console.log('🧪 Utilisez window.testQuestIndicators() pour tester les "!"');
+// ✅ NOUVEAU : Test pour demander des détails de quête
+window.testQuestDetails = function(npcId = 2, questId = 'test_quest_1') {
+  console.log(`🧪 Test quest details pour NPC ${npcId}, quête ${questId}`);
+  
+  if (window.globalNetworkManager?.interactionHandler) {
+    const success = window.globalNetworkManager.interactionHandler.requestQuestDetails(npcId, questId);
+    console.log(`✅ Demande envoyée: ${success}`);
+  }
+};
+
+console.log('✅ NetworkInteractionHandler avec Quest System complet chargé!');
+console.log('🧪 Utilisez window.testQuestDetails(npcId, questId) pour tester');
