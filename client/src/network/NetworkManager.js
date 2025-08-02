@@ -531,6 +531,13 @@ export class NetworkManager {
       }
     });
 
+        // ✅ NOUVEAU : Handler pour questDetailsResult
+    this.room.onMessage("questDetailsResult", (data) => {
+      if (this.interactionHandler) {
+        this.interactionHandler.handleQuestDetailsResult(data);
+      }
+    });
+    
     this.room.onMessage("interactionResult", (result) => {
       this.logInteraction('interaction_result_extended', result);
       
