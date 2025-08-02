@@ -1,10 +1,10 @@
-// server/src/models/NpcData.ts
+// server/src/models/NpcData.ts - VERSION REFACTORISÉE SANS SHOPCONFIG
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { NpcType, Direction, AnyNpc } from "../types/NpcTypes";
 
-// ===== NOUVELLES INTERFACES ÉTENDUES =====
+// ===== INTERFACES ÉTENDUES (SHOPCONFIG RETIRÉ) =====
 
-// Configuration de combat pour tous les NPCs
+// Configuration de combat pour tous les NPCs (inchangée)
 export interface BattleConfig {
   teamId?: string;                    // ID de l'équipe (optionnel)
   canBattle?: boolean;                // Peut se battre (défaut: !!teamId)
@@ -42,7 +42,7 @@ export interface BattleConfig {
   };
 }
 
-// Configuration de vision spécifique aux dresseurs
+// Configuration de vision spécifique aux dresseurs (inchangée)
 export interface TrainerVisionConfig {
   sightRange: number;                 // Distance de détection (pixels)
   sightAngle: number;                 // Angle de vision (degrés, 0-360)
@@ -59,84 +59,10 @@ export interface TrainerVisionConfig {
   lostTargetSound?: string;           // Son quand perd le joueur
 }
 
-// ✅ NOUVEAU : Configuration Shop pour NPCs type 'merchant'
-export interface ShopConfig {
-  shopId: string;                     // ID de la boutique associée
-  shopType?: 'general' | 'pokemart' | 'department' | 'specialty' | 'underground' | 'battle' | 'contest' | 'medicine' | 'berries' | 'tms';
-  currency?: 'gold' | 'tokens' | 'bp' | 'coins';
-  buyMultiplier?: number;             // Multiplicateur d'achat (défaut: 1.0)
-  sellMultiplier?: number;            // Multiplicateur de vente (défaut: 0.5)
-  taxRate?: number;                   // Taux de taxe (défaut: 0)
-  
-  // Horaires d'ouverture
-  businessHours?: {
-    enabled: boolean;
-    openTime: string;                 // Format "HH:mm"
-    closeTime: string;                // Format "HH:mm" 
-    closedDays?: string[];            // Jours fermés ["monday", "sunday"]
-    timezone?: string;                // Timezone (défaut: serveur)
-  };
-  
-  // Restrictions d'accès
-  accessRestrictions?: {
-    minLevel?: number;
-    maxLevel?: number;
-    requiredBadges?: string[];
-    requiredFlags?: string[];
-    forbiddenFlags?: string[];
-    membershipRequired?: boolean;
-    vipOnly?: boolean;
-  };
-  
-  // Configuration de restockage
-  restockInfo?: {
-    enabled: boolean;
-    intervalHours: number;            // Heures entre les restocks
-    lastRestock?: Date;
-    nextRestock?: Date;
-    notifyPlayers?: boolean;
-  };
-  
-  // Items en vente (référence vers ShopData)
-  items?: Array<{
-    itemId: string;
-    category: string;
-    basePrice: number;
-    stock?: number;                   // Stock disponible (-1 = illimité)
-    unlockLevel?: number;
-    requiredBadges?: string[];
-    featured?: boolean;               // Mis en avant
-    discount?: number;                // Réduction en %
-  }>;
-  
-  // Dialogues spécifiques au shop
-  shopDialogueIds?: {
-    welcome?: string[];               // Dialogue d'accueil
-    browse?: string[];                // Dialogue navigation
-    purchase?: string[];              // Dialogue achat
-    sell?: string[];                  // Dialogue vente
-    insufficient?: string[];          // Pas assez d'argent
-    inventory_full?: string[];        // Inventaire plein
-    goodbye?: string[];               // Dialogue de fermeture
-    closed?: string[];                // Boutique fermée
-    restricted?: string[];            // Accès refusé
-  };
-  
-  // Services additionnels
-  additionalServices?: {
-    buyback?: boolean;                // Rachat d'objets
-    repair?: boolean;                 // Réparation d'objets
-    appraisal?: boolean;              // Évaluation d'objets
-    storage?: boolean;                // Stockage temporaire
-    delivery?: boolean;               // Livraison
-    customOrders?: boolean;           // Commandes spéciales
-  };
-}
-
-// États possibles d'un trainer
+// États possibles d'un trainer (inchangé)
 export type TrainerState = 'idle' | 'alerted' | 'chasing' | 'battling' | 'defeated' | 'returning';
 
-// Métadonnées de runtime pour trainers
+// Métadonnées de runtime pour trainers (inchangée)
 export interface TrainerRuntimeData {
   currentState: TrainerState;
   lastDetectionTime?: number;
@@ -146,16 +72,16 @@ export interface TrainerRuntimeData {
   defeatedBy?: string[];              // Liste des joueurs qui l'ont battu
 }
 
-// ===== INTERFACE PRINCIPALE ÉTENDUE =====
+// ===== INTERFACE PRINCIPALE NETTOYÉE =====
 
 export interface INpcData extends Document {
-  // === IDENTIFICATION (existant) ===
+  // === IDENTIFICATION (inchangé) ===
   npcId: number;
   zone: string;
   name: string;
   type: NpcType;
   
-  // === POSITIONNEMENT (existant) ===
+  // === POSITIONNEMENT (inchangé) ===
   position: {
     x: number;
     y: number;
@@ -163,14 +89,14 @@ export interface INpcData extends Document {
   direction: Direction;
   sprite: string;
   
-  // === COMPORTEMENT (existant) ===
+  // === COMPORTEMENT (inchangé) ===
   interactionRadius: number;
   canWalkAway: boolean;
   autoFacePlayer: boolean;
   repeatable: boolean;
   cooldownSeconds: number;
   
-  // === CONDITIONS D'APPARITION (existant) ===
+  // === CONDITIONS D'APPARITION (inchangé) ===
   spawnConditions?: {
     timeOfDay?: string[];
     weather?: string[];
@@ -184,10 +110,10 @@ export interface INpcData extends Document {
     };
   };
   
-  // === DONNÉES SPÉCIFIQUES PAR TYPE (existant) ===
+  // === DONNÉES SPÉCIFIQUES PAR TYPE (inchangé) ===
   npcData: any;
   
-  // === SYSTÈME QUÊTES (existant) ===
+  // === SYSTÈME QUÊTES (inchangé) ===
   questsToGive?: string[];
   questsToEnd?: string[];
   questRequirements?: any;
@@ -197,30 +123,30 @@ export interface INpcData extends Document {
     questComplete?: string[];
   };
   
-  // === SYSTÈME DE COMBAT (existant) ===
+  // === SYSTÈME DE COMBAT (inchangé) ===
   battleConfig?: BattleConfig;
   
-  // === VISION DRESSEURS (existant) ===
+  // === VISION DRESSEURS (inchangé) ===
   visionConfig?: TrainerVisionConfig;
   
-  // === DONNÉES RUNTIME TRAINERS (existant) ===
+  // === DONNÉES RUNTIME TRAINERS (inchangé) ===
   trainerRuntime?: TrainerRuntimeData;
   
-  // === 🆕 NOUVEAU : SYSTÈME SHOP POUR MERCHANTS ===
-  shopConfig?: ShopConfig;
+  // === 🆕 SHOP SIMPLIFIÉ - JUSTE LA RÉFÉRENCE ===
+  shopId?: string;                    // ✅ SIMPLE RÉFÉRENCE vers ShopData
   
-  // === MÉTADONNÉES (existant) ===
+  // === MÉTADONNÉES (inchangé) ===
   isActive: boolean;
   version: string;
   lastUpdated: Date;
   sourceFile?: string;
   
-  // === MÉTHODES D'INSTANCE EXISTANTES ===
+  // === MÉTHODES D'INSTANCE EXISTANTES (inchangées) ===
   toNpcFormat(): AnyNpc;
   updateFromJson(jsonData: any): Promise<void>;
   isAvailableForPlayer(playerLevel: number, playerFlags: string[]): boolean;
   
-  // === MÉTHODES D'INSTANCE EXISTANTES (combat/trainer) ===
+  // === MÉTHODES D'INSTANCE EXISTANTES (combat/trainer - inchangées) ===
   canBattlePlayer(playerLevel: number, playerFlags?: string[]): boolean;
   isTrainerType(): boolean;
   initializeTrainerRuntime(): void;
@@ -229,17 +155,13 @@ export interface INpcData extends Document {
   isInSight(playerPosition: { x: number; y: number }): boolean;
   isInChaseRange(playerPosition: { x: number; y: number }): boolean;
   
-  // === 🆕 NOUVELLES MÉTHODES D'INSTANCE SHOP ===
-  isMerchantType(): boolean;
-  hasShopConfig(): boolean;
-  isShopOpen(): boolean;
-  canPlayerAccessShop(playerLevel: number, playerFlags?: string[], badges?: string[]): boolean;
-  getShopItems(): any[];
-  updateShopStock(itemId: string, newStock: number): Promise<void>;
-  triggerRestock(): Promise<void>;
+  // === 🔄 MÉTHODES SHOP SIMPLIFIÉES ===
+  isMerchantType(): boolean;          // ✅ Vérifie type='merchant' OU shopId
+  hasShopId(): boolean;               // ✅ Vérifie si shopId existe
+  getShopId(): string | null;         // ✅ Retourne shopId ou null
 }
 
-// Interface pour les méthodes statiques étendues
+// Interface pour les méthodes statiques (shopConfig retiré)
 export interface INpcDataModel extends Model<INpcData> {
   findByZone(zone: string): Promise<INpcData[]>;
   findByType(type: NpcType, zone?: string): Promise<INpcData[]>;
@@ -247,21 +169,19 @@ export interface INpcDataModel extends Model<INpcData> {
   bulkImportFromJson(zoneData: any): Promise<{ success: number; errors: string[] }>;
   createFromJson(jsonNpc: any, zone: string): Promise<INpcData>;
   
-  // MÉTHODES STATIQUES EXISTANTES (combat/trainer)
+  // MÉTHODES STATIQUES EXISTANTES (combat/trainer - inchangées)
   findTrainersInZone(zone: string): Promise<INpcData[]>;
   findNpcsWithTeams(zone: string): Promise<INpcData[]>;
   findActiveTrainers(zone: string): Promise<INpcData[]>;
   
-  // 🆕 NOUVELLES MÉTHODES STATIQUES SHOP
+  // 🔄 MÉTHODES STATIQUES SHOP SIMPLIFIÉES
   findMerchantsInZone(zone: string): Promise<INpcData[]>;
   findNpcsWithShops(zone: string): Promise<INpcData[]>;
-  findOpenShops(zone: string): Promise<INpcData[]>;
-  findShopsByType(shopType: string, zone?: string): Promise<INpcData[]>;
 }
 
-// ===== SCHÉMAS ÉTENDUS =====
+// ===== SCHÉMAS ÉTENDUS (SHOPCONFIG SCHEMA RETIRÉ) =====
 
-// Schéma pour la configuration de combat (existant)
+// Schéma pour la configuration de combat (inchangé)
 const BattleConfigSchema = new Schema({
   teamId: { type: String, trim: true },
   canBattle: { type: Boolean, default: true },
@@ -301,7 +221,7 @@ const BattleConfigSchema = new Schema({
   }
 }, { _id: false });
 
-// Schéma pour la configuration de vision des trainers (existant)
+// Schéma pour la configuration de vision des trainers (inchangé)
 const TrainerVisionConfigSchema = new Schema({
   sightRange: { 
     type: Number, 
@@ -335,109 +255,7 @@ const TrainerVisionConfigSchema = new Schema({
   lostTargetSound: { type: String, maxlength: 50 }
 }, { _id: false });
 
-// ✅ NOUVEAU : Schéma pour la configuration Shop
-const ShopConfigSchema = new Schema({
-  shopId: { 
-    type: String, 
-    required: true,
-    trim: true,
-    maxlength: [100, 'Shop ID too long']
-  },
-  shopType: { 
-    type: String, 
-    enum: ['general', 'pokemart', 'department', 'specialty', 'underground', 'battle', 'contest', 'medicine', 'berries', 'tms'],
-    default: 'general' 
-  },
-  currency: { 
-    type: String, 
-    enum: ['gold', 'tokens', 'bp', 'coins'],
-    default: 'gold' 
-  },
-  buyMultiplier: { 
-    type: Number, 
-    min: [0.1, 'Buy multiplier too low'],
-    max: [10, 'Buy multiplier too high'],
-    default: 1.0 
-  },
-  sellMultiplier: { 
-    type: Number, 
-    min: [0.1, 'Sell multiplier too low'],
-    max: [1, 'Sell multiplier too high'],
-    default: 0.5 
-  },
-  taxRate: { 
-    type: Number, 
-    min: [0, 'Tax rate cannot be negative'],
-    max: [0.5, 'Tax rate too high'],
-    default: 0 
-  },
-  
-  // Horaires d'ouverture
-  businessHours: {
-    enabled: { type: Boolean, default: false },
-    openTime: { type: String, match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ },
-    closeTime: { type: String, match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ },
-    closedDays: [{ type: String, enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] }],
-    timezone: { type: String, default: 'UTC' }
-  },
-  
-  // Restrictions d'accès
-  accessRestrictions: {
-    minLevel: { type: Number, min: 1, max: 100 },
-    maxLevel: { type: Number, min: 1, max: 100 },
-    requiredBadges: [{ type: String }],
-    requiredFlags: [{ type: String }],
-    forbiddenFlags: [{ type: String }],
-    membershipRequired: { type: Boolean, default: false },
-    vipOnly: { type: Boolean, default: false }
-  },
-  
-  // Configuration de restockage
-  restockInfo: {
-    enabled: { type: Boolean, default: false },
-    intervalHours: { type: Number, min: 1, max: 168, default: 24 },
-    lastRestock: { type: Date },
-    nextRestock: { type: Date },
-    notifyPlayers: { type: Boolean, default: false }
-  },
-  
-  // Items en vente
-  items: [{
-    itemId: { type: String, required: true, trim: true },
-    category: { type: String, required: true, trim: true },
-    basePrice: { type: Number, required: true, min: 0 },
-    stock: { type: Number, default: -1 }, // -1 = illimité
-    unlockLevel: { type: Number, min: 1, max: 100 },
-    requiredBadges: [{ type: String }],
-    featured: { type: Boolean, default: false },
-    discount: { type: Number, min: 0, max: 100, default: 0 }
-  }],
-  
-  // Dialogues spécifiques au shop
-  shopDialogueIds: {
-    welcome: [{ type: String }],
-    browse: [{ type: String }],
-    purchase: [{ type: String }],
-    sell: [{ type: String }],
-    insufficient: [{ type: String }],
-    inventory_full: [{ type: String }],
-    goodbye: [{ type: String }],
-    closed: [{ type: String }],
-    restricted: [{ type: String }]
-  },
-  
-  // Services additionnels
-  additionalServices: {
-    buyback: { type: Boolean, default: true },
-    repair: { type: Boolean, default: false },
-    appraisal: { type: Boolean, default: false },
-    storage: { type: Boolean, default: false },
-    delivery: { type: Boolean, default: false },
-    customOrders: { type: Boolean, default: false }
-  }
-}, { _id: false });
-
-// Schéma pour les données runtime des trainers (existant)
+// Schéma pour les données runtime des trainers (inchangé)
 const TrainerRuntimeDataSchema = new Schema({
   currentState: { 
     type: String, 
@@ -454,7 +272,7 @@ const TrainerRuntimeDataSchema = new Schema({
   defeatedBy: [{ type: String }]
 }, { _id: false });
 
-// ===== SCHÉMA PRINCIPAL ÉTENDU =====
+// ===== SCHÉMA PRINCIPAL NETTOYÉ =====
 
 const NpcDataSchema = new Schema<INpcData>({
   // === CHAMPS EXISTANTS (inchangés) ===
@@ -570,7 +388,7 @@ const NpcDataSchema = new Schema<INpcData>({
     default: undefined
   },
   
-  // === CHAMPS EXISTANTS (combat/trainer) ===
+  // === CHAMPS EXISTANTS (combat/trainer - inchangés) ===
   battleConfig: { 
     type: BattleConfigSchema,
     default: undefined
@@ -586,13 +404,15 @@ const NpcDataSchema = new Schema<INpcData>({
     default: undefined
   },
   
-  // === 🆕 NOUVEAU CHAMP SHOP ===
-  shopConfig: { 
-    type: ShopConfigSchema,
-    default: undefined
+  // === 🔄 SHOP SIMPLIFIÉ - JUSTE LA RÉFÉRENCE ===
+  shopId: { 
+    type: String,
+    trim: true,
+    maxlength: [100, 'Shop ID too long'],
+    index: true                       // ✅ Index pour recherches rapides
   },
   
-  // === MÉTADONNÉES (existantes) ===
+  // === MÉTADONNÉES (inchangées) ===
   isActive: { 
     type: Boolean, 
     default: true,
@@ -600,7 +420,7 @@ const NpcDataSchema = new Schema<INpcData>({
   },
   version: { 
     type: String, 
-    default: '2.0.0',
+    default: '3.0.0',                // ✅ Version incrémentée pour refactoring
     trim: true
   },
   lastUpdated: { 
@@ -619,37 +439,36 @@ const NpcDataSchema = new Schema<INpcData>({
   minimize: false
 });
 
-// ===== INDEX COMPOSITES ÉTENDUS =====
+// ===== INDEX COMPOSITES NETTOYÉS =====
 
-// Index existants
+// Index existants (inchangés)
 NpcDataSchema.index({ zone: 1, npcId: 1 }, { unique: true });
 NpcDataSchema.index({ zone: 1, isActive: 1 });
 NpcDataSchema.index({ zone: 1, type: 1 });
 NpcDataSchema.index({ type: 1, isActive: 1 });
 
-// Index existants (combat/vision)
+// Index existants (combat/vision - inchangés)
 NpcDataSchema.index({ 'battleConfig.teamId': 1 });
 NpcDataSchema.index({ zone: 1, type: 1, 'battleConfig.canBattle': 1 });
 NpcDataSchema.index({ zone: 1, 'visionConfig.sightRange': 1 });
 NpcDataSchema.index({ 'trainerRuntime.currentState': 1 });
 
-// 🆕 Nouveaux index pour shop
-NpcDataSchema.index({ 'shopConfig.shopId': 1 });
-NpcDataSchema.index({ zone: 1, type: 1, 'shopConfig.shopId': 1 });
-NpcDataSchema.index({ zone: 1, 'shopConfig.shopType': 1 });
-NpcDataSchema.index({ 'shopConfig.currency': 1 });
+// 🔄 Index shop simplifiés
+NpcDataSchema.index({ shopId: 1 });                    // ✅ Simple index sur shopId
+NpcDataSchema.index({ zone: 1, shopId: 1 });          // ✅ Zone + shopId
+NpcDataSchema.index({ zone: 1, type: 1, shopId: 1 }); // ✅ Zone + type + shopId
 
-// ===== VALIDATIONS PRE-SAVE ÉTENDUES =====
+// ===== VALIDATIONS PRE-SAVE NETTOYÉES =====
 
 NpcDataSchema.pre('save', function(next) {
-  // Validations existantes
+  // Validations existantes (inchangées)
   if (this.spawnConditions?.minPlayerLevel && this.spawnConditions?.maxPlayerLevel) {
     if (this.spawnConditions.minPlayerLevel > this.spawnConditions.maxPlayerLevel) {
       return next(new Error('Min player level cannot be greater than max player level'));
     }
   }
   
-  // Validations existantes (trainer)
+  // Validations existantes (trainer - inchangées)
   if (this.type === 'trainer' && !this.visionConfig) {
     this.visionConfig = {
       sightRange: 128,
@@ -677,48 +496,24 @@ NpcDataSchema.pre('save', function(next) {
     return next(new Error('Chase range must be >= sight range'));
   }
   
-  // 🆕 NOUVELLES VALIDATIONS SHOP
-  // Si c'est un merchant, il doit avoir shopConfig
-  if (this.type === 'merchant' && !this.shopConfig) {
-    this.shopConfig = {
-      shopId: `shop_${this.zone}_${this.npcId}`,
-      shopType: 'general',
-      currency: 'gold',
-      buyMultiplier: 1.0,
-      sellMultiplier: 0.5,
-      items: []
-    } as ShopConfig;
+  // 🔄 VALIDATION SHOP SIMPLIFIÉE
+  // Si c'est un merchant, s'assurer qu'il a un shopId (optionnel mais recommandé)
+  if (this.type === 'merchant' && !this.shopId) {
+    console.warn(`⚠️ NPC ${this.npcId} is type 'merchant' but has no shopId. Consider adding one.`);
   }
   
-  // Validation cohérence shop
-  if (this.shopConfig) {
-    // Valider les horaires d'ouverture
-    if (this.shopConfig.businessHours?.enabled) {
-      if (!this.shopConfig.businessHours.openTime || !this.shopConfig.businessHours.closeTime) {
-        return next(new Error('Business hours enabled but open/close times not set'));
-      }
-    }
-    
-    // Valider les restrictions d'accès
-    if (this.shopConfig.accessRestrictions?.minLevel && this.shopConfig.accessRestrictions?.maxLevel) {
-      if (this.shopConfig.accessRestrictions.minLevel > this.shopConfig.accessRestrictions.maxLevel) {
-        return next(new Error('Shop min access level cannot be greater than max access level'));
-      }
-    }
-    
-    // Calculer le prochain restock si nécessaire
-    if (this.shopConfig.restockInfo?.enabled && !this.shopConfig.restockInfo.nextRestock) {
-      this.shopConfig.restockInfo.nextRestock = new Date(Date.now() + (this.shopConfig.restockInfo.intervalHours * 60 * 60 * 1000));
-    }
+  // Si shopId existe, valider le format
+  if (this.shopId && !/^[a-zA-Z0-9_-]+$/.test(this.shopId)) {
+    return next(new Error('ShopId must contain only letters, numbers, underscores and hyphens'));
   }
   
   this.lastUpdated = new Date();
   next();
 });
 
-// ===== MÉTHODES D'INSTANCE ÉTENDUES =====
+// ===== MÉTHODES D'INSTANCE NETTOYÉES =====
 
-// Méthodes existantes (inchangées)
+// Méthodes existantes (toNpcFormat modifiée pour shopId)
 NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
   const baseNpc = {
     id: this.npcId,
@@ -738,13 +533,13 @@ NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
     questRequirements: this.questRequirements,
     questDialogueIds: this.questDialogueIds,
     
-    // Données existantes (combat/trainer)
+    // Données existantes (combat/trainer - inchangées)
     battleConfig: this.battleConfig,
     visionConfig: this.visionConfig,
     trainerRuntime: this.trainerRuntime,
     
-    // 🆕 Nouvelles données shop
-    shopConfig: this.shopConfig,
+    // 🔄 Shop simplifié
+    shopId: this.shopId,              // ✅ Juste la référence
     
     ...this.npcData
   } as AnyNpc;
@@ -752,6 +547,7 @@ NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
   return baseNpc;
 };
 
+// updateFromJson modifiée pour shopId seulement
 NpcDataSchema.methods.updateFromJson = async function(
   this: INpcData, 
   jsonData: any
@@ -775,22 +571,28 @@ NpcDataSchema.methods.updateFromJson = async function(
   if (jsonData.questRequirements) this.questRequirements = jsonData.questRequirements;
   if (jsonData.questDialogueIds) this.questDialogueIds = jsonData.questDialogueIds;
   
-  // Données existantes (combat/trainer)
+  // Données existantes (combat/trainer - inchangées)
   if (jsonData.battleConfig) this.battleConfig = jsonData.battleConfig;
   if (jsonData.visionConfig) this.visionConfig = jsonData.visionConfig;
   if (jsonData.trainerRuntime) this.trainerRuntime = jsonData.trainerRuntime;
   
-  // 🆕 Nouvelles données shop
-  if (jsonData.shopConfig) this.shopConfig = jsonData.shopConfig;
+  // 🔄 Shop : seulement shopId
+  if (jsonData.shopId) {
+    this.shopId = jsonData.shopId;
+  } else if (jsonData.shopConfig?.shopId) {
+    // Migration depuis ancien format shopConfig
+    this.shopId = jsonData.shopConfig.shopId;
+    console.log(`📦 Migration: NPC ${this.npcId} shopConfig.shopId → shopId`);
+  }
   
-  // Données spécifiques (existant + shop)
+  // Données spécifiques (sans shopConfig)
   const baseFields = [
     'id', 'name', 'type', 'position', 'direction', 'sprite', 
     'interactionRadius', 'canWalkAway', 'autoFacePlayer', 
     'repeatable', 'cooldownSeconds', 'spawnConditions',
     'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
     'battleConfig', 'visionConfig', 'trainerRuntime', 
-    'shopConfig' // 🆕 Ajouté
+    'shopId', 'shopConfig' // ✅ Exclure shopConfig des données spécifiques
   ];
   
   const specificData: any = {};
@@ -804,6 +606,7 @@ NpcDataSchema.methods.updateFromJson = async function(
   await this.save();
 };
 
+// Méthodes existantes (inchangées)
 NpcDataSchema.methods.isAvailableForPlayer = function(
   this: INpcData,
   playerLevel: number,
@@ -834,7 +637,7 @@ NpcDataSchema.methods.isAvailableForPlayer = function(
   return true;
 };
 
-// MÉTHODES D'INSTANCE EXISTANTES (combat/trainer) - inchangées
+// MÉTHODES D'INSTANCE EXISTANTES (combat/trainer - toutes inchangées)
 NpcDataSchema.methods.canBattlePlayer = function(
   this: INpcData,
   playerLevel: number,
@@ -961,147 +764,30 @@ NpcDataSchema.methods.isInChaseRange = function(
   return distance <= this.visionConfig.chaseRange;
 };
 
-// 🆕 NOUVELLES MÉTHODES D'INSTANCE SHOP
+// 🔄 NOUVELLES MÉTHODES D'INSTANCE SHOP SIMPLIFIÉES
 
 /**
- * Vérifie si c'est un merchant (type ou avec shopConfig)
+ * ✅ Vérifie si c'est un merchant (type ou avec shopId)
  */
 NpcDataSchema.methods.isMerchantType = function(this: INpcData): boolean {
-  return this.type === 'merchant' || !!this.shopConfig;
+  return this.type === 'merchant' || !!this.shopId;
 };
 
 /**
- * Vérifie si le NPC a une configuration shop valide
+ * ✅ Vérifie si le NPC a un shopId valide
  */
-NpcDataSchema.methods.hasShopConfig = function(this: INpcData): boolean {
-  return !!(this.shopConfig && this.shopConfig.shopId);
+NpcDataSchema.methods.hasShopId = function(this: INpcData): boolean {
+  return !!(this.shopId && this.shopId.trim().length > 0);
 };
 
 /**
- * Vérifie si la boutique est ouverte (horaires d'ouverture)
+ * ✅ Retourne le shopId ou null
  */
-NpcDataSchema.methods.isShopOpen = function(this: INpcData): boolean {
-  if (!this.shopConfig || !this.shopConfig.businessHours?.enabled) return true;
-  
-  const now = new Date();
-  const currentTime = now.toTimeString().substr(0, 5); // HH:mm
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const currentDay = dayNames[now.getDay()];
-  
-  // Vérifier si fermé aujourd'hui
-  if (this.shopConfig.businessHours.closedDays?.includes(currentDay)) {
-    return false;
-  }
-  
-  // Vérifier les heures d'ouverture
-  const openTime = this.shopConfig.businessHours.openTime!;
-  const closeTime = this.shopConfig.businessHours.closeTime!;
-  
-  if (openTime <= closeTime) {
-    // Même jour (ex: 09:00 - 18:00)
-    return currentTime >= openTime && currentTime <= closeTime;
-  } else {
-    // Nuit (ex: 22:00 - 06:00)
-    return currentTime >= openTime || currentTime <= closeTime;
-  }
+NpcDataSchema.methods.getShopId = function(this: INpcData): string | null {
+  return this.shopId || null;
 };
 
-/**
- * Vérifie si un joueur peut accéder à la boutique
- */
-NpcDataSchema.methods.canPlayerAccessShop = function(
-  this: INpcData,
-  playerLevel: number,
-  playerFlags: string[] = [],
-  badges: string[] = []
-): boolean {
-  if (!this.hasShopConfig() || !this.isShopOpen()) return false;
-  
-  const restrictions = this.shopConfig!.accessRestrictions;
-  if (!restrictions) return true;
-  
-  // Vérifier niveau
-  if (restrictions.minLevel && playerLevel < restrictions.minLevel) return false;
-  if (restrictions.maxLevel && playerLevel > restrictions.maxLevel) return false;
-  
-  // Vérifier badges
-  if (restrictions.requiredBadges?.length) {
-    const hasAllBadges = restrictions.requiredBadges.every(badge => 
-      badges.includes(badge)
-    );
-    if (!hasAllBadges) return false;
-  }
-  
-  // Vérifier flags
-  if (restrictions.requiredFlags?.length) {
-    const hasAllFlags = restrictions.requiredFlags.every(flag => 
-      playerFlags.includes(flag)
-    );
-    if (!hasAllFlags) return false;
-  }
-  
-  if (restrictions.forbiddenFlags?.length) {
-    const hasAnyForbidden = restrictions.forbiddenFlags.some(flag => 
-      playerFlags.includes(flag)
-    );
-    if (hasAnyForbidden) return false;
-  }
-  
-  // TODO: Vérifier membership et VIP selon le système de jeu
-  
-  return true;
-};
-
-/**
- * Récupère les items de la boutique
- */
-NpcDataSchema.methods.getShopItems = function(this: INpcData): any[] {
-  if (!this.shopConfig) return [];
-  return this.shopConfig.items || [];
-};
-
-/**
- * Met à jour le stock d'un item
- */
-NpcDataSchema.methods.updateShopStock = async function(
-  this: INpcData,
-  itemId: string,
-  newStock: number
-): Promise<void> {
-  if (!this.shopConfig || !this.shopConfig.items) return;
-  
-  const item = this.shopConfig.items.find(i => i.itemId === itemId);
-  if (item) {
-    item.stock = newStock;
-    await this.save();
-  }
-};
-
-/**
- * Déclenche un restock de la boutique
- */
-NpcDataSchema.methods.triggerRestock = async function(this: INpcData): Promise<void> {
-  if (!this.shopConfig || !this.shopConfig.restockInfo?.enabled) return;
-  
-  const now = new Date();
-  this.shopConfig.restockInfo.lastRestock = now;
-  this.shopConfig.restockInfo.nextRestock = new Date(
-    now.getTime() + (this.shopConfig.restockInfo.intervalHours * 60 * 60 * 1000)
-  );
-  
-  // Restaurer le stock de tous les items (logique simplifiée)
-  if (this.shopConfig.items) {
-    this.shopConfig.items.forEach(item => {
-      if (item.stock !== -1) { // Si pas illimité
-        item.stock = Math.max(item.stock || 0, 10); // Restaurer à 10 minimum
-      }
-    });
-  }
-  
-  await this.save();
-};
-
-// ===== MÉTHODES STATIQUES ÉTENDUES =====
+// ===== MÉTHODES STATIQUES NETTOYÉES =====
 
 // Méthodes existantes (inchangées)
 NpcDataSchema.statics.findByZone = function(zone: string): Promise<INpcData[]> {
@@ -1125,7 +811,7 @@ NpcDataSchema.statics.findActiveNpcs = function(zone: string): Promise<INpcData[
   }).sort({ npcId: 1 });
 };
 
-// Méthodes existantes (combat/trainer)
+// Méthodes existantes (combat/trainer - inchangées)
 NpcDataSchema.statics.findTrainersInZone = function(zone: string): Promise<INpcData[]> {
   return this.find({ 
     zone, 
@@ -1165,10 +851,10 @@ NpcDataSchema.statics.findActiveTrainers = function(zone: string): Promise<INpcD
   }).sort({ npcId: 1 });
 };
 
-// 🆕 NOUVELLES MÉTHODES STATIQUES SHOP
+// 🔄 MÉTHODES STATIQUES SHOP SIMPLIFIÉES
 
 /**
- * Trouve tous les merchants d'une zone
+ * ✅ Trouve tous les merchants d'une zone (type='merchant' OU shopId existe)
  */
 NpcDataSchema.statics.findMerchantsInZone = function(zone: string): Promise<INpcData[]> {
   return this.find({ 
@@ -1176,49 +862,20 @@ NpcDataSchema.statics.findMerchantsInZone = function(zone: string): Promise<INpc
     isActive: true,
     $or: [
       { type: 'merchant' },
-      { shopConfig: { $exists: true } }
+      { shopId: { $exists: true, $ne: null, $ne: '' } }
     ]
   }).sort({ npcId: 1 });
 };
 
 /**
- * Trouve tous les NPCs avec boutiques (peuvent vendre)
+ * ✅ Trouve tous les NPCs avec shopId (peuvent vendre)
  */
 NpcDataSchema.statics.findNpcsWithShops = function(zone: string): Promise<INpcData[]> {
   return this.find({ 
     zone, 
     isActive: true,
-    'shopConfig.shopId': { $exists: true }
+    shopId: { $exists: true, $ne: null, $ne: '' }
   }).sort({ npcId: 1 });
-};
-
-/**
- * Trouve toutes les boutiques ouvertes d'une zone
- */
-NpcDataSchema.statics.findOpenShops = function(zone: string): Promise<INpcData[]> {
-  // Note: Cette méthode ne peut pas vérifier les horaires d'ouverture dynamiquement au niveau MongoDB
-  // Il faudra filtrer côté application avec isShopOpen()
-  return this.find({ 
-    zone, 
-    isActive: true,
-    'shopConfig.shopId': { $exists: true }
-  }).sort({ npcId: 1 });
-};
-
-/**
- * Trouve les boutiques par type
- */
-NpcDataSchema.statics.findShopsByType = function(
-  shopType: string, 
-  zone?: string
-): Promise<INpcData[]> {
-  const query: any = { 
-    isActive: true,
-    'shopConfig.shopType': shopType
-  };
-  if (zone) query.zone = zone;
-  
-  return this.find(query).sort({ zone: 1, npcId: 1 });
 };
 
 // ===== EXPORT =====
@@ -1226,5 +883,31 @@ export const NpcData = mongoose.model<INpcData, INpcDataModel>('NpcData', NpcDat
 
 export type NpcDataDocument = INpcData;
 export type CreateNpcData = Partial<Pick<INpcData, 
-  'npcId' | 'zone' | 'name' | 'type' | 'position' | 'sprite' | 'npcData' | 'battleConfig' | 'visionConfig' | 'shopConfig'
+  'npcId' | 'zone' | 'name' | 'type' | 'position' | 'sprite' | 'npcData' | 'battleConfig' | 'visionConfig' | 'shopId'
 >>;
+
+// ===== 📊 RÉSUMÉ DES CHANGEMENTS =====
+
+/**
+ * 🔄 CHANGEMENTS APPORTÉS :
+ * 
+ * ❌ RETIRÉ :
+ * - Interface ShopConfig complète
+ * - Schéma ShopConfigSchema 
+ * - Toute la logique métier shop dans NpcData
+ * - Méthodes shop complexes (isShopOpen, canPlayerAccessShop, etc.)
+ * - Index complexes sur shopConfig.*
+ * 
+ * ✅ AJOUTÉ :
+ * - Champ simple shopId: string
+ * - Index simples sur shopId
+ * - Méthodes basiques : isMerchantType(), hasShopId(), getShopId()
+ * - Validation format shopId
+ * - Migration automatique shopConfig.shopId → shopId
+ * 
+ * 🎯 RÉSULTAT :
+ * - NpcData devient une simple référence vers ShopData
+ * - Séparation claire des responsabilités
+ * - Plus de duplication de données shop
+ * - ShopData devient la source unique de vérité pour tout ce qui concerne les shops
+ */
