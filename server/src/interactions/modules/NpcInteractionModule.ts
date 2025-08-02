@@ -4,6 +4,7 @@ import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
 import { StarterHandlers } from "../../handlers/StarterHandlers";
 import { InventoryManager } from "../../managers/InventoryManager";
+import { getDbZoneName } from '../../config/ZoneMapping';
 import { SpectatorManager } from "../../battle/modules/broadcast/SpectatorManager";
 import { 
   InteractionRequest, 
@@ -310,7 +311,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
   ): Promise<NpcInteractionResult> {
     
     // 🔒 SÉCURITÉ : Utiliser SEULEMENT player.currentZone (données serveur)
-    const serverZone = player.currentZone;
+    const serverZone = getDbZoneName(player.currentZone);
+    console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     console.log('🔒 [SECURITY] Utilisation zone serveur:', serverZone);
     
     const npcManager = this.getNpcManager(serverZone);
@@ -560,24 +562,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
       // Continue en cas d'erreur
     }
 
-    // 🎯 VÉRIFICATION QUÊTES EN PRIORITÉ
-    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId, serverZone);
-    const activeQuests = await this.questManager.getActiveQuests(player.name);
-    const questsForThisNpc = activeQuests.filter(q => 
-      q.startNpcId === npcId || q.endNpcId === npcId
-    );
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
-
-    // Déterminer si ce NPC a des quêtes
-    const hasQuests = availableQuests.length > 0 || questsForThisNpc.length > 0 || readyToCompleteQuests.length > 0;
     
-    console.log(`🎯 [Quest] NPC ${npcId} dans zone ${serverZone}:`);
-    console.log(`📋 [Quest] - Quêtes disponibles: ${availableQuests.length}`);
-    console.log(`📋 [Quest] - Quêtes en cours: ${questsForThisNpc.length}`);
-    console.log(`📋 [Quest] - Quêtes à terminer: ${readyToCompleteQuests.length}`);
-    console.log(`📋 [Quest] - A des quêtes: ${hasQuests}`);
-
-    // PRIORITÉ 1: Quêtes à terminer
     if (readyToCompleteQuests.length > 0) {
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
@@ -619,12 +605,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
             hasQuests: true,
             hasHealing: false,
             defaultAction: 'quest',
-            quickActions: [{
-              id: 'quest',
-              label: 'Quêtes',
-              action: 'quest',
-              enabled: true
-            }]
+            quickActions: []
           },
           lines: completionDialogue,
           message: `Félicitations ! Vous avez terminé : ${questNames}`
@@ -632,7 +613,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
       }
     }
 
-    // PRIORITÉ 2: Nouvelles quêtes disponibles
+    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+    
     if (availableQuests.length > 0) {
       const firstQuest = availableQuests[0];
       const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
@@ -642,13 +624,13 @@ export class NpcInteractionModule extends BaseInteractionModule {
         name: quest.name,
         description: quest.description,
         category: quest.category,
-        steps: quest.steps ? quest.steps.map((step: any) => ({
+        steps: quest.steps.map((step: any) => ({
           id: step.id,
           name: step.name,
           description: step.description,
           objectives: step.objectives,
           rewards: step.rewards
-        })) : []
+        }))
       }));
 
       return {
@@ -667,17 +649,16 @@ export class NpcInteractionModule extends BaseInteractionModule {
           hasQuests: true,
           hasHealing: false,
           defaultAction: 'quest',
-          quickActions: [{
-            id: 'quest',
-            label: 'Quêtes',
-            action: 'quest',
-            enabled: true
-          }]
+          quickActions: []
         }
       };
     }
 
-    // PRIORITÉ 3: Quêtes en cours (dialogue de progression)
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questsForThisNpc = activeQuests.filter(q => 
+      q.startNpcId === npcId || q.endNpcId === npcId
+    );
+
     if (questsForThisNpc.length > 0) {
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
@@ -697,12 +678,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
           hasQuests: true,
           hasHealing: false,
           defaultAction: 'quest',
-          quickActions: [{
-            id: 'quest',
-            label: 'Quêtes',
-            action: 'quest',
-            enabled: true
-          }]
+          quickActions: []
         }
       };
     }
@@ -1276,70 +1252,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
     return [];
   }
 
-  private async getAvailableQuestsForNpc(username: string, npcId: number, serverZone?: string): Promise<any[]> {
-    try {
-      // 1. Récupérer le NPC pour voir ses questsToGive
-      const currentZone = serverZone || await this.getPlayerCurrentZone(username);
-      const npcManager = this.getNpcManager(currentZone);
-      if (!npcManager) {
-        console.warn(`⚠️ [Quest] NPCManager non trouvé pour zone: ${currentZone}`);
-        return [];
-      }
-
-      const npc = npcManager.getNpcById(npcId, currentZone);
-      if (!npc) {
-        console.warn(`⚠️ [Quest] NPC ${npcId} non trouvé dans zone: ${currentZone}`);
-        return [];
-      }
-
-      if (!npc.questsToGive || npc.questsToGive.length === 0) {
-        console.log(`ℹ️ [Quest] NPC ${npcId} n'a pas de quêtes à donner`);
-        return [];
-      }
-
-      console.log(`🎯 [Quest] NPC ${npcId} a ${npc.questsToGive.length} quêtes à donner:`, npc.questsToGive);
-
-      // 2. Vérifier quelles quêtes le joueur peut recevoir
-      const availableQuests = [];
-      
-      for (const questId of npc.questsToGive) {
-        try {
-          // Vérifier si le joueur peut recevoir cette quête
-          console.log(`🔍 [Quest] Vérification quête "${questId}" pour ${username}...`);
-          
-          // D'abord, récupérer la définition de la quête
-          const questDefinition = this.questManager.getQuestDefinition(questId);
-          if (!questDefinition) {
-            console.warn(`⚠️ [Quest] Définition introuvable pour "${questId}"`);
-            continue;
-          }
-          
-          // Vérifier si le joueur peut recevoir cette quête
-          const canReceive = await this.questManager.canPlayerReceiveQuest(username, questId);
-          console.log(`🎯 [Quest] Quête "${questId}" - Peut recevoir: ${canReceive}`);
-          
-          if (canReceive) {
-            availableQuests.push(questDefinition);
-            console.log(`✅ [Quest] Quête "${questId}" disponible pour ${username}`);
-          } else {
-            console.log(`❌ [Quest] Quête "${questId}" non disponible pour ${username}`);
-          }
-        } catch (error) {
-          console.error(`❌ [Quest] Erreur vérification quête "${questId}":`, error);
-        }
-      }
-
-      console.log(`📊 [Quest] Total quêtes disponibles: ${availableQuests.length}`);
-      return availableQuests;
-    } catch (error) {
-      console.error('❌ [Quest] Erreur getAvailableQuestsForNpc:', error);
-      return [];
-    }
-  }
-
-  private async getPlayerCurrentZone(username: string): Promise<string> {
-    // Pour l'instant, retourner road1 - à améliorer plus tard
-    return 'road1';
+  private async getAvailableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
+    return [];
   }
 
   private async getDialogueLines(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
