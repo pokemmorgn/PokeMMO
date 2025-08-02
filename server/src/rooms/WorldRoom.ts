@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import jwt from 'jsonwebtoken';
 
 import { JWTManager } from '../managers/JWTManager';
+
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
 import { NpcManager } from "../managers/NPCManager";
@@ -23,7 +24,7 @@ import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
 import { EncounterHandlers } from "../handlers/EncounterHandlers";
 import { OverworldPokemonManager } from "../managers/OverworldPokemonManager";
-import { entityUpdateService } from "../services/EntityUpdateService";
+
 import { QuestHandlers } from "../handlers/QuestHandlers";
 import { starterService } from "../services/StarterPokemonService";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
@@ -701,23 +702,15 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
   
   // ✅ Envoi des NPCs au client
   try {
-    const updateResult = await entityUpdateService.updateNpcsForClient(client, {
-      zone: zoneName,
-      player: player
-    }, npcManager);
-    
-    if (updateResult.success) {
-      console.log(`✅ ${updateResult.entityCount} NPCs envoyés via service à ${client.sessionId}`);
-    } else {
-      console.error(`❌ Erreurs service NPCs:`, updateResult.errors);
-    }
-    
-    // Objets de zone
-    this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
-  } catch (error) {
-    console.error(`❌ Erreur EntityUpdateService:`, error);
+    client.send("npcList", npcs);
+    console.log(`✅ ${npcs.length} NPCs envoyés à ${client.sessionId}`);
+  } catch (sendError) {
+    console.error(`❌ Erreur envoi NPCs:`, sendError);
     return;
   }
+  
+  // ✅ Envoi des objets de zone
+  this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
   
   // ✅ Mise à jour TimeWeatherService
   if (this.timeWeatherService) {
@@ -2354,14 +2347,7 @@ async onJoin(client: Client, options: any = {}) {
 
     // Faire entrer le joueur dans sa zone initiale
     await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
-    await entityUpdateService.updateZoneForClient(client, {
-      zone: player.currentZone,
-      player: player
-    }, {
-      npcManager: this.getNpcManager('global'),
-      objectHandler: this.objectInteractionHandlers,
-      questManager: this.zoneManager.getQuestManager()
-    });
+    await this.onPlayerJoinZone(client, player.currentZone);
     this.scheduleFilteredStateUpdate();
 
     // Setup des quêtes avec délai
