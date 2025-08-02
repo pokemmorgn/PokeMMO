@@ -2982,4 +2982,19 @@ public async resyncPlayerQuests(client: Client): Promise<void> {
 public getZoneSyncService(): ZoneSyncService {
   return this.zoneSyncService;
 }
+  /**
+ * Broadcast ciblé par zone
+ */
+private broadcastToZone(zoneName: string, message: string, data: any): void {
+  const clientsInZone = this.clients.filter(client => {
+    const player = this.state.players.get(client.sessionId);
+    return player && player.currentZone === zoneName;
+  });
+  
+  clientsInZone.forEach(client => {
+    client.send(message, data);
+  });
+  
+  console.log(`📡 [WorldRoom] "${message}" broadcasté à ${clientsInZone.length} clients dans ${zoneName}`);
+}
 }
