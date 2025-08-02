@@ -2930,4 +2930,56 @@ public clearOverworldArea(areaId: string): void {
     this.overworldPokemonManager.clearArea(areaId);
   }
 }
+  // ✨ NOUVELLES MÉTHODES PUBLIQUES pour utilisation externe
+
+/**
+ * Resynchroniser un client (reconnexion, bug, etc.)
+ */
+public async resyncClient(client: Client): Promise<void> {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
+
+  await this.zoneSyncService.resyncClient(client, player, player.currentZone);
+}
+
+/**
+ * Mettre à jour un NPC pour tous les clients d'une zone
+ */
+public async updateNpcForZone(zoneName: string, npcId: number, npcData: any): Promise<void> {
+  await this.zoneSyncService.updateNpcForZone(
+    zoneName, 
+    npcId, 
+    npcData, 
+    (message, data) => this.broadcastToZone(zoneName, message, data)
+  );
+}
+
+/**
+ * Mettre à jour un objet pour tous les clients d'une zone
+ */
+public async updateObjectForZone(zoneName: string, objectId: string, objectData: any): Promise<void> {
+  await this.zoneSyncService.updateObjectForZone(
+    zoneName, 
+    objectId, 
+    objectData, 
+    (message, data) => this.broadcastToZone(zoneName, message, data)
+  );
+}
+
+/**
+ * Resynchroniser seulement les quêtes d'un joueur
+ */
+public async resyncPlayerQuests(client: Client): Promise<void> {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
+
+  await this.zoneSyncService.syncQuestsOnly(client, player.name);
+}
+
+/**
+ * Accès au service
+ */
+public getZoneSyncService(): ZoneSyncService {
+  return this.zoneSyncService;
+}
 }
