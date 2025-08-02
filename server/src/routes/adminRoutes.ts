@@ -2498,11 +2498,6 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
         
         // Merchant
         shopId: npc.shopId || npc.npcData?.shopId || '',
-        shopType: npc.shopType || npc.npcData?.shopType || '',
-        shopConfig: npc.shopConfig || npc.npcData?.shopConfig || {},
-        shopDialogueIds: npc.shopDialogueIds || npc.npcData?.shopDialogueIds || {},
-        businessHours: npc.businessHours || npc.npcData?.businessHours || {},
-        accessRestrictions: npc.accessRestrictions || npc.npcData?.accessRestrictions || {},
         
         // Trainer
         trainerId: npc.trainerId || npc.npcData?.trainerId || '',
@@ -2834,10 +2829,6 @@ router.put('/zones/:zoneId/npcs/:npcId', requireMacAndDev, async (req: any, res)
     
     // Merchant NPCs
     if (npc.shopId !== undefined) updateData.shopId = npc.shopId;
-    if (npc.shopType !== undefined) updateData.shopType = npc.shopType;
-    if (npc.shopDialogueIds !== undefined) updateData.shopDialogueIds = npc.shopDialogueIds;
-    if (npc.businessHours !== undefined) updateData.businessHours = npc.businessHours;
-    if (npc.accessRestrictions !== undefined) updateData.accessRestrictions = npc.accessRestrictions;
     
     // Trainer NPCs
     if (npc.trainerId !== undefined) updateData.trainerId = npc.trainerId;
