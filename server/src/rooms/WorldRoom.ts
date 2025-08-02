@@ -699,28 +699,23 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
     console.warn(`⚠️ Aucun NPC trouvé pour zone "${mappedZoneName}"`);
   }
   
-  // ✅ Envoi NPCs + GameObjects via EntityUpdateService
+  // ✅ Envoi des NPCs au client
   try {
-    const updateResult = await entityUpdateService.updateZoneForClient(client, {
+    const updateResult = await entityUpdateService.updateNpcsForClient(client, {
       zone: zoneName,
-      player: player,
-      includeNpcs: true,
-      includeGameObjects: true,
-      includeQuests: true,
-      includeQuestStatuses: true
-    }, {
-      npcManager: npcManager,
-      objectHandler: this.objectInteractionHandlers,
-      questManager: this.zoneManager.getQuestManager()
-    });
+      player: player
+    }, npcManager);
     
     if (updateResult.success) {
-      console.log(`✅ Zone mise à jour via service pour ${client.sessionId}: ${updateResult.entityCount} entités`);
+      console.log(`✅ ${updateResult.entityCount} NPCs envoyés via service à ${client.sessionId}`);
     } else {
-      console.error(`❌ Erreurs service zone:`, updateResult.errors);
+      console.error(`❌ Erreurs service NPCs:`, updateResult.errors);
     }
+    
+    // Objets de zone
+    this.objectInteractionHandlers.sendZoneObjectsToClient(client, mappedZoneName);
   } catch (error) {
-    console.error(`❌ Erreur EntityUpdateService zone:`, error);
+    console.error(`❌ Erreur EntityUpdateService:`, error);
     return;
   }
   
