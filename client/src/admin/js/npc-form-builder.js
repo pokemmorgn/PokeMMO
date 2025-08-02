@@ -550,7 +550,7 @@ case 'dialogues':
                 
             case 'shop':
                 if (type === 'merchant') {
-                    fields = ['shopId', 'shopType']
+                    fields = ['shopId']
                 }
                 break
                 
@@ -1065,10 +1065,6 @@ createArrayField(fieldName, fieldConfig, currentValue, isRequired) {
             sprite: 'Sprite',
             direction: 'Direction',
             shopId: 'ID Boutique',
-            shopType: 'Type Boutique',
-            shopDialogueIds: 'Dialogues Boutique',
-            businessHours: 'Horaires d\'ouverture',
-            accessRestrictions: 'Restrictions d\'accès',
             trainerId: 'ID Dresseur',
             trainerClass: 'Classe Dresseur',
             trainerRank: 'Rang Dresseur',
