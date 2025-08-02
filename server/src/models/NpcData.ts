@@ -862,7 +862,7 @@ NpcDataSchema.statics.findMerchantsInZone = function(zone: string): Promise<INpc
     isActive: true,
     $or: [
       { type: 'merchant' },
-      { shopId: { $exists: true, $ne: null, $ne: '' } }
+      { shopId: { $exists: true, $nin: [null, ''] } }
     ]
   }).sort({ npcId: 1 });
 };
@@ -874,7 +874,7 @@ NpcDataSchema.statics.findNpcsWithShops = function(zone: string): Promise<INpcDa
   return this.find({ 
     zone, 
     isActive: true,
-    shopId: { $exists: true, $ne: null, $ne: '' }
+    shopId: { $exists: true, $nin: [null, ''] }
   }).sort({ npcId: 1 });
 };
 
