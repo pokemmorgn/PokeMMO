@@ -18,7 +18,8 @@ import { getServerConfig } from "../config/serverConfig";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
-
+import { getDbZoneName } from '../config/ZoneMapping';
+import { ZoneSyncService } from "../services/ZoneSyncService";
 import { FollowerHandlers } from "../handlers/FollowerHandlers";
 import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
