@@ -640,84 +640,134 @@ async onPlayerJoinZone(client: Client, zoneName: string) {
  }, 500);
 }
 
-  // Mise à jour quest statuses avec debug
-  private async updateQuestStatusesFixed(username: string, client?: Client) {
-    try {
-      console.log(`📊 [WorldRoom] === UPDATE QUEST STATUSES ===`);
-      console.log(`👤 Username: ${username}`);
-      
-      // Vérifier que le ZoneManager est initialisé
-      if (!this.zoneManager) {
-        console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
-        return;
-      }
-      
-      // Vérifier que le QuestManager est accessible
-      const questManager = this.zoneManager.getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [WorldRoom] QuestManager non accessible !`);
-        return;
-      }
-      
-      console.log(`✅ [WorldRoom] Managers OK, récupération quest statuses...`);
-      
-      // Appeler directement le QuestManager pour debug
-      const availableQuests = await questManager.getAvailableQuests(username);
-      const activeQuests = await questManager.getActiveQuests(username);
-      
-      console.log(`📋 [WorldRoom] Quêtes disponibles: ${availableQuests.length}`);
-      console.log(`📈 [WorldRoom] Quêtes actives: ${activeQuests.length}`);
-      
-      // Calculer manuellement les statuts pour debug
-      const questStatuses: any[] = [];
-      
-      // Statuts pour les quêtes disponibles
-      for (const quest of availableQuests) {
-        if (quest.startNpcId) {
-          questStatuses.push({
-            npcId: quest.startNpcId,
-            type: 'questAvailable'
-          });
-          console.log(`➕ [WorldRoom] Quête disponible: ${quest.name} pour NPC ${quest.startNpcId}`);
-        }
-      }
-      
-      // Statuts pour les quêtes actives
-      for (const quest of activeQuests) {
-        if (quest.status === 'readyToComplete' && quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questReadyToComplete'
-          });
-          console.log(`🎉 [WorldRoom] Quête prête: ${quest.name} pour NPC ${quest.endNpcId}`);
-        } else if (quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questInProgress'
-          });
-          console.log(`📈 [WorldRoom] Quête en cours: ${quest.name} pour NPC ${quest.endNpcId}`);
-        }
-      }
-      
-      console.log(`📊 [WorldRoom] Total quest statuses: ${questStatuses.length}`, questStatuses);
-      
-      if (questStatuses.length > 0) {
-        // Envoyer à tous les clients ou juste celui spécifié
-        if (client) {
-          client.send("questStatuses", { questStatuses });
-          console.log(`📤 [WorldRoom] Quest statuses envoyés à ${client.sessionId}`);
-        } else {
-          this.broadcast("questStatuses", { questStatuses });
-          console.log(`📡 [WorldRoom] Quest statuses broadcastés`);
-        }
-      } else {
-        console.log(`ℹ️ [WorldRoom] Aucun quest status à envoyer pour ${username}`);
-      }
-      
-    } catch (error) {
-      console.error(`❌ [WorldRoom] Erreur updateQuestStatusesFixed:`, error);
+// Mise à jour quest statuses avec debug
+private async updateQuestStatusesFixed(username: string, client?: Client) {
+  try {
+    console.log(`📊 [WorldRoom] === UPDATE QUEST STATUSES (NOUVEAU FORMAT) ===`);
+    console.log(`👤 Username: ${username}`);
+    
+    // Vérifier que le ZoneManager est initialisé
+    if (!this.zoneManager) {
+      console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
+      return;
     }
+    
+    // Vérifier que le QuestManager est accessible
+    const questManager = this.zoneManager.getQuestManager();
+    if (!questManager) {
+      console.error(`❌ [WorldRoom] QuestManager non accessible !`);
+      return;
+    }
+    
+    console.log(`✅ [WorldRoom] Managers OK, récupération quest statuses...`);
+    
+    // Appeler directement le QuestManager pour debug
+    const availableQuests = await questManager.getAvailableQuests(username);
+    const activeQuests = await questManager.getActiveQuests(username);
+    
+    console.log(`📋 [WorldRoom] Quêtes disponibles: ${availableQuests.length}`);
+    console.log(`📈 [WorldRoom] Quêtes actives: ${activeQuests.length}`);
+    
+    // ✅ NOUVEAU : Grouper par NPC avec arrays d'IDs
+    const npcQuestMap = new Map<number, any>();
+
+    // Pour les quêtes disponibles
+    for (const quest of availableQuests) {
+      if (quest.startNpcId) {
+        if (!npcQuestMap.has(quest.startNpcId)) {
+          npcQuestMap.set(quest.startNpcId, {
+            npcId: quest.startNpcId,
+            availableQuestIds: [],
+            inProgressQuestIds: [],
+            readyToCompleteQuestIds: []
+          });
+        }
+        
+        npcQuestMap.get(quest.startNpcId).availableQuestIds.push(quest.id);
+        console.log(`➕ [WorldRoom] Quête disponible: ${quest.name} (${quest.id}) pour NPC ${quest.startNpcId}`);
+      }
+    }
+
+    // Pour les quêtes actives
+    for (const quest of activeQuests) {
+      if (quest.endNpcId) {
+        if (!npcQuestMap.has(quest.endNpcId)) {
+          npcQuestMap.set(quest.endNpcId, {
+            npcId: quest.endNpcId,
+            availableQuestIds: [],
+            inProgressQuestIds: [],
+            readyToCompleteQuestIds: []
+          });
+        }
+        
+        if (quest.status === 'readyToComplete') {
+          npcQuestMap.get(quest.endNpcId).readyToCompleteQuestIds.push(quest.id);
+          console.log(`🎉 [WorldRoom] Quête prête: ${quest.name} (${quest.id}) pour NPC ${quest.endNpcId}`);
+        } else {
+          npcQuestMap.get(quest.endNpcId).inProgressQuestIds.push(quest.id);
+          console.log(`📈 [WorldRoom] Quête en cours: ${quest.name} (${quest.id}) pour NPC ${quest.endNpcId}`);
+        }
+      }
+    }
+
+    // Convertir en array pour questStatuses
+    const questStatuses: any[] = [];
+
+    npcQuestMap.forEach((npcData) => {
+      let finalType = null;
+      let indicatorSymbol = '';
+      let indicatorColor = '';
+      
+      // Priorité : readyToComplete > questAvailable > inProgress
+      if (npcData.readyToCompleteQuestIds.length > 0) {
+        finalType = 'questReadyToComplete';
+        indicatorSymbol = '?';
+        indicatorColor = 'jaune';
+      } else if (npcData.availableQuestIds.length > 0) {
+        finalType = 'questAvailable';
+        indicatorSymbol = '!';
+        indicatorColor = 'jaune';
+      } else if (npcData.inProgressQuestIds.length > 0) {
+        finalType = 'questInProgress';
+        indicatorSymbol = '?';
+        indicatorColor = 'gris';
+      }
+      
+      if (finalType) {
+        questStatuses.push({
+          npcId: npcData.npcId,
+          type: finalType,
+          availableQuestIds: npcData.availableQuestIds,
+          inProgressQuestIds: npcData.inProgressQuestIds,
+          readyToCompleteQuestIds: npcData.readyToCompleteQuestIds
+        });
+        
+        console.log(`📊 [WorldRoom] NPC ${npcData.npcId}: ${indicatorSymbol} ${indicatorColor} (${finalType})`);
+        console.log(`   - Disponibles: [${npcData.availableQuestIds.join(', ')}]`);
+        console.log(`   - En cours: [${npcData.inProgressQuestIds.join(', ')}]`);
+        console.log(`   - Prêtes: [${npcData.readyToCompleteQuestIds.join(', ')}]`);
+      }
+    });
+    
+    console.log(`📊 [WorldRoom] Total quest statuses avec IDs: ${questStatuses.length}`, questStatuses);
+    
+    if (questStatuses.length > 0) {
+      // Envoyer à tous les clients ou juste celui spécifié
+      if (client) {
+        client.send("questStatuses", { questStatuses });
+        console.log(`📤 [WorldRoom] Quest statuses avec IDs envoyés à ${client.sessionId}`);
+      } else {
+        this.broadcast("questStatuses", { questStatuses });
+        console.log(`📡 [WorldRoom] Quest statuses avec IDs broadcastés`);
+      }
+    } else {
+      console.log(`ℹ️ [WorldRoom] Aucun quest status avec IDs à envoyer pour ${username}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur updateQuestStatusesFixed:`, error);
   }
+}
 
   // Méthodes publiques
   public getNpcManager(zoneName: string): NpcManager | undefined {
