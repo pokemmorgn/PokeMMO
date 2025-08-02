@@ -209,9 +209,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     // ✅ ÉTAPE 8: Configurer les message handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
-    
     // Initialiser InteractionManager
-// ✅ ÉTAPE 8.5: Initialiser ShopManager D'ABORD
+    // ✅ ÉTAPE 8.5: Initialiser ShopManager D'ABORD
     this.shopManager = new ShopManager();
     console.log(`✅ ShopManager initialisé`);
     
@@ -234,6 +233,9 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.spectatorManager
     );
     console.log(`✅ NpcInteractionModule initialisé`);
+    
+    // ✅ ÉTAPE 8.8: Initialiser ZoneSyncService
+    this.initializeZoneSyncService();
     
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
