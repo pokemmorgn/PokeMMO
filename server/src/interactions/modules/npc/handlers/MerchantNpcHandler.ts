@@ -1,10 +1,8 @@
 // server/src/interactions/modules/npc/handlers/MerchantNpcHandler.ts
-// Handler spécialisé pour les NPCs marchands - VERSION HYBRIDE avec MongoDB + Localisation
-
 import { Player } from "../../../../schema/PokeWorldState";
 import { ShopManager, ShopDefinition, ShopDataSource } from "../../../../managers/ShopManager";
-
-// ===== INTERFACES MISES À JOUR =====
+import { ShopData, IShopData } from "../../../../models/ShopData";
+import { DialogStringModel, SupportedLanguage } from "../../../../models/DialogString";
 
 interface NpcData {
   id: number;
@@ -13,30 +11,9 @@ interface NpcData {
   x: number;
   y: number;
   properties?: Record<string, any>;
-  
-  // Propriétés JSON (nouvelles)
   type?: string;
   shopId?: string;
-  shopType?: string;
-  shopDialogueIds?: {
-    shopOpen?: string[];
-    shopClose?: string[];
-    noMoney?: string[];
-    purchaseSuccess?: string[];
-    stockEmpty?: string[];
-    bulkDiscount?: string[];
-    vipWelcome?: string[];
-  };
-  shopConfig?: Record<string, any>;
-  
-  // Support localisation
   nameKey?: string;
-  shopKeeper?: {
-    nameKey?: string;
-    personalityKey?: string;
-  };
-  
-  // Métadonnées
   sourceType?: 'tiled' | 'json' | 'mongodb';
   sourceFile?: string;
 }
@@ -45,7 +22,7 @@ interface MerchantInteractionResult {
   success: boolean;
   type: "shop" | "error" | "dialogue";
   message?: string;
-  messageKey?: string;       // ✅ ID de localisation
+  messageKey?: string;
   shopId?: string;
   shopData?: {
     shopInfo: any;
@@ -53,39 +30,39 @@ interface MerchantInteractionResult {
     playerGold: number;
     playerLevel: number;
     npcName?: string;
-    npcNameKey?: string;     // ✅ ID de localisation
+    npcNameKey?: string;
   };
   lines?: string[];
-  dialogueKeys?: string[];   // ✅ IDs de localisation
+  dialogueKeys?: string[];
   npcId?: number;
   npcName?: string;
-  npcNameKey?: string;       // ✅ ID de localisation
+  npcNameKey?: string;
   questProgress?: any[];
 }
 
 interface MerchantHandlerConfig {
   debugMode: boolean;
   enableLocalization: boolean;
-  defaultShopType: string;
   waitForShopManager: boolean;
   shopManagerTimeout: number;
+  cacheShopData: boolean;
+  cacheTTL: number;
   fallbackDialogues: {
     welcome: string[];
-    welcomeKeys: string[];   // ✅ IDs de localisation
+    welcomeKeys: string[];
     error: string[];
-    errorKeys: string[];     // ✅ IDs de localisation
+    errorKeys: string[];
     closed: string[];
-    closedKeys: string[];    // ✅ IDs de localisation
+    closedKeys: string[];
   };
 }
-
-// ===== HANDLER PRINCIPAL =====
 
 export class MerchantNpcHandler {
   
   private shopManager: ShopManager;
   private config: MerchantHandlerConfig;
   private isShopManagerReady: boolean = false;
+  private shopDataCache: Map<string, { data: IShopData; timestamp: number }> = new Map();
 
   constructor(shopManager: ShopManager, config?: Partial<MerchantHandlerConfig>) {
     this.shopManager = shopManager;
@@ -93,31 +70,24 @@ export class MerchantNpcHandler {
     this.config = {
       debugMode: process.env.NODE_ENV === 'development',
       enableLocalization: process.env.SHOP_LOCALIZATION !== 'false',
-      defaultShopType: 'pokemart',
       waitForShopManager: true,
-      shopManagerTimeout: 10000, // 10s timeout
+      shopManagerTimeout: 10000,
+      cacheShopData: process.env.SHOP_CACHE_ENABLED !== 'false',
+      cacheTTL: parseInt(process.env.SHOP_CACHE_TTL || '300000'),
       fallbackDialogues: {
-        welcome: ["Bienvenue dans ma boutique !"],
+        welcome: ["shop.dialogue.generic.welcome.1"],
         welcomeKeys: ["shop.dialogue.generic.welcome.1"],
-        error: ["Ma boutique est temporairement fermée."],
+        error: ["shop.error.temporarily_closed"],
         errorKeys: ["shop.error.temporarily_closed"],
-        closed: ["Désolé, nous sommes fermés."],
+        closed: ["shop.error.closed"],
         closedKeys: ["shop.error.closed"]
       },
       ...config
     };
     
-    this.log('info', '🛒 MerchantNpcHandler v2.0 initialisé', { 
-      config: this.config,
-      localization: this.config.enableLocalization,
-      shopManagerReady: this.isShopManagerReady
-    });
-    
-    // ✅ NOUVEAU : Vérifier si ShopManager est prêt de manière asynchrone
     this.initializeShopManagerConnection();
   }
 
-  // ✅ NOUVELLE MÉTHODE : Initialisation asynchrone de la connexion ShopManager
   private async initializeShopManagerConnection(): Promise<void> {
     if (!this.config.waitForShopManager) {
       this.isShopManagerReady = true;
@@ -125,58 +95,32 @@ export class MerchantNpcHandler {
     }
 
     try {
-      this.log('info', '⏳ [MerchantHandler] Attente ShopManager...');
-      
       const ready = await this.shopManager.waitForLoad(this.config.shopManagerTimeout);
       
       if (ready) {
         this.isShopManagerReady = true;
-        this.log('info', '✅ [MerchantHandler] ShopManager prêt !');
-        
-        // ✅ NOUVEAU : S'abonner aux changements Hot Reload
         this.shopManager.onShopChange((event, shopData) => {
           this.handleShopHotReload(event, shopData);
         });
-        
       } else {
-        this.log('warn', '⚠️ [MerchantHandler] ShopManager timeout - mode dégradé');
         this.isShopManagerReady = false;
       }
       
     } catch (error) {
-      this.log('error', '❌ [MerchantHandler] Erreur connexion ShopManager:', error);
       this.isShopManagerReady = false;
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Gestion Hot Reload
   private handleShopHotReload(event: string, shopData?: any): void {
-    this.log('info', `🔥 [MerchantHandler] Hot Reload: ${event}`, {
-      shopId: shopData?.id,
-      shopName: shopData?.nameKey || shopData?.name
-    });
-    
-    // Ici on pourrait notifier les clients connectés que le shop a changé
-    // Pour l'instant, on log juste pour le debug
+    if (shopData?.id) {
+      this.shopDataCache.delete(shopData.id);
+    }
   }
 
-  // === MÉTHODE PRINCIPALE MISE À JOUR ===
-
   async handle(player: Player, npc: NpcData, npcId: number): Promise<MerchantInteractionResult> {
-    const startTime = Date.now();
-    
     try {
-      this.log('info', `🛒 [Merchant v2] Traitement NPC ${npcId} pour ${player.name}`, {
-        npcName: npc.nameKey || npc.name,
-        sourceType: npc.sourceType,
-        shopId: this.getShopId(npc),
-        shopManagerReady: this.isShopManagerReady
-      });
-      
-      // === VALIDATION ===
       if (!this.isMerchantNpc(npc)) {
         return this.createErrorResult(
-          `NPC ${npcId} n'est pas un marchand`,
           "shop.error.not_merchant",
           npcId,
           npc.nameKey || npc.name
@@ -186,28 +130,20 @@ export class MerchantNpcHandler {
       const shopId = this.getShopId(npc);
       if (!shopId) {
         return this.createErrorResult(
-          "Ce marchand n'a pas de boutique configurée",
           "shop.error.no_shop_configured",
           npcId,
           npc.nameKey || npc.name
         );
       }
 
-      // ✅ NOUVEAU : Vérification ShopManager prêt
       if (!this.isShopManagerReady) {
-        this.log('warn', `⚠️ [Merchant v2] ShopManager pas prêt - tentative directe`);
-        
-        // Tentative de chargement direct
         try {
-          const ready = await this.shopManager.waitForLoad(2000); // 2s seulement
+          const ready = await this.shopManager.waitForLoad(2000);
           if (ready) {
             this.isShopManagerReady = true;
-            this.log('info', '✅ [Merchant v2] ShopManager récupéré !');
           }
         } catch (error) {
-          this.log('error', '❌ [Merchant v2] ShopManager indisponible');
           return this.createErrorResult(
-            "Système de boutique temporairement indisponible",
             "shop.error.system_unavailable",
             npcId,
             npc.nameKey || npc.name
@@ -215,62 +151,76 @@ export class MerchantNpcHandler {
         }
       }
       
-      // === VÉRIFICATION SHOP ===
-      const shopCatalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
-      if (!shopCatalog) {
-        this.log('error', `🛒 [Merchant v2] Shop ${shopId} introuvable`);
+      const shopDataDocument = await this.loadShopData(shopId);
+      if (!shopDataDocument) {
         return this.createErrorResult(
-          "Boutique temporairement indisponible",
           "shop.error.temporarily_unavailable",
           npcId,
           npc.nameKey || npc.name
         );
       }
       
-      // === RÉCUPÉRATION DIALOGUES LOCALISÉS ===
-      const welcomeDialogues = this.getWelcomeDialogues(npc);
-      const welcomeKeys = this.getWelcomeDialogueKeys(npc);
+      const canAccess = shopDataDocument.isAccessibleToPlayer(
+        player.level || 1,
+        [],
+        []
+      );
       
-      // === CONSTRUCTION RÉPONSE AVEC LOCALISATION ===
+      if (!canAccess) {
+        return this.createErrorResult(
+          "shop.error.access_denied",
+          npcId,
+          npc.nameKey || npc.name
+        );
+      }
+      
+      let shopCatalog;
+      try {
+        shopCatalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
+      } catch (error) {
+        shopCatalog = this.buildCatalogFromShopData(shopDataDocument, player.level || 1);
+      }
+      
+      if (!shopCatalog) {
+        return this.createErrorResult(
+          "shop.error.catalog_unavailable",
+          npcId,
+          npc.nameKey || npc.name
+        );
+      }
+      
+      const welcomeDialogues = await this.getWelcomeDialoguesFromShopData(shopDataDocument);
+      const welcomeKeys = this.getWelcomeDialogueKeysFromShopData(shopDataDocument);
+      
       const result: MerchantInteractionResult = {
         success: true,
         type: "shop",
         shopId: shopId,
         shopData: {
-          shopInfo: shopCatalog.shopInfo,
+          shopInfo: {
+            ...shopCatalog.shopInfo,
+            nameKey: shopDataDocument.nameKey,
+            type: shopDataDocument.type,
+            currency: shopDataDocument.currency
+          },
           availableItems: shopCatalog.availableItems,
           playerGold: player.gold || 1000,
           playerLevel: player.level || 1,
           npcName: npc.name,
-          npcNameKey: npc.nameKey || npc.shopKeeper?.nameKey
+          npcNameKey: npc.nameKey || shopDataDocument.shopKeeper?.nameKey
         },
         npcId: npcId,
         npcName: npc.name,
         npcNameKey: npc.nameKey,
         lines: welcomeDialogues,
         dialogueKeys: welcomeKeys,
-        message: `Bienvenue dans ${shopCatalog.shopInfo.name || 'la boutique'} !`,
         messageKey: "shop.dialogue.welcome.default"
       };
-      
-      const processingTime = Date.now() - startTime;
-      this.log('info', `✅ [Merchant v2] Shop ${shopId} ouvert`, { 
-        itemCount: shopCatalog.availableItems.length,
-        localization: !!result.npcNameKey,
-        processingTime: `${processingTime}ms`
-      });
       
       return result;
       
     } catch (error) {
-      const processingTime = Date.now() - startTime;
-      this.log('error', `❌ [Merchant v2] Erreur traitement NPC ${npcId}`, {
-        error: error instanceof Error ? error.message : error,
-        processingTime: `${processingTime}ms`
-      });
-      
       return this.createErrorResult(
-        "Erreur lors de l'ouverture de la boutique",
         "shop.error.opening_failed",
         npcId,
         npc.nameKey || npc.name
@@ -278,125 +228,138 @@ export class MerchantNpcHandler {
     }
   }
 
-  // === MÉTHODES DE DÉTECTION MISES À JOUR ===
-
-  isMerchantNpc(npc: NpcData): boolean {
-    // JSON : type explicite
-    if (npc.type === 'merchant') return true;
-    
-    // JSON : shopId direct
-    if (npc.shopId) return true;
-    
-    // Tiled : propriétés legacy
-    if (npc.properties?.npcType === 'merchant') return true;
-    if (npc.properties?.shopId || npc.properties?.shop) return true;
-    
-    return false;
-  }
-
-  private getShopId(npc: NpcData): string | null {
-    // JSON : shopId direct (priorité)
-    if (npc.shopId) return npc.shopId;
-    
-    // Tiled : propriétés legacy
-    if (npc.properties?.shopId) return npc.properties.shopId;
-    if (npc.properties?.shop) return npc.properties.shop;
-    
-    return null;
-  }
-
-  // === MÉTHODES DE DIALOGUE LOCALISÉES ===
-
-  private getWelcomeDialogues(npc: NpcData): string[] {
-    // JSON : dialogues structurés
-    if (npc.shopDialogueIds?.shopOpen && npc.shopDialogueIds.shopOpen.length > 0) {
-      return npc.shopDialogueIds.shopOpen;
+  private async loadShopData(shopId: string): Promise<IShopData | null> {
+    if (this.config.cacheShopData) {
+      const cached = this.shopDataCache.get(shopId);
+      if (cached && (Date.now() - cached.timestamp) < this.config.cacheTTL) {
+        return cached.data;
+      }
     }
     
-    // Tiled : dialogues dans properties
-    if (npc.properties?.shopDialogue) {
-      const dialogue = npc.properties.shopDialogue;
-      return Array.isArray(dialogue) ? dialogue : [dialogue];
+    try {
+      const shopData = await ShopData.findOne({ 
+        shopId: shopId, 
+        isActive: true 
+      });
+      
+      if (!shopData) {
+        return null;
+      }
+      
+      if (this.config.cacheShopData) {
+        this.shopDataCache.set(shopId, {
+          data: shopData,
+          timestamp: Date.now()
+        });
+      }
+      
+      return shopData;
+      
+    } catch (error) {
+      return null;
     }
-    
-    if (npc.properties?.dialogue) {
-      const dialogue = npc.properties.dialogue;
-      return Array.isArray(dialogue) ? dialogue : [dialogue];
-    }
-    
-    // Fallback par type de shop
-    return this.getDefaultDialogueByShopType(npc);
   }
 
-  // ✅ NOUVELLE MÉTHODE : IDs de localisation pour dialogues
-  private getWelcomeDialogueKeys(npc: NpcData): string[] {
+  private buildCatalogFromShopData(shopData: IShopData, playerLevel: number): any {
+    const availableItems = shopData.items
+      .filter(item => !item.unlockLevel || playerLevel >= item.unlockLevel)
+      .map(item => ({
+        itemId: item.itemId,
+        name: item.itemId,
+        category: item.category,
+        buyPrice: item.basePrice || 0,
+        sellPrice: Math.floor((item.basePrice || 0) * shopData.sellMultiplier),
+        stock: item.stock,
+        unlockLevel: item.unlockLevel,
+        description: item.descriptionKey || `Description for ${item.itemId}`
+      }));
+    
+    return {
+      shopInfo: {
+        id: shopData.shopId,
+        nameKey: shopData.nameKey,
+        name: shopData.nameKey,
+        type: shopData.type,
+        currency: shopData.currency,
+        buyMultiplier: shopData.buyMultiplier,
+        sellMultiplier: shopData.sellMultiplier
+      },
+      availableItems: availableItems
+    };
+  }
+
+  private async getWelcomeDialoguesFromShopData(shopData: IShopData): Promise<string[]> {
+    if (shopData.dialogues?.welcomeKeys && shopData.dialogues.welcomeKeys.length > 0) {
+      try {
+        const dialogStrings = await DialogStringModel.find({
+          dialogId: { $in: shopData.dialogues.welcomeKeys },
+          isActive: true
+        });
+        
+        if (dialogStrings.length > 0) {
+          return dialogStrings.map(d => d.getLocalizedText('fr'));
+        }
+      } catch (error) {
+        // Fallback to keys
+      }
+      return shopData.dialogues.welcomeKeys;
+    }
+    
+    return this.getDefaultDialogueByShopType(shopData.type);
+  }
+
+  private getWelcomeDialogueKeysFromShopData(shopData: IShopData): string[] {
     if (!this.config.enableLocalization) {
       return [];
     }
 
-    const shopType = npc.shopType || npc.properties?.shopType || this.config.defaultShopType;
-    const shopId = this.getShopId(npc);
+    if (shopData.dialogues?.welcomeKeys) {
+      return shopData.dialogues.welcomeKeys;
+    }
     
-    // Générer IDs hiérarchiques : spécifique → type → générique
+    const shopType = shopData.type;
+    const shopId = shopData.shopId;
+    
     return [
-      `shop.dialogue.${shopId}.welcome.1`,       // Spécifique au shop
-      `shop.dialogue.${shopType}.welcome.1`,     // Spécifique au type
-      `shop.dialogue.generic.welcome.1`,         // Générique
-      `shop.dialogue.${shopType}.welcome.2`,     // Alternative type
-      `shop.dialogue.generic.welcome.2`          // Alternative générique
-    ].filter(Boolean);
+      `shop.dialogue.${shopId}.welcome.1`,
+      `shop.dialogue.${shopType}.welcome.1`,
+      `shop.dialogue.generic.welcome.1`,
+      `shop.dialogue.${shopType}.welcome.2`,
+      `shop.dialogue.generic.welcome.2`
+    ];
   }
 
-  private getDefaultDialogueByShopType(npc: NpcData): string[] {
-    const shopType = npc.shopType || npc.properties?.shopType || this.config.defaultShopType;
-    
+  isMerchantNpc(npc: NpcData): boolean {
+    if (npc.type === 'merchant') return true;
+    if (npc.shopId) return true;
+    if (npc.properties?.npcType === 'merchant') return true;
+    if (npc.properties?.shopId || npc.properties?.shop) return true;
+    return false;
+  }
+
+  private getShopId(npc: NpcData): string | null {
+    if (npc.shopId) return npc.shopId;
+    if (npc.properties?.shopId) return npc.properties.shopId;
+    if (npc.properties?.shop) return npc.properties.shop;
+    return null;
+  }
+
+  private getDefaultDialogueByShopType(shopType: string): string[] {
     const dialoguesByType: Record<string, string[]> = {
-      'pokemart': [
-        "Bienvenue au Poké Mart !",
-        "Nous avons tout ce qu'il faut pour votre aventure !"
-      ],
-      'department': [
-        "Bienvenue au Grand Magasin !",
-        "Découvrez notre vaste sélection d'articles !"
-      ],
-      'specialist': [
-        "Bienvenue dans ma boutique spécialisée !",
-        "J'ai des objets rares et utiles !"
-      ],
-      'gym_shop': [
-        "Bienvenue dans la boutique de l'Arène !",
-        "Préparez-vous pour les combats !"
-      ],
-      'contest_shop': [
-        "Bienvenue dans la boutique Concours !",
-        "Tout pour briller en concours !"
-      ],
-      'game_corner': [
-        "Bienvenue au Casino !",
-        "Tentez votre chance pour des prix fabuleux !"
-      ],
-      'black_market': [
-        "Psst... vous cherchez des objets rares ?",
-        "J'ai ce qu'il vous faut... pour le bon prix."
-      ],
-      'trainer_shop': [
-        "Salut ! Je vends mes objets d'entraînement !",
-        "Ces objets m'ont bien servi !"
-      ],
-      'temporary': [
-        "Bonjour ! Je suis de passage dans la région !",
-        "Profitez-en, je repars bientôt !"
-      ],
-      'vending_machine': [
-        "DISTRIBUTEUR AUTOMATIQUE",
-        "Sélectionnez votre choix."
-      ]
+      'pokemart': ["shop.dialogue.pokemart.welcome.1"],
+      'department': ["shop.dialogue.department.welcome.1"],
+      'specialist': ["shop.dialogue.specialist.welcome.1"],
+      'gym_shop': ["shop.dialogue.gym_shop.welcome.1"],
+      'contest_shop': ["shop.dialogue.contest_shop.welcome.1"],
+      'game_corner': ["shop.dialogue.game_corner.welcome.1"],
+      'black_market': ["shop.dialogue.black_market.welcome.1"],
+      'trainer_shop': ["shop.dialogue.trainer_shop.welcome.1"],
+      'temporary': ["shop.dialogue.temporary.welcome.1"],
+      'vending_machine': ["shop.dialogue.vending_machine.welcome.1"]
     };
     
     return dialoguesByType[shopType] || this.config.fallbackDialogues.welcome;
   }
-
-  // === MÉTHODES PUBLIQUES POUR SHOP TRANSACTIONS MISES À JOUR ===
 
   async handleShopTransaction(
     player: Player,
@@ -407,26 +370,33 @@ export class MerchantNpcHandler {
   ): Promise<{
     success: boolean;
     message: string;
-    messageKey?: string;        // ✅ ID de localisation
+    messageKey?: string;
     newGold?: number;
     itemsChanged?: any[];
     shopStockChanged?: any[];
     dialogues?: string[];
-    dialogueKeys?: string[];    // ✅ IDs de localisation
+    dialogueKeys?: string[];
   }> {
     
     const shopId = this.getShopId(npc);
     if (!shopId) {
       return {
         success: false,
-        message: "Boutique non configurée",
+        message: "shop.error.not_configured",
         messageKey: "shop.error.not_configured"
       };
     }
     
-    this.log('info', `🛒 [Transaction v2] ${action} ${quantity}x ${itemId} par ${player.name}`);
-    
     try {
+      const shopData = await this.loadShopData(shopId);
+      if (!shopData) {
+        return {
+          success: false,
+          message: "shop.error.temporarily_unavailable",
+          messageKey: "shop.error.temporarily_unavailable"
+        };
+      }
+
       const playerGold = player.gold || 1000;
       const playerLevel = player.level || 1;
       
@@ -449,21 +419,13 @@ export class MerchantNpcHandler {
         );
       }
       
-      // ✅ NOUVEAU : Ajouter dialogues contextuels localisés
       const dialogues = result.success 
-        ? this.getTransactionDialogues(npc, action, 'success')
-        : this.getTransactionDialogues(npc, action, 'failure');
+        ? await this.getTransactionDialoguesFromShopData(shopData, action, 'success')
+        : await this.getTransactionDialoguesFromShopData(shopData, action, 'failure');
 
       const dialogueKeys = result.success 
-        ? this.getTransactionDialogueKeys(npc, action, 'success')
-        : this.getTransactionDialogueKeys(npc, action, 'failure');
-
-      this.log('info', `${result.success ? '✅' : '❌'} [Transaction v2] ${action} résultat`, {
-        success: result.success,
-        message: result.message,
-        messageKey: result.messageKey,
-        hasDialogueKeys: dialogueKeys.length > 0
-      });
+        ? this.getTransactionDialogueKeysFromShopData(shopData, action, 'success')
+        : this.getTransactionDialogueKeysFromShopData(shopData, action, 'failure');
 
       return {
         ...result,
@@ -472,55 +434,85 @@ export class MerchantNpcHandler {
       };
       
     } catch (error) {
-      this.log('error', `❌ [Transaction v2] Erreur ${action}`, error);
       return {
         success: false,
-        message: "Erreur lors de la transaction",
+        message: "shop.error.transaction_failed",
         messageKey: "shop.error.transaction_failed",
-        dialogues: this.getTransactionDialogues(npc, action, 'error'),
-        dialogueKeys: this.getTransactionDialogueKeys(npc, action, 'error')
+        dialogues: this.config.fallbackDialogues.error,
+        dialogueKeys: this.config.fallbackDialogues.errorKeys
       };
     }
   }
 
-  private getTransactionDialogues(npc: NpcData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
-    // JSON : dialogues structurés
-    if (npc.shopDialogueIds) {
-      if (result === 'success' && action === 'buy' && npc.shopDialogueIds.purchaseSuccess) {
-        return npc.shopDialogueIds.purchaseSuccess;
-      }
-      if (result === 'failure' && npc.shopDialogueIds.noMoney) {
-        return npc.shopDialogueIds.noMoney;
-      }
+  private async getTransactionDialoguesFromShopData(shopData: IShopData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): Promise<string[]> {
+    const dialogues = shopData.dialogues;
+    if (!dialogues) {
+      return this.getDefaultTransactionDialogues(action, result);
     }
-    
-    // Dialogues par défaut
-    const defaultDialogues: Record<string, Record<string, string[]>> = {
+
+    const dialogueMap: Record<string, Record<string, string[] | undefined>> = {
       buy: {
-        success: ["Merci pour votre achat !", "Revenez quand vous voulez !"],
-        failure: ["Vous n'avez pas assez d'argent.", "Revenez avec plus d'or !"],
-        error: ["Désolé, il y a eu un problème.", "Essayez à nouveau plus tard."]
+        success: dialogues.purchaseKeys,
+        failure: dialogues.notEnoughMoneyKeys,
+        error: dialogues.restrictedKeys
       },
       sell: {
-        success: ["Merci, cet objet m'intéresse !", "Voici votre argent."],
-        failure: ["Je ne peux pas acheter cet objet.", "Désolé !"],
-        error: ["Il y a eu un problème.", "Réessayez plus tard."]
+        success: dialogues.saleKeys,
+        failure: dialogues.restrictedKeys,
+        error: dialogues.restrictedKeys
       }
     };
-    
-    return defaultDialogues[action]?.[result] || ["Hmm..."];
+
+    const keys = dialogueMap[action]?.[result];
+    if (keys && keys.length > 0) {
+      try {
+        const dialogStrings = await DialogStringModel.find({
+          dialogId: { $in: keys },
+          isActive: true
+        });
+        
+        if (dialogStrings.length > 0) {
+          return dialogStrings.map(d => d.getLocalizedText('fr'));
+        }
+      } catch (error) {
+        // Fallback to keys
+      }
+      return keys;
+    }
+
+    return this.getDefaultTransactionDialogues(action, result);
   }
 
-  // ✅ NOUVELLE MÉTHODE : IDs de localisation pour transactions
-  private getTransactionDialogueKeys(npc: NpcData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
+  private getTransactionDialogueKeysFromShopData(shopData: IShopData, action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
     if (!this.config.enableLocalization) {
       return [];
     }
 
-    const shopType = npc.shopType || this.config.defaultShopType;
-    const shopId = this.getShopId(npc);
+    const dialogues = shopData.dialogues;
+    if (dialogues) {
+      const keyMap: Record<string, Record<string, string[] | undefined>> = {
+        buy: {
+          success: dialogues.purchaseKeys,
+          failure: dialogues.notEnoughMoneyKeys,
+          error: dialogues.restrictedKeys
+        },
+        sell: {
+          success: dialogues.saleKeys,
+          failure: dialogues.restrictedKeys,
+          error: dialogues.restrictedKeys
+        }
+      };
+
+      const keys = keyMap[action]?.[result];
+      if (keys && keys.length > 0) {
+        return keys;
+      }
+    }
+
+    const shopType = shopData.type;
+    const shopId = shopData.shopId;
     
-    const keyMappings: Record<string, Record<string, string[]>> = {
+    const defaultKeyMappings: Record<string, Record<string, string[]>> = {
       buy: {
         success: [
           `shop.dialogue.${shopId}.purchase.success.1`,
@@ -554,16 +546,30 @@ export class MerchantNpcHandler {
       }
     };
     
-    return keyMappings[action]?.[result] || [];
+    return defaultKeyMappings[action]?.[result] || [];
   }
 
-  // === MÉTHODES UTILITAIRES MISES À JOUR ===
+  private getDefaultTransactionDialogues(action: 'buy' | 'sell', result: 'success' | 'failure' | 'error'): string[] {
+    const defaultDialogues: Record<string, Record<string, string[]>> = {
+      buy: {
+        success: ["shop.dialogue.generic.purchase.success.1"],
+        failure: ["shop.dialogue.generic.no_money.1"],
+        error: ["shop.dialogue.generic.error.1"]
+      },
+      sell: {
+        success: ["shop.dialogue.generic.sale.success.1"],
+        failure: ["shop.dialogue.generic.sale.failure.1"],
+        error: ["shop.dialogue.generic.error.1"]
+      }
+    };
+    
+    return defaultDialogues[action]?.[result] || ["shop.dialogue.generic.error.1"];
+  }
 
-  private createErrorResult(message: string, messageKey: string, npcId: number, npcName?: string): MerchantInteractionResult {
+  private createErrorResult(messageKey: string, npcId: number, npcName?: string): MerchantInteractionResult {
     return {
       success: false,
       type: "error",
-      message,
       messageKey,
       npcId,
       npcName: npcName || `NPC #${npcId}`,
@@ -573,43 +579,28 @@ export class MerchantNpcHandler {
     };
   }
 
-  private log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
-    if (!this.config.debugMode && level === 'info') return;
-    
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${message}`;
-    
-    switch (level) {
-      case 'info':
-        console.log(logMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(logMessage, data || '');
-        break;
-      case 'error':
-        console.error(logMessage, data || '');
-        break;
-    }
-  }
-
-  // === MÉTHODES D'ADMINISTRATION MISES À JOUR ===
-
   getStats(): any {
     const shopManagerStats = this.isShopManagerReady ? this.shopManager.getSystemStats() : null;
     
     return {
       handlerType: 'merchant',
-      version: '2.0.0',
+      version: '3.0.0',
       config: this.config,
       shopManagerReady: this.isShopManagerReady,
+      shopDataCache: {
+        size: this.shopDataCache.size,
+        ttl: this.config.cacheTTL,
+        enabled: this.config.cacheShopData
+      },
       shopManagerStats: shopManagerStats ? {
         totalShops: shopManagerStats.totalShops,
         sources: shopManagerStats.sources,
         hotReload: shopManagerStats.hotReload
       } : null,
       supportedFeatures: [
-        'json_npcs',
-        'mongodb_npcs', 
+        'shopdata_integration',
+        'mongodb_direct_access',
+        'shopdata_cache',
         'shop_transactions',
         'contextual_dialogues',
         'shop_type_detection',
@@ -630,15 +621,40 @@ export class MerchantNpcHandler {
     return this.isShopManagerReady;
   }
 
-  debugNpc(npc: NpcData): void {
-    console.log(`🔍 [MerchantNpcHandler v2] === DEBUG NPC ${npc.id} ===`);
-    console.log(`📋 Nom: ${npc.nameKey || npc.name}`);
-    console.log(`📦 Source: ${npc.sourceType}`);
-    console.log(`🛒 Est marchand: ${this.isMerchantNpc(npc)}`);
-    console.log(`🏪 Shop ID: ${this.getShopId(npc)}`);
-    console.log(`💬 Dialogues: ${JSON.stringify(this.getWelcomeDialogues(npc), null, 2)}`);
-    console.log(`🌍 Dialogue Keys: ${JSON.stringify(this.getWelcomeDialogueKeys(npc), null, 2)}`);
-    console.log(`⚙️ Config: Localisation=${this.config.enableLocalization}, ShopManager=${this.isShopManagerReady}`);
-    console.log(`=======================================`);
+  clearShopDataCache(): void {
+    this.shopDataCache.clear();
+  }
+
+  async preloadShopData(shopId: string): Promise<boolean> {
+    try {
+      const shopData = await this.loadShopData(shopId);
+      return !!shopData;
+    } catch (error) {
+      return false;
+    }
   }
 }
+ * - getTransactionDialoguesFromShopData() : Dialogues transaction depuis ShopData
+ * - Cache local ShopData avec TTL configurable
+ * - Support complet des IDs de localisation depuis ShopData
+ * - Méthodes debug améliorées avec ShopData
+ * - Hot reload avec invalidation cache
+ * 
+ * 🔄 MODIFIÉ :
+ * - handle() : Utilise ShopData comme source principale
+ * - handleShopTransaction() : Intègre règles depuis ShopData
+ * - isMerchantNpc() : Détection basée sur shopId simple
+ * - getShopId() : Priorité au nouveau format shopId
+ * 
+ * ❌ RETIRÉ :
+ * - Toute logique ShopConfig complexe
+ * - Dépendance aux propriétés shop dans NpcData
+ * - Génération manuelle de configurations shop
+ * 
+ * 🎯 RÉSULTAT :
+ * - ShopData devient la source unique pour TOUTES les données shop
+ * - Performance améliorée avec cache intelligent
+ * - Cohérence garantie des données shop
+ * - Facilite la maintenance et les mises à jour
+ * - Support complet des fonctionnalités ShopData (horaires, restrictions, etc.)
+ */
