@@ -1,5 +1,5 @@
-// Quest/QuestSystem.js - VERSION SIMPLIFIÉE ET NETTOYÉE
-// 🎯 Système unifié sans complexité excessive
+// Quest/QuestSystem.js - VERSION AVEC QUESTDETAILSUI
+// 🎯 Ajout de QuestDetailsUI dans le système unifié
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -16,13 +16,14 @@ export class QuestSystem {
     this.ui = null;
     this.icon = null;
     this.tracker = null;
+    this.detailsUI = null; // 🆕 NOUVEAU
     
     // === CALLBACKS ===
     this.onQuestUpdate = null;
     this.onQuestCompleted = null;
     this.onQuestStarted = null;
     
-    console.log('📖 [QuestSystem] Instance créée - Version simplifiée');
+    console.log('📖 [QuestSystem] Instance créée avec QuestDetailsUI');
   }
   
   // === 🚀 INITIALISATION ===
@@ -35,7 +36,7 @@ export class QuestSystem {
       await this.createUI();
       
       this.ready = true;
-      console.log('✅ [QuestSystem] Prêt !');
+      console.log('✅ [QuestSystem] Prêt avec QuestDetailsUI !');
       
       return this;
     } catch (error) {
@@ -43,8 +44,187 @@ export class QuestSystem {
       throw error;
     }
   }
+
+  // === 🎨 INTERFACE UTILISATEUR ===
   
-  // === 📡 HANDLERS RÉSEAU HARMONISÉS SERVEUR ===
+  async createUI() {
+    try {
+      // Créer l'icône
+      await this.createIcon();
+      
+      // Créer l'interface principale
+      await this.createMainUI();
+      
+      // Créer le tracker
+      await this.createTracker();
+      
+      // 🆕 NOUVEAU : Créer l'interface de détails de quête
+      await this.createQuestDetailsUI();
+      
+      console.log('🎨 [QuestSystem] UI créée avec QuestDetailsUI');
+    } catch (error) {
+      console.error('❌ [QuestSystem] Erreur création UI:', error);
+    }
+  }
+  
+  async createIcon() {
+    const { QuestIcon } = await import('./QuestIcon.js');
+    
+    // 🔥 Récupérer optionsManager depuis window
+    const optionsManager = window.optionsSystem?.manager || 
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    this.icon = new QuestIcon(this, optionsManager);
+    await this.icon.init();
+    
+    this.icon.onClick = () => {
+      if (this.ui) {
+        this.ui.toggle();
+      }
+    };
+  }
+  
+  async createMainUI() {
+    const { QuestUI } = await import('./QuestUI.js');
+    this.ui = new QuestUI(this, this.gameRoom);
+    await this.ui.init();
+    
+    this.ui.onAction = (action, data) => {
+      this.handleUIAction(action, data);
+    };
+  }
+  
+  async createTracker() {
+    // Le tracker est intégré dans QuestUI
+    this.tracker = this.ui;
+  }
+  
+  // 🆕 NOUVEAU : Créer l'interface de détails de quête
+  async createQuestDetailsUI() {
+    const { QuestDetailsUI } = await import('./QuestDetailsUI.js');
+    
+    // Récupérer optionsManager pour le support multilingue
+    const optionsManager = window.optionsSystem?.manager || 
+                           window.optionsSystemGlobal?.manager ||
+                           window.optionsSystem;
+    
+    this.detailsUI = new QuestDetailsUI(this, optionsManager);
+    await this.detailsUI.init();
+    
+    // 🔗 Connecter les callbacks
+    this.detailsUI.onQuestAccept = (questId, npcId, questData) => {
+      this.handleQuestAcceptFromUI(questId, npcId, questData);
+    };
+    
+    this.detailsUI.onClose = () => {
+      console.log('📋 [QuestSystem] QuestDetailsUI fermé');
+    };
+    
+    console.log('📋 [QuestSystem] QuestDetailsUI créé et connecté');
+  }
+  
+  // === 🎯 MÉTHODES PUBLIQUES POUR DIALOGUEMANAGER ===
+  
+  /**
+   * Afficher les détails de quête pour un NPC
+   * @param {string} npcId - ID du NPC
+   * @param {Array} availableQuestIds - Liste des IDs de quêtes disponibles
+   */
+  showQuestDetailsForNpc(npcId, availableQuestIds) {
+    if (!this.detailsUI) {
+      console.error('❌ [QuestSystem] QuestDetailsUI non initialisé');
+      return false;
+    }
+    
+    if (!availableQuestIds || availableQuestIds.length === 0) {
+      console.warn('⚠️ [QuestSystem] Aucune quête disponible pour NPC', npcId);
+      this.showMessage('Aucune quête disponible pour le moment.', 'info');
+      return false;
+    }
+    
+    console.log(`📋 [QuestSystem] Affichage quêtes pour NPC ${npcId}:`, availableQuestIds);
+    
+    if (availableQuestIds.length === 1) {
+      // Une seule quête = affichage direct
+      this.detailsUI.showSingleQuest(npcId, availableQuestIds[0]);
+    } else {
+      // Plusieurs quêtes = sélection
+      this.detailsUI.showMultipleQuests(npcId, availableQuestIds);
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Méthode appelée par DialogueManager quand action "quest" cliquée
+   * @param {Object} actionData - Données de l'action (contient npcId)
+   */
+  handleQuestActionFromDialogue(actionData) {
+    const npcId = actionData.npcId;
+    
+    if (!npcId) {
+      console.error('❌ [QuestSystem] NPC ID manquant dans action quest');
+      return false;
+    }
+    
+    console.log(`🎯 [QuestSystem] Action quest reçue pour NPC ${npcId}`);
+    
+    // Récupérer les quêtes disponibles pour ce NPC
+    const questData = this.networkManager.getNpcQuestData(npcId);
+    
+    if (questData.availableQuestIds.length > 0) {
+      // Afficher les quêtes disponibles
+      return this.showQuestDetailsForNpc(npcId, questData.availableQuestIds);
+    } else {
+      // Pas de quêtes disponibles
+      this.showMessage('Ce PNJ n\'a pas de quêtes disponibles pour le moment.', 'info');
+      return false;
+    }
+  }
+  
+  // === 🎬 GESTION ACCEPTATION QUÊTE ===
+  
+  /**
+   * Gérer l'acceptation d'une quête depuis l'UI
+   * @param {string} questId - ID de la quête
+   * @param {string} npcId - ID du NPC
+   * @param {Object} questData - Données de la quête
+   */
+  handleQuestAcceptFromUI(questId, npcId, questData) {
+    console.log(`🎯 [QuestSystem] Acceptation quête: ${questId} pour NPC ${npcId}`);
+    
+    if (!this.networkManager) {
+      console.error('❌ [QuestSystem] NetworkManager non disponible');
+      this.showMessage('Erreur réseau - impossible d\'accepter la quête', 'error');
+      return false;
+    }
+    
+    try {
+      // Envoyer la demande d'acceptation au serveur
+      this.networkManager.sendMessage('acceptQuest', {
+        questId: questId,
+        npcId: npcId,
+        timestamp: Date.now()
+      });
+      
+      // Feedback utilisateur
+      this.showMessage(`Demande d'acceptation envoyée : ${questData.name || questId}`, 'info');
+      
+      // Mise à jour UI (optimiste)
+      this.icon?.animateNewQuest();
+      
+      console.log(`✅ [QuestSystem] Demande acceptation envoyée: ${questId}`);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestSystem] Erreur acceptation quête:', error);
+      this.showMessage('Erreur lors de l\'acceptation de la quête', 'error');
+      return false;
+    }
+  }
+  
+  // === 📡 HANDLERS RÉSEAU (existants, pas de changement) ===
   
   setupNetworkHandlers() {
     if (!this.networkManager) {
@@ -108,7 +288,7 @@ export class QuestSystem {
       }
     });
     
-    // === COMPATIBILITÉ MESSAGES ANCIENS (à supprimer progressivement) ===
+    // === COMPATIBILITÉ MESSAGES ANCIENS ===
     this.networkManager.onMessage("activeQuestsList", (data) => {
       console.warn('⚠️ [QuestSystem] Message ancien "activeQuestsList" - à migrer vers "quest_available"');
       this.handleActiveQuests(data);
@@ -124,17 +304,15 @@ export class QuestSystem {
       this.handleQuestStartResult(data);
     });
     
-    console.log('📡 [QuestSystem] Handlers réseau harmonisés avec serveur');
+    console.log('📡 [QuestSystem] Handlers réseau harmonisés avec serveur + QuestDetailsUI');
   }
   
-  // === 📨 HANDLERS MESSAGES SERVEUR (QuestClientMessage) ===
+  // [... TOUS LES AUTRES HANDLERS RESTENT IDENTIQUES ...]
   
   handleQuestStarted(data) {
     console.log('🎯 [QuestSystem] Quête démarrée:', data);
     
-    // Structure QuestClientMessage
     if (data.questName && data.questId) {
-      // Créer objet quest à partir des données serveur
       const quest = {
         id: data.questId,
         name: data.questName,
@@ -150,19 +328,16 @@ export class QuestSystem {
       this.triggerCallback('onQuestStarted', quest);
     }
     
-    // Afficher message
     this.showMessage(data.message || `Quête "${data.questName}" acceptée !`, 'success');
   }
   
   handleQuestProgress(data) {
     console.log('📈 [QuestSystem] Progression quête:', data);
     
-    // Mettre à jour la progression si questId fourni
     if (data.questId && data.data?.progress) {
       this.updateQuestProgress(data.questId, data.data.progress);
     }
     
-    // Afficher message de progression
     if (data.message) {
       this.showMessage(data.message, 'info');
     }
@@ -173,12 +348,10 @@ export class QuestSystem {
   handleQuestCompleted(data) {
     console.log('🎉 [QuestSystem] Quête terminée:', data);
     
-    // Retirer des actives
     if (data.questId) {
       this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
     }
     
-    // Ajouter aux terminées
     const completedQuest = {
       id: data.questId,
       name: data.questName,
@@ -196,18 +369,16 @@ export class QuestSystem {
   handleObjectiveCompleted(data) {
     console.log('✅ [QuestSystem] Objectif terminé:', data);
     
-    // Highlight dans l'UI avec le nom de l'objectif depuis le serveur
     if (this.ui && this.ui.highlightObjectiveAsCompleted) {
       this.ui.highlightObjectiveAsCompleted({
         questId: data.questId,
-        objectiveName: data.title || data.message, // Utiliser title ou message pour le nom
+        objectiveName: data.title || data.message,
         ...data
       });
     }
     
     this.showMessage(data.message || `Objectif terminé : ${data.title}`, 'success');
     
-    // Refresh après délai
     setTimeout(() => {
       this.requestActiveQuests();
     }, 1500);
@@ -226,13 +397,9 @@ export class QuestSystem {
   handleStepCompleted(data) {
     console.log('🔄 [QuestSystem] Étape terminée:', data);
     
-    // Afficher notification étape
     this.showMessage(`Étape terminée : ${data.stepName || 'Étape'}`, 'success');
-    
-    // Mettre à jour UI
     this.updateUI();
     
-    // Refresh données après délai
     setTimeout(() => {
       this.requestActiveQuests();
     }, 1000);
@@ -241,7 +408,6 @@ export class QuestSystem {
   handleQuestFailed(data) {
     console.log('❌ [QuestSystem] Quête échouée:', data);
     
-    // Retirer des actives si nécessaire
     if (data.questId) {
       this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
     }
@@ -253,7 +419,6 @@ export class QuestSystem {
   handleQuestAbandoned(data) {
     console.log('🚫 [QuestSystem] Quête abandonnée:', data);
     
-    // Retirer des actives
     if (data.questId) {
       this.activeQuests = this.activeQuests.filter(q => q.id !== data.questId);
     }
@@ -265,7 +430,6 @@ export class QuestSystem {
   handleRewardReceived(data) {
     console.log('🎁 [QuestSystem] Récompense reçue:', data);
     
-    // Afficher notification récompense
     if (data.rewards && data.rewards.length > 0) {
       const rewardText = data.rewards.map(r => `${r.name} x${r.amount || 1}`).join(', ');
       this.showMessage(`Récompenses : ${rewardText}`, 'success');
@@ -273,7 +437,6 @@ export class QuestSystem {
       this.showMessage('Récompense reçue !', 'success');
     }
     
-    // Animation sur l'icône
     if (this.icon) {
       this.icon.animateQuestCompleted();
     }
@@ -282,10 +445,8 @@ export class QuestSystem {
   handleQuestReminder(data) {
     console.log('🔔 [QuestSystem] Rappel quête:', data);
     
-    // Afficher notification rappel
     this.showMessage(data.message || `Rappel : ${data.questName}`, 'info');
     
-    // Animation sur l'icône
     if (this.icon) {
       this.icon.animateQuestProgress();
     }
@@ -294,19 +455,16 @@ export class QuestSystem {
   handleSystemNotification(data) {
     console.log('📢 [QuestSystem] Notification système:', data);
     
-    // Afficher selon le type de display
     const displayType = data.display?.type || 'toast';
     const theme = data.display?.theme || 'info';
     
     if (displayType === 'modal') {
-      // Affichage modal si nécessaire
       if (typeof window.showGameModal === 'function') {
         window.showGameModal(data.title, data.message, data.actions);
       } else {
         this.showMessage(data.message, theme);
       }
     } else {
-      // Toast par défaut
       this.showMessage(data.message, theme);
     }
   }
@@ -314,13 +472,10 @@ export class QuestSystem {
   handleErrorMessage(data) {
     console.error('💥 [QuestSystem] Erreur serveur:', data);
     
-    // Afficher message d'erreur
     this.showMessage(data.message || 'Erreur dans le système de quêtes', 'error');
   }
   
-
-  
-  // === 📊 HANDLERS COMPATIBILITÉ (Messages anciens - à supprimer progressivement) ===
+  // === 📊 HANDLERS COMPATIBILITÉ ===
   
   handleActiveQuests(questsData) {
     console.log('📋 [QuestSystem] Quêtes actives (ancien format):', questsData);
@@ -353,58 +508,6 @@ export class QuestSystem {
     } else {
       this.showMessage(data.message || 'Impossible de démarrer cette quête', 'error');
     }
-  }
-  
-  // === 🎨 INTERFACE UTILISATEUR ===
-  
-  async createUI() {
-    try {
-      // Créer l'icône
-      await this.createIcon();
-      
-      // Créer l'interface principale
-      await this.createMainUI();
-      
-      // Créer le tracker
-      await this.createTracker();
-      
-      console.log('🎨 [QuestSystem] UI créée');
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur création UI:', error);
-    }
-  }
-  
-  async createIcon() {
-    const { QuestIcon } = await import('./QuestIcon.js');
-    
-    // 🔥 Récupérer optionsManager depuis window
-    const optionsManager = window.optionsSystem?.manager || 
-                           window.optionsSystemGlobal?.manager ||
-                           window.optionsSystem;
-    
-    this.icon = new QuestIcon(this, optionsManager);  // ← Ajouter optionsManager
-    await this.icon.init();
-    
-    this.icon.onClick = () => {
-      if (this.ui) {
-        this.ui.toggle();
-      }
-    };
-  }
-  
-  async createMainUI() {
-    const { QuestUI } = await import('./QuestUI.js');
-    this.ui = new QuestUI(this, this.gameRoom);
-    await this.ui.init();
-    
-    this.ui.onAction = (action, data) => {
-      this.handleUIAction(action, data);
-    };
-  }
-  
-  async createTracker() {
-    // Le tracker est intégré dans QuestUI
-    this.tracker = this.ui;
   }
   
   // === 🎮 ACTIONS UI ===
@@ -477,12 +580,11 @@ export class QuestSystem {
     });
   }
   
-  // === 📡 REQUÊTES SERVEUR (Actions serveur) ===
+  // === 📡 REQUÊTES SERVEUR ===
   
   requestActiveQuests() {
     if (this.networkManager) {
       console.log('📤 [QuestSystem] Demande quêtes actives');
-      // Action serveur pour obtenir les quêtes actives
       this.networkManager.sendMessage('getActiveQuests');
     }
   }
@@ -490,7 +592,6 @@ export class QuestSystem {
   requestAvailableQuests() {
     if (this.networkManager) {
       console.log('📤 [QuestSystem] Demande quêtes disponibles');
-      // Action serveur pour obtenir les quêtes disponibles  
       this.networkManager.sendMessage('getAvailableQuests');
     }
   }
@@ -498,17 +599,15 @@ export class QuestSystem {
   startQuest(questId) {
     if (this.networkManager) {
       console.log(`📤 [QuestSystem] Démarrage quête: ${questId}`);
-      // Action serveur pour démarrer une quête
       this.networkManager.sendMessage('startQuest', { questId });
     }
   }
   
-  // === 🎭 INTERACTION NPC (selon NpcInteractionResult) ===
+  // === 🎭 INTERACTION NPC ===
   
   handleNpcInteraction(data) {
     console.log('🎭 [QuestSystem] Interaction NPC quest:', data);
     
-    // Vérifier le type selon NpcInteractionResult
     if (data.type === 'questGiver' || data.type === 'unifiedInterface') {
       this.handleQuestGiverInteraction(data);
     } else if (data.type === 'dialogue') {
@@ -519,15 +618,12 @@ export class QuestSystem {
   handleQuestGiverInteraction(data) {
     console.log('🎯 [QuestSystem] Quest Giver NPC');
     
-    // Utiliser availableQuests du NpcInteractionResult
     if (data.availableQuests && data.availableQuests.length > 0) {
       this.showQuestSelection(data.availableQuests, data.npcName);
       return;
     }
     
-    // Vérifier contextualData pour hasQuests
     if (data.contextualData?.hasQuests) {
-      // Dialogue puis demander quêtes
       if (data.lines || data.message) {
         this.showQuestGiverDialogue(data);
       }
@@ -537,7 +633,6 @@ export class QuestSystem {
       return;
     }
     
-    // Fallback: demander directement si c'est un questGiver
     if (data.capabilities?.includes('quest')) {
       this.requestAvailableQuests();
     }
@@ -546,14 +641,11 @@ export class QuestSystem {
   handleQuestProgressInteraction(data) {
     console.log('📈 [QuestSystem] Dialogue NPC');
     
-    // Afficher les lignes de dialogue
     if (data.lines || data.message) {
       this.showQuestProgressDialogue(data);
     }
     
-    // Mettre à jour progression si fournie
     if (data.questRewards && data.questRewards.length > 0) {
-      // Le NPC peut donner des récompenses de quête
       this.handleRewardReceived({
         rewards: data.questRewards,
         message: 'Récompenses de quête reçues !'
@@ -567,12 +659,11 @@ export class QuestSystem {
     if (this.networkManager) {
       console.log(`📤 [QuestSystem] Action NPC: ${actionType} sur NPC ${npcId}`);
       
-      // Selon la documentation serveur
       this.networkManager.sendMessage('npcSpecificAction', {
         npcId: npcId,
-        actionType: actionType, // 'merchant' | 'quest' | 'dialogue'
+        actionType: actionType,
         actionData: {
-          questAction: actionData.questAction, // 'start' | 'complete'
+          questAction: actionData.questAction,
           questId: actionData.questId,
           ...actionData
         }
@@ -580,7 +671,7 @@ export class QuestSystem {
     }
   }
   
-  // === 🔍 DÉTECTION TYPE NPC AMÉLIORÉE ===
+  // === 🔍 DÉTECTION TYPE NPC ===
   
   isQuestInteraction(data) {
     return !!(
@@ -689,14 +780,17 @@ export class QuestSystem {
   show() {
     if (this.ui) this.ui.show();
     if (this.icon) this.icon.show();
-    // ✅ FIX: Ne pas montrer le tracker automatiquement
-    // Le tracker s'affiche seulement s'il y a des quêtes actives
   }
   
   hide() {
     if (this.ui) this.ui.hide();
     if (this.icon) this.icon.hide();
     if (this.tracker) this.tracker.hideTracker();
+    
+    // 🆕 Fermer aussi QuestDetailsUI
+    if (this.detailsUI && this.detailsUI.isVisible) {
+      this.detailsUI.hide();
+    }
   }
   
   toggle() {
@@ -708,9 +802,10 @@ export class QuestSystem {
   setEnabled(enabled) {
     if (this.ui) this.ui.setEnabled(enabled);
     if (this.icon) this.icon.setEnabled(enabled);
+    if (this.detailsUI) this.detailsUI.setEnabled(enabled);
   }
   
-  // === 🔗 INTÉGRATION UIMANAGER AMÉLIORÉE ===
+  // === 🔗 INTÉGRATION UIMANAGER ===
   
   connectUIManager(uiManager) {
     console.log('🔗 [QuestSystem] Connexion UIManager...');
@@ -726,15 +821,13 @@ export class QuestSystem {
     }
     
     try {
-      // ✅ Enregistrer la position avec UIManager
       uiManager.registerIconPosition('quest', this.icon.iconElement, {
         anchor: 'bottom-right',
-        order: 1, // ✅ Position 2 (après inventory=0)
+        order: 1,
         spacing: 10,
         group: 'ui-icons'
       });
       
-      // ✅ Marquer comme positionné par UIManager
       this.icon.iconElement.setAttribute('data-positioned-by', 'uimanager');
       
       console.log('✅ [QuestSystem] UIManager connecté - icône enregistrée');
@@ -761,6 +854,12 @@ export class QuestSystem {
       this.icon = null;
     }
     
+    // 🆕 Détruire QuestDetailsUI
+    if (this.detailsUI) {
+      this.detailsUI.destroy();
+      this.detailsUI = null;
+    }
+    
     this.tracker = null;
     this.networkManager = null;
     this.gameRoom = null;
@@ -770,7 +869,7 @@ export class QuestSystem {
     this.availableQuests = [];
     this.completedQuests = [];
     
-    console.log('✅ [QuestSystem] Détruit');
+    console.log('✅ [QuestSystem] Détruit avec QuestDetailsUI');
   }
 }
 
@@ -778,7 +877,7 @@ export class QuestSystem {
 
 export async function createQuestSystem(gameRoom, networkManager) {
   try {
-    console.log('🏭 [QuestFactory] Création QuestSystem simplifié...');
+    console.log('🏭 [QuestFactory] Création QuestSystem avec QuestDetailsUI...');
     
     const questSystem = new QuestSystem(gameRoom, networkManager);
     await questSystem.init();
@@ -792,7 +891,27 @@ export async function createQuestSystem(gameRoom, networkManager) {
     window.openQuest = () => questSystem.show();
     window.closeQuest = () => questSystem.hide();
     
-    console.log('✅ [QuestFactory] QuestSystem créé avec succès');
+    // 🆕 NOUVELLE FONCTION : Tester QuestDetailsUI
+    window.testQuestDetailsUI = (npcId = 2, questIds = ['test_quest_1']) => {
+      console.log('🧪 Test QuestDetailsUI...');
+      if (questIds.length === 1) {
+        questSystem.showQuestDetailsForNpc(npcId, questIds);
+      } else {
+        questSystem.showQuestDetailsForNpc(npcId, questIds);
+      }
+      return true;
+    };
+    
+    // 🆕 NOUVELLE FONCTION : Simuler action DialogueManager
+    window.testQuestAction = (npcId = 2) => {
+      console.log('🧪 Test action quest DialogueManager...');
+      return questSystem.handleQuestActionFromDialogue({ npcId });
+    };
+    
+    console.log('✅ [QuestFactory] QuestSystem créé avec QuestDetailsUI');
+    console.log('🧪 Utilisez window.testQuestDetailsUI() pour tester');
+    console.log('🧪 Utilisez window.testQuestAction() pour simuler DialogueManager');
+    
     return questSystem;
     
   } catch (error) {
