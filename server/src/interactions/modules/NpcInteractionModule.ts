@@ -536,107 +536,99 @@ export class NpcInteractionModule extends BaseInteractionModule {
   /**
    * ✅ CORRIGÉ : Analyse toutes les capacités d'un NPC avec détection quêtes FIXÉE
    */
-  private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): Promise<NpcCapability[]> {
-    const capabilities: NpcCapability[] = [];
+private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): Promise<NpcCapability[]> {
+  const capabilities: NpcCapability[] = [];
+  
+  console.log(`🔍 [NPC CAPABILITIES] === ANALYSE DÉTAILLÉE NPC ${npcId} (${npc.name}) ===`);
+  console.log(`📊 [NPC DATA]`, {
+    type: npc.type,
+    questsToGive: npc.questsToGive,
+    questsToEnd: npc.questsToEnd,
+    shopId: npc.shopId,
+    properties: npc.properties
+  });
+  
+  // Capacité de base selon le type
+  if (npc.type) {
+    switch (npc.type) {
+      case 'merchant':
+        capabilities.push('merchant');
+        break;
+      case 'healer':
+        capabilities.push('healer');
+        break;
+      case 'trainer':
+        capabilities.push('trainer');
+        break;
+      case 'quest_master':
+        capabilities.push('quest');
+        break;
+      default:
+        capabilities.push('dialogue');
+    }
+  } else {
+    capabilities.push('dialogue');
+  }
+  
+  console.log(`📋 [NPC CAPABILITIES] Capacité de base: ${capabilities[0]} (type: ${npc.type})`);
+  
+  // ✅ CORRECTION MAJEURE : Vérification quest PRÉCISE
+  let hasQuestCapability = false;
+  
+  try {
+    console.log(`🔍 [QUEST CAPABILITY] === VÉRIFICATION QUÊTES POUR NPC ${npcId} ===`);
     
-    console.log(`🔍 [NPC CAPABILITIES] === ANALYSE DÉTAILLÉE NPC ${npcId} (${npc.name}) ===`);
-    console.log(`📊 [NPC DATA]`, {
-      type: npc.type,
-      questsToGive: npc.questsToGive,
-      questsToEnd: npc.questsToEnd,
-      shopId: npc.shopId,
-      properties: npc.properties
-    });
-    
-    // Capacité de base selon le type
-    if (npc.type) {
-      switch (npc.type) {
-        case 'merchant':
-          capabilities.push('merchant');
-          break;
-        case 'healer':
-          capabilities.push('healer');
-          break;
-        case 'trainer':
-          capabilities.push('trainer');
-          break;
-        case 'quest_master':
-          capabilities.push('quest');
-          break;
-        default:
-          capabilities.push('dialogue');
+    // ✅ ÉTAPE 1: Vérifier questsToGive avec validation réelle
+    if (npc.questsToGive && Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0) {
+      console.log(`📜 [QUEST CAPABILITY] NPC a questsToGive:`, npc.questsToGive);
+      
+      for (const questId of npc.questsToGive) {
+        console.log(`🎯 [QUEST CHECK] Vérification quête: ${questId}`);
+        
+        try {
+          const questStatus = await this.questManager.getQuestStatus(player.name, questId);
+          console.log(`📊 [QUEST STATUS] Quête ${questId}: ${questStatus}`);
+          
+          if (questStatus === 'available') {
+            hasQuestCapability = true;
+            console.log(`✅ [QUEST CAPABILITY] Quête disponible trouvée: ${questId}`);
+            break; // Une seule quête disponible suffit
+          }
+        } catch (questError) {
+          console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête ${questId}:`, questError);
+          // ❌ CORRECTION: PAS de fallback automatique en cas d'erreur
+          // Ne pas ajouter la capacité juste parce qu'il y a une erreur
+        }
       }
-    } else {
-      capabilities.push('dialogue');
     }
     
-    console.log(`📋 [NPC CAPABILITIES] Capacité de base: ${capabilities[0]} (type: ${npc.type})`);
-    
-    // ✅ CORRECTION MAJEURE : Vérifier si le NPC peut donner des quêtes
-    try {
-      console.log(`🔍 [QUEST CAPABILITY] === VÉRIFICATION QUÊTES POUR NPC ${npcId} ===`);
+    // ✅ ÉTAPE 2: Vérifier questsToEnd avec validation réelle
+    if (!hasQuestCapability && npc.questsToEnd && Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0) {
+      console.log(`🏁 [QUEST CAPABILITY] NPC a questsToEnd:`, npc.questsToEnd);
       
-      // Méthode 1: Vérifier questsToGive dans les données NPC
-      if (npc.questsToGive && Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0) {
-        console.log(`📜 [QUEST CAPABILITY] NPC a questsToGive:`, npc.questsToGive);
-        
-        // ✅ NOUVEAU : Vérifier chaque quête individuellement
-        for (const questId of npc.questsToGive) {
-          console.log(`🎯 [QUEST CHECK] Vérification quête: ${questId}`);
+      for (const questId of npc.questsToEnd) {
+        try {
+          const questStatus = await this.questManager.getQuestStatus(player.name, questId);
+          console.log(`📊 [QUEST STATUS] Quête à terminer ${questId}: ${questStatus}`);
           
-          try {
-            const questStatus = await this.questManager.getQuestStatus(player.name, questId);
-            console.log(`📊 [QUEST STATUS] Quête ${questId}: ${questStatus}`);
-            
-            if (questStatus === 'available') {
-              if (!capabilities.includes('quest')) {
-                capabilities.push('quest');
-                console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" - Quête disponible: ${questId}`);
-              }
-              break; // Une seule quête disponible suffit
-            }
-          } catch (questError) {
-            console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête ${questId}:`, questError);
-            // ✅ FALLBACK : Si erreur, considérer que la quête pourrait être disponible
-            if (!capabilities.includes('quest')) {
-              capabilities.push('quest');
-              console.log(`⚠️ [QUEST CAPABILITY] Ajout de "quest" (fallback) - Quête potentielle: ${questId}`);
-            }
+          if (questStatus === 'readyToComplete') {
+            hasQuestCapability = true;
+            console.log(`✅ [QUEST CAPABILITY] Quête prête à terminer: ${questId}`);
+            break;
           }
+        } catch (questError) {
+          console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête end ${questId}:`, questError);
+          // ❌ CORRECTION: PAS de fallback automatique
         }
-      } else {
-        console.log(`📭 [QUEST CAPABILITY] Aucune questsToGive pour NPC ${npcId}`);
       }
-      
-      // Méthode 2: Vérifier questsToEnd
-      if (npc.questsToEnd && Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0) {
-        console.log(`🏁 [QUEST CAPABILITY] NPC a questsToEnd:`, npc.questsToEnd);
-        
-        for (const questId of npc.questsToEnd) {
-          try {
-            const questStatus = await this.questManager.getQuestStatus(player.name, questId);
-            console.log(`📊 [QUEST STATUS] Quête à terminer ${questId}: ${questStatus}`);
-            
-            if (questStatus === 'readyToComplete') {
-              if (!capabilities.includes('quest')) {
-                capabilities.push('quest');
-                console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" - Quête à terminer: ${questId}`);
-              }
-              break;
-            }
-          } catch (questError) {
-            console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête end ${questId}:`, questError);
-          }
-        }
-      } else {
-        console.log(`📭 [QUEST CAPABILITY] Aucune questsToEnd pour NPC ${npcId}`);
-      }
-      
-      // ✅ NOUVEAU : Méthode 3 - Vérifier via QuestManager (double sécurité)
+    }
+    
+    // ✅ ÉTAPE 3: Double vérification via QuestManager (seulement si pas déjà trouvé)
+    if (!hasQuestCapability) {
       try {
-        console.log(`🔍 [QUEST MANAGER] Vérification via QuestManager...`);
+        console.log(`🔍 [QUEST MANAGER] Vérification finale via QuestManager...`);
         const npcQuests = this.questManager.getQuestsForNpc(npcId);
-        console.log(`📚 [QUEST MANAGER] ${npcQuests.length} quêtes trouvées pour NPC ${npcId}:`, npcQuests.map(q => q.id));
+        console.log(`📚 [QUEST MANAGER] ${npcQuests.length} quêtes définies pour NPC ${npcId}`);
         
         if (npcQuests.length > 0) {
           for (const questDef of npcQuests) {
@@ -645,56 +637,62 @@ export class NpcInteractionModule extends BaseInteractionModule {
               console.log(`📊 [QUEST MANAGER] Quête ${questDef.id}: ${questStatus}`);
               
               if (questStatus === 'available' || questStatus === 'readyToComplete') {
-                if (!capabilities.includes('quest')) {
-                  capabilities.push('quest');
-                  console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" via QuestManager - Quête: ${questDef.id}`);
-                }
+                hasQuestCapability = true;
+                console.log(`✅ [QUEST CAPABILITY] Quête viable via QuestManager: ${questDef.id}`);
                 break;
               }
             } catch (questError) {
               console.warn(`⚠️ [QUEST MANAGER] Erreur statut quête ${questDef.id}:`, questError);
+              // ❌ CORRECTION: Continue sans ajouter la capacité
             }
           }
         }
       } catch (questManagerError) {
         console.warn(`⚠️ [QUEST MANAGER] Erreur lors de l'appel QuestManager:`, questManagerError);
-      }
-      
-    } catch (error) {
-      console.warn(`⚠️ [QUEST CAPABILITY] Erreur générale vérification quêtes:`, error);
-      
-      // ✅ FALLBACK SÉCURISÉ : Si le NPC a des quêtes définies, ajouter la capacité
-      if ((npc.questsToGive && npc.questsToGive.length > 0) || 
-          (npc.questsToEnd && npc.questsToEnd.length > 0)) {
-        if (!capabilities.includes('quest')) {
-          capabilities.push('quest');
-          console.log(`🚨 [QUEST CAPABILITY] Ajout de "quest" (fallback sécurisé) - NPC a des quêtes définies`);
-        }
+        // ❌ CORRECTION: Pas de fallback automatique
       }
     }
     
-    // ✅ Vérifier si le NPC a une boutique
-    if (npc.shopId || npc.properties?.shop) {
-      if (!capabilities.includes('merchant')) {
-        capabilities.push('merchant');
-        console.log(`✅ [SHOP CAPABILITY] NPC a une boutique, ajout de "merchant"`);
-      }
+    // ✅ ÉTAPE 4: Ajouter la capacité SEULEMENT si réellement justifiée
+    if (hasQuestCapability && !capabilities.includes('quest')) {
+      capabilities.push('quest');
+      console.log(`✅ [QUEST CAPABILITY] Capacité 'quest' ajoutée - Quête(s) valide(s) trouvée(s)`);
+    } else if (!hasQuestCapability) {
+      console.log(`❌ [QUEST CAPABILITY] Aucune capacité 'quest' ajoutée - Aucune quête viable`);
     }
     
-    // ✅ Vérifier si le NPC peut soigner
-    if (npc.properties?.healer || npc.type === 'healer') {
-      if (!capabilities.includes('healer')) {
-        capabilities.push('healer');
-        console.log(`✅ [HEALER CAPABILITY] NPC peut soigner, ajout de "healer"`);
-      }
-    }
+  } catch (error) {
+    console.warn(`⚠️ [QUEST CAPABILITY] Erreur générale vérification quêtes:`, error);
     
-    console.log(`🎯 [NPC CAPABILITIES] === RÉSULTAT FINAL ===`);
-    console.log(`🎯 [NPC CAPABILITIES] Capacités pour NPC ${npcId}:`, capabilities);
-    console.log(`🎯 [NPC CAPABILITIES] ================================`);
-    
-    return capabilities;
+    // ✅ CORRECTION MAJEURE: AUCUN FALLBACK EN CAS D'ERREUR
+    // Avant: on ajoutait automatiquement la capacité en cas d'erreur
+    // Maintenant: on n'ajoute que si on a des preuves réelles
+    console.log(`🚫 [QUEST CAPABILITY] Pas de fallback automatique - Erreur n'implique pas capacité quête`);
   }
+  
+  // ✅ Vérifier si le NPC a une boutique
+  if (npc.shopId || npc.properties?.shop) {
+    if (!capabilities.includes('merchant')) {
+      capabilities.push('merchant');
+      console.log(`✅ [SHOP CAPABILITY] NPC a une boutique, ajout de "merchant"`);
+    }
+  }
+  
+  // ✅ Vérifier si le NPC peut soigner
+  if (npc.properties?.healer || npc.type === 'healer') {
+    if (!capabilities.includes('healer')) {
+      capabilities.push('healer');
+      console.log(`✅ [HEALER CAPABILITY] NPC peut soigner, ajout de "healer"`);
+    }
+  }
+  
+  console.log(`🎯 [NPC CAPABILITIES] === RÉSULTAT FINAL ===`);
+  console.log(`🎯 [NPC CAPABILITIES] Capacités pour NPC ${npcId}:`, capabilities);
+  console.log(`🎯 [NPC CAPABILITIES] Quest capability: ${capabilities.includes('quest') ? 'OUI' : 'NON'}`);
+  console.log(`🎯 [NPC CAPABILITIES] ================================`);
+  
+  return capabilities;
+}
 
   /**
    * ✅ NOUVELLE IMPLÉMENTATION : Récupère les quêtes disponibles pour un NPC
