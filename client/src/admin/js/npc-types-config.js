@@ -47,58 +47,46 @@ export const NPC_TYPES = {
         }
     },
 
-    merchant: {
-        icon: '🏪',
-        name: 'Marchand/Boutique',
-        description: 'NPC qui vend des objets, tient une boutique',
-        color: '#27ae60',
-        
-        sections: ['basic', 'shop', 'business', 'access', 'dialogues', 'quests', 'interaction'],
-        
-        fields: {
-            required: ['name', 'type', 'position', 'sprite', 'shopId', 'shopType'],
-            optional: [
-                'direction', 'dialogueIds', 'shopConfig', 'shopDialogueIds', 'businessHours',
-                'accessRestrictions', 'questsToGive', 'questsToEnd', 'questRequirements',
-                'questDialogueIds', 'spawnConditions', 'interactionRadius', 'canWalkAway',
-                'autoFacePlayer', 'repeatable', 'cooldownSeconds'
-            ]
-        },
-        
-        fieldGroups: {
-            basic: ['name', 'position', 'sprite', 'direction', 'interactionRadius'],
-            shop: ['shopId', 'shopType', 'shopConfig'],
-            business: ['businessHours'],
-            access: ['accessRestrictions'],
-            dialogues: ['dialogueIds', 'shopDialogueIds'],
-            quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
-            interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
-        },
-        
-        fieldTypes: {
-            shopId: 'string',
-            shopType: 'select',
-            dialogueIds: 'array',
-            shopConfig: 'object',
-            shopDialogueIds: 'object',
-            businessHours: 'object',
-            accessRestrictions: 'object',
-            questsToGive: 'array',
-            questsToEnd: 'array',
-            questRequirements: 'object',
-            questDialogueIds: 'object',
-            spawnConditions: 'object',
-            interactionRadius: 'number',
-            canWalkAway: 'boolean',
-            autoFacePlayer: 'boolean',
-            repeatable: 'boolean',
-            cooldownSeconds: 'number'
-        },
-        
-        selectOptions: {
-            shopType: ['pokemart', 'items', 'tms', 'berries', 'clothes', 'black_market']
-        }
+   merchant: {
+    icon: '🏪',
+    name: 'Marchand/Boutique',
+    description: 'NPC qui vend des objets, tient une boutique',
+    color: '#27ae60',
+    
+    sections: ['basic', 'shop', 'dialogues', 'quests', 'interaction'],
+    
+    fields: {
+        required: ['name', 'type', 'position', 'sprite', 'shopId'],
+        optional: [
+            'direction', 'dialogueIds', 'questsToGive', 'questsToEnd', 'questRequirements',
+            'questDialogueIds', 'spawnConditions', 'interactionRadius', 'canWalkAway',
+            'autoFacePlayer', 'repeatable', 'cooldownSeconds'
+        ]
     },
+    
+    fieldGroups: {
+        basic: ['name', 'position', 'sprite', 'direction', 'interactionRadius'],
+        shop: ['shopId'],
+        dialogues: ['dialogueIds'],
+        quests: ['questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds'],
+        interaction: ['canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds']
+    },
+    
+    fieldTypes: {
+        shopId: 'string',
+        dialogueIds: 'array',
+        questsToGive: 'array',
+        questsToEnd: 'array',
+        questRequirements: 'object',
+        questDialogueIds: 'object',
+        spawnConditions: 'object',
+        interactionRadius: 'number',
+        canWalkAway: 'boolean',
+        autoFacePlayer: 'boolean',
+        repeatable: 'boolean',
+        cooldownSeconds: 'number'
+    }
+},
 
     trainer: {
         icon: '⚔️',
