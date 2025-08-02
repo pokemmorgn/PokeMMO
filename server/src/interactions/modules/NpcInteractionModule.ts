@@ -1,4 +1,4 @@
-// src/interactions/modules/NpcInteractionModule.ts - VERSION SÉCURISÉE AVEC CAPACITÉS
+// src/interactions/modules/NpcInteractionModule.ts - VERSION SÉCURISÉE AVEC CAPACITÉS CORRIGÉES
 import { Player } from "../../schema/PokeWorldState";
 import { QuestManager } from "../../managers/QuestManager";
 import { ShopManager } from "../../managers/ShopManager";
@@ -104,7 +104,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   
   readonly moduleName = "NpcInteractionModule";
   readonly supportedTypes: InteractionType[] = ["npc"];
-  readonly version = "5.0.0";
+  readonly version = "5.1.0"; // ✅ Version incrémentée pour les correctifs
 
   private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
@@ -534,10 +534,19 @@ export class NpcInteractionModule extends BaseInteractionModule {
   }
 
   /**
-   * ✅ NOUVELLE MÉTHODE : Analyse toutes les capacités d'un NPC
+   * ✅ CORRIGÉ : Analyse toutes les capacités d'un NPC avec détection quêtes FIXÉE
    */
   private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): Promise<NpcCapability[]> {
     const capabilities: NpcCapability[] = [];
+    
+    console.log(`🔍 [NPC CAPABILITIES] === ANALYSE DÉTAILLÉE NPC ${npcId} (${npc.name}) ===`);
+    console.log(`📊 [NPC DATA]`, {
+      type: npc.type,
+      questsToGive: npc.questsToGive,
+      questsToEnd: npc.questsToEnd,
+      shopId: npc.shopId,
+      properties: npc.properties
+    });
     
     // Capacité de base selon le type
     if (npc.type) {
@@ -561,26 +570,114 @@ export class NpcInteractionModule extends BaseInteractionModule {
       capabilities.push('dialogue');
     }
     
-    // ✅ Vérifier si le NPC peut donner des quêtes
+    console.log(`📋 [NPC CAPABILITIES] Capacité de base: ${capabilities[0]} (type: ${npc.type})`);
+    
+    // ✅ CORRECTION MAJEURE : Vérifier si le NPC peut donner des quêtes
     try {
-      const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
-      const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
+      console.log(`🔍 [QUEST CAPABILITY] === VÉRIFICATION QUÊTES POUR NPC ${npcId} ===`);
       
-      if (availableQuests.length > 0 || readyToCompleteQuests.length > 0) {
+      // Méthode 1: Vérifier questsToGive dans les données NPC
+      if (npc.questsToGive && Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0) {
+        console.log(`📜 [QUEST CAPABILITY] NPC a questsToGive:`, npc.questsToGive);
+        
+        // ✅ NOUVEAU : Vérifier chaque quête individuellement
+        for (const questId of npc.questsToGive) {
+          console.log(`🎯 [QUEST CHECK] Vérification quête: ${questId}`);
+          
+          try {
+            const questStatus = await this.questManager.getQuestStatus(player.name, questId);
+            console.log(`📊 [QUEST STATUS] Quête ${questId}: ${questStatus}`);
+            
+            if (questStatus === 'available') {
+              if (!capabilities.includes('quest')) {
+                capabilities.push('quest');
+                console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" - Quête disponible: ${questId}`);
+              }
+              break; // Une seule quête disponible suffit
+            }
+          } catch (questError) {
+            console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête ${questId}:`, questError);
+            // ✅ FALLBACK : Si erreur, considérer que la quête pourrait être disponible
+            if (!capabilities.includes('quest')) {
+              capabilities.push('quest');
+              console.log(`⚠️ [QUEST CAPABILITY] Ajout de "quest" (fallback) - Quête potentielle: ${questId}`);
+            }
+          }
+        }
+      } else {
+        console.log(`📭 [QUEST CAPABILITY] Aucune questsToGive pour NPC ${npcId}`);
+      }
+      
+      // Méthode 2: Vérifier questsToEnd
+      if (npc.questsToEnd && Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0) {
+        console.log(`🏁 [QUEST CAPABILITY] NPC a questsToEnd:`, npc.questsToEnd);
+        
+        for (const questId of npc.questsToEnd) {
+          try {
+            const questStatus = await this.questManager.getQuestStatus(player.name, questId);
+            console.log(`📊 [QUEST STATUS] Quête à terminer ${questId}: ${questStatus}`);
+            
+            if (questStatus === 'readyToComplete') {
+              if (!capabilities.includes('quest')) {
+                capabilities.push('quest');
+                console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" - Quête à terminer: ${questId}`);
+              }
+              break;
+            }
+          } catch (questError) {
+            console.warn(`⚠️ [QUEST CHECK] Erreur vérification quête end ${questId}:`, questError);
+          }
+        }
+      } else {
+        console.log(`📭 [QUEST CAPABILITY] Aucune questsToEnd pour NPC ${npcId}`);
+      }
+      
+      // ✅ NOUVEAU : Méthode 3 - Vérifier via QuestManager (double sécurité)
+      try {
+        console.log(`🔍 [QUEST MANAGER] Vérification via QuestManager...`);
+        const npcQuests = this.questManager.getQuestsForNpc(npcId);
+        console.log(`📚 [QUEST MANAGER] ${npcQuests.length} quêtes trouvées pour NPC ${npcId}:`, npcQuests.map(q => q.id));
+        
+        if (npcQuests.length > 0) {
+          for (const questDef of npcQuests) {
+            try {
+              const questStatus = await this.questManager.getQuestStatus(player.name, questDef.id);
+              console.log(`📊 [QUEST MANAGER] Quête ${questDef.id}: ${questStatus}`);
+              
+              if (questStatus === 'available' || questStatus === 'readyToComplete') {
+                if (!capabilities.includes('quest')) {
+                  capabilities.push('quest');
+                  console.log(`✅ [QUEST CAPABILITY] Ajout de "quest" via QuestManager - Quête: ${questDef.id}`);
+                }
+                break;
+              }
+            } catch (questError) {
+              console.warn(`⚠️ [QUEST MANAGER] Erreur statut quête ${questDef.id}:`, questError);
+            }
+          }
+        }
+      } catch (questManagerError) {
+        console.warn(`⚠️ [QUEST MANAGER] Erreur lors de l'appel QuestManager:`, questManagerError);
+      }
+      
+    } catch (error) {
+      console.warn(`⚠️ [QUEST CAPABILITY] Erreur générale vérification quêtes:`, error);
+      
+      // ✅ FALLBACK SÉCURISÉ : Si le NPC a des quêtes définies, ajouter la capacité
+      if ((npc.questsToGive && npc.questsToGive.length > 0) || 
+          (npc.questsToEnd && npc.questsToEnd.length > 0)) {
         if (!capabilities.includes('quest')) {
           capabilities.push('quest');
-          console.log('✅ [QUEST CAPABILITY] NPC peut donner des quêtes, ajout de "quest"');
+          console.log(`🚨 [QUEST CAPABILITY] Ajout de "quest" (fallback sécurisé) - NPC a des quêtes définies`);
         }
       }
-    } catch (error) {
-      console.warn('⚠️ [QUEST CAPABILITY] Erreur vérification quêtes:', error);
     }
     
     // ✅ Vérifier si le NPC a une boutique
     if (npc.shopId || npc.properties?.shop) {
       if (!capabilities.includes('merchant')) {
         capabilities.push('merchant');
-        console.log('✅ [SHOP CAPABILITY] NPC a une boutique, ajout de "merchant"');
+        console.log(`✅ [SHOP CAPABILITY] NPC a une boutique, ajout de "merchant"`);
       }
     }
     
@@ -588,11 +685,75 @@ export class NpcInteractionModule extends BaseInteractionModule {
     if (npc.properties?.healer || npc.type === 'healer') {
       if (!capabilities.includes('healer')) {
         capabilities.push('healer');
-        console.log('✅ [HEALER CAPABILITY] NPC peut soigner, ajout de "healer"');
+        console.log(`✅ [HEALER CAPABILITY] NPC peut soigner, ajout de "healer"`);
       }
     }
     
+    console.log(`🎯 [NPC CAPABILITIES] === RÉSULTAT FINAL ===`);
+    console.log(`🎯 [NPC CAPABILITIES] Capacités pour NPC ${npcId}:`, capabilities);
+    console.log(`🎯 [NPC CAPABILITIES] ================================`);
+    
     return capabilities;
+  }
+
+  /**
+   * ✅ NOUVELLE IMPLÉMENTATION : Récupère les quêtes disponibles pour un NPC
+   */
+  private async getAvailableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
+    try {
+      console.log(`🔍 [getAvailableQuestsForNpc] === RECHERCHE QUÊTES DISPONIBLES ===`);
+      console.log(`👤 Joueur: ${username}, NPC: ${npcId}`);
+      
+      // 1. Récupérer toutes les quêtes disponibles pour le joueur
+      const allAvailableQuests = await this.questManager.getAvailableQuests(username);
+      console.log(`📚 [getAvailableQuestsForNpc] ${allAvailableQuests.length} quêtes disponibles au total`);
+      
+      // 2. Filtrer celles qui sont données par ce NPC
+      const npcAvailableQuests = allAvailableQuests.filter(quest => 
+        quest.startNpcId === npcId
+      );
+      
+      console.log(`🎯 [getAvailableQuestsForNpc] ${npcAvailableQuests.length} quêtes disponibles pour NPC ${npcId}:`);
+      npcAvailableQuests.forEach(quest => {
+        console.log(`  📜 ${quest.id}: ${quest.name}`);
+      });
+      
+      return npcAvailableQuests;
+      
+    } catch (error) {
+      console.error(`❌ [getAvailableQuestsForNpc] Erreur:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE IMPLÉMENTATION : Récupère les quêtes prêtes à compléter pour un NPC
+   */
+  private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
+    try {
+      console.log(`🔍 [getReadyToCompleteQuestsForNpc] === RECHERCHE QUÊTES À TERMINER ===`);
+      console.log(`👤 Joueur: ${username}, NPC: ${npcId}`);
+      
+      // 1. Récupérer toutes les quêtes actives du joueur
+      const activeQuests = await this.questManager.getActiveQuests(username);
+      console.log(`📚 [getReadyToCompleteQuestsForNpc] ${activeQuests.length} quêtes actives au total`);
+      
+      // 2. Filtrer celles qui sont terminées chez ce NPC
+      const readyToCompleteQuests = activeQuests.filter(quest => 
+        quest.endNpcId === npcId && quest.status === 'readyToComplete'
+      );
+      
+      console.log(`🏁 [getReadyToCompleteQuestsForNpc] ${readyToCompleteQuests.length} quêtes prêtes à terminer pour NPC ${npcId}:`);
+      readyToCompleteQuests.forEach(quest => {
+        console.log(`  🎯 ${quest.id}: ${quest.name}`);
+      });
+      
+      return readyToCompleteQuests;
+      
+    } catch (error) {
+      console.error(`❌ [getReadyToCompleteQuestsForNpc] Erreur:`, error);
+      return [];
+    }
   }
 
   /**
@@ -694,10 +855,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
     questProgress: any[], 
     playerLanguage: string
   ): Promise<NpcInteractionResult> {
+    console.log(`🎯 [executeQuestAction] === EXÉCUTION ACTION QUÊTE ===`);
+    console.log(`👤 Joueur: ${player.name}, NPC: ${npcId}`);
+    
     // 1. Vérifier les quêtes à terminer
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
     
     if (readyToCompleteQuests.length > 0) {
+      console.log(`🏁 [executeQuestAction] ${readyToCompleteQuests.length} quêtes à terminer`);
+      
       const firstQuest = readyToCompleteQuests[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const completionDialogue = await this.getQuestDialogue(questDefinition, 'questComplete', player, playerLanguage);
@@ -744,6 +910,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
     const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
     
     if (availableQuests.length > 0) {
+      console.log(`📜 [executeQuestAction] ${availableQuests.length} quêtes à donner`);
+      
       const firstQuest = availableQuests[0];
       const questOfferDialogue = await this.getQuestDialogue(firstQuest, 'questOffer', player, playerLanguage);
       
@@ -783,6 +951,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
     );
 
     if (questsForThisNpc.length > 0) {
+      console.log(`📋 [executeQuestAction] ${questsForThisNpc.length} quêtes en cours`);
+      
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const progressDialogue = await this.getQuestDialogue(questDefinition, 'questInProgress', player, playerLanguage);
@@ -800,6 +970,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
       };
     }
     
+    console.log(`📭 [executeQuestAction] Aucune quête trouvée, fallback vers dialogue`);
     // Fallback vers dialogue si pas de quêtes
     return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
   }
@@ -1432,14 +1603,6 @@ export class NpcInteractionModule extends BaseInteractionModule {
     } catch (error) {
       return ["Dialogue par défaut"];
     }
-  }
-
-  private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
-    return [];
-  }
-
-  private async getAvailableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
-    return [];
   }
 
   private async getDialogueLines(npc: any, player: Player, playerLanguage: string = 'fr'): Promise<string[]> {
