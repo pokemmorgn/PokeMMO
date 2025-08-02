@@ -113,40 +113,50 @@ export class NPCEditorModule {
 // À remplacer dans client/src/admin/js/npc-editor.js
 
 convertMongoNPCToEditorFormat(mongoNPC) {
-    console.log('🔄 [NPCEditor] Converting MongoDB NPC with ALL fields:', mongoNPC);
+    console.log('🔄 [NPCEditor] Converting MongoDB NPC with shopId model:', mongoNPC);
     
-    // ✅ CORRECTION: D'ABORD copier tous les champs de MongoDB
+    // Copier tous les champs de MongoDB
     const editorNPC = {
-        ...mongoNPC, // ← Copier TOUT en premier
+        ...mongoNPC,
     };
     
-    // ✅ PUIS forcer les champs critiques (qui vont override ce qui existe déjà)
+    // Forcer les champs critiques
     editorNPC.id = mongoNPC.npcId || mongoNPC.id;
     editorNPC.name = mongoNPC.name || 'NPC Sans Nom';
     editorNPC.type = mongoNPC.type || 'dialogue';
     editorNPC.sprite = mongoNPC.sprite || 'default.png';
     editorNPC.direction = mongoNPC.direction || 'south';
     
-    // ✅ Position avec validation STRICTE (toujours forcer)
+    // Position avec validation STRICTE
     editorNPC.position = {
         x: Number(mongoNPC.position?.x) || 0,
         y: Number(mongoNPC.position?.y) || 0
     };
     
-    // ✅ CORRECTION: Merger les données de npcData si elles existent
+    // ✅ NOUVEAU : Gestion shopId simplifié
+    if (mongoNPC.shopId) {
+        editorNPC.shopId = mongoNPC.shopId;
+        console.log('🏪 [NPCEditor] ShopId preserved:', editorNPC.shopId);
+    }
+    
+    // ✅ MIGRATION : Si ancien shopConfig existe, migrer vers shopId
+    if (mongoNPC.shopConfig?.shopId && !editorNPC.shopId) {
+        editorNPC.shopId = mongoNPC.shopConfig.shopId;
+        console.log('🔄 [NPCEditor] Migrated shopConfig.shopId to shopId:', editorNPC.shopId);
+    }
+    
+    // Merger les données de npcData si elles existent
     if (mongoNPC.npcData && typeof mongoNPC.npcData === 'object') {
         console.log('🔍 [NPCEditor] Merging npcData fields:', Object.keys(mongoNPC.npcData));
         
-        // Copier tous les champs de npcData qui n'existent pas déjà au niveau racine
         Object.entries(mongoNPC.npcData).forEach(([key, value]) => {
             if (editorNPC[key] === undefined || editorNPC[key] === null) {
                 editorNPC[key] = value;
-                console.log(`📋 [NPCEditor] Merged from npcData: ${key}`);
             }
         });
     }
     
-    // ✅ S'assurer que les champs obligatoires ont des valeurs par défaut
+    // S'assurer que les champs obligatoires ont des valeurs par défaut
     const defaults = {
         interactionRadius: 32,
         canWalkAway: true,
@@ -160,26 +170,80 @@ convertMongoNPCToEditorFormat(mongoNPC) {
         spawnConditions: {}
     };
     
-    // Appliquer les defaults seulement si la valeur n'existe pas
     Object.entries(defaults).forEach(([key, defaultValue]) => {
         if (editorNPC[key] === undefined || editorNPC[key] === null) {
             editorNPC[key] = defaultValue;
         }
     });
     
-    console.log('✅ [NPCEditor] NPC converted with ALL fields preserved');
-    console.log('📋 [NPCEditor] Final NPC keys:', Object.keys(editorNPC).length, 'fields');
-    console.log('📍 [NPCEditor] Position preserved:', editorNPC.position);
-    
-    // ✅ Debug spécifique pour les champs importants
-    if (mongoNPC.type === 'merchant') {
-console.log('🏪 [NPCEditor] Merchant fields - shopId:', editorNPC.shopId, 'shopType:', editorNPC.shopType);
-    }
-    if (mongoNPC.type === 'trainer') {
-        console.log('⚔️ [NPCEditor] Trainer fields - trainerId:', editorNPC.trainerId, 'battleConfig:', !!editorNPC.battleConfig);
-    }
+    console.log('✅ [NPCEditor] NPC converted with shopId model');
+    console.log('🏪 [NPCEditor] Final shopId:', editorNPC.shopId);
     
     return editorNPC;
+}
+
+// ✅ MISE À JOUR : Méthode de sauvegarde pour inclure shopId
+async saveCurrentNPCToMongoDB() {
+    if (!this.selectedNPC || !this.formBuilder) return
+
+    const npc = this.formBuilder.getNPC()
+    if (!npc) return
+
+    // Valider le NPC
+    const validation = this.validator.validateNPC(npc)
+    if (!validation.valid) {
+        this.adminPanel.showNotification(`Erreurs de validation : ${validation.errors.length}`, 'error')
+        return
+    }
+
+    // Sauvegarder localement d'abord
+    const existingIndex = this.npcs.findIndex(n => n.id === npc.id)
+    
+    if (existingIndex !== -1) {
+        this.npcs[existingIndex] = { ...npc }
+    } else {
+        this.npcs.push({ ...npc })
+    }
+    
+    this.selectedNPC = { ...npc }
+    this.renderNPCsList()
+    this.renderZoneStats()
+
+    // ✅ NOUVEAU: Sauvegarder avec shopId simplifié
+    try {
+        // Préparer les données avec le nouveau modèle
+        const npcForMongo = {
+            ...npc,
+            // ✅ S'assurer que shopId est bien inclus au niveau racine
+            shopId: npc.shopId || '',
+            // ✅ Retirer l'ancien shopConfig s'il existe
+            shopConfig: undefined
+        };
+        
+        console.log('💾 [NPCEditor] Saving with shopId:', npcForMongo.shopId);
+        
+        const response = await this.adminPanel.apiCall(`/zones/${this.currentZone}/npcs/${npc.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                npc: npcForMongo,
+                zone: this.currentZone,
+                lastUpdated: new Date().toISOString()
+            })
+        })
+        
+        if (response.success) {
+            console.log('✅ [NPCEditor] NPC saved to MongoDB with shopId model:', response)
+            this.unsavedChanges = false
+            this.renderZoneStats()
+            this.adminPanel.showNotification(`NPC "${npc.name}" sauvegardé dans MongoDB`, 'success')
+        } else {
+            throw new Error(response.error || 'Erreur sauvegarde MongoDB')
+        }
+        
+    } catch (error) {
+        console.error('❌ [NPCEditor] Error saving NPC with shopId:', error)
+        this.adminPanel.showNotification('Erreur sauvegarde MongoDB: ' + error.message, 'error')
+    }
 }
 
     
