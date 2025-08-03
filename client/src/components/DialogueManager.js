@@ -207,175 +207,185 @@ export class DialogueManager {
 
   // ===== DÉTECTION DES ACTIONS CORRIGÉE =====
   
-  detectAvailableActions(data) {
-    const actions = [];
-    
-    // Détecter selon les capabilities ou le type de données
-    let capabilities = data.capabilities || [];
-    
-    // 🆕 Si les données viennent de l'interface unifiée, extraire les capabilities
-    if (data.unifiedInterface && data.unifiedInterface.capabilities) {
-      capabilities = data.unifiedInterface.capabilities;
-      console.log('🔄 Extraction capabilities depuis interface unifiée:', capabilities);
-    }
-    
-    const npcType = data.npcType || data.type;
-    
-    // 🔧 EXTRACTION QUEST DATA CORRIGÉE
-    const unifiedQuestData = data.unifiedInterface?.questData;
-    const legacyQuestData = data.questData;
-    
-    // 🆕 NOUVEAU : Récupérer les quêtes disponibles depuis plusieurs sources
-    let availableQuests = [];
-    
-    // 🔧 CORRECTION PRINCIPALE : Améliorer la détection des quêtes
-    
-    // Source 1 : data.availableQuests (le plus direct)
-    if (data.availableQuests && Array.isArray(data.availableQuests)) {
-      availableQuests = data.availableQuests;
-      console.log('📋 Quêtes trouvées dans data.availableQuests:', availableQuests.length);
-    }
-    // Source 2 : unifiedQuestData
-    else if (unifiedQuestData?.availableQuests?.length > 0) {
-      availableQuests = unifiedQuestData.availableQuests;
-      console.log('📋 Quêtes trouvées dans unifiedQuestData:', availableQuests.length);
-    }
-    // Source 3 : legacyQuestData
-    else if (legacyQuestData?.availableQuests?.length > 0) {
-      availableQuests = legacyQuestData.availableQuests;
-      console.log('📋 Quêtes trouvées dans legacyQuestData:', availableQuests.length);
-    }
-    // 🔧 NOUVEAU : Source 4 - Depuis contextualData (données serveur)
-    else if (data.contextualData?.questData?.availableQuests?.length > 0) {
-      availableQuests = data.contextualData.questData.availableQuests;
-      console.log('📋 Quêtes trouvées dans contextualData:', availableQuests.length);
-    }
-    // 🔧 NOUVEAU : Source 5 - Directement depuis contextualData
-    else if (data.contextualData?.availableQuests?.length > 0) {
-      availableQuests = data.contextualData.availableQuests;
-      console.log('📋 Quêtes trouvées dans contextualData.availableQuests:', availableQuests.length);
-    }
-    // 🔧 NOUVEAU : Source 6 - Depuis les données brutes du serveur
-    else if (data.quests && Array.isArray(data.quests)) {
-      availableQuests = data.quests;
-      console.log('📋 Quêtes trouvées dans data.quests:', availableQuests.length);
-    }
-    // Source 7 : Quête unique (legacy)
-    else if (data.questId) {
-      availableQuests = [{ 
-        id: data.questId, 
-        name: data.questName || data.questTitle || `Quête ${data.questId}`,
-        title: data.questName || data.questTitle || `Quête ${data.questId}`,
-        description: data.questDescription || 'Mission disponible'
-      }];
-      console.log('📋 Quête unique trouvée:', data.questId);
-    }
-    
-    const hasAvailableQuests = availableQuests.length > 0;
-    
-    console.log('🔍 Détection actions pour:', { 
-      name: data.npcName || data.name,
-      capabilities, 
-      npcType, 
-      hasShopData: !!(data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData)),
-      hasQuestData: hasAvailableQuests,
-      availableQuestsCount: availableQuests.length,
-      questNames: availableQuests.map(q => q.name || q.title || q.id),
-      hasHealerData: !!data.healerData
+detectAvailableActions(data) {
+  const actions = [];
+  
+  // Détecter selon les capabilities ou le type de données
+  let capabilities = data.capabilities || [];
+  
+  // 🆕 Si les données viennent de l'interface unifiée, extraire les capabilities
+  if (data.unifiedInterface && data.unifiedInterface.capabilities) {
+    capabilities = data.unifiedInterface.capabilities;
+    console.log('🔄 Extraction capabilities depuis interface unifiée:', capabilities);
+  }
+  
+  const npcType = data.npcType || data.type;
+  
+  // 🔧 EXTRACTION QUEST DATA CORRIGÉE ET SIMPLIFIÉE
+  let availableQuests = [];
+  
+  // 🔧 CORRECTION CRITIQUE : Vérifier d'abord la racine des données
+  console.log('🔍 [DEBUG] Recherche quêtes dans data:', {
+    'data.availableQuests': data.availableQuests,
+    'data.availableQuests?.length': data.availableQuests?.length,
+    'Array.isArray(data.availableQuests)': Array.isArray(data.availableQuests)
+  });
+  
+  // ✅ PRIORITÉ 1 : data.availableQuests (le plus direct - C'EST LÀ QU'ELLES SONT !)
+  if (data.availableQuests && Array.isArray(data.availableQuests) && data.availableQuests.length > 0) {
+    availableQuests = data.availableQuests;
+    console.log('📋 ✅ Quêtes trouvées dans data.availableQuests:', availableQuests.length);
+    console.log('📋 ✅ Noms des quêtes:', availableQuests.map(q => q.name || q.title || q.id));
+  }
+  // Source 2 : Interface unifiée
+  else if (data.unifiedInterface?.questData?.availableQuests?.length > 0) {
+    availableQuests = data.unifiedInterface.questData.availableQuests;
+    console.log('📋 Quêtes trouvées dans unifiedInterface.questData:', availableQuests.length);
+  }
+  // Source 3 : contextualData
+  else if (data.contextualData?.questData?.availableQuests?.length > 0) {
+    availableQuests = data.contextualData.questData.availableQuests;
+    console.log('📋 Quêtes trouvées dans contextualData.questData:', availableQuests.length);
+  }
+  // Source 4 : contextualData direct
+  else if (data.contextualData?.availableQuests?.length > 0) {
+    availableQuests = data.contextualData.availableQuests;
+    console.log('📋 Quêtes trouvées dans contextualData.availableQuests:', availableQuests.length);
+  }
+  // Source 5 : questData classique
+  else if (data.questData?.availableQuests?.length > 0) {
+    availableQuests = data.questData.availableQuests;
+    console.log('📋 Quêtes trouvées dans questData:', availableQuests.length);
+  }
+  // Source 6 : quests direct
+  else if (data.quests && Array.isArray(data.quests) && data.quests.length > 0) {
+    availableQuests = data.quests;
+    console.log('📋 Quêtes trouvées dans data.quests:', availableQuests.length);
+  }
+  // Source 7 : Quête unique (legacy)
+  else if (data.questId) {
+    availableQuests = [{ 
+      id: data.questId, 
+      name: data.questName || data.questTitle || `Quête ${data.questId}`,
+      title: data.questName || data.questTitle || `Quête ${data.questId}`,
+      description: data.questDescription || 'Mission disponible'
+    }];
+    console.log('📋 Quête unique trouvée:', data.questId);
+  }
+  
+  const hasAvailableQuests = availableQuests.length > 0;
+  
+  console.log('🔍 Détection actions pour:', { 
+    name: data.npcName || data.name,
+    capabilities, 
+    npcType, 
+    hasShopData: !!(data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData)),
+    hasQuestData: hasAvailableQuests, // 🔧 CETTE VALEUR DOIT ÊTRE TRUE
+    availableQuestsCount: availableQuests.length,
+    questNames: availableQuests.map(q => q.name || q.title || q.id),
+    hasHealerData: !!data.healerData,
+    // 🔧 DEBUG SUPPLÉMENTAIRE
+    rawAvailableQuests: data.availableQuests,
+    rawAvailableQuestsLength: data.availableQuests?.length
+  });
+  
+  // Action Boutique
+  const hasShopData = data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData);
+  if (capabilities.includes('merchant') || npcType === 'merchant' || hasShopData) {
+    actions.push({
+      id: 'open_shop',
+      type: 'shop',
+      label: 'Boutique',
+      icon: '🛒',
+      description: 'Acheter et vendre des objets',
+      data: hasShopData
     });
+  }
+  
+  // 🆕 ACTIONS QUÊTES : UN BOUTON PAR QUÊTE AVEC NOM SPÉCIFIQUE
+  if (capabilities.includes('quest') || capabilities.includes('questGiver') || npcType === 'questGiver' || hasAvailableQuests) {
     
-    // Action Boutique
-    const hasShopData = data.shopData || data.merchantData || (data.unifiedInterface && data.unifiedInterface.merchantData);
-    if (capabilities.includes('merchant') || npcType === 'merchant' || hasShopData) {
-      actions.push({
-        id: 'open_shop',
-        type: 'shop',
-        label: 'Boutique',
-        icon: '🛒',
-        description: 'Acheter et vendre des objets',
-        data: hasShopData
-      });
-    }
-    
-    // 🆕 ACTIONS QUÊTES : UN BOUTON PAR QUÊTE AVEC NOM SPÉCIFIQUE
-    if (capabilities.includes('quest') || capabilities.includes('questGiver') || npcType === 'questGiver' || hasAvailableQuests) {
+    if (availableQuests.length > 0) {
+      console.log('🎯 CRÉATION BOUTONS QUÊTES SPÉCIFIQUES...');
       
-      if (availableQuests.length > 0) {
-        // 🎯 CRÉER UN BOUTON PAR QUÊTE AVEC LE NOM DE LA QUÊTE
-        availableQuests.forEach(quest => {
-          // 🔧 AMÉLIORATION : Extraction robuste du nom de quête
-          const questName = quest.name || quest.title || quest.questName || quest.questTitle || `Quête ${quest.id}`;
-          const questId = quest.id || quest.questId;
-          const questDescription = quest.description || quest.questDescription || 'Mission disponible';
-          
-          // 🔧 NOUVEAU : Formatage du label avec préfixe "!"
-          const questLabel = `! ${questName}`;
-          
-          actions.push({
-            id: `accept_${questId}`,
-            type: 'quest',
-            questId: questId, // 🆕 ID spécifique de la quête
-            label: questLabel, // 🆕 "! Nom de la quête" au lieu de "Quête"
-            icon: '📋',
-            description: questDescription,
-            data: quest
-          });
-          
-          console.log(`✅ Action quête spécifique ajoutée: "${questLabel}" (${questId})`);
-        });
-      } else {
-        // 🔄 Fallback : bouton générique si capabilities mais pas de quêtes détectées
+      // 🎯 CRÉER UN BOUTON PAR QUÊTE AVEC LE NOM DE LA QUÊTE
+      availableQuests.forEach((quest, index) => {
+        // 🔧 AMÉLIORATION : Extraction robuste du nom de quête
+        const questName = quest.name || quest.title || quest.questName || quest.questTitle || `Quête ${quest.id}`;
+        const questId = quest.id || quest.questId || `quest_${index}`;
+        const questDescription = quest.description || quest.questDescription || 'Mission disponible';
+        
+        // 🔧 NOUVEAU : Formatage du label avec préfixe "!"
+        const questLabel = `! ${questName}`;
+        
+        console.log(`🎯 Création bouton pour quête: "${questName}" (ID: ${questId})`);
+        
         actions.push({
-          id: 'open_quests',
+          id: `accept_${questId}`,
           type: 'quest',
-          label: 'Quêtes',
+          questId: questId, // 🆕 ID spécifique de la quête
+          label: questLabel, // 🆕 "! Nom de la quête" au lieu de "Quête"
           icon: '📋',
-          description: 'Missions disponibles',
-          data: unifiedQuestData || legacyQuestData || {}
+          description: questDescription,
+          data: quest
         });
         
-        console.log('✅ Action quête générique ajoutée (fallback)');
-      }
-    }
-    
-    // Action Soins
-    if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
-      actions.push({
-        id: 'heal_pokemon',
-        type: 'heal',
-        label: 'Soigner',
-        icon: '💊',
-        description: 'Soigner vos Pokémon',
-        data: data.healerData
+        console.log(`✅ Action quête spécifique ajoutée: "${questLabel}" (${questId})`);
       });
-    }
-    
-    // Action Informations
-    if (data.infoData) {
-      actions.push({
-        id: 'show_info',
-        type: 'info',
-        label: 'Infos',
-        icon: 'ℹ️',
-        description: 'Informations supplémentaires',
-        data: data.infoData
-      });
-    }
-    
-    if (actions.length === 0) {
-      console.log('✅ Aucune action détectée - NPC dialogue simple');
-      return [];
     } else {
-      const questActions = actions.filter(a => a.type === 'quest');
-      const otherActions = actions.filter(a => a.type !== 'quest');
+      // 🔄 Fallback : bouton générique si capabilities mais pas de quêtes détectées
+      console.log('⚠️ Capabilities quest détectées mais aucune quête trouvée - fallback générique');
+      actions.push({
+        id: 'open_quests',
+        type: 'quest',
+        label: 'Quêtes',
+        icon: '📋',
+        description: 'Missions disponibles',
+        data: data.questData || {}
+      });
       
-      console.log(`✅ ${actions.length} actions détectées:`);
-      console.log(`   - ${questActions.length} quêtes:`, questActions.map(a => a.label));
-      console.log(`   - ${otherActions.length} autres:`, otherActions.map(a => a.label));
-      
-      return actions;
+      console.log('✅ Action quête générique ajoutée (fallback)');
     }
   }
+  
+  // Action Soins
+  if (capabilities.includes('healer') || npcType === 'healer' || data.healerData) {
+    actions.push({
+      id: 'heal_pokemon',
+      type: 'heal',
+      label: 'Soigner',
+      icon: '💊',
+      description: 'Soigner vos Pokémon',
+      data: data.healerData
+    });
+  }
+  
+  // Action Informations
+  if (data.infoData) {
+    actions.push({
+      id: 'show_info',
+      type: 'info',
+      label: 'Infos',
+      icon: 'ℹ️',
+      description: 'Informations supplémentaires',
+      data: data.infoData
+    });
+  }
+  
+  if (actions.length === 0) {
+    console.log('✅ Aucune action détectée - NPC dialogue simple');
+    return [];
+  } else {
+    const questActions = actions.filter(a => a.type === 'quest');
+    const otherActions = actions.filter(a => a.type !== 'quest');
+    
+    console.log(`✅ ${actions.length} actions détectées:`);
+    console.log(`   - ${questActions.length} quêtes:`, questActions.map(a => a.label));
+    console.log(`   - ${otherActions.length} autres:`, otherActions.map(a => a.label));
+    
+    return actions;
+  }
+}
   
   // ===== EXTRACTION DES DONNÉES =====
   
