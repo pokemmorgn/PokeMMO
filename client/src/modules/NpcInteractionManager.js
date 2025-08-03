@@ -511,13 +511,14 @@ async sendNpcInteraction(npc, options = {}) {
     return false;
   }
 }
+
   // === GESTION DES RÉSULTATS RÉSEAU ===
 
 handleNetworkInteractionResult(data) {
   console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
   console.log('[NpcInteractionManager] Data:', data);
   
-  // ✅ FORCER L'AFFICHAGE COMPLET DES DONNÉES
+  // ✅ FORCER L'AFFICHAGE COMPLET DES DONNÉES AVEC FOCUS QUÊTES
   console.log('[NpcInteractionManager] 🔍 === DEBUG COMPLET DONNÉES ===');
   console.log('[NpcInteractionManager] JSON.stringify(data):', JSON.stringify(data, null, 2));
   console.log('[NpcInteractionManager] Object.keys(data):', Object.keys(data));
@@ -529,7 +530,35 @@ handleNetworkInteractionResult(data) {
     capabilities: data.capabilities,
     contextualData: data.contextualData,
     shopId: data.shopId,
-    shopData: data.shopData
+    shopData: data.shopData,
+    // 🔧 NOUVEAU : Debug spécifique quêtes
+    availableQuests: data.availableQuests,
+    questData: data.questData,
+    quests: data.quests,
+    questId: data.questId,
+    hasQuestCapability: data.capabilities?.includes('questGiver') || data.capabilities?.includes('quest')
+  });
+  
+  // 🔧 NOUVEAU : Debug spécifique pour les données de quêtes
+  console.log('[NpcInteractionManager] 🎯 === DEBUG QUÊTES SPÉCIFIQUE ===');
+  const questSources = {
+    'data.availableQuests': data.availableQuests,
+    'data.questData': data.questData,
+    'data.quests': data.quests,
+    'data.contextualData?.questData': data.contextualData?.questData,
+    'data.contextualData?.availableQuests': data.contextualData?.availableQuests,
+    'data.unifiedInterface?.questData': data.unifiedInterface?.questData
+  };
+  
+  Object.entries(questSources).forEach(([source, value]) => {
+    if (value) {
+      console.log(`[NpcInteractionManager] 📋 ${source}:`, value);
+      if (Array.isArray(value)) {
+        console.log(`[NpcInteractionManager] 📋 ${source} contient ${value.length} quêtes:`, value.map(q => q.name || q.title || q.id));
+      } else if (value.availableQuests) {
+        console.log(`[NpcInteractionManager] 📋 ${source}.availableQuests:`, value.availableQuests.map(q => q.name || q.title || q.id));
+      }
+    }
   });
   
   try {
@@ -554,10 +583,16 @@ handleNetworkInteractionResult(data) {
       return this.handleUnifiedInterfaceResult(data);
     }
     
-    // ✅ Traitement normal pour NPCs simples
-    console.log('[NpcInteractionManager] 📝 Traitement NPC simple');
+    // ✅ Traitement normal pour NPCs simples AVEC PRÉSERVATION DONNÉES QUÊTES
+    console.log('[NpcInteractionManager] 📝 Traitement NPC simple avec préservation quêtes');
     const resultType = this.determineResultType(data);
     console.log(`[NpcInteractionManager] Type de résultat (NPC simple): ${resultType}`);
+    
+    // 🔧 NOUVEAU : Si c'est un questGiver, enrichir les données avant délégation
+    if (resultType === 'questGiver' || data.capabilities?.includes('questGiver') || data.capabilities?.includes('quest')) {
+      console.log('[NpcInteractionManager] 🎯 Enrichissement données quête avant délégation');
+      data = this.enrichQuestData(data);
+    }
     
     // ✅ Obtenir le handler approprié
     const handler = this.npcHandlers.get(resultType);
@@ -587,6 +622,70 @@ handleNetworkInteractionResult(data) {
     console.error('[NpcInteractionManager] ❌ Erreur traitement résultat:', error);
     this.handleInteractionError(error, null, data);
   }
+}
+
+// 🔧 NOUVELLE MÉTHODE : Enrichir les données de quêtes
+enrichQuestData(data) {
+  console.log('[NpcInteractionManager] 🎯 === ENRICHISSEMENT DONNÉES QUÊTE ===');
+  
+  const enrichedData = { ...data };
+  
+  // 1. Normaliser availableQuests depuis différentes sources
+  if (!enrichedData.availableQuests || enrichedData.availableQuests.length === 0) {
+    const questSources = [
+      data.contextualData?.questData?.availableQuests,
+      data.contextualData?.availableQuests,
+      data.questData?.availableQuests,
+      data.quests,
+      data.unifiedInterface?.questData?.availableQuests
+    ];
+    
+    for (const source of questSources) {
+      if (source && Array.isArray(source) && source.length > 0) {
+        enrichedData.availableQuests = source;
+        console.log(`[NpcInteractionManager] ✅ availableQuests enrichi depuis source: ${source.length} quêtes`);
+        break;
+      }
+    }
+  }
+  
+  // 2. Si on a encore rien, mais qu'il y a une quête unique
+  if ((!enrichedData.availableQuests || enrichedData.availableQuests.length === 0) && data.questId) {
+    enrichedData.availableQuests = [{
+      id: data.questId,
+      name: data.questName || data.questTitle || `Quête ${data.questId}`,
+      title: data.questName || data.questTitle || `Quête ${data.questId}`,
+      description: data.questDescription || 'Mission disponible'
+    }];
+    console.log(`[NpcInteractionManager] ✅ availableQuests créé depuis quête unique: ${data.questId}`);
+  }
+  
+  // 3. Normaliser les objets quête (s'assurer qu'ils ont name/title)
+  if (enrichedData.availableQuests && Array.isArray(enrichedData.availableQuests)) {
+    enrichedData.availableQuests = enrichedData.availableQuests.map(quest => ({
+      ...quest,
+      name: quest.name || quest.title || quest.questName || quest.questTitle || `Quête ${quest.id}`,
+      title: quest.title || quest.name || quest.questTitle || quest.questName || `Quête ${quest.id}`,
+      description: quest.description || quest.questDescription || 'Mission disponible'
+    }));
+    
+    console.log('[NpcInteractionManager] ✅ Quêtes normalisées:', enrichedData.availableQuests.map(q => `${q.id}: ${q.name}`));
+  }
+  
+  // 4. S'assurer que questData existe
+  if (!enrichedData.questData) {
+    enrichedData.questData = {
+      availableQuests: enrichedData.availableQuests || []
+    };
+  }
+  
+  console.log('[NpcInteractionManager] 🎯 Données quête enrichies:', {
+    availableQuestsCount: enrichedData.availableQuests?.length || 0,
+    questNames: enrichedData.availableQuests?.map(q => q.name) || [],
+    hasQuestData: !!enrichedData.questData
+  });
+  
+  return enrichedData;
 }
 
   // === GESTION INTERFACE UNIFIÉE ===
@@ -1365,6 +1464,13 @@ handleUnifiedInterfaceResult(data) {
       ...(data?.unifiedFallback && {
         unifiedFallback: data.unifiedFallback,
         originalUnifiedData: data.originalUnifiedData
+      }),
+      // ✅ NOUVEAU : Préserver données de quêtes
+      ...(data?.availableQuests && {
+        availableQuests: data.availableQuests,
+        capabilities: data.capabilities || [],
+        questData: data.questData,
+        contextualData: data.contextualData
       })
     };
   }
@@ -1841,7 +1947,54 @@ window.testDialogueSystemDetection = function() {
   }
 };
 
+// 🧪 NOUVELLE FONCTION DE TEST : Test avec quêtes spécifiques
+window.testNpcWithSpecificQuests = function() {
+  const managers = [
+    window.globalNetworkManager?.npcInteractionManager,
+    window.game?.scene?.getScenes(true)?.[0]?.npcInteractionManager,
+    window.currentNpcInteractionManager
+  ].filter(Boolean);
+  
+  if (managers.length > 0) {
+    const manager = managers[0];
+    
+    console.log('[NpcInteractionManager] 🧪 Test NPC avec quêtes spécifiques...');
+    
+    const mockQuestData = {
+      type: 'npc',
+      npcId: 9003,
+      npcName: 'Maître des Quêtes',
+      capabilities: ['questGiver'],
+      availableQuests: [
+        {
+          id: 'quest_001',
+          name: 'Capturer un Pikachu',
+          description: 'Trouve et capture un Pikachu sauvage'
+        },
+        {
+          id: 'quest_002', 
+          name: 'Collecter 5 Baies',
+          description: 'Ramasse 5 baies dans la forêt'
+        },
+        {
+          id: 'quest_003',
+          name: 'Défier le Champion',
+          description: 'Bats le champion de l\'arène'
+        }
+      ],
+      lines: ['Salut aventurier !', 'J\'ai plusieurs missions pour toi.']
+    };
+    
+    manager.handleNetworkInteractionResult(mockQuestData);
+    return mockQuestData;
+  } else {
+    console.error('[NpcInteractionManager] Manager non trouvé');
+    return null;
+  }
+};
+
 console.log('✅ NpcInteractionManager MISE À JOUR pour DialogueManager chargé!');
 console.log('🔍 Utilisez window.debugNpcInteractionManager() pour diagnostiquer');
 console.log('🧪 Utilisez window.testUnifiedNpcInterface() pour tester avec DialogueManager');
 console.log('🔍 Utilisez window.testDialogueSystemDetection() pour tester la détection');
+console.log('📋 Utilisez window.testNpcWithSpecificQuests() pour tester quêtes spécifiques');
