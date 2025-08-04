@@ -189,38 +189,67 @@ export class QuestSystem {
    * @param {string} npcId - ID du NPC
    * @param {Object} questData - Données de la quête
    */
-  handleQuestAcceptFromUI(questId, npcId, questData) {
-    console.log(`🎯 [QuestSystem] Acceptation quête: ${questId} pour NPC ${npcId}`);
+handleQuestAcceptResult(data) {
+  console.log('🎯 [QuestSystem] Résultat acceptation quête:', data);
+  
+  if (data.success) {
+    // Succès !
+    this.showMessage(`Quête acceptée : ${data.quest?.name || data.questId}`, 'success');
     
-    if (!this.networkManager) {
-      console.error('❌ [QuestSystem] NetworkManager non disponible');
-      this.showMessage('Erreur réseau - impossible d\'accepter la quête', 'error');
-      return false;
+    // Ajouter à la liste des quêtes actives
+    if (data.quest) {
+      this.activeQuests.push(data.quest);
+      this.updateUI();
     }
     
-    try {
-      // Envoyer la demande d'acceptation au serveur
-      this.networkManager.sendMessage('acceptQuest', {
-        questId: questId,
-        npcId: npcId,
-        timestamp: Date.now()
-      });
-      
-      // Feedback utilisateur
-      this.showMessage(`Demande d'acceptation envoyée : ${questData.name || questId}`, 'info');
-      
-      // Mise à jour UI (optimiste)
-      this.icon?.animateNewQuest();
-      
-      console.log(`✅ [QuestSystem] Demande acceptation envoyée: ${questId}`);
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur acceptation quête:', error);
-      this.showMessage('Erreur lors de l\'acceptation de la quête', 'error');
-      return false;
+    // Animation de succès sur l'icône
+    if (this.icon) {
+      this.icon.animateNewQuest();
+    }
+    
+    this.triggerCallback('onQuestStarted', data.quest);
+    
+  } else {
+    // Échec
+    this.showMessage(`Impossible d'accepter la quête : ${data.error}`, 'error');
+    
+    // Si c'est à cause de prérequis, on peut proposer des solutions
+    if (data.error.includes('niveau') || data.error.includes('prérequis')) {
+      this.showMessage('Vérifiez vos prérequis dans le journal des quêtes', 'info');
     }
   }
+}
+
+// ✅ MODIFIÉ: Améliorer handleQuestAcceptFromUI pour plus de feedback
+handleQuestAcceptFromUI(questId, npcId, questData) {
+  console.log(`🎯 [QuestSystem] Acceptation quête: ${questId} pour NPC ${npcId}`);
+  
+  if (!this.networkManager) {
+    console.error('❌ [QuestSystem] NetworkManager non disponible');
+    this.showMessage('Erreur réseau - impossible d\'accepter la quête', 'error');
+    return false;
+  }
+  
+  try {
+    // Feedback immédiat à l'utilisateur
+    this.showMessage(`Demande d'acceptation : ${questData.name || questId}`, 'info', { duration: 2000 });
+    
+    // Envoyer la demande au serveur
+    this.networkManager.sendMessage('acceptQuest', {
+      questId: questId,
+      npcId: npcId,
+      timestamp: Date.now()
+    });
+    
+    console.log(`✅ [QuestSystem] Demande acceptation envoyée: ${questId}`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [QuestSystem] Erreur acceptation quête:', error);
+    this.showMessage('Erreur lors de l\'acceptation de la quête', 'error');
+    return false;
+  }
+}
   
   // === 📡 HANDLERS RÉSEAU ===
   
@@ -237,6 +266,10 @@ export class QuestSystem {
     
     this.networkManager.onMessage("quest_progress", (data) => {
       this.handleQuestProgress(data);
+    });
+
+    this.networkManager.onMessage("questAcceptResult", (data) => {
+    this.handleQuestAcceptResult(data);
     });
     
     this.networkManager.onMessage("quest_completed", (data) => {
