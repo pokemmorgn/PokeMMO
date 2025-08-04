@@ -1,7 +1,7 @@
 // server/src/models/ItemData.ts - MODÈLE MONGODB COMPLET AVEC SYSTÈME D'EFFETS
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { 
-  ItemEffect, ItemAction, ItemCondition, ItemCategory, EffectTrigger, 
+  ItemEffect, ItemAction, ItemCondition, EffectTrigger, 
   ActionType, ConditionType
 } from '../items/ItemEffectTypes';
 
@@ -102,6 +102,10 @@ export interface IItemData extends Document {
   toItemFormat(): any;
   updateFromJson(jsonData: any): Promise<void>;
   migrateFromLegacy(): Promise<void>;
+  needsLegacyMigration(jsonData: any): boolean;
+  extractLegacyData(jsonData: any): any;
+  validateCategoryEffectConsistency(): void;
+  validateEffectConsistency(): void;
 }
 
 // Interface pour les méthodes statiques
@@ -138,6 +142,8 @@ export interface IItemDataModel extends Model<IItemData> {
   createFromJson(jsonItem: any): Promise<IItemData>;
   validateAllEffects(): Promise<{ items_checked: number; items_with_errors: number; errors: string[] }>;
   migrateAllFromLegacy(): Promise<{ migrated: number; errors: string[] }>;
+  inferCategoryFromData(jsonItem: any): ItemCategory;
+  hasLegacyEffectData(jsonItem: any): boolean;
 }
 
 // ===== CONSTANTES DE VALIDATION =====
@@ -867,12 +873,12 @@ ItemDataSchema.methods.migrateFromLegacy = async function(this: IItemData): Prom
   
   // Migrer effectSteps vers repel effect
   if (this.legacyData.effectSteps) {
-    const repelEffect: ItemEffect = {
+    const repelEffect = {
       id: `repel_${this.itemId}`,
       name: 'Repel Effect',
-      trigger: 'on_use_in_field',
+      trigger: 'on_use_in_field' as EffectTrigger,
       actions: [{
-        type: 'prevent_wild_encounters',
+        type: 'prevent_wild_encounters' as ActionType,
         target: 'field',
         value: this.legacyData.effectSteps,
         duration: this.legacyData.effectSteps,
@@ -1117,7 +1123,7 @@ ItemDataSchema.statics.createFromJson = async function(jsonItem: any): Promise<I
     itemId: jsonItem.id,
     name: jsonItem.name || jsonItem.id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
     description: jsonItem.description || `A ${jsonItem.name || jsonItem.id.replace(/_/g, ' ')}.`,
-    category: this.inferCategoryFromData(jsonItem),
+    category: (this as any).inferCategoryFromData(jsonItem),
     price: jsonItem.price,
     sellPrice: jsonItem.sell_price || jsonItem.sellPrice,
     stackable: jsonItem.stackable ?? true,
@@ -1133,9 +1139,9 @@ ItemDataSchema.statics.createFromJson = async function(jsonItem: any): Promise<I
   });
   
   // Si pas d'effets définis, essayer de les générer depuis les données héritées
-  if (itemData.effects.length === 0 && this.hasLegacyEffectData(jsonItem)) {
-    itemData.legacyData = itemData.extractLegacyData(jsonItem);
-    await itemData.migrateFromLegacy();
+  if (itemData.effects.length === 0 && (this as any).hasLegacyEffectData(jsonItem)) {
+    itemData.legacyData = (itemData as any).extractLegacyData(jsonItem);
+    await (itemData as any).migrateFromLegacy();
   }
   
   await itemData.save();
