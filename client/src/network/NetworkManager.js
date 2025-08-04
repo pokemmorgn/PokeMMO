@@ -536,6 +536,64 @@ export class NetworkManager {
         this.interactionHandler.handleQuestDetailsResult(data);
       }
     });
+
+    this.room.onMessage("questAcceptResult", (data) => {
+  console.log('📨 [NetworkManager] REÇU questAcceptResult:', data);
+  // Relayer vers QuestSystem
+  if (window.questSystem && window.questSystem.handleQuestAcceptResult) {
+    window.questSystem.handleQuestAcceptResult(data);
+  } else if (window.questSystemGlobal && window.questSystemGlobal.handleQuestAcceptResult) {
+    window.questSystemGlobal.handleQuestAcceptResult(data);
+  } else {
+    console.warn('⚠️ [NetworkManager] QuestSystem non trouvé pour questAcceptResult');
+  }
+});
+
+// ✅ AUTRES HANDLERS QUEST
+this.room.onMessage("questProgressUpdate", (data) => {
+  console.log('📨 [NetworkManager] REÇU questProgressUpdate:', data);
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.handleQuestProgressUpdate) {
+    questSystem.handleQuestProgressUpdate(data);
+  }
+});
+
+this.room.onMessage("activeQuestsList", (data) => {
+  console.log('📨 [NetworkManager] REÇU activeQuestsList:', data);
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.handleActiveQuests) {
+    questSystem.handleActiveQuests(data);
+  }
+});
+
+this.room.onMessage("availableQuestsList", (data) => {
+  console.log('📨 [NetworkManager] REÇU availableQuestsList:', data);
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.handleAvailableQuests) {
+    questSystem.handleAvailableQuests(data);
+  }
+});
+
+this.room.onMessage("questStartResult", (data) => {
+  console.log('📨 [NetworkManager] REÇU questStartResult:', data);
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.handleQuestStartResult) {
+    questSystem.handleQuestStartResult(data);
+  }
+});
+
+this.room.onMessage("introQuestCompleted", (data) => {
+  console.log('📨 [NetworkManager] REÇU introQuestCompleted:', data);
+  const questSystem = window.questSystem || window.questSystemGlobal;
+  if (questSystem && questSystem.handleIntroQuestCompleted) {
+    questSystem.handleIntroQuestCompleted(data);
+  }
+});
+
+this.room.onMessage("questDebugInfo", (data) => {
+  console.log('📨 [NetworkManager] REÇU questDebugInfo:', data);
+  console.table(data);
+});
     
     this.room.onMessage("interactionResult", (result) => {
       this.logInteraction('interaction_result_extended', result);
