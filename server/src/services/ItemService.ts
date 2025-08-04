@@ -18,37 +18,29 @@ export class ItemService {
   /**
    * Récupère un item par son ID
    */
-  static async getItemById(itemId: string): Promise<IItemData | null> {
-    try {
-      this.log.debug(`Getting item by ID: ${itemId}`);
-      
-      // Essayer d'abord avec l'ID tel quel
-      let item = await ItemData.findOne({ 
-        itemId, 
-        isActive: true 
-      });
-      
-      // Si pas trouvé et contient des majuscules, essayer en lowercase
-      if (!item && itemId !== itemId.toLowerCase()) {
-        this.log.debug(`Item not found with original case, trying lowercase: ${itemId.toLowerCase()}`);
-        item = await ItemData.findOne({ 
-          itemId: itemId.toLowerCase(), 
-          isActive: true 
-        });
-      }
-      
-      if (!item) {
-        this.log.warn(`Item not found: ${itemId}`);
-        return null;
-      }
-      
-      return item;
-    } catch (error) {
-      this.log.error(`Error getting item ${itemId}:`, error);
-      throw error;
-    }
+static async getItemById(itemId: string): Promise<IItemData | null> {
+  console.log(`🔍 [ITEMSERVICE-DEBUG] Searching for item: ${itemId}`);
+  
+  // Essayer d'abord avec l'ID tel quel
+  let item = await ItemData.findOne({ 
+    itemId, 
+    isActive: true 
+  });
+  
+  console.log(`🔍 [ITEMSERVICE-DEBUG] First attempt result: ${item ? 'FOUND' : 'NOT FOUND'}`);
+  
+  // Si pas trouvé et contient des majuscules, essayer en lowercase
+  if (!item && itemId !== itemId.toLowerCase()) {
+    console.log(`🔍 [ITEMSERVICE-DEBUG] Trying lowercase: ${itemId.toLowerCase()}`);
+    item = await ItemData.findOne({ 
+      itemId: itemId.toLowerCase(), 
+      isActive: true 
+    });
+    console.log(`🔍 [ITEMSERVICE-DEBUG] Lowercase attempt result: ${item ? 'FOUND' : 'NOT FOUND'}`);
   }
-
+  
+  return item;
+}
   /**
    * Récupère plusieurs items par leurs IDs
    */
