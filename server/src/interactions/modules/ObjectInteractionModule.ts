@@ -421,7 +421,11 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     if (!objectId || isNaN(objectId)) {
       return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
     }
-    
+        // ✅ AJOUTEZ CES LIGNES DE DEBUG ICI
+    console.log('🔍 [DEBUG] ===== ANALYSE ZONE =====');
+    console.log('🔍 [DEBUG] player.currentZone brut:', player.currentZone);
+    console.log('🔍 [DEBUG] zone utilisée:', zone);
+    console.log('🔍 [DEBUG] après getDbZoneName:', getDbZoneName(zone));
     this.log('info', `🔍 [MONGODB-HYBRID] Recherche objet ${objectId} dans zone ${zone}`);
     
     const objectDef = this.getObject(zone, objectId);
