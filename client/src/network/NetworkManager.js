@@ -348,15 +348,6 @@ export class NetworkManager {
     this.room.onMessage("movementBlocked", (data) => {
       // Géré par MovementBlockManager
     });
-    this.room.onMessage("questAcceptResult", (data) => {
-      console.log('🔴 [NetworkManager] questAcceptResult reçu DIRECT du serveur:', data);
-      // Ne pas traiter, juste logger pour voir si ça arrive au NetworkManager
-    });
-    this.room.onMessage("*", (type, data) => {
-  if (type.includes('quest') || type.includes('Quest')) {
-    console.log(`🔍 [NetworkManager] MESSAGE QUEST REÇU: ${type}`, data);
-    }
-  });
     this.room.onMessage("movementUnblocked", (data) => {
       // Géré par MovementBlockManager
     });
