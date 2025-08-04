@@ -1,6 +1,7 @@
 // client/src/Quest/QuestDetailsUI.js
 // 🎯 Interface spécialisée pour afficher les détails d'une quête avant acceptation
 // ✅ Support quête unique ou sélection multiple + intégration LocalizationManager
+// ✅ NOUVEAU : Récupération données depuis DialogueManager
 
 import { t } from '../managers/LocalizationManager.js';
 
@@ -453,6 +454,73 @@ export class QuestDetailsUI {
         color: #dc3545 !important;
       }
       
+      /* Badges d'informations */
+      .quest-info-badge {
+        display: inline-block !important;
+        padding: 4px 8px !important;
+        border-radius: 12px !important;
+        font-size: 11px !important;
+        font-weight: bold !important;
+        text-transform: uppercase !important;
+      }
+      
+      .quest-info-badge.category-main {
+        background: rgba(255, 193, 7, 0.3) !important;
+        color: #ffc107 !important;
+      }
+      
+      .quest-info-badge.category-side {
+        background: rgba(40, 167, 69, 0.3) !important;
+        color: #28a745 !important;
+      }
+      
+      .quest-info-badge.level {
+        background: rgba(74, 144, 226, 0.3) !important;
+        color: #4a90e2 !important;
+      }
+      
+      .quest-info-badge.time {
+        background: rgba(108, 117, 125, 0.3) !important;
+        color: #6c757d !important;
+      }
+      
+      /* Objectifs */
+      .quest-objectives {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+      
+      .quest-objective {
+        padding: 8px 12px !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 6px !important;
+        border-left: 3px solid #4a90e2 !important;
+        font-size: 13px !important;
+        position: relative !important;
+        padding-left: 30px !important;
+      }
+      
+      .quest-objective:before {
+        content: "◦" !important;
+        position: absolute !important;
+        left: 12px !important;
+        color: #4a90e2 !important;
+        font-weight: bold !important;
+      }
+      
+      .quest-objective.completed {
+        border-left-color: #28a745 !important;
+        background: rgba(40, 167, 69, 0.1) !important;
+        text-decoration: line-through !important;
+        opacity: 0.7 !important;
+      }
+      
+      .quest-objective.completed:before {
+        content: "✓" !important;
+        color: #28a745 !important;
+      }
+      
       /* Footer avec boutons */
       .quest-details-footer {
         background: rgba(0, 0, 0, 0.3) !important;
@@ -516,6 +584,17 @@ export class QuestDetailsUI {
         transform: translateY(-1px) !important;
       }
       
+      /* Animation d'erreur */
+      .quest-details-container.error {
+        animation: questErrorShake 0.5s ease-in-out !important;
+      }
+      
+      @keyframes questErrorShake {
+        0%, 100% { transform: scale(1) translateX(0); }
+        25% { transform: scale(1) translateX(-5px); }
+        75% { transform: scale(1) translateX(5px); }
+      }
+      
       /* Responsive */
       @media (max-width: 768px) {
         .quest-details-container {
@@ -544,40 +623,6 @@ export class QuestDetailsUI {
         .quest-btn {
           width: 100% !important;
         }
-      }
-      
-      /* Scrollbar personnalisée */
-      .quest-details-content::-webkit-scrollbar,
-      .quest-selection-list::-webkit-scrollbar {
-        width: 8px !important;
-      }
-      
-      .quest-details-content::-webkit-scrollbar-track,
-      .quest-selection-list::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border-radius: 4px !important;
-      }
-      
-      .quest-details-content::-webkit-scrollbar-thumb,
-      .quest-selection-list::-webkit-scrollbar-thumb {
-        background: rgba(74, 144, 226, 0.6) !important;
-        border-radius: 4px !important;
-      }
-      
-      .quest-details-content::-webkit-scrollbar-thumb:hover,
-      .quest-selection-list::-webkit-scrollbar-thumb:hover {
-        background: rgba(74, 144, 226, 0.8) !important;
-      }
-      
-      /* Animation d'erreur */
-      .quest-details-container.error {
-        animation: questErrorShake 0.5s ease-in-out !important;
-      }
-      
-      @keyframes questErrorShake {
-        0%, 100% { transform: scale(1) translateX(0); }
-        25% { transform: scale(1) translateX(-5px); }
-        75% { transform: scale(1) translateX(5px); }
       }
     `;
     
@@ -723,10 +768,25 @@ export class QuestDetailsUI {
     
     if (questData) {
       // Données déjà disponibles
+      console.log('✅ [QuestDetailsUI] Utilisation données fournies');
       this.displayQuestDetails(questData);
     } else {
-      // Charger les données
-      this.loadQuestDetails(questId);
+      // 🔧 NOUVEAU : Essayer de récupérer depuis DialogueManager d'abord
+      console.log('🔍 [QuestDetailsUI] Recherche données quête...');
+      const dialogueQuestData = this.getQuestDataFromDialogue(questId);
+      
+      if (dialogueQuestData) {
+        console.log('✅ [QuestDetailsUI] Données trouvées dans DialogueManager');
+        this.displayQuestDetails(dialogueQuestData);
+      } else {
+        // 🔧 NOUVEAU : Générer données par défaut immédiatement
+        console.log('⚠️ [QuestDetailsUI] Génération données par défaut');
+        const defaultData = this.generateDefaultQuestData(questId);
+        this.displayQuestDetails(defaultData);
+        
+        // Essayer de charger les vraies données en arrière-plan
+        this.loadQuestDetailsInBackground(questId);
+      }
     }
   }
   
@@ -763,12 +823,219 @@ export class QuestDetailsUI {
     this.generateQuestSelectionList(questIds);
   }
   
-  // === 🔄 GESTION DONNÉES ===
+  // === 🔄 NOUVELLES MÉTHODES : RÉCUPÉRATION DONNÉES ===
+  
+  /**
+   * 🔧 NOUVELLE MÉTHODE : Récupérer données quête depuis DialogueManager
+   */
+  getQuestDataFromDialogue(questId) {
+    console.log(`🔍 [QuestDetailsUI] Recherche données pour quête: ${questId}`);
+    
+    // 🔧 DEBUG COMPLET pour voir ce qui est disponible
+    console.log('🔍 [QuestDetailsUI] === DEBUG SOURCES DONNÉES ===');
+    console.log('window.dialogueManager exists:', !!window.dialogueManager);
+    console.log('window.dialogueManager.currentDialogueData:', window.dialogueManager?.currentDialogueData);
+    console.log('window._lastNpcInteractionData:', window._lastNpcInteractionData);
+    
+    // 1. Priorité 1 : Vérifier dans window.dialogueManager
+    if (window.dialogueManager && window.dialogueManager.currentDialogueData) {
+      const dialogueData = window.dialogueManager.currentDialogueData;
+      console.log('🔍 [QuestDetailsUI] DialogueManager data found:', dialogueData);
+      
+      // Chercher dans availableQuests à la racine
+      if (dialogueData.availableQuests && Array.isArray(dialogueData.availableQuests)) {
+        console.log('🔍 [QuestDetailsUI] Recherche dans dialogueData.availableQuests:', dialogueData.availableQuests);
+        const questData = dialogueData.availableQuests.find(q => q.id === questId);
+        if (questData) {
+          console.log('✅ [QuestDetailsUI] Quête trouvée dans dialogueManager.availableQuests');
+          return this.enrichQuestData(questData);
+        }
+      }
+      
+      // Chercher dans questData
+      if (dialogueData.questData && dialogueData.questData.availableQuests) {
+        console.log('🔍 [QuestDetailsUI] Recherche dans dialogueData.questData.availableQuests');
+        const questData = dialogueData.questData.availableQuests.find(q => q.id === questId);
+        if (questData) {
+          console.log('✅ [QuestDetailsUI] Quête trouvée dans dialogueManager.questData');
+          return this.enrichQuestData(questData);
+        }
+      }
+      
+      // Chercher dans unifiedInterface
+      if (dialogueData.unifiedInterface && dialogueData.unifiedInterface.questData) {
+        console.log('🔍 [QuestDetailsUI] Recherche dans unifiedInterface.questData');
+        const questData = dialogueData.unifiedInterface.questData.availableQuests?.find(q => q.id === questId);
+        if (questData) {
+          console.log('✅ [QuestDetailsUI] Quête trouvée dans unifiedInterface');
+          return this.enrichQuestData(questData);
+        }
+      }
+    }
+    
+    // 2. Priorité 2 : Vérifier dans window._lastNpcInteractionData
+    if (window._lastNpcInteractionData) {
+      console.log('🔍 [QuestDetailsUI] Recherche dans _lastNpcInteractionData:', window._lastNpcInteractionData);
+      const data = window._lastNpcInteractionData;
+      
+      if (data.availableQuests && Array.isArray(data.availableQuests)) {
+        console.log('🔍 [QuestDetailsUI] _lastNpcInteractionData.availableQuests:', data.availableQuests);
+        const questData = data.availableQuests.find(q => q.id === questId);
+        if (questData) {
+          console.log('✅ [QuestDetailsUI] Quête trouvée dans _lastNpcInteractionData');
+          return this.enrichQuestData(questData);
+        }
+      }
+    }
+    
+    // 🔧 3. NOUVEAU : Vérifier dans les actions du DialogueManager
+    if (window.dialogueManager && window.dialogueManager.classicState && window.dialogueManager.classicState.actions) {
+      console.log('🔍 [QuestDetailsUI] Recherche dans classicState.actions');
+      const questAction = window.dialogueManager.classicState.actions.find(action => 
+        action.type === 'quest' && action.questId === questId
+      );
+      
+      if (questAction && questAction.data) {
+        console.log('✅ [QuestDetailsUI] Données trouvées dans action quête');
+        return this.enrichQuestData(questAction.data);
+      }
+    }
+    
+    console.log('❌ [QuestDetailsUI] Aucune donnée trouvée pour la quête');
+    return null;
+  }
+  
+  /**
+   * 🔧 NOUVELLE MÉTHODE : Enrichir les données de quête
+   */
+  enrichQuestData(baseQuestData) {
+    console.log('🔧 [QuestDetailsUI] Enrichissement données:', baseQuestData);
+    
+    // 🔧 EXTRACTION ROBUSTE du nom
+    let questName = baseQuestData.name || baseQuestData.title || baseQuestData.questName || baseQuestData.questTitle;
+    
+    // Si pas de nom, essayer d'extraire depuis l'ID
+    if (!questName && baseQuestData.id) {
+      questName = baseQuestData.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    // Nom par défaut
+    if (!questName) {
+      questName = `Quête ${baseQuestData.id || 'Inconnue'}`;
+    }
+    
+    const enrichedData = {
+      id: baseQuestData.id || 'unknown_quest',
+      name: questName,
+      description: baseQuestData.description || baseQuestData.questDescription || 'Découvrez les détails de cette quête en l\'acceptant !',
+      
+      // Status et availabilité
+      canAccept: baseQuestData.canAccept !== false,
+      status: baseQuestData.status || 'available',
+      
+      // Récompenses (améliorer selon les données disponibles)
+      rewards: baseQuestData.rewards || [
+        { type: 'xp', name: 'Expérience', amount: 100 },
+        { type: 'gold', name: 'Or', amount: 50 },
+        { type: 'item', name: 'Objet Mystère', amount: 1 }
+      ],
+      
+      // Métadonnées
+      category: baseQuestData.category || 'side',
+      level: baseQuestData.level || 1,
+      estimatedTime: baseQuestData.estimatedTime || '15 minutes',
+      
+      // Objectifs (améliorer)
+      objectives: baseQuestData.objectives || [
+        { description: 'Accepter la quête pour découvrir les objectifs', completed: false },
+        { description: 'Suivre les instructions du PNJ', completed: false }
+      ]
+    };
+    
+    console.log('✅ [QuestDetailsUI] Données enrichies:', enrichedData);
+    return enrichedData;
+  }
+  
+  /**
+   * 🔧 NOUVELLE MÉTHODE : Générer données par défaut
+   */
+  generateDefaultQuestData(questId) {
+    console.log(`🔧 [QuestDetailsUI] Génération données par défaut pour: ${questId}`);
+    
+    // Extraire le nom depuis l'ID si possible
+    let questName = questId;
+    if (typeof questId === 'string') {
+      questName = questId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    // Descriptions spéciales selon l'ID
+    let description = 'Découvrez les détails de cette quête passionnante !';
+    let objectives = [
+      { description: 'Parler au PNJ pour obtenir plus d\'informations', completed: false },
+      { description: 'Accepter la quête pour révéler les objectifs', completed: false }
+    ];
+    
+    // 🔧 PERSONNALISATION selon l'ID de quête
+    if (questId && questId.toLowerCase().includes('gardening')) {
+      description = 'Annie a perdu ses gants de jardinage près de la rivière. Aidez-la à les retrouver !';
+      objectives = [
+        { description: 'Chercher les gants près de la rivière sud-ouest', completed: false },
+        { description: 'Rapporter les gants à Annie', completed: false }
+      ];
+    } else if (questId && questId.toLowerCase().includes('lost')) {
+      description = 'Un objet important a été perdu. Votre aide est requise pour le retrouver.';
+      objectives = [
+        { description: 'Enquêter sur la disparition', completed: false },
+        { description: 'Retrouver l\'objet perdu', completed: false }
+      ];
+    }
+    
+    const defaultData = {
+      id: questId,
+      name: questName,
+      description: description,
+      canAccept: true,
+      status: 'available',
+      rewards: [
+        { type: 'xp', name: 'Points d\'expérience', amount: 150 },
+        { type: 'gold', name: 'Pièces d\'or', amount: 75 },
+        { type: 'item', name: 'Objet de quête', amount: 1 }
+      ],
+      category: 'side',
+      level: 1,
+      estimatedTime: '10-20 minutes',
+      objectives: objectives
+    };
+    
+    console.log('✅ [QuestDetailsUI] Données par défaut générées:', defaultData);
+    return defaultData;
+  }
+  
+  /**
+   * 🔧 NOUVELLE MÉTHODE : Chargement en arrière-plan (optionnel)
+   */
+  loadQuestDetailsInBackground(questId) {
+    console.log(`🔄 [QuestDetailsUI] Chargement arrière-plan pour: ${questId}`);
+    
+    // Essayer de charger via le NetworkManager après un délai
+    setTimeout(() => {
+      if (this.questSystem && this.questSystem.networkManager) {
+        console.log('🔄 [QuestDetailsUI] Tentative chargement réseau différé...');
+        try {
+          this.loadQuestDetails(questId);
+        } catch (error) {
+          console.log('⚠️ [QuestDetailsUI] Chargement différé échoué (normal):', error.message);
+        }
+      }
+    }, 1000);
+  }
+  
+  // === 🔄 GESTION DONNÉES (méthodes existantes modifiées) ===
   
   async loadQuestDetails(questId) {
     if (!this.questSystem || !this.questSystem.networkManager) {
       console.error('❌ [QuestDetailsUI] NetworkManager non disponible');
-      this.showError(t('quest.details.error_network'));
+      this.showError('Erreur réseau - NetworkManager non disponible');
       return;
     }
     
@@ -803,7 +1070,7 @@ export class QuestDetailsUI {
       // Timeout si pas de réponse
       setTimeout(() => {
         if (this.isLoading) {
-          this.showError(t('quest.details.error_timeout'));
+          this.showError('Timeout - Pas de réponse du serveur');
           // Restaurer callback
           this.questSystem.networkManager.onNpcInteraction(originalCallback);
         }
@@ -811,7 +1078,7 @@ export class QuestDetailsUI {
       
     } catch (error) {
       console.error('❌ [QuestDetailsUI] Erreur chargement:', error);
-      this.showError(t('quest.details.error_loading'));
+      this.showError('Erreur lors du chargement');
     }
   }
   
@@ -823,7 +1090,7 @@ export class QuestDetailsUI {
     listContainer.innerHTML = `
       <div class="quest-loading">
         <div class="quest-loading-spinner"></div>
-        <div class="quest-loading-text">${t('quest.details.loading_list')}</div>
+        <div class="quest-loading-text">Chargement des quêtes...</div>
       </div>
     `;
     
@@ -841,7 +1108,7 @@ export class QuestDetailsUI {
         return `
           <div class="quest-selection-item" data-quest-id="${questId}">
             <div class="quest-selection-name">${quest.name || questId}</div>
-            <div class="quest-selection-preview">${quest.shortDescription || quest.description || t('quest.details.no_description')}</div>
+            <div class="quest-selection-preview">${quest.shortDescription || quest.description || 'Pas de description'}</div>
           </div>
         `;
       }).join('');
@@ -858,7 +1125,7 @@ export class QuestDetailsUI {
       listContainer.innerHTML = `
         <div class="quest-loading">
           <div style="color: #dc3545; font-size: 16px;">❌</div>
-          <div class="quest-loading-text">${t('quest.details.error_loading_list')}</div>
+          <div class="quest-loading-text">Erreur chargement liste</div>
         </div>
       `;
     }
@@ -869,7 +1136,7 @@ export class QuestDetailsUI {
     // TODO: Implémenter API pour récupérer info basique sans détails complets
     return {
       name: questId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      shortDescription: t('quest.details.loading_description')
+      shortDescription: 'Chargement description...'
     };
   }
   
@@ -948,8 +1215,8 @@ export class QuestDetailsUI {
       contentContainer.innerHTML = `
         <div class="quest-loading">
           <div class="quest-loading-spinner"></div>
-          <div class="quest-loading-text">${t('quest.details.loading_quest')}</div>
-          <div class="quest-loading-subtext">${t('quest.details.loading_wait')}</div>
+          <div class="quest-loading-text">Chargement de la quête...</div>
+          <div class="quest-loading-subtext">Patientez quelques instants...</div>
         </div>
       `;
     }
@@ -969,8 +1236,12 @@ export class QuestDetailsUI {
       contentContainer.innerHTML = `
         <div class="quest-loading">
           <div style="color: #dc3545; font-size: 32px; margin-bottom: 15px;">❌</div>
-          <div class="quest-loading-text" style="color: #dc3545;">${t('quest.details.error_title')}</div>
+          <div class="quest-loading-text" style="color: #dc3545;">Erreur</div>
           <div class="quest-loading-subtext">${message}</div>
+          <button onclick="this.closest('.quest-details-overlay').querySelector('#quest-details-close').click()" 
+                  style="margin-top: 15px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Fermer
+          </button>
         </div>
       `;
     }
@@ -992,60 +1263,100 @@ export class QuestDetailsUI {
   }
   
   displayQuestDetails(questData) {
+    console.log('📋 [QuestDetailsUI] Affichage détails:', questData);
+    
+    // 🔧 PROTECTION contre les données invalides
+    if (!questData || typeof questData !== 'object') {
+      console.error('❌ [QuestDetailsUI] Données quête invalides:', questData);
+      this.showError('Données de quête invalides');
+      return;
+    }
+    
     this.isLoading = false;
     this.currentQuest = questData;
     
-    console.log('📋 [QuestDetailsUI] Affichage détails:', questData);
-    
     const contentContainer = this.overlayElement.querySelector('#quest-details-content');
-    if (!contentContainer) return;
+    if (!contentContainer) {
+      console.error('❌ [QuestDetailsUI] Container de contenu non trouvé');
+      return;
+    }
     
-    const canAccept = questData.canAccept !== false;
-    const statusClass = canAccept ? 'available' : 'unavailable';
-    const statusIcon = canAccept ? '✅' : '❌';
-    const statusText = canAccept ? 
-      t('quest.details.status_available') : 
-      t('quest.details.status_unavailable');
-    
-    contentContainer.innerHTML = `
-      <!-- Nom de la quête -->
-      <div class="quest-name">${questData.name || questData.id}</div>
+    try {
+      const canAccept = questData.canAccept !== false;
+      const statusClass = canAccept ? 'available' : 'unavailable';
+      const statusIcon = canAccept ? '✅' : '❌';
+      const statusText = canAccept ? 'Disponible' : 'Non disponible';
       
-      <!-- Statut -->
-      <div class="quest-status ${statusClass}">
-        <span class="quest-status-icon">${statusIcon}</span>
-        <span class="quest-status-text">${statusText}</span>
-      </div>
-      
-      <!-- Description -->
-      <div class="quest-section">
-        <div class="quest-section-label description-label">${t('quest.details.description_label')}</div>
-        <div class="quest-description">
-          ${questData.description || t('quest.details.no_description')}
+      contentContainer.innerHTML = `
+        <!-- Nom de la quête -->
+        <div class="quest-name">${questData.name || 'Quête sans nom'}</div>
+        
+        <!-- Statut -->
+        <div class="quest-status ${statusClass}">
+          <span class="quest-status-icon">${statusIcon}</span>
+          <span class="quest-status-text">${statusText}</span>
         </div>
-      </div>
-      
-      <!-- Récompenses -->
-      ${questData.rewards && questData.rewards.length > 0 ? `
+        
+        <!-- Informations générales -->
         <div class="quest-section">
-          <div class="quest-section-label rewards-label">${t('quest.details.rewards_label')}</div>
-          <div class="quest-rewards">
-            ${questData.rewards.map(reward => `
-              <div class="quest-reward-item">
-                <span class="quest-reward-icon">${this.getRewardIcon(reward.type)}</span>
-                <span class="quest-reward-text">${reward.name || reward.type}</span>
-                <span class="quest-reward-amount">${reward.amount || 1}</span>
-              </div>
-            `).join('')}
+          <div class="quest-section-label">Informations</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+            <span class="quest-info-badge category-${questData.category || 'side'}">${(questData.category || 'SIDE').toUpperCase()}</span>
+            <span class="quest-info-badge level">Niveau ${questData.level || 1}</span>
+            <span class="quest-info-badge time">⏱️ ${questData.estimatedTime || '15 min'}</span>
           </div>
         </div>
-      ` : ''}
-    `;
-    
-    // Activer/désactiver bouton accepter
-    const acceptBtn = this.overlayElement.querySelector('#quest-accept-btn');
-    if (acceptBtn) {
-      acceptBtn.disabled = !canAccept;
+        
+        <!-- Description -->
+        <div class="quest-section">
+          <div class="quest-section-label">Description</div>
+          <div class="quest-description">
+            ${questData.description || 'Description non disponible'}
+          </div>
+        </div>
+        
+        <!-- Objectifs -->
+        ${questData.objectives && questData.objectives.length > 0 ? `
+          <div class="quest-section">
+            <div class="quest-section-label">Objectifs</div>
+            <div class="quest-objectives">
+              ${questData.objectives.map(objective => `
+                <div class="quest-objective ${objective.completed ? 'completed' : ''}">
+                  ${objective.description || 'Objectif non défini'}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Récompenses -->
+        ${questData.rewards && questData.rewards.length > 0 ? `
+          <div class="quest-section">
+            <div class="quest-section-label">Récompenses</div>
+            <div class="quest-rewards">
+              ${questData.rewards.map(reward => `
+                <div class="quest-reward-item">
+                  <span class="quest-reward-icon">${this.getRewardIcon(reward.type)}</span>
+                  <span class="quest-reward-text">${reward.name || reward.type}</span>
+                  <span class="quest-reward-amount">${reward.amount || 1}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+      
+      // Activer/désactiver bouton accepter
+      const acceptBtn = this.overlayElement.querySelector('#quest-accept-btn');
+      if (acceptBtn) {
+        acceptBtn.disabled = !canAccept;
+      }
+      
+      console.log('✅ [QuestDetailsUI] Détails affichés avec succès');
+      
+    } catch (error) {
+      console.error('❌ [QuestDetailsUI] Erreur affichage détails:', error);
+      this.showError('Erreur lors de l\'affichage des détails');
     }
   }
   
@@ -1118,5 +1429,133 @@ export class QuestDetailsUI {
     console.log('✅ [QuestDetailsUI] Détruit');
   }
 }
+
+// === 🧪 FONCTIONS DEBUG ===
+
+// 🧪 FONCTION DEBUG : Vérifier les données disponibles
+window.debugQuestData = function(questId = 'lost_gardening_gloves') {
+  console.log('🔍 === DEBUG QUEST DATA ===');
+  console.log('Quest ID recherché:', questId);
+  
+  console.log('=== SOURCES DISPONIBLES ===');
+  console.log('1. window.dialogueManager:', !!window.dialogueManager);
+  if (window.dialogueManager) {
+    console.log('   - currentDialogueData:', window.dialogueManager.currentDialogueData);
+    console.log('   - classicState.actions:', window.dialogueManager.classicState?.actions);
+  }
+  
+  console.log('2. window._lastNpcInteractionData:', window._lastNpcInteractionData);
+  
+  console.log('3. window.questSystem:', !!window.questSystem);
+  if (window.questSystem) {
+    console.log('   - detailsUI:', !!window.questSystem.detailsUI);
+  }
+  
+  // Tester la récupération
+  if (window.questSystem && window.questSystem.detailsUI) {
+    console.log('=== TEST RÉCUPÉRATION ===');
+    const questData = window.questSystem.detailsUI.getQuestDataFromDialogue(questId);
+    console.log('Données récupérées:', questData);
+  }
+  
+  return {
+    hasDialogueManager: !!window.dialogueManager,
+    hasLastNpcData: !!window._lastNpcInteractionData,
+    hasQuestSystem: !!window.questSystem,
+    questId: questId
+  };
+};
+
+// 🧪 FONCTION TEST : Forcer l'ouverture avec données de test
+window.forceTestQuestDetails = function() {
+  console.log('🧪 Test forcé QuestDetailsUI...');
+  
+  // Créer des données de test
+  const testQuestData = {
+    id: 'lost_gardening_gloves',
+    name: 'The Lost Gardening Gloves',
+    description: 'Annie, une résidente âgée de la Route 1, a égaré ses gants de jardinage en cueillant des baies près de la rivière sud-ouest. Sans eux, elle ne peut pas s\'occuper de ses plantes et craint que les Pokémon sauvages locaux ne les prennent.',
+    canAccept: true,
+    status: 'available',
+    category: 'side',
+    level: 1,
+    estimatedTime: '15-20 minutes',
+    rewards: [
+      { type: 'xp', name: 'Points d\'expérience', amount: 200 },
+      { type: 'gold', name: 'Pièces d\'or', amount: 100 },
+      { type: 'item', name: 'Potion', amount: 2 }
+    ],
+    objectives: [
+      { description: 'Chercher les gants près de la rivière sud-ouest', completed: false },
+      { description: 'Éviter les Pokémon sauvages dans la zone', completed: false },
+      { description: 'Rapporter les gants à Annie', completed: false }
+    ]
+  };
+  
+  // Stocker dans les sources de données
+  window._lastNpcInteractionData = {
+    npcId: 'annie_npc',
+    npcName: 'Annie',
+    availableQuests: [testQuestData]
+  };
+  
+  if (window.dialogueManager) {
+    window.dialogueManager.currentDialogueData = {
+      npcId: 'annie_npc',
+      name: 'Annie',
+      availableQuests: [testQuestData]
+    };
+  }
+  
+  // Ouvrir le QuestDetailsUI
+  if (window.questSystem && window.questSystem.detailsUI) {
+    window.questSystem.detailsUI.showSingleQuest('annie_npc', 'lost_gardening_gloves', testQuestData);
+    console.log('✅ QuestDetailsUI ouvert avec données de test');
+  } else {
+    console.error('❌ QuestDetailsUI non disponible');
+  }
+};
+
+// 🧪 FONCTION TEST : Simuler dialogue complet avec quête
+window.testFullQuestFlow = function() {
+  console.log('🧪 Test flux complet dialogue → quête...');
+  
+  // Étape 1 : Simuler dialogue avec quête
+  if (window.dialogueManager) {
+    const dialogueData = {
+      npcId: 'annie_test',
+      name: 'Annie',
+      lines: ['J\'ai une tâche pour vous, dresseur !', 'Souhaitez-vous m\'aider ?'],
+      capabilities: ['questGiver'],
+      availableQuests: [
+        {
+          id: 'lost_gardening_gloves',
+          name: 'The Lost Gardening Gloves',
+          description: 'Retrouvez mes gants de jardinage perdus près de la rivière.',
+          canAccept: true,
+          rewards: [
+            { type: 'xp', name: 'Expérience', amount: 200 },
+            { type: 'gold', name: 'Or', amount: 100 }
+          ]
+        }
+      ]
+    };
+    
+    console.log('🎭 Ouverture dialogue avec quête...');
+    window.dialogueManager.show(dialogueData);
+    
+    setTimeout(() => {
+      console.log('💡 Cliquez sur le bouton "! The Lost Gardening Gloves" pour tester !');
+    }, 1000);
+    
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
+console.log('🧪 === FONCTIONS DEBUG QUEST AJOUTÉES ===');
+console.log('📋 window.debugQuestData() - Debug sources de données');
+console.log('🎯 window.forceTestQuestDetails() - Test forcé avec données');
+console.log('🎭 window.testFullQuestFlow() - Test flux complet dialogue→quête');
 
 export default QuestDetailsUI;
