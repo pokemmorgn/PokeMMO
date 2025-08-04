@@ -268,9 +268,9 @@ handleQuestAcceptFromUI(questId, npcId, questData) {
     });
     
     // === MESSAGES SERVEUR DIRECTS (QuestClientMessage) ===
-    this.networkManager.onMessage("quest_started", (data) => {
-      this.handleQuestStarted(data);
-    });
+ //   this.networkManager.onMessage("quest_started", (data) => {
+ //     this.handleQuestStarted(data);
+ //   });
     
     this.networkManager.onMessage("quest_progress", (data) => {
       this.handleQuestProgress(data);
