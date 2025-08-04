@@ -31,7 +31,31 @@
         "error_timeout": "Request timeout",
         "error_loading": "Failed to load quest details",
         "error_loading_list": "Failed to load quest list",
-        "no_description": "No description available"
+        "no_description": "No description available",
+        "default": {
+          "description": "Discover the details of this exciting quest!",
+          "objective1": "Talk to the NPC to get more information",
+          "objective2": "Accept the quest to reveal the objectives"
+        },
+        "gardening": {
+          "description": "Annie has lost her gardening gloves near the river. Help her find them!",
+          "objective1": "Search for the gloves near the southwest river",
+          "objective2": "Return the gloves to Annie"
+        },
+        "lost": {
+          "description": "An important item has been lost. Your help is needed to find it.",
+          "objective1": "Investigate the disappearance",
+          "objective2": "Find the lost item"
+        },
+        "rewards": {
+          "experience": "Experience Points",
+          "gold": "Gold Coins",
+          "quest_item": "Quest Item"
+        },
+        "objectives": {
+          "accept": "Accept the quest to discover the objectives",
+          "follow": "Follow the NPC's instructions"
+        }
       }
     }
   },
@@ -67,7 +91,31 @@
         "error_timeout": "Délai d'attente dépassé",
         "error_loading": "Échec du chargement des détails de la quête",
         "error_loading_list": "Échec du chargement de la liste des quêtes",
-        "no_description": "Aucune description disponible"
+        "no_description": "Aucune description disponible",
+        "default": {
+          "description": "Découvrez les détails de cette quête passionnante !",
+          "objective1": "Parler au PNJ pour obtenir plus d'informations",
+          "objective2": "Accepter la quête pour révéler les objectifs"
+        },
+        "gardening": {
+          "description": "Annie a perdu ses gants de jardinage près de la rivière. Aidez-la à les retrouver !",
+          "objective1": "Chercher les gants près de la rivière sud-ouest",
+          "objective2": "Rapporter les gants à Annie"
+        },
+        "lost": {
+          "description": "Un objet important a été perdu. Votre aide est requise pour le retrouver.",
+          "objective1": "Enquêter sur la disparition",
+          "objective2": "Retrouver l'objet perdu"
+        },
+        "rewards": {
+          "experience": "Points d'expérience",
+          "gold": "Pièces d'or",
+          "quest_item": "Objet de quête"
+        },
+        "objectives": {
+          "accept": "Accepter la quête pour découvrir les objectifs",
+          "follow": "Suivre les instructions du PNJ"
+        }
       }
     }
   },
@@ -103,7 +151,31 @@
         "error_timeout": "Tiempo de espera agotado",
         "error_loading": "Error al cargar los detalles de la misión",
         "error_loading_list": "Error al cargar la lista de misiones",
-        "no_description": "No hay descripción disponible"
+        "no_description": "No hay descripción disponible",
+        "default": {
+          "description": "¡Descubre los detalles de esta emocionante misión!",
+          "objective1": "Hablar con el PNJ para obtener más información",
+          "objective2": "Aceptar la misión para revelar los objetivos"
+        },
+        "gardening": {
+          "description": "Annie ha perdido sus guantes de jardinería cerca del río. ¡Ayúdala a encontrarlos!",
+          "objective1": "Buscar los guantes cerca del río suroeste",
+          "objective2": "Devolver los guantes a Annie"
+        },
+        "lost": {
+          "description": "Se ha perdido un objeto importante. Tu ayuda es necesaria para encontrarlo.",
+          "objective1": "Investigar la desaparición",
+          "objective2": "Encontrar el objeto perdido"
+        },
+        "rewards": {
+          "experience": "Puntos de experiencia",
+          "gold": "Monedas de oro",
+          "quest_item": "Objeto de misión"
+        },
+        "objectives": {
+          "accept": "Acepta la misión para descubrir los objetivos",
+          "follow": "Sigue las instrucciones del PNJ"
+        }
       }
     }
   },
@@ -139,7 +211,31 @@
         "error_timeout": "Zeitüberschreitung",
         "error_loading": "Fehler beim Laden der Quest-Details",
         "error_loading_list": "Fehler beim Laden der Quest-Liste",
-        "no_description": "Keine Beschreibung verfügbar"
+        "no_description": "Keine Beschreibung verfügbar",
+        "default": {
+          "description": "Entdecke die Details dieser aufregenden Quest!",
+          "objective1": "Sprich mit dem NPC, um weitere Informationen zu erhalten",
+          "objective2": "Nimm die Quest an, um die Ziele zu enthüllen"
+        },
+        "gardening": {
+          "description": "Annie hat ihre Gartenhandschuhe am Fluss verloren. Hilf ihr, sie zu finden!",
+          "objective1": "Suche nach den Handschuhen am südwestlichen Fluss",
+          "objective2": "Bringe die Handschuhe zu Annie zurück"
+        },
+        "lost": {
+          "description": "Ein wichtiger Gegenstand wurde verloren. Deine Hilfe wird benötigt, um ihn zu finden.",
+          "objective1": "Untersuche das Verschwinden",
+          "objective2": "Finde den verlorenen Gegenstand"
+        },
+        "rewards": {
+          "experience": "Erfahrungspunkte",
+          "gold": "Goldmünzen",
+          "quest_item": "Quest-Gegenstand"
+        },
+        "objectives": {
+          "accept": "Nimm die Quest an, um die Ziele zu entdecken",
+          "follow": "Folge den Anweisungen des NPCs"
+        }
       }
     }
   },
@@ -175,7 +271,31 @@
         "error_timeout": "Timeout della richiesta",
         "error_loading": "Errore nel caricamento dei dettagli della missione",
         "error_loading_list": "Errore nel caricamento della lista delle missioni",
-        "no_description": "Nessuna descrizione disponibile"
+        "no_description": "Nessuna descrizione disponibile",
+        "default": {
+          "description": "Scopri i dettagli di questa missione emozionante!",
+          "objective1": "Parla con il PNG per ottenere più informazioni",
+          "objective2": "Accetta la missione per rivelare gli obiettivi"
+        },
+        "gardening": {
+          "description": "Annie ha perso i suoi guanti da giardinaggio vicino al fiume. Aiutala a trovarli!",
+          "objective1": "Cerca i guanti vicino al fiume sud-ovest",
+          "objective2": "Riporta i guanti ad Annie"
+        },
+        "lost": {
+          "description": "Un oggetto importante è stato perso. Il tuo aiuto è necessario per trovarlo.",
+          "objective1": "Indaga sulla scomparsa",
+          "objective2": "Trova l'oggetto perduto"
+        },
+        "rewards": {
+          "experience": "Punti esperienza",
+          "gold": "Monete d'oro",
+          "quest_item": "Oggetto della missione"
+        },
+        "objectives": {
+          "accept": "Accetta la missione per scoprire gli obiettivi",
+          "follow": "Segui le istruzioni del PNG"
+        }
       }
     }
   },
@@ -211,7 +331,31 @@
         "error_timeout": "Tempo limite esgotado",
         "error_loading": "Falha ao carregar detalhes da missão",
         "error_loading_list": "Falha ao carregar lista de missões",
-        "no_description": "Nenhuma descrição disponível"
+        "no_description": "Nenhuma descrição disponível",
+        "default": {
+          "description": "Descubra os detalhes desta missão emocionante!",
+          "objective1": "Fale com o NPC para obter mais informações",
+          "objective2": "Aceite a missão para revelar os objetivos"
+        },
+        "gardening": {
+          "description": "Annie perdeu suas luvas de jardinagem perto do rio. Ajude-a a encontrá-las!",
+          "objective1": "Procure pelas luvas perto do rio sudoeste",
+          "objective2": "Devolva as luvas para Annie"
+        },
+        "lost": {
+          "description": "Um item importante foi perdido. Sua ajuda é necessária para encontrá-lo.",
+          "objective1": "Investigue o desaparecimento",
+          "objective2": "Encontre o item perdido"
+        },
+        "rewards": {
+          "experience": "Pontos de experiência",
+          "gold": "Moedas de ouro",
+          "quest_item": "Item da missão"
+        },
+        "objectives": {
+          "accept": "Aceite a missão para descobrir os objetivos",
+          "follow": "Siga as instruções do NPC"
+        }
       }
     }
   },
@@ -247,7 +391,31 @@
         "error_timeout": "リクエストタイムアウト",
         "error_loading": "クエスト詳細の読み込みに失敗しました",
         "error_loading_list": "クエストリストの読み込みに失敗しました",
-        "no_description": "説明がありません"
+        "no_description": "説明がありません",
+        "default": {
+          "description": "このエキサイティングなクエストの詳細を発見しよう！",
+          "objective1": "NPCと話してより多くの情報を得る",
+          "objective2": "クエストを受諾して目標を明らかにする"
+        },
+        "gardening": {
+          "description": "アニーが川の近くで園芸用の手袋を失くしました。見つけるのを手伝ってください！",
+          "objective1": "南西の川の近くで手袋を探す",
+          "objective2": "手袋をアニーに返す"
+        },
+        "lost": {
+          "description": "重要なアイテムが失くなりました。それを見つけるためにあなたの助けが必要です。",
+          "objective1": "行方不明について調査する",
+          "objective2": "失くしたアイテムを見つける"
+        },
+        "rewards": {
+          "experience": "経験値",
+          "gold": "金貨",
+          "quest_item": "クエストアイテム"
+        },
+        "objectives": {
+          "accept": "クエストを受諾して目標を発見する",
+          "follow": "NPCの指示に従う"
+        }
       }
     }
   },
@@ -283,7 +451,31 @@
         "error_timeout": "요청 시간 초과",
         "error_loading": "퀘스트 세부사항 로딩 실패",
         "error_loading_list": "퀘스트 목록 로딩 실패",
-        "no_description": "설명이 없습니다"
+        "no_description": "설명이 없습니다",
+        "default": {
+          "description": "이 흥미진진한 퀘스트의 세부사항을 발견하세요!",
+          "objective1": "NPC와 대화하여 더 많은 정보를 얻기",
+          "objective2": "퀘스트를 수락하여 목표를 공개하기"
+        },
+        "gardening": {
+          "description": "애니가 강 근처에서 원예용 장갑을 잃어버렸습니다. 찾는 것을 도와주세요!",
+          "objective1": "남서쪽 강 근처에서 장갑 찾기",
+          "objective2": "장갑을 애니에게 돌려주기"
+        },
+        "lost": {
+          "description": "중요한 아이템이 분실되었습니다. 찾기 위해 당신의 도움이 필요합니다.",
+          "objective1": "실종에 대해 조사하기",
+          "objective2": "분실된 아이템 찾기"
+        },
+        "rewards": {
+          "experience": "경험치",
+          "gold": "금화",
+          "quest_item": "퀘스트 아이템"
+        },
+        "objectives": {
+          "accept": "퀘스트를 수락하여 목표를 발견하기",
+          "follow": "NPC의 지시를 따르기"
+        }
       }
     }
   }
