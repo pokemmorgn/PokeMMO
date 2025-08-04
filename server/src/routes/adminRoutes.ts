@@ -2591,7 +2591,7 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
   }
 });
 
-// ✅ ROUTE: Sauvegarder les NPCs d'une zone dans MongoDB
+// ✅ ROUTE: Sauvegarder les NPCs d'une zone dans MongoDB (CORRIGÉE)
 router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId } = req.params;
@@ -2608,50 +2608,126 @@ router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
       });
     }
     
-    // Supprimer tous les NPCs existants de cette zone
-    const deleteResult = await NpcData.deleteMany({ zone: zoneId });
-    console.log(`🗑️ [NPCs API] Deleted ${deleteResult.deletedCount} existing NPCs for ${zoneId}`);
+    // ✅ NOUVEAU: Déterminer le mode de sauvegarde
+    const saveMode = req.query.mode || 'replace'; // 'replace' | 'merge' | 'add'
+    
+    console.log(`🔄 [NPCs API] Mode de sauvegarde: ${saveMode}`);
     
     let savedCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
     const errors: string[] = [];
     
-    // Sauvegarder chaque NPC individuellement
-    for (const npcJson of npcData.npcs) {
-      try {
-        // Validation de base
-        if (!npcJson.id || !npcJson.name || !npcJson.type) {
-          errors.push(`NPC invalide: manque id, name ou type - ${JSON.stringify(npcJson)}`);
-          continue;
+    // ✅ CORRECTION: Logique selon le mode
+    if (saveMode === 'replace') {
+      // Mode REPLACE: Supprimer tous les NPCs existants et recréer (ancien comportement)
+      console.log(`🗑️ [NPCs API] MODE REPLACE: Suppression de tous les NPCs existants de ${zoneId}`);
+      const deleteResult = await NpcData.deleteMany({ zone: zoneId });
+      console.log(`🗑️ [NPCs API] ${deleteResult.deletedCount} NPCs supprimés`);
+      
+      // Créer tous les nouveaux NPCs
+      for (const npcJson of npcData.npcs) {
+        try {
+          await NpcData.createFromJson(npcJson, zoneId);
+          savedCount++;
+        } catch (error) {
+          const errorMsg = `NPC ${npcJson.id || 'unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error('❌ [NPCs API] Error creating NPC:', errorMsg);
         }
-        
-        if (!npcJson.position || typeof npcJson.position.x !== 'number' || typeof npcJson.position.y !== 'number') {
-          errors.push(`NPC ${npcJson.id}: position invalide`);
-          continue;
+      }
+      
+    } else if (saveMode === 'merge') {
+      // Mode MERGE: Mettre à jour les existants, créer les nouveaux
+      console.log(`🔄 [NPCs API] MODE MERGE: Mise à jour/création sélective`);
+      
+      for (const npcJson of npcData.npcs) {
+        try {
+          if (!npcJson.id && !npcJson.npcId) {
+            errors.push(`NPC sans ID: impossible de merger`);
+            continue;
+          }
+          
+          const npcId = npcJson.id || npcJson.npcId;
+          
+          // Chercher le NPC existant avec l'ID GLOBAL
+          const existingNPC = await NpcData.findOne({ npcId: npcId });
+          
+          if (existingNPC) {
+            // Mettre à jour le NPC existant
+            await existingNPC.updateFromJson(npcJson);
+            updatedCount++;
+            console.log(`🔄 [NPCs API] NPC ${npcId} mis à jour`);
+          } else {
+            // Créer un nouveau NPC
+            await NpcData.createFromJson(npcJson, zoneId);
+            savedCount++;
+            console.log(`➕ [NPCs API] NPC ${npcId} créé`);
+          }
+          
+        } catch (error) {
+          const errorMsg = `NPC ${npcJson.id || 'unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error('❌ [NPCs API] Error in merge mode:', errorMsg);
         }
-        
-        // Créer le NPC avec la méthode static
-        await NpcData.createFromJson(npcJson, zoneId);
-        savedCount++;
-        
-      } catch (error) {
-        const errorMsg = `NPC ${npcJson.id || 'unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        errors.push(errorMsg);
-        console.error('❌ [NPCs API] Error saving NPC:', errorMsg);
+      }
+      
+    } else if (saveMode === 'add') {
+      // Mode ADD: Ajouter uniquement les nouveaux (ignorer les existants)
+      console.log(`➕ [NPCs API] MODE ADD: Ajout uniquement des nouveaux NPCs`);
+      
+      for (const npcJson of npcData.npcs) {
+        try {
+          if (npcJson.id || npcJson.npcId) {
+            const npcId = npcJson.id || npcJson.npcId;
+            
+            // Vérifier si le NPC existe déjà GLOBALEMENT
+            const existingNPC = await NpcData.findOne({ npcId: npcId });
+            
+            if (existingNPC) {
+              skippedCount++;
+              console.log(`⏭️ [NPCs API] NPC ${npcId} existe déjà, ignoré`);
+              continue;
+            }
+          }
+          
+          // Créer le nouveau NPC (ID sera attribué automatiquement si nécessaire)
+          await NpcData.createFromJson(npcJson, zoneId);
+          savedCount++;
+          
+        } catch (error) {
+          const errorMsg = `NPC ${npcJson.id || 'unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error('❌ [NPCs API] Error in add mode:', errorMsg);
+        }
       }
     }
     
-    console.log(`✅ [NPCs API] Saved ${savedCount}/${npcData.npcs.length} NPCs for ${zoneId} by ${req.user.username}`);
+    const totalProcessed = savedCount + updatedCount + skippedCount;
+    
+    console.log(`✅ [NPCs API] Sauvegarde terminée pour ${zoneId}:`);
+    console.log(`   📊 Mode: ${saveMode}`);
+    console.log(`   ➕ Créés: ${savedCount}`);
+    console.log(`   🔄 Mis à jour: ${updatedCount}`);
+    console.log(`   ⏭️ Ignorés: ${skippedCount}`);
+    console.log(`   ❌ Erreurs: ${errors.length}`);
     
     if (errors.length > 0) {
-      console.warn(`⚠️ [NPCs API] ${errors.length} errors during save:`, errors);
+      console.warn(`⚠️ [NPCs API] ${errors.length} erreurs:`, errors.slice(0, 5));
     }
     
     res.json({
       success: true,
-      message: `NPCs sauvegardés pour ${zoneId}`,
+      message: `NPCs sauvegardés pour ${zoneId} (mode: ${saveMode})`,
       zoneId,
-      totalNPCs: savedCount,
-      errors: errors.length > 0 ? errors : undefined,
+      mode: saveMode,
+      results: {
+        created: savedCount,
+        updated: updatedCount,
+        skipped: skippedCount,
+        errors: errors.length
+      },
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined, // Limiter les erreurs affichées
       timestamp: new Date().toISOString(),
       savedBy: req.user.username,
       source: 'mongodb'
@@ -2661,7 +2737,97 @@ router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     console.error('❌ [NPCs API] Error saving NPCs to MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la sauvegarde des NPCs dans MongoDB'
+      error: 'Erreur lors de la sauvegarde des NPCs dans MongoDB',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ✅ NOUVELLE ROUTE: Ajouter un seul NPC (plus sûre)
+router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId } = req.params;
+    const npcJson = req.body;
+    
+    console.log(`➕ [NPCs API] Adding single NPC to zone: ${zoneId}`);
+    
+    // Validation du NPC
+    if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
+      return res.status(400).json({
+        success: false,
+        error: 'Champs requis manquants pour le NPC (name, type, position, sprite)'
+      });
+    }
+    
+    // Créer le NPC (ID global sera attribué automatiquement)
+    const newNpc = await NpcData.createFromJson(npcJson, zoneId);
+    
+    console.log(`✅ [NPCs API] Single NPC "${npcJson.name}" (ID: ${newNpc.npcId}) added to ${zoneId} by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId}`,
+      npc: newNpc.toNpcFormat(),
+      globalId: newNpc.npcId, // ✅ Retourner l'ID global attribué
+      zoneId,
+      addedBy: req.user.username,
+      source: 'mongodb'
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error adding single NPC to MongoDB:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de l\'ajout du NPC dans MongoDB',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ✅ NOUVELLE ROUTE: Mettre à jour un seul NPC (plus sûre)
+router.put('/zones/:zoneId/npcs/:npcId/update-single', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId, npcId } = req.params;
+    const npcJson = req.body;
+    
+    console.log(`🔄 [NPCs API] Updating single NPC ${npcId} in zone ${zoneId}`);
+    
+    // Trouver le NPC par ID GLOBAL (pas par zone)
+    const existingNpc = await NpcData.findOne({ npcId: parseInt(npcId) });
+    
+    if (!existingNpc) {
+      return res.status(404).json({
+        success: false,
+        error: `NPC avec ID global ${npcId} non trouvé`
+      });
+    }
+    
+    // Vérifier que le NPC est bien dans la zone attendue (optionnel)
+    if (existingNpc.zone !== zoneId) {
+      console.warn(`⚠️ [NPCs API] NPC ${npcId} est dans la zone ${existingNpc.zone}, pas ${zoneId}`);
+    }
+    
+    // Mettre à jour le NPC
+    await existingNpc.updateFromJson(npcJson);
+    
+    console.log(`✅ [NPCs API] Single NPC ${npcId} "${existingNpc.name}" updated by ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: `NPC "${existingNpc.name}" (ID: ${npcId}) mis à jour`,
+      npc: existingNpc.toNpcFormat(),
+      globalId: existingNpc.npcId,
+      originalZone: existingNpc.zone,
+      updatedBy: req.user.username,
+      source: 'mongodb'
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error updating single NPC:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la mise à jour du NPC',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
