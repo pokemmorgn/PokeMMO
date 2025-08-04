@@ -74,13 +74,13 @@ function readItemsJson(): any {
  * Ajoute les items personnalisés hardcodés
  */
 function addCustomItems(): any {
-  const customItems = {
+  const customItems: any = {
     'dreamroot_pendant': {
       name: 'Dreamroot Pendant',
       description: 'A pendant shaped like a leaf touched by moonlight. Said to protect from nightmares.',
       type: 'key_item',
-      price: null as null,
-      sell_price: null as null,
+      price: null,
+      sell_price: null,
       stackable: false,
       consumable: false,
       usable_in_battle: false,
