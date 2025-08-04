@@ -2695,13 +2695,12 @@ router.delete('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => 
 
 // ✅ NOUVEAU: Schema pour compteur global NPC
 const NpcCounterSchema = new Schema({
-  _id: { type: String, required: true, default: 'npc_global_counter' }, // ✅ CORRECTION: _id au lieu de id
+  _id: { type: String, required: true, default: 'npc_global_counter' },
   currentValue: { type: Number, default: 0 }
 }, { collection: 'npc_counters' });
 
 const NpcCounter = mongoose.model('NpcCounter', NpcCounterSchema);
 
-// ✅ FONCTION: Obtenir le prochain ID global
 async function getNextNpcId(): Promise<number> {
   try {
     const counter = await NpcCounter.findByIdAndUpdate(
@@ -2714,7 +2713,7 @@ async function getNextNpcId(): Promise<number> {
       }
     );
     
-    return counter!.currentValue; // ✅ AJOUT: ! pour indiquer que counter n'est pas null
+    return counter!.currentValue;
   } catch (error) {
     console.error('❌ [NPCs] Error getting next ID:', error);
     throw new Error('Impossible de générer un nouvel ID NPC');
@@ -2751,7 +2750,7 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
       }
       globalNpcId = npcJson.id;
       
-      // ✅ AMÉLIORATION: Mettre à jour le compteur pour éviter les conflits futurs
+      // Mettre à jour le compteur pour éviter les conflits futurs
       const currentCounter = await NpcCounter.findById('npc_global_counter');
       const currentValue = currentCounter?.currentValue || 0;
       
