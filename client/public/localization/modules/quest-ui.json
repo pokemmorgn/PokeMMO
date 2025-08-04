@@ -32,6 +32,17 @@
         "error_loading": "Failed to load quest details",
         "error_loading_list": "Failed to load quest list",
         "no_description": "No description available",
+        "badges": {
+          "category_main": "MAIN",
+          "category_side": "SIDE",
+          "category_daily": "DAILY",
+          "category_story": "STORY",
+          "level_prefix": "Level",
+          "time_prefix": "",
+          "difficulty_easy": "EASY",
+          "difficulty_medium": "MEDIUM",
+          "difficulty_hard": "HARD"
+        },
         "default": {
           "description": "Discover the details of this exciting quest!",
           "objective1": "Talk to the NPC to get more information",
@@ -92,6 +103,17 @@
         "error_loading": "Échec du chargement des détails de la quête",
         "error_loading_list": "Échec du chargement de la liste des quêtes",
         "no_description": "Aucune description disponible",
+        "badges": {
+          "category_main": "PRINCIPALE",
+          "category_side": "SECONDAIRE",
+          "category_daily": "QUOTIDIENNE",
+          "category_story": "HISTOIRE",
+          "level_prefix": "Niveau",
+          "time_prefix": "",
+          "difficulty_easy": "FACILE",
+          "difficulty_medium": "MOYEN",
+          "difficulty_hard": "DIFFICILE"
+        },
         "default": {
           "description": "Découvrez les détails de cette quête passionnante !",
           "objective1": "Parler au PNJ pour obtenir plus d'informations",
@@ -152,6 +174,17 @@
         "error_loading": "Error al cargar los detalles de la misión",
         "error_loading_list": "Error al cargar la lista de misiones",
         "no_description": "No hay descripción disponible",
+        "badges": {
+          "category_main": "PRINCIPAL",
+          "category_side": "SECUNDARIA",
+          "category_daily": "DIARIA",
+          "category_story": "HISTORIA",
+          "level_prefix": "Nivel",
+          "time_prefix": "",
+          "difficulty_easy": "FÁCIL",
+          "difficulty_medium": "MEDIO",
+          "difficulty_hard": "DIFÍCIL"
+        },
         "default": {
           "description": "¡Descubre los detalles de esta emocionante misión!",
           "objective1": "Hablar con el PNJ para obtener más información",
@@ -212,6 +245,17 @@
         "error_loading": "Fehler beim Laden der Quest-Details",
         "error_loading_list": "Fehler beim Laden der Quest-Liste",
         "no_description": "Keine Beschreibung verfügbar",
+        "badges": {
+          "category_main": "HAUPT",
+          "category_side": "NEBEN",
+          "category_daily": "TÄGLICH",
+          "category_story": "GESCHICHTE",
+          "level_prefix": "Stufe",
+          "time_prefix": "",
+          "difficulty_easy": "LEICHT",
+          "difficulty_medium": "MITTEL",
+          "difficulty_hard": "SCHWER"
+        },
         "default": {
           "description": "Entdecke die Details dieser aufregenden Quest!",
           "objective1": "Sprich mit dem NPC, um weitere Informationen zu erhalten",
@@ -272,6 +316,17 @@
         "error_loading": "Errore nel caricamento dei dettagli della missione",
         "error_loading_list": "Errore nel caricamento della lista delle missioni",
         "no_description": "Nessuna descrizione disponibile",
+        "badges": {
+          "category_main": "PRINCIPALE",
+          "category_side": "SECONDARIA",
+          "category_daily": "GIORNALIERA",
+          "category_story": "STORIA",
+          "level_prefix": "Livello",
+          "time_prefix": "",
+          "difficulty_easy": "FACILE",
+          "difficulty_medium": "MEDIO",
+          "difficulty_hard": "DIFFICILE"
+        },
         "default": {
           "description": "Scopri i dettagli di questa missione emozionante!",
           "objective1": "Parla con il PNG per ottenere più informazioni",
@@ -332,6 +387,17 @@
         "error_loading": "Falha ao carregar detalhes da missão",
         "error_loading_list": "Falha ao carregar lista de missões",
         "no_description": "Nenhuma descrição disponível",
+        "badges": {
+          "category_main": "PRINCIPAL",
+          "category_side": "SECUNDÁRIA",
+          "category_daily": "DIÁRIA",
+          "category_story": "HISTÓRIA",
+          "level_prefix": "Nível",
+          "time_prefix": "",
+          "difficulty_easy": "FÁCIL",
+          "difficulty_medium": "MÉDIO",
+          "difficulty_hard": "DIFÍCIL"
+        },
         "default": {
           "description": "Descubra os detalhes desta missão emocionante!",
           "objective1": "Fale com o NPC para obter mais informações",
@@ -392,6 +458,17 @@
         "error_loading": "クエスト詳細の読み込みに失敗しました",
         "error_loading_list": "クエストリストの読み込みに失敗しました",
         "no_description": "説明がありません",
+        "badges": {
+          "category_main": "メイン",
+          "category_side": "サブ",
+          "category_daily": "デイリー",
+          "category_story": "ストーリー",
+          "level_prefix": "レベル",
+          "time_prefix": "",
+          "difficulty_easy": "簡単",
+          "difficulty_medium": "普通",
+          "difficulty_hard": "難しい"
+        },
         "default": {
           "description": "このエキサイティングなクエストの詳細を発見しよう！",
           "objective1": "NPCと話してより多くの情報を得る",
@@ -452,6 +529,17 @@
         "error_loading": "퀘스트 세부사항 로딩 실패",
         "error_loading_list": "퀘스트 목록 로딩 실패",
         "no_description": "설명이 없습니다",
+        "badges": {
+          "category_main": "메인",
+          "category_side": "사이드",
+          "category_daily": "일일",
+          "category_story": "스토리",
+          "level_prefix": "레벨",
+          "time_prefix": "",
+          "difficulty_easy": "쉬움",
+          "difficulty_medium": "보통",
+          "difficulty_hard": "어려움"
+        },
         "default": {
           "description": "이 흥미진진한 퀘스트의 세부사항을 발견하세요!",
           "objective1": "NPC와 대화하여 더 많은 정보를 얻기",
