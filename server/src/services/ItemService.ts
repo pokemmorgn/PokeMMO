@@ -500,10 +500,10 @@ export class ItemService {
       );
       
       // Compiler les résultats
-      const success = results.some(r => r.success);
-      const itemConsumed = results.some(r => r.consumed_item) && item.isConsumable();
-      const messages = results.map(r => r.message).filter(m => m) as string[];
-      const errors = results.flatMap(r => r.errors || []);
+      const success = results.some((r: any) => r.success);
+      const itemConsumed = results.some((r: any) => r.consumed_item) && item.isConsumable();
+      const messages = results.map((r: any) => r.message).filter((m: any) => m) as string[];
+      const errors = results.flatMap((r: any) => r.errors || []);
       
       this.log.info(`Item ${itemId} used: ${success ? 'SUCCESS' : 'FAILURE'}, consumed: ${itemConsumed}`);
       
