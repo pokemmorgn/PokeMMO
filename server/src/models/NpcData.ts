@@ -119,7 +119,7 @@ export interface INpcData extends Document {
   };
   
   // === DONNÉES SPÉCIFIQUES PAR TYPE (inchangé) ===
-  npcData: any;
+  npcData?: any;
   
   // === SYSTÈME QUÊTES (inchangé) ===
   questsToGive?: string[];
@@ -382,7 +382,7 @@ const NpcDataSchema = new Schema<INpcData>({
   
   npcData: { 
     type: Schema.Types.Mixed, 
-    default: {} 
+    default: {}
   },
   
   questsToGive: [{ 
@@ -544,7 +544,7 @@ NpcDataSchema.statics.isGlobalNpcIdAvailable = async function(npcId: number): Pr
  * ✅ NOUVELLE MÉTHODE: Réparer les doublons et réinitialiser le compteur
  */
 NpcDataSchema.statics.repairGlobalIds = async function(): Promise<{success: number, errors: string[]}> {
-  const result = { success: 0, errors: [] };
+  const result: {success: number, errors: string[]} = { success: 0, errors: [] };
   
   try {
     console.log('🔧 [Repair] Démarrage réparation IDs globaux...');
@@ -562,7 +562,7 @@ NpcDataSchema.statics.repairGlobalIds = async function(): Promise<{success: numb
       
       for (const docId of docsToFix) {
         try {
-          const newId = await this.getNextGlobalNpcId();
+          const newId = await (this as any).getNextGlobalNpcId();
           await this.updateOne({ _id: docId }, { npcId: newId });
           console.log(`✅ [Repair] Document ${docId} → nouvel ID ${newId}`);
           result.success++;
@@ -575,7 +575,7 @@ NpcDataSchema.statics.repairGlobalIds = async function(): Promise<{success: numb
     }
     
     // Réinitialiser le compteur au maximum actuel
-    await this.initializeGlobalCounter();
+    await (this as any).initializeGlobalCounter();
     
     console.log(`✅ [Repair] Réparation terminée: ${result.success} corrections`);
     
@@ -656,7 +656,7 @@ NpcDataSchema.pre('save', async function(next) {
     next();
     
   } catch (error) {
-    next(error);
+    next(error instanceof Error ? error : new Error('Unknown error'));
   }
 });
 
@@ -1039,7 +1039,7 @@ NpcDataSchema.statics.createFromJson = async function(
   
   // Si ID fourni, vérifier qu'il est libre GLOBALEMENT
   if (npcId) {
-    const isAvailable = await this.isGlobalNpcIdAvailable(npcId);
+    const isAvailable = await (this as any).isGlobalNpcIdAvailable(npcId);
     if (!isAvailable) {
       console.log(`⚠️ ID ${npcId} déjà utilisé globalement, attribution automatique d'un nouvel ID`);
       npcId = null; // Forcer l'attribution automatique
@@ -1047,7 +1047,7 @@ NpcDataSchema.statics.createFromJson = async function(
   }
   
   // Si pas d'ID ou ID non disponible, laisser le pre-save l'attribuer automatiquement
-  const npcData = {
+  const npcData: any = {
     npcId: npcId, // Peut être undefined, sera attribué automatiquement par pre-save
     zone: zone,
     name: jsonNpc.name || `NPC_${Date.now()}`,
@@ -1095,7 +1095,7 @@ NpcDataSchema.statics.createFromJson = async function(
   }
   
   if (Object.keys(specificData).length > 0) {
-    npcData.npcData = specificData;
+    (npcData as any).npcData = specificData;
   }
   
   // Créer et sauvegarder (l'ID sera attribué automatiquement si nécessaire)
