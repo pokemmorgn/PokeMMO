@@ -169,6 +169,7 @@ export interface INpcDataModel extends Model<INpcData> {
   bulkImportFromJson(zoneData: any): Promise<{ success: number; errors: string[] }>;
   createFromJson(jsonNpc: any, zone: string): Promise<INpcData>;
   
+  
   // MÉTHODES STATIQUES EXISTANTES (combat/trainer - inchangées)
   findTrainersInZone(zone: string): Promise<INpcData[]>;
   findNpcsWithTeams(zone: string): Promise<INpcData[]>;
@@ -887,6 +888,7 @@ NpcDataSchema.statics.findNpcsWithShops = function(zone: string): Promise<INpcDa
  * ✅ Créer un NPC depuis JSON avec ID global
  */
 NpcDataSchema.statics.createFromJson = async function(
+  this: INpcDataModel,  // ✅ Typage correct
   jsonNpc: any, 
   zone: string
 ): Promise<INpcData> {
@@ -979,10 +981,12 @@ NpcDataSchema.statics.createFromJson = async function(
   return newNpc;
 };
 
+
 /**
  * ✅ Import en lot depuis JSON
  */
 NpcDataSchema.statics.bulkImportFromJson = async function(
+  this: INpcDataModel,  // ✅ Typage correct
   zoneData: any
 ): Promise<{ success: number; errors: string[] }> {
   console.log(`📥 [NpcData] Bulk importing NPCs for zone: ${zoneData.zone}`);
@@ -1005,6 +1009,7 @@ NpcDataSchema.statics.bulkImportFromJson = async function(
   // Importer chaque NPC
   for (const npcJson of zoneData.npcs) {
     try {
+      // ✅ TypeScript reconnaît maintenant createFromJson grâce au typage this: INpcDataModel
       await this.createFromJson(npcJson, zoneData.zone);
       results.success++;
     } catch (error) {
