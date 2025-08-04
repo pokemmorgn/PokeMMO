@@ -1,5 +1,5 @@
 // src/interactions/BaseInteractionManager.ts
-// Gestionnaire de base pour toutes les interactions - Orchestrateur principal + IA
+// Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE COMPLÈTE
 
 import { Player } from "../schema/PokeWorldState";
 import { 
@@ -39,9 +39,22 @@ interface AIInteractionConfig {
   debugMode: boolean;
 }
 
+// ✅ CONFIGURATION SÉCURITÉ AJOUTÉE
+interface SecurityConfig {
+  enabled: boolean;
+  logSuspiciousActivity: boolean;
+  maxDistanceFromServer: number; // Tolérance position client vs serveur
+  rateLimitPerMinute: number;
+  blockSuspiciousPlayers: boolean;
+  auditLogPath?: string;
+}
+
 interface ExtendedInteractionConfig extends InteractionConfig {
   // Configuration IA
   ai?: AIInteractionConfig;
+  
+  // ✅ NOUVELLE : Configuration sécurité
+  security?: SecurityConfig;
   
   // NPCs auto-registration
   autoRegisterNPCs?: boolean;
@@ -59,9 +72,336 @@ interface ExtendedGlobalModuleStats extends GlobalModuleStats {
     autoRegistrationCompleted: boolean;
     config?: any;
   };
+  security: {
+    enabled: boolean;  
+    suspiciousRequests: number;
+    blockedRequests: number;
+    lastSecurityCheck: Date;
+  };
 }
 
-// ✅ REGISTRY AMÉLIORÉ AVEC IA
+// ✅ CLASSE DE VALIDATION SÉCURITAIRE
+class SecurityValidator {
+  private suspiciousActivities: Map<string, number> = new Map();
+  private blockedPlayers: Set<string> = new Set();
+  private lastCleanup: number = Date.now();
+  private config: SecurityConfig;
+
+  constructor(config: SecurityConfig) {
+    this.config = config;
+  }
+
+  /**
+   * ✅ VALIDATION PRINCIPALE DE SÉCURITÉ
+   */
+  validateRequest(player: Player, request: InteractionRequest): { 
+    valid: boolean; 
+    reason?: string; 
+    sanitizedRequest?: InteractionRequest;
+    securityWarnings?: string[];
+  } {
+    const warnings: string[] = [];
+    
+    // 1. Vérifier joueur bloqué
+    if (this.config.blockSuspiciousPlayers && this.blockedPlayers.has(player.name)) {
+      return { 
+        valid: false, 
+        reason: 'Joueur temporairement bloqué pour activité suspecte' 
+      };
+    }
+
+    // 2. Vérifier rate limiting
+    if (!this.checkRateLimit(player.name)) {
+      this.recordSuspiciousActivity(player.name, 'RATE_LIMIT');
+      return { 
+        valid: false, 
+        reason: 'Trop de requêtes par minute' 
+      };
+    }
+
+    // 3. Validation données de base
+    const baseValidation = this.validateBasicData(player, request);
+    if (!baseValidation.valid) {
+      this.recordSuspiciousActivity(player.name, 'INVALID_DATA');
+      return baseValidation;
+    }
+
+    // 4. ✅ VALIDATION CRITIQUE : Position client vs serveur
+    if (request.position) {
+      const positionCheck = this.validateClientPosition(player, request.position);
+      if (!positionCheck.valid) {
+        warnings.push(positionCheck.warning || 'Position client suspecte');
+        
+        if (positionCheck.severity === 'HIGH') {
+          this.recordSuspiciousActivity(player.name, 'POSITION_HACK');
+          return { 
+            valid: false, 
+            reason: 'Position client incohérente avec serveur' 
+          };
+        }
+      }
+    }
+
+    // 5. ✅ VALIDATION CRITIQUE : Zone client vs serveur
+    if (request.data?.zone) {
+      const zoneCheck = this.validateClientZone(player, request.data.zone);
+      if (!zoneCheck.valid) {
+        warnings.push(zoneCheck.warning || 'Zone client suspecte');
+        
+        if (zoneCheck.severity === 'HIGH') {
+          this.recordSuspiciousActivity(player.name, 'ZONE_HACK');
+          return { 
+            valid: false, 
+            reason: 'Zone client incohérente avec serveur' 
+          };
+        }
+      }
+    }
+
+    // 6. ✅ NETTOYAGE ET SANITISATION DE LA REQUÊTE
+    const sanitizedRequest = this.sanitizeRequest(player, request);
+
+    return { 
+      valid: true, 
+      sanitizedRequest,
+      securityWarnings: warnings.length > 0 ? warnings : undefined
+    };
+  }
+
+  /**
+   * ✅ VALIDATION POSITION CLIENT VS SERVEUR
+   */
+  private validateClientPosition(
+    player: Player, 
+    clientPosition: { x: number; y: number }
+  ): { valid: boolean; severity?: 'LOW' | 'MEDIUM' | 'HIGH'; warning?: string } {
+    
+    const serverPosition = { x: player.x, y: player.y };
+    const distance = Math.sqrt(
+      Math.pow(clientPosition.x - serverPosition.x, 2) + 
+      Math.pow(clientPosition.y - serverPosition.y, 2)
+    );
+
+    if (distance > this.config.maxDistanceFromServer) {
+      const warning = `Position client éloignée de ${Math.round(distance)}px du serveur`;
+      
+      // Déterminer la sévérité
+      let severity: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
+      if (distance > this.config.maxDistanceFromServer * 3) {
+        severity = 'HIGH'; // Très suspect
+      } else if (distance > this.config.maxDistanceFromServer * 1.5) {
+        severity = 'MEDIUM'; // Modérément suspect
+      }
+
+      if (this.config.logSuspiciousActivity) {
+        console.warn('🚨 [SECURITY] Position suspecte', {
+          player: player.name,
+          clientPos: clientPosition,
+          serverPos: serverPosition,
+          distance: Math.round(distance),
+          maxAllowed: this.config.maxDistanceFromServer,
+          severity
+        });
+      }
+
+      return { valid: false, severity, warning };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * ✅ VALIDATION ZONE CLIENT VS SERVEUR
+   */
+  private validateClientZone(
+    player: Player, 
+    clientZone: string
+  ): { valid: boolean; severity?: 'LOW' | 'MEDIUM' | 'HIGH'; warning?: string } {
+    
+    const serverZone = player.currentZone;
+    
+    if (clientZone !== serverZone) {
+      const warning = `Zone client "${clientZone}" différente du serveur "${serverZone}"`;
+      
+      // Zone complètement différente = très suspect
+      const severity: 'HIGH' = 'HIGH';
+
+      if (this.config.logSuspiciousActivity) {
+        console.warn('🚨 [SECURITY] Zone incohérente', {
+          player: player.name,
+          clientZone,
+          serverZone,
+          severity
+        });
+      }
+
+      return { valid: false, severity, warning };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * ✅ NETTOYAGE SÉCURISÉ DE LA REQUÊTE
+   */
+  private sanitizeRequest(player: Player, request: InteractionRequest): InteractionRequest {
+    const sanitized: InteractionRequest = {
+      type: request.type,
+      targetId: request.targetId,
+      
+      // ✅ REMPLACER PAR DONNÉES SERVEUR FIABLES
+      position: {
+        x: player.x,
+        y: player.y,
+        mapId: player.currentZone
+      },
+      
+      data: {
+        // ✅ GARDER SEULEMENT LES DONNÉES NÉCESSAIRES
+        npcId: request.data?.npcId,
+        objectId: request.data?.objectId,
+        objectType: request.data?.objectType,
+        action: request.data?.action,
+        playerLanguage: request.data?.playerLanguage || 'fr',
+        itemId: request.data?.itemId,
+        direction: request.data?.direction,
+        
+        // ✅ MÉTADONNÉES DE SÉCURITÉ
+        metadata: {
+          ...request.data?.metadata,
+          sanitized: true,
+          securityOverride: {
+            originalClientZone: request.data?.zone,
+            originalClientPosition: request.position,
+            serverZone: player.currentZone,
+            serverPosition: { x: player.x, y: player.y }
+          }
+        }
+      },
+      
+      timestamp: Date.now()
+    };
+
+    return sanitized;
+  }
+
+  /**
+   * Validation données de base
+   */
+  private validateBasicData(player: Player, request: InteractionRequest): { valid: boolean; reason?: string } {
+    if (!player || !player.name) {
+      return { valid: false, reason: 'Joueur non authentifié' };
+    }
+    
+    if (!player.currentZone || player.currentZone.trim() === '') {
+      return { valid: false, reason: 'Zone joueur invalide' };
+    }
+    
+    if (typeof player.x !== 'number' || typeof player.y !== 'number') {
+      return { valid: false, reason: 'Position joueur invalide' };
+    }
+    
+    if (!request.type) {
+      return { valid: false, reason: 'Type interaction manquant' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Rate limiting par joueur
+   */
+  private checkRateLimit(playerName: string): boolean {
+    const now = Date.now();
+    const minute = Math.floor(now / 60000);
+    const key = `${playerName}_${minute}`;
+    
+    const current = this.suspiciousActivities.get(key) || 0;
+    if (current >= this.config.rateLimitPerMinute) {
+      return false;
+    }
+    
+    this.suspiciousActivities.set(key, current + 1);
+    
+    // Nettoyage périodique
+    if (now - this.lastCleanup > 60000) {
+      this.cleanupOldEntries();
+      this.lastCleanup = now;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Enregistrer activité suspecte
+   */
+  private recordSuspiciousActivity(playerName: string, activityType: string) {
+    const key = `${playerName}_suspicious`;
+    const current = this.suspiciousActivities.get(key) || 0;
+    this.suspiciousActivities.set(key, current + 1);
+    
+    if (this.config.logSuspiciousActivity) {
+      console.warn('🚨 [SECURITY] Activité suspecte', {
+        player: playerName,
+        type: activityType,
+        count: current + 1,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Bloquer temporairement si trop d'activités suspectes
+    if (this.config.blockSuspiciousPlayers && current >= 5) {
+      this.blockedPlayers.add(playerName);
+      console.warn('🚫 [SECURITY] Joueur bloqué temporairement', { player: playerName });
+      
+      // Débloquer après 10 minutes
+      setTimeout(() => {
+        this.blockedPlayers.delete(playerName);
+        console.info('✅ [SECURITY] Joueur débloqué', { player: playerName });
+      }, 10 * 60 * 1000);
+    }
+  }
+
+  /**
+   * Nettoyage des entrées anciennes
+   */
+  private cleanupOldEntries() {
+    const now = Date.now();
+    const cutoff = Math.floor((now - 5 * 60000) / 60000); // 5 minutes
+    
+    for (const [key] of this.suspiciousActivities.entries()) {
+      if (key.includes('_') && !key.includes('suspicious')) {
+        const minute = parseInt(key.split('_').pop() || '0');
+        if (minute < cutoff) {
+          this.suspiciousActivities.delete(key);
+        }
+      }
+    }
+  }
+
+  /**
+   * Statistiques de sécurité
+   */
+  getStats() {
+    let suspiciousCount = 0;
+    let blockedCount = this.blockedPlayers.size;
+    
+    for (const [key, count] of this.suspiciousActivities.entries()) {
+      if (key.includes('suspicious')) {
+        suspiciousCount += count;
+      }
+    }
+    
+    return {
+      suspiciousRequests: suspiciousCount,
+      blockedRequests: blockedCount,
+      lastSecurityCheck: new Date(),
+      rateLimit: this.config.rateLimitPerMinute
+    };
+  }
+}
+
+// ✅ REGISTRY AMÉLIORÉ AVEC IA ET SÉCURITÉ
 class AIEnhancedModuleRegistry implements IModuleRegistry {
   private modules: Map<string, IInteractionModule> = new Map();
   private config: ModulesConfiguration = {};
@@ -87,7 +427,7 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
     }
 
     try {
-      console.log('🚀 [Registry] Initialisation système IA...');
+      console.log('🚀 [Registry] Initialisation IA...');
       
       // Récupérer l'instance du connecteur
       this.intelligenceConnector = getNPCIntelligenceConnector();
@@ -258,7 +598,7 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
   }
 }
 
-// ✅ GESTIONNAIRE DE BASE AMÉLIORÉ AVEC IA
+// ✅ GESTIONNAIRE DE BASE AMÉLIORÉ AVEC IA ET SÉCURITÉ
 export class BaseInteractionManager {
   
   private registry: AIEnhancedModuleRegistry = new AIEnhancedModuleRegistry();
@@ -268,9 +608,12 @@ export class BaseInteractionManager {
   // ✅ NOUVEAU : État du système IA
   private aiInitialized: boolean = false;
   private npcAutoRegistrationCompleted: boolean = false;
+  
+  // ✅ NOUVEAU : Système de sécurité
+  private securityValidator: SecurityValidator | null = null;
 
   constructor(config?: Partial<ExtendedInteractionConfig>) {
-    // Configuration par défaut + IA
+    // Configuration par défaut + IA + Sécurité
     this.config = {
       maxDistance: 64,
       cooldowns: {
@@ -300,6 +643,16 @@ export class BaseInteractionManager {
         debugMode: process.env.NODE_ENV === 'development'
       },
       
+      // ✅ NOUVEAU : Configuration sécurité par défaut
+      security: {
+        enabled: process.env.SECURITY_ENABLED !== 'false',
+        logSuspiciousActivity: process.env.NODE_ENV === 'development',
+        maxDistanceFromServer: 100, // 100px de tolérance
+        rateLimitPerMinute: 30, // 30 requêtes/minute max
+        blockSuspiciousPlayers: process.env.NODE_ENV === 'production',
+        auditLogPath: './logs/security.log'
+      },
+      
       // ✅ NOUVEAU : Auto-enregistrement NPCs
       autoRegisterNPCs: process.env.NPC_AUTO_REGISTER !== 'false',
       npcDataSources: {},
@@ -307,17 +660,23 @@ export class BaseInteractionManager {
       ...config
     };
 
-    console.log(`🎮 [BaseInteractionManager] Initialisé avec IA`, {
+    // ✅ INITIALISER LE VALIDATEUR DE SÉCURITÉ
+    if (this.config.security?.enabled) {
+      this.securityValidator = new SecurityValidator(this.config.security);
+    }
+
+    console.log(`🎮 [BaseInteractionManager] Initialisé avec IA + Sécurité`, {
       aiEnabled: this.config.ai?.enabled,
+      securityEnabled: this.config.security?.enabled,
       aiTypes: this.config.ai?.enabledNPCTypes?.length,
       autoRegister: this.config.autoRegisterNPCs
     });
   }
 
-  // === ✅ MÉTHODES PRINCIPALES AMÉLIORÉES ===
+  // === ✅ MÉTHODES PRINCIPALES AMÉLIORÉES AVEC SÉCURITÉ ===
 
   /**
-   * Traite une interaction avec support IA automatique
+   * ✅ Traite une interaction avec support IA automatique + SÉCURITÉ
    */
   async processInteraction(
     player: Player, 
@@ -327,41 +686,68 @@ export class BaseInteractionManager {
     const startTime = Date.now();
     
     try {
-      this.debugLog('info', `Traitement interaction ${request.type}`, { 
+      this.debugLog('info', `🔒 [SÉCURITÉ] Validation requête interaction ${request.type}`, { 
         player: player.name, 
         targetId: request.targetId,
-        aiEnabled: this.aiInitialized
+        clientZone: request.data?.zone,
+        serverZone: player.currentZone,
+        clientPos: request.position,
+        serverPos: { x: player.x, y: player.y }
       });
 
-      // 1. Valider la requête de base (inchangé)
-      const requestValidation = this.validateRequest(request);
+      // ✅ 1. VALIDATION SÉCURITAIRE EN PREMIER
+      let finalRequest = request;
+      let securityWarnings: string[] = [];
+      
+      if (this.securityValidator) {
+        const securityCheck = this.securityValidator.validateRequest(player, request);
+        
+        if (!securityCheck.valid) {
+          return this.createErrorResult(
+            securityCheck.reason || 'Requête non sécurisée', 
+            'SECURITY_VIOLATION'
+          );
+        }
+        
+        // Utiliser la requête nettoyée
+        if (securityCheck.sanitizedRequest) {
+          finalRequest = securityCheck.sanitizedRequest;
+        }
+        
+        if (securityCheck.securityWarnings) {
+          securityWarnings = securityCheck.securityWarnings;
+        }
+      }
+
+      // ✅ 2. Valider la requête de base (avec requête nettoyée)
+      const requestValidation = this.validateRequest(finalRequest);
       if (!requestValidation.valid) {
         return this.createErrorResult(requestValidation.reason || 'Requête invalide', 'INVALID_REQUEST');
       }
 
-      // 2. Trouver le module approprié (inchangé)
-      const module = this.registry.findModule(request);
+      // ✅ 3. Trouver le module approprié
+      const module = this.registry.findModule(finalRequest);
       if (!module) {
         return this.createErrorResult(
-          `Aucun module disponible pour le type: ${request.type}`, 
+          `Aucun module disponible pour le type: ${finalRequest.type}`, 
           'MODULE_NOT_FOUND'
         );
       }
 
-      // 3. Effectuer les validations requises (inchangé)
-      const context = await this.buildInteractionContext(player, request);
+      // ✅ 4. Effectuer les validations requises (avec données serveur)
+      const context = await this.buildInteractionContext(player, finalRequest);
       const validationResult = await this.performValidations(context, module);
       
       if (!validationResult.valid) {
         return this.createErrorResult(validationResult.reason || 'Validation échouée', validationResult.code);
       }
 
-      // 4. Traiter l'interaction via le module (le module peut maintenant utiliser l'IA)
+      // ✅ 5. Traiter l'interaction via le module (le module peut maintenant utiliser l'IA)
       const result = await module.handle(context);
 
-      // 5. Post-traitement (inchangé)
+      // ✅ 6. Post-traitement
       if (result.success) {
-        this.updateCooldown(player.name, request.type);
+        this.updateCooldown(player.name, finalRequest.type);
       }
 
       const processingTime = Date.now() - startTime;
@@ -369,11 +755,22 @@ export class BaseInteractionManager {
       result.moduleUsed = module.moduleName;
       result.timestamp = Date.now();
 
-      this.debugLog('info', `Interaction terminée en ${processingTime}ms`, { 
+      // ✅ Ajouter avertissements sécurité dans les métadonnées
+      if (securityWarnings.length > 0) {
+        if (result.data) {
+          result.data.metadata = {
+            ...result.data.metadata,
+            securityWarnings
+          };
+        }
+      }
+
+      this.debugLog('info', `✅ Interaction terminée en ${processingTime}ms`, { 
         success: result.success, 
         type: result.type,
         module: module.moduleName,
-        aiUsed: !!(result as any).usedAI // Flag optionnel que les modules peuvent ajouter
+        aiUsed: !!(result as any).usedAI,
+        securityWarnings: securityWarnings.length
       });
 
       return result;
@@ -381,7 +778,7 @@ export class BaseInteractionManager {
     } catch (error) {
       const processingTime = Date.now() - startTime;
       
-      this.debugLog('error', 'Erreur traitement interaction', error);
+      this.debugLog('error', '❌ Erreur traitement interaction', error);
       
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
@@ -391,7 +788,7 @@ export class BaseInteractionManager {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES IA ===
+  // === ✅ NOUVELLES MÉTHODES IA (INCHANGÉES) ===
 
   /**
    * Initialise le système d'IA
@@ -526,7 +923,7 @@ export class BaseInteractionManager {
     // 3. Auto-enregistrement NPCs
     await this.autoRegisterNPCs();
     
-    console.log(`✅ [BaseInteractionManager] Système d'interaction + IA initialisé`);
+    console.log(`✅ [BaseInteractionManager] Système d'interaction + IA + Sécurité initialisé`);
   }
 
   /**
@@ -536,10 +933,11 @@ export class BaseInteractionManager {
     await this.registry.cleanupAll();
     this.aiInitialized = false;
     this.npcAutoRegistrationCompleted = false;
-    console.log(`🧹 [BaseInteractionManager] Système d'interaction + IA nettoyé`);
+    this.securityValidator = null;
+    console.log(`🧹 [BaseInteractionManager] Système d'interaction + IA + Sécurité nettoyé`);
   }
 
-  // === MÉTHODES EXISTANTES (inchangées) ===
+  // === MÉTHODES EXISTANTES (inchangées mais utilisent les données serveur) ===
 
   private validateRequest(request: InteractionRequest): { valid: boolean; reason?: string } {
     if (!request.type) {
@@ -554,8 +952,12 @@ export class BaseInteractionManager {
   }
 
   validateProximity(player: Player, targetPosition: { x: number; y: number }): ProximityValidation {
-    const dx = Math.abs(player.x - targetPosition.x);
-    const dy = Math.abs(player.y - targetPosition.y);
+    // ✅ UTILISE TOUJOURS LES DONNÉES SERVEUR
+    const serverX = player.x;
+    const serverY = player.y;
+    
+    const dx = Math.abs(serverX - targetPosition.x);
+    const dy = Math.abs(serverY - targetPosition.y);
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > this.config.maxDistance) {
@@ -609,13 +1011,17 @@ export class BaseInteractionManager {
     request: InteractionRequest
   ): Promise<InteractionContext> {
     
+    // ✅ UTILISE TOUJOURS LES DONNÉES SERVEUR
     const context: InteractionContext = {
       player,
       request,
       validations: {},
       metadata: {
         timestamp: Date.now(),
-        sessionId: 'unknown' // TODO: Récupérer depuis player si disponible
+        sessionId: 'unknown', // TODO: Récupérer depuis player si disponible
+        securityValidated: !!this.securityValidator,
+        serverPosition: { x: player.x, y: player.y },
+        serverZone: player.currentZone
       }
     };
 
@@ -629,7 +1035,7 @@ export class BaseInteractionManager {
     
     const requiredValidations = this.config.requiredValidations?.[context.request.type] || [];
 
-    // Validation proximité
+    // Validation proximité (utilise TOUJOURS les données serveur)
     if (requiredValidations.includes('proximity') && context.request.position) {
       const proximityValidation = this.validateProximity(context.player, context.request.position);
       context.validations.proximity = proximityValidation;
@@ -720,15 +1126,15 @@ export class BaseInteractionManager {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES D'INFORMATION (CORRIGÉES) ===
+  // === ✅ NOUVELLES MÉTHODES D'INFORMATION (CORRIGÉES AVEC SÉCURITÉ) ===
 
   /**
-   * Obtenir les statistiques globales + IA
+   * Obtenir les statistiques globales + IA + Sécurité
    */
   getStats(): ExtendedGlobalModuleStats {
     const stats = this.registry.getGlobalStats();
     
-    // ✅ CORRECTION : Retourner le type étendu avec aiSystem
+    // ✅ CORRECTION : Retourner le type étendu avec aiSystem + security
     return {
       ...stats,
       aiSystem: {
@@ -736,12 +1142,18 @@ export class BaseInteractionManager {
         enabled: this.config.ai?.enabled || false,
         autoRegistrationCompleted: this.npcAutoRegistrationCompleted,
         config: this.config.ai
+      },
+      security: this.securityValidator ? this.securityValidator.getStats() : {
+        enabled: false,
+        suspiciousRequests: 0,
+        blockedRequests: 0,
+        lastSecurityCheck: new Date()
       }
     };
   }
 
   /**
-   * État de santé du système incluant l'IA
+   * État de santé du système incluant l'IA + Sécurité
    */
   getSystemHealth(): any {
     const baseHealth = this.getStats();
@@ -749,6 +1161,7 @@ export class BaseInteractionManager {
     return {
       ...baseHealth,
       aiHealth: this.aiInitialized ? 'healthy' : 'disabled',
+      securityHealth: this.securityValidator ? 'enabled' : 'disabled',
       overallHealth: this.aiInitialized && baseHealth.systemHealth === 'healthy' ? 'healthy' : 'warning'
     };
   }
@@ -760,6 +1173,13 @@ export class BaseInteractionManager {
     return this.registry.getIntelligenceConnector();
   }
 
+  /**
+   * ✅ NOUVEAU : Accès au validateur de sécurité (pour admin)
+   */
+  getSecurityValidator(): SecurityValidator | null {
+    return this.securityValidator;
+  }
+
   // Méthodes existantes inchangées
   getConfig(): ExtendedInteractionConfig {
     return { ...this.config };
@@ -767,6 +1187,12 @@ export class BaseInteractionManager {
 
   updateConfig(newConfig: Partial<ExtendedInteractionConfig>): void {
     this.config = { ...this.config, ...newConfig };
+    
+    // ✅ Réinitialiser le validateur sécurité si config changée
+    if (newConfig.security && this.config.security?.enabled) {
+      this.securityValidator = new SecurityValidator(this.config.security);
+    }
+    
     console.log(`🔧 [BaseInteractionManager] Configuration mise à jour`);
   }
 
