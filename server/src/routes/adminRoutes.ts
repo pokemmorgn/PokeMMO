@@ -2718,7 +2718,7 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
     const { zoneId } = req.params;
     const npcJson = req.body;
     
-    console.log(`➕ [NPCs API] Adding NPC to zone: ${zoneId} with GLOBAL ID`);
+    console.log(`➕ [NPCs API] Adding NPC to zone: ${zoneId} in MongoDB`);
     
     // Validation du NPC
     if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
@@ -2728,47 +2728,41 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
       });
     }
     
-    // ✅ NOUVEAU: Toujours obtenir le prochain ID GLOBAL
+    // Générer un ID unique si pas fourni
     if (!npcJson.id) {
-      // Trouver le prochain ID global (pas spécifique à la zone)
-      const lastNpc = await NpcData.findOne({})
-        .sort({ npcId: -1 })
-        .select('npcId')
-        .lean();
-      
-      npcJson.id = lastNpc ? lastNpc.npcId + 1 : 1;
-      console.log(`🔢 [NPCs API] Generated GLOBAL ID: ${npcJson.id} (last was ${lastNpc?.npcId || 0})`);
+      // Trouver le prochain ID disponible pour cette zone
+      const existingNpcs = await NpcData.find({ zone: zoneId }).sort({ npcId: -1 }).limit(1);
+      npcJson.id = existingNpcs.length > 0 ? existingNpcs[0].npcId + 1 : 1;
     }
     
-    // ✅ Vérifier que l'ID n'existe pas déjà GLOBALEMENT (pas seulement dans cette zone)
-    const existingNpc = await NpcData.findOne({ npcId: npcJson.id });
+    // Vérifier que l'ID n'existe pas déjà
+    const existingNpc = await NpcData.findOne({ zone: zoneId, npcId: npcJson.id });
     if (existingNpc) {
       return res.status(400).json({
         success: false,
-        error: `Un NPC avec l'ID ${npcJson.id} existe déjà dans la zone "${existingNpc.zone}"`
+        error: 'Un NPC avec cet ID existe déjà dans cette zone'
       });
     }
     
-    // Créer le NPC avec l'ID global
+    // Créer le NPC
     const newNpc = await NpcData.createFromJson(npcJson, zoneId);
     
-    console.log(`✅ [NPCs API] NPC "${npcJson.name}" added to ${zoneId} with GLOBAL ID ${npcJson.id} by ${req.user.username}`);
+    console.log(`✅ [NPCs API] NPC "${npcJson.name}" added to ${zoneId} by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId} avec ID global ${npcJson.id}`,
+      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId}`,
       npc: newNpc.toNpcFormat(),
       zoneId,
-      globalId: npcJson.id,
       addedBy: req.user.username,
       source: 'mongodb'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error adding NPC with global ID:', error);
+    console.error('❌ [NPCs API] Error adding NPC to MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de l\'ajout du NPC avec ID global'
+      error: 'Erreur lors de l\'ajout du NPC dans MongoDB'
     });
   }
 });
@@ -6563,34 +6557,4 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
     }
 });
 
-router.get('/npcs/next-id', requireMacAndDev, async (req: any, res) => {
-  try {
-    console.log('🔢 [NPCs API] Getting next GLOBAL NPC ID across ALL zones...');
-    
-    // ✅ CHERCHER dans TOUTES les zones, pas seulement la zone actuelle
-    const lastNpc = await NpcData.findOne({})
-      .sort({ npcId: -1 })  // Le plus grand npcId
-      .select('npcId zone')
-      .lean();
-    
-    const nextId = lastNpc ? lastNpc.npcId + 1 : 1;
-    
-    console.log(`✅ [NPCs API] Last NPC was ID ${lastNpc?.npcId} in zone "${lastNpc?.zone}"`);
-    console.log(`✅ [NPCs API] Next GLOBAL NPC ID: ${nextId}`);
-    
-    res.json({
-      success: true,
-      nextId: nextId,
-      lastNpcId: lastNpc?.npcId || 0,
-      lastNpcZone: lastNpc?.zone || 'none'
-    });
-    
-  } catch (error) {
-    console.error('❌ [NPCs API] Error getting next global NPC ID:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur lors de l\'obtention du prochain ID NPC global'
-    });
-  }
-});
 export default router;
