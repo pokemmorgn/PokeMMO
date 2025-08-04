@@ -656,68 +656,100 @@ export class QuestManager {
     }
   }
 
-  async startQuest(username: string, questId: string): Promise<Quest | null> {
-    try {
-      const definition = this.questDefinitions.get(questId);
-      if (!definition) return null;
+async startQuest(username: string, questId: string): Promise<Quest | null> {
+  try {
+    const definition = this.questDefinitions.get(questId);
+    if (!definition) return null;
 
-      const availableQuests = await this.getAvailableQuests(username);
-      if (!availableQuests.find(q => q.id === questId)) return null;
+    const availableQuests = await this.getAvailableQuests(username);
+    if (!availableQuests.find(q => q.id === questId)) return null;
 
-      const objectivesMap = new Map();
-      const firstStep = definition.steps[0];
+    const objectivesMap = new Map();
+    const firstStep = definition.steps[0];
+    
+    // ✅ PHASE 1 : Initialisation classique des objectifs
+    for (const objective of firstStep.objectives) {
+      objectivesMap.set(objective.id, {
+        currentAmount: 0,
+        completed: false,
+        startedAt: new Date(),
+        attempts: 0
+      });
+    }
+
+    const questProgress = {
+      questId,
+      currentStepIndex: 0,
+      objectives: objectivesMap,
+      status: 'active' as const,
+      startedAt: new Date()
+    };
+
+    // ✅ PHASE 2 : SCAN INVENTAIRE AUTOMATIQUE (NOUVEAU)
+    if (this.progressTracker.config?.enableInventoryScan && this.progressTracker.config?.scanOnQuestStart) {
+      console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
       
-      for (const objective of firstStep.objectives) {
-        objectivesMap.set(objective.id, {
-          currentAmount: 0,
-          completed: false,
-          startedAt: new Date(),
-          attempts: 0
-        });
+      try {
+        // Utiliser la méthode de scan du progressTracker
+        const scanResult = await this.progressTracker.scanStepObjectives(username, questProgress, firstStep.objectives);
+        
+        if (scanResult.autoCompleted > 0) {
+          console.log(`🎯 [QuestManager] Scan initial: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
+        }
+      } catch (scanError) {
+        console.warn(`⚠️ [QuestManager] Erreur scan inventaire initial:`, scanError);
+        // Continue même en cas d'erreur de scan
       }
+    }
 
-      const questProgress = {
-        questId,
-        currentStepIndex: 0,
-        objectives: objectivesMap,
-        status: 'active' as const,
-        startedAt: new Date()
-      };
+    // ✅ PHASE 3 : Sauvegarde et notifications
+    let playerQuests = await PlayerQuest.findOne({ username });
+    if (!playerQuests) {
+      playerQuests = new PlayerQuest({ 
+        username, 
+        activeQuests: [questProgress],
+        completedQuests: [],
+        lastQuestCompletions: []
+      });
+    } else {
+      playerQuests.activeQuests.push(questProgress as any);
+    }
 
-      let playerQuests = await PlayerQuest.findOne({ username });
-      if (!playerQuests) {
-        playerQuests = new PlayerQuest({ 
-          username, 
-          activeQuests: [questProgress],
-          completedQuests: [],
-          lastQuestCompletions: []
-        });
-      } else {
-        playerQuests.activeQuests.push(questProgress as any);
-      }
+    await playerQuests.save();
 
-      await playerQuests.save();
+    const quest = this.buildQuestFromProgress(definition, questProgress);
 
-      const quest = this.buildQuestFromProgress(definition, questProgress);
-
-      const questObjectives = firstStep.objectives.map(obj => ({
+    // ✅ PHASE 4 : Construire les objectifs pour notification (avec progression éventuelle du scan)
+    const questObjectives = firstStep.objectives.map(obj => {
+      const progress = objectivesMap.get(obj.id) || { currentAmount: 0, completed: false };
+      return {
         id: obj.id,
         type: obj.type,
         description: obj.description,
         target: obj.target,
         targetName: obj.targetName,
-        currentAmount: 0,
+        currentAmount: progress.currentAmount, // ✅ Prend en compte le scan
         requiredAmount: obj.requiredAmount,
-        completed: false
-      }));
-      
-      await this.clientHandler.notifyQuestStarted(username, quest, questObjectives);
-      
-      return quest;
-    } catch (error) {
-      return null;
+        completed: progress.completed // ✅ Prend en compte le scan
+      };
+    });
+    
+    await this.clientHandler.notifyQuestStarted(username, quest, questObjectives);
+    
+    // ✅ PHASE 5 : Notifications additionnelles pour objectifs auto-complétés
+    for (const questObjective of questObjectives) {
+      if (questObjective.completed) {
+        console.log(`✅ [QuestManager] Objectif auto-complété au démarrage: ${questObjective.description}`);
+        await this.clientHandler.notifyObjectiveCompleted(username, quest, questObjective);
+      }
     }
+    
+    return quest;
+  } catch (error) {
+    console.error(`❌ [QuestManager] Erreur startQuest:`, error);
+    return null;
   }
+}
 
   // 🚀 NOUVELLE MÉTHODE : Progression automatique des quêtes
   async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
