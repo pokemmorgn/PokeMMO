@@ -171,6 +171,11 @@ export interface QuestProgressTrackerConfig {
  */
 class QuestProgressTracker implements IQuestProgressTracker {
   private config: QuestProgressTrackerConfig;
+
+  // ✅ GETTER PUBLIC pour accès à la config
+  public getConfig(): QuestProgressTrackerConfig {
+    return this.config;
+  }
   
   constructor(config?: Partial<QuestProgressTrackerConfig>) {
     this.config = {
@@ -418,9 +423,9 @@ class QuestProgressTracker implements IQuestProgressTracker {
   }
 
   /**
-   * ✅ NOUVELLE MÉTHODE : Scan complet des objectifs d'une étape
+   * ✅ MÉTHODE PUBLIQUE : Scan complet des objectifs d'une étape
    */
-  private async scanStepObjectives(
+  public async scanStepObjectives(
     username: string,
     questProgress: any,
     stepObjectives: QuestObjectiveDefinition[]
