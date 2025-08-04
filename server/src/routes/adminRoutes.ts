@@ -2750,6 +2750,13 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
     const npcJson = req.body;
     
     console.log(`➕ [NPCs API] Adding single NPC to zone: ${zoneId}`);
+    console.log(`📋 [NPCs API] NPC data received:`, {
+      name: npcJson.name,
+      type: npcJson.type,
+      position: npcJson.position,
+      sprite: npcJson.sprite,
+      hasId: !!(npcJson.id || npcJson.npcId)
+    });
     
     // Validation du NPC
     if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
@@ -2759,14 +2766,40 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
       });
     }
     
-    // Créer le NPC (ID global sera attribué automatiquement)
-    const newNpc = await NpcData.createFromJson(npcJson, zoneId);
+    // ✅ CORRECTION: Vérifier/obtenir l'ID global AVANT createFromJson
+    let globalNpcId = npcJson.id || npcJson.npcId;
     
-    console.log(`✅ [NPCs API] Single NPC "${npcJson.name}" (ID: ${newNpc.npcId}) added to ${zoneId} by ${req.user.username}`);
+    if (!globalNpcId) {
+      // Obtenir le prochain ID global disponible
+      globalNpcId = await NpcData.getNextGlobalNpcId();
+      console.log(`🆔 [NPCs API] ID global automatique attribué: ${globalNpcId}`);
+    } else {
+      // Vérifier que l'ID est disponible
+      const isAvailable = await NpcData.isGlobalNpcIdAvailable(globalNpcId);
+      if (!isAvailable) {
+        console.log(`⚠️ [NPCs API] ID ${globalNpcId} déjà utilisé, attribution automatique`);
+        globalNpcId = await NpcData.getNextGlobalNpcId();
+        console.log(`🆔 [NPCs API] Nouvel ID global attribué: ${globalNpcId}`);
+      }
+    }
+    
+    // ✅ CORRECTION: Ajouter l'ID au JSON avant createFromJson
+    const npcJsonWithId = {
+      ...npcJson,
+      id: globalNpcId,
+      npcId: globalNpcId
+    };
+    
+    console.log(`💾 [NPCs API] Creating NPC with guaranteed ID: ${globalNpcId}`);
+    
+    // Créer le NPC avec l'ID garanti
+    const newNpc = await NpcData.createFromJson(npcJsonWithId, zoneId);
+    
+    console.log(`✅ [NPCs API] Single NPC "${newNpc.name}" (ID: ${newNpc.npcId}) added to ${zoneId} by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId}`,
+      message: `NPC "${newNpc.name}" ajouté à la zone ${zoneId}`,
       npc: newNpc.toNpcFormat(),
       globalId: newNpc.npcId, // ✅ Retourner l'ID global attribué
       zoneId,
@@ -2776,9 +2809,86 @@ router.post('/zones/:zoneId/npcs/add-single', requireMacAndDev, async (req: any,
     
   } catch (error) {
     console.error('❌ [NPCs API] Error adding single NPC to MongoDB:', error);
+    
+    // ✅ MEILLEUR DEBUG
+    if (error instanceof Error) {
+      console.error('❌ [NPCs API] Error details:', {
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        npcData: req.body
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Erreur lors de l\'ajout du NPC dans MongoDB',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ✅ ROUTE ALTERNATIVE: Créer un NPC directement avec new + save (pour debug)
+router.post('/zones/:zoneId/npcs/add-direct', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { zoneId } = req.params;
+    const npcJson = req.body;
+    
+    console.log(`➕ [NPCs API] DIRECT: Adding NPC to zone: ${zoneId}`);
+    
+    // Validation
+    if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
+      return res.status(400).json({
+        success: false,
+        error: 'Champs requis manquants'
+      });
+    }
+    
+    // Obtenir l'ID global
+    const globalNpcId = await NpcData.getNextGlobalNpcId();
+    console.log(`🆔 [NPCs API] DIRECT: ID global attribué: ${globalNpcId}`);
+    
+    // Créer directement avec new
+    const newNpc = new NpcData({
+      npcId: globalNpcId, // ✅ ID explicite
+      zone: zoneId,
+      name: npcJson.name,
+      type: npcJson.type,
+      position: {
+        x: Number(npcJson.position?.x) || 0,
+        y: Number(npcJson.position?.y) || 0
+      },
+      direction: npcJson.direction || 'south',
+      sprite: npcJson.sprite,
+      interactionRadius: npcJson.interactionRadius || 32,
+      canWalkAway: npcJson.canWalkAway !== false,
+      autoFacePlayer: npcJson.autoFacePlayer !== false,
+      repeatable: npcJson.repeatable !== false,
+      cooldownSeconds: npcJson.cooldownSeconds || 0,
+      isActive: true,
+      version: '3.0.0',
+      sourceFile: 'admin_direct_create'
+    });
+    
+    console.log(`💾 [NPCs API] DIRECT: Saving NPC with ID ${globalNpcId}...`);
+    await newNpc.save();
+    
+    console.log(`✅ [NPCs API] DIRECT: NPC "${newNpc.name}" (ID: ${newNpc.npcId}) created successfully`);
+    
+    res.json({
+      success: true,
+      message: `NPC "${newNpc.name}" créé directement`,
+      npc: newNpc.toNpcFormat(),
+      globalId: newNpc.npcId,
+      method: 'direct',
+      zoneId,
+      addedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] DIRECT: Error creating NPC:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur création directe',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
