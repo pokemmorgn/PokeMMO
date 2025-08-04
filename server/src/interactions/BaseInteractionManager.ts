@@ -3,7 +3,7 @@
 
 import { Player } from "../schema/PokeWorldState";
 import { 
-  InteractionRequest, 
+  InteractionRequest as BaseInteractionRequest, 
   InteractionResult, 
   InteractionContext,
   InteractionConfig,
@@ -14,6 +14,15 @@ import {
   INTERACTION_ERROR_CODES,
   InteractionType
 } from "./types/BaseInteractionTypes";
+
+// ✅ INTERFACE ÉTENDUE POUR SÉCURITÉ (LOCAL)
+interface InteractionRequest extends BaseInteractionRequest {
+  data?: BaseInteractionRequest['data'] & {
+    // ✅ AJOUT : Zone client (pour validation sécuritaire)
+    zone?: string;
+    clientPosition?: { x: number; y: number };
+  };
+}
 import { 
   IInteractionModule,
   IModuleRegistry,
