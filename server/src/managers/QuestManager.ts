@@ -760,7 +760,7 @@ export class QuestManager {
             ? questProgress.objectives 
             : new Map(Object.entries(questProgress.objectives || {}));
           
-          const objectiveProgress = objectivesMap.get(objective.id);
+          const objectiveProgress = objectivesMap.get(objective.id) as { currentAmount: number; completed: boolean } | undefined;
           
           // Skip si objectif déjà complété
           if (objectiveProgress?.completed) continue;
