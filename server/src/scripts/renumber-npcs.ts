@@ -18,7 +18,7 @@ async function renumberAllNpcs() {
     console.log('🚀 [Renumber] Démarrage de la renumérotation globale des NPCs...');
     
     // 1. Connexion à MongoDB
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemon_game';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
     await mongoose.connect(mongoUri);
     console.log('✅ Connecté à MongoDB');
     
