@@ -771,7 +771,7 @@ async createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
         type: 'npc',
         x: tileX,
         y: tileY,
-        name: `NPC_${tileX}_${tileY}`,
+        name: `NPC_${globalNpcId}`, // ✅ Nom basé sur l'ID global
         sprite: 'npc_default.png',
         direction: 'south',
         npcType: npcType,
