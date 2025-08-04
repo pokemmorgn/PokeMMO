@@ -732,7 +732,7 @@ closeNPCTypeSelector() {
 createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
     // Base NPC
     const baseNPC = {
-      //  id: `npc_${Date.now()}`,
+        id: `npc_${Date.now()}`,
         type: 'npc',
         x: tileX,
         y: tileY,
