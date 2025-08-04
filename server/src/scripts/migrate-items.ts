@@ -71,6 +71,33 @@ function readItemsJson(): any {
 }
 
 /**
+ * Ajoute les items personnalisés hardcodés
+ */
+function addCustomItems(): any {
+  const customItems = {
+    'dreamroot_pendant': {
+      name: 'Dreamroot Pendant',
+      description: 'A pendant shaped like a leaf touched by moonlight. Said to protect from nightmares.',
+      type: 'key_item',
+      price: null,
+      sell_price: null,
+      stackable: false,
+      consumable: false,
+      usable_in_battle: false,
+      usable_in_field: true,
+      custom_effects: {
+        ghost_resistance: 0.15,  // 15% de résistance aux attaques Ghost
+        forest_bonus: 0.10,      // 10% de bonus dans les zones forestières
+        nightmare_protection: true
+      }
+    }
+  };
+  
+  console.log(`➕ Added ${Object.keys(customItems).length} custom items`);
+  return customItems;
+}
+
+/**
  * Vide complètement la collection items
  */
 async function clearItemsCollection(): Promise<void> {
@@ -100,8 +127,11 @@ function convertLegacyItemToNew(itemId: string, legacyItem: any): any {
     stackable: legacyItem.stackable ?? true,
     consumable: inferConsumable(legacyItem),
     effects: generateEffects(itemId, legacyItem),
-    sprite: itemId,
-    generation: 1, // Par défaut Gen 1 pour les items de base
+    // Nouveaux champs visuels
+    sprite: itemId, // Pour compatibilité
+    icon: generateIconPath(itemId, legacyItem),
+    overworldSprite: generateOverworldSpritePath(itemId, legacyItem),
+    generation: inferGeneration(itemId, legacyItem),
     rarity: inferRarity(itemId, legacyItem),
     tags: generateTags(itemId, legacyItem),
     obtainMethods: generateObtainMethods(itemId, legacyItem),
@@ -112,9 +142,58 @@ function convertLegacyItemToNew(itemId: string, legacyItem: any): any {
 }
 
 /**
+ * Génère le chemin de l'icône inventaire
+ */
+function generateIconPath(itemId: string, legacyItem: any): string {
+  // Convention: icons/items/[category]/[item_id].png
+  const category = inferCategory(legacyItem);
+  return `icons/items/${category}/${itemId}.png`;
+}
+
+/**
+ * Génère le chemin du sprite overworld
+ */
+function generateOverworldSpritePath(itemId: string, legacyItem: any): string {
+  // Convention: sprites/overworld/items/[item_id].png
+  return `sprites/overworld/items/${itemId}.png`;
+}
+
+/**
+ * Infère la génération d'introduction
+ */
+function inferGeneration(itemId: string, legacyItem: any): number {
+  // Items classiques de Gen 1
+  const gen1Items = [
+    'poke_ball', 'great_ball', 'ultra_ball', 'master_ball', 'safari_ball',
+    'potion', 'super_potion', 'hyper_potion', 'max_potion', 'full_restore',
+    'antidote', 'parlyz_heal', 'awakening', 'burn_heal', 'ice_heal', 'full_heal',
+    'revive', 'max_revive', 'repel', 'super_repel', 'max_repel',
+    'bicycle', 'town_map', 'itemfinder', 'old_rod', 'good_rod', 'super_rod',
+    'exp_share', 'escape_rope'
+  ];
+  
+  // Items de Gen 2
+  const gen2Items = ['love_ball', 'moon_ball', 'friend_ball', 'lure_ball', 'heavy_ball', 'level_ball', 'fast_ball'];
+  
+  // Items personnalisés = Gen 9 (dernière génération)
+  if (itemId === 'dreamroot_pendant') return 9;
+  
+  if (gen1Items.includes(itemId)) return 1;
+  if (gen2Items.includes(itemId)) return 2;
+  
+  // Par défaut Gen 1
+  return 1;
+}
+
+/**
  * Génère une description appropriée pour l'item
  */
 function generateItemDescription(itemId: string, legacyItem: any): string {
+  // Si une description custom est fournie, l'utiliser
+  if (legacyItem.description) {
+    return legacyItem.description;
+  }
+  
   // Descriptions personnalisées pour les items connus
   const descriptions: { [key: string]: string } = {
     // Poké Balls
@@ -124,6 +203,12 @@ function generateItemDescription(itemId: string, legacyItem: any): string {
     'master_ball': 'The ultimate Poké Ball that will catch any wild Pokémon without fail.',
     'safari_ball': 'A special Poké Ball used only in the Safari Zone.',
     'love_ball': 'A Poké Ball that works best on Pokémon of the opposite gender.',
+    'moon_ball': 'A Poké Ball that works well on Pokémon that evolve with a Moon Stone.',
+    'friend_ball': 'A Poké Ball that makes caught Pokémon more friendly.',
+    'lure_ball': 'A Poké Ball that works well on Pokémon caught with a fishing rod.',
+    'heavy_ball': 'A Poké Ball that works better on heavier Pokémon.',
+    'level_ball': 'A Poké Ball that works better on lower-level Pokémon.',
+    'fast_ball': 'A Poké Ball that works well on fast Pokémon.',
     
     // Potions
     'potion': 'A healing item that restores 20 HP to a Pokémon.',
@@ -157,7 +242,10 @@ function generateItemDescription(itemId: string, legacyItem: any): string {
     'good_rod': 'A decent fishing rod for catching better water Pokémon.',
     'super_rod': 'An awesome fishing rod for catching the best water Pokémon.',
     'exp_share': 'A device that shares experience points with all party Pokémon.',
-    'escape_rope': 'A rope that allows instant escape from caves and dungeons.'
+    'escape_rope': 'A rope that allows instant escape from caves and dungeons.',
+    
+    // Custom items
+    'dreamroot_pendant': 'A pendant shaped like a leaf touched by moonlight. Said to protect from nightmares.'
   };
   
   if (descriptions[itemId]) {
@@ -196,6 +284,7 @@ function inferConsumable(legacyItem: any): boolean {
 function inferRarity(itemId: string, legacyItem: any): string {
   // Raretés spéciales
   if (itemId === 'master_ball') return 'legendary';
+  if (itemId === 'dreamroot_pendant') return 'mythic'; // Item personnalisé rare
   if (itemId.includes('max_')) return 'rare';
   if (itemId.includes('super_') || itemId.includes('hyper_')) return 'uncommon';
   if (legacyItem.type === 'key_item') return 'epic';
@@ -230,6 +319,11 @@ function generateTags(itemId: string, legacyItem: any): string[] {
   if (itemId.includes('key')) tags.push('access');
   if (itemId.includes('fossil')) tags.push('fossil', 'pokemon-source');
   
+  // Tags spéciaux pour items personnalisés
+  if (itemId === 'dreamroot_pendant') {
+    tags.push('mystical', 'protection', 'ghost-ward', 'forest-affinity');
+  }
+  
   return [...new Set(tags)]; // Supprimer les doublons
 }
 
@@ -257,7 +351,14 @@ function generateObtainMethods(itemId: string, legacyItem: any): any[] {
     'exp_share': { method: 'gift', location: 'Fuchsia City', conditions: ['Deliver item to aide'] },
     'old_rod': { method: 'gift', location: 'Vermilion City', npc: 'Fishing Guru' },
     'good_rod': { method: 'gift', location: 'Fuchsia City', npc: 'Fishing Guru' },
-    'super_rod': { method: 'gift', location: 'Route 12', npc: 'Fishing Guru' }
+    'super_rod': { method: 'gift', location: 'Route 12', npc: 'Fishing Guru' },
+    'dreamroot_pendant': { 
+      method: 'event', 
+      location: 'Moonlit Grove', 
+      conditions: ['Complete Dream Guardian quest', 'Full moon night'],
+      npc: 'Dream Sage',
+      event: 'Nightmare Cleansing Ritual'
+    }
   };
   
   if (specialMethods[itemId]) {
@@ -420,6 +521,71 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
     effects.push(catchEffect);
   }
   
+  // Effets personnalisés pour le Dreamroot Pendant
+  if (itemId === 'dreamroot_pendant') {
+    // Effet de résistance Ghost
+    const ghostResistEffect: ItemEffect = {
+      id: 'dreamroot_ghost_resist',
+      name: 'Ghost Ward',
+      description: 'Provides resistance against Ghost-type moves',
+      trigger: 'when_hit' as EffectTrigger,
+      conditions: [{
+        type: 'move_type',
+        operator: 'equals',
+        value: 'ghost'
+      }],
+      actions: [{
+        type: 'modify_damage' as ActionType,
+        target: 'self',
+        value: 0.85, // Réduit les dégâts de 15%
+        success_message: 'The pendant glows, reducing the ghostly attack!'
+      }],
+      passive: true
+    };
+    
+    // Effet de bonus en forêt
+    const forestBonusEffect: ItemEffect = {
+      id: 'dreamroot_forest_bonus',
+      name: 'Forest Affinity',
+      description: 'Provides bonuses in forest environments',
+      trigger: 'in_terrain' as EffectTrigger,
+      conditions: [{
+        type: 'location',
+        operator: 'contains',
+        value: 'forest'
+      }],
+      actions: [{
+        type: 'boost_stat' as ActionType,
+        target: 'self',
+        value: { stat: 'evasion', modifier: 1.1 },
+        success_message: 'The forest energy enhances your movements!'
+      }],
+      passive: true
+    };
+    
+    // Protection contre les cauchemars (effet narratif)
+    const nightmareProtection: ItemEffect = {
+      id: 'dreamroot_nightmare_ward',
+      name: 'Dream Protection',
+      description: 'Protects against nightmare-inducing effects',
+      trigger: 'on_status_inflict' as EffectTrigger,
+      conditions: [{
+        type: 'has_status',
+        operator: 'equals',
+        value: 'sleep'
+      }],
+      actions: [{
+        type: 'prevent_status' as ActionType,
+        target: 'self',
+        value: 'nightmare',
+        success_message: 'The pendant wards off the nightmare!'
+      }],
+      passive: true
+    };
+    
+    effects.push(ghostResistEffect, forestBonusEffect, nightmareProtection);
+  }
+  
   return effects;
 }
 
@@ -433,7 +599,13 @@ function getCaptureDescription(itemId: string): string {
     'ultra_ball': 'High capture rate (2x)',
     'master_ball': 'Guaranteed capture',
     'safari_ball': 'Safari Zone special ball',
-    'love_ball': 'More effective on opposite gender Pokémon'
+    'love_ball': 'More effective on opposite gender Pokémon',
+    'moon_ball': 'More effective on Moon Stone evolution Pokémon',
+    'friend_ball': 'Makes captured Pokémon friendlier',
+    'lure_ball': 'More effective on hooked Pokémon',
+    'heavy_ball': 'More effective on heavy Pokémon',
+    'level_ball': 'More effective on lower level Pokémon',
+    'fast_ball': 'More effective on fast Pokémon'
   };
   
   return descriptions[itemId] || 'Captures wild Pokémon';
@@ -456,7 +628,13 @@ function getCaptureValue(itemId: string): number {
     'ultra_ball': 2,
     'master_ball': 1, // Guaranteed catch n'utilise pas la valeur
     'safari_ball': 1.5,
-    'love_ball': 8 // Conditionnel
+    'love_ball': 8, // Conditionnel sur le genre
+    'moon_ball': 4, // Conditionnel sur Moon Stone
+    'friend_ball': 1,
+    'lure_ball': 3, // Conditionnel sur pêche
+    'heavy_ball': 1, // Variable selon le poids
+    'level_ball': 1, // Variable selon le niveau
+    'fast_ball': 4 // Conditionnel sur la vitesse
   };
   
   return values[itemId] || 1;
@@ -526,6 +704,12 @@ async function showPostMigrationStats(): Promise<void> {
       console.log(`  - ${rarity}: ${count}`);
     });
     
+    console.log('\n🖼️ Visual assets summary:');
+    const itemsWithIcons = await ItemData.countDocuments({ icon: { $exists: true, $ne: null } });
+    const itemsWithOverworld = await ItemData.countDocuments({ overworldSprite: { $exists: true, $ne: null } });
+    console.log(`  - Items with icons: ${itemsWithIcons}`);
+    console.log(`  - Items with overworld sprites: ${itemsWithOverworld}`);
+    
     console.log('=================================\n');
   } catch (error) {
     console.error('⚠️ Error getting post-migration stats:', error);
@@ -554,16 +738,20 @@ async function migrateItems(itemsData: any, options: {
       console.log('🔍 DRY RUN MODE - No changes will be made to the database');
     }
     
+    // Ajouter les items personnalisés
+    const customItems = addCustomItems();
+    const allItems = { ...itemsData, ...customItems };
+    
     // Convertir et migrer chaque item
-    const itemIds = Object.keys(itemsData);
+    const itemIds = Object.keys(allItems);
     let success = 0;
     let errors: string[] = [];
     
-    console.log(`\n📦 Processing ${itemIds.length} items...`);
+    console.log(`\n📦 Processing ${itemIds.length} items (${Object.keys(itemsData).length} from JSON + ${Object.keys(customItems).length} custom)...`);
     
     for (const itemId of itemIds) {
       try {
-        const legacyItem = itemsData[itemId];
+        const legacyItem = allItems[itemId];
         const newItem = convertLegacyItemToNew(itemId, legacyItem);
         
         if (!dryRun) {
@@ -571,7 +759,8 @@ async function migrateItems(itemsData: any, options: {
         }
         
         success++;
-        console.log(`✅ ${itemId} - ${newItem.name}`);
+        const customTag = Object.keys(customItems).includes(itemId) ? ' [CUSTOM]' : '';
+        console.log(`✅ ${itemId} - ${newItem.name}${customTag}`);
         
       } catch (error) {
         const errorMsg = `❌ ${itemId}: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -584,6 +773,8 @@ async function migrateItems(itemsData: any, options: {
     console.log('=====================');
     console.log(`✅ Success: ${success} items`);
     console.log(`⚠️ Errors: ${errors.length}`);
+    console.log(`🎨 New visual fields: icon, overworldSprite`);
+    console.log(`🔮 Custom items added: ${Object.keys(customItems).length}`);
     
     if (errors.length > 0) {
       console.log('\n❌ ERRORS ENCOUNTERED:');
@@ -624,6 +815,18 @@ async function validateDatabase(): Promise<void> {
     console.log(`Items checked: ${validation.effectValidation.items_checked}`);
     console.log(`Items with errors: ${validation.effectValidation.items_with_errors}`);
     
+    // Validation spécifique aux nouveaux champs
+    console.log('\n🖼️ Visual assets validation:');
+    const itemsWithoutIcons = await ItemData.countDocuments({ 
+      $or: [{ icon: { $exists: false } }, { icon: null }, { icon: '' }] 
+    });
+    const itemsWithoutOverworld = await ItemData.countDocuments({ 
+      $or: [{ overworldSprite: { $exists: false } }, { overworldSprite: null }, { overworldSprite: '' }] 
+    });
+    
+    console.log(`Items without icons: ${itemsWithoutIcons}`);
+    console.log(`Items without overworld sprites: ${itemsWithoutOverworld}`);
+    
     console.log('====================\n');
   } catch (error) {
     console.error('⚠️ Error during validation:', error);
@@ -647,8 +850,8 @@ async function main(): Promise<void> {
   // Afficher l'aide
   if (options.help) {
     console.log(`
-📦 Items Complete Migration Script
-=================================
+📦 Items Complete Migration Script v2.0
+=======================================
 
 Usage: npx ts-node server/src/scripts/migrate-items.ts [options]
 
@@ -662,6 +865,12 @@ Environment Variables:
   MONGODB_URI           MongoDB connection string (default: mongodb://localhost:27017/pokemmo)
   ITEMS_JSON_PATH       Path to items.json file (default: ./server/src/data/items.json)
 
+New Features v2.0:
+  ✨ Added icon and overworldSprite fields for better visual management
+  🔮 Added custom items support (Dreamroot Pendant included)
+  🎨 Enhanced generation inference and rarity system
+  📊 Improved validation and statistics
+
 Examples:
   npx ts-node server/src/scripts/migrate-items.ts                    # Full migration with clear
   npx ts-node server/src/scripts/migrate-items.ts --dry-run          # Simulation only
@@ -673,8 +882,8 @@ Examples:
     return;
   }
   
-  console.log('🎮 PokéMMO Complete Items Migration Script');
-  console.log('==========================================\n');
+  console.log('🎮 PokéMMO Complete Items Migration Script v2.0');
+  console.log('===============================================\n');
   
   if (!options.dryRun && options.clearExisting) {
     console.log('⚠️  WARNING: This will COMPLETELY REPLACE all items in the database!');
@@ -708,6 +917,8 @@ Examples:
     }
     
     console.log('🎉 Migration script completed successfully!');
+    console.log('🔮 Custom items (like Dreamroot Pendant) have been added');
+    console.log('🎨 New visual fields (icon, overworldSprite) are ready for asset management');
     
   } catch (error) {
     console.error('💥 Migration script failed:', error);
