@@ -21,6 +21,10 @@ export class QuestHandlers {
       await this.handleProgressIntroQuest(client, "intro_started");
     });
 
+    this.room.onMessage("acceptQuest", async (client: Client, data: { questId: string, npcId: string | number, timestamp?: number }) => {
+    await this.handleAcceptQuest(client, data);
+    });
+    
     this.room.onMessage("dialogue_completed", async (client: Client) => {
       await this.handleProgressIntroQuest(client, "dialogue_completed");
     });
