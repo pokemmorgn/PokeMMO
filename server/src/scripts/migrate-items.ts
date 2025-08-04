@@ -118,7 +118,7 @@ async function clearItemsCollection(): Promise<void> {
  */
 function convertLegacyItemToNew(itemId: string, legacyItem: any): any {
   const newItem: any = {
-    itemId: itemId,
+    itemId: itemId.toLowerCase(), // Forcer lowercase pour respecter la validation
     name: legacyItem.name || itemId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
     description: generateItemDescription(itemId, legacyItem),
     category: inferCategory(legacyItem),
