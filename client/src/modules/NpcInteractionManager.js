@@ -702,6 +702,14 @@ handleUnifiedInterfaceResult(data) {
     quickActions: data.contextualData?.quickActions || [],
     contextualData: data.contextualData,
     
+    // 🔧 CORRECTION CRITIQUE : Transmettre les availableQuests
+    availableQuests: data.availableQuests || [],
+    
+    // 🔧 NOUVEAU : Construire questData si pas présent
+    questData: data.questData || {
+      availableQuests: data.availableQuests || []
+    },
+    
     // ✅ Données interface unifiée (si présentes)
     ...(data.unifiedInterface || {}),
     
@@ -725,7 +733,11 @@ handleUnifiedInterfaceResult(data) {
     capabilities: interfaceData.capabilities,
     defaultAction: interfaceData.defaultAction,
     hasContextualData: !!data.contextualData,
-    quickActionsCount: interfaceData.quickActions?.length || 0
+    quickActionsCount: interfaceData.quickActions?.length || 0,
+    // 🔧 NOUVEAU : Debug des quêtes
+    hasAvailableQuests: !!(interfaceData.availableQuests && interfaceData.availableQuests.length > 0),
+    availableQuestsCount: interfaceData.availableQuests?.length || 0,
+    questNames: interfaceData.availableQuests?.map(q => q.name || q.title || q.id) || []
   });
   
   try {
@@ -756,11 +768,17 @@ handleUnifiedInterfaceResult(data) {
   } catch (error) {
     console.error('[NpcInteractionManager] ❌ Erreur interface unifiée:', error);
     
-    // ✅ Fallback intelligent
+    // ✅ Fallback intelligent AVEC préservation des quêtes
     return this.handleDialogueInteraction(npc, {
       message: data.message || data.lines?.[0] || "Bonjour !",
       lines: data.lines || [data.message || "Bonjour !"],
       name: data.npcName || npc?.name,
+      
+      // 🔧 NOUVEAU : Préserver les données de quêtes dans le fallback
+      availableQuests: data.availableQuests || [],
+      capabilities: data.capabilities || [],
+      questData: data.questData || { availableQuests: data.availableQuests || [] },
+      contextualData: data.contextualData,
       
       // ✅ Préserver actions disponibles
       availableActions: this.deriveActionsFromData(data)
