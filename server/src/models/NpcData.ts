@@ -590,14 +590,15 @@ NpcDataSchema.statics.repairGlobalIds = async function(): Promise<{success: numb
 
 NpcDataSchema.pre('save', async function(next) {
   try {
-    // ✅ ATTRIBUTION AUTOMATIQUE D'ID GLOBAL pour nouveaux documents
+    // ✅ CORRECTION: Attribution d'ID seulement si vraiment nécessaire
     if (this.isNew && !this.npcId) {
+      // Ceci ne devrait plus arriver avec createFromJson corrigé, mais garde en sécurité
       this.npcId = await (this.constructor as any).getNextGlobalNpcId();
-      console.log(`🆔 Nouvel ID global attribué: ${this.npcId} pour NPC "${this.name}" en zone ${this.zone}`);
+      console.log(`🆔 [PreSave] ID global de secours attribué: ${this.npcId} pour NPC "${this.name}" en zone ${this.zone}`);
     }
     
-    // ✅ VALIDATION ID GLOBAL UNIQUE (pas par zone)
-    if (this.isNew || this.isModified('npcId')) {
+    // ✅ VALIDATION ID GLOBAL UNIQUE (seulement si ID modifié)
+    if (this.isModified('npcId')) {
       const existingNpc = await (this.constructor as any).findOne({ 
         npcId: this.npcId,
         _id: { $ne: this._id }
@@ -606,6 +607,11 @@ NpcDataSchema.pre('save', async function(next) {
       if (existingNpc) {
         return next(new Error(`Un NPC avec l'ID global ${this.npcId} existe déjà (zone: ${existingNpc.zone})`));
       }
+    }
+    
+    // ✅ VALIDATION: npcId doit être défini et positif
+    if (!this.npcId || this.npcId < 1) {
+      return next(new Error(`npcId invalide: ${this.npcId} (doit être un nombre positif)`));
     }
     
     // Validations existantes (inchangées)
@@ -1037,20 +1043,25 @@ NpcDataSchema.statics.createFromJson = async function(
   
   let npcId = jsonNpc.id || jsonNpc.npcId;
   
-  // Si ID fourni, vérifier qu'il est libre GLOBALEMENT
-  if (npcId) {
+  // ✅ CORRECTION: Si pas d'ID ou ID non disponible, attribuer MAINTENANT
+  if (!npcId) {
+    npcId = await (this as any).getNextGlobalNpcId();
+    console.log(`🆔 [CreateFromJson] ID global automatique attribué: ${npcId} pour "${jsonNpc.name}" en zone ${zone}`);
+  } else {
+    // Si ID fourni, vérifier qu'il est libre GLOBALEMENT
     const isAvailable = await (this as any).isGlobalNpcIdAvailable(npcId);
     if (!isAvailable) {
-      console.log(`⚠️ ID ${npcId} déjà utilisé globalement, attribution automatique d'un nouvel ID`);
-      npcId = null; // Forcer l'attribution automatique
+      console.log(`⚠️ [CreateFromJson] ID ${npcId} déjà utilisé globalement, attribution automatique`);
+      npcId = await (this as any).getNextGlobalNpcId();
+      console.log(`🆔 [CreateFromJson] Nouvel ID global attribué: ${npcId}`);
     }
   }
   
-  // Si pas d'ID ou ID non disponible, laisser le pre-save l'attribuer automatiquement
+  // ✅ IMPORTANT: S'assurer que npcId est défini AVANT la création
   const npcData: any = {
-    npcId: npcId, // Peut être undefined, sera attribué automatiquement par pre-save
+    npcId: npcId, // ✅ ID toujours défini maintenant
     zone: zone,
-    name: jsonNpc.name || `NPC_${Date.now()}`,
+    name: jsonNpc.name || `NPC_${npcId}`,
     type: jsonNpc.type || 'dialogue',
     position: {
       x: Number(jsonNpc.position?.x) || 0,
@@ -1098,7 +1109,9 @@ NpcDataSchema.statics.createFromJson = async function(
     (npcData as any).npcData = specificData;
   }
   
-  // Créer et sauvegarder (l'ID sera attribué automatiquement si nécessaire)
+  console.log(`💾 [CreateFromJson] Création NPC avec ID ${npcId} pour zone ${zone}`);
+  
+  // Créer et sauvegarder (l'ID est maintenant garanti d'être défini)
   const newNpc = new this(npcData);
   await newNpc.save();
   
