@@ -2,6 +2,7 @@
 // 🎭 Gestionnaire logique pour les dialogues NPCs - Version Simplifiée avec Actions Contextuelles
 // ✅ Gestion dialogue classique + actions contextuelles SEULEMENT
 // ✅ Intégration avec ShopSystem, QuestSystem, etc.
+// ✅ NOUVEAU : Stockage données pour QuestDetailsUI
 // ❌ SUPPRIMÉ : Interface unifiée à onglets (pas utilisée)
 
 import { DialogueUI } from './DialogueUI.js';
@@ -157,8 +158,23 @@ export class DialogueManager {
       this.hide();
     }
 
-    // Stocker les données
+    // 🔧 NOUVEAU : Stocker les données pour QuestDetailsUI et autres systèmes
     this.currentDialogueData = data;
+    window.dialogueManager = this; // S'assurer que c'est accessible globalement
+    
+    // 🔧 NOUVEAU : Stocker en backup global pour QuestDetailsUI
+    if (data.availableQuests || data.questData || data.unifiedInterface?.questData) {
+      window._lastNpcInteractionData = {
+        npcId: data.npcId,
+        npcName: data.name || data.npcName,
+        availableQuests: data.availableQuests || data.questData?.availableQuests || data.unifiedInterface?.questData?.availableQuests || [],
+        questData: data.questData || data.unifiedInterface?.questData,
+        contextualData: data.contextualData,
+        unifiedInterface: data.unifiedInterface
+      };
+      
+      console.log('🔧 [DialogueManager] Données quêtes stockées pour QuestDetailsUI:', window._lastNpcInteractionData);
+    }
 
     // 🔧 TOUJOURS utiliser le dialogue classique amélioré (pas d'interface unifiée)
     this.showClassicDialogue(data);
@@ -195,7 +211,7 @@ export class DialogueManager {
       console.log(`✅ ${actions.length} actions détectées - dialogue avec zone d'actions`);
       this.dialogueUI.showDialogueWithActions(dialogueDataWithActions);
       
-      // Configurer le callback pour les actions
+      // 🔧 NOUVEAU : Configurer le callback pour les actions avec données complètes
       this.dialogueUI.onActionClick = (action) => {
         this.handleDialogueAction(action, data);
       };
@@ -576,8 +592,45 @@ detectAvailableActions(data) {
     }
   }
 
+  // 🔧 NOUVEAU : Handler quête avec intégration QuestDetailsUI
   handleQuestAction(action, originalData) {
-    console.log('📋 Ouverture journal quêtes...');
+    console.log('📋 Gestion action quête:', action);
+    
+    // 🔧 NOUVEAU : Vérifier si on a un questId spécifique (bouton quête individuel)
+    if (action.questId) {
+      console.log(`🎯 Ouverture détails quête spécifique: ${action.questId}`);
+      
+      // 🔧 Mettre à jour le système de quêtes
+      this.questSystem = window.questSystem || null;
+      
+      // Utiliser QuestDetailsUI pour cette quête spécifique
+      if (this.questSystem && this.questSystem.showQuestDetailsForNpc) {
+        const npcId = originalData.npcId || 'unknown';
+        const success = this.questSystem.showQuestDetailsForNpc(npcId, [action.questId]);
+        
+        if (success) {
+          console.log(`✅ QuestDetailsUI ouvert pour quête: ${action.questId}`);
+          return;
+        }
+      }
+      
+      // Fallback : essayer d'utiliser les données stockées
+      console.log('🔄 Fallback : utilisation données stockées...');
+      if (window._lastNpcInteractionData && window._lastNpcInteractionData.availableQuests) {
+        const questData = window._lastNpcInteractionData.availableQuests.find(q => q.id === action.questId);
+        if (questData && this.questSystem && this.questSystem.detailsUI) {
+          this.questSystem.detailsUI.showSingleQuest(
+            window._lastNpcInteractionData.npcId || 'unknown',
+            action.questId,
+            questData
+          );
+          return;
+        }
+      }
+    }
+    
+    // 🔄 FALLBACK : Ouverture journal quêtes générale
+    console.log('📋 Fallback : ouverture journal quêtes...');
     
     if (this.questSystem && this.questSystem.openQuestJournal) {
       // Déléguer au QuestSystem
@@ -663,9 +716,21 @@ detectAvailableActions(data) {
     // Fermer l'UI
     this.dialogueUI.hide();
 
+    // 🔧 NOUVEAU : Garder les données un moment au cas où QuestDetailsUI en aurait besoin
+    const currentData = this.currentDialogueData;
+    
     // Nettoyer l'état
     this.currentDialogueData = null;
     this.classicState = { lines: [], currentPage: 0, onClose: null, actions: [] };
+
+    // 🔧 NOUVEAU : Nettoyer les données avec délai pour QuestDetailsUI
+    setTimeout(() => {
+      if (currentData && !window._questDetailsUIActive && window._lastNpcInteractionData) {
+        // Ne nettoyer que si QuestDetailsUI n'est pas actif
+        console.log('🧹 [DialogueManager] Nettoyage données différé');
+        window._lastNpcInteractionData = null;
+      }
+    }, 5000); // 5 secondes de délai
 
     // Appeler le callback
     if (onCloseCallback && typeof onCloseCallback === 'function') {
@@ -789,6 +854,15 @@ detectAvailableActions(data) {
     console.log('  - QuestSystem:', !!this.questSystem);
     console.log('  - InventorySystem:', !!this.inventorySystem);
     
+    // 🔧 NOUVEAU : Debug données stockées
+    console.log('💾 DONNÉES STOCKÉES:');
+    console.log('  - currentDialogueData:', !!this.currentDialogueData);
+    console.log('  - _lastNpcInteractionData:', !!window._lastNpcInteractionData);
+    if (window._lastNpcInteractionData) {
+      console.log('    - npcName:', window._lastNpcInteractionData.npcName);
+      console.log('    - availableQuests:', window._lastNpcInteractionData.availableQuests?.length || 0);
+    }
+    
     return {
       isInitialized: this.isInitialized,
       isOpen: this.isOpen(),
@@ -803,6 +877,11 @@ detectAvailableActions(data) {
         shop: !!this.shopSystem,
         quest: !!this.questSystem,
         inventory: !!this.inventorySystem
+      },
+      storedData: {
+        hasCurrentDialogue: !!this.currentDialogueData,
+        hasLastNpcData: !!window._lastNpcInteractionData,
+        questCount: window._lastNpcInteractionData?.availableQuests?.length || 0
       }
     };
   }
@@ -828,6 +907,11 @@ detectAvailableActions(data) {
     this.questSystem = null;
     this.inventorySystem = null;
     this.currentDialogueData = null;
+    
+    // 🔧 NOUVEAU : Nettoyer les données globales
+    if (window._lastNpcInteractionData) {
+      window._lastNpcInteractionData = null;
+    }
     
     // Supprimer les références globales
     if (window.dialogueManager === this) {
@@ -924,8 +1008,9 @@ window.testDialogueSimpleNPC = function() {
   }
 };
 
-console.log('✅ DialogueManager Simplifié avec Actions chargé!');
+console.log('✅ DialogueManager Simplifié avec Actions et Stockage Quêtes chargé!');
 console.log('🧪 Utilisez window.testDialogueManager() pour diagnostiquer');
 console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand');
 console.log('📋 Utilisez window.testDialogueWithQuests() pour tester quêtes spécifiques');
 console.log('👤 Utilisez window.testDialogueSimpleNPC() pour tester NPC simple');
+console.log('💾 Données quêtes automatiquement stockées pour QuestDetailsUI');
