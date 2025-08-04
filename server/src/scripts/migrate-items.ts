@@ -7,7 +7,7 @@ import { ItemData } from '../models/ItemData';
 import { ItemEffect, ItemAction, ActionType, EffectTrigger } from '../items/ItemEffectTypes';
 
 // ===== CONFIGURATION =====
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemmo';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
 const ITEMS_JSON_PATH = process.env.ITEMS_JSON_PATH || './server/src/data/items.json';
 
 // ===== FONCTIONS UTILITAIRES =====
