@@ -34,13 +34,12 @@ export class MapEditorModule {
     // ✅ NOUVELLE MÉTHODE: Obtenir le prochain ID global
 async getNextGlobalNpcId() {
     try {
-        // Demander au serveur le prochain ID global disponible
         const response = await this.adminPanel.apiCall('/npcs/next-id');
         return response.nextId;
     } catch (error) {
         console.error('❌ [MapEditor] Error getting next NPC ID:', error);
-        // Fallback: utiliser timestamp si l'API échoue
-        return Date.now();
+        // ✅ NE PAS utiliser de fallback timestamp !
+        throw error; // Laisser planter pour identifier le problème
     }
 }
     
