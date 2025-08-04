@@ -201,7 +201,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
   private async progressPlayerQuests(playerName: string, itemId: string): Promise<void> {
     try {
       if (!this.questManager) {
-        this.log('debug', 'QuestManager non disponible pour progression automatique', {
+        this.log('info', 'QuestManager non disponible pour progression automatique', {
           player: playerName,
           itemId
         });
