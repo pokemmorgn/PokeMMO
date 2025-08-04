@@ -285,24 +285,6 @@ const formattedNPCs = npcs.map((npc: any) => ({
       sprite: npc.sprite
     })));
     
-// ✅ NPC DE TEST avec coordonnées en pixels
-const testNPC = {
-  id: 9999,
-  type: 'npc',
-  name: 'Test NPC Debug',
-  x: 5 * 16,  // ✅ Convertir en pixels (5 tiles * 16px)
-  y: 5 * 16,  // ✅ Convertir en pixels (5 tiles * 16px)
-  position: {
-    x: 5 * 16,
-    y: 5 * 16
-  },
-  sprite: 'npc_test',
-  direction: 'south',
-  npcType: 'dialogue',
-  customProperties: {
-    isTest: true
-  }
-};
     
     // Combiner objets et NPCs
     const allObjects = [...formattedObjects, ...formattedNPCs, testNPC];
