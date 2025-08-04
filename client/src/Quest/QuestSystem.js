@@ -259,6 +259,11 @@ handleQuestAcceptFromUI(questId, npcId, questData) {
       return;
     }
     
+    this.networkManager.onMessage("questAcceptResult", (data) => {
+    console.log('📨 [QuestSystem] REÇU questAcceptResult:', data);
+    this.handleQuestAcceptResult(data);
+    });
+    
     // === MESSAGES SERVEUR DIRECTS (QuestClientMessage) ===
     this.networkManager.onMessage("quest_started", (data) => {
       this.handleQuestStarted(data);
@@ -267,13 +272,6 @@ handleQuestAcceptFromUI(questId, npcId, questData) {
     this.networkManager.onMessage("quest_progress", (data) => {
       this.handleQuestProgress(data);
     });
-
-      console.log('🔍 [QuestSystem] Configuration écoute réseau...');
-      
-      this.networkManager.onMessage("questAcceptResult", (data) => {
-        console.log('📨 [QuestSystem] REÇU questAcceptResult:', data);
-        this.handleQuestAcceptResult(data);
-      });
     
     this.networkManager.onMessage("quest_completed", (data) => {
       this.handleQuestCompleted(data);
