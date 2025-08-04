@@ -1,7 +1,7 @@
 // src/interactions/BaseInteractionManager.ts
 // Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE COMPLÈTE
 
-import { Player } from "../../schema/PokeWorldState";
+import { Player } from "../schema/PokeWorldState";
 import { 
   InteractionRequest, 
   InteractionResult, 
