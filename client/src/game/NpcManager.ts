@@ -823,14 +823,34 @@ async reloadNpcSprite(npcId, newSpriteKey = null) {
     }
   }
 
-  updateQuestIndicators(questStatuses) {
-    questStatuses.forEach(status => {
-      const visuals = this.npcVisuals.get(status.npcId);
+updateQuestIndicators(questStatuses) {
+  // ✅ NOUVEAU : Créer un Set des NPCs qui ont des quêtes
+  const npcsWithQuests = new Set();
+  
+  // ✅ Mettre à jour les NPCs présents dans questStatuses
+  questStatuses.forEach(status => {
+    npcsWithQuests.add(status.npcId); // Marquer comme ayant des quêtes
+    
+    const visuals = this.npcVisuals.get(status.npcId);
+    if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
+      this.updateQuestIndicator(visuals.nameContainer, status.type);
+    }
+  });
+  
+  // ✅ NOUVEAU : Supprimer les indicateurs des NPCs absents
+  for (const [npcId, visuals] of this.npcVisuals) {
+    if (!npcsWithQuests.has(npcId)) {
+      // Ce NPC n'a plus de quêtes, supprimer son indicateur
       if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
-        this.updateQuestIndicator(visuals.nameContainer, status.type);
+        const oldIndicator = visuals.nameContainer.getByName('questIndicator');
+        if (oldIndicator) {
+          console.log(`🧹 Suppression indicateur NPC ${npcId} (plus de quêtes)`);
+          oldIndicator.destroy();
+        }
       }
-    });
+    }
   }
+}
 
   updateQuestIndicator(nameContainer, questType) {
     const oldIndicator = nameContainer.getByName('questIndicator');
