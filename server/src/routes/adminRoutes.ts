@@ -2728,21 +2728,28 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
       });
     }
     
-    // Générer un ID unique si pas fourni
-    if (!npcJson.id) {
-      // Trouver le prochain ID disponible pour cette zone
-      const existingNpcs = await NpcData.find({ zone: zoneId }).sort({ npcId: -1 }).limit(1);
-      npcJson.id = existingNpcs.length > 0 ? existingNpcs[0].npcId + 1 : 1;
-    }
-    
-    // Vérifier que l'ID n'existe pas déjà
-    const existingNpc = await NpcData.findOne({ zone: zoneId, npcId: npcJson.id });
-    if (existingNpc) {
-      return res.status(400).json({
-        success: false,
-        error: 'Un NPC avec cet ID existe déjà dans cette zone'
-      });
-    }
+// ✅ CORRECTION: Générer un ID unique GLOBAL (pas par zone)
+if (!npcJson.id) {
+  // Trouver le plus grand ID existant dans TOUTES les zones
+  const lastNpc = await NpcData.findOne({})
+    .sort({ npcId: -1 })
+    .select('npcId')
+    .lean();
+  
+  // Le prochain ID est le plus grand ID existant + 1
+  npcJson.id = lastNpc ? lastNpc.npcId + 1 : 1;
+  
+  console.log(`🔢 [NPCs API] Generated global NPC ID: ${npcJson.id} (previous max was ${lastNpc?.npcId || 0})`);
+}
+
+// Vérifier que l'ID n'existe pas déjà (dans toutes les zones)
+const existingNpc = await NpcData.findOne({ npcId: npcJson.id });
+if (existingNpc) {
+  return res.status(400).json({
+    success: false,
+    error: `Un NPC avec l'ID ${npcJson.id} existe déjà dans la zone "${existingNpc.zone}"`
+  });
+}
     
     // Créer le NPC
     const newNpc = await NpcData.createFromJson(npcJson, zoneId);
@@ -6556,5 +6563,37 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
         });
     }
 });
+
+// ✅ NOUVELLE ROUTE: Obtenir le prochain ID NPC global disponible
+router.get('/npcs/next-id', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('🔢 [NPCs API] Getting next global NPC ID...');
+    
+    // Trouver le plus grand ID existant dans toutes les zones
+    const lastNpc = await NpcData.findOne({})
+      .sort({ npcId: -1 })
+      .select('npcId')
+      .lean();
+    
+    const nextId = lastNpc ? lastNpc.npcId + 1 : 1;
+    
+    console.log(`✅ [NPCs API] Next global NPC ID: ${nextId} (previous max: ${lastNpc?.npcId || 0})`);
+    
+    res.json({
+      success: true,
+      nextId: nextId,
+      previousMax: lastNpc?.npcId || 0
+    });
+    
+  } catch (error) {
+    console.error('❌ [NPCs API] Error getting next NPC ID:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération du prochain ID NPC',
+      nextId: Date.now() // Fallback timestamp
+    });
+  }
+});
+
 
 export default router;
