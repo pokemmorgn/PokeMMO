@@ -17,6 +17,7 @@ import {
 import { BaseInteractionModule } from "../interfaces/InteractionModule";
 import { InventoryManager } from "../../managers/InventoryManager";
 import { isValidItemId } from "../../utils/ItemDB";
+import { getDbZoneName } from '../../config/ZoneMapping';
 
 // ✅ IMPORT DU MODÈLE MONGODB
 import { GameObjectData, IGameObjectData, GameObjectType } from "../../models/GameObjectData";
