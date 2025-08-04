@@ -1,5 +1,5 @@
-// Quest/QuestSystem.js - VERSION AVEC QUESTDETAILSUI
-// 🎯 Ajout de QuestDetailsUI dans le système unifié
+// Quest/QuestSystem.js - VERSION SANS AUTO-OUVERTURE QUÊTES DISPONIBLES
+// 🎯 Suppression de l'interface automatique "Quêtes disponibles" - tout passe par DialogueManager
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -16,14 +16,14 @@ export class QuestSystem {
     this.ui = null;
     this.icon = null;
     this.tracker = null;
-    this.detailsUI = null; // 🆕 NOUVEAU
+    this.detailsUI = null;
     
     // === CALLBACKS ===
     this.onQuestUpdate = null;
     this.onQuestCompleted = null;
     this.onQuestStarted = null;
     
-    console.log('📖 [QuestSystem] Instance créée avec QuestDetailsUI');
+    console.log('📖 [QuestSystem] Instance créée SANS auto-ouverture');
   }
   
   // === 🚀 INITIALISATION ===
@@ -36,7 +36,7 @@ export class QuestSystem {
       await this.createUI();
       
       this.ready = true;
-      console.log('✅ [QuestSystem] Prêt avec QuestDetailsUI !');
+      console.log('✅ [QuestSystem] Prêt SANS auto-ouverture !');
       
       return this;
     } catch (error) {
@@ -58,10 +58,10 @@ export class QuestSystem {
       // Créer le tracker
       await this.createTracker();
       
-      // 🆕 NOUVEAU : Créer l'interface de détails de quête
+      // Créer l'interface de détails de quête
       await this.createQuestDetailsUI();
       
-      console.log('🎨 [QuestSystem] UI créée avec QuestDetailsUI');
+      console.log('🎨 [QuestSystem] UI créée');
     } catch (error) {
       console.error('❌ [QuestSystem] Erreur création UI:', error);
     }
@@ -70,7 +70,6 @@ export class QuestSystem {
   async createIcon() {
     const { QuestIcon } = await import('./QuestIcon.js');
     
-    // 🔥 Récupérer optionsManager depuis window
     const optionsManager = window.optionsSystem?.manager || 
                            window.optionsSystemGlobal?.manager ||
                            window.optionsSystem;
@@ -100,7 +99,6 @@ export class QuestSystem {
     this.tracker = this.ui;
   }
   
-  // 🆕 NOUVEAU : Créer l'interface de détails de quête
   async createQuestDetailsUI() {
     const { QuestDetailsUI } = await import('./QuestDetailsUI.js');
     
@@ -224,7 +222,7 @@ export class QuestSystem {
     }
   }
   
-  // === 📡 HANDLERS RÉSEAU (existants, pas de changement) ===
+  // === 📡 HANDLERS RÉSEAU ===
   
   setupNetworkHandlers() {
     if (!this.networkManager) {
@@ -281,10 +279,13 @@ export class QuestSystem {
       this.handleErrorMessage(data);
     });
     
-    // === INTERACTION NPC (NpcInteractionResult) ===
+    // === INTERACTION NPC (NpcInteractionResult) - 🔧 MODIFIÉ ===
     this.networkManager.onMessage("npcInteractionResult", (data) => {
       if (this.isQuestInteraction(data)) {
-        this.handleNpcInteraction(data);
+        // 🛑 NE PLUS auto-traiter - laisser le DialogueManager gérer
+        console.log('📋 [QuestSystem] Interaction NPC quest détectée - DialogueManager va gérer');
+        console.log('📋 [QuestSystem] Données disponibles pour boutons:', data);
+        // Ne rien faire - les quêtes seront accessibles via les boutons du dialogue
       }
     });
     
@@ -295,7 +296,7 @@ export class QuestSystem {
     });
     
     this.networkManager.onMessage("availableQuestsList", (data) => {
-      console.warn('⚠️ [QuestSystem] Message ancien "availableQuestsList" - à migrer vers "quest_available"');
+      console.warn('⚠️ [QuestSystem] Message ancien "availableQuestsList" - PAS d\'auto-ouverture');
       this.handleAvailableQuests(data);
     });
     
@@ -304,10 +305,10 @@ export class QuestSystem {
       this.handleQuestStartResult(data);
     });
     
-    console.log('📡 [QuestSystem] Handlers réseau harmonisés avec serveur + QuestDetailsUI');
+    console.log('📡 [QuestSystem] Handlers réseau SANS auto-ouverture configurés');
   }
   
-  // [... TOUS LES AUTRES HANDLERS RESTENT IDENTIQUES ...]
+  // === 🔧 HANDLERS MODIFIÉS - SANS AUTO-OUVERTURE ===
   
   handleQuestStarted(data) {
     console.log('🎯 [QuestSystem] Quête démarrée:', data);
@@ -384,13 +385,18 @@ export class QuestSystem {
     }, 1500);
   }
   
+  // 🔧 MODIFIÉ : handleQuestAvailable - PAS d'auto-ouverture
   handleQuestAvailable(data) {
-    console.log('📋 [QuestSystem] Quête disponible:', data);
+    console.log('📋 [QuestSystem] Quête disponible reçue (SANS auto-ouverture):', data);
     
     this.availableQuests = this.extractQuestArray(data);
     
+    // 🛑 NE PLUS auto-ouvrir la sélection de quêtes
+    console.log('📋 [QuestSystem] Quêtes stockées - accessibles via DialogueManager');
+    
+    // Juste stocker les données - le DialogueManager les utilisera pour ses boutons
     if (this.availableQuests.length > 0) {
-      this.showQuestSelection(this.availableQuests);
+      console.log(`📋 [QuestSystem] ${this.availableQuests.length} quêtes disponibles stockées pour DialogueManager`);
     }
   }
   
@@ -475,7 +481,7 @@ export class QuestSystem {
     this.showMessage(data.message || 'Erreur dans le système de quêtes', 'error');
   }
   
-  // === 📊 HANDLERS COMPATIBILITÉ ===
+  // === 📊 HANDLERS COMPATIBILITÉ - MODIFIÉS ===
   
   handleActiveQuests(questsData) {
     console.log('📋 [QuestSystem] Quêtes actives (ancien format):', questsData);
@@ -485,16 +491,14 @@ export class QuestSystem {
     this.triggerCallback('onQuestUpdate', this.activeQuests);
   }
   
+  // 🔧 MODIFIÉ : handleAvailableQuests - PAS d'auto-ouverture
   handleAvailableQuests(questsData) {
-    console.log('📋 [QuestSystem] Quêtes disponibles (ancien format):', questsData);
+    console.log('📋 [QuestSystem] Quêtes disponibles (ancien format - SANS auto-ouverture):', questsData);
     
     this.availableQuests = this.extractQuestArray(questsData);
     
-    if (this.availableQuests.length > 0) {
-      this.showQuestSelection(this.availableQuests);
-    } else {
-      this.showMessage('Aucune quête disponible pour le moment.', 'info');
-    }
+    // 🛑 NE PLUS auto-ouvrir
+    console.log(`📋 [QuestSystem] ${this.availableQuests.length} quêtes stockées pour DialogueManager`);
   }
   
   handleQuestStartResult(data) {
@@ -533,53 +537,6 @@ export class QuestSystem {
     }
   }
   
-  // === 💬 DIALOGUES ===
-  
-  showQuestGiverDialogue(data) {
-    if (typeof window.showNpcDialogue !== 'function') {
-      console.warn('⚠️ [QuestSystem] Système de dialogue non disponible');
-      return;
-    }
-    
-    const dialogueData = {
-      name: data.npcName || data.name || 'Donneur de quêtes',
-      portrait: data.portrait || '/assets/portrait/defaultPortrait.png',
-      lines: data.lines || [data.message || 'J\'ai peut-être quelque chose pour vous...'],
-      onClose: () => {
-        setTimeout(() => {
-          this.requestAvailableQuests();
-        }, 500);
-      }
-    };
-    
-    window.showNpcDialogue(dialogueData);
-  }
-  
-  showQuestProgressDialogue(data) {
-    if (typeof window.showNpcDialogue !== 'function') return;
-    
-    const dialogueData = {
-      name: data.npcName || data.name || 'PNJ',
-      portrait: data.portrait || '/assets/portrait/defaultPortrait.png',
-      lines: data.lines || [data.message || 'Votre progression est enregistrée.']
-    };
-    
-    window.showNpcDialogue(dialogueData);
-  }
-  
-  showQuestSelection(quests, npcName = 'Donneur de quêtes') {
-    if (!this.ui || !this.ui.showQuestDialog) {
-      console.warn('⚠️ [QuestSystem] UI de sélection non disponible');
-      return;
-    }
-    
-    this.ui.showQuestDialog('Quêtes disponibles', quests, (selectedQuestId) => {
-      if (selectedQuestId) {
-        this.startQuest(selectedQuestId);
-      }
-    });
-  }
-  
   // === 📡 REQUÊTES SERVEUR ===
   
   requestActiveQuests() {
@@ -603,76 +560,23 @@ export class QuestSystem {
     }
   }
   
-  // === 🎭 INTERACTION NPC ===
+  // === 🎭 INTERACTION NPC - 🔧 SUPPRIMÉ L'AUTO-HANDLING ===
   
+  // 🛑 Cette méthode ne fait plus rien d'automatique
+  // Elle peut encore être appelée mais ne génère plus d'interface automatique
   handleNpcInteraction(data) {
-    console.log('🎭 [QuestSystem] Interaction NPC quest:', data);
+    console.log('🎭 [QuestSystem] handleNpcInteraction appelé (SANS auto-ouverture):', data);
+    console.log('📋 [QuestSystem] Les quêtes seront gérées par DialogueManager via boutons');
     
-    if (data.type === 'questGiver' || data.type === 'unifiedInterface') {
-      this.handleQuestGiverInteraction(data);
-    } else if (data.type === 'dialogue') {
-      this.handleQuestProgressInteraction(data);
+    // Juste logger - ne rien ouvrir automatiquement
+    if (this.isQuestInteraction(data)) {
+      console.log('🎯 [QuestSystem] Données quête détectées - disponibles pour DialogueManager');
     }
+    
+    return { handled: false, reason: 'auto_opening_disabled' };
   }
   
-  handleQuestGiverInteraction(data) {
-    console.log('🎯 [QuestSystem] Quest Giver NPC');
-    
-    if (data.availableQuests && data.availableQuests.length > 0) {
-      this.showQuestSelection(data.availableQuests, data.npcName);
-      return;
-    }
-    
-    if (data.contextualData?.hasQuests) {
-      if (data.lines || data.message) {
-        this.showQuestGiverDialogue(data);
-      }
-      setTimeout(() => {
-        this.requestAvailableQuests();
-      }, 1000);
-      return;
-    }
-    
-    if (data.capabilities?.includes('quest')) {
-      this.requestAvailableQuests();
-    }
-  }
-  
-  handleQuestProgressInteraction(data) {
-    console.log('📈 [QuestSystem] Dialogue NPC');
-    
-    if (data.lines || data.message) {
-      this.showQuestProgressDialogue(data);
-    }
-    
-    if (data.questRewards && data.questRewards.length > 0) {
-      this.handleRewardReceived({
-        rewards: data.questRewards,
-        message: 'Récompenses de quête reçues !'
-      });
-    }
-  }
-  
-  // === 📤 ACTIONS NPC SPÉCIFIQUES ===
-  
-  sendNpcAction(npcId, actionType, actionData = {}) {
-    if (this.networkManager) {
-      console.log(`📤 [QuestSystem] Action NPC: ${actionType} sur NPC ${npcId}`);
-      
-      this.networkManager.sendMessage('npcSpecificAction', {
-        npcId: npcId,
-        actionType: actionType,
-        actionData: {
-          questAction: actionData.questAction,
-          questId: actionData.questId,
-          ...actionData
-        }
-      });
-    }
-  }
-  
-  // === 🔍 DÉTECTION TYPE NPC ===
-  
+  // 🔧 Méthodes de détection conservées pour compatibilité mais sans action
   isQuestInteraction(data) {
     return !!(
       data.type === 'questGiver' ||
@@ -787,7 +691,7 @@ export class QuestSystem {
     if (this.icon) this.icon.hide();
     if (this.tracker) this.tracker.hideTracker();
     
-    // 🆕 Fermer aussi QuestDetailsUI
+    // Fermer aussi QuestDetailsUI si ouvert
     if (this.detailsUI && this.detailsUI.isVisible) {
       this.detailsUI.hide();
     }
@@ -854,7 +758,6 @@ export class QuestSystem {
       this.icon = null;
     }
     
-    // 🆕 Détruire QuestDetailsUI
     if (this.detailsUI) {
       this.detailsUI.destroy();
       this.detailsUI = null;
@@ -869,15 +772,15 @@ export class QuestSystem {
     this.availableQuests = [];
     this.completedQuests = [];
     
-    console.log('✅ [QuestSystem] Détruit avec QuestDetailsUI');
+    console.log('✅ [QuestSystem] Détruit');
   }
 }
 
-// === FACTORY FUNCTION ===
+// === FACTORY FUNCTION - MISE À JOUR ===
 
 export async function createQuestSystem(gameRoom, networkManager) {
   try {
-    console.log('🏭 [QuestFactory] Création QuestSystem avec QuestDetailsUI...');
+    console.log('🏭 [QuestFactory] Création QuestSystem SANS auto-ouverture...');
     
     const questSystem = new QuestSystem(gameRoom, networkManager);
     await questSystem.init();
@@ -891,9 +794,9 @@ export async function createQuestSystem(gameRoom, networkManager) {
     window.openQuest = () => questSystem.show();
     window.closeQuest = () => questSystem.hide();
     
-    // 🆕 NOUVELLE FONCTION : Tester QuestDetailsUI
+    // NOUVELLE FONCTION : Tester QuestDetailsUI (ouverture manuelle)
     window.testQuestDetailsUI = (npcId = 2, questIds = ['test_quest_1']) => {
-      console.log('🧪 Test QuestDetailsUI...');
+      console.log('🧪 Test QuestDetailsUI (ouverture manuelle)...');
       if (questIds.length === 1) {
         questSystem.showQuestDetailsForNpc(npcId, questIds);
       } else {
@@ -902,15 +805,16 @@ export async function createQuestSystem(gameRoom, networkManager) {
       return true;
     };
     
-    // 🆕 NOUVELLE FONCTION : Simuler action DialogueManager
+    // NOUVELLE FONCTION : Simuler action DialogueManager
     window.testQuestAction = (npcId = 2) => {
       console.log('🧪 Test action quest DialogueManager...');
       return questSystem.handleQuestActionFromDialogue({ npcId });
     };
     
-    console.log('✅ [QuestFactory] QuestSystem créé avec QuestDetailsUI');
-    console.log('🧪 Utilisez window.testQuestDetailsUI() pour tester');
+    console.log('✅ [QuestFactory] QuestSystem créé SANS auto-ouverture');
+    console.log('🧪 Utilisez window.testQuestDetailsUI() pour tester ouverture manuelle');
     console.log('🧪 Utilisez window.testQuestAction() pour simuler DialogueManager');
+    console.log('🛑 L\'interface "Quêtes disponibles" ne s\'ouvrira PLUS automatiquement');
     
     return questSystem;
     
