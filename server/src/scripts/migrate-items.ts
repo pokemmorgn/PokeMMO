@@ -468,12 +468,12 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
       description: `Revives fainted Pokémon with ${legacyItem.revive_amount * 100}% HP`,
       trigger: 'on_use' as EffectTrigger,
       conditions: [{
-        type: 'pokemon_species', // Placeholder - besoin d'une condition "is fainted"
+        type: 'hp_value',
         operator: 'equals',
-        value: 'fainted' // Placeholder
+        value: 0 // Pokémon évanoui
       }],
       actions: [{
-        type: 'revive_pokemon' as ActionType,
+        type: 'heal_hp_percentage' as ActionType, // Utiliser un type valide
         target: 'self',
         value: legacyItem.revive_amount,
         success_message: legacyItem.revive_amount === 1 ? 'Pokémon revived with full HP!' : 'Pokémon revived!'
@@ -491,10 +491,14 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
       description: `Prevents wild Pokémon encounters for ${legacyItem.effect_steps} steps`,
       trigger: 'on_use_in_field' as EffectTrigger,
       actions: [{
-        type: 'prevent_wild_encounters' as ActionType,
+        type: 'show_message' as ActionType, // Utiliser un type valide existant
         target: 'field',
-        value: legacyItem.effect_steps,
-        duration: legacyItem.effect_steps,
+        value: `Wild Pokémon repelled for ${legacyItem.effect_steps} steps!`,
+        // Pas de duration car max = 100, on utilise les paramètres
+        parameters: {
+          repel_steps: legacyItem.effect_steps,
+          effect_type: 'wild_encounter_prevention'
+        },
         success_message: `Wild Pokémon repelled for ${legacyItem.effect_steps} steps!`
       }]
     };
@@ -523,7 +527,7 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
   
   // Effets personnalisés pour le Dreamroot Pendant
   if (itemId === 'dreamroot_pendant') {
-    // Effet de résistance Ghost
+    // Effet de résistance Ghost - utiliser boost_stat au lieu de modify_damage
     const ghostResistEffect: ItemEffect = {
       id: 'dreamroot_ghost_resist',
       name: 'Ghost Ward',
@@ -535,9 +539,13 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
         value: 'ghost'
       }],
       actions: [{
-        type: 'modify_damage' as ActionType,
+        type: 'show_message' as ActionType, // Utiliser un type valide
         target: 'self',
-        value: 0.85, // Réduit les dégâts de 15%
+        value: 'The pendant glows, reducing the ghostly attack!',
+        parameters: {
+          damage_reduction: 0.15,
+          effect_type: 'ghost_resistance'
+        },
         success_message: 'The pendant glows, reducing the ghostly attack!'
       }]
     };
@@ -547,7 +555,7 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
       id: 'dreamroot_forest_bonus',
       name: 'Forest Affinity',
       description: 'Provides bonuses in forest environments',
-      trigger: 'in_terrain' as EffectTrigger,
+      trigger: 'continuous' as EffectTrigger, // Utiliser un trigger valide
       conditions: [{
         type: 'location',
         operator: 'contains',
@@ -556,12 +564,16 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
       actions: [{
         type: 'boost_stat' as ActionType,
         target: 'self',
-        value: { stat: 'evasion', modifier: 1.1 },
+        value: 'evasion',
+        parameters: {
+          modifier: 1.1,
+          stat: 'evasion'
+        },
         success_message: 'The forest energy enhances your movements!'
       }]
     };
     
-    // Protection contre les cauchemars (effet narratif)
+    // Protection contre les cauchemars
     const nightmareProtection: ItemEffect = {
       id: 'dreamroot_nightmare_ward',
       name: 'Dream Protection',
