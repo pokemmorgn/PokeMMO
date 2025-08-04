@@ -190,7 +190,9 @@ export class QuestSystem {
    * @param {Object} questData - Données de la quête
    */
 handleQuestAcceptResult(data) {
-  console.log('🎯 [QuestSystem] Résultat acceptation quête:', data);
+  console.log('🎯 [QuestSystem] === DÉBUT handleQuestAcceptResult ===');
+  console.log('📊 Data:', data);
+  console.log('📊 Call stack:', new Error().stack);
   
   if (data.success) {
     // Succès !
@@ -218,6 +220,7 @@ handleQuestAcceptResult(data) {
       this.showMessage('Vérifiez vos prérequis dans le journal des quêtes', 'info');
     }
   }
+    console.log('🎯 [QuestSystem] === FIN handleQuestAcceptResult ===');
 }
 
 // ✅ MODIFIÉ: Améliorer handleQuestAcceptFromUI pour plus de feedback
