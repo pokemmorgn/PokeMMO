@@ -1,6 +1,6 @@
 // client/src/components/DialogueUI.js
-// 🎭 Interface utilisateur pour les dialogues NPCs - VERSION CORRIGÉE
-// 🔧 FIX CRITIQUE : Tous les boutons d'action fonctionnent maintenant !
+// 🎭 Interface utilisateur pour les dialogues NPCs - FIX SIMPLE
+// 🔧 CORRECTION : L'intercepteur quête ne bloque plus les boutons shop
 
 export class DialogueUI {
   constructor() {
@@ -16,7 +16,7 @@ export class DialogueUI {
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
-    this.onActionClick = null; // 📌 CALLBACK PRINCIPAL POUR TOUTES LES ACTIONS
+    this.onActionClick = null;
     
     this.init();
   }
@@ -26,8 +26,9 @@ export class DialogueUI {
     this.addIntegratedStyles();
     this.setupEventListeners();
     this.setupNpcIdTracking();
-    // 🔧 SUPPRIMÉ : setupQuestButtonInterceptor() qui causait le problème
-    console.log('✅ DialogueUI initialisé (tous boutons fonctionnels)');
+    this.setupQuestButtonInterceptor(); // ✅ CORRIGÉ
+    
+    console.log('✅ DialogueUI initialisé avec fix shop');
   }
 
   // ✅ CONSERVÉ : Système de tracking NPC ID
@@ -100,7 +101,128 @@ export class DialogueUI {
     console.log('📋 NPC ID extrait:', npcId);
   }
 
-  // 🔧 MÉTHODE MISE À JOUR : Extraction NPC ID améliorée
+  // 🔧 FIX CRITIQUE : Intercepteur quête CORRIGÉ
+  setupQuestButtonInterceptor() {
+    // 🔧 CHANGEMENT CRITIQUE : Utiliser false (bubbling) au lieu de true (capture)
+    // et NE PAS bloquer les autres types de boutons
+    document.addEventListener('click', (e) => {
+      // ✅ VÉRIFIER QUE C'EST BIEN UN BOUTON QUÊTE ET PAS AUTRE CHOSE
+      const actionBtn = e.target.closest('.action-btn');
+      
+      if (!actionBtn || !this.isVisible) {
+        return; // ✅ LAISSER PASSER si pas un bouton d'action ou dialogue fermé
+      }
+      
+      // ✅ VÉRIFICATION PRÉCISE : SEULEMENT les boutons de quête
+      const isQuestButton = (
+        actionBtn.dataset.actionType === 'quest' ||
+        actionBtn.classList.contains('quest') ||
+        actionBtn.classList.contains('quest-specific') ||
+        actionBtn.dataset.questId
+      );
+      
+      if (isQuestButton) {
+        console.log('🎯 Bouton quête intercepté par DialogueUI');
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        
+        const questId = actionBtn.dataset.questId;
+        const npcId = this.currentNpcId || 
+                     this.container?.getAttribute('data-current-npc-id') || 
+                     2;
+        
+        this.handleQuestAction(parseInt(npcId), questId);
+        return false;
+      }
+      
+      // ✅ IMPORTANT : Pour les autres boutons (shop, heal, etc.), 
+      // NE PAS intercepter - laisser le système normal fonctionner
+      
+    }, false); // ✅ PHASE BUBBLING au lieu de capture
+  }
+
+  // ✅ GESTION ACTION QUÊTE (inchangée)
+  handleQuestAction(npcId, questId = null) {
+    console.log('🎯 Gestion action quête pour NPC:', npcId, 'Quest:', questId);
+    
+    const questSystem = this.getQuestSystem();
+    
+    if (questSystem) {
+      try {
+        if (questId) {
+          console.log('📋 Affichage direct de la quête:', questId);
+          const success = questSystem.showQuestDetailsForNpc(npcId, [questId]);
+          
+          if (success) {
+            this.hide();
+            return;
+          }
+        }
+        
+        const success = questSystem.handleQuestActionFromDialogue({
+          npcId: npcId,
+          actionType: 'quest',
+          questId: questId
+        });
+        
+        console.log('✅ QuestSystem appelé, succès:', success);
+        this.hide();
+        
+      } catch (error) {
+        console.error('❌ Erreur QuestSystem:', error);
+        this.fallbackQuestAction();
+      }
+    } else {
+      console.error('❌ QuestSystem non trouvé');
+      this.fallbackQuestAction();
+    }
+  }
+
+  getQuestSystem() {
+    const candidates = [
+      () => window.questSystem,
+      () => window.questSystemGlobal,
+      () => window.uiManager?.questSystem,
+      () => window.game?.questSystem,
+      () => {
+        if (window.game?.scene) {
+          const scenes = window.game.scene.getScenes(true);
+          for (const scene of scenes) {
+            if (scene.questSystem) return scene.questSystem;
+          }
+        }
+        return null;
+      }
+    ];
+    
+    for (const candidate of candidates) {
+      try {
+        const questSystem = candidate();
+        if (questSystem && (questSystem.ready || questSystem.isReady?.())) {
+          return questSystem;
+        }
+      } catch (error) {
+        // Ignorer et essayer le suivant
+      }
+    }
+    
+    return null;
+  }
+
+  fallbackQuestAction() {
+    console.log('🔄 Fallback action quête');
+    
+    if (typeof window.toggleQuest === 'function') {
+      window.toggleQuest();
+    } else if (typeof window.openQuest === 'function') {
+      window.openQuest();
+    } else {
+      console.warn('⚠️ Aucun système de quête de secours disponible');
+    }
+    
+    this.hide();
+  }
+
   extractNpcId(data) {
     const candidates = [
       data.npcId, data.id, data.npc?.id, data.npcData?.id,
@@ -351,7 +473,6 @@ export class DialogueUI {
         overflow: hidden;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         white-space: nowrap;
-        /* 🔧 IMPORTANT : S'assurer que les événements sont capturés */
         pointer-events: auto;
         z-index: 101;
       }
@@ -363,7 +484,7 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
       }
 
-      /* 🛒 Styles spécifiques pour shop */
+      /* 🛒 Styles pour shop */
       .action-btn.shop {
         background: linear-gradient(135deg, #28a745, #1e7e34);
         color: white;
@@ -374,7 +495,7 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
       }
 
-      /* 📋 Styles spécifiques pour quêtes */
+      /* 📋 Styles pour quêtes */
       .action-btn.quest,
       .action-btn.quest-specific {
         background: linear-gradient(135deg, #ffc107, #e0a800);
@@ -436,9 +557,9 @@ export class DialogueUI {
     document.head.appendChild(style);
   }
 
-  // 🔧 SETUP EVENT LISTENERS CORRIGÉ
+  // ✅ SETUP EVENT LISTENERS NORMAL (plus de conflit)
   setupEventListeners() {
-    // 1️⃣ Event listener pour l'avancement du dialogue (clic sur zone principale)
+    // 1️⃣ Event listener pour l'avancement du dialogue
     this.container.addEventListener('click', (e) => {
       if (e.target.closest('.dialogue-main-content') && !e.target.closest('.dialogue-actions-integrated')) {
         this.handleDialogueClick();
@@ -453,48 +574,14 @@ export class DialogueUI {
       });
     }
 
-    // 3️⃣ 🔧 EVENT LISTENER PRINCIPAL POUR TOUS LES BOUTONS D'ACTION
-    // Délégation d'événement sur le container actions
-    this.container.addEventListener('click', (e) => {
-      const actionBtn = e.target.closest('.action-btn');
-      
-      if (actionBtn && this.isVisible) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        console.log('🎯 [DialogueUI] Bouton action cliqué:', actionBtn);
-        
-        // Extraire les données du bouton
-        const actionData = {
-          id: actionBtn.dataset.actionId,
-          type: actionBtn.dataset.actionType,
-          questId: actionBtn.dataset.questId,
-          label: actionBtn.querySelector('.action-label')?.textContent || actionBtn.textContent,
-          icon: actionBtn.querySelector('.action-icon')?.textContent || '',
-        };
-        
-        console.log('🎯 [DialogueUI] Action data:', actionData);
-        
-        // 🔧 CALLBACK VERS DIALOGUEMANAGER
-        if (this.onActionClick && typeof this.onActionClick === 'function') {
-          console.log('🎯 [DialogueUI] Appel callback onActionClick');
-          this.onActionClick(actionData);
-        } else {
-          console.error('❌ [DialogueUI] Pas de callback onActionClick défini!');
-        }
-        
-        return false;
-      }
-    });
-
-    // 4️⃣ Event listener pour clavier
+    // 3️⃣ Event listener pour clavier
     document.addEventListener('keydown', (e) => {
       if (this.isVisible) {
         this.handleKeyDown(e);
       }
     });
 
-    console.log('✅ Event listeners configurés (tous boutons)');
+    console.log('✅ Event listeners configurés (fix shop)');
   }
 
   handleDialogueClick() {
@@ -625,12 +712,11 @@ export class DialogueUI {
     this.isVisible = true;
   }
 
-  // 🔧 CREATEACTIONBUTTON CORRIGÉ
+  // 🔧 CREATEACTIONBUTTON avec event listener DIRECT
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
     
-    // 📌 CRUCIAL : Définir les data attributes
     button.dataset.actionId = action.id;
     button.dataset.actionType = action.type;
     
@@ -645,15 +731,26 @@ export class DialogueUI {
       ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
     `;
     
+    // ✅ EVENT LISTENER DIRECT pour les boutons NON-QUÊTE
+    if (action.type !== 'quest') {
+      button.addEventListener('click', (e) => {
+        console.log(`🎯 [DialogueUI] Bouton ${action.type} cliqué DIRECTEMENT`);
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (this.onActionClick && typeof this.onActionClick === 'function') {
+          this.onActionClick(action);
+        }
+      });
+    }
+    // ✅ Les boutons quête sont gérés par l'intercepteur
+    
     console.log('🔧 [DialogueUI] Bouton créé:', {
       id: action.id,
       type: action.type,
       label: action.label,
-      questId: action.questId,
-      datasets: button.dataset
+      hasDirectListener: action.type !== 'quest'
     });
-    
-    // 🔧 PAS D'EVENT LISTENER ICI - géré par délégation dans setupEventListeners
     
     return button;
   }
@@ -777,8 +874,6 @@ export class DialogueUI {
     contentContainer.innerHTML = htmlContent;
   }
 
-  // ===== MÉTHODES PUBLIQUES =====
-
   show(data) {
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
@@ -827,8 +922,6 @@ export class DialogueUI {
   getContentContainer() {
     return this.container.querySelector('#unified-content');
   }
-
-  // ===== NETTOYAGE =====
 
   destroy() {
     if (this.npcIdObserver) {
