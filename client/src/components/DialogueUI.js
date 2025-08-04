@@ -1,5 +1,6 @@
 // client/src/components/DialogueUI.js
-// 🎭 Interface utilisateur pour les dialogues NPCs avec intégration QuestSystem COMPLÈTE
+// 🎭 Interface utilisateur pour les dialogues NPCs - VERSION CORRIGÉE
+// 🔧 FIX CRITIQUE : Tous les boutons d'action fonctionnent maintenant !
 
 export class DialogueUI {
   constructor() {
@@ -10,12 +11,12 @@ export class DialogueUI {
     this.tabs = [];
     this.quickActions = [];
     this.currentNpcId = null;
-    this.npcIdObserver = null; // 🆕 Observer pour NPC ID
+    this.npcIdObserver = null;
     
     this.onTabSwitch = null;
     this.onClose = null;
     this.onQuickAction = null;
-    this.onActionClick = null;
+    this.onActionClick = null; // 📌 CALLBACK PRINCIPAL POUR TOUTES LES ACTIONS
     
     this.init();
   }
@@ -24,15 +25,15 @@ export class DialogueUI {
     this.createDialogueContainer();
     this.addIntegratedStyles();
     this.setupEventListeners();
-    this.setupNpcIdTracking(); // 🆕 Nouveau
-    this.setupQuestButtonInterceptor(); // 🆕 Nouveau
+    this.setupNpcIdTracking();
+    // 🔧 SUPPRIMÉ : setupQuestButtonInterceptor() qui causait le problème
+    console.log('✅ DialogueUI initialisé (tous boutons fonctionnels)');
   }
 
-  // 🆕 NOUVEAU : Système de tracking NPC ID
+  // ✅ CONSERVÉ : Système de tracking NPC ID
   setupNpcIdTracking() {
     if (!this.container) return;
     
-    // Observer les changements de classe pour détecter l'ouverture du dialogue
     this.npcIdObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
@@ -53,7 +54,6 @@ export class DialogueUI {
     });
   }
 
-  // 🆕 NOUVEAU : Extraction intelligente du NPC ID
   extractNpcIdOnOpen() {
     let npcId = null;
     
@@ -91,136 +91,13 @@ export class DialogueUI {
     
     // 4. Fallback : utiliser un ID par défaut
     if (!npcId) {
-      npcId = 2; // ID par défaut pour tests
+      npcId = 2;
     }
     
-    // Stocker l'ID
     this.currentNpcId = npcId;
     this.container.setAttribute('data-current-npc-id', npcId);
     
     console.log('📋 NPC ID extrait:', npcId);
-  }
-
-  // 🆕 NOUVEAU : Intercepteur pour les boutons de quête
-  setupQuestButtonInterceptor() {
-    // Délégation d'événements pour intercepter tous les clics sur boutons quest
-    document.addEventListener('click', (e) => {
-      // Vérifier si c'est un bouton de quête (générique ou spécifique)
-      const isQuestButton = e.target.matches('.action-btn[data-action-type="quest"], .action-btn.quest, .action-btn[data-quest-id]') ||
-                           (e.target.closest('.action-btn') && 
-                            (e.target.closest('.action-btn').dataset.actionType === 'quest' ||
-                             e.target.closest('.action-btn').classList.contains('quest') ||
-                             e.target.closest('.action-btn').dataset.questId));
-      
-      if (isQuestButton && this.isVisible) {
-        console.log('🎯 Bouton quête intercepté par DialogueUI');
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        
-        const button = e.target.closest('.action-btn');
-        const questId = button?.dataset.questId;
-        
-        // Utiliser l'ID stocké ou récupérer depuis DOM
-        const npcId = this.currentNpcId || 
-                     this.container?.getAttribute('data-current-npc-id') || 
-                     2;
-        
-        this.handleQuestAction(parseInt(npcId), questId);
-        return false;
-      }
-    }, true); // true = phase de capture pour intercepter avant autres handlers
-  }
-
-  // 🆕 NOUVEAU : Gestion action quête (avec questId spécifique)
-  handleQuestAction(npcId, questId = null) {
-    console.log('🎯 Gestion action quête pour NPC:', npcId, 'Quest:', questId);
-    
-    // Récupérer QuestSystem
-    const questSystem = this.getQuestSystem();
-    
-    if (questSystem) {
-      try {
-        if (questId) {
-          // Quête spécifique sélectionnée - afficher directement ses détails
-          console.log('📋 Affichage direct de la quête:', questId);
-          const success = questSystem.showQuestDetailsForNpc(npcId, [questId]);
-          
-          if (success) {
-            this.hide();
-            return;
-          }
-        }
-        
-        // Fallback vers comportement original (toutes les quêtes)
-        const success = questSystem.handleQuestActionFromDialogue({
-          npcId: npcId,
-          actionType: 'quest',
-          questId: questId
-        });
-        
-        console.log('✅ QuestSystem appelé, succès:', success);
-        
-        // Fermer le dialogue
-        this.hide();
-        
-      } catch (error) {
-        console.error('❌ Erreur QuestSystem:', error);
-        // En cas d'erreur, fallback vers comportement original
-        this.fallbackQuestAction();
-      }
-    } else {
-      console.error('❌ QuestSystem non trouvé');
-      this.fallbackQuestAction();
-    }
-  }
-
-  // 🆕 NOUVEAU : Récupération intelligente du QuestSystem
-  getQuestSystem() {
-    const candidates = [
-      () => window.questSystem,
-      () => window.questSystemGlobal,
-      () => window.uiManager?.questSystem,
-      () => window.game?.questSystem,
-      () => {
-        // Chercher dans les scènes
-        if (window.game?.scene) {
-          const scenes = window.game.scene.getScenes(true);
-          for (const scene of scenes) {
-            if (scene.questSystem) return scene.questSystem;
-          }
-        }
-        return null;
-      }
-    ];
-    
-    for (const candidate of candidates) {
-      try {
-        const questSystem = candidate();
-        if (questSystem && (questSystem.ready || questSystem.isReady?.())) {
-          return questSystem;
-        }
-      } catch (error) {
-        // Ignorer et essayer le suivant
-      }
-    }
-    
-    return null;
-  }
-
-  // 🆕 NOUVEAU : Fallback si QuestSystem échoue
-  fallbackQuestAction() {
-    console.log('🔄 Fallback action quête');
-    
-    // Comportement de secours - ouvrir journal de quêtes classique
-    if (typeof window.toggleQuest === 'function') {
-      window.toggleQuest();
-    } else if (typeof window.openQuest === 'function') {
-      window.openQuest();
-    } else {
-      console.warn('⚠️ Aucun système de quête de secours disponible');
-    }
-    
-    this.hide();
   }
 
   // 🔧 MÉTHODE MISE À JOUR : Extraction NPC ID améliorée
@@ -230,17 +107,14 @@ export class DialogueUI {
       data.unifiedInterface?.npcId, data.contextualData?.npcId,
       data.originalData?.npcId, data.meta?.npcId, data.metadata?.npcId,
       data.params?.npcId, data.parameters?.npcId,
-      // Sources supplémentaires
       data.npc, data.npcData, data.target?.id, data.source?.id
     ];
     
     for (const candidate of candidates) {
       if (candidate !== undefined && candidate !== null) {
-        // Si c'est un objet, essayer d'extraire l'ID
         if (typeof candidate === 'object' && candidate.id) {
           return candidate.id;
         }
-        // Si c'est un nombre ou string
         if (typeof candidate === 'number' || typeof candidate === 'string') {
           return candidate;
         }
@@ -477,6 +351,9 @@ export class DialogueUI {
         overflow: hidden;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         white-space: nowrap;
+        /* 🔧 IMPORTANT : S'assurer que les événements sont capturés */
+        pointer-events: auto;
+        z-index: 101;
       }
 
       .action-btn:hover {
@@ -486,6 +363,18 @@ export class DialogueUI {
         box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
       }
 
+      /* 🛒 Styles spécifiques pour shop */
+      .action-btn.shop {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: white;
+      }
+
+      .action-btn.shop:hover {
+        background: linear-gradient(135deg, #34ce57, #28a745);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      }
+
+      /* 📋 Styles spécifiques pour quêtes */
       .action-btn.quest,
       .action-btn.quest-specific {
         background: linear-gradient(135deg, #ffc107, #e0a800);
@@ -521,19 +410,42 @@ export class DialogueUI {
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       }
 
-      /* Autres styles... (reste identique) */
+      /* 💊 Styles pour heal */
+      .action-btn.heal {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+      }
+
+      .action-btn.heal:hover {
+        background: linear-gradient(135deg, #e4606d, #dc3545);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      /* ℹ️ Styles pour info */
+      .action-btn.info {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        color: white;
+      }
+
+      .action-btn.info:hover {
+        background: linear-gradient(135deg, #20c0db, #17a2b8);
+        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+      }
     `;
 
     document.head.appendChild(style);
   }
 
+  // 🔧 SETUP EVENT LISTENERS CORRIGÉ
   setupEventListeners() {
+    // 1️⃣ Event listener pour l'avancement du dialogue (clic sur zone principale)
     this.container.addEventListener('click', (e) => {
       if (e.target.closest('.dialogue-main-content') && !e.target.closest('.dialogue-actions-integrated')) {
         this.handleDialogueClick();
       }
     });
 
+    // 2️⃣ Event listener pour fermeture interface unifiée
     const closeBtn = this.container.querySelector('#unified-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
@@ -541,11 +453,48 @@ export class DialogueUI {
       });
     }
 
+    // 3️⃣ 🔧 EVENT LISTENER PRINCIPAL POUR TOUS LES BOUTONS D'ACTION
+    // Délégation d'événement sur le container actions
+    this.container.addEventListener('click', (e) => {
+      const actionBtn = e.target.closest('.action-btn');
+      
+      if (actionBtn && this.isVisible) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('🎯 [DialogueUI] Bouton action cliqué:', actionBtn);
+        
+        // Extraire les données du bouton
+        const actionData = {
+          id: actionBtn.dataset.actionId,
+          type: actionBtn.dataset.actionType,
+          questId: actionBtn.dataset.questId,
+          label: actionBtn.querySelector('.action-label')?.textContent || actionBtn.textContent,
+          icon: actionBtn.querySelector('.action-icon')?.textContent || '',
+        };
+        
+        console.log('🎯 [DialogueUI] Action data:', actionData);
+        
+        // 🔧 CALLBACK VERS DIALOGUEMANAGER
+        if (this.onActionClick && typeof this.onActionClick === 'function') {
+          console.log('🎯 [DialogueUI] Appel callback onActionClick');
+          this.onActionClick(actionData);
+        } else {
+          console.error('❌ [DialogueUI] Pas de callback onActionClick défini!');
+        }
+        
+        return false;
+      }
+    });
+
+    // 4️⃣ Event listener pour clavier
     document.addEventListener('keydown', (e) => {
       if (this.isVisible) {
         this.handleKeyDown(e);
       }
     });
+
+    console.log('✅ Event listeners configurés (tous boutons)');
   }
 
   handleDialogueClick() {
@@ -658,6 +607,8 @@ export class DialogueUI {
       
       actionsZone.style.display = 'block';
       dialogueBox.className = 'dialogue-box-unified with-actions';
+      
+      console.log(`✅ [DialogueUI] ${data.actions.length} boutons d'action créés`);
     } else {
       actionsZone.style.display = 'none';
       dialogueBox.className = 'dialogue-box-unified simple';
@@ -674,11 +625,15 @@ export class DialogueUI {
     this.isVisible = true;
   }
 
+  // 🔧 CREATEACTIONBUTTON CORRIGÉ
   createActionButton(action) {
     const button = document.createElement('button');
     button.className = `action-btn ${action.type || 'default'}`;
     
-    // 🆕 NOUVEAU : Support questId pour quêtes spécifiques
+    // 📌 CRUCIAL : Définir les data attributes
+    button.dataset.actionId = action.id;
+    button.dataset.actionType = action.type;
+    
     if (action.questId) {
       button.dataset.questId = action.questId;
       button.classList.add('quest-specific');
@@ -690,14 +645,20 @@ export class DialogueUI {
       ${action.badge ? `<span class="action-badge">${action.badge}</span>` : ''}
     `;
     
-    button.dataset.actionId = action.id;
-    button.dataset.actionType = action.type;
+    console.log('🔧 [DialogueUI] Bouton créé:', {
+      id: action.id,
+      type: action.type,
+      label: action.label,
+      questId: action.questId,
+      datasets: button.dataset
+    });
     
-    // 🆕 NOTE: Les clics sont maintenant gérés par l'intercepteur global
-    // Pas besoin d'event listener ici pour les boutons quest
+    // 🔧 PAS D'EVENT LISTENER ICI - géré par délégation dans setupEventListeners
     
     return button;
   }
+
+  // ===== INTERFACE UNIFIÉE (inchangée) =====
 
   showUnifiedInterface(data) {
     this.currentNpcId = this.extractNpcId(data);
@@ -816,6 +777,8 @@ export class DialogueUI {
     contentContainer.innerHTML = htmlContent;
   }
 
+  // ===== MÉTHODES PUBLIQUES =====
+
   show(data) {
     if (data.isUnifiedInterface) {
       this.showUnifiedInterface(data);
@@ -865,8 +828,9 @@ export class DialogueUI {
     return this.container.querySelector('#unified-content');
   }
 
+  // ===== NETTOYAGE =====
+
   destroy() {
-    // 🆕 Cleanup observer
     if (this.npcIdObserver) {
       this.npcIdObserver.disconnect();
       this.npcIdObserver = null;
