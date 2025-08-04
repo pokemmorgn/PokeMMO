@@ -2,6 +2,7 @@
 // 🎯 Interface spécialisée pour afficher les détails d'une quête avant acceptation
 // ✅ Support quête unique ou sélection multiple + intégration LocalizationManager
 // ✅ NOUVEAU : Récupération données depuis DialogueManager + traductions complètes
+// 🔧 CORRECTION : Chargement traductions à l'initialisation + méthodes badges
 
 import { t } from '../managers/LocalizationManager.js';
 
@@ -26,6 +27,7 @@ export class QuestDetailsUI {
     
     // === LANGUE ===
     this.cleanupLanguageListener = null;
+    this.isTranslationsReady = false;
     
     console.log('📋 [QuestDetailsUI] Instance créée avec traductions complètes');
   }
@@ -35,6 +37,9 @@ export class QuestDetailsUI {
   async init() {
     try {
       console.log('🚀 [QuestDetailsUI] Initialisation...');
+      
+      // 🔧 NOUVEAU : Attendre que les traductions soient prêtes
+      await this.ensureTranslationsReady();
       
       this.addStyles();
       this.createInterface();
@@ -50,6 +55,70 @@ export class QuestDetailsUI {
     }
   }
   
+  // === 🔧 NOUVEAU : GESTION TRADUCTIONS ===
+  
+  /**
+   * S'assurer que les traductions sont prêtes
+   */
+  async ensureTranslationsReady() {
+    console.log('🔍 [QuestDetailsUI] Vérification traductions...');
+    
+    // 1. Vérifier si LocalizationManager existe et est prêt
+    if (!window.localizationManager) {
+      console.log('⏳ [QuestDetailsUI] LocalizationManager non trouvé, tentative d\'initialisation...');
+      
+      // Essayer d'initialiser le LocalizationManager
+      if (window.initLocalizationManager) {
+        try {
+          await window.initLocalizationManager();
+          console.log('✅ [QuestDetailsUI] LocalizationManager initialisé');
+        } catch (error) {
+          console.warn('⚠️ [QuestDetailsUI] Échec initialisation LocalizationManager:', error);
+        }
+      }
+    }
+    
+    // 2. Attendre que les traductions soient prêtes
+    if (window.localizationManager && !window.localizationManager.isReady) {
+      console.log('⏳ [QuestDetailsUI] Attente chargement traductions...');
+      
+      const maxWait = 5000; // 5 secondes max
+      const startTime = Date.now();
+      
+      while (!window.localizationManager.isReady && (Date.now() - startTime) < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    // 3. Forcer le chargement du module quest si nécessaire
+    if (window.localizationManager && window.localizationManager.isReady) {
+      if (!window.localizationManager.isModuleLoaded('quest')) {
+        console.log('📦 [QuestDetailsUI] Chargement module quest...');
+        await window.localizationManager.loadModule('quest');
+      }
+      
+      // Tester une traduction pour vérifier
+      const testTranslation = t('quest.details.single_title');
+      if (testTranslation !== 'quest.details.single_title') {
+        this.isTranslationsReady = true;
+        console.log('✅ [QuestDetailsUI] Traductions quest disponibles');
+      } else {
+        console.warn('⚠️ [QuestDetailsUI] Traductions quest non disponibles');
+      }
+    } else {
+      console.warn('⚠️ [QuestDetailsUI] LocalizationManager non disponible');
+    }
+    
+    // 4. Écouter les mises à jour de modules
+    window.addEventListener('localizationModulesUpdated', (event) => {
+      if (event.detail.newModules.includes('quest')) {
+        console.log('📦 [QuestDetailsUI] Module quest mis à jour');
+        this.isTranslationsReady = true;
+        this.updateLanguageTexts();
+      }
+    });
+  }
+  
   // === 🌐 GESTION LANGUE ===
   
   setupLanguageListener() {
@@ -60,7 +129,11 @@ export class QuestDetailsUI {
     
     this.cleanupLanguageListener = this.optionsManager.addLanguageListener((newLang, oldLang) => {
       console.log(`🌐 [QuestDetailsUI] Changement langue: ${oldLang} → ${newLang}`);
-      this.updateLanguageTexts();
+      
+      // 🔧 NOUVEAU : Attendre un peu pour que les traductions se chargent
+      setTimeout(() => {
+        this.updateLanguageTexts();
+      }, 100);
     });
     
     console.log('📡 [QuestDetailsUI] Listener langue configuré');
@@ -661,11 +734,12 @@ export class QuestDetailsUI {
     const overlay = document.createElement('div');
     overlay.className = 'quest-details-overlay';
     
+    // 🔧 NOUVEAU : Utiliser des placeholders qui seront mis à jour
     overlay.innerHTML = `
       <div class="quest-details-container">
         <!-- Header -->
         <div class="quest-details-header">
-          <h2 class="quest-details-title">${t('quest.details.single_title')}</h2>
+          <h2 class="quest-details-title">${this.getSafeTranslation('quest.details.single_title', 'Quest Details')}</h2>
           <button class="quest-details-close" id="quest-details-close">✕</button>
         </div>
         
@@ -685,14 +759,14 @@ export class QuestDetailsUI {
           <!-- Footer avec boutons -->
           <div class="quest-details-footer">
             <div class="quest-footer-info">
-              💡 ${t('quest.details.footer_tip')}
+              💡 ${this.getSafeTranslation('quest.details.footer_tip', 'Accept this quest to add it to your journal')}
             </div>
             <div class="quest-footer-buttons">
               <button class="quest-btn quest-btn-cancel" id="quest-cancel-btn">
-                ${t('quest.details.cancel_button')}
+                ${this.getSafeTranslation('quest.details.cancel_button', 'Cancel')}
               </button>
               <button class="quest-btn quest-btn-accept" id="quest-accept-btn" disabled>
-                ${t('quest.details.accept_button')}
+                ${this.getSafeTranslation('quest.details.accept_button', 'Accept')}
               </button>
             </div>
           </div>
@@ -703,7 +777,49 @@ export class QuestDetailsUI {
     document.body.appendChild(overlay);
     this.overlayElement = overlay;
     
+    // 🔧 NOUVEAU : Mettre à jour immédiatement si traductions prêtes
+    if (this.isTranslationsReady) {
+      setTimeout(() => this.updateLanguageTexts(), 50);
+    }
+    
     console.log('🎨 [QuestDetailsUI] Interface créée avec traductions');
+  }
+  
+  // === 🔧 NOUVEAU : MÉTHODES UTILITAIRES TRADUCTIONS ===
+  
+  /**
+   * Obtenir une traduction sécurisée avec fallback
+   */
+  getSafeTranslation(key, fallback) {
+    try {
+      const translation = t(key);
+      return translation !== key ? translation : fallback;
+    } catch (error) {
+      console.warn(`⚠️ [QuestDetailsUI] Erreur traduction ${key}:`, error);
+      return fallback;
+    }
+  }
+  
+  /**
+   * Obtenir le label traduit pour une catégorie de quête
+   * @param {string} category - Catégorie de la quête
+   * @returns {string} Label traduit
+   */
+  getCategoryLabel(category) {
+    const categoryKey = `quest.details.badges.category_${category.toLowerCase()}`;
+    return this.getSafeTranslation(categoryKey, category.toUpperCase());
+  }
+  
+  /**
+   * Obtenir le label traduit pour une difficulté
+   * @param {string} difficulty - Difficulté (easy, medium, hard)
+   * @returns {string} Label traduit
+   */
+  getDifficultyLabel(difficulty) {
+    if (!difficulty) return '';
+    
+    const difficultyKey = `quest.details.badges.difficulty_${difficulty.toLowerCase()}`;
+    return this.getSafeTranslation(difficultyKey, difficulty.toUpperCase());
   }
   
   // === 🎛️ ÉVÉNEMENTS ===
@@ -778,7 +894,7 @@ export class QuestDetailsUI {
     // Mettre à jour le titre
     const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
-      title.textContent = t('quest.details.single_title');
+      title.textContent = this.getSafeTranslation('quest.details.single_title', 'Quest Details');
     }
     
     // Masquer mode sélection, afficher mode détails
@@ -831,7 +947,7 @@ export class QuestDetailsUI {
     // Mettre à jour le titre
     const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
-      title.textContent = t('quest.details.select_title');
+      title.textContent = this.getSafeTranslation('quest.details.select_title', 'Select a Quest');
     }
     
     // Afficher mode sélection, masquer mode détails
@@ -952,7 +1068,7 @@ export class QuestDetailsUI {
     const enrichedData = {
       id: baseQuestData.id || 'unknown_quest',
       name: questName,
-      description: baseQuestData.description || baseQuestData.questDescription || t('quest.details.no_description'),
+      description: baseQuestData.description || baseQuestData.questDescription || this.getSafeTranslation('quest.details.no_description', 'No description available'),
       
       // Status et availabilité
       canAccept: baseQuestData.canAccept !== false,
@@ -960,9 +1076,9 @@ export class QuestDetailsUI {
       
       // Récompenses (améliorer selon les données disponibles)
       rewards: baseQuestData.rewards || [
-        { type: 'xp', name: t('quest.details.rewards.experience') || 'Expérience', amount: 100 },
-        { type: 'gold', name: t('quest.details.rewards.gold') || 'Or', amount: 50 },
-        { type: 'item', name: t('quest.details.rewards.quest_item') || 'Objet Mystère', amount: 1 }
+        { type: 'xp', name: this.getSafeTranslation('quest.details.rewards.experience', 'Experience'), amount: 100 },
+        { type: 'gold', name: this.getSafeTranslation('quest.details.rewards.gold', 'Gold'), amount: 50 },
+        { type: 'item', name: this.getSafeTranslation('quest.details.rewards.quest_item', 'Quest Item'), amount: 1 }
       ],
       
       // Métadonnées
@@ -972,8 +1088,8 @@ export class QuestDetailsUI {
       
       // Objectifs (améliorer)
       objectives: baseQuestData.objectives || [
-        { description: t('quest.details.objectives.accept') || 'Accepter la quête pour découvrir les objectifs', completed: false },
-        { description: t('quest.details.objectives.follow') || 'Suivre les instructions du PNJ', completed: false }
+        { description: this.getSafeTranslation('quest.details.objectives.accept', 'Accept the quest to discover the objectives'), completed: false },
+        { description: this.getSafeTranslation('quest.details.objectives.follow', 'Follow the NPC\'s instructions'), completed: false }
       ]
     };
     
@@ -994,23 +1110,23 @@ export class QuestDetailsUI {
     }
     
     // 🔧 PERSONNALISATION selon l'ID de quête avec traductions
-    let description = t('quest.details.default.description') || 'Découvrez les détails de cette quête passionnante !';
+    let description = this.getSafeTranslation('quest.details.default.description', 'Discover the details of this exciting quest!');
     let objectives = [
-      { description: t('quest.details.default.objective1') || 'Parler au PNJ pour obtenir plus d\'informations', completed: false },
-      { description: t('quest.details.default.objective2') || 'Accepter la quête pour révéler les objectifs', completed: false }
+      { description: this.getSafeTranslation('quest.details.default.objective1', 'Talk to the NPC to get more information'), completed: false },
+      { description: this.getSafeTranslation('quest.details.default.objective2', 'Accept the quest to reveal the objectives'), completed: false }
     ];
     
     if (questId && questId.toLowerCase().includes('gardening')) {
-      description = t('quest.details.gardening.description') || 'Annie a perdu ses gants de jardinage près de la rivière. Aidez-la à les retrouver !';
+      description = this.getSafeTranslation('quest.details.gardening.description', 'Annie has lost her gardening gloves near the river. Help her find them!');
       objectives = [
-        { description: t('quest.details.gardening.objective1') || 'Chercher les gants près de la rivière sud-ouest', completed: false },
-        { description: t('quest.details.gardening.objective2') || 'Rapporter les gants à Annie', completed: false }
+        { description: this.getSafeTranslation('quest.details.gardening.objective1', 'Search for the gloves near the southwest river'), completed: false },
+        { description: this.getSafeTranslation('quest.details.gardening.objective2', 'Return the gloves to Annie'), completed: false }
       ];
     } else if (questId && questId.toLowerCase().includes('lost')) {
-      description = t('quest.details.lost.description') || 'Un objet important a été perdu. Votre aide est requise pour le retrouver.';
+      description = this.getSafeTranslation('quest.details.lost.description', 'An important item has been lost. Your help is needed to find it.');
       objectives = [
-        { description: t('quest.details.lost.objective1') || 'Enquêter sur la disparition', completed: false },
-        { description: t('quest.details.lost.objective2') || 'Retrouver l\'objet perdu', completed: false }
+        { description: this.getSafeTranslation('quest.details.lost.objective1', 'Investigate the disappearance'), completed: false },
+        { description: this.getSafeTranslation('quest.details.lost.objective2', 'Find the lost item'), completed: false }
       ];
     }
     
@@ -1021,9 +1137,9 @@ export class QuestDetailsUI {
       canAccept: true,
       status: 'available',
       rewards: [
-        { type: 'xp', name: t('quest.details.rewards.experience') || 'Points d\'expérience', amount: 150 },
-        { type: 'gold', name: t('quest.details.rewards.gold') || 'Pièces d\'or', amount: 75 },
-        { type: 'item', name: t('quest.details.rewards.quest_item') || 'Objet de quête', amount: 1 }
+        { type: 'xp', name: this.getSafeTranslation('quest.details.rewards.experience', 'Experience Points'), amount: 150 },
+        { type: 'gold', name: this.getSafeTranslation('quest.details.rewards.gold', 'Gold Coins'), amount: 75 },
+        { type: 'item', name: this.getSafeTranslation('quest.details.rewards.quest_item', 'Quest Item'), amount: 1 }
       ],
       category: 'side',
       level: 1,
@@ -1059,7 +1175,7 @@ export class QuestDetailsUI {
   async loadQuestDetails(questId) {
     if (!this.questSystem || !this.questSystem.networkManager) {
       console.error('❌ [QuestDetailsUI] NetworkManager non disponible');
-      this.showError(t('quest.details.error_network'));
+      this.showError(this.getSafeTranslation('quest.details.error_network', 'Network error'));
       return;
     }
     
@@ -1094,7 +1210,7 @@ export class QuestDetailsUI {
       // Timeout si pas de réponse
       setTimeout(() => {
         if (this.isLoading) {
-          this.showError(t('quest.details.error_timeout'));
+          this.showError(this.getSafeTranslation('quest.details.error_timeout', 'Request timeout'));
           // Restaurer callback
           this.questSystem.networkManager.onNpcInteraction(originalCallback);
         }
@@ -1102,7 +1218,7 @@ export class QuestDetailsUI {
       
     } catch (error) {
       console.error('❌ [QuestDetailsUI] Erreur chargement:', error);
-      this.showError(t('quest.details.error_loading'));
+      this.showError(this.getSafeTranslation('quest.details.error_loading', 'Failed to load quest details'));
     }
   }
   
@@ -1114,7 +1230,7 @@ export class QuestDetailsUI {
     listContainer.innerHTML = `
       <div class="quest-loading">
         <div class="quest-loading-spinner"></div>
-        <div class="quest-loading-text">${t('quest.details.loading_list')}</div>
+        <div class="quest-loading-text">${this.getSafeTranslation('quest.details.loading_list', 'Loading available quests...')}</div>
       </div>
     `;
     
@@ -1132,7 +1248,7 @@ export class QuestDetailsUI {
         return `
           <div class="quest-selection-item" data-quest-id="${questId}">
             <div class="quest-selection-name">${quest.name || questId}</div>
-            <div class="quest-selection-preview">${quest.shortDescription || quest.description || t('quest.details.no_description')}</div>
+            <div class="quest-selection-preview">${quest.shortDescription || quest.description || this.getSafeTranslation('quest.details.no_description', 'No description available')}</div>
           </div>
         `;
       }).join('');
@@ -1149,7 +1265,7 @@ export class QuestDetailsUI {
       listContainer.innerHTML = `
         <div class="quest-loading">
           <div style="color: #dc3545; font-size: 16px;">❌</div>
-          <div class="quest-loading-text">${t('quest.details.error_loading_list')}</div>
+          <div class="quest-loading-text">${this.getSafeTranslation('quest.details.error_loading_list', 'Failed to load quest list')}</div>
         </div>
       `;
     }
@@ -1160,7 +1276,7 @@ export class QuestDetailsUI {
     // TODO: Implémenter API pour récupérer info basique sans détails complets
     return {
       name: questId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      shortDescription: t('quest.details.loading_description')
+      shortDescription: this.getSafeTranslation('quest.details.loading_description', 'Loading description...')
     };
   }
   
@@ -1183,7 +1299,7 @@ export class QuestDetailsUI {
     // Mettre à jour titre
     const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
-      title.textContent = t('quest.details.single_title');
+      title.textContent = this.getSafeTranslation('quest.details.single_title', 'Quest Details');
     }
     
     // Changer de mode
@@ -1239,8 +1355,8 @@ export class QuestDetailsUI {
       contentContainer.innerHTML = `
         <div class="quest-loading">
           <div class="quest-loading-spinner"></div>
-          <div class="quest-loading-text">${t('quest.details.loading_quest')}</div>
-          <div class="quest-loading-subtext">${t('quest.details.loading_wait')}</div>
+          <div class="quest-loading-text">${this.getSafeTranslation('quest.details.loading_quest', 'Loading quest details...')}</div>
+          <div class="quest-loading-subtext">${this.getSafeTranslation('quest.details.loading_wait', 'Please wait a moment')}</div>
         </div>
       `;
     }
@@ -1260,11 +1376,11 @@ export class QuestDetailsUI {
       contentContainer.innerHTML = `
         <div class="quest-loading">
           <div style="color: #dc3545; font-size: 32px; margin-bottom: 15px;">❌</div>
-          <div class="quest-loading-text" style="color: #dc3545;">${t('quest.details.error_title')}</div>
+          <div class="quest-loading-text" style="color: #dc3545;">${this.getSafeTranslation('quest.details.error_title', 'Error')}</div>
           <div class="quest-loading-subtext">${message}</div>
           <button onclick="this.closest('.quest-details-overlay').querySelector('#quest-details-close').click()" 
                   style="margin-top: 15px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            ${t('quest.details.close_button')}
+            ${this.getSafeTranslation('quest.details.close_button', 'Close')}
           </button>
         </div>
       `;
@@ -1292,7 +1408,7 @@ export class QuestDetailsUI {
     // 🔧 PROTECTION contre les données invalides
     if (!questData || typeof questData !== 'object') {
       console.error('❌ [QuestDetailsUI] Données quête invalides:', questData);
-      this.showError(t('quest.details.error_loading'));
+      this.showError(this.getSafeTranslation('quest.details.error_loading', 'Failed to load quest details'));
       return;
     }
     
@@ -1309,7 +1425,9 @@ export class QuestDetailsUI {
       const canAccept = questData.canAccept !== false;
       const statusClass = canAccept ? 'available' : 'unavailable';
       const statusIcon = canAccept ? '✅' : '❌';
-      const statusText = canAccept ? t('quest.details.status_available') : t('quest.details.status_unavailable');
+      const statusText = canAccept ? 
+        this.getSafeTranslation('quest.details.status_available', 'Available') : 
+        this.getSafeTranslation('quest.details.status_unavailable', 'Unavailable');
       
       contentContainer.innerHTML = `
         <!-- Nom de la quête -->
@@ -1321,28 +1439,28 @@ export class QuestDetailsUI {
           <span class="quest-status-text">${statusText}</span>
         </div>
         
-      <!-- Informations générales -->
-      <div class="quest-section">
-        <div class="quest-section-label information-label">${t('quest.details.information_label')}</div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
-          <span class="quest-info-badge category-${questData.category || 'side'}">${this.getCategoryLabel(questData.category || 'side')}</span>
-          <span class="quest-info-badge level">${t('quest.details.badges.level_prefix')} ${questData.level || 1}</span>
-          <span class="quest-info-badge time">⏱️ ${t('quest.details.badges.time_prefix')}${questData.estimatedTime || '15 min'}</span>
+        <!-- Informations générales -->
+        <div class="quest-section">
+          <div class="quest-section-label information-label">${this.getSafeTranslation('quest.details.information_label', 'Information')}</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+            <span class="quest-info-badge category-${questData.category || 'side'}">${this.getCategoryLabel(questData.category || 'side')}</span>
+            <span class="quest-info-badge level">${this.getSafeTranslation('quest.details.badges.level_prefix', 'Level')} ${questData.level || 1}</span>
+            <span class="quest-info-badge time">⏱️ ${this.getSafeTranslation('quest.details.badges.time_prefix', '')}${questData.estimatedTime || '15 min'}</span>
+          </div>
         </div>
-      </div>
         
         <!-- Description -->
         <div class="quest-section">
-          <div class="quest-section-label description-label">${t('quest.details.description_label')}</div>
+          <div class="quest-section-label description-label">${this.getSafeTranslation('quest.details.description_label', 'Description')}</div>
           <div class="quest-description">
-            ${questData.description || t('quest.details.no_description')}
+            ${questData.description || this.getSafeTranslation('quest.details.no_description', 'No description available')}
           </div>
         </div>
         
         <!-- Objectifs -->
         ${questData.objectives && questData.objectives.length > 0 ? `
           <div class="quest-section">
-            <div class="quest-section-label objectives-label">${t('quest.details.objectives_label')}</div>
+            <div class="quest-section-label objectives-label">${this.getSafeTranslation('quest.details.objectives_label', 'Objectives')}</div>
             <div class="quest-objectives">
               ${questData.objectives.map(objective => `
                 <div class="quest-objective ${objective.completed ? 'completed' : ''}">
@@ -1356,7 +1474,7 @@ export class QuestDetailsUI {
         <!-- Récompenses -->
         ${questData.rewards && questData.rewards.length > 0 ? `
           <div class="quest-section">
-            <div class="quest-section-label rewards-label">${t('quest.details.rewards_label')}</div>
+            <div class="quest-section-label rewards-label">${this.getSafeTranslation('quest.details.rewards_label', 'Rewards')}</div>
             <div class="quest-rewards">
               ${questData.rewards.map(reward => `
                 <div class="quest-reward-item">
@@ -1380,7 +1498,7 @@ export class QuestDetailsUI {
       
     } catch (error) {
       console.error('❌ [QuestDetailsUI] Erreur affichage détails:', error);
-      this.showError(t('quest.details.error_loading'));
+      this.showError(this.getSafeTranslation('quest.details.error_loading', 'Failed to load quest details'));
     }
   }
   
@@ -1397,37 +1515,7 @@ export class QuestDetailsUI {
     
     return icons[rewardType?.toLowerCase()] || '🎁';
   }
-
-  getCategoryLabel(category) {
-  const categoryKey = `quest.details.badges.category_${category.toLowerCase()}`;
-  const translatedLabel = t(categoryKey);
   
-  // Si la traduction n'existe pas, utiliser la catégorie en majuscules comme fallback
-  if (translatedLabel === categoryKey) {
-    return category.toUpperCase();
-  }
-  
-  return translatedLabel;
-}
-
-/**
- * Obtenir le label traduit pour une difficulté
- * @param {string} difficulty - Difficulté (easy, medium, hard)
- * @returns {string} Label traduit
- */
-getDifficultyLabel(difficulty) {
-  if (!difficulty) return '';
-  
-  const difficultyKey = `quest.details.badges.difficulty_${difficulty.toLowerCase()}`;
-  const translatedLabel = t(difficultyKey);
-  
-  // Si la traduction n'existe pas, utiliser la difficulté en majuscules comme fallback
-  if (translatedLabel === difficultyKey) {
-    return difficulty.toUpperCase();
-  }
-  
-  return translatedLabel;
-}
   // === 🎬 ACTIONS ===
   
   handleQuestAccept() {
@@ -1734,7 +1822,9 @@ window.debugQuestTranslations = function() {
     'quest.details.loading_quest',
     'quest.details.error_network',
     'quest.details.rewards.experience',
-    'quest.details.gardening.description'
+    'quest.details.gardening.description',
+    'quest.details.badges.category_side',
+    'quest.details.badges.level_prefix'
   ];
   
   console.log('📋 État des traductions:');
@@ -1752,6 +1842,15 @@ window.debugQuestTranslations = function() {
   
   console.log('\n🎯 Langue actuelle:', window.optionsSystem?.manager?.currentLanguage || 'INCONNUE');
   
+  // Test spécifique des badges
+  console.log('\n🏷️ Test badges:');
+  const categories = ['main', 'side', 'daily', 'story'];
+  categories.forEach(cat => {
+    const key = `quest.details.badges.category_${cat}`;
+    const value = window.localizationManager?.t(key) || 'NON TROUVÉ';
+    console.log(`   ${cat}: ${value}`);
+  });
+  
   return {
     hasLocalizationManager: !!window.localizationManager,
     currentLanguage: window.optionsSystem?.manager?.currentLanguage,
@@ -1763,13 +1862,36 @@ window.debugQuestTranslations = function() {
   };
 };
 
-console.log('🧪 === FONCTIONS DEBUG QUEST COMPLÈTES ===');
+// 🔧 FONCTION UTILITAIRE : Forcer rechargement traductions
+window.forceQuestTranslationsReload = async function() {
+  console.log('🔄 Rechargement forcé des traductions quest...');
+  
+  if (window.localizationManager) {
+    // Forcer rechargement du module quest
+    const success = await window.localizationManager.loadModule('quest', true);
+    console.log('Module quest rechargé:', success);
+    
+    // Mettre à jour QuestDetailsUI si ouvert
+    if (window.questSystem?.detailsUI?.isVisible) {
+      window.questSystem.detailsUI.updateLanguageTexts();
+      console.log('✅ QuestDetailsUI mis à jour');
+    }
+    
+    return success;
+  } else {
+    console.error('❌ LocalizationManager non disponible');
+    return false;
+  }
+};
+
+console.log('🧪 === FONCTIONS DEBUG QUEST COMPLÈTES AVEC BADGES ===');
 console.log('📋 window.debugQuestData() - Debug sources de données');
 console.log('🎯 window.forceTestQuestDetails() - Test forcé avec données');
 console.log('🎭 window.testFullQuestFlow() - Test flux complet dialogue→quête');
 console.log('🌐 window.testQuestLanguageChange() - Test changement de langue');
 console.log('📝 window.testMultipleQuestSelection() - Test sélection multiple');
 console.log('🔴 window.testQuestErrorStates() - Test états d\'erreur');
-console.log('🌐 window.debugQuestTranslations() - Debug traductions');
+console.log('🌐 window.debugQuestTranslations() - Debug traductions + badges');
+console.log('🔄 window.forceQuestTranslationsReload() - Forcer rechargement traductions');
 
 export default QuestDetailsUI;
