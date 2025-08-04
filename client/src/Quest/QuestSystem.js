@@ -160,70 +160,72 @@ export class QuestSystem {
   // === 📡 HANDLERS RÉSEAU NETTOYÉS ===
   
   setupNetworkHandlers() {
-    if (!this.networkManager) {
-      console.warn('⚠️ [QuestSystem] Pas de NetworkManager');
+    if (!this.networkManager || !this.networkManager.room) {
+      console.warn('⚠️ [QuestSystem] NetworkManager/room non disponible');
       return;
     }
     
-    // ✅ HANDLER PRINCIPAL: Résultat acceptation (du serveur nettoyé)
-    this.networkManager.onMessage("questAcceptResult", (data) => {
-      console.log('📨 [QuestSystem] REÇU questAcceptResult:', data);
+    console.log('📡 [QuestSystem] Enregistrement handlers directement sur room...');
+    
+    // ✅ HANDLER PRINCIPAL: Résultat acceptation (DIRECT sur room)
+    this.networkManager.room.onMessage("questAcceptResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questAcceptResult DIRECT:', data);
       this.handleQuestAcceptResult(data);
     });
     
-    // ✅ HANDLER: Détails de quête
-    this.networkManager.onMessage("questDetailsResult", (data) => {
-      console.log('📨 [QuestSystem] REÇU questDetailsResult:', data);
+    // ✅ HANDLER: Détails de quête (DIRECT sur room)
+    this.networkManager.room.onMessage("questDetailsResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questDetailsResult DIRECT:', data);
       // Géré par QuestDetailsUI directement via NetworkManager
     });
     
-    // ✅ HANDLER: Statuts NPCs
-    this.networkManager.onMessage("questStatuses", (data) => {
-      console.log('📨 [QuestSystem] REÇU questStatuses:', data);
+    // ✅ HANDLER: Statuts NPCs (DIRECT sur room)
+    this.networkManager.room.onMessage("questStatuses", (data) => {
+      console.log('📨 [QuestSystem] REÇU questStatuses DIRECT:', data);
       // Géré par NetworkInteractionHandler pour les indicateurs NPCs
     });
     
-    // === HANDLERS AUTRES ÉVÉNEMENTS QUEST ===
+    // === HANDLERS AUTRES ÉVÉNEMENTS QUEST (DIRECT sur room) ===
     
-    this.networkManager.onMessage("questProgressUpdate", (data) => {
-      console.log('📨 [QuestSystem] REÇU questProgressUpdate:', data);
+    this.networkManager.room.onMessage("questProgressUpdate", (data) => {
+      console.log('📨 [QuestSystem] REÇU questProgressUpdate DIRECT:', data);
       this.handleQuestProgressUpdate(data);
     });
     
-    this.networkManager.onMessage("activeQuestsList", (data) => {
-      console.log('📨 [QuestSystem] REÇU activeQuestsList:', data);
+    this.networkManager.room.onMessage("activeQuestsList", (data) => {
+      console.log('📨 [QuestSystem] REÇU activeQuestsList DIRECT:', data);
       this.handleActiveQuests(data);
     });
     
-    this.networkManager.onMessage("availableQuestsList", (data) => {
-      console.log('📨 [QuestSystem] REÇU availableQuestsList:', data);
+    this.networkManager.room.onMessage("availableQuestsList", (data) => {
+      console.log('📨 [QuestSystem] REÇU availableQuestsList DIRECT:', data);
       this.handleAvailableQuests(data);
     });
     
-    this.networkManager.onMessage("questStartResult", (data) => {
-      console.log('📨 [QuestSystem] REÇU questStartResult:', data);
+    this.networkManager.room.onMessage("questStartResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questStartResult DIRECT:', data);
       this.handleQuestStartResult(data);
     });
     
-    this.networkManager.onMessage("introQuestCompleted", (data) => {
-      console.log('📨 [QuestSystem] REÇU introQuestCompleted:', data);
+    this.networkManager.room.onMessage("introQuestCompleted", (data) => {
+      console.log('📨 [QuestSystem] REÇU introQuestCompleted DIRECT:', data);
       this.handleIntroQuestCompleted(data);
     });
     
-    this.networkManager.onMessage("questDebugInfo", (data) => {
-      console.log('📨 [QuestSystem] REÇU questDebugInfo:', data);
+    this.networkManager.room.onMessage("questDebugInfo", (data) => {
+      console.log('📨 [QuestSystem] REÇU questDebugInfo DIRECT:', data);
       console.table(data);
     });
     
     // === INTERACTION NPC (pour compatibilité) ===
-    this.networkManager.onMessage("npcInteractionResult", (data) => {
+    this.networkManager.room.onMessage("npcInteractionResult", (data) => {
       if (this.isQuestInteraction(data)) {
         console.log('📋 [QuestSystem] Interaction NPC quest détectée - DialogueManager va gérer');
         console.log('📋 [QuestSystem] Données disponibles pour boutons:', data);
       }
     });
     
-    console.log('📡 [QuestSystem] Handlers réseau nettoyés configurés');
+    console.log('📡 [QuestSystem] Handlers réseau DIRECTS configurés sur room');
   }
   
   // === 🎬 HANDLER PRINCIPAL: ACCEPTATION QUÊTE ===
