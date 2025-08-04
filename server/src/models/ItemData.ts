@@ -668,7 +668,7 @@ ItemDataSchema.statics.createFromJson = async function(
   // Créer nouveau
   const itemData = new this({
     itemId: jsonItem.id,
-    name: jsonItem.name || jsonItem.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    name: jsonItem.name || jsonItem.id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
     description: jsonItem.description,
     type: jsonItem.type || 'item',
     pocket: jsonItem.pocket || 'items',
