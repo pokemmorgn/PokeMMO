@@ -75,7 +75,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
 
       const playerData = playerDataDoc as IPlayerData;
 
-      // ✅ ÉTAPE 3 : VÉRIFIER COOLDOWN (bypass en mode dev)
+      // ✅ ÉTAPE 5 : VÉRIFIER COOLDOWN (bypass en mode dev)
       const { getServerConfig } = require('../../../../config/serverConfig');
       const serverConfig = getServerConfig();
 
@@ -110,7 +110,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       // ✅ ÉTAPE 4 : CONSTRUIRE LE CONTEXTE D'UTILISATION D'ITEM
       const usageContext = await this.buildItemUsageContext(player, playerData, objectDef, itemId);
 
-      // ✅ ÉTAPE 5 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
+      // ✅ ÉTAPE 6 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
       try {
         const quantity = objectDef.quantity || 1;
         await InventoryManager.addItem(player.name, itemId, quantity);
@@ -139,10 +139,10 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         );
       }
 
-      // ✅ ÉTAPE 6 : PROGRESSION AUTOMATIQUE DES QUÊTES
+      // ✅ ÉTAPE 7 : PROGRESSION AUTOMATIQUE DES QUÊTES
       await this.progressPlayerQuests(player.name, itemId);
 
-      // ✅ ÉTAPE 7 : ENREGISTRER LE COOLDOWN
+      // ✅ ÉTAPE 8 : ENREGISTRER LE COOLDOWN
       const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
 
       if (!serverConfig.bypassObjectCooldowns) {
@@ -156,7 +156,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         });
       }
 
-      // ✅ ÉTAPE 8 : CONSTRUIRE LE RÉSULTAT FINAL
+      // ✅ ÉTAPE 9 : CONSTRUIRE LE RÉSULTAT FINAL
       const processingTime = Date.now() - startTime;
       this.updateStats(true, processingTime);
       
