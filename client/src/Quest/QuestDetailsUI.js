@@ -739,12 +739,16 @@ export class QuestDetailsUI {
     }
     
     // Fermer avec Escape
-    document.addEventListener('keydown', (e) => {
+    const escapeHandler = (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         e.preventDefault();
         this.hide();
       }
-    });
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
+    // Stocker la référence pour pouvoir supprimer l'event listener
+    this.escapeHandler = escapeHandler;
     
     // Clic en dehors pour fermer
     this.overlayElement.addEventListener('click', (e) => {
@@ -772,14 +776,14 @@ export class QuestDetailsUI {
     this.availableQuests = [];
     
     // Mettre à jour le titre
-    const title = this.overlayElement.querySelector('.quest-details-title');
+    const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
       title.textContent = t('quest.details.single_title');
     }
     
     // Masquer mode sélection, afficher mode détails
-    const selectionMode = this.overlayElement.querySelector('#quest-selection-mode');
-    const detailsMode = this.overlayElement.querySelector('#quest-details-mode');
+    const selectionMode = this.overlayElement?.querySelector('#quest-selection-mode');
+    const detailsMode = this.overlayElement?.querySelector('#quest-details-mode');
     
     if (selectionMode) selectionMode.style.display = 'none';
     if (detailsMode) detailsMode.style.display = 'flex';
@@ -825,14 +829,14 @@ export class QuestDetailsUI {
     this.currentQuest = null;
     
     // Mettre à jour le titre
-    const title = this.overlayElement.querySelector('.quest-details-title');
+    const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
       title.textContent = t('quest.details.select_title');
     }
     
     // Afficher mode sélection, masquer mode détails
-    const selectionMode = this.overlayElement.querySelector('#quest-selection-mode');
-    const detailsMode = this.overlayElement.querySelector('#quest-details-mode');
+    const selectionMode = this.overlayElement?.querySelector('#quest-selection-mode');
+    const detailsMode = this.overlayElement?.querySelector('#quest-details-mode');
     
     if (selectionMode) selectionMode.style.display = 'block';
     if (detailsMode) detailsMode.style.display = 'none';
@@ -958,7 +962,7 @@ export class QuestDetailsUI {
       rewards: baseQuestData.rewards || [
         { type: 'xp', name: t('quest.details.rewards.experience') || 'Expérience', amount: 100 },
         { type: 'gold', name: t('quest.details.rewards.gold') || 'Or', amount: 50 },
-        { type: 'item', name: t('quest.details.rewards.item') || 'Objet Mystère', amount: 1 }
+        { type: 'item', name: t('quest.details.rewards.quest_item') || 'Objet Mystère', amount: 1 }
       ],
       
       // Métadonnées
@@ -1103,7 +1107,7 @@ export class QuestDetailsUI {
   }
   
   async generateQuestSelectionList(questIds) {
-    const listContainer = this.overlayElement.querySelector('#quest-selection-list');
+    const listContainer = this.overlayElement?.querySelector('#quest-selection-list');
     if (!listContainer) return;
     
     // Afficher état de chargement avec traduction
@@ -1164,7 +1168,7 @@ export class QuestDetailsUI {
     console.log(`📋 [QuestDetailsUI] Sélection quête: ${questId}`);
     
     // Mettre à jour sélection visuelle
-    this.overlayElement.querySelectorAll('.quest-selection-item').forEach(item => {
+    this.overlayElement?.querySelectorAll('.quest-selection-item').forEach(item => {
       item.classList.toggle('selected', item.dataset.questId === questId);
     });
     
@@ -1177,14 +1181,14 @@ export class QuestDetailsUI {
     this.currentQuest = null;
     
     // Mettre à jour titre
-    const title = this.overlayElement.querySelector('.quest-details-title');
+    const title = this.overlayElement?.querySelector('.quest-details-title');
     if (title) {
       title.textContent = t('quest.details.single_title');
     }
     
     // Changer de mode
-    const selectionMode = this.overlayElement.querySelector('#quest-selection-mode');
-    const detailsMode = this.overlayElement.querySelector('#quest-details-mode');
+    const selectionMode = this.overlayElement?.querySelector('#quest-selection-mode');
+    const detailsMode = this.overlayElement?.querySelector('#quest-details-mode');
     
     if (selectionMode) selectionMode.style.display = 'none';
     if (detailsMode) detailsMode.style.display = 'flex';
@@ -1230,7 +1234,7 @@ export class QuestDetailsUI {
   showLoading() {
     this.isLoading = true;
     
-    const contentContainer = this.overlayElement.querySelector('#quest-details-content');
+    const contentContainer = this.overlayElement?.querySelector('#quest-details-content');
     if (contentContainer) {
       contentContainer.innerHTML = `
         <div class="quest-loading">
@@ -1242,7 +1246,7 @@ export class QuestDetailsUI {
     }
     
     // Désactiver bouton accepter
-    const acceptBtn = this.overlayElement.querySelector('#quest-accept-btn');
+    const acceptBtn = this.overlayElement?.querySelector('#quest-accept-btn');
     if (acceptBtn) {
       acceptBtn.disabled = true;
     }
@@ -1251,7 +1255,7 @@ export class QuestDetailsUI {
   showError(message) {
     this.isLoading = false;
     
-    const contentContainer = this.overlayElement.querySelector('#quest-details-content');
+    const contentContainer = this.overlayElement?.querySelector('#quest-details-content');
     if (contentContainer) {
       contentContainer.innerHTML = `
         <div class="quest-loading">
@@ -1267,7 +1271,7 @@ export class QuestDetailsUI {
     }
     
     // Animation d'erreur
-    const container = this.overlayElement.querySelector('.quest-details-container');
+    const container = this.overlayElement?.querySelector('.quest-details-container');
     if (container) {
       container.classList.add('error');
       setTimeout(() => {
@@ -1276,7 +1280,7 @@ export class QuestDetailsUI {
     }
     
     // Désactiver bouton accepter
-    const acceptBtn = this.overlayElement.querySelector('#quest-accept-btn');
+    const acceptBtn = this.overlayElement?.querySelector('#quest-accept-btn');
     if (acceptBtn) {
       acceptBtn.disabled = true;
     }
@@ -1295,7 +1299,7 @@ export class QuestDetailsUI {
     this.isLoading = false;
     this.currentQuest = questData;
     
-    const contentContainer = this.overlayElement.querySelector('#quest-details-content');
+    const contentContainer = this.overlayElement?.querySelector('#quest-details-content');
     if (!contentContainer) {
       console.error('❌ [QuestDetailsUI] Container de contenu non trouvé');
       return;
@@ -1367,7 +1371,7 @@ export class QuestDetailsUI {
       `;
       
       // Activer/désactiver bouton accepter
-      const acceptBtn = this.overlayElement.querySelector('#quest-accept-btn');
+      const acceptBtn = this.overlayElement?.querySelector('#quest-accept-btn');
       if (acceptBtn) {
         acceptBtn.disabled = !canAccept;
       }
@@ -1422,6 +1426,12 @@ export class QuestDetailsUI {
     if (this.cleanupLanguageListener) {
       this.cleanupLanguageListener();
       this.cleanupLanguageListener = null;
+    }
+    
+    // Supprimer event listener escape
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+      this.escapeHandler = null;
     }
     
     // Supprimer DOM
@@ -1603,10 +1613,133 @@ window.testQuestLanguageChange = function() {
   setTimeout(changeLanguage, 2000);
 };
 
-console.log('🧪 === FONCTIONS DEBUG QUEST AVEC TRADUCTIONS AJOUTÉES ===');
+// 🧪 FONCTION TEST : Test mode sélection multiple
+window.testMultipleQuestSelection = function() {
+  console.log('🧪 Test mode sélection multiple...');
+  
+  // Créer plusieurs quêtes de test
+  const testQuests = [
+    {
+      id: 'lost_gardening_gloves',
+      name: 'The Lost Gardening Gloves',
+      description: 'Retrouvez les gants de jardinage d\'Annie.',
+      canAccept: true
+    },
+    {
+      id: 'berry_collection',
+      name: 'Berry Collection Task',
+      description: 'Collectez 10 baies Oran pour le marché local.',
+      canAccept: true
+    },
+    {
+      id: 'pokemon_rescue',
+      name: 'Pokémon Rescue Mission',
+      description: 'Un Pokémon sauvage est blessé près du lac.',
+      canAccept: false
+    }
+  ];
+  
+  // Stocker dans les sources de données
+  window._lastNpcInteractionData = {
+    npcId: 'multi_quest_npc',
+    npcName: 'Quest Giver',
+    availableQuests: testQuests
+  };
+  
+  if (window.dialogueManager) {
+    window.dialogueManager.currentDialogueData = {
+      npcId: 'multi_quest_npc',
+      name: 'Quest Giver',
+      availableQuests: testQuests
+    };
+  }
+  
+  // Ouvrir en mode sélection multiple
+  if (window.questSystem && window.questSystem.detailsUI) {
+    const questIds = testQuests.map(q => q.id);
+    window.questSystem.detailsUI.showMultipleQuests('multi_quest_npc', questIds);
+    console.log('✅ QuestDetailsUI ouvert en mode sélection multiple');
+  } else {
+    console.error('❌ QuestDetailsUI non disponible');
+  }
+};
+
+// 🧪 FONCTION TEST : Test états d'erreur
+window.testQuestErrorStates = function() {
+  console.log('🧪 Test états d\'erreur...');
+  
+  if (window.questSystem && window.questSystem.detailsUI) {
+    // Ouvrir d'abord l'interface
+    window.questSystem.detailsUI.show();
+    
+    // Tester différents états d'erreur
+    setTimeout(() => {
+      console.log('📡 Test: État de chargement...');
+      window.questSystem.detailsUI.showLoading();
+    }, 1000);
+    
+    setTimeout(() => {
+      console.log('🔴 Test: Erreur réseau...');
+      window.questSystem.detailsUI.showError('Erreur de connexion au serveur');
+    }, 3000);
+    
+    setTimeout(() => {
+      console.log('⏰ Test: Timeout...');
+      window.questSystem.detailsUI.showError('Délai d\'attente dépassé');
+    }, 5000);
+    
+  } else {
+    console.error('❌ QuestDetailsUI non disponible');
+  }
+};
+
+// 🧪 FONCTION UTILITAIRE : Vérifier l'état des traductions
+window.debugQuestTranslations = function() {
+  console.log('🌐 === DEBUG TRADUCTIONS QUEST ===');
+  
+  const testKeys = [
+    'quest.details.single_title',
+    'quest.details.accept_button',
+    'quest.details.footer_tip',
+    'quest.details.loading_quest',
+    'quest.details.error_network',
+    'quest.details.rewards.experience',
+    'quest.details.gardening.description'
+  ];
+  
+  console.log('📋 État des traductions:');
+  testKeys.forEach(key => {
+    const value = window.localizationManager?.t(key) || 'NON TROUVÉ';
+    console.log(`   ${key}: ${value}`);
+  });
+  
+  console.log('\n🔍 Langues disponibles:');
+  if (window.localizationManager && window.localizationManager.translations) {
+    Object.keys(window.localizationManager.translations).forEach(lang => {
+      console.log(`   ${lang}: ${Object.keys(window.localizationManager.translations[lang]).length} modules`);
+    });
+  }
+  
+  console.log('\n🎯 Langue actuelle:', window.optionsSystem?.manager?.currentLanguage || 'INCONNUE');
+  
+  return {
+    hasLocalizationManager: !!window.localizationManager,
+    currentLanguage: window.optionsSystem?.manager?.currentLanguage,
+    availableLanguages: window.localizationManager ? Object.keys(window.localizationManager.translations) : [],
+    testResults: testKeys.map(key => ({
+      key,
+      value: window.localizationManager?.t(key) || 'NON TROUVÉ'
+    }))
+  };
+};
+
+console.log('🧪 === FONCTIONS DEBUG QUEST COMPLÈTES ===');
 console.log('📋 window.debugQuestData() - Debug sources de données');
 console.log('🎯 window.forceTestQuestDetails() - Test forcé avec données');
 console.log('🎭 window.testFullQuestFlow() - Test flux complet dialogue→quête');
 console.log('🌐 window.testQuestLanguageChange() - Test changement de langue');
+console.log('📝 window.testMultipleQuestSelection() - Test sélection multiple');
+console.log('🔴 window.testQuestErrorStates() - Test états d\'erreur');
+console.log('🌐 window.debugQuestTranslations() - Debug traductions');
 
 export default QuestDetailsUI;
