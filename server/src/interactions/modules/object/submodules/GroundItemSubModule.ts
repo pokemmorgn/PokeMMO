@@ -1,5 +1,5 @@
 // src/interactions/modules/object/submodules/GroundItemSubModule.ts
-// VERSION SIMPLIFIÉE : RAMASSAGE SIMPLE AVEC VALIDATION ItemService
+// VERSION COMPLÈTE AVEC PATCH DE NORMALISATION DES ITEM IDs
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { InventoryManager } from "../../../../managers/InventoryManager";
@@ -19,13 +19,74 @@ import { QuestManager } from "../../../../managers/QuestManager";
 export default class GroundItemSubModule extends BaseObjectSubModule {
   
   readonly typeName = "GroundItem";
-  readonly version = "4.0.0"; // ✨ Version avec validation ItemService
+  readonly version = "4.1.0"; // ✨ Version avec normalisation automatique des IDs
 
   // ✅ Instance QuestManager
   private questManager: QuestManager | null = null;
 
   canHandle(objectDef: ObjectDefinition): boolean {
     return objectDef.type === 'ground_item';
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Normalise un itemID selon les conventions
+   */
+  private normalizeItemId(itemId: string): string {
+    if (!itemId) return itemId;
+    
+    return itemId
+      .toLowerCase()                    // Minuscules
+      .replace(/\s+/g, '_')            // Espaces → underscores
+      .replace(/[^a-z0-9_-]/g, '')     // Supprimer caractères spéciaux
+      .replace(/_+/g, '_')             // Fusionner underscores multiples
+      .replace(/^_|_$/g, '');          // Supprimer underscores de début/fin
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Vérification intelligente de l'existence d'un item
+   */
+  private async checkItemExists(itemId: string): Promise<{ exists: boolean; actualItemId?: string; itemData?: any }> {
+    try {
+      // 1. Essayer l'ID exact
+      let exists = await ItemService.itemExists(itemId);
+      if (exists) {
+        const itemData = await ItemService.getItemById(itemId);
+        return { exists: true, actualItemId: itemId, itemData };
+      }
+
+      // 2. Essayer l'ID normalisé
+      const normalizedId = this.normalizeItemId(itemId);
+      if (normalizedId !== itemId) {
+        exists = await ItemService.itemExists(normalizedId);
+        if (exists) {
+          const itemData = await ItemService.getItemById(normalizedId);
+          this.log('info', `🔧 Item trouvé avec ID normalisé: ${itemId} → ${normalizedId}`);
+          return { exists: true, actualItemId: normalizedId, itemData };
+        }
+      }
+
+      // 3. Essayer une recherche case-insensitive manuelle
+      try {
+        const { ItemData } = await import('../../../../models/ItemData');
+        const item = await ItemData.findOne({ 
+          itemId: { $regex: new RegExp(`^${itemId}$`, 'i') }, 
+          isActive: true 
+        });
+        
+        if (item) {
+          this.log('info', `🔧 Item trouvé avec recherche insensible à la casse: ${itemId} → ${item.itemId}`);
+          return { exists: true, actualItemId: item.itemId, itemData: item };
+        }
+      } catch (searchError) {
+        this.log('warn', 'Erreur recherche case-insensitive', searchError);
+      }
+
+      return { exists: false };
+
+    } catch (error) {
+      this.log('error', 'Erreur vérification existence item', { error, itemId });
+      return { exists: false };
+    }
   }
 
   async handle(
@@ -53,14 +114,29 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         return this.createErrorResult("Objet mal configuré.", 'INVALID_OBJECT');
       }
 
-      // ✅ ÉTAPE 1 : VÉRIFIER QUE L'ITEM EXISTE DANS ItemService
-      const itemExists = await ItemService.itemExists(itemId);
-      if (!itemExists) {
+      // ✅ ÉTAPE 1 MODIFIÉE : VÉRIFICATION INTELLIGENTE DE L'ITEM
+      const itemCheck = await this.checkItemExists(itemId);
+      if (!itemCheck.exists) {
         const processingTime = Date.now() - startTime;
         this.updateStats(false, processingTime);
-        this.log('error', 'Item non trouvé dans ItemService', { itemId, objectId: objectDef.id });
+        this.log('error', 'Item non trouvé même après normalisation', { 
+          originalItemId: itemId, 
+          normalizedItemId: this.normalizeItemId(itemId),
+          objectId: objectDef.id 
+        });
         return this.createErrorResult("Cet objet n'existe pas.", 'INVALID_ITEM');
       }
+
+      // ✅ UTILISER L'ID CORRECT TROUVÉ
+      const actualItemId = itemCheck.actualItemId!;
+      const itemData = itemCheck.itemData;
+
+      this.log('info', `✅ Item validé avec succès`, { 
+        originalItemId: itemId,
+        actualItemId,
+        itemName: itemData?.name || 'Unknown',
+        objectId: objectDef.id
+      });
 
       // ✅ ÉTAPE 2 : RÉCUPÉRER LES DONNÉES JOUEUR
       const playerDataDoc = await PlayerData.findOne({ username: player.name });
@@ -105,14 +181,15 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         }
       }
 
-      // ✅ ÉTAPE 4 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
+      // ✅ ÉTAPE 4 MODIFIÉE : AJOUTER L'ITEM AVEC L'ID CORRECT
       try {
         const quantity = objectDef.quantity || 1;
-        await InventoryManager.addItem(player.name, itemId, quantity);
+        await InventoryManager.addItem(player.name, actualItemId, quantity);
         
         this.log('info', `✅ Item ajouté à l'inventaire`, { 
           player: player.name,
-          itemId, 
+          originalItemId: itemId,
+          actualItemId, 
           quantity
         });
 
@@ -122,7 +199,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         
         this.log('error', 'Erreur ajout inventaire', {
           error: inventoryError,
-          itemId,
+          originalItemId: itemId,
+          actualItemId,
           player: player.name
         });
         
@@ -134,8 +212,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         );
       }
 
-      // ✅ ÉTAPE 5 : PROGRESSION AUTOMATIQUE DES QUÊTES
-      await this.progressPlayerQuests(player.name, itemId);
+      // ✅ ÉTAPE 5 MODIFIÉE : PROGRESSION QUÊTE AVEC L'ID CORRECT
+      await this.progressPlayerQuests(player.name, actualItemId);
 
       // ✅ ÉTAPE 6 : ENREGISTRER LE COOLDOWN
       const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
@@ -151,21 +229,13 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         });
       }
 
-      // ✅ ÉTAPE 7 : CONSTRUIRE LE RÉSULTAT FINAL
+      // ✅ ÉTAPE 7 MODIFIÉE : CONSTRUIRE LE RÉSULTAT AVEC LES BONNES DONNÉES
       const processingTime = Date.now() - startTime;
       this.updateStats(true, processingTime);
       
-      // Récupérer les données de l'item pour affichage
-      let itemData: any = null;
-      try {
-        itemData = await ItemService.getItemById(itemId);
-      } catch (error) {
-        this.log('warn', 'Erreur récupération données item', { itemId, error });
-      }
-      
       return this.createSuccessResult(
         "objectCollected",
-        `${itemData?.name || itemId} ajouté à l'inventaire !`,
+        `${itemData?.name || actualItemId} ajouté à l'inventaire !`,
         {
           objectId: objectDef.id.toString(),
           objectType: objectDef.type,
@@ -175,11 +245,13 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         {
           metadata: {
             itemReceived: {
-              itemId,
+              itemId: actualItemId,                    // ✅ ID correct
+              originalItemId: itemId,                  // ✅ ID original pour référence
               quantity: objectDef.quantity || 1,
-              name: itemData?.name || itemId,
+              name: itemData?.name || actualItemId,
               category: itemData?.category || 'unknown',
-              addedToInventory: true
+              addedToInventory: true,
+              idWasNormalized: actualItemId !== itemId  // ✅ Indicateur de normalisation
             },
             
             cooldown: {
@@ -191,7 +263,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
             processingTime,
             timestamp: Date.now(),
             
-            // Indicateur progression quest
             questProgression: {
               attempted: true,
               questManagerAvailable: !!this.questManager
@@ -328,6 +399,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       player: player.name,
       objectId: objectDef.id,
       itemId: objectDef.itemId,
+      actualItemId: metadata?.itemReceived?.itemId,
+      idWasNormalized: metadata?.itemReceived?.idWasNormalized,
       cooldownHours: metadata?.cooldown?.duration,
       zone: objectDef.zone,
       questProgressionAttempted: metadata?.questProgression?.attempted,
@@ -492,6 +565,142 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     return { playersProcessed, cooldownsRemoved, errors };
   }
 
+  // === NOUVELLES MÉTHODES DE DIAGNOSTIC ===
+
+  /**
+   * ✅ NOUVELLE : Diagnostique les incohérences d'IDs d'items
+   */
+  async diagnoseItemIdInconsistencies(): Promise<{
+    total_objects_checked: number;
+    inconsistencies_found: number;
+    missing_items: Array<{ objectId: number; zone: string; itemId: string }>;
+    case_mismatches: Array<{ objectId: number; zone: string; originalId: string; foundId: string }>;
+    normalization_suggestions: Array<{ originalId: string; suggestedId: string }>;
+  }> {
+    const result = {
+      total_objects_checked: 0,
+      inconsistencies_found: 0,
+      missing_items: [] as Array<{ objectId: number; zone: string; itemId: string }>,
+      case_mismatches: [] as Array<{ objectId: number; zone: string; originalId: string; foundId: string }>,
+      normalization_suggestions: [] as Array<{ originalId: string; suggestedId: string }>
+    };
+
+    try {
+      // Récupérer tous les objets de type ground_item via le module parent
+      const { GameObjectData } = await import('../../../../models/GameObjectData');
+      const groundObjects = await GameObjectData.find({ 
+        type: 'ground',
+        itemId: { $exists: true } 
+      });
+
+      result.total_objects_checked = groundObjects.length;
+
+      for (const obj of groundObjects) {
+        const itemId = obj.itemId;
+        if (!itemId) continue;
+
+        // Vérifier avec notre méthode intelligente
+        const itemCheck = await this.checkItemExists(itemId);
+        
+        if (!itemCheck.exists) {
+          result.missing_items.push({
+            objectId: obj.objectId,
+            zone: obj.zone,
+            itemId
+          });
+          result.inconsistencies_found++;
+        } else if (itemCheck.actualItemId !== itemId) {
+          result.case_mismatches.push({
+            objectId: obj.objectId,
+            zone: obj.zone,
+            originalId: itemId,
+            foundId: itemCheck.actualItemId!
+          });
+          result.inconsistencies_found++;
+        }
+
+        // Suggérer normalisation si nécessaire
+        const normalizedId = this.normalizeItemId(itemId);
+        if (normalizedId !== itemId) {
+          result.normalization_suggestions.push({
+            originalId: itemId,
+            suggestedId: normalizedId
+          });
+        }
+      }
+
+      this.log('info', 'Diagnostic terminé', result);
+      return result;
+
+    } catch (error) {
+      this.log('error', 'Erreur diagnostic', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE : Auto-répare les incohérences détectées
+   */
+  async autoFixItemIdInconsistencies(dryRun: boolean = true): Promise<{
+    fixes_applied: number;
+    errors: string[];
+    changes: Array<{ objectId: number; zone: string; oldId: string; newId: string }>;
+  }> {
+    const result = {
+      fixes_applied: 0,
+      errors: [] as string[],
+      changes: [] as Array<{ objectId: number; zone: string; oldId: string; newId: string }>
+    };
+
+    try {
+      const diagnostic = await this.diagnoseItemIdInconsistencies();
+      
+      if (!dryRun) {
+        const { GameObjectData } = await import('../../../../models/GameObjectData');
+        
+        // Réparer les case mismatches
+        for (const mismatch of diagnostic.case_mismatches) {
+          try {
+            const obj = await GameObjectData.findOne({
+              zone: mismatch.zone,
+              objectId: mismatch.objectId
+            });
+            
+            if (obj) {
+              obj.itemId = mismatch.foundId;
+              await obj.save();
+              
+              result.changes.push({
+                objectId: mismatch.objectId,
+                zone: mismatch.zone,
+                oldId: mismatch.originalId,
+                newId: mismatch.foundId
+              });
+              result.fixes_applied++;
+            }
+          } catch (error) {
+            result.errors.push(`Fix ${mismatch.zone}:${mismatch.objectId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+      } else {
+        // Mode dry run - juste compter les changements potentiels
+        result.changes = diagnostic.case_mismatches.map(m => ({
+          objectId: m.objectId,
+          zone: m.zone,
+          oldId: m.originalId,
+          newId: m.foundId
+        }));
+      }
+
+      this.log('info', `Auto-fix ${dryRun ? '(DRY RUN)' : 'APPLIED'}`, result);
+      return result;
+
+    } catch (error) {
+      this.log('error', 'Erreur auto-fix', error);
+      throw error;
+    }
+  }
+
   // === STATISTIQUES ===
 
   getStats() {
@@ -502,23 +711,27 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       specializedType: 'GroundItem',
       version: this.version,
       features: [
-        'itemservice_validation', // ✅ Validation via ItemService
+        'itemservice_validation',
+        'intelligent_item_id_resolution', // ✅ NOUVELLE FONCTIONNALITÉ
+        'automatic_id_normalization',     // ✅ NOUVELLE FONCTIONNALITÉ
+        'case_insensitive_search',        // ✅ NOUVELLE FONCTIONNALITÉ
         'inventory_integration',
         'mongodb_cooldowns',
         'per_player_cooldowns',
         'configurable_cooldown_duration',
         'requirements_validation',
         'admin_cooldown_management',
-        'automatic_quest_progression'
+        'automatic_quest_progression',
+        'diagnostic_tools'                // ✅ NOUVELLE FONCTIONNALITÉ
       ],
       integrations: {
-        itemService: true, // ✅ Pour validation
+        itemService: true,
         inventoryManager: true,
         questManager: !!this.questManager,
         playerData: true
       },
       storageMethod: 'mongodb_player_document',
-      approach: 'simple_pickup_with_itemservice_validation' // ✅ Approche simplifiée
+      approach: 'intelligent_pickup_with_id_normalization' // ✅ APPROCHE MISE À JOUR
     };
   }
 
@@ -556,6 +769,11 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       questManagerAvailable: !!this.questManager,
       questHealth,
       
+      // ✅ Nouvelles capacités
+      itemIdNormalizationEnabled: true,
+      caseInsensitiveSearchEnabled: true,
+      diagnosticToolsAvailable: true,
+      
       lastSuccessfulInteraction: this.stats.lastInteraction
     };
     
@@ -592,7 +810,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     // Initialisation QuestManager (non bloquante)
     await this.initializeQuestManager();
     
-    this.log('info', 'GroundItemSubModule avec ItemService initialisé', {
+    this.log('info', 'GroundItemSubModule avec normalisation automatique initialisé', {
       // Services existants
       inventoryManagerReady: !!InventoryManager,
       playerDataModelReady: !!PlayerData,
@@ -603,14 +821,19 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       // Quest system
       questManagerReady: !!this.questManager,
       
+      // ✅ Nouvelles capacités
+      itemIdNormalizationEnabled: true,
+      caseInsensitiveSearchEnabled: true,
+      diagnosticToolsEnabled: true,
+      
       storageMethod: 'mongodb',
-      approach: 'simple_pickup_with_itemservice_validation',
+      approach: 'intelligent_pickup_with_id_normalization',
       version: this.version
     });
   }
 
   async cleanup(): Promise<void> {
-    this.log('info', 'Nettoyage GroundItemSubModule avec ItemService');
+    this.log('info', 'Nettoyage GroundItemSubModule avec normalisation');
     
     try {
       const cleanupResult = await this.cleanupAllExpiredCooldowns();
