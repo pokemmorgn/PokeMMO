@@ -1,5 +1,5 @@
 // src/interactions/modules/object/submodules/GroundItemSubModule.ts
-// VERSION AMÉLIORÉE AVEC INTÉGRATION ItemService + ItemEffectProcessor
+// VERSION SIMPLIFIÉE : RAMASSAGE SIMPLE AVEC VALIDATION ItemService
 
 import { Player } from "../../../../schema/PokeWorldState";
 import { InventoryManager } from "../../../../managers/InventoryManager";
@@ -10,20 +10,18 @@ import {
   ObjectInteractionResult 
 } from "../core/IObjectSubModule";
 
-// ✅ IMPORTS SIMPLIFIÉS : Pas besoin du système d'effets pour ramasser
+// ✅ IMPORT SIMPLIFIÉ : Juste pour validation
 import { ItemService } from "../../../../services/ItemService";
 
-// ✅ NOUVEAU : Import du QuestManager pour progression automatique
+// ✅ IMPORT QuestManager pour progression automatique
 import { QuestManager } from "../../../../managers/QuestManager";
-
-
 
 export default class GroundItemSubModule extends BaseObjectSubModule {
   
   readonly typeName = "GroundItem";
-  readonly version = "4.0.0"; // ✨ Version avec vérification ItemService
+  readonly version = "4.0.0"; // ✨ Version avec validation ItemService
 
-  // ✅ NOUVEAU : Instance QuestManager
+  // ✅ Instance QuestManager
   private questManager: QuestManager | null = null;
 
   canHandle(objectDef: ObjectDefinition): boolean {
@@ -39,7 +37,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     const startTime = Date.now();
     
     try {
-      this.log('info', `🎯 [ITEMSERVICE] Ramassage objet avec vérification ItemService`, { 
+      this.log('info', `🎯 Ramassage objet avec validation ItemService`, { 
         objectId: objectDef.id, 
         player: player.name,
         itemId: objectDef.itemId,
@@ -75,7 +73,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
 
       const playerData = playerDataDoc as IPlayerData;
 
-      // ✅ ÉTAPE 5 : VÉRIFIER COOLDOWN (bypass en mode dev)
+      // ✅ ÉTAPE 3 : VÉRIFIER COOLDOWN (bypass en mode dev)
       const { getServerConfig } = require('../../../../config/serverConfig');
       const serverConfig = getServerConfig();
 
@@ -107,10 +105,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         }
       }
 
-      // ✅ ÉTAPE 4 : CONSTRUIRE LE CONTEXTE D'UTILISATION D'ITEM
-      const usageContext = await this.buildItemUsageContext(player, playerData, objectDef, itemId);
-
-      // ✅ ÉTAPE 6 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
+      // ✅ ÉTAPE 4 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
       try {
         const quantity = objectDef.quantity || 1;
         await InventoryManager.addItem(player.name, itemId, quantity);
@@ -139,10 +134,10 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         );
       }
 
-      // ✅ ÉTAPE 7 : PROGRESSION AUTOMATIQUE DES QUÊTES
+      // ✅ ÉTAPE 5 : PROGRESSION AUTOMATIQUE DES QUÊTES
       await this.progressPlayerQuests(player.name, itemId);
 
-      // ✅ ÉTAPE 8 : ENREGISTRER LE COOLDOWN
+      // ✅ ÉTAPE 6 : ENREGISTRER LE COOLDOWN
       const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
 
       if (!serverConfig.bypassObjectCooldowns) {
@@ -156,7 +151,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         });
       }
 
-      // ✅ ÉTAPE 9 : CONSTRUIRE LE RÉSULTAT FINAL
+      // ✅ ÉTAPE 7 : CONSTRUIRE LE RÉSULTAT FINAL
       const processingTime = Date.now() - startTime;
       this.updateStats(true, processingTime);
       
@@ -209,7 +204,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       const processingTime = Date.now() - startTime;
       this.updateStats(false, processingTime);
       
-      this.log('error', '❌ [ITEMSERVICE] Erreur traitement ground_item avec effets', error);
+      this.log('error', '❌ Erreur traitement ground_item', error);
       
       return this.createErrorResult(
         error instanceof Error ? error.message : 'Erreur inconnue',
@@ -218,9 +213,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
   }
 
-
-
-  // ✅ MÉTHODE EXISTANTE : Progression automatique des quêtes
+  // ✅ MÉTHODE : Progression automatique des quêtes
   private async progressPlayerQuests(playerName: string, itemId: string): Promise<void> {
     try {
       if (!this.questManager) {
@@ -250,7 +243,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
   }
 
-  // ✅ MÉTHODE EXISTANTE AMÉLIORÉE : Initialisation QuestManager
+  // ✅ MÉTHODE : Initialisation QuestManager
   private async initializeQuestManager(): Promise<void> {
     try {
       // Import dynamique pour éviter les dépendances circulaires
@@ -284,7 +277,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
   }
 
-  // === MÉTHODES PUBLIQUES POUR ADMINISTRATION (inchangées) ===
+  // === MÉTHODES PUBLIQUES POUR ADMINISTRATION ===
 
   async validateAccess(
     player: Player, 
@@ -331,13 +324,10 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     
     const metadata = result.data?.metadata;
     
-    this.log('info', '🎉 Objet collecté avec système d\'effets', {
+    this.log('info', '🎉 Objet collecté avec succès', {
       player: player.name,
       objectId: objectDef.id,
       itemId: objectDef.itemId,
-      effectsTriggered: metadata?.itemEffects?.triggered,
-      effectsApplied: metadata?.itemEffects?.effectsApplied,
-      itemConsumed: metadata?.itemEffects?.itemConsumed,
       cooldownHours: metadata?.cooldown?.duration,
       zone: objectDef.zone,
       questProgressionAttempted: metadata?.questProgression?.attempted,
@@ -345,7 +335,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     });
   }
 
-  // === MÉTHODES DE GESTION COOLDOWN (inchangées) ===
+  // === MÉTHODES DE GESTION COOLDOWN ===
 
   async checkPlayerCooldown(
     playerName: string, 
@@ -413,149 +403,36 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
   }
 
-  // === STATISTIQUES AMÉLIORÉES ===
-
-  getStats() {
-    const baseStats = super.getStats();
-    
-    return {
-      ...baseStats,
-      specializedType: 'GroundItem',
-      version: this.version,
-      features: [
-        'itemservice_validation', // ✅ NOUVEAU : Validation via ItemService
-        'inventory_integration',
-        'mongodb_cooldowns',
-        'per_player_cooldowns',
-        'configurable_cooldown_duration',
-        'requirements_validation',
-        'admin_cooldown_management',
-        'automatic_quest_progression'
-      ],
-      integrations: {
-        itemService: true, // ✅ NOUVEAU : Pour validation
-        inventoryManager: true,
-        questManager: !!this.questManager,
-        playerData: true
-      },
-      storageMethod: 'mongodb_player_document',
-      approach: 'simple_pickup_with_itemservice_validation' // ✅ NOUVEAU
-    };
-  }
-
-  getHealth() {
-    const baseHealth = super.getHealth();
-    
-    let itemServiceHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
-    let questHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
-    
-    // ✅ NOUVEAU : Test ItemService
+  async getPlayerCooldowns(playerName: string): Promise<Array<{
+    objectId: number;
+    zone: string;
+    hoursRemaining: number;
+    nextAvailable: Date;
+  }>> {
     try {
-      if (!ItemService) {
-        itemServiceHealth = 'critical';
+      const playerDataDoc = await PlayerData.findOne({ username: playerName });
+      if (!playerDataDoc || !playerDataDoc.objectStates.length) {
+        return [];
       }
+      
+      const playerData = playerDataDoc as IPlayerData;
+      const now = Date.now();
+      
+      return playerData.objectStates
+        .filter((state: ObjectStateEntry) => state.nextAvailableTime > now)
+        .map((state: ObjectStateEntry) => ({
+          objectId: state.objectId,
+          zone: state.zone,
+          hoursRemaining: Math.ceil((state.nextAvailableTime - now) / (1000 * 60 * 60)),
+          nextAvailable: new Date(state.nextAvailableTime)
+        }));
+        
     } catch (error) {
-      itemServiceHealth = 'critical';
+      this.log('error', 'Erreur récupération cooldowns', { error, playerName });
+      return [];
     }
-
-    // Health check QuestManager
-    if (!this.questManager) {
-      questHealth = 'warning'; // Non critique car non bloquant
-    }
-    
-    const details = {
-      ...baseHealth.details,
-      // Services existants
-      inventoryManagerAvailable: !!InventoryManager,
-      playerDataModelAvailable: !!PlayerData,
-      
-      // ✅ NOUVEAU : Service ItemService
-      itemServiceAvailable: !!ItemService,
-      itemServiceHealth,
-      
-      // Quest system
-      questManagerAvailable: !!this.questManager,
-      questHealth,
-      
-      lastSuccessfulInteraction: this.stats.lastInteraction
-    };
-    
-    const globalHealth: 'healthy' | 'warning' | 'critical' = 
-      [baseHealth.status, itemServiceHealth].includes('critical') 
-        ? 'critical' 
-        : [baseHealth.status, itemServiceHealth, questHealth].includes('warning') 
-          ? 'warning' 
-          : 'healthy';
-    
-    return {
-      ...baseHealth,
-      status: globalHealth,
-      details
-    };
   }
 
-  async initialize(): Promise<void> {
-    await super.initialize();
-    
-    // ✅ NOUVEAU : Vérifier ItemService
-    if (!ItemService) {
-      throw new Error('ItemService non disponible');
-    }
-    
-    if (!InventoryManager) {
-      throw new Error('InventoryManager non disponible');
-    }
-    
-    if (!PlayerData) {
-      throw new Error('PlayerData model non disponible');
-    }
-
-    // Initialisation QuestManager (non bloquante)
-    await this.initializeQuestManager();
-    
-    this.log('info', 'GroundItemSubModule avec ItemService initialisé', {
-      // Services existants
-      inventoryManagerReady: !!InventoryManager,
-      playerDataModelReady: !!PlayerData,
-      
-      // ✅ NOUVEAU : Service ItemService
-      itemServiceReady: !!ItemService,
-      
-      // Quest system
-      questManagerReady: !!this.questManager,
-      
-      storageMethod: 'mongodb',
-      approach: 'simple_pickup_with_itemservice_validation',
-      version: this.version
-    });
-  }
-
-  async cleanup(): Promise<void> {
-    this.log('info', 'Nettoyage GroundItemSubModule avec ItemService');
-    
-    try {
-      const cleanupResult = await this.cleanupAllExpiredCooldowns();
-      this.log('info', 'Nettoyage final cooldowns', cleanupResult);
-    } catch (error) {
-      this.log('warn', 'Erreur nettoyage final cooldowns', error);
-    }
-
-    // Cleanup QuestManager
-    if (this.questManager) {
-      try {
-        this.questManager.cleanup();
-        this.questManager = null;
-        this.log('info', 'QuestManager nettoyé');
-      } catch (error) {
-        this.log('warn', 'Erreur nettoyage QuestManager', error);
-      }
-    }
-    
-    await super.cleanup();
-  }
-
-  // === MÉTHODE UTILITAIRE INCHANGÉE ===
-  
   async cleanupAllExpiredCooldowns(): Promise<{
     playersProcessed: number;
     cooldownsRemoved: number;
@@ -613,5 +490,146 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
     
     return { playersProcessed, cooldownsRemoved, errors };
+  }
+
+  // === STATISTIQUES ===
+
+  getStats() {
+    const baseStats = super.getStats();
+    
+    return {
+      ...baseStats,
+      specializedType: 'GroundItem',
+      version: this.version,
+      features: [
+        'itemservice_validation', // ✅ Validation via ItemService
+        'inventory_integration',
+        'mongodb_cooldowns',
+        'per_player_cooldowns',
+        'configurable_cooldown_duration',
+        'requirements_validation',
+        'admin_cooldown_management',
+        'automatic_quest_progression'
+      ],
+      integrations: {
+        itemService: true, // ✅ Pour validation
+        inventoryManager: true,
+        questManager: !!this.questManager,
+        playerData: true
+      },
+      storageMethod: 'mongodb_player_document',
+      approach: 'simple_pickup_with_itemservice_validation' // ✅ Approche simplifiée
+    };
+  }
+
+  getHealth() {
+    const baseHealth = super.getHealth();
+    
+    let itemServiceHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
+    let questHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
+    
+    // ✅ Test ItemService
+    try {
+      if (!ItemService) {
+        itemServiceHealth = 'critical';
+      }
+    } catch (error) {
+      itemServiceHealth = 'critical';
+    }
+
+    // Health check QuestManager
+    if (!this.questManager) {
+      questHealth = 'warning'; // Non critique car non bloquant
+    }
+    
+    const details = {
+      ...baseHealth.details,
+      // Services existants
+      inventoryManagerAvailable: !!InventoryManager,
+      playerDataModelAvailable: !!PlayerData,
+      
+      // ✅ Service ItemService
+      itemServiceAvailable: !!ItemService,
+      itemServiceHealth,
+      
+      // Quest system
+      questManagerAvailable: !!this.questManager,
+      questHealth,
+      
+      lastSuccessfulInteraction: this.stats.lastInteraction
+    };
+    
+    const globalHealth: 'healthy' | 'warning' | 'critical' = 
+      [baseHealth.status, itemServiceHealth].includes('critical') 
+        ? 'critical' 
+        : [baseHealth.status, itemServiceHealth, questHealth].includes('warning') 
+          ? 'warning' 
+          : 'healthy';
+    
+    return {
+      ...baseHealth,
+      status: globalHealth,
+      details
+    };
+  }
+
+  async initialize(): Promise<void> {
+    await super.initialize();
+    
+    // ✅ Vérifier ItemService
+    if (!ItemService) {
+      throw new Error('ItemService non disponible');
+    }
+    
+    if (!InventoryManager) {
+      throw new Error('InventoryManager non disponible');
+    }
+    
+    if (!PlayerData) {
+      throw new Error('PlayerData model non disponible');
+    }
+
+    // Initialisation QuestManager (non bloquante)
+    await this.initializeQuestManager();
+    
+    this.log('info', 'GroundItemSubModule avec ItemService initialisé', {
+      // Services existants
+      inventoryManagerReady: !!InventoryManager,
+      playerDataModelReady: !!PlayerData,
+      
+      // ✅ Service ItemService
+      itemServiceReady: !!ItemService,
+      
+      // Quest system
+      questManagerReady: !!this.questManager,
+      
+      storageMethod: 'mongodb',
+      approach: 'simple_pickup_with_itemservice_validation',
+      version: this.version
+    });
+  }
+
+  async cleanup(): Promise<void> {
+    this.log('info', 'Nettoyage GroundItemSubModule avec ItemService');
+    
+    try {
+      const cleanupResult = await this.cleanupAllExpiredCooldowns();
+      this.log('info', 'Nettoyage final cooldowns', cleanupResult);
+    } catch (error) {
+      this.log('warn', 'Erreur nettoyage final cooldowns', error);
+    }
+
+    // Cleanup QuestManager
+    if (this.questManager) {
+      try {
+        this.questManager.cleanup();
+        this.questManager = null;
+        this.log('info', 'QuestManager nettoyé');
+      } catch (error) {
+        this.log('warn', 'Erreur nettoyage QuestManager', error);
+      }
+    }
+    
+    await super.cleanup();
   }
 }
