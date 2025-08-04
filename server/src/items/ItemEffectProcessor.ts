@@ -661,6 +661,11 @@ export class ItemEffectProcessor {
         message = action.value || action.parameters?.message || '';
         break;
         
+      case 'prevent_wild_encounters':
+        success = await this.executePreventWildEncounters(action, context);
+        message = success ? `Wild encounters prevented for ${action.value} steps` : 'Repel failed';
+        break;
+        
       default:
         this.log.warn(`Unhandled action type: ${action.type}`);
         success = false;
@@ -781,6 +786,15 @@ export class ItemEffectProcessor {
     
     // Appliquer le modificateur de capture
     (context as any).catch_rate_modifier = ((context as any).catch_rate_modifier || 1) * modifier;
+    
+    return true;
+  }
+
+  private static async executePreventWildEncounters(action: ItemAction, context: ItemEffectContext): Promise<boolean> {
+    const steps = action.value || 100;
+    
+    // Appliquer l'effet repel
+    (context as any).repel_steps_remaining = steps;
     
     return true;
   }
