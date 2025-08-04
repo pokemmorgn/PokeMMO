@@ -1397,7 +1397,37 @@ export class QuestDetailsUI {
     
     return icons[rewardType?.toLowerCase()] || '🎁';
   }
+
+  getCategoryLabel(category) {
+  const categoryKey = `quest.details.badges.category_${category.toLowerCase()}`;
+  const translatedLabel = t(categoryKey);
   
+  // Si la traduction n'existe pas, utiliser la catégorie en majuscules comme fallback
+  if (translatedLabel === categoryKey) {
+    return category.toUpperCase();
+  }
+  
+  return translatedLabel;
+}
+
+/**
+ * Obtenir le label traduit pour une difficulté
+ * @param {string} difficulty - Difficulté (easy, medium, hard)
+ * @returns {string} Label traduit
+ */
+getDifficultyLabel(difficulty) {
+  if (!difficulty) return '';
+  
+  const difficultyKey = `quest.details.badges.difficulty_${difficulty.toLowerCase()}`;
+  const translatedLabel = t(difficultyKey);
+  
+  // Si la traduction n'existe pas, utiliser la difficulté en majuscules comme fallback
+  if (translatedLabel === difficultyKey) {
+    return difficulty.toUpperCase();
+  }
+  
+  return translatedLabel;
+}
   // === 🎬 ACTIONS ===
   
   handleQuestAccept() {
