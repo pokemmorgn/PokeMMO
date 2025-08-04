@@ -755,8 +755,12 @@ export class QuestManager {
 
         // Chercher les objectifs qui matchent l'action + targetId
         for (const objective of currentStep.objectives) {
-          const objectiveProgress = questProgress.objectives.get?.(objective.id) || 
-                                   questProgress.objectives[objective.id];
+          // Gérer les deux formats possibles (Map ou Object)
+          const objectivesMap = questProgress.objectives instanceof Map 
+            ? questProgress.objectives 
+            : new Map(Object.entries(questProgress.objectives || {}));
+          
+          const objectiveProgress = objectivesMap.get(objective.id);
           
           // Skip si objectif déjà complété
           if (objectiveProgress?.completed) continue;
@@ -922,11 +926,7 @@ export class QuestManager {
       const progressEvent: QuestProgressEvent = {
         type: action as any,
         targetId: targetId,
-        amount: 1,
-        metadata: {
-          triggeredBy: 'asPlayerQuestWith',
-          timestamp: new Date().toISOString()
-        }
+        amount: 1
       };
 
       // Traitement groupé pour vérifier les completions d'étapes/quêtes
