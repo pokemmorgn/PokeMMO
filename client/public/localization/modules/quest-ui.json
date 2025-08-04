@@ -8,7 +8,31 @@
       "tooltip_status_new": "new quest(s)",
       "tooltip_status_ready": "ready to complete",
       "tooltip_action": "Click to open",
-      "disabled_message": "Quest journal disabled"
+      "disabled_message": "Quest journal disabled",
+      "details": {
+        "single_title": "Quest Details",
+        "select_title": "Select a Quest",
+        "description_label": "Description",
+        "rewards_label": "Rewards",
+        "objectives_label": "Objectives",
+        "information_label": "Information",
+        "status_available": "Available",
+        "status_unavailable": "Unavailable",
+        "accept_button": "Accept",
+        "cancel_button": "Cancel",
+        "close_button": "Close",
+        "footer_tip": "Accept this quest to add it to your journal",
+        "loading_quest": "Loading quest details...",
+        "loading_wait": "Please wait a moment",
+        "loading_list": "Loading available quests...",
+        "loading_description": "Loading description...",
+        "error_title": "Error",
+        "error_network": "Network error",
+        "error_timeout": "Request timeout",
+        "error_loading": "Failed to load quest details",
+        "error_loading_list": "Failed to load quest list",
+        "no_description": "No description available"
+      }
     }
   },
   "fr": {
@@ -20,7 +44,31 @@
       "tooltip_status_new": "nouvelle(s) quête(s)",
       "tooltip_status_ready": "prête(s) à terminer",
       "tooltip_action": "Clic pour ouvrir",
-      "disabled_message": "Journal des quêtes désactivé"
+      "disabled_message": "Journal des quêtes désactivé",
+      "details": {
+        "single_title": "Détails de la Quête",
+        "select_title": "Sélectionner une Quête",
+        "description_label": "Description",
+        "rewards_label": "Récompenses",
+        "objectives_label": "Objectifs",
+        "information_label": "Informations",
+        "status_available": "Disponible",
+        "status_unavailable": "Non disponible",
+        "accept_button": "Accepter",
+        "cancel_button": "Annuler",
+        "close_button": "Fermer",
+        "footer_tip": "Acceptez cette quête pour l'ajouter à votre journal",
+        "loading_quest": "Chargement des détails de la quête...",
+        "loading_wait": "Veuillez patienter un instant",
+        "loading_list": "Chargement des quêtes disponibles...",
+        "loading_description": "Chargement de la description...",
+        "error_title": "Erreur",
+        "error_network": "Erreur réseau",
+        "error_timeout": "Délai d'attente dépassé",
+        "error_loading": "Échec du chargement des détails de la quête",
+        "error_loading_list": "Échec du chargement de la liste des quêtes",
+        "no_description": "Aucune description disponible"
+      }
     }
   },
   "es": {
@@ -32,7 +80,31 @@
       "tooltip_status_new": "nueva(s) misión(es)",
       "tooltip_status_ready": "listo(s) para completar",
       "tooltip_action": "Clic para abrir",
-      "disabled_message": "Diario de misiones deshabilitado"
+      "disabled_message": "Diario de misiones deshabilitado",
+      "details": {
+        "single_title": "Detalles de la Misión",
+        "select_title": "Seleccionar una Misión",
+        "description_label": "Descripción",
+        "rewards_label": "Recompensas",
+        "objectives_label": "Objetivos",
+        "information_label": "Información",
+        "status_available": "Disponible",
+        "status_unavailable": "No disponible",
+        "accept_button": "Aceptar",
+        "cancel_button": "Cancelar",
+        "close_button": "Cerrar",
+        "footer_tip": "Acepta esta misión para añadirla a tu diario",
+        "loading_quest": "Cargando detalles de la misión...",
+        "loading_wait": "Por favor espera un momento",
+        "loading_list": "Cargando misiones disponibles...",
+        "loading_description": "Cargando descripción...",
+        "error_title": "Error",
+        "error_network": "Error de red",
+        "error_timeout": "Tiempo de espera agotado",
+        "error_loading": "Error al cargar los detalles de la misión",
+        "error_loading_list": "Error al cargar la lista de misiones",
+        "no_description": "No hay descripción disponible"
+      }
     }
   },
   "de": {
@@ -44,7 +116,31 @@
       "tooltip_status_new": "neue Quest(s)",
       "tooltip_status_ready": "bereit zum Abschließen",
       "tooltip_action": "Klicken zum Öffnen",
-      "disabled_message": "Quest-Tagebuch deaktiviert"
+      "disabled_message": "Quest-Tagebuch deaktiviert",
+      "details": {
+        "single_title": "Quest-Details",
+        "select_title": "Quest auswählen",
+        "description_label": "Beschreibung",
+        "rewards_label": "Belohnungen",
+        "objectives_label": "Ziele",
+        "information_label": "Informationen",
+        "status_available": "Verfügbar",
+        "status_unavailable": "Nicht verfügbar",
+        "accept_button": "Annehmen",
+        "cancel_button": "Abbrechen",
+        "close_button": "Schließen",
+        "footer_tip": "Nimm diese Quest an, um sie zu deinem Tagebuch hinzuzufügen",
+        "loading_quest": "Lade Quest-Details...",
+        "loading_wait": "Bitte warten Sie einen Moment",
+        "loading_list": "Lade verfügbare Quests...",
+        "loading_description": "Lade Beschreibung...",
+        "error_title": "Fehler",
+        "error_network": "Netzwerkfehler",
+        "error_timeout": "Zeitüberschreitung",
+        "error_loading": "Fehler beim Laden der Quest-Details",
+        "error_loading_list": "Fehler beim Laden der Quest-Liste",
+        "no_description": "Keine Beschreibung verfügbar"
+      }
     }
   },
   "it": {
@@ -56,7 +152,31 @@
       "tooltip_status_new": "nuova/e missione/i",
       "tooltip_status_ready": "pronto/i per il completamento",
       "tooltip_action": "Clicca per aprire",
-      "disabled_message": "Diario delle missioni disabilitato"
+      "disabled_message": "Diario delle missioni disabilitato",
+      "details": {
+        "single_title": "Dettagli della Missione",
+        "select_title": "Seleziona una Missione",
+        "description_label": "Descrizione",
+        "rewards_label": "Ricompense",
+        "objectives_label": "Obiettivi",
+        "information_label": "Informazioni",
+        "status_available": "Disponibile",
+        "status_unavailable": "Non disponibile",
+        "accept_button": "Accetta",
+        "cancel_button": "Annulla",
+        "close_button": "Chiudi",
+        "footer_tip": "Accetta questa missione per aggiungerla al tuo diario",
+        "loading_quest": "Caricamento dettagli missione...",
+        "loading_wait": "Attendi un momento",
+        "loading_list": "Caricamento missioni disponibili...",
+        "loading_description": "Caricamento descrizione...",
+        "error_title": "Errore",
+        "error_network": "Errore di rete",
+        "error_timeout": "Timeout della richiesta",
+        "error_loading": "Errore nel caricamento dei dettagli della missione",
+        "error_loading_list": "Errore nel caricamento della lista delle missioni",
+        "no_description": "Nessuna descrizione disponibile"
+      }
     }
   },
   "pt": {
@@ -68,7 +188,31 @@
       "tooltip_status_new": "nova(s) missão(ões)",
       "tooltip_status_ready": "pronto(s) para completar",
       "tooltip_action": "Clique para abrir",
-      "disabled_message": "Diário de missões desabilitado"
+      "disabled_message": "Diário de missões desabilitado",
+      "details": {
+        "single_title": "Detalhes da Missão",
+        "select_title": "Selecionar uma Missão",
+        "description_label": "Descrição",
+        "rewards_label": "Recompensas",
+        "objectives_label": "Objetivos",
+        "information_label": "Informações",
+        "status_available": "Disponível",
+        "status_unavailable": "Não disponível",
+        "accept_button": "Aceitar",
+        "cancel_button": "Cancelar",
+        "close_button": "Fechar",
+        "footer_tip": "Aceite esta missão para adicioná-la ao seu diário",
+        "loading_quest": "Carregando detalhes da missão...",
+        "loading_wait": "Aguarde um momento",
+        "loading_list": "Carregando missões disponíveis...",
+        "loading_description": "Carregando descrição...",
+        "error_title": "Erro",
+        "error_network": "Erro de rede",
+        "error_timeout": "Tempo limite esgotado",
+        "error_loading": "Falha ao carregar detalhes da missão",
+        "error_loading_list": "Falha ao carregar lista de missões",
+        "no_description": "Nenhuma descrição disponível"
+      }
     }
   },
   "ja": {
@@ -80,7 +224,31 @@
       "tooltip_status_new": "新しいクエスト",
       "tooltip_status_ready": "完了可能",
       "tooltip_action": "クリックで開く",
-      "disabled_message": "クエストジャーナルが無効です"
+      "disabled_message": "クエストジャーナルが無効です",
+      "details": {
+        "single_title": "クエスト詳細",
+        "select_title": "クエストを選択",
+        "description_label": "説明",
+        "rewards_label": "報酬",
+        "objectives_label": "目標",
+        "information_label": "情報",
+        "status_available": "利用可能",
+        "status_unavailable": "利用不可",
+        "accept_button": "受諾",
+        "cancel_button": "キャンセル",
+        "close_button": "閉じる",
+        "footer_tip": "このクエストを受諾してジャーナルに追加する",
+        "loading_quest": "クエスト詳細を読み込み中...",
+        "loading_wait": "しばらくお待ちください",
+        "loading_list": "利用可能なクエストを読み込み中...",
+        "loading_description": "説明を読み込み中...",
+        "error_title": "エラー",
+        "error_network": "ネットワークエラー",
+        "error_timeout": "リクエストタイムアウト",
+        "error_loading": "クエスト詳細の読み込みに失敗しました",
+        "error_loading_list": "クエストリストの読み込みに失敗しました",
+        "no_description": "説明がありません"
+      }
     }
   },
   "ko": {
@@ -92,7 +260,31 @@
       "tooltip_status_new": "새로운 퀘스트",
       "tooltip_status_ready": "완료 가능",
       "tooltip_action": "클릭하여 열기",
-      "disabled_message": "퀘스트 일지가 비활성화됨"
+      "disabled_message": "퀘스트 일지가 비활성화됨",
+      "details": {
+        "single_title": "퀘스트 세부사항",
+        "select_title": "퀘스트 선택",
+        "description_label": "설명",
+        "rewards_label": "보상",
+        "objectives_label": "목표",
+        "information_label": "정보",
+        "status_available": "이용 가능",
+        "status_unavailable": "이용 불가",
+        "accept_button": "수락",
+        "cancel_button": "취소",
+        "close_button": "닫기",
+        "footer_tip": "이 퀘스트를 수락하여 일지에 추가하세요",
+        "loading_quest": "퀘스트 세부사항 로딩 중...",
+        "loading_wait": "잠시만 기다려주세요",
+        "loading_list": "이용 가능한 퀘스트 로딩 중...",
+        "loading_description": "설명 로딩 중...",
+        "error_title": "오류",
+        "error_network": "네트워크 오류",
+        "error_timeout": "요청 시간 초과",
+        "error_loading": "퀘스트 세부사항 로딩 실패",
+        "error_loading_list": "퀘스트 목록 로딩 실패",
+        "no_description": "설명이 없습니다"
+      }
     }
   }
 }
