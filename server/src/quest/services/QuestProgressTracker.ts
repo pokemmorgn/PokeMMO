@@ -1,5 +1,6 @@
 // server/src/quest/services/QuestProgressTracker.ts
 // Service modulaire pour la progression des quêtes - Cœur de la logique métier
+// ✅ VERSION MODIFIÉE : Intégration scan inventaire automatique
 
 import { 
   QuestDefinition, 
@@ -10,6 +11,9 @@ import {
   QuestEventMetadata,
   QuestEventContext
 } from "../core/types/QuestTypes";
+
+// ✅ NOUVEAU IMPORT : Intégration InventoryManager
+import { InventoryManager } from "../../managers/InventoryManager";
 
 // ===== INTERFACE LOCALE POUR RÉSULTATS =====
 
@@ -143,9 +147,15 @@ export interface QuestProgressTrackerConfig {
   enableAdvancedConditions: boolean;
   validateMetadata: boolean;
   
+  // ✅ NOUVEAU : Scan inventaire
+  enableInventoryScan: boolean;
+  scanOnQuestStart: boolean;
+  scanOnStepStart: boolean;
+  
   // Logging
   enableProgressLogging: boolean;
   logFailedValidations: boolean;
+  logInventoryScan: boolean;
   
   // Extensions futures
   enableExperimentalTypes: boolean;
@@ -157,6 +167,7 @@ export interface QuestProgressTrackerConfig {
 /**
  * 🎯 Service de progression des quêtes
  * Extrait du QuestManager pour modularité
+ * ✅ VERSION MODIFIÉE : Avec scan inventaire automatique
  */
 class QuestProgressTracker implements IQuestProgressTracker {
   private config: QuestProgressTrackerConfig;
@@ -168,8 +179,13 @@ class QuestProgressTracker implements IQuestProgressTracker {
       strictConditionValidation: true,
       enableAdvancedConditions: true,
       validateMetadata: true,
+      // ✅ NOUVEAUX : Configuration scan inventaire
+      enableInventoryScan: true,
+      scanOnQuestStart: true,
+      scanOnStepStart: true,
       enableProgressLogging: process.env.NODE_ENV === 'development',
       logFailedValidations: true,
+      logInventoryScan: process.env.NODE_ENV === 'development',
       enableExperimentalTypes: false,
       enableTimeBasedValidation: true,
       ...config
@@ -325,6 +341,131 @@ class QuestProgressTracker implements IQuestProgressTracker {
 
     this.log('info', `💾 Progression terminée: ${results.length} mise(s) à jour pour ${username}`);
     return results;
+  }
+
+  // ===== NOUVELLES MÉTHODES : SCAN INVENTAIRE =====
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Vérifier inventaire existant pour un objectif
+   */
+  private async checkExistingInventory(
+    username: string, 
+    objective: QuestObjectiveDefinition
+  ): Promise<number> {
+    
+    if (!this.config.enableInventoryScan) {
+      return 0;
+    }
+    
+    if (objective.type !== 'collect' || !objective.target) {
+      return 0;
+    }
+    
+    try {
+      const existingCount = await InventoryManager.getItemCount(username, objective.target);
+      
+      if (this.config.logInventoryScan) {
+        this.log('debug', `📦 Inventaire existant: ${objective.target} = ${existingCount} pour ${username}`);
+      }
+      
+      return existingCount;
+    } catch (error) {
+      this.log('warn', `⚠️ Erreur vérification inventaire pour ${objective.target}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Application directe de progression (sans événement externe)
+   */
+  private async applyProgressDirectly(
+    username: string,
+    questProgress: any,
+    objective: QuestObjectiveDefinition,
+    amount: number,
+    reason: string = 'Inventaire existant'
+  ): Promise<void> {
+    
+    const objectivesMap = questProgress.objectives instanceof Map 
+      ? questProgress.objectives 
+      : new Map(Object.entries(questProgress.objectives || {}));
+    
+    const progressData = objectivesMap.get(objective.id) || {
+      currentAmount: 0,
+      completed: false,
+      startedAt: new Date(),
+      attempts: 0
+    };
+    
+    const previousAmount = progressData.currentAmount;
+    progressData.currentAmount = Math.min(
+      progressData.currentAmount + amount,
+      objective.requiredAmount
+    );
+    
+    progressData.attempts = (progressData.attempts || 0) + 1;
+    
+    if (progressData.currentAmount >= objective.requiredAmount) {
+      progressData.completed = true;
+      progressData.completedAt = new Date();
+      this.log('info', `✅ Objectif auto-complété par ${reason}: ${objective.description} (${previousAmount} → ${progressData.currentAmount}/${objective.requiredAmount})`);
+    } else {
+      this.log('info', `📈 Progression automatique par ${reason}: ${objective.description} (${previousAmount} → ${progressData.currentAmount}/${objective.requiredAmount})`);
+    }
+    
+    objectivesMap.set(objective.id, progressData);
+    questProgress.objectives = objectivesMap as any;
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Scan complet des objectifs d'une étape
+   */
+  private async scanStepObjectives(
+    username: string,
+    questProgress: any,
+    stepObjectives: QuestObjectiveDefinition[]
+  ): Promise<{ scannedObjectives: number; autoCompleted: number; totalProgress: number }> {
+    
+    if (!this.config.enableInventoryScan) {
+      return { scannedObjectives: 0, autoCompleted: 0, totalProgress: 0 };
+    }
+
+    let scannedObjectives = 0;
+    let autoCompleted = 0;
+    let totalProgress = 0;
+
+    this.log('info', `🔍 Scan inventaire pour ${stepObjectives.length} objectif(s) - ${username}`);
+
+    for (const objective of stepObjectives) {
+      if (objective.type === 'collect') {
+        scannedObjectives++;
+        
+        const existingCount = await this.checkExistingInventory(username, objective);
+        
+        if (existingCount > 0) {
+          const amountToApply = Math.min(existingCount, objective.requiredAmount);
+          totalProgress += amountToApply;
+          
+          await this.applyProgressDirectly(
+            username, 
+            questProgress, 
+            objective, 
+            amountToApply,
+            'Scan inventaire'
+          );
+          
+          if (amountToApply >= objective.requiredAmount) {
+            autoCompleted++;
+          }
+        }
+      }
+    }
+
+    if (scannedObjectives > 0) {
+      this.log('info', `📊 Résultat scan: ${scannedObjectives} objectifs scannés, ${autoCompleted} auto-complétés, ${totalProgress} progression totale`);
+    }
+
+    return { scannedObjectives, autoCompleted, totalProgress };
   }
 
   // ===== VÉRIFICATION OBJECTIFS =====
@@ -629,6 +770,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
   /**
    * 🎯 Traitement de la progression d'étape
    * Extrait de QuestManager.processStepProgress()
+   * ✅ VERSION MODIFIÉE : Avec scan inventaire automatique
    */
   async processStepProgress(
     username: string,
@@ -700,18 +842,29 @@ class QuestProgressTracker implements IQuestProgressTracker {
           stepRewards
         );
       } else {
-        // ✅ PRÉPARER LA PROCHAINE ÉTAPE
+        // ✅ PRÉPARER LA PROCHAINE ÉTAPE AVEC SCAN INVENTAIRE
         const nextStep = definition.steps[questProgress.currentStepIndex];
         this.log('info', `➡️ Passage à l'étape suivante: ${nextStep.name}`);
         
-        // Initialiser les objectifs de la prochaine étape
+        // ✅ SCAN INVENTAIRE POUR LA NOUVELLE ÉTAPE
+        if (this.config.scanOnStepStart) {
+          const scanResult = await this.scanStepObjectives(username, questProgress, nextStep.objectives);
+          if (scanResult.autoCompleted > 0) {
+            this.log('info', `🎯 Scan automatique: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
+          }
+        }
+        
+        // Initialiser les objectifs de la prochaine étape (avec progression éventuelle du scan)
         for (const objective of nextStep.objectives) {
-          objectivesMap.set(objective.id, {
-            currentAmount: 0,
-            completed: false,
-            startedAt: new Date(),
-            attempts: 0
-          });
+          // Vérifier si l'objectif a déjà été initialisé par le scan
+          if (!objectivesMap.has(objective.id)) {
+            objectivesMap.set(objective.id, {
+              currentAmount: 0,
+              completed: false,
+              startedAt: new Date(),
+              attempts: 0
+            });
+          }
         }
         questProgress.objectives = objectivesMap as any;
 
@@ -719,20 +872,23 @@ class QuestProgressTracker implements IQuestProgressTracker {
           stepCompleted: true,
           questCompleted: false,
           nextStepIndex: questProgress.currentStepIndex,
-          newObjectives: nextStep.objectives.map((obj: any) => ({
-            id: obj.id,
-            type: obj.type,
-            description: obj.description,
-            target: obj.target,
-            targetName: obj.targetName,
-            itemId: obj.itemId,
-            requiredAmount: obj.requiredAmount,
-            currentAmount: 0,
-            completed: false,
-            validationDialogue: obj.validationDialogue,
-            conditions: obj.conditions,
-            metadata: obj.metadata
-          } as QuestObjectiveWithProgress)),
+          newObjectives: nextStep.objectives.map((obj: any) => {
+            const progress = objectivesMap.get(obj.id) || { currentAmount: 0, completed: false };
+            return {
+              id: obj.id,
+              type: obj.type,
+              description: obj.description,
+              target: obj.target,
+              targetName: obj.targetName,
+              itemId: obj.itemId,
+              requiredAmount: obj.requiredAmount,
+              currentAmount: progress.currentAmount,
+              completed: progress.completed,
+              validationDialogue: obj.validationDialogue,
+              conditions: obj.conditions,
+              metadata: obj.metadata
+            } as QuestObjectiveWithProgress;
+          }),
           stepRewards: stepRewards,
           message: `Étape "${currentStep.name}" terminée ! Objectif suivant: ${nextStep.name}`
         };
@@ -931,7 +1087,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
   getDebugInfo(): any {
     return {
       config: this.config,
-      version: '1.0.0',
+      version: '2.0.0', // ✅ Version bumped avec scan inventaire
       supportedTypes: [
         'collect', 'defeat', 'talk', 'reach', 'deliver', // Types de base
         'catch', 'encounter', 'use', 'win', 'explore',   // Types étendus
@@ -939,8 +1095,13 @@ class QuestProgressTracker implements IQuestProgressTracker {
           'breeding', 'temporal', 'contest', 'ecosystem', 'mystery'
         ] : [])
       ],
-      advancedConditions: this.config.enableAdvancedConditions,
-      experimentalFeatures: this.config.enableExperimentalTypes
+      features: {
+        advancedConditions: this.config.enableAdvancedConditions,
+        experimentalFeatures: this.config.enableExperimentalTypes,
+        inventoryScan: this.config.enableInventoryScan,
+        scanOnQuestStart: this.config.scanOnQuestStart,
+        scanOnStepStart: this.config.scanOnStepStart
+      }
     };
   }
 
@@ -950,6 +1111,80 @@ class QuestProgressTracker implements IQuestProgressTracker {
   updateConfig(newConfig: Partial<QuestProgressTrackerConfig>): void {
     this.config = { ...this.config, ...newConfig };
     this.log('info', '⚙️ Configuration mise à jour', { newConfig });
+  }
+
+  // ===== NOUVELLES MÉTHODES PUBLIQUES =====
+
+  /**
+   * ✅ NOUVELLE MÉTHODE PUBLIQUE : Scan manuel d'une quête active
+   * Utile pour debugging ou réparation
+   */
+  async manualScanQuest(
+    username: string,
+    questProgress: any,
+    definition: QuestDefinition
+  ): Promise<{ 
+    scanned: boolean; 
+    results: { scannedObjectives: number; autoCompleted: number; totalProgress: number }; 
+    message: string 
+  }> {
+    
+    if (!this.config.enableInventoryScan) {
+      return {
+        scanned: false,
+        results: { scannedObjectives: 0, autoCompleted: 0, totalProgress: 0 },
+        message: 'Scan inventaire désactivé dans la configuration'
+      };
+    }
+
+    const currentStep = definition.steps[questProgress.currentStepIndex];
+    if (!currentStep) {
+      return {
+        scanned: false,
+        results: { scannedObjectives: 0, autoCompleted: 0, totalProgress: 0 },
+        message: 'Étape courante introuvable'
+      };
+    }
+
+    this.log('info', `🔧 Scan manuel pour ${definition.name} - ${username}`);
+    
+    const results = await this.scanStepObjectives(username, questProgress, currentStep.objectives);
+    
+    return {
+      scanned: true,
+      results,
+      message: `Scan manuel complété: ${results.scannedObjectives} objectif(s) scannés, ${results.autoCompleted} auto-complété(s)`
+    };
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE PUBLIQUE : Test de scan pour debugging
+   */
+  async debugScanInventory(username: string, itemId: string): Promise<{
+    found: boolean;
+    count: number;
+    error?: string;
+  }> {
+    try {
+      const count = await this.checkExistingInventory(username, {
+        id: 'debug',
+        type: 'collect',
+        description: 'Debug scan',
+        target: itemId,
+        requiredAmount: 1
+      });
+
+      return {
+        found: count > 0,
+        count
+      };
+    } catch (error) {
+      return {
+        found: false,
+        count: 0,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
   }
 }
 
