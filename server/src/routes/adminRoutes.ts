@@ -17,7 +17,7 @@ import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { fileURLToPath } from 'url';
 import * as fsSync from 'fs';  // ← AJOUTER CETTE LIGNE
 
