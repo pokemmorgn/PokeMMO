@@ -34,12 +34,31 @@ export class MapEditorModule {
     // ✅ NOUVELLE MÉTHODE: Obtenir le prochain ID global
 async getNextGlobalNpcId() {
     try {
+        console.log('🔢 [MapEditor] Getting next GLOBAL NPC ID from server...');
+        
         const response = await this.adminPanel.apiCall('/npcs/next-id');
-        return response.nextId;
+        
+        if (response.success) {
+            console.log(`✅ [MapEditor] Next GLOBAL NPC ID: ${response.nextId}`);
+            console.log(`📊 [MapEditor] Last NPC was ID ${response.lastNpcId} in zone "${response.lastNpcZone}"`);
+            return response.nextId;
+        } else {
+            throw new Error(response.error || 'Erreur serveur');
+        }
+        
     } catch (error) {
-        console.error('❌ [MapEditor] Error getting next NPC ID:', error);
-        // ✅ NE PAS utiliser de fallback timestamp !
-        throw error; // Laisser planter pour identifier le problème
+        console.error('❌ [MapEditor] Error getting next GLOBAL NPC ID:', error);
+        
+        // ✅ FALLBACK sécurisé: ne pas utiliser timestamp !
+        // Au lieu de cela, essayer de calculer depuis les NPCs locaux
+        const localNpcs = this.placedObjects.filter(obj => obj.type === 'npc');
+        const maxLocalId = localNpcs.length > 0 ? 
+            Math.max(...localNpcs.map(npc => parseInt(npc.id) || 0)) : 0;
+        
+        const fallbackId = maxLocalId + 1000; // Décaler pour éviter conflits
+        
+        console.warn(`⚠️ [MapEditor] Using fallback ID: ${fallbackId}`);
+        return fallbackId;
     }
 }
     
