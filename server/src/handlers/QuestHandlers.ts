@@ -241,6 +241,74 @@ private async handleGetQuestDetails(client: Client, data: { npcId: number, quest
     }
   }
 
+  private async handleAcceptQuest(client: Client, data: { questId: string, npcId: string | number, timestamp?: number }) {
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("questAcceptResult", {
+      success: false,
+      error: "Joueur non trouvé"
+    });
+    return;
+  }
+
+  try {
+    console.log(`🎯 [QuestHandlers] Acceptation quête ${data.questId} par ${player.name} via NPC ${data.npcId}`);
+
+    const questManager = ServiceRegistry.getInstance().getQuestManager();
+    if (!questManager) {
+      throw new Error("QuestManager non disponible");
+    }
+
+    // Vérifier que la quête est disponible
+    const questStatus = await questManager.checkQuestStatus(player.name, data.questId);
+    if (questStatus !== 'available') {
+      throw new Error(`Quête non disponible (statut: ${questStatus})`);
+    }
+
+    // Démarrer la quête
+    const quest = await questManager.startQuest(player.name, data.questId);
+    
+    if (quest) {
+      // Succès !
+      client.send("questAcceptResult", {
+        success: true,
+        questId: data.questId,
+        quest: quest,
+        message: `Quête "${quest.name}" acceptée !`
+      });
+
+      // Notifier le système de quêtes
+      client.send("quest_started", {
+        questId: data.questId,
+        questName: quest.name,
+        description: quest.description,
+        message: `Quête "${quest.name}" démarrée !`,
+        data: {
+          questInfo: quest,
+          steps: quest.steps || []
+        }
+      });
+
+      // Mettre à jour les statuts de quêtes
+      await this.updateQuestStatuses(player.name, client);
+
+      console.log(`✅ [QuestHandlers] Quête ${data.questId} acceptée avec succès par ${player.name}`);
+
+    } else {
+      throw new Error("Impossible de démarrer la quête");
+    }
+
+  } catch (error) {
+    console.error(`❌ [QuestHandlers] Erreur acceptation quête ${data.questId}:`, error);
+    
+    client.send("questAcceptResult", {
+      success: false,
+      questId: data.questId,
+      error: (error as Error).message || "Erreur lors de l'acceptation de la quête"
+    });
+  }
+}
+  
   private async handleStartQuest(client: Client, data: { questId: string }) {
     try {
       const player = this.room.state.players.get(client.sessionId);
