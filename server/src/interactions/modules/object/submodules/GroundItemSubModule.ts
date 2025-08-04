@@ -211,7 +211,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       // 🚀 Progression automatique : 'collect' + itemId
       await this.questManager.asPlayerQuestWith(playerName, 'collect', itemId);
       
-      this.log('debug', '🎯 Progression quest tentée', {
+      this.log('info', '🎯 Progression quest tentée', {
         player: playerName,
         action: 'collect',
         targetId: itemId
