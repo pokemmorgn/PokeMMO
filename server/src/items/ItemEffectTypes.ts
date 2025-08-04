@@ -92,6 +92,7 @@ export type ActionType =
   // Misc actions
   | 'play_sound' | 'show_message' | 'add_money' | 'consume_item'
   | 'duplicate_item' | 'random_item' | 'revive_pokemon'
+  | 'prevent_wild_encounters' // Ajouté pour les repels
   // Experience actions
   | 'gain_exp' | 'gain_ev' | 'reset_ev' | 'increase_friendship'
   | 'decrease_friendship' | 'max_friendship'
