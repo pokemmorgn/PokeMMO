@@ -6,7 +6,7 @@ import { ItemService } from '../services/ItemService';
 import { ItemData } from '../models/ItemData';
 
 // ===== CONFIGURATION =====
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemmo';
 const ITEMS_JSON_PATH = process.env.ITEMS_JSON_PATH || './server/src/data/items.json';
 
 // ===== FONCTIONS UTILITAIRES =====
@@ -86,9 +86,9 @@ async function showPreMigrationStats(): Promise<void> {
     
     if (totalItems > 0) {
       const stats = await ItemService.getItemStats();
-      console.log('\n📈 Breakdown by type:');
-      Object.entries(stats.byType).forEach(([type, count]) => {
-        console.log(`  - ${type}: ${count}`);
+      console.log('\n📈 Breakdown by category:');
+      Object.entries(stats.byCategory).forEach(([category, count]) => {
+        console.log(`  - ${category}: ${count}`);
       });
       
       console.log('\n💰 Economic stats:');
@@ -116,14 +116,14 @@ async function showPostMigrationStats(): Promise<void> {
     console.log(`💰 Buyable items: ${stats.buyable}`);
     console.log(`💸 Sellable items: ${stats.sellable}`);
     
-    console.log('\n📈 Breakdown by type:');
-    Object.entries(stats.byType).forEach(([type, count]) => {
-      console.log(`  - ${type}: ${count}`);
+    console.log('\n📈 Breakdown by category:');
+    Object.entries(stats.byCategory).forEach(([category, count]) => {
+      console.log(`  - ${category}: ${count}`);
     });
     
-    console.log('\n📋 Breakdown by pocket:');
-    Object.entries(stats.byPocket).forEach(([pocket, count]) => {
-      console.log(`  - ${pocket}: ${count}`);
+    console.log('\n🎮 Breakdown by generation:');
+    Object.entries(stats.byGeneration).forEach(([generation, count]) => {
+      console.log(`  - Gen ${generation}: ${count}`);
     });
     
     console.log('\n💎 Breakdown by rarity:');
