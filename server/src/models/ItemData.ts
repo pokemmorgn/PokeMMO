@@ -895,14 +895,14 @@ ItemDataSchema.methods.migrateFromLegacy = async function(this: IItemData): Prom
 };
 
 // Méthodes utilitaires privées
-ItemDataSchema.methods.needsLegacyMigration = function(jsonData: any): boolean {
+ItemDataSchema.methods.needsLegacyMigration = function(this: IItemData, jsonData: any): boolean {
   return !!(jsonData.heal_amount || jsonData.healAmount || 
            jsonData.status_cure || jsonData.statusCure ||
            jsonData.effect_steps || jsonData.effectSteps ||
            jsonData.type || jsonData.pocket);
 };
 
-ItemDataSchema.methods.extractLegacyData = function(jsonData: any): any {
+ItemDataSchema.methods.extractLegacyData = function(this: IItemData, jsonData: any): any {
   return {
     type: jsonData.type,
     pocket: jsonData.pocket,
@@ -920,8 +920,8 @@ ItemDataSchema.methods.validateCategoryEffectConsistency = function(this: IItemD
   // Par exemple, les items de médecine devraient avoir des effets de soin
   
   if (this.category === 'medicine') {
-    const hasHealingEffect = this.effects.some(effect => 
-      effect.actions.some(action => 
+    const hasHealingEffect = this.effects.some((effect: any) => 
+      effect.actions.some((action: any) => 
         ['heal_hp_fixed', 'heal_hp_percentage', 'heal_hp_max', 'cure_status', 'cure_all_status'].includes(action.type)
       )
     );
@@ -932,8 +932,8 @@ ItemDataSchema.methods.validateCategoryEffectConsistency = function(this: IItemD
   }
   
   if (this.category === 'pokeballs') {
-    const hasCatchEffect = this.effects.some(effect =>
-      effect.actions.some(action =>
+    const hasCatchEffect = this.effects.some((effect: any) =>
+      effect.actions.some((action: any) =>
         ['modify_catch_rate', 'guaranteed_catch'].includes(action.type)
       )
     );
@@ -949,7 +949,7 @@ ItemDataSchema.methods.validateEffectConsistency = function(this: IItemData): vo
   for (const effect of this.effects) {
     // Vérifier que les triggers sont appropriés pour les actions
     if (effect.trigger === 'on_use_in_battle') {
-      const hasNonBattleAction = effect.actions.some(action =>
+      const hasNonBattleAction = effect.actions.some((action: any) =>
         ['evolve_pokemon', 'teach_move'].includes(action.type)
       );
       
