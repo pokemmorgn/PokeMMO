@@ -562,37 +562,45 @@ handleNetworkInteractionResult(data) {
   });
   
   try {
-    // ✅ DÉTECTION AMÉLIORÉE : Vérifier plusieurs critères
-    const isUnifiedInterface = (
+    // 🔧 NOUVELLE LOGIQUE SIMPLIFIÉE : TOUJOURS utiliser l'interface unifiée
+    const shouldUseUnifiedInterface = (
+      // Cas 1 : Explicitement marqué comme unifié
       data.isUnifiedInterface === true ||
-      data.type === 'unifiedInterface' ||  
-      (data.unifiedInterface && typeof data.unifiedInterface === 'object') ||
+      data.type === 'unifiedInterface' ||
+      // Cas 2 : A des capabilities (marchand, quêtes, etc.)
       (data.capabilities && Array.isArray(data.capabilities) && data.capabilities.length > 0) ||
-      (data.contextualData && typeof data.contextualData === 'object')
+      // Cas 3 : A des données contextuelles
+      (data.contextualData && typeof data.contextualData === 'object') ||
+      // Cas 4 : A des quêtes disponibles
+      (data.availableQuests && Array.isArray(data.availableQuests) && data.availableQuests.length > 0) ||
+      // Cas 5 : A des données de boutique
+      data.shopData ||
+      // Cas 6 : A un type spécialisé
+      ['questGiver', 'merchant', 'healer'].includes(data.type)
     );
     
-    if (isUnifiedInterface) {
-      console.log('[NpcInteractionManager] 🎭 Interface unifiée détectée - traitement prioritaire');
-      console.log('[NpcInteractionManager] 🔍 Critères détection:', {
-        typeMatch: data.type === 'unifiedInterface',
-        flagExplicit: data.isUnifiedInterface === true,
-        hasUnifiedObj: !!(data.unifiedInterface),
+    console.log('[NpcInteractionManager] 🔍 Décision interface unifiée:', {
+      shouldUseUnified: shouldUseUnifiedInterface,
+      reasons: {
+        explicitFlag: data.isUnifiedInterface === true,
         hasCapabilities: !!(data.capabilities && data.capabilities.length > 0),
-        hasContextualData: !!(data.contextualData)
-      });
+        hasContextualData: !!(data.contextualData),
+        hasAvailableQuests: !!(data.availableQuests && data.availableQuests.length > 0),
+        hasShopData: !!data.shopData,
+        specializedType: ['questGiver', 'merchant', 'healer'].includes(data.type)
+      }
+    });
+    
+    if (shouldUseUnifiedInterface) {
+      console.log('[NpcInteractionManager] 🎭 === UTILISATION INTERFACE UNIFIÉE ===');
       return this.handleUnifiedInterfaceResult(data);
     }
     
-    // ✅ Traitement normal pour NPCs simples AVEC PRÉSERVATION DONNÉES QUÊTES
-    console.log('[NpcInteractionManager] 📝 Traitement NPC simple avec préservation quêtes');
-    const resultType = this.determineResultType(data);
-    console.log(`[NpcInteractionManager] Type de résultat (NPC simple): ${resultType}`);
+    // 🔧 FALLBACK : Dialogue simple UNIQUEMENT pour les NPCs vraiment basiques
+    console.log('[NpcInteractionManager] 📝 Dialogue simple (aucune capability détectée)');
     
-    // 🔧 NOUVEAU : Si c'est un questGiver, enrichir les données avant délégation
-    if (resultType === 'questGiver' || data.capabilities?.includes('questGiver') || data.capabilities?.includes('quest')) {
-      console.log('[NpcInteractionManager] 🎯 Enrichissement données quête avant délégation');
-      data = this.enrichQuestData(data);
-    }
+    const resultType = this.determineResultType(data);
+    console.log(`[NpcInteractionManager] Type de résultat (dialogue simple): ${resultType}`);
     
     // ✅ Obtenir le handler approprié
     const handler = this.npcHandlers.get(resultType);
@@ -616,7 +624,7 @@ handleNetworkInteractionResult(data) {
       this.callbacks.onNpcInteractionComplete(npc, data, result);
     }
     
-    console.log('[NpcInteractionManager] ✅ Résultat NPC simple traité avec succès');
+    console.log('[NpcInteractionManager] ✅ Dialogue simple traité avec succès');
     
   } catch (error) {
     console.error('[NpcInteractionManager] ❌ Erreur traitement résultat:', error);
