@@ -27,10 +27,23 @@ async function renumberAllNpcs() {
     
     // 2. Supprimer l'ancien index unique qui bloque
     try {
-      await collection.dropIndex({ zone: 1, npcId: 1 });
-      console.log('✅ Index unique (zone + npcId) supprimé');
+      // Lister tous les index pour trouver le bon nom
+      const indexes = await collection.listIndexes().toArray();
+      console.log('📋 Index existants:', indexes.map(i => i.name));
+      
+      // Chercher l'index zone_1_npcId_1 et le supprimer
+      const targetIndex = indexes.find(idx => 
+        idx.key && idx.key.zone === 1 && idx.key.npcId === 1
+      );
+      
+      if (targetIndex) {
+        await collection.dropIndex(targetIndex.name!);
+        console.log(`✅ Index "${targetIndex.name}" supprimé`);
+      } else {
+        console.log('ℹ️ Index (zone + npcId) non trouvé');
+      }
     } catch (error) {
-      console.log('ℹ️ Index déjà supprimé ou non trouvé');
+      console.log('ℹ️ Erreur lors de la suppression d\'index:', (error as Error).message);
     }
     
     // 3. Récupérer TOUS les NPCs triés par zone puis par ancien ID
