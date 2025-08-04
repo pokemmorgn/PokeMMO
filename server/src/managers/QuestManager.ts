@@ -686,7 +686,8 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
     };
 
     // ✅ PHASE 2 : SCAN INVENTAIRE AUTOMATIQUE (NOUVEAU)
-    if (this.progressTracker.config?.enableInventoryScan && this.progressTracker.config?.scanOnQuestStart) {
+    const trackerConfig = this.progressTracker.getConfig();
+    if (trackerConfig?.enableInventoryScan && trackerConfig?.scanOnQuestStart) {
       console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
       
       try {
