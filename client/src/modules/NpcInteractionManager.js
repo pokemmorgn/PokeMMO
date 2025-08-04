@@ -897,48 +897,76 @@ handleUnifiedInterfaceResult(data) {
     }
   }
 
-  prepareUnifiedDialogueData(interfaceData, npc) {
-    // ✅ Données de base du dialogue
-    const baseDialogueData = this.prepareDialogueData(npc, {
-      name: interfaceData.npcName || npc?.name,
-      lines: interfaceData.dialogueData?.lines || ["Que puis-je faire pour vous ?"]
-    });
+prepareUnifiedDialogueData(interfaceData, npc) {
+  // ✅ Données de base du dialogue
+  const baseDialogueData = this.prepareDialogueData(npc, {
+    name: interfaceData.npcName || npc?.name,
+    lines: interfaceData.dialogueData?.lines || ["Que puis-je faire pour vous ?"]
+  });
+  
+  console.log('🔧 [DEBUG] prepareUnifiedDialogueData - interfaceData:', {
+    npcName: interfaceData.npcName,
+    capabilities: interfaceData.capabilities,
+    hasAvailableQuests: !!(interfaceData.availableQuests || interfaceData.questData?.availableQuests),
+    availableQuestsCount: (interfaceData.availableQuests || interfaceData.questData?.availableQuests || []).length,
+    questNames: (interfaceData.availableQuests || interfaceData.questData?.availableQuests || []).map(q => q.name || q.title || q.id)
+  });
+  
+  // ✅ Ajouter données spécifiques à l'interface unifiée
+  const unifiedDialogueData = {
+    ...baseDialogueData,
     
-    // ✅ Ajouter données spécifiques à l'interface unifiée
-    const unifiedDialogueData = {
-      ...baseDialogueData,
-      
-      // ✅ Marqueur pour mode unifié
-      isUnifiedInterface: true,
-      unifiedMode: true,
-      
-      // ✅ Données interface unifiée
-      unifiedInterface: interfaceData,
-      
-      // ✅ Configuration onglets
-      tabs: this.generateTabsFromCapabilities(interfaceData.capabilities),
-      defaultTab: interfaceData.defaultAction || interfaceData.capabilities[0],
-      
-      // ✅ Actions rapides
-      quickActions: interfaceData.quickActions || this.generateDefaultQuickActions(interfaceData),
-      
-      // ✅ Données pré-chargées par capability
-      tabData: this.extractTabData(interfaceData),
-      
-      // ✅ Configuration affichage
-      showTabs: true,
-      showQuickActions: true,
-      allowTabSwitching: true,
-      
-      // ✅ Callbacks spécialisés
-      onTabSwitch: (tabName) => this.handleUnifiedTabSwitch(tabName, interfaceData),
-      onQuickAction: (actionName) => this.handleUnifiedQuickAction(actionName, interfaceData),
-      onClose: () => this.closeUnifiedInterface()
-    };
+    // ✅ Marqueur pour mode unifié
+    isUnifiedInterface: true,
+    unifiedMode: true,
     
-    console.log('[NpcInteractionManager] ✅ Données dialogue unifié préparées');
-    return unifiedDialogueData;
-  }
+    // ✅ Données interface unifiée
+    unifiedInterface: interfaceData,
+    
+    // 🔧 CORRECTION CRITIQUE : Transmettre les capabilities ET les quêtes
+    capabilities: interfaceData.capabilities || [],
+    
+    // 🔧 NOUVEAU : Transmettre explicitement les availableQuests
+    availableQuests: interfaceData.availableQuests || interfaceData.questData?.availableQuests || [],
+    
+    // 🔧 NOUVEAU : Transmettre toutes les données de quêtes
+    questData: interfaceData.questData || {
+      availableQuests: interfaceData.availableQuests || []
+    },
+    
+    // 🔧 NOUVEAU : Transmettre les contextualData qui peuvent contenir des quêtes
+    contextualData: interfaceData.contextualData || {},
+    
+    // ✅ Configuration onglets
+    tabs: this.generateTabsFromCapabilities(interfaceData.capabilities),
+    defaultTab: interfaceData.defaultAction || interfaceData.capabilities[0],
+    
+    // ✅ Actions rapides
+    quickActions: interfaceData.quickActions || this.generateDefaultQuickActions(interfaceData),
+    
+    // ✅ Données pré-chargées par capability
+    tabData: this.extractTabData(interfaceData),
+    
+    // ✅ Configuration affichage
+    showTabs: true,
+    showQuickActions: true,
+    allowTabSwitching: true,
+    
+    // ✅ Callbacks spécialisés
+    onTabSwitch: (tabName) => this.handleUnifiedTabSwitch(tabName, interfaceData),
+    onQuickAction: (actionName) => this.handleUnifiedQuickAction(actionName, interfaceData),
+    onClose: () => this.closeUnifiedInterface()
+  };
+  
+  console.log('✅ Données dialogue unifié préparées avec quêtes:', {
+    hasAvailableQuests: !!(unifiedDialogueData.availableQuests && unifiedDialogueData.availableQuests.length > 0),
+    availableQuestsCount: unifiedDialogueData.availableQuests?.length || 0,
+    questNames: unifiedDialogueData.availableQuests?.map(q => q.name || q.title || q.id) || [],
+    capabilities: unifiedDialogueData.capabilities
+  });
+  
+  return unifiedDialogueData;
+}
 
   generateTabsFromCapabilities(capabilities) {
     const tabConfig = {
