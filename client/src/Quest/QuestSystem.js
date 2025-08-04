@@ -293,7 +293,7 @@ export class QuestSystem {
     try {
       // Feedback immédiat
       const questName = questData?.name || questId;
-      this.showMessage(`Demande d'acceptation : ${questName}`, 'info', { duration: 2000 });
+      // this.showMessage(`Demande d'acceptation : ${questName}`, 'info', { duration: 2000 });
       
       // ✅ ENVOYER MESSAGE UNIFIÉ AU SERVEUR
       this.networkManager.sendMessage('acceptQuest', {
