@@ -443,7 +443,7 @@ const NpcDataSchema = new Schema<INpcData>({
 // ===== INDEX COMPOSITES NETTOYÉS =====
 
 // Index existants (inchangés)
-NpcDataSchema.index({ zone: 1, npcId: 1 }, { unique: true });
+NpcDataSchema.index({ npcId: 1 }, { unique: true });
 NpcDataSchema.index({ zone: 1, isActive: 1 });
 NpcDataSchema.index({ zone: 1, type: 1 });
 NpcDataSchema.index({ type: 1, isActive: 1 });
