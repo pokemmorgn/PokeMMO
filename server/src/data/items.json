@@ -425,5 +425,15 @@
     "usable_in_battle": false,
     "usable_in_field": false,
     "stackable": false
+  },
+    "Dreamroot_Pendant": {
+    "id": "Dreamroot_Pendant",
+    "type": "key_item",
+    "pocket": "key_items",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
   }
 }
