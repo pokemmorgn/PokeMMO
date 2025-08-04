@@ -79,8 +79,8 @@ function addCustomItems(): any {
       name: 'Dreamroot Pendant',
       description: 'A pendant shaped like a leaf touched by moonlight. Said to protect from nightmares.',
       type: 'key_item',
-      price: null,
-      sell_price: null,
+      price: null as null,
+      sell_price: null as null,
       stackable: false,
       consumable: false,
       usable_in_battle: false,
@@ -539,8 +539,7 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
         target: 'self',
         value: 0.85, // Réduit les dégâts de 15%
         success_message: 'The pendant glows, reducing the ghostly attack!'
-      }],
-      passive: true
+      }]
     };
     
     // Effet de bonus en forêt
@@ -559,8 +558,7 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
         target: 'self',
         value: { stat: 'evasion', modifier: 1.1 },
         success_message: 'The forest energy enhances your movements!'
-      }],
-      passive: true
+      }]
     };
     
     // Protection contre les cauchemars (effet narratif)
@@ -579,8 +577,7 @@ function generateEffects(itemId: string, legacyItem: any): ItemEffect[] {
         target: 'self',
         value: 'nightmare',
         success_message: 'The pendant wards off the nightmare!'
-      }],
-      passive: true
+      }]
     };
     
     effects.push(ghostResistEffect, forestBonusEffect, nightmareProtection);
