@@ -17,7 +17,7 @@ import jwt from 'jsonwebtoken';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { MongoClient, ObjectId } from 'mongodb';
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import * as fsSync from 'fs';  // ← AJOUTER CETTE LIGNE
 
@@ -287,13 +287,14 @@ const formattedNPCs = npcs.map((npc: any) => ({
     
     
     // Combiner objets et NPCs
-    const allObjects = [...formattedObjects, ...formattedNPCs];
+    const allObjects = [...formattedObjects, ...formattedNPCs, testNPC];
     
     // ✅ LOG 3 - Objets finaux envoyés au client
     console.log('🔍 [DEBUG] All objects sent to client:', {
       totalObjects: allObjects.length,
       gameObjects: formattedObjects.length,
       npcs: formattedNPCs.length,
+      testNPC: 1,
       byType: allObjects.reduce((acc, obj) => {
         acc[obj.type] = (acc[obj.type] || 0) + 1;
         return acc;
@@ -2591,13 +2592,12 @@ router.get('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
 });
 
 // ✅ ROUTE: Sauvegarder les NPCs d'une zone dans MongoDB
-// ✅ ROUTE COMPLÈTE MODIFIÉE pour la sauvegarde en masse des NPCs
 router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId } = req.params;
     const npcData = req.body;
     
-    console.log(`💾 [NPCs API] Saving NPCs for zone: ${zoneId} to MongoDB with global IDs`);
+    console.log(`💾 [NPCs API] Saving NPCs for zone: ${zoneId} to MongoDB`);
     console.log(`📊 [NPCs API] Total NPCs: ${npcData.npcs?.length || 0}`);
     
     // Validation des données
@@ -2615,51 +2615,21 @@ router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     let savedCount = 0;
     const errors: string[] = [];
     
-    // ✅ NOUVELLE BOUCLE AVEC IDs GLOBAUX
+    // Sauvegarder chaque NPC individuellement
     for (const npcJson of npcData.npcs) {
       try {
         // Validation de base
-        if (!npcJson.name || !npcJson.type) {
-          errors.push(`NPC invalide: manque name ou type - ${JSON.stringify(npcJson)}`);
+        if (!npcJson.id || !npcJson.name || !npcJson.type) {
+          errors.push(`NPC invalide: manque id, name ou type - ${JSON.stringify(npcJson)}`);
           continue;
         }
         
         if (!npcJson.position || typeof npcJson.position.x !== 'number' || typeof npcJson.position.y !== 'number') {
-          errors.push(`NPC ${npcJson.id || 'unknown'}: position invalide`);
+          errors.push(`NPC ${npcJson.id}: position invalide`);
           continue;
         }
         
-        // ✅ LOGIQUE D'ASSIGNATION D'ID GLOBAL
-        if (!npcJson.id) {
-          // Pas d'ID fourni - générer un nouvel ID global
-          npcJson.id = await getNextNpcId();
-          console.log(`🔢 [NPCs API] Generated global ID ${npcJson.id} for NPC "${npcJson.name}"`);
-        } else {
-          // ID fourni - vérifier qu'il n'existe pas globalement
-          const existingNpc = await NpcData.findOne({ npcId: npcJson.id });
-          if (existingNpc && existingNpc.zone !== zoneId) {
-            // Conflit d'ID avec un autre NPC d'une autre zone - générer un nouvel ID
-            const oldId = npcJson.id;
-            npcJson.id = await getNextNpcId();
-            console.log(`⚠️ [NPCs API] ID conflict resolved: ${oldId} → ${npcJson.id} for NPC "${npcJson.name}"`);
-            errors.push(`NPC "${npcJson.name}": ID ${oldId} en conflit avec zone "${existingNpc.zone}", nouvel ID assigné: ${npcJson.id}`);
-          } else if (existingNpc && existingNpc.zone === zoneId) {
-            // Même zone - on va écraser, mais mettre à jour le compteur si nécessaire
-            const currentCounter = await NpcCounter.findById('npc_global_counter');
-            const currentValue = currentCounter?.currentValue || 0;
-            
-            if (npcJson.id > currentValue) {
-              await NpcCounter.findByIdAndUpdate(
-                'npc_global_counter',
-                { currentValue: npcJson.id },
-                { upsert: true }
-              );
-              console.log(`🔢 [NPCs API] Counter updated to ${npcJson.id} to prevent future conflicts`);
-            }
-          }
-        }
-        
-        // Créer le NPC avec l'ID global
+        // Créer le NPC avec la méthode static
         await NpcData.createFromJson(npcJson, zoneId);
         savedCount++;
         
@@ -2670,7 +2640,7 @@ router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
       }
     }
     
-    console.log(`✅ [NPCs API] Saved ${savedCount}/${npcData.npcs.length} NPCs for ${zoneId} with global IDs by ${req.user.username}`);
+    console.log(`✅ [NPCs API] Saved ${savedCount}/${npcData.npcs.length} NPCs for ${zoneId} by ${req.user.username}`);
     
     if (errors.length > 0) {
       console.warn(`⚠️ [NPCs API] ${errors.length} errors during save:`, errors);
@@ -2678,21 +2648,20 @@ router.post('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => {
     
     res.json({
       success: true,
-      message: `NPCs sauvegardés pour ${zoneId} avec IDs globaux`,
+      message: `NPCs sauvegardés pour ${zoneId}`,
       zoneId,
       totalNPCs: savedCount,
       errors: errors.length > 0 ? errors : undefined,
       timestamp: new Date().toISOString(),
       savedBy: req.user.username,
-      source: 'mongodb',
-      idsUsed: 'global' // ✅ Indicateur que les IDs sont globaux
+      source: 'mongodb'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error saving NPCs to MongoDB with global IDs:', error);
+    console.error('❌ [NPCs API] Error saving NPCs to MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la sauvegarde des NPCs avec IDs globaux dans MongoDB'
+      error: 'Erreur lors de la sauvegarde des NPCs dans MongoDB'
     });
   }
 });
@@ -2725,40 +2694,13 @@ router.delete('/zones/:zoneId/npcs', requireMacAndDev, async (req: any, res) => 
   }
 });
 
-// ✅ NOUVEAU: Schema pour compteur global NPC
-const NpcCounterSchema = new Schema({
-  _id: { type: String, required: true, default: 'npc_global_counter' },
-  currentValue: { type: Number, default: 0 }
-}, { collection: 'npc_counters' });
-
-const NpcCounter = mongoose.model('NpcCounter', NpcCounterSchema);
-
-async function getNextNpcId(): Promise<number> {
-  try {
-    const counter = await NpcCounter.findByIdAndUpdate(
-      'npc_global_counter',
-      { $inc: { currentValue: 1 } },
-      { 
-        new: true, 
-        upsert: true,
-        setDefaultsOnInsert: true 
-      }
-    );
-    
-    return counter!.currentValue;
-  } catch (error) {
-    console.error('❌ [NPCs] Error getting next ID:', error);
-    throw new Error('Impossible de générer un nouvel ID NPC');
-  }
-}
-
-// ✅ ROUTE MODIFIÉE: Ajouter un NPC avec ID global
+// ✅ ROUTE: Ajouter un NPC à une zone dans MongoDB
 router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) => {
   try {
     const { zoneId } = req.params;
     const npcJson = req.body;
     
-    console.log(`➕ [NPCs API] Adding NPC to zone: ${zoneId} with global ID`);
+    console.log(`➕ [NPCs API] Adding NPC to zone: ${zoneId} in MongoDB`);
     
     // Validation du NPC
     if (!npcJson.name || !npcJson.type || !npcJson.position || !npcJson.sprite) {
@@ -2768,63 +2710,41 @@ router.post('/zones/:zoneId/npcs/add', requireMacAndDev, async (req: any, res) =
       });
     }
     
-    // ✅ CHANGEMENT PRINCIPAL: Générer un ID global au lieu d'un ID local par zone
-    let globalNpcId: number;
-    
-    if (npcJson.id && typeof npcJson.id === 'number') {
-      // ID spécifique fourni - vérifier qu'il n'existe pas déjà GLOBALEMENT
-      const existingNpc = await NpcData.findOne({ npcId: npcJson.id });
-      if (existingNpc) {
-        return res.status(400).json({
-          success: false,
-          error: `Un NPC avec l'ID ${npcJson.id} existe déjà dans la zone "${existingNpc.zone}"`
-        });
-      }
-      globalNpcId = npcJson.id;
-      
-      // Mettre à jour le compteur pour éviter les conflits futurs
-      const currentCounter = await NpcCounter.findById('npc_global_counter');
-      const currentValue = currentCounter?.currentValue || 0;
-      
-      if (globalNpcId > currentValue) {
-        await NpcCounter.findByIdAndUpdate(
-          'npc_global_counter',
-          { currentValue: globalNpcId },
-          { upsert: true }
-        );
-        console.log(`🔢 [NPCs API] Counter updated to ${globalNpcId} to prevent conflicts`);
-      }
-    } else {
-      // Générer un nouvel ID global
-      globalNpcId = await getNextNpcId();
+    // Générer un ID unique si pas fourni
+    if (!npcJson.id) {
+      // Trouver le prochain ID disponible pour cette zone
+      const existingNpcs = await NpcData.find({ zone: zoneId }).sort({ npcId: -1 }).limit(1);
+      npcJson.id = existingNpcs.length > 0 ? existingNpcs[0].npcId + 1 : 1;
     }
     
-    // Assigner l'ID global au NPC
-    npcJson.id = globalNpcId;
+    // Vérifier que l'ID n'existe pas déjà
+    const existingNpc = await NpcData.findOne({ zone: zoneId, npcId: npcJson.id });
+    if (existingNpc) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un NPC avec cet ID existe déjà dans cette zone'
+      });
+    }
     
-    console.log(`🔢 [NPCs API] Assigned global NPC ID: ${globalNpcId} for zone ${zoneId}`);
-    
-    // Créer le NPC avec l'ID global
+    // Créer le NPC
     const newNpc = await NpcData.createFromJson(npcJson, zoneId);
     
-    console.log(`✅ [NPCs API] NPC "${npcJson.name}" (ID: ${globalNpcId}) added to ${zoneId} by ${req.user.username}`);
+    console.log(`✅ [NPCs API] NPC "${npcJson.name}" added to ${zoneId} by ${req.user.username}`);
     
     res.json({
       success: true,
-      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId} avec l'ID global ${globalNpcId}`,
+      message: `NPC "${npcJson.name}" ajouté à la zone ${zoneId}`,
       npc: newNpc.toNpcFormat(),
-      globalId: globalNpcId,
       zoneId,
       addedBy: req.user.username,
       source: 'mongodb'
     });
     
   } catch (error) {
-    console.error('❌ [NPCs API] Error adding NPC with global ID:', error);
+    console.error('❌ [NPCs API] Error adding NPC to MongoDB:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de l\'ajout du NPC avec ID global',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Erreur lors de l\'ajout du NPC dans MongoDB'
     });
   }
 });
