@@ -1,13 +1,13 @@
-// scripts/migrate-items.ts - SCRIPT DE MIGRATION DES ITEMS JSON VERS MONGODB
+// server/src/scripts/migrate-items.ts - SCRIPT DE MIGRATION DES ITEMS JSON VERS MONGODB
 import * as fs from 'fs';
 import * as path from 'path';
 import mongoose from 'mongoose';
-import { ItemService } from '../src/services/ItemService';
-import { ItemData } from '../src/models/ItemData';
+import { ItemService } from '../services/ItemService';
+import { ItemData } from '../models/ItemData';
 
 // ===== CONFIGURATION =====
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokemmo';
-const ITEMS_JSON_PATH = process.env.ITEMS_JSON_PATH || './src/data/items.json';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pokeworld';
+const ITEMS_JSON_PATH = process.env.ITEMS_JSON_PATH || './server/src/data/items.json';
 
 // ===== FONCTIONS UTILITAIRES =====
 
@@ -261,7 +261,7 @@ async function main(): Promise<void> {
 📦 Items Migration Script
 ========================
 
-Usage: npx ts-node scripts/migrate-items.ts [options]
+Usage: npx ts-node server/src/scripts/migrate-items.ts [options]
 
 Options:
   --dry-run, -d          Run without making changes (simulation)
@@ -272,13 +272,13 @@ Options:
 
 Environment Variables:
   MONGODB_URI           MongoDB connection string (default: mongodb://localhost:27017/pokemmo)
-  ITEMS_JSON_PATH       Path to items.json file (default: ./src/data/items.json)
+  ITEMS_JSON_PATH       Path to items.json file (default: ./server/src/data/items.json)
 
 Examples:
-  npx ts-node scripts/migrate-items.ts                    # Normal migration
-  npx ts-node scripts/migrate-items.ts --dry-run          # Simulation only
-  npx ts-node scripts/migrate-items.ts --clear            # Clear and migrate
-  npx ts-node scripts/migrate-items.ts --clear --dry-run  # Simulate clear and migrate
+  npx ts-node server/src/scripts/migrate-items.ts                    # Normal migration
+  npx ts-node server/src/scripts/migrate-items.ts --dry-run          # Simulation only
+  npx ts-node server/src/scripts/migrate-items.ts --clear            # Clear and migrate
+  npx ts-node server/src/scripts/migrate-items.ts --clear --dry-run  # Simulate clear and migrate
 `);
     return;
   }
