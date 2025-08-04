@@ -10,10 +10,16 @@ import {
 } from "../core/IObjectSubModule";
 import { isValidItemId, getItemData } from "../../../../utils/ItemDB";
 
+// 🎯 NOUVEAU : Import du QuestManager pour progression automatique
+import { QuestManager } from "../../../../managers/QuestManager";
+
 export default class GroundItemSubModule extends BaseObjectSubModule {
   
   readonly typeName = "GroundItem";
-  readonly version = "3.1.0";
+  readonly version = "3.2.0"; // ✨ Version bump pour intégration Quest
+
+  // 🎯 NOUVEAU : Instance QuestManager
+  private questManager: QuestManager | null = null;
 
   canHandle(objectDef: ObjectDefinition): boolean {
     return objectDef.type === 'ground_item';
@@ -102,6 +108,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
           quantity
         });
 
+        // 🎯 NOUVEAU : Progression automatique des quêtes après collecte réussie
+        await this.progressPlayerQuests(player.name, itemId);
+
         const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
 
         if (!serverConfig.bypassObjectCooldowns) {
@@ -147,7 +156,12 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
                 storedInMongoDB: !serverConfig.bypassObjectCooldowns
               },
               processingTime,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              // 🎯 NOUVEAU : Indicateur progression quest
+              questProgression: {
+                attempted: true,
+                questManagerAvailable: !!this.questManager
+              }
             }
           }
         );
@@ -180,6 +194,70 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         error instanceof Error ? error.message : 'Erreur inconnue',
         'PROCESSING_FAILED'
       );
+    }
+  }
+
+  // 🎯 NOUVELLE MÉTHODE : Progression automatique des quêtes
+  private async progressPlayerQuests(playerName: string, itemId: string): Promise<void> {
+    try {
+      if (!this.questManager) {
+        this.log('debug', 'QuestManager non disponible pour progression automatique', {
+          player: playerName,
+          itemId
+        });
+        return;
+      }
+
+      // 🚀 Progression automatique : 'collect' + itemId
+      await this.questManager.asPlayerQuestWith(playerName, 'collect', itemId);
+      
+      this.log('debug', '🎯 Progression quest tentée', {
+        player: playerName,
+        action: 'collect',
+        targetId: itemId
+      });
+
+    } catch (questError) {
+      // 🔇 Erreur silencieuse - ne pas interrompre la collecte d'objet
+      this.log('warn', 'Erreur progression quest (non bloquante)', {
+        error: questError,
+        player: playerName,
+        itemId
+      });
+    }
+  }
+
+  // 🎯 NOUVELLE MÉTHODE : Initialisation QuestManager
+  private async initializeQuestManager(): Promise<void> {
+    try {
+      // Import dynamique pour éviter les dépendances circulaires
+      const { QuestManager } = await import('../../../../managers/QuestManager');
+      
+      // Utiliser l'instance singleton ou créer une nouvelle instance
+      this.questManager = new QuestManager();
+      
+      // Attendre que le QuestManager soit initialisé
+      await this.questManager.initialize();
+      
+      // Vérifier que les quêtes sont chargées
+      const loaded = await this.questManager.waitForLoad(5000); // 5s timeout
+      
+      if (loaded) {
+        this.log('info', '🎯 QuestManager initialisé avec succès pour GroundItem', {
+          questsLoaded: true
+        });
+      } else {
+        this.log('warn', '⚠️ QuestManager chargement incomplet', {
+          questsLoaded: false
+        });
+        this.questManager = null; // Désactiver si pas prêt
+      }
+
+    } catch (error) {
+      this.log('warn', 'Impossible d\'initialiser QuestManager (non bloquant)', {
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      });
+      this.questManager = null;
     }
   }
 
@@ -234,7 +312,10 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       itemId: objectDef.itemId,
       pocket: metadata?.itemReceived?.pocket,
       cooldownHours: metadata?.cooldown?.duration,
-      zone: objectDef.zone
+      zone: objectDef.zone,
+      // 🎯 NOUVEAU : Info progression quest
+      questProgressionAttempted: metadata?.questProgression?.attempted,
+      questManagerReady: metadata?.questProgression?.questManagerAvailable
     });
   }
 
@@ -408,9 +489,16 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         'per_player_cooldowns',
         'configurable_cooldown_duration',
         'requirements_validation',
-        'admin_cooldown_management'
+        'admin_cooldown_management',
+        // 🎯 NOUVEAU : Feature quest progression
+        'automatic_quest_progression'
       ],
-      storageMethod: 'mongodb_player_document'
+      storageMethod: 'mongodb_player_document',
+      // 🎯 NOUVEAU : Stats quest
+      questIntegration: {
+        enabled: !!this.questManager,
+        managerReady: !!this.questManager
+      }
     };
   }
 
@@ -419,6 +507,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     
     let itemDbHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
     let mongodbHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
+    let questHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
     
     try {
       const testResult = isValidItemId('potion');
@@ -436,6 +525,11 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     } catch (error) {
       mongodbHealth = 'critical';
     }
+
+    // 🎯 NOUVEAU : Health check QuestManager
+    if (!this.questManager) {
+      questHealth = 'warning'; // Non critique car non bloquant
+    }
     
     const details = {
       ...baseHealth.details,
@@ -443,13 +537,16 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       playerDataModelAvailable: !!PlayerData,
       itemDbHealth,
       mongodbHealth,
-      lastSuccessfulInteraction: this.stats.lastInteraction
+      lastSuccessfulInteraction: this.stats.lastInteraction,
+      // 🎯 NOUVEAU : Détails quest
+      questManagerAvailable: !!this.questManager,
+      questHealth
     };
     
     const globalHealth: 'healthy' | 'warning' | 'critical' = 
       [baseHealth.status, itemDbHealth, mongodbHealth].includes('critical') 
         ? 'critical' 
-        : [baseHealth.status, itemDbHealth, mongodbHealth].includes('warning') 
+        : [baseHealth.status, itemDbHealth, mongodbHealth, questHealth].includes('warning') 
           ? 'warning' 
           : 'healthy';
     
@@ -479,24 +576,39 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     } catch (error) {
       throw new Error(`ItemDB non fonctionnelle: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
+
+    // 🎯 NOUVEAU : Initialisation QuestManager (non bloquante)
+    await this.initializeQuestManager();
     
-    this.log('info', 'GroundItemSubModule simplifié initialisé', {
+    this.log('info', 'GroundItemSubModule avec intégration Quest initialisé', {
       inventoryManagerReady: !!InventoryManager,
       playerDataModelReady: !!PlayerData,
       itemDbReady: true,
+      questManagerReady: !!this.questManager,
       storageMethod: 'mongodb',
-      approach: 'direct_itemid'
+      approach: 'direct_itemid_with_quest_progression'
     });
   }
 
   async cleanup(): Promise<void> {
-    this.log('info', 'Nettoyage GroundItemSubModule simplifié');
+    this.log('info', 'Nettoyage GroundItemSubModule avec Quest');
     
     try {
       const cleanupResult = await this.cleanupAllExpiredCooldowns();
       this.log('info', 'Nettoyage final cooldowns', cleanupResult);
     } catch (error) {
       this.log('warn', 'Erreur nettoyage final cooldowns', error);
+    }
+
+    // 🎯 NOUVEAU : Cleanup QuestManager
+    if (this.questManager) {
+      try {
+        this.questManager.cleanup();
+        this.questManager = null;
+        this.log('info', 'QuestManager nettoyé');
+      } catch (error) {
+        this.log('warn', 'Erreur nettoyage QuestManager', error);
+      }
     }
     
     await super.cleanup();
