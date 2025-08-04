@@ -22,10 +22,20 @@ export class ItemService {
     try {
       this.log.debug(`Getting item by ID: ${itemId}`);
       
-      const item = await ItemData.findOne({ 
+      // Essayer d'abord avec l'ID tel quel
+      let item = await ItemData.findOne({ 
         itemId, 
         isActive: true 
       });
+      
+      // Si pas trouvé et contient des majuscules, essayer en lowercase
+      if (!item && itemId !== itemId.toLowerCase()) {
+        this.log.debug(`Item not found with original case, trying lowercase: ${itemId.toLowerCase()}`);
+        item = await ItemData.findOne({ 
+          itemId: itemId.toLowerCase(), 
+          isActive: true 
+        });
+      }
       
       if (!item) {
         this.log.warn(`Item not found: ${itemId}`);
