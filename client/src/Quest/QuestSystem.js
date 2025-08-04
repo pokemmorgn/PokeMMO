@@ -1,5 +1,5 @@
-// Quest/QuestSystem.js - VERSION CORRIGÉE HANDLERS RÉSEAU
-// 🔧 FIX: Réception questAcceptResult + handlers robustes
+// Quest/QuestSystem.js - VERSION NETTOYÉE ADAPTÉE AU SERVEUR
+// 🧹 Messages unifiés avec le serveur QuestHandlers
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -23,7 +23,7 @@ export class QuestSystem {
     this.onQuestCompleted = null;
     this.onQuestStarted = null;
     
-    console.log('📖 [QuestSystem] Instance créée - Version corrigée handlers');
+    console.log('📖 [QuestSystem] Instance créée - Version nettoyée');
   }
   
   // === 🚀 INITIALISATION ===
@@ -32,12 +32,11 @@ export class QuestSystem {
     try {
       console.log('🚀 [QuestSystem] Initialisation...');
       
-      // 🔧 FIX: Setup handlers AVANT création UI
       this.setupNetworkHandlers();
       await this.createUI();
       
       this.ready = true;
-      console.log('✅ [QuestSystem] Prêt avec handlers corrigés !');
+      console.log('✅ [QuestSystem] Prêt avec messages unifiés !');
       
       return this;
     } catch (error) {
@@ -46,321 +45,7 @@ export class QuestSystem {
     }
   }
 
-  // === 📡 HANDLERS RÉSEAU CORRIGÉS ===
-  
-  setupNetworkHandlers() {
-    if (!this.networkManager || !this.networkManager.room) {
-      console.warn('⚠️ [QuestSystem] NetworkManager/room non disponible');
-      return;
-    }
-    
-    console.log('📡 [QuestSystem] Setup handlers réseau corrigés...');
-    
-    // 🔧 FIX 1: Handler questAcceptResult avec debug complet
-    this.networkManager.room.onMessage("questAcceptResult", (data) => {
-      console.log('🎯 [QuestSystem] === RÉCEPTION questAcceptResult ===');
-      console.log('📊 Data complète reçue:', JSON.stringify(data, null, 2));
-      console.log('📊 Type de data:', typeof data);
-      console.log('📊 Propriétés:', Object.keys(data));
-      
-      // Vérifier que c'est bien notre handler qui traite
-      console.log('✅ [QuestSystem] Handler questAcceptResult ACTIF et fonctionnel');
-      
-      this.handleQuestAcceptResult(data);
-    });
-    
-    // 🔧 FIX 2: Handler de test pour vérifier la communication
-    this.networkManager.room.onMessage("test_quest_response", (data) => {
-      console.log('🧪 [QuestSystem] Test response reçue:', data);
-    });
-    
-    // 🔧 FIX 3: Handler générique pour débugger tous les messages quest
-    this.networkManager.room.onMessage("*", (type, data) => {
-      if (type.includes('quest') || type.includes('Quest')) {
-        console.log(`📨 [QuestSystem] Message quest détecté: ${type}`, data);
-      }
-    });
-    
-    // === AUTRES HANDLERS (inchangés mais avec debug) ===
-    
-    this.networkManager.room.onMessage("questDetailsResult", (data) => {
-      console.log('📨 [QuestSystem] questDetailsResult reçu:', data);
-    });
-    
-    this.networkManager.room.onMessage("questStatuses", (data) => {
-      console.log('📨 [QuestSystem] questStatuses reçu:', data);
-    });
-    
-    this.networkManager.room.onMessage("questProgressUpdate", (data) => {
-      console.log('📨 [QuestSystem] questProgressUpdate reçu:', data);
-      this.handleQuestProgressUpdate(data);
-    });
-    
-    this.networkManager.room.onMessage("activeQuestsList", (data) => {
-      console.log('📨 [QuestSystem] activeQuestsList reçu:', data);
-      this.handleActiveQuests(data);
-    });
-    
-    this.networkManager.room.onMessage("availableQuestsList", (data) => {
-      console.log('📨 [QuestSystem] availableQuestsList reçu:', data);
-      this.handleAvailableQuests(data);
-    });
-    
-    this.networkManager.room.onMessage("questStartResult", (data) => {
-      console.log('📨 [QuestSystem] questStartResult reçu:', data);
-      this.handleQuestStartResult(data);
-    });
-    
-    this.networkManager.room.onMessage("introQuestCompleted", (data) => {
-      console.log('📨 [QuestSystem] introQuestCompleted reçu:', data);
-      this.handleIntroQuestCompleted(data);
-    });
-    
-    this.networkManager.room.onMessage("questDebugInfo", (data) => {
-      console.log('📨 [QuestSystem] questDebugInfo reçu:', data);
-      console.table(data);
-    });
-    
-    // === HANDLER NPC INTERACTION (pour compatibilité) ===
-    this.networkManager.room.onMessage("npcInteractionResult", (data) => {
-      if (this.isQuestInteraction(data)) {
-        console.log('📋 [QuestSystem] Interaction NPC quest détectée');
-      }
-    });
-    
-    console.log('✅ [QuestSystem] Handlers réseau configurés avec debug complet');
-    
-    // 🔧 FIX 4: Test de connectivité immédiat
-    setTimeout(() => {
-      this.testNetworkConnectivity();
-    }, 1000);
-  }
-  
-  // 🔧 FIX: Test de connectivité réseau
-  testNetworkConnectivity() {
-    console.log('🧪 [QuestSystem] Test connectivité réseau...');
-    
-    if (this.networkManager && this.networkManager.sendMessage) {
-      try {
-        this.networkManager.sendMessage('test_quest_connectivity', {
-          timestamp: Date.now(),
-          source: 'QuestSystem'
-        });
-        console.log('✅ [QuestSystem] Test envoyé - vérifions la réception...');
-      } catch (error) {
-        console.error('❌ [QuestSystem] Erreur test connectivité:', error);
-      }
-    }
-  }
-  
-  // === 🎬 HANDLER PRINCIPAL: ACCEPTATION QUÊTE (AMÉLIORÉ) ===
-  
-  handleQuestAcceptResult(data) {
-    console.log('🎯 [QuestSystem] === DÉBUT handleQuestAcceptResult DÉTAILLÉ ===');
-    console.log('📊 Data reçue:', data);
-    console.log('📊 Success:', data.success);
-    console.log('📊 QuestId:', data.questId);
-    console.log('📊 Message:', data.message);
-    console.log('📊 Quest object:', data.quest);
-    
-    try {
-      if (data.success) {
-        // ✅ SUCCÈS - Traitement amélioré
-        const questName = data.quest?.name || data.questName || data.questId;
-        const message = data.message || `Quête "${questName}" acceptée !`;
-        
-        console.log('✅ [QuestSystem] Acceptation réussie:', questName);
-        
-        // Notification utilisateur avec style adapté
-        this.showMessage(message, 'success', {
-          duration: 4000,
-          title: 'Quête acceptée !',
-          icon: '📖'
-        });
-        
-        // Ajouter à la liste des quêtes actives si fournie
-        if (data.quest) {
-          const existingQuest = this.activeQuests.find(q => q.id === data.quest.id);
-          if (!existingQuest) {
-            this.activeQuests.push(data.quest);
-            this.updateUI();
-            console.log('📝 [QuestSystem] Quête ajoutée aux actives:', data.quest.name);
-          } else {
-            console.log('📝 [QuestSystem] Quête déjà présente dans les actives');
-          }
-        }
-        
-        // Animation icône avec délai pour l'effet
-        if (this.icon) {
-          setTimeout(() => {
-            this.icon.animateNewQuest();
-          }, 500);
-        }
-        
-        // Animation tracker si visible
-        if (this.ui && this.ui.isTrackerVisible) {
-          setTimeout(() => {
-            this.ui.updateTracker();
-          }, 1000);
-        }
-        
-        // Callback personnalisé
-        this.triggerCallback('onQuestStarted', data.quest);
-        
-        // Message de suivi
-        setTimeout(() => {
-          this.showMessage(
-            'Consultez votre journal des quêtes pour suivre vos objectifs', 
-            'info', 
-            { duration: 3000 }
-          );
-        }, 2000);
-        
-      } else {
-        // ❌ ÉCHEC - Traitement amélioré
-        const errorMsg = data.message || data.error || 'Impossible d\'accepter la quête';
-        console.error('❌ [QuestSystem] Acceptation échouée:', errorMsg);
-        
-        // Message d'erreur avec contexte
-        this.showMessage(errorMsg, 'error', {
-          duration: 5000,
-          title: 'Erreur acceptation quête'
-        });
-        
-        // Messages d'aide contextuels
-        if (errorMsg.includes('niveau') || errorMsg.includes('prérequis')) {
-          setTimeout(() => {
-            this.showMessage(
-              'Vérifiez vos prérequis dans le journal des quêtes', 
-              'info', 
-              { duration: 4000 }
-            );
-          }, 1500);
-        } else if (errorMsg.includes('déjà') || errorMsg.includes('active')) {
-          setTimeout(() => {
-            this.showMessage(
-              'Cette quête est peut-être déjà en cours', 
-              'info', 
-              { duration: 3000 }
-            );
-          }, 1500);
-        }
-        
-        // Animation d'erreur sur l'icône
-        if (this.icon && this.icon.iconElement) {
-          this.icon.iconElement.classList.add('quest-error');
-          setTimeout(() => {
-            this.icon.iconElement.classList.remove('quest-error');
-          }, 1000);
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur traitement questAcceptResult:', error);
-      this.showMessage(
-        'Erreur lors du traitement de la réponse', 
-        'error', 
-        { duration: 3000 }
-      );
-    }
-    
-    console.log('🎯 [QuestSystem] === FIN handleQuestAcceptResult ===');
-  }
-  
-  // === 🎬 ACCEPTATION DEPUIS UI (AMÉLIORÉE) ===
-  
-  handleQuestAcceptFromUI(questId, npcId, questData) {
-    console.log(`🎯 [QuestSystem] === DÉBUT acceptation UI ===`);
-    console.log(`📋 Quest: ${questId}, NPC: ${npcId}`);
-    console.log(`📊 Data:`, questData);
-    
-    if (!this.networkManager) {
-      console.error('❌ [QuestSystem] NetworkManager non disponible');
-      this.showMessage('Erreur réseau - impossible d\'accepter la quête', 'error');
-      return false;
-    }
-    
-    try {
-      // Feedback immédiat
-      const questName = questData?.name || questId;
-      this.showMessage(`Acceptation en cours : ${questName}`, 'info', { 
-        duration: 2000,
-        icon: '⏳'
-      });
-      
-      // 🔧 FIX: Préparer message avec toutes infos nécessaires
-      const messageData = {
-        questId: questId,
-        npcId: npcId,
-        timestamp: Date.now(),
-        playerAction: 'accept_quest_from_ui',
-        questData: questData ? {
-          name: questData.name,
-          description: questData.description
-        } : null
-      };
-      
-      console.log(`📤 [QuestSystem] Envoi acceptQuest avec data complète:`, messageData);
-      
-      // ✅ ENVOYER MESSAGE AU SERVEUR
-      this.networkManager.sendMessage('acceptQuest', messageData);
-      
-      console.log(`✅ [QuestSystem] Message acceptQuest envoyé avec succès`);
-      
-      // Timeout pour détecter les problèmes de réception
-      setTimeout(() => {
-        console.log('⏰ [QuestSystem] Timeout check - si pas de réponse, problème réseau probable');
-      }, 5000);
-      
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur acceptation quête:', error);
-      this.showMessage('Erreur lors de l\'acceptation de la quête', 'error');
-      return false;
-    }
-  }
-  
-  // === 🔧 MÉTHODES DEBUG AMÉLIORÉES ===
-  
-  debugNetworkHandlers() {
-    console.log('🔍 [QuestSystem] === DEBUG HANDLERS RÉSEAU ===');
-    console.log('NetworkManager disponible:', !!this.networkManager);
-    console.log('Room disponible:', !!this.networkManager?.room);
-    console.log('SendMessage disponible:', typeof this.networkManager?.sendMessage);
-    
-    if (this.networkManager?.room) {
-      console.log('Room state:', this.networkManager.room.state);
-      console.log('Room sessionId:', this.networkManager.room.sessionId);
-    }
-    
-    // Test de tous les handlers
-    const testHandlers = [
-      'questAcceptResult',
-      'questDetailsResult', 
-      'questStatuses',
-      'questProgressUpdate',
-      'activeQuestsList'
-    ];
-    
-    testHandlers.forEach(handlerName => {
-      console.log(`Handler ${handlerName}:`, 'Configuré');
-    });
-  }
-  
-  forceTestAcceptQuest(questId = 'test_quest', npcId = 1) {
-    console.log('🧪 [QuestSystem] Test forcé acceptation quête...');
-    
-    const testData = {
-      id: questId,
-      name: 'Test Quest',
-      description: 'Quête de test pour validation'
-    };
-    
-    return this.handleQuestAcceptFromUI(questId, npcId, testData);
-  }
-  
-  // === 🎨 INTERFACE UTILISATEUR (inchangée) ===
+  // === 🎨 INTERFACE UTILISATEUR ===
   
   async createUI() {
     try {
@@ -427,7 +112,7 @@ export class QuestSystem {
     console.log('📋 [QuestSystem] QuestDetailsUI créé et connecté');
   }
   
-  // === 🎯 MÉTHODES PUBLIQUES (inchangées) ===
+  // === 🎯 MÉTHODES PUBLIQUES POUR DIALOGUEMANAGER ===
   
   showQuestDetailsForNpc(npcId, availableQuestIds) {
     if (!this.detailsUI) {
@@ -472,7 +157,162 @@ export class QuestSystem {
     }
   }
   
-  // === 📊 HANDLERS AUTRES ÉVÉNEMENTS (inchangés) ===
+  // === 📡 HANDLERS RÉSEAU NETTOYÉS ===
+  
+  setupNetworkHandlers() {
+    if (!this.networkManager || !this.networkManager.room) {
+      console.warn('⚠️ [QuestSystem] NetworkManager/room non disponible');
+      return;
+    }
+    
+    console.log('📡 [QuestSystem] Enregistrement handlers directement sur room...');
+    
+    // ✅ HANDLER PRINCIPAL: Résultat acceptation (DIRECT sur room)
+    this.networkManager.room.onMessage("questAcceptResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questAcceptResult DIRECT:', data);
+      this.handleQuestAcceptResult(data);
+    });
+    
+    // ✅ HANDLER: Détails de quête (DIRECT sur room)
+    this.networkManager.room.onMessage("questDetailsResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questDetailsResult DIRECT:', data);
+      // Géré par QuestDetailsUI directement via NetworkManager
+    });
+    
+    // ✅ HANDLER: Statuts NPCs (DIRECT sur room)
+    this.networkManager.room.onMessage("questStatuses", (data) => {
+      console.log('📨 [QuestSystem] REÇU questStatuses DIRECT:', data);
+      // Géré par NetworkInteractionHandler pour les indicateurs NPCs
+    });
+    
+    // === HANDLERS AUTRES ÉVÉNEMENTS QUEST (DIRECT sur room) ===
+    
+    this.networkManager.room.onMessage("questProgressUpdate", (data) => {
+      console.log('📨 [QuestSystem] REÇU questProgressUpdate DIRECT:', data);
+      this.handleQuestProgressUpdate(data);
+    });
+    
+    this.networkManager.room.onMessage("activeQuestsList", (data) => {
+      console.log('📨 [QuestSystem] REÇU activeQuestsList DIRECT:', data);
+      this.handleActiveQuests(data);
+    });
+    
+    this.networkManager.room.onMessage("availableQuestsList", (data) => {
+      console.log('📨 [QuestSystem] REÇU availableQuestsList DIRECT:', data);
+      this.handleAvailableQuests(data);
+    });
+    
+    this.networkManager.room.onMessage("questStartResult", (data) => {
+      console.log('📨 [QuestSystem] REÇU questStartResult DIRECT:', data);
+      this.handleQuestStartResult(data);
+    });
+    
+    this.networkManager.room.onMessage("introQuestCompleted", (data) => {
+      console.log('📨 [QuestSystem] REÇU introQuestCompleted DIRECT:', data);
+      this.handleIntroQuestCompleted(data);
+    });
+    
+    this.networkManager.room.onMessage("questDebugInfo", (data) => {
+      console.log('📨 [QuestSystem] REÇU questDebugInfo DIRECT:', data);
+      console.table(data);
+    });
+    
+    // === INTERACTION NPC (pour compatibilité) ===
+    this.networkManager.room.onMessage("npcInteractionResult", (data) => {
+      if (this.isQuestInteraction(data)) {
+        console.log('📋 [QuestSystem] Interaction NPC quest détectée - DialogueManager va gérer');
+        console.log('📋 [QuestSystem] Données disponibles pour boutons:', data);
+      }
+    });
+    
+    console.log('📡 [QuestSystem] Handlers réseau DIRECTS configurés sur room');
+  }
+  
+  // === 🎬 HANDLER PRINCIPAL: ACCEPTATION QUÊTE ===
+  
+  handleQuestAcceptResult(data) {
+    console.log('🎯 [QuestSystem] === DÉBUT handleQuestAcceptResult ===');
+    console.log('📊 Data reçue:', data);
+    
+    if (data.success) {
+      // ✅ SUCCÈS
+      const questName = data.quest?.name || data.questName || data.questId;
+      const message = data.message || `Quête "${questName}" acceptée !`;
+      
+      console.log('✅ [QuestSystem] Acceptation réussie:', questName);
+      
+      // Notification utilisateur
+      this.showMessage(message, 'success');
+      
+      // Ajouter à la liste des quêtes actives
+      if (data.quest) {
+        // Vérifier si pas déjà présente
+        const existingQuest = this.activeQuests.find(q => q.id === data.quest.id);
+        if (!existingQuest) {
+          this.activeQuests.push(data.quest);
+          this.updateUI();
+          console.log('📝 [QuestSystem] Quête ajoutée aux actives');
+        }
+      }
+      
+      // Animation icône
+      if (this.icon) {
+        this.icon.animateNewQuest();
+      }
+      
+      // Callback
+      this.triggerCallback('onQuestStarted', data.quest);
+      
+    } else {
+      // ❌ ÉCHEC
+      const errorMsg = data.message || data.error || 'Impossible d\'accepter la quête';
+      console.error('❌ [QuestSystem] Acceptation échouée:', errorMsg);
+      
+      this.showMessage(errorMsg, 'error');
+      
+      // Messages d'aide selon l'erreur
+      if (errorMsg.includes('niveau') || errorMsg.includes('prérequis')) {
+        this.showMessage('Vérifiez vos prérequis dans le journal des quêtes', 'info');
+      }
+    }
+    
+    console.log('🎯 [QuestSystem] === FIN handleQuestAcceptResult ===');
+  }
+  
+  // === 🎬 ACCEPTATION DEPUIS UI ===
+  
+  handleQuestAcceptFromUI(questId, npcId, questData) {
+    console.log(`🎯 [QuestSystem] Acceptation quête depuis UI: ${questId} pour NPC ${npcId}`);
+    
+    if (!this.networkManager) {
+      console.error('❌ [QuestSystem] NetworkManager non disponible');
+      this.showMessage('Erreur réseau - impossible d\'accepter la quête', 'error');
+      return false;
+    }
+    
+    try {
+      // Feedback immédiat
+      const questName = questData?.name || questId;
+      this.showMessage(`Demande d'acceptation : ${questName}`, 'info', { duration: 2000 });
+      
+      // ✅ ENVOYER MESSAGE UNIFIÉ AU SERVEUR
+      this.networkManager.sendMessage('acceptQuest', {
+        questId: questId,
+        npcId: npcId,
+        timestamp: Date.now()
+      });
+      
+      console.log(`✅ [QuestSystem] Demande acceptation envoyée: ${questId}`);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestSystem] Erreur acceptation quête:', error);
+      this.showMessage('Erreur lors de l\'acceptation de la quête', 'error');
+      return false;
+    }
+  }
+  
+  // === 📊 HANDLERS AUTRES ÉVÉNEMENTS ===
   
   handleQuestProgressUpdate(data) {
     console.log('📈 [QuestSystem] Progression quête:', data);
@@ -493,6 +333,7 @@ export class QuestSystem {
       });
     }
     
+    // Rafraîchir l'UI après un délai
     setTimeout(() => {
       this.requestActiveQuests();
     }, 1500);
@@ -511,6 +352,7 @@ export class QuestSystem {
     
     this.availableQuests = this.extractQuestArray(data);
     
+    // Pas d'auto-ouverture - juste stockage
     if (this.availableQuests.length > 0) {
       console.log(`📋 [QuestSystem] ${this.availableQuests.length} quêtes disponibles stockées`);
     }
@@ -545,7 +387,7 @@ export class QuestSystem {
     }
   }
   
-  // === 🎮 ACTIONS UI (inchangées) ===
+  // === 🎮 ACTIONS UI ===
   
   handleUIAction(action, data) {
     console.log(`🎮 [QuestSystem] Action UI: ${action}`, data);
@@ -568,7 +410,7 @@ export class QuestSystem {
     }
   }
   
-  // === 📡 REQUÊTES SERVEUR (inchangées) ===
+  // === 📡 REQUÊTES SERVEUR ===
   
   requestActiveQuests() {
     if (this.networkManager) {
@@ -591,7 +433,7 @@ export class QuestSystem {
     }
   }
   
-  // === 🎭 DÉTECTION INTERACTION NPC (inchangées) ===
+  // === 🎭 DÉTECTION INTERACTION NPC ===
   
   handleNpcInteraction(data) {
     console.log('🎭 [QuestSystem] handleNpcInteraction appelé:', data);
@@ -615,7 +457,7 @@ export class QuestSystem {
     );
   }
   
-  // === 🔧 UTILITAIRES (inchangées) ===
+  // === 🔧 UTILITAIRES ===
   
   extractQuestArray(data) {
     if (Array.isArray(data)) return data.filter(q => q?.id);
@@ -665,7 +507,7 @@ export class QuestSystem {
     }
   }
   
-  // === 📊 API PUBLIQUE (inchangées) ===
+  // === 📊 API PUBLIQUE ===
   
   getActiveQuests() {
     return [...this.activeQuests];
@@ -687,7 +529,7 @@ export class QuestSystem {
     return this.ready;
   }
   
-  // === 🎛️ CONTRÔLES UI (inchangées) ===
+  // === 🎛️ CONTRÔLES UI ===
   
   show() {
     if (this.ui) this.ui.show();
@@ -716,7 +558,7 @@ export class QuestSystem {
     if (this.detailsUI) this.detailsUI.setEnabled(enabled);
   }
   
-  // === 🔗 INTÉGRATION UIMANAGER (inchangée) ===
+  // === 🔗 INTÉGRATION UIMANAGER ===
   
   connectUIManager(uiManager) {
     console.log('🔗 [QuestSystem] Connexion UIManager...');
@@ -750,7 +592,7 @@ export class QuestSystem {
     }
   }
   
-  // === 🧹 NETTOYAGE (inchangé) ===
+  // === 🧹 NETTOYAGE ===
   
   destroy() {
     console.log('🧹 [QuestSystem] Destruction...');
@@ -783,11 +625,11 @@ export class QuestSystem {
   }
 }
 
-// === FACTORY FUNCTION AMÉLIORÉE ===
+// === FACTORY FUNCTION ===
 
 export async function createQuestSystem(gameRoom, networkManager) {
   try {
-    console.log('🏭 [QuestFactory] Création QuestSystem avec handlers corrigés...');
+    console.log('🏭 [QuestFactory] Création QuestSystem nettoyé...');
     
     const questSystem = new QuestSystem(gameRoom, networkManager);
     await questSystem.init();
@@ -796,16 +638,12 @@ export async function createQuestSystem(gameRoom, networkManager) {
     window.questSystem = questSystem;
     window.questSystemGlobal = questSystem;
     
-    // 🔧 NOUVELLES FONCTIONS DEBUG
-    window.debugQuestHandlers = () => questSystem.debugNetworkHandlers();
-    window.testQuestAccept = (questId, npcId) => questSystem.forceTestAcceptQuest(questId, npcId);
-    window.testQuestConnectivity = () => questSystem.testNetworkConnectivity();
-    
-    // Fonctions de compatibilité existantes
+    // Fonctions de compatibilité
     window.toggleQuest = () => questSystem.toggle();
     window.openQuest = () => questSystem.show();
     window.closeQuest = () => questSystem.hide();
     
+    // Fonctions de test
     window.testQuestDetailsUI = (npcId = 2, questIds = ['test_quest_1']) => {
       console.log('🧪 Test QuestDetailsUI...');
       return questSystem.showQuestDetailsForNpc(npcId, questIds);
@@ -816,9 +654,9 @@ export async function createQuestSystem(gameRoom, networkManager) {
       return questSystem.handleQuestActionFromDialogue({ npcId });
     };
     
-    console.log('✅ [QuestFactory] QuestSystem créé avec handlers réseau corrigés');
-    console.log('🎯 Handler questAcceptResult: CONFIGURÉ');
-    console.log('🧪 Fonctions debug: window.debugQuestHandlers(), window.testQuestAccept()');
+    console.log('✅ [QuestFactory] QuestSystem créé - Version nettoyée adaptée au serveur');
+    console.log('🎯 Messages unifiés: acceptQuest → questAcceptResult');
+    console.log('🧪 Fonctions test: window.testQuestDetailsUI(), window.testQuestAction()');
     
     return questSystem;
     
