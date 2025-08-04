@@ -1321,15 +1321,15 @@ export class QuestDetailsUI {
           <span class="quest-status-text">${statusText}</span>
         </div>
         
-        <!-- Informations générales -->
-        <div class="quest-section">
-          <div class="quest-section-label information-label">${t('quest.details.information_label')}</div>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
-            <span class="quest-info-badge category-${questData.category || 'side'}">${(questData.category || 'SIDE').toUpperCase()}</span>
-            <span class="quest-info-badge level">Niveau ${questData.level || 1}</span>
-            <span class="quest-info-badge time">⏱️ ${questData.estimatedTime || '15 min'}</span>
-          </div>
+      <!-- Informations générales -->
+      <div class="quest-section">
+        <div class="quest-section-label information-label">${t('quest.details.information_label')}</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+          <span class="quest-info-badge category-${questData.category || 'side'}">${this.getCategoryLabel(questData.category || 'side')}</span>
+          <span class="quest-info-badge level">${t('quest.details.badges.level_prefix')} ${questData.level || 1}</span>
+          <span class="quest-info-badge time">⏱️ ${t('quest.details.badges.time_prefix')}${questData.estimatedTime || '15 min'}</span>
         </div>
+      </div>
         
         <!-- Description -->
         <div class="quest-section">
