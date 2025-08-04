@@ -128,9 +128,6 @@ export class QuestIcon {
         <div class="icon-label">${t('quest.label')}</div>
       </div>
       
-      <div class="quest-status">
-        <div class="status-dot inactive"></div>
-      </div>
       
       <div class="notification-badge" style="display: none;">
         <span class="notification-text">!</span>
