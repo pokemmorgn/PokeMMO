@@ -1,9 +1,9 @@
 // client/src/components/DialogueManager.js
-// 🎭 Gestionnaire logique pour les dialogues NPCs - Version Simplifiée avec Actions Contextuelles
-// ✅ Gestion dialogue classique + actions contextuelles SEULEMENT
+// 🎭 Gestionnaire logique pour les dialogues NPCs - Version Corrigée (Shop fonctionne!)
+// ✅ FIX CRITIQUE : Intercepteur quête ne bloque plus les autres boutons
+// ✅ Gestion dialogue classique + actions contextuelles TOUTES FONCTIONNELLES
 // ✅ Intégration avec ShopSystem, QuestSystem, etc.
 // ✅ NOUVEAU : Stockage données pour QuestDetailsUI
-// ❌ SUPPRIMÉ : Interface unifiée à onglets (pas utilisée)
 
 import { DialogueUI } from './DialogueUI.js';
 
@@ -26,7 +26,7 @@ export class DialogueManager {
     this.questSystem = null;
     this.inventorySystem = null;
     
-    console.log('🎭 DialogueManager créé (version simplifiée avec actions)');
+    console.log('🎭 DialogueManager créé (version corrigée - shop fonctionnel)');
     this.init();
   }
 
@@ -50,7 +50,7 @@ export class DialogueManager {
       this.replaceGlobalFunctions();
       
       this.isInitialized = true;
-      console.log('✅ DialogueManager initialisé (version simplifiée)');
+      console.log('✅ DialogueManager initialisé (version corrigée)');
       
     } catch (error) {
       console.error('❌ Erreur initialisation DialogueManager:', error);
@@ -65,7 +65,13 @@ export class DialogueManager {
       this.advanceClassicDialogue();
     };
 
-    console.log('✅ Callbacks UI configurés');
+    // 🔧 FIX CRITIQUE : Callback pour TOUTES les actions (pas seulement quêtes)
+    this.dialogueUI.onActionClick = (action) => {
+      console.log('🎯 Action cliquée dans DialogueManager:', action);
+      this.handleDialogueAction(action, this.currentDialogueData);
+    };
+
+    console.log('✅ Callbacks UI configurés (tous boutons)');
   }
 
   integrateWithSystems() {
@@ -211,10 +217,8 @@ export class DialogueManager {
       console.log(`✅ ${actions.length} actions détectées - dialogue avec zone d'actions`);
       this.dialogueUI.showDialogueWithActions(dialogueDataWithActions);
       
-      // 🔧 NOUVEAU : Configurer le callback pour les actions avec données complètes
-      this.dialogueUI.onActionClick = (action) => {
-        this.handleDialogueAction(action, data);
-      };
+      // 🔧 CORRIGÉ : Le callback est maintenant défini dans setupUICallbacks()
+      // Plus besoin de le redéfinir ici
     } else {
       console.log('✅ Aucune action - dialogue simple');
       this.dialogueUI.showClassicDialogue(dialogueDataWithActions);
@@ -414,7 +418,7 @@ detectAvailableActions(data) {
     return null;
   }
 
-  // ===== GESTION DES ACTIONS =====
+  // ===== GESTION DES ACTIONS CORRIGÉE =====
 
   handleDialogueAction(action, originalData) {
     console.log(`🎯 Exécution action: ${action.id} (${action.type})`);
@@ -838,7 +842,7 @@ detectAvailableActions(data) {
   // ===== DEBUG ET DÉVELOPPEMENT =====
 
   debugState() {
-    console.log('🔍 === DEBUG DIALOGUE MANAGER SIMPLIFIÉ ===');
+    console.log('🔍 === DEBUG DIALOGUE MANAGER CORRIGÉ ===');
     console.log('📊 ÉTAT GÉNÉRAL:');
     console.log('  - Initialisé:', this.isInitialized);
     console.log('  - Ouvert:', this.isOpen());
@@ -930,14 +934,14 @@ detectAvailableActions(data) {
 
 window.testDialogueManager = function() {
   if (window.dialogueManager) {
-    console.log('🧪 Test DialogueManager simplifié...');
+    console.log('🧪 Test DialogueManager corrigé...');
     return window.dialogueManager.debugState();
   } else {
     console.error('❌ DialogueManager non disponible');
   }
 };
 
-// 🧪 FONCTIONS DE TEST SIMPLIFIÉES
+// 🧪 FONCTIONS DE TEST CORRIGÉES
 window.testDialogueWithShop = function() {
   if (window.dialogueManager) {
     const testData = {
@@ -952,13 +956,12 @@ window.testDialogueWithShop = function() {
     };
     
     window.dialogueManager.show(testData);
-    console.log('✅ Dialogue marchand avec actions affiché');
+    console.log('✅ Dialogue marchand avec actions affiché (shop fonctionnel!)');
   } else {
     console.error('❌ DialogueManager non disponible');
   }
 };
 
-// 🧪 NOUVELLE FONCTION DE TEST : Dialogue avec quêtes spécifiques
 window.testDialogueWithQuests = function() {
   if (window.dialogueManager) {
     const testData = {
@@ -992,6 +995,33 @@ window.testDialogueWithQuests = function() {
   }
 };
 
+window.testDialogueWithBoth = function() {
+  if (window.dialogueManager) {
+    const testData = {
+      name: 'PNJ Complet',
+      portrait: 'https://via.placeholder.com/80x80/purple/white?text=ALL',
+      lines: ['Salut ! Je peux tout faire !', 'Marchand, quêtes, et plus !'],
+      capabilities: ['merchant', 'questGiver'],
+      shopData: { 
+        shopId: 'multi_shop',
+        name: 'Super Boutique'
+      },
+      availableQuests: [
+        {
+          id: 'multi_quest_001',
+          name: 'Acheter 3 Potions',
+          description: 'Achète 3 potions dans ma boutique'
+        }
+      ]
+    };
+    
+    window.dialogueManager.show(testData);
+    console.log('✅ Dialogue multi-fonction affiché (shop + quêtes)');
+  } else {
+    console.error('❌ DialogueManager non disponible');
+  }
+};
+
 window.testDialogueSimpleNPC = function() {
   if (window.dialogueManager) {
     const testData = {
@@ -1008,9 +1038,10 @@ window.testDialogueSimpleNPC = function() {
   }
 };
 
-console.log('✅ DialogueManager Simplifié avec Actions et Stockage Quêtes chargé!');
+console.log('✅ DialogueManager CORRIGÉ - Shop fonctionnel!');
 console.log('🧪 Utilisez window.testDialogueManager() pour diagnostiquer');
-console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand');
+console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand (maintenant fonctionnel!)');
 console.log('📋 Utilisez window.testDialogueWithQuests() pour tester quêtes spécifiques');
+console.log('🎭 Utilisez window.testDialogueWithBoth() pour tester shop + quêtes');
 console.log('👤 Utilisez window.testDialogueSimpleNPC() pour tester NPC simple');
-console.log('💾 Données quêtes automatiquement stockées pour QuestDetailsUI');
+console.log('🔧 FIX: L\'intercepteur de quêtes ne bloque plus les boutons shop!');
