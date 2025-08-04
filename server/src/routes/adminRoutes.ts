@@ -287,14 +287,13 @@ const formattedNPCs = npcs.map((npc: any) => ({
     
     
     // Combiner objets et NPCs
-    const allObjects = [...formattedObjects, ...formattedNPCs, testNPC];
+    const allObjects = [...formattedObjects, ...formattedNPCs];
     
     // ✅ LOG 3 - Objets finaux envoyés au client
     console.log('🔍 [DEBUG] All objects sent to client:', {
       totalObjects: allObjects.length,
       gameObjects: formattedObjects.length,
       npcs: formattedNPCs.length,
-      testNPC: 1,
       byType: allObjects.reduce((acc, obj) => {
         acc[obj.type] = (acc[obj.type] || 0) + 1;
         return acc;
