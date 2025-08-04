@@ -1,10 +1,15 @@
 // src/handlers/ObjectInteractionHandlers.ts
 // Handlers séparés pour les interactions d'objets - Garde WorldRoom propre
+// VERSION CORRIGÉE : Support MongoDB + Legacy
 
 import { Client } from "@colyseus/core";
 import { ObjectInteractionModule } from "../interactions/modules/ObjectInteractionModule";
 import { InteractionRequest } from "../interactions/types/BaseInteractionTypes";
 import { getItemPocket } from "../utils/ItemDB";
+
+// ✅ NOUVEAUX IMPORTS - Support MongoDB
+import { ItemService } from "../services/ItemService";
+import { ItemData } from "../models/ItemData";
 
 export class ObjectInteractionHandlers {
   
@@ -13,7 +18,92 @@ export class ObjectInteractionHandlers {
 
   constructor(worldRoom: any) {
     this.worldRoom = worldRoom;
-    console.log(`🎯 [ObjectInteractionHandlers] Initialisé`);
+    console.log(`🎯 [ObjectInteractionHandlers] Initialisé avec support MongoDB`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Récupère la poche d'un item (hybride Legacy + MongoDB)
+  private async getItemPocketHybrid(itemId: string): Promise<string> {
+    try {
+      // 1. Essayer d'abord le système legacy
+      try {
+        return getItemPocket(itemId);
+      } catch (legacyError) {
+        // Continue vers MongoDB
+      }
+
+      // 2. Essayer avec MongoDB
+      const mongoItem = await ItemService.getItemById(itemId);
+      if (mongoItem) {
+        return this.getCategoryToPocket(mongoItem.category);
+      }
+
+      // 3. Normaliser et réessayer
+      const normalizedId = this.normalizeItemId(itemId);
+      if (normalizedId !== itemId) {
+        const normalizedItem = await ItemService.getItemById(normalizedId);
+        if (normalizedItem) {
+          console.log(`📦 [ObjectHandlers] Poche trouvée avec ID normalisé: ${itemId} → ${normalizedId}`);
+          return this.getCategoryToPocket(normalizedItem.category);
+        }
+      }
+
+      // 4. Recherche case-insensitive
+      const item = await ItemData.findOne({ 
+        itemId: { $regex: new RegExp(`^${itemId}$`, 'i') }, 
+        isActive: true 
+      });
+      
+      if (item) {
+        console.log(`📦 [ObjectHandlers] Poche trouvée (case-insensitive): ${itemId} → ${item.itemId}`);
+        return this.getCategoryToPocket(item.category);
+      }
+
+      // 5. Fallback par défaut
+      console.warn(`⚠️ [ObjectHandlers] Poche non trouvée pour ${itemId}, utilisation 'items' par défaut`);
+      return 'items';
+
+    } catch (error) {
+      console.error(`❌ [ObjectHandlers] Erreur récupération poche pour ${itemId}:`, error);
+      return 'items'; // Fallback sûr
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Mappage MongoDB category vers poche legacy
+  private getCategoryToPocket(category: string): string {
+    const categoryToPocketMap: { [key: string]: string } = {
+      'medicine': 'medicine',
+      'pokeballs': 'balls', 
+      'battle_items': 'battle_items',
+      'key_items': 'key_items',
+      'berries': 'berries',
+      'machines': 'tms',
+      'evolution_items': 'items',
+      'held_items': 'held_items',
+      'z_crystals': 'key_items',
+      'dynamax_crystals': 'key_items',
+      'tera_shards': 'items',
+      'poke_toys': 'items',
+      'ingredients': 'items',
+      'treasure': 'valuables',
+      'fossil': 'key_items',
+      'flutes': 'key_items',
+      'mail': 'key_items',
+      'exp_items': 'items'
+    };
+    
+    return categoryToPocketMap[category] || 'items';
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Normalisation d'ID
+  private normalizeItemId(itemId: string): string {
+    if (!itemId) return itemId;
+    
+    return itemId
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_-]/g, '')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
   }
 
   // === MÉTHODES DE CONFIGURATION ===
@@ -67,13 +157,13 @@ export class ObjectInteractionHandlers {
       this.handleReloadModule(client, data);
     });
 
-    console.log(`✅ [ObjectInteractionHandlers] 7 handlers configurés`);
+    console.log(`✅ [ObjectInteractionHandlers] 7 handlers configurés avec support MongoDB`);
   }
 
   // === HANDLERS PRINCIPAUX ===
 
   /**
-   * Interaction avec objet spécifique
+   * ✅ HANDLER MODIFIÉ : Interaction avec objet spécifique
    */
   private async handleObjectInteraction(client: Client, data: { objectId: string }): Promise<void> {
     console.log(`📦 [ObjectHandlers] Object interaction: ${data.objectId}`);
@@ -124,18 +214,21 @@ export class ObjectInteractionHandlers {
       // ✅ Envoyer le résultat
       client.send("objectInteractionResult", result);
 
-      // ✅ Si succès et item reçu, notifier l'inventaire
+      // ✅ CORRECTION : Si succès et item reçu, notifier l'inventaire avec poche hybride
       if (result.success && result.data?.metadata?.itemReceived) {
         const itemData = result.data.metadata.itemReceived;
+        
+        // ✅ UTILISER LA MÉTHODE HYBRIDE POUR LA POCHE
+        const itemPocket = await this.getItemPocketHybrid(itemData.itemId);
         
         client.send("inventoryUpdate", {
           type: "add",
           itemId: itemData.itemId,
           quantity: itemData.quantity,
-          pocket: getItemPocket(itemData.itemId)
+          pocket: itemPocket
         });
         
-        console.log(`📦 [ObjectHandlers] Item ajouté: ${itemData.itemId} x${itemData.quantity}`);
+        console.log(`📦 [ObjectHandlers] Item ajouté: ${itemData.itemId} x${itemData.quantity} (poche: ${itemPocket})`);
       }
 
     } catch (error) {
@@ -149,7 +242,7 @@ export class ObjectInteractionHandlers {
   }
 
   /**
-   * Fouille d'objets cachés
+   * ✅ HANDLER MODIFIÉ : Fouille d'objets cachés
    */
   private async handleHiddenItemSearch(client: Client, data: { x: number; y: number }): Promise<void> {
     console.log(`🔍 [ObjectHandlers] Hidden item search at (${data.x}, ${data.y})`);
@@ -203,18 +296,21 @@ export class ObjectInteractionHandlers {
       // ✅ Envoyer le résultat
       client.send("searchResult", result);
 
-      // ✅ Si objet trouvé, notifier l'inventaire
+      // ✅ CORRECTION : Si objet trouvé, notifier l'inventaire avec poche hybride
       if (result.success && result.data?.metadata?.itemReceived) {
         const itemData = result.data.metadata.itemReceived;
+        
+        // ✅ UTILISER LA MÉTHODE HYBRIDE POUR LA POCHE
+        const itemPocket = await this.getItemPocketHybrid(itemData.itemId);
         
         client.send("inventoryUpdate", {
           type: "add",
           itemId: itemData.itemId,
           quantity: itemData.quantity,
-          pocket: getItemPocket(itemData.itemId)
+          pocket: itemPocket
         });
         
-        console.log(`🎁 [ObjectHandlers] Item caché trouvé: ${itemData.itemId} x${itemData.quantity}`);
+        console.log(`🎁 [ObjectHandlers] Item caché trouvé: ${itemData.itemId} x${itemData.quantity} (poche: ${itemPocket})`);
       }
 
     } catch (error) {
@@ -449,6 +545,80 @@ export class ObjectInteractionHandlers {
       console.log(`📦 [ObjectHandlers] ${visibleObjects.length} objets envoyés pour zone ${zoneName}`);
     } catch (error) {
       console.error(`❌ [ObjectHandlers] Erreur envoi objets zone ${zoneName}:`, error);
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES DE DIAGNOSTIC
+
+  /**
+   * ✅ NOUVEAU : Diagnostique les items de l'inventaire des clients
+   */
+  async diagnoseInventoryItems(client: Client): Promise<void> {
+    const player = this.worldRoom.state.players.get(client.sessionId);
+    
+    if (!player?.isDev) {
+      console.log(`🚫 [ObjectHandlers] Diagnose inventory refusé: ${client.sessionId} pas dev`);
+      return;
+    }
+
+    try {
+      // Import InventoryManager dynamiquement
+      const { InventoryManager } = await import('../managers/InventoryManager');
+      
+      const diagnosis = await InventoryManager.diagnoseInventoryItems(player.name);
+      
+      client.send("inventoryDiagnosis", {
+        success: true,
+        playerName: player.name,
+        diagnosis
+      });
+
+      console.log(`🔍 [ObjectHandlers] Diagnostic inventaire pour ${player.name}:`, diagnosis);
+
+    } catch (error) {
+      console.error("❌ [ObjectHandlers] Erreur diagnostic inventaire:", error);
+      client.send("inventoryDiagnosis", { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erreur diagnostic' 
+      });
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU : Répare l'inventaire d'un joueur
+   */
+  async repairPlayerInventory(client: Client, options: any = {}): Promise<void> {
+    const player = this.worldRoom.state.players.get(client.sessionId);
+    
+    if (!player?.isDev) {
+      console.log(`🚫 [ObjectHandlers] Repair inventory refusé: ${client.sessionId} pas dev`);
+      return;
+    }
+
+    try {
+      // Import InventoryManager dynamiquement
+      const { InventoryManager } = await import('../managers/InventoryManager');
+      
+      const repairResult = await InventoryManager.repairInventory(player.name, {
+        removeUnknownItems: options.removeUnknownItems || false,
+        fixPockets: options.fixPockets || true,
+        normalizeItemIds: options.normalizeItemIds || true
+      });
+      
+      client.send("inventoryRepaired", {
+        success: true,
+        playerName: player.name,
+        repairResult
+      });
+
+      console.log(`🔧 [ObjectHandlers] Inventaire réparé pour ${player.name}:`, repairResult);
+
+    } catch (error) {
+      console.error("❌ [ObjectHandlers] Erreur réparation inventaire:", error);
+      client.send("inventoryRepaired", { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erreur réparation' 
+      });
     }
   }
 
