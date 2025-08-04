@@ -1,6 +1,14 @@
-// server/src/models/NpcData.ts - VERSION REFACTORISÉE SANS SHOPCONFIG
+// server/src/models/NpcData.ts - VERSION COMPLÈTE AVEC IDS GLOBAUX UNIQUES
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { NpcType, Direction, AnyNpc } from "../types/NpcTypes";
+
+// ===== SCHÉMA POUR LE COMPTEUR GLOBAL =====
+const NpcCounterSchema = new Schema({
+  _id: { type: String, required: true, default: 'npc_global_counter' },
+  currentValue: { type: Number, default: 0 }
+}, { collection: 'npc_counters' });
+
+const NpcCounter = mongoose.model('NpcCounter', NpcCounterSchema);
 
 // ===== INTERFACES ÉTENDUES (SHOPCONFIG RETIRÉ) =====
 
@@ -75,8 +83,8 @@ export interface TrainerRuntimeData {
 // ===== INTERFACE PRINCIPALE NETTOYÉE =====
 
 export interface INpcData extends Document {
-  // === IDENTIFICATION (inchangé) ===
-  npcId: number;
+  // === IDENTIFICATION (npcId maintenant GLOBAL UNIQUE) ===
+  npcId: number;                      // ✅ ID GLOBAL UNIQUE (pas par zone)
   zone: string;
   name: string;
   type: NpcType;
@@ -161,23 +169,30 @@ export interface INpcData extends Document {
   getShopId(): string | null;         // ✅ Retourne shopId ou null
 }
 
-// Interface pour les méthodes statiques (shopConfig retiré)
+// Interface pour les méthodes statiques (avec nouvelles méthodes globales)
 export interface INpcDataModel extends Model<INpcData> {
+  // MÉTHODES EXISTANTES
   findByZone(zone: string): Promise<INpcData[]>;
   findByType(type: NpcType, zone?: string): Promise<INpcData[]>;
   findActiveNpcs(zone: string): Promise<INpcData[]>;
   bulkImportFromJson(zoneData: any): Promise<{ success: number; errors: string[] }>;
   createFromJson(jsonNpc: any, zone: string): Promise<INpcData>;
   
-  
-  // MÉTHODES STATIQUES EXISTANTES (combat/trainer - inchangées)
+  // MÉTHODES EXISTANTES (combat/trainer - inchangées)
   findTrainersInZone(zone: string): Promise<INpcData[]>;
   findNpcsWithTeams(zone: string): Promise<INpcData[]>;
   findActiveTrainers(zone: string): Promise<INpcData[]>;
   
-  // 🔄 MÉTHODES STATIQUES SHOP SIMPLIFIÉES
+  // MÉTHODES EXISTANTES (shop simplifiées)
   findMerchantsInZone(zone: string): Promise<INpcData[]>;
   findNpcsWithShops(zone: string): Promise<INpcData[]>;
+  
+  // ✅ NOUVELLES MÉTHODES POUR IDS GLOBAUX
+  getNextGlobalNpcId(): Promise<number>;
+  getCurrentGlobalNpcId(): Promise<number>;
+  initializeGlobalCounter(): Promise<number>;
+  isGlobalNpcIdAvailable(npcId: number): Promise<boolean>;
+  repairGlobalIds(): Promise<{success: number, errors: string[]}>;
 }
 
 // ===== SCHÉMAS ÉTENDUS (SHOPCONFIG SCHEMA RETIRÉ) =====
@@ -273,14 +288,16 @@ const TrainerRuntimeDataSchema = new Schema({
   defeatedBy: [{ type: String }]
 }, { _id: false });
 
-// ===== SCHÉMA PRINCIPAL NETTOYÉ =====
+// ===== SCHÉMA PRINCIPAL AVEC IDS GLOBAUX =====
 
 const NpcDataSchema = new Schema<INpcData>({
-  // === CHAMPS EXISTANTS (inchangés) ===
+  // === CHAMPS EXISTANTS (npcId maintenant GLOBAL UNIQUE) ===
   npcId: { 
     type: Number, 
     required: true,
-    min: [1, 'NPC ID must be positive']
+    min: [1, 'NPC ID must be positive'],
+    unique: true,                     // ✅ UNIQUE GLOBAL (pas par zone)
+    index: true
   },
   zone: { 
     type: String, 
@@ -410,7 +427,7 @@ const NpcDataSchema = new Schema<INpcData>({
     type: String,
     trim: true,
     maxlength: [100, 'Shop ID too long'],
-    index: true                       // ✅ Index pour recherches rapides
+    index: true
   },
   
   // === MÉTADONNÉES (inchangées) ===
@@ -421,7 +438,7 @@ const NpcDataSchema = new Schema<INpcData>({
   },
   version: { 
     type: String, 
-    default: '3.0.0',                // ✅ Version incrémentée pour refactoring
+    default: '3.0.0',                // ✅ Version incrémentée pour IDs globaux
     trim: true
   },
   lastUpdated: { 
@@ -440,10 +457,15 @@ const NpcDataSchema = new Schema<INpcData>({
   minimize: false
 });
 
-// ===== INDEX COMPOSITES NETTOYÉS =====
+// ===== INDEX COMPOSITES POUR IDS GLOBAUX =====
 
-// Index existants (inchangés)
-NpcDataSchema.index({ zone: 1, npcId: 1 }, { unique: true });
+// ✅ INDEX PRINCIPAL: npcId unique GLOBAL
+NpcDataSchema.index({ npcId: 1 }, { unique: true });
+
+// ✅ INDEX PERFORMANCE: zone + npcId (non-unique, pour recherches)
+NpcDataSchema.index({ zone: 1, npcId: 1 });
+
+// Index existants (performance)
 NpcDataSchema.index({ zone: 1, isActive: 1 });
 NpcDataSchema.index({ zone: 1, type: 1 });
 NpcDataSchema.index({ type: 1, isActive: 1 });
@@ -454,62 +476,188 @@ NpcDataSchema.index({ zone: 1, type: 1, 'battleConfig.canBattle': 1 });
 NpcDataSchema.index({ zone: 1, 'visionConfig.sightRange': 1 });
 NpcDataSchema.index({ 'trainerRuntime.currentState': 1 });
 
-// 🔄 Index shop simplifiés
-NpcDataSchema.index({ shopId: 1 });                    // ✅ Simple index sur shopId
-NpcDataSchema.index({ zone: 1, shopId: 1 });          // ✅ Zone + shopId
-NpcDataSchema.index({ zone: 1, type: 1, shopId: 1 }); // ✅ Zone + type + shopId
+// Index shop simplifiés
+NpcDataSchema.index({ shopId: 1 });
+NpcDataSchema.index({ zone: 1, shopId: 1 });
+NpcDataSchema.index({ zone: 1, type: 1, shopId: 1 });
 
-// ===== VALIDATIONS PRE-SAVE NETTOYÉES =====
+// ===== MÉTHODES STATIQUES POUR COMPTEUR GLOBAL =====
 
-NpcDataSchema.pre('save', function(next) {
-  // Validations existantes (inchangées)
-  if (this.spawnConditions?.minPlayerLevel && this.spawnConditions?.maxPlayerLevel) {
-    if (this.spawnConditions.minPlayerLevel > this.spawnConditions.maxPlayerLevel) {
-      return next(new Error('Min player level cannot be greater than max player level'));
+/**
+ * ✅ NOUVELLE MÉTHODE: Obtenir et incrémenter le compteur global
+ */
+NpcDataSchema.statics.getNextGlobalNpcId = async function(): Promise<number> {
+  const counter = await NpcCounter.findByIdAndUpdate(
+    'npc_global_counter',
+    { $inc: { currentValue: 1 } },
+    { 
+      new: true, 
+      upsert: true,
+      setDefaultsOnInsert: true 
     }
+  );
+  
+  return counter.currentValue;
+};
+
+/**
+ * ✅ NOUVELLE MÉTHODE: Obtenir la valeur actuelle du compteur (sans incrémenter)
+ */
+NpcDataSchema.statics.getCurrentGlobalNpcId = async function(): Promise<number> {
+  const counter = await NpcCounter.findById('npc_global_counter');
+  return counter?.currentValue || 0;
+};
+
+/**
+ * ✅ NOUVELLE MÉTHODE: Initialiser le compteur à partir des NPCs existants
+ */
+NpcDataSchema.statics.initializeGlobalCounter = async function(): Promise<number> {
+  const maxNpc = await this.findOne({})
+    .sort({ npcId: -1 })
+    .select('npcId')
+    .lean();
+  
+  const maxId = maxNpc?.npcId || 0;
+  
+  const counter = await NpcCounter.findByIdAndUpdate(
+    'npc_global_counter',
+    { currentValue: maxId },
+    { 
+      new: true, 
+      upsert: true 
+    }
+  );
+  
+  console.log(`🔢 Compteur global initialisé à ${maxId}`);
+  return counter.currentValue;
+};
+
+/**
+ * ✅ NOUVELLE MÉTHODE: Vérifier si un ID global est disponible
+ */
+NpcDataSchema.statics.isGlobalNpcIdAvailable = async function(npcId: number): Promise<boolean> {
+  const existing = await this.findOne({ npcId }).lean();
+  return !existing;
+};
+
+/**
+ * ✅ NOUVELLE MÉTHODE: Réparer les doublons et réinitialiser le compteur
+ */
+NpcDataSchema.statics.repairGlobalIds = async function(): Promise<{success: number, errors: string[]}> {
+  const result = { success: 0, errors: [] };
+  
+  try {
+    console.log('🔧 [Repair] Démarrage réparation IDs globaux...');
+    
+    // Trouver et corriger les doublons
+    const duplicates = await this.aggregate([
+      { $group: { _id: '$npcId', count: { $sum: 1 }, docs: { $push: '$_id' } } },
+      { $match: { count: { $gt: 1 } } }
+    ]);
+    
+    console.log(`🔍 [Repair] ${duplicates.length} doublons trouvés`);
+    
+    for (const duplicate of duplicates) {
+      const docsToFix = duplicate.docs.slice(1); // Garder le premier
+      
+      for (const docId of docsToFix) {
+        try {
+          const newId = await this.getNextGlobalNpcId();
+          await this.updateOne({ _id: docId }, { npcId: newId });
+          console.log(`✅ [Repair] Document ${docId} → nouvel ID ${newId}`);
+          result.success++;
+        } catch (error) {
+          const errorMsg = `Document ${docId}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          result.errors.push(errorMsg);
+          console.error(`❌ [Repair] ${errorMsg}`);
+        }
+      }
+    }
+    
+    // Réinitialiser le compteur au maximum actuel
+    await this.initializeGlobalCounter();
+    
+    console.log(`✅ [Repair] Réparation terminée: ${result.success} corrections`);
+    
+  } catch (error) {
+    result.errors.push(`Erreur générale: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
-  // Validations existantes (trainer - inchangées)
-  if (this.type === 'trainer' && !this.visionConfig) {
-    this.visionConfig = {
-      sightRange: 128,
-      sightAngle: 90,
-      chaseRange: 200,
-      returnToPosition: true,
-      detectionCooldown: 5,
-      pursuitSpeed: 1.5
-    } as TrainerVisionConfig;
+  return result;
+};
+
+// ===== VALIDATIONS PRE-SAVE POUR IDS GLOBAUX =====
+
+NpcDataSchema.pre('save', async function(next) {
+  try {
+    // ✅ ATTRIBUTION AUTOMATIQUE D'ID GLOBAL pour nouveaux documents
+    if (this.isNew && !this.npcId) {
+      this.npcId = await (this.constructor as any).getNextGlobalNpcId();
+      console.log(`🆔 Nouvel ID global attribué: ${this.npcId} pour NPC "${this.name}" en zone ${this.zone}`);
+    }
+    
+    // ✅ VALIDATION ID GLOBAL UNIQUE (pas par zone)
+    if (this.isNew || this.isModified('npcId')) {
+      const existingNpc = await (this.constructor as any).findOne({ 
+        npcId: this.npcId,
+        _id: { $ne: this._id }
+      });
+      
+      if (existingNpc) {
+        return next(new Error(`Un NPC avec l'ID global ${this.npcId} existe déjà (zone: ${existingNpc.zone})`));
+      }
+    }
+    
+    // Validations existantes (inchangées)
+    if (this.spawnConditions?.minPlayerLevel && this.spawnConditions?.maxPlayerLevel) {
+      if (this.spawnConditions.minPlayerLevel > this.spawnConditions.maxPlayerLevel) {
+        return next(new Error('Min player level cannot be greater than max player level'));
+      }
+    }
+    
+    // Validations trainer (inchangées)
+    if (this.type === 'trainer' && !this.visionConfig) {
+      this.visionConfig = {
+        sightRange: 128,
+        sightAngle: 90,
+        chaseRange: 200,
+        returnToPosition: true,
+        detectionCooldown: 5,
+        pursuitSpeed: 1.5
+      } as TrainerVisionConfig;
+    }
+    
+    if (this.visionConfig && !this.trainerRuntime) {
+      this.trainerRuntime = {
+        currentState: 'idle',
+        originalPosition: { x: this.position.x, y: this.position.y },
+        defeatedBy: []
+      } as TrainerRuntimeData;
+    }
+    
+    if (this.battleConfig?.teamId && this.battleConfig.canBattle === undefined) {
+      this.battleConfig.canBattle = true;
+    }
+    
+    if (this.visionConfig && this.visionConfig.chaseRange < this.visionConfig.sightRange) {
+      return next(new Error('Chase range must be >= sight range'));
+    }
+    
+    // Validation shop simplifiée
+    if (this.type === 'merchant' && !this.shopId) {
+      console.warn(`⚠️ NPC ${this.npcId} is type 'merchant' but has no shopId. Consider adding one.`);
+    }
+    
+    if (this.shopId && !/^[a-zA-Z0-9_-]+$/.test(this.shopId)) {
+      return next(new Error('ShopId must contain only letters, numbers, underscores and hyphens'));
+    }
+    
+    this.lastUpdated = new Date();
+    next();
+    
+  } catch (error) {
+    next(error);
   }
-  
-  if (this.visionConfig && !this.trainerRuntime) {
-    this.trainerRuntime = {
-      currentState: 'idle',
-      originalPosition: { x: this.position.x, y: this.position.y },
-      defeatedBy: []
-    } as TrainerRuntimeData;
-  }
-  
-  if (this.battleConfig?.teamId && this.battleConfig.canBattle === undefined) {
-    this.battleConfig.canBattle = true;
-  }
-  
-  if (this.visionConfig && this.visionConfig.chaseRange < this.visionConfig.sightRange) {
-    return next(new Error('Chase range must be >= sight range'));
-  }
-  
-  // 🔄 VALIDATION SHOP SIMPLIFIÉE
-  // Si c'est un merchant, s'assurer qu'il a un shopId (optionnel mais recommandé)
-  if (this.type === 'merchant' && !this.shopId) {
-    console.warn(`⚠️ NPC ${this.npcId} is type 'merchant' but has no shopId. Consider adding one.`);
-  }
-  
-  // Si shopId existe, valider le format
-  if (this.shopId && !/^[a-zA-Z0-9_-]+$/.test(this.shopId)) {
-    return next(new Error('ShopId must contain only letters, numbers, underscores and hyphens'));
-  }
-  
-  this.lastUpdated = new Date();
-  next();
 });
 
 // ===== MÉTHODES D'INSTANCE NETTOYÉES =====
@@ -539,8 +687,8 @@ NpcDataSchema.methods.toNpcFormat = function(this: INpcData): AnyNpc {
     visionConfig: this.visionConfig,
     trainerRuntime: this.trainerRuntime,
     
-    // 🔄 Shop simplifié
-    shopId: this.shopId,              // ✅ Juste la référence
+    // Shop simplifié
+    shopId: this.shopId,
     
     ...this.npcData
   } as AnyNpc;
@@ -577,7 +725,7 @@ NpcDataSchema.methods.updateFromJson = async function(
   if (jsonData.visionConfig) this.visionConfig = jsonData.visionConfig;
   if (jsonData.trainerRuntime) this.trainerRuntime = jsonData.trainerRuntime;
   
-  // 🔄 Shop : seulement shopId
+  // Shop : seulement shopId
   if (jsonData.shopId) {
     this.shopId = jsonData.shopId;
   } else if (jsonData.shopConfig?.shopId) {
@@ -593,7 +741,7 @@ NpcDataSchema.methods.updateFromJson = async function(
     'repeatable', 'cooldownSeconds', 'spawnConditions',
     'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
     'battleConfig', 'visionConfig', 'trainerRuntime', 
-    'shopId', 'shopConfig' // ✅ Exclure shopConfig des données spécifiques
+    'shopId', 'shopConfig' // Exclure shopConfig des données spécifiques
   ];
   
   const specificData: any = {};
@@ -765,7 +913,7 @@ NpcDataSchema.methods.isInChaseRange = function(
   return distance <= this.visionConfig.chaseRange;
 };
 
-// 🔄 NOUVELLES MÉTHODES D'INSTANCE SHOP SIMPLIFIÉES
+// NOUVELLES MÉTHODES D'INSTANCE SHOP SIMPLIFIÉES
 
 /**
  * ✅ Vérifie si c'est un merchant (type ou avec shopId)
@@ -852,7 +1000,7 @@ NpcDataSchema.statics.findActiveTrainers = function(zone: string): Promise<INpcD
   }).sort({ npcId: 1 });
 };
 
-// 🔄 MÉTHODES STATIQUES SHOP SIMPLIFIÉES
+// MÉTHODES STATIQUES SHOP SIMPLIFIÉES
 
 /**
  * ✅ Trouve tous les merchants d'une zone (type='merchant' OU shopId existe)
@@ -879,8 +1027,83 @@ NpcDataSchema.statics.findNpcsWithShops = function(zone: string): Promise<INpcDa
   }).sort({ npcId: 1 });
 };
 
-// À ajouter à la fin de server/src/models/NpcData.ts
-// AVANT la ligne "export const NpcData = mongoose.model..."
+/**
+ * ✅ MÉTHODE STATIQUE AMÉLIORÉE: Création avec ID global automatique
+ */
+NpcDataSchema.statics.createFromJson = async function(
+  jsonNpc: any, 
+  zone: string
+): Promise<INpcData> {
+  
+  let npcId = jsonNpc.id || jsonNpc.npcId;
+  
+  // Si ID fourni, vérifier qu'il est libre GLOBALEMENT
+  if (npcId) {
+    const isAvailable = await this.isGlobalNpcIdAvailable(npcId);
+    if (!isAvailable) {
+      console.log(`⚠️ ID ${npcId} déjà utilisé globalement, attribution automatique d'un nouvel ID`);
+      npcId = null; // Forcer l'attribution automatique
+    }
+  }
+  
+  // Si pas d'ID ou ID non disponible, laisser le pre-save l'attribuer automatiquement
+  const npcData = {
+    npcId: npcId, // Peut être undefined, sera attribué automatiquement par pre-save
+    zone: zone,
+    name: jsonNpc.name || `NPC_${Date.now()}`,
+    type: jsonNpc.type || 'dialogue',
+    position: {
+      x: Number(jsonNpc.position?.x) || 0,
+      y: Number(jsonNpc.position?.y) || 0
+    },
+    direction: jsonNpc.direction || 'south',
+    sprite: jsonNpc.sprite || 'npc_default',
+    interactionRadius: jsonNpc.interactionRadius || 32,
+    canWalkAway: jsonNpc.canWalkAway !== false,
+    autoFacePlayer: jsonNpc.autoFacePlayer !== false,
+    repeatable: jsonNpc.repeatable !== false,
+    cooldownSeconds: jsonNpc.cooldownSeconds || 0,
+    spawnConditions: jsonNpc.spawnConditions,
+    questsToGive: jsonNpc.questsToGive || [],
+    questsToEnd: jsonNpc.questsToEnd || [],
+    questRequirements: jsonNpc.questRequirements,
+    questDialogueIds: jsonNpc.questDialogueIds,
+    battleConfig: jsonNpc.battleConfig,
+    visionConfig: jsonNpc.visionConfig,
+    trainerRuntime: jsonNpc.trainerRuntime,
+    shopId: jsonNpc.shopId,
+    isActive: jsonNpc.isActive !== false,
+    version: '3.0.0',
+    sourceFile: jsonNpc.sourceFile || 'api_import'
+  };
+  
+  // Copier toutes les données spécifiques du type
+  const baseFields = [
+    'id', 'npcId', 'name', 'type', 'position', 'direction', 'sprite', 
+    'interactionRadius', 'canWalkAway', 'autoFacePlayer', 
+    'repeatable', 'cooldownSeconds', 'spawnConditions',
+    'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
+    'battleConfig', 'visionConfig', 'trainerRuntime', 
+    'shopId', 'isActive', 'version', 'sourceFile'
+  ];
+  
+  const specificData: any = {};
+  for (const [key, value] of Object.entries(jsonNpc)) {
+    if (!baseFields.includes(key)) {
+      specificData[key] = value;
+    }
+  }
+  
+  if (Object.keys(specificData).length > 0) {
+    npcData.npcData = specificData;
+  }
+  
+  // Créer et sauvegarder (l'ID sera attribué automatiquement si nécessaire)
+  const newNpc = new this(npcData);
+  await newNpc.save();
+  
+  return newNpc;
+};
 
 // ===== EXPORT =====
 export const NpcData = mongoose.model<INpcData, INpcDataModel>('NpcData', NpcDataSchema);
@@ -890,28 +1113,30 @@ export type CreateNpcData = Partial<Pick<INpcData,
   'npcId' | 'zone' | 'name' | 'type' | 'position' | 'sprite' | 'npcData' | 'battleConfig' | 'visionConfig' | 'shopId'
 >>;
 
-// ===== 📊 RÉSUMÉ DES CHANGEMENTS =====
+// ===== 📊 RÉSUMÉ DES CHANGEMENTS POUR IDS GLOBAUX =====
 
 /**
- * 🔄 CHANGEMENTS APPORTÉS :
- * 
- * ❌ RETIRÉ :
- * - Interface ShopConfig complète
- * - Schéma ShopConfigSchema 
- * - Toute la logique métier shop dans NpcData
- * - Méthodes shop complexes (isShopOpen, canPlayerAccessShop, etc.)
- * - Index complexes sur shopConfig.*
+ * 🔄 CHANGEMENTS POUR IDS GLOBAUX :
  * 
  * ✅ AJOUTÉ :
- * - Champ simple shopId: string
- * - Index simples sur shopId
- * - Méthodes basiques : isMerchantType(), hasShopId(), getShopId()
- * - Validation format shopId
- * - Migration automatique shopConfig.shopId → shopId
+ * - Collection npc_counters pour compteur global
+ * - Index unique sur npcId (global, pas par zone)
+ * - Méthodes getNextGlobalNpcId(), getCurrentGlobalNpcId(), etc.
+ * - Attribution automatique d'ID global dans pre-save
+ * - Validation d'unicité globale
+ * - Méthode de réparation repairGlobalIds()
+ * 
+ * ❌ MODIFIÉ :
+ * - npcId maintenant unique GLOBALEMENT (pas par zone)
+ * - Index principal : { npcId: 1 } unique
+ * - Index secondaire : { zone: 1, npcId: 1 } non-unique
+ * - Validation pre-save : vérification globale
+ * - createFromJson : gestion des IDs globaux
  * 
  * 🎯 RÉSULTAT :
- * - NpcData devient une simple référence vers ShopData
- * - Séparation claire des responsabilités
- * - Plus de duplication de données shop
- * - ShopData devient la source unique de vérité pour tout ce qui concerne les shops
+ * - IDs uniques pour TOUS les NPCs (toutes zones confondues)
+ * - Attribution automatique et séquentielle
+ * - Pas de conflit possible entre zones
+ * - Compteur global auto-incrémenté
+ * - Facilite les références inter-zones
  */
