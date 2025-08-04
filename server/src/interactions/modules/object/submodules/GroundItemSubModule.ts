@@ -10,68 +10,18 @@ import {
   ObjectInteractionResult 
 } from "../core/IObjectSubModule";
 
-// ✅ NOUVEAUX IMPORTS : Système d'effets d'items
+// ✅ IMPORTS SIMPLIFIÉS : Pas besoin du système d'effets pour ramasser
 import { ItemService } from "../../../../services/ItemService";
-import { ItemEffectProcessor, EffectProcessResult } from "../../../../items/ItemEffectProcessor";
-import { EffectTrigger, ItemEffectContext } from "../../../../items/ItemEffectTypes";
 
 // ✅ NOUVEAU : Import du QuestManager pour progression automatique
 import { QuestManager } from "../../../../managers/QuestManager";
 
-// ✅ INTERFACE POUR LE CONTEXTE D'UTILISATION D'ITEM
-interface ItemUsageContext extends ItemEffectContext {
-  // Contexte Pokémon (si applicable)
-  pokemon?: {
-    species: string;
-    level: number;
-    stats: { [stat: string]: number };
-    types: string[];
-    ability: string;
-    held_item?: string;
-    status?: string;
-    hp: number;
-    max_hp: number;
-  };
-  
-  // Contexte combat
-  battle?: {
-    type: string;
-    turn_number: number;
-    weather?: string;
-    terrain?: string;
-    field_effects: string[];
-  };
-  
-  // Contexte utilisateur
-  trainer?: {
-    level: number;
-    money: number;
-    badges: string[];
-    location: string;
-  };
-  
-  // Contexte item
-  item?: {
-    id: string;
-    quantity: number;
-    first_use: boolean;
-    uses_this_battle: number;
-  };
-  
-  // Contexte environnemental
-  environment?: {
-    time_of_day: string;
-    season: string;
-    weather: string;
-    location: string;
-    map_type: string;
-  };
-}
+
 
 export default class GroundItemSubModule extends BaseObjectSubModule {
   
   readonly typeName = "GroundItem";
-  readonly version = "4.0.0"; // ✨ Version bump pour intégration ItemService
+  readonly version = "4.0.0"; // ✨ Version avec vérification ItemService
 
   // ✅ NOUVEAU : Instance QuestManager
   private questManager: QuestManager | null = null;
@@ -89,7 +39,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     const startTime = Date.now();
     
     try {
-      this.log('info', `🎯 [ITEMSERVICE] Ramassage objet avec système d'effets`, { 
+      this.log('info', `🎯 [ITEMSERVICE] Ramassage objet avec vérification ItemService`, { 
         objectId: objectDef.id, 
         player: player.name,
         itemId: objectDef.itemId,
@@ -160,72 +110,39 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       // ✅ ÉTAPE 4 : CONSTRUIRE LE CONTEXTE D'UTILISATION D'ITEM
       const usageContext = await this.buildItemUsageContext(player, playerData, objectDef, itemId);
 
-      // ✅ ÉTAPE 5 : UTILISER ItemService.useItem() AVEC LE SYSTÈME D'EFFETS
-      this.log('info', '🚀 [ITEMSERVICE] Utilisation item via ItemService', {
-        itemId,
-        trigger: 'on_use',
-        context: {
-          inBattle: usageContext.battle ? true : false,
-          location: usageContext.environment?.location
-        }
-      });
+      // ✅ ÉTAPE 5 : AJOUTER L'ITEM À L'INVENTAIRE (PAS D'UTILISATION AUTO)
+      try {
+        const quantity = objectDef.quantity || 1;
+        await InventoryManager.addItem(player.name, itemId, quantity);
+        
+        this.log('info', `✅ Item ajouté à l'inventaire`, { 
+          player: player.name,
+          itemId, 
+          quantity
+        });
 
-      const itemUsageResult = await ItemService.useItem(
-        itemId,
-        'on_use' as EffectTrigger,
-        usageContext
-      );
-
-      this.log('info', '📊 [ITEMSERVICE] Résultat utilisation item', {
-        success: itemUsageResult.success,
-        itemConsumed: itemUsageResult.item_consumed,
-        effectsApplied: itemUsageResult.results.length,
-        messages: itemUsageResult.messages,
-        errors: itemUsageResult.errors
-      });
-
-      // ✅ ÉTAPE 6 : TRAITER LE RÉSULTAT
-      if (!itemUsageResult.success) {
+      } catch (inventoryError) {
         const processingTime = Date.now() - startTime;
         this.updateStats(false, processingTime);
         
-        const errorMessage = itemUsageResult.messages?.[0] || 
-                           itemUsageResult.errors?.[0] || 
-                           "Impossible d'utiliser cet objet";
+        this.log('error', 'Erreur ajout inventaire', {
+          error: inventoryError,
+          itemId,
+          player: player.name
+        });
         
-        return this.createErrorResult(errorMessage, 'ITEM_USAGE_FAILED');
+        return this.createErrorResult(
+          inventoryError instanceof Error 
+            ? inventoryError.message 
+            : "Impossible d'ajouter l'objet à l'inventaire",
+          'INVENTORY_ERROR'
+        );
       }
 
-      // ✅ ÉTAPE 7 : APPLIQUER LES EFFETS RÉUSSIS
-      const appliedEffects = await this.applyItemEffectsToPlayer(
-        player, 
-        playerData, 
-        itemUsageResult.results
-      );
-
-      // ✅ ÉTAPE 8 : AJOUTER À L'INVENTAIRE SI L'ITEM N'EST PAS AUTO-CONSOMMÉ
-      let inventoryAdded = false;
-      if (!itemUsageResult.item_consumed) {
-        try {
-          const quantity = objectDef.quantity || 1;
-          await InventoryManager.addItem(player.name, itemId, quantity);
-          inventoryAdded = true;
-          
-          this.log('info', `✅ Item ajouté à l'inventaire (non consommé)`, { 
-            player: player.name,
-            itemId, 
-            quantity
-          });
-        } catch (inventoryError) {
-          this.log('error', 'Erreur ajout inventaire item non-consommé', { error: inventoryError });
-          // Ne pas faire échouer toute l'interaction pour ça
-        }
-      }
-
-      // ✅ ÉTAPE 9 : PROGRESSION AUTOMATIQUE DES QUÊTES
+      // ✅ ÉTAPE 6 : PROGRESSION AUTOMATIQUE DES QUÊTES
       await this.progressPlayerQuests(player.name, itemId);
 
-      // ✅ ÉTAPE 10 : ENREGISTRER LE COOLDOWN
+      // ✅ ÉTAPE 7 : ENREGISTRER LE COOLDOWN
       const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
 
       if (!serverConfig.bypassObjectCooldowns) {
@@ -239,18 +156,21 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         });
       }
 
-      // ✅ ÉTAPE 11 : CONSTRUIRE LE RÉSULTAT FINAL
+      // ✅ ÉTAPE 8 : CONSTRUIRE LE RÉSULTAT FINAL
       const processingTime = Date.now() - startTime;
       this.updateStats(true, processingTime);
       
-      // Déterminer le message principal
-      const mainMessage = itemUsageResult.messages?.[0] || 
-                         (inventoryAdded ? `${itemId} ajouté à l'inventaire !` : 
-                          `${itemId} utilisé avec succès !`);
+      // Récupérer les données de l'item pour affichage
+      let itemData: any = null;
+      try {
+        itemData = await ItemService.getItemById(itemId);
+      } catch (error) {
+        this.log('warn', 'Erreur récupération données item', { itemId, error });
+      }
       
       return this.createSuccessResult(
         "objectCollected",
-        mainMessage,
+        `${itemData?.name || itemId} ajouté à l'inventaire !`,
         {
           objectId: objectDef.id.toString(),
           objectType: objectDef.type,
@@ -259,25 +179,12 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         },
         {
           metadata: {
-            // ✅ NOUVELLES DONNÉES : Résultats du système d'effets
-            itemEffects: {
-              triggered: true,
-              success: itemUsageResult.success,
-              effectsApplied: itemUsageResult.results.length,
-              itemConsumed: itemUsageResult.item_consumed,
-              messages: itemUsageResult.messages,
-              appliedEffects: appliedEffects.summary
-            },
-            
-            // Données traditionnelles
-            itemReceived: inventoryAdded ? {
+            itemReceived: {
               itemId,
               quantity: objectDef.quantity || 1,
+              name: itemData?.name || itemId,
+              category: itemData?.category || 'unknown',
               addedToInventory: true
-            } : {
-              itemId,
-              consumed: true,
-              effects: "applied_directly"
             },
             
             cooldown: {
@@ -311,215 +218,7 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Construire le contexte d'utilisation d'item
-  private async buildItemUsageContext(
-    player: Player, 
-    playerData: IPlayerData, 
-    objectDef: ObjectDefinition, 
-    itemId: string
-  ): Promise<ItemUsageContext> {
-    
-    // Contexte de base
-    const context: ItemUsageContext = {
-      // Contexte utilisateur
-      trainer: {
-        level: player.level || 1,
-        money: playerData.gold || 0,
-        badges: [], // TODO: Récupérer vraies badges du joueur
-        location: player.currentZone || 'unknown'
-      },
-      
-      // Contexte item
-      item: {
-        id: itemId,
-        quantity: objectDef.quantity || 1,
-        first_use: true, // Premier usage pour cet objet ramassé
-        uses_this_battle: 0
-      },
-      
-      // Contexte environnemental
-      environment: {
-        time_of_day: this.getTimeOfDay(),
-        season: 'spring', // TODO: Système de saisons
-        weather: 'clear', // TODO: Système météo
-        location: player.currentZone || 'unknown',
-        map_type: 'overworld'
-      }
-    };
 
-    // ✅ TODO: Ajouter contexte Pokémon si nécessaire
-    // Si l'item est utilisé sur un Pokémon spécifique
-    /*
-    if (actionData?.targetPokemon) {
-      context.pokemon = {
-        species: actionData.targetPokemon.species,
-        level: actionData.targetPokemon.level,
-        stats: actionData.targetPokemon.stats,
-        types: actionData.targetPokemon.types,
-        ability: actionData.targetPokemon.ability,
-        hp: actionData.targetPokemon.currentHp,
-        max_hp: actionData.targetPokemon.maxHp,
-        status: actionData.targetPokemon.status
-      };
-    }
-    */
-
-    // ✅ TODO: Ajouter contexte combat si en bataille
-    /*
-    if (player.inBattle) {
-      context.battle = {
-        type: 'wild', // ou 'trainer', 'gym', etc.
-        turn_number: 1,
-        weather: 'clear',
-        field_effects: []
-      };
-    }
-    */
-
-    return context;
-  }
-
-  // ✅ NOUVELLE MÉTHODE : Appliquer les effets d'items au joueur
-  private async applyItemEffectsToPlayer(
-    player: Player,
-    playerData: IPlayerData,
-    effectResults: EffectProcessResult[]
-  ): Promise<{
-    applied: number;
-    failed: number;
-    summary: Array<{
-      effect: string;
-      success: boolean;
-      message?: string;
-    }>;
-  }> {
-    
-    let applied = 0;
-    let failed = 0;
-    const summary: Array<{ effect: string; success: boolean; message?: string; }> = [];
-
-    for (const result of effectResults) {
-      if (result.success && result.effects_applied) {
-        for (const effect of result.effects_applied) {
-          try {
-            // Appliquer l'effet selon son type
-            const effectApplied = await this.applySingleEffect(player, playerData, effect);
-            
-            if (effectApplied) {
-              applied++;
-              summary.push({
-                effect: effect.action_type,
-                success: true,
-                message: effect.message
-              });
-              
-              this.log('info', `✅ Effet appliqué: ${effect.action_type}`, {
-                player: player.name,
-                target: effect.target,
-                value: effect.value
-              });
-            } else {
-              failed++;
-              summary.push({
-                effect: effect.action_type,
-                success: false,
-                message: `Impossible d'appliquer ${effect.action_type}`
-              });
-            }
-          } catch (error) {
-            failed++;
-            summary.push({
-              effect: effect.action_type,
-              success: false,
-              message: `Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`
-            });
-            
-            this.log('error', `❌ Erreur application effet ${effect.action_type}`, error);
-          }
-        }
-      } else {
-        failed++;
-        summary.push({
-          effect: 'unknown',
-          success: false,
-          message: result.message || 'Effet échoué'
-        });
-      }
-    }
-
-    return { applied, failed, summary };
-  }
-
-  // ✅ NOUVELLE MÉTHODE : Appliquer un effet individuel
-  private async applySingleEffect(
-    player: Player,
-    playerData: IPlayerData,
-    effect: any
-  ): Promise<boolean> {
-    
-    switch (effect.action_type) {
-      case 'heal_hp_fixed':
-        // TODO: Implémenter soin HP fixe
-        this.log('info', `🏥 Soin HP fixe: ${effect.value}`, { player: player.name });
-        return true;
-        
-      case 'heal_hp_percentage':
-        // TODO: Implémenter soin HP pourcentage
-        this.log('info', `🏥 Soin HP ${effect.value}%`, { player: player.name });
-        return true;
-        
-      case 'cure_status':
-        // TODO: Implémenter guérison de statut
-        this.log('info', `💊 Guérison statut: ${effect.value}`, { player: player.name });
-        return true;
-        
-      case 'boost_stat':
-        // TODO: Implémenter boost de stat
-        this.log('info', `📈 Boost stat: ${effect.value}`, { player: player.name });
-        return true;
-        
-      case 'add_money':
-        // Ajouter de l'argent au joueur
-        if (typeof effect.value === 'number' && effect.value > 0) {
-          playerData.gold = (playerData.gold || 0) + effect.value;
-          await playerData.save();
-          this.log('info', `💰 Argent ajouté: +${effect.value}₽`, { 
-            player: player.name,
-            newTotal: playerData.gold
-          });
-          return true;
-        }
-        break;
-        
-      case 'gain_exp':
-        // TODO: Implémenter gain d'expérience
-        this.log('info', `⭐ Gain EXP: ${effect.value}`, { player: player.name });
-        return true;
-        
-      case 'show_message':
-        // Message simple - toujours réussi
-        this.log('info', `💬 Message: ${effect.value}`, { player: player.name });
-        return true;
-        
-      default:
-        this.log('warn', `🤷 Effet non implémenté: ${effect.action_type}`, {
-          player: player.name,
-          effect: effect
-        });
-        return false;
-    }
-    
-    return false;
-  }
-
-  // ✅ MÉTHODE UTILITAIRE : Obtenir l'heure du jour
-  private getTimeOfDay(): 'morning' | 'day' | 'evening' | 'night' {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 12) return 'morning';
-    if (hour >= 12 && hour < 18) return 'day';
-    if (hour >= 18 && hour < 22) return 'evening';
-    return 'night';
-  }
 
   // ✅ MÉTHODE EXISTANTE : Progression automatique des quêtes
   private async progressPlayerQuests(playerName: string, itemId: string): Promise<void> {
@@ -724,10 +423,8 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       specializedType: 'GroundItem',
       version: this.version,
       features: [
-        'itemservice_integration', // ✅ NOUVEAU
-        'item_effects_processing', // ✅ NOUVEAU
-        'dynamic_item_usage', // ✅ NOUVEAU
-        'effect_context_building', // ✅ NOUVEAU
+        'itemservice_validation', // ✅ NOUVEAU : Validation via ItemService
+        'inventory_integration',
         'mongodb_cooldowns',
         'per_player_cooldowns',
         'configurable_cooldown_duration',
@@ -736,18 +433,13 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         'automatic_quest_progression'
       ],
       integrations: {
-        itemService: true, // ✅ NOUVEAU
-        itemEffectProcessor: true, // ✅ NOUVEAU
+        itemService: true, // ✅ NOUVEAU : Pour validation
         inventoryManager: true,
         questManager: !!this.questManager,
         playerData: true
       },
       storageMethod: 'mongodb_player_document',
-      effectSystem: { // ✅ NOUVEAU
-        enabled: true,
-        supportedTriggers: ['on_use'],
-        contextTypes: ['trainer', 'item', 'environment']
-      }
+      approach: 'simple_pickup_with_itemservice_validation' // ✅ NOUVEAU
     };
   }
 
@@ -755,7 +447,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     const baseHealth = super.getHealth();
     
     let itemServiceHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
-    let itemEffectHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
     let questHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
     
     // ✅ NOUVEAU : Test ItemService
@@ -765,15 +456,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       }
     } catch (error) {
       itemServiceHealth = 'critical';
-    }
-
-    // ✅ NOUVEAU : Test ItemEffectProcessor
-    try {
-      if (!ItemEffectProcessor) {
-        itemEffectHealth = 'critical';
-      }
-    } catch (error) {
-      itemEffectHealth = 'critical';
     }
 
     // Health check QuestManager
@@ -787,11 +469,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       inventoryManagerAvailable: !!InventoryManager,
       playerDataModelAvailable: !!PlayerData,
       
-      // ✅ NOUVEAUX : Services du système d'effets
+      // ✅ NOUVEAU : Service ItemService
       itemServiceAvailable: !!ItemService,
-      itemEffectProcessorAvailable: !!ItemEffectProcessor,
       itemServiceHealth,
-      itemEffectHealth,
       
       // Quest system
       questManagerAvailable: !!this.questManager,
@@ -801,9 +481,9 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
     };
     
     const globalHealth: 'healthy' | 'warning' | 'critical' = 
-      [baseHealth.status, itemServiceHealth, itemEffectHealth].includes('critical') 
+      [baseHealth.status, itemServiceHealth].includes('critical') 
         ? 'critical' 
-        : [baseHealth.status, itemServiceHealth, itemEffectHealth, questHealth].includes('warning') 
+        : [baseHealth.status, itemServiceHealth, questHealth].includes('warning') 
           ? 'warning' 
           : 'healthy';
     
@@ -822,11 +502,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       throw new Error('ItemService non disponible');
     }
     
-    // ✅ NOUVEAU : Vérifier ItemEffectProcessor
-    if (!ItemEffectProcessor) {
-      throw new Error('ItemEffectProcessor non disponible');
-    }
-    
     if (!InventoryManager) {
       throw new Error('InventoryManager non disponible');
     }
@@ -843,15 +518,14 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       inventoryManagerReady: !!InventoryManager,
       playerDataModelReady: !!PlayerData,
       
-      // ✅ NOUVEAUX : Services du système d'effets
+      // ✅ NOUVEAU : Service ItemService
       itemServiceReady: !!ItemService,
-      itemEffectProcessorReady: !!ItemEffectProcessor,
       
       // Quest system
       questManagerReady: !!this.questManager,
       
       storageMethod: 'mongodb',
-      approach: 'itemservice_with_effects_and_quest_progression',
+      approach: 'simple_pickup_with_itemservice_validation',
       version: this.version
     });
   }
