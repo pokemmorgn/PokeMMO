@@ -417,7 +417,7 @@ export class ObjectInteractionModule extends BaseInteractionModule {
     const startTime = Date.now();
     const objectIdRaw = request.data?.objectId;
     const objectId = typeof objectIdRaw === 'string' ? parseInt(objectIdRaw, 10) : objectIdRaw;
-    const zone = player.currentZone;
+    const zone = getDbZoneName(player.currentZone);
     
     if (!objectId || isNaN(objectId)) {
       return this.createErrorResult(`Object ID invalide: ${objectIdRaw}`, "INVALID_OBJECT_ID");
