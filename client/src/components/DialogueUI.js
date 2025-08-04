@@ -635,8 +635,9 @@ export class DialogueUI {
     const lines = Array.isArray(data.lines) && data.lines.length ? data.lines : [data.text || ""];
     npcText.textContent = lines[0] || "";
 
+    // ✅ FIX : Ne pas afficher le compteur s'il n'y a qu'une seule page
     if (lines.length > 1) {
-      continueIndicator.style.display = 'block';
+      continueIndicator.style.display = 'flex';
       const counter = continueIndicator.querySelector('.dialogue-counter');
       if (counter) {
         counter.textContent = `1/${lines.length}`;
