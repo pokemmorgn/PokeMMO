@@ -30,38 +30,6 @@ export class MapEditorModule {
         console.log('🗺️ [MapEditor] Initialisation terminée - support des items dynamiques activé')
     }
 
-
-    // ✅ NOUVELLE MÉTHODE: Obtenir le prochain ID global
-async getNextGlobalNpcId() {
-    try {
-        console.log('🔢 [MapEditor] Getting next GLOBAL NPC ID from server...');
-        
-        const response = await this.adminPanel.apiCall('/npcs/next-id');
-        
-        if (response.success) {
-            console.log(`✅ [MapEditor] Next GLOBAL NPC ID: ${response.nextId}`);
-            console.log(`📊 [MapEditor] Last NPC was ID ${response.lastNpcId} in zone "${response.lastNpcZone}"`);
-            return response.nextId;
-        } else {
-            throw new Error(response.error || 'Erreur serveur');
-        }
-        
-    } catch (error) {
-        console.error('❌ [MapEditor] Error getting next GLOBAL NPC ID:', error);
-        
-        // ✅ FALLBACK sécurisé: ne pas utiliser timestamp !
-        // Au lieu de cela, essayer de calculer depuis les NPCs locaux
-        const localNpcs = this.placedObjects.filter(obj => obj.type === 'npc');
-        const maxLocalId = localNpcs.length > 0 ? 
-            Math.max(...localNpcs.map(npc => parseInt(npc.id) || 0)) : 0;
-        
-        const fallbackId = maxLocalId + 1000; // Décaler pour éviter conflits
-        
-        console.warn(`⚠️ [MapEditor] Using fallback ID: ${fallbackId}`);
-        return fallbackId;
-    }
-}
-    
     // ==============================
     // GESTION DES ITEMS
     // ==============================
@@ -738,10 +706,10 @@ placeGenericObject(tileX, tileY) {
 }
 
 // ✅ Créer le NPC du type choisi
-async createNPCOfType(npcType, tileX, tileY) {
-    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY}) with global ID`);
+createNPCOfType(npcType, tileX, tileY) {
+    console.log(`🎯 [MapEditor] Creating ${npcType} NPC at (${tileX}, ${tileY})`)
     
-    const newNPC = await this.createCompleteNPC(tileX, tileY, npcType);
+    const newNPC = this.createCompleteNPC(tileX, tileY, npcType)
     
     this.placedObjects.push(newNPC)
     this.adminPanel.showNotification(
@@ -761,17 +729,14 @@ closeNPCTypeSelector() {
     }
 }
 // ✅ NOUVELLE MÉTHODE : Créer un NPC complet selon son type
-async createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
-    // ✅ CORRECTION: Obtenir le prochain ID global depuis le serveur
-    const globalNpcId = await this.getNextGlobalNpcId();
-    
+createCompleteNPC(tileX, tileY, npcType = 'dialogue') {
     // Base NPC
     const baseNPC = {
-        id: globalNpcId, // ✅ ID unique global
+        id: `npc_${Date.now()}`,
         type: 'npc',
         x: tileX,
         y: tileY,
-        name: `NPC_${globalNpcId}`, // ✅ Nom basé sur l'ID global
+        name: `NPC_${tileX}_${tileY}`,
         sprite: 'npc_default.png',
         direction: 'south',
         npcType: npcType,
