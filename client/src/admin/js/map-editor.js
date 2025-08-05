@@ -297,11 +297,6 @@ selectItem(itemId) {
         return icons[item.type] || '❓'
     }
 
-    getItemDisplayName(itemId) {
-        return itemId.replace(/_/g, ' ')
-                    .replace(/\b\w/g, l => l.toUpperCase())
-    }
-
     // ==============================
     // PLACEMENT D'OBJETS AMÉLIORÉ
     // ==============================
