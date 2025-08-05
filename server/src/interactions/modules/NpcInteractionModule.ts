@@ -931,6 +931,9 @@ questProgress = progressResults || [];  // ✅ Plus de .results
         
       case 'trainer':
         return await this.executeTrainerAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
+
+      case 'deliver':
+        return await this.executeDeliveryAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
         
       default:
         return await this.executeDialogueAction(player, npc, npcId, allCapabilities, questProgress, playerLanguage);
@@ -1205,6 +1208,76 @@ private async executeQuestAction(
     return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
   }
 
+    private async executeDeliveryAction(
+    player: Player, 
+    npc: any, 
+    npcId: number, 
+    capabilities: NpcCapability[], 
+    questProgress: any[], 
+    playerLanguage: string
+  ): Promise<NpcInteractionResult> {
+    
+    console.log(`📦 [executeDeliveryAction] === EXÉCUTION ACTION LIVRAISON ===`);
+    console.log(`👤 Joueur: ${player.name}, NPC: ${npcId}`);
+    
+    try {
+      // Détecter les livraisons disponibles
+      const activeQuests = await this.questManager.getActiveQuests(player.name);
+      const questDefinitions = new Map();
+      
+      for (const quest of activeQuests) {
+        const definition = this.questManager.getQuestDefinition(quest.id);
+        if (definition) {
+          questDefinitions.set(quest.id, definition);
+        }
+      }
+      
+      const deliveryResult = await this.deliveryDetector.detectDeliveries(
+        player.name,
+        npcId.toString(),
+        activeQuests,
+        questDefinitions
+      );
+      
+      console.log(`📋 [executeDeliveryAction] ${deliveryResult.totalDeliveries} livraison(s) détectée(s)`);
+      
+      if (deliveryResult.hasDeliveries && deliveryResult.totalDeliveries > 0) {
+        // ✅ RETOURNER LE TYPE questDelivery !
+        return {
+          success: true,
+          type: "questDelivery",  // ✅ ENFIN LE BON TYPE !
+          message: `${npc.name || `NPC #${npcId}`} attend une livraison de votre part.`,
+          lines: [`J'attends que vous me livriez quelque chose, ${player.name}...`],
+          
+          // ✅ DONNÉES DE LIVRAISON pour le client
+          deliveryData: {
+            npcId: deliveryResult.npcId,
+            npcName: npc.name || `NPC #${npcId}`,
+            deliveries: deliveryResult.deliveries,
+            allItemsAvailable: deliveryResult.allItemsAvailable,
+            totalDeliveries: deliveryResult.totalDeliveries,
+            readyDeliveries: deliveryResult.readyDeliveries
+          },
+          
+          questProgress: questProgress,
+          npcId: npcId,
+          npcName: npc.name || `NPC #${npcId}`,
+          isUnifiedInterface: false,
+          capabilities: capabilities,
+          contextualData: this.buildContextualDataFromCapabilities(capabilities)
+        };
+      } else {
+        // Fallback vers dialogue si plus de livraisons
+        console.log(`❌ [executeDeliveryAction] Aucune livraison trouvée, fallback dialogue`);
+        return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [executeDeliveryAction] Erreur:`, error);
+      // Fallback vers dialogue en cas d'erreur
+      return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
+    }
+  }
   /**
    * ✅ NOUVELLE MÉTHODE : Gère les actions de dialogue
    */
