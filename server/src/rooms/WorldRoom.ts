@@ -1021,6 +1021,8 @@ private async updateQuestStatusesFixed(username: string, client?: Client) {
         });
       }
     });
+
+    
 this.onMessage("questDelivery", async (client, data) => {
   console.log(`📦 [WorldRoom] Message questDelivery reçu:`, data);
   
@@ -1080,8 +1082,8 @@ this.onMessage("questDelivery", async (client, data) => {
       if (result.result?.stepCompleted) {
         client.send("questStepComplete", {
           questId: data.questId,
-          stepIndex: result.result.currentStepIndex,
-          stepName: result.result.stepName || "Étape complétée"
+          stepIndex: result.result.newStepIndex || 0,
+          message: result.result.message || "Étape complétée"
         });
       }
 
@@ -1089,8 +1091,8 @@ this.onMessage("questDelivery", async (client, data) => {
       if (result.result?.questCompleted) {
         client.send("questComplete", {
           questId: data.questId,
-          questName: result.result.questName || data.questId,
-          rewards: result.result.rewards || []
+          questName: data.questId,
+          message: result.result.message || "Quête complétée!"
         });
       }
     }
@@ -1172,9 +1174,9 @@ this.onMessage("debugQuestDeliveries", async (client) => {
           for (const objective of currentStep.objectives) {
             if (objective.type === 'deliver') {
               console.log(`  🚚 Objectif livraison trouvé:`, {
-                npcId: objective.npcId,
+                targetNpc: objective.target || objective.targetName,
                 itemId: objective.itemId,
-                amount: objective.amount
+                amount: objective.requiredAmount
               });
             }
           }
@@ -1190,6 +1192,8 @@ this.onMessage("debugQuestDeliveries", async (client) => {
     console.error(`❌ [DEBUG] Erreur:`, error);
   }
 });
+
+    
     this.onMessage("getShopCatalog", async (client, data) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) {
