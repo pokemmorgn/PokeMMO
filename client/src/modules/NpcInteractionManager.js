@@ -386,6 +386,7 @@ export class NpcInteractionManager {
   // === LOGIQUE PRINCIPALE D'INTERACTION ===
 
   async interactWithNpc(npc, options = {}) {
+    console.log('[DEBUG] RAW data received:', JSON.stringify(data, null, 2));
     console.log('[NpcInteractionManager] 🎯 === INTERACTION NPC ===');
     console.log('[NpcInteractionManager] NPC:', npc?.name || 'unknown');
     console.log('[NpcInteractionManager] Options:', options);
