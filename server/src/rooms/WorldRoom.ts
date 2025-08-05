@@ -103,8 +103,29 @@ export class WorldRoom extends Room<PokeWorldState> {
     registry.registerWorldRoom(this);
     
     const questManager = this.zoneManager.getQuestManager();
+    console.log(`🔍 [DEBUG] QuestManager récupéré:`, !!questManager);
+    
     if (questManager) {
       registry.registerQuestManager(questManager);
+      console.log(`✅ [DEBUG] QuestManager enregistré dans ServiceRegistry`);
+      
+      // Test immédiat
+      const testRetrieve = registry.getQuestManager();
+      console.log(`🧪 [DEBUG] Test récupération QuestManager:`, !!testRetrieve);
+      
+      if (testRetrieve) {
+        console.log(`🎯 [DEBUG] QuestManager accessible - test asPlayerQuestWith disponible`);
+      } else {
+        console.error(`❌ [DEBUG] PROBLÈME: QuestManager non récupérable après enregistrement !`);
+      }
+    } else {
+      console.error(`❌ [DEBUG] PROBLÈME: QuestManager non disponible depuis ZoneManager !`);
+      
+      // Debug ZoneManager
+      console.log(`🔍 [DEBUG] ZoneManager état:`, {
+        exists: !!this.zoneManager,
+        questManagerMethod: typeof this.zoneManager?.getQuestManager
+      });
     }
       
     this.transitionService = new TransitionService();
