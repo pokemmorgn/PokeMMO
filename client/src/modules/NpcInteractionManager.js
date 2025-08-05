@@ -517,6 +517,13 @@ async sendNpcInteraction(npc, options = {}) {
 handleNetworkInteractionResult(data) {
   console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
   console.log('[NpcInteractionManager] Data:', data);
+  
+  // ✅ FIX ULTRA SIMPLE : Détecter deliveryData AVANT tout le reste
+  if (data.deliveryData && window.questSystem) {
+    console.log('[NpcInteractionManager] 🎁 LIVRAISON DÉTECTÉE - Délégation directe');
+    console.log('[NpcInteractionManager] DeliveryData:', data.deliveryData);
+    return window.questSystem.handleQuestDeliveryData(data);
+  }
      
   // ✅ FORCER L'AFFICHAGE COMPLET DES DONNÉES AVEC FOCUS QUÊTES
   console.log('[NpcInteractionManager] 🔍 === DEBUG COMPLET DONNÉES ===');
@@ -536,7 +543,10 @@ handleNetworkInteractionResult(data) {
     questData: data.questData,
     quests: data.quests,
     questId: data.questId,
-    hasQuestCapability: data.capabilities?.includes('questGiver') || data.capabilities?.includes('quest')
+    hasQuestCapability: data.capabilities?.includes('questGiver') || data.capabilities?.includes('quest'),
+    // 🔧 NOUVEAU : Debug spécifique livraisons
+    deliveryData: data.deliveryData,
+    hasDeliveryData: !!data.deliveryData
   });
   
   // 🔧 NOUVEAU : Debug spécifique pour les données de quêtes
@@ -547,7 +557,8 @@ handleNetworkInteractionResult(data) {
     'data.quests': data.quests,
     'data.contextualData?.questData': data.contextualData?.questData,
     'data.contextualData?.availableQuests': data.contextualData?.availableQuests,
-    'data.unifiedInterface?.questData': data.unifiedInterface?.questData
+    'data.unifiedInterface?.questData': data.unifiedInterface?.questData,
+    'data.deliveryData': data.deliveryData
   };
   
   Object.entries(questSources).forEach(([source, value]) => {
@@ -557,6 +568,8 @@ handleNetworkInteractionResult(data) {
         console.log(`[NpcInteractionManager] 📋 ${source} contient ${value.length} quêtes:`, value.map(q => q.name || q.title || q.id));
       } else if (value.availableQuests) {
         console.log(`[NpcInteractionManager] 📋 ${source}.availableQuests:`, value.availableQuests.map(q => q.name || q.title || q.id));
+      } else if (source === 'data.deliveryData' && value.deliveries) {
+        console.log(`[NpcInteractionManager] 🎁 ${source} contient ${value.deliveries.length} livraison(s)`);
       }
     }
   });
@@ -576,7 +589,9 @@ handleNetworkInteractionResult(data) {
       // Cas 5 : A des données de boutique
       data.shopData ||
       // Cas 6 : A un type spécialisé
-      ['questGiver', 'merchant', 'healer'].includes(data.type)
+      ['questGiver', 'merchant', 'healer'].includes(data.type) ||
+      // Cas 7 : A des données de livraison (au cas où le check du dessus n'a pas marché)
+      data.deliveryData
     );
     
     console.log('[NpcInteractionManager] 🔍 Décision interface unifiée:', {
@@ -587,7 +602,8 @@ handleNetworkInteractionResult(data) {
         hasContextualData: !!(data.contextualData),
         hasAvailableQuests: !!(data.availableQuests && data.availableQuests.length > 0),
         hasShopData: !!data.shopData,
-        specializedType: ['questGiver', 'merchant', 'healer'].includes(data.type)
+        specializedType: ['questGiver', 'merchant', 'healer'].includes(data.type),
+        hasDeliveryData: !!data.deliveryData
       }
     });
     
