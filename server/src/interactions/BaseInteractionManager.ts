@@ -523,7 +523,7 @@ class WorldUpdateTimer {
         try {
           updateData.questStatuses = await this.collectQuestStatuses();
           if (this.config.debugMode) {
-            console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${Object.keys(updateData.questStatuses).length} NPCs`);
+           // console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${Object.keys(updateData.questStatuses).length} NPCs`);
           }
         } catch (error) {
           console.warn('⚠️ [WorldUpdateTimer] Erreur collecte quest statuses:', error);
@@ -535,7 +535,7 @@ class WorldUpdateTimer {
         try {
           updateData.gameObjects = await this.collectGameObjects();
           if (this.config.debugMode) {
-            console.log(`📦 [WorldUpdateTimer] Objets collectés: ${Object.keys(updateData.gameObjects).length} zones`);
+          //  console.log(`📦 [WorldUpdateTimer] Objets collectés: ${Object.keys(updateData.gameObjects).length} zones`);
           }
         } catch (error) {
           console.warn('⚠️ [WorldUpdateTimer] Erreur collecte objets:', error);
@@ -547,7 +547,7 @@ class WorldUpdateTimer {
         try {
           updateData.npcUpdates = await this.collectNpcUpdates();
           if (this.config.debugMode) {
-            console.log(`👥 [WorldUpdateTimer] NPCs collectés: ${Object.keys(updateData.npcUpdates).length} zones`);
+       //     console.log(`👥 [WorldUpdateTimer] NPCs collectés: ${Object.keys(updateData.npcUpdates).length} zones`);
           }
         } catch (error) {
           console.warn('⚠️ [WorldUpdateTimer] Erreur collecte NPCs:', error);
@@ -577,7 +577,7 @@ class WorldUpdateTimer {
         }
         
         if (this.config.debugMode) {
-          console.log(`🌍 [WorldUpdateTimer] Update #${this.updatesSent} envoyé en ${updateTime}ms`);
+       //   console.log(`🌍 [WorldUpdateTimer] Update #${this.updatesSent} envoyé en ${updateTime}ms`);
         }
 
         // Callback custom si défini
