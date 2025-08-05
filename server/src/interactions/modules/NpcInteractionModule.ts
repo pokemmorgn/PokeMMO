@@ -1208,7 +1208,7 @@ private async executeQuestAction(
     return await this.executeDialogueAction(player, npc, npcId, capabilities, questProgress, playerLanguage);
   }
 
-    private async executeDeliveryAction(
+ private async executeDeliveryAction(
     player: Player, 
     npc: any, 
     npcId: number, 
@@ -1242,10 +1242,19 @@ private async executeQuestAction(
       console.log(`📋 [executeDeliveryAction] ${deliveryResult.totalDeliveries} livraison(s) détectée(s)`);
       
       if (deliveryResult.hasDeliveries && deliveryResult.totalDeliveries > 0) {
-        // ✅ RETOURNER LE TYPE questDelivery !
-        return {
+        
+        // ✅ DEBUG : Vérifier les données de livraison
+        console.log(`📦 [executeDeliveryAction] ✅ Données de livraison:`, {
+          totalDeliveries: deliveryResult.totalDeliveries,
+          readyDeliveries: deliveryResult.readyDeliveries,
+          deliveries: deliveryResult.deliveries.length,
+          firstDelivery: deliveryResult.deliveries[0]
+        });
+        
+        // ✅ Construire le résultat avec deliveryData
+        const result = {
           success: true,
-          type: "questDelivery",  // ✅ ENFIN LE BON TYPE !
+          type: "questDelivery" as const,
           message: `${npc.name || `NPC #${npcId}`} attend une livraison de votre part.`,
           lines: [`J'attends que vous me livriez quelque chose, ${player.name}...`],
           
@@ -1266,6 +1275,19 @@ private async executeQuestAction(
           capabilities: capabilities,
           contextualData: this.buildContextualDataFromCapabilities(capabilities)
         };
+        
+        // ✅ DEBUG : Vérifier le résultat complet
+        console.log(`📦 [executeDeliveryAction] ✅ Résultat complet:`, {
+          type: result.type,
+          hasDeliveryData: !!result.deliveryData,
+          deliveryDataKeys: result.deliveryData ? Object.keys(result.deliveryData) : [],
+          totalFields: Object.keys(result).length
+        });
+        
+        console.log(`📦 [executeDeliveryAction] ✅ deliveryData détail:`, JSON.stringify(result.deliveryData, null, 2));
+        
+        return result as NpcInteractionResult;
+        
       } else {
         // Fallback vers dialogue si plus de livraisons
         console.log(`❌ [executeDeliveryAction] Aucune livraison trouvée, fallback dialogue`);
