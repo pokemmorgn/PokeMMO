@@ -235,8 +235,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ NpcInteractionModule initialisé`);
 
     this.interactionManager.setAdditionalManagers({
-      objectManager: this.objectManager,
-      npcManagers: this.npcManagers,
       room: this // ✅ CRUCIAL : Passer la room
     });
     
