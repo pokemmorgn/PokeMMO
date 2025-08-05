@@ -855,7 +855,7 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
 
 questProgress = progressResults || [];  // ✅ Plus de .results
       
-      questProgress = progressResult.results || [];
+      questProgress = progressResults || [];
     } catch (error) {
       // Continue en cas d'erreur
     }
