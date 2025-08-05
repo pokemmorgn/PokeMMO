@@ -10,6 +10,7 @@ import { QuestData } from '../models/QuestData'; // ✅ AJOUT: Import du modèle
 import { GameObjectData } from '../models/GameObjectData';
 import { NpcData } from '../models/NpcData'; // ✅ Correct
 import { ShopData } from '../models/ShopData.js'
+import { ItemData } from '../models/ItemData';
 import { DialogStringModel, IDialogString } from '../models/DialogString';
 
 
@@ -654,77 +655,73 @@ router.post('/maps/:sourceMapId/gameobjects/duplicate/:targetMapId', requireMacA
 // ✅ ROUTE: Récupérer tous les items depuis items.json (dev + production)
 router.get('/items', requireMacAndDev, async (req: any, res) => {
   try {
-    console.log('📦 [AdminAPI] Loading items.json...');
+    console.log('📦 [AdminAPI] Loading items from MongoDB...');
     
-    const fs = require('fs').promises;
-    const path = require('path');
+    const { category, generation, rarity, search, limit = 1000 } = req.query;
     
-    // Détecter si on est en mode build ou dev
-    const isDev = __filename.includes('/src/');
-    console.log('🔧 [AdminAPI] Mode détecté:', isDev ? 'DEVELOPMENT' : 'PRODUCTION');
+    // Construire les filtres
+    const filter: any = { isActive: true };
     
-    let itemsPath: string;
-    
-    if (isDev) {
-      // Mode développement : server/src/data/items.json
-      itemsPath = path.join(__dirname, '../data/items.json');
-    } else {
-      // Mode production : server/build/data/items.json  
-      itemsPath = path.join(__dirname, '../data/items.json');
+    if (category && category !== 'all') {
+      filter.category = category;
     }
     
-    console.log('📂 [AdminAPI] Items path:', itemsPath);
+    if (generation && generation !== 'all') {
+      filter.generation = parseInt(generation);
+    }
     
-    try {
-      const itemsData = await fs.readFile(itemsPath, 'utf8');
-      const items = JSON.parse(itemsData);
-      
-      console.log(`✅ [AdminAPI] Items loaded: ${Object.keys(items).length} items`);
-      
-      res.json(items);
-      
-    } catch (fileError) {
-      console.error('❌ [AdminAPI] Error reading items.json:', fileError);
-      console.log('📂 [AdminAPI] Tried path:', itemsPath);
-      
-      // Essayer plusieurs chemins possibles
-      const possiblePaths = [
-        path.join(__dirname, '../data/items.json'),           // Relatif normal
-        path.join(__dirname, '../../data/items.json'),        // Un niveau plus haut
-        path.join(process.cwd(), 'server/build/data/items.json'), // Absolu build
-        path.join(process.cwd(), 'server/src/data/items.json'),   // Absolu src
-        path.join(process.cwd(), 'server/data/items.json'),       // Racine server
-        path.join(process.cwd(), 'data/items.json')               // Racine projet
+    if (rarity && rarity !== 'all') {
+      filter.rarity = rarity;
+    }
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { itemId: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
       ];
-      
-      console.log('🔍 [AdminAPI] Trying alternative paths...');
-      
-      for (const altPath of possiblePaths) {
-        try {
-          console.log('📂 [AdminAPI] Trying:', altPath);
-          const altItemsData = await fs.readFile(altPath, 'utf8');
-          const altItems = JSON.parse(altItemsData);
-          
-          console.log(`✅ [AdminAPI] Items found at: ${altPath} (${Object.keys(altItems).length} items)`);
-          return res.json(altItems);
-          
-        } catch (altError) {
-          // Continue à l'itération suivante
-        }
-      }
-      
-      // Aucun chemin n'a fonctionné
-      console.error('❌ [AdminAPI] Items.json not found in any location');
-      res.status(404).json({ 
-        error: 'Fichier items.json non trouvé',
-        searchedPaths: possiblePaths
-      });
     }
+    
+    // Récupérer les items
+    const items = await ItemData.find(filter)
+      .sort({ category: 1, name: 1 })
+      .limit(parseInt(limit))
+      .lean();
+    
+    // ✅ FORMATER pour compatibilité avec l'ancien format JSON
+    const formattedItems: { [key: string]: any } = {};
+    
+    items.forEach(item => {
+      formattedItems[item.itemId] = {
+        name: item.name,
+        description: item.description,
+        category: item.category,
+        price: item.price,
+        sell_price: item.sellPrice,
+        stackable: item.stackable,
+        consumable: item.consumable,
+        sprite: item.sprite,
+        generation: item.generation,
+        rarity: item.rarity,
+        tags: item.tags,
+        effects: item.effects,
+        obtain_methods: item.obtainMethods,
+        usage_restrictions: item.usageRestrictions,
+        // Données héritées pour compatibilité
+        ...(item.legacyData || {})
+      };
+    });
+    
+    console.log(`✅ [AdminAPI] ${Object.keys(formattedItems).length} items loaded from MongoDB`);
+    
+    // ✅ MÊME FORMAT que l'ancien JSON - le client ne voit aucune différence !
+    res.json(formattedItems);
     
   } catch (error) {
-    console.error('❌ [AdminAPI] Error loading items:', error);
+    console.error('❌ [AdminAPI] Error loading items from MongoDB:', error);
     res.status(500).json({ 
-      error: 'Erreur chargement items',
+      error: 'Erreur chargement items depuis MongoDB',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -6813,6 +6810,527 @@ router.get('/dialogues/missing-translations/:language', requireMacAndDev, async 
             error: 'Erreur lors de la recherche des traductions manquantes'
         });
     }
+});
+
+// ✅ NOUVELLES ROUTES CRUD pour l'admin des items
+
+/**
+ * GET /api/admin/items/list
+ * Liste détaillée pour l'interface admin
+ */
+router.get('/items/list', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('📦 [Items Admin] Loading items list...');
+    
+    const { page = 1, limit = 50, category, search } = req.query;
+    
+    const filter: any = { isActive: true };
+    
+    if (category && category !== 'all') {
+      filter.category = category;
+    }
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { itemId: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    const [items, total] = await Promise.all([
+      ItemData.find(filter)
+        .sort({ category: 1, name: 1 })
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit))
+        .lean(),
+      ItemData.countDocuments(filter)
+    ]);
+    
+    const formattedItems = items.map(item => ({
+      itemId: item.itemId,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      price: item.price,
+      sellPrice: item.sellPrice,
+      stackable: item.stackable,
+      consumable: item.consumable,
+      sprite: item.sprite,
+      generation: item.generation,
+      rarity: item.rarity,
+      tags: item.tags,
+      effectCount: item.effects?.length || 0,
+      obtainMethodCount: item.obtainMethods?.length || 0,
+      isActive: item.isActive,
+      lastUpdated: item.lastUpdated
+    }));
+    
+    res.json({
+      success: true,
+      items: formattedItems,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur chargement liste items'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/items/details/:itemId
+ * Détails complets d'un item pour édition
+ */
+router.get('/items/details/:itemId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { itemId } = req.params;
+    
+    console.log(`📦 [Items Admin] Loading details for: ${itemId}`);
+    
+    const item = await ItemData.findOne({ itemId }).lean();
+    
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item non trouvé'
+      });
+    }
+    
+    res.json({
+      success: true,
+      item: item
+    });
+    
+  } catch (error) {
+    console.error(`❌ [Items Admin] Error loading ${req.params.itemId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur chargement détails item'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/items
+ * Créer un nouvel item
+ */
+router.post('/items', requireMacAndDev, async (req: any, res) => {
+  try {
+    const itemData = req.body;
+    
+    console.log(`📦 [Items Admin] Creating item: ${itemData.itemId}`);
+    
+    // Validation des champs requis
+    if (!itemData.itemId || !itemData.name || !itemData.description) {
+      return res.status(400).json({
+        success: false,
+        error: 'Champs requis manquants (itemId, name, description)'
+      });
+    }
+    
+    // Vérifier que l'ID n'existe pas déjà
+    const existing = await ItemData.findOne({ itemId: itemData.itemId });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un item avec cet ID existe déjà'
+      });
+    }
+    
+    // Créer le nouvel item
+    const newItem = await ItemData.createFromJson({
+      id: itemData.itemId,
+      ...itemData,
+      createdBy: req.user.username
+    });
+    
+    console.log(`✅ [Items Admin] Item créé: ${itemData.itemId} par ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Item créé avec succès',
+      item: {
+        itemId: newItem.itemId,
+        name: newItem.name,
+        category: newItem.category,
+        isActive: newItem.isActive
+      },
+      createdBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error creating item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur création item',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/items/:itemId
+ * Mettre à jour un item existant
+ */
+router.put('/items/:itemId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { itemId } = req.params;
+    const updateData = req.body;
+    
+    console.log(`📦 [Items Admin] Updating item: ${itemId}`);
+    
+    const item = await ItemData.findOne({ itemId });
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item non trouvé'
+      });
+    }
+    
+    // Mettre à jour via la méthode du modèle
+    await item.updateFromJson(updateData);
+    
+    console.log(`✅ [Items Admin] Item mis à jour: ${itemId} par ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Item mis à jour avec succès',
+      item: item.toItemFormat(),
+      updatedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error updating item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur mise à jour item',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/items/:itemId
+ * Supprimer un item (désactiver)
+ */
+router.delete('/items/:itemId', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { itemId } = req.params;
+    
+    console.log(`📦 [Items Admin] Deleting item: ${itemId}`);
+    
+    const item = await ItemData.findOne({ itemId });
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item non trouvé'
+      });
+    }
+    
+    // Désactiver au lieu de supprimer
+    item.isActive = false;
+    await item.save();
+    
+    console.log(`✅ [Items Admin] Item désactivé: ${itemId} par ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Item désactivé avec succès',
+      deletedItem: {
+        itemId: item.itemId,
+        name: item.name
+      },
+      deletedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error deleting item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur suppression item'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/items/:itemId/duplicate
+ * Dupliquer un item
+ */
+router.post('/items/:itemId/duplicate', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { itemId } = req.params;
+    
+    console.log(`📋 [Items Admin] Duplicating item: ${itemId}`);
+    
+    const originalItem = await ItemData.findOne({ itemId });
+    if (!originalItem) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item original non trouvé'
+      });
+    }
+    
+    // Générer un nouvel ID unique
+    const newItemId = `${itemId}_copy_${Date.now()}`;
+    
+    // Créer la copie
+    const duplicateData = originalItem.toObject();
+    delete duplicateData._id;
+    duplicateData.itemId = newItemId;
+    duplicateData.name = `${duplicateData.name} (Copie)`;
+    duplicateData.createdBy = req.user.username;
+    duplicateData.lastUpdated = new Date();
+    
+    const duplicatedItem = await ItemData.create(duplicateData);
+    
+    console.log(`✅ [Items Admin] Item dupliqué: ${itemId} -> ${newItemId} par ${req.user.username}`);
+    
+    res.json({
+      success: true,
+      message: 'Item dupliqué avec succès',
+      originalItemId: itemId,
+      newItemId: newItemId,
+      item: {
+        itemId: duplicatedItem.itemId,
+        name: duplicatedItem.name,
+        category: duplicatedItem.category
+      },
+      duplicatedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error duplicating item:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur duplication item'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/items/stats
+ * Statistiques des items
+ */
+router.get('/items/stats', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log('📊 [Items Admin] Generating statistics...');
+    
+    const [
+      totalItems,
+      activeItems,
+      itemsByCategory,
+      itemsByGeneration,
+      itemsByRarity,
+      buyableItems
+    ] = await Promise.all([
+      ItemData.countDocuments({}),
+      ItemData.countDocuments({ isActive: true }),
+      ItemData.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      ItemData.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: '$generation', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]),
+      ItemData.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: '$rarity', count: { $sum: 1 } } }
+      ]),
+      ItemData.countDocuments({ price: { $ne: null, $gt: 0 }, isActive: true })
+    ]);
+    
+    const stats = {
+      total: totalItems,
+      active: activeItems,
+      inactive: totalItems - activeItems,
+      buyable: buyableItems,
+      byCategory: itemsByCategory.reduce((acc: any, item: any) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {}),
+      byGeneration: itemsByGeneration.reduce((acc: any, item: any) => {
+        acc[`gen_${item._id}`] = item.count;
+        return acc;
+      }, {}),
+      byRarity: itemsByRarity.reduce((acc: any, item: any) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {})
+    };
+    
+    console.log('✅ [Items Admin] Statistics generated');
+    
+    res.json({
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error generating stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur génération statistiques'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/items/search
+ * Recherche avancée d'items
+ */
+router.post('/items/search', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { query, category, generation, rarity, priceRange, hasEffects, limit = 50 } = req.body;
+    
+    console.log(`🔍 [Items Admin] Searching items: "${query}"`);
+    
+    const filter: any = { isActive: true };
+    
+    // Recherche textuelle
+    if (query && query.length >= 2) {
+      filter.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { itemId: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } },
+        { tags: { $in: [new RegExp(query, 'i')] } }
+      ];
+    }
+    
+    // Filtres avancés
+    if (category && category !== 'all') filter.category = category;
+    if (generation && generation !== 'all') filter.generation = parseInt(generation);
+    if (rarity && rarity !== 'all') filter.rarity = rarity;
+    
+    if (priceRange) {
+      if (priceRange.min !== undefined) filter.price = { ...filter.price, $gte: priceRange.min };
+      if (priceRange.max !== undefined) filter.price = { ...filter.price, $lte: priceRange.max };
+    }
+    
+    if (hasEffects === true) {
+      filter['effects.0'] = { $exists: true };
+    } else if (hasEffects === false) {
+      filter.effects = { $size: 0 };
+    }
+    
+    const results = await ItemData.find(filter)
+      .select('itemId name description category price generation rarity effects tags')
+      .sort({ name: 1 })
+      .limit(parseInt(limit))
+      .lean();
+    
+    const formattedResults = results.map(item => ({
+      itemId: item.itemId,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      price: item.price,
+      generation: item.generation,
+      rarity: item.rarity,
+      effectCount: item.effects?.length || 0,
+      tags: item.tags
+    }));
+    
+    res.json({
+      success: true,
+      results: formattedResults,
+      total: formattedResults.length,
+      query
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error searching:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur recherche items'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/items/import
+ * Importer des items depuis JSON
+ */
+router.post('/items/import', requireMacAndDev, async (req: any, res) => {
+  try {
+    const { items, overwrite = false } = req.body;
+    
+    console.log(`📥 [Items Admin] Importing ${Object.keys(items || {}).length} items by ${req.user.username}`);
+    
+    if (!items || typeof items !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Format d\'items invalide'
+      });
+    }
+    
+    const result = await ItemData.bulkImportFromJson(items);
+    
+    console.log(`✅ [Items Admin] Import completed: ${result.success} success, ${result.errors.length} errors`);
+    
+    res.json({
+      success: true,
+      message: `Import terminé: ${result.success} items importés`,
+      imported: result.success,
+      errors: result.errors.length,
+      errorDetails: result.errors.length > 0 ? result.errors.slice(0, 10) : undefined,
+      importedBy: req.user.username
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error importing:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur import items'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/items/export/all
+ * Exporter tous les items
+ */
+router.get('/items/export/all', requireMacAndDev, async (req: any, res) => {
+  try {
+    console.log(`📤 [Items Admin] Exporting all items by ${req.user.username}`);
+    
+    const items = await ItemData.findActiveItems();
+    
+    // Format compatible avec l'ancien JSON
+    const exportData: { [key: string]: any } = {};
+    
+    items.forEach(item => {
+      exportData[item.itemId] = item.toItemFormat();
+    });
+    
+    const exportMetadata = {
+      exportedAt: new Date().toISOString(),
+      exportedBy: req.user.username,
+      version: '2.0.0',
+      totalItems: items.length,
+      items: exportData
+    };
+    
+    res.json({
+      success: true,
+      data: exportMetadata
+    });
+    
+  } catch (error) {
+    console.error('❌ [Items Admin] Error exporting:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur export items'
+    });
+  }
 });
 
 export default router;
