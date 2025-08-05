@@ -234,42 +234,42 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
       this.updateStats(true, processingTime);
       
       return this.createSuccessResult(
-        "objectCollected",
-        `${itemData?.name || actualItemId} ajouté à l'inventaire !`,
-        {
-          objectId: objectDef.id.toString(),
-          objectType: objectDef.type,
-          collected: !serverConfig.bypassObjectCooldowns,
-          newState: serverConfig.bypassObjectCooldowns ? "available" : "collected"
-        },
-        {
-          metadata: {
-            itemReceived: {
-              itemId: actualItemId,                    // ✅ ID correct
-              originalItemId: itemId,                  // ✅ ID original pour référence
-              quantity: objectDef.quantity || 1,
-              name: itemData?.name || actualItemId,
-              category: itemData?.category || 'unknown',
-              addedToInventory: true,
-              idWasNormalized: actualItemId !== itemId  // ✅ Indicateur de normalisation
-            },
-            
-            cooldown: {
-              duration: cooldownHours,
-              nextAvailable: Date.now() + cooldownHours * 60 * 60 * 1000,
-              storedInMongoDB: !serverConfig.bypassObjectCooldowns
-            },
-            
-            processingTime,
-            timestamp: Date.now(),
-            
-            questProgression: {
-              attempted: true,
-              questManagerAvailable: !!this.questManager
-            }
+      "objectCollected",
+      `${itemData?.name || actualItemId} ajouté à l'inventaire !`,
+      {
+        objectId: objectDef.id.toString(),
+        objectType: objectDef.type,
+        collected: !serverConfig.bypassObjectCooldowns,
+        newState: serverConfig.bypassObjectCooldowns ? "available" : "collected"
+      },
+      {
+        metadata: {
+          itemReceived: {
+            itemId: actualItemId,
+            originalItemId: itemId,
+            quantity: objectDef.quantity || 1,
+            name: itemData?.name || actualItemId,
+            category: itemData?.category || 'unknown',
+            addedToInventory: true,
+            idWasNormalized: actualItemId !== itemId
+          },
+          
+          cooldown: {
+            duration: cooldownHours,
+            nextAvailable: Date.now() + cooldownHours * 60 * 60 * 1000,
+            storedInMongoDB: !serverConfig.bypassObjectCooldowns
+          },
+          
+          processingTime,
+          timestamp: Date.now(),
+          
+          questProgression: {
+            automatic: true, // ✅ NOUVEAU : Indique que c'est automatique via InventoryManager
+            source: "InventoryManager.addItem"
           }
         }
-      );
+      }
+    );
 
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -281,36 +281,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         error instanceof Error ? error.message : 'Erreur inconnue',
         'PROCESSING_FAILED'
       );
-    }
-  }
-
-  // ✅ MÉTHODE : Progression automatique des quêtes
-  private async progressPlayerQuests(playerName: string, itemId: string): Promise<void> {
-    try {
-      if (!this.questManager) {
-        this.log('info', 'QuestManager non disponible pour progression automatique', {
-          player: playerName,
-          itemId
-        });
-        return;
-      }
-
-      // 🚀 Progression automatique : 'collect' + itemId
-      await this.questManager.asPlayerQuestWith(playerName, 'collect', itemId);
-      
-      this.log('info', '🎯 Progression quest tentée', {
-        player: playerName,
-        action: 'collect',
-        targetId: itemId
-      });
-
-    } catch (questError) {
-      // 🔇 Erreur silencieuse - ne pas interrompre la collecte d'objet
-      this.log('warn', 'Erreur progression quest (non bloquante)', {
-        error: questError,
-        player: playerName,
-        itemId
-      });
     }
   }
 
