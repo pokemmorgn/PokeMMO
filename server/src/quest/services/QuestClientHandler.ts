@@ -605,30 +605,42 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  private refreshPlayerQuestUI(playerId: string, questId?: string): void {
-    try {
-      const worldRoom = this.serviceRegistry.getWorldRoom();
-      if (!worldRoom) return;
-
-      for (const [sessionId, player] of worldRoom.state.players) {
-        if (player.name === playerId) {
-          const client = worldRoom.clients.find((c: any) => c.sessionId === sessionId);
-          if (client) {
-            setTimeout(async () => {
-              try {
-                await worldRoom.updateQuestStatusesFixed(playerId, client);
-              } catch (refreshError) {
-                this.log('error', `Erreur refresh quest statuses:`, refreshError);
-              }
-            }, 200);
-          }
-          break;
-        }
-      }
-    } catch (error) {
-      this.log('error', `Erreur refresh UI:`, error);
+private refreshPlayerQuestUI(playerId: string, questId?: string): void {
+  try {
+    console.log(`🔄 [DEBUG] refreshPlayerQuestUI appelé pour ${playerId}`); // ✅ AJOUT TEMPORAIRE
+    
+    const worldRoom = this.serviceRegistry.getWorldRoom();
+    if (!worldRoom) {
+      console.log(`❌ [DEBUG] WorldRoom non disponible`); // ✅ AJOUT TEMPORAIRE
+      return;
     }
+
+    for (const [sessionId, player] of worldRoom.state.players) {
+      if (player.name === playerId) {
+        const client = worldRoom.clients.find((c: any) => c.sessionId === sessionId);
+        if (client) {
+          console.log(`🔄 [DEBUG] Client trouvé, lancement setTimeout`); // ✅ AJOUT TEMPORAIRE
+          setTimeout(async () => {
+            try {
+              console.log(`🔄 [DEBUG] Appel updateQuestStatusesFixed`); // ✅ AJOUT TEMPORAIRE
+              await worldRoom.updateQuestStatusesFixed(playerId, client);
+              console.log(`✅ [DEBUG] updateQuestStatusesFixed terminé`); // ✅ AJOUT TEMPORAIRE
+            } catch (refreshError) {
+              console.log(`❌ [DEBUG] Erreur refresh:`, refreshError); // ✅ AJOUT TEMPORAIRE
+              this.log('error', `Erreur refresh quest statuses:`, refreshError);
+            }
+          }, 200);
+        } else {
+          console.log(`❌ [DEBUG] Client non trouvé pour ${playerId}`); // ✅ AJOUT TEMPORAIRE
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    console.log(`❌ [DEBUG] Erreur dans refreshPlayerQuestUI:`, error); // ✅ AJOUT TEMPORAIRE
+    this.log('error', `Erreur refresh UI:`, error);
   }
+}
 
   private queueMessage(playerId: string, message: QuestClientMessage): boolean {
     const playerQueue = this.messageQueue.get(playerId) || [];
