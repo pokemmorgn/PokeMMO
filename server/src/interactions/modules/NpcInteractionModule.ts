@@ -841,24 +841,19 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
     // Progress quête (toujours faire ça)
     let questProgress: any[] = [];
     try {
-      const progressResult = await this.questManager.progressQuest(player.name, {
-        type: 'talk',
-        targetId: npcId.toString(),  // ✅ CORRECTION : targetId au lieu de target
-        npcId: npcId,                // ✅ AJOUT : npcId pour les objectifs deliver
-        amount: 1,
-        data: {
-          npc: {
-            id: npcId,
-            name: npc.name || `NPC #${npcId}`,
-            type: npc.type || 'dialogue'
-          },
-          location: {
-            x: player.x,     // ✅ SÉCURISÉ : Utilise x du serveur
-            y: player.y,     // ✅ SÉCURISÉ : Utilise y du serveur
-            map: player.currentZone  // ✅ SÉCURISÉ : Utilise currentZone du serveur
-          }
-        }
-      });
+    const progressResults = await this.questManager.updateQuestProgress(player.name, {
+      type: 'talk',
+      targetId: npcId.toString(),
+      npcId: npcId,                // ✅ NOUVEAU : Important pour les objectifs deliver
+      amount: 1,
+      location: {
+        x: player.x,
+        y: player.y,
+        map: player.currentZone
+      }
+    });
+
+questProgress = progressResults || [];  // ✅ Plus de .results
       
       questProgress = progressResult.results || [];
     } catch (error) {
