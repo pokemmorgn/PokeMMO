@@ -28,42 +28,44 @@
         </div>
 
         <!-- Navigation -->
-        <div class="nav-tabs">
-            <button class="tab-btn active" data-tab="dashboard">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
-            </button>
-            <button class="tab-btn" data-tab="players">
-                <i class="fas fa-users"></i> Joueurs
-            </button>
-            <button class="tab-btn" data-tab="quests">
-                <i class="fas fa-scroll"></i> Quêtes
-            </button>
-            <button class="tab-btn" data-tab="maps">
-                <i class="fas fa-map"></i> Cartes
-            </button>
-            <button class="tab-btn" data-tab="npcs">
-            <i class="fas fa-users-cog"></i> NPCs
-            </button>
-            <button class="tab-btn" data-tab="shops">
-            <i class="fas fa-store"></i> Boutiques
-            </button>
-            <button class="tab-btn" data-tab="dialogues">
-            <i class="fas fa-comments"></i> Dialogues
-            </button>
-            <button class="tab-btn" data-tab="edit">
-                <i class="fas fa-edit"></i> Édition
-            </button>
-            <button class="tab-btn" data-tab="logs">
-                <i class="fas fa-list"></i> Logs
-            </button>
-            <button class="tab-btn" data-tab="tools">
-                <i class="fas fa-tools"></i> Outils
-            </button>
-            <button class="tab-btn" data-tab="mongodb">
-            <i class="fas fa-database"></i> MongoDB
-            </button>
-        </div>
-
+       <div class="nav-tabs">
+    <button class="tab-btn active" data-tab="dashboard">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </button>
+    <button class="tab-btn" data-tab="players">
+        <i class="fas fa-users"></i> Joueurs
+    </button>
+    <button class="tab-btn" data-tab="quests">
+        <i class="fas fa-scroll"></i> Quêtes
+    </button>
+    <button class="tab-btn" data-tab="maps">
+        <i class="fas fa-map"></i> Cartes
+    </button>
+    <button class="tab-btn" data-tab="npcs">
+        <i class="fas fa-users-cog"></i> NPCs
+    </button>
+    <button class="tab-btn" data-tab="shops">
+        <i class="fas fa-store"></i> Boutiques
+    </button>
+    <button class="tab-btn" data-tab="items">
+        <i class="fas fa-cube"></i> Items
+    </button>
+    <button class="tab-btn" data-tab="dialogues">
+        <i class="fas fa-comments"></i> Dialogues
+    </button>
+    <button class="tab-btn" data-tab="edit">
+        <i class="fas fa-edit"></i> Édition
+    </button>
+    <button class="tab-btn" data-tab="logs">
+        <i class="fas fa-list"></i> Logs
+    </button>
+    <button class="tab-btn" data-tab="tools">
+        <i class="fas fa-tools"></i> Outils
+    </button>
+    <button class="tab-btn" data-tab="mongodb">
+        <i class="fas fa-database"></i> MongoDB
+    </button>
+</div>
         <!-- Panel Dashboard -->
         <div class="panel active" id="dashboard">
             <h2 style="margin-bottom: 25px; color: #2c3e50;">
@@ -454,6 +456,389 @@
         </div>
     </div>
 </div>
+
+        <!-- Panel Items -->
+<div class="panel" id="items">
+    <div class="item-editor">
+        <!-- Sidebar - Liste des items -->
+        <div class="item-editor__sidebar">
+            <!-- Header avec filtres -->
+            <div class="item-editor__sidebar-header">
+                <h3 class="item-editor__sidebar-title">
+                    <i class="fas fa-cube"></i>
+                    Gestion des Items
+                </h3>
+                
+                <!-- Filtres de recherche -->
+                <div class="item-editor__filters">
+                    <!-- Recherche textuelle -->
+                    <div class="item-editor__search-box">
+                        <i class="fas fa-search item-editor__search-icon"></i>
+                        <input 
+                            type="text" 
+                            id="itemSearch" 
+                            class="item-editor__search-input" 
+                            placeholder="Rechercher un item..."
+                        />
+                    </div>
+                    
+                    <!-- Filtres par catégorie, génération, rareté -->
+                    <div class="item-editor__filters-row">
+                        <select id="itemCategoryFilter" class="item-editor__filter-select">
+                            <option value="all">Toutes catégories</option>
+                            <option value="medicine">Médecine</option>
+                            <option value="pokeballs">Pokéballs</option>
+                            <option value="battle_items">Combat</option>
+                            <option value="key_items">Objets Clés</option>
+                            <option value="berries">Baies</option>
+                            <option value="machines">CT/CS</option>
+                            <option value="evolution_items">Évolution</option>
+                            <option value="held_items">Objets Tenus</option>
+                            <option value="treasure">Trésors</option>
+                        </select>
+                        
+                        <select id="itemGenerationFilter" class="item-editor__filter-select">
+                            <option value="all">Toutes générations</option>
+                            <option value="1">Génération I</option>
+                            <option value="2">Génération II</option>
+                            <option value="3">Génération III</option>
+                            <option value="4">Génération IV</option>
+                            <option value="5">Génération V</option>
+                        </select>
+                    </div>
+                    
+                    <div class="item-editor__filters-row">
+                        <select id="itemRarityFilter" class="item-editor__filter-select">
+                            <option value="all">Toutes raretés</option>
+                            <option value="common">Commun</option>
+                            <option value="uncommon">Peu commun</option>
+                            <option value="rare">Rare</option>
+                            <option value="epic">Épique</option>
+                            <option value="legendary">Légendaire</option>
+                            <option value="mythic">Mythique</option>
+                        </select>
+                        
+                        <select id="itemPriceFilter" class="item-editor__filter-select">
+                            <option value="all">Tous prix</option>
+                            <option value="free">Gratuit</option>
+                            <option value="cheap">≤ 1000₽</option>
+                            <option value="medium">1000-10000₽</option>
+                            <option value="expensive">≥ 10000₽</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Actions rapides -->
+                    <div class="item-editor__quick-actions">
+                        <button 
+                            type="button" 
+                            class="item-editor__quick-btn item-editor__quick-btn--primary"
+                            onclick="createNewItem()"
+                        >
+                            <i class="fas fa-plus"></i>
+                            Nouvel Item
+                        </button>
+                        
+                        <button 
+                            type="button" 
+                            class="item-editor__quick-btn"
+                            onclick="refreshItems()"
+                        >
+                            <i class="fas fa-sync-alt"></i>
+                            Actualiser
+                        </button>
+                        
+                        <button 
+                            type="button" 
+                            class="item-editor__quick-btn"
+                            onclick="exportItems()"
+                        >
+                            <i class="fas fa-download"></i>
+                            Exporter
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Liste des items -->
+            <div class="item-editor__items-list" id="itemsList">
+                <!-- Loading state -->
+                <div class="item-editor__loading" id="itemsLoading">
+                    <div class="item-editor__loading-spinner"></div>
+                    Chargement des items...
+                </div>
+                
+                <!-- Items seront injectés ici par JS -->
+            </div>
+            
+            <!-- Pagination -->
+            <div class="item-editor__pagination" id="itemsPagination">
+                <div class="item-editor__pagination-info" id="itemsPaginationInfo">
+                    0-0 sur 0 items
+                </div>
+                <div class="item-editor__pagination-controls">
+                    <button class="item-editor__page-btn" id="itemsPrevBtn" onclick="previousItemsPage()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="itemsPageInfo">1 / 1</span>
+                    <button class="item-editor__page-btn" id="itemsNextBtn" onclick="nextItemsPage()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Panel - Éditeur d'item -->
+        <div class="item-editor__main">
+            <!-- Header avec actions -->
+            <div class="item-editor__main-header">
+                <h2 class="item-editor__main-title" id="itemEditorTitle">
+                    <i class="fas fa-cube"></i>
+                    Sélectionnez un item
+                </h2>
+                
+                <div class="item-editor__main-actions" id="itemEditorActions" style="display: none;">
+                    <button 
+                        type="button" 
+                        class="item-editor__action-btn item-editor__action-btn--save"
+                        id="saveItemBtn"
+                        onclick="saveItem()"
+                        disabled
+                    >
+                        <i class="fas fa-save"></i>
+                        Enregistrer
+                    </button>
+                    
+                    <button 
+                        type="button" 
+                        class="item-editor__action-btn item-editor__action-btn--secondary"
+                        onclick="duplicateItem()"
+                    >
+                        <i class="fas fa-copy"></i>
+                        Dupliquer
+                    </button>
+                    
+                    <button 
+                        type="button" 
+                        class="item-editor__action-btn item-editor__action-btn--secondary"
+                        onclick="cancelEditItem()"
+                    >
+                        <i class="fas fa-times"></i>
+                        Annuler
+                    </button>
+                    
+                    <button 
+                        type="button" 
+                        class="item-editor__action-btn item-editor__action-btn--danger"
+                        onclick="deleteItem()"
+                    >
+                        <i class="fas fa-trash"></i>
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+            
+            <!-- État vide -->
+            <div class="item-editor__empty-state" id="itemEditorEmpty">
+                <div class="item-editor__empty-icon">
+                    <i class="fas fa-cube"></i>
+                </div>
+                <h3 class="item-editor__empty-title">Aucun item sélectionné</h3>
+                <p class="item-editor__empty-subtitle">
+                    Choisissez un item dans la liste ou créez-en un nouveau pour commencer l'édition.
+                </p>
+                <button 
+                    type="button" 
+                    class="item-editor__action-btn item-editor__action-btn--primary"
+                    onclick="createNewItem()"
+                >
+                    <i class="fas fa-plus"></i>
+                    Créer un nouvel item
+                </button>
+            </div>
+            
+            <!-- Formulaire d'édition -->
+            <form class="item-editor__form" id="itemEditorForm" style="display: none;">
+                <!-- Section Informations de base -->
+                <div class="item-editor__form-section">
+                    <h4 class="item-editor__section-title">
+                        <i class="fas fa-info-circle item-editor__section-icon"></i>
+                        Informations de base
+                    </h4>
+                    
+                    <div class="item-editor__form-row">
+                        <div class="item-editor__form-group item-editor__form-group--half">
+                            <label class="item-editor__label item-editor__label--required" for="itemId">
+                                ID de l'item
+                            </label>
+                            <input 
+                                type="text" 
+                                id="itemId" 
+                                name="itemId"
+                                class="item-editor__input"
+                                placeholder="ex: potion"
+                                pattern="^[a-z0-9_-]+$"
+                                required
+                            />
+                        </div>
+                        
+                        <div class="item-editor__form-group item-editor__form-group--half">
+                            <label class="item-editor__label item-editor__label--required" for="itemName">
+                                Nom affiché
+                            </label>
+                            <input 
+                                type="text" 
+                                id="itemName" 
+                                name="name"
+                                class="item-editor__input"
+                                placeholder="ex: Potion"
+                                required
+                            />
+                        </div>
+                    </div>
+                    
+                    <div class="item-editor__form-group">
+                        <label class="item-editor__label item-editor__label--required" for="itemDescription">
+                            Description
+                        </label>
+                        <textarea 
+                            id="itemDescription" 
+                            name="description"
+                            class="item-editor__input item-editor__textarea"
+                            placeholder="Description détaillée de l'item..."
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    <div class="item-editor__form-row">
+                        <div class="item-editor__form-group item-editor__form-group--third">
+                            <label class="item-editor__label item-editor__label--required" for="itemCategory">
+                                Catégorie
+                            </label>
+                            <select id="itemCategory" name="category" class="item-editor__select" required>
+                                <option value="">Sélectionnez...</option>
+                                <option value="medicine">Médecine</option>
+                                <option value="pokeballs">Pokéballs</option>
+                                <option value="battle_items">Objets de Combat</option>
+                                <option value="key_items">Objets Clés</option>
+                                <option value="berries">Baies</option>
+                                <option value="machines">CT/CS</option>
+                                <option value="evolution_items">Objets d'Évolution</option>
+                                <option value="held_items">Objets Tenus</option>
+                                <option value="treasure">Trésors</option>
+                            </select>
+                        </div>
+                        
+                        <div class="item-editor__form-group item-editor__form-group--third">
+                            <label class="item-editor__label" for="itemGeneration">
+                                Génération
+                            </label>
+                            <select id="itemGeneration" name="generation" class="item-editor__select">
+                                <option value="1">Génération I</option>
+                                <option value="2">Génération II</option>
+                                <option value="3">Génération III</option>
+                                <option value="4">Génération IV</option>
+                                <option value="5">Génération V</option>
+                            </select>
+                        </div>
+                        
+                        <div class="item-editor__form-group item-editor__form-group--third">
+                            <label class="item-editor__label" for="itemRarity">
+                                Rareté
+                            </label>
+                            <select id="itemRarity" name="rarity" class="item-editor__select">
+                                <option value="common">Commun</option>
+                                <option value="uncommon">Peu commun</option>
+                                <option value="rare">Rare</option>
+                                <option value="epic">Épique</option>
+                                <option value="legendary">Légendaire</option>
+                                <option value="mythic">Mythique</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="item-editor__form-row">
+                        <div class="item-editor__form-group item-editor__form-group--half">
+                            <label class="item-editor__label" for="itemSprite">
+                                Sprite/Icône
+                            </label>
+                            <input 
+                                type="text" 
+                                id="itemSprite" 
+                                name="sprite"
+                                class="item-editor__input"
+                                placeholder="ex: potion.png"
+                            />
+                        </div>
+                        
+                        <div class="item-editor__form-group item-editor__form-group--half">
+                            <label class="item-editor__label" for="itemPrice">
+                                Prix (₽)
+                            </label>
+                            <input 
+                                type="number" 
+                                id="itemPrice" 
+                                name="price"
+                                class="item-editor__input"
+                                min="0"
+                                placeholder="0 = gratuit"
+                            />
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Note: Sections simplifiées pour admin.html -->
+                <div class="item-editor__form-section">
+                    <h4 class="item-editor__section-title">
+                        <i class="fas fa-cog item-editor__section-icon"></i>
+                        Propriétés
+                    </h4>
+                    
+                    <div class="item-editor__form-row">
+                        <div class="item-editor__form-group">
+                            <div class="item-editor__checkbox-group">
+                                <input 
+                                    type="checkbox" 
+                                    id="itemStackable" 
+                                    name="stackable"
+                                    class="item-editor__checkbox"
+                                    checked
+                                />
+                                <label for="itemStackable" class="item-editor__checkbox-label">
+                                    Empilable
+                                </label>
+                            </div>
+                            <div class="item-editor__checkbox-group">
+                                <input 
+                                    type="checkbox" 
+                                    id="itemConsumable" 
+                                    name="consumable"
+                                    class="item-editor__checkbox"
+                                    checked
+                                />
+                                <label for="itemConsumable" class="item-editor__checkbox-label">
+                                    Consommable
+                                </label>
+                            </div>
+                            <div class="item-editor__checkbox-group">
+                                <input 
+                                    type="checkbox" 
+                                    id="itemIsActive" 
+                                    name="isActive"
+                                    class="item-editor__checkbox"
+                                    checked
+                                />
+                                <label for="itemIsActive" class="item-editor__checkbox-label">
+                                    Item actif
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+        
         <!-- Panel Logs -->
         <div class="panel" id="logs">
             <h2 style="margin-bottom: 25px; color: #2c3e50;">
