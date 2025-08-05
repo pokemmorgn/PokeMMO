@@ -856,9 +856,10 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
    * ✅ NOUVELLE MÉTHODE : Détermine l'action principale selon priorité
    */
   private determinePrimaryAction(capabilities: NpcCapability[], npc: any): NpcCapability {
-    // Ordre de priorité des actions
+    // Ordre de priorité des actions - ✅ DELIVER EN PREMIER !
     const priorityOrder: NpcCapability[] = [
-      'quest',      // Quêtes en priorité
+      'deliver',    // ✅ NOUVEAU : Livraisons en priorité absolue !
+      'quest',      // Puis quêtes normales
       'merchant',   // Puis boutique
       'healer',     // Puis soins
       'trainer',    // Puis combat
