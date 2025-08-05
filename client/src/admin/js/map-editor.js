@@ -34,7 +34,9 @@ export class MapEditorModule {
     // GESTION DES ITEMS
     // ==============================
 
-   getItemDisplayName(item) {
+// ✅ CORRECTION COMPLÈTE de getItemDisplayName() dans map-editor.js
+
+getItemDisplayName(item) {
     // ✅ CORRECTION COMPLÈTE: Robuste contre tous les types
     console.log('🔍 [DEBUG] getItemDisplayName called with:', typeof item, item);
     
@@ -85,8 +87,12 @@ export class MapEditorModule {
     return 'Item Inconnu';
 }
 
+// ✅ PROBLÈME IDENTIFIÉ: Dans renderItemsPanel(), il y a un appel incorrect
+// LIGNE PROBLÉMATIQUE:
+// displayName: this.getItemDisplayName(item) // ← 'item' est un objet
 
-   renderItemsPanel() {
+// ✅ SOLUTION: Corriger l'appel dans renderItemsPanel()
+renderItemsPanel() {
     const container = document.getElementById('itemsContainer')
     if (!container) return
     
@@ -135,11 +141,12 @@ export class MapEditorModule {
                 itemsByCategory[category] = []
             }
             
-            // ✅ ASSURER QUE L'ITEM A UN ID
+            // ✅ ASSURER QUE L'ITEM A UN ID ET CORRIGER L'APPEL getItemDisplayName
             const itemWithId = {
                 ...item,
                 id: item.itemId || item.id || itemId,
-                displayName: this.getItemDisplayName(item) // ← Ici se produit l'erreur
+                // ✅ CORRECTION: Passer l'objet item, pas itemId
+                displayName: this.getItemDisplayName(item) // ← CORRIGÉ
             }
             
             itemsByCategory[category].push(itemWithId)
@@ -196,7 +203,7 @@ export class MapEditorModule {
             
             html += `
                 <div class="item-card ${isSelected ? 'selected' : ''}" 
-                     onclick="selectItem('${item.id}')"
+                     onclick="adminPanel.mapEditor.selectItem('${item.id}')"
                      style="
                         padding: 8px; 
                         border: 2px solid ${isSelected ? '#007bff' : '#dee2e6'}; 
@@ -229,21 +236,24 @@ export class MapEditorModule {
     console.log(`✅ [MapEditor] Items panel rendered with ${Object.keys(this.availableItems).length} items`)
 }
 
-    selectItem(itemId) {
-        this.selectedItem = this.availableItems[itemId]
-        this.selectedTool = 'object' // Forcer le mode objet
-        
-        // Mettre à jour l'affichage des outils
-        document.querySelectorAll('.btn-tool').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tool === 'object')
-        })
-        
-        // Mettre à jour l'affichage des items
-        this.renderItemsPanel()
-        
-        console.log(`📦 [MapEditor] Item selected: ${itemId}`)
-        this.adminPanel.showNotification(`Item sélectionné: ${this.getItemDisplayName(itemId)}`, 'info')
-    }
+// ✅ CORRECTION SUPPLÉMENTAIRE: Dans selectItem(), corriger l'appel aussi
+selectItem(itemId) {
+    this.selectedItem = this.availableItems[itemId]
+    this.selectedItemId = itemId // ✅ AJOUTER cette ligne pour tracker l'ID
+    this.selectedTool = 'object' // Forcer le mode objet
+    
+    // Mettre à jour l'affichage des outils
+    document.querySelectorAll('.btn-tool').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tool === 'object')
+    })
+    
+    // Mettre à jour l'affichage des items
+    this.renderItemsPanel()
+    
+    console.log(`📦 [MapEditor] Item selected: ${itemId}`)
+    // ✅ CORRECTION: Passer l'objet item, pas l'itemId
+    this.adminPanel.showNotification(`Item sélectionné: ${this.getItemDisplayName(this.selectedItem)}`, 'info')
+}
 
     filterItems(searchTerm) {
         const itemCards = document.querySelectorAll('.item-card')
