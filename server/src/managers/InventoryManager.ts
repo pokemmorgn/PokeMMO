@@ -6,6 +6,9 @@ import { EventDispatcher } from "../utils/EventDispatcher";
 import { ItemService } from "../services/ItemService";
 import { ItemData } from "../models/ItemData";
 
+// ✅ AJOUT - Import ServiceRegistry pour progression quêtes
+import { ServiceRegistry } from "../services/ServiceRegistry";
+
 // Type des events d'inventaire
 type InventoryEvents = {
   addItem: { username: string; itemId: string; quantity: number };
@@ -252,7 +255,7 @@ export class InventoryManager {
     return inv;
   }
 
-  // ✅ MÉTHODE PRINCIPALE MODIFIÉE : addItem avec support MongoDB
+  // ✅ MÉTHODE PRINCIPALE MODIFIÉE : addItem avec support MongoDB + Progression Quêtes
   static async addItem(username: string, itemId: string, qty: number = 1): Promise<IInventory> {
     console.log(`📦 [InventoryManager] Ajout item: ${username} - ${itemId} x${qty}`);
 
@@ -295,6 +298,10 @@ export class InventoryManager {
       InventoryManager.events.emit("addItem", { username, itemId: actualItemId, quantity: 1 });
       
       console.log(`✅ [InventoryManager] Item non-stackable ajouté: ${actualItemId} (source: ${validation.source})`);
+      
+      // ✅ PROGRESSION QUÊTES - Non stackable
+      await this.triggerQuestProgression(username, actualItemId);
+      
       return inv;
     } else {
       if (hasItem) {
@@ -306,7 +313,40 @@ export class InventoryManager {
       }
       await inv.save();
       InventoryManager.events.emit("addItem", { username, itemId: actualItemId, quantity: qty });
+      
+      // ✅ PROGRESSION QUÊTES - Stackable
+      await this.triggerQuestProgression(username, actualItemId);
+      
       return inv;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Progression automatique des quêtes
+  private static async triggerQuestProgression(username: string, itemId: string): Promise<void> {
+    try {
+      console.log(`🎯 [InventoryManager] Tentative progression quête: ${username} -> collect:${itemId}`);
+      
+      const registry = ServiceRegistry.getInstance();
+      console.log(`🔍 [InventoryManager] ServiceRegistry récupéré:`, !!registry);
+      
+      const questManager = registry.getQuestManager();
+      console.log(`🔍 [InventoryManager] QuestManager depuis registry:`, !!questManager);
+      
+      if (questManager) {
+        console.log(`🎯 [InventoryManager] Appel asPlayerQuestWith...`);
+        await questManager.asPlayerQuestWith(username, 'collect', itemId);
+        console.log(`✅ [InventoryManager] Progression quête déclenchée pour ${itemId}`);
+      } else {
+        console.error(`❌ [InventoryManager] QuestManager non disponible pour progression !`);
+        console.log(`🔍 [InventoryManager] Debug ServiceRegistry:`, {
+          registryExists: !!registry,
+          questManagerExists: !!registry?.getQuestManager(),
+          registryMethods: registry ? Object.getOwnPropertyNames(Object.getPrototypeOf(registry)) : 'N/A'
+        });
+      }
+    } catch (questError) {
+      console.error(`❌ [InventoryManager] Erreur progression quête:`, questError);
+      // Continue même en cas d'erreur - ne pas faire échouer l'ajout d'item
     }
   }
 
