@@ -866,8 +866,72 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
     questProgress: any[], 
     playerLanguage: string
   ): Promise<NpcInteractionResult> {
-    console.log(`🎯 [executeQuestAction] === EXÉCUTION ACTION QUÊTE ===`);
+    console.log(`🎯 [executeQuestAction] === EXÉCUTION ACTION QUÊTE AVEC DÉTECTION LIVRAISONS ===`);
     console.log(`👤 Joueur: ${player.name}, NPC: ${npcId}`);
+    
+    // ✅ NOUVEAU : Phase 0 - Détection automatique des livraisons
+    try {
+      const activeQuests = await this.questManager.getActiveQuests(player.name);
+      const questDefinitions = new Map();
+      
+      // Construire le Map des définitions pour le détecteur
+      for (const quest of activeQuests) {
+        const definition = this.questManager.getQuestDefinition(quest.id);
+        if (definition) {
+          questDefinitions.set(quest.id, definition);
+        }
+      }
+      
+      console.log(`🔍 [executeQuestAction] Détection livraisons pour ${activeQuests.length} quêtes actives...`);
+      
+      const deliveryResult = await this.deliveryDetector.detectDeliveries(
+        player.name,
+        npcId.toString(),
+        activeQuests,
+        questDefinitions
+      );
+      
+      console.log(`📋 [executeQuestAction] Résultat détection:`, {
+        hasDeliveries: deliveryResult.hasDeliveries,
+        totalDeliveries: deliveryResult.totalDeliveries,
+        readyDeliveries: deliveryResult.readyDeliveries
+      });
+      
+      // ✅ NOUVEAU : Si des livraisons sont détectées, les retourner au client
+      if (deliveryResult.hasDeliveries && deliveryResult.totalDeliveries > 0) {
+        console.log(`🚚 [executeQuestAction] ${deliveryResult.totalDeliveries} livraison(s) détectée(s) !`);
+        
+        return {
+          success: true,
+          type: "questDelivery", // ✅ NOUVEAU TYPE pour le client
+          message: `${npc.name || `NPC #${npcId}`} attend une livraison de votre part.`,
+          lines: [`J'attends que vous me livriez quelque chose, ${player.name}...`],
+          
+          // ✅ DONNÉES DE LIVRAISON pour le client
+          deliveryData: {
+            npcId: deliveryResult.npcId,
+            npcName: npc.name || `NPC #${npcId}`,
+            deliveries: deliveryResult.deliveries,
+            allItemsAvailable: deliveryResult.allItemsAvailable,
+            totalDeliveries: deliveryResult.totalDeliveries,
+            readyDeliveries: deliveryResult.readyDeliveries
+          },
+          
+          questProgress: questProgress,
+          npcId: npcId,
+          npcName: npc.name || `NPC #${npcId}`,
+          isUnifiedInterface: false,
+          capabilities: capabilities,
+          contextualData: this.buildContextualDataFromCapabilities(capabilities)
+        };
+      }
+      
+    } catch (deliveryError) {
+      console.warn(`⚠️ [executeQuestAction] Erreur détection livraisons:`, deliveryError);
+      // Continue vers la logique normale en cas d'erreur
+    }
+
+    // ✅ LOGIQUE EXISTANTE : Si pas de livraisons, continuer normalement
     
     // 1. Vérifier les quêtes à terminer
     const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
@@ -909,7 +973,7 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
           npcId: npcId,
           npcName: npc.name || `NPC #${npcId}`,
           isUnifiedInterface: false,
-          capabilities: capabilities, // ✅ Toutes les capacités
+          capabilities: capabilities,
           contextualData: this.buildContextualDataFromCapabilities(capabilities),
           lines: completionDialogue,
           message: `Félicitations ! Vous avez terminé : ${questNames}`
@@ -950,7 +1014,7 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: capabilities, // ✅ Toutes les capacités
+        capabilities: capabilities,
         contextualData: this.buildContextualDataFromCapabilities(capabilities)
       };
     }
@@ -976,7 +1040,7 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
         npcId: npcId,
         npcName: npc.name || `NPC #${npcId}`,
         isUnifiedInterface: false,
-        capabilities: capabilities, // ✅ Toutes les capacités
+        capabilities: capabilities,
         contextualData: this.buildContextualDataFromCapabilities(capabilities)
       };
     }
