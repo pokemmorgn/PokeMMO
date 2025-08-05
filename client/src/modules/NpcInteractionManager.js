@@ -386,7 +386,6 @@ export class NpcInteractionManager {
   // === LOGIQUE PRINCIPALE D'INTERACTION ===
 
   async interactWithNpc(npc, options = {}) {
-    console.log('[DEBUG] RAW data received:', JSON.stringify(data, null, 2));
     console.log('[NpcInteractionManager] 🎯 === INTERACTION NPC ===');
     console.log('[NpcInteractionManager] NPC:', npc?.name || 'unknown');
     console.log('[NpcInteractionManager] Options:', options);
@@ -518,7 +517,14 @@ async sendNpcInteraction(npc, options = {}) {
 handleNetworkInteractionResult(data) {
   console.log('[NpcInteractionManager] 🔄 === TRAITEMENT RÉSULTAT RÉSEAU ===');
   console.log('[NpcInteractionManager] Data:', data);
-  
+
+   try {
+    // ✅ FIX ULTRA SIMPLE : Ajouter cette ligne AVANT tout le reste
+    if (data.deliveryData && window.questSystem) {
+      console.log('[NpcInteractionManager] 🎁 LIVRAISON DÉTECTÉE - Délégation directe');
+      return window.questSystem.handleQuestDeliveryData(data);
+    }
+     
   // ✅ FORCER L'AFFICHAGE COMPLET DES DONNÉES AVEC FOCUS QUÊTES
   console.log('[NpcInteractionManager] 🔍 === DEBUG COMPLET DONNÉES ===');
   console.log('[NpcInteractionManager] JSON.stringify(data):', JSON.stringify(data, null, 2));
