@@ -55,6 +55,30 @@ export interface NpcInteractionResult extends InteractionResult {
     reason?: string;
   };
   
+  // ✅ AJOUTÉ : Données de livraison de quête
+  deliveryData?: {
+    npcId: string;
+    npcName: string;
+    deliveries: Array<{
+      questId: string;
+      questName: string;
+      stepIndex: number;
+      stepName: string;
+      objectiveId: string;
+      objectiveDescription: string;
+      itemId: string;
+      itemName: string;
+      requiredAmount: number;
+      playerHasAmount: number;
+      canDeliver: boolean;
+      isCompleted: boolean;
+      npcId: string;
+    }>;
+    allItemsAvailable: boolean;
+    totalDeliveries: number;
+    readyDeliveries: number;
+  };
+  
   npcId: number;
   npcName: string;
   isUnifiedInterface: boolean;
