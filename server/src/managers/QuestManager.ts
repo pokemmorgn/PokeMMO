@@ -686,21 +686,18 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
     };
 
     // ✅ PHASE 2 : SCAN INVENTAIRE AUTOMATIQUE (NOUVEAU)
-    const trackerConfig = this.progressTracker.getConfig();
-    if (trackerConfig?.enableInventoryScan && trackerConfig?.scanOnQuestStart) {
-      console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
+    console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
+    
+    try {
+      // Utiliser la méthode de scan du progressTracker
+      const scanResult = await this.progressTracker.scanStepObjectives(username, questProgress, firstStep.objectives);
       
-      try {
-        // Utiliser la méthode de scan du progressTracker
-        const scanResult = await this.progressTracker.scanStepObjectives(username, questProgress, firstStep.objectives);
-        
-        if (scanResult.autoCompleted > 0) {
-          console.log(`🎯 [QuestManager] Scan initial: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
-        }
-      } catch (scanError) {
-        console.warn(`⚠️ [QuestManager] Erreur scan inventaire initial:`, scanError);
-        // Continue même en cas d'erreur de scan
+      if (scanResult.autoCompleted > 0) {
+        console.log(`🎯 [QuestManager] Scan initial: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
       }
+    } catch (scanError) {
+      console.warn(`⚠️ [QuestManager] Erreur scan inventaire initial:`, scanError);
+      // Continue même en cas d'erreur de scan
     }
 
     // ✅ PHASE 3 : Sauvegarde et notifications
