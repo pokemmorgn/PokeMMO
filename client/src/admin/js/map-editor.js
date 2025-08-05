@@ -1046,6 +1046,106 @@ async saveMapObjects() {
     }
 }
 
+    // ==============================
+// MÉTHODE MANQUANTE À AJOUTER DANS MapEditorModule
+// ==============================
+
+async loadAvailableItems() {
+    console.log('📦 [MapEditor] Loading available items from MongoDB...')
+    
+    try {
+        // Appel API vers le serveur MongoDB pour récupérer les items
+        const response = await this.adminPanel.apiCall('/admin/items')
+        
+        if (response.success && response.items) {
+            console.log(`📦 [MapEditor] Received ${response.items.length} items from MongoDB`)
+            
+            // Convertir le tableau en objet indexé par itemId pour compatibilité
+            this.availableItems = {}
+            
+            response.items.forEach(item => {
+                // Utiliser itemId comme clé, avec fallback sur _id
+                const itemKey = item.itemId || item._id
+                
+                // Formater l'item pour compatibilité avec l'interface
+                this.availableItems[itemKey] = {
+                    id: itemKey,
+                    itemId: item.itemId,
+                    name: item.name,
+                    category: item.category || item.pocket || 'items',
+                    type: item.type || item.category || 'item',
+                    price: item.price || 0,
+                    description: item.description || '',
+                    stackable: item.stackable !== false,
+                    // Propriétés pour le placement
+                    sprite: this.getItemSpriteFromCategory(item.category || item.type),
+                    rarity: this.determineItemRarity(item),
+                    // Conserver les données complètes
+                    ...item
+                }
+            })
+            
+            console.log(`✅ [MapEditor] ${Object.keys(this.availableItems).length} items loaded and indexed`)
+            
+            // Rendre le panel des items si il existe
+            if (document.getElementById('itemsContainer')) {
+                this.renderItemsPanel()
+            }
+            
+            return true
+            
+        } else {
+            throw new Error(response.error || 'Aucun item reçu')
+        }
+        
+    } catch (error) {
+        console.error('❌ [MapEditor] Error loading items from MongoDB:', error)
+        
+        // Aucun fallback - forcer l'utilisation de MongoDB
+        this.availableItems = {}
+        console.log('❌ [MapEditor] No items loaded - MongoDB connection required')
+        
+        this.adminPanel.showNotification('Erreur MongoDB: Aucun item chargé - Vérifiez la connexion base de données', 'error')
+        
+        return false
+    }
+}
+
+// ==============================
+// MÉTHODES HELPERS POUR LES ITEMS
+// ==============================
+
+getItemSpriteFromCategory(category) {
+    const spriteMap = {
+        'pokeballs': 'pokeball_ground.png',
+        'balls': 'pokeball_ground.png', 
+        'medicine': 'potion_ground.png',
+        'key_items': 'keyitem_ground.png',
+        'berries': 'berry_ground.png',
+        'machines': 'tm_ground.png',
+        'evolution_items': 'evolutionstone_ground.png',
+        'held_items': 'item_ground.png',
+        'treasure': 'treasure_ground.png',
+        'battle_items': 'battleitem_ground.png'
+    }
+    
+    return spriteMap[category] || 'item_ground.png'
+}
+
+determineItemRarity(item) {
+    // Déterminer la rareté basée sur le prix et la catégorie
+    if (item.category === 'key_items' || item.price === 0) {
+        return 'rare'
+    }
+    
+    if (item.price && item.price > 10000) {
+        return 'rare'
+    } else if (item.price && item.price > 1000) {
+        return 'uncommon'
+    }
+    
+    return 'common'
+}
 // ✅ NOUVELLE MÉTHODE: Sauvegarder GameObjects séparément
 async saveGameObjects(mapId, gameObjects) {
     try {
