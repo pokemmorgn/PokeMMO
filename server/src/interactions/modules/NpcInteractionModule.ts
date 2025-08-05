@@ -1278,7 +1278,7 @@ questProgress = progressResults || [];  // ✅ Plus de .results
       'researcher': 'Recherche',
       'guild': 'Guilde',
       'event': 'Événement',
-      'quest_master': 'Maître de quête'
+      'quest_master': 'Maître de quête',
       'deliver': 'Livraison'
     };
     
