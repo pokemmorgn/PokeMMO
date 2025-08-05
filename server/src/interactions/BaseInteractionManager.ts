@@ -696,7 +696,7 @@ class WorldUpdateTimer {
           
         } catch (zoneError) {
           console.error(`❌ [WorldUpdateTimer] Erreur zone ${zoneName}:`, zoneError);
-          console.error(`❌ [WorldUpdateTimer] Stack trace:`, zoneError.stack);
+          console.error(`❌ [WorldUpdateTimer] Stack trace:`, (zoneError as Error)?.stack);
         }
       }
       
@@ -714,7 +714,7 @@ class WorldUpdateTimer {
       
     } catch (error) {
       console.error('❌ [WorldUpdateTimer] Erreur collecte quest statuses:', error);
-      console.error('❌ [WorldUpdateTimer] Stack trace:', error.stack);
+      console.error('❌ [WorldUpdateTimer] Stack trace:', (error as Error)?.stack);
     }
     
     const finalCount = Object.keys(questStatuses).length;
@@ -752,7 +752,7 @@ class WorldUpdateTimer {
         const npcs = npcManager.getAllNpcs();
         console.log(`📊 NPCs récupérés: ${npcs.length}`);
         
-        const npcsWithQuests = npcs.filter(npc => 
+        const npcsWithQuests = npcs.filter((npc: any) => 
           (npc.questsToGive && npc.questsToGive.length > 0) || 
           (npc.questsToEnd && npc.questsToEnd.length > 0)
         );
@@ -761,7 +761,7 @@ class WorldUpdateTimer {
         
         if (npcsWithQuests.length > 0) {
           console.log(`📋 Détails premiers NPCs avec quêtes:`);
-          npcsWithQuests.slice(0, 3).forEach(npc => {
+          npcsWithQuests.slice(0, 3).forEach((npc: any) => {
             console.log(`  🎯 ${npc.id} (${npc.name}): questsToGive=${npc.questsToGive?.length || 0}, questsToEnd=${npc.questsToEnd?.length || 0}`);
           });
         }
@@ -1209,7 +1209,7 @@ export class BaseInteractionManager {
           
           // Test immédiat de collecte
           console.log('🧪 [BaseInteractionManager] Test immédiat collecte quest statuses...');
-          const questStatuses = await this.worldUpdateTimer.collectQuestStatuses();
+          const questStatuses = await this.testCollectQuestStatuses();
           console.log('🧪 [BaseInteractionManager] Résultat test:', {
             questStatusCount: Object.keys(questStatuses).length,
             sample: Object.keys(questStatuses).slice(0, 3)
@@ -1299,6 +1299,24 @@ export class BaseInteractionManager {
    */
   getWorldUpdateTimerStats() {
     return this.worldUpdateTimer ? this.worldUpdateTimer.getStats() : null;
+  }
+
+  /**
+   * 🧪 Test de collecte des quest statuses (pour diagnostic)
+   */
+  async testCollectQuestStatuses(): Promise<any> {
+    if (!this.worldUpdateTimer) {
+      console.warn('⚠️ [BaseInteractionManager] Timer non disponible pour test');
+      return {};
+    }
+    
+    try {
+      // Accéder à la méthode private via any pour le test
+      return await (this.worldUpdateTimer as any).collectQuestStatuses();
+    } catch (error) {
+      console.error('❌ [BaseInteractionManager] Erreur test collecte:', error);
+      return {};
+    }
   }
 
   // === ✅ MÉTHODES PRINCIPALES INCHANGÉES ===
