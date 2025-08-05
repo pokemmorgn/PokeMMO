@@ -850,66 +850,64 @@ private async updateQuestStatusesFixed(username: string, client?: Client) {
       }
     });
 
-this.onMessage("npcInteract", async (client, data) => {
-  const player = this.state.players.get(client.sessionId);
-  if (!player) {
-    client.send("npcInteractionResult", {
-      success: false,
-      type: "error",
-      message: "Joueur non trouvé"
-    });
-    return;
-  }
-
-  try {
-    // ✅ NOUVEAU : Appel direct au module NPC pour préserver les données
-    const context: InteractionContext = {
-      player: player,
-      request: {
-        type: 'npc',
-        data: {
-          npcId: data.npcId,
-          playerLanguage: data.playerLanguage || 'fr',
-          // Ajouter toutes les données de la requête
-          ...data
-        }
-      },
-      validations: {
-        distance: true,
-        zone: true,
-        permissions: true
-      }
-    };
-
-    // Utiliser directement le npcInteractionModule pour éviter la perte de données
-    const result = await this.npcInteractionModule.handle({
-      ...context,
-      userId: this.jwtManager.getUserId(client.sessionId),
-      sessionId: client.sessionId
-    });
-
-    // ✅ DEBUG : Vérifier les données avant envoi
-    console.log('📤 [WorldRoom] Envoi résultat au client:', {
-      type: result.type,
-      hasDeliveryData: !!(result as any).deliveryData,
-      deliveryDataKeys: (result as any).deliveryData ? 
-        Object.keys((result as any).deliveryData) : [],
-      capabilities: (result as any).capabilities,
-      contextualData: (result as any).contextualData
-    });
-
-    // ✅ IMPORTANT : Envoyer le résultat COMPLET sans filtrage
-    client.send("npcInteractionResult", result);
-    
-  } catch (error) {
-    console.error(`❌ Erreur interaction NPC:`, error);
-    client.send("npcInteractionResult", {
-      success: false,
-      type: "error",
-      message: "Erreur lors de l'interaction"
-    });
-  }
-});
+        this.onMessage("npcInteract", async (client, data) => {
+          const player = this.state.players.get(client.sessionId);
+          if (!player) {
+            client.send("npcInteractionResult", {
+              success: false,
+              type: "error",
+              message: "Joueur non trouvé"
+            });
+            return;
+          }
+        
+          try {
+            // ✅ NOUVEAU : Appel direct au module NPC pour préserver les données
+            const context: InteractionContext = {
+              player: player,
+              request: {
+                type: 'npc',
+                data: {
+                  npcId: data.npcId,
+                  playerLanguage: data.playerLanguage || 'fr',
+                  // Ajouter toutes les données de la requête
+                  ...data
+                }
+              },
+              validations: {
+                // Laisser vide ou ajouter les validations si nécessaire
+              }
+            };
+        
+            // Utiliser directement le npcInteractionModule pour éviter la perte de données
+            const result = await this.npcInteractionModule.handle({
+              ...context,
+              userId: this.jwtManager.getUserId(client.sessionId),
+              sessionId: client.sessionId
+            });
+        
+            // ✅ DEBUG : Vérifier les données avant envoi
+            console.log('📤 [WorldRoom] Envoi résultat au client:', {
+              type: result.type,
+              hasDeliveryData: !!(result as any).deliveryData,
+              deliveryDataKeys: (result as any).deliveryData ? 
+                Object.keys((result as any).deliveryData) : [],
+              capabilities: (result as any).capabilities,
+              contextualData: (result as any).contextualData
+            });
+        
+            // ✅ IMPORTANT : Envoyer le résultat COMPLET sans filtrage
+            client.send("npcInteractionResult", result);
+            
+          } catch (error) {
+            console.error(`❌ Erreur interaction NPC:`, error);
+            client.send("npcInteractionResult", {
+              success: false,
+              type: "error",
+              message: "Erreur lors de l'interaction"
+            });
+          }
+        });
 
     this.onMessage("requestInitialState", (client, data: { zone: string }) => {
       const player = this.state.players.get(client.sessionId);
