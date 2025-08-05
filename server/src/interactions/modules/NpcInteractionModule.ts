@@ -714,11 +714,57 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
     
   } catch (error) {
     console.warn(`⚠️ [QUEST CAPABILITY] Erreur générale vérification quêtes:`, error);
-    
-    // ✅ CORRECTION MAJEURE: AUCUN FALLBACK EN CAS D'ERREUR
-    // Avant: on ajoutait automatiquement la capacité en cas d'erreur
-    // Maintenant: on n'ajoute que si on a des preuves réelles
     console.log(`🚫 [QUEST CAPABILITY] Pas de fallback automatique - Erreur n'implique pas capacité quête`);
+  }
+  
+  // ✅ NOUVEAU : DÉTECTION DE LIVRAISON (MULTI-CAPABILITY)
+  let hasDeliveryCapability = false;
+  
+  try {
+    console.log(`🚚 [DELIVERY CAPABILITY] === VÉRIFICATION LIVRAISONS POUR NPC ${npcId} ===`);
+    
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questDefinitions = new Map();
+    
+    // Construire le Map des définitions pour le détecteur
+    for (const quest of activeQuests) {
+      const definition = this.questManager.getQuestDefinition(quest.id);
+      if (definition) {
+        questDefinitions.set(quest.id, definition);
+      }
+    }
+    
+    console.log(`🔍 [DELIVERY CAPABILITY] Détection livraisons pour ${activeQuests.length} quêtes actives...`);
+    
+    const deliveryResult = await this.deliveryDetector.detectDeliveries(
+      player.name,
+      npcId.toString(),
+      activeQuests,
+      questDefinitions
+    );
+    
+    console.log(`📋 [DELIVERY CAPABILITY] Résultat détection:`, {
+      hasDeliveries: deliveryResult.hasDeliveries,
+      totalDeliveries: deliveryResult.totalDeliveries,
+      readyDeliveries: deliveryResult.readyDeliveries
+    });
+    
+    if (deliveryResult.hasDeliveries && deliveryResult.totalDeliveries > 0) {
+      hasDeliveryCapability = true;
+      console.log(`✅ [DELIVERY CAPABILITY] ${deliveryResult.totalDeliveries} livraison(s) détectée(s) !`);
+      
+      // ✅ MULTI-CAPABILITY : Ajouter 'deliver' EN PLUS des autres capacités
+      if (!capabilities.includes('deliver')) {
+        capabilities.push('deliver');
+        console.log(`✅ [DELIVERY CAPABILITY] Capacité 'deliver' ajoutée`);
+      }
+    } else {
+      console.log(`❌ [DELIVERY CAPABILITY] Aucune livraison détectée`);
+    }
+    
+  } catch (deliveryError) {
+    console.warn(`⚠️ [DELIVERY CAPABILITY] Erreur détection livraisons:`, deliveryError);
+    // Continue sans ajouter la capacité
   }
   
   // ✅ Vérifier si le NPC a une boutique
@@ -740,6 +786,7 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
   console.log(`🎯 [NPC CAPABILITIES] === RÉSULTAT FINAL ===`);
   console.log(`🎯 [NPC CAPABILITIES] Capacités pour NPC ${npcId}:`, capabilities);
   console.log(`🎯 [NPC CAPABILITIES] Quest capability: ${capabilities.includes('quest') ? 'OUI' : 'NON'}`);
+  console.log(`🎯 [NPC CAPABILITIES] Delivery capability: ${capabilities.includes('deliver') ? 'OUI' : 'NON'}`);
   console.log(`🎯 [NPC CAPABILITIES] ================================`);
   
   return capabilities;
