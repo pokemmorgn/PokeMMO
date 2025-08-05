@@ -119,7 +119,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       enableNotifications: true,
       defaultMessageDuration: QuestClientConstants.DURATION.TOAST,
       maxMessageHistory: QuestClientConstants.LIMITS.MAX_HISTORY_SIZE,
-      enableMessageQueue: true,
+      enableMessageQueue: false,
       maxQueueSize: 100,
       batchSize: QuestClientConstants.LIMITS.MAX_BATCH_SIZE,
       batchInterval: 1000,
