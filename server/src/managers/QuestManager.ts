@@ -910,6 +910,12 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
             completed: isNowCompleted
           });
 
+             // ✅ NOUVEAU : Refresh UI automatique si progression
+            if (hasProgression) {
+              console.log(`🔄 [QuestManager] Déclenchement refresh UI pour ${username}`);
+              await this.questClientHandler.refreshPlayerQuestUI(username);
+            }
+          
           if (this.config.debugMode) {
             console.log(`📊 [QuestManager] Progrès: ${questDefinition.name} -> ${objective.description}: ${newAmount}/${objective.requiredAmount || 1}`);
           }
