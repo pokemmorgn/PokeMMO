@@ -1,5 +1,6 @@
 // server/src/interactions/types/UnifiedInterfaceTypes.ts
 // Types pour l'interface unifiée des NPCs multi-fonctionnels
+// ✅ VERSION MISE À JOUR : Support de la capacité 'deliver'
 
 // ===== TYPES DE CAPACITÉS NPCs =====
 
@@ -16,7 +17,7 @@ export type NpcCapability =
   | 'guild'
   | 'event'
   | 'quest_master'
-  | 'deliver';
+  | 'deliver';  // ✅ DÉJÀ PRÉSENT
 
 // ===== INTERFACES POUR CHAQUE SECTION DE DONNÉES =====
 
@@ -78,6 +79,32 @@ export interface QuestData {
   questDialogue: string[];
   canGiveQuests: boolean;
   canCompleteQuests: boolean;
+}
+
+// ✅ NOUVEAU : Interface pour les données de livraison
+export interface DeliveryData {
+  npcId: string;
+  npcName: string;
+  deliveries: Array<{
+    questId: string;
+    questName: string;
+    stepIndex: number;
+    stepName: string;
+    objectiveId: string;
+    objectiveDescription: string;
+    itemId: string;
+    itemName: string;
+    requiredAmount: number;
+    playerHasAmount: number;
+    canDeliver: boolean;
+    isCompleted: boolean;
+    npcId: string;
+  }>;
+  allItemsAvailable: boolean;
+  totalDeliveries: number;
+  readyDeliveries: number;
+  welcomeDialogue: string[];
+  canDeliverAny: boolean;
 }
 
 export interface DialogueData {
@@ -200,12 +227,13 @@ export interface UnifiedInterfaceResult {
   trainerData?: TrainerData;
   transportData?: TransportData;
   serviceData?: ServiceData;
+  deliveryData?: DeliveryData;  // ✅ NOUVEAU : Données de livraison
   
   // Métadonnées interface
   interfaceConfig?: {
     tabOrder: NpcCapability[]; // Ordre d'affichage des onglets
     primaryTab: NpcCapability; // Onglet ouvert par défaut
-    theme?: 'default' | 'shop' | 'quest' | 'battle';
+    theme?: 'default' | 'shop' | 'quest' | 'battle' | 'delivery';  // ✅ NOUVEAU : thème delivery
     customCss?: string;
   };
   
@@ -233,6 +261,15 @@ export interface SpecificActionRequest {
     // Pour quest
     questAction?: 'start' | 'complete' | 'abandon';
     questId?: string;
+    
+    // ✅ NOUVEAU : Pour deliver
+    deliveryAction?: 'deliver_item' | 'deliver_all';
+    deliveryData?: {
+      questId: string;
+      objectiveId: string;
+      itemId: string;
+      requiredAmount: number;
+    };
     
     // Pour healer
     healAction?: 'heal_all' | 'heal_specific' | 'check_status';
@@ -277,6 +314,19 @@ export interface SpecificActionResult {
     rewards?: any[];
   };
   
+  // ✅ NOUVEAU : Résultat de livraison
+  deliveryResult?: {
+    success: boolean;
+    message: string;
+    itemsDelivered?: Array<{
+      itemId: string;
+      amount: number;
+    }>;
+    questProgressed?: boolean;
+    questCompleted?: boolean;
+    errorCode?: string;
+  };
+  
   battleResult?: {
     success: boolean;
     battleId?: string;
@@ -310,7 +360,7 @@ export interface UnifiedInterfaceConfig {
   debug: boolean;
 }
 
-// ===== CONSTANTES =====
+// ===== CONSTANTES MISES À JOUR =====
 
 export const CAPABILITY_LABELS: Record<NpcCapability, string> = {
   merchant: '🛒 Boutique',
@@ -324,7 +374,8 @@ export const CAPABILITY_LABELS: Record<NpcCapability, string> = {
   researcher: '🔬 Recherche',
   guild: '🏛️ Guilde',
   event: '🎉 Événement',
-  quest_master: '👑 Maître des Quêtes'
+  quest_master: '👑 Maître des Quêtes',
+  deliver: '📦 Livraison'  // ✅ NOUVEAU
 };
 
 export const CAPABILITY_ICONS: Record<NpcCapability, string> = {
@@ -339,20 +390,22 @@ export const CAPABILITY_ICONS: Record<NpcCapability, string> = {
   researcher: '🔬',
   guild: '🏛️',
   event: '🎉',
-  quest_master: '👑'
+  quest_master: '👑',
+  deliver: '📦'  // ✅ NOUVEAU
 };
 
 export const DEFAULT_CAPABILITY_PRIORITY: Record<NpcCapability, number> = {
   quest_master: 10,
   event: 9,
-  guild: 8,
-  trainer: 7,
-  merchant: 6,
-  healer: 5,
-  transport: 4,
-  service: 3,
-  researcher: 2,
-  minigame: 2,
-  quest: 1,
-  dialogue: 0 // Toujours en dernier
+  deliver: 8,  // ✅ NOUVEAU : Priorité élevée pour les livraisons
+  guild: 7,    // ✅ AJUSTÉ : -1
+  trainer: 6,  // ✅ AJUSTÉ : -1
+  merchant: 5, // ✅ AJUSTÉ : -1
+  healer: 4,   // ✅ AJUSTÉ : -1
+  transport: 3, // ✅ AJUSTÉ : -1
+  service: 2,  // ✅ AJUSTÉ : -1
+  researcher: 1, // ✅ AJUSTÉ : -1
+  minigame: 1,   // ✅ INCHANGÉ
+  quest: 1,      // ✅ INCHANGÉ
+  dialogue: 0    // ✅ INCHANGÉ : Toujours en dernier
 };
