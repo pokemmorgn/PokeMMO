@@ -1279,6 +1279,7 @@ questProgress = progressResults || [];  // ✅ Plus de .results
       'guild': 'Guilde',
       'event': 'Événement',
       'quest_master': 'Maître de quête'
+      'deliver': 'Livraison'
     };
     
     return labels[capability] || capability;
