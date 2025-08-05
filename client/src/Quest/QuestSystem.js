@@ -304,56 +304,156 @@ export class QuestSystem {
    * @param {Object} data - Données brutes du serveur
    * @returns {Object} Données formatées pour l'overlay
    */
-  extractDeliveryData(data) {
-    // ✅ Format 1 : Données directes de livraison
-    if (data.deliveryData) {
-      return {
-        questId: data.questId || data.deliveryData.questId,
-        npcId: data.npcId || data.deliveryData.npcId,
-        items: data.deliveryData.items || [],
-        canDeliverAll: data.deliveryData.canDeliverAll || false,
-        message: data.message || 'Objets requis pour la quête'
-      };
-    }
+extractDeliveryData(data) {
+  console.log('🔍 [QuestSystem] Extraction données livraison, data reçue:', data);
+  
+  // ✅ Format 1 : Données directes de livraison (CORRIGÉ)
+  if (data.deliveryData) {
+    console.log('📦 [QuestSystem] Format 1 détecté: deliveryData');
     
-    // ✅ Format 2 : Données dans contextualData
-    if (data.contextualData && data.contextualData.deliveryData) {
-      const delivery = data.contextualData.deliveryData;
-      return {
-        questId: data.questId || delivery.questId,
-        npcId: data.npcId || delivery.npcId,
-        items: delivery.items || [],
-        canDeliverAll: delivery.canDeliverAll || false,
-        message: data.message || 'Objets requis pour la quête'
-      };
-    }
+    // ✅ CORRECTION : Mapper "deliveries" vers "items" pour l'overlay
+    const deliveries = data.deliveryData.deliveries || [];
+    const items = deliveries.map(delivery => ({
+      itemId: delivery.itemId,
+      itemName: delivery.itemName || delivery.itemId,
+      required: delivery.requiredAmount || 1,
+      playerHas: delivery.playerHasAmount || 0,
+      canDeliver: delivery.canDeliver || false,
+      // Conserver les données originales
+      questId: delivery.questId,
+      questName: delivery.questName,
+      stepIndex: delivery.stepIndex,
+      stepName: delivery.stepName,
+      objectiveId: delivery.objectiveId,
+      objectiveDescription: delivery.objectiveDescription
+    }));
     
-    // ✅ Format 3 : Données dans unifiedInterface
-    if (data.unifiedInterface && data.unifiedInterface.deliveryData) {
-      const delivery = data.unifiedInterface.deliveryData;
-      return {
-        questId: data.questId || delivery.questId,
-        npcId: data.npcId || delivery.npcId,
-        items: delivery.items || [],
-        canDeliverAll: delivery.canDeliverAll || false,
-        message: data.message || 'Objets requis pour la quête'
-      };
-    }
+    console.log('✅ [QuestSystem] Items extraits:', items);
     
-    // ✅ Format 4 : Données à la racine (format simple)
-    if (data.items && Array.isArray(data.items)) {
-      return {
-        questId: data.questId,
-        npcId: data.npcId,
-        items: data.items,
-        canDeliverAll: data.canDeliverAll || false,
-        message: data.message || 'Objets requis pour la quête'
-      };
-    }
-    
-    console.warn('⚠️ [QuestSystem] Format de données livraison non reconnu:', data);
-    return null;
+    return {
+      questId: deliveries[0]?.questId || data.questId,
+      questName: deliveries[0]?.questName || 'Livraison',
+      npcId: data.deliveryData.npcId || data.npcId,
+      npcName: data.deliveryData.npcName || data.npcName || 'NPC',
+      items: items,
+      canDeliverAll: data.deliveryData.allItemsAvailable || false,
+      message: data.message || 'Objets requis pour la quête',
+      // Conserver les données originales pour le traitement
+      originalDeliveries: deliveries,
+      totalDeliveries: data.deliveryData.totalDeliveries || deliveries.length,
+      readyDeliveries: data.deliveryData.readyDeliveries || 0
+    };
   }
+  
+  // ✅ Format 2 : Données dans contextualData
+  if (data.contextualData && data.contextualData.deliveryData) {
+    console.log('📦 [QuestSystem] Format 2 détecté: contextualData.deliveryData');
+    const delivery = data.contextualData.deliveryData;
+    
+    // Même traitement que format 1
+    const deliveries = delivery.deliveries || [];
+    const items = deliveries.map(d => ({
+      itemId: d.itemId,
+      itemName: d.itemName || d.itemId,
+      required: d.requiredAmount || 1,
+      playerHas: d.playerHasAmount || 0,
+      canDeliver: d.canDeliver || false,
+      questId: d.questId,
+      questName: d.questName,
+      objectiveId: d.objectiveId
+    }));
+    
+    return {
+      questId: deliveries[0]?.questId || data.questId,
+      questName: deliveries[0]?.questName || 'Livraison',
+      npcId: delivery.npcId || data.npcId,
+      npcName: delivery.npcName || data.npcName || 'NPC',
+      items: items,
+      canDeliverAll: delivery.allItemsAvailable || false,
+      message: data.message || 'Objets requis pour la quête',
+      originalDeliveries: deliveries,
+      totalDeliveries: delivery.totalDeliveries || deliveries.length,
+      readyDeliveries: delivery.readyDeliveries || 0
+    };
+  }
+  
+  // ✅ Format 3 : Données dans unifiedInterface
+  if (data.unifiedInterface && data.unifiedInterface.deliveryData) {
+    console.log('📦 [QuestSystem] Format 3 détecté: unifiedInterface.deliveryData');
+    const delivery = data.unifiedInterface.deliveryData;
+    
+    const deliveries = delivery.deliveries || [];
+    const items = deliveries.map(d => ({
+      itemId: d.itemId,
+      itemName: d.itemName || d.itemId,
+      required: d.requiredAmount || 1,
+      playerHas: d.playerHasAmount || 0,
+      canDeliver: d.canDeliver || false,
+      questId: d.questId,
+      questName: d.questName,
+      objectiveId: d.objectiveId
+    }));
+    
+    return {
+      questId: deliveries[0]?.questId || data.questId,
+      questName: deliveries[0]?.questName || 'Livraison',
+      npcId: delivery.npcId || data.npcId,
+      npcName: delivery.npcName || data.npcName || 'NPC',
+      items: items,
+      canDeliverAll: delivery.allItemsAvailable || false,
+      message: data.message || 'Objets requis pour la quête',
+      originalDeliveries: deliveries,
+      totalDeliveries: delivery.totalDeliveries || deliveries.length,
+      readyDeliveries: delivery.readyDeliveries || 0
+    };
+  }
+  
+  // ✅ Format 4 : Données à la racine (format simple avec items)
+  if (data.items && Array.isArray(data.items)) {
+    console.log('📦 [QuestSystem] Format 4 détecté: items à la racine');
+    return {
+      questId: data.questId,
+      questName: data.questName || 'Livraison',
+      npcId: data.npcId,
+      npcName: data.npcName || 'NPC',
+      items: data.items,
+      canDeliverAll: data.canDeliverAll || false,
+      message: data.message || 'Objets requis pour la quête'
+    };
+  }
+  
+  // ✅ Format 5 : Données à la racine (format avec deliveries)
+  if (data.deliveries && Array.isArray(data.deliveries)) {
+    console.log('📦 [QuestSystem] Format 5 détecté: deliveries à la racine');
+    
+    const items = data.deliveries.map(d => ({
+      itemId: d.itemId,
+      itemName: d.itemName || d.itemId,
+      required: d.requiredAmount || 1,
+      playerHas: d.playerHasAmount || 0,
+      canDeliver: d.canDeliver || false,
+      questId: d.questId,
+      questName: d.questName,
+      objectiveId: d.objectiveId
+    }));
+    
+    return {
+      questId: data.deliveries[0]?.questId || data.questId,
+      questName: data.deliveries[0]?.questName || 'Livraison',
+      npcId: data.npcId,
+      npcName: data.npcName || 'NPC',
+      items: items,
+      canDeliverAll: data.allItemsAvailable || false,
+      message: data.message || 'Objets requis pour la quête',
+      originalDeliveries: data.deliveries,
+      totalDeliveries: data.totalDeliveries || data.deliveries.length,
+      readyDeliveries: data.readyDeliveries || 0
+    };
+  }
+  
+  console.warn('⚠️ [QuestSystem] Format de données livraison non reconnu:', data);
+  return null;
+}
 
   /**
    * Handler pour confirmation de livraison depuis l'overlay
