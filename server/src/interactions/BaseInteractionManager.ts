@@ -602,9 +602,9 @@ class WorldUpdateTimer {
     const questStatuses: any = {};
     
     try {
-      console.log(`🔍 [WorldUpdateTimer] === DÉBUT COLLECTE QUEST STATUS ===`);
-      console.log(`🔍 [WorldUpdateTimer] Nombre de npcManagers: ${this.npcManagers.size}`);
-      console.log(`🔍 [WorldUpdateTimer] Zones disponibles:`, Array.from(this.npcManagers.keys()));
+     // console.log(`🔍 [WorldUpdateTimer] === DÉBUT COLLECTE QUEST STATUS ===`);
+    //  console.log(`🔍 [WorldUpdateTimer] Nombre de npcManagers: ${this.npcManagers.size}`);
+    //  console.log(`🔍 [WorldUpdateTimer] Zones disponibles:`, Array.from(this.npcManagers.keys()));
       
       if (this.npcManagers.size === 0) {
         console.warn('⚠️ [WorldUpdateTimer] Aucun npcManager configuré !');
@@ -616,9 +616,9 @@ class WorldUpdateTimer {
       
       for (const [zoneName, npcManager] of this.npcManagers) {
         try {
-          console.log(`🔍 [WorldUpdateTimer] === ZONE: ${zoneName} ===`);
-          console.log(`🔍 [WorldUpdateTimer] NpcManager type:`, npcManager?.constructor?.name);
-          console.log(`🔍 [WorldUpdateTimer] NpcManager initialized:`, npcManager?.isInitialized);
+        //  console.log(`🔍 [WorldUpdateTimer] === ZONE: ${zoneName} ===`);
+       //   console.log(`🔍 [WorldUpdateTimer] NpcManager type:`, npcManager?.constructor?.name);
+       //   console.log(`🔍 [WorldUpdateTimer] NpcManager initialized:`, npcManager?.isInitialized);
           
           // ✅ Vérifier que le NpcManager est initialisé
           if (!npcManager.isInitialized) {
@@ -634,10 +634,10 @@ class WorldUpdateTimer {
           
           // ✅ Récupérer tous les NPCs avec la méthode correcte
           const npcs = npcManager.getAllNpcs();
-          console.log(`📊 [WorldUpdateTimer] Zone ${zoneName}: ${npcs.length} NPCs récupérés`);
+        //  console.log(`📊 [WorldUpdateTimer] Zone ${zoneName}: ${npcs.length} NPCs récupérés`);
           
           if (npcs.length === 0) {
-            console.log(`ℹ️ [WorldUpdateTimer] Zone ${zoneName}: Aucun NPC trouvé`);
+         //   console.log(`ℹ️ [WorldUpdateTimer] Zone ${zoneName}: Aucun NPC trouvé`);
             continue;
           }
           
@@ -662,12 +662,12 @@ class WorldUpdateTimer {
               
               // ✅ Log détaillé pour le premier NPC avec quêtes
               if (totalNpcsWithQuests === 1) {
-                console.log(`🔍 [WorldUpdateTimer] === PREMIER NPC AVEC QUÊTES ===`);
-                console.log(`🎯 NPC ID: ${npc.id}, Name: ${npc.name}`);
-                console.log(`🎯 questsToGive:`, npc.questsToGive);
-                console.log(`🎯 questsToEnd:`, npc.questsToEnd);
-                console.log(`🎯 Type:`, npc.type);
-                console.log(`🎯 Zone:`, npc.zone);
+          //      console.log(`🔍 [WorldUpdateTimer] === PREMIER NPC AVEC QUÊTES ===`);
+          //      console.log(`🎯 NPC ID: ${npc.id}, Name: ${npc.name}`);
+          //      console.log(`🎯 questsToGive:`, npc.questsToGive);
+          //      console.log(`🎯 questsToEnd:`, npc.questsToEnd);
+          //      console.log(`🎯 Type:`, npc.type);
+         //       console.log(`🎯 Zone:`, npc.zone);
               }
               
               // ✅ Créer le status de quête pour ce NPC
@@ -688,11 +688,11 @@ class WorldUpdateTimer {
                 }
               };
               
-              console.log(`✅ [WorldUpdateTimer] NPC ${npc.id} (${npc.name}) ajouté avec ${questStatuses[npc.id].questCount} quêtes`);
+           //   console.log(`✅ [WorldUpdateTimer] NPC ${npc.id} (${npc.name}) ajouté avec ${questStatuses[npc.id].questCount} quêtes`);
             }
           }
           
-          console.log(`✅ [WorldUpdateTimer] Zone ${zoneName} terminée: ${zoneNpcsWithQuests}/${npcs.length} NPCs avec quêtes`);
+       //   console.log(`✅ [WorldUpdateTimer] Zone ${zoneName} terminée: ${zoneNpcsWithQuests}/${npcs.length} NPCs avec quêtes`);
           
         } catch (zoneError) {
           console.error(`❌ [WorldUpdateTimer] Erreur zone ${zoneName}:`, zoneError);
