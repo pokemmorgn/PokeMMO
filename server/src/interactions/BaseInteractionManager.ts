@@ -1022,7 +1022,7 @@ export class BaseInteractionManager {
   // === 🔧 NOUVELLES MÉTHODES TIMER ===
 
   /**
-   * 🔧 Configurer les gestionnaires pour le timer
+   * 🔧 Configurer les gestionnaires pour le timer ET démarrer le timer
    */
   setTimerManagers(managers: {
     questManager?: any;
@@ -1033,6 +1033,16 @@ export class BaseInteractionManager {
     if (this.worldUpdateTimer) {
       this.worldUpdateTimer.setManagers(managers);
       console.log('🔧 [BaseInteractionManager] Gestionnaires timer configurés');
+      
+      // 🔧 NOUVEAU : Démarrer automatiquement le timer après configuration
+      if (managers.room) {
+        setTimeout(() => {
+          this.startWorldUpdateTimer();
+          console.log('✅ [BaseInteractionManager] Timer démarré automatiquement après configuration');
+        }, 2000); // 2 secondes pour laisser tout se stabiliser
+      } else {
+        console.warn('⚠️ [BaseInteractionManager] Room manquante - timer non démarré');
+      }
     }
   }
 
@@ -1297,15 +1307,11 @@ export class BaseInteractionManager {
     await this.initializeAI();
     await this.autoRegisterNPCs();
     
-    // 🔧 NOUVEAU : Démarrer le timer après initialisation
-    if (this.worldUpdateTimer) {
-      // Attendre un peu pour que tous les gestionnaires soient prêts
-      setTimeout(() => {
-        this.startWorldUpdateTimer();
-      }, 2000);
-    }
+    // 🔧 FIXÉ : NE PAS démarrer le timer automatiquement
+    // Il sera démarré manuellement après setTimerManagers()
     
     console.log(`✅ [BaseInteractionManager] Système d'interaction + IA + Sécurité + Timer initialisé`);
+    console.log(`⚠️ [BaseInteractionManager] Appelez setTimerManagers() puis startWorldUpdateTimer() pour activer le timer`);
   }
 
   async cleanup(): Promise<void> {
