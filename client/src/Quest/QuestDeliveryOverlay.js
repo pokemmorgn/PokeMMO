@@ -1,6 +1,6 @@
 // client/src/Quest/QuestDeliveryOverlay.js
 // 🎁 Interface de livraison d'objets de quête - Overlay sur dialogue
-// ✅ Positionnement 20% sur dialogue, 80% débordant - Tout/Rien style
+// ✅ Style unifié avec le reste du système Quest (couleurs bleues #4a90e2)
 // 🔧 Intégration avec DialogueManager existant + NetworkManager
 
 export class QuestDeliveryOverlay {
@@ -19,7 +19,7 @@ export class QuestDeliveryOverlay {
     this.onDeliveryConfirm = null;
     this.onClose = null;
     
-    console.log('🎁 [QuestDeliveryOverlay] Instance créée - Style overlay sur dialogue');
+    console.log('🎁 [QuestDeliveryOverlay] Instance créée - Style unifié Quest');
   }
   
   // === 🚀 INITIALISATION ===
@@ -35,7 +35,7 @@ export class QuestDeliveryOverlay {
       // Masquer par défaut
       this.hide();
       
-      console.log('✅ [QuestDeliveryOverlay] Initialisé avec positionnement intelligent');
+      console.log('✅ [QuestDeliveryOverlay] Initialisé avec style unifié');
       return this;
       
     } catch (error) {
@@ -44,7 +44,7 @@ export class QuestDeliveryOverlay {
     }
   }
   
-  // === 🎨 STYLES OPTIMISÉS ===
+  // === 🎨 STYLES UNIFIÉS AVEC QUEST UI ===
   
   addStyles() {
     if (document.querySelector('#quest-delivery-overlay-styles')) return;
@@ -52,7 +52,7 @@ export class QuestDeliveryOverlay {
     const style = document.createElement('style');
     style.id = 'quest-delivery-overlay-styles';
     style.textContent = `
-      /* ===== QUEST DELIVERY OVERLAY STYLES ===== */
+      /* ===== QUEST DELIVERY OVERLAY - STYLE UNIFIÉ ===== */
       
       /* Container principal - Positionnement intelligent */
       .quest-delivery-overlay {
@@ -72,16 +72,16 @@ export class QuestDeliveryOverlay {
         pointer-events: auto !important;
       }
       
-      /* Overlay principal - Détection automatique position dialogue */
+      /* Overlay principal - Style unifié avec Quest UI */
       .quest-delivery-container {
         position: absolute !important;
         width: 320px !important;
         min-height: 180px !important;
-        background: linear-gradient(145deg, rgba(35, 45, 65, 0.98), rgba(25, 35, 55, 0.98)) !important;
-        border: 2px solid rgba(255, 193, 7, 0.8) !important; /* Couleur dorée pour livraison */
+        background: linear-gradient(145deg, rgba(25, 35, 55, 0.98), rgba(35, 45, 65, 0.98)) !important;
+        border: 2px solid rgba(100, 149, 237, 0.8) !important; /* Bleu Quest UI */
         border-radius: 15px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
-        backdrop-filter: blur(8px) !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
+        backdrop-filter: blur(10px) !important;
         font-family: 'Arial', sans-serif !important;
         color: white !important;
         overflow: hidden !important;
@@ -105,11 +105,11 @@ export class QuestDeliveryOverlay {
         /* Position calculée dynamiquement par JavaScript */
       }
       
-      /* Header avec icône de livraison */
+      /* Header avec style Quest UI */
       .quest-delivery-header {
-        background: linear-gradient(90deg, #ffc107, #ff9800) !important;
+        background: linear-gradient(90deg, #4a90e2, #357abd) !important; /* Bleu Quest */
         padding: 12px 15px !important;
-        border-bottom: 2px solid #e0a800 !important;
+        border-bottom: 2px solid #357abd !important;
         display: flex !important;
         align-items: center !important;
         gap: 10px !important;
@@ -124,8 +124,8 @@ export class QuestDeliveryOverlay {
         left: -100% !important;
         width: 100% !important;
         height: 100% !important;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent) !important;
-        animation: deliveryShimmer 3s infinite !important;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent) !important;
+        animation: deliveryShimmer 4s infinite !important;
       }
       
       @keyframes deliveryShimmer {
@@ -135,23 +135,24 @@ export class QuestDeliveryOverlay {
       
       .delivery-icon {
         font-size: 20px !important;
-        color: #333 !important;
+        color: #ffff80 !important; /* Jaune comme titre Quest */
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6) !important;
         z-index: 1 !important;
       }
       
       .delivery-title {
         font-size: 16px !important;
         font-weight: bold !important;
-        color: #333 !important;
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3) !important;
+        color: #ffff80 !important; /* Jaune comme titre Quest */
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6) !important;
         z-index: 1 !important;
         flex: 1 !important;
       }
       
       .delivery-close {
-        background: rgba(0, 0, 0, 0.2) !important;
+        background: rgba(220, 53, 69, 0.8) !important;
         border: none !important;
-        color: #333 !important;
+        color: white !important;
         width: 24px !important;
         height: 24px !important;
         border-radius: 50% !important;
@@ -162,8 +163,9 @@ export class QuestDeliveryOverlay {
       }
       
       .delivery-close:hover {
-        background: rgba(0, 0, 0, 0.4) !important;
+        background: rgba(220, 53, 69, 1) !important;
         transform: scale(1.1) !important;
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4) !important;
       }
       
       /* Content principal */
@@ -173,6 +175,7 @@ export class QuestDeliveryOverlay {
         flex-direction: column !important;
         gap: 15px !important;
         min-height: 120px !important;
+        background: rgba(0, 0, 0, 0.1) !important;
       }
       
       /* Loading state */
@@ -188,8 +191,8 @@ export class QuestDeliveryOverlay {
       .delivery-loading-spinner {
         width: 30px !important;
         height: 30px !important;
-        border: 3px solid rgba(255, 193, 7, 0.3) !important;
-        border-top: 3px solid #ffc107 !important;
+        border: 3px solid rgba(74, 144, 226, 0.2) !important;
+        border-top: 3px solid #4a90e2 !important;
         border-radius: 50% !important;
         animation: deliverySpin 1s linear infinite !important;
         margin-bottom: 10px !important;
@@ -223,6 +226,11 @@ export class QuestDeliveryOverlay {
         transition: all 0.3s ease !important;
       }
       
+      .delivery-item:hover {
+        background: rgba(100, 149, 237, 0.15) !important;
+        transform: translateX(3px) !important;
+      }
+      
       .delivery-item.has-item {
         border-left-color: #28a745 !important;
         background: rgba(40, 167, 69, 0.1) !important;
@@ -232,16 +240,15 @@ export class QuestDeliveryOverlay {
         border-left-color: #dc3545 !important;
         background: rgba(220, 53, 69, 0.1) !important;
         opacity: 0.7 !important;
-        filter: grayscale(50%) !important;
       }
       
-      /* Carré avec icône - Style demandé */
+      /* Carré avec icône - Style unifié */
       .delivery-item-icon {
         width: 48px !important;
         height: 48px !important;
         border-radius: 8px !important;
-        background: rgba(255, 255, 255, 0.1) !important;
-        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        background: rgba(74, 144, 226, 0.1) !important;
+        border: 2px solid rgba(74, 144, 226, 0.3) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -261,24 +268,24 @@ export class QuestDeliveryOverlay {
         background: rgba(220, 53, 69, 0.2) !important;
         border-color: #dc3545 !important;
         opacity: 0.5 !important;
-        filter: grayscale(100%) !important;
       }
       
-      .delivery-item-icon:hover:not(.missing-item) {
+      .delivery-item-icon:hover:not(.missing-item .delivery-item-icon) {
         transform: scale(1.05) !important;
         box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4) !important;
       }
       
-      /* Tooltip pour l'icône - Style demandé */
+      /* Tooltip pour l'icône */
       .delivery-item-tooltip {
         position: absolute !important;
         bottom: 100% !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        background: rgba(0, 0, 0, 0.9) !important;
+        background: linear-gradient(145deg, rgba(25, 35, 55, 0.98), rgba(35, 45, 65, 0.98)) !important;
         color: white !important;
         padding: 6px 10px !important;
         border-radius: 6px !important;
+        border: 1px solid rgba(74, 144, 226, 0.5) !important;
         font-size: 12px !important;
         white-space: nowrap !important;
         z-index: 1000 !important;
@@ -286,6 +293,7 @@ export class QuestDeliveryOverlay {
         pointer-events: none !important;
         transition: opacity 0.3s ease !important;
         margin-bottom: 5px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
       }
       
       .delivery-item-tooltip::after {
@@ -295,7 +303,7 @@ export class QuestDeliveryOverlay {
         left: 50% !important;
         transform: translateX(-50%) !important;
         border: 5px solid transparent !important;
-        border-top-color: rgba(0, 0, 0, 0.9) !important;
+        border-top-color: rgba(35, 45, 65, 0.98) !important;
       }
       
       .delivery-item-icon:hover .delivery-item-tooltip {
@@ -316,7 +324,7 @@ export class QuestDeliveryOverlay {
         color: white !important;
       }
       
-      /* Compteur x/x - Style demandé */
+      /* Compteur x/x */
       .delivery-item-count {
         font-size: 13px !important;
         color: #87ceeb !important;
@@ -348,9 +356,9 @@ export class QuestDeliveryOverlay {
       
       /* Footer avec bouton */
       .quest-delivery-footer {
-        background: rgba(0, 0, 0, 0.2) !important;
+        background: rgba(0, 0, 0, 0.3) !important;
         padding: 15px !important;
-        border-top: 1px solid rgba(255, 193, 7, 0.3) !important;
+        border-top: 2px solid #357abd !important;
         display: flex !important;
         flex-direction: column !important;
         gap: 10px !important;
@@ -366,17 +374,18 @@ export class QuestDeliveryOverlay {
       
       .delivery-summary.can-deliver {
         color: #28a745 !important;
+        font-weight: bold !important;
       }
       
       .delivery-summary.cannot-deliver {
         color: #dc3545 !important;
       }
       
-      /* Bouton "Donner" - Style demandé */
+      /* Bouton "Donner" - Style unifié Quest */
       .delivery-button {
         width: 100% !important;
         padding: 12px !important;
-        border: none !important;
+        border: 1px solid rgba(100, 149, 237, 0.5) !important;
         border-radius: 10px !important;
         font-size: 14px !important;
         font-weight: bold !important;
@@ -390,13 +399,14 @@ export class QuestDeliveryOverlay {
         background: linear-gradient(135deg, #28a745, #20c997) !important;
         color: white !important;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) !important;
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4) !important;
+        border-color: rgba(40, 167, 69, 0.5) !important;
       }
       
       .delivery-button.can-deliver:hover {
         background: linear-gradient(135deg, #32b855, #24d3a7) !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4) !important;
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5) !important;
       }
       
       .delivery-button.cannot-deliver {
@@ -404,6 +414,7 @@ export class QuestDeliveryOverlay {
         color: #888 !important;
         cursor: not-allowed !important;
         box-shadow: none !important;
+        border-color: rgba(108, 117, 125, 0.3) !important;
       }
       
       .delivery-button.cannot-deliver:hover {
@@ -416,12 +427,27 @@ export class QuestDeliveryOverlay {
         cursor: not-allowed !important;
         transform: none !important;
         box-shadow: none !important;
+        border-color: rgba(108, 117, 125, 0.2) !important;
       }
       
       /* États d'animation */
       .quest-delivery-container.delivering {
         pointer-events: none !important;
         opacity: 0.7 !important;
+      }
+      
+      .quest-delivery-container.delivering::after {
+        content: "" !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 30px !important;
+        height: 30px !important;
+        border: 3px solid rgba(74, 144, 226, 0.2) !important;
+        border-top: 3px solid #4a90e2 !important;
+        border-radius: 50% !important;
+        animation: deliverySpin 1s linear infinite !important;
+        transform: translate(-50%, -50%) !important;
       }
       
       .quest-delivery-container.error {
@@ -432,6 +458,17 @@ export class QuestDeliveryOverlay {
         0%, 100% { transform: scale(1) translateX(0); }
         25% { transform: scale(1) translateX(-5px); }
         75% { transform: scale(1) translateX(5px); }
+      }
+      
+      /* Effet de succès */
+      .quest-delivery-container.success {
+        animation: deliverySuccess 0.8s ease !important;
+      }
+      
+      @keyframes deliverySuccess {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); box-shadow: 0 10px 50px rgba(40, 167, 69, 0.5) !important; }
+        100% { transform: scale(1); }
       }
       
       /* Responsive */
@@ -450,7 +487,7 @@ export class QuestDeliveryOverlay {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [QuestDeliveryOverlay] Styles ajoutés avec positionnement intelligent');
+    console.log('🎨 [QuestDeliveryOverlay] Styles unifiés avec Quest UI appliqués');
   }
   
   // === 🏗️ CRÉATION OVERLAY ===
@@ -466,7 +503,7 @@ export class QuestDeliveryOverlay {
       <div class="quest-delivery-container default-position">
         <!-- Header -->
         <div class="quest-delivery-header">
-          <span class="delivery-icon">🎁</span>
+          <span class="delivery-icon">📦</span>
           <span class="delivery-title">Livraison d'Objets</span>
           <button class="delivery-close" id="delivery-close">✕</button>
         </div>
@@ -491,7 +528,7 @@ export class QuestDeliveryOverlay {
     document.body.appendChild(overlay);
     this.overlayElement = overlay;
     
-    console.log('🎨 [QuestDeliveryOverlay] Overlay créé');
+    console.log('🎨 [QuestDeliveryOverlay] Overlay créé avec style unifié');
   }
   
   // === 🎛️ ÉVÉNEMENTS ===
@@ -815,6 +852,15 @@ export class QuestDeliveryOverlay {
     
     // Feedback immédiat
     this.setDelivering(true);
+    
+    // Animation de succès
+    const container = this.overlayElement.querySelector('.quest-delivery-container');
+    if (container) {
+      container.classList.add('success');
+      setTimeout(() => {
+        container.classList.remove('success');
+      }, 800);
+    }
     
     try {
       // Callback de confirmation
