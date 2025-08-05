@@ -4,9 +4,9 @@
 // ===== TYPES DE CAPACITÉS NPCs =====
 
 export type NpcCapability = 
-  | 'merchant'
-  | 'quest' 
   | 'dialogue'
+  | 'merchant'
+  | 'quest'
   | 'healer'
   | 'trainer'
   | 'transport'
@@ -15,7 +15,8 @@ export type NpcCapability =
   | 'researcher'
   | 'guild'
   | 'event'
-  | 'quest_master';
+  | 'quest_master'
+  | 'deliver';
 
 // ===== INTERFACES POUR CHAQUE SECTION DE DONNÉES =====
 
