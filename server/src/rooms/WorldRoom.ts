@@ -1046,18 +1046,20 @@ this.onMessage("questDelivery", async (client, data) => {
       const firstItem = data.items[0];
       itemId = firstItem.itemId;
       requiredAmount = firstItem.required || firstItem.requiredAmount || 1;
+      console.log(`📦 [WorldRoom] Format détecté: items array`, { itemId, requiredAmount });
     } 
     // Gérer le format direct (si on change le client plus tard)
     else if (data.itemId && data.requiredAmount) {
       itemId = data.itemId;
       requiredAmount = data.requiredAmount;
       objectiveId = data.objectiveId || '';
+      console.log(`📦 [WorldRoom] Format détecté: direct`, { itemId, requiredAmount });
     }
     else {
-      console.error(`❌ [WorldRoom] Données manquantes pour questDelivery:`, data);
+      console.error(`❌ [WorldRoom] Format de données non reconnu:`, data);
       client.send("questDeliveryResult", {
         success: false,
-        message: "Données de livraison incomplètes"
+        message: "Format de données invalide"
       });
       return;
     }
@@ -1103,6 +1105,7 @@ this.onMessage("questDelivery", async (client, data) => {
           
           if (deliveryObjective) {
             objectiveId = deliveryObjective.id;
+            console.log(`✅ [WorldRoom] ObjectiveId trouvé:`, objectiveId);
           }
         }
       }
@@ -1114,10 +1117,13 @@ this.onMessage("questDelivery", async (client, data) => {
       objectiveId = `deliver_${itemId}_to_${data.npcId}`;
     }
 
+    // Convertir npcId en nombre si c'est une string numérique
+    const npcIdNum = typeof data.npcId === 'string' ? parseInt(data.npcId) : data.npcId;
+
     // Utiliser le npcInteractionModule pour traiter la livraison
     const result = await this.npcInteractionModule.handleQuestDelivery(
       player,
-      parseInt(data.npcId) || data.npcId, // Convertir en nombre si possible
+      npcIdNum,
       data.questId,
       objectiveId,
       itemId,
@@ -1130,9 +1136,9 @@ this.onMessage("questDelivery", async (client, data) => {
       // Si la livraison est réussie, mettre à jour l'inventaire côté client
       client.send("inventoryUpdate", {
         type: "remove",
-        itemId: data.itemId,
-        quantity: data.requiredAmount,
-        pocket: getItemPocket(data.itemId)
+        itemId: itemId,
+        quantity: requiredAmount,
+        pocket: getItemPocket(itemId)
       });
 
       // Mettre à jour les statuts de quête
@@ -1187,19 +1193,38 @@ this.onMessage("validateQuestDelivery", async (client, data) => {
   }
 
   try {
+    // Gérer le format avec items[] array
+    let itemId: string;
+    let requiredAmount: number;
+    
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      const firstItem = data.items[0];
+      itemId = firstItem.itemId;
+      requiredAmount = firstItem.required || firstItem.requiredAmount || 1;
+    } else if (data.itemId) {
+      itemId = data.itemId;
+      requiredAmount = data.requiredAmount || 1;
+    } else {
+      client.send("validateQuestDeliveryResult", {
+        success: false,
+        message: "Format de données invalide"
+      });
+      return;
+    }
+    
     // Vérifier si le joueur a les items requis
     const hasItem = await this.playerHasItem(
       player.name,
-      data.itemId,
-      data.requiredAmount
+      itemId,
+      requiredAmount
     );
 
     client.send("validateQuestDeliveryResult", {
       success: true,
       canDeliver: hasItem,
       hasItem: hasItem,
-      itemId: data.itemId,
-      requiredAmount: data.requiredAmount
+      itemId: itemId,
+      requiredAmount: requiredAmount
     });
 
   } catch (error) {
@@ -1250,7 +1275,6 @@ this.onMessage("debugQuestDeliveries", async (client) => {
     console.error(`❌ [DEBUG] Erreur:`, error);
   }
 });
-
     
     
     this.onMessage("getShopCatalog", async (client, data) => {
