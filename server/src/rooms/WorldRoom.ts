@@ -276,7 +276,9 @@ async onCreate(options: any) {
         console.log(`  📂 Zone ${zoneName}:`);
         console.log(`    📊 Total NPCs: ${npcs.length}`);
         console.log(`    🎯 NPCs avec quêtes: ${npcsWithQuests.length}`);
-        console.log(`    ✅ Manager initialisé: ${npcManager.isInitialized || 'unknown'}`);
+        // Utiliser getSystemStats() pour accéder à l'état d'initialisation
+        const stats = npcManager.getSystemStats ? npcManager.getSystemStats() : null;
+        console.log(`    ✅ Manager initialisé: ${stats?.initialized || 'unknown'}`);
       }
       console.log('🔍 [WorldRoom] === FIN DIAGNOSTIC ===');
     } else {
