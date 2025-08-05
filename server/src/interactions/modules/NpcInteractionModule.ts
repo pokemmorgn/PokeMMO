@@ -1585,6 +1585,65 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
     }
   }
 
+   async handleQuestDelivery(
+    player: Player,
+    npcId: number,
+    questId: string,
+    objectiveId: string,
+    itemId: string,
+    requiredAmount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    result?: DeliveryProcessingResult;
+    error?: string;
+  }> {
+    
+    try {
+      console.log(`🚚 [NpcInteractionModule] Traitement livraison: ${player.name} -> NPC ${npcId}`);
+      console.log(`📦 Item: ${itemId} x${requiredAmount} pour quête ${questId}`);
+
+      // Utiliser le deliveryHandler pour traiter la livraison
+      const result = await this.deliveryHandler.handleQuestDelivery(
+        player.name,
+        npcId.toString(),
+        questId,
+        objectiveId,
+        itemId,
+        requiredAmount,
+        this.questManager
+      );
+
+      if (result.success) {
+        console.log(`✅ [NpcInteractionModule] Livraison réussie: ${result.message}`);
+        
+        return {
+          success: true,
+          message: result.message,
+          result: result
+        };
+      } else {
+        console.warn(`❌ [NpcInteractionModule] Livraison échouée: ${result.error}`);
+        
+        return {
+          success: false,
+          message: result.message,
+          result: result,
+          error: result.error
+        };
+      }
+
+    } catch (error) {
+      console.error(`❌ [NpcInteractionModule] Erreur handleQuestDelivery:`, error);
+      
+      return {
+        success: false,
+        message: 'Erreur système lors de la livraison',
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  }
+  
   private createSafeErrorResult(npcId: number, message: string): NpcInteractionResult {
     return {
       success: false,
