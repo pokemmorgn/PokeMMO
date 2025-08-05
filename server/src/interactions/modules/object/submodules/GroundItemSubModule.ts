@@ -212,8 +212,6 @@ export default class GroundItemSubModule extends BaseObjectSubModule {
         );
       }
 
-      // ✅ ÉTAPE 5 MODIFIÉE : PROGRESSION QUÊTE AVEC L'ID CORRECT
-      await this.progressPlayerQuests(player.name, actualItemId);
 
       // ✅ ÉTAPE 6 : ENREGISTRER LE COOLDOWN
       const cooldownHours = this.getProperty(objectDef, 'cooldownHours', 24);
