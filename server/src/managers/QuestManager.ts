@@ -20,6 +20,7 @@ import QuestProgressTracker from "../quest/services/QuestProgressTracker";
 import QuestValidator from "../quest/services/QuestValidator";
 import RewardDistributor from "../quest/services/RewardDistributor";
 import QuestClientHandler from "../quest/services/QuestClientHandler";
+import { InventoryManager } from "../managers/InventoryManager";
 
 export enum QuestDataSource {
   JSON = 'json',
@@ -102,6 +103,7 @@ export class QuestManager {
     }
     
     this.initializeServices();
+    this.setupInventoryIntegration();
     this.lastLoadTime = Date.now();
   }
 
@@ -181,7 +183,20 @@ export class QuestManager {
       this.isInitializing = false;
     }
   }
-
+  
+  private setupInventoryIntegration(): void {
+    console.log('🔗 [QuestManager] Configuration intégration InventoryManager');
+    
+    InventoryManager.events.on('addItem', async (event) => {
+      try {
+        console.log(`📦 [QuestManager] Item ajouté détecté: ${event.username} reçoit ${event.quantity}x ${event.itemId}`);
+        await this.asPlayerQuestWith(event.username, 'collect', event.itemId);
+      } catch (error) {
+        console.error('❌ [QuestManager] Erreur progression quête via inventaire:', error);
+      }
+    });
+  }
+  
   private async performInitialization(): Promise<void> {
     await this.loadQuestDefinitions();
   }
