@@ -756,11 +756,27 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
   }
 }
 
-// ✅ MÉTHODE ENTIÈREMENT REFACTORISÉE - SOLUTION SIMPLE
+// ✅ MÉTHODE ENTIÈREMENT REFACTORISÉE - SOLUTION SIMPLE AVEC DEBUG
 async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
   try {
-    if (this.config.debugMode) {
-      console.log(`🎯 [QuestManager] asPlayerQuestWith: ${playerName} -> ${action}:${targetId}`);
+    console.log(`🎯 [QuestManager] asPlayerQuestWith: ${playerName} -> ${action}:${targetId}`);
+
+    // 🔍 DEBUG : Afficher les quêtes actives pour diagnostic
+    const playerQuests = await PlayerQuest.findOne({ username: playerName });
+    if (playerQuests && playerQuests.activeQuests) {
+      console.log(`📋 [QuestManager] ${playerQuests.activeQuests.length} quête(s) active(s):`);
+      for (const quest of playerQuests.activeQuests) {
+        const definition = this.questDefinitions.get(quest.questId);
+        if (definition) {
+          const currentStep = definition.steps[quest.currentStepIndex];
+          console.log(`   - ${definition.name} (étape ${quest.currentStepIndex}: ${currentStep?.name})`);
+          if (currentStep) {
+            for (const obj of currentStep.objectives) {
+              console.log(`     * ${obj.type}:${obj.target || obj.itemId} - ${obj.description}`);
+            }
+          }
+        }
+      }
     }
 
     // ✅ SOLUTION SIMPLE : Déléguer entièrement à updateQuestProgress
@@ -770,14 +786,18 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
       amount: 1
     };
 
+    console.log(`📤 [QuestManager] Envoi événement:`, progressEvent);
+
     // Utiliser la logique complète et robuste d'updateQuestProgress
     const results = await this.updateQuestProgress(playerName, progressEvent);
     
-    if (this.config.debugMode && results.length > 0) {
-      console.log(`✅ [QuestManager] ${results.length} progression(s) détectée(s) pour ${playerName}`);
+    console.log(`📥 [QuestManager] Résultat updateQuestProgress: ${results.length} progression(s)`);
+    if (results.length > 0) {
       results.forEach(result => {
-        console.log(`   - ${result.questName}: ${result.message}`);
+        console.log(`   ✅ ${result.questName}: ${result.message}`);
       });
+    } else {
+      console.log(`   ❌ Aucune progression détectée - vérifier le matching`);
     }
 
     // ✅ Refresh UI automatique si progression détectée
@@ -812,9 +832,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     }
 
   } catch (error) {
-    if (this.config.debugMode) {
-      console.error(`❌ [QuestManager] Erreur dans asPlayerQuestWith:`, error);
-    }
+    console.error(`❌ [QuestManager] Erreur dans asPlayerQuestWith:`, error);
     // Méthode silencieuse - ne pas propager l'erreur
   }
 }
