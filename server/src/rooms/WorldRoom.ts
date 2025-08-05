@@ -683,6 +683,259 @@ private async updateQuestStatusesFixed(username: string, client?: Client) {
       }
     })
 
+    this.onMessage("questDelivery", async (client, data) => {
+  console.log(`📦 [WorldRoom] Message questDelivery reçu:`, data);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("questDeliveryResult", {
+      success: false,
+      message: "Joueur non trouvé"
+    });
+    return;
+  }
+
+  try {
+    // Adapter le format du client au format attendu par le serveur
+    let itemId: string;
+    let requiredAmount: number;
+    let objectiveId: string = '';
+    
+    // Gérer le format avec items[] array
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      const firstItem = data.items[0];
+      itemId = firstItem.itemId;
+      requiredAmount = firstItem.required || firstItem.requiredAmount || 1;
+      console.log(`📦 [WorldRoom] Format détecté: items array`, { itemId, requiredAmount });
+    } 
+    // Gérer le format direct (si on change le client plus tard)
+    else if (data.itemId && data.requiredAmount) {
+      itemId = data.itemId;
+      requiredAmount = data.requiredAmount;
+      objectiveId = data.objectiveId || '';
+      console.log(`📦 [WorldRoom] Format détecté: direct`, { itemId, requiredAmount });
+    }
+    else {
+      console.error(`❌ [WorldRoom] Format de données non reconnu:`, data);
+      client.send("questDeliveryResult", {
+        success: false,
+        message: "Format de données invalide"
+      });
+      return;
+    }
+    
+    // Validation finale
+    if (!data.npcId || !data.questId || !itemId) {
+      console.error(`❌ [WorldRoom] Données essentielles manquantes:`, {
+        npcId: data.npcId,
+        questId: data.questId,
+        itemId: itemId
+      });
+      client.send("questDeliveryResult", {
+        success: false,
+        message: "Données de livraison incomplètes"
+      });
+      return;
+    }
+
+    console.log(`🚚 [WorldRoom] Traitement livraison:`, {
+      player: player.name,
+      npcId: data.npcId,
+      questId: data.questId,
+      itemId: itemId,
+      amount: requiredAmount
+    });
+
+    // Pour trouver l'objectiveId, on doit chercher dans la quête
+    const questManager = this.zoneManager.getQuestManager();
+    const activeQuests = await questManager.getActiveQuests(player.name);
+    const quest = activeQuests.find(q => q.id === data.questId);
+    
+    if (quest) {
+      const questDef = questManager.getQuestDefinition(data.questId);
+      if (questDef && quest.currentStepIndex !== undefined) {
+        const currentStep = questDef.steps[quest.currentStepIndex];
+        if (currentStep && currentStep.objectives) {
+          // Trouver l'objectif de livraison correspondant
+          const deliveryObjective = currentStep.objectives.find(obj => 
+            obj.type === 'deliver' && 
+            obj.itemId === itemId &&
+            (obj.target === data.npcId || obj.target === data.npcId.toString())
+          );
+          
+          if (deliveryObjective) {
+            objectiveId = deliveryObjective.id;
+            console.log(`✅ [WorldRoom] ObjectiveId trouvé:`, objectiveId);
+          }
+        }
+      }
+    }
+    
+    // Si on n'a pas trouvé l'objectiveId, utiliser un ID générique
+    if (!objectiveId) {
+      console.warn(`⚠️ [WorldRoom] ObjectiveId non trouvé, utilisation d'un ID générique`);
+      objectiveId = `deliver_${itemId}_to_${data.npcId}`;
+    }
+
+    // Convertir npcId en nombre si c'est une string numérique
+    const npcIdNum = typeof data.npcId === 'string' ? parseInt(data.npcId) : data.npcId;
+
+    // Utiliser le npcInteractionModule pour traiter la livraison
+    const result = await this.npcInteractionModule.handleQuestDelivery(
+      player,
+      npcIdNum,
+      data.questId,
+      objectiveId,
+      itemId,
+      requiredAmount
+    );
+
+    console.log(`📦 [WorldRoom] Résultat livraison:`, result);
+
+    if (result.success) {
+      // Si la livraison est réussie, mettre à jour l'inventaire côté client
+      client.send("inventoryUpdate", {
+        type: "remove",
+        itemId: itemId,
+        quantity: requiredAmount,
+        pocket: getItemPocket(itemId)
+      });
+
+      // Mettre à jour les statuts de quête
+      await this.updateQuestStatusesFixed(player.name, client);
+      
+      // Si l'étape est complétée, envoyer une notification
+      if (result.result?.stepCompleted) {
+        client.send("questStepComplete", {
+          questId: data.questId,
+          message: result.result.message || "Étape complétée"
+        });
+      }
+
+      // Si la quête est complétée
+      if (result.result?.questCompleted) {
+        client.send("questComplete", {
+          questId: data.questId,
+          message: result.result.message || "Quête complétée!"
+        });
+      }
+    }
+
+    // Envoyer le résultat final au client
+    client.send("questDeliveryResult", {
+      success: result.success,
+      message: result.message,
+      result: result.result,
+      error: result.error
+    });
+
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur lors de questDelivery:`, error);
+    client.send("questDeliveryResult", {
+      success: false,
+      message: "Erreur serveur lors de la livraison",
+      error: error instanceof Error ? error.message : "Erreur inconnue"
+    });
+  }
+});
+
+// Ajouter aussi ce handler pour la validation de livraison (optionnel mais utile)
+this.onMessage("validateQuestDelivery", async (client, data) => {
+  console.log(`🔍 [WorldRoom] Validation livraison demandée:`, data);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("validateQuestDeliveryResult", {
+      success: false,
+      message: "Joueur non trouvé"
+    });
+    return;
+  }
+
+  try {
+    // Gérer le format avec items[] array
+    let itemId: string;
+    let requiredAmount: number;
+    
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      const firstItem = data.items[0];
+      itemId = firstItem.itemId;
+      requiredAmount = firstItem.required || firstItem.requiredAmount || 1;
+    } else if (data.itemId) {
+      itemId = data.itemId;
+      requiredAmount = data.requiredAmount || 1;
+    } else {
+      client.send("validateQuestDeliveryResult", {
+        success: false,
+        message: "Format de données invalide"
+      });
+      return;
+    }
+    
+    // Vérifier si le joueur a les items requis
+    const hasItem = await this.playerHasItem(
+      player.name,
+      itemId,
+      requiredAmount
+    );
+
+    client.send("validateQuestDeliveryResult", {
+      success: true,
+      canDeliver: hasItem,
+      hasItem: hasItem,
+      itemId: itemId,
+      requiredAmount: requiredAmount
+    });
+
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur validation livraison:`, error);
+    client.send("validateQuestDeliveryResult", {
+      success: false,
+      message: "Erreur lors de la validation"
+    });
+  }
+});
+
+// Ajouter ce handler pour débugger les livraisons disponibles
+this.onMessage("debugQuestDeliveries", async (client) => {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
+
+  try {
+    const questManager = this.zoneManager.getQuestManager();
+    const activeQuests = await questManager.getActiveQuests(player.name);
+    
+    console.log(`🔍 [DEBUG] Quêtes actives pour ${player.name}:`, activeQuests.length);
+    
+    for (const quest of activeQuests) {
+      console.log(`📜 Quête: ${quest.name} (${quest.id})`);
+      
+      const questDef = questManager.getQuestDefinition(quest.id);
+      if (questDef && quest.currentStepIndex !== undefined) {
+        const currentStep = questDef.steps[quest.currentStepIndex];
+        if (currentStep && currentStep.objectives) {
+          for (const objective of currentStep.objectives) {
+            if (objective.type === 'deliver') {
+              console.log(`  🚚 Objectif livraison trouvé:`, {
+                targetNpc: objective.target || objective.targetName,
+                itemId: objective.itemId,
+                amount: objective.requiredAmount
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    client.send("debugQuestDeliveriesResult", {
+      message: "Vérifier la console serveur pour les détails"
+    });
+    
+  } catch (error) {
+    console.error(`❌ [DEBUG] Erreur:`, error);
+  }
+});
+    
     this.onMessage("requestOverworldSync", (client) => {
       if (this.overworldPokemonManager) {
         this.overworldPokemonManager.syncPokemonForClient(client);
