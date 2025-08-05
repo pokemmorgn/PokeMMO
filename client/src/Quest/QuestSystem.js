@@ -249,34 +249,41 @@ export class QuestSystem {
    * Handler pour données de livraison reçues du serveur
    * @param {Object} data - Données de livraison
    */
-  handleQuestDeliveryData(data) {
-    console.log('🎁 [QuestSystem] === TRAITEMENT DONNÉES LIVRAISON ===');
-    console.log('📊 Data reçue:', data);
+ handleQuestDeliveryData(data) {
+  console.log('🎁 [QuestSystem] === TRAITEMENT DONNÉES LIVRAISON ===');
+  console.log('📊 Data reçue:', data);
+  
+  if (!this.deliveryOverlay) {
+    console.error('❌ [QuestSystem] QuestDeliveryOverlay non disponible');
+    this.showMessage('Interface de livraison non disponible', 'error');
+    return false;
+  }
+  
+  try {
+    // ✅ NOUVEAU : Afficher le dialogue EN PREMIER si disponible
+    if (data.lines && data.lines.length > 0) {
+      console.log('💬 [QuestSystem] Affichage dialogue avec livraison');
+      this.showDialogueWithDelivery(data);
+    }
     
-    if (!this.deliveryOverlay) {
-      console.error('❌ [QuestSystem] QuestDeliveryOverlay non disponible');
-      this.showMessage('Interface de livraison non disponible', 'error');
+    // ✅ Extraire les données de livraison selon le format serveur
+    const deliveryData = this.extractDeliveryData(data);
+    
+    if (!deliveryData || !deliveryData.items || deliveryData.items.length === 0) {
+      console.warn('⚠️ [QuestSystem] Données de livraison invalides');
+      this.showMessage('Aucun objet à livrer', 'warning');
       return false;
     }
     
-    try {
-      // ✅ Extraire les données de livraison selon le format serveur
-      const deliveryData = this.extractDeliveryData(data);
-      
-      if (!deliveryData || !deliveryData.items || deliveryData.items.length === 0) {
-        console.warn('⚠️ [QuestSystem] Données de livraison invalides');
-        this.showMessage('Aucun objet à livrer', 'warning');
-        return false;
-      }
-      
-      console.log('✅ [QuestSystem] Données de livraison extraites:', deliveryData);
-      
-      // ✅ Stocker l'état de livraison
-      this.deliveryState.currentDelivery = deliveryData;
-      this.deliveryState.isDelivering = false;
-      this.deliveryState.lastDeliveryTime = Date.now();
-      
-      // ✅ Afficher l'overlay de livraison
+    console.log('✅ [QuestSystem] Données de livraison extraites:', deliveryData);
+    
+    // ✅ Stocker l'état de livraison
+    this.deliveryState.currentDelivery = deliveryData;
+    this.deliveryState.isDelivering = false;
+    this.deliveryState.lastDeliveryTime = Date.now();
+    
+    // ✅ MODIFIÉ : Afficher l'overlay avec un léger délai si dialogue affiché
+    const showDeliveryOverlay = () => {
       const success = this.deliveryOverlay.show(deliveryData);
       
       if (success) {
@@ -291,13 +298,177 @@ export class QuestSystem {
       } else {
         throw new Error('Échec affichage overlay');
       }
+    };
+    
+    // ✅ Si dialogue affiché, attendre un peu avant d'afficher l'overlay
+    if (data.lines && data.lines.length > 0) {
+      // Délai pour que le joueur puisse lire le dialogue
+      setTimeout(() => {
+        showDeliveryOverlay();
+      }, 500); // 500ms de délai
+    } else {
+      // Sinon afficher immédiatement
+      showDeliveryOverlay();
+    }
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [QuestSystem] Erreur traitement données livraison:', error);
+    this.showMessage(`Erreur livraison: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE : Afficher dialogue avec indicateur de livraison
+showDialogueWithDelivery(data) {
+  console.log('💬 [QuestSystem] === AFFICHAGE DIALOGUE AVEC LIVRAISON ===');
+  
+  // Préparer les données de dialogue
+  const dialogueData = {
+    portrait: data.portrait || '/assets/portrait/defaultPortrait.png',
+    name: data.npcName || 'NPC',
+    lines: data.lines || ["J'attends que vous me livriez quelque chose..."],
+    
+    // ✅ NOUVEAU : Ajouter un indicateur visuel de livraison
+    showDeliveryIndicator: true,
+    deliveryIcon: '📦',
+    
+    // ✅ Options d'affichage
+    options: {
+      autoClose: false, // Ne pas fermer automatiquement
+      showSkipButton: true,
+      showDeliveryHint: true,
+      deliveryHintText: '📦 Livraison disponible'
+    },
+    
+    // ✅ Callback quand le dialogue est fermé
+    onClose: () => {
+      console.log('💬 [QuestSystem] Dialogue fermé, overlay livraison reste visible');
+    }
+  };
+  
+  // Utiliser le système de dialogue disponible
+  if (window.dialogueManager && typeof window.dialogueManager.show === 'function') {
+    console.log('🆕 [QuestSystem] Utilisation DialogueManager');
+    window.dialogueManager.show(dialogueData);
+  } else if (typeof window.showNpcDialogue === 'function') {
+    console.log('🔄 [QuestSystem] Utilisation ancien système dialogue');
+    window.showNpcDialogue(dialogueData);
+  } else if (typeof window.showDialogue === 'function') {
+    console.log('🔄 [QuestSystem] Utilisation showDialogue');
+    window.showDialogue(dialogueData);
+  } else {
+    console.warn('⚠️ [QuestSystem] Aucun système dialogue disponible');
+    // Afficher au moins le message
+    this.showMessage(data.lines[0] || "Livraison disponible", 'info');
+  }
+}
+
+// ✅ OPTIONNEL : Méthode pour afficher les deux simultanément
+showDialogueAndDeliverySimultaneous(data) {
+  console.log('🎭 [QuestSystem] === AFFICHAGE SIMULTANÉ DIALOGUE + LIVRAISON ===');
+  
+  // 1. Afficher le dialogue
+  if (data.lines && data.lines.length > 0) {
+    const dialogueData = {
+      portrait: data.portrait || '/assets/portrait/defaultPortrait.png',
+      name: data.npcName || 'NPC',
+      lines: data.lines,
       
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur traitement données livraison:', error);
-      this.showMessage(`Erreur livraison: ${error.message}`, 'error');
-      return false;
+      // ✅ Positionner le dialogue pour ne pas cacher l'overlay
+      position: 'top', // ou 'left' selon votre UI
+      compact: true, // Mode compact pour laisser de la place
+      
+      options: {
+        autoClose: false,
+        showSkipButton: false, // Pas de skip, l'overlay est plus important
+        fadeBackground: false // Ne pas assombrir le fond
+      }
+    };
+    
+    if (window.dialogueManager) {
+      window.dialogueManager.show(dialogueData);
     }
   }
+  
+  // 2. Afficher l'overlay de livraison EN MÊME TEMPS
+  const deliveryData = this.extractDeliveryData(data);
+  if (deliveryData && deliveryData.items && deliveryData.items.length > 0) {
+    // Positionner l'overlay pour ne pas chevaucher avec le dialogue
+    deliveryData.position = 'center'; // ou 'bottom' selon votre UI
+    deliveryData.offsetY = 100; // Décaler si nécessaire
+    
+    this.deliveryOverlay.show(deliveryData);
+  }
+  
+  return true;
+}
+
+// ✅ MÉTHODE ALTERNATIVE : Mode "conversation + livraison"
+showConversationWithDelivery(data) {
+  console.log('💬📦 [QuestSystem] === MODE CONVERSATION AVEC LIVRAISON ===');
+  
+  // Créer un dialogue enrichi qui inclut l'info de livraison
+  const enrichedDialogue = {
+    portrait: data.portrait || '/assets/portrait/defaultPortrait.png',
+    name: data.npcName || 'NPC',
+    lines: [
+      ...(data.lines || []),
+      "", // Ligne vide pour séparer
+      "📦 **Objets à livrer:**"
+    ],
+    
+    // ✅ Ajouter la liste des items dans le dialogue
+    additionalContent: this.formatDeliveryItemsForDialogue(data),
+    
+    // ✅ Actions dans le dialogue
+    actions: [
+      {
+        label: "📦 Voir détails livraison",
+        action: () => {
+          // Fermer dialogue et ouvrir overlay
+          if (window.dialogueManager) window.dialogueManager.hide();
+          const deliveryData = this.extractDeliveryData(data);
+          this.deliveryOverlay.show(deliveryData);
+        }
+      },
+      {
+        label: "❌ Plus tard",
+        action: () => {
+          if (window.dialogueManager) window.dialogueManager.hide();
+        }
+      }
+    ]
+  };
+  
+  if (window.dialogueManager) {
+    window.dialogueManager.show(enrichedDialogue);
+  }
+}
+
+// ✅ Utilitaire : Formater les items pour affichage dans dialogue
+formatDeliveryItemsForDialogue(data) {
+  const deliveryData = this.extractDeliveryData(data);
+  if (!deliveryData || !deliveryData.items) return "";
+  
+  let content = "<div class='delivery-items-list'>";
+  
+  deliveryData.items.forEach(item => {
+    const status = item.playerHas >= item.required ? "✅" : "❌";
+    content += `<div class='delivery-item'>`;
+    content += `${status} ${item.itemName}: ${item.playerHas}/${item.required}`;
+    content += `</div>`;
+  });
+  
+  content += "</div>";
+  
+  if (deliveryData.canDeliverAll) {
+    content += "<div class='delivery-ready'>✨ Prêt à livrer !</div>";
+  }
+  
+  return content;
+}
 
   /**
    * Extraire les données de livraison du message serveur
