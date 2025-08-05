@@ -649,7 +649,148 @@ window.updateDialogueVariable = (index, value) => {
     adminPanel.dialogueEditor.updateVariable(index, value)
 }
 
+// Dans la fonction setupGlobalFunctions(), ajouter ces fonctions ItemEditor :
 
+// Item Editor functions - À ajouter dans setupGlobalFunctions()
+window.selectItem = (itemId) => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.selectItem(itemId)
+}
+
+window.createNewItem = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.createNewItem()
+}
+
+window.saveItem = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.saveItem()
+}
+
+window.duplicateItem = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.duplicateItem()
+}
+
+window.deleteItem = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.deleteItem()
+}
+
+window.cancelEditItem = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.cancelEdit()
+}
+
+// ⚠️ CORRECTION PRINCIPALE - Ajouter cette fonction manquante :
+window.refreshItems = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.refreshItems()
+}
+
+window.exportItems = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.exportItems()
+}
+
+// Pagination functions
+window.itemsPreviousPage = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.previousPage()
+}
+
+window.itemsNextPage = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.nextPage()
+}
+
+// Effects and obtain methods functions
+window.addItemEffect = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.addEffect()
+}
+
+window.editItemEffect = (index) => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.editEffect(index)
+}
+
+window.removeItemEffect = (index) => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.removeEffect(index)
+}
+
+window.addItemObtainMethod = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.addObtainMethod()
+}
+
+window.editItemObtainMethod = (index) => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.editObtainMethod(index)
+}
+
+window.removeItemObtainMethod = (index) => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.removeObtainMethod(index)
+}
+
+// Tab activation
+window.loadItemEditor = () => {
+    if (!adminPanel?.itemEditor) {
+        console.error('ItemEditor module not loaded')
+        return
+    }
+    adminPanel.itemEditor.onTabActivated()
+}
 // Helper function to show error messages
 function showErrorMessage(message) {
     const notification = document.createElement('div')
