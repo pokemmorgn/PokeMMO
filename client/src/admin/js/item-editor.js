@@ -1,16 +1,14 @@
-// client/src/admin/js/item-editor.js - Module d'édition des items MongoDB
-
 export class ItemEditorModule {
     constructor(adminPanel) {
-        this.adminPanel = adminPanel
-        this.name = 'itemEditor'
+        this.adminPanel = adminPanel;
+        this.name = 'itemEditor';
         
         // État du module
-        this.items = []
-        this.filteredItems = []
-        this.selectedItemId = null
-        this.currentItem = null
-        this.unsavedChanges = false
+        this.items = [];
+        this.filteredItems = [];
+        this.selectedItemId = null;
+        this.currentItem = null;
+        this.unsavedChanges = false;
         
         // Filtres et pagination
         this.currentFilters = {
@@ -18,130 +16,159 @@ export class ItemEditorModule {
             category: 'all',
             generation: 'all',
             rarity: 'all'
-        }
-        this.currentPage = 1
-        this.itemsPerPage = 20
-        this.totalItems = 0
+        };
+        this.currentPage = 1;
+        this.itemsPerPage = 20;
+        this.totalItems = 0;
         
-        console.log('✅ [ItemEditor] Module initialisé')
+        console.log('✅ [ItemEditor] Module initialisé');
     }
 
     // ===== LIFECYCLE METHODS =====
 
     async onTabActivated() {
-        console.log('📦 [ItemEditor] Activation de l\'onglet Items')
+        console.log('📦 [ItemEditor] Activation de l\'onglet Items');
         
         try {
-            await this.loadItems()
-            this.setupEventListeners()
-            this.updateUI()
+            // Attendre que le DOM soit prêt
+            await this.waitForDOM();
+            
+            // Charger les items
+            await this.loadItems();
+            
+            // Configurer les event listeners
+            this.setupEventListeners();
+            
+            // Mettre à jour l'interface
+            this.updateUI();
+            
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur activation:', error)
-            this.adminPanel.showNotification('Erreur lors du chargement des items', 'error')
+            console.error('❌ [ItemEditor] Erreur activation:', error);
+            this.adminPanel.showNotification('Erreur lors du chargement des items', 'error');
         }
+    }
+    
+    async waitForDOM() {
+        return new Promise((resolve) => {
+            const checkDOM = () => {
+                const itemsList = document.getElementById('itemsList');
+                const itemForm = document.getElementById('itemEditorForm');
+                
+                if (itemsList && itemForm) {
+                    console.log('✅ [ItemEditor] DOM prêt');
+                    resolve();
+                } else {
+                    console.log('⏳ [ItemEditor] Attente DOM...');
+                    setTimeout(checkDOM, 100);
+                }
+            };
+            checkDOM();
+        });
     }
 
     setupEventListeners() {
+        console.log('🔧 [ItemEditor] Configuration des event listeners');
+        
         // Recherche en temps réel
-        const searchInput = document.getElementById('itemSearch')
+        const searchInput = document.getElementById('itemSearch');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
-                this.currentFilters.search = e.target.value
-                this.filterItems()
-            })
+                this.currentFilters.search = e.target.value;
+                this.filterItems();
+            });
         }
         
         // Filtres de catégorie
-        const categoryFilter = document.getElementById('itemCategoryFilter')
+        const categoryFilter = document.getElementById('itemCategoryFilter');
         if (categoryFilter) {
             categoryFilter.addEventListener('change', (e) => {
-                this.currentFilters.category = e.target.value
-                this.filterItems()
-            })
+                this.currentFilters.category = e.target.value;
+                this.filterItems();
+            });
         }
         
         // Filtres de génération
-        const generationFilter = document.getElementById('itemGenerationFilter')
+        const generationFilter = document.getElementById('itemGenerationFilter');
         if (generationFilter) {
             generationFilter.addEventListener('change', (e) => {
-                this.currentFilters.generation = e.target.value
-                this.filterItems()
-            })
+                this.currentFilters.generation = e.target.value;
+                this.filterItems();
+            });
         }
         
         // Filtres de rareté
-        const rarityFilter = document.getElementById('itemRarityFilter')
+        const rarityFilter = document.getElementById('itemRarityFilter');
         if (rarityFilter) {
             rarityFilter.addEventListener('change', (e) => {
-                this.currentFilters.rarity = e.target.value
-                this.filterItems()
-            })
+                this.currentFilters.rarity = e.target.value;
+                this.filterItems();
+            });
         }
         
         // Formulaire d'édition
-        const itemForm = document.getElementById('itemEditorForm')
+        const itemForm = document.getElementById('itemEditorForm');
         if (itemForm) {
             itemForm.addEventListener('submit', (e) => {
-                e.preventDefault()
-                this.saveItem()
-            })
+                e.preventDefault();
+                this.saveItem();
+            });
             
             // Détection des changements
             itemForm.addEventListener('input', () => {
-                this.unsavedChanges = true
-                this.updateSaveButton()
-            })
+                this.unsavedChanges = true;
+                this.updateSaveButton();
+            });
         }
         
         // Gestion des raccourcis clavier
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 's' && this.selectedItemId) {
-                e.preventDefault()
-                this.saveItem()
+                e.preventDefault();
+                this.saveItem();
             }
             
             if (e.key === 'Escape') {
                 if (document.querySelector('.modal.active')) {
-                    this.adminPanel.closeModal()
+                    this.adminPanel.closeModal();
                 } else if (this.selectedItemId && this.unsavedChanges) {
                     if (confirm('Annuler les modifications non sauvegardées ?')) {
-                        this.cancelEdit()
+                        this.cancelEdit();
                     }
                 }
             }
-        })
+        });
     }
 
     // ===== CHARGEMENT DES DONNÉES =====
 
     async loadItems() {
-        console.log('📦 [ItemEditor] Chargement des items...')
+        console.log('📦 [ItemEditor] Chargement des items...');
         
-        const loadingElement = document.getElementById('itemsLoading')
-        const listElement = document.getElementById('itemsList')
+        const loadingElement = document.getElementById('itemsLoading');
+        const listElement = document.getElementById('itemsList');
         
-        if (loadingElement) loadingElement.style.display = 'block'
+        if (loadingElement) loadingElement.style.display = 'block';
         
         try {
-            // Utiliser la nouvelle API MongoDB
-            const response = await this.adminPanel.apiCall('/items/list', {
+            // CORRECTION: Utiliser la bonne route API
+            const response = await this.adminPanel.apiCall('/api/admin/items/list', {
                 method: 'GET'
-            })
+            });
             
             if (response.success) {
-                this.items = response.items || []
-                this.totalItems = response.total || 0
-                this.filteredItems = [...this.items]
+                this.items = response.items || [];
+                this.totalItems = response.total || 0;
+                this.filteredItems = [...this.items];
                 
-                console.log(`✅ [ItemEditor] ${this.items.length} items chargés`)
-                this.updateItemsList()
+                console.log(`✅ [ItemEditor] ${this.items.length} items chargés`);
+                this.updateItemsList();
             } else {
-                throw new Error(response.error || 'Erreur chargement items')
+                throw new Error(response.error || 'Erreur chargement items');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur chargement:', error)
-            this.adminPanel.showNotification('Erreur lors du chargement des items: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur chargement:', error);
+            this.adminPanel.showNotification('Erreur lors du chargement des items: ' + error.message, 'error');
             
             if (listElement) {
                 listElement.innerHTML = `
@@ -149,68 +176,71 @@ export class ItemEditorModule {
                         <i class="fas fa-exclamation-triangle"></i>
                         Erreur lors du chargement des items
                     </div>
-                `
+                `;
             }
         } finally {
-            if (loadingElement) loadingElement.style.display = 'none'
+            if (loadingElement) loadingElement.style.display = 'none';
         }
     }
 
     // ===== FILTRAGE ET RECHERCHE =====
 
     filterItems() {
-        console.log('🔍 [ItemEditor] Filtrage des items:', this.currentFilters)
+        console.log('🔍 [ItemEditor] Filtrage des items:', this.currentFilters);
         
         this.filteredItems = this.items.filter(item => {
             // Filtre par recherche textuelle
             if (this.currentFilters.search) {
-                const searchTerm = this.currentFilters.search.toLowerCase()
+                const searchTerm = this.currentFilters.search.toLowerCase();
                 const matchesSearch = 
                     item.name.toLowerCase().includes(searchTerm) ||
                     item.itemId.toLowerCase().includes(searchTerm) ||
                     item.description.toLowerCase().includes(searchTerm) ||
-                    (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
+                    (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm)));
                 
-                if (!matchesSearch) return false
+                if (!matchesSearch) return false;
             }
             
             // Filtre par catégorie
             if (this.currentFilters.category !== 'all' && item.category !== this.currentFilters.category) {
-                return false
+                return false;
             }
             
             // Filtre par génération
             if (this.currentFilters.generation !== 'all' && item.generation !== parseInt(this.currentFilters.generation)) {
-                return false
+                return false;
             }
             
             // Filtre par rareté
             if (this.currentFilters.rarity !== 'all' && item.rarity !== this.currentFilters.rarity) {
-                return false
+                return false;
             }
             
-            return true
-        })
+            return true;
+        });
         
-        this.currentPage = 1 // Reset à la première page
-        this.updateItemsList()
-        this.updatePagination()
+        this.currentPage = 1; // Reset à la première page
+        this.updateItemsList();
+        this.updatePagination();
     }
 
     // ===== MISE À JOUR DE L'INTERFACE =====
 
     updateItemsList() {
-        const listElement = document.getElementById('itemsList')
-        if (!listElement) return
+        const listElement = document.getElementById('itemsList');
+        if (!listElement) {
+            console.error('❌ [ItemEditor] Element itemsList non trouvé');
+            return;
+        }
         
         // Pagination
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage
-        const endIndex = startIndex + this.itemsPerPage
-        const pageItems = this.filteredItems.slice(startIndex, endIndex)
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        const pageItems = this.filteredItems.slice(startIndex, endIndex);
         
         if (pageItems.length === 0) {
             listElement.innerHTML = `
-                <div class="item-editor__empty-state" style="padding: 2rem;">
+                <div class="item-editor__empty-state" style="padding: 2rem; text-align: center;">
                     <div class="item-editor__empty-icon" style="font-size: 2rem; margin-bottom: 0.5rem;">
                         <i class="fas fa-search"></i>
                     </div>
@@ -219,13 +249,13 @@ export class ItemEditorModule {
                         Essayez de modifier vos critères de recherche.
                     </p>
                 </div>
-            `
-            return
+            `;
+            return;
         }
         
         listElement.innerHTML = pageItems.map(item => `
             <div class="item-editor__item-card ${this.selectedItemId === item.itemId ? 'item-editor__item-card--selected' : ''}"
-                 onclick="selectItem('${item.itemId}')">
+                 onclick="window.itemEditorSelectItem('${item.itemId}')">
                 <div class="item-editor__item-sprite">
                     <i class="fas fa-cube"></i>
                 </div>
@@ -239,175 +269,183 @@ export class ItemEditorModule {
                     </div>
                 </div>
             </div>
-        `).join('')
+        `).join('');
         
-        this.updatePagination()
+        this.updatePagination();
     }
 
     updatePagination() {
-        const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage)
-        const startItem = (this.currentPage - 1) * this.itemsPerPage + 1
-        const endItem = Math.min(startItem + this.itemsPerPage - 1, this.filteredItems.length)
+        const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage);
+        const startItem = (this.currentPage - 1) * this.itemsPerPage + 1;
+        const endItem = Math.min(startItem + this.itemsPerPage - 1, this.filteredItems.length);
         
         // Info pagination
-        const infoElement = document.getElementById('itemsPaginationInfo')
+        const infoElement = document.getElementById('itemsPaginationInfo');
         if (infoElement) {
-            infoElement.textContent = `${startItem}-${endItem} sur ${this.filteredItems.length} items`
+            infoElement.textContent = `${startItem}-${endItem} sur ${this.filteredItems.length} items`;
         }
         
         // Contrôles pagination
-        const pageInfoElement = document.getElementById('itemsPageInfo')
-        const prevBtn = document.getElementById('itemsPrevBtn')
-        const nextBtn = document.getElementById('itemsNextBtn')
+        const pageInfoElement = document.getElementById('itemsPageInfo');
+        const prevBtn = document.getElementById('itemsPrevBtn');
+        const nextBtn = document.getElementById('itemsNextBtn');
         
         if (pageInfoElement) {
-            pageInfoElement.textContent = `${this.currentPage} / ${totalPages}`
+            pageInfoElement.textContent = `${this.currentPage} / ${totalPages}`;
         }
         
         if (prevBtn) {
-            prevBtn.disabled = this.currentPage <= 1
-            prevBtn.classList.toggle('item-editor__page-btn--disabled', this.currentPage <= 1)
+            prevBtn.disabled = this.currentPage <= 1;
+            prevBtn.classList.toggle('item-editor__page-btn--disabled', this.currentPage <= 1);
         }
         
         if (nextBtn) {
-            nextBtn.disabled = this.currentPage >= totalPages
-            nextBtn.classList.toggle('item-editor__page-btn--disabled', this.currentPage >= totalPages)
+            nextBtn.disabled = this.currentPage >= totalPages;
+            nextBtn.classList.toggle('item-editor__page-btn--disabled', this.currentPage >= totalPages);
         }
     }
 
     updateUI() {
         if (this.selectedItemId) {
-            this.showItemEditor()
+            this.showItemEditor();
         } else {
-            this.showEmptyState()
+            this.showEmptyState();
         }
     }
 
     showEmptyState() {
-        const emptyElement = document.getElementById('itemEditorEmpty')
-        const formElement = document.getElementById('itemEditorForm')
-        const actionsElement = document.getElementById('itemEditorActions')
-        const titleElement = document.getElementById('itemEditorTitle')
+        const emptyElement = document.getElementById('itemEditorEmpty');
+        const formElement = document.getElementById('itemEditorForm');
+        const actionsElement = document.getElementById('itemEditorActions');
+        const titleElement = document.getElementById('itemEditorTitle');
         
-        if (emptyElement) emptyElement.style.display = 'flex'
-        if (formElement) formElement.style.display = 'none'
-        if (actionsElement) actionsElement.style.display = 'none'
+        if (emptyElement) emptyElement.style.display = 'flex';
+        if (formElement) formElement.style.display = 'none';
+        if (actionsElement) actionsElement.style.display = 'none';
         if (titleElement) {
-            titleElement.innerHTML = '<i class="fas fa-cube"></i> Sélectionnez un item'
+            titleElement.innerHTML = '<i class="fas fa-cube"></i> Sélectionnez un item';
         }
     }
 
     showItemEditor() {
-        const emptyElement = document.getElementById('itemEditorEmpty')
-        const formElement = document.getElementById('itemEditorForm')
-        const actionsElement = document.getElementById('itemEditorActions')
-        const titleElement = document.getElementById('itemEditorTitle')
+        const emptyElement = document.getElementById('itemEditorEmpty');
+        const formElement = document.getElementById('itemEditorForm');
+        const actionsElement = document.getElementById('itemEditorActions');
+        const titleElement = document.getElementById('itemEditorTitle');
         
-        if (emptyElement) emptyElement.style.display = 'none'
-        if (formElement) formElement.style.display = 'block'
-        if (actionsElement) actionsElement.style.display = 'flex'
+        if (emptyElement) emptyElement.style.display = 'none';
+        if (formElement) formElement.style.display = 'block';
+        if (actionsElement) actionsElement.style.display = 'flex';
         
         if (titleElement && this.currentItem) {
-            titleElement.innerHTML = `<i class="fas fa-cube"></i> ${this.escapeHtml(this.currentItem.name)}`
+            titleElement.innerHTML = `<i class="fas fa-cube"></i> ${this.escapeHtml(this.currentItem.name)}`;
         }
     }
 
     updateSaveButton() {
-        const saveBtn = document.getElementById('saveItemBtn')
+        const saveBtn = document.getElementById('saveItemBtn');
         if (saveBtn) {
-            saveBtn.disabled = !this.unsavedChanges
+            saveBtn.disabled = !this.unsavedChanges;
             saveBtn.innerHTML = this.unsavedChanges 
                 ? '<i class="fas fa-save"></i> Enregistrer *'
-                : '<i class="fas fa-save"></i> Enregistrer'
+                : '<i class="fas fa-save"></i> Enregistrer';
         }
     }
 
     // ===== SÉLECTION ET ÉDITION D'ITEMS =====
 
     async selectItem(itemId) {
-        console.log(`📦 [ItemEditor] Sélection item: ${itemId}`)
+        console.log(`📦 [ItemEditor] Sélection item: ${itemId}`);
         
         // Vérifier les changements non sauvegardés
         if (this.unsavedChanges) {
             if (!confirm('Vous avez des modifications non sauvegardées. Continuer ?')) {
-                return
+                return;
             }
         }
         
         try {
             // Charger les détails de l'item
-            const response = await this.adminPanel.apiCall(`/items/details/${itemId}`)
+            const response = await this.adminPanel.apiCall(`/api/admin/items/details/${itemId}`);
             
             if (response.success) {
-                this.selectedItemId = itemId
-                this.currentItem = response.item
-                this.unsavedChanges = false
+                this.selectedItemId = itemId;
+                this.currentItem = response.item;
+                this.unsavedChanges = false;
                 
-                this.populateForm(this.currentItem)
-                this.updateUI()
-                this.updateSaveButton()
-                this.updateItemsList() // Pour mettre à jour la sélection visuelle
+                this.populateForm(this.currentItem);
+                this.updateUI();
+                this.updateSaveButton();
+                this.updateItemsList(); // Pour mettre à jour la sélection visuelle
                 
-                console.log(`✅ [ItemEditor] Item ${itemId} sélectionné`)
+                console.log(`✅ [ItemEditor] Item ${itemId} sélectionné`);
             } else {
-                throw new Error(response.error || 'Erreur chargement détails item')
+                throw new Error(response.error || 'Erreur chargement détails item');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur sélection item:', error)
-            this.adminPanel.showNotification('Erreur lors du chargement de l\'item: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur sélection item:', error);
+            this.adminPanel.showNotification('Erreur lors du chargement de l\'item: ' + error.message, 'error');
         }
     }
 
     populateForm(item) {
+        console.log('📝 [ItemEditor] Remplissage du formulaire pour:', item.itemId);
+        
         // Informations de base
-        this.setFormValue('itemId', item.itemId)
-        this.setFormValue('itemName', item.name)
-        this.setFormValue('itemDescription', item.description)
-        this.setFormValue('itemCategory', item.category)
-        this.setFormValue('itemGeneration', item.generation)
-        this.setFormValue('itemRarity', item.rarity)
-        this.setFormValue('itemSprite', item.sprite)
-        this.setFormValue('itemTags', Array.isArray(item.tags) ? item.tags.join(', ') : '')
+        this.setFormValue('itemId', item.itemId);
+        this.setFormValue('itemName', item.name);
+        this.setFormValue('itemDescription', item.description);
+        this.setFormValue('itemCategory', item.category);
+        this.setFormValue('itemGeneration', item.generation);
+        this.setFormValue('itemRarity', item.rarity);
+        this.setFormValue('itemSprite', item.sprite);
+        this.setFormValue('itemTags', Array.isArray(item.tags) ? item.tags.join(', ') : '');
         
         // Économie
-        this.setFormValue('itemPrice', item.price)
-        this.setFormValue('itemSellPrice', item.sellPrice)
-        this.setFormValue('itemStackable', item.stackable, 'checkbox')
-        this.setFormValue('itemConsumable', item.consumable, 'checkbox')
+        this.setFormValue('itemPrice', item.price);
+        this.setFormValue('itemSellPrice', item.sellPrice);
+        this.setFormValue('itemStackable', item.stackable, 'checkbox');
+        this.setFormValue('itemConsumable', item.consumable, 'checkbox');
         
         // Restrictions
-        const restrictions = item.usageRestrictions || {}
-        this.setFormValue('itemBattleOnly', restrictions.battleOnly, 'checkbox')
-        this.setFormValue('itemFieldOnly', restrictions.fieldOnly, 'checkbox')
-        this.setFormValue('itemLevelRequirement', restrictions.levelRequirement)
+        const restrictions = item.usageRestrictions || {};
+        this.setFormValue('itemBattleOnly', restrictions.battleOnly, 'checkbox');
+        this.setFormValue('itemFieldOnly', restrictions.fieldOnly, 'checkbox');
+        this.setFormValue('itemLevelRequirement', restrictions.levelRequirement);
         this.setFormValue('itemLocationRestrictions', 
-            Array.isArray(restrictions.locations) ? restrictions.locations.join(', ') : '')
+            Array.isArray(restrictions.locations) ? restrictions.locations.join(', ') : '');
         
         // Métadonnées
-        this.setFormValue('itemVersion', item.version)
-        this.setFormValue('itemSourceFile', item.sourceFile)
-        this.setFormValue('itemIsActive', item.isActive, 'checkbox')
+        this.setFormValue('itemVersion', item.version);
+        this.setFormValue('itemSourceFile', item.sourceFile);
+        this.setFormValue('itemIsActive', item.isActive, 'checkbox');
         
         // Effets et méthodes d'obtention
-        this.populateEffects(item.effects || [])
-        this.populateObtainMethods(item.obtainMethods || [])
+        this.populateEffects(item.effects || []);
+        this.populateObtainMethods(item.obtainMethods || []);
     }
 
     setFormValue(fieldId, value, type = 'text') {
-        const field = document.getElementById(fieldId)
-        if (!field) return
+        const field = document.getElementById(fieldId);
+        if (!field) {
+            console.warn(`⚠️ [ItemEditor] Champ ${fieldId} non trouvé`);
+            return;
+        }
         
         if (type === 'checkbox') {
-            field.checked = Boolean(value)
+            field.checked = Boolean(value);
         } else {
-            field.value = value || ''
+            field.value = value || '';
         }
     }
 
     populateEffects(effects) {
-        const container = document.getElementById('itemEffectsList')
-        if (!container) return
+        const container = document.getElementById('itemEffectsList');
+        if (!container) {
+            console.warn('⚠️ [ItemEditor] Container itemEffectsList non trouvé');
+            return;
+        }
         
         if (effects.length === 0) {
             container.innerHTML = `
@@ -419,8 +457,8 @@ export class ItemEditorModule {
                         Aucun effet défini pour cet item.
                     </p>
                 </div>
-            `
-            return
+            `;
+            return;
         }
         
         container.innerHTML = effects.map((effect, index) => `
@@ -435,20 +473,23 @@ export class ItemEditorModule {
                     </div>
                 </div>
                 <div class="item-editor__effect-actions">
-                    <button type="button" class="item-editor__effect-btn" onclick="editEffect(${index})">
+                    <button type="button" class="item-editor__effect-btn" onclick="window.itemEditorEditEffect(${index})">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" class="item-editor__effect-btn" onclick="removeEffect(${index})">
+                    <button type="button" class="item-editor__effect-btn" onclick="window.itemEditorRemoveEffect(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
-        `).join('')
+        `).join('');
     }
 
     populateObtainMethods(methods) {
-        const container = document.getElementById('itemObtainMethodsList')
-        if (!container) return
+        const container = document.getElementById('itemObtainMethodsList');
+        if (!container) {
+            console.warn('⚠️ [ItemEditor] Container itemObtainMethodsList non trouvé');
+            return;
+        }
         
         if (methods.length === 0) {
             container.innerHTML = `
@@ -460,8 +501,8 @@ export class ItemEditorModule {
                         Aucune méthode d'obtention définie.
                     </p>
                 </div>
-            `
-            return
+            `;
+            return;
         }
         
         container.innerHTML = methods.map((method, index) => `
@@ -477,31 +518,31 @@ export class ItemEditorModule {
                     </div>
                 </div>
                 <div class="item-editor__effect-actions">
-                    <button type="button" class="item-editor__effect-btn" onclick="editObtainMethod(${index})">
+                    <button type="button" class="item-editor__effect-btn" onclick="window.itemEditorEditObtainMethod(${index})">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" class="item-editor__effect-btn" onclick="removeObtainMethod(${index})">
+                    <button type="button" class="item-editor__effect-btn" onclick="window.itemEditorRemoveObtainMethod(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
-        `).join('')
+        `).join('');
     }
 
     // ===== ACTIONS CRUD =====
 
     async createNewItem() {
-        console.log('📦 [ItemEditor] Création nouvel item')
+        console.log('📦 [ItemEditor] Création nouvel item');
         
         // Vérifier les changements non sauvegardés
         if (this.unsavedChanges) {
             if (!confirm('Vous avez des modifications non sauvegardées. Continuer ?')) {
-                return
+                return;
             }
         }
         
         // Créer un nouvel item avec des valeurs par défaut
-        this.selectedItemId = 'new'
+        this.selectedItemId = 'new';
         this.currentItem = {
             itemId: '',
             name: '',
@@ -521,132 +562,132 @@ export class ItemEditorModule {
             isActive: true,
             version: '2.0.0',
             sourceFile: 'admin_editor'
-        }
+        };
         
-        this.unsavedChanges = false
-        this.populateForm(this.currentItem)
-        this.updateUI()
-        this.updateSaveButton()
+        this.unsavedChanges = false;
+        this.populateForm(this.currentItem);
+        this.updateUI();
+        this.updateSaveButton();
         
         // Focus sur le champ ID
         setTimeout(() => {
-            const idField = document.getElementById('itemId')
-            if (idField) idField.focus()
-        }, 100)
+            const idField = document.getElementById('itemId');
+            if (idField) idField.focus();
+        }, 100);
     }
 
     async saveItem() {
-        console.log('💾 [ItemEditor] Sauvegarde item')
+        console.log('💾 [ItemEditor] Sauvegarde item');
         
         if (!this.validateForm()) {
-            return
+            return;
         }
         
-        const saveBtn = document.getElementById('saveItemBtn')
+        const saveBtn = document.getElementById('saveItemBtn');
         if (saveBtn) {
-            saveBtn.disabled = true
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde...'
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde...';
         }
         
         try {
-            const formData = this.gatherFormData()
+            const formData = this.gatherFormData();
             
-            let response
+            let response;
             if (this.selectedItemId === 'new') {
                 // Créer un nouvel item
-                response = await this.adminPanel.apiCall('/items', {
+                response = await this.adminPanel.apiCall('/api/admin/items', {
                     method: 'POST',
                     body: JSON.stringify(formData)
-                })
+                });
             } else {
                 // Mettre à jour l'item existant
-                response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}`, {
+                response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}`, {
                     method: 'PUT',
                     body: JSON.stringify(formData)
-                })
+                });
             }
             
             if (response.success) {
-                this.unsavedChanges = false
-                this.updateSaveButton()
+                this.unsavedChanges = false;
+                this.updateSaveButton();
                 
                 this.adminPanel.showNotification(
                     this.selectedItemId === 'new' ? 'Item créé avec succès' : 'Item mis à jour avec succès',
                     'success'
-                )
+                );
                 
                 // Recharger la liste
-                await this.loadItems()
+                await this.loadItems();
                 
                 // Sélectionner l'item sauvegardé
                 if (this.selectedItemId === 'new') {
-                    this.selectedItemId = formData.itemId
+                    this.selectedItemId = formData.itemId;
                 }
                 
-                console.log(`✅ [ItemEditor] Item ${this.selectedItemId} sauvegardé`)
+                console.log(`✅ [ItemEditor] Item ${this.selectedItemId} sauvegardé`);
                 
             } else {
-                throw new Error(response.error || 'Erreur sauvegarde')
+                throw new Error(response.error || 'Erreur sauvegarde');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur sauvegarde:', error)
-            this.adminPanel.showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur sauvegarde:', error);
+            this.adminPanel.showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error');
         } finally {
             if (saveBtn) {
-                saveBtn.disabled = false
-                this.updateSaveButton()
+                saveBtn.disabled = false;
+                this.updateSaveButton();
             }
         }
     }
 
     validateForm() {
-        const errors = []
+        const errors = [];
         
         // Validation ID
-        const itemId = document.getElementById('itemId')?.value.trim()
+        const itemId = document.getElementById('itemId')?.value.trim();
         if (!itemId) {
-            errors.push('L\'ID de l\'item est requis')
+            errors.push('L\'ID de l\'item est requis');
         } else if (!/^[a-z0-9_-]+$/.test(itemId)) {
-            errors.push('L\'ID ne doit contenir que des lettres minuscules, chiffres, tirets et underscores')
+            errors.push('L\'ID ne doit contenir que des lettres minuscules, chiffres, tirets et underscores');
         }
         
         // Validation nom
-        const name = document.getElementById('itemName')?.value.trim()
+        const name = document.getElementById('itemName')?.value.trim();
         if (!name) {
-            errors.push('Le nom de l\'item est requis')
+            errors.push('Le nom de l\'item est requis');
         }
         
         // Validation description
-        const description = document.getElementById('itemDescription')?.value.trim()
+        const description = document.getElementById('itemDescription')?.value.trim();
         if (!description || description.length < 10) {
-            errors.push('La description doit faire au moins 10 caractères')
+            errors.push('La description doit faire au moins 10 caractères');
         }
         
         // Validation catégorie
-        const category = document.getElementById('itemCategory')?.value
+        const category = document.getElementById('itemCategory')?.value;
         if (!category) {
-            errors.push('La catégorie est requise')
+            errors.push('La catégorie est requise');
         }
         
         if (errors.length > 0) {
-            this.adminPanel.showNotification('Erreurs de validation:\n• ' + errors.join('\n• '), 'error')
-            return false
+            this.adminPanel.showNotification('Erreurs de validation:\n• ' + errors.join('\n• '), 'error');
+            return false;
         }
         
-        return true
+        return true;
     }
 
     gatherFormData() {
         const tags = document.getElementById('itemTags')?.value
             .split(',')
             .map(tag => tag.trim())
-            .filter(tag => tag.length > 0) || []
+            .filter(tag => tag.length > 0) || [];
         
         const locationRestrictions = document.getElementById('itemLocationRestrictions')?.value
             .split(',')
             .map(loc => loc.trim())
-            .filter(loc => loc.length > 0) || []
+            .filter(loc => loc.length > 0) || [];
         
         return {
             itemId: document.getElementById('itemId')?.value.trim(),
@@ -672,234 +713,162 @@ export class ItemEditorModule {
             version: document.getElementById('itemVersion')?.value || '2.0.0',
             sourceFile: document.getElementById('itemSourceFile')?.value.trim() || 'admin_editor',
             isActive: document.getElementById('itemIsActive')?.checked
-        }
+        };
     }
 
     async duplicateItem() {
         if (!this.selectedItemId || this.selectedItemId === 'new') {
-            this.adminPanel.showNotification('Sélectionnez un item à dupliquer', 'warning')
-            return
+            this.adminPanel.showNotification('Sélectionnez un item à dupliquer', 'warning');
+            return;
         }
         
-        console.log(`📋 [ItemEditor] Duplication item: ${this.selectedItemId}`)
+        console.log(`📋 [ItemEditor] Duplication item: ${this.selectedItemId}`);
         
         try {
-            const response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}/duplicate`, {
+            const response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}/duplicate`, {
                 method: 'POST'
-            })
+            });
             
             if (response.success) {
-                this.adminPanel.showNotification('Item dupliqué avec succès', 'success')
-                await this.loadItems()
+                this.adminPanel.showNotification('Item dupliqué avec succès', 'success');
+                await this.loadItems();
                 
                 // Sélectionner l'item dupliqué
                 if (response.newItemId) {
-                    await this.selectItem(response.newItemId)
+                    await this.selectItem(response.newItemId);
                 }
             } else {
-                throw new Error(response.error || 'Erreur duplication')
+                throw new Error(response.error || 'Erreur duplication');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur duplication:', error)
-            this.adminPanel.showNotification('Erreur lors de la duplication: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur duplication:', error);
+            this.adminPanel.showNotification('Erreur lors de la duplication: ' + error.message, 'error');
         }
     }
 
     async deleteItem() {
         if (!this.selectedItemId || this.selectedItemId === 'new') {
-            this.adminPanel.showNotification('Sélectionnez un item à supprimer', 'warning')
-            return
+            this.adminPanel.showNotification('Sélectionnez un item à supprimer', 'warning');
+            return;
         }
         
         if (!confirm(`Êtes-vous sûr de vouloir supprimer l'item "${this.currentItem?.name}" ?\n\nCette action ne peut pas être annulée.`)) {
-            return
+            return;
         }
         
-        console.log(`🗑️ [ItemEditor] Suppression item: ${this.selectedItemId}`)
+        console.log(`🗑️ [ItemEditor] Suppression item: ${this.selectedItemId}`);
         
         try {
-            const response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}`, {
+            const response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}`, {
                 method: 'DELETE'
-            })
+            });
             
             if (response.success) {
-                this.adminPanel.showNotification('Item supprimé avec succès', 'success')
+                this.adminPanel.showNotification('Item supprimé avec succès', 'success');
                 
                 // Reset l'éditeur
-                this.selectedItemId = null
-                this.currentItem = null
-                this.unsavedChanges = false
+                this.selectedItemId = null;
+                this.currentItem = null;
+                this.unsavedChanges = false;
                 
-                await this.loadItems()
-                this.updateUI()
+                await this.loadItems();
+                this.updateUI();
             } else {
-                throw new Error(response.error || 'Erreur suppression')
+                throw new Error(response.error || 'Erreur suppression');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur suppression:', error)
-            this.adminPanel.showNotification('Erreur lors de la suppression: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur suppression:', error);
+            this.adminPanel.showNotification('Erreur lors de la suppression: ' + error.message, 'error');
         }
     }
 
     cancelEdit() {
         if (this.selectedItemId === 'new') {
             // Annuler la création
-            this.selectedItemId = null
-            this.currentItem = null
+            this.selectedItemId = null;
+            this.currentItem = null;
         } else if (this.currentItem) {
             // Restaurer les données originales
-            this.populateForm(this.currentItem)
+            this.populateForm(this.currentItem);
         }
         
-        this.unsavedChanges = false
-        this.updateSaveButton()
-        this.updateUI()
+        this.unsavedChanges = false;
+        this.updateSaveButton();
+        this.updateUI();
     }
 
     // ===== PAGINATION =====
 
     previousPage() {
         if (this.currentPage > 1) {
-            this.currentPage--
-            this.updateItemsList()
+            this.currentPage--;
+            this.updateItemsList();
         }
     }
 
     nextPage() {
-        const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage)
+        const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage);
         if (this.currentPage < totalPages) {
-            this.currentPage++
-            this.updateItemsList()
+            this.currentPage++;
+            this.updateItemsList();
         }
     }
 
     // ===== ACTIONS RAPIDES =====
 
     async refreshItems() {
-        console.log('🔄 [ItemEditor] Actualisation items')
-        await this.loadItems()
-        this.adminPanel.showNotification('Liste des items actualisée', 'info')
+        console.log('🔄 [ItemEditor] Actualisation items');
+        await this.loadItems();
+        this.adminPanel.showNotification('Liste des items actualisée', 'info');
     }
 
     async exportItems() {
-        console.log('📤 [ItemEditor] Export items')
+        console.log('📤 [ItemEditor] Export items');
         
         try {
-            const response = await this.adminPanel.apiCall('/items/export/all')
+            const response = await this.adminPanel.apiCall('/api/admin/items/export/all');
             
             if (response.success) {
                 const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
                     type: 'application/json' 
-                })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `items_export_${new Date().toISOString().split('T')[0]}.json`
-                a.click()
-                URL.revokeObjectURL(url)
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `items_export_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
                 
-                this.adminPanel.showNotification('Export terminé', 'success')
+                this.adminPanel.showNotification('Export terminé', 'success');
             } else {
-                throw new Error(response.error || 'Erreur export')
+                throw new Error(response.error || 'Erreur export');
             }
             
         } catch (error) {
-            console.error('❌ [ItemEditor] Erreur export:', error)
-            this.adminPanel.showNotification('Erreur lors de l\'export: ' + error.message, 'error')
+            console.error('❌ [ItemEditor] Erreur export:', error);
+            this.adminPanel.showNotification('Erreur lors de l\'export: ' + error.message, 'error');
         }
     }
 
     // ===== UTILITAIRES =====
 
     parseNumber(value) {
-        if (!value || value.trim() === '') return null
-        const num = parseInt(value)
-        return isNaN(num) ? null : num
+        if (!value || value.trim() === '') return null;
+        const num = parseInt(value);
+        return isNaN(num) ? null : num;
     }
 
     escapeHtml(text) {
-        const div = document.createElement('div')
-        div.textContent = text
-        return div.innerHTML
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     cleanup() {
         // Nettoyage si nécessaire
-        console.log('🧹 [ItemEditor] Cleanup module')
+        console.log('🧹 [ItemEditor] Cleanup module');
     }
-}
-
-// ===== FONCTIONS GLOBALES POUR L'INTERFACE =====
-
-window.selectItem = (itemId) => {
-    window.adminPanel?.itemEditor?.selectItem(itemId)
-}
-
-window.createNewItem = () => {
-    window.adminPanel?.itemEditor?.createNewItem()
-}
-
-window.saveItem = () => {
-    window.adminPanel?.itemEditor?.saveItem()
-}
-
-window.duplicateItem = () => {
-    window.adminPanel?.itemEditor?.duplicateItem()
-}
-
-window.deleteItem = () => {
-    window.adminPanel?.itemEditor?.deleteItem()
-}
-
-window.cancelEditItem = () => {
-    window.adminPanel?.itemEditor?.cancelEdit()
-}
-
-window.refreshItems = () => {
-    window.adminPanel?.itemEditor?.refreshItems()
-}
-
-window.exportItems = () => {
-    window.adminPanel?.itemEditor?.exportItems()
-}
-
-window.previousItemsPage = () => {
-    window.adminPanel?.itemEditor?.previousPage()
-}
-
-window.nextItemsPage = () => {
-    window.adminPanel?.itemEditor?.nextPage()
-}
-
-// Fonctions pour les effets et méthodes d'obtention (à implémenter)
-window.addItemEffect = () => {
-    console.log('🎭 [ItemEditor] Ajout effet - À implémenter')
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
-}
-
-window.editEffect = (index) => {
-    console.log(`🎭 [ItemEditor] Édition effet ${index} - À implémenter`)
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
-}
-
-window.removeEffect = (index) => {
-    console.log(`🗑️ [ItemEditor] Suppression effet ${index} - À implémenter`)
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
-}
-
-window.addObtainMethod = () => {
-    console.log('📍 [ItemEditor] Ajout méthode obtention - À implémenter')
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
-}
-
-window.editObtainMethod = (index) => {
-    console.log(`📍 [ItemEditor] Édition méthode ${index} - À implémenter`)
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
-}
-
-window.removeObtainMethod = (index) => {
-    console.log(`🗑️ [ItemEditor] Suppression méthode ${index} - À implémenter`)
-    window.adminPanel?.showNotification('Fonction en développement', 'info')
 }
