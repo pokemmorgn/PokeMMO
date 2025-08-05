@@ -653,6 +653,7 @@ router.post('/maps/:sourceMapId/gameobjects/duplicate/:targetMapId', requireMacA
 });
 
 // ✅ ROUTE: Récupérer tous les items depuis items.json (dev + production)
+// ✅ ROUTE CORRIGÉE POUR MAPEDITOR
 router.get('/items', requireMacAndDev, async (req: any, res) => {
   try {
     console.log('📦 [AdminAPI] Loading items from MongoDB...');
@@ -689,7 +690,7 @@ router.get('/items', requireMacAndDev, async (req: any, res) => {
       .limit(parseInt(limit))
       .lean();
     
-    // ✅ FORMATER pour compatibilité avec l'ancien format JSON
+    // ✅ FORMATER DIRECTEMENT POUR MAPEDITOR (pas d'objet wrapper)
     const formattedItems: { [key: string]: any } = {};
     
     items.forEach(item => {
@@ -715,7 +716,7 @@ router.get('/items', requireMacAndDev, async (req: any, res) => {
     
     console.log(`✅ [AdminAPI] ${Object.keys(formattedItems).length} items loaded from MongoDB`);
     
-    // ✅ MÊME FORMAT que l'ancien JSON - le client ne voit aucune différence !
+    // ✅ RETOURNER DIRECTEMENT L'OBJET (pas wrapped dans une réponse)
     res.json(formattedItems);
     
   } catch (error) {
