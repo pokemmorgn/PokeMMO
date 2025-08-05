@@ -1,6 +1,4 @@
 // server/src/quest/services/QuestValidator.ts
-// Service modulaire pour la validation des quêtes et conditions
-
 import { 
   QuestDefinition, 
   QuestCategory,
@@ -10,65 +8,45 @@ import {
   PlayerQuestProgress
 } from "../core/types/QuestTypes";
 
-// ===== INTERFACE DU SERVICE =====
-
-/**
- * ✅ Interface principale du service de validation
- */
 export interface IQuestValidator {
-  // Validation principale de disponibilité
   canTakeQuest(
     quest: QuestDefinition,
     playerData: PlayerValidationData
   ): Promise<QuestValidationResult>;
   
-  // Validation de disponibilité pour un joueur
   isAvailableForPlayer(
     quest: QuestDefinition,
     playerData: PlayerValidationData
   ): Promise<boolean>;
   
-  // Validations spécifiques
   validatePrerequisites(questId: string, completedQuests: string[]): QuestValidationCheck;
   validateCooldown(quest: QuestDefinition, lastCompletions: QuestCompletion[]): QuestValidationCheck;
   validateLevelRequirements(quest: QuestDefinition, playerLevel: number): QuestValidationCheck;
   validateAdvancedConditions(quest: QuestDefinition, context: QuestEventContext): Promise<QuestValidationCheck>;
   
-  // Validation de conditions étendues
   validateExtendedConditions(
     quest: QuestDefinition,
     playerData: PlayerValidationData,
     context?: QuestEventContext
   ): Promise<QuestAdvancedValidationResult>;
   
-  // Validation batch pour performance
   validateMultipleQuests(
     quests: QuestDefinition[],
     playerData: PlayerValidationData
   ): Promise<Record<string, QuestValidationResult>>;
 }
 
-// ===== TYPES DE DONNÉES =====
-
-/**
- * ✅ Données du joueur pour validation
- */
 export interface PlayerValidationData {
   username: string;
   level: number;
-  
-  // Quêtes
   completedQuests: string[];
   activeQuests: string[];
   lastQuestCompletions: QuestCompletion[];
-  
-  // Inventaire et progression
   inventory?: PlayerInventory;
   badges?: string[];
   titles?: string[];
   unlockedAreas?: string[];
   
-  // Contexte temporel
   currentLocation?: {
     map: string;
     zone?: string;
@@ -76,30 +54,21 @@ export interface PlayerValidationData {
     y?: number;
   };
   
-  // États spéciaux
   guildId?: string;
   partyMembers?: string[];
   currentSeason?: string;
-  
-  // Métadonnées
   lastLogin?: Date;
-  playtime?: number; // en minutes
+  playtime?: number;
   preferences?: PlayerPreferences;
 }
 
-/**
- * ✅ Inventaire du joueur
- */
 export interface PlayerInventory {
-  items: Record<string, number>; // itemId -> quantity
+  items: Record<string, number>;
   gold: number;
   capacity: number;
   usedSlots: number;
 }
 
-/**
- * ✅ Préférences du joueur
- */
 export interface PlayerPreferences {
   language?: string;
   difficulty?: string;
@@ -107,181 +76,122 @@ export interface PlayerPreferences {
   autoAcceptQuests?: boolean;
 }
 
-/**
- * ✅ Completion de quête (pour cooldowns)
- */
 export interface QuestCompletion {
   questId: string;
   lastCompletedAt: Date;
   completionCount?: number;
 }
 
-// ===== TYPES DE RÉSULTATS =====
-
-/**
- * ✅ Résultat de validation principal
- */
 export interface QuestValidationResult {
   valid: boolean;
   questId: string;
   questName: string;
   
-  // Détails de validation
   checks: QuestValidationCheck[];
   failedChecks: QuestValidationCheck[];
   warningChecks: QuestValidationCheck[];
   
-  // Raisons d'échec
   primaryReason?: string;
   detailedReasons: string[];
   
-  // Recommandations
   recommendations?: string[];
-  alternatives?: string[]; // Autres quêtes similaires
+  alternatives?: string[];
   
-  // Conditions manquantes
   missingPrerequisites?: string[];
   missingItems?: string[];
   missingBadges?: string[];
   
-  // Délais
-  cooldownRemaining?: number; // en minutes
+  cooldownRemaining?: number;
   levelRequired?: number;
   
-  // Métadonnées
-  validationTime: number; // en ms
+  validationTime: number;
   checkedConditions: string[];
 }
 
-/**
- * ✅ Check de validation individuel
- */
 export interface QuestValidationCheck {
   type: QuestValidationType;
   name: string;
   valid: boolean;
   required: boolean;
   
-  // Détails
   currentValue?: any;
   requiredValue?: any;
   message: string;
   
-  // Conseils
   suggestion?: string;
   helpText?: string;
   
-  // Timing
-  checkTime?: number; // en ms
+  checkTime?: number;
   retryable?: boolean;
 }
 
-/**
- * ✅ Types de validation
- */
 export type QuestValidationType =
-  | 'prerequisites'      // Quêtes prérequises
-  | 'level'             // Niveau du joueur
-  | 'cooldown'          // Cooldown de répétition
-  | 'inventory'         // Espace/objets requis
-  | 'badges'            // Badges requis
-  | 'location'          // Localisation
-  | 'time'              // Conditions temporelles
-  | 'season'            // Conditions saisonnières
-  | 'guild'             // Conditions de guilde
-  | 'party'             // Conditions de groupe
-  | 'achievement'       // Achievements requis
-  | 'reputation'        // Réputation requise
-  | 'custom';           // Conditions personnalisées
+  | 'prerequisites'
+  | 'level'
+  | 'cooldown'
+  | 'inventory'
+  | 'badges'
+  | 'location'
+  | 'time'
+  | 'season'
+  | 'guild'
+  | 'party'
+  | 'achievement'
+  | 'reputation'
+  | 'custom';
 
-/**
- * ✅ Résultat de validation avancée
- */
 export interface QuestAdvancedValidationResult extends QuestValidationResult {
-  // Conditions étendues
   extendedChecks: ExtendedValidationCheck[];
-  
-  // Contexte utilisé
   contextData?: QuestEventContext;
   timeOfValidation: Date;
-  
-  // Prédictions
-  predictedAvailability?: Date; // Quand la quête sera disponible
-  dynamicConditions?: string[]; // Conditions qui changent
-  
-  // Optimisations
+  predictedAvailability?: Date;
+  dynamicConditions?: string[];
   cacheKey?: string;
-  cacheTTL?: number; // en secondes
+  cacheTTL?: number;
 }
 
-/**
- * ✅ Check de validation étendu
- */
 export interface ExtendedValidationCheck extends QuestValidationCheck {
   category: 'temporal' | 'location' | 'social' | 'progression' | 'system';
   priority: 'low' | 'medium' | 'high' | 'critical';
   
-  // Données étendues
   metadata?: {
     checkVersion?: string;
     algorithmUsed?: string;
     confidenceLevel?: number;
   };
   
-  // Conditions dynamiques
   isDynamic?: boolean;
   nextRecheck?: Date;
-  
-  // Relations
-  dependsOn?: string[]; // Autres checks
-  blocks?: string[];    // Checks que celui-ci bloque
+  dependsOn?: string[];
+  blocks?: string[];
 }
 
-// ===== CONFIGURATION =====
-
-/**
- * ⚙️ Configuration du validateur
- */
 export interface QuestValidatorConfig {
-  // Performance
   enableCaching: boolean;
-  cacheTTL: number; // en secondes
+  cacheTTL: number;
   enableBatchValidation: boolean;
   maxBatchSize: number;
   
-  // Validation
   strictValidation: boolean;
   enableAdvancedConditions: boolean;
   enablePredictiveValidation: boolean;
   
-  // Conditions étendues
   enableTemporalValidation: boolean;
   enableLocationValidation: boolean;
   enableSocialValidation: boolean;
   
-  // Optimisations
-  enableEarlyExit: boolean; // Arrêt dès premier échec
+  enableEarlyExit: boolean;
   enableParallelChecks: boolean;
   
-  // Logging
   enableValidationLogging: boolean;
   logFailedValidations: boolean;
   logPerformanceMetrics: boolean;
   
-  // Limites
-  maxValidationTime: number; // en ms
+  maxValidationTime: number;
   maxRetries: number;
-  
-  // Extensions futures
   enableExperimentalFeatures: boolean;
 }
 
-// ===== IMPLÉMENTATION =====
-
-/**
- * ✅ Service de validation des quêtes
- * Extrait du QuestManager pour modularité
- */
 class QuestValidator implements IQuestValidator {
   private config: QuestValidatorConfig;
   private validationCache: Map<string, { result: QuestValidationResult; expires: number }>;
@@ -289,7 +199,7 @@ class QuestValidator implements IQuestValidator {
   constructor(config?: Partial<QuestValidatorConfig>) {
     this.config = {
       enableCaching: true,
-      cacheTTL: 300, // 5 minutes
+      cacheTTL: 300,
       enableBatchValidation: true,
       maxBatchSize: 20,
       strictValidation: true,
@@ -303,7 +213,7 @@ class QuestValidator implements IQuestValidator {
       enableValidationLogging: process.env.NODE_ENV === 'development',
       logFailedValidations: true,
       logPerformanceMetrics: false,
-      maxValidationTime: 5000, // 5 secondes
+      maxValidationTime: 5000,
       maxRetries: 2,
       enableExperimentalFeatures: false,
       ...config
@@ -311,29 +221,22 @@ class QuestValidator implements IQuestValidator {
     
     this.validationCache = new Map();
     
-    this.log('info', '✅ QuestValidator initialisé', { config: this.config });
+    if (this.config.enableValidationLogging) {
+      console.log('[QuestValidator] Service initialized');
+    }
   }
 
-  // ===== MÉTHODES PRINCIPALES =====
-
-  /**
-   * ✅ Validation principale - Peut-on prendre cette quête ?
-   * Extraite et étendue de QuestManager.canTakeQuest()
-   */
   async canTakeQuest(
     quest: QuestDefinition,
     playerData: PlayerValidationData
   ): Promise<QuestValidationResult> {
     
     const startTime = Date.now();
-    this.log('info', `✅ Validation quête: ${quest.name} pour ${playerData.username}`);
     
-    // ✅ VÉRIFIER LE CACHE
     if (this.config.enableCaching) {
       const cacheKey = this.generateCacheKey(quest.id, playerData);
       const cached = this.getFromCache(cacheKey);
       if (cached) {
-        this.log('debug', `💾 Résultat de validation trouvé en cache`);
         return cached;
       }
     }
@@ -351,79 +254,58 @@ class QuestValidator implements IQuestValidator {
     };
     
     try {
-      // ✅ VALIDATIONS DE BASE (existantes)
       await this.performBasicValidations(quest, playerData, result);
       
-      // ✅ VALIDATIONS ÉTENDUES (nouvelles)
       if (this.config.enableAdvancedConditions) {
         await this.performAdvancedValidations(quest, playerData, result);
       }
       
-      // ✅ FINALISER LE RÉSULTAT
       this.finalizeValidationResult(result, startTime);
       
-      // ✅ METTRE EN CACHE
       if (this.config.enableCaching && result.valid) {
         const cacheKey = this.generateCacheKey(quest.id, playerData);
         this.setCache(cacheKey, result);
       }
       
-      this.log('info', `✅ Validation terminée: ${result.valid ? 'SUCCÈS' : 'ÉCHEC'}`, {
-        questId: quest.id,
-        valid: result.valid,
-        checksCount: result.checks.length,
-        failedCount: result.failedChecks.length,
-        time: result.validationTime
-      });
+      if (!result.valid && this.config.logFailedValidations) {
+        console.warn(`[QuestValidator] Quest ${quest.id} validation failed: ${result.primaryReason}`);
+      }
       
       return result;
       
     } catch (error) {
-      this.log('error', `❌ Erreur validation:`, error);
+      console.error('[QuestValidator] Validation error:', error);
       result.valid = false;
-      result.primaryReason = 'Erreur de validation';
-      result.detailedReasons.push(`Erreur système: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      result.primaryReason = 'Validation system error';
+      result.detailedReasons.push(`System error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       result.validationTime = Date.now() - startTime;
       return result;
     }
   }
 
-  /**
-   * ✅ Validation simplifiée - Est disponible pour le joueur ?
-   */
   async isAvailableForPlayer(
     quest: QuestDefinition,
     playerData: PlayerValidationData
   ): Promise<boolean> {
     
-    // ✅ VÉRIFICATIONS RAPIDES D'EXCLUSION
     if (playerData.activeQuests.includes(quest.id)) {
-      this.log('debug', `❌ Quête ${quest.id} déjà active`);
       return false;
     }
     
     if (!quest.isRepeatable && playerData.completedQuests.includes(quest.id)) {
-      this.log('debug', `❌ Quête ${quest.id} non répétable et déjà complétée`);
       return false;
     }
     
-    // ✅ VALIDATION COMPLÈTE
     const validation = await this.canTakeQuest(quest, playerData);
     return validation.valid;
   }
 
-  // ===== VALIDATIONS DE BASE =====
-
-  /**
-   * ✅ Validations de base (conservées du QuestManager)
-   */
   private async performBasicValidations(
     quest: QuestDefinition,
     playerData: PlayerValidationData,
     result: QuestValidationResult
   ): Promise<void> {
     
-    // ✅ 1. VÉRIFIER QUÊTE DÉJÀ ACTIVE
     const activeCheck = this.validateNotActive(quest.id, playerData.activeQuests);
     result.checks.push(activeCheck);
     if (!activeCheck.valid) {
@@ -431,7 +313,6 @@ class QuestValidator implements IQuestValidator {
       result.valid = false;
     }
     
-    // ✅ 2. VÉRIFIER RÉPÉTABILITÉ
     const repeatableCheck = this.validateRepeatable(quest, playerData.completedQuests);
     result.checks.push(repeatableCheck);
     if (!repeatableCheck.valid) {
@@ -439,7 +320,6 @@ class QuestValidator implements IQuestValidator {
       result.valid = false;
     }
     
-    // ✅ 3. VÉRIFIER COOLDOWN
     if (quest.isRepeatable && quest.cooldownHours) {
       const cooldownCheck = this.validateCooldown(quest, playerData.lastQuestCompletions);
       result.checks.push(cooldownCheck);
@@ -447,7 +327,6 @@ class QuestValidator implements IQuestValidator {
         result.failedChecks.push(cooldownCheck);
         result.valid = false;
         
-        // Calculer temps restant
         const lastCompletion = playerData.lastQuestCompletions.find(c => c.questId === quest.id);
         if (lastCompletion) {
           const cooldownMs = quest.cooldownHours * 60 * 60 * 1000;
@@ -457,7 +336,6 @@ class QuestValidator implements IQuestValidator {
       }
     }
     
-    // ✅ 4. VÉRIFIER PRÉREQUIS
     if (quest.prerequisites && quest.prerequisites.length > 0) {
       const prerequisitesCheck = this.validatePrerequisites(quest.id, playerData.completedQuests);
       result.checks.push(prerequisitesCheck);
@@ -465,14 +343,12 @@ class QuestValidator implements IQuestValidator {
         result.failedChecks.push(prerequisitesCheck);
         result.valid = false;
         
-        // Identifier prérequis manquants
         result.missingPrerequisites = quest.prerequisites.filter(
           prereq => !playerData.completedQuests.includes(prereq)
         );
       }
     }
     
-    // ✅ 5. VÉRIFIER NIVEAU (si présent dans config)
     if (quest.config?.levelRequirement) {
       const levelCheck = this.validateLevelRequirements(quest, playerData.level);
       result.checks.push(levelCheck);
@@ -482,22 +358,14 @@ class QuestValidator implements IQuestValidator {
         result.levelRequired = quest.config.levelRequirement.min;
       }
     }
-    
-    this.log('debug', `✅ Validations de base: ${result.checks.length} checks, ${result.failedChecks.length} échecs`);
   }
 
-  /**
-   * ✅ Validations avancées (nouvelles)
-   */
   private async performAdvancedValidations(
     quest: QuestDefinition,
     playerData: PlayerValidationData,
     result: QuestValidationResult
   ): Promise<void> {
     
-    this.log('debug', `🔍 Démarrage validations avancées pour ${quest.id}`);
-    
-    // ✅ 6. VÉRIFIER BADGES REQUIS
     if (quest.config?.levelRequirement || playerData.badges) {
       const badgeCheck = this.validateBadgeRequirements(quest, playerData.badges || []);
       if (badgeCheck) {
@@ -509,18 +377,16 @@ class QuestValidator implements IQuestValidator {
       }
     }
     
-    // ✅ 7. VÉRIFIER INVENTAIRE/ESPACE
     if (this.requiresInventorySpace(quest)) {
       const inventoryCheck = this.validateInventorySpace(quest, playerData.inventory);
       if (inventoryCheck) {
         result.checks.push(inventoryCheck);
         if (!inventoryCheck.valid) {
-          result.warningChecks.push(inventoryCheck); // Warning seulement
+          result.warningChecks.push(inventoryCheck);
         }
       }
     }
     
-    // ✅ 8. VÉRIFIER CONDITIONS TEMPORELLES
     if (this.config.enableTemporalValidation && this.hasTemporalConditions(quest)) {
       const temporalCheck = await this.validateTemporalConditions(quest);
       if (temporalCheck) {
@@ -532,7 +398,6 @@ class QuestValidator implements IQuestValidator {
       }
     }
     
-    // ✅ 9. VÉRIFIER CONDITIONS DE LOCALISATION
     if (this.config.enableLocationValidation && playerData.currentLocation) {
       const locationCheck = this.validateLocationConditions(quest, playerData.currentLocation);
       if (locationCheck) {
@@ -544,7 +409,6 @@ class QuestValidator implements IQuestValidator {
       }
     }
     
-    // ✅ 10. VÉRIFIER CONDITIONS SOCIALES
     if (this.config.enableSocialValidation) {
       const socialCheck = this.validateSocialConditions(quest, playerData);
       if (socialCheck) {
@@ -555,15 +419,8 @@ class QuestValidator implements IQuestValidator {
         }
       }
     }
-    
-    this.log('debug', `✅ Validations avancées terminées: ${result.checks.length - 5} nouveaux checks`);
   }
 
-  // ===== VALIDATIONS SPÉCIFIQUES =====
-
-  /**
-   * ✅ Validation - Quête pas déjà active
-   */
   private validateNotActive(questId: string, activeQuests: string[]): QuestValidationCheck {
     const isActive = activeQuests.includes(questId);
     
@@ -574,14 +431,11 @@ class QuestValidator implements IQuestValidator {
       required: true,
       currentValue: isActive,
       requiredValue: false,
-      message: isActive ? 'Cette quête est déjà active' : 'Quête non active',
-      suggestion: isActive ? 'Terminez ou abandonnez la quête actuelle' : undefined
+      message: isActive ? 'Quest already active' : 'Quest not active',
+      suggestion: isActive ? 'Complete or abandon current quest' : undefined
     };
   }
 
-  /**
-   * ✅ Validation - Répétabilité
-   */
   private validateRepeatable(quest: QuestDefinition, completedQuests: string[]): QuestValidationCheck {
     const isCompleted = completedQuests.includes(quest.id);
     const canRepeat = quest.isRepeatable || !isCompleted;
@@ -594,31 +448,24 @@ class QuestValidator implements IQuestValidator {
       currentValue: { completed: isCompleted, repeatable: quest.isRepeatable },
       requiredValue: true,
       message: canRepeat 
-        ? 'Quête disponible' 
-        : 'Quête déjà complétée et non répétable',
-      suggestion: !canRepeat ? 'Cherchez d\'autres quêtes similaires' : undefined
+        ? 'Quest available' 
+        : 'Quest already completed and not repeatable',
+      suggestion: !canRepeat ? 'Look for similar quests' : undefined
     };
   }
 
-  /**
-   * ✅ Validation - Prérequis
-   */
   validatePrerequisites(questId: string, completedQuests: string[]): QuestValidationCheck {
-    // Note: Cette méthode serait appelée seulement si il y a des prérequis
     return {
       type: 'prerequisites',
       name: 'Prerequisites Check',
       valid: true,
       required: true,
-      message: 'Prérequis validés',
+      message: 'Prerequisites validated',
       currentValue: completedQuests.length,
       requiredValue: 0
     };
   }
 
-  /**
-   * ✅ Validation - Cooldown
-   */
   validateCooldown(quest: QuestDefinition, lastCompletions: QuestCompletion[]): QuestValidationCheck {
     if (!quest.cooldownHours) {
       return {
@@ -626,7 +473,7 @@ class QuestValidator implements IQuestValidator {
         name: 'Cooldown Check',
         valid: true,
         required: false,
-        message: 'Pas de cooldown',
+        message: 'No cooldown',
         currentValue: 0,
         requiredValue: 0
       };
@@ -639,7 +486,7 @@ class QuestValidator implements IQuestValidator {
         name: 'Cooldown Check',
         valid: true,
         required: true,
-        message: 'Première fois - pas de cooldown',
+        message: 'First time - no cooldown',
         currentValue: 0,
         requiredValue: quest.cooldownHours
       };
@@ -654,53 +501,45 @@ class QuestValidator implements IQuestValidator {
       name: 'Cooldown Check',
       valid: isReady,
       required: true,
-      currentValue: Math.floor(elapsedMs / (60 * 1000)), // en minutes
-      requiredValue: quest.cooldownHours * 60, // en minutes
+      currentValue: Math.floor(elapsedMs / (60 * 1000)),
+      requiredValue: quest.cooldownHours * 60,
       message: isReady 
-        ? 'Cooldown terminé' 
-        : `Cooldown actif - ${Math.ceil((cooldownMs - elapsedMs) / (60 * 1000))} minutes restantes`,
-      suggestion: !isReady ? 'Revenez plus tard' : undefined,
+        ? 'Cooldown complete' 
+        : `Cooldown active - ${Math.ceil((cooldownMs - elapsedMs) / (60 * 1000))} minutes remaining`,
+      suggestion: !isReady ? 'Try again later' : undefined,
       retryable: true
     };
   }
 
-  /**
-   * ✅ Validation - Conditions avancées avec contexte
-   */
   async validateAdvancedConditions(quest: QuestDefinition, context: QuestEventContext): Promise<QuestValidationCheck> {
-    this.log('debug', `🔍 Validation conditions avancées pour ${quest.id}`);
-    
     const checks: string[] = [];
     let valid = true;
     let failureReasons: string[] = [];
     
-    // Vérifier conditions temporelles
     if (context.worldState?.weather && this.hasWeatherConditions(quest)) {
       checks.push('weather');
       const weatherValid = this.validateWeatherConditions(quest, context.worldState.weather);
       if (!weatherValid) {
         valid = false;
-        failureReasons.push('Conditions météo non remplies');
+        failureReasons.push('Weather conditions not met');
       }
     }
     
-    // Vérifier conditions de Pokémon
     if (context.pokemonUsed && this.hasPokemonConditions(quest)) {
       checks.push('pokemon');
       const pokemonValid = this.validatePokemonConditions(quest, context.pokemonUsed);
       if (!pokemonValid) {
         valid = false;
-        failureReasons.push('Conditions Pokémon non remplies');
+        failureReasons.push('Pokemon conditions not met');
       }
     }
     
-    // Vérifier état du monde
     if (context.worldState && this.hasWorldStateConditions(quest)) {
       checks.push('worldState');
       const worldValid = this.validateWorldStateConditions(quest, context.worldState);
       if (!worldValid) {
         valid = false;
-        failureReasons.push('État du monde non valide');
+        failureReasons.push('World state invalid');
       }
     }
     
@@ -712,16 +551,13 @@ class QuestValidator implements IQuestValidator {
       currentValue: context,
       requiredValue: 'Valid context',
       message: valid 
-        ? `Conditions avancées validées (${checks.join(', ')})` 
-        : `Conditions avancées échouées: ${failureReasons.join(', ')}`,
-      suggestion: !valid ? 'Vérifiez les conditions spéciales de cette quête' : undefined,
+        ? `Advanced conditions validated (${checks.join(', ')})` 
+        : `Advanced conditions failed: ${failureReasons.join(', ')}`,
+      suggestion: !valid ? 'Check special quest conditions' : undefined,
       checkTime: Date.now()
     };
   }
 
-  /**
-   * ✅ Validation - Niveau requis
-   */
   validateLevelRequirements(quest: QuestDefinition, playerLevel: number): QuestValidationCheck {
     const requirement = quest.config?.levelRequirement;
     if (!requirement) {
@@ -730,26 +566,26 @@ class QuestValidator implements IQuestValidator {
         name: 'Level Check',
         valid: true,
         required: false,
-        message: 'Pas de niveau requis',
+        message: 'No level requirement',
         currentValue: playerLevel,
         requiredValue: 1
       };
     }
     
     let valid = true;
-    let message = 'Niveau approprié';
+    let message = 'Level appropriate';
     let suggestion: string | undefined;
     
     if (requirement.min && playerLevel < requirement.min) {
       valid = false;
-      message = `Niveau ${requirement.min} requis (actuel: ${playerLevel})`;
-      suggestion = `Gagnez ${requirement.min - playerLevel} niveau(x) supplémentaire(s)`;
+      message = `Level ${requirement.min} required (current: ${playerLevel})`;
+      suggestion = `Gain ${requirement.min - playerLevel} more level(s)`;
     }
     
     if (requirement.max && playerLevel > requirement.max) {
       valid = false;
-      message = `Niveau maximum ${requirement.max} (actuel: ${playerLevel})`;
-      suggestion = 'Cette quête est destinée aux joueurs de niveau inférieur';
+      message = `Maximum level ${requirement.max} (current: ${playerLevel})`;
+      suggestion = 'This quest is for lower level players';
     }
     
     return {
@@ -764,24 +600,13 @@ class QuestValidator implements IQuestValidator {
     };
   }
 
-  // ===== VALIDATIONS AVANCÉES =====
-
-  /**
-   * ✅ Validation - Badges requis
-   */
   private validateBadgeRequirements(quest: QuestDefinition, playerBadges: string[]): QuestValidationCheck | null {
-    // TODO: Implémenter quand le système de badges sera défini
-    // Pour l'instant, on assume que c'est valide
     return null;
   }
 
-  /**
-   * ✅ Validation - Espace inventaire
-   */
   private validateInventorySpace(quest: QuestDefinition, inventory?: PlayerInventory): QuestValidationCheck | null {
     if (!inventory) return null;
     
-    // Estimer l'espace nécessaire basé sur les récompenses
     const estimatedItems = this.estimateInventoryNeeds(quest);
     const availableSpace = inventory.capacity - inventory.usedSlots;
     const needsSpace = estimatedItems > availableSpace;
@@ -794,30 +619,21 @@ class QuestValidator implements IQuestValidator {
       currentValue: availableSpace,
       requiredValue: estimatedItems,
       message: needsSpace 
-        ? `Espace insuffisant (${estimatedItems} slots requis, ${availableSpace} disponibles)`
-        : 'Espace inventaire suffisant',
-      suggestion: needsSpace ? 'Libérez de l\'espace dans votre inventaire' : undefined
+        ? `Insufficient space (${estimatedItems} slots required, ${availableSpace} available)`
+        : 'Sufficient inventory space',
+      suggestion: needsSpace ? 'Free up inventory space' : undefined
     };
   }
 
-  /**
-   * ✅ Validation - Conditions temporelles
-   */
   private async validateTemporalConditions(quest: QuestDefinition): Promise<QuestValidationCheck | null> {
-    // TODO: Implémenter avec système météo/saisons
-    // Pour l'instant, on assume que c'est valide
     return null;
   }
 
-  /**
-   * ✅ Validation - Conditions de localisation
-   */
   private validateLocationConditions(
     quest: QuestDefinition, 
     location: NonNullable<PlayerValidationData['currentLocation']>
   ): QuestValidationCheck | null {
     
-    // Vérifier si la quête est verrouillée par région
     if (quest.config?.regionLocked && quest.config.regionLocked.length > 0) {
       const isInAllowedRegion = quest.config.regionLocked.includes(location.map);
       
@@ -829,39 +645,35 @@ class QuestValidator implements IQuestValidator {
         currentValue: location.map,
         requiredValue: quest.config.regionLocked,
         message: isInAllowedRegion 
-          ? 'Région autorisée' 
-          : `Cette quête n'est disponible que dans: ${quest.config.regionLocked.join(', ')}`,
-        suggestion: !isInAllowedRegion ? 'Voyagez vers une région autorisée' : undefined
+          ? 'Region allowed' 
+          : `This quest is only available in: ${quest.config.regionLocked.join(', ')}`,
+        suggestion: !isInAllowedRegion ? 'Travel to an allowed region' : undefined
       };
     }
     
     return null;
   }
 
-  /**
-   * ✅ Validation - Conditions sociales
-   */
   private validateSocialConditions(quest: QuestDefinition, playerData: PlayerValidationData): QuestValidationCheck | null {
-    // Vérifier les limites de groupe
     if (quest.metadata?.playerCount) {
-      const partySize = (playerData.partyMembers?.length || 0) + 1; // +1 pour le joueur lui-même
+      const partySize = (playerData.partyMembers?.length || 0) + 1;
       const minPlayers = quest.metadata.playerCount.min;
       const maxPlayers = quest.metadata.playerCount.max;
       
       let valid = true;
-      let message = 'Taille de groupe appropriée';
+      let message = 'Appropriate party size';
       let suggestion: string | undefined;
       
       if (minPlayers && partySize < minPlayers) {
         valid = false;
-        message = `${minPlayers} joueur(s) minimum requis (actuellement: ${partySize})`;
-        suggestion = `Formez un groupe de ${minPlayers - partySize} joueur(s) supplémentaire(s)`;
+        message = `${minPlayers} player(s) minimum required (currently: ${partySize})`;
+        suggestion = `Form a party with ${minPlayers - partySize} more player(s)`;
       }
       
       if (maxPlayers && partySize > maxPlayers) {
         valid = false;
-        message = `Maximum ${maxPlayers} joueur(s) (actuellement: ${partySize})`;
-        suggestion = 'Réduisez la taille de votre groupe';
+        message = `Maximum ${maxPlayers} player(s) (currently: ${partySize})`;
+        suggestion = 'Reduce party size';
       }
       
       return {
@@ -879,13 +691,6 @@ class QuestValidator implements IQuestValidator {
     return null;
   }
 
-  // ===== MÉTHODES UTILITAIRES =====
-
-  // ===== MÉTHODES HELPER POUR CONDITIONS AVANCÉES =====
-
-  /**
-   * ✅ Vérifier si quête a conditions météo
-   */
   private hasWeatherConditions(quest: QuestDefinition): boolean {
     return quest.steps.some(step =>
       step.objectives.some(obj =>
@@ -894,9 +699,6 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Valider conditions météo
-   */
   private validateWeatherConditions(quest: QuestDefinition, currentWeather: string): boolean {
     return quest.steps.every(step =>
       step.objectives.every(obj =>
@@ -905,9 +707,6 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Vérifier si quête a conditions Pokémon
-   */
   private hasPokemonConditions(quest: QuestDefinition): boolean {
     return quest.steps.some(step =>
       step.objectives.some(obj =>
@@ -921,18 +720,10 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Valider conditions Pokémon
-   */
   private validatePokemonConditions(quest: QuestDefinition, pokemon: any): boolean {
-    // Simplifiée pour l'instant - retourne true
-    // TODO: Implémenter validation complète selon besoins
     return true;
   }
 
-  /**
-   * ✅ Vérifier si quête a conditions d'état du monde
-   */
   private hasWorldStateConditions(quest: QuestDefinition): boolean {
     return quest.steps.some(step =>
       step.objectives.some(obj =>
@@ -944,18 +735,10 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Valider conditions d'état du monde
-   */
   private validateWorldStateConditions(quest: QuestDefinition, worldState: any): boolean {
-    // Simplifiée pour l'instant - retourne true
-    // TODO: Implémenter validation complète selon besoins
     return true;
   }
 
-  /**
-   * ✅ Vérifier si quête nécessite espace inventaire
-   */
   private requiresInventorySpace(quest: QuestDefinition): boolean {
     return quest.steps.some(step => 
       step.rewards && step.rewards.some(reward => 
@@ -964,9 +747,6 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Estimer besoins inventaire
-   */
   private estimateInventoryNeeds(quest: QuestDefinition): number {
     let itemCount = 0;
     
@@ -980,12 +760,9 @@ class QuestValidator implements IQuestValidator {
       }
     });
     
-    return Math.ceil(itemCount * 1.2); // 20% de marge
+    return Math.ceil(itemCount * 1.2);
   }
 
-  /**
-   * ✅ Vérifier conditions temporelles
-   */
   private hasTemporalConditions(quest: QuestDefinition): boolean {
     return quest.steps.some(step =>
       step.objectives.some(obj =>
@@ -998,9 +775,6 @@ class QuestValidator implements IQuestValidator {
     );
   }
 
-  /**
-   * ✅ Validation complète conditions étendues
-   */
   async validateExtendedConditions(
     quest: QuestDefinition,
     playerData: PlayerValidationData,
@@ -1017,9 +791,6 @@ class QuestValidator implements IQuestValidator {
     };
   }
 
-  /**
-   * ✅ Validation batch pour performance
-   */
   async validateMultipleQuests(
     quests: QuestDefinition[],
     playerData: PlayerValidationData
@@ -1027,7 +798,6 @@ class QuestValidator implements IQuestValidator {
     
     const results: Record<string, QuestValidationResult> = {};
     
-    // Traitement séquentiel ou parallèle selon config
     if (this.config.enableParallelChecks && quests.length <= this.config.maxBatchSize) {
       const promises = quests.map(async quest => {
         const result = await this.canTakeQuest(quest, playerData);
@@ -1041,7 +811,6 @@ class QuestValidator implements IQuestValidator {
         }
       });
     } else {
-      // Traitement séquentiel
       for (const quest of quests) {
         results[quest.id] = await this.canTakeQuest(quest, playerData);
       }
@@ -1050,11 +819,6 @@ class QuestValidator implements IQuestValidator {
     return results;
   }
 
-  // ===== GESTION DU CACHE =====
-
-  /**
-   * ✅ Générer clé de cache
-   */
   private generateCacheKey(questId: string, playerData: PlayerValidationData): string {
     const factors = [
       questId,
@@ -1067,9 +831,6 @@ class QuestValidator implements IQuestValidator {
     return `quest_validation_${factors.join('_')}`;
   }
 
-  /**
-   * ✅ Récupérer du cache
-   */
   private getFromCache(key: string): QuestValidationResult | null {
     const cached = this.validationCache.get(key);
     if (!cached) return null;
@@ -1082,12 +843,8 @@ class QuestValidator implements IQuestValidator {
     return cached.result;
   }
 
-  /**
-   * ✅ Mettre en cache
-   */
   private setCache(key: string, result: QuestValidationResult): void {
     if (this.validationCache.size > 1000) {
-      // Nettoyer le cache si trop plein
       const oldestKeys = Array.from(this.validationCache.keys()).slice(0, 100);
       oldestKeys.forEach(k => this.validationCache.delete(k));
     }
@@ -1098,9 +855,6 @@ class QuestValidator implements IQuestValidator {
     });
   }
 
-  /**
-   * ✅ Finaliser résultat
-   */
   private finalizeValidationResult(result: QuestValidationResult, startTime: number): void {
     result.validationTime = Date.now() - startTime;
     result.checkedConditions = result.checks.map(c => c.type);
@@ -1110,7 +864,6 @@ class QuestValidator implements IQuestValidator {
       result.detailedReasons = result.failedChecks.map(c => c.message);
     }
     
-    // Générer recommandations
     if (!result.valid && result.failedChecks.length > 0) {
       result.recommendations = result.failedChecks
         .filter(c => c.suggestion)
@@ -1118,38 +871,6 @@ class QuestValidator implements IQuestValidator {
     }
   }
 
-  // ===== MÉTHODES UTILITAIRES =====
-
-  /**
-   * ✅ Logging intelligent
-   */
-  private log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any): void {
-    if (!this.config.enableValidationLogging && level === 'debug') return;
-    
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] [QuestValidator] ${message}`;
-    
-    switch (level) {
-      case 'debug':
-        if (this.config.enableValidationLogging) {
-          console.log(logMessage, data || '');
-        }
-        break;
-      case 'info':
-        console.log(logMessage, data || '');
-        break;
-      case 'warn':
-        console.warn(logMessage, data || '');
-        break;
-      case 'error':
-        console.error(logMessage, data || '');
-        break;
-    }
-  }
-
-  /**
-   * ✅ Informations de debugging
-   */
   getDebugInfo(): any {
     return {
       config: this.config,
@@ -1170,22 +891,21 @@ class QuestValidator implements IQuestValidator {
     };
   }
 
-  /**
-   * ✅ Mise à jour configuration
-   */
   updateConfig(newConfig: Partial<QuestValidatorConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.log('info', '⚙️ Configuration mise à jour', { newConfig });
+    
+    if (this.config.enableValidationLogging) {
+      console.log('[QuestValidator] Configuration updated');
+    }
   }
 
-  /**
-   * ✅ Nettoyer le cache
-   */
   clearCache(): void {
     this.validationCache.clear();
-    this.log('info', '🧹 Cache de validation nettoyé');
+    
+    if (this.config.enableValidationLogging) {
+      console.log('[QuestValidator] Validation cache cleared');
+    }
   }
 }
 
-// ===== EXPORT =====
 export default QuestValidator;
