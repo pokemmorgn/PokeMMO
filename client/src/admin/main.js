@@ -17,6 +17,7 @@ import { NPCEditorModule } from './js/npc-editor.js'
 import { MongoDBModule } from './js/mongodb-module.js'
 import { ShopEditorModule } from './js/shop-editor.js'
 import { DialogueEditorModule } from './js/dialogue-editor.js'
+import { ItemEditorModule } from './js/item-editor.js'
 
 // Global admin panel instance
 let adminPanel
@@ -41,7 +42,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             NPCEditorModule,// ← AJOUT du nouveau module
             MongoDBModule,  // ← AJOUTER CETTE LIGNE
             ShopEditorModule,  // ← NOUVEAU MODULE
-            DialogueEditorModule  // ← NOUVEAU MODULE
+            DialogueEditorModule,  // ← NOUVEAU MODULE
+            ItemEditorModule  // ← AJOUTER CETTE LIGNE
+
 
 
         ])
