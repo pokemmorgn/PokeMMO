@@ -435,94 +435,125 @@ export class WorldRoom extends Room<PokeWorldState> {
     }, 500);
   }
 
-  private async updateQuestStatusesFixed(username: string, client?: Client) {
-    try {
-      if (!this.zoneManager) {
-        console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
-        return;
-      }
-      
-      const questManager = this.zoneManager.getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [WorldRoom] QuestManager non accessible !`);
-        return;
-      }
-      
-      const availableQuests = await questManager.getAvailableQuests(username);
-      const activeQuests = await questManager.getActiveQuests(username);
-      
-      const npcQuestMap = new Map<number, any>();
+private async updateQuestStatusesFixed(username: string, client?: Client) {
+  console.log(`🔄 [DEBUG] === updateQuestStatusesFixed APPELÉ POUR ${username} ===`);
+  console.log(`🔄 [DEBUG] Client fourni:`, !!client);
+  
+  try {
+    if (!this.zoneManager) {
+      console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
+      return;
+    }
+    
+    const questManager = this.zoneManager.getQuestManager();
+    if (!questManager) {
+      console.error(`❌ [WorldRoom] QuestManager non accessible !`);
+      return;
+    }
+    
+    console.log(`🔄 [DEBUG] Récupération des quêtes...`);
+    const availableQuests = await questManager.getAvailableQuests(username);
+    const activeQuests = await questManager.getActiveQuests(username);
+    
+    console.log(`🔄 [DEBUG] Quêtes récupérées:`, {
+      available: availableQuests.length,
+      active: activeQuests.length
+    });
+    
+    const npcQuestMap = new Map<number, any>();
 
-      for (const quest of availableQuests) {
-        if (quest.startNpcId) {
-          if (!npcQuestMap.has(quest.startNpcId)) {
-            npcQuestMap.set(quest.startNpcId, {
-              npcId: quest.startNpcId,
-              availableQuestIds: [],
-              inProgressQuestIds: [],
-              readyToCompleteQuestIds: []
-            });
-          }
-          
-          npcQuestMap.get(quest.startNpcId).availableQuestIds.push(quest.id);
-        }
-      }
-
-      for (const quest of activeQuests) {
-        if (quest.endNpcId) {
-          if (!npcQuestMap.has(quest.endNpcId)) {
-            npcQuestMap.set(quest.endNpcId, {
-              npcId: quest.endNpcId,
-              availableQuestIds: [],
-              inProgressQuestIds: [],
-              readyToCompleteQuestIds: []
-            });
-          }
-          
-          if (quest.status === 'readyToComplete') {
-            npcQuestMap.get(quest.endNpcId).readyToCompleteQuestIds.push(quest.id);
-          } else {
-            npcQuestMap.get(quest.endNpcId).inProgressQuestIds.push(quest.id);
-          }
-        }
-      }
-
-      const questStatuses: any[] = [];
-
-      npcQuestMap.forEach((npcData) => {
-        let finalType = null;
-        
-        if (npcData.readyToCompleteQuestIds.length > 0) {
-          finalType = 'questReadyToComplete';
-        } else if (npcData.availableQuestIds.length > 0) {
-          finalType = 'questAvailable';
-        } else if (npcData.inProgressQuestIds.length > 0) {
-          finalType = 'questInProgress';
-        }
-        
-        if (finalType) {
-          questStatuses.push({
-            npcId: npcData.npcId,
-            type: finalType,
-            availableQuestIds: npcData.availableQuestIds,
-            inProgressQuestIds: npcData.inProgressQuestIds,
-            readyToCompleteQuestIds: npcData.readyToCompleteQuestIds
+    console.log(`🔄 [DEBUG] Traitement des quêtes disponibles...`);
+    for (const quest of availableQuests) {
+      if (quest.startNpcId) {
+        if (!npcQuestMap.has(quest.startNpcId)) {
+          npcQuestMap.set(quest.startNpcId, {
+            npcId: quest.startNpcId,
+            availableQuestIds: [],
+            inProgressQuestIds: [],
+            readyToCompleteQuestIds: []
           });
         }
+        
+        npcQuestMap.get(quest.startNpcId).availableQuestIds.push(quest.id);
+      }
+    }
+
+    console.log(`🔄 [DEBUG] Traitement des quêtes actives...`);
+    for (const quest of activeQuests) {
+      console.log(`🔄 [DEBUG] Quête active:`, {
+        id: quest.id,
+        name: quest.name,
+        status: quest.status,
+        endNpcId: quest.endNpcId
       });
       
-      if (questStatuses.length > 0) {
-        if (client) {
-          client.send("questStatuses", { questStatuses });
+      if (quest.endNpcId) {
+        if (!npcQuestMap.has(quest.endNpcId)) {
+          npcQuestMap.set(quest.endNpcId, {
+            npcId: quest.endNpcId,
+            availableQuestIds: [],
+            inProgressQuestIds: [],
+            readyToCompleteQuestIds: []
+          });
+        }
+        
+        if (quest.status === 'readyToComplete') {
+          console.log(`🎉 [DEBUG] Quête prête à compléter: ${quest.name}`);
+          npcQuestMap.get(quest.endNpcId).readyToCompleteQuestIds.push(quest.id);
         } else {
-          this.broadcast("questStatuses", { questStatuses });
+          console.log(`📝 [DEBUG] Quête en cours: ${quest.name} (status: ${quest.status})`);
+          npcQuestMap.get(quest.endNpcId).inProgressQuestIds.push(quest.id);
         }
       }
-      
-    } catch (error) {
-      console.error(`❌ [WorldRoom] Erreur updateQuestStatusesFixed:`, error);
     }
+
+    console.log(`🔄 [DEBUG] Construction des statuts...`);
+    const questStatuses: any[] = [];
+
+    npcQuestMap.forEach((npcData) => {
+      let finalType = null;
+      
+      if (npcData.readyToCompleteQuestIds.length > 0) {
+        finalType = 'questReadyToComplete';
+      } else if (npcData.availableQuestIds.length > 0) {
+        finalType = 'questAvailable';
+      } else if (npcData.inProgressQuestIds.length > 0) {
+        finalType = 'questInProgress';
+      }
+      
+      if (finalType) {
+        console.log(`🎯 [DEBUG] Statut NPC ${npcData.npcId}: ${finalType}`);
+        questStatuses.push({
+          npcId: npcData.npcId,
+          type: finalType,
+          availableQuestIds: npcData.availableQuestIds,
+          inProgressQuestIds: npcData.inProgressQuestIds,
+          readyToCompleteQuestIds: npcData.readyToCompleteQuestIds
+        });
+      }
+    });
+    
+    console.log(`🔄 [DEBUG] Statuts quêtes calculés:`, questStatuses.length);
+    
+    if (questStatuses.length > 0) {
+      if (client) {
+        console.log(`📤 [DEBUG] Envoi à client spécifique: ${username}`);
+        client.send("questStatuses", { questStatuses });
+      } else {
+        console.log(`📤 [DEBUG] Broadcast à tous les clients`);
+        this.broadcast("questStatuses", { questStatuses });
+      }
+      console.log(`✅ [DEBUG] questStatuses envoyé avec ${questStatuses.length} statut(s)`);
+    } else {
+      console.log(`⚠️ [DEBUG] Aucun statut de quête à envoyer`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur updateQuestStatusesFixed:`, error);
   }
+  
+  console.log(`🔄 [DEBUG] === updateQuestStatusesFixed TERMINÉ ===`);
+}
 
   public getNpcManager(zoneName: string): NpcManager | undefined {
     const globalManager = this.npcManagers.get('global');
