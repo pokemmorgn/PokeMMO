@@ -1,5 +1,6 @@
-// Quest/QuestSystem.js - VERSION NETTOYÉE ADAPTÉE AU SERVEUR
+// Quest/QuestSystem.js - VERSION NETTOYÉE ADAPTÉE AU SERVEUR + TIMER AUTOMATIQUE
 // 🧹 Messages unifiés avec le serveur QuestHandlers
+// 🔧 FIX: Timer automatique pour mettre à jour les indicateurs de quêtes
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -23,7 +24,12 @@ export class QuestSystem {
     this.onQuestCompleted = null;
     this.onQuestStarted = null;
     
-    console.log('📖 [QuestSystem] Instance créée - Version nettoyée');
+    // === 🔧 NOUVEAU : TIMER DE MISE À JOUR ===
+    this.questStatusTimer = null;
+    this.questStatusInterval = 5000; // 5 secondes
+    this.isTimerActive = false;
+    
+    console.log('📖 [QuestSystem] Instance créée - Version avec timer automatique');
   }
   
   // === 🚀 INITIALISATION ===
@@ -35,13 +41,84 @@ export class QuestSystem {
       this.setupNetworkHandlers();
       await this.createUI();
       
+      // 🔧 DÉMARRER LE TIMER DE MISE À JOUR
+      this.startQuestStatusTimer();
+      
       this.ready = true;
-      console.log('✅ [QuestSystem] Prêt avec messages unifiés !');
+      console.log('✅ [QuestSystem] Prêt avec timer automatique de mise à jour !');
       
       return this;
     } catch (error) {
       console.error('❌ [QuestSystem] Erreur init:', error);
       throw error;
+    }
+  }
+
+  // === 🔧 NOUVEAU : GESTION TIMER AUTOMATIQUE ===
+  
+  /**
+   * Démarrer le timer de mise à jour automatique des statuts de quêtes
+   */
+  startQuestStatusTimer() {
+    if (this.questStatusTimer) {
+      console.log('⚠️ [QuestSystem] Timer déjà actif');
+      return;
+    }
+    
+    console.log(`⏰ [QuestSystem] Démarrage timer mise à jour toutes les ${this.questStatusInterval/1000}s`);
+    
+    this.questStatusTimer = setInterval(() => {
+      this.requestQuestStatuses();
+    }, this.questStatusInterval);
+    
+    this.isTimerActive = true;
+    
+    // Première demande immédiate après un délai
+    setTimeout(() => {
+      this.requestQuestStatuses();
+    }, 1000); // Délai de 1s pour laisser le temps à la connexion
+  }
+  
+  /**
+   * Arrêter le timer de mise à jour
+   */
+  stopQuestStatusTimer() {
+    if (this.questStatusTimer) {
+      console.log('🛑 [QuestSystem] Arrêt timer mise à jour');
+      clearInterval(this.questStatusTimer);
+      this.questStatusTimer = null;
+      this.isTimerActive = false;
+    }
+  }
+  
+  /**
+   * Redémarrer le timer (utile après reconnexion)
+   */
+  restartQuestStatusTimer() {
+    this.stopQuestStatusTimer();
+    this.startQuestStatusTimer();
+  }
+  
+  /**
+   * Demander la mise à jour des statuts de quêtes au serveur
+   */
+  requestQuestStatuses() {
+    if (!this.networkManager || !this.networkManager.room) {
+      console.log('⚠️ [QuestSystem] NetworkManager non disponible pour timer');
+      return;
+    }
+    
+    try {
+      console.log('📡 [QuestSystem] Timer: Demande statuts quêtes');
+      
+      // Envoyer la demande au serveur
+      this.networkManager.sendMessage('getQuestStatuses', {
+        timestamp: Date.now(),
+        source: 'timer'
+      });
+      
+    } catch (error) {
+      console.error('❌ [QuestSystem] Erreur demande statuts timer:', error);
     }
   }
 
@@ -157,7 +234,7 @@ export class QuestSystem {
     }
   }
   
-  // === 📡 HANDLERS RÉSEAU NETTOYÉS ===
+  // === 📡 HANDLERS RÉSEAU AVEC TIMER ===
   
   setupNetworkHandlers() {
     if (!this.networkManager || !this.networkManager.room) {
@@ -179,10 +256,17 @@ export class QuestSystem {
       // Géré par QuestDetailsUI directement via NetworkManager
     });
     
-    // ✅ HANDLER: Statuts NPCs (DIRECT sur room)
+    // ✅ HANDLER: Statuts NPCs (DIRECT sur room) - 🔧 MODIFIÉ
     this.networkManager.room.onMessage("questStatuses", (data) => {
       console.log('📨 [QuestSystem] REÇU questStatuses DIRECT:', data);
+      
+      // 🔧 NOUVEAU : Indiquer que la mise à jour vient du timer
+      if (data && typeof data === 'object') {
+        data._fromTimer = true;
+      }
+      
       // Géré par NetworkInteractionHandler pour les indicateurs NPCs
+      // Le timer permet de s'assurer que les indicateurs sont toujours à jour
     });
     
     // === HANDLERS AUTRES ÉVÉNEMENTS QUEST (DIRECT sur room) ===
@@ -225,7 +309,15 @@ export class QuestSystem {
       }
     });
     
-    console.log('📡 [QuestSystem] Handlers réseau DIRECTS configurés sur room');
+    // 🔧 NOUVEAU : Écouter les événements de reconnexion pour redémarrer le timer
+    if (this.networkManager.room.onReconnect) {
+      this.networkManager.room.onReconnect(() => {
+        console.log('🔄 [QuestSystem] Reconnexion détectée - redémarrage timer');
+        this.restartQuestStatusTimer();
+      });
+    }
+    
+    console.log('📡 [QuestSystem] Handlers réseau DIRECTS configurés sur room avec timer');
   }
   
   // === 🎬 HANDLER PRINCIPAL: ACCEPTATION QUÊTE ===
@@ -534,6 +626,11 @@ export class QuestSystem {
   show() {
     if (this.ui) this.ui.show();
     if (this.icon) this.icon.show();
+    
+    // 🔧 Redémarrer le timer si nécessaire
+    if (!this.isTimerActive) {
+      this.startQuestStatusTimer();
+    }
   }
   
   hide() {
@@ -544,6 +641,9 @@ export class QuestSystem {
     if (this.detailsUI && this.detailsUI.isVisible) {
       this.detailsUI.hide();
     }
+    
+    // 🔧 NE PAS arrêter le timer quand on cache l'UI
+    // Le timer doit continuer pour maintenir les indicateurs NPCs à jour
   }
   
   toggle() {
@@ -592,10 +692,45 @@ export class QuestSystem {
     }
   }
   
+  // === 🔧 NOUVELLES MÉTHODES DE CONFIGURATION TIMER ===
+  
+  /**
+   * Configurer l'intervalle du timer (en millisecondes)
+   * @param {number} interval - Intervalle en ms (minimum 1000ms)
+   */
+  setQuestStatusInterval(interval) {
+    if (interval < 1000) {
+      console.warn('⚠️ [QuestSystem] Intervalle minimum: 1000ms');
+      interval = 1000;
+    }
+    
+    this.questStatusInterval = interval;
+    console.log(`⏰ [QuestSystem] Nouvel intervalle: ${interval/1000}s`);
+    
+    // Redémarrer le timer avec le nouvel intervalle
+    if (this.isTimerActive) {
+      this.restartQuestStatusTimer();
+    }
+  }
+  
+  /**
+   * Obtenir l'état du timer
+   */
+  getTimerStatus() {
+    return {
+      isActive: this.isTimerActive,
+      interval: this.questStatusInterval,
+      intervalSeconds: this.questStatusInterval / 1000
+    };
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
     console.log('🧹 [QuestSystem] Destruction...');
+    
+    // 🔧 ARRÊTER LE TIMER
+    this.stopQuestStatusTimer();
     
     if (this.ui) {
       this.ui.destroy();
@@ -621,7 +756,7 @@ export class QuestSystem {
     this.availableQuests = [];
     this.completedQuests = [];
     
-    console.log('✅ [QuestSystem] Détruit');
+    console.log('✅ [QuestSystem] Détruit avec arrêt du timer');
   }
 }
 
@@ -629,7 +764,7 @@ export class QuestSystem {
 
 export async function createQuestSystem(gameRoom, networkManager) {
   try {
-    console.log('🏭 [QuestFactory] Création QuestSystem nettoyé...');
+    console.log('🏭 [QuestFactory] Création QuestSystem avec timer automatique...');
     
     const questSystem = new QuestSystem(gameRoom, networkManager);
     await questSystem.init();
@@ -654,9 +789,35 @@ export async function createQuestSystem(gameRoom, networkManager) {
       return questSystem.handleQuestActionFromDialogue({ npcId });
     };
     
-    console.log('✅ [QuestFactory] QuestSystem créé - Version nettoyée adaptée au serveur');
+    // 🔧 FONCTIONS DE DEBUG TIMER
+    window.debugQuestTimer = function() {
+      const status = questSystem.getTimerStatus();
+      console.log('⏰ [DEBUG] État du timer quest:', status);
+      
+      // Forcer une demande immédiate
+      questSystem.requestQuestStatuses();
+      
+      return status;
+    };
+    
+    window.setQuestTimerInterval = function(seconds) {
+      const ms = seconds * 1000;
+      questSystem.setQuestStatusInterval(ms);
+      console.log(`✅ Intervalle timer changé: ${seconds}s`);
+      return true;
+    };
+    
+    window.restartQuestTimer = function() {
+      questSystem.restartQuestStatusTimer();
+      console.log('✅ Timer quest redémarré');
+      return true;
+    };
+    
+    console.log('✅ [QuestFactory] QuestSystem créé avec timer automatique');
     console.log('🎯 Messages unifiés: acceptQuest → questAcceptResult');
+    console.log('⏰ Timer automatique toutes les 5s pour les statuts de quêtes');
     console.log('🧪 Fonctions test: window.testQuestDetailsUI(), window.testQuestAction()');
+    console.log('🧪 Fonctions timer: window.debugQuestTimer(), window.setQuestTimerInterval(s), window.restartQuestTimer()');
     
     return questSystem;
     
