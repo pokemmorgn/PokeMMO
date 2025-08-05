@@ -985,7 +985,7 @@ private async executeQuestAction(
       
       return {
         success: true,
-        type: "npc", // ✅ CORRIGÉ : type "npc" au lieu de "questDelivery"
+        type: "dialogue", // ✅ CORRIGÉ : utiliser type existant "dialogue"
         message: `${npc.name || `NPC #${npcId}`} attend une livraison de votre part.`,
         lines: [`J'attends que vous me livriez quelque chose, ${player.name}...`],
         
@@ -999,7 +999,7 @@ private async executeQuestAction(
         // ✅ DONNÉES DE LIVRAISON POUR LE CLIENT
         deliveryData: {
           questId: deliveryResult.deliveries[0]?.questId, // Premier questId trouvé
-          npcId: npcId,
+          npcId: npcId.toString(), // ✅ CORRIGÉ : convertir en string
           items: deliveryResult.deliveries.map(delivery => ({
             itemId: delivery.itemId,
             itemName: delivery.itemName,
