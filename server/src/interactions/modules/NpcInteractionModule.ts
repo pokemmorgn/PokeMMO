@@ -34,6 +34,11 @@ import QuestDeliveryDetector, {
   DeliveryDetectionResult, 
   DeliveryObjective 
 } from "../../quest/services/QuestDeliveryDetector";
+// ✅ NOUVEAU : Import du handler de livraison
+import QuestDeliveryHandler, {
+  DeliveryProcessingResult,
+  MultiDeliveryProcessingResult
+} from "../../quest/services/QuestDeliveryHandler";
 
 export interface NpcInteractionResult extends InteractionResult {
   shopId?: string;
@@ -147,6 +152,7 @@ export class NpcInteractionModule extends BaseInteractionModule {
   private intelligenceConfig: NPCIntelligenceConfig;
   private npcsRegisteredWithAI: Set<number> = new Set();
   private deliveryDetector: QuestDeliveryDetector;
+  private deliveryHandler: QuestDeliveryHandler;
   
   constructor(
     getNpcManager: (zoneName: string) => any,
@@ -184,6 +190,14 @@ export class NpcInteractionModule extends BaseInteractionModule {
       enableLogging: this.intelligenceConfig.debugMode,
       strictValidation: true,
       enableInventoryValidation: true
+    });
+    
+    this.deliveryHandler = new QuestDeliveryHandler({
+      enableLogging: this.intelligenceConfig.debugMode,
+      strictValidation: true,
+      enableRollback: true,
+      validateInventoryBeforeProcessing: true,
+      enableProgressNotifications: true
     });
     
     if (this.intelligenceConfig.enableIntelligence) {
