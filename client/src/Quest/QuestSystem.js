@@ -1,5 +1,6 @@
-// Quest/QuestSystem.js - VERSION NETTOYÉE ADAPTÉE AU SERVEUR
+// Quest/QuestSystem.js - VERSION NETTOYÉE ADAPTÉE AU SERVEUR + CORRECTIONS
 // 🧹 Messages unifiés avec le serveur QuestHandlers
+// ✅ CORRIGÉ: updateUI() et méthodes manquantes
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -15,7 +16,7 @@ export class QuestSystem {
     // === UI COMPOSANTS ===
     this.ui = null;
     this.icon = null;
-    this.tracker = null;
+    this.tracker = null; // ✅ SERA DÉFINI CORRECTEMENT PLUS TARD
     this.detailsUI = null;
     
     // === CALLBACKS ===
@@ -23,7 +24,7 @@ export class QuestSystem {
     this.onQuestCompleted = null;
     this.onQuestStarted = null;
     
-    console.log('📖 [QuestSystem] Instance créée - Version nettoyée');
+    console.log('📖 [QuestSystem] Instance créée - Version nettoyée + corrections');
   }
   
   // === 🚀 INITIALISATION ===
@@ -88,7 +89,9 @@ export class QuestSystem {
   }
   
   async createTracker() {
+    // ✅ CORRECTION: Le tracker EST le ui, pas besoin de séparation
     this.tracker = this.ui;
+    console.log('📊 [QuestSystem] Tracker référence ui configuré');
   }
   
   async createQuestDetailsUI() {
@@ -473,19 +476,32 @@ export class QuestSystem {
     }
   }
   
+  // ✅ CORRECTION PRINCIPALE: updateUI() corrigé
   updateUI() {
+    console.log('🔄 [QuestSystem] updateUI() appelé');
+    
+    // Mettre à jour l'interface principale
     if (this.ui) {
       this.ui.updateQuestData(this.activeQuests, 'active');
-      this.ui.updateTracker();
+      
+      // ✅ FIX: Utiliser la méthode qui existe réellement
+      if (typeof this.ui.updateTrackerIntelligent === 'function') {
+        this.ui.updateTrackerIntelligent();
+      } else {
+        console.warn('⚠️ [QuestSystem] updateTrackerIntelligent non disponible');
+      }
     }
     
-    if (this.icon) {
+    // Mettre à jour l'icône
+    if (this.icon && typeof this.icon.updateStats === 'function') {
       this.icon.updateStats({
         totalActive: this.activeQuests.length,
         newQuests: this.activeQuests.filter(q => q.isNew).length,
         readyToComplete: this.activeQuests.filter(q => q.status === 'ready').length
       });
     }
+    
+    console.log('✅ [QuestSystem] updateUI() terminé');
   }
   
   triggerCallback(callbackName, data) {
@@ -539,7 +555,7 @@ export class QuestSystem {
   hide() {
     if (this.ui) this.ui.hide();
     if (this.icon) this.icon.hide();
-    if (this.tracker) this.tracker.hideTracker();
+    if (this.ui) this.ui.hideTracker(); // ✅ CORRECTION: this.tracker remplacé par this.ui
     
     if (this.detailsUI && this.detailsUI.isVisible) {
       this.detailsUI.hide();
@@ -629,7 +645,7 @@ export class QuestSystem {
 
 export async function createQuestSystem(gameRoom, networkManager) {
   try {
-    console.log('🏭 [QuestFactory] Création QuestSystem nettoyé...');
+    console.log('🏭 [QuestFactory] Création QuestSystem corrigé...');
     
     const questSystem = new QuestSystem(gameRoom, networkManager);
     await questSystem.init();
@@ -654,8 +670,9 @@ export async function createQuestSystem(gameRoom, networkManager) {
       return questSystem.handleQuestActionFromDialogue({ npcId });
     };
     
-    console.log('✅ [QuestFactory] QuestSystem créé - Version nettoyée adaptée au serveur');
+    console.log('✅ [QuestFactory] QuestSystem créé - Version corrigée');
     console.log('🎯 Messages unifiés: acceptQuest → questAcceptResult');
+    console.log('🔧 Corrections: updateUI(), tracker référence, méthodes manquantes');
     console.log('🧪 Fonctions test: window.testQuestDetailsUI(), window.testQuestAction()');
     
     return questSystem;
