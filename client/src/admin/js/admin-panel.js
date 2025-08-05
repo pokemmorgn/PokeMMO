@@ -60,7 +60,7 @@ export class AdminPanel {
     this.mongodb = this.modules.mongodb  // ← AJOUTER CETTE LIGNE
     this.shopEditor = this.modules.shopEditor  // ← AJOUTER CETTE LIGNE
     this.dialogueEditor = this.modules.dialogueEditor  // ← AJOUTER CETTE LIGNE
-
+    this.itemEditor = this.modules.itemEditor
 
     
     console.log('✅ [AdminPanel] Tous les modules chargés:', Object.keys(this.modules))
