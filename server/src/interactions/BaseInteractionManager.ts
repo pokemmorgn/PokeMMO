@@ -1,5 +1,5 @@
 // src/interactions/BaseInteractionManager.ts
-// Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE COMPLÈTE
+// Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE + TIMER CENTRALISÉ
 
 import { Player } from "../schema/PokeWorldState";
 import { 
@@ -58,12 +58,27 @@ interface SecurityConfig {
   auditLogPath?: string;
 }
 
+// 🔧 NOUVELLE : CONFIGURATION TIMER CENTRALISÉ
+interface WorldUpdateTimerConfig {
+  enabled: boolean;
+  interval: number; // millisecondes
+  includeQuestStatuses: boolean;
+  includeGameObjects: boolean;
+  includeNpcUpdates: boolean;
+  includePlayerUpdates: boolean;
+  debugMode: boolean;
+  onUpdateCallback?: (updateData: any) => void;
+}
+
 interface ExtendedInteractionConfig extends InteractionConfig {
   // Configuration IA
   ai?: AIInteractionConfig;
   
   // ✅ NOUVELLE : Configuration sécurité
   security?: SecurityConfig;
+  
+  // 🔧 NOUVELLE : Configuration timer centralisé
+  worldUpdateTimer?: WorldUpdateTimerConfig;
   
   // NPCs auto-registration
   autoRegisterNPCs?: boolean;
@@ -88,9 +103,19 @@ interface ExtendedGlobalModuleStats extends GlobalModuleStats {
     lastSecurityCheck: Date;
     rateLimit?: number; // Optionnel
   };
+  // 🔧 NOUVEAU : Stats timer
+  worldUpdateTimer: {
+    enabled: boolean;
+    isActive: boolean;
+    interval: number;
+    intervalSeconds: number;
+    updatesSent: number;
+    lastUpdate: Date;
+    averageUpdateTime: number;
+  };
 }
 
-// ✅ CLASSE DE VALIDATION SÉCURITAIRE
+// ✅ CLASSE DE VALIDATION SÉCURITAIRE (INCHANGÉE)
 class SecurityValidator {
   private suspiciousActivities: Map<string, number> = new Map();
   private blockedPlayers: Set<string> = new Set();
@@ -101,9 +126,6 @@ class SecurityValidator {
     this.config = config;
   }
 
-  /**
-   * ✅ VALIDATION PRINCIPALE DE SÉCURITÉ
-   */
   validateRequest(player: Player, request: InteractionRequest): { 
     valid: boolean; 
     reason?: string; 
@@ -112,7 +134,6 @@ class SecurityValidator {
   } {
     const warnings: string[] = [];
     
-    // 1. Vérifier joueur bloqué
     if (this.config.blockSuspiciousPlayers && this.blockedPlayers.has(player.name)) {
       return { 
         valid: false, 
@@ -120,7 +141,6 @@ class SecurityValidator {
       };
     }
 
-    // 2. Vérifier rate limiting
     if (!this.checkRateLimit(player.name)) {
       this.recordSuspiciousActivity(player.name, 'RATE_LIMIT');
       return { 
@@ -129,14 +149,12 @@ class SecurityValidator {
       };
     }
 
-    // 3. Validation données de base
     const baseValidation = this.validateBasicData(player, request);
     if (!baseValidation.valid) {
       this.recordSuspiciousActivity(player.name, 'INVALID_DATA');
       return baseValidation;
     }
 
-    // 4. ✅ VALIDATION CRITIQUE : Position client vs serveur
     if (request.position) {
       const positionCheck = this.validateClientPosition(player, request.position);
       if (!positionCheck.valid) {
@@ -152,7 +170,6 @@ class SecurityValidator {
       }
     }
 
-    // 5. ✅ VALIDATION CRITIQUE : Zone client vs serveur
     if (request.data?.zone) {
       const zoneCheck = this.validateClientZone(player, request.data.zone);
       if (!zoneCheck.valid) {
@@ -168,7 +185,6 @@ class SecurityValidator {
       }
     }
 
-    // 6. ✅ NETTOYAGE ET SANITISATION DE LA REQUÊTE
     const sanitizedRequest = this.sanitizeRequest(player, request);
 
     return { 
@@ -178,9 +194,6 @@ class SecurityValidator {
     };
   }
 
-  /**
-   * ✅ VALIDATION POSITION CLIENT VS SERVEUR
-   */
   private validateClientPosition(
     player: Player, 
     clientPosition: { x: number; y: number }
@@ -195,12 +208,11 @@ class SecurityValidator {
     if (distance > this.config.maxDistanceFromServer) {
       const warning = `Position client éloignée de ${Math.round(distance)}px du serveur`;
       
-      // Déterminer la sévérité
       let severity: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
       if (distance > this.config.maxDistanceFromServer * 3) {
-        severity = 'HIGH'; // Très suspect
+        severity = 'HIGH';
       } else if (distance > this.config.maxDistanceFromServer * 1.5) {
-        severity = 'MEDIUM'; // Modérément suspect
+        severity = 'MEDIUM';
       }
 
       if (this.config.logSuspiciousActivity) {
@@ -220,9 +232,6 @@ class SecurityValidator {
     return { valid: true };
   }
 
-  /**
-   * ✅ VALIDATION ZONE CLIENT VS SERVEUR
-   */
   private validateClientZone(
     player: Player, 
     clientZone: string
@@ -233,7 +242,6 @@ class SecurityValidator {
     if (clientZone !== serverZone) {
       const warning = `Zone client "${clientZone}" différente du serveur "${serverZone}"`;
       
-      // Zone complètement différente = très suspect
       const severity: 'HIGH' = 'HIGH';
 
       if (this.config.logSuspiciousActivity) {
@@ -251,15 +259,11 @@ class SecurityValidator {
     return { valid: true };
   }
 
-  /**
-   * ✅ NETTOYAGE SÉCURISÉ DE LA REQUÊTE
-   */
   private sanitizeRequest(player: Player, request: InteractionRequest): InteractionRequest {
     const sanitized: InteractionRequest = {
       type: request.type,
       targetId: request.targetId,
       
-      // ✅ REMPLACER PAR DONNÉES SERVEUR FIABLES
       position: {
         x: player.x,
         y: player.y,
@@ -267,7 +271,6 @@ class SecurityValidator {
       },
       
       data: {
-        // ✅ GARDER SEULEMENT LES DONNÉES NÉCESSAIRES
         npcId: request.data?.npcId,
         objectId: request.data?.objectId,
         objectType: request.data?.objectType,
@@ -276,7 +279,6 @@ class SecurityValidator {
         itemId: request.data?.itemId,
         direction: request.data?.direction,
         
-        // ✅ MÉTADONNÉES DE SÉCURITÉ
         metadata: {
           ...request.data?.metadata,
           sanitized: true,
@@ -295,9 +297,6 @@ class SecurityValidator {
     return sanitized;
   }
 
-  /**
-   * Validation données de base
-   */
   private validateBasicData(player: Player, request: InteractionRequest): { valid: boolean; reason?: string } {
     if (!player || !player.name) {
       return { valid: false, reason: 'Joueur non authentifié' };
@@ -318,9 +317,6 @@ class SecurityValidator {
     return { valid: true };
   }
 
-  /**
-   * Rate limiting par joueur
-   */
   private checkRateLimit(playerName: string): boolean {
     const now = Date.now();
     const minute = Math.floor(now / 60000);
@@ -333,7 +329,6 @@ class SecurityValidator {
     
     this.suspiciousActivities.set(key, current + 1);
     
-    // Nettoyage périodique
     if (now - this.lastCleanup > 60000) {
       this.cleanupOldEntries();
       this.lastCleanup = now;
@@ -342,9 +337,6 @@ class SecurityValidator {
     return true;
   }
 
-  /**
-   * Enregistrer activité suspecte
-   */
   private recordSuspiciousActivity(playerName: string, activityType: string) {
     const key = `${playerName}_suspicious`;
     const current = this.suspiciousActivities.get(key) || 0;
@@ -359,12 +351,10 @@ class SecurityValidator {
       });
     }
     
-    // Bloquer temporairement si trop d'activités suspectes
     if (this.config.blockSuspiciousPlayers && current >= 5) {
       this.blockedPlayers.add(playerName);
       console.warn('🚫 [SECURITY] Joueur bloqué temporairement', { player: playerName });
       
-      // Débloquer après 10 minutes
       setTimeout(() => {
         this.blockedPlayers.delete(playerName);
         console.info('✅ [SECURITY] Joueur débloqué', { player: playerName });
@@ -372,12 +362,9 @@ class SecurityValidator {
     }
   }
 
-  /**
-   * Nettoyage des entrées anciennes
-   */
   private cleanupOldEntries() {
     const now = Date.now();
-    const cutoff = Math.floor((now - 5 * 60000) / 60000); // 5 minutes
+    const cutoff = Math.floor((now - 5 * 60000) / 60000);
     
     for (const [key] of this.suspiciousActivities.entries()) {
       if (key.includes('_') && !key.includes('suspicious')) {
@@ -389,9 +376,6 @@ class SecurityValidator {
     }
   }
 
-  /**
-   * Statistiques de sécurité
-   */
   getStats() {
     let suspiciousCount = 0;
     let blockedCount = this.blockedPlayers.size;
@@ -412,25 +396,373 @@ class SecurityValidator {
   }
 }
 
-// ✅ REGISTRY AMÉLIORÉ AVEC IA ET SÉCURITÉ
+// 🔧 NOUVELLE CLASSE : GESTIONNAIRE TIMER CENTRALISÉ
+class WorldUpdateTimer {
+  private config: WorldUpdateTimerConfig;
+  private timer: NodeJS.Timeout | null = null;
+  private isActive: boolean = false;
+  private updatesSent: number = 0;
+  private lastUpdate: Date = new Date();
+  private updateTimes: number[] = [];
+  
+  // Références aux gestionnaires
+  private questManager: any = null;
+  private objectManager: any = null;
+  private npcManagers: Map<string, any> = new Map();
+  private room: any = null;
+
+  constructor(config: WorldUpdateTimerConfig) {
+    this.config = config;
+    console.log(`⏰ [WorldUpdateTimer] Créé avec intervalle: ${config.interval/1000}s`);
+  }
+
+  /**
+   * 🔧 Configurer les références aux gestionnaires
+   */
+  setManagers(managers: {
+    questManager?: any;
+    objectManager?: any;
+    npcManagers?: Map<string, any>;
+    room?: any;
+  }): void {
+    if (managers.questManager) this.questManager = managers.questManager;
+    if (managers.objectManager) this.objectManager = managers.objectManager;
+    if (managers.npcManagers) this.npcManagers = managers.npcManagers;
+    if (managers.room) this.room = managers.room;
+    
+    console.log(`🔧 [WorldUpdateTimer] Gestionnaires configurés:`, {
+      questManager: !!this.questManager,
+      objectManager: !!this.objectManager,
+      npcManagers: this.npcManagers.size,
+      room: !!this.room
+    });
+  }
+
+  /**
+   * 🚀 Démarrer le timer
+   */
+  start(): void {
+    if (!this.config.enabled) {
+      console.log('⏰ [WorldUpdateTimer] Timer désactivé par configuration');
+      return;
+    }
+
+    if (this.isActive) {
+      console.log('⚠️ [WorldUpdateTimer] Timer déjà actif');
+      return;
+    }
+
+    console.log(`⏰ [WorldUpdateTimer] Démarrage timer (${this.config.interval/1000}s)...`);
+    
+    this.timer = setInterval(() => {
+      this.sendWorldUpdate();
+    }, this.config.interval);
+    
+    this.isActive = true;
+    
+    // Premier update après 2 secondes
+    setTimeout(() => {
+      this.sendWorldUpdate();
+    }, 2000);
+    
+    console.log('✅ [WorldUpdateTimer] Timer démarré');
+  }
+
+  /**
+   * 🛑 Arrêter le timer
+   */
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+      this.isActive = false;
+      console.log('🛑 [WorldUpdateTimer] Timer arrêté');
+    }
+  }
+
+  /**
+   * 🔄 Redémarrer le timer
+   */
+  restart(): void {
+    this.stop();
+    this.start();
+  }
+
+  /**
+   * 🌍 Envoyer la mise à jour du monde
+   */
+  private async sendWorldUpdate(): Promise<void> {
+    if (!this.room) {
+      if (this.config.debugMode) {
+        console.log('⚠️ [WorldUpdateTimer] Pas de room configurée');
+      }
+      return;
+    }
+
+    const startTime = Date.now();
+    
+    try {
+      const updateData: any = {
+        timestamp: Date.now(),
+        source: 'worldUpdateTimer'
+      };
+
+      // 🔧 COLLECTE DES DONNÉES SELON LA CONFIGURATION
+      
+      // 1. Quest Statuses
+      if (this.config.includeQuestStatuses && this.questManager) {
+        try {
+          updateData.questStatuses = await this.collectQuestStatuses();
+          if (this.config.debugMode) {
+            console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${Object.keys(updateData.questStatuses).length} NPCs`);
+          }
+        } catch (error) {
+          console.warn('⚠️ [WorldUpdateTimer] Erreur collecte quest statuses:', error);
+        }
+      }
+
+      // 2. Game Objects
+      if (this.config.includeGameObjects && this.objectManager) {
+        try {
+          updateData.gameObjects = await this.collectGameObjects();
+          if (this.config.debugMode) {
+            console.log(`📦 [WorldUpdateTimer] Objets collectés: ${Object.keys(updateData.gameObjects).length} zones`);
+          }
+        } catch (error) {
+          console.warn('⚠️ [WorldUpdateTimer] Erreur collecte objets:', error);
+        }
+      }
+
+      // 3. NPC Updates
+      if (this.config.includeNpcUpdates && this.npcManagers.size > 0) {
+        try {
+          updateData.npcUpdates = await this.collectNpcUpdates();
+          if (this.config.debugMode) {
+            console.log(`👥 [WorldUpdateTimer] NPCs collectés: ${Object.keys(updateData.npcUpdates).length} zones`);
+          }
+        } catch (error) {
+          console.warn('⚠️ [WorldUpdateTimer] Erreur collecte NPCs:', error);
+        }
+      }
+
+      // 4. Player Updates (si nécessaire)
+      if (this.config.includePlayerUpdates) {
+        try {
+          updateData.playerUpdates = await this.collectPlayerUpdates();
+        } catch (error) {
+          console.warn('⚠️ [WorldUpdateTimer] Erreur collecte joueurs:', error);
+        }
+      }
+
+      // 🚀 ENVOI DE LA MISE À JOUR
+      if (Object.keys(updateData).length > 2) { // Plus que timestamp + source
+        this.room.broadcast('worldUpdate', updateData);
+        
+        this.updatesSent++;
+        this.lastUpdate = new Date();
+        
+        const updateTime = Date.now() - startTime;
+        this.updateTimes.push(updateTime);
+        if (this.updateTimes.length > 10) {
+          this.updateTimes.shift(); // Garder seulement les 10 derniers
+        }
+        
+        if (this.config.debugMode) {
+          console.log(`🌍 [WorldUpdateTimer] Update #${this.updatesSent} envoyé en ${updateTime}ms`);
+        }
+
+        // Callback custom si défini
+        if (this.config.onUpdateCallback) {
+          try {
+            this.config.onUpdateCallback(updateData);
+          } catch (error) {
+            console.warn('⚠️ [WorldUpdateTimer] Erreur callback:', error);
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ [WorldUpdateTimer] Erreur lors de la mise à jour:', error);
+    }
+  }
+
+  /**
+   * 📋 Collecter les statuts de quêtes
+   */
+  private async collectQuestStatuses(): Promise<any> {
+    const questStatuses: any = {};
+    
+    try {
+      // Collecter les statuts pour tous les NPCs de toutes les zones
+      for (const [zoneName, npcManager] of this.npcManagers) {
+        try {
+          const npcs = npcManager.getAllNpcs();
+          
+          for (const npc of npcs) {
+            if (npc.questsToGive || npc.questsToEnd) {
+              try {
+                // Ici on pourrait appeler le questManager pour obtenir le statut
+                // Pour l'instant, on simule
+                questStatuses[npc.id] = {
+                  hasAvailableQuests: !!(npc.questsToGive && npc.questsToGive.length > 0),
+                  hasQuestsToComplete: !!(npc.questsToEnd && npc.questsToEnd.length > 0),
+                  questCount: (npc.questsToGive?.length || 0) + (npc.questsToEnd?.length || 0),
+                  zone: zoneName,
+                  npcId: npc.id
+                };
+              } catch (npcError) {
+                if (this.config.debugMode) {
+                  console.warn(`⚠️ [WorldUpdateTimer] Erreur NPC ${npc.id}:`, npcError);
+                }
+              }
+            }
+          }
+        } catch (zoneError) {
+          console.warn(`⚠️ [WorldUpdateTimer] Erreur zone ${zoneName}:`, zoneError);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [WorldUpdateTimer] Erreur collecte quest statuses:', error);
+    }
+    
+    return questStatuses;
+  }
+
+  /**
+   * 📦 Collecter les objets du jeu
+   */
+  private async collectGameObjects(): Promise<any> {
+    const gameObjects: any = {};
+    
+    try {
+      // Si l'ObjectManager a une méthode pour obtenir tous les objets visibles
+      if (this.objectManager && typeof this.objectManager.getVisibleObjectsInZone === 'function') {
+        
+        // Obtenir la liste des zones chargées
+        const zones = ['villagelab', 'road1', 'lavandia']; // TODO: Obtenir dynamiquement
+        
+        for (const zoneName of zones) {
+          try {
+            const visibleObjects = this.objectManager.getVisibleObjectsInZone(zoneName);
+            if (visibleObjects && visibleObjects.length > 0) {
+              gameObjects[zoneName] = visibleObjects;
+            }
+          } catch (zoneError) {
+            if (this.config.debugMode) {
+              console.warn(`⚠️ [WorldUpdateTimer] Erreur objets zone ${zoneName}:`, zoneError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [WorldUpdateTimer] Erreur collecte objets:', error);
+    }
+    
+    return gameObjects;
+  }
+
+  /**
+   * 👥 Collecter les mises à jour NPCs
+   */
+  private async collectNpcUpdates(): Promise<any> {
+    const npcUpdates: any = {};
+    
+    try {
+      for (const [zoneName, npcManager] of this.npcManagers) {
+        try {
+          // Si le NpcManager a des informations de statut à envoyer
+          if (typeof npcManager.getUpdateData === 'function') {
+            const zoneUpdates = npcManager.getUpdateData();
+            if (zoneUpdates && Object.keys(zoneUpdates).length > 0) {
+              npcUpdates[zoneName] = zoneUpdates;
+            }
+          }
+        } catch (zoneError) {
+          if (this.config.debugMode) {
+            console.warn(`⚠️ [WorldUpdateTimer] Erreur NPCs zone ${zoneName}:`, zoneError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [WorldUpdateTimer] Erreur collecte NPCs:', error);
+    }
+    
+    return npcUpdates;
+  }
+
+  /**
+   * 🎮 Collecter les mises à jour joueurs
+   */
+  private async collectPlayerUpdates(): Promise<any> {
+    // Pour l'instant, retourne un objet vide
+    // Pourrait inclure des infos comme le nombre de joueurs connectés, etc.
+    return {};
+  }
+
+  /**
+   * 📊 Obtenir les statistiques du timer
+   */
+  getStats() {
+    const averageUpdateTime = this.updateTimes.length > 0 
+      ? this.updateTimes.reduce((sum, time) => sum + time, 0) / this.updateTimes.length 
+      : 0;
+
+    return {
+      enabled: this.config.enabled,
+      isActive: this.isActive,
+      interval: this.config.interval,
+      intervalSeconds: this.config.interval / 1000,
+      updatesSent: this.updatesSent,
+      lastUpdate: this.lastUpdate,
+      averageUpdateTime: Math.round(averageUpdateTime),
+      components: {
+        questStatuses: this.config.includeQuestStatuses,
+        gameObjects: this.config.includeGameObjects,
+        npcUpdates: this.config.includeNpcUpdates,
+        playerUpdates: this.config.includePlayerUpdates
+      },
+      managers: {
+        questManager: !!this.questManager,
+        objectManager: !!this.objectManager,
+        npcManagers: this.npcManagers.size,
+        room: !!this.room
+      }
+    };
+  }
+
+  /**
+   * 🔧 Mettre à jour la configuration
+   */
+  updateConfig(newConfig: Partial<WorldUpdateTimerConfig>): void {
+    const oldInterval = this.config.interval;
+    this.config = { ...this.config, ...newConfig };
+    
+    console.log(`🔧 [WorldUpdateTimer] Configuration mise à jour:`, newConfig);
+    
+    // Si l'intervalle a changé, redémarrer le timer
+    if (newConfig.interval && newConfig.interval !== oldInterval && this.isActive) {
+      console.log(`⏰ [WorldUpdateTimer] Redémarrage avec nouvel intervalle: ${newConfig.interval/1000}s`);
+      this.restart();
+    }
+  }
+}
+
+// ✅ REGISTRY AMÉLIORÉ AVEC IA ET SÉCURITÉ (INCHANGÉ)
 class AIEnhancedModuleRegistry implements IModuleRegistry {
   private modules: Map<string, IInteractionModule> = new Map();
   private config: ModulesConfiguration = {};
   
-  // ✅ NOUVEAU : Connecteur IA
   private intelligenceConnector: NPCIntelligenceConnector | null = null;
 
   register(module: IInteractionModule): void {
     console.log(`📦 [Registry] Enregistrement module: ${module.moduleName} v${module.version}`);
     this.modules.set(module.moduleName, module);
     
-    // ✅ NOUVEAU : Injecter le connecteur IA dans les modules compatibles
     if (this.intelligenceConnector && this.isAICompatibleModule(module)) {
       this.injectAIConnector(module);
     }
   }
 
-  // ✅ NOUVEAU : Initialisation du système IA
   async initializeAI(config: AIInteractionConfig): Promise<void> {
     if (!config.enabled) {
       console.log('🤖 [Registry] IA désactivée');
@@ -440,10 +772,8 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
     try {
       console.log('🚀 [Registry] Initialisation IA...');
       
-      // Récupérer l'instance du connecteur
       this.intelligenceConnector = getNPCIntelligenceConnector();
       
-      // Configurer le connecteur
       this.intelligenceConnector.updateConfig({
         enabledNPCTypes: config.enabledNPCTypes as any[],
         enabledZones: config.enabledZones,
@@ -453,7 +783,6 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
         debugMode: config.debugMode
       });
 
-      // Injecter dans les modules déjà enregistrés
       for (const module of this.modules.values()) {
         if (this.isAICompatibleModule(module)) {
           this.injectAIConnector(module);
@@ -468,7 +797,6 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
     }
   }
 
-  // ✅ NOUVEAU : Enregistrement NPCs dans l'IA
   async registerNPCsWithAI(npcs: any[]): Promise<void> {
     if (!this.intelligenceConnector || npcs.length === 0) return;
 
@@ -488,13 +816,11 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
     }
   }
 
-  // ✅ NOUVEAU : Vérification compatibilité IA
   private isAICompatibleModule(module: IInteractionModule): boolean {
     return module.moduleName === 'NpcInteractionModule' && 
            typeof (module as any).setIntelligenceConnector === 'function';
   }
 
-  // ✅ NOUVEAU : Injection du connecteur IA
   private injectAIConnector(module: IInteractionModule): void {
     try {
       (module as any).setIntelligenceConnector(this.intelligenceConnector);
@@ -504,12 +830,10 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
     }
   }
 
-  // ✅ ACCESSEUR IA
   getIntelligenceConnector(): NPCIntelligenceConnector | null {
     return this.intelligenceConnector;
   }
 
-  // === MÉTHODES EXISTANTES (inchangées) ===
   findModule(request: InteractionRequest): IInteractionModule | null {
     for (const module of this.modules.values()) {
       if (this.isModuleEnabled(module.moduleName) && module.canHandle(request)) {
@@ -544,7 +868,6 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
   async cleanupAll(): Promise<void> {
     console.log(`🧹 [Registry] Nettoyage de ${this.modules.size} modules...`);
     
-    // Nettoyer les modules
     for (const module of this.modules.values()) {
       if (module.cleanup) {
         try {
@@ -555,7 +878,6 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
       }
     }
     
-    // ✅ NOUVEAU : Nettoyer l'IA
     if (this.intelligenceConnector) {
       try {
         this.intelligenceConnector.destroy();
@@ -585,7 +907,6 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
       }
     }
 
-    // ✅ NOUVEAU : Ajouter stats IA dans moduleStats (pas directement dans le retour)
     if (this.intelligenceConnector) {
       moduleStats.AISystem = this.intelligenceConnector.getStats();
     }
@@ -609,22 +930,22 @@ class AIEnhancedModuleRegistry implements IModuleRegistry {
   }
 }
 
-// ✅ GESTIONNAIRE DE BASE AMÉLIORÉ AVEC IA ET SÉCURITÉ
+// ✅ GESTIONNAIRE DE BASE AMÉLIORÉ AVEC TIMER CENTRALISÉ
 export class BaseInteractionManager {
   
   private registry: AIEnhancedModuleRegistry = new AIEnhancedModuleRegistry();
   private config: ExtendedInteractionConfig;
   private playerCooldowns: Map<string, Map<string, number>> = new Map();
   
-  // ✅ NOUVEAU : État du système IA
   private aiInitialized: boolean = false;
   private npcAutoRegistrationCompleted: boolean = false;
   
-  // ✅ NOUVEAU : Système de sécurité
   private securityValidator: SecurityValidator | null = null;
+  
+  // 🔧 NOUVEAU : Timer centralisé
+  private worldUpdateTimer: WorldUpdateTimer | null = null;
 
   constructor(config?: Partial<ExtendedInteractionConfig>) {
-    // Configuration par défaut + IA + Sécurité
     this.config = {
       maxDistance: 64,
       cooldowns: {
@@ -644,51 +965,126 @@ export class BaseInteractionManager {
       debug: false,
       logLevel: 'info',
       
-      // ✅ NOUVEAU : Configuration IA par défaut
       ai: {
         enabled: process.env.NPC_AI_ENABLED !== 'false',
         enabledNPCTypes: ['dialogue', 'healer', 'quest_master', 'researcher'],
-        enabledZones: [], // Vide = toutes les zones
+        enabledZones: [],
         fallbackToBasic: true,
         analysisTimeout: 5000,
         debugMode: process.env.NODE_ENV === 'development'
       },
       
-      // ✅ NOUVEAU : Configuration sécurité par défaut
       security: {
         enabled: process.env.SECURITY_ENABLED !== 'false',
         logSuspiciousActivity: process.env.NODE_ENV === 'development',
-        maxDistanceFromServer: 100, // 100px de tolérance
-        rateLimitPerMinute: 30, // 30 requêtes/minute max
+        maxDistanceFromServer: 100,
+        rateLimitPerMinute: 30,
         blockSuspiciousPlayers: process.env.NODE_ENV === 'production',
         auditLogPath: './logs/security.log'
       },
       
-      // ✅ NOUVEAU : Auto-enregistrement NPCs
+      // 🔧 NOUVELLE : Configuration timer par défaut
+      worldUpdateTimer: {
+        enabled: process.env.WORLD_TIMER_ENABLED !== 'false',
+        interval: parseInt(process.env.WORLD_TIMER_INTERVAL || '5000'), // 5 secondes
+        includeQuestStatuses: true,
+        includeGameObjects: true,
+        includeNpcUpdates: true,
+        includePlayerUpdates: false,
+        debugMode: process.env.NODE_ENV === 'development'
+      },
+      
       autoRegisterNPCs: process.env.NPC_AUTO_REGISTER !== 'false',
       npcDataSources: {},
       
       ...config
     };
 
-    // ✅ INITIALISER LE VALIDATEUR DE SÉCURITÉ
     if (this.config.security?.enabled) {
       this.securityValidator = new SecurityValidator(this.config.security);
     }
 
-    console.log(`🎮 [BaseInteractionManager] Initialisé avec IA + Sécurité`, {
+    // 🔧 NOUVEAU : Initialiser le timer centralisé
+    if (this.config.worldUpdateTimer?.enabled) {
+      this.worldUpdateTimer = new WorldUpdateTimer(this.config.worldUpdateTimer);
+    }
+
+    console.log(`🎮 [BaseInteractionManager] Initialisé avec IA + Sécurité + Timer`, {
       aiEnabled: this.config.ai?.enabled,
       securityEnabled: this.config.security?.enabled,
+      timerEnabled: this.config.worldUpdateTimer?.enabled,
+      timerInterval: this.config.worldUpdateTimer?.interval,
       aiTypes: this.config.ai?.enabledNPCTypes?.length,
       autoRegister: this.config.autoRegisterNPCs
     });
   }
 
-  // === ✅ MÉTHODES PRINCIPALES AMÉLIORÉES AVEC SÉCURITÉ ===
+  // === 🔧 NOUVELLES MÉTHODES TIMER ===
 
   /**
-   * ✅ Traite une interaction avec support IA automatique + SÉCURITÉ
+   * 🔧 Configurer les gestionnaires pour le timer
    */
+  setTimerManagers(managers: {
+    questManager?: any;
+    objectManager?: any;
+    npcManagers?: Map<string, any>;
+    room?: any;
+  }): void {
+    if (this.worldUpdateTimer) {
+      this.worldUpdateTimer.setManagers(managers);
+      console.log('🔧 [BaseInteractionManager] Gestionnaires timer configurés');
+    }
+  }
+
+  /**
+   * 🚀 Démarrer le timer centralisé
+   */
+  startWorldUpdateTimer(): void {
+    if (this.worldUpdateTimer) {
+      this.worldUpdateTimer.start();
+      console.log('⏰ [BaseInteractionManager] Timer centralisé démarré');
+    }
+  }
+
+  /**
+   * 🛑 Arrêter le timer centralisé
+   */
+  stopWorldUpdateTimer(): void {
+    if (this.worldUpdateTimer) {
+      this.worldUpdateTimer.stop();
+      console.log('🛑 [BaseInteractionManager] Timer centralisé arrêté');
+    }
+  }
+
+  /**
+   * 🔄 Redémarrer le timer centralisé
+   */
+  restartWorldUpdateTimer(): void {
+    if (this.worldUpdateTimer) {
+      this.worldUpdateTimer.restart();
+      console.log('🔄 [BaseInteractionManager] Timer centralisé redémarré');
+    }
+  }
+
+  /**
+   * 🔧 Configurer le timer
+   */
+  configureWorldUpdateTimer(config: Partial<WorldUpdateTimerConfig>): void {
+    if (this.worldUpdateTimer) {
+      this.worldUpdateTimer.updateConfig(config);
+      console.log(`🔧 [BaseInteractionManager] Timer reconfiguré:`, config);
+    }
+  }
+
+  /**
+   * 📊 Obtenir les stats du timer
+   */
+  getWorldUpdateTimerStats() {
+    return this.worldUpdateTimer ? this.worldUpdateTimer.getStats() : null;
+  }
+
+  // === ✅ MÉTHODES PRINCIPALES INCHANGÉES ===
+
   async processInteraction(
     player: Player, 
     request: InteractionRequest
@@ -706,7 +1102,6 @@ export class BaseInteractionManager {
         serverPos: { x: player.x, y: player.y }
       });
 
-      // ✅ 1. VALIDATION SÉCURITAIRE EN PREMIER
       let finalRequest = request;
       let securityWarnings: string[] = [];
       
@@ -720,7 +1115,6 @@ export class BaseInteractionManager {
           );
         }
         
-        // Utiliser la requête nettoyée
         if (securityCheck.sanitizedRequest) {
           finalRequest = securityCheck.sanitizedRequest;
         }
@@ -730,13 +1124,11 @@ export class BaseInteractionManager {
         }
       }
 
-      // ✅ 2. Valider la requête de base (avec requête nettoyée)
       const requestValidation = this.validateRequest(finalRequest);
       if (!requestValidation.valid) {
         return this.createErrorResult(requestValidation.reason || 'Requête invalide', 'INVALID_REQUEST');
       }
 
-      // ✅ 3. Trouver le module approprié
       const module = this.registry.findModule(finalRequest);
       if (!module) {
         return this.createErrorResult(
@@ -745,7 +1137,6 @@ export class BaseInteractionManager {
         );
       }
 
-      // ✅ 4. Effectuer les validations requises (avec données serveur)
       const context = await this.buildInteractionContext(player, finalRequest);
       const validationResult = await this.performValidations(context, module);
       
@@ -753,10 +1144,8 @@ export class BaseInteractionManager {
         return this.createErrorResult(validationResult.reason || 'Validation échouée', validationResult.code);
       }
 
-      // ✅ 5. Traiter l'interaction via le module (le module peut maintenant utiliser l'IA)
       const result = await module.handle(context);
 
-      // ✅ 6. Post-traitement
       if (result.success) {
         this.updateCooldown(player.name, finalRequest.type);
       }
@@ -766,7 +1155,6 @@ export class BaseInteractionManager {
       result.moduleUsed = module.moduleName;
       result.timestamp = Date.now();
 
-      // ✅ Ajouter avertissements sécurité dans les métadonnées
       if (securityWarnings.length > 0) {
         if (result.data) {
           result.data.metadata = {
@@ -799,11 +1187,8 @@ export class BaseInteractionManager {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES IA (INCHANGÉES) ===
+  // === ✅ MÉTHODES IA INCHANGÉES ===
 
-  /**
-   * Initialise le système d'IA
-   */
   async initializeAI(): Promise<void> {
     if (!this.config.ai?.enabled) {
       console.log('🤖 [BaseInteractionManager] IA désactivée');
@@ -828,9 +1213,6 @@ export class BaseInteractionManager {
     }
   }
 
-  /**
-   * Enregistre des NPCs dans le système d'IA
-   */
   async registerNPCsForAI(npcs: any[]): Promise<void> {
     if (!this.aiInitialized || !this.config.ai?.enabled) {
       this.debugLog('info', 'IA non disponible pour enregistrement NPCs');
@@ -845,9 +1227,6 @@ export class BaseInteractionManager {
     }
   }
 
-  /**
-   * Auto-enregistrement des NPCs depuis les managers disponibles
-   */
   async autoRegisterNPCs(): Promise<void> {
     if (!this.config.autoRegisterNPCs || this.npcAutoRegistrationCompleted) {
       return;
@@ -858,9 +1237,8 @@ export class BaseInteractionManager {
       
       const allNpcs: any[] = [];
       
-      // Méthode 1: getNpcManager fourni
       if (this.config.npcDataSources?.getNpcManager) {
-        const zones = ['pallet_town', 'route_1', 'viridian_city']; // TODO: Récupérer dynamiquement
+        const zones = ['pallet_town', 'route_1', 'viridian_city'];
         
         for (const zone of zones) {
           try {
@@ -876,7 +1254,6 @@ export class BaseInteractionManager {
         }
       }
       
-      // Méthode 2: npcManagers Map fournie
       if (this.config.npcDataSources?.npcManagers) {
         for (const [zone, npcManager] of this.config.npcDataSources.npcManagers) {
           try {
@@ -903,52 +1280,47 @@ export class BaseInteractionManager {
     }
   }
 
-  /**
-   * Configure les sources de données NPCs
-   */
   setNPCDataSources(sources: ExtendedInteractionConfig['npcDataSources']): void {
     this.config.npcDataSources = sources;
-    this.npcAutoRegistrationCompleted = false; // Reset pour permettre re-enregistrement
+    this.npcAutoRegistrationCompleted = false;
     this.debugLog('info', '🔧 Sources de données NPCs configurées');
   }
 
   // === GESTION DES MODULES (améliorée) ===
 
-  /**
-   * Enregistrer un module d'interaction
-   */
   registerModule(module: IInteractionModule): void {
     this.registry.register(module);
   }
 
-  /**
-   * Initialiser tous les modules + IA
-   */
   async initialize(): Promise<void> {
-    // 1. Initialiser les modules classiques
     await this.registry.initializeAll();
-    
-    // 2. Initialiser l'IA
     await this.initializeAI();
-    
-    // 3. Auto-enregistrement NPCs
     await this.autoRegisterNPCs();
     
-    console.log(`✅ [BaseInteractionManager] Système d'interaction + IA + Sécurité initialisé`);
+    // 🔧 NOUVEAU : Démarrer le timer après initialisation
+    if (this.worldUpdateTimer) {
+      // Attendre un peu pour que tous les gestionnaires soient prêts
+      setTimeout(() => {
+        this.startWorldUpdateTimer();
+      }, 2000);
+    }
+    
+    console.log(`✅ [BaseInteractionManager] Système d'interaction + IA + Sécurité + Timer initialisé`);
   }
 
-  /**
-   * Nettoyer tous les modules + IA
-   */
   async cleanup(): Promise<void> {
+    // 🔧 NOUVEAU : Arrêter le timer
+    this.stopWorldUpdateTimer();
+    
     await this.registry.cleanupAll();
     this.aiInitialized = false;
     this.npcAutoRegistrationCompleted = false;
     this.securityValidator = null;
-    console.log(`🧹 [BaseInteractionManager] Système d'interaction + IA + Sécurité nettoyé`);
+    this.worldUpdateTimer = null;
+    console.log(`🧹 [BaseInteractionManager] Système d'interaction + IA + Sécurité + Timer nettoyé`);
   }
 
-  // === MÉTHODES EXISTANTES (inchangées mais utilisent les données serveur) ===
+  // === MÉTHODES EXISTANTES INCHANGÉES ===
 
   private validateRequest(request: InteractionRequest): { valid: boolean; reason?: string } {
     if (!request.type) {
@@ -963,7 +1335,6 @@ export class BaseInteractionManager {
   }
 
   validateProximity(player: Player, targetPosition: { x: number; y: number }): ProximityValidation {
-    // ✅ UTILISE TOUJOURS LES DONNÉES SERVEUR
     const serverX = player.x;
     const serverY = player.y;
     
@@ -1022,14 +1393,13 @@ export class BaseInteractionManager {
     request: InteractionRequest
   ): Promise<InteractionContext> {
     
-    // ✅ UTILISE TOUJOURS LES DONNÉES SERVEUR
     const context: InteractionContext = {
       player,
       request,
       validations: {},
       metadata: {
         timestamp: Date.now(),
-        sessionId: 'unknown', // TODO: Récupérer depuis player si disponible
+        sessionId: 'unknown',
         securityValidated: !!this.securityValidator,
         serverPosition: { x: player.x, y: player.y },
         serverZone: player.currentZone
@@ -1046,7 +1416,6 @@ export class BaseInteractionManager {
     
     const requiredValidations = this.config.requiredValidations?.[context.request.type] || [];
 
-    // Validation proximité (utilise TOUJOURS les données serveur)
     if (requiredValidations.includes('proximity') && context.request.position) {
       const proximityValidation = this.validateProximity(context.player, context.request.position);
       context.validations.proximity = proximityValidation;
@@ -1060,7 +1429,6 @@ export class BaseInteractionManager {
       }
     }
 
-    // Validation cooldown
     if (requiredValidations.includes('cooldown')) {
       const cooldownValidation = this.validateCooldown(context.player.name, context.request.type);
       context.validations.cooldown = cooldownValidation;
@@ -1074,7 +1442,6 @@ export class BaseInteractionManager {
       }
     }
 
-    // Validation spécifique du module
     if (module.validateSpecific) {
       const specificValidation = await module.validateSpecific(context);
       context.validations.conditions = [specificValidation];
@@ -1137,15 +1504,11 @@ export class BaseInteractionManager {
     }
   }
 
-  // === ✅ NOUVELLES MÉTHODES D'INFORMATION (CORRIGÉES AVEC SÉCURITÉ) ===
+  // === ✅ NOUVELLES MÉTHODES D'INFORMATION (CORRIGÉES AVEC TIMER) ===
 
-  /**
-   * Obtenir les statistiques globales + IA + Sécurité
-   */
   getStats(): ExtendedGlobalModuleStats {
     const stats = this.registry.getGlobalStats();
     
-    // ✅ CORRECTION : Retourner le type étendu avec aiSystem + security
     return {
       ...stats,
       aiSystem: {
@@ -1159,13 +1522,20 @@ export class BaseInteractionManager {
         suspiciousRequests: 0,
         blockedRequests: 0,
         lastSecurityCheck: new Date()
+      },
+      // 🔧 NOUVEAU : Stats timer
+      worldUpdateTimer: this.worldUpdateTimer ? this.worldUpdateTimer.getStats() : {
+        enabled: false,
+        isActive: false,
+        interval: 0,
+        intervalSeconds: 0,
+        updatesSent: 0,
+        lastUpdate: new Date(),
+        averageUpdateTime: 0
       }
     };
   }
 
-  /**
-   * État de santé du système incluant l'IA + Sécurité
-   */
   getSystemHealth(): any {
     const baseHealth = this.getStats();
     
@@ -1173,22 +1543,22 @@ export class BaseInteractionManager {
       ...baseHealth,
       aiHealth: this.aiInitialized ? 'healthy' : 'disabled',
       securityHealth: this.securityValidator ? 'enabled' : 'disabled',
+      timerHealth: this.worldUpdateTimer ? (this.worldUpdateTimer.getStats().isActive ? 'active' : 'inactive') : 'disabled',
       overallHealth: this.aiInitialized && baseHealth.systemHealth === 'healthy' ? 'healthy' : 'warning'
     };
   }
 
-  /**
-   * Accès au connecteur IA (pour debug/admin)
-   */
   getIntelligenceConnector(): NPCIntelligenceConnector | null {
     return this.registry.getIntelligenceConnector();
   }
 
-  /**
-   * ✅ NOUVEAU : Accès au validateur de sécurité (pour admin)
-   */
   getSecurityValidator(): SecurityValidator | null {
     return this.securityValidator;
+  }
+
+  // 🔧 NOUVEAU : Accès au timer
+  getWorldUpdateTimer(): WorldUpdateTimer | null {
+    return this.worldUpdateTimer;
   }
 
   // Méthodes existantes inchangées
@@ -1199,9 +1569,13 @@ export class BaseInteractionManager {
   updateConfig(newConfig: Partial<ExtendedInteractionConfig>): void {
     this.config = { ...this.config, ...newConfig };
     
-    // ✅ Réinitialiser le validateur sécurité si config changée
     if (newConfig.security && this.config.security?.enabled) {
       this.securityValidator = new SecurityValidator(this.config.security);
+    }
+    
+    // 🔧 NOUVEAU : Reconfigurer le timer si nécessaire
+    if (newConfig.worldUpdateTimer && this.worldUpdateTimer) {
+      this.worldUpdateTimer.updateConfig(newConfig.worldUpdateTimer);
     }
     
     console.log(`🔧 [BaseInteractionManager] Configuration mise à jour`);
