@@ -607,38 +607,27 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
 
 private refreshPlayerQuestUI(playerId: string, questId?: string): void {
   try {
-    console.log(`🔄 [DEBUG] refreshPlayerQuestUI appelé pour ${playerId}`); // ✅ AJOUT TEMPORAIRE
+    console.log(`🔄 [QuestClientHandler] DIRECT refresh UI pour ${playerId}`);
     
     const worldRoom = this.serviceRegistry.getWorldRoom();
     if (!worldRoom) {
-      console.log(`❌ [DEBUG] WorldRoom non disponible`); // ✅ AJOUT TEMPORAIRE
+      console.error(`❌ [QuestClientHandler] WorldRoom non disponible`);
       return;
     }
 
-    for (const [sessionId, player] of worldRoom.state.players) {
-      if (player.name === playerId) {
-        const client = worldRoom.clients.find((c: any) => c.sessionId === sessionId);
-        if (client) {
-          console.log(`🔄 [DEBUG] Client trouvé, lancement setTimeout`); // ✅ AJOUT TEMPORAIRE
-          setTimeout(async () => {
-            try {
-              console.log(`🔄 [DEBUG] Appel updateQuestStatusesFixed`); // ✅ AJOUT TEMPORAIRE
-              await worldRoom.updateQuestStatusesFixed(playerId, client);
-              console.log(`✅ [DEBUG] updateQuestStatusesFixed terminé`); // ✅ AJOUT TEMPORAIRE
-            } catch (refreshError) {
-              console.log(`❌ [DEBUG] Erreur refresh:`, refreshError); // ✅ AJOUT TEMPORAIRE
-              this.log('error', `Erreur refresh quest statuses:`, refreshError);
-            }
-          }, 200);
-        } else {
-          console.log(`❌ [DEBUG] Client non trouvé pour ${playerId}`); // ✅ AJOUT TEMPORAIRE
-        }
-        break;
+    // ✅ APPEL DIRECT IMMÉDIAT - pas de setTimeout compliqué
+    setTimeout(async () => {
+      try {
+        console.log(`🔄 [QuestClientHandler] Exécution updateQuestStatusesFixed pour ${playerId}`);
+        await worldRoom.updateQuestStatusesFixed(playerId);
+        console.log(`✅ [QuestClientHandler] Quest UI refresh terminé pour ${playerId}`);
+      } catch (error) {
+        console.error(`❌ [QuestClientHandler] Erreur refresh:`, error);
       }
-    }
+    }, 300); // Délai plus long pour être sûr
+
   } catch (error) {
-    console.log(`❌ [DEBUG] Erreur dans refreshPlayerQuestUI:`, error); // ✅ AJOUT TEMPORAIRE
-    this.log('error', `Erreur refresh UI:`, error);
+    console.error(`❌ [QuestClientHandler] Erreur dans refreshPlayerQuestUI:`, error);
   }
 }
 
