@@ -843,7 +843,8 @@ private async analyzeNpcCapabilities(player: Player, npc: any, npcId: number): P
     try {
       const progressResult = await this.questManager.progressQuest(player.name, {
         type: 'talk',
-        target: npcId.toString(),
+        targetId: npcId.toString(),  // ✅ CORRECTION : targetId au lieu de target
+        npcId: npcId,                // ✅ AJOUT : npcId pour les objectifs deliver
         amount: 1,
         data: {
           npc: {
