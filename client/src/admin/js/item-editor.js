@@ -151,7 +151,7 @@ export class ItemEditorModule {
         
         try {
             // CORRECTION: Utiliser la bonne route API
-            const response = await this.adminPanel.apiCall('/api/admin/items/list', {
+            const response = await this.adminPanel.apiCall('/items/list', {
                 method: 'GET'
             });
             
@@ -366,7 +366,7 @@ export class ItemEditorModule {
         
         try {
             // Charger les détails de l'item
-            const response = await this.adminPanel.apiCall(`/api/admin/items/details/${itemId}`);
+            const response = await this.adminPanel.apiCall(`/items/details/${itemId}`);
             
             if (response.success) {
                 this.selectedItemId = itemId;
@@ -595,13 +595,13 @@ export class ItemEditorModule {
             let response;
             if (this.selectedItemId === 'new') {
                 // Créer un nouvel item
-                response = await this.adminPanel.apiCall('/api/admin/items', {
+                response = await this.adminPanel.apiCall('/items', {
                     method: 'POST',
                     body: JSON.stringify(formData)
                 });
             } else {
                 // Mettre à jour l'item existant
-                response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}`, {
+                response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}`, {
                     method: 'PUT',
                     body: JSON.stringify(formData)
                 });
@@ -725,7 +725,7 @@ export class ItemEditorModule {
         console.log(`📋 [ItemEditor] Duplication item: ${this.selectedItemId}`);
         
         try {
-            const response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}/duplicate`, {
+            const response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}/duplicate`, {
                 method: 'POST'
             });
             
@@ -760,7 +760,7 @@ export class ItemEditorModule {
         console.log(`🗑️ [ItemEditor] Suppression item: ${this.selectedItemId}`);
         
         try {
-            const response = await this.adminPanel.apiCall(`/api/admin/items/${this.selectedItemId}`, {
+            const response = await this.adminPanel.apiCall(`/items/${this.selectedItemId}`, {
                 method: 'DELETE'
             });
             
@@ -828,7 +828,7 @@ export class ItemEditorModule {
         console.log('📤 [ItemEditor] Export items');
         
         try {
-            const response = await this.adminPanel.apiCall('/api/admin/items/export/all');
+            const response = await this.adminPanel.apiCall('/items/export/all');
             
             if (response.success) {
                 const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
