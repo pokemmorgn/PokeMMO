@@ -30,6 +30,10 @@ import {
 } from "../types/UnifiedInterfaceTypes";
 import { MerchantNpcHandler } from "./npc/handlers/MerchantNpcHandler";
 import { getDbZoneName } from '../../config/ZoneMapping';
+import QuestDeliveryDetector, { 
+  DeliveryDetectionResult, 
+  DeliveryObjective 
+} from "../../quest/services/QuestDeliveryDetector";
 
 export interface NpcInteractionResult extends InteractionResult {
   shopId?: string;
@@ -118,7 +122,8 @@ export class NpcInteractionModule extends BaseInteractionModule {
   private intelligenceConnector: NPCIntelligenceConnector;
   private intelligenceConfig: NPCIntelligenceConfig;
   private npcsRegisteredWithAI: Set<number> = new Set();
-
+  private deliveryDetector: QuestDeliveryDetector;
+  
   constructor(
     getNpcManager: (zoneName: string) => any,
     questManager: QuestManager,
@@ -148,7 +153,15 @@ export class NpcInteractionModule extends BaseInteractionModule {
     this.intelligenceConnector = getNPCIntelligenceConnector();
     
     this.initializeHandlers();
-
+    
+   this.deliveryDetector = new QuestDeliveryDetector({
+      enableCaching: true,
+      cacheTTL: 30000, // 30 secondes
+      enableLogging: this.intelligenceConfig.debugMode,
+      strictValidation: true,
+      enableInventoryValidation: true
+    });
+    
     if (this.intelligenceConfig.enableIntelligence) {
       this.scheduleNPCRegistrationWithAI();
     }
