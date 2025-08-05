@@ -7339,3 +7339,266 @@ details[open] summary {
         flex-direction: column;
     }
 }
+
+/* ========================================
+   CORRECTION SCROLL PANNEAU ITEMS - À AJOUTER À LA FIN DE admin-components.css
+   ======================================== */
+
+/* Conteneur des items avec scroll limité */
+#itemsContainer {
+    max-height: 500px; /* Limiter la hauteur */
+    overflow-y: auto; /* Scroll vertical */
+    padding-right: 8px; /* Espace pour la scrollbar */
+}
+
+/* Style de la scrollbar */
+#itemsContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#itemsContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#itemsContainer::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+#itemsContainer::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Amélioration des catégories d'items */
+.items-category {
+    margin-bottom: 15px;
+}
+
+.category-title {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+    color: #495057;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Grille d'items compacte */
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+/* Cartes d'items plus compactes */
+.item-card {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 70px;
+    justify-content: center;
+}
+
+.item-card:hover {
+    background: #e9ecef;
+    border-color: #007bff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 123, 255, 0.15);
+}
+
+.item-card.selected {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+    box-shadow: 0 3px 8px rgba(0, 123, 255, 0.3);
+}
+
+.item-card.selected:hover {
+    background: #0056b3;
+}
+
+/* Icône et texte des items */
+.item-card .item-icon {
+    font-size: 1.5rem;
+    margin-bottom: 3px;
+}
+
+.item-card .item-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+    line-height: 1.1;
+    word-break: break-word;
+    font-size: 0.65rem;
+}
+
+.item-card .item-type {
+    font-size: 0.6rem;
+    opacity: 0.8;
+    text-transform: capitalize;
+}
+
+.item-card.selected .item-type {
+    opacity: 0.9;
+}
+
+/* Animation pour la sélection d'item */
+@keyframes itemSelectedPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.item-card.selected {
+    animation: itemSelectedPulse 0.3s ease;
+}
+
+/* Responsive pour le panneau d'items */
+@media (max-width: 1200px) {
+    #itemsContainer {
+        max-height: 400px;
+    }
+    
+    .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 5px;
+    }
+    
+    .item-card {
+        min-height: 60px;
+        padding: 6px 4px;
+    }
+}
+
+@media (max-width: 768px) {
+    #itemsContainer {
+        max-height: 300px;
+    }
+    
+    .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 4px;
+    }
+    
+    .item-card {
+        min-height: 55px;
+        padding: 5px 3px;
+    }
+    
+    .item-card .item-icon {
+        font-size: 1.2rem;
+    }
+    
+    .item-card .item-name {
+        font-size: 0.6rem;
+    }
+    
+    .item-card .item-type {
+        font-size: 0.55rem;
+    }
+}
+
+/* Message vide pour les items */
+.items-empty-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+.items-empty-message i {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.items-empty-message h4 {
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.items-empty-message p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Amélioration du header des items */
+.items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 5;
+}
+
+.items-header h3 {
+    color: #2c3e50;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.items-stats {
+    display: flex;
+    gap: 8px;
+}
+
+.items-stats .badge {
+    background: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Champ de recherche des items */
+.items-search {
+    margin-bottom: 12px;
+    position: sticky;
+    top: 60px;
+    background: white;
+    z-index: 4;
+    padding: 5px 0;
+}
+
+.items-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: white;
+}
+
+.items-search input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.items-search input::placeholder {
+    color: #6c757d;
+}
