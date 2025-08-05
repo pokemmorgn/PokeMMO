@@ -34,123 +34,162 @@ export class MapEditorModule {
     // GESTION DES ITEMS
     // ==============================
 
-    async loadAvailableItems() {
-    try {
-        console.log('📦 [MapEditor] Loading items from API...')
-        
-        // Utiliser uniquement l'API
-        const response = await this.adminPanel.apiCall('/items')
-        this.availableItems = response
-        
-        // Mettre à jour l'interface utilisateur
-        this.renderItemsPanel()
-        
-        console.log(`✅ [MapEditor] ${Object.keys(response).length} items chargés depuis l'API`)
-        
-    } catch (error) {
-        console.error('❌ [MapEditor] Error loading items:', error)
-        this.adminPanel.showNotification('Erreur chargement items: ' + error.message, 'warning')
-        
-        // Items par défaut en cas d'erreur
-        this.availableItems = {
-            'poke_ball': { 
-                id: 'poke_ball', 
-                type: 'ball', 
-                pocket: 'balls',
-                price: 200,
-                stackable: true 
-            },
-            'potion': { 
-                id: 'potion', 
-                type: 'medicine', 
-                pocket: 'medicine',
-                price: 300,
-                heal_amount: 20,
-                stackable: true
-            },
-            'super_potion': { 
-                id: 'super_potion', 
-                type: 'medicine', 
-                pocket: 'medicine',
-                price: 700,
-                heal_amount: 50,
-                stackable: true
-            },
-            'great_ball': { 
-                id: 'great_ball', 
-                type: 'ball', 
-                pocket: 'balls',
-                price: 600,
-                stackable: true
-            },
-            'antidote': { 
-                id: 'antidote', 
-                type: 'medicine', 
-                pocket: 'medicine',
-                price: 100,
-                status_cure: ['poison'],
-                stackable: true
-            },
-            'escape_rope': { 
-                id: 'escape_rope', 
-                type: 'item', 
-                pocket: 'items',
-                price: 550,
-                stackable: true
-            }
-        }
-        this.renderItemsPanel()
-        console.log('📦 [MapEditor] Items par défaut utilisés')
+   getItemDisplayName(item) {
+    // ✅ CORRECTION: Gestion robuste des différents formats
+    if (!item) return 'Item Inconnu'
+    
+    // Nouveau format MongoDB
+    if (item.name && typeof item.name === 'string') {
+        return item.name
     }
+    
+    // Ancien format ou fallback
+    if (item.itemId) {
+        return item.itemId.replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+    }
+    
+    // Fallback avec ID
+    if (item.id) {
+        return item.id.replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+    }
+    
+    return 'Item Sans Nom'
 }
 
+
     renderItemsPanel() {
-        const itemsContainer = document.getElementById('itemsContainer')
-        if (!itemsContainer) return
-
-        // Grouper les items par type
-        const itemsByType = {}
-        Object.values(this.availableItems).forEach(item => {
-            const type = item.type || 'other'
-            if (!itemsByType[type]) itemsByType[type] = []
-            itemsByType[type].push(item)
-        })
-
-        // Générer le HTML pour chaque catégorie
-        const categoriesHTML = Object.entries(itemsByType).map(([type, items]) => `
-            <div class="items-category">
-                <h4 class="category-title">${this.getTypeDisplayName(type)} (${items.length})</h4>
-                <div class="items-grid">
-                    ${items.map(item => `
-                        <div class="item-card ${this.selectedItem?.id === item.id ? 'selected' : ''}" 
-                             onclick="adminPanel.mapEditor.selectItem('${item.id}')"
-                             title="${item.id}">
-                            <div class="item-icon">${this.getItemIcon(item)}</div>
-                            <div class="item-name">${this.getItemDisplayName(item.id)}</div>
-                            <div class="item-type">${item.type}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `).join('')
-
-        itemsContainer.innerHTML = `
-            <div class="items-header">
-                <h3>📦 Items Disponibles</h3>
-                <div class="items-stats">
-                    <span class="badge badge-primary">${Object.keys(this.availableItems).length} items</span>
-                    ${this.selectedItem ? `<span class="badge badge-success">Sélectionné: ${this.selectedItem.id}</span>` : ''}
-                </div>
-            </div>
-            <div class="items-search">
-                <input type="text" id="itemSearch" placeholder="🔍 Rechercher un item..." 
-                       onkeyup="adminPanel.mapEditor.filterItems(this.value)" class="form-input">
-            </div>
-            <div class="items-list">
-                ${categoriesHTML}
+    const container = document.getElementById('itemsContainer')
+    if (!container) return
+    
+    console.log('🎨 [MapEditor] Rendering items panel...')
+    
+    if (!this.availableItems || Object.keys(this.availableItems).length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #6c757d;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📦</div>
+                <div>Aucun item disponible</div>
+                <button onclick="adminPanel.mapEditor.loadAvailableItems()" style="margin-top: 10px; padding: 5px 10px;">
+                    Recharger
+                </button>
             </div>
         `
+        return
     }
+    
+    // ✅ CORRECTION: Grouper par catégorie avec gestion robuste
+    const itemsByCategory = {}
+    
+    Object.entries(this.availableItems).forEach(([itemId, item]) => {
+        // Déterminer la catégorie de manière robuste
+        let category = 'items' // défaut
+        
+        if (item.category) {
+            category = item.category
+        } else if (item.pocket) {
+            category = item.pocket
+        } else if (item.type) {
+            category = item.type
+        }
+        
+        if (!itemsByCategory[category]) {
+            itemsByCategory[category] = []
+        }
+        
+        // ✅ CORRECTION: Assurer que l'item a un ID
+        const itemWithId = {
+            ...item,
+            id: item.itemId || item.id || itemId,
+            displayName: this.getItemDisplayName(item)
+        }
+        
+        itemsByCategory[category].push(itemWithId)
+    })
+    
+    // ✅ AMÉLIORATION: Mapping des catégories pour de meilleurs noms
+    const categoryNames = {
+        'medicine': '💊 Médecine',
+        'pokeballs': '⚽ Pokéballs', 
+        'battle_items': '⚔️ Combat',
+        'key_items': '🗝️ Objets Clés',
+        'berries': '🍓 Baies',
+        'machines': '💽 CT/CS',
+        'evolution_items': '✨ Évolution',
+        'held_items': '👜 Objets Tenus',
+        'treasure': '💰 Trésors',
+        'balls': '⚽ Balls', // ancien format
+        'items': '📦 Divers'
+    }
+    
+    let html = `
+        <div style="margin-bottom: 15px;">
+            <h3 style="color: #2c3e50; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                📦 Items Disponibles
+                <span class="badge badge-info">${Object.keys(this.availableItems).length}</span>
+            </h3>
+            <input type="text" 
+                   placeholder="Rechercher un item..." 
+                   onkeyup="filterItems(this.value)"
+                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+        </div>
+    `
+    
+    // Rendre chaque catégorie
+    Object.entries(itemsByCategory).forEach(([category, items]) => {
+        const categoryName = categoryNames[category] || `📦 ${category}`
+        
+        html += `
+            <div class="item-category" style="margin-bottom: 15px;">
+                <h4 style="color: #34495e; margin-bottom: 8px; font-size: 0.9rem; display: flex; align-items: center; justify-content: space-between;">
+                    ${categoryName}
+                    <span class="badge badge-secondary">${items.length}</span>
+                </h4>
+                <div class="items-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px;">
+        `
+        
+        items.forEach(item => {
+            const isSelected = this.selectedItemId === item.id
+            const price = item.price ? `${item.price}₽` : 'Gratuit'
+            
+            html += `
+                <div class="item-card ${isSelected ? 'selected' : ''}" 
+                     onclick="selectItem('${item.id}')"
+                     style="
+                        padding: 8px; 
+                        border: 2px solid ${isSelected ? '#007bff' : '#dee2e6'}; 
+                        border-radius: 6px; 
+                        cursor: pointer; 
+                        text-align: center;
+                        background: ${isSelected ? '#e3f2fd' : '#f8f9fa'};
+                        transition: all 0.2s ease;
+                     "
+                     onmouseover="this.style.borderColor='#007bff'"
+                     onmouseout="this.style.borderColor='${isSelected ? '#007bff' : '#dee2e6'}'">
+                    <div style="font-size: 1.2rem; margin-bottom: 4px;">📦</div>
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #2c3e50; margin-bottom: 2px;">
+                        ${item.displayName}
+                    </div>
+                    <div style="font-size: 0.7rem; color: #6c757d;">
+                        ${price}
+                    </div>
+                </div>
+            `
+        })
+        
+        html += `
+                </div>
+            </div>
+        `
+    })
+    
+    container.innerHTML = html
+    console.log(`✅ [MapEditor] Items panel rendered with ${Object.keys(this.availableItems).length} items`)
+}
 
     selectItem(itemId) {
         this.selectedItem = this.availableItems[itemId]
