@@ -1036,9 +1036,39 @@ this.onMessage("questDelivery", async (client, data) => {
   }
 
   try {
-    // Validation des données requises
-    if (!data.npcId || !data.questId || !data.objectiveId || !data.itemId || !data.requiredAmount) {
+    // Adapter le format du client au format attendu par le serveur
+    let itemId: string;
+    let requiredAmount: number;
+    let objectiveId: string = '';
+    
+    // Gérer le format avec items[] array
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      const firstItem = data.items[0];
+      itemId = firstItem.itemId;
+      requiredAmount = firstItem.required || firstItem.requiredAmount || 1;
+    } 
+    // Gérer le format direct (si on change le client plus tard)
+    else if (data.itemId && data.requiredAmount) {
+      itemId = data.itemId;
+      requiredAmount = data.requiredAmount;
+      objectiveId = data.objectiveId || '';
+    }
+    else {
       console.error(`❌ [WorldRoom] Données manquantes pour questDelivery:`, data);
+      client.send("questDeliveryResult", {
+        success: false,
+        message: "Données de livraison incomplètes"
+      });
+      return;
+    }
+    
+    // Validation finale
+    if (!data.npcId || !data.questId || !itemId) {
+      console.error(`❌ [WorldRoom] Données essentielles manquantes:`, {
+        npcId: data.npcId,
+        questId: data.questId,
+        itemId: itemId
+      });
       client.send("questDeliveryResult", {
         success: false,
         message: "Données de livraison incomplètes"
@@ -1050,18 +1080,48 @@ this.onMessage("questDelivery", async (client, data) => {
       player: player.name,
       npcId: data.npcId,
       questId: data.questId,
-      itemId: data.itemId,
-      amount: data.requiredAmount
+      itemId: itemId,
+      amount: requiredAmount
     });
+
+    // Pour trouver l'objectiveId, on doit chercher dans la quête
+    const questManager = this.zoneManager.getQuestManager();
+    const activeQuests = await questManager.getActiveQuests(player.name);
+    const quest = activeQuests.find(q => q.id === data.questId);
+    
+    if (quest) {
+      const questDef = questManager.getQuestDefinition(data.questId);
+      if (questDef && quest.currentStepIndex !== undefined) {
+        const currentStep = questDef.steps[quest.currentStepIndex];
+        if (currentStep && currentStep.objectives) {
+          // Trouver l'objectif de livraison correspondant
+          const deliveryObjective = currentStep.objectives.find(obj => 
+            obj.type === 'deliver' && 
+            obj.itemId === itemId &&
+            (obj.target === data.npcId || obj.target === data.npcId.toString())
+          );
+          
+          if (deliveryObjective) {
+            objectiveId = deliveryObjective.id;
+          }
+        }
+      }
+    }
+    
+    // Si on n'a pas trouvé l'objectiveId, utiliser un ID générique
+    if (!objectiveId) {
+      console.warn(`⚠️ [WorldRoom] ObjectiveId non trouvé, utilisation d'un ID générique`);
+      objectiveId = `deliver_${itemId}_to_${data.npcId}`;
+    }
 
     // Utiliser le npcInteractionModule pour traiter la livraison
     const result = await this.npcInteractionModule.handleQuestDelivery(
       player,
-      data.npcId,
+      parseInt(data.npcId) || data.npcId, // Convertir en nombre si possible
       data.questId,
-      data.objectiveId,
-      data.itemId,
-      data.requiredAmount
+      objectiveId,
+      itemId,
+      requiredAmount
     );
 
     console.log(`📦 [WorldRoom] Résultat livraison:`, result);
@@ -1190,6 +1250,8 @@ this.onMessage("debugQuestDeliveries", async (client) => {
     console.error(`❌ [DEBUG] Erreur:`, error);
   }
 });
+
+    
     
     this.onMessage("getShopCatalog", async (client, data) => {
       const player = this.state.players.get(client.sessionId);
