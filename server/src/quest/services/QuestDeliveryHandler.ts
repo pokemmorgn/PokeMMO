@@ -1,14 +1,27 @@
 // server/src/quest/services/QuestDeliveryHandler.ts
 // Service pour traiter les livraisons de quêtes confirmées par le joueur
+// ✅ VERSION AMÉLIORÉE : Intégration complète avec le système existant
 
 import { InventoryManager } from "../../managers/InventoryManager";
 
 // ===== TYPES POUR LE HANDLER =====
 
 /**
- * 🚚 Requête de livraison du client
+ * 🚚 Requête de livraison du client - VERSION SIMPLIFIÉE
  */
 export interface DeliveryRequest {
+  playerId: string;
+  npcId: string;
+  questId: string;
+  objectiveId: string;
+  itemId: string;
+  requiredAmount: number;
+}
+
+/**
+ * 🚚 Requête de livraison multiple
+ */
+export interface MultiDeliveryRequest {
   playerId: string;
   npcId: string;
   deliveries: Array<{
@@ -20,63 +33,56 @@ export interface DeliveryRequest {
 }
 
 /**
- * 🚚 Résultat du traitement de livraison
+ * 🚚 Résultat du traitement de livraison - VERSION SIMPLIFIÉE
  */
 export interface DeliveryProcessingResult {
   success: boolean;
-  processedDeliveries: DeliveryItemResult[];
-  failedDeliveries: DeliveryFailure[];
-  questProgressions: QuestProgressionResult[];
-  
-  // Statistiques
-  totalItemsDelivered: number;
-  totalQuestsProgressed: number;
-  
-  // Messages
   message: string;
-  detailedMessages: string[];
+  questId: string;
+  objectiveId: string;
+  itemId: string;
   
-  // Timing
+  // Détail de ce qui s'est passé
+  itemsRemoved: boolean;
+  amountRemoved: number;
+  questProgressed: boolean;
+  
+  // Progression de quête résultante
+  objectiveCompleted?: boolean;
+  stepCompleted?: boolean;
+  questCompleted?: boolean;
+  progressMessage?: string;
+  
+  // En cas d'erreur
+  error?: string;
+  errorCode?: 'INSUFFICIENT_ITEMS' | 'QUEST_ERROR' | 'VALIDATION_FAILED' | 'SYSTEM_ERROR';
+  
+  // Timing pour debug
   processingTime: number;
 }
 
 /**
- * 🚚 Résultat de livraison d'un item
+ * 🚚 Résultat de livraison multiple
  */
-export interface DeliveryItemResult {
-  questId: string;
-  objectiveId: string;
-  itemId: string;
-  itemName: string;
-  deliveredAmount: number;
-  requiredAmount: number;
-  inventoryRemoved: boolean;
-  questProgressed: boolean;
-}
-
-/**
- * 🚚 Échec de livraison
- */
-export interface DeliveryFailure {
-  questId: string;
-  objectiveId: string;
-  itemId: string;
-  reason: 'insufficient_items' | 'inventory_error' | 'quest_error' | 'validation_failed';
-  playerHas: number;
-  required: number;
-  error?: string;
-}
-
-/**
- * 🚚 Résultat de progression de quête
- */
-export interface QuestProgressionResult {
-  questId: string;
-  questName: string;
-  objectiveCompleted: boolean;
-  stepCompleted: boolean;
-  questCompleted: boolean;
-  progressMessage: string;
+export interface MultiDeliveryProcessingResult {
+  success: boolean;
+  message: string;
+  totalDeliveries: number;
+  successfulDeliveries: number;
+  failedDeliveries: number;
+  
+  // Résultats individuels
+  results: DeliveryProcessingResult[];
+  
+  // États globaux
+  anyQuestProgressed: boolean;
+  anyQuestCompleted: boolean;
+  
+  // Messages détaillés
+  detailedMessages: string[];
+  
+  // Timing
+  processingTime: number;
 }
 
 /**
@@ -86,14 +92,16 @@ export interface QuestDeliveryHandlerConfig {
   enableLogging: boolean;
   strictValidation: boolean;
   maxProcessingTime: number;
-  enableRollback: boolean; // En cas d'erreur partielle
+  enableRollback: boolean;
   validateInventoryBeforeProcessing: boolean;
+  enableProgressNotifications: boolean;
 }
 
-// ===== CLASSE PRINCIPALE =====
+// ===== CLASSE PRINCIPALE AMÉLIORÉE =====
 
 /**
  * 🚚 Handler pour traiter les livraisons de quête
+ * ✅ VERSION AMÉLIORÉE : Intégration complète avec QuestManager et InventoryManager
  */
 export class QuestDeliveryHandler {
   private config: QuestDeliveryHandlerConfig;
@@ -105,6 +113,7 @@ export class QuestDeliveryHandler {
       maxProcessingTime: 10000, // 10 secondes max
       enableRollback: true,
       validateInventoryBeforeProcessing: true,
+      enableProgressNotifications: true,
       ...config
     };
 
@@ -113,294 +122,264 @@ export class QuestDeliveryHandler {
     }
   }
 
-  // ===== MÉTHODE PRINCIPALE =====
+  // ===== MÉTHODE PRINCIPALE SIMPLIFIÉE =====
 
   /**
-   * 🚚 Traite une requête de livraison complète
+   * 🚚 Traite une livraison unique (méthode principale simplifiée)
    */
-  async processDeliveryRequest(
-    request: DeliveryRequest,
-    questManager: any // Interface du QuestManager
+  async handleQuestDelivery(
+    playerId: string,
+    npcId: string,
+    questId: string,
+    objectiveId: string,
+    itemId: string,
+    requiredAmount: number,
+    questManager: any
   ): Promise<DeliveryProcessingResult> {
     
     const startTime = Date.now();
     
-    this.log('info', `🚚 === TRAITEMENT LIVRAISON ===`);
-    this.log('info', `👤 Joueur: ${request.playerId}, NPC: ${request.npcId}`);
-    this.log('info', `📦 ${request.deliveries.length} livraison(s) à traiter`);
+    this.log('info', `🚚 === TRAITEMENT LIVRAISON UNIQUE ===`);
+    this.log('info', `👤 Joueur: ${playerId}, NPC: ${npcId}`);
+    this.log('info', `📦 Livraison: ${itemId} x${requiredAmount} pour quête ${questId}`);
 
     const result: DeliveryProcessingResult = {
-      success: true,
-      processedDeliveries: [],
-      failedDeliveries: [],
-      questProgressions: [],
-      totalItemsDelivered: 0,
-      totalQuestsProgressed: 0,
+      success: false,
       message: '',
-      detailedMessages: [],
+      questId,
+      objectiveId,
+      itemId,
+      itemsRemoved: false,
+      amountRemoved: 0,
+      questProgressed: false,
       processingTime: 0
     };
 
     try {
-      // ✅ PHASE 1 : Validation préliminaire
-      if (this.config.validateInventoryBeforeProcessing) {
-        const validationResult = await this.validateInventoryForDeliveries(request);
-        if (!validationResult.valid) {
-          return this.createFailureResult(
-            validationResult.reason || 'Validation échouée',
-            startTime
-          );
-        }
+      // ✅ ÉTAPE 1 : Validation préalable
+      const validation = await this.validateSingleDelivery(playerId, itemId, requiredAmount);
+      if (!validation.valid) {
+        result.error = validation.reason;
+        result.errorCode = validation.errorCode;
+        result.message = validation.reason || 'Validation échouée';
+        result.processingTime = Date.now() - startTime;
+        return result;
       }
 
-      // ✅ PHASE 2 : Traiter chaque livraison
-      const rollbackActions: Array<() => Promise<void>> = [];
-
-      for (const delivery of request.deliveries) {
-        try {
-          const deliveryResult = await this.processSingleDelivery(
-            request.playerId,
-            delivery,
-            questManager
-          );
-
-          if (deliveryResult.success) {
-            result.processedDeliveries.push(deliveryResult.itemResult!);
-            result.totalItemsDelivered += deliveryResult.itemResult!.deliveredAmount;
-
-            // Ajouter action de rollback si activé
-            if (this.config.enableRollback) {
-              rollbackActions.push(async () => {
-                await this.rollbackDelivery(request.playerId, deliveryResult.itemResult!);
-              });
-            }
-
-            // Progression de quête
-            if (deliveryResult.questProgression) {
-              result.questProgressions.push(deliveryResult.questProgression);
-              if (deliveryResult.questProgression.objectiveCompleted || 
-                  deliveryResult.questProgression.stepCompleted ||
-                  deliveryResult.questProgression.questCompleted) {
-                result.totalQuestsProgressed++;
-              }
-            }
-
-          } else {
-            result.failedDeliveries.push(deliveryResult.failure!);
-            
-            if (this.config.strictValidation) {
-              // En mode strict, annuler toutes les livraisons précédentes
-              if (this.config.enableRollback) {
-                this.log('warn', `❌ Échec strict, rollback de ${rollbackActions.length} action(s)`);
-                for (const rollback of rollbackActions.reverse()) {
-                  try {
-                    await rollback();
-                  } catch (rollbackError) {
-                    this.log('error', `❌ Erreur rollback:`, rollbackError);
-                  }
-                }
-              }
-              
-              return this.createFailureResult(
-                `Livraison échouée: ${deliveryResult.failure!.reason}`,
-                startTime
-              );
-            }
-          }
-
-        } catch (deliveryError) {
-          this.log('error', `❌ Erreur traitement livraison:`, deliveryError);
-          
-          result.failedDeliveries.push({
-            questId: delivery.questId,
-            objectiveId: delivery.objectiveId,
-            itemId: delivery.itemId,
-            reason: 'quest_error',
-            playerHas: 0,
-            required: delivery.requiredAmount,
-            error: deliveryError instanceof Error ? deliveryError.message : 'Erreur inconnue'
-          });
-        }
-      }
-
-      // ✅ PHASE 3 : Finaliser le résultat
-      result.success = result.processedDeliveries.length > 0;
+      // ✅ ÉTAPE 2 : Supprimer les items de l'inventaire
+      this.log('info', `📦 Suppression de ${itemId} x${requiredAmount} de l'inventaire`);
       
-      if (result.success) {
-        result.message = this.buildSuccessMessage(result);
-        result.detailedMessages = this.buildDetailedMessages(result);
-      } else {
-        result.message = 'Aucune livraison n\'a pu être effectuée';
+      const itemRemoved = await InventoryManager.removeItem(playerId, itemId, requiredAmount);
+      
+      if (!itemRemoved) {
+        result.error = 'Impossible de supprimer les items de l\'inventaire';
+        result.errorCode = 'SYSTEM_ERROR';
+        result.message = 'Erreur lors de la suppression des items';
+        result.processingTime = Date.now() - startTime;
+        return result;
+      }
+
+      result.itemsRemoved = true;
+      result.amountRemoved = requiredAmount;
+      this.log('info', `✅ Items supprimés avec succès: ${itemId} x${requiredAmount}`);
+
+      // ✅ ÉTAPE 3 : Progresser la quête
+      this.log('info', `🎯 Progression de la quête ${questId} pour livraison`);
+      
+      try {
+        // Utiliser la méthode asPlayerQuestWith du QuestManager
+        await questManager.asPlayerQuestWith(playerId, 'deliver', itemId);
+        
+        result.questProgressed = true;
+        result.success = true;
+        result.message = `Livraison de ${itemId} effectuée avec succès !`;
+        
+        this.log('info', `✅ Quête progressée avec succès`);
+
+        // ✅ ÉTAPE 4 : Vérifier l'état de la progression (optionnel)
+        try {
+          const questStatus = await questManager.getQuestStatus(playerId, questId);
+          if (questStatus === 'readyToComplete') {
+            result.questCompleted = true;
+            result.progressMessage = 'Quête prête à être terminée !';
+          } else if (questStatus === 'completed') {
+            result.questCompleted = true;
+            result.progressMessage = 'Quête terminée automatiquement !';
+          } else {
+            result.progressMessage = 'Quête mise à jour';
+          }
+        } catch (statusError) {
+          // Ne pas faire échouer la livraison pour ça
+          this.log('warn', `⚠️ Impossible de vérifier le statut de la quête:`, statusError);
+          result.progressMessage = 'Livraison effectuée';
+        }
+
+      } catch (questError) {
+        this.log('error', `❌ Erreur progression quête:`, questError);
+        
+        // ✅ ROLLBACK : Rendre les items si la progression échoue
+        if (this.config.enableRollback) {
+          try {
+            await InventoryManager.addItem(playerId, itemId, requiredAmount);
+            this.log('info', `🔄 Rollback effectué: items rendus`);
+            result.itemsRemoved = false;
+            result.amountRemoved = 0;
+          } catch (rollbackError) {
+            this.log('error', `❌ Erreur rollback:`, rollbackError);
+          }
+        }
+        
+        result.error = questError instanceof Error ? questError.message : 'Erreur progression quête';
+        result.errorCode = 'QUEST_ERROR';
+        result.message = 'Erreur lors de la progression de la quête';
+        result.success = false;
       }
 
       result.processingTime = Date.now() - startTime;
       
-      this.log('info', `✅ Traitement terminé: ${result.processedDeliveries.length}/${request.deliveries.length} livraisons réussies (${result.processingTime}ms)`);
+      this.log('info', `✅ Traitement terminé: ${result.success ? 'SUCCÈS' : 'ÉCHEC'} (${result.processingTime}ms)`);
 
       return result;
 
     } catch (error) {
       this.log('error', `❌ Erreur globale traitement livraison:`, error);
-      return this.createFailureResult(
-        'Erreur système lors du traitement',
-        startTime
-      );
+      
+      result.error = error instanceof Error ? error.message : 'Erreur système';
+      result.errorCode = 'SYSTEM_ERROR';
+      result.message = 'Erreur système lors du traitement';
+      result.success = false;
+      result.processingTime = Date.now() - startTime;
+      
+      return result;
+    }
+  }
+
+  /**
+   * 🚚 Traite des livraisons multiples (pour plusieurs objectifs à la fois)
+   */
+  async handleMultipleDeliveries(
+    request: MultiDeliveryRequest,
+    questManager: any
+  ): Promise<MultiDeliveryProcessingResult> {
+    
+    const startTime = Date.now();
+    
+    this.log('info', `🚚 === TRAITEMENT LIVRAISONS MULTIPLES ===`);
+    this.log('info', `👤 Joueur: ${request.playerId}, NPC: ${request.npcId}`);
+    this.log('info', `📦 ${request.deliveries.length} livraison(s) à traiter`);
+
+    const result: MultiDeliveryProcessingResult = {
+      success: true,
+      message: '',
+      totalDeliveries: request.deliveries.length,
+      successfulDeliveries: 0,
+      failedDeliveries: 0,
+      results: [],
+      anyQuestProgressed: false,
+      anyQuestCompleted: false,
+      detailedMessages: [],
+      processingTime: 0
+    };
+
+    try {
+      // Traiter chaque livraison individuellement
+      for (const delivery of request.deliveries) {
+        const deliveryResult = await this.handleQuestDelivery(
+          request.playerId,
+          request.npcId,
+          delivery.questId,
+          delivery.objectiveId,
+          delivery.itemId,
+          delivery.requiredAmount,
+          questManager
+        );
+
+        result.results.push(deliveryResult);
+
+        if (deliveryResult.success) {
+          result.successfulDeliveries++;
+          result.detailedMessages.push(`✅ ${delivery.itemId} x${delivery.requiredAmount} livré`);
+          
+          if (deliveryResult.questProgressed) {
+            result.anyQuestProgressed = true;
+          }
+          
+          if (deliveryResult.questCompleted) {
+            result.anyQuestCompleted = true;
+            result.detailedMessages.push(`🏆 Quête ${delivery.questId} terminée !`);
+          }
+        } else {
+          result.failedDeliveries++;
+          result.detailedMessages.push(`❌ ${delivery.itemId}: ${deliveryResult.error}`);
+          
+          if (this.config.strictValidation) {
+            result.success = false;
+            result.message = `Livraison échouée: ${deliveryResult.error}`;
+            break; // Arrêter en mode strict
+          }
+        }
+      }
+
+      // Construire le message final
+      if (result.success) {
+        if (result.successfulDeliveries === result.totalDeliveries) {
+          result.message = `Toutes les livraisons effectuées avec succès !`;
+        } else {
+          result.message = `${result.successfulDeliveries}/${result.totalDeliveries} livraisons réussies`;
+        }
+      }
+
+      result.processingTime = Date.now() - startTime;
+      
+      this.log('info', `✅ Traitement multiple terminé: ${result.successfulDeliveries}/${result.totalDeliveries} réussies (${result.processingTime}ms)`);
+
+      return result;
+
+    } catch (error) {
+      this.log('error', `❌ Erreur traitement livraisons multiples:`, error);
+      
+      result.success = false;
+      result.message = 'Erreur système lors du traitement multiple';
+      result.processingTime = Date.now() - startTime;
+      
+      return result;
     }
   }
 
   // ===== MÉTHODES PRIVÉES =====
 
   /**
-   * 🚚 Traite une livraison individuelle
+   * 🚚 Valide une livraison unique
    */
-  private async processSingleDelivery(
+  private async validateSingleDelivery(
     playerId: string,
-    delivery: DeliveryRequest['deliveries'][0],
-    questManager: any
+    itemId: string,
+    requiredAmount: number
   ): Promise<{
-    success: boolean;
-    itemResult?: DeliveryItemResult;
-    questProgression?: QuestProgressionResult;
-    failure?: DeliveryFailure;
-  }> {
-
-    this.log('debug', `📦 Traitement livraison: ${delivery.itemId} (${delivery.requiredAmount}) pour quête ${delivery.questId}`);
-
-    try {
-      // ✅ ÉTAPE 1 : Vérifier inventaire
-      const playerHas = await InventoryManager.getItemCount(playerId, delivery.itemId);
-      
-      if (playerHas < delivery.requiredAmount) {
-        this.log('warn', `❌ Inventaire insuffisant: ${playerHas}/${delivery.requiredAmount} pour ${delivery.itemId}`);
-        
-        return {
-          success: false,
-          failure: {
-            questId: delivery.questId,
-            objectiveId: delivery.objectiveId,
-            itemId: delivery.itemId,
-            reason: 'insufficient_items',
-            playerHas,
-            required: delivery.requiredAmount
-          }
-        };
-      }
-
-      // ✅ ÉTAPE 2 : Retirer les items de l'inventaire
-      const itemRemoved = await InventoryManager.removeItem(playerId, delivery.itemId, delivery.requiredAmount);
-      
-      if (!itemRemoved) {
-        this.log('error', `❌ Impossible de retirer ${delivery.itemId} de l'inventaire`);
-        
-        return {
-          success: false,
-          failure: {
-            questId: delivery.questId,
-            objectiveId: delivery.objectiveId,
-            itemId: delivery.itemId,
-            reason: 'inventory_error',
-            playerHas,
-            required: delivery.requiredAmount,
-            error: 'Échec suppression inventaire'
-          }
-        };
-      }
-
-      this.log('info', `✅ Items retirés: ${delivery.itemId} x${delivery.requiredAmount}`);
-
-      // ✅ ÉTAPE 3 : Progresser la quête
-      let questProgression: QuestProgressionResult = {
-        questId: delivery.questId,
-        questName: delivery.questId, // Sera mis à jour si possible
-        objectiveCompleted: false,
-        stepCompleted: false,
-        questCompleted: false,
-        progressMessage: 'Livraison effectuée'
-      };
-
-      try {
-        // Déclencher la progression via le QuestManager
-        const progressResults = await questManager.updateQuestProgress(playerId, {
-          type: 'deliver',
-          targetId: delivery.itemId,
-          npcId: parseInt(delivery.objectiveId.split('_')[1] || '0'), // Extraire NPC ID si possible
-          amount: delivery.requiredAmount
-        });
-
-        // Analyser les résultats de progression
-        if (progressResults && progressResults.length > 0) {
-          const questResult = progressResults.find((r: any) => r.questId === delivery.questId);
-          if (questResult) {
-            questProgression.questName = questResult.questName || delivery.questId;
-            questProgression.objectiveCompleted = questResult.objectiveCompleted || false;
-            questProgression.stepCompleted = questResult.stepCompleted || false;
-            questProgression.questCompleted = questResult.questCompleted || false;
-            questProgression.progressMessage = questResult.message || 'Livraison effectuée';
-          }
-        }
-
-      } catch (questError) {
-        this.log('warn', `⚠️ Erreur progression quête:`, questError);
-        // Continue même si la progression échoue - les items sont déjà retirés
-      }
-
-      // ✅ ÉTAPE 4 : Construire le résultat
-      const itemData = await InventoryManager.getItemDataHybrid(delivery.itemId);
-      const itemName = itemData?.data?.name || delivery.itemId;
-
-      const itemResult: DeliveryItemResult = {
-        questId: delivery.questId,
-        objectiveId: delivery.objectiveId,
-        itemId: delivery.itemId,
-        itemName,
-        deliveredAmount: delivery.requiredAmount,
-        requiredAmount: delivery.requiredAmount,
-        inventoryRemoved: true,
-        questProgressed: questProgression.objectiveCompleted || questProgression.stepCompleted
-      };
-
-      this.log('info', `✅ Livraison réussie: ${itemName} x${delivery.requiredAmount}`);
-
-      return {
-        success: true,
-        itemResult,
-        questProgression
-      };
-
-    } catch (error) {
-      this.log('error', `❌ Erreur traitement livraison individuelle:`, error);
-      
-      return {
-        success: false,
-        failure: {
-          questId: delivery.questId,
-          objectiveId: delivery.objectiveId,
-          itemId: delivery.itemId,
-          reason: 'quest_error',
-          playerHas: 0,
-          required: delivery.requiredAmount,
-          error: error instanceof Error ? error.message : 'Erreur inconnue'
-        }
-      };
-    }
-  }
-
-  /**
-   * 🚚 Valide l'inventaire avant traitement
-   */
-  private async validateInventoryForDeliveries(request: DeliveryRequest): Promise<{
     valid: boolean;
     reason?: string;
+    errorCode?: DeliveryProcessingResult['errorCode'];
   }> {
     
     try {
-      for (const delivery of request.deliveries) {
-        const playerHas = await InventoryManager.getItemCount(request.playerId, delivery.itemId);
+      // Vérifier que les paramètres sont valides
+      if (!playerId || !itemId || requiredAmount <= 0) {
+        return {
+          valid: false,
+          reason: 'Paramètres invalides',
+          errorCode: 'VALIDATION_FAILED'
+        };
+      }
+
+      // Vérifier l'inventaire du joueur
+      if (this.config.validateInventoryBeforeProcessing) {
+        const playerHas = await InventoryManager.getItemCount(playerId, itemId);
         
-        if (playerHas < delivery.requiredAmount) {
+        if (playerHas < requiredAmount) {
           return {
             valid: false,
-            reason: `Inventaire insuffisant: ${delivery.itemId} (${playerHas}/${delivery.requiredAmount})`
+            reason: `Inventaire insuffisant: ${playerHas}/${requiredAmount} ${itemId}`,
+            errorCode: 'INSUFFICIENT_ITEMS'
           };
         }
       }
@@ -410,78 +389,10 @@ export class QuestDeliveryHandler {
     } catch (error) {
       return {
         valid: false,
-        reason: 'Erreur validation inventaire'
+        reason: 'Erreur lors de la validation',
+        errorCode: 'SYSTEM_ERROR'
       };
     }
-  }
-
-  /**
-   * 🚚 Rollback d'une livraison (rendre les items)
-   */
-  private async rollbackDelivery(playerId: string, itemResult: DeliveryItemResult): Promise<void> {
-    try {
-      await InventoryManager.addItem(playerId, itemResult.itemId, itemResult.deliveredAmount);
-      this.log('info', `🔄 Rollback effectué: ${itemResult.itemName} x${itemResult.deliveredAmount} rendu à ${playerId}`);
-    } catch (error) {
-      this.log('error', `❌ Erreur rollback:`, error);
-    }
-  }
-
-  /**
-   * 🚚 Construit le message de succès
-   */
-  private buildSuccessMessage(result: DeliveryProcessingResult): string {
-    const deliveredCount = result.processedDeliveries.length;
-    const progressedCount = result.totalQuestsProgressed;
-
-    if (deliveredCount === 1) {
-      const delivery = result.processedDeliveries[0];
-      return `Vous avez livré ${delivery.itemName} avec succès !`;
-    } else {
-      return `Vous avez livré ${deliveredCount} objet(s) avec succès !`;
-    }
-  }
-
-  /**
-   * 🚚 Construit les messages détaillés
-   */
-  private buildDetailedMessages(result: DeliveryProcessingResult): string[] {
-    const messages: string[] = [];
-
-    for (const delivery of result.processedDeliveries) {
-      messages.push(`✅ ${delivery.itemName} x${delivery.deliveredAmount} livré`);
-    }
-
-    for (const progression of result.questProgressions) {
-      if (progression.objectiveCompleted) {
-        messages.push(`🎯 Objectif complété dans "${progression.questName}"`);
-      }
-      if (progression.stepCompleted) {
-        messages.push(`📋 Étape terminée dans "${progression.questName}"`);
-      }
-      if (progression.questCompleted) {
-        messages.push(`🏆 Quête "${progression.questName}" terminée !`);
-      }
-    }
-
-    return messages;
-  }
-
-  /**
-   * 🚚 Crée un résultat d'échec
-   */
-  private createFailureResult(message: string, startTime: number): DeliveryProcessingResult {
-    return {
-      success: false,
-      processedDeliveries: [],
-      failedDeliveries: [],
-      questProgressions: [],
-      totalItemsDelivered: 0,
-      totalQuestsProgressed: 0,
-      message,
-      detailedMessages: [message],
-      processingTime: Date.now() - startTime
-    };
   }
 
   /**
@@ -517,12 +428,21 @@ export class QuestDeliveryHandler {
   public getDebugInfo(): any {
     return {
       config: this.config,
-      version: '1.0.0',
+      version: '2.0.0', // ✅ Version améliorée
       features: {
+        singleDelivery: true,
+        multipleDelivery: true,
         strictValidation: this.config.strictValidation,
         rollback: this.config.enableRollback,
-        inventoryValidation: this.config.validateInventoryBeforeProcessing
-      }
+        inventoryValidation: this.config.validateInventoryBeforeProcessing,
+        progressNotifications: this.config.enableProgressNotifications
+      },
+      supportedErrorCodes: [
+        'INSUFFICIENT_ITEMS',
+        'QUEST_ERROR', 
+        'VALIDATION_FAILED',
+        'SYSTEM_ERROR'
+      ]
     };
   }
 
@@ -532,6 +452,76 @@ export class QuestDeliveryHandler {
   public updateConfig(newConfig: Partial<QuestDeliveryHandlerConfig>): void {
     this.config = { ...this.config, ...newConfig };
     this.log('info', '⚙️ Configuration mise à jour');
+  }
+
+  /**
+   * 🚚 Nettoie le service
+   */
+  public cleanup(): void {
+    this.log('info', '🧹 Service nettoyé');
+  }
+
+  // ===== MÉTHODES UTILITAIRES PUBLIQUES =====
+
+  /**
+   * 🚚 Crée une requête de livraison simple
+   */
+  public static createDeliveryRequest(
+    playerId: string,
+    npcId: string,
+    questId: string,
+    objectiveId: string,
+    itemId: string,
+    requiredAmount: number
+  ): DeliveryRequest {
+    return {
+      playerId,
+      npcId,
+      questId,
+      objectiveId,
+      itemId,
+      requiredAmount
+    };
+  }
+
+  /**
+   * 🚚 Crée une requête de livraisons multiples
+   */
+  public static createMultiDeliveryRequest(
+    playerId: string,
+    npcId: string,
+    deliveries: Array<{
+      questId: string;
+      objectiveId: string;
+      itemId: string;
+      requiredAmount: number;
+    }>
+  ): MultiDeliveryRequest {
+    return {
+      playerId,
+      npcId,
+      deliveries
+    };
+  }
+
+  /**
+   * 🚚 Vérifie si un résultat est un succès
+   */
+  public static isSuccess(result: DeliveryProcessingResult | MultiDeliveryProcessingResult): boolean {
+    return result.success;
+  }
+
+  /**
+   * 🚚 Extrait le message d'erreur principal
+   */
+  public static getErrorMessage(result: DeliveryProcessingResult | MultiDeliveryProcessingResult): string {
+    if (result.success) return '';
+    
+    if ('error' in result && result.error) {
+      return result.error;
+    }
+    
+    return result.message || 'Erreur inconnue';
   }
 }
 
