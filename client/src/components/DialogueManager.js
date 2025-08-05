@@ -3,7 +3,8 @@
 // ✅ FIX CRITIQUE : Intercepteur quête ne bloque plus les autres boutons
 // ✅ Gestion dialogue classique + actions contextuelles TOUTES FONCTIONNELLES
 // ✅ Intégration avec ShopSystem, QuestSystem, etc.
-// ✅ NOUVEAU : Stockage données pour QuestDetailsUI
+// ✅ NOUVEAU : Stockage données pour QuestDetailsUI et autres systèmes
+// 🎁 NOUVEAU : Support QuestDeliveryOverlay
 
 import { DialogueUI } from './DialogueUI.js';
 import { QuestDeliveryOverlay } from '../Quest/QuestDeliveryOverlay.js';
@@ -26,8 +27,14 @@ export class DialogueManager {
     this.shopSystem = null;
     this.questSystem = null;
     this.inventorySystem = null;
+    
+    // ✅ NOUVEAU : Système de livraison de quêtes
     this.questDeliveryOverlay = null;
-    console.log('🎭 DialogueManager créé (version corrigée - shop fonctionnel)');
+    
+    // Callback pour livraison complétée (peut être surchargé)
+    this.onQuestDeliveryComplete = null;
+    
+    console.log('🎭 DialogueManager créé (version corrigée - shop fonctionnel + quest delivery)');
     this.init();
   }
 
@@ -49,14 +56,80 @@ export class DialogueManager {
       
       // Remplacer les fonctions globales existantes
       this.replaceGlobalFunctions();
-
+      
+      // ✅ NOUVEAU : Initialiser QuestDeliveryOverlay
       await this.initializeQuestDeliveryOverlay();
       
       this.isInitialized = true;
-      console.log('✅ DialogueManager initialisé (version corrigée)');
+      console.log('✅ DialogueManager initialisé avec QuestDeliveryOverlay');
       
     } catch (error) {
       console.error('❌ Erreur initialisation DialogueManager:', error);
+    }
+  }
+
+  async initializeQuestDeliveryOverlay() {
+    try {
+      console.log('🎁 [DialogueManager] Initialisation QuestDeliveryOverlay...');
+      
+      // Récupérer références systèmes
+      const questSystem = this.questSystem || window.questSystem || window.questSystemGlobal;
+      const networkManager = window.globalNetworkManager || this.networkManager;
+      
+      if (!networkManager) {
+        console.warn('⚠️ [DialogueManager] NetworkManager non disponible pour QuestDeliveryOverlay');
+        return;
+      }
+      
+      // Créer instance
+      this.questDeliveryOverlay = new QuestDeliveryOverlay(questSystem, networkManager);
+      await this.questDeliveryOverlay.init();
+      
+      // Configurer callbacks
+      this.questDeliveryOverlay.onDeliveryConfirm = (deliveryData, npcId) => {
+        this.handleQuestDeliveryConfirm(deliveryData, npcId);
+      };
+      
+      this.questDeliveryOverlay.onClose = () => {
+        console.log('🎁 [DialogueManager] QuestDeliveryOverlay fermé');
+      };
+      
+      console.log('✅ [DialogueManager] QuestDeliveryOverlay initialisé');
+      
+    } catch (error) {
+      console.error('❌ [DialogueManager] Erreur init QuestDeliveryOverlay:', error);
+    }
+  }
+
+  handleQuestDeliveryConfirm(deliveryData, npcId) {
+    console.log('[DialogueManager] 🎯 Confirmation livraison:', deliveryData, npcId);
+    
+    try {
+      // Fermer le dialogue si ouvert
+      if (this.isOpen()) {
+        this.hide();
+      }
+      
+      // Notification de succès
+      if (typeof window.showGameNotification === 'function') {
+        const itemCount = deliveryData.items?.length || 0;
+        const message = `Livraison réussie ! ${itemCount} objet(s) remis.`;
+        
+        window.showGameNotification(message, 'success', {
+          duration: 3000,
+          position: 'top-center'
+        });
+      }
+      
+      // Callback personnalisé si défini
+      if (this.onQuestDeliveryComplete && typeof this.onQuestDeliveryComplete === 'function') {
+        this.onQuestDeliveryComplete(deliveryData, npcId);
+      }
+      
+      console.log('[DialogueManager] ✅ Livraison confirmée');
+      
+    } catch (error) {
+      console.error('[DialogueManager] ❌ Erreur confirmation livraison:', error);
     }
   }
 
@@ -152,71 +225,6 @@ export class DialogueManager {
     console.log('🔄 Fonctions globales remplacées');
   }
 
-    async initializeQuestDeliveryOverlay() {
-    try {
-      console.log('🎁 [DialogueManager] Initialisation QuestDeliveryOverlay...');
-      
-      // Récupérer références systèmes
-      const questSystem = this.questSystem || window.questSystem || window.questSystemGlobal;
-      const networkManager = window.globalNetworkManager || this.networkManager;
-      
-      if (!networkManager) {
-        console.warn('⚠️ [DialogueManager] NetworkManager non disponible pour QuestDeliveryOverlay');
-        return;
-      }
-      
-      // Créer instance
-      this.questDeliveryOverlay = new QuestDeliveryOverlay(questSystem, networkManager);
-      await this.questDeliveryOverlay.init();
-      
-      // Configurer callbacks
-      this.questDeliveryOverlay.onDeliveryConfirm = (deliveryData, npcId) => {
-        this.handleQuestDeliveryConfirm(deliveryData, npcId);
-      };
-      
-      this.questDeliveryOverlay.onClose = () => {
-        console.log('🎁 [DialogueManager] QuestDeliveryOverlay fermé');
-      };
-      
-      console.log('✅ [DialogueManager] QuestDeliveryOverlay initialisé');
-      
-    } catch (error) {
-      console.error('❌ [DialogueManager] Erreur init QuestDeliveryOverlay:', error);
-    }
-  }
-
-  handleQuestDeliveryConfirm(deliveryData, npcId) {
-  console.log('[DialogueManager] 🎯 Confirmation livraison:', deliveryData, npcId);
-  
-  try {
-    // Fermer le dialogue si ouvert
-    if (this.isOpen()) {
-      this.hide();
-    }
-    
-    // Notification de succès
-    if (typeof window.showGameNotification === 'function') {
-      const itemCount = deliveryData.items?.length || 0;
-      const message = `Livraison réussie ! ${itemCount} objet(s) remis.`;
-      
-      window.showGameNotification(message, 'success', {
-        duration: 3000,
-        position: 'top-center'
-      });
-    }
-    
-    // Callback personnalisé si défini
-    if (this.onQuestDeliveryComplete && typeof this.onQuestDeliveryComplete === 'function') {
-      this.onQuestDeliveryComplete(deliveryData, npcId);
-    }
-    
-    console.log('[DialogueManager] ✅ Livraison confirmée');
-    
-  } catch (error) {
-    console.error('[DialogueManager] ❌ Erreur confirmation livraison:', error);
-  }
-}
-  
   // ===== AFFICHAGE DES DIALOGUES =====
 
   show(data) {
@@ -775,12 +783,84 @@ detectAvailableActions(data) {
     }
   }
 
+  // ===== GESTION RÉSULTATS RÉSEAU AVEC QUEST DELIVERY =====
+
+  handleNetworkInteractionResult(data) {
+    console.log('🎭 [DialogueManager] Résultat interaction NPC reçu:', data);
+    
+    // ✅ NOUVEAU : Détection livraison de quête
+    if (data.type === 'questDelivery' && data.deliveryData) {
+      console.log('[DialogueManager] 🎁 === LIVRAISON DE QUÊTE DÉTECTÉE ===');
+      return this.handleQuestDeliveryResult(data);
+    }
+    
+    if (data.success && (data.dialogue || data.unifiedInterface || data.lines || data.text)) {
+      this.show(data);
+    } else if (!data.success) {
+      console.warn('⚠️ Interaction NPC échouée:', data.message);
+    }
+  }
+
+  handleQuestDeliveryResult(data) {
+    console.log('[DialogueManager] 🎁 === HANDLER LIVRAISON QUÊTE ===');
+    console.log('[DialogueManager] Données de livraison:', data.deliveryData);
+    
+    try {
+      if (!this.questDeliveryOverlay) {
+        console.error('[DialogueManager] ❌ QuestDeliveryOverlay non initialisé');
+        return this.showClassicDialogue({
+          message: data.message || "Système de livraison non disponible",
+          lines: [data.message || "Système de livraison non disponible"]
+        });
+      }
+      
+      // Afficher le dialogue d'abord (optionnel)
+      if (data.dialogue || data.lines || data.message) {
+        const dialogueData = {
+          npcId: data.npcId,
+          name: data.npcName || 'PNJ',
+          lines: data.lines || [data.message || "Que souhaitez-vous livrer ?"],
+          portrait: data.portrait || null,
+          hideName: data.hideName || false
+        };
+        
+        // Afficher dialogue en arrière-plan
+        this.showClassicDialogue(dialogueData);
+      }
+      
+      // Afficher l'overlay de livraison automatiquement
+      const success = this.questDeliveryOverlay.show(data.deliveryData);
+      
+      if (success) {
+        console.log('[DialogueManager] ✅ Overlay de livraison affiché');
+        return true;
+      } else {
+        console.error('[DialogueManager] ❌ Échec affichage overlay livraison');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('[DialogueManager] ❌ Erreur handler livraison:', error);
+      
+      // Fallback vers dialogue normal
+      return this.showClassicDialogue({
+        message: `Erreur de livraison: ${error.message}`,
+        lines: [`Erreur de livraison: ${error.message}`]
+      });
+    }
+  }
+
   // ===== FERMETURE =====
 
   hide() {
     if (!this.isOpen()) return;
 
     console.log('🎭 Fermeture DialogueManager');
+
+    // ✅ NOUVEAU : Fermer aussi l'overlay de livraison
+    if (this.questDeliveryOverlay && this.questDeliveryOverlay.isOpen()) {
+      this.questDeliveryOverlay.hide();
+    }
 
     // Appeler le callback de fermeture
     const onCloseCallback = this.classicState.onClose;
@@ -830,16 +910,6 @@ detectAvailableActions(data) {
   }
 
   // ===== INTÉGRATION AVEC L'EXISTANT =====
-
-  handleNpcInteractionResult(data) {
-    console.log('🎭 Résultat interaction NPC reçu:', data);
-    
-    if (data.success && (data.dialogue || data.unifiedInterface || data.lines || data.text)) {
-      this.show(data);
-    } else if (!data.success) {
-      console.warn('⚠️ Interaction NPC échouée:', data.message);
-    }
-  }
 
   // ===== GESTION CATALOGUE SHOP AUTOMATIQUE =====
   
@@ -910,11 +980,12 @@ detectAvailableActions(data) {
   // ===== DEBUG ET DÉVELOPPEMENT =====
 
   debugState() {
-    console.log('🔍 === DEBUG DIALOGUE MANAGER CORRIGÉ ===');
+    console.log('🔍 === DEBUG DIALOGUE MANAGER AVEC QUEST DELIVERY ===');
     console.log('📊 ÉTAT GÉNÉRAL:');
     console.log('  - Initialisé:', this.isInitialized);
     console.log('  - Ouvert:', this.isOpen());
     console.log('  - DialogueUI existe:', !!this.dialogueUI);
+    console.log('  - QuestDeliveryOverlay existe:', !!this.questDeliveryOverlay);
     
     console.log('🎭 DIALOGUE CLASSIQUE:');
     console.log('  - Lignes:', this.classicState.lines.length);
@@ -935,10 +1006,17 @@ detectAvailableActions(data) {
       console.log('    - availableQuests:', window._lastNpcInteractionData.availableQuests?.length || 0);
     }
     
+    // 🎁 NOUVEAU : Debug QuestDeliveryOverlay
+    console.log('🎁 QUEST DELIVERY:');
+    console.log('  - Overlay initialisé:', !!this.questDeliveryOverlay);
+    console.log('  - Overlay ouvert:', this.questDeliveryOverlay?.isOpen() || false);
+    
     return {
       isInitialized: this.isInitialized,
       isOpen: this.isOpen(),
       hasUI: !!this.dialogueUI,
+      hasQuestDeliveryOverlay: !!this.questDeliveryOverlay,
+      questDeliveryOverlayOpen: this.questDeliveryOverlay?.isOpen() || false,
       classicState: {
         linesCount: this.classicState.lines.length,
         currentPage: this.classicState.currentPage,
@@ -968,6 +1046,12 @@ detectAvailableActions(data) {
       this.hide();
     }
     
+    // ✅ NOUVEAU : Détruire QuestDeliveryOverlay
+    if (this.questDeliveryOverlay) {
+      this.questDeliveryOverlay.destroy();
+      this.questDeliveryOverlay = null;
+    }
+    
     // Détruire l'UI
     if (this.dialogueUI) {
       this.dialogueUI.destroy();
@@ -994,7 +1078,7 @@ detectAvailableActions(data) {
     }
     
     this.isInitialized = false;
-    console.log('✅ DialogueManager détruit');
+    console.log('✅ DialogueManager détruit avec QuestDeliveryOverlay');
   }
 }
 
@@ -1002,10 +1086,90 @@ detectAvailableActions(data) {
 
 window.testDialogueManager = function() {
   if (window.dialogueManager) {
-    console.log('🧪 Test DialogueManager corrigé...');
+    console.log('🧪 Test DialogueManager avec QuestDeliveryOverlay...');
     return window.dialogueManager.debugState();
   } else {
     console.error('❌ DialogueManager non disponible');
+  }
+};
+
+// 🧪 FONCTION DE TEST pour QuestDeliveryOverlay
+window.testQuestDelivery = function(npcId = 104) {
+  if (window.dialogueManager && window.dialogueManager.questDeliveryOverlay) {
+    console.log('🧪 Test QuestDeliveryOverlay...');
+    
+    const mockDeliveryData = {
+      npcId: npcId,
+      npcName: "Annie Test",
+      questId: "lost_gloves",
+      canDeliverAll: true,
+      items: [
+        {
+          itemId: "gardening_gloves",
+          itemName: "Gants de Jardinage",
+          required: 1,
+          playerHas: 1,
+          canDeliver: true
+        },
+        {
+          itemId: "herb",
+          itemName: "Herbe Médicinale",
+          required: 3,
+          playerHas: 2, // Manquant
+          canDeliver: false
+        }
+      ]
+    };
+    
+    // Test avec livraison impossible
+    mockDeliveryData.canDeliverAll = false;
+    
+    const success = window.dialogueManager.questDeliveryOverlay.show(mockDeliveryData);
+    console.log('✅ Test overlay affiché:', success);
+    
+    return success;
+  } else {
+    console.error('❌ DialogueManager ou QuestDeliveryOverlay non disponible');
+    return false;
+  }
+};
+
+// 🧪 FONCTION DE TEST complète avec dialogue + livraison
+window.testFullQuestDelivery = function() {
+  if (window.dialogueManager) {
+    console.log('🧪 Test flux complet dialogue → livraison...');
+    
+    const mockDialogueWithDelivery = {
+      type: 'questDelivery',
+      npcId: 104,
+      npcName: 'Annie',
+      message: 'Avez-vous trouvé mes gants ?',
+      lines: ['Avez-vous trouvé mes gants ?', 'Je les ai perdus près de la rivière...'],
+      portrait: '/assets/portrait/annie.png',
+      deliveryData: {
+        npcId: 104,
+        npcName: "Annie",
+        questId: "lost_gardening_gloves", 
+        canDeliverAll: true,
+        items: [
+          {
+            itemId: "gardening_gloves",
+            itemName: "Gants de Jardinage d'Annie",
+            required: 1,
+            playerHas: 1,
+            canDeliver: true
+          }
+        ]
+      }
+    };
+    
+    window.dialogueManager.handleQuestDeliveryResult(mockDialogueWithDelivery);
+    console.log('✅ Test flux complet lancé');
+    
+    return true;
+  } else {
+    console.error('❌ DialogueManager non disponible');
+    return false;
   }
 };
 
@@ -1106,10 +1270,12 @@ window.testDialogueSimpleNPC = function() {
   }
 };
 
-console.log('✅ DialogueManager CORRIGÉ - Shop fonctionnel!');
+console.log('✅ DialogueManager AVEC QuestDeliveryOverlay - Toutes fonctionnalités!');
 console.log('🧪 Utilisez window.testDialogueManager() pour diagnostiquer');
-console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand (maintenant fonctionnel!)');
+console.log('🛒 Utilisez window.testDialogueWithShop() pour tester marchand');
 console.log('📋 Utilisez window.testDialogueWithQuests() pour tester quêtes spécifiques');
 console.log('🎭 Utilisez window.testDialogueWithBoth() pour tester shop + quêtes');
 console.log('👤 Utilisez window.testDialogueSimpleNPC() pour tester NPC simple');
-console.log('🔧 FIX: L\'intercepteur de quêtes ne bloque plus les boutons shop!');
+console.log('🎁 Utilisez window.testQuestDelivery() pour tester overlay livraison');
+console.log('🎁 Utilisez window.testFullQuestDelivery() pour tester flux complet');
+console.log('🔧 NOUVEAU : Support type="questDelivery" avec deliveryData du serveur');
