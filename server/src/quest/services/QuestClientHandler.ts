@@ -1,6 +1,4 @@
 // server/src/quest/services/QuestClientHandler.ts
-// Service modulaire pour les notifications et messages client automatiques
-
 import { 
   QuestDefinition,
   Quest,
@@ -24,49 +22,28 @@ import {
 
 import { ServiceRegistry } from "../../services/ServiceRegistry";
 
-// ===== INTERFACE DU SERVICE =====
-
-/**
- * 📡 Interface principale du service de notifications client
- */
 export interface IQuestClientHandler {
-  // Notifications principales
   notifyQuestStarted(playerId: string, quest: Quest, firstObjectives: QuestObjective[]): Promise<boolean>;
   notifyQuestProgress(playerId: string, quest: Quest, objective: QuestObjective, previousAmount: number): Promise<boolean>;
   notifyQuestCompleted(playerId: string, quest: Quest, rewards: QuestReward[], stats: QuestCompletionStats): Promise<boolean>;
   notifyQuestFailed(playerId: string, quest: Quest, reason: string): Promise<boolean>;
   notifyQuestAbandoned(playerId: string, quest: Quest): Promise<boolean>;
-  
-  // Notifications spécialisées
   notifyObjectiveCompleted(playerId: string, quest: Quest, objective: QuestObjective): Promise<boolean>;
   notifyStepCompleted(playerId: string, quest: Quest, stepName: string, nextStepName?: string): Promise<boolean>;
   notifyRewardReceived(playerId: string, rewards: QuestReward[], source: string): Promise<boolean>;
-  
-  // Notifications système
   notifyQuestAvailable(playerId: string, quest: QuestDefinition): Promise<boolean>;
   notifyQuestReminder(playerId: string, activeQuests: Quest[]): Promise<boolean>;
   notifySystemMessage(playerId: string, message: string, type?: 'info' | 'warning' | 'error'): Promise<boolean>;
-  
-  // Gestion batch
   sendBatchNotifications(messages: QuestClientMessage[]): Promise<QuestBatchNotificationResult>;
-  
-  // Configuration des joueurs
   updatePlayerNotificationConfig(playerId: string, config: Partial<QuestNotificationConfig>): Promise<boolean>;
   getPlayerNotificationConfig(playerId: string): Promise<QuestNotificationConfig | null>;
-  
-  // État et statistiques
   isPlayerOnline(playerId: string): boolean;
   getNotificationHistory(playerId: string, limit?: number): Promise<QuestClientMessage[]>;
   getNotificationStats(): Promise<QuestNotificationStats>;
 }
 
-// ===== TYPES DE DONNÉES =====
-
-/**
- * 📡 Statistiques de completion de quête
- */
 export interface QuestCompletionStats {
-  totalTime: number; // en minutes
+  totalTime: number;
   stepsCompleted: number;
   objectivesCompleted: number;
   score?: number;
@@ -76,9 +53,6 @@ export interface QuestCompletionStats {
   perfectRun?: boolean;
 }
 
-/**
- * 📡 Message en queue
- */
 export interface QueuedMessage {
   id: string;
   message: QuestClientMessage;
@@ -89,9 +63,6 @@ export interface QueuedMessage {
   nextRetryAt?: Date;
 }
 
-/**
- * 📡 Configuration des notifications par joueur
- */
 export interface PlayerNotificationState {
   playerId: string;
   config: QuestNotificationConfig;
@@ -106,62 +77,38 @@ export interface PlayerNotificationState {
   };
 }
 
-/**
- * 📡 Configuration du handler
- */
 export interface QuestClientHandlerConfig {
-  // Messages et notifications
   enableNotifications: boolean;
-  defaultMessageDuration: number; // en ms
+  defaultMessageDuration: number;
   maxMessageHistory: number;
-  
-  // Queue et batch
   enableMessageQueue: boolean;
   maxQueueSize: number;
   batchSize: number;
-  batchInterval: number; // en ms
-  
-  // Retry et fiabilité
+  batchInterval: number;
   enableRetry: boolean;
   maxRetryAttempts: number;
-  retryDelay: number; // en ms
+  retryDelay: number;
   exponentialBackoff: boolean;
-  
-  // Performance
   enableRateLimiting: boolean;
   maxMessagesPerMinute: number;
   enableMessageBatching: boolean;
-  
-  // ServiceRegistry
-  serviceRegistryTimeout: number; // en ms
+  serviceRegistryTimeout: number;
   fallbackOnFailure: boolean;
-  
-  // Personnalisation
   enablePersonalization: boolean;
   enableContextualMessages: boolean;
   enableSmartNotifications: boolean;
-  
-  // Debug et logging
   enableMessageLogging: boolean;
   logFailedDeliveries: boolean;
   logPerformanceMetrics: boolean;
-  
-  // Limites et sécurité
   enableSpamProtection: boolean;
-  duplicateMessageThreshold: number; // en secondes
+  duplicateMessageThreshold: number;
   enableContentFiltering: boolean;
 }
 
-// ===== IMPLÉMENTATION =====
-
-/**
- * 📡 Service de gestion des notifications client
- * Interface entre le système de quêtes et l'UI client
- */
 class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
   private config: QuestClientHandlerConfig;
   private serviceRegistry: ServiceRegistry;
-  private messageQueue: Map<string, QueuedMessage[]>; // par playerId
+  private messageQueue: Map<string, QueuedMessage[]>;
   private playerStates: Map<string, PlayerNotificationState>;
   private messageHistory: Map<string, QuestClientMessage[]>;
   private deliveryStats: QuestNotificationStats;
@@ -175,15 +122,15 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       enableMessageQueue: true,
       maxQueueSize: 100,
       batchSize: QuestClientConstants.LIMITS.MAX_BATCH_SIZE,
-      batchInterval: 1000, // 1 seconde
+      batchInterval: 1000,
       enableRetry: true,
       maxRetryAttempts: 3,
-      retryDelay: 2000, // 2 secondes
+      retryDelay: 2000,
       exponentialBackoff: true,
       enableRateLimiting: true,
       maxMessagesPerMinute: QuestClientConstants.LIMITS.MAX_NOTIFICATIONS_PER_HOUR / 60,
       enableMessageBatching: true,
-      serviceRegistryTimeout: 5000, // 5 secondes
+      serviceRegistryTimeout: 5000,
       fallbackOnFailure: false,
       enablePersonalization: true,
       enableContextualMessages: true,
@@ -192,7 +139,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       logFailedDeliveries: true,
       logPerformanceMetrics: false,
       enableSpamProtection: true,
-      duplicateMessageThreshold: 30, // 30 secondes
+      duplicateMessageThreshold: 30,
       enableContentFiltering: false,
       ...config
     };
@@ -201,29 +148,19 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     this.messageQueue = new Map();
     this.playerStates = new Map();
     this.messageHistory = new Map();
-    
     this.deliveryStats = this.initializeStats();
     
-    // Démarrer le traitement batch
     if (this.config.enableMessageBatching) {
       this.startBatchProcessing();
     }
     
-    this.log('info', '📡 QuestClientHandler initialisé', { config: this.config });
+    this.log('info', '📡 QuestClientHandler initialisé');
   }
 
-  // ===== NOTIFICATIONS PRINCIPALES =====
-
-  /**
-   * 📡 Notification - Quête démarrée
-   */
   async notifyQuestStarted(playerId: string, quest: Quest, firstObjectives: QuestObjective[]): Promise<boolean> {
-    this.log('info', `🎯 Notification quête démarrée: ${quest.name} pour ${playerId}`);
-
     try {
       const message = QuestClientMessageFactory.createQuestStarted(playerId, quest, firstObjectives);
       
-      // Personnaliser le message selon le joueur
       if (this.config.enablePersonalization) {
         await this.personalizeMessage(playerId, message);
       }
@@ -231,14 +168,11 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       return await this.sendMessage(playerId, message);
       
     } catch (error) {
-      this.log('error', `❌ Erreur notification quest started:`, error);
+      this.log('error', `Erreur notification quest started:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Notification - Progression de quête
-   */
   async notifyQuestProgress(
     playerId: string, 
     quest: Quest, 
@@ -251,24 +185,25 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     try {
       const message = QuestClientMessageFactory.createQuestProgress(playerId, quest, objective, previousAmount);
       
-      // Ajuster selon les préférences du joueur
       const playerState = this.getPlayerState(playerId);
       if (playerState?.config.enabledTypes.quest_progress === false) {
-        this.log('debug', `⏭️ Notifications de progression désactivées pour ${playerId}`);
-        return true; // Considéré comme succès mais pas envoyé
+        return true;
       }
       
-      return await this.sendMessage(playerId, message);
+      const success = await this.sendMessage(playerId, message);
+      
+      if (success) {
+        this.refreshPlayerQuestUI(playerId, quest.id);
+      }
+      
+      return success;
       
     } catch (error) {
-      this.log('error', `❌ Erreur notification progress:`, error);
+      this.log('error', `Erreur notification progress:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Notification - Quête terminée
-   */
   async notifyQuestCompleted(
     playerId: string, 
     quest: Quest, 
@@ -276,29 +211,27 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     stats: QuestCompletionStats
   ): Promise<boolean> {
     
-    this.log('info', `🏆 Notification quête terminée: ${quest.name} pour ${playerId}`);
-
     try {
       const message = QuestClientMessageFactory.createQuestCompleted(playerId, quest, rewards, stats);
       
-      // Messages de completion sont toujours importants
       message.display.priority = 'high';
       message.display.persistent = true;
       
-      return await this.sendMessage(playerId, message);
+      const success = await this.sendMessage(playerId, message);
+      
+      if (success) {
+        this.refreshPlayerQuestUI(playerId, quest.id);
+      }
+      
+      return success;
       
     } catch (error) {
-      this.log('error', `❌ Erreur notification quest completed:`, error);
+      this.log('error', `Erreur notification quest completed:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Notification - Quête échouée
-   */
   async notifyQuestFailed(playerId: string, quest: Quest, reason: string): Promise<boolean> {
-    this.log('info', `❌ Notification quête échouée: ${quest.name} pour ${playerId}`);
-
     const message: QuestClientMessage = {
       type: 'quest_failed',
       timestamp: new Date(),
@@ -335,15 +268,16 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       ]
     };
 
-    return await this.sendMessage(playerId, message);
+    const success = await this.sendMessage(playerId, message);
+    
+    if (success) {
+      this.refreshPlayerQuestUI(playerId, quest.id);
+    }
+    
+    return success;
   }
 
-  /**
-   * 📡 Notification - Quête abandonnée
-   */
   async notifyQuestAbandoned(playerId: string, quest: Quest): Promise<boolean> {
-    this.log('info', `🚪 Notification quête abandonnée: ${quest.name} pour ${playerId}`);
-
     const message: QuestClientMessage = {
       type: 'quest_abandoned',
       timestamp: new Date(),
@@ -371,14 +305,15 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       ]
     };
 
-    return await this.sendMessage(playerId, message);
+    const success = await this.sendMessage(playerId, message);
+    
+    if (success) {
+      this.refreshPlayerQuestUI(playerId, quest.id);
+    }
+    
+    return success;
   }
 
-  // ===== NOTIFICATIONS SPÉCIALISÉES =====
-
-  /**
-   * 📡 Notification - Objectif complété
-   */
   async notifyObjectiveCompleted(playerId: string, quest: Quest, objective: QuestObjective): Promise<boolean> {
     this.log('debug', `🎯 Notification objectif complété: ${objective.description}`);
 
@@ -406,15 +341,16 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       }
     };
 
-    return await this.sendMessage(playerId, message);
+    const success = await this.sendMessage(playerId, message);
+    
+    if (success) {
+      this.refreshPlayerQuestUI(playerId, quest.id);
+    }
+    
+    return success;
   }
 
-  /**
-   * 📡 Notification - Étape complétée
-   */
   async notifyStepCompleted(playerId: string, quest: Quest, stepName: string, nextStepName?: string): Promise<boolean> {
-    this.log('info', `📋 Notification étape complétée: ${stepName}`);
-
     const message: QuestClientMessage = {
       type: 'step_completed',
       timestamp: new Date(),
@@ -445,18 +381,18 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       ] : undefined
     };
 
-    return await this.sendMessage(playerId, message);
+    const success = await this.sendMessage(playerId, message);
+    
+    if (success) {
+      this.refreshPlayerQuestUI(playerId, quest.id);
+    }
+    
+    return success;
   }
 
-  /**
-   * 📡 Notification - Récompense reçue
-   */
   async notifyRewardReceived(playerId: string, rewards: QuestReward[], source: string): Promise<boolean> {
-    this.log('info', `🎁 Notification récompenses reçues: ${rewards.length} pour ${playerId}`);
-
     if (rewards.length === 0) return true;
 
-    // Message différent selon le nombre de récompenses
     const title = rewards.length === 1 ? 'Récompense Reçue !' : 'Récompenses Reçues !';
     const rewardText = rewards.length === 1 
       ? this.formatSingleReward(rewards[0])
@@ -472,7 +408,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       display: {
         type: 'modal',
         theme: 'achievement',
-        duration: 0, // Modal fermée manuellement
+        duration: 0,
         priority: 'high',
         icon: '🎁',
         persistent: true,
@@ -514,14 +450,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return await this.sendMessage(playerId, message);
   }
 
-  // ===== NOTIFICATIONS SYSTÈME =====
-
-  /**
-   * 📡 Notification - Nouvelle quête disponible
-   */
   async notifyQuestAvailable(playerId: string, quest: QuestDefinition): Promise<boolean> {
-    this.log('info', `📋 Notification quête disponible: ${quest.name} pour ${playerId}`);
-
     const message: QuestClientMessage = {
       type: 'quest_available',
       timestamp: new Date(),
@@ -562,13 +491,8 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return await this.sendMessage(playerId, message);
   }
 
-  /**
-   * 📡 Notification - Rappel de quêtes actives
-   */
   async notifyQuestReminder(playerId: string, activeQuests: Quest[]): Promise<boolean> {
     if (activeQuests.length === 0) return true;
-
-    this.log('info', `⏰ Notification rappel: ${activeQuests.length} quête(s) pour ${playerId}`);
 
     const questText = activeQuests.length === 1 
       ? `"${activeQuests[0].name}"`
@@ -602,12 +526,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return await this.sendMessage(playerId, message);
   }
 
-  /**
-   * 📡 Notification - Message système
-   */
   async notifySystemMessage(playerId: string, message: string, type: 'info' | 'warning' | 'error' = 'info'): Promise<boolean> {
-    this.log('info', `ℹ️ Notification système (${type}): ${message}`);
-
     const themeMap = {
       info: 'info' as const,
       warning: 'warning' as const,
@@ -629,7 +548,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       display: {
         type: 'banner',
         theme: themeMap[type],
-        duration: type === 'error' ? 0 : 5000, // Erreurs persistent
+        duration: type === 'error' ? 0 : 5000,
         priority: type === 'error' ? 'urgent' : 'normal',
         icon: iconMap[type],
         persistent: type === 'error'
@@ -639,26 +558,16 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return await this.sendMessage(playerId, clientMessage);
   }
 
-  // ===== GESTION DES MESSAGES =====
-
-  /**
-   * 📡 Envoi de message principal
-   */
   private async sendMessage(playerId: string, message: QuestClientMessage): Promise<boolean> {
     try {
-      // Vérifier protection spam
       if (this.config.enableSpamProtection && this.isDuplicateMessage(playerId, message)) {
-        this.log('debug', `🚫 Message dupliqué ignoré pour ${playerId}`);
         return true;
       }
 
-      // Vérifier rate limiting
       if (this.config.enableRateLimiting && this.isRateLimited(playerId)) {
-        this.log('warn', `⚠️ Rate limit atteint pour ${playerId}`);
         return false;
       }
 
-      // Ajouter à la queue ou envoyer directement
       if (this.config.enableMessageQueue) {
         return this.queueMessage(playerId, message);
       } else {
@@ -666,21 +575,16 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       }
 
     } catch (error) {
-      this.log('error', `❌ Erreur envoi message:`, error);
+      this.log('error', `Erreur envoi message:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Livraison effective du message
-   */
   private async deliverMessage(playerId: string, message: QuestClientMessage): Promise<boolean> {
     const startTime = Date.now();
 
     try {
-      // Utiliser ServiceRegistry pour envoyer le message
       const success = this.serviceRegistry.notifyPlayer(playerId, "questNotification", message);
-      
       const deliveryTime = Date.now() - startTime;
       
       if (success) {
@@ -689,7 +593,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         this.log('debug', `✅ Message livré à ${playerId} en ${deliveryTime}ms`);
       } else {
         this.recordFailedDelivery(playerId, message, 'ServiceRegistry failed');
-        this.log('warn', `❌ Échec livraison à ${playerId}`);
       }
 
       return success;
@@ -697,19 +600,40 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     } catch (error) {
       const deliveryTime = Date.now() - startTime;
       this.recordFailedDelivery(playerId, message, error instanceof Error ? error.message : 'Unknown error');
-      this.log('error', `❌ Erreur livraison message:`, error);
+      this.log('error', `Erreur livraison message:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Ajout à la queue
-   */
+  private refreshPlayerQuestUI(playerId: string, questId?: string): void {
+    try {
+      const worldRoom = this.serviceRegistry.getWorldRoom();
+      if (!worldRoom) return;
+
+      for (const [sessionId, player] of worldRoom.state.players) {
+        if (player.name === playerId) {
+          const client = worldRoom.clients.find((c: any) => c.sessionId === sessionId);
+          if (client) {
+            setTimeout(async () => {
+              try {
+                await worldRoom.updateQuestStatusesFixed(playerId, client);
+              } catch (refreshError) {
+                this.log('error', `Erreur refresh quest statuses:`, refreshError);
+              }
+            }, 200);
+          }
+          break;
+        }
+      }
+    } catch (error) {
+      this.log('error', `Erreur refresh UI:`, error);
+    }
+  }
+
   private queueMessage(playerId: string, message: QuestClientMessage): boolean {
     const playerQueue = this.messageQueue.get(playerId) || [];
     
     if (playerQueue.length >= this.config.maxQueueSize) {
-      this.log('warn', `⚠️ Queue pleine pour ${playerId}, message ignoré`);
       return false;
     }
 
@@ -723,7 +647,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     };
 
     playerQueue.push(queuedMessage);
-    playerQueue.sort((a, b) => b.priority - a.priority); // Tri par priorité décroissante
+    playerQueue.sort((a, b) => b.priority - a.priority);
     
     this.messageQueue.set(playerId, playerQueue);
     
@@ -731,26 +655,15 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return true;
   }
 
-  // ===== TRAITEMENT BATCH =====
-
-  /**
-   * 📡 Démarrer traitement batch
-   */
   private startBatchProcessing(): void {
     this.batchTimer = setInterval(() => {
       this.processBatch();
     }, this.config.batchInterval);
-
-    this.log('info', `🔄 Traitement batch démarré (intervalle: ${this.config.batchInterval}ms)`);
   }
 
-  /**
-   * 📡 Traiter batch de messages
-   */
   private async processBatch(): Promise<void> {
     const allMessages: QuestClientMessage[] = [];
 
-    // Collecter messages de toutes les queues
     for (const [playerId, playerQueue] of this.messageQueue.entries()) {
       const messagesToProcess = playerQueue.splice(0, this.config.batchSize);
       
@@ -764,18 +677,13 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
 
     this.log('debug', `📦 Traitement batch: ${allMessages.length} messages`);
 
-    // Envoyer batch
     const result = await this.sendBatchNotifications(allMessages);
     
-    // TODO: Gérer les échecs et retries
     if (result.failed > 0) {
-      this.log('warn', `⚠️ ${result.failed} messages échoués dans le batch`);
+      this.log('warn', `${result.failed} messages échoués dans le batch`);
     }
   }
 
-  /**
-   * 📡 Envoi batch de notifications
-   */
   async sendBatchNotifications(messages: QuestClientMessage[]): Promise<QuestBatchNotificationResult> {
     const startTime = Date.now();
     
@@ -819,41 +727,22 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return result;
   }
 
-  // ===== IMPLÉMENTATION QuestClientNotifier =====
-
-  /**
-   * 📡 Notification générique (interface QuestClientNotifier)
-   */
   async notify(playerId: string, message: QuestClientMessage): Promise<boolean> {
     return await this.sendMessage(playerId, message);
   }
 
-  /**
-   * 📡 Notification batch (interface QuestClientNotifier)
-   */
   async notifyBatch(messages: QuestClientMessage[]): Promise<QuestBatchNotificationResult> {
     return await this.sendBatchNotifications(messages);
   }
 
-  /**
-   * 📡 Mettre à jour config joueur (interface QuestClientNotifier)
-   */
   async updatePlayerConfig(playerId: string, config: Partial<QuestNotificationConfig>): Promise<boolean> {
     return await this.updatePlayerNotificationConfig(playerId, config);
   }
 
-  /**
-   * 📡 Récupérer config joueur (interface QuestClientNotifier)
-   */
   async getPlayerConfig(playerId: string): Promise<QuestNotificationConfig | null> {
     return await this.getPlayerNotificationConfig(playerId);
   }
 
-  // ===== CONFIGURATION JOUEURS =====
-
-  /**
-   * 📡 Mettre à jour configuration notification joueur
-   */
   async updatePlayerNotificationConfig(playerId: string, config: Partial<QuestNotificationConfig>): Promise<boolean> {
     try {
       const currentState = this.getPlayerState(playerId);
@@ -861,7 +750,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
       if (currentState) {
         currentState.config = { ...currentState.config, ...config };
       } else {
-        // Créer nouvel état joueur
         this.playerStates.set(playerId, {
           playerId,
           config: { ...this.getDefaultNotificationConfig(), ...config },
@@ -877,30 +765,20 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         });
       }
 
-      this.log('info', `⚙️ Configuration notifications mise à jour pour ${playerId}`);
       return true;
 
     } catch (error) {
-      this.log('error', `❌ Erreur MAJ config notifications:`, error);
+      this.log('error', `Erreur MAJ config notifications:`, error);
       return false;
     }
   }
 
-  /**
-   * 📡 Récupérer configuration notification joueur
-   */
   async getPlayerNotificationConfig(playerId: string): Promise<QuestNotificationConfig | null> {
     const state = this.getPlayerState(playerId);
     return state?.config || null;
   }
 
-  // ===== MÉTHODES UTILITAIRES =====
-
-  /**
-   * 📡 Vérifier si joueur en ligne
-   */
   isPlayerOnline(playerId: string): boolean {
-    // Utiliser ServiceRegistry pour vérifier
     const worldRoom = this.serviceRegistry.getWorldRoom();
     if (!worldRoom) return false;
 
@@ -911,15 +789,12 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         }
       }
     } catch (error) {
-      this.log('debug', `🔍 Erreur vérification joueur en ligne: ${error}`);
+      // Silent fail
     }
 
     return false;
   }
 
-  /**
-   * 📡 Récupérer joueurs en ligne
-   */
   getOnlinePlayers(): string[] {
     const worldRoom = this.serviceRegistry.getWorldRoom();
     if (!worldRoom) return [];
@@ -930,23 +805,17 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         players.push(player.name);
       }
     } catch (error) {
-      this.log('debug', `🔍 Erreur récupération joueurs en ligne: ${error}`);
+      // Silent fail
     }
 
     return players;
   }
 
-  /**
-   * 📡 Récupérer historique notifications
-   */
   async getNotificationHistory(playerId: string, limit: number = 50): Promise<QuestClientMessage[]> {
     const history = this.messageHistory.get(playerId) || [];
     return history.slice(-limit);
   }
 
-  /**
-   * 📡 Nettoyer historique notifications
-   */
   async clearNotificationHistory(playerId: string): Promise<boolean> {
     this.messageHistory.delete(playerId);
     const state = this.getPlayerState(playerId);
@@ -956,25 +825,14 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return true;
   }
 
-  /**
-   * 📡 Récupérer statistiques
-   */
   async getNotificationStats(): Promise<QuestNotificationStats> {
     return this.deliveryStats;
   }
 
-  // ===== MÉTHODES PRIVÉES =====
-
-  /**
-   * 📡 Récupérer état du joueur
-   */
   private getPlayerState(playerId: string): PlayerNotificationState | undefined {
     return this.playerStates.get(playerId);
   }
 
-  /**
-   * 📡 Configuration par défaut
-   */
   private getDefaultNotificationConfig(): QuestNotificationConfig {
     return {
       playerId: '',
@@ -1049,17 +907,11 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     };
   }
 
-  /**
-   * 📡 Personnaliser message
-   */
   private async personalizeMessage(playerId: string, message: QuestClientMessage): Promise<void> {
     const state = this.getPlayerState(playerId);
     if (!state) return;
 
-    // Appliquer préférences utilisateur
     const config = state.config;
-    
-    // Ajuster durée selon préférences (vérifier que le type existe)
     const displayType = message.display.type;
     const supportedTypes: Array<keyof typeof config.displaySettings> = ['toast', 'modal', 'banner', 'popup'];
     
@@ -1072,13 +924,8 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         message.display.sound.volume = displayConfig.soundVolume;
       }
     }
-
-    this.log('debug', `🎨 Message personnalisé pour ${playerId}`);
   }
 
-  /**
-   * 📡 Vérifier message dupliqué
-   */
   private isDuplicateMessage(playerId: string, message: QuestClientMessage): boolean {
     const history = this.messageHistory.get(playerId) || [];
     const recentMessages = history.filter(
@@ -1092,9 +939,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     );
   }
 
-  /**
-   * 📡 Vérifier rate limiting
-   */
   private isRateLimited(playerId: string): boolean {
     const state = this.getPlayerState(playerId);
     if (!state) return false;
@@ -1108,9 +952,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return recentMessages.length >= this.config.maxMessagesPerMinute;
   }
 
-  /**
-   * 📡 Calculer priorité du message
-   */
   private calculateMessagePriority(message: QuestClientMessage): number {
     const priorityMap = {
       'low': 1,
@@ -1121,7 +962,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
 
     let basePriority = priorityMap[message.display.priority || 'normal'];
 
-    // Ajuster selon le type
     switch (message.type) {
       case 'quest_completed':
       case 'achievement_unlocked':
@@ -1139,9 +979,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return basePriority;
   }
 
-  /**
-   * 📡 Formater nom de récompense
-   */
   private formatRewardName(reward: QuestReward): string {
     switch (reward.type) {
       case 'gold':
@@ -1157,9 +994,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  /**
-   * 📡 Formater récompense unique
-   */
   private formatSingleReward(reward: QuestReward): string {
     if (reward.amount && reward.amount > 1) {
       return `${reward.amount}x ${this.formatRewardName(reward)}`;
@@ -1167,9 +1001,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return this.formatRewardName(reward);
   }
 
-  /**
-   * 📡 Récupérer icône de récompense
-   */
   private getRewardIcon(type: string): string {
     const icons: Record<string, string> = {
       'gold': '💰',
@@ -1188,21 +1019,16 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     return icons[type] || '🎁';
   }
 
-  /**
-   * 📡 Ajouter à l'historique
-   */
   private addToHistory(playerId: string, message: QuestClientMessage): void {
     let history = this.messageHistory.get(playerId) || [];
     history.push(message);
     
-    // Limiter la taille de l'historique
     if (history.length > this.config.maxMessageHistory) {
       history = history.slice(-this.config.maxMessageHistory);
     }
     
     this.messageHistory.set(playerId, history);
 
-    // Mettre à jour l'état du joueur
     const state = this.getPlayerState(playerId);
     if (state) {
       state.messageHistory = history;
@@ -1210,9 +1036,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  /**
-   * 📡 Enregistrer livraison réussie
-   */
   private recordSuccessfulDelivery(playerId: string, message: QuestClientMessage, deliveryTime: number): void {
     this.deliveryStats.totalSent++;
     this.deliveryStats.totalDelivered++;
@@ -1238,9 +1061,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  /**
-   * 📡 Enregistrer livraison échouée
-   */
   private recordFailedDelivery(playerId: string, message: QuestClientMessage, error: string): void {
     this.deliveryStats.totalSent++;
     this.deliveryStats.totalFailed++;
@@ -1263,9 +1083,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  /**
-   * 📡 Initialiser statistiques
-   */
   private initializeStats(): QuestNotificationStats {
     return {
       totalSent: 0,
@@ -1282,16 +1099,10 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     };
   }
 
-  /**
-   * 📡 Générer ID de message
-   */
   private generateMessageId(): string {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  /**
-   * 📡 Logging intelligent
-   */
   private log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any): void {
     if (!this.config.enableMessageLogging && level === 'debug') return;
     
@@ -1316,11 +1127,6 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     }
   }
 
-  // ===== MÉTHODES PUBLIQUES =====
-
-  /**
-   * 📡 Informations de debugging
-   */
   getDebugInfo(): any {
     return {
       config: this.config,
@@ -1329,7 +1135,7 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         playerId,
         queueSize: queue.length
       })),
-      version: '1.0.0',
+      version: '1.1.0',
       supportedMessageTypes: [
         'quest_started', 'quest_progress', 'quest_completed', 'quest_failed', 'quest_abandoned',
         'objective_completed', 'step_completed', 'reward_received', 'quest_available',
@@ -1341,23 +1147,18 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
         batch: this.config.enableMessageBatching,
         personalization: this.config.enablePersonalization,
         rateLimiting: this.config.enableRateLimiting,
-        spamProtection: this.config.enableSpamProtection
+        spamProtection: this.config.enableSpamProtection,
+        autoUIRefresh: true
       },
       stats: this.deliveryStats
     };
   }
 
-  /**
-   * 📡 Mise à jour configuration
-   */
   updateConfig(newConfig: Partial<QuestClientHandlerConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.log('info', '⚙️ Configuration mise à jour', { newConfig });
+    this.log('info', 'Configuration mise à jour');
   }
 
-  /**
-   * 📡 Nettoyage des ressources
-   */
   cleanup(): void {
     if (this.batchTimer) {
       clearInterval(this.batchTimer);
@@ -1368,9 +1169,8 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
     this.playerStates.clear();
     this.messageHistory.clear();
     
-    this.log('info', '🧹 QuestClientHandler nettoyé');
+    this.log('info', 'QuestClientHandler nettoyé');
   }
 }
 
-// ===== EXPORT =====
 export default QuestClientHandler;
