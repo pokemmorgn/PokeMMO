@@ -998,15 +998,10 @@ private async executeQuestAction(
         
         // ✅ DONNÉES DE LIVRAISON POUR LE CLIENT
         deliveryData: {
-          questId: deliveryResult.deliveries[0]?.questId, // Premier questId trouvé
           npcId: npcId.toString(), // ✅ CORRIGÉ : convertir en string
-          items: deliveryResult.deliveries.map(delivery => ({
-            itemId: delivery.itemId,
-            itemName: delivery.itemName,
-            required: delivery.requiredAmount,
-            playerHas: delivery.playerHasAmount
-          })),
-          canDeliverAll: deliveryResult.allItemsAvailable,
+          npcName: npc.name || `NPC #${npcId}`,
+          deliveries: deliveryResult.deliveries,
+          allItemsAvailable: deliveryResult.allItemsAvailable,
           totalDeliveries: deliveryResult.totalDeliveries,
           readyDeliveries: deliveryResult.readyDeliveries
         },
