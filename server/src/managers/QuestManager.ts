@@ -756,224 +756,32 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
   }
 }
 
+// ✅ MÉTHODE ENTIÈREMENT REFACTORISÉE - SOLUTION SIMPLE
 async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
   try {
     if (this.config.debugMode) {
       console.log(`🎯 [QuestManager] asPlayerQuestWith: ${playerName} -> ${action}:${targetId}`);
     }
 
-    // ⚡ OPTIMIZATION 1: Vérification rapide - joueur a-t-il des quêtes actives ?
-    const playerQuests = await PlayerQuest.findOne({ username: playerName });
-    if (!playerQuests || !playerQuests.activeQuests || playerQuests.activeQuests.length === 0) {
-      if (this.config.debugMode) {
-        console.log(`❌ [QuestManager] Aucune quête active pour ${playerName}`);
-      }
-      return; // Return early si aucune quête active
-    }
-
-    // 🔍 PHASE 2: Matching des objectifs - chercher dans toutes les quêtes actives
-    const matchingObjectives: Array<{
-      questProgress: any;
-      questDefinition: QuestDefinition;
-      objective: any;
-      stepIndex: number;
-    }> = [];
-
-    for (const questProgress of playerQuests.activeQuests) {
-      // Ignorer les quêtes déjà complétées ou échouées
-      if (questProgress.status !== 'active') continue;
-
-      const questDefinition = this.questDefinitions.get(questProgress.questId);
-      if (!questDefinition) continue;
-
-      const currentStep = questDefinition.steps[questProgress.currentStepIndex];
-      if (!currentStep) continue;
-
-      // Chercher les objectifs qui matchent l'action + targetId
-      for (const objective of currentStep.objectives) {
-        // Gérer les deux formats possibles (Map ou Object)
-        const objectivesMap = questProgress.objectives instanceof Map 
-          ? questProgress.objectives 
-          : new Map(Object.entries(questProgress.objectives || {}));
-        
-        const objectiveProgress = objectivesMap.get(objective.id) as { currentAmount: number; completed: boolean } | undefined;
-        
-        // Skip si objectif déjà complété
-        if (objectiveProgress?.completed) continue;
-
-        // 🎯 MATCHING LOGIC: Un objectif matche si...
-        let matches = false;
-        
-        // Pattern principal: type === action && target === targetId
-        if (objective.type === action && objective.target === targetId) {
-          matches = true;
-        }
-        // Pattern spécial: pour les cas avec itemId
-        else if (objective.type === action && objective.itemId === targetId) {
-          matches = true;
-        }
-        // Pattern talk: pour les NPCs (conversion string/number)
-        else if (action === 'talk' && objective.type === 'talk') {
-          const objectiveNpcId = objective.target?.toString();
-          const targetNpcId = targetId.toString();
-          if (objectiveNpcId === targetNpcId) {
-            matches = true;
-          }
-        }
-
-        if (matches) {
-          matchingObjectives.push({
-            questProgress,
-            questDefinition,
-            objective,
-            stepIndex: questProgress.currentStepIndex
-          });
-        }
-      }
-    }
-
-    // ⚡ OPTIMIZATION 2: Return early si aucun objectif ne matche
-    if (matchingObjectives.length === 0) {
-      if (this.config.debugMode) {
-        console.log(`❌ [QuestManager] Aucun objectif ne matche ${action}:${targetId} pour ${playerName}`);
-      }
-      return;
-    }
-
-    if (this.config.debugMode) {
-      console.log(`✅ [QuestManager] ${matchingObjectives.length} objectif(s) trouvé(s) pour ${action}:${targetId}`);
-    }
-
-    // 📈 PHASE 3: Progression - incrémenter les compteurs et vérifier completion
-    let hasProgression = false;
-    const progressUpdates: Array<{
-      questId: string;
-      questName: string;
-      objective: any;
-      newAmount: number;
-      completed: boolean;
-    }> = [];
-
-    for (const match of matchingObjectives) {
-      const { questProgress, questDefinition, objective } = match;
-      
-      // Récupérer le progrès actuel de l'objectif
-      const objectivesMap = questProgress.objectives instanceof Map 
-        ? questProgress.objectives 
-        : new Map(Object.entries(questProgress.objectives || {}));
-      
-      const currentProgress = objectivesMap.get(objective.id) || {
-        currentAmount: 0,
-        completed: false
-      };
-
-      // Incrémenter le compteur
-      const newAmount = Math.min(
-        currentProgress.currentAmount + 1, 
-        objective.requiredAmount || 1
-      );
-      
-      // Vérifier si l'objectif est maintenant complété
-      const isNowCompleted = newAmount >= (objective.requiredAmount || 1);
-      
-      // Mise à jour uniquement si il y a progression
-      if (newAmount > currentProgress.currentAmount) {
-        hasProgression = true;
-        
-        // Mettre à jour le progrès
-        objectivesMap.set(objective.id, {
-          ...currentProgress,
-          currentAmount: newAmount,
-          completed: isNowCompleted
-        });
-        
-        // Mettre à jour dans questProgress
-        if (questProgress.objectives instanceof Map) {
-          questProgress.objectives = objectivesMap;
-        } else {
-          questProgress.objectives = Object.fromEntries(objectivesMap);
-        }
-
-        progressUpdates.push({
-          questId: questDefinition.id,
-          questName: questDefinition.name,
-          objective: {
-            id: objective.id,
-            type: objective.type,
-            description: objective.description,
-            currentAmount: newAmount,
-            requiredAmount: objective.requiredAmount || 1,
-            completed: isNowCompleted
-          },
-          newAmount,
-          completed: isNowCompleted
-        });
-        
-        if (this.config.debugMode) {
-          console.log(`📊 [QuestManager] Progrès: ${questDefinition.name} -> ${objective.description}: ${newAmount}/${objective.requiredAmount || 1}`);
-        }
-      }
-    }
-
-    // ⚡ OPTIMIZATION 3: Return early si aucune progression détectée
-    if (!hasProgression) {
-      if (this.config.debugMode) {
-        console.log(`❌ [QuestManager] Aucune progression détectée pour ${action}:${targetId}`);
-      }
-      return;
-    }
-
-    // 💾 PHASE 4: Sauvegarde des changements
-    await playerQuests.save();
-
-    // 📡 PHASE 5: Broadcasting asynchrone - questProgressUpdate
-    for (const update of progressUpdates) {
-      try {
-        // Utiliser le clientHandler existant pour notifier le client
-        await this.clientHandler.notifyQuestProgress(
-          playerName,
-          {
-            id: update.questId,
-            name: update.questName
-          } as Quest,
-          update.objective,
-          update.newAmount
-        );
-
-        // Si objectif complété, notification spéciale
-        if (update.completed) {
-          await this.clientHandler.notifyObjectiveCompleted(
-            playerName,
-            { id: update.questId, name: update.questName } as Quest,
-            update.objective
-          );
-        }
-
-      } catch (broadcastError) {
-        if (this.config.debugMode) {
-          console.error(`❌ [QuestManager] Erreur broadcast pour ${update.questId}:`, broadcastError);
-        }
-        // Continue même en cas d'erreur de broadcast
-      }
-    }
-
-    // 🎯 PHASE 6: Vérification automatique de completion des étapes/quêtes
-    // Utiliser la logique existante d'updateQuestProgress pour les completions
+    // ✅ SOLUTION SIMPLE : Déléguer entièrement à updateQuestProgress
     const progressEvent: QuestProgressEvent = {
       type: action as any,
       targetId: targetId,
       amount: 1
     };
 
-    // Traitement groupé pour vérifier les completions d'étapes/quêtes
-    const completionResults = await this.updateQuestProgress(playerName, progressEvent);
+    // Utiliser la logique complète et robuste d'updateQuestProgress
+    const results = await this.updateQuestProgress(playerName, progressEvent);
     
-    if (this.config.debugMode && completionResults.length > 0) {
-      console.log(`🎉 [QuestManager] ${completionResults.length} completion(s) détectée(s) via asPlayerQuestWith`);
+    if (this.config.debugMode && results.length > 0) {
+      console.log(`✅ [QuestManager] ${results.length} progression(s) détectée(s) pour ${playerName}`);
+      results.forEach(result => {
+        console.log(`   - ${result.questName}: ${result.message}`);
+      });
     }
 
-    // ✅ PHASE 7 NOUVELLE: Refresh UI automatique après progression
-    if (hasProgression) {
+    // ✅ Refresh UI automatique si progression détectée
+    if (results.length > 0) {
       console.log(`🔄 [QuestManager] Progression détectée, déclenchement refresh UI pour ${playerName}`);
       
       try {
