@@ -6,6 +6,7 @@
 // ✅ NOUVEAU : Stockage données pour QuestDetailsUI
 
 import { DialogueUI } from './DialogueUI.js';
+import { QuestDeliveryOverlay } from '../Quest/QuestDeliveryOverlay.js';
 
 export class DialogueManager {
   constructor() {
@@ -25,7 +26,7 @@ export class DialogueManager {
     this.shopSystem = null;
     this.questSystem = null;
     this.inventorySystem = null;
-    
+    this.questDeliveryOverlay = null;
     console.log('🎭 DialogueManager créé (version corrigée - shop fonctionnel)');
     this.init();
   }
@@ -48,6 +49,8 @@ export class DialogueManager {
       
       // Remplacer les fonctions globales existantes
       this.replaceGlobalFunctions();
+
+      await this.initializeQuestDeliveryOverlay();
       
       this.isInitialized = true;
       console.log('✅ DialogueManager initialisé (version corrigée)');
@@ -149,6 +152,39 @@ export class DialogueManager {
     console.log('🔄 Fonctions globales remplacées');
   }
 
+    async initializeQuestDeliveryOverlay() {
+    try {
+      console.log('🎁 [DialogueManager] Initialisation QuestDeliveryOverlay...');
+      
+      // Récupérer références systèmes
+      const questSystem = this.questSystem || window.questSystem || window.questSystemGlobal;
+      const networkManager = window.globalNetworkManager || this.networkManager;
+      
+      if (!networkManager) {
+        console.warn('⚠️ [DialogueManager] NetworkManager non disponible pour QuestDeliveryOverlay');
+        return;
+      }
+      
+      // Créer instance
+      this.questDeliveryOverlay = new QuestDeliveryOverlay(questSystem, networkManager);
+      await this.questDeliveryOverlay.init();
+      
+      // Configurer callbacks
+      this.questDeliveryOverlay.onDeliveryConfirm = (deliveryData, npcId) => {
+        this.handleQuestDeliveryConfirm(deliveryData, npcId);
+      };
+      
+      this.questDeliveryOverlay.onClose = () => {
+        console.log('🎁 [DialogueManager] QuestDeliveryOverlay fermé');
+      };
+      
+      console.log('✅ [DialogueManager] QuestDeliveryOverlay initialisé');
+      
+    } catch (error) {
+      console.error('❌ [DialogueManager] Erreur init QuestDeliveryOverlay:', error);
+    }
+  }
+  
   // ===== AFFICHAGE DES DIALOGUES =====
 
   show(data) {
