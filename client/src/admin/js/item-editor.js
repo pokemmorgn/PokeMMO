@@ -872,3 +872,111 @@ export class ItemEditorModule {
         console.log('🧹 [ItemEditor] Cleanup module');
     }
 }
+
+// ===== FONCTIONS GLOBALES POUR L'INTERFACE =====
+
+// ✅ CORRECTION: Utiliser une référence globale sécurisée
+window.itemEditorSelectItem = (itemId) => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.selectItem(itemId);
+    } else {
+        console.error('❌ ItemEditor non disponible');
+    }
+};
+
+window.itemEditorCreateNew = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.createNewItem();
+    }
+};
+
+window.itemEditorSave = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.saveItem();
+    }
+};
+
+window.itemEditorDuplicate = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.duplicateItem();
+    }
+};
+
+window.itemEditorDelete = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.deleteItem();
+    }
+};
+
+window.itemEditorCancel = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.cancelEdit();
+    }
+};
+
+window.itemEditorRefresh = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.refreshItems();
+    }
+};
+
+window.itemEditorExport = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.exportItems();
+    }
+};
+
+window.itemEditorPreviousPage = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.previousPage();
+    }
+};
+
+window.itemEditorNextPage = () => {
+    if (window.adminPanel?.itemEditor) {
+        window.adminPanel.itemEditor.nextPage();
+    }
+};
+
+// Fonctions pour les effets et méthodes d'obtention
+window.itemEditorAddEffect = () => {
+    console.log('🎭 [ItemEditor] Ajout effet - À implémenter');
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
+
+window.itemEditorEditEffect = (index) => {
+    console.log(`🎭 [ItemEditor] Édition effet ${index} - À implémenter`);
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
+
+window.itemEditorRemoveEffect = (index) => {
+    console.log(`🗑️ [ItemEditor] Suppression effet ${index} - À implémenter`);
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
+
+window.itemEditorAddObtainMethod = () => {
+    console.log('📍 [ItemEditor] Ajout méthode obtention - À implémenter');
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
+
+window.itemEditorEditObtainMethod = (index) => {
+    console.log(`📍 [ItemEditor] Édition méthode ${index} - À implémenter`);
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
+
+window.itemEditorRemoveObtainMethod = (index) => {
+    console.log(`🗑️ [ItemEditor] Suppression méthode ${index} - À implémenter`);
+    if (window.adminPanel) {
+        window.adminPanel.showNotification('Fonction en développement', 'info');
+    }
+};
