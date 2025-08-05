@@ -86,7 +86,7 @@ export class MapEditorModule {
 }
 
 
-    renderItemsPanel() {
+   renderItemsPanel() {
     const container = document.getElementById('itemsContainer')
     if (!container) return
     
@@ -105,33 +105,48 @@ export class MapEditorModule {
         return
     }
     
-    // ✅ CORRECTION: Grouper par catégorie avec gestion robuste
+    // ✅ AJOUTER CE DEBUG
+    console.log('🔍 [DEBUG] availableItems type:', typeof this.availableItems);
+    console.log('🔍 [DEBUG] availableItems keys:', Object.keys(this.availableItems));
+    console.log('🔍 [DEBUG] First item sample:', this.availableItems[Object.keys(this.availableItems)[0]]);
+    
+    // ✅ GROUPER PAR CATÉGORIE AVEC PROTECTION
     const itemsByCategory = {}
     
     Object.entries(this.availableItems).forEach(([itemId, item]) => {
-        // Déterminer la catégorie de manière robuste
-        let category = 'items' // défaut
-        
-        if (item.category) {
-            category = item.category
-        } else if (item.pocket) {
-            category = item.pocket
-        } else if (item.type) {
-            category = item.type
+        try {
+            // ✅ PROTECTION SUPPLÉMENTAIRE
+            console.log('🔍 [DEBUG] Processing item:', itemId, typeof item, item);
+            
+            // Déterminer la catégorie de manière robuste
+            let category = 'items' // défaut
+            
+            if (item && typeof item === 'object') {
+                if (item.category) {
+                    category = item.category
+                } else if (item.pocket) {
+                    category = item.pocket
+                } else if (item.type) {
+                    category = item.type
+                }
+            }
+            
+            if (!itemsByCategory[category]) {
+                itemsByCategory[category] = []
+            }
+            
+            // ✅ ASSURER QUE L'ITEM A UN ID
+            const itemWithId = {
+                ...item,
+                id: item.itemId || item.id || itemId,
+                displayName: this.getItemDisplayName(item) // ← Ici se produit l'erreur
+            }
+            
+            itemsByCategory[category].push(itemWithId)
+            
+        } catch (error) {
+            console.error('❌ [DEBUG] Error processing item:', itemId, error);
         }
-        
-        if (!itemsByCategory[category]) {
-            itemsByCategory[category] = []
-        }
-        
-        // ✅ CORRECTION: Assurer que l'item a un ID
-        const itemWithId = {
-            ...item,
-            id: item.itemId || item.id || itemId,
-            displayName: this.getItemDisplayName(item)
-        }
-        
-        itemsByCategory[category].push(itemWithId)
     })
     
     // ✅ AMÉLIORATION: Mapping des catégories pour de meilleurs noms
