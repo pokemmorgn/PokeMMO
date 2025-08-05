@@ -90,13 +90,14 @@ export class WorldRoom extends Room<PokeWorldState> {
   private lastStateUpdate = 0;
   private stateUpdateInterval = 100;
 
-  onCreate(options: any) {
+async onCreate(options: any) {
     console.log(`🌍 === WORLDROOM CRÉATION ===`);
     console.log(`📊 Options:`, options);
 
     // Initialiser le state
     this.setState(new PokeWorldState());
     console.log(`✅ State initialisé`);
+    
     // ✅ NOUVEAU: Initialiser l'OverworldPokemonManager
     this.overworldPokemonManager = new OverworldPokemonManager(this);
     console.log(`✅ OverworldPokemonManager initialisé`);
@@ -110,15 +111,15 @@ export class WorldRoom extends Room<PokeWorldState> {
       movementBlockManager.cleanup();
     }, 30000);
 
-      // ✅ NOUVEAU: Initialiser les StarterHandlers
-      this.starterHandlers = new StarterHandlers(this);
-      console.log(`✅ StarterHandlers initialisé`);
+    // ✅ NOUVEAU: Initialiser les StarterHandlers
+    this.starterHandlers = new StarterHandlers(this);
+    console.log(`✅ StarterHandlers initialisé`);
     
     // Initialiser le ZoneManager
     this.zoneManager = new ZoneManager(this);
     console.log(`✅ ZoneManager initialisé`);
 
-   // ✅ Enregistrer dans ServiceRegistry
+    // ✅ Enregistrer dans ServiceRegistry
     const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
     const registry = ServiceRegistry.getInstance();
 
@@ -134,36 +135,10 @@ export class WorldRoom extends Room<PokeWorldState> {
       registry.registerQuestManager(questManager);
       console.log(`✅ Services enregistrés dans ServiceRegistry`);
     }
-    
       
-      // ✅ ÉTAPE 1: Initialiser NPCManagers en ARRIÈRE-PLAN (non-bloquant)
-      console.log(`🔄 [WorldRoom] Lancement NPCManager en arrière-plan...`);
-      this.initializeNpcManagers()
-        .then(() => {
-          console.log(`✅ [WorldRoom] NPCs chargés en arrière-plan !`);
-          
-          // ✅ BROADCAST AUTOMATIQUE : Envoyer les NPCs à tous les clients déjà connectés
-          console.log(`📡 [WorldRoom] Notification des ${this.clients.length} clients connectés...`);
-          this.clients.forEach(client => {
-            const player = this.state.players.get(client.sessionId);
-            if (player) {
-              console.log(`📤 [WorldRoom] Envoi NPCs à ${player.name} dans ${player.currentZone}`);
-              this.onPlayerJoinZone(client, player.currentZone);
-            }
-          });
-          
-          console.log(`🎉 [WorldRoom] Tous les clients notifiés des NPCs !`);
-        })
-        .catch(error => {
-          console.error(`❌ [WorldRoom] Erreur chargement NPCs en arrière-plan:`, error);
-          
-          // ✅ MÊME EN CAS D'ERREUR : Notifier que le système est prêt (sans NPCs)
-          console.log(`⚠️ [WorldRoom] Notification clients : système prêt sans NPCs`);
-        });
-      
-      // ✅ CONTINUER IMMÉDIATEMENT : TransitionService et reste du code
-      this.transitionService = new TransitionService();
-      console.log(`✅ TransitionService initialisé`);
+    // ✅ CONTINUER IMMÉDIATEMENT : TransitionService et reste du code
+    this.transitionService = new TransitionService();
+    console.log(`✅ TransitionService initialisé`);
 
     // ✅ ÉTAPE 2: Initialiser TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
@@ -209,12 +184,12 @@ export class WorldRoom extends Room<PokeWorldState> {
     // ✅ ÉTAPE 8: Configurer les message handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
-    // Initialiser InteractionManager
+
     // ✅ ÉTAPE 8.5: Initialiser ShopManager D'ABORD
     this.shopManager = new ShopManager();
     console.log(`✅ ShopManager initialisé`);
     
-    // ✅ ÉTAPE 8.6: Maintenant InteractionManager (avec ShopManager prêt)
+    // ✅ ÉTAPE 8.6: Maintenant InteractionManager (SANS timer configuré)
     this.interactionManager = new InteractionManager(
       (zoneName: string) => this.getNpcManager(zoneName),
       this.zoneManager.getQuestManager(),
@@ -222,7 +197,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.starterHandlers,
       this.spectatorManager
     );
-    console.log(`✅ InteractionManager initialisé`);
+    console.log(`✅ InteractionManager initialisé (timer pas encore configuré)`);
     
     // ✅ ÉTAPE 8.7: NpcInteractionModule (avec ShopManager prêt)
     this.npcInteractionModule = new NpcInteractionModule(
@@ -234,18 +209,103 @@ export class WorldRoom extends Room<PokeWorldState> {
     );
     console.log(`✅ NpcInteractionModule initialisé`);
 
-    this.interactionManager.setAdditionalManagers({
-      room: this // ✅ CRUCIAL : Passer la room
-    });
-    
     // ✅ ÉTAPE 8.8: Initialiser ZoneSyncService
     this.initializeZoneSyncService();
+
+    // ✅ CRITIQUE : ATTENDRE que NPCManagers soient chargés AVANT de configurer le timer
+    console.log(`🔄 [WorldRoom] === CHARGEMENT NPCManagers (BLOQUANT) ===`);
+    console.log(`⏰ Début chargement NPCs: ${new Date().toISOString()}`);
+    
+    try {
+      await this.initializeNpcManagers();
+      console.log(`✅ [WorldRoom] NPCs chargés avec succès !`);
+      console.log(`⏰ Fin chargement NPCs: ${new Date().toISOString()}`);
+      
+      // ✅ MAINTENANT configurer le timer avec TOUS les gestionnaires prêts
+      console.log(`🔧 [WorldRoom] === CONFIGURATION TIMER CENTRALISÉ ===`);
+      this.configureWorldTimer();
+      
+      // ✅ BROADCAST AUTOMATIQUE : Envoyer les NPCs aux clients déjà connectés
+      console.log(`📡 [WorldRoom] Notification des ${this.clients.length} clients connectés...`);
+      this.clients.forEach(client => {
+        const player = this.state.players.get(client.sessionId);
+        if (player) {
+          console.log(`📤 [WorldRoom] Envoi NPCs à ${player.name} dans ${player.currentZone}`);
+          this.onPlayerJoinZone(client, player.currentZone);
+        }
+      });
+      console.log(`🎉 [WorldRoom] Tous les clients notifiés des NPCs !`);
+      
+    } catch (error) {
+      console.error(`❌ [WorldRoom] Erreur critique chargement NPCs:`, error);
+      console.log(`⚠️ [WorldRoom] Continuation avec mode dégradé (sans NPCs)`);
+      
+      // ✅ Mode dégradé : configurer le timer sans NPCs
+      this.configureWorldTimerFallback();
+    }
     
     // ✅ ÉTAPE 10: Auto-save des positions
     this.autoSaveTimer = setInterval(() => {
       this.autoSaveAllPositions();
     }, 30000);
     console.log(`💾 Auto-save des positions activé (30s)`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Configuration timer avec tous les gestionnaires
+  private configureWorldTimer(): void {
+    console.log('⏰ [WorldRoom] === CONFIGURATION TIMER CENTRALISÉ COMPLET ===');
+    console.log('⏰ Timestamp configuration:', new Date().toISOString());
+    
+    // Diagnostic complet des gestionnaires
+    console.log('🔧 [WorldRoom] État des gestionnaires:');
+    console.log(`  📂 NPCManagers: ${this.npcManagers.size} zones`);
+    console.log(`  📦 ObjectManager: ${!!this.objectInteractionHandlers}`);
+    console.log(`  🎯 QuestManager: ${!!this.zoneManager.getQuestManager()}`);
+    console.log(`  🏠 Room: ${!!this}`);
+    
+    // Debug détaillé NPCManagers
+    if (this.npcManagers.size > 0) {
+      console.log('🔍 [WorldRoom] === DIAGNOSTIC NPCMANAGERS ===');
+      for (const [zoneName, npcManager] of this.npcManagers) {
+        const npcs = npcManager.getAllNpcs ? npcManager.getAllNpcs() : [];
+        const npcsWithQuests = npcs.filter((npc: any) => 
+          (npc.questsToGive && npc.questsToGive.length > 0) || 
+          (npc.questsToEnd && npc.questsToEnd.length > 0)
+        );
+        
+        console.log(`  📂 Zone ${zoneName}:`);
+        console.log(`    📊 Total NPCs: ${npcs.length}`);
+        console.log(`    🎯 NPCs avec quêtes: ${npcsWithQuests.length}`);
+        console.log(`    ✅ Manager initialisé: ${npcManager.isInitialized || 'unknown'}`);
+      }
+      console.log('🔍 [WorldRoom] === FIN DIAGNOSTIC ===');
+    } else {
+      console.warn('⚠️ [WorldRoom] Aucun NPCManager trouvé !');
+    }
+    
+    // Configurer avec TOUS les gestionnaires prêts
+    this.interactionManager.setAdditionalManagers({
+      objectManager: this.objectInteractionHandlers,
+      npcManagers: this.npcManagers,
+      room: this
+    });
+    
+    console.log('✅ [WorldRoom] Timer centralisé configuré avec tous les gestionnaires');
+    console.log('⏰ Fin configuration timer:', new Date().toISOString());
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Configuration timer en mode dégradé
+  private configureWorldTimerFallback(): void {
+    console.log('⚠️ [WorldRoom] === CONFIGURATION TIMER MODE DÉGRADÉ ===');
+    
+    // Configurer sans NPCs mais avec les autres gestionnaires
+    this.interactionManager.setAdditionalManagers({
+      objectManager: this.objectInteractionHandlers,
+      npcManagers: new Map(), // Map vide
+      room: this
+    });
+    
+    console.log('⚠️ [WorldRoom] Timer configuré en mode dégradé (sans NPCs)');
   }
 
   private async autoSaveAllPositions() {
