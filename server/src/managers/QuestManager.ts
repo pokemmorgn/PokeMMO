@@ -756,7 +756,6 @@ async startQuest(username: string, questId: string): Promise<Quest | null> {
   }
 }
 
-  // 🚀 NOUVELLE MÉTHODE : Progression automatique des quêtes
 async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
   try {
     if (this.config.debugMode) {
@@ -978,7 +977,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
       console.log(`🔄 [QuestManager] Progression détectée, déclenchement refresh UI pour ${playerName}`);
       
       try {
-        // Option 1: Via ServiceRegistry (recommandé)
+        // Via ServiceRegistry pour accéder à WorldRoom.updateQuestStatusesFixed()
         const { ServiceRegistry } = await import('../services/ServiceRegistry');
         const registry = ServiceRegistry.getInstance();
         const worldRoom = registry.getWorldRoom();
@@ -998,22 +997,8 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
         }
 
       } catch (registryError) {
-        // Option 2: Fallback via clientHandler si ServiceRegistry échoue
         if (this.config.debugMode) {
-          console.warn(`⚠️ [QuestManager] ServiceRegistry non disponible, tentative via clientHandler:`, registryError);
-        }
-        
-        try {
-          if (this.clientHandler && typeof this.clientHandler.refreshPlayerQuestUI === 'function') {
-            setTimeout(async () => {
-              await this.clientHandler.refreshPlayerQuestUI(playerName);
-              console.log(`✅ [QuestManager] Refresh UI via clientHandler terminé pour ${playerName}`);
-            }, 250);
-          }
-        } catch (clientHandlerError) {
-          if (this.config.debugMode) {
-            console.error(`❌ [QuestManager] Erreur refresh UI via clientHandler:`, clientHandlerError);
-          }
+          console.warn(`⚠️ [QuestManager] ServiceRegistry non disponible pour refresh UI:`, registryError);
         }
       }
     }
