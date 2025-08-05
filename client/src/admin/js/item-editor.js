@@ -873,9 +873,11 @@ export class ItemEditorModule {
     }
 }
 
+// Dans item-editor.js, modifier les fonctions globales pour éviter les conflits :
+
 // ===== FONCTIONS GLOBALES POUR L'INTERFACE =====
 
-// ✅ CORRECTION: Utiliser une référence globale sécurisée
+// ✅ CORRECTION: Utiliser une référence globale sécurisée avec noms spécifiques
 window.itemEditorSelectItem = (itemId) => {
     if (window.adminPanel?.itemEditor) {
         window.adminPanel.itemEditor.selectItem(itemId);
@@ -914,6 +916,7 @@ window.itemEditorCancel = () => {
     }
 };
 
+// ⚠️ CORRECTION PRINCIPALE - Cette fonction était appelée mais pas définie dans main.js
 window.itemEditorRefresh = () => {
     if (window.adminPanel?.itemEditor) {
         window.adminPanel.itemEditor.refreshItems();
