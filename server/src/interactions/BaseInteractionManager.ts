@@ -718,7 +718,7 @@ class WorldUpdateTimer {
     }
     
     const finalCount = Object.keys(questStatuses).length;
-    console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${finalCount} NPCs`);
+  //  console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${finalCount} NPCs`);
     
     return questStatuses;
   }
