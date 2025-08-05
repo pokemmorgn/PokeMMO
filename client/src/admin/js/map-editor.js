@@ -1054,59 +1054,48 @@ async loadAvailableItems() {
     console.log('📦 [MapEditor] Loading available items from MongoDB...')
     
     try {
-        // Appel API vers le serveur MongoDB pour récupérer les items
-        const response = await this.adminPanel.apiCall('/items')
+        // ✅ UTILISER LA NOUVELLE ROUTE
+        const response = await this.adminPanel.apiCall('/items/list?limit=1000')
+        
+        console.log('🔍 [DEBUG] Response received:', response)
         
         if (response.success && response.items) {
-            console.log(`📦 [MapEditor] Received ${response.items.length} items from MongoDB`)
-            
-            // Convertir le tableau en objet indexé par itemId pour compatibilité
+            // ✅ Convertir le format "liste" vers le format "objet indexé"
             this.availableItems = {}
             
             response.items.forEach(item => {
-                // Utiliser itemId comme clé, avec fallback sur _id
-                const itemKey = item.itemId || item._id
-                
-                // Formater l'item pour compatibilité avec l'interface
-                this.availableItems[itemKey] = {
-                    id: itemKey,
+                this.availableItems[item.itemId] = {
+                    id: item.itemId,
                     itemId: item.itemId,
                     name: item.name,
-                    category: item.category || item.pocket || 'items',
-                    type: item.type || item.category || 'item',
-                    price: item.price || 0,
-                    description: item.description || '',
-                    stackable: item.stackable !== false,
-                    // Propriétés pour le placement
-                    sprite: this.getItemSpriteFromCategory(item.category || item.type),
-                    rarity: this.determineItemRarity(item),
-                    // Conserver les données complètes
+                    description: item.description,
+                    category: item.category,
+                    type: item.category, // Compatibilité
+                    price: item.price,
+                    stackable: item.stackable,
+                    sprite: this.getItemSpriteFromCategory(item.category),
+                    rarity: item.rarity || 'common',
+                    // Données complètes
                     ...item
                 }
             })
             
-            console.log(`✅ [MapEditor] ${Object.keys(this.availableItems).length} items loaded and indexed`)
+            console.log(`✅ [MapEditor] ${Object.keys(this.availableItems).length} items loaded from new route`)
             
-            // Rendre le panel des items si il existe
+            // Rendre le panel
             if (document.getElementById('itemsContainer')) {
                 this.renderItemsPanel()
             }
-            
             return true
             
         } else {
-            throw new Error(response.error || 'Aucun item reçu')
+            throw new Error(response.error || 'Aucun item reçu de la nouvelle route')
         }
         
     } catch (error) {
-        console.error('❌ [MapEditor] Error loading items from MongoDB:', error)
-        
-        // Aucun fallback - forcer l'utilisation de MongoDB
+        console.error('❌ [MapEditor] Error loading items from new route:', error)
         this.availableItems = {}
-        console.log('❌ [MapEditor] No items loaded - MongoDB connection required')
-        
         this.adminPanel.showNotification('Erreur MongoDB: Aucun item chargé - Vérifiez la connexion base de données', 'error')
-        
         return false
     }
 }
