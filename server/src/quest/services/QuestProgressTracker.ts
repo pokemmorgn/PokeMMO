@@ -1,6 +1,6 @@
 // server/src/quest/services/QuestProgressTracker.ts
 // Service modulaire pour la progression des quêtes - Cœur de la logique métier
-// ✅ VERSION MODIFIÉE : Intégration scan inventaire automatique
+// ✅ VERSION MODIFIÉE : Intégration scan inventaire automatique + Support itemId
 
 import { 
   QuestDefinition, 
@@ -167,7 +167,7 @@ export interface QuestProgressTrackerConfig {
 /**
  * 🎯 Service de progression des quêtes
  * Extrait du QuestManager pour modularité
- * ✅ VERSION MODIFIÉE : Avec scan inventaire automatique
+ * ✅ VERSION MODIFIÉE : Avec scan inventaire automatique + Support itemId
  */
 class QuestProgressTracker implements IQuestProgressTracker {
   private config: QuestProgressTrackerConfig;
@@ -352,6 +352,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
 
   /**
    * ✅ NOUVELLE MÉTHODE : Vérifier inventaire existant pour un objectif
+   * CORRIGÉ : Support à la fois target et itemId
    */
   private async checkExistingInventory(
     username: string, 
@@ -362,20 +363,27 @@ class QuestProgressTracker implements IQuestProgressTracker {
       return 0;
     }
     
-    if (objective.type !== 'collect' || !objective.target) {
+    if (objective.type !== 'collect') {
+      return 0;
+    }
+    
+    // ✅ CORRECTION : Supporter à la fois target et itemId
+    const itemToCheck = objective.target || objective.itemId;
+    if (!itemToCheck) {
+      this.log('debug', `⚠️ Objectif collect sans target ni itemId: ${objective.id}`);
       return 0;
     }
     
     try {
-      const existingCount = await InventoryManager.getItemCount(username, objective.target);
+      const existingCount = await InventoryManager.getItemCount(username, itemToCheck);
       
       if (this.config.logInventoryScan) {
-        this.log('debug', `📦 Inventaire existant: ${objective.target} = ${existingCount} pour ${username}`);
+        this.log('debug', `📦 Inventaire existant: ${itemToCheck} = ${existingCount} pour ${username}`);
       }
       
       return existingCount;
     } catch (error) {
-      this.log('warn', `⚠️ Erreur vérification inventaire pour ${objective.target}:`, error);
+      this.log('warn', `⚠️ Erreur vérification inventaire pour ${itemToCheck}:`, error);
       return 0;
     }
   }
@@ -424,6 +432,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
 
   /**
    * ✅ MÉTHODE PUBLIQUE : Scan complet des objectifs d'une étape
+   * AMÉLIORATION : Logs de debug étendus
    */
   public async scanStepObjectives(
     username: string,
@@ -432,6 +441,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
   ): Promise<{ scannedObjectives: number; autoCompleted: number; totalProgress: number }> {
     
     if (!this.config.enableInventoryScan) {
+      this.log('info', `❌ Scan inventaire désactivé`);
       return { scannedObjectives: 0, autoCompleted: 0, totalProgress: 0 };
     }
 
@@ -442,14 +452,19 @@ class QuestProgressTracker implements IQuestProgressTracker {
     this.log('info', `🔍 Scan inventaire pour ${stepObjectives.length} objectif(s) - ${username}`);
 
     for (const objective of stepObjectives) {
+      this.log('info', `🎯 Vérification objectif: ${objective.id}, type: ${objective.type}, target: ${objective.target}, itemId: ${objective.itemId}`);
+      
       if (objective.type === 'collect') {
         scannedObjectives++;
         
         const existingCount = await this.checkExistingInventory(username, objective);
+        this.log('info', `📦 Inventaire check résultat: ${existingCount} pour objectif ${objective.id}`);
         
         if (existingCount > 0) {
           const amountToApply = Math.min(existingCount, objective.requiredAmount);
           totalProgress += amountToApply;
+          
+          this.log('info', `✅ Application progression: ${amountToApply} pour ${objective.description}`);
           
           await this.applyProgressDirectly(
             username, 
@@ -462,7 +477,11 @@ class QuestProgressTracker implements IQuestProgressTracker {
           if (amountToApply >= objective.requiredAmount) {
             autoCompleted++;
           }
+        } else {
+          this.log('info', `❌ Aucun item trouvé en inventaire pour objectif ${objective.id}`);
         }
+      } else {
+        this.log('info', `⏭️ Objectif ${objective.id} ignoré (type: ${objective.type})`);
       }
     }
 
@@ -482,6 +501,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
   checkObjectiveProgress(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean {
     this.log('debug', `🔍 Vérification objectif: ${objective.type} vs event: ${event.type}`, {
       objectiveTarget: objective.target,
+      objectiveItemId: objective.itemId,
       eventTargetId: event.targetId,
       hasConditions: !!objective.conditions
     });
@@ -507,12 +527,15 @@ class QuestProgressTracker implements IQuestProgressTracker {
 
   /**
    * 🎯 Vérification des types de base (compatibilité + nouveaux)
+   * CORRIGÉ : Support itemId pour collect
    */
   private checkBaseObjectiveType(objective: QuestObjectiveDefinition, event: QuestProgressEvent): boolean {
     switch (objective.type) {
       // ===== TYPES EXISTANTS (CONSERVÉS) =====
       case 'collect':
-        return event.type === 'collect' && event.targetId === objective.target;
+        // ✅ CORRECTION : Support target ET itemId
+        const targetItem = objective.target || objective.itemId;
+        return event.type === 'collect' && event.targetId === targetItem;
       
       case 'defeat':
         return event.type === 'defeat' && 
@@ -1092,7 +1115,7 @@ class QuestProgressTracker implements IQuestProgressTracker {
   getDebugInfo(): any {
     return {
       config: this.config,
-      version: '2.0.0', // ✅ Version bumped avec scan inventaire
+      version: '2.1.0', // ✅ Version bumped avec support itemId
       supportedTypes: [
         'collect', 'defeat', 'talk', 'reach', 'deliver', // Types de base
         'catch', 'encounter', 'use', 'win', 'explore',   // Types étendus
@@ -1105,7 +1128,8 @@ class QuestProgressTracker implements IQuestProgressTracker {
         experimentalFeatures: this.config.enableExperimentalTypes,
         inventoryScan: this.config.enableInventoryScan,
         scanOnQuestStart: this.config.scanOnQuestStart,
-        scanOnStepStart: this.config.scanOnStepStart
+        scanOnStepStart: this.config.scanOnStepStart,
+        itemIdSupport: true // ✅ Nouveau feature flag
       }
     };
   }
