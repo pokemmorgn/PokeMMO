@@ -1,5 +1,5 @@
 // src/interactions/BaseInteractionManager.ts
-// Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE + TIMER CENTRALISÉ
+// Gestionnaire de base pour toutes les interactions - VERSION SÉCURISÉE + TIMER CENTRALISÉ + FIX QUEST STATUS
 
 import { Player } from "../schema/PokeWorldState";
 import { 
@@ -396,7 +396,7 @@ class SecurityValidator {
   }
 }
 
-// 🔧 NOUVELLE CLASSE : GESTIONNAIRE TIMER CENTRALISÉ
+// 🔧 NOUVELLE CLASSE : GESTIONNAIRE TIMER CENTRALISÉ AVEC FIX QUEST STATUS
 class WorldUpdateTimer {
   private config: WorldUpdateTimerConfig;
   private timer: NodeJS.Timeout | null = null;
@@ -519,7 +519,7 @@ class WorldUpdateTimer {
       // 🔧 COLLECTE DES DONNÉES SELON LA CONFIGURATION
       
       // 1. Quest Statuses
-      if (this.config.includeQuestStatuses && this.questManager) {
+      if (this.config.includeQuestStatuses && this.npcManagers.size > 0) {
         try {
           updateData.questStatuses = await this.collectQuestStatuses();
           if (this.config.debugMode) {
@@ -596,45 +596,182 @@ class WorldUpdateTimer {
   }
 
   /**
-   * 📋 Collecter les statuts de quêtes
+   * 📋 Collecter les statuts de quêtes - VERSION FIXÉE
    */
   private async collectQuestStatuses(): Promise<any> {
     const questStatuses: any = {};
     
     try {
-      // Collecter les statuts pour tous les NPCs de toutes les zones
+      console.log(`🔍 [WorldUpdateTimer] === DÉBUT COLLECTE QUEST STATUS ===`);
+      console.log(`🔍 [WorldUpdateTimer] Nombre de npcManagers: ${this.npcManagers.size}`);
+      console.log(`🔍 [WorldUpdateTimer] Zones disponibles:`, Array.from(this.npcManagers.keys()));
+      
+      if (this.npcManagers.size === 0) {
+        console.warn('⚠️ [WorldUpdateTimer] Aucun npcManager configuré !');
+        return questStatuses;
+      }
+      
+      let totalNpcsProcessed = 0;
+      let totalNpcsWithQuests = 0;
+      
       for (const [zoneName, npcManager] of this.npcManagers) {
         try {
-          const npcs = npcManager.getAllNpcs();
+          console.log(`🔍 [WorldUpdateTimer] === ZONE: ${zoneName} ===`);
+          console.log(`🔍 [WorldUpdateTimer] NpcManager type:`, npcManager?.constructor?.name);
+          console.log(`🔍 [WorldUpdateTimer] NpcManager initialized:`, npcManager?.isInitialized);
           
-          for (const npc of npcs) {
-            if (npc.questsToGive || npc.questsToEnd) {
-              try {
-                // Ici on pourrait appeler le questManager pour obtenir le statut
-                // Pour l'instant, on simule
-                questStatuses[npc.id] = {
-                  hasAvailableQuests: !!(npc.questsToGive && npc.questsToGive.length > 0),
-                  hasQuestsToComplete: !!(npc.questsToEnd && npc.questsToEnd.length > 0),
-                  questCount: (npc.questsToGive?.length || 0) + (npc.questsToEnd?.length || 0),
-                  zone: zoneName,
-                  npcId: npc.id
-                };
-              } catch (npcError) {
-                if (this.config.debugMode) {
-                  console.warn(`⚠️ [WorldUpdateTimer] Erreur NPC ${npc.id}:`, npcError);
-                }
-              }
+          // ✅ Vérifier que le NpcManager est initialisé
+          if (!npcManager.isInitialized) {
+            console.warn(`⚠️ [WorldUpdateTimer] NpcManager ${zoneName} non initialisé - tentative d'attente`);
+            
+            // Essayer d'attendre que le NpcManager soit prêt
+            const isReady = await npcManager.waitForLoad(2000);
+            if (!isReady) {
+              console.warn(`⚠️ [WorldUpdateTimer] NpcManager ${zoneName} toujours pas prêt après 2s`);
+              continue;
             }
           }
+          
+          // ✅ Récupérer tous les NPCs avec la méthode correcte
+          const npcs = npcManager.getAllNpcs();
+          console.log(`📊 [WorldUpdateTimer] Zone ${zoneName}: ${npcs.length} NPCs récupérés`);
+          
+          if (npcs.length === 0) {
+            console.log(`ℹ️ [WorldUpdateTimer] Zone ${zoneName}: Aucun NPC trouvé`);
+            continue;
+          }
+          
+          totalNpcsProcessed += npcs.length;
+          let zoneNpcsWithQuests = 0;
+          
+          // ✅ Analyser chaque NPC pour les quêtes
+          for (const npc of npcs) {
+            if (!npc || !npc.id) {
+              console.warn(`⚠️ [WorldUpdateTimer] NPC invalide dans ${zoneName}:`, npc);
+              continue;
+            }
+            
+            // ✅ Diagnostic détaillé sur le premier NPC avec quêtes
+            const hasQuestsToGive = Array.isArray(npc.questsToGive) && npc.questsToGive.length > 0;
+            const hasQuestsToEnd = Array.isArray(npc.questsToEnd) && npc.questsToEnd.length > 0;
+            const hasQuests = hasQuestsToGive || hasQuestsToEnd;
+            
+            if (hasQuests) {
+              zoneNpcsWithQuests++;
+              totalNpcsWithQuests++;
+              
+              // ✅ Log détaillé pour le premier NPC avec quêtes
+              if (totalNpcsWithQuests === 1) {
+                console.log(`🔍 [WorldUpdateTimer] === PREMIER NPC AVEC QUÊTES ===`);
+                console.log(`🎯 NPC ID: ${npc.id}, Name: ${npc.name}`);
+                console.log(`🎯 questsToGive:`, npc.questsToGive);
+                console.log(`🎯 questsToEnd:`, npc.questsToEnd);
+                console.log(`🎯 Type:`, npc.type);
+                console.log(`🎯 Zone:`, npc.zone);
+              }
+              
+              // ✅ Créer le status de quête pour ce NPC
+              questStatuses[npc.id] = {
+                hasAvailableQuests: hasQuestsToGive,
+                hasQuestsToComplete: hasQuestsToEnd,
+                questCount: (npc.questsToGive?.length || 0) + (npc.questsToEnd?.length || 0),
+                zone: zoneName,
+                npcId: npc.id,
+                npcName: npc.name,
+                lastUpdate: Date.now(),
+                // ✅ Debug info pour diagnostic
+                debug: {
+                  questsToGiveCount: npc.questsToGive?.length || 0,
+                  questsToEndCount: npc.questsToEnd?.length || 0,
+                  questsToGive: npc.questsToGive,
+                  questsToEnd: npc.questsToEnd
+                }
+              };
+              
+              console.log(`✅ [WorldUpdateTimer] NPC ${npc.id} (${npc.name}) ajouté avec ${questStatuses[npc.id].questCount} quêtes`);
+            }
+          }
+          
+          console.log(`✅ [WorldUpdateTimer] Zone ${zoneName} terminée: ${zoneNpcsWithQuests}/${npcs.length} NPCs avec quêtes`);
+          
         } catch (zoneError) {
-          console.warn(`⚠️ [WorldUpdateTimer] Erreur zone ${zoneName}:`, zoneError);
+          console.error(`❌ [WorldUpdateTimer] Erreur zone ${zoneName}:`, zoneError);
+          console.error(`❌ [WorldUpdateTimer] Stack trace:`, zoneError.stack);
         }
       }
+      
+      console.log(`📋 [WorldUpdateTimer] === RÉSUMÉ COLLECTE ===`);
+      console.log(`📊 Total NPCs traités: ${totalNpcsProcessed}`);
+      console.log(`📊 NPCs avec quêtes: ${totalNpcsWithQuests}`);
+      console.log(`📊 Quest statuses créés: ${Object.keys(questStatuses).length}`);
+      
+      // ✅ Afficher un échantillon des quest statuses créés
+      if (Object.keys(questStatuses).length > 0) {
+        console.log(`📋 [WorldUpdateTimer] Échantillon quest statuses:`, 
+          Object.fromEntries(Object.entries(questStatuses).slice(0, 3))
+        );
+      }
+      
     } catch (error) {
       console.error('❌ [WorldUpdateTimer] Erreur collecte quest statuses:', error);
+      console.error('❌ [WorldUpdateTimer] Stack trace:', error.stack);
     }
     
+    const finalCount = Object.keys(questStatuses).length;
+    console.log(`📋 [WorldUpdateTimer] Quest statuses collectés: ${finalCount} NPCs`);
+    
     return questStatuses;
+  }
+
+  /**
+   * 🔧 Diagnostic complet des NPCs et gestionnaires
+   */
+  public async debugNpcManagers(): Promise<void> {
+    console.log('🔍 [WorldUpdateTimer] === DIAGNOSTIC COMPLET NPC MANAGERS ===');
+    
+    console.log(`📊 Nombre de npcManagers: ${this.npcManagers.size}`);
+    console.log(`📊 Zones configurées:`, Array.from(this.npcManagers.keys()));
+    
+    for (const [zoneName, npcManager] of this.npcManagers) {
+      console.log(`\n🔍 === ZONE: ${zoneName} ===`);
+      console.log(`📊 Type:`, npcManager?.constructor?.name);
+      console.log(`📊 Initialized:`, npcManager?.isInitialized);
+      console.log(`📊 Méthodes disponibles:`, Object.getOwnPropertyNames(npcManager.constructor.prototype));
+      
+      if (npcManager.getSystemStats) {
+        const stats = npcManager.getSystemStats();
+        console.log(`📊 Stats:`, {
+          totalNpcs: stats.totalNpcs,
+          initialized: stats.initialized,
+          loadedZones: stats.zones.loaded,
+          npcsByZone: stats.npcsByZone
+        });
+      }
+      
+      try {
+        const npcs = npcManager.getAllNpcs();
+        console.log(`📊 NPCs récupérés: ${npcs.length}`);
+        
+        const npcsWithQuests = npcs.filter(npc => 
+          (npc.questsToGive && npc.questsToGive.length > 0) || 
+          (npc.questsToEnd && npc.questsToEnd.length > 0)
+        );
+        
+        console.log(`📊 NPCs avec quêtes: ${npcsWithQuests.length}`);
+        
+        if (npcsWithQuests.length > 0) {
+          console.log(`📋 Détails premiers NPCs avec quêtes:`);
+          npcsWithQuests.slice(0, 3).forEach(npc => {
+            console.log(`  🎯 ${npc.id} (${npc.name}): questsToGive=${npc.questsToGive?.length || 0}, questsToEnd=${npc.questsToEnd?.length || 0}`);
+          });
+        }
+        
+      } catch (error) {
+        console.error(`❌ Erreur récupération NPCs pour ${zoneName}:`, error);
+      }
+    }
+    
+    console.log('🔍 [WorldUpdateTimer] === FIN DIAGNOSTIC ===');
   }
 
   /**
@@ -1058,6 +1195,31 @@ export class BaseInteractionManager {
     
     this.worldUpdateTimer.setManagers(managers);
     console.log('✅ [BaseInteractionManager] Gestionnaires timer configurés');
+    
+    // 🔧 NOUVEAU : Diagnostic immédiat des NPCs après configuration
+    if (managers.npcManagers && managers.npcManagers.size > 0) {
+      console.log('🔍 [BaseInteractionManager] === DIAGNOSTIC NPCS POST-CONFIGURATION ===');
+      
+      setTimeout(async () => {
+        try {
+          // Appeler le diagnostic du timer
+          if (this.worldUpdateTimer && typeof this.worldUpdateTimer.debugNpcManagers === 'function') {
+            await this.worldUpdateTimer.debugNpcManagers();
+          }
+          
+          // Test immédiat de collecte
+          console.log('🧪 [BaseInteractionManager] Test immédiat collecte quest statuses...');
+          const questStatuses = await this.worldUpdateTimer.collectQuestStatuses();
+          console.log('🧪 [BaseInteractionManager] Résultat test:', {
+            questStatusCount: Object.keys(questStatuses).length,
+            sample: Object.keys(questStatuses).slice(0, 3)
+          });
+          
+        } catch (error) {
+          console.error('❌ [BaseInteractionManager] Erreur diagnostic post-config:', error);
+        }
+      }, 1000); // Attendre 1 seconde pour que tout soit stable
+    }
     
     // 🔧 NOUVEAU : Démarrer automatiquement le timer après configuration
     if (managers.room) {
