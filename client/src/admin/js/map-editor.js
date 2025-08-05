@@ -1055,7 +1055,7 @@ async loadAvailableItems() {
     
     try {
         // Appel API vers le serveur MongoDB pour récupérer les items
-        const response = await this.adminPanel.apiCall('/admin/items')
+        const response = await this.adminPanel.apiCall('/items')
         
         if (response.success && response.items) {
             console.log(`📦 [MapEditor] Received ${response.items.length} items from MongoDB`)
