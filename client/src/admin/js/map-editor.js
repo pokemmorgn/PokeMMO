@@ -35,31 +35,54 @@ export class MapEditorModule {
     // ==============================
 
    getItemDisplayName(item) {
-    // ✅ CORRECTION: Gestion robuste des différents formats
-    if (!item) return 'Item Inconnu'
+    // ✅ CORRECTION COMPLÈTE: Robuste contre tous les types
+    console.log('🔍 [DEBUG] getItemDisplayName called with:', typeof item, item);
     
-    // Nouveau format MongoDB
-    if (item.name && typeof item.name === 'string') {
-        return item.name
+    // Vérifications de sécurité
+    if (!item) return 'Item Inconnu';
+    
+    // Si c'est un objet
+    if (typeof item === 'object') {
+        // Priorité 1: propriété 'name'
+        if (item.name && typeof item.name === 'string') {
+            return item.name;
+        }
+        
+        // Priorité 2: propriété 'itemId'
+        if (item.itemId && typeof item.itemId === 'string') {
+            return item.itemId.replace(/_/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+        
+        // Priorité 3: propriété 'id'
+        if (item.id && typeof item.id === 'string') {
+            return item.id.replace(/_/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+        
+        // Si l'objet n'a pas les propriétés attendues
+        return 'Item Sans Nom';
     }
     
-    // Ancien format ou fallback
-    if (item.itemId) {
-        return item.itemId.replace(/_/g, ' ')
+    // Si c'est une chaîne directement
+    if (typeof item === 'string') {
+        return item.replace(/_/g, ' ')
             .split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ')
+            .join(' ');
     }
     
-    // Fallback avec ID
-    if (item.id) {
-        return item.id.replace(/_/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ')
+    // Si c'est un nombre ou autre type
+    if (typeof item === 'number') {
+        return `Item ${item}`;
     }
     
-    return 'Item Sans Nom'
+    // Fallback ultime
+    return 'Item Inconnu';
 }
 
 
