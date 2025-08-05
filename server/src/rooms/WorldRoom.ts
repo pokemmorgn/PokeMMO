@@ -1082,7 +1082,6 @@ this.onMessage("questDelivery", async (client, data) => {
       if (result.result?.stepCompleted) {
         client.send("questStepComplete", {
           questId: data.questId,
-          stepIndex: result.result.newStepIndex || 0,
           message: result.result.message || "Étape complétée"
         });
       }
@@ -1091,7 +1090,6 @@ this.onMessage("questDelivery", async (client, data) => {
       if (result.result?.questCompleted) {
         client.send("questComplete", {
           questId: data.questId,
-          questName: data.questId,
           message: result.result.message || "Quête complétée!"
         });
       }
@@ -1192,7 +1190,6 @@ this.onMessage("debugQuestDeliveries", async (client) => {
     console.error(`❌ [DEBUG] Erreur:`, error);
   }
 });
-
     
     this.onMessage("getShopCatalog", async (client, data) => {
       const player = this.state.players.get(client.sessionId);
