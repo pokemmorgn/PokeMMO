@@ -700,10 +700,10 @@ class WorldUpdateTimer {
         }
       }
       
-      console.log(`📋 [WorldUpdateTimer] === RÉSUMÉ COLLECTE ===`);
-      console.log(`📊 Total NPCs traités: ${totalNpcsProcessed}`);
-      console.log(`📊 NPCs avec quêtes: ${totalNpcsWithQuests}`);
-      console.log(`📊 Quest statuses créés: ${Object.keys(questStatuses).length}`);
+      //console.log(`📋 [WorldUpdateTimer] === RÉSUMÉ COLLECTE ===`);
+      //console.log(`📊 Total NPCs traités: ${totalNpcsProcessed}`);
+      //console.log(`📊 NPCs avec quêtes: ${totalNpcsWithQuests}`);
+     // console.log(`📊 Quest statuses créés: ${Object.keys(questStatuses).length}`);
       
       // ✅ Afficher un échantillon des quest statuses créés
       if (Object.keys(questStatuses).length > 0) {
