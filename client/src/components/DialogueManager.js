@@ -184,6 +184,38 @@ export class DialogueManager {
       console.error('❌ [DialogueManager] Erreur init QuestDeliveryOverlay:', error);
     }
   }
+
+  handleQuestDeliveryConfirm(deliveryData, npcId) {
+  console.log('[DialogueManager] 🎯 Confirmation livraison:', deliveryData, npcId);
+  
+  try {
+    // Fermer le dialogue si ouvert
+    if (this.isOpen()) {
+      this.hide();
+    }
+    
+    // Notification de succès
+    if (typeof window.showGameNotification === 'function') {
+      const itemCount = deliveryData.items?.length || 0;
+      const message = `Livraison réussie ! ${itemCount} objet(s) remis.`;
+      
+      window.showGameNotification(message, 'success', {
+        duration: 3000,
+        position: 'top-center'
+      });
+    }
+    
+    // Callback personnalisé si défini
+    if (this.onQuestDeliveryComplete && typeof this.onQuestDeliveryComplete === 'function') {
+      this.onQuestDeliveryComplete(deliveryData, npcId);
+    }
+    
+    console.log('[DialogueManager] ✅ Livraison confirmée');
+    
+  } catch (error) {
+    console.error('[DialogueManager] ❌ Erreur confirmation livraison:', error);
+  }
+}
   
   // ===== AFFICHAGE DES DIALOGUES =====
 
