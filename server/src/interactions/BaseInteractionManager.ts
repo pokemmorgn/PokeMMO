@@ -425,17 +425,26 @@ class WorldUpdateTimer {
     npcManagers?: Map<string, any>;
     room?: any;
   }): void {
+    console.log('🔧 [WorldUpdateTimer] === DÉBUT setManagers ===');
+    console.log('🔧 [WorldUpdateTimer] Gestionnaires reçus:', {
+      questManager: !!managers.questManager,
+      objectManager: !!managers.objectManager,
+      npcManagers: managers.npcManagers?.size || 0,
+      room: !!managers.room
+    });
+    
     if (managers.questManager) this.questManager = managers.questManager;
     if (managers.objectManager) this.objectManager = managers.objectManager;
     if (managers.npcManagers) this.npcManagers = managers.npcManagers;
     if (managers.room) this.room = managers.room;
     
-    console.log(`🔧 [WorldUpdateTimer] Gestionnaires configurés:`, {
+    console.log(`✅ [WorldUpdateTimer] Gestionnaires configurés:`, {
       questManager: !!this.questManager,
       objectManager: !!this.objectManager,
       npcManagers: this.npcManagers.size,
       room: !!this.room
     });
+    console.log('🔧 [WorldUpdateTimer] === FIN setManagers ===');
   }
 
   /**
@@ -1007,6 +1016,9 @@ export class BaseInteractionManager {
     // 🔧 NOUVEAU : Initialiser le timer centralisé
     if (this.config.worldUpdateTimer?.enabled) {
       this.worldUpdateTimer = new WorldUpdateTimer(this.config.worldUpdateTimer);
+      console.log('⏰ [BaseInteractionManager] Timer centralisé initialisé (pas encore démarré)');
+    } else {
+      console.log('⚠️ [BaseInteractionManager] Timer centralisé désactivé par configuration');
     }
 
     console.log(`🎮 [BaseInteractionManager] Initialisé avec IA + Sécurité + Timer`, {
@@ -1030,30 +1042,64 @@ export class BaseInteractionManager {
     npcManagers?: Map<string, any>;
     room?: any;
   }): void {
-    if (this.worldUpdateTimer) {
-      this.worldUpdateTimer.setManagers(managers);
-      console.log('🔧 [BaseInteractionManager] Gestionnaires timer configurés');
-      
-      // 🔧 NOUVEAU : Démarrer automatiquement le timer après configuration
-      if (managers.room) {
-        setTimeout(() => {
-          this.startWorldUpdateTimer();
-          console.log('✅ [BaseInteractionManager] Timer démarré automatiquement après configuration');
-        }, 2000); // 2 secondes pour laisser tout se stabiliser
-      } else {
-        console.warn('⚠️ [BaseInteractionManager] Room manquante - timer non démarré');
-      }
+    console.log('🔧 [BaseInteractionManager] === DÉBUT setTimerManagers ===');
+    console.log('🔧 [BaseInteractionManager] Gestionnaires reçus:', {
+      questManager: !!managers.questManager,
+      objectManager: !!managers.objectManager,
+      npcManagers: managers.npcManagers?.size || 0,
+      room: !!managers.room,
+      worldUpdateTimer: !!this.worldUpdateTimer
+    });
+    
+    if (!this.worldUpdateTimer) {
+      console.warn('⚠️ [BaseInteractionManager] Timer non initialisé - vérifiez la configuration');
+      return;
     }
+    
+    this.worldUpdateTimer.setManagers(managers);
+    console.log('✅ [BaseInteractionManager] Gestionnaires timer configurés');
+    
+    // 🔧 NOUVEAU : Démarrer automatiquement le timer après configuration
+    if (managers.room) {
+      console.log('⏰ [BaseInteractionManager] Programmation démarrage timer dans 2 secondes...');
+      
+      setTimeout(() => {
+        console.log('🚀 [BaseInteractionManager] Démarrage automatique du timer...');
+        this.startWorldUpdateTimer();
+        console.log('✅ [BaseInteractionManager] Timer démarré automatiquement après configuration');
+      }, 2000); // 2 secondes pour laisser tout se stabiliser
+    } else {
+      console.warn('⚠️ [BaseInteractionManager] Room manquante - timer non démarré');
+    }
+    
+    console.log('🔧 [BaseInteractionManager] === FIN setTimerManagers ===');
   }
 
   /**
    * 🚀 Démarrer le timer centralisé
    */
   startWorldUpdateTimer(): void {
-    if (this.worldUpdateTimer) {
-      this.worldUpdateTimer.start();
-      console.log('⏰ [BaseInteractionManager] Timer centralisé démarré');
+    console.log('🚀 [BaseInteractionManager] === DÉBUT startWorldUpdateTimer ===');
+    
+    if (!this.worldUpdateTimer) {
+      console.error('❌ [BaseInteractionManager] Timer non initialisé');
+      return;
     }
+    
+    console.log('⏰ [BaseInteractionManager] Appel start() du timer...');
+    this.worldUpdateTimer.start();
+    console.log('✅ [BaseInteractionManager] Timer centralisé démarré');
+    
+    // 🔧 NOUVEAU : Vérifier l'état après démarrage
+    const stats = this.worldUpdateTimer.getStats();
+    console.log('📊 [BaseInteractionManager] État timer après démarrage:', {
+      enabled: stats.enabled,
+      isActive: stats.isActive,
+      interval: stats.intervalSeconds + 's',
+      managers: stats.managers
+    });
+    
+    console.log('🚀 [BaseInteractionManager] === FIN startWorldUpdateTimer ===');
   }
 
   /**
