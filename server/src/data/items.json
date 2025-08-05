@@ -426,7 +426,7 @@
     "usable_in_field": false,
     "stackable": false
   },
-    "Dreamroot_Pendant": {
+    "dreamroot_pendant": {
     "id": "Dreamroot_Pendant",
     "type": "key_item",
     "pocket": "key_items",
