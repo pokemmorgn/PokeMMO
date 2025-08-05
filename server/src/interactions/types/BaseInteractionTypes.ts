@@ -63,6 +63,7 @@ export type InteractionResultType =
   | 'heal' 
   | 'questGiver' 
   | 'questComplete' 
+  | "questDelivery" 
   | 'starterTable' 
   | 'battleSpectate' 
   | 'objectCollected' 
