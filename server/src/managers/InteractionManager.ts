@@ -1,5 +1,5 @@
-// server/src/managers/InteractionManager.ts - VERSION MODULAIRE CORRIGÉE
-// ✅ Interface Unifiée : Champs correctement copiés depuis result vers npcResult
+// server/src/managers/InteractionManager.ts - VERSION MODULAIRE AVEC TIMER
+// ✅ Ajout de la configuration du timer centralisé
 
 import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager";
@@ -74,6 +74,11 @@ export class InteractionManager {
   private baseInteractionManager: BaseInteractionManager;
   private npcModule: NpcInteractionModule;
   private isInitialized: boolean = false;
+  
+  // 🔧 NOUVEAU : Références pour le timer
+  private objectManager: any = null;
+  private npcManagers: Map<string, any> = new Map();
+  private room: any = null;
 
   constructor(
     getNpcManager: (zoneName: string) => any, 
@@ -82,7 +87,7 @@ export class InteractionManager {
     starterHandlers: StarterHandlers,
     spectatorManager: SpectatorManager
   ) {
-    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire`);
+    console.log(`🔄 [InteractionManager] Initialisation avec système modulaire + timer`);
     
     // ✅ CONSERVATION DES DÉPENDANCES EXISTANTES
     this.getNpcManager = getNpcManager;
@@ -110,7 +115,18 @@ export class InteractionManager {
           puzzle: 0
         },
         debug: process.env.NODE_ENV === 'development',
-        logLevel: 'info'
+        logLevel: 'info',
+        
+        // 🔧 NOUVEAU : Configuration timer centralisé
+        worldUpdateTimer: {
+          enabled: process.env.WORLD_TIMER_ENABLED !== 'false',
+          interval: parseInt(process.env.WORLD_TIMER_INTERVAL || '5000'),
+          includeQuestStatuses: true,
+          includeGameObjects: true,
+          includeNpcUpdates: true,
+          includePlayerUpdates: false,
+          debugMode: process.env.NODE_ENV === 'development'
+        }
       });
 
       // 2. Créer et enregistrer le module NPC
@@ -134,150 +150,231 @@ export class InteractionManager {
     } catch (error) {
       console.error(`❌ [InteractionManager] Erreur initialisation modulaire:`, error);
       this.isInitialized = false;
-      
-      // En cas d'erreur, on pourrait fallback sur l'ancien système
-      // Mais pour l'instant on log juste l'erreur
     }
   }
 
-  // ✅ MÉTHODE PRINCIPALE CORRIGÉE - Copie correcte des champs Interface Unifiée
-// ✅ MÉTHODE PRINCIPALE MODIFIÉE - Accepte maintenant les données du client
-async handleNpcInteraction(
-  player: Player, 
-  npcId: number, 
-  additionalData?: any  // ✅ NOUVEAU : Données supplémentaires du client
-): Promise<NpcInteractionResult> {
-  console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
-  console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
-  
-  // ✅ DEBUG : Afficher les données supplémentaires reçues
-  if (additionalData) {
-    console.log(`🌐 [InteractionManager] Données supplémentaires:`, {
-      playerLanguage: additionalData.playerLanguage,
-      playerPosition: additionalData.playerPosition,
-      zone: additionalData.zone,
-      sessionId: additionalData.sessionId,
-      keys: Object.keys(additionalData)
+  // 🔧 NOUVELLES MÉTHODES : Configuration du timer
+
+  /**
+   * 🔧 Configurer les gestionnaires supplémentaires et la room pour le timer
+   */
+  setAdditionalManagers(config: {
+    objectManager?: any;
+    npcManagers?: Map<string, any>;
+    room?: any;
+  }): void {
+    console.log('🔧 [InteractionManager] === CONFIGURATION GESTIONNAIRES TIMER ===');
+    console.log('🔧 [InteractionManager] Gestionnaires reçus:', {
+      objectManager: !!config.objectManager,
+      npcManagers: config.npcManagers?.size || 0,
+      room: !!config.room
     });
+
+    // Stocker les références
+    if (config.objectManager) this.objectManager = config.objectManager;
+    if (config.npcManagers) this.npcManagers = config.npcManagers;
+    if (config.room) this.room = config.room;
+
+    // 🔧 Configurer le timer si le BaseInteractionManager est prêt
+    if (this.baseInteractionManager && this.isInitialized) {
+      this.configureTimer();
+    } else {
+      console.log('⏳ [InteractionManager] BaseInteractionManager pas encore prêt, configuration timer différée');
+      
+      // Réessayer après un délai
+      setTimeout(() => {
+        if (this.isInitialized) {
+          this.configureTimer();
+        }
+      }, 1000);
+    }
   }
 
-  // Vérification que le système modulaire est prêt
-  if (!this.isInitialized) {
-    console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
-    await this.initializeModularSystem();
+  /**
+   * 🔧 Configurer le timer avec tous les gestionnaires
+   */
+  private configureTimer(): void {
+    console.log('⏰ [InteractionManager] === CONFIGURATION TIMER ===');
     
+    if (!this.baseInteractionManager) {
+      console.error('❌ [InteractionManager] BaseInteractionManager non disponible');
+      return;
+    }
+
+    // Préparer tous les gestionnaires pour le timer
+    const timerManagers = {
+      questManager: this.questManager,
+      objectManager: this.objectManager,
+      npcManagers: this.npcManagers,
+      room: this.room
+    };
+
+    console.log('🔧 [InteractionManager] Configuration timer avec gestionnaires:', {
+      questManager: !!timerManagers.questManager,
+      objectManager: !!timerManagers.objectManager,
+      npcManagers: timerManagers.npcManagers?.size || 0,
+      room: !!timerManagers.room
+    });
+
+    // 🚀 Configurer le timer centralisé
+    this.baseInteractionManager.setTimerManagers(timerManagers);
+    
+    console.log('✅ [InteractionManager] Timer centralisé configuré');
+  }
+
+  /**
+   * 📊 Obtenir les stats du timer
+   */
+  getTimerStats() {
+    if (this.baseInteractionManager) {
+      return this.baseInteractionManager.getWorldUpdateTimerStats();
+    }
+    return null;
+  }
+
+  /**
+   * 🛑 Arrêter le timer manuellement
+   */
+  stopTimer(): void {
+    if (this.baseInteractionManager) {
+      this.baseInteractionManager.stopWorldUpdateTimer();
+    }
+  }
+
+  /**
+   * 🚀 Démarrer le timer manuellement
+   */
+  startTimer(): void {
+    if (this.baseInteractionManager) {
+      this.baseInteractionManager.startWorldUpdateTimer();
+    }
+  }
+
+  // ✅ MÉTHODES EXISTANTES INCHANGÉES
+
+  async handleNpcInteraction(
+    player: Player, 
+    npcId: number, 
+    additionalData?: any
+  ): Promise<NpcInteractionResult> {
+    console.log(`🔍 [InteractionManager] === INTERACTION NPC ${npcId} ===`);
+    console.log(`👤 Player: ${player.name}, Zone: ${player.currentZone}`);
+    
+    if (additionalData) {
+      console.log(`🌐 [InteractionManager] Données supplémentaires:`, {
+        playerLanguage: additionalData.playerLanguage,
+        playerPosition: additionalData.playerPosition,
+        zone: additionalData.zone,
+        sessionId: additionalData.sessionId,
+        keys: Object.keys(additionalData)
+      });
+    }
+
+    // Vérification que le système modulaire est prêt
     if (!this.isInitialized) {
-      return { 
-        type: "error", 
-        message: "Système d'interaction temporairement indisponible." 
+      console.warn(`⚠️ [InteractionManager] Système modulaire non initialisé, réessai...`);
+      await this.initializeModularSystem();
+      
+      if (!this.isInitialized) {
+        return { 
+          type: "error", 
+          message: "Système d'interaction temporairement indisponible." 
+        };
+      }
+    }
+
+    try {
+      const request: InteractionRequest = {
+        type: 'npc',
+        targetId: npcId,
+        position: {
+          x: player.x,
+          y: player.y,
+          mapId: player.currentZone
+        },
+        data: {
+          npcId: npcId,
+          ...additionalData
+        },
+        timestamp: Date.now()
+      };
+
+      console.log(`📤 [InteractionManager] Requête envoyée au module:`, {
+        type: request.type,
+        targetId: request.targetId,
+        dataKeys: Object.keys(request.data),
+        playerLanguage: request.data.playerLanguage
+      });
+
+      const result = await this.baseInteractionManager.processInteraction(player, request);
+
+      const npcModuleResult = result as any;
+      const resultData = result.data as any;
+
+      console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
+        type: result.type,
+        npcId: npcModuleResult.npcId,
+        npcIdType: typeof npcModuleResult.npcId,
+        npcName: npcModuleResult.npcName,
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+        capabilities: npcModuleResult.capabilities?.length || 0,
+        contextualData: !!npcModuleResult.contextualData
+      });
+
+      const npcResult: NpcInteractionResult = {
+        type: result.type,
+        message: result.message,
+        
+        npcId: npcModuleResult.npcId ?? resultData?.npcId,
+        npcName: npcModuleResult.npcName ?? resultData?.npcName,
+        
+        isUnifiedInterface: npcModuleResult.isUnifiedInterface,
+        capabilities: npcModuleResult.capabilities,
+        contextualData: npcModuleResult.contextualData,
+        unifiedInterface: npcModuleResult.unifiedInterface,
+        unifiedMode: npcModuleResult.unifiedMode,
+        
+        shopId: npcModuleResult.shopId ?? resultData?.shopId,
+        shopData: npcModuleResult.shopData ?? resultData?.shopData,
+        lines: npcModuleResult.lines ?? resultData?.lines,
+        availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
+        questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
+        questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
+        questId: npcModuleResult.questId ?? resultData?.questId,
+        questName: npcModuleResult.questName ?? resultData?.questName,
+        starterData: npcModuleResult.starterData ?? resultData?.starterData,
+        starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
+        starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
+        battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate
+      };
+
+      console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
+        type: npcResult.type,
+        npcId: npcResult.npcId,
+        npcName: npcResult.npcName,
+        isUnifiedInterface: npcResult.isUnifiedInterface,
+        capabilities: npcResult.capabilities?.length || 0,
+        contextualData: !!npcResult.contextualData
+      });
+
+      console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
+      console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
+      console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
+
+      return npcResult;
+
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
+      
+      return {
+        type: "error",
+        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
       };
     }
   }
 
-  try {
-    // ✅ CONSTRUIRE LA REQUÊTE POUR LE NOUVEAU SYSTÈME AVEC DONNÉES SUPPLÉMENTAIRES
-    const request: InteractionRequest = {
-      type: 'npc',
-      targetId: npcId,
-      position: {
-        x: player.x,
-        y: player.y,
-        mapId: player.currentZone
-      },
-      data: {
-        npcId: npcId,
-        // ✅ NOUVEAU : Inclure toutes les données supplémentaires
-        ...additionalData
-      },
-      timestamp: Date.now()
-    };
-
-    // ✅ DEBUG : Vérifier ce qui sera envoyé au module
-    console.log(`📤 [InteractionManager] Requête envoyée au module:`, {
-      type: request.type,
-      targetId: request.targetId,
-      dataKeys: Object.keys(request.data),
-      playerLanguage: request.data.playerLanguage
-    });
-
-    // ✅ TRAITER VIA LE NOUVEAU SYSTÈME
-    const result = await this.baseInteractionManager.processInteraction(player, request);
-
-    // ✅ CASTING SÉCURISÉ vers le type NPC du module
-    const npcModuleResult = result as any; // Casting pour accéder aux propriétés étendues
-    const resultData = result.data as any; // Casting pour result.data aussi
-
-    // ✅ DEBUG AVANT CONVERSION
-    console.log(`🔧 [InteractionManager] Résultat brut du module:`, {
-      type: result.type,
-      npcId: npcModuleResult.npcId,
-      npcIdType: typeof npcModuleResult.npcId,
-      npcName: npcModuleResult.npcName,
-      isUnifiedInterface: npcModuleResult.isUnifiedInterface,
-      capabilities: npcModuleResult.capabilities?.length || 0,
-      contextualData: !!npcModuleResult.contextualData
-    });
-
-    // ✅ CONVERSION CORRIGÉE - Utiliser le casting pour accéder aux propriétés étendues
-    const npcResult: NpcInteractionResult = {
-      type: result.type,
-      message: result.message,
-      
-      // ✅ CORRIGÉ : Utiliser le casting pour accéder aux champs NPC
-      npcId: npcModuleResult.npcId ?? resultData?.npcId,
-      npcName: npcModuleResult.npcName ?? resultData?.npcName,
-      
-      // ✅ NOUVEAUX CHAMPS : Interface unifiée (depuis casting)
-      isUnifiedInterface: npcModuleResult.isUnifiedInterface,
-      capabilities: npcModuleResult.capabilities,
-      contextualData: npcModuleResult.contextualData,
-      unifiedInterface: npcModuleResult.unifiedInterface,
-      unifiedMode: npcModuleResult.unifiedMode,
-      
-      // Données spécifiques NPCs (depuis casting avec fallback)
-      shopId: npcModuleResult.shopId ?? resultData?.shopId,
-      shopData: npcModuleResult.shopData ?? resultData?.shopData,
-      lines: npcModuleResult.lines ?? resultData?.lines,
-      availableQuests: npcModuleResult.availableQuests ?? resultData?.availableQuests,
-      questRewards: npcModuleResult.questRewards ?? resultData?.questRewards,
-      questProgress: npcModuleResult.questProgress ?? resultData?.questProgress,
-      questId: npcModuleResult.questId ?? resultData?.questId,
-      questName: npcModuleResult.questName ?? resultData?.questName,
-      starterData: npcModuleResult.starterData ?? resultData?.starterData,
-      starterEligible: npcModuleResult.starterEligible ?? resultData?.starterEligible,
-      starterReason: npcModuleResult.starterReason ?? resultData?.starterReason,
-      battleSpectate: npcModuleResult.battleSpectate ?? resultData?.battleSpectate
-    };
-
-    // ✅ DEBUG APRÈS CONVERSION
-    console.log(`🔧 [InteractionManager] Résultat final pour envoi:`, {
-      type: npcResult.type,
-      npcId: npcResult.npcId,
-      npcName: npcResult.npcName,
-      isUnifiedInterface: npcResult.isUnifiedInterface,
-      capabilities: npcResult.capabilities?.length || 0,
-      contextualData: !!npcResult.contextualData
-    });
-
-    console.log(`✅ [InteractionManager] Interaction traitée via système modulaire`);
-    console.log(`📊 [InteractionManager] Résultat: ${result.type}, Module: ${result.moduleUsed}, Temps: ${result.processingTime}ms`);
-    console.log(`📤 Envoi résultat interaction: ${npcResult.type}`);
-
-    return npcResult;
-
-  } catch (error) {
-    console.error(`❌ [InteractionManager] Erreur système modulaire:`, error);
-    
-    // Retour d'erreur au format existant
-    return {
-      type: "error",
-      message: error instanceof Error ? error.message : "Erreur inconnue lors de l'interaction"
-    };
-  }
-}
-
-  // ✅ MÉTHODES EXISTANTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
-
+  // ✅ TOUTES LES AUTRES MÉTHODES EXISTANTES RESTENT INCHANGÉES...
+  
   async handleShopTransaction(
     player: Player, 
     shopId: string, 
@@ -352,8 +449,6 @@ async handleNpcInteraction(
   getBattleSpectatorCount(battleId: string): number {
     return this.spectatorManager.getBattleSpectatorCount(battleId);
   }
-
-  // ✅ MÉTHODES QUÊTES CONSERVÉES - DÉLÈGUENT AU MODULE NPC
 
   async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     console.log(`🎯 [InteractionManager] Démarrage quête via module`);
@@ -446,8 +541,6 @@ async handleNpcInteraction(
     }
   }
 
-  // ✅ MÉTHODES UTILITAIRES CONSERVÉES
-
   async giveItemToPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
     try {
       await InventoryManager.addItem(username, itemId, quantity);
@@ -513,11 +606,6 @@ async handleNpcInteraction(
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES POUR DEBUGGING/MONITORING
-
-  /**
-   * Obtenir les statistiques du système modulaire
-   */
   getModularSystemStats(): any {
     if (!this.isInitialized || !this.baseInteractionManager) {
       return {
@@ -533,13 +621,11 @@ async handleNpcInteraction(
       initialized: true,
       stats: stats,
       config: config,
-      modules: this.baseInteractionManager.listModules()
+      modules: this.baseInteractionManager.listModules(),
+      timer: this.getTimerStats() // 🔧 NOUVEAU : Stats timer
     };
   }
 
-  /**
-   * Reinitialiser le système modulaire (pour debugging)
-   */
   async reinitializeModularSystem(): Promise<boolean> {
     try {
       console.log(`🔄 [InteractionManager] Réinitialisation système modulaire...`);
@@ -551,6 +637,11 @@ async handleNpcInteraction(
       this.isInitialized = false;
       await this.initializeModularSystem();
       
+      // 🔧 NOUVEAU : Reconfigurer le timer après réinitialisation
+      if (this.isInitialized && (this.objectManager || this.npcManagers.size > 0 || this.room)) {
+        this.configureTimer();
+      }
+      
       return this.isInitialized;
     } catch (error) {
       console.error(`❌ [InteractionManager] Erreur réinitialisation:`, error);
@@ -558,9 +649,6 @@ async handleNpcInteraction(
     }
   }
 
-  /**
-   * Activer/désactiver le mode debug
-   */
   setDebugMode(enabled: boolean): void {
     if (this.baseInteractionManager) {
       this.baseInteractionManager.updateConfig({ debug: enabled });
@@ -568,7 +656,6 @@ async handleNpcInteraction(
     }
   }
 
-  // ✅ NETTOYAGE LORS DE LA DESTRUCTION
   async cleanup(): Promise<void> {
     console.log(`🧹 [InteractionManager] Nettoyage du système modulaire...`);
     
