@@ -1,11 +1,12 @@
 // server/src/services/TransitionService.ts
-// ✅ VERSION INDÉPENDANTE SANS NPCManager
+// ✅ VERSION INDÉPENDANTE SANS NPCManager + AVEC ZONE MAPPING
 
 import { Client } from "@colyseus/core";
 import { Player } from "../schema/PokeWorldState";
 import { TeleportConfig, TransitionRule, ValidationContext } from "../config/TeleportConfig";
 import { JWTManager } from "../managers/JWTManager";
 import { FollowerHandlers } from "../handlers/FollowerHandlers";
+import { getDbZoneName } from "../config/ZoneMapping"; // ✅ IMPORT DU MAPPING
 import fs from "fs";
 import path from "path";
 
@@ -70,9 +71,17 @@ export class TransitionService {
     console.log(`🐾 [TransitionService] FollowerHandlers enregistré pour les transitions`);
   }
 
-  // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT
+  // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE + JWT + ZONE MAPPING
   async validateTransition(client: Client, player: any, data: TransitionRequest): Promise<any> {
     console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
+    
+    // ✅ CONVERTIR LES NOMS DE ZONES CLIENT → DB
+    const dbFromZone = getDbZoneName(data.fromZone);
+    const dbTargetZone = getDbZoneName(data.targetZone);
+    
+    console.log(`🗺️ [TransitionService] Conversion zones:`);
+    console.log(`  Client → DB From: ${data.fromZone} → ${dbFromZone}`);
+    console.log(`  Client → DB Target: ${data.targetZone} → ${dbTargetZone}`);
     
     // ✅ VALIDATION UNIVERSELLE EN UNE LIGNE !
     const sessionValidation = await this.jwtManager.validateSessionRobust(
@@ -95,13 +104,13 @@ export class TransitionService {
     
     console.log(`👤 Joueur: ${player.name} (${client.sessionId} → ${userId})`);
     console.log(`🔐 JWT: ${jwtData.username} (niveau: ${jwtData.level || 'N/A'})`);
-    console.log(`📍 ${data.fromZone} → ${data.targetZone}`);
+    console.log(`📍 ${dbFromZone} → ${dbTargetZone}`);
     console.log(`📊 Position: (${data.playerX}, ${data.playerY})`);
 
     try {
-      // 1. Vérifier que les zones existent
-      if (!this.teleportData.has(data.fromZone)) {
-        console.error(`❌ [TransitionService] Zone source inconnue: ${data.fromZone}`);
+      // 1. Vérifier que les zones existent (avec noms DB)
+      if (!this.teleportData.has(dbFromZone)) {
+        console.error(`❌ [TransitionService] Zone source inconnue: ${dbFromZone} (client: ${data.fromZone})`);
         console.log(`📋 [TransitionService] Zones disponibles:`, Array.from(this.teleportData.keys()));
         return {
           success: false,
@@ -110,8 +119,8 @@ export class TransitionService {
         };
       }
 
-      if (!this.spawnData.has(data.targetZone)) {
-        console.error(`❌ [TransitionService] Zone cible sans spawns: ${data.targetZone}`);
+      if (!this.spawnData.has(dbTargetZone)) {
+        console.error(`❌ [TransitionService] Zone cible sans spawns: ${dbTargetZone} (client: ${data.targetZone})`);
         console.log(`📋 [TransitionService] Zones avec spawns:`, Array.from(this.spawnData.keys()));
         return {
           success: false,
@@ -120,8 +129,14 @@ export class TransitionService {
         };
       }
 
-      // 2. Validation physique du téléport (collision + destination)
-      const teleportValidation = this.validateTeleportCollision(data);
+      // 2. Validation physique du téléport (collision + destination) - avec noms DB
+      const mappedRequest = {
+        ...data,
+        fromZone: dbFromZone,
+        targetZone: dbTargetZone
+      };
+      
+      const teleportValidation = this.validateTeleportCollision(mappedRequest);
       if (!teleportValidation.success) {
         return teleportValidation;
       }
@@ -131,16 +146,16 @@ export class TransitionService {
       console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
       console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
 
-      // 4. Vérifier les règles de configuration avec JWT
+      // 4. Vérifier les règles de configuration avec JWT - utiliser les noms originaux
       const configValidation = await this.validateConfigRules(client, player, data);
       if (!configValidation.success) {
         return configValidation;
       }
 
-      // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
-      const spawnPosition = this.findTargetSpawn(data.targetZone, validatedTeleport.targetSpawn);
+      // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination (nom DB)
+      const spawnPosition = this.findTargetSpawn(dbTargetZone, validatedTeleport.targetSpawn);
       if (!spawnPosition) {
-        console.error(`❌ [TransitionService] Spawn introuvable: ${data.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
+        console.error(`❌ [TransitionService] Spawn introuvable: ${dbTargetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
         return {
           success: false,
           reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
@@ -154,7 +169,7 @@ export class TransitionService {
         this.followerHandlers.onPlayerMapTransition(client.sessionId, spawnPosition.x, spawnPosition.y);
       }
 
-      // 7. Validation réussie
+      // 7. Validation réussie - retourner le nom de zone original (client)
       console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
       console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
       this.jwtManager.ensureMapping(client.sessionId, userId, jwtData);
@@ -162,7 +177,7 @@ export class TransitionService {
       return {
         success: true,
         position: spawnPosition,
-        currentZone: data.targetZone,
+        currentZone: data.targetZone, // ✅ Nom original pour le client
         validatedTeleport: validatedTeleport,
         userId: userId
       };
@@ -177,7 +192,7 @@ export class TransitionService {
     }
   }
 
-  // ✅ VALIDATION TÉLÉPORT AVEC targetSpawn
+  // ✅ VALIDATION TÉLÉPORT AVEC targetSpawn (utilise les noms DB)
   private validateTeleportCollision(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
     console.log(`🔒 [TransitionService] === VALIDATION COLLISION TÉLÉPORT ===`);
     
@@ -257,7 +272,7 @@ export class TransitionService {
     };
   }
 
-  // ✅ NOUVEAU: Recherche du spawn correspondant au targetSpawn
+  // ✅ NOUVEAU: Recherche du spawn correspondant au targetSpawn (utilise les noms DB)
   private findTargetSpawn(targetZone: string, targetSpawn: string): { x: number; y: number } | null {
     console.log(`[TransitionService] Recherche spawn: zone="${targetZone}" targetSpawn="${targetSpawn}"`);
     
@@ -310,7 +325,7 @@ export class TransitionService {
 
       console.log(`📁 [TransitionService] ${mapFiles.length} cartes trouvées:`, mapFiles);
 
-      // Charger chaque carte
+      // Charger chaque carte (utilise les noms de fichiers DB)
       mapFiles.forEach(zoneName => {
         try {
           this.extractTeleportsAndSpawns(zoneName);
@@ -326,7 +341,7 @@ export class TransitionService {
     console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} zones`);
   }
 
-  // ✅ EXTRACTION DIRECTE DEPUIS LES FICHIERS TMJ
+  // ✅ EXTRACTION DIRECTE DEPUIS LES FICHIERS TMJ (utilise les noms de fichiers DB)
   private extractTeleportsAndSpawns(zoneName: string) {
     const mapPath = path.resolve(__dirname, `../assets/maps/${zoneName}.tmj`);
     
@@ -353,16 +368,19 @@ export class TransitionService {
             const targetSpawn = this.getProperty(obj, 'targetspawn');
             
             if (targetZone && targetSpawn) {
+              // ✅ CONVERTIR targetZone client → DB pour cohérence
+              const dbTargetZone = getDbZoneName(targetZone);
+              
               teleports.push({
                 id: `${zoneName}_teleport_${obj.id}`,
                 x: obj.x,
                 y: obj.y,
                 width: obj.width || 32,
                 height: obj.height || 32,
-                targetZone: targetZone,
+                targetZone: dbTargetZone, // ✅ Stocké en format DB
                 targetSpawn: targetSpawn
               });
-              console.log(`📍 [TransitionService] Téléport ${zoneName}_teleport_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}[${targetSpawn}]`);
+              console.log(`📍 [TransitionService] Téléport ${zoneName}_teleport_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}→${dbTargetZone}[${targetSpawn}]`);
             }
           }
           
@@ -386,6 +404,7 @@ export class TransitionService {
       }
     });
 
+    // ✅ Stocker avec le nom de zone DB
     this.teleportData.set(zoneName, teleports);
     this.spawnData.set(zoneName, spawns);
     
@@ -446,12 +465,13 @@ export class TransitionService {
     return prop ? prop.value : null;
   }
 
-  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
-  public debugZoneData(zoneName: string): void {
-    console.log(`🔍 [TransitionService] === DEBUG ${zoneName.toUpperCase()} ===`);
+  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES AVEC MAPPING
+  public debugZoneData(clientZoneName: string): void {
+    const dbZoneName = getDbZoneName(clientZoneName);
+    console.log(`🔍 [TransitionService] === DEBUG ${clientZoneName.toUpperCase()} (DB: ${dbZoneName}) ===`);
     
-    const teleports = this.teleportData.get(zoneName);
-    const spawns = this.spawnData.get(zoneName);
+    const teleports = this.teleportData.get(dbZoneName);
+    const spawns = this.spawnData.get(dbZoneName);
     
     console.log(`📍 TÉLÉPORTS (${teleports?.length || 0}):`);
     teleports?.forEach(teleport => {
@@ -469,9 +489,9 @@ export class TransitionService {
   public getAllZoneData(): any {
     const result: any = {};
     
-    this.teleportData.forEach((teleports, zoneName) => {
-      const spawns = this.spawnData.get(zoneName) || [];
-      result[zoneName] = {
+    this.teleportData.forEach((teleports, dbZoneName) => {
+      const spawns = this.spawnData.get(dbZoneName) || [];
+      result[dbZoneName] = {
         teleports: teleports,
         spawns: spawns
       };
@@ -483,9 +503,9 @@ export class TransitionService {
   public getZoneStats(): any {
     const stats: any = {};
     
-    this.teleportData.forEach((teleports, zoneName) => {
-      const spawns = this.spawnData.get(zoneName) || [];
-      stats[zoneName] = {
+    this.teleportData.forEach((teleports, dbZoneName) => {
+      const spawns = this.spawnData.get(dbZoneName) || [];
+      stats[dbZoneName] = {
         teleportCount: teleports.length,
         spawnCount: spawns.length
       };
