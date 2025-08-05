@@ -1186,37 +1186,34 @@ export class QuestUI {
   
   // === 🎨 PROGRESSION OBJECTIFS - HIGHLIGHT VERT ===
   
-  highlightObjectiveAsCompleted(result) {
-    console.log('🟢 [QuestUI] Highlight objectif terminé:', result);
+highlightObjectiveAsCompleted(result) {
+  console.log('🟢 [QuestUI] Highlight objectif terminé - VERSION SIMPLE');
+  
+  const objectiveElement = this.findObjectiveInTracker(result);
+  
+  if (objectiveElement) {
+    // Animation verte
+    this.applyCompletingStyle(objectiveElement);
     
-    try {
-      // Chercher l'objectif dans le tracker
-      const objectiveElement = this.findObjectiveInTracker(result);
+    // ✅ SIMPLE : Refresh après 2 secondes
+    setTimeout(() => {
+      console.log('🔄 [QuestUI] Refresh simple après 2s');
       
-      if (objectiveElement) {
-        console.log('✅ [QuestUI] Objectif trouvé dans tracker, application style VERT');
-        this.applyCompletingStyle(objectiveElement);
-        return true;
+      // Nettoyer le style
+      objectiveElement.classList.remove('completing');
+      
+      // Forcer refresh
+      if (this.onAction) {
+        this.onAction('refreshQuests');
       }
       
-      // Chercher dans le journal si ouvert
-      if (this.isVisible) {
-        const journalObjective = this.findObjectiveInJournal(result);
-        if (journalObjective) {
-          console.log('✅ [QuestUI] Objectif trouvé dans journal, application style VERT');
-          this.applyCompletingStyle(journalObjective);
-          return true;
-        }
-      }
-      
-      console.warn('⚠️ [QuestUI] Objectif non trouvé pour highlight:', result);
-      return false;
-      
-    } catch (error) {
-      console.error('❌ [QuestUI] Erreur highlight objectif:', error);
-      return false;
-    }
+    }, 2000);
+    
+    return true;
   }
+  
+  return false;
+}
   
   findObjectiveInTracker(result) {
     if (!this.trackerElement) return null;
