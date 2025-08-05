@@ -233,6 +233,12 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.spectatorManager
     );
     console.log(`✅ NpcInteractionModule initialisé`);
+
+    this.interactionManager.setAdditionalManagers({
+      objectManager: this.objectManager,
+      npcManagers: this.npcManagers,
+      room: this // ✅ CRUCIAL : Passer la room
+    });
     
     // ✅ ÉTAPE 8.8: Initialiser ZoneSyncService
     this.initializeZoneSyncService();
