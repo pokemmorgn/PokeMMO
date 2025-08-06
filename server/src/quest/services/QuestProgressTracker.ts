@@ -668,9 +668,18 @@ class QuestProgressTracker implements IQuestProgressTracker {
         return event.type === 'reach' && event.targetId === objective.target;
       
       case 'deliver':
-        return event.type === 'deliver' && 
-               event.npcId?.toString() === objective.target && 
-               event.targetId === objective.itemId;
+        // Support pour deliver avec ou sans npcId dans l'événement
+        // Si pas de npcId dans l'event, on vérifie juste l'itemId
+        if (event.npcId) {
+          return event.type === 'deliver' && 
+                 event.npcId.toString() === objective.target && 
+                 (event.targetId === objective.itemId || event.targetId === objective.target);
+        } else {
+          // Pour les livraisons où le NPC n'est pas dans l'event (cas QuestManager.asPlayerQuestWith)
+          // On vérifie juste que c'est le bon item
+          return event.type === 'deliver' && 
+                 (event.targetId === objective.itemId || event.targetId === objective.target);
+        }
       
       case 'catch':
         return event.type === 'catch' && 
