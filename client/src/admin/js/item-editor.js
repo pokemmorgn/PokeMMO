@@ -294,12 +294,15 @@ export class ItemEditorModule {
                 this.serverSideFiltering = false;
             }
             
+            console.log(`📦 [ItemEditor] Requête API avec params:`, params.toString());
+            
             // Appel API avec les paramètres
             const response = await this.adminPanel.apiCall(`/items/list?${params.toString()}`);
             
             if (response.success) {
                 this.items = response.items || [];
                 this.totalItems = response.total || 0;
+                this.totalPages = Math.ceil(this.totalItems / this.itemsPerPage);
                 
                 // Si on utilise le filtrage côté serveur, on garde les items tels quels
                 if (this.serverSideFiltering) {
@@ -309,7 +312,7 @@ export class ItemEditorModule {
                     this.applyClientSideFilters();
                 }
                 
-                console.log(`✅ [ItemEditor] ${this.items.length} items chargés (${this.totalItems} total)`);
+                console.log(`✅ [ItemEditor] ${this.items.length} items chargés (${this.totalItems} total, ${this.totalPages} pages)`);
                 this.updateItemsList();
                 this.updatePagination();
             } else {
@@ -403,6 +406,14 @@ export class ItemEditorModule {
 
     // ===== MISE À JOUR DE L'INTERFACE =====
 
+    // Méthode utilitaire pour vérifier les filtres actifs
+    hasActiveFilters() {
+        return this.currentFilters.search !== '' ||
+               this.currentFilters.category !== 'all' ||
+               this.currentFilters.generation !== 'all' ||
+               this.currentFilters.rarity !== 'all';
+    }
+
     updateItemsList() {
         const listElement = document.getElementById('itemsList');
         if (!listElement) {
@@ -422,8 +433,11 @@ export class ItemEditorModule {
                     <p class="item-editor__empty-subtitle">
                         ${this.currentFilters.search ? 'Essayez de modifier votre recherche.' : 'Essayez de modifier vos critères de filtrage.'}
                     </p>
-                    ${this.currentFilters.search || this.currentFilters.category !== 'all' || this.currentFilters.generation !== 'all' || this.currentFilters.rarity !== 'all' ? 
+                    ${this.hasActiveFilters() ? 
                         '<button onclick="window.itemEditorClearFilters()" class="item-editor__clear-filters-btn">Effacer les filtres</button>' : ''}
+                    <button onclick="window.itemEditorRefresh()" class="item-editor__refresh-btn">
+                        <i class="fas fa-sync"></i> Actualiser
+                    </button>
                 </div>
             `;
             return;
@@ -1448,23 +1462,40 @@ export class ItemEditorModule {
 
     // ===== PAGINATION =====
 
-    previousPage() {
-        if (this.serverSideFiltering || this.currentPage <= 1) return;
+    async previousPage() {
+        if (this.currentPage <= 1) return;
         
         this.currentPage--;
-        this.updateItemsList();
-        this.updatePagination();
+        console.log(`⬅️ [ItemEditor] Page précédente: ${this.currentPage}`);
+        
+        if (this.serverSideFiltering || this.currentFilters.category !== 'all') {
+            // Recharger depuis l'API
+            await this.loadItems();
+        } else {
+            // Pagination côté client
+            this.updateItemsList();
+            this.updatePagination();
+        }
     }
 
-    nextPage() {
-        if (this.serverSideFiltering) return;
-        
-        const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage);
+    async nextPage() {
+        const totalPages = this.serverSideFiltering ? 
+            Math.ceil(this.totalItems / this.itemsPerPage) : 
+            Math.ceil(this.filteredItems.length / this.itemsPerPage);
+            
         if (this.currentPage >= totalPages) return;
         
         this.currentPage++;
-        this.updateItemsList();
-        this.updatePagination();
+        console.log(`➡️ [ItemEditor] Page suivante: ${this.currentPage}`);
+        
+        if (this.serverSideFiltering || this.currentFilters.category !== 'all') {
+            // Recharger depuis l'API
+            await this.loadItems();
+        } else {
+            // Pagination côté client
+            this.updateItemsList();
+            this.updatePagination();
+        }
     }
 
     // ===== ACTIONS RAPIDES =====
