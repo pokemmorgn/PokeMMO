@@ -31,14 +31,18 @@ export class QuestDeliveryOverlay {
       dialogueWasOpen: false,
       dialogueReference: null,
       shouldCloseDialogue: true, // Par défaut, fermer le dialogue
-      dialogueCloseDelay: 300 // Délai avant fermeture du dialogue
+      dialogueCloseDelay: 100 // Délai réduit
     };
+    
+    // 🛡️ NOUVEAU: Protection contre spam refresh
+    this.lastRefreshTime = 0;
+    this.backupRefreshPending = false;
     
     // === CALLBACKS ===
     this.onDeliveryConfirm = null;
     this.onClose = null;
     
-    console.log('🎁 [QuestDeliveryOverlay] Instance créée avec gestion dialogue automatique');
+    console.log('🎁 [QuestDeliveryOverlay] Instance créée avec protection réseau');
   }
   
   // === 🚀 INITIALISATION ===
@@ -1411,66 +1415,67 @@ export class QuestDeliveryOverlay {
   }
   
   /**
-   * 🆕 MODIFIÉE : Forcer refresh optimisé des statuts de quête (ANTI-SPAM)
+   * 🆕 MODIFIÉE : Forcer refresh intelligent sans spam réseau
    */
   forceQuestStatusRefresh() {
-    console.log('🚀 [QuestDeliveryOverlay] Force refresh statuts OPTIMISÉ...');
-    
-    // 🛡️ PROTECTION : Éviter spam de requêtes
-    const now = Date.now();
-    if (this.lastRefreshTime && (now - this.lastRefreshTime) < 2000) {
-      console.log('⏸️ [QuestDeliveryOverlay] Refresh ignoré (cooldown 2s)');
-      return;
-    }
-    this.lastRefreshTime = now;
+    console.log('🚀 [QuestDeliveryOverlay] Force refresh statuts de quête (optimisé)...');
     
     try {
-      // 1. ✅ UNE SEULE requête via QuestSystem
-      if (window.questSystem && typeof window.questSystem.requestActiveQuests === 'function') {
-        console.log('🔄 Refresh VIA QuestSystem...');
-        window.questSystem.requestActiveQuests();
+      // 🛡️ PROTECTION : Éviter les appels multiples trop rapprochés
+      const now = Date.now();
+      if (this.lastRefreshTime && now - this.lastRefreshTime < 1000) {
+        console.log('⏸️ [QuestDeliveryOverlay] Refresh ignoré (cooldown)');
+        return;
+      }
+      this.lastRefreshTime = now;
+      
+      // 1. PRIORITÉ : Refresh via QuestSystem seulement (pas de spam réseau)
+      if (window.questSystem) {
+        console.log('🔄 Refresh via QuestSystem uniquement...');
         
-        // Refresh UI local seulement
-        if (window.questSystem.ui && typeof window.questSystem.ui.updateTrackerIntelligent === 'function') {
-          setTimeout(() => {
-            window.questSystem.ui.updateTrackerIntelligent();
-          }, 100);
+        // Forcer refresh des quêtes actives - UN SEUL APPEL
+        if (typeof window.questSystem.requestActiveQuests === 'function') {
+          window.questSystem.requestActiveQuests();
         }
         
-        // ✅ Refresh visuel après 200ms
-        setTimeout(() => {
-          this.refreshNpcVisualIndicators();
-        }, 200);
-        
-        return; // ✅ STOP ICI - pas d'autres requêtes
+        // Forcer refresh UI immédiat
+        if (window.questSystem.ui) {
+          if (typeof window.questSystem.ui.forceRefreshNow === 'function') {
+            window.questSystem.ui.forceRefreshNow();
+          }
+          
+          // Mettre à jour tracker immédiatement
+          if (typeof window.questSystem.ui.updateTrackerIntelligent === 'function') {
+            setTimeout(() => {
+              window.questSystem.ui.updateTrackerIntelligent();
+            }, 100);
+          }
+        }
       }
       
-      // 2. ✅ Fallback : UNE requête réseau seulement si QuestSystem indispo
-      if (window.networkManager || this.networkManager) {
-        console.log('🔄 Fallback refresh via NetworkManager...');
+      // 2. FALLBACK UNIQUE : Si pas de QuestSystem, UN SEUL appel réseau
+      else if (window.networkManager || this.networkManager) {
+        console.log('🔄 Fallback refresh via NetworkManager (UNIQUE)...');
         const manager = window.networkManager || this.networkManager;
         
         if (typeof manager.sendMessage === 'function') {
-          // ✅ UNE SEULE requête au lieu de plusieurs
+          // UN SEUL MESSAGE au lieu de plusieurs
           manager.sendMessage('getActiveQuests', { 
-            source: 'delivery_success',
-            timestamp: Date.now() 
+            source: 'delivery_success', 
+            refreshNpcs: true, // Combiner les demandes
+            immediate: true,
+            timestamp: now
           });
         }
-        
-        // ✅ Refresh visuel après 300ms
-        setTimeout(() => {
-          this.refreshNpcVisualIndicators();
-        }, 300);
-        
-        return; // ✅ STOP ICI
       }
       
-      // 3. ✅ Derniers recours : refresh visuel seulement
-      console.log('🎯 Refresh visuel uniquement...');
+      // 3. Refresh visuel local (pas de réseau)
       setTimeout(() => {
         this.refreshNpcVisualIndicators();
-      }, 100);
+      }, 200);
+      
+      // 🚫 SUPPRIMÉ : Plus de backup multiples qui spamment le réseau
+      console.log('✅ Refresh optimisé lancé (pas de spam)');
       
     } catch (error) {
       console.error('❌ [QuestDeliveryOverlay] Erreur refresh statuts:', error);
@@ -1478,22 +1483,51 @@ export class QuestDeliveryOverlay {
   }
   
   /**
-   * 🆕 SUPPRIMÉE : forceQuestStatusRefreshBackup() - TROP DE SPAM
-   * Cette méthode causait des déconnexions par spam de requêtes
+   * 🆕 MODIFIÉE : Backup refresh UNIQUE et différé
    */
-  
-  /**
-   * 🆕 MODIFIÉE : Refresh visuel OPTIMISÉ des indicateurs NPC (moins agressif)
-   */
-  refreshNpcVisualIndicators() {
-    console.log('🎯 [QuestDeliveryOverlay] Refresh indicateurs visuels NPCs OPTIMISÉ...');
+  forceQuestStatusRefreshBackup() {
+    console.log('🔄 [QuestDeliveryOverlay] Backup refresh UNIQUE...');
+    
+    // 🛡️ PROTECTION : Un seul backup, pas de spam
+    if (this.backupRefreshPending) {
+      console.log('⏸️ Backup refresh déjà en cours');
+      return;
+    }
+    this.backupRefreshPending = true;
     
     try {
-      // ✅ Approche moins agressive : événements seulement
+      // UN SEUL appel de backup au lieu de plusieurs
+      if (window.questSystem?.requestActiveQuests) {
+        window.questSystem.requestActiveQuests();
+        console.log('✅ Backup refresh unique exécuté');
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Backup refresh échoué:', error.message);
+    } finally {
+      // Reset après 2 secondes
+      setTimeout(() => {
+        this.backupRefreshPending = false;
+      }, 2000);
+    }
+  }
+  
+  /**
+   * 🆕 NOUVELLE MÉTHODE : Refresh visuel des indicateurs NPC
+   */
+  refreshNpcVisualIndicators() {
+    console.log('🎯 [QuestDeliveryOverlay] Refresh indicateurs visuels NPCs...');
+    
+    try {
+      // Rechercher tous les indicateurs de quête sur NPCs
       const indicatorSelectors = [
         '.npc-quest-indicator',
-        '.quest-indicator', 
-        '[class*="quest-indicator"]'
+        '.quest-indicator',
+        '.quest-marker',
+        '.npc-status',
+        '[class*="quest-indicator"]',
+        '[class*="npc-indicator"]',
+        '[data-quest-status]'
       ];
       
       let indicatorsFound = 0;
@@ -1503,77 +1537,36 @@ export class QuestDeliveryOverlay {
         indicators.forEach(indicator => {
           indicatorsFound++;
           
-          // ✅ MOINS AGRESSIF : Juste déclencher refresh sans forcer re-render
-          indicator.dispatchEvent(new CustomEvent('questStatusUpdate', { 
-            detail: { source: 'delivery', timestamp: Date.now() } 
-          }));
+          // Forcer re-render en modifiant le style temporairement
+          const originalDisplay = indicator.style.display;
+          indicator.style.display = 'none';
           
-          // ✅ Animation douce
+          setTimeout(() => {
+            indicator.style.display = originalDisplay || '';
+            
+            // Déclencher événement de refresh si possible
+            indicator.dispatchEvent(new CustomEvent('refresh'));
+          }, 10);
+          
+          // Ajouter une classe pour déclencher animation de mise à jour
           indicator.classList.add('updating');
           setTimeout(() => {
             indicator.classList.remove('updating');
-          }, 200); // Plus court
+          }, 500);
         });
       });
       
-      console.log(`🎯 ${indicatorsFound} indicateurs NPCs refreshés (doux)`);
+      console.log(`🎯 ${indicatorsFound} indicateurs NPC refreshés`);
       
-      // ✅ MOINS AGRESSIF : Événements doux sur NPCs
-      if (indicatorsFound < 5) { // Seulement si peu d'indicateurs
-        const npcs = document.querySelectorAll('[class*="npc"], [data-npc]');
-        if (npcs.length < 20) { // Seulement si peu de NPCs
-          npcs.forEach(npc => {
-            npc.dispatchEvent(new CustomEvent('questStatusUpdate', { 
-              detail: { source: 'delivery' }
-            }));
-          });
-          console.log(`🎯 ${npcs.length} NPCs notifiés`);
-        }
-      }
+      // Forcer aussi refresh de tous les NPCs visibles
+      const npcs = document.querySelectorAll('[class*="npc"], [data-npc]');
+      npcs.forEach(npc => {
+        npc.dispatchEvent(new CustomEvent('questStatusUpdate'));
+      });
       
     } catch (error) {
       console.error('❌ Erreur refresh indicateurs:', error);
     }
-  }
-  
-  // === 🚀 INITIALISATION AVEC PROTECTION ===
-  
-  constructor(questSystem, networkManager) {
-    this.questSystem = questSystem;
-    this.networkManager = networkManager;
-    
-    // === ÉTAT ===
-    this.isVisible = false;
-    this.isLoading = false;
-    this.overlayElement = null;
-    this.currentDeliveryData = null;
-    this.currentNpcId = null;
-    
-    // 🛡️ NOUVEAU: Protection contre double envoi
-    this.deliveryState = {
-      isDelivering: false,
-      lastDeliveryTime: 0,
-      deliveryNonce: null,
-      deliveryTimeoutId: null,
-      deliveryDebounceTime: 2000 // 2 secondes entre livraisons
-    };
-    
-    // 🆕 NOUVEAU: Gestion du dialogue associé
-    this.dialogueState = {
-      dialogueWasOpen: false,
-      dialogueReference: null,
-      shouldCloseDialogue: true, // Par défaut, fermer le dialogue
-      dialogueCloseDelay: 100 // Délai réduit
-    };
-    
-    // 🛡️ NOUVEAU : Protection anti-spam refresh
-    this.lastRefreshTime = 0;
-    
-    // === CALLBACKS ===
-    this.onDeliveryConfirm = null;
-    this.onClose = null;
-    
-    console.log('🎁 [QuestDeliveryOverlay] Instance créée ANTI-SPAM avec gestion dialogue');
   }
   
   /**
@@ -1694,8 +1687,12 @@ export class QuestDeliveryOverlay {
       dialogueWasOpen: false,
       dialogueReference: null,
       shouldCloseDialogue: true,
-      dialogueCloseDelay: 300
+      dialogueCloseDelay: 100
     };
+    
+    // 🛡️ Reset protection refresh
+    this.lastRefreshTime = 0;
+    this.backupRefreshPending = false;
     
     console.log('✅ [QuestDeliveryOverlay] Détruit avec nettoyage complet + dialogue');
   }
@@ -1834,57 +1831,26 @@ window.testDeliveryWithDialogue = function() {
 };
 
 window.testQuestStatusRefresh = function() {
-  console.log('🧪 Test refresh SÉCURISÉ statuts de quête...');
+  console.log('🧪 Test refresh OPTIMISÉ statuts de quête...');
   
   if (window.questSystem?.deliveryOverlay) {
     const overlay = window.questSystem.deliveryOverlay;
     
-    // Tester UNE SEULE fois
-    console.log('🚀 Test refresh optimisé (UNE requête)...');
+    // Tester les méthodes de refresh (maintenant optimisées)
+    console.log('🚀 Test refresh optimisé (pas de spam)...');
     overlay.forceQuestStatusRefresh();
     
-    console.log('✅ Test refresh sécurisé lancé (pas de spam)');
+    // Vérifier état de protection
+    console.log('🛡️ État protection:', {
+      lastRefreshTime: overlay.lastRefreshTime,
+      backupRefreshPending: overlay.backupRefreshPending
+    });
+    
+    console.log('✅ Test refresh optimisé lancé');
     
   } else {
     console.error('❌ QuestDeliveryOverlay non disponible');
   }
-};
-
-window.debugConnectionStatus = function() {
-  console.log('🔍 === DEBUG CONNEXION COLYSEUS ===');
-  
-  // Vérifier NetworkManager
-  if (window.networkManager) {
-    console.log('NetworkManager:', {
-      exists: true,
-      room: !!window.networkManager.room,
-      connected: window.networkManager.room?.state === 'connected',
-      roomState: window.networkManager.room?.state
-    });
-  }
-  
-  // Vérifier room directement
-  if (window.room) {
-    console.log('Room globale:', {
-      exists: true,
-      state: window.room.state,
-      sessionId: window.room.sessionId,
-      id: window.room.id
-    });
-  }
-  
-  // Vérifier les dernières requêtes
-  console.log('Derniers refresh:', {
-    lastRefreshTime: window.questSystem?.deliveryOverlay?.lastRefreshTime,
-    timeSinceLastRefresh: window.questSystem?.deliveryOverlay?.lastRefreshTime ? 
-      Date.now() - window.questSystem.deliveryOverlay.lastRefreshTime : 'jamais'
-  });
-  
-  return {
-    hasNetworkManager: !!window.networkManager,
-    hasRoom: !!window.room,
-    connected: window.networkManager?.room?.state === 'connected' || window.room?.state === 'connected'
-  };
 };
 
 window.debugQuestStatusElements = function() {
@@ -1978,18 +1944,18 @@ window.configureDialogueClosing = function(shouldClose = true, delay = 300) {
   }
 };
 
-console.log('🎁 [QuestDeliveryOverlay] Système AMÉLIORÉ avec fermeture dialogue + refresh rapide');
+console.log('🎁 [QuestDeliveryOverlay] Système OPTIMISÉ - Protection contre déconnexions');
 console.log('🧪 Tests disponibles:');
 console.log('   - window.testDeliveryDialogueClose() - Debug + test fermeture dialogue');
 console.log('   - window.testDeliveryWithDialogue() - Test complet avec dialogue DOM');
-console.log('   - window.testQuestStatusRefresh() - Test refresh rapide statuts');
+console.log('   - window.testQuestStatusRefresh() - Test refresh OPTIMISÉ (pas de spam)');
 console.log('   - window.debugQuestStatusElements() - Debug indicateurs NPCs');
 console.log('   - window.configureDialogueClosing(shouldClose, delay) - Config fermeture');
-console.log('⚙️  Améliorations:');
-console.log('   ✅ Détection dialogue renforcée (DOM + managers)');
-console.log('   ✅ Fermeture agressive (boutons + événements + styles)');
-console.log('   🚀 Refresh immédiat quest status (multiple méthodes)');
-console.log('   🎯 Refresh visuel indicateurs NPCs');
-console.log('   ⚡ Délais réduits (200ms au lieu de 300ms)');
+console.log('⚙️  CORRECTIONS IMPORTANTES:');
+console.log('   🛡️ Protection spam réseau (cooldown 1s)');
+console.log('   📤 UN SEUL appel réseau au lieu de multiples');
+console.log('   🚫 Suppression des backups multiples (500ms, 1000ms)');
+console.log('   ⚡ Délai dialogue réduit (300ms → 100ms)');
+console.log('   🎯 Refresh intelligent sans surcharge serveur');
 
 export default QuestDeliveryOverlay;
