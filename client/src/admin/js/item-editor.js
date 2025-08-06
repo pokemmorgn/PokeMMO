@@ -328,11 +328,15 @@ export class ItemEditorModule {
     }
 
     showItemEditor() {
+        
         const emptyElement = document.getElementById('itemEditorEmpty');
         const formElement = document.getElementById('itemEditorForm');
         const actionsElement = document.getElementById('itemEditorActions');
         const titleElement = document.getElementById('itemEditorTitle');
-        
+            // Initialiser les sections après affichage du formulaire
+    if (window.initItemEditorSections) {
+        setTimeout(() => window.initItemEditorSections(), 100);
+    }
         if (emptyElement) emptyElement.style.display = 'none';
         if (formElement) formElement.style.display = 'block';
         if (actionsElement) actionsElement.style.display = 'flex';
