@@ -2,6 +2,7 @@
 // 🎁 Interface de livraison d'objets de quête - Overlay sur dialogue
 // ✅ Style unifié avec le reste du système Quest (couleurs bleues #4a90e2)
 // 🔧 Intégration avec DialogueManager existant + NetworkManager
+// 🛡️ CORRECTION: Protection contre double envoi questDelivery
 
 export class QuestDeliveryOverlay {
   constructor(questSystem, networkManager) {
@@ -15,11 +16,20 @@ export class QuestDeliveryOverlay {
     this.currentDeliveryData = null;
     this.currentNpcId = null;
     
+    // 🛡️ NOUVEAU: Protection contre double envoi
+    this.deliveryState = {
+      isDelivering: false,
+      lastDeliveryTime: 0,
+      deliveryNonce: null,
+      deliveryTimeoutId: null,
+      deliveryDebounceTime: 2000 // 2 secondes entre livraisons
+    };
+    
     // === CALLBACKS ===
     this.onDeliveryConfirm = null;
     this.onClose = null;
     
-    console.log('🎁 [QuestDeliveryOverlay] Instance créée - Style unifié Quest');
+    console.log('🎁 [QuestDeliveryOverlay] Instance créée avec protection double envoi');
   }
   
   // === 🚀 INITIALISATION ===
@@ -393,6 +403,8 @@ export class QuestDeliveryOverlay {
         transition: all 0.3s ease !important;
         text-transform: uppercase !important;
         letter-spacing: 1px !important;
+        position: relative !important;
+        overflow: hidden !important;
       }
       
       .delivery-button.can-deliver {
@@ -403,7 +415,7 @@ export class QuestDeliveryOverlay {
         border-color: rgba(40, 167, 69, 0.5) !important;
       }
       
-      .delivery-button.can-deliver:hover {
+      .delivery-button.can-deliver:hover:not(:disabled) {
         background: linear-gradient(135deg, #32b855, #24d3a7) !important;
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5) !important;
@@ -430,24 +442,37 @@ export class QuestDeliveryOverlay {
         border-color: rgba(108, 117, 125, 0.2) !important;
       }
       
-      /* États d'animation */
-      .quest-delivery-container.delivering {
+      /* 🛡️ NOUVEAU: États de livraison avec protection */
+      .delivery-button.delivering {
         pointer-events: none !important;
-        opacity: 0.7 !important;
+        background: rgba(74, 144, 226, 0.5) !important;
+        color: #fff !important;
+        animation: deliveryPulse 1.5s ease-in-out infinite !important;
       }
       
-      .quest-delivery-container.delivering::after {
+      .delivery-button.delivering::after {
         content: "" !important;
         position: absolute !important;
         top: 50% !important;
-        left: 50% !important;
-        width: 30px !important;
-        height: 30px !important;
-        border: 3px solid rgba(74, 144, 226, 0.2) !important;
-        border-top: 3px solid #4a90e2 !important;
+        left: 20px !important;
+        width: 16px !important;
+        height: 16px !important;
+        border: 2px solid rgba(255, 255, 255, 0.2) !important;
+        border-top: 2px solid #fff !important;
         border-radius: 50% !important;
         animation: deliverySpin 1s linear infinite !important;
-        transform: translate(-50%, -50%) !important;
+        transform: translateY(-50%) !important;
+      }
+      
+      @keyframes deliveryPulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
+      
+      /* États d'animation */
+      .quest-delivery-container.delivering {
+        pointer-events: none !important;
+        opacity: 0.8 !important;
       }
       
       .quest-delivery-container.error {
@@ -536,42 +561,88 @@ export class QuestDeliveryOverlay {
   setupEventListeners() {
     if (!this.overlayElement) return;
     
+    // 🛡️ PROTECTION: Supprimer anciens event listeners avant d'ajouter nouveaux
+    this.removeEventListeners();
+    
     // Bouton fermer
+    this.closeButtonHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.hide();
+    };
+    
     const closeBtn = this.overlayElement.querySelector('#delivery-close');
     if (closeBtn) {
-      closeBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.hide();
-      });
+      closeBtn.addEventListener('click', this.closeButtonHandler);
     }
     
-    // Bouton confirmer livraison
+    // 🛡️ Bouton confirmer livraison avec protection double clic
+    this.confirmButtonHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 🛡️ Protection contre double clic
+      if (this.deliveryState.isDelivering) {
+        console.log('🛡️ [QuestDeliveryOverlay] Livraison déjà en cours, ignoré');
+        return;
+      }
+      
+      // 🛡️ Protection contre clics trop rapprochés
+      const now = Date.now();
+      if (now - this.deliveryState.lastDeliveryTime < this.deliveryState.deliveryDebounceTime) {
+        const remainingTime = this.deliveryState.deliveryDebounceTime - (now - this.deliveryState.lastDeliveryTime);
+        console.log(`🛡️ [QuestDeliveryOverlay] Cooldown actif (${Math.ceil(remainingTime/1000)}s restants)`);
+        this.showError(`Veuillez attendre ${Math.ceil(remainingTime/1000)} secondes`);
+        return;
+      }
+      
+      this.handleDeliveryConfirm();
+    };
+    
     const confirmBtn = this.overlayElement.querySelector('#delivery-confirm');
     if (confirmBtn) {
-      confirmBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.handleDeliveryConfirm();
-      });
+      confirmBtn.addEventListener('click', this.confirmButtonHandler);
     }
     
     // Fermer avec Escape
-    const escapeHandler = (e) => {
+    this.escapeHandler = (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         e.preventDefault();
         this.hide();
       }
     };
-    document.addEventListener('keydown', escapeHandler);
-    this.escapeHandler = escapeHandler;
+    document.addEventListener('keydown', this.escapeHandler);
     
     // Clic en dehors pour fermer (optionnel)
-    this.overlayElement.addEventListener('click', (e) => {
+    this.overlayClickHandler = (e) => {
       if (e.target === this.overlayElement) {
         // this.hide(); // Décommenté si on veut fermer en cliquant dehors
       }
-    });
+    };
+    this.overlayElement.addEventListener('click', this.overlayClickHandler);
     
-    console.log('🎛️ [QuestDeliveryOverlay] Événements configurés');
+    console.log('🎛️ [QuestDeliveryOverlay] Événements configurés avec protection');
+  }
+  
+  // 🛡️ NOUVELLE MÉTHODE: Supprimer event listeners pour éviter les doublons
+  removeEventListeners() {
+    const closeBtn = this.overlayElement?.querySelector('#delivery-close');
+    if (closeBtn && this.closeButtonHandler) {
+      closeBtn.removeEventListener('click', this.closeButtonHandler);
+    }
+    
+    const confirmBtn = this.overlayElement?.querySelector('#delivery-confirm');
+    if (confirmBtn && this.confirmButtonHandler) {
+      confirmBtn.removeEventListener('click', this.confirmButtonHandler);
+    }
+    
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+    }
+    
+    if (this.overlayElement && this.overlayClickHandler) {
+      this.overlayElement.removeEventListener('click', this.overlayClickHandler);
+    }
   }
   
   // === 📋 MÉTHODES PUBLIQUES ===
@@ -587,6 +658,9 @@ export class QuestDeliveryOverlay {
       console.error('❌ [QuestDeliveryOverlay] Données de livraison invalides');
       return false;
     }
+    
+    // 🛡️ Reset état de livraison lors de l'affichage
+    this.resetDeliveryState();
     
     this.currentDeliveryData = deliveryData;
     this.currentNpcId = deliveryData.npcId;
@@ -620,12 +694,33 @@ export class QuestDeliveryOverlay {
     this.currentNpcId = null;
     this.isLoading = false;
     
+    // 🛡️ Nettoyer timeout de livraison si actif
+    if (this.deliveryState.deliveryTimeoutId) {
+      clearTimeout(this.deliveryState.deliveryTimeoutId);
+      this.deliveryState.deliveryTimeoutId = null;
+    }
+    
+    // 🛡️ Ne pas reset deliveryState.isDelivering ici pour garder la protection
+    
     // Callback fermeture
     if (this.onClose && typeof this.onClose === 'function') {
       this.onClose();
     }
     
     console.log('✅ [QuestDeliveryOverlay] Overlay masqué');
+  }
+  
+  // 🛡️ NOUVELLE MÉTHODE: Reset état de livraison
+  resetDeliveryState() {
+    console.log('🔄 [QuestDeliveryOverlay] Reset état de livraison');
+    
+    if (this.deliveryState.deliveryTimeoutId) {
+      clearTimeout(this.deliveryState.deliveryTimeoutId);
+      this.deliveryState.deliveryTimeoutId = null;
+    }
+    
+    // Ne pas reset isDelivering et lastDeliveryTime pour garder la protection
+    this.deliveryState.deliveryNonce = null;
   }
   
   // === 🎯 POSITIONNEMENT INTELLIGENT ===
@@ -762,21 +857,35 @@ export class QuestDeliveryOverlay {
       }
     }
     
-    // Mettre à jour bouton
-    if (confirmButton) {
-      confirmButton.disabled = !canDeliverAll;
-      confirmButton.className = 'delivery-button';
-      
-      if (canDeliverAll) {
-        confirmButton.classList.add('can-deliver');
-        confirmButton.textContent = '🎁 Donner Tout';
-      } else {
-        confirmButton.classList.add('cannot-deliver');
-        confirmButton.textContent = 'Objets Manquants';
-      }
-    }
+    // 🛡️ Mettre à jour bouton avec protection
+    this.updateDeliveryButton(canDeliverAll, confirmButton);
     
     console.log(`✅ [QuestDeliveryOverlay] Contenu rendu: ${items.length} objets, peut livrer: ${canDeliverAll}`);
+  }
+  
+  // 🛡️ NOUVELLE MÉTHODE: Mise à jour sécurisée du bouton
+  updateDeliveryButton(canDeliverAll, confirmButton) {
+    if (!confirmButton) return;
+    
+    // Vérifier si une livraison est en cours
+    const isCurrentlyDelivering = this.deliveryState.isDelivering;
+    
+    confirmButton.disabled = !canDeliverAll || isCurrentlyDelivering;
+    confirmButton.className = 'delivery-button';
+    
+    if (isCurrentlyDelivering) {
+      // État de livraison en cours
+      confirmButton.classList.add('delivering');
+      confirmButton.textContent = '🔄 Livraison...';
+    } else if (canDeliverAll) {
+      // Peut livrer
+      confirmButton.classList.add('can-deliver');
+      confirmButton.textContent = '🎁 Donner Tout';
+    } else {
+      // Ne peut pas livrer
+      confirmButton.classList.add('cannot-deliver');
+      confirmButton.textContent = 'Objets Manquants';
+    }
   }
   
   /**
@@ -834,11 +943,15 @@ export class QuestDeliveryOverlay {
   // === 🎬 GESTION ACTIONS ===
   
   /**
-   * Gérer la confirmation de livraison
+   * 🛡️ MÉTHODE SÉCURISÉE : Gérer la confirmation de livraison avec protection
    */
   handleDeliveryConfirm() {
+    console.log('🎯 [QuestDeliveryOverlay] === DÉBUT CONFIRMATION LIVRAISON SÉCURISÉE ===');
+    
+    // 🛡️ Vérifications préliminaires
     if (!this.currentDeliveryData || !this.currentNpcId) {
       console.error('❌ [QuestDeliveryOverlay] Pas de données de livraison');
+      this.showError('Données de livraison manquantes');
       return;
     }
     
@@ -848,10 +961,140 @@ export class QuestDeliveryOverlay {
       return;
     }
     
-    console.log('🎯 [QuestDeliveryOverlay] Confirmation de livraison...');
+    // 🛡️ Protection contre double envoi
+    if (this.deliveryState.isDelivering) {
+      console.warn('🛡️ [QuestDeliveryOverlay] Livraison déjà en cours');
+      return;
+    }
     
-    // Feedback immédiat
+    // 🛡️ Vérifier cooldown
+    const now = Date.now();
+    if (now - this.deliveryState.lastDeliveryTime < this.deliveryState.deliveryDebounceTime) {
+      const remainingTime = this.deliveryState.deliveryDebounceTime - (now - this.deliveryState.lastDeliveryTime);
+      console.warn(`🛡️ [QuestDeliveryOverlay] Cooldown actif: ${remainingTime}ms restants`);
+      this.showError(`Veuillez attendre ${Math.ceil(remainingTime/1000)} secondes`);
+      return;
+    }
+    
+    // 🛡️ Générer nonce unique pour cette livraison
+    this.deliveryState.deliveryNonce = `delivery_${this.currentNpcId}_${this.currentDeliveryData.questId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`🔐 [QuestDeliveryOverlay] Nonce généré: ${this.deliveryState.deliveryNonce}`);
+    
+    // 🛡️ Marquer comme en cours de livraison
     this.setDelivering(true);
+    
+    try {
+      // Callback de confirmation
+      if (this.onDeliveryConfirm && typeof this.onDeliveryConfirm === 'function') {
+        this.onDeliveryConfirm(this.currentDeliveryData, this.currentNpcId);
+      }
+      
+      // Envoyer au serveur via NetworkManager avec nonce
+      if (this.networkManager && this.networkManager.sendMessage) {
+        const deliveryRequest = {
+          npcId: this.currentNpcId,
+          questId: this.currentDeliveryData.questId,
+          items: this.currentDeliveryData.items.map(item => ({
+            itemId: item.itemId,
+            required: item.required
+          })),
+          nonce: this.deliveryState.deliveryNonce, // 🛡️ Nonce pour éviter doubles
+          timestamp: Date.now()
+        };
+        
+        console.log('📤 [QuestDeliveryOverlay] Envoi demande livraison:', deliveryRequest);
+        this.networkManager.sendMessage('questDelivery', deliveryRequest);
+        
+        // 🛡️ Timeout de sécurité
+        this.deliveryState.deliveryTimeoutId = setTimeout(() => {
+          console.warn('⏰ [QuestDeliveryOverlay] Timeout livraison atteint');
+          this.setDelivering(false);
+          this.showError('Délai d\'attente dépassé');
+        }, 10000); // 10 secondes timeout
+        
+      } else {
+        throw new Error('NetworkManager non disponible');
+      }
+      
+      console.log('✅ [QuestDeliveryOverlay] Demande de livraison envoyée avec protection');
+      
+    } catch (error) {
+      console.error('❌ [QuestDeliveryOverlay] Erreur confirmation:', error);
+      this.setDelivering(false);
+      this.showError(`Erreur lors de la livraison: ${error.message}`);
+    }
+  }
+  
+  /**
+   * 🛡️ MÉTHODE AMÉLIORÉE : Définir l'état de livraison en cours
+   * @param {boolean} isDelivering - État de livraison
+   */
+  setDelivering(isDelivering) {
+    console.log(`🔄 [QuestDeliveryOverlay] setDelivering(${isDelivering})`);
+    
+    // 🛡️ Mettre à jour état global
+    this.deliveryState.isDelivering = isDelivering;
+    this.isLoading = isDelivering;
+    
+    if (isDelivering) {
+      // 🛡️ Marquer temps de dernière livraison
+      this.deliveryState.lastDeliveryTime = Date.now();
+    } else {
+      // 🛡️ Nettoyer timeout si livraison terminée
+      if (this.deliveryState.deliveryTimeoutId) {
+        clearTimeout(this.deliveryState.deliveryTimeoutId);
+        this.deliveryState.deliveryTimeoutId = null;
+      }
+    }
+    
+    // Interface visuelle
+    const container = this.overlayElement.querySelector('.quest-delivery-container');
+    const confirmButton = this.overlayElement.querySelector('#delivery-confirm');
+    
+    if (container) {
+      container.classList.toggle('delivering', isDelivering);
+    }
+    
+    if (confirmButton) {
+      // 🛡️ Réutiliser la méthode sécurisée de mise à jour du bouton
+      const canDeliverAll = this.currentDeliveryData?.canDeliverAll || false;
+      this.updateDeliveryButton(canDeliverAll, confirmButton);
+    }
+  }
+  
+  /**
+   * 🛡️ NOUVELLE MÉTHODE : Recevoir résultat de livraison avec vérification nonce
+   * @param {Object} result - Résultat de livraison du serveur
+   */
+  handleDeliveryResult(result) {
+    console.log('📨 [QuestDeliveryOverlay] Résultat de livraison reçu:', result);
+    
+    // 🛡️ Vérifier nonce si fourni (protection contre réponses multiples)
+    if (this.deliveryState.deliveryNonce && result.nonce && result.nonce !== this.deliveryState.deliveryNonce) {
+      console.warn('🛡️ [QuestDeliveryOverlay] Nonce invalide, résultat ignoré');
+      return;
+    }
+    
+    // Arrêter état de livraison
+    this.setDelivering(false);
+    
+    if (result.success) {
+      this.handleDeliverySuccess(result);
+    } else {
+      this.handleDeliveryError(result);
+    }
+    
+    // 🛡️ Reset nonce après traitement
+    this.deliveryState.deliveryNonce = null;
+  }
+  
+  /**
+   * Gérer succès de livraison
+   */
+  handleDeliverySuccess(result) {
+    const message = result.message || 'Objets livrés avec succès !';
+    console.log('✅ [QuestDeliveryOverlay] Livraison réussie');
     
     // Animation de succès
     const container = this.overlayElement.querySelector('.quest-delivery-container');
@@ -862,60 +1105,25 @@ export class QuestDeliveryOverlay {
       }, 800);
     }
     
-    try {
-      // Callback de confirmation
-      if (this.onDeliveryConfirm && typeof this.onDeliveryConfirm === 'function') {
-        this.onDeliveryConfirm(this.currentDeliveryData, this.currentNpcId);
-      }
-      
-      // Envoyer au serveur via NetworkManager
-      if (this.networkManager && this.networkManager.sendMessage) {
-        const deliveryRequest = {
-          npcId: this.currentNpcId,
-          questId: this.currentDeliveryData.questId,
-          items: this.currentDeliveryData.items.map(item => ({
-            itemId: item.itemId,
-            required: item.required
-          })),
-          timestamp: Date.now()
-        };
-        
-        this.networkManager.sendMessage('questDelivery', deliveryRequest);
-        console.log('📤 [QuestDeliveryOverlay] Demande de livraison envoyée');
-      }
-      
-      // Fermer après délai
-      setTimeout(() => {
-        this.hide();
-      }, 1500);
-      
-    } catch (error) {
-      console.error('❌ [QuestDeliveryOverlay] Erreur confirmation:', error);
-      this.setDelivering(false);
-      this.showError('Erreur lors de la livraison');
+    // Notification
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(message, 'success', { duration: 4000 });
     }
+    
+    // Fermer après délai
+    setTimeout(() => {
+      this.hide();
+    }, 2000);
   }
   
   /**
-   * Définir l'état de livraison en cours
-   * @param {boolean} isDelivering - État de livraison
+   * Gérer erreur de livraison
    */
-  setDelivering(isDelivering) {
-    this.isLoading = isDelivering;
+  handleDeliveryError(result) {
+    const errorMsg = result.message || result.error || 'Impossible de livrer les objets';
+    console.error('❌ [QuestDeliveryOverlay] Livraison échouée:', errorMsg);
     
-    const container = this.overlayElement.querySelector('.quest-delivery-container');
-    const confirmButton = this.overlayElement.querySelector('#delivery-confirm');
-    
-    if (container) {
-      container.classList.toggle('delivering', isDelivering);
-    }
-    
-    if (confirmButton) {
-      confirmButton.disabled = isDelivering;
-      if (isDelivering) {
-        confirmButton.textContent = '🔄 Livraison...';
-      }
-    }
+    this.showError(errorMsg);
   }
   
   /**
@@ -955,15 +1163,29 @@ export class QuestDeliveryOverlay {
     return this.currentDeliveryData;
   }
   
+  /**
+   * 🛡️ NOUVELLE MÉTHODE : Obtenir état de livraison
+   */
+  getDeliveryState() {
+    return {
+      isDelivering: this.deliveryState.isDelivering,
+      lastDeliveryTime: this.deliveryState.lastDeliveryTime,
+      hasNonce: !!this.deliveryState.deliveryNonce,
+      cooldownRemaining: Math.max(0, this.deliveryState.deliveryDebounceTime - (Date.now() - this.deliveryState.lastDeliveryTime))
+    };
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
     console.log('🧹 [QuestDeliveryOverlay] Destruction...');
     
-    // Supprimer event listener escape
-    if (this.escapeHandler) {
-      document.removeEventListener('keydown', this.escapeHandler);
-      this.escapeHandler = null;
+    // 🛡️ Nettoyer event listeners
+    this.removeEventListeners();
+    
+    // 🛡️ Nettoyer timeout
+    if (this.deliveryState.deliveryTimeoutId) {
+      clearTimeout(this.deliveryState.deliveryTimeoutId);
     }
     
     // Supprimer DOM
@@ -986,7 +1208,16 @@ export class QuestDeliveryOverlay {
     this.onDeliveryConfirm = null;
     this.onClose = null;
     
-    console.log('✅ [QuestDeliveryOverlay] Détruit');
+    // 🛡️ Reset état de livraison
+    this.deliveryState = {
+      isDelivering: false,
+      lastDeliveryTime: 0,
+      deliveryNonce: null,
+      deliveryTimeoutId: null,
+      deliveryDebounceTime: 2000
+    };
+    
+    console.log('✅ [QuestDeliveryOverlay] Détruit avec nettoyage complet');
   }
 }
 
