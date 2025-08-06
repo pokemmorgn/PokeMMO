@@ -66,56 +66,100 @@ export class QuestDeliveryOverlay {
   // === 🆕 NOUVELLES MÉTHODES : GESTION DIALOGUE ===
   
   /**
-   * Détecter et capturer la référence au dialogue ouvert
+   * Détecter et capturer la référence au dialogue ouvert - VERSION AMÉLIORÉE
    */
   captureDialogueReference() {
-    console.log('🔍 [QuestDeliveryOverlay] Capture référence dialogue...');
+    console.log('🔍 [QuestDeliveryOverlay] Capture référence dialogue AMÉLIORÉE...');
     
     // Reset état
     this.dialogueState.dialogueWasOpen = false;
     this.dialogueState.dialogueReference = null;
     
-    // 🔍 Méthode 1: Vérifier window.dialogueManager
-    if (window.dialogueManager && window.dialogueManager.isVisible) {
-      console.log('✅ [QuestDeliveryOverlay] DialogueManager détecté comme ouvert');
-      this.dialogueState.dialogueWasOpen = true;
-      this.dialogueState.dialogueReference = window.dialogueManager;
-      return true;
-    }
-    
-    // 🔍 Méthode 2: Vérifier élément DOM dialogue visible
-    const dialogueSelectors = [
-      '#dialogue-box:not([style*="display: none"])',
-      '.dialogue-box-unified:not(.hidden)',
-      '.dialogue-container:not(.hidden)',
-      '[id*="dialogue"]:not(.hidden)',
-      '[class*="dialogue"]:not(.hidden)',
-      '.npc-dialogue-overlay:not(.hidden)'
-    ];
-    
-    for (const selector of dialogueSelectors) {
-      const dialogueElement = document.querySelector(selector);
-      if (dialogueElement && dialogueElement.offsetParent !== null) { // Visible
-        console.log(`✅ [QuestDeliveryOverlay] Dialogue DOM détecté: ${selector}`);
+    // 🔍 Méthode 1: Vérifier window.dialogueManager avec plus de détails
+    if (window.dialogueManager) {
+      console.log('🔍 DialogueManager trouvé:', {
+        exists: true,
+        isVisible: window.dialogueManager.isVisible,
+        visible: window.dialogueManager.visible,
+        methods: Object.getOwnPropertyNames(window.dialogueManager).filter(prop => typeof window.dialogueManager[prop] === 'function')
+      });
+      
+      if (window.dialogueManager.isVisible || window.dialogueManager.visible) {
+        console.log('✅ [QuestDeliveryOverlay] DialogueManager détecté comme ouvert');
         this.dialogueState.dialogueWasOpen = true;
-        this.dialogueState.dialogueReference = dialogueElement;
+        this.dialogueState.dialogueReference = window.dialogueManager;
         return true;
       }
     }
     
-    // 🔍 Méthode 3: Vérifier autres gestionnaires globaux
-    const dialogueManagers = [
-      'window.npcDialogueManager',
-      'window.dialogueSystem',
-      'window.dialogue',
-      'window.npcManager?.currentDialogue'
+    // 🔍 Méthode 2: Recherche DOM améliorée avec plus de sélecteurs
+    const dialogueSelectors = [
+      // Sélecteurs spécifiques au projet
+      '#dialogue-box:not([style*="display: none"]):not([style*="display:none"])',
+      '.dialogue-box-unified:not(.hidden)',
+      '.dialogue-container:not(.hidden)',
+      '.npc-dialogue:not(.hidden)',
+      '.dialogue-overlay:not(.hidden)',
+      
+      // Sélecteurs génériques
+      '[id*="dialogue"]:not(.hidden):not([style*="display: none"])',
+      '[class*="dialogue"]:not(.hidden):not([style*="display: none"])',
+      '.modal:not(.hidden):not([style*="display: none"])',
+      
+      // Sélecteurs par contenu (pour NPC)
+      '[class*="npc"]:not(.hidden):not([style*="display: none"])',
+      '[data-npc]:not(.hidden)',
+      '[data-dialogue]:not(.hidden)'
     ];
     
-    for (const managerPath of dialogueManagers) {
+    for (const selector of dialogueSelectors) {
       try {
-        const manager = eval(managerPath);
-        if (manager && (manager.isVisible || manager.visible || manager.isOpen)) {
-          console.log(`✅ [QuestDeliveryOverlay] Manager dialogue détecté: ${managerPath}`);
+        const dialogueElements = document.querySelectorAll(selector);
+        
+        for (const dialogueElement of dialogueElements) {
+          // Vérifier si vraiment visible
+          const rect = dialogueElement.getBoundingClientRect();
+          const isVisible = rect.width > 0 && rect.height > 0 && 
+                           dialogueElement.offsetParent !== null &&
+                           window.getComputedStyle(dialogueElement).display !== 'none';
+          
+          if (isVisible) {
+            console.log(`✅ [QuestDeliveryOverlay] Dialogue DOM détecté: ${selector}`, {
+              rect: rect,
+              classes: Array.from(dialogueElement.classList),
+              id: dialogueElement.id
+            });
+            
+            this.dialogueState.dialogueWasOpen = true;
+            this.dialogueState.dialogueReference = dialogueElement;
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erreur sélecteur ${selector}:`, error.message);
+      }
+    }
+    
+    // 🔍 Méthode 3: Vérifier gestionnaires alternatifs
+    const dialogueManagerPaths = [
+      { path: 'window.npcDialogueManager', name: 'npcDialogueManager' },
+      { path: 'window.dialogueSystem', name: 'dialogueSystem' },
+      { path: 'window.dialogue', name: 'dialogue' },
+      { path: 'window.npcManager?.currentDialogue', name: 'npcManager.currentDialogue' },
+      { path: 'window.gameManager?.dialogueManager', name: 'gameManager.dialogueManager' }
+    ];
+    
+    for (const {path, name} of dialogueManagerPaths) {
+      try {
+        const manager = eval(path);
+        if (manager && (manager.isVisible || manager.visible || manager.isOpen || manager.active)) {
+          console.log(`✅ [QuestDeliveryOverlay] Manager dialogue détecté: ${name}`, {
+            isVisible: manager.isVisible,
+            visible: manager.visible,
+            isOpen: manager.isOpen,
+            active: manager.active
+          });
+          
           this.dialogueState.dialogueWasOpen = true;
           this.dialogueState.dialogueReference = manager;
           return true;
@@ -130,7 +174,7 @@ export class QuestDeliveryOverlay {
   }
   
   /**
-   * Fermer le dialogue capturé si nécessaire
+   * Fermer le dialogue capturé - VERSION AMÉLIORÉE
    */
   closeAssociatedDialogue() {
     if (!this.dialogueState.shouldCloseDialogue || !this.dialogueState.dialogueWasOpen) {
@@ -138,7 +182,7 @@ export class QuestDeliveryOverlay {
       return;
     }
     
-    console.log('🚪 [QuestDeliveryOverlay] Fermeture dialogue associé...');
+    console.log('🚪 [QuestDeliveryOverlay] Fermeture dialogue associé AMÉLIORÉE...');
     
     const reference = this.dialogueState.dialogueReference;
     if (!reference) {
@@ -146,73 +190,125 @@ export class QuestDeliveryOverlay {
       return;
     }
     
+    let closed = false;
+    
     try {
-      // 🔧 Méthode 1: Si c'est window.dialogueManager
-      if (reference === window.dialogueManager) {
-        if (typeof reference.hide === 'function') {
-          reference.hide();
-          console.log('✅ [QuestDeliveryOverlay] DialogueManager fermé via hide()');
-        } else if (typeof reference.close === 'function') {
-          reference.close();
-          console.log('✅ [QuestDeliveryOverlay] DialogueManager fermé via close()');
-        }
-        return;
-      }
-      
-      // 🔧 Méthode 2: Si c'est un élément DOM
-      if (reference instanceof HTMLElement) {
-        // Essayer de trouver et cliquer sur le bouton de fermeture
-        const closeSelectors = [
-          '.close', '.close-btn', '.dialogue-close', 
-          '[data-action="close"]', '[onclick*="close"]',
-          'button[title*="fermer"]', 'button[title*="close"]'
+      // 🔧 Méthode 1: Gestionnaires avec méthodes spécifiques
+      if (typeof reference === 'object' && reference !== null) {
+        const closeMethods = [
+          'hide', 'close', 'dismiss', 'destroy', 'hideDialogue', 'closeDialogue', 
+          'cancel', 'finish', 'end', 'exit', 'shutdown'
         ];
-        
-        let closed = false;
-        for (const selector of closeSelectors) {
-          const closeBtn = reference.querySelector(selector);
-          if (closeBtn) {
-            closeBtn.click();
-            console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via bouton: ${selector}`);
-            closed = true;
-            break;
-          }
-        }
-        
-        // Si pas de bouton trouvé, masquer directement
-        if (!closed) {
-          reference.style.display = 'none';
-          reference.classList.add('hidden');
-          console.log('✅ [QuestDeliveryOverlay] Dialogue masqué directement');
-        }
-        return;
-      }
-      
-      // 🔧 Méthode 3: Si c'est un objet avec méthodes
-      if (typeof reference === 'object') {
-        const closeMethods = ['hide', 'close', 'dismiss', 'destroy'];
         
         for (const method of closeMethods) {
           if (typeof reference[method] === 'function') {
-            reference[method]();
-            console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via ${method}()`);
-            return;
+            try {
+              reference[method]();
+              console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via ${method}()`);
+              closed = true;
+              break;
+            } catch (error) {
+              console.warn(`⚠️ Erreur méthode ${method}:`, error.message);
+            }
           }
         }
         
-        // Essayer de modifier des propriétés de visibilité
-        if ('isVisible' in reference) reference.isVisible = false;
-        if ('visible' in reference) reference.visible = false;
-        if ('isOpen' in reference) reference.isOpen = false;
-        console.log('✅ [QuestDeliveryOverlay] Dialogue fermé via propriétés');
-        return;
+        // Essayer de modifier propriétés si méthodes échouent
+        if (!closed) {
+          const properties = [
+            { prop: 'isVisible', value: false },
+            { prop: 'visible', value: false },
+            { prop: 'isOpen', value: false },
+            { prop: 'active', value: false },
+            { prop: 'show', value: false },
+            { prop: 'display', value: false }
+          ];
+          
+          properties.forEach(({prop, value}) => {
+            if (prop in reference) {
+              reference[prop] = value;
+              console.log(`🔧 [QuestDeliveryOverlay] Propriété ${prop} = ${value}`);
+              closed = true;
+            }
+          });
+        }
+      }
+      
+      // 🔧 Méthode 2: Éléments DOM avec approche agressive
+      if (!closed && reference instanceof HTMLElement) {
+        console.log('🔧 [QuestDeliveryOverlay] Tentative fermeture DOM...');
+        
+        // A. Chercher boutons de fermeture avec plus de sélecteurs
+        const closeSelectors = [
+          '.close', '.close-btn', '.dialogue-close', '.btn-close',
+          '[data-action="close"]', '[data-dismiss]', '[onclick*="close"]',
+          'button[title*="fermer"]', 'button[title*="close"]', 'button[title*="Fermer"]',
+          '.fa-times', '.fa-close', '.fa-x', '×', '✕',
+          '[aria-label*="close"]', '[aria-label*="fermer"]'
+        ];
+        
+        for (const selector of closeSelectors) {
+          const closeButtons = reference.querySelectorAll(selector);
+          if (closeButtons.length > 0) {
+            closeButtons.forEach(btn => {
+              if (btn.offsetParent !== null) { // Visible
+                btn.click();
+                console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via bouton: ${selector}`);
+                closed = true;
+              }
+            });
+            if (closed) break;
+          }
+        }
+        
+        // B. Déclencher événement Escape
+        if (!closed) {
+          const escEvent = new KeyboardEvent('keydown', { 
+            key: 'Escape', 
+            code: 'Escape', 
+            keyCode: 27,
+            bubbles: true,
+            cancelable: true 
+          });
+          reference.dispatchEvent(escEvent);
+          document.dispatchEvent(escEvent);
+          console.log('⌨️ [QuestDeliveryOverlay] Événement Escape envoyé');
+          closed = true;
+        }
+        
+        // C. Masquage direct agressif
+        if (!closed) {
+          // Styles de masquage
+          reference.style.display = 'none';
+          reference.style.visibility = 'hidden';
+          reference.style.opacity = '0';
+          reference.style.pointerEvents = 'none';
+          reference.style.zIndex = '-1000';
+          
+          // Classes de masquage
+          reference.classList.add('hidden', 'hide', 'd-none', 'invisible');
+          reference.classList.remove('show', 'visible', 'd-block', 'd-flex');
+          
+          // Attributs
+          reference.hidden = true;
+          reference.setAttribute('aria-hidden', 'true');
+          
+          console.log('🔧 [QuestDeliveryOverlay] Dialogue masqué par force brute');
+          closed = true;
+        }
       }
       
     } catch (error) {
       console.error('❌ [QuestDeliveryOverlay] Erreur fermeture dialogue:', error);
     }
     
-    console.warn('⚠️ [QuestDeliveryOverlay] Impossible de fermer le dialogue');
+    if (closed) {
+      console.log('✅ [QuestDeliveryOverlay] Dialogue fermé avec succès');
+    } else {
+      console.warn('⚠️ [QuestDeliveryOverlay] Impossible de fermer le dialogue');
+    }
+    
+    return closed;
   }
   
   /**
@@ -1285,24 +1381,22 @@ export class QuestDeliveryOverlay {
   }
   
   /**
-   * 🆕 MODIFIÉ: Gérer succès de livraison avec fermeture dialogue
+   * 🆕 MODIFIÉ: Gérer succès de livraison avec fermeture dialogue et refresh immédiat
    */
   handleDeliverySuccess(result) {
     const message = result.message || 'Objets livrés avec succès !';
     console.log('✅ [QuestDeliveryOverlay] Livraison réussie');
     
-    // 🎯 NOUVEAU : Cacher immédiatement l'overlay au lieu d'attendre
-    console.log('🚪 [QuestDeliveryOverlay] Fermeture immédiate après succès avec dialogue');
+    // 🚀 NOUVEAU : Forcer refresh immédiat des statuts de quête
+    this.forceQuestStatusRefresh();
     
     // Animation de succès rapide
     const container = this.overlayElement.querySelector('.quest-delivery-container');
     if (container) {
       container.classList.add('success');
-      
-      // Réduire l'animation à 300ms au lieu de 800ms
       setTimeout(() => {
         container.classList.remove('success');
-      }, 300);
+      }, 200); // Encore plus rapide
     }
     
     // Notification
@@ -1310,10 +1404,163 @@ export class QuestDeliveryOverlay {
       window.showGameNotification(message, 'success', { duration: 4000 });
     }
     
-    // 🎯 CHANGEMENT PRINCIPAL : Fermer immédiatement avec dialogue
+    // 🚀 NOUVEAU : Fermeture ultra rapide avec dialogue
     setTimeout(() => {
-      this.hide(); // 🆕 Cela va maintenant aussi fermer le dialogue
-    }, 300); // 300ms au lieu de 2000ms
+      this.hide(); // Cela va maintenant aussi fermer le dialogue
+    }, 200); // 200ms au lieu de 300ms pour plus de réactivité
+  }
+  
+  /**
+   * 🆕 NOUVELLE MÉTHODE : Forcer refresh immédiat des statuts de quête
+   */
+  forceQuestStatusRefresh() {
+    console.log('🚀 [QuestDeliveryOverlay] Force refresh statuts de quête...');
+    
+    try {
+      // 1. Refresh via QuestSystem si disponible
+      if (window.questSystem) {
+        console.log('🔄 Refresh via QuestSystem...');
+        
+        // Forcer refresh des quêtes actives
+        if (typeof window.questSystem.requestActiveQuests === 'function') {
+          window.questSystem.requestActiveQuests();
+        }
+        
+        // Forcer refresh UI
+        if (window.questSystem.ui && typeof window.questSystem.ui.forceRefreshNow === 'function') {
+          window.questSystem.ui.forceRefreshNow();
+        }
+        
+        // Mettre à jour tracker
+        if (window.questSystem.ui && typeof window.questSystem.ui.updateTrackerIntelligent === 'function') {
+          window.questSystem.ui.updateTrackerIntelligent();
+        }
+      }
+      
+      // 2. Refresh via NetworkManager
+      if (window.networkManager || this.networkManager) {
+        console.log('🔄 Refresh via NetworkManager...');
+        const manager = window.networkManager || this.networkManager;
+        
+        if (typeof manager.sendMessage === 'function') {
+          // Demander refresh immédiat des statuts
+          manager.sendMessage('getActiveQuests', { 
+            source: 'delivery_success', 
+            immediate: true,
+            timestamp: Date.now() 
+          });
+          
+          // Demander aussi refresh des NPCs
+          manager.sendMessage('refreshNpcStatuses', { 
+            source: 'delivery_success',
+            immediate: true,
+            timestamp: Date.now() 
+          });
+        }
+      }
+      
+      // 3. Refresh direct des éléments visuels NPCs
+      setTimeout(() => {
+        this.refreshNpcVisualIndicators();
+      }, 100);
+      
+      // 4. Refresh multiple pour s'assurer
+      setTimeout(() => {
+        this.forceQuestStatusRefreshBackup();
+      }, 500);
+      
+      // 5. Dernier refresh de sécurité
+      setTimeout(() => {
+        this.forceQuestStatusRefreshBackup();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ [QuestDeliveryOverlay] Erreur refresh statuts:', error);
+    }
+  }
+  
+  /**
+   * 🆕 NOUVELLE MÉTHODE : Refresh backup des statuts
+   */
+  forceQuestStatusRefreshBackup() {
+    console.log('🔄 [QuestDeliveryOverlay] Backup refresh statuts...');
+    
+    // Essayer plusieurs approches de refresh
+    const refreshMethods = [
+      () => window.questSystem?.requestActiveQuests?.(),
+      () => window.networkManager?.sendMessage?.('getActiveQuests', { backup: true }),
+      () => window.gameManager?.refreshQuests?.(),
+      () => window.npcManager?.refreshStatuses?.(),
+      () => document.dispatchEvent(new CustomEvent('questStatusRefresh', { detail: { source: 'delivery' } }))
+    ];
+    
+    refreshMethods.forEach((method, index) => {
+      try {
+        if (method) {
+          method();
+          console.log(`✅ Backup refresh ${index + 1} exécuté`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Backup refresh ${index + 1} échoué:`, error.message);
+      }
+    });
+  }
+  
+  /**
+   * 🆕 NOUVELLE MÉTHODE : Refresh visuel des indicateurs NPC
+   */
+  refreshNpcVisualIndicators() {
+    console.log('🎯 [QuestDeliveryOverlay] Refresh indicateurs visuels NPCs...');
+    
+    try {
+      // Rechercher tous les indicateurs de quête sur NPCs
+      const indicatorSelectors = [
+        '.npc-quest-indicator',
+        '.quest-indicator',
+        '.quest-marker',
+        '.npc-status',
+        '[class*="quest-indicator"]',
+        '[class*="npc-indicator"]',
+        '[data-quest-status]'
+      ];
+      
+      let indicatorsFound = 0;
+      
+      indicatorSelectors.forEach(selector => {
+        const indicators = document.querySelectorAll(selector);
+        indicators.forEach(indicator => {
+          indicatorsFound++;
+          
+          // Forcer re-render en modifiant le style temporairement
+          const originalDisplay = indicator.style.display;
+          indicator.style.display = 'none';
+          
+          setTimeout(() => {
+            indicator.style.display = originalDisplay || '';
+            
+            // Déclencher événement de refresh si possible
+            indicator.dispatchEvent(new CustomEvent('refresh'));
+          }, 10);
+          
+          // Ajouter une classe pour déclencher animation de mise à jour
+          indicator.classList.add('updating');
+          setTimeout(() => {
+            indicator.classList.remove('updating');
+          }, 500);
+        });
+      });
+      
+      console.log(`🎯 ${indicatorsFound} indicateurs NPC refreshés`);
+      
+      // Forcer aussi refresh de tous les NPCs visibles
+      const npcs = document.querySelectorAll('[class*="npc"], [data-npc]');
+      npcs.forEach(npc => {
+        npc.dispatchEvent(new CustomEvent('questStatusUpdate'));
+      });
+      
+    } catch (error) {
+      console.error('❌ Erreur refresh indicateurs:', error);
+    }
   }
   
   /**
@@ -1441,10 +1688,33 @@ export class QuestDeliveryOverlay {
   }
 }
 
-// === 🧪 NOUVELLES FONCTIONS DEBUG DIALOGUE ===
+// === 🧪 NOUVELLES FONCTIONS DEBUG DIALOGUE + REFRESH ===
 
 window.testDeliveryDialogueClose = function() {
   console.log('🧪 Test fermeture dialogue avec delivery...');
+  
+  // Debug état dialogue actuel
+  console.log('🔍 === ÉTAT DIALOGUE ACTUEL ===');
+  const dialogueSelectors = [
+    '#dialogue-box', '.dialogue-box', '.dialogue-container', 
+    '.dialogue-overlay', '.npc-dialogue', '[class*="dialogue"]'
+  ];
+  
+  dialogueSelectors.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length > 0) {
+      elements.forEach((el, index) => {
+        const rect = el.getBoundingClientRect();
+        const isVisible = rect.width > 0 && rect.height > 0 && el.offsetParent !== null;
+        console.log(`${selector}[${index}]:`, {
+          visible: isVisible,
+          display: el.style.display || 'default',
+          classes: Array.from(el.classList),
+          rect: rect
+        });
+      });
+    }
+  });
   
   // 1. Simuler ouverture dialogue
   console.log('💬 Simulation dialogue ouvert...');
@@ -1480,7 +1750,8 @@ window.testDeliveryDialogueClose = function() {
     
     // Tester fermeture
     setTimeout(() => {
-      overlay.closeAssociatedDialogue();
+      const closed = overlay.closeAssociatedDialogue();
+      console.log('🚪 Fermeture réussie:', closed);
       
       // Restaurer
       window.dialogueManager = originalDialogueManager;
@@ -1489,6 +1760,129 @@ window.testDeliveryDialogueClose = function() {
       console.log('✅ Test terminé');
     }, 1000);
     
+  } else {
+    console.error('❌ QuestDeliveryOverlay non disponible');
+  }
+};
+
+window.testDeliveryWithDialogue = function() {
+  console.log('🧪 Test livraison complète avec dialogue...');
+  
+  // 1. Simuler dialogue ouvert DANS LE DOM
+  let testDialogueElement = document.getElementById('test-dialogue');
+  if (!testDialogueElement) {
+    testDialogueElement = document.createElement('div');
+    testDialogueElement.id = 'test-dialogue';
+    testDialogueElement.className = 'dialogue-container test-dialogue';
+    testDialogueElement.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 300px;
+      height: 200px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      z-index: 1000;
+      display: block;
+    `;
+    testDialogueElement.innerHTML = `
+      <h3>Test Dialogue NPC</h3>
+      <p>Ceci est un dialogue de test pour tester la fermeture automatique.</p>
+      <button class="close-btn" onclick="this.parentElement.remove()">Fermer</button>
+    `;
+    document.body.appendChild(testDialogueElement);
+    console.log('💬 Dialogue test créé dans le DOM');
+  }
+  
+  // 2. Tester livraison
+  if (window.testQuestDeliverySystem) {
+    window.testQuestDeliverySystem();
+    
+    setTimeout(() => {
+      console.log('🔍 Dialogue encore visible après ouverture overlay:', !!document.getElementById('test-dialogue'));
+      
+      // Test fermeture manuelle après 10 secondes si pas fermé automatiquement
+      setTimeout(() => {
+        const stillThere = document.getElementById('test-dialogue');
+        if (stillThere) {
+          stillThere.remove();
+          console.log('🧹 Dialogue test nettoyé manuellement');
+        }
+      }, 10000);
+      
+    }, 1000);
+    
+  } else {
+    console.error('❌ testQuestDeliverySystem non disponible');
+  }
+};
+
+window.testQuestStatusRefresh = function() {
+  console.log('🧪 Test refresh rapide statuts de quête...');
+  
+  if (window.questSystem?.deliveryOverlay) {
+    const overlay = window.questSystem.deliveryOverlay;
+    
+    // Tester les méthodes de refresh
+    console.log('🚀 Test refresh immédiat...');
+    overlay.forceQuestStatusRefresh();
+    
+    // Vérifier après
+    setTimeout(() => {
+      console.log('🔍 Vérification refresh NPCs...');
+      overlay.refreshNpcVisualIndicators();
+    }, 1000);
+    
+    console.log('✅ Test refresh lancé');
+    
+  } else {
+    console.error('❌ QuestDeliveryOverlay non disponible');
+  }
+};
+
+window.debugQuestStatusElements = function() {
+  console.log('🔍 === DEBUG ÉLÉMENTS QUEST STATUS ===');
+  
+  const statusSelectors = [
+    '.npc-quest-indicator', '.quest-indicator', '.quest-marker', 
+    '.npc-status', '[class*="quest-indicator"]', '[data-quest-status]'
+  ];
+  
+  let totalFound = 0;
+  statusSelectors.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length > 0) {
+      console.log(`${selector}: ${elements.length} éléments`);
+      elements.forEach((el, i) => {
+        console.log(`  [${i}]`, {
+          visible: el.offsetParent !== null,
+          classes: Array.from(el.classList),
+          textContent: el.textContent?.slice(0, 30) || 'vide',
+          rect: el.getBoundingClientRect()
+        });
+        totalFound++;
+      });
+    }
+  });
+  
+  console.log(`📊 Total: ${totalFound} indicateurs de statut trouvés`);
+  
+  // Vérifier aussi les NPCs
+  const npcs = document.querySelectorAll('[class*="npc"], [data-npc]');
+  console.log(`👥 ${npcs.length} éléments NPC trouvés`);
+  
+  return { statusIndicators: totalFound, npcs: npcs.length };
+};
+
+window.configureDialogueClosing = function(shouldClose = true, delay = 100) {
+  console.log(`🔧 Configuration fermeture dialogue: ${shouldClose}, délai: ${delay}ms`);
+  
+  if (window.questSystem?.deliveryOverlay) {
+    window.questSystem.deliveryOverlay.setDialogueCloseSettings(shouldClose, delay);
+    console.log('✅ Configuration appliquée');
   } else {
     console.error('❌ QuestDeliveryOverlay non disponible');
   }
@@ -1540,11 +1934,18 @@ window.configureDialogueClosing = function(shouldClose = true, delay = 300) {
   }
 };
 
-console.log('🎁 [QuestDeliveryOverlay] Système avec fermeture dialogue automatique chargé');
+console.log('🎁 [QuestDeliveryOverlay] Système AMÉLIORÉ avec fermeture dialogue + refresh rapide');
 console.log('🧪 Tests disponibles:');
-console.log('   - window.testDeliveryDialogueClose() - Tester capture/fermeture dialogue');
-console.log('   - window.testDeliveryWithDialogue() - Tester livraison complète avec dialogue');
-console.log('   - window.configureDialogueClosing(shouldClose, delay) - Configurer fermeture');
-console.log('⚙️  Fermeture dialogue par défaut: ACTIVÉE (300ms de délai)');
+console.log('   - window.testDeliveryDialogueClose() - Debug + test fermeture dialogue');
+console.log('   - window.testDeliveryWithDialogue() - Test complet avec dialogue DOM');
+console.log('   - window.testQuestStatusRefresh() - Test refresh rapide statuts');
+console.log('   - window.debugQuestStatusElements() - Debug indicateurs NPCs');
+console.log('   - window.configureDialogueClosing(shouldClose, delay) - Config fermeture');
+console.log('⚙️  Améliorations:');
+console.log('   ✅ Détection dialogue renforcée (DOM + managers)');
+console.log('   ✅ Fermeture agressive (boutons + événements + styles)');
+console.log('   🚀 Refresh immédiat quest status (multiple méthodes)');
+console.log('   🎯 Refresh visuel indicateurs NPCs');
+console.log('   ⚡ Délais réduits (200ms au lieu de 300ms)');
 
 export default QuestDeliveryOverlay;
