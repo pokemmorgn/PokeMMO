@@ -1,6 +1,7 @@
 // Quest/QuestSystem.js - VERSION COMPLÈTE AVEC QUESTDELIVERYOVERLAY
 // 📦 Système complet avec overlay de livraison intégré
 // ✅ Connexions réseau pour livraison de quêtes + UI unifiée
+// 🛡️ CORRECTION: Protection contre double envoi questDelivery
 
 export class QuestSystem {
   constructor(gameRoom, networkManager) {
@@ -35,10 +36,14 @@ export class QuestSystem {
       currentDelivery: null,
       isDelivering: false,
       lastDeliveryTime: 0,
-      deliveryHistory: []
+      deliveryHistory: [],
+      // 🛡️ NOUVEAU : Protection double envoi au niveau système
+      preventDoubleDelivery: true,
+      deliveryCooldown: 3000, // 3 secondes entre livraisons système
+      lastDeliveryNonce: null
     };
     
-    console.log('📖 [QuestSystem] Instance créée avec QuestDeliveryOverlay');
+    console.log('📖 [QuestSystem] Instance créée avec QuestDeliveryOverlay et protection double envoi');
   }
   
   // === 🚀 INITIALISATION ===
@@ -138,18 +143,20 @@ export class QuestSystem {
       this.deliveryOverlay = new QuestDeliveryOverlay(this, this.networkManager);
       await this.deliveryOverlay.init();
       
-      // ✅ Configurer callbacks delivery overlay
-      this.deliveryOverlay.onDeliveryConfirm = (deliveryData, npcId) => {
-        this.handleDeliveryConfirmFromOverlay(deliveryData, npcId);
-      };
+      // 🛡️ MODIFICATION CRITIQUE : Supprimer callback qui cause double envoi
+      // ❌ ANCIEN CODE QUI CAUSAIT LE DOUBLE ENVOI :
+      // this.deliveryOverlay.onDeliveryConfirm = (deliveryData, npcId) => {
+      //   this.handleDeliveryConfirmFromOverlay(deliveryData, npcId);
+      // };
       
+      // ✅ NOUVEAU : Pas de callback système, seulement callback UI
       this.deliveryOverlay.onClose = () => {
         console.log('🎁 [QuestSystem] QuestDeliveryOverlay fermé');
         this.deliveryState.currentDelivery = null;
         this.deliveryState.isDelivering = false;
       };
       
-      console.log('🎁 [QuestSystem] QuestDeliveryOverlay créé et connecté');
+      console.log('🎁 [QuestSystem] QuestDeliveryOverlay créé SANS callback double envoi');
       
     } catch (error) {
       console.error('❌ [QuestSystem] Erreur création QuestDeliveryOverlay:', error);
@@ -626,64 +633,10 @@ extractDeliveryData(data) {
   return null;
 }
 
-  /**
-   * Handler pour confirmation de livraison depuis l'overlay
-   * @param {Object} deliveryData - Données de livraison
-   * @param {string} npcId - ID du NPC
-   */
-  handleDeliveryConfirmFromOverlay(deliveryData, npcId) {
-    console.log('🎯 [QuestSystem] === CONFIRMATION LIVRAISON DEPUIS OVERLAY ===');
-    console.log('📊 Données:', deliveryData);
-    console.log('🎭 NPC ID:', npcId);
-    
-    if (!this.networkManager) {
-      console.error('❌ [QuestSystem] NetworkManager non disponible pour livraison');
-      this.showMessage('Erreur réseau - impossible de livrer', 'error');
-      return false;
-    }
-    
-    try {
-      // ✅ Marquer comme en cours de livraison
-      this.deliveryState.isDelivering = true;
-      
-      // ✅ Feedback immédiat
-      this.showMessage('Livraison en cours...', 'info', { duration: 2000 });
-      
-      // ✅ Créer la demande de livraison
-      const deliveryRequest = {
-        type: 'questDelivery',
-        questId: deliveryData.questId,
-        npcId: npcId,
-        items: deliveryData.items.map(item => ({
-          itemId: item.itemId,
-          required: item.required,
-          playerHas: item.playerHas
-        })),
-        timestamp: Date.now(),
-        sessionId: this.networkManager.sessionId
-      };
-      
-      console.log('📤 [QuestSystem] Envoi demande livraison:', deliveryRequest);
-      
-      // ✅ Envoyer au serveur via NetworkManager
-      this.networkManager.sendMessage('questDelivery', deliveryRequest);
-      
-      // ✅ Callback custom
-      if (this.onQuestDelivery && typeof this.onQuestDelivery === 'function') {
-        this.onQuestDelivery(deliveryData, npcId);
-      }
-      
-      console.log('✅ [QuestSystem] Demande de livraison envoyée');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [QuestSystem] Erreur confirmation livraison:', error);
-      this.deliveryState.isDelivering = false;
-      this.showMessage(`Erreur livraison: ${error.message}`, 'error');
-      return false;
-    }
-  }
-
+  // 🛡️ MÉTHODE SUPPRIMÉE : handleDeliveryConfirmFromOverlay() 
+  // Cette méthode était la source du double envoi !
+  // Elle envoyait le message questDelivery au serveur, mais l'overlay le fait déjà
+  
   /**
    * Handler pour résultat de livraison du serveur
    * @param {Object} data - Résultat de livraison
@@ -692,6 +645,19 @@ extractDeliveryData(data) {
     console.log('🎉 [QuestSystem] === RÉSULTAT LIVRAISON ===');
     console.log('📊 Data:', data);
     
+    // 🛡️ Transmettre le résultat à l'overlay pour gestion
+    if (this.deliveryOverlay && typeof this.deliveryOverlay.handleDeliveryResult === 'function') {
+      this.deliveryOverlay.handleDeliveryResult(data);
+    } else {
+      // 🛡️ Fallback si overlay pas disponible
+      this.handleDeliveryResultFallback(data);
+    }
+  }
+  
+  /**
+   * 🛡️ NOUVELLE MÉTHODE : Fallback si overlay indisponible
+   */
+  handleDeliveryResultFallback(data) {
     this.deliveryState.isDelivering = false;
     
     if (data.success) {
@@ -701,13 +667,6 @@ extractDeliveryData(data) {
       
       // ✅ Notification de succès
       this.showMessage(message, 'success', { duration: 4000 });
-      
-      // ✅ Fermer l'overlay après un délai
-      setTimeout(() => {
-        if (this.deliveryOverlay) {
-          this.deliveryOverlay.hide();
-        }
-      }, 2000);
       
       // ✅ Mettre à jour les quêtes actives
       setTimeout(() => {
@@ -766,29 +725,13 @@ extractDeliveryData(data) {
     console.error('❌ [QuestSystem] === ERREUR LIVRAISON ===');
     console.error('📊 Error data:', data);
     
-    this.deliveryState.isDelivering = false;
-    
-    const errorMsg = data.message || data.error || 'Erreur inconnue lors de la livraison';
-    this.showMessage(errorMsg, 'error', { duration: 5000 });
-    
-    // ✅ Callback custom
-    if (this.onDeliveryFailed && typeof this.onDeliveryFailed === 'function') {
-      this.onDeliveryFailed(data, this.deliveryState.currentDelivery);
+    // 🛡️ Transmettre à l'overlay si disponible
+    if (this.deliveryOverlay && typeof this.deliveryOverlay.handleDeliveryResult === 'function') {
+      this.deliveryOverlay.handleDeliveryResult({ success: false, ...data });
+    } else {
+      // 🛡️ Fallback
+      this.handleDeliveryResultFallback({ success: false, ...data });
     }
-    
-    // ✅ Historique
-    if (this.deliveryState.currentDelivery) {
-      this.deliveryState.deliveryHistory.push({
-        ...this.deliveryState.currentDelivery,
-        errorAt: Date.now(),
-        result: 'error',
-        error: errorMsg,
-        serverResponse: data
-      });
-    }
-    
-    // ✅ Reset état
-    this.deliveryState.currentDelivery = null;
   }
 
   // === 🔍 UTILITAIRES LIVRAISON ===
@@ -1333,7 +1276,10 @@ extractDeliveryData(data) {
       currentDelivery: null,
       isDelivering: false,
       lastDeliveryTime: 0,
-      deliveryHistory: []
+      deliveryHistory: [],
+      preventDoubleDelivery: true,
+      deliveryCooldown: 3000,
+      lastDeliveryNonce: null
     };
     
     console.log('✅ [QuestSystem] Détruit avec système de livraison');
@@ -1428,9 +1374,9 @@ export async function createQuestSystem(gameRoom, networkManager) {
       console.log('🔍 Overlay disponible:', !!questSystem.deliveryOverlay);
     };
     
-    console.log('✅ [QuestFactory] QuestSystem créé avec livraison complète');
+    console.log('✅ [QuestFactory] QuestSystem créé avec livraison SANS double envoi');
     console.log('🎯 Messages unifiés: acceptQuest → questAcceptResult');
-    console.log('🎁 Système livraison: questDelivery ↔ questDeliveryResult');
+    console.log('🎁 Système livraison: questDelivery ↔ questDeliveryResult (SANS DOUBLE ENVOI)');
     console.log('🧪 Tests disponibles:');
     console.log('   - window.testQuestDeliverySystem() - Test overlay livraison');
     console.log('   - window.testQuestDeliverySuccess() - Test succès livraison');  
