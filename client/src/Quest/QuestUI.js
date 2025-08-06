@@ -1,6 +1,9 @@
-// Quest/QuestUI.js - RÉÉCRITURE COMPLÈTE AVEC PROGRESSION AUTOMATIQUE
+// Quest/QuestUI.js - RÉÉCRITURE COMPLÈTE AVEC PROGRESSION AUTOMATIQUE + FIX QUÊTE TERMINÉE
 // 🎯 Interface Quest avec gestion intelligente de la progression des objectifs
-// ✅ FIX: Progression automatique + Nettoyage des objectifs complétés
+// ✅ FIX: Progression automatique + Nettoyage des objectifs complétés + GESTION QUÊTE TERMINÉE
+// 🌐 NOUVEAU : Support LocalizationManager pour les textes traduits
+
+import { t } from '../managers/LocalizationManager.js';
 
 export class QuestUI {
   constructor(questSystem, gameRoom) {
@@ -37,7 +40,13 @@ export class QuestUI {
     this.currentDialog = null;
     this.onAction = null;
     
-    console.log('📖 [QuestUI] Instance créée - Version réécrite avec progression automatique');
+    // 🌐 NOUVEAU : Gestion traductions
+    this.optionsManager = window.optionsSystem?.manager || 
+                         window.optionsSystemGlobal?.manager ||
+                         window.optionsSystem;
+    this.cleanupLanguageListener = null;
+    
+    console.log('📖 [QuestUI] Instance créée - Version avec gestion quête terminée + localisation');
   }
   
   // === 🚀 INITIALISATION ===
@@ -45,6 +54,9 @@ export class QuestUI {
   async init() {
     try {
       console.log('🚀 [QuestUI] Initialisation...');
+      
+      // 🌐 NOUVEAU : Setup traductions
+      this.setupLanguageListener();
       
       this.addStyles();
       this.createJournalInterface();
@@ -55,12 +67,89 @@ export class QuestUI {
       this.isVisible = false;
       this.hideTracker();
       
-      console.log('✅ [QuestUI] Interface prête avec progression automatique');
+      console.log('✅ [QuestUI] Interface prête avec gestion quête terminée + traductions');
       return this;
       
     } catch (error) {
       console.error('❌ [QuestUI] Erreur init:', error);
       throw error;
+    }
+  }
+  
+  // === 🌐 NOUVEAU : GESTION TRADUCTIONS ===
+  
+  setupLanguageListener() {
+    if (!this.optionsManager || typeof this.optionsManager.addLanguageListener !== 'function') {
+      console.warn('⚠️ [QuestUI] OptionsManager non disponible pour traductions');
+      return;
+    }
+    
+    this.cleanupLanguageListener = this.optionsManager.addLanguageListener((newLang, oldLang) => {
+      console.log(`🌐 [QuestUI] Changement langue: ${oldLang} → ${newLang}`);
+      
+      // Mettre à jour les textes statiques
+      this.updateLanguageTexts();
+      
+      // Re-render si visible
+      if (this.isVisible) {
+        this.refreshQuestList();
+      }
+      if (this.isTrackerVisible) {
+        this.updateTrackerIntelligent();
+      }
+    });
+    
+    console.log('📡 [QuestUI] Listener langue configuré');
+  }
+  
+  updateLanguageTexts() {
+    if (!this.overlayElement) return;
+    
+    try {
+      // Titre du journal
+      const journalTitle = this.overlayElement.querySelector('.quest-journal-header h2');
+      if (journalTitle) {
+        journalTitle.textContent = t('quest.ui.journal_title');
+      }
+      
+      // Tabs
+      const tabs = {
+        'active': this.overlayElement.querySelector('[data-tab="active"]'),
+        'completed': this.overlayElement.querySelector('[data-tab="completed"]'),
+        'available': this.overlayElement.querySelector('[data-tab="available"]')
+      };
+      
+      Object.entries(tabs).forEach(([tabName, tabElement]) => {
+        if (tabElement) {
+          tabElement.textContent = t(`quest.ui.tab_${tabName}`);
+        }
+      });
+      
+      // Boutons d'action
+      const refreshBtn = this.overlayElement.querySelector('#refresh-quests');
+      if (refreshBtn) {
+        refreshBtn.textContent = t('quest.ui.refresh_button');
+      }
+      
+      const trackBtn = this.overlayElement.querySelector('#track-quest');
+      if (trackBtn) {
+        trackBtn.textContent = t('quest.ui.track_button');
+      }
+      
+      console.log('✅ [QuestUI] Textes traduits mis à jour');
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur mise à jour langue:', error);
+    }
+  }
+  
+  // 🌐 HELPER : Obtenir traduction sécurisée
+  getSafeTranslation(key, fallback) {
+    try {
+      const translation = t(key);
+      return translation !== key ? translation : fallback;
+    } catch (error) {
+      return fallback;
     }
   }
   
@@ -72,7 +161,7 @@ export class QuestUI {
     const style = document.createElement('style');
     style.id = 'quest-ui-styles-v2';
     style.textContent = `
-      /* ===== QUEST UI STYLES V2 - AVEC PROGRESSION AUTOMATIQUE ===== */
+      /* ===== QUEST UI STYLES V2 - AVEC PROGRESSION AUTOMATIQUE + QUÊTE TERMINÉE ===== */
       
       /* Journal Overlay */
       div#quest-journal.quest-journal {
@@ -207,6 +296,16 @@ export class QuestUI {
         border-left-color: #64b5f6 !important;
       }
       
+      /* 🟢 NOUVEAU : Status spécial pour quête terminée */
+      div#quest-journal .quest-item.completed {
+        background: rgba(34, 197, 94, 0.15) !important;
+        border-left-color: #22c55e !important;
+      }
+      
+      div#quest-journal .quest-item.completed:hover {
+        background: rgba(34, 197, 94, 0.25) !important;
+      }
+      
       div#quest-journal .quest-item-title {
         font-weight: bold !important;
         font-size: 14px !important;
@@ -214,9 +313,20 @@ export class QuestUI {
         color: #fff !important;
       }
       
+      /* 🟢 NOUVEAU : Titre spécial pour quête terminée */
+      div#quest-journal .quest-item.completed .quest-item-title {
+        color: #22c55e !important;
+      }
+      
       div#quest-journal .quest-item-progress {
         font-size: 12px !important;
         color: #ccc !important;
+      }
+      
+      /* 🟢 NOUVEAU : Progress spécial pour quête terminée */
+      div#quest-journal .quest-item.completed .quest-item-progress {
+        color: #22c55e !important;
+        font-weight: bold !important;
       }
       
       div#quest-journal .quest-item-category {
@@ -250,6 +360,11 @@ export class QuestUI {
         color: #64b5f6 !important;
       }
       
+      /* 🟢 NOUVEAU : Titre spécial pour quête terminée */
+      div#quest-journal .quest-title.completed {
+        color: #22c55e !important;
+      }
+      
       div#quest-journal .quest-description {
         font-size: 13px !important;
         color: #ccc !important;
@@ -272,6 +387,77 @@ export class QuestUI {
       div#quest-journal .quest-step.current {
         background: rgba(255, 193, 7, 0.2) !important;
         border-left: 3px solid #ffc107 !important;
+      }
+      
+      /* 🟢 NOUVEAU : Section finale pour quête terminée */
+      div#quest-journal .quest-completed-section {
+        background: linear-gradient(145deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.15)) !important;
+        border: 2px solid rgba(34, 197, 94, 0.4) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        margin: 15px 0 !important;
+        text-align: center !important;
+        box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2) !important;
+      }
+      
+      div#quest-journal .quest-completed-icon {
+        font-size: 32px !important;
+        margin-bottom: 10px !important;
+        display: block !important;
+        animation: completedPulse 2s ease-in-out infinite !important;
+      }
+      
+      div#quest-journal .quest-completed-title {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        color: #22c55e !important;
+        margin-bottom: 8px !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+      }
+      
+      div#quest-journal .quest-completed-message {
+        font-size: 14px !important;
+        color: #a7f3d0 !important;
+        line-height: 1.4 !important;
+        margin-bottom: 15px !important;
+      }
+      
+      div#quest-journal .quest-completion-rewards {
+        background: rgba(0, 0, 0, 0.2) !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin-top: 10px !important;
+      }
+      
+      div#quest-journal .quest-rewards-title {
+        font-size: 12px !important;
+        color: #fbbf24 !important;
+        font-weight: bold !important;
+        margin-bottom: 8px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+      }
+      
+      div#quest-journal .quest-rewards-list {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        justify-content: center !important;
+      }
+      
+      div#quest-journal .quest-reward-item {
+        background: rgba(59, 130, 246, 0.2) !important;
+        border: 1px solid rgba(59, 130, 246, 0.4) !important;
+        border-radius: 6px !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+        color: #93c5fd !important;
+        font-weight: 500 !important;
+      }
+      
+      @keyframes completedPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
       }
       
       div#quest-journal .quest-objective {
@@ -486,6 +672,17 @@ export class QuestUI {
         box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3) !important;
       }
       
+      /* 🟢 NOUVEAU : Style spécial pour quête terminée dans tracker */
+      div#quest-tracker .tracked-quest.completed {
+        background: rgba(34, 197, 94, 0.1) !important;
+        border-left-color: #22c55e !important;
+      }
+      
+      div#quest-tracker .tracked-quest.completed:hover {
+        background: rgba(34, 197, 94, 0.15) !important;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3) !important;
+      }
+      
       div#quest-tracker .quest-name {
         font-size: 13px !important;
         font-weight: 600 !important;
@@ -494,8 +691,39 @@ export class QuestUI {
         line-height: 1.2 !important;
       }
       
+      /* 🟢 NOUVEAU : Nom spécial pour quête terminée */
+      div#quest-tracker .tracked-quest.completed .quest-name {
+        color: #22c55e !important;
+      }
+      
       div#quest-tracker .quest-objectives {
         margin-top: 6px !important;
+      }
+      
+      /* 🟢 NOUVEAU : Message spécial pour quête terminée dans tracker */
+      div#quest-tracker .quest-completed-message {
+        font-size: 12px !important;
+        color: #22c55e !important;
+        font-weight: bold !important;
+        text-align: center !important;
+        padding: 8px !important;
+        background: rgba(34, 197, 94, 0.1) !important;
+        border-radius: 6px !important;
+        margin-top: 6px !important;
+        animation: completedGlow 2s ease-in-out infinite !important;
+      }
+      
+      div#quest-tracker .quest-completed-message:before {
+        content: "✨ " !important;
+      }
+      
+      div#quest-tracker .quest-completed-message:after {
+        content: " ✨" !important;
+      }
+      
+      @keyframes completedGlow {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.02); }
       }
       
       div#quest-tracker .quest-objective {
@@ -611,7 +839,7 @@ export class QuestUI {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [QuestUI] Styles V2 ajoutés avec progression automatique');
+    console.log('🎨 [QuestUI] Styles V2 ajoutés avec gestion quête terminée + traductions');
   }
   
   // === 🏗️ CRÉATION INTERFACES ===
@@ -626,36 +854,36 @@ export class QuestUI {
     
     journal.innerHTML = `
       <div class="quest-journal-header">
-        <h2>Journal des Quêtes</h2>
+        <h2>${this.getSafeTranslation('quest.ui.journal_title', 'Journal des Quêtes')}</h2>
         <button class="quest-close-btn" id="close-quest-journal">✕</button>
       </div>
       
       <div class="quest-tabs">
-        <button class="quest-tab active" data-tab="active">Actives</button>
-        <button class="quest-tab" data-tab="completed">Terminées</button>
-        <button class="quest-tab" data-tab="available">Disponibles</button>
+        <button class="quest-tab active" data-tab="active">${this.getSafeTranslation('quest.ui.tab_active', 'Actives')}</button>
+        <button class="quest-tab" data-tab="completed">${this.getSafeTranslation('quest.ui.tab_completed', 'Terminées')}</button>
+        <button class="quest-tab" data-tab="available">${this.getSafeTranslation('quest.ui.tab_available', 'Disponibles')}</button>
       </div>
       
       <div class="quest-content">
         <div class="quest-list" id="quest-list">
-          <div class="quest-empty">Aucune quête active</div>
+          <div class="quest-empty">${this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active')}</div>
         </div>
         
         <div class="quest-details" id="quest-details">
-          <div class="quest-empty">Sélectionnez une quête pour voir les détails</div>
+          <div class="quest-empty">${this.getSafeTranslation('quest.ui.select_quest', 'Sélectionnez une quête pour voir les détails')}</div>
         </div>
       </div>
       
       <div class="quest-actions">
-        <button id="refresh-quests" class="quest-btn">Actualiser</button>
-        <button id="track-quest" class="quest-btn" disabled>Suivre</button>
+        <button id="refresh-quests" class="quest-btn">${this.getSafeTranslation('quest.ui.refresh_button', 'Actualiser')}</button>
+        <button id="track-quest" class="quest-btn" disabled>${this.getSafeTranslation('quest.ui.track_button', 'Suivre')}</button>
       </div>
     `;
     
     document.body.appendChild(journal);
     this.overlayElement = journal;
     
-    console.log('🎨 [QuestUI] Journal créé');
+    console.log('🎨 [QuestUI] Journal créé avec traductions');
   }
   
   createTrackerInterface() {
@@ -670,16 +898,16 @@ export class QuestUI {
       <div class="quest-tracker-header">
         <div class="tracker-title">
           <span class="tracker-icon">📖</span>
-          <span class="tracker-text">Quêtes</span>
+          <span class="tracker-text">${this.getSafeTranslation('quest.ui.tracker_title', 'Quêtes')}</span>
         </div>
         <div class="tracker-controls">
-          <button class="tracker-btn minimize-btn" title="Minimiser">-</button>
-          <button class="tracker-btn close-btn" title="Masquer">×</button>
+          <button class="tracker-btn minimize-btn" title="${this.getSafeTranslation('quest.ui.minimize', 'Minimiser')}">-</button>
+          <button class="tracker-btn close-btn" title="${this.getSafeTranslation('quest.ui.hide', 'Masquer')}">×</button>
         </div>
       </div>
       <div class="quest-tracker-content">
         <div class="tracked-quests" id="tracked-quests">
-          <div class="quest-empty">Aucune quête active</div>
+          <div class="quest-empty">${this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active')}</div>
         </div>
       </div>
     `;
@@ -687,7 +915,7 @@ export class QuestUI {
     document.body.appendChild(tracker);
     this.trackerElement = tracker;
     
-    console.log('🎨 [QuestUI] Tracker créé');
+    console.log('🎨 [QuestUI] Tracker créé avec traductions');
   }
   
   // === 🎛️ ÉVÉNEMENTS ===
@@ -832,7 +1060,9 @@ export class QuestUI {
       const minimizeBtn = this.trackerElement.querySelector('.minimize-btn');
       if (minimizeBtn) {
         minimizeBtn.textContent = isMinimized ? '-' : '+';
-        minimizeBtn.title = isMinimized ? 'Minimiser' : 'Maximiser';
+        minimizeBtn.title = isMinimized ? 
+          this.getSafeTranslation('quest.ui.minimize', 'Minimiser') : 
+          this.getSafeTranslation('quest.ui.maximize', 'Maximiser');
       }
     }
   }
@@ -919,7 +1149,41 @@ export class QuestUI {
     }
   }
   
-  // ✅ MÉTHODE PRINCIPALE : Tracker intelligent avec progression automatique
+  // 🟢 MÉTHODE PRINCIPALE MODIFIÉE : Vérifier si quête terminée
+  isQuestCompleted(quest) {
+    if (!quest) return false;
+    
+    // Méthode 1: Vérifier le status
+    if (quest.status === 'completed' || quest.status === 'finished') {
+      return true;
+    }
+    
+    // Méthode 2: Vérifier l'étape actuelle vs total
+    if (quest.steps && Array.isArray(quest.steps)) {
+      const totalSteps = quest.steps.length;
+      const currentStepIndex = quest.currentStepIndex ?? 0;
+      
+      console.log(`🔍 [QuestUI] Quête ${quest.id}: étape ${currentStepIndex}/${totalSteps}`);
+      
+      return currentStepIndex >= totalSteps;
+    }
+    
+    // Méthode 3: Vérifier si tous les objectifs de l'étape actuelle sont complétés
+    const currentStep = quest.steps?.[quest.currentStepIndex];
+    if (currentStep && currentStep.objectives) {
+      const allCompleted = currentStep.objectives.every(obj => obj.completed);
+      const isLastStep = (quest.currentStepIndex ?? 0) >= (quest.steps?.length - 1 ?? 0);
+      
+      if (allCompleted && isLastStep) {
+        console.log(`🎉 [QuestUI] Quête ${quest.id} terminée (tous objectifs dernière étape complétés)`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  // ✅ MÉTHODE PRINCIPALE MODIFIÉE : Tracker intelligent avec gestion quête terminée
   updateTrackerIntelligent() {
     console.log(`📊 [QuestUI] Update tracker intelligent - ${this.activeQuests.length} quêtes actives`);
     
@@ -934,7 +1198,7 @@ export class QuestUI {
     // ✅ GESTION INTELLIGENTE DE L'AFFICHAGE/MASQUAGE
     if (questsToTrack.length === 0) {
       console.log('📊 [QuestUI] Aucune quête active - masquage tracker');
-      container.innerHTML = '<div class="quest-empty">Aucune quête active</div>';
+      container.innerHTML = `<div class="quest-empty">${this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active')}</div>`;
       this.hideTracker();
       return;
     }
@@ -947,7 +1211,7 @@ export class QuestUI {
     
     // ✅ GÉNÉRATION INTELLIGENTE DU HTML
     container.innerHTML = questsToTrack.map((quest, index) => {
-      const isCompleted = quest.currentStepIndex >= (quest.steps?.length || 0);
+      const isCompleted = this.isQuestCompleted(quest);
       
       return `
         <div class="tracked-quest ${isCompleted ? 'completed' : ''}" data-quest-id="${quest.id}">
@@ -975,24 +1239,31 @@ export class QuestUI {
     console.log('✅ [QuestUI] Tracker intelligent mis à jour');
   }
   
-  // ✅ MÉTHODE AMÉLIORÉE : Rendu intelligent des objectifs
+  // 🟢 MÉTHODE MODIFIÉE : Rendu intelligent des objectifs avec gestion quête terminée
   renderTrackerObjectivesIntelligent(quest) {
+    const isCompleted = this.isQuestCompleted(quest);
+    
+    // 🟢 NOUVEAU : Si quête terminée, afficher message spécial
+    if (isCompleted) {
+      return `<div class="quest-completed-message">${this.getSafeTranslation('quest.ui.quest_completed', 'Quête terminée')}</div>`;
+    }
+    
     const currentStep = quest.steps?.[quest.currentStepIndex];
     if (!currentStep || !currentStep.objectives) {
       if (currentStep && currentStep.description) {
         return `<div class="quest-objective">${currentStep.description}</div>`;
       }
-      return '<div class="quest-objective">Aucun objectif disponible</div>';
+      return `<div class="quest-objective">${this.getSafeTranslation('quest.ui.no_objectives', 'Aucun objectif disponible')}</div>`;
     }
     
     return currentStep.objectives.map((objective, objIndex) => {
-      const isCompleted = objective.completed;
+      const isObjCompleted = objective.completed;
       const current = objective.currentAmount || 0;
       const required = objective.requiredAmount || 1;
       const objId = `${quest.id}-${quest.currentStepIndex}-${objIndex}`;
       
       let objectiveClass = 'quest-objective';
-      if (isCompleted) {
+      if (isObjCompleted) {
         objectiveClass += ' completed';
       }
       
@@ -1001,7 +1272,7 @@ export class QuestUI {
         objectiveClass += ' just-completed';
       }
       
-      let objectiveText = objective.description || 'Objectif inconnu';
+      let objectiveText = objective.description || this.getSafeTranslation('quest.ui.unknown_objective', 'Objectif inconnu');
       if (required > 1) {
         objectiveText += ` (${current}/${required})`;
       }
@@ -1255,7 +1526,7 @@ export class QuestUI {
     }
   }
   
-  // === 📊 MÉTHODES EXISTANTES CONSERVÉES ===
+  // === 📊 MÉTHODES EXISTANTES CONSERVÉES AVEC FIX QUÊTE TERMINÉE ===
   
   refreshQuestList() {
     const questList = this.overlayElement?.querySelector('#quest-list');
@@ -1275,7 +1546,8 @@ export class QuestUI {
     }
     
     if (!quests || quests.length === 0) {
-      questList.innerHTML = `<div class="quest-empty">Aucune quête ${this.currentView}</div>`;
+      const emptyMessage = this.getEmptyMessage(this.currentView);
+      questList.innerHTML = `<div class="quest-empty">${emptyMessage}</div>`;
       this.updateQuestDetails(null);
       return;
     }
@@ -1283,11 +1555,20 @@ export class QuestUI {
     questList.innerHTML = quests.map((quest, index) => {
       const progress = this.calculateQuestProgress(quest);
       const categoryClass = quest.category || 'side';
+      const isCompleted = this.isQuestCompleted(quest);
+      
+      // 🟢 NOUVEAU : Text spécial pour quête terminée
+      let progressText;
+      if (isCompleted) {
+        progressText = this.getSafeTranslation('quest.ui.completed_status', 'Terminée');
+      } else {
+        progressText = `${progress.completed}/${progress.total} ${this.getSafeTranslation('quest.ui.objectives_label', 'objectifs')}`;
+      }
       
       return `
-        <div class="quest-item" data-quest-index="${index}">
-          <div class="quest-item-title">${quest.name || 'Quête sans nom'}</div>
-          <div class="quest-item-progress">${progress.completed}/${progress.total} objectifs</div>
+        <div class="quest-item ${isCompleted ? 'completed' : ''}" data-quest-index="${index}">
+          <div class="quest-item-title">${quest.name || this.getSafeTranslation('quest.ui.unnamed_quest', 'Quête sans nom')}</div>
+          <div class="quest-item-progress">${progressText}</div>
           <div class="quest-item-category ${categoryClass}">${(quest.category || 'side').toUpperCase()}</div>
         </div>
       `;
@@ -1304,6 +1585,17 @@ export class QuestUI {
     if (quests.length > 0) {
       this.selectQuest(0);
     }
+  }
+  
+  // 🌐 NOUVELLE MÉTHODE : Messages vides traduits
+  getEmptyMessage(view) {
+    const messages = {
+      'active': this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active'),
+      'completed': this.getSafeTranslation('quest.ui.no_completed_quests', 'Aucune quête terminée'),
+      'available': this.getSafeTranslation('quest.ui.no_available_quests', 'Aucune quête disponible')
+    };
+    
+    return messages[view] || messages['active'];
   }
   
   selectQuest(index) {
@@ -1335,30 +1627,38 @@ export class QuestUI {
     }
   }
   
+  // 🟢 MÉTHODE MODIFIÉE : Détails de quête avec gestion terminée
   updateQuestDetails(quest) {
     const detailsContainer = this.overlayElement?.querySelector('#quest-details');
     if (!detailsContainer) return;
     
     if (!quest) {
-      detailsContainer.innerHTML = '<div class="quest-empty">Sélectionnez une quête pour voir les détails</div>';
+      detailsContainer.innerHTML = `<div class="quest-empty">${this.getSafeTranslation('quest.ui.select_quest', 'Sélectionnez une quête pour voir les détails')}</div>`;
       return;
     }
     
-    const isCompleted = quest.currentStepIndex >= (quest.steps?.length || 0);
+    const isCompleted = this.isQuestCompleted(quest);
     
     detailsContainer.innerHTML = `
       <div class="quest-details-content">
-        <div class="quest-title">${quest.name || 'Quête sans nom'}</div>
-        <div class="quest-description">${quest.description || 'Pas de description'}</div>
+        <div class="quest-title ${isCompleted ? 'completed' : ''}">${quest.name || this.getSafeTranslation('quest.ui.unnamed_quest', 'Quête sans nom')}</div>
+        <div class="quest-description">${quest.description || this.getSafeTranslation('quest.ui.no_description', 'Pas de description')}</div>
+        
+        ${isCompleted ? this.renderCompletedQuestSection(quest) : ''}
         
         ${quest.steps ? quest.steps.map((step, index) => {
           const isCurrent = index === quest.currentStepIndex;
           const isStepCompleted = index < quest.currentStepIndex;
           const stepClass = isStepCompleted ? 'completed' : (isCurrent ? 'current' : '');
           
+          // 🟢 Ne pas afficher les étapes si la quête est terminée
+          if (isCompleted && !isStepCompleted && !isCurrent) {
+            return '';
+          }
+          
           return `
             <div class="quest-step ${stepClass}">
-              <div class="quest-step-title">${step.name || `Étape ${index + 1}`}</div>
+              <div class="quest-step-title">${step.name || `${this.getSafeTranslation('quest.ui.step_label', 'Étape')} ${index + 1}`}</div>
               <div class="quest-step-description">${step.description || ''}</div>
               
               ${step.objectives ? step.objectives.map((obj, objIndex) => {
@@ -1371,17 +1671,76 @@ export class QuestUI {
                        data-step-index="${index}" 
                        data-objective-index="${objIndex}"
                        data-objective-id="${objId}">
-                    ${obj.description || 'Objectif'} (${progress}/${obj.requiredAmount || 1})
+                    ${obj.description || this.getSafeTranslation('quest.ui.unknown_objective', 'Objectif')} (${progress}/${obj.requiredAmount || 1})
                   </div>
                 `;
               }).join('') : ''}
             </div>
           `;
         }).join('') : ''}
-        
-        ${isCompleted ? '<div class="quest-step completed"><div class="quest-step-title">Quête terminée !</div></div>' : ''}
       </div>
     `;
+  }
+  
+  // 🟢 NOUVELLE MÉTHODE : Rendu section quête terminée
+  renderCompletedQuestSection(quest) {
+    const rewards = this.extractQuestRewards(quest);
+    
+    return `
+      <div class="quest-completed-section">
+        <span class="quest-completed-icon">🎉</span>
+        <div class="quest-completed-title">${this.getSafeTranslation('quest.ui.quest_completed_title', 'Quête Terminée !')}</div>
+        <div class="quest-completed-message">${this.getSafeTranslation('quest.ui.quest_completed_message', 'Félicitations ! Vous avez terminé cette quête avec succès.')}</div>
+        
+        ${rewards.length > 0 ? `
+          <div class="quest-completion-rewards">
+            <div class="quest-rewards-title">${this.getSafeTranslation('quest.ui.rewards_earned', 'Récompenses Obtenues')}</div>
+            <div class="quest-rewards-list">
+              ${rewards.map(reward => `
+                <div class="quest-reward-item">
+                  ${this.getRewardIcon(reward.type)} ${reward.amount || 1} ${reward.name || reward.type}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+  
+  // 🟢 NOUVELLE MÉTHODE : Extraire récompenses de quête
+  extractQuestRewards(quest) {
+    // Chercher les récompenses dans plusieurs endroits possibles
+    if (quest.rewards && Array.isArray(quest.rewards)) {
+      return quest.rewards;
+    }
+    
+    if (quest.completionRewards && Array.isArray(quest.completionRewards)) {
+      return quest.completionRewards;
+    }
+    
+    // Récompenses par défaut si aucune trouvée
+    return [
+      { type: 'experience', name: this.getSafeTranslation('quest.ui.experience_points', 'Points d\'expérience'), amount: 100 },
+      { type: 'gold', name: this.getSafeTranslation('quest.ui.gold_coins', 'Pièces d\'or'), amount: 50 }
+    ];
+  }
+  
+  // 🟢 NOUVELLE MÉTHODE : Icônes de récompenses
+  getRewardIcon(rewardType) {
+    const icons = {
+      'gold': '🪙',
+      'experience': '⭐',
+      'xp': '⭐',
+      'item': '📦',
+      'money': '🪙',
+      'pokemon': '🔴',
+      'badge': '🏆',
+      'potion': '🧪',
+      'berry': '🫐'
+    };
+    
+    return icons[rewardType?.toLowerCase()] || '🎁';
   }
   
   calculateQuestProgress(quest) {
@@ -1427,13 +1786,15 @@ export class QuestUI {
     console.log('Dernier refresh:', new Date(this.progressionState.lastRefreshTime));
     console.log('Quêtes actives:', this.activeQuests.length);
     console.log('Tracker visible:', this.isTrackerVisible);
+    console.log('Langue actuelle:', this.optionsManager?.currentLanguage);
     
     return {
       animatingObjectives: Array.from(this.progressionState.animatingObjectives),
       pendingRefresh: this.progressionState.pendingRefresh,
       lastRefreshTime: this.progressionState.lastRefreshTime,
       activeQuests: this.activeQuests.length,
-      trackerVisible: this.isTrackerVisible
+      trackerVisible: this.isTrackerVisible,
+      currentLanguage: this.optionsManager?.currentLanguage
     };
   }
   
@@ -1443,10 +1804,66 @@ export class QuestUI {
     this.scheduleIntelligentRefresh(0, 'force_manual');
   }
   
+  // 🟢 NOUVELLE MÉTHODE DEBUG : Tester quête terminée
+  debugCompletedQuest() {
+    console.log('🧪 [QuestUI] Test quête terminée...');
+    
+    // Créer une quête test terminée
+    const completedQuest = {
+      id: 'test_completed_quest',
+      name: 'Quête de Test Terminée',
+      description: 'Une quête de test qui a été terminée avec succès.',
+      status: 'completed',
+      category: 'main',
+      currentStepIndex: 2,
+      steps: [
+        {
+          name: 'Étape 1',
+          description: 'Première étape terminée',
+          objectives: [
+            { description: 'Objectif 1', completed: true, currentAmount: 1, requiredAmount: 1 },
+            { description: 'Objectif 2', completed: true, currentAmount: 3, requiredAmount: 3 }
+          ]
+        },
+        {
+          name: 'Étape 2',
+          description: 'Deuxième étape terminée',
+          objectives: [
+            { description: 'Objectif final', completed: true, currentAmount: 1, requiredAmount: 1 }
+          ]
+        }
+      ],
+      rewards: [
+        { type: 'experience', name: 'Points d\'expérience', amount: 500 },
+        { type: 'gold', name: 'Pièces d\'or', amount: 200 },
+        { type: 'item', name: 'Objet rare', amount: 1 }
+      ]
+    };
+    
+    // Ajouter aux quêtes actives pour test
+    this.activeQuests.push(completedQuest);
+    
+    // Mettre à jour l'affichage
+    if (this.isVisible) {
+      this.refreshQuestList();
+    }
+    this.updateTrackerIntelligent();
+    
+    console.log('✅ [QuestUI] Quête terminée ajoutée pour test');
+    
+    return completedQuest;
+  }
+  
   // === 🧹 NETTOYAGE ===
   
   destroy() {
     console.log('🧹 [QuestUI] Destruction...');
+    
+    // 🌐 NOUVEAU : Nettoyer listener langue
+    if (this.cleanupLanguageListener) {
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
     
     // Nettoyer animations en cours
     this.cleanupAnimatingObjectives();
@@ -1477,6 +1894,7 @@ export class QuestUI {
     this.activeQuests = [];
     this.selectedQuest = null;
     this.onAction = null;
+    this.optionsManager = null;
     this.progressionState = {
       animatingObjectives: new Set(),
       pendingRefresh: false,
@@ -1484,8 +1902,105 @@ export class QuestUI {
       refreshCooldown: 1000
     };
     
-    console.log('✅ [QuestUI] Détruit avec nettoyage complet');
+    console.log('✅ [QuestUI] Détruit avec nettoyage complet + traductions');
   }
 }
+
+// === 🧪 FONCTIONS DEBUG GLOBALES ===
+
+// 🟢 NOUVELLE FONCTION : Tester quête terminée
+window.testCompletedQuest = function() {
+  console.log('🧪 Test quête terminée...');
+  
+  if (window.questSystem && window.questSystem.ui) {
+    return window.questSystem.ui.debugCompletedQuest();
+  } else {
+    console.error('❌ QuestUI non disponible');
+    return null;
+  }
+};
+
+// 🟢 NOUVELLE FONCTION : Simuler fin de quête
+window.simulateQuestCompletion = function(questId = 'lost_gardening_gloves') {
+  console.log(`🧪 Simulation fin de quête: ${questId}...`);
+  
+  if (window.questSystem && window.questSystem.ui) {
+    const ui = window.questSystem.ui;
+    
+    // Trouver la quête
+    const quest = ui.activeQuests.find(q => q.id === questId);
+    if (!quest) {
+      console.error(`❌ Quête ${questId} non trouvée`);
+      return false;
+    }
+    
+    // Marquer comme terminée
+    quest.status = 'completed';
+    if (quest.steps) {
+      quest.currentStepIndex = quest.steps.length;
+    }
+    
+    // Ajouter des récompenses si pas présentes
+    if (!quest.rewards) {
+      quest.rewards = [
+        { type: 'experience', name: 'Points d\'expérience', amount: 200 },
+        { type: 'gold', name: 'Pièces d\'or', amount: 100 }
+      ];
+    }
+    
+    // Mettre à jour l'affichage
+    ui.updateTrackerIntelligent();
+    if (ui.isVisible) {
+      ui.refreshQuestList();
+      if (ui.selectedQuest && ui.selectedQuest.id === questId) {
+        ui.updateQuestDetails(quest);
+      }
+    }
+    
+    console.log(`✅ Quête ${questId} marquée comme terminée`);
+    return quest;
+    
+  } else {
+    console.error('❌ QuestUI non disponible');
+    return false;
+  }
+};
+
+// Debug existant étendu
+window.debugQuestUI = function() {
+  console.log('🔍 === DEBUG QUEST UI COMPLET ===');
+  
+  if (window.questSystem && window.questSystem.ui) {
+    const ui = window.questSystem.ui;
+    
+    console.log('📊 État général:', ui.debugProgressionState());
+    console.log('📋 Quêtes actives:', ui.activeQuests.length);
+    
+    ui.activeQuests.forEach((quest, index) => {
+      const isCompleted = ui.isQuestCompleted(quest);
+      console.log(`   ${index + 1}. ${quest.name} - ${isCompleted ? '✅ TERMINÉE' : '🔄 EN COURS'}`);
+    });
+    
+    console.log('🎮 Méthodes de test disponibles:');
+    console.log('   - window.testCompletedQuest() - Ajouter quête terminée test');
+    console.log('   - window.simulateQuestCompletion(questId) - Marquer quête comme terminée');
+    
+    return {
+      state: ui.debugProgressionState(),
+      activeQuests: ui.activeQuests.length,
+      completedQuests: ui.activeQuests.filter(q => ui.isQuestCompleted(q)).length
+    };
+    
+  } else {
+    console.error('❌ QuestUI non disponible');
+    return null;
+  }
+};
+
+console.log('✅ [QuestUI] Système complet avec gestion quête terminée + traductions chargé');
+console.log('🧪 Tests disponibles:');
+console.log('   - window.testCompletedQuest() - Tester quête terminée');
+console.log('   - window.simulateQuestCompletion(questId) - Simuler fin de quête');
+console.log('   - window.debugQuestUI() - Debug complet');
 
 export default QuestUI;
