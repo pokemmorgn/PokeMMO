@@ -691,10 +691,10 @@ class QuestSystemTester {
   private async testInventoryScan(): Promise<void> {
     console.log('📦 Test: Scan inventaire...');
     
-    // Configurer l'inventaire
+    // Configurer l'inventaire avec assez d'items pour compléter obj1 ET déclencher obj2
     MockInventoryManager.setInventory('scanPlayer', {
-      'oran_berry': 5,
-      'pecha_berry': 5
+      'oran_berry': 5, // Assez pour compléter obj1 (5 requis)
+      'pecha_berry': 3  // Assez pour compléter obj2 (3 requis)
     });
 
     const quest = await this.questManager.startQuest('scanPlayer', 'test_collect_quest');
@@ -706,12 +706,13 @@ class QuestSystemTester {
       console.log(`     ${id}: active=${progress.active}, completed=${progress.completed}, amount=${progress.currentAmount}`);
     });
 
-    // Vérifier les progressions après scan récursif
-    const obj1Progress = quest.objectives.get('obj1');
-    const obj2Progress = quest.objectives.get('obj2');
+    // obj1 devrait avoir reçu 5 oran_berries (le maximum qu'il peut prendre)
+    if (!obj1Progress || obj1Progress.currentAmount !== 5) {
+      throw new Error(`Expected obj1 progress 5, got ${obj1Progress?.currentAmount}`);
+    }
 
-    if (!obj1Progress || obj1Progress.currentAmount !== 3) {
-      throw new Error(`Expected obj1 progress 3, got ${obj1Progress?.currentAmount}`);
+    if (!obj1Progress.completed) {
+      throw new Error('obj1 should be completed after inventory scan');
     }
 
     // obj2 devrait maintenant avoir progressé grâce au scan récursif
