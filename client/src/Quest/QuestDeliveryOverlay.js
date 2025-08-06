@@ -65,7 +65,40 @@ export class QuestDeliveryOverlay {
   
   // === 🆕 NOUVELLES MÉTHODES : GESTION DIALOGUE ===
   
-Element;
+  /**
+   * Détecter et capturer la référence au dialogue ouvert
+   */
+  captureDialogueReference() {
+    console.log('🔍 [QuestDeliveryOverlay] Capture référence dialogue...');
+    
+    // Reset état
+    this.dialogueState.dialogueWasOpen = false;
+    this.dialogueState.dialogueReference = null;
+    
+    // 🔍 Méthode 1: Vérifier window.dialogueManager
+    if (window.dialogueManager && window.dialogueManager.isVisible) {
+      console.log('✅ [QuestDeliveryOverlay] DialogueManager détecté comme ouvert');
+      this.dialogueState.dialogueWasOpen = true;
+      this.dialogueState.dialogueReference = window.dialogueManager;
+      return true;
+    }
+    
+    // 🔍 Méthode 2: Vérifier élément DOM dialogue visible
+    const dialogueSelectors = [
+      '#dialogue-box:not([style*="display: none"])',
+      '.dialogue-box-unified:not(.hidden)',
+      '.dialogue-container:not(.hidden)',
+      '[id*="dialogue"]:not(.hidden)',
+      '[class*="dialogue"]:not(.hidden)',
+      '.npc-dialogue-overlay:not(.hidden)'
+    ];
+    
+    for (const selector of dialogueSelectors) {
+      const dialogueElement = document.querySelector(selector);
+      if (dialogueElement && dialogueElement.offsetParent !== null) { // Visible
+        console.log(`✅ [QuestDeliveryOverlay] Dialogue DOM détecté: ${selector}`);
+        this.dialogueState.dialogueWasOpen = true;
+        this.dialogueState.dialogueReference = dialogueElement;
         return true;
       }
     }
@@ -106,7 +139,6 @@ Element;
     }
     
     console.log('🚪 [QuestDeliveryOverlay] Fermeture dialogue associé...');
-    console.log('🔍 Référence dialogue:', this.dialogueState.dialogueReference);
     
     const reference = this.dialogueState.dialogueReference;
     if (!reference) {
@@ -117,38 +149,29 @@ Element;
     try {
       // 🔧 Méthode 1: Si c'est window.dialogueManager
       if (reference === window.dialogueManager) {
-        console.log('🎭 [QuestDeliveryOverlay] Fermeture via DialogueManager...');
-        
         if (typeof reference.hide === 'function') {
           reference.hide();
           console.log('✅ [QuestDeliveryOverlay] DialogueManager fermé via hide()');
         } else if (typeof reference.close === 'function') {
           reference.close();
           console.log('✅ [QuestDeliveryOverlay] DialogueManager fermé via close()');
-        } else {
-          console.warn('⚠️ [QuestDeliveryOverlay] DialogueManager sans méthode hide() ou close()');
-          console.log('🔍 Méthodes disponibles:', Object.getOwnPropertyNames(reference));
         }
         return;
       }
       
       // 🔧 Méthode 2: Si c'est un élément DOM
       if (reference instanceof HTMLElement) {
-        console.log('🔧 [QuestDeliveryOverlay] Fermeture via élément DOM...');
-        
         // Essayer de trouver et cliquer sur le bouton de fermeture
         const closeSelectors = [
           '.close', '.close-btn', '.dialogue-close', 
           '[data-action="close"]', '[onclick*="close"]',
-          'button[title*="fermer"]', 'button[title*="close"]',
-          '#unified-close', '.unified-close-btn' // Spécifique au DialogueManager
+          'button[title*="fermer"]', 'button[title*="close"]'
         ];
         
         let closed = false;
         for (const selector of closeSelectors) {
           const closeBtn = reference.querySelector(selector);
           if (closeBtn) {
-            console.log(`🔘 [QuestDeliveryOverlay] Clic bouton fermeture: ${selector}`);
             closeBtn.click();
             console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via bouton: ${selector}`);
             closed = true;
@@ -158,7 +181,6 @@ Element;
         
         // Si pas de bouton trouvé, masquer directement
         if (!closed) {
-          console.log('🔧 [QuestDeliveryOverlay] Masquage direct DOM...');
           reference.style.display = 'none';
           reference.classList.add('hidden');
           console.log('✅ [QuestDeliveryOverlay] Dialogue masqué directement');
@@ -168,12 +190,10 @@ Element;
       
       // 🔧 Méthode 3: Si c'est un objet avec méthodes
       if (typeof reference === 'object') {
-        console.log('🔧 [QuestDeliveryOverlay] Fermeture via objet...');
         const closeMethods = ['hide', 'close', 'dismiss', 'destroy'];
         
         for (const method of closeMethods) {
           if (typeof reference[method] === 'function') {
-            console.log(`🔧 [QuestDeliveryOverlay] Appel ${method}()...`);
             reference[method]();
             console.log(`✅ [QuestDeliveryOverlay] Dialogue fermé via ${method}()`);
             return;
@@ -181,18 +201,9 @@ Element;
         }
         
         // Essayer de modifier des propriétés de visibilité
-        if ('isVisible' in reference) {
-          reference.isVisible = false;
-          console.log('✅ [QuestDeliveryOverlay] isVisible = false');
-        }
-        if ('visible' in reference) {
-          reference.visible = false;
-          console.log('✅ [QuestDeliveryOverlay] visible = false');
-        }
-        if ('isOpen' in reference) {
-          reference.isOpen = false;
-          console.log('✅ [QuestDeliveryOverlay] isOpen = false');
-        }
+        if ('isVisible' in reference) reference.isVisible = false;
+        if ('visible' in reference) reference.visible = false;
+        if ('isOpen' in reference) reference.isOpen = false;
         console.log('✅ [QuestDeliveryOverlay] Dialogue fermé via propriétés');
         return;
       }
@@ -202,7 +213,6 @@ Element;
     }
     
     console.warn('⚠️ [QuestDeliveryOverlay] Impossible de fermer le dialogue');
-    console.log('🔍 Référence reçue:', typeof reference, reference);
   }
   
   /**
@@ -1433,62 +1443,54 @@ Element;
 
 // === 🧪 NOUVELLES FONCTIONS DEBUG DIALOGUE ===
 
-window.debugDialogueCapture = function() {
-  console.log('🧪 Debug capture dialogue...');
+window.testDeliveryDialogueClose = function() {
+  console.log('🧪 Test fermeture dialogue avec delivery...');
   
+  // 1. Simuler ouverture dialogue
+  console.log('💬 Simulation dialogue ouvert...');
+  
+  // Créer un faux DialogueManager pour le test
+  window.testDialogueManager = {
+    isVisible: true,
+    visible: true,
+    hide: function() {
+      this.isVisible = false;
+      this.visible = false;
+      console.log('✅ [TestDialogue] Dialogue fermé via hide()');
+    },
+    close: function() {
+      this.isVisible = false;
+      this.visible = false;
+      console.log('✅ [TestDialogue] Dialogue fermé via close()');
+    }
+  };
+  
+  // 2. Tester capture
   if (window.questSystem?.deliveryOverlay) {
     const overlay = window.questSystem.deliveryOverlay;
     
-    console.log('🔍 === DEBUG DÉTECTION DIALOGUE ===');
+    // Temporairement pointer window.dialogueManager vers notre test
+    const originalDialogueManager = window.dialogueManager;
+    window.dialogueManager = window.testDialogueManager;
     
-    // Test DialogueManager
-    console.log('1. window.dialogueManager:', !!window.dialogueManager);
-    if (window.dialogueManager) {
-      console.log('   - isOpen():', window.dialogueManager.isOpen?.());
-      console.log('   - isVisible:', window.dialogueManager.isVisible);
-      console.log('   - dialogueUI exists:', !!window.dialogueManager.dialogueUI);
-      console.log('   - dialogueUI.isOpen():', window.dialogueManager.dialogueUI?.isOpen?.());
-      console.log('   - dialogueUI.isVisible:', window.dialogueManager.dialogueUI?.isVisible);
-    }
-    
-    // Test éléments DOM
-    console.log('2. Éléments DOM dialogue:');
-    const selectors = [
-      '#dialogue-container',
-      '#dialogue-box', 
-      '.dialogue-box-unified',
-      '.dialogue-container'
-    ];
-    
-    selectors.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        console.log(`   ${selector}:`, {
-          exists: true,
-          visible: element.offsetParent !== null,
-          display: window.getComputedStyle(element).display,
-          visibility: window.getComputedStyle(element).visibility,
-          classes: element.className
-        });
-      } else {
-        console.log(`   ${selector}: non trouvé`);
-      }
-    });
-    
-    // Test capture
-    console.log('3. Test capture:');
+    // Tester capture
     const captured = overlay.captureDialogueReference();
-    console.log('   - Dialogue capturé:', captured);
-    console.log('   - État dialogue:', overlay.getDialogueState());
+    console.log('🔍 Capture dialogue:', captured);
+    console.log('🔍 État dialogue:', overlay.getDialogueState());
     
-    return {
-      captured,
-      state: overlay.getDialogueState()
-    };
+    // Tester fermeture
+    setTimeout(() => {
+      overlay.closeAssociatedDialogue();
+      
+      // Restaurer
+      window.dialogueManager = originalDialogueManager;
+      delete window.testDialogueManager;
+      
+      console.log('✅ Test terminé');
+    }, 1000);
     
   } else {
     console.error('❌ QuestDeliveryOverlay non disponible');
-    return null;
   }
 };
 
@@ -1540,7 +1542,7 @@ window.configureDialogueClosing = function(shouldClose = true, delay = 300) {
 
 console.log('🎁 [QuestDeliveryOverlay] Système avec fermeture dialogue automatique chargé');
 console.log('🧪 Tests disponibles:');
-console.log('   - window.debugDialogueCapture() - DEBUG détection dialogue');
+console.log('   - window.testDeliveryDialogueClose() - Tester capture/fermeture dialogue');
 console.log('   - window.testDeliveryWithDialogue() - Tester livraison complète avec dialogue');
 console.log('   - window.configureDialogueClosing(shouldClose, delay) - Configurer fermeture');
 console.log('⚙️  Fermeture dialogue par défaut: ACTIVÉE (300ms de délai)');
