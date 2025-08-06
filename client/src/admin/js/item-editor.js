@@ -163,7 +163,7 @@ export class ItemEditorModule {
 
     // ===== CHARGEMENT DES DONNÉES =====
 
-    async loadStats() {
+   async loadStats() {
         console.log('📊 [ItemEditor] Chargement statistiques...');
         
         try {
@@ -171,30 +171,54 @@ export class ItemEditorModule {
             
             if (response.success) {
                 this.stats = response.stats;
-                console.log('✅ [ItemEditor] Statistiques chargées:', this.stats);
+                console.log('✅ [ItemEditor] Statistiques chargées:');
+                console.log('  - Total items:', this.stats.total);
+                console.log('  - Items actifs:', this.stats.active);
+                console.log('  - Catégories:', Object.keys(this.stats.byCategory || {}).length);
+                console.log('  - Générations:', Object.keys(this.stats.byGeneration || {}).length);
+                console.log('  - Raretés:', Object.keys(this.stats.byRarity || {}).length);
+                
+                // Debug détaillé des catégories
+                if (this.stats.byCategory) {
+                    console.log('📋 [ItemEditor] Détail des catégories:');
+                    Object.entries(this.stats.byCategory).forEach(([cat, count]) => {
+                        console.log(`  - ${cat}: ${count} items`);
+                    });
+                }
             } else {
                 throw new Error(response.error || 'Erreur chargement statistiques');
             }
         } catch (error) {
             console.error('❌ [ItemEditor] Erreur statistiques:', error);
-            this.stats = { total: 0, active: 0 };
+            this.stats = { 
+                total: 0, 
+                active: 0, 
+                byCategory: {}, 
+                byGeneration: {}, 
+                byRarity: {} 
+            };
         }
     }
 
-    initializeDropdowns() {
+   initializeDropdowns() {
         console.log('🎛️ [ItemEditor] Initialisation des dropdowns');
+        
+        // Debug first
+        this.debugCategories();
         
         // Initialiser le dropdown de catégorie
         const categoryFilter = document.getElementById('itemCategoryFilter');
         if (categoryFilter && this.stats) {
-            // Sauvegarder la valeur actuelle
             const currentValue = categoryFilter.value;
             
             // Vider et recréer les options
             categoryFilter.innerHTML = '<option value="all">Toutes les catégories</option>';
             
-            // Ajouter les catégories existantes avec compteurs
-            Object.entries(this.stats.byCategory || {}).forEach(([category, count]) => {
+            // Trier les catégories par nom pour un affichage cohérent
+            const sortedCategories = Object.entries(this.stats.byCategory || {})
+                .sort(([a], [b]) => this.formatCategoryName(a).localeCompare(this.formatCategoryName(b)));
+            
+            sortedCategories.forEach(([category, count]) => {
                 const option = document.createElement('option');
                 option.value = category;
                 option.textContent = `${this.formatCategoryName(category)} (${count})`;
@@ -203,6 +227,8 @@ export class ItemEditorModule {
             
             // Restaurer la valeur
             categoryFilter.value = currentValue;
+            
+            console.log(`✅ [ItemEditor] ${sortedCategories.length} catégories ajoutées au dropdown`);
         }
         
         // Initialiser le dropdown de génération
@@ -212,7 +238,15 @@ export class ItemEditorModule {
             
             generationFilter.innerHTML = '<option value="all">Toutes les générations</option>';
             
-            Object.entries(this.stats.byGeneration || {}).forEach(([genKey, count]) => {
+            // Trier les générations par ordre numérique
+            const sortedGenerations = Object.entries(this.stats.byGeneration || {})
+                .sort(([a], [b]) => {
+                    const genA = parseInt(a.replace('gen_', ''));
+                    const genB = parseInt(b.replace('gen_', ''));
+                    return genA - genB;
+                });
+            
+            sortedGenerations.forEach(([genKey, count]) => {
                 const genNumber = genKey.replace('gen_', '');
                 const option = document.createElement('option');
                 option.value = genNumber;
@@ -230,7 +264,16 @@ export class ItemEditorModule {
             
             rarityFilter.innerHTML = '<option value="all">Toutes les raretés</option>';
             
-            Object.entries(this.stats.byRarity || {}).forEach(([rarity, count]) => {
+            // Ordre spécifique pour les raretés
+            const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical'];
+            const sortedRarities = Object.entries(this.stats.byRarity || {})
+                .sort(([a], [b]) => {
+                    const indexA = rarityOrder.indexOf(a);
+                    const indexB = rarityOrder.indexOf(b);
+                    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                });
+            
+            sortedRarities.forEach(([rarity, count]) => {
                 const option = document.createElement('option');
                 option.value = rarity;
                 option.textContent = `${this.formatRarityName(rarity)} (${count})`;
@@ -243,7 +286,7 @@ export class ItemEditorModule {
         // Mettre à jour l'affichage du total
         const totalDisplay = document.querySelector('.item-editor__stats-total');
         if (totalDisplay && this.stats) {
-            totalDisplay.textContent = `${this.stats.active} items actifs`;
+            totalDisplay.textContent = `${this.stats.active} items actifs sur ${this.stats.total} total`;
         }
     }
 
@@ -383,7 +426,7 @@ export class ItemEditorModule {
 
     // ===== MISE À JOUR DE L'INTERFACE =====
 
-    updateItemsList() {
+ updateItemsList() {
         const listElement = document.getElementById('itemsList');
         if (!listElement) {
             console.error('❌ [ItemEditor] Element itemsList non trouvé');
@@ -391,6 +434,16 @@ export class ItemEditorModule {
         }
         
         const itemsToShow = this.serverSideFiltering ? this.filteredItems : this.getPaginatedItems();
+        
+        console.log(`📦 [ItemEditor] Affichage de ${itemsToShow.length} items`);
+        
+        // Debug: afficher quelques exemples d'items
+        if (itemsToShow.length > 0) {
+            console.log('📋 [ItemEditor] Exemples d\'items à afficher:');
+            itemsToShow.slice(0, 3).forEach(item => {
+                console.log(`  - ${item.name} (${item.category})`);
+            });
+        }
         
         if (itemsToShow.length === 0) {
             listElement.innerHTML = `
@@ -402,8 +455,11 @@ export class ItemEditorModule {
                     <p class="item-editor__empty-subtitle">
                         ${this.currentFilters.search ? 'Essayez de modifier votre recherche.' : 'Essayez de modifier vos critères de filtrage.'}
                     </p>
-                    ${this.currentFilters.search || this.currentFilters.category !== 'all' || this.currentFilters.generation !== 'all' || this.currentFilters.rarity !== 'all' ? 
+                    ${this.hasActiveFilters() ? 
                         '<button onclick="window.itemEditorClearFilters()" class="item-editor__clear-filters-btn">Effacer les filtres</button>' : ''}
+                    <button onclick="window.itemEditorRefresh()" class="item-editor__refresh-btn">
+                        <i class="fas fa-sync"></i> Actualiser
+                    </button>
                 </div>
             `;
             return;
@@ -413,7 +469,8 @@ export class ItemEditorModule {
             <div class="item-editor__item-card ${this.selectedItemId === item.itemId ? 'item-editor__item-card--selected' : ''}"
                  onclick="window.itemEditorSelectItem('${item.itemId}')">
                 <div class="item-editor__item-sprite">
-                    ${item.sprite ? `<img src="${item.sprite}" alt="${item.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">` : ''}
+                    ${item.sprite ? 
+                        `<img src="${item.sprite}" alt="${item.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">` : ''}
                     <i class="fas fa-cube" ${item.sprite ? 'style="display:none"' : ''}></i>
                 </div>
                 <div class="item-editor__item-info">
@@ -421,21 +478,40 @@ export class ItemEditorModule {
                         ${this.escapeHtml(item.name)}
                     </div>
                     <div class="item-editor__item-meta">
-                        <span class="item-editor__item-category">${this.formatCategoryName(item.category)}</span>
+                        <span class="item-editor__item-category" title="Catégorie: ${item.category}">
+                            ${this.formatCategoryName(item.category)}
+                        </span>
                         ${item.price ? `<span class="item-editor__item-price">${item.price}₽</span>` : ''}
                         <span class="item-editor__item-gen">Gen ${item.generation}</span>
-                        <span class="item-editor__item-rarity item-editor__rarity--${item.rarity}">${this.formatRarityName(item.rarity)}</span>
+                        <span class="item-editor__item-rarity item-editor__rarity--${item.rarity}">
+                            ${this.formatRarityName(item.rarity)}
+                        </span>
                     </div>
                     <div class="item-editor__item-extras">
-                        ${item.effectCount > 0 ? `<span class="item-editor__item-effects"><i class="fas fa-magic"></i> ${item.effectCount}</span>` : ''}
-                        ${item.obtainMethodCount > 0 ? `<span class="item-editor__item-methods"><i class="fas fa-map-marker-alt"></i> ${item.obtainMethodCount}</span>` : ''}
-                        ${!item.isActive ? '<span class="item-editor__item-inactive"><i class="fas fa-eye-slash"></i> Inactif</span>' : ''}
+                        ${item.effectCount > 0 ? 
+                            `<span class="item-editor__item-effects" title="${item.effectCount} effet(s)">
+                                <i class="fas fa-magic"></i> ${item.effectCount}
+                            </span>` : ''}
+                        ${item.obtainMethodCount > 0 ? 
+                            `<span class="item-editor__item-methods" title="${item.obtainMethodCount} méthode(s) d'obtention">
+                                <i class="fas fa-map-marker-alt"></i> ${item.obtainMethodCount}
+                            </span>` : ''}
+                        ${!item.isActive ? 
+                            '<span class="item-editor__item-inactive"><i class="fas fa-eye-slash"></i> Inactif</span>' : ''}
                     </div>
                 </div>
             </div>
         `).join('');
+        
+        console.log(`✅ [ItemEditor] ${itemsToShow.length} items affichés`);
     }
-    
+    // Méthode utilitaire pour vérifier les filtres actifs
+    hasActiveFilters() {
+        return this.currentFilters.search !== '' ||
+               this.currentFilters.category !== 'all' ||
+               this.currentFilters.generation !== 'all' ||
+               this.currentFilters.rarity !== 'all';
+    }
     getPaginatedItems() {
         if (this.serverSideFiltering) return this.filteredItems;
         
@@ -1749,10 +1825,13 @@ export class ItemEditorModule {
 
     // ===== UTILITAIRES DE FORMATAGE =====
 
-    formatCategoryName(category) {
-        const names = {
+  formatCategoryName(category) {
+        // Debug pour voir quelle catégorie on reçoit
+        console.log(`🔍 [ItemEditor] Formatage catégorie: "${category}"`);
+        
+        const categoryNames = {
             'medicine': 'Médicaments',
-            'pokeballs': 'Poké Balls',
+            'pokeballs': 'Poké Balls', 
             'battle_items': 'Objets de combat',
             'key_items': 'Objets importants',
             'berries': 'Baies',
@@ -1770,7 +1849,10 @@ export class ItemEditorModule {
             'mail': 'Courrier',
             'exp_items': 'Objets d\'expérience'
         };
-        return names[category] || category;
+        
+        const formatted = categoryNames[category] || category;
+        console.log(`✅ [ItemEditor] "${category}" -> "${formatted}"`);
+        return formatted;
     }
 
     formatRarityName(rarity) {
