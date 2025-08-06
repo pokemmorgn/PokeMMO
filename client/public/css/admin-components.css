@@ -6937,7 +6937,7 @@ details[open] summary {
 }
 
 /* ========================================
-   ITEM EDITOR MODULE STYLES - NOMS UNIQUES
+   ITEM EDITOR MODULE STYLES - COHÉRENT AVEC SHOP EDITOR
    ======================================== */
 
 /* Container principal de l'éditeur d'items */
@@ -6948,7 +6948,7 @@ details[open] summary {
     gap: 20px;
 }
 
-/* Header avec filtres et actions */
+/* Header avec filtres et actions - MÊME STYLE QUE SHOP EDITOR */
 .item-editor-header {
     background: white;
     padding: 20px;
@@ -7031,7 +7031,7 @@ details[open] summary {
     min-height: 0;
 }
 
-/* Panel liste des items */
+/* Panel liste des items - MÊME STYLE QUE SHOP EDITOR */
 .item-editor-list-panel {
     width: 400px;
     background: white;
@@ -7049,37 +7049,9 @@ details[open] summary {
 }
 
 .item-editor-list-header h3 {
-    margin: 0 0 15px 0;
+    margin: 0 0 10px 0;
     color: #2c3e50;
     font-size: 1.1rem;
-}
-
-.item-editor-search-box {
-    position: relative;
-    margin-bottom: 10px;
-}
-
-.item-editor-search-input {
-    width: 100%;
-    padding: 10px 40px 10px 12px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    transition: border-color 0.3s ease;
-}
-
-.item-editor-search-input:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-.item-editor-search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #7f8c8d;
 }
 
 .item-editor-list-container {
@@ -7114,8 +7086,8 @@ details[open] summary {
 }
 
 .item-editor-page-btn:hover {
-    border-color: #3498db;
-    color: #3498db;
+    border-color: #007bff;
+    color: #007bff;
 }
 
 .item-editor-page-btn--disabled {
@@ -7135,12 +7107,18 @@ details[open] summary {
     font-weight: 500;
 }
 
-/* Items individuels */
+.item-editor-empty-list {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+/* Items individuels - STYLE COHÉRENT AVEC SHOP EDITOR */
 .item-editor__item-card {
     display: flex;
     align-items: center;
-    padding: 15px;
-    margin-bottom: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -7169,6 +7147,10 @@ details[open] summary {
     color: #6c757d;
 }
 
+.item-editor__item-card--selected .item-editor__item-sprite {
+    color: #007bff;
+}
+
 .item-editor__item-info {
     flex: 1;
     min-width: 0;
@@ -7185,9 +7167,16 @@ details[open] summary {
 
 .item-editor__item-meta {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.item-editor__item-meta > span {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
 }
 
 .item-editor__item-category {
@@ -7195,39 +7184,26 @@ details[open] summary {
     padding: 2px 6px;
     border-radius: 12px;
     font-weight: 500;
-    font-size: 0.8rem;
     color: #495057;
 }
 
 .item-editor__item-price {
     background: #fff3e0;
     color: #f57c00;
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-weight: 500;
-    font-size: 0.8rem;
     font-family: monospace;
 }
 
 .item-editor__item-meta > span:nth-child(3) {
     background: #f3e5f5;
     color: #7b1fa2;
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-weight: 500;
-    font-size: 0.8rem;
 }
 
 .item-editor__item-meta > span:nth-child(4) {
     background: #e8f5e8;
     color: #2e7d32;
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-weight: 500;
-    font-size: 0.8rem;
 }
 
-/* Panel éditeur */
+/* Panel éditeur - MÊME STYLE QUE SHOP EDITOR */
 .item-editor-panel {
     flex: 1;
     background: white;
@@ -7252,11 +7228,7 @@ details[open] summary {
 .item-editor-panel-title {
     margin: 0;
     color: #2c3e50;
-    font-size: 1.2rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    font-size: 1.1rem;
 }
 
 .item-editor-panel-actions {
@@ -7302,7 +7274,7 @@ details[open] summary {
     line-height: 1.4;
 }
 
-/* Formulaire */
+/* Formulaire - STYLE COHÉRENT AVEC SHOP EDITOR */
 .item-editor-form {
     padding: 25px;
     height: 100%;
@@ -7438,13 +7410,13 @@ details[open] summary {
 /* Listes dynamiques */
 .item-editor-dynamic-list {
     border: 2px dashed #e9ecef;
-    border-radius: 10px;
+    border-radius: 8px;
     min-height: 120px;
     transition: all 0.3s ease;
 }
 
 .item-editor-dynamic-list:hover {
-    border-color: #3498db;
+    border-color: #007bff;
     background: #f8fbff;
 }
 
@@ -7456,14 +7428,16 @@ details[open] summary {
     padding: 15px;
     margin-bottom: 10px;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
 }
 
 .item-editor__effect-item:hover,
 .item-editor__obtain-item:hover {
     background: #e3f2fd;
-    border-color: #3498db;
+    border-color: #007bff;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(52, 152, 219, 0.15);
+    box-shadow: 0 3px 8px rgba(0, 123, 255, 0.15);
 }
 
 .item-editor__effect-info,
@@ -7516,27 +7490,27 @@ details[open] summary {
 
 .item-editor__effect-btn:first-child,
 .item-editor__obtain-btn:first-child {
-    background: #3498db;
+    background: #007bff;
     color: white;
 }
 
 .item-editor__effect-btn:first-child:hover,
 .item-editor__obtain-btn:first-child:hover {
-    background: #2980b9;
+    background: #0056b3;
 }
 
 .item-editor__effect-btn:last-child,
 .item-editor__obtain-btn:last-child {
-    background: #e74c3c;
+    background: #dc3545;
     color: white;
 }
 
 .item-editor__effect-btn:last-child:hover,
 .item-editor__obtain-btn:last-child:hover {
-    background: #c0392b;
+    background: #c82333;
 }
 
-/* Boutons spécialisés */
+/* Boutons spécialisés - MÊMES COULEURS QUE SHOP EDITOR */
 .item-editor-btn {
     padding: 8px 16px;
     border: none;
@@ -7624,64 +7598,55 @@ details[open] summary {
 
 /* États de validation */
 .item-editor-form-field.field-error .item-editor-field-label {
-    color: #e74c3c;
+    color: #dc3545;
 }
 
 .item-editor-form-field.field-error .item-editor-form-input,
 .item-editor-form-field.field-error .item-editor-form-select,
 .item-editor-form-field.field-error .item-editor-form-textarea {
-    border-color: #e74c3c;
+    border-color: #dc3545;
     background: #fff5f5;
 }
 
 .item-editor-form-field.field-success .item-editor-form-input,
 .item-editor-form-field.field-success .item-editor-form-select,
 .item-editor-form-field.field-success .item-editor-form-textarea {
-    border-color: #27ae60;
+    border-color: #28a745;
     background: #f8fff8;
-}
-
-.item-editor-field-error {
-    font-size: 0.8rem;
-    color: #e74c3c;
-    margin-top: 5px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
 }
 
 /* Messages d'état */
 .item-editor-success-message {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    background: #d4edda;
     color: #155724;
     padding: 12px 15px;
-    border-radius: 8px;
+    border-radius: 6px;
     margin-bottom: 15px;
-    border: 1px solid #27ae60;
+    border: 1px solid #c3e6cb;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .item-editor-error-message {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    background: #f8d7da;
     color: #721c24;
     padding: 12px 15px;
-    border-radius: 8px;
+    border-radius: 6px;
     margin-bottom: 15px;
-    border: 1px solid #e74c3c;
+    border: 1px solid #f5c6cb;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .item-editor-warning-message {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    background: #fff3cd;
     color: #856404;
     padding: 12px 15px;
-    border-radius: 8px;
+    border-radius: 6px;
     margin-bottom: 15px;
-    border: 1px solid #f39c12;
+    border: 1px solid #ffeaa7;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -7693,7 +7658,7 @@ details[open] summary {
     align-items: center;
     justify-content: center;
     padding: 40px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 .item-editor-loading i {
@@ -7709,7 +7674,7 @@ details[open] summary {
     
     .item-editor-list-panel {
         width: 100%;
-        max-height: 350px;
+        max-height: 300px;
     }
     
     .item-editor-header-controls {
@@ -7755,14 +7720,7 @@ details[open] summary {
     }
     
     .item-editor__item-card {
-        padding: 12px;
-    }
-    
-    .item-editor__item-sprite {
-        width: 40px;
-        height: 40px;
-        margin-right: 12px;
-        font-size: 1.2rem;
+        padding: 10px;
     }
     
     .item-editor__item-meta {
@@ -7770,77 +7728,6 @@ details[open] summary {
         align-items: flex-start;
         gap: 4px;
     }
-}
-
-@media (max-width: 480px) {
-    .item-editor-container {
-        padding: 10px;
-        gap: 15px;
-    }
-    
-    .item-editor-header,
-    .item-editor-list-header,
-    .item-editor-panel-header {
-        padding: 15px;
-    }
-    
-    .item-editor-form {
-        padding: 20px;
-    }
-    
-    .item-editor-section-content {
-        padding: 20px;
-    }
-    
-    .item-editor-panel-actions,
-    .item-editor-header-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .item-editor-btn {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .item-editor__item-name {
-        font-size: 0.9rem;
-    }
-    
-    .item-editor__item-meta > span {
-        font-size: 0.7rem;
-    }
-}
-
-/* Animations */
-@keyframes item-editor-item-added {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.item-editor__item-card.newly-added {
-    animation: item-editor-item-added 0.5s ease;
-}
-
-@keyframes item-editor-section-expand {
-    from {
-        max-height: 0;
-        padding: 0 25px;
-    }
-    to {
-        max-height: 1000px;
-        padding: 25px;
-    }
-}
-
-.item-editor-section-content.expanding {
-    animation: item-editor-section-expand 0.3s ease;
 }
 
 /* Scrollbars personnalisées */
@@ -7865,490 +7752,3 @@ details[open] summary {
 .item-editor-panel-content::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
-
-/* Highlighting pour recherche */
-.item-editor__item-card.search-highlight {
-    border-color: #f39c12;
-    background: linear-gradient(135deg, #fff8e1 0%, #fff3cd 100%);
-}
-
-.item-editor__item-card.search-highlight .item-editor__item-name {
-    background: linear-gradient(135deg, #fff3e0 0%, #fff8e1 100%);
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin: -2px -4px 4px -4px;
-}
-
-/* Focus states améliorés */
-.item-editor__item-card:focus,
-.item-editor-btn:focus,
-.item-editor-form-input:focus,
-.item-editor-form-select:focus,
-.item-editor-form-textarea:focus {
-    outline: 2px solid #3498db;
-    outline-offset: 2px;
-}
-
-/* Animations de chargement */
-@keyframes item-editor-pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-.item-editor__item-card.loading {
-    animation: item-editor-pulse 1.5s infinite;
-    pointer-events: none;
-}
-
-/* Effet de survol pour les sections */
-.item-editor-section-header:hover .item-editor-section-toggle {
-    color: #3498db;
-    transform: scale(1.1);
-}
-
-/* États actifs/inactifs des items */
-.item-editor__item-card.inactive {
-    opacity: 0.7;
-    position: relative;
-}
-
-.item-editor__item-card.inactive::after {
-    content: 'INACTIF';
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: #e74c3c;
-    color: white;
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-weight: 600;
-}
-
-/* Badge pour les nouveaux items */
-.item-editor__item-card.new-item::before {
-    content: 'NOUVEAU';
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #27ae60;
-    color: white;
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-weight: 600;
-    z-index: 1;
-}
-
-/* Indicateur de modifications non sauvegardées */
-.item-editor__item-card.unsaved {
-    border-left: 4px solid #f39c12;
-    position: relative;
-}
-
-.item-editor__item-card.unsaved::before {
-    content: '●';
-    color: #f39c12;
-    position: absolute;
-    left: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-    animation: item-editor-pulse 2s infinite;
-}
-
-/* Styles pour les tags dans les items */
-.item-editor-tags-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
-}
-
-.item-editor-tag {
-    background: #e9ecef;
-    color: #495057;
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 500;
-}
-
-/* Prévisualisation sprite */
-.item-editor-sprite-preview {
-    width: 40px;
-    height: 40px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8f9fa;
-    font-size: 1.2rem;
-    color: #6c757d;
-    margin-left: 10px;
-}
-
-.item-editor-sprite-field {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.item-editor-sprite-field .item-editor-form-input {
-    flex: 1;
-}
-
-/* Section de statistiques avancées */
-.item-editor-advanced-stats {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 10px;
-    padding: 20px;
-    margin: 20px 0;
-    border: 1px solid #dee2e6;
-}
-
-.item-editor-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-}
-
-.item-editor-stat-box {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
-}
-
-.item-editor-stat-box:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-color: #3498db;
-}
-
-.item-editor-stat-box-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #2c3e50;
-    margin-bottom: 5px;
-}
-
-.item-editor-stat-box-label {
-    font-size: 0.8rem;
-    color: #7f8c8d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Actions flottantes */
-.item-editor-floating-actions {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 1000;
-}
-
-.item-editor-floating-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2rem;
-    color: white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.item-editor-floating-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-}
-
-.item-editor-floating-btn-primary {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-}
-
-.item-editor-floating-btn-success {
-    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-}
-
-/* Tooltips pour les boutons */
-.item-editor-tooltip {
-    position: relative;
-}
-
-.item-editor-tooltip::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.8);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-    z-index: 1000;
-}
-
-.item-editor-tooltip:hover::after {
-    opacity: 1;
-}
-
-/* Mode sombre (optionnel) */
-@media (prefers-color-scheme: dark) {
-    .item-editor-container {
-        background: #2c3e50;
-        color: #ecf0f1;
-    }
-    
-    .item-editor-list-panel,
-    .item-editor-panel {
-        background: #34495e;
-        border: 1px solid #4a5f7a;
-    }
-    
-    .item-editor-form-input,
-    .item-editor-form-select,
-    .item-editor-form-textarea {
-        background: #2c3e50;
-        border-color: #4a5f7a;
-        color: #ecf0f1;
-    }
-    
-    .item-editor__item-card {
-        background: #34495e;
-        border-color: #4a5f7a;
-    }
-    
-    .item-editor__item-card:hover {
-        background: #4a5f7a;
-    }
-}
-
-/* Animations d'entrée pour les éléments */
-@keyframes item-editor-slide-in-left {
-    from {
-        opacity: 0;
-        transform: translateX(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes item-editor-slide-in-right {
-    from {
-        opacity: 0;
-        transform: translateX(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.item-editor-list-panel {
-    animation: item-editor-slide-in-left 0.5s ease;
-}
-
-.item-editor-panel {
-    animation: item-editor-slide-in-right 0.5s ease;
-}
-
-/* Effet de typewriter pour les titres */
-@keyframes item-editor-typewriter {
-    from {
-        width: 0;
-    }
-    to {
-        width: 100%;
-    }
-}
-
-.item-editor-panel-title.typewriter {
-    overflow: hidden;
-    white-space: nowrap;
-    border-right: 2px solid #3498db;
-    animation: item-editor-typewriter 1s steps(30) 1s both;
-}
-
-/* Gestion des erreurs visuelles */
-.item-editor-error-state {
-    border: 2px dashed #e74c3c;
-    background: linear-gradient(135deg, #fff5f5 0%, #ffebee 100%);
-    border-radius: 10px;
-    padding: 40px;
-    text-align: center;
-    color: #c0392b;
-}
-
-.item-editor-error-state i {
-    font-size: 3rem;
-    margin-bottom: 15px;
-    opacity: 0.7;
-}
-
-.item-editor-retry-btn {
-    margin-top: 15px;
-}
-
-/* Style pour les champs requis */
-.item-editor-field-label.required::after {
-    content: ' *';
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-/* Progress bar pour les sauvegardes */
-.item-editor-progress-bar {
-    width: 100%;
-    height: 4px;
-    background: #ecf0f1;
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 10px;
-}
-
-.item-editor-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #3498db, #2980b9);
-    transition: width 0.3s ease;
-    border-radius: 2px;
-}
-
-/* Raccourcis clavier affichés */
-.item-editor-keyboard-shortcut {
-    background: #ecf0f1;
-    color: #2c3e50;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-family: monospace;
-    margin-left: 8px;
-    border: 1px solid #bdc3c7;
-}
-
-/* Effet de glissement pour les notifications */
-.item-editor-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: white;
-    font-weight: 600;
-    z-index: 2000;
-    transform: translateX(400px);
-    transition: transform 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.item-editor-notification.show {
-    transform: translateX(0);
-}
-
-.item-editor-notification.success {
-    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-}
-
-.item-editor-notification.error {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-}
-
-.item-editor-notification.warning {
-    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-}
-
-.item-editor-notification.info {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-}
-
-/* Styles pour l'export/import */
-.item-editor-export-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-}
-
-.item-editor-export-content {
-    background: white;
-    border-radius: 15px;
-    padding: 30px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.item-editor-json-preview {
-    background: #2c3e50;
-    color: #ecf0f1;
-    padding: 20px;
-    border-radius: 8px;
-    font-family: 'Courier New', monospace;
-    font-size: 0.8rem;
-    line-height: 1.4;
-    max-height: 400px;
-    overflow: auto;
-    margin: 15px 0;
-    border: 1px solid #34495e;
-}
-
-/* Amélioration de l'accessibilité */
-.item-editor-sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-/* Print styles */
-@media print {
-    .item-editor-floating-actions,
-    .item-editor-panel-actions,
-    .item-editor-header-actions {
-        display: none;
-    }
-    
-    .item-editor-container {
-        background: white;
-        box-shadow: none;
-    }
-    
-    .item-editor-panel,
-    .item-editor-list-panel {
-        box-shadow: none;
-        border: 1px solid #000;
-    }
-}
-
-/* Fin des styles Item Editor */
