@@ -98,6 +98,7 @@ export class ItemEditorModule {
         const categoryFilter = document.getElementById('itemCategoryFilter');
         if (categoryFilter) {
             categoryFilter.addEventListener('change', (e) => {
+                console.log('🔄 [ItemEditor] Changement catégorie:', e.target.value);
                 this.currentFilters.category = e.target.value;
                 this.currentPage = 1;
                 this.filterItems();
@@ -108,6 +109,7 @@ export class ItemEditorModule {
         const generationFilter = document.getElementById('itemGenerationFilter');
         if (generationFilter) {
             generationFilter.addEventListener('change', (e) => {
+                console.log('🔄 [ItemEditor] Changement génération:', e.target.value);
                 this.currentFilters.generation = e.target.value;
                 this.currentPage = 1;
                 this.filterItems();
@@ -118,6 +120,7 @@ export class ItemEditorModule {
         const rarityFilter = document.getElementById('itemRarityFilter');
         if (rarityFilter) {
             rarityFilter.addEventListener('change', (e) => {
+                console.log('🔄 [ItemEditor] Changement rareté:', e.target.value);
                 this.currentFilters.rarity = e.target.value;
                 this.currentPage = 1;
                 this.filterItems();
