@@ -97,6 +97,10 @@ class MockInventoryManager {
     const playerInv = new Map(Object.entries(items));
     this.inventory.set(playerId, playerInv);
   }
+
+  static clearInventory(playerId: string): void {
+    this.inventory.delete(playerId);
+  }
 }
 
 class MockServiceRegistry {
@@ -208,7 +212,6 @@ class TestQuestProgressTracker {
               questProgress.objectives.set(obj.id, {
                 currentAmount: 0,
                 completed: false,
-                // En mode séquentiel : seul le premier objectif de la nouvelle étape est actif
                 active: this.config.sequentialObjectives ? (i === 0) : true
               });
             }
@@ -618,6 +621,16 @@ class QuestSystemTester {
     let details: any;
 
     try {
+      // Nettoyer l'inventaire avant chaque test
+      MockInventoryManager.clearInventory('testPlayer');
+      MockInventoryManager.clearInventory('scanPlayer');
+      MockInventoryManager.clearInventory('stepPlayer');
+      MockInventoryManager.clearInventory('progPlayer');
+      MockInventoryManager.clearInventory('seqPlayer');
+      MockInventoryManager.clearInventory('autoPlayer');
+      MockInventoryManager.clearInventory('multiPlayer');
+      MockInventoryManager.clearInventory('completePlayer');
+
       const result = await testFunc();
       passed = true;
       details = result;
@@ -691,7 +704,7 @@ class QuestSystemTester {
   private async testInventoryScan(): Promise<void> {
     console.log('📦 Test: Scan inventaire...');
     
-    // Configurer l'inventaire avec assez d'items pour compléter obj1 ET déclencher obj2
+    // Configurer l'inventaire avec assez d'items pour compléter TOUS les objectifs
     MockInventoryManager.setInventory('scanPlayer', {
       'oran_berry': 5, // Assez pour compléter obj1 (5 requis)
       'pecha_berry': 3  // Assez pour compléter obj2 (3 requis)
@@ -700,13 +713,16 @@ class QuestSystemTester {
     const quest = await this.questManager.startQuest('scanPlayer', 'test_collect_quest');
     if (!quest) throw new Error('Quest not started');
 
-    // Debug: état après scan
+    // Debug: état après scan récursif
     console.log('   Debug: État après scan récursif:');
     quest.objectives.forEach((progress, id) => {
       console.log(`     ${id}: active=${progress.active}, completed=${progress.completed}, amount=${progress.currentAmount}`);
     });
 
-    // obj1 devrait avoir reçu 5 oran_berries (le maximum qu'il peut prendre)
+    // Vérifier les progressions après scan récursif
+    const obj1Progress = quest.objectives.get('obj1');
+    const obj2Progress = quest.objectives.get('obj2');
+
     if (!obj1Progress || obj1Progress.currentAmount !== 5) {
       throw new Error(`Expected obj1 progress 5, got ${obj1Progress?.currentAmount}`);
     }
