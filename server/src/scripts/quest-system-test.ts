@@ -693,7 +693,7 @@ class QuestSystemTester {
     
     // Configurer l'inventaire
     MockInventoryManager.setInventory('scanPlayer', {
-      'oran_berry': 3,
+      'oran_berry': 5,
       'pecha_berry': 5
     });
 
