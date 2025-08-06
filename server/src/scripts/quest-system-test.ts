@@ -326,6 +326,30 @@ class TestQuestProgressTracker {
                 };
                 nextProgress.active = true;
                 questProgress.objectives.set(nextObjective.id, nextProgress);
+                
+                // Tenter de scanner immédiatement l'objectif suivant s'il est de type collect
+                if (nextObjective.type === 'collect' && nextObjective.itemId) {
+                  const nextExistingCount = await MockInventoryManager.getItemCount(username, nextObjective.itemId);
+                  if (nextExistingCount > 0) {
+                    const nextAmountToApply = Math.min(nextExistingCount, nextObjective.requiredAmount);
+                    totalProgress += nextAmountToApply;
+                    scannedObjectives++;
+
+                    nextProgress.currentAmount = Math.min(
+                      nextProgress.currentAmount + nextAmountToApply,
+                      nextObjective.requiredAmount
+                    );
+
+                    if (nextProgress.currentAmount >= nextObjective.requiredAmount) {
+                      nextProgress.completed = true;
+                      nextProgress.active = false;
+                      autoCompleted++;
+                    }
+
+                    questProgress.objectives.set(nextObjective.id, nextProgress);
+                    console.log(`   📦 Auto-scan objectif suivant: ${nextObjective.description} -> ${nextProgress.currentAmount}/${nextObjective.requiredAmount}`);
+                  }
+                }
               }
             }
 
@@ -508,16 +532,41 @@ class TestQuestManager {
       startedAt: new Date()
     };
 
-    // Scan inventaire automatique
-    const scanResult = await this.progressTracker.scanStepObjectives(
-      username, 
-      questProgress, 
-      firstStep.objectives
-    );
+    // Scan inventaire automatique avec continuation récursive
+    const scanResult = await this.recursiveScan(username, questProgress, firstStep.objectives);
 
     console.log(`📊 Scan initial: ${scanResult.autoCompleted}/${scanResult.scannedObjectives} objectifs auto-complétés`);
 
     return questProgress;
+  }
+
+  private async recursiveScan(
+    username: string, 
+    questProgress: TestPlayerQuest, 
+    stepObjectives: TestQuestObjective[],
+    depth: number = 0
+  ): Promise<{ scannedObjectives: number; autoCompleted: number; totalProgress: number }> {
+    if (depth > 5) { // Éviter les boucles infinies
+      return { scannedObjectives: 0, autoCompleted: 0, totalProgress: 0 };
+    }
+
+    const scanResult = await this.progressTracker.scanStepObjectives(
+      username, 
+      questProgress, 
+      stepObjectives
+    );
+
+    // Si des objectifs ont été complétés, il est possible qu'un nouveau soit activé
+    if (scanResult.autoCompleted > 0 && this.progressTracker.getConfig().sequentialObjectives) {
+      const additionalScan = await this.recursiveScan(username, questProgress, stepObjectives, depth + 1);
+      return {
+        scannedObjectives: scanResult.scannedObjectives + additionalScan.scannedObjectives,
+        autoCompleted: scanResult.autoCompleted + additionalScan.autoCompleted,
+        totalProgress: scanResult.totalProgress + additionalScan.totalProgress
+      };
+    }
+
+    return scanResult;
   }
 
   async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
@@ -651,7 +700,13 @@ class QuestSystemTester {
     const quest = await this.questManager.startQuest('scanPlayer', 'test_collect_quest');
     if (!quest) throw new Error('Quest not started');
 
-    // Vérifier les progressions après scan
+    // Debug: état après scan
+    console.log('   Debug: État après scan récursif:');
+    quest.objectives.forEach((progress, id) => {
+      console.log(`     ${id}: active=${progress.active}, completed=${progress.completed}, amount=${progress.currentAmount}`);
+    });
+
+    // Vérifier les progressions après scan récursif
     const obj1Progress = quest.objectives.get('obj1');
     const obj2Progress = quest.objectives.get('obj2');
 
@@ -659,15 +714,16 @@ class QuestSystemTester {
       throw new Error(`Expected obj1 progress 3, got ${obj1Progress?.currentAmount}`);
     }
 
+    // obj2 devrait maintenant avoir progressé grâce au scan récursif
     if (!obj2Progress || obj2Progress.currentAmount !== 3) {
       throw new Error(`Expected obj2 progress 3, got ${obj2Progress?.currentAmount}`);
     }
 
     if (!obj2Progress.completed) {
-      throw new Error('obj2 should be completed after scan');
+      throw new Error('obj2 should be completed after recursive scan');
     }
 
-    console.log('   ✓ Scan inventaire fonctionnel');
+    console.log('   ✓ Scan inventaire récursif fonctionnel');
   }
 
   private async testSequentialObjectives(): Promise<void> {
@@ -746,14 +802,24 @@ class QuestSystemTester {
     const quest = await this.questManager.startQuest('stepPlayer', 'test_collect_quest');
     if (!quest) throw new Error('Quest not started');
 
-    // Les objectifs devraient être auto-complétés par le scan
+    // Debug: état après scan récursif
+    console.log('   Debug: État après scan récursif:');
+    quest.objectives.forEach((progress, id) => {
+      console.log(`     ${id}: active=${progress.active}, completed=${progress.completed}, amount=${progress.currentAmount}`);
+    });
+
+    // Avec le scan récursif, tous les objectifs devraient être complétés
     const allCompleted = Array.from(quest.objectives.values()).every(p => p.completed);
     
     if (!allCompleted) {
-      throw new Error('All objectives should be completed after inventory scan');
+      const incomplete = Array.from(quest.objectives.entries())
+        .filter(([id, progress]) => !progress.completed)
+        .map(([id, progress]) => `${id}(amount: ${progress.currentAmount}, active: ${progress.active})`);
+      
+      throw new Error(`Not all objectives completed after recursive scan: ${incomplete.join(', ')}`);
     }
 
-    console.log('   ✓ Completion d\'étape détectée');
+    console.log('   ✓ Tous les objectifs complétés par scan récursif');
   }
 
   private async testQuestCompletion(): Promise<void> {
