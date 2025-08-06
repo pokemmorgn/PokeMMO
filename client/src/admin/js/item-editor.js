@@ -2087,3 +2087,30 @@ window.updateMethodFields = (methodType) => {
     console.log('🔄 Mise à jour des champs selon le type:', methodType);
     // À implémenter selon le type de méthode sélectionné
 };
+
+// Ajouter cette fonction globale pour debugger depuis la console
+window.debugItemCategories = async () => {
+    if (window.adminPanel?.itemEditor) {
+        await window.adminPanel.itemEditor.debugCategories();
+    } else {
+        console.error('❌ ItemEditor non disponible');
+    }
+};
+
+// Fonction pour forcer le rechargement avec debug
+window.debugItemEditor = async () => {
+    if (window.adminPanel?.itemEditor) {
+        console.log('🔧 [Debug] Rechargement complet ItemEditor...');
+        
+        // Recharger les stats avec debug
+        await window.adminPanel.itemEditor.loadStats();
+        
+        // Réinitialiser les dropdowns
+        window.adminPanel.itemEditor.initializeDropdowns();
+        
+        // Recharger les items
+        await window.adminPanel.itemEditor.loadItems();
+        
+        console.log('✅ [Debug] Rechargement terminé');
+    }
+};
