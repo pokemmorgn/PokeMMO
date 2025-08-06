@@ -496,6 +496,109 @@ export class QuestDeliveryOverlay {
         100% { transform: scale(1); }
       }
       
+      /* 🎉 NOUVEAUX STYLES : Message de remerciement */
+      .delivery-success-message {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 20px !important;
+        gap: 15px !important;
+      }
+      
+      .success-icon {
+        font-size: 48px !important;
+        color: #28a745 !important;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3) !important;
+        animation: successBounce 1.5s ease !important;
+      }
+      
+      @keyframes successBounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+      }
+      
+      .success-title {
+        font-size: 20px !important;
+        font-weight: bold !important;
+        color: #28a745 !important;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+      }
+      
+      .success-description {
+        font-size: 14px !important;
+        color: #e0e0e0 !important;
+        line-height: 1.4 !important;
+        margin: 10px 0 !important;
+      }
+      
+      .quest-completion-notice {
+        background: linear-gradient(135deg, #ffc107, #ff8f00) !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4) !important;
+        width: 100% !important;
+        animation: completionGlow 2s ease infinite alternate !important;
+      }
+      
+      @keyframes completionGlow {
+        0% { box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); }
+        100% { box-shadow: 0 6px 20px rgba(255, 193, 7, 0.6); }
+      }
+      
+      .completion-icon {
+        font-size: 24px !important;
+        color: #fff !important;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5) !important;
+      }
+      
+      .completion-text {
+        flex: 1 !important;
+        color: #fff !important;
+        font-weight: bold !important;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5) !important;
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+      }
+      
+      .reward-preview {
+        background: rgba(40, 167, 69, 0.2) !important;
+        border: 1px solid #28a745 !important;
+        border-radius: 8px !important;
+        padding: 10px 15px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+      }
+      
+      .reward-icon {
+        font-size: 20px !important;
+        color: #28a745 !important;
+      }
+      
+      .reward-text {
+        flex: 1 !important;
+        color: #28a745 !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+      }
+      
+      .next-action-hint {
+        background: rgba(74, 144, 226, 0.1) !important;
+        border: 1px solid rgba(74, 144, 226, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        font-size: 12px !important;
+        color: #87ceeb !important;
+        font-style: italic !important;
+        width: 100% !important;
+        line-height: 1.4 !important;
+      }
+      
       /* Responsive */
       @media (max-width: 768px) {
         .quest-delivery-container {
@@ -507,6 +610,14 @@ export class QuestDeliveryOverlay {
           width: 40px !important;
           height: 40px !important;
           font-size: 20px !important;
+        }
+        
+        .success-icon {
+          font-size: 36px !important;
+        }
+        
+        .success-title {
+          font-size: 18px !important;
         }
       }
     `;
@@ -1070,11 +1181,20 @@ export class QuestDeliveryOverlay {
   handleDeliveryResult(result) {
     console.log('📨 [QuestDeliveryOverlay] Résultat de livraison reçu:', result);
     
+    // 🛡️ Protection contre double traitement
+    if (this.deliveryState.lastProcessedNonce === result.nonce && result.nonce) {
+      console.warn('🛡️ [QuestDeliveryOverlay] Résultat déjà traité, ignoré');
+      return;
+    }
+    
     // 🛡️ Vérifier nonce si fourni (protection contre réponses multiples)
     if (this.deliveryState.deliveryNonce && result.nonce && result.nonce !== this.deliveryState.deliveryNonce) {
       console.warn('🛡️ [QuestDeliveryOverlay] Nonce invalide, résultat ignoré');
       return;
     }
+    
+    // 🛡️ Marquer comme traité
+    this.deliveryState.lastProcessedNonce = result.nonce;
     
     // Arrêter état de livraison
     this.setDelivering(false);
@@ -1090,13 +1210,13 @@ export class QuestDeliveryOverlay {
   }
   
   /**
-   * Gérer succès de livraison
+   * 🎉 MÉTHODE AMÉLIORÉE : Gérer succès de livraison avec UX améliorée
    */
   handleDeliverySuccess(result) {
     const message = result.message || 'Objets livrés avec succès !';
     console.log('✅ [QuestDeliveryOverlay] Livraison réussie');
     
-    // Animation de succès
+    // 🎉 Animation de succès immédiate
     const container = this.overlayElement.querySelector('.quest-delivery-container');
     if (container) {
       container.classList.add('success');
@@ -1105,20 +1225,129 @@ export class QuestDeliveryOverlay {
       }, 800);
     }
     
-    // Notification
+    // 🎉 NOUVEAU : Transformation de l'overlay en message de remerciement
+    this.transformToThankYouMessage(result);
+    
+    // Notification discrète
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(message, 'success', { duration: 4000 });
+      window.showGameNotification(message, 'success', { duration: 3000, position: 'bottom-center' });
     }
     
-    // Fermer après délai
+    // 🎉 NOUVEAU : Auto-fermeture après 8 secondes au lieu de 2
     setTimeout(() => {
-      this.hide();
-    }, 2000);
+      if (this.isVisible) {
+        this.hide();
+      }
+    }, 8000);
   }
   
+  
   /**
-   * Gérer erreur de livraison
+   * 🎉 NOUVELLE MÉTHODE : Transformer overlay en message de remerciement
+   * @param {Object} result - Résultat de livraison
    */
+  transformToThankYouMessage(result) {
+    const contentContainer = this.overlayElement.querySelector('#delivery-content');
+    const summaryElement = this.overlayElement.querySelector('#delivery-summary');
+    const confirmButton = this.overlayElement.querySelector('#delivery-confirm');
+    const titleElement = this.overlayElement.querySelector('.delivery-title');
+    
+    if (!contentContainer) return;
+    
+    // 🎉 Changer le titre
+    if (titleElement) {
+      titleElement.textContent = '🎉 Livraison Terminée';
+    }
+    
+    // 🎉 Nouveau contenu de remerciement
+    const questCompleted = result.result?.questCompleted;
+    const hasRewards = result.result?.rewards || result.rewards;
+    
+    let thankYouHTML = `
+      <div class="delivery-success-message">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Merci pour votre aide !</div>
+        <div class="success-description">
+          ${result.message || 'Les objets ont été livrés avec succès.'}
+        </div>
+    `;
+    
+    // 🎉 Si quête complétée, proposer de la rendre
+    if (questCompleted) {
+      thankYouHTML += `
+        <div class="quest-completion-notice">
+          <div class="completion-icon">🏆</div>
+          <div class="completion-text">
+            <strong>Quête terminée !</strong><br>
+            Vous pouvez maintenant récupérer vos récompenses.
+          </div>
+        </div>
+      `;
+    }
+    
+    // 🎉 Informations sur les récompenses
+    if (hasRewards) {
+      thankYouHTML += `
+        <div class="reward-preview">
+          <div class="reward-icon">🎁</div>
+          <div class="reward-text">Récompenses disponibles</div>
+        </div>
+      `;
+    }
+    
+    thankYouHTML += `
+        <div class="next-action-hint">
+          ${questCompleted ? 
+            '💡 Parlez-moi à nouveau pour récupérer vos récompenses !' : 
+            '💡 Continuez votre aventure, brave voyageur !'
+          }
+        </div>
+      </div>
+    `;
+    
+    contentContainer.innerHTML = thankYouHTML;
+    
+    // 🎉 Mettre à jour le résumé
+    if (summaryElement) {
+      summaryElement.className = 'delivery-summary can-deliver';
+      summaryElement.textContent = questCompleted ? 
+        '🏆 Quête terminée - Récupérez vos récompenses' : 
+        '✅ Livraison terminée avec succès';
+    }
+    
+    // 🎉 Transformer le bouton
+    if (confirmButton) {
+      confirmButton.className = 'delivery-button can-deliver';
+      confirmButton.disabled = false;
+      confirmButton.textContent = questCompleted ? '🏆 Récupérer Récompenses' : '👋 Fermer';
+      
+      // 🎉 Nouveau comportement du bouton
+      const newHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (questCompleted) {
+          // Fermer overlay et laisser le dialogue normal se charger
+          this.hide();
+          // Optionnel : déclencher une nouvelle interaction avec le NPC
+          setTimeout(() => {
+            if (this.currentNpcId && window.globalNetworkManager?.interactionHandler) {
+              console.log('🏆 [QuestDeliveryOverlay] Réinteraction pour récompenses');
+              window.globalNetworkManager.interactionHandler.sendNpcInteract(this.currentNpcId);
+            }
+          }, 500);
+        } else {
+          this.hide();
+        }
+      };
+      
+      // Supprimer ancien handler et ajouter nouveau
+      confirmButton.removeEventListener('click', this.confirmButtonHandler);
+      confirmButton.addEventListener('click', newHandler);
+    }
+    
+    console.log('🎉 [QuestDeliveryOverlay] Overlay transformé en message de remerciement');
+  }
   handleDeliveryError(result) {
     const errorMsg = result.message || result.error || 'Impossible de livrer les objets';
     console.error('❌ [QuestDeliveryOverlay] Livraison échouée:', errorMsg);
@@ -1214,7 +1443,8 @@ export class QuestDeliveryOverlay {
       lastDeliveryTime: 0,
       deliveryNonce: null,
       deliveryTimeoutId: null,
-      deliveryDebounceTime: 2000
+      deliveryDebounceTime: 2000,
+      lastProcessedNonce: null // 🛡️ NOUVEAU : Protection double traitement
     };
     
     console.log('✅ [QuestDeliveryOverlay] Détruit avec nettoyage complet');
