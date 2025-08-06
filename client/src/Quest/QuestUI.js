@@ -389,37 +389,37 @@ export class QuestUI {
         border-left: 3px solid #ffc107 !important;
       }
       
-      /* 🟢 NOUVEAU : Section finale pour quête terminée */
+      /* 🟢 NOUVEAU : Section finale pour quête terminée - Style WoW */
       div#quest-journal .quest-completed-section {
-        background: linear-gradient(145deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.15)) !important;
-        border: 2px solid rgba(34, 197, 94, 0.4) !important;
+        background: linear-gradient(145deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1)) !important;
+        border: 2px solid rgba(34, 197, 94, 0.3) !important;
         border-radius: 12px !important;
         padding: 20px !important;
         margin: 15px 0 !important;
         text-align: center !important;
-        box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2) !important;
+        box-shadow: 0 4px 15px rgba(34, 197, 94, 0.15) !important;
       }
       
       div#quest-journal .quest-completed-icon {
-        font-size: 32px !important;
-        margin-bottom: 10px !important;
+        font-size: 24px !important;
+        margin-bottom: 8px !important;
         display: block !important;
-        animation: completedPulse 2s ease-in-out infinite !important;
+        opacity: 0.9 !important;
       }
       
       div#quest-journal .quest-completed-title {
-        font-size: 18px !important;
+        font-size: 16px !important;
         font-weight: bold !important;
         color: #22c55e !important;
-        margin-bottom: 8px !important;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        margin-bottom: 6px !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
       }
       
       div#quest-journal .quest-completed-message {
-        font-size: 14px !important;
-        color: #a7f3d0 !important;
+        font-size: 13px !important;
+        color: #86efac !important;
         line-height: 1.4 !important;
-        margin-bottom: 15px !important;
+        margin-bottom: 12px !important;
       }
       
       div#quest-journal .quest-completion-rewards {
@@ -700,7 +700,7 @@ export class QuestUI {
         margin-top: 6px !important;
       }
       
-      /* 🟢 NOUVEAU : Message spécial pour quête terminée dans tracker */
+      /* 🟢 NOUVEAU : Message spécial pour quête terminée dans tracker - Style WoW */
       div#quest-tracker .quest-completed-message {
         font-size: 12px !important;
         color: #22c55e !important;
@@ -711,14 +711,17 @@ export class QuestUI {
         border-radius: 6px !important;
         margin-top: 6px !important;
         animation: completedGlow 2s ease-in-out infinite !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      div#quest-tracker .quest-completed-message:hover {
+        background: rgba(34, 197, 94, 0.2) !important;
+        transform: scale(1.02) !important;
       }
       
       div#quest-tracker .quest-completed-message:before {
-        content: "✨ " !important;
-      }
-      
-      div#quest-tracker .quest-completed-message:after {
-        content: " ✨" !important;
+        content: "💬 " !important;
       }
       
       @keyframes completedGlow {
@@ -1243,9 +1246,10 @@ export class QuestUI {
   renderTrackerObjectivesIntelligent(quest) {
     const isCompleted = this.isQuestCompleted(quest);
     
-    // 🟢 NOUVEAU : Si quête terminée, afficher message spécial
+    // 🟢 NOUVEAU : Si quête terminée, afficher message "Parler à [NPC]"
     if (isCompleted) {
-      return `<div class="quest-completed-message">${this.getSafeTranslation('quest.ui.quest_completed', 'Quête terminée')}</div>`;
+      const turnInMessage = this.generateTurnInMessage(quest);
+      return `<div class="quest-completed-message">${turnInMessage}</div>`;
     }
     
     const currentStep = quest.steps?.[quest.currentStepIndex];
@@ -1557,10 +1561,10 @@ export class QuestUI {
       const categoryClass = quest.category || 'side';
       const isCompleted = this.isQuestCompleted(quest);
       
-      // 🟢 NOUVEAU : Text spécial pour quête terminée
+      // 🟢 NOUVEAU : Text spécial pour quête terminée style WoW
       let progressText;
       if (isCompleted) {
-        progressText = this.getSafeTranslation('quest.ui.completed_status', 'Terminée');
+        progressText = this.generateTurnInMessage(quest);
       } else {
         progressText = `${progress.completed}/${progress.total} ${this.getSafeTranslation('quest.ui.objectives_label', 'objectifs')}`;
       }
@@ -1682,19 +1686,67 @@ export class QuestUI {
     `;
   }
   
-  // 🟢 NOUVELLE MÉTHODE : Rendu section quête terminée
+  // 🟢 NOUVELLE MÉTHODE : Générer message "Parler à [NPC]" style WoW
+  generateTurnInMessage(quest) {
+    // Essayer de trouver le NPC de fin dans différents endroits
+    let npcName = null;
+    
+    // 1. Chercher dans quest.turnInNpc ou quest.endNpc
+    if (quest.turnInNpc) {
+      npcName = quest.turnInNpc.name || quest.turnInNpc;
+    } else if (quest.endNpc) {
+      npcName = quest.endNpc.name || quest.endNpc;
+    }
+    
+    // 2. Chercher dans quest.npc (NPC qui a donné la quête, souvent le même)
+    if (!npcName && quest.npc) {
+      npcName = quest.npc.name || quest.npc;
+    }
+    
+    // 3. Chercher dans quest.giver
+    if (!npcName && quest.giver) {
+      npcName = quest.giver.name || quest.giver;
+    }
+    
+    // 4. Chercher dans les métadonnées
+    if (!npcName && quest.metadata) {
+      npcName = quest.metadata.turnInNpc || quest.metadata.questGiver || quest.metadata.npcName;
+    }
+    
+    // 5. Essayer d'extraire depuis l'ID de la quête (ex: "annie_lost_gloves" -> "Annie")
+    if (!npcName && quest.id) {
+      const questIdParts = quest.id.split('_');
+      if (questIdParts.length > 0) {
+        const possibleNpcName = questIdParts[0];
+        // Capitaliser la première lettre
+        npcName = possibleNpcName.charAt(0).toUpperCase() + possibleNpcName.slice(1);
+      }
+    }
+    
+    // 6. Fallback générique
+    if (!npcName) {
+      npcName = this.getSafeTranslation('quest.ui.quest_giver', 'Donneur de quête');
+    }
+    
+    // Construire le message final style WoW
+    const talkToText = this.getSafeTranslation('quest.ui.talk_to', 'Parler à');
+    return `${talkToText} ${npcName}`;
+  }
+  
+  // 🟢 MÉTHODE MODIFIÉE : Rendu section quête terminée avec message WoW
   renderCompletedQuestSection(quest) {
     const rewards = this.extractQuestRewards(quest);
+    const turnInMessage = this.generateTurnInMessage(quest);
     
     return `
       <div class="quest-completed-section">
-        <span class="quest-completed-icon">🎉</span>
-        <div class="quest-completed-title">${this.getSafeTranslation('quest.ui.quest_completed_title', 'Quête Terminée !')}</div>
-        <div class="quest-completed-message">${this.getSafeTranslation('quest.ui.quest_completed_message', 'Félicitations ! Vous avez terminé cette quête avec succès.')}</div>
+        <span class="quest-completed-icon">💬</span>
+        <div class="quest-completed-title">${turnInMessage}</div>
+        <div class="quest-completed-message">${this.getSafeTranslation('quest.ui.ready_to_turn_in', 'Quête prête à être rendue.')}</div>
         
         ${rewards.length > 0 ? `
           <div class="quest-completion-rewards">
-            <div class="quest-rewards-title">${this.getSafeTranslation('quest.ui.rewards_earned', 'Récompenses Obtenues')}</div>
+            <div class="quest-rewards-title">${this.getSafeTranslation('quest.ui.rewards_preview', 'Récompenses à Obtenir')}</div>
             <div class="quest-rewards-list">
               ${rewards.map(reward => `
                 <div class="quest-reward-item">
@@ -1804,39 +1856,45 @@ export class QuestUI {
     this.scheduleIntelligentRefresh(0, 'force_manual');
   }
   
-  // 🟢 NOUVELLE MÉTHODE DEBUG : Tester quête terminée
+  // 🟢 NOUVELLE MÉTHODE DEBUG : Tester quête terminée avec NPC
   debugCompletedQuest() {
-    console.log('🧪 [QuestUI] Test quête terminée...');
+    console.log('🧪 [QuestUI] Test quête terminée avec NPC...');
     
-    // Créer une quête test terminée
+    // Créer une quête test terminée avec NPC
     const completedQuest = {
-      id: 'test_completed_quest',
-      name: 'Quête de Test Terminée',
-      description: 'Une quête de test qui a été terminée avec succès.',
+      id: 'annie_gardening_gloves',  // 🟢 ID avec nom NPC pour test extraction
+      name: 'Les Gants de Jardinage Perdus',
+      description: 'Annie a perdu ses gants de jardinage près de la rivière. Rapportez-les lui.',
       status: 'completed',
-      category: 'main',
+      category: 'side',
       currentStepIndex: 2,
+      // 🟢 NOUVEAU : Informations NPC pour le turn-in
+      turnInNpc: {
+        id: 'annie_npc',
+        name: 'Annie'
+      },
+      giver: 'Annie',  // Fallback
       steps: [
         {
-          name: 'Étape 1',
-          description: 'Première étape terminée',
+          name: 'Chercher les gants',
+          description: 'Trouvez les gants perdus près de la rivière',
           objectives: [
-            { description: 'Objectif 1', completed: true, currentAmount: 1, requiredAmount: 1 },
-            { description: 'Objectif 2', completed: true, currentAmount: 3, requiredAmount: 3 }
+            { description: 'Fouiller près de la rivière sud-ouest', completed: true, currentAmount: 1, requiredAmount: 1 },
+            { description: 'Ramasser les gants de jardinage', completed: true, currentAmount: 1, requiredAmount: 1 }
           ]
         },
         {
-          name: 'Étape 2',
-          description: 'Deuxième étape terminée',
+          name: 'Retourner voir Annie',
+          description: 'Rapportez les gants à Annie',
           objectives: [
-            { description: 'Objectif final', completed: true, currentAmount: 1, requiredAmount: 1 }
+            { description: 'Parler à Annie', completed: true, currentAmount: 1, requiredAmount: 1 }
           ]
         }
       ],
       rewards: [
-        { type: 'experience', name: 'Points d\'expérience', amount: 500 },
-        { type: 'gold', name: 'Pièces d\'or', amount: 200 },
-        { type: 'item', name: 'Objet rare', amount: 1 }
+        { type: 'experience', name: 'Points d\'expérience', amount: 150 },
+        { type: 'gold', name: 'Pièces d\'or', amount: 75 },
+        { type: 'item', name: 'Potion de soin', amount: 2 }
       ]
     };
     
@@ -1849,7 +1907,8 @@ export class QuestUI {
     }
     this.updateTrackerIntelligent();
     
-    console.log('✅ [QuestUI] Quête terminée ajoutée pour test');
+    console.log('✅ [QuestUI] Quête terminée avec NPC "Annie" ajoutée');
+    console.log('💬 Message turn-in:', this.generateTurnInMessage(completedQuest));
     
     return completedQuest;
   }
@@ -1997,9 +2056,9 @@ window.debugQuestUI = function() {
   }
 };
 
-console.log('✅ [QuestUI] Système complet avec gestion quête terminée + traductions chargé');
+console.log('✅ [QuestUI] Système complet avec gestion "Parler à NPC" style WoW + traductions chargé');
 console.log('🧪 Tests disponibles:');
-console.log('   - window.testCompletedQuest() - Tester quête terminée');
+console.log('   - window.testCompletedQuest() - Tester quête terminée avec "Parler à Annie"');
 console.log('   - window.simulateQuestCompletion(questId) - Simuler fin de quête');
 console.log('   - window.debugQuestUI() - Debug complet');
 
