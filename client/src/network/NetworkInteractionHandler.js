@@ -1,5 +1,6 @@
 // client/src/network/NetworkInteractionHandler.js
 // ✅ Handler spécialisé pour toutes les interactions réseau + Quest Indicators + Quest Details
+// 🛡️ CORRECTION: Gestion questDeliveryResult pour fermer overlay
 
 export class NetworkInteractionHandler {
   constructor(networkManager) {
@@ -21,7 +22,10 @@ export class NetworkInteractionHandler {
       onUnifiedInterfaceResult: null,
       onInteractionError: null,
       onInteractionSuccess: null,
-      onInteractionBlocked: null
+      onInteractionBlocked: null,
+      // 🛡️ NOUVEAU : Callbacks pour livraisons
+      onQuestDeliveryResult: null,
+      onQuestDeliveryError: null
     };
     
     this.debugCounters = {
@@ -31,7 +35,10 @@ export class NetworkInteractionHandler {
       unifiedInterfaceResults: 0,
       errorsReceived: 0,
       messagesHandled: 0,
-      initializationAttempts: 0
+      initializationAttempts: 0,
+      // 🛡️ NOUVEAU : Compteurs livraisons
+      deliveryResults: 0,
+      deliveryErrors: 0
     };
     
     this.config = {
@@ -77,7 +84,7 @@ export class NetworkInteractionHandler {
       this.isInitialized = true;
       this.handlersSetup = true;
       
-      console.log('[NetworkInteractionHandler] ✅ Initialisé avec succès');
+      console.log('[NetworkInteractionHandler] ✅ Initialisé avec succès + livraisons');
       return true;
       
     } catch (error) {
@@ -148,13 +155,93 @@ export class NetworkInteractionHandler {
         this.handleQuestDetailsResult(data);
       });
 
-      console.log('[NetworkInteractionHandler] ✅ Handlers configurés (+ quest system)');
+      // 🛡️ CORRECTION CRITIQUE : Handlers pour les résultats de livraison
+      room.onMessage("questDeliveryResult", (data) => {
+        console.log('[NetworkInteractionHandler] 🎁 Quest delivery result reçu:', data);
+        this.debugCounters.deliveryResults++;
+        this.handleQuestDeliveryResult(data);
+      });
+
+      room.onMessage("questDeliveryError", (data) => {
+        console.log('[NetworkInteractionHandler] ❌ Quest delivery error reçu:', data);
+        this.debugCounters.deliveryErrors++;
+        this.handleQuestDeliveryError(data);
+      });
+
+      console.log('[NetworkInteractionHandler] ✅ Handlers configurés (+ quest system + delivery results)');
       return true;
       
     } catch (error) {
       console.error('[NetworkInteractionHandler] ❌ Erreur setup handlers:', error);
       return false;
     }
+  }
+
+  // === 🛡️ NOUVEAUX HANDLERS : RÉSULTATS DE LIVRAISON ===
+
+  /**
+   * 🛡️ NOUVEAU : Handler pour résultat de livraison
+   * @param {Object} data - Résultat de livraison du serveur
+   */
+  handleQuestDeliveryResult(data) {
+    console.log('🎁 [NetworkInteractionHandler] === TRAITEMENT RÉSULTAT LIVRAISON ===');
+    console.log('📊 Data:', data);
+
+    // 🛡️ Transmettre à QuestSystem si disponible
+    if (window.questSystem && typeof window.questSystem.handleQuestDeliveryResult === 'function') {
+      console.log('📤 [NetworkInteractionHandler] Transmission à QuestSystem');
+      window.questSystem.handleQuestDeliveryResult(data);
+    }
+
+    // 🛡️ Transmettre directement à l'overlay si QuestSystem pas disponible
+    if (window.questSystem?.deliveryOverlay && typeof window.questSystem.deliveryOverlay.handleDeliveryResult === 'function') {
+      console.log('📤 [NetworkInteractionHandler] Transmission directe à DeliveryOverlay');
+      window.questSystem.deliveryOverlay.handleDeliveryResult(data);
+    }
+
+    // 🛡️ Callback générique
+    if (this.callbacks.onQuestDeliveryResult) {
+      this.callbacks.onQuestDeliveryResult(data);
+    }
+
+    // 🛡️ Notification utilisateur si succès
+    if (data.success) {
+      const message = data.message || 'Livraison effectuée avec succès !';
+      this.showInteractionMessage(message, 'success');
+    }
+  }
+
+  /**
+   * 🛡️ NOUVEAU : Handler pour erreur de livraison
+   * @param {Object} data - Erreur de livraison du serveur
+   */
+  handleQuestDeliveryError(data) {
+    console.log('❌ [NetworkInteractionHandler] === TRAITEMENT ERREUR LIVRAISON ===');
+    console.log('📊 Error data:', data);
+
+    // 🛡️ Transmettre à QuestSystem si disponible
+    if (window.questSystem && typeof window.questSystem.handleQuestDeliveryError === 'function') {
+      console.log('📤 [NetworkInteractionHandler] Transmission erreur à QuestSystem');
+      window.questSystem.handleQuestDeliveryError(data);
+    }
+
+    // 🛡️ Transmettre directement à l'overlay si QuestSystem pas disponible
+    if (window.questSystem?.deliveryOverlay && typeof window.questSystem.deliveryOverlay.handleDeliveryResult === 'function') {
+      console.log('📤 [NetworkInteractionHandler] Transmission erreur directe à DeliveryOverlay');
+      window.questSystem.deliveryOverlay.handleDeliveryResult({
+        success: false,
+        ...data
+      });
+    }
+
+    // 🛡️ Callback générique
+    if (this.callbacks.onQuestDeliveryError) {
+      this.callbacks.onQuestDeliveryError(data);
+    }
+
+    // 🛡️ Notification d'erreur
+    const errorMsg = data.message || data.error || 'Erreur lors de la livraison';
+    this.showInteractionMessage(errorMsg, 'error');
   }
 
   // ✅ Handler pour les indicateurs de quête (avec retry intelligent)
@@ -318,7 +405,9 @@ export class NetworkInteractionHandler {
       'interactionCooldown',
       'interactionResult',
       'questStatuses',
-      'questDetailsResult' // ✅ Nouveau
+      'questDetailsResult', // ✅ Nouveau
+      'questDeliveryResult', // 🛡️ NOUVEAU
+      'questDeliveryError' // 🛡️ NOUVEAU
     ];
     
     let cleanedCount = 0;
@@ -346,7 +435,9 @@ export class NetworkInteractionHandler {
       'searchResult',
       'interactionError',
       'questStatuses',
-      'questDetailsResult' // ✅ Nouveau
+      'questDetailsResult', // ✅ Nouveau
+      'questDeliveryResult', // 🛡️ NOUVEAU
+      'questDeliveryError' // 🛡️ NOUVEAU
     ];
     
     const missingHandlers = requiredHandlers.filter(handler => 
@@ -745,6 +836,9 @@ export class NetworkInteractionHandler {
   onInteractionError(callback) { this.callbacks.onInteractionError = callback; }
   onInteractionSuccess(callback) { this.callbacks.onInteractionSuccess = callback; }
   onInteractionBlocked(callback) { this.callbacks.onInteractionBlocked = callback; }
+  // 🛡️ NOUVEAUX CALLBACKS
+  onQuestDeliveryResult(callback) { this.callbacks.onQuestDeliveryResult = callback; }
+  onQuestDeliveryError(callback) { this.callbacks.onQuestDeliveryError = callback; }
 
   generateInteractionId(type, data) {
     const timestamp = Date.now();
@@ -779,7 +873,7 @@ export class NetworkInteractionHandler {
     const room = this.networkManager?.room;
     const handlersCount = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).length : 0;
     const interactionHandlers = room?.onMessageHandlers ? Object.keys(room.onMessageHandlers.events).filter(key => 
-      key.includes('interaction') || key.includes('search') || key.includes('Result') || key.includes('questStatuses') || key.includes('questDetails')
+      key.includes('interaction') || key.includes('search') || key.includes('Result') || key.includes('questStatuses') || key.includes('questDetails') || key.includes('questDelivery')
     ) : [];
 
     return {
@@ -796,7 +890,9 @@ export class NetworkInteractionHandler {
         totalHandlers: handlersCount,
         interactionHandlers: interactionHandlers,
         hasQuestStatusHandler: interactionHandlers.includes('questStatuses'),
-        hasQuestDetailsHandler: interactionHandlers.includes('questDetailsResult') // ✅ Nouveau
+        hasQuestDetailsHandler: interactionHandlers.includes('questDetailsResult'), // ✅ Nouveau
+        hasQuestDeliveryResultHandler: interactionHandlers.includes('questDeliveryResult'), // 🛡️ NOUVEAU
+        hasQuestDeliveryErrorHandler: interactionHandlers.includes('questDeliveryError') // 🛡️ NOUVEAU
       },
       // ✅ NOUVEAU : Stats des quêtes
       questData: {
@@ -885,5 +981,41 @@ window.testQuestDetails = function(npcId = 2, questId = 'test_quest_1') {
   }
 };
 
-console.log('✅ NetworkInteractionHandler avec Quest System complet chargé!');
+// 🛡️ NOUVEAUX TESTS : Simulation résultats de livraison
+window.testQuestDeliveryResultSuccess = function() {
+  console.log('🧪 Test simulation questDeliveryResult SUCCESS...');
+  
+  const mockSuccessData = {
+    success: true,
+    message: 'Livraison effectuée avec succès !',
+    questId: 'lost_gloves',
+    questCompleted: true,
+    progressMessage: 'Quête prête à être terminée !'
+  };
+  
+  if (window.globalNetworkManager?.interactionHandler) {
+    window.globalNetworkManager.interactionHandler.handleQuestDeliveryResult(mockSuccessData);
+    console.log('✅ Test success envoyé');
+  }
+};
+
+window.testQuestDeliveryResultError = function() {
+  console.log('🧪 Test simulation questDeliveryResult ERROR...');
+  
+  const mockErrorData = {
+    success: false,
+    message: 'Inventaire insuffisant: 0/1 dreamroot_pendant',
+    error: 'INSUFFICIENT_ITEMS',
+    questId: 'lost_gloves'
+  };
+  
+  if (window.globalNetworkManager?.interactionHandler) {
+    window.globalNetworkManager.interactionHandler.handleQuestDeliveryResult(mockErrorData);
+    console.log('✅ Test error envoyé');
+  }
+};
+
+console.log('✅ NetworkInteractionHandler avec Quest System + Delivery Results complet chargé!');
 console.log('🧪 Utilisez window.testQuestDetails(npcId, questId) pour tester');
+console.log('🎁 Utilisez window.testQuestDeliveryResultSuccess() pour simuler succès');
+console.log('🎁 Utilisez window.testQuestDeliveryResultError() pour simuler erreur');
