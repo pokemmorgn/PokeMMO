@@ -283,20 +283,16 @@ export class ItemEditorModule {
                 return;
             }
             
-            // Sinon, on charge TOUS les items d'un coup pour la pagination côté client
+            // Charger TOUS les items d'un coup pour la pagination côté client
+            // Ne plus utiliser les filtres de catégorie côté serveur
             const params = new URLSearchParams({
                 page: 1,
                 limit: 100 // Charger plus d'items d'un coup
             });
             
-            // Ajouter les filtres de base
-            if (this.currentFilters.category && this.currentFilters.category !== 'all') {
-                params.append('category', this.currentFilters.category);
-            }
-            
             console.log(`📦 [ItemEditor] Requête API avec params:`, params.toString());
             
-            // Appel API 
+            // Appel API sans filtres pour avoir TOUS les items
             const response = await this.adminPanel.apiCall(`/items/list?${params.toString()}`);
             
             if (response.success) {
@@ -353,10 +349,6 @@ export class ItemEditorModule {
                     limit: 100
                 });
                 
-                if (this.currentFilters.category && this.currentFilters.category !== 'all') {
-                    params.append('category', this.currentFilters.category);
-                }
-                
                 const response = await this.adminPanel.apiCall(`/items/list?${params.toString()}`);
                 
                 if (response.success && response.items) {
@@ -380,12 +372,17 @@ export class ItemEditorModule {
     async filterItems() {
         console.log('🔍 [ItemEditor] Filtrage des items:', this.currentFilters);
         
+        // Reset à la première page quand on filtre
+        this.currentPage = 1;
+        
         // Si on a une recherche textuelle, utiliser l'API
         if (this.currentFilters.search && this.currentFilters.search.trim().length >= 2) {
             await this.performAdvancedSearch();
         } else {
-            // Sinon recharger avec les filtres de base
-            await this.loadItems();
+            // Sinon appliquer les filtres côté client
+            this.applyClientSideFilters();
+            this.updateItemsList();
+            this.updatePagination();
         }
     }
     
@@ -426,6 +423,11 @@ export class ItemEditorModule {
     
     applyClientSideFilters() {
         this.filteredItems = this.items.filter(item => {
+            // Filtre par catégorie
+            if (this.currentFilters.category !== 'all' && item.category !== this.currentFilters.category) {
+                return false;
+            }
+            
             // Filtre par génération
             if (this.currentFilters.generation !== 'all' && item.generation !== parseInt(this.currentFilters.generation)) {
                 return false;
@@ -438,6 +440,8 @@ export class ItemEditorModule {
             
             return true;
         });
+        
+        console.log(`🔍 [ItemEditor] Filtrage client: ${this.filteredItems.length} items sur ${this.items.length} (catégorie: ${this.currentFilters.category}, gen: ${this.currentFilters.generation}, rareté: ${this.currentFilters.rarity})`);
     }
 
     // ===== MISE À JOUR DE L'INTERFACE =====
