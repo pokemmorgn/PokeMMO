@@ -247,23 +247,11 @@ export class BattleScene extends Phaser.Scene {
     const container = this.add.container(config.x, config.y);
     container.setDepth(180);
     
+    // Panel principal avec style Game Boy authentique
     const bgPanel = this.add.graphics();
+    this.drawGameBoyPanel(bgPanel, config.width, config.height);
     
-    bgPanel.fillStyle(0xf0f8f0, 0.95);
-    bgPanel.fillRoundedRect(0, 0, config.width, config.height, 6);
-    
-    bgPanel.lineStyle(3, 0x1a1a1a, 1);
-    bgPanel.strokeRoundedRect(0, 0, config.width, config.height, 6);
-    
-    bgPanel.lineStyle(2, 0x8fad8f, 1);
-    bgPanel.strokeRoundedRect(3, 3, config.width - 6, config.height - 6, 4);
-    
-    const infoPanel = this.add.graphics();
-    infoPanel.fillStyle(0xe8f4e8, 1);
-    infoPanel.fillRoundedRect(8, 8, config.width - 16, 22, 3);
-    infoPanel.lineStyle(1, 0x6b8e6b, 1);
-    infoPanel.strokeRoundedRect(8, 8, config.width - 16, 22, 3);
-    
+    // Zone nom/niveau intégrée au panel
     const nameText = this.add.text(12, 12, 
       config.isPlayer ? 'VOTRE POKÉMON' : 'POKÉMON SAUVAGE', {
       fontSize: config.isPlayer ? '12px' : '11px',
@@ -272,17 +260,24 @@ export class BattleScene extends Phaser.Scene {
       fontWeight: 'bold'
     });
     
-    const levelBg = this.add.graphics();
-    levelBg.fillStyle(0x1a1a1a, 1);
-    levelBg.fillRoundedRect(config.width - 65, 10, 50, 16, 2);
+    // Badge niveau style Game Boy
+    const levelContainer = this.add.container(config.width - 40, 18);
+    const levelBadge = this.add.graphics();
+    levelBadge.fillStyle(0x1a1a1a, 1);
+    levelBadge.fillRoundedRect(-25, -8, 50, 16, 2);
+    levelBadge.lineStyle(1, 0x8fad8f, 1);
+    levelBadge.strokeRoundedRect(-25, -8, 50, 16, 2);
     
-    const levelText = this.add.text(config.width - 63, 12, 'LV.--', {
+    const levelText = this.add.text(0, 0, 'LV.--', {
       fontSize: '10px',
       fontFamily: 'monospace',
       color: '#f0f8f0',
       fontWeight: 'bold'
     });
+    levelText.setOrigin(0.5);
+    levelContainer.add([levelBadge, levelText]);
     
+    // Label HP avec style authentique
     const hpLabel = this.add.text(12, 38, 'HP', {
       fontSize: '12px',
       fontFamily: 'monospace',
@@ -290,14 +285,8 @@ export class BattleScene extends Phaser.Scene {
       fontWeight: 'bold'
     });
     
-    const hpBarBg = this.add.graphics();
-    hpBarBg.fillStyle(0x2d4a2d, 1);
-    hpBarBg.fillRoundedRect(35, 38, config.width - 50, 12, 2);
-    
-    const hpBar = this.add.graphics();
-    this.updateGameBoyHealthBarVisual(hpBar, config.width - 50, 1.0);
-    hpBar.x = 35;
-    hpBar.y = 38;
+    // Barre HP intégrée style Game Boy authentique
+    const hpBarContainer = this.createGameBoyHPBar(35, 38, config.width - 50);
     
     let hpText = null;
     if (config.isPlayer) {
@@ -309,7 +298,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
     
-    let expBar = null;
+    let expBarContainer = null;
     if (config.isPlayer) {
       const expLabel = this.add.text(12, 62, 'EXP', {
         fontSize: '10px',
@@ -318,54 +307,162 @@ export class BattleScene extends Phaser.Scene {
         fontWeight: 'bold'
       });
       
-      const expBarBg = this.add.graphics();
-      expBarBg.fillStyle(0x6b8e6b, 1);
-      expBarBg.fillRoundedRect(35, 64, config.width - 50, 8, 2);
-      
-      expBar = this.add.graphics();
-      expBar.fillStyle(0x4169e1, 1);
-      expBar.fillRoundedRect(0, 0, 0, 8, 2);
-      expBar.x = 35;
-      expBar.y = 64;
-      
-      container.add([expLabel, expBarBg, expBar]);
+      expBarContainer = this.createGameBoyExpBar(35, 64, config.width - 50);
+      container.add([expLabel, expBarContainer.container]);
     }
     
-    container.add([bgPanel, infoPanel, nameText, levelBg, levelText, hpLabel, hpBarBg, hpBar]);
+    container.add([
+      bgPanel, 
+      nameText, 
+      levelContainer, 
+      hpLabel, 
+      hpBarContainer.container
+    ]);
+    
     if (hpText) container.add(hpText);
     
     container.setVisible(false);
     
     this.modernHealthBars[type] = {
-      container, nameText, levelText, hpBar, hpText, expBar, config
+      container, 
+      nameText, 
+      levelText, 
+      hpBar: hpBarContainer,
+      hpText, 
+      expBar: expBarContainer,
+      config
     };
   }
 
-  updateGameBoyHealthBarVisual(graphics, maxWidth, hpPercentage) {
+  drawGameBoyPanel(graphics, width, height) {
     graphics.clear();
     
-    let color1, color2;
-    if (hpPercentage > 0.6) {
-      color1 = 0x4caf50;
-      color2 = 0x8bc34a;
-    } else if (hpPercentage > 0.3) {
-      color1 = 0xff9800;
-      color2 = 0xffc107;
+    // Fond principal avec dégradé Game Boy subtil
+    graphics.fillGradientStyle(0xf8fff8, 0xf8fff8, 0xf0f8f0, 0xe8f4e8);
+    graphics.fillRoundedRect(0, 0, width, height, 6);
+    
+    // Bordure principale noire épaisse
+    graphics.lineStyle(3, 0x1a1a1a, 1);
+    graphics.strokeRoundedRect(0, 0, width, height, 6);
+    
+    // Bordure intérieure verte Game Boy
+    graphics.lineStyle(2, 0x6b8e6b, 0.8);
+    graphics.strokeRoundedRect(3, 3, width - 6, height - 6, 4);
+    
+    // Effet de relief interne subtil
+    graphics.lineStyle(1, 0xffffff, 0.3);
+    graphics.strokeRoundedRect(5, 5, width - 10, height - 10, 3);
+  }
+
+  createGameBoyHPBar(x, y, maxWidth) {
+    const container = this.add.container(x, y);
+    
+    // Fond de la barre avec effet enfoncé Game Boy
+    const background = this.add.graphics();
+    background.fillStyle(0x2d4a2d, 1);
+    background.fillRoundedRect(0, 0, maxWidth, 12, 2);
+    background.lineStyle(1, 0x1a2a1a, 1);
+    background.strokeRoundedRect(0, 0, maxWidth, 12, 2);
+    
+    // Bordure intérieure sombre (effet enfoncé)
+    background.lineStyle(1, 0x0f1a0f, 0.8);
+    background.strokeRoundedRect(1, 1, maxWidth - 2, 10, 1);
+    
+    // Barre HP principale
+    const hpBar = this.add.graphics();
+    
+    // Segments de la barre (style Game Boy authentique)
+    const segmentContainer = this.add.container(0, 0);
+    
+    container.add([background, segmentContainer, hpBar]);
+    
+    return {
+      container,
+      background,
+      hpBar,
+      segmentContainer,
+      maxWidth,
+      currentPercentage: 1.0
+    };
+  }
+
+  createGameBoyExpBar(x, y, maxWidth) {
+    const container = this.add.container(x, y);
+    
+    // Fond EXP avec style Game Boy
+    const background = this.add.graphics();
+    background.fillStyle(0x4a6b4a, 1);
+    background.fillRoundedRect(0, 0, maxWidth, 8, 2);
+    background.lineStyle(1, 0x2d4a2d, 1);
+    background.strokeRoundedRect(0, 0, maxWidth, 8, 2);
+    
+    // Barre EXP
+    const expBar = this.add.graphics();
+    
+    container.add([background, expBar]);
+    
+    return {
+      container,
+      background,
+      expBar,
+      maxWidth
+    };
+  }
+
+  updateGameBoyHealthBarVisual(hpBarContainer, targetPercentage) {
+    if (!hpBarContainer || !hpBarContainer.hpBar) return;
+    
+    const { hpBar, segmentContainer, maxWidth } = hpBarContainer;
+    const percentage = Math.max(0, Math.min(1, targetPercentage));
+    
+    hpBar.clear();
+    segmentContainer.removeAll(true);
+    
+    if (percentage <= 0) return;
+    
+    // Couleurs selon le pourcentage HP (Game Boy authentique)
+    let primaryColor, secondaryColor, glowColor;
+    if (percentage > 0.6) {
+      primaryColor = 0x4caf50;    // Vert foncé
+      secondaryColor = 0x66bb6a;  // Vert moyen
+      glowColor = 0x81c784;       // Vert clair
+    } else if (percentage > 0.3) {
+      primaryColor = 0xff9800;    // Orange foncé
+      secondaryColor = 0xffb74d;  // Orange moyen
+      glowColor = 0xffcc02;       // Orange clair
     } else {
-      color1 = 0xf44336;
-      color2 = 0xff5722;
+      primaryColor = 0xf44336;    // Rouge foncé
+      secondaryColor = 0xe57373;  // Rouge moyen
+      glowColor = 0xffab91;       // Rouge clair
     }
     
-    const width = Math.max(0, maxWidth * hpPercentage);
+    const currentWidth = Math.floor(maxWidth * percentage);
     
-    graphics.fillStyle(color1, 1);
-    graphics.fillRoundedRect(0, 0, width, 16, 3);
+    // Barre principale avec dégradé
+    hpBar.fillGradientStyle(primaryColor, primaryColor, secondaryColor, secondaryColor);
+    hpBar.fillRoundedRect(2, 2, currentWidth - 4, 8, 1);
     
-    graphics.fillStyle(color2, 0.7);
-    graphics.fillRoundedRect(2, 2, Math.max(0, width - 4), 6, 2);
+    // Effet de brillance Game Boy (ligne du haut)
+    hpBar.fillStyle(glowColor, 0.6);
+    hpBar.fillRoundedRect(2, 2, Math.max(0, currentWidth - 4), 2, 1);
     
-    graphics.fillStyle(0xffffff, 0.4);
-    graphics.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
+    // Segments pixelisés pour l'effet Game Boy authentique
+    if (currentWidth > 6) {
+      const segmentWidth = 3;
+      const segmentCount = Math.floor(currentWidth / (segmentWidth + 1));
+      
+      for (let i = 0; i < segmentCount; i++) {
+        const segmentX = 2 + i * (segmentWidth + 1);
+        if (segmentX + segmentWidth <= currentWidth) {
+          const segment = this.add.graphics();
+          segment.fillStyle(0xffffff, 0.2);
+          segment.fillRect(segmentX, 3, 1, 6);
+          segmentContainer.add(segment);
+        }
+      }
+    }
+    
+    hpBarContainer.currentPercentage = percentage;
   }
 
   // === INTERFACE D'ACTIONS GAME BOY ===
@@ -1236,7 +1333,8 @@ export class BattleScene extends Phaser.Scene {
     
     const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
     
-    this.animateGameBoyHealthBar(healthBar.hpBar, healthBar.config.width - 70, hpPercentage);
+    // Animer la barre HP avec le nouveau système
+    this.animateGameBoyHealthBar(healthBar.hpBar, hpPercentage);
     
     if (healthBar.config.isPlayer && healthBar.hpText) {
       healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
@@ -1244,7 +1342,7 @@ export class BattleScene extends Phaser.Scene {
     
     if (healthBar.config.isPlayer && healthBar.expBar && pokemonData.currentExp !== undefined) {
       const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
-      this.animateGameBoyExpBar(healthBar.expBar, healthBar.config.width - 70, expPercentage);
+      this.animateGameBoyExpBar(healthBar.expBar, expPercentage);
     }
     
     healthBar.container.setVisible(true);
@@ -1257,9 +1355,12 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  animateGameBoyHealthBar(graphics, maxWidth, targetPercentage) {
-    let currentPercentage = graphics.currentPercentage || 1;
-    graphics.currentPercentage = targetPercentage;
+  animateGameBoyHealthBar(hpBarContainer, targetPercentage) {
+    if (!hpBarContainer || typeof hpBarContainer.currentPercentage === 'undefined') {
+      hpBarContainer.currentPercentage = 1.0;
+    }
+    
+    const currentPercentage = hpBarContainer.currentPercentage;
     
     this.tweens.add({
       targets: { value: currentPercentage },
@@ -1268,18 +1369,28 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeOut',
       onUpdate: (tween) => {
         const percentage = tween.targets[0].value;
-        this.updateGameBoyHealthBarVisual(graphics, maxWidth, percentage);
+        this.updateGameBoyHealthBarVisual(hpBarContainer, percentage);
       }
     });
   }
 
-  animateGameBoyExpBar(graphics, maxWidth, targetPercentage) {
+  animateGameBoyExpBar(expBarContainer, targetPercentage) {
+    if (!expBarContainer || !expBarContainer.expBar) return;
+    
+    const { expBar, maxWidth } = expBarContainer;
     const width = Math.max(0, maxWidth * targetPercentage);
-    graphics.clear();
-    graphics.fillStyle(0x4169e1, 1);
-    graphics.fillRoundedRect(0, 0, width, 10, 2);
-    graphics.fillStyle(0x6495ed, 0.6);
-    graphics.fillRoundedRect(1, 1, Math.max(0, width - 2), 3, 1);
+    
+    expBar.clear();
+    
+    if (width > 0) {
+      // Barre EXP avec dégradé bleu Game Boy
+      expBar.fillGradientStyle(0x2196f3, 0x2196f3, 0x64b5f6, 0x64b5f6);
+      expBar.fillRoundedRect(2, 2, width - 4, 4, 1);
+      
+      // Effet de brillance
+      expBar.fillStyle(0x90caf9, 0.6);
+      expBar.fillRoundedRect(2, 2, Math.max(0, width - 4), 1, 0);
+    }
   }
 
   // === CHARGEMENT SPRITES ===
