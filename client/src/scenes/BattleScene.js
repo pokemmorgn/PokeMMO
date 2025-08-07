@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION NETTOYÉE
+// client/src/scenes/BattleScene.js - VERSION INTERFACE UNIQUE
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -28,10 +28,8 @@ export class BattleScene extends Phaser.Scene {
     this.battleBackground = null;
     
     this.modernHealthBars = { player1: null, player2: null };
-    this.actionInterface = null;
-    this.actionMessageText = null;
+    this.battleActionUI = null; // ✅ Interface unique
     this.battleDialog = null;
-    this.battleActionUI = null;
     
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
@@ -83,7 +81,7 @@ export class BattleScene extends Phaser.Scene {
       this.createPokemonPlatforms();
       this.healthBarManager = new HealthBarManager(this);
       this.createModernHealthBars();
-      this.createModernActionInterface();
+      // ✅ SEULEMENT BattleActionUI - pas d'interface moderne
       this.createBattleActionUI();
       this.createBattleDialog();
       this.setupBattleNetworkEvents();
@@ -96,8 +94,44 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createBattleActionUI() {
-    this.battleActionUI = new BattleActionUI(this, null);
+    // ✅ Créer avec le BattleManager comme paramètre pour les actions
+    this.battleActionUI = new BattleActionUI(this, {
+      selectMove: (moveId) => this.handleMoveSelection(moveId),
+      useItem: (itemId) => this.handleItemUse(itemId),
+      attemptRun: () => this.handleRunAttempt()
+    });
     this.battleActionUI.create();
+  }
+
+  // ✅ Handlers pour les actions du BattleActionUI
+  handleMoveSelection(moveId) {
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.performBattleAction('attack', { moveId });
+    }
+  }
+
+  handleItemUse(itemId) {
+    if (itemId === 'open_bag') {
+      // Ouvrir le sac complet
+      try {
+        if (!this.battleInventoryUI) {
+          this.createBattleInventoryUI();
+        }
+        if (this.battleInventoryUI) {
+          this.battleInventoryUI.openToBalls();
+        }
+      } catch (error) {
+        console.error('Erreur ouverture sac:', error);
+      }
+    } else if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.performBattleAction('item', { itemId });
+    }
+  }
+
+  handleRunAttempt() {
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.attemptRun();
+    }
   }
 
   createBattleEnvironment() {
@@ -323,168 +357,6 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(0, 0, width, 8, 4);
     graphics.fillStyle(0xFFFFFF, 0.4);
     graphics.fillRoundedRect(0, 1, width, 3, 2);
-  }
-
-  createModernActionInterface() {
-    const { width, height } = this.cameras.main;
-    
-    this.actionInterface = this.add.container(width - 420, height - 180);
-    
-    const mainPanel = this.add.graphics();
-    mainPanel.fillStyle(0x1a1a1a, 0.95);
-    mainPanel.fillRoundedRect(20, 0, 380, 160, 16);
-    mainPanel.lineStyle(4, 0x4A90E2, 1);
-    mainPanel.strokeRoundedRect(20, 0, 380, 160, 16);
-    this.actionInterface.add(mainPanel);
-    
-    this.actionMessageText = this.add.text(200, 80, '', {
-      fontSize: '18px',
-      fontFamily: 'Arial Black, sans-serif',
-      color: '#FFFFFF',
-      fontWeight: 'bold',
-      align: 'center',
-      wordWrap: { width: 340 }
-    });
-    this.actionMessageText.setOrigin(0.5, 0.5);
-    this.actionMessageText.setVisible(false);
-    this.actionInterface.add(this.actionMessageText);
-    
-    this.createActionButtons();
-    
-    this.actionInterface.setDepth(200);
-    this.actionInterface.setVisible(false);
-  }
-
-  createActionButtons() {
-    const actions = [
-      { key: 'attack', text: 'Attaque', color: 0xE74C3C, icon: '⚔️' },
-      { key: 'bag', text: 'Sac', color: 0x9B59B6, icon: '🎒' },
-      { key: 'pokemon', text: 'Pokémon', color: 0x3498DB, icon: '🔄' },
-      { key: 'run', text: 'Fuite', color: 0x95A5A6, icon: '🏃' }
-    ];
-    
-    const startX = 40;
-    const startY = 40;
-    const buttonWidth = 160;
-    const buttonHeight = 50;
-    const gap = 15;
-    
-    actions.forEach((action, index) => {
-      const x = startX + (index % 2) * (buttonWidth + gap);
-      const y = startY + Math.floor(index / 2) * (buttonHeight + 15);
-      
-      const button = this.createModernButton(x, y, { width: buttonWidth, height: buttonHeight }, action);
-      this.actionInterface.add(button);
-    });
-  }
-
-  createModernButton(x, y, config, action) {
-    const buttonContainer = this.add.container(x, y);
-    
-    const bg = this.add.graphics();
-    bg.fillStyle(action.color, 0.8);
-    bg.fillRoundedRect(0, 0, config.width, config.height, 12);
-    bg.lineStyle(2, 0xFFFFFF, 0.8);
-    bg.strokeRoundedRect(0, 0, config.width, config.height, 12);
-    
-    const icon = this.add.text(20, config.height/2, action.icon, {
-      fontSize: '24px',
-      fontFamily: 'Arial, sans-serif'
-    });
-    icon.setOrigin(0, 0.5);
-    
-    const text = this.add.text(55, config.height/2, action.text, {
-      fontSize: '18px',
-      fontFamily: 'Arial Black, sans-serif',
-      color: '#FFFFFF',
-      fontWeight: 'bold'
-    });
-    text.setOrigin(0, 0.5);
-    
-    buttonContainer.add([bg, icon, text]);
-    buttonContainer.setSize(config.width, config.height);
-    buttonContainer.setInteractive();
-    
-    buttonContainer.on('pointerover', () => {
-      bg.clear();
-      bg.fillStyle(action.color, 1);
-      bg.fillRoundedRect(0, 0, config.width, config.height, 12);
-      bg.lineStyle(3, 0xFFD700, 1);
-      bg.strokeRoundedRect(0, 0, config.width, config.height, 12);
-      
-      this.tweens.add({
-        targets: buttonContainer,
-        scaleX: 1.05, scaleY: 1.05,
-        duration: 100
-      });
-    });
-    
-    buttonContainer.on('pointerout', () => {
-      bg.clear();
-      bg.fillStyle(action.color, 0.8);
-      bg.fillRoundedRect(0, 0, config.width, config.height, 12);
-      bg.lineStyle(2, 0xFFFFFF, 0.8);
-      bg.strokeRoundedRect(0, 0, config.width, config.height, 12);
-      
-      this.tweens.add({
-        targets: buttonContainer,
-        scaleX: 1, scaleY: 1,
-        duration: 100
-      });
-    });
-    
-    buttonContainer.on('pointerdown', () => {
-      this.handleActionButton(action.key);
-    });
-    
-    return buttonContainer;
-  }
-
-  handleActionButton(actionKey) {
-    this.hideActionButtons();
-    
-    switch (actionKey) {
-      case 'attack':
-        this.battleActionUI.onActionButtonClicked('fight');
-        break;
-      case 'bag':
-        try {
-          if (!this.battleInventoryUI) {
-            this.showActionMessage('Initialisation inventaire...');
-            this.createBattleInventoryUI();
-          }
-          
-          if (this.battleInventoryUI) {
-            this.battleInventoryUI.openToBalls();
-          } else {
-            this.showActionMessage('Inventaire de combat non disponible');
-            setTimeout(() => this.showActionButtons(), 2000);
-          }
-        } catch (error) {
-          this.showActionMessage('Erreur inventaire');
-          setTimeout(() => this.showActionButtons(), 2000);
-        }
-        break;
-      case 'pokemon':
-        this.showActionMessage('Changement de Pokémon indisponible.');
-        setTimeout(() => this.showActionButtons(), 2000);
-        break;
-      case 'run':
-        if (!this.battleNetworkHandler) {
-          this.showActionMessage('Impossible de fuir - pas de connexion');
-          setTimeout(() => this.showActionButtons(), 2000);
-          return;
-        }
-        
-        this.showActionMessage('Tentative de fuite...');
-        try {
-          this.battleNetworkHandler.attemptRun();
-        } catch (error) {
-          this.showActionMessage('Erreur lors de la fuite');
-          setTimeout(() => this.showActionButtons(), 2000);
-        }
-        break;
-    }
   }
 
   createBattleInventoryUI() {
@@ -743,58 +615,26 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  // ✅ Méthodes simplifiées pour les messages via BattleActionUI
   showActionMessage(message) {
-    if (!this.actionInterface || !this.actionMessageText) return;
-    
-    this.hideActionButtons();
-    this.actionMessageText.setText(message);
-    this.actionMessageText.setVisible(true);
-    
-    if (!this.actionInterface.visible) {
-      this.actionInterface.setVisible(true);
-      this.actionInterface.setAlpha(0);
-      this.tweens.add({
-        targets: this.actionInterface,
-        alpha: 1,
-        duration: 400,
-        ease: 'Power2.easeOut'
-      });
-    }
-    
-    this.interfaceMode = 'message';
+    this.showBattleMessage(message);
   }
 
   hideActionMessage() {
-    if (!this.actionMessageText) return;
-    this.actionMessageText.setVisible(false);
-    this.interfaceMode = 'hidden';
+    this.hideBattleMessage();
   }
 
+  // ✅ Méthodes pour contrôler BattleActionUI
   showActionButtons() {
-    this.hideActionMessage();
-    
-    if (this.actionInterface) {
-      this.actionInterface.list.forEach(child => {
-        if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
-          child.setVisible(true);
-        }
-      });
-      
-      this.actionInterface.setVisible(true);
-      this.actionInterface.setAlpha(1);
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
     }
-    
-    this.interfaceMode = 'buttons';
   }
 
   hideActionButtons() {
-    if (!this.actionInterface) return;
-    
-    this.actionInterface.list.forEach(child => {
-      if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
-        child.setVisible(false);
-      }
-    });
+    if (this.battleActionUI) {
+      this.battleActionUI.hide();
+    }
   }
 
   createAttackEffect(attacker, target) {
@@ -1343,8 +1183,8 @@ export class BattleScene extends Phaser.Scene {
   hideBattle() {
     this.deactivateBattleUI();
     
-    if (this.actionInterface) {
-      this.actionInterface.setVisible(false);
+    if (this.battleActionUI) {
+      this.battleActionUI.hide();
     }
     
     if (this.battleDialog) {
@@ -1604,11 +1444,6 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleActionUI) {
       this.battleActionUI.destroy();
       this.battleActionUI = null;
-    }
-
-    if (this.actionInterface) {
-      this.actionInterface.destroy();
-      this.actionInterface = null;
     }
     
     if (this.battleDialog) {
