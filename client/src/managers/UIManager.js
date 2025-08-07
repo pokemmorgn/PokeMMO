@@ -980,46 +980,49 @@ hideModule(moduleId, options = {}) {
     return true;
   }
 
-  applyGameState(stateConfig, animated = true) {
-    const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
-    
-    // Reset tous les modules à l'état visible et activé
-    const allModuleIds = Array.from(this.modules.keys());
-    
-    allModuleIds.forEach(moduleId => {
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        iconConfig.element.style.display = 'block';
-        iconConfig.element.style.visibility = 'visible';
-        iconConfig.element.style.opacity = '1';
-        iconConfig.element.style.pointerEvents = 'auto';
-        iconConfig.element.style.filter = '';
-        iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
-      }
+applyGameState(stateConfig, animated = true) {
+  const { visibleModules = [], hiddenModules = [], enabledModules = [], disabledModules = [] } = stateConfig;
+  
+  // Reset tous les modules à l'état visible et activé
+  const allModuleIds = Array.from(this.modules.keys());
+  
+  allModuleIds.forEach(moduleId => {
+    const iconConfig = this.registeredIcons.get(moduleId);
+    if (iconConfig && iconConfig.element) {
+      iconConfig.element.style.display = 'block';
+      iconConfig.element.style.visibility = 'visible';
+      iconConfig.element.style.opacity = '1';
+      iconConfig.element.style.pointerEvents = 'auto';
+      iconConfig.element.style.filter = '';
+      iconConfig.element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
+    }
+  });
+  
+  // ✅ ORDRE IMPORTANT : D'abord désactiver, PUIS masquer
+  
+  // 1. D'abord désactiver les modules (mais ils restent visibles)
+  disabledModules.forEach(moduleId => {
+    this.disableModule(moduleId);
+  });
+  
+  // 2. ENSUITE masquer les modules (override la désactivation visuelle)
+  hiddenModules.forEach(moduleId => {
+    this.hideModule(moduleId, { animated });
+  });
+  
+  // 3. Appliquer les permissions avec délai
+  setTimeout(() => {
+    visibleModules.forEach(moduleId => {
+      this.showModule(moduleId, { animated });
     });
     
-    // Appliquer les restrictions
-    disabledModules.forEach(moduleId => {
-      this.disableModule(moduleId);
+    enabledModules.forEach(moduleId => {
+      this.enableModule(moduleId);
     });
     
-    hiddenModules.forEach(moduleId => {
-      this.hideModule(moduleId, { animated });
-    });
-    
-    // Appliquer les permissions avec délai
-    setTimeout(() => {
-      visibleModules.forEach(moduleId => {
-        this.showModule(moduleId, { animated });
-      });
-      
-      enabledModules.forEach(moduleId => {
-        this.enableModule(moduleId);
-      });
-      
-      this.repositionAllIcons();
-    }, animated ? 150 : 0);
-  }
+    this.repositionAllIcons();
+  }, animated ? 150 : 0);
+}
   
   toggleModule(moduleId, options = {}) {
     const state = this.moduleStates.get(moduleId);
