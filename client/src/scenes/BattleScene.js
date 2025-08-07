@@ -1768,28 +1768,30 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // ✅ AMÉLIORÉ : Gestion spécifique de actionSelectionStart
+  // ✅ CORRIGÉ : Gestion spécifique de actionSelectionStart avec bonne structure
   handleActionSelectionStart(data) {
     console.log('🎯 [BattleScene] actionSelectionStart reçu:', data);
     
     // Debug complet de la structure reçue
     console.log('🔍 [BattleScene] Structure complète data:', JSON.stringify(data, null, 2));
     
-    // Extraire les moves du gameState
-    if (data.gameState && data.gameState.player1 && data.gameState.player1.activePokemon) {
-      const playerPokemon = data.gameState.player1.activePokemon;
+    // ✅ CORRECTION : Utiliser la vraie structure serveur
+    if (data.gameState && data.gameState.player1 && data.gameState.player1.pokemon) {
+      const playerPokemon = data.gameState.player1.pokemon;
       console.log('🐾 [BattleScene] PlayerPokemon trouvé:', playerPokemon);
       
       if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
         console.log('⚔️ [BattleScene] Moves reçues du serveur:', playerPokemon.moves);
-        this.currentPlayerMoves = playerPokemon.moves;
+        
+        // ✅ NOUVEAU : Transformer les moves serveur en format interface
+        this.currentPlayerMoves = this.transformServerMoves(playerPokemon.moves, playerPokemon);
         
         // Mettre à jour les données du Pokémon actuel
         if (this.currentPlayerPokemon) {
-          this.currentPlayerPokemon.moves = playerPokemon.moves;
+          this.currentPlayerPokemon.moves = this.currentPlayerMoves;
         }
         
-        console.log('✅ [BattleScene] Moves stockées avec succès');
+        console.log('✅ [BattleScene] Moves transformées:', this.currentPlayerMoves);
       } else {
         console.error('❌ [BattleScene] Pas de moves dans playerPokemon');
         console.log('🔍 [BattleScene] playerPokemon.moves:', playerPokemon.moves);
@@ -1801,7 +1803,7 @@ export class BattleScene extends Phaser.Scene {
       if (data.gameState) {
         console.log('🔍 [BattleScene] data.gameState.player1:', data.gameState.player1);
         if (data.gameState.player1) {
-          console.log('🔍 [BattleScene] data.gameState.player1.activePokemon:', data.gameState.player1.activePokemon);
+          console.log('🔍 [BattleScene] data.gameState.player1.pokemon:', data.gameState.player1.pokemon);
         }
       }
       this.currentPlayerMoves = [];
@@ -1816,6 +1818,125 @@ export class BattleScene extends Phaser.Scene {
     } else {
       console.error(`❌ [BattleScene] Aucune attaque reçue du serveur - interface limitée`);
     }
+  }
+
+  // ✅ NOUVEAU : Transformer les moves serveur en format interface
+  transformServerMoves(serverMoves, pokemonData) {
+    console.log('🔄 [BattleScene] Transformation des moves serveur:', serverMoves);
+    
+    return serverMoves.map((moveId, index) => {
+      // Base move data
+      const move = {
+        id: moveId,
+        name: this.getMoveName(moveId),
+        type: this.getMoveType(moveId),
+        power: this.getMovePower(moveId),
+        pp: this.getMoveMaxPP(moveId), // Pour l'instant, PP max
+        maxPp: this.getMoveMaxPP(moveId),
+        accuracy: this.getMoveAccuracy(moveId),
+        description: this.getMoveDescription(moveId)
+      };
+      
+      console.log(`📝 [BattleScene] Move ${index + 1}: ${move.name} (${move.type})`);
+      return move;
+    });
+  }
+
+  // ✅ NOUVEAU : Base de données des moves (à étendre selon les besoins)
+  getMoveName(moveId) {
+    const moveNames = {
+      'tackle': 'Charge',
+      'tail_whip': 'Mimi-Queue',
+      'scratch': 'Griffe',
+      'growl': 'Grondement',
+      'ember': 'Flammèche',
+      'water_gun': 'Pistolet à O',
+      'vine_whip': 'Fouet Lianes',
+      'thunder_shock': 'Éclair',
+      'quick_attack': 'Vive-Attaque',
+      'bite': 'Morsure'
+    };
+    return moveNames[moveId] || moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  getMoveType(moveId) {
+    const moveTypes = {
+      'tackle': 'normal',
+      'tail_whip': 'normal',
+      'scratch': 'normal',
+      'growl': 'normal',
+      'ember': 'fire',
+      'water_gun': 'water',
+      'vine_whip': 'grass',
+      'thunder_shock': 'electric',
+      'quick_attack': 'normal',
+      'bite': 'dark'
+    };
+    return moveTypes[moveId] || 'normal';
+  }
+
+  getMovePower(moveId) {
+    const movePowers = {
+      'tackle': 40,
+      'tail_whip': 0,
+      'scratch': 40,
+      'growl': 0,
+      'ember': 40,
+      'water_gun': 40,
+      'vine_whip': 45,
+      'thunder_shock': 40,
+      'quick_attack': 40,
+      'bite': 60
+    };
+    return movePowers[moveId] || 50;
+  }
+
+  getMoveMaxPP(moveId) {
+    const movePP = {
+      'tackle': 35,
+      'tail_whip': 30,
+      'scratch': 35,
+      'growl': 40,
+      'ember': 25,
+      'water_gun': 25,
+      'vine_whip': 25,
+      'thunder_shock': 30,
+      'quick_attack': 30,
+      'bite': 25
+    };
+    return movePP[moveId] || 20;
+  }
+
+  getMoveAccuracy(moveId) {
+    const moveAccuracies = {
+      'tackle': 100,
+      'tail_whip': 100,
+      'scratch': 100,
+      'growl': 100,
+      'ember': 100,
+      'water_gun': 100,
+      'vine_whip': 100,
+      'thunder_shock': 100,
+      'quick_attack': 100,
+      'bite': 100
+    };
+    return moveAccuracies[moveId] || 100;
+  }
+
+  getMoveDescription(moveId) {
+    const moveDescriptions = {
+      'tackle': 'Une charge physique basique.',
+      'tail_whip': 'Remue la queue pour baisser la Défense.',
+      'scratch': 'Lacère avec des griffes acérées.',
+      'growl': 'Gronde pour intimider et baisser l\'Attaque.',
+      'ember': 'Projette une petite flamme.',
+      'water_gun': 'Projette de l\'eau à haute pression.',
+      'vine_whip': 'Fouette avec des lianes flexibles.',
+      'thunder_shock': 'Attaque électrique de faible intensité.',
+      'quick_attack': 'Attaque rapide qui frappe en premier.',
+      'bite': 'Morsure puissante qui peut faire flincher.'
+    };
+    return moveDescriptions[moveId] || 'Attaque Pokémon.';
   }
 
   // === GESTION UI ===
