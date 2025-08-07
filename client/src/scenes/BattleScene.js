@@ -46,9 +46,9 @@ export class BattleScene extends Phaser.Scene {
     // Positions optimisées - RÉGLAGES DE POSITION
     this.pokemonPositions = {
       player: { x: 0.15, y: 0.78 },
-      opponent: { x: 0.70, y: 0.20 },      // ⬇️ POSITION POKÉMON ADVERSE : Baissé de 0.25 à 0.20
+      opponent: { x: 0.70, y: 0.50 },      // ⬇️ POSITION POKÉMON ADVERSE : Ajustée à 0.50
       playerPlatform: { x: 0.18, y: 0.88 },
-      opponentPlatform: { x: 0.73, y: 0.30 }  // ⬇️ POSITION SOCLE ADVERSE : Baissé de 0.35 à 0.30
+      opponentPlatform: { x: 0.73, y: 0.55 }  // ⬇️ POSITION SOCLE ADVERSE : Ajustée à 0.55
     };
     
     // Interface state
@@ -1094,10 +1094,14 @@ export class BattleScene extends Phaser.Scene {
     try {
       const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'front');
       const { width, height } = this.cameras.main;
-      const x = width * this.pokemonPositions.opponent.x;
-      const y = height * this.pokemonPositions.opponent.y;
       
-      this.opponentPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
+      // 🎯 POSITION POKÉMON ADVERSE - Calculée par rapport au socle + décalage
+      const socleY = height * this.pokemonPositions.opponentPlatform.y;
+      const pokemonY = socleY - 20; // Pokémon 20px au-dessus du socle
+      
+      const x = width * this.pokemonPositions.opponent.x;
+      
+      this.opponentPokemonSprite = this.add.sprite(x, pokemonY, spriteKey, 0);
       this.opponentPokemonSprite.setScale(3.2);
       this.opponentPokemonSprite.setDepth(20);
       this.opponentPokemonSprite.setOrigin(0.5, 1);
@@ -1236,9 +1240,21 @@ export class BattleScene extends Phaser.Scene {
 
   createGameBoyPokemonPlaceholder(type, pokemonData) {
     const { width, height } = this.cameras.main;
-    const position = type === 'player' ? 
-      { x: width * this.pokemonPositions.player.x, y: height * this.pokemonPositions.player.y } :
-      { x: width * this.pokemonPositions.opponent.x, y: height * this.pokemonPositions.opponent.y };
+    let position;
+    
+    if (type === 'player') {
+      position = { 
+        x: width * this.pokemonPositions.player.x, 
+        y: height * this.pokemonPositions.player.y 
+      };
+    } else {
+      // 🎯 PLACEHOLDER ADVERSAIRE - Position basée sur le socle + décalage
+      const socleY = height * this.pokemonPositions.opponentPlatform.y;
+      position = { 
+        x: width * this.pokemonPositions.opponent.x, 
+        y: socleY - 20  // 20px au-dessus du socle
+      };
+    }
     
     const container = this.add.container(position.x, position.y);
     const primaryType = pokemonData.types?.[0] || 'normal';
