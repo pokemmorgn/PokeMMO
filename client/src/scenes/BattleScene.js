@@ -1,10 +1,11 @@
-// client/src/scenes/BattleScene.js - VERSION MODERNE POKÉMON ROUGE/BLEU CORRIGÉE
+// client/src/scenes/BattleScene.js - VERSION HARMONISÉE AVEC L'INVENTAIRE
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
+import { t } from '../managers/LocalizationManager.js';
 
 let pokemonSpriteConfig = null;
 
@@ -28,7 +29,7 @@ export class BattleScene extends Phaser.Scene {
     this.opponentPokemonSprite = null;
     this.battleBackground = null;
     
-    // Interface moderne Pokémon Rouge/Bleu
+    // Interface moderne harmonisée
     this.modernHealthBars = { player1: null, player2: null };
     this.actionInterface = null;
     this.actionMessageText = null;
@@ -43,12 +44,12 @@ export class BattleScene extends Phaser.Scene {
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
-    // Positions optimisées - RÉGLAGES DE POSITION
+    // Positions optimisées
     this.pokemonPositions = {
       player: { x: 0.15, y: 0.78 },
-      opponent: { x: 0.70, y: 0.50 },      // ⬇️ POSITION POKÉMON ADVERSE : Ajustée à 0.50
+      opponent: { x: 0.70, y: 0.50 },
       playerPlatform: { x: 0.18, y: 0.88 },
-      opponentPlatform: { x: 0.73, y: 0.55 }  // ⬇️ POSITION SOCLE ADVERSE : Ajustée à 0.55
+      opponentPlatform: { x: 0.73, y: 0.55 }
     };
     
     // Interface state
@@ -89,13 +90,12 @@ export class BattleScene extends Phaser.Scene {
     this.scene.sleep();
     
     try {
-      this.addModernStyles();
-      this.createGameBoyBattleEnvironment();
-      this.createPixelPokemonPlatforms();
+      this.createModernBattleEnvironment();
+      this.createModernPokemonPlatforms();
       this.healthBarManager = new HealthBarManager(this);
-      this.createGameBoyHealthBars();
-      this.createGameBoyActionInterface();
-      this.createPixelBattleDialog();
+      this.createModernHealthBars();
+      this.createModernActionInterface();
+      this.createModernBattleDialog();
       this.setupBattleNetworkEvents();
       this.isActive = true;
       this.isReadyForActivation = true;
@@ -106,15 +106,9 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === STYLES POKÉMON ROUGE/BLEU ===
+  // === ENVIRONNEMENT MODERNE ===
 
-  addModernStyles() {
-    // Styles appliqués via les éléments Phaser directement
-  }
-
-  // === ENVIRONNEMENT GAME BOY ===
-
-  createGameBoyBattleEnvironment() {
+  createModernBattleEnvironment() {
     const { width, height } = this.cameras.main;
     
     if (this.textures.exists('battlebg01')) {
@@ -124,190 +118,190 @@ export class BattleScene extends Phaser.Scene {
       const scale = Math.max(scaleX, scaleY) * 1.05;
       this.battleBackground.setScale(scale);
       this.battleBackground.setDepth(-100);
-      this.battleBackground.setTint(0xf5f5dc);
+      this.battleBackground.setTint(0xf0f8f0);
     } else {
-      this.createGameBoyGradientBackground(width, height);
+      this.createModernGradientBackground(width, height);
     }
     
-    this.createGameBoyBorder(width, height);
-    this.createPixelGround(width, height);
+    this.createModernBorder(width, height);
+    this.createModernGround(width, height);
   }
 
-  createGameBoyGradientBackground(width, height) {
+  createModernGradientBackground(width, height) {
     const bg = this.add.graphics();
-    bg.fillGradientStyle(0xe8f4f0, 0xe8f4f0, 0xd4e6d4, 0xb8d4b8);
+    bg.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
     bg.fillRect(0, 0, width, height);
     bg.setDepth(-100);
     this.battleBackground = bg;
   }
 
-  createGameBoyBorder(width, height) {
+  createModernBorder(width, height) {
     const border = this.add.graphics();
     border.setDepth(200);
     
-    border.lineStyle(8, 0x1a1a1a, 1);
-    border.strokeRect(4, 4, width - 8, height - 8);
+    // Bordure principale - même style que l'inventaire
+    border.lineStyle(3, 0x4a90e2, 1);
+    border.strokeRect(8, 8, width - 16, height - 16);
     
-    border.lineStyle(4, 0x8fad8f, 1);
+    // Bordure intérieure 
+    border.lineStyle(2, 0x357abd, 0.8);
     border.strokeRect(12, 12, width - 24, height - 24);
   }
 
-  createPixelGround(width, height) {
+  createModernGround(width, height) {
     const groundY = height * 0.82;
     const ground = this.add.graphics();
     ground.setDepth(-50);
     
-    ground.fillStyle(0x6B8E6B, 0.8);
+    // Dégradé moderne
+    ground.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x357abd, 0x357abd, 0.3);
     ground.fillRect(0, groundY, width, height - groundY);
     
-    ground.lineStyle(2, 0x4a6b4a, 0.9);
-    for (let i = 0; i < 5; i++) {
-      const y = groundY + (i * 8);
+    // Lignes d'effet
+    ground.lineStyle(1, 0x87ceeb, 0.4);
+    for (let i = 0; i < 3; i++) {
+      const y = groundY + (i * 12);
       ground.lineBetween(0, y, width, y);
-    }
-    
-    ground.fillStyle(0x7ba05b, 0.6);
-    for (let x = 0; x < width; x += 16) {
-      for (let y = groundY + 8; y < height; y += 12) {
-        if (Math.random() > 0.7) {
-          ground.fillRect(x, y, 4, 6);
-        }
-      }
     }
   }
 
-  // === PLATEFORMES PIXELISÉES ===
+  // === PLATEFORMES MODERNES ===
 
-  createPixelPokemonPlatforms() {
+  createModernPokemonPlatforms() {
     const { width, height } = this.cameras.main;
     
-    this.createPixelPlatform(
+    this.createModernPlatform(
       width * this.pokemonPositions.playerPlatform.x,
       height * this.pokemonPositions.playerPlatform.y,
       140, 'player'
     );
     
-    this.createPixelPlatform(
+    this.createModernPlatform(
       width * this.pokemonPositions.opponentPlatform.x,
       height * this.pokemonPositions.opponentPlatform.y,
       90, 'opponent'
     );
   }
 
-  createPixelPlatform(x, y, size, type) {
+  createModernPlatform(x, y, size, type) {
     const platform = this.add.graphics();
     platform.setDepth(type === 'player' ? 15 : 10);
     
-    platform.fillStyle(0x2d4a2d, 0.6);
+    // Ombre moderne
+    platform.fillStyle(0x000000, 0.2);
     platform.fillEllipse(x + 4, y + 4, size, size * 0.25);
     
-    const baseColor = type === 'player' ? 0x8fad8f : 0x6b8e6b;
-    platform.fillStyle(baseColor, 0.9);
+    // Base avec style inventaire
+    const baseColor = type === 'player' ? 0x4a90e2 : 0x357abd;
+    platform.fillGradientStyle(baseColor, baseColor, 0x2a3f5f, 0x2a3f5f, 0.8);
     platform.fillEllipse(x, y, size, size * 0.25);
     
-    platform.fillStyle(0x4a6b4a, 0.8);
-    platform.fillEllipse(x, y + 2, size * 0.8, size * 0.15);
+    // Reflet
+    platform.fillStyle(0x87ceeb, 0.3);
+    platform.fillEllipse(x, y - 2, size * 0.8, size * 0.15);
     
-    platform.lineStyle(3, 0x2d4a2d, 1);
+    // Bordure
+    platform.lineStyle(2, 0x87ceeb, 0.8);
     platform.strokeEllipse(x, y, size, size * 0.25);
     
+    // Points lumineux
     for (let i = 0; i < 6; i++) {
       const angle = (i * Math.PI * 2) / 6;
-      const grassX = x + Math.cos(angle) * (size * 0.6);
-      const grassY = y + Math.sin(angle) * (size * 0.15);
+      const pointX = x + Math.cos(angle) * (size * 0.4);
+      const pointY = y + Math.sin(angle) * (size * 0.12);
       
-      platform.fillStyle(0x7ba05b, 0.7);
-      platform.fillRect(grassX - 2, grassY - 3, 4, 6);
+      platform.fillStyle(0x87ceeb, 0.6);
+      platform.fillCircle(pointX, pointY, 2);
     }
   }
 
-  // === BARRES DE VIE GAME BOY ===
+  // === BARRES DE VIE MODERNES ===
 
-  createGameBoyHealthBars() {
+  createModernHealthBars() {
     const { width, height } = this.cameras.main;
     
-    this.createGameBoyHealthBar('player2', {
+    this.createModernHealthBar('player2', {
       x: width * 0.05,
       y: height * 0.05,
-      width: 260,
-      height: 55,
+      width: 280,
+      height: 60,
       isPlayer: false
     });
     
-    this.createGameBoyHealthBar('player1', {
-      x: width * 0.55,
-      y: height * 0.58,
-      width: 300,
-      height: 75,
+    this.createModernHealthBar('player1', {
+      x: width * 0.50,
+      y: height * 0.55,
+      width: 320,
+      height: 80,
       isPlayer: true
     });
   }
 
-  createGameBoyHealthBar(type, config) {
+  createModernHealthBar(type, config) {
     const container = this.add.container(config.x, config.y);
     container.setDepth(180);
     
-    // Panel principal avec style Game Boy authentique
+    // Panel avec le style de l'inventaire
     const bgPanel = this.add.graphics();
-    this.drawGameBoyPanel(bgPanel, config.width, config.height);
+    this.drawModernPanel(bgPanel, config.width, config.height);
     
-    // Zone nom/niveau intégrée au panel
-    const nameText = this.add.text(12, 12, 
-      config.isPlayer ? 'VOTRE POKÉMON' : 'POKÉMON SAUVAGE', {
-      fontSize: config.isPlayer ? '12px' : '11px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+    // Zone nom/niveau
+    const nameText = this.add.text(15, 15, 
+      config.isPlayer ? t('battle.ui.your_pokemon') : t('battle.ui.wild_pokemon'), {
+      fontSize: config.isPlayer ? '14px' : '12px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold'
     });
     
-    // Badge niveau style Game Boy
-    const levelContainer = this.add.container(config.width - 40, 18);
+    // Badge niveau moderne
+    const levelContainer = this.add.container(config.width - 45, 20);
     const levelBadge = this.add.graphics();
-    levelBadge.fillStyle(0x1a1a1a, 1);
-    levelBadge.fillRoundedRect(-25, -8, 50, 16, 2);
-    levelBadge.lineStyle(1, 0x8fad8f, 1);
-    levelBadge.strokeRoundedRect(-25, -8, 50, 16, 2);
+    levelBadge.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x357abd, 0x357abd);
+    levelBadge.fillRoundedRect(-25, -10, 50, 20, 8);
+    levelBadge.lineStyle(2, 0x87ceeb, 1);
+    levelBadge.strokeRoundedRect(-25, -10, 50, 20, 8);
     
     const levelText = this.add.text(0, 0, 'LV.--', {
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      color: '#f0f8f0',
+      fontSize: '11px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold'
     });
     levelText.setOrigin(0.5);
     levelContainer.add([levelBadge, levelText]);
     
-    // Label HP avec style authentique
-    const hpLabel = this.add.text(12, 38, 'HP', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+    // Label HP moderne
+    const hpLabel = this.add.text(15, 42, 'HP', {
+      fontSize: '13px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#87ceeb',
       fontWeight: 'bold'
     });
     
-    // Barre HP intégrée style Game Boy authentique
-    const hpBarContainer = this.createGameBoyHPBar(35, 38, config.width - 50);
+    // Barre HP moderne
+    const hpBarContainer = this.createModernHPBar(45, 42, config.width - 60);
     
     let hpText = null;
     if (config.isPlayer) {
-      hpText = this.add.text(config.width - 80, 55, '--/--', {
+      hpText = this.add.text(config.width - 90, 60, '--/--', {
         fontSize: '12px',
-        fontFamily: 'monospace',
-        color: '#1a1a1a',
+        fontFamily: "'Segoe UI', Arial, sans-serif",
+        color: '#87ceeb',
         fontWeight: 'bold'
       });
     }
     
     let expBarContainer = null;
     if (config.isPlayer) {
-      const expLabel = this.add.text(12, 62, 'EXP', {
-        fontSize: '10px',
-        fontFamily: 'monospace',
-        color: '#1a1a1a',
+      const expLabel = this.add.text(15, 65, 'EXP', {
+        fontSize: '11px',
+        fontFamily: "'Segoe UI', Arial, sans-serif",
+        color: '#87ceeb',
         fontWeight: 'bold'
       });
       
-      expBarContainer = this.createGameBoyExpBar(35, 64, config.width - 50);
+      expBarContainer = this.createModernExpBar(45, 67, config.width - 60);
       container.add([expLabel, expBarContainer.container]);
     }
     
@@ -334,67 +328,59 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  drawGameBoyPanel(graphics, width, height) {
+  drawModernPanel(graphics, width, height) {
     graphics.clear();
     
-    // Fond principal avec dégradé Game Boy subtil
-    graphics.fillGradientStyle(0xf8fff8, 0xf8fff8, 0xf0f8f0, 0xe8f4e8);
-    graphics.fillRoundedRect(0, 0, width, height, 6);
+    // Fond avec dégradé moderne (même style que l'inventaire)
+    graphics.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
+    graphics.fillRoundedRect(0, 0, width, height, 12);
     
-    // Bordure principale noire épaisse
-    graphics.lineStyle(3, 0x1a1a1a, 1);
-    graphics.strokeRoundedRect(0, 0, width, height, 6);
+    // Bordure principale bleue
+    graphics.lineStyle(3, 0x4a90e2, 1);
+    graphics.strokeRoundedRect(0, 0, width, height, 12);
     
-    // Bordure intérieure verte Game Boy
-    graphics.lineStyle(2, 0x6b8e6b, 0.8);
-    graphics.strokeRoundedRect(3, 3, width - 6, height - 6, 4);
+    // Bordure intérieure
+    graphics.lineStyle(2, 0x357abd, 0.8);
+    graphics.strokeRoundedRect(3, 3, width - 6, height - 6, 10);
     
-    // Effet de relief interne subtil
-    graphics.lineStyle(1, 0xffffff, 0.3);
-    graphics.strokeRoundedRect(5, 5, width - 10, height - 10, 3);
+    // Effet de brillance
+    graphics.lineStyle(1, 0x87ceeb, 0.4);
+    graphics.strokeRoundedRect(6, 6, width - 12, height - 12, 8);
   }
 
-  createGameBoyHPBar(x, y, maxWidth) {
+  createModernHPBar(x, y, maxWidth) {
     const container = this.add.container(x, y);
     
-    // Fond de la barre avec effet enfoncé Game Boy
+    // Fond moderne
     const background = this.add.graphics();
-    background.fillStyle(0x2d4a2d, 1);
-    background.fillRoundedRect(0, 0, maxWidth, 12, 2);
-    background.lineStyle(1, 0x1a2a1a, 1);
-    background.strokeRoundedRect(0, 0, maxWidth, 12, 2);
-    
-    // Bordure intérieure sombre (effet enfoncé)
-    background.lineStyle(1, 0x0f1a0f, 0.8);
-    background.strokeRoundedRect(1, 1, maxWidth - 2, 10, 1);
+    background.fillStyle(0x000000, 0.4);
+    background.fillRoundedRect(0, 0, maxWidth, 14, 4);
+    background.lineStyle(2, 0x4a90e2, 0.6);
+    background.strokeRoundedRect(0, 0, maxWidth, 14, 4);
     
     // Barre HP principale
     const hpBar = this.add.graphics();
     
-    // Segments de la barre (style Game Boy authentique)
-    const segmentContainer = this.add.container(0, 0);
-    
-    container.add([background, segmentContainer, hpBar]);
+    container.add([background, hpBar]);
     
     return {
       container,
       background,
       hpBar,
-      segmentContainer,
       maxWidth,
       currentPercentage: 1.0
     };
   }
 
-  createGameBoyExpBar(x, y, maxWidth) {
+  createModernExpBar(x, y, maxWidth) {
     const container = this.add.container(x, y);
     
-    // Fond EXP avec style Game Boy
+    // Fond EXP moderne
     const background = this.add.graphics();
-    background.fillStyle(0x4a6b4a, 1);
-    background.fillRoundedRect(0, 0, maxWidth, 8, 2);
-    background.lineStyle(1, 0x2d4a2d, 1);
-    background.strokeRoundedRect(0, 0, maxWidth, 8, 2);
+    background.fillStyle(0x000000, 0.3);
+    background.fillRoundedRect(0, 0, maxWidth, 10, 3);
+    background.lineStyle(1, 0x4a90e2, 0.5);
+    background.strokeRoundedRect(0, 0, maxWidth, 10, 3);
     
     // Barre EXP
     const expBar = this.add.graphics();
@@ -409,82 +395,66 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  updateGameBoyHealthBarVisual(hpBarContainer, targetPercentage) {
+  updateModernHealthBarVisual(hpBarContainer, targetPercentage) {
     if (!hpBarContainer || !hpBarContainer.hpBar) return;
     
-    const { hpBar, segmentContainer, maxWidth } = hpBarContainer;
+    const { hpBar, maxWidth } = hpBarContainer;
     const percentage = Math.max(0, Math.min(1, targetPercentage));
     
     hpBar.clear();
-    segmentContainer.removeAll(true);
     
     if (percentage <= 0) return;
     
-    // Couleurs selon le pourcentage HP (Game Boy authentique)
-    let primaryColor, secondaryColor, glowColor;
+    // Couleurs modernes selon le pourcentage HP
+    let primaryColor, secondaryColor;
     if (percentage > 0.6) {
-      primaryColor = 0x4caf50;    // Vert foncé
-      secondaryColor = 0x66bb6a;  // Vert moyen
-      glowColor = 0x81c784;       // Vert clair
+      primaryColor = 0x4caf50;
+      secondaryColor = 0x81c784;
     } else if (percentage > 0.3) {
-      primaryColor = 0xff9800;    // Orange foncé
-      secondaryColor = 0xffb74d;  // Orange moyen
-      glowColor = 0xffcc02;       // Orange clair
+      primaryColor = 0xff9800;
+      secondaryColor = 0xffcc02;
     } else {
-      primaryColor = 0xf44336;    // Rouge foncé
-      secondaryColor = 0xe57373;  // Rouge moyen
-      glowColor = 0xffab91;       // Rouge clair
+      primaryColor = 0xf44336;
+      secondaryColor = 0xff7043;
     }
     
     const currentWidth = Math.floor(maxWidth * percentage);
     
-    // Barre principale avec dégradé
+    // Barre avec dégradé moderne
     hpBar.fillGradientStyle(primaryColor, primaryColor, secondaryColor, secondaryColor);
-    hpBar.fillRoundedRect(2, 2, currentWidth - 4, 8, 1);
+    hpBar.fillRoundedRect(2, 2, currentWidth - 4, 10, 3);
     
-    // Effet de brillance Game Boy (ligne du haut)
-    hpBar.fillStyle(glowColor, 0.6);
-    hpBar.fillRoundedRect(2, 2, Math.max(0, currentWidth - 4), 2, 1);
+    // Effet de brillance moderne
+    hpBar.fillStyle(0xffffff, 0.3);
+    hpBar.fillRoundedRect(2, 2, Math.max(0, currentWidth - 4), 3, 2);
     
-    // Segments pixelisés pour l'effet Game Boy authentique
-    if (currentWidth > 6) {
-      const segmentWidth = 3;
-      const segmentCount = Math.floor(currentWidth / (segmentWidth + 1));
-      
-      for (let i = 0; i < segmentCount; i++) {
-        const segmentX = 2 + i * (segmentWidth + 1);
-        if (segmentX + segmentWidth <= currentWidth) {
-          const segment = this.add.graphics();
-          segment.fillStyle(0xffffff, 0.2);
-          segment.fillRect(segmentX, 3, 1, 6);
-          segmentContainer.add(segment);
-        }
-      }
-    }
+    // Bordure intérieure
+    hpBar.lineStyle(1, 0xffffff, 0.2);
+    hpBar.strokeRoundedRect(2, 2, currentWidth - 4, 10, 3);
     
     hpBarContainer.currentPercentage = percentage;
   }
 
-  // === INTERFACE D'ACTIONS GAME BOY ===
+  // === INTERFACE D'ACTIONS MODERNE ===
 
-  createGameBoyActionInterface() {
+  createModernActionInterface() {
     const { width, height } = this.cameras.main;
     
-    this.actionInterface = this.add.container(0, height - 120);
+    this.actionInterface = this.add.container(0, height - 130);
     this.actionInterface.setDepth(190);
     
     this.mainPanel = this.add.graphics();
-    this.drawMainPanel(width, 100, 'buttons');
+    this.drawModernActionPanel(width, 110, 'buttons');
     this.actionInterface.add(this.mainPanel);
     
     this.textPanel = this.add.graphics();
     this.textPanel.setVisible(false);
     this.actionInterface.add(this.textPanel);
     
-    this.actionMessageText = this.add.text(width/2, 30, '', {
+    this.actionMessageText = this.add.text(width/2, 35, '', {
       fontSize: '16px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold',
       align: 'center',
       wordWrap: { width: width - 80 }
@@ -493,12 +463,12 @@ export class BattleScene extends Phaser.Scene {
     this.actionMessageText.setVisible(false);
     this.actionInterface.add(this.actionMessageText);
     
-    this.createGameBoyActionButtons(width);
+    this.createModernActionButtons(width);
     
-    this.continueArrow = this.add.text(width - 50, 80, '▼', {
+    this.continueArrow = this.add.text(width - 60, 85, '▼', {
       fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a'
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#87ceeb'
     });
     this.continueArrow.setOrigin(0.5);
     this.continueArrow.setVisible(false);
@@ -516,140 +486,139 @@ export class BattleScene extends Phaser.Scene {
     this.actionInterface.setVisible(false);
   }
 
-  drawMainPanel(width, height, mode) {
+  drawModernActionPanel(width, height, mode) {
     if (!this.mainPanel) return;
     
     this.mainPanel.clear();
     
-    // Adapter la hauteur selon le mode - RETOUR À LA TAILLE NORMALE
-    let panelHeight;
+    let panelHeight = height;
     if (mode === 'narrative') {
-      panelHeight = 90;
-    } else {
-      panelHeight = height; // Taille normale pour attaques et boutons
+      panelHeight = 100;
     }
     
     const panelY = mode === 'narrative' ? 10 : 0;
     
-    this.mainPanel.fillStyle(0xf0f8f0, 0.98);
-    this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 8);
+    // Style moderne harmonisé avec l'inventaire
+    this.mainPanel.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
+    this.mainPanel.fillRoundedRect(20, panelY, width - 40, panelHeight, 15);
     
-    this.mainPanel.lineStyle(4, 0x1a1a1a, 1);
-    this.mainPanel.strokeRoundedRect(20, panelY, width - 40, panelHeight, 8);
+    this.mainPanel.lineStyle(3, 0x4a90e2, 1);
+    this.mainPanel.strokeRoundedRect(20, panelY, width - 40, panelHeight, 15);
     
-    this.mainPanel.lineStyle(2, 0x8fad8f, 1);
-    this.mainPanel.strokeRoundedRect(24, panelY + 4, width - 48, panelHeight - 8, 6);
+    this.mainPanel.lineStyle(2, 0x357abd, 0.8);
+    this.mainPanel.strokeRoundedRect(23, panelY + 3, width - 46, panelHeight - 6, 12);
   }
 
-  drawTextPanel(width, mode) {
+  drawModernTextPanel(width, mode) {
     if (!this.textPanel) return;
     
     this.textPanel.clear();
     
     if (mode === 'narrative') {
-      this.textPanel.fillStyle(0xe8f4e8, 1);
-      this.textPanel.fillRoundedRect(30, 20, width - 60, 60, 6);
-      this.textPanel.lineStyle(2, 0x6b8e6b, 1);
-      this.textPanel.strokeRoundedRect(30, 20, width - 60, 60, 6);
+      this.textPanel.fillGradientStyle(0x1e2d42, 0x1e2d42, 0x2a3f5f, 0x2a3f5f, 0.95);
+      this.textPanel.fillRoundedRect(35, 25, width - 70, 65, 8);
+      this.textPanel.lineStyle(2, 0x4a90e2, 0.8);
+      this.textPanel.strokeRoundedRect(35, 25, width - 70, 65, 8);
     } else if (mode === 'message') {
-      this.textPanel.fillStyle(0xe8f4e8, 1);
-      this.textPanel.fillRoundedRect(30, 10, width - 60, 35, 6);
-      this.textPanel.lineStyle(2, 0x6b8e6b, 1);
-      this.textPanel.strokeRoundedRect(30, 10, width - 60, 35, 6);
+      this.textPanel.fillGradientStyle(0x1e2d42, 0x1e2d42, 0x2a3f5f, 0x2a3f5f, 0.95);
+      this.textPanel.fillRoundedRect(35, 15, width - 70, 40, 8);
+      this.textPanel.lineStyle(2, 0x4a90e2, 0.8);
+      this.textPanel.strokeRoundedRect(35, 15, width - 70, 40, 8);
     }
   }
 
-  createGameBoyActionButtons(width) {
+  createModernActionButtons(width) {
     const actions = [
-      { key: 'attack', text: 'COMBAT', color: 0xff5722, icon: '⚔' },
-      { key: 'bag', text: 'SAC', color: 0x9c27b0, icon: '🎒' },
-      { key: 'pokemon', text: 'POKÉMON', color: 0x2196f3, icon: '🔄' },
-      { key: 'run', text: 'FUITE', color: 0x607d8b, icon: '🏃' }
+      { key: 'attack', text: t('battle.ui.actions.attack'), color: 0xff5722, icon: '⚔' },
+      { key: 'bag', text: t('battle.ui.actions.bag'), color: 0x9c27b0, icon: '🎒' },
+      { key: 'pokemon', text: t('battle.ui.actions.pokemon'), color: 0x2196f3, icon: '🔄' },
+      { key: 'run', text: t('battle.ui.actions.run'), color: 0x607d8b, icon: '🏃' }
     ];
     
-    // CENTRAGE PARFAIT - Calcul précis pour équilibrer gauche/droite
-    const totalPadding = 60; // 30px de chaque côté pour les bordures du panel
+    // Centrage parfait - même logique que l'inventaire
+    const totalPadding = 70;
     const availableWidth = width - totalPadding;
-    const buttonWidth = (availableWidth - 15) / 2; // 15px de gap entre les boutons
-    const buttonHeight = 26;
+    const buttonWidth = (availableWidth - 20) / 2;
+    const buttonHeight = 32;
     
-    // Position de départ parfaitement centrée
-    const startX = totalPadding / 2; // 30px du bord gauche
-    const startY = 25;
-    const gapX = 15; // Espacement entre boutons
-    const gapY = 5;
+    const startX = totalPadding / 2;
+    const startY = 30;
+    const gapX = 20;
+    const gapY = 8;
     
     actions.forEach((action, index) => {
       const x = startX + (index % 2) * (buttonWidth + gapX);
       const y = startY + Math.floor(index / 2) * (buttonHeight + gapY);
       
-      const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, action);
+      const button = this.createModernButton(x, y, buttonWidth, buttonHeight, action);
       button.isActionButton = true;
       this.actionInterface.add(button);
     });
   }
 
-  createGameBoyButton(x, y, width, height, action) {
+  createModernButton(x, y, width, height, action) {
     const buttonContainer = this.add.container(x, y);
     
     const bg = this.add.graphics();
-    bg.fillStyle(action.color, 0.9);
-    bg.fillRoundedRect(0, 0, width, height, 4);
+    // Style bouton moderne (inspiré de l'inventaire)
+    bg.fillGradientStyle(action.color, action.color, action.color * 0.8, action.color * 0.8);
+    bg.fillRoundedRect(0, 0, width, height, 8);
     
-    bg.lineStyle(2, 0x1a1a1a, 1);
-    bg.strokeRoundedRect(0, 0, width, height, 4);
+    bg.lineStyle(2, 0xffffff, 0.8);
+    bg.strokeRoundedRect(0, 0, width, height, 8);
     
-    bg.lineStyle(1, 0xffffff, 0.7);
-    bg.strokeRoundedRect(1, 1, width - 2, height - 2, 3);
+    bg.lineStyle(1, action.color, 1);
+    bg.strokeRoundedRect(1, 1, width - 2, height - 2, 7);
     
-    const icon = this.add.text(8, height/2, action.icon, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a'
+    const icon = this.add.text(12, height/2, action.icon, {
+      fontSize: '16px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff'
     });
     icon.setOrigin(0, 0.5);
     
     const text = this.add.text(width/2, height/2, action.text, {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+      fontSize: '13px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold'
     });
     text.setOrigin(0.5, 0.5);
     
     buttonContainer.add([bg, icon, text]);
     
-    // Correction: Utiliser une zone de hit personnalisée au lieu de setSize + setInteractive
     const hitArea = new Phaser.Geom.Rectangle(0, 0, width, height);
     buttonContainer.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
     
     buttonContainer.on('pointerover', () => {
       bg.clear();
-      bg.fillStyle(action.color, 1);
-      bg.fillRoundedRect(0, 0, width, height, 4);
-      bg.lineStyle(3, 0xffd700, 1);
-      bg.strokeRoundedRect(0, 0, width, height, 4);
+      bg.fillGradientStyle(action.color * 1.2, action.color * 1.2, action.color, action.color);
+      bg.fillRoundedRect(0, 0, width, height, 8);
+      bg.lineStyle(3, 0x87ceeb, 1);
+      bg.strokeRoundedRect(0, 0, width, height, 8);
       
       this.tweens.add({
         targets: buttonContainer,
         scaleX: 1.05, scaleY: 1.05,
-        duration: 100
+        duration: 150,
+        ease: 'Power2.easeOut'
       });
     });
     
     buttonContainer.on('pointerout', () => {
       bg.clear();
-      bg.fillStyle(action.color, 0.9);
-      bg.fillRoundedRect(0, 0, width, height, 4);
-      bg.lineStyle(2, 0x1a1a1a, 1);
-      bg.strokeRoundedRect(0, 0, width, height, 4);
-      bg.lineStyle(1, 0xffffff, 0.7);
-      bg.strokeRoundedRect(1, 1, width - 2, height - 2, 3);
+      bg.fillGradientStyle(action.color, action.color, action.color * 0.8, action.color * 0.8);
+      bg.fillRoundedRect(0, 0, width, height, 8);
+      bg.lineStyle(2, 0xffffff, 0.8);
+      bg.strokeRoundedRect(0, 0, width, height, 8);
+      bg.lineStyle(1, action.color, 1);
+      bg.strokeRoundedRect(1, 1, width - 2, height - 2, 7);
       
       this.tweens.add({
         targets: buttonContainer,
         scaleX: 1, scaleY: 1,
-        duration: 100
+        duration: 150,
+        ease: 'Power2.easeOut'
       });
     });
     
@@ -660,40 +629,40 @@ export class BattleScene extends Phaser.Scene {
     return buttonContainer;
   }
 
-  // === DIALOGUE PIXELISÉ ===
+  // === DIALOGUE MODERNE ===
 
-  createPixelBattleDialog() {
+  createModernBattleDialog() {
     const { width, height } = this.cameras.main;
-    this.battleDialog = this.add.container(0, height - 120);
+    this.battleDialog = this.add.container(0, height - 130);
     this.battleDialog.setDepth(185);
     
     const dialogPanel = this.add.graphics();
-    dialogPanel.fillStyle(0xf0f8f0, 0.98);
-    dialogPanel.fillRoundedRect(15, 0, width - 30, 100, 10);
+    dialogPanel.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
+    dialogPanel.fillRoundedRect(20, 0, width - 40, 110, 15);
     
-    dialogPanel.lineStyle(4, 0x1a1a1a, 1);
-    dialogPanel.strokeRoundedRect(15, 0, width - 30, 100, 10);
+    dialogPanel.lineStyle(3, 0x4a90e2, 1);
+    dialogPanel.strokeRoundedRect(20, 0, width - 40, 110, 15);
     
-    dialogPanel.fillStyle(0xe8f4e8, 1);
-    dialogPanel.fillRoundedRect(25, 10, width - 50, 80, 6);
+    dialogPanel.fillGradientStyle(0x1e2d42, 0x1e2d42, 0x2a3f5f, 0x2a3f5f, 0.9);
+    dialogPanel.fillRoundedRect(30, 15, width - 60, 80, 10);
     
-    dialogPanel.lineStyle(2, 0x6b8e6b, 1);
-    dialogPanel.strokeRoundedRect(25, 10, width - 50, 80, 6);
+    dialogPanel.lineStyle(2, 0x357abd, 0.8);
+    dialogPanel.strokeRoundedRect(30, 15, width - 60, 80, 10);
     
-    this.dialogText = this.add.text(40, 50, '', {
-      fontSize: '18px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+    this.dialogText = this.add.text(50, 55, '', {
+      fontSize: '16px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold',
-      wordWrap: { width: width - 80 },
-      lineSpacing: 5
+      wordWrap: { width: width - 100 },
+      lineSpacing: 6
     });
     this.dialogText.setOrigin(0, 0.5);
     
-    const continueArrow = this.add.text(width - 50, 75, '▼', {
+    const continueArrow = this.add.text(width - 60, 85, '▼', {
       fontSize: '16px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a'
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#87ceeb'
     });
     continueArrow.setOrigin(0.5);
     
@@ -710,7 +679,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleDialog.setVisible(false);
   }
 
-  // === GESTION DES MODES : ACTIONS vs ATTAQUES ===
+  // === GESTION DES MODES ===
 
   showActionButtons() {
     const { width } = this.cameras.main;
@@ -719,7 +688,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideNarrativeMode();
     this.hideMoveButtons();
     
-    this.drawMainPanel(width, 100, 'buttons');
+    this.drawModernActionPanel(width, 110, 'buttons');
     
     if (this.textPanel) {
       this.textPanel.setVisible(false);
@@ -750,8 +719,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMessage();
     this.hideNarrativeMode();
     
-    // Panel taille normale avec bouton X en haut à droite
-    this.drawMainPanel(width, 100, 'moves');
+    this.drawModernActionPanel(width, 110, 'moves');
     
     if (this.textPanel) {
       this.textPanel.setVisible(false);
@@ -772,16 +740,16 @@ export class BattleScene extends Phaser.Scene {
     }
     this.moveButtons = [];
     
-    // CENTRAGE PARFAIT pour les attaques aussi
-    const totalPadding = 60; // Même logique que les boutons d'action
+    // Même centrage que les boutons d'action
+    const totalPadding = 70;
     const availableWidth = width - totalPadding;
-    const buttonWidth = (availableWidth - 15) / 2;
-    const buttonHeight = 26;
+    const buttonWidth = (availableWidth - 20) / 2;
+    const buttonHeight = 32;
     
-    const startX = totalPadding / 2; // 30px du bord gauche
-    const startY = 25;
-    const gapX = 15;
-    const gapY = 5;
+    const startX = totalPadding / 2;
+    const startY = 30;
+    const gapX = 20;
+    const gapY = 8;
     
     const moveTypeColors = {
       'normal': 0xa8a8a8, 'fire': 0xff4444, 'water': 0x4488ff,
@@ -792,7 +760,7 @@ export class BattleScene extends Phaser.Scene {
       'dark': 0x775544, 'steel': 0xaaaaaa, 'fairy': 0xffaaee
     };
     
-    // Créer exactement 4 boutons d'attaques (2x2)
+    // Créer 4 boutons d'attaques
     for (let i = 0; i < 4; i++) {
       const x = startX + (i % 2) * (buttonWidth + gapX);
       const y = startY + Math.floor(i / 2) * (buttonHeight + gapY);
@@ -800,19 +768,18 @@ export class BattleScene extends Phaser.Scene {
       let moveAction;
       
       if (i < moves.length) {
-        // Attaque réelle
         const move = moves[i];
         const moveColor = moveTypeColors[move.type?.toLowerCase()] || 0x64b5f6;
         
         moveAction = {
           key: `move_${move.id}`,
-          text: move.name.toUpperCase().substring(0, 10),
+          text: move.name.toUpperCase().substring(0, 12),
           color: moveColor,
           icon: this.getMoveIcon(move.type),
           moveData: move
         };
         
-        const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
+        const button = this.createModernButton(x, y, buttonWidth, buttonHeight, moveAction);
         button.isMoveButton = true;
         
         button.removeAllListeners('pointerdown');
@@ -823,7 +790,6 @@ export class BattleScene extends Phaser.Scene {
         this.actionInterface.add(button);
         this.moveButtons.push(button);
       } else {
-        // Emplacement vide si moins de 4 attaques
         moveAction = {
           key: 'empty',
           text: '---',
@@ -831,11 +797,9 @@ export class BattleScene extends Phaser.Scene {
           icon: '-'
         };
         
-        const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
+        const button = this.createModernButton(x, y, buttonWidth, buttonHeight, moveAction);
         button.isMoveButton = true;
-        button.alpha = 0.3; // Semi-transparent pour montrer que c'est vide
-        
-        // Pas d'interaction pour les emplacements vides
+        button.alpha = 0.4;
         button.removeInteractive();
         
         this.actionInterface.add(button);
@@ -843,34 +807,27 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     
-    // 🎮 BOUTON X DE FERMETURE EN HAUT À DROITE (style Game Boy)
-    this.createGameBoyCloseButton(width);
+    // Bouton X de fermeture moderne
+    this.createModernCloseButton(width);
   }
 
-  createGameBoyCloseButton(width) {
-    const closeButtonSize = 24;
-    const closeX = width - 50; // En haut à droite
-    const closeY = 8; // Très haut
+  createModernCloseButton(width) {
+    const closeButtonSize = 28;
+    const closeX = width - 55;
+    const closeY = 10;
     
     const closeButton = this.add.container(closeX, closeY);
     
-    // Fond du bouton X style Game Boy
     const closeBg = this.add.graphics();
-    closeBg.fillStyle(0x8b0000, 0.9); // Rouge foncé
-    closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+    closeBg.fillGradientStyle(0x8b0000, 0x8b0000, 0x5d0000, 0x5d0000);
+    closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
     
-    // Bordure Game Boy
-    closeBg.lineStyle(2, 0x1a1a1a, 1);
-    closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+    closeBg.lineStyle(2, 0xff6b6b, 0.8);
+    closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
     
-    // Bordure intérieure claire
-    closeBg.lineStyle(1, 0xffffff, 0.8);
-    closeBg.strokeRoundedRect(-closeButtonSize/2 + 1, -closeButtonSize/2 + 1, closeButtonSize - 2, closeButtonSize - 2, 2);
-    
-    // Symbole X pixelisé
     const closeText = this.add.text(0, 0, '✕', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
+      fontSize: '16px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
       color: '#ffffff',
       fontWeight: 'bold'
     });
@@ -879,38 +836,34 @@ export class BattleScene extends Phaser.Scene {
     closeButton.add([closeBg, closeText]);
     closeButton.setSize(closeButtonSize, closeButtonSize);
     
-    // Zone de hit plus grande pour faciliter le clic
-    const hitArea = new Phaser.Geom.Rectangle(-closeButtonSize/2 - 2, -closeButtonSize/2 - 2, closeButtonSize + 4, closeButtonSize + 4);
+    const hitArea = new Phaser.Geom.Rectangle(-closeButtonSize/2 - 3, -closeButtonSize/2 - 3, closeButtonSize + 6, closeButtonSize + 6);
     closeButton.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
     
-    // Effets hover Game Boy
     closeButton.on('pointerover', () => {
       closeBg.clear();
-      closeBg.fillStyle(0xcd5c5c, 1); // Rouge plus clair au hover
-      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
-      closeBg.lineStyle(2, 0xffd700, 1); // Bordure dorée
-      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+      closeBg.fillGradientStyle(0xcd5c5c, 0xcd5c5c, 0x8b0000, 0x8b0000);
+      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
+      closeBg.lineStyle(3, 0x87ceeb, 1);
+      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
       
       this.tweens.add({
         targets: closeButton,
         scaleX: 1.1, scaleY: 1.1,
-        duration: 100
+        duration: 150
       });
     });
     
     closeButton.on('pointerout', () => {
       closeBg.clear();
-      closeBg.fillStyle(0x8b0000, 0.9);
-      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
-      closeBg.lineStyle(2, 0x1a1a1a, 1);
-      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
-      closeBg.lineStyle(1, 0xffffff, 0.8);
-      closeBg.strokeRoundedRect(-closeButtonSize/2 + 1, -closeButtonSize/2 + 1, closeButtonSize - 2, closeButtonSize - 2, 2);
+      closeBg.fillGradientStyle(0x8b0000, 0x8b0000, 0x5d0000, 0x5d0000);
+      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
+      closeBg.lineStyle(2, 0xff6b6b, 0.8);
+      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 6);
       
       this.tweens.add({
         targets: closeButton,
         scaleX: 1, scaleY: 1,
-        duration: 100
+        duration: 150
       });
     });
     
@@ -918,7 +871,7 @@ export class BattleScene extends Phaser.Scene {
       this.returnToActionButtons();
     });
     
-    closeButton.isMoveButton = true; // Pour le nettoyage
+    closeButton.isMoveButton = true;
     this.actionInterface.add(closeButton);
     this.moveButtons.push(closeButton);
   }
@@ -947,8 +900,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleMoveButton(move) {
-    const pokemonName = this.currentPlayerPokemon?.name || 'Votre Pokémon';
-    this.showActionMessage(`${pokemonName} utilise ${move.name} !`);
+    const pokemonName = this.currentPlayerPokemon?.name || t('battle.ui.your_pokemon');
+    this.showActionMessage(t('battle.ui.messages.pokemon_uses_move')
+      .replace('{pokemon}', pokemonName)
+      .replace('{move}', move.name));
     
     this.hideMoveButtons();
     
@@ -986,12 +941,12 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionButtons();
     this.hideNarrativeMode();
     
-    this.drawMainPanel(width, 100, 'message');
-    this.drawTextPanel(width, 'message');
+    this.drawModernActionPanel(width, 110, 'message');
+    this.drawModernTextPanel(width, 'message');
     
     if (!this.actionMessageText) return;
     
-    this.actionMessageText.setPosition(width/2, 27);
+    this.actionMessageText.setPosition(width/2, 35);
     this.actionMessageText.setText(message.toUpperCase());
     this.actionMessageText.setVisible(true);
     
@@ -1023,12 +978,12 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionButtons();
     this.hideActionMessage();
     
-    this.drawMainPanel(width, 90, 'narrative');
-    this.drawTextPanel(width, 'narrative');
+    this.drawModernActionPanel(width, 100, 'narrative');
+    this.drawModernTextPanel(width, 'narrative');
     
     if (!this.actionMessageText) return;
     
-    this.actionMessageText.setPosition(width/2, 50);
+    this.actionMessageText.setPosition(width/2, 55);
     this.actionMessageText.setText(message.toUpperCase());
     this.actionMessageText.setVisible(true);
     
@@ -1086,7 +1041,6 @@ export class BattleScene extends Phaser.Scene {
     
     switch (actionKey) {
       case 'attack':
-        // Créer des attaques de test et les afficher
         const testMoves = this.getTestMoves();
         this.showMoveButtons(testMoves);
         break;
@@ -1094,48 +1048,47 @@ export class BattleScene extends Phaser.Scene {
       case 'bag':
         try {
           if (!this.battleInventoryUI) {
-            this.showActionMessage('Initialisation inventaire...');
+            this.showActionMessage(t('battle.ui.messages.initializing_inventory'));
             this.createBattleInventoryUI();
           }
           
           if (this.battleInventoryUI) {
             this.battleInventoryUI.openToBalls();
           } else {
-            this.showActionMessage('Inventaire de combat non disponible');
+            this.showActionMessage(t('battle.ui.messages.inventory_unavailable'));
             setTimeout(() => this.showActionButtons(), 2000);
           }
         } catch (error) {
           console.error('[BattleScene] Erreur inventaire:', error);
-          this.showActionMessage('Erreur inventaire');
+          this.showActionMessage(t('battle.ui.messages.inventory_error'));
           setTimeout(() => this.showActionButtons(), 2000);
         }
         break;
         
       case 'pokemon':
-        this.showActionMessage('Changement de Pokémon indisponible.');
+        this.showActionMessage(t('battle.ui.messages.pokemon_change_unavailable'));
         setTimeout(() => this.showActionButtons(), 2000);
         break;
         
       case 'run':
         if (!this.battleNetworkHandler) {
-          this.showActionMessage('Impossible de fuir - pas de connexion');
+          this.showActionMessage(t('battle.ui.messages.cannot_run_no_connection'));
           setTimeout(() => this.showActionButtons(), 2000);
           return;
         }
         
-        this.showActionMessage('Tentative de fuite...');
+        this.showActionMessage(t('battle.ui.messages.attempting_to_run'));
         try {
           this.battleNetworkHandler.attemptRun();
         } catch (error) {
           console.error('[BattleScene] Erreur fuite:', error);
-          this.showActionMessage('Erreur lors de la fuite');
+          this.showActionMessage(t('battle.ui.messages.run_error'));
           setTimeout(() => this.showActionButtons(), 2000);
         }
         break;
     }
   }
 
-  // Méthode pour obtenir des attaques de test (4 attaques complètes)
   getTestMoves() {
     return [
       { id: 1, name: 'Charge', type: 'normal', power: 40, pp: 35 },
@@ -1145,7 +1098,7 @@ export class BattleScene extends Phaser.Scene {
     ];
   }
 
-  // === AFFICHAGE POKÉMON ===
+  // === AFFICHAGE POKÉMON (inchangé mais avec effets modernes) ===
 
   async displayPlayerPokemon(pokemonData) {
     if (!pokemonData) return;
@@ -1168,7 +1121,7 @@ export class BattleScene extends Phaser.Scene {
       
       this.playerPokemonSprite.texture.setFilter(Phaser.Textures.NEAREST);
       
-      this.animatePixelPokemonEntry(this.playerPokemonSprite, 'left');
+      this.animateModernPokemonEntry(this.playerPokemonSprite, 'left');
       this.currentPlayerPokemon = pokemonData;
       
       setTimeout(() => {
@@ -1177,7 +1130,7 @@ export class BattleScene extends Phaser.Scene {
       
     } catch (error) {
       console.error('[BattleScene] Erreur Pokémon joueur:', error);
-      this.createGameBoyPokemonPlaceholder('player', pokemonData);
+      this.createModernPokemonPlaceholder('player', pokemonData);
     }
   }
 
@@ -1193,9 +1146,8 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'front');
       const { width, height } = this.cameras.main;
       
-      // 🎯 POSITION POKÉMON ADVERSE - Calculée par rapport au socle + décalage
       const socleY = height * this.pokemonPositions.opponentPlatform.y;
-      const pokemonY = socleY - 20; // Pokémon 20px au-dessus du socle
+      const pokemonY = socleY - 20;
       
       const x = width * this.pokemonPositions.opponent.x;
       
@@ -1206,10 +1158,10 @@ export class BattleScene extends Phaser.Scene {
       
       this.opponentPokemonSprite.texture.setFilter(Phaser.Textures.NEAREST);
       
-      this.animatePixelPokemonEntry(this.opponentPokemonSprite, 'right');
+      this.animateModernPokemonEntry(this.opponentPokemonSprite, 'right');
       
       if (pokemonData.shiny) {
-        this.addGameBoyShinyEffect(this.opponentPokemonSprite);
+        this.addModernShinyEffect(this.opponentPokemonSprite);
       }
       
       this.currentOpponentPokemon = pokemonData;
@@ -1220,11 +1172,11 @@ export class BattleScene extends Phaser.Scene {
       
     } catch (error) {
       console.error('[BattleScene] Erreur Pokémon adversaire:', error);
-      this.createGameBoyPokemonPlaceholder('opponent', pokemonData);
+      this.createModernPokemonPlaceholder('opponent', pokemonData);
     }
   }
 
-  animatePixelPokemonEntry(sprite, direction) {
+  animateModernPokemonEntry(sprite, direction) {
     if (!sprite) return;
     
     const targetX = sprite.x;
@@ -1247,96 +1199,98 @@ export class BattleScene extends Phaser.Scene {
       duration: 1200,
       ease: 'Back.easeOut',
       onComplete: () => {
-        this.addPixelIdleAnimation(sprite, targetY);
-        this.createPixelSparkles(sprite);
+        this.addModernIdleAnimation(sprite, targetY);
+        this.createModernSparkles(sprite);
       }
     });
   }
 
-  addPixelIdleAnimation(sprite, baseY) {
+  addModernIdleAnimation(sprite, baseY) {
     this.tweens.add({
       targets: sprite,
-      y: baseY - 6,
-      duration: 2500,
+      y: baseY - 8,
+      duration: 2800,
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1
     });
   }
 
-  addGameBoyShinyEffect(sprite) {
+  addModernShinyEffect(sprite) {
     if (!sprite) return;
     
     this.tweens.add({
       targets: sprite,
-      tint: [0xffd700, 0xffff00, 0xffd700, 0xffffff],
-      duration: 1000,
+      tint: [0x87ceeb, 0x4a90e2, 0x87ceeb, 0xffffff],
+      duration: 1200,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
     
-    this.createShinyParticles(sprite);
+    this.createModernShinyParticles(sprite);
   }
 
-  createPixelSparkles(sprite) {
-    for (let i = 0; i < 3; i++) {
+  createModernSparkles(sprite) {
+    for (let i = 0; i < 4; i++) {
       setTimeout(() => {
         const sparkle = this.add.text(
-          sprite.x + (Math.random() - 0.5) * 80,
-          sprite.y - Math.random() * 60,
+          sprite.x + (Math.random() - 0.5) * 90,
+          sprite.y - Math.random() * 70,
           '✦',
           {
-            fontSize: '16px',
-            fontFamily: 'monospace',
-            color: '#ffd700'
+            fontSize: '18px',
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            color: '#87ceeb'
           }
         );
         sparkle.setDepth(30);
         
         this.tweens.add({
           targets: sparkle,
-          y: sparkle.y - 30,
+          y: sparkle.y - 35,
           alpha: 0,
-          duration: 1500,
+          scaleX: 1.5,
+          scaleY: 1.5,
+          duration: 1800,
           ease: 'Power2.easeOut',
           onComplete: () => sparkle.destroy()
         });
-      }, i * 500);
+      }, i * 600);
     }
   }
 
-  createShinyParticles(sprite) {
-    for (let i = 0; i < 5; i++) {
+  createModernShinyParticles(sprite) {
+    for (let i = 0; i < 6; i++) {
       setTimeout(() => {
         const particle = this.add.text(
-          sprite.x + (Math.random() - 0.5) * 60,
-          sprite.y - Math.random() * 80,
+          sprite.x + (Math.random() - 0.5) * 70,
+          sprite.y - Math.random() * 90,
           '★',
           {
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            color: '#ffd700'
+            fontSize: '14px',
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            color: '#87ceeb'
           }
         );
         particle.setDepth(35);
         
         this.tweens.add({
           targets: particle,
-          y: particle.y - 40,
-          x: particle.x + (Math.random() - 0.5) * 30,
+          y: particle.y - 50,
+          x: particle.x + (Math.random() - 0.5) * 35,
           alpha: 0,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          duration: 2000,
+          scaleX: 0.3,
+          scaleY: 0.3,
+          duration: 2500,
           ease: 'Power2.easeOut',
           onComplete: () => particle.destroy()
         });
-      }, i * 200);
+      }, i * 250);
     }
   }
 
-  createGameBoyPokemonPlaceholder(type, pokemonData) {
+  createModernPokemonPlaceholder(type, pokemonData) {
     const { width, height } = this.cameras.main;
     let position;
     
@@ -1346,44 +1300,43 @@ export class BattleScene extends Phaser.Scene {
         y: height * this.pokemonPositions.player.y 
       };
     } else {
-      // 🎯 PLACEHOLDER ADVERSAIRE - Position basée sur le socle + décalage
       const socleY = height * this.pokemonPositions.opponentPlatform.y;
       position = { 
         x: width * this.pokemonPositions.opponent.x, 
-        y: socleY - 20  // 20px au-dessus du socle
+        y: socleY - 20
       };
     }
     
     const container = this.add.container(position.x, position.y);
     const primaryType = pokemonData.types?.[0] || 'normal';
-    const typeColor = this.getGameBoyTypeColor(primaryType);
+    const typeColor = this.getModernTypeColor(primaryType);
     
     const body = this.add.graphics();
-    body.fillStyle(typeColor, 0.9);
+    body.fillGradientStyle(typeColor, typeColor, typeColor * 0.7, typeColor * 0.7);
     body.fillCircle(0, 0, 45);
-    body.lineStyle(4, 0x1a1a1a, 1);
+    body.lineStyle(3, 0x87ceeb, 0.8);
     body.strokeCircle(0, 0, 45);
-    body.lineStyle(2, 0xffffff, 0.8);
+    body.lineStyle(2, 0x4a90e2, 0.6);
     body.strokeCircle(0, 0, 42);
     
     const questionMark = this.add.text(0, -5, '?', {
       fontSize: '36px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#ffffff',
       fontWeight: 'bold'
     });
     questionMark.setOrigin(0.5);
     
     const nameBg = this.add.graphics();
-    nameBg.fillStyle(0xf0f8f0, 0.9);
-    nameBg.fillRoundedRect(-40, 25, 80, 20, 4);
-    nameBg.lineStyle(2, 0x1a1a1a, 1);
-    nameBg.strokeRoundedRect(-40, 25, 80, 20, 4);
+    nameBg.fillGradientStyle(0x2a3f5f, 0x2a3f5f, 0x1e2d42, 0x1e2d42);
+    nameBg.fillRoundedRect(-45, 25, 90, 24, 8);
+    nameBg.lineStyle(2, 0x4a90e2, 0.8);
+    nameBg.strokeRoundedRect(-45, 25, 90, 24, 8);
     
-    const nameText = this.add.text(0, 35, pokemonData.name || 'POKÉMON', {
+    const nameText = this.add.text(0, 37, pokemonData.name || 'POKÉMON', {
       fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#1a1a1a',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      color: '#87ceeb',
       fontWeight: 'bold'
     });
     nameText.setOrigin(0.5);
@@ -1392,7 +1345,7 @@ export class BattleScene extends Phaser.Scene {
     container.setScale(type === 'player' ? 1.3 : 1.0);
     container.setDepth(type === 'player' ? 25 : 20);
     
-    this.animatePixelPokemonEntry(container, type === 'player' ? 'left' : 'right');
+    this.animateModernPokemonEntry(container, type === 'player' ? 'left' : 'right');
     
     if (type === 'player') {
       this.playerPokemonSprite = container;
@@ -1401,19 +1354,19 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  getGameBoyTypeColor(type) {
+  getModernTypeColor(type) {
     const colors = {
-      'normal': 0xc4c4a4, 'fire': 0xe85444, 'water': 0x4488cc,
-      'electric': 0xf4d444, 'grass': 0x84c454, 'ice': 0xa4d4f4,
-      'fighting': 0xc44444, 'poison': 0xa444a4, 'ground': 0xd4c454,
-      'flying': 0xa4c4f4, 'psychic': 0xf454a4, 'bug': 0xa4c444,
-      'rock': 0xc4a454, 'ghost': 0x8464a4, 'dragon': 0x8454f4,
-      'dark': 0x846454, 'steel': 0xa4a4a4, 'fairy': 0xf4a4d4
+      'normal': 0xa8a8a8, 'fire': 0xff5722, 'water': 0x2196f3,
+      'electric': 0xffc107, 'grass': 0x4caf50, 'ice': 0x03a9f4,
+      'fighting': 0xf44336, 'poison': 0x9c27b0, 'ground': 0xff9800,
+      'flying': 0x3f51b5, 'psychic': 0xe91e63, 'bug': 0x8bc34a,
+      'rock': 0x795548, 'ghost': 0x673ab7, 'dragon': 0x3f51b5,
+      'dark': 0x424242, 'steel': 0x607d8b, 'fairy': 0xe91e63
     };
-    return colors[type.toLowerCase()] || 0xc4c4a4;
+    return colors[type.toLowerCase()] || 0xa8a8a8;
   }
 
-  // === MESSAGES AVEC STYLE GAME BOY ===
+  // === MESSAGES MODERNES ===
 
   showBattleMessage(message, duration = 0) {
     this.showNarrativeMessage(message, duration === 0);
@@ -1442,13 +1395,13 @@ export class BattleScene extends Phaser.Scene {
     }
     
     const displayName = pokemonData.name ? pokemonData.name.toUpperCase() : 'POKÉMON';
-    healthBar.nameText.setText(healthBar.config.isPlayer ? `VOTRE ${displayName}` : displayName);
+    const nameKey = healthBar.config.isPlayer ? 'battle.ui.your_pokemon_name' : 'battle.ui.wild_pokemon_name';
+    healthBar.nameText.setText(t(nameKey).replace('{name}', displayName));
     healthBar.levelText.setText(`LV.${pokemonData.level || 1}`);
     
     const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
     
-    // Animer la barre HP avec le nouveau système
-    this.animateGameBoyHealthBar(healthBar.hpBar, hpPercentage);
+    this.animateModernHealthBar(healthBar.hpBar, hpPercentage);
     
     if (healthBar.config.isPlayer && healthBar.hpText) {
       healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
@@ -1456,7 +1409,7 @@ export class BattleScene extends Phaser.Scene {
     
     if (healthBar.config.isPlayer && healthBar.expBar && pokemonData.currentExp !== undefined) {
       const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
-      this.animateGameBoyExpBar(healthBar.expBar, expPercentage);
+      this.animateModernExpBar(healthBar.expBar, expPercentage);
     }
     
     healthBar.container.setVisible(true);
@@ -1469,7 +1422,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  animateGameBoyHealthBar(hpBarContainer, targetPercentage) {
+  animateModernHealthBar(hpBarContainer, targetPercentage) {
     if (!hpBarContainer || typeof hpBarContainer.currentPercentage === 'undefined') {
       hpBarContainer.currentPercentage = 1.0;
     }
@@ -1483,12 +1436,12 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeOut',
       onUpdate: (tween) => {
         const percentage = tween.targets[0].value;
-        this.updateGameBoyHealthBarVisual(hpBarContainer, percentage);
+        this.updateModernHealthBarVisual(hpBarContainer, percentage);
       }
     });
   }
 
-  animateGameBoyExpBar(expBarContainer, targetPercentage) {
+  animateModernExpBar(expBarContainer, targetPercentage) {
     if (!expBarContainer || !expBarContainer.expBar) return;
     
     const { expBar, maxWidth } = expBarContainer;
@@ -1497,18 +1450,16 @@ export class BattleScene extends Phaser.Scene {
     expBar.clear();
     
     if (width > 0) {
-      // Barre EXP avec dégradé bleu Game Boy
-      expBar.fillGradientStyle(0x2196f3, 0x2196f3, 0x64b5f6, 0x64b5f6);
-      expBar.fillRoundedRect(2, 2, width - 4, 4, 1);
+      expBar.fillGradientStyle(0x4a90e2, 0x4a90e2, 0x87ceeb, 0x87ceeb);
+      expBar.fillRoundedRect(2, 2, width - 4, 6, 2);
       
-      // Effet de brillance
-      expBar.fillStyle(0x90caf9, 0.6);
-      expBar.fillRoundedRect(2, 2, Math.max(0, width - 4), 1, 0);
+      expBar.fillStyle(0xffffff, 0.3);
+      expBar.fillRoundedRect(2, 2, Math.max(0, width - 4), 2, 1);
     }
   }
 
-  // === CHARGEMENT SPRITES ===
-
+  // === CHARGEMENT SPRITES (inchangé) ===
+  
   async loadPokemonSpritesheets() {
     if (!this.cache.json.has('pokemonSpriteConfig')) {
       this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
@@ -1622,12 +1573,12 @@ export class BattleScene extends Phaser.Scene {
       
     } catch (error) {
       this.loadingSprites.delete(spriteKey);
-      return this.createGameBoyFallbackSprite(view);
+      return this.createModernFallbackSprite(view);
     }
   }
 
-  createGameBoyFallbackSprite(view) {
-    const fallbackKey = `pokemon_placeholder_${view}_gameboy`;
+  createModernFallbackSprite(view) {
+    const fallbackKey = `pokemon_placeholder_${view}_modern`;
     
     if (!this.textures.exists(fallbackKey)) {
       const canvas = document.createElement('canvas');
@@ -1635,27 +1586,31 @@ export class BattleScene extends Phaser.Scene {
       canvas.height = 96;
       const ctx = canvas.getContext('2d');
       
+      // Dégradé moderne
       const gradient = ctx.createRadialGradient(48, 48, 0, 48, 48, 48);
-      gradient.addColorStop(0, view === 'front' ? '#8fad8f' : '#b8d4b8');
-      gradient.addColorStop(1, view === 'front' ? '#6b8e6b' : '#8fad8f');
+      gradient.addColorStop(0, view === 'front' ? '#4a90e2' : '#87ceeb');
+      gradient.addColorStop(0.7, view === 'front' ? '#357abd' : '#4a90e2');
+      gradient.addColorStop(1, view === 'front' ? '#2a3f5f' : '#357abd');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(48, 48, 40, 0, Math.PI * 2);
       ctx.fill();
       
-      ctx.strokeStyle = '#1a1a1a';
-      ctx.lineWidth = 4;
+      // Bordures modernes
+      ctx.strokeStyle = '#87ceeb';
+      ctx.lineWidth = 3;
       ctx.stroke();
       
-      ctx.strokeStyle = '#f0f8f0';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(48, 48, 36, 0, Math.PI * 2);
+      ctx.arc(48, 48, 37, 0, Math.PI * 2);
       ctx.stroke();
       
-      ctx.fillStyle = '#1a1a1a';
-      ctx.font = 'bold 32px monospace';
+      // Point d'interrogation moderne
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('?', 48, 48);
@@ -1678,7 +1633,7 @@ export class BattleScene extends Phaser.Scene {
     
     if (eventType === 'opponentTurn') {
       this.hideActionButtons();
-      this.showNarrativeMessage('L\'ADVERSAIRE RÉFLÉCHIT...', false);
+      this.showNarrativeMessage(t('battle.ui.messages.opponent_thinking'), false);
       return;
     }
 
@@ -1707,10 +1662,10 @@ export class BattleScene extends Phaser.Scene {
       }
     } else {
       if (eventType === 'wildPokemonAppears') {
-        const pokemonName = data.pokemonName || 'UN POKÉMON SAUVAGE';
-        this.showNarrativeMessage(`${pokemonName} APPARAÎT !`, true);
+        const pokemonName = data.pokemonName || t('battle.ui.messages.wild_pokemon');
+        this.showNarrativeMessage(t('battle.ui.messages.wild_pokemon_appears').replace('{name}', pokemonName), true);
       } else if (eventType === 'battleStart') {
-        this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?', true);
+        this.showNarrativeMessage(t('battle.ui.messages.what_will_you_do'), true);
       }
     }
   }
@@ -1761,18 +1716,20 @@ export class BattleScene extends Phaser.Scene {
       }
       
       if (!data.success) {
-        this.showActionMessage(`Erreur: ${data.error}`);
+        this.showActionMessage(t('battle.ui.messages.error_prefix') + data.error);
       }
     });
 
     this.battleNetworkHandler.on('moveUsed', (data) => {
-      const message = `${data.attackerName} utilise ${data.moveName} !`;
+      const message = t('battle.ui.messages.pokemon_uses_move')
+        .replace('{pokemon}', data.attackerName)
+        .replace('{move}', data.moveName);
       this.showActionMessage(message);
       
       if (data.attackerRole === 'player1') {
-        this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+        this.createModernAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
       } else {
-        this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
+        this.createModernAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
       }
     });
 
@@ -1793,7 +1750,7 @@ export class BattleScene extends Phaser.Scene {
       }
       
       this.updateModernHealthBar(data.targetRole, pokemonData);
-      this.createDamageEffectForRole(data.targetRole, data.damage);
+      this.createModernDamageEffectForRole(data.targetRole, data.damage);
     });
     
     this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
@@ -1897,9 +1854,9 @@ export class BattleScene extends Phaser.Scene {
     }, 2000);
   }
 
-  // === EFFETS VISUELS ===
+  // === EFFETS VISUELS MODERNES ===
 
-  createAttackEffect(attacker, target) {
+  createModernAttackEffect(attacker, target) {
     if (!attacker || !target) return;
     
     const originalX = attacker.x;
@@ -1913,7 +1870,7 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeOut',
       yoyo: true,
       onYoyo: () => {
-        this.createGameBoyImpactEffect(target.x, target.y);
+        this.createModernImpactEffect(target.x, target.y);
         this.tweens.add({
           targets: target,
           x: target.x + 15,
@@ -1927,94 +1884,101 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  createGameBoyImpactEffect(x, y) {
-    for (let i = 0; i < 3; i++) {
+  createModernImpactEffect(x, y) {
+    // Effet d'impact moderne avec style harmonisé
+    for (let i = 0; i < 4; i++) {
       const impact = this.add.graphics();
       impact.setPosition(x, y);
       impact.setDepth(50);
       
-      const colors = [0xffffff, 0xffd700, 0xff8c00];
-      impact.fillStyle(colors[i], 0.9 - i * 0.2);
-      impact.fillCircle(0, 0, 8 + i * 4);
+      const colors = [0xffffff, 0x87ceeb, 0x4a90e2, 0x357abd];
+      impact.fillGradientStyle(colors[i], colors[i], colors[i] * 0.7, colors[i] * 0.7, 0.9 - i * 0.15);
+      impact.fillCircle(0, 0, 10 + i * 5);
       
       this.tweens.add({
         targets: impact,
-        scaleX: 3 + i,
-        scaleY: 3 + i,
+        scaleX: 3.5 + i,
+        scaleY: 3.5 + i,
         alpha: 0,
-        duration: 400 + i * 100,
+        duration: 450 + i * 100,
         ease: 'Power2.easeOut',
         onComplete: () => impact.destroy()
       });
     }
     
-    for (let j = 0; j < 4; j++) {
-      const star = this.add.text(
-        x + (Math.random() - 0.5) * 40,
-        y + (Math.random() - 0.5) * 40,
+    // Particules modernes
+    for (let j = 0; j < 6; j++) {
+      const particle = this.add.text(
+        x + (Math.random() - 0.5) * 50,
+        y + (Math.random() - 0.5) * 50,
         '✧',
         {
-          fontSize: '18px',
-          fontFamily: 'monospace',
-          color: '#ffd700'
+          fontSize: '20px',
+          fontFamily: "'Segoe UI', Arial, sans-serif",
+          color: '#87ceeb'
         }
       );
-      star.setDepth(55);
+      particle.setDepth(55);
       
       this.tweens.add({
-        targets: star,
+        targets: particle,
         alpha: 0,
-        scaleX: 2,
-        scaleY: 2,
-        duration: 600,
+        scaleX: 2.2,
+        scaleY: 2.2,
+        x: particle.x + (Math.random() - 0.5) * 30,
+        y: particle.y + (Math.random() - 0.5) * 30,
+        duration: 700,
         ease: 'Power2.easeOut',
-        onComplete: () => star.destroy()
+        onComplete: () => particle.destroy()
       });
     }
   }
 
-  createDamageEffect(sprite, damage) {
+  createModernDamageEffect(sprite, damage) {
     if (!sprite) return;
     
-    const damageText = this.add.text(sprite.x, sprite.y - 60, `-${damage}`, {
-      fontSize: '28px',
-      fontFamily: 'monospace',
+    // Texte de dégâts moderne
+    const damageText = this.add.text(sprite.x, sprite.y - 70, `-${damage}`, {
+      fontSize: '32px',
+      fontFamily: "'Segoe UI', Arial, sans-serif",
       color: '#ff4444',
       fontWeight: 'bold',
-      stroke: '#1a1a1a',
-      strokeThickness: 3
+      stroke: '#000000',
+      strokeThickness: 4
     });
     damageText.setOrigin(0.5);
     damageText.setDepth(60);
     
     this.tweens.add({
       targets: damageText,
-      y: damageText.y - 40,
+      y: damageText.y - 50,
       alpha: 0,
-      scaleX: 1.8,
-      scaleY: 1.8,
-      duration: 1200,
+      scaleX: 2.0,
+      scaleY: 2.0,
+      duration: 1400,
       ease: 'Power2.easeOut',
       onComplete: () => damageText.destroy()
     });
     
+    // Effet de tremblement moderne
     const originalX = sprite.x;
     this.tweens.add({
       targets: sprite,
-      x: originalX + 12,
-      duration: 60,
+      x: originalX + 15,
+      duration: 70,
       yoyo: true,
-      repeat: 6,
+      repeat: 5,
       onComplete: () => sprite.setX(originalX)
     });
     
+    // Effet de flash moderne avec les couleurs de l'interface
     const originalTint = sprite.tint;
-    sprite.setTint(0xff4444);
+    sprite.setTint(0xff6b6b);
     
     this.tweens.add({
       targets: sprite,
       tint: originalTint,
-      duration: 300,
+      duration: 350,
       ease: 'Power2.easeOut'
     });
   }
@@ -2218,7 +2182,7 @@ export class BattleScene extends Phaser.Scene {
     return 5;
   }
 
-  createDamageEffectForRole(targetRole, damage) {
+  createModernDamageEffectForRole(targetRole, damage) {
     let targetSprite = null;
     
     if (targetRole === 'player1') {
@@ -2234,7 +2198,7 @@ export class BattleScene extends Phaser.Scene {
     }
     
     if (targetSprite && damage > 0) {
-      this.createDamageEffect(targetSprite, damage);
+      this.createModernDamageEffect(targetSprite, damage);
     }
   }
 
@@ -2290,7 +2254,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === ANIMATIONS K.O. ===
+  // === ANIMATIONS K.O. MODERNES ===
 
   showPlayerPokemonFaint() {
     if (!this.playerPokemonSprite) return;
@@ -2306,7 +2270,7 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeIn'
     });
     
-    this.createGameBoyKOEffect(this.playerPokemonSprite);
+    this.createModernKOEffect(this.playerPokemonSprite);
   }
 
   showEnemyPokemonFaint() {
@@ -2323,22 +2287,24 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeIn'
     });
     
-    this.createGameBoyKOEffect(this.opponentPokemonSprite);
+    this.createModernKOEffect(this.opponentPokemonSprite);
   }
 
-  createGameBoyKOEffect(sprite) {
+  createModernKOEffect(sprite) {
     if (!sprite) return;
     
+    // Spirales K.O. modernes avec couleurs harmonisées
     const spirals = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const spiral = this.add.text(
-        sprite.x + (Math.random() - 0.5) * 60,
+        sprite.x + (Math.random() - 0.5) * 70,
         sprite.y - 30,
         '@',
         {
-          fontSize: `${20 + i * 4}px`,
-          fontFamily: 'monospace',
-          color: i % 2 === 0 ? '#6b8e6b' : '#8fad8f'
+          fontSize: `${22 + i * 4}px`,
+          fontFamily: "'Segoe UI', Arial, sans-serif",
+          color: i % 2 === 0 ? '#87ceeb' : '#4a90e2',
+          fontWeight: 'bold'
         }
       );
       spiral.setDepth(60);
@@ -2346,14 +2312,14 @@ export class BattleScene extends Phaser.Scene {
       
       this.tweens.add({
         targets: spiral,
-        y: spiral.y - 80,
-        x: spiral.x + (Math.random() - 0.5) * 40,
+        y: spiral.y - 90,
+        x: spiral.x + (Math.random() - 0.5) * 50,
         alpha: 0,
-        rotation: Math.PI * 6,
-        scaleX: 2,
-        scaleY: 2,
-        duration: 2500,
-        delay: i * 300,
+        rotation: Math.PI * 8,
+        scaleX: 2.5,
+        scaleY: 2.5,
+        duration: 2800,
+        delay: i * 350,
         ease: 'Power2.easeOut',
         onComplete: () => spiral.destroy()
       });
@@ -2368,27 +2334,27 @@ export class BattleScene extends Phaser.Scene {
     this.interfaceMode = 'ended';
     this.hideActionButtons();
     
-    this.showGameBoyBattleEndMessage(winnerData);
+    this.showModernBattleEndMessage(winnerData);
     
     setTimeout(() => {
       this.endBattle({ result: 'completed', winner: winnerData.winner });
     }, 4000);
   }
 
-  showGameBoyBattleEndMessage(winnerData) {
+  showModernBattleEndMessage(winnerData) {
     let fullMessage = winnerData.message;
     
     if (winnerData.winner === 'player1') {
       const rewards = this.calculateBattleRewards();
       
-      fullMessage += '\n\nRÉCOMPENSES OBTENUES :';
+      fullMessage += '\n\n' + t('battle.ui.rewards.title') + ' :';
       
       if (rewards.experience > 0) {
-        fullMessage += `\n⭐ +${rewards.experience} POINTS EXP`;
+        fullMessage += `\n⭐ +${rewards.experience} ${t('battle.ui.rewards.exp_points')}`;
       }
       
       if (rewards.money > 0) {
-        fullMessage += `\n💰 +${rewards.money} POKÉDOLLARS`;
+        fullMessage += `\n💰 +${rewards.money} ${t('battle.ui.rewards.pokedollars')}`;
       }
       
       if (rewards.items && rewards.items.length > 0) {
@@ -2401,7 +2367,7 @@ export class BattleScene extends Phaser.Scene {
     this.showActionMessage(fullMessage);
     
     if (winnerData.winner === 'player1') {
-      this.createGameBoyVictoryEffect();
+      this.createModernVictoryEffect();
     }
   }
 
@@ -2412,24 +2378,26 @@ export class BattleScene extends Phaser.Scene {
       experience: Math.floor(opponentLevel * 10 + Math.random() * 20),
       money: Math.floor(opponentLevel * 15 + Math.random() * 50),
       items: Math.random() > 0.7 ? [
-        { name: 'POTION', quantity: 1 }
+        { name: t('items.potion.name'), quantity: 1 }
       ] : []
     };
   }
 
-  createGameBoyVictoryEffect() {
+  createModernVictoryEffect() {
     const { width, height } = this.cameras.main;
     
-    for (let i = 0; i < 12; i++) {
+    // Confettis modernes avec couleurs harmonisées
+    for (let i = 0; i < 15; i++) {
       setTimeout(() => {
         const confetti = this.add.text(
           Math.random() * width, 
           -20, 
-          ['✦', '◆', '▲', '●'][Math.floor(Math.random() * 4)], 
+          ['✦', '◆', '▲', '●', '★'][Math.floor(Math.random() * 5)], 
           { 
-            fontSize: '20px',
-            fontFamily: 'monospace',
-            color: ['#ffd700', '#8fad8f', '#6b8e6b', '#4a6b4a'][Math.floor(Math.random() * 4)]
+            fontSize: '22px',
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            color: ['#87ceeb', '#4a90e2', '#357abd', '#2a3f5f', '#ffffff'][Math.floor(Math.random() * 5)],
+            fontWeight: 'bold'
           }
         );
         confetti.setDepth(200);
@@ -2437,14 +2405,16 @@ export class BattleScene extends Phaser.Scene {
         this.tweens.add({
           targets: confetti,
           y: height + 50,
-          x: confetti.x + (Math.random() - 0.5) * 120,
-          rotation: Math.PI * 6,
+          x: confetti.x + (Math.random() - 0.5) * 140,
+          rotation: Math.PI * 8,
           alpha: 0,
-          duration: 4000,
+          scaleX: 2.0,
+          scaleY: 2.0,
+          duration: 4500,
           ease: 'Power2.easeIn',
           onComplete: () => confetti.destroy()
         });
-      }, i * 200);
+      }, i * 250);
     }
   }
 
@@ -2479,9 +2449,9 @@ export class BattleScene extends Phaser.Scene {
     setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
     setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
     
-    setTimeout(() => this.showNarrativeMessage('UN PIKACHU CHROMATIQUE APPARAÎT !', true), 2000);
-    setTimeout(() => this.showNarrativeMessage('ALLEZ ! BULBIZARRE !', true), 4000);
-    setTimeout(() => this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?', true), 6000);
+    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.wild_pokemon_appears').replace('{name}', 'PIKACHU CHROMATIQUE'), true), 2000);
+    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.go_pokemon').replace('{name}', 'BULBIZARRE'), true), 4000);
+    setTimeout(() => this.showNarrativeMessage(t('battle.ui.messages.what_will_you_do'), true), 6000);
     setTimeout(() => this.showActionButtons(), 8000);
   }
 
@@ -2494,7 +2464,7 @@ export class BattleScene extends Phaser.Scene {
       this.currentPlayerPokemon.currentHp - damage);
     
     this.updateModernHealthBar('player1', this.currentPlayerPokemon);
-    this.createDamageEffect(this.playerPokemonSprite, damage);
+    this.createModernDamageEffect(this.playerPokemonSprite, damage);
     
     return this.currentPlayerPokemon.currentHp;
   }
@@ -2506,7 +2476,7 @@ export class BattleScene extends Phaser.Scene {
       this.currentOpponentPokemon.currentHp - damage);
     
     this.updateModernHealthBar('player2', this.currentOpponentPokemon);
-    this.createDamageEffect(this.opponentPokemonSprite, damage);
+    this.createModernDamageEffect(this.opponentPokemonSprite, damage);
     
     return this.currentOpponentPokemon.currentHp;
   }
@@ -2554,7 +2524,7 @@ export class BattleScene extends Phaser.Scene {
 
 // === FONCTIONS GLOBALES DE TEST ===
 
-window.testGameBoyBattle = function() {
+window.testModernBattle = function() {
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (!battleScene) {
     console.error('❌ BattleScene non trouvée');
@@ -2567,5 +2537,5 @@ window.testGameBoyBattle = function() {
   }
   
   battleScene.testModernBattleDisplay();
-  console.log('🎮 Interface Game Boy activée !');
+  console.log('🎮 Interface moderne harmonisée activée !');
 };
