@@ -828,68 +828,94 @@ export class UIManager {
     return this;
   }
 
-  showModule(moduleId, options = {}) {
-    if (!this.canShowModule(moduleId)) {
-      return false;
-    }
-    
-    const success = this.setModuleState(moduleId, { visible: true });
-    
-    if (success) {
-      this.openModules.add(moduleId);
-      
-      const instance = this.getModuleInstance(moduleId);
-      if (instance) {
-        instance.isEnabled = true;
-        instance.initialized = true;
-      }
-      
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        const element = iconConfig.element;
-        
-        element.style.display = 'block';
-        element.style.visibility = 'visible';
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'auto';
-        element.style.transform = '';
-        element.style.transition = '';
-        
-        element.classList.remove('ui-hidden', 'ui-disabled', 'hidden');
-        
-        this.positionIcon(moduleId);
-      }
-    }
-    
-    return success;
+showModule(moduleId, options = {}) {
+  const config = this.modules.get(moduleId);
+  const state = this.moduleStates.get(moduleId);
+  const iconConfig = this.registeredIcons.get(moduleId);
+  
+  if (!config || !state) {
+    return false;
   }
   
-  hideModule(moduleId, options = {}) {
-    const success = this.setModuleState(moduleId, { visible: false });
+  // Afficher l'icône
+  if (iconConfig && iconConfig.element) {
+    // ✅ RESTAURATION COMPLÈTE
+    iconConfig.element.style.display = 'block';
+    iconConfig.element.style.visibility = 'visible';
+    iconConfig.element.style.opacity = '1';
+    iconConfig.element.style.pointerEvents = 'auto';
+    iconConfig.element.style.filter = '';
+    iconConfig.element.classList.remove('ui-disabled', 'battle-hidden');
     
-    if (success) {
-      this.openModules.delete(moduleId);
-      
-      const iconConfig = this.registeredIcons.get(moduleId);
-      if (iconConfig && iconConfig.element) {
-        if (options.animated !== false) {
-          iconConfig.element.style.transition = 'opacity 0.3s ease';
-          iconConfig.element.style.opacity = '0';
-          setTimeout(() => {
-            iconConfig.element.style.display = 'none';
-          }, 300);
-        } else {
-          iconConfig.element.style.display = 'none';
-        }
-        
-        setTimeout(() => {
-          this.repositionAllIcons();
-        }, options.animated !== false ? 350 : 50);
-      }
-    }
-    
-    return success;
+    console.log(`✅ [UIManager] Module ${moduleId} restauré`);
   }
+  
+  // Afficher l'interface du module si demandé
+  if (options.openInterface && config.instance && typeof config.instance.show === 'function') {
+    try {
+      config.instance.show();
+    } catch (error) {
+      console.warn(`⚠️ Erreur affichage module ${moduleId}:`, error);
+    }
+  }
+  
+  // Mettre à jour l'état
+  state.visible = true;
+  this.moduleStates.set(moduleId, state);
+  
+  return true;
+}
+
+  
+hideModule(moduleId, options = {}) {
+  const config = this.modules.get(moduleId);
+  const state = this.moduleStates.get(moduleId);
+  const iconConfig = this.registeredIcons.get(moduleId);
+  
+  if (!config || !state) {
+    return false;
+  }
+  
+  // ✅ NOUVEAU : Vérifier si on est en mode battle
+  const isBattleMode = this.globalState.currentGameState === 'battle';
+  
+  // Masquer complètement l'icône
+  if (iconConfig && iconConfig.element) {
+    if (isBattleMode) {
+      // ✅ EN BATTLE : MASQUAGE COMPLET
+      iconConfig.element.style.display = 'none';
+      iconConfig.element.style.visibility = 'hidden';
+      iconConfig.element.style.opacity = '0';
+      iconConfig.element.style.pointerEvents = 'none';
+      iconConfig.element.classList.add('battle-hidden');
+      
+      console.log(`🥊 [UIManager] Module ${moduleId} MASQUÉ COMPLÈTEMENT (battle)`);
+    } else {
+      // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
+      iconConfig.element.style.opacity = '0.5';
+      iconConfig.element.style.pointerEvents = 'none';
+      iconConfig.element.style.filter = 'grayscale(70%)';
+      iconConfig.element.classList.add('ui-disabled');
+      
+      console.log(`🔒 [UIManager] Module ${moduleId} désactivé (normal)`);
+    }
+  }
+  
+  // Cacher l'interface du module
+  if (config.instance && typeof config.instance.hide === 'function') {
+    try {
+      config.instance.hide();
+    } catch (error) {
+      console.warn(`⚠️ Erreur masquage module ${moduleId}:`, error);
+    }
+  }
+  
+  // Mettre à jour l'état
+  state.visible = false;
+  this.moduleStates.set(moduleId, state);
+  
+  return true;
+}
   
   enableModule(moduleId) {
     const success = this.setModuleState(moduleId, { enabled: true });
