@@ -2767,10 +2767,20 @@ getNPC() {
     
     // ✅ NOUVEAU : Forcer la collecte du shopId
     const shopIdInput = document.querySelector('input[name="shopId"], select[name="shopId"]');
-    if (shopIdInput && shopIdInput.value !== undefined) {
-        npcData.shopId = shopIdInput.value; // Même si vide !
-        console.log(`🏪 [FormBuilder] FORCED shopId: "${npcData.shopId}"`);
-    }
+if (shopIdInput && shopIdInput.value !== undefined) {
+    npcData.shopId = shopIdInput.value; // Même si vide !
+    console.log(`🏪 [FormBuilder] FORCED shopId: "${npcData.shopId}"`);
+}
+
+// ✅ FIX : Forcer la collecte du nom aussi
+const nameInput = document.querySelector('input[name="name"]');
+if (nameInput && nameInput.value) {
+    npcData.name = nameInput.value;
+    console.log(`👤 [FormBuilder] FORCED name: "${npcData.name}"`);
+} else if (this.currentNPC?.name) {
+    npcData.name = this.currentNPC.name;
+    console.log(`👤 [FormBuilder] FALLBACK name from currentNPC: "${npcData.name}"`);
+}
     
     // ✅ MIGRATION : Nettoyer l'ancien shopConfig s'il existe
     if (npcData.shopConfig) {
