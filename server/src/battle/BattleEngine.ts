@@ -1057,61 +1057,74 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
     }
   }
 
-  private async processAllActionsRapidly(): Promise<void> {
-    for (let i = 0; i < this.orderedActions.length; i++) {
-      const actionData = this.orderedActions[i];
-      const currentPokemon = this.getCurrentPokemonInGame(actionData.playerRole);
-      
-      if (!currentPokemon || currentPokemon.currentHp <= 0) {
-        console.log(`⏭️ [BattleEngine] Skip action ${i + 1} - Pokémon KO`);
-        continue;
-      }
-
-      console.log(`⚔️ [BattleEngine] Traitement action ${i + 1}/${this.orderedActions.length}`);
-      
-      try {
-        const result = await this.actionProcessor.processAction(actionData.action);
-        if (result.success && result.data) {
-          this.emit('actionProcessed', {
-            action: actionData.action,
-            result,
-            playerRole: actionData.playerRole
-          });
-          
-          if (this.broadcastManager && actionData.action.type === 'attack') {
-            this.broadcastManager.emit('moveUsed', {
-              attackerName: actionData.pokemon.name,
-              moveName: this.getMoveDisplayName(actionData.action.data.moveId)
-            });
-            
-          if (result.data.damage > 0) {
-            const defenderPokemon = result.data.defenderRole === 'player1' ? 
-              this.gameState.player1.pokemon! : 
-              this.gameState.player2.pokemon!;
-              
-            this.broadcastManager.emit('damageDealt', {
-              targetName: defenderPokemon.name,
-              targetRole: result.data.defenderRole,        // ✅ AJOUTÉ
-              targetPlayerId: result.data.defenderRole === 'player1' ? 
-                this.gameState.player1.sessionId : 
-                this.gameState.player2.sessionId,          // ✅ AJOUTÉ  
-              damage: result.data.damage,
-              oldHp: result.data.oldHp,                    // ✅ AJOUTÉ
-              newHp: result.data.newHp,
-              maxHp: defenderPokemon.maxHp,                // ✅ AJOUTÉ
-              hpPercentage: Math.round((result.data.newHp / defenderPokemon.maxHp) * 100) // ✅ AJOUTÉ
-            });
-          }
-          }
-        }
-      } catch (error) {
-        console.error(`❌ [BattleEngine] Erreur action ${i + 1}:`, error);
-        continue;
-      }
+private async processAllActionsRapidly(): Promise<void> {
+  for (let i = 0; i < this.orderedActions.length; i++) {
+    const actionData = this.orderedActions[i];
+    const currentPokemon = this.getCurrentPokemonInGame(actionData.playerRole);
+    
+    if (!currentPokemon || currentPokemon.currentHp <= 0) {
+      console.log(`⏭️ [BattleEngine] Skip action ${i + 1} - Pokémon KO`);
+      continue;
     }
 
-    await this.performKOCheckPhase();
+    console.log(`⚔️ [BattleEngine] Traitement action ${i + 1}/${this.orderedActions.length}`);
+    
+    try {
+      const result = await this.actionProcessor.processAction(actionData.action);
+      
+      if (result.success && result.data) {
+        this.emit('actionProcessed', {
+          action: actionData.action,
+          result,
+          playerRole: actionData.playerRole
+        });
+        
+        // ✅ GESTION TIMING AVEC BROADCASTMANAGER
+        if (this.broadcastManager && actionData.action.type === 'attack') {
+          // Créer les données d'attaque pour BroadcastManager
+          const defenderRole = result.data.defenderRole;
+          const defenderPokemon = defenderRole === 'player1' ? 
+            this.gameState.player1.pokemon : 
+            this.gameState.player2.pokemon;
+          
+          const attackSequenceData = {
+            attacker: {
+              name: actionData.pokemon.name,
+              role: actionData.playerRole
+            },
+            target: {
+              name: defenderPokemon?.name || 'Unknown',
+              role: defenderRole
+            },
+            move: {
+              id: actionData.action.data.moveId,
+              name: this.getMoveDisplayName(actionData.action.data.moveId)
+            },
+            damage: result.data.damage,
+            oldHp: result.data.oldHp || defenderPokemon?.currentHp || 0,
+            newHp: result.data.newHp,
+            maxHp: defenderPokemon?.maxHp || 100,
+            isKnockedOut: result.data.isKnockedOut || false
+          };
+          
+          // ✅ ÉMETTRE AVEC TIMING AUTOMATIQUE
+          await this.broadcastManager.emitAttackSequence(attackSequenceData);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [BattleEngine] Erreur action ${i + 1}:`, error);
+      continue;
+    }
+    
+    // ✅ DÉLAI ENTRE LES ACTIONS (si plusieurs)
+    if (i < this.orderedActions.length - 1) {
+      await this.delay(800); // 800ms entre chaque attaque
+    }
   }
+
+  await this.performKOCheckPhase();
+}
+
 
   private async completeActionResolution(): Promise<void> {
     if (!this.isInitialized || this.battleEndHandled) return;
