@@ -1354,15 +1354,16 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(1, 1, Math.max(0, width - 2), 3, 1);
   }
 
-  // === 📱 GESTION ADAPTATIVE DES MODES D'AFFICHAGE (POSITIONS AJUSTÉES) ===
+  // === 🎮 GESTION DES MODES : ACTIONS vs ATTAQUES ===
 
-  // Mode boutons d'action
+  // Mode boutons d'action normaux
   showActionButtons() {
-    console.log('🎮 [BattleScene] Mode BOUTONS activé');
+    console.log('🎮 [BattleScene] Mode BOUTONS ACTIONS activé');
     const { width } = this.cameras.main;
     
     this.hideActionMessage();
     this.hideNarrativeMode();
+    this.hideMoveButtons(); // S'assurer que les attaques sont cachées
     
     // Redessiner le panel pour les boutons (compact)
     this.drawMainPanel(width, 100, 'buttons');
@@ -1372,7 +1373,7 @@ export class BattleScene extends Phaser.Scene {
       this.textPanel.setVisible(false);
     }
     
-    // Montrer les boutons
+    // Montrer les boutons d'action
     if (this.actionInterface) {
       this.actionInterface.list.forEach(child => {
         if (child.isActionButton) {
@@ -1390,6 +1391,211 @@ export class BattleScene extends Phaser.Scene {
     }
     
     this.interfaceMode = 'buttons';
+  }
+
+  // ✅ NOUVEAU : Mode boutons d'attaques (remplace les 4 boutons)
+  showMoveButtons(moves) {
+    console.log('⚔️ [BattleScene] Mode ATTAQUES activé avec:', moves);
+    const { width } = this.cameras.main;
+    
+    this.hideActionButtons(); // Cacher les boutons d'action
+    this.hideActionMessage();
+    this.hideNarrativeMode();
+    
+    // Redessiner le panel pour les attaques
+    this.drawMainPanel(width, 100, 'moves');
+    
+    // Cacher le panel de texte
+    if (this.textPanel) {
+      this.textPanel.setVisible(false);
+    }
+    
+    // Créer/montrer les boutons d'attaques
+    this.createMoveButtons(moves, width);
+    
+    // Cacher l'indicateur de continuation
+    if (this.continueArrow) {
+      this.continueArrow.setVisible(false);
+    }
+    
+    this.interfaceMode = 'moves';
+  }
+
+  // ✅ NOUVEAU : Créer les boutons d'attaques dynamiquement
+  createMoveButtons(moves, width) {
+    // Nettoyer les anciens boutons d'attaques s'ils existent
+    if (this.moveButtons) {
+      this.moveButtons.forEach(button => button.destroy());
+    }
+    this.moveButtons = [];
+    
+    // Positions identiques aux boutons d'action
+    const buttonWidth = (width - 100) / 2;
+    const buttonHeight = 26;
+    const startX = 30;
+    const startY = 25;
+    const gapX = 15;
+    const gapY = 5;
+    
+    // Couleurs par type d'attaque
+    const moveTypeColors = {
+      'normal': 0xa8a8a8,
+      'fire': 0xff4444,
+      'water': 0x4488ff,
+      'electric': 0xffd700,
+      'grass': 0x44dd44,
+      'ice': 0x88ddff,
+      'fighting': 0xcc2222,
+      'poison': 0xaa44aa,
+      'ground': 0xddcc44,
+      'flying': 0xaabbff,
+      'psychic': 0xff4488,
+      'bug': 0xaabb22,
+      'rock': 0xbbaa44,
+      'ghost': 0x7755aa,
+      'dragon': 0x7744ff,
+      'dark': 0x775544,
+      'steel': 0xaaaaaa,
+      'fairy': 0xffaaee
+    };
+    
+    // Créer jusqu'à 4 boutons d'attaques
+    for (let i = 0; i < Math.min(4, moves.length); i++) {
+      const move = moves[i];
+      const x = startX + (i % 2) * (buttonWidth + gapX);
+      const y = startY + Math.floor(i / 2) * (buttonHeight + gapY);
+      
+      // Couleur selon le type d'attaque ou couleur par défaut
+      const moveColor = moveTypeColors[move.type?.toLowerCase()] || 0x64b5f6;
+      
+      const moveAction = {
+        key: `move_${move.id}`,
+        text: move.name.toUpperCase().substring(0, 10), // Limiter la longueur
+        color: moveColor,
+        icon: this.getMoveIcon(move.type),
+        moveData: move
+      };
+      
+      const button = this.createGameBoyButton(x, y, buttonWidth, buttonHeight, moveAction);
+      button.isMoveButton = true;
+      
+      // Event handler spécifique aux attaques
+      button.removeAllListeners('pointerdown');
+      button.on('pointerdown', () => {
+        this.handleMoveButton(move);
+      });
+      
+      this.actionInterface.add(button);
+      this.moveButtons.push(button);
+    }
+    
+    // Si moins de 4 attaques, ajouter un bouton "RETOUR"
+    if (moves.length < 4 || true) { // Toujours ajouter le bouton retour
+      const backX = startX + (3 % 2) * (buttonWidth + gapX); // Position du 4e bouton
+      const backY = startY + Math.floor(3 / 2) * (buttonHeight + gapY);
+      
+      const backAction = {
+        key: 'back',
+        text: 'RETOUR',
+        color: 0x607d8b,
+        icon: '◀'
+      };
+      
+      const backButton = this.createGameBoyButton(backX, backY, buttonWidth, buttonHeight, backAction);
+      backButton.isMoveButton = true;
+      
+      backButton.removeAllListeners('pointerdown');
+      backButton.on('pointerdown', () => {
+        this.returnToActionButtons();
+      });
+      
+      this.actionInterface.add(backButton);
+      this.moveButtons.push(backButton);
+    }
+  }
+
+  // ✅ NOUVEAU : Masquer les boutons d'attaques
+  hideMoveButtons() {
+    if (this.moveButtons) {
+      this.moveButtons.forEach(button => {
+        if (button && button.setVisible) {
+          button.setVisible(false);
+        }
+      });
+    }
+  }
+
+  // ✅ NOUVEAU : Retour aux boutons d'action
+  returnToActionButtons() {
+    console.log('🔙 [BattleScene] Retour aux boutons d\'action');
+    
+    // Masquer et détruire les boutons d'attaques
+    if (this.moveButtons) {
+      this.moveButtons.forEach(button => {
+        if (button && button.destroy) {
+          button.destroy();
+        }
+      });
+      this.moveButtons = [];
+    }
+    
+    // Réafficher les boutons d'action
+    this.showActionButtons();
+  }
+
+  // ✅ NOUVEAU : Gestionnaire d'attaque sélectionnée
+  handleMoveButton(move) {
+    console.log('⚔️ [BattleScene] Attaque sélectionnée:', move.name);
+    
+    // Afficher le message d'attaque
+    const pokemonName = this.currentPlayerPokemon?.name || 'Votre Pokémon';
+    this.showActionMessage(`${pokemonName} utilise ${move.name} !`);
+    
+    // Masquer les boutons d'attaques
+    this.hideMoveButtons();
+    
+    // Émettre l'événement pour le système de combat
+    this.scene.events.emit('battleActionSelected', {
+      type: 'move',
+      moveId: move.id,
+      moveName: move.name,
+      moveData: move
+    });
+    
+    // Envoyer au réseau si disponible
+    if (this.battleNetworkHandler && this.battleNetworkHandler.selectMove) {
+      try {
+        this.battleNetworkHandler.selectMove(move.id, move);
+      } catch (error) {
+        console.error('❌ [BattleScene] Erreur envoi attaque:', error);
+      }
+    }
+  }
+
+  // ✅ NOUVEAU : Icônes par type d'attaque
+  getMoveIcon(moveType) {
+    const typeIcons = {
+      'normal': '○',
+      'fire': '🔥',
+      'water': '💧',
+      'electric': '⚡',
+      'grass': '🌿',
+      'ice': '❄',
+      'fighting': '👊',
+      'poison': '☠',
+      'ground': '🌍',
+      'flying': '🦅',
+      'psychic': '🧠',
+      'bug': '🐛',
+      'rock': '🗿',
+      'ghost': '👻',
+      'dragon': '🐉',
+      'dark': '🌙',
+      'steel': '⚙',
+      'fairy': '✨'
+    };
+    
+    return typeIcons[moveType?.toLowerCase()] || '⚔';
   }
 
   // Mode message court (attaques, erreurs)
@@ -2705,7 +2911,7 @@ export class BattleScene extends Phaser.Scene {
   }
 }
 
-// === FONCTIONS GLOBALES DE TEST ADAPTATIVES ===
+// === FONCTIONS GLOBALES DE TEST ADAPTATIVES AVEC ATTAQUES ===
 
 window.testGameBoyBattle = function() {
   const battleScene = window.game?.scene?.getScene('BattleScene');
@@ -2737,6 +2943,25 @@ window.testActionMode = function() {
   if (battleScene && window.game.scene.isActive('BattleScene')) {
     battleScene.showActionButtons();
     console.log('🎮 [Test] Mode boutons activé');
+  }
+};
+
+// ✅ NOUVEAU : Test du mode attaques
+window.testMoveMode = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    const testMoves = battleScene.getTestMoves();
+    battleScene.showMoveButtons(testMoves);
+    console.log('⚔️ [Test] Mode attaques activé avec:', testMoves.length, 'attaques');
+  }
+};
+
+// ✅ NOUVEAU : Test du bouton retour
+window.testBackToActions = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    battleScene.returnToActionButtons();
+    console.log('🔙 [Test] Retour aux boutons d\'action');
   }
 };
 
@@ -2773,14 +2998,17 @@ window.gameBoyDamageOpponent = function(damage = 8) {
   }
 };
 
-console.log('✅ [BattleScene] VERSION POKÉMON ROUGE/BLEU ADAPTATIVE CHARGÉE !');
+console.log('✅ [BattleScene] VERSION POKÉMON ROUGE/BLEU AVEC ATTAQUES INTÉGRÉES CHARGÉE !');
 console.log('🎨 Style: Interface Game Boy avec modes adaptatifs');
-console.log('📱 Modes: Narratif (texte plein) / Actions (boutons) / Messages (courts)');
+console.log('📱 Modes: Narratif / Actions / Attaques / Messages');
+console.log('⚔️ Nouveau: Attaques remplacent les boutons au lieu de popup');
 console.log('🎮 Optimisé: Panel dynamique selon le contexte');
 console.log('🧪 Tests disponibles:');
 console.log('   - window.testGameBoyBattle() - Test interface complète');
 console.log('   - window.testNarrativeMode(message) - Test mode narratif');
-console.log('   - window.testActionMode() - Test mode boutons');  
+console.log('   - window.testActionMode() - Test mode boutons');
+console.log('   - window.testMoveMode() - Test mode attaques'); // ✅ NOUVEAU
+console.log('   - window.testBackToActions() - Test retour actions'); // ✅ NOUVEAU
 console.log('   - window.testMessageMode(message) - Test mode message');
 console.log('   - window.debugGameBoyHealthBars() - Debug barres Game Boy');
 console.log('   - window.gameBoyDamagePlayer(damage) - Test dégâts joueur');
