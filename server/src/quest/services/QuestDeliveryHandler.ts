@@ -1,6 +1,6 @@
 // server/src/quest/services/QuestDeliveryHandler.ts
 // Service pour traiter les livraisons de quêtes confirmées par le joueur
-// ✅ VERSION AMÉLIORÉE : Intégration complète avec le système existant
+// ✅ VERSION CORRIGÉE : Synchronisation améliorée + Invalidation cache
 
 import { InventoryManager } from "../../managers/InventoryManager";
 
@@ -57,6 +57,9 @@ export interface DeliveryProcessingResult {
   error?: string;
   errorCode?: 'INSUFFICIENT_ITEMS' | 'QUEST_ERROR' | 'VALIDATION_FAILED' | 'SYSTEM_ERROR';
   
+  // ✅ NOUVEAU : Callback de synchronisation
+  syncCallback?: () => Promise<void>;
+  
   // Timing pour debug
   processingTime: number;
 }
@@ -81,6 +84,9 @@ export interface MultiDeliveryProcessingResult {
   // Messages détaillés
   detailedMessages: string[];
   
+  // ✅ NOUVEAU : Callback de synchronisation globale
+  syncCallback?: () => Promise<void>;
+  
   // Timing
   processingTime: number;
 }
@@ -95,13 +101,19 @@ export interface QuestDeliveryHandlerConfig {
   enableRollback: boolean;
   validateInventoryBeforeProcessing: boolean;
   enableProgressNotifications: boolean;
+  
+  // ✅ NOUVEAUX : Configuration synchronisation
+  enableAsyncSync: boolean;
+  syncDelayMs: number;
+  maxSyncWaitMs: number;
+  enableCacheInvalidation: boolean;
 }
 
 // ===== CLASSE PRINCIPALE AMÉLIORÉE =====
 
 /**
  * 🚚 Handler pour traiter les livraisons de quête
- * ✅ VERSION AMÉLIORÉE : Intégration complète avec QuestManager et InventoryManager
+ * ✅ VERSION CORRIGÉE : Synchronisation améliorée
  */
 export class QuestDeliveryHandler {
   private config: QuestDeliveryHandlerConfig;
@@ -114,18 +126,25 @@ export class QuestDeliveryHandler {
       enableRollback: true,
       validateInventoryBeforeProcessing: true,
       enableProgressNotifications: true,
+      
+      // ✅ NOUVEAUX : Configuration sync
+      enableAsyncSync: true,
+      syncDelayMs: 500, // Délai pour laisser la DB se mettre à jour
+      maxSyncWaitMs: 3000, // Maximum 3s d'attente
+      enableCacheInvalidation: true,
+      
       ...config
     };
 
     if (this.config.enableLogging) {
-      console.log('🚚 [QuestDeliveryHandler] Service initialisé');
+      console.log('🚚 [QuestDeliveryHandler] Service initialisé avec sync améliorée');
     }
   }
 
-  // ===== MÉTHODE PRINCIPALE SIMPLIFIÉE =====
+  // ===== MÉTHODE PRINCIPALE CORRIGÉE =====
 
   /**
-   * 🚚 Traite une livraison unique (méthode principale simplifiée)
+   * 🚚 Traite une livraison unique (méthode principale corrigée)
    */
   async handleQuestDelivery(
     playerId: string,
@@ -134,12 +153,15 @@ export class QuestDeliveryHandler {
     objectiveId: string,
     itemId: string,
     requiredAmount: number,
-    questManager: any
+    questManager: any,
+    // ✅ NOUVEAUX PARAMÈTRES : Callbacks pour synchronisation
+    worldRoomCallback?: () => Promise<void>,
+    cacheInvalidationCallback?: (playerId: string, npcId: string) => void
   ): Promise<DeliveryProcessingResult> {
     
     const startTime = Date.now();
     
-    this.log('info', `🚚 === TRAITEMENT LIVRAISON UNIQUE ===`);
+    this.log('info', `🚚 === TRAITEMENT LIVRAISON AVEC SYNC AMÉLIORÉE ===`);
     this.log('info', `👤 Joueur: ${playerId}, NPC: ${npcId}`);
     this.log('info', `📦 Livraison: ${itemId} x${requiredAmount} pour quête ${questId}`);
 
@@ -214,6 +236,35 @@ export class QuestDeliveryHandler {
           result.progressMessage = 'Livraison effectuée';
         }
 
+        // ✅ ÉTAPE 5 : SYNCHRONISATION AMÉLIORÉE
+        if (this.config.enableAsyncSync) {
+          result.syncCallback = async () => {
+            try {
+              this.log('info', `🔄 Début synchronisation post-livraison pour ${playerId}`);
+              
+              // 1. Invalidation du cache si disponible
+              if (this.config.enableCacheInvalidation && cacheInvalidationCallback) {
+                this.log('info', `🗑️ Invalidation cache pour ${playerId}-${npcId}`);
+                cacheInvalidationCallback(playerId, npcId.toString());
+              }
+              
+              // 2. Attendre que la DB soit mise à jour
+              await this.waitForDbSync();
+              
+              // 3. Callback vers WorldRoom pour refresh des NPCs
+              if (worldRoomCallback) {
+                this.log('info', `📡 Appel callback WorldRoom pour refresh NPCs`);
+                await worldRoomCallback();
+              }
+              
+              this.log('info', `✅ Synchronisation post-livraison terminée`);
+              
+            } catch (syncError) {
+              this.log('error', `❌ Erreur synchronisation:`, syncError);
+            }
+          };
+        }
+
       } catch (questError) {
         this.log('error', `❌ Erreur progression quête:`, questError);
         
@@ -259,12 +310,14 @@ export class QuestDeliveryHandler {
    */
   async handleMultipleDeliveries(
     request: MultiDeliveryRequest,
-    questManager: any
+    questManager: any,
+    worldRoomCallback?: () => Promise<void>,
+    cacheInvalidationCallback?: (playerId: string, npcId: string) => void
   ): Promise<MultiDeliveryProcessingResult> {
     
     const startTime = Date.now();
     
-    this.log('info', `🚚 === TRAITEMENT LIVRAISONS MULTIPLES ===`);
+    this.log('info', `🚚 === TRAITEMENT LIVRAISONS MULTIPLES AVEC SYNC ===`);
     this.log('info', `👤 Joueur: ${request.playerId}, NPC: ${request.npcId}`);
     this.log('info', `📦 ${request.deliveries.length} livraison(s) à traiter`);
 
@@ -282,6 +335,8 @@ export class QuestDeliveryHandler {
     };
 
     try {
+      const allSyncCallbacks: Array<() => Promise<void>> = [];
+
       // Traiter chaque livraison individuellement
       for (const delivery of request.deliveries) {
         const deliveryResult = await this.handleQuestDelivery(
@@ -291,7 +346,9 @@ export class QuestDeliveryHandler {
           delivery.objectiveId,
           delivery.itemId,
           delivery.requiredAmount,
-          questManager
+          questManager,
+          worldRoomCallback,
+          cacheInvalidationCallback
         );
 
         result.results.push(deliveryResult);
@@ -308,6 +365,12 @@ export class QuestDeliveryHandler {
             result.anyQuestCompleted = true;
             result.detailedMessages.push(`🏆 Quête ${delivery.questId} terminée !`);
           }
+
+          // ✅ Collecter les callbacks de sync
+          if (deliveryResult.syncCallback) {
+            allSyncCallbacks.push(deliveryResult.syncCallback);
+          }
+
         } else {
           result.failedDeliveries++;
           result.detailedMessages.push(`❌ ${delivery.itemId}: ${deliveryResult.error}`);
@@ -318,6 +381,20 @@ export class QuestDeliveryHandler {
             break; // Arrêter en mode strict
           }
         }
+      }
+
+      // ✅ SYNCHRONISATION GLOBALE
+      if (allSyncCallbacks.length > 0) {
+        result.syncCallback = async () => {
+          this.log('info', `🔄 Synchronisation globale: ${allSyncCallbacks.length} callback(s)`);
+          
+          // Exécuter tous les callbacks en séquence
+          for (const callback of allSyncCallbacks) {
+            await callback();
+          }
+          
+          this.log('info', `✅ Synchronisation globale terminée`);
+        };
       }
 
       // Construire le message final
@@ -346,7 +423,44 @@ export class QuestDeliveryHandler {
     }
   }
 
-  // ===== MÉTHODES PRIVÉES =====
+  // ===== NOUVELLES MÉTHODES DE SYNCHRONISATION =====
+
+  /**
+   * ✅ NOUVELLE MÉTHODE : Attendre que la DB soit synchronisée
+   */
+  private async waitForDbSync(): Promise<void> {
+    if (!this.config.enableAsyncSync) {
+      return;
+    }
+
+    this.log('info', `⏳ Attente synchronisation DB (${this.config.syncDelayMs}ms)`);
+    
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Timeout synchronisation DB après ${this.config.maxSyncWaitMs}ms`));
+      }, this.config.maxSyncWaitMs);
+
+      setTimeout(() => {
+        clearTimeout(timeout);
+        resolve();
+      }, this.config.syncDelayMs);
+    });
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE UTILITAIRE : Exécuter la synchronisation d'un résultat
+   */
+  public static async executeSyncCallback(result: DeliveryProcessingResult | MultiDeliveryProcessingResult): Promise<void> {
+    if (result.syncCallback) {
+      try {
+        await result.syncCallback();
+      } catch (error) {
+        console.error(`❌ [QuestDeliveryHandler] Erreur callback sync:`, error);
+      }
+    }
+  }
+
+  // ===== MÉTHODES PRIVÉES (IDENTIQUES) =====
 
   /**
    * 🚚 Valide une livraison unique
@@ -428,14 +542,22 @@ export class QuestDeliveryHandler {
   public getDebugInfo(): any {
     return {
       config: this.config,
-      version: '2.0.0', // ✅ Version améliorée
+      version: '2.1.0', // ✅ Version avec sync améliorée
       features: {
         singleDelivery: true,
         multipleDelivery: true,
         strictValidation: this.config.strictValidation,
         rollback: this.config.enableRollback,
         inventoryValidation: this.config.validateInventoryBeforeProcessing,
-        progressNotifications: this.config.enableProgressNotifications
+        progressNotifications: this.config.enableProgressNotifications,
+        asyncSync: this.config.enableAsyncSync,
+        cacheInvalidation: this.config.enableCacheInvalidation
+      },
+      syncConfig: {
+        enabled: this.config.enableAsyncSync,
+        delayMs: this.config.syncDelayMs,
+        maxWaitMs: this.config.maxSyncWaitMs,
+        cacheInvalidation: this.config.enableCacheInvalidation
       },
       supportedErrorCodes: [
         'INSUFFICIENT_ITEMS',
@@ -451,7 +573,7 @@ export class QuestDeliveryHandler {
    */
   public updateConfig(newConfig: Partial<QuestDeliveryHandlerConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.log('info', '⚙️ Configuration mise à jour');
+    this.log('info', '⚙️ Configuration mise à jour avec sync améliorée');
   }
 
   /**
@@ -461,7 +583,7 @@ export class QuestDeliveryHandler {
     this.log('info', '🧹 Service nettoyé');
   }
 
-  // ===== MÉTHODES UTILITAIRES PUBLIQUES =====
+  // ===== MÉTHODES UTILITAIRES PUBLIQUES (IDENTIQUES) =====
 
   /**
    * 🚚 Crée une requête de livraison simple
