@@ -2726,6 +2726,9 @@ async refreshDialogueDetails(fieldName, index) {
 }
     
 // ✅ MÉTHODE CORRIGÉE : getNPC() - Collecte TOUS les champs du formulaire
+// Dans client/src/admin/js/npc-form-builder.js
+// VÉRIFIER la méthode getNPC() (ligne ~1350 environ) pour s'assurer que shopId est bien collecté
+
 getNPC() {
     if (!this.currentNPC) return null;
     
@@ -2734,7 +2737,7 @@ getNPC() {
     // Commencer avec les données actuelles du NPC
     const npcData = { ...this.currentNPC };
     
-    // ✅ UNE SEULE BOUCLE qui fait tout correctement
+    // ✅ CORRECTION : S'assurer que shopId est collecté depuis le formulaire
     const formFields = document.querySelectorAll('input, textarea, select');
     
     formFields.forEach(field => {
@@ -2745,8 +2748,13 @@ getNPC() {
         
         console.log(`📝 [FormBuilder] Field: ${fieldName} = "${value}"`);
         
+        // ✅ SPÉCIAL : Traitement explicite pour shopId
+        if (fieldName === 'shopId') {
+            npcData.shopId = value || '';
+            console.log('🏪 [FormBuilder] shopId explicitly set:', npcData.shopId);
+        }
         // Gestion spéciale pour position
-        if (fieldName === 'position.x' || fieldName === 'position.y') {
+        else if (fieldName === 'position.x' || fieldName === 'position.y') {
             if (!npcData.position) npcData.position = {};
             const coord = fieldName.split('.')[1];
             npcData.position[coord] = Number(value) || 0;
@@ -2759,7 +2767,7 @@ getNPC() {
                 npcData[fieldName] = {};
             }
         }
-        // ✅ Pour tous les autres champs : prendre la valeur du form
+        // Pour tous les autres champs
         else {
             npcData[fieldName] = value !== undefined ? value : '';
         }
@@ -2768,21 +2776,25 @@ getNPC() {
     // ✅ MIGRATION : Nettoyer l'ancien shopConfig s'il existe
     if (npcData.shopConfig) {
         console.log('🔄 [FormBuilder] Removing deprecated shopConfig');
+        // Migrer vers shopId si pas déjà défini
+        if (npcData.shopConfig.shopId && !npcData.shopId) {
+            npcData.shopId = npcData.shopConfig.shopId;
+            console.log('📦 [FormBuilder] Migrated shopConfig.shopId to shopId:', npcData.shopId);
+        }
         delete npcData.shopConfig;
     }
     
+    // ✅ VALIDATION FINALE : S'assurer que shopId existe pour les merchants
+    if (npcData.type === 'merchant' && !npcData.shopId) {
+        npcData.shopId = ''; // Chaîne vide au lieu de undefined
+        console.log('🏪 [FormBuilder] Set empty shopId for merchant NPC');
+    }
+    
     console.log('✅ [FormBuilder] Final NPC collected');
-    // ✅ DEBUG FINAL avant envoi
-console.log('🔍 [FormBuilder] FINAL DEBUG:');
-console.log('  - sprite value:', npcData.sprite);
-console.log('  - sprite type:', typeof npcData.sprite);
-console.log('  - sprite length:', npcData.sprite?.length);
-console.log('  - all keys:', Object.keys(npcData));
-
-return npcData;
+    console.log('🏪 [FormBuilder] Final shopId:', npcData.shopId);
+    
     return npcData;
 }
-
     
     clearForm() {
         this.currentNPC = null
