@@ -529,9 +529,9 @@ export class BattleScene extends Phaser.Scene {
 
   createModernActionButtons(width) {
     const actions = [
-      { key: 'attack', text: t('battle.ui.actions.attack'), color: 0xff5722, icon: '⚔' },
-      { key: 'bag', text: t('battle.ui.actions.bag'), color: 0x9c27b0, icon: '🎒' },
-      { key: 'pokemon', text: t('battle.ui.actions.pokemon'), color: 0x2196f3, icon: '🔄' },
+      { key: 'attack', text: t('battle.ui.actions.attack'), color: 0x4a90e2, icon: '⚔' },
+      { key: 'bag', text: t('battle.ui.actions.bag'), color: 0x4a90e2, icon: '🎒' },
+      { key: 'pokemon', text: t('battle.ui.actions.pokemon'), color: 0x4a90e2, icon: '🔄' },
       { key: 'run', text: t('battle.ui.actions.run'), color: 0x607d8b, icon: '🏃' }
     ];
     
