@@ -2729,70 +2729,197 @@ async refreshDialogueDetails(fieldName, index) {
 // Dans client/src/admin/js/npc-form-builder.js
 // VÉRIFIER la méthode getNPC() (ligne ~1350 environ) pour s'assurer que shopId est bien collecté
 
+// Dans client/src/admin/js/npc-form-builder.js
+// REMPLACER la méthode getNPC() par cette version qui filtre les champs :
+
 getNPC() {
-    if (!this.currentNPC) return null;
+    if (!this.currentNPC) {
+        console.log('❌ [FormBuilder] getNPC: currentNPC is null');
+        return null;
+    }
     
-    console.log('📤 [FormBuilder] Collecting NPC data from form...');
+    console.log('📤 [FormBuilder] === DÉBUT COLLECTE NPC DATA SELECTIVE ===');
     
     // Commencer avec les données actuelles du NPC
     const npcData = { ...this.currentNPC };
     
-    // ✅ CORRECTION : S'assurer que shopId est collecté depuis le formulaire
-    const formFields = document.querySelectorAll('input, textarea, select');
+    // ✅ SOLUTION : Collecte SEULEMENT les champs du conteneur NPC
+    const npcContainer = this.container || document.getElementById('editorContent');
+    if (!npcContainer) {
+        console.error('❌ [FormBuilder] Conteneur NPC non trouvé !');
+        return npcData;
+    }
     
-    formFields.forEach(field => {
+    // Chercher SEULEMENT dans le conteneur du NPC FormBuilder
+    const formFields = npcContainer.querySelectorAll('input, textarea, select');
+    console.log(`📝 [FormBuilder] ${formFields.length} champs NPC trouvés dans le conteneur`);
+    
+    // ✅ LISTE DES CHAMPS NPC VALIDES (éviter les champs parasites)
+    const validNPCFields = [
+        // Champs de base
+        'name', 'type', 'sprite', 'direction', 'interactionRadius',
+        'canWalkAway', 'autoFacePlayer', 'repeatable', 'cooldownSeconds',
+        
+        // Position
+        'position.x', 'position.y',
+        
+        // Champs spécifiques par type
+        'dialogueIds', 'dialogueId', 'conditionalDialogueIds', 'zoneInfo',
+        'shopId', 'shopDialogueIds', 'businessHours', 'accessRestrictions',
+        'trainerId', 'trainerClass', 'trainerRank', 'trainerTitle',
+        'battleConfig', 'battleDialogueIds', 'battleConditions', 'rewards', 'rebattle',
+        'visionConfig', 'progressionFlags',
+        'healerConfig', 'healerDialogueIds', 'additionalServices', 'serviceRestrictions',
+        'gymConfig', 'gymDialogueIds', 'challengeConditions', 'gymRewards', 'rematchConfig',
+        'transportConfig', 'destinations', 'schedules', 'transportDialogueIds', 'weatherRestrictions',
+        'serviceConfig', 'availableServices', 'serviceDialogueIds',
+        'minigameConfig', 'contestCategories', 'contestRewards', 'contestDialogueIds', 'contestSchedule',
+        'researchConfig', 'researchServices', 'acceptedPokemon', 'researchDialogueIds', 'researchRewards',
+        'guildConfig', 'recruitmentRequirements', 'guildServices', 'guildDialogueIds', 'rankSystem',
+        'eventConfig', 'eventPeriod', 'eventActivities', 'eventDialogueIds', 'globalProgress',
+        'questMasterConfig', 'questMasterDialogueIds', 'questRankSystem', 'epicRewards', 'specialConditions',
+        
+        // Système de quêtes
+        'questsToGive', 'questsToEnd', 'questRequirements', 'questDialogueIds',
+        
+        // Conditions
+        'spawnConditions'
+    ];
+    
+    let shopIdFound = false;
+    let validFieldsProcessed = 0;
+    let invalidFieldsSkipped = 0;
+    
+    formFields.forEach((field, index) => {
         const fieldName = field.name;
         if (!fieldName) return;
         
+        // ✅ FILTRE : Ignorer les champs qui ne sont pas des champs NPC valides
+        const isValidNPCField = validNPCFields.includes(fieldName) || 
+                               fieldName.startsWith('questRequirements') ||
+                               fieldName.startsWith('questDialogueIds') ||
+                               fieldName.endsWith('Config') ||
+                               fieldName.endsWith('DialogueIds');
+        
+        if (!isValidNPCField) {
+            invalidFieldsSkipped++;
+            console.log(`⏭️ [FormBuilder] Champ ignoré (non-NPC): ${fieldName} = "${field.value}"`);
+            return;
+        }
+        
+        validFieldsProcessed++;
         let value = this.getFieldInputValue(field);
         
-        console.log(`📝 [FormBuilder] Field: ${fieldName} = "${value}"`);
-        
-        // ✅ SPÉCIAL : Traitement explicite pour shopId
+        // Log spécial pour shopId
         if (fieldName === 'shopId') {
-            npcData.shopId = value || '';
-            console.log('🏪 [FormBuilder] shopId explicitly set:', npcData.shopId);
+            shopIdFound = true;
+            console.log(`🏪 [FormBuilder] CHAMP SHOPID VALIDE:`, {
+                fieldName,
+                value,
+                valueType: typeof value,
+                fieldType: field.type,
+                fieldValue: field.value
+            });
         }
-        // Gestion spéciale pour position
-        else if (fieldName === 'position.x' || fieldName === 'position.y') {
+        
+        // Log pour les champs importants
+        if (['name', 'type', 'sprite', 'shopId'].includes(fieldName)) {
+            console.log(`📝 [FormBuilder] Champ NPC important [${fieldName}]: "${value}"`);
+        }
+        
+        // Traitement des champs
+        if (fieldName === 'position.x' || fieldName === 'position.y') {
             if (!npcData.position) npcData.position = {};
             const coord = fieldName.split('.')[1];
             npcData.position[coord] = Number(value) || 0;
         } 
-        // JSON spécial
         else if (field.classList.contains('json-editor')) {
             try {
                 npcData[fieldName] = JSON.parse(value || '{}');
             } catch (error) {
+                console.warn(`⚠️ [FormBuilder] JSON invalide pour ${fieldName}:`, error);
                 npcData[fieldName] = {};
             }
         }
-        // Pour tous les autres champs
         else {
             npcData[fieldName] = value !== undefined ? value : '';
         }
     });
     
-    // ✅ MIGRATION : Nettoyer l'ancien shopConfig s'il existe
+    console.log(`📊 [FormBuilder] Champs traités: ${validFieldsProcessed} valides, ${invalidFieldsSkipped} ignorés`);
+    
+    // Diagnostic shopId
+    console.log('🏪 [FormBuilder] === DIAGNOSTIC SHOPID ===');
+    console.log('🔍 shopIdFound dans form NPC:', shopIdFound);
+    console.log('🔍 npcData.shopId après collecte:', npcData.shopId);
+    console.log('🔍 currentNPC.shopId original:', this.currentNPC.shopId);
+    
+    // S'assurer que shopId est défini
+    if (!shopIdFound && this.currentNPC.shopId !== undefined) {
+        npcData.shopId = this.currentNPC.shopId;
+        console.log('🔄 [FormBuilder] shopId restauré depuis currentNPC:', npcData.shopId);
+    }
+    
+    // Migration depuis shopConfig
     if (npcData.shopConfig) {
-        console.log('🔄 [FormBuilder] Removing deprecated shopConfig');
-        // Migrer vers shopId si pas déjà défini
-        if (npcData.shopConfig.shopId && !npcData.shopId) {
+        console.log('🔄 [FormBuilder] Migration shopConfig détectée:', npcData.shopConfig);
+        if (npcData.shopConfig.shopId && (!npcData.shopId || npcData.shopId === '')) {
             npcData.shopId = npcData.shopConfig.shopId;
-            console.log('📦 [FormBuilder] Migrated shopConfig.shopId to shopId:', npcData.shopId);
+            console.log('📦 [FormBuilder] Migration shopConfig.shopId → shopId:', npcData.shopId);
         }
         delete npcData.shopConfig;
     }
     
-    // ✅ VALIDATION FINALE : S'assurer que shopId existe pour les merchants
-    if (npcData.type === 'merchant' && !npcData.shopId) {
-        npcData.shopId = ''; // Chaîne vide au lieu de undefined
-        console.log('🏪 [FormBuilder] Set empty shopId for merchant NPC');
+    // Validation finale pour les merchants
+    if (npcData.type === 'merchant') {
+        console.log('🏪 [FormBuilder] === VALIDATION MERCHANT ===');
+        console.log('🔍 shopId final:', npcData.shopId);
+        console.log('🔍 shopId type:', typeof npcData.shopId);
+        
+        // S'assurer que shopId est une chaîne (même vide)
+        if (npcData.shopId === undefined || npcData.shopId === null) {
+            npcData.shopId = '';
+            console.log('🔧 [FormBuilder] shopId forcé à chaîne vide pour merchant');
+        } else if (typeof npcData.shopId !== 'string') {
+            npcData.shopId = String(npcData.shopId);
+            console.log('🔧 [FormBuilder] shopId converti en string:', npcData.shopId);
+        }
     }
     
-    console.log('✅ [FormBuilder] Final NPC collected');
-    console.log('🏪 [FormBuilder] Final shopId:', npcData.shopId);
+    // ✅ NETTOYAGE FINAL : Supprimer les champs indésirables qui auraient pu passer
+    const fieldsToClean = [
+        'itemId', 'category', 'generation', 'rarity', 'description', 'price', 'sellPrice',
+        'stackable', 'consumable', 'battleOnly', 'fieldOnly', 'levelRequirement',
+        'locationRestrictions', 'version', 'sourceFile', 'isActive', 'tags'
+    ];
     
+    let cleanedFields = 0;
+    fieldsToClean.forEach(field => {
+        if (npcData[field] === 'undefined' || npcData[field] === undefined) {
+            delete npcData[field];
+            cleanedFields++;
+        }
+    });
+    
+    if (cleanedFields > 0) {
+        console.log(`🧹 [FormBuilder] ${cleanedFields} champs parasites nettoyés`);
+    }
+    
+    // Résumé final
+    console.log('📤 [FormBuilder] === RÉSUMÉ FINAL PROPRE ===');
+    console.log('📊 Données NPC collectées:', {
+        id: npcData.id,
+        name: npcData.name,
+        type: npcData.type,
+        sprite: npcData.sprite,
+        shopId: npcData.shopId,
+        shopIdType: typeof npcData.shopId,
+        position: npcData.position,
+        totalKeys: Object.keys(npcData).length,
+        cleanedFields: cleanedFields
+    });
+    
+    console.log('✅ [FormBuilder] NPC data collection PROPRE terminée');
     return npcData;
 }
     
