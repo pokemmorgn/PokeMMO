@@ -226,20 +226,41 @@ export class BattleEngine {
   /**
    * 🆕 MÉTHODE SOUMISSION ÉTENDUE : Support changements
    */
-  async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-    if (!this.isInitialized || this.gameState.isEnded) {
-      return this.createErrorResult('Combat non disponible');
-    }
+async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+  // 🚨 DEBUG: Log TOUTES les entrées dans submitAction
+  console.log('🚨 [BattleEngine] submitAction() ENTRY:');
+  console.log(`    action.playerId: "${action.playerId}"`);
+  console.log(`    action.type: "${action.type}"`);
+  console.log(`    action.actionId: "${action.actionId}"`);
+  console.log(`    timestamp: ${action.timestamp}`);
+  console.log(`    gameState exists: ${this.gameState ? 'YES' : 'NO'}`);
+  console.log(`    isInitialized: ${this.isInitialized}`);
+  console.log(`    gameState.isEnded: ${this.gameState?.isEnded}`);
 
-    const phaseValidation = this.phaseManager.validateAction(action);
-    if (!phaseValidation.isValid) {
-      return this.createErrorResult(phaseValidation.reason || 'Action non autorisée');
-    }
+  if (!this.isInitialized || this.gameState.isEnded) {
+    console.log('🚨 [BattleEngine] EARLY RETURN - Not initialized or ended');
+    return this.createErrorResult('Combat non disponible');
+  }
 
-    const playerRole = this.getPlayerRole(action.playerId);
-    if (!playerRole) {
-      return this.createErrorResult('Joueur non reconnu');
-    }
+  const phaseValidation = this.phaseManager.validateAction(action);
+  if (!phaseValidation.isValid) {
+    console.log('🚨 [BattleEngine] PHASE VALIDATION FAILED:');
+    console.log(`    reason: ${phaseValidation.reason}`);
+    console.log(`    current phase: ${this.phaseManager.getCurrentPhase()}`);
+    console.log(`    can submit actions: ${this.phaseManager.canSubmitAction()}`);
+    return this.createErrorResult(phaseValidation.reason || 'Action non autorisée');
+  }
+
+  const playerRole = this.getPlayerRole(action.playerId);
+  if (!playerRole) {
+    console.log('🚨 [BattleEngine] PLAYER ROLE RESOLUTION FAILED:');
+    console.log(`    playerId: "${action.playerId}"`);
+    console.log(`    player1.sessionId: "${this.gameState.player1.sessionId}"`);
+    console.log(`    player2.sessionId: "${this.gameState.player2.sessionId}"`);
+    return this.createErrorResult('Joueur non reconnu');
+  }
+
+  console.log(`✅ [BattleEngine] Validation passed, playerRole: ${playerRole}`);
 
     try {
       // 🆕 TRAITEMENT CHANGEMENT POKÉMON
