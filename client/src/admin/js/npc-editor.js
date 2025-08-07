@@ -14,7 +14,10 @@ export class NPCEditorModule {
         this.npcs = []
         this.selectedNPC = null
         this.formBuilder = null
-        this.validator = new NPCValidator()
+this.validator = new NPCValidator({ 
+    enableLogging: true, 
+    logLevel: 'debug' 
+})
         this.batchValidator = new BatchNPCValidator()
         this.unsavedChanges = false
         this.availableZones = []
