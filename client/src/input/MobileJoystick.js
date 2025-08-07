@@ -1,4 +1,4 @@
-// client/src/input/MobileJoystick.js - VERSION COMPLÈTEMENT CORRIGÉE
+// client/src/input/MobileJoystick.js - VERSION FIXÉE
 export class MobileJoystick {
   constructor(scene, options = {}) {
     this.scene = scene;
@@ -61,29 +61,21 @@ export class MobileJoystick {
     this.directionIndicator = this.scene.add.triangle(0, -15, 0, 10, -8, -10, 8, -10, 0x00ff00);
     this.directionIndicator.setAlpha(0);
 
-    // ✅ CORRECTION COMPLÈTE: Zone interactive avec fonction de callback sécurisée
+    // ✅ FIX: Zone interactive simplifiée
     this.interactiveZone = this.scene.add.zone(0, 0, this.config.baseRadius * 3, this.config.baseRadius * 3);
     
-    // ✅ Fonction custom pour éviter l'erreur Phaser.Geom.Circle.Contains
-    const customCircleHitArea = (hitArea, x, y, gameObject) => {
-      const dx = x - hitArea.x;
-      const dy = y - hitArea.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      return distance <= hitArea.radius;
-    };
-
-    // ✅ Configuration interactive sécurisée
+    // ✅ SOLUTION 1: Utiliser directement Phaser.Geom.Circle.Contains
     try {
       this.interactiveZone.setInteractive({
         hitArea: new Phaser.Geom.Circle(0, 0, this.config.baseRadius * 1.5),
-        hitAreaCallback: customCircleHitArea,
+        hitAreaCallback: Phaser.Geom.Circle.Contains, // ✅ Fonction native Phaser
         useHandCursor: true
       });
-      console.log('✅ Zone interactive du joystick configurée avec succès');
+      console.log('✅ Zone interactive du joystick configurée avec Phaser.Geom.Circle.Contains');
     } catch (error) {
-      console.warn('⚠️ Erreur configuration zone interactive, utilisation du fallback rectangle:', error);
+      console.warn('⚠️ Erreur avec Circle.Contains, fallback rectangle:', error);
       
-      // ✅ FALLBACK: Utiliser un rectangle si le cercle ne fonctionne pas
+      // ✅ FALLBACK: Rectangle (plus sûr)
       this.interactiveZone.setInteractive({
         hitArea: new Phaser.Geom.Rectangle(
           -this.config.baseRadius * 1.5, 
@@ -94,6 +86,7 @@ export class MobileJoystick {
         hitAreaCallback: Phaser.Geom.Rectangle.Contains,
         useHandCursor: true
       });
+      console.log('✅ Zone interactive du joystick configurée avec Rectangle (fallback)');
     }
 
     // Ajouter au conteneur APRÈS avoir configuré l'interactivité
