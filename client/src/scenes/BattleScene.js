@@ -463,7 +463,7 @@ export class BattleScene extends Phaser.Scene {
     this.modernEffectsLayer = this.add.container(0, 0);
     this.modernEffectsLayer.setDepth(200); // Au-dessus de tout
     
-    console.log('✨ [BattleScene] Couche d'effets moderne créée');
+    console.log('✨ [BattleScene] Couche d\'effets moderne créée');
   }
 
   // === 🏟️ PLATEFORMES MODERNES ===
