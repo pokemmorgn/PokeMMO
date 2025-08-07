@@ -60,7 +60,7 @@ exploration: {
 battle: {
   visibleModules: ['options'],
   enabledModules: ['options'],
-  hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex'],
+  hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex', 'options', 'timeWeather'],
   disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'pokedex']
 },
   
