@@ -62,6 +62,9 @@ export class QuestManager {
   // ✨ NOUVEAU : INDEX OPTIMISÉ POUR QUÊTES PAR NPC
   private npcQuestIndex: Map<number, QuestDefinition[]> = new Map();
   
+  // ✅ NOUVEAU : Callback pour refresh automatique des NPCs
+  private worldRoomCallback?: (playerId: string) => Promise<void>;
+  
   private isInitialized: boolean = false;
   private isInitializing: boolean = false;
   private initializationPromise: Promise<void> | null = null;
@@ -104,6 +107,38 @@ export class QuestManager {
     this.initializeServices();
     this.setupInventoryIntegration();
     this.lastLoadTime = Date.now();
+  }
+
+  // ✅ NOUVEAU : Enregistrer le callback WorldRoom pour refresh automatique
+  public setWorldRoomCallback(callback: (playerId: string) => Promise<void>): void {
+    this.worldRoomCallback = callback;
+    console.log(`✅ [QuestManager] Callback WorldRoom enregistré pour refresh automatique des NPCs`);
+  }
+
+  // ✅ NOUVEAU : Méthode pour déclencher le refresh automatique des NPCs
+  private async triggerNpcStatusRefresh(playerId: string): Promise<void> {
+    if (this.worldRoomCallback) {
+      try {
+        console.log(`🔄 [QuestManager] Déclenchement refresh automatique NPCs pour ${playerId}`);
+        
+        // Petit délai pour s'assurer que la DB est à jour
+        setTimeout(async () => {
+          try {
+            await this.worldRoomCallback!(playerId);
+            console.log(`✅ [QuestManager] Refresh NPCs terminé pour ${playerId}`);
+          } catch (error) {
+            console.error(`❌ [QuestManager] Erreur refresh NPCs différé:`, error);
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.error(`❌ [QuestManager] Erreur refresh NPCs:`, error);
+      }
+    } else {
+      if (this.config.debugMode) {
+        console.warn(`⚠️ [QuestManager] Pas de callback WorldRoom configuré pour refresh NPCs`);
+      }
+    }
   }
 
   private initializeServices(): void {
@@ -663,179 +698,155 @@ export class QuestManager {
     }
   }
 
-async startQuest(username: string, questId: string): Promise<Quest | null> {
-  try {
-    const definition = this.questDefinitions.get(questId);
-    if (!definition) return null;
-
-    const availableQuests = await this.getAvailableQuests(username);
-    if (!availableQuests.find(q => q.id === questId)) return null;
-
-    const objectivesMap = new Map();
-    const firstStep = definition.steps[0];
-    
-    // ✅ PHASE 1 : Initialisation classique des objectifs
-    for (const objective of firstStep.objectives) {
-      objectivesMap.set(objective.id, {
-        currentAmount: 0,
-        completed: false,
-        startedAt: new Date(),
-        attempts: 0
-      });
-    }
-
-    const questProgress = {
-      questId,
-      currentStepIndex: 0,
-      objectives: objectivesMap,
-      status: 'active' as const,
-      startedAt: new Date()
-    };
-
-    // ✅ PHASE 2 : SCAN INVENTAIRE AUTOMATIQUE (NOUVEAU)
-    console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
-    
+  // ✅ MODIFIÉ : startQuest avec refresh automatique NPCs
+  async startQuest(username: string, questId: string): Promise<Quest | null> {
     try {
-      // Utiliser la méthode de scan du progressTracker
-      const scanResult = await this.progressTracker.scanStepObjectives(username, questProgress, firstStep.objectives);
+      const definition = this.questDefinitions.get(questId);
+      if (!definition) return null;
+
+      const availableQuests = await this.getAvailableQuests(username);
+      if (!availableQuests.find(q => q.id === questId)) return null;
+
+      const objectivesMap = new Map();
+      const firstStep = definition.steps[0];
       
-      if (scanResult.autoCompleted > 0) {
-        console.log(`🎯 [QuestManager] Scan initial: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
+      // ✅ PHASE 1 : Initialisation classique des objectifs
+      for (const objective of firstStep.objectives) {
+        objectivesMap.set(objective.id, {
+          currentAmount: 0,
+          completed: false,
+          startedAt: new Date(),
+          attempts: 0
+        });
       }
-    } catch (scanError) {
-      console.warn(`⚠️ [QuestManager] Erreur scan inventaire initial:`, scanError);
-      // Continue même en cas d'erreur de scan
-    }
 
-    // ✅ PHASE 3 : Sauvegarde et notifications
-    let playerQuests = await PlayerQuest.findOne({ username });
-    if (!playerQuests) {
-      playerQuests = new PlayerQuest({ 
-        username, 
-        activeQuests: [questProgress],
-        completedQuests: [],
-        lastQuestCompletions: []
-      });
-    } else {
-      playerQuests.activeQuests.push(questProgress as any);
-    }
-
-    await playerQuests.save();
-
-    const quest = this.buildQuestFromProgress(definition, questProgress);
-
-    // ✅ PHASE 4 : Construire les objectifs pour notification (avec progression éventuelle du scan)
-    const questObjectives = firstStep.objectives.map(obj => {
-      const progress = objectivesMap.get(obj.id) || { currentAmount: 0, completed: false };
-      return {
-        id: obj.id,
-        type: obj.type,
-        description: obj.description,
-        target: obj.target,
-        targetName: obj.targetName,
-        currentAmount: progress.currentAmount, // ✅ Prend en compte le scan
-        requiredAmount: obj.requiredAmount,
-        completed: progress.completed // ✅ Prend en compte le scan
+      const questProgress = {
+        questId,
+        currentStepIndex: 0,
+        objectives: objectivesMap,
+        status: 'active' as const,
+        startedAt: new Date()
       };
-    });
-    
-    await this.clientHandler.notifyQuestStarted(username, quest, questObjectives);
-    
-    // ✅ PHASE 5 : Notifications additionnelles pour objectifs auto-complétés
-    for (const questObjective of questObjectives) {
-      if (questObjective.completed) {
-        console.log(`✅ [QuestManager] Objectif auto-complété au démarrage: ${questObjective.description}`);
-        await this.clientHandler.notifyObjectiveCompleted(username, quest, questObjective);
+
+      // ✅ PHASE 2 : SCAN INVENTAIRE AUTOMATIQUE (NOUVEAU)
+      console.log(`🔍 [QuestManager] Scan inventaire au démarrage de "${definition.name}" pour ${username}`);
+      
+      try {
+        // Utiliser la méthode de scan du progressTracker
+        const scanResult = await this.progressTracker.scanStepObjectives(username, questProgress, firstStep.objectives);
+        
+        if (scanResult.autoCompleted > 0) {
+          console.log(`🎯 [QuestManager] Scan initial: ${scanResult.autoCompleted} objectif(s) auto-complété(s) sur ${scanResult.scannedObjectives}`);
+        }
+      } catch (scanError) {
+        console.warn(`⚠️ [QuestManager] Erreur scan inventaire initial:`, scanError);
+        // Continue même en cas d'erreur de scan
       }
+
+      // ✅ PHASE 3 : Sauvegarde et notifications
+      let playerQuests = await PlayerQuest.findOne({ username });
+      if (!playerQuests) {
+        playerQuests = new PlayerQuest({ 
+          username, 
+          activeQuests: [questProgress],
+          completedQuests: [],
+          lastQuestCompletions: []
+        });
+      } else {
+        playerQuests.activeQuests.push(questProgress as any);
+      }
+
+      await playerQuests.save();
+
+      const quest = this.buildQuestFromProgress(definition, questProgress);
+
+      // ✅ PHASE 4 : Construire les objectifs pour notification (avec progression éventuelle du scan)
+      const questObjectives = firstStep.objectives.map(obj => {
+        const progress = objectivesMap.get(obj.id) || { currentAmount: 0, completed: false };
+        return {
+          id: obj.id,
+          type: obj.type,
+          description: obj.description,
+          target: obj.target,
+          targetName: obj.targetName,
+          currentAmount: progress.currentAmount, // ✅ Prend en compte le scan
+          requiredAmount: obj.requiredAmount,
+          completed: progress.completed // ✅ Prend en compte le scan
+        };
+      });
+      
+      await this.clientHandler.notifyQuestStarted(username, quest, questObjectives);
+      
+      // ✅ PHASE 5 : Notifications additionnelles pour objectifs auto-complétés
+      for (const questObjective of questObjectives) {
+        if (questObjective.completed) {
+          console.log(`✅ [QuestManager] Objectif auto-complété au démarrage: ${questObjective.description}`);
+          await this.clientHandler.notifyObjectiveCompleted(username, quest, questObjective);
+        }
+      }
+      
+      // ✅ NOUVEAU : Déclencher refresh automatique des NPCs après démarrage
+      await this.triggerNpcStatusRefresh(username);
+      
+      return quest;
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur startQuest:`, error);
+      return null;
     }
-    
-    return quest;
-  } catch (error) {
-    console.error(`❌ [QuestManager] Erreur startQuest:`, error);
-    return null;
   }
-}
 
-// ✅ MÉTHODE ENTIÈREMENT REFACTORISÉE - SOLUTION SIMPLE AVEC DEBUG
-async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
-  try {
-    console.log(`🎯 [QuestManager] asPlayerQuestWith: ${playerName} -> ${action}:${targetId}`);
+  // ✅ MODIFIÉ : asPlayerQuestWith avec refresh automatique NPCs
+  async asPlayerQuestWith(playerName: string, action: string, targetId: string): Promise<void> {
+    try {
+      console.log(`🎯 [QuestManager] asPlayerQuestWith: ${playerName} -> ${action}:${targetId}`);
 
-    // 🔍 DEBUG : Afficher les quêtes actives pour diagnostic
-    const playerQuests = await PlayerQuest.findOne({ username: playerName });
-    if (playerQuests && playerQuests.activeQuests) {
-      console.log(`📋 [QuestManager] ${playerQuests.activeQuests.length} quête(s) active(s):`);
-      for (const quest of playerQuests.activeQuests) {
-        const definition = this.questDefinitions.get(quest.questId);
-        if (definition) {
-          const currentStep = definition.steps[quest.currentStepIndex];
-          console.log(`   - ${definition.name} (étape ${quest.currentStepIndex}: ${currentStep?.name})`);
-          if (currentStep) {
-            for (const obj of currentStep.objectives) {
-              console.log(`     * ${obj.type}:${obj.target || obj.itemId} - ${obj.description}`);
+      // 🔍 DEBUG : Afficher les quêtes actives pour diagnostic
+      const playerQuests = await PlayerQuest.findOne({ username: playerName });
+      if (playerQuests && playerQuests.activeQuests) {
+        console.log(`📋 [QuestManager] ${playerQuests.activeQuests.length} quête(s) active(s):`);
+        for (const quest of playerQuests.activeQuests) {
+          const definition = this.questDefinitions.get(quest.questId);
+          if (definition) {
+            const currentStep = definition.steps[quest.currentStepIndex];
+            console.log(`   - ${definition.name} (étape ${quest.currentStepIndex}: ${currentStep?.name})`);
+            if (currentStep) {
+              for (const obj of currentStep.objectives) {
+                console.log(`     * ${obj.type}:${obj.target || obj.itemId} - ${obj.description}`);
+              }
             }
           }
         }
       }
-    }
 
-    // ✅ SOLUTION SIMPLE : Déléguer entièrement à updateQuestProgress
-    const progressEvent: QuestProgressEvent = {
-      type: action as any,
-      targetId: targetId,
-      amount: 1
-    };
+      // ✅ SOLUTION SIMPLE : Déléguer entièrement à updateQuestProgress
+      const progressEvent: QuestProgressEvent = {
+        type: action as any,
+        targetId: targetId,
+        amount: 1
+      };
 
-    console.log(`📤 [QuestManager] Envoi événement:`, progressEvent);
+      console.log(`📤 [QuestManager] Envoi événement:`, progressEvent);
 
-    // Utiliser la logique complète et robuste d'updateQuestProgress
-    const results = await this.updateQuestProgress(playerName, progressEvent);
-    
-    console.log(`📥 [QuestManager] Résultat updateQuestProgress: ${results.length} progression(s)`);
-    if (results.length > 0) {
-      results.forEach(result => {
-        console.log(`   ✅ ${result.questName}: ${result.message}`);
-      });
-    } else {
-      console.log(`   ❌ Aucune progression détectée - vérifier le matching`);
-    }
-
-    // ✅ Refresh UI automatique si progression détectée
-    if (results.length > 0) {
-      console.log(`🔄 [QuestManager] Progression détectée, déclenchement refresh UI pour ${playerName}`);
+      // Utiliser la logique complète et robuste d'updateQuestProgress
+      const results = await this.updateQuestProgress(playerName, progressEvent);
       
-      try {
-        // Via ServiceRegistry pour accéder à WorldRoom.updateQuestStatusesFixed()
-        const { ServiceRegistry } = await import('../services/ServiceRegistry');
-        const registry = ServiceRegistry.getInstance();
-        const worldRoom = registry.getWorldRoom();
+      console.log(`📥 [QuestManager] Résultat updateQuestProgress: ${results.length} progression(s)`);
+      if (results.length > 0) {
+        results.forEach(result => {
+          console.log(`   ✅ ${result.questName}: ${result.message}`);
+        });
         
-        if (worldRoom && typeof worldRoom.updateQuestStatusesFixed === 'function') {
-          // Délai pour s'assurer que toutes les sauvegardes sont terminées
-          setTimeout(async () => {
-            try {
-              await worldRoom.updateQuestStatusesFixed(playerName);
-              console.log(`✅ [QuestManager] Refresh UI terminé pour ${playerName}`);
-            } catch (refreshError) {
-              console.error(`❌ [QuestManager] Erreur refresh UI:`, refreshError);
-            }
-          }, 200);
-        } else {
-          console.warn(`⚠️ [QuestManager] WorldRoom non disponible pour refresh UI`);
-        }
-
-      } catch (registryError) {
-        if (this.config.debugMode) {
-          console.warn(`⚠️ [QuestManager] ServiceRegistry non disponible pour refresh UI:`, registryError);
-        }
+        // ✅ NOUVEAU : Déclencher refresh automatique des NPCs après progression
+        await this.triggerNpcStatusRefresh(playerName);
+      } else {
+        console.log(`   ❌ Aucune progression détectée - vérifier le matching`);
       }
-    }
 
-  } catch (error) {
-    console.error(`❌ [QuestManager] Erreur dans asPlayerQuestWith:`, error);
-    // Méthode silencieuse - ne pas propager l'erreur
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur dans asPlayerQuestWith:`, error);
+      // Méthode silencieuse - ne pas propager l'erreur
+    }
   }
-}
 
   async updateQuestProgress(username: string, event: QuestProgressEvent): Promise<QuestUpdateResult[]> {
     try {
@@ -924,6 +935,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     }
   }
 
+  // ✅ MODIFIÉ : completeQuestManually avec refresh automatique NPCs
   async completeQuestManually(username: string, questId: string): Promise<QuestUpdateResult | null> {
     try {
       const playerQuests = await PlayerQuest.findOne({ username });
@@ -954,6 +966,9 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
       };
       
       await this.clientHandler.notifyQuestCompleted(username, quest, questRewards, completionStats);
+
+      // ✅ NOUVEAU : Déclencher refresh automatique des NPCs après completion manuelle
+      await this.triggerNpcStatusRefresh(username);
 
       return {
         questId: questId,
@@ -1118,6 +1133,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     return status === 'readyToComplete';
   }
 
+  // ✅ MODIFIÉ : giveQuest avec refresh automatique NPCs
   async giveQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     try {
       const status = await this.getQuestStatus(playerName, questId);
@@ -1143,11 +1159,14 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     }
   }
 
+  // ✅ MODIFIÉ : progressQuest avec refresh automatique NPCs
   async progressQuest(playerName: string, event: any): Promise<{ success: boolean; results: any[] }> {
     try {
       const results = await this.updateQuestProgress(playerName, event);
       
       if (results && results.length > 0) {
+        // ✅ NOUVEAU : Déclencher refresh automatique des NPCs après progression
+        await this.triggerNpcStatusRefresh(playerName);
         return { success: true, results };
       } else {
         return { success: true, results: [] };
@@ -1184,6 +1203,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     }
   }
 
+  // ✅ MODIFIÉ : completePlayerQuest avec refresh automatique NPCs
   async completePlayerQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; rewards?: any[] }> {
     try {
       const result = await this.completeQuestManually(playerName, questId);
@@ -1311,6 +1331,11 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
         validator: this.validator.getDebugInfo(),
         rewardDistributor: this.rewardDistributor.getDebugInfo(),
         clientHandler: this.clientHandler.getDebugInfo()
+      },
+      // ✅ NOUVEAU : Info sur le callback WorldRoom
+      worldRoomIntegration: {
+        callbackRegistered: !!this.worldRoomCallback,
+        autoRefreshEnabled: !!this.worldRoomCallback
       }
     };
   }
@@ -1321,6 +1346,7 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     console.log(`📊 Total quêtes: ${stats.totalQuests}`);
     console.log(`🚀 NPCs indexés: ${stats.npcIndex.npcsIndexed}`);
     console.log(`🎯 Mappings quest-NPC: ${stats.npcIndex.totalQuestMappings}`);
+    console.log(`🔄 Refresh auto NPCs: ${stats.worldRoomIntegration.autoRefreshEnabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
     console.log(`✅ Optimisation: ${stats.npcIndex.npcsIndexed > 0 ? 'ACTIVE' : 'INACTIVE'}`);
   }
 
@@ -1331,6 +1357,9 @@ async asPlayerQuestWith(playerName: string, action: string, targetId: string): P
     this.questSourceMap.clear();
     this.validationErrors.clear();
     this.npcQuestIndex.clear(); // ✨ NOUVEAU : Nettoyer l'index
+    
+    // ✅ NOUVEAU : Nettoyer le callback
+    this.worldRoomCallback = undefined;
     
     this.isInitialized = false;
     this.isInitializing = false;
