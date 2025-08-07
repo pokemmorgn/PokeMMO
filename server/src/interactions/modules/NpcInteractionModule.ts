@@ -1727,64 +1727,134 @@ private async executeQuestAction(
     }
   }
 
-   async handleQuestDelivery(
-    player: Player,
-    npcId: number,
-    questId: string,
-    objectiveId: string,
-    itemId: string,
-    requiredAmount: number
-  ): Promise<{
-    success: boolean;
-    message: string;
-    result?: DeliveryProcessingResult;
-    error?: string;
-  }> {
-    
-    try {
-      console.log(`🚚 [NpcInteractionModule] Traitement livraison: ${player.name} -> NPC ${npcId}`);
-      console.log(`📦 Item: ${itemId} x${requiredAmount} pour quête ${questId}`);
+async handleQuestDelivery(
+  player: any,
+  npcId: number,
+  questId: string,
+  objectiveId: string,
+  itemId: string,
+  requiredAmount: number
+): Promise<{
+  success: boolean;
+  message: string;
+  result?: any;
+  error?: string;
+}> {
+  try {
+    console.log(`🚚 [NpcInteractionModule] Traitement livraison: ${player.name} -> NPC ${npcId}`);
+    console.log(`📦 Item: ${itemId} x${requiredAmount} pour quête ${questId}`);
 
-      // Utiliser le deliveryHandler pour traiter la livraison
-      const result = await this.deliveryHandler.handleQuestDelivery(
-        player.name,
-        npcId.toString(),
-        questId,
-        objectiveId,
-        itemId,
-        requiredAmount,
-        this.questManager
-      );
-
-      if (result.success) {
-        console.log(`✅ [NpcInteractionModule] Livraison réussie: ${result.message}`);
-        
-        return {
-          success: true,
-          message: result.message,
-          result: result
-        };
-      } else {
-        console.warn(`❌ [NpcInteractionModule] Livraison échouée: ${result.error}`);
-        
-        return {
-          success: false,
-          message: result.message,
-          result: result,
-          error: result.error
-        };
-      }
-
-    } catch (error) {
-      console.error(`❌ [NpcInteractionModule] Erreur handleQuestDelivery:`, error);
-      
+    if (!this.questManager) {
       return {
         success: false,
-        message: 'Erreur système lors de la livraison',
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
+        message: "QuestManager non disponible"
       };
     }
+
+    // ✅ NOUVEAU : Importer et configurer le deliveryHandler
+    const { QuestDeliveryHandler } = await import('../../quest/services/QuestDeliveryHandler');
+    
+    const deliveryHandler = new QuestDeliveryHandler({
+      enableLogging: true,
+      enableAsyncSync: true,
+      syncDelayMs: 800, // ✅ Délai pour attendre la synchronisation DB
+      enableCacheInvalidation: true
+    });
+
+    // ✅ NOUVEAUX CALLBACKS de synchronisation
+    const worldRoomCallback = async () => {
+      try {
+        console.log(`🔄 [NpcInteractionModule] Callback WorldRoom déclenché`);
+        
+        // Appeler le callback enregistré dans QuestManager
+        if (this.questManager && typeof this.questManager.triggerWorldRoomCallback === 'function') {
+          await this.questManager.triggerWorldRoomCallback(player.name);
+        }
+        
+        console.log(`✅ [NpcInteractionModule] Callback WorldRoom terminé`);
+      } catch (error) {
+        console.error(`❌ [NpcInteractionModule] Erreur callback WorldRoom:`, error);
+      }
+    };
+
+    const cacheInvalidationCallback = (playerId: string, npcIdStr: string) => {
+      try {
+        console.log(`🗑️ [NpcInteractionModule] Invalidation cache pour ${playerId}-${npcIdStr}`);
+        
+        // Invalider le cache du QuestDeliveryDetector
+        if (this.deliveryDetector && typeof this.deliveryDetector.invalidatePlayerCache === 'function') {
+          this.deliveryDetector.invalidatePlayerCache(playerId);
+        }
+        
+        console.log(`✅ [NpcInteractionModule] Cache invalidé`);
+      } catch (error) {
+        console.error(`❌ [NpcInteractionModule] Erreur invalidation cache:`, error);
+      }
+    };
+
+    // ✅ Appel de la méthode avec les callbacks
+    const result = await deliveryHandler.handleQuestDelivery(
+      player.name,
+      npcId,
+      questId,
+      objectiveId,
+      itemId,
+      requiredAmount,
+      this.questManager,
+      worldRoomCallback,        // ✅ Callback pour refresh NPCs
+      cacheInvalidationCallback // ✅ Callback pour invalidation cache
+    );
+
+    // ✅ EXÉCUTER LA SYNCHRONISATION si elle existe
+    if (result.syncCallback) {
+      console.log(`🔄 [NpcInteractionModule] Exécution synchronisation post-livraison`);
+      
+      // ✅ Exécuter de manière asynchrone pour ne pas bloquer la réponse au client
+      setImmediate(async () => {
+        try {
+          await result.syncCallback!();
+          console.log(`✅ [NpcInteractionModule] Synchronisation post-livraison terminée`);
+        } catch (syncError) {
+          console.error(`❌ [NpcInteractionModule] Erreur sync:`, syncError);
+        }
+      });
+    }
+
+    if (result.success) {
+      return {
+        success: true,
+        message: result.message,
+        result: {
+          success: result.success,
+          message: result.message,
+          questId: result.questId,
+          objectiveId: result.objectiveId,
+          itemId: result.itemId,
+          itemsRemoved: result.itemsRemoved,
+          amountRemoved: result.amountRemoved,
+          questProgressed: result.questProgressed,
+          processingTime: result.processingTime,
+          questCompleted: result.questCompleted,
+          progressMessage: result.progressMessage
+        }
+      };
+    } else {
+      return {
+        success: false,
+        message: result.message,
+        error: result.error
+      };
+    }
+
+  } catch (error) {
+    console.error(`❌ [NpcInteractionModule] Erreur handleQuestDelivery:`, error);
+    return {
+      success: false,
+      message: "Erreur lors du traitement de la livraison",
+      error: error instanceof Error ? error.message : "Erreur inconnue"
+    };
   }
+}
   
   private createSafeErrorResult(npcId: number, message: string): NpcInteractionResult {
     return {
