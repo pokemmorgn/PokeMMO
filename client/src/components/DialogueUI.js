@@ -885,17 +885,47 @@ export class DialogueUI {
     }
   }
 
-  hide() {
+hide() {
+    console.log('🎭 [DialogueUI] Fermeture dialogue...');
+    
     if (this.isUnifiedInterface) {
-      const unifiedInterface = this.container.querySelector('#unified-interface');
-      unifiedInterface.style.display = 'none';
-      this.completeHide();
+        const unifiedInterface = this.container.querySelector('#unified-interface');
+        if (unifiedInterface) {
+            unifiedInterface.style.display = 'none';
+            unifiedInterface.style.pointerEvents = 'none';  // ✅ AJOUTÉ
+            unifiedInterface.style.zIndex = '-1';           // ✅ AJOUTÉ
+            unifiedInterface.style.visibility = 'hidden';   // ✅ AJOUTÉ
+        }
+        this.completeHide();
     } else {
-      const dialogueBox = this.container.querySelector('#dialogue-box');
-      dialogueBox.style.display = 'none';
-      this.completeHide();
+        const dialogueBox = this.container.querySelector('#dialogue-box');
+        if (dialogueBox) {
+            dialogueBox.style.display = 'none';
+            dialogueBox.style.pointerEvents = 'none';       // ✅ AJOUTÉ
+            dialogueBox.style.zIndex = '-1';                // ✅ AJOUTÉ  
+            dialogueBox.style.visibility = 'hidden';        // ✅ AJOUTÉ
+            dialogueBox.style.opacity = '0';                // ✅ AJOUTÉ
+        }
+        this.completeHide();
     }
-  }
+    
+    // ✅ NETTOYAGE BRUTAL DE TOUS LES DIALOGUES
+    setTimeout(() => {
+        document.querySelectorAll('[id*="dialogue"], [class*="dialogue"]').forEach(el => {
+            el.style.pointerEvents = 'none';
+            el.style.zIndex = '-9999';
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
+        
+        // Vérifier qu'on n'a plus d'élément bloquant au centre
+        const centerEl = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
+        if (centerEl && (centerEl.id?.includes('dialogue') || centerEl.className?.includes('dialogue'))) {
+            console.warn('⚠️ Élément dialogue toujours au centre, suppression forcée');
+            centerEl.remove();
+        }
+    }, 50);
+}
 
   completeHide() {
     this.container.classList.add('hidden');
