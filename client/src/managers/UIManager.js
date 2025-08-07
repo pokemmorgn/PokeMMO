@@ -876,25 +876,34 @@ hideModule(moduleId, options = {}) {
     return false;
   }
   
-  // ✅ NOUVEAU : Vérifier si on est en mode battle
+  // ✅ SPÉCIAL QUEST : Forcer masquage complet en battle
   const isBattleMode = this.globalState.currentGameState === 'battle';
+  const isQuestModule = moduleId === 'quest' || moduleId === 'questTracker';
   
-  // Masquer complètement l'icône
-if (iconConfig && iconConfig.element) {
-  if (this.globalState.currentGameState === 'battle') {
-    // ✅ EN BATTLE : MASQUAGE COMPLET
-    iconConfig.element.style.display = 'none';
-    iconConfig.element.style.visibility = 'hidden';
-    iconConfig.element.style.opacity = '0';
-    iconConfig.element.classList.add('battle-hidden');
-  } else {
-    // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
-    iconConfig.element.style.opacity = '0.5';
-    iconConfig.element.style.pointerEvents = 'none';
-    iconConfig.element.style.filter = 'grayscale(70%)';
-    iconConfig.element.classList.add('ui-disabled');
+  if (iconConfig && iconConfig.element) {
+    if (isBattleMode && isQuestModule) {
+      // ✅ QUEST EN BATTLE : MASQUAGE TOTAL
+      iconConfig.element.style.display = 'none';
+      iconConfig.element.style.visibility = 'hidden';
+      iconConfig.element.style.opacity = '0';
+      iconConfig.element.style.pointerEvents = 'none';
+      iconConfig.element.classList.add('battle-hidden', 'quest-battle-hidden');
+      
+      console.log(`🥊 [UIManager] Quest masqué complètement (battle)`);
+    } else if (isBattleMode) {
+      // ✅ AUTRES MODULES EN BATTLE : MASQUAGE NORMAL
+      iconConfig.element.style.display = 'none';
+      iconConfig.element.style.visibility = 'hidden';
+      iconConfig.element.style.opacity = '0';
+      iconConfig.element.classList.add('battle-hidden');
+    } else {
+      // ✅ HORS BATTLE : DÉSACTIVATION NORMALE
+      iconConfig.element.style.opacity = '0.5';
+      iconConfig.element.style.pointerEvents = 'none';
+      iconConfig.element.style.filter = 'grayscale(70%)';
+      iconConfig.element.classList.add('ui-disabled');
+    }
   }
-}
   
   // Cacher l'interface du module
   if (config.instance && typeof config.instance.hide === 'function') {
