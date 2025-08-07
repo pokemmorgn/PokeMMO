@@ -696,7 +696,7 @@ private async updateQuestStatusesFixed(username: string, client?: Client) {
       }
     })
 
-    this.onMessage("questDelivery", async (client, data) => {
+this.onMessage("questDelivery", async (client, data) => {
   console.log(`📦 [WorldRoom] Message questDelivery reçu:`, data);
   
   const player = this.state.players.get(client.sessionId);
@@ -815,7 +815,7 @@ private async updateQuestStatusesFixed(username: string, client?: Client) {
       });
 
       // Mettre à jour les statuts de quête
-      await this.updateQuestStatusesFixed(player.name, client);
+      // await this.updateQuestStatusesFixed(player.name, client);
       
       // Si l'étape est complétée, envoyer une notification
       if (result.result?.stepCompleted) {
@@ -1604,7 +1604,7 @@ this.onMessage("debugQuestDeliveries", async (client) => {
           };
           
           client.send("questStartResult", result);
-          await this.updateQuestStatusesFixed(player.name);
+         // await this.updateQuestStatusesFixed(player.name);
           
           this.broadcastToZone(player.currentZone, "questUpdate", {
             player: player.name,
