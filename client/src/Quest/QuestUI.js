@@ -1,7 +1,7 @@
-// Quest/QuestUI.js - RÉÉCRITURE COMPLÈTE AVEC PROGRESSION AUTOMATIQUE + FIX QUÊTE TERMINÉE
-// 🎯 Interface Quest avec gestion intelligente de la progression des objectifs
-// ✅ FIX: Progression automatique + Nettoyage des objectifs complétés + GESTION QUÊTE TERMINÉE
-// 🌐 NOUVEAU : Support LocalizationManager pour les textes traduits
+// Quest/QuestUI.js - VERSION OPTIMISÉE ET SIMPLIFIÉE
+// 🎯 Interface Quest avec gestion intelligente IMMÉDIATE de la progression
+// ✅ NOUVEAU : Progression automatique RAPIDE + Nettoyage du code + GESTION QUÊTE TERMINÉE
+// 🌐 Support LocalizationManager pour les textes traduits
 
 import { t } from '../managers/LocalizationManager.js';
 
@@ -27,26 +27,24 @@ export class QuestUI {
     this.isTrackerVisible = false;
     this.maxTrackedQuests = 5;
     
-    // ✅ NOUVEAU : Gestion de la progression
+    // ✅ NOUVEAU : Gestion progression SIMPLIFIÉE
     this.progressionState = {
       animatingObjectives: new Set(),
-      pendingRefresh: false,
-      lastRefreshTime: 0,
-      refreshCooldown: 1000 // Éviter les refresh trop fréquents
+      lastUpdateTime: 0,
+      updateCooldown: 300 // Cooldown réduit à 300ms
     };
     
     // === CONTRÔLE ===
     this.currentTooltip = null;
-    this.currentDialog = null;
     this.onAction = null;
     
-    // 🌐 NOUVEAU : Gestion traductions
+    // 🌐 Gestion traductions
     this.optionsManager = window.optionsSystem?.manager || 
                          window.optionsSystemGlobal?.manager ||
                          window.optionsSystem;
     this.cleanupLanguageListener = null;
     
-    console.log('📖 [QuestUI] Instance créée - Version avec gestion quête terminée + localisation');
+    console.log('📖 [QuestUI] Instance créée - Version optimisée avec progression rapide');
   }
   
   // === 🚀 INITIALISATION ===
@@ -55,19 +53,16 @@ export class QuestUI {
     try {
       console.log('🚀 [QuestUI] Initialisation...');
       
-      // 🌐 NOUVEAU : Setup traductions
       this.setupLanguageListener();
-      
       this.addStyles();
       this.createJournalInterface();
       this.createTrackerInterface();
       this.setupEventListeners();
       
-      // ✅ État initial
       this.isVisible = false;
       this.hideTracker();
       
-      console.log('✅ [QuestUI] Interface prête avec gestion quête terminée + traductions');
+      console.log('✅ [QuestUI] Interface prête - Version optimisée');
       return this;
       
     } catch (error) {
@@ -76,7 +71,7 @@ export class QuestUI {
     }
   }
   
-  // === 🌐 NOUVEAU : GESTION TRADUCTIONS ===
+  // === 🌐 GESTION TRADUCTIONS ===
   
   setupLanguageListener() {
     if (!this.optionsManager || typeof this.optionsManager.addLanguageListener !== 'function') {
@@ -86,16 +81,13 @@ export class QuestUI {
     
     this.cleanupLanguageListener = this.optionsManager.addLanguageListener((newLang, oldLang) => {
       console.log(`🌐 [QuestUI] Changement langue: ${oldLang} → ${newLang}`);
-      
-      // Mettre à jour les textes statiques
       this.updateLanguageTexts();
       
-      // Re-render si visible
       if (this.isVisible) {
         this.refreshQuestList();
       }
       if (this.isTrackerVisible) {
-        this.updateTrackerIntelligent();
+        this.updateTracker();
       }
     });
     
@@ -143,7 +135,6 @@ export class QuestUI {
     }
   }
   
-  // 🌐 HELPER : Obtenir traduction sécurisée
   getSafeTranslation(key, fallback) {
     try {
       const translation = t(key);
@@ -156,12 +147,12 @@ export class QuestUI {
   // === 🎨 STYLES OPTIMISÉS ===
   
   addStyles() {
-    if (document.querySelector('#quest-ui-styles-v2')) return;
+    if (document.querySelector('#quest-ui-styles-optimized')) return;
     
     const style = document.createElement('style');
-    style.id = 'quest-ui-styles-v2';
+    style.id = 'quest-ui-styles-optimized';
     style.textContent = `
-      /* ===== QUEST UI STYLES V2 - AVEC PROGRESSION AUTOMATIQUE + QUÊTE TERMINÉE ===== */
+      /* ===== QUEST UI STYLES OPTIMISÉS - PROGRESSION RAPIDE ===== */
       
       /* Journal Overlay */
       div#quest-journal.quest-journal {
@@ -296,7 +287,6 @@ export class QuestUI {
         border-left-color: #64b5f6 !important;
       }
       
-      /* 🟢 NOUVEAU : Status spécial pour quête terminée */
       div#quest-journal .quest-item.completed {
         background: rgba(34, 197, 94, 0.15) !important;
         border-left-color: #22c55e !important;
@@ -313,7 +303,6 @@ export class QuestUI {
         color: #fff !important;
       }
       
-      /* 🟢 NOUVEAU : Titre spécial pour quête terminée */
       div#quest-journal .quest-item.completed .quest-item-title {
         color: #22c55e !important;
       }
@@ -323,7 +312,6 @@ export class QuestUI {
         color: #ccc !important;
       }
       
-      /* 🟢 NOUVEAU : Progress spécial pour quête terminée */
       div#quest-journal .quest-item.completed .quest-item-progress {
         color: #22c55e !important;
         font-weight: bold !important;
@@ -360,7 +348,6 @@ export class QuestUI {
         color: #64b5f6 !important;
       }
       
-      /* 🟢 NOUVEAU : Titre spécial pour quête terminée */
       div#quest-journal .quest-title.completed {
         color: #22c55e !important;
       }
@@ -372,24 +359,7 @@ export class QuestUI {
         line-height: 1.4 !important;
       }
       
-      div#quest-journal .quest-step {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 8px !important;
-        padding: 10px !important;
-        margin-bottom: 10px !important;
-      }
-      
-      div#quest-journal .quest-step.completed {
-        background: rgba(40, 167, 69, 0.2) !important;
-        border-left: 3px solid #28a745 !important;
-      }
-      
-      div#quest-journal .quest-step.current {
-        background: rgba(255, 193, 7, 0.2) !important;
-        border-left: 3px solid #ffc107 !important;
-      }
-      
-      /* 🟢 NOUVEAU : Section finale pour quête terminée - Style WoW */
+      /* Section quête terminée */
       div#quest-journal .quest-completed-section {
         background: linear-gradient(145deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1)) !important;
         border: 2px solid rgba(34, 197, 94, 0.3) !important;
@@ -422,50 +392,30 @@ export class QuestUI {
         margin-bottom: 12px !important;
       }
       
-      div#quest-journal .quest-completion-rewards {
-        background: rgba(0, 0, 0, 0.2) !important;
+      div#quest-journal .quest-step {
+        background: rgba(255, 255, 255, 0.05) !important;
         border-radius: 8px !important;
-        padding: 12px !important;
-        margin-top: 10px !important;
+        padding: 10px !important;
+        margin-bottom: 10px !important;
       }
       
-      div#quest-journal .quest-rewards-title {
-        font-size: 12px !important;
-        color: #fbbf24 !important;
-        font-weight: bold !important;
-        margin-bottom: 8px !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
+      div#quest-journal .quest-step.completed {
+        background: rgba(40, 167, 69, 0.2) !important;
+        border-left: 3px solid #28a745 !important;
       }
       
-      div#quest-journal .quest-rewards-list {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-        justify-content: center !important;
+      div#quest-journal .quest-step.current {
+        background: rgba(255, 193, 7, 0.2) !important;
+        border-left: 3px solid #ffc107 !important;
       }
       
-      div#quest-journal .quest-reward-item {
-        background: rgba(59, 130, 246, 0.2) !important;
-        border: 1px solid rgba(59, 130, 246, 0.4) !important;
-        border-radius: 6px !important;
-        padding: 6px 10px !important;
-        font-size: 12px !important;
-        color: #93c5fd !important;
-        font-weight: 500 !important;
-      }
-      
-      @keyframes completedPulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.1); opacity: 0.8; }
-      }
-      
+      /* ✅ OBJECTIFS AVEC ANIMATIONS RAPIDES */
       div#quest-journal .quest-objective {
         font-size: 12px !important;
         margin: 5px 0 !important;
         padding-left: 15px !important;
         position: relative !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s ease !important; /* Réduit de 0.3s à 0.2s */
       }
       
       div#quest-journal .quest-objective:before {
@@ -485,7 +435,7 @@ export class QuestUI {
         color: #28a745 !important;
       }
       
-      /* ✅ NOUVEAU : Gestion avancée des objectifs complétés */
+      /* ✅ ANIMATIONS RAPIDES pour objectifs complétés */
       div#quest-journal .quest-objective.just-completed {
         background: linear-gradient(90deg, #22c55e, #16a34a) !important;
         color: #ffffff !important;
@@ -493,7 +443,7 @@ export class QuestUI {
         padding: 6px 12px !important;
         border-radius: 6px !important;
         box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
-        animation: objectiveJustCompleted 1.2s ease !important;
+        animation: objectiveCompletedFast 0.6s ease !important; /* Réduit de 1.2s à 0.6s */
         margin: 8px 0 !important;
       }
       
@@ -502,22 +452,7 @@ export class QuestUI {
         color: #ffffff !important;
       }
       
-      div#quest-journal .quest-objective.fading-out {
-        opacity: 0.3 !important;
-        transform: scale(0.95) !important;
-        transition: all 0.8s ease !important;
-      }
-      
-      div#quest-journal .quest-objective.disappearing {
-        opacity: 0 !important;
-        transform: scale(0.8) translateY(-10px) !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        transition: all 0.5s ease !important;
-      }
-      
-      @keyframes objectiveJustCompleted {
+      @keyframes objectiveCompletedFast {
         0% { transform: scale(1); background: #4a90e2; }
         25% { transform: scale(1.05); background: #22c55e; }
         50% { transform: scale(1.02); background: #16a34a; }
@@ -562,7 +497,7 @@ export class QuestUI {
         cursor: not-allowed !important;
       }
       
-      /* ===== QUEST TRACKER V2 ===== */
+      /* ===== QUEST TRACKER OPTIMISÉ ===== */
       div#quest-tracker.quest-tracker {
         position: fixed !important;
         top: 120px !important;
@@ -577,7 +512,7 @@ export class QuestUI {
         font-family: 'Segoe UI', Arial, sans-serif !important;
         color: #fff !important;
         z-index: 950 !important;
-        transition: all 0.4s ease !important;
+        transition: all 0.3s ease !important; /* Réduit de 0.4s à 0.3s */
         overflow: hidden !important;
       }
       
@@ -660,7 +595,7 @@ export class QuestUI {
         border-left: 3px solid #4a90e2 !important;
         border-radius: 6px !important;
         padding: 10px !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s ease !important; /* Réduit de 0.3s à 0.2s */
         cursor: pointer !important;
         position: relative !important;
         overflow: hidden !important;
@@ -672,7 +607,6 @@ export class QuestUI {
         box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3) !important;
       }
       
-      /* 🟢 NOUVEAU : Style spécial pour quête terminée dans tracker */
       div#quest-tracker .tracked-quest.completed {
         background: rgba(34, 197, 94, 0.1) !important;
         border-left-color: #22c55e !important;
@@ -691,7 +625,6 @@ export class QuestUI {
         line-height: 1.2 !important;
       }
       
-      /* 🟢 NOUVEAU : Nom spécial pour quête terminée */
       div#quest-tracker .tracked-quest.completed .quest-name {
         color: #22c55e !important;
       }
@@ -700,7 +633,7 @@ export class QuestUI {
         margin-top: 6px !important;
       }
       
-      /* 🟢 NOUVEAU : Message spécial pour quête terminée dans tracker - Style WoW */
+      /* Message quête terminée */
       div#quest-tracker .quest-completed-message {
         font-size: 12px !important;
         color: #22c55e !important;
@@ -710,9 +643,9 @@ export class QuestUI {
         background: rgba(34, 197, 94, 0.1) !important;
         border-radius: 6px !important;
         margin-top: 6px !important;
-        animation: completedGlow 2s ease-in-out infinite !important;
+        animation: completedGlow 1.5s ease-in-out infinite !important; /* Réduit de 2s à 1.5s */
         cursor: pointer !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s ease !important; /* Réduit de 0.3s à 0.2s */
       }
       
       div#quest-tracker .quest-completed-message:hover {
@@ -736,7 +669,7 @@ export class QuestUI {
         position: relative !important;
         color: #ccc !important;
         line-height: 1.3 !important;
-        transition: all 0.4s ease !important;
+        transition: all 0.2s ease !important; /* Réduit de 0.4s à 0.2s */
       }
       
       div#quest-tracker .quest-objective:before {
@@ -758,7 +691,7 @@ export class QuestUI {
         color: #4caf50 !important;
       }
       
-      /* ✅ NOUVEAU : Gestion avancée des objectifs dans le tracker */
+      /* ✅ ANIMATIONS RAPIDES tracker */
       div#quest-tracker .quest-objective.just-completed {
         background: linear-gradient(90deg, #22c55e, #16a34a) !important;
         color: #ffffff !important;
@@ -767,7 +700,7 @@ export class QuestUI {
         border-radius: 4px !important;
         box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
         transform: scale(1.02) !important;
-        animation: trackerObjectiveCompleted 1.2s ease !important;
+        animation: trackerObjectiveCompletedFast 0.6s ease !important; /* Réduit de 1.2s à 0.6s */
         margin: 4px 0 !important;
       }
       
@@ -776,22 +709,7 @@ export class QuestUI {
         color: #ffffff !important;
       }
       
-      div#quest-tracker .quest-objective.fading-out {
-        opacity: 0.3 !important;
-        transform: scale(0.95) !important;
-        transition: all 0.8s ease !important;
-      }
-      
-      div#quest-tracker .quest-objective.disappearing {
-        opacity: 0 !important;
-        transform: scale(0.8) translateY(-10px) !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        transition: all 0.5s ease !important;
-      }
-      
-      @keyframes trackerObjectiveCompleted {
+      @keyframes trackerObjectiveCompletedFast {
         0% { 
           transform: scale(1); 
           background: linear-gradient(90deg, #4a90e2, #357abd); 
@@ -810,31 +728,6 @@ export class QuestUI {
         }
       }
       
-      /* ✅ NOUVEAU : État de refresh du tracker */
-      div#quest-tracker.refreshing {
-        opacity: 0.7 !important;
-        pointer-events: none !important;
-      }
-      
-      div#quest-tracker.refreshing::after {
-        content: "" !important;
-        position: absolute !important;
-        top: 50% !important;
-        left: 50% !important;
-        width: 20px !important;
-        height: 20px !important;
-        border: 2px solid #4a90e2 !important;
-        border-top: 2px solid transparent !important;
-        border-radius: 50% !important;
-        animation: refreshSpin 1s linear infinite !important;
-        transform: translate(-50%, -50%) !important;
-      }
-      
-      @keyframes refreshSpin {
-        0% { transform: translate(-50%, -50%) rotate(0deg); }
-        100% { transform: translate(-50%, -50%) rotate(360deg); }
-      }
-      
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -842,7 +735,7 @@ export class QuestUI {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [QuestUI] Styles V2 ajoutés avec gestion quête terminée + traductions');
+    console.log('🎨 [QuestUI] Styles optimisés ajoutés');
   }
   
   // === 🏗️ CRÉATION INTERFACES ===
@@ -886,7 +779,7 @@ export class QuestUI {
     document.body.appendChild(journal);
     this.overlayElement = journal;
     
-    console.log('🎨 [QuestUI] Journal créé avec traductions');
+    console.log('🎨 [QuestUI] Journal créé');
   }
   
   createTrackerInterface() {
@@ -918,7 +811,7 @@ export class QuestUI {
     document.body.appendChild(tracker);
     this.trackerElement = tracker;
     
-    console.log('🎨 [QuestUI] Tracker créé avec traductions');
+    console.log('🎨 [QuestUI] Tracker créé');
   }
   
   // === 🎛️ ÉVÉNEMENTS ===
@@ -1121,7 +1014,7 @@ export class QuestUI {
     console.log(`✅ [QuestUI] Vue ${viewName} activée`);
   }
   
-  // === 📊 GESTION DONNÉES AVEC PROGRESSION AUTOMATIQUE ===
+  // === 📊 GESTION DONNÉES OPTIMISÉE ===
   
   updateQuestData(quests, type = 'active') {
     console.log(`📊 [QuestUI] Données ${type}:`, quests);
@@ -1132,8 +1025,7 @@ export class QuestUI {
         if (this.currentView === 'active') {
           this.refreshQuestList();
         }
-        // ✅ TOUJOURS mettre à jour le tracker
-        this.updateTrackerIntelligent();
+        this.updateTracker();
         break;
         
       case 'available':
@@ -1152,33 +1044,150 @@ export class QuestUI {
     }
   }
   
-  // 🟢 MÉTHODE PRINCIPALE MODIFIÉE : Vérifier si quête terminée
+  // === ✅ NOUVELLE MÉTHODE : Animation d'objectif RAPIDE ===
+  
+  highlightObjectiveAsCompleted(result) {
+    console.log('⚡ [QuestUI] === ANIMATION OBJECTIF RAPIDE ===');
+    console.log('📊 Données:', result);
+    
+    try {
+      // Identifier l'objectif
+      const objectiveInfo = this.identifyCompletedObjective(result);
+      if (!objectiveInfo.found) {
+        console.warn('⚠️ [QuestUI] Objectif non trouvé, refresh direct');
+        this.forceQuestUpdate();
+        return false;
+      }
+      
+      console.log('✅ [QuestUI] Objectif identifié:', objectiveInfo);
+      
+      // ✅ Animation RAPIDE (300ms total)
+      objectiveInfo.elements.forEach(element => {
+        element.classList.add('just-completed');
+      });
+      
+      // ✅ Update IMMÉDIAT après 300ms
+      setTimeout(() => {
+        console.log('🚀 [QuestUI] Update IMMÉDIAT des statuts');
+        this.forceQuestUpdate();
+      }, 300); // ✅ SEULEMENT 300ms !
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur animation objectif:', error);
+      this.forceQuestUpdate();
+      return false;
+    }
+  }
+  
+  // === ✅ NOUVELLE MÉTHODE : Update IMMÉDIAT ===
+  
+  forceQuestUpdate() {
+    console.log('🚀 [QuestUI] === FORCE UPDATE IMMÉDIAT ===');
+    
+    const now = Date.now();
+    
+    // ✅ Bypass cooldown
+    this.progressionState.lastUpdateTime = 0;
+    
+    try {
+      // 1. Refresh quêtes via QuestSystem
+      if (this.onAction) {
+        this.onAction('refreshQuests', { 
+          immediate: true,
+          timestamp: now
+        });
+      }
+      
+      // 2. Demander quest statuses pour NPCs
+      if (window.globalNetworkManager?.room) {
+        window.globalNetworkManager.room.send('getQuestStatuses', {
+          immediate: true,
+          reason: 'objective_completed',
+          timestamp: now
+        });
+        console.log('📤 [QuestUI] Quest statuses demandé IMMÉDIATEMENT');
+      }
+      
+      // 3. Update local immédiat
+      this.updateTracker();
+      if (this.isVisible) {
+        this.refreshQuestList();
+      }
+      
+      console.log('✅ [QuestUI] Force update IMMÉDIAT terminé');
+      
+    } catch (error) {
+      console.error('❌ [QuestUI] Erreur force update:', error);
+    }
+  }
+  
+  // === 🔍 MÉTHODES HELPER ===
+  
+  identifyCompletedObjective(result) {
+    const questId = result.questId;
+    const objectiveName = result.objectiveName || result.title || result.message;
+    
+    console.log(`🔍 [QuestUI] Recherche objectif: "${objectiveName}" dans quête ${questId}`);
+    
+    const foundElements = [];
+    
+    // Recherche dans le tracker
+    if (this.trackerElement) {
+      const trackerObjectives = this.trackerElement.querySelectorAll(
+        `[data-quest-id="${questId}"] .quest-objective`
+      );
+      
+      for (const element of trackerObjectives) {
+        if (element.textContent && element.textContent.includes(objectiveName)) {
+          console.log('✅ [QuestUI] Objectif trouvé dans tracker');
+          foundElements.push(element);
+          break;
+        }
+      }
+    }
+    
+    // Recherche dans le journal si ouvert
+    if (this.isVisible && this.overlayElement) {
+      const journalObjectives = this.overlayElement.querySelectorAll('.quest-objective');
+      
+      for (const element of journalObjectives) {
+        if (element.textContent && element.textContent.includes(objectiveName)) {
+          console.log('✅ [QuestUI] Objectif trouvé dans journal');
+          foundElements.push(element);
+          break;
+        }
+      }
+    }
+    
+    return {
+      found: foundElements.length > 0,
+      elements: foundElements,
+      questId: questId,
+      objectiveName: objectiveName
+    };
+  }
+  
   isQuestCompleted(quest) {
     if (!quest) return false;
     
-    // Méthode 1: Vérifier le status
     if (quest.status === 'completed' || quest.status === 'finished') {
       return true;
     }
     
-    // Méthode 2: Vérifier l'étape actuelle vs total
     if (quest.steps && Array.isArray(quest.steps)) {
       const totalSteps = quest.steps.length;
       const currentStepIndex = quest.currentStepIndex ?? 0;
-      
-      console.log(`🔍 [QuestUI] Quête ${quest.id}: étape ${currentStepIndex}/${totalSteps}`);
-      
       return currentStepIndex >= totalSteps;
     }
     
-    // Méthode 3: Vérifier si tous les objectifs de l'étape actuelle sont complétés
     const currentStep = quest.steps?.[quest.currentStepIndex];
     if (currentStep && currentStep.objectives) {
       const allCompleted = currentStep.objectives.every(obj => obj.completed);
       const isLastStep = (quest.currentStepIndex ?? 0) >= (quest.steps?.length - 1 ?? 0);
       
       if (allCompleted && isLastStep) {
-        console.log(`🎉 [QuestUI] Quête ${quest.id} terminée (tous objectifs dernière étape complétés)`);
         return true;
       }
     }
@@ -1186,33 +1195,24 @@ export class QuestUI {
     return false;
   }
   
-  // ✅ MÉTHODE PRINCIPALE MODIFIÉE : Tracker intelligent avec gestion quête terminée
-  updateTrackerIntelligent() {
-    console.log(`📊 [QuestUI] Update tracker intelligent - ${this.activeQuests.length} quêtes actives`);
+  // === 📊 TRACKER OPTIMISÉ ===
+  
+  updateTracker() {
+    console.log(`📊 [QuestUI] Update tracker - ${this.activeQuests.length} quêtes actives`);
     
     const container = this.trackerElement?.querySelector('#tracked-quests');
-    if (!container) {
-      console.warn('⚠️ [QuestUI] Container tracker non trouvé');
-      return;
-    }
+    if (!container) return;
     
     const questsToTrack = this.activeQuests.slice(0, this.maxTrackedQuests);
     
-    // ✅ GESTION INTELLIGENTE DE L'AFFICHAGE/MASQUAGE
     if (questsToTrack.length === 0) {
-      console.log('📊 [QuestUI] Aucune quête active - masquage tracker');
       container.innerHTML = `<div class="quest-empty">${this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active')}</div>`;
       this.hideTracker();
       return;
     }
     
-    console.log(`📊 [QuestUI] ${questsToTrack.length} quêtes actives - affichage tracker`);
     this.showTracker();
     
-    // ✅ NETTOYAGE DES ANIMATIONS EN COURS
-    this.cleanupAnimatingObjectives();
-    
-    // ✅ GÉNÉRATION INTELLIGENTE DU HTML
     container.innerHTML = questsToTrack.map((quest, index) => {
       const isCompleted = this.isQuestCompleted(quest);
       
@@ -1220,13 +1220,13 @@ export class QuestUI {
         <div class="tracked-quest ${isCompleted ? 'completed' : ''}" data-quest-id="${quest.id}">
           <div class="quest-name">${quest.name}</div>
           <div class="quest-objectives">
-            ${this.renderTrackerObjectivesIntelligent(quest)}
+            ${this.renderTrackerObjectives(quest)}
           </div>
         </div>
       `;
     }).join('');
     
-    // ✅ EVENT LISTENERS pour cliquer sur tracker
+    // Event listeners
     container.querySelectorAll('.tracked-quest').forEach(questElement => {
       questElement.addEventListener('click', () => {
         this.show();
@@ -1239,14 +1239,12 @@ export class QuestUI {
       });
     });
     
-    console.log('✅ [QuestUI] Tracker intelligent mis à jour');
+    console.log('✅ [QuestUI] Tracker mis à jour');
   }
   
-  // 🟢 MÉTHODE MODIFIÉE : Rendu intelligent des objectifs avec gestion quête terminée
-  renderTrackerObjectivesIntelligent(quest) {
+  renderTrackerObjectives(quest) {
     const isCompleted = this.isQuestCompleted(quest);
     
-    // 🟢 NOUVEAU : Si quête terminée, afficher message "Parler à [NPC]"
     if (isCompleted) {
       const turnInMessage = this.generateTurnInMessage(quest);
       return `<div class="quest-completed-message">${turnInMessage}</div>`;
@@ -1264,16 +1262,10 @@ export class QuestUI {
       const isObjCompleted = objective.completed;
       const current = objective.currentAmount || 0;
       const required = objective.requiredAmount || 1;
-      const objId = `${quest.id}-${quest.currentStepIndex}-${objIndex}`;
       
       let objectiveClass = 'quest-objective';
       if (isObjCompleted) {
         objectiveClass += ' completed';
-      }
-      
-      // ✅ VÉRIFIER SI CET OBJECTIF EST EN COURS D'ANIMATION
-      if (this.progressionState.animatingObjectives.has(objId)) {
-        objectiveClass += ' just-completed';
       }
       
       let objectiveText = objective.description || this.getSafeTranslation('quest.ui.unknown_objective', 'Objectif inconnu');
@@ -1284,253 +1276,42 @@ export class QuestUI {
       return `<div class="${objectiveClass}" 
                    data-quest-id="${quest.id}" 
                    data-step-index="${quest.currentStepIndex}" 
-                   data-objective-index="${objIndex}"
-                   data-objective-id="${objId}">${objectiveText}</div>`;
+                   data-objective-index="${objIndex}">${objectiveText}</div>`;
     }).join('');
   }
   
-  // ✅ MÉTHODE PRINCIPALE : Animation d'objectif complété avec progression automatique
-  highlightObjectiveAsCompleted(result) {
-    console.log('🟢 [QuestUI] === DÉBUT ANIMATION OBJECTIF COMPLÉTÉ ===');
-    console.log('📊 Données reçues:', result);
+  generateTurnInMessage(quest) {
+    let npcName = null;
     
-    try {
-      // ✅ ÉTAPE 1: Identifier l'objectif à animer
-      const objectiveInfo = this.identifyCompletedObjective(result);
-      if (!objectiveInfo.found) {
-        console.warn('⚠️ [QuestUI] Objectif non identifié, fallback refresh');
-        this.scheduleIntelligentRefresh(1500, 'objectif_non_trouve');
-        return false;
-      }
-      
-      console.log('✅ [QuestUI] Objectif identifié:', objectiveInfo);
-      
-      // ✅ ÉTAPE 2: Marquer comme en cours d'animation
-      const objId = objectiveInfo.objectiveId;
-      this.progressionState.animatingObjectives.add(objId);
-      
-      // ✅ ÉTAPE 3: Appliquer l'animation sur tous les éléments trouvés
-      objectiveInfo.elements.forEach(element => {
-        console.log('🎨 [QuestUI] Application animation sur:', element);
-        this.applyCompletedObjectiveAnimation(element);
-      });
-      
-      // ✅ ÉTAPE 4: Programmer la progression automatique
-      this.scheduleObjectiveProgression(objId, objectiveInfo, result);
-      
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [QuestUI] Erreur animation objectif:', error);
-      // Fallback en cas d'erreur
-      this.scheduleIntelligentRefresh(2000, 'erreur_animation');
-      return false;
+    if (quest.turnInNpc) {
+      npcName = quest.turnInNpc.name || quest.turnInNpc;
+    } else if (quest.endNpc) {
+      npcName = quest.endNpc.name || quest.endNpc;
+    } else if (quest.npc) {
+      npcName = quest.npc.name || quest.npc;
+    } else if (quest.giver) {
+      npcName = quest.giver.name || quest.giver;
+    } else if (quest.metadata) {
+      npcName = quest.metadata.turnInNpc || quest.metadata.questGiver || quest.metadata.npcName;
     }
-  }
-  
-  // ✅ MÉTHODE HELPER : Identifier l'objectif complété
-  identifyCompletedObjective(result) {
-    const questId = result.questId;
-    const objectiveName = result.objectiveName || result.title || result.message;
     
-    console.log(`🔍 [QuestUI] Recherche objectif: "${objectiveName}" dans quête ${questId}`);
-    
-    const foundElements = [];
-    let objectiveId = null;
-    
-    // Recherche dans le tracker
-    if (this.trackerElement) {
-      const trackerObjectives = this.trackerElement.querySelectorAll(
-        `[data-quest-id="${questId}"] .quest-objective`
-      );
-      
-      for (const element of trackerObjectives) {
-        if (element.textContent && element.textContent.includes(objectiveName)) {
-          console.log('✅ [QuestUI] Objectif trouvé dans tracker');
-          foundElements.push(element);
-          objectiveId = element.dataset.objectiveId || `${questId}-tracker-${Date.now()}`;
-          break;
-        }
+    if (!npcName && quest.id) {
+      const questIdParts = quest.id.split('_');
+      if (questIdParts.length > 0) {
+        const possibleNpcName = questIdParts[0];
+        npcName = possibleNpcName.charAt(0).toUpperCase() + possibleNpcName.slice(1);
       }
     }
     
-    // Recherche dans le journal si ouvert
-    if (this.isVisible && this.overlayElement) {
-      const journalObjectives = this.overlayElement.querySelectorAll('.quest-objective');
-      
-      for (const element of journalObjectives) {
-        if (element.textContent && element.textContent.includes(objectiveName)) {
-          console.log('✅ [QuestUI] Objectif trouvé dans journal');
-          foundElements.push(element);
-          if (!objectiveId) {
-            objectiveId = `${questId}-journal-${Date.now()}`;
-          }
-          break;
-        }
-      }
+    if (!npcName) {
+      npcName = this.getSafeTranslation('quest.ui.quest_giver', 'Donneur de quête');
     }
     
-    return {
-      found: foundElements.length > 0,
-      elements: foundElements,
-      objectiveId: objectiveId,
-      questId: questId,
-      objectiveName: objectiveName
-    };
+    const talkToText = this.getSafeTranslation('quest.ui.talk_to', 'Parler à');
+    return `${talkToText} ${npcName}`;
   }
   
-  // ✅ MÉTHODE HELPER : Application de l'animation
-  applyCompletedObjectiveAnimation(element) {
-    // Nettoyer les classes existantes
-    element.classList.remove('completed', 'just-completed', 'fading-out', 'disappearing');
-    
-    // Appliquer la nouvelle animation
-    element.classList.add('just-completed');
-    
-    console.log('🎨 [QuestUI] Animation "just-completed" appliquée');
-  }
-  
-  // ✅ MÉTHODE PRINCIPALE : Programmer la progression automatique
-scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
-  console.log(`⏰ [QuestUI] Programmation progression pour objectif ${objectiveId}`);
-  
-  // Phase 1: Animation verte (0-800ms - réduite de 1200ms)
-  
-  // Phase 2: Début du fade à 500ms (réduit de 1000ms)
-  setTimeout(() => {
-    console.log('🎨 [QuestUI] Phase 2 - Début fade out');
-    objectiveInfo.elements.forEach(element => {
-      if (element.classList.contains('just-completed')) {
-        element.classList.add('fading-out');
-      }
-    });
-  }, 500);
-  
-  // ✅ MODIFICATION : Progression à 700ms au lieu de 2000ms
-  setTimeout(() => {
-    console.log('🔄 [QuestUI] Phase 3 - Progression automatique');
-    
-    // Nettoyer l'animation
-    this.cleanupObjectiveAnimation(objectiveId, objectiveInfo.elements);
-    
-    // ✅ MODIFICATION : Déclencher refresh SANS cooldown
-    this.forceRefreshNow(); // Cette méthode existe déjà !
-    
-  }, 700); // ✅ RÉDUIT DE 2000ms À 700ms
-}
-  
-  // ✅ MÉTHODE HELPER : Nettoyage de l'animation
-  cleanupObjectiveAnimation(objectiveId, elements) {
-    console.log(`🧹 [QuestUI] Nettoyage animation objectif ${objectiveId}`);
-    
-    // Supprimer de la liste des animations en cours
-    this.progressionState.animatingObjectives.delete(objectiveId);
-    
-    // Nettoyer les éléments DOM
-    elements.forEach(element => {
-      element.classList.remove('just-completed', 'fading-out');
-      element.classList.add('disappearing');
-      
-      // Supprimer complètement l'élément après l'animation de disparition
-      setTimeout(() => {
-        if (element.parentNode) {
-          element.style.display = 'none';
-        }
-      }, 500);
-    });
-  }
-  
-  // ✅ MÉTHODE HELPER : Nettoyage global des animations
-  cleanupAnimatingObjectives() {
-    if (this.progressionState.animatingObjectives.size > 0) {
-      console.log(`🧹 [QuestUI] Nettoyage ${this.progressionState.animatingObjectives.size} animations en cours`);
-      this.progressionState.animatingObjectives.clear();
-    }
-  }
-  
-  // ✅ MÉTHODE PRINCIPALE : Refresh intelligent avec cooldown
-  scheduleIntelligentRefresh(delay = 0, reason = 'manuel') {
-    console.log(`🔄 [QuestUI] Refresh intelligent programmé - délai: ${delay}ms, raison: ${reason}`);
-    
-    // Vérifier le cooldown pour éviter les refresh trop fréquents
-    const now = Date.now();
-    if (now - this.progressionState.lastRefreshTime < this.progressionState.refreshCooldown) {
-      console.log('⏸️ [QuestUI] Refresh ignoré (cooldown)');
-      return;
-    }
-    
-    // Marquer comme en cours de refresh
-    this.progressionState.pendingRefresh = true;
-    
-    setTimeout(() => {
-      this.executeIntelligentRefresh(reason);
-    }, delay);
-  }
-  
-  // ✅ MÉTHODE HELPER : Exécution du refresh intelligent
-  executeIntelligentRefresh(reason) {
-    console.log(`🔄 [QuestUI] Exécution refresh intelligent - raison: ${reason}`);
-    
-    try {
-      // Marquer le tracker comme en cours de refresh
-      if (this.trackerElement) {
-        this.trackerElement.classList.add('refreshing');
-      }
-      
-      // Méthode 1: Via le système d'actions (priorité)
-      if (this.onAction) {
-        this.onAction('refreshQuests', { 
-          source: 'progression_automatique',
-          reason: reason,
-          timestamp: Date.now()
-        });
-      }
-      
-      // Méthode 2: Backup via QuestSystem global
-      setTimeout(() => {
-        if (this.progressionState.pendingRefresh && window.questSystem) {
-          console.log('🔄 [QuestUI] Backup refresh via QuestSystem');
-          window.questSystem.requestActiveQuests();
-        }
-      }, 500);
-      
-      // Méthode 3: Ultimate backup via réseau direct
-      setTimeout(() => {
-        if (this.progressionState.pendingRefresh && window.networkManager) {
-          console.log('🔄 [QuestUI] Ultimate backup refresh via réseau');
-          window.networkManager.sendMessage('getActiveQuests', {
-            reason: 'ui_progression_automatique',
-            timestamp: Date.now()
-          });
-        }
-      }, 1000);
-      
-      // Cleanup après 2 secondes max
-      setTimeout(() => {
-        this.finishIntelligentRefresh();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('❌ [QuestUI] Erreur refresh intelligent:', error);
-      this.finishIntelligentRefresh();
-    }
-  }
-  
-  // ✅ MÉTHODE HELPER : Finalisation du refresh
-  finishIntelligentRefresh() {
-    console.log('✅ [QuestUI] Finalisation refresh intelligent');
-    
-    // Nettoyer l'état de refresh
-    this.progressionState.pendingRefresh = false;
-    this.progressionState.lastRefreshTime = Date.now();
-    
-    // Supprimer l'indicateur de refresh
-    if (this.trackerElement) {
-      this.trackerElement.classList.remove('refreshing');
-    }
-  }
-  
-  // === 📊 MÉTHODES EXISTANTES CONSERVÉES AVEC FIX QUÊTE TERMINÉE ===
+  // === 📋 MÉTHODES JOURNAL ===
   
   refreshQuestList() {
     const questList = this.overlayElement?.querySelector('#quest-list');
@@ -1561,7 +1342,6 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
       const categoryClass = quest.category || 'side';
       const isCompleted = this.isQuestCompleted(quest);
       
-      // 🟢 NOUVEAU : Text spécial pour quête terminée style WoW
       let progressText;
       if (isCompleted) {
         progressText = this.generateTurnInMessage(quest);
@@ -1585,13 +1365,11 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
       });
     });
     
-    // Sélectionner première quête
     if (quests.length > 0) {
       this.selectQuest(0);
     }
   }
   
-  // 🌐 NOUVELLE MÉTHODE : Messages vides traduits
   getEmptyMessage(view) {
     const messages = {
       'active': this.getSafeTranslation('quest.ui.no_active_quests', 'Aucune quête active'),
@@ -1631,7 +1409,6 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
     }
   }
   
-  // 🟢 MÉTHODE MODIFIÉE : Détails de quête avec gestion terminée
   updateQuestDetails(quest) {
     const detailsContainer = this.overlayElement?.querySelector('#quest-details');
     if (!detailsContainer) return;
@@ -1655,7 +1432,6 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
           const isStepCompleted = index < quest.currentStepIndex;
           const stepClass = isStepCompleted ? 'completed' : (isCurrent ? 'current' : '');
           
-          // 🟢 Ne pas afficher les étapes si la quête est terminée
           if (isCompleted && !isStepCompleted && !isCurrent) {
             return '';
           }
@@ -1667,14 +1443,12 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
               
               ${step.objectives ? step.objectives.map((obj, objIndex) => {
                 const progress = Math.min(obj.currentAmount || 0, obj.requiredAmount || 1);
-                const objId = `${quest.id}-${index}-${objIndex}`;
                 
                 return `
                   <div class="quest-objective ${obj.completed ? 'completed' : ''}" 
                        data-quest-id="${quest.id}" 
                        data-step-index="${index}" 
-                       data-objective-index="${objIndex}"
-                       data-objective-id="${objId}">
+                       data-objective-index="${objIndex}">
                     ${obj.description || this.getSafeTranslation('quest.ui.unknown_objective', 'Objectif')} (${progress}/${obj.requiredAmount || 1})
                   </div>
                 `;
@@ -1686,54 +1460,6 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
     `;
   }
   
-  // 🟢 NOUVELLE MÉTHODE : Générer message "Parler à [NPC]" style WoW
-  generateTurnInMessage(quest) {
-    // Essayer de trouver le NPC de fin dans différents endroits
-    let npcName = null;
-    
-    // 1. Chercher dans quest.turnInNpc ou quest.endNpc
-    if (quest.turnInNpc) {
-      npcName = quest.turnInNpc.name || quest.turnInNpc;
-    } else if (quest.endNpc) {
-      npcName = quest.endNpc.name || quest.endNpc;
-    }
-    
-    // 2. Chercher dans quest.npc (NPC qui a donné la quête, souvent le même)
-    if (!npcName && quest.npc) {
-      npcName = quest.npc.name || quest.npc;
-    }
-    
-    // 3. Chercher dans quest.giver
-    if (!npcName && quest.giver) {
-      npcName = quest.giver.name || quest.giver;
-    }
-    
-    // 4. Chercher dans les métadonnées
-    if (!npcName && quest.metadata) {
-      npcName = quest.metadata.turnInNpc || quest.metadata.questGiver || quest.metadata.npcName;
-    }
-    
-    // 5. Essayer d'extraire depuis l'ID de la quête (ex: "annie_lost_gloves" -> "Annie")
-    if (!npcName && quest.id) {
-      const questIdParts = quest.id.split('_');
-      if (questIdParts.length > 0) {
-        const possibleNpcName = questIdParts[0];
-        // Capitaliser la première lettre
-        npcName = possibleNpcName.charAt(0).toUpperCase() + possibleNpcName.slice(1);
-      }
-    }
-    
-    // 6. Fallback générique
-    if (!npcName) {
-      npcName = this.getSafeTranslation('quest.ui.quest_giver', 'Donneur de quête');
-    }
-    
-    // Construire le message final style WoW
-    const talkToText = this.getSafeTranslation('quest.ui.talk_to', 'Parler à');
-    return `${talkToText} ${npcName}`;
-  }
-  
-  // 🟢 MÉTHODE MODIFIÉE : Rendu section quête terminée avec message WoW
   renderCompletedQuestSection(quest) {
     const rewards = this.extractQuestRewards(quest);
     const turnInMessage = this.generateTurnInMessage(quest);
@@ -1743,26 +1469,11 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
         <span class="quest-completed-icon">💬</span>
         <div class="quest-completed-title">${turnInMessage}</div>
         <div class="quest-completed-message">${this.getSafeTranslation('quest.ui.ready_to_turn_in', 'Quête prête à être rendue.')}</div>
-        
-        ${rewards.length > 0 ? `
-          <div class="quest-completion-rewards">
-            <div class="quest-rewards-title">${this.getSafeTranslation('quest.ui.rewards_preview', 'Récompenses à Obtenir')}</div>
-            <div class="quest-rewards-list">
-              ${rewards.map(reward => `
-                <div class="quest-reward-item">
-                  ${this.getRewardIcon(reward.type)} ${reward.amount || 1} ${reward.name || reward.type}
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
       </div>
     `;
   }
   
-  // 🟢 NOUVELLE MÉTHODE : Extraire récompenses de quête
   extractQuestRewards(quest) {
-    // Chercher les récompenses dans plusieurs endroits possibles
     if (quest.rewards && Array.isArray(quest.rewards)) {
       return quest.rewards;
     }
@@ -1771,28 +1482,10 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
       return quest.completionRewards;
     }
     
-    // Récompenses par défaut si aucune trouvée
     return [
       { type: 'experience', name: this.getSafeTranslation('quest.ui.experience_points', 'Points d\'expérience'), amount: 100 },
       { type: 'gold', name: this.getSafeTranslation('quest.ui.gold_coins', 'Pièces d\'or'), amount: 50 }
     ];
-  }
-  
-  // 🟢 NOUVELLE MÉTHODE : Icônes de récompenses
-  getRewardIcon(rewardType) {
-    const icons = {
-      'gold': '🪙',
-      'experience': '⭐',
-      'xp': '⭐',
-      'item': '📦',
-      'money': '🪙',
-      'pokemon': '🔴',
-      'badge': '🏆',
-      'potion': '🧪',
-      'berry': '🫐'
-    };
-    
-    return icons[rewardType?.toLowerCase()] || '🎁';
   }
   
   calculateQuestProgress(quest) {
@@ -1829,60 +1522,72 @@ scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
     this.handleAction('refreshQuests');
   }
   
-  // === 🔧 MÉTHODES DEBUG ===
+  // === 🔧 MÉTHODES PUBLIQUES ===
   
-  debugProgressionState() {
-    console.log('🔍 [QuestUI] === DEBUG ÉTAT PROGRESSION ===');
-    console.log('Objectifs en animation:', Array.from(this.progressionState.animatingObjectives));
-    console.log('Refresh en cours:', this.progressionState.pendingRefresh);
-    console.log('Dernier refresh:', new Date(this.progressionState.lastRefreshTime));
-    console.log('Quêtes actives:', this.activeQuests.length);
-    console.log('Tracker visible:', this.isTrackerVisible);
-    console.log('Langue actuelle:', this.optionsManager?.currentLanguage);
-    
-    return {
-      animatingObjectives: Array.from(this.progressionState.animatingObjectives),
-      pendingRefresh: this.progressionState.pendingRefresh,
-      lastRefreshTime: this.progressionState.lastRefreshTime,
-      activeQuests: this.activeQuests.length,
-      trackerVisible: this.isTrackerVisible,
-      currentLanguage: this.optionsManager?.currentLanguage
-    };
+  updateTrackerIntelligent() {
+    this.updateTracker();
   }
   
-forceRefreshNow() {
-  console.log('🔄 [QuestUI] Force refresh immédiat');
-  this.progressionState.lastRefreshTime = 0; // Reset cooldown
-  this.scheduleIntelligentRefresh(0, 'force_manual');
+  forceRefreshNow() {
+    console.log('🔄 [QuestUI] Force refresh immédiat');
+    this.forceQuestUpdate();
+  }
   
-  // ✅ AJOUT : Aussi demander quest statuses immédiatement
-  if (window.globalNetworkManager?.room) {
-    window.globalNetworkManager.room.send('getQuestStatuses', {
-      immediate: true,
-      timestamp: Date.now()
-    });
+  // === 🧹 NETTOYAGE ===
+  
+  destroy() {
+    console.log('🧹 [QuestUI] Destruction...');
+    
+    if (this.cleanupLanguageListener) {
+      this.cleanupLanguageListener();
+      this.cleanupLanguageListener = null;
+    }
+    
+    if (this.overlayElement && this.overlayElement.parentNode) {
+      this.overlayElement.remove();
+    }
+    
+    if (this.trackerElement && this.trackerElement.parentNode) {
+      this.trackerElement.remove();
+    }
+    
+    const styles = document.querySelector('#quest-ui-styles-optimized');
+    if (styles) styles.remove();
+    
+    this.overlayElement = null;
+    this.trackerElement = null;
+    this.isVisible = false;
+    this.activeQuests = [];
+    this.selectedQuest = null;
+    this.onAction = null;
+    this.optionsManager = null;
+    this.progressionState = {
+      animatingObjectives: new Set(),
+      lastUpdateTime: 0,
+      updateCooldown: 300
+    };
+    
+    console.log('✅ [QuestUI] Détruit avec nettoyage complet');
   }
 }
 
+// === 🧪 FONCTIONS DEBUG ===
+
+window.testCompletedQuest = function() {
+  console.log('🧪 Test quête terminée...');
   
-  // 🟢 NOUVELLE MÉTHODE DEBUG : Tester quête terminée avec NPC
-  debugCompletedQuest() {
-    console.log('🧪 [QuestUI] Test quête terminée avec NPC...');
-    
-    // Créer une quête test terminée avec NPC
+  if (window.questSystem && window.questSystem.ui) {
     const completedQuest = {
-      id: 'annie_gardening_gloves',  // 🟢 ID avec nom NPC pour test extraction
+      id: 'annie_gardening_gloves',
       name: 'Les Gants de Jardinage Perdus',
-      description: 'Annie a perdu ses gants de jardinage près de la rivière. Rapportez-les lui.',
+      description: 'Annie a perdu ses gants de jardinage près de la rivière.',
       status: 'completed',
       category: 'side',
       currentStepIndex: 2,
-      // 🟢 NOUVEAU : Informations NPC pour le turn-in
       turnInNpc: {
         id: 'annie_npc',
         name: 'Annie'
       },
-      giver: 'Annie',  // Fallback
       steps: [
         {
           name: 'Chercher les gants',
@@ -1899,149 +1604,60 @@ forceRefreshNow() {
             { description: 'Parler à Annie', completed: true, currentAmount: 1, requiredAmount: 1 }
           ]
         }
-      ],
-      rewards: [
-        { type: 'experience', name: 'Points d\'expérience', amount: 150 },
-        { type: 'gold', name: 'Pièces d\'or', amount: 75 },
-        { type: 'item', name: 'Potion de soin', amount: 2 }
       ]
     };
     
-    // Ajouter aux quêtes actives pour test
-    this.activeQuests.push(completedQuest);
+    window.questSystem.ui.activeQuests.push(completedQuest);
     
-    // Mettre à jour l'affichage
-    if (this.isVisible) {
-      this.refreshQuestList();
+    if (window.questSystem.ui.isVisible) {
+      window.questSystem.ui.refreshQuestList();
     }
-    this.updateTrackerIntelligent();
+    window.questSystem.ui.updateTracker();
     
-    console.log('✅ [QuestUI] Quête terminée avec NPC "Annie" ajoutée');
-    console.log('💬 Message turn-in:', this.generateTurnInMessage(completedQuest));
-    
+    console.log('✅ Quête terminée ajoutée');
     return completedQuest;
-  }
-  
-  // === 🧹 NETTOYAGE ===
-  
-  destroy() {
-    console.log('🧹 [QuestUI] Destruction...');
-    
-    // 🌐 NOUVEAU : Nettoyer listener langue
-    if (this.cleanupLanguageListener) {
-      this.cleanupLanguageListener();
-      this.cleanupLanguageListener = null;
-    }
-    
-    // Nettoyer animations en cours
-    this.cleanupAnimatingObjectives();
-    
-    // Nettoyer dialogues
-    if (this.currentDialog && this.currentDialog.parentNode) {
-      this.currentDialog.remove();
-    }
-    
-    // Supprimer éléments DOM
-    if (this.overlayElement && this.overlayElement.parentNode) {
-      this.overlayElement.remove();
-    }
-    
-    if (this.trackerElement && this.trackerElement.parentNode) {
-      this.trackerElement.remove();
-    }
-    
-    // Supprimer styles
-    const styles = document.querySelector('#quest-ui-styles-v2');
-    if (styles) styles.remove();
-    
-    // Reset état
-    this.overlayElement = null;
-    this.trackerElement = null;
-    this.currentDialog = null;
-    this.isVisible = false;
-    this.activeQuests = [];
-    this.selectedQuest = null;
-    this.onAction = null;
-    this.optionsManager = null;
-    this.progressionState = {
-      animatingObjectives: new Set(),
-      pendingRefresh: false,
-      lastRefreshTime: 0,
-      refreshCooldown: 1000
-    };
-    
-    console.log('✅ [QuestUI] Détruit avec nettoyage complet + traductions');
-  }
-}
-
-// === 🧪 FONCTIONS DEBUG GLOBALES ===
-
-// 🟢 NOUVELLE FONCTION : Tester quête terminée
-window.testCompletedQuest = function() {
-  console.log('🧪 Test quête terminée...');
-  
-  if (window.questSystem && window.questSystem.ui) {
-    return window.questSystem.ui.debugCompletedQuest();
   } else {
     console.error('❌ QuestUI non disponible');
     return null;
   }
 };
 
-// 🟢 NOUVELLE FONCTION : Simuler fin de quête
-window.simulateQuestCompletion = function(questId = 'lost_gardening_gloves') {
-  console.log(`🧪 Simulation fin de quête: ${questId}...`);
+window.simulateObjectiveCompleted = function(questId = 'test_quest', objectiveName = 'Collecter 5 baies') {
+  console.log(`🧪 Simulation objectif complété: ${objectiveName} dans ${questId}`);
   
   if (window.questSystem && window.questSystem.ui) {
-    const ui = window.questSystem.ui;
+    const result = {
+      questId: questId,
+      objectiveName: objectiveName,
+      message: `Objectif complété: ${objectiveName}`,
+      timestamp: Date.now()
+    };
     
-    // Trouver la quête
-    const quest = ui.activeQuests.find(q => q.id === questId);
-    if (!quest) {
-      console.error(`❌ Quête ${questId} non trouvée`);
-      return false;
-    }
+    // Déclencher l'animation rapide
+    const success = window.questSystem.ui.highlightObjectiveAsCompleted(result);
+    console.log(`✅ Animation déclenchée: ${success}`);
     
-    // Marquer comme terminée
-    quest.status = 'completed';
-    if (quest.steps) {
-      quest.currentStepIndex = quest.steps.length;
-    }
-    
-    // Ajouter des récompenses si pas présentes
-    if (!quest.rewards) {
-      quest.rewards = [
-        { type: 'experience', name: 'Points d\'expérience', amount: 200 },
-        { type: 'gold', name: 'Pièces d\'or', amount: 100 }
-      ];
-    }
-    
-    // Mettre à jour l'affichage
-    ui.updateTrackerIntelligent();
-    if (ui.isVisible) {
-      ui.refreshQuestList();
-      if (ui.selectedQuest && ui.selectedQuest.id === questId) {
-        ui.updateQuestDetails(quest);
-      }
-    }
-    
-    console.log(`✅ Quête ${questId} marquée comme terminée`);
-    return quest;
-    
+    return success;
   } else {
     console.error('❌ QuestUI non disponible');
     return false;
   }
 };
 
-// Debug existant étendu
 window.debugQuestUI = function() {
-  console.log('🔍 === DEBUG QUEST UI COMPLET ===');
+  console.log('🔍 === DEBUG QUEST UI OPTIMISÉ ===');
   
   if (window.questSystem && window.questSystem.ui) {
     const ui = window.questSystem.ui;
     
-    console.log('📊 État général:', ui.debugProgressionState());
+    console.log('📊 État général:', {
+      visible: ui.isVisible,
+      trackerVisible: ui.isTrackerVisible,
+      activeQuests: ui.activeQuests.length,
+      lastUpdateTime: ui.progressionState.lastUpdateTime,
+      updateCooldown: ui.progressionState.updateCooldown
+    });
+    
     console.log('📋 Quêtes actives:', ui.activeQuests.length);
     
     ui.activeQuests.forEach((quest, index) => {
@@ -2050,13 +1666,16 @@ window.debugQuestUI = function() {
     });
     
     console.log('🎮 Méthodes de test disponibles:');
-    console.log('   - window.testCompletedQuest() - Ajouter quête terminée test');
-    console.log('   - window.simulateQuestCompletion(questId) - Marquer quête comme terminée');
+    console.log('   - window.testCompletedQuest() - Ajouter quête terminée');
+    console.log('   - window.simulateObjectiveCompleted(questId, objectiveName) - Simuler objectif complété');
+    console.log('   - window.questSystem.ui.forceQuestUpdate() - Force update immédiat');
     
     return {
-      state: ui.debugProgressionState(),
+      visible: ui.isVisible,
+      trackerVisible: ui.isTrackerVisible,
       activeQuests: ui.activeQuests.length,
-      completedQuests: ui.activeQuests.filter(q => ui.isQuestCompleted(q)).length
+      completedQuests: ui.activeQuests.filter(q => ui.isQuestCompleted(q)).length,
+      progressionState: ui.progressionState
     };
     
   } else {
@@ -2065,10 +1684,15 @@ window.debugQuestUI = function() {
   }
 };
 
-console.log('✅ [QuestUI] Système complet avec gestion "Parler à NPC" style WoW + traductions chargé');
+console.log('✅ [QuestUI] Version OPTIMISÉE chargée - Progression RAPIDE (300ms)');
+console.log('🚀 Améliorations:');
+console.log('   ⚡ Animation objectifs: 300ms (au lieu de 2000ms)');
+console.log('   🔄 Update immédiat des indicateurs NPC');
+console.log('   🧹 Code simplifié et optimisé');
+console.log('   🎨 Animations CSS plus fluides');
 console.log('🧪 Tests disponibles:');
-console.log('   - window.testCompletedQuest() - Tester quête terminée avec "Parler à Annie"');
-console.log('   - window.simulateQuestCompletion(questId) - Simuler fin de quête');
+console.log('   - window.testCompletedQuest() - Test quête terminée');
+console.log('   - window.simulateObjectiveCompleted() - Test objectif complété RAPIDE');
 console.log('   - window.debugQuestUI() - Debug complet');
 
 export default QuestUI;
