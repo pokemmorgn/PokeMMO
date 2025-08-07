@@ -258,26 +258,26 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === 📊 BARRES DE VIE GAME BOY REPOSITIONNÉES ===
+  // === 📊 BARRES DE VIE GAME BOY REPOSITIONNÉES (PLUS COMPACTES) ===
 
   createGameBoyHealthBars() {
     const { width, height } = this.cameras.main;
     
-    // Barre adversaire (haut gauche, pas sur le Pokémon)
+    // Barre adversaire (haut gauche, compacte)
     this.createGameBoyHealthBar('player2', {
-      x: width * 0.05,  // Plus à gauche
-      y: height * 0.05, // Plus haut
-      width: 280,
-      height: 70,       // Plus compact
+      x: width * 0.05,
+      y: height * 0.05,
+      width: 260,     // ✅ PLUS PETIT !
+      height: 55,     // ✅ BEAUCOUP PLUS COMPACT (70→55) !
       isPlayer: false
     });
     
-    // Barre joueur (bas gauche, au-dessus de l'interface)
+    // Barre joueur (bas droite, compacte)
     this.createGameBoyHealthBar('player1', {
-      x: width * 0.55,  // À droite pour pas gêner
-      y: height * 0.65, // Plus haut que l'interface
-      width: 320,
-      height: 85,       // Légèrement plus compact
+      x: width * 0.55,
+      y: height * 0.58,  // ✅ REMONTÉ de 0.65 à 0.58 !
+      width: 300,        // ✅ PLUS PETIT !
+      height: 75,        // ✅ PLUS COMPACT (85→75) !
       isPlayer: true
     });
   }
@@ -286,52 +286,52 @@ export class BattleScene extends Phaser.Scene {
     const container = this.add.container(config.x, config.y);
     container.setDepth(180);
     
-    // Panel principal style Game Boy
+    // Panel principal style Game Boy (plus compact)
     const bgPanel = this.add.graphics();
     
     // Fond principal
     bgPanel.fillStyle(0xf0f8f0, 0.95);
-    bgPanel.fillRoundedRect(0, 0, config.width, config.height, 8);
+    bgPanel.fillRoundedRect(0, 0, config.width, config.height, 6); // Bordures plus petites
     
     // Bordure épaisse noire
-    bgPanel.lineStyle(4, 0x1a1a1a, 1);
-    bgPanel.strokeRoundedRect(0, 0, config.width, config.height, 8);
+    bgPanel.lineStyle(3, 0x1a1a1a, 1); // Plus fine
+    bgPanel.strokeRoundedRect(0, 0, config.width, config.height, 6);
     
     // Bordure intérieure grise
     bgPanel.lineStyle(2, 0x8fad8f, 1);
-    bgPanel.strokeRoundedRect(4, 4, config.width - 8, config.height - 8, 6);
+    bgPanel.strokeRoundedRect(3, 3, config.width - 6, config.height - 6, 4);
     
-    // Zone d'information
+    // Zone d'information (plus compacte)
     const infoPanel = this.add.graphics();
     infoPanel.fillStyle(0xe8f4e8, 1);
-    infoPanel.fillRoundedRect(12, 12, config.width - 24, 35, 4);
+    infoPanel.fillRoundedRect(8, 8, config.width - 16, 22, 3); // ✅ RÉDUIT de 35 à 22 !
     infoPanel.lineStyle(1, 0x6b8e6b, 1);
-    infoPanel.strokeRoundedRect(12, 12, config.width - 24, 35, 4);
+    infoPanel.strokeRoundedRect(8, 8, config.width - 16, 22, 3);
     
     // Nom Pokémon (style pixel)
-    const nameText = this.add.text(20, 18, 
+    const nameText = this.add.text(12, 12, 
       config.isPlayer ? 'VOTRE POKÉMON' : 'POKÉMON SAUVAGE', {
-      fontSize: config.isPlayer ? '16px' : '14px',
+      fontSize: config.isPlayer ? '12px' : '11px', // ✅ RÉDUIT !
       fontFamily: 'monospace',
       color: '#1a1a1a',
       fontWeight: 'bold'
     });
     
-    // Niveau avec style Game Boy
+    // Niveau avec style Game Boy (plus petit)
     const levelBg = this.add.graphics();
     levelBg.fillStyle(0x1a1a1a, 1);
-    levelBg.fillRoundedRect(config.width - 90, 15, 60, 20, 3);
+    levelBg.fillRoundedRect(config.width - 65, 10, 50, 16, 2); // ✅ PLUS PETIT !
     
-    const levelText = this.add.text(config.width - 85, 18, 'LV.--', {
-      fontSize: '12px',
+    const levelText = this.add.text(config.width - 63, 12, 'LV.--', {
+      fontSize: '10px', // ✅ PLUS PETIT !
       fontFamily: 'monospace',
       color: '#f0f8f0',
       fontWeight: 'bold'
     });
     
-    // Zone HP
-    const hpLabel = this.add.text(20, 55, 'HP', {
-      fontSize: '14px',
+    // Zone HP (remontée)
+    const hpLabel = this.add.text(12, 38, 'HP', { // ✅ REMONTÉ de 55 à 38 !
+      fontSize: '12px', // ✅ PLUS PETIT !
       fontFamily: 'monospace',
       color: '#1a1a1a',
       fontWeight: 'bold'
@@ -340,19 +340,19 @@ export class BattleScene extends Phaser.Scene {
     // Fond barre HP
     const hpBarBg = this.add.graphics();
     hpBarBg.fillStyle(0x2d4a2d, 1);
-    hpBarBg.fillRoundedRect(50, 55, config.width - 70, 16, 3);
+    hpBarBg.fillRoundedRect(35, 38, config.width - 50, 12, 2); // ✅ REMONTÉ et PLUS FIN !
     
     // Barre HP avec dégradé Game Boy
     const hpBar = this.add.graphics();
-    this.updateGameBoyHealthBarVisual(hpBar, config.width - 70, 1.0);
-    hpBar.x = 50;
-    hpBar.y = 55;
+    this.updateGameBoyHealthBarVisual(hpBar, config.width - 50, 1.0);
+    hpBar.x = 35;
+    hpBar.y = 38;
     
     // Texte HP numérique (joueur seulement)
     let hpText = null;
     if (config.isPlayer) {
-      hpText = this.add.text(config.width - 100, 75, '--/--', {
-        fontSize: '16px',
+      hpText = this.add.text(config.width - 80, 55, '--/--', { // ✅ REMONTÉ !
+        fontSize: '12px', // ✅ PLUS PETIT !
         fontFamily: 'monospace',
         color: '#1a1a1a',
         fontWeight: 'bold'
@@ -362,8 +362,8 @@ export class BattleScene extends Phaser.Scene {
     // Barre EXP (joueur seulement)
     let expBar = null;
     if (config.isPlayer) {
-      const expLabel = this.add.text(20, 85, 'EXP', {
-        fontSize: '12px',
+      const expLabel = this.add.text(12, 62, 'EXP', { // ✅ REMONTÉ !
+        fontSize: '10px', // ✅ PLUS PETIT !
         fontFamily: 'monospace',
         color: '#1a1a1a',
         fontWeight: 'bold'
@@ -371,13 +371,13 @@ export class BattleScene extends Phaser.Scene {
       
       const expBarBg = this.add.graphics();
       expBarBg.fillStyle(0x6b8e6b, 1);
-      expBarBg.fillRoundedRect(50, 88, config.width - 70, 10, 2);
+      expBarBg.fillRoundedRect(35, 64, config.width - 50, 8, 2); // ✅ REMONTÉ et PLUS FIN !
       
       expBar = this.add.graphics();
       expBar.fillStyle(0x4169e1, 1);
-      expBar.fillRoundedRect(0, 0, 0, 10, 2);
-      expBar.x = 50;
-      expBar.y = 88;
+      expBar.fillRoundedRect(0, 0, 0, 8, 2);
+      expBar.x = 35;
+      expBar.y = 64;
       
       container.add([expLabel, expBarBg, expBar]);
     }
@@ -532,12 +532,12 @@ export class BattleScene extends Phaser.Scene {
     ];
     
     // Positions optimisées pour interface compacte
-    const buttonWidth = (width - 100) / 2;  // Largeur ajustée
-    const buttonHeight = 28;                // Plus compact
-    const startX = 30;                      // Marge réduite
-    const startY = 35;                      // ✅ REMONTÉ de 55 à 40 !
-    const gapX = 15;                        // Espacement réduit
-    const gapY = 6;                         // ✅ RÉDUIT de 8 à 6 !
+    const buttonWidth = (width - 100) / 2;
+    const buttonHeight = 26;                // ✅ ENCORE PLUS PETIT (28→26) !
+    const startX = 30;
+    const startY = 25;                      // ✅ ENCORE PLUS HAUT (40→25) !
+    const gapX = 15;
+    const gapY = 5;                         // ✅ ESPACEMENT MINIMUM (6→5) !
     
     actions.forEach((action, index) => {
       const x = startX + (index % 2) * (buttonWidth + gapX);
@@ -1990,7 +1990,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === SYSTÈME DE TRADUCTION ADAPTATIF (inchangé mais utilise les nouveaux modes) ===
+  // === SYSTÈME DE TRADUCTION ADAPTATIF AVEC MESSAGES D'INTRO ===
 
   handleBattleEvent(eventType, data = {}) {
     console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
@@ -2017,29 +2017,37 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     
-    // Traduction du message avec mode narratif
+    // ✅ NOUVEAU : Gestion spéciale des événements d'introduction
+    const introEvents = ['wildPokemonAppears', 'battleStart'];
+    const narrativeEvents = ['pokemonFainted', 'victory', 'defeat'];
+    
+    // Traduction du message avec mode adaptatif
     if (this.battleTranslator) {
       const message = this.battleTranslator.translate(eventType, data);
       if (message) {
-        // Événements narratifs spéciaux
-        const narrativeEvents = [
-          'wildPokemonAppears', 
-          'battleStart', 
-          'pokemonFainted',
-          'victory',
-          'defeat'
-        ];
-        
-        if (narrativeEvents.includes(eventType)) {
-          this.showNarrativeMessage(message, true); // Mode narratif avec continuation
+        if (introEvents.includes(eventType)) {
+          // ✅ Messages d'introduction avec indicateur de continuation
+          this.showNarrativeMessage(message, true);
+        } else if (narrativeEvents.includes(eventType)) {
+          // Messages narratifs importants avec continuation
+          this.showNarrativeMessage(message, true);
         } else {
-          this.showNarrativeMessage(message, false); // Mode narratif sans continuation
+          // Autres messages sans continuation
+          this.showNarrativeMessage(message, false);
         }
         
         console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
       }
     } else {
       console.warn('[BattleScene] ⚠️ Traducteur non initialisé pour:', eventType);
+      
+      // ✅ FALLBACK : Messages par défaut pour l'intro
+      if (eventType === 'wildPokemonAppears') {
+        const pokemonName = data.pokemonName || 'UN POKÉMON SAUVAGE';
+        this.showNarrativeMessage(`${pokemonName} APPARAÎT !`, true);
+      } else if (eventType === 'battleStart') {
+        this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?', true);
+      }
     }
   }
 
@@ -2562,7 +2570,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === TEST MODERNE ADAPTATIF ===
+  // === TEST MODERNE ADAPTATIF AVEC INTRO ===
 
   testModernBattleDisplay() {
     this.activateBattleUI();
@@ -2592,9 +2600,12 @@ export class BattleScene extends Phaser.Scene {
     
     setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
     setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
-    setTimeout(() => this.showNarrativeMessage('UN PIKACHU CHROMATIQUE APPARAÎT !'), 2000);
-    setTimeout(() => this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?'), 4000);
-    setTimeout(() => this.showActionButtons(), 6000);
+    
+    // ✅ SÉQUENCE D'INTRODUCTION RÉALISTE
+    setTimeout(() => this.showNarrativeMessage('UN PIKACHU CHROMATIQUE APPARAÎT !', true), 2000);
+    setTimeout(() => this.showNarrativeMessage('ALLEZ ! BULBIZARRE !', true), 4000);
+    setTimeout(() => this.showNarrativeMessage('QUE VOULEZ-VOUS FAIRE ?', true), 6000);
+    setTimeout(() => this.showActionButtons(), 8000); // ✅ PUIS LES BOUTONS !
   }
 
   // === DIAGNOSTIC (inchangé) ===
