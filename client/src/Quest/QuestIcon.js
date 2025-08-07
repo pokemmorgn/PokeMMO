@@ -141,7 +141,12 @@ export class QuestIcon {
   }
   
   forceDisplay() {
-    if (document.body.classList.contains('battle-mode')) return;
+      // ✅ NOUVEAU : Vérifier si on est en battle
+      if (window.pokemonUISystem?.currentGameState === 'battle' || 
+          window.uiManager?.currentGameState === 'battle') {
+        console.log('🥊 [QuestIcon] Mode battle détecté - pas de forceDisplay');
+        return; // Ne rien faire en battle
+      }
     if (!this.iconElement) return;
     
     // ✅ Styles essentiels pour visibilité (OK)
