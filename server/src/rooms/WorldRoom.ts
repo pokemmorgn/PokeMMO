@@ -83,115 +83,128 @@ export class WorldRoom extends Room<PokeWorldState> {
   private lastStateUpdate = 0;
   private stateUpdateInterval = 100;
 
-  async onCreate(options: any) {
-    this.setState(new PokeWorldState());
-    
-    this.overworldPokemonManager = new OverworldPokemonManager(this);
-    movementBlockManager.setRoomReference(this);
-    
-    setInterval(() => {
-      movementBlockManager.cleanup();
-    }, 30000);
+async onCreate(options: any) {
+  this.setState(new PokeWorldState());
+  
+  this.overworldPokemonManager = new OverworldPokemonManager(this);
+  movementBlockManager.setRoomReference(this);
+  
+  setInterval(() => {
+    movementBlockManager.cleanup();
+  }, 30000);
 
-    this.starterHandlers = new StarterHandlers(this);
-    this.zoneManager = new ZoneManager(this);
+  this.starterHandlers = new StarterHandlers(this);
+  this.zoneManager = new ZoneManager(this);
 
-    const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
-    const registry = ServiceRegistry.getInstance();
+  const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
+  const registry = ServiceRegistry.getInstance();
 
-    this.pokedexHandler = new PokedexMessageHandler(this);
-    registry.registerWorldRoom(this);
+  this.pokedexHandler = new PokedexMessageHandler(this);
+  registry.registerWorldRoom(this);
+  
+  const questManager = this.zoneManager.getQuestManager();
+  console.log(`🔍 [DEBUG] QuestManager récupéré:`, !!questManager);
+  
+  if (questManager) {
+    registry.registerQuestManager(questManager);
+    console.log(`✅ [DEBUG] QuestManager enregistré dans ServiceRegistry`);
     
-    const questManager = this.zoneManager.getQuestManager();
-    console.log(`🔍 [DEBUG] QuestManager récupéré:`, !!questManager);
-    
-    if (questManager) {
-      registry.registerQuestManager(questManager);
-      console.log(`✅ [DEBUG] QuestManager enregistré dans ServiceRegistry`);
-      
-      // Test immédiat
-      const testRetrieve = registry.getQuestManager();
-      console.log(`🧪 [DEBUG] Test récupération QuestManager:`, !!testRetrieve);
-      
-      if (testRetrieve) {
-        console.log(`🎯 [DEBUG] QuestManager accessible - test asPlayerQuestWith disponible`);
-      } else {
-        console.error(`❌ [DEBUG] PROBLÈME: QuestManager non récupérable après enregistrement !`);
+    // ✅ NOUVEAU : Enregistrer le callback pour refresh automatique des NPCs
+    questManager.setWorldRoomCallback(async (playerId: string) => {
+      try {
+        console.log(`🔄 [WorldRoom] Callback refresh NPCs déclenché pour ${playerId}`);
+        await this.updateQuestStatusesFixed(playerId);
+        console.log(`✅ [WorldRoom] Callback refresh NPCs terminé pour ${playerId}`);
+      } catch (error) {
+        console.error(`❌ [WorldRoom] Erreur dans callback refresh NPCs:`, error);
       }
-    } else {
-      console.error(`❌ [DEBUG] PROBLÈME: QuestManager non disponible depuis ZoneManager !`);
-      
-      // Debug ZoneManager
-      console.log(`🔍 [DEBUG] ZoneManager état:`, {
-        exists: !!this.zoneManager,
-        questManagerMethod: typeof this.zoneManager?.getQuestManager
-      });
-    }
-      
-    this.transitionService = new TransitionService();
-    this.teamHandlers = new TeamHandlers(this);
-    this.followerHandlers = new FollowerHandlers(this);
-    this.transitionService.setFollowerHandlers(this.followerHandlers);
-    this.questHandlers = new QuestHandlers(this);
-    this.battleHandlers = new BattleHandlers(this);
-    this.encounterHandlers = new EncounterHandlers(this);
-
-    this.initializeTimeWeatherService();
-
-    this.movementHandlers = new MovementHandlers(this);
-    this.objectInteractionHandlers = new ObjectInteractionHandlers(this);
-    
-    this.objectInteractionModule = new ObjectInteractionModule();
-    this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
-    
-    this.objectInteractionModule.initialize().then(() => {
-      console.log(`✅ ObjectInteractionModule initialisé`);
-    }).catch((error) => {
-      console.error(`❌ Erreur initialisation ObjectInteractionModule:`, error);
     });
     
-    this.setupMessageHandlers();
-
-    this.shopManager = new ShopManager();
+    console.log(`🔗 [DEBUG] Callback WorldRoom configuré pour refresh automatique des NPCs`);
     
-    this.interactionManager = new InteractionManager(
-      (zoneName: string) => this.getNpcManager(zoneName),
-      this.zoneManager.getQuestManager(),
-      this.shopManager,
-      this.starterHandlers,
-      this.spectatorManager
-    );
+    // Test immédiat
+    const testRetrieve = registry.getQuestManager();
+    console.log(`🧪 [DEBUG] Test récupération QuestManager:`, !!testRetrieve);
     
-    this.npcInteractionModule = new NpcInteractionModule(
-      (zoneName: string) => this.getNpcManager(zoneName),
-      this.zoneManager.getQuestManager(),
-      this.shopManager,
-      this.starterHandlers,
-      this.spectatorManager
-    );
-
-    this.initializeZoneSyncService();
-    
-    try {
-      await this.initializeNpcManagers();
-      this.configureWorldTimer();
-      
-      this.clients.forEach(client => {
-        const player = this.state.players.get(client.sessionId);
-        if (player) {
-          this.onPlayerJoinZone(client, player.currentZone);
-        }
-      });
-      
-    } catch (error) {
-      console.error(`❌ [WorldRoom] Erreur critique chargement NPCs:`, error);
-      this.configureWorldTimerFallback();
+    if (testRetrieve) {
+      console.log(`🎯 [DEBUG] QuestManager accessible - test asPlayerQuestWith disponible`);
+    } else {
+      console.error(`❌ [DEBUG] PROBLÈME: QuestManager non récupérable après enregistrement !`);
     }
+  } else {
+    console.error(`❌ [DEBUG] PROBLÈME: QuestManager non disponible depuis ZoneManager !`);
     
-    this.autoSaveTimer = setInterval(() => {
-      this.autoSaveAllPositions();
-    }, 30000);
+    // Debug ZoneManager
+    console.log(`🔍 [DEBUG] ZoneManager état:`, {
+      exists: !!this.zoneManager,
+      questManagerMethod: typeof this.zoneManager?.getQuestManager
+    });
   }
+    
+  this.transitionService = new TransitionService();
+  this.teamHandlers = new TeamHandlers(this);
+  this.followerHandlers = new FollowerHandlers(this);
+  this.transitionService.setFollowerHandlers(this.followerHandlers);
+  this.questHandlers = new QuestHandlers(this);
+  this.battleHandlers = new BattleHandlers(this);
+  this.encounterHandlers = new EncounterHandlers(this);
+
+  this.initializeTimeWeatherService();
+
+  this.movementHandlers = new MovementHandlers(this);
+  this.objectInteractionHandlers = new ObjectInteractionHandlers(this);
+  
+  this.objectInteractionModule = new ObjectInteractionModule();
+  this.objectInteractionHandlers.setObjectModule(this.objectInteractionModule);
+  
+  this.objectInteractionModule.initialize().then(() => {
+    console.log(`✅ ObjectInteractionModule initialisé`);
+  }).catch((error) => {
+    console.error(`❌ Erreur initialisation ObjectInteractionModule:`, error);
+  });
+  
+  this.setupMessageHandlers();
+
+  this.shopManager = new ShopManager();
+  
+  this.interactionManager = new InteractionManager(
+    (zoneName: string) => this.getNpcManager(zoneName),
+    this.zoneManager.getQuestManager(),
+    this.shopManager,
+    this.starterHandlers,
+    this.spectatorManager
+  );
+  
+  this.npcInteractionModule = new NpcInteractionModule(
+    (zoneName: string) => this.getNpcManager(zoneName),
+    this.zoneManager.getQuestManager(),
+    this.shopManager,
+    this.starterHandlers,
+    this.spectatorManager
+  );
+
+  this.initializeZoneSyncService();
+  
+  try {
+    await this.initializeNpcManagers();
+    this.configureWorldTimer();
+    
+    this.clients.forEach(client => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        this.onPlayerJoinZone(client, player.currentZone);
+      }
+    });
+    
+  } catch (error) {
+    console.error(`❌ [WorldRoom] Erreur critique chargement NPCs:`, error);
+    this.configureWorldTimerFallback();
+  }
+  
+  this.autoSaveTimer = setInterval(() => {
+    this.autoSaveAllPositions();
+  }, 30000);
+}
 
   private configureWorldTimer(): void {
     this.interactionManager.setAdditionalManagers({
