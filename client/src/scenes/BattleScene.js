@@ -1087,10 +1087,14 @@ export class BattleScene extends Phaser.Scene {
     
     switch (actionKey) {
       case 'attack':
-        // ✅ NOUVEAU : Utiliser les moves du serveur si disponibles
-        const moves = this.currentPlayerMoves.length > 0 ? this.currentPlayerMoves : this.getTestMoves();
-        console.log('⚔️ [BattleScene] Affichage des attaques:', moves);
-        this.showMoveButtons(moves);
+        // ✅ NOUVEAU : Plus de fallback - récupération obligatoire depuis le serveur
+        if (this.currentPlayerMoves.length > 0) {
+          console.log('⚔️ [BattleScene] Utilisation des moves du serveur:', this.currentPlayerMoves);
+          this.showMoveButtons(this.currentPlayerMoves);
+        } else {
+          console.error('❌ [BattleScene] Aucune move disponible - demande au serveur...');
+          this.requestMovesFromServer();
+        }
         break;
         
       case 'bag':
@@ -1137,52 +1141,54 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // ✅ AMÉLIORÉ : Méthode fallback avec les moves de test
-  getTestMoves() {
-    console.log('🧪 [BattleScene] Utilisation des moves de test (fallback)');
-    return [
-      { 
-        id: 'tackle', 
-        name: 'Charge', 
-        type: 'normal', 
-        power: 40, 
-        pp: 35,
-        maxPp: 35,
-        accuracy: 100,
-        description: 'Une attaque normale qui inflige des dégâts physiques.'
-      },
-      { 
-        id: 'growl', 
-        name: 'Grondement', 
-        type: 'normal', 
-        power: 0, 
-        pp: 40,
-        maxPp: 40,
-        accuracy: 100,
-        description: 'Intimide l\'adversaire et baisse son Attaque.'
-      },
-      { 
-        id: 'vine_whip', 
-        name: 'Fouet Lianes', 
-        type: 'grass', 
-        power: 45, 
-        pp: 25,
-        maxPp: 25,
-        accuracy: 100,
-        description: 'Fouette l\'ennemi avec de fines lianes.'
-      },
-      { 
-        id: 'leech_seed', 
-        name: 'Vampigraine', 
-        type: 'grass', 
-        power: 0, 
-        pp: 10,
-        maxPp: 10,
-        accuracy: 90,
-        description: 'Plante une graine qui aspire les HP à chaque tour.'
+  // ✅ NOUVEAU : Demander explicitement les moves au serveur
+  requestMovesFromServer() {
+    console.log('📡 [BattleScene] Demande des attaques au serveur...');
+    
+    this.showActionMessage('Récupération des attaques...');
+    
+    if (!this.battleNetworkHandler) {
+      console.error('❌ [BattleScene] Pas de NetworkHandler pour demander les moves');
+      this.showActionMessage('Erreur : connexion manquante');
+      setTimeout(() => this.showActionButtons(), 2000);
+      return;
+    }
+    
+    try {
+      // Essayer plusieurs méthodes pour demander les moves
+      if (typeof this.battleNetworkHandler.requestMoves === 'function') {
+        console.log('📤 [BattleScene] Utilisation de requestMoves()');
+        this.battleNetworkHandler.requestMoves();
+      } else if (typeof this.battleNetworkHandler.sendToBattle === 'function') {
+        console.log('📤 [BattleScene] Utilisation de sendToBattle("requestMoves")');
+        this.battleNetworkHandler.sendToBattle('requestMoves');
+      } else if (typeof this.battleNetworkHandler.send === 'function') {
+        console.log('📤 [BattleScene] Utilisation de send("requestMoves")');
+        this.battleNetworkHandler.send('requestMoves');
+      } else {
+        console.error('❌ [BattleScene] Aucune méthode pour envoyer requestMoves');
+        this.showActionMessage('Erreur : méthode d\'envoi manquante');
+        setTimeout(() => this.showActionButtons(), 2000);
+        return;
       }
-    ];
+      
+      // Timeout de sécurité
+      setTimeout(() => {
+        if (this.currentPlayerMoves.length === 0) {
+          console.error('⏰ [BattleScene] Timeout - pas de réponse du serveur');
+          this.showActionMessage('Timeout : pas de réponse du serveur');
+          setTimeout(() => this.showActionButtons(), 2000);
+        }
+      }, 5000);
+      
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur lors de la demande des moves:', error);
+      this.showActionMessage('Erreur lors de la demande des attaques');
+      setTimeout(() => this.showActionButtons(), 2000);
+    }
   }
+
+  // ✅ SUPPRIMÉ : Plus de méthode fallback getTestMoves()
 
   // === AFFICHAGE POKÉMON (inchangé mais avec effets modernes) ===
 
@@ -1762,13 +1768,17 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // ✅ NOUVEAU : Gestion spécifique de actionSelectionStart
+  // ✅ AMÉLIORÉ : Gestion spécifique de actionSelectionStart
   handleActionSelectionStart(data) {
     console.log('🎯 [BattleScene] actionSelectionStart reçu:', data);
+    
+    // Debug complet de la structure reçue
+    console.log('🔍 [BattleScene] Structure complète data:', JSON.stringify(data, null, 2));
     
     // Extraire les moves du gameState
     if (data.gameState && data.gameState.player1 && data.gameState.player1.activePokemon) {
       const playerPokemon = data.gameState.player1.activePokemon;
+      console.log('🐾 [BattleScene] PlayerPokemon trouvé:', playerPokemon);
       
       if (playerPokemon.moves && Array.isArray(playerPokemon.moves)) {
         console.log('⚔️ [BattleScene] Moves reçues du serveur:', playerPokemon.moves);
@@ -1778,17 +1788,34 @@ export class BattleScene extends Phaser.Scene {
         if (this.currentPlayerPokemon) {
           this.currentPlayerPokemon.moves = playerPokemon.moves;
         }
+        
+        console.log('✅ [BattleScene] Moves stockées avec succès');
       } else {
-        console.warn('⚠️ [BattleScene] Pas de moves dans gameState, utilisation fallback');
-        this.currentPlayerMoves = this.getTestMoves();
+        console.error('❌ [BattleScene] Pas de moves dans playerPokemon');
+        console.log('🔍 [BattleScene] playerPokemon.moves:', playerPokemon.moves);
+        this.currentPlayerMoves = [];
       }
     } else {
-      console.warn('⚠️ [BattleScene] Structure gameState invalide, utilisation fallback');
-      this.currentPlayerMoves = this.getTestMoves();
+      console.error('❌ [BattleScene] Structure gameState invalide');
+      console.log('🔍 [BattleScene] data.gameState:', data.gameState);
+      if (data.gameState) {
+        console.log('🔍 [BattleScene] data.gameState.player1:', data.gameState.player1);
+        if (data.gameState.player1) {
+          console.log('🔍 [BattleScene] data.gameState.player1.activePokemon:', data.gameState.player1.activePokemon);
+        }
+      }
+      this.currentPlayerMoves = [];
     }
     
-    // Afficher les boutons d'action maintenant qu'on a les moves
+    // Afficher les boutons d'action maintenant qu'on a traité les moves
     this.showActionButtons();
+    
+    // Notification à l'utilisateur
+    if (this.currentPlayerMoves.length > 0) {
+      console.log(`✅ [BattleScene] ${this.currentPlayerMoves.length} attaques chargées depuis le serveur`);
+    } else {
+      console.error(`❌ [BattleScene] Aucune attaque reçue du serveur - interface limitée`);
+    }
   }
 
   // === GESTION UI ===
