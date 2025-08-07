@@ -114,7 +114,19 @@ export class QuestManager {
     this.worldRoomCallback = callback;
     console.log(`✅ [QuestManager] Callback WorldRoom enregistré pour refresh automatique des NPCs`);
   }
-
+  public async triggerWorldRoomCallback(playerId: string): Promise<void> {
+    if (this.worldRoomCallback) {
+      try {
+        console.log(`🔄 [QuestManager] Déclenchement refresh automatique NPCs pour ${playerId}`);
+        await this.worldRoomCallback(playerId);
+        console.log(`✅ [QuestManager] Refresh NPCs terminé pour ${playerId}`);
+      } catch (error) {
+        console.error(`❌ [QuestManager] Erreur callback WorldRoom:`, error);
+      }
+    } else {
+      console.warn(`⚠️ [QuestManager] Callback WorldRoom non configuré`);
+    }
+  }
   // ✅ NOUVEAU : Méthode pour déclencher le refresh automatique des NPCs
   private async triggerNpcStatusRefresh(playerId: string): Promise<void> {
     if (this.worldRoomCallback) {
