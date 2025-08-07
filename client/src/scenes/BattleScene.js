@@ -564,15 +564,21 @@ export class BattleScene extends Phaser.Scene {
     const buttonContainer = this.add.container(x, y);
     
     const bg = this.add.graphics();
-    // Style bouton moderne (inspiré de l'inventaire)
-    bg.fillGradientStyle(action.color, action.color, action.color * 0.8, action.color * 0.8);
+    // Style bouton moderne avec dégradé subtil et uniforme
+    bg.fillStyle(action.color, 0.9);
     bg.fillRoundedRect(0, 0, width, height, 8);
     
-    bg.lineStyle(2, 0xffffff, 0.8);
+    // Bordure principale
+    bg.lineStyle(2, 0xffffff, 0.6);
     bg.strokeRoundedRect(0, 0, width, height, 8);
     
-    bg.lineStyle(1, action.color, 1);
+    // Effet de profondeur subtil
+    bg.lineStyle(1, action.color, 0.8);
     bg.strokeRoundedRect(1, 1, width - 2, height - 2, 7);
+    
+    // Effet de brillance en haut
+    bg.fillStyle(0xffffff, 0.15);
+    bg.fillRoundedRect(2, 2, width - 4, height / 3, 6);
     
     const icon = this.add.text(12, height/2, action.icon, {
       fontSize: '16px',
@@ -596,10 +602,18 @@ export class BattleScene extends Phaser.Scene {
     
     buttonContainer.on('pointerover', () => {
       bg.clear();
-      bg.fillGradientStyle(action.color * 1.2, action.color * 1.2, action.color, action.color);
+      // Hover avec couleur plus vive et effet lumineux
+      const hoverColor = this.brightenColor(action.color, 0.3);
+      bg.fillStyle(hoverColor, 1);
       bg.fillRoundedRect(0, 0, width, height, 8);
+      
+      // Bordure dorée au hover
       bg.lineStyle(3, 0x87ceeb, 1);
       bg.strokeRoundedRect(0, 0, width, height, 8);
+      
+      // Effet de brillance renforcé au hover
+      bg.fillStyle(0xffffff, 0.25);
+      bg.fillRoundedRect(2, 2, width - 4, height / 2, 6);
       
       this.tweens.add({
         targets: buttonContainer,
@@ -611,12 +625,18 @@ export class BattleScene extends Phaser.Scene {
     
     buttonContainer.on('pointerout', () => {
       bg.clear();
-      bg.fillGradientStyle(action.color, action.color, action.color * 0.8, action.color * 0.8);
+      // Retour à l'état normal
+      bg.fillStyle(action.color, 0.9);
       bg.fillRoundedRect(0, 0, width, height, 8);
-      bg.lineStyle(2, 0xffffff, 0.8);
+      
+      bg.lineStyle(2, 0xffffff, 0.6);
       bg.strokeRoundedRect(0, 0, width, height, 8);
-      bg.lineStyle(1, action.color, 1);
+      
+      bg.lineStyle(1, action.color, 0.8);
       bg.strokeRoundedRect(1, 1, width - 2, height - 2, 7);
+      
+      bg.fillStyle(0xffffff, 0.15);
+      bg.fillRoundedRect(2, 2, width - 4, height / 3, 6);
       
       this.tweens.add({
         targets: buttonContainer,
@@ -631,6 +651,14 @@ export class BattleScene extends Phaser.Scene {
     });
     
     return buttonContainer;
+  }
+
+  // Fonction utilitaire pour éclaircir une couleur
+  brightenColor(color, factor) {
+    const r = Math.min(255, Math.floor(((color >> 16) & 0xFF) * (1 + factor)));
+    const g = Math.min(255, Math.floor(((color >> 8) & 0xFF) * (1 + factor)));
+    const b = Math.min(255, Math.floor((color & 0xFF) * (1 + factor)));
+    return (r << 16) | (g << 8) | b;
   }
 
   // === DIALOGUE MODERNE ===
