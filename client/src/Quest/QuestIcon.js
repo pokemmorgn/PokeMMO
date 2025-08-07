@@ -141,6 +141,7 @@ export class QuestIcon {
   }
   
   forceDisplay() {
+    if (document.body.classList.contains('battle-mode')) return;
     if (!this.iconElement) return;
     
     // ✅ Styles essentiels pour visibilité (OK)
