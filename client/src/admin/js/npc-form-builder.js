@@ -2734,7 +2734,7 @@ getNPC() {
     // Commencer avec les données actuelles du NPC
     const npcData = { ...this.currentNPC };
     
-    // Parcourir TOUS les champs du formulaire
+    // ✅ UNE SEULE BOUCLE qui fait tout correctement
     const formFields = document.querySelectorAll('input, textarea, select');
     
     formFields.forEach(field => {
@@ -2745,7 +2745,7 @@ getNPC() {
         
         console.log(`📝 [FormBuilder] Field: ${fieldName} = "${value}"`);
         
-        // Position spéciale
+        // Gestion spéciale pour position
         if (fieldName === 'position.x' || fieldName === 'position.y') {
             if (!npcData.position) npcData.position = {};
             const coord = fieldName.split('.')[1];
@@ -2759,28 +2759,11 @@ getNPC() {
                 npcData[fieldName] = {};
             }
         }
-        // ✅ NOUVEAU : Toujours sauvegarder les champs, même vides
+        // ✅ Pour tous les autres champs : prendre la valeur du form
         else {
             npcData[fieldName] = value !== undefined ? value : '';
         }
     });
-    
-    // ✅ NOUVEAU : Forcer la collecte du shopId
-    const shopIdInput = document.querySelector('input[name="shopId"], select[name="shopId"]');
-if (shopIdInput && shopIdInput.value !== undefined) {
-    npcData.shopId = shopIdInput.value; // Même si vide !
-    console.log(`🏪 [FormBuilder] FORCED shopId: "${npcData.shopId}"`);
-}
-
-// ✅ FIX : Forcer la collecte du nom aussi
-const nameInput = document.querySelector('input[name="name"]');
-if (nameInput && nameInput.value) {
-    npcData.name = nameInput.value;
-    console.log(`👤 [FormBuilder] FORCED name: "${npcData.name}"`);
-} else if (this.currentNPC?.name) {
-    npcData.name = this.currentNPC.name;
-    console.log(`👤 [FormBuilder] FALLBACK name from currentNPC: "${npcData.name}"`);
-}
     
     // ✅ MIGRATION : Nettoyer l'ancien shopConfig s'il existe
     if (npcData.shopConfig) {
@@ -2788,7 +2771,7 @@ if (nameInput && nameInput.value) {
         delete npcData.shopConfig;
     }
     
-    console.log('✅ [FormBuilder] Final NPC with shopId:', npcData.shopId);
+    console.log('✅ [FormBuilder] Final NPC collected');
     return npcData;
 }
 
