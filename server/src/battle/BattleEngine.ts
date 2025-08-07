@@ -91,7 +91,7 @@ export class BattleEngine {
   private readonly MAX_TURNS = 50;
   private readonly MAX_TRANSITION_ATTEMPTS = 3;
   private readonly BATTLE_TIMEOUT_MS = 45000; // 🆕 Augmenté pour dresseurs
-  private readonly TURN_TIMEOUT_MS = 12000; // 🆕 Augmenté pour changements
+  private readonly TURN_TIMEOUT_MS = 600000; // 🆕 Augmenté pour changements
   private readonly AI_ACTION_DELAY = 800; // 🆕 Plus réaliste
 
   // Events
