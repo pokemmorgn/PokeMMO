@@ -955,17 +955,89 @@ export class BattleScene extends Phaser.Scene {
     
     if (this.battleNetworkHandler && this.battleNetworkHandler.selectMove) {
       try {
-        // ✅ NOUVEAU : Envoi amélioré avec plus d'infos
-        console.log('📤 [BattleScene] Envoi de l\'attaque au serveur:', {
-          moveId: move.id,
-          moveName: move.name,
-          moveData: move
-        });
+        // ✅ NOUVEAU : Debug complet de l'envoi
+        console.log('📤 [BattleScene] Envoi de l\'attaque au serveur:');
+        console.log('   🎯 moveId:', move.id);
+        console.log('   📝 moveName:', move.name);
+        console.log('   📊 moveData complet:', move);
+        console.log('   🌐 NetworkHandler type:', typeof this.battleNetworkHandler.selectMove);
         
-        this.battleNetworkHandler.selectMove(move.id, move);
+        // ✅ NOUVEAU : Vérifier les méthodes disponibles
+        console.log('🔍 [BattleScene] Méthodes NetworkHandler disponibles:');
+        console.log('   selectMove:', typeof this.battleNetworkHandler.selectMove);
+        console.log('   sendToBattle:', typeof this.battleNetworkHandler.sendToBattle);
+        console.log('   performBattleAction:', typeof this.battleNetworkHandler.performBattleAction);
+        console.log('   send:', typeof this.battleNetworkHandler.send);
+        
+        // ✅ ESSAYER PLUSIEURS MÉTHODES D'ENVOI
+        if (typeof this.battleNetworkHandler.selectMove === 'function') {
+          console.log('📤 [BattleScene] Utilisation de selectMove()');
+          const result = this.battleNetworkHandler.selectMove(move.id, move);
+          console.log('📥 [BattleScene] Résultat selectMove():', result);
+          
+        } else if (typeof this.battleNetworkHandler.performBattleAction === 'function') {
+          console.log('📤 [BattleScene] Utilisation de performBattleAction()');
+          const result = this.battleNetworkHandler.performBattleAction('attack', {
+            moveId: move.id,
+            moveName: move.name
+          });
+          console.log('📥 [BattleScene] Résultat performBattleAction():', result);
+          
+        } else if (typeof this.battleNetworkHandler.sendToBattle === 'function') {
+          console.log('📤 [BattleScene] Utilisation de sendToBattle()');
+          const result = this.battleNetworkHandler.sendToBattle('battleAction', {
+            type: 'attack',
+            moveId: move.id,
+            moveName: move.name
+          });
+          console.log('📥 [BattleScene] Résultat sendToBattle():', result);
+          
+        } else if (typeof this.battleNetworkHandler.send === 'function') {
+          console.log('📤 [BattleScene] Utilisation de send()');
+          const result = this.battleNetworkHandler.send('battleAction', {
+            type: 'attack',
+            moveId: move.id,
+            moveName: move.name
+          });
+          console.log('📥 [BattleScene] Résultat send():', result);
+          
+        } else {
+          console.error('❌ [BattleScene] Aucune méthode d\'envoi disponible !');
+          console.log('🔍 [BattleScene] NetworkHandler:', this.battleNetworkHandler);
+          console.log('🔍 [BattleScene] Clés NetworkHandler:', Object.keys(this.battleNetworkHandler));
+        }
+        
+        // ✅ TIMEOUT DE SÉCURITÉ
+        setTimeout(() => {
+          if (this.interfaceMode === 'message') {
+            console.warn('⏰ [BattleScene] Timeout - pas de réponse après envoi d\'attaque');
+            this.showActionMessage('Timeout - pas de réponse du serveur');
+            setTimeout(() => {
+              this.showActionButtons();
+            }, 2000);
+          }
+        }, 10000); // 10 secondes
+        
       } catch (error) {
-        console.error('[BattleScene] Erreur envoi attaque:', error);
+        console.error('❌ [BattleScene] Erreur lors de l\'envoi de l\'attaque:', error);
+        console.error('🔍 [BattleScene] Stack trace:', error.stack);
+        this.showActionMessage('Erreur lors de l\'envoi de l\'attaque');
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
       }
+    } else {
+      console.error('❌ [BattleScene] NetworkHandler manquant ou selectMove non disponible');
+      console.log('🔍 [BattleScene] battleNetworkHandler:', !!this.battleNetworkHandler);
+      if (this.battleNetworkHandler) {
+        console.log('🔍 [BattleScene] selectMove method:', typeof this.battleNetworkHandler.selectMove);
+        console.log('🔍 [BattleScene] NetworkHandler keys:', Object.keys(this.battleNetworkHandler));
+      }
+      
+      this.showActionMessage('Erreur : connexion au serveur manquante');
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 2000);
     }
   }
 
