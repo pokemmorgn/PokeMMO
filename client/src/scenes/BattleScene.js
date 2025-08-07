@@ -1081,62 +1081,6 @@ handleMoveButton(move) {
   }
 }
 
-// ✅ CORRECTION SUPPLÉMENTAIRE: Méthode de debug pour les événements
-debugBattleSceneEvents() {
-  console.log('🔍 === DEBUG BATTLESCENE EVENTS ===');
-  console.log('📊 État des événements:');
-  console.log('   this.events:', !!this.events);
-  console.log('   this.events type:', typeof this.events);
-  console.log('   this.events.emit:', typeof this.events?.emit);
-  console.log('   this.scene:', !!this.scene);
-  console.log('   this.scene.events:', !!this.scene?.events);
-  console.log('   this.scene.events.emit:', typeof this.scene?.events?.emit);
-  
-  console.log('🌐 État NetworkHandler:');
-  console.log('   battleNetworkHandler:', !!this.battleNetworkHandler);
-  console.log('   Type:', typeof this.battleNetworkHandler);
-  
-  if (this.battleNetworkHandler) {
-    console.log('   Méthodes disponibles:');
-    console.log('     selectMove:', typeof this.battleNetworkHandler.selectMove);
-    console.log('     performBattleAction:', typeof this.battleNetworkHandler.performBattleAction);
-    console.log('     sendToBattle:', typeof this.battleNetworkHandler.sendToBattle);
-    console.log('     send:', typeof this.battleNetworkHandler.send);
-  }
-  
-  console.log('🎮 État interface:');
-  console.log('   interfaceMode:', this.interfaceMode);
-  console.log('   currentPlayerMoves:', this.currentPlayerMoves?.length || 0);
-  console.log('   isActive:', this.isActive);
-  console.log('   isVisible:', this.isVisible);
-  
-  console.log('🔍 === FIN DEBUG ===');
-}
-
-// ✅ FONCTION DE TEST POUR VÉRIFIER LE FIX
-window.testBattleSceneEventsFix = function() {
-  console.log('🧪 === TEST FIX BATTLESCENE EVENTS ===');
-  
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  // Appeler la méthode de debug
-  if (typeof battleScene.debugBattleSceneEvents === 'function') {
-    battleScene.debugBattleSceneEvents();
-  } else {
-    console.log('📊 État des événements (basique):');
-    console.log('   battleScene.events:', !!battleScene.events);
-    console.log('   battleScene.scene:', !!battleScene.scene);
-    console.log('   battleScene.scene.events:', !!battleScene.scene?.events);
-    console.log('   battleNetworkHandler:', !!battleScene.battleNetworkHandler);
-  }
-  
-  console.log('🧪 === FIN TEST ===');
-};
-
   getMoveIcon(moveType) {
     const typeIcons = {
       'normal': '○', 'fire': '🔥', 'water': '💧', 'electric': '⚡',
