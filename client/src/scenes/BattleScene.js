@@ -521,14 +521,12 @@ export class BattleScene extends Phaser.Scene {
     
     this.mainPanel.clear();
     
-    // Adapter la hauteur selon le mode - PLUS HAUT POUR LES ATTAQUES
+    // Adapter la hauteur selon le mode - RETOUR À LA TAILLE NORMALE
     let panelHeight;
     if (mode === 'narrative') {
       panelHeight = 90;
-    } else if (mode === 'moves') {
-      panelHeight = 110; // Plus haut pour 4 attaques + bouton retour
     } else {
-      panelHeight = height; // Mode boutons standard
+      panelHeight = height; // Taille normale pour attaques et boutons
     }
     
     const panelY = mode === 'narrative' ? 10 : 0;
@@ -747,8 +745,8 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMessage();
     this.hideNarrativeMode();
     
-    // Panel plus haut pour accommoder 4 attaques + retour
-    this.drawMainPanel(width, 110, 'moves');
+    // Panel taille normale avec bouton X en haut à droite
+    this.drawMainPanel(width, 100, 'moves');
     
     if (this.textPanel) {
       this.textPanel.setVisible(false);
@@ -772,7 +770,7 @@ export class BattleScene extends Phaser.Scene {
     const buttonWidth = (width - 100) / 2;
     const buttonHeight = 26;
     const startX = 30;
-    const startY = 20; // Plus haut pour faire place au bouton retour
+    const startY = 25; // Position normale
     const gapX = 15;
     const gapY = 5;
     
@@ -836,29 +834,84 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     
-    // 🎮 BOUTON RETOUR SÉPARÉ EN BAS (sur toute la largeur)
-    const backButtonWidth = width - 60; // Plus large
-    const backButtonHeight = 22;
-    const backX = 30;
-    const backY = startY + 2 * (buttonHeight + gapY) + 8; // En dessous des attaques
+    // 🎮 BOUTON X DE FERMETURE EN HAUT À DROITE (style Game Boy)
+    this.createGameBoyCloseButton(width);
+  }
+
+  createGameBoyCloseButton(width) {
+    const closeButtonSize = 24;
+    const closeX = width - 50; // En haut à droite
+    const closeY = 8; // Très haut
     
-    const backAction = {
-      key: 'back',
-      text: 'RETOUR',
-      color: 0x607d8b,
-      icon: '◀'
-    };
+    const closeButton = this.add.container(closeX, closeY);
     
-    const backButton = this.createGameBoyButton(backX, backY, backButtonWidth, backButtonHeight, backAction);
-    backButton.isMoveButton = true;
+    // Fond du bouton X style Game Boy
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0x8b0000, 0.9); // Rouge foncé
+    closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
     
-    backButton.removeAllListeners('pointerdown');
-    backButton.on('pointerdown', () => {
+    // Bordure Game Boy
+    closeBg.lineStyle(2, 0x1a1a1a, 1);
+    closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+    
+    // Bordure intérieure claire
+    closeBg.lineStyle(1, 0xffffff, 0.8);
+    closeBg.strokeRoundedRect(-closeButtonSize/2 + 1, -closeButtonSize/2 + 1, closeButtonSize - 2, closeButtonSize - 2, 2);
+    
+    // Symbole X pixelisé
+    const closeText = this.add.text(0, 0, '✕', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#ffffff',
+      fontWeight: 'bold'
+    });
+    closeText.setOrigin(0.5);
+    
+    closeButton.add([closeBg, closeText]);
+    closeButton.setSize(closeButtonSize, closeButtonSize);
+    
+    // Zone de hit plus grande pour faciliter le clic
+    const hitArea = new Phaser.Geom.Rectangle(-closeButtonSize/2 - 2, -closeButtonSize/2 - 2, closeButtonSize + 4, closeButtonSize + 4);
+    closeButton.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+    
+    // Effets hover Game Boy
+    closeButton.on('pointerover', () => {
+      closeBg.clear();
+      closeBg.fillStyle(0xcd5c5c, 1); // Rouge plus clair au hover
+      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+      closeBg.lineStyle(2, 0xffd700, 1); // Bordure dorée
+      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+      
+      this.tweens.add({
+        targets: closeButton,
+        scaleX: 1.1, scaleY: 1.1,
+        duration: 100
+      });
+    });
+    
+    closeButton.on('pointerout', () => {
+      closeBg.clear();
+      closeBg.fillStyle(0x8b0000, 0.9);
+      closeBg.fillRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+      closeBg.lineStyle(2, 0x1a1a1a, 1);
+      closeBg.strokeRoundedRect(-closeButtonSize/2, -closeButtonSize/2, closeButtonSize, closeButtonSize, 3);
+      closeBg.lineStyle(1, 0xffffff, 0.8);
+      closeBg.strokeRoundedRect(-closeButtonSize/2 + 1, -closeButtonSize/2 + 1, closeButtonSize - 2, closeButtonSize - 2, 2);
+      
+      this.tweens.add({
+        targets: closeButton,
+        scaleX: 1, scaleY: 1,
+        duration: 100
+      });
+    });
+    
+    closeButton.on('pointerdown', () => {
       this.returnToActionButtons();
     });
     
-    this.actionInterface.add(backButton);
-    this.moveButtons.push(backButton);
+    closeButton.isMoveButton = true; // Pour le nettoyage
+    this.actionInterface.add(closeButton);
+    this.moveButtons.push(closeButton);
   }
 
   hideMoveButtons() {
