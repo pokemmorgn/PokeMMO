@@ -535,7 +535,7 @@ export class BattleScene extends Phaser.Scene {
     const buttonWidth = (width - 100) / 2;  // Largeur ajustée
     const buttonHeight = 28;                // Plus compact
     const startX = 30;                      // Marge réduite
-    const startY = 40;                      // ✅ REMONTÉ de 55 à 40 !
+    const startY = 35;                      // ✅ REMONTÉ de 55 à 40 !
     const gapX = 15;                        // Espacement réduit
     const gapY = 6;                         // ✅ RÉDUIT de 8 à 6 !
     
