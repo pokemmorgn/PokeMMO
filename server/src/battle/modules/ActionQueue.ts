@@ -127,10 +127,6 @@ export class ActionQueue {
       isHighPriority,               // 🆕
       validationHash: this.generateValidationHash(action, pokemon) // 🆕
 
-      console.log(`🔍 [ActionQueue] Après ajout ${playerRole}:`);
-      console.log(`    Total actions: ${this.actions.size}`);
-      console.log(`    Keys:`, Array.from(this.actions.keys()));
-      console.log(`    areAllActionsReady(): ${this.areAllActionsReady()}`);
     };
     
     // Stocker l'action
@@ -147,7 +143,10 @@ export class ActionQueue {
     }
     
     console.log(`✅ [ActionQueue] Action ajoutée: ${playerRole} → ${action.type} (priorité: ${priority}, catégorie: ${category})`);
-    
+     console.log(`🔍 [ActionQueue] Après ajout ${playerRole}:`);
+      console.log(`    Total actions: ${this.actions.size}`);
+      console.log(`    Keys:`, Array.from(this.actions.keys()));
+      console.log(`    areAllActionsReady(): ${this.areAllActionsReady()}`);
     return true;
   }
   
