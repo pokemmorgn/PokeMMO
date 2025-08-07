@@ -193,19 +193,34 @@ validateDialogueNPC(npc) {
     }
 }
 
-    validateMerchantNPC(npc) {
-    if (!npc.shopId || typeof npc.shopId !== 'string') {
-        this.addError('shopId', 'ID de boutique requis et doit être une chaîne')
-    } else {
-        // Validation du format shopId
-        if (npc.shopId.trim().length === 0) {
-            this.addError('shopId', 'ID de boutique ne peut pas être vide')
+  validateMerchantNPC(npc) {
+    // ✅ CORRECTION : Validation du nouveau format shopId simplifié
+    if (npc.type === 'merchant') {
+        // Vérifier que shopId existe et est une chaîne valide
+        if (!npc.shopId) {
+            // ✅ TOLÉRANT : shopId peut être vide pour un merchant générique
+            this.addWarning('shopId', 'Merchant sans shopId - sera un marchand générique')
+        } else if (typeof npc.shopId !== 'string') {
+            this.addError('shopId', 'shopId doit être une chaîne de caractères')
+        } else {
+            // Validation du format shopId
+            if (npc.shopId.trim().length === 0) {
+                this.addWarning('shopId', 'shopId vide - sera un marchand générique')
+            } else if (npc.shopId.includes(' ')) {
+                this.addError('shopId', 'shopId ne doit pas contenir d\'espaces')
+            } else if (!npc.shopId.match(/^[a-zA-Z0-9_-]+$/)) {
+                this.addWarning('shopId', 'Format d\'ID recommandé: lettres, chiffres, _ et - uniquement')
+            }
         }
-        if (npc.shopId.includes(' ')) {
-            this.addError('shopId', 'ID de boutique ne doit pas contenir d\'espaces')
-        }
-        if (!npc.shopId.match(/^[a-zA-Z0-9_-]+$/)) {
-            this.addWarning('shopId', 'Format d\'ID recommandé: lettres, chiffres, _ et - uniquement')
+    }
+    
+    // ✅ MIGRATION : Détecter l'ancien format et avertir
+    if (npc.shopConfig) {
+        this.addWarning('shopConfig', 'Ancien format shopConfig détecté - utilisez shopId directement')
+        
+        // Suggérer la migration
+        if (npc.shopConfig.shopId && !npc.shopId) {
+            this.addSuggestion('shopId', `Migrer shopConfig.shopId vers shopId: "${npc.shopConfig.shopId}"`)
         }
     }
 }
