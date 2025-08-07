@@ -2751,7 +2751,7 @@ getNPC() {
     }
     
     // Chercher SEULEMENT dans le conteneur du NPC FormBuilder
-    const formFields = npcContainer.querySelectorAll('input, textarea, select');
+const formFields = this.container.querySelectorAll('input, textarea, select')
     console.log(`📝 [FormBuilder] ${formFields.length} champs NPC trouvés dans le conteneur`);
     
     // ✅ LISTE DES CHAMPS NPC VALIDES (éviter les champs parasites)
