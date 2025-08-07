@@ -1187,36 +1187,44 @@ export class BattleScene extends Phaser.Scene {
   // === 🎮 CONTRÔLES INTERFACE MODERNE ===
 
   showModernActionButtons() {
+    console.log('[BattleScene] 🎮 showModernActionButtons - AFFICHAGE BOUTONS');
+    
     this.hideModernMessage();
     
-    if (this.modernActionPanel) {
-      // ✅ AFFICHER TOUS LES BOUTONS SAUF LE FOND ET LE TEXTE
-      this.modernActionPanel.list.forEach((child, index) => {
-        if (index > 1) { // Skip background (0) et messageText (1)
-          child.setVisible(true);
-          
-          // ✅ ANIMATION D'ENTRÉE ÉCHELONNÉE
-          child.setAlpha(0);
-          child.setScale(0.8);
-          
-          this.tweens.add({
-            targets: child,
-            alpha: 1,
-            scaleX: 1,
-            scaleY: 1,
-            duration: 400,
-            delay: (index - 2) * 100,
-            ease: 'Back.easeOut'
-          });
-        }
-      });
-      
-      this.modernActionPanel.setVisible(true);
-      this.modernActionPanel.setAlpha(1);
+    if (!this.modernActionPanel) {
+      console.error('[BattleScene] ❌ modernActionPanel non créé !');
+      return;
     }
     
+    console.log('[BattleScene] Panel trouvé, affichage...');
+    
+    // ✅ AFFICHER TOUS LES BOUTONS SAUF LE FOND ET LE TEXTE
+    this.modernActionPanel.list.forEach((child, index) => {
+      if (index > 1) { // Skip background (0) et messageText (1)
+        child.setVisible(true);
+        
+        // ✅ ANIMATION D'ENTRÉE ÉCHELONNÉE
+        child.setAlpha(0);
+        child.setScale(0.8);
+        
+        this.tweens.add({
+          targets: child,
+          alpha: 1,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 400,
+          delay: (index - 2) * 100,
+          ease: 'Back.easeOut'
+        });
+      }
+    });
+    
+    // ✅ FORCER VISIBILITÉ DU PANEL
+    this.modernActionPanel.setVisible(true);
+    this.modernActionPanel.setAlpha(1);
+    
     this.interfaceState.mode = 'action_selection';
-    console.log('🎮 [BattleScene] Boutons modernes affichés');
+    console.log('[BattleScene] ✅ Boutons modernes affichés, mode:', this.interfaceState.mode);
   }
 
   hideModernActionButtons() {
@@ -1341,7 +1349,20 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === 🔧 MÉTHODES EXISTANTES MODERNISÉES ===
+  // === 🔧 MÉTHODES DE COMPATIBILITÉ ===
+
+  // ✅ MÉTHODE ORIGINALE CONSERVÉE pour compatibilité
+  startBattle(battleData) {
+    console.log('[BattleScene] 🚀 startBattle (compatibilité) appelé:', battleData);
+    
+    if (!this.isActive) {
+      console.error('[BattleScene] ❌ Scène non active');
+      return;
+    }
+
+    // ✅ REDIRECTION VERS LA VERSION MODERNE
+    return this.initializeModernBattle(battleData);
+  }
 
   // ✅ VERSION MODERNE DE startBattle
   initializeModernBattle(battleData) {
@@ -1355,6 +1376,52 @@ export class BattleScene extends Phaser.Scene {
     
     // ✅ ACTIVATION MODERNE
     this.activateModernBattleMode();
+  }
+
+  // ✅ MÉTHODES ORIGINALES CONSERVÉES pour compatibilité réseau
+  handleNetworkBattleStart(data) {
+    console.log('[BattleScene] 📡 handleNetworkBattleStart (compatibilité):', data);
+    
+    // Vérifier mode narratif
+    if (data.isNarrative || data.duration) {
+      console.log('[BattleScene] Mode narratif détecté');
+      return; // narrativeStart va gérer
+    }
+    
+    // ✅ REDIRECTION VERS VERSION MODERNE
+    return this.initializeModernBattle(data);
+  }
+
+  // ✅ ACTIVATION DEPUIS TRANSITION (compatibilité)
+  activateFromTransition() {
+    console.log('[BattleScene] 🔄 activateFromTransition (compatibilité)');
+    
+    if (!this.isReadyForActivation) {
+      console.warn('[BattleScene] ⚠️ Scène non prête');
+      return false;
+    }
+    
+    try {
+      if (this.scene.isSleeping()) {
+        console.log('[BattleScene] Réveil de la scène...');
+        this.scene.wake();
+      }
+      
+      console.log('[BattleScene] Activation visuelle...');
+      this.scene.setVisible(true);
+      this.isVisible = true;
+      
+      // ✅ DÉMARRAGE MODERNE SI PAS ENCORE FAIT
+      if (this.battleData && this.interfaceState.mode === 'hidden') {
+        console.log('[BattleScene] Démarrage tardif moderne...');
+        this.activateModernBattleMode();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('[BattleScene] ❌ Erreur activation:', error);
+      return false;
+    }
   }
 
   notifyUIManagerModern(mode) {
@@ -1407,53 +1474,116 @@ export class BattleScene extends Phaser.Scene {
   }
 
   activateModernBattleMode() {
-    // ✅ ACTIVATION VISUELLE MODERNE
+    console.log('[BattleScene] 🚀 activateModernBattleMode - DÉMARRAGE');
+    
+    // ✅ ACTIVATION VISUELLE FORCÉE
     if (this.scene.isSleeping()) {
+      console.log('[BattleScene] Réveil forcé de la scène...');
       this.scene.wake();
     }
     
+    console.log('[BattleScene] Forcer visibilité...');
     this.scene.setVisible(true);
     this.scene.bringToTop();
     this.isVisible = true;
     
-    // ✅ SÉQUENCE D'INTRODUCTION MODERNE
-    this.startModernIntroSequence();
+    // ✅ DÉMARRAGE IMMÉDIAT SI PAS DE DONNÉES POKÉMON
+    if (!this.currentPlayerPokemon && !this.currentOpponentPokemon) {
+      console.log('[BattleScene] Pas de données Pokémon - démarrage test...');
+      this.startModernTestSequence();
+    } else {
+      // ✅ SÉQUENCE D'INTRODUCTION MODERNE
+      this.startModernIntroSequence();
+    }
+  }
+
+  // ✅ SÉQUENCE DE TEST SI PAS DE DONNÉES
+  startModernTestSequence() {
+    console.log('[BattleScene] 🧪 Séquence de test moderne (pas de données)');
+    
+    // Afficher immédiatement l'interface
+    setTimeout(() => {
+      this.hideExplorationUIModern();
+      this.showModernActionButtons();
+      this.showModernMessage('Interface de combat prête (mode test)', {
+        type: 'info',
+        duration: 3000
+      });
+    }, 500);
   }
 
   startModernIntroSequence() {
     console.log('[BattleScene] 🎬 Séquence d\'introduction moderne');
     
-    // ✅ ÉTAPE 1: Affichage Pokémon avec délai
-    setTimeout(() => {
-      if (this.currentPlayerPokemon) {
-        this.displayPlayerPokemon(this.currentPlayerPokemon);
-      }
-    }, 500);
+    // ✅ MASQUAGE UI EXPLORATION IMMÉDIAT
+    this.hideExplorationUIModern();
     
-    setTimeout(() => {
-      if (this.currentOpponentPokemon) {
-        this.displayOpponentPokemon(this.currentOpponentPokemon);
+    // ✅ VÉRIFICATION DONNÉES POKÉMON
+    const hasPlayerPokemon = this.currentPlayerPokemon || this.battleData?.playerPokemon;
+    const hasOpponentPokemon = this.currentOpponentPokemon || this.battleData?.opponentPokemon;
+    
+    console.log('[BattleScene] Données Pokémon:', {
+      player: !!hasPlayerPokemon,
+      opponent: !!hasOpponentPokemon
+    });
+    
+    // ✅ AFFICHAGE IMMÉDIAT SI PAS DE POKÉMON
+    if (!hasPlayerPokemon && !hasOpponentPokemon) {
+      console.log('[BattleScene] Pas de Pokémon - activation immédiate');
+      setTimeout(() => {
+        this.activateModernBattleUI();
+      }, 500);
+      return;
+    }
+    
+    // ✅ ÉTAPE 1: Affichage Pokémon avec délai
+    if (hasPlayerPokemon) {
+      setTimeout(() => {
+        console.log('[BattleScene] Affichage Pokémon joueur...');
+        this.displayPlayerPokemon(this.currentPlayerPokemon || this.battleData.playerPokemon);
+      }, 500);
+    }
+    
+    if (hasOpponentPokemon) {
+      setTimeout(() => {
+        console.log('[BattleScene] Affichage Pokémon adversaire...');
+        this.displayOpponentPokemon(this.currentOpponentPokemon || this.battleData.opponentPokemon);
         
         // ✅ MESSAGE D'APPARITION MODERNE
-        this.showModernMessage(
-          `Un ${this.currentOpponentPokemon.name} sauvage apparaît !`,
-          { type: 'info', duration: 3000 }
-        );
-      }
-    }, 1200);
+        const opponentName = (this.currentOpponentPokemon || this.battleData.opponentPokemon)?.name;
+        if (opponentName) {
+          this.showModernMessage(
+            `Un ${opponentName} sauvage apparaît !`,
+            { type: 'info', duration: 3000 }
+          );
+        }
+      }, 1200);
+    }
     
-    // ✅ ÉTAPE 2: Activation UI
+    // ✅ ÉTAPE 2: Activation UI (plus rapide)
     setTimeout(() => {
+      console.log('[BattleScene] Activation interface moderne...');
       this.activateModernBattleUI();
-    }, 2500);
+    }, hasOpponentPokemon ? 2500 : 1000);
   }
 
   activateModernBattleUI() {
+    console.log('[BattleScene] 🎮 activateModernBattleUI - DÉMARRAGE UI');
+    
     // ✅ MASQUAGE UI EXPLORATION (moderne)
     this.hideExplorationUIModern();
     
-    // ✅ AFFICHAGE INTERFACE BATAILLE
+    // ✅ AFFICHAGE INTERFACE BATAILLE IMMÉDIAT
+    console.log('[BattleScene] Affichage boutons d\'action...');
     this.showModernActionButtons();
+    
+    // ✅ MESSAGE DE BIENVENUE
+    setTimeout(() => {
+      this.showModernMessage('À vous de jouer !', {
+        type: 'success',
+        duration: 2000
+      });
+    }, 500);
     
     console.log('[BattleScene] 🎮 Interface de combat moderne activée');
   }
@@ -2339,13 +2469,20 @@ export class BattleScene extends Phaser.Scene {
     console.log('👻 [BattleScene] Interface moderne masquée');
   }
 
-  // === 🧪 MÉTHODES DE TEST MODERNES ===
+  // === 🧪 FONCTION DE TEST PRINCIPALE ===
 
   testModernBattleInterface() {
-    console.log('🧪 [BattleScene] Test interface moderne...');
+    console.log('🧪 [BattleScene] Test interface moderne - DÉMARRAGE COMPLET...');
     
-    this.activateModernBattleMode();
+    // ✅ FORCER ACTIVATION DE LA SCÈNE
+    if (!window.game.scene.isActive('BattleScene')) {
+      console.log('🧪 Activation forcée de BattleScene...');
+      window.game.scene.wake('BattleScene');
+      this.scene.setVisible(true);
+      this.scene.bringToTop();
+    }
     
+    // ✅ DONNÉES DE TEST
     const testPlayerPokemon = {
       pokemonId: 1,
       name: 'Bulbizarre',
@@ -2367,18 +2504,20 @@ export class BattleScene extends Phaser.Scene {
       shiny: true
     };
     
-    // ✅ SÉQUENCE DE TEST MODERNE
-    setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 800);
-    setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1500);
-    setTimeout(() => {
-      this.showModernMessage('Un Pikachu chromatique apparaît !', {
-        type: 'success',
-        duration: 3000
-      });
-    }, 2200);
-    setTimeout(() => this.showModernActionButtons(), 3500);
+    // ✅ FORCER LES DONNÉES
+    this.currentPlayerPokemon = testPlayerPokemon;
+    this.currentOpponentPokemon = testOpponentPokemon;
+    this.battleData = {
+      playerPokemon: testPlayerPokemon,
+      opponentPokemon: testOpponentPokemon,
+      battleType: 'wild'
+    };
     
-    console.log('✅ [BattleScene] Test moderne démarré');
+    // ✅ ACTIVATION IMMÉDIATE
+    this.isVisible = true;
+    this.activateModernBattleMode();
+    
+    console.log('✅ [BattleScene] Test moderne démarré avec données forcées');
     return { testPlayerPokemon, testOpponentPokemon };
   }
 
@@ -2475,6 +2614,7 @@ export class BattleScene extends Phaser.Scene {
 
 // === 🌟 FONCTIONS GLOBALES MODERNES ===
 
+// ✅ FONCTION DE TEST PRINCIPALE
 window.testModernBattleInterface = function() {
   console.log('🧪 Test interface moderne...');
   const battleScene = window.game?.scene?.getScene('BattleScene');
@@ -2483,12 +2623,66 @@ window.testModernBattleInterface = function() {
     return null;
   }
   
-  if (!window.game.scene.isActive('BattleScene')) {
-    window.game.scene.wake('BattleScene');
-    battleScene.scene.setVisible(true);
+  return battleScene.testModernBattleInterface();
+};
+
+// ✅ FONCTION DE DEBUG ÉTAT
+window.debugBattleSceneState = function() {
+  console.log('🔍 === DEBUG ÉTAT BATTLE SCENE ===');
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return null;
   }
   
-  return battleScene.testModernBattleInterface();
+  const state = {
+    isActive: battleScene.isActive,
+    isVisible: battleScene.isVisible,
+    isReadyForActivation: battleScene.isReadyForActivation,
+    sceneVisible: battleScene.scene.visible,
+    sceneActive: battleScene.scene.isActive(),
+    interfaceState: battleScene.interfaceState,
+    modernActionPanel: {
+      exists: !!battleScene.modernActionPanel,
+      visible: battleScene.modernActionPanel?.visible || false,
+      children: battleScene.modernActionPanel?.list?.length || 0
+    },
+    pokemonData: {
+      player: battleScene.currentPlayerPokemon?.name || 'Aucun',
+      opponent: battleScene.currentOpponentPokemon?.name || 'Aucun'
+    },
+    battleData: !!battleScene.battleData
+  };
+  
+  console.log('📊 État complet:', state);
+  return state;
+};
+
+// ✅ FONCTION DE FORÇAGE
+window.forceBattleSceneVisible = function() {
+  console.log('🔧 Forçage visibilité BattleScene...');
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return false;
+  }
+  
+  if (battleScene.scene.isSleeping()) {
+    battleScene.scene.wake();
+  }
+  
+  battleScene.scene.setVisible(true);
+  battleScene.scene.bringToTop();
+  battleScene.isVisible = true;
+  
+  // Forcer affichage interface si créée
+  if (battleScene.modernActionPanel) {
+    battleScene.modernActionPanel.setVisible(true);
+    battleScene.showModernActionButtons();
+  }
+  
+  console.log('✅ BattleScene forcé visible');
+  return true;
 };
 
 window.testModernBattleMessages = function() {
