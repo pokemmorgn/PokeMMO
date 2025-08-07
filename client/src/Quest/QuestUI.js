@@ -1391,33 +1391,33 @@ export class QuestUI {
   }
   
   // ✅ MÉTHODE PRINCIPALE : Programmer la progression automatique
-  scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
-    console.log(`⏰ [QuestUI] Programmation progression pour objectif ${objectiveId}`);
+scheduleObjectiveProgression(objectiveId, objectiveInfo, result) {
+  console.log(`⏰ [QuestUI] Programmation progression pour objectif ${objectiveId}`);
+  
+  // Phase 1: Animation verte (0-800ms - réduite de 1200ms)
+  
+  // Phase 2: Début du fade à 500ms (réduit de 1000ms)
+  setTimeout(() => {
+    console.log('🎨 [QuestUI] Phase 2 - Début fade out');
+    objectiveInfo.elements.forEach(element => {
+      if (element.classList.contains('just-completed')) {
+        element.classList.add('fading-out');
+      }
+    });
+  }, 500);
+  
+  // ✅ MODIFICATION : Progression à 700ms au lieu de 2000ms
+  setTimeout(() => {
+    console.log('🔄 [QuestUI] Phase 3 - Progression automatique');
     
-    // Phase 1: Animation verte (0-1200ms - gérée par CSS)
+    // Nettoyer l'animation
+    this.cleanupObjectiveAnimation(objectiveId, objectiveInfo.elements);
     
-    // Phase 2: Début du fade à 1000ms
-    setTimeout(() => {
-      console.log('🎨 [QuestUI] Phase 2 - Début fade out');
-      objectiveInfo.elements.forEach(element => {
-        if (element.classList.contains('just-completed')) {
-          element.classList.add('fading-out');
-        }
-      });
-    }, 1000);
+    // ✅ MODIFICATION : Déclencher refresh SANS cooldown
+    this.forceRefreshNow(); // Cette méthode existe déjà !
     
-    // Phase 3: Progression automatique à 2000ms
-    setTimeout(() => {
-      console.log('🔄 [QuestUI] Phase 3 - Progression automatique');
-      
-      // Nettoyer l'animation
-      this.cleanupObjectiveAnimation(objectiveId, objectiveInfo.elements);
-      
-      // Déclencher le refresh intelligent
-      this.scheduleIntelligentRefresh(0, 'progression_automatique');
-      
-    }, 2000); // ✅ VOS 2 SECONDES DEMANDÉES
-  }
+  }, 700); // ✅ RÉDUIT DE 2000ms À 700ms
+}
   
   // ✅ MÉTHODE HELPER : Nettoyage de l'animation
   cleanupObjectiveAnimation(objectiveId, elements) {
@@ -1850,11 +1850,20 @@ export class QuestUI {
     };
   }
   
-  forceRefreshNow() {
-    console.log('🔄 [QuestUI] Force refresh immédiat');
-    this.progressionState.lastRefreshTime = 0; // Reset cooldown
-    this.scheduleIntelligentRefresh(0, 'force_manual');
+forceRefreshNow() {
+  console.log('🔄 [QuestUI] Force refresh immédiat');
+  this.progressionState.lastRefreshTime = 0; // Reset cooldown
+  this.scheduleIntelligentRefresh(0, 'force_manual');
+  
+  // ✅ AJOUT : Aussi demander quest statuses immédiatement
+  if (window.globalNetworkManager?.room) {
+    window.globalNetworkManager.room.send('getQuestStatuses', {
+      immediate: true,
+      timestamp: Date.now()
+    });
   }
+}
+
   
   // 🟢 NOUVELLE MÉTHODE DEBUG : Tester quête terminée avec NPC
   debugCompletedQuest() {
