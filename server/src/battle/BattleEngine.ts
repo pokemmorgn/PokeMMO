@@ -1084,15 +1084,24 @@ async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResul
               moveName: this.getMoveDisplayName(actionData.action.data.moveId)
             });
             
-            if (result.data.damage > 0) {
-              this.broadcastManager.emit('damageDealt', {
-                targetName: result.data.defenderRole === 'player1' ? 
-                  this.gameState.player1.pokemon!.name : 
-                  this.gameState.player2.pokemon!.name,
-                damage: result.data.damage,
-                newHp: result.data.newHp
-              });
-            }
+          if (result.data.damage > 0) {
+            const defenderPokemon = result.data.defenderRole === 'player1' ? 
+              this.gameState.player1.pokemon! : 
+              this.gameState.player2.pokemon!;
+              
+            this.broadcastManager.emit('damageDealt', {
+              targetName: defenderPokemon.name,
+              targetRole: result.data.defenderRole,        // ✅ AJOUTÉ
+              targetPlayerId: result.data.defenderRole === 'player1' ? 
+                this.gameState.player1.sessionId : 
+                this.gameState.player2.sessionId,          // ✅ AJOUTÉ  
+              damage: result.data.damage,
+              oldHp: result.data.oldHp,                    // ✅ AJOUTÉ
+              newHp: result.data.newHp,
+              maxHp: defenderPokemon.maxHp,                // ✅ AJOUTÉ
+              hpPercentage: Math.round((result.data.newHp / defenderPokemon.maxHp) * 100) // ✅ AJOUTÉ
+            });
+          }
           }
         }
       } catch (error) {
