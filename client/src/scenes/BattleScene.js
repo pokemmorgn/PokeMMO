@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION INTERFACE UNIQUE
+// client/src/scenes/BattleScene.js - VERSION SANS INTERFACE MODERNE OVERLAY
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -28,8 +28,8 @@ export class BattleScene extends Phaser.Scene {
     this.battleBackground = null;
     
     this.modernHealthBars = { player1: null, player2: null };
-    this.battleActionUI = null; // ✅ Interface unique
     this.battleDialog = null;
+    this.battleActionUI = null; // ✅ SEULEMENT LE BattleActionUI
     
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
@@ -45,7 +45,6 @@ export class BattleScene extends Phaser.Scene {
       opponentPlatform: { x: 0.75, y: 0.45 }
     };
     
-    this.interfaceMode = 'hidden';
     this.battleTranslator = null;
   }
 
@@ -81,8 +80,8 @@ export class BattleScene extends Phaser.Scene {
       this.createPokemonPlatforms();
       this.healthBarManager = new HealthBarManager(this);
       this.createModernHealthBars();
-      // ✅ SEULEMENT BattleActionUI - pas d'interface moderne
-      this.createBattleActionUI();
+      // ❌ SUPPRIMER: this.createModernActionInterface();
+      this.createBattleActionUI(); // ✅ SEULEMENT CETTE INTERFACE
       this.createBattleDialog();
       this.setupBattleNetworkEvents();
       this.isActive = true;
@@ -94,44 +93,37 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createBattleActionUI() {
-    // ✅ Créer avec le BattleManager comme paramètre pour les actions
+    // ✅ Créer et connecter le BattleActionUI avec le battleManager
     this.battleActionUI = new BattleActionUI(this, {
-      selectMove: (moveId) => this.handleMoveSelection(moveId),
-      useItem: (itemId) => this.handleItemUse(itemId),
-      attemptRun: () => this.handleRunAttempt()
-    });
-    this.battleActionUI.create();
-  }
-
-  // ✅ Handlers pour les actions du BattleActionUI
-  handleMoveSelection(moveId) {
-    if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.performBattleAction('attack', { moveId });
-    }
-  }
-
-  handleItemUse(itemId) {
-    if (itemId === 'open_bag') {
-      // Ouvrir le sac complet
-      try {
-        if (!this.battleInventoryUI) {
-          this.createBattleInventoryUI();
+      // Passer les méthodes dont BattleActionUI a besoin
+      selectMove: (moveId) => {
+        console.log(`⚔️ Attaque sélectionnée: ${moveId}`);
+        // Envoyer au serveur
+        if (this.battleNetworkHandler) {
+          this.battleNetworkHandler.performBattleAction('attack', { moveId });
         }
-        if (this.battleInventoryUI) {
-          this.battleInventoryUI.openToBalls();
+      },
+      useItem: (itemId) => {
+        console.log(`🎒 Objet utilisé: ${itemId}`);
+        if (this.battleNetworkHandler) {
+          this.battleNetworkHandler.performBattleAction('item', { itemId });
         }
-      } catch (error) {
-        console.error('Erreur ouverture sac:', error);
+      },
+      attemptRun: () => {
+        console.log(`🏃 Tentative de fuite`);
+        if (this.battleNetworkHandler) {
+          this.battleNetworkHandler.attemptRun();
+        }
       }
-    } else if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.performBattleAction('item', { itemId });
-    }
-  }
-
-  handleRunAttempt() {
-    if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.attemptRun();
-    }
+    });
+    
+    this.battleActionUI.create();
+    
+    // ✅ Écouter les événements du BattleActionUI
+    this.events.on('battleActionSelected', (data) => {
+      console.log('🎯 Action de combat sélectionnée:', data);
+      // L'action a déjà été envoyée au serveur par les callbacks ci-dessus
+    });
   }
 
   createBattleEnvironment() {
@@ -357,6 +349,25 @@ export class BattleScene extends Phaser.Scene {
     graphics.fillRoundedRect(0, 0, width, 8, 4);
     graphics.fillStyle(0xFFFFFF, 0.4);
     graphics.fillRoundedRect(0, 1, width, 3, 2);
+  }
+
+  // ✅ MÉTHODES POUR CONTRÔLER LE BattleActionUI depuis BattleScene
+
+  showActionButtons() {
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
+    }
+  }
+
+  hideActionButtons() {
+    if (this.battleActionUI) {
+      this.battleActionUI.hide();
+    }
+  }
+
+  showActionMessage(message) {
+    // Utiliser le système de dialogue pour les messages
+    this.showBattleMessage(message);
   }
 
   createBattleInventoryUI() {
@@ -613,28 +624,6 @@ export class BattleScene extends Phaser.Scene {
         this.battleDialog.setVisible(false);
       }
     });
-  }
-
-  // ✅ Méthodes simplifiées pour les messages via BattleActionUI
-  showActionMessage(message) {
-    this.showBattleMessage(message);
-  }
-
-  hideActionMessage() {
-    this.hideBattleMessage();
-  }
-
-  // ✅ Méthodes pour contrôler BattleActionUI
-  showActionButtons() {
-    if (this.battleActionUI) {
-      this.battleActionUI.show();
-    }
-  }
-
-  hideActionButtons() {
-    if (this.battleActionUI) {
-      this.battleActionUI.hide();
-    }
   }
 
   createAttackEffect(attacker, target) {
@@ -1355,11 +1344,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   transitionToEndBattle(winnerData) {
-    if (!this.battleNetworkHandler?.isConnectedToBattle || this.interfaceMode === 'ended') {
+    if (!this.battleNetworkHandler?.isConnectedToBattle) {
       return;
     }
     
-    this.interfaceMode = 'ended';
     this.hideActionButtons();
     this.showBattleEndMessage(winnerData);
     
@@ -1445,7 +1433,7 @@ export class BattleScene extends Phaser.Scene {
       this.battleActionUI.destroy();
       this.battleActionUI = null;
     }
-    
+
     if (this.battleDialog) {
       this.battleDialog.destroy();
       this.battleDialog = null;
