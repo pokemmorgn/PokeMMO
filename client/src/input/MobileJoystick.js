@@ -1,4 +1,4 @@
-// client/src/input/MobileJoystick.js - VERSION CORRIGÉE
+// client/src/input/MobileJoystick.js - VERSION COMPLÈTEMENT CORRIGÉE
 export class MobileJoystick {
   constructor(scene, options = {}) {
     this.scene = scene;
@@ -61,15 +61,40 @@ export class MobileJoystick {
     this.directionIndicator = this.scene.add.triangle(0, -15, 0, 10, -8, -10, 8, -10, 0x00ff00);
     this.directionIndicator.setAlpha(0);
 
-    // ✅ CORRECTION: Zone interactive créée SÉPARÉMENT et rendue interactive AVANT d'être ajoutée
+    // ✅ CORRECTION COMPLÈTE: Zone interactive avec fonction de callback sécurisée
     this.interactiveZone = this.scene.add.zone(0, 0, this.config.baseRadius * 3, this.config.baseRadius * 3);
     
-    // ✅ Rendre interactive AVANT d'ajouter au container
-    this.interactiveZone.setInteractive({
-      hitArea: new Phaser.Geom.Circle(0, 0, this.config.baseRadius * 1.5),
-      hitAreaCallback: Phaser.Geom.Circle.Contains,
-      useHandCursor: true
-    });
+    // ✅ Fonction custom pour éviter l'erreur Phaser.Geom.Circle.Contains
+    const customCircleHitArea = (hitArea, x, y, gameObject) => {
+      const dx = x - hitArea.x;
+      const dy = y - hitArea.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      return distance <= hitArea.radius;
+    };
+
+    // ✅ Configuration interactive sécurisée
+    try {
+      this.interactiveZone.setInteractive({
+        hitArea: new Phaser.Geom.Circle(0, 0, this.config.baseRadius * 1.5),
+        hitAreaCallback: customCircleHitArea,
+        useHandCursor: true
+      });
+      console.log('✅ Zone interactive du joystick configurée avec succès');
+    } catch (error) {
+      console.warn('⚠️ Erreur configuration zone interactive, utilisation du fallback rectangle:', error);
+      
+      // ✅ FALLBACK: Utiliser un rectangle si le cercle ne fonctionne pas
+      this.interactiveZone.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(
+          -this.config.baseRadius * 1.5, 
+          -this.config.baseRadius * 1.5, 
+          this.config.baseRadius * 3, 
+          this.config.baseRadius * 3
+        ),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true
+      });
+    }
 
     // Ajouter au conteneur APRÈS avoir configuré l'interactivité
     this.joystickContainer.add([this.base, this.knob, this.directionIndicator, this.interactiveZone]);
@@ -81,8 +106,19 @@ export class MobileJoystick {
   }
 
   setupEvents() {
-    // ✅ Événements tactiles/souris avec vérifications de sécurité
-    if (this.interactiveZone && this.interactiveZone.input) {
+    // ✅ Vérifications de sécurité avant configuration des événements
+    if (!this.interactiveZone) {
+      console.error('❌ MobileJoystick: Zone interactive non créée');
+      return;
+    }
+
+    if (!this.interactiveZone.input) {
+      console.error('❌ MobileJoystick: Zone interactive non configurée correctement');
+      return;
+    }
+
+    // ✅ Événements tactiles/souris avec gestion d'erreurs
+    try {
       this.interactiveZone.on('pointerdown', this.onPointerDown, this);
       this.scene.input.on('pointermove', this.onPointerMove, this);
       this.scene.input.on('pointerup', this.onPointerUp, this);
@@ -92,15 +128,18 @@ export class MobileJoystick {
         this.interactiveZone.on('pointerout', this.onPointerUp, this);
         this.interactiveZone.on('pointercancel', this.onPointerUp, this);
       }
-    } else {
-      console.warn('⚠️ MobileJoystick: Zone interactive non configurée correctement');
+      
+      console.log('✅ Événements du joystick configurés');
+    } catch (error) {
+      console.error('❌ Erreur configuration événements joystick:', error);
     }
 
     // Gestion de l'orientation mobile
     if (this.isMobile) {
-      window.addEventListener('orientationchange', () => {
+      this.orientationHandler = () => {
         setTimeout(() => this.repositionForOrientation(), 100);
-      });
+      };
+      window.addEventListener('orientationchange', this.orientationHandler);
     }
 
     // Afficher/masquer selon le contexte
@@ -124,70 +163,90 @@ export class MobileJoystick {
       this.joystickContainer.y = worldPoint.y;
     }
 
-    // Animation d'activation
-    this.scene.tweens.add({
-      targets: this.base,
-      scaleX: 1.1,
-      scaleY: 1.1,
-      alpha: this.config.baseAlpha * 1.2,
-      duration: 100,
-      ease: 'Power2'
-    });
+    // Animation d'activation avec vérification
+    if (this.scene.tweens && this.base) {
+      this.scene.tweens.add({
+        targets: this.base,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        alpha: this.config.baseAlpha * 1.2,
+        duration: 100,
+        ease: 'Power2'
+      });
+    }
 
     this.show();
 
     if (this.callbacks.onStart) {
-      this.callbacks.onStart();
+      try {
+        this.callbacks.onStart();
+      } catch (error) {
+        console.error('❌ Erreur callback onStart:', error);
+      }
     }
   }
 
   onPointerMove(pointer) {
     if (!this.isDragging || !this.isActive) return;
 
-    // Calculer la position relative par rapport à la base
-    const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const dx = worldPoint.x - this.joystickContainer.x;
-    const dy = worldPoint.y - this.joystickContainer.y;
-    
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx);
-
-    // Limiter la distance à maxDistance
-    const clampedDistance = Math.min(distance, this.config.maxDistance);
-    const knobX = Math.cos(angle) * clampedDistance;
-    const knobY = Math.sin(angle) * clampedDistance;
-
-    // Mettre à jour la position du bouton
-    this.knob.x = knobX;
-    this.knob.y = knobY;
-
-    // Calculer la force (0 à 1)
-    const force = Math.min(distance / this.config.maxDistance, 1);
-
-    // Zone morte
-    if (force < this.config.deadZone) {
-      this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
-      this.directionIndicator.setAlpha(0);
-    } else {
-      // Normaliser les valeurs (-1 à 1)
-      const normalizedX = (knobX / this.config.maxDistance);
-      const normalizedY = (knobY / this.config.maxDistance);
+    try {
+      // Calculer la position relative par rapport à la base
+      const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const dx = worldPoint.x - this.joystickContainer.x;
+      const dy = worldPoint.y - this.joystickContainer.y;
       
-      this.currentInput = {
-        x: normalizedX,
-        y: normalizedY,
-        angle: angle,
-        force: force
-      };
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
 
-      // Mettre à jour l'indicateur de direction
-      this.directionIndicator.setRotation(angle + Math.PI / 2);
-      this.directionIndicator.setAlpha(force * 0.8);
-    }
+      // Limiter la distance à maxDistance
+      const clampedDistance = Math.min(distance, this.config.maxDistance);
+      const knobX = Math.cos(angle) * clampedDistance;
+      const knobY = Math.sin(angle) * clampedDistance;
 
-    // Callback de mouvement
-    if (this.callbacks.onMove) {
-      this.callbacks.onMove(this.currentInput);
+      // Mettre à jour la position du bouton
+      if (this.knob) {
+        this.knob.x = knobX;
+        this.knob.y = knobY;
+      }
+
+      // Calculer la force (0 à 1)
+      const force = Math.min(distance / this.config.maxDistance, 1);
+
+      // Zone morte
+      if (force < this.config.deadZone) {
+        this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
+        if (this.directionIndicator) {
+          this.directionIndicator.setAlpha(0);
+        }
+      } else {
+        // Normaliser les valeurs (-1 à 1)
+        const normalizedX = (knobX / this.config.maxDistance);
+        const normalizedY = (knobY / this.config.maxDistance);
+        
+        this.currentInput = {
+          x: normalizedX,
+          y: normalizedY,
+          angle: angle,
+          force: force
+        };
+
+        // Mettre à jour l'indicateur de direction
+        if (this.directionIndicator) {
+          this.directionIndicator.setRotation(angle + Math.PI / 2);
+          this.directionIndicator.setAlpha(force * 0.8);
+        }
+      }
+
+      // Callback de mouvement
+      if (this.callbacks.onMove) {
+        try {
+          this.callbacks.onMove(this.currentInput);
+        } catch (error) {
+          console.error('❌ Erreur callback onMove:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur onPointerMove:', error);
     }
   }
 
@@ -196,87 +255,120 @@ export class MobileJoystick {
 
     this.isDragging = false;
 
-    // Animation de retour à la position centrale
-    this.scene.tweens.add({
-      targets: this.knob,
-      x: 0,
-      y: 0,
-      duration: 200,
-      ease: 'Power2'
-    });
+    try {
+      // Animation de retour à la position centrale
+      if (this.scene.tweens && this.knob) {
+        this.scene.tweens.add({
+          targets: this.knob,
+          x: 0,
+          y: 0,
+          duration: 200,
+          ease: 'Power2'
+        });
+      }
 
-    // Animation de désactivation de la base
-    this.scene.tweens.add({
-      targets: this.base,
-      scaleX: 1,
-      scaleY: 1,
-      alpha: this.config.baseAlpha,
-      duration: 200,
-      ease: 'Power2'
-    });
+      // Animation de désactivation de la base
+      if (this.scene.tweens && this.base) {
+        this.scene.tweens.add({
+          targets: this.base,
+          scaleX: 1,
+          scaleY: 1,
+          alpha: this.config.baseAlpha,
+          duration: 200,
+          ease: 'Power2'
+        });
+      }
 
-    // Masquer l'indicateur de direction
-    this.scene.tweens.add({
-      targets: this.directionIndicator,
-      alpha: 0,
-      duration: 150
-    });
+      // Masquer l'indicateur de direction
+      if (this.scene.tweens && this.directionIndicator) {
+        this.scene.tweens.add({
+          targets: this.directionIndicator,
+          alpha: 0,
+          duration: 150
+        });
+      }
 
-    // Reset des valeurs
-    this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
+      // Reset des valeurs
+      this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
 
-    // Auto-masquer si nécessaire
-    if (this.config.autoHide && !this.isMobile) {
-      // ✅ CORRECTION: Utiliser scene.time au lieu de this.time
-      this.scene.time.delayedCall(1000, () => {
-        if (!this.isDragging) {
-          this.hide();
+      // Auto-masquer si nécessaire
+      if (this.config.autoHide && !this.isMobile) {
+        if (this.scene.time) {
+          this.scene.time.delayedCall(1000, () => {
+            if (!this.isDragging) {
+              this.hide();
+            }
+          });
         }
-      });
-    }
+      }
 
-    if (this.callbacks.onEnd) {
-      this.callbacks.onEnd();
+      if (this.callbacks.onEnd) {
+        try {
+          this.callbacks.onEnd();
+        } catch (error) {
+          console.error('❌ Erreur callback onEnd:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur onPointerUp:', error);
     }
   }
 
   // Méthodes publiques
   show() {
+    if (!this.joystickContainer) return;
+    
     this.isActive = true;
     this.joystickContainer.setVisible(true);
-    this.scene.tweens.add({
-      targets: this.joystickContainer,
-      alpha: 1,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 200,
-      ease: 'Back.easeOut'
-    });
+    
+    if (this.scene.tweens) {
+      this.scene.tweens.add({
+        targets: this.joystickContainer,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+    }
   }
 
   hide() {
-    this.scene.tweens.add({
-      targets: this.joystickContainer,
-      alpha: 0,
-      scaleX: 0.8,
-      scaleY: 0.8,
-      duration: 150,
-      ease: 'Power2',
-      onComplete: () => {
-        this.isActive = false;
-        this.joystickContainer.setVisible(false);
-      }
-    });
+    if (!this.joystickContainer) return;
+    
+    if (this.scene.tweens) {
+      this.scene.tweens.add({
+        targets: this.joystickContainer,
+        alpha: 0,
+        scaleX: 0.8,
+        scaleY: 0.8,
+        duration: 150,
+        ease: 'Power2',
+        onComplete: () => {
+          this.isActive = false;
+          if (this.joystickContainer) {
+            this.joystickContainer.setVisible(false);
+          }
+        }
+      });
+    } else {
+      this.isActive = false;
+      this.joystickContainer.setVisible(false);
+    }
   }
 
   setPosition(x, y) {
     this.config.x = x;
     this.config.y = y;
-    this.joystickContainer.x = x;
-    this.joystickContainer.y = y;
+    if (this.joystickContainer) {
+      this.joystickContainer.x = x;
+      this.joystickContainer.y = y;
+    }
   }
 
   repositionForOrientation() {
+    if (!this.scene?.cameras?.main) return;
+    
     const camera = this.scene.cameras.main;
     if (window.orientation === 90 || window.orientation === -90) {
       // Mode paysage
@@ -327,10 +419,17 @@ export class MobileJoystick {
   // Remet le joystick à zéro comme si l'utilisateur relâchait tout
   reset() {
     this.isDragging = false;
-    this.knob.x = 0;
-    this.knob.y = 0;
+    
+    if (this.knob) {
+      this.knob.x = 0;
+      this.knob.y = 0;
+    }
+    
     this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
-    this.directionIndicator.setAlpha(0);
+    
+    if (this.directionIndicator) {
+      this.directionIndicator.setAlpha(0);
+    }
 
     // Si autoHide doit s'appliquer
     if (this.config.autoHide && !this.isMobile) {
@@ -340,53 +439,97 @@ export class MobileJoystick {
     }
 
     if (this.callbacks.onEnd) {
-      this.callbacks.onEnd();
+      try {
+        this.callbacks.onEnd();
+      } catch (error) {
+        console.error('❌ Erreur callback onEnd dans reset:', error);
+      }
     }
   }
 
-  // ✅ Nettoyage amélioré
-destroy() {
-  console.log('🧹 Destruction MobileJoystick...');
-
-  // Nettoyer les événements
-  if (this.interactiveZone) {
-    // ✅ AJOUTE CETTE LIGNE
-    if (this.interactiveZone.input) {
-      this.interactiveZone.removeInteractive();
+  // ✅ Méthode pour désactiver temporairement sans détruire
+  disableTemporarily() {
+    console.log('🚫 Désactivation temporaire du MobileJoystick');
+    
+    this.isActive = false;
+    this.isDragging = false;
+    
+    if (this.interactiveZone && this.interactiveZone.input) {
+      this.interactiveZone.disableInteractive();
     }
-
-    this.interactiveZone.off('pointerdown', this.onPointerDown, this);
-    if (this.isMobile) {
-      this.interactiveZone.off('pointerout', this.onPointerUp, this);
-      this.interactiveZone.off('pointercancel', this.onPointerUp, this);
+    
+    if (this.joystickContainer) {
+      this.joystickContainer.setVisible(false);
     }
-    if (this.interactiveZone.destroy) {
-      this.interactiveZone.destroy();
+  }
+
+  // ✅ Méthode pour réactiver
+  reactivate() {
+    console.log('✅ Réactivation du MobileJoystick');
+    
+    if (this.interactiveZone && !this.interactiveZone.input.enabled) {
+      this.interactiveZone.setInteractive();
     }
-    this.interactiveZone = null;
+    
+    this.isActive = true;
+    
+    if (this.isMobile || !this.config.autoHide) {
+      this.show();
+    }
   }
 
-  if (this.scene && this.scene.input) {
-    this.scene.input.off('pointermove', this.onPointerMove, this);
-    this.scene.input.off('pointerup', this.onPointerUp, this);
+  // ✅ Nettoyage complet et sécurisé
+  destroy() {
+    console.log('🧹 Destruction MobileJoystick...');
+
+    try {
+      // Nettoyer les événements de scène
+      if (this.scene && this.scene.input) {
+        this.scene.input.off('pointermove', this.onPointerMove, this);
+        this.scene.input.off('pointerup', this.onPointerUp, this);
+      }
+
+      // Nettoyer la zone interactive
+      if (this.interactiveZone) {
+        if (this.interactiveZone.input) {
+          this.interactiveZone.removeInteractive();
+        }
+        
+        this.interactiveZone.off('pointerdown', this.onPointerDown, this);
+        
+        if (this.isMobile) {
+          this.interactiveZone.off('pointerout', this.onPointerUp, this);
+          this.interactiveZone.off('pointercancel', this.onPointerUp, this);
+        }
+        
+        if (this.interactiveZone.destroy) {
+          this.interactiveZone.destroy();
+        }
+        this.interactiveZone = null;
+      }
+
+      // Nettoyer le conteneur principal
+      if (this.joystickContainer) {
+        this.joystickContainer.destroy(true);
+        this.joystickContainer = null;
+      }
+
+      // Nettoyer l'événement d'orientation
+      if (this.isMobile && this.orientationHandler) {
+        window.removeEventListener('orientationchange', this.orientationHandler);
+        this.orientationHandler = null;
+      }
+
+      // Nettoyer les références
+      this.base = null;
+      this.knob = null;
+      this.directionIndicator = null;
+      this.callbacks = {};
+      this.scene = null;
+
+      console.log('✅ MobileJoystick détruit avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors de la destruction du MobileJoystick:', error);
+    }
   }
-
-  if (this.joystickContainer) {
-    this.joystickContainer.destroy(true);
-    this.joystickContainer = null;
-  }
-
-  if (this.isMobile) {
-    window.removeEventListener('orientationchange', this.repositionForOrientation);
-  }
-
-  this.base = null;
-  this.knob = null;
-  this.directionIndicator = null;
-  this.callbacks = {};
-
-  console.log('✅ MobileJoystick détruit');
-}
-
-
 }
