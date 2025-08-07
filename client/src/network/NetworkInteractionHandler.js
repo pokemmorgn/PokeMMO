@@ -245,9 +245,15 @@ export class NetworkInteractionHandler {
   }
 
   // ✅ Handler pour les indicateurs de quête (avec retry intelligent)
-  handleQuestStatuses(data) {
+handleQuestStatuses(data) {
+  // ✅ MODIFICATION : Si immediate=true, pas de retry, application directe
+  if (data.immediate) {
+    console.log('⚡ [NetworkInteractionHandler] Application IMMÉDIATE quest statuses');
+    this.applyQuestStatusesWithRetry(data, 99); // Force dernière tentative = application directe
+  } else {
     this.applyQuestStatusesWithRetry(data, 0);
   }
+}
 
   applyQuestStatusesWithRetry(data, attempt = 0) {
     const maxAttempts = 5;
@@ -256,14 +262,17 @@ export class NetworkInteractionHandler {
     console.log(`📋 Tentative ${attempt + 1}/${maxAttempts} d'application quest statuses`);
     
     const activeScene = this.getActiveScene();
+    // ✅ MODIFICATION : Si attempt >= maxAttempts, forcer l'application même si pas de scene
     if (!activeScene || !activeScene.npcManager) {
-      if (attempt < maxAttempts) {
+      if (attempt < maxAttempts && attempt < 99) { // 99 = force immediate
         console.log(`⏳ Retry dans ${delay}ms...`);
         setTimeout(() => {
           this.applyQuestStatusesWithRetry(data, attempt + 1);
         }, delay);
       } else {
-        console.error('❌ Impossible d\'appliquer quest statuses après', maxAttempts, 'tentatives');
+        // ✅ NOUVEAU : Même sans scene, essayer de déclencher un event global
+        console.log('📡 [NetworkInteractionHandler] Pas de scene, event global...');
+        document.dispatchEvent(new CustomEvent('questStatusUpdate', { detail: data }));
       }
       return;
     }
