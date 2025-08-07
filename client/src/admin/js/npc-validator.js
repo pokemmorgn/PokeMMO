@@ -5,70 +5,121 @@
 import { NPC_TYPES, COMMON_FIELDS, FIELD_VALIDATORS } from './npc-types-config.js'
 
 export class NPCValidator {
-    constructor() {
+    constructor(options = {}) {
         this.errors = []
         this.warnings = []
         this.suggestions = []
+        this.enableLogging = options.enableLogging || false
+        this.logLevel = options.logLevel || 'info' // 'debug', 'info', 'warn', 'error'
+        this.validationSteps = []
     }
 
     // Validation complète d'un NPC
     validateNPC(npc) {
         this.reset()
+        this.log('info', `🔍 Début de validation NPC`, { npcId: npc?.id, npcType: npc?.type })
         
         if (!npc || typeof npc !== 'object') {
+            this.log('error', `❌ NPC invalide ou manquant`, { npc })
             this.addError('general', 'NPC invalide ou manquant')
             return this.getResult()
         }
 
+        this.log('debug', `📋 Structure NPC reçue`, { 
+            keys: Object.keys(npc),
+            hasId: !!npc.id,
+            hasName: !!npc.name,
+            hasType: !!npc.type
+        })
+
         // Validations de base (assouplies)
+        this.log('info', `🔧 Validation des champs de base`)
         this.validateBasicFields(npc)
+        
+        this.log('info', `⚙️ Validation des champs communs`)
         this.validateCommonFields(npc)
         
         // Validations spécifiques au type (optionnelles)
         if (npc.type && NPC_TYPES[npc.type]) {
+            this.log('info', `🎯 Validation spécifique au type: ${npc.type}`)
             this.validateTypeSpecificFields(npc)
             this.validateBusinessLogic(npc)
             this.validateReferences(npc)
         } else if (npc.type) {
+            this.log('warn', `⚠️ Type NPC non reconnu: ${npc.type}`)
             this.addWarning('type', `Type NPC non reconnu: ${npc.type}`)
+        } else {
+            this.log('warn', `⚠️ Aucun type NPC spécifié`)
         }
 
         // Suggestions d'amélioration
+        this.log('info', `💡 Génération des suggestions`)
         this.generateSuggestions(npc)
 
-        return this.getResult()
+        const result = this.getResult()
+        this.log('info', `✅ Validation terminée`, {
+            valid: result.valid,
+            errorsCount: result.errors.length,
+            warningsCount: result.warnings.length,
+            suggestionsCount: result.suggestions.length
+        })
+
+        if (result.errors.length > 0) {
+            this.log('error', `🚨 Erreurs détectées:`, result.errors)
+        }
+
+        return result
     }
 
     // Validation des champs de base (plus flexible)
     validateBasicFields(npc) {
+        this.log('debug', `🔍 Validation champs de base`, { npcData: npc })
+        
         // Seuls ID et nom sont vraiment obligatoires
         if (!npc.id) {
+            this.log('error', `❌ ID manquant`, { npc })
             this.addError('id', 'ID obligatoire')
+        } else {
+            this.log('debug', `✅ ID présent: ${npc.id}`)
         }
         
         if (!npc.name) {
+            this.log('error', `❌ Nom manquant`, { npc })
             this.addError('name', 'Nom obligatoire')
+        } else {
+            this.log('debug', `✅ Nom présent: ${npc.name}`)
         }
 
         // Les autres champs deviennent des warnings ou suggestions
         if (!npc.type) {
+            this.log('warn', `⚠️ Type manquant`)
             this.addWarning('type', 'Type de NPC recommandé')
+        } else {
+            this.log('debug', `✅ Type présent: ${npc.type}`)
         }
         
         if (!npc.position) {
+            this.log('warn', `⚠️ Position manquante`)
             this.addWarning('position', 'Position recommandée')
+        } else {
+            this.log('debug', `✅ Position présente:`, npc.position)
         }
         
         if (!npc.sprite) {
+            this.log('info', `💡 Sprite manquant`)
             this.addSuggestion('sprite', 'Sprite recommandé pour l\'affichage')
+        } else {
+            this.log('debug', `✅ Sprite présent: ${npc.sprite}`)
         }
 
         // Validation du nom (si présent)
         if (npc.name) {
             if (typeof npc.name !== 'string' || npc.name.trim().length < 1) {
+                this.log('error', `❌ Nom invalide`, { name: npc.name, type: typeof npc.name })
                 this.addError('name', 'Le nom doit contenir au moins 1 caractère')
             }
             if (npc.name.length > 100) {
+                this.log('warn', `⚠️ Nom très long: ${npc.name.length} caractères`)
                 this.addWarning('name', 'Le nom est très long (>100 caractères)')
             }
         }
@@ -76,15 +127,25 @@ export class NPCValidator {
         // Validation de la position (si présente)
         if (npc.position) {
             if (typeof npc.position !== 'object') {
+                this.log('warn', `⚠️ Position n'est pas un objet`, { position: npc.position, type: typeof npc.position })
                 this.addWarning('position', 'Position doit être un objet')
             } else {
                 if (typeof npc.position.x !== 'number' || typeof npc.position.y !== 'number') {
+                    this.log('warn', `⚠️ Position x/y invalides`, { 
+                        x: npc.position.x, 
+                        y: npc.position.y,
+                        xType: typeof npc.position.x,
+                        yType: typeof npc.position.y
+                    })
                     this.addWarning('position', 'Position doit contenir x et y numériques')
                 } else {
+                    this.log('debug', `✅ Position valide: x=${npc.position.x}, y=${npc.position.y}`)
                     if (npc.position.x < 0 || npc.position.y < 0) {
+                        this.log('info', `💡 Position négative détectée`)
                         this.addSuggestion('position', 'Position négative détectée')
                     }
                     if (npc.position.x > 5000 || npc.position.y > 5000) {
+                        this.log('info', `💡 Position très éloignée`)
                         this.addSuggestion('position', 'Position très éloignée (>5000px)')
                     }
                 }
@@ -93,10 +154,13 @@ export class NPCValidator {
 
         // Validation du sprite (si présent)
         if (npc.sprite) {
+            this.log('debug', `🎨 Validation sprite: ${npc.sprite}`)
             if (!npc.sprite.endsWith('.png') && !npc.sprite.endsWith('.jpg') && !npc.sprite.endsWith('.gif')) {
+                this.log('info', `💡 Format sprite non standard: ${npc.sprite}`)
                 this.addSuggestion('sprite', 'Format d\'image recommandé: .png, .jpg ou .gif')
             }
             if (npc.sprite.includes(' ')) {
+                this.log('warn', `⚠️ Sprite contient des espaces: ${npc.sprite}`)
                 this.addWarning('sprite', 'Le nom du sprite ne devrait pas contenir d\'espaces')
             }
         }
@@ -482,27 +546,83 @@ export class NPCValidator {
         this.errors = []
         this.warnings = []
         this.suggestions = []
+        this.validationSteps = []
+        this.log('debug', `🔄 Reset du validateur`)
+    }
+
+    log(level, message, data = null) {
+        if (!this.enableLogging) return
+        
+        const logLevels = { debug: 0, info: 1, warn: 2, error: 3 }
+        const currentLevel = logLevels[this.logLevel] || 1
+        const messageLevel = logLevels[level] || 1
+        
+        if (messageLevel >= currentLevel) {
+            const timestamp = new Date().toISOString()
+            const logEntry = {
+                timestamp,
+                level: level.toUpperCase(),
+                message,
+                ...(data && { data })
+            }
+            
+            // Console log avec couleurs
+            const colors = {
+                debug: '🔍',
+                info: 'ℹ️',
+                warn: '⚠️',
+                error: '❌'
+            }
+            
+            console.log(`${colors[level]} [${timestamp}] ${message}`, data || '')
+            
+            // Stocker pour le rapport
+            this.validationSteps.push(logEntry)
+        }
     }
 
     addError(field, message) {
+        this.log('error', `❌ ERREUR - ${field}: ${message}`)
         this.errors.push({ field, message, type: 'error' })
     }
 
     addWarning(field, message) {
+        this.log('warn', `⚠️ WARNING - ${field}: ${message}`)
         this.warnings.push({ field, message, type: 'warning' })
     }
 
     addSuggestion(field, message) {
+        this.log('info', `💡 SUGGESTION - ${field}: ${message}`)
         this.suggestions.push({ field, message, type: 'suggestion' })
     }
 
     getResult() {
-        return {
+        const result = {
             valid: this.errors.length === 0,
             errors: this.errors,
             warnings: this.warnings,
             suggestions: this.suggestions,
-            total: this.errors.length + this.warnings.length + this.suggestions.length
+            total: this.errors.length + this.warnings.length + this.suggestions.length,
+            ...(this.enableLogging && { 
+                validationSteps: this.validationSteps,
+                summary: this.getValidationSummary()
+            })
+        }
+        
+        this.log('info', `📊 Résultat final`, result)
+        return result
+    }
+
+    getValidationSummary() {
+        return {
+            totalSteps: this.validationSteps.length,
+            stepsByLevel: this.validationSteps.reduce((acc, step) => {
+                acc[step.level] = (acc[step.level] || 0) + 1
+                return acc
+            }, {}),
+            duration: this.validationSteps.length > 0 ? 
+                new Date(this.validationSteps[this.validationSteps.length - 1].timestamp) - 
+                new Date(this.validationSteps[0].timestamp) : 0
         }
     }
 
