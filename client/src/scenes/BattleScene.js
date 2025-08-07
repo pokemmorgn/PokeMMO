@@ -853,48 +853,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createPokemonMovesInterface() {
-    if (!this.battleNetworkHandler) {
-      console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour PokemonMovesUI');
-      return;
-    }
-
-    if (this.battleNetworkHandler && typeof this.battleNetworkHandler.canSendBattleActions === 'function') {
-      const canSend = this.battleNetworkHandler.canSendBattleActions();
-      if (!canSend) {
-        console.warn('⚠️ [BattleScene] NetworkHandler pas encore connecté - interface en attente');
-      }
-    }
-
-    this.pokemonMovesUI = new PokemonMovesUI(this, this.battleNetworkHandler);
-    this.pokemonMovesUI.create();
-
-    this.events.on('movesMenuError', (data) => {
-      console.error('❌ [BattleScene] Erreur menu attaques:', data.message);
-      this.showActionMessage(`Erreur attaques: ${data.message}`);
-      setTimeout(() => {
-        this.showActionButtons();
-      }, 3000);
-    });
-
-    this.events.on('moveSelected', (data) => {
-      console.log(`⚔️ [BattleScene] Attaque sélectionnée: ${data.moveName}`);
-      
-      this.showActionMessage(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${data.moveName} !`);
-      
-      this.scene.events.emit('battleActionSelected', {
-        type: 'move',
-        moveId: data.moveId,
-        moveName: data.moveName,
-        moveData: data.moveData
-      });
-    });
-
-    this.events.on('movesMenuClosed', () => {
-      console.log('🔙 [BattleScene] Menu attaques fermé - retour menu principal');
-      this.showActionButtons();
-    });
-
-    console.log('✅ [BattleScene] Interface attaques Pokémon authentique créée');
+    // ✅ DÉSACTIVER L'ANCIENNE INTERFACE POPUP
+    console.log('🚫 [BattleScene] Interface PokemonMovesUI désactivée - utilisation système intégré');
+    
+    // Ne plus créer la popup, on utilise le système intégré
+    this.pokemonMovesUI = null;
+    
+    // Pas d'événements à écouter pour l'ancienne interface
+    console.log('✅ [BattleScene] Système d\'attaques intégré activé');
   }
 
   handleActionButton(actionKey) {
@@ -2880,10 +2846,8 @@ export class BattleScene extends Phaser.Scene {
     this.deactivateBattleUI();
     this.clearAllPokemonSprites();
 
-    if (this.pokemonMovesUI) {
-      this.pokemonMovesUI.destroy();
-      this.pokemonMovesUI = null;
-    }
+    // ✅ Plus de référence à pokemonMovesUI
+    this.pokemonMovesUI = null;
 
     if (this.actionInterface) {
       this.actionInterface.destroy();
@@ -2905,6 +2869,16 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleBackground) {
       this.battleBackground.destroy();
       this.battleBackground = null;
+    }
+    
+    // ✅ Nettoyer les boutons d'attaques
+    if (this.moveButtons) {
+      this.moveButtons.forEach(button => {
+        if (button && button.destroy) {
+          button.destroy();
+        }
+      });
+      this.moveButtons = [];
     }
     
     super.destroy();
