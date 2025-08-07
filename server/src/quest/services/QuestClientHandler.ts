@@ -635,62 +635,75 @@ class QuestClientHandler implements IQuestClientHandler, QuestClientNotifier {
   }
 
   // ✅ MÉTHODE CORRIGÉE : Refresh complet de l'UI
-  private refreshPlayerQuestUI(playerId: string, questId?: string): void {
-    try {
-      console.log(`🔄 [QuestClientHandler] REFRESH COMPLET UI pour ${playerId}`);
-      
-      const worldRoom = this.serviceRegistry.getWorldRoom();
-      if (!worldRoom) {
-        console.error(`❌ [QuestClientHandler] WorldRoom non disponible`);
-        return;
-      }
+// ✅ SOLUTION : Attendre que la DB soit mise à jour AVANT de refresh les NPCs
+private refreshPlayerQuestUI(playerId: string, questId?: string): void {
+  try {
+    console.log(`🔄 [QuestClientHandler] REFRESH COMPLET UI pour ${playerId}`);
+    
+    const worldRoom = this.serviceRegistry.getWorldRoom();
+    if (!worldRoom) {
+      console.error(`❌ [QuestClientHandler] WorldRoom non disponible`);
+      return;
+    }
 
-      // ✅ ÉTAPE 1 : Refresh des statuts NPCs (existant)
-      setTimeout(async () => {
-        try {
-          console.log(`🔄 [QuestClientHandler] 1/2 - Refresh statuts NPCs pour ${playerId}`);
-          await worldRoom.updateQuestStatusesFixed(playerId);
-          console.log(`✅ [QuestClientHandler] Statuts NPCs refreshés pour ${playerId}`);
-        } catch (error) {
-          console.error(`❌ [QuestClientHandler] Erreur refresh NPCs:`, error);
-        }
-      }, 300);
-
-      // ✅ ÉTAPE 2 : NOUVEAU - Refresh direct du quest tracker
-      setTimeout(async () => {
-        try {
-          console.log(`🔄 [QuestClientHandler] 2/2 - Refresh quest tracker pour ${playerId}`);
-          
-          const questManager = worldRoom.getQuestManager();
-          if (!questManager) {
-            console.error(`❌ [QuestClientHandler] QuestManager non disponible`);
-            return;
-          }
-
+    // ✅ ÉTAPE 1 : Attendre que le QuestManager persiste les changements
+    setTimeout(async () => {
+      try {
+        console.log(`🔄 [QuestClientHandler] 1/3 - Refresh quest tracker d'abord`);
+        
+        const questManager = worldRoom.getQuestManager();
+        if (questManager) {
           const activeQuests = await questManager.getActiveQuests(playerId);
-          console.log(`📋 [QuestClientHandler] ${activeQuests.length} quêtes actives récupérées`);
-
+          
           const success = this.serviceRegistry.notifyPlayer(playerId, "activeQuestsList", {
             quests: activeQuests,
             source: "questProgressRefresh",
             timestamp: Date.now()
           });
-
-          if (success) {
-            console.log(`✅ [QuestClientHandler] Quest tracker refreshé pour ${playerId}`);
-          } else {
-            console.warn(`⚠️ [QuestClientHandler] Échec notification quest tracker pour ${playerId}`);
-          }
-
-        } catch (error) {
-          console.error(`❌ [QuestClientHandler] Erreur refresh quest tracker:`, error);
+          
+          console.log(`✅ [QuestClientHandler] Quest tracker refreshé`);
         }
-      }, 500);
+      } catch (error) {
+        console.error(`❌ [QuestClientHandler] Erreur refresh quest tracker:`, error);
+      }
+    }, 200);
 
-    } catch (error) {
-      console.error(`❌ [QuestClientHandler] Erreur dans refreshPlayerQuestUI:`, error);
-    }
+    // ✅ ÉTAPE 2 : MAINTENANT refresh les NPCs avec les bonnes données
+    setTimeout(async () => {
+      try {
+        console.log(`🔄 [QuestClientHandler] 2/3 - Refresh statuts NPCs`);
+        await worldRoom.updateQuestStatusesFixed(playerId);
+        console.log(`✅ [QuestClientHandler] Statuts NPCs refreshés`);
+      } catch (error) {
+        console.error(`❌ [QuestClientHandler] Erreur refresh NPCs:`, error);
+      }
+    }, 500);
+
+    // ✅ ÉTAPE 3 : Double-check final
+    setTimeout(async () => {
+      try {
+        console.log(`🔄 [QuestClientHandler] 3/3 - Refresh final quest tracker`);
+        
+        const questManager = worldRoom.getQuestManager();
+        if (questManager) {
+          const activeQuests = await questManager.getActiveQuests(playerId);
+          
+          this.serviceRegistry.notifyPlayer(playerId, "activeQuestsList", {
+            quests: activeQuests,
+            source: "finalRefresh",
+            forceUpdate: true,
+            timestamp: Date.now()
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [QuestClientHandler] Erreur refresh final:`, error);
+      }
+    }, 800);
+
+  } catch (error) {
+    console.error(`❌ [QuestClientHandler] Erreur dans refreshPlayerQuestUI:`, error);
   }
+}
 
   // ✅ NOUVELLE MÉTHODE : Refresh séparé pour quest tracker uniquement
   private refreshQuestTracker(playerId: string): void {
