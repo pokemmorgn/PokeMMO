@@ -43,12 +43,12 @@ export class BattleScene extends Phaser.Scene {
     this.loadingSprites = new Set();
     this.loadedSprites = new Set();
     
-    // Positions optimisées
+    // Positions optimisées - RÉGLAGES DE POSITION
     this.pokemonPositions = {
       player: { x: 0.15, y: 0.78 },
-      opponent: { x: 0.70, y: 0.25 },
+      opponent: { x: 0.70, y: 0.20 },      // ⬇️ POSITION POKÉMON ADVERSE : Baissé de 0.25 à 0.20
       playerPlatform: { x: 0.18, y: 0.88 },
-      opponentPlatform: { x: 0.73, y: 0.35 }
+      opponentPlatform: { x: 0.73, y: 0.30 }  // ⬇️ POSITION SOCLE ADVERSE : Baissé de 0.35 à 0.30
     };
     
     // Interface state
