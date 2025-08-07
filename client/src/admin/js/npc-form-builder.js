@@ -2772,6 +2772,14 @@ getNPC() {
     }
     
     console.log('✅ [FormBuilder] Final NPC collected');
+    // ✅ DEBUG FINAL avant envoi
+console.log('🔍 [FormBuilder] FINAL DEBUG:');
+console.log('  - sprite value:', npcData.sprite);
+console.log('  - sprite type:', typeof npcData.sprite);
+console.log('  - sprite length:', npcData.sprite?.length);
+console.log('  - all keys:', Object.keys(npcData));
+
+return npcData;
     return npcData;
 }
 
