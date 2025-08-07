@@ -852,29 +852,53 @@ detectAvailableActions(data) {
 
   // ===== FERMETURE =====
 
-  hide() {
+hide() {
     if (!this.isOpen()) return;
-
     console.log('🎭 Fermeture DialogueManager');
-
+    
     // ✅ NOUVEAU : Fermer aussi l'overlay de livraison
     if (this.questDeliveryOverlay && this.questDeliveryOverlay.isOpen()) {
       this.questDeliveryOverlay.hide();
     }
-
+    
     // Appeler le callback de fermeture
     const onCloseCallback = this.classicState.onClose;
-
+    
     // Fermer l'UI
     this.dialogueUI.hide();
-
+    
+    // ✅ CORRECTION CRITIQUE : Nettoyer manuellement l'élément DOM
+    const dialogueBox = document.querySelector('#dialogue-box');
+    if (dialogueBox) {
+      console.log('🧹 [DialogueManager] Nettoyage manuel dialogue-box');
+      dialogueBox.style.display = 'none';
+      dialogueBox.style.visibility = 'hidden';
+      dialogueBox.style.pointerEvents = 'none';
+      dialogueBox.style.zIndex = '-1';
+      dialogueBox.style.opacity = '0';
+      
+      // Supprimer les classes qui pourraient garder l'élément actif
+      dialogueBox.classList.remove('active', 'visible', 'open', 'showing');
+      dialogueBox.classList.add('hidden', 'closed');
+    }
+    
+    // ✅ BONUS : Nettoyer aussi les autres éléments de dialogue possibles
+    const allDialogueElements = document.querySelectorAll('[id*="dialogue"], [class*="dialogue"]');
+    allDialogueElements.forEach(el => {
+      if (el.style.display !== 'none') {
+        console.log('🧹 Nettoyage élément dialogue supplémentaire:', el.id || el.className);
+        el.style.pointerEvents = 'none';
+        el.style.zIndex = '-1';
+      }
+    });
+    
     // 🔧 NOUVEAU : Garder les données un moment au cas où QuestDetailsUI en aurait besoin
     const currentData = this.currentDialogueData;
     
     // Nettoyer l'état
     this.currentDialogueData = null;
     this.classicState = { lines: [], currentPage: 0, onClose: null, actions: [] };
-
+    
     // 🔧 NOUVEAU : Nettoyer les données avec délai pour QuestDetailsUI
     setTimeout(() => {
       if (currentData && !window._questDetailsUIActive && window._lastNpcInteractionData) {
@@ -883,7 +907,7 @@ detectAvailableActions(data) {
         window._lastNpcInteractionData = null;
       }
     }, 5000); // 5 secondes de délai
-
+    
     // Appeler le callback
     if (onCloseCallback && typeof onCloseCallback === 'function') {
       try {
@@ -892,6 +916,17 @@ detectAvailableActions(data) {
         console.error('❌ Erreur callback fermeture:', error);
       }
     }
+    
+    // ✅ VÉRIFICATION FINALE : S'assurer que les clics sont débloqués
+    setTimeout(() => {
+      const centerElement = document.elementFromPoint(window.innerWidth/2, window.innerHeight/2);
+      if (centerElement && centerElement.id === 'dialogue-box') {
+        console.warn('⚠️ [DialogueManager] dialogue-box bloque encore, nettoyage forcé');
+        centerElement.style.pointerEvents = 'none';
+        centerElement.style.zIndex = '-9999';
+        centerElement.remove(); // Solution radicale
+      }
+    }, 100);
   }
 
   // ===== ÉTAT ET INFORMATIONS =====
